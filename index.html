@@ -3,67 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Troll Sticker Tracker</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>🧌 Troll Runner</title>
+    <style>
+        body {
+            background: linear-gradient(to right, pink, blue);
+            font-family: Arial, sans-serif;
+        }
+        header {
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        #map {
+            height: 400px;
+            margin-top: 20px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
 <body>
-    <h1>Troll Sticker Tracker</h1>
-    <div id="map"></div>
-    <div id="data-table-container">
-        <input type="text" id="search" placeholder="Search..." />
-        <table id="data-table">
+<header>
+    <h1>🧌 Troll Runner</h1>
+</header>
+<div class="container">
+    <section>
+        <h2>Biography</h2>
+        <p>Your biography goes here...</p>
+    </section>
+    <section>
+        <div class='stats'>
+            <div>Total Stickers: 77</div>
+            <div>Cities Visited: 5</div>
+            <div>Date Range: Your date range here...</div>
+        </div>
+    </section>
+    <section>
+        <h2>Locations</h2>
+        <table id="data-table" border="1">
             <thead>
                 <tr>
-                    <th>Location</th>
-                    <th>Latitude</th>
-                    <th>Longitude</th>
+                    <th>City</th>
+                    <th>State</th>
+                    <th>Stickers</th>
                 </tr>
             </thead>
             <tbody>
-                <!-- Sticker location entries will be injected here -->
+               <!-- Data Rows Generated Here -->
             </tbody>
         </table>
-    </div>
-    <div id="summary-statistics">
-        <div class="card"><span>Total Stickers:</span><span id="total-stickers"></span></div>
-        <div class="card"><span>Unique Locations:</span><span id="unique-locations"></span></div>
-    </div>
-    <script>
-        const stickerData = [
-            { "location": "Location 1", "latitude": 12.34, "longitude": 56.78 },
-            { "location": "Location 2", "latitude": 23.45, "longitude": 67.89 },
-            // ... 29 more sticker entries ...
-            { "location": "Location 31", "latitude": 90.12, "longitude": 34.56 }
-        ];
+    </section>
+    <section id="map"></section>
+</div>
+<script>
+    // Initialize the map
+    var map = L.map('map').setView([37.7749, -122.4194], 5);
 
-        function initMap() {
-            // Initialize your map here with stickerData
-        }
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-        function populateTable() {
-            const tableBody = document.querySelector('#data-table tbody');
-            stickerData.forEach(sticker => {
-                const row = document.createElement('tr');
-                row.innerHTML = `<td>${sticker.location}</td><td>${sticker.latitude}</td><td>${sticker.longitude}</td>`;
-                tableBody.appendChild(row);
-            });
+    // City markers (example coordinates)
+    var markerData = [
+        { "city": "City1", "coords": [37.7749, -122.4194] },
+        { "city": "City2", "coords": [34.0522, -118.2437] },
+        { "city": "City3", "coords": [40.7128, -74.0060] },
+        { "city": "City4", "coords": [41.8781, -87.6298] },
+        { "city": "City5", "coords": [30.2672, -97.7431] }
+    ];
 
-            // Interactive search and sort functionality can be added here
-        }
+    markerData.forEach(function(data) {
+        L.marker(data.coords).addTo(map)
+            .bindPopup(data.city);
+    });
 
-        function updateStatistics() {
-            document.getElementById('total-stickers').innerText = stickerData.length;
-            const uniqueLocations = new Set(stickerData.map(sticker => sticker.location));
-            document.getElementById('unique-locations').innerText = uniqueLocations.size;
-        }
-
-        $(document).ready(function() {
-            initMap();
-            populateTable();
-            updateStatistics();
-        });
-    </script>
+    // Fetch CSV data and populate the data table (not fully implemented here)
+    // Add functionality for searching and sorting the table
+</script>
 </body>
 </html>
