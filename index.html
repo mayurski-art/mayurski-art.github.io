@@ -1,68 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Troll Runner</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<style>
-    body { margin:0; font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #ff6ec7, #1f8fff); color: #fff; text-align:center; }
-    header { padding: 50px; font-size: 2.5em; font-weight: bold; text-shadow: 2px 2px 6px rgba(0,0,0,0.3); }
-    section { padding: 40px; }
-    #map { height: 500px; margin: 20px auto; max-width: 90%; border-radius: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.4); }
-    a { color: #ffeb3b; text-decoration: none; font-weight: bold; }
-    a:hover { text-decoration: underline; }
-    .sticker-popup img { width: 50px; height: 50px; display:block; margin: auto; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Troll Sticker Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <h1>Troll Sticker Tracker</h1>
+    <div id="map"></div>
+    <div id="data-table-container">
+        <input type="text" id="search" placeholder="Search..." />
+        <table id="data-table">
+            <thead>
+                <tr>
+                    <th>Location</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Sticker location entries will be injected here -->
+            </tbody>
+        </table>
+    </div>
+    <div id="summary-statistics">
+        <div class="card"><span>Total Stickers:</span><span id="total-stickers"></span></div>
+        <div class="card"><span>Unique Locations:</span><span id="unique-locations"></span></div>
+    </div>
+    <script>
+        const stickerData = [
+            { "location": "Location 1", "latitude": 12.34, "longitude": 56.78 },
+            { "location": "Location 2", "latitude": 23.45, "longitude": 67.89 },
+            // ... 29 more sticker entries ...
+            { "location": "Location 31", "latitude": 90.12, "longitude": 34.56 }
+        ];
 
-<header>
-🧌 Troll Runner
-<div style="font-size: 0.5em;">Running the world, one troll at a time</div>
-</header>
+        function initMap() {
+            // Initialize your map here with stickerData
+        }
 
-<section>
-<h2>Biography</h2>
-<p>I run around the world one mile at a time placing trollface stickers. Over 80 stickers dropped across Southern California (so far)!</p>
-</section>
+        function populateTable() {
+            const tableBody = document.querySelector('#data-table tbody');
+            stickerData.forEach(sticker => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${sticker.location}</td><td>${sticker.latitude}</td><td>${sticker.longitude}</td>`;
+                tableBody.appendChild(row);
+            });
 
-<section>
-<h2>Sticker Map</h2>
-<div id="map"></div>
-</section>
+            // Interactive search and sort functionality can be added here
+        }
 
-<section>
-<h2>Follow Me</h2>
-<a href="https://x.com/YourAccount1" target="_blank">X Account 1</a><br>
-<a href="https://x.com/YourAccount2" target="_blank">X Account 2</a>
-</section>
+        function updateStatistics() {
+            document.getElementById('total-stickers').innerText = stickerData.length;
+            const uniqueLocations = new Set(stickerData.map(sticker => sticker.location));
+            document.getElementById('unique-locations').innerText = uniqueLocations.size;
+        }
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-    // Initialize map
-    var map = L.map('map').setView([34.05, -118.25], 8);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-
-    // Sticker locations (example, replace with all 80+ locations)
-    var locations = [
-        { city: "Los Angeles", lat: 34.05, lng: -118.25, stickers: 5 },
-        { city: "San Diego", lat: 32.72, lng: -117.16, stickers: 3 },
-        { city: "San Bernardino", lat: 34.11, lng: -117.29, stickers: 2 }
-    ];
-
-    // Add markers
-    locations.forEach(function(loc) {
-        var popupContent = `
-            <div class="sticker-popup">
-                <img src="https://i.imgur.com/4AiXzf8.png" alt="Trollface">
-                <strong>${loc.city}</strong><br>
-                Stickers placed: ${loc.stickers}
-            </div>
-        `;
-        L.marker([loc.lat, loc.lng]).addTo(map).bindPopup(popupContent);
-    });
-</script>
-
+        $(document).ready(function() {
+            initMap();
+            populateTable();
+            updateStatistics();
+        });
+    </script>
 </body>
 </html>
