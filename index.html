@@ -630,7 +630,7 @@ function renderPins() {
     pin.className = 'pin' + (activeIdx === idx ? ' active-pin' : '');
     pin.style.left = (loc.px/100*W)+'px';
     pin.style.top  = (loc.py/100*H)+'px';
-    pin.innerHTML = `<div class="pin-body" style="background:${col.pin}"><span class="pin-letter">T</span></div>${loc.count>1?`<div class="pin-count">${loc.count}</div>`:''}`;
+    pin.innerHTML = `<div class="pin-body" style="background:${col.pin}"><span class="pin-letter">🧌</span></div>${loc.count>1?`<div class="pin-count">${loc.count}</div>`:''}`;
     pin.onclick = e => { e.stopPropagation(); selectPin(idx); };
     layer.appendChild(pin);
   });
