@@ -486,8 +486,9 @@ footer a:hover { color: #fff; }
   <p>Connect with me on X &mdash; <a href="https://twitter.com/troll_runner" target="_blank">@troll_runner</a></p>
 </footer>
 
+<script src="storage.js"></script>
 <script>
-const DATA = [
+  const DATA = loadDrops([
   {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44},
   {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50},
   {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56},
@@ -521,7 +522,9 @@ const DATA = [
   {city:"Chino Hills",       name:"Butterfield Park",                 date:"Mar 28, 2026", count:7,  px:12, py:60},
   {city:"Chino Hills",       name:"Chino Hills Dog Park",             date:"Apr 4, 2026", count:1,  px:14, py:62},
   {city:"Chino Hills",       name:"Vila Borba",                       date:"Apr 4, 2026", count:6,  px:10, py:58},
-];
+    // ... all other drops
+  ]);
+</script>
 
 const CITIES = {
   "Fontana":          {pin:"#5856d6", bg:"#eeeeff", txt:"#3634a3"},
