@@ -348,6 +348,13 @@ header p {
   border: 0.5px solid var(--border); white-space: nowrap; pointer-events: none;
 }
 
+<div id="updates"></div>
+<script>
+  fetch('updates.html')
+    .then(res => res.text())
+    .then(html => document.getElementById('updates').innerHTML = html);
+</script>
+  
 /* ── FOOTER ── */
 footer {
   text-align: center;
