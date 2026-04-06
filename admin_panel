@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Admin - Troll Runner</title>
+<style>
+body { font-family:sans-serif; padding:20px; }
+input, button { padding:8px; margin:6px 0; width:100%; }
+</style>
+</head>
+
+<body>
+
+<h2>Add Drop</h2>
+
+<input id="name" placeholder="Location name">
+<input id="city" placeholder="City">
+<input id="lat" placeholder="Latitude">
+<input id="lng" placeholder="Longitude">
+<input id="count" placeholder="Sticker count">
+<input id="date" placeholder="Date">
+
+<button onclick="add()">Add Drop</button>
+
+<script src="data.js"></script>
+<script>
+function add(){
+  const newDrop = {
+    name: name.value,
+    city: city.value,
+    lat: parseFloat(lat.value),
+    lng: parseFloat(lng.value),
+    count: parseInt(count.value),
+    date: date.value
+  };
+
+  saveDrop(newDrop);
+  alert("Saved!");
+}
+</script>
+
+</body>
+</html>
