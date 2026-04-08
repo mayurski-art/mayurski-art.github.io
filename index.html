@@ -319,8 +319,8 @@ header p {
 .popup-row:last-child { border-bottom: none; }
 .popup-key { color: var(--text-secondary); }
 .popup-val { font-weight: 500; color: var(--text-primary); }
-#popup-media { margin-top: 10px; border-radius: 12px; overflow: hidden; border: 0.5px solid #e5e5ea; background: #f2f2f7; display:none; }
-#popup-media iframe { width: 100%; height: 180px; border: 0; display:block; }
+#popup-media { margin-top: 10px; border-radius: 12px; overflow: hidden; border: 0.5px solid #e5e5ea; background: #f2f2f7; display:none; min-height: 140px; }
+#p-image { padding: 6px; }
 
 /* ── MAP CONTROLS ── */
 #map-controls {
@@ -452,7 +452,7 @@ footer a:hover { color: #fff; }
         <div id="p-city-tag" class="popup-city-tag"></div>
         <div class="popup-row"><span class="popup-key">Date placed</span><span class="popup-val" id="p-date"></span></div>
         <div class="popup-row"><span class="popup-key">Stickers</span><span class="popup-val" id="p-count"></span></div>
-        <div id="popup-media"><iframe id="p-image" title="Location photo" loading="lazy" referrerpolicy="no-referrer"></iframe></div>
+        <div id="popup-media"><div id="p-image"></div></div>
       </div>
       <div id="map-controls">
         <button class="ctrl-btn" onclick="zoom(0.25)">+</button>
@@ -491,8 +491,8 @@ footer a:hover { color: #fff; }
 
 <script>
 const DATA = [
-  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageEmbed:"https://imgur.com/a/SWLVtA3/embed"},
-  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageEmbed:"https://imgur.com/a/VZZrQoG/embed"},
+  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageAlbum:"SWLVtA3", imageTitle:"Beech Ave, Fontana, California"},
+  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageAlbum:"VZZrQoG", imageTitle:"Koehler Park, Fontana, California"},
   {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56},
   {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42},
   {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36},
@@ -547,6 +547,25 @@ const CITY_LABELS = [
 ];
 
 let activeCity = null, activeIdx = null, zoomScale = 1, searchTerm = '';
+let imgurScriptReady = false;
+
+function ensureImgurEmbedScript() {
+  return new Promise((resolve) => {
+    if (imgurScriptReady) { resolve(); return; }
+    const existing = document.getElementById('imgur-embed-script');
+    if (existing) {
+      existing.addEventListener('load', () => { imgurScriptReady = true; resolve(); }, { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'imgur-embed-script';
+    script.async = true;
+    script.src = 'https://s.imgur.com/min/embed.js';
+    script.charset = 'utf-8';
+    script.onload = () => { imgurScriptReady = true; resolve(); };
+    document.body.appendChild(script);
+  });
+}
 
 function drawMap() {
   const cv = document.getElementById('map-canvas');
@@ -739,11 +758,17 @@ function selectPin(idx) {
   document.getElementById('p-count').textContent = loc.count+' sticker'+(loc.count>1?'s':'');
   const popupMedia = document.getElementById('popup-media');
   const popupImage = document.getElementById('p-image');
-  if (loc.imageEmbed) {
-    popupImage.src = loc.imageEmbed;
+  if (loc.imageAlbum) {
+    const albumUrl = `https://imgur.com/a/${loc.imageAlbum}`;
+    popupImage.innerHTML = `<blockquote class="imgur-embed-pub" lang="en" data-id="a/${loc.imageAlbum}"><a href="${albumUrl}">${loc.imageTitle || loc.name}</a></blockquote>`;
     popupMedia.style.display = 'block';
+    ensureImgurEmbedScript().then(() => {
+      if (window.imgurEmbed && typeof window.imgurEmbed.createIframe === 'function') {
+        window.imgurEmbed.createIframe();
+      }
+    });
   } else {
-    popupImage.removeAttribute('src');
+    popupImage.innerHTML = '';
     popupMedia.style.display = 'none';
   }
   const popup = document.getElementById('popup');
@@ -758,7 +783,7 @@ function selectPin(idx) {
 
 function closePopup() {
   document.getElementById('popup').style.display='none';
-  document.getElementById('p-image').removeAttribute('src');
+  document.getElementById('p-image').innerHTML='';
   document.getElementById('popup-media').style.display='none';
   activeIdx=null;
   document.querySelectorAll('.loc-card').forEach(c=>c.classList.remove('active'));
