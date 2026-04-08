@@ -122,7 +122,7 @@ header p {
 
 #map-app {
   display: flex;
-  height: 600px;
+  height: clamp(520px, 68vh, 760px);
   border-radius: 18px;
   overflow: hidden;
   border: 0.5px solid rgba(255,255,255,0.1);
@@ -251,6 +251,13 @@ header p {
   flex: 1;
   position: relative;
   overflow: hidden;
+  background: var(--bg-map);
+}
+#map-content {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  transition: transform 180ms ease-out;
 }
 #map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 #pins-layer  { position: absolute; inset: 0; pointer-events: none; }
@@ -321,6 +328,9 @@ header p {
 .popup-val { font-weight: 500; color: var(--text-primary); }
 #popup-media { margin-top: 10px; border-radius: 12px; overflow: hidden; border: 0.5px solid #e5e5ea; background: #f2f2f7; display:none; min-height: 140px; }
 #p-image { padding: 6px; }
+#p-image img { width: 100%; height: 180px; object-fit: cover; border-radius: 10px; display: block; }
+#p-image-link { display:none; margin: 0 10px 10px; font-size: 12px; color: #007aff; text-decoration: none; }
+#p-image-link:hover { text-decoration: underline; }
 
 /* ── MAP CONTROLS ── */
 #map-controls {
@@ -444,15 +454,20 @@ footer a:hover { color: #fff; }
 
     <!-- MAP -->
     <div id="map-wrap">
-      <canvas id="map-canvas"></canvas>
-      <div id="pins-layer"></div>
+      <div id="map-content">
+        <canvas id="map-canvas"></canvas>
+        <div id="pins-layer"></div>
+      </div>
       <div id="popup">
         <div id="popup-close" onclick="closePopup()">×</div>
         <h4 id="p-name"></h4>
         <div id="p-city-tag" class="popup-city-tag"></div>
         <div class="popup-row"><span class="popup-key">Date placed</span><span class="popup-val" id="p-date"></span></div>
         <div class="popup-row"><span class="popup-key">Stickers</span><span class="popup-val" id="p-count"></span></div>
-        <div id="popup-media"><div id="p-image"></div></div>
+        <div id="popup-media">
+          <div id="p-image"></div>
+          <a id="p-image-link" target="_blank" rel="noopener noreferrer">Open album on Imgur</a>
+        </div>
       </div>
       <div id="map-controls">
         <button class="ctrl-btn" onclick="zoom(0.25)">+</button>
@@ -491,8 +506,8 @@ footer a:hover { color: #fff; }
 
 <script>
 const DATA = [
-  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageAlbum:"SWLVtA3", imageTitle:"Beech Ave, Fontana, California"},
-  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageAlbum:"VZZrQoG", imageTitle:"Koehler Park, Fontana, California"},
+  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
+  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
   {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56},
   {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42},
   {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36},
@@ -751,6 +766,8 @@ function selectPin(idx) {
   const W = document.getElementById('map-canvas').width;
   const H = document.getElementById('map-canvas').height;
   const px = loc.px/100*W, py = loc.py/100*H;
+  const scaledX = (px - W/2) * zoomScale + W/2;
+  const scaledY = (py - H/2) * zoomScale + H/2;
   document.getElementById('p-name').textContent = loc.name;
   const tag = document.getElementById('p-city-tag');
   tag.textContent=loc.city; tag.style.background=col.bg; tag.style.color=col.txt;
@@ -758,23 +775,24 @@ function selectPin(idx) {
   document.getElementById('p-count').textContent = loc.count+' sticker'+(loc.count>1?'s':'');
   const popupMedia = document.getElementById('popup-media');
   const popupImage = document.getElementById('p-image');
-  if (loc.imageAlbum) {
-    const albumUrl = `https://imgur.com/a/${loc.imageAlbum}`;
-    popupImage.innerHTML = `<blockquote class="imgur-embed-pub" lang="en" data-id="a/${loc.imageAlbum}"><a href="${albumUrl}">${loc.imageTitle || loc.name}</a></blockquote>`;
+  const popupLink = document.getElementById('p-image-link');
+  if (loc.imageUrl) {
+    popupImage.innerHTML = `<img src="${loc.imageUrl}" alt="${loc.imageTitle || loc.name}" loading="lazy" referrerpolicy="no-referrer">`;
     popupMedia.style.display = 'block';
-    ensureImgurEmbedScript().then(() => {
-      if (window.imgurEmbed && typeof window.imgurEmbed.createIframe === 'function') {
-        window.imgurEmbed.createIframe();
-      }
-    });
+    popupLink.href = loc.imageUrl;
+    popupLink.textContent = 'Open full-size image';
+    popupLink.style.display = 'inline-block';
   } else {
     popupImage.innerHTML = '';
     popupMedia.style.display = 'none';
+    popupLink.removeAttribute('href');
+    popupLink.textContent = 'Open album on Imgur';
+    popupLink.style.display = 'none';
   }
   const popup = document.getElementById('popup');
   popup.style.display='block';
-  popup.style.left = Math.min(px+14, W-250)+'px';
-  popup.style.top  = Math.max(py-130, 10)+'px';
+  popup.style.left = Math.min(scaledX+14, W-250)+'px';
+  popup.style.top  = Math.max(scaledY-130, 10)+'px';
   document.querySelectorAll('.loc-card').forEach(c=>c.classList.remove('active'));
   const card=document.querySelector(`.loc-card[data-idx="${idx}"]`);
   if(card){card.classList.add('active'); card.scrollIntoView({block:'nearest',behavior:'smooth'});}
@@ -785,23 +803,28 @@ function closePopup() {
   document.getElementById('popup').style.display='none';
   document.getElementById('p-image').innerHTML='';
   document.getElementById('popup-media').style.display='none';
+  document.getElementById('p-image-link').removeAttribute('href');
+  document.getElementById('p-image-link').textContent='Open album on Imgur';
+  document.getElementById('p-image-link').style.display='none';
   activeIdx=null;
   document.querySelectorAll('.loc-card').forEach(c=>c.classList.remove('active'));
   renderPins();
 }
 
 function zoom(delta) {
-  zoomScale = Math.max(0.7, Math.min(2.5, zoomScale + delta));
-  ['map-canvas','pins-layer'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.style.transformOrigin='50% 50%';
-    el.style.transform=`scale(${zoomScale})`;
-  });
+  zoomScale = Math.max(0.85, Math.min(3, +(zoomScale + delta).toFixed(2)));
+  document.getElementById('map-content').style.transform = `scale(${zoomScale})`;
+  if (activeIdx !== null) selectPin(activeIdx);
 }
 
 document.getElementById('map-wrap').addEventListener('click', e => {
-  if(e.target.id==='map-canvas'||e.target.id==='map-wrap') closePopup();
+  if (e.target.id==='map-wrap' || e.target.id==='map-content' || e.target.id==='map-canvas') closePopup();
 });
+
+document.getElementById('map-wrap').addEventListener('wheel', e => {
+  e.preventDefault();
+  zoom(e.deltaY < 0 ? 0.1 : -0.1);
+}, { passive: false });
 
 window.addEventListener('resize', ()=>{ drawMap(); renderPins(); });
 
