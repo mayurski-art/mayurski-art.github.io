@@ -926,14 +926,28 @@ function expandImageUrlVariants(url) {
   return [...new Set(variants)];
 }
 
+async function probeFirst(urls) {
+  for (const url of urls) {
+    const loaded = await probeImage(url);
+    if (loaded) return loaded;
+  }
+  return null;
+}
+
 async function resolveImageUrls(loc) {
   if (!loc) return [];
   const explicit = Array.isArray(loc.imageUrls) && loc.imageUrls.length
     ? loc.imageUrls
     : (loc.imageUrl ? [loc.imageUrl] : []);
-  const explicitVariants = explicit.flatMap(expandImageUrlVariants);
+  const explicitResolved = [];
+  for (const baseUrl of explicit) {
+    const found = await probeFirst(expandImageUrlVariants(baseUrl));
+    if (found) explicitResolved.push(found);
+  }
+  if (explicitResolved.length) return [...new Set(explicitResolved)];
 
   const baseNames = [
+    loc.imageFile,
     loc.imageBase,
     slugifyName(loc.name),
     loc.name,
@@ -950,10 +964,8 @@ async function resolveImageUrls(loc) {
     });
   });
 
-  const candidates = [...explicitVariants, ...localFallbacks];
-  if (!candidates.length) return [];
-  const loaded = (await Promise.all([...new Set(candidates)].map(probeImage))).filter(Boolean);
-  return loaded;
+  const localFound = await probeFirst([...new Set(localFallbacks)]);
+  return localFound ? [localFound] : [];
 }
 
 let photoRequestId = 0;
