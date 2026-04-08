@@ -139,6 +139,18 @@ header p {
   flex-direction: column;
   border-right: 0.5px solid var(--border);
 }
+#panel-resizer {
+  width: 10px;
+  cursor: col-resize;
+  background: linear-gradient(to right, rgba(255,255,255,0.02), rgba(255,255,255,0.09), rgba(255,255,255,0.02));
+  border-right: 0.5px solid rgba(255,255,255,0.08);
+  border-left: 0.5px solid rgba(0,0,0,0.08);
+  flex: 0 0 10px;
+  touch-action: none;
+}
+#panel-resizer:hover {
+  background: linear-gradient(to right, rgba(255,255,255,0.06), rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+}
 #sidebar-header {
   padding: 16px 14px 10px;
   border-bottom: 0.5px solid var(--border);
@@ -279,10 +291,11 @@ header p {
   background: var(--bg-card);
   border: 0.5px solid var(--border);
   border-radius: 20px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 500;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
   font-family: var(--font);
+  line-height: 1.15;
   white-space: nowrap;
   cursor: pointer;
   color: var(--text-primary);
@@ -517,6 +530,76 @@ footer {
 }
 footer a { color: rgba(255,255,255,0.6); text-decoration: none; }
 footer a:hover { color: #fff; }
+
+/* ── MOBILE ── */
+@media (max-width: 900px) {
+  header { padding: 22px 16px 14px; }
+  header h1 { font-size: 30px; }
+
+  #biography,
+  #stats-banner,
+  #map-section,
+  #updates {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  #stats-banner {
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: stretch;
+  }
+  .stat-card {
+    min-width: calc(50% - 5px);
+    max-width: none;
+  }
+
+  .city-tab {
+    padding: 9px 15px;
+    font-size: 14px;
+  }
+
+  #map-app {
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+  }
+
+  #sidebar {
+    width: 100%;
+    min-width: 0;
+    max-height: 46vh;
+    border-right: none;
+    border-bottom: 0.5px solid var(--border);
+  }
+  #panel-resizer { display: none; }
+
+  #map-wrap {
+    min-height: 52vh;
+  }
+
+  #photo-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 0.5px solid rgba(0,0,0,0.1);
+    max-height: 0;
+    padding: 0;
+    opacity: 0;
+    transition: max-height 220ms ease, opacity 180ms ease, padding 220ms ease;
+  }
+
+  #map-app.show-photo #photo-panel {
+    width: 100%;
+    max-height: 44vh;
+    opacity: 1;
+    padding: 12px;
+  }
+
+  #photo-gallery {
+    height: auto;
+    max-height: calc(44vh - 54px);
+  }
+}
 </style>
 </head>
 <body>
@@ -531,8 +614,8 @@ footer a:hover { color: #fff; }
 </section>
 
 <div id="stats-banner">
-  <div class="stat-card"><div class="val">84</div><div class="lbl">Total Stickers</div></div>
-  <div class="stat-card"><div class="val">84</div><div class="lbl">Miles Ran</div></div>
+  <div class="stat-card"><div class="val">85</div><div class="lbl">Total Stickers</div></div>
+  <div class="stat-card"><div class="val">85</div><div class="lbl">Miles Ran</div></div>
   <div class="stat-card"><div class="val">33</div><div class="lbl">Locations</div></div>
   <div class="stat-card"><div class="val">5</div><div class="lbl">Cities</div></div>
 </div>
@@ -569,14 +652,15 @@ footer a:hover { color: #fff; }
         <div id="calendar-grid"></div>
       </div>
       <div id="sb-stats">
-        <div class="sb-stat"><div class="v">84</div><div class="l">Stickers</div></div>
-        <div class="sb-stat"><div class="v">84</div><div class="l">Miles Ran</div></div>
+        <div class="sb-stat"><div class="v">85</div><div class="l">Stickers</div></div>
+        <div class="sb-stat"><div class="v">85</div><div class="l">Miles Ran</div></div>
         <div class="sb-stat"><div class="v">33</div><div class="l">Spots</div></div>
         <div class="sb-stat"><div class="v">5</div><div class="l">Cities</div></div>
       </div>
       <div id="city-tabs"></div>
       <div id="loc-list"></div>
     </div>
+    <div id="panel-resizer" aria-hidden="true" title="Drag to resize panels"></div>
 
     <!-- MAP -->
     <div id="map-wrap">
@@ -639,11 +723,11 @@ const DATA = [
   {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
   {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56, imageUrl:"https://i.imgur.com/7AMMiRe.jpeg", imageTitle:"Almeria Park, Fontana, California"},
   {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42, imageUrls:["https://i.imgur.com/S1DHRXx.jpeg","https://i.imgur.com/8694iA2.jpeg"], imageTitle:"Ralph M. Lewis Sports Complex, Fontana, California"},
-  {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36}, imageUrl:"https://i.imgur.com/u8fIquV.jpeg", imageTitle:"Sierra Lakes Golf Club, Fontana, California"},
-  {city:"Fontana",           name:"Patricia Marrujo Park",            date:"Oct 17, 2025", count:1,  px:54, py:48}, imageUrl:"https://i.imgur.com/4AewHdq.jpeg", imageTitle:"Patricia Marrujo Park, Fontana, California"},
-  {city:"Riverside",         name:"Mount Rubidoux",                   date:"Oct 19, 2025", count:5,  px:72, py:54},
-  {city:"Riverside",         name:"Senna Cross",                      date:"Oct 19, 2025", count:1,  px:76, py:50},
-  {city:"Riverside",         name:"Ryan Bonamino Park",               date:"Oct 19, 2025", count:7,  px:80, py:58},
+  {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36, imageUrl:"https://i.imgur.com/u8fIquV.jpeg", imageTitle:"Sierra Lakes Golf Club, Fontana, California"},
+  {city:"Fontana",           name:"Patricia Marrujo Park",            date:"Oct 17, 2025", count:1,  px:54, py:48, imageUrl:"https://i.imgur.com/4AewHdq.jpeg", imageTitle:"Patricia Marrujo Park, Fontana, California"},
+  {city:"Riverside",         name:"Mount Rubidoux",                   date:"Oct 19, 2025", count:5,  px:72, py:54, imageUrls:["https://i.imgur.com/6Mz6nZY.jpeg","https://i.imgur.com/eK3Z8bw.jpeg","https://i.imgur.com/7dEgred.jpeg","https://i.imgur.com/wx8fyaa.jpeg","https://i.imgur.com/Bf8Twbo.jpeg"], imageTitle:"Mount Rubidoux, Riverside, California"},
+  {city:"Riverside",         name:"Senna Cross",                      date:"Oct 19, 2025", count:1,  px:76, py:50, imageUrl:"https://i.imgur.com/iEr0o3g.jpeg", imageTitle:"Senna Cross, Riverside, California"},
+  {city:"Riverside",         name:"Ryan Bonamino Park",               date:"Oct 19, 2025", count:8,  px:80, py:58, imageUrls:["https://i.imgur.com/1eegEEl.jpeg","https://i.imgur.com/myYoXur.jpeg","https://i.imgur.com/oTEoj8S.jpeg","https://i.imgur.com/liIkacX.jpeg","https://i.imgur.com/XG3Sbjb.jpeg","https://i.imgur.com/h2y9lWy.jpeg","https://i.imgur.com/V0qf7Hd.jpeg","https://i.imgur.com/63sqfOK.jpeg"], imageTitle:"Ryan Bonamino Park, Riverside, California"},
   {city:"Rancho Cucamonga",  name:"Red Hill Community Park",          date:"Oct 23, 2025", count:7,  px:22, py:28},
   {city:"Rancho Cucamonga",  name:"Pacific Electric Trail",           date:"Oct 23, 2025", count:3,  px:28, py:22},
   {city:"Fontana",           name:"Coyote Canyon Park",               date:"Oct 26, 2025", count:3,  px:44, py:58},
@@ -683,6 +767,9 @@ let selectedDate = null;
 let calendarOpen = false;
 let map = null;
 let markersLayer = null;
+let isResizingPanels = false;
+let resizeStartX = 0;
+let resizeStartWidth = 0;
 const DATE_COUNTS = {};
 DATA.forEach(d => {
   d.isoDate = toIsoDate(d.date);
@@ -725,12 +812,56 @@ function initMap() {
   map.on('zoom move', () => { if (activeIdx !== null) positionPopup(DATA[activeIdx]); });
 }
 
+function initPanelResizer() {
+  const app = document.getElementById('map-app');
+  const sidebar = document.getElementById('sidebar');
+  const resizer = document.getElementById('panel-resizer');
+  if (!app || !sidebar || !resizer) return;
+
+  function onPointerMove(e) {
+    if (!isResizingPanels) return;
+    const appRect = app.getBoundingClientRect();
+    const delta = e.clientX - resizeStartX;
+    const maxWidth = Math.min(560, appRect.width * 0.6);
+    const next = Math.max(230, Math.min(maxWidth, resizeStartWidth + delta));
+    sidebar.style.width = `${next}px`;
+    sidebar.style.minWidth = `${next}px`;
+  }
+
+  function stopResize() {
+    if (!isResizingPanels) return;
+    isResizingPanels = false;
+    document.body.style.userSelect = '';
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', stopResize);
+  }
+
+  resizer.addEventListener('pointerdown', e => {
+    if (window.matchMedia('(max-width: 900px)').matches) return;
+    isResizingPanels = true;
+    resizeStartX = e.clientX;
+    resizeStartWidth = sidebar.getBoundingClientRect().width;
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', stopResize);
+  });
+}
+
+function syncSidebarWidthForViewport() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  if (window.matchMedia('(max-width: 900px)').matches) {
+    sidebar.style.width = '';
+    sidebar.style.minWidth = '';
+  }
+}
+
 function buildTabs() {
   const wrap = document.getElementById('city-tabs');
   ['All', ...Object.keys(CITIES)].forEach(city => {
     const btn = document.createElement('button');
     btn.className = 'city-tab' + (city === 'All' ? ' active' : '');
-    btn.textContent = city === 'All' ? 'All' : city.split(' ')[0];
+    btn.textContent = city;
     if (city === 'All') { btn.style.background='#1c1c1e'; btn.style.color='#fff'; btn.style.borderColor='#1c1c1e'; }
     btn.onclick = () => setCity(city, btn);
     wrap.appendChild(btn);
@@ -831,12 +962,82 @@ function closePopup() {
   renderPins();
 }
 
-function updatePhotoPanel(loc) {
+function slugifyName(val) {
+  return val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function probeImage(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(url);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+function expandImageUrlVariants(url) {
+  if (!url) return [];
+  const variants = [url];
+  const m = url.match(/\.(jpe?g|png|webp)$/i);
+  if (!m) return variants;
+  const base = url.slice(0, -m[0].length);
+  ['jpeg', 'jpg', 'png', 'webp', 'JPG', 'JPEG', 'PNG', 'WEBP'].forEach(ext => {
+    variants.push(`${base}.${ext}`);
+  });
+  return [...new Set(variants)];
+}
+
+async function probeFirst(urls) {
+  for (const url of urls) {
+    const loaded = await probeImage(url);
+    if (loaded) return loaded;
+  }
+  return null;
+}
+
+async function resolveImageUrls(loc) {
+  if (!loc) return [];
+  const explicit = Array.isArray(loc.imageUrls) && loc.imageUrls.length
+    ? loc.imageUrls
+    : (loc.imageUrl ? [loc.imageUrl] : []);
+  const explicitResolved = [];
+  for (const baseUrl of explicit) {
+    const found = await probeFirst(expandImageUrlVariants(baseUrl));
+    if (found) explicitResolved.push(found);
+  }
+  if (explicitResolved.length) return [...new Set(explicitResolved)];
+
+  const baseNames = [
+    loc.imageFile,
+    loc.imageBase,
+    slugifyName(loc.name),
+    loc.name,
+    loc.name.toLowerCase(),
+  ].filter(Boolean);
+  const localFallbacks = [];
+  const exts = ['jpeg', 'jpg', 'png', 'webp', 'JPG', 'JPEG', 'PNG', 'WEBP'];
+  [...new Set(baseNames)].forEach(base => {
+    const normalized = [base, base.replace(/\s+/g, '-'), base.replace(/\s+/g, '_')];
+    [...new Set(normalized)].forEach(name => {
+      exts.forEach(ext => {
+        localFallbacks.push(`assets/images/${name}.${ext}`);
+      });
+    });
+  });
+
+  const localFound = await probeFirst([...new Set(localFallbacks)]);
+  return localFound ? [localFound] : [];
+}
+
+let photoRequestId = 0;
+async function updatePhotoPanel(loc) {
   const app = document.getElementById('map-app');
   const gallery = document.getElementById('photo-gallery');
   const title = document.getElementById('photo-title');
   const meta = document.getElementById('photo-meta');
-  const imageUrls = loc ? (Array.isArray(loc.imageUrls) && loc.imageUrls.length ? loc.imageUrls : (loc.imageUrl ? [loc.imageUrl] : [])) : [];
+  const requestId = ++photoRequestId;
+  const imageUrls = await resolveImageUrls(loc);
+  if (requestId !== photoRequestId) return;
   if (loc && imageUrls.length) {
     app.classList.add('show-photo');
     gallery.innerHTML = '';
@@ -927,9 +1128,12 @@ function zoom(delta) {
   else map.zoomOut();
 }
 
-window.addEventListener('resize', ()=>{ if (activeIdx !== null) positionPopup(DATA[activeIdx]); });
+window.addEventListener('resize', ()=>{
+  syncSidebarWidthForViewport();
+  if (activeIdx !== null) positionPopup(DATA[activeIdx]);
+});
 
-initMap(); buildTabs(); renderPins(); renderList();
+initMap(); buildTabs(); renderPins(); renderList(); initPanelResizer(); syncSidebarWidthForViewport();
 </script>
 </body>
 </html>
