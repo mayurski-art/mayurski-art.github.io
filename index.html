@@ -914,16 +914,45 @@ function probeImage(url) {
   });
 }
 
+function expandImageUrlVariants(url) {
+  if (!url) return [];
+  const variants = [url];
+  const m = url.match(/\.(jpe?g|png|webp)$/i);
+  if (!m) return variants;
+  const base = url.slice(0, -m[0].length);
+  ['jpeg', 'jpg', 'png', 'webp', 'JPG', 'JPEG', 'PNG', 'WEBP'].forEach(ext => {
+    variants.push(`${base}.${ext}`);
+  });
+  return [...new Set(variants)];
+}
+
 async function resolveImageUrls(loc) {
   if (!loc) return [];
   const explicit = Array.isArray(loc.imageUrls) && loc.imageUrls.length
     ? loc.imageUrls
     : (loc.imageUrl ? [loc.imageUrl] : []);
-  const base = loc.imageBase || slugifyName(loc.name);
-  const localFallbacks = ['jpeg', 'jpg', 'png', 'webp'].map(ext => `assets/images/${base}.${ext}`);
-  const candidates = [...explicit, ...localFallbacks];
+  const explicitVariants = explicit.flatMap(expandImageUrlVariants);
+
+  const baseNames = [
+    loc.imageBase,
+    slugifyName(loc.name),
+    loc.name,
+    loc.name.toLowerCase(),
+  ].filter(Boolean);
+  const localFallbacks = [];
+  const exts = ['jpeg', 'jpg', 'png', 'webp', 'JPG', 'JPEG', 'PNG', 'WEBP'];
+  [...new Set(baseNames)].forEach(base => {
+    const normalized = [base, base.replace(/\s+/g, '-'), base.replace(/\s+/g, '_')];
+    [...new Set(normalized)].forEach(name => {
+      exts.forEach(ext => {
+        localFallbacks.push(`assets/images/${name}.${ext}`);
+      });
+    });
+  });
+
+  const candidates = [...explicitVariants, ...localFallbacks];
   if (!candidates.length) return [];
-  const loaded = (await Promise.all(candidates.map(probeImage))).filter(Boolean);
+  const loaded = (await Promise.all([...new Set(candidates)].map(probeImage))).filter(Boolean);
   return loaded;
 }
 
