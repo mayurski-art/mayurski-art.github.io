@@ -249,6 +249,7 @@ header p {
 /* ── MAP ── */
 #map-wrap {
   flex: 1;
+  min-width: 0;
   position: relative;
   overflow: hidden;
   background: var(--bg-map);
@@ -261,6 +262,38 @@ header p {
 }
 #map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 #pins-layer  { position: absolute; inset: 0; pointer-events: none; }
+#photo-panel {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  background: rgba(255,255,255,0.97);
+  border-left: 0.5px solid rgba(0,0,0,0.1);
+  transition: width 220ms ease, opacity 180ms ease, padding 220ms ease;
+  padding: 0;
+}
+#map-app.show-photo #photo-panel {
+  width: 360px;
+  opacity: 1;
+  padding: 14px;
+}
+#photo-panel h4 {
+  font-size: 14px;
+  color: #1c1c1e;
+  margin-bottom: 4px;
+}
+#photo-panel p {
+  font-size: 12px;
+  color: #6e6e73;
+  margin-bottom: 10px;
+}
+#photo-panel img {
+  width: 100%;
+  height: calc(100% - 54px);
+  max-height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 0.5px solid #d1d1d6;
+}
 
 .pin {
   position: absolute;
@@ -475,6 +508,11 @@ footer a:hover { color: #fff; }
       </div>
       <div id="scale-bar">San Bernardino &amp; Riverside Counties</div>
     </div>
+    <aside id="photo-panel">
+      <h4 id="photo-title"></h4>
+      <p id="photo-meta"></p>
+      <img id="photo-img" alt="" loading="lazy" referrerpolicy="no-referrer">
+    </aside>
 
   </div>
 </section>
@@ -773,22 +811,7 @@ function selectPin(idx) {
   tag.textContent=loc.city; tag.style.background=col.bg; tag.style.color=col.txt;
   document.getElementById('p-date').textContent  = loc.date;
   document.getElementById('p-count').textContent = loc.count+' sticker'+(loc.count>1?'s':'');
-  const popupMedia = document.getElementById('popup-media');
-  const popupImage = document.getElementById('p-image');
-  const popupLink = document.getElementById('p-image-link');
-  if (loc.imageUrl) {
-    popupImage.innerHTML = `<img src="${loc.imageUrl}" alt="${loc.imageTitle || loc.name}" loading="lazy" referrerpolicy="no-referrer">`;
-    popupMedia.style.display = 'block';
-    popupLink.href = loc.imageUrl;
-    popupLink.textContent = 'Open full-size image';
-    popupLink.style.display = 'inline-block';
-  } else {
-    popupImage.innerHTML = '';
-    popupMedia.style.display = 'none';
-    popupLink.removeAttribute('href');
-    popupLink.textContent = 'Open album on Imgur';
-    popupLink.style.display = 'none';
-  }
+  updatePhotoPanel(loc);
   const popup = document.getElementById('popup');
   popup.style.display='block';
   popup.style.left = Math.min(scaledX+14, W-250)+'px';
@@ -801,14 +824,30 @@ function selectPin(idx) {
 
 function closePopup() {
   document.getElementById('popup').style.display='none';
-  document.getElementById('p-image').innerHTML='';
-  document.getElementById('popup-media').style.display='none';
-  document.getElementById('p-image-link').removeAttribute('href');
-  document.getElementById('p-image-link').textContent='Open album on Imgur';
-  document.getElementById('p-image-link').style.display='none';
+  updatePhotoPanel(null);
   activeIdx=null;
   document.querySelectorAll('.loc-card').forEach(c=>c.classList.remove('active'));
   renderPins();
+}
+
+function updatePhotoPanel(loc) {
+  const app = document.getElementById('map-app');
+  const img = document.getElementById('photo-img');
+  const title = document.getElementById('photo-title');
+  const meta = document.getElementById('photo-meta');
+  if (loc && loc.imageUrl) {
+    app.classList.add('show-photo');
+    img.src = loc.imageUrl;
+    img.alt = loc.imageTitle || loc.name;
+    title.textContent = loc.name;
+    meta.textContent = `${loc.city} · ${loc.date}`;
+  } else {
+    app.classList.remove('show-photo');
+    img.removeAttribute('src');
+    img.alt = '';
+    title.textContent = '';
+    meta.textContent = '';
+  }
 }
 
 function zoom(delta) {
