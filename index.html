@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Troll Runner</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap');
 
@@ -122,7 +123,7 @@ header p {
 
 #map-app {
   display: flex;
-  height: 600px;
+  height: clamp(520px, 68vh, 760px);
   border-radius: 18px;
   overflow: hidden;
   border: 0.5px solid rgba(255,255,255,0.1);
@@ -148,6 +149,17 @@ header p {
   color: var(--text-primary);
   letter-spacing: -0.3px;
 }
+#sidebar-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#calendar-toggle {
+  border: 0.5px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 15px;
+  cursor: pointer;
+  line-height: 1;
+}
+#calendar-toggle:hover { background: var(--bg-card-hover); }
 #sidebar-header p {
   font-size: 11px;
   color: var(--text-secondary);
@@ -178,6 +190,65 @@ header p {
   transition: border-color 0.15s;
 }
 #search-box:focus { border-color: #007aff; }
+#date-filter {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 0.5px solid var(--border);
+  background: #eef4ff;
+}
+#date-filter span { font-size: 11px; color: #2f3f6d; font-weight: 600; }
+#date-clear {
+  border: none;
+  background: #dce8ff;
+  color: #2f3f6d;
+  border-radius: 8px;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+#calendar-panel {
+  display: none;
+  padding: 8px 10px;
+  border-bottom: 0.5px solid var(--border);
+  background: #fbfbfd;
+}
+#calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+#calendar-head button {
+  border: 0.5px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 7px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+#calendar-label { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+#calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-day {
+  border: 0.5px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 7px;
+  font-size: 10px;
+  color: var(--text-primary);
+  padding: 5px 0;
+  text-align: center;
+  cursor: pointer;
+}
+.cal-day.has-drop { border-color: #9fb8ff; background: #edf3ff; }
+.cal-day.active { background: #007aff; color: white; border-color: #007aff; font-weight: 700; }
+.cal-empty { height: 24px; }
+.cal-dow { font-size: 9px; color: var(--text-secondary); text-align: center; padding-bottom: 2px; }
 
 #sb-stats {
   display: flex;
@@ -249,11 +320,60 @@ header p {
 /* ── MAP ── */
 #map-wrap {
   flex: 1;
+  min-width: 0;
   position: relative;
   overflow: hidden;
+  background: var(--bg-map);
 }
-#map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-#pins-layer  { position: absolute; inset: 0; pointer-events: none; }
+#leaflet-map { position: absolute; inset: 0; }
+.leaflet-control-attribution { font-size: 10px; }
+.lf-pin {
+  transform: translate(-50%, -100%);
+  cursor: pointer;
+}
+.lf-pin .pin-body { width: 30px; height: 30px; }
+.lf-pin.active-pin { z-index: 999; }
+.lf-pin.active-pin .pin-body { box-shadow: 0 6px 16px rgba(0,0,0,0.35); }
+#photo-panel {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  background: rgba(255,255,255,0.97);
+  border-left: 0.5px solid rgba(0,0,0,0.1);
+  transition: width 220ms ease, opacity 180ms ease, padding 220ms ease;
+  padding: 0;
+}
+#map-app.show-photo #photo-panel {
+  width: 360px;
+  opacity: 1;
+  padding: 14px;
+}
+#photo-panel h4 {
+  font-size: 14px;
+  color: #1c1c1e;
+  margin-bottom: 4px;
+}
+#photo-panel p {
+  font-size: 12px;
+  color: #6e6e73;
+  margin-bottom: 10px;
+}
+#photo-source {
+  display: none;
+  font-size: 12px;
+  color: #007aff;
+  margin-bottom: 10px;
+  text-decoration: none;
+}
+#photo-source:hover { text-decoration: underline; }
+#photo-panel img {
+  width: 100%;
+  height: calc(100% - 54px);
+  max-height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 0.5px solid #d1d1d6;
+}
 
 .pin {
   position: absolute;
@@ -421,7 +541,10 @@ footer a:hover { color: #fff; }
     <!-- SIDEBAR -->
     <div id="sidebar">
       <div id="sidebar-header">
-        <h3>Troll sticker tracker</h3>
+        <div id="sidebar-title-row">
+          <h3>Troll sticker tracker</h3>
+          <button id="calendar-toggle" onclick="toggleCalendar()" title="Filter by date">📅</button>
+        </div>
       </div>
       <div id="search-wrap">
         <svg id="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -429,6 +552,18 @@ footer a:hover { color: #fff; }
           <path d="M10.5 10.5L14 14" stroke="#aeaeb2" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
         <input id="search-box" type="text" placeholder="Search locations..." oninput="filterSearch(this.value)">
+      </div>
+      <div id="date-filter">
+        <span id="date-filter-label"></span>
+        <button id="date-clear" onclick="clearDateFilter()">Clear</button>
+      </div>
+      <div id="calendar-panel">
+        <div id="calendar-head">
+          <button onclick="shiftCalendarMonth(-1)">‹</button>
+          <div id="calendar-label"></div>
+          <button onclick="shiftCalendarMonth(1)">›</button>
+        </div>
+        <div id="calendar-grid"></div>
       </div>
       <div id="sb-stats">
         <div class="sb-stat"><div class="v">84</div><div class="l">Stickers</div></div>
@@ -442,8 +577,7 @@ footer a:hover { color: #fff; }
 
     <!-- MAP -->
     <div id="map-wrap">
-      <canvas id="map-canvas"></canvas>
-      <div id="pins-layer"></div>
+      <div id="leaflet-map"></div>
       <div id="popup">
         <div id="popup-close" onclick="closePopup()">×</div>
         <h4 id="p-name"></h4>
@@ -457,6 +591,12 @@ footer a:hover { color: #fff; }
       </div>
       <div id="scale-bar">San Bernardino &amp; Riverside Counties</div>
     </div>
+    <aside id="photo-panel">
+      <h4 id="photo-title"></h4>
+      <p id="photo-meta"></p>
+      <a id="photo-source" target="_blank" rel="noopener noreferrer">Open source album</a>
+      <img id="photo-img" alt="" loading="lazy" referrerpolicy="no-referrer">
+    </aside>
 
   </div>
 </section>
@@ -486,14 +626,15 @@ footer a:hover { color: #fff; }
   <p>Connect with me on X &mdash; <a href="https://twitter.com/troll_runner" target="_blank">@troll_runner</a></p>
 </footer>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 const DATA = [
-  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44},
-  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50},
-  {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56},
-  {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42},
-  {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36},
-  {city:"Fontana",           name:"Patricia Marrujo Park",            date:"Oct 17, 2025", count:1,  px:54, py:48},
+  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"assets/images/beech-ave.jpeg", imageBackupUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
+  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"assets/images/koehler-park.jpeg", imageBackupUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
+  {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56, imageUrl:"assets/images/almeria-park.jpeg", imageSource:"https://imgur.com/a/14rQ6SW"},
+  {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42, imageUrl:"assets/images/ralph-m-lewis-sports-complex.jpeg", imageSource:"https://imgur.com/a/qj6CweJ"},
+  {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36, imageUrl:"assets/images/sierra-lakes-golf-club.jpeg", imageSource:"https://imgur.com/a/HlG04kq"},
+  {city:"Fontana",           name:"Patricia Marrujo Park",            date:"Oct 17, 2025", count:1,  px:54, py:48, imageUrl:"assets/images/patricia-marrujo-park.jpeg", imageSource:"https://imgur.com/a/4tivMSk"},
   {city:"Riverside",         name:"Mount Rubidoux",                   date:"Oct 19, 2025", count:5,  px:72, py:54},
   {city:"Riverside",         name:"Senna Cross",                      date:"Oct 19, 2025", count:1,  px:76, py:50},
   {city:"Riverside",         name:"Ryan Bonamino Park",               date:"Oct 19, 2025", count:7,  px:80, py:58},
@@ -531,118 +672,68 @@ const CITIES = {
   "Chino Hills":      {pin:"#007aff", bg:"#e5f2ff", txt:"#004a99"},
 };
 
-const CITY_LABELS = [
-  {name:"Fontana",          px:47, py:50},
-  {name:"Riverside",        px:76, py:64},
-  {name:"Rancho Cucamonga", px:24, py:26},
-  {name:"Rialto",           px:62, py:50},
-  {name:"Chino Hills",      px:12, py:60},
-  {name:"San Bernardino",   px:62, py:36},
-  {name:"Ontario",          px:30, py:48},
-  {name:"Moreno Valley",    px:88, py:72},
-  {name:"Corona",           px:76, py:82},
-];
+let activeCity = null, activeIdx = null, searchTerm = '';
+let selectedDate = null;
+let calendarOpen = false;
+let map = null;
+let markersLayer = null;
+const DATE_COUNTS = {};
+const CITY_GEO = {
+  "Fontana":          {lat:34.0922, lng:-117.4350, latSpread:0.08, lngSpread:0.11},
+  "Riverside":        {lat:33.9806, lng:-117.3755, latSpread:0.09, lngSpread:0.11},
+  "Rancho Cucamonga": {lat:34.1064, lng:-117.5931, latSpread:0.06, lngSpread:0.08},
+  "Rialto":           {lat:34.1064, lng:-117.3703, latSpread:0.05, lngSpread:0.06},
+  "Chino Hills":      {lat:33.9898, lng:-117.7326, latSpread:0.06, lngSpread:0.07},
+};
 
-let activeCity = null, activeIdx = null, zoomScale = 1, searchTerm = '';
+function guessLatLng(loc) {
+  const city = CITY_GEO[loc.city] || {lat:34.03, lng:-117.40, latSpread:0.08, lngSpread:0.1};
+  const xNorm = (loc.px - 50) / 50;
+  const yNorm = (loc.py - 50) / 50;
+  const lat = city.lat - (yNorm * city.latSpread);
+  const lng = city.lng + (xNorm * city.lngSpread);
+  return [lat, lng];
+}
 
-function drawMap() {
-  const cv = document.getElementById('map-canvas');
-  const wrap = document.getElementById('map-wrap');
-  cv.width  = wrap.offsetWidth  || 900;
-  cv.height = wrap.offsetHeight || 600;
-  const W = cv.width, H = cv.height;
-  const c = cv.getContext('2d');
-  const x = p => p / 100 * W;
-  const y = p => p / 100 * H;
+DATA.forEach(d => {
+  d.isoDate = toIsoDate(d.date);
+  if (typeof d.lat !== 'number' || typeof d.lng !== 'number') {
+    const [lat, lng] = guessLatLng(d);
+    d.lat = +lat.toFixed(6);
+    d.lng = +lng.toFixed(6);
+  }
+  DATE_COUNTS[d.isoDate] = (DATE_COUNTS[d.isoDate] || 0) + d.count;
+});
+const allDropDates = Object.keys(DATE_COUNTS).sort();
+let calendarMonth = allDropDates.length ? new Date(`${allDropDates[allDropDates.length-1]}T00:00:00`) : new Date();
 
-  c.fillStyle = '#f2efe9'; c.fillRect(0,0,W,H);
+function toIsoDate(dateStr) {
+  const d = new Date(dateStr);
+  const yr = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${yr}-${mo}-${day}`;
+}
 
-  // mountains / hills shading at edges
-  c.fillStyle = '#e8e3d8';
-  c.beginPath(); c.moveTo(0,0); c.lineTo(x(18),0); c.lineTo(x(5),y(35)); c.lineTo(0,y(30)); c.closePath(); c.fill();
-  c.beginPath(); c.moveTo(x(82),0); c.lineTo(W,0); c.lineTo(W,y(20)); c.lineTo(x(90),y(15)); c.closePath(); c.fill();
-  c.beginPath(); c.moveTo(0,H); c.lineTo(x(20),H); c.lineTo(x(10),y(85)); c.closePath(); c.fill();
+function getVisibleData() {
+  return DATA.filter(d =>
+    (!activeCity || d.city === activeCity) &&
+    (!searchTerm || d.name.toLowerCase().includes(searchTerm) || d.city.toLowerCase().includes(searchTerm)) &&
+    (!selectedDate || d.isoDate === selectedDate)
+  );
+}
 
-  // large park/open space zones
-  const parkZones = [
-    {l:0,t:0,w:18,h:30},{l:85,t:0,w:15,h:25},{l:0,t:75,w:22,h:25},
-    {l:36,t:36,w:10,h:9},{l:68,t:52,w:12,h:14},{l:18,t:20,w:9,h:12},
-    {l:6,t:50,w:11,h:16},{l:58,t:38,w:9,h:9},{l:78,t:56,w:12,h:12},
-    {l:88,t:60,w:12,h:20},{l:40,t:76,w:20,h:18},{l:62,t:74,w:20,h:18},
-  ];
-  parkZones.forEach(p => {
-    c.fillStyle='#d4e8c2'; c.strokeStyle='#c2dab0'; c.lineWidth=0.5;
-    c.beginPath(); c.roundRect(x(p.l),y(p.t),x(p.w),y(p.h),4); c.fill(); c.stroke();
-  });
-
-  // lakes / reservoirs — realistic ellipses
-  const waters = [
-    {cx:8,  cy:14, rx:3.5,ry:2.2},
-    {cx:92, cy:10, rx:3,  ry:1.8},
-    {cx:50, cy:88, rx:5,  ry:2.5},
-    {cx:30, cy:80, rx:3,  ry:1.5},
-  ];
-  waters.forEach(w => {
-    c.fillStyle='#b8d4e8'; c.strokeStyle='#a0c4e0'; c.lineWidth=0.5;
-    c.beginPath(); c.ellipse(x(w.cx),y(w.cy),x(w.rx),y(w.ry),0,0,Math.PI*2); c.fill(); c.stroke();
-  });
-
-  // building blocks
-  const blocks = [
-    [26,38,6,6],[33,38,6,6],[26,45,6,8],[33,45,6,8],
-    [51,38,8,6],[51,45,8,8],[61,38,10,6],[73,38,14,6],
-    [73,55,14,8],[61,55,10,8],[16,24,8,12],[26,24,6,12],[16,38,8,6],
-    [40,30,10,6],[64,28,12,8],[75,28,10,6],[50,60,8,8],[66,60,10,6],
-  ];
-  blocks.forEach(([l,t,w,h]) => {
-    c.fillStyle='#ede8df'; c.strokeStyle='#ddd5c8'; c.lineWidth=0.5;
-    c.beginPath(); c.roundRect(x(l),y(t),x(w),y(h),3); c.fill(); c.stroke();
-  });
-
-  // local streets
-  const streets = [
-    [10,44,90,44],[10,50,90,50],[10,60,90,60],[10,66,90,66],[10,74,90,74],
-    [15,0,15,100],[32,0,32,100],[40,0,40,100],[60,0,60,100],[80,0,80,100],[90,0,90,100],[55,0,55,100],
-  ];
-  streets.forEach(([x1,y1,x2,y2]) => {
-    c.strokeStyle='#e2d9c9'; c.lineWidth=1.5;
-    c.beginPath(); c.moveTo(x(x1),y(y1)); c.lineTo(x(x2),y(y2)); c.stroke();
-  });
-
-  // arterials
-  [[0,36,100,36],[0,54,100,54],[0,70,100,70],[0,82,100,82],
-   [25,0,25,100],[48,0,48,100],[70,0,70,100]].forEach(([x1,y1,x2,y2]) => {
-    c.strokeStyle='#e8ddc8'; c.lineWidth=4;
-    c.beginPath(); c.moveTo(x(x1),y(y1)); c.lineTo(x(x2),y(y2)); c.stroke();
-    c.strokeStyle='rgba(255,255,255,0.5)'; c.lineWidth=1; c.setLineDash([10,10]);
-    c.beginPath(); c.moveTo(x(x1),y(y1)); c.lineTo(x(x2),y(y2)); c.stroke();
-    c.setLineDash([]);
-  });
-
-  // freeways
-  const freeways = [
-    [0,32,100,32,'I-10',50,32],[0,48,100,48,'Hwy 66',8,48],
-    [20,0,20,100,'I-15',20,12],[68,0,68,100,'Hwy 91',68,10],
-    [0,78,100,78,'I-215',15,78],[45,0,45,100,'CA-60',45,6],
-  ];
-  freeways.forEach(([x1,y1,x2,y2,label,lx,ly]) => {
-    c.strokeStyle='#f5c842'; c.lineWidth=5;
-    c.beginPath(); c.moveTo(x(x1),y(y1)); c.lineTo(x(x2),y(y2)); c.stroke();
-    c.strokeStyle='rgba(255,255,255,0.55)'; c.lineWidth=1;
-    c.beginPath(); c.moveTo(x(x1),y(y1)); c.lineTo(x(x2),y(y2)); c.stroke();
-    c.fillStyle='rgba(90,80,20,0.75)';
-    c.font='bold 9px DM Sans,-apple-system,sans-serif';
-    c.textAlign='center';
-    c.fillText(label, x(lx), y(ly)-5);
-  });
-
-  // city labels
-  CITY_LABELS.forEach(l => {
-    c.fillStyle='rgba(80,80,85,0.65)';
-    c.font='600 9px DM Sans,-apple-system,sans-serif';
-    c.textAlign='center';
-    c.fillText(l.name.toUpperCase(), x(l.px), y(l.py)+20);
-  });
+function initMap() {
+  map = L.map('leaflet-map', { zoomControl: false, minZoom: 9, maxZoom: 16 }).setView([34.03, -117.35], 10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+  const bounds = L.latLngBounds(DATA.map(d => [d.lat, d.lng]));
+  map.fitBounds(bounds.pad(0.25));
+  map.on('click', () => closePopup());
+  map.on('zoom move', () => { if (activeIdx !== null) positionPopup(DATA[activeIdx]); });
 }
 
 function buildTabs() {
@@ -675,33 +766,27 @@ function filterSearch(val) {
 }
 
 function renderPins() {
-  const layer = document.getElementById('pins-layer');
-  layer.innerHTML = '';
-  const W = document.getElementById('map-canvas').width;
-  const H = document.getElementById('map-canvas').height;
-  DATA.filter(d =>
-    (!activeCity || d.city === activeCity) &&
-    (!searchTerm || d.name.toLowerCase().includes(searchTerm) || d.city.toLowerCase().includes(searchTerm))
-  ).forEach(loc => {
+  if (!map || !markersLayer) return;
+  markersLayer.clearLayers();
+  getVisibleData().forEach(loc => {
     const idx = DATA.indexOf(loc);
     const col = CITIES[loc.city];
-    const pin = document.createElement('div');
-    pin.className = 'pin' + (activeIdx === idx ? ' active-pin' : '');
-    pin.style.left = (loc.px/100*W)+'px';
-    pin.style.top  = (loc.py/100*H)+'px';
-    pin.innerHTML = `<div class="pin-body" style="background:${col.pin}"><span class="pin-letter">🧌</span></div>${loc.count>1?`<div class="pin-count">${loc.count}</div>`:''}`;
-    pin.onclick = e => { e.stopPropagation(); selectPin(idx); };
-    layer.appendChild(pin);
+    const html = `<div class="lf-pin${activeIdx === idx ? ' active-pin' : ''}">
+      <div class="pin-body" style="background:${col.pin}"><span class="pin-letter">🧌</span></div>
+      ${loc.count>1?`<div class="pin-count">${loc.count}</div>`:''}
+    </div>`;
+    const marker = L.marker([loc.lat, loc.lng], {
+      icon: L.divIcon({ className: 'lf-pin-wrap', html, iconSize: [34, 42], iconAnchor: [17, 38] })
+    });
+    marker.on('click', () => selectPin(idx));
+    marker.addTo(markersLayer);
   });
 }
 
 function renderList() {
   const list = document.getElementById('loc-list');
   list.innerHTML = '';
-  const visible = DATA.filter(d =>
-    (!activeCity || d.city === activeCity) &&
-    (!searchTerm || d.name.toLowerCase().includes(searchTerm) || d.city.toLowerCase().includes(searchTerm))
-  );
+  const visible = getVisibleData();
   if (!visible.length) { list.innerHTML='<div class="empty-msg">No locations found</div>'; return; }
   visible.forEach(loc => {
     const idx = DATA.indexOf(loc);
@@ -726,47 +811,160 @@ function selectPin(idx) {
   activeIdx = idx;
   const loc = DATA[idx];
   const col = CITIES[loc.city];
-  const W = document.getElementById('map-canvas').width;
-  const H = document.getElementById('map-canvas').height;
-  const px = loc.px/100*W, py = loc.py/100*H;
   document.getElementById('p-name').textContent = loc.name;
   const tag = document.getElementById('p-city-tag');
   tag.textContent=loc.city; tag.style.background=col.bg; tag.style.color=col.txt;
   document.getElementById('p-date').textContent  = loc.date;
   document.getElementById('p-count').textContent = loc.count+' sticker'+(loc.count>1?'s':'');
-  const popup = document.getElementById('popup');
-  popup.style.display='block';
-  popup.style.left = Math.min(px+14, W-250)+'px';
-  popup.style.top  = Math.max(py-130, 10)+'px';
+  updatePhotoPanel(loc);
+  positionPopup(loc);
   document.querySelectorAll('.loc-card').forEach(c=>c.classList.remove('active'));
   const card=document.querySelector(`.loc-card[data-idx="${idx}"]`);
   if(card){card.classList.add('active'); card.scrollIntoView({block:'nearest',behavior:'smooth'});}
   renderPins();
 }
 
+function positionPopup(loc) {
+  if (!map) return;
+  const popup = document.getElementById('popup');
+  const mapWrap = document.getElementById('map-wrap');
+  const pt = map.latLngToContainerPoint([loc.lat, loc.lng]);
+  popup.style.display='block';
+  popup.style.left = Math.min(pt.x + 14, mapWrap.clientWidth - 250) + 'px';
+  popup.style.top  = Math.max(pt.y - 130, 10) + 'px';
+}
+
 function closePopup() {
   document.getElementById('popup').style.display='none';
+  updatePhotoPanel(null);
   activeIdx=null;
   document.querySelectorAll('.loc-card').forEach(c=>c.classList.remove('active'));
   renderPins();
 }
 
-function zoom(delta) {
-  zoomScale = Math.max(0.7, Math.min(2.5, zoomScale + delta));
-  ['map-canvas','pins-layer'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.style.transformOrigin='50% 50%';
-    el.style.transform=`scale(${zoomScale})`;
-  });
+function updatePhotoPanel(loc) {
+  const app = document.getElementById('map-app');
+  const img = document.getElementById('photo-img');
+  const title = document.getElementById('photo-title');
+  const meta = document.getElementById('photo-meta');
+  const source = document.getElementById('photo-source');
+  if (loc && loc.imageUrl) {
+    app.classList.add('show-photo');
+    source.style.display = 'none';
+    source.removeAttribute('href');
+    if (loc.imageSource) {
+      source.href = loc.imageSource;
+      source.style.display = 'inline-block';
+    }
+    const candidates = [loc.imageUrl];
+    const baseMatch = loc.imageUrl.match(/^(assets\/images\/.+?)(\.[a-zA-Z0-9]+)$/);
+    if (baseMatch) {
+      const base = baseMatch[1];
+      ['.jpeg', '.jpg', '.png', '.webp', '.JPG', '.JPEG', '.PNG', '.WEBP'].forEach(ext => {
+        const candidate = `${base}${ext}`;
+        if (!candidates.includes(candidate)) candidates.push(candidate);
+      });
+    }
+    if (loc.imageBackupUrl && !candidates.includes(loc.imageBackupUrl)) candidates.push(loc.imageBackupUrl);
+    let idx = 0;
+    img.style.display = 'block';
+    img.onload = () => { img.style.display = 'block'; };
+    img.onerror = () => {
+      idx += 1;
+      if (idx < candidates.length) {
+        img.src = candidates[idx];
+      } else if (loc.imageSource) {
+        img.style.display = 'none';
+      }
+    };
+    img.src = candidates[idx];
+    img.alt = loc.imageTitle || loc.name;
+    title.textContent = loc.name;
+    meta.textContent = `${loc.city} · ${loc.date}`;
+  } else {
+    app.classList.remove('show-photo');
+    img.removeAttribute('src');
+    img.style.display = 'none';
+    source.removeAttribute('href');
+    source.style.display = 'none';
+    img.alt = '';
+    title.textContent = '';
+    meta.textContent = '';
+  }
 }
 
-document.getElementById('map-wrap').addEventListener('click', e => {
-  if(e.target.id==='map-canvas'||e.target.id==='map-wrap') closePopup();
-});
+function toggleCalendar() {
+  calendarOpen = !calendarOpen;
+  document.getElementById('calendar-panel').style.display = calendarOpen ? 'block' : 'none';
+  if (calendarOpen) renderCalendar();
+}
 
-window.addEventListener('resize', ()=>{ drawMap(); renderPins(); });
+function shiftCalendarMonth(delta) {
+  calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + delta, 1);
+  renderCalendar();
+}
 
-drawMap(); buildTabs(); renderPins(); renderList();
+function renderCalendar() {
+  const grid = document.getElementById('calendar-grid');
+  const label = document.getElementById('calendar-label');
+  const y = calendarMonth.getFullYear();
+  const m = calendarMonth.getMonth();
+  label.textContent = calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  grid.innerHTML = '';
+  ['S','M','T','W','T','F','S'].forEach(d => {
+    const dow = document.createElement('div');
+    dow.className = 'cal-dow';
+    dow.textContent = d;
+    grid.appendChild(dow);
+  });
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'cal-empty';
+    grid.appendChild(empty);
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const btn = document.createElement('button');
+    btn.className = 'cal-day';
+    if (DATE_COUNTS[iso]) btn.classList.add('has-drop');
+    if (selectedDate === iso) btn.classList.add('active');
+    btn.textContent = day;
+    btn.onclick = () => setDateFilter(iso);
+    grid.appendChild(btn);
+  }
+}
+
+function setDateFilter(iso) {
+  selectedDate = iso;
+  const wrap = document.getElementById('date-filter');
+  wrap.style.display = 'flex';
+  const nice = new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  document.getElementById('date-filter-label').textContent = `Date: ${nice}`;
+  closePopup();
+  renderCalendar();
+  renderList();
+  renderPins();
+}
+
+function clearDateFilter() {
+  selectedDate = null;
+  document.getElementById('date-filter').style.display = 'none';
+  renderCalendar();
+  renderList();
+  renderPins();
+}
+
+function zoom(delta) {
+  if (!map) return;
+  if (delta > 0) map.zoomIn();
+  else map.zoomOut();
+}
+
+window.addEventListener('resize', ()=>{ if (activeIdx !== null) positionPopup(DATA[activeIdx]); });
+
+initMap(); buildTabs(); renderPins(); renderList();
 </script>
 </body>
 </html>
