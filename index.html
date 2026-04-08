@@ -358,6 +358,14 @@ header p {
   color: #6e6e73;
   margin-bottom: 10px;
 }
+#photo-source {
+  display: none;
+  font-size: 12px;
+  color: #007aff;
+  margin-bottom: 10px;
+  text-decoration: none;
+}
+#photo-source:hover { text-decoration: underline; }
 #photo-panel img {
   width: 100%;
   height: calc(100% - 54px);
@@ -595,6 +603,7 @@ footer a:hover { color: #fff; }
     <aside id="photo-panel">
       <h4 id="photo-title"></h4>
       <p id="photo-meta"></p>
+      <a id="photo-source" target="_blank" rel="noopener noreferrer">Open source album</a>
       <img id="photo-img" alt="" loading="lazy" referrerpolicy="no-referrer">
     </aside>
 
@@ -847,8 +856,15 @@ function updatePhotoPanel(loc) {
   const img = document.getElementById('photo-img');
   const title = document.getElementById('photo-title');
   const meta = document.getElementById('photo-meta');
+  const source = document.getElementById('photo-source');
   if (loc && loc.imageUrl) {
     app.classList.add('show-photo');
+    source.style.display = 'none';
+    source.removeAttribute('href');
+    if (loc.imageSource) {
+      source.href = loc.imageSource;
+      source.style.display = 'inline-block';
+    }
     const candidates = [loc.imageUrl];
     const baseMatch = loc.imageUrl.match(/^(assets\/images\/.+?)(\.[a-zA-Z0-9]+)$/);
     if (baseMatch) {
@@ -860,9 +876,15 @@ function updatePhotoPanel(loc) {
     }
     if (loc.imageBackupUrl && !candidates.includes(loc.imageBackupUrl)) candidates.push(loc.imageBackupUrl);
     let idx = 0;
+    img.style.display = 'block';
+    img.onload = () => { img.style.display = 'block'; };
     img.onerror = () => {
       idx += 1;
-      if (idx < candidates.length) img.src = candidates[idx];
+      if (idx < candidates.length) {
+        img.src = candidates[idx];
+      } else if (loc.imageSource) {
+        img.style.display = 'none';
+      }
     };
     img.src = candidates[idx];
     img.alt = loc.imageTitle || loc.name;
@@ -871,6 +893,9 @@ function updatePhotoPanel(loc) {
   } else {
     app.classList.remove('show-photo');
     img.removeAttribute('src');
+    img.style.display = 'none';
+    source.removeAttribute('href');
+    source.style.display = 'none';
     img.alt = '';
     title.textContent = '';
     meta.textContent = '';
