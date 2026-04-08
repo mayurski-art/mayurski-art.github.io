@@ -678,8 +678,30 @@ let calendarOpen = false;
 let map = null;
 let markersLayer = null;
 const DATE_COUNTS = {};
+const CITY_GEO = {
+  "Fontana":          {lat:34.0922, lng:-117.4350, latSpread:0.08, lngSpread:0.11},
+  "Riverside":        {lat:33.9806, lng:-117.3755, latSpread:0.09, lngSpread:0.11},
+  "Rancho Cucamonga": {lat:34.1064, lng:-117.5931, latSpread:0.06, lngSpread:0.08},
+  "Rialto":           {lat:34.1064, lng:-117.3703, latSpread:0.05, lngSpread:0.06},
+  "Chino Hills":      {lat:33.9898, lng:-117.7326, latSpread:0.06, lngSpread:0.07},
+};
+
+function guessLatLng(loc) {
+  const city = CITY_GEO[loc.city] || {lat:34.03, lng:-117.40, latSpread:0.08, lngSpread:0.1};
+  const xNorm = (loc.px - 50) / 50;
+  const yNorm = (loc.py - 50) / 50;
+  const lat = city.lat - (yNorm * city.latSpread);
+  const lng = city.lng + (xNorm * city.lngSpread);
+  return [lat, lng];
+}
+
 DATA.forEach(d => {
   d.isoDate = toIsoDate(d.date);
+  if (typeof d.lat !== 'number' || typeof d.lng !== 'number') {
+    const [lat, lng] = guessLatLng(d);
+    d.lat = +lat.toFixed(6);
+    d.lng = +lng.toFixed(6);
+  }
   DATE_COUNTS[d.isoDate] = (DATE_COUNTS[d.isoDate] || 0) + d.count;
 });
 const allDropDates = Object.keys(DATE_COUNTS).sort();
@@ -701,13 +723,6 @@ function getVisibleData() {
   );
 }
 
-function pointToLatLng(px, py) {
-  const north = 34.24, south = 33.82, west = -117.84, east = -116.94;
-  const lat = north - (py / 100) * (north - south);
-  const lng = west + (px / 100) * (east - west);
-  return [lat, lng];
-}
-
 function initMap() {
   map = L.map('leaflet-map', { zoomControl: false, minZoom: 9, maxZoom: 16 }).setView([34.03, -117.35], 10);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -715,6 +730,8 @@ function initMap() {
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
   markersLayer = L.layerGroup().addTo(map);
+  const bounds = L.latLngBounds(DATA.map(d => [d.lat, d.lng]));
+  map.fitBounds(bounds.pad(0.25));
   map.on('click', () => closePopup());
   map.on('zoom move', () => { if (activeIdx !== null) positionPopup(DATA[activeIdx]); });
 }
@@ -758,7 +775,7 @@ function renderPins() {
       <div class="pin-body" style="background:${col.pin}"><span class="pin-letter">🧌</span></div>
       ${loc.count>1?`<div class="pin-count">${loc.count}</div>`:''}
     </div>`;
-    const marker = L.marker(pointToLatLng(loc.px, loc.py), {
+    const marker = L.marker([loc.lat, loc.lng], {
       icon: L.divIcon({ className: 'lf-pin-wrap', html, iconSize: [34, 42], iconAnchor: [17, 38] })
     });
     marker.on('click', () => selectPin(idx));
@@ -811,7 +828,7 @@ function positionPopup(loc) {
   if (!map) return;
   const popup = document.getElementById('popup');
   const mapWrap = document.getElementById('map-wrap');
-  const pt = map.latLngToContainerPoint(pointToLatLng(loc.px, loc.py));
+  const pt = map.latLngToContainerPoint([loc.lat, loc.lng]);
   popup.style.display='block';
   popup.style.left = Math.min(pt.x + 14, mapWrap.clientWidth - 250) + 'px';
   popup.style.top  = Math.max(pt.y - 130, 10) + 'px';
