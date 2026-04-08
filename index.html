@@ -366,6 +366,22 @@ header p {
   text-decoration: none;
 }
 #photo-source:hover { text-decoration: underline; }
+#photo-nav {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+#photo-nav button {
+  border: 0.5px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+}
+#photo-count { font-size: 11px; color: var(--text-secondary); }
 #photo-panel img {
   width: 100%;
   height: calc(100% - 54px);
@@ -595,6 +611,11 @@ footer a:hover { color: #fff; }
       <h4 id="photo-title"></h4>
       <p id="photo-meta"></p>
       <a id="photo-source" target="_blank" rel="noopener noreferrer">Open source album</a>
+      <div id="photo-nav">
+        <button onclick="shiftPhoto(-1)">‹</button>
+        <span id="photo-count"></span>
+        <button onclick="shiftPhoto(1)">›</button>
+      </div>
       <img id="photo-img" alt="" loading="lazy" referrerpolicy="no-referrer">
     </aside>
 
@@ -632,7 +653,7 @@ const DATA = [
   {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"assets/images/beech-ave.jpeg", imageBackupUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
   {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"assets/images/koehler-park.jpeg", imageBackupUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
   {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56, imageUrl:"assets/images/almeria-park.jpeg", imageSource:"https://imgur.com/a/14rQ6SW"},
-  {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42, imageUrl:"assets/images/ralph-m-lewis-sports-complex.jpeg", imageSource:"https://imgur.com/a/qj6CweJ"},
+  {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42, imageUrl:"assets/images/ralph-m-lewis-sports-complex.jpeg", imageUrls:["assets/images/ralph-m-lewis-sports-complex.jpeg", "https://i.imgur.com/8694iA2.jpeg"], imageSource:"https://imgur.com/a/qj6CweJ"},
   {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36, imageUrl:"assets/images/sierra-lakes-golf-club.jpeg", imageSource:"https://imgur.com/a/HlG04kq"},
   {city:"Fontana",           name:"Patricia Marrujo Park",            date:"Oct 17, 2025", count:1,  px:54, py:48, imageUrl:"assets/images/patricia-marrujo-park.jpeg", imageSource:"https://imgur.com/a/4tivMSk"},
   {city:"Riverside",         name:"Mount Rubidoux",                   date:"Oct 19, 2025", count:5,  px:72, py:54},
@@ -677,6 +698,9 @@ let selectedDate = null;
 let calendarOpen = false;
 let map = null;
 let markersLayer = null;
+let photoList = [];
+let photoIndex = 0;
+let activePhotoLoc = null;
 const DATE_COUNTS = {};
 const CITY_GEO = {
   "Fontana":          {lat:34.0922, lng:-117.4350, latSpread:0.08, lngSpread:0.11},
@@ -848,16 +872,29 @@ function updatePhotoPanel(loc) {
   const title = document.getElementById('photo-title');
   const meta = document.getElementById('photo-meta');
   const source = document.getElementById('photo-source');
+  const nav = document.getElementById('photo-nav');
+  const count = document.getElementById('photo-count');
   if (loc && loc.imageUrl) {
     app.classList.add('show-photo');
+    activePhotoLoc = loc;
+    photoList = (Array.isArray(loc.imageUrls) && loc.imageUrls.length ? loc.imageUrls : [loc.imageUrl]);
+    photoIndex = Math.min(photoIndex, photoList.length - 1);
+    if (photoList.length > 1) {
+      nav.style.display = 'flex';
+      count.textContent = `${photoIndex + 1} / ${photoList.length}`;
+    } else {
+      nav.style.display = 'none';
+      count.textContent = '';
+    }
     source.style.display = 'none';
     source.removeAttribute('href');
     if (loc.imageSource) {
       source.href = loc.imageSource;
       source.style.display = 'inline-block';
     }
-    const candidates = [loc.imageUrl];
-    const baseMatch = loc.imageUrl.match(/^(assets\/images\/.+?)(\.[a-zA-Z0-9]+)$/);
+    const currentPhoto = photoList[photoIndex];
+    const candidates = [currentPhoto];
+    const baseMatch = currentPhoto.match(/^(assets\/images\/.+?)(\.[a-zA-Z0-9]+)$/);
     if (baseMatch) {
       const base = baseMatch[1];
       ['.jpeg', '.jpg', '.png', '.webp', '.JPG', '.JPEG', '.PNG', '.WEBP'].forEach(ext => {
@@ -889,14 +926,25 @@ function updatePhotoPanel(loc) {
     meta.textContent = `${loc.city} · ${loc.date}`;
   } else {
     app.classList.remove('show-photo');
+    activePhotoLoc = null;
+    photoList = [];
+    photoIndex = 0;
     img.removeAttribute('src');
     img.style.display = 'none';
     source.removeAttribute('href');
     source.style.display = 'none';
+    nav.style.display = 'none';
+    count.textContent = '';
     img.alt = '';
     title.textContent = '';
     meta.textContent = '';
   }
+}
+
+function shiftPhoto(delta) {
+  if (!activePhotoLoc || photoList.length < 2) return;
+  photoIndex = (photoIndex + delta + photoList.length) % photoList.length;
+  updatePhotoPanel(activePhotoLoc);
 }
 
 function toggleCalendar() {
