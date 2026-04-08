@@ -122,7 +122,7 @@ header p {
 
 #map-app {
   display: flex;
-  height: 600px;
+  height: clamp(520px, 68vh, 760px);
   border-radius: 18px;
   overflow: hidden;
   border: 0.5px solid rgba(255,255,255,0.1);
@@ -249,11 +249,51 @@ header p {
 /* ── MAP ── */
 #map-wrap {
   flex: 1;
+  min-width: 0;
   position: relative;
   overflow: hidden;
+  background: var(--bg-map);
+}
+#map-content {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  transition: transform 180ms ease-out;
 }
 #map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 #pins-layer  { position: absolute; inset: 0; pointer-events: none; }
+#photo-panel {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  background: rgba(255,255,255,0.97);
+  border-left: 0.5px solid rgba(0,0,0,0.1);
+  transition: width 220ms ease, opacity 180ms ease, padding 220ms ease;
+  padding: 0;
+}
+#map-app.show-photo #photo-panel {
+  width: 360px;
+  opacity: 1;
+  padding: 14px;
+}
+#photo-panel h4 {
+  font-size: 14px;
+  color: #1c1c1e;
+  margin-bottom: 4px;
+}
+#photo-panel p {
+  font-size: 12px;
+  color: #6e6e73;
+  margin-bottom: 10px;
+}
+#photo-panel img {
+  width: 100%;
+  height: calc(100% - 54px);
+  max-height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 0.5px solid #d1d1d6;
+}
 
 .pin {
   position: absolute;
@@ -442,8 +482,10 @@ footer a:hover { color: #fff; }
 
     <!-- MAP -->
     <div id="map-wrap">
-      <canvas id="map-canvas"></canvas>
-      <div id="pins-layer"></div>
+      <div id="map-content">
+        <canvas id="map-canvas"></canvas>
+        <div id="pins-layer"></div>
+      </div>
       <div id="popup">
         <div id="popup-close" onclick="closePopup()">×</div>
         <h4 id="p-name"></h4>
@@ -457,6 +499,11 @@ footer a:hover { color: #fff; }
       </div>
       <div id="scale-bar">San Bernardino &amp; Riverside Counties</div>
     </div>
+    <aside id="photo-panel">
+      <h4 id="photo-title"></h4>
+      <p id="photo-meta"></p>
+      <img id="photo-img" alt="" loading="lazy" referrerpolicy="no-referrer">
+    </aside>
 
   </div>
 </section>
@@ -488,8 +535,8 @@ footer a:hover { color: #fff; }
 
 <script>
 const DATA = [
-  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44},
-  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50},
+  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
+  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
   {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56},
   {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42},
   {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36},
@@ -729,15 +776,18 @@ function selectPin(idx) {
   const W = document.getElementById('map-canvas').width;
   const H = document.getElementById('map-canvas').height;
   const px = loc.px/100*W, py = loc.py/100*H;
+  const scaledX = (px - W/2) * zoomScale + W/2;
+  const scaledY = (py - H/2) * zoomScale + H/2;
   document.getElementById('p-name').textContent = loc.name;
   const tag = document.getElementById('p-city-tag');
   tag.textContent=loc.city; tag.style.background=col.bg; tag.style.color=col.txt;
   document.getElementById('p-date').textContent  = loc.date;
   document.getElementById('p-count').textContent = loc.count+' sticker'+(loc.count>1?'s':'');
+  updatePhotoPanel(loc);
   const popup = document.getElementById('popup');
   popup.style.display='block';
-  popup.style.left = Math.min(px+14, W-250)+'px';
-  popup.style.top  = Math.max(py-130, 10)+'px';
+  popup.style.left = Math.min(scaledX+14, W-250)+'px';
+  popup.style.top  = Math.max(scaledY-130, 10)+'px';
   document.querySelectorAll('.loc-card').forEach(c=>c.classList.remove('active'));
   const card=document.querySelector(`.loc-card[data-idx="${idx}"]`);
   if(card){card.classList.add('active'); card.scrollIntoView({block:'nearest',behavior:'smooth'});}
@@ -746,23 +796,46 @@ function selectPin(idx) {
 
 function closePopup() {
   document.getElementById('popup').style.display='none';
+  updatePhotoPanel(null);
   activeIdx=null;
   document.querySelectorAll('.loc-card').forEach(c=>c.classList.remove('active'));
   renderPins();
 }
 
+function updatePhotoPanel(loc) {
+  const app = document.getElementById('map-app');
+  const img = document.getElementById('photo-img');
+  const title = document.getElementById('photo-title');
+  const meta = document.getElementById('photo-meta');
+  if (loc && loc.imageUrl) {
+    app.classList.add('show-photo');
+    img.src = loc.imageUrl;
+    img.alt = loc.imageTitle || loc.name;
+    title.textContent = loc.name;
+    meta.textContent = `${loc.city} · ${loc.date}`;
+  } else {
+    app.classList.remove('show-photo');
+    img.removeAttribute('src');
+    img.alt = '';
+    title.textContent = '';
+    meta.textContent = '';
+  }
+}
+
 function zoom(delta) {
-  zoomScale = Math.max(0.7, Math.min(2.5, zoomScale + delta));
-  ['map-canvas','pins-layer'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.style.transformOrigin='50% 50%';
-    el.style.transform=`scale(${zoomScale})`;
-  });
+  zoomScale = Math.max(0.85, Math.min(3, +(zoomScale + delta).toFixed(2)));
+  document.getElementById('map-content').style.transform = `scale(${zoomScale})`;
+  if (activeIdx !== null) selectPin(activeIdx);
 }
 
 document.getElementById('map-wrap').addEventListener('click', e => {
-  if(e.target.id==='map-canvas'||e.target.id==='map-wrap') closePopup();
+  if (e.target.id==='map-wrap' || e.target.id==='map-content' || e.target.id==='map-canvas') closePopup();
 });
+
+document.getElementById('map-wrap').addEventListener('wheel', e => {
+  e.preventDefault();
+  zoom(e.deltaY < 0 ? 0.1 : -0.1);
+}, { passive: false });
 
 window.addEventListener('resize', ()=>{ drawMap(); renderPins(); });
 
