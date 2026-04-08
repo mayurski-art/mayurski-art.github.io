@@ -358,11 +358,17 @@ header p {
   color: #6e6e73;
   margin-bottom: 10px;
 }
-#photo-panel img {
-  width: 100%;
+#photo-gallery {
   height: calc(100% - 54px);
   max-height: 100%;
-  object-fit: cover;
+  overflow-y: auto;
+  display: grid;
+  gap: 10px;
+  padding-right: 2px;
+}
+#photo-gallery img {
+  width: 100%;
+  height: auto;
   border-radius: 12px;
   border: 0.5px solid #d1d1d6;
 }
@@ -595,7 +601,7 @@ footer a:hover { color: #fff; }
     <aside id="photo-panel">
       <h4 id="photo-title"></h4>
       <p id="photo-meta"></p>
-      <img id="photo-img" alt="" loading="lazy" referrerpolicy="no-referrer">
+      <div id="photo-gallery"></div>
     </aside>
 
   </div>
@@ -631,8 +637,8 @@ footer a:hover { color: #fff; }
 const DATA = [
   {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
   {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
-  {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56},
-  {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42},
+  {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56, imageUrl:"https://i.imgur.com/7AMMiRe.jpeg", imageTitle:"Almeria Park, Fontana, California"},
+  {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42, imageUrls:["https://i.imgur.com/S1DHRXx.jpeg","https://i.imgur.com/8694iA2.jpeg"], imageTitle:"Ralph M. Lewis Sports Complex, Fontana, California"},
   {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36},
   {city:"Fontana",           name:"Patricia Marrujo Park",            date:"Oct 17, 2025", count:1,  px:54, py:48},
   {city:"Riverside",         name:"Mount Rubidoux",                   date:"Oct 19, 2025", count:5,  px:72, py:54},
@@ -827,19 +833,26 @@ function closePopup() {
 
 function updatePhotoPanel(loc) {
   const app = document.getElementById('map-app');
-  const img = document.getElementById('photo-img');
+  const gallery = document.getElementById('photo-gallery');
   const title = document.getElementById('photo-title');
   const meta = document.getElementById('photo-meta');
-  if (loc && loc.imageUrl) {
+  const imageUrls = loc ? (Array.isArray(loc.imageUrls) && loc.imageUrls.length ? loc.imageUrls : (loc.imageUrl ? [loc.imageUrl] : [])) : [];
+  if (loc && imageUrls.length) {
     app.classList.add('show-photo');
-    img.src = loc.imageUrl;
-    img.alt = loc.imageTitle || loc.name;
+    gallery.innerHTML = '';
+    imageUrls.forEach((url, index) => {
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = imageUrls.length > 1 ? `${loc.imageTitle || loc.name} (${index + 1})` : (loc.imageTitle || loc.name);
+      img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      gallery.appendChild(img);
+    });
     title.textContent = loc.name;
     meta.textContent = `${loc.city} · ${loc.date}`;
   } else {
     app.classList.remove('show-photo');
-    img.removeAttribute('src');
-    img.alt = '';
+    gallery.innerHTML = '';
     title.textContent = '';
     meta.textContent = '';
   }
