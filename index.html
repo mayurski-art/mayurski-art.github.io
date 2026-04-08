@@ -629,12 +629,12 @@ footer a:hover { color: #fff; }
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 const DATA = [
-  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
-  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
+  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"assets/images/beech-ave.jpeg", imageBackupUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
+  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"assets/images/koehler-park.jpeg", imageBackupUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
   {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56},
-  {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42},
-  {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36},
-  {city:"Fontana",           name:"Patricia Marrujo Park",            date:"Oct 17, 2025", count:1,  px:54, py:48},
+  {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42, imageUrl:"assets/images/ralph-m-lewis-sports-complex.jpeg", imageSource:"https://imgur.com/a/qj6CweJ"},
+  {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36, imageUrl:"assets/images/sierra-lakes-golf-club.jpeg", imageSource:"https://imgur.com/a/HlG04kq"},
+  {city:"Fontana",           name:"Patricia Marrujo Park",            date:"Oct 17, 2025", count:1,  px:54, py:48, imageUrl:"assets/images/patricia-marrujo-park.jpeg", imageSource:"https://imgur.com/a/4tivMSk"},
   {city:"Riverside",         name:"Mount Rubidoux",                   date:"Oct 19, 2025", count:5,  px:72, py:54},
   {city:"Riverside",         name:"Senna Cross",                      date:"Oct 19, 2025", count:1,  px:76, py:50},
   {city:"Riverside",         name:"Ryan Bonamino Park",               date:"Oct 19, 2025", count:7,  px:80, py:58},
@@ -849,6 +849,9 @@ function updatePhotoPanel(loc) {
   const meta = document.getElementById('photo-meta');
   if (loc && loc.imageUrl) {
     app.classList.add('show-photo');
+    img.onerror = () => {
+      if (loc.imageBackupUrl && img.src !== loc.imageBackupUrl) img.src = loc.imageBackupUrl;
+    };
     img.src = loc.imageUrl;
     img.alt = loc.imageTitle || loc.name;
     title.textContent = loc.name;
