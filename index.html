@@ -26,6 +26,8 @@
   --chino:     #007aff; --chino-bg:    #e5f2ff; --chino-txt:    #004a99;
   --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'DM Mono', monospace;
+  --cursor-admin: url('https://www.rw-designer.com/cursor-extern.php?id=39757'), auto;
+  --cursor-search: url('https://www.rw-designer.com/cursor-extern.php?id=39756'), auto;
 }
 
 html, body {
@@ -211,6 +213,11 @@ header p {
   transition: border-color 0.15s;
 }
 #search-box:focus { border-color: #007aff; }
+#search-box,
+#search-box:hover,
+#search-box:focus {
+  cursor: var(--cursor-search);
+}
 #date-filter {
   display: none;
   align-items: center;
@@ -588,6 +595,10 @@ footer a:hover { color: #fff; }
   font-weight: 600;
   padding: 6px 10px;
   cursor: pointer;
+}
+#admin-access,
+#admin-access * {
+  cursor: var(--cursor-admin);
 }
 
 /* ── MOBILE ── */
