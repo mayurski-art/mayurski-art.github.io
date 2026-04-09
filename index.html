@@ -788,17 +788,6 @@ footer a:hover { color: #fff; }
   </div>
 </section>
 
-<section id="found-sticker">
-  <h2>Found a sticker?</h2>
-  <div class="update-card">
-    <p>
-      <strong>#TROLLRUNNER</strong><br><br>
-      Share your discovery on X with #TrollRunner and tag @troll_runner.
-      Let's build the global troll runner community together!
-    </p>
-  </div>
-</section>
-
 <footer>
   <p>Connect with me on X &mdash; <a href="https://twitter.com/troll_runner" target="_blank">@troll_runner</a></p>
 </footer>
@@ -809,7 +798,7 @@ footer a:hover { color: #fff; }
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-const ADMIN_PASSWORD = 'trollrunner-admin';
+const ADMIN_PASSWORD = '#Mayur2626';
 const ADMIN_UPDATES_KEY = 'trollrunner_updates';
 const DATA = [
   {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
@@ -1279,6 +1268,13 @@ function loadCustomUpdates() {
   });
 }
 
+function removeDuplicateFoundStickerSections() {
+  const sections = document.querySelectorAll('section#found-sticker');
+  sections.forEach((node, idx) => {
+    if (idx > 0) node.remove();
+  });
+}
+
 function goToAdmin() {
   const pass = document.getElementById('admin-pass').value;
   if (pass !== ADMIN_PASSWORD) {
@@ -1297,7 +1293,7 @@ document.getElementById('admin-pass').addEventListener('keydown', e => {
   if (e.key === 'Enter') goToAdmin();
 });
 
-initMap(); buildTabs(); renderPins(); renderList(); initPanelResizer(); initListResizer(); syncSidebarWidthForViewport(); loadCustomUpdates();
+initMap(); buildTabs(); renderPins(); renderList(); initPanelResizer(); initListResizer(); syncSidebarWidthForViewport(); loadCustomUpdates(); removeDuplicateFoundStickerSections();
 </script>
 </body>
 </html>
