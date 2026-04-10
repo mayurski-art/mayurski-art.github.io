@@ -79,7 +79,7 @@
     </div>
 
     <div class="card preview">
-      <h3>Saved custom updates</h3>
+      <h3>Updates & archives</h3>
       <div id="preview"></div>
     </div>
 
@@ -96,6 +96,27 @@
     const AUTH_KEY = 'trollrunner_admin_auth';
     const UPDATES_KEY = 'trollrunner_updates';
     const FEEDBACK_KEY = 'trollrunner_feedback';
+    const MAX_VISIBLE_UPDATES = 4;
+    const DEFAULT_UPDATES = [
+      {
+        title: 'Oct 10, 2025 — Riverside Adventure',
+        body: 'Scattered 5 stickers along Main Street and 3 at the Riverside Plaza. Fun run with unexpected obstacles!',
+        createdAt: '2025-10-10T00:00:00.000Z',
+        source: 'site-default',
+      },
+      {
+        title: 'Nov 25, 2025 — Fontana Marathon',
+        body: 'Added 2 stickers at Central City Park and 2 at Seville Park. Downtown Fontana saw 8 new drops.',
+        createdAt: '2025-11-25T00:00:00.000Z',
+        source: 'site-default',
+      },
+      {
+        title: 'April 4, 2026 — Chino Hills Drop',
+        body: 'Placed 6 stickers at Vila Borba and 1 at Chino Hills Dog Park. Great run with some sneaky spots added!',
+        createdAt: '2026-04-04T00:00:00.000Z',
+        source: 'site-default',
+      },
+    ];
     if (localStorage.getItem(AUTH_KEY) !== '1') {
       window.location.href = 'index.html';
     }
@@ -106,7 +127,8 @@
 
     function getUpdates() {
       try {
-        return JSON.parse(localStorage.getItem(UPDATES_KEY) || '[]');
+        const items = JSON.parse(localStorage.getItem(UPDATES_KEY) || '[]');
+        return Array.isArray(items) ? items : [];
       } catch {
         return [];
       }
@@ -116,12 +138,42 @@
       localStorage.setItem(UPDATES_KEY, JSON.stringify(items));
     }
 
+    function normalizeUpdate(update, source = 'custom') {
+      const safeTitle = String(update?.title || '').trim();
+      const safeBody = String(update?.body || '').trim();
+      if (!safeTitle || !safeBody) return null;
+      const stamp = new Date(update?.createdAt || 0).getTime();
+      return {
+        title: safeTitle,
+        body: safeBody,
+        createdAt: Number.isFinite(stamp) && stamp > 0 ? stamp : 0,
+        source,
+      };
+    }
+
+    function renderUpdateList(items, emptyMessage) {
+      if (!items.length) return `<p>${escapeHtml(emptyMessage)}</p>`;
+      return items.map(u => {
+        const created = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'Unknown date';
+        const origin = u.source === 'site-default' ? 'Default' : 'Custom';
+        return `<div class="item"><strong>${escapeHtml(u.title)}</strong><br><small>${escapeHtml(created)} · ${escapeHtml(origin)}</small><p>${escapeHtml(u.body)}</p></div>`;
+      }).join('');
+    }
+
     function renderUpdates() {
       const wrap = document.getElementById('preview');
-      const updates = getUpdates();
-      wrap.innerHTML = updates.length
-        ? updates.map(u => `<div class="item"><strong>${escapeHtml(u.title)}</strong><p>${escapeHtml(u.body)}</p></div>`).join('')
-        : '<p>No custom updates yet.</p>';
+      const custom = getUpdates().map(item => normalizeUpdate(item, 'custom')).filter(Boolean);
+      const combined = [...DEFAULT_UPDATES.map(item => normalizeUpdate(item, 'site-default')), ...custom]
+        .filter(Boolean)
+        .sort((a, b) => b.createdAt - a.createdAt);
+      const active = combined.slice(0, MAX_VISIBLE_UPDATES).sort((a, b) => a.createdAt - b.createdAt);
+      const archived = combined.slice(MAX_VISIBLE_UPDATES).sort((a, b) => b.createdAt - a.createdAt);
+      wrap.innerHTML = `
+        <h4>Homepage (latest ${MAX_VISIBLE_UPDATES})</h4>
+        ${renderUpdateList(active, 'No updates available.')}
+        <h4 style="margin-top:14px;">Archives (admin only)</h4>
+        ${renderUpdateList(archived, 'No archived updates yet.')}
+      `;
     }
 
     function addUpdate() {
@@ -132,7 +184,7 @@
         return;
       }
       const updates = getUpdates();
-      updates.unshift({ title, body });
+      updates.unshift({ title, body, createdAt: new Date().toISOString() });
       setUpdates(updates);
       document.getElementById('u-title').value = '';
       document.getElementById('u-body').value = '';

@@ -1037,25 +1037,9 @@ footer a:hover { color: #fff; }
   </div>
 </section>
 
-  <section id="updates">
+<section id="updates">
   <h2>Latest Updates</h2>
-
-  <div class="update-card">
-    <h3>April 4, 2026 — Chino Hills Drop</h3>
-    <p>Placed 6 stickers at Vila Borba and 1 at Chino Hills Dog Park. Great run with some sneaky spots added!</p>
-  </div>
-
-  <div class="update-card">
-    <h3>Nov 25, 2025 — Fontana Marathon</h3>
-    <p>Added 2 stickers at Central City Park and 2 at Seville Park. Downtown Fontana saw 8 new drops.</p>
-  </div>
-
-  <div class="update-card">
-    <h3>Oct 10, 2025 — Riverside Adventure</h3>
-    <p>Scattered 5 stickers along Main Street and 3 at the Riverside Plaza. Fun run with unexpected obstacles!</p>
-  </div>
-
-  <div id="custom-updates"></div>
+  <div id="latest-updates"></div>
 </section>
 
 
@@ -1068,9 +1052,6 @@ footer a:hover { color: #fff; }
     <div class="feedback-actions">
       <button class="feedback-btn" onclick="submitFeedback()">Submit feedback</button>
       <span id="feedback-status" class="feedback-status"></span>
-    </div>
-    <div style="margin-top:10px;">
-      <a href="http://www.rw-designer.com/cursor-set/troll-face-v64" target="_blank" rel="noopener noreferrer">Troll Face Cursors</a>
     </div>
   </div>
 </section>
@@ -1120,7 +1101,25 @@ footer a:hover { color: #fff; }
 const ADMIN_PASSWORD = '#Mayur2626';
 const ADMIN_UPDATES_KEY = 'trollrunner_updates';
 const ADMIN_FEEDBACK_KEY = 'trollrunner_feedback';
+const MAX_VISIBLE_UPDATES = 4;
 const SPOTIFY_PLAYLIST_URI = 'spotify:playlist:0ni59E9HbWpAe8Ydnseh4O';
+const DEFAULT_UPDATES = [
+  {
+    title: 'Oct 10, 2025 — Riverside Adventure',
+    body: 'Scattered 5 stickers along Main Street and 3 at the Riverside Plaza. Fun run with unexpected obstacles!',
+    createdAt: '2025-10-10T00:00:00.000Z',
+  },
+  {
+    title: 'Nov 25, 2025 — Fontana Marathon',
+    body: 'Added 2 stickers at Central City Park and 2 at Seville Park. Downtown Fontana saw 8 new drops.',
+    createdAt: '2025-11-25T00:00:00.000Z',
+  },
+  {
+    title: 'April 4, 2026 — Chino Hills Drop',
+    body: 'Placed 6 stickers at Vila Borba and 1 at Chino Hills Dog Park. Great run with some sneaky spots added!',
+    createdAt: '2026-04-04T00:00:00.000Z',
+  },
+];
 const DATA = [
   {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
   {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
@@ -1724,17 +1723,37 @@ function zoom(delta) {
   else map.zoomOut();
 }
 
+function normalizeUpdate(update) {
+  const safeTitle = String(update?.title || '').trim();
+  const safeBody = String(update?.body || '').trim();
+  if (!safeTitle || !safeBody) return null;
+  const stamp = new Date(update?.createdAt || 0).getTime();
+  return {
+    title: safeTitle,
+    body: safeBody,
+    createdAt: Number.isFinite(stamp) && stamp > 0 ? stamp : 0,
+  };
+}
+
 function loadCustomUpdates() {
-  const wrap = document.getElementById('custom-updates');
+  const wrap = document.getElementById('latest-updates');
   if (!wrap) return;
-  let updates = [];
+  let customUpdates = [];
   try {
-    updates = JSON.parse(localStorage.getItem(ADMIN_UPDATES_KEY) || '[]');
+    customUpdates = JSON.parse(localStorage.getItem(ADMIN_UPDATES_KEY) || '[]');
   } catch {
-    updates = [];
+    customUpdates = [];
   }
+  const combined = [...DEFAULT_UPDATES, ...(Array.isArray(customUpdates) ? customUpdates : [])]
+    .map(normalizeUpdate)
+    .filter(Boolean)
+    .sort((a, b) => b.createdAt - a.createdAt);
+  const latest = combined
+    .slice(0, MAX_VISIBLE_UPDATES)
+    .sort((a, b) => a.createdAt - b.createdAt);
+
   wrap.innerHTML = '';
-  updates.forEach(u => {
+  latest.forEach(u => {
     const card = document.createElement('div');
     card.className = 'update-card';
     card.innerHTML = `<h3>${u.title}</h3><p>${u.body}</p>`;
