@@ -163,10 +163,13 @@ header p {
 }
 
 #spotify-embed {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  width: 320px;
+  height: 80px;
+  overflow: hidden;
+  opacity: 0.01;
   pointer-events: none;
 }
 
@@ -936,7 +939,6 @@ footer a:hover { color: #fff; }
       <div class="header-song-wrap" aria-live="polite">
         <span id="spotify-status" class="header-song-text">Loading music…</span>
       </div>
-      <div id="spotify-embed" aria-label="Troll Runner Spotify playlist" hidden></div>
     </div>
   </div>
 </header>
@@ -1095,6 +1097,7 @@ footer a:hover { color: #fff; }
   <input id="admin-pass" type="password" placeholder="Admin password">
   <button id="admin-go" onclick="goToAdmin()">Admin</button>
 </div>
+<div id="spotify-embed" aria-label="Troll Runner Spotify playlist"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
@@ -1159,6 +1162,7 @@ let isResizingList = false;
 let listResizeStartY = 0;
 let listResizeStartHeight = 0;
 let spotifyEmbedController = null;
+let spotifyLoaded = false;
 let spotifyIsPlaying = false;
 let spotifyTrackLabel = 'No track info yet';
 const DATE_COUNTS = {};
@@ -1193,6 +1197,7 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
   };
   IFrameAPI.createController(element, options, (EmbedController) => {
     spotifyEmbedController = EmbedController;
+    spotifyLoaded = true;
     setSpotifyStatus('Ready to play');
     if (typeof spotifyEmbedController.addListener === 'function') {
       spotifyEmbedController.addListener('playback_update', (event) => {
@@ -1215,7 +1220,7 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
 };
 
 function toggleSpotifyPlayPause() {
-  if (!spotifyEmbedController) {
+  if (!spotifyEmbedController || !spotifyLoaded) {
     setSpotifyStatus('Music is still loading…');
     return;
   }
@@ -1231,7 +1236,7 @@ function toggleSpotifyPlayPause() {
 }
 
 function spotifyPrevious() {
-  if (!spotifyEmbedController) {
+  if (!spotifyEmbedController || !spotifyLoaded) {
     setSpotifyStatus('Music is still loading…');
     return;
   }
@@ -1243,7 +1248,7 @@ function spotifyPrevious() {
 }
 
 function spotifyNext() {
-  if (!spotifyEmbedController) {
+  if (!spotifyEmbedController || !spotifyLoaded) {
     setSpotifyStatus('Music is still loading…');
     return;
   }
@@ -1253,6 +1258,12 @@ function spotifyNext() {
   }
   setSpotifyStatus('Next track unavailable in this Spotify embed.');
 }
+
+window.setTimeout(() => {
+  if (!spotifyLoaded) {
+    setSpotifyStatus('Spotify failed to load. Please refresh and try again.');
+  }
+}, 8000);
 
 function toIsoDate(dateStr) {
   const d = new Date(dateStr);
