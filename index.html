@@ -740,7 +740,12 @@ footer a:hover { color: #fff; }
 }
 .footer-right {
   justify-self: end;
-  text-align: center;
+  text-align: right;
+}
+.footer-right-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 .footer-social-btn {
   display: inline-flex;
@@ -769,10 +774,8 @@ footer a:hover { color: #fff; }
 }
 
 #admin-access {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 1200;
+  position: static;
+  z-index: auto;
   display: flex;
   gap: 6px;
   background: rgba(18,18,20,0.92);
@@ -833,6 +836,7 @@ footer a:hover { color: #fff; }
   .footer-left,
   .footer-right {
     justify-self: center;
+    text-align: center;
   }
   .footer-brand {
     font-size: 24px;
@@ -911,10 +915,6 @@ footer a:hover { color: #fff; }
     max-height: calc(44vh - 54px);
   }
 
-  #admin-access {
-    right: 10px;
-    bottom: 10px;
-  }
   #admin-pass { width: 120px; }
 }
 </style>
@@ -933,9 +933,7 @@ footer a:hover { color: #fff; }
     </nav>
     <div class="header-spacer">
       <div class="header-music-controls" aria-label="Music controls">
-        <button class="header-music-btn" onclick="spotifyPrevious()" aria-label="Previous track">⏮</button>
         <button id="spotify-play-pause" class="header-music-btn" onclick="toggleSpotifyPlayPause()" aria-label="Play or pause">▶</button>
-        <button class="header-music-btn" onclick="spotifyNext()" aria-label="Next track">⏭</button>
       </div>
       <div class="header-song-wrap" aria-live="polite">
         <span id="spotify-status" class="header-song-text">Loading music…</span>
@@ -1089,15 +1087,17 @@ footer a:hover { color: #fff; }
       </div>
     </div>
     <div class="footer-right">
-      <a class="footer-social-btn" href="https://x.com/troll_runner" target="_blank" rel="noopener noreferrer" aria-label="Follow Troll Runner on X">𝕏</a>
+      <div class="footer-right-controls">
+        <a class="footer-social-btn" href="https://x.com/troll_runner" target="_blank" rel="noopener noreferrer" aria-label="Follow Troll Runner on X">𝕏</a>
+        <div id="admin-access">
+          <input id="admin-pass" type="password" placeholder="Admin password">
+          <button id="admin-go" onclick="goToAdmin()">Admin</button>
+        </div>
+      </div>
       <div class="footer-project">Community Project</div>
     </div>
   </div>
 </footer>
-<div id="admin-access">
-  <input id="admin-pass" type="password" placeholder="Admin password">
-  <button id="admin-go" onclick="goToAdmin()">Admin</button>
-</div>
 <div id="spotify-embed" aria-label="Troll Runner Spotify playlist"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -1303,28 +1303,6 @@ function toggleSpotifyPlayPause() {
       return;
     }
   }
-}
-
-function spotifyPrevious() {
-  if (!spotifyEmbedController || !spotifyLoaded) {
-    setSpotifyStatus('Music is still loading…');
-    return;
-  }
-  if (callSpotifyMethod(['previous', 'prev', 'skipPrevious', 'skipToPrevious', 'previousTrack'])) {
-    return;
-  }
-  setSpotifyStatus('Previous is not supported by Spotify iFrame embeds for this content.');
-}
-
-function spotifyNext() {
-  if (!spotifyEmbedController || !spotifyLoaded) {
-    setSpotifyStatus('Music is still loading…');
-    return;
-  }
-  if (callSpotifyMethod(['next', 'skipNext', 'skipToNext', 'nextTrack'])) {
-    return;
-  }
-  setSpotifyStatus('Next is not supported by Spotify iFrame embeds for this content.');
 }
 
 window.setTimeout(() => {
