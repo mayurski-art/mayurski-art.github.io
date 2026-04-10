@@ -39,17 +39,24 @@ html, body {
 
 /* ── HEADER ── */
 header {
-  text-align: center;
   padding: 28px 20px 18px;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   border-bottom: 0.5px solid rgba(255,255,255,0.1);
+}
+.header-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+.header-brand {
+  justify-self: start;
 }
 header h1 {
   font-size: 36px;
   font-weight: 600;
   letter-spacing: -0.5px;
   color: #fff;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
 }
@@ -67,6 +74,32 @@ header h1 {
   height: 56px;
   object-fit: cover;
   object-position: center 32%;
+}
+.header-links {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-link-btn {
+  border: 0.5px solid rgba(255,255,255,0.25);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0.2px;
+  padding: 8px 14px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+.header-link-btn:hover {
+  background: rgba(255,255,255,0.16);
+  transform: translateY(-1px);
+}
+.header-spacer {
+  justify-self: end;
+  width: 1px;
 }
 header p {
   font-size: 13px;
@@ -92,6 +125,48 @@ header p {
   font-size: 14px;
   line-height: 1.7;
   color: rgba(255,255,255,0.6);
+}
+
+/* ── MUSIC ── */
+#music-player {
+  max-width: 860px;
+  margin: 20px auto 24px;
+  padding: 0 24px;
+}
+.music-card {
+  border: 0.5px solid rgba(255,255,255,0.14);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+  padding: 14px;
+}
+#spotify-embed {
+  min-height: 152px;
+}
+.spotify-controls {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.spotify-btn {
+  border: 0.5px solid rgba(255,255,255,0.25);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.spotify-btn.active {
+  background: #1db954;
+  border-color: #1db954;
+}
+#spotify-status {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.62);
 }
 
 /* ── STATS ROW ── */
@@ -731,6 +806,18 @@ footer a:hover { color: #fff; }
 @media (max-width: 900px) {
   header { padding: 22px 16px 14px; }
   header h1 { font-size: 30px; }
+  .header-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    justify-items: start;
+  }
+  .header-links {
+    justify-self: center;
+    flex-wrap: wrap;
+  }
+  .header-spacer {
+    display: none;
+  }
   .title-gif-mask { width: 34px; height: 34px; }
   .title-gif { width: 44px; height: 44px; }
   .footer-inner {
@@ -747,6 +834,7 @@ footer a:hover { color: #fff; }
   }
 
   #biography,
+  #music-player,
   #stats-banner,
   #map-section,
   #updates,
@@ -830,12 +918,37 @@ footer a:hover { color: #fff; }
 <body>
 
 <header>
- <h1><img class="title-gif" src="https://media.tenor.com/kkkBm71bkRcAAAAi/trollface-troll-face-terror-png.gif" alt="Troll face animation">Troll Runner<img class="title-gif" src="https://media.tenor.com/kkkBm71bkRcAAAAi/trollface-troll-face-terror-png.gif" alt="Troll face animation"></h1>
+  <div class="header-row">
+    <div class="header-brand">
+      <h1><img class="title-gif" src="https://media.tenor.com/kkkBm71bkRcAAAAi/trollface-troll-face-terror-png.gif" alt="Troll face animation">Troll Runner</h1>
+    </div>
+    <nav class="header-links" aria-label="Top navigation">
+      <a class="header-link-btn" href="https://blog.trollrunner.net" target="_blank" rel="noopener noreferrer">Blog</a>
+      <a class="header-link-btn" href="https://nutrition.trollrunner.net" target="_blank" rel="noopener noreferrer">Nutrition</a>
+      <a class="header-link-btn" href="https://finance.trollrunner.net" target="_blank" rel="noopener noreferrer">Finance</a>
+    </nav>
+    <div class="header-spacer" aria-hidden="true"></div>
+  </div>
 </header>
 
 <section id="biography">
   <h2>Biography</h2>
   <p>A tracker for troll sticker locations spread across the Inland Empire. Explore the interactive map below to see every drop, filter by city, and follow the mission as it expands across California.</p>
+</section>
+
+<section id="music-player">
+  <h2>Spotify Playlist</h2>
+  <div class="music-card">
+    <div id="spotify-embed" aria-label="Troll Runner Spotify playlist"></div>
+    <div class="spotify-controls">
+      <button id="spotify-troll-cue" class="spotify-btn" onclick="toggleTrollWordMode()">Troll-word Mode</button>
+      <button class="spotify-btn" onclick="spotifyPrevious()">⏮ Prev</button>
+      <button id="spotify-play-pause" class="spotify-btn" onclick="toggleSpotifyPlayPause()">▶ Play</button>
+      <button class="spotify-btn" onclick="spotifyNext()">Next ⏭</button>
+      <button id="spotify-repeat" class="spotify-btn" onclick="toggleSpotifyRepeat()">Repeat Off</button>
+    </div>
+    <p id="spotify-status">Loading Spotify playlist controls…</p>
+  </div>
 </section>
 
 <div id="stats-banner">
@@ -989,10 +1102,16 @@ footer a:hover { color: #fff; }
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
 const ADMIN_PASSWORD = '#Mayur2626';
 const ADMIN_UPDATES_KEY = 'trollrunner_updates';
 const ADMIN_FEEDBACK_KEY = 'trollrunner_feedback';
+const SPOTIFY_PLAYLIST_URI = 'spotify:playlist:0ni59E9HbWpAe8Ydnseh4O';
+const TROLL_WORD_CUES = {
+  // Add manual timestamps like:
+  // 'spotify:track:TRACK_ID': [12, 24]
+};
 const DATA = [
   {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
   {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
@@ -1048,6 +1167,11 @@ let resizeStartWidth = 0;
 let isResizingList = false;
 let listResizeStartY = 0;
 let listResizeStartHeight = 0;
+let spotifyEmbedController = null;
+let spotifyIsPlaying = false;
+let spotifyRepeatOn = false;
+let spotifyTrollWordModeOn = false;
+let spotifyCurrentUri = '';
 const DATE_COUNTS = {};
 DATA.forEach(d => {
   d.isoDate = toIsoDate(d.date);
@@ -1055,6 +1179,106 @@ DATA.forEach(d => {
 });
 const allDropDates = Object.keys(DATE_COUNTS).sort();
 let calendarMonth = allDropDates.length ? new Date(`${allDropDates[allDropDates.length-1]}T00:00:00`) : new Date();
+
+function setSpotifyStatus(message) {
+  const status = document.getElementById('spotify-status');
+  if (status) status.textContent = message;
+}
+
+function updateSpotifyButtons() {
+  const playBtn = document.getElementById('spotify-play-pause');
+  const trollCueBtn = document.getElementById('spotify-troll-cue');
+  const repeatBtn = document.getElementById('spotify-repeat');
+  if (playBtn) playBtn.textContent = spotifyIsPlaying ? '⏸ Pause' : '▶ Play';
+  if (trollCueBtn) trollCueBtn.classList.toggle('active', spotifyTrollWordModeOn);
+  if (repeatBtn) {
+    repeatBtn.classList.toggle('active', spotifyRepeatOn);
+    repeatBtn.textContent = spotifyRepeatOn ? 'Repeat On' : 'Repeat Off';
+  }
+}
+
+window.onSpotifyIframeApiReady = (IFrameAPI) => {
+  const element = document.getElementById('spotify-embed');
+  if (!element) return;
+  const options = {
+    uri: SPOTIFY_PLAYLIST_URI,
+    width: '100%',
+    height: '152'
+  };
+  IFrameAPI.createController(element, options, (EmbedController) => {
+    spotifyEmbedController = EmbedController;
+    setSpotifyStatus('Spotify loaded. Use the controls below to play and pause.');
+    if (typeof spotifyEmbedController.addListener === 'function') {
+      spotifyEmbedController.addListener('playback_started', (event) => {
+        spotifyCurrentUri = event && event.data && event.data.playingURI ? event.data.playingURI : '';
+        if (spotifyTrollWordModeOn) jumpToTrollWordCue(spotifyCurrentUri);
+      });
+      spotifyEmbedController.addListener('playback_update', (event) => {
+        if (event && event.data && typeof event.data.isPaused === 'boolean') {
+          spotifyIsPlaying = !event.data.isPaused;
+          updateSpotifyButtons();
+        }
+      });
+    }
+    updateSpotifyButtons();
+  });
+};
+
+function toggleSpotifyPlayPause() {
+  if (!spotifyEmbedController) {
+    setSpotifyStatus('Spotify is still loading.');
+    return;
+  }
+  if (spotifyIsPlaying) {
+    if (typeof spotifyEmbedController.pause === 'function') spotifyEmbedController.pause();
+    spotifyIsPlaying = false;
+  } else {
+    if (typeof spotifyEmbedController.play === 'function') spotifyEmbedController.play();
+    spotifyIsPlaying = true;
+  }
+  updateSpotifyButtons();
+}
+
+function spotifyPrevious() {
+  setSpotifyStatus('Spotify iFrame API does not provide a playlist previous-track method.');
+}
+
+function spotifyNext() {
+  setSpotifyStatus('Spotify iFrame API does not provide a playlist next-track method.');
+}
+
+function jumpToTrollWordCue(playingUri) {
+  if (!spotifyEmbedController || !playingUri) return;
+  const cues = TROLL_WORD_CUES[playingUri];
+  if (!Array.isArray(cues) || cues.length === 0) {
+    setSpotifyStatus('No troll-word timestamp is configured for this track yet.');
+    return;
+  }
+  const cueSecond = Math.max(0, Number(cues[0]) - 2);
+  if (typeof spotifyEmbedController.seek === 'function') {
+    spotifyEmbedController.seek(cueSecond);
+    setSpotifyStatus(`Jumped near troll-word cue at ${cueSecond}s.`);
+  }
+}
+
+function toggleTrollWordMode() {
+  spotifyTrollWordModeOn = !spotifyTrollWordModeOn;
+  updateSpotifyButtons();
+  if (!spotifyTrollWordModeOn) {
+    setSpotifyStatus('Troll-word mode off.');
+    return;
+  }
+  setSpotifyStatus('Troll-word mode on. It uses manual timestamp cues per track.');
+  if (spotifyCurrentUri) jumpToTrollWordCue(spotifyCurrentUri);
+}
+
+function toggleSpotifyRepeat() {
+  spotifyRepeatOn = !spotifyRepeatOn;
+  updateSpotifyButtons();
+  setSpotifyStatus(spotifyRepeatOn
+    ? 'Repeat visual mode is on. Spotify iFrame API does not expose repeat control.'
+    : 'Repeat visual mode is off.');
+}
 
 function toIsoDate(dateStr) {
   const d = new Date(dateStr);
@@ -1510,12 +1734,23 @@ function removeDuplicateFoundStickerSections() {
   });
 }
 
+const ADMIN_PASSWORD_TROLL_MESSAGES = [
+  'Wrong password. Back to the starting line.',
+  'You’re trolling… but not that good.',
+  'Admin access requires elite runner stats. Looks like you can try burning some calories.',
+  'You trained to run my website… right? How about running outside for a change?'
+];
+let adminFailedAttempts = 0;
+
 function goToAdmin() {
   const pass = document.getElementById('admin-pass').value;
   if (pass !== ADMIN_PASSWORD) {
-    alert('Incorrect password.');
+    adminFailedAttempts += 1;
+    const idx = Math.min(adminFailedAttempts - 1, ADMIN_PASSWORD_TROLL_MESSAGES.length - 1);
+    alert(ADMIN_PASSWORD_TROLL_MESSAGES[idx]);
     return;
   }
+  adminFailedAttempts = 0;
   localStorage.setItem('trollrunner_admin_auth', '1');
   window.location.href = 'admin.html';
 }
