@@ -173,6 +173,9 @@ header p {
   pointer-events: none;
   visibility: hidden;
 }
+#spotify-embed iframe {
+  pointer-events: none;
+}
 
 /* ── STATS ROW ── */
 #stats-banner {
@@ -610,6 +613,10 @@ header p {
   margin: 0 auto 40px;
   padding: 0 24px;
 }
+#feedback:hover,
+#feedback:hover * {
+  cursor: url('https://www.rw-designer.com/cursor-extern.php?id=39756'), auto;
+}
 #found-sticker {
   max-width: 860px;
   margin: 0 auto 40px;
@@ -656,6 +663,10 @@ header p {
   padding: 12px;
   min-height: 110px;
   resize: vertical;
+}
+.feedback-field:hover,
+.feedback-field:focus {
+  cursor: url('https://www.rw-designer.com/cursor-extern.php?id=39756'), auto;
 }
 
 .feedback-actions {
@@ -1058,6 +1069,9 @@ footer a:hover { color: #fff; }
       <button class="feedback-btn" onclick="submitFeedback()">Submit feedback</button>
       <span id="feedback-status" class="feedback-status"></span>
     </div>
+    <div style="margin-top:10px;">
+      <a href="http://www.rw-designer.com/cursor-set/troll-face-v64" title="Get free cursors for your web." target="_blank" rel="noopener noreferrer">Troll Face Cursors</a>
+    </div>
   </div>
 </section>
 
@@ -1190,6 +1204,14 @@ function updateSongStatus(isPlaying = spotifyIsPlaying) {
   setSpotifyStatus(`${isPlaying ? 'Now Playing' : 'Paused'}: ${spotifyTrackLabel}`);
 }
 
+function preserveScrollPosition(task) {
+  const startX = window.scrollX || window.pageXOffset || 0;
+  const startY = window.scrollY || window.pageYOffset || 0;
+  task();
+  requestAnimationFrame(() => window.scrollTo(startX, startY));
+  window.setTimeout(() => window.scrollTo(startX, startY), 120);
+}
+
 function parseLabelFromSpotifyUri(uri) {
   if (!uri || typeof uri !== 'string') return '';
   const parts = uri.split(':');
@@ -1255,6 +1277,10 @@ async function refreshTrackLabelFromUri(uri) {
 window.onSpotifyIframeApiReady = (IFrameAPI) => {
   const element = document.getElementById('spotify-embed');
   if (!element) return;
+  element.addEventListener('focusin', () => {
+    const active = document.activeElement;
+    if (active && typeof active.blur === 'function') active.blur();
+  });
   const options = {
     uri: SPOTIFY_PLAYLIST_URI,
     width: '100%',
@@ -1267,12 +1293,12 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
     if (typeof spotifyEmbedController.addListener === 'function') {
       spotifyEmbedController.addListener('playback_started', (event) => {
         if (event && event.data && event.data.playingURI) {
-          refreshTrackLabelFromUri(event.data.playingURI);
+          preserveScrollPosition(() => refreshTrackLabelFromUri(event.data.playingURI));
         }
       });
       spotifyEmbedController.addListener('playback_update', (event) => {
         if (event && event.data && event.data.playingURI && event.data.playingURI !== spotifyCurrentUri) {
-          refreshTrackLabelFromUri(event.data.playingURI);
+          preserveScrollPosition(() => refreshTrackLabelFromUri(event.data.playingURI));
         }
         if (event && event.data && typeof event.data.isPaused === 'boolean') {
           spotifyIsPlaying = !event.data.isPaused;
