@@ -9,9 +9,9 @@
   const host = window.location.hostname;
   const path = window.location.pathname;
   const redirects = {
-    'blog.trollrunner.net': '/blog/',
-    'nutrition.trollrunner.net': '/nutrition/',
-    'finance.trollrunner.net': '/finance/',
+    'blog.trollrunner.net': '/blog.html',
+    'nutrition.trollrunner.net': '/nutrition.html',
+    'finance.trollrunner.net': '/finance.html',
   };
   const targetPath = redirects[host];
   if (targetPath && (path === '/' || path === '/index.html')) {
