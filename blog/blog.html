@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troll Runner Blog</title>
+<style>
+:root { --bg:#0f1220; --card:#171b2e; --text:#eef2ff; --muted:#a6aecf; --line:rgba(255,255,255,0.12); --accent:#6ea8ff; }
+*{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:linear-gradient(160deg,#0b0e18,#141a2f);color:var(--text)}
+.wrap{max-width:980px;margin:0 auto;padding:28px 18px 56px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pill{border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:#fff;text-decoration:none;font-size:12px;background:rgba(255,255,255,0.06)}
+.hero{margin-top:24px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+h1{margin:0 0 8px;font-size:30px} p{color:var(--muted);line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.card{background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h3{margin:0 0 8px;font-size:15px}
+@media (max-width:800px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <strong>🏃 Troll Runner Network</strong>
+      <nav class="pills" aria-label="Network links">
+        <a class="pill" href="https://blog.trollrunner.net">Blog</a>
+        <a class="pill" href="https://nutrition.trollrunner.net">Nutrition</a>
+        <a class="pill" href="https://finance.trollrunner.net">Finance</a>
+        <a class="pill" href="https://trollrunner.net">Main Site</a>
+      </nav>
+    </div>
+
+    <section class="hero">
+      <h1>Blog</h1>
+      <p>Build long-form run logs, mission updates, gear notes, and recap posts from each sticker drop.</p>
+      <div class="grid">
+        <article class="card"><h3>Latest Mission Log</h3><p>Use this area for your newest route recap, mileage, and highlights.</p></article>
+        <article class="card"><h3>Route Recap Series</h3><p>Document each city run with photos, lessons, and route maps.</p></article>
+        <article class="card"><h3>Gear & Setup Notes</h3><p>Track what shoes, hydration gear, and tools worked best each week.</p></article>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

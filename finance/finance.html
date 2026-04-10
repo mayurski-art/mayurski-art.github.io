@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troll Runner Finance</title>
+<style>
+:root { --bg:#1a1409; --card:#2a1f0e; --text:#fff6e8; --muted:#ddc8a3; --line:rgba(255,255,255,0.14); --accent:#ffb347; }
+*{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:linear-gradient(160deg,#171108,#3a2a10);color:var(--text)}
+.wrap{max-width:980px;margin:0 auto;padding:28px 18px 56px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pills{display:flex;gap:8px;flex-wrap:wrap}.pill{border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:#fff;text-decoration:none;font-size:12px;background:rgba(255,255,255,0.06)}
+.hero{margin-top:24px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+h1{margin:0 0 8px;font-size:30px} p{color:var(--muted);line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.card{background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h3{margin:0 0 8px;font-size:15px}
+@media (max-width:800px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <strong>💰 Troll Runner Network</strong>
+      <nav class="pills" aria-label="Network links">
+        <a class="pill" href="https://blog.trollrunner.net">Blog</a>
+        <a class="pill" href="https://nutrition.trollrunner.net">Nutrition</a>
+        <a class="pill" href="https://finance.trollrunner.net">Finance</a>
+        <a class="pill" href="https://trollrunner.net">Main Site</a>
+      </nav>
+    </div>
+
+    <section class="hero">
+      <h1>Finance</h1>
+      <p>Track spending, run project budgets, and publish transparent breakdowns for campaign growth.</p>
+      <div class="grid">
+        <article class="card"><h3>Budget Dashboard</h3><p>Track monthly spend categories and compare against planned budgets.</p></article>
+        <article class="card"><h3>Campaign Costs</h3><p>Summarize route, print, and logistics costs for each sticker mission.</p></article>
+        <article class="card"><h3>Growth Planning</h3><p>Lay out future spend targets for scaling to new cities and drops.</p></article>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
