@@ -1184,6 +1184,9 @@ let spotifyCurrentUri = '';
 const liveCoordinateMap = {};
 let geoCache = null;
 const geoInflight = new Set();
+// Keep pin positions stable by default. Live geocoding can return inconsistent
+// results for similarly named places, which makes markers appear to "jump."
+const ENABLE_LIVE_GEOCODING = false;
 const spotifyTrackLabelCache = new Map();
 const DATE_COUNTS = {};
 DATA.forEach(d => {
@@ -1566,7 +1569,9 @@ function renderPins() {
     marker.on('click', () => selectPin(idx));
     marker.addTo(markersLayer);
   });
-  hydrateLocationAccuracy(visible);
+  if (ENABLE_LIVE_GEOCODING) {
+    hydrateLocationAccuracy(visible);
+  }
 }
 
 function renderList() {
@@ -1816,18 +1821,27 @@ function loadCustomUpdates() {
   } catch {
     customUpdates = [];
   }
-  const source = Array.isArray(customUpdates) && customUpdates.length ? customUpdates : DEFAULT_UPDATES;
-  const combined = source
-    .map(normalizeUpdate)
-    .filter(item => item && !item.archived)
-    .filter(Boolean)
+  const source = [
+    ...DEFAULT_UPDATES,
+    ...(Array.isArray(customUpdates) ? customUpdates : []),
+  ];
+  const deduped = [];
+  const seen = new Set();
+  source.forEach(item => {
+    const normalized = normalizeUpdate(item);
+    if (!normalized || normalized.archived) return;
+    const key = `${normalized.title}::${normalized.body}::${normalized.createdAt}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    deduped.push(normalized);
+  });
+
+  const latest = deduped
     .sort((a, b) => b.createdAt - a.createdAt);
-  const latest = combined
-    .slice(0, MAX_VISIBLE_UPDATES)
-    .sort((a, b) => a.createdAt - b.createdAt);
+  const visible = latest.slice(0, MAX_VISIBLE_UPDATES);
 
   wrap.innerHTML = '';
-  latest.forEach(u => {
+  visible.forEach(u => {
     const card = document.createElement('div');
     card.className = 'update-card';
     card.innerHTML = `<h3>${u.title}</h3><p>${u.body}</p>`;
