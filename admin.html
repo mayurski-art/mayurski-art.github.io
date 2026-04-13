@@ -61,7 +61,7 @@
 <body>
   <div class="wrap">
     <h1>Troll Runner Admin</h1>
-    <p>Add latest updates quickly. These updates save in browser storage with a cookie fallback and appear on the homepage.</p>
+    <p>Add latest updates quickly. These updates save in your browser and appear on the homepage.</p>
     <p><a href="index.html">← Back to site</a></p>
 
     <div class="card">
@@ -81,15 +81,6 @@
     <div class="card preview">
       <h3>Updates & archives</h3>
       <div id="preview"></div>
-    </div>
-
-    <div class="card preview">
-      <h3>Phone sync link</h3>
-      <p>Use this when updates appear on your laptop but not on your phone. Open the generated link on your phone once, then the homepage will cache those updates.</p>
-      <div class="row">
-        <button class="secondary" onclick="copySyncLink()">Copy sync link</button>
-      </div>
-      <p id="sync-status"></p>
     </div>
 
     <div class="card preview">
@@ -138,21 +129,9 @@
       return `update-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     }
 
-    function setCookieValue(name, value) {
-      const maxAge = 60 * 60 * 24 * 365;
-      document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; samesite=lax`;
-    }
-
-    function getCookieValue(name) {
-      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`));
-      return match ? decodeURIComponent(match[1]) : '';
-    }
-
     function getUpdates() {
       try {
-        const raw = localStorage.getItem(UPDATES_KEY) || getCookieValue(UPDATES_KEY) || '[]';
-        const items = JSON.parse(raw);
+        const items = JSON.parse(localStorage.getItem(UPDATES_KEY) || '[]');
         return Array.isArray(items) ? items : [];
       } catch {
         return [];
@@ -160,9 +139,7 @@
     }
 
     function setUpdates(items) {
-      const serialized = JSON.stringify(items);
-      localStorage.setItem(UPDATES_KEY, serialized);
-      setCookieValue(UPDATES_KEY, serialized);
+      localStorage.setItem(UPDATES_KEY, JSON.stringify(items));
     }
 
     function normalizeUpdate(update, source = 'custom') {
