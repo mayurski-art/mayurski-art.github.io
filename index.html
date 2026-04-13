@@ -1832,12 +1832,24 @@ function normalizeUpdate(update) {
   };
 }
 
+function readCookieValue(name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+function loadStoredUpdates() {
+  const rawLocal = localStorage.getItem(ADMIN_UPDATES_KEY);
+  if (rawLocal) return rawLocal;
+  return readCookieValue(ADMIN_UPDATES_KEY);
+}
+
 function loadCustomUpdates() {
   const wrap = document.getElementById('latest-updates');
   if (!wrap) return;
   let customUpdates = [];
   try {
-    customUpdates = JSON.parse(localStorage.getItem(ADMIN_UPDATES_KEY) || '[]');
+    customUpdates = JSON.parse(loadStoredUpdates() || '[]');
   } catch {
     customUpdates = [];
   }
