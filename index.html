@@ -1832,12 +1832,57 @@ function normalizeUpdate(update) {
   };
 }
 
+function readCookieValue(name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+function setCookieValue(name, value) {
+  const maxAge = 60 * 60 * 24 * 365;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; samesite=lax`;
+}
+
+function loadStoredUpdates() {
+  const rawLocal = localStorage.getItem(ADMIN_UPDATES_KEY);
+  if (rawLocal) return rawLocal;
+  return readCookieValue(ADMIN_UPDATES_KEY);
+}
+
+function decodeUpdatesPayload(payload) {
+  if (!payload) return null;
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '==='.slice((normalized.length + 3) % 4);
+    const decoded = decodeURIComponent(escape(atob(padded)));
+    const parsed = JSON.parse(decoded);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function hydrateUpdatesFromQueryParam() {
+  const params = new URLSearchParams(window.location.search);
+  const payload = params.get('updates');
+  if (!payload) return;
+  const imported = decodeUpdatesPayload(payload);
+  if (!imported) return;
+  const serialized = JSON.stringify(imported);
+  localStorage.setItem(ADMIN_UPDATES_KEY, serialized);
+  setCookieValue(ADMIN_UPDATES_KEY, serialized);
+  params.delete('updates');
+  const nextQuery = params.toString();
+  const cleanUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+  window.history.replaceState({}, '', cleanUrl);
+}
+
 function loadCustomUpdates() {
   const wrap = document.getElementById('latest-updates');
   if (!wrap) return;
   let customUpdates = [];
   try {
-    customUpdates = JSON.parse(localStorage.getItem(ADMIN_UPDATES_KEY) || '[]');
+    customUpdates = JSON.parse(loadStoredUpdates() || '[]');
   } catch {
     customUpdates = [];
   }
@@ -1947,6 +1992,7 @@ document.getElementById('admin-pass').addEventListener('keydown', e => {
   if (e.key === 'Enter') goToAdmin();
 });
 
+hydrateUpdatesFromQueryParam();
 initMap(); buildTabs(); renderPins(); renderList(); initPanelResizer(); initListResizer(); syncSidebarWidthForViewport(); loadCustomUpdates(); removeDuplicateFoundStickerSections();
 </script>
 </body>
