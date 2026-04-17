@@ -89,6 +89,16 @@
     </div>
 
     <div class="card preview">
+      <h3>Live status popup control</h3>
+      <p>Toggle the homepage live popup shown below the Blog / Nutrition / Finance buttons.</p>
+      <p id="live-status-state">Live popup is currently off.</p>
+      <div class="row">
+        <button onclick="setLiveStatus(true)">Turn live popup on</button>
+        <button class="secondary" onclick="setLiveStatus(false)">Turn live popup off</button>
+      </div>
+    </div>
+
+    <div class="card preview">
       <h3>Feedback to admin system</h3>
       <div id="feedback-preview"></div>
       <div class="row">
@@ -101,6 +111,7 @@
     const AUTH_KEY = 'trollrunner_admin_auth';
     const UPDATES_KEY = 'trollrunner_updates';
     const FEEDBACK_KEY = 'trollrunner_feedback';
+    const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
     const MAX_VISIBLE_UPDATES = 4;
     const SUPABASE_URL = '';
     const SUPABASE_ANON_KEY = '';
@@ -375,6 +386,18 @@
       renderFeedback();
     }
 
+    function renderLiveStatusState() {
+      const state = document.getElementById('live-status-state');
+      if (!state) return;
+      const enabled = localStorage.getItem(LIVE_STATUS_KEY) === '1';
+      state.textContent = enabled ? 'Live popup is currently on.' : 'Live popup is currently off.';
+    }
+
+    function setLiveStatus(enabled) {
+      localStorage.setItem(LIVE_STATUS_KEY, enabled ? '1' : '0');
+      renderLiveStatusState();
+    }
+
     (async () => {
       const remote = await pullUpdatesFromBackend();
       if (Array.isArray(remote) && remote.length) {
@@ -386,6 +409,7 @@
       }
       renderUpdates();
       renderFeedback();
+      renderLiveStatusState();
     })();
   </script>
 </body>
