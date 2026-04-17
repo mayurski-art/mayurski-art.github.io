@@ -86,6 +86,54 @@
     <div class="card preview">
       <h3>Shared backend sync</h3>
       <p id="sync-state">Shared sync is disabled. Add Supabase config in code to enable cross-device updates.</p>
+      <details id="sync-help" style="margin-top:10px;">
+        <summary>Supabase setup help (if sync shows HTTP 404/401)</summary>
+        <pre id="sync-help-sql" style="white-space:pre-wrap;margin-top:8px;font-size:12px;">create table if not exists public.site_updates (
+  id text primary key,
+  updates jsonb not null default '[]'::jsonb,
+  live_status_enabled boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_updates enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'site_updates' and policyname = 'anon_read_site_updates'
+  ) then
+    create policy anon_read_site_updates on public.site_updates
+      for select to anon using (true);
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'site_updates' and policyname = 'anon_insert_site_updates'
+  ) then
+    create policy anon_insert_site_updates on public.site_updates
+      for insert to anon with check (true);
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'site_updates' and policyname = 'anon_update_site_updates'
+  ) then
+    create policy anon_update_site_updates on public.site_updates
+      for update to anon using (true) with check (true);
+  end if;
+end $$;
+
+insert into public.site_updates (id)
+values ('main')
+on conflict (id) do nothing;</pre>
+      </details>
     </div>
 
     <div class="card preview">
@@ -223,6 +271,23 @@
       return response && response.status === 404;
     }
 
+    async function parseSupabaseError(response) {
+      if (!response) return 'No response from Supabase.';
+      const prefix = `HTTP ${response.status}`;
+      try {
+        const payload = await response.clone().json();
+        const details = [payload?.message, payload?.hint, payload?.details].filter(Boolean).join(' | ');
+        return details ? `${prefix}: ${details}` : prefix;
+      } catch {
+        try {
+          const text = await response.clone().text();
+          return text ? `${prefix}: ${text}` : prefix;
+        } catch {
+          return prefix;
+        }
+      }
+    }
+
     async function fetchWithTableFallback(buildRequest) {
       const tables = getSupabaseTableCandidates();
       let lastResponse = null;
@@ -252,7 +317,7 @@
           url: `${SUPABASE_URL}/rest/v1/${tableName}?${qs.toString()}`,
           options: { headers: supabaseHeaders() },
         }));
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error(await parseSupabaseError(response));
         const json = await response.json();
         const payload = Array.isArray(json) ? json[0] : json;
         const updates = parseUpdatesPayload(payload);
@@ -264,7 +329,7 @@
         status.textContent = `Shared updates loaded (${updates.length} items) from "${table}".`;
         return updates;
       } catch (err) {
-        status.textContent = `Shared sync read failed: ${err.message}. Check table name/policies in Supabase.`;
+        status.textContent = `Shared sync read failed: ${err.message}. Open setup help below and run the SQL in Supabase.`;
         return null;
       }
     }
@@ -289,10 +354,10 @@
             }]),
           },
         }));
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error(await parseSupabaseError(response));
         status.textContent = `Shared sync updated (${items.length} items) in "${table}".`;
       } catch (err) {
-        status.textContent = `Shared sync write failed: ${err.message}. Check table name/policies in Supabase.`;
+        status.textContent = `Shared sync write failed: ${err.message}. Open setup help below and run the SQL in Supabase.`;
       }
     }
 
@@ -315,10 +380,10 @@
             }]),
           },
         }));
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error(await parseSupabaseError(response));
         status.textContent = `Shared live status synced (${enabled ? 'on' : 'off'}) in "${table}".`;
       } catch (err) {
-        status.textContent = `Shared live status write failed: ${err.message}. Check table name/policies in Supabase.`;
+        status.textContent = `Shared live status write failed: ${err.message}. Open setup help below and run the SQL in Supabase.`;
       }
     }
 

@@ -1944,6 +1944,23 @@ function isSupabase404(response) {
   return response && response.status === 404;
 }
 
+async function parseSupabaseError(response) {
+  if (!response) return 'No response from Supabase.';
+  const prefix = `HTTP ${response.status}`;
+  try {
+    const payload = await response.clone().json();
+    const details = [payload?.message, payload?.hint, payload?.details].filter(Boolean).join(' | ');
+    return details ? `${prefix}: ${details}` : prefix;
+  } catch {
+    try {
+      const text = await response.clone().text();
+      return text ? `${prefix}: ${text}` : prefix;
+    } catch {
+      return prefix;
+    }
+  }
+}
+
 async function fetchSharedStateWithTableFallback(queryString) {
   const tables = getSupabaseTableCandidates();
   let lastResponse = null;
@@ -1972,7 +1989,10 @@ async function loadSharedStateFromBackend() {
       limit: '1'
     });
     const response = await fetchSharedStateWithTableFallback(qs.toString());
-    if (!response.ok) return { updates: [], liveStatusEnabled: null };
+    if (!response.ok) {
+      console.warn('Shared sync read failed on homepage:', await parseSupabaseError(response));
+      return { updates: [], liveStatusEnabled: null };
+    }
     const json = await response.json();
     const payload = Array.isArray(json) ? json[0] : json;
     return {
