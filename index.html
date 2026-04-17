@@ -93,8 +93,43 @@ header h1 {
 .header-links {
   justify-self: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 10px;
+}
+.header-links-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-live-pill {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  border: 0.5px solid rgba(255,255,255,0.22);
+  border-radius: 999px;
+  background: rgba(255, 59, 48, 0.3);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.94);
+  letter-spacing: 0.15px;
+}
+.header-live-pill.is-visible {
+  display: inline-flex;
+}
+.header-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff453a;
+  box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.85);
+  animation: live-pulse 1.2s ease-out infinite;
+}
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.85); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 69, 58, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 69, 58, 0); }
 }
 .header-link-btn {
   border: 0.5px solid rgba(255,255,255,0.25);
@@ -847,6 +882,10 @@ footer a:hover { color: #fff; }
   }
   .header-links {
     justify-self: center;
+    width: 100%;
+  }
+  .header-links-row {
+    justify-content: center;
     flex-wrap: wrap;
   }
   .header-spacer {
@@ -958,9 +997,15 @@ footer a:hover { color: #fff; }
       <h1><img class="title-gif" src="https://media.tenor.com/kkkBm71bkRcAAAAi/trollface-troll-face-terror-png.gif" alt="Troll face animation">Troll Runner</h1>
     </div>
     <nav class="header-links" aria-label="Top navigation">
-      <a class="header-link-btn" href="https://blog.trollrunner.net">Blog</a>
-      <a class="header-link-btn" href="https://nutrition.trollrunner.net">Nutrition</a>
-      <a class="header-link-btn" href="https://finance.trollrunner.net">Finance</a>
+      <div class="header-links-row">
+        <a class="header-link-btn" href="https://blog.trollrunner.net">Blog</a>
+        <a class="header-link-btn" href="https://nutrition.trollrunner.net">Nutrition</a>
+        <a class="header-link-btn" href="https://finance.trollrunner.net">Finance</a>
+      </div>
+      <div id="live-status-pill" class="header-live-pill" aria-live="polite">
+        <span class="header-live-dot" aria-hidden="true"></span>
+        <span>Live: Currently trolling around...</span>
+      </div>
     </nav>
     <div class="header-spacer">
       <div class="header-music-controls" aria-label="Music controls">
@@ -1211,6 +1256,7 @@ const geoInflight = new Set();
 // results for similarly named places, which makes markers appear to "jump."
 const ENABLE_LIVE_GEOCODING = false;
 const spotifyTrackLabelCache = new Map();
+const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
 const DATE_COUNTS = {};
 DATA.forEach(d => {
   d.isoDate = toIsoDate(d.date);
@@ -1218,6 +1264,19 @@ DATA.forEach(d => {
 });
 const allDropDates = Object.keys(DATE_COUNTS).sort();
 let calendarMonth = allDropDates.length ? new Date(`${allDropDates[allDropDates.length-1]}T00:00:00`) : new Date();
+
+function applyLiveStatusVisibility() {
+  const livePill = document.getElementById('live-status-pill');
+  if (!livePill) return;
+  const enabled = localStorage.getItem(LIVE_STATUS_KEY) === '1';
+  livePill.classList.toggle('is-visible', enabled);
+}
+
+window.addEventListener('storage', (event) => {
+  if (event.key === LIVE_STATUS_KEY) applyLiveStatusVisibility();
+});
+
+applyLiveStatusVisibility();
 
 function setSpotifyStatus(message) {
   const status = document.getElementById('spotify-status');
