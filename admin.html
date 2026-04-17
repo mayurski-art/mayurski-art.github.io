@@ -113,8 +113,8 @@
     const FEEDBACK_KEY = 'trollrunner_feedback';
     const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
     const MAX_VISIBLE_UPDATES = 4;
-    const SUPABASE_URL = '';
-    const SUPABASE_ANON_KEY = '';
+    const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
+    const SUPABASE_ANON_KEY = 'your_anon_public_key';
     const SUPABASE_TABLE = 'site_updates';
     const SUPABASE_ROW_ID = 'main';
     const LIVE_STATUS_SYNC_POLL_MS = 10000;
@@ -441,9 +441,9 @@
 
     (async () => {
       const remote = await pullUpdatesFromBackend();
-      if (Array.isArray(remote) && remote.length) {
+      if (Array.isArray(remote)) {
         const normalized = remote.map(item => normalizeUpdate(item, item?.source || 'custom')).filter(Boolean);
-        if (normalized.length) setUpdates(normalized, { skipPush: true });
+        setUpdates(normalized, { skipPush: true });
       } else if (!isSupabaseConfigured()) {
         const status = document.getElementById('sync-state');
         status.textContent = 'Shared sync is disabled. Set SUPABASE_URL and SUPABASE_ANON_KEY to enable cross-device updates.';
@@ -454,7 +454,12 @@
 
       if (isSupabaseConfigured()) {
         window.setInterval(async () => {
-          await pullUpdatesFromBackend();
+          const latestRemote = await pullUpdatesFromBackend();
+          if (Array.isArray(latestRemote)) {
+            const normalized = latestRemote.map(item => normalizeUpdate(item, item?.source || 'custom')).filter(Boolean);
+            setUpdates(normalized, { skipPush: true });
+            renderUpdates();
+          }
         }, LIVE_STATUS_SYNC_POLL_MS);
       }
     })();

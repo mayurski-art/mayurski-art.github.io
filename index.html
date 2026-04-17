@@ -1167,11 +1167,11 @@ const ADMIN_UPDATES_KEY = 'trollrunner_updates';
 const ADMIN_FEEDBACK_KEY = 'trollrunner_feedback';
 const GEO_CACHE_KEY = 'trollrunner_geo_cache_v1';
 const MAX_VISIBLE_UPDATES = 4;
-const SUPABASE_URL = '';
-const SUPABASE_ANON_KEY = '';
+const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
+const SUPABASE_ANON_KEY = 'your_anon_public_key';
 const SUPABASE_TABLE = 'site_updates';
 const SUPABASE_ROW_ID = 'main';
-const SUPABASE_LIVE_STATUS_REFRESH_MS = 10000;
+const SUPABASE_SHARED_STATE_REFRESH_MS = 10000;
 const SPOTIFY_PLAYLIST_URI = 'spotify:playlist:0ni59E9HbWpAe8Ydnseh4O';
 const DEFAULT_UPDATES = [
   {
@@ -1953,7 +1953,7 @@ async function loadSharedStateFromBackend() {
   }
 }
 
-async function loadCustomUpdates() {
+async function loadCustomUpdates(sharedStateOverride = null) {
   const wrap = document.getElementById('latest-updates');
   if (!wrap) return;
   let customUpdates = [];
@@ -1962,7 +1962,7 @@ async function loadCustomUpdates() {
   } catch {
     customUpdates = [];
   }
-  const sharedState = await loadSharedStateFromBackend();
+  const sharedState = sharedStateOverride || await loadSharedStateFromBackend();
   const sharedUpdates = sharedState.updates;
   if (sharedState.liveStatusEnabled !== null) {
     localStorage.setItem(LIVE_STATUS_KEY, sharedState.liveStatusEnabled ? '1' : '0');
@@ -1997,12 +1997,14 @@ async function loadCustomUpdates() {
   });
 }
 
-async function refreshLiveStatusFromBackend() {
+async function refreshSharedStateFromBackend() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
   const sharedState = await loadSharedStateFromBackend();
-  if (sharedState.liveStatusEnabled === null) return;
-  localStorage.setItem(LIVE_STATUS_KEY, sharedState.liveStatusEnabled ? '1' : '0');
-  applyLiveStatusVisibility();
+  if (sharedState.liveStatusEnabled !== null) {
+    localStorage.setItem(LIVE_STATUS_KEY, sharedState.liveStatusEnabled ? '1' : '0');
+    applyLiveStatusVisibility();
+  }
+  await loadCustomUpdates(sharedState);
 }
 
 
@@ -2085,7 +2087,7 @@ document.getElementById('admin-pass').addEventListener('keydown', e => {
 
 initMap(); buildTabs(); renderPins(); renderList(); initPanelResizer(); initListResizer(); syncSidebarWidthForViewport(); loadCustomUpdates(); removeDuplicateFoundStickerSections();
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-  window.setInterval(refreshLiveStatusFromBackend, SUPABASE_LIVE_STATUS_REFRESH_MS);
+  window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }
 </script>
 </body>
