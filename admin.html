@@ -86,6 +86,54 @@
     <div class="card preview">
       <h3>Shared backend sync</h3>
       <p id="sync-state">Shared sync is disabled. Add Supabase config in code to enable cross-device updates.</p>
+      <details id="sync-help" style="margin-top:10px;">
+        <summary>Supabase setup help (if sync shows HTTP 404/401)</summary>
+        <pre id="sync-help-sql" style="white-space:pre-wrap;margin-top:8px;font-size:12px;">create table if not exists public.site_updates (
+  id text primary key,
+  updates jsonb not null default '[]'::jsonb,
+  live_status_enabled boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_updates enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'site_updates' and policyname = 'anon_read_site_updates'
+  ) then
+    create policy anon_read_site_updates on public.site_updates
+      for select to anon using (true);
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'site_updates' and policyname = 'anon_insert_site_updates'
+  ) then
+    create policy anon_insert_site_updates on public.site_updates
+      for insert to anon with check (true);
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'site_updates' and policyname = 'anon_update_site_updates'
+  ) then
+    create policy anon_update_site_updates on public.site_updates
+      for update to anon using (true) with check (true);
+  end if;
+end $$;
+
+insert into public.site_updates (id)
+values ('main')
+on conflict (id) do nothing;</pre>
+      </details>
     </div>
 
     <div class="card preview">
@@ -233,7 +281,7 @@
         status.textContent = 'Shared status loaded from Supabase.';
         return { live: liveEnabled, message };
       } catch (err) {
-        status.textContent = `Shared sync read failed: ${err.message}`;
+        status.textContent = `Shared sync read failed: ${err.message}. Open setup help below and run the SQL in Supabase.`;
         return null;
       }
     }
