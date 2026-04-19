@@ -1173,8 +1173,8 @@ const MAX_VISIBLE_UPDATES = 4;
 // 2) SUPABASE_ANON_KEY -> your anon public API key
 const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
-const SUPABASE_STATUS_TABLE = 'status';
-const SUPABASE_STATUS_ID = 1;
+const SUPABASE_TABLE = 'site_updates';
+const SUPABASE_ROW_ID = 'main';
 const SPOTIFY_PLAYLIST_URI = 'spotify:playlist:0ni59E9HbWpAe8Ydnseh4O';
 const DEFAULT_UPDATES = [
   {
@@ -1277,8 +1277,7 @@ function applyLiveStatusVisibility(enabled = localStorage.getItem(LIVE_STATUS_KE
   const livePill = document.getElementById('live-status-pill');
   const liveText = document.getElementById('live-status-text');
   if (!livePill) return;
-  livePill.classList.add('is-visible');
-  if (liveText) liveText.textContent = enabled ? 'Live: Currently trolling around...' : 'Offline';
+  livePill.classList.toggle('is-visible', enabled);
 }
 
 window.addEventListener('storage', (event) => {
@@ -1936,14 +1935,14 @@ function parseSharedLiveStatusPayload(payload) {
 }
 
 async function loadSharedStateFromBackend() {
-  if (!supabaseClient) return { liveStatusEnabled: null, message: '' };
+  if (!supabaseClient) return { updates: [], liveStatusEnabled: null };
   try {
     const { data, error } = await supabaseClient
-      .from(SUPABASE_STATUS_TABLE)
-      .select('live,message,updated_at')
-      .eq('id', SUPABASE_STATUS_ID)
+      .from(SUPABASE_TABLE)
+      .select('updates,live_status_enabled,updated_at')
+      .eq('id', SUPABASE_ROW_ID)
       .maybeSingle();
-    if (error) return { liveStatusEnabled: null, message: '' };
+    if (error) return { updates: [], liveStatusEnabled: null };
     const payload = data || {};
     return {
       liveStatusEnabled: typeof payload.live === 'boolean' ? payload.live : null,
@@ -1983,7 +1982,7 @@ function subscribeToStatusRealtime() {
   if (!supabaseClient) return;
   supabaseClient
     .channel('public-status-stream')
-    .on('postgres_changes', { event: '*', schema: 'public', table: SUPABASE_STATUS_TABLE }, async () => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: SUPABASE_TABLE }, async () => {
       await refreshSharedStateFromBackend();
     })
     .subscribe();

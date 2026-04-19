@@ -170,8 +170,8 @@ on conflict (id) do nothing;</pre>
     // 2) SUPABASE_ANON_KEY -> your anon public API key
     const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
-    const SUPABASE_STATUS_TABLE = 'status';
-    const SUPABASE_STATUS_ID = 1;
+    const SUPABASE_TABLE = 'site_updates';
+    const SUPABASE_ROW_ID = 'main';
     const DEFAULT_UPDATES = [
       {
         title: 'Oct 10, 2025 — Riverside Adventure',
@@ -262,45 +262,72 @@ on conflict (id) do nothing;</pre>
       return Boolean(supabaseClient);
     }
 
-    async function pullStatusFromBackend() {
+    async function readSharedRowFromBackend() {
       if (!supabaseClient) return null;
-      const status = document.getElementById('sync-state');
-      status.textContent = 'Loading shared status from Supabase…';
       try {
         const { data, error } = await supabaseClient
-          .from(SUPABASE_STATUS_TABLE)
-          .select('live,message,updated_at')
-          .eq('id', SUPABASE_STATUS_ID)
+          .from(SUPABASE_TABLE)
+          .select('*')
+          .eq('id', SUPABASE_ROW_ID)
           .maybeSingle();
         if (error) throw error;
-        const liveEnabled = Boolean(data?.live);
-        const message = String(data?.message || '');
-        localStorage.setItem(LIVE_STATUS_KEY, liveEnabled ? '1' : '0');
-        document.getElementById('status-message-input').value = message;
-        renderLiveStatusState();
-        status.textContent = 'Shared status loaded from Supabase.';
-        return { live: liveEnabled, message };
+        return data || null;
       } catch (err) {
-        status.textContent = `Shared sync read failed: ${err.message}. Open setup help below and run the SQL in Supabase.`;
+        const status = document.getElementById('sync-state');
+        status.textContent = `Shared sync read failed: ${err.message}`;
         return null;
       }
     }
 
-    async function updateStatusRow(patch) {
+    async function upsertMergedSharedRow(patch) {
       if (!supabaseClient) return false;
       const status = document.getElementById('sync-state');
       try {
+        const existing = await readSharedRowFromBackend();
+        const merged = {
+          id: SUPABASE_ROW_ID,
+          updates: Array.isArray(patch?.updates)
+            ? patch.updates
+            : (Array.isArray(existing?.updates) ? existing.updates : []),
+          live_status_enabled: (typeof patch?.live_status_enabled === 'boolean')
+            ? patch.live_status_enabled
+            : parseLiveStatusPayload(existing),
+          updated_at: new Date().toISOString(),
+        };
         const { error } = await supabaseClient
-          .from(SUPABASE_STATUS_TABLE)
-          .update({ ...patch, updated_at: new Date().toISOString() })
-          .eq('id', SUPABASE_STATUS_ID);
+          .from(SUPABASE_TABLE)
+          .upsert(merged, { onConflict: 'id' });
         if (error) throw error;
-        status.textContent = 'Shared status synced.';
+        status.textContent = 'Shared sync updated.';
         return true;
       } catch (err) {
-        status.textContent = `Shared status write failed: ${err.message}`;
+        status.textContent = `Shared sync write failed: ${err.message}`;
         return false;
       }
+    }
+
+    async function pullUpdatesFromBackend() {
+      if (!supabaseClient) return null;
+      const status = document.getElementById('sync-state');
+      status.textContent = 'Loading shared updates from Supabase…';
+      const row = await readSharedRowFromBackend();
+      if (!row) return null;
+      const updates = parseUpdatesPayload(row);
+      const liveStatusEnabled = parseLiveStatusPayload(row);
+      if (liveStatusEnabled !== null) {
+        localStorage.setItem(LIVE_STATUS_KEY, liveStatusEnabled ? '1' : '0');
+        renderLiveStatusState();
+      }
+      status.textContent = `Shared updates loaded (${updates.length} items).`;
+      return updates;
+    }
+
+    async function pushUpdatesToBackend(items) {
+      await upsertMergedSharedRow({ updates: items });
+    }
+
+    async function pushLiveStatusToBackend(enabled) {
+      await upsertMergedSharedRow({ live_status_enabled: Boolean(enabled) });
     }
 
     function normalizeUpdate(update, source = 'custom') {
@@ -470,6 +497,21 @@ on conflict (id) do nothing;</pre>
         .channel('admin-status-stream')
         .on('postgres_changes', { event: '*', schema: 'public', table: SUPABASE_STATUS_TABLE }, async () => {
           await pullStatusFromBackend();
+        })
+        .subscribe();
+    }
+
+    function subscribeToStatusRealtime() {
+      if (!supabaseClient) return;
+      supabaseClient
+        .channel('admin-status-stream')
+        .on('postgres_changes', { event: '*', schema: 'public', table: SUPABASE_TABLE }, async () => {
+          const latestRemote = await pullUpdatesFromBackend();
+          if (Array.isArray(latestRemote)) {
+            const normalized = latestRemote.map(item => normalizeUpdate(item, item?.source || 'custom')).filter(Boolean);
+            setUpdates(normalized, { skipPush: true });
+            renderUpdates();
+          }
         })
         .subscribe();
     }
