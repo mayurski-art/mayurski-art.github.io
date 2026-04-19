@@ -165,6 +165,9 @@ on conflict (id) do nothing;</pre>
     const FEEDBACK_KEY = 'trollrunner_feedback';
     const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
     const MAX_VISIBLE_UPDATES = 4;
+    // Supabase setup (replace only if project values change):
+    // 1) SUPABASE_URL -> your project URL
+    // 2) SUPABASE_ANON_KEY -> your anon public API key
     const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
     const SUPABASE_STATUS_TABLE = 'status';
@@ -250,13 +253,14 @@ on conflict (id) do nothing;</pre>
       return null;
     }
 
-    function isSupabaseConfigured() {
-      return Boolean(window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY);
-    }
-
-    const supabaseClient = isSupabaseConfigured()
+    // Must initialize before any supabase.from(...) usage.
+    const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function')
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : null;
+
+    function isSupabaseConfigured() {
+      return Boolean(supabaseClient);
+    }
 
     async function pullStatusFromBackend() {
       if (!supabaseClient) return null;

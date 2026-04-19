@@ -1168,6 +1168,9 @@ const ADMIN_UPDATES_KEY = 'trollrunner_updates';
 const ADMIN_FEEDBACK_KEY = 'trollrunner_feedback';
 const GEO_CACHE_KEY = 'trollrunner_geo_cache_v1';
 const MAX_VISIBLE_UPDATES = 4;
+// Supabase setup (replace only if project values change):
+// 1) SUPABASE_URL -> your project URL
+// 2) SUPABASE_ANON_KEY -> your anon public API key
 const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
 const SUPABASE_STATUS_TABLE = 'status';
@@ -1258,7 +1261,8 @@ const geoInflight = new Set();
 const ENABLE_LIVE_GEOCODING = false;
 const spotifyTrackLabelCache = new Map();
 const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
-const supabaseClient = (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY)
+// Must initialize before any supabase.from(...) usage.
+const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function')
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 const DATE_COUNTS = {};
@@ -1929,57 +1933,6 @@ function parseSharedLiveStatusPayload(payload) {
     return payload.live_status_enabled === '1';
   }
   return null;
-}
-
-function getSupabaseTableCandidates() {
-  const cached = localStorage.getItem(SUPABASE_TABLE_CACHE_KEY);
-  const seeded = [cached, SUPABASE_TABLE, ...SUPABASE_TABLE_FALLBACKS].filter(Boolean);
-  return [...new Set(seeded)];
-}
-
-function persistSupabaseTableName(tableName) {
-  if (!tableName) return;
-  localStorage.setItem(SUPABASE_TABLE_CACHE_KEY, tableName);
-}
-
-function isSupabase404(response) {
-  return response && response.status === 404;
-}
-
-async function parseSupabaseError(response) {
-  if (!response) return 'No response from Supabase.';
-  const prefix = `HTTP ${response.status}`;
-  try {
-    const payload = await response.clone().json();
-    const details = [payload?.message, payload?.hint, payload?.details].filter(Boolean).join(' | ');
-    return details ? `${prefix}: ${details}` : prefix;
-  } catch {
-    try {
-      const text = await response.clone().text();
-      return text ? `${prefix}: ${text}` : prefix;
-    } catch {
-      return prefix;
-    }
-  }
-}
-
-async function fetchSharedStateWithTableFallback(queryString) {
-  const tables = getSupabaseTableCandidates();
-  let lastResponse = null;
-  for (const tableName of tables) {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?${queryString}`, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-    });
-    if (!isSupabase404(response)) {
-      persistSupabaseTableName(tableName);
-      return response;
-    }
-    lastResponse = response;
-  }
-  return lastResponse;
 }
 
 async function loadSharedStateFromBackend() {
