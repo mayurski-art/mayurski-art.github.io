@@ -107,17 +107,20 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const AUTH_KEY = 'trollrunner_admin_auth';
     const UPDATES_KEY = 'trollrunner_updates';
     const FEEDBACK_KEY = 'trollrunner_feedback';
     const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
     const MAX_VISIBLE_UPDATES = 4;
+    // Supabase setup (replace only if project values change):
+    // 1) SUPABASE_URL -> your project URL
+    // 2) SUPABASE_ANON_KEY -> your anon public API key
     const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
-    const SUPABASE_ANON_KEY = 'your_anon_public_key';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
     const SUPABASE_TABLE = 'site_updates';
     const SUPABASE_ROW_ID = 'main';
-    const LIVE_STATUS_SYNC_POLL_MS = 10000;
     const DEFAULT_UPDATES = [
       {
         title: 'Oct 10, 2025 — Riverside Adventure',
@@ -193,94 +196,81 @@
       return null;
     }
 
+    // Must initialize before any supabase.from(...) usage.
+    const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function')
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
     function isSupabaseConfigured() {
-      return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+      return Boolean(supabaseClient);
     }
 
-    function supabaseHeaders() {
-      const headers = {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      };
-      return headers;
-    }
-
-    async function pullUpdatesFromBackend() {
-      if (!isSupabaseConfigured()) return null;
-      const status = document.getElementById('sync-state');
-      status.textContent = 'Loading shared updates from Supabase…';
+    async function readSharedRowFromBackend() {
+      if (!supabaseClient) return null;
       try {
-        const qs = new URLSearchParams({
-          select: 'updates,live_status_enabled',
-          id: `eq.${SUPABASE_ROW_ID}`,
-          limit: '1'
-        });
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, {
-          headers: supabaseHeaders(),
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const json = await response.json();
-        const payload = Array.isArray(json) ? json[0] : json;
-        const updates = parseUpdatesPayload(payload);
-        const liveStatusEnabled = parseLiveStatusPayload(payload);
-        if (liveStatusEnabled !== null) {
-          localStorage.setItem(LIVE_STATUS_KEY, liveStatusEnabled ? '1' : '0');
-          renderLiveStatusState();
-        }
-        status.textContent = `Shared updates loaded (${updates.length} items).`;
-        return updates;
+        const { data, error } = await supabaseClient
+          .from(SUPABASE_TABLE)
+          .select('*')
+          .eq('id', SUPABASE_ROW_ID)
+          .maybeSingle();
+        if (error) throw error;
+        return data || null;
       } catch (err) {
+        const status = document.getElementById('sync-state');
         status.textContent = `Shared sync read failed: ${err.message}`;
         return null;
       }
     }
 
-    async function pushUpdatesToBackend(items) {
-      if (!isSupabaseConfigured()) return;
+    async function upsertMergedSharedRow(patch) {
+      if (!supabaseClient) return false;
       const status = document.getElementById('sync-state');
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders(),
-            Prefer: 'resolution=merge-duplicates,return=minimal',
-          },
-          body: JSON.stringify([{
-            id: SUPABASE_ROW_ID,
-            updates: items,
-            live_status_enabled: localStorage.getItem(LIVE_STATUS_KEY) === '1',
-            updated_at: new Date().toISOString(),
-          }]),
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        status.textContent = `Shared sync updated (${items.length} items).`;
+        const existing = await readSharedRowFromBackend();
+        const merged = {
+          id: SUPABASE_ROW_ID,
+          updates: Array.isArray(patch?.updates)
+            ? patch.updates
+            : (Array.isArray(existing?.updates) ? existing.updates : []),
+          live_status_enabled: (typeof patch?.live_status_enabled === 'boolean')
+            ? patch.live_status_enabled
+            : parseLiveStatusPayload(existing),
+          updated_at: new Date().toISOString(),
+        };
+        const { error } = await supabaseClient
+          .from(SUPABASE_TABLE)
+          .upsert(merged, { onConflict: 'id' });
+        if (error) throw error;
+        status.textContent = 'Shared sync updated.';
+        return true;
       } catch (err) {
         status.textContent = `Shared sync write failed: ${err.message}`;
+        return false;
       }
     }
 
-    async function pushLiveStatusToBackend(enabled) {
-      if (!isSupabaseConfigured()) return;
+    async function pullUpdatesFromBackend() {
+      if (!supabaseClient) return null;
       const status = document.getElementById('sync-state');
-      try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders(),
-            Prefer: 'resolution=merge-duplicates,return=minimal',
-          },
-          body: JSON.stringify([{
-            id: SUPABASE_ROW_ID,
-            live_status_enabled: Boolean(enabled),
-            updated_at: new Date().toISOString(),
-          }]),
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        status.textContent = `Shared live status synced (${enabled ? 'on' : 'off'}).`;
-      } catch (err) {
-        status.textContent = `Shared live status write failed: ${err.message}`;
+      status.textContent = 'Loading shared updates from Supabase…';
+      const row = await readSharedRowFromBackend();
+      if (!row) return null;
+      const updates = parseUpdatesPayload(row);
+      const liveStatusEnabled = parseLiveStatusPayload(row);
+      if (liveStatusEnabled !== null) {
+        localStorage.setItem(LIVE_STATUS_KEY, liveStatusEnabled ? '1' : '0');
+        renderLiveStatusState();
       }
+      status.textContent = `Shared updates loaded (${updates.length} items).`;
+      return updates;
+    }
+
+    async function pushUpdatesToBackend(items) {
+      await upsertMergedSharedRow({ updates: items });
+    }
+
+    async function pushLiveStatusToBackend(enabled) {
+      await upsertMergedSharedRow({ live_status_enabled: Boolean(enabled) });
     }
 
     function normalizeUpdate(update, source = 'custom') {
@@ -439,6 +429,21 @@
       pushLiveStatusToBackend(enabled);
     }
 
+    function subscribeToStatusRealtime() {
+      if (!supabaseClient) return;
+      supabaseClient
+        .channel('admin-status-stream')
+        .on('postgres_changes', { event: '*', schema: 'public', table: SUPABASE_TABLE }, async () => {
+          const latestRemote = await pullUpdatesFromBackend();
+          if (Array.isArray(latestRemote)) {
+            const normalized = latestRemote.map(item => normalizeUpdate(item, item?.source || 'custom')).filter(Boolean);
+            setUpdates(normalized, { skipPush: true });
+            renderUpdates();
+          }
+        })
+        .subscribe();
+    }
+
     (async () => {
       const remote = await pullUpdatesFromBackend();
       if (Array.isArray(remote)) {
@@ -451,17 +456,7 @@
       renderUpdates();
       renderFeedback();
       renderLiveStatusState();
-
-      if (isSupabaseConfigured()) {
-        window.setInterval(async () => {
-          const latestRemote = await pullUpdatesFromBackend();
-          if (Array.isArray(latestRemote)) {
-            const normalized = latestRemote.map(item => normalizeUpdate(item, item?.source || 'custom')).filter(Boolean);
-            setUpdates(normalized, { skipPush: true });
-            renderUpdates();
-          }
-        }, LIVE_STATUS_SYNC_POLL_MS);
-      }
+      subscribeToStatusRealtime();
     })();
   </script>
 </body>

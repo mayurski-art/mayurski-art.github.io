@@ -1161,17 +1161,20 @@ footer a:hover { color: #fff; }
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const ADMIN_PASSWORD = '#Mayur2626';
 const ADMIN_UPDATES_KEY = 'trollrunner_updates';
 const ADMIN_FEEDBACK_KEY = 'trollrunner_feedback';
 const GEO_CACHE_KEY = 'trollrunner_geo_cache_v1';
 const MAX_VISIBLE_UPDATES = 4;
+// Supabase setup (replace only if project values change):
+// 1) SUPABASE_URL -> your project URL
+// 2) SUPABASE_ANON_KEY -> your anon public API key
 const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
-const SUPABASE_ANON_KEY = 'your_anon_public_key';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
 const SUPABASE_TABLE = 'site_updates';
 const SUPABASE_ROW_ID = 'main';
-const SUPABASE_SHARED_STATE_REFRESH_MS = 10000;
 const SPOTIFY_PLAYLIST_URI = 'spotify:playlist:0ni59E9HbWpAe8Ydnseh4O';
 const DEFAULT_UPDATES = [
   {
@@ -1258,6 +1261,10 @@ const geoInflight = new Set();
 const ENABLE_LIVE_GEOCODING = false;
 const spotifyTrackLabelCache = new Map();
 const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
+// Must initialize before any supabase.from(...) usage.
+const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function')
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 const DATE_COUNTS = {};
 DATA.forEach(d => {
   d.isoDate = toIsoDate(d.date);
@@ -1266,10 +1273,9 @@ DATA.forEach(d => {
 const allDropDates = Object.keys(DATE_COUNTS).sort();
 let calendarMonth = allDropDates.length ? new Date(`${allDropDates[allDropDates.length-1]}T00:00:00`) : new Date();
 
-function applyLiveStatusVisibility() {
+function applyLiveStatusVisibility(enabled = localStorage.getItem(LIVE_STATUS_KEY) === '1') {
   const livePill = document.getElementById('live-status-pill');
   if (!livePill) return;
-  const enabled = localStorage.getItem(LIVE_STATUS_KEY) === '1';
   livePill.classList.toggle('is-visible', enabled);
 }
 
@@ -1928,22 +1934,15 @@ function parseSharedLiveStatusPayload(payload) {
 }
 
 async function loadSharedStateFromBackend() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return { updates: [], liveStatusEnabled: null };
+  if (!supabaseClient) return { updates: [], liveStatusEnabled: null };
   try {
-    const qs = new URLSearchParams({
-      select: 'updates,live_status_enabled',
-      id: `eq.${SUPABASE_ROW_ID}`,
-      limit: '1'
-    });
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-    });
-    if (!response.ok) return { updates: [], liveStatusEnabled: null };
-    const json = await response.json();
-    const payload = Array.isArray(json) ? json[0] : json;
+    const { data, error } = await supabaseClient
+      .from(SUPABASE_TABLE)
+      .select('updates,live_status_enabled,updated_at')
+      .eq('id', SUPABASE_ROW_ID)
+      .maybeSingle();
+    if (error) return { updates: [], liveStatusEnabled: null };
+    const payload = data || {};
     return {
       updates: parseSharedUpdatesPayload(payload),
       liveStatusEnabled: parseSharedLiveStatusPayload(payload),
@@ -1966,7 +1965,7 @@ async function loadCustomUpdates(sharedStateOverride = null) {
   const sharedUpdates = sharedState.updates;
   if (sharedState.liveStatusEnabled !== null) {
     localStorage.setItem(LIVE_STATUS_KEY, sharedState.liveStatusEnabled ? '1' : '0');
-    applyLiveStatusVisibility();
+    applyLiveStatusVisibility(sharedState.liveStatusEnabled);
   }
   const source = [
     ...DEFAULT_UPDATES,
@@ -1998,13 +1997,23 @@ async function loadCustomUpdates(sharedStateOverride = null) {
 }
 
 async function refreshSharedStateFromBackend() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  if (!supabaseClient) return;
   const sharedState = await loadSharedStateFromBackend();
   if (sharedState.liveStatusEnabled !== null) {
     localStorage.setItem(LIVE_STATUS_KEY, sharedState.liveStatusEnabled ? '1' : '0');
-    applyLiveStatusVisibility();
+    applyLiveStatusVisibility(sharedState.liveStatusEnabled);
   }
   await loadCustomUpdates(sharedState);
+}
+
+function subscribeToStatusRealtime() {
+  if (!supabaseClient) return;
+  supabaseClient
+    .channel('public-status-stream')
+    .on('postgres_changes', { event: '*', schema: 'public', table: SUPABASE_TABLE }, async () => {
+      await refreshSharedStateFromBackend();
+    })
+    .subscribe();
 }
 
 
@@ -2085,10 +2094,7 @@ document.getElementById('admin-pass').addEventListener('keydown', e => {
   if (e.key === 'Enter') goToAdmin();
 });
 
-initMap(); buildTabs(); renderPins(); renderList(); initPanelResizer(); initListResizer(); syncSidebarWidthForViewport(); loadCustomUpdates(); removeDuplicateFoundStickerSections();
-if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-  window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
-}
+initMap(); buildTabs(); renderPins(); renderList(); initPanelResizer(); initListResizer(); syncSidebarWidthForViewport(); loadCustomUpdates(); subscribeToStatusRealtime(); removeDuplicateFoundStickerSections();
 </script>
 </body>
 </html>
