@@ -107,6 +107,7 @@
     const UPDATES_KEY = 'trollrunner_updates';
     const FEEDBACK_KEY = 'trollrunner_feedback';
     const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
+    const LIVE_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_override';
     const MAX_VISIBLE_UPDATES = 4;
     const DEFAULT_UPDATES = [
       {
@@ -333,6 +334,7 @@
 
     function setLiveStatus(enabled) {
       localStorage.setItem(LIVE_STATUS_KEY, enabled ? '1' : '0');
+      localStorage.setItem(LIVE_STATUS_OVERRIDE_KEY, '1');
       renderLiveStatusState();
     }
 

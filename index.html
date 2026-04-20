@@ -1268,6 +1268,7 @@ const geoInflight = new Set();
 const ENABLE_LIVE_GEOCODING = false;
 const spotifyTrackLabelCache = new Map();
 const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
+const LIVE_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_override';
 const DATE_COUNTS = {};
 DATA.forEach(d => {
   d.isoDate = toIsoDate(d.date);
@@ -1281,6 +1282,10 @@ function applyLiveStatusVisibility() {
   if (!livePill) return;
   const enabled = localStorage.getItem(LIVE_STATUS_KEY) === '1';
   livePill.classList.toggle('is-visible', enabled);
+}
+
+function hasManualLiveStatusOverride() {
+  return localStorage.getItem(LIVE_STATUS_OVERRIDE_KEY) === '1';
 }
 
 window.addEventListener('storage', (event) => {
@@ -2060,7 +2065,7 @@ async function loadCustomUpdates(sharedStateOverride = null) {
   }
   const sharedState = sharedStateOverride || await loadSharedState();
   const sharedUpdates = sharedState.updates;
-  if (sharedState.liveStatusEnabled !== null) {
+  if (sharedState.liveStatusEnabled !== null && !hasManualLiveStatusOverride()) {
     localStorage.setItem(LIVE_STATUS_KEY, sharedState.liveStatusEnabled ? '1' : '0');
     applyLiveStatusVisibility();
   }
@@ -2095,7 +2100,7 @@ async function loadCustomUpdates(sharedStateOverride = null) {
 
 async function refreshSharedStateFromBackend() {
   const sharedState = await loadSharedState();
-  if (sharedState.liveStatusEnabled !== null) {
+  if (sharedState.liveStatusEnabled !== null && !hasManualLiveStatusOverride()) {
     localStorage.setItem(LIVE_STATUS_KEY, sharedState.liveStatusEnabled ? '1' : '0');
     applyLiveStatusVisibility();
   }
