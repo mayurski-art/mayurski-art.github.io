@@ -1946,7 +1946,7 @@ function parseJsonSharedStatePayload(payload) {
   if (!payload || typeof payload !== 'object') return { updates: [], liveStatusEnabled: null };
   return {
     updates: parseSharedUpdatesPayload(payload),
-    liveStatusEnabled: parseSharedLiveStatusPayload(payload),
+    liveStatusEnabled: null,
   };
 }
 
@@ -2100,7 +2100,7 @@ async function loadCustomUpdates(sharedStateOverride = null) {
 
 async function refreshSharedStateFromBackend() {
   const sharedState = await loadSharedState();
-  if (sharedState.liveStatusEnabled !== null && !hasManualLiveStatusOverride()) {
+  if (sharedState.liveStatusEnabled !== null) {
     localStorage.setItem(LIVE_STATUS_KEY, sharedState.liveStatusEnabled ? '1' : '0');
     applyLiveStatusVisibility();
   }

@@ -107,7 +107,12 @@
     const UPDATES_KEY = 'trollrunner_updates';
     const FEEDBACK_KEY = 'trollrunner_feedback';
     const LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
-    const LIVE_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_override';
+    const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
+    const SUPABASE_TABLE = 'site_updates';
+    const SUPABASE_TABLE_FALLBACKS = ['site_updates', 'updates', 'shared_state', 'app_state'];
+    const SUPABASE_TABLE_CACHE_KEY = 'trollrunner_supabase_table';
+    const SUPABASE_ROW_ID = 'main';
     const MAX_VISIBLE_UPDATES = 4;
     const DEFAULT_UPDATES = [
       {
@@ -332,10 +337,57 @@
       state.textContent = enabled ? 'Live popup is currently on.' : 'Live popup is currently off.';
     }
 
-    function setLiveStatus(enabled) {
+    function getSupabaseTableCandidates() {
+      const cached = localStorage.getItem(SUPABASE_TABLE_CACHE_KEY);
+      const seeded = [cached, SUPABASE_TABLE, ...SUPABASE_TABLE_FALLBACKS].filter(Boolean);
+      return [...new Set(seeded)];
+    }
+
+    function persistSupabaseTableName(tableName) {
+      if (!tableName) return;
+      localStorage.setItem(SUPABASE_TABLE_CACHE_KEY, tableName);
+    }
+
+    function isSupabase404(response) {
+      return response && response.status === 404;
+    }
+
+    async function persistLiveStatusToBackend(enabled) {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return false;
+      const payload = {
+        id: SUPABASE_ROW_ID,
+        live_status_enabled: Boolean(enabled),
+      };
+      const tables = getSupabaseTableCandidates();
+      for (const tableName of tables) {
+        try {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Prefer: 'resolution=merge-duplicates,return=minimal',
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify(payload),
+          });
+          if (!isSupabase404(response) && response.ok) {
+            persistSupabaseTableName(tableName);
+            return true;
+          }
+        } catch {}
+      }
+      return false;
+    }
+
+    async function setLiveStatus(enabled) {
       localStorage.setItem(LIVE_STATUS_KEY, enabled ? '1' : '0');
       localStorage.setItem(LIVE_STATUS_OVERRIDE_KEY, '1');
       renderLiveStatusState();
+      const synced = await persistLiveStatusToBackend(enabled);
+      if (!synced) {
+        alert('Live popup changed on this device, but shared sync failed. Check Supabase table policy/availability.');
+      }
     }
 
     (() => {
