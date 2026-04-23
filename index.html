@@ -8,11 +8,20 @@
 (() => {
   const host = window.location.hostname;
   const path = window.location.pathname;
+
+  if (host === 'trollrunner.net' && (path === '/trollrunner-projects' || path.startsWith('/trollrunner-projects/'))) {
+    const suffix = path.slice('/trollrunner-projects'.length) || '/';
+    const query = window.location.search || '';
+    const hash = window.location.hash || '';
+    window.location.replace(`https://projects.trollrunner.net${suffix}${query}${hash}`);
+    return;
+  }
+
   const redirects = {
-    'blog.trollrunner.net': '/blogs/',
-    'nutrition.trollrunner.net': '/nutrition/',
-    'finance.trollrunner.net': '/finances/',
-    'projects.trollrunner.net': '/projects/',
+    'blog.trollrunner.net': '/blog.html',
+    'nutrition.trollrunner.net': '/nutrition.html',
+    'finance.trollrunner.net': '/finance.html',
+    'projects.trollrunner.net': '/projects.html',
   };
   const targetPath = redirects[host];
   if (targetPath && (path === '/' || path === '/index.html')) {
