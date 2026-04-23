@@ -8,6 +8,15 @@
 (() => {
   const host = window.location.hostname;
   const path = window.location.pathname;
+
+  if (host === 'trollrunner.net' && (path === '/trollrunner-projects' || path.startsWith('/trollrunner-projects/'))) {
+    const suffix = path.slice('/trollrunner-projects'.length) || '/';
+    const query = window.location.search || '';
+    const hash = window.location.hash || '';
+    window.location.replace(`https://projects.trollrunner.net${suffix}${query}${hash}`);
+    return;
+  }
+
   const redirects = {
     'blog.trollrunner.net': '/blogs/',
     'nutrition.trollrunner.net': '/nutrition/',
