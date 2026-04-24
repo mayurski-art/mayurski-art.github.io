@@ -294,35 +294,6 @@ header p {
   margin-top: 4px;
 }
 
-/* -- ANIMATION SHOWCASE -- */
-#animation-showcase {
-  max-width: 1200px;
-  margin: 0 auto 34px;
-  padding: 0 24px;
-}
-#animation-showcase[hidden] {
-  display: none !important;
-}
-.animation-showcase-head {
-  max-width: 760px;
-  margin-bottom: 18px;
-}
-.animation-showcase-head h2 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 10px;
-}
-.animation-showcase-head p {
-  font-size: 15px;
-  line-height: 1.7;
-  color: rgba(255,255,255,0.64);
-}
-.animation-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
 .animation-card {
   position: relative;
   overflow: hidden;
@@ -388,264 +359,11 @@ header p {
   inset: 10px;
   border-radius: 18px;
 }
-.bio-animation-card .animation-poster,
-.bio-animation-card .animation-charge-suit,
-.bio-animation-card .animation-charge-face {
+.bio-animation-card .animation-poster {
   inset: 10px;
   width: calc(100% - 20px);
   height: calc(100% - 20px);
   border-radius: 18px;
-}
-.bio-animation-card .animation-charge-aura {
-  inset: 12px;
-  border-radius: 18px;
-}
-.bio-animation-card .animation-copy {
-  display: none;
-}
-.animation-copy {
-  padding: 16px 18px 18px;
-}
-.animation-copy h3 {
-  font-size: 17px;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 8px;
-}
-.animation-copy p {
-  font-size: 13px;
-  line-height: 1.6;
-  color: rgba(255,255,255,0.66);
-}
-.animation-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 0.5px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.05);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.62);
-}
-.bio-animation-card.left .animation-poster {
-  animation: poster-breathe 7.2s ease-in-out infinite;
-}
-.bio-animation-card.right .animation-poster {
-  animation: sprinter-settle 5.1s cubic-bezier(0.42, 0, 0.2, 1) infinite;
-}
-.animation-charge-aura {
-  position: absolute;
-  inset: 16px;
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 50% 38%, rgba(108,255,186,0.08), transparent 33%),
-    radial-gradient(circle at 50% 72%, rgba(82,226,148,0.16), transparent 26%),
-    linear-gradient(135deg, rgba(66,222,166,0.04), rgba(66,222,166,0) 44%, rgba(138,255,202,0.08) 72%, rgba(66,222,166,0) 100%);
-  mix-blend-mode: screen;
-  z-index: 2;
-  opacity: 0.32;
-  animation: charge-aura 7.1s ease-in-out infinite;
-  pointer-events: none;
-}
-.animation-charge-ring {
-  position: absolute;
-  left: 9%;
-  top: 7%;
-  width: 82%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  z-index: 3;
-  pointer-events: none;
-}
-.animation-charge-ring::before,
-.animation-charge-ring::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-}
-.animation-charge-ring::before {
-  border: 2px solid rgba(26, 35, 30, 0.34);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
-}
-.animation-charge-ring::after {
-  background: conic-gradient(
-    from 210deg,
-    rgba(68,222,166,0) 0deg 18deg,
-    rgba(68,222,166,0.08) 56deg,
-    rgba(122,255,196,0.88) 108deg,
-    rgba(68,222,166,0.38) 148deg,
-    rgba(68,222,166,0) 202deg 360deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  filter: drop-shadow(0 0 10px rgba(68,222,166,0.46));
-  opacity: 0.3;
-  animation: charge-orbit 11.5s linear infinite, ring-glow 7.1s ease-in-out infinite;
-}
-.animation-charge-suit {
-  position: absolute;
-  inset: 14px;
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 50% 44%, rgba(148,255,205,0.16), transparent 34%),
-    linear-gradient(180deg, rgba(136,255,204,0) 6%, rgba(96,255,188,0.08) 40%, rgba(72,212,150,0.24) 74%, rgba(49,173,117,0.3) 100%);
-  clip-path: polygon(9% 31%, 24% 26%, 39% 30%, 43% 18%, 57% 18%, 61% 30%, 76% 26%, 91% 31%, 83% 39%, 74% 45%, 67% 60%, 71% 95%, 29% 95%, 33% 60%, 26% 45%, 17% 39%);
-  mix-blend-mode: screen;
-  filter: blur(8px);
-  z-index: 3;
-  opacity: 0.08;
-  animation: suit-charge 7.1s cubic-bezier(0.38, 0, 0.2, 1) infinite;
-  pointer-events: none;
-}
-.animation-charge-face {
-  position: absolute;
-  inset: 14px;
-  border-radius: 20px;
-  background-image: var(--animation-poster);
-  background-size: cover;
-  background-position: center;
-  clip-path: ellipse(10.8% 7.3% at 50.1% 22.1%);
-  z-index: 4;
-  opacity: 0.98;
-  pointer-events: none;
-  will-change: transform;
-  animation: face-laugh 8.4s ease-in-out infinite;
-}
-.animation-sprint-flare {
-  position: absolute;
-  inset: 16% 18% 38%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 34%, rgba(255,255,255,0.36), rgba(131,223,255,0.18) 38%, rgba(131,223,255,0) 74%);
-  filter: blur(16px);
-  z-index: 2;
-  opacity: 0.42;
-  pointer-events: none;
-  animation: sprint-flare 5.3s ease-in-out infinite;
-}
-.animation-sprint-track {
-  position: absolute;
-  inset: auto 11% 10% 11%;
-  height: 22%;
-  background:
-    radial-gradient(circle at 16% 70%, rgba(255,205,112,0.2), transparent 18%),
-    radial-gradient(circle at 37% 34%, rgba(255,205,112,0.12), transparent 14%),
-    radial-gradient(circle at 68% 58%, rgba(255,205,112,0.16), transparent 15%),
-    radial-gradient(circle at 84% 72%, rgba(255,205,112,0.2), transparent 18%);
-  filter: blur(14px);
-  z-index: 2;
-  opacity: 0.5;
-  pointer-events: none;
-  animation: track-heat 3.4s ease-in-out infinite;
-}
-.animation-spark {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,248,225,0.98) 0%, rgba(255,216,124,0.94) 28%, rgba(255,152,50,0.44) 56%, rgba(255,110,0,0) 78%);
-  box-shadow: 0 0 12px rgba(255, 194, 87, 0.4);
-  filter: blur(0.4px);
-  mix-blend-mode: screen;
-  z-index: 3;
-  opacity: 0.58;
-  pointer-events: none;
-  animation: spark-glow var(--spark-duration, 2.2s) ease-in-out infinite;
-}
-.animation-spark::before,
-.animation-spark::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform-origin: center;
-  pointer-events: none;
-}
-.animation-spark::before {
-  width: 2px;
-  height: 18px;
-  margin-left: -1px;
-  margin-top: -13px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255,249,214,0), rgba(255,241,191,0.95) 26%, rgba(255,164,65,0.86) 72%, rgba(255,111,0,0));
-  transform: translate(-50%, -50%) rotate(var(--spark-angle, 0deg));
-}
-.animation-spark::after {
-  width: 5px;
-  height: 12px;
-  margin-left: -2.5px;
-  margin-top: -17px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255,240,177,0.98), rgba(255,144,45,0));
-  transform: translate(-50%, -50%) rotate(var(--spark-angle, 0deg));
-  animation: ember-rise var(--spark-duration, 2.2s) ease-in-out infinite;
-}
-.animation-spark.s1 { left: 15%; bottom: 14%; animation-delay: 0s; --spark-angle: 16deg; --spark-duration: 1.9s; }
-.animation-spark.s2 { left: 43%; bottom: 22%; width: 18px; height: 18px; animation-delay: 0.42s; --spark-angle: -10deg; --spark-duration: 2.4s; }
-.animation-spark.s3 { right: 15%; bottom: 15%; animation-delay: 0.78s; --spark-angle: 22deg; --spark-duration: 2.1s; }
-.animation-spark.s4 { right: 30%; bottom: 9%; width: 16px; height: 16px; animation-delay: 1.18s; --spark-angle: -18deg; --spark-duration: 2.6s; }
-.animation-spark.s5 { left: 49%; bottom: 10%; width: 14px; height: 14px; animation-delay: 1.52s; --spark-angle: 10deg; --spark-duration: 2s; }
-
-@keyframes charge-orbit {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-@keyframes ring-glow {
-  0%, 16% { opacity: 0.18; }
-  42% { opacity: 0.86; }
-  62% { opacity: 0.54; }
-  100% { opacity: 0.26; }
-}
-@keyframes charge-aura {
-  0%, 100% { opacity: 0.2; transform: scale(0.995); }
-  46% { opacity: 0.62; transform: scale(1.02); }
-  72% { opacity: 0.38; transform: scale(1.008); }
-}
-@keyframes suit-charge {
-  0%, 18% { opacity: 0.03; }
-  40% { opacity: 0.14; }
-  60% { opacity: 0.28; }
-  76% { opacity: 0.34; }
-  100% { opacity: 0.12; }
-}
-@keyframes face-laugh {
-  0%, 62%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
-  66% { transform: translate3d(-0.6px, -0.5px, 0) rotate(-0.35deg); }
-  69% { transform: translate3d(0.9px, 0.4px, 0) rotate(0.45deg); }
-  72% { transform: translate3d(-0.5px, 0.2px, 0) rotate(-0.25deg); }
-  75% { transform: translate3d(0.5px, 0.3px, 0) rotate(0.18deg); }
-}
-@keyframes sprint-flare {
-  0%, 100% { opacity: 0.22; transform: scale(0.97); }
-  48% { opacity: 0.58; transform: scale(1.03); }
-}
-@keyframes track-heat {
-  0%, 100% { opacity: 0.26; }
-  50% { opacity: 0.62; }
-}
-@keyframes spark-glow {
-  0%, 100% { opacity: 0.22; transform: scale(0.72); filter: blur(0.9px); }
-  34% { opacity: 0.82; transform: scale(1.18); filter: blur(0.15px); }
-  58% { opacity: 0.58; transform: scale(0.92); filter: blur(0.5px); }
-}
-@keyframes ember-rise {
-  0%, 100% { opacity: 0; transform: translate(-50%, -40%) rotate(var(--spark-angle, 0deg)) scale(0.7); }
-  32% { opacity: 0.78; transform: translate(-50%, -76%) rotate(var(--spark-angle, 0deg)) scale(1); }
-  60% { opacity: 0.2; transform: translate(-50%, -104%) rotate(var(--spark-angle, 0deg)) scale(0.9); }
-}
-@keyframes poster-breathe {
-  0%, 100% { transform: scale(1) translateY(0); filter: contrast(1.03) saturate(1.02); }
-  50% { transform: scale(1.014) translateY(-1px); filter: contrast(1.05) saturate(1.08); }
-}
-@keyframes sprinter-settle {
-  0%, 100% { transform: translateY(0) scale(1); filter: contrast(1.03) saturate(1.02); }
-  24% { transform: translateY(0.6px) scale(1.006); filter: contrast(1.05) saturate(1.04); }
-  54% { transform: translateY(-0.8px) scale(1.01); filter: contrast(1.07) saturate(1.06); }
 }
 
 /* ── MAP SECTION ── */
@@ -1298,7 +1016,6 @@ footer a:hover { color: #fff; }
 
   #biography,
   #stats-banner,
-  #animation-showcase,
   #map-section,
   #updates,
   #feedback,
@@ -1434,10 +1151,6 @@ footer a:hover { color: #fff; }
       <div class="animation-frame">
         <span class="animation-card-label">Green Charge</span>
         <img class="animation-poster" data-animation-poster src="assets/animations/green-suit-charge.jpg" alt="Trollface suited figure charging green inside a circular frame">
-        <div class="animation-charge-aura" aria-hidden="true"></div>
-        <div class="animation-charge-ring" aria-hidden="true"></div>
-        <div class="animation-charge-suit" aria-hidden="true"></div>
-        <div class="animation-charge-face" aria-hidden="true"></div>
       </div>
     </article>
 
@@ -1451,13 +1164,6 @@ footer a:hover { color: #fff; }
       <div class="animation-frame">
         <span class="animation-card-label">Start Line</span>
         <img class="animation-poster" data-animation-poster src="assets/animations/start-line-sparks.jpg" alt="Athlete trollface crouched at the starting line with glowing sparks on the track">
-        <div class="animation-sprint-flare" aria-hidden="true"></div>
-        <div class="animation-sprint-track" aria-hidden="true"></div>
-        <div class="animation-spark s1" aria-hidden="true"></div>
-        <div class="animation-spark s2" aria-hidden="true"></div>
-        <div class="animation-spark s3" aria-hidden="true"></div>
-        <div class="animation-spark s4" aria-hidden="true"></div>
-        <div class="animation-spark s5" aria-hidden="true"></div>
       </div>
     </article>
   </div>
