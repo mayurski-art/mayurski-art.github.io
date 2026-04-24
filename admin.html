@@ -114,8 +114,6 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
     const SUPABASE_ANON_KEY_PLACEHOLDER = 'your_anon_public_key';
     const SUPABASE_TABLE = 'site_updates';
-    const SUPABASE_TABLE_FALLBACKS = ['site_updates', 'updates', 'shared_state', 'app_state'];
-    const SUPABASE_TABLE_CACHE_KEY = 'trollrunner_supabase_table';
     const SUPABASE_ROW_ID = 'main';
     const LIVE_STATUS_SYNC_POLL_MS = 10000;
     const DEFAULT_UPDATES = [
@@ -277,24 +275,20 @@
         live_status_enabled: localStorage.getItem(LIVE_STATUS_KEY) === '1',
         updated_at: new Date().toISOString(),
       };
-      const tables = getSupabaseTableCandidates();
-      for (const tableName of tables) {
-        try {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}`, {
-            method: 'POST',
-            headers: {
-              ...supabaseHeaders(),
-              Prefer: 'resolution=merge-duplicates,return=minimal',
-            },
-            body: JSON.stringify([payload]),
-          });
-          if (!isSupabase404(response) && response.ok) {
-            persistSupabaseTableName(tableName);
-            if (status) status.textContent = `Shared sync updated (${items.length} items).`;
-            return true;
-          }
-        } catch {}
-      }
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+          method: 'POST',
+          headers: {
+            ...supabaseHeaders(),
+            Prefer: 'resolution=merge-duplicates,return=minimal',
+          },
+          body: JSON.stringify([payload]),
+        });
+        if (response.ok) {
+          if (status) status.textContent = `Shared sync updated (${items.length} items).`;
+          return true;
+        }
+      } catch {}
       if (status) status.textContent = 'Shared sync write failed. Check Supabase table policy/availability.';
       return false;
     }
@@ -307,24 +301,20 @@
         live_status_enabled: Boolean(enabled),
         updated_at: new Date().toISOString(),
       };
-      const tables = getSupabaseTableCandidates();
-      for (const tableName of tables) {
-        try {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}`, {
-            method: 'POST',
-            headers: {
-              ...supabaseHeaders(),
-              Prefer: 'resolution=merge-duplicates,return=minimal',
-            },
-            body: JSON.stringify([payload]),
-          });
-          if (!isSupabase404(response) && response.ok) {
-            persistSupabaseTableName(tableName);
-            if (status) status.textContent = `Shared live status synced (${enabled ? 'on' : 'off'}).`;
-            return true;
-          }
-        } catch {}
-      }
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+          method: 'POST',
+          headers: {
+            ...supabaseHeaders(),
+            Prefer: 'resolution=merge-duplicates,return=minimal',
+          },
+          body: JSON.stringify([payload]),
+        });
+        if (response.ok) {
+          if (status) status.textContent = `Shared live status synced (${enabled ? 'on' : 'off'}).`;
+          return true;
+        }
+      } catch {}
       if (status) status.textContent = 'Shared live status write failed. Check Supabase table policy/availability.';
       return false;
     }
@@ -338,22 +328,14 @@
         id: `eq.${SUPABASE_ROW_ID}`,
         limit: '1'
       });
-      const tables = getSupabaseTableCandidates();
       let lastError = '';
-      for (const tableName of tables) {
-        try {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?${qs.toString()}`, {
-            headers: supabaseHeaders(),
-          });
-          if (isSupabase404(response)) {
-            lastError = `HTTP ${response.status}`;
-            continue;
-          }
-          if (!response.ok) {
-            lastError = await parseSupabaseError(response);
-            continue;
-          }
-          persistSupabaseTableName(tableName);
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, {
+          headers: supabaseHeaders(),
+        });
+        if (!response.ok) {
+          lastError = await parseSupabaseError(response);
+        } else {
           const json = await response.json();
           const payload = Array.isArray(json) ? json[0] : json;
           const updates = parseUpdatesPayload(payload);
@@ -364,9 +346,12 @@
           }
           if (status) status.textContent = `Shared updates loaded (${updates.length} items).`;
           return updates;
-        } catch (err) {
-          lastError = err instanceof Error ? err.message : String(err);
         }
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+      }
+      if (lastError && lastError.includes('app_state')) {
+        lastError = lastError.replace(/app_state/g, SUPABASE_TABLE);
       }
       if (status) status.textContent = `Shared sync read failed: ${lastError || 'Unknown error'}`;
       return null;
@@ -381,27 +366,23 @@
         live_status_enabled: localStorage.getItem(LIVE_STATUS_KEY) === '1',
         updated_at: new Date().toISOString(),
       };
-      const tables = getSupabaseTableCandidates();
       let lastError = '';
-      for (const tableName of tables) {
-        try {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}`, {
-            method: 'POST',
-            headers: {
-              ...supabaseHeaders(),
-              Prefer: 'resolution=merge-duplicates,return=minimal',
-            },
-            body: JSON.stringify([payload]),
-          });
-          if (!isSupabase404(response) && response.ok) {
-            persistSupabaseTableName(tableName);
-            if (status) status.textContent = `Shared sync updated (${items.length} items).`;
-            return true;
-          }
-          lastError = await parseSupabaseError(response);
-        } catch (err) {
-          lastError = err instanceof Error ? err.message : String(err);
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+          method: 'POST',
+          headers: {
+            ...supabaseHeaders(),
+            Prefer: 'resolution=merge-duplicates,return=minimal',
+          },
+          body: JSON.stringify([payload]),
+        });
+        if (response.ok) {
+          if (status) status.textContent = `Shared sync updated (${items.length} items).`;
+          return true;
         }
+        lastError = await parseSupabaseError(response);
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
       }
       if (status) status.textContent = `Shared sync write failed: ${lastError || 'Unknown error'}`;
       return false;
@@ -600,21 +581,6 @@
       if (!state) return;
       const enabled = localStorage.getItem(LIVE_STATUS_KEY) === '1';
       state.textContent = enabled ? 'Live popup is currently on.' : 'Live popup is currently off.';
-    }
-
-    function getSupabaseTableCandidates() {
-      const cached = localStorage.getItem(SUPABASE_TABLE_CACHE_KEY);
-      const seeded = [cached, SUPABASE_TABLE, ...SUPABASE_TABLE_FALLBACKS].filter(Boolean);
-      return [...new Set(seeded)];
-    }
-
-    function persistSupabaseTableName(tableName) {
-      if (!tableName) return;
-      localStorage.setItem(SUPABASE_TABLE_CACHE_KEY, tableName);
-    }
-
-    function isSupabase404(response) {
-      return response && response.status === 404;
     }
 
     function getSyncStatusText() {

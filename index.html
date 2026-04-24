@@ -1178,8 +1178,6 @@ const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
 const SUPABASE_ANON_KEY_PLACEHOLDER = 'your_anon_public_key';
 const SUPABASE_TABLE = 'site_updates';
-const SUPABASE_TABLE_FALLBACKS = ['site_updates', 'updates', 'shared_state', 'app_state'];
-const SUPABASE_TABLE_CACHE_KEY = 'trollrunner_supabase_table';
 const SUPABASE_ROW_ID = 'main';
 const SUPABASE_SHARED_STATE_REFRESH_MS = 10000;
 const SHARED_UPDATES_JSON_URL = 'assets/data/latest-updates.json';
@@ -1979,21 +1977,6 @@ function parseJsonSharedStatePayload(payload) {
   };
 }
 
-function getSupabaseTableCandidates() {
-  const cached = localStorage.getItem(SUPABASE_TABLE_CACHE_KEY);
-  const seeded = [cached, SUPABASE_TABLE, ...SUPABASE_TABLE_FALLBACKS].filter(Boolean);
-  return [...new Set(seeded)];
-}
-
-function persistSupabaseTableName(tableName) {
-  if (!tableName) return;
-  localStorage.setItem(SUPABASE_TABLE_CACHE_KEY, tableName);
-}
-
-function isSupabase404(response) {
-  return response && response.status === 404;
-}
-
 async function parseSupabaseError(response) {
   if (!response) return 'No response from Supabase.';
   const prefix = `HTTP ${response.status}`;
@@ -2011,25 +1994,6 @@ async function parseSupabaseError(response) {
   }
 }
 
-async function fetchSharedStateWithTableFallback(queryString) {
-  const tables = getSupabaseTableCandidates();
-  let lastResponse = null;
-  for (const tableName of tables) {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?${queryString}`, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-    });
-    if (!isSupabase404(response)) {
-      persistSupabaseTableName(tableName);
-      return response;
-    }
-    lastResponse = response;
-  }
-  return lastResponse;
-}
-
 async function loadSharedStateFromBackend() {
   if (!isSupabaseConfigured()) return { updates: [], liveStatusEnabled: null };
   try {
@@ -2038,7 +2002,12 @@ async function loadSharedStateFromBackend() {
       id: `eq.${SUPABASE_ROW_ID}`,
       limit: '1'
     });
-    const response = await fetchSharedStateWithTableFallback(qs.toString());
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
     if (!response.ok) {
       console.warn('Shared sync read failed on homepage:', await parseSupabaseError(response));
       return { updates: [], liveStatusEnabled: null };
