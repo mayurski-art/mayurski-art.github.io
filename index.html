@@ -215,12 +215,18 @@ header p {
   gap: 24px;
   align-items: center;
 }
+.bio-layout.has-right-animation:not(.has-left-animation) {
+  grid-template-columns: minmax(320px, 760px) minmax(220px, 280px);
+}
 .bio-copy {
   max-width: 760px;
   margin: 0 auto;
 }
 .bio-layout.has-any-animation .bio-copy {
   grid-column: 2;
+}
+.bio-layout.has-right-animation:not(.has-left-animation) .bio-copy {
+  grid-column: 1;
 }
 .bio-animation-card {
   width: 100%;
@@ -231,6 +237,9 @@ header p {
 }
 .bio-layout.has-any-animation .bio-animation-card.right {
   grid-column: 3;
+}
+.bio-layout.has-right-animation:not(.has-left-animation) .bio-animation-card.right {
+  grid-column: 2;
 }
 #biography h2 {
   font-family: var(--font-display);
@@ -393,142 +402,6 @@ header p {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
-.left-puppet-card .animation-frame {
-  background:
-    radial-gradient(circle at 50% 18%, rgba(255,255,255,0.14), transparent 22%),
-    linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.22));
-}
-.left-puppet-card .animation-poster {
-  z-index: 4;
-  opacity: 0;
-  animation: puppet-final-reveal 7.2s ease-in-out infinite;
-}
-.puppet-stage {
-  position: absolute;
-  inset: 10px 10px 46px;
-  border-radius: 18px;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 3;
-  animation:
-    puppet-stage-settle 7.2s ease-in-out infinite,
-    puppet-stage-fade 7.2s ease-in-out infinite;
-}
-.puppet-backplate,
-.puppet-piece {
-  position: absolute;
-  inset: 0;
-  background-image: var(--animation-poster);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-.puppet-backplate {
-  opacity: 0.16;
-  filter: blur(7px) saturate(0.8) brightness(0.94);
-  transform: scale(1.03);
-  animation: puppet-backplate-fade 7.2s ease-in-out infinite;
-}
-.puppet-piece {
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-}
-.puppet-body {
-  z-index: 3;
-  clip-path: polygon(39% 11%, 61% 11%, 61.5% 20%, 59% 38%, 60.5% 95%, 39.5% 95%, 41% 38%, 38.5% 20%);
-  animation: puppet-body-settle 7.2s cubic-bezier(0.55, 0, 0.22, 1) infinite;
-}
-.puppet-arm-lower-left {
-  z-index: 2;
-  clip-path: polygon(3% 32%, 45% 31%, 45% 47%, 3% 48%);
-  transform-origin: 46% 39%;
-  animation: puppet-arm-lower-left 7.2s cubic-bezier(0.55, 0, 0.22, 1) infinite;
-}
-.puppet-arm-lower-right {
-  z-index: 2;
-  clip-path: polygon(55% 31%, 97% 32%, 97% 48%, 55% 47%);
-  transform-origin: 54% 39%;
-  animation: puppet-arm-lower-right 7.2s cubic-bezier(0.55, 0, 0.22, 1) infinite;
-}
-.puppet-arm-upper-left {
-  z-index: 1;
-  clip-path: polygon(4% 18%, 49% 17%, 49% 37%, 4% 34%);
-  transform-origin: 49% 33%;
-  animation: puppet-arm-upper-left 7.2s cubic-bezier(0.55, 0, 0.22, 1) infinite;
-}
-.puppet-arm-upper-right {
-  z-index: 1;
-  clip-path: polygon(51% 17%, 96% 18%, 96% 34%, 51% 37%);
-  transform-origin: 51% 33%;
-  animation: puppet-arm-upper-right 7.2s cubic-bezier(0.55, 0, 0.22, 1) infinite;
-}
-.puppet-leg-left {
-  z-index: 1;
-  clip-path: polygon(14% 52%, 46% 51%, 35% 95%, 11% 95%);
-  transform-origin: 47% 58%;
-  animation: puppet-leg-left 7.2s cubic-bezier(0.55, 0, 0.22, 1) infinite;
-}
-.puppet-leg-right {
-  z-index: 1;
-  clip-path: polygon(54% 51%, 86% 52%, 89% 95%, 65% 95%);
-  transform-origin: 53% 58%;
-  animation: puppet-leg-right 7.2s cubic-bezier(0.55, 0, 0.22, 1) infinite;
-}
-
-@keyframes puppet-stage-settle {
-  0%, 16% { transform: translateY(1.2%) scale(1.01); }
-  38%, 80% { transform: translateY(0) scale(1); }
-  100% { transform: translateY(0) scale(1); }
-}
-@keyframes puppet-stage-fade {
-  0%, 70% { opacity: 1; }
-  84%, 100% { opacity: 0; }
-}
-@keyframes puppet-backplate-fade {
-  0%, 18% { opacity: 0.09; }
-  44%, 74% { opacity: 0.19; }
-  100% { opacity: 0.08; }
-}
-@keyframes puppet-body-settle {
-  0%, 14% { transform: scaleX(0.9) scaleY(0.985); opacity: 0.86; }
-  40%, 78% { transform: scaleX(1) scaleY(1); opacity: 1; }
-  100% { transform: scaleX(1) scaleY(1); opacity: 1; }
-}
-@keyframes puppet-arm-lower-left {
-  0%, 12% { transform: rotate(78deg) translate(23%, -4%) scale(0.93); opacity: 0.1; }
-  32%, 66% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 0; }
-}
-@keyframes puppet-arm-lower-right {
-  0%, 12% { transform: rotate(-78deg) translate(-23%, -4%) scale(0.93); opacity: 0.1; }
-  32%, 66% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 0; }
-}
-@keyframes puppet-arm-upper-left {
-  0%, 18% { transform: rotate(98deg) translate(21%, 4%) scale(0.92); opacity: 0.05; }
-  40%, 70% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 0; }
-}
-@keyframes puppet-arm-upper-right {
-  0%, 18% { transform: rotate(-98deg) translate(-21%, 4%) scale(0.92); opacity: 0.05; }
-  40%, 70% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 0; }
-}
-@keyframes puppet-leg-left {
-  0%, 16% { transform: rotate(15deg) translate(30%, 3%) scale(0.94); opacity: 0.12; }
-  42%, 72% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 0; }
-}
-@keyframes puppet-leg-right {
-  0%, 16% { transform: rotate(-15deg) translate(-30%, 3%) scale(0.94); opacity: 0.12; }
-  42%, 72% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: rotate(0deg) translate(0, 0) scale(1); opacity: 0; }
-}
-@keyframes puppet-final-reveal {
-  0%, 60% { opacity: 0; }
-  74%, 94% { opacity: 0.96; }
-  100% { opacity: 0; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .bio-animation-card .animation-credit {
@@ -541,23 +414,6 @@ header p {
   }
   .bio-animation-card .animation-credit-copy + .animation-credit-copy {
     display: none;
-  }
-  .left-puppet-card .animation-poster {
-    opacity: 1;
-    animation: none;
-  }
-  .puppet-stage,
-  .puppet-backplate,
-  .puppet-piece,
-  .puppet-body,
-  .puppet-arm-lower-left,
-  .puppet-arm-lower-right,
-  .puppet-arm-upper-left,
-  .puppet-arm-upper-right,
-  .puppet-leg-left,
-  .puppet-leg-right {
-    animation: none;
-    opacity: 0;
   }
 }
 
@@ -1342,28 +1198,6 @@ footer a:hover { color: #fff; }
 
 <section id="biography">
   <div class="bio-layout" id="bio-layout">
-    <article class="animation-card bio-animation-card left left-puppet-card" data-animation-card style="--animation-poster: url('assets/animations/green-suit-charge.jpg');" hidden>
-      <div class="animation-frame">
-        <div class="puppet-stage" aria-hidden="true">
-          <div class="puppet-backplate"></div>
-          <div class="puppet-piece puppet-arm-upper-left"></div>
-          <div class="puppet-piece puppet-arm-upper-right"></div>
-          <div class="puppet-piece puppet-leg-left"></div>
-          <div class="puppet-piece puppet-leg-right"></div>
-          <div class="puppet-piece puppet-arm-lower-left"></div>
-          <div class="puppet-piece puppet-arm-lower-right"></div>
-          <div class="puppet-piece puppet-body"></div>
-        </div>
-        <img class="animation-poster" data-animation-poster src="assets/animations/green-suit-charge.jpg" alt="Trollface suited figure charging green inside a circular frame">
-        <div class="animation-credit" aria-label="Artwork credits">
-          <div class="animation-credit-track">
-            <span class="animation-credit-copy">Original Art: <a href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer">@SwishPng</a> | Adapted: <a href="https://twitter.com/troll_runner" target="_blank" rel="noreferrer">@troll_runner</a></span>
-            <span class="animation-credit-copy" aria-hidden="true">Original Art: <a href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer" tabindex="-1">@SwishPng</a> | Adapted: <a href="https://twitter.com/troll_runner" target="_blank" rel="noreferrer" tabindex="-1">@troll_runner</a></span>
-          </div>
-        </div>
-      </div>
-    </article>
-
     <div class="bio-copy">
       <h2>Biography</h2>
       <p>Troll Runner is a documentary street-level art project built around inspiring friendly mischief, and positive movement, including fitness and nutrition. This site is the archive of that mission, designed to track sticker drops.</p>
@@ -2475,6 +2309,8 @@ function setupAnimationShowcase() {
 
   const updateVisibility = () => {
     layout.classList.toggle('has-any-animation', cards.some(card => !card.hidden));
+    layout.classList.toggle('has-left-animation', cards.some(card => card.classList.contains('left') && !card.hidden));
+    layout.classList.toggle('has-right-animation', cards.some(card => card.classList.contains('right') && !card.hidden));
   };
 
   cards.forEach(card => {
