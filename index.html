@@ -215,6 +215,9 @@ header p {
   gap: 24px;
   align-items: center;
 }
+.bio-layout.has-left-animation:not(.has-right-animation) {
+  grid-template-columns: minmax(220px, 280px) minmax(320px, 760px);
+}
 .bio-layout.has-right-animation:not(.has-left-animation) {
   grid-template-columns: minmax(320px, 760px) minmax(220px, 280px);
 }
@@ -1205,7 +1208,7 @@ footer a:hover { color: #fff; }
       <p>Want to see other features? Click on the top buttons.</p>
     </div>
 
-    <article class="animation-card bio-animation-card right" data-animation-card style="--animation-poster: url('assets/animations/start-line-sparks.jpg');" hidden>
+    <article class="animation-card bio-animation-card left" data-animation-card style="--animation-poster: url('assets/animations/start-line-sparks.jpg');" hidden>
       <div class="animation-frame">
         <img class="animation-poster" data-animation-poster src="assets/animations/start-line-sparks.jpg" alt="Athlete trollface crouched at the starting line with glowing sparks on the track">
         <div class="animation-credit" aria-label="Artwork credits">
