@@ -203,7 +203,7 @@ header p {
 #biography {
   max-width: 1320px;
   margin: 0 auto;
-  padding: 26px 24px 0;
+  padding: 18px 24px 0;
 }
 .bio-layout {
   display: grid;
@@ -216,8 +216,8 @@ header p {
   align-items: center;
 }
 .bio-layout.has-left-animation:not(.has-right-animation) {
-  grid-template-columns: minmax(220px, 280px) minmax(360px, 760px);
-  gap: 28px;
+  grid-template-columns: minmax(240px, 290px) minmax(420px, 760px);
+  gap: 34px;
   align-items: start;
 }
 .bio-layout.has-right-animation:not(.has-left-animation) {
@@ -233,7 +233,7 @@ header p {
 .bio-layout.has-left-animation:not(.has-right-animation) .bio-copy {
   grid-column: 2;
   align-self: start;
-  padding-top: 14px;
+  padding-top: 28px;
 }
 .bio-layout.has-right-animation:not(.has-left-animation) .bio-copy {
   grid-column: 1;
@@ -247,7 +247,7 @@ header p {
 }
 .bio-layout.has-left-animation:not(.has-right-animation) .bio-animation-card.left {
   align-self: start;
-  margin-top: 10px;
+  margin-top: 36px;
 }
 .bio-layout.has-any-animation .bio-animation-card.right {
   grid-column: 3;
@@ -295,9 +295,9 @@ header p {
   display: flex;
   justify-content: center;
   gap: 16px;
-  padding: 0 24px 28px;
+  padding: 0 24px 24px;
   max-width: 860px;
-  margin: -6px auto 0;
+  margin: -18px auto 0;
 }
 .stat-card {
   flex: 1;
@@ -1098,11 +1098,11 @@ footer a:hover { color: #fff; }
     flex-wrap: wrap;
     gap: 10px;
     justify-content: stretch;
-    margin-top: 4px;
+    margin-top: -2px;
   }
   .bio-layout.has-any-animation {
     grid-template-columns: 1fr;
-    gap: 18px;
+    gap: 14px;
   }
   .bio-layout.has-any-animation .bio-copy,
   .bio-layout.has-any-animation .bio-animation-card.left,
@@ -1113,11 +1113,28 @@ footer a:hover { color: #fff; }
     padding-top: 0;
   }
   .bio-animation-card {
-    max-width: 320px;
+    max-width: 280px;
     margin: 0 auto;
   }
   .bio-layout.has-left-animation:not(.has-right-animation) .bio-animation-card.left {
-    margin-top: 0;
+    margin-top: 4px;
+  }
+  .bio-animation-card .animation-credit {
+    height: 20px;
+    bottom: 9px;
+    justify-content: center;
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+  .bio-animation-card .animation-credit-track {
+    animation: none;
+  }
+  .bio-animation-card .animation-credit-copy {
+    font-size: 10px;
+    padding-right: 0;
+  }
+  .bio-animation-card .animation-credit-copy + .animation-credit-copy {
+    display: none;
   }
   .animation-grid {
     grid-template-columns: 1fr;
