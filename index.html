@@ -202,8 +202,8 @@ header p {
 /* ── BIOGRAPHY ── */
 #biography {
   max-width: 1320px;
-  margin: 12px auto;
-  padding: 0 24px;
+  margin: 0 auto;
+  padding: 26px 24px 0;
 }
 .bio-layout {
   display: grid;
@@ -216,7 +216,9 @@ header p {
   align-items: center;
 }
 .bio-layout.has-left-animation:not(.has-right-animation) {
-  grid-template-columns: minmax(220px, 280px) minmax(320px, 760px);
+  grid-template-columns: minmax(220px, 280px) minmax(360px, 760px);
+  gap: 28px;
+  align-items: start;
 }
 .bio-layout.has-right-animation:not(.has-left-animation) {
   grid-template-columns: minmax(320px, 760px) minmax(220px, 280px);
@@ -228,6 +230,11 @@ header p {
 .bio-layout.has-any-animation .bio-copy {
   grid-column: 2;
 }
+.bio-layout.has-left-animation:not(.has-right-animation) .bio-copy {
+  grid-column: 2;
+  align-self: start;
+  padding-top: 14px;
+}
 .bio-layout.has-right-animation:not(.has-left-animation) .bio-copy {
   grid-column: 1;
 }
@@ -238,9 +245,9 @@ header p {
 .bio-layout.has-any-animation .bio-animation-card.left {
   grid-column: 1;
 }
-.bio-layout.has-left-animation:not(.has-right-animation) .bio-animation-card.left.ai-style-change-1 {
+.bio-layout.has-left-animation:not(.has-right-animation) .bio-animation-card.left {
   align-self: start;
-  transform: translateY(-330px);
+  margin-top: 10px;
 }
 .bio-layout.has-any-animation .bio-animation-card.right {
   grid-column: 3;
@@ -290,7 +297,7 @@ header p {
   gap: 16px;
   padding: 0 24px 28px;
   max-width: 860px;
-  margin: 0 auto;
+  margin: -6px auto 0;
 }
 .stat-card {
   flex: 1;
@@ -1091,19 +1098,26 @@ footer a:hover { color: #fff; }
     flex-wrap: wrap;
     gap: 10px;
     justify-content: stretch;
+    margin-top: 4px;
   }
   .bio-layout.has-any-animation {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 18px;
   }
   .bio-layout.has-any-animation .bio-copy,
   .bio-layout.has-any-animation .bio-animation-card.left,
   .bio-layout.has-any-animation .bio-animation-card.right {
     grid-column: auto;
   }
+  .bio-layout.has-left-animation:not(.has-right-animation) .bio-copy {
+    padding-top: 0;
+  }
   .bio-animation-card {
-    max-width: 340px;
+    max-width: 320px;
     margin: 0 auto;
+  }
+  .bio-layout.has-left-animation:not(.has-right-animation) .bio-animation-card.left {
+    margin-top: 0;
   }
   .animation-grid {
     grid-template-columns: 1fr;
@@ -1212,7 +1226,7 @@ footer a:hover { color: #fff; }
       <p>Want to see other features? Click on the top buttons.</p>
     </div>
 
-    <article class="animation-card bio-animation-card left ai-style-change-1" data-animation-card style="--animation-poster: url('assets/animations/start-line-sparks.jpg');" hidden>
+    <article class="animation-card bio-animation-card left" data-animation-card style="--animation-poster: url('assets/animations/start-line-sparks.jpg');" hidden>
       <div class="animation-frame">
         <img class="animation-poster" data-animation-poster src="assets/animations/start-line-sparks.jpg" alt="Athlete trollface crouched at the starting line with glowing sparks on the track">
         <div class="animation-credit" aria-label="Artwork credits">
