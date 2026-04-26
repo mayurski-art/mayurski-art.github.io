@@ -1047,7 +1047,7 @@ footer a:hover { color: #fff; }
 @media (max-width: 900px) {
   header { padding: 22px 16px 14px; }
   header h1 { font-size: 30px; }
-  #biography { display: none; }
+  #biography .bio-copy { display: none; }
   .header-row {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -1113,6 +1113,9 @@ footer a:hover { color: #fff; }
   .bio-layout.has-left-animation:not(.has-right-animation) .bio-copy {
     padding-top: 0;
     order: 2;
+  }
+  .bio-layout.has-left-animation:not(.has-right-animation) {
+    justify-items: center;
   }
   .bio-animation-card {
     max-width: 280px;
