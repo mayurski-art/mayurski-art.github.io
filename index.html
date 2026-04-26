@@ -959,9 +959,25 @@ header p {
 .loc-card:active { transform: scale(0.99); }
 .loc-top { display: flex; align-items: center; gap: 7px; }
 .loc-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.loc-name { font-size: 12px; font-weight: 600; color: var(--text-primary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loc-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+.loc-name { font-size: 12px; font-weight: 600; color: var(--text-primary); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .loc-badge { font-size: 9px; font-weight: 700; padding: 4px 7px; border-radius: 999px; flex-shrink: 0; }
 .loc-sub { font-size: 10px; color: var(--text-secondary); margin-top: 4px; padding-left: 17px; }
+.project-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(10,132,255,0.1);
+  border: 1px solid rgba(10,132,255,0.18);
+  color: #0a4ea8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
 .empty-msg { text-align: center; padding: 28px 20px; color: var(--text-hint); font-size: 13px; }
 
 /* ── MAP ── */
@@ -995,12 +1011,24 @@ header p {
   opacity: 1;
   padding: 16px;
 }
+.photo-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
 #photo-panel h4 {
   font-family: var(--font-display);
   font-size: 20px;
   color: #1c1c1e;
   line-height: 1.1;
-  margin-bottom: 6px;
+  margin-bottom: 0;
+}
+.photo-project-pill {
+  display: none;
+}
+.photo-project-pill.is-visible {
+  display: inline-flex;
 }
 #photo-panel p {
   font-size: 12px;
@@ -1682,7 +1710,8 @@ footer a:hover { color: #fff; }
 
 <div id="stats-banner">
   <div class="stats-banner-head">
-    <strong>Statistics</strong>
+    <strong>Run Totals</strong>
+    <span>Overview</span>
   </div>
   <div class="stats-grid">
     <div class="stat-card"><div class="val" id="stats-total-stickers">0</div><div class="lbl">Stickers</div></div>
@@ -1768,7 +1797,10 @@ footer a:hover { color: #fff; }
       <div id="scale-bar">San Bernardino &amp; Riverside Counties</div>
     </div>
     <aside id="photo-panel">
-      <h4 id="photo-title"></h4>
+      <div class="photo-title-row">
+        <h4 id="photo-title"></h4>
+        <span id="photo-project-pill" class="project-pill photo-project-pill"></span>
+      </div>
       <p id="photo-meta"></p>
       <div id="photo-gallery"></div>
     </aside>
@@ -1890,6 +1922,10 @@ const DATA = [
   {city:"Chino Hills",       name:"Mystic Canyon Road",               date:"Apr 18, 2026", count:3,  px:20, py:52, albumUrl:"https://imgur.com/a/466HCRZ", imageUrls:["https://i.imgur.com/1r1inS9.jpeg","https://i.imgur.com/gampDHO.jpeg","https://i.imgur.com/MnnhWaI.jpeg"], imageTitle:"Mystic Canyon Road, Chino Hills, California"},
   {city:"Chino Hills",       name:"Butterfield Ranch Road",           date:"Apr 18, 2026", count:2,  px:14, py:57, albumUrl:"https://imgur.com/a/LaQ3Sfb", imageUrls:["https://i.imgur.com/JovAhEV.jpeg","https://i.imgur.com/4QYCS3V.jpeg"], imageTitle:"Butterfield Ranch Road, Chino Hills, California"},
 ];
+const PROJECT_LOCATION_TAGS = {};
+DATA.forEach(item => {
+  item.project = PROJECT_LOCATION_TAGS[item.name] || null;
+});
 
 const CITIES = {
   "Fontana":          {pin:"#5856d6", bg:"#eeeeff", txt:"#3634a3"},
@@ -2407,13 +2443,17 @@ function renderList() {
   visible.forEach(loc => {
     const idx = DATA.indexOf(loc);
     const col = CITIES[loc.city];
+    const projectPill = loc.project ? `<span class="project-pill">${loc.project}</span>` : '';
     const card = document.createElement('div');
     card.className = 'loc-card' + (activeIdx === idx ? ' active' : '');
     card.dataset.idx = idx;
     card.innerHTML = `
       <div class="loc-top">
         <div class="loc-dot" style="background:${col.pin}"></div>
-        <div class="loc-name">${loc.name}</div>
+        <div class="loc-name-row">
+          <div class="loc-name">${loc.name}</div>
+          ${projectPill}
+        </div>
         <div class="loc-badge" style="background:${col.bg};color:${col.txt}">${loc.count}</div>
       </div>
       <div class="loc-sub">${loc.city} · ${loc.date}</div>
@@ -2533,6 +2573,7 @@ async function updatePhotoPanel(loc) {
   const gallery = document.getElementById('photo-gallery');
   const title = document.getElementById('photo-title');
   const meta = document.getElementById('photo-meta');
+  const projectPill = document.getElementById('photo-project-pill');
   const requestId = ++photoRequestId;
   const imageUrls = await resolveImageUrls(loc);
   if (requestId !== photoRequestId) return;
@@ -2548,12 +2589,21 @@ async function updatePhotoPanel(loc) {
       gallery.appendChild(img);
     });
     title.textContent = loc.name;
+    if (loc.project) {
+      projectPill.textContent = loc.project;
+      projectPill.classList.add('is-visible');
+    } else {
+      projectPill.textContent = '';
+      projectPill.classList.remove('is-visible');
+    }
     meta.textContent = `${loc.city} · ${loc.date}`;
   } else {
     app.classList.remove('show-photo');
     gallery.innerHTML = '';
     title.textContent = '';
     meta.textContent = '';
+    projectPill.textContent = '';
+    projectPill.classList.remove('is-visible');
   }
 }
 
