@@ -1326,56 +1326,80 @@ header p {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  padding: 16px 20px;
-  min-height: 168px;
+  padding: 18px 20px;
+  min-height: 232px;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  border: 1px solid rgba(255,255,255,0.08);
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(247,249,255,0.92) 52%, rgba(232,240,255,0.88) 100%);
+    radial-gradient(circle at 82% 34%, rgba(112, 140, 255, 0.16), transparent 24%),
+    linear-gradient(115deg, #05070d 0%, #0d1320 40%, #06080f 100%);
+  box-shadow: 0 20px 40px rgba(8, 12, 20, 0.26);
+}
+
+.found-sticker-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(4, 7, 12, 0.96) 0%, rgba(8, 12, 20, 0.88) 28%, rgba(8, 12, 20, 0.5) 48%, rgba(8, 12, 20, 0) 70%),
+    radial-gradient(circle at 84% 30%, rgba(255,255,255,0.1), transparent 18%);
+}
+
+.found-sticker-art {
+  position: absolute;
+  inset: -10% -3% -12% 14%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.found-sticker-art img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center 44%;
+  opacity: 0.96;
+  filter: contrast(1.14) brightness(1.1) drop-shadow(0 0 28px rgba(255,255,255,0.16));
+  transform: scale(1.03);
 }
 
 .found-sticker-copy {
   position: relative;
-  z-index: 2;
-  max-width: 300px;
+  z-index: 4;
+  max-width: 310px;
 }
 
 .found-sticker-copy p {
-  color: #303036;
-  text-shadow: 0 1px 0 rgba(255,255,255,0.58);
+  color: rgba(245,247,255,0.96);
+  text-shadow: 0 2px 18px rgba(0,0,0,0.4);
+}
+
+.found-sticker-copy strong {
+  color: #9bff83;
+  letter-spacing: 0.08em;
 }
 
 .sticker-collage {
   position: absolute;
-  top: 14px;
-  right: 20px;
-  bottom: 14px;
-  left: 40%;
+  inset: 0;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: clamp(8px, 1.1vw, 14px);
-  padding: 0 4px;
   pointer-events: none;
-  z-index: 1;
-  opacity: 0.94;
+  z-index: 3;
+  opacity: 1;
 }
 
 .sticker-collage::before {
   content: '';
   position: absolute;
-  inset: 18% 0;
-  border-radius: 18px;
+  inset: 0;
   background:
-    linear-gradient(90deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.72) 24%, rgba(220,231,255,0.8) 100%),
-    repeating-linear-gradient(
-      90deg,
-      rgba(108, 135, 255, 0.08) 0 1px,
-      rgba(108, 135, 255, 0) 1px 42px
-    );
-  opacity: 0.92;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.46);
+    radial-gradient(circle at 81% 28%, rgba(255,255,255,0.36), transparent 12%),
+    radial-gradient(circle at 89% 19%, rgba(146, 184, 255, 0.3), transparent 10%),
+    radial-gradient(circle at 84% 54%, rgba(255,255,255,0.18), transparent 14%);
+  opacity: 0.84;
 }
 
 .sticker-collage::after {
@@ -1383,25 +1407,26 @@ header p {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 16%),
-    linear-gradient(90deg, rgba(255,255,255,0) 74%, rgba(167, 196, 255, 0.26) 100%);
+    radial-gradient(circle at 82% 34%, rgba(255,255,255,0.16), transparent 20%),
+    linear-gradient(90deg, rgba(255,255,255,0) 68%, rgba(142, 172, 255, 0.12) 100%);
   mix-blend-mode: screen;
 }
 
 .sticker-collage-item {
   margin: 0;
-  position: relative;
+  position: absolute;
+  left: var(--sticker-x);
+  top: var(--sticker-y);
   z-index: 1;
-  flex: 0 0 var(--sticker-size);
   width: var(--sticker-size);
   aspect-ratio: 1 / 1;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.46);
-  background: rgba(255,255,255,0.14);
-  box-shadow: 0 10px 22px rgba(28,28,30,0.12);
+  border: 1px solid rgba(255,255,255,0.54);
+  background: rgba(255,255,255,0.12);
+  box-shadow: 0 14px 30px rgba(3, 8, 18, 0.38);
   opacity: 0;
-  transform: translateY(16px) rotate(var(--sticker-rotate)) scale(0.74);
+  transform: translate(-50%, calc(-50% + 16px)) rotate(var(--sticker-rotate)) scale(0.74);
   transition:
     transform 340ms cubic-bezier(0.2, 0.9, 0.2, 1.12),
     opacity 220ms ease;
@@ -1410,12 +1435,12 @@ header p {
 
 .sticker-collage-item.is-visible {
   opacity: 0.98;
-  transform: translateY(0) rotate(var(--sticker-rotate)) scale(var(--sticker-scale, 1));
+  transform: translate(-50%, -50%) rotate(var(--sticker-rotate)) scale(var(--sticker-scale, 1));
 }
 
 .sticker-collage.is-clearing .sticker-collage-item.is-visible {
   opacity: 0;
-  transform: translateY(10px) rotate(var(--sticker-rotate)) scale(calc(var(--sticker-scale, 1) * 0.88));
+  transform: translate(-50%, calc(-50% + 10px)) rotate(var(--sticker-rotate)) scale(calc(var(--sticker-scale, 1) * 0.88));
 }
 
 .sticker-collage-item img {
@@ -1610,6 +1635,20 @@ footer a:hover { color: #fff; }
   margin-top: 8px;
   font-size: 12px;
   color: rgba(255,255,255,0.6);
+}
+.footer-art-credit {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.5);
+}
+.footer-art-credit a {
+  color: rgba(255,255,255,0.78);
+  text-decoration: none;
+}
+.footer-art-credit a:hover {
+  color: #fff;
+  text-decoration: underline;
 }
 
 #admin-access {
@@ -1931,23 +1970,19 @@ footer a:hover { color: #fff; }
     transform: translateY(18%);
   }
   .found-sticker-card {
-    min-height: 210px;
-    padding: 16px 16px 112px;
+    min-height: 250px;
+    padding: 16px;
     align-items: flex-start;
   }
   .found-sticker-copy {
-    max-width: 100%;
+    max-width: min(68%, 260px);
   }
-  .sticker-collage {
-    top: auto;
-    right: 16px;
-    bottom: 14px;
-    left: 16px;
-    justify-content: center;
-    gap: 8px;
+  .found-sticker-art {
+    inset: -2% -24% -6% 22%;
   }
-  .sticker-collage::before {
-    inset: 8% 0;
+  .found-sticker-art img {
+    object-position: 62% 46%;
+    opacity: 0.82;
   }
   .map-section-sub {
     font-size: 12px;
@@ -2006,11 +2041,11 @@ footer a:hover { color: #fff; }
   .sticker-collage-item.is-drifting {
     animation: none;
     transition: none;
-    transform: rotate(var(--sticker-rotate));
+    transform: translate(-50%, -50%) rotate(var(--sticker-rotate));
   }
   .sticker-collage-item.is-visible {
     opacity: 1;
-    transform: rotate(var(--sticker-rotate));
+    transform: translate(-50%, -50%) rotate(var(--sticker-rotate));
   }
 }
 </style>
@@ -2057,12 +2092,6 @@ footer a:hover { color: #fff; }
     <article class="animation-card bio-animation-card left" data-animation-card style="--animation-poster: url('assets/animations/start-line-sparks.jpg');" hidden>
       <div class="animation-frame">
         <img class="animation-poster" data-animation-poster src="assets/animations/start-line-sparks.jpg" alt="Athlete trollface crouched at the starting line with glowing sparks on the track">
-        <div class="animation-credit" aria-label="Artwork credits">
-          <div class="animation-credit-track">
-            <span class="animation-credit-copy">Original Art: <a href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer">@SwishPng</a> | Adapted: <a href="https://twitter.com/troll_runner" target="_blank" rel="noreferrer">@troll_runner</a></span>
-            <span class="animation-credit-copy" aria-hidden="true">Original Art: <a href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer" tabindex="-1">@SwishPng</a> | Adapted: <a href="https://twitter.com/troll_runner" target="_blank" rel="noreferrer" tabindex="-1">@troll_runner</a></span>
-          </div>
-        </div>
       </div>
     </article>
   </div>
@@ -2201,6 +2230,9 @@ footer a:hover { color: #fff; }
   <section id="found-sticker">
     <h2>Found a sticker?</h2>
     <div class="update-card found-sticker-card">
+      <div class="found-sticker-art" aria-hidden="true">
+        <img src="assets/images/troll-arm.png" alt="">
+      </div>
       <div id="sticker-collage" class="sticker-collage" aria-hidden="true"></div>
       <div class="found-sticker-copy">
         <p>
@@ -2235,6 +2267,7 @@ footer a:hover { color: #fff; }
         </div>
       </div>
       <div class="footer-project">Community Project</div>
+      <div class="footer-art-credit">Original Art: <a href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer">@SwishPng</a> | Adapted: <a href="https://twitter.com/troll_runner" target="_blank" rel="noreferrer">@troll_runner</a></div>
     </div>
   </div>
 </footer>
@@ -3386,12 +3419,13 @@ function getStickerCollageImages() {
   });
 }
 
-const STICKER_ROW_SLOTS = [
-  { size: '14%', rotate: '-6deg', scale: '0.92' },
-  { size: '15%', rotate: '4deg', scale: '1' },
-  { size: '16%', rotate: '-5deg', scale: '1.08' },
-  { size: '15%', rotate: '6deg', scale: '1' },
-  { size: '14%', rotate: '-4deg', scale: '0.94' }
+const STICKER_HAND_SLOTS = [
+  { x: '67%', y: '62%', size: '11%', rotate: '-10deg', scale: '0.96' },
+  { x: '74%', y: '45%', size: '12%', rotate: '8deg', scale: '1' },
+  { x: '81%', y: '31%', size: '13%', rotate: '-7deg', scale: '1.06' },
+  { x: '88%', y: '18%', size: '10.5%', rotate: '10deg', scale: '0.94' },
+  { x: '92%', y: '40%', size: '10.5%', rotate: '-6deg', scale: '1' },
+  { x: '85%', y: '58%', size: '11.5%', rotate: '6deg', scale: '1.04' }
 ];
 const STICKER_REVEAL_INTERVAL_MS = 320;
 const STICKER_FULL_ROW_HOLD_MS = 1400;
@@ -3431,7 +3465,7 @@ function renderStickerCollage() {
   collage.innerHTML = '';
   if (!images.length) return;
 
-  const visibleCount = Math.min(images.length, STICKER_ROW_SLOTS.length);
+  const visibleCount = Math.min(images.length, STICKER_HAND_SLOTS.length);
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const buildCycleTiles = () => {
@@ -3440,9 +3474,11 @@ function renderStickerCollage() {
 
     const cycleImages = shuffleArray(images).slice(0, visibleCount);
     return cycleImages.map((image, idx) => {
-      const slot = STICKER_ROW_SLOTS[idx];
+      const slot = STICKER_HAND_SLOTS[idx];
       const tile = document.createElement('figure');
       tile.className = 'sticker-collage-item';
+      tile.style.setProperty('--sticker-x', slot.x);
+      tile.style.setProperty('--sticker-y', slot.y);
       tile.style.setProperty('--sticker-size', slot.size);
       tile.style.setProperty('--sticker-rotate', slot.rotate);
       tile.style.setProperty('--sticker-scale', slot.scale);
