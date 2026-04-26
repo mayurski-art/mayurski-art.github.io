@@ -200,10 +200,19 @@ header p {
 }
 
 /* ── BIOGRAPHY ── */
-#bio-artwork {
-  max-width: 400px;
+#intro-band {
+  max-width: 1120px;
   margin: 0 auto;
   padding: 18px 24px 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 400px) minmax(320px, 420px);
+  gap: 28px;
+  align-items: start;
+}
+#bio-artwork {
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 .bio-layout {
   display: grid;
@@ -297,35 +306,61 @@ header p {
 
 /* ── STATS ROW ── */
 #stats-banner {
-  display: none;
-  justify-content: center;
-  gap: 16px;
-  padding: 0 24px 24px;
-  max-width: 860px;
-  margin: 30px auto 0;
+  display: block;
+  padding: 16px;
+  margin: 0;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+  box-shadow: 0 24px 48px rgba(0,0,0,0.22);
+}
+.stats-banner-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.stats-banner-head strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+.stats-banner-head span {
+  color: rgba(255,255,255,0.58);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 .stat-card {
-  flex: 1;
-  max-width: 180px;
-  background: rgba(255,255,255,0.07);
-  border: 0.5px solid rgba(255,255,255,0.12);
+  max-width: none;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 14px;
-  padding: 16px 20px;
-  text-align: center;
+  padding: 15px 16px;
+  text-align: left;
 }
 .stat-card .val {
-  font-size: 32px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
   color: #fff;
-  letter-spacing: -1px;
+  letter-spacing: -0.06em;
   line-height: 1;
 }
 .stat-card .lbl {
-  font-size: 11px;
-  color: rgba(255,255,255,0.45);
+  font-size: 10px;
+  color: rgba(255,255,255,0.54);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 4px;
+  letter-spacing: 0.14em;
+  margin-top: 6px;
 }
 
 .animation-card {
@@ -493,19 +528,35 @@ header p {
   flex-direction: column;
   gap: 12px;
   padding: 14px;
+  min-height: 0;
+  overflow-y: auto;
   border-right: 1px solid rgba(28,28,30,0.08);
 }
 #panel-resizer {
-  width: 10px;
+  width: 16px;
   cursor: col-resize;
-  background: linear-gradient(to right, rgba(255,255,255,0.02), rgba(255,255,255,0.09), rgba(255,255,255,0.02));
-  border-right: 0.5px solid rgba(255,255,255,0.08);
-  border-left: 0.5px solid rgba(0,0,0,0.08);
-  flex: 0 0 10px;
+  position: relative;
+  background: linear-gradient(to right, rgba(51,118,255,0.14), rgba(51,118,255,0.24), rgba(51,118,255,0.14));
+  border-right: 1px solid rgba(255,255,255,0.28);
+  border-left: 1px solid rgba(51,118,255,0.28);
+  flex: 0 0 16px;
   touch-action: none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
 }
 #panel-resizer:hover {
-  background: linear-gradient(to right, rgba(255,255,255,0.06), rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+  background: linear-gradient(to right, rgba(51,118,255,0.22), rgba(51,118,255,0.38), rgba(51,118,255,0.22));
+}
+#panel-resizer::before {
+  content: "⋮⋮";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.88);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -1px;
 }
 #sidebar-header {
   padding: 2px 4px 0;
@@ -589,6 +640,7 @@ header p {
 }
 .list-shell {
   min-height: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -800,6 +852,10 @@ header p {
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   z-index: 20;
+  max-height: min(520px, 72vh);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(28,28,30,0.18) transparent;
 }
 #city-filter.open #city-filter-menu {
   display: block;
@@ -883,19 +939,10 @@ header p {
   flex: 1;
   overflow-y: auto;
   padding: 10px 12px 12px;
-  height: clamp(250px, 34vh, 420px);
+  height: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  min-height: 0;
-}
-#list-resizer {
-  display: none;
-  height: 10px;
-  cursor: row-resize;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.08), rgba(0,0,0,0.02), rgba(0,0,0,0.08));
-  border-top: 0.5px solid var(--border);
-  border-bottom: 0.5px solid var(--border);
-  touch-action: none;
+  min-height: 360px;
 }
 .loc-card {
   background: var(--bg-card);
@@ -1333,9 +1380,8 @@ footer a:hover { color: #fff; }
     font-size: 24px;
   }
 
-  #bio-artwork,
+  #intro-band,
   #biography,
-  #stats-banner,
   #map-section,
   #updates,
   #feedback,
@@ -1349,8 +1395,16 @@ footer a:hover { color: #fff; }
     grid-template-columns: 1fr;
   }
 
+  #intro-band {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding-top: 14px;
+  }
   #stats-banner {
-    display: none;
+    padding: 14px;
+  }
+  .stats-banner-head strong {
+    font-size: 17px;
   }
   .bio-layout.has-any-animation {
     grid-template-columns: 1fr;
@@ -1441,7 +1495,6 @@ footer a:hover { color: #fff; }
     border-top: 1px solid rgba(28,28,30,0.08);
   }
   #panel-resizer { display: none; }
-  #list-resizer { display: none; }
 
   #sidebar-header {
     padding: 2px 2px 0;
@@ -1464,8 +1517,7 @@ footer a:hover { color: #fff; }
   }
 
   #loc-list {
-    height: clamp(220px, 34vh, 320px);
-    min-height: 180px;
+    min-height: 220px;
   }
 
   #popup {
@@ -1541,12 +1593,21 @@ footer a:hover { color: #fff; }
   #sb-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .stats-grid {
+    gap: 8px;
+  }
   .sb-stat {
     min-height: 64px;
     padding: 9px 8px;
   }
   .sb-stat .v {
     font-size: 21px;
+  }
+  .stat-card {
+    padding: 13px 14px;
+  }
+  .stat-card .val {
+    font-size: 24px;
   }
   #city-filter-value {
     font-size: 13px;
@@ -1602,6 +1663,7 @@ footer a:hover { color: #fff; }
   </div>
 </header>
 
+<div id="intro-band">
 <section id="bio-artwork">
   <div class="bio-layout" id="bio-layout">
     <article class="animation-card bio-animation-card left" data-animation-card style="--animation-poster: url('assets/animations/start-line-sparks.jpg');" hidden>
@@ -1619,10 +1681,17 @@ footer a:hover { color: #fff; }
 </section>
 
 <div id="stats-banner">
-  <div class="stat-card"><div class="val" id="stats-total-stickers">0</div><div class="lbl">Total Stickers</div></div>
-  <div class="stat-card"><div class="val">99</div><div class="lbl">Miles Ran</div></div>
-  <div class="stat-card"><div class="val" id="stats-total-locations">0</div><div class="lbl">Locations</div></div>
-  <div class="stat-card"><div class="val" id="stats-total-cities">0</div><div class="lbl">Cities</div></div>
+  <div class="stats-banner-head">
+    <strong>Run Totals</strong>
+    <span>Overview</span>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="val" id="stats-total-stickers">0</div><div class="lbl">Stickers</div></div>
+    <div class="stat-card"><div class="val">99</div><div class="lbl">Miles Ran</div></div>
+    <div class="stat-card"><div class="val" id="stats-total-locations">0</div><div class="lbl">Spots</div></div>
+    <div class="stat-card"><div class="val" id="stats-total-cities">0</div><div class="lbl">Cities</div></div>
+  </div>
+</div>
 </div>
 
 <section id="map-section">
@@ -1638,18 +1707,6 @@ footer a:hover { color: #fff; }
       <div id="sidebar-header">
         <div id="sidebar-title-row">
           <h3>Troll sticker tracker</h3>
-        </div>
-      </div>
-      <div class="sidebar-module">
-        <div class="sidebar-module-title">
-          <span>Run Totals</span>
-          <span class="module-count">Overview</span>
-        </div>
-        <div id="sb-stats">
-        <div class="sb-stat"><div class="v" id="sidebar-sticker-count">0</div><div class="l">Stickers</div></div>
-        <div class="sb-stat"><div class="v">99</div><div class="l">Miles Ran</div></div>
-        <div class="sb-stat"><div class="v" id="sidebar-location-count">0</div><div class="l">Spots</div></div>
-        <div class="sb-stat"><div class="v" id="sidebar-city-count">0</div><div class="l">Cities</div></div>
         </div>
       </div>
       <div class="sidebar-divider">Browse</div>
@@ -1852,9 +1909,6 @@ let markersLayer = null;
 let isResizingPanels = false;
 let resizeStartX = 0;
 let resizeStartWidth = 0;
-let isResizingList = false;
-let listResizeStartY = 0;
-let listResizeStartHeight = 0;
 let spotifyEmbedController = null;
 let spotifyLoaded = false;
 let spotifyIsPlaying = false;
@@ -2225,49 +2279,12 @@ function initPanelResizer() {
   });
 }
 
-function initListResizer() {
-  const sidebar = document.getElementById('sidebar');
-  const list = document.getElementById('loc-list');
-  const resizer = document.getElementById('list-resizer');
-  if (!sidebar || !list || !resizer) return;
-
-  function onPointerMove(e) {
-    if (!isResizingList) return;
-    const delta = e.clientY - listResizeStartY;
-    const sidebarHeight = sidebar.getBoundingClientRect().height;
-    const maxHeight = Math.max(150, sidebarHeight - 120);
-    const next = Math.max(120, Math.min(maxHeight, listResizeStartHeight - delta));
-    list.style.height = `${next}px`;
-  }
-
-  function stopResize() {
-    if (!isResizingList) return;
-    isResizingList = false;
-    document.body.style.userSelect = '';
-    window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('pointerup', stopResize);
-  }
-
-  resizer.addEventListener('pointerdown', e => {
-    if (!window.matchMedia('(max-width: 900px)').matches) return;
-    isResizingList = true;
-    listResizeStartY = e.clientY;
-    listResizeStartHeight = list.getBoundingClientRect().height;
-    document.body.style.userSelect = 'none';
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', stopResize);
-  });
-}
-
 function syncSidebarWidthForViewport() {
   const sidebar = document.getElementById('sidebar');
-  const list = document.getElementById('loc-list');
   if (!sidebar) return;
   if (window.matchMedia('(max-width: 900px)').matches) {
     sidebar.style.width = '';
     sidebar.style.minWidth = '';
-  } else if (list) {
-    list.style.height = '';
   }
 }
 
@@ -2909,7 +2926,7 @@ document.getElementById('admin-pass').addEventListener('keydown', e => {
   if (e.key === 'Enter') goToAdmin();
 });
 
-initMap(); buildTabs(); updateStaticStats(); renderPins(); renderList(); initPanelResizer(); initListResizer(); syncSidebarWidthForViewport(); loadCustomUpdates(); removeDuplicateFoundStickerSections(); setupAnimationShowcase();
+initMap(); buildTabs(); updateStaticStats(); renderPins(); renderList(); initPanelResizer(); syncSidebarWidthForViewport(); loadCustomUpdates(); removeDuplicateFoundStickerSections(); setupAnimationShowcase();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }
