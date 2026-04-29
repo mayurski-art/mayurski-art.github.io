@@ -457,10 +457,65 @@ header p {
   inset: calc(10px + 0.1in) 10px 10px;
   border-radius: 18px;
   overflow: hidden;
+  isolation: isolate;
   z-index: 1;
   background:
     radial-gradient(circle at 50% 20%, rgba(255,255,255,0.12), transparent 40%),
     linear-gradient(180deg, rgba(6,8,12,0.15), rgba(6,8,12,0.4));
+}
+.animation-live-media .animation-poster {
+  transition: opacity 460ms ease, transform 520ms ease, filter 460ms ease;
+}
+.animation-troll-poster {
+  inset: 4%;
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+  object-position: center 32%;
+  opacity: 0;
+  transform: scale(0.92);
+  filter: contrast(1.08) saturate(1.06);
+}
+.animation-static-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.16)),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.24) 0 2px,
+      rgba(16,18,24,0.18) 2px 4px
+    );
+  transition: opacity 360ms ease, filter 360ms ease;
+  filter: contrast(1) brightness(1);
+}
+.animation-static-layer::before,
+.animation-static-layer::after {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,0.18) 0 1px,
+      transparent 1px 3px,
+      rgba(255,255,255,0.08) 3px 4px,
+      transparent 4px 7px
+    ),
+    linear-gradient(180deg, transparent, rgba(255,255,255,0.16), transparent);
+  opacity: 0.7;
+}
+.animation-static-layer::before {
+  animation: live-static-drift 220ms steps(3) infinite;
+  mix-blend-mode: screen;
+}
+.animation-static-layer::after {
+  animation: live-static-drift 160ms steps(4) infinite reverse;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
 }
 .animation-live-media::after {
   content: "";
@@ -470,12 +525,33 @@ header p {
     linear-gradient(180deg, rgba(255,255,255,0.08), transparent 18%, transparent 82%, rgba(0,0,0,0.28)),
     radial-gradient(circle at center, transparent 52%, rgba(0,0,0,0.24) 100%);
   pointer-events: none;
-  z-index: 2;
+  z-index: 4;
 }
-.animation-frame--live-cam .animation-live-media .animation-poster {
-  animation: live-camera-walkback 6s ease-in-out 1 forwards;
-  transform-origin: 51% 19%;
-  will-change: transform;
+.bio-animation-card.is-signal-lost .animation-primary-poster {
+  opacity: 0.42;
+  transform: scale(1.015);
+  filter: grayscale(1) contrast(0.92) brightness(0.82) blur(1px);
+}
+.bio-animation-card.is-signal-lost .animation-static-layer {
+  opacity: 0.88;
+  filter: contrast(1.16) brightness(1.08);
+}
+.bio-animation-card.is-trolled .animation-primary-poster {
+  opacity: 0;
+  transform: scale(1.03);
+  filter: grayscale(0.3) brightness(0.68) blur(2px);
+}
+.bio-animation-card.is-trolled .animation-troll-poster {
+  opacity: 1;
+  transform: scale(0.88);
+}
+.bio-animation-card.is-trolled .animation-static-layer {
+  opacity: 0.14;
+}
+.bio-animation-card.is-trolled .animation-live-top .animation-live-label,
+.bio-animation-card.is-trolled .animation-live-top .animation-live-badge {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 .animation-live-overlay {
   position: absolute;
@@ -490,20 +566,74 @@ header p {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.24) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.24) 1px, transparent 1px);
-  background-size: calc(100% / 4) calc(100% / 4);
-  opacity: 0.5;
+    linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)),
+    linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)),
+    linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)),
+    linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)),
+    linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)),
+    linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)),
+    linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)),
+    linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7));
+  background-size:
+    34px 2px,
+    2px 34px,
+    34px 2px,
+    2px 34px,
+    34px 2px,
+    2px 34px,
+    34px 2px,
+    2px 34px;
+  background-position:
+    18px 18px,
+    18px 18px,
+    calc(100% - 52px) 18px,
+    calc(100% - 20px) 18px,
+    18px calc(100% - 20px),
+    18px calc(100% - 52px),
+    calc(100% - 52px) calc(100% - 20px),
+    calc(100% - 20px) calc(100% - 52px);
+  background-repeat: no-repeat;
+  opacity: 0.72;
 }
 .animation-live-overlay::after {
   content: "";
   position: absolute;
   inset: 14px;
-  border: 1px solid rgba(255,255,255,0.34);
+  border: 1px solid rgba(255,255,255,0.18);
   border-radius: 12px;
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.08),
-    0 0 0 1px rgba(255,255,255,0.06);
+    inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+.animation-live-focus {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 58px;
+  height: 58px;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid rgba(255,255,255,0.62);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.18),
+    inset 0 0 0 1px rgba(255,255,255,0.06);
+  opacity: 0.9;
+}
+.animation-live-focus::before,
+.animation-live-focus::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(255,255,255,0.72);
+  transform: translate(-50%, -50%);
+}
+.animation-live-focus::before {
+  width: 18px;
+  height: 1.5px;
+}
+.animation-live-focus::after {
+  width: 1.5px;
+  height: 18px;
 }
 .animation-live-ui {
   position: absolute;
@@ -511,7 +641,7 @@ header p {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 16px;
+  padding: 14px 16px 16px;
   color: rgba(255,255,255,0.96);
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -523,23 +653,42 @@ header p {
   justify-content: space-between;
   gap: 12px;
 }
-.animation-live-badge,
-.animation-live-label,
-.animation-live-timecode {
+.animation-live-top {
+  padding: 2px 2px 0;
+}
+.animation-live-bottom {
+  padding: 0 2px 2px;
+}
+.animation-live-status {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: rgba(7,10,14,0.5);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.18);
-  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.animation-live-badge,
+.animation-live-label,
+.animation-live-timecode,
+.animation-live-battery {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
   font-size: 10px;
   line-height: 1;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.45);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.animation-live-label {
+  color: rgba(255,255,255,0.9);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  transform: translateY(-1px);
 }
 .animation-live-badge {
+  gap: 6px;
+  color: #fff3f1;
   font-weight: 700;
+  letter-spacing: 0.14em;
 }
 .animation-live-dot {
   width: 9px;
@@ -553,37 +702,41 @@ header p {
 .animation-live-timecode {
   color: rgba(255,255,255,0.8);
 }
-@keyframes live-camera-walkback {
-  0% {
-    transform: translate3d(1.8%, 5.6%, 0) scale(1.42) rotate(0.62deg);
-  }
-  12% {
-    transform: translate3d(1.55%, 4.9%, 0) scale(1.38) rotate(0.5deg);
-  }
-  24% {
-    transform: translate3d(1.18%, 3.85%, 0) scale(1.31) rotate(0.38deg);
-  }
-  36% {
-    transform: translate3d(0.8%, 2.7%, 0) scale(1.23) rotate(0.24deg);
-  }
-  50% {
-    transform: translate3d(0.18%, 1.2%, 0) scale(1.11) rotate(0.08deg);
-  }
-  62% {
-    transform: translate3d(0.08%, 0.78%, 0) scale(1.07) rotate(0.06deg);
-  }
-  74% {
-    transform: translate3d(-0.04%, 0.4%, 0) scale(1.035) rotate(0.03deg);
-  }
-  86% {
-    transform: translate3d(-0.06%, 0.18%, 0) scale(1.015) rotate(0.01deg);
-  }
-  94% {
-    transform: translate3d(-0.02%, 0.06%, 0) scale(1.004) rotate(0deg);
-  }
-  100% {
-    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
-  }
+.animation-live-battery {
+  gap: 7px;
+  color: rgba(255,255,255,0.92);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transform: translateY(-1px);
+}
+.animation-live-battery-icon {
+  position: relative;
+  width: 18px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1.5px solid rgba(255,255,255,0.82);
+  box-sizing: border-box;
+}
+.animation-live-battery-icon::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -4px;
+  width: 2px;
+  height: 5px;
+  border-radius: 0 2px 2px 0;
+  background: rgba(255,255,255,0.82);
+  transform: translateY(-50%);
+}
+.animation-live-battery-level {
+  position: absolute;
+  left: 1.5px;
+  top: 1.5px;
+  bottom: 1.5px;
+  width: 69%;
+  border-radius: 1.5px;
+  background: linear-gradient(90deg, #5cff7c, #96ff5c);
+  box-shadow: 0 0 8px rgba(116,255,108,0.3);
 }
 @keyframes live-camera-dot {
   0% {
@@ -597,6 +750,17 @@ header p {
   100% {
     opacity: 1;
     box-shadow: 0 0 0 0 rgba(255,69,58,0);
+  }
+}
+@keyframes live-static-drift {
+  0% {
+    transform: translate3d(-1.5%, -1%, 0);
+  }
+  50% {
+    transform: translate3d(1.2%, 0.8%, 0);
+  }
+  100% {
+    transform: translate3d(-0.6%, 1.4%, 0);
   }
 }
 .bio-animation-card .animation-frame {
@@ -675,8 +839,11 @@ header p {
   .bio-animation-card .animation-credit-copy + .animation-credit-copy {
     display: none;
   }
-  .animation-frame--live-cam .animation-live-media .animation-poster,
   .animation-live-dot {
+    animation: none;
+  }
+  .animation-static-layer::before,
+  .animation-static-layer::after {
     animation: none;
   }
 }
@@ -2290,16 +2457,27 @@ footer a:hover { color: #fff; }
 <div id="intro-band">
 <section id="bio-artwork">
   <div class="bio-layout" id="bio-layout">
-    <article class="animation-card bio-animation-card left" data-animation-card style="--animation-poster: url('assets/animations/start-line-sparks.jpg');" hidden>
+    <article class="animation-card bio-animation-card left" data-animation-card data-live-poster-card style="--animation-poster: url('assets/animations/start-line-sparks.jpg');" hidden>
       <div class="animation-frame animation-frame--live-cam">
         <div class="animation-live-media">
-          <img class="animation-poster" data-animation-poster src="assets/animations/start-line-sparks.jpg" alt="Athlete trollface crouched at the starting line with glowing sparks on the track">
+          <img class="animation-poster animation-primary-poster" data-animation-poster src="assets/animations/start-line-sparks.jpg" alt="Athlete trollface crouched at the starting line with glowing sparks on the track">
+          <div class="animation-static-layer" aria-hidden="true"></div>
+          <img class="animation-poster animation-troll-poster" src="assets/animations/troll-grin.gif" alt="Grinning trollface reveal">
         </div>
         <div class="animation-live-overlay" aria-hidden="true">
+          <span class="animation-live-focus"></span>
           <div class="animation-live-ui">
             <div class="animation-live-top">
               <span class="animation-live-label">Front Cam</span>
-              <span class="animation-live-badge"><span class="animation-live-dot"></span>Live</span>
+              <span class="animation-live-status">
+                <span class="animation-live-badge"><span class="animation-live-dot"></span>Live</span>
+                <span class="animation-live-battery">
+                  <span class="animation-live-battery-icon" aria-hidden="true">
+                    <span class="animation-live-battery-level"></span>
+                  </span>
+                  <span>69%</span>
+                </span>
+              </span>
             </div>
             <div class="animation-live-bottom">
               <span class="animation-live-label" data-live-countdown-label>On Your Mark</span>
@@ -3815,6 +3993,7 @@ function setupAnimationShowcase() {
 }
 
 const LIVE_POSTER_COUNTDOWN_START = 5;
+const LIVE_POSTER_TROLLED_HOLD_SECONDS = 4;
 const LIVE_POSTER_COUNTDOWN_LABELS = {
   5: 'On Your Mark',
   4: 'On Your Mark',
@@ -3832,6 +4011,7 @@ function formatLivePosterCountdown(value) {
 function setupLivePosterCountdown() {
   const countdownNodes = Array.from(document.querySelectorAll('[data-live-countdown]'));
   const countdownLabelNodes = Array.from(document.querySelectorAll('[data-live-countdown-label]'));
+  const livePosterCard = document.querySelector('[data-live-poster-card]');
   if (!countdownNodes.length) return;
 
   if (livePosterCountdownInterval) {
@@ -3840,6 +4020,7 @@ function setupLivePosterCountdown() {
   }
 
   let remaining = LIVE_POSTER_COUNTDOWN_START;
+  let trolledHoldElapsed = 0;
 
   const render = () => {
     countdownNodes.forEach(node => {
@@ -3848,12 +4029,24 @@ function setupLivePosterCountdown() {
     countdownLabelNodes.forEach(node => {
       node.textContent = LIVE_POSTER_COUNTDOWN_LABELS[remaining] || 'On Your Mark';
     });
+    if (livePosterCard) {
+      livePosterCard.classList.toggle('is-signal-lost', remaining === 1);
+      livePosterCard.classList.toggle('is-trolled', remaining === 0);
+    }
   };
 
   render();
 
   livePosterCountdownInterval = setInterval(() => {
-    remaining = remaining === 0 ? LIVE_POSTER_COUNTDOWN_START : remaining - 1;
+    if (remaining > 0) {
+      remaining -= 1;
+      if (remaining === 0) trolledHoldElapsed = 0;
+    } else if (trolledHoldElapsed < LIVE_POSTER_TROLLED_HOLD_SECONDS - 1) {
+      trolledHoldElapsed += 1;
+    } else {
+      remaining = LIVE_POSTER_COUNTDOWN_START;
+      trolledHoldElapsed = 0;
+    }
     render();
   }, 1000);
 }
