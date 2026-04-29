@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troll Runner Projects</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
+
+:root {
+  --bg: #090d10;
+  --bg-soft: #12181d;
+  --card: rgba(15, 22, 28, 0.84);
+  --card-strong: rgba(19, 27, 34, 0.96);
+  --line: rgba(181, 230, 255, 0.18);
+  --line-strong: rgba(181, 230, 255, 0.32);
+  --text: #f5fbff;
+  --muted: #9fb6c5;
+  --accent: #67d4ff;
+  --accent-2: #8effb5;
+  --accent-warm: #ffd166;
+  --danger: #ff6b6b;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(103, 212, 255, 0.14), transparent 32%),
+    radial-gradient(circle at top right, rgba(142, 255, 181, 0.12), transparent 24%),
+    linear-gradient(180deg, #081015 0%, #0b1116 45%, #090d10 100%);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent);
+}
+
+.wrap {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 26px 0 64px;
+}
+
+.topbar,
+.hero,
+.panel,
+.segment-card,
+.note-card {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--card);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  font-size: 20px;
+  background: linear-gradient(135deg, rgba(103, 212, 255, 0.18), rgba(142, 255, 181, 0.2));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.brand-copy strong,
+.hero h1,
+.section-head h2,
+.segment-letter,
+.note-card h3 {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.brand-copy strong {
+  display: block;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.brand-copy span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.pill:hover,
+.pill:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--line-strong);
+  background: rgba(103, 212, 255, 0.09);
+}
+
+.hero {
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -15% -35% auto;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(103, 212, 255, 0.22), transparent 68%);
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 18px;
+  padding: 26px;
+}
+
+.eyebrow,
+.mini-label,
+.status-chip,
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  color: var(--accent);
+  background: rgba(103, 212, 255, 0.1);
+  border: 1px solid rgba(103, 212, 255, 0.24);
+}
+
+.hero h1 {
+  margin: 0;
+  max-width: 10ch;
+  font-size: clamp(38px, 7vw, 72px);
+  line-height: 0.96;
+}
+
+.hero p {
+  margin: 16px 0 0;
+  max-width: 62ch;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.stat {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stat strong {
+  display: block;
+  font-size: 28px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.stat span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hero-aside {
+  display: grid;
+  gap: 14px;
+}
+
+.mini-panel {
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--card-strong);
+}
+
+.mini-label {
+  padding: 7px 10px;
+  color: var(--accent-2);
+  background: rgba(142, 255, 181, 0.1);
+  border: 1px solid rgba(142, 255, 181, 0.22);
+}
+
+.mini-panel p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.layout-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.layout-block {
+  padding: 12px 6px;
+  text-align: center;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.layout-block strong {
+  display: block;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+}
+
+.layout-block span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.layout-block.is-active {
+  border-color: rgba(103, 212, 255, 0.32);
+  background: linear-gradient(180deg, rgba(103, 212, 255, 0.12), rgba(103, 212, 255, 0.03));
+}
+
+.section {
+  margin-top: 18px;
+}
+
+.section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.section-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.panel {
+  padding: 18px;
+}
+
+.segment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.segment-card {
+  padding: 18px;
+}
+
+.segment-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.segment-letter {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.segment-name {
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.segment-card p {
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.status-chip {
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.status-chip.is-active {
+  color: var(--accent);
+  border-color: rgba(103, 212, 255, 0.3);
+  background: rgba(103, 212, 255, 0.12);
+}
+
+.status-chip.is-staged {
+  color: var(--accent-2);
+  border-color: rgba(142, 255, 181, 0.24);
+  background: rgba(142, 255, 181, 0.1);
+}
+
+.status-chip.is-planned {
+  color: var(--accent-warm);
+  border-color: rgba(255, 209, 102, 0.24);
+  background: rgba(255, 209, 102, 0.1);
+}
+
+.segment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tag {
+  padding: 7px 10px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.note-card {
+  padding: 18px;
+}
+
+.note-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.note-card p,
+.note-card li {
+  color: var(--muted);
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.note-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.footer-note {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 920px) {
+  .hero-inner,
+  .segment-grid,
+  .notes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .layout-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    width: min(100% - 20px, 1120px);
+    padding-top: 18px;
+  }
+
+  .topbar,
+  .hero-inner,
+  .panel,
+  .segment-card,
+  .note-card {
+    border-radius: 20px;
+  }
+
+  .topbar,
+  .section-head {
+    display: block;
+  }
+
+  .pills {
+    justify-content: flex-start;
+    margin-top: 14px;
+  }
+
+  .hero-stats,
+  .layout-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">TR</div>
+        <div class="brand-copy">
+          <strong>Troll Runner Projects</strong>
+          <span>Route builds, master plans, and GPX chaos control</span>
+        </div>
+      </div>
+      <nav class="pills" aria-label="Section links">
+        <a class="pill" href="https://trollrunner.net">Main site</a>
+        <a class="pill" href="https://blog.trollrunner.net">Blog</a>
+        <a class="pill" href="https://nutrition.trollrunner.net">Nutrition</a>
+        <a class="pill" href="https://finance.trollrunner.net">Finance</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="hero-inner">
+        <div>
+          <span class="eyebrow">Master Layout Loaded</span>
+          <h1>UMADBRO GPX Project Board</h1>
+          <p>
+            The projects side of Troll Runner now reflects the full UMADBRO layout instead of treating
+            the route like a one-letter experiment. U is the live build. The rest of the path is staged
+            as part of the same long-form route system so the whole plan finally has a home.
+          </p>
+          <div class="hero-stats" aria-label="Project summary">
+            <div class="stat">
+              <strong>7</strong>
+              <span>Route letters in layout</span>
+            </div>
+            <div class="stat">
+              <strong>1</strong>
+              <span>Active build right now</span>
+            </div>
+            <div class="stat">
+              <strong>6</strong>
+              <span>Queued behind the opening route</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-aside">
+          <div class="mini-panel">
+            <span class="mini-label">Current Focus</span>
+            <p>
+              U is the lead segment and the rest of the course now sits behind it as a visible sequence,
+              not a vague someday idea.
+            </p>
+            <div class="layout-strip" aria-label="UMADBRO route sequence">
+              <div class="layout-block is-active"><strong>U</strong><span>Active</span></div>
+              <div class="layout-block"><strong>M</strong><span>Staged</span></div>
+              <div class="layout-block"><strong>A</strong><span>Staged</span></div>
+              <div class="layout-block"><strong>D</strong><span>Planned</span></div>
+              <div class="layout-block"><strong>B</strong><span>Planned</span></div>
+              <div class="layout-block"><strong>R</strong><span>Planned</span></div>
+              <div class="layout-block"><strong>O</strong><span>Planned</span></div>
+            </div>
+          </div>
+
+          <div class="mini-panel">
+            <span class="mini-label">Why This Page</span>
+            <p>
+              `projects.trollrunner.net` already had routing in the repo, but no actual destination page.
+              This fills that gap and turns the subdomain into a real planning hub.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>Letter Segments</h2>
+        <p>The full route is visible now, with the opening build called out clearly.</p>
+      </div>
+      <div class="panel">
+        <div class="segment-grid">
+          <article class="segment-card">
+            <div class="segment-top">
+              <div>
+                <h3 class="segment-letter">U</h3>
+                <p class="segment-name">Opening route segment</p>
+              </div>
+              <span class="status-chip is-active">In progress</span>
+            </div>
+            <p>
+              This is the current working piece and the anchor for the rest of the master plan. It sets
+              the tone, the visual rhythm, and the route rules the rest of the letters will follow.
+            </p>
+            <div class="segment-meta">
+              <span class="tag">First build</span>
+              <span class="tag">Reference route</span>
+              <span class="tag">Layout confirmed</span>
+            </div>
+          </article>
+
+          <article class="segment-card">
+            <div class="segment-top">
+              <div>
+                <h3 class="segment-letter">M</h3>
+                <p class="segment-name">Second route segment</p>
+              </div>
+              <span class="status-chip is-staged">Staged next</span>
+            </div>
+            <p>
+              Positioned as the immediate follow-up to U so the project can keep momentum once the first
+              segment is locked in.
+            </p>
+            <div class="segment-meta">
+              <span class="tag">Queued</span>
+              <span class="tag">Depends on U baseline</span>
+            </div>
+          </article>
+
+          <article class="segment-card">
+            <div class="segment-top">
+              <div>
+                <h3 class="segment-letter">A</h3>
+                <p class="segment-name">Third route segment</p>
+              </div>
+              <span class="status-chip is-staged">Staged next</span>
+            </div>
+            <p>
+              Held in the visible sequence now so the route reads like a single system instead of isolated
+              one-off experiments.
+            </p>
+            <div class="segment-meta">
+              <span class="tag">Sequence locked</span>
+              <span class="tag">Planning visible</span>
+            </div>
+          </article>
+
+          <article class="segment-card">
+            <div class="segment-top">
+              <div>
+                <h3 class="segment-letter">D</h3>
+                <p class="segment-name">Mid-layout segment</p>
+              </div>
+              <span class="status-chip is-planned">Planned</span>
+            </div>
+            <p>
+              Part of the center stretch of the full layout, ready to inherit the same route language once
+              the first wave is finished.
+            </p>
+            <div class="segment-meta">
+              <span class="tag">Layout mapped</span>
+              <span class="tag">Implementation pending</span>
+            </div>
+          </article>
+
+          <article class="segment-card">
+            <div class="segment-top">
+              <div>
+                <h3 class="segment-letter">B</h3>
+                <p class="segment-name">Late-layout segment</p>
+              </div>
+              <span class="status-chip is-planned">Planned</span>
+            </div>
+            <p>
+              Kept visible here so the back half of the project does not disappear while the front half is
+              under construction.
+            </p>
+            <div class="segment-meta">
+              <span class="tag">Back-half route</span>
+              <span class="tag">Master plan tracked</span>
+            </div>
+          </article>
+
+          <article class="segment-card">
+            <div class="segment-top">
+              <div>
+                <h3 class="segment-letter">R</h3>
+                <p class="segment-name">Penultimate segment</p>
+              </div>
+              <span class="status-chip is-planned">Planned</span>
+            </div>
+            <p>
+              Reserved as part of the final run-up so the page reflects the full ambition now, not just the
+              nearest task.
+            </p>
+            <div class="segment-meta">
+              <span class="tag">Late phase</span>
+              <span class="tag">Awaiting route details</span>
+            </div>
+          </article>
+
+          <article class="segment-card">
+            <div class="segment-top">
+              <div>
+                <h3 class="segment-letter">O</h3>
+                <p class="segment-name">Closing segment</p>
+              </div>
+              <span class="status-chip is-planned">Planned</span>
+            </div>
+            <p>
+              The finish-piece of the current sequence. It is represented now so the whole route arc is
+              visible from the start.
+            </p>
+            <div class="segment-meta">
+              <span class="tag">Final letter</span>
+              <span class="tag">Sequence complete on page</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>Project Notes</h2>
+        <p>Short-term framing so we can keep building without losing the big picture.</p>
+      </div>
+      <div class="notes-grid">
+        <article class="note-card">
+          <h3>What Changed</h3>
+          <p>
+            The Projects subdomain now has a real page and a visible system for the whole route instead of
+            an implied future plan hiding behind one active letter.
+          </p>
+        </article>
+
+        <article class="note-card">
+          <h3>Current Assumption</h3>
+          <p>
+            The full PDF layout establishes the complete UMADBRO sequence, with U already underway and the
+            remaining letters needing the same treatment as the project grows.
+          </p>
+        </article>
+
+        <article class="note-card">
+          <h3>Next Build Pass</h3>
+          <ul>
+            <li>Add actual GPX downloads or embeds for each segment.</li>
+            <li>Attach route mileage, status, and screenshots per letter.</li>
+            <li>Promote finished segments from planned to published.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      Troll Runner projects page, tuned around the full layout and ready for the next GPX-specific pass.
+    </p>
+  </div>
+</body>
+</html>

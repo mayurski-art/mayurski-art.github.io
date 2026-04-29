@@ -9,8 +9,6 @@
   const host = window.location.hostname;
   const path = window.location.pathname;
 
-  }
-
   const redirects = {
     'blog.trollrunner.net': '/blog.html',
     'nutrition.trollrunner.net': '/nutrition.html',
@@ -2868,14 +2866,6 @@ function updateSongStatus(isPlaying = spotifyIsPlaying) {
   setSpotifyStatus(`${isPlaying ? 'Now Playing' : 'Paused'}: ${spotifyTrackLabel}`);
 }
 
-function preserveScrollPosition(task) {
-  const startX = window.scrollX || window.pageXOffset || 0;
-  const startY = window.scrollY || window.pageYOffset || 0;
-  task();
-  requestAnimationFrame(() => window.scrollTo(startX, startY));
-  window.setTimeout(() => window.scrollTo(startX, startY), 120);
-}
-
 function parseLabelFromSpotifyUri(uri) {
   if (!uri || typeof uri !== 'string') return '';
   const parts = uri.split(':');
@@ -2957,12 +2947,12 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
     if (typeof spotifyEmbedController.addListener === 'function') {
       spotifyEmbedController.addListener('playback_started', (event) => {
         if (event && event.data && event.data.playingURI) {
-          preserveScrollPosition(() => refreshTrackLabelFromUri(event.data.playingURI));
+          refreshTrackLabelFromUri(event.data.playingURI);
         }
       });
       spotifyEmbedController.addListener('playback_update', (event) => {
         if (event && event.data && event.data.playingURI && event.data.playingURI !== spotifyCurrentUri) {
-          preserveScrollPosition(() => refreshTrackLabelFromUri(event.data.playingURI));
+          refreshTrackLabelFromUri(event.data.playingURI);
         }
         if (event && event.data && typeof event.data.isPaused === 'boolean') {
           spotifyIsPlaying = !event.data.isPaused;
