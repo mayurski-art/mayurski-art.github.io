@@ -142,7 +142,7 @@
     const LIVE_CODING_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_coding_override';
     const LEGACY_LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
     const LEGACY_LIVE_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_override';
-    const MAX_VISIBLE_UPDATES = 4;
+    const MAX_VISIBLE_UPDATES = 3;
     const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
     const SUPABASE_ANON_KEY_PLACEHOLDER = 'your_anon_public_key';
@@ -151,6 +151,11 @@
     const LIVE_STATUS_SYNC_POLL_MS = 10000;
     let editingUpdateId = null;
     const DEFAULT_UPDATES = [
+  {
+    title: 'April 23, 2026',
+    body: 'projects.trollrunner.net has been created. An art-inspired Strava run course...',
+    createdAt: '2026-04-23T21:00:00.000Z',
+  },
   {
     title: 'April 21, 2026',
     body: 'Added more "troll" songs to Ole Troll playlist. Give it a listen while trolling around this website!',
