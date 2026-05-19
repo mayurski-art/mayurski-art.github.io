@@ -244,10 +244,18 @@ header p {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -18px;
-  height: 78px;
+  bottom: -20px;
+  height: 94px;
   overflow: hidden;
   z-index: 2;
+}
+.header-runner-crew {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 302px;
+  height: 90px;
+  animation: runner-slide 5s linear infinite;
 }
 .header-runner {
   position: absolute;
@@ -256,14 +264,116 @@ header p {
   width: 72px;
   height: 72px;
   object-fit: contain;
-  animation: runner-slide 11s linear infinite;
   mix-blend-mode: darken;
   opacity: 1;
   filter: contrast(1.35) saturate(0.8);
 }
+.header-trolldad-wrap {
+  position: absolute;
+  left: 70px;
+  bottom: 3px;
+  width: 74px;
+  height: 82px;
+  transform-origin: 50% 96%;
+  animation: header-trolldad-boogie 820ms cubic-bezier(0.42, 0, 0.25, 1) infinite;
+}
+.header-trolldad {
+  position: absolute;
+  left: 8px;
+  bottom: 0;
+  width: 58px;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 9px rgba(0,0,0,0.34));
+  transform-origin: 50% 94%;
+  animation: header-trolldad-knees 410ms ease-in-out infinite;
+}
+.header-monopoly-wrap {
+  position: absolute;
+  left: 130px;
+  bottom: 1px;
+  width: 88px;
+  height: 86px;
+  transform-origin: 50% 95%;
+  animation: header-monopoly-strut 980ms cubic-bezier(0.38, 0, 0.28, 1) infinite;
+}
+.header-monopoly {
+  position: absolute;
+  left: 5px;
+  bottom: 0;
+  width: 76px;
+  aspect-ratio: 350 / 324;
+  display: block;
+  background: url('assets/images/trollmonopoly-transparent-sprite.png') 0 0 / 3000% 100% no-repeat;
+  filter: drop-shadow(0 9px 10px rgba(0,0,0,0.36)) contrast(1.05) saturate(1.08);
+  transform-origin: 50% 92%;
+  animation:
+    header-monopoly-tilt 490ms ease-in-out infinite,
+    header-monopoly-frames 5s steps(29, end) infinite;
+}
+.header-youngster-wrap {
+  position: absolute;
+  left: 212px;
+  bottom: -1px;
+  width: 82px;
+  height: 92px;
+  transform-origin: 50% 96%;
+  animation: header-youngster-hop 720ms cubic-bezier(0.38, 0, 0.26, 1) infinite;
+}
+.header-youngster {
+  position: absolute;
+  left: 12px;
+  bottom: 0;
+  width: 54px;
+  aspect-ratio: 323 / 498;
+  display: block;
+  background: url('assets/images/trollyoungster-transparent-sprite.png') 0 0 / 1200% 100% no-repeat;
+  filter: drop-shadow(0 8px 9px rgba(0,0,0,0.36)) contrast(1.06) saturate(1.05);
+  transform-origin: 50% 94%;
+  animation:
+    header-youngster-sway 360ms ease-in-out infinite,
+    header-youngster-frames 5s steps(11, end) infinite;
+}
 @keyframes runner-slide {
-  0% { transform: translateX(-68px); }
-  100% { transform: translateX(calc(100vw + 68px)); }
+  0% { transform: translateX(-302px); }
+  100% { transform: translateX(calc(100vw + 302px)); }
+}
+@keyframes header-trolldad-boogie {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  22% { transform: translate(-4px, -8px) rotate(8deg); }
+  46% { transform: translate(4px, 0) rotate(-9deg); }
+  68% { transform: translate(1px, -11px) rotate(7deg); }
+  86% { transform: translate(-2px, -2px) rotate(-3deg); }
+}
+@keyframes header-trolldad-knees {
+  0%, 100% { transform: scaleX(0.98) scaleY(1); }
+  50% { transform: scaleX(1.05) scaleY(0.94); }
+}
+@keyframes header-monopoly-strut {
+  0%, 100% { transform: translateY(0) rotate(4deg); }
+  25% { transform: translate(3px, -7px) rotate(-7deg); }
+  48% { transform: translate(-2px, -1px) rotate(8deg); }
+  72% { transform: translate(4px, -10px) rotate(-5deg); }
+}
+@keyframes header-monopoly-tilt {
+  0%, 100% { transform: scaleX(1) rotate(-2deg); }
+  50% { transform: scaleX(1.04) rotate(5deg); }
+}
+@keyframes header-monopoly-frames {
+  100% { background-position: 100% 0; }
+}
+@keyframes header-youngster-hop {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  30% { transform: translate(-3px, -9px) rotate(6deg); }
+  58% { transform: translate(3px, -2px) rotate(-7deg); }
+  78% { transform: translate(1px, -12px) rotate(5deg); }
+}
+@keyframes header-youngster-sway {
+  0%, 100% { transform: scaleX(0.98) rotate(2deg); }
+  50% { transform: scaleX(1.05) rotate(-4deg); }
+}
+@keyframes header-youngster-frames {
+  100% { background-position: 100% 0; }
 }
 
 /* ── BIOGRAPHY ── */
@@ -1902,28 +2012,10 @@ header p {
   box-shadow: 0 20px 40px rgba(20, 24, 34, 0.08);
 }
 
-.feedback-card-bg {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.feedback-card-bg img {
-  width: min(100%, 520px);
-  height: auto;
-  opacity: 0.34;
-  transform: translateX(10%) scale(1.04);
-  filter: saturate(1.08) contrast(1.02);
-}
-
 .feedback-card-content {
   position: relative;
   z-index: 1;
-  max-width: 62%;
+  max-width: 100%;
 }
 
 .feedback-card-content p {
@@ -2442,15 +2534,6 @@ footer a:hover { color: #fff; }
   .feedback-card-content {
     max-width: 100%;
   }
-  .feedback-card-bg {
-    justify-content: center;
-    align-items: flex-end;
-  }
-  .feedback-card-bg img {
-    width: min(100%, 360px);
-    opacity: 0.24;
-    transform: translateY(18%);
-  }
   .found-sticker-card {
     min-height: 280px;
     padding: 12px;
@@ -2533,6 +2616,15 @@ footer a:hover { color: #fff; }
     transition: none;
     transform: translate(-50%, -50%) rotate(var(--sticker-rotate));
   }
+  .header-runner-crew,
+  .header-trolldad-wrap,
+  .header-trolldad,
+  .header-monopoly-wrap,
+  .header-monopoly,
+  .header-youngster-wrap,
+  .header-youngster {
+    animation: none;
+  }
   .sticker-collage-item.is-visible {
     opacity: 1;
     transform: translate(-50%, -50%) rotate(var(--sticker-rotate));
@@ -2575,7 +2667,18 @@ footer a:hover { color: #fff; }
     </div>
   </div>
   <div class="header-runner-track" aria-hidden="true">
-    <img class="header-runner" src="assets/animations/troll-lel_transparent.gif" alt="">
+    <div class="header-runner-crew">
+      <img class="header-runner" src="assets/animations/troll-lel_transparent.gif" alt="">
+      <span class="header-trolldad-wrap">
+        <img class="header-trolldad" src="assets/images/trolldad-dance.png" alt="">
+      </span>
+      <span class="header-monopoly-wrap">
+        <span class="header-monopoly"></span>
+      </span>
+      <span class="header-youngster-wrap">
+        <span class="header-youngster"></span>
+      </span>
+    </div>
   </div>
 </header>
 
@@ -2752,9 +2855,6 @@ footer a:hover { color: #fff; }
   <section id="feedback">
     <h2>Feedback</h2>
     <div class="update-card feedback-card">
-      <div class="feedback-card-bg" aria-hidden="true">
-        <img src="assets/animations/Keyboard Warrior 2025.gif" alt="">
-      </div>
       <div class="feedback-card-content">
         <p>Thank you for using this website. Feel free to tell us what you love, any potential bugs, and improvements!</p>
         <div class="feedback-identity">
