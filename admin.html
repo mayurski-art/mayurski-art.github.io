@@ -653,13 +653,31 @@ Working on improving fonts and backgrounds...`,
       };
     }
 
+    function getUpdateDedupeKey(update) {
+      const title = String(update?.title || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      if (/^[a-z]+ \d{1,2}, \d{4}$/.test(title)) return `title:${title}`;
+      return `content:${title}::${String(update?.body || '').trim().replace(/\s+/g, ' ')}::${update?.createdAt || 0}`;
+    }
+
+    function dedupeUpdates(items) {
+      const merged = [];
+      const seen = new Set();
+      items.forEach(item => {
+        const key = getUpdateDedupeKey(item);
+        if (seen.has(key)) return;
+        seen.add(key);
+        merged.push(item);
+      });
+      return merged;
+    }
+
     function mergeUpdatesForAdmin(remoteItems, localItems) {
       const merged = [];
       const seen = new Set();
       [...remoteItems, ...localItems].forEach(item => {
         const normalized = normalizeUpdate(item, item?.source || 'custom');
         if (!normalized) return;
-        const key = normalized.id || `${normalized.title}::${normalized.body}::${normalized.createdAt}`;
+        const key = getUpdateDedupeKey(normalized);
         if (seen.has(key)) return;
         seen.add(key);
         merged.push(normalized);
@@ -670,8 +688,9 @@ Working on improving fonts and backgrounds...`,
     function ensureSeededUpdates() {
       const existing = getUpdates().map(item => normalizeUpdate(item, item?.source || 'custom')).filter(Boolean);
       if (existing.length) {
-        setUpdates(existing, { skipPush: true });
-        return existing;
+        const deduped = dedupeUpdates(existing);
+        setUpdates(deduped, { skipPush: true });
+        return deduped;
       }
       const seeded = DEFAULT_UPDATES.map(item => normalizeUpdate({ ...item, id: createUpdateId(), archived: false }, 'site-default')).filter(Boolean);
       setUpdates(seeded, { skipPush: true });

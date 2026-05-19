@@ -3778,6 +3778,12 @@ function normalizeUpdate(update) {
   };
 }
 
+function getUpdateDedupeKey(update) {
+  const title = String(update?.title || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  if (/^[a-z]+ \d{1,2}, \d{4}$/.test(title)) return `title:${title}`;
+  return `content:${title}::${String(update?.body || '').trim().replace(/\s+/g, ' ')}::${update?.createdAt || 0}`;
+}
+
 function escapeUpdateHtml(str) {
   return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 }
@@ -4143,7 +4149,7 @@ async function loadCustomUpdates(sharedStateOverride = null) {
   source.forEach(item => {
     const normalized = normalizeUpdate(item);
     if (!normalized || normalized.archived) return;
-    const key = `${normalized.title}::${normalized.body}::${normalized.createdAt}`;
+    const key = getUpdateDedupeKey(normalized);
     if (seen.has(key)) return;
     seen.add(key);
     deduped.push(normalized);
