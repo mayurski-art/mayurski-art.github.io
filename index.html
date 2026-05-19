@@ -1024,6 +1024,9 @@ header p {
   flex-direction: column;
   gap: 12px;
 }
+#tracker-panel[hidden] {
+  display: none !important;
+}
 #sidebar-header h3 {
   font-family: var(--font-display);
   font-size: 22px;
@@ -3354,23 +3357,34 @@ function syncSidebarWidthForViewport() {
   }
 }
 
+function isSidebarTrackerCollapsible() {
+  const toggle = document.getElementById('tracker-toggle');
+  if (!toggle) return false;
+
+  const toggleStyle = window.getComputedStyle(toggle);
+  return toggleStyle.display !== 'none' && toggleStyle.visibility !== 'hidden';
+}
+
 function syncSidebarTrackerForViewport() {
   const sidebar = document.getElementById('sidebar');
   const toggle = document.getElementById('tracker-toggle');
-  if (!sidebar || !toggle) return;
+  const panel = document.getElementById('tracker-panel');
+  if (!sidebar || !toggle || !panel) return;
 
-  const isMobile = window.matchMedia('(max-width: 900px)').matches;
+  const isCollapsible = isSidebarTrackerCollapsible();
   const stored = localStorage.getItem(MOBILE_SIDEBAR_TRACKER_KEY);
-  const isOpen = isMobile ? stored === 'open' : true;
+  const isOpen = isCollapsible ? stored === 'open' : true;
 
-  sidebar.classList.toggle('collapsed', isMobile && !isOpen);
+  sidebar.classList.toggle('collapsed', isCollapsible && !isOpen);
+  panel.hidden = isCollapsible && !isOpen;
+  panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
   toggle.textContent = isOpen ? 'Turn off Troll Sticker Tracker' : 'Turn on Troll Sticker Tracker';
   toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 }
 
 function toggleSidebarTracker(forceState) {
-  const isMobile = window.matchMedia('(max-width: 900px)').matches;
-  if (!isMobile) return;
+  const isCollapsible = isSidebarTrackerCollapsible();
+  if (!isCollapsible) return;
 
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
@@ -3381,7 +3395,9 @@ function toggleSidebarTracker(forceState) {
 
   localStorage.setItem(MOBILE_SIDEBAR_TRACKER_KEY, nextOpen ? 'open' : 'closed');
   closeCityMenu();
+  if (!nextOpen) closePopup();
   syncSidebarTrackerForViewport();
+  if (!nextOpen) sidebar.scrollTop = 0;
   requestMapResize();
 }
 
