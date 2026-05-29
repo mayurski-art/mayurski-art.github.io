@@ -2135,27 +2135,23 @@ header p {
 
 .feedback-warrior-frame {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
+  inset: 22px 24px;
   z-index: 1;
-  width: min(34%, 260px);
-  height: clamp(140px, 17vw, 210px);
   overflow: hidden;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.58;
   mix-blend-mode: multiply;
-  -webkit-mask-image: radial-gradient(ellipse at 34% 30%, #000 0 50%, rgba(0,0,0,0.7) 66%, transparent 100%);
-  mask-image: radial-gradient(ellipse at 34% 30%, #000 0 50%, rgba(0,0,0,0.7) 66%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.15) 34%, #000 58%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.15) 34%, #000 58%, #000 100%);
 }
 
 .feedback-warrior-frame img {
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
-  object-position: 27% 24%;
-  filter: contrast(1.16) saturate(1.08);
-  transform: scale(1.12);
+  object-fit: contain;
+  object-position: right center;
+  filter: contrast(1.2) saturate(1.08);
 }
 
 /* ── FOOTER ── */
@@ -2334,16 +2330,12 @@ footer a:hover { color: #fff; }
     max-width: 100%;
   }
   .feedback-warrior-frame {
-    right: 4px;
-    bottom: 8px;
-    width: min(46%, 230px);
-    height: 136px;
-    opacity: 0.42;
+    inset: 20px 16px;
+    opacity: 0.44;
   }
   .feedback-warrior-frame img {
-    object-fit: cover;
-    object-position: 24% 20%;
-    transform: scale(1.1);
+    object-fit: contain;
+    object-position: right bottom;
   }
   .title-gif-mask { width: 34px; height: 34px; }
   .title-gif { width: 44px; height: 44px; }
