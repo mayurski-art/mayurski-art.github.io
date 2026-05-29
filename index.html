@@ -2034,7 +2034,7 @@ header p {
 .feedback-card-content {
   position: relative;
   z-index: 2;
-  max-width: min(56%, 35rem);
+  max-width: 100%;
 }
 
 .feedback-card-content p {
@@ -2135,15 +2135,17 @@ header p {
 
 .feedback-warrior-frame {
   position: absolute;
-  top: 18px;
-  right: 18px;
-  bottom: 18px;
+  right: 12px;
+  bottom: 12px;
   z-index: 1;
-  width: min(42%, 360px);
-  border: 1px solid rgba(28,28,30,0.14);
-  background: rgba(255,255,255,0.08);
+  width: min(34%, 260px);
+  height: clamp(140px, 17vw, 210px);
   overflow: hidden;
   pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: radial-gradient(ellipse at 34% 30%, #000 0 50%, rgba(0,0,0,0.7) 66%, transparent 100%);
+  mask-image: radial-gradient(ellipse at 34% 30%, #000 0 50%, rgba(0,0,0,0.7) 66%, transparent 100%);
 }
 
 .feedback-warrior-frame img {
@@ -2151,11 +2153,9 @@ header p {
   height: 100%;
   display: block;
   object-fit: cover;
-  object-position: 34% 32%;
-  opacity: 0.74;
-  mix-blend-mode: multiply;
-  filter: contrast(1.08) saturate(1.08);
-  transform: scale(1.08);
+  object-position: 27% 24%;
+  filter: contrast(1.16) saturate(1.08);
+  transform: scale(1.12);
 }
 
 /* ── FOOTER ── */
@@ -2334,18 +2334,16 @@ footer a:hover { color: #fff; }
     max-width: 100%;
   }
   .feedback-warrior-frame {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    width: 100%;
-    aspect-ratio: 16 / 10;
-    margin: 16px 0 0;
+    right: 4px;
+    bottom: 8px;
+    width: min(46%, 230px);
+    height: 136px;
+    opacity: 0.42;
   }
   .feedback-warrior-frame img {
     object-fit: cover;
-    object-position: 31% 24%;
-    transform: scale(1.03);
+    object-position: 24% 20%;
+    transform: scale(1.1);
   }
   .title-gif-mask { width: 34px; height: 34px; }
   .title-gif { width: 44px; height: 44px; }
