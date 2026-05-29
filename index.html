@@ -71,14 +71,15 @@ header {
 }
 header h1 {
   font-family: var(--font);
-  font-size: 10px;
+  font-size: 34px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.54);
+  color: rgba(255,255,255,0.92);
   display: flex;
   align-items: center;
   gap: 10px;
+  line-height: 1;
 }
 .found-style-title {
   font-family: var(--font);
@@ -120,6 +121,15 @@ header h1 {
   flex-direction: column;
   align-items: center;
   gap: 8px;
+}
+.header-text-view-note {
+  max-width: 420px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.42);
 }
 .header-links-row {
   display: flex;
@@ -2012,10 +2022,19 @@ header p {
   box-shadow: 0 20px 40px rgba(20, 24, 34, 0.08);
 }
 
+.feedback-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.82) 46%, rgba(255,255,255,0.28) 100%);
+  pointer-events: none;
+}
+
 .feedback-card-content {
   position: relative;
-  z-index: 1;
-  max-width: 100%;
+  z-index: 2;
+  max-width: min(56%, 35rem);
 }
 
 .feedback-card-content p {
@@ -2112,6 +2131,31 @@ header p {
 .feedback-status {
   font-size: 12px;
   color: #6e6e73;
+}
+
+.feedback-warrior-frame {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1;
+  width: min(42%, 360px);
+  border: 1px solid rgba(28,28,30,0.14);
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.feedback-warrior-frame img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 34% 32%;
+  opacity: 0.74;
+  mix-blend-mode: multiply;
+  filter: contrast(1.08) saturate(1.08);
+  transform: scale(1.08);
 }
 
 /* ── FOOTER ── */
@@ -2275,12 +2319,33 @@ footer a:hover { color: #fff; }
     justify-self: center;
     width: 100%;
   }
+  .header-text-view-note {
+    max-width: min(100%, 460px);
+    font-size: 11px;
+  }
   .header-links-row {
     justify-content: center;
     flex-wrap: wrap;
   }
   .header-spacer {
     display: none;
+  }
+  .feedback-card-content {
+    max-width: 100%;
+  }
+  .feedback-warrior-frame {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    margin: 16px 0 0;
+  }
+  .feedback-warrior-frame img {
+    object-fit: cover;
+    object-position: 31% 24%;
+    transform: scale(1.03);
   }
   .title-gif-mask { width: 34px; height: 34px; }
   .title-gif { width: 44px; height: 44px; }
@@ -2531,10 +2596,8 @@ footer a:hover { color: #fff; }
   .feedback-card {
     padding: 20px 16px;
   }
-  .feedback-card-content {
-    max-width: 100%;
-  }
   .found-sticker-card {
+    border-radius: 0;
     min-height: 280px;
     padding: 12px;
     align-items: stretch;
@@ -2555,7 +2618,7 @@ footer a:hover { color: #fff; }
     transform: scale(0.9);
   }
   .sticker-collage {
-    inset: 14% 12% 24% 12%;
+    inset: 0;
   }
   .map-section-sub {
     font-size: 12px;
@@ -2646,6 +2709,7 @@ footer a:hover { color: #fff; }
         <a class="header-link-btn" href="https://projects.trollrunner.net/">Projects</a>
         <a class="header-link-btn" href="https://videos.trollrunner.net">Videos</a>
       </div>
+      <div class="header-text-view-note">Recommended text view be 50% for mobile and 100% tablet devices</div>
       <div class="header-live-stack" aria-live="polite">
         <div id="live-status-running-pill" class="header-live-pill header-live-pill--running">
           <span class="header-live-dot" aria-hidden="true"></span>
@@ -2878,6 +2942,9 @@ footer a:hover { color: #fff; }
           <button class="feedback-btn" onclick="submitFeedback()">Submit feedback</button>
           <span id="feedback-status" class="feedback-status"></span>
         </div>
+      </div>
+      <div class="feedback-warrior-frame" aria-hidden="true">
+        <img src="assets/animations/Keyboard Warrior 2025.gif" alt="">
       </div>
     </div>
   </section>
