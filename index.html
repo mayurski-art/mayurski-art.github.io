@@ -2615,14 +2615,23 @@ footer a:hover { color: #fff; }
     font-size: 30px;
   }
   .feedback-card {
-    min-height: 24.8rem;
+    width: 80%;
+    min-height: 19.85rem;
+    margin-right: auto;
     padding: clamp(16px, 4vw, 20px);
   }
   .feedback-card-content {
-    padding-bottom: clamp(8.8rem, 35vw, 12rem);
+    padding-bottom: clamp(7rem, 28vw, 9.6rem);
+  }
+  .feedback-field {
+    min-height: 9rem;
   }
   .feedback-warrior-frame {
-    inset: 0.75rem;
+    top: auto;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    left: 0.6rem;
+    height: clamp(7rem, 28vw, 9.6rem);
     opacity: 0.28;
     mix-blend-mode: multiply;
     -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.42) 20%, #000 48%, #000 100%);
@@ -2632,7 +2641,7 @@ footer a:hover { color: #fff; }
     content: '';
     position: absolute;
     inset: 0;
-    background: url('assets/animations/troll-typer.gif') center bottom / min(70vw, 12rem) auto no-repeat;
+    background: url('assets/animations/troll-typer.gif') center bottom / contain no-repeat;
   }
   .feedback-warrior-frame::after {
     display: none;
