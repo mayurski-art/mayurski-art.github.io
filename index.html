@@ -2164,12 +2164,16 @@ header p {
   pointer-events: none;
 }
 
+.feedback-warrior-frame picture,
 .feedback-warrior-frame img {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.feedback-warrior-frame img {
   object-fit: contain;
-  object-position: 104% center;
+  object-position: 96% 65%;
   clip-path: inset(0 0 17% 0);
   filter: contrast(1.2) saturate(1.08);
   transform: scale(1.16);
@@ -2361,7 +2365,7 @@ footer a:hover { color: #fff; }
   }
   .feedback-warrior-frame img {
     object-fit: contain;
-    object-position: 104% bottom;
+    object-position: 96% bottom;
     transform: scale(1.16);
   }
   .title-gif-mask { width: 34px; height: 34px; }
@@ -2611,7 +2615,28 @@ footer a:hover { color: #fff; }
     font-size: 30px;
   }
   .feedback-card {
-    padding: 20px 16px;
+    min-height: 31rem;
+    padding: clamp(16px, 4vw, 20px);
+  }
+  .feedback-card-content {
+    padding-bottom: clamp(11rem, 44vw, 15rem);
+  }
+  .feedback-warrior-frame {
+    inset: 0.75rem;
+    opacity: 0.3;
+    mix-blend-mode: multiply;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.42) 20%, #000 48%, #000 100%);
+    mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.42) 20%, #000 48%, #000 100%);
+  }
+  .feedback-warrior-frame::after {
+    display: none;
+  }
+  .feedback-warrior-frame img {
+    object-fit: contain;
+    object-position: center bottom;
+    clip-path: none;
+    transform: none;
+    filter: contrast(1.08) saturate(1.02);
   }
   .found-sticker-card {
     border-radius: 0;
@@ -2961,7 +2986,10 @@ footer a:hover { color: #fff; }
         </div>
       </div>
       <div class="feedback-warrior-frame" aria-hidden="true">
-        <img src="assets/animations/Keyboard Warrior 2025.gif" alt="">
+        <picture>
+          <source media="(max-width: 640px)" srcset="assets/animations/troll-typer.gif">
+          <img src="assets/animations/Keyboard Warrior 2025.gif" alt="">
+        </picture>
       </div>
     </div>
   </section>
