@@ -18,7 +18,6 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&family=Rubik+Glitch&family=Space+Grotesk:wght@500;700&display=swap');
 
@@ -2752,6 +2751,7 @@ footer a:hover { color: #fff; }
     transform: translate(-50%, -50%) rotate(var(--sticker-rotate));
   }
 }
+
 </style>
 </head>
 <body>
@@ -2767,6 +2767,7 @@ footer a:hover { color: #fff; }
         <a class="header-link-btn" href="https://finance.trollrunner.net">Finances</a>
         <a class="header-link-btn" href="https://projects.trollrunner.net/">Projects</a>
         <a class="header-link-btn" href="https://videos.trollrunner.net">Videos</a>
+        <a class="header-link-btn" href="https://stickers.trollrunner.net">Stickers</a>
       </div>
       <div class="header-text-view-note">Recommended text view be 50% for mobile and 100% tablet devices</div>
       <div class="header-live-stack" aria-live="polite">
@@ -2845,129 +2846,7 @@ footer a:hover { color: #fff; }
   </div>
 </section>
 
-<div id="stats-banner">
-  <div class="stats-banner-head">
-    <strong class="found-style-title">Statistics</strong>
-  </div>
-  <div class="stats-grid">
-    <div class="stat-card"><div class="val found-style-title" id="stats-total-stickers">0</div><div class="lbl found-style-title">Stickers</div></div>
-    <div class="stat-card"><div class="val found-style-title">156</div><div class="lbl found-style-title">Miles Ran</div></div>
-    <div class="stat-card"><div class="val found-style-title" id="stats-total-locations">0</div><div class="lbl found-style-title">Spots</div></div>
-    <div class="stat-card"><div class="val found-style-title" id="stats-total-cities">0</div><div class="lbl found-style-title">Cities</div></div>
-  </div>
 </div>
-<div class="found-sticker-row">
-  <div class="found-sticker-spacer" aria-hidden="true"></div>
-  <section id="found-sticker">
-    <h2 class="found-style-title">Found a sticker?</h2>
-    <div class="update-card found-sticker-card">
-      <div class="found-sticker-art" aria-hidden="true">
-        <picture>
-          <source media="(max-width: 640px)" srcset="assets/images/troll-blackhole.png">
-          <img src="assets/images/troll-arm.png" alt="" onerror="this.onerror=null;this.src='assets/images/troll-arm.png';">
-        </picture>
-      </div>
-      <div id="sticker-collage" class="sticker-collage" aria-hidden="true"></div>
-      <div class="found-sticker-copy">
-        <p>
-          Share your picture on X <span class="found-sticker-hashtag">#TROLLRUNNER</span> and tag <span class="found-sticker-handle">@troll_runner</span>.
-        </p>
-      </div>
-    </div>
-  </section>
-</div>
-</div>
-
-<section id="map-section">
-  <div class="map-section-head">
-    <div>
-      <h2 class="found-style-title">Sticker Map</h2>
-    </div>
-  </div>
-  <div id="map-app">
-
-    <!-- SIDEBAR -->
-    <div id="sidebar">
-      <div id="sidebar-header">
-        <div id="sidebar-title-row">
-          <h3 class="found-style-title">Troll sticker tracker</h3>
-        </div>
-        <button id="tracker-toggle" type="button" aria-expanded="false" aria-controls="tracker-panel" onclick="toggleSidebarTracker()">
-          Turn on Troll Sticker Tracker
-        </button>
-      </div>
-      <div id="tracker-panel">
-        <div class="sidebar-divider">Browse</div>
-        <div class="sidebar-module">
-          <div class="sidebar-module-title">
-            <span>City Channels</span>
-          </div>
-          <div id="city-filter">
-            <button
-              id="city-filter-button"
-              class="city-filter-button"
-              type="button"
-              aria-haspopup="listbox"
-              aria-expanded="false"
-              aria-controls="city-filter-menu"
-              onclick="toggleCityMenu()"
-            >
-              <span class="city-filter-copy">
-                <span class="city-filter-label">Cities</span>
-                <span id="city-filter-value">All cities</span>
-              </span>
-              <span id="city-filter-swatch" class="city-filter-swatch"></span>
-              <span class="city-filter-chevron">&#9662;</span>
-            </button>
-            <div id="city-filter-menu" role="listbox" aria-label="Cities"></div>
-          </div>
-        </div>
-        <div class="list-shell">
-          <div class="list-shell-head">
-            <strong>Locations</strong>
-            <span id="list-results-label">0 locations</span>
-          </div>
-          <div class="list-shell-meta">
-            <span class="location-scope-caption">Showing</span>
-            <span id="location-scope-label">All cities</span>
-          </div>
-          <div id="loc-list"></div>
-        </div>
-      </div>
-    </div>
-    <div id="panel-resizer" aria-hidden="true" title="Drag to resize panels"></div>
-
-    <!-- MAP -->
-    <div id="map-wrap">
-      <div id="leaflet-map"></div>
-      <div id="popup">
-        <div id="popup-close" onclick="closePopup()">×</div>
-        <h4 id="p-name"></h4>
-        <div id="p-city-tag" class="popup-city-tag"></div>
-        <div class="popup-row"><span class="popup-key">Date placed</span><span class="popup-val" id="p-date"></span></div>
-        <div class="popup-row"><span class="popup-key">Stickers</span><span class="popup-val" id="p-count"></span></div>
-        <div id="popup-media">
-          <div id="p-image"></div>
-          <a id="p-image-link" target="_blank" rel="noopener noreferrer">Open album on Imgur</a>
-        </div>
-      </div>
-      <div id="map-controls">
-        <button class="ctrl-btn" onclick="zoom(0.25)">+</button>
-        <button class="ctrl-btn" onclick="zoom(-0.25)">−</button>
-      </div>
-      <div id="scale-bar">San Bernardino &amp; Riverside Counties</div>
-    </div>
-    <aside id="photo-panel">
-      <div class="photo-title-row">
-        <h4 id="photo-title"></h4>
-        <span id="photo-project-pill" class="project-pill photo-project-pill"></span>
-      </div>
-      <p id="photo-meta"></p>
-      <div id="photo-gallery"></div>
-    </aside>
-
-  </div>
-</section>
 
 <div class="updates-feedback-grid">
   <section id="updates">
@@ -3012,26 +2891,6 @@ footer a:hover { color: #fff; }
   </section>
 </div>
 
-<div class="found-sticker-row">
-  <div class="found-sticker-spacer" aria-hidden="true"></div>
-  <section id="found-sticker">
-    <h2 class="found-style-title">Found a sticker?</h2>
-    <div class="update-card found-sticker-card">
-      <div class="found-sticker-art" aria-hidden="true">
-        <picture>
-          <source media="(max-width: 640px)" srcset="assets/images/troll-blackhole.png">
-          <img src="assets/images/troll-arm.png" alt="" onerror="this.onerror=null;this.src='assets/images/troll-arm.png';">
-        </picture>
-      </div>
-      <div id="sticker-collage" class="sticker-collage" aria-hidden="true"></div>
-      <div class="found-sticker-copy">
-        <p>
-          Share your picture on X <span class="found-sticker-hashtag">#TROLLRUNNER</span> and tag <span class="found-sticker-handle">@troll_runner</span>.
-        </p>
-      </div>
-    </div>
-  </section>
-</div>
 <footer>
   <div class="footer-inner">
     <div class="footer-left">
@@ -3066,7 +2925,6 @@ footer a:hover { color: #fff; }
 </footer>
 <div id="spotify-embed" aria-label="Troll Runner Spotify playlist"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
 const ADMIN_PASSWORD = '#Mayur2626';
@@ -3096,87 +2954,7 @@ const SUPABASE_SHARED_STATE_REFRESH_MS = 10000;
 const FEEDBACK_GOOGLE_SHEET_ID = '1rT4mlBtaJyTA4pXqDlIo5dn7mPcv8MLAGolVtSi8oNE';
 const SHARED_UPDATES_JSON_URL = 'assets/data/latest-updates.json';
 const SPOTIFY_PLAYLIST_URI = 'spotify:playlist:0ni59E9HbWpAe8Ydnseh4O';
-const DATA = [
-  {city:"Fontana",           name:"Beech Ave",                        date:"Oct 17, 2025", count:1,  px:46, py:44, imageUrl:"https://i.imgur.com/lLd8qJH.jpeg", imageTitle:"Beech Ave, Fontana, California"},
-  {city:"Fontana",           name:"Koehler Park",                     date:"Oct 17, 2025", count:1,  px:42, py:50, imageUrl:"https://i.imgur.com/EwbZyfL.jpeg", imageTitle:"Koehler Park, Fontana, California"},
-  {city:"Fontana",           name:"Almeria Park",                     date:"Oct 17, 2025", count:1,  px:50, py:56, imageUrl:"https://i.imgur.com/7AMMiRe.jpeg", imageTitle:"Almeria Park, Fontana, California"},
-  {city:"Fontana",           name:"Ralph M. Lewis Sports Complex",    date:"Oct 17, 2025", count:2,  px:38, py:42, imageUrls:["https://i.imgur.com/S1DHRXx.jpeg","https://i.imgur.com/8694iA2.jpeg"], imageTitle:"Ralph M. Lewis Sports Complex, Fontana, California"},
-  {city:"Fontana",           name:"Sierra Lakes Golf Club",           date:"Oct 17, 2025", count:1,  px:34, py:36, imageUrl:"https://i.imgur.com/u8fIquV.jpeg", imageTitle:"Sierra Lakes Golf Club, Fontana, California"},
-  {city:"Fontana",           name:"Patricia Marrujo Park",            date:"Oct 17, 2025", count:1,  px:54, py:48, imageUrl:"https://i.imgur.com/4AewHdq.jpeg", imageTitle:"Patricia Marrujo Park, Fontana, California"},
-  {city:"Riverside",         name:"Mount Rubidoux",                   date:"Oct 19, 2025", count:5,  px:72, py:54, imageUrls:["https://i.imgur.com/6Mz6nZY.jpeg","https://i.imgur.com/eK3Z8bw.jpeg","https://i.imgur.com/7dEgred.jpeg","https://i.imgur.com/wx8fyaa.jpeg","https://i.imgur.com/Bf8Twbo.jpeg"], imageTitle:"Mount Rubidoux, Riverside, California"},
-  {city:"Riverside",         name:"Senna Cross",                      date:"Oct 19, 2025", count:1,  px:76, py:50, imageUrl:"https://i.imgur.com/iEr0o3g.jpeg", imageTitle:"Senna Cross, Riverside, California"},
-  {city:"Riverside",         name:"Ryan Bonamino Park",               date:"Oct 19, 2025", count:7,  px:80, py:58, imageUrls:["https://i.imgur.com/1eegEEl.jpeg","https://i.imgur.com/myYoXur.jpeg","https://i.imgur.com/liIkacX.jpeg","https://i.imgur.com/XG3Sbjb.jpeg","https://i.imgur.com/h2y9lWy.jpeg","https://i.imgur.com/V0qf7Hd.jpeg","https://i.imgur.com/63sqfOK.jpeg"], imageTitle:"Ryan Bonamino Park, Riverside, California"},
-  {city:"Rancho Cucamonga",  name:"Red Hill Community Park",          date:"Oct 23, 2025", count:7,  px:22, py:28, imageUrls:["https://i.imgur.com/oTEoj8S.jpeg","https://i.imgur.com/9Qbxzvv.jpeg","https://i.imgur.com/n5oZJVb.jpeg","https://i.imgur.com/yzwljgN.jpeg","https://i.imgur.com/SiPZCCf.jpeg","https://i.imgur.com/qR8izQM.jpeg","https://i.imgur.com/pXkc13d.jpeg"], imageTitle:"Red Hill Community Park, Rancho Cucamonga, California"},
-  {city:"Rancho Cucamonga",  name:"Pacific Electric Trail",           date:"Oct 23, 2025", count:3,  px:28, py:22, imageUrls:["https://i.imgur.com/avL5hDH.jpeg","https://i.imgur.com/cHH9Z8N.jpeg","https://i.imgur.com/or6NIro.jpeg"], imageTitle:"Pacific Electric Trail, Rancho Cucamonga, California"},
-  {city:"Fontana",           name:"Coyote Canyon Park",               date:"Oct 26, 2025", count:3,  px:44, py:58, imageUrls:["https://i.imgur.com/xmHlxL8.jpeg","https://i.imgur.com/Pm6Au1q.jpeg","https://i.imgur.com/8gdZUA2.jpeg"], imageTitle:"Coyote Canyon Park, Fontana, California"},
-  {city:"Fontana",           name:"Hunter's Ridge Park",              date:"Oct 26, 2025", count:1,  px:36, py:52, imageUrl:"https://i.imgur.com/HXZsvi1.jpeg", imageTitle:"Hunter's Ridge Park, Fontana, California"},
-  {city:"Fontana",           name:"Manitoba Drive",                   date:"Oct 26, 2025", count:1,  px:40, py:62, imageUrl:"https://i.imgur.com/rXwGNIv.jpeg", imageTitle:"Manitoba Drive, Fontana, California"},
-  {city:"Fontana",           name:"N Bridlepath Drive",               date:"Oct 26, 2025", count:2,  px:48, py:38, imageUrls:["https://i.imgur.com/DKNIBXL.jpeg","https://i.imgur.com/3h4iFdW.jpeg"], imageTitle:"N Bridlepath Drive, Fontana, California"},
-  {city:"Fontana",           name:"Foxborough Drive",                 date:"Oct 26, 2025", count:1,  px:52, py:34, imageUrl:"https://i.imgur.com/2lokvTl.jpeg", imageTitle:"Foxborough Drive, Fontana, California"},
-  {city:"Fontana",           name:"Alec Fergusson Park",              date:"Oct 26, 2025", count:2,  px:58, py:42, imageUrls:["https://i.imgur.com/3XscKjO.jpeg","https://i.imgur.com/gWRdGEt.jpeg"], imageTitle:"Alec Fergusson Park, Fontana, California"},
-  {city:"Riverside",         name:"Andulka Park",                     date:"Nov 2, 2025",  count:5,  px:78, py:64, imageUrls:["https://i.imgur.com/pZPe64m.jpeg","https://i.imgur.com/JJ43Kmp.jpeg","https://i.imgur.com/SYdW08b.jpeg","https://i.imgur.com/E2EjLTr.jpeg","https://i.imgur.com/kGuK3Rx.jpeg"], imageTitle:"Andulka Park, Riverside, California"},
-  {city:"Riverside",         name:"Bordwell Park",                    date:"Nov 2, 2025",  count:1,  px:84, py:60, imageUrl:"https://i.imgur.com/NywykXB.jpeg", imageTitle:"Bordwell Park, Riverside, California"},
-  {city:"Riverside",         name:"Dario Vasquez Park",               date:"Nov 2, 2025",  count:1,  px:74, py:68, imageUrl:"https://i.imgur.com/khAA95m.jpeg", imageTitle:"Dario Vasquez Park, Riverside, California"},
-  {city:"Riverside",         name:"Lincoln Park",                     date:"Nov 2, 2025",  count:1,  px:82, py:54, imageUrl:"https://i.imgur.com/gI0OMVP.jpeg", imageTitle:"Lincoln Park, Riverside, California"},
-  {city:"Riverside",         name:"Downtown Village",                 date:"Nov 2, 2025",  count:2,  px:70, py:62, imageUrls:["https://i.imgur.com/Igopnbs.jpeg","https://i.imgur.com/S2Z6AzL.jpeg"], imageTitle:"Downtown Village, Riverside, California"},
-  {city:"Riverside",         name:"University Village",               date:"Nov 2, 2025",  count:1,  px:86, py:66, imageUrl:"https://i.imgur.com/m9Pwffh.jpeg", imageTitle:"University Village, Riverside, California"},
-  {city:"Riverside",         name:"Hunter Park",                      date:"Nov 2, 2025",  count:4,  px:68, py:70, imageUrls:["https://i.imgur.com/jNd0LkZ.jpeg","https://i.imgur.com/PjxO9Z1.jpeg","https://i.imgur.com/ylmyn2Y.jpeg","https://i.imgur.com/qxx57Y8.jpeg"], imageTitle:"Hunter Park, Riverside, California"},
-  {city:"Fontana",           name:"Central City Park",                date:"Nov 25, 2025", count:2,  px:44, py:50, imageUrls:["https://i.imgur.com/0vhorfS.jpeg","https://i.imgur.com/Iu1bFU2.jpeg"], imageTitle:"Central City Park, Fontana, California"},
-  {city:"Fontana",           name:"Seville Park",                     date:"Nov 25, 2025", count:2,  px:56, py:50, imageUrls:["https://i.imgur.com/5HVPbyS.jpeg","https://i.imgur.com/5GFXFQJ.jpeg"], specialImageTags:{"https://i.imgur.com/5HVPbyS.jpeg":"69th sticker"}, imageTitle:"Seville Park, Fontana, California"},
-  {city:"Fontana",           name:"Downtown Fontana",                 date:"Nov 23, 2025", count:8,  px:48, py:44, imageUrls:["https://i.imgur.com/aqa9WLv.jpeg","https://i.imgur.com/3jGTApe.jpeg","https://i.imgur.com/XnSuasg.jpeg","https://i.imgur.com/B17j7lG.jpeg","https://i.imgur.com/CLQM29t.jpeg","https://i.imgur.com/os869vw.jpeg","https://i.imgur.com/fni9Ks0.jpeg","https://i.imgur.com/iYCAJeX.jpeg"], imageTitle:"Downtown Fontana, Fontana, California"},
-  {city:"Rialto",            name:"Birdsall Park",                    date:"Oct 26, 2025", count:1,  px:60, py:48, imageUrl:"https://i.imgur.com/vme4PIg.jpeg", imageTitle:"Birdsall Park, Rialto, California"},
-  {city:"Rialto",            name:"Bud Bender Park",                  date:"Nov 25, 2025", count:1,  px:64, py:42, imageUrl:"https://i.imgur.com/6sq69Kv.jpeg", imageTitle:"Bud Bender Park, Rialto, California"},
-  {city:"Rialto",            name:"Jerry Eaves Park",                 date:"Nov 25, 2025", count:1,  px:62, py:54, imageUrl:"https://i.imgur.com/87tE2U0.jpeg", imageTitle:"Jerry Eaves Park, Rialto, California"},
-  {city:"Rialto",            name:"Pacific Electric Trail",           date:"Nov 25, 2025", count:1,  px:61, py:46, albumUrl:"https://imgur.com/a/yQJy2f8", imageUrl:"https://i.imgur.com/8bQCb9J.jpeg", imageTitle:"Pacific Electric Trail, Rialto, California"},
-  {city:"Rialto",            name:"West Baseline Road",               date:"Nov 25, 2025", count:1,  px:66, py:52, albumUrl:"https://imgur.com/a/PItTXBg", imageUrl:"https://i.imgur.com/Zf8ZFa9.jpeg", imageTitle:"West Baseline Road, Rialto, California"},
-  {city:"Chino Hills",       name:"Butterfield Park",                 date:"Mar 28, 2026", count:7,  px:12, py:60, imageUrls:["https://i.imgur.com/uJ7RlsB.jpeg","https://i.imgur.com/pVCFxaL.jpeg","https://i.imgur.com/xl09ria.jpeg","https://i.imgur.com/D1CzSVb.jpeg","https://i.imgur.com/tGTTWxJ.jpeg","https://i.imgur.com/pYbkBzT.jpeg","https://i.imgur.com/eFGHGsK.jpeg"], imageTitle:"Butterfield Park, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Chino Hills Dog Park",             date:"Apr 4, 2026", count:1,  px:14, py:62, imageUrl:"https://i.imgur.com/rntGRWo.jpeg", imageTitle:"Chino Hills Dog Park, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Vila Borba Park",                  date:"Apr 4, 2026", count:6,  px:10, py:58, imageUrls:["https://i.imgur.com/iaSPHNe.jpeg","https://i.imgur.com/RC0uWs1.jpeg","https://i.imgur.com/4pIobRJ.jpeg","https://i.imgur.com/4gNVjgF.jpeg","https://i.imgur.com/gcqHVhX.jpeg","https://i.imgur.com/NWtl7Xj.jpeg"], imageTitle:"Vila Borba Park, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Meadows Park",                     date:"Apr 18, 2026", count:6,  px:16, py:56, albumUrl:"https://imgur.com/a/JXfUDHB", imageUrls:["https://i.imgur.com/czb4NZE.jpeg","https://i.imgur.com/hNmPiVF.jpeg","https://i.imgur.com/G3om7gp.jpeg","https://i.imgur.com/76SikQg.jpeg","https://i.imgur.com/BVmfDCq.jpeg","https://i.imgur.com/Q3dp9e1.jpeg"], imageTitle:"Meadows Park, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Sunny Meadow Lane",                date:"Apr 18, 2026", count:2,  px:18, py:54, albumUrl:"https://imgur.com/a/v4FbT4o", imageUrls:["https://i.imgur.com/LwAYy2Q.jpeg","https://i.imgur.com/LZBWZYi.jpeg"], imageTitle:"Sunny Meadow Lane, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Mystic Canyon Road",               date:"Apr 18, 2026", count:3,  px:20, py:52, albumUrl:"https://imgur.com/a/466HCRZ", imageUrls:["https://i.imgur.com/1r1inS9.jpeg","https://i.imgur.com/gampDHO.jpeg","https://i.imgur.com/MnnhWaI.jpeg"], imageTitle:"Mystic Canyon Road, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Butterfield Ranch Road",           date:"Apr 18, 2026", dateLabel:"Apr 18, 2026 and Apr 25, 2026", count:3,  px:14, py:57, albumUrl:"https://imgur.com/a/LaQ3Sfb", dropCounts:{"2026-04-18":2,"2026-04-25":1}, imageUrls:["https://i.imgur.com/JovAhEV.jpeg","https://i.imgur.com/4QYCS3V.jpeg","https://i.imgur.com/kZbQkHR.jpeg"], imageTitle:"Butterfield Ranch Road, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Hunters Hill Park",                date:"Apr 25, 2026", count:5,  px:14, py:59, albumUrl:"https://imgur.com/a/ZgLkHrP", imageUrls:["https://i.imgur.com/3vIKEaM.jpeg","https://i.imgur.com/AXbtb9o.jpeg","https://i.imgur.com/Qb4z1Ro.jpeg","https://i.imgur.com/Wqw05Xg.jpeg","https://i.imgur.com/r9UjpM9.jpeg"], specialImageTags:{"https://i.imgur.com/3vIKEaM.jpeg":"100th sticker"}, imageTitle:"Hunters Hill Park, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Hunters Hill Drive",               date:"Apr 25, 2026", count:1,  px:15, py:60, albumUrl:"https://imgur.com/a/1B5OqzF", imageUrl:"https://i.imgur.com/oQaogGK.jpeg", imageTitle:"Hunters Hill Drive, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Torrey Pines Loop/Park",           date:"Apr 25, 2026", count:5,  px:11, py:50, albumUrl:"https://imgur.com/a/IoijY6s", imageUrls:["https://i.imgur.com/Tmt1lJP.jpeg","https://i.imgur.com/doSeZKc.jpeg","https://i.imgur.com/hOldA6d.jpeg","https://i.imgur.com/VnvwBi1.jpeg","https://i.imgur.com/gKIkOdd.jpeg"], imageTitle:"Torrey Pines Loop/Park, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Torrey Pines Drive",               date:"Apr 25, 2026", count:1,  px:11, py:51, albumUrl:"https://imgur.com/a/OMN31PO", imageUrl:"https://i.imgur.com/eHVTj5r.jpeg", imageTitle:"Torrey Pines Drive, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Pinehurst Park",                   date:"May 2, 2026",  count:4,  px:17, py:63, albumUrl:"https://imgur.com/a/igSXNKc", imageUrls:["https://i.imgur.com/8FZwe7F.jpeg","https://i.imgur.com/mVVXg0P.jpeg","https://i.imgur.com/UY2cKC6.jpeg","https://i.imgur.com/xzlPIgg.jpeg"], imageTitle:"Pinehurst Park, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Los Serranos Park",                date:"May 2, 2026",  count:4,  px:19, py:61, albumUrl:"https://imgur.com/a/8CRvq63", imageUrls:["https://i.imgur.com/3yOMKwQ.jpeg","https://i.imgur.com/3K0ymif.jpeg","https://i.imgur.com/BUTnKaU.jpeg","https://i.imgur.com/mJ2ErPF.jpeg"], imageTitle:"Los Serranos Park, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Hilltop Park",                     date:"May 2, 2026",  count:3,  px:13, py:53, albumUrl:"https://imgur.com/a/QEfTXLd", imageUrls:["https://i.imgur.com/UcimFRc.jpeg","https://i.imgur.com/g50KGIl.jpeg","https://i.imgur.com/bdYe4cz.jpeg"], imageTitle:"Hilltop Park, Chino Hills, California"},
-  {city:"Chino Hills",       name:"Hickory Creek Trail",              date:"May 2, 2026",  count:2,  px:9,  py:49, albumUrl:"https://imgur.com/a/Yv5HofN", imageUrls:["https://i.imgur.com/IyKjyKj.jpeg","https://i.imgur.com/M0zlUhv.jpeg"], imageTitle:"Hickory Creek Trail, Chino Hills, California"},
-  {city:"Rancho Cucamonga",  name:"Coyote Canyon Park",               date:"May 4, 2026",  count:6,  px:20, py:32, albumUrl:"https://imgur.com/a/hEyYSR8", imageUrls:["https://i.imgur.com/xIRpQ7n.jpeg","https://i.imgur.com/k8tmROZ.jpeg","https://i.imgur.com/G89KViz.jpeg","https://i.imgur.com/2I3uZu8.jpeg","https://i.imgur.com/M11kZFl.jpeg","https://i.imgur.com/GofQ5NJ.jpeg"], imageTitle:"Coyote Canyon Park, Rancho Cucamonga, California"},
-  {city:"Rancho Cucamonga",  name:"Central Park Plaza- Closed Rite Aid", date:"May 4, 2026", count:1, px:25, py:24, albumUrl:"https://imgur.com/a/rOWv3Ff", imageUrl:"https://i.imgur.com/IfeJFmI.jpeg", imageTitle:"Central Park Plaza- Closed Rite Aid, Rancho Cucamonga, California"},
-  {city:"Rancho Cucamonga",  name:"Ellena W",                         date:"May 4, 2026",  count:1,  px:29, py:26, albumUrl:"https://imgur.com/a/CzqP0es", imageUrl:"https://i.imgur.com/NZMpMNN.jpeg", imageTitle:"Ellena W, Rancho Cucamonga, California"},
-  {city:"Rancho Cucamonga",  name:"Central Park",                     date:"May 4, 2026",  count:3,  px:24, py:26, albumUrl:"https://imgur.com/a/SBBq7Al", imageUrls:["https://i.imgur.com/a7mpXVb.jpeg","https://i.imgur.com/vGiV7Qf.jpeg","https://i.imgur.com/ONwgNz0.jpeg"], imageTitle:"Central Park, Rancho Cucamonga, California"},
-  {city:"Rancho Cucamonga",  name:"Pacific Electric Trail- Near Central Park", date:"May 4, 2026", count:5, px:27, py:23, albumUrl:"https://imgur.com/a/65eQq0g", imageUrls:["https://i.imgur.com/WN6FQjF.jpeg","https://i.imgur.com/CvFKrkF.jpeg","https://i.imgur.com/JN8ghvO.jpeg","https://i.imgur.com/JRlI2ik.jpeg","https://i.imgur.com/tHWO2Eq.jpeg"], imageTitle:"Pacific Electric Trail- Near Central Park, Rancho Cucamonga, California"},
-  {city:"Rancho Cucamonga",  name:"Terra Vista Parkway",              date:"May 4, 2026",  count:1,  px:30, py:23, albumUrl:"https://imgur.com/a/5edLINU", imageUrl:"https://i.imgur.com/dm61HX2.jpeg", imageTitle:"Terra Vista Parkway, Rancho Cucamonga, California"},
-  {city:"Rancho Cucamonga",  name:"Spurce Avenue Park",               date:"May 4, 2026",  count:5,  px:26, py:27, albumUrl:"https://imgur.com/a/oMyuQB5", imageUrls:["https://i.imgur.com/56IBZLE.jpeg","https://i.imgur.com/XZS0VWl.jpeg","https://i.imgur.com/KkZaLdF.jpeg","https://i.imgur.com/G2sXLnJ.jpeg","https://i.imgur.com/xyAlxTQ.jpeg"], imageTitle:"Spurce Avenue Park, Rancho Cucamonga, California"},
-  {city:"Rancho Cucamonga",  name:"Milliken Park",                    date:"May 4, 2026",  count:9,  px:31, py:28, albumUrl:"https://imgur.com/a/EeLiGay", imageUrls:["https://i.imgur.com/EdIPfJF.jpeg","https://i.imgur.com/sXcDCPk.jpeg","https://i.imgur.com/JdXmhcX.jpeg","https://i.imgur.com/i4xzjc5.jpeg","https://i.imgur.com/A0QaXBr.jpeg","https://i.imgur.com/YTLjUd3.jpeg","https://i.imgur.com/RCWUiM4.jpeg","https://i.imgur.com/z5oqOpQ.jpeg","https://i.imgur.com/w6SDI7D.jpeg"], imageTitle:"Milliken Park, Rancho Cucamonga, California"},
-];
-const PROJECT_LOCATION_TAGS = {};
-function normalizeImageTagKey(url) {
-  return typeof url === 'string' ? url.trim().replace(/\?.*$/, '').toLowerCase() : '';
-}
-function getLocationDisplayDate(loc) {
-  return loc?.dateLabel || loc?.date || '';
-}
-DATA.forEach(item => {
-  item.project = PROJECT_LOCATION_TAGS[item.name] || null;
-  if (item.specialImageTags && typeof item.specialImageTags === 'object') {
-    item.specialImageTags = Object.fromEntries(
-      Object.entries(item.specialImageTags).map(([url, label]) => [normalizeImageTagKey(url), label])
-    );
-  }
-});
-
-const CITIES = {
-  "Fontana":          {pin:"#5856d6", bg:"#eeeeff", txt:"#3634a3"},
-  "Riverside":        {pin:"#34c759", bg:"#e8f8ed", txt:"#1a7a35"},
-  "Rancho Cucamonga": {pin:"#ff9500", bg:"#fff4e0", txt:"#a05a00"},
-  "Rialto":           {pin:"#ff2d55", bg:"#ffe8ed", txt:"#a01030"},
-  "Chino Hills":      {pin:"#007aff", bg:"#e5f2ff", txt:"#004a99"},
-};
-
+// Sticker locations now live in the stickers site repository at stickers/index.html.
 let activeCity = null, activeIdx = null, searchTerm = '';
 let selectedDate = null;
 let calendarOpen = false;
@@ -3195,41 +2973,13 @@ const MOBILE_SIDEBAR_TRACKER_KEY = 'trollrunner_mobile_sidebar_tracker_open';
 const liveCoordinateMap = {};
 let geoCache = null;
 const geoInflight = new Set();
-// Keep pin positions stable by default. Live geocoding can return inconsistent
-// results for similarly named places, which makes markers appear to "jump."
 const ENABLE_LIVE_GEOCODING = false;
 const spotifyTrackLabelCache = new Map();
 const SHARED_STATUS_META_ID = '__trollrunner_live_status_meta__';
 const LIVE_RUNNING_STATUS_KEY = 'trollrunner_live_status_running_enabled';
 const LIVE_CODING_STATUS_KEY = 'trollrunner_live_status_coding_enabled';
 const LEGACY_LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
-const DATE_COUNTS = {};
-DATA.forEach(d => {
-  if (d.dropCounts && typeof d.dropCounts === 'object') {
-    d.isoDates = Object.keys(d.dropCounts).sort();
-    d.isoDate = d.isoDates[d.isoDates.length - 1] || toIsoDate(d.date);
-    d.isoDates.forEach(iso => {
-      DATE_COUNTS[iso] = (DATE_COUNTS[iso] || 0) + (Number(d.dropCounts[iso]) || 0);
-    });
-  } else {
-    d.isoDate = toIsoDate(d.date);
-    d.isoDates = [d.isoDate];
-    DATE_COUNTS[d.isoDate] = (DATE_COUNTS[d.isoDate] || 0) + d.count;
-  }
-  d.date = getLocationDisplayDate(d);
-});
-const allDropDates = Object.keys(DATE_COUNTS).sort();
-let calendarMonth = allDropDates.length ? new Date(`${allDropDates[allDropDates.length-1]}T00:00:00`) : new Date();
-const TOTAL_STICKERS = DATA.reduce((sum, item) => sum + item.count, 0);
-const TOTAL_LOCATIONS = DATA.length;
-const TOTAL_CITIES = new Set(DATA.map(item => item.city)).size;
-const CITY_LOCATION_COUNTS = DATA.reduce((acc, item) => {
-  acc[item.city] = (acc[item.city] || 0) + 1;
-  return acc;
-}, {});
-let mapResizeTimer = 0;
-
-function isSupabaseConfigured() {
+let mapResizeTimer = 0;function isSupabaseConfigured() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return false;
   if (SUPABASE_ANON_KEY === SUPABASE_ANON_KEY_PLACEHOLDER) return false;
   return true;
@@ -3442,12 +3192,6 @@ function formatDisplayDate(iso) {
 }
 
 function updateStaticStats() {
-  setText('stats-total-stickers', TOTAL_STICKERS);
-  setText('stats-total-locations', TOTAL_LOCATIONS);
-  setText('stats-total-cities', TOTAL_CITIES);
-  setText('sidebar-sticker-count', TOTAL_STICKERS);
-  setText('sidebar-location-count', TOTAL_LOCATIONS);
-  setText('sidebar-city-count', TOTAL_CITIES);
 }
 
 function updateMapStatus(visible) {
@@ -4953,7 +4697,7 @@ document.getElementById('admin-pass').addEventListener('keydown', e => {
   if (e.key === 'Enter') goToAdmin();
 });
 
-initMap(); buildTabs(); updateStaticStats(); renderPins(); renderList(); initPanelResizer(); syncSidebarWidthForViewport(); syncSidebarTrackerForViewport(); loadCustomUpdates(); renderStickerCollage(); removeDuplicateFoundStickerSections(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity();
+loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }
