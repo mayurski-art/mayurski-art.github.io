@@ -12,9 +12,16 @@
       color: #fff;
     }
     .wrap {
-      max-width: 820px;
+      max-width: 1120px;
       margin: 36px auto;
       padding: 0 16px;
+    }
+    .hero-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
     }
     h1 { margin-bottom: 8px; }
     p { color: rgba(255,255,255,0.7); }
@@ -61,6 +68,92 @@
     .preview .item p {
       margin-bottom: 0;
     }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .editor-card {
+      position: sticky;
+      top: 16px;
+      align-self: start;
+    }
+    .preview-pane {
+      display: grid;
+      gap: 12px;
+    }
+    .pane-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .pane-head h3 {
+      margin: 0 0 4px;
+    }
+    .pane-subtitle {
+      margin: 0;
+      font-size: 0.92rem;
+    }
+    .pane-stats {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .pane-stats span,
+    .summary-note {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.82);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .preview-shell {
+      max-height: 530px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .preview-shell::-webkit-scrollbar {
+      width: 10px;
+    }
+    .preview-shell::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.18);
+      border-radius: 999px;
+    }
+    .preview-shell::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .collapsible summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .collapsible summary::-webkit-details-marker {
+      display: none;
+    }
+    .collapsible summary span:first-child {
+      font-weight: 700;
+    }
+    .collapsible[open] summary {
+      margin-bottom: 12px;
+    }
+    .collapsible-body {
+      padding-top: 2px;
+    }
+    .collapsible-body > :first-child {
+      margin-top: 0;
+    }
     .formatted-update-body p {
       margin: 10px 0 0;
     }
@@ -76,58 +169,96 @@
       margin-top: 6px;
     }
     a { color: #66aaff; }
+    @media (max-width: 960px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+      .editor-card {
+        position: static;
+      }
+      .preview-shell {
+        max-height: none;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Troll Runner Admin</h1>
-    <p>Add latest updates quickly. These updates save locally and also sync to shared Supabase storage so they appear on other devices.</p>
-    <p><a href="index.html">← Back to site</a></p>
+    <div class="hero-row">
+      <div>
+        <h1>Troll Runner Admin</h1>
+        <p>Add latest updates quickly. These updates save locally and also sync to shared Supabase storage so they appear on other devices.</p>
+      </div>
+      <p><a href="index.html">← Back to site</a></p>
+    </div>
 
-    <div class="card">
-      <label for="u-title">Update title</label>
-      <input id="u-title" placeholder="April 7, 2026 — New Drop">
+    <div class="workspace">
+      <div class="card editor-card">
+        <label for="u-title">Update title</label>
+        <input id="u-title" placeholder="April 7, 2026 — New Drop">
 
-      <div style="height:10px"></div>
-      <label for="u-body">Update body</label>
-      <textarea id="u-body" placeholder="Placed stickers at..."></textarea>
-      <p>Use `- item` for bullets or `1. item` for numbered lists.</p>
+        <div style="height:10px"></div>
+        <label for="u-body">Update body</label>
+        <textarea id="u-body" placeholder="Placed stickers at..."></textarea>
+        <p>Use `- item` for bullets or `1. item` for numbered lists.</p>
 
-      <div class="row">
-        <button id="update-submit-btn" onclick="addUpdate()">Add update</button>
-        <button id="update-cancel-btn" class="secondary" onclick="cancelUpdateEdit()" style="display:none;">Cancel edit</button>
-        <button class="secondary" onclick="clearUpdates()">Clear all custom updates</button>
+        <div class="row">
+          <button id="update-submit-btn" onclick="addUpdate()">Add update</button>
+          <button id="update-cancel-btn" class="secondary" onclick="cancelUpdateEdit()" style="display:none;">Cancel edit</button>
+          <button class="secondary" onclick="clearUpdates()">Clear all custom updates</button>
+        </div>
+      </div>
+
+      <div class="card preview preview-pane">
+        <div class="pane-head">
+          <div>
+            <h3>Updates & archives</h3>
+            <p class="pane-subtitle">Homepage items stay visible at the top. Archived items stay in the same pane so you can work faster.</p>
+          </div>
+          <div class="pane-stats">
+            <span id="update-count-pill">0 active</span>
+            <span id="archive-count-pill">0 archived</span>
+          </div>
+        </div>
+        <div class="preview-shell">
+          <div id="preview"></div>
+        </div>
       </div>
     </div>
 
-    <div class="card preview">
-      <h3>Updates & archives</h3>
-      <div id="preview"></div>
-    </div>
+    <details class="card collapsible">
+      <summary>
+        <span>Live status popup controls</span>
+        <span class="summary-note">Homepage toggles</span>
+      </summary>
+      <div class="collapsible-body">
+        <p>Toggle the homepage live popups shown below the Blog / Nutrition / Finance buttons.</p>
+        <p id="live-status-running-state">Running/trolling live popup is currently off.</p>
+        <p id="sync-state">Shared sync status will appear here.</p>
+        <div class="row">
+          <button class="alert" onclick="setLiveStatus('running', true)">Turn running/trolling on</button>
+          <button class="secondary" onclick="setLiveStatus('running', false)">Turn running/trolling off</button>
+        </div>
+        <p id="live-status-coding-state">Coding/trolling live popup is currently off.</p>
+        <div class="row">
+          <button class="success" onclick="setLiveStatus('coding', true)">Turn coding/trolling on</button>
+          <button class="secondary" onclick="setLiveStatus('coding', false)">Turn coding/trolling off</button>
+        </div>
+      </div>
+    </details>
 
-    <div class="card preview">
-      <h3>Live status popup controls</h3>
-      <p>Toggle the homepage live popups shown below the Blog / Nutrition / Finance buttons.</p>
-      <p id="live-status-running-state">Running/trolling live popup is currently off.</p>
-      <p id="sync-state">Shared sync status will appear here.</p>
-      <div class="row">
-        <button class="alert" onclick="setLiveStatus('running', true)">Turn running/trolling on</button>
-        <button class="secondary" onclick="setLiveStatus('running', false)">Turn running/trolling off</button>
+    <details class="card collapsible">
+      <summary>
+        <span>Feedback to admin system</span>
+        <span class="summary-note">Inbox</span>
+      </summary>
+      <div class="collapsible-body">
+        <div id="feedback-preview"></div>
+        <div class="row">
+          <button class="secondary" onclick="clearFeedback()">Clear feedback inbox</button>
+        </div>
       </div>
-      <p id="live-status-coding-state">Coding/trolling live popup is currently off.</p>
-      <div class="row">
-        <button class="success" onclick="setLiveStatus('coding', true)">Turn coding/trolling on</button>
-        <button class="secondary" onclick="setLiveStatus('coding', false)">Turn coding/trolling off</button>
-      </div>
-    </div>
-
-    <div class="card preview">
-      <h3>Feedback to admin system</h3>
-      <div id="feedback-preview"></div>
-      <div class="row">
-        <button class="secondary" onclick="clearFeedback()">Clear feedback inbox</button>
-      </div>
-    </div>
+    </details>
   </div>
 
   <script>
@@ -727,6 +858,10 @@ Working on improving fonts and backgrounds...`,
         ...combined.filter(item => item.archived),
         ...activePool.slice(MAX_VISIBLE_UPDATES),
       ].sort((a, b) => b.createdAt - a.createdAt);
+      const activeCount = document.getElementById('update-count-pill');
+      const archivedCount = document.getElementById('archive-count-pill');
+      if (activeCount) activeCount.textContent = `${active.length} active`;
+      if (archivedCount) archivedCount.textContent = `${archived.length} archived`;
       wrap.innerHTML = `
         <h4>Homepage (latest ${MAX_VISIBLE_UPDATES})</h4>
         ${renderUpdateList(active, 'No updates available.')}
