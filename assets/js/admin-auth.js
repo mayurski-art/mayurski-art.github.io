@@ -2,6 +2,7 @@
   const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
   const ADMIN_EMAIL_HASH = '4181a603ec6d4d7897801ff8192b8de3ec6bf993d85fd9bb3b599df246ec567a';
+  const ADMIN_LOGIN_EMAIL = window.atob('bWF5dXJjaGhpdHVAZ21haWwuY29t');
   const ADMIN_AUTH_KEY = 'trollrunner_admin_auth';
   const ROOT_REDIRECT_URL = new URL('/', window.location.origin).toString();
   let authClient = null;
@@ -43,21 +44,26 @@
   }
 
   async function hasAdminSession() {
-    const user = await getUser();
+    const [user, session] = await Promise.all([getUser(), getSession()]);
+    if (!user || !session) return false;
     const emailHash = await hashText(user?.email || '');
     return emailHash === ADMIN_EMAIL_HASH;
   }
 
-  async function signInWithGoogle(redirectTo = ROOT_REDIRECT_URL) {
+  function promptForAdminPassword() {
+    const password = window.prompt('Enter the admin password to unlock Trollrunner controls.');
+    if (password == null) return null;
+    return String(password);
+  }
+
+  async function signInWithAdminPassword(password) {
     const client = getAuthClient();
-    if (!client?.auth?.signInWithOAuth) {
-      throw new Error('Supabase auth is unavailable.');
+    if (!client?.auth?.signInWithPassword) {
+      throw new Error('Supabase password sign-in is unavailable.');
     }
-    const { error } = await client.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-      },
+    const { error } = await client.auth.signInWithPassword({
+      email: ADMIN_LOGIN_EMAIL,
+      password: String(password || ''),
     });
     if (error) throw error;
     return true;
@@ -97,30 +103,35 @@
     const gateButton = document.getElementById('gate-admin-link');
     if (authed) {
       localStorage.setItem(ADMIN_AUTH_KEY, '1');
-      writeStatus([footerStatus, gateStatus], 'Signed in as the admin Google account.', 'success');
+      writeStatus([footerStatus, gateStatus], 'Signed in as the admin account.', 'success');
       setButtonState(footerButton, true, 'Admin', 'Admin');
-      setButtonState(gateButton, true, 'Signed in', 'Sign in with Google');
+      setButtonState(gateButton, true, 'Signed in', 'Admin unlock');
       if (gateLockToggle) gateLockToggle.disabled = false;
     } else {
       localStorage.removeItem(ADMIN_AUTH_KEY);
-      writeStatus([footerStatus, gateStatus], 'Sign in with Google to unlock admin controls.', 'info');
+      writeStatus([footerStatus, gateStatus], 'Enter the admin password to unlock admin controls.', 'info');
       if (gateLockToggle) gateLockToggle.disabled = true;
-      setButtonState(footerButton, true, 'Sign in with Google', 'Sign in with Google');
-      setButtonState(gateButton, true, 'Sign in with Google', 'Sign in with Google');
+      setButtonState(footerButton, true, 'Admin unlock', 'Admin unlock');
+      setButtonState(gateButton, true, 'Admin unlock', 'Admin unlock');
     }
 
     return authed;
   }
 
-  async function requestAdminLink(redirectTo = ROOT_REDIRECT_URL) {
+  async function requestAdminLink() {
     const footerStatus = document.getElementById('admin-auth-status');
     const gateStatus = document.getElementById('gate-admin-status');
+    const password = promptForAdminPassword();
+    if (password == null) {
+      writeStatus([footerStatus, gateStatus], 'Admin unlock canceled.', 'info');
+      return false;
+    }
     try {
-      await signInWithGoogle(redirectTo);
-      writeStatus([footerStatus, gateStatus], 'Opening Google sign-in...', 'success');
+      await signInWithAdminPassword(password);
+      writeStatus([footerStatus, gateStatus], 'Admin unlocked.', 'success');
       return true;
     } catch (error) {
-      const message = error?.message ? String(error.message) : 'Unable to start Google sign-in.';
+      const message = error?.message ? String(error.message) : 'Unable to unlock admin controls.';
       writeStatus([footerStatus, gateStatus], message, 'error');
       return false;
     }
@@ -139,7 +150,12 @@
       window.location.href = 'admin.html';
       return true;
     }
-    return requestAdminLink(ROOT_REDIRECT_URL);
+    const unlocked = await requestAdminLink();
+    if (unlocked) {
+      window.location.href = 'admin.html';
+      return true;
+    }
+    return false;
   }
 
   function init() {
@@ -157,7 +173,7 @@
     getSession,
     getUser,
     hasAdminSession,
-    signInWithGoogle,
+    signInWithAdminPassword,
     requestAdminLink,
     ensureAdminSession,
     openAdminPageOrLink,
@@ -165,7 +181,7 @@
     refreshUi,
   };
 
-  window.requestAdminLoginLink = () => requestAdminLink(ROOT_REDIRECT_URL);
+  window.requestAdminLoginLink = () => requestAdminLink();
   window.goToAdmin = () => openAdminPageOrLink();
 
   if (document.readyState === 'loading') {

@@ -3218,9 +3218,9 @@ footer a:hover { color: #fff; }
           <span id="gate-lock-title" class="gate-lock-label">Site Lock</span>
           <span id="gate-lock-state" class="gate-lock-state">Public access open</span>
         </div>
-        <p class="gate-lock-copy">Sign in with Google, then tap the lock to keep the public on the preview screen.</p>
+        <p class="gate-lock-copy">Unlock the admin account, then tap the lock to keep the public on the preview screen.</p>
         <div class="gate-lock-row">
-          <button id="gate-admin-link" class="gate-save-btn" type="button">Sign in with Google</button>
+          <button id="gate-admin-link" class="gate-save-btn" type="button">Admin unlock</button>
           <button id="gate-lock-toggle" class="gate-lock-btn" type="button" aria-label="Lock public access" title="Lock public access">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -3400,7 +3400,7 @@ footer a:hover { color: #fff; }
           </svg>
         </a>
         <div id="admin-access">
-          <button id="admin-go" onclick="goToAdmin()">Sign in with Google</button>
+          <button id="admin-go" onclick="goToAdmin()">Admin unlock</button>
         </div>
         <div id="admin-auth-status" class="footer-admin-status" aria-live="polite"></div>
       </div>
@@ -3640,7 +3640,7 @@ function dismissSiteGate() {
       const remaining = Math.max(0, Math.ceil((record.pendingUntil - Date.now()) / 1000));
       setSiteGateLockFeedback(`Public access is locking in ${remaining}s.`, 'error');
     } else {
-      setSiteGateLockFeedback('Public access is locked. Sign in with Google first.', 'error');
+      setSiteGateLockFeedback('Public access is locked. Unlock the admin account first.', 'error');
     }
     const adminLinkBtn = document.getElementById('gate-admin-link');
     if (adminLinkBtn && typeof adminLinkBtn.focus === 'function') adminLinkBtn.focus();
@@ -3708,7 +3708,7 @@ function initializeSiteGate() {
     const helper = window.TrollrunnerAdminAuth;
     const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
     if (!authed) {
-      setSiteGateLockFeedback('Sign in with Google first.', 'error');
+      setSiteGateLockFeedback('Unlock the admin account first.', 'error');
       if (adminLinkBtn && typeof adminLinkBtn.focus === 'function') adminLinkBtn.focus();
       return;
     }
@@ -3724,10 +3724,10 @@ function initializeSiteGate() {
     adminLinkBtn.addEventListener('click', async () => {
       const helper = window.TrollrunnerAdminAuth;
       if (helper?.requestAdminLink) {
-        await helper.requestAdminLink(new URL('/', window.location.origin).toString());
+        await helper.requestAdminLink();
         return;
       }
-      setSiteGateLockFeedback('Google sign-in is unavailable right now.', 'error');
+      setSiteGateLockFeedback('Admin unlock is unavailable right now.', 'error');
     });
   }
 
@@ -5536,7 +5536,7 @@ async function goToAdmin() {
     window.location.href = 'admin.html';
     return;
   }
-  await helper.requestAdminLink(new URL('/', window.location.origin).toString());
+  await helper.requestAdminLink();
 }
 
 window.addEventListener('resize', ()=>{

@@ -262,10 +262,10 @@
         <button id="public-refresh-btn" class="secondary" type="button">Refresh status</button>
       </div>
       <div class="row">
-        <button id="admin-link-btn" class="secondary" type="button">Sign in with Google</button>
+        <button id="admin-link-btn" class="secondary" type="button">Admin unlock</button>
         <button id="admin-signout-btn" class="secondary" type="button">Sign out</button>
       </div>
-      <p id="admin-control-status" class="lock-console-status">Use Google sign-in to control the public lock.</p>
+      <p id="admin-control-status" class="lock-console-status">Use the admin password to control the public lock.</p>
     </div>
 
     <details class="card collapsible">
@@ -1192,7 +1192,7 @@ Working on improving fonts and backgrounds...`,
       if (controlStatus) {
         controlStatus.textContent = authed
           ? 'You are signed in and can control the public lock from here.'
-          : 'Sign in with Google to control the public lock.';
+          : 'Use the admin password to control the public lock.';
       }
       if (lockBtn) {
         lockBtn.disabled = !authed || isPending || isLocked;
@@ -1205,7 +1205,7 @@ Working on improving fonts and backgrounds...`,
       }
       if (linkBtn) {
         linkBtn.disabled = authed;
-        linkBtn.textContent = authed ? 'Google signed in' : 'Sign in with Google';
+        linkBtn.textContent = authed ? 'Admin signed in' : 'Admin unlock';
       }
       if (signOutBtn) {
         signOutBtn.disabled = !authed;
@@ -1216,7 +1216,7 @@ Working on improving fonts and backgrounds...`,
       const helper = window.TrollrunnerAdminAuth;
       const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
       if (!authed) {
-        alert('You need the Google sign-in session first.');
+        alert('Unlock the admin account first.');
         await refreshPublicLockConsole();
         return;
       }
@@ -1232,7 +1232,7 @@ Working on improving fonts and backgrounds...`,
     async function sendAdminLinkFromConsole() {
       const helper = window.TrollrunnerAdminAuth;
       if (!helper?.requestAdminLink) return;
-      await helper.requestAdminLink(new URL('/', window.location.origin).toString());
+      await helper.requestAdminLink();
       await refreshPublicLockConsole();
     }
 
