@@ -262,7 +262,7 @@
         <button id="public-refresh-btn" class="secondary" type="button">Refresh status</button>
       </div>
       <div class="row">
-        <button id="admin-link-btn" class="secondary" type="button">Admin unlock</button>
+        <button id="admin-link-btn" class="secondary" type="button">Unlock site</button>
         <button id="admin-signout-btn" class="secondary" type="button">Sign out</button>
       </div>
       <p id="admin-control-status" class="lock-console-status">Use the admin password to control the public lock.</p>
@@ -1205,7 +1205,7 @@ Working on improving fonts and backgrounds...`,
       }
       if (linkBtn) {
         linkBtn.disabled = authed;
-        linkBtn.textContent = authed ? 'Admin signed in' : 'Admin unlock';
+        linkBtn.textContent = 'Unlock site';
       }
       if (signOutBtn) {
         signOutBtn.disabled = !authed;

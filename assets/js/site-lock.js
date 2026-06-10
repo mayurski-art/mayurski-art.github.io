@@ -18,10 +18,7 @@
   let tickerEl = null;
   let statusEl = null;
   let countdownEl = null;
-  let adminStatusEl = null;
   let adminActionEl = null;
-  let adminToggleEl = null;
-  let adminSignOutEl = null;
   let authClient = null;
 
   function safeParse(raw, fallback) {
@@ -176,22 +173,9 @@
         text-transform: uppercase;
       }
       .site-lock-admin-panel {
-        display: grid;
-        gap: 10px;
-        justify-items: center;
-        margin-top: 18px;
-      }
-      .site-lock-admin-status {
-        color: rgba(255, 255, 255, 0.8);
-        font-size: clamp(11px, 1.4vw, 14px);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-      .site-lock-admin-buttons {
         display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
         justify-content: center;
+        margin-top: 18px;
       }
       .site-lock-admin-btn {
         border: 0.5px solid rgba(255,255,255,0.22);
@@ -235,12 +219,7 @@
         </div>
         <div id="site-lock-status" class="site-lock-overlay-subtext"></div>
         <div class="site-lock-admin-panel" aria-label="Admin access">
-          <div id="site-lock-admin-status" class="site-lock-admin-status"></div>
-          <div class="site-lock-admin-buttons">
-            <button id="site-lock-admin-action" class="site-lock-admin-btn is-accent" type="button">Admin unlock</button>
-            <button id="site-lock-admin-toggle" class="site-lock-admin-btn" type="button">Unlock site</button>
-            <button id="site-lock-admin-signout" class="site-lock-admin-btn" type="button">Sign out</button>
-          </div>
+          <button id="site-lock-admin-action" class="site-lock-admin-btn is-accent" type="button">Unlock site</button>
         </div>
       </div>
     `;
@@ -248,47 +227,14 @@
     tickerEl = overlayEl.querySelector('#site-lock-ticker-a');
     statusEl = overlayEl.querySelector('#site-lock-status');
     countdownEl = overlayEl.querySelector('#site-lock-ticker-b');
-    adminStatusEl = overlayEl.querySelector('#site-lock-admin-status');
     adminActionEl = overlayEl.querySelector('#site-lock-admin-action');
-    adminToggleEl = overlayEl.querySelector('#site-lock-admin-toggle');
-    adminSignOutEl = overlayEl.querySelector('#site-lock-admin-signout');
     if (adminActionEl) {
       adminActionEl.addEventListener('click', async () => {
         const helper = window.TrollrunnerAdminAuth;
-        if (!helper) {
-          if (adminStatusEl) adminStatusEl.textContent = 'Admin auth is loading.';
-          return;
-        }
-        const authed = helper.hasAdminSession ? await helper.hasAdminSession() : false;
-        if (authed && helper.openAdminPageOrLink) {
-          helper.openAdminPageOrLink();
-          return;
-        }
-        if (helper.requestAdminLink) {
-          await helper.requestAdminLink();
-          if (adminStatusEl) adminStatusEl.textContent = 'Enter the admin password, then come back once you are signed in.';
-        }
-      });
-    }
-    if (adminToggleEl) {
-      adminToggleEl.addEventListener('click', async () => {
-        const helper = window.TrollrunnerAdminAuth;
-        const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
-        if (!authed) {
-          if (adminStatusEl) adminStatusEl.textContent = 'Unlock the admin controls first.';
-          return;
-        }
-        const nextLocked = getComputedRecord().mode === 'open';
-        requestLockTransition(nextLocked);
-      });
-    }
-    if (adminSignOutEl) {
-      adminSignOutEl.addEventListener('click', async () => {
-        const helper = window.TrollrunnerAdminAuth;
-        if (helper?.signOut) {
-          await helper.signOut();
-          if (adminStatusEl) adminStatusEl.textContent = 'Signed out.';
-          renderOverlay();
+        if (!helper?.requestAdminLink) return;
+        const unlocked = await helper.requestAdminLink();
+        if (unlocked && window.TrollrunnerSiteLock?.requestLockTransition) {
+          window.TrollrunnerSiteLock.requestLockTransition(false);
         }
       });
     }
@@ -326,18 +272,12 @@
   }
 
   async function refreshAdminControls(state = getComputedRecord()) {
-    if (!adminStatusEl || !adminActionEl || !adminToggleEl || !adminSignOutEl) return;
+    if (!adminActionEl) return;
     const helper = window.TrollrunnerAdminAuth;
     const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
-
-    adminStatusEl.textContent = authed
-      ? 'Admin signed in.'
-      : 'Enter the admin password here without losing the warning screen.';
-
-    adminActionEl.textContent = authed ? 'Open admin console' : 'Admin unlock';
-    adminToggleEl.textContent = state.mode === 'open' ? 'Lock site' : 'Unlock site';
-    adminToggleEl.disabled = !authed;
-    adminSignOutEl.disabled = !authed;
+    adminActionEl.textContent = 'Unlock site';
+    adminActionEl.disabled = false;
+    adminActionEl.dataset.mode = authed ? 'authed' : 'locked';
   }
 
   function broadcastState() {

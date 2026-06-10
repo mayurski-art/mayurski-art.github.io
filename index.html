@@ -3220,7 +3220,7 @@ footer a:hover { color: #fff; }
         </div>
         <p class="gate-lock-copy">Unlock the admin account, then tap the lock to keep the public on the preview screen.</p>
         <div class="gate-lock-row">
-          <button id="gate-admin-link" class="gate-save-btn" type="button">Admin unlock</button>
+          <button id="gate-admin-link" class="gate-save-btn" type="button">Unlock site</button>
           <button id="gate-lock-toggle" class="gate-lock-btn" type="button" aria-label="Lock public access" title="Lock public access">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -3400,7 +3400,7 @@ footer a:hover { color: #fff; }
           </svg>
         </a>
         <div id="admin-access">
-          <button id="admin-go" onclick="goToAdmin()">Admin unlock</button>
+          <button id="admin-go" onclick="goToAdmin()">Unlock site</button>
         </div>
         <div id="admin-auth-status" class="footer-admin-status" aria-live="polite"></div>
       </div>
@@ -3727,7 +3727,7 @@ function initializeSiteGate() {
         await helper.requestAdminLink();
         return;
       }
-      setSiteGateLockFeedback('Admin unlock is unavailable right now.', 'error');
+      setSiteGateLockFeedback('Unlock site is unavailable right now.', 'error');
     });
   }
 

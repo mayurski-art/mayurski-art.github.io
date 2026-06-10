@@ -51,7 +51,7 @@
   }
 
   function promptForAdminPassword() {
-    const password = window.prompt('Enter the admin password to unlock Trollrunner controls.');
+    const password = window.prompt('Enter the admin password to unlock the Trollrunner website.');
     if (password == null) return null;
     return String(password);
   }
@@ -104,15 +104,15 @@
     if (authed) {
       localStorage.setItem(ADMIN_AUTH_KEY, '1');
       writeStatus([footerStatus, gateStatus], 'Signed in as the admin account.', 'success');
-      setButtonState(footerButton, true, 'Admin', 'Admin');
-      setButtonState(gateButton, true, 'Signed in', 'Admin unlock');
+      setButtonState(footerButton, true, 'Unlock site', 'Unlock site');
+      setButtonState(gateButton, true, 'Unlock site', 'Unlock site');
       if (gateLockToggle) gateLockToggle.disabled = false;
     } else {
       localStorage.removeItem(ADMIN_AUTH_KEY);
       writeStatus([footerStatus, gateStatus], 'Enter the admin password to unlock admin controls.', 'info');
       if (gateLockToggle) gateLockToggle.disabled = true;
-      setButtonState(footerButton, true, 'Admin unlock', 'Admin unlock');
-      setButtonState(gateButton, true, 'Admin unlock', 'Admin unlock');
+      setButtonState(footerButton, true, 'Unlock site', 'Unlock site');
+      setButtonState(gateButton, true, 'Unlock site', 'Unlock site');
     }
 
     return authed;
@@ -128,7 +128,11 @@
     }
     try {
       await signInWithAdminPassword(password);
-      writeStatus([footerStatus, gateStatus], 'Admin unlocked.', 'success');
+      const lockHelper = window.TrollrunnerSiteLock;
+      if (lockHelper?.requestLockTransition) {
+        lockHelper.requestLockTransition(false);
+      }
+      writeStatus([footerStatus, gateStatus], 'Website unlocked.', 'success');
       return true;
     } catch (error) {
       const message = error?.message ? String(error.message) : 'Unable to unlock admin controls.';
