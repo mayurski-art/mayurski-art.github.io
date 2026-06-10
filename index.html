@@ -5536,7 +5536,11 @@ async function goToAdmin() {
     window.location.href = 'admin.html';
     return;
   }
-  await helper.requestAdminLink();
+  const unlocked = await helper.requestAdminLink();
+  if (unlocked) {
+    localStorage.setItem(helper.adminAuthKey || 'trollrunner_admin_auth', '1');
+    window.location.href = 'admin.html';
+  }
 }
 
 window.addEventListener('resize', ()=>{

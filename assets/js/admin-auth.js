@@ -44,11 +44,13 @@
     const valid = await verifyAdminPassword(password);
     if (!valid) throw new Error('Wrong admin password.');
     localStorage.setItem(ADMIN_AUTH_KEY, '1');
+    await refreshUi();
     return true;
   }
 
   async function signOut() {
     localStorage.removeItem(ADMIN_AUTH_KEY);
+    await refreshUi();
     return true;
   }
 
@@ -104,6 +106,7 @@
       if (lockHelper?.requestLockTransition) {
         lockHelper.requestLockTransition(false);
       }
+      await refreshUi();
       writeStatus([footerStatus, gateStatus], 'Website unlocked.', 'success');
       return true;
     } catch (error) {
