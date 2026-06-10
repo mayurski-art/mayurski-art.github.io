@@ -3207,7 +3207,6 @@ footer a:hover { color: #fff; }
           <h3 id="gate-login-title">Login</h3>
           <form id="site-gate-login-form" class="gate-form">
             <input id="gate-login-name" class="gate-field" type="text" placeholder="Username or handle" autocomplete="nickname">
-            <input id="gate-login-email" class="gate-field" type="email" placeholder="Email or sign-in alias" autocomplete="email">
             <input id="gate-login-pass" class="gate-field" type="password" placeholder="Account password" autocomplete="current-password">
             <button class="gate-save-btn" type="submit">Login</button>
           </form>
@@ -3523,9 +3522,7 @@ function setSiteGateProfile(profile) {
 function hydrateSiteGateFields() {
   const profile = getSiteGateProfile();
   const name = document.getElementById('gate-login-name');
-  const email = document.getElementById('gate-login-email');
   if (name && typeof profile.name === 'string') name.value = profile.name;
-  if (email && typeof profile.email === 'string') email.value = profile.email;
 }
 
 function safeParseSiteGateLockRecord(raw) {
@@ -3661,7 +3658,6 @@ function initializeSiteGate() {
   const form = document.getElementById('site-gate-login-form');
   const focusButtons = document.querySelectorAll('[data-gate-focus]');
   const nameInput = document.getElementById('gate-login-name');
-  const emailInput = document.getElementById('gate-login-email');
   const passInput = document.getElementById('gate-login-pass');
   const adminLinkBtn = document.getElementById('gate-admin-link');
   const lockToggleBtn = document.getElementById('gate-lock-toggle');
@@ -3700,7 +3696,6 @@ function initializeSiteGate() {
       event.preventDefault();
       const profile = {
         name: String(nameInput?.value || '').trim(),
-        email: String(emailInput?.value || '').trim(),
         hasPassword: Boolean(String(passInput?.value || '').trim()),
         savedAt: new Date().toISOString(),
       };
