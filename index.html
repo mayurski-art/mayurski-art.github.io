@@ -327,6 +327,101 @@ body.site-entry-locked {
   text-align: center;
   cursor: pointer;
 }
+.gate-lock-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 14px;
+  border: 0.5px solid rgba(255,255,255,0.16);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+    rgba(0,0,0,0.12);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+.gate-lock-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.gate-lock-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.56);
+}
+.gate-lock-state {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8cffbf;
+}
+.gate-lock-state.is-locked {
+  color: #ff8ab8;
+}
+.gate-lock-copy {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255,255,255,0.72);
+}
+.gate-lock-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 8px;
+  align-items: center;
+}
+.gate-lock-pass {
+  min-width: 0;
+}
+.gate-lock-btn {
+  width: 44px;
+  height: 44px;
+  border: 0.5px solid rgba(255,255,255,0.22);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(112,255,235,0.2), rgba(255,74,184,0.16));
+  color: #fff;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.22);
+}
+.gate-lock-btn:hover {
+  border-color: rgba(255,255,255,0.34);
+}
+.gate-lock-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+.gate-lock-feedback {
+  min-height: 16px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.68);
+}
+.site-gate.is-public-locked .gate-enter-btn {
+  background: linear-gradient(135deg, rgba(255, 92, 148, 0.22), rgba(255,255,255,0.12));
+}
+.site-gate.is-public-locked .site-gate-preview::after {
+  content: 'PUBLIC LOCKED';
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  border: 0.5px solid rgba(255,255,255,0.24);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.32);
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #ff8ab8;
+}
 .site-gate.is-hidden {
   display: none;
 }
@@ -3131,6 +3226,24 @@ footer a:hover { color: #fff; }
           </form>
         </section>
       </div>
+
+      <section class="gate-lock-panel" aria-labelledby="gate-lock-title">
+        <div class="gate-lock-head">
+          <span id="gate-lock-title" class="gate-lock-label">Site Lock</span>
+          <span id="gate-lock-state" class="gate-lock-state">Public access open</span>
+        </div>
+        <p class="gate-lock-copy">Enter the admin password, then tap the lock to keep the public on the preview screen.</p>
+        <div class="gate-lock-row">
+          <input id="gate-lock-pass" class="gate-field gate-lock-pass" type="password" placeholder="Admin password" autocomplete="current-password">
+          <button id="gate-lock-toggle" class="gate-lock-btn" type="button" aria-label="Lock public access" title="Lock public access">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+              <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
+            </svg>
+          </button>
+        </div>
+        <div id="gate-lock-feedback" class="gate-lock-feedback" aria-live="polite"></div>
+      </section>
     </aside>
   </div>
 </div>
@@ -3330,6 +3443,7 @@ const VIEWER_ID_KEY = 'trollrunner_viewer_id_v1';
 const VIEWER_PRESENCE_CHANNEL = 'trollrunner-site-presence';
 const SITE_GATE_PROFILE_KEY = 'trollrunner_account_shell_v1';
 const SITE_GATE_SEEN_KEY = 'trollrunner_site_gate_seen_v1';
+const SITE_PUBLIC_LOCK_KEY = 'trollrunner_site_public_locked_v1';
 const FEEDBACK_SHEET_WEBHOOK_URL = '';
 const SEEDED_FEEDBACK_ENTRIES = [
   {
@@ -3425,11 +3539,84 @@ function hydrateSiteGateFields() {
   if (email && typeof profile.email === 'string') email.value = profile.email;
 }
 
+function isSitePublicLocked() {
+  return localStorage.getItem(SITE_PUBLIC_LOCK_KEY) === '1';
+}
+
+function setSitePublicLocked(locked) {
+  localStorage.setItem(SITE_PUBLIC_LOCK_KEY, locked ? '1' : '0');
+  updateSiteGateLockUI();
+}
+
+function renderSiteGateLockIcon(locked) {
+  if (locked) {
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+        <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
+      </svg>`;
+  }
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M7 10V8a5 5 0 019.9-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+      <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
+    </svg>`;
+}
+
+function updateSiteGateLockUI() {
+  const gate = document.getElementById('site-gate');
+  const stateNode = document.getElementById('gate-lock-state');
+  const feedbackNode = document.getElementById('gate-lock-feedback');
+  const toggleBtn = document.getElementById('gate-lock-toggle');
+  const locked = isSitePublicLocked();
+
+  if (gate) {
+    gate.classList.toggle('is-public-locked', locked);
+    if (locked) gate.classList.remove('is-hidden');
+  }
+  document.body.classList.toggle('site-entry-locked', locked || !gate || !gate.classList.contains('is-hidden'));
+  if (stateNode) {
+    stateNode.textContent = locked ? 'Public access locked' : 'Public access open';
+    stateNode.classList.toggle('is-locked', locked);
+  }
+  if (toggleBtn) {
+    toggleBtn.innerHTML = renderSiteGateLockIcon(locked);
+    toggleBtn.setAttribute('aria-label', locked ? 'Unlock public access' : 'Lock public access');
+    toggleBtn.setAttribute('title', locked ? 'Unlock public access' : 'Lock public access');
+  }
+  if (feedbackNode && !feedbackNode.dataset.manual) {
+    feedbackNode.textContent = locked
+      ? 'Locked. Public visitors stay on the preview screen.'
+      : 'Unlocked. Visitors can press Enter to enter the site.';
+  }
+}
+
+function setSiteGateLockFeedback(message, kind = 'info') {
+  const feedbackNode = document.getElementById('gate-lock-feedback');
+  if (!feedbackNode) return;
+  feedbackNode.dataset.manual = '1';
+  feedbackNode.textContent = message;
+  feedbackNode.style.color = kind === 'error' ? '#ff9ab6' : 'rgba(255,255,255,0.72)';
+  window.clearTimeout(setSiteGateLockFeedback._timer);
+  setSiteGateLockFeedback._timer = window.setTimeout(() => {
+    delete feedbackNode.dataset.manual;
+    feedbackNode.style.color = '';
+    updateSiteGateLockUI();
+  }, 2200);
+}
+
 function dismissSiteGate() {
   const gate = document.getElementById('site-gate');
+  if (isSitePublicLocked()) {
+    setSiteGateLockFeedback('Public access is locked. Unlock with the admin password first.', 'error');
+    const lockPass = document.getElementById('gate-lock-pass');
+    if (lockPass && typeof lockPass.focus === 'function') lockPass.focus();
+    return false;
+  }
   document.body.classList.remove('site-entry-locked');
   if (gate) gate.classList.add('is-hidden');
   localStorage.setItem(SITE_GATE_SEEN_KEY, '1');
+  return true;
 }
 
 function initializeSiteGate() {
@@ -3440,14 +3627,18 @@ function initializeSiteGate() {
   const nameInput = document.getElementById('gate-login-name');
   const emailInput = document.getElementById('gate-login-email');
   const passInput = document.getElementById('gate-login-pass');
+  const lockPassInput = document.getElementById('gate-lock-pass');
+  const lockToggleBtn = document.getElementById('gate-lock-toggle');
   const gate = document.getElementById('site-gate');
   if (!gate) {
     document.body.classList.remove('site-entry-locked');
     return;
   }
 
+  updateSiteGateLockUI();
+
   const tryEnter = () => {
-    dismissSiteGate();
+    if (!dismissSiteGate()) return;
     window.setTimeout(() => {
       const focusTarget = document.getElementById('spotify-play-pause') || document.querySelector('main a, main button, main input, main textarea');
       if (focusTarget && typeof focusTarget.focus === 'function') focusTarget.focus();
@@ -3481,16 +3672,50 @@ function initializeSiteGate() {
     });
   }
 
+  const toggleSiteLock = () => {
+    const enteredPassword = String(lockPassInput?.value || '').trim();
+    if (!enteredPassword) {
+      setSiteGateLockFeedback('Enter the admin password first.', 'error');
+      if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
+      return;
+    }
+    if (enteredPassword !== ADMIN_PASSWORD) {
+      setSiteGateLockFeedback('Wrong password. The lock stays put.', 'error');
+      if (lockPassInput) lockPassInput.select?.();
+      return;
+    }
+    const nextLocked = !isSitePublicLocked();
+    setSitePublicLocked(nextLocked);
+    setSiteGateLockFeedback(nextLocked ? 'Public access is now locked.' : 'Public access is now open.');
+    if (lockPassInput) lockPassInput.value = '';
+  };
+
+  if (lockToggleBtn) {
+    lockToggleBtn.addEventListener('click', toggleSiteLock);
+  }
+  if (lockPassInput) {
+    lockPassInput.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      toggleSiteLock();
+    });
+  }
+
   window.addEventListener('keydown', event => {
     if (event.key !== 'Enter' || gate.classList.contains('is-hidden')) return;
     const active = document.activeElement;
     if (active && ['INPUT', 'TEXTAREA'].includes(active.tagName)) {
+      if (active === lockPassInput) return;
       if (active === passInput) return;
       return;
     }
     event.preventDefault();
     tryEnter();
   }, { once: false });
+
+  window.addEventListener('storage', event => {
+    if (event.key === SITE_PUBLIC_LOCK_KEY) updateSiteGateLockUI();
+  });
 
 }
 
