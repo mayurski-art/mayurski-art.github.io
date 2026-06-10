@@ -1,53 +1,32 @@
 (function () {
-  const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
-  const ADMIN_EMAIL_HASH = '4181a603ec6d4d7897801ff8192b8de3ec6bf993d85fd9bb3b599df246ec567a';
-  const ADMIN_LOGIN_EMAIL = window.atob('bWF5dXJjaGhpdHVAZ21haWwuY29t');
   const ADMIN_AUTH_KEY = 'trollrunner_admin_auth';
-  const ROOT_REDIRECT_URL = new URL('/', window.location.origin).toString();
-  let authClient = null;
-
-  function getAuthClient() {
-    if (authClient) return authClient;
-    if (!window.supabase?.createClient) return null;
-    authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    });
-    return authClient;
-  }
-
-  async function getSession() {
-    const client = getAuthClient();
-    if (!client?.auth?.getSession) return null;
-    const { data, error } = await client.auth.getSession();
-    if (error) return null;
-    return data?.session || null;
-  }
-
-  async function getUser() {
-    const client = getAuthClient();
-    if (!client?.auth?.getUser) return null;
-    const { data, error } = await client.auth.getUser();
-    if (error) return null;
-    return data?.user || null;
-  }
+  const ADMIN_PASSWORD_SALT = 'trollrunner-public-lock-v2';
+  const ADMIN_PASSWORD_HASH = 'f7bd3dc03b760781a16bcafb96650c619632b1610903352272804046815b6f8d';
 
   async function hashText(text) {
-    const normalized = String(text || '').trim().toLowerCase();
-    const bytes = new TextEncoder().encode(normalized);
+    const bytes = new TextEncoder().encode(String(text || ''));
     const hashBuffer = await window.crypto.subtle.digest('SHA-256', bytes);
     return Array.from(new Uint8Array(hashBuffer)).map(byte => byte.toString(16).padStart(2, '0')).join('');
   }
 
+  function getAuthClient() {
+    return null;
+  }
+
+  async function getSession() {
+    return localStorage.getItem(ADMIN_AUTH_KEY) === '1'
+      ? { provider: 'local-password' }
+      : null;
+  }
+
+  async function getUser() {
+    return localStorage.getItem(ADMIN_AUTH_KEY) === '1'
+      ? { role: 'admin' }
+      : null;
+  }
+
   async function hasAdminSession() {
-    const [user, session] = await Promise.all([getUser(), getSession()]);
-    if (!user || !session) return false;
-    const emailHash = await hashText(user?.email || '');
-    return emailHash === ADMIN_EMAIL_HASH;
+    return localStorage.getItem(ADMIN_AUTH_KEY) === '1';
   }
 
   function promptForAdminPassword() {
@@ -56,24 +35,19 @@
     return String(password);
   }
 
+  async function verifyAdminPassword(password) {
+    const candidateHash = await hashText(`${ADMIN_PASSWORD_SALT}:${password}`);
+    return candidateHash === ADMIN_PASSWORD_HASH;
+  }
+
   async function signInWithAdminPassword(password) {
-    const client = getAuthClient();
-    if (!client?.auth?.signInWithPassword) {
-      throw new Error('Supabase password sign-in is unavailable.');
-    }
-    const { error } = await client.auth.signInWithPassword({
-      email: ADMIN_LOGIN_EMAIL,
-      password: String(password || ''),
-    });
-    if (error) throw error;
+    const valid = await verifyAdminPassword(password);
+    if (!valid) throw new Error('Wrong admin password.');
+    localStorage.setItem(ADMIN_AUTH_KEY, '1');
     return true;
   }
 
   async function signOut() {
-    const client = getAuthClient();
-    if (!client?.auth?.signOut) return false;
-    const { error } = await client.auth.signOut();
-    if (error) throw error;
     localStorage.removeItem(ADMIN_AUTH_KEY);
     return true;
   }
@@ -102,14 +76,12 @@
     const footerButton = document.getElementById('admin-go');
     const gateButton = document.getElementById('gate-admin-link');
     if (authed) {
-      localStorage.setItem(ADMIN_AUTH_KEY, '1');
-      writeStatus([footerStatus, gateStatus], 'Signed in as the admin account.', 'success');
+      writeStatus([footerStatus, gateStatus], 'Admin controls are unlocked.', 'success');
       setButtonState(footerButton, true, 'Unlock site', 'Unlock site');
       setButtonState(gateButton, true, 'Unlock site', 'Unlock site');
       if (gateLockToggle) gateLockToggle.disabled = false;
     } else {
-      localStorage.removeItem(ADMIN_AUTH_KEY);
-      writeStatus([footerStatus, gateStatus], 'Enter the admin password to unlock admin controls.', 'info');
+      writeStatus([footerStatus, gateStatus], '', 'info');
       if (gateLockToggle) gateLockToggle.disabled = true;
       setButtonState(footerButton, true, 'Unlock site', 'Unlock site');
       setButtonState(gateButton, true, 'Unlock site', 'Unlock site');
@@ -123,7 +95,7 @@
     const gateStatus = document.getElementById('gate-admin-status');
     const password = promptForAdminPassword();
     if (password == null) {
-      writeStatus([footerStatus, gateStatus], 'Admin unlock canceled.', 'info');
+      writeStatus([footerStatus, gateStatus], 'Unlock canceled.', 'info');
       return false;
     }
     try {
@@ -135,22 +107,19 @@
       writeStatus([footerStatus, gateStatus], 'Website unlocked.', 'success');
       return true;
     } catch (error) {
-      const message = error?.message ? String(error.message) : 'Unable to unlock admin controls.';
+      const message = error?.message ? String(error.message) : 'Unable to unlock the website.';
       writeStatus([footerStatus, gateStatus], message, 'error');
       return false;
     }
   }
 
   async function ensureAdminSession() {
-    const authed = await hasAdminSession();
-    if (authed) localStorage.setItem(ADMIN_AUTH_KEY, '1');
-    return authed;
+    return hasAdminSession();
   }
 
   async function openAdminPageOrLink() {
     const authed = await hasAdminSession();
     if (authed) {
-      localStorage.setItem(ADMIN_AUTH_KEY, '1');
       window.location.href = 'admin.html';
       return true;
     }
@@ -163,17 +132,15 @@
   }
 
   function init() {
-    const client = getAuthClient();
-    if (client?.auth?.onAuthStateChange) {
-      client.auth.onAuthStateChange(() => {
-        void refreshUi();
-      });
-    }
     void refreshUi();
+    window.addEventListener('storage', event => {
+      if (event.key === ADMIN_AUTH_KEY) void refreshUi();
+    });
   }
 
   window.TrollrunnerAdminAuth = {
     adminAuthKey: ADMIN_AUTH_KEY,
+    getAuthClient,
     getSession,
     getUser,
     hasAdminSession,
