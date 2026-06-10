@@ -262,10 +262,10 @@
         <button id="public-refresh-btn" class="secondary" type="button">Refresh status</button>
       </div>
       <div class="row">
-        <button id="admin-link-btn" class="secondary" type="button">Send admin link</button>
+        <button id="admin-link-btn" class="secondary" type="button">Sign in with Google</button>
         <button id="admin-signout-btn" class="secondary" type="button">Sign out</button>
       </div>
-      <p id="admin-control-status" class="lock-console-status">Use the email link sign-in to control the public lock.</p>
+      <p id="admin-control-status" class="lock-console-status">Use Google sign-in to control the public lock.</p>
     </div>
 
     <details class="card collapsible">
@@ -1175,7 +1175,7 @@ Working on improving fonts and backgrounds...`,
       const isLocked = record.mode === 'locked' || isPending;
       const remaining = isPending ? Math.max(0, Math.ceil((record.pendingUntil - Date.now()) / 1000)) : 0;
 
-      if (authPill) authPill.textContent = authed ? `Admin: ${helper?.adminEmail || 'signed in'}` : 'Admin: signed out';
+      if (authPill) authPill.textContent = authed ? 'Admin: signed in' : 'Admin: signed out';
       if (lockPill) {
         lockPill.textContent = isPending
           ? `Public: warning ${remaining}s`
@@ -1192,7 +1192,7 @@ Working on improving fonts and backgrounds...`,
       if (controlStatus) {
         controlStatus.textContent = authed
           ? 'You are signed in and can control the public lock from here.'
-          : 'Send yourself the admin link to control the public lock.';
+          : 'Sign in with Google to control the public lock.';
       }
       if (lockBtn) {
         lockBtn.disabled = !authed || isPending || isLocked;
@@ -1205,7 +1205,7 @@ Working on improving fonts and backgrounds...`,
       }
       if (linkBtn) {
         linkBtn.disabled = authed;
-        linkBtn.textContent = authed ? 'Admin link sent' : 'Send admin link';
+        linkBtn.textContent = authed ? 'Google signed in' : 'Sign in with Google';
       }
       if (signOutBtn) {
         signOutBtn.disabled = !authed;
@@ -1216,7 +1216,7 @@ Working on improving fonts and backgrounds...`,
       const helper = window.TrollrunnerAdminAuth;
       const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
       if (!authed) {
-        alert('You need the admin link session first.');
+        alert('You need the Google sign-in session first.');
         await refreshPublicLockConsole();
         return;
       }

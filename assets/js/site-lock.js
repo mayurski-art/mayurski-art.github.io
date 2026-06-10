@@ -237,7 +237,7 @@
         <div class="site-lock-admin-panel" aria-label="Admin access">
           <div id="site-lock-admin-status" class="site-lock-admin-status"></div>
           <div class="site-lock-admin-buttons">
-            <button id="site-lock-admin-action" class="site-lock-admin-btn is-accent" type="button">Admin access</button>
+            <button id="site-lock-admin-action" class="site-lock-admin-btn is-accent" type="button">Sign in with Google</button>
             <button id="site-lock-admin-toggle" class="site-lock-admin-btn" type="button">Unlock site</button>
             <button id="site-lock-admin-signout" class="site-lock-admin-btn" type="button">Sign out</button>
           </div>
@@ -266,7 +266,7 @@
         }
         if (helper.requestAdminLink) {
           await helper.requestAdminLink(new URL('/', window.location.origin).toString());
-          if (adminStatusEl) adminStatusEl.textContent = 'Admin link sent. Check your inbox, then come back and sign in.';
+          if (adminStatusEl) adminStatusEl.textContent = 'Google sign-in opened. Come back once you are signed in.';
         }
       });
     }
@@ -275,7 +275,7 @@
         const helper = window.TrollrunnerAdminAuth;
         const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
         if (!authed) {
-          if (adminStatusEl) adminStatusEl.textContent = 'Sign in with the admin link first.';
+          if (adminStatusEl) adminStatusEl.textContent = 'Sign in with Google first.';
           return;
         }
         const nextLocked = getComputedRecord().mode === 'open';
@@ -331,10 +331,10 @@
     const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
 
     adminStatusEl.textContent = authed
-      ? `Admin signed in as ${helper?.adminEmail || 'you'}.`
+      ? 'Admin signed in.'
       : 'Admin can sign in from here without losing the warning screen.';
 
-    adminActionEl.textContent = authed ? 'Open admin console' : 'Send admin link';
+    adminActionEl.textContent = authed ? 'Open admin console' : 'Sign in with Google';
     adminToggleEl.textContent = state.mode === 'open' ? 'Lock site' : 'Unlock site';
     adminToggleEl.disabled = !authed;
     adminSignOutEl.disabled = !authed;

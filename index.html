@@ -2700,16 +2700,6 @@ footer a:hover { color: #fff; }
   box-shadow: 0 10px 24px rgba(0,0,0,0.35);
   backdrop-filter: blur(10px);
 }
-#admin-email {
-  width: 140px;
-  border: 0.5px solid rgba(255,255,255,0.2);
-  border-radius: 8px;
-  background: rgba(255,255,255,0.08);
-  color: #fff;
-  font-size: 12px;
-  padding: 6px 8px;
-}
-#admin-email::placeholder { color: rgba(255,255,255,0.55); }
 #admin-go {
   border: 0.5px solid rgba(255,255,255,0.25);
   border-radius: 8px;
@@ -3024,7 +3014,7 @@ footer a:hover { color: #fff; }
     max-height: calc(48vh - 70px);
   }
 
-  #admin-email { width: 120px; }
+  #admin-go { width: 120px; }
 }
 
 @media (max-width: 640px), (pointer: coarse) and (max-device-width: 480px) {
@@ -3229,9 +3219,9 @@ footer a:hover { color: #fff; }
           <span id="gate-lock-title" class="gate-lock-label">Site Lock</span>
           <span id="gate-lock-state" class="gate-lock-state">Public access open</span>
         </div>
-        <p class="gate-lock-copy">Send a link to the admin email, then tap the lock to keep the public on the preview screen.</p>
+        <p class="gate-lock-copy">Sign in with Google, then tap the lock to keep the public on the preview screen.</p>
         <div class="gate-lock-row">
-          <button id="gate-admin-link" class="gate-save-btn" type="button">Send admin link</button>
+          <button id="gate-admin-link" class="gate-save-btn" type="button">Sign in with Google</button>
           <button id="gate-lock-toggle" class="gate-lock-btn" type="button" aria-label="Lock public access" title="Lock public access">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -3411,8 +3401,7 @@ footer a:hover { color: #fff; }
           </svg>
         </a>
         <div id="admin-access">
-          <input id="admin-email" type="email" value="mayurchhitu@gmail.com" placeholder="Admin email" autocomplete="email">
-          <button id="admin-go" onclick="goToAdmin()">Admin</button>
+          <button id="admin-go" onclick="goToAdmin()">Sign in with Google</button>
         </div>
         <div id="admin-auth-status" class="footer-admin-status" aria-live="polite"></div>
       </div>
@@ -3654,7 +3643,7 @@ function dismissSiteGate() {
       const remaining = Math.max(0, Math.ceil((record.pendingUntil - Date.now()) / 1000));
       setSiteGateLockFeedback(`Public access is locking in ${remaining}s.`, 'error');
     } else {
-      setSiteGateLockFeedback('Public access is locked. Sign in with the admin email first.', 'error');
+      setSiteGateLockFeedback('Public access is locked. Sign in with Google first.', 'error');
     }
     const adminLinkBtn = document.getElementById('gate-admin-link');
     if (adminLinkBtn && typeof adminLinkBtn.focus === 'function') adminLinkBtn.focus();
@@ -3724,7 +3713,7 @@ function initializeSiteGate() {
     const helper = window.TrollrunnerAdminAuth;
     const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
     if (!authed) {
-      setSiteGateLockFeedback('Send the admin link first.', 'error');
+      setSiteGateLockFeedback('Sign in with Google first.', 'error');
       if (adminLinkBtn && typeof adminLinkBtn.focus === 'function') adminLinkBtn.focus();
       return;
     }
@@ -3743,7 +3732,7 @@ function initializeSiteGate() {
         await helper.requestAdminLink(new URL('/', window.location.origin).toString());
         return;
       }
-      setSiteGateLockFeedback('Admin auth is unavailable right now.', 'error');
+      setSiteGateLockFeedback('Google sign-in is unavailable right now.', 'error');
     });
   }
 
@@ -5570,10 +5559,6 @@ document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   if (cityMenuOpen) closeCityMenu();
 });
-document.getElementById('admin-email').addEventListener('keydown', e => {
-  if (e.key === 'Enter') goToAdmin();
-});
-
 initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);

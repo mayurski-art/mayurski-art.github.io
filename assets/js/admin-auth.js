@@ -1,7 +1,7 @@
 (function () {
   const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
-  const ADMIN_EMAIL = 'mayurchhitu@gmail.com';
+  const ADMIN_EMAIL_HASH = '4181a603ec6d4d7897801ff8192b8de3ec6bf993d85fd9bb3b599df246ec567a';
   const ADMIN_AUTH_KEY = 'trollrunner_admin_auth';
   const ROOT_REDIRECT_URL = new URL('/', window.location.origin).toString();
   let authClient = null;
@@ -35,20 +35,28 @@
     return data?.user || null;
   }
 
-  async function hasAdminSession() {
-    const user = await getUser();
-    return String(user?.email || '').toLowerCase() === ADMIN_EMAIL;
+  async function hashText(text) {
+    const normalized = String(text || '').trim().toLowerCase();
+    const bytes = new TextEncoder().encode(normalized);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(hashBuffer)).map(byte => byte.toString(16).padStart(2, '0')).join('');
   }
 
-  async function sendMagicLink(email = ADMIN_EMAIL, redirectTo = ROOT_REDIRECT_URL) {
+  async function hasAdminSession() {
+    const user = await getUser();
+    const emailHash = await hashText(user?.email || '');
+    return emailHash === ADMIN_EMAIL_HASH;
+  }
+
+  async function signInWithGoogle(redirectTo = ROOT_REDIRECT_URL) {
     const client = getAuthClient();
-    if (!client?.auth?.signInWithOtp) {
+    if (!client?.auth?.signInWithOAuth) {
       throw new Error('Supabase auth is unavailable.');
     }
-    const { error } = await client.auth.signInWithOtp({
-      email,
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
       options: {
-        emailRedirectTo: redirectTo,
+        redirectTo,
       },
     });
     if (error) throw error;
@@ -87,23 +95,18 @@
     const gateLockToggle = document.getElementById('gate-lock-toggle');
     const footerButton = document.getElementById('admin-go');
     const gateButton = document.getElementById('gate-admin-link');
-    const footerEmail = document.getElementById('admin-email');
-
-    if (footerEmail && !footerEmail.value) footerEmail.value = ADMIN_EMAIL;
-    if (footerEmail) footerEmail.readOnly = true;
-
     if (authed) {
       localStorage.setItem(ADMIN_AUTH_KEY, '1');
-      writeStatus([footerStatus, gateStatus], `Signed in as ${ADMIN_EMAIL}.`, 'success');
+      writeStatus([footerStatus, gateStatus], 'Signed in as the admin Google account.', 'success');
       setButtonState(footerButton, true, 'Admin', 'Admin');
-      setButtonState(gateButton, true, 'Signed in', 'Send admin link');
+      setButtonState(gateButton, true, 'Signed in', 'Sign in with Google');
       if (gateLockToggle) gateLockToggle.disabled = false;
     } else {
       localStorage.removeItem(ADMIN_AUTH_KEY);
-      writeStatus([footerStatus, gateStatus], `Send a sign-in link to ${ADMIN_EMAIL}.`, 'info');
+      writeStatus([footerStatus, gateStatus], 'Sign in with Google to unlock admin controls.', 'info');
       if (gateLockToggle) gateLockToggle.disabled = true;
-      setButtonState(footerButton, true, 'Send link', 'Send link');
-      setButtonState(gateButton, true, 'Send admin link', 'Send admin link');
+      setButtonState(footerButton, true, 'Sign in with Google', 'Sign in with Google');
+      setButtonState(gateButton, true, 'Sign in with Google', 'Sign in with Google');
     }
 
     return authed;
@@ -113,11 +116,11 @@
     const footerStatus = document.getElementById('admin-auth-status');
     const gateStatus = document.getElementById('gate-admin-status');
     try {
-      await sendMagicLink(ADMIN_EMAIL, redirectTo);
-      writeStatus([footerStatus, gateStatus], `Magic link sent to ${ADMIN_EMAIL}. Check your inbox.`, 'success');
+      await signInWithGoogle(redirectTo);
+      writeStatus([footerStatus, gateStatus], 'Opening Google sign-in...', 'success');
       return true;
     } catch (error) {
-      const message = error?.message ? String(error.message) : 'Unable to send admin link.';
+      const message = error?.message ? String(error.message) : 'Unable to start Google sign-in.';
       writeStatus([footerStatus, gateStatus], message, 'error');
       return false;
     }
@@ -150,12 +153,11 @@
   }
 
   window.TrollrunnerAdminAuth = {
-    adminEmail: ADMIN_EMAIL,
     adminAuthKey: ADMIN_AUTH_KEY,
     getSession,
     getUser,
     hasAdminSession,
-    sendMagicLink,
+    signInWithGoogle,
     requestAdminLink,
     ensureAdminSession,
     openAdminPageOrLink,
