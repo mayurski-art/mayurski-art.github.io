@@ -73,6 +73,8 @@ body.site-entry-locked {
   grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.9fr);
   gap: 16px;
   align-items: stretch;
+  transform: scale(0.9);
+  transform-origin: center;
 }
 .site-gate-panel {
   border: 0.5px solid rgba(255,255,255,0.18);
@@ -102,20 +104,6 @@ body.site-entry-locked {
 .site-gate-preview > * {
   position: relative;
   z-index: 1;
-}
-.gate-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  border: 0.5px solid rgba(255,255,255,0.18);
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  padding: 7px 11px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .gate-title {
   max-width: 12ch;
@@ -160,7 +148,11 @@ body.site-entry-locked {
   padding: 22px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(122, 245, 255, 0.16), transparent 30%),
+    radial-gradient(circle at 92% 28%, rgba(255, 74, 184, 0.16), transparent 34%),
+    rgba(255,255,255,0.08);
 }
 .site-gate-login h2 {
   margin: 0;
@@ -179,6 +171,138 @@ body.site-entry-locked {
   display: grid;
   gap: 10px;
 }
+.gate-account-stack {
+  display: grid;
+  gap: 10px;
+}
+.gate-account-card {
+  position: relative;
+  overflow: hidden;
+  border: 0.5px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04)),
+    rgba(0,0,0,0.18);
+  padding: 14px;
+  min-height: 142px;
+  padding-right: 104px;
+}
+.gate-account-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(112, 255, 235, 0.18), transparent 42%, rgba(255, 69, 183, 0.14));
+  opacity: 0.7;
+  pointer-events: none;
+}
+.gate-account-card > * {
+  position: relative;
+  z-index: 1;
+}
+.gate-card-troll {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.82;
+  filter: drop-shadow(0 10px 12px rgba(0,0,0,0.42)) contrast(1.08) saturate(1.04);
+}
+.gate-card-troll-monopoly-wrap {
+  right: 11px;
+  bottom: 8px;
+  width: 89px;
+  height: 89px;
+  animation: gate-card-monopoly-float 3.8s ease-in-out infinite;
+}
+.gate-card-troll-monopoly {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 89px;
+  aspect-ratio: 350 / 324;
+  display: block;
+  background: url('assets/images/trollmonopoly-transparent-sprite.png') 0 0 / 3000% 100% no-repeat;
+  animation:
+    header-monopoly-frames 1.35s steps(29, end) infinite,
+    gate-card-monopoly-wobble 1.2s ease-in-out infinite;
+}
+.gate-card-troll-youngster-wrap {
+  right: 17px;
+  bottom: 8px;
+  width: 62px;
+  height: 96px;
+  animation: gate-card-youngster-float 3.2s ease-in-out infinite;
+}
+.gate-card-troll-youngster {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 56px;
+  aspect-ratio: 323 / 498;
+  display: block;
+  background: url('assets/images/trollyoungster-transparent-sprite.png') 0 0 / 1200% 100% no-repeat;
+  animation:
+    header-youngster-frames 1.1s steps(11, end) infinite,
+    gate-card-youngster-wobble 620ms ease-in-out infinite;
+}
+@keyframes gate-card-monopoly-float {
+  0%, 100% { transform: translate(0, 0) rotate(-7deg) scale(0.98); }
+  35% { transform: translate(-6px, -8px) rotate(8deg) scale(1.06); }
+  68% { transform: translate(4px, -2px) rotate(-4deg) scale(1.01); }
+}
+@keyframes gate-card-monopoly-wobble {
+  0%, 100% { transform: rotate(3deg) scaleX(1); }
+  50% { transform: rotate(-8deg) scaleX(1.08); }
+}
+@keyframes gate-card-youngster-float {
+  0%, 100% { transform: translate(0, 0) rotate(6deg) scale(0.96); }
+  42% { transform: translate(7px, -10px) rotate(-9deg) scale(1.05); }
+  72% { transform: translate(-5px, -3px) rotate(5deg) scale(1); }
+}
+@keyframes gate-card-youngster-wobble {
+  0%, 100% { transform: rotate(-3deg) scaleX(1); }
+  50% { transform: rotate(6deg) scaleX(1.06); }
+}
+.gate-account-card--register {
+  box-shadow: inset 0 0 0 1px rgba(112, 255, 235, 0.1), 0 16px 30px rgba(0,0,0,0.18);
+}
+.gate-account-card--login {
+  box-shadow: inset 0 0 0 1px rgba(255, 74, 184, 0.1), 0 16px 30px rgba(0,0,0,0.18);
+}
+.gate-account-kicker {
+  display: none;
+}
+.gate-account-card h3 {
+  margin: 10px 0 6px;
+  font-size: 18px;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+.gate-account-card p {
+  margin: 0;
+  color: rgba(255,255,255,0.72);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.gate-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.gate-action-btn {
+  border: 0.5px solid rgba(255,255,255,0.24);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(117,255,237,0.24), rgba(255,255,255,0.08));
+  color: #fff;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.gate-action-btn--ghost {
+  background: rgba(255,255,255,0.08);
+}
 .gate-field {
   width: 100%;
   border: 0.5px solid rgba(255,255,255,0.18);
@@ -194,42 +318,14 @@ body.site-entry-locked {
 }
 .gate-save-btn {
   border: 0.5px solid rgba(255,255,255,0.24);
-  border-radius: 10px;
-  background: rgba(255,255,255,0.13);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 74, 184, 0.2), rgba(112, 255, 235, 0.14));
   color: #fff;
   padding: 12px 14px;
   font-size: 13px;
   font-weight: 800;
+  text-align: center;
   cursor: pointer;
-}
-.gate-info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-.gate-info-card {
-  border: 0.5px solid rgba(255,255,255,0.16);
-  border-radius: 10px;
-  background: rgba(0,0,0,0.16);
-  padding: 11px 12px;
-}
-.gate-info-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.54);
-}
-.gate-info-value {
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 1.35;
-  color: rgba(255,255,255,0.92);
-}
-.gate-status {
-  font-size: 12px;
-  line-height: 1.45;
-  color: rgba(255,255,255,0.66);
 }
 .site-gate.is-hidden {
   display: none;
@@ -2542,9 +2638,6 @@ footer a:hover { color: #fff; }
   .site-gate {
     padding: 12px;
   }
-  .site-gate-shell {
-    grid-template-columns: 1fr;
-  }
   .site-gate-preview {
     min-height: 320px;
     padding: 20px;
@@ -2556,8 +2649,20 @@ footer a:hover { color: #fff; }
   .site-gate-login {
     padding: 18px;
   }
-  .gate-info-grid {
-    grid-template-columns: 1fr;
+  .gate-account-card {
+    padding-right: 86px;
+  }
+  .gate-card-troll-monopoly-wrap {
+    width: 62px;
+    height: 62px;
+  }
+  .gate-card-troll-youngster-wrap {
+    right: 12px;
+    width: 54px;
+    height: 84px;
+  }
+  .gate-card-troll-youngster {
+    width: 48px;
   }
   header { padding: 22px 16px 14px; }
   header h1 { font-size: 30px; }
@@ -2970,7 +3075,10 @@ footer a:hover { color: #fff; }
   .header-monopoly-wrap,
   .header-monopoly,
   .header-youngster-wrap,
-  .header-youngster {
+  .header-youngster,
+  .gate-card-troll,
+  .gate-card-troll-monopoly,
+  .gate-card-troll-youngster {
     animation: none;
   }
   .sticker-collage-item.is-visible {
@@ -2986,10 +3094,8 @@ footer a:hover { color: #fff; }
 <div id="site-gate" class="site-gate" role="dialog" aria-modal="true" aria-labelledby="site-gate-title">
   <div class="site-gate-shell">
     <section class="site-gate-panel site-gate-preview">
-      <div class="gate-badge">Preview Screen</div>
       <div>
         <h1 id="site-gate-title" class="gate-title">Troll Runner</h1>
-        <p class="gate-copy">Press enter to step into the front screen. This is the gate before the chaos starts.</p>
       </div>
       <div class="gate-launch-row">
         <button id="site-gate-enter" class="gate-enter-btn" type="button">Press Enter</button>
@@ -2997,36 +3103,34 @@ footer a:hover { color: #fff; }
       </div>
     </section>
 
-    <aside class="site-gate-panel site-gate-login" aria-label="Account placeholder">
+    <aside class="site-gate-panel site-gate-login" aria-label="Account access">
       <div>
-        <h2>Account Vault</h2>
-        <p class="gate-section-copy">A placeholder account shell for chats, fitness tracker data, game progress, and future site settings.</p>
+        <h2>Account Access</h2>
+        <p class="gate-section-copy">Become part of a community that wishes to see troll RUN to billions.</p>
       </div>
-      <form id="site-gate-login-form" class="gate-form">
-        <input id="gate-login-name" class="gate-field" type="text" placeholder="Username or handle" autocomplete="nickname">
-        <input id="gate-login-email" class="gate-field" type="email" placeholder="Email or sign-in alias" autocomplete="email">
-        <input id="gate-login-pass" class="gate-field" type="password" placeholder="Account password" autocomplete="current-password">
-        <button class="gate-save-btn" type="submit">Save account shell</button>
-      </form>
-      <div class="gate-info-grid" aria-label="Account saves">
-        <div class="gate-info-card">
-          <div class="gate-info-label">Chats</div>
-          <div class="gate-info-value">Message history and conversation context</div>
-        </div>
-        <div class="gate-info-card">
-          <div class="gate-info-label">Fitness</div>
-          <div class="gate-info-value">Goals, workouts, and progress markers</div>
-        </div>
-        <div class="gate-info-card">
-          <div class="gate-info-label">Games</div>
-          <div class="gate-info-value">Scores, saves, and profile unlocks</div>
-        </div>
-        <div class="gate-info-card">
-          <div class="gate-info-label">Profile</div>
-          <div class="gate-info-value">Preferences, badges, and site identity</div>
-        </div>
+      <div class="gate-account-stack">
+        <section class="gate-account-card gate-account-card--register" aria-labelledby="gate-register-title">
+          <span class="gate-card-troll gate-card-troll-monopoly-wrap" aria-hidden="true">
+            <span class="gate-card-troll-monopoly"></span>
+          </span>
+          <h3 id="gate-register-title">Create Account</h3>
+          <div class="gate-action-row">
+            <button class="gate-action-btn" type="button" data-gate-focus="gate-login-name">Register</button>
+          </div>
+        </section>
+        <section class="gate-account-card gate-account-card--login" aria-labelledby="gate-login-title">
+          <span class="gate-card-troll gate-card-troll-youngster-wrap" aria-hidden="true">
+            <span class="gate-card-troll-youngster"></span>
+          </span>
+          <h3 id="gate-login-title">Login</h3>
+          <form id="site-gate-login-form" class="gate-form">
+            <input id="gate-login-name" class="gate-field" type="text" placeholder="Username or handle" autocomplete="nickname">
+            <input id="gate-login-email" class="gate-field" type="email" placeholder="Email or sign-in alias" autocomplete="email">
+            <input id="gate-login-pass" class="gate-field" type="password" placeholder="Account password" autocomplete="current-password">
+            <button class="gate-save-btn" type="submit">Login</button>
+          </form>
+        </section>
       </div>
-      <div id="gate-account-status" class="gate-status">Nothing is synced yet. This is the shell for the future account system.</div>
     </aside>
   </div>
 </div>
@@ -3313,11 +3417,6 @@ function setSiteGateProfile(profile) {
   localStorage.setItem(SITE_GATE_SEEN_KEY, '1');
 }
 
-function updateGateStatus(message) {
-  const node = document.getElementById('gate-account-status');
-  if (node) node.textContent = message;
-}
-
 function hydrateSiteGateFields() {
   const profile = getSiteGateProfile();
   const name = document.getElementById('gate-login-name');
@@ -3337,6 +3436,7 @@ function initializeSiteGate() {
   hydrateSiteGateFields();
   const enterBtn = document.getElementById('site-gate-enter');
   const form = document.getElementById('site-gate-login-form');
+  const focusButtons = document.querySelectorAll('[data-gate-focus]');
   const nameInput = document.getElementById('gate-login-name');
   const emailInput = document.getElementById('gate-login-email');
   const passInput = document.getElementById('gate-login-pass');
@@ -3358,6 +3458,15 @@ function initializeSiteGate() {
     enterBtn.addEventListener('click', tryEnter);
   }
 
+  focusButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-gate-focus');
+      const target = targetId ? document.getElementById(targetId) : null;
+      if (target && typeof target.focus === 'function') target.focus();
+      if (target === enterBtn) tryEnter();
+    });
+  });
+
   if (form) {
     form.addEventListener('submit', event => {
       event.preventDefault();
@@ -3368,9 +3477,6 @@ function initializeSiteGate() {
         savedAt: new Date().toISOString(),
       };
       setSiteGateProfile(profile);
-      updateGateStatus(profile.name || profile.email
-        ? `Saved for ${profile.name || profile.email}. This account shell will hold chats, fitness, and game data later.`
-        : 'Saved as a local placeholder account shell.');
       tryEnter();
     });
   }
@@ -3386,7 +3492,6 @@ function initializeSiteGate() {
     tryEnter();
   }, { once: false });
 
-  updateGateStatus('This account shell is local for now. It is ready to store chats, fitness tracker data, game info, and site preferences later.');
 }
 
 function getViewerId() {
