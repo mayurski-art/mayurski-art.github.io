@@ -51,6 +51,189 @@ html, body {
   background: var(--bg-shell);
   color: white;
 }
+body.site-entry-locked {
+  overflow: hidden;
+}
+
+.site-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 15% 18%, rgba(93, 150, 255, 0.26), transparent 26%),
+    radial-gradient(circle at 82% 16%, rgba(255, 91, 125, 0.22), transparent 24%),
+    linear-gradient(145deg, rgba(7, 9, 20, 0.98), rgba(22, 13, 48, 0.98) 42%, rgba(10, 22, 46, 0.98));
+}
+.site-gate-shell {
+  width: min(1120px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.9fr);
+  gap: 16px;
+  align-items: stretch;
+}
+.site-gate-panel {
+  border: 0.5px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.34);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+.site-gate-preview {
+  position: relative;
+  min-height: 430px;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0) 30%),
+    url('assets/animations/start-line-sparks.jpg') center/cover no-repeat;
+}
+.site-gate-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(2,4,14,0.42), rgba(2,4,14,0.72) 64%, rgba(2,4,14,0.86));
+}
+.site-gate-preview > * {
+  position: relative;
+  z-index: 1;
+}
+.gate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  border: 0.5px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  padding: 7px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.gate-title {
+  max-width: 12ch;
+  margin: 0;
+  font-size: clamp(48px, 7vw, 82px);
+  line-height: 0.92;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-shadow: 0 10px 28px rgba(0,0,0,0.38);
+}
+.gate-copy {
+  max-width: 28ch;
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(255,255,255,0.8);
+}
+.gate-launch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.gate-enter-btn {
+  border: 0.5px solid rgba(255,255,255,0.26);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(115,225,255,0.18));
+  color: #fff;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+}
+.gate-enter-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.68);
+}
+.site-gate-login {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.site-gate-login h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.gate-section-copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.72);
+}
+.gate-form {
+  display: grid;
+  gap: 10px;
+}
+.gate-field {
+  width: 100%;
+  border: 0.5px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  padding: 12px 13px;
+  font-size: 13px;
+  font-family: var(--font);
+}
+.gate-field::placeholder {
+  color: rgba(255,255,255,0.48);
+}
+.gate-save-btn {
+  border: 0.5px solid rgba(255,255,255,0.24);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.13);
+  color: #fff;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.gate-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.gate-info-card {
+  border: 0.5px solid rgba(255,255,255,0.16);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.16);
+  padding: 11px 12px;
+}
+.gate-info-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.54);
+}
+.gate-info-value {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.92);
+}
+.gate-status {
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255,255,255,0.66);
+}
+.site-gate.is-hidden {
+  display: none;
+}
 
 /* ── HEADER ── */
 header {
@@ -2356,6 +2539,26 @@ footer a:hover { color: #fff; }
 
 /* ── MOBILE ── */
 @media (max-width: 900px) {
+  .site-gate {
+    padding: 12px;
+  }
+  .site-gate-shell {
+    grid-template-columns: 1fr;
+  }
+  .site-gate-preview {
+    min-height: 320px;
+    padding: 20px;
+  }
+  .gate-title {
+    max-width: 10ch;
+    font-size: clamp(38px, 14vw, 54px);
+  }
+  .site-gate-login {
+    padding: 18px;
+  }
+  .gate-info-grid {
+    grid-template-columns: 1fr;
+  }
   header { padding: 22px 16px 14px; }
   header h1 { font-size: 30px; }
   #biography .bio-copy { display: none; }
@@ -2778,7 +2981,55 @@ footer a:hover { color: #fff; }
 
 </style>
 </head>
-<body>
+<body class="site-entry-locked">
+
+<div id="site-gate" class="site-gate" role="dialog" aria-modal="true" aria-labelledby="site-gate-title">
+  <div class="site-gate-shell">
+    <section class="site-gate-panel site-gate-preview">
+      <div class="gate-badge">Preview Screen</div>
+      <div>
+        <h1 id="site-gate-title" class="gate-title">Troll Runner</h1>
+        <p class="gate-copy">Press enter to step into the front screen. This is the gate before the chaos starts.</p>
+      </div>
+      <div class="gate-launch-row">
+        <button id="site-gate-enter" class="gate-enter-btn" type="button">Press Enter</button>
+        <span class="gate-enter-hint">or hit Enter on your keyboard</span>
+      </div>
+    </section>
+
+    <aside class="site-gate-panel site-gate-login" aria-label="Account placeholder">
+      <div>
+        <h2>Account Vault</h2>
+        <p class="gate-section-copy">A placeholder account shell for chats, fitness tracker data, game progress, and future site settings.</p>
+      </div>
+      <form id="site-gate-login-form" class="gate-form">
+        <input id="gate-login-name" class="gate-field" type="text" placeholder="Username or handle" autocomplete="nickname">
+        <input id="gate-login-email" class="gate-field" type="email" placeholder="Email or sign-in alias" autocomplete="email">
+        <input id="gate-login-pass" class="gate-field" type="password" placeholder="Account password" autocomplete="current-password">
+        <button class="gate-save-btn" type="submit">Save account shell</button>
+      </form>
+      <div class="gate-info-grid" aria-label="Account saves">
+        <div class="gate-info-card">
+          <div class="gate-info-label">Chats</div>
+          <div class="gate-info-value">Message history and conversation context</div>
+        </div>
+        <div class="gate-info-card">
+          <div class="gate-info-label">Fitness</div>
+          <div class="gate-info-value">Goals, workouts, and progress markers</div>
+        </div>
+        <div class="gate-info-card">
+          <div class="gate-info-label">Games</div>
+          <div class="gate-info-value">Scores, saves, and profile unlocks</div>
+        </div>
+        <div class="gate-info-card">
+          <div class="gate-info-label">Profile</div>
+          <div class="gate-info-value">Preferences, badges, and site identity</div>
+        </div>
+      </div>
+      <div id="gate-account-status" class="gate-status">Nothing is synced yet. This is the shell for the future account system.</div>
+    </aside>
+  </div>
+</div>
 
 <header>
   <div class="header-row">
@@ -2973,6 +3224,8 @@ const SUPABASE_ANON_KEY_PLACEHOLDER = 'your_anon_public_key';
 const SUPABASE_TABLE = 'site_updates';
 const VIEWER_ID_KEY = 'trollrunner_viewer_id_v1';
 const VIEWER_PRESENCE_CHANNEL = 'trollrunner-site-presence';
+const SITE_GATE_PROFILE_KEY = 'trollrunner_account_shell_v1';
+const SITE_GATE_SEEN_KEY = 'trollrunner_site_gate_seen_v1';
 const FEEDBACK_SHEET_WEBHOOK_URL = '';
 const SEEDED_FEEDBACK_ENTRIES = [
   {
@@ -3045,6 +3298,95 @@ function applyLiveStatusVisibility() {
   if (codingPill) {
     codingPill.classList.toggle('is-visible', readStoredLiveStatus(LIVE_CODING_STATUS_KEY));
   }
+}
+
+function getSiteGateProfile() {
+  try {
+    return JSON.parse(localStorage.getItem(SITE_GATE_PROFILE_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function setSiteGateProfile(profile) {
+  localStorage.setItem(SITE_GATE_PROFILE_KEY, JSON.stringify(profile));
+  localStorage.setItem(SITE_GATE_SEEN_KEY, '1');
+}
+
+function updateGateStatus(message) {
+  const node = document.getElementById('gate-account-status');
+  if (node) node.textContent = message;
+}
+
+function hydrateSiteGateFields() {
+  const profile = getSiteGateProfile();
+  const name = document.getElementById('gate-login-name');
+  const email = document.getElementById('gate-login-email');
+  if (name && typeof profile.name === 'string') name.value = profile.name;
+  if (email && typeof profile.email === 'string') email.value = profile.email;
+}
+
+function dismissSiteGate() {
+  const gate = document.getElementById('site-gate');
+  document.body.classList.remove('site-entry-locked');
+  if (gate) gate.classList.add('is-hidden');
+  localStorage.setItem(SITE_GATE_SEEN_KEY, '1');
+}
+
+function initializeSiteGate() {
+  hydrateSiteGateFields();
+  const enterBtn = document.getElementById('site-gate-enter');
+  const form = document.getElementById('site-gate-login-form');
+  const nameInput = document.getElementById('gate-login-name');
+  const emailInput = document.getElementById('gate-login-email');
+  const passInput = document.getElementById('gate-login-pass');
+  const gate = document.getElementById('site-gate');
+  if (!gate) {
+    document.body.classList.remove('site-entry-locked');
+    return;
+  }
+
+  const tryEnter = () => {
+    dismissSiteGate();
+    window.setTimeout(() => {
+      const focusTarget = document.getElementById('spotify-play-pause') || document.querySelector('main a, main button, main input, main textarea');
+      if (focusTarget && typeof focusTarget.focus === 'function') focusTarget.focus();
+    }, 0);
+  };
+
+  if (enterBtn) {
+    enterBtn.addEventListener('click', tryEnter);
+  }
+
+  if (form) {
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const profile = {
+        name: String(nameInput?.value || '').trim(),
+        email: String(emailInput?.value || '').trim(),
+        hasPassword: Boolean(String(passInput?.value || '').trim()),
+        savedAt: new Date().toISOString(),
+      };
+      setSiteGateProfile(profile);
+      updateGateStatus(profile.name || profile.email
+        ? `Saved for ${profile.name || profile.email}. This account shell will hold chats, fitness, and game data later.`
+        : 'Saved as a local placeholder account shell.');
+      tryEnter();
+    });
+  }
+
+  window.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || gate.classList.contains('is-hidden')) return;
+    const active = document.activeElement;
+    if (active && ['INPUT', 'TEXTAREA'].includes(active.tagName)) {
+      if (active === passInput) return;
+      return;
+    }
+    event.preventDefault();
+    tryEnter();
+  }, { once: false });
+
+  updateGateStatus('This account shell is local for now. It is ready to store chats, fitness tracker data, game info, and site preferences later.');
 }
 
 function getViewerId() {
@@ -4808,7 +5150,7 @@ document.getElementById('admin-pass').addEventListener('keydown', e => {
   if (e.key === 'Enter') goToAdmin();
 });
 
-loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence();
+initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }
