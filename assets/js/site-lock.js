@@ -18,6 +18,7 @@
   let tickerEl = null;
   let statusEl = null;
   let countdownEl = null;
+  let authClient = null;
 
   function safeParse(raw, fallback) {
     try {
@@ -42,6 +43,37 @@
 
   function getStoredRecord() {
     return normalizeRecord(safeParse(localStorage.getItem(SITE_LOCK_STORAGE_KEY), {}));
+  }
+
+  function getAuthClient() {
+    if (authClient) return authClient;
+    if (!window.supabase?.createClient) return null;
+    authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+    return authClient;
+  }
+
+  async function getAuthHeaders() {
+    const headers = {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    };
+    const client = getAuthClient();
+    if (!client?.auth?.getSession) return headers;
+    try {
+      const { data } = await client.auth.getSession();
+      const token = data?.session?.access_token;
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {}
+    return headers;
   }
 
   function setStoredRecord(record) {
@@ -214,11 +246,7 @@
         id: `eq.${SUPABASE_ROW_ID}`,
         limit: '1',
       });
-      const headers = {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      };
+      const headers = await getAuthHeaders();
       const existingResponse = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, { headers });
       if (!existingResponse.ok) return false;
       const json = await existingResponse.json();
@@ -256,10 +284,7 @@
         limit: '1',
       });
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        },
+        headers: await getAuthHeaders(),
       });
       if (!response.ok) return;
       const json = await response.json();

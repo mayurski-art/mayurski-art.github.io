@@ -374,9 +374,6 @@ body.site-entry-locked {
   gap: 8px;
   align-items: center;
 }
-.gate-lock-pass {
-  min-width: 0;
-}
 .gate-lock-btn {
   width: 44px;
   height: 44px;
@@ -2703,7 +2700,7 @@ footer a:hover { color: #fff; }
   box-shadow: 0 10px 24px rgba(0,0,0,0.35);
   backdrop-filter: blur(10px);
 }
-#admin-pass {
+#admin-email {
   width: 140px;
   border: 0.5px solid rgba(255,255,255,0.2);
   border-radius: 8px;
@@ -2712,7 +2709,7 @@ footer a:hover { color: #fff; }
   font-size: 12px;
   padding: 6px 8px;
 }
-#admin-pass::placeholder { color: rgba(255,255,255,0.55); }
+#admin-email::placeholder { color: rgba(255,255,255,0.55); }
 #admin-go {
   border: 0.5px solid rgba(255,255,255,0.25);
   border-radius: 8px;
@@ -3027,7 +3024,7 @@ footer a:hover { color: #fff; }
     max-height: calc(48vh - 70px);
   }
 
-  #admin-pass { width: 120px; }
+  #admin-email { width: 120px; }
 }
 
 @media (max-width: 640px), (pointer: coarse) and (max-device-width: 480px) {
@@ -3232,9 +3229,9 @@ footer a:hover { color: #fff; }
           <span id="gate-lock-title" class="gate-lock-label">Site Lock</span>
           <span id="gate-lock-state" class="gate-lock-state">Public access open</span>
         </div>
-        <p class="gate-lock-copy">Enter the admin password, then tap the lock to keep the public on the preview screen.</p>
+        <p class="gate-lock-copy">Send a link to the admin email, then tap the lock to keep the public on the preview screen.</p>
         <div class="gate-lock-row">
-          <input id="gate-lock-pass" class="gate-field gate-lock-pass" type="password" placeholder="Admin password" autocomplete="current-password">
+          <button id="gate-admin-link" class="gate-save-btn" type="button">Send admin link</button>
           <button id="gate-lock-toggle" class="gate-lock-btn" type="button" aria-label="Lock public access" title="Lock public access">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -3242,6 +3239,7 @@ footer a:hover { color: #fff; }
             </svg>
           </button>
         </div>
+        <div id="gate-admin-status" class="gate-lock-feedback" aria-live="polite"></div>
         <div id="gate-lock-feedback" class="gate-lock-feedback" aria-live="polite"></div>
       </section>
     </aside>
@@ -3413,9 +3411,10 @@ footer a:hover { color: #fff; }
           </svg>
         </a>
         <div id="admin-access">
-          <input id="admin-pass" type="password" placeholder="Admin password">
+          <input id="admin-email" type="email" value="mayurchhitu@gmail.com" placeholder="Admin email" autocomplete="email">
           <button id="admin-go" onclick="goToAdmin()">Admin</button>
         </div>
+        <div id="admin-auth-status" class="footer-admin-status" aria-live="polite"></div>
       </div>
       <div class="footer-project">Community Project</div>
       <div class="footer-art-credit">Original Art: <a class="footer-credit-swish" href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer">@SwishPng</a> | Adapted: <a class="footer-credit-troll" href="https://twitter.com/troll_runner" target="_blank" rel="noreferrer">@troll_runner</a></div>
@@ -3426,9 +3425,9 @@ footer a:hover { color: #fff; }
 
 <script src="assets/js/site-lock.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/admin-auth.js"></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
-const ADMIN_PASSWORD = '#Mayur2626';
 const ADMIN_UPDATES_KEY = 'trollrunner_updates';
 const ADMIN_FEEDBACK_KEY = 'trollrunner_feedback';
 const SHARED_FEEDBACK_META_ID = '__trollrunner_feedback_meta__';
@@ -3655,10 +3654,10 @@ function dismissSiteGate() {
       const remaining = Math.max(0, Math.ceil((record.pendingUntil - Date.now()) / 1000));
       setSiteGateLockFeedback(`Public access is locking in ${remaining}s.`, 'error');
     } else {
-      setSiteGateLockFeedback('Public access is locked. Unlock with the admin password first.', 'error');
+      setSiteGateLockFeedback('Public access is locked. Sign in with the admin email first.', 'error');
     }
-    const lockPass = document.getElementById('gate-lock-pass');
-    if (lockPass && typeof lockPass.focus === 'function') lockPass.focus();
+    const adminLinkBtn = document.getElementById('gate-admin-link');
+    if (adminLinkBtn && typeof adminLinkBtn.focus === 'function') adminLinkBtn.focus();
     return false;
   }
   document.body.classList.remove('site-entry-locked');
@@ -3675,7 +3674,7 @@ function initializeSiteGate() {
   const nameInput = document.getElementById('gate-login-name');
   const emailInput = document.getElementById('gate-login-email');
   const passInput = document.getElementById('gate-login-pass');
-  const lockPassInput = document.getElementById('gate-lock-pass');
+  const adminLinkBtn = document.getElementById('gate-admin-link');
   const lockToggleBtn = document.getElementById('gate-lock-toggle');
   const gate = document.getElementById('site-gate');
   if (!gate) {
@@ -3721,32 +3720,30 @@ function initializeSiteGate() {
     });
   }
 
-  const toggleSiteLock = () => {
-    const enteredPassword = String(lockPassInput?.value || '').trim();
-    if (!enteredPassword) {
-      setSiteGateLockFeedback('Enter the admin password first.', 'error');
-      if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
-      return;
-    }
-    if (enteredPassword !== ADMIN_PASSWORD) {
-      setSiteGateLockFeedback('Wrong password. The lock stays put.', 'error');
-      if (lockPassInput) lockPassInput.select?.();
+  const toggleSiteLock = async () => {
+    const helper = window.TrollrunnerAdminAuth;
+    const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
+    if (!authed) {
+      setSiteGateLockFeedback('Send the admin link first.', 'error');
+      if (adminLinkBtn && typeof adminLinkBtn.focus === 'function') adminLinkBtn.focus();
       return;
     }
     const nextLocked = getSitePublicLockRecord().mode === 'open';
     setSitePublicLocked(nextLocked);
     setSiteGateLockFeedback(nextLocked ? 'Warning sent. Public access locks in 10 seconds.' : 'Public access is now open.');
-    if (lockPassInput) lockPassInput.value = '';
   };
 
   if (lockToggleBtn) {
     lockToggleBtn.addEventListener('click', toggleSiteLock);
   }
-  if (lockPassInput) {
-    lockPassInput.addEventListener('keydown', event => {
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      toggleSiteLock();
+  if (adminLinkBtn) {
+    adminLinkBtn.addEventListener('click', async () => {
+      const helper = window.TrollrunnerAdminAuth;
+      if (helper?.requestAdminLink) {
+        await helper.requestAdminLink(new URL('/', window.location.origin).toString());
+        return;
+      }
+      setSiteGateLockFeedback('Admin auth is unavailable right now.', 'error');
     });
   }
 
@@ -3754,7 +3751,6 @@ function initializeSiteGate() {
     if (event.key !== 'Enter' || gate.classList.contains('is-hidden')) return;
     const active = document.activeElement;
     if (active && ['INPUT', 'TEXTAREA'].includes(active.tagName)) {
-      if (active === lockPassInput) return;
       if (active === passInput) return;
       return;
     }
@@ -3764,6 +3760,7 @@ function initializeSiteGate() {
 
   window.addEventListener('storage', event => {
     if (event.key === SITE_PUBLIC_LOCK_KEY || event.key === window.TrollrunnerSiteLock?.storageKey) updateSiteGateLockUI();
+    if (event.key === window.TrollrunnerAdminAuth?.adminAuthKey) updateSiteGateLockUI();
   });
 
 }
@@ -5543,25 +5540,19 @@ function setupLivePosterCountdown() {
   }, 1000);
 }
 
-const ADMIN_PASSWORD_TROLL_MESSAGES = [
-  'Wrong password. Back to the starting line.',
-  'You’re trolling… but not that good.',
-  'Admin access requires elite runner stats. Looks like you can try burning some calories.',
-  'You trained to run my website… right? How about running outside for a change?'
-];
-let adminFailedAttempts = 0;
-
-function goToAdmin() {
-  const pass = document.getElementById('admin-pass').value;
-  if (pass !== ADMIN_PASSWORD) {
-    adminFailedAttempts += 1;
-    const idx = Math.min(adminFailedAttempts - 1, ADMIN_PASSWORD_TROLL_MESSAGES.length - 1);
-    alert(ADMIN_PASSWORD_TROLL_MESSAGES[idx]);
+async function goToAdmin() {
+  const helper = window.TrollrunnerAdminAuth;
+  if (!helper) {
+    alert('Admin auth is still loading. Please try again in a moment.');
     return;
   }
-  adminFailedAttempts = 0;
-  localStorage.setItem('trollrunner_admin_auth', '1');
-  window.location.href = 'admin.html';
+  const authed = helper.hasAdminSession ? await helper.hasAdminSession() : false;
+  if (authed) {
+    localStorage.setItem(helper.adminAuthKey || 'trollrunner_admin_auth', '1');
+    window.location.href = 'admin.html';
+    return;
+  }
+  await helper.requestAdminLink(new URL('/', window.location.origin).toString());
 }
 
 window.addEventListener('resize', ()=>{
@@ -5579,7 +5570,7 @@ document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   if (cityMenuOpen) closeCityMenu();
 });
-document.getElementById('admin-pass').addEventListener('keydown', e => {
+document.getElementById('admin-email').addEventListener('keydown', e => {
   if (e.key === 'Enter') goToAdmin();
 });
 
@@ -5590,3 +5581,4 @@ if (isSupabaseConfigured()) {
 </script>
 </body>
 </html>
+
