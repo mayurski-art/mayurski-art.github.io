@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trollrunner Live Chat</title>
+  <style>
+    :root {
+      --bg: #07080c;
+      --panel: rgba(14, 17, 24, 0.96);
+      --panel-2: rgba(20, 24, 34, 0.95);
+      --line: rgba(255, 255, 255, 0.12);
+      --line-strong: rgba(132, 245, 255, 0.6);
+      --text: rgba(255, 255, 255, 0.94);
+      --muted: rgba(255, 255, 255, 0.62);
+      --accent: #8cffbf;
+      --accent-2: #72f1ff;
+      --hot: #ff76c8;
+      --font-display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top, rgba(108, 236, 255, 0.11), transparent 34%),
+        radial-gradient(circle at 85% 0%, rgba(255, 118, 200, 0.12), transparent 24%),
+        linear-gradient(180deg, #0c0f15 0%, var(--bg) 100%);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; }
+
+    .page {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 18px 18px 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .brand {
+      display: grid;
+      gap: 6px;
+    }
+    .brand h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(34px, 4vw, 48px);
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      line-height: 0.92;
+    }
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.04em;
+    }
+    .home-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .home-link:hover { border-color: var(--line-strong); }
+
+    #live-chat-band {
+      display: grid;
+      grid-template-columns: minmax(240px, 0.8fr) minmax(360px, 1.2fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+    .live-chat-visual,
+    .live-chat-panel {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 24px 54px rgba(0,0,0,0.36);
+      background: var(--panel);
+    }
+    .live-chat-visual {
+      min-height: 470px;
+      padding: 18px;
+      background:
+        radial-gradient(circle at top, rgba(122, 255, 240, 0.12), transparent 36%),
+        linear-gradient(180deg, rgba(12,14,20,0.98), rgba(5,6,10,0.98));
+    }
+    .live-chat-visual::before,
+    .live-chat-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .live-chat-visual::before {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 35%),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 6px);
+      opacity: 0.4;
+    }
+    .live-chat-panel::before {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.04), transparent 18%, transparent 82%, rgba(255,255,255,0.03)),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 4px);
+      opacity: 0.24;
+    }
+    .live-chat-visual-frame {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      min-height: 420px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+        rgba(0,0,0,0.2);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .live-chat-visual-label,
+    .live-chat-room-label,
+    .live-chat-subtitle,
+    .live-chat-typing {
+      font-family: var(--font-mono);
+    }
+    .live-chat-visual-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.54);
+    }
+    .live-chat-visual-art {
+      flex: 1;
+      display: grid;
+      place-items: center;
+    }
+    .live-chat-visual-art img {
+      width: min(100%, 320px);
+      height: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 24px rgba(0,0,0,0.42));
+    }
+    .live-chat-visual-caption {
+      font-size: 12px;
+      line-height: 1.5;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .live-chat-panel {
+      min-height: 470px;
+      padding: 14px;
+      background:
+        radial-gradient(circle at top left, rgba(130, 255, 224, 0.08), transparent 38%),
+        linear-gradient(180deg, rgba(16,19,26,0.98), rgba(6,7,11,0.99));
+    }
+    .live-chat-window {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      min-height: 442px;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+      gap: 10px;
+    }
+    .live-chat-topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 12px 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+    }
+    .live-chat-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+    .live-chat-subtitle {
+      margin-top: 4px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.54);
+    }
+    .live-chat-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .live-chat-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(141,255,174,0.6);
+      animation: live-chat-pulse 1.3s ease-out infinite;
+    }
+    @keyframes live-chat-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(141,255,174,0.7); }
+      100% { box-shadow: 0 0 0 11px rgba(141,255,174,0); }
+    }
+    .live-chat-toolbar {
+      display: grid;
+      grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+      gap: 10px;
+      align-items: end;
+    }
+    .live-chat-room-field {
+      display: grid;
+      gap: 6px;
+    }
+    .live-chat-room-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .live-chat-room-select,
+    .live-chat-new-room,
+    .live-chat-name,
+    .live-chat-input {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      padding: 10px 11px;
+      font: 12px var(--font-mono);
+    }
+    .live-chat-room-select:focus,
+    .live-chat-new-room:focus,
+    .live-chat-name:focus,
+    .live-chat-input:focus {
+      outline: none;
+      border-color: rgba(109, 232, 255, 0.96);
+      box-shadow: 0 0 0 3px rgba(109,232,255,0.14);
+    }
+    .live-chat-room-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.56);
+    }
+    .live-chat-create-btn,
+    .live-chat-clear-btn,
+    .live-chat-send-btn {
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07));
+      color: #fff;
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .live-chat-create-btn:hover,
+    .live-chat-clear-btn:hover,
+    .live-chat-send-btn:hover {
+      border-color: rgba(109, 232, 255, 0.7);
+    }
+    .live-chat-feed {
+      min-height: 320px;
+      max-height: 430px;
+      overflow: auto;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      background: rgba(4,5,8,0.7);
+      padding: 12px;
+      scrollbar-color: rgba(255,255,255,0.38) rgba(255,255,255,0.08);
+      scrollbar-width: thin;
+    }
+    .live-chat-feed::-webkit-scrollbar { width: 10px; }
+    .live-chat-feed::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.24);
+      border-radius: 999px;
+    }
+    .live-chat-feed::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+    .live-chat-empty {
+      min-height: 286px;
+      display: grid;
+      place-items: center;
+      gap: 8px;
+      text-align: center;
+      color: rgba(255,255,255,0.68);
+      padding: 20px;
+    }
+    .live-chat-empty strong {
+      font-family: var(--font-display);
+      font-size: 18px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .live-chat-message {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px dashed rgba(255,255,255,0.08);
+    }
+    .live-chat-message:last-child { border-bottom: 0; }
+    .live-chat-avatar {
+      width: 24px;
+      height: 24px;
+      margin-top: 1px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: linear-gradient(135deg, rgba(122,255,240,0.9), rgba(255,98,196,0.9));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+    }
+    .live-chat-name-row {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .live-chat-author {
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: none;
+    }
+    .live-chat-time {
+      font-size: 10px;
+      color: rgba(255,255,255,0.46);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .live-chat-text {
+      margin-top: 4px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: rgba(255,255,255,0.9);
+      word-break: break-word;
+    }
+    .live-chat-typing {
+      min-height: 18px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.58);
+      letter-spacing: 0.04em;
+    }
+    .live-chat-typing.is-active::after {
+      content: "";
+      display: inline-block;
+      width: 18px;
+      height: 4px;
+      margin-left: 6px;
+      vertical-align: middle;
+      background:
+        radial-gradient(circle, currentColor 0 2px, transparent 3px) 0 0 / 6px 4px repeat-x;
+      animation: live-chat-dots 1s steps(4, end) infinite;
+    }
+    @keyframes live-chat-dots {
+      0% { transform: translateX(0); opacity: 0.3; }
+      50% { opacity: 1; }
+      100% { transform: translateX(6px); opacity: 0.3; }
+    }
+    .live-chat-composer {
+      display: grid;
+      grid-template-columns: minmax(120px, 160px) minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 900px) {
+      .page { padding: 14px 14px 24px; }
+      .topbar { flex-direction: column; align-items: stretch; }
+      #live-chat-band { grid-template-columns: 1fr; }
+      .live-chat-visual,
+      .live-chat-panel,
+      .live-chat-visual-frame,
+      .live-chat-window { min-height: 0; }
+      .live-chat-toolbar { grid-template-columns: 1fr; }
+      .live-chat-room-actions { flex-wrap: wrap; }
+      .live-chat-composer { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .live-chat-status-dot,
+      .live-chat-typing.is-active::after {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Trollrunner Live Chat</h1>
+        <p>Nostalgic runner-room chatter with local rooms, presence, and quick room switching.</p>
+      </div>
+      <a class="home-link" href="index.html">Back Home</a>
+    </div>
+
+    <section id="live-chat-band" aria-label="Trollrunner live chat">
+      <figure class="live-chat-visual" aria-hidden="true">
+        <div class="live-chat-visual-frame">
+          <div class="live-chat-visual-label">Runner Feed</div>
+          <div class="live-chat-visual-art">
+            <img src="assets/animations/troll-lel_transparent.gif" alt="">
+          </div>
+          <div class="live-chat-visual-caption">A little internet noise to keep the lobby warm.</div>
+        </div>
+      </figure>
+
+      <section class="live-chat-panel" aria-label="Live chat panel">
+        <div class="live-chat-window">
+          <div class="live-chat-topbar">
+            <div>
+              <div class="live-chat-title">TROLLCHAT</div>
+              <div class="live-chat-subtitle">Runner Room</div>
+            </div>
+            <div class="live-chat-status"><span class="live-chat-status-dot" aria-hidden="true"></span><span id="live-chat-online-count">0 active</span></div>
+          </div>
+
+          <div class="live-chat-toolbar">
+            <label class="live-chat-room-field" for="live-chat-room-select">
+              <span class="live-chat-room-label">Room</span>
+              <select id="live-chat-room-select" class="live-chat-room-select"></select>
+            </label>
+            <div class="live-chat-room-field">
+              <span class="live-chat-room-label">Create room</span>
+              <div class="live-chat-room-actions">
+                <input id="live-chat-new-room" class="live-chat-new-room" type="text" maxlength="28" placeholder="New room name">
+                <button id="live-chat-create-room" class="live-chat-create-btn" type="button">Create</button>
+                <button id="live-chat-clear-room" class="live-chat-clear-btn" type="button">Clear</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="live-chat-feed" class="live-chat-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+          <div id="live-chat-typing" class="live-chat-typing" aria-live="polite"></div>
+
+          <form id="live-chat-form" class="live-chat-composer">
+            <input id="live-chat-name" class="live-chat-name" type="text" maxlength="24" placeholder="Guest name" aria-label="Display name" autocomplete="nickname">
+            <input id="live-chat-input" class="live-chat-input" type="text" maxlength="220" placeholder="Type a message..." aria-label="Message" autocomplete="off">
+            <button class="live-chat-send-btn" type="submit">Send</button>
+          </form>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const LIVE_CHAT_ROOMS_KEY = 'trollrunner_live_chat_rooms_v1';
+    const LIVE_CHAT_SELECTED_ROOM_KEY = 'trollrunner_live_chat_selected_room_v1';
+    const LIVE_CHAT_NAME_KEY = 'trollrunner_live_chat_name_v1';
+    const LIVE_CHAT_TAB_ID_KEY = 'trollrunner_live_chat_tab_id_v1';
+    const LIVE_CHAT_MESSAGES_PREFIX = 'trollrunner_live_chat_messages_v1_';
+    const LIVE_CHAT_PRESENCE_KEY = 'trollrunner_live_chat_presence_v1';
+    const LIVE_CHAT_CHANNEL_NAME = 'trollrunner-live-chat';
+    const LIVE_CHAT_MESSAGE_TTL_MS = 24 * 60 * 60 * 1000;
+    const LIVE_CHAT_PRESENCE_TTL_MS = 15000;
+    const LIVE_CHAT_TYPING_TTL_MS = 2500;
+    const LIVE_CHAT_MESSAGE_LIMIT = 220;
+    const LIVE_CHAT_COOLDOWN_MS = 3500;
+    const LIVE_CHAT_DEFAULT_ROOMS = [
+      { id: 'main-room', name: 'Main Room' },
+      { id: 'trollrunner-lobby', name: 'Trollrunner Lobby' },
+      { id: 'mile-1', name: 'Mile 1' },
+    ];
+
+    let liveChatState = null;
+
+    function getLiveChatTabId() {
+      if (liveChatState && liveChatState.tabId) return liveChatState.tabId;
+      try {
+        const stored = sessionStorage.getItem(LIVE_CHAT_TAB_ID_KEY);
+        if (stored) return stored;
+      } catch {}
+      const tabId = window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID()
+        : `chat-tab-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      try { sessionStorage.setItem(LIVE_CHAT_TAB_ID_KEY, tabId); } catch {}
+      return tabId;
+    }
+
+    function slugifyLiveChatRoomName(val) {
+      return String(val || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 28) || 'room';
+    }
+
+    function titleCaseLiveChatRoomName(val) {
+      return String(val || '')
+        .replace(/[-_]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, char => char.toUpperCase()) || 'Room';
+    }
+
+    function getDefaultLiveChatName() {
+      const storedName = localStorage.getItem(LIVE_CHAT_NAME_KEY);
+      const fallback = `Guest ${Math.floor(100 + Math.random() * 900)}`;
+      const value = String(storedName || fallback).trim();
+      return value || fallback;
+    }
+
+    function safeParseLiveChatJson(raw, fallback) {
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed == null ? fallback : parsed;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function getDefaultLiveChatRooms() {
+      return LIVE_CHAT_DEFAULT_ROOMS.map(room => ({ id: room.id, name: room.name }));
+    }
+
+    function loadLiveChatRooms() {
+      const stored = safeParseLiveChatJson(localStorage.getItem(LIVE_CHAT_ROOMS_KEY), null);
+      const rooms = Array.isArray(stored)
+        ? stored.map(room => ({
+            id: String(room && room.id || '').trim(),
+            name: String(room && room.name || '').trim(),
+          })).filter(room => room.id && room.name)
+        : [];
+      const merged = [];
+      const seen = new Set();
+      getDefaultLiveChatRooms().concat(rooms).forEach(room => {
+        if (!room.id || seen.has(room.id)) return;
+        seen.add(room.id);
+        merged.push(room);
+      });
+      return merged;
+    }
+
+    function saveLiveChatRooms(rooms) {
+      localStorage.setItem(LIVE_CHAT_ROOMS_KEY, JSON.stringify(rooms));
+    }
+
+    function getLiveChatMessages(roomId) {
+      const key = `${LIVE_CHAT_MESSAGES_PREFIX}${roomId}`;
+      const stored = safeParseLiveChatJson(localStorage.getItem(key), []);
+      const now = Date.now();
+      const seen = new Set();
+      return (Array.isArray(stored) ? stored : [])
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({
+          id: String(item.id || '').trim(),
+          roomId: String(item.roomId || roomId),
+          name: String(item.name || 'Guest').trim().slice(0, 24) || 'Guest',
+          text: String(item.text || '').trim().slice(0, LIVE_CHAT_MESSAGE_LIMIT),
+          createdAt: String(item.createdAt || new Date().toISOString()),
+          tabId: String(item.tabId || ''),
+        }))
+        .filter(item => item.id && item.text && Date.parse(item.createdAt) > now - LIVE_CHAT_MESSAGE_TTL_MS)
+        .filter(item => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        })
+        .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+    }
+
+    function saveLiveChatMessages(roomId, messages) {
+      const key = `${LIVE_CHAT_MESSAGES_PREFIX}${roomId}`;
+      const now = Date.now();
+      const cleaned = (Array.isArray(messages) ? messages : [])
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({
+          id: String(item.id || '').trim(),
+          roomId: String(item.roomId || roomId),
+          name: String(item.name || 'Guest').trim().slice(0, 24) || 'Guest',
+          text: String(item.text || '').trim().slice(0, LIVE_CHAT_MESSAGE_LIMIT),
+          createdAt: String(item.createdAt || new Date().toISOString()),
+          tabId: String(item.tabId || ''),
+        }))
+        .filter(item => item.id && item.text && Date.parse(item.createdAt) > now - LIVE_CHAT_MESSAGE_TTL_MS);
+      localStorage.setItem(key, JSON.stringify(cleaned));
+      return cleaned;
+    }
+
+    function seedLiveChatMessages(roomId) {
+      if (getLiveChatMessages(roomId).length) return;
+      if (roomId !== LIVE_CHAT_DEFAULT_ROOMS[0].id) return;
+      const now = Date.now();
+      const demoMessages = [
+        { name: 'MileBot', text: 'Lobby check-in: the sprint starts spicy today.', minutesAgo: 6 },
+        { name: 'Guest 404', text: 'PictoChat energy is back and I am not recovering from that.', minutesAgo: 4 },
+        { name: 'RunnerFury', text: 'If troll RUN hits a billion, I want a front-row seat.', minutesAgo: 2 },
+      ].map((item, idx) => ({
+        id: `demo-${roomId}-${idx}`,
+        roomId,
+        name: item.name,
+        text: item.text,
+        createdAt: new Date(now - item.minutesAgo * 60 * 1000).toISOString(),
+        tabId: 'demo',
+      }));
+      saveLiveChatMessages(roomId, demoMessages);
+    }
+
+    function getLiveChatPresenceMap() {
+      const stored = safeParseLiveChatJson(localStorage.getItem(LIVE_CHAT_PRESENCE_KEY), {});
+      return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+    }
+
+    function saveLiveChatPresenceMap(map) {
+      localStorage.setItem(LIVE_CHAT_PRESENCE_KEY, JSON.stringify(map));
+    }
+
+    function pruneLiveChatPresenceMap(map) {
+      const now = Date.now();
+      const cleaned = {};
+      Object.entries(map || {}).forEach(([tabId, value]) => {
+        if (!value || typeof value !== 'object') return;
+        const lastSeen = Number(value.lastSeen || 0);
+        if (!lastSeen || now - lastSeen > LIVE_CHAT_PRESENCE_TTL_MS) return;
+        cleaned[tabId] = {
+          tabId,
+          name: String(value.name || 'Guest').trim().slice(0, 24) || 'Guest',
+          roomId: String(value.roomId || LIVE_CHAT_DEFAULT_ROOMS[0].id),
+          lastSeen,
+          typingUntil: Number(value.typingUntil || 0),
+        };
+      });
+      return cleaned;
+    }
+
+    function updateLiveChatPresence(options) {
+      const typing = Boolean(options && options.typing);
+      if (!liveChatState) return;
+      const map = pruneLiveChatPresenceMap(getLiveChatPresenceMap());
+      const tabId = liveChatState.tabId;
+      map[tabId] = {
+        tabId,
+        name: liveChatState.userName,
+        roomId: liveChatState.roomId,
+        lastSeen: Date.now(),
+        typingUntil: typing ? Date.now() + LIVE_CHAT_TYPING_TTL_MS : 0,
+      };
+      saveLiveChatPresenceMap(map);
+      if (liveChatState.channel) {
+        liveChatState.channel.postMessage({ type: 'presence' });
+      }
+    }
+
+    function removeLiveChatPresence() {
+      if (!liveChatState) return;
+      const map = getLiveChatPresenceMap();
+      if (map[liveChatState.tabId]) {
+        delete map[liveChatState.tabId];
+        saveLiveChatPresenceMap(map);
+        if (liveChatState.channel) {
+          liveChatState.channel.postMessage({ type: 'presence' });
+        }
+      }
+    }
+
+    function renderLiveChatRooms() {
+      const select = document.getElementById('live-chat-room-select');
+      if (!select || !liveChatState) return;
+
+      select.innerHTML = '';
+      liveChatState.rooms.forEach(room => {
+        const option = document.createElement('option');
+        option.value = room.id;
+        option.textContent = room.name;
+        select.appendChild(option);
+      });
+      if (!liveChatState.roomId && liveChatState.rooms[0]) {
+        liveChatState.roomId = liveChatState.rooms[0].id;
+      }
+      if (liveChatState.roomId) select.value = liveChatState.roomId;
+      const subtitle = document.querySelector('.live-chat-subtitle');
+      if (subtitle) {
+        const currentRoom = liveChatState.rooms.find(room => room.id === liveChatState.roomId);
+        subtitle.textContent = currentRoom ? currentRoom.name : 'Runner Room';
+      }
+    }
+
+    function renderLiveChatPresence() {
+      const presenceNode = document.getElementById('live-chat-online-count');
+      const typingNode = document.getElementById('live-chat-typing');
+      if (!presenceNode || !typingNode || !liveChatState) return;
+
+      const now = Date.now();
+      const presence = pruneLiveChatPresenceMap(getLiveChatPresenceMap());
+      const roomPresence = Object.values(presence).filter(entry => entry.roomId === liveChatState.roomId);
+      const activeCount = roomPresence.length || 0;
+      presenceNode.textContent = `${activeCount} active`;
+
+      const typingNames = roomPresence
+        .filter(entry => entry.tabId !== liveChatState.tabId && Number(entry.typingUntil || 0) > now)
+        .map(entry => entry.name)
+        .filter(Boolean);
+
+      if (!typingNames.length) {
+        typingNode.textContent = '';
+        typingNode.classList.remove('is-active');
+        return;
+      }
+
+      typingNode.classList.add('is-active');
+      typingNode.textContent = typingNames.length === 1
+        ? `${typingNames[0]} is typing`
+        : `${typingNames.slice(0, 3).join(', ')} are typing`;
+    }
+
+    function formatLiveChatTime(value) {
+      const date = value ? new Date(value) : new Date();
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderLiveChatFeed() {
+      const feed = document.getElementById('live-chat-feed');
+      if (!feed || !liveChatState) return;
+
+      const messages = getLiveChatMessages(liveChatState.roomId);
+      feed.innerHTML = '';
+
+      if (!messages.length) {
+        const empty = document.createElement('div');
+        empty.className = 'live-chat-empty';
+        empty.innerHTML = '<strong>Runner Room</strong><span>Kick off the lobby chatter.</span>';
+        feed.appendChild(empty);
+        return;
+      }
+
+      messages.forEach(message => {
+        const row = document.createElement('article');
+        row.className = 'live-chat-message';
+
+        const avatar = document.createElement('span');
+        avatar.className = 'live-chat-avatar';
+        avatar.setAttribute('aria-hidden', 'true');
+
+        const body = document.createElement('div');
+
+        const head = document.createElement('div');
+        head.className = 'live-chat-name-row';
+
+        const name = document.createElement('span');
+        name.className = 'live-chat-author';
+        name.textContent = message.name;
+
+        const time = document.createElement('span');
+        time.className = 'live-chat-time';
+        time.textContent = formatLiveChatTime(message.createdAt);
+
+        const text = document.createElement('div');
+        text.className = 'live-chat-text';
+        text.textContent = message.text;
+
+        head.appendChild(name);
+        head.appendChild(time);
+        body.appendChild(head);
+        body.appendChild(text);
+
+        row.appendChild(avatar);
+        row.appendChild(body);
+        feed.appendChild(row);
+      });
+
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function renderLiveChat() {
+      renderLiveChatRooms();
+      renderLiveChatFeed();
+      renderLiveChatPresence();
+    }
+
+    function setLiveChatRoom(roomId) {
+      if (!liveChatState) return;
+      const room = liveChatState.rooms.find(item => item.id === roomId) || liveChatState.rooms[0];
+      if (!room) return;
+      liveChatState.roomId = room.id;
+      localStorage.setItem(LIVE_CHAT_SELECTED_ROOM_KEY, room.id);
+      seedLiveChatMessages(room.id);
+      updateLiveChatPresence();
+      renderLiveChat();
+    }
+
+    function addLiveChatRoom(roomName) {
+      if (!liveChatState) return null;
+      const cleanName = String(roomName || '').trim();
+      if (!cleanName) return null;
+      const id = slugifyLiveChatRoomName(cleanName);
+      const existing = liveChatState.rooms.find(room => room.id === id);
+      if (existing) return existing;
+      const room = { id, name: cleanName.slice(0, 28) || titleCaseLiveChatRoomName(id) };
+      liveChatState.rooms = liveChatState.rooms.concat([room]);
+      saveLiveChatRooms(liveChatState.rooms);
+      if (liveChatState.channel) {
+        liveChatState.channel.postMessage({ type: 'rooms' });
+      }
+      renderLiveChatRooms();
+      return room;
+    }
+
+    function clearLiveChatRoom() {
+      if (!liveChatState) return;
+      const key = `${LIVE_CHAT_MESSAGES_PREFIX}${liveChatState.roomId}`;
+      localStorage.removeItem(key);
+      if (liveChatState.channel) {
+        liveChatState.channel.postMessage({ type: 'messages', roomId: liveChatState.roomId });
+      }
+      renderLiveChatFeed();
+    }
+
+    function sendLiveChatMessage(messageText) {
+      if (!liveChatState) return false;
+      const trimmed = String(messageText || '').trim();
+      if (!trimmed) return false;
+      const now = Date.now();
+      if (now - liveChatState.lastSendAt < LIVE_CHAT_COOLDOWN_MS) return false;
+
+      const messages = getLiveChatMessages(liveChatState.roomId);
+      const nextMessage = {
+        id: `chat-${liveChatState.tabId}-${now}-${Math.random().toString(16).slice(2)}`,
+        roomId: liveChatState.roomId,
+        name: liveChatState.userName,
+        text: trimmed.slice(0, LIVE_CHAT_MESSAGE_LIMIT),
+        createdAt: new Date(now).toISOString(),
+        tabId: liveChatState.tabId,
+      };
+      messages.push(nextMessage);
+      saveLiveChatMessages(liveChatState.roomId, messages);
+      liveChatState.lastSendAt = now;
+      updateLiveChatPresence({ typing: false });
+      renderLiveChatFeed();
+      renderLiveChatPresence();
+      if (liveChatState.channel) {
+        liveChatState.channel.postMessage({ type: 'message', roomId: liveChatState.roomId, message: nextMessage });
+      }
+      return true;
+    }
+
+    function applyLiveChatBroadcast(event) {
+      const data = event && event.data || {};
+      if (!data || typeof data !== 'object') return;
+      if (data.type === 'message' || data.type === 'messages') {
+        if (!liveChatState) return;
+        if (!data.roomId || data.roomId === liveChatState.roomId) {
+          renderLiveChatFeed();
+          renderLiveChatPresence();
+        }
+      }
+      if (data.type === 'rooms' || data.type === 'presence') {
+        renderLiveChatRooms();
+        renderLiveChatPresence();
+      }
+    }
+
+    function initializeLiveChat() {
+      const feed = document.getElementById('live-chat-feed');
+      const form = document.getElementById('live-chat-form');
+      const roomSelect = document.getElementById('live-chat-room-select');
+      const roomInput = document.getElementById('live-chat-new-room');
+      const roomCreateBtn = document.getElementById('live-chat-create-room');
+      const roomClearBtn = document.getElementById('live-chat-clear-room');
+      const nameInput = document.getElementById('live-chat-name');
+      const messageInput = document.getElementById('live-chat-input');
+      if (!feed || !form || !roomSelect || !roomInput || !roomCreateBtn || !roomClearBtn || !nameInput || !messageInput) return;
+
+      const rooms = loadLiveChatRooms();
+      liveChatState = {
+        tabId: getLiveChatTabId(),
+        rooms: rooms,
+        roomId: localStorage.getItem(LIVE_CHAT_SELECTED_ROOM_KEY) || rooms[0] && rooms[0].id || LIVE_CHAT_DEFAULT_ROOMS[0].id,
+        userName: getDefaultLiveChatName(),
+        channel: 'BroadcastChannel' in window ? new BroadcastChannel(LIVE_CHAT_CHANNEL_NAME) : null,
+        typingTimer: null,
+        presenceTimer: null,
+        lastSendAt: 0,
+      };
+
+      nameInput.value = liveChatState.userName;
+      seedLiveChatMessages(liveChatState.roomId);
+      renderLiveChatRooms();
+      renderLiveChatFeed();
+      renderLiveChatPresence();
+      updateLiveChatPresence();
+
+      roomSelect.addEventListener('change', function() {
+        setLiveChatRoom(roomSelect.value);
+      });
+
+      roomCreateBtn.addEventListener('click', function() {
+        const created = addLiveChatRoom(roomInput.value);
+        if (!created) return;
+        roomInput.value = '';
+        setLiveChatRoom(created.id);
+      });
+
+      roomClearBtn.addEventListener('click', function() {
+        if (window.confirm('Clear this room locally?')) {
+          clearLiveChatRoom();
+        }
+      });
+
+      nameInput.addEventListener('input', function() {
+        liveChatState.userName = String(nameInput.value || '').trim() || 'Guest';
+        localStorage.setItem(LIVE_CHAT_NAME_KEY, liveChatState.userName);
+        updateLiveChatPresence();
+      });
+
+      var syncTyping = function() {
+        updateLiveChatPresence({ typing: true });
+        if (liveChatState.typingTimer) window.clearTimeout(liveChatState.typingTimer);
+        liveChatState.typingTimer = window.setTimeout(function() {
+          updateLiveChatPresence({ typing: false });
+        }, LIVE_CHAT_TYPING_TTL_MS);
+      };
+
+      messageInput.addEventListener('input', syncTyping);
+      messageInput.addEventListener('focus', syncTyping);
+
+      form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const sent = sendLiveChatMessage(messageInput.value);
+        if (!sent) return;
+        messageInput.value = '';
+        updateLiveChatPresence({ typing: false });
+      });
+
+      if (liveChatState.channel) {
+        liveChatState.channel.onmessage = applyLiveChatBroadcast;
+      }
+
+      window.addEventListener('storage', function(event) {
+        if (!event.key) return;
+        if (event.key === LIVE_CHAT_ROOMS_KEY || event.key === LIVE_CHAT_SELECTED_ROOM_KEY) {
+          liveChatState.rooms = loadLiveChatRooms();
+          if (event.key === LIVE_CHAT_SELECTED_ROOM_KEY && event.newValue) {
+            liveChatState.roomId = event.newValue;
+          }
+          renderLiveChat();
+          return;
+        }
+        if (event.key === LIVE_CHAT_PRESENCE_KEY || event.key.indexOf(LIVE_CHAT_MESSAGES_PREFIX) === 0) {
+          renderLiveChatFeed();
+          renderLiveChatPresence();
+        }
+      });
+
+      liveChatState.presenceTimer = window.setInterval(function() {
+        updateLiveChatPresence();
+        renderLiveChatPresence();
+      }, 4000);
+
+      window.addEventListener('beforeunload', removeLiveChatPresence);
+    }
+
+    initializeLiveChat();
+  </script>
+</body>
+</html>
