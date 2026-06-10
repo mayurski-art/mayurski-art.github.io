@@ -131,6 +131,24 @@
     .preview-shell::-webkit-scrollbar-track {
       background: transparent;
     }
+    .lock-console {
+      display: grid;
+      gap: 10px;
+    }
+    .lock-console .lock-console-status {
+      color: rgba(255,255,255,0.74);
+      margin: 0;
+      line-height: 1.45;
+    }
+    .lock-console .lock-console-status[data-mode="pending"] { color: #ff8a9c; }
+    .lock-console .lock-console-status[data-mode="locked"] { color: #ff5252; }
+    .lock-console .lock-console-status[data-mode="open"] { color: #9fe6b0; }
+    .lock-console .pane-stats {
+      margin-top: 2px;
+    }
+    .lock-console .row button {
+      min-width: 138px;
+    }
     .collapsible summary {
       display: flex;
       justify-content: space-between;
@@ -224,6 +242,30 @@
           <div id="preview"></div>
         </div>
       </div>
+    </div>
+
+    <div class="card lock-console">
+      <div class="pane-head">
+        <div>
+          <h3>Public lock console</h3>
+          <p class="pane-subtitle">Lock or unlock the whole site from one place. The warning still lands everywhere with the 10-second countdown.</p>
+        </div>
+        <div class="pane-stats">
+          <span id="admin-auth-pill">Admin: checking</span>
+          <span id="public-lock-pill">Public: loading</span>
+        </div>
+      </div>
+      <p id="public-lock-status" class="lock-console-status">Checking site lock state...</p>
+      <div class="row">
+        <button id="public-lock-btn" class="alert" type="button">Lock public site</button>
+        <button id="public-unlock-btn" class="success" type="button">Unlock public site</button>
+        <button id="public-refresh-btn" class="secondary" type="button">Refresh status</button>
+      </div>
+      <div class="row">
+        <button id="admin-link-btn" class="secondary" type="button">Send admin link</button>
+        <button id="admin-signout-btn" class="secondary" type="button">Sign out</button>
+      </div>
+      <p id="admin-control-status" class="lock-console-status">Use the email link sign-in to control the public lock.</p>
     </div>
 
     <details class="card collapsible">
@@ -1100,6 +1142,129 @@ Working on improving fonts and backgrounds...`,
       }
     }
 
+    function getStoredSiteLockRecord() {
+      const helper = window.TrollrunnerSiteLock;
+      if (helper?.getComputedRecord) return helper.getComputedRecord();
+      try {
+        const parsed = JSON.parse(localStorage.getItem(SITE_PUBLIC_LOCK_KEY) || '{}');
+        const mode = String(parsed?.mode || parsed?.state || 'open').toLowerCase();
+        return {
+          mode: mode === 'pending' || mode === 'locked' ? mode : 'open',
+          pendingUntil: Number(parsed?.pendingUntil || parsed?.lockedAt || parsed?.unlockAt || 0) || 0,
+          updatedAt: String(parsed?.updatedAt || parsed?.createdAt || new Date().toISOString()),
+        };
+      } catch {
+        return { mode: 'open', pendingUntil: 0, updatedAt: new Date().toISOString() };
+      }
+    }
+
+    async function refreshPublicLockConsole() {
+      const authPill = document.getElementById('admin-auth-pill');
+      const lockPill = document.getElementById('public-lock-pill');
+      const lockStatus = document.getElementById('public-lock-status');
+      const controlStatus = document.getElementById('admin-control-status');
+      const lockBtn = document.getElementById('public-lock-btn');
+      const unlockBtn = document.getElementById('public-unlock-btn');
+      const refreshBtn = document.getElementById('public-refresh-btn');
+      const linkBtn = document.getElementById('admin-link-btn');
+      const signOutBtn = document.getElementById('admin-signout-btn');
+      const helper = window.TrollrunnerAdminAuth;
+      const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
+      const record = getStoredSiteLockRecord();
+      const isPending = record.mode === 'pending';
+      const isLocked = record.mode === 'locked' || isPending;
+      const remaining = isPending ? Math.max(0, Math.ceil((record.pendingUntil - Date.now()) / 1000)) : 0;
+
+      if (authPill) authPill.textContent = authed ? `Admin: ${helper?.adminEmail || 'signed in'}` : 'Admin: signed out';
+      if (lockPill) {
+        lockPill.textContent = isPending
+          ? `Public: warning ${remaining}s`
+          : (isLocked ? 'Public: locked' : 'Public: open');
+      }
+      if (lockStatus) {
+        lockStatus.dataset.mode = isPending ? 'pending' : (isLocked ? 'locked' : 'open');
+        lockStatus.textContent = isPending
+          ? `Warning is live. The public site locks in ${remaining}s unless you unlock it.`
+          : (isLocked
+            ? 'Public access is locked right now. Use Unlock to open the site back up.'
+            : 'Public access is open. Use Lock to send the 10-second warning and close the site.');
+      }
+      if (controlStatus) {
+        controlStatus.textContent = authed
+          ? 'You are signed in and can control the public lock from here.'
+          : 'Send yourself the admin link to control the public lock.';
+      }
+      if (lockBtn) {
+        lockBtn.disabled = !authed || isPending || isLocked;
+      }
+      if (unlockBtn) {
+        unlockBtn.disabled = !authed || (!isPending && !isLocked);
+      }
+      if (refreshBtn) {
+        refreshBtn.disabled = false;
+      }
+      if (linkBtn) {
+        linkBtn.disabled = authed;
+        linkBtn.textContent = authed ? 'Admin link sent' : 'Send admin link';
+      }
+      if (signOutBtn) {
+        signOutBtn.disabled = !authed;
+      }
+    }
+
+    async function setPublicLockState(shouldLock) {
+      const helper = window.TrollrunnerAdminAuth;
+      const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
+      if (!authed) {
+        alert('You need the admin link session first.');
+        await refreshPublicLockConsole();
+        return;
+      }
+      const lockHelper = window.TrollrunnerSiteLock;
+      if (!lockHelper?.requestLockTransition) {
+        alert('Public lock controls are not available yet.');
+        return;
+      }
+      lockHelper.requestLockTransition(Boolean(shouldLock));
+      await refreshPublicLockConsole();
+    }
+
+    async function sendAdminLinkFromConsole() {
+      const helper = window.TrollrunnerAdminAuth;
+      if (!helper?.requestAdminLink) return;
+      await helper.requestAdminLink(new URL('/', window.location.origin).toString());
+      await refreshPublicLockConsole();
+    }
+
+    async function signOutAdmin() {
+      const helper = window.TrollrunnerAdminAuth;
+      if (helper?.signOut) {
+        await helper.signOut();
+      }
+      localStorage.removeItem(AUTH_KEY);
+      window.location.href = 'index.html';
+    }
+
+    function bindPublicLockConsole() {
+      const lockBtn = document.getElementById('public-lock-btn');
+      const unlockBtn = document.getElementById('public-unlock-btn');
+      const refreshBtn = document.getElementById('public-refresh-btn');
+      const linkBtn = document.getElementById('admin-link-btn');
+      const signOutBtn = document.getElementById('admin-signout-btn');
+      if (lockBtn) lockBtn.addEventListener('click', () => setPublicLockState(true));
+      if (unlockBtn) unlockBtn.addEventListener('click', () => setPublicLockState(false));
+      if (refreshBtn) refreshBtn.addEventListener('click', refreshPublicLockConsole);
+      if (linkBtn) linkBtn.addEventListener('click', sendAdminLinkFromConsole);
+      if (signOutBtn) signOutBtn.addEventListener('click', signOutAdmin);
+      window.setInterval(refreshPublicLockConsole, 1000);
+      window.addEventListener('storage', event => {
+        if (event.key === SITE_PUBLIC_LOCK_KEY || event.key === AUTH_KEY || event.key === window.TrollrunnerAdminAuth?.adminAuthKey) {
+          void refreshPublicLockConsole();
+        }
+      });
+      void refreshPublicLockConsole();
+    }
+
     function getSyncStatusText() {
       const node = document.getElementById('sync-state');
       return node ? node.textContent.trim() : '';
@@ -1143,6 +1308,7 @@ Working on improving fonts and backgrounds...`,
       }
       renderFeedback();
       renderLiveStatusState();
+      bindPublicLockConsole();
 
       if (isSupabaseConfigured()) {
         window.setInterval(async () => {
