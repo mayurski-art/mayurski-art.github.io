@@ -200,6 +200,30 @@ header h1 {
   transform: translateY(-2px) scale(1.02);
   box-shadow: 0 10px 22px rgba(0,0,0,0.28);
 }
+.header-viewer-pill {
+  border: 0.5px solid rgba(255,255,255,0.28);
+  border-radius: 999px;
+  background: rgba(5, 13, 28, 0.34);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 7px 12px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.2);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+.header-viewer-icon {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+.header-viewer-count {
+  min-width: 1ch;
+  text-align: right;
+}
 .header-spacer {
   justify-self: end;
   display: flex;
@@ -2768,6 +2792,13 @@ footer a:hover { color: #fff; }
         <a class="header-link-btn" href="https://projects.trollrunner.net/">Projects</a>
         <a class="header-link-btn" href="https://videos.trollrunner.net">Videos</a>
         <a class="header-link-btn" href="https://stickers.trollrunner.net">Stickers</a>
+        <span id="site-viewer-pill" class="header-viewer-pill" role="status" aria-live="polite" aria-label="Current viewers">
+          <svg class="header-viewer-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span id="site-viewer-count" class="header-viewer-count">1</span>
+        </span>
       </div>
       <div class="header-text-view-note">Recommended text view be 50% for mobile and 100% tablet devices</div>
       <div class="header-live-stack" aria-live="polite">
@@ -2925,6 +2956,7 @@ footer a:hover { color: #fff; }
 </footer>
 <div id="spotify-embed" aria-label="Troll Runner Spotify playlist"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
 const ADMIN_PASSWORD = '#Mayur2626';
@@ -2939,6 +2971,8 @@ const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
 const SUPABASE_ANON_KEY_PLACEHOLDER = 'your_anon_public_key';
 const SUPABASE_TABLE = 'site_updates';
+const VIEWER_ID_KEY = 'trollrunner_viewer_id_v1';
+const VIEWER_PRESENCE_CHANNEL = 'trollrunner-site-presence';
 const FEEDBACK_SHEET_WEBHOOK_URL = '';
 const SEEDED_FEEDBACK_ENTRIES = [
   {
@@ -2970,6 +3004,8 @@ let spotifyIsPlaying = false;
 let spotifyTrackLabel = 'Waiting for current track…';
 let spotifyCurrentUri = '';
 const MOBILE_SIDEBAR_TRACKER_KEY = 'trollrunner_mobile_sidebar_tracker_open';
+let viewerPresenceClient = null;
+let viewerPresenceChannel = null;
 const liveCoordinateMap = {};
 let geoCache = null;
 const geoInflight = new Set();
@@ -3008,6 +3044,81 @@ function applyLiveStatusVisibility() {
   }
   if (codingPill) {
     codingPill.classList.toggle('is-visible', readStoredLiveStatus(LIVE_CODING_STATUS_KEY));
+  }
+}
+
+function getViewerId() {
+  const storedId = localStorage.getItem(VIEWER_ID_KEY);
+  if (storedId) return storedId;
+  const newId = window.crypto?.randomUUID
+    ? window.crypto.randomUUID()
+    : `viewer-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem(VIEWER_ID_KEY, newId);
+  return newId;
+}
+
+function updateViewerCount(count) {
+  const countNode = document.getElementById('site-viewer-count');
+  const pillNode = document.getElementById('site-viewer-pill');
+  const safeCount = Math.max(1, Number(count) || 1);
+  if (countNode) countNode.textContent = String(safeCount);
+  if (pillNode) {
+    const label = safeCount === 1 ? '1 current viewer' : `${safeCount} current viewers`;
+    pillNode.setAttribute('aria-label', label);
+    pillNode.title = label;
+  }
+}
+
+function syncViewerPresenceCount() {
+  if (!viewerPresenceChannel) {
+    updateViewerCount(1);
+    return;
+  }
+  const state = viewerPresenceChannel.presenceState();
+  const viewerIds = new Set();
+  Object.values(state || {}).forEach(entries => {
+    if (!Array.isArray(entries)) return;
+    entries.forEach(entry => {
+      if (entry?.viewerId) viewerIds.add(entry.viewerId);
+    });
+  });
+  updateViewerCount(viewerIds.size || 1);
+}
+
+function initializeViewerPresence() {
+  if (!isSupabaseConfigured() || !window.supabase?.createClient) {
+    updateViewerCount(1);
+    return;
+  }
+  try {
+    const viewerId = getViewerId();
+    viewerPresenceClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+    viewerPresenceChannel = viewerPresenceClient.channel(VIEWER_PRESENCE_CHANNEL, {
+      config: {
+        presence: {
+          key: viewerId,
+        },
+      },
+    });
+    viewerPresenceChannel
+      .on('presence', { event: 'sync' }, syncViewerPresenceCount)
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') {
+          viewerPresenceChannel.track({
+            viewerId,
+            host: window.location.hostname,
+            path: window.location.pathname,
+            onlineAt: new Date().toISOString(),
+          });
+        }
+      });
+  } catch {
+    updateViewerCount(1);
   }
 }
 
@@ -4697,7 +4808,7 @@ document.getElementById('admin-pass').addEventListener('keydown', e => {
   if (e.key === 'Enter') goToAdmin();
 });
 
-loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity();
+loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }
