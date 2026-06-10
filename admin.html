@@ -261,10 +261,6 @@
         <button id="public-unlock-btn" class="success" type="button">Unlock public site</button>
         <button id="public-refresh-btn" class="secondary" type="button">Refresh status</button>
       </div>
-      <div class="row">
-        <button id="admin-link-btn" class="secondary" type="button">Unlock site</button>
-        <button id="admin-signout-btn" class="secondary" type="button">Sign out</button>
-      </div>
       <p id="admin-control-status" class="lock-console-status">Use the admin password to control the public lock.</p>
     </div>
 
@@ -1186,8 +1182,8 @@ Working on improving fonts and backgrounds...`,
         lockStatus.textContent = isPending
           ? `Warning is live. The public site locks in ${remaining}s unless you unlock it.`
           : (isLocked
-            ? 'Public access is locked right now. Use Unlock to open the site back up.'
-            : 'Public access is open. Use Lock to send the 10-second warning and close the site.');
+            ? 'Public access is locked right now.'
+            : 'Public access is open.');
       }
       if (controlStatus) {
         controlStatus.textContent = authed
@@ -1203,13 +1199,8 @@ Working on improving fonts and backgrounds...`,
       if (refreshBtn) {
         refreshBtn.disabled = false;
       }
-      if (linkBtn) {
-        linkBtn.disabled = authed;
-        linkBtn.textContent = 'Unlock site';
-      }
-      if (signOutBtn) {
-        signOutBtn.disabled = !authed;
-      }
+      if (linkBtn) linkBtn.disabled = authed;
+      if (signOutBtn) signOutBtn.disabled = !authed;
     }
 
     async function setPublicLockState(shouldLock) {
