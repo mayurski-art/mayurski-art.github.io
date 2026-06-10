@@ -261,6 +261,7 @@
     </details>
   </div>
 
+  <script src="assets/js/site-lock.js"></script>
   <script>
     const AUTH_KEY = 'trollrunner_admin_auth';
     const UPDATES_KEY = 'trollrunner_updates';
@@ -273,6 +274,8 @@
     const LIVE_CODING_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_coding_override';
     const LEGACY_LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
     const LEGACY_LIVE_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_override';
+    const SITE_PUBLIC_LOCK_KEY = 'trollrunner_site_public_lock_v1';
+    const SITE_LOCK_META_ID = '__trollrunner_site_lock_meta__';
     const MAX_VISIBLE_UPDATES = 3;
     const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
@@ -454,8 +457,12 @@ Working on improving fonts and backgrounds...`,
       return Boolean(item) && typeof item === 'object' && item.id === SHARED_FEEDBACK_META_ID;
     }
 
+    function isSharedSiteLockMetaItem(item) {
+      return Boolean(item) && typeof item === 'object' && item.id === SITE_LOCK_META_ID;
+    }
+
     function parseUpdatesPayload(payload) {
-      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item));
+      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item));
     }
 
     function parseStatusFlag(value) {
@@ -492,6 +499,25 @@ Working on improving fonts and backgrounds...`,
         running: readStoredLiveStatus(LIVE_RUNNING_STATUS_KEY, LEGACY_LIVE_STATUS_KEY),
         coding: readStoredLiveStatus(LIVE_CODING_STATUS_KEY),
       };
+    }
+
+    function getStoredSiteLockRecord() {
+      const helper = window.TrollrunnerSiteLock;
+      if (helper?.getStoredRecord) return helper.getStoredRecord();
+      try {
+        return JSON.parse(localStorage.getItem(SITE_PUBLIC_LOCK_KEY) || '{}') || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function setStoredSiteLockRecord(record) {
+      const helper = window.TrollrunnerSiteLock;
+      if (helper?.setStoredRecord) {
+        helper.setStoredRecord(record);
+        return;
+      }
+      localStorage.setItem(SITE_PUBLIC_LOCK_KEY, JSON.stringify(record || {}));
     }
 
     function normalizeFeedbackItem(item) {
@@ -534,8 +560,20 @@ Working on improving fonts and backgrounds...`,
       return mergeFeedbackItems(metaItems, directItems);
     }
 
-    function buildSharedUpdatesPayload(items, liveStatuses = getCurrentLiveStatuses(), feedbackItems = getFeedback()) {
-      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item)) : [];
+    function parseSiteLockPayload(payload) {
+      const rawUpdates = getSharedUpdatesArray(payload);
+      const meta = rawUpdates.find(isSharedSiteLockMetaItem);
+      const raw = meta?.siteLock || payload?.siteLock || payload?.site_lock || {};
+      const mode = String(raw?.mode || raw?.state || 'open').toLowerCase();
+      return {
+        mode: mode === 'pending' || mode === 'locked' ? mode : 'open',
+        pendingUntil: Number(raw?.pendingUntil || raw?.lockedAt || raw?.unlockAt || 0) || 0,
+        updatedAt: String(raw?.updatedAt || raw?.createdAt || new Date().toISOString()),
+      };
+    }
+
+    function buildSharedUpdatesPayload(items, liveStatuses = getCurrentLiveStatuses(), feedbackItems = getFeedback(), siteLock = getStoredSiteLockRecord()) {
+      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item)) : [];
       return [
         ...visibleItems,
         {
@@ -561,6 +599,15 @@ Working on improving fonts and backgrounds...`,
             ...item,
             message: item.rawMessage || item.message,
           })),
+        },
+        window.TrollrunnerSiteLock ? window.TrollrunnerSiteLock.buildMetaItem(siteLock) : {
+          id: SITE_LOCK_META_ID,
+          title: '__site_lock_meta__',
+          body: '__site_lock_meta__',
+          createdAt: new Date().toISOString(),
+          archived: true,
+          source: 'system',
+          siteLock,
         },
       ];
     }
@@ -616,16 +663,18 @@ Working on improving fonts and backgrounds...`,
         const updates = parseUpdatesPayload(payload);
         const feedback = parseFeedbackPayload(payload);
         const liveStatuses = parseLiveStatusesPayload(payload);
+        const siteLock = parseSiteLockPayload(payload);
         if (typeof liveStatuses.running === 'boolean') {
           writeStoredLiveStatus(LIVE_RUNNING_STATUS_KEY, liveStatuses.running, LEGACY_LIVE_STATUS_KEY);
         }
         if (typeof liveStatuses.coding === 'boolean') {
           writeStoredLiveStatus(LIVE_CODING_STATUS_KEY, liveStatuses.coding);
         }
+        setStoredSiteLockRecord(siteLock);
         renderLiveStatusState();
         localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedback));
         status.textContent = `Shared updates loaded (${updates.length} items).`;
-        return { updates, feedback };
+        return { updates, feedback, siteLock };
       } catch (err) {
         status.textContent = `Shared sync read failed: ${err.message}`;
         return null;
@@ -716,16 +765,18 @@ Working on improving fonts and backgrounds...`,
           const updates = parseUpdatesPayload(payload);
           const feedback = parseFeedbackPayload(payload);
           const liveStatuses = parseLiveStatusesPayload(payload);
+          const siteLock = parseSiteLockPayload(payload);
           if (typeof liveStatuses.running === 'boolean') {
             writeStoredLiveStatus(LIVE_RUNNING_STATUS_KEY, liveStatuses.running, LEGACY_LIVE_STATUS_KEY);
           }
           if (typeof liveStatuses.coding === 'boolean') {
             writeStoredLiveStatus(LIVE_CODING_STATUS_KEY, liveStatuses.coding);
           }
+          setStoredSiteLockRecord(siteLock);
           renderLiveStatusState();
           localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedback));
           if (status) status.textContent = `Shared updates loaded (${updates.length} items).`;
-          return { updates, feedback };
+          return { updates, feedback, siteLock };
         }
       } catch (err) {
         lastError = err instanceof Error ? err.message : String(err);

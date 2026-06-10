@@ -3424,6 +3424,7 @@ footer a:hover { color: #fff; }
 </footer>
 <div id="spotify-embed" aria-label="Troll Runner Spotify playlist"></div>
 
+<script src="assets/js/site-lock.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
@@ -3539,12 +3540,46 @@ function hydrateSiteGateFields() {
   if (email && typeof profile.email === 'string') email.value = profile.email;
 }
 
+function safeParseSiteGateLockRecord(raw) {
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeSiteGateLockRecord(raw) {
+  const input = raw && typeof raw === 'object' ? raw : {};
+  const mode = String(input.mode || input.state || 'open').toLowerCase();
+  const pendingUntil = Number(input.pendingUntil || input.lockedAt || input.unlockAt || 0) || 0;
+  return {
+    mode: mode === 'pending' || mode === 'locked' ? mode : 'open',
+    pendingUntil,
+    updatedAt: String(input.updatedAt || input.createdAt || new Date().toISOString()),
+  };
+}
+
+function getSitePublicLockRecord() {
+  const helper = window.TrollrunnerSiteLock;
+  if (helper?.getComputedRecord) return helper.getComputedRecord();
+  const raw = safeParseSiteGateLockRecord(localStorage.getItem(SITE_PUBLIC_LOCK_KEY));
+  return normalizeSiteGateLockRecord(raw);
+}
+
 function isSitePublicLocked() {
-  return localStorage.getItem(SITE_PUBLIC_LOCK_KEY) === '1';
+  return getSitePublicLockRecord().mode !== 'open';
 }
 
 function setSitePublicLocked(locked) {
-  localStorage.setItem(SITE_PUBLIC_LOCK_KEY, locked ? '1' : '0');
+  const helper = window.TrollrunnerSiteLock;
+  if (helper?.requestLockTransition) {
+    helper.requestLockTransition(Boolean(locked));
+    return;
+  }
+  const next = locked
+    ? { mode: 'pending', pendingUntil: Date.now() + 10000, updatedAt: new Date().toISOString() }
+    : { mode: 'open', pendingUntil: 0, updatedAt: new Date().toISOString() };
+  localStorage.setItem(SITE_PUBLIC_LOCK_KEY, JSON.stringify(next));
   updateSiteGateLockUI();
 }
 
@@ -3568,7 +3603,10 @@ function updateSiteGateLockUI() {
   const stateNode = document.getElementById('gate-lock-state');
   const feedbackNode = document.getElementById('gate-lock-feedback');
   const toggleBtn = document.getElementById('gate-lock-toggle');
-  const locked = isSitePublicLocked();
+  const record = getSitePublicLockRecord();
+  const locked = record.mode !== 'open';
+  const pending = record.mode === 'pending';
+  const remaining = pending ? Math.max(0, Math.ceil((record.pendingUntil - Date.now()) / 1000)) : 0;
 
   if (gate) {
     gate.classList.toggle('is-public-locked', locked);
@@ -3576,7 +3614,9 @@ function updateSiteGateLockUI() {
   }
   document.body.classList.toggle('site-entry-locked', locked || !gate || !gate.classList.contains('is-hidden'));
   if (stateNode) {
-    stateNode.textContent = locked ? 'Public access locked' : 'Public access open';
+    stateNode.textContent = pending
+      ? `Public access locks in ${remaining}s`
+      : (locked ? 'Public access locked' : 'Public access open');
     stateNode.classList.toggle('is-locked', locked);
   }
   if (toggleBtn) {
@@ -3585,9 +3625,11 @@ function updateSiteGateLockUI() {
     toggleBtn.setAttribute('title', locked ? 'Unlock public access' : 'Lock public access');
   }
   if (feedbackNode && !feedbackNode.dataset.manual) {
-    feedbackNode.textContent = locked
-      ? 'Locked. Public visitors stay on the preview screen.'
-      : 'Unlocked. Visitors can press Enter to enter the site.';
+    feedbackNode.textContent = pending
+      ? `Warning active. Public access locks in ${remaining}s.`
+      : (locked
+        ? 'Locked. Public visitors stay on the preview screen.'
+        : 'Unlocked. Visitors can press Enter to enter the site.');
   }
 }
 
@@ -3607,8 +3649,14 @@ function setSiteGateLockFeedback(message, kind = 'info') {
 
 function dismissSiteGate() {
   const gate = document.getElementById('site-gate');
-  if (isSitePublicLocked()) {
-    setSiteGateLockFeedback('Public access is locked. Unlock with the admin password first.', 'error');
+  const record = getSitePublicLockRecord();
+  if (record.mode !== 'open') {
+    if (record.mode === 'pending') {
+      const remaining = Math.max(0, Math.ceil((record.pendingUntil - Date.now()) / 1000));
+      setSiteGateLockFeedback(`Public access is locking in ${remaining}s.`, 'error');
+    } else {
+      setSiteGateLockFeedback('Public access is locked. Unlock with the admin password first.', 'error');
+    }
     const lockPass = document.getElementById('gate-lock-pass');
     if (lockPass && typeof lockPass.focus === 'function') lockPass.focus();
     return false;
@@ -3636,6 +3684,7 @@ function initializeSiteGate() {
   }
 
   updateSiteGateLockUI();
+  window.setInterval(updateSiteGateLockUI, 1000);
 
   const tryEnter = () => {
     if (!dismissSiteGate()) return;
@@ -3684,9 +3733,9 @@ function initializeSiteGate() {
       if (lockPassInput) lockPassInput.select?.();
       return;
     }
-    const nextLocked = !isSitePublicLocked();
+    const nextLocked = getSitePublicLockRecord().mode === 'open';
     setSitePublicLocked(nextLocked);
-    setSiteGateLockFeedback(nextLocked ? 'Public access is now locked.' : 'Public access is now open.');
+    setSiteGateLockFeedback(nextLocked ? 'Warning sent. Public access locks in 10 seconds.' : 'Public access is now open.');
     if (lockPassInput) lockPassInput.value = '';
   };
 
@@ -3714,7 +3763,7 @@ function initializeSiteGate() {
   }, { once: false });
 
   window.addEventListener('storage', event => {
-    if (event.key === SITE_PUBLIC_LOCK_KEY) updateSiteGateLockUI();
+    if (event.key === SITE_PUBLIC_LOCK_KEY || event.key === window.TrollrunnerSiteLock?.storageKey) updateSiteGateLockUI();
   });
 
 }
@@ -4635,8 +4684,18 @@ function isSharedFeedbackMetaItem(item) {
   return Boolean(item) && typeof item === 'object' && item.id === SHARED_FEEDBACK_META_ID;
 }
 
+function isSharedSiteLockMetaItem(item) {
+  return Boolean(item) && typeof item === 'object' && item.id === window.TrollrunnerSiteLock?.metaId;
+}
+
+function parseSharedSiteLockPayload(payload) {
+  const rawUpdates = getSharedUpdatesArray(payload);
+  const meta = rawUpdates.find(isSharedSiteLockMetaItem);
+  return normalizeSiteGateLockRecord(meta?.siteLock || payload?.siteLock || payload?.site_lock || {});
+}
+
 function parseSharedUpdatesPayload(payload) {
-  return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item));
+  return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item));
 }
 
 function parseSharedStatusFlag(value) {
@@ -4669,11 +4728,12 @@ function parseSharedLiveStatusesPayload(payload) {
 }
 
 function parseJsonSharedStatePayload(payload) {
-  if (!payload || typeof payload !== 'object') return { updates: [], feedback: [], liveStatuses: { running: null, coding: null } };
+  if (!payload || typeof payload !== 'object') return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
   return {
     updates: parseSharedUpdatesPayload(payload),
     feedback: parseSharedFeedbackPayload(payload),
     liveStatuses: parseSharedLiveStatusesPayload(payload),
+    siteLock: parseSharedSiteLockPayload(payload),
   };
 }
 
@@ -4728,8 +4788,8 @@ function setFeedback(items) {
   localStorage.setItem(ADMIN_FEEDBACK_KEY, JSON.stringify(mergeFeedbackItems(items)));
 }
 
-function buildSharedUpdatesPayload(items, liveStatuses = { running: false, coding: false }, feedbackItems = []) {
-  const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item)) : [];
+function buildSharedUpdatesPayload(items, liveStatuses = { running: false, coding: false }, feedbackItems = [], siteLock = getSitePublicLockRecord()) {
+  const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item)) : [];
   return [
     ...visibleItems,
     {
@@ -4752,6 +4812,15 @@ function buildSharedUpdatesPayload(items, liveStatuses = { running: false, codin
       archived: true,
       source: 'system',
       feedback: mergeFeedbackItems(feedbackItems),
+    },
+    window.TrollrunnerSiteLock ? window.TrollrunnerSiteLock.buildMetaItem(siteLock) : {
+      id: '__trollrunner_site_lock_meta__',
+      title: '__site_lock_meta__',
+      body: '__site_lock_meta__',
+      createdAt: new Date().toISOString(),
+      archived: true,
+      source: 'system',
+      siteLock: normalizeSiteGateLockRecord(siteLock),
     },
   ];
 }
@@ -4792,21 +4861,27 @@ async function syncFeedbackToBackend(items) {
     const existingPayload = Array.isArray(existingJson) ? existingJson[0] : existingJson;
     const visibleUpdates = parseSharedUpdatesPayload(existingPayload);
     const liveStatusEnabled = parseSharedStatusFlag(existingPayload?.live_status_enabled);
+    const siteLock = parseSharedSiteLockPayload(existingPayload);
 
     const payload = {
       id: SUPABASE_ROW_ID,
-      updates: [
-        ...visibleUpdates,
-        {
-          id: SHARED_FEEDBACK_META_ID,
-          title: '__feedback_meta__',
-          body: '__feedback_meta__',
-          createdAt: new Date().toISOString(),
-          archived: true,
-          source: 'system',
-          items: Array.isArray(items) ? items : [],
-        }
-      ],
+      updates: buildSharedUpdatesPayload(
+        [
+          ...visibleUpdates,
+          {
+            id: SHARED_FEEDBACK_META_ID,
+            title: '__feedback_meta__',
+            body: '__feedback_meta__',
+            createdAt: new Date().toISOString(),
+            archived: true,
+            source: 'system',
+            items: Array.isArray(items) ? items : [],
+          }
+        ],
+        { running: liveStatusEnabled === null ? false : liveStatusEnabled, coding: false },
+        items,
+        siteLock
+      ),
       live_status_enabled: liveStatusEnabled === null ? false : liveStatusEnabled,
       updated_at: new Date().toISOString(),
     };
@@ -4827,7 +4902,7 @@ async function syncFeedbackToBackend(items) {
 }
 
 async function loadSharedStateFromBackend() {
-  if (!isSupabaseConfigured()) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null } };
+  if (!isSupabaseConfigured()) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
   try {
     const qs = new URLSearchParams({
       select: 'updates,live_status_enabled',
@@ -4842,29 +4917,36 @@ async function loadSharedStateFromBackend() {
     });
     if (!response.ok) {
       console.warn('Shared sync read failed on homepage:', await parseSupabaseError(response));
-      return { updates: [], feedback: [], liveStatuses: { running: null, coding: null } };
+      return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
     }
     const json = await response.json();
     const payload = Array.isArray(json) ? json[0] : json;
+    const siteLock = parseSharedSiteLockPayload(payload);
+    if (window.TrollrunnerSiteLock?.setStoredRecord) {
+      window.TrollrunnerSiteLock.setStoredRecord(siteLock);
+    } else {
+      localStorage.setItem(SITE_PUBLIC_LOCK_KEY, JSON.stringify(siteLock));
+    }
     return {
       updates: parseSharedUpdatesPayload(payload),
       feedback: parseSharedFeedbackPayload(payload),
       liveStatuses: parseSharedLiveStatusesPayload(payload),
+      siteLock,
     };
   } catch {
-    return { updates: [], feedback: [], liveStatuses: { running: null, coding: null } };
+    return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
   }
 }
 
 async function loadSharedStateFromJsonEndpoint() {
-  if (!SHARED_UPDATES_JSON_URL) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null } };
+  if (!SHARED_UPDATES_JSON_URL) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
   try {
     const response = await fetch(`${SHARED_UPDATES_JSON_URL}?v=${Date.now()}`, { cache: 'no-store' });
-    if (!response.ok) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null } };
+    if (!response.ok) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
     const payload = await response.json();
     return parseJsonSharedStatePayload(payload);
   } catch {
-    return { updates: [], feedback: [], liveStatuses: { running: null, coding: null } };
+    return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
   }
 }
 
@@ -4889,6 +4971,13 @@ async function loadSharedState() {
           ? supabaseState.liveStatuses.coding
           : jsonState.liveStatuses?.coding,
     },
+    siteLock: parseSharedSiteLockPayload({
+      updates: [
+        ...(Array.isArray(supabaseState.updates) ? supabaseState.updates : []),
+        ...(Array.isArray(jsonState.updates) ? jsonState.updates : []),
+      ],
+      siteLock: supabaseState.siteLock || jsonState.siteLock,
+    }),
   };
 }
 
@@ -4902,6 +4991,13 @@ async function loadCustomUpdates(sharedStateOverride = null) {
   }
   if (typeof sharedState.liveStatuses?.coding === 'boolean') {
     writeStoredLiveStatus(LIVE_CODING_STATUS_KEY, sharedState.liveStatuses.coding);
+  }
+  if (sharedState.siteLock) {
+    if (window.TrollrunnerSiteLock?.setStoredRecord) {
+      window.TrollrunnerSiteLock.setStoredRecord(sharedState.siteLock);
+    } else {
+      localStorage.setItem(SITE_PUBLIC_LOCK_KEY, JSON.stringify(sharedState.siteLock));
+    }
   }
   applyLiveStatusVisibility();
   const source = Array.isArray(sharedUpdates) ? sharedUpdates : [];
@@ -4936,6 +5032,13 @@ async function refreshSharedStateFromBackend() {
   }
   if (typeof sharedState.liveStatuses?.coding === 'boolean') {
     writeStoredLiveStatus(LIVE_CODING_STATUS_KEY, sharedState.liveStatuses.coding);
+  }
+  if (sharedState.siteLock) {
+    if (window.TrollrunnerSiteLock?.setStoredRecord) {
+      window.TrollrunnerSiteLock.setStoredRecord(sharedState.siteLock);
+    } else {
+      localStorage.setItem(SITE_PUBLIC_LOCK_KEY, JSON.stringify(sharedState.siteLock));
+    }
   }
   applyLiveStatusVisibility();
   await loadCustomUpdates(sharedState);
