@@ -2440,6 +2440,457 @@ header p {
   padding: 0;
 }
 
+.runner-essentials {
+  max-width: 1180px;
+  margin: 0 auto 40px;
+  padding: 0 24px;
+  color: #2c1c10;
+}
+
+.runner-essentials-shell {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,238,197,0.52);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(255,248,221,0.96), rgba(248,222,164,0.9)),
+    repeating-linear-gradient(45deg, rgba(112,70,24,0.05) 0 2px, transparent 2px 8px);
+  box-shadow: 0 28px 68px rgba(26, 12, 5, 0.36);
+}
+
+.runner-essentials-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 16% 18%, rgba(129,54,203,0.18), transparent 28%),
+    radial-gradient(circle at 88% 12%, rgba(27,126,83,0.18), transparent 26%),
+    linear-gradient(90deg, rgba(70,34,12,0.12), transparent 42%),
+    url('assets/animations/forward.gif') right bottom / min(460px, 48%) auto no-repeat;
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.runner-essentials-content {
+  position: relative;
+  z-index: 1;
+  padding: clamp(22px, 4vw, 38px);
+}
+
+.cookbook-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 310px);
+  gap: 28px;
+  align-items: center;
+  min-height: 360px;
+}
+
+.runner-essentials-kicker {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border: 1px solid rgba(82,43,12,0.24);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.34);
+  color: #7a3015;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.runner-essentials h2 {
+  margin: 0;
+  color: #261408;
+  font-family: var(--font-display);
+  font-size: clamp(34px, 5vw, 62px);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.runner-essentials-copy {
+  max-width: 620px;
+  margin: 14px 0 0;
+  color: rgba(44,28,16,0.76);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.cookbook-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.cookbook-btn {
+  border: 1px solid rgba(72,38,14,0.2);
+  border-radius: 999px;
+  background: #fff7de;
+  color: #2d1a0d;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 10px 14px;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(74,41,12,0.12);
+}
+
+.cookbook-btn:hover,
+.cookbook-btn:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  background: #fff0bd;
+}
+
+.cookbook-btn-primary {
+  background: #2f6f4e;
+  color: #fff;
+  border-color: rgba(31,86,57,0.5);
+}
+
+.cookbook-music-btn {
+  background: #5f3b93;
+  color: #fff;
+  border-color: rgba(67,38,115,0.4);
+}
+
+.cookbook-mascot {
+  position: relative;
+  min-height: 300px;
+  display: grid;
+  place-items: center;
+}
+
+.cookbook-mascot::before {
+  content: '';
+  position: absolute;
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255,255,255,0.48), transparent 42%),
+    conic-gradient(from 18deg, #6b3fac, #efc75c, #2f8b63, #c94e32, #6b3fac);
+  filter: blur(0.2px);
+  opacity: 0.72;
+  animation: cookbook-orbit 9s linear infinite;
+}
+
+.cookbook-mascot img {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 260px);
+  max-height: 300px;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 24px rgba(54,27,8,0.24));
+}
+
+.cookbook-mascot-tip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  z-index: 2;
+  max-width: 260px;
+  margin: 0 auto;
+  border: 1px solid rgba(84,48,16,0.18);
+  border-radius: 14px;
+  background: rgba(255,249,226,0.92);
+  padding: 11px 13px;
+  color: #3b2412;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  box-shadow: 0 12px 22px rgba(44,25,8,0.12);
+}
+
+.cookbook-connection {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 18px;
+  align-items: stretch;
+  margin-top: 20px;
+}
+
+.cookbook-scroll,
+.cookbook-mini-card {
+  border: 1px solid rgba(90,49,13,0.18);
+  border-radius: 16px;
+  background: rgba(255,249,226,0.72);
+  padding: 18px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.cookbook-scroll h3,
+.cookbook-mini-card h3 {
+  margin: 0 0 8px;
+  color: #2b1709;
+  font-size: 17px;
+}
+
+.cookbook-scroll p {
+  margin: 0;
+  color: rgba(44,28,16,0.76);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.runner-essential-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+}
+
+.runner-essential-list li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  color: rgba(44,28,16,0.78);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.runner-essential-list li::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2f8b63, #d7a928);
+  box-shadow: 0 0 12px rgba(47,139,99,0.28);
+}
+
+.runner-essential-list button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.runner-essential-list button:hover,
+.runner-essential-list button:focus-visible {
+  color: #6c3512;
+  text-decoration: underline;
+  outline: none;
+}
+
+.cookbook-stage {
+  margin-top: 28px;
+}
+
+.cookbook-stage-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.cookbook-stage-head h3 {
+  margin: 0;
+  color: #261408;
+  font-size: clamp(22px, 3vw, 34px);
+}
+
+.cookbook-stage-head p {
+  margin: 6px 0 0;
+  color: rgba(44,28,16,0.72);
+  font-size: 13px;
+}
+
+.cookbook-book-layout {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.cookbook-tabs {
+  display: grid;
+  gap: 8px;
+}
+
+.cookbook-tab {
+  border: 1px solid rgba(70,35,10,0.18);
+  border-radius: 8px 0 0 8px;
+  background: #b94f3a;
+  color: #fff9e7;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(78,37,11,0.12);
+}
+
+.cookbook-tab:nth-child(3n + 2) {
+  background: #2f7b5a;
+}
+
+.cookbook-tab:nth-child(3n) {
+  background: #624596;
+}
+
+.cookbook-tab[aria-selected="true"] {
+  transform: translateX(8px);
+  filter: brightness(1.08);
+}
+
+.cookbook-book {
+  position: relative;
+  min-height: 430px;
+  border: 1px solid rgba(86,46,15,0.24);
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, rgba(105,57,22,0.14), transparent 8%, transparent 92%, rgba(105,57,22,0.12)),
+    linear-gradient(90deg, #f8e3ae 0 49.6%, #eecf90 49.6% 50.4%, #fff0bf 50.4% 100%);
+  box-shadow: 0 22px 46px rgba(65,35,12,0.24), inset 0 0 0 1px rgba(255,255,255,0.35);
+  perspective: 1400px;
+}
+
+.cookbook-page {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 24px;
+  min-height: 430px;
+  padding: clamp(20px, 3vw, 32px);
+  transform-origin: left center;
+}
+
+.cookbook-page.is-flipping {
+  animation: cookbook-page-flip 560ms ease both;
+}
+
+.recipe-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.recipe-category {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: #7a3015;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.recipe-title {
+  margin: 0;
+  color: #271408;
+  font-size: clamp(23px, 3vw, 34px);
+  line-height: 1.05;
+}
+
+.recipe-badge {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #2f6f4e;
+  color: #fff;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.recipe-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.recipe-meta {
+  border: 1px solid rgba(81,44,14,0.16);
+  border-radius: 12px;
+  background: rgba(255,249,226,0.64);
+  padding: 10px;
+}
+
+.recipe-meta span {
+  display: block;
+  margin-bottom: 3px;
+  color: rgba(44,28,16,0.58);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.recipe-meta strong {
+  color: #2d1a0d;
+  font-size: 13px;
+}
+
+.recipe-section h5 {
+  margin: 0 0 8px;
+  color: #2d1a0d;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.recipe-section ul {
+  margin: 0;
+  padding-left: 18px;
+  color: rgba(44,28,16,0.78);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.recipe-benefit,
+.recipe-tip {
+  border: 1px solid rgba(81,44,14,0.16);
+  border-radius: 14px;
+  background: rgba(255,249,226,0.64);
+  padding: 14px;
+  color: rgba(44,28,16,0.78);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.recipe-benefit strong,
+.recipe-tip strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #2f6f4e;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.recipe-tip {
+  margin-top: 12px;
+  background: rgba(95,59,147,0.1);
+}
+
+.cookbook-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+@keyframes cookbook-orbit {
+  to { transform: rotate(1turn); }
+}
+
+@keyframes cookbook-page-flip {
+  0% { transform: rotateY(0deg); opacity: 1; }
+  45% { transform: rotateY(-18deg); opacity: 0.5; }
+  100% { transform: rotateY(0deg); opacity: 1; }
+}
+
 .updates-feedback-grid {
   max-width: 1180px;
   margin: 0 auto 40px;
@@ -3059,6 +3510,7 @@ footer a:hover { color: #fff; }
   #biography,
   #map-section,
   .updates-feedback-grid,
+  .runner-essentials,
   .found-sticker-row,
   #updates,
   #feedback,
@@ -3075,6 +3527,70 @@ footer a:hover { color: #fff; }
   .updates-feedback-grid {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+
+  .cookbook-hero,
+  .cookbook-connection,
+  .runner-essentials-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .runner-essentials-shell::before {
+    background:
+      linear-gradient(180deg, rgba(36,255,138,0.12), transparent 42%),
+      url('assets/animations/forward.gif') center bottom / 92% auto no-repeat;
+    opacity: 0.16;
+  }
+
+  .runner-essentials h2 {
+    font-size: clamp(34px, 13vw, 52px);
+  }
+
+  .cookbook-mascot {
+    min-height: 260px;
+  }
+
+  .runner-essential-list {
+    grid-template-columns: 1fr;
+  }
+
+  .cookbook-stage-head {
+    display: block;
+  }
+
+  .cookbook-book-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cookbook-tabs {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scroll-snap-type: x proximity;
+  }
+
+  .cookbook-tab {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+
+  .cookbook-tab[aria-selected="true"] {
+    transform: translateY(-2px);
+  }
+
+  .cookbook-book {
+    min-height: 0;
+  }
+
+  .cookbook-page {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .recipe-meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .found-sticker-row {
@@ -3633,6 +4149,71 @@ footer a:hover { color: #fff; }
 </section>
 
 </div>
+
+<section class="runner-essentials" aria-labelledby="runner-essentials-title">
+  <div class="runner-essentials-shell">
+    <div class="runner-essentials-content">
+      <div class="cookbook-hero">
+        <div>
+          <span class="runner-essentials-kicker">Upcoming Race Planning</span>
+          <h2 id="runner-essentials-title">The Troll Runner Cookbook</h2>
+          <p class="runner-essentials-copy">Magical meals, race fuel, and recovery recipes from the troll wizard kitchen.</p>
+          <div class="cookbook-actions" aria-label="Cookbook shortcuts">
+            <button class="cookbook-btn cookbook-btn-primary" type="button" data-cookbook-scroll>Open Cookbook</button>
+            <button class="cookbook-btn" type="button" data-cookbook-category="Pre-Workout Meals">Pre-Workout</button>
+            <button class="cookbook-btn" type="button" data-cookbook-category="Post-Workout Meals">Post-Workout</button>
+            <button class="cookbook-btn" type="button" data-cookbook-category="Protein Shakes">Protein Shakes</button>
+            <button class="cookbook-btn" type="button" data-cookbook-category="Race Day Fuel">Race Day Fuel</button>
+            <button id="cookbook-music-toggle" class="cookbook-btn cookbook-music-btn" type="button" aria-pressed="false">Play Cafe Spell</button>
+          </div>
+        </div>
+        <aside class="cookbook-mascot" aria-label="Troll wizard cooking tip">
+          <img src="assets/animations/troll-computer-transparent.png" alt="Troll wizard kitchen mascot">
+          <p id="cookbook-mascot-tip" class="cookbook-mascot-tip">A tiny pinch of carbs before the quest keeps the legs from filing a formal complaint.</p>
+        </aside>
+      </div>
+
+      <div class="cookbook-connection">
+        <article class="cookbook-scroll">
+          <h3>Food Belongs In The Training Plan</h3>
+          <p>Every runner needs more than miles. This cookbook helps you fuel before workouts, recover after runs, and build meals that support your next 5K, 10K, half marathon, or full race quest.</p>
+        </article>
+        <article class="cookbook-mini-card">
+          <h3>Race Planning Essentials</h3>
+          <ul class="runner-essential-list">
+            <li>5K Training Plan</li>
+            <li>10K Training Plan</li>
+            <li>Half Marathon Training Plan</li>
+            <li>Marathon Training Plan</li>
+            <li><button type="button" data-cookbook-category="Pre-Workout Meals">Fueling Experiments</button></li>
+            <li><button type="button" data-cookbook-category="Race Day Fuel">Pre-Race Nutrition</button></li>
+            <li><button type="button" data-cookbook-category="Race Day Fuel">During-Race Fueling</button></li>
+            <li><button type="button" data-cookbook-category="Post-Workout Meals">Recovery Nutrition</button></li>
+          </ul>
+        </article>
+      </div>
+
+      <div id="cookbook-stage" class="cookbook-stage">
+        <div class="cookbook-stage-head">
+          <div>
+            <h3>Wizard Fuel Cookbook</h3>
+            <p>Flip through practical recipes with a little French kitchen mischief.</p>
+          </div>
+        </div>
+        <div class="cookbook-book-layout">
+          <div id="cookbook-tabs" class="cookbook-tabs" role="tablist" aria-label="Cookbook categories"></div>
+          <div class="cookbook-book" aria-live="polite">
+            <article id="cookbook-page" class="cookbook-page"></article>
+            <div class="cookbook-controls">
+              <button id="cookbook-prev" class="cookbook-btn" type="button">Previous Page</button>
+              <button id="cookbook-next" class="cookbook-btn cookbook-btn-primary" type="button">Next Page</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <div class="updates-feedback-grid">
   <section id="updates">
@@ -6519,7 +7100,249 @@ document.getElementById('admin-pass')?.addEventListener('keydown', event => {
   event.preventDefault();
   void goToAdmin();
 });
-initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence(); initializeLiveChat();
+
+const COOKBOOK_RECIPES = [
+  {
+    category: 'Pre-Workout Meals',
+    title: 'Banana Baguette Spell Toast',
+    prep: '7 min',
+    timing: '45-75 min before',
+    protein: '12g',
+    carbs: '62g',
+    calories: '360',
+    ingredients: ['Half baguette or thick toast', '1 banana', '1 tbsp peanut butter', 'Honey', 'Pinch of sea salt'],
+    benefit: 'Quick carbs with a little fat and protein for steady energy before intervals, tempos, or easy miles.',
+    tip: 'Keep the salt. The wizard says sweat taxes are paid in sodium.'
+  },
+  {
+    category: 'Post-Workout Meals',
+    title: 'Recovery Ratatouille Rice Bowl',
+    prep: '18 min',
+    timing: 'Within 60 min after',
+    protein: '32g',
+    carbs: '74g',
+    calories: '620',
+    ingredients: ['Cooked rice', 'Grilled chicken or tofu', 'Zucchini', 'Tomatoes', 'Eggplant', 'Olive oil'],
+    benefit: 'A carb-forward recovery bowl with enough protein to support muscle repair after longer runs.',
+    tip: 'If your legs feel cursed, add extra rice before blaming the moon.'
+  },
+  {
+    category: 'Breakfast',
+    title: 'Crepe Quest Oats',
+    prep: '10 min',
+    timing: 'Morning or 2 hr pre-run',
+    protein: '24g',
+    carbs: '68g',
+    calories: '510',
+    ingredients: ['Rolled oats', 'Greek yogurt', 'Berries', 'Maple syrup', 'Chia seeds', 'Cinnamon'],
+    benefit: 'Slow-release carbs and protein make this a practical breakfast for base training days.',
+    tip: 'Stir clockwise for confidence. Counterclockwise for hill repeats.'
+  },
+  {
+    category: 'Lunch',
+    title: 'Castle Courtyard Nicoise Wrap',
+    prep: '12 min',
+    timing: 'Midday training fuel',
+    protein: '34g',
+    carbs: '48g',
+    calories: '540',
+    ingredients: ['Large wrap', 'Tuna or chickpeas', 'Potatoes', 'Green beans', 'Egg', 'Dijon yogurt sauce'],
+    benefit: 'Balanced protein, carbs, and salt for runners who still need to function after lunch.',
+    tip: 'Potatoes are tiny training stones. Respect them.'
+  },
+  {
+    category: 'Dinner',
+    title: 'Marathon Coq au Vin Pasta',
+    prep: '25 min',
+    timing: 'Night before big training',
+    protein: '38g',
+    carbs: '92g',
+    calories: '760',
+    ingredients: ['Pasta', 'Chicken', 'Mushrooms', 'Carrots', 'Low-sodium broth', 'Herbs'],
+    benefit: 'A hearty carb load with lean protein for the evening before a long run or race simulation.',
+    tip: 'Go easy on heavy sauce before race day. The cauldron should not fight back.'
+  },
+  {
+    category: 'Protein Shakes',
+    title: 'Vanilla Potion Recovery Shake',
+    prep: '4 min',
+    timing: 'After hard sessions',
+    protein: '31g',
+    carbs: '52g',
+    calories: '430',
+    ingredients: ['Milk or soy milk', 'Vanilla protein', 'Frozen banana', 'Oats', 'Pinch of salt'],
+    benefit: 'Fast, drinkable recovery when appetite is low but the workout took payment.',
+    tip: 'Blend until the potion stops looking suspicious.'
+  },
+  {
+    category: 'Race Day Fuel',
+    title: 'Start-Line Honey Rice Cakes',
+    prep: '15 min',
+    timing: '2-3 hr before race',
+    protein: '8g',
+    carbs: '86g',
+    calories: '410',
+    ingredients: ['Sticky rice', 'Honey', 'Blueberries', 'Sea salt', 'Small splash of lemon'],
+    benefit: 'Simple, familiar carbs that are easy to portion before a 5K, 10K, half, or marathon.',
+    tip: 'Test this in training. Race day is not the time to audition a mysterious scroll.'
+  },
+  {
+    category: 'Snacks',
+    title: 'Pocket Brioche Energy Bites',
+    prep: '8 min',
+    timing: 'Any snack window',
+    protein: '10g',
+    carbs: '42g',
+    calories: '280',
+    ingredients: ['Brioche pieces', 'Almond butter', 'Dates', 'Cocoa', 'Flaky salt'],
+    benefit: 'A compact snack for topping off energy between meals or after short runs.',
+    tip: 'Make them small enough to share, then mysteriously do not share.'
+  },
+  {
+    category: 'Hydration / Electrolyte Drinks',
+    title: 'Lavender Lemon Electrolyte Elixir',
+    prep: '3 min',
+    timing: 'Before or during hot runs',
+    protein: '0g',
+    carbs: '24g',
+    calories: '96',
+    ingredients: ['Water', 'Lemon juice', 'Honey', 'Pinch of salt', 'Tiny splash of lavender syrup'],
+    benefit: 'Fluids, sodium, and light carbs help maintain effort when the weather gets dramatic.',
+    tip: 'The salt should whisper, not shout.'
+  }
+];
+
+let cookbookIndex = 0;
+let cookbookAudioContext = null;
+let cookbookMusicTimer = null;
+let cookbookMusicStep = 0;
+
+function playCookbookTone(frequency, duration = 0.12, type = 'triangle', gainValue = 0.035) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  cookbookAudioContext ||= new AudioContextClass();
+  if (cookbookAudioContext.state === 'suspended') void cookbookAudioContext.resume();
+  const oscillator = cookbookAudioContext.createOscillator();
+  const gain = cookbookAudioContext.createGain();
+  oscillator.type = type;
+  oscillator.frequency.value = frequency;
+  gain.gain.setValueAtTime(0.0001, cookbookAudioContext.currentTime);
+  gain.gain.exponentialRampToValueAtTime(gainValue, cookbookAudioContext.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, cookbookAudioContext.currentTime + duration);
+  oscillator.connect(gain);
+  gain.connect(cookbookAudioContext.destination);
+  oscillator.start();
+  oscillator.stop(cookbookAudioContext.currentTime + duration + 0.02);
+}
+
+function playCookbookFlipSound() {
+  [659, 784, 988].forEach((frequency, idx) => {
+    window.setTimeout(() => playCookbookTone(frequency, 0.08, 'sine', 0.025), idx * 42);
+  });
+}
+
+function toggleCookbookMusic() {
+  const button = document.getElementById('cookbook-music-toggle');
+  if (!button) return;
+  if (cookbookMusicTimer) {
+    window.clearInterval(cookbookMusicTimer);
+    cookbookMusicTimer = null;
+    button.textContent = 'Play Cafe Spell';
+    button.setAttribute('aria-pressed', 'false');
+    return;
+  }
+  const notes = [392, 440, 523, 659, 587, 523, 440, 349];
+  button.textContent = 'Mute the Wizard Band';
+  button.setAttribute('aria-pressed', 'true');
+  const playStep = () => {
+    playCookbookTone(notes[cookbookMusicStep % notes.length], 0.18, cookbookMusicStep % 2 ? 'triangle' : 'sine', 0.018);
+    cookbookMusicStep += 1;
+  };
+  playStep();
+  cookbookMusicTimer = window.setInterval(playStep, 520);
+}
+
+function renderCookbookTabs() {
+  const tabs = document.getElementById('cookbook-tabs');
+  if (!tabs) return;
+  tabs.innerHTML = '';
+  COOKBOOK_RECIPES.forEach((recipe, idx) => {
+    const button = document.createElement('button');
+    button.className = 'cookbook-tab';
+    button.type = 'button';
+    button.textContent = recipe.category;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-selected', String(idx === cookbookIndex));
+    button.addEventListener('click', () => setCookbookRecipe(idx, true));
+    tabs.appendChild(button);
+  });
+}
+
+function renderCookbookPage(animate = false) {
+  const page = document.getElementById('cookbook-page');
+  const recipe = COOKBOOK_RECIPES[cookbookIndex];
+  if (!page || !recipe) return;
+  if (animate) {
+    page.classList.remove('is-flipping');
+    void page.offsetWidth;
+    page.classList.add('is-flipping');
+    playCookbookFlipSound();
+  }
+  page.innerHTML = `
+    <div>
+      <span class="recipe-category">${recipe.category}</span>
+      <div class="recipe-title-row">
+        <h4 class="recipe-title">${recipe.title}</h4>
+        <span class="recipe-badge">${recipe.prep}</span>
+      </div>
+      <div class="recipe-meta-grid">
+        <div class="recipe-meta"><span>Eat</span><strong>${recipe.timing}</strong></div>
+        <div class="recipe-meta"><span>Protein</span><strong>${recipe.protein}</strong></div>
+        <div class="recipe-meta"><span>Carbs</span><strong>${recipe.carbs}</strong></div>
+        <div class="recipe-meta"><span>Calories</span><strong>${recipe.calories}</strong></div>
+        <div class="recipe-meta"><span>Prep</span><strong>${recipe.prep}</strong></div>
+        <div class="recipe-meta"><span>Quest</span><strong>${recipe.category.replace(' Meals', '')}</strong></div>
+      </div>
+      <div class="recipe-section">
+        <h5>Ingredients</h5>
+        <ul>${recipe.ingredients.map(item => `<li>${item}</li>`).join('')}</ul>
+      </div>
+    </div>
+    <div>
+      <div class="recipe-benefit"><strong>Runner Benefit</strong>${recipe.benefit}</div>
+      <div class="recipe-tip"><strong>Troll Runner Tip</strong>${recipe.tip}</div>
+    </div>
+  `;
+  const tip = document.getElementById('cookbook-mascot-tip');
+  if (tip) tip.textContent = recipe.tip;
+  renderCookbookTabs();
+}
+
+function setCookbookRecipe(index, shouldScroll = false) {
+  cookbookIndex = (index + COOKBOOK_RECIPES.length) % COOKBOOK_RECIPES.length;
+  renderCookbookPage(true);
+  if (shouldScroll) document.getElementById('cookbook-stage')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setupCookbook() {
+  if (!document.getElementById('cookbook-page')) return;
+  renderCookbookPage(false);
+  document.getElementById('cookbook-prev')?.addEventListener('click', () => setCookbookRecipe(cookbookIndex - 1, false));
+  document.getElementById('cookbook-next')?.addEventListener('click', () => setCookbookRecipe(cookbookIndex + 1, false));
+  document.getElementById('cookbook-music-toggle')?.addEventListener('click', toggleCookbookMusic);
+  document.querySelectorAll('[data-cookbook-scroll]').forEach(button => {
+    button.addEventListener('click', () => document.getElementById('cookbook-stage')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  });
+  document.querySelectorAll('[data-cookbook-category]').forEach(button => {
+    button.addEventListener('click', () => {
+      const category = button.getAttribute('data-cookbook-category');
+      const idx = COOKBOOK_RECIPES.findIndex(recipe => recipe.category === category);
+      if (idx >= 0) setCookbookRecipe(idx, true);
+    });
+  });
+}
+
+initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence(); initializeLiveChat(); setupCookbook();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }
