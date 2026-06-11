@@ -18,6 +18,56 @@
   }
 })();
 </script>
+<script>
+(() => {
+  const gateSeenKey = 'trollrunner_site_gate_seen_v1';
+  const siteLockKeys = ['trollrunner_site_public_lock_v1', 'trollrunner_site_public_locked_v1'];
+
+  function safeParse(raw) {
+    try {
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function readCookie(name) {
+    return document.cookie
+      .split(';')
+      .map(part => part.trim())
+      .find(part => part.startsWith(`${name}=`))
+      ?.split('=')
+      .slice(1)
+      .join('=') || '';
+  }
+
+  function isInternalReferrer() {
+    if (!document.referrer) return false;
+    try {
+      const host = new URL(document.referrer).hostname.toLowerCase();
+      return host === 'trollrunner.net' || host.endsWith('.trollrunner.net');
+    } catch {
+      return false;
+    }
+  }
+
+  function isReload() {
+    return performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload';
+  }
+
+  function isPublicLocked() {
+    return siteLockKeys.some(key => {
+      const mode = String(safeParse(localStorage.getItem(key)).mode || 'open').toLowerCase();
+      return mode === 'pending' || mode === 'locked';
+    });
+  }
+
+  const hasSeenGate = localStorage.getItem(gateSeenKey) === '1' || readCookie(gateSeenKey) === '1';
+  if (hasSeenGate && isInternalReferrer() && !isReload() && !isPublicLocked()) {
+    document.documentElement.classList.add('site-gate-skip-initial');
+  }
+})();
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&family=Rubik+Glitch&family=Space+Grotesk:wght@500;700&display=swap');
 
@@ -53,6 +103,12 @@ html, body {
 }
 body.site-entry-locked {
   overflow: hidden;
+}
+html.site-gate-skip-initial body.site-entry-locked {
+  overflow: auto;
+}
+html.site-gate-skip-initial .site-gate {
+  display: none;
 }
 
 .site-gate {
@@ -3776,6 +3832,7 @@ function initializeSiteGate() {
     gate.classList.add('is-hidden');
     document.body.classList.remove('site-entry-locked');
   }
+  document.documentElement.classList.remove('site-gate-skip-initial');
   updateSiteGateLockUI();
   window.setInterval(updateSiteGateLockUI, 1000);
 
