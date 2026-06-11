@@ -934,6 +934,194 @@ header p {
   margin-top: 12px;
 }
 
+.live-chat-panel {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  min-height: 430px;
+  border: 2px solid rgba(22, 24, 31, 0.95);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(227, 241, 233, 0.92)),
+    #eaf3ed;
+  color: #182018;
+  box-shadow:
+    0 18px 42px rgba(0,0,0,0.28),
+    inset 0 0 0 4px rgba(108, 128, 112, 0.2);
+  overflow: hidden;
+  font-family: 'DM Mono', 'DM Sans', monospace;
+}
+.live-chat-panel::before {
+  content: '';
+  position: absolute;
+}
+.live-chat-window {
+  height: 100%;
+  min-height: 430px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  gap: 8px;
+  padding: 10px;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.035) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, rgba(255,255,255,0.58), rgba(211, 226, 216, 0.54));
+}
+.live-chat-titlebar {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  border: 2px solid #1e2a24;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background:
+    linear-gradient(90deg, #1f8c5f, #2fa7a6 58%, #f4d35e);
+  color: #08110e;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.22);
+}
+.live-chat-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.live-chat-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.live-chat-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: #24ff8a;
+  box-shadow: 0 0 0 0 rgba(36,255,138,0.7);
+  animation: live-chat-blink 1.2s steps(2, end) infinite;
+}
+.live-chat-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.live-chat-room-select,
+.live-chat-new-room,
+.live-chat-name,
+.live-chat-input {
+  min-width: 0;
+  width: 100%;
+  border: 2px solid #26352f;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.74);
+  color: #16231e;
+  padding: 9px 10px;
+  font: 12px 'DM Mono', 'DM Sans', monospace;
+}
+.live-chat-room-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+}
+.live-chat-btn {
+  border: 2px solid #26352f;
+  border-radius: 7px;
+  background: #f4d35e;
+  color: #111;
+  padding: 9px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #26352f;
+}
+.live-chat-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 #26352f;
+}
+.live-chat-feed {
+  min-height: 220px;
+  overflow: auto;
+  border: 2px solid #26352f;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(252,255,244,0.86), rgba(221,238,227,0.82)),
+    #f2ffe9;
+  padding: 9px;
+  scrollbar-width: thin;
+}
+.live-chat-empty {
+  min-height: 190px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: rgba(18,35,30,0.66);
+  font-size: 12px;
+}
+.live-chat-message {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(33, 48, 42, 0.25);
+}
+.live-chat-message:last-child {
+  border-bottom: 0;
+}
+.live-chat-avatar {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #26352f;
+  border-radius: 5px;
+  background:
+    linear-gradient(135deg, #24ff8a 0 50%, #f957bc 50%),
+    #24ff8a;
+}
+.live-chat-name-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.live-chat-author {
+  font-weight: 900;
+  color: #12432f;
+}
+.live-chat-time {
+  font-size: 10px;
+  color: rgba(18,35,30,0.52);
+}
+.live-chat-text {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.live-chat-typing {
+  min-height: 16px;
+  color: rgba(18,35,30,0.62);
+  font-size: 11px;
+}
+.live-chat-typing.is-active::after {
+  content: '_';
+  animation: live-chat-cursor 0.75s steps(2, end) infinite;
+}
+.live-chat-composer {
+  display: grid;
+  grid-template-columns: minmax(90px, 132px) minmax(0, 1fr) auto;
+  gap: 8px;
+}
+@keyframes live-chat-blink {
+  50% { opacity: 0.45; }
+}
+@keyframes live-chat-cursor {
+  50% { opacity: 0; }
+}
+
 #spotify-embed {
   position: fixed;
   left: -9999px;
@@ -2899,10 +3087,22 @@ footer a:hover { color: #fff; }
     padding-top: 14px;
   }
   #bio-artwork,
+  .live-chat-panel,
   #stats-banner,
   .found-sticker-row {
     grid-column: 1;
     grid-row: auto;
+  }
+  .live-chat-panel {
+    min-height: 0;
+  }
+  .live-chat-window {
+    min-height: 390px;
+  }
+  .live-chat-toolbar,
+  .live-chat-room-actions,
+  .live-chat-composer {
+    grid-template-columns: 1fr;
   }
   #stats-banner {
     padding: 14px;
@@ -3403,6 +3603,35 @@ footer a:hover { color: #fff; }
   </div>
 </section>
 
+<section class="live-chat-panel" aria-label="Trollrunner live chat">
+  <div class="live-chat-window">
+    <div class="live-chat-titlebar">
+      <div>
+        <div class="live-chat-title">TROLLCHAT</div>
+      </div>
+      <div class="live-chat-status"><span class="live-chat-status-dot" aria-hidden="true"></span><span id="live-chat-online-count">0 active</span></div>
+    </div>
+
+    <div class="live-chat-toolbar">
+      <select id="live-chat-room-select" class="live-chat-room-select" aria-label="Chat room"></select>
+      <div class="live-chat-room-actions">
+        <input id="live-chat-new-room" class="live-chat-new-room" type="text" maxlength="28" placeholder="New room">
+        <button id="live-chat-create-room" class="live-chat-btn" type="button">Make</button>
+        <button id="live-chat-clear-room" class="live-chat-btn" type="button">Clear</button>
+      </div>
+    </div>
+
+    <div id="live-chat-feed" class="live-chat-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+    <div id="live-chat-typing" class="live-chat-typing" aria-live="polite"></div>
+
+    <form id="live-chat-form" class="live-chat-composer">
+      <input id="live-chat-name" class="live-chat-name" type="text" maxlength="24" placeholder="Guest name" aria-label="Display name" autocomplete="nickname">
+      <input id="live-chat-input" class="live-chat-input" type="text" maxlength="220" placeholder="type here..." aria-label="Message" autocomplete="off">
+      <button class="live-chat-btn" type="submit">Send</button>
+    </form>
+  </div>
+</section>
+
 </div>
 
 <div class="updates-feedback-grid">
@@ -3491,8 +3720,19 @@ footer a:hover { color: #fff; }
 const ADMIN_UPDATES_KEY = 'trollrunner_updates';
 const ADMIN_FEEDBACK_KEY = 'trollrunner_feedback';
 const SHARED_FEEDBACK_META_ID = '__trollrunner_feedback_meta__';
+const LIVE_CHAT_META_ID = '__trollrunner_live_chat_meta__';
 const FEEDBACK_USERNAME_KEY = 'trollrunner_feedback_username';
 const FEEDBACK_ALLOW_USERNAME_KEY = 'trollrunner_feedback_allow_username';
+const LIVE_CHAT_NAME_KEY = 'trollrunner_live_chat_name';
+const LIVE_CHAT_SELECTED_ROOM_KEY = 'trollrunner_live_chat_room';
+const LIVE_CHAT_LOCAL_KEY = 'trollrunner_live_chat_cache_v1';
+const LIVE_CHAT_PRESENCE_KEY = 'trollrunner_live_chat_presence_v1';
+const LIVE_CHAT_CHANNEL_NAME = 'trollrunner-live-chat';
+const LIVE_CHAT_RETENTION_MS = 24 * 60 * 60 * 1000;
+const LIVE_CHAT_MESSAGE_LIMIT = 220;
+const LIVE_CHAT_COOLDOWN_MS = 2500;
+const LIVE_CHAT_PRESENCE_TTL_MS = 18000;
+const LIVE_CHAT_TYPING_TTL_MS = 2400;
 const GEO_CACHE_KEY = 'trollrunner_geo_cache_v1';
 const MAX_VISIBLE_UPDATES = 3;
 const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
@@ -3538,6 +3778,7 @@ let spotifyCurrentUri = '';
 const MOBILE_SIDEBAR_TRACKER_KEY = 'trollrunner_mobile_sidebar_tracker_open';
 let viewerPresenceClient = null;
 let viewerPresenceChannel = null;
+let liveChatState = null;
 const liveCoordinateMap = {};
 let geoCache = null;
 const geoInflight = new Set();
@@ -3772,9 +4013,7 @@ function updateSiteGateLockUI() {
   if (feedbackNode && !feedbackNode.dataset.manual) {
     feedbackNode.textContent = pending
       ? `Warning active. Public access locks in ${remaining}s.`
-      : (locked
-        ? 'Locked. Public visitors stay on the preview screen.'
-        : 'Unlocked. Visitors can press Enter to enter the site.');
+      : (locked ? 'Locked. Public visitors stay on the preview screen.' : '');
   }
 }
 
@@ -3908,7 +4147,15 @@ function initializeSiteGate() {
     }
     const nextLocked = getSitePublicLockRecord().mode === 'open';
     setSitePublicLocked(nextLocked);
-    setSiteGateLockFeedback(nextLocked ? 'Warning sent. Public access locks in 10 seconds.' : 'Public access is now open.');
+    if (nextLocked) {
+      setSiteGateLockFeedback('Warning sent. Public access locks in 10 seconds.');
+    } else {
+      const feedbackNode = document.getElementById('gate-lock-feedback');
+      if (feedbackNode) {
+        delete feedbackNode.dataset.manual;
+        feedbackNode.textContent = '';
+      }
+    }
   };
 
   if (lockVerifyBtn) {
@@ -4886,7 +5133,7 @@ function parseSharedSiteLockPayload(payload) {
 }
 
 function parseSharedUpdatesPayload(payload) {
-  return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item));
+  return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item));
 }
 
 function parseSharedStatusFlag(value) {
@@ -4919,12 +5166,13 @@ function parseSharedLiveStatusesPayload(payload) {
 }
 
 function parseJsonSharedStatePayload(payload) {
-  if (!payload || typeof payload !== 'object') return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
+  if (!payload || typeof payload !== 'object') return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}), liveChat: normalizeLiveChatPayload({}) };
   return {
     updates: parseSharedUpdatesPayload(payload),
     feedback: parseSharedFeedbackPayload(payload),
     liveStatuses: parseSharedLiveStatusesPayload(payload),
     siteLock: parseSharedSiteLockPayload(payload),
+    liveChat: parseSharedLiveChatPayload(payload),
   };
 }
 
@@ -4979,8 +5227,127 @@ function setFeedback(items) {
   localStorage.setItem(ADMIN_FEEDBACK_KEY, JSON.stringify(mergeFeedbackItems(items)));
 }
 
-function buildSharedUpdatesPayload(items, liveStatuses = { running: false, coding: false }, feedbackItems = [], siteLock = getSitePublicLockRecord()) {
-  const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item)) : [];
+function getDefaultLiveChatRooms() {
+  return [
+    { id: 'main-room', name: 'Main Room' },
+    { id: 'trollrunner-lobby', name: 'Trollrunner Lobby' },
+    { id: 'mile-1', name: 'Mile 1' },
+  ];
+}
+
+function safeParseLiveChatJson(raw, fallback) {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed == null ? fallback : parsed;
+  } catch {
+    return fallback;
+  }
+}
+
+function slugifyLiveChatRoomName(value) {
+  const slug = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 36);
+  return slug || `room-${Date.now().toString(36)}`;
+}
+
+function normalizeLiveChatRoom(room) {
+  const name = String(room?.name || '').trim().slice(0, 28);
+  const id = slugifyLiveChatRoomName(room?.id || name);
+  if (!id || !name) return null;
+  return { id, name };
+}
+
+function normalizeLiveChatMessage(message) {
+  const text = String(message?.text || '').trim().slice(0, LIVE_CHAT_MESSAGE_LIMIT);
+  if (!text) return null;
+  const roomId = slugifyLiveChatRoomName(message?.roomId || 'main-room');
+  const createdAt = String(message?.createdAt || new Date().toISOString());
+  if (Date.now() - new Date(createdAt).getTime() > LIVE_CHAT_RETENTION_MS) return null;
+  return {
+    id: String(message?.id || `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    roomId,
+    name: String(message?.name || 'Guest').trim().slice(0, 24) || 'Guest',
+    text,
+    createdAt,
+  };
+}
+
+function normalizeLiveChatPayload(payload) {
+  const input = payload && typeof payload === 'object' ? payload : {};
+  const defaultRooms = getDefaultLiveChatRooms();
+  const roomMap = new Map(defaultRooms.map(room => [room.id, room]));
+  (Array.isArray(input.rooms) ? input.rooms : []).forEach(room => {
+    const normalized = normalizeLiveChatRoom(room);
+    if (normalized) roomMap.set(normalized.id, normalized);
+  });
+  const messageMap = new Map();
+  (Array.isArray(input.messages) ? input.messages : []).forEach(message => {
+    const normalized = normalizeLiveChatMessage(message);
+    if (!normalized) return;
+    if (!roomMap.has(normalized.roomId)) {
+      roomMap.set(normalized.roomId, { id: normalized.roomId, name: normalized.roomId.replace(/-/g, ' ') });
+    }
+    messageMap.set(normalized.id, normalized);
+  });
+  const messages = Array.from(messageMap.values())
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .slice(-160);
+  return {
+    rooms: Array.from(roomMap.values()).slice(0, 20),
+    messages,
+    updatedAt: String(input.updatedAt || new Date().toISOString()),
+  };
+}
+
+function getLocalLiveChatPayload() {
+  return normalizeLiveChatPayload(safeParseLiveChatJson(localStorage.getItem(LIVE_CHAT_LOCAL_KEY), {}));
+}
+
+function setLocalLiveChatPayload(payload) {
+  const normalized = normalizeLiveChatPayload(payload);
+  localStorage.setItem(LIVE_CHAT_LOCAL_KEY, JSON.stringify(normalized));
+  return normalized;
+}
+
+function isSharedLiveChatMetaItem(item) {
+  return Boolean(item) && typeof item === 'object' && item.id === LIVE_CHAT_META_ID;
+}
+
+function parseSharedLiveChatPayload(payload) {
+  const rawUpdates = getSharedUpdatesArray(payload);
+  const meta = rawUpdates.find(isSharedLiveChatMetaItem);
+  return normalizeLiveChatPayload(meta?.liveChat || payload?.liveChat || {});
+}
+
+function mergeLiveChatPayloads(...payloads) {
+  const rooms = [];
+  const messages = [];
+  payloads.forEach(payload => {
+    const normalized = normalizeLiveChatPayload(payload);
+    rooms.push(...normalized.rooms);
+    messages.push(...normalized.messages);
+  });
+  return normalizeLiveChatPayload({ rooms, messages, updatedAt: new Date().toISOString() });
+}
+
+function buildLiveChatMetaItem(payload = getLocalLiveChatPayload()) {
+  return {
+    id: LIVE_CHAT_META_ID,
+    title: '__live_chat_meta__',
+    body: '__live_chat_meta__',
+    createdAt: new Date().toISOString(),
+    archived: true,
+    source: 'system',
+    liveChat: normalizeLiveChatPayload(payload),
+  };
+}
+
+function buildSharedUpdatesPayload(items, liveStatuses = { running: false, coding: false }, feedbackItems = [], siteLock = getSitePublicLockRecord(), liveChat = getLocalLiveChatPayload()) {
+  const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item)) : [];
   return [
     ...visibleItems,
     {
@@ -5013,6 +5380,7 @@ function buildSharedUpdatesPayload(items, liveStatuses = { running: false, codin
       source: 'system',
       siteLock: normalizeSiteGateLockRecord(siteLock),
     },
+    buildLiveChatMetaItem(liveChat),
   ];
 }
 
@@ -5051,8 +5419,10 @@ async function syncFeedbackToBackend(items) {
     const existingJson = await existingResponse.json();
     const existingPayload = Array.isArray(existingJson) ? existingJson[0] : existingJson;
     const visibleUpdates = parseSharedUpdatesPayload(existingPayload);
+    const liveStatuses = parseSharedLiveStatusesPayload(existingPayload);
     const liveStatusEnabled = parseSharedStatusFlag(existingPayload?.live_status_enabled);
     const siteLock = parseSharedSiteLockPayload(existingPayload);
+    const liveChat = parseSharedLiveChatPayload(existingPayload);
 
     const payload = {
       id: SUPABASE_ROW_ID,
@@ -5069,11 +5439,19 @@ async function syncFeedbackToBackend(items) {
             items: Array.isArray(items) ? items : [],
           }
         ],
-        { running: liveStatusEnabled === null ? false : liveStatusEnabled, coding: false },
+        {
+          running: typeof liveStatuses.running === 'boolean'
+            ? liveStatuses.running
+            : (liveStatusEnabled === null ? false : liveStatusEnabled),
+          coding: typeof liveStatuses.coding === 'boolean' ? liveStatuses.coding : false,
+        },
         items,
-        siteLock
+        siteLock,
+        liveChat
       ),
-      live_status_enabled: liveStatusEnabled === null ? false : liveStatusEnabled,
+      live_status_enabled: typeof liveStatuses.running === 'boolean'
+        ? liveStatuses.running
+        : (liveStatusEnabled === null ? false : liveStatusEnabled),
       updated_at: new Date().toISOString(),
     };
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
@@ -5093,7 +5471,7 @@ async function syncFeedbackToBackend(items) {
 }
 
 async function loadSharedStateFromBackend() {
-  if (!isSupabaseConfigured()) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
+  if (!isSupabaseConfigured()) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}), liveChat: getLocalLiveChatPayload() };
   try {
     const qs = new URLSearchParams({
       select: 'updates,live_status_enabled',
@@ -5108,7 +5486,7 @@ async function loadSharedStateFromBackend() {
     });
     if (!response.ok) {
       console.warn('Shared sync read failed on homepage:', await parseSupabaseError(response));
-      return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
+      return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}), liveChat: getLocalLiveChatPayload() };
     }
     const json = await response.json();
     const payload = Array.isArray(json) ? json[0] : json;
@@ -5123,21 +5501,22 @@ async function loadSharedStateFromBackend() {
       feedback: parseSharedFeedbackPayload(payload),
       liveStatuses: parseSharedLiveStatusesPayload(payload),
       siteLock,
+      liveChat: parseSharedLiveChatPayload(payload),
     };
   } catch {
-    return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
+    return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}), liveChat: getLocalLiveChatPayload() };
   }
 }
 
 async function loadSharedStateFromJsonEndpoint() {
-  if (!SHARED_UPDATES_JSON_URL) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
+  if (!SHARED_UPDATES_JSON_URL) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}), liveChat: getLocalLiveChatPayload() };
   try {
     const response = await fetch(`${SHARED_UPDATES_JSON_URL}?v=${Date.now()}`, { cache: 'no-store' });
-    if (!response.ok) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
+    if (!response.ok) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}), liveChat: getLocalLiveChatPayload() };
     const payload = await response.json();
     return parseJsonSharedStatePayload(payload);
   } catch {
-    return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}) };
+    return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}), liveChat: getLocalLiveChatPayload() };
   }
 }
 
@@ -5169,6 +5548,7 @@ async function loadSharedState() {
       ],
       siteLock: supabaseState.siteLock || jsonState.siteLock,
     }),
+    liveChat: mergeLiveChatPayloads(supabaseState.liveChat, jsonState.liveChat, getLocalLiveChatPayload()),
   };
 }
 
@@ -5189,6 +5569,9 @@ async function loadCustomUpdates(sharedStateOverride = null) {
     } else {
       localStorage.setItem(SITE_PUBLIC_LOCK_KEY, JSON.stringify(sharedState.siteLock));
     }
+  }
+  if (sharedState.liveChat) {
+    applyLiveChatPayload(sharedState.liveChat);
   }
   applyLiveStatusVisibility();
   const source = Array.isArray(sharedUpdates) ? sharedUpdates : [];
@@ -5230,6 +5613,9 @@ async function refreshSharedStateFromBackend() {
     } else {
       localStorage.setItem(SITE_PUBLIC_LOCK_KEY, JSON.stringify(sharedState.siteLock));
     }
+  }
+  if (sharedState.liveChat) {
+    applyLiveChatPayload(sharedState.liveChat);
   }
   applyLiveStatusVisibility();
   await loadCustomUpdates(sharedState);
@@ -5273,7 +5659,9 @@ async function syncFeedbackToBackend(feedbackItems, sharedStateOverride = null) 
     updates: buildSharedUpdatesPayload(
       Array.isArray(sharedState.updates) ? sharedState.updates : [],
       sharedState.liveStatuses || { running: false, coding: false },
-      feedbackItems
+      feedbackItems,
+      sharedState.siteLock || getSitePublicLockRecord(),
+      sharedState.liveChat || getLocalLiveChatPayload()
     ),
     live_status_enabled: Boolean(sharedState.liveStatuses?.running),
     updated_at: new Date().toISOString(),
@@ -5385,6 +5773,351 @@ function submitFeedback() {
       status.textContent = `Feedback saved on this device (${ai.topic}, ${ai.priority} priority). Shared sync needs attention.`;
     }
   });
+}
+
+function getLiveChatTabId() {
+  const key = 'trollrunner_live_chat_tab_id';
+  let id = sessionStorage.getItem(key);
+  if (!id) {
+    id = `tab-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    sessionStorage.setItem(key, id);
+  }
+  return id;
+}
+
+function getDefaultLiveChatName() {
+  return localStorage.getItem(LIVE_CHAT_NAME_KEY) || `Guest${Math.floor(100 + Math.random() * 900)}`;
+}
+
+function getCurrentLiveChatRoom() {
+  const payload = getLocalLiveChatPayload();
+  const preferred = localStorage.getItem(LIVE_CHAT_SELECTED_ROOM_KEY);
+  return payload.rooms.find(room => room.id === preferred) || payload.rooms[0] || getDefaultLiveChatRooms()[0];
+}
+
+function applyLiveChatPayload(payload) {
+  const merged = mergeLiveChatPayloads(getLocalLiveChatPayload(), payload);
+  setLocalLiveChatPayload(merged);
+  if (liveChatState) {
+    liveChatState.payload = merged;
+    if (!merged.rooms.some(room => room.id === liveChatState.roomId)) {
+      liveChatState.roomId = merged.rooms[0]?.id || 'main-room';
+    }
+    renderLiveChat();
+  }
+  return merged;
+}
+
+function getLiveChatPresenceMap() {
+  const stored = safeParseLiveChatJson(localStorage.getItem(LIVE_CHAT_PRESENCE_KEY), {});
+  return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+}
+
+function pruneLiveChatPresenceMap(map) {
+  const now = Date.now();
+  const cleaned = {};
+  Object.entries(map || {}).forEach(([tabId, value]) => {
+    if (!value || typeof value !== 'object') return;
+    const lastSeen = Number(value.lastSeen || 0);
+    if (!lastSeen || now - lastSeen > LIVE_CHAT_PRESENCE_TTL_MS) return;
+    cleaned[tabId] = {
+      tabId,
+      name: String(value.name || 'Guest').trim().slice(0, 24) || 'Guest',
+      roomId: String(value.roomId || 'main-room'),
+      lastSeen,
+      typingUntil: Number(value.typingUntil || 0),
+    };
+  });
+  return cleaned;
+}
+
+function saveLiveChatPresenceMap(map) {
+  localStorage.setItem(LIVE_CHAT_PRESENCE_KEY, JSON.stringify(pruneLiveChatPresenceMap(map)));
+}
+
+function updateLiveChatPresence(options = {}) {
+  if (!liveChatState) return;
+  const map = pruneLiveChatPresenceMap(getLiveChatPresenceMap());
+  map[liveChatState.tabId] = {
+    tabId: liveChatState.tabId,
+    name: liveChatState.userName,
+    roomId: liveChatState.roomId,
+    lastSeen: Date.now(),
+    typingUntil: options.typing ? Date.now() + LIVE_CHAT_TYPING_TTL_MS : 0,
+  };
+  saveLiveChatPresenceMap(map);
+  if (liveChatState.channel) liveChatState.channel.postMessage({ type: 'presence' });
+}
+
+function removeLiveChatPresence() {
+  if (!liveChatState) return;
+  const map = getLiveChatPresenceMap();
+  delete map[liveChatState.tabId];
+  saveLiveChatPresenceMap(map);
+  if (liveChatState.channel) liveChatState.channel.postMessage({ type: 'presence' });
+}
+
+function formatLiveChatTime(value) {
+  const date = value ? new Date(value) : new Date();
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderLiveChatRooms() {
+  const select = document.getElementById('live-chat-room-select');
+  if (!select || !liveChatState) return;
+  select.innerHTML = '';
+  liveChatState.payload.rooms.forEach(room => {
+    const option = document.createElement('option');
+    option.value = room.id;
+    option.textContent = room.name;
+    select.appendChild(option);
+  });
+  select.value = liveChatState.roomId;
+}
+
+function renderLiveChatPresence() {
+  const countNode = document.getElementById('live-chat-online-count');
+  const typingNode = document.getElementById('live-chat-typing');
+  if (!countNode || !typingNode || !liveChatState) return;
+  const now = Date.now();
+  const presence = pruneLiveChatPresenceMap(getLiveChatPresenceMap());
+  const roomPresence = Object.values(presence).filter(entry => entry.roomId === liveChatState.roomId);
+  countNode.textContent = `${roomPresence.length || 1} active`;
+  const typingNames = roomPresence
+    .filter(entry => entry.tabId !== liveChatState.tabId && Number(entry.typingUntil || 0) > now)
+    .map(entry => entry.name)
+    .filter(Boolean);
+  typingNode.classList.toggle('is-active', typingNames.length > 0);
+  typingNode.textContent = typingNames.length
+    ? `${typingNames.slice(0, 3).join(', ')} typing`
+    : '';
+}
+
+function renderLiveChatFeed() {
+  const feed = document.getElementById('live-chat-feed');
+  if (!feed || !liveChatState) return;
+  const messages = liveChatState.payload.messages.filter(message => message.roomId === liveChatState.roomId);
+  feed.innerHTML = '';
+  if (!messages.length) {
+    const empty = document.createElement('div');
+    empty.className = 'live-chat-empty';
+    empty.textContent = 'Mile 1 is quiet. Start the lobby chatter.';
+    feed.appendChild(empty);
+    return;
+  }
+  messages.forEach(message => {
+    const row = document.createElement('article');
+    row.className = 'live-chat-message';
+    const avatar = document.createElement('span');
+    avatar.className = 'live-chat-avatar';
+    avatar.setAttribute('aria-hidden', 'true');
+    const body = document.createElement('div');
+    const head = document.createElement('div');
+    head.className = 'live-chat-name-row';
+    const name = document.createElement('span');
+    name.className = 'live-chat-author';
+    name.textContent = message.name;
+    const time = document.createElement('span');
+    time.className = 'live-chat-time';
+    time.textContent = formatLiveChatTime(message.createdAt);
+    const text = document.createElement('div');
+    text.className = 'live-chat-text';
+    text.textContent = message.text;
+    head.appendChild(name);
+    head.appendChild(time);
+    body.appendChild(head);
+    body.appendChild(text);
+    row.appendChild(avatar);
+    row.appendChild(body);
+    feed.appendChild(row);
+  });
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function renderLiveChat() {
+  renderLiveChatRooms();
+  renderLiveChatFeed();
+  renderLiveChatPresence();
+}
+
+async function writeLiveChatPayloadToBackend(payload) {
+  if (!isSupabaseConfigured()) return false;
+  try {
+    const sharedState = await loadSharedStateFromBackend();
+    const liveChat = mergeLiveChatPayloads(sharedState.liveChat, payload);
+    const body = {
+      id: SUPABASE_ROW_ID,
+      updates: buildSharedUpdatesPayload(
+        Array.isArray(sharedState.updates) ? sharedState.updates : [],
+        sharedState.liveStatuses || { running: false, coding: false },
+        sharedState.feedback || getFeedback(),
+        sharedState.siteLock || getSitePublicLockRecord(),
+        liveChat
+      ),
+      live_status_enabled: Boolean(sharedState.liveStatuses?.running),
+      updated_at: new Date().toISOString(),
+    };
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify([body]),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function setLiveChatRoom(roomId) {
+  if (!liveChatState) return;
+  const room = liveChatState.payload.rooms.find(item => item.id === roomId) || liveChatState.payload.rooms[0];
+  if (!room) return;
+  liveChatState.roomId = room.id;
+  localStorage.setItem(LIVE_CHAT_SELECTED_ROOM_KEY, room.id);
+  updateLiveChatPresence();
+  renderLiveChat();
+}
+
+async function addLiveChatRoom(roomName) {
+  if (!liveChatState) return null;
+  const normalized = normalizeLiveChatRoom({ id: roomName, name: roomName });
+  if (!normalized) return null;
+  liveChatState.payload = mergeLiveChatPayloads(liveChatState.payload, { rooms: [normalized], messages: [] });
+  setLocalLiveChatPayload(liveChatState.payload);
+  setLiveChatRoom(normalized.id);
+  if (liveChatState.channel) liveChatState.channel.postMessage({ type: 'rooms' });
+  await writeLiveChatPayloadToBackend(liveChatState.payload);
+  return normalized;
+}
+
+async function clearLiveChatRoom() {
+  if (!liveChatState) return;
+  const authed = await window.TrollrunnerAdminAuth?.hasAdminSession?.();
+  if (!authed) {
+    window.alert('Admin password required to clear chat.');
+    return;
+  }
+  liveChatState.payload = normalizeLiveChatPayload({
+    rooms: liveChatState.payload.rooms,
+    messages: liveChatState.payload.messages.filter(message => message.roomId !== liveChatState.roomId),
+  });
+  setLocalLiveChatPayload(liveChatState.payload);
+  renderLiveChatFeed();
+  if (liveChatState.channel) liveChatState.channel.postMessage({ type: 'messages', roomId: liveChatState.roomId });
+  await writeLiveChatPayloadToBackend(liveChatState.payload);
+}
+
+async function sendLiveChatMessage(messageText) {
+  if (!liveChatState) return false;
+  const trimmed = String(messageText || '').trim();
+  if (!trimmed) return false;
+  const now = Date.now();
+  if (now - liveChatState.lastSendAt < LIVE_CHAT_COOLDOWN_MS) return false;
+  const nextMessage = normalizeLiveChatMessage({
+    id: `chat-${liveChatState.tabId}-${now}-${Math.random().toString(16).slice(2)}`,
+    roomId: liveChatState.roomId,
+    name: liveChatState.userName,
+    text: trimmed,
+    createdAt: new Date(now).toISOString(),
+  });
+  if (!nextMessage) return false;
+  liveChatState.payload = mergeLiveChatPayloads(liveChatState.payload, { messages: [nextMessage] });
+  setLocalLiveChatPayload(liveChatState.payload);
+  liveChatState.lastSendAt = now;
+  updateLiveChatPresence({ typing: false });
+  renderLiveChat();
+  if (liveChatState.channel) liveChatState.channel.postMessage({ type: 'message', roomId: liveChatState.roomId });
+  await writeLiveChatPayloadToBackend(liveChatState.payload);
+  return true;
+}
+
+function applyLiveChatBroadcast(event) {
+  const data = event?.data || {};
+  if (!liveChatState || !data || typeof data !== 'object') return;
+  if (data.type === 'presence') renderLiveChatPresence();
+  if (data.type === 'rooms' || data.type === 'message' || data.type === 'messages') {
+    liveChatState.payload = getLocalLiveChatPayload();
+    renderLiveChat();
+  }
+}
+
+function initializeLiveChat() {
+  const feed = document.getElementById('live-chat-feed');
+  const form = document.getElementById('live-chat-form');
+  const roomSelect = document.getElementById('live-chat-room-select');
+  const roomInput = document.getElementById('live-chat-new-room');
+  const roomCreateBtn = document.getElementById('live-chat-create-room');
+  const roomClearBtn = document.getElementById('live-chat-clear-room');
+  const nameInput = document.getElementById('live-chat-name');
+  const messageInput = document.getElementById('live-chat-input');
+  if (!feed || !form || !roomSelect || !roomInput || !roomCreateBtn || !roomClearBtn || !nameInput || !messageInput) return;
+  const payload = getLocalLiveChatPayload();
+  const currentRoom = getCurrentLiveChatRoom();
+  liveChatState = {
+    tabId: getLiveChatTabId(),
+    payload,
+    roomId: currentRoom.id,
+    userName: getDefaultLiveChatName(),
+    channel: 'BroadcastChannel' in window ? new BroadcastChannel(LIVE_CHAT_CHANNEL_NAME) : null,
+    typingTimer: null,
+    presenceTimer: null,
+    pollTimer: null,
+    lastSendAt: 0,
+  };
+  nameInput.value = liveChatState.userName;
+  renderLiveChat();
+  updateLiveChatPresence();
+
+  roomSelect.addEventListener('change', () => setLiveChatRoom(roomSelect.value));
+  roomCreateBtn.addEventListener('click', () => {
+    void addLiveChatRoom(roomInput.value).then(created => {
+      if (created) roomInput.value = '';
+    });
+  });
+  roomClearBtn.addEventListener('click', () => {
+    if (window.confirm('Clear this room for everyone?')) void clearLiveChatRoom();
+  });
+  nameInput.addEventListener('input', () => {
+    liveChatState.userName = String(nameInput.value || '').trim().slice(0, 24) || 'Guest';
+    localStorage.setItem(LIVE_CHAT_NAME_KEY, liveChatState.userName);
+    updateLiveChatPresence();
+  });
+  const syncTyping = () => {
+    updateLiveChatPresence({ typing: true });
+    if (liveChatState.typingTimer) window.clearTimeout(liveChatState.typingTimer);
+    liveChatState.typingTimer = window.setTimeout(() => updateLiveChatPresence({ typing: false }), LIVE_CHAT_TYPING_TTL_MS);
+  };
+  messageInput.addEventListener('input', syncTyping);
+  messageInput.addEventListener('focus', syncTyping);
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    void sendLiveChatMessage(messageInput.value).then(sent => {
+      if (!sent) return;
+      messageInput.value = '';
+      updateLiveChatPresence({ typing: false });
+    });
+  });
+  if (liveChatState.channel) liveChatState.channel.onmessage = applyLiveChatBroadcast;
+  window.addEventListener('storage', event => {
+    if (event.key === LIVE_CHAT_LOCAL_KEY || event.key === LIVE_CHAT_PRESENCE_KEY) {
+      liveChatState.payload = getLocalLiveChatPayload();
+      renderLiveChat();
+    }
+  });
+  liveChatState.presenceTimer = window.setInterval(() => {
+    updateLiveChatPresence();
+    renderLiveChatPresence();
+  }, 4000);
+  liveChatState.pollTimer = window.setInterval(() => {
+    loadSharedStateFromBackend().then(sharedState => applyLiveChatPayload(sharedState.liveChat));
+  }, 10000);
+  window.addEventListener('beforeunload', removeLiveChatPresence);
+  loadSharedStateFromBackend().then(sharedState => applyLiveChatPayload(sharedState.liveChat));
 }
 
 function getStickerCollageImages() {
@@ -5786,7 +6519,7 @@ document.getElementById('admin-pass')?.addEventListener('keydown', event => {
   event.preventDefault();
   void goToAdmin();
 });
-initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence();
+initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence(); initializeLiveChat();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }

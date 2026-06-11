@@ -308,6 +308,7 @@
     const FEEDBACK_KEY = 'trollrunner_feedback';
     const SHARED_STATUS_META_ID = '__trollrunner_live_status_meta__';
     const SHARED_FEEDBACK_META_ID = '__trollrunner_feedback_meta__';
+    const LIVE_CHAT_META_ID = '__trollrunner_live_chat_meta__';
     const LIVE_RUNNING_STATUS_KEY = 'trollrunner_live_status_running_enabled';
     const LIVE_RUNNING_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_running_override';
     const LIVE_CODING_STATUS_KEY = 'trollrunner_live_status_coding_enabled';
@@ -324,6 +325,7 @@
     const SUPABASE_ROW_ID = 'main';
     const LIVE_STATUS_SYNC_POLL_MS = 10000;
     let editingUpdateId = null;
+    let cachedLiveChatMeta = null;
     const DEFAULT_UPDATES = [
   {
     title: 'May 8, 2026',
@@ -508,8 +510,19 @@ Working on improving fonts and backgrounds...`,
       return Boolean(item) && typeof item === 'object' && item.id === SITE_LOCK_META_ID;
     }
 
+    function isSharedLiveChatMetaItem(item) {
+      return Boolean(item) && typeof item === 'object' && item.id === LIVE_CHAT_META_ID;
+    }
+
+    function rememberSharedLiveChatMeta(payload) {
+      const meta = getSharedUpdatesArray(payload).find(isSharedLiveChatMetaItem);
+      if (meta) cachedLiveChatMeta = meta;
+      return cachedLiveChatMeta;
+    }
+
     function parseUpdatesPayload(payload) {
-      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item));
+      rememberSharedLiveChatMeta(payload);
+      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item));
     }
 
     function parseStatusFlag(value) {
@@ -619,8 +632,11 @@ Working on improving fonts and backgrounds...`,
       };
     }
 
-    function buildSharedUpdatesPayload(items, liveStatuses = getCurrentLiveStatuses(), feedbackItems = getFeedback(), siteLock = getStoredSiteLockRecord()) {
-      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item)) : [];
+    function buildSharedUpdatesPayload(items, liveStatuses = getCurrentLiveStatuses(), feedbackItems = getFeedback(), siteLock = getStoredSiteLockRecord(), liveChatMeta = cachedLiveChatMeta) {
+      const liveChatMetaFromItems = Array.isArray(items) ? items.find(isSharedLiveChatMetaItem) : null;
+      const preservedLiveChatMeta = liveChatMetaFromItems || liveChatMeta;
+      if (preservedLiveChatMeta) cachedLiveChatMeta = preservedLiveChatMeta;
+      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item)) : [];
       return [
         ...visibleItems,
         {
@@ -656,6 +672,12 @@ Working on improving fonts and backgrounds...`,
           source: 'system',
           siteLock,
         },
+        ...(preservedLiveChatMeta ? [{
+          ...preservedLiveChatMeta,
+          id: LIVE_CHAT_META_ID,
+          archived: true,
+          source: 'system',
+        }] : []),
       ];
     }
 
