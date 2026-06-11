@@ -40,16 +40,17 @@
     return candidateHash === ADMIN_PASSWORD_HASH;
   }
 
-  async function signInWithAdminPassword(password) {
+  async function signInWithAdminPassword(password, options = {}) {
     const valid = await verifyAdminPassword(password);
     if (!valid) throw new Error('Wrong admin password.');
     localStorage.setItem(ADMIN_AUTH_KEY, '1');
-    await refreshUi();
+    if (!options.silent) await refreshUi();
     return true;
   }
 
   async function signOut() {
     localStorage.removeItem(ADMIN_AUTH_KEY);
+    window.TrollrunnerSiteGate?.resetAfterLogout?.();
     await refreshUi();
     return true;
   }
@@ -76,17 +77,14 @@
     const gateStatus = document.getElementById('gate-admin-status');
     const gateLockToggle = document.getElementById('gate-lock-toggle');
     const footerButton = document.getElementById('admin-go');
-    const gateButton = document.getElementById('gate-admin-link');
     if (authed) {
-      writeStatus([footerStatus, gateStatus], 'Admin controls are unlocked.', 'success');
-      setButtonState(footerButton, true, 'Unlock site', 'Unlock site');
-      setButtonState(gateButton, true, 'Unlock site', 'Unlock site');
+      writeStatus([footerStatus, gateStatus], '', 'success');
+      setButtonState(footerButton, true, 'Admin', 'Admin');
       if (gateLockToggle) gateLockToggle.disabled = false;
     } else {
       writeStatus([footerStatus, gateStatus], '', 'info');
-      if (gateLockToggle) gateLockToggle.disabled = true;
-      setButtonState(footerButton, true, 'Unlock site', 'Unlock site');
-      setButtonState(gateButton, true, 'Unlock site', 'Unlock site');
+      if (gateLockToggle) gateLockToggle.disabled = false;
+      setButtonState(footerButton, true, 'Admin', 'Admin');
     }
 
     return authed;
@@ -107,7 +105,7 @@
         lockHelper.requestLockTransition(false);
       }
       await refreshUi();
-      writeStatus([footerStatus, gateStatus], 'Website unlocked.', 'success');
+      writeStatus([footerStatus, gateStatus], '', 'success');
       return true;
     } catch (error) {
       const message = error?.message ? String(error.message) : 'Unable to unlock the website.';

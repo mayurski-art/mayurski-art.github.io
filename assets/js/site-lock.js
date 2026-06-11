@@ -219,7 +219,7 @@
         </div>
         <div id="site-lock-status" class="site-lock-overlay-subtext"></div>
         <div class="site-lock-admin-panel" aria-label="Admin access">
-          <button id="site-lock-admin-action" class="site-lock-admin-btn is-accent" type="button">Unlock site</button>
+          <button id="site-lock-admin-action" class="site-lock-admin-btn is-accent" type="button">Admin</button>
         </div>
       </div>
     `;
@@ -275,7 +275,7 @@
     if (!adminActionEl) return;
     const helper = window.TrollrunnerAdminAuth;
     const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
-    adminActionEl.textContent = 'Unlock site';
+    adminActionEl.textContent = 'Admin';
     adminActionEl.disabled = false;
     adminActionEl.dataset.mode = authed ? 'authed' : 'locked';
   }

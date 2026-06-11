@@ -2700,6 +2700,16 @@ footer a:hover { color: #fff; }
   box-shadow: 0 10px 24px rgba(0,0,0,0.35);
   backdrop-filter: blur(10px);
 }
+#admin-pass {
+  width: 140px;
+  border: 0.5px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+#admin-pass::placeholder { color: rgba(255,255,255,0.55); }
 #admin-go {
   border: 0.5px solid rgba(255,255,255,0.25);
   border-radius: 8px;
@@ -3014,7 +3024,7 @@ footer a:hover { color: #fff; }
     max-height: calc(48vh - 70px);
   }
 
-  #admin-go { width: 120px; }
+  #admin-pass { width: 120px; }
 }
 
 @media (max-width: 640px), (pointer: coarse) and (max-device-width: 480px) {
@@ -3218,9 +3228,9 @@ footer a:hover { color: #fff; }
           <span id="gate-lock-title" class="gate-lock-label">Site Lock</span>
           <span id="gate-lock-state" class="gate-lock-state">Public access open</span>
         </div>
-        <p class="gate-lock-copy">Unlock the admin account, then tap the lock to keep the public on the preview screen.</p>
+        <p class="gate-lock-copy">Enter the admin password, then tap the lock to keep the public on the preview screen.</p>
         <div class="gate-lock-row">
-          <button id="gate-admin-link" class="gate-save-btn" type="button">Unlock site</button>
+          <input id="gate-lock-pass" class="gate-field gate-lock-pass" type="password" placeholder="Admin password" autocomplete="current-password">
           <button id="gate-lock-toggle" class="gate-lock-btn" type="button" aria-label="Lock public access" title="Lock public access">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -3400,7 +3410,8 @@ footer a:hover { color: #fff; }
           </svg>
         </a>
         <div id="admin-access">
-          <button id="admin-go" onclick="goToAdmin()">Unlock site</button>
+          <input id="admin-pass" type="password" placeholder="Admin password" autocomplete="current-password">
+          <button id="admin-go" onclick="goToAdmin()">Admin</button>
         </div>
         <div id="admin-auth-status" class="footer-admin-status" aria-live="polite"></div>
       </div>
@@ -3431,6 +3442,7 @@ const VIEWER_ID_KEY = 'trollrunner_viewer_id_v1';
 const VIEWER_PRESENCE_CHANNEL = 'trollrunner-site-presence';
 const SITE_GATE_PROFILE_KEY = 'trollrunner_account_shell_v1';
 const SITE_GATE_SEEN_KEY = 'trollrunner_site_gate_seen_v1';
+const SITE_GATE_COOKIE_DAYS = 365;
 const SITE_PUBLIC_LOCK_KEY = 'trollrunner_site_public_locked_v1';
 const FEEDBACK_SHEET_WEBHOOK_URL = '';
 const SEEDED_FEEDBACK_ENTRIES = [
@@ -3514,9 +3526,88 @@ function getSiteGateProfile() {
   }
 }
 
+function getRootCookieDomain() {
+  const host = window.location.hostname.toLowerCase();
+  if (host === 'trollrunner.net' || host.endsWith('.trollrunner.net')) return '.trollrunner.net';
+  return '';
+}
+
+function writeSiteGateCookie(value, maxAgeSeconds = SITE_GATE_COOKIE_DAYS * 24 * 60 * 60) {
+  const domain = getRootCookieDomain();
+  const parts = [
+    `${SITE_GATE_SEEN_KEY}=${encodeURIComponent(value)}`,
+    'path=/',
+    `max-age=${maxAgeSeconds}`,
+    'SameSite=Lax',
+  ];
+  if (domain) parts.push(`domain=${domain}`);
+  if (window.location.protocol === 'https:') parts.push('Secure');
+  document.cookie = parts.join('; ');
+}
+
+function readSiteGateCookie() {
+  return document.cookie
+    .split(';')
+    .map(part => part.trim())
+    .find(part => part.startsWith(`${SITE_GATE_SEEN_KEY}=`))
+    ?.split('=')
+    .slice(1)
+    .join('=') || '';
+}
+
+function markSiteGateSeen() {
+  localStorage.setItem(SITE_GATE_SEEN_KEY, '1');
+  writeSiteGateCookie('1');
+}
+
+function clearSiteGateSeen() {
+  localStorage.removeItem(SITE_GATE_SEEN_KEY);
+  writeSiteGateCookie('', 0);
+}
+
+function hasSiteGateSeen() {
+  return localStorage.getItem(SITE_GATE_SEEN_KEY) === '1' || readSiteGateCookie() === '1';
+}
+
+function getNavigationType() {
+  const nav = performance.getEntriesByType?.('navigation')?.[0];
+  return nav?.type || '';
+}
+
+function isInternalTrollrunnerReferrer() {
+  if (!document.referrer) return false;
+  try {
+    const referrerHost = new URL(document.referrer).hostname.toLowerCase();
+    return referrerHost === 'trollrunner.net' || referrerHost.endsWith('.trollrunner.net');
+  } catch {
+    return false;
+  }
+}
+
+function shouldShowSiteGate() {
+  if (isSitePublicLocked()) return true;
+  const navType = getNavigationType();
+  if (navType === 'reload') return true;
+  if (isInternalTrollrunnerReferrer() && hasSiteGateSeen()) return false;
+  if (navType === 'navigate' && !isInternalTrollrunnerReferrer()) return true;
+  return !hasSiteGateSeen();
+}
+
+function getAdminPasswordValue() {
+  return String(document.getElementById('gate-lock-pass')?.value || '').trim();
+}
+
+function updateGateLockToggleVisibility() {
+  const toggleBtn = document.getElementById('gate-lock-toggle');
+  if (!toggleBtn) return;
+  const hasPassword = getAdminPasswordValue().length > 0;
+  toggleBtn.hidden = !hasPassword;
+  toggleBtn.disabled = !hasPassword;
+}
+
 function setSiteGateProfile(profile) {
   localStorage.setItem(SITE_GATE_PROFILE_KEY, JSON.stringify(profile));
-  localStorage.setItem(SITE_GATE_SEEN_KEY, '1');
+  markSiteGateSeen();
 }
 
 function hydrateSiteGateFields() {
@@ -3642,13 +3733,13 @@ function dismissSiteGate() {
     } else {
       setSiteGateLockFeedback('Public access is locked. Unlock the admin account first.', 'error');
     }
-    const adminLinkBtn = document.getElementById('gate-admin-link');
-    if (adminLinkBtn && typeof adminLinkBtn.focus === 'function') adminLinkBtn.focus();
+    const lockPassInput = document.getElementById('gate-lock-pass');
+    if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
     return false;
   }
   document.body.classList.remove('site-entry-locked');
   if (gate) gate.classList.add('is-hidden');
-  localStorage.setItem(SITE_GATE_SEEN_KEY, '1');
+  markSiteGateSeen();
   return true;
 }
 
@@ -3659,7 +3750,7 @@ function initializeSiteGate() {
   const focusButtons = document.querySelectorAll('[data-gate-focus]');
   const nameInput = document.getElementById('gate-login-name');
   const passInput = document.getElementById('gate-login-pass');
-  const adminLinkBtn = document.getElementById('gate-admin-link');
+  const lockPassInput = document.getElementById('gate-lock-pass');
   const lockToggleBtn = document.getElementById('gate-lock-toggle');
   const gate = document.getElementById('site-gate');
   if (!gate) {
@@ -3667,6 +3758,10 @@ function initializeSiteGate() {
     return;
   }
 
+  if (!shouldShowSiteGate()) {
+    gate.classList.add('is-hidden');
+    document.body.classList.remove('site-entry-locked');
+  }
   updateSiteGateLockUI();
   window.setInterval(updateSiteGateLockUI, 1000);
 
@@ -3704,32 +3799,49 @@ function initializeSiteGate() {
     });
   }
 
+  const syncLockToggle = () => {
+    updateGateLockToggleVisibility();
+  };
+
   const toggleSiteLock = async () => {
     const helper = window.TrollrunnerAdminAuth;
-    const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
+    let authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
     if (!authed) {
-      setSiteGateLockFeedback('Unlock the admin account first.', 'error');
-      if (adminLinkBtn && typeof adminLinkBtn.focus === 'function') adminLinkBtn.focus();
-      return;
+      const enteredPassword = getAdminPasswordValue();
+      if (!enteredPassword) {
+        setSiteGateLockFeedback('Enter the admin password first.', 'error');
+        if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
+        return;
+      }
+      try {
+        if (!helper?.signInWithAdminPassword) throw new Error('Admin auth is unavailable right now.');
+        await helper.signInWithAdminPassword(enteredPassword, { silent: true });
+        authed = true;
+      } catch (error) {
+        setSiteGateLockFeedback(error?.message ? String(error.message) : 'Wrong password. The lock stays put.', 'error');
+        if (lockPassInput) lockPassInput.select?.();
+        return;
+      }
     }
     const nextLocked = getSitePublicLockRecord().mode === 'open';
-    setSitePublicLocked(nextLocked);
-    setSiteGateLockFeedback(nextLocked ? 'Warning sent. Public access locks in 10 seconds.' : 'Public access is now open.');
-  };
+      setSitePublicLocked(nextLocked);
+      if (lockPassInput) lockPassInput.value = '';
+      syncLockToggle();
+      setSiteGateLockFeedback(nextLocked ? 'Warning sent. Public access locks in 10 seconds.' : 'Public access is now open.');
+    };
 
   if (lockToggleBtn) {
     lockToggleBtn.addEventListener('click', toggleSiteLock);
   }
-  if (adminLinkBtn) {
-    adminLinkBtn.addEventListener('click', async () => {
-      const helper = window.TrollrunnerAdminAuth;
-      if (helper?.requestAdminLink) {
-        await helper.requestAdminLink();
-        return;
-      }
-      setSiteGateLockFeedback('Unlock site is unavailable right now.', 'error');
+  if (lockPassInput) {
+    lockPassInput.addEventListener('input', syncLockToggle);
+    lockPassInput.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      void toggleSiteLock();
     });
   }
+  syncLockToggle();
 
   window.addEventListener('keydown', event => {
     if (event.key !== 'Enter' || gate.classList.contains('is-hidden')) return;
@@ -3747,6 +3859,18 @@ function initializeSiteGate() {
     if (event.key === window.TrollrunnerAdminAuth?.adminAuthKey) updateSiteGateLockUI();
   });
 
+  window.TrollrunnerSiteGate = {
+    resetAfterLogout() {
+      clearSiteGateSeen();
+      if (lockPassInput) lockPassInput.value = '';
+      if (getSitePublicLockRecord().mode === 'open') {
+        gate.classList.remove('is-hidden');
+        document.body.classList.add('site-entry-locked');
+      }
+      updateGateLockToggleVisibility();
+      updateSiteGateLockUI();
+    },
+  };
 }
 
 function getViewerId() {
@@ -5536,8 +5660,21 @@ async function goToAdmin() {
     window.location.href = 'admin.html';
     return;
   }
-  const unlocked = await helper.requestAdminLink();
+  const passInput = document.getElementById('admin-pass');
+  const password = String(passInput?.value || '').trim();
+  if (!password) {
+    passInput?.focus?.();
+    return;
+  }
+  const unlocked = helper.signInWithAdminPassword
+    ? await helper.signInWithAdminPassword(password, { silent: true }).catch(error => {
+        alert(error?.message ? String(error.message) : 'Wrong admin password.');
+        passInput?.select?.();
+        return false;
+      })
+    : false;
   if (unlocked) {
+    if (passInput) passInput.value = '';
     localStorage.setItem(helper.adminAuthKey || 'trollrunner_admin_auth', '1');
     window.location.href = 'admin.html';
   }
@@ -5557,6 +5694,11 @@ document.addEventListener('click', event => {
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   if (cityMenuOpen) closeCityMenu();
+});
+document.getElementById('admin-pass')?.addEventListener('keydown', event => {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  void goToAdmin();
 });
 initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence();
 if (isSupabaseConfigured()) {
