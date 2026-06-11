@@ -79,6 +79,7 @@
   function setStoredRecord(record) {
     const normalized = normalizeRecord(record);
     localStorage.setItem(SITE_LOCK_STORAGE_KEY, JSON.stringify(normalized));
+    if (isPublicPage && document.body) renderOverlay();
     return normalized;
   }
 
@@ -131,15 +132,25 @@
       .site-lock-overlay {
         position: fixed;
         inset: 0;
-        z-index: 70;
+        z-index: 99999;
         display: none;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, 0.42);
+        pointer-events: none;
+        background:
+          repeating-linear-gradient(0deg, rgba(255, 64, 88, 0.08) 0 2px, transparent 2px 9px),
+          radial-gradient(circle at 50% 50%, rgba(255, 64, 88, 0.2), transparent 44%),
+          rgba(0, 0, 0, 0.42);
         backdrop-filter: blur(1px);
+        animation: trollrunner-site-lock-red-alert 720ms steps(2, end) infinite;
       }
       .site-lock-overlay.is-visible { display: flex; }
-      .site-lock-overlay.is-locked { background: rgba(0, 0, 0, 0.68); }
+      .site-lock-overlay.is-locked {
+        background:
+          repeating-linear-gradient(0deg, rgba(255, 64, 88, 0.07) 0 2px, transparent 2px 9px),
+          rgba(0, 0, 0, 0.68);
+        animation: none;
+      }
       .site-lock-overlay-panel {
         width: min(100vw, 100%);
         padding: clamp(18px, 4vw, 32px) 0;
@@ -174,6 +185,10 @@
       @keyframes trollrunner-site-lock-marquee {
         from { transform: translateX(0); }
         to { transform: translateX(-50%); }
+      }
+      @keyframes trollrunner-site-lock-red-alert {
+        0%, 100% { box-shadow: inset 0 0 0 0 rgba(255, 64, 88, 0.1), inset 0 0 120px rgba(255, 64, 88, 0.18); }
+        50% { box-shadow: inset 0 0 0 999px rgba(255, 64, 88, 0.1), inset 0 0 180px rgba(255, 64, 88, 0.38); }
       }
       .site-lock-warning body,
       body.site-lock-warning {
