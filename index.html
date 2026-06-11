@@ -394,6 +394,10 @@ body.site-entry-locked {
   height: 20px;
   display: block;
 }
+.gate-lock-btn[hidden],
+.gate-lock-auth[hidden] {
+  display: none;
+}
 .gate-lock-feedback {
   min-height: 16px;
   font-size: 11px;
@@ -3228,10 +3232,11 @@ footer a:hover { color: #fff; }
           <span id="gate-lock-title" class="gate-lock-label">Site Lock</span>
           <span id="gate-lock-state" class="gate-lock-state">Public access open</span>
         </div>
-        <p class="gate-lock-copy">Enter the admin password, then tap the lock to keep the public on the preview screen.</p>
+        <p class="gate-lock-copy">Enter the admin password to reveal the lock control.</p>
         <div class="gate-lock-row">
           <input id="gate-lock-pass" class="gate-field gate-lock-pass" type="password" placeholder="Admin password" autocomplete="current-password">
-          <button id="gate-lock-toggle" class="gate-lock-btn" type="button" aria-label="Lock public access" title="Lock public access">
+          <button id="gate-lock-verify" class="gate-save-btn gate-lock-auth" type="button">Admin</button>
+          <button id="gate-lock-toggle" class="gate-lock-btn" type="button" aria-label="Lock public access" title="Lock public access" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
               <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
@@ -3486,7 +3491,10 @@ const SHARED_STATUS_META_ID = '__trollrunner_live_status_meta__';
 const LIVE_RUNNING_STATUS_KEY = 'trollrunner_live_status_running_enabled';
 const LIVE_CODING_STATUS_KEY = 'trollrunner_live_status_coding_enabled';
 const LEGACY_LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
-let mapResizeTimer = 0;function isSupabaseConfigured() {
+let gateLockAdminVerified = false;
+let mapResizeTimer = 0;
+
+function isSupabaseConfigured() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return false;
   if (SUPABASE_ANON_KEY === SUPABASE_ANON_KEY_PLACEHOLDER) return false;
   return true;
@@ -3599,10 +3607,14 @@ function getAdminPasswordValue() {
 
 function updateGateLockToggleVisibility() {
   const toggleBtn = document.getElementById('gate-lock-toggle');
-  if (!toggleBtn) return;
-  const hasPassword = getAdminPasswordValue().length > 0;
-  toggleBtn.hidden = !hasPassword;
-  toggleBtn.disabled = !hasPassword;
+  const verifyBtn = document.getElementById('gate-lock-verify');
+  const passInput = document.getElementById('gate-lock-pass');
+  if (toggleBtn) {
+    toggleBtn.hidden = !gateLockAdminVerified;
+    toggleBtn.disabled = !gateLockAdminVerified;
+  }
+  if (verifyBtn) verifyBtn.hidden = gateLockAdminVerified;
+  if (passInput) passInput.hidden = gateLockAdminVerified;
 }
 
 function setSiteGateProfile(profile) {
@@ -3700,6 +3712,7 @@ function updateSiteGateLockUI() {
     toggleBtn.setAttribute('aria-label', locked ? 'Unlock public access' : 'Lock public access');
     toggleBtn.setAttribute('title', locked ? 'Unlock public access' : 'Lock public access');
   }
+  updateGateLockToggleVisibility();
   if (feedbackNode && !feedbackNode.dataset.manual) {
     feedbackNode.textContent = pending
       ? `Warning active. Public access locks in ${remaining}s.`
@@ -3751,6 +3764,7 @@ function initializeSiteGate() {
   const nameInput = document.getElementById('gate-login-name');
   const passInput = document.getElementById('gate-login-pass');
   const lockPassInput = document.getElementById('gate-lock-pass');
+  const lockVerifyBtn = document.getElementById('gate-lock-verify');
   const lockToggleBtn = document.getElementById('gate-lock-toggle');
   const gate = document.getElementById('site-gate');
   if (!gate) {
@@ -3803,42 +3817,56 @@ function initializeSiteGate() {
     updateGateLockToggleVisibility();
   };
 
-  const toggleSiteLock = async () => {
+  const verifyGateLockAdmin = async () => {
     const helper = window.TrollrunnerAdminAuth;
-    let authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
-    if (!authed) {
-      const enteredPassword = getAdminPasswordValue();
-      if (!enteredPassword) {
-        setSiteGateLockFeedback('Enter the admin password first.', 'error');
-        if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
-        return;
-      }
-      try {
-        if (!helper?.signInWithAdminPassword) throw new Error('Admin auth is unavailable right now.');
-        await helper.signInWithAdminPassword(enteredPassword, { silent: true });
-        authed = true;
-      } catch (error) {
-        setSiteGateLockFeedback(error?.message ? String(error.message) : 'Wrong password. The lock stays put.', 'error');
-        if (lockPassInput) lockPassInput.select?.();
-        return;
-      }
+    const enteredPassword = getAdminPasswordValue();
+    if (!enteredPassword) {
+      setSiteGateLockFeedback('Enter the admin password first.', 'error');
+      if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
+      return false;
     }
-    const nextLocked = getSitePublicLockRecord().mode === 'open';
-      setSitePublicLocked(nextLocked);
+    try {
+      if (!helper?.signInWithAdminPassword) throw new Error('Admin auth is unavailable right now.');
+      await helper.signInWithAdminPassword(enteredPassword, { silent: true });
+      gateLockAdminVerified = true;
       if (lockPassInput) lockPassInput.value = '';
       syncLockToggle();
-      setSiteGateLockFeedback(nextLocked ? 'Warning sent. Public access locks in 10 seconds.' : 'Public access is now open.');
-    };
+      if (lockToggleBtn && typeof lockToggleBtn.focus === 'function') lockToggleBtn.focus();
+      const feedbackNode = document.getElementById('gate-lock-feedback');
+      if (feedbackNode) feedbackNode.textContent = '';
+      return true;
+    } catch (error) {
+      gateLockAdminVerified = false;
+      syncLockToggle();
+      setSiteGateLockFeedback(error?.message ? String(error.message) : 'Wrong password. The lock stays put.', 'error');
+      if (lockPassInput) lockPassInput.select?.();
+      return false;
+    }
+  };
 
+  const toggleSiteLock = () => {
+    if (!gateLockAdminVerified) {
+      if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
+      return;
+    }
+    const nextLocked = getSitePublicLockRecord().mode === 'open';
+    setSitePublicLocked(nextLocked);
+    setSiteGateLockFeedback(nextLocked ? 'Warning sent. Public access locks in 10 seconds.' : 'Public access is now open.');
+  };
+
+  if (lockVerifyBtn) {
+    lockVerifyBtn.addEventListener('click', () => {
+      void verifyGateLockAdmin();
+    });
+  }
   if (lockToggleBtn) {
     lockToggleBtn.addEventListener('click', toggleSiteLock);
   }
   if (lockPassInput) {
-    lockPassInput.addEventListener('input', syncLockToggle);
     lockPassInput.addEventListener('keydown', event => {
       if (event.key !== 'Enter') return;
       event.preventDefault();
-      void toggleSiteLock();
+      void verifyGateLockAdmin();
     });
   }
   syncLockToggle();
@@ -3862,6 +3890,7 @@ function initializeSiteGate() {
   window.TrollrunnerSiteGate = {
     resetAfterLogout() {
       clearSiteGateSeen();
+      gateLockAdminVerified = false;
       if (lockPassInput) lockPassInput.value = '';
       if (getSitePublicLockRecord().mode === 'open') {
         gate.classList.remove('is-hidden');

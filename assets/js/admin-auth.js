@@ -75,15 +75,12 @@
     const authed = await hasAdminSession();
     const footerStatus = document.getElementById('admin-auth-status');
     const gateStatus = document.getElementById('gate-admin-status');
-    const gateLockToggle = document.getElementById('gate-lock-toggle');
     const footerButton = document.getElementById('admin-go');
     if (authed) {
       writeStatus([footerStatus, gateStatus], '', 'success');
       setButtonState(footerButton, true, 'Admin', 'Admin');
-      if (gateLockToggle) gateLockToggle.disabled = false;
     } else {
       writeStatus([footerStatus, gateStatus], '', 'info');
-      if (gateLockToggle) gateLockToggle.disabled = false;
       setButtonState(footerButton, true, 'Admin', 'Admin');
     }
 

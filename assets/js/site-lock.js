@@ -18,7 +18,6 @@
   let tickerEl = null;
   let statusEl = null;
   let countdownEl = null;
-  let adminActionEl = null;
   let authClient = null;
 
   function safeParse(raw, fallback) {
@@ -132,7 +131,7 @@
       .site-lock-overlay {
         position: fixed;
         inset: 0;
-        z-index: 99999;
+        z-index: 70;
         display: none;
         align-items: center;
         justify-content: center;
@@ -172,31 +171,6 @@
         letter-spacing: 0.12em;
         text-transform: uppercase;
       }
-      .site-lock-admin-panel {
-        display: flex;
-        justify-content: center;
-        margin-top: 18px;
-      }
-      .site-lock-admin-btn {
-        border: 0.5px solid rgba(255,255,255,0.22);
-        border-radius: 999px;
-        background: rgba(16, 18, 26, 0.78);
-        color: #fff;
-        padding: 10px 14px;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        cursor: pointer;
-        box-shadow: 0 10px 22px rgba(0,0,0,0.25);
-      }
-      .site-lock-admin-btn.is-accent {
-        background: linear-gradient(135deg, rgba(0, 122, 255, 0.95), rgba(255, 73, 167, 0.9));
-      }
-      .site-lock-admin-btn:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-      }
       @keyframes trollrunner-site-lock-marquee {
         from { transform: translateX(0); }
         to { transform: translateX(-50%); }
@@ -218,26 +192,12 @@
           <span id="site-lock-ticker-b"></span>
         </div>
         <div id="site-lock-status" class="site-lock-overlay-subtext"></div>
-        <div class="site-lock-admin-panel" aria-label="Admin access">
-          <button id="site-lock-admin-action" class="site-lock-admin-btn is-accent" type="button">Admin</button>
-        </div>
       </div>
     `;
     document.body.appendChild(overlayEl);
     tickerEl = overlayEl.querySelector('#site-lock-ticker-a');
     statusEl = overlayEl.querySelector('#site-lock-status');
     countdownEl = overlayEl.querySelector('#site-lock-ticker-b');
-    adminActionEl = overlayEl.querySelector('#site-lock-admin-action');
-    if (adminActionEl) {
-      adminActionEl.addEventListener('click', async () => {
-        const helper = window.TrollrunnerAdminAuth;
-        if (!helper?.requestAdminLink) return;
-        const unlocked = await helper.requestAdminLink();
-        if (unlocked && window.TrollrunnerSiteLock?.requestLockTransition) {
-          window.TrollrunnerSiteLock.requestLockTransition(false);
-        }
-      });
-    }
     return overlayEl;
   }
 
@@ -267,17 +227,7 @@
         ? 'Public access will lock shortly.'
         : (state.mode === 'locked' ? 'Public access is locked.' : '');
     }
-    void refreshAdminControls(state);
     return state;
-  }
-
-  async function refreshAdminControls(state = getComputedRecord()) {
-    if (!adminActionEl) return;
-    const helper = window.TrollrunnerAdminAuth;
-    const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
-    adminActionEl.textContent = 'Admin';
-    adminActionEl.disabled = false;
-    adminActionEl.dataset.mode = authed ? 'authed' : 'locked';
   }
 
   function broadcastState() {
