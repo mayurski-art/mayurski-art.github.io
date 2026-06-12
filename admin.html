@@ -186,9 +186,63 @@
     .formatted-update-body li + li {
       margin-top: 6px;
     }
+    .archive-month {
+      margin-top: 12px;
+    }
+    .archive-month h5 {
+      margin: 0 0 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.07);
+      color: rgba(255,255,255,0.88);
+      font-size: 13px;
+      letter-spacing: 0.02em;
+    }
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .analytics-stat {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      background: #12141a;
+      padding: 12px;
+    }
+    .analytics-stat strong {
+      display: block;
+      font-size: 26px;
+      line-height: 1;
+    }
+    .analytics-stat span {
+      display: block;
+      margin-top: 6px;
+      color: rgba(255,255,255,0.7);
+      font-size: 12px;
+    }
+    .analytics-table {
+      width: 100%;
+      margin-top: 12px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .analytics-table th,
+    .analytics-table td {
+      padding: 9px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      text-align: left;
+    }
+    .analytics-table th {
+      color: rgba(255,255,255,0.68);
+      font-weight: 700;
+    }
     a { color: #66aaff; }
     @media (max-width: 960px) {
       .workspace {
+        grid-template-columns: 1fr;
+      }
+      .analytics-grid {
         grid-template-columns: 1fr;
       }
       .editor-card {
@@ -270,7 +324,7 @@
         <span class="summary-note">Homepage toggles</span>
       </summary>
       <div class="collapsible-body">
-        <p>Toggle the homepage live popups shown below the Blog / Nutrition / Finance buttons.</p>
+        <p>Toggle the homepage live popups shown below the header buttons.</p>
         <p id="live-status-running-state">Running/trolling live popup is currently off.</p>
         <p id="sync-state">Shared sync status will appear here.</p>
         <div class="row">
@@ -297,6 +351,18 @@
         </div>
       </div>
     </details>
+
+    <details class="card collapsible" open>
+      <summary>
+        <span>Website views</span>
+        <span class="summary-note">Admin only</span>
+      </summary>
+      <div class="collapsible-body">
+        <p>Daily, weekly, and monthly visitor tracking. This panel only renders inside admin.</p>
+        <div id="view-analytics-summary" class="analytics-grid"></div>
+        <div id="view-analytics-detail"></div>
+      </div>
+    </details>
   </div>
 
   <script src="assets/js/site-lock.js"></script>
@@ -309,6 +375,7 @@
     const SHARED_STATUS_META_ID = '__trollrunner_live_status_meta__';
     const SHARED_FEEDBACK_META_ID = '__trollrunner_feedback_meta__';
     const LIVE_CHAT_META_ID = '__trollrunner_live_chat_meta__';
+    const VIEW_ANALYTICS_META_ID = '__trollrunner_view_analytics_meta__';
     const LIVE_RUNNING_STATUS_KEY = 'trollrunner_live_status_running_enabled';
     const LIVE_RUNNING_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_running_override';
     const LIVE_CODING_STATUS_KEY = 'trollrunner_live_status_coding_enabled';
@@ -326,6 +393,7 @@
     const LIVE_STATUS_SYNC_POLL_MS = 10000;
     let editingUpdateId = null;
     let cachedLiveChatMeta = null;
+    let cachedViewAnalyticsMeta = null;
     const DEFAULT_UPDATES = [
   {
     title: 'May 8, 2026',
@@ -514,15 +582,26 @@ Working on improving fonts and backgrounds...`,
       return Boolean(item) && typeof item === 'object' && item.id === LIVE_CHAT_META_ID;
     }
 
+    function isSharedViewAnalyticsMetaItem(item) {
+      return Boolean(item) && typeof item === 'object' && item.id === VIEW_ANALYTICS_META_ID;
+    }
+
     function rememberSharedLiveChatMeta(payload) {
       const meta = getSharedUpdatesArray(payload).find(isSharedLiveChatMetaItem);
       if (meta) cachedLiveChatMeta = meta;
       return cachedLiveChatMeta;
     }
 
+    function rememberSharedViewAnalyticsMeta(payload) {
+      const meta = getSharedUpdatesArray(payload).find(isSharedViewAnalyticsMetaItem);
+      if (meta) cachedViewAnalyticsMeta = meta;
+      return cachedViewAnalyticsMeta;
+    }
+
     function parseUpdatesPayload(payload) {
       rememberSharedLiveChatMeta(payload);
-      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item));
+      rememberSharedViewAnalyticsMeta(payload);
+      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item));
     }
 
     function parseStatusFlag(value) {
@@ -632,11 +711,14 @@ Working on improving fonts and backgrounds...`,
       };
     }
 
-    function buildSharedUpdatesPayload(items, liveStatuses = getCurrentLiveStatuses(), feedbackItems = getFeedback(), siteLock = getStoredSiteLockRecord(), liveChatMeta = cachedLiveChatMeta) {
+    function buildSharedUpdatesPayload(items, liveStatuses = getCurrentLiveStatuses(), feedbackItems = getFeedback(), siteLock = getStoredSiteLockRecord(), liveChatMeta = cachedLiveChatMeta, viewAnalyticsMeta = cachedViewAnalyticsMeta) {
       const liveChatMetaFromItems = Array.isArray(items) ? items.find(isSharedLiveChatMetaItem) : null;
       const preservedLiveChatMeta = liveChatMetaFromItems || liveChatMeta;
       if (preservedLiveChatMeta) cachedLiveChatMeta = preservedLiveChatMeta;
-      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item)) : [];
+      const viewAnalyticsMetaFromItems = Array.isArray(items) ? items.find(isSharedViewAnalyticsMetaItem) : null;
+      const preservedViewAnalyticsMeta = viewAnalyticsMetaFromItems || viewAnalyticsMeta;
+      if (preservedViewAnalyticsMeta) cachedViewAnalyticsMeta = preservedViewAnalyticsMeta;
+      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item)) : [];
       return [
         ...visibleItems,
         {
@@ -675,6 +757,12 @@ Working on improving fonts and backgrounds...`,
         ...(preservedLiveChatMeta ? [{
           ...preservedLiveChatMeta,
           id: LIVE_CHAT_META_ID,
+          archived: true,
+          source: 'system',
+        }] : []),
+        ...(preservedViewAnalyticsMeta ? [{
+          ...preservedViewAnalyticsMeta,
+          id: VIEW_ANALYTICS_META_ID,
           archived: true,
           source: 'system',
         }] : []),
@@ -925,7 +1013,7 @@ Working on improving fonts and backgrounds...`,
     function mergeUpdatesForAdmin(remoteItems, localItems) {
       const merged = [];
       const seen = new Set();
-      [...remoteItems, ...localItems].forEach(item => {
+      [...remoteItems, ...localItems, ...DEFAULT_UPDATES.map(item => ({ ...item, source: 'site-default' }))].forEach(item => {
         const normalized = normalizeUpdate(item, item?.source || 'custom');
         if (!normalized) return;
         const key = getUpdateDedupeKey(normalized);
@@ -938,14 +1026,10 @@ Working on improving fonts and backgrounds...`,
 
     function ensureSeededUpdates() {
       const existing = getUpdates().map(item => normalizeUpdate(item, item?.source || 'custom')).filter(Boolean);
-      if (existing.length) {
-        const deduped = dedupeUpdates(existing);
-        setUpdates(deduped, { skipPush: true });
-        return deduped;
-      }
       const seeded = DEFAULT_UPDATES.map(item => normalizeUpdate({ ...item, id: createUpdateId(), archived: false }, 'site-default')).filter(Boolean);
-      setUpdates(seeded, { skipPush: true });
-      return seeded;
+      const deduped = mergeUpdatesForAdmin(existing, seeded);
+      setUpdates(deduped, { skipPush: true });
+      return deduped;
     }
 
     function renderUpdateList(items, emptyMessage) {
@@ -964,6 +1048,28 @@ Working on improving fonts and backgrounds...`,
           </div>
         </div>`;
       }).join('');
+    }
+
+    function getUpdateMonthLabel(update) {
+      const stamp = Number(update?.createdAt || 0);
+      if (!stamp) return 'Undated';
+      return new Date(stamp).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    }
+
+    function renderArchiveGroups(items) {
+      if (!items.length) return '<p>No archived updates yet.</p>';
+      const groups = new Map();
+      items.forEach(item => {
+        const label = getUpdateMonthLabel(item);
+        if (!groups.has(label)) groups.set(label, []);
+        groups.get(label).push(item);
+      });
+      return Array.from(groups.entries()).map(([label, group]) => `
+        <section class="archive-month" aria-label="${escapeHtml(label)} updates">
+          <h5>${escapeHtml(label)}</h5>
+          ${renderUpdateList(group, 'No archived updates yet.')}
+        </section>
+      `).join('');
     }
 
     function renderUpdates() {
@@ -986,7 +1092,7 @@ Working on improving fonts and backgrounds...`,
         <h4>Homepage (latest ${MAX_VISIBLE_UPDATES})</h4>
         ${renderUpdateList(active, 'No updates available.')}
         <h4 style="margin-top:14px;">Archives (admin only)</h4>
-        ${renderUpdateList(archived, 'No archived updates yet.')}
+        ${renderArchiveGroups(archived)}
       `;
     }
 
@@ -1131,6 +1237,94 @@ Working on improving fonts and backgrounds...`,
             return `<div class="item"><strong>${escapeHtml(item.aiTopic || 'general')}</strong> · ${escapeHtml(item.aiPriority || 'normal')} priority<br><small>${escapeHtml(created)}</small>${userLine}<p>${escapeHtml(item.message || '')}</p></div>`;
           }).join('')
         : '<p>No feedback submissions yet.</p>';
+    }
+
+    function normalizeViewAnalyticsPayload(payload) {
+      const input = payload && typeof payload === 'object' ? payload : {};
+      const days = {};
+      Object.entries(input.days || {}).forEach(([date, value]) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !value || typeof value !== 'object') return;
+        const viewerIds = Array.isArray(value.viewerIds)
+          ? Array.from(new Set(value.viewerIds.map(id => String(id).slice(0, 80)).filter(Boolean))).slice(-5000)
+          : [];
+        days[date] = {
+          totalViews: Math.max(0, Number(value.totalViews || viewerIds.length || 0) || 0),
+          viewerIds,
+          lastSeenAt: String(value.lastSeenAt || input.updatedAt || ''),
+        };
+      });
+      return {
+        days,
+        updatedAt: String(input.updatedAt || ''),
+      };
+    }
+
+    function getViewAnalyticsPayload() {
+      return normalizeViewAnalyticsPayload(cachedViewAnalyticsMeta?.viewAnalytics || {});
+    }
+
+    function getLocalDateKey(date = new Date()) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getWeekStartKey(date = new Date()) {
+      const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const day = copy.getDay();
+      copy.setDate(copy.getDate() - day);
+      return getLocalDateKey(copy);
+    }
+
+    function summarizeViewDays(entries) {
+      const viewerIds = new Set();
+      let totalViews = 0;
+      entries.forEach(([, day]) => {
+        totalViews += Number(day.totalViews || 0) || 0;
+        (Array.isArray(day.viewerIds) ? day.viewerIds : []).forEach(id => viewerIds.add(id));
+      });
+      return { totalViews, uniqueViewers: viewerIds.size };
+    }
+
+    function renderViewAnalytics() {
+      const summary = document.getElementById('view-analytics-summary');
+      const detail = document.getElementById('view-analytics-detail');
+      if (!summary || !detail) return;
+      const analytics = getViewAnalyticsPayload();
+      const entries = Object.entries(analytics.days || {}).sort(([a], [b]) => b.localeCompare(a));
+      const todayKey = getLocalDateKey();
+      const weekStartKey = getWeekStartKey();
+      const monthKey = todayKey.slice(0, 7);
+      const today = summarizeViewDays(entries.filter(([date]) => date === todayKey));
+      const week = summarizeViewDays(entries.filter(([date]) => date >= weekStartKey));
+      const month = summarizeViewDays(entries.filter(([date]) => date.startsWith(monthKey)));
+      const cards = [
+        ['Today', today],
+        ['This week', week],
+        ['This month', month],
+      ];
+      summary.innerHTML = cards.map(([label, stat]) => `
+        <div class="analytics-stat">
+          <strong>${escapeHtml(String(stat.uniqueViewers))}</strong>
+          <span>${escapeHtml(label)} unique viewers · ${escapeHtml(String(stat.totalViews))} visits</span>
+        </div>
+      `).join('');
+      detail.innerHTML = entries.length ? `
+        <table class="analytics-table">
+          <thead><tr><th>Date</th><th>Unique viewers</th><th>Visits</th><th>Last seen</th></tr></thead>
+          <tbody>
+            ${entries.slice(0, 45).map(([date, day]) => `
+              <tr>
+                <td>${escapeHtml(date)}</td>
+                <td>${escapeHtml(String((day.viewerIds || []).length))}</td>
+                <td>${escapeHtml(String(day.totalViews || 0))}</td>
+                <td>${escapeHtml(day.lastSeenAt ? new Date(day.lastSeenAt).toLocaleString() : 'Unknown')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      ` : '<p>No website view data has been recorded yet.</p>';
     }
 
     async function clearFeedback() {
@@ -1320,6 +1514,7 @@ Working on improving fonts and backgrounds...`,
         localStorage.setItem(FEEDBACK_KEY, JSON.stringify(remoteFeedback));
       }
       renderFeedback();
+      renderViewAnalytics();
       renderLiveStatusState();
       bindPublicLockConsole();
 
@@ -1335,6 +1530,7 @@ Working on improving fonts and backgrounds...`,
             localStorage.setItem(FEEDBACK_KEY, JSON.stringify(mergeFeedbackItems(latestRemote.feedback, getFeedback())));
             renderUpdates();
             renderFeedback();
+            renderViewAnalytics();
           }
         }, LIVE_STATUS_SYNC_POLL_MS);
       }
