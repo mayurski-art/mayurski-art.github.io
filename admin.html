@@ -285,11 +285,11 @@
         <div class="pane-head">
           <div>
             <h3>Updates & archives</h3>
-            <p class="pane-subtitle">Homepage items stay visible at the top. Archived items stay in the same pane so you can work faster.</p>
+            <p class="pane-subtitle">Latest homepage items stay visible at the top. Full update history is grouped below by month and year.</p>
           </div>
           <div class="pane-stats">
             <span id="update-count-pill">0 active</span>
-            <span id="archive-count-pill">0 archived</span>
+            <span id="archive-count-pill">0 in history</span>
           </div>
         </div>
         <div class="preview-shell">
@@ -415,7 +415,7 @@ Working on improving fonts and backgrounds...`,
     body: `More styling on front page. 13 new stickers added giving it a total of 112. Blogs page has been improved. I look forward to you reading and interacting with it! Projects page has been modified (Project 001: "U MAD BRO ?") is still in progress...⏳⏳⏳`,
     createdAt: '2026-04-29T21:00:00.000Z',
   },
-]
+];
     (async () => {
       const helper = window.TrollrunnerAdminAuth;
       const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
@@ -1051,9 +1051,9 @@ Working on improving fonts and backgrounds...`,
     }
 
     function getUpdateMonthLabel(update) {
-      const stamp = Number(update?.createdAt || 0);
-      if (!stamp) return 'Undated';
-      return new Date(stamp).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      const date = new Date(update?.createdAt || 0);
+      if (Number.isNaN(date.getTime())) return 'Undated';
+      return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
     }
 
     function renderArchiveGroups(items) {
@@ -1079,7 +1079,7 @@ Working on improving fonts and backgrounds...`,
         .filter(Boolean)
         .sort((a, b) => b.createdAt - a.createdAt);
       const activePool = combined.filter(item => !item.archived);
-      const active = activePool.slice(0, MAX_VISIBLE_UPDATES).sort((a, b) => a.createdAt - b.createdAt);
+      const active = activePool.slice(0, MAX_VISIBLE_UPDATES);
       const archived = [
         ...combined.filter(item => item.archived),
         ...activePool.slice(MAX_VISIBLE_UPDATES),
@@ -1087,12 +1087,12 @@ Working on improving fonts and backgrounds...`,
       const activeCount = document.getElementById('update-count-pill');
       const archivedCount = document.getElementById('archive-count-pill');
       if (activeCount) activeCount.textContent = `${active.length} active`;
-      if (archivedCount) archivedCount.textContent = `${archived.length} archived`;
+      if (archivedCount) archivedCount.textContent = `${combined.length} in history`;
       wrap.innerHTML = `
         <h4>Homepage (latest ${MAX_VISIBLE_UPDATES})</h4>
         ${renderUpdateList(active, 'No updates available.')}
-        <h4 style="margin-top:14px;">Archives (admin only)</h4>
-        ${renderArchiveGroups(archived)}
+        <h4 style="margin-top:14px;">Update history by month and year</h4>
+        ${renderArchiveGroups(combined)}
       `;
     }
 
