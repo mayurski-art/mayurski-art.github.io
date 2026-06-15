@@ -818,7 +818,7 @@ Working on improving fonts and backgrounds...`,
       status.textContent = 'Loading shared updates from Supabase…';
       try {
         const qs = new URLSearchParams({
-          select: 'updates,live_status_enabled,feedback',
+          select: 'updates,live_status_enabled',
           id: `eq.${SUPABASE_ROW_ID}`,
           limit: '1'
         });
@@ -914,7 +914,7 @@ Working on improving fonts and backgrounds...`,
       const status = document.getElementById('sync-state');
       if (status) status.textContent = 'Loading shared updates from Supabase...';
       const qs = new URLSearchParams({
-        select: 'updates,live_status_enabled,feedback',
+        select: 'updates,live_status_enabled',
         id: `eq.${SUPABASE_ROW_ID}`,
         limit: '1'
       });
@@ -1190,20 +1190,12 @@ Working on improving fonts and backgrounds...`,
 
 
     function parseFeedbackPayload(payload) {
-      if (payload && Array.isArray(payload.feedback)) {
-        return payload.feedback;
-      }
+      const directItems = payload && Array.isArray(payload.feedback) ? payload.feedback : [];
       const rawUpdates = getSharedUpdatesArray(payload);
       const meta = rawUpdates.find(isSharedFeedbackMetaItem);
-      const items = meta?.items;
-      if (!Array.isArray(items)) return [];
-      return items.filter(item => item && typeof item === 'object').map(item => ({
-        message: String(item.message || '').trim(),
-        aiTopic: String(item.aiTopic || 'general').trim(),
-        aiPriority: String(item.aiPriority || 'normal').trim(),
-        createdAt: item.createdAt || null,
-        username: String(item.username || '').trim(),
-      })).filter(item => item.message);
+      const metaFeedback = Array.isArray(meta?.feedback) ? meta.feedback : [];
+      const legacyItems = Array.isArray(meta?.items) ? meta.items : [];
+      return mergeFeedbackItems(directItems, metaFeedback, legacyItems);
     }
 
     async function loadFeedbackFromBackend() {
