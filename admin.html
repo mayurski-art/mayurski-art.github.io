@@ -237,6 +237,113 @@
       color: rgba(255,255,255,0.68);
       font-weight: 700;
     }
+    .analytics-chart-panel {
+      margin-top: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      background: #12141a;
+      padding: 12px;
+    }
+    .analytics-chart-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .analytics-chart-head h4 {
+      margin: 0 0 4px;
+    }
+    .analytics-range-controls {
+      display: inline-flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .analytics-range-controls button {
+      min-height: 34px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #2b2d36;
+      font-size: 12px;
+    }
+    .analytics-range-controls button.is-active {
+      border-color: rgba(102,170,255,0.9);
+      background: #007aff;
+    }
+    .analytics-chart {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(42px, 1fr);
+      align-items: end;
+      gap: 8px;
+      min-height: 240px;
+      padding: 28px 4px 4px;
+      overflow-x: auto;
+    }
+    .analytics-chart-wrap {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 8px;
+      align-items: stretch;
+    }
+    .analytics-axis-y {
+      display: grid;
+      place-items: center;
+      color: rgba(255,255,255,0.64);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+    .analytics-axis-x {
+      grid-column: 2;
+      color: rgba(255,255,255,0.64);
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .analytics-bar {
+      display: grid;
+      grid-template-rows: auto minmax(140px, 1fr) auto;
+      gap: 7px;
+      min-width: 42px;
+      text-align: center;
+    }
+    .analytics-bar-value {
+      color: rgba(255,255,255,0.84);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .analytics-bar-track {
+      position: relative;
+      display: flex;
+      align-items: end;
+      min-height: 140px;
+      border-radius: 999px 999px 7px 7px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+    .analytics-bar-fill {
+      width: 100%;
+      min-height: 2px;
+      border-radius: inherit;
+      background: linear-gradient(180deg, #66aaff, #1f9d55);
+      box-shadow: 0 0 20px rgba(102,170,255,0.28);
+    }
+    .analytics-bar-label {
+      color: rgba(255,255,255,0.68);
+      font-size: 11px;
+      line-height: 1.15;
+      min-height: 26px;
+    }
+    .analytics-chart-empty {
+      margin: 0;
+      color: rgba(255,255,255,0.7);
+    }
     a { color: #66aaff; }
     @media (max-width: 960px) {
       .workspace {
@@ -250,6 +357,9 @@
       }
       .preview-shell {
         max-height: none;
+      }
+      .analytics-chart {
+        grid-auto-columns: minmax(38px, 1fr);
       }
     }
   </style>
@@ -360,6 +470,24 @@
       <div class="collapsible-body">
         <p>Daily, weekly, and monthly visitor tracking. This panel only renders inside admin.</p>
         <div id="view-analytics-summary" class="analytics-grid"></div>
+        <div class="analytics-chart-panel" aria-label="Website viewers over time">
+          <div class="analytics-chart-head">
+            <div>
+              <h4 id="view-analytics-chart-title">Viewers vs time</h4>
+              <p id="view-analytics-chart-subtitle" class="pane-subtitle">Unique viewers by day.</p>
+            </div>
+            <div class="analytics-range-controls" aria-label="Website views time range">
+              <button id="analytics-range-week" type="button" onclick="setViewAnalyticsRange('week')">Week</button>
+              <button id="analytics-range-month" type="button" onclick="setViewAnalyticsRange('month')">Month</button>
+              <button id="analytics-range-year" type="button" onclick="setViewAnalyticsRange('year')">Year</button>
+            </div>
+          </div>
+          <div class="analytics-chart-wrap">
+            <div class="analytics-axis-y">Viewers</div>
+            <div id="view-analytics-chart" class="analytics-chart" role="img" aria-labelledby="view-analytics-chart-title view-analytics-chart-subtitle"></div>
+            <div class="analytics-axis-x">Time</div>
+          </div>
+        </div>
         <div id="view-analytics-detail"></div>
       </div>
     </details>
@@ -394,6 +522,7 @@
     let editingUpdateId = null;
     let cachedLiveChatMeta = null;
     let cachedViewAnalyticsMeta = null;
+    let viewAnalyticsRange = 'week';
     const DEFAULT_UPDATES = [
   {
     title: 'May 8, 2026',
@@ -1269,6 +1398,18 @@ Working on improving fonts and backgrounds...`,
       return `${year}-${month}-${day}`;
     }
 
+    function parseLocalDateKey(dateKey) {
+      const [year, month, day] = String(dateKey || '').split('-').map(Number);
+      if (!year || !month || !day) return new Date(NaN);
+      return new Date(year, month - 1, day);
+    }
+
+    function addDays(date, amount) {
+      const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      copy.setDate(copy.getDate() + amount);
+      return copy;
+    }
+
     function getWeekStartKey(date = new Date()) {
       const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const day = copy.getDay();
@@ -1284,6 +1425,99 @@ Working on improving fonts and backgrounds...`,
         (Array.isArray(day.viewerIds) ? day.viewerIds : []).forEach(id => viewerIds.add(id));
       });
       return { totalViews, uniqueViewers: viewerIds.size };
+    }
+
+    function getViewDayStat(analytics, dateKey) {
+      const day = analytics.days?.[dateKey] || {};
+      return {
+        dateKey,
+        label: parseLocalDateKey(dateKey).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        viewers: Array.isArray(day.viewerIds) ? day.viewerIds.length : 0,
+        visits: Number(day.totalViews || 0) || 0,
+      };
+    }
+
+    function getViewAnalyticsBars(analytics) {
+      const now = new Date();
+      if (viewAnalyticsRange === 'year') {
+        const bars = [];
+        for (let month = 0; month < 12; month += 1) {
+          const monthKey = `${now.getFullYear()}-${String(month + 1).padStart(2, '0')}`;
+          const viewerIds = new Set();
+          let visits = 0;
+          Object.entries(analytics.days || {}).forEach(([dateKey, day]) => {
+            if (!dateKey.startsWith(monthKey)) return;
+            visits += Number(day.totalViews || 0) || 0;
+            (Array.isArray(day.viewerIds) ? day.viewerIds : []).forEach(id => viewerIds.add(id));
+          });
+          bars.push({
+            label: new Date(now.getFullYear(), month, 1).toLocaleDateString(undefined, { month: 'short' }),
+            viewers: viewerIds.size,
+            visits,
+          });
+        }
+        return {
+          title: `${now.getFullYear()} viewers vs time`,
+          subtitle: 'Unique viewers by month. Bar labels show viewers; hover for visits.',
+          bars,
+        };
+      }
+
+      const dayCount = viewAnalyticsRange === 'month' ? 30 : 7;
+      const bars = [];
+      const start = addDays(now, -(dayCount - 1));
+      for (let i = 0; i < dayCount; i += 1) {
+        bars.push(getViewDayStat(analytics, getLocalDateKey(addDays(start, i))));
+      }
+      return {
+        title: `${viewAnalyticsRange === 'month' ? '30-day' : '7-day'} viewers vs time`,
+        subtitle: 'Unique viewers by day. Bar labels show viewers; hover for visits.',
+        bars,
+      };
+    }
+
+    function renderViewAnalyticsRangeControls() {
+      ['week', 'month', 'year'].forEach(range => {
+        const button = document.getElementById(`analytics-range-${range}`);
+        if (!button) return;
+        button.classList.toggle('is-active', viewAnalyticsRange === range);
+        button.setAttribute('aria-pressed', viewAnalyticsRange === range ? 'true' : 'false');
+      });
+    }
+
+    function renderViewAnalyticsChart(analytics) {
+      const chart = document.getElementById('view-analytics-chart');
+      const title = document.getElementById('view-analytics-chart-title');
+      const subtitle = document.getElementById('view-analytics-chart-subtitle');
+      if (!chart || !title || !subtitle) return;
+      const chartData = getViewAnalyticsBars(analytics);
+      const maxViewers = Math.max(1, ...chartData.bars.map(item => item.viewers));
+      title.textContent = chartData.title;
+      subtitle.textContent = chartData.subtitle;
+      renderViewAnalyticsRangeControls();
+      if (!chartData.bars.some(item => item.viewers || item.visits)) {
+        chart.innerHTML = '<p class="analytics-chart-empty">No website view data for this range yet.</p>';
+        return;
+      }
+      chart.innerHTML = chartData.bars.map(item => {
+        const pct = Math.max(2, Math.round((item.viewers / maxViewers) * 100));
+        const titleText = `${item.label}: ${item.viewers} unique viewers, ${item.visits} visits`;
+        return `
+          <div class="analytics-bar" title="${escapeHtml(titleText)}" aria-label="${escapeHtml(titleText)}">
+            <span class="analytics-bar-value">${escapeHtml(String(item.viewers))}</span>
+            <span class="analytics-bar-track" aria-hidden="true">
+              <span class="analytics-bar-fill" style="height:${pct}%"></span>
+            </span>
+            <span class="analytics-bar-label">${escapeHtml(item.label)}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setViewAnalyticsRange(range) {
+      if (!['week', 'month', 'year'].includes(range)) return;
+      viewAnalyticsRange = range;
+      renderViewAnalytics();
     }
 
     function renderViewAnalytics() {
@@ -1309,6 +1543,7 @@ Working on improving fonts and backgrounds...`,
           <span>${escapeHtml(label)} unique viewers · ${escapeHtml(String(stat.totalViews))} visits</span>
         </div>
       `).join('');
+      renderViewAnalyticsChart(analytics);
       detail.innerHTML = entries.length ? `
         <table class="analytics-table">
           <thead><tr><th>Date</th><th>Unique viewers</th><th>Visits</th><th>Last seen</th></tr></thead>
