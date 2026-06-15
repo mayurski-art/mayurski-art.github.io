@@ -3497,21 +3497,7 @@ footer a:hover { color: #fff; }
 }
 .site-gate-preview::before { display: none !important; }
 
-.gate-winbar {
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-  width: min(440px, calc(100% - 58px));
-  margin: 20px auto 0;
-  font-family: var(--pixel); font-size: 19px; letter-spacing: 0.04em; color: #d7f3d7;
-  padding: 9px 15px;
-  background: linear-gradient(180deg, rgba(18,42,29,0.88), rgba(7,19,14,0.9));
-  border: 2px solid #000;
-  border-radius: 999px;
-  box-shadow: 0 0 0 2px rgba(77,255,115,0.42), inset 0 1px 0 rgba(255,255,255,0.18), 4px 6px 0 rgba(0,0,0,0.42);
-  backdrop-filter: blur(8px);
-}
-.gate-winbar span:first-child { flex: 1; text-align: center; }
-.gate-winbar .gate-winbtns { flex: 0 0 auto; font-family: monospace; font-size: 14px; color: #bfe; letter-spacing: 0.08em; opacity: 0.68; }
-.gate-preview-body { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 28px 26px 26px; }
+.gate-preview-body { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 38px 26px 26px; }
 .gate-eyebrow { font-family: var(--pixel); font-size: 21px; letter-spacing: 0.16em; color: var(--n-gold); text-shadow: 0 2px 0 #000; margin: 0; }
 .gate-tagline { font-family: var(--pixel); font-size: 23px; color: #e6f7e6; margin: 0; min-height: 1.35em; }
 .gate-tagline span { color: var(--n-green); }
@@ -3622,10 +3608,8 @@ footer a:hover { color: #fff; }
       linear-gradient(155deg, #10151a, #08090c 58%, #160a1d) !important;
   }
   .gate-title { font-size: clamp(40px, 11vw, 58px) !important; padding: 17px 8px 0; }
-  .gate-winbar { width: min(310px, calc(100% - 42px)); margin-top: 16px; padding: 8px 12px; }
-  .gate-preview-body { padding: 22px 20px 20px; }
+  .gate-preview-body { padding: 30px 20px 20px; }
   .gate-tagline { font-size: 18px; }
-  .gate-winbar { font-size: 16px; }
   .gate-marquee > div { font-size: 16px; }
   .site-gate-login { padding: 18px !important; }
   .gate-lock-head { align-items: flex-start; flex-direction: column; gap: 4px; }
@@ -3643,10 +3627,6 @@ footer a:hover { color: #fff; }
   <div class="site-gate-shell">
     <section class="site-gate-panel site-gate-preview">
       <h1 id="site-gate-title" class="gate-title">Troll Runner</h1>
-      <div class="gate-winbar" aria-hidden="true">
-        <span>🧌 TROLLRUNNER.NET</span>
-        <span class="gate-winbtns">_ ▢ ✕</span>
-      </div>
       <div class="gate-preview-body">
         <div>
           <p class="gate-eyebrow" aria-hidden="true">★ EST. 2025 ★</p>
