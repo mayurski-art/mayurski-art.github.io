@@ -3805,6 +3805,18 @@ function isSupabaseConfigured() {
   return true;
 }
 
+function supabaseReadOptions() {
+  return {
+    cache: 'no-store',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  };
+}
+
 function readStoredLiveStatus(key, legacyKey = '') {
   const raw = localStorage.getItem(key);
   if (raw === '1' || raw === '0') return raw === '1';
@@ -5532,12 +5544,7 @@ async function syncFeedbackToBackend(items) {
       id: `eq.${SUPABASE_ROW_ID}`,
       limit: '1'
     });
-    const existingResponse = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-    });
+    const existingResponse = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, supabaseReadOptions());
     if (!existingResponse.ok) return false;
     const existingJson = await existingResponse.json();
     const existingPayload = Array.isArray(existingJson) ? existingJson[0] : existingJson;
@@ -5603,12 +5610,7 @@ async function loadSharedStateFromBackend() {
       id: `eq.${SUPABASE_ROW_ID}`,
       limit: '1'
     });
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-    });
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, supabaseReadOptions());
     if (!response.ok) {
       console.warn('Shared sync read failed on homepage:', await parseSupabaseError(response));
       return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}), liveChat: getLocalLiveChatPayload() };
@@ -6115,8 +6117,16 @@ async function writeLiveChatPayloadToBackend(payload, options = {}) {
 }
 
 function handleLiveChatRealtimePayload(payload) {
-  if (!payload?.new) return;
-  applyLiveChatPayload(parseSharedLiveChatPayload(payload.new));
+  const row = payload?.new;
+  if (!row) return;
+  void loadCustomUpdates({
+    updates: parseSharedUpdatesPayload(row),
+    feedback: parseSharedFeedbackPayload(row),
+    liveStatuses: parseSharedLiveStatusesPayload(row),
+    siteLock: parseSharedSiteLockPayload(row),
+    liveChat: parseSharedLiveChatPayload(row),
+    viewAnalytics: parseSharedViewAnalyticsPayload(row),
+  });
 }
 
 function initializeLiveChatRealtime() {
