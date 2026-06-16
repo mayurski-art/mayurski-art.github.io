@@ -3470,9 +3470,10 @@ footer a:hover { color: #fff; }
   background:
     repeating-linear-gradient(0deg, rgba(0,0,0,0.16) 0 2px, transparent 2px 4px),
     radial-gradient(circle at 50% -10%, rgba(77,255,115,0.16), transparent 55%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='6' y='52' font-size='42' opacity='0.05'%3E%F0%9F%A7%8C%3C/text%3E%3C/svg%3E"),
+    url('https://upload.wikimedia.org/wikipedia/en/7/73/Trollface.png'),
     linear-gradient(150deg, #0a0b0d, #150a20 46%, #0a0b0d) !important;
-  background-size: auto, auto, 72px 72px, auto !important;
+  background-size: auto, auto, 76px auto, auto !important;
+  background-blend-mode: normal, normal, soft-light, normal;
 }
 .site-gate-shell { transform: scale(0.94) !important; }
 
@@ -3492,8 +3493,10 @@ footer a:hover { color: #fff; }
   background:
     linear-gradient(180deg, rgba(2,4,14,0.48), rgba(2,4,14,0.82)),
     radial-gradient(circle at 22% 43%, rgba(255,216,77,0.16), transparent 22%),
+    url('https://upload.wikimedia.org/wikipedia/en/7/73/Trollface.png') 0 0 / 92px auto repeat,
     url('assets/animations/start-line-sparks.jpg') 58% 54% / min(118%, 720px) auto no-repeat,
     linear-gradient(155deg, #10151a, #08090c 58%, #160a1d) !important;
+  background-blend-mode: normal, normal, soft-light, normal, normal;
 }
 .site-gate-preview::before { display: none !important; }
 
@@ -3604,8 +3607,10 @@ footer a:hover { color: #fff; }
     background:
       linear-gradient(180deg, rgba(2,4,14,0.46), rgba(2,4,14,0.84)),
       radial-gradient(circle at 20% 44%, rgba(255,216,77,0.16), transparent 25%),
+      url('https://upload.wikimedia.org/wikipedia/en/7/73/Trollface.png') 0 0 / 74px auto repeat,
       url('assets/animations/start-line-sparks.jpg') 56% 50% / min(130%, 520px) auto no-repeat,
       linear-gradient(155deg, #10151a, #08090c 58%, #160a1d) !important;
+    background-blend-mode: normal, normal, soft-light, normal, normal;
   }
   .gate-title { font-size: clamp(40px, 11vw, 58px) !important; padding: 17px 8px 0; }
   .gate-preview-body { padding: 30px 20px 20px; }
