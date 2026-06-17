@@ -3683,8 +3683,8 @@ footer a:hover { color: #fff; }
             <span class="gate-card-troll-youngster"></span>
           </span>
           <h3 id="gate-login-title">Login</h3>
-          <form id="site-gate-login-form" class="gate-form">
-            <input id="gate-login-name" class="gate-field" type="text" placeholder="Username or handle" autocomplete="nickname">
+          <form id="site-gate-login-form" class="gate-form" autocomplete="off">
+            <input id="gate-login-name" class="gate-field" type="text" placeholder="Username or handle" autocomplete="off" autocapitalize="none" spellcheck="false">
             <input id="gate-login-pass" class="gate-field" type="password" placeholder="Account password" autocomplete="current-password">
             <button class="gate-save-btn" type="submit">Login</button>
           </form>
@@ -4051,12 +4051,8 @@ function applyLiveStatusVisibility() {
   }
 }
 
-function getSiteGateProfile() {
-  try {
-    return JSON.parse(localStorage.getItem(SITE_GATE_PROFILE_KEY) || '{}') || {};
-  } catch {
-    return {};
-  }
+function clearSiteGateProfile() {
+  localStorage.removeItem(SITE_GATE_PROFILE_KEY);
 }
 
 function getRootCookieDomain() {
@@ -4142,15 +4138,18 @@ function updateGateLockToggleVisibility() {
   if (passInput) passInput.hidden = gateLockAdminVerified;
 }
 
-function setSiteGateProfile(profile) {
-  localStorage.setItem(SITE_GATE_PROFILE_KEY, JSON.stringify(profile));
+function markSiteGateLoginSubmitted() {
+  clearSiteGateProfile();
   markSiteGateSeen();
 }
 
 function hydrateSiteGateFields() {
-  const profile = getSiteGateProfile();
   const name = document.getElementById('gate-login-name');
-  if (name && typeof profile.name === 'string') name.value = profile.name;
+  clearSiteGateProfile();
+  if (name) {
+    name.value = '';
+    name.setAttribute('autocomplete', 'off');
+  }
 }
 
 function safeParseSiteGateLockRecord(raw) {
@@ -4284,7 +4283,6 @@ function initializeSiteGate() {
   const enterBtn = document.getElementById('site-gate-enter');
   const form = document.getElementById('site-gate-login-form');
   const focusButtons = document.querySelectorAll('[data-gate-focus]');
-  const nameInput = document.getElementById('gate-login-name');
   const passInput = document.getElementById('gate-login-pass');
   const lockPassInput = document.getElementById('gate-lock-pass');
   const lockVerifyBtn = document.getElementById('gate-lock-verify');
@@ -4327,12 +4325,7 @@ function initializeSiteGate() {
   if (form) {
     form.addEventListener('submit', event => {
       event.preventDefault();
-      const profile = {
-        name: String(nameInput?.value || '').trim(),
-        hasPassword: Boolean(String(passInput?.value || '').trim()),
-        savedAt: new Date().toISOString(),
-      };
-      setSiteGateProfile(profile);
+      markSiteGateLoginSubmitted();
       tryEnter();
     });
   }
