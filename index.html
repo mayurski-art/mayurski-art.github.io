@@ -5308,12 +5308,18 @@ function normalizeUpdate(update) {
   const safeBody = String(update?.body || '').trim();
   if (!safeTitle || !safeBody) return null;
   const stamp = new Date(update?.createdAt || 0).getTime();
+  const updatedStamp = new Date(update?.updatedAt || update?.createdAt || 0).getTime();
   return {
     title: safeTitle,
     body: safeBody,
     createdAt: Number.isFinite(stamp) && stamp > 0 ? stamp : 0,
+    updatedAt: Number.isFinite(updatedStamp) && updatedStamp > 0 ? updatedStamp : (Number.isFinite(stamp) && stamp > 0 ? stamp : 0),
     archived: Boolean(update?.archived),
   };
+}
+
+function getUpdateSortTime(update) {
+  return Number(update?.updatedAt || update?.createdAt || 0) || 0;
 }
 
 function getUpdateDedupeKey(update) {
@@ -5917,7 +5923,7 @@ async function loadCustomUpdates(sharedStateOverride = null) {
   });
 
   const latest = deduped
-    .sort((a, b) => b.createdAt - a.createdAt);
+    .sort((a, b) => getUpdateSortTime(b) - getUpdateSortTime(a));
   const visible = latest.slice(0, MAX_VISIBLE_UPDATES);
 
   wrap.innerHTML = '';

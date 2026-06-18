@@ -1118,14 +1118,20 @@ Working on improving fonts and backgrounds...`,
       const safeBody = String(update?.body || '').trim();
       if (!safeTitle || !safeBody) return null;
       const stamp = new Date(update?.createdAt || 0).getTime();
+      const updatedStamp = new Date(update?.updatedAt || update?.createdAt || 0).getTime();
       return {
         id: String(update?.id || createUpdateId()),
         title: safeTitle,
         body: safeBody,
         createdAt: Number.isFinite(stamp) && stamp > 0 ? stamp : 0,
+        updatedAt: Number.isFinite(updatedStamp) && updatedStamp > 0 ? updatedStamp : (Number.isFinite(stamp) && stamp > 0 ? stamp : 0),
         archived: Boolean(update?.archived),
         source,
       };
+    }
+
+    function getUpdateSortTime(update) {
+      return Number(update?.updatedAt || update?.createdAt || 0) || 0;
     }
 
     function getUpdateDedupeKey(update) {
@@ -1213,13 +1219,13 @@ Working on improving fonts and backgrounds...`,
       const combined = ensureSeededUpdates()
         .map(item => normalizeUpdate(item, item?.source || 'custom'))
         .filter(Boolean)
-        .sort((a, b) => b.createdAt - a.createdAt);
+        .sort((a, b) => getUpdateSortTime(b) - getUpdateSortTime(a));
       const activePool = combined.filter(item => !item.archived);
       const active = activePool.slice(0, MAX_VISIBLE_UPDATES);
       const archived = [
         ...combined.filter(item => item.archived),
         ...activePool.slice(MAX_VISIBLE_UPDATES),
-      ].sort((a, b) => b.createdAt - a.createdAt);
+      ].sort((a, b) => getUpdateSortTime(b) - getUpdateSortTime(a));
       const activeCount = document.getElementById('update-count-pill');
       const archivedCount = document.getElementById('archive-count-pill');
       if (activeCount) activeCount.textContent = `${active.length} active`;
@@ -1238,7 +1244,7 @@ Working on improving fonts and backgrounds...`,
         .filter(Boolean);
       const activeSorted = normalized
         .filter(item => !item.archived)
-        .sort((a, b) => b.createdAt - a.createdAt);
+        .sort((a, b) => getUpdateSortTime(b) - getUpdateSortTime(a));
       const activeKeepIds = new Set(activeSorted.slice(0, MAX_VISIBLE_UPDATES).map(item => item.id));
       return normalized.map(item => {
         if (item.archived) return item;
@@ -1257,12 +1263,14 @@ Working on improving fonts and backgrounds...`,
       if (editingUpdateId) {
         const idx = updates.findIndex(item => String(item.id) === String(editingUpdateId));
         if (idx >= 0) {
-          updates[idx] = { ...updates[idx], title, body };
+          updates[idx] = { ...updates[idx], title, body, updatedAt: new Date().toISOString(), archived: false };
         } else {
-          updates.unshift({ id: createUpdateId(), title, body, createdAt: new Date().toISOString(), archived: false, source: 'custom' });
+          const now = new Date().toISOString();
+          updates.unshift({ id: createUpdateId(), title, body, createdAt: now, updatedAt: now, archived: false, source: 'custom' });
         }
       } else {
-        updates.unshift({ id: createUpdateId(), title, body, createdAt: new Date().toISOString(), archived: false, source: 'custom' });
+        const now = new Date().toISOString();
+        updates.unshift({ id: createUpdateId(), title, body, createdAt: now, updatedAt: now, archived: false, source: 'custom' });
       }
       const nextUpdates = enforceActiveLimit(updates);
       setUpdates(nextUpdates, { skipPush: true });
