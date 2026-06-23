@@ -29,6 +29,22 @@ confirmed on-chain. No backend: the confirmed transaction is the authorization.
 `DEVNET = true` in the config uses fake devnet USDC. Flip to `false` for mainnet
 and set `TROLL_MINT` to enable $TROLL.
 
+### RPC endpoints (important)
+
+- `api.mainnet-beta.solana.com` now returns **403** to browser apps — do not use it.
+- Default mainnet RPC is **`https://solana-rpc.publicnode.com`** (free, no key,
+  CORS-enabled). For production reliability, drop in a Helius/QuickNode URL.
+- The public **devnet** RPC (`api.devnet.solana.com`) is unreliable for
+  confirmation — transactions land but `getSignatureStatus` often returns null,
+  causing the UI to hang on "confirming". Prefer mainnet or a dedicated devnet RPC.
+
+### $TROLL token
+
+- Mainnet mint: `5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2`, **6 decimals**.
+- No devnet equivalent — the $TROLL option only appears on mainnet.
+- Price (USD) comes from Jupiter Price API v3:
+  `https://lite-api.jup.ag/price/v3?ids=<mint>` → `{ "<mint>": { "usdPrice": … } }`.
+
 ## API
 
 ```js
@@ -45,13 +61,17 @@ const res = await TrollPay.pay({
 await TrollPay.payForRevive(onProgress);
 
 TrollPay.explorerUrl(sig);            // Solscan link (network-aware)
-TrollPay.mountTokenPicker(el);        // optional USDC/$TROLL selector
+TrollPay.mountTokenPicker(el, onChange);  // USDC/$TROLL selector; onChange(token) optional
 TrollPay.isConnected();               // wallet connected this session?
 ```
 
-## Testing on devnet
+## Testing
 
-1. Phantom → set network to **Devnet**.
-2. Get devnet SOL at https://faucet.solana.com (pays gas).
-3. Get devnet USDC at https://spl-token-faucet.com (mint `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`).
-4. Serve the site locally and run a payment — it confirms in ~5–15s.
+**Mainnet (recommended — required for $TROLL).** Tipping your own treasury costs
+only gas (~$0.001 SOL); the tokens land in the treasury you control. Set Phantom
+to **Mainnet**, hold a little SOL + USDC (or $TROLL), and run a small tip.
+
+**Devnet (USDC only, no $TROLL).** Phantom → **Devnet**; get devnet SOL at
+https://faucet.solana.com and devnet USDC at https://spl-token-faucet.com (mint
+`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`). Note the public devnet RPC may
+hang on confirmation — see the RPC note above.

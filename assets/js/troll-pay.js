@@ -99,7 +99,11 @@
     var resp = await fetch(CFG.PRICE_FEED_URL + CFG.TROLL_MINT);
     if (!resp.ok) throw new Error('Price feed unavailable');
     var data  = await resp.json();
-    var price = data && data.data && data.data[CFG.TROLL_MINT] && data.data[CFG.TROLL_MINT].price;
+    // Jupiter Price API v3:  { "<mint>": { "usdPrice": <number>, ... } }
+    // (older v2 used data.data[mint].price — fall back to it just in case)
+    var entry = (data && data[CFG.TROLL_MINT]) ||
+                (data && data.data && data.data[CFG.TROLL_MINT]);
+    var price = entry && (entry.usdPrice != null ? entry.usdPrice : entry.price);
     if (!price || Number(price) <= 0) throw new Error('Could not get $TROLL price');
     return Number(price);
   }
@@ -293,7 +297,9 @@
   // ── Optional UI helper: token picker ───────────────────────────────────────────
   // Renders into `el` a tiny USDC / $TROLL selector. When only USDC is available
   // (devnet, or $TROLL mint unset) it renders a static "Paying in USDC" label.
-  function mountTokenPicker(el) {
+  // Optional onChange(token) fires whenever the selection changes (and once on
+  // mount), so callers can refresh their own labels.
+  function mountTokenPicker(el, onChange) {
     if (!el) return;
     el.innerHTML = '';
     if (!trollAvailable()) {
@@ -302,6 +308,7 @@
       span.textContent = 'Paying in USDC';
       el.appendChild(span);
       setToken('USDC');
+      if (onChange) onChange('USDC');
       return;
     }
     ['USDC', 'TROLL'].forEach(function (t) {
@@ -313,6 +320,7 @@
         setToken(t);
         el.querySelectorAll('.pay-token-btn').forEach(function (n) { n.classList.remove('is-active'); });
         b.classList.add('is-active');
+        if (onChange) onChange(_token);
       });
       el.appendChild(b);
     });
