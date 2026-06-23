@@ -177,12 +177,9 @@
     var sourceATA = findATA(web3, sender, mint);
     var destATA   = findATA(web3, treasury, mint);
 
-    // The sender must already hold this token (i.e. have a token account) to
-    // send it. Without one, the transfer fails on-chain with a cryptic error —
-    // catch it here and surface a clear message instead.
-    var sourceInfo = await connection.getAccountInfo(sourceATA);
-    if (!sourceInfo) throw new Error('NO_TOKEN_BALANCE');
-
+    // We intentionally do NOT pre-check the sender's balance here — always build
+    // the transfer and let Phantom show the transaction. If the wallet lacks the
+    // token/funds, Phantom (and the chain) will report it on approval.
     var latest = await connection.getLatestBlockhash('confirmed');
     var tx = new web3.Transaction({ recentBlockhash: latest.blockhash, feePayer: sender });
 
