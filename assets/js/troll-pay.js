@@ -39,6 +39,7 @@
   var _web3 = null;       // loaded @solana/web3.js namespace
   var _wallet = null;     // { address }
   var _token = 'USDC';    // current pay token
+  var _accountListener = false;  // attached the Phantom accountChanged listener?
 
   // ── web3.js loader ──────────────────────────────────────────────────────────
   function loadWeb3() {
@@ -66,6 +67,14 @@
     if (!phantom || !phantom.isPhantom) throw new Error('Phantom not installed');
     var resp = await phantom.connect();
     _wallet = { address: resp.publicKey.toString() };
+    // Keep _wallet in sync when the user switches accounts in Phantom, so they
+    // don't have to reload the page to pay from a different account.
+    if (phantom.on && !_accountListener) {
+      _accountListener = true;
+      phantom.on('accountChanged', function (pubkey) {
+        _wallet = pubkey ? { address: pubkey.toString() } : null;
+      });
+    }
     return _wallet;
   }
 
