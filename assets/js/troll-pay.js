@@ -168,6 +168,12 @@
     var sourceATA = findATA(web3, sender, mint);
     var destATA   = findATA(web3, treasury, mint);
 
+    // The sender must already hold this token (i.e. have a token account) to
+    // send it. Without one, the transfer fails on-chain with a cryptic error —
+    // catch it here and surface a clear message instead.
+    var sourceInfo = await connection.getAccountInfo(sourceATA);
+    if (!sourceInfo) throw new Error('NO_TOKEN_BALANCE');
+
     var latest = await connection.getLatestBlockhash('confirmed');
     var tx = new web3.Transaction({ recentBlockhash: latest.blockhash, feePayer: sender });
 
@@ -268,6 +274,7 @@
       var sig = await sendUsd(total, token, opts.onProgress);
       return { ok: true, txSig: sig, base: base, tax: tax, total: total };
     } catch (err) {
+      if (window.console) console.error('[TrollPay] payment error:', err);
       return { ok: false, reason: friendlyError(err) };
     }
   }
@@ -280,18 +287,21 @@
       var sig = await sendUsd(p.total, token, onProgress);
       return { ok: true, txSig: sig };
     } catch (err) {
+      if (window.console) console.error('[TrollPay] payment error:', err);
       return { ok: false, reason: friendlyError(err) };
     }
   }
 
   function friendlyError(err) {
     var msg = (err && err.message) || String(err);
-    if (/reject|cancel|user denied/i.test(msg)) return 'Payment cancelled';
-    if (/not installed/i.test(msg))             return 'Phantom not found';
-    if (/insufficient|0x1\b/i.test(msg))         return 'Insufficient funds';
-    if (/price feed|TROLL/i.test(msg))           return '$TROLL price unavailable';
-    if (/timed out|expired/i.test(msg))          return 'Timed out — try again';
-    return 'Payment failed';
+    if (/no_token_balance/i.test(msg))            return "You don't hold that token in this wallet";
+    if (/reject|cancel|user denied|user rejected/i.test(msg)) return 'Payment cancelled';
+    if (/not installed/i.test(msg))               return 'Phantom not found';
+    if (/insufficient|0x1\b|debit an account/i.test(msg)) return 'Insufficient funds';
+    if (/price feed|TROLL price|not configured/i.test(msg)) return '$TROLL price unavailable';
+    if (/timed out|expired|blockhash/i.test(msg)) return 'Timed out — try again';
+    if (/failed to fetch|networkerror|load failed|could not load/i.test(msg)) return 'Network error — check connection & retry';
+    return 'Payment failed: ' + msg.slice(0, 120);
   }
 
   // ── Optional UI helper: token picker ───────────────────────────────────────────
