@@ -147,12 +147,15 @@
     return data;
   }
 
-  async function maybeCreateAtaInstruction(web3, connection, payer, owner, mint) {
+  // CreateAssociatedTokenAccountIdempotent (variant 1) for owner+mint. The
+  // "idempotent" variant is a safe no-op if the account already exists, so we
+  // ALWAYS include it rather than relying on a (sometimes flaky) getAccountInfo
+  // pre-check. This guarantees the destination token account exists before the
+  // transfer and avoids "ProgramAccountNotFound" when the treasury has never
+  // held that token before.
+  function createAtaIdempotentInstruction(web3, payer, owner, mint) {
     var pk  = programKeys(web3);
     var ata = findATA(web3, owner, mint);
-    var info = await connection.getAccountInfo(ata);
-    if (info) return null;
-    // CreateAssociatedTokenAccountIdempotent (variant 1)
     return new web3.TransactionInstruction({
       programId: pk.ATA,
       keys: [
@@ -177,15 +180,15 @@
     var sourceATA = findATA(web3, sender, mint);
     var destATA   = findATA(web3, treasury, mint);
 
-    // We intentionally do NOT pre-check the sender's balance here — always build
-    // the transfer and let Phantom show the transaction. If the wallet lacks the
-    // token/funds, Phantom (and the chain) will report it on approval.
+    // We intentionally do NOT pre-check balances here — always build the transfer
+    // and let Phantom show it. If the wallet lacks the token/funds, Phantom (and
+    // the chain) will report it on approval.
     var latest = await connection.getLatestBlockhash('confirmed');
     var tx = new web3.Transaction({ recentBlockhash: latest.blockhash, feePayer: sender });
 
-    // Create treasury's ATA if it doesn't exist yet (sender pays ~0.002 SOL rent, once).
-    var createIx = await maybeCreateAtaInstruction(web3, connection, sender, treasury, mint);
-    if (createIx) tx.add(createIx);
+    // Always idempotently ensure the treasury's token account exists. No-op if it
+    // already does; otherwise the sender pays ~0.002 SOL rent to create it once.
+    tx.add(createAtaIdempotentInstruction(web3, sender, treasury, mint));
 
     tx.add(new web3.TransactionInstruction({
       programId: pk.TOKEN,
