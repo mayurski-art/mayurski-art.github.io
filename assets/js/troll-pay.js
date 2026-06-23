@@ -34,6 +34,7 @@
   var TOKEN_PROGRAM_ID_STR  = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
   var ATA_PROGRAM_ID_STR    = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
   var SYSTEM_PROGRAM_ID_STR = '11111111111111111111111111111111';
+  var COMPUTE_BUDGET_PROGRAM_ID_STR = 'ComputeBudget111111111111111111111111111111';
   var WEB3_CDN = 'https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js';
 
   var _web3 = null;       // loaded @solana/web3.js namespace
@@ -147,6 +148,26 @@
     return data;
   }
 
+  // Compute-budget (priority fee) instructions, built manually so we don't pull
+  // in @solana/web3.js's ComputeBudgetProgram helpers — those use Node's Buffer,
+  // which isn't defined in the browser IIFE build ("Buffer is not defined").
+  function computeUnitLimitIx(web3, units) {
+    var data = new Uint8Array(5);
+    data[0] = 2; // SetComputeUnitLimit
+    new DataView(data.buffer).setUint32(1, units >>> 0, true);
+    return new web3.TransactionInstruction({
+      programId: new web3.PublicKey(COMPUTE_BUDGET_PROGRAM_ID_STR), keys: [], data: data,
+    });
+  }
+  function computeUnitPriceIx(web3, microLamports) {
+    var data = new Uint8Array(9);
+    data[0] = 3; // SetComputeUnitPrice
+    new DataView(data.buffer).setBigUint64(1, BigInt(microLamports), true);
+    return new web3.TransactionInstruction({
+      programId: new web3.PublicKey(COMPUTE_BUDGET_PROGRAM_ID_STR), keys: [], data: data,
+    });
+  }
+
   // CreateAssociatedTokenAccountIdempotent (variant 1) for owner+mint. The
   // "idempotent" variant is a safe no-op if the account already exists, so we
   // ALWAYS include it rather than relying on a (sometimes flaky) getAccountInfo
@@ -189,10 +210,8 @@
     // Priority fee. Without one, a transfer often gets a signature but never
     // lands on a congested mainnet — validators drop it, which surfaces as a
     // "confirming → timed out". This adds ~0.00001 SOL to greatly improve landing.
-    if (web3.ComputeBudgetProgram) {
-      tx.add(web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
-      tx.add(web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }));
-    }
+    tx.add(computeUnitLimitIx(web3, 100000));
+    tx.add(computeUnitPriceIx(web3, 100000));
 
     // Always idempotently ensure the treasury's token account exists. No-op if it
     // already does; otherwise the sender pays ~0.002 SOL rent to create it once.
