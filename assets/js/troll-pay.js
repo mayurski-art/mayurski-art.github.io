@@ -186,6 +186,14 @@
     var latest = await connection.getLatestBlockhash('confirmed');
     var tx = new web3.Transaction({ recentBlockhash: latest.blockhash, feePayer: sender });
 
+    // Priority fee. Without one, a transfer often gets a signature but never
+    // lands on a congested mainnet — validators drop it, which surfaces as a
+    // "confirming → timed out". This adds ~0.00001 SOL to greatly improve landing.
+    if (web3.ComputeBudgetProgram) {
+      tx.add(web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 100000 }));
+      tx.add(web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 }));
+    }
+
     // Always idempotently ensure the treasury's token account exists. No-op if it
     // already does; otherwise the sender pays ~0.002 SOL rent to create it once.
     tx.add(createAtaIdempotentInstruction(web3, sender, treasury, mint));
