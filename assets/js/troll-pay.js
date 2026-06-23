@@ -372,19 +372,63 @@
     });
   }
 
+  // ── Mobile: Solana Pay handoff ─────────────────────────────────────────────
+  // A phone's normal browser has no injected wallet, so instead of connecting we
+  // hand off to the Phantom app with a Solana Pay transfer-request URL. Phantom
+  // opens straight to an approve screen for the exact amount + token. There is no
+  // automatic return to the site (by design).
+  function isTouchMobile() {
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
+           (('ontouchstart' in window) && Math.min(screen.width || 9999, screen.height || 9999) < 820);
+  }
+  // True when we should hand off to the Phantom app (mobile, no injected wallet).
+  function shouldUseSolanaPay() {
+    return !getPhantom() && isTouchMobile();
+  }
+  function trimAmount(n, decimals) {
+    return Number(n).toFixed(decimals).replace(/\.?0+$/, '');
+  }
+  // Build a Solana Pay transfer-request URL for `amountUsd` in the chosen token.
+  async function solanaPayUrl(opts) {
+    opts = opts || {};
+    var base = Number(opts.amountUsd);
+    if (!(base > 0)) throw new Error('Enter an amount');
+    var token = (opts.token === 'TROLL' && trollAvailable()) ? 'TROLL' : 'USDC';
+    var mint, amount, decimals;
+    if (token === 'TROLL') {
+      var price = await fetchTrollPrice();
+      amount   = base / price;          // USD → token units
+      mint     = CFG.TROLL_MINT;
+      decimals = CFG.TROLL_DECIMALS;
+    } else {
+      amount   = base;                  // USDC is 1:1
+      mint     = CFG.USDC_MINT;
+      decimals = CFG.USDC_DECIMALS;
+    }
+    var params = new URLSearchParams();
+    params.set('amount', trimAmount(amount, Math.min(decimals, 6)));
+    params.set('spl-token', mint);
+    params.set('label', 'Troll Fund');
+    params.set('message', 'Tip the Troll Runner');
+    return 'solana:' + CFG.TREASURY_WALLET + '?' + params.toString();
+  }
+
   window.TrollPay = {
-    loadWeb3:         loadWeb3,
-    connect:          connect,
-    isConnected:      isConnected,
-    getWallet:        getWallet,
-    trollAvailable:   trollAvailable,
-    setToken:         setToken,
-    getToken:         getToken,
-    pay:              pay,
-    payForRevive:     payForRevive,
-    costLabel:        costLabel,
-    explorerUrl:      explorerUrl,
-    mountTokenPicker: mountTokenPicker,
-    config:           CFG,
+    loadWeb3:          loadWeb3,
+    connect:           connect,
+    isConnected:       isConnected,
+    getWallet:         getWallet,
+    trollAvailable:    trollAvailable,
+    setToken:          setToken,
+    getToken:          getToken,
+    pay:               pay,
+    payForRevive:      payForRevive,
+    costLabel:         costLabel,
+    explorerUrl:       explorerUrl,
+    mountTokenPicker:  mountTokenPicker,
+    isTouchMobile:     isTouchMobile,
+    shouldUseSolanaPay: shouldUseSolanaPay,
+    solanaPayUrl:      solanaPayUrl,
+    config:            CFG,
   };
 })();
