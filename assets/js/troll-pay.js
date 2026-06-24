@@ -104,18 +104,30 @@
     return t.toFixed(2) + ' USDC';
   }
 
+  var _lastTrollPrice = 0;   // last good price — lets $TROLL survive a flaky moment
   async function fetchTrollPrice() {
     if (!trollAvailable()) throw new Error('$TROLL not configured');
-    var resp = await fetch(CFG.PRICE_FEED_URL + CFG.TROLL_MINT, { signal: makeSignal(12000) });
-    if (!resp.ok) throw new Error('Price feed unavailable');
-    var data  = await resp.json();
-    // Jupiter Price API v3:  { "<mint>": { "usdPrice": <number>, ... } }
-    // (older v2 used data.data[mint].price — fall back to it just in case)
-    var entry = (data && data[CFG.TROLL_MINT]) ||
-                (data && data.data && data.data[CFG.TROLL_MINT]);
-    var price = entry && (entry.usdPrice != null ? entry.usdPrice : entry.price);
-    if (!price || Number(price) <= 0) throw new Error('Could not get $TROLL price');
-    return Number(price);
+    try {
+      var resp = await fetch(CFG.PRICE_FEED_URL + CFG.TROLL_MINT, { signal: makeSignal(12000) });
+      if (!resp.ok) throw new Error('Price feed unavailable');
+      var data  = await resp.json();
+      // Jupiter Price API v3:  { "<mint>": { "usdPrice": <number>, ... } }
+      // (older v2 used data.data[mint].price — fall back to it just in case)
+      var entry = (data && data[CFG.TROLL_MINT]) ||
+                  (data && data.data && data.data[CFG.TROLL_MINT]);
+      var price = entry && (entry.usdPrice != null ? entry.usdPrice : entry.price);
+      if (!price || Number(price) <= 0) throw new Error('Could not get $TROLL price');
+      _lastTrollPrice = Number(price);
+      return _lastTrollPrice;
+    } catch (e) {
+      if (_lastTrollPrice > 0) return _lastTrollPrice;   // stale but usable
+      throw e;
+    }
+  }
+  // Warm the price cache in the background (call on load) so a later revive
+  // can build a $TROLL URL even if the network is flaky at that moment.
+  function warmTrollPrice() {
+    if (trollAvailable()) fetchTrollPrice().catch(function () {});
   }
 
   function toRawUnits(usdTotal, pricePerToken, decimals) {
@@ -483,6 +495,7 @@
     isTouchMobile:     isTouchMobile,
     shouldUseSolanaPay: shouldUseSolanaPay,
     solanaPayUrl:      solanaPayUrl,
+    warmTrollPrice:    warmTrollPrice,
     latestTreasurySig: latestTreasurySig,
     waitForNewTreasuryPayment: waitForNewTreasuryPayment,
     config:            CFG,
