@@ -35,6 +35,7 @@
   var ATA_PROGRAM_ID_STR    = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
   var SYSTEM_PROGRAM_ID_STR = '11111111111111111111111111111111';
   var COMPUTE_BUDGET_PROGRAM_ID_STR = 'ComputeBudget111111111111111111111111111111';
+  var MEMO_PROGRAM_ID_STR = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
   var WEB3_CDN = 'https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js';
 
   var _web3 = null;       // loaded @solana/web3.js namespace
@@ -180,6 +181,17 @@
     });
   }
 
+  // SPL Memo instruction — writes `text` on-chain so the finance feed can
+  // categorize the payment (tip vs game). Phantom does the same when a Solana
+  // Pay URL carries a `memo` param, so both desktop and mobile paths get tagged.
+  function memoInstruction(web3, signer, text) {
+    return new web3.TransactionInstruction({
+      programId: new web3.PublicKey(MEMO_PROGRAM_ID_STR),
+      keys: [{ pubkey: signer, isSigner: true, isWritable: false }],
+      data: new TextEncoder().encode(String(text)),
+    });
+  }
+
   // CreateAssociatedTokenAccountIdempotent (variant 1) for owner+mint. The
   // "idempotent" variant is a safe no-op if the account already exists, so we
   // ALWAYS include it rather than relying on a (sometimes flaky) getAccountInfo
@@ -203,7 +215,7 @@
     });
   }
 
-  async function buildTransferTx(web3, senderAddress, mintStr, rawAmount) {
+  async function buildTransferTx(web3, senderAddress, mintStr, rawAmount, memo) {
     var connection = new web3.Connection(CFG.SOLANA_RPC, 'confirmed');
     var sender     = new web3.PublicKey(senderAddress);
     var treasury   = new web3.PublicKey(CFG.TREASURY_WALLET);
@@ -238,6 +250,9 @@
       ],
       data: encodeTransferData(rawAmount),
     }));
+
+    // Optional on-chain memo so the finance feed can categorize this payment.
+    if (memo) tx.add(memoInstruction(web3, sender, memo));
 
     return { tx: tx, connection: connection, blockhashInfo: latest };
   }
@@ -276,7 +291,7 @@
 
   // ── Core: send a USD-denominated amount to the treasury ─────────────────────────
   // Internal. Resolves to a tx signature or throws.
-  async function sendUsd(totalUsd, token, onProgress) {
+  async function sendUsd(totalUsd, token, onProgress, memo) {
     if (onProgress) onProgress({ stage: 'connecting' });
     var web3 = await loadWeb3();
     if (!isConnected()) await connect();
@@ -295,7 +310,7 @@
 
     if (onProgress) onProgress({ stage: 'building' });
     var rawAmount = toRawUnits(totalUsd, pricePerToken, decimals);
-    var built     = await buildTransferTx(web3, _wallet.address, mintStr, rawAmount);
+    var built     = await buildTransferTx(web3, _wallet.address, mintStr, rawAmount, memo);
 
     if (onProgress) onProgress({ stage: 'awaiting' });
     return sendAndConfirm(built.connection, phantom, built.tx, built.blockhashInfo, function (ev) {
@@ -319,7 +334,7 @@
     var tax   = base * taxRate;
     var total = base + tax;
     try {
-      var sig = await sendUsd(total, token, opts.onProgress);
+      var sig = await sendUsd(total, token, opts.onProgress, opts.memo);
       return { ok: true, txSig: sig, base: base, tax: tax, total: total };
     } catch (err) {
       if (window.console) console.error('[TrollPay] payment error:', err);
@@ -422,6 +437,9 @@
     params.set('spl-token', mint);
     params.set('label', opts.label || 'Troll Fund');
     params.set('message', opts.message || 'Tip the Troll Runner');
+    // On-chain memo (Phantom includes it as an SPL Memo instruction) — lets the
+    // finance feed categorize the payment as a tip or a game spend.
+    if (opts.memo) params.set('memo', opts.memo);
     return 'solana:' + CFG.TREASURY_WALLET + '?' + params.toString();
   }
 
