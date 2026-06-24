@@ -420,9 +420,13 @@
   // treasury's token account) which is fine for low-traffic games — the player
   // paid regardless. Uses plain JSON-RPC (no web3 needed for these reads).
   async function rpcCall(method, params) {
+    var signal = typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+      ? AbortSignal.timeout(8000)
+      : undefined;
     var resp = await fetch(CFG.SOLANA_RPC, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: method, params: params }),
+      signal: signal,
     });
     var json = await resp.json();
     if (json.error) throw new Error(json.error.message || 'RPC error');
