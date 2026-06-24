@@ -408,9 +408,58 @@
     var params = new URLSearchParams();
     params.set('amount', trimAmount(amount, Math.min(decimals, 6)));
     params.set('spl-token', mint);
-    params.set('label', 'Troll Fund');
-    params.set('message', 'Tip the Troll Runner');
+    params.set('label', opts.label || 'Troll Fund');
+    params.set('message', opts.message || 'Tip the Troll Runner');
     return 'solana:' + CFG.TREASURY_WALLET + '?' + params.toString();
+  }
+
+  // ── Mobile confirmation: poll the treasury for an incoming payment ───────────
+  // The Solana Pay handoff gives no callback, so for actions that must be
+  // confirmed (game revives), we snapshot the treasury's latest tx before paying,
+  // then poll until a NEW one lands. Matching is loose (any new incoming tx on the
+  // treasury's token account) which is fine for low-traffic games — the player
+  // paid regardless. Uses plain JSON-RPC (no web3 needed for these reads).
+  async function rpcCall(method, params) {
+    var resp = await fetch(CFG.SOLANA_RPC, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: method, params: params }),
+    });
+    var json = await resp.json();
+    if (json.error) throw new Error(json.error.message || 'RPC error');
+    return json.result;
+  }
+  function mintForToken(token) {
+    return (token === 'TROLL' && trollAvailable()) ? CFG.TROLL_MINT : CFG.USDC_MINT;
+  }
+  async function treasuryAta(token) {
+    var res = await rpcCall('getTokenAccountsByOwner',
+      [CFG.TREASURY_WALLET, { mint: mintForToken(token) }, { encoding: 'jsonParsed' }]);
+    return (res && res.value && res.value[0] && res.value[0].pubkey) || null;
+  }
+  // Most recent signature on the treasury's token account (snapshot baseline).
+  async function latestTreasurySig(token) {
+    var ata = await treasuryAta(token);
+    if (!ata) return null;
+    var sigs = await rpcCall('getSignaturesForAddress', [ata, { limit: 1 }]);
+    return (sigs && sigs[0] && sigs[0].signature) || null;
+  }
+  // Poll until a signature newer than `sinceSig` lands. Resolves { ok, sig }.
+  async function waitForNewTreasuryPayment(token, sinceSig, timeoutMs, onTick) {
+    var ata = await treasuryAta(token);
+    if (!ata) return { ok: false, reason: 'No treasury account' };
+    var deadline = Date.now() + (timeoutMs || 120000);
+    while (Date.now() < deadline) {
+      try {
+        var sigs = await rpcCall('getSignaturesForAddress', [ata, { limit: 5 }]);
+        if (sigs && sigs.length) {
+          var top = sigs[0];
+          if (top.signature !== sinceSig && !(top.err)) return { ok: true, sig: top.signature };
+        }
+      } catch (e) { /* transient — keep polling */ }
+      if (onTick) onTick();
+      await new Promise(function (r) { setTimeout(r, 3000); });
+    }
+    return { ok: false, reason: 'timeout' };
   }
 
   window.TrollPay = {
@@ -429,6 +478,8 @@
     isTouchMobile:     isTouchMobile,
     shouldUseSolanaPay: shouldUseSolanaPay,
     solanaPayUrl:      solanaPayUrl,
+    latestTreasurySig: latestTreasurySig,
+    waitForNewTreasuryPayment: waitForNewTreasuryPayment,
     config:            CFG,
   };
 })();
