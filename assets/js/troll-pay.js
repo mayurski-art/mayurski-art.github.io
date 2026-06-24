@@ -106,7 +106,7 @@
 
   async function fetchTrollPrice() {
     if (!trollAvailable()) throw new Error('$TROLL not configured');
-    var resp = await fetch(CFG.PRICE_FEED_URL + CFG.TROLL_MINT);
+    var resp = await fetch(CFG.PRICE_FEED_URL + CFG.TROLL_MINT, { signal: makeSignal(12000) });
     if (!resp.ok) throw new Error('Price feed unavailable');
     var data  = await resp.json();
     // Jupiter Price API v3:  { "<mint>": { "usdPrice": <number>, ... } }
@@ -419,14 +419,15 @@
   // then poll until a NEW one lands. Matching is loose (any new incoming tx on the
   // treasury's token account) which is fine for low-traffic games — the player
   // paid regardless. Uses plain JSON-RPC (no web3 needed for these reads).
+  function makeSignal(ms) {
+    return typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+      ? AbortSignal.timeout(ms) : undefined;
+  }
   async function rpcCall(method, params) {
-    var signal = typeof AbortSignal !== 'undefined' && AbortSignal.timeout
-      ? AbortSignal.timeout(8000)
-      : undefined;
     var resp = await fetch(CFG.SOLANA_RPC, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: method, params: params }),
-      signal: signal,
+      signal: makeSignal(15000),
     });
     var json = await resp.json();
     if (json.error) throw new Error(json.error.message || 'RPC error');
