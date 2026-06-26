@@ -4097,7 +4097,6 @@ const SITE_GATE_PROFILE_KEY = 'trollrunner_account_shell_v1';
 const SITE_GATE_SEEN_KEY = 'trollrunner_site_gate_seen_v1';
 const SITE_GATE_COOKIE_DAYS = 365;
 const SITE_PUBLIC_LOCK_KEY = 'trollrunner_site_public_locked_v1';
-const FEEDBACK_SHEET_WEBHOOK_URL = '';
 const SEEDED_FEEDBACK_ENTRIES = [
   {
     username: '',
@@ -4109,7 +4108,6 @@ const SEEDED_FEEDBACK_ENTRIES = [
 ];
 const SUPABASE_ROW_ID = 'main';
 const SUPABASE_SHARED_STATE_REFRESH_MS = 10000;
-const FEEDBACK_GOOGLE_SHEET_ID = '1rT4mlBtaJyTA4pXqDlIo5dn7mPcv8MLAGolVtSi8oNE';
 const SHARED_UPDATES_JSON_URL = 'assets/data/latest-updates.json';
 const SPOTIFY_PLAYLIST_URI = 'spotify:playlist:0ni59E9HbWpAe8Ydnseh4O';
 // Sticker locations now live in the stickers site repository at stickers/index.html.
@@ -6159,30 +6157,6 @@ async function syncFeedbackToBackend(feedbackItems, sharedStateOverride = null) 
   }
 }
 
-async function pushFeedbackToGoogleSheets(item) {
-  if (!FEEDBACK_SHEET_WEBHOOK_URL) return null;
-  const body = new URLSearchParams({
-    sheetId: FEEDBACK_GOOGLE_SHEET_ID,
-    username: item.includeUsername ? item.username : '',
-    dateTime: item.createdAt,
-    message: item.message,
-    aiTopic: item.aiTopic,
-    aiPriority: item.aiPriority,
-  });
-  try {
-    await fetch(FEEDBACK_SHEET_WEBHOOK_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-      },
-      body: body.toString(),
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
 function classifyFeedback(message) {
   const text = message.toLowerCase();
   let topic = 'general';
@@ -6231,20 +6205,13 @@ function submitFeedback() {
   }
   status.textContent = 'Sending feedback...';
 
-  Promise.allSettled([
-    loadSharedStateFromBackend().then(sharedState => {
-      const mergedFeedback = mergeFeedbackItems([feedbackItem], sharedState.feedback, localItems);
-      setFeedback(mergedFeedback);
-      return syncFeedbackToBackend(mergedFeedback, sharedState);
-    }),
-    pushFeedbackToGoogleSheets(feedbackItem),
-  ]).then(results => {
-    const sharedSyncOk = results[0].status === 'fulfilled' ? results[0].value : false;
-    const sheetSyncState = results[1].status === 'fulfilled' ? results[1].value : false;
-    if (sharedSyncOk && sheetSyncState === true) {
-      status.textContent = `Feedback saved to admin system and Google Sheet (${ai.topic}, ${ai.priority} priority).`;
-    } else if (sharedSyncOk) {
-      status.textContent = `Feedback saved to admin system (${ai.topic}, ${ai.priority} priority). Google Sheet sync is not configured yet.`;
+  loadSharedStateFromBackend().then(sharedState => {
+    const mergedFeedback = mergeFeedbackItems([feedbackItem], sharedState.feedback, localItems);
+    setFeedback(mergedFeedback);
+    return syncFeedbackToBackend(mergedFeedback, sharedState);
+  }).then(sharedSyncOk => {
+    if (sharedSyncOk) {
+      status.textContent = `Feedback saved to admin system (${ai.topic}, ${ai.priority} priority).`;
     } else {
       status.textContent = `Feedback saved on this device (${ai.topic}, ${ai.priority} priority). Shared sync needs attention.`;
     }
