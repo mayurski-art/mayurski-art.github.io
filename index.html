@@ -69,7 +69,7 @@
 })();
 </script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&family=Rubik+Glitch&family=Space+Grotesk:wght@500;700&family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&family=Press+Start+2P&family=Rubik+Glitch&family=Space+Grotesk:wght@500;700&family=VT323&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -940,192 +940,329 @@ header p {
   margin-top: 12px;
 }
 
+/* ===== TROLLCHAT — 2014 PictoChat / pixel vibes ===== */
 .live-chat-panel {
   grid-column: 2;
   grid-row: 1 / span 2;
   align-self: stretch;
   min-height: 430px;
-  border: 2px solid rgba(22, 24, 31, 0.95);
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(227, 241, 233, 0.92)),
-    #eaf3ed;
-  color: #182018;
+  --tc-ink: #14231d;
+  --tc-line: #10201a;
+  --tc-paper: #eef6e2;
+  --tc-green: #2bd66f;
+  --tc-teal: #2fb3a6;
+  --tc-yellow: #f4d35e;
+  --tc-pink: #ff5ec1;
+  --tc-pixel: 'Press Start 2P', 'VT323', monospace;
+  --tc-term: 'VT323', 'DM Mono', monospace;
+  position: relative;
+  border: 3px solid var(--tc-line);
+  border-radius: 4px;
+  background: #cfe3cd;
+  color: var(--tc-ink);
   box-shadow:
-    0 18px 42px rgba(0,0,0,0.28),
-    inset 0 0 0 4px rgba(108, 128, 112, 0.2);
+    0 0 0 3px #cfe3cd,
+    0 0 0 6px var(--tc-line),
+    6px 6px 0 6px rgba(16, 32, 26, 0.55),
+    0 22px 46px rgba(0, 0, 0, 0.35);
   overflow: hidden;
-  font-family: 'DM Mono', 'DM Sans', monospace;
-}
-.live-chat-panel::before {
-  content: '';
-  position: absolute;
+  image-rendering: pixelated;
+  font-family: var(--tc-term);
 }
 .live-chat-window {
   height: 100%;
   min-height: 430px;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   gap: 8px;
-  padding: 10px;
+  padding: 9px;
   background:
-    repeating-linear-gradient(0deg, rgba(0,0,0,0.035) 0 1px, transparent 1px 4px),
-    linear-gradient(180deg, rgba(255,255,255,0.58), rgba(211, 226, 216, 0.54));
+    repeating-linear-gradient(0deg, rgba(16, 32, 26, 0.05) 0 2px, transparent 2px 4px),
+    linear-gradient(180deg, #f3f8e9, #d7e7cf);
 }
 .live-chat-titlebar {
   display: flex;
   justify-content: space-between;
   gap: 10px;
   align-items: center;
-  border: 2px solid #1e2a24;
-  border-radius: 8px;
+  border: 3px solid var(--tc-line);
+  border-radius: 3px;
   padding: 8px 10px;
   background:
-    linear-gradient(90deg, #1f8c5f, #2fa7a6 58%, #f4d35e);
-  color: #08110e;
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.22);
+    linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 45%),
+    linear-gradient(90deg, var(--tc-green), var(--tc-teal) 60%, var(--tc-yellow));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35), inset 0 -3px 0 rgba(16,32,26,0.25);
 }
-.live-chat-title {
-  font-family: var(--font-display);
-  font-size: 22px;
+.tc-title-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.tc-title-troll {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 2px solid var(--tc-line);
+  border-radius: 3px;
+  background: #fff;
+  object-fit: cover;
+  image-rendering: pixelated;
+  box-shadow: 2px 2px 0 rgba(16,32,26,0.45);
+}
+.tc-title {
+  font-family: var(--tc-pixel);
+  font-size: 13px;
   line-height: 1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: #0c1a12;
+  text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+}
+.tc-subtitle {
+  margin-top: 5px;
+  font-family: var(--tc-term);
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #143524;
+  opacity: 0.85;
 }
 .live-chat-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: none;
+}
+.tc-live {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  gap: 5px;
+  font-family: var(--tc-pixel);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  color: #0c1a12;
+  border: 2px solid var(--tc-line);
+  border-radius: 2px;
+  background: #fff;
+  padding: 3px 5px;
 }
-.live-chat-status-dot {
+.tc-live-dot {
+  width: 7px;
+  height: 7px;
+  background: #ff2d3d;
+  border: 1px solid var(--tc-line);
+  animation: tc-blink 1s steps(2, end) infinite;
+}
+.tc-online {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--tc-term);
+  font-size: 15px;
+  line-height: 1;
+  color: #0c1a12;
+  border: 2px solid var(--tc-line);
+  border-radius: 2px;
+  background: #d9ffe6;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+.tc-online::before {
+  content: '';
   width: 8px;
   height: 8px;
-  border-radius: 2px;
-  background: #24ff8a;
-  box-shadow: 0 0 0 0 rgba(36,255,138,0.7);
-  animation: live-chat-blink 1.2s steps(2, end) infinite;
+  border-radius: 50%;
+  background: var(--tc-green);
+  box-shadow: 0 0 0 0 rgba(43, 214, 111, 0.7);
+  animation: tc-pulse 1.6s ease-out infinite;
 }
-.live-chat-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-}
-.live-chat-room-select,
-.live-chat-new-room,
-.live-chat-name,
-.live-chat-input {
-  min-width: 0;
-  width: 100%;
-  border: 2px solid #26352f;
-  border-radius: 7px;
-  background: rgba(255,255,255,0.74);
-  color: #16231e;
-  padding: 9px 10px;
-  font: 12px 'DM Mono', 'DM Sans', monospace;
-}
-.live-chat-room-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 8px;
-}
-.live-chat-btn {
-  border: 2px solid #26352f;
-  border-radius: 7px;
-  background: #f4d35e;
-  color: #111;
-  padding: 9px 10px;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: 2px 2px 0 #26352f;
-}
-.live-chat-btn:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 #26352f;
+.tc-online-num {
+  font-family: var(--tc-pixel);
+  font-size: 9px;
 }
 .live-chat-feed {
-  min-height: 220px;
-  overflow: auto;
-  border: 2px solid #26352f;
-  border-radius: 8px;
+  min-height: 210px;
+  overflow-y: auto;
+  border: 3px solid var(--tc-line);
+  border-radius: 3px;
   background:
-    linear-gradient(180deg, rgba(252,255,244,0.86), rgba(221,238,227,0.82)),
-    #f2ffe9;
-  padding: 9px;
+    linear-gradient(180deg, rgba(0,0,0,0.04), transparent 8%),
+    repeating-linear-gradient(0deg, rgba(47, 179, 166, 0.07) 0 22px, transparent 22px 24px),
+    #fbfdf2;
+  padding: 8px;
   scrollbar-width: thin;
+  scrollbar-color: var(--tc-teal) #dfeede;
+}
+.live-chat-feed::-webkit-scrollbar { width: 10px; }
+.live-chat-feed::-webkit-scrollbar-track { background: #dfeede; }
+.live-chat-feed::-webkit-scrollbar-thumb {
+  background: var(--tc-teal);
+  border: 2px solid var(--tc-line);
 }
 .live-chat-empty {
   min-height: 190px;
   display: grid;
   place-items: center;
+  gap: 8px;
   text-align: center;
-  color: rgba(18,35,30,0.66);
-  font-size: 12px;
+  color: #2a4636;
+  padding: 14px;
+}
+.live-chat-empty img {
+  width: 92px;
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(3px 3px 0 rgba(16,32,26,0.3));
+}
+.live-chat-empty strong {
+  font-family: var(--tc-pixel);
+  font-size: 10px;
+  line-height: 1.6;
+  color: #143524;
+}
+.live-chat-empty span {
+  font-family: var(--tc-term);
+  font-size: 16px;
+  line-height: 1.1;
+  opacity: 0.85;
 }
 .live-chat-message {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-columns: 26px minmax(0, 1fr);
   gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px dashed rgba(33, 48, 42, 0.25);
+  padding: 7px 0;
+  border-bottom: 2px dotted rgba(20, 53, 36, 0.28);
 }
-.live-chat-message:last-child {
-  border-bottom: 0;
-}
+.live-chat-message:last-child { border-bottom: 0; }
+.live-chat-message.is-me .live-chat-author { color: var(--tc-pink); }
 .live-chat-avatar {
-  width: 22px;
-  height: 22px;
-  border: 2px solid #26352f;
-  border-radius: 5px;
-  background:
-    linear-gradient(135deg, #24ff8a 0 50%, #f957bc 50%),
-    #24ff8a;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 2px solid var(--tc-line);
+  border-radius: 3px;
+  background-color: #fff;
+  background-image: url('assets/animations/troll-computer-transparent.png');
+  background-size: 130%;
+  background-position: center 60%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  box-shadow: 2px 2px 0 rgba(16,32,26,0.35);
 }
 .live-chat-name-row {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 7px;
+  line-height: 1;
 }
 .live-chat-author {
-  font-weight: 900;
-  color: #12432f;
+  font-family: var(--tc-pixel);
+  font-size: 8px;
+  letter-spacing: 0.02em;
+  color: #0f6b3c;
+  word-break: break-word;
 }
 .live-chat-time {
-  font-size: 10px;
-  color: rgba(18,35,30,0.52);
+  font-family: var(--tc-term);
+  font-size: 13px;
+  color: rgba(20, 53, 36, 0.55);
 }
 .live-chat-text {
-  margin-top: 3px;
-  font-size: 12px;
-  line-height: 1.5;
+  margin-top: 4px;
+  font-family: var(--tc-term);
+  font-size: 17px;
+  line-height: 1.15;
+  color: #16261d;
   word-break: break-word;
 }
 .live-chat-typing {
-  min-height: 16px;
-  color: rgba(18,35,30,0.62);
-  font-size: 11px;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--tc-term);
+  font-size: 15px;
+  color: #2a4636;
 }
+.live-chat-typing img {
+  width: 20px;
+  height: 20px;
+  display: none;
+  image-rendering: pixelated;
+}
+.live-chat-typing.is-active img { display: inline-block; }
 .live-chat-typing.is-active::after {
   content: '_';
-  animation: live-chat-cursor 0.75s steps(2, end) infinite;
+  font-family: var(--tc-pixel);
+  font-size: 9px;
+  animation: tc-blink 0.7s steps(2, end) infinite;
 }
 .live-chat-composer {
   display: grid;
-  grid-template-columns: minmax(90px, 132px) minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: minmax(78px, 112px) minmax(0, 1fr) auto;
+  gap: 7px;
 }
-@keyframes live-chat-blink {
-  50% { opacity: 0.45; }
+.tc-name,
+.tc-input {
+  min-width: 0;
+  width: 100%;
+  border: 3px solid var(--tc-line);
+  border-radius: 3px;
+  background: #fbfdf2;
+  color: #16261d;
+  padding: 8px 9px;
+  font: 17px var(--tc-term);
+  box-shadow: inset 2px 2px 0 rgba(16,32,26,0.12);
 }
-@keyframes live-chat-cursor {
-  50% { opacity: 0; }
+.tc-name::placeholder,
+.tc-input::placeholder { color: rgba(20, 53, 36, 0.45); }
+.tc-name:focus,
+.tc-input:focus {
+  outline: none;
+  border-color: var(--tc-teal);
+  background: #fff;
+}
+.tc-send {
+  border: 3px solid var(--tc-line);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #ffe27a, var(--tc-yellow));
+  color: #1a1306;
+  padding: 6px 12px;
+  font-family: var(--tc-pixel);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--tc-line);
+}
+.tc-send:hover { background: linear-gradient(180deg, #fff0a8, #ffd94e); }
+.tc-send:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--tc-line);
+}
+.tc-send:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 3px 3px 0 var(--tc-line);
+}
+.tc-note {
+  min-height: 14px;
+  font-family: var(--tc-term);
+  font-size: 14px;
+  line-height: 1.15;
+  color: #5a6f5e;
+}
+.tc-note a { color: #0f6b3c; text-decoration: underline; }
+@keyframes tc-blink { 50% { opacity: 0.25; } }
+@keyframes tc-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(43, 214, 111, 0.65); }
+  100% { box-shadow: 0 0 0 8px rgba(43, 214, 111, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tc-live-dot,
+  .tc-online::before,
+  .live-chat-typing.is-active::after { animation: none; }
 }
 
 #spotify-embed {
@@ -3103,12 +3240,10 @@ footer a:hover { color: #fff; }
     min-height: 0;
   }
   .live-chat-window {
-    min-height: 390px;
+    min-height: 420px;
   }
-  .live-chat-toolbar,
-  .live-chat-room-actions,
   .live-chat-composer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(70px, 96px) minmax(0, 1fr) auto;
   }
   #stats-banner {
     padding: 14px;
@@ -3814,32 +3949,36 @@ footer a:hover { color: #fff; }
   </div>
 </section>
 
-<section class="live-chat-panel" aria-label="Trollrunner live chat">
+<section class="live-chat-panel" id="trollchat" aria-label="Trollchat live chat room">
   <div class="live-chat-window">
     <div class="live-chat-titlebar">
-      <div>
-        <div class="live-chat-title">TROLLCHAT</div>
+      <div class="tc-title-left">
+        <img class="tc-title-troll" src="assets/animations/troll-grin.gif" alt="" aria-hidden="true">
+        <div>
+          <div class="tc-title">TROLLCHAT</div>
+          <div class="tc-subtitle">Trade Less, Troll More</div>
+        </div>
       </div>
-      <div class="live-chat-status"><span class="live-chat-status-dot" aria-hidden="true"></span><span id="live-chat-online-count">0 active</span></div>
+      <div class="live-chat-status">
+        <span class="tc-live"><span class="tc-live-dot" aria-hidden="true"></span>LIVE</span>
+        <span class="tc-online" id="tc-online" title="Trolls in the room right now">
+          <span class="tc-online-num" id="tc-online-num">1</span>&nbsp;online
+        </span>
+      </div>
     </div>
 
-    <div class="live-chat-toolbar">
-      <select id="live-chat-room-select" class="live-chat-room-select" aria-label="Chat room"></select>
-      <div class="live-chat-room-actions">
-        <input id="live-chat-new-room" class="live-chat-new-room" type="text" maxlength="28" placeholder="New room">
-        <button id="live-chat-create-room" class="live-chat-btn" type="button">Make</button>
-        <button id="live-chat-clear-room" class="live-chat-btn" type="button">Clear</button>
-      </div>
+    <div id="tc-feed" class="live-chat-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+    <div id="tc-typing" class="live-chat-typing" aria-live="polite">
+      <img src="assets/animations/troll-typer.gif" alt="" aria-hidden="true">
+      <span id="tc-typing-text"></span>
     </div>
 
-    <div id="live-chat-feed" class="live-chat-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
-    <div id="live-chat-typing" class="live-chat-typing" aria-live="polite"></div>
-
-    <form id="live-chat-form" class="live-chat-composer">
-      <input id="live-chat-name" class="live-chat-name" type="text" maxlength="24" placeholder="Guest name" aria-label="Display name" autocomplete="nickname">
-      <input id="live-chat-input" class="live-chat-input" type="text" maxlength="220" placeholder="type here..." aria-label="Message" autocomplete="off">
-      <button class="live-chat-btn" type="submit">Send</button>
+    <form id="tc-form" class="live-chat-composer" autocomplete="off">
+      <input id="tc-name" class="tc-name" type="text" maxlength="24" placeholder="name" aria-label="Your display name" autocomplete="nickname">
+      <input id="tc-input" class="tc-input" type="text" maxlength="240" placeholder="say something trolly…" aria-label="Message" autocomplete="off">
+      <button id="tc-send" class="tc-send" type="submit">SEND</button>
     </form>
+    <div id="tc-note" class="tc-note"></div>
   </div>
 </section>
 
@@ -6440,6 +6579,399 @@ function applyLiveChatBroadcast(event) {
   }
 }
 
+/* ===================================================================
+   TROLLCHAT — single live room (Supabase Realtime + saved history)
+   - Live messages   : Realtime Broadcast  (works with the anon key, no setup)
+   - Online count     : Realtime Presence   (works with the anon key, no setup)
+   - Saved history    : `troll_chat` table  (anon select/insert; see SQL note)
+   The old multi-room localStorage chat above stays dormant: its `liveChatState`
+   is never initialized, so every old handler short-circuits.
+   =================================================================== */
+const TC_CHANNEL = 'trollchat_room_v2';
+const TC_TABLE = 'troll_chat';
+const TC_NAME_KEY = 'trollchat_name_v1';
+const TC_ID_KEY = 'trollchat_guest_id_v1';
+const TC_CACHE_KEY = 'trollchat_cache_v1';
+const TC_MSG_MAX = 240;
+const TC_KEEP = 80;
+const TC_HISTORY = 60;
+const TC_COOLDOWN_MS = 1500;
+const TC_TYPING_TTL_MS = 3200;
+const TC_NAME_COLORS = ['#0f6b3c', '#1565c0', '#b8431f', '#7b1fa2', '#0097a7', '#c2185b', '#5d4037', '#2e7d32'];
+
+const trollChat = {
+  ready: false,
+  guestId: '',
+  name: '',
+  client: null,
+  channel: null,
+  subscribed: false,
+  persistOk: null,      // null = unknown, true = table works, false = live-only
+  messages: [],
+  seen: new Set(),
+  typingPeers: new Map(),
+  lastSendAt: 0,
+  typingSentAt: 0,
+  typingTimer: null,
+  els: null,
+};
+
+function tcGuestId() {
+  let id = '';
+  try { id = localStorage.getItem(TC_ID_KEY) || ''; } catch {}
+  if (!id) {
+    id = window.crypto?.randomUUID ? window.crypto.randomUUID()
+      : `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    try { localStorage.setItem(TC_ID_KEY, id); } catch {}
+  }
+  return id;
+}
+
+function tcDefaultName() {
+  let stored = '';
+  try { stored = localStorage.getItem(TC_NAME_KEY) || ''; } catch {}
+  return (stored || `Troll ${Math.floor(100 + Math.random() * 900)}`).slice(0, 24);
+}
+
+function tcNameColor(name) {
+  let hash = 0;
+  const str = String(name || '');
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+  return TC_NAME_COLORS[hash % TC_NAME_COLORS.length];
+}
+
+function tcLoadCache() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TC_CACHE_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch { return []; }
+}
+
+function tcSaveCache() {
+  try {
+    localStorage.setItem(TC_CACHE_KEY, JSON.stringify(trollChat.messages.slice(-TC_HISTORY)));
+  } catch {}
+}
+
+function tcFormatTime(value) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function tcNormalizeMessage(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = String(raw.id || '').trim();
+  const text = String(raw.text != null ? raw.text : raw.body || '').trim().slice(0, TC_MSG_MAX);
+  if (!id || !text) return null;
+  return {
+    id,
+    name: (String(raw.name || 'Guest').trim() || 'Guest').slice(0, 24),
+    text,
+    ts: String(raw.ts || raw.created_at || new Date().toISOString()),
+  };
+}
+
+function tcRenderFeed() {
+  const feed = trollChat.els?.feed;
+  if (!feed) return;
+  feed.innerHTML = '';
+  if (!trollChat.messages.length) {
+    const empty = document.createElement('div');
+    empty.className = 'live-chat-empty';
+    const img = document.createElement('img');
+    img.src = 'assets/animations/troll-lel_transparent.gif';
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    const strong = document.createElement('strong');
+    strong.textContent = 'NO TROLLS YET';
+    const span = document.createElement('span');
+    span.textContent = 'be the first to say something.';
+    empty.appendChild(img);
+    empty.appendChild(strong);
+    empty.appendChild(span);
+    feed.appendChild(empty);
+    return;
+  }
+  trollChat.messages.forEach(message => {
+    const row = document.createElement('article');
+    row.className = 'live-chat-message';
+    if (message.name === trollChat.name) row.classList.add('is-me');
+
+    const avatar = document.createElement('span');
+    avatar.className = 'live-chat-avatar';
+    avatar.setAttribute('aria-hidden', 'true');
+
+    const body = document.createElement('div');
+    const head = document.createElement('div');
+    head.className = 'live-chat-name-row';
+    const name = document.createElement('span');
+    name.className = 'live-chat-author';
+    name.textContent = message.name;
+    if (message.name !== trollChat.name) name.style.color = tcNameColor(message.name);
+    const time = document.createElement('span');
+    time.className = 'live-chat-time';
+    time.textContent = tcFormatTime(message.ts);
+    const text = document.createElement('div');
+    text.className = 'live-chat-text';
+    text.textContent = message.text;
+
+    head.appendChild(name);
+    head.appendChild(time);
+    body.appendChild(head);
+    body.appendChild(text);
+    row.appendChild(avatar);
+    row.appendChild(body);
+    feed.appendChild(row);
+  });
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function tcAddMessage(raw, options = {}) {
+  const message = tcNormalizeMessage(raw);
+  if (!message || trollChat.seen.has(message.id)) return false;
+  trollChat.seen.add(message.id);
+  trollChat.messages.push(message);
+  trollChat.messages.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+  if (trollChat.messages.length > TC_KEEP) {
+    trollChat.messages = trollChat.messages.slice(-TC_KEEP);
+    trollChat.seen = new Set(trollChat.messages.map(m => m.id));
+  }
+  // someone else posted -> clear their "typing" bubble
+  if (message.name) {
+    trollChat.typingPeers.forEach((value, key) => {
+      if (value.name === message.name) trollChat.typingPeers.delete(key);
+    });
+  }
+  if (!options.silent) {
+    tcRenderFeed();
+    tcRenderTyping();
+  }
+  tcSaveCache();
+  return true;
+}
+
+function tcRenderOnline(count) {
+  const num = trollChat.els?.onlineNum;
+  if (num) num.textContent = String(Math.max(1, Number(count) || 1));
+}
+
+function tcSyncPresence() {
+  if (!trollChat.channel) { tcRenderOnline(1); return; }
+  const state = trollChat.channel.presenceState();
+  const ids = new Set();
+  Object.values(state || {}).forEach(entries => {
+    if (Array.isArray(entries)) entries.forEach(e => { if (e?.id) ids.add(e.id); });
+  });
+  tcRenderOnline(ids.size || 1);
+}
+
+function tcRenderTyping() {
+  const wrap = trollChat.els?.typing;
+  const textEl = trollChat.els?.typingText;
+  if (!wrap || !textEl) return;
+  const now = Date.now();
+  const names = [];
+  trollChat.typingPeers.forEach((value, key) => {
+    if (value.until <= now) { trollChat.typingPeers.delete(key); return; }
+    if (value.name && value.name !== trollChat.name) names.push(value.name);
+  });
+  if (!names.length) {
+    wrap.classList.remove('is-active');
+    textEl.textContent = '';
+    return;
+  }
+  wrap.classList.add('is-active');
+  const unique = Array.from(new Set(names)).slice(0, 3);
+  textEl.textContent = unique.length === 1 ? `${unique[0]} is typing` : `${unique.join(', ')} are typing`;
+}
+
+function tcSetNote(message, isHtml) {
+  const note = trollChat.els?.note;
+  if (!note) return;
+  if (isHtml) note.innerHTML = message;
+  else note.textContent = message || '';
+}
+
+async function tcFetchHistory() {
+  if (!isSupabaseConfigured()) { trollChat.persistOk = false; return; }
+  try {
+    const qs = new URLSearchParams({
+      select: 'id,name,body,created_at',
+      order: 'created_at.desc',
+      limit: String(TC_HISTORY),
+    });
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${TC_TABLE}?${qs.toString()}`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (!response.ok) { trollChat.persistOk = false; tcUpdateNote(); return; }
+    const rows = await response.json();
+    if (Array.isArray(rows)) {
+      rows.reverse().forEach(row => tcAddMessage(row, { silent: true }));
+      tcRenderFeed();
+    }
+    trollChat.persistOk = true;
+    tcUpdateNote();
+  } catch {
+    trollChat.persistOk = false;
+    tcUpdateNote();
+  }
+}
+
+async function tcPersist(message) {
+  if (!isSupabaseConfigured() || trollChat.persistOk === false) return;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${TC_TABLE}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify([{
+        id: message.id,
+        name: message.name,
+        body: message.text,
+        created_at: message.ts,
+      }]),
+    });
+    const ok = response.ok || response.status === 409; // 409 = already saved
+    if (trollChat.persistOk !== ok) { trollChat.persistOk = ok; tcUpdateNote(); }
+  } catch {
+    if (trollChat.persistOk !== false) { trollChat.persistOk = false; tcUpdateNote(); }
+  }
+}
+
+function tcUpdateNote() {
+  if (trollChat.persistOk === false) {
+    tcSetNote('Live only — chat history isn’t being saved yet.');
+  } else {
+    tcSetNote('');
+  }
+}
+
+function tcBroadcastTyping() {
+  if (!trollChat.channel || !trollChat.subscribed) return;
+  const now = Date.now();
+  if (now - trollChat.typingSentAt < 1200) return;
+  trollChat.typingSentAt = now;
+  trollChat.channel.send({
+    type: 'broadcast',
+    event: 'typing',
+    payload: { id: trollChat.guestId, name: trollChat.name },
+  });
+}
+
+async function tcSend(text) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return false;
+  const now = Date.now();
+  if (now - trollChat.lastSendAt < TC_COOLDOWN_MS) {
+    tcSetNote('Whoa, slow down a sec…');
+    window.setTimeout(tcUpdateNote, 1200);
+    return false;
+  }
+  trollChat.lastSendAt = now;
+  const message = {
+    id: window.crypto?.randomUUID ? window.crypto.randomUUID() : `${trollChat.guestId}-${now}-${Math.random().toString(16).slice(2)}`,
+    name: trollChat.name,
+    text: trimmed.slice(0, TC_MSG_MAX),
+    ts: new Date(now).toISOString(),
+  };
+  tcAddMessage(message);
+  if (trollChat.channel && trollChat.subscribed) {
+    trollChat.channel.send({ type: 'broadcast', event: 'msg', payload: message });
+  }
+  void tcPersist(message);
+  return true;
+}
+
+function tcStartRealtime() {
+  if (!isSupabaseConfigured() || !window.supabase?.createClient) return;
+  try {
+    trollChat.client = (typeof viewerPresenceClient !== 'undefined' && viewerPresenceClient)
+      ? viewerPresenceClient
+      : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+    trollChat.channel = trollChat.client.channel(TC_CHANNEL, {
+      config: { presence: { key: trollChat.guestId }, broadcast: { self: false } },
+    });
+    trollChat.channel
+      .on('broadcast', { event: 'msg' }, ({ payload }) => tcAddMessage(payload))
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (!payload || payload.id === trollChat.guestId) return;
+        trollChat.typingPeers.set(String(payload.id), {
+          name: String(payload.name || 'Someone').slice(0, 24),
+          until: Date.now() + TC_TYPING_TTL_MS,
+        });
+        tcRenderTyping();
+      })
+      .on('presence', { event: 'sync' }, tcSyncPresence)
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') {
+          trollChat.subscribed = true;
+          trollChat.channel.track({ id: trollChat.guestId, name: trollChat.name });
+        }
+      });
+  } catch {
+    trollChat.channel = null;
+  }
+}
+
+function initializeTrollChat() {
+  const feed = document.getElementById('tc-feed');
+  const form = document.getElementById('tc-form');
+  const nameInput = document.getElementById('tc-name');
+  const messageInput = document.getElementById('tc-input');
+  const sendBtn = document.getElementById('tc-send');
+  if (!feed || !form || !nameInput || !messageInput) return;
+
+  trollChat.els = {
+    feed,
+    onlineNum: document.getElementById('tc-online-num'),
+    typing: document.getElementById('tc-typing'),
+    typingText: document.getElementById('tc-typing-text'),
+    note: document.getElementById('tc-note'),
+    sendBtn,
+  };
+  trollChat.guestId = tcGuestId();
+  trollChat.name = tcDefaultName();
+  nameInput.value = trollChat.name;
+
+  // seed from local cache so returning visitors see recent chatter instantly
+  tcLoadCache().forEach(item => tcAddMessage(item, { silent: true }));
+  tcRenderFeed();
+  tcRenderOnline(1);
+
+  nameInput.addEventListener('input', () => {
+    trollChat.name = String(nameInput.value || '').trim().slice(0, 24) || 'Guest';
+    try { localStorage.setItem(TC_NAME_KEY, trollChat.name); } catch {}
+    if (trollChat.channel && trollChat.subscribed) {
+      trollChat.channel.track({ id: trollChat.guestId, name: trollChat.name });
+    }
+  });
+
+  messageInput.addEventListener('input', tcBroadcastTyping);
+
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    void tcSend(messageInput.value).then(sent => {
+      if (sent) messageInput.value = '';
+    });
+  });
+
+  tcStartRealtime();
+  void tcFetchHistory();
+
+  window.setInterval(tcRenderTyping, 1500);
+  trollChat.ready = true;
+}
+
 function initializeLiveChat() {
   const feed = document.getElementById('live-chat-feed');
   const form = document.getElementById('live-chat-form');
@@ -6921,7 +7453,7 @@ document.getElementById('admin-pass')?.addEventListener('keydown', event => {
   void goToAdmin();
 });
 
-initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence(); initializeLiveChat();
+initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence(); initializeTrollChat();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }

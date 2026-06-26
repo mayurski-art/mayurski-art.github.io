@@ -3,419 +3,155 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trollrunner Live Chat</title>
+  <title>TROLLCHAT — Trollrunner Live Room</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #07080c;
-      --panel: rgba(14, 17, 24, 0.96);
-      --panel-2: rgba(20, 24, 34, 0.95);
-      --line: rgba(255, 255, 255, 0.12);
-      --line-strong: rgba(132, 245, 255, 0.6);
-      --text: rgba(255, 255, 255, 0.94);
-      --muted: rgba(255, 255, 255, 0.62);
-      --accent: #8cffbf;
-      --accent-2: #72f1ff;
-      --hot: #ff76c8;
-      --font-display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
-      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      --tc-ink: #14231d;
+      --tc-line: #10201a;
+      --tc-green: #2bd66f;
+      --tc-teal: #2fb3a6;
+      --tc-yellow: #f4d35e;
+      --tc-pink: #ff5ec1;
+      --tc-pixel: 'Press Start 2P', 'VT323', monospace;
+      --tc-term: 'VT323', 'DM Mono', monospace;
     }
-
     * { box-sizing: border-box; }
     html, body { min-height: 100%; }
     body {
       margin: 0;
+      color: var(--tc-ink);
+      font-family: var(--tc-term);
       background:
-        radial-gradient(circle at top, rgba(108, 236, 255, 0.11), transparent 34%),
-        radial-gradient(circle at 85% 0%, rgba(255, 118, 200, 0.12), transparent 24%),
-        linear-gradient(180deg, #0c0f15 0%, var(--bg) 100%);
-      color: var(--text);
-      font-family: Arial, Helvetica, sans-serif;
+        repeating-linear-gradient(0deg, rgba(16,32,26,0.05) 0 2px, transparent 2px 4px),
+        radial-gradient(circle at 18% 0%, rgba(43,214,111,0.28), transparent 38%),
+        radial-gradient(circle at 86% 8%, rgba(47,179,166,0.26), transparent 32%),
+        linear-gradient(180deg, #0f1714, #0a110d);
+      image-rendering: pixelated;
     }
-    a { color: inherit; text-decoration: none; }
-    button, input, select { font: inherit; }
+    a { color: inherit; }
+    button, input { font: inherit; }
 
-    .page {
-      max-width: 1160px;
-      margin: 0 auto;
-      padding: 18px 18px 28px;
-    }
+    .page { max-width: 1080px; margin: 0 auto; padding: 18px 16px 32px; }
 
     .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; margin-bottom: 16px; flex-wrap: wrap;
     }
-    .brand {
-      display: grid;
-      gap: 6px;
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand img {
+      width: 48px; height: 48px; flex: none;
+      border: 3px solid var(--tc-line); border-radius: 4px; background: #fff;
+      image-rendering: pixelated; box-shadow: 3px 3px 0 rgba(0,0,0,0.5);
     }
     .brand h1 {
-      margin: 0;
-      font-family: var(--font-display);
-      font-size: clamp(34px, 4vw, 48px);
-      font-weight: 400;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      line-height: 0.92;
+      margin: 0; color: #eafff1;
+      font-family: var(--tc-pixel); font-size: clamp(15px, 3.4vw, 24px);
+      line-height: 1.1; text-shadow: 3px 3px 0 rgba(0,0,0,0.5);
     }
-    .brand p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-      letter-spacing: 0.04em;
-    }
+    .brand p { margin: 4px 0 0; color: #bfe9cf; font-size: 18px; line-height: 1; }
     .home-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 10px 14px;
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+      border: 3px solid var(--tc-line); border-radius: 3px;
+      background: linear-gradient(180deg, #ffe27a, var(--tc-yellow)); color: #1a1306;
+      padding: 9px 13px; font-family: var(--tc-pixel); font-size: 9px;
+      box-shadow: 3px 3px 0 var(--tc-line);
     }
-    .home-link:hover { border-color: var(--line-strong); }
+    .home-link:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--tc-line); }
 
-    #live-chat-band {
-      display: grid;
-      grid-template-columns: minmax(240px, 0.8fr) minmax(360px, 1.2fr);
-      gap: 18px;
-      align-items: stretch;
+    .room {
+      display: grid; grid-template-columns: minmax(220px, 0.7fr) minmax(320px, 1.3fr);
+      gap: 16px; align-items: stretch;
     }
-    .live-chat-visual,
-    .live-chat-panel {
-      position: relative;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      box-shadow: 0 24px 54px rgba(0,0,0,0.36);
-      background: var(--panel);
+    .panel {
+      border: 3px solid var(--tc-line); border-radius: 4px; overflow: hidden;
+      background: #cfe3cd;
+      box-shadow: 0 0 0 3px #cfe3cd, 0 0 0 6px var(--tc-line), 8px 8px 0 6px rgba(0,0,0,0.45);
     }
-    .live-chat-visual {
-      min-height: 470px;
-      padding: 18px;
-      background:
-        radial-gradient(circle at top, rgba(122, 255, 240, 0.12), transparent 36%),
-        linear-gradient(180deg, rgba(12,14,20,0.98), rgba(5,6,10,0.98));
+    /* left mascot column */
+    .mascot { padding: 14px; display: flex; flex-direction: column; gap: 12px; min-height: 460px;
+      background: repeating-linear-gradient(0deg, rgba(16,32,26,0.05) 0 2px, transparent 2px 4px), linear-gradient(180deg, #f3f8e9, #d7e7cf); }
+    .mascot-label { font-family: var(--tc-pixel); font-size: 9px; color: #143524; }
+    .mascot-art { flex: 1; display: grid; place-items: center; border: 3px solid var(--tc-line); border-radius: 3px;
+      background: linear-gradient(180deg, #fbfdf2, #e7f2df); }
+    .mascot-art img { width: min(82%, 220px); height: auto; image-rendering: pixelated; filter: drop-shadow(4px 4px 0 rgba(16,32,26,0.3)); }
+    .mascot-online {
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      border: 3px solid var(--tc-line); border-radius: 3px; background: #d9ffe6; padding: 10px;
+      font-family: var(--tc-pixel); font-size: 11px; color: #0c1a12;
     }
-    .live-chat-visual::before,
-    .live-chat-panel::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-    }
-    .live-chat-visual::before {
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 35%),
-        repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 6px);
-      opacity: 0.4;
-    }
-    .live-chat-panel::before {
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.04), transparent 18%, transparent 82%, rgba(255,255,255,0.03)),
-        repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 4px);
-      opacity: 0.24;
-    }
-    .live-chat-visual-frame {
-      position: relative;
-      z-index: 1;
-      height: 100%;
-      min-height: 420px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
-        rgba(0,0,0,0.2);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .live-chat-visual-label,
-    .live-chat-room-label,
-    .live-chat-subtitle,
-    .live-chat-typing {
-      font-family: var(--font-mono);
-    }
-    .live-chat-visual-label {
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.54);
-    }
-    .live-chat-visual-art {
-      flex: 1;
-      display: grid;
-      place-items: center;
-    }
-    .live-chat-visual-art img {
-      width: min(100%, 320px);
-      height: auto;
-      object-fit: contain;
-      filter: drop-shadow(0 18px 24px rgba(0,0,0,0.42));
-    }
-    .live-chat-visual-caption {
-      font-size: 12px;
-      line-height: 1.5;
-      color: rgba(255,255,255,0.7);
-    }
+    .mascot-online::before { content:''; width: 11px; height: 11px; border-radius: 50%; background: var(--tc-green);
+      box-shadow: 0 0 0 0 rgba(43,214,111,0.7); animation: tc-pulse 1.6s ease-out infinite; }
+    .mascot-caption { font-size: 17px; line-height: 1.15; color: #2a4636; }
 
-    .live-chat-panel {
-      min-height: 470px;
-      padding: 14px;
-      background:
-        radial-gradient(circle at top left, rgba(130, 255, 224, 0.08), transparent 38%),
-        linear-gradient(180deg, rgba(16,19,26,0.98), rgba(6,7,11,0.99));
+    /* right chat window */
+    .chat { display: grid; grid-template-rows: auto minmax(0,1fr) auto auto auto; gap: 8px; padding: 9px;
+      min-height: 460px; background: repeating-linear-gradient(0deg, rgba(16,32,26,0.05) 0 2px, transparent 2px 4px), linear-gradient(180deg, #f3f8e9, #d7e7cf); }
+    .titlebar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      border: 3px solid var(--tc-line); border-radius: 3px; padding: 8px 10px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 45%), linear-gradient(90deg, var(--tc-green), var(--tc-teal) 60%, var(--tc-yellow));
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35), inset 0 -3px 0 rgba(16,32,26,0.25);
     }
-    .live-chat-window {
-      position: relative;
-      z-index: 1;
-      height: 100%;
-      min-height: 442px;
-      display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-      gap: 10px;
-    }
-    .live-chat-topbar {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 12px 10px;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
-    }
-    .live-chat-title {
-      font-family: var(--font-display);
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      line-height: 1;
-    }
-    .live-chat-subtitle {
-      margin-top: 4px;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.54);
-    }
-    .live-chat-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--accent);
-      white-space: nowrap;
-    }
-    .live-chat-status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 2px;
-      background: var(--accent);
-      box-shadow: 0 0 0 0 rgba(141,255,174,0.6);
-      animation: live-chat-pulse 1.3s ease-out infinite;
-    }
-    @keyframes live-chat-pulse {
-      0% { box-shadow: 0 0 0 0 rgba(141,255,174,0.7); }
-      100% { box-shadow: 0 0 0 11px rgba(141,255,174,0); }
-    }
-    .live-chat-toolbar {
-      display: grid;
-      grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
-      gap: 10px;
-      align-items: end;
-    }
-    .live-chat-room-field {
-      display: grid;
-      gap: 6px;
-    }
-    .live-chat-room-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .live-chat-room-select,
-    .live-chat-new-room,
-    .live-chat-name,
-    .live-chat-input {
-      width: 100%;
-      border: 1px solid rgba(255,255,255,0.16);
-      border-radius: 8px;
-      background: rgba(255,255,255,0.06);
-      color: #fff;
-      padding: 10px 11px;
-      font: 12px var(--font-mono);
-    }
-    .live-chat-room-select:focus,
-    .live-chat-new-room:focus,
-    .live-chat-name:focus,
-    .live-chat-input:focus {
-      outline: none;
-      border-color: rgba(109, 232, 255, 0.96);
-      box-shadow: 0 0 0 3px rgba(109,232,255,0.14);
-    }
-    .live-chat-room-label {
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.56);
-    }
-    .live-chat-create-btn,
-    .live-chat-clear-btn,
-    .live-chat-send-btn {
-      border: 1px solid rgba(255,255,255,0.16);
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07));
-      color: #fff;
-      padding: 10px 12px;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      cursor: pointer;
-    }
-    .live-chat-create-btn:hover,
-    .live-chat-clear-btn:hover,
-    .live-chat-send-btn:hover {
-      border-color: rgba(109, 232, 255, 0.7);
-    }
-    .live-chat-feed {
-      min-height: 320px;
-      max-height: 430px;
-      overflow: auto;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      background: rgba(4,5,8,0.7);
-      padding: 12px;
-      scrollbar-color: rgba(255,255,255,0.38) rgba(255,255,255,0.08);
-      scrollbar-width: thin;
-    }
-    .live-chat-feed::-webkit-scrollbar { width: 10px; }
-    .live-chat-feed::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.24);
-      border-radius: 999px;
-    }
-    .live-chat-feed::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-    .live-chat-empty {
-      min-height: 286px;
-      display: grid;
-      place-items: center;
-      gap: 8px;
-      text-align: center;
-      color: rgba(255,255,255,0.68);
-      padding: 20px;
-    }
-    .live-chat-empty strong {
-      font-family: var(--font-display);
-      font-size: 18px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-    .live-chat-message {
-      display: grid;
-      grid-template-columns: 24px minmax(0, 1fr);
-      gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px dashed rgba(255,255,255,0.08);
-    }
-    .live-chat-message:last-child { border-bottom: 0; }
-    .live-chat-avatar {
-      width: 24px;
-      height: 24px;
-      margin-top: 1px;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: linear-gradient(135deg, rgba(122,255,240,0.9), rgba(255,98,196,0.9));
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
-    }
-    .live-chat-name-row {
-      display: flex;
-      align-items: baseline;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .live-chat-author {
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: none;
-    }
-    .live-chat-time {
-      font-size: 10px;
-      color: rgba(255,255,255,0.46);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    .live-chat-text {
-      margin-top: 4px;
-      font-size: 13px;
-      line-height: 1.55;
-      color: rgba(255,255,255,0.9);
-      word-break: break-word;
-    }
-    .live-chat-typing {
-      min-height: 18px;
-      font-size: 11px;
-      color: rgba(255,255,255,0.58);
-      letter-spacing: 0.04em;
-    }
-    .live-chat-typing.is-active::after {
-      content: "";
-      display: inline-block;
-      width: 18px;
-      height: 4px;
-      margin-left: 6px;
-      vertical-align: middle;
-      background:
-        radial-gradient(circle, currentColor 0 2px, transparent 3px) 0 0 / 6px 4px repeat-x;
-      animation: live-chat-dots 1s steps(4, end) infinite;
-    }
-    @keyframes live-chat-dots {
-      0% { transform: translateX(0); opacity: 0.3; }
-      50% { opacity: 1; }
-      100% { transform: translateX(6px); opacity: 0.3; }
-    }
-    .live-chat-composer {
-      display: grid;
-      grid-template-columns: minmax(120px, 160px) minmax(0, 1fr) auto;
-      gap: 8px;
-      align-items: stretch;
-    }
+    .title-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .title-troll { width: 34px; height: 34px; flex: none; border: 2px solid var(--tc-line); border-radius: 3px; background: #fff; image-rendering: pixelated; box-shadow: 2px 2px 0 rgba(16,32,26,0.45); }
+    .title { font-family: var(--tc-pixel); font-size: 13px; color: #0c1a12; text-shadow: 1px 1px 0 rgba(255,255,255,0.5); }
+    .subtitle { margin-top: 5px; font-size: 14px; color: #143524; opacity: 0.85; }
+    .live { display: inline-flex; align-items: center; gap: 5px; font-family: var(--tc-pixel); font-size: 8px; color: #0c1a12;
+      border: 2px solid var(--tc-line); border-radius: 2px; background: #fff; padding: 3px 5px; }
+    .live-dot { width: 7px; height: 7px; background: #ff2d3d; border: 1px solid var(--tc-line); animation: tc-blink 1s steps(2,end) infinite; }
 
-    @media (max-width: 900px) {
-      .page { padding: 14px 14px 24px; }
-      .topbar { flex-direction: column; align-items: stretch; }
-      #live-chat-band { grid-template-columns: 1fr; }
-      .live-chat-visual,
-      .live-chat-panel,
-      .live-chat-visual-frame,
-      .live-chat-window { min-height: 0; }
-      .live-chat-toolbar { grid-template-columns: 1fr; }
-      .live-chat-room-actions { flex-wrap: wrap; }
-      .live-chat-composer { grid-template-columns: 1fr; }
+    .feed {
+      overflow-y: auto; border: 3px solid var(--tc-line); border-radius: 3px; padding: 8px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.04), transparent 8%), repeating-linear-gradient(0deg, rgba(47,179,166,0.07) 0 22px, transparent 22px 24px), #fbfdf2;
+      scrollbar-width: thin; scrollbar-color: var(--tc-teal) #dfeede;
     }
+    .feed::-webkit-scrollbar { width: 10px; }
+    .feed::-webkit-scrollbar-track { background: #dfeede; }
+    .feed::-webkit-scrollbar-thumb { background: var(--tc-teal); border: 2px solid var(--tc-line); }
+    .empty { min-height: 220px; display: grid; place-items: center; gap: 8px; text-align: center; color: #2a4636; padding: 16px; }
+    .empty img { width: 100px; height: auto; image-rendering: pixelated; filter: drop-shadow(3px 3px 0 rgba(16,32,26,0.3)); }
+    .empty strong { font-family: var(--tc-pixel); font-size: 11px; line-height: 1.6; color: #143524; }
+    .empty span { font-size: 17px; opacity: 0.85; }
+    .msg { display: grid; grid-template-columns: 26px minmax(0,1fr); gap: 8px; padding: 7px 0; border-bottom: 2px dotted rgba(20,53,36,0.28); }
+    .msg:last-child { border-bottom: 0; }
+    .msg.is-me .author { color: var(--tc-pink); }
+    .avatar { width: 26px; height: 26px; flex: none; border: 2px solid var(--tc-line); border-radius: 3px;
+      background-color: #fff; background-image: url('assets/animations/troll-computer-transparent.png'); background-size: 130%; background-position: center 60%; background-repeat: no-repeat;
+      image-rendering: pixelated; box-shadow: 2px 2px 0 rgba(16,32,26,0.35); }
+    .name-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; line-height: 1; }
+    .author { font-family: var(--tc-pixel); font-size: 8px; color: #0f6b3c; word-break: break-word; }
+    .time { font-size: 13px; color: rgba(20,53,36,0.55); }
+    .text { margin-top: 4px; font-size: 17px; line-height: 1.15; color: #16261d; word-break: break-word; }
 
+    .typing { min-height: 18px; display: flex; align-items: center; gap: 7px; font-size: 15px; color: #2a4636; }
+    .typing img { width: 20px; height: 20px; display: none; image-rendering: pixelated; }
+    .typing.is-active img { display: inline-block; }
+    .typing.is-active::after { content: '_'; font-family: var(--tc-pixel); font-size: 9px; animation: tc-blink 0.7s steps(2,end) infinite; }
+
+    .composer { display: grid; grid-template-columns: minmax(86px, 130px) minmax(0,1fr) auto; gap: 7px; }
+    .name-input, .msg-input { min-width: 0; width: 100%; border: 3px solid var(--tc-line); border-radius: 3px; background: #fbfdf2; color: #16261d; padding: 9px 10px; font: 17px var(--tc-term); box-shadow: inset 2px 2px 0 rgba(16,32,26,0.12); }
+    .name-input::placeholder, .msg-input::placeholder { color: rgba(20,53,36,0.45); }
+    .name-input:focus, .msg-input:focus { outline: none; border-color: var(--tc-teal); background: #fff; }
+    .send { border: 3px solid var(--tc-line); border-radius: 3px; background: linear-gradient(180deg, #ffe27a, var(--tc-yellow)); color: #1a1306; padding: 7px 14px; font-family: var(--tc-pixel); font-size: 9px; cursor: pointer; box-shadow: 3px 3px 0 var(--tc-line); }
+    .send:hover { background: linear-gradient(180deg, #fff0a8, #ffd94e); }
+    .send:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--tc-line); }
+    .note { min-height: 14px; font-size: 14px; line-height: 1.15; color: #5a6f5e; }
+
+    @keyframes tc-blink { 50% { opacity: 0.25; } }
+    @keyframes tc-pulse { 0% { box-shadow: 0 0 0 0 rgba(43,214,111,0.65); } 100% { box-shadow: 0 0 0 9px rgba(43,214,111,0); } }
+
+    @media (max-width: 720px) {
+      .room { grid-template-columns: 1fr; }
+      .mascot { min-height: 0; order: 2; flex-direction: row; align-items: center; }
+      .mascot-art { display: none; }
+      .chat { min-height: 70vh; }
+      .composer { grid-template-columns: minmax(76px, 100px) minmax(0,1fr) auto; }
+    }
     @media (prefers-reduced-motion: reduce) {
-      .live-chat-status-dot,
-      .live-chat-typing.is-active::after {
-        animation: none;
-      }
+      .live-dot, .mascot-online::before, .typing.is-active::after { animation: none; }
     }
   </style>
 </head>
@@ -423,57 +159,47 @@
   <main class="page">
     <div class="topbar">
       <div class="brand">
-        <h1>Trollrunner Live Chat</h1>
-        <p>Nostalgic runner-room chatter with local rooms, presence, and quick room switching.</p>
+        <img src="assets/animations/troll-grin.gif" alt="" aria-hidden="true">
+        <div>
+          <h1>TROLLCHAT</h1>
+          <p>Trade Less, Troll More</p>
+        </div>
       </div>
-      <a class="home-link" href="index.html">Back Home</a>
+      <a class="home-link" href="index.html">&#x2190; Home</a>
     </div>
 
-    <section id="live-chat-band" aria-label="Trollrunner live chat">
-      <figure class="live-chat-visual" aria-hidden="true">
-        <div class="live-chat-visual-frame">
-          <div class="live-chat-visual-label">Runner Feed</div>
-          <div class="live-chat-visual-art">
-            <img src="assets/animations/troll-lel_transparent.gif" alt="">
-          </div>
-          <div class="live-chat-visual-caption">A little internet noise to keep the lobby warm.</div>
-        </div>
-      </figure>
+    <section class="room" aria-label="Trollchat live room">
+      <aside class="panel mascot" aria-hidden="true">
+        <div class="mascot-label">RUNNER LOBBY</div>
+        <div class="mascot-art"><img src="assets/animations/troll-lel_transparent.gif" alt=""></div>
+        <div class="mascot-online"><span id="tc-online-num">1</span>&nbsp;online</div>
+        <div class="mascot-caption">Same room as the one on the homepage. Keep it trolly.</div>
+      </aside>
 
-      <section class="live-chat-panel" aria-label="Live chat panel">
-        <div class="live-chat-window">
-          <div class="live-chat-topbar">
+      <section class="panel chat" aria-label="Live chat">
+        <div class="titlebar">
+          <div class="title-left">
+            <img class="title-troll" src="assets/animations/troll-grin.gif" alt="" aria-hidden="true">
             <div>
-              <div class="live-chat-title">TROLLCHAT</div>
-              <div class="live-chat-subtitle">Runner Room</div>
-            </div>
-            <div class="live-chat-status"><span class="live-chat-status-dot" aria-hidden="true"></span><span id="live-chat-online-count">0 active</span></div>
-          </div>
-
-          <div class="live-chat-toolbar">
-            <label class="live-chat-room-field" for="live-chat-room-select">
-              <span class="live-chat-room-label">Room</span>
-              <select id="live-chat-room-select" class="live-chat-room-select"></select>
-            </label>
-            <div class="live-chat-room-field">
-              <span class="live-chat-room-label">Create room</span>
-              <div class="live-chat-room-actions">
-                <input id="live-chat-new-room" class="live-chat-new-room" type="text" maxlength="28" placeholder="New room name">
-                <button id="live-chat-create-room" class="live-chat-create-btn" type="button">Create</button>
-                <button id="live-chat-clear-room" class="live-chat-clear-btn" type="button">Clear</button>
-              </div>
+              <div class="title">TROLLCHAT</div>
+              <div class="subtitle">live &middot; one room</div>
             </div>
           </div>
-
-          <div id="live-chat-feed" class="live-chat-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
-          <div id="live-chat-typing" class="live-chat-typing" aria-live="polite"></div>
-
-          <form id="live-chat-form" class="live-chat-composer">
-            <input id="live-chat-name" class="live-chat-name" type="text" maxlength="24" placeholder="Guest name" aria-label="Display name" autocomplete="nickname">
-            <input id="live-chat-input" class="live-chat-input" type="text" maxlength="220" placeholder="Type a message..." aria-label="Message" autocomplete="off">
-            <button class="live-chat-send-btn" type="submit">Send</button>
-          </form>
+          <span class="live"><span class="live-dot" aria-hidden="true"></span>LIVE</span>
         </div>
+
+        <div id="tc-feed" class="feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+        <div id="tc-typing" class="typing" aria-live="polite">
+          <img src="assets/animations/troll-typer.gif" alt="" aria-hidden="true">
+          <span id="tc-typing-text"></span>
+        </div>
+
+        <form id="tc-form" class="composer" autocomplete="off">
+          <input id="tc-name" class="name-input" type="text" maxlength="24" placeholder="name" aria-label="Your display name" autocomplete="nickname">
+          <input id="tc-input" class="msg-input" type="text" maxlength="240" placeholder="say something trolly…" aria-label="Message" autocomplete="off">
+          <button id="tc-send" class="send" type="submit">SEND</button>
+        </form>
+        <div id="tc-note" class="note"></div>
       </section>
     </section>
   </main>
@@ -482,512 +208,198 @@
   <script src="assets/js/admin-auth.js"></script>
   <script src="assets/js/site-lock.js"></script>
   <script>
-    const LIVE_CHAT_ROOMS_KEY = 'trollrunner_live_chat_rooms_v1';
-    const LIVE_CHAT_SELECTED_ROOM_KEY = 'trollrunner_live_chat_selected_room_v1';
-    const LIVE_CHAT_NAME_KEY = 'trollrunner_live_chat_name_v1';
-    const LIVE_CHAT_TAB_ID_KEY = 'trollrunner_live_chat_tab_id_v1';
-    const LIVE_CHAT_MESSAGES_PREFIX = 'trollrunner_live_chat_messages_v1_';
-    const LIVE_CHAT_PRESENCE_KEY = 'trollrunner_live_chat_presence_v1';
-    const LIVE_CHAT_CHANNEL_NAME = 'trollrunner-live-chat';
-    const LIVE_CHAT_MESSAGE_TTL_MS = 24 * 60 * 60 * 1000;
-    const LIVE_CHAT_PRESENCE_TTL_MS = 15000;
-    const LIVE_CHAT_TYPING_TTL_MS = 2500;
-    const LIVE_CHAT_MESSAGE_LIMIT = 220;
-    const LIVE_CHAT_COOLDOWN_MS = 3500;
-    const LIVE_CHAT_DEFAULT_ROOMS = [
-      { id: 'main-room', name: 'Main Room' },
-      { id: 'trollrunner-lobby', name: 'Trollrunner Lobby' },
-      { id: 'mile-1', name: 'Mile 1' },
-    ];
+  /* TROLLCHAT standalone — shares the SAME channel + table + identity as the
+     embedded homepage widget, so it's literally the same live room. */
+  (function () {
+    const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
+    const TC_CHANNEL = 'trollchat_room_v2';
+    const TC_TABLE = 'troll_chat';
+    const TC_NAME_KEY = 'trollchat_name_v1';
+    const TC_ID_KEY = 'trollchat_guest_id_v1';
+    const TC_CACHE_KEY = 'trollchat_cache_v1';
+    const TC_MSG_MAX = 240, TC_KEEP = 80, TC_HISTORY = 60;
+    const TC_COOLDOWN_MS = 1500, TC_TYPING_TTL_MS = 3200;
+    const NAME_COLORS = ['#0f6b3c', '#1565c0', '#b8431f', '#7b1fa2', '#0097a7', '#c2185b', '#5d4037', '#2e7d32'];
 
-    let liveChatState = null;
+    const state = {
+      guestId: '', name: '', client: null, channel: null, subscribed: false,
+      persistOk: null, messages: [], seen: new Set(), typingPeers: new Map(),
+      lastSendAt: 0, typingSentAt: 0,
+    };
+    const els = {};
 
-    function getLiveChatTabId() {
-      if (liveChatState && liveChatState.tabId) return liveChatState.tabId;
-      try {
-        const stored = sessionStorage.getItem(LIVE_CHAT_TAB_ID_KEY);
-        if (stored) return stored;
-      } catch {}
-      const tabId = window.crypto && window.crypto.randomUUID
-        ? window.crypto.randomUUID()
-        : `chat-tab-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      try { sessionStorage.setItem(LIVE_CHAT_TAB_ID_KEY, tabId); } catch {}
-      return tabId;
+    function guestId() {
+      let id = '';
+      try { id = localStorage.getItem(TC_ID_KEY) || ''; } catch {}
+      if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : 'guest-' + Date.now() + '-' + Math.random().toString(16).slice(2)); try { localStorage.setItem(TC_ID_KEY, id); } catch {} }
+      return id;
+    }
+    function defaultName() {
+      let n = '';
+      try { n = localStorage.getItem(TC_NAME_KEY) || ''; } catch {}
+      return (n || 'Troll ' + Math.floor(100 + Math.random() * 900)).slice(0, 24);
+    }
+    function nameColor(name) {
+      let h = 0; const s = String(name || '');
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+      return NAME_COLORS[h % NAME_COLORS.length];
+    }
+    function loadCache() { try { const r = JSON.parse(localStorage.getItem(TC_CACHE_KEY) || '[]'); return Array.isArray(r) ? r : []; } catch { return []; } }
+    function saveCache() { try { localStorage.setItem(TC_CACHE_KEY, JSON.stringify(state.messages.slice(-TC_HISTORY))); } catch {} }
+    function fmtTime(v) { const d = v ? new Date(v) : new Date(); return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+
+    function normalize(raw) {
+      if (!raw || typeof raw !== 'object') return null;
+      const id = String(raw.id || '').trim();
+      const text = String(raw.text != null ? raw.text : raw.body || '').trim().slice(0, TC_MSG_MAX);
+      if (!id || !text) return null;
+      return { id, name: (String(raw.name || 'Guest').trim() || 'Guest').slice(0, 24), text, ts: String(raw.ts || raw.created_at || new Date().toISOString()) };
     }
 
-    function slugifyLiveChatRoomName(val) {
-      return String(val || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 28) || 'room';
-    }
-
-    function titleCaseLiveChatRoomName(val) {
-      return String(val || '')
-        .replace(/[-_]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .replace(/\b\w/g, char => char.toUpperCase()) || 'Room';
-    }
-
-    function getDefaultLiveChatName() {
-      const storedName = localStorage.getItem(LIVE_CHAT_NAME_KEY);
-      const fallback = `Guest ${Math.floor(100 + Math.random() * 900)}`;
-      const value = String(storedName || fallback).trim();
-      return value || fallback;
-    }
-
-    function safeParseLiveChatJson(raw, fallback) {
-      try {
-        const parsed = JSON.parse(raw);
-        return parsed == null ? fallback : parsed;
-      } catch {
-        return fallback;
+    function renderFeed() {
+      els.feed.innerHTML = '';
+      if (!state.messages.length) {
+        const empty = document.createElement('div'); empty.className = 'empty';
+        const img = document.createElement('img'); img.src = 'assets/animations/troll-lel_transparent.gif'; img.alt = '';
+        const strong = document.createElement('strong'); strong.textContent = 'NO TROLLS YET';
+        const span = document.createElement('span'); span.textContent = 'be the first to say something.';
+        empty.append(img, strong, span); els.feed.appendChild(empty); return;
       }
-    }
-
-    function getDefaultLiveChatRooms() {
-      return LIVE_CHAT_DEFAULT_ROOMS.map(room => ({ id: room.id, name: room.name }));
-    }
-
-    function loadLiveChatRooms() {
-      const stored = safeParseLiveChatJson(localStorage.getItem(LIVE_CHAT_ROOMS_KEY), null);
-      const rooms = Array.isArray(stored)
-        ? stored.map(room => ({
-            id: String(room && room.id || '').trim(),
-            name: String(room && room.name || '').trim(),
-          })).filter(room => room.id && room.name)
-        : [];
-      const merged = [];
-      const seen = new Set();
-      getDefaultLiveChatRooms().concat(rooms).forEach(room => {
-        if (!room.id || seen.has(room.id)) return;
-        seen.add(room.id);
-        merged.push(room);
-      });
-      return merged;
-    }
-
-    function saveLiveChatRooms(rooms) {
-      localStorage.setItem(LIVE_CHAT_ROOMS_KEY, JSON.stringify(rooms));
-    }
-
-    function getLiveChatMessages(roomId) {
-      const key = `${LIVE_CHAT_MESSAGES_PREFIX}${roomId}`;
-      const stored = safeParseLiveChatJson(localStorage.getItem(key), []);
-      const now = Date.now();
-      const seen = new Set();
-      return (Array.isArray(stored) ? stored : [])
-        .filter(item => item && typeof item === 'object')
-        .map(item => ({
-          id: String(item.id || '').trim(),
-          roomId: String(item.roomId || roomId),
-          name: String(item.name || 'Guest').trim().slice(0, 24) || 'Guest',
-          text: String(item.text || '').trim().slice(0, LIVE_CHAT_MESSAGE_LIMIT),
-          createdAt: String(item.createdAt || new Date().toISOString()),
-          tabId: String(item.tabId || ''),
-        }))
-        .filter(item => item.id && item.text && Date.parse(item.createdAt) > now - LIVE_CHAT_MESSAGE_TTL_MS)
-        .filter(item => {
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        })
-        .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
-    }
-
-    function saveLiveChatMessages(roomId, messages) {
-      const key = `${LIVE_CHAT_MESSAGES_PREFIX}${roomId}`;
-      const now = Date.now();
-      const cleaned = (Array.isArray(messages) ? messages : [])
-        .filter(item => item && typeof item === 'object')
-        .map(item => ({
-          id: String(item.id || '').trim(),
-          roomId: String(item.roomId || roomId),
-          name: String(item.name || 'Guest').trim().slice(0, 24) || 'Guest',
-          text: String(item.text || '').trim().slice(0, LIVE_CHAT_MESSAGE_LIMIT),
-          createdAt: String(item.createdAt || new Date().toISOString()),
-          tabId: String(item.tabId || ''),
-        }))
-        .filter(item => item.id && item.text && Date.parse(item.createdAt) > now - LIVE_CHAT_MESSAGE_TTL_MS);
-      localStorage.setItem(key, JSON.stringify(cleaned));
-      return cleaned;
-    }
-
-    function seedLiveChatMessages(roomId) {
-      if (getLiveChatMessages(roomId).length) return;
-      if (roomId !== LIVE_CHAT_DEFAULT_ROOMS[0].id) return;
-      const now = Date.now();
-      const demoMessages = [
-        { name: 'MileBot', text: 'Lobby check-in: the sprint starts spicy today.', minutesAgo: 6 },
-        { name: 'Guest 404', text: 'PictoChat energy is back and I am not recovering from that.', minutesAgo: 4 },
-        { name: 'RunnerFury', text: 'If troll RUN hits a billion, I want a front-row seat.', minutesAgo: 2 },
-      ].map((item, idx) => ({
-        id: `demo-${roomId}-${idx}`,
-        roomId,
-        name: item.name,
-        text: item.text,
-        createdAt: new Date(now - item.minutesAgo * 60 * 1000).toISOString(),
-        tabId: 'demo',
-      }));
-      saveLiveChatMessages(roomId, demoMessages);
-    }
-
-    function getLiveChatPresenceMap() {
-      const stored = safeParseLiveChatJson(localStorage.getItem(LIVE_CHAT_PRESENCE_KEY), {});
-      return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
-    }
-
-    function saveLiveChatPresenceMap(map) {
-      localStorage.setItem(LIVE_CHAT_PRESENCE_KEY, JSON.stringify(map));
-    }
-
-    function pruneLiveChatPresenceMap(map) {
-      const now = Date.now();
-      const cleaned = {};
-      Object.entries(map || {}).forEach(([tabId, value]) => {
-        if (!value || typeof value !== 'object') return;
-        const lastSeen = Number(value.lastSeen || 0);
-        if (!lastSeen || now - lastSeen > LIVE_CHAT_PRESENCE_TTL_MS) return;
-        cleaned[tabId] = {
-          tabId,
-          name: String(value.name || 'Guest').trim().slice(0, 24) || 'Guest',
-          roomId: String(value.roomId || LIVE_CHAT_DEFAULT_ROOMS[0].id),
-          lastSeen,
-          typingUntil: Number(value.typingUntil || 0),
-        };
-      });
-      return cleaned;
-    }
-
-    function updateLiveChatPresence(options) {
-      const typing = Boolean(options && options.typing);
-      if (!liveChatState) return;
-      const map = pruneLiveChatPresenceMap(getLiveChatPresenceMap());
-      const tabId = liveChatState.tabId;
-      map[tabId] = {
-        tabId,
-        name: liveChatState.userName,
-        roomId: liveChatState.roomId,
-        lastSeen: Date.now(),
-        typingUntil: typing ? Date.now() + LIVE_CHAT_TYPING_TTL_MS : 0,
-      };
-      saveLiveChatPresenceMap(map);
-      if (liveChatState.channel) {
-        liveChatState.channel.postMessage({ type: 'presence' });
-      }
-    }
-
-    function removeLiveChatPresence() {
-      if (!liveChatState) return;
-      const map = getLiveChatPresenceMap();
-      if (map[liveChatState.tabId]) {
-        delete map[liveChatState.tabId];
-        saveLiveChatPresenceMap(map);
-        if (liveChatState.channel) {
-          liveChatState.channel.postMessage({ type: 'presence' });
-        }
-      }
-    }
-
-    function renderLiveChatRooms() {
-      const select = document.getElementById('live-chat-room-select');
-      if (!select || !liveChatState) return;
-
-      select.innerHTML = '';
-      liveChatState.rooms.forEach(room => {
-        const option = document.createElement('option');
-        option.value = room.id;
-        option.textContent = room.name;
-        select.appendChild(option);
-      });
-      if (!liveChatState.roomId && liveChatState.rooms[0]) {
-        liveChatState.roomId = liveChatState.rooms[0].id;
-      }
-      if (liveChatState.roomId) select.value = liveChatState.roomId;
-      const subtitle = document.querySelector('.live-chat-subtitle');
-      if (subtitle) {
-        const currentRoom = liveChatState.rooms.find(room => room.id === liveChatState.roomId);
-        subtitle.textContent = currentRoom ? currentRoom.name : 'Runner Room';
-      }
-    }
-
-    function renderLiveChatPresence() {
-      const presenceNode = document.getElementById('live-chat-online-count');
-      const typingNode = document.getElementById('live-chat-typing');
-      if (!presenceNode || !typingNode || !liveChatState) return;
-
-      const now = Date.now();
-      const presence = pruneLiveChatPresenceMap(getLiveChatPresenceMap());
-      const roomPresence = Object.values(presence).filter(entry => entry.roomId === liveChatState.roomId);
-      const activeCount = roomPresence.length || 0;
-      presenceNode.textContent = `${activeCount} active`;
-
-      const typingNames = roomPresence
-        .filter(entry => entry.tabId !== liveChatState.tabId && Number(entry.typingUntil || 0) > now)
-        .map(entry => entry.name)
-        .filter(Boolean);
-
-      if (!typingNames.length) {
-        typingNode.textContent = '';
-        typingNode.classList.remove('is-active');
-        return;
-      }
-
-      typingNode.classList.add('is-active');
-      typingNode.textContent = typingNames.length === 1
-        ? `${typingNames[0]} is typing`
-        : `${typingNames.slice(0, 3).join(', ')} are typing`;
-    }
-
-    function formatLiveChatTime(value) {
-      const date = value ? new Date(value) : new Date();
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function renderLiveChatFeed() {
-      const feed = document.getElementById('live-chat-feed');
-      if (!feed || !liveChatState) return;
-
-      const messages = getLiveChatMessages(liveChatState.roomId);
-      feed.innerHTML = '';
-
-      if (!messages.length) {
-        const empty = document.createElement('div');
-        empty.className = 'live-chat-empty';
-        empty.innerHTML = '<strong>Runner Room</strong><span>Kick off the lobby chatter.</span>';
-        feed.appendChild(empty);
-        return;
-      }
-
-      messages.forEach(message => {
-        const row = document.createElement('article');
-        row.className = 'live-chat-message';
-
-        const avatar = document.createElement('span');
-        avatar.className = 'live-chat-avatar';
-        avatar.setAttribute('aria-hidden', 'true');
-
+      state.messages.forEach(m => {
+        const row = document.createElement('article'); row.className = 'msg'; if (m.name === state.name) row.classList.add('is-me');
+        const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.setAttribute('aria-hidden', 'true');
         const body = document.createElement('div');
-
-        const head = document.createElement('div');
-        head.className = 'live-chat-name-row';
-
-        const name = document.createElement('span');
-        name.className = 'live-chat-author';
-        name.textContent = message.name;
-
-        const time = document.createElement('span');
-        time.className = 'live-chat-time';
-        time.textContent = formatLiveChatTime(message.createdAt);
-
-        const text = document.createElement('div');
-        text.className = 'live-chat-text';
-        text.textContent = message.text;
-
-        head.appendChild(name);
-        head.appendChild(time);
-        body.appendChild(head);
-        body.appendChild(text);
-
-        row.appendChild(avatar);
-        row.appendChild(body);
-        feed.appendChild(row);
+        const head = document.createElement('div'); head.className = 'name-row';
+        const name = document.createElement('span'); name.className = 'author'; name.textContent = m.name; if (m.name !== state.name) name.style.color = nameColor(m.name);
+        const time = document.createElement('span'); time.className = 'time'; time.textContent = fmtTime(m.ts);
+        const text = document.createElement('div'); text.className = 'text'; text.textContent = m.text;
+        head.append(name, time); body.append(head, text); row.append(avatar, body); els.feed.appendChild(row);
       });
-
-      feed.scrollTop = feed.scrollHeight;
+      els.feed.scrollTop = els.feed.scrollHeight;
     }
 
-    function renderLiveChat() {
-      renderLiveChatRooms();
-      renderLiveChatFeed();
-      renderLiveChatPresence();
+    function addMessage(raw, opts) {
+      opts = opts || {};
+      const m = normalize(raw);
+      if (!m || state.seen.has(m.id)) return false;
+      state.seen.add(m.id); state.messages.push(m);
+      state.messages.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+      if (state.messages.length > TC_KEEP) { state.messages = state.messages.slice(-TC_KEEP); state.seen = new Set(state.messages.map(x => x.id)); }
+      if (m.name) state.typingPeers.forEach((v, k) => { if (v.name === m.name) state.typingPeers.delete(k); });
+      if (!opts.silent) { renderFeed(); renderTyping(); }
+      saveCache(); return true;
     }
 
-    function setLiveChatRoom(roomId) {
-      if (!liveChatState) return;
-      const room = liveChatState.rooms.find(item => item.id === roomId) || liveChatState.rooms[0];
-      if (!room) return;
-      liveChatState.roomId = room.id;
-      localStorage.setItem(LIVE_CHAT_SELECTED_ROOM_KEY, room.id);
-      seedLiveChatMessages(room.id);
-      updateLiveChatPresence();
-      renderLiveChat();
+    function renderOnline(n) { els.onlineNum.forEach(el => { el.textContent = String(Math.max(1, Number(n) || 1)); }); }
+    function syncPresence() {
+      if (!state.channel) { renderOnline(1); return; }
+      const st = state.channel.presenceState(); const ids = new Set();
+      Object.values(st || {}).forEach(arr => { if (Array.isArray(arr)) arr.forEach(e => { if (e && e.id) ids.add(e.id); }); });
+      renderOnline(ids.size || 1);
     }
 
-    function addLiveChatRoom(roomName) {
-      if (!liveChatState) return null;
-      const cleanName = String(roomName || '').trim();
-      if (!cleanName) return null;
-      const id = slugifyLiveChatRoomName(cleanName);
-      const existing = liveChatState.rooms.find(room => room.id === id);
-      if (existing) return existing;
-      const room = { id, name: cleanName.slice(0, 28) || titleCaseLiveChatRoomName(id) };
-      liveChatState.rooms = liveChatState.rooms.concat([room]);
-      saveLiveChatRooms(liveChatState.rooms);
-      if (liveChatState.channel) {
-        liveChatState.channel.postMessage({ type: 'rooms' });
-      }
-      renderLiveChatRooms();
-      return room;
+    function renderTyping() {
+      const now = Date.now(); const names = [];
+      state.typingPeers.forEach((v, k) => { if (v.until <= now) { state.typingPeers.delete(k); return; } if (v.name && v.name !== state.name) names.push(v.name); });
+      if (!names.length) { els.typing.classList.remove('is-active'); els.typingText.textContent = ''; return; }
+      els.typing.classList.add('is-active');
+      const u = Array.from(new Set(names)).slice(0, 3);
+      els.typingText.textContent = u.length === 1 ? u[0] + ' is typing' : u.join(', ') + ' are typing';
     }
 
-    function clearLiveChatRoom() {
-      if (!liveChatState) return;
-      const key = `${LIVE_CHAT_MESSAGES_PREFIX}${liveChatState.roomId}`;
-      localStorage.removeItem(key);
-      if (liveChatState.channel) {
-        liveChatState.channel.postMessage({ type: 'messages', roomId: liveChatState.roomId });
-      }
-      renderLiveChatFeed();
+    function setNote(msg) { els.note.textContent = msg || ''; }
+    function updateNote() { setNote(state.persistOk === false ? 'Live only — chat history isn’t being saved yet.' : ''); }
+
+    async function fetchHistory() {
+      try {
+        const qs = new URLSearchParams({ select: 'id,name,body,created_at', order: 'created_at.desc', limit: String(TC_HISTORY) });
+        const res = await fetch(SUPABASE_URL + '/rest/v1/' + TC_TABLE + '?' + qs.toString(), { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
+        if (!res.ok) { state.persistOk = false; updateNote(); return; }
+        const rows = await res.json();
+        if (Array.isArray(rows)) { rows.reverse().forEach(r => addMessage(r, { silent: true })); renderFeed(); }
+        state.persistOk = true; updateNote();
+      } catch { state.persistOk = false; updateNote(); }
     }
 
-    function sendLiveChatMessage(messageText) {
-      if (!liveChatState) return false;
-      const trimmed = String(messageText || '').trim();
-      if (!trimmed) return false;
+    async function persist(m) {
+      if (state.persistOk === false) return;
+      try {
+        const res = await fetch(SUPABASE_URL + '/rest/v1/' + TC_TABLE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
+          body: JSON.stringify([{ id: m.id, name: m.name, body: m.text, created_at: m.ts }]),
+        });
+        const ok = res.ok || res.status === 409;
+        if (state.persistOk !== ok) { state.persistOk = ok; updateNote(); }
+      } catch { if (state.persistOk !== false) { state.persistOk = false; updateNote(); } }
+    }
+
+    function broadcastTyping() {
+      if (!state.channel || !state.subscribed) return;
+      const now = Date.now(); if (now - state.typingSentAt < 1200) return; state.typingSentAt = now;
+      state.channel.send({ type: 'broadcast', event: 'typing', payload: { id: state.guestId, name: state.name } });
+    }
+
+    async function send(text) {
+      const t = String(text || '').trim(); if (!t) return false;
       const now = Date.now();
-      if (now - liveChatState.lastSendAt < LIVE_CHAT_COOLDOWN_MS) return false;
-
-      const messages = getLiveChatMessages(liveChatState.roomId);
-      const nextMessage = {
-        id: `chat-${liveChatState.tabId}-${now}-${Math.random().toString(16).slice(2)}`,
-        roomId: liveChatState.roomId,
-        name: liveChatState.userName,
-        text: trimmed.slice(0, LIVE_CHAT_MESSAGE_LIMIT),
-        createdAt: new Date(now).toISOString(),
-        tabId: liveChatState.tabId,
-      };
-      messages.push(nextMessage);
-      saveLiveChatMessages(liveChatState.roomId, messages);
-      liveChatState.lastSendAt = now;
-      updateLiveChatPresence({ typing: false });
-      renderLiveChatFeed();
-      renderLiveChatPresence();
-      if (liveChatState.channel) {
-        liveChatState.channel.postMessage({ type: 'message', roomId: liveChatState.roomId, message: nextMessage });
-      }
-      return true;
+      if (now - state.lastSendAt < TC_COOLDOWN_MS) { setNote('Whoa, slow down a sec…'); setTimeout(updateNote, 1200); return false; }
+      state.lastSendAt = now;
+      const m = { id: (crypto.randomUUID ? crypto.randomUUID() : state.guestId + '-' + now + '-' + Math.random().toString(16).slice(2)), name: state.name, text: t.slice(0, TC_MSG_MAX), ts: new Date(now).toISOString() };
+      addMessage(m);
+      if (state.channel && state.subscribed) state.channel.send({ type: 'broadcast', event: 'msg', payload: m });
+      persist(m); return true;
     }
 
-    function applyLiveChatBroadcast(event) {
-      const data = event && event.data || {};
-      if (!data || typeof data !== 'object') return;
-      if (data.type === 'message' || data.type === 'messages') {
-        if (!liveChatState) return;
-        if (!data.roomId || data.roomId === liveChatState.roomId) {
-          renderLiveChatFeed();
-          renderLiveChatPresence();
-        }
-      }
-      if (data.type === 'rooms' || data.type === 'presence') {
-        renderLiveChatRooms();
-        renderLiveChatPresence();
-      }
+    function startRealtime() {
+      if (!window.supabase || !window.supabase.createClient) { renderOnline(1); return; }
+      try {
+        state.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+        state.channel = state.client.channel(TC_CHANNEL, { config: { presence: { key: state.guestId }, broadcast: { self: false } } });
+        state.channel
+          .on('broadcast', { event: 'msg' }, ({ payload }) => addMessage(payload))
+          .on('broadcast', { event: 'typing' }, ({ payload }) => {
+            if (!payload || payload.id === state.guestId) return;
+            state.typingPeers.set(String(payload.id), { name: String(payload.name || 'Someone').slice(0, 24), until: Date.now() + TC_TYPING_TTL_MS });
+            renderTyping();
+          })
+          .on('presence', { event: 'sync' }, syncPresence)
+          .subscribe(s => { if (s === 'SUBSCRIBED') { state.subscribed = true; state.channel.track({ id: state.guestId, name: state.name }); } });
+      } catch { state.channel = null; }
     }
 
-    function initializeLiveChat() {
-      const feed = document.getElementById('live-chat-feed');
-      const form = document.getElementById('live-chat-form');
-      const roomSelect = document.getElementById('live-chat-room-select');
-      const roomInput = document.getElementById('live-chat-new-room');
-      const roomCreateBtn = document.getElementById('live-chat-create-room');
-      const roomClearBtn = document.getElementById('live-chat-clear-room');
-      const nameInput = document.getElementById('live-chat-name');
-      const messageInput = document.getElementById('live-chat-input');
-      if (!feed || !form || !roomSelect || !roomInput || !roomCreateBtn || !roomClearBtn || !nameInput || !messageInput) return;
+    function init() {
+      els.feed = document.getElementById('tc-feed');
+      els.typing = document.getElementById('tc-typing');
+      els.typingText = document.getElementById('tc-typing-text');
+      els.note = document.getElementById('tc-note');
+      els.onlineNum = Array.from(document.querySelectorAll('#tc-online-num'));
+      const nameInput = document.getElementById('tc-name');
+      const msgInput = document.getElementById('tc-input');
+      const form = document.getElementById('tc-form');
+      if (!els.feed || !form) return;
 
-      const rooms = loadLiveChatRooms();
-      liveChatState = {
-        tabId: getLiveChatTabId(),
-        rooms: rooms,
-        roomId: localStorage.getItem(LIVE_CHAT_SELECTED_ROOM_KEY) || rooms[0] && rooms[0].id || LIVE_CHAT_DEFAULT_ROOMS[0].id,
-        userName: getDefaultLiveChatName(),
-        channel: 'BroadcastChannel' in window ? new BroadcastChannel(LIVE_CHAT_CHANNEL_NAME) : null,
-        typingTimer: null,
-        presenceTimer: null,
-        lastSendAt: 0,
-      };
+      state.guestId = guestId(); state.name = defaultName(); nameInput.value = state.name;
+      loadCache().forEach(x => addMessage(x, { silent: true }));
+      renderFeed(); renderOnline(1);
 
-      nameInput.value = liveChatState.userName;
-      seedLiveChatMessages(liveChatState.roomId);
-      renderLiveChatRooms();
-      renderLiveChatFeed();
-      renderLiveChatPresence();
-      updateLiveChatPresence();
-
-      roomSelect.addEventListener('change', function() {
-        setLiveChatRoom(roomSelect.value);
+      nameInput.addEventListener('input', () => {
+        state.name = (String(nameInput.value || '').trim() || 'Guest').slice(0, 24);
+        try { localStorage.setItem(TC_NAME_KEY, state.name); } catch {}
+        if (state.channel && state.subscribed) state.channel.track({ id: state.guestId, name: state.name });
       });
+      msgInput.addEventListener('input', broadcastTyping);
+      form.addEventListener('submit', e => { e.preventDefault(); send(msgInput.value).then(ok => { if (ok) msgInput.value = ''; }); });
 
-      roomCreateBtn.addEventListener('click', function() {
-        const created = addLiveChatRoom(roomInput.value);
-        if (!created) return;
-        roomInput.value = '';
-        setLiveChatRoom(created.id);
-      });
-
-      roomClearBtn.addEventListener('click', function() {
-        if (window.confirm('Clear this room locally?')) {
-          clearLiveChatRoom();
-        }
-      });
-
-      nameInput.addEventListener('input', function() {
-        liveChatState.userName = String(nameInput.value || '').trim() || 'Guest';
-        localStorage.setItem(LIVE_CHAT_NAME_KEY, liveChatState.userName);
-        updateLiveChatPresence();
-      });
-
-      var syncTyping = function() {
-        updateLiveChatPresence({ typing: true });
-        if (liveChatState.typingTimer) window.clearTimeout(liveChatState.typingTimer);
-        liveChatState.typingTimer = window.setTimeout(function() {
-          updateLiveChatPresence({ typing: false });
-        }, LIVE_CHAT_TYPING_TTL_MS);
-      };
-
-      messageInput.addEventListener('input', syncTyping);
-      messageInput.addEventListener('focus', syncTyping);
-
-      form.addEventListener('submit', function(event) {
-        event.preventDefault();
-        const sent = sendLiveChatMessage(messageInput.value);
-        if (!sent) return;
-        messageInput.value = '';
-        updateLiveChatPresence({ typing: false });
-      });
-
-      if (liveChatState.channel) {
-        liveChatState.channel.onmessage = applyLiveChatBroadcast;
-      }
-
-      window.addEventListener('storage', function(event) {
-        if (!event.key) return;
-        if (event.key === LIVE_CHAT_ROOMS_KEY || event.key === LIVE_CHAT_SELECTED_ROOM_KEY) {
-          liveChatState.rooms = loadLiveChatRooms();
-          if (event.key === LIVE_CHAT_SELECTED_ROOM_KEY && event.newValue) {
-            liveChatState.roomId = event.newValue;
-          }
-          renderLiveChat();
-          return;
-        }
-        if (event.key === LIVE_CHAT_PRESENCE_KEY || event.key.indexOf(LIVE_CHAT_MESSAGES_PREFIX) === 0) {
-          renderLiveChatFeed();
-          renderLiveChatPresence();
-        }
-      });
-
-      liveChatState.presenceTimer = window.setInterval(function() {
-        updateLiveChatPresence();
-        renderLiveChatPresence();
-      }, 4000);
-
-      window.addEventListener('beforeunload', removeLiveChatPresence);
+      startRealtime();
+      fetchHistory();
+      setInterval(renderTyping, 1500);
     }
 
-    initializeLiveChat();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+    else init();
+  })();
   </script>
 </body>
 </html>
