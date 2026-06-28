@@ -345,6 +345,35 @@
       color: rgba(255,255,255,0.7);
     }
     a { color: #66aaff; }
+    .notis-seg {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .notis-seg-btn {
+      flex: 1 1 170px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: #12141a;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .notis-seg-btn .glyph { font-size: 16px; line-height: 1; }
+    .notis-seg-btn[aria-pressed="true"] { border-color: #66aaff; background: #16202e; }
+    .notis-seg-btn[data-platform="x"][aria-pressed="true"] { border-color: #fff; background: #000; }
+    .notis-seg-btn[data-platform="tiktok"][aria-pressed="true"] { border-color: #ff0050; background: #241019; }
+    .notis-counter { float: right; font-weight: 400; color: rgba(255,255,255,0.55); font-size: 12px; }
+    #notis-status { margin: 12px 0 0; }
+    #notis-status[data-tone="ok"] { color: #9fe6b0; }
+    #notis-status[data-tone="warn"] { color: #f4d35e; }
+    #notis-status[data-tone="err"] { color: #ff8a9c; }
     @media (max-width: 960px) {
       .workspace {
         grid-template-columns: 1fr;
@@ -449,6 +478,40 @@
       </div>
     </details>
 
+    <details class="card collapsible" open>
+      <summary>
+        <span>Drop a pixel alert</span>
+        <span class="summary-note">X / TikTok</span>
+      </summary>
+      <div class="collapsible-body">
+        <p>Pops a nostalgic pixel notification on everyone currently browsing any Troll Runner page, with your summary and a tap-through link. Fresh page-loads catch the latest one too.</p>
+
+        <label>Platform</label>
+        <div class="notis-seg" id="notis-seg">
+          <button type="button" class="notis-seg-btn" data-platform="x" aria-pressed="true">
+            <span class="glyph">𝕏</span> X · @troll_runner
+          </button>
+          <button type="button" class="notis-seg-btn" data-platform="tiktok" aria-pressed="false">
+            <span class="glyph">🎵</span> TikTok · @mayurski
+          </button>
+        </div>
+
+        <div style="height:10px"></div>
+        <label for="notis-summary">Post summary <span class="notis-counter" id="notis-count">0 / 180</span></label>
+        <textarea id="notis-summary" maxlength="180" placeholder="Dropped 12 fresh troll stickers across Riverside today — full route in the post 👀"></textarea>
+
+        <div style="height:10px"></div>
+        <label for="notis-url">Link to the post</label>
+        <input id="notis-url" type="url" inputmode="url" placeholder="https://x.com/troll_runner/status/...">
+
+        <div class="row">
+          <button id="notis-send" type="button">📣 Broadcast to everyone</button>
+          <button id="notis-preview" class="secondary" type="button">👁 Preview here</button>
+        </div>
+        <p id="notis-status" class="lock-console-status">Connecting to live sync…</p>
+      </div>
+    </details>
+
     <details class="card collapsible">
       <summary>
         <span>Feedback to admin system</span>
@@ -496,6 +559,7 @@
   <script src="assets/js/site-lock.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/admin-auth.js"></script>
+  <script src="assets/js/troll-notis.js"></script>
   <script>
     const AUTH_KEY = 'trollrunner_admin_auth';
     const UPDATES_KEY = 'trollrunner_updates';
@@ -1777,6 +1841,70 @@ Fixed some admin system bugs.`,
           }
         }, LIVE_STATUS_SYNC_POLL_MS);
       }
+    })();
+  </script>
+
+  <script>
+    /* ---- Drop-a-pixel-alert composer (admin-gated; uses window.TrollNotis) ---- */
+    (function () {
+      let notisPlatform = 'x';
+      const seg = document.getElementById('notis-seg');
+      const summaryEl = document.getElementById('notis-summary');
+      const urlEl = document.getElementById('notis-url');
+      const countEl = document.getElementById('notis-count');
+      const statusEl = document.getElementById('notis-status');
+      const sendBtn = document.getElementById('notis-send');
+      const previewBtn = document.getElementById('notis-preview');
+      if (!seg || !window.TrollNotis) return;
+
+      function setStatus(msg, tone) { statusEl.textContent = msg; statusEl.dataset.tone = tone || ''; }
+
+      seg.addEventListener('click', e => {
+        const btn = e.target.closest('.notis-seg-btn');
+        if (!btn) return;
+        notisPlatform = btn.dataset.platform;
+        seg.querySelectorAll('.notis-seg-btn').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+        if (!urlEl.value.trim()) {
+          urlEl.placeholder = notisPlatform === 'tiktok'
+            ? 'https://www.tiktok.com/@mayurski/video/...'
+            : 'https://x.com/troll_runner/status/...';
+        }
+      });
+
+      summaryEl.addEventListener('input', () => { countEl.textContent = summaryEl.value.length + ' / 180'; });
+
+      function draft() { return { platform: notisPlatform, summary: summaryEl.value.trim(), url: urlEl.value.trim() }; }
+
+      previewBtn.addEventListener('click', () => {
+        const d = draft();
+        if (!d.summary) { setStatus('Add a summary first so there’s something to preview.', 'warn'); return; }
+        window.TrollNotis.show({ id: 'preview-' + Date.now(), platform: d.platform, summary: d.summary, url: d.url });
+        setStatus('Local preview shown (not broadcast).', '');
+      });
+
+      sendBtn.addEventListener('click', async () => {
+        const d = draft();
+        if (!d.summary) { setStatus('Write a short summary before broadcasting.', 'warn'); summaryEl.focus(); return; }
+        if (d.url && !/^https?:\/\//i.test(d.url)) { setStatus('That link needs to start with http(s)://', 'warn'); urlEl.focus(); return; }
+        sendBtn.disabled = true;
+        setStatus('Broadcasting drop alert…', '');
+        try {
+          const { notif, persisted } = await window.TrollNotis.publish(d);
+          window.TrollNotis.show(notif); // show it to the sender too
+          setStatus(persisted
+            ? 'Sent ✓ Everyone live gets it now; fresh page-loads catch it too.'
+            : 'Broadcast live, but saving the latest-alert copy failed (check table policy). Live viewers still got it.',
+            persisted ? 'ok' : 'warn');
+          summaryEl.value = ''; urlEl.value = ''; countEl.textContent = '0 / 180';
+        } catch (err) {
+          setStatus('Could not broadcast: ' + (err && err.message ? err.message : 'unknown error'), 'err');
+        } finally {
+          sendBtn.disabled = false;
+        }
+      });
+
+      document.addEventListener('trollnotis:ready', () => setStatus('Live sync connected — ready to broadcast.', 'ok'));
+      setTimeout(() => { if (!window.TrollNotis.isReady()) setStatus('Live sync slow to connect — broadcasts still save & deliver via fallback.', 'warn'); }, 6000);
     })();
   </script>
 </body>
