@@ -24,6 +24,7 @@
   const SEEN_KEY = 'trollrunner_notis_seen_v1';
   const POLL_MS = 20000;              // late-joiner / cron-resend pickup
   const TOAST_TTL_MS = 60000;         // auto-dismiss after 1 minute
+  const CATCHUP_FRESH_MS = TOAST_TTL_MS + POLL_MS; // only re-pop a fetched/polled alert while it's still "live" (~80s), so navigating subdomains hours later stays quiet
   const MAX_STORED = 20;              // keep last N alerts in meta
   const TN_AVATAR = 'https://mayurski-art.github.io/assets/animations/troll-grin.gif';
   const PACIFIC_TZ = 'America/Los_Angeles';
@@ -219,6 +220,24 @@
     show(notif);
   }
 
+  /* when an alert actually went live: cron stamps liveAt at fire time;
+     live admin publishes use createdAt (= publish moment) */
+  function liveTs(notif) {
+    const t = Date.parse((notif && (notif.liveAt || notif.createdAt)) || '');
+    return Number.isFinite(t) ? t : NaN;
+  }
+  /* true only while the alert is still inside its ~1-minute live window.
+     Realtime broadcasts bypass this; only the load/poll catch-up uses it,
+     so a stored alert won't re-pop on every subdomain switch hours later. */
+  function isFresh(notif) {
+    const t = liveTs(notif);
+    return Number.isFinite(t) && (Date.now() - t) <= CATCHUP_FRESH_MS;
+  }
+  /* pull the newest stored alert and re-pop it only if it's still live */
+  function catchUp() {
+    fetchLatest().then(latest => { if (latest && isFresh(latest)) ingest(latest); });
+  }
+
   /* ---- supabase plumbing ---- */
   function headers(extra) {
     return Object.assign({
@@ -329,11 +348,11 @@
       }
     });
     startPolling();
-    fetchLatest().then(latest => { if (latest) ingest(latest); }); // catch most recent on load
+    catchUp(); // catch a still-live alert on load (e.g. broadcast moments ago)
   }
   function startPolling() {
     if (pollTimer) return;
-    pollTimer = window.setInterval(() => { fetchLatest().then(latest => { if (latest) ingest(latest); }); }, POLL_MS);
+    pollTimer = window.setInterval(catchUp, POLL_MS);
   }
 
   window.TrollNotis = {

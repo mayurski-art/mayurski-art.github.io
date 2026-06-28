@@ -52,7 +52,10 @@ async function main() {
     return;
   }
 
-  const dueNotifs = due.map(q => q.notif).filter(Boolean);
+  // stamp the real fire time so clients treat the resend as "live now"
+  // (GitHub cron can lag the scheduled slot by minutes) and pop it for ~1 min
+  const firedAt = new Date(now).toISOString();
+  const dueNotifs = due.map(q => (q.notif ? { ...q.notif, liveAt: firedAt } : null)).filter(Boolean);
   const notifs = (Array.isArray(meta.notifs) ? meta.notifs : []).concat(dueNotifs).slice(-MAX_STORED);
 
   const nextMeta = { ...meta, notifs, queue: pending, createdAt: new Date().toISOString() };
