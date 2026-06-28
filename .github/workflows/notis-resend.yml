@@ -1,0 +1,32 @@
+name: notis-resend
+
+# Fires the queued 8 AM / 5 PM Pacific notification resends.
+# Cron is UTC and DST-unaware, so we run at all four candidate instants:
+#   8 AM PT  = 15:00 UTC (PDT) / 16:00 UTC (PST)
+#   5 PM PT  = 00:00 UTC (PDT) / 01:00 UTC (PST)
+# The worker only fires entries whose scheduled time has actually passed,
+# so the "wrong" DST run for the day is a harmless no-op.
+
+on:
+  schedule:
+    - cron: '0 0,1,15,16 * * *'
+  workflow_dispatch: {}
+
+# Avoid overlapping runs racing on the same Supabase row.
+concurrency:
+  group: notis-resend
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  resend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Fire due resends
+        run: node scripts/notis-resend.mjs

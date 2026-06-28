@@ -370,6 +370,19 @@
     .notis-seg-btn[data-platform="x"][aria-pressed="true"] { border-color: #fff; background: #000; }
     .notis-seg-btn[data-platform="tiktok"][aria-pressed="true"] { border-color: #ff0050; background: #241019; }
     .notis-counter { float: right; font-weight: 400; color: rgba(255,255,255,0.55); font-size: 12px; }
+    .notis-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin-top: 14px;
+      cursor: pointer;
+      font-size: 14px;
+      color: rgba(255,255,255,0.9);
+    }
+    .notis-check input { width: auto; margin-top: 2px; flex: none; accent-color: #1f9d55; }
+    .notis-check small { display: block; color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 2px; }
+    .notis-schedule { margin: 8px 0 0; min-height: 1.2em; font-size: 12.5px; color: #9fe6b0; }
+    .notis-schedule:empty { display: none; }
     #notis-status { margin: 12px 0 0; }
     #notis-status[data-tone="ok"] { color: #9fe6b0; }
     #notis-status[data-tone="warn"] { color: #f4d35e; }
@@ -504,6 +517,12 @@
         <label for="notis-url">Link to the post</label>
         <input id="notis-url" type="url" inputmode="url" placeholder="https://x.com/troll_runner/status/...">
 
+        <label class="notis-check">
+          <input type="checkbox" id="notis-resend" checked>
+          <span>Auto-resend at 8 AM &amp; 5 PM Pacific <small>(same alert pops 3× total: now + 2 reminders)</small></span>
+        </label>
+        <p id="notis-schedule" class="notis-schedule"></p>
+
         <div class="row">
           <button id="notis-send" type="button">📣 Broadcast to everyone</button>
           <button id="notis-preview" class="secondary" type="button">👁 Preview here</button>
@@ -568,6 +587,7 @@
     const SHARED_FEEDBACK_META_ID = '__trollrunner_feedback_meta__';
     const LIVE_CHAT_META_ID = '__trollrunner_live_chat_meta__';
     const VIEW_ANALYTICS_META_ID = '__trollrunner_view_analytics_meta__';
+    const NOTIS_META_ID = '__trollrunner_notis_meta__';
     const LIVE_RUNNING_STATUS_KEY = 'trollrunner_live_status_running_enabled';
     const LIVE_RUNNING_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_running_override';
     const LIVE_CODING_STATUS_KEY = 'trollrunner_live_status_coding_enabled';
@@ -586,6 +606,7 @@
     let editingUpdateId = null;
     let cachedLiveChatMeta = null;
     let cachedViewAnalyticsMeta = null;
+    let cachedNotisMeta = null;
     let viewAnalyticsRange = 'week';
     const DEFAULT_UPDATES = [
   {
@@ -780,6 +801,16 @@ Fixed some admin system bugs.`,
       return Boolean(item) && typeof item === 'object' && item.id === VIEW_ANALYTICS_META_ID;
     }
 
+    function isSharedNotisMetaItem(item) {
+      return Boolean(item) && typeof item === 'object' && item.id === NOTIS_META_ID;
+    }
+
+    function rememberSharedNotisMeta(payload) {
+      const meta = getSharedUpdatesArray(payload).find(isSharedNotisMetaItem);
+      if (meta) cachedNotisMeta = meta;
+      return cachedNotisMeta;
+    }
+
     function rememberSharedLiveChatMeta(payload) {
       const meta = getSharedUpdatesArray(payload).find(isSharedLiveChatMetaItem);
       if (meta) cachedLiveChatMeta = meta;
@@ -795,7 +826,8 @@ Fixed some admin system bugs.`,
     function parseUpdatesPayload(payload) {
       rememberSharedLiveChatMeta(payload);
       rememberSharedViewAnalyticsMeta(payload);
-      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item));
+      rememberSharedNotisMeta(payload);
+      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item));
     }
 
     function parseStatusFlag(value) {
@@ -912,7 +944,10 @@ Fixed some admin system bugs.`,
       const viewAnalyticsMetaFromItems = Array.isArray(items) ? items.find(isSharedViewAnalyticsMetaItem) : null;
       const preservedViewAnalyticsMeta = viewAnalyticsMetaFromItems || viewAnalyticsMeta;
       if (preservedViewAnalyticsMeta) cachedViewAnalyticsMeta = preservedViewAnalyticsMeta;
-      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item)) : [];
+      const notisMetaFromItems = Array.isArray(items) ? items.find(isSharedNotisMetaItem) : null;
+      const preservedNotisMeta = notisMetaFromItems || cachedNotisMeta;
+      if (preservedNotisMeta) cachedNotisMeta = preservedNotisMeta;
+      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item)) : [];
       return [
         ...visibleItems,
         {
@@ -957,6 +992,12 @@ Fixed some admin system bugs.`,
         ...(preservedViewAnalyticsMeta ? [{
           ...preservedViewAnalyticsMeta,
           id: VIEW_ANALYTICS_META_ID,
+          archived: true,
+          source: 'system',
+        }] : []),
+        ...(preservedNotisMeta ? [{
+          ...preservedNotisMeta,
+          id: NOTIS_META_ID,
           archived: true,
           source: 'system',
         }] : []),
@@ -1855,9 +1896,26 @@ Fixed some admin system bugs.`,
       const statusEl = document.getElementById('notis-status');
       const sendBtn = document.getElementById('notis-send');
       const previewBtn = document.getElementById('notis-preview');
+      const resendEl = document.getElementById('notis-resend');
+      const scheduleEl = document.getElementById('notis-schedule');
       if (!seg || !window.TrollNotis) return;
 
       function setStatus(msg, tone) { statusEl.textContent = msg; statusEl.dataset.tone = tone || ''; }
+
+      function renderSchedule() {
+        if (!scheduleEl) return;
+        if (!resendEl || !resendEl.checked) { scheduleEl.textContent = ''; return; }
+        const slots = window.TrollNotis.nextResendSlots
+          ? window.TrollNotis.nextResendSlots()
+          : [];
+        scheduleEl.textContent = slots.length
+          ? '🔁 Next auto-resends: ' + slots.map(s => s.label).join('  ·  ')
+          : '';
+      }
+      if (resendEl) resendEl.addEventListener('change', renderSchedule);
+      renderSchedule();
+      // keep the relative day labels (today/tomorrow) honest as time passes
+      setInterval(renderSchedule, 60000);
 
       seg.addEventListener('click', e => {
         const btn = e.target.closest('.notis-seg-btn');
@@ -1873,7 +1931,14 @@ Fixed some admin system bugs.`,
 
       summaryEl.addEventListener('input', () => { countEl.textContent = summaryEl.value.length + ' / 180'; });
 
-      function draft() { return { platform: notisPlatform, summary: summaryEl.value.trim(), url: urlEl.value.trim() }; }
+      function draft() {
+        return {
+          platform: notisPlatform,
+          summary: summaryEl.value.trim(),
+          url: urlEl.value.trim(),
+          resend: !resendEl || resendEl.checked,
+        };
+      }
 
       previewBtn.addEventListener('click', () => {
         const d = draft();
@@ -1889,10 +1954,13 @@ Fixed some admin system bugs.`,
         sendBtn.disabled = true;
         setStatus('Broadcasting drop alert…', '');
         try {
-          const { notif, persisted } = await window.TrollNotis.publish(d);
+          const { notif, persisted, resends } = await window.TrollNotis.publish(d);
           window.TrollNotis.show(notif); // show it to the sender too
+          const reminderNote = (d.resend && resends && resends.length)
+            ? ' Auto-resends: ' + resends.map(s => s.label).join(' · ') + '.'
+            : ' (No auto-resends.)';
           setStatus(persisted
-            ? 'Sent ✓ Everyone live gets it now; fresh page-loads catch it too.'
+            ? 'Sent ✓ Everyone live gets it now; fresh page-loads catch it too.' + reminderNote
             : 'Broadcast live, but saving the latest-alert copy failed (check table policy). Live viewers still got it.',
             persisted ? 'ok' : 'warn');
           summaryEl.value = ''; urlEl.value = ''; countEl.textContent = '0 / 180';

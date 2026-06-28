@@ -5,7 +5,14 @@
      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
      <script src="https://mayurski-art.github.io/assets/js/troll-notis.js"></script>
    Injects its own styles + fonts and a #troll-notis-root mount point.
-   Exposes: window.TrollNotis.{ show, publish, ingest, platforms, isReady }
+
+   Storage: data lives in the shared `site_updates` row `main`, inside a
+   meta item `__trollrunner_notis_meta__` carrying { notifs, queue }.
+   `queue` holds future auto-resends (8 AM & 5 PM PT) fired by the
+   scripts/notis-resend.mjs GitHub Action.
+
+   Exposes: window.TrollNotis.{ show, publish, ingest, nextResendSlots,
+            formatPacific, platforms, isReady }
    ============================================================ */
 (function () {
   const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
@@ -15,10 +22,12 @@
   const NOTIS_META_ID = '__trollrunner_notis_meta__';
   const NOTIS_CHANNEL = 'trollrunner-notis';
   const SEEN_KEY = 'trollrunner_notis_seen_v1';
-  const POLL_MS = 20000;              // late-joiner / cross-tab fallback
-  const TOAST_TTL_MS = 13000;         // auto-dismiss
+  const POLL_MS = 20000;              // late-joiner / cron-resend pickup
+  const TOAST_TTL_MS = 60000;         // auto-dismiss after 1 minute
   const MAX_STORED = 20;              // keep last N alerts in meta
   const TN_AVATAR = 'https://mayurski-art.github.io/assets/animations/troll-grin.gif';
+  const PACIFIC_TZ = 'America/Los_Angeles';
+  const RESEND_HOURS = [8, 17];       // 8 AM & 5 PM Pacific
 
   const PLATFORMS = {
     x:      { app: 'TROLL RUNNER on 𝕏', kicker: 'New post', badge: '𝕏', cta: 'Open on X', handle: '@troll_runner', base: 'https://x.com/troll_runner' },
@@ -30,6 +39,52 @@
   let stylesInjected = false;
 
   function platform(p) { return PLATFORMS[p] || PLATFORMS.x; }
+  function freshId() { return 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); }
+
+  /* ---- Pacific-time scheduling (DST-correct, runtime-tz-independent) ---- */
+  function tzOffsetMs(ts, tz) {
+    const dtf = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const m = {};
+    for (const p of dtf.formatToParts(new Date(ts))) m[p.type] = p.value;
+    const hour = m.hour === '24' ? '00' : m.hour;
+    const asUTC = Date.UTC(+m.year, +m.month - 1, +m.day, +hour, +m.minute, +m.second);
+    return asUTC - ts; // tz offset in ms (negative for PT)
+  }
+  function pacificYMD(ts) {
+    const dtf = new Intl.DateTimeFormat('en-US', { timeZone: PACIFIC_TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const m = {};
+    for (const p of dtf.formatToParts(new Date(ts))) m[p.type] = p.value;
+    return { y: +m.year, mo: +m.month, d: +m.day };
+  }
+  // epoch ms for a given Pacific wall-clock date+hour
+  function pacificEpoch(y, mo, d, hour) {
+    let ts = Date.UTC(y, mo - 1, d, hour, 0, 0);
+    for (let i = 0; i < 3; i++) {
+      const next = Date.UTC(y, mo - 1, d, hour, 0, 0) - tzOffsetMs(ts, PACIFIC_TZ);
+      if (next === ts) break;
+      ts = next;
+    }
+    return ts;
+  }
+  function nextSlotFor(hour, fromTs) {
+    for (let add = 0; add <= 2; add++) {
+      const base = pacificYMD(fromTs + add * 86400000);
+      const ts = pacificEpoch(base.y, base.mo, base.d, hour);
+      if (ts > fromTs) return ts;
+    }
+    return null;
+  }
+  function formatPacific(ts) {
+    return new Intl.DateTimeFormat('en-US', { timeZone: PACIFIC_TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(ts)) + ' PT';
+  }
+  // the next 8 AM and next 5 PM Pacific after `fromTs`, in chronological order
+  function nextResendSlots(fromTs = Date.now()) {
+    return RESEND_HOURS
+      .map(hour => nextSlotFor(hour, fromTs))
+      .filter(ts => ts != null)
+      .sort((a, b) => a - b)
+      .map(ts => ({ ts, label: formatPacific(ts) }));
+  }
 
   /* ---- one-time style + font injection (so the toast looks right on any page) ---- */
   function injectStyles() {
@@ -149,7 +204,7 @@
     toast.querySelector('.tn-cta').addEventListener('click', () => setTimeout(dismiss, 120));
     ttl = window.setTimeout(dismiss, TOAST_TTL_MS);
     toast.addEventListener('mouseenter', () => window.clearTimeout(ttl));
-    toast.addEventListener('mouseleave', () => { ttl = window.setTimeout(dismiss, 3500); });
+    toast.addEventListener('mouseleave', () => { ttl = window.setTimeout(dismiss, 4000); });
 
     return toast;
   }
@@ -181,38 +236,44 @@
     return client;
   }
 
+  async function readRowUpdates() {
+    const qs = new URLSearchParams({ select: 'updates', id: 'eq.' + SUPABASE_ROW_ID, limit: '1' });
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE + '?' + qs, { cache: 'no-store', headers: headers({ 'Cache-Control': 'no-cache' }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const payload = Array.isArray(json) ? json[0] : json;
+    return Array.isArray(payload && payload.updates) ? payload.updates : [];
+  }
+  function findNotisMeta(updates) {
+    return (updates || []).find(u => u && u.id === NOTIS_META_ID) || null;
+  }
+
   async function fetchLatest() {
     try {
-      const qs = new URLSearchParams({ select: 'updates', id: 'eq.' + SUPABASE_ROW_ID, limit: '1' });
-      const res = await fetch(SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE + '?' + qs, { cache: 'no-store', headers: headers({ 'Cache-Control': 'no-cache' }) });
-      if (!res.ok) return null;
-      const json = await res.json();
-      const payload = Array.isArray(json) ? json[0] : json;
-      const updates = Array.isArray(payload && payload.updates) ? payload.updates : [];
-      const meta = updates.find(u => u && u.id === NOTIS_META_ID);
+      const meta = findNotisMeta(await readRowUpdates());
       const list = meta && Array.isArray(meta.notifs) ? meta.notifs : [];
       return list.length ? list[list.length - 1] : null;   // newest
     } catch { return null; }
   }
 
-  // write newest alert into the shared meta item without clobbering other meta rows
-  async function persist(notif) {
+  // merge the notis meta back into row `main`, preserving every other item
+  async function persist(notif, queueEntries) {
     try {
-      const qs = new URLSearchParams({ select: 'updates', id: 'eq.' + SUPABASE_ROW_ID, limit: '1' });
-      const readRes = await fetch(SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE + '?' + qs, { cache: 'no-store', headers: headers() });
-      if (!readRes.ok) return false;
-      const json = await readRes.json();
-      const payload = Array.isArray(json) ? json[0] : json;
-      const updates = Array.isArray(payload && payload.updates) ? payload.updates.slice() : [];
-      const existing = updates.find(u => u && u.id === NOTIS_META_ID);
-      const prevNotifs = existing && Array.isArray(existing.notifs) ? existing.notifs : [];
-      const nextNotifs = prevNotifs.concat([notif]).slice(-MAX_STORED);
+      const updates = await readRowUpdates();
+      const existing = findNotisMeta(updates) || {};
+      const now = Date.now();
+      const notifs = (Array.isArray(existing.notifs) ? existing.notifs : [])
+        .concat(notif ? [notif] : [])
+        .slice(-MAX_STORED);
+      const queue = (Array.isArray(existing.queue) ? existing.queue : [])
+        .filter(q => q && Number(q.fireAt) > now - 86400000) // drop stale/fired
+        .concat(Array.isArray(queueEntries) ? queueEntries : []);
       const meta = {
         id: NOTIS_META_ID,
         title: '__notis_meta__', body: '__notis_meta__',
         createdAt: new Date().toISOString(),
         archived: true, source: 'system',
-        notifs: nextNotifs,
+        notifs, queue,
       };
       const nextUpdates = updates.filter(u => !(u && u.id === NOTIS_META_ID)).concat([meta]);
       const writeRes = await fetch(SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE, {
@@ -224,10 +285,11 @@
     } catch { return false; }
   }
 
-  /* publish: broadcast instantly + persist for late joiners. Returns {notif, persisted} */
+  /* publish: broadcast instantly + persist + schedule 8 AM/5 PM PT resends.
+     opts.resend === false skips the auto-resends. Returns {notif, persisted, resends} */
   async function publish(input) {
     const notif = {
-      id: input.id || ('n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8)),
+      id: input.id || freshId(),
       platform: (input.platform in PLATFORMS) ? input.platform : 'x',
       summary: String(input.summary || '').slice(0, 180),
       url: String(input.url || ''),
@@ -237,8 +299,21 @@
     if (channel && subscribed) {
       try { await channel.send({ type: 'broadcast', event: 'notif', payload: notif }); } catch {}
     }
-    const persisted = await persist(notif);
-    return { notif, persisted };
+    const slots = input.resend === false ? [] : nextResendSlots();
+    const queueEntries = slots.map(s => ({
+      fireAt: s.ts,
+      label: s.label,
+      notif: {
+        id: freshId(),
+        platform: notif.platform,
+        summary: notif.summary,
+        url: notif.url,
+        createdAt: new Date(s.ts).toISOString(),
+        resendOf: notif.id,
+      },
+    }));
+    const persisted = await persist(notif, queueEntries);
+    return { notif, persisted, resends: slots };
   }
 
   function connect() {
@@ -262,9 +337,11 @@
   }
 
   window.TrollNotis = {
-    show,            // show(notif) — render a toast locally, no sync
-    publish,         // publish({platform,summary,url}) — broadcast + persist
-    ingest,          // ingest(notif) — show if unseen
+    show,              // show(notif) — render a toast locally, no sync
+    publish,           // publish({platform,summary,url,resend}) — broadcast + persist + schedule
+    ingest,            // ingest(notif) — show if unseen
+    nextResendSlots,   // nextResendSlots() — [{ts,label}, ...] preview of the 2 auto-resends
+    formatPacific,     // formatPacific(ts) — "Mon 5:00 PM PT"
     platforms: PLATFORMS,
     isReady: () => subscribed,
   };
