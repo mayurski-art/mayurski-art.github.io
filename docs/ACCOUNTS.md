@@ -5,7 +5,7 @@ runs TrollChat and the site lock). No secrets live in this repo: the anon key
 is public by design, and every privilege is enforced server-side by Row Level
 Security.
 
-## One-time setup (do these two things)
+## One-time setup
 
 1. **Supabase dashboard → Authentication → Sign In / Up → Email**: turn OFF
    *"Confirm email"*. Accounts log in through synthetic mailboxes
@@ -19,6 +19,41 @@ Until step 2 runs, login correctly rejects everyone (verified: random
 credentials show "Wrong username or password." and do not enter the site);
 registration will fail with a database error because the profile trigger
 doesn't exist yet.
+
+### Password recovery setup (three more one-time steps)
+
+3. **SQL Editor**: run
+   [`assets/supabase/troll_recovery.sql`](../assets/supabase/troll_recovery.sql)
+   — adds `troll_login_email(username, password)`, the password-verified
+   username→email lookup that keeps username login working for accounts whose
+   auth email is a real address.
+4. **Authentication → URL Configuration**: Site URL
+   `https://www.trollrunner.net`, and add `https://www.trollrunner.net/*` to
+   Redirect URLs (reset links bounce through here).
+5. **Authentication → Email**: turn OFF *"Secure email change"* — adding a
+   recovery email then needs only one confirmation click (the old synthetic
+   mailbox can never receive mail).
+
+Note: Supabase's built-in mailer is rate-limited to a few emails per hour —
+fine for now; plug in custom SMTP (Resend etc.) if reset volume ever grows.
+
+## How password recovery works
+
+- **Signup with an email** → that email *is* the auth email; Supabase can
+  send it reset links. Signup without an email → synthetic mailbox, no
+  self-serve recovery (the gate's recovery modal says to ping the admin).
+- **Existing accounts** add a recovery email in **Settings → Recovery
+  email** (`updateRecoveryEmail` calls `auth.updateUser({ email })`, so the
+  auth email flips from synthetic to real; a confirmation email may arrive).
+- **Username login** always tries the synthetic mailbox first; on a miss it
+  calls the `troll_login_email` RPC, which returns the real auth email *only
+  when the submitted password matches the stored bcrypt hash* (plus a 250 ms
+  sleep), so it can't be used to harvest or enumerate emails.
+- **"Forgot password?"** on the gate opens a modal → `resetPasswordForEmail`
+  → the emailed link redirects to `https://www.trollrunner.net/?recovery=1`
+  with tokens in the URL hash → `troll-accounts.js` swaps them for a session,
+  scrubs the URL, and opens a "Set a new password" modal. The request modal
+  always reports success (no account enumeration).
 
 ## Files
 
@@ -52,9 +87,12 @@ await TrollrunnerAccounts.getSession();       // backend-verified session | null
 TrollrunnerAccounts.getCachedProfile();       // sync snapshot | null
 await TrollrunnerAccounts.updateUsername('new_name');
 await TrollrunnerAccounts.updatePassword('newpass123');
+await TrollrunnerAccounts.updateRecoveryEmail('me@example.com'); // enables reset links
+await TrollrunnerAccounts.requestPasswordReset('me@example.com'); // sends the link
+TrollrunnerAccounts.openRecovery();           // "forgot password" modal
 await TrollrunnerAccounts.uploadAvatar(file); // PNG/JPG/WebP → 256px square webp
 TrollrunnerAccounts.openProfile();            // built-in modal
-TrollrunnerAccounts.openSettings();           // username / avatar / password / logout
+TrollrunnerAccounts.openSettings();           // username / avatar / recovery email / password / logout
 ```
 
 Auth changes broadcast `window` event **`trollrunner:auth-changed`**
@@ -135,8 +173,6 @@ troll-accounts.js changes.
 
 ## Still to build (deliberately not faked)
 
-- **Password reset** — needs an Edge Function that maps username → private
-  `contact_email` (in `troll_user_settings`) and triggers the reset mail.
 - **Transaction confirmation** — Edge Function verifying Solana signatures,
   then setting `status='confirmed'` + awarding donation XP (service role).
 - **Cross-subdomain cookie session**, **admin/moderation tools** (ban, rename,

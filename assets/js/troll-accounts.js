@@ -13,6 +13,7 @@
      getAccessToken()                → JWT for authed REST calls | null
      getClient()                     → the supabase client
      updateUsername(next) / updatePassword(next) / uploadAvatar(file)
+     updateRecoveryEmail(email) / requestPasswordReset(email) / openRecovery()
      awardXp(event, source, meta)    → server-guarded XP (cooldowns/caps)
      recordGameResult(gameId, score, meta)
      logPendingSpend({token,amount,wallet,signature,purpose,feature})
@@ -32,7 +33,16 @@
   // lives privately in troll_user_settings for future password reset.
   const LOGIN_EMAIL_DOMAIN = 'login.trollrunner.net';
   const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
+  const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   const AVATAR_SIZE = 256;
+
+  // Password-reset links land on the main site (the only place with the
+  // reset UI); local/preview hosts land on themselves for testing.
+  function recoveryRedirectUrl() {
+    const onTrollrunner = /(^|\.)trollrunner\.net$/i.test(location.hostname);
+    const base = onTrollrunner ? 'https://www.trollrunner.net' : location.origin;
+    return `${base}/?recovery=1`;
+  }
 
   let client = null;
   let cachedProfile = null;
@@ -72,8 +82,10 @@
     if (/invalid login credentials/i.test(raw)) return new Error('Wrong username or password.');
     if (/already registered|already exists/i.test(raw)) return new Error('That account already exists. Try logging in.');
     if (/already taken/i.test(raw)) return new Error('That username is already taken.');
-    if (/rate limit/i.test(raw)) return new Error('Too many attempts — wait a minute and try again.');
+    if (/rate limit|security purposes/i.test(raw)) return new Error('Too many attempts — wait a minute and try again.');
     if (/email not confirmed/i.test(raw)) return new Error('Signups need email confirmation turned OFF in Supabase (see docs/ACCOUNTS.md).');
+    if (/email.*(taken|exists|in use)|address.*already/i.test(raw)) return new Error('That email is already on another account.');
+    if (/invalid.*email|unable to validate email/i.test(raw)) return new Error('That email address looks wrong.');
     return new Error(raw || fallback);
   }
 
@@ -155,21 +167,26 @@
     const sb = getClient();
     if (!sb) throw new Error('Account service failed to load. Refresh and try again.');
     const name = String(username || '').trim();
+    const contact = String(email || '').trim().toLowerCase();
     if (!USERNAME_RE.test(name)) throw new Error('Usernames are 3–20 letters, numbers, or underscores.');
+    if (contact && !EMAIL_RE.test(contact)) throw new Error('That email address looks wrong.');
     if (String(password || '').length < 8) throw new Error('Use a password with at least 8 characters.');
     if (await isUsernameTaken(name)) throw new Error('That username is already taken.');
 
+    // A real email becomes the auth email so password recovery works out of
+    // the box; accounts without one fall back to the synthetic mailbox.
+    const authEmail = contact || loginEmailFor(name);
     const { data, error } = await sb.auth.signUp({
-      email: loginEmailFor(name),
+      email: authEmail,
       password: String(password),
-      options: { data: { username: name, contact_email: String(email || '').trim() || null } },
+      options: { data: { username: name, contact_email: contact || null } },
     });
     if (error) throw friendlyError(error, 'Could not create the account.');
 
     // If "Confirm email" is off (required setup), a session comes back here.
     if (!data.session) {
       const { error: loginError } = await sb.auth.signInWithPassword({
-        email: loginEmailFor(name),
+        email: authEmail,
         password: String(password),
       });
       if (loginError) throw friendlyError(loginError, 'Account created — but login failed. Try logging in.');
@@ -185,13 +202,39 @@
     const id = String(identifier || '').trim();
     if (!id || !password) throw new Error('Enter your username (or email) and password.');
 
-    const email = id.includes('@') ? id : loginEmailFor(id);
-    const { error } = await sb.auth.signInWithPassword({ email, password: String(password) });
+    let { error } = await sb.auth.signInWithPassword({
+      email: id.includes('@') ? id : loginEmailFor(id),
+      password: String(password),
+    });
+    if (error && !id.includes('@') && /invalid login credentials/i.test(String(error.message || ''))) {
+      // Username whose auth email is a real address (recovery-enabled account):
+      // resolve it server-side — the RPC only answers when the password matches.
+      let realEmail = null;
+      try {
+        ({ data: realEmail } = await sb.rpc('troll_login_email', { p_username: id, p_password: String(password) }));
+      } catch {}
+      if (realEmail) {
+        ({ error } = await sb.auth.signInWithPassword({ email: realEmail, password: String(password) }));
+      }
+    }
     if (error) throw friendlyError(error, 'Login failed. Check your details and try again.');
 
     await refreshProfile();
     void awardXp('daily_login', 'login');
     return toPublicSession();
+  }
+
+  async function requestPasswordReset(email) {
+    const sb = getClient();
+    if (!sb) throw new Error('Account service failed to load. Refresh and try again.');
+    const addr = String(email || '').trim().toLowerCase();
+    if (!EMAIL_RE.test(addr)) throw new Error('Enter the email on your account.');
+    const { error } = await sb.auth.resetPasswordForEmail(addr, { redirectTo: recoveryRedirectUrl() });
+    if (error && /rate limit|security purposes/i.test(String(error.message || ''))) {
+      throw friendlyError(error, 'Could not send the reset email.');
+    }
+    // Deliberately succeed for unknown emails too — no account enumeration.
+    return true;
   }
 
   async function logout() {
@@ -224,6 +267,60 @@
     const { error } = await sb.auth.updateUser({ password: String(next) });
     if (error) throw friendlyError(error, 'Could not update the password.');
     return true;
+  }
+
+  async function getRecoveryEmail() {
+    const sb = getClient();
+    if (!sb || !cachedProfile) return null;
+    const { data } = await sb
+      .from('troll_user_settings')
+      .select('contact_email')
+      .eq('user_id', cachedProfile.id)
+      .maybeSingle();
+    return data?.contact_email || null;
+  }
+
+  async function updateRecoveryEmail(email) {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const addr = String(email || '').trim().toLowerCase();
+    if (!EMAIL_RE.test(addr)) throw new Error('That email address looks wrong.');
+    // The real email becomes the auth email, so Supabase can send reset links.
+    const { error } = await sb.auth.updateUser(
+      { email: addr, data: { contact_email: addr } },
+      { emailRedirectTo: recoveryRedirectUrl() }
+    );
+    if (error) throw friendlyError(error, 'Could not update the recovery email.');
+    try {
+      await sb.from('troll_user_settings').update({ contact_email: addr }).eq('user_id', cachedProfile.id);
+    } catch {}
+    return true;
+  }
+
+  /* ------------------------------------------------------------------
+     Password recovery — reset links from Supabase land back on the site
+     with tokens in the URL hash (implicit flow); we swap them for a
+     session, scrub the URL, and ask for a new password.
+     ------------------------------------------------------------------ */
+  function detectRecoveryLink() {
+    const hash = String(location.hash || '');
+    if (!/access_token=/.test(hash)) return;
+    const params = new URLSearchParams(hash.slice(1));
+    const type = params.get('type');
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const scrub = () => history.replaceState(null, '', location.pathname + location.search);
+    if (!accessToken || !refreshToken) return;
+    if (type === 'recovery') {
+      const sb = getClient();
+      if (!sb) return;
+      void sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+        scrub();
+        if (!error) openPasswordReset();
+      });
+    } else if (type === 'email_change' || type === 'signup' || type === 'magiclink') {
+      scrub(); // confirmation links: session tokens are consumed, nothing to show
+    }
   }
 
   async function uploadAvatar(file) {
@@ -609,6 +706,28 @@
     avatarSection.append(avatarRow, avatarBtn, avatarStatus);
     body.appendChild(avatarSection);
 
+    // Recovery email
+    const emailSection = document.createElement('div');
+    emailSection.className = 'ta-section';
+    emailSection.innerHTML = `<h4>Recovery email</h4>
+      <p class="ta-muted">Used only for password-reset links. A confirmation email may arrive — click it to finish.</p>`;
+    const emailInput = document.createElement('input');
+    emailInput.type = 'email';
+    emailInput.className = 'ta-input';
+    emailInput.placeholder = 'you@example.com';
+    emailInput.autocomplete = 'email';
+    void getRecoveryEmail().then(addr => { if (addr && !emailInput.value) emailInput.value = addr; });
+    const emailBtn = document.createElement('button');
+    emailBtn.className = 'ta-btn';
+    emailBtn.type = 'button';
+    emailBtn.textContent = 'Save recovery email';
+    const emailStatus = mkStatus();
+    emailBtn.addEventListener('click', () => run(emailBtn, emailStatus,
+      () => updateRecoveryEmail(emailInput.value),
+      'Saved — if a confirmation email shows up, click it to activate recovery.'));
+    emailSection.append(emailInput, emailBtn, emailStatus);
+    body.appendChild(emailSection);
+
     // Password
     const passSection = document.createElement('div');
     passSection.className = 'ta-section';
@@ -649,9 +768,95 @@
     body.appendChild(logoutBtn);
   }
 
+  function openRecovery() {
+    const body = buildModal('Reset password');
+    body.innerHTML = '';
+    const section = document.createElement('div');
+    section.className = 'ta-section';
+    section.innerHTML = `<h4>Forgot your password?</h4>
+      <p class="ta-muted">Enter the email on your account and we'll send a reset link.
+      No email on the account? Ping the Troll Runner in TrollChat or Feedback to recover it.</p>`;
+    const emailInput = document.createElement('input');
+    emailInput.type = 'email';
+    emailInput.className = 'ta-input';
+    emailInput.placeholder = 'you@example.com';
+    emailInput.autocomplete = 'email';
+    const sendBtn = document.createElement('button');
+    sendBtn.className = 'ta-btn';
+    sendBtn.type = 'button';
+    sendBtn.textContent = 'Send reset link';
+    const status = document.createElement('div');
+    status.className = 'ta-status';
+    const send = async () => {
+      sendBtn.disabled = true;
+      status.textContent = 'Sending…';
+      status.dataset.kind = '';
+      try {
+        await requestPasswordReset(emailInput.value);
+        status.textContent = 'If that email has an account, a reset link is on its way. Check spam too.';
+        status.dataset.kind = 'success';
+      } catch (error) {
+        status.textContent = error?.message || 'Could not send the reset email.';
+        status.dataset.kind = 'error';
+        sendBtn.disabled = false;
+      }
+    };
+    sendBtn.addEventListener('click', send);
+    emailInput.addEventListener('keydown', event => { if (event.key === 'Enter') void send(); });
+    section.append(emailInput, sendBtn, status);
+    body.appendChild(section);
+    emailInput.focus();
+  }
+
+  function openPasswordReset() {
+    const body = buildModal('Set a new password');
+    body.innerHTML = '';
+    const section = document.createElement('div');
+    section.className = 'ta-section';
+    section.innerHTML = `<h4>Almost back in</h4>
+      <p class="ta-muted">Pick a new password for your account.</p>`;
+    const passInput = document.createElement('input');
+    passInput.type = 'password';
+    passInput.className = 'ta-input';
+    passInput.placeholder = 'New password (8+ characters)';
+    passInput.autocomplete = 'new-password';
+    const passConfirm = document.createElement('input');
+    passConfirm.type = 'password';
+    passConfirm.className = 'ta-input';
+    passConfirm.placeholder = 'Confirm new password';
+    passConfirm.autocomplete = 'new-password';
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'ta-btn';
+    saveBtn.type = 'button';
+    saveBtn.textContent = 'Save new password';
+    const status = document.createElement('div');
+    status.className = 'ta-status';
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      status.textContent = 'Working…';
+      status.dataset.kind = '';
+      try {
+        if (passInput.value !== passConfirm.value) throw new Error('Passwords do not match.');
+        await updatePassword(passInput.value);
+        await refreshProfile();
+        status.textContent = 'Password changed — you are logged in.';
+        status.dataset.kind = 'success';
+        window.setTimeout(closeModal, 1600);
+      } catch (error) {
+        status.textContent = error?.message || 'Could not change the password.';
+        status.dataset.kind = 'error';
+        saveBtn.disabled = false;
+      }
+    });
+    section.append(passInput, passConfirm, saveBtn, status);
+    body.appendChild(section);
+    passInput.focus();
+  }
+
   function init() {
     const sb = getClient();
     if (!sb) return;
+    detectRecoveryLink();
     void getSession().then(session => {
       if (session) {
         dispatch(session);
@@ -671,6 +876,9 @@
     logout,
     updateUsername,
     updatePassword,
+    updateRecoveryEmail,
+    requestPasswordReset,
+    openRecovery,
     uploadAvatar,
     awardXp,
     recordGameResult,
