@@ -1148,6 +1148,14 @@ header p {
   background-repeat: no-repeat;
   image-rendering: pixelated;
   box-shadow: 2px 2px 0 rgba(16,32,26,0.35);
+  overflow: hidden;
+}
+.live-chat-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  image-rendering: auto;
 }
 .live-chat-name-row {
   display: flex;
@@ -4124,7 +4132,8 @@ body.desktop-mode .troll-desktop { display: block; }
 .td-sm-head:hover { background: linear-gradient(160deg, rgba(77, 255, 115, 0.22), rgba(77, 255, 115, 0.07) 70%); }
 .td-sm-head .td-sm-avatar { width: 40px; height: 40px; flex: none; display: grid; place-items: center; font-size: 23px;
   border: 2px solid #000; border-radius: 9px; background: linear-gradient(160deg, #1e3a28, #0d1a12);
-  box-shadow: inset 0 0 0 1px rgba(77, 255, 115, 0.4), 0 0 8px rgba(77, 255, 115, 0.2); }
+  box-shadow: inset 0 0 0 1px rgba(77, 255, 115, 0.4), 0 0 8px rgba(77, 255, 115, 0.2); overflow: hidden; }
+.td-sm-head .td-sm-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .td-sm-head .td-sm-user { font-family: var(--disp); font-size: 15px; letter-spacing: 0.05em; color: #eafff0; }
 .td-sm-head .td-sm-sub { font-size: 13px; color: #93c4a4; }
 .td-sm-label { padding: 7px 10px 3px; font-size: 13px; letter-spacing: 0.24em; color: #8f7fd9;
@@ -5271,6 +5280,18 @@ function tdSyncAccountUI() {
   const smSub = document.getElementById('td-sm-sub');
   if (smUser) smUser.textContent = session ? session.username : 'Guest troll';
   if (smSub) smSub.textContent = session ? `Level ${session.level} runner` : 'Login to save your runs';
+  const smAvatar = document.getElementById('td-sm-avatar');
+  if (smAvatar) {
+    if (session?.avatarUrl) {
+      smAvatar.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = String(session.avatarUrl);
+      img.alt = '';
+      smAvatar.appendChild(img);
+    } else {
+      smAvatar.textContent = '🧌';
+    }
+  }
 }
 
 function twFocus(id) {
@@ -5426,6 +5447,29 @@ function tdAddIcon(host, { icon, label, ext }, onOpen, href) {
   host.appendChild(node);
 }
 
+// Start-menu route into admin.html (the old footer entry now lives inside
+// the About window — this is the discoverable path).
+async function tdOpenAdmin() {
+  const helper = window.TrollrunnerAdminAuth;
+  if (!helper) {
+    alert('Admin auth is still loading. Try again in a moment.');
+    return;
+  }
+  const authed = helper.hasAdminSession ? await helper.hasAdminSession() : false;
+  if (authed) {
+    window.location.href = 'admin.html';
+    return;
+  }
+  const password = window.prompt('Admin password:');
+  if (password == null || !String(password).trim()) return;
+  try {
+    await helper.signInWithAdminPassword(String(password).trim(), { silent: true });
+    window.location.href = 'admin.html';
+  } catch (error) {
+    alert(error?.message ? String(error.message) : 'Wrong admin password.');
+  }
+}
+
 function tdToggleRadio(force) {
   const radio = document.getElementById('troll-radio');
   const trayBtn = document.getElementById('td-music');
@@ -5450,7 +5494,7 @@ function tdBuildStartMenu() {
   const head = document.createElement('button');
   head.type = 'button';
   head.className = 'td-sm-head';
-  head.innerHTML = '<span class="td-sm-avatar" aria-hidden="true">🧌</span><span><div class="td-sm-user" id="td-sm-user">Guest troll</div><div class="td-sm-sub" id="td-sm-sub">Login to save your runs</div></span>';
+  head.innerHTML = '<span class="td-sm-avatar" id="td-sm-avatar" aria-hidden="true">🧌</span><span><div class="td-sm-user" id="td-sm-user">Guest troll</div><div class="td-sm-sub" id="td-sm-sub">Login to save your runs</div></span>';
   head.addEventListener('click', tdOpenAccount);
   menu.appendChild(head);
 
@@ -5499,6 +5543,10 @@ function tdBuildStartMenu() {
     tdCloseStartMenu();
     if (tdAccountSession()) window.TrollrunnerAccounts.openSettings();
     else tdShowGate();
+  });
+  addItem('🛡️', 'Admin Panel', () => {
+    tdCloseStartMenu();
+    void tdOpenAdmin();
   });
   addItem('🔒', 'Lock (entry screen)', () => tdShowGate());
 }
@@ -7820,17 +7868,69 @@ function tcFormatTime(value) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// Account user_ids are UUIDs; anything else in a broadcast payload is junk.
+function tcSafeUid(value) {
+  const uid = String(value || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid) ? uid : null;
+}
+
+// Broadcast payloads are unauthenticated, so an avatar URL is only trusted
+// when it points into the sender's own folder of the public avatars bucket.
+function tcSafeAvatarUrl(url, uid) {
+  if (!url || !uid) return null;
+  const prefix = `${SUPABASE_URL}/storage/v1/object/public/avatars/${uid}/`;
+  return String(url).startsWith(prefix) ? String(url) : null;
+}
+
 function tcNormalizeMessage(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const id = String(raw.id || '').trim();
   const text = String(raw.text != null ? raw.text : raw.body || '').trim().slice(0, TC_MSG_MAX);
   if (!id || !text) return null;
+  const uid = tcSafeUid(raw.uid || raw.user_id);
   return {
     id,
     name: (String(raw.name || 'Guest').trim() || 'Guest').slice(0, 24),
     text,
     ts: String(raw.ts || raw.created_at || new Date().toISOString()),
+    uid,
+    avatar: tcSafeAvatarUrl(raw.avatar, uid),
   };
+}
+
+/* Profile pictures for account messages. History rows only carry user_id, so
+   avatars are resolved from troll_profiles in one batched lookup and cached. */
+const tcAvatarCache = new Map(); // user_id → avatar_url | null
+
+function tcAvatarFor(message) {
+  return message.avatar || (message.uid ? tcAvatarCache.get(message.uid) : null) || null;
+}
+
+async function tcResolveAvatars() {
+  if (!isSupabaseConfigured()) return;
+  const missing = Array.from(new Set(
+    trollChat.messages
+      .filter(m => m.uid && !m.avatar && !tcAvatarCache.has(m.uid))
+      .map(m => m.uid)
+  ));
+  if (!missing.length) return;
+  missing.forEach(uid => tcAvatarCache.set(uid, null)); // no repeat lookups
+  try {
+    const qs = new URLSearchParams({
+      select: 'id,avatar_url',
+      id: `in.(${missing.join(',')})`,
+    });
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/troll_profiles?${qs.toString()}`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+    });
+    if (!response.ok) return;
+    const rows = await response.json();
+    let found = false;
+    (Array.isArray(rows) ? rows : []).forEach(row => {
+      if (row?.id && row.avatar_url) { tcAvatarCache.set(row.id, String(row.avatar_url)); found = true; }
+    });
+    if (found) tcRenderFeed();
+  } catch {}
 }
 
 function tcRenderFeed() {
@@ -7862,6 +7962,14 @@ function tcRenderFeed() {
     const avatar = document.createElement('span');
     avatar.className = 'live-chat-avatar';
     avatar.setAttribute('aria-hidden', 'true');
+    const avatarUrl = tcAvatarFor(message);
+    if (avatarUrl) {
+      const img = document.createElement('img');
+      img.src = avatarUrl;
+      img.alt = '';
+      img.loading = 'lazy';
+      avatar.appendChild(img);
+    }
 
     const body = document.createElement('div');
     const head = document.createElement('div');
@@ -7908,6 +8016,7 @@ function tcAddMessage(raw, options = {}) {
     tcRenderFeed();
     tcRenderTyping();
   }
+  if (message.uid && !message.avatar) void tcResolveAvatars();
   tcSaveCache();
   return true;
 }
@@ -7958,7 +8067,7 @@ async function tcFetchHistory() {
   if (!isSupabaseConfigured()) { trollChat.persistOk = false; return; }
   try {
     const qs = new URLSearchParams({
-      select: 'id,name,body,created_at',
+      select: 'id,name,body,created_at,user_id',
       order: 'created_at.desc',
       limit: String(TC_HISTORY),
     });
@@ -7973,6 +8082,7 @@ async function tcFetchHistory() {
     if (Array.isArray(rows)) {
       rows.reverse().forEach(row => tcAddMessage(row, { silent: true }));
       tcRenderFeed();
+      void tcResolveAvatars();
     }
     trollChat.persistOk = true;
     tcUpdateNote();
@@ -8041,6 +8151,10 @@ function tcAccount() {
 function tcApplyAccountIdentity() {
   const nameInput = document.getElementById('tc-name');
   const account = tcAccount();
+  if (account?.userId) {
+    tcAvatarCache.set(account.userId, account.avatarUrl || null);
+    tcRenderFeed();
+  }
   if (account) {
     trollChat.name = String(account.username).slice(0, 24);
     if (nameInput) {
@@ -8077,6 +8191,10 @@ async function tcSend(text) {
     text: trimmed.slice(0, TC_MSG_MAX),
     ts: new Date(now).toISOString(),
   };
+  if (account) {
+    message.uid = account.userId;
+    if (account.avatarUrl) message.avatar = account.avatarUrl;
+  }
   tcAddMessage(message);
   if (trollChat.channel && trollChat.subscribed) {
     trollChat.channel.send({ type: 'broadcast', event: 'msg', payload: message });

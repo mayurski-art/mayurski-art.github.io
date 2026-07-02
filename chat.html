@@ -120,7 +120,8 @@
     .msg.is-me .author { color: var(--tc-pink); }
     .avatar { width: 26px; height: 26px; flex: none; border: 2px solid var(--tc-line); border-radius: 3px;
       background-color: #fff; background-image: url('assets/animations/troll-computer-transparent.png'); background-size: 130%; background-position: center 60%; background-repeat: no-repeat;
-      image-rendering: pixelated; box-shadow: 2px 2px 0 rgba(16,32,26,0.35); }
+      image-rendering: pixelated; box-shadow: 2px 2px 0 rgba(16,32,26,0.35); overflow: hidden; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: auto; }
     .name-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; line-height: 1; }
     .author { font-family: var(--tc-pixel); font-size: 8px; color: #0f6b3c; word-break: break-word; }
     .time { font-size: 13px; color: rgba(20,53,36,0.55); }
@@ -250,12 +251,56 @@
     function saveCache() { try { localStorage.setItem(TC_CACHE_KEY, JSON.stringify(state.messages.slice(-TC_HISTORY))); } catch {} }
     function fmtTime(v) { const d = v ? new Date(v) : new Date(); return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
 
+    // Account user_ids are UUIDs; anything else in a broadcast payload is junk.
+    function safeUid(value) {
+      const uid = String(value || '').trim();
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid) ? uid : null;
+    }
+
+    // Broadcast payloads are unauthenticated, so an avatar URL is only trusted
+    // when it points into the sender's own folder of the public avatars bucket.
+    function safeAvatarUrl(url, uid) {
+      if (!url || !uid) return null;
+      const prefix = SUPABASE_URL + '/storage/v1/object/public/avatars/' + uid + '/';
+      return String(url).indexOf(prefix) === 0 ? String(url) : null;
+    }
+
     function normalize(raw) {
       if (!raw || typeof raw !== 'object') return null;
       const id = String(raw.id || '').trim();
       const text = String(raw.text != null ? raw.text : raw.body || '').trim().slice(0, TC_MSG_MAX);
       if (!id || !text) return null;
-      return { id, name: (String(raw.name || 'Guest').trim() || 'Guest').slice(0, 24), text, ts: String(raw.ts || raw.created_at || new Date().toISOString()) };
+      const uid = safeUid(raw.uid || raw.user_id);
+      return { id, name: (String(raw.name || 'Guest').trim() || 'Guest').slice(0, 24), text, ts: String(raw.ts || raw.created_at || new Date().toISOString()), uid, avatar: safeAvatarUrl(raw.avatar, uid) };
+    }
+
+    /* Profile pictures for account messages — resolved from troll_profiles
+       in one batched lookup and cached (history rows only carry user_id). */
+    const avatarCache = new Map(); // user_id → avatar_url | null
+
+    function avatarFor(m) {
+      return m.avatar || (m.uid ? avatarCache.get(m.uid) : null) || null;
+    }
+
+    async function resolveAvatars() {
+      const missing = Array.from(new Set(
+        state.messages.filter(m => m.uid && !m.avatar && !avatarCache.has(m.uid)).map(m => m.uid)
+      ));
+      if (!missing.length) return;
+      missing.forEach(uid => avatarCache.set(uid, null)); // no repeat lookups
+      try {
+        const qs = new URLSearchParams({ select: 'id,avatar_url', id: 'in.(' + missing.join(',') + ')' });
+        const res = await fetch(SUPABASE_URL + '/rest/v1/troll_profiles?' + qs.toString(), {
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+        });
+        if (!res.ok) return;
+        const rows = await res.json();
+        let found = false;
+        (Array.isArray(rows) ? rows : []).forEach(row => {
+          if (row && row.id && row.avatar_url) { avatarCache.set(row.id, String(row.avatar_url)); found = true; }
+        });
+        if (found) renderFeed();
+      } catch {}
     }
 
     function renderFeed() {
@@ -270,6 +315,8 @@
       state.messages.forEach(m => {
         const row = document.createElement('article'); row.className = 'msg'; if (m.name === state.name) row.classList.add('is-me');
         const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.setAttribute('aria-hidden', 'true');
+        const avatarUrl = avatarFor(m);
+        if (avatarUrl) { const av = document.createElement('img'); av.src = avatarUrl; av.alt = ''; av.loading = 'lazy'; avatar.appendChild(av); }
         const body = document.createElement('div');
         const head = document.createElement('div'); head.className = 'name-row';
         const name = document.createElement('span'); name.className = 'author'; name.textContent = m.name; if (m.name !== state.name) name.style.color = nameColor(m.name);
@@ -289,6 +336,7 @@
       if (state.messages.length > TC_KEEP) { state.messages = state.messages.slice(-TC_KEEP); state.seen = new Set(state.messages.map(x => x.id)); }
       if (m.name) state.typingPeers.forEach((v, k) => { if (v.name === m.name) state.typingPeers.delete(k); });
       if (!opts.silent) { renderFeed(); renderTyping(); }
+      if (m.uid && !m.avatar) resolveAvatars();
       saveCache(); return true;
     }
 
@@ -314,11 +362,11 @@
 
     async function fetchHistory() {
       try {
-        const qs = new URLSearchParams({ select: 'id,name,body,created_at', order: 'created_at.desc', limit: String(TC_HISTORY) });
+        const qs = new URLSearchParams({ select: 'id,name,body,created_at,user_id', order: 'created_at.desc', limit: String(TC_HISTORY) });
         const res = await fetch(SUPABASE_URL + '/rest/v1/' + TC_TABLE + '?' + qs.toString(), { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
         if (!res.ok) { state.persistOk = false; updateNote(); return; }
         const rows = await res.json();
-        if (Array.isArray(rows)) { rows.reverse().forEach(r => addMessage(r, { silent: true })); renderFeed(); }
+        if (Array.isArray(rows)) { rows.reverse().forEach(r => addMessage(r, { silent: true })); renderFeed(); resolveAvatars(); }
         state.persistOk = true; updateNote();
       } catch { state.persistOk = false; updateNote(); }
     }
