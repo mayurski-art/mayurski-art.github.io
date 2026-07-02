@@ -4017,7 +4017,11 @@ body.desktop-mode .troll-desktop { display: block; }
   transition: box-shadow 0.15s ease, transform 0.1s ease; }
 .td-icon:hover .td-icon-img, .td-icon:focus-visible .td-icon-img {
   box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(160, 255, 190, 0.35), inset 0 0 0 1px rgba(77, 255, 115, 0.45), 0 0 14px rgba(77, 255, 115, 0.3); }
-.td-icon-img img { width: 38px; height: 38px; object-fit: contain; }
+.td-icon-img img { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.5)); }
+/* Art with its own baked-in border/box (the Hub icon) skips the bezel chrome. */
+.td-icon-img--flat { background: none; border-color: transparent; box-shadow: none; }
+.td-icon:hover .td-icon-img--flat, .td-icon:focus-visible .td-icon-img--flat { box-shadow: 0 0 14px rgba(77, 255, 115, 0.35); }
+.td-icon-img--flat img { width: 100%; height: 100%; filter: drop-shadow(2px 3px 1px rgba(0, 0, 0, 0.45)); }
 .td-icon-label { font-size: 15px; line-height: 1.15; text-align: center; letter-spacing: 0.02em;
   text-shadow: 1px 1px 0 #000, 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.9); }
 .td-icon--ext .td-icon-label::after { content: ' ↗'; font-size: 11px; color: #93a8c4; }
@@ -4188,6 +4192,8 @@ body.desktop-mode .troll-desktop { display: block; }
 .hub-card > span:first-child > span:nth-child(2) { flex: 1; min-width: 0; }
 .hub-card-icon { font-size: 35px; flex: none; line-height: 1;
   filter: drop-shadow(0 0 9px color-mix(in srgb, var(--hc) 65%, transparent)) drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5)); }
+.hub-card-icon img { width: 38px; height: 38px; object-fit: contain; display: block;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--hc) 60%, transparent)) drop-shadow(2px 2px 1px rgba(0, 0, 0, 0.5)); }
 .hub-card h3 { margin: 0 0 4px; font-family: var(--disp); font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hc);
   text-shadow: 0 0 9px color-mix(in srgb, var(--hc) 55%, transparent); }
 .hub-card p { margin: 0; font-family: var(--pixel); font-size: 16px; line-height: 1.25; color: #9fb0cc; }
@@ -5144,23 +5150,23 @@ function initializeGateAccountUI() {
    because the DOM nodes survive the move.
    =================================================================== */
 const TD_SITES = [
-  { label: 'Games', icon: '🕹️', href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.' },
-  { label: 'Finances', icon: '🪙', href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
-  { label: 'Garden', icon: '🪴', href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.' },
-  { label: 'Blog / Nutrition', icon: '🍎', href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.' },
-  { label: 'Stickers / Shop', icon: '🏷️', href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
-  { label: 'Videos', icon: '📼', href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
-  { label: 'Projects / Community', icon: '🛠️', href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.' },
+  { label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.' },
+  { label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
+  { label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.' },
+  { label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.' },
+  { label: 'Stickers / Shop', icon: '🏷️', img: 'assets/images/icons/stickers.png', href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
+  { label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
+  { label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.' },
 ];
 
 const TD_WINDOWS = {
-  hub: { title: 'TrollRunner Hub', icon: '🧌', width: 980, browser: true, url: 'https://www.trollrunner.net', build: tdBuildHub },
-  chat: { title: 'TrollChat', icon: '💬', width: 540, source: '#trollchat' },
+  hub: { title: 'TrollRunner Hub', icon: '🧌', img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: true, url: 'https://www.trollrunner.net', build: tdBuildHub },
+  chat: { title: 'TrollChat', icon: '💬', img: 'assets/images/icons/trollchat.png', width: 540, source: '#trollchat' },
   cam: { title: 'Live Cam', icon: '📹', width: 620, source: '#bio-artwork' },
   updates: { title: 'Latest Updates', icon: '📰', width: 620, source: '#updates' },
   feedback: { title: 'Feedback', icon: '⌨️', width: 660, source: '#feedback' },
   about: { title: 'About TrollRunner', icon: 'ℹ️', width: 720, source: 'footer .footer-inner' },
-  recycle: { title: 'Recycle Bin', icon: '🗑️', width: 420, build: tdBuildRecycle },
+  recycle: { title: 'Recycle Bin', icon: '🗑️', img: 'assets/images/icons/recycle.png', width: 420, build: tdBuildRecycle },
 };
 
 const tdState = { init: false, booted: false, z: 20, cascade: 0, windows: new Map() };
@@ -5228,10 +5234,18 @@ function tdBuildHub(body) {
   mainWrap.appendChild(deco);
   const grid = document.createElement('div');
   grid.className = 'hub-grid';
-  const mkCard = (icon, title, desc, color) => {
+  const mkCard = (icon, img, title, desc) => {
     const inner = document.createElement('span');
     inner.innerHTML = `<span class="hub-card-icon" aria-hidden="true"></span><span><h3></h3><p></p></span><span class="hub-card-arrow" aria-hidden="true">›</span>`;
-    inner.querySelector('.hub-card-icon').textContent = icon;
+    const iconBox = inner.querySelector('.hub-card-icon');
+    if (img) {
+      const el = document.createElement('img');
+      el.src = img;
+      el.alt = '';
+      iconBox.appendChild(el);
+    } else {
+      iconBox.textContent = icon;
+    }
     inner.querySelector('h3').textContent = title;
     inner.querySelector('p').textContent = desc;
     return inner;
@@ -5244,14 +5258,14 @@ function tdBuildHub(body) {
     card.target = '_blank';
     card.rel = 'noopener noreferrer';
     card.style.setProperty('--hc', site.color);
-    card.appendChild(mkCard(site.icon, site.label, site.desc, site.color));
+    card.appendChild(mkCard(site.icon, site.img, site.label, site.desc));
     cards.push(card);
   });
   const chatCard = document.createElement('button');
   chatCard.type = 'button';
   chatCard.className = 'hub-card';
   chatCard.style.setProperty('--hc', '#3ddad7');
-  chatCard.appendChild(mkCard('💬', 'TrollChat', 'Chat anonymously. Trade lies, troll lore.', '#3ddad7'));
+  chatCard.appendChild(mkCard('💬', TD_WINDOWS.chat.img, 'TrollChat', 'Chat anonymously. Trade lies, troll lore.'));
   chatCard.addEventListener('click', () => twOpen('chat'));
   cards.splice(3, 0, chatCard);
   cards.forEach(card => grid.appendChild(card));
@@ -5430,7 +5444,7 @@ function twCreate(id) {
   tdMakeDraggable(id);
 }
 
-function tdAddIcon(host, { icon, label, ext }, onOpen, href) {
+function tdAddIcon(host, { icon, img, flat, label, ext }, onOpen, href) {
   const node = href ? document.createElement('a') : document.createElement('button');
   node.className = `td-icon${ext ? ' td-icon--ext' : ''}`;
   if (href) {
@@ -5442,7 +5456,16 @@ function tdAddIcon(host, { icon, label, ext }, onOpen, href) {
     node.addEventListener('click', onOpen);
   }
   node.innerHTML = '<span class="td-icon-img" aria-hidden="true"></span><span class="td-icon-label"></span>';
-  node.querySelector('.td-icon-img').textContent = icon;
+  const imgBox = node.querySelector('.td-icon-img');
+  if (img) {
+    if (flat) imgBox.classList.add('td-icon-img--flat');
+    const el = document.createElement('img');
+    el.src = img;
+    el.alt = '';
+    imgBox.appendChild(el);
+  } else {
+    imgBox.textContent = icon;
+  }
   node.querySelector('.td-icon-label').textContent = label;
   host.appendChild(node);
 }
@@ -5574,15 +5597,15 @@ function initializeTrollDesktop() {
 
   const icons = document.getElementById('td-icons');
   if (icons) {
-    tdAddIcon(icons, { icon: TD_WINDOWS.hub.icon, label: 'TrollRunner Hub' }, () => twOpen('hub'));
-    TD_SITES.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, label: site.label, ext: true }, null, site.href));
-    tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, label: 'TrollChat' }, () => twOpen('chat'));
-    TD_SITES.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, label: site.label, ext: true }, null, site.href));
+    tdAddIcon(icons, { icon: TD_WINDOWS.hub.icon, img: TD_WINDOWS.hub.img, flat: TD_WINDOWS.hub.flat, label: 'TrollRunner Hub' }, () => twOpen('hub'));
+    TD_SITES.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, label: site.label, ext: true }, null, site.href));
+    tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, label: 'TrollChat' }, () => twOpen('chat'));
+    TD_SITES.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, label: site.label, ext: true }, null, site.href));
     tdAddIcon(icons, { icon: TD_WINDOWS.cam.icon, label: 'Live Cam' }, () => twOpen('cam'));
     tdAddIcon(icons, { icon: TD_WINDOWS.updates.icon, label: 'Updates' }, () => twOpen('updates'));
     tdAddIcon(icons, { icon: TD_WINDOWS.feedback.icon, label: 'Feedback' }, () => twOpen('feedback'));
     tdAddIcon(icons, { icon: '👤', label: 'Account' }, tdOpenAccount);
-    tdAddIcon(icons, { icon: TD_WINDOWS.recycle.icon, label: 'Recycle Bin' }, () => twOpen('recycle'));
+    tdAddIcon(icons, { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, label: 'Recycle Bin' }, () => twOpen('recycle'));
   }
 
   tdBuildStartMenu();
