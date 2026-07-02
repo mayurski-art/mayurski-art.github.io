@@ -3746,6 +3746,89 @@ footer a:hover { color: #fff; }
 .gate-save-btn:active, .gate-action-btn:active { transform: translateY(2px); }
 .gate-lock-label { font-family: var(--disp) !important; letter-spacing: 0.04em; }
 
+/* ---- Gate: account portal (login / register / logged-in) ---- */
+.gate-account-card--portal [hidden] { display: none !important; }
+.gate-account-card--portal {
+  padding: 14px !important;
+  min-height: 0;
+  background: linear-gradient(160deg, rgba(16,22,20,0.92), rgba(10,12,13,0.94)) !important;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.5), inset 0 0 0 1px rgba(77,255,115,0.14), inset 0 0 26px rgba(77,255,115,0.05) !important;
+}
+.gate-account-card--portal::before { display: none; }
+.gate-account-card--portal .gate-card-troll-youngster-wrap {
+  top: -2px; right: 8px; bottom: auto;
+  width: 34px; height: 54px;
+}
+.gate-account-card--portal .gate-card-troll-youngster { width: 32px; }
+.gate-auth-panel { display: grid; gap: 12px; }
+.gate-auth-tabs {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border: 2px solid #000; border-radius: 6px; overflow: hidden;
+  background: #0c100e; box-shadow: inset 2px 2px 0 rgba(0,0,0,0.4);
+  margin-right: 44px;
+}
+.gate-auth-tab {
+  font-family: var(--disp); font-size: 15px; letter-spacing: 0.05em;
+  color: #93a89a; background: transparent; border: 0; padding: 9px 6px;
+  cursor: pointer; text-transform: uppercase;
+}
+.gate-auth-tab + .gate-auth-tab { border-left: 2px solid #000; }
+.gate-auth-tab:hover { color: #cfe9cf; }
+.gate-auth-tab.is-active {
+  color: #08110a;
+  background: linear-gradient(180deg, #c6ffd6, #4dff73 48%, #1ec94f);
+}
+.gate-auth-tab:focus-visible { outline: 2px solid var(--n-gold); outline-offset: -3px; }
+.gate-field-group { display: grid; gap: 4px; }
+.gate-field-label {
+  font-family: var(--pixel); font-size: 15px; line-height: 1.2;
+  color: #cfe9cf; letter-spacing: 0.02em;
+}
+.gate-field-optional { color: #7d8f83; }
+.gate-auth-submit { margin-top: 2px; }
+.gate-auth-submit[disabled] { opacity: 0.62; cursor: progress; }
+.gate-auth-swap {
+  justify-self: center; border: 0; background: none; cursor: pointer;
+  font-family: var(--pixel); font-size: 14px; color: #8cffbf;
+  text-decoration: underline; text-underline-offset: 3px; padding: 2px 4px;
+}
+.gate-auth-swap:hover { color: #c6ffd6; }
+.gate-auth-swap:focus-visible { outline: 2px solid var(--n-gold); outline-offset: 2px; }
+.gate-account-msg {
+  margin: 0; padding: 8px 10px;
+  font-family: var(--pixel); font-size: 15px; line-height: 1.4;
+  border: 2px solid #000; border-left-width: 6px; border-radius: 4px;
+  background: rgba(0,0,0,0.35); color: #cfe9cf;
+}
+.gate-account-msg--error { border-left-color: #ff2d6f; color: #ff9ab6; }
+.gate-account-msg--success { border-left-color: #4dff73; color: #8cffbf; }
+.gate-account-msg--info { border-left-color: var(--n-gold); color: #ffe9a8; }
+.gate-profile-panel { display: grid; gap: 12px; }
+.gate-profile-row { display: flex; align-items: center; gap: 12px; }
+.gate-profile-avatar {
+  display: grid; place-items: center; width: 48px; height: 48px;
+  font-size: 26px; line-height: 1; flex: none;
+  border: 2px solid #000; border-radius: 6px;
+  background: linear-gradient(180deg, #17231b, #0c100e);
+  box-shadow: inset 0 0 0 1px rgba(77,255,115,0.24), 2px 2px 0 rgba(0,0,0,0.45);
+}
+.gate-profile-meta { display: grid; gap: 3px; min-width: 0; }
+.gate-profile-name {
+  font-family: var(--disp); font-size: 19px; color: var(--n-ink, #fff);
+  letter-spacing: 0.03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gate-profile-level {
+  justify-self: start; font-family: var(--pixel); font-size: 13px;
+  color: #08110a; background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521);
+  border: 2px solid #000; border-radius: 4px; padding: 1px 7px;
+}
+.gate-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.gate-action-btn--ghost {
+  background: linear-gradient(180deg, #222a25, #141a16) !important;
+  color: #cfe9cf !important;
+  box-shadow: 0 3px 0 #000, 3px 5px 0 rgba(0,0,0,0.4) !important;
+}
+
 @media (max-width: 760px) {
   .site-gate { align-items: flex-start; box-sizing: border-box; overflow-x: hidden; overflow-y: auto; padding: 10px !important; }
   .site-gate-shell { width: 100%; }
@@ -3803,28 +3886,69 @@ footer a:hover { color: #fff; }
         <h2>Account Access</h2>
         <p class="gate-section-copy">Become part of a community that wishes to see troll RUN to billions.</p>
       </div>
-      <div class="gate-account-stack">
-        <section class="gate-account-card gate-account-card--register" aria-labelledby="gate-register-title">
-          <span class="gate-card-troll gate-card-troll-monopoly-wrap" aria-hidden="true">
-            <span class="gate-card-troll-monopoly"></span>
-          </span>
-          <h3 id="gate-register-title">Create Account</h3>
-          <div class="gate-action-row">
-            <button class="gate-action-btn" type="button" data-gate-focus="gate-login-name">Register</button>
+      <section id="gate-account" class="gate-account-card gate-account-card--portal" aria-label="Account portal" data-account-state="logged-out">
+        <span class="gate-card-troll gate-card-troll-youngster-wrap" aria-hidden="true">
+          <span class="gate-card-troll-youngster"></span>
+        </span>
+
+        <div id="gate-auth-panel" class="gate-auth-panel">
+          <div class="gate-auth-tabs" role="tablist" aria-label="Login or create account">
+            <button id="gate-tab-login" class="gate-auth-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="site-gate-login-form">Login</button>
+            <button id="gate-tab-register" class="gate-auth-tab" type="button" role="tab" aria-selected="false" aria-controls="site-gate-register-form">Create Account</button>
           </div>
-        </section>
-        <section class="gate-account-card gate-account-card--login" aria-labelledby="gate-login-title">
-          <span class="gate-card-troll gate-card-troll-youngster-wrap" aria-hidden="true">
-            <span class="gate-card-troll-youngster"></span>
-          </span>
-          <h3 id="gate-login-title">Login</h3>
-          <form id="site-gate-login-form" class="gate-form" autocomplete="off">
-            <input id="gate-login-name" class="gate-field" type="text" placeholder="Username or handle" autocomplete="off" autocapitalize="none" spellcheck="false">
-            <input id="gate-login-pass" class="gate-field" type="password" placeholder="Account password" autocomplete="current-password">
-            <button class="gate-save-btn" type="submit">Login</button>
+
+          <form id="site-gate-login-form" class="gate-form" role="tabpanel" aria-labelledby="gate-tab-login" autocomplete="off" novalidate>
+            <div class="gate-field-group">
+              <label class="gate-field-label" for="gate-login-name">Username or email</label>
+              <input id="gate-login-name" class="gate-field" type="text" placeholder="troll_runner" autocomplete="off" autocapitalize="none" spellcheck="false">
+            </div>
+            <div class="gate-field-group">
+              <label class="gate-field-label" for="gate-login-pass">Password</label>
+              <input id="gate-login-pass" class="gate-field" type="password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <button id="gate-login-submit" class="gate-save-btn gate-auth-submit" type="submit">Login</button>
+            <button class="gate-auth-swap" type="button" data-gate-mode="register">New here? Create an account</button>
           </form>
-        </section>
-      </div>
+
+          <form id="site-gate-register-form" class="gate-form" role="tabpanel" aria-labelledby="gate-tab-register" autocomplete="off" novalidate hidden>
+            <div class="gate-field-group">
+              <label class="gate-field-label" for="gate-register-name">Username or handle</label>
+              <input id="gate-register-name" class="gate-field" type="text" placeholder="troll_runner" autocomplete="off" autocapitalize="none" spellcheck="false">
+            </div>
+            <div class="gate-field-group">
+              <label class="gate-field-label" for="gate-register-email">Email <span class="gate-field-optional">(optional)</span></label>
+              <input id="gate-register-email" class="gate-field" type="email" placeholder="you@trollrunner.net" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="gate-field-group">
+              <label class="gate-field-label" for="gate-register-pass">Password</label>
+              <input id="gate-register-pass" class="gate-field" type="password" placeholder="8+ characters" autocomplete="new-password">
+            </div>
+            <div class="gate-field-group">
+              <label class="gate-field-label" for="gate-register-pass2">Confirm password</label>
+              <input id="gate-register-pass2" class="gate-field" type="password" placeholder="Same password again" autocomplete="new-password">
+            </div>
+            <button id="gate-register-submit" class="gate-save-btn gate-auth-submit" type="submit">Create Account</button>
+            <button class="gate-auth-swap" type="button" data-gate-mode="login">Already have an account? Login</button>
+          </form>
+        </div>
+
+        <div id="gate-profile-panel" class="gate-profile-panel" hidden>
+          <div class="gate-profile-row">
+            <span id="gate-profile-avatar" class="gate-profile-avatar" aria-hidden="true">🧌</span>
+            <div class="gate-profile-meta">
+              <span id="gate-profile-name" class="gate-profile-name">runner</span>
+              <span id="gate-profile-level" class="gate-profile-level">LV 1</span>
+            </div>
+          </div>
+          <div class="gate-profile-actions">
+            <button id="gate-profile-btn" class="gate-action-btn" type="button">Profile</button>
+            <button id="gate-settings-btn" class="gate-action-btn" type="button">Settings</button>
+            <button id="gate-logout-btn" class="gate-action-btn gate-action-btn--ghost" type="button">Logout</button>
+          </div>
+        </div>
+
+        <p id="gate-account-msg" class="gate-account-msg" role="status" aria-live="polite" hidden></p>
+      </section>
 
       <section class="gate-lock-panel" aria-labelledby="gate-lock-title">
         <div class="gate-lock-head">
@@ -4064,6 +4188,7 @@ footer a:hover { color: #fff; }
 <script src="assets/js/site-lock.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/admin-auth.js"></script>
+<script src="assets/js/troll-accounts.js"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
@@ -4276,11 +4401,6 @@ function updateGateLockToggleVisibility() {
   if (passInput) passInput.hidden = gateLockAdminVerified;
 }
 
-function markSiteGateLoginSubmitted() {
-  clearSiteGateProfile();
-  markSiteGateSeen();
-}
-
 function hydrateSiteGateFields() {
   const name = document.getElementById('gate-login-name');
   clearSiteGateProfile();
@@ -4416,10 +4536,181 @@ function dismissSiteGate() {
   return true;
 }
 
+// Account portal UI. Real auth plugs in later via window.TrollrunnerAccounts:
+// { getSession(), login({identifier, password}), register({username, email, password}),
+//   logout(), openProfile?(), openSettings?() } — login/register resolve to a session
+// ({ username, level?, avatar? }) or throw with a user-readable message.
+function initializeGateAccountUI() {
+  const card = document.getElementById('gate-account');
+  if (!card) return;
+  const authPanel = document.getElementById('gate-auth-panel');
+  const profilePanel = document.getElementById('gate-profile-panel');
+  const msgNode = document.getElementById('gate-account-msg');
+  const tabs = {
+    login: document.getElementById('gate-tab-login'),
+    register: document.getElementById('gate-tab-register'),
+  };
+  const forms = {
+    login: document.getElementById('site-gate-login-form'),
+    register: document.getElementById('site-gate-register-form'),
+  };
+  const submits = {
+    login: document.getElementById('gate-login-submit'),
+    register: document.getElementById('gate-register-submit'),
+  };
+  const profileName = document.getElementById('gate-profile-name');
+  const profileLevel = document.getElementById('gate-profile-level');
+  const profileAvatar = document.getElementById('gate-profile-avatar');
+  const getBackend = () => window.TrollrunnerAccounts || null;
+  let accountBusy = false;
+
+  const setMessage = (text, kind = 'info') => {
+    if (!msgNode) return;
+    msgNode.hidden = !text;
+    msgNode.textContent = text || '';
+    msgNode.className = text ? `gate-account-msg gate-account-msg--${kind}` : 'gate-account-msg';
+  };
+
+  const setMode = (mode, focusFirst = false) => {
+    ['login', 'register'].forEach(key => {
+      const active = key === mode;
+      tabs[key]?.classList.toggle('is-active', active);
+      tabs[key]?.setAttribute('aria-selected', active ? 'true' : 'false');
+      if (forms[key]) forms[key].hidden = !active;
+    });
+    setMessage('');
+    if (focusFirst) forms[mode]?.querySelector('input')?.focus?.();
+  };
+
+  const setBusy = next => {
+    accountBusy = next;
+    if (next) card.dataset.accountState = 'loading';
+    Object.values(submits).forEach(btn => { if (btn) btn.disabled = next; });
+  };
+
+  const renderSession = session => {
+    const username = session && typeof session === 'object'
+      ? String(session.username || session.handle || '').trim()
+      : '';
+    const loggedIn = Boolean(username);
+    card.dataset.accountState = loggedIn ? 'logged-in' : 'logged-out';
+    if (authPanel) authPanel.hidden = loggedIn;
+    if (profilePanel) profilePanel.hidden = !loggedIn;
+    if (!loggedIn) return;
+    if (profileName) profileName.textContent = username;
+    if (profileLevel) profileLevel.textContent = `LV ${Number(session.level) > 0 ? Number(session.level) : 1}`;
+    if (profileAvatar) {
+      if (session.avatarUrl) {
+        profileAvatar.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = String(session.avatarUrl);
+        img.alt = '';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:4px;';
+        profileAvatar.appendChild(img);
+      } else {
+        profileAvatar.textContent = String(session.avatar || '🧌');
+      }
+    }
+  };
+
+  const notifyBackendOffline = () => {
+    setMessage('Accounts are not live yet — this form is wired and waiting for the backend. Hit ▶ Press Enter to explore as a guest.', 'info');
+  };
+
+  tabs.login?.addEventListener('click', () => setMode('login'));
+  tabs.register?.addEventListener('click', () => setMode('register'));
+  card.querySelectorAll('[data-gate-mode]').forEach(btn => {
+    btn.addEventListener('click', () => setMode(btn.getAttribute('data-gate-mode'), true));
+  });
+
+  forms.login?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (accountBusy) return;
+    const identifier = String(document.getElementById('gate-login-name')?.value || '').trim();
+    const password = String(document.getElementById('gate-login-pass')?.value || '');
+    if (!identifier || !password) {
+      setMessage('Enter your username (or email) and password.', 'error');
+      return;
+    }
+    const backend = getBackend();
+    if (!backend?.login) { notifyBackendOffline(); return; }
+    setBusy(true);
+    setMessage('Logging in…', 'info');
+    try {
+      const session = await backend.login({ identifier, password });
+      renderSession(session);
+      setMessage(`Welcome back, ${session?.username || identifier}.`, 'success');
+      window.setTimeout(() => { dismissSiteGate(); }, 900);
+    } catch (error) {
+      card.dataset.accountState = 'logged-out';
+      setMessage(error?.message ? String(error.message) : 'Login failed. Check your details and try again.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  forms.register?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (accountBusy) return;
+    const username = String(document.getElementById('gate-register-name')?.value || '').trim();
+    const email = String(document.getElementById('gate-register-email')?.value || '').trim();
+    const password = String(document.getElementById('gate-register-pass')?.value || '');
+    const confirm = String(document.getElementById('gate-register-pass2')?.value || '');
+    if (username.length < 3) { setMessage('Pick a username with at least 3 characters.', 'error'); return; }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setMessage('That email does not look right. It is optional — leave it blank if you want.', 'error'); return; }
+    if (password.length < 8) { setMessage('Use a password with at least 8 characters.', 'error'); return; }
+    if (password !== confirm) { setMessage('Passwords do not match.', 'error'); return; }
+    const backend = getBackend();
+    if (!backend?.register) { notifyBackendOffline(); return; }
+    setBusy(true);
+    setMessage('Creating your account…', 'info');
+    try {
+      const session = await backend.register({ username, email: email || null, password });
+      if (session && (session.username || session.handle)) {
+        renderSession(session);
+        setMessage(`Account created. Welcome, ${session.username || session.handle}.`, 'success');
+        window.setTimeout(() => { dismissSiteGate(); }, 900);
+      } else {
+        setMode('login');
+        setMessage('Account created. Login with your new details.', 'success');
+      }
+    } catch (error) {
+      card.dataset.accountState = 'logged-out';
+      setMessage(error?.message ? String(error.message) : 'Could not create the account. Try again.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  document.getElementById('gate-logout-btn')?.addEventListener('click', async () => {
+    try { await getBackend()?.logout?.(); } catch {}
+    renderSession(null);
+    setMessage('Logged out. See you on the next run.', 'info');
+  });
+  document.getElementById('gate-profile-btn')?.addEventListener('click', () => {
+    const backend = getBackend();
+    if (backend?.openProfile) backend.openProfile();
+    else setMessage('Profile pages are on the roadmap — not wired up yet.', 'info');
+  });
+  document.getElementById('gate-settings-btn')?.addEventListener('click', () => {
+    const backend = getBackend();
+    if (backend?.openSettings) backend.openSettings();
+    else setMessage('Account settings are on the roadmap — not wired up yet.', 'info');
+  });
+
+  const backend = getBackend();
+  if (backend?.getSession) {
+    Promise.resolve()
+      .then(() => backend.getSession())
+      .then(session => { if (session) renderSession(session); })
+      .catch(() => {});
+  }
+  window.addEventListener('trollrunner:auth-changed', event => renderSession(event?.detail || null));
+}
+
 function initializeSiteGate() {
   hydrateSiteGateFields();
   const enterBtn = document.getElementById('site-gate-enter');
-  const form = document.getElementById('site-gate-login-form');
   const focusButtons = document.querySelectorAll('[data-gate-focus]');
   const passInput = document.getElementById('gate-login-pass');
   const lockPassInput = document.getElementById('gate-lock-pass');
@@ -4460,13 +4751,7 @@ function initializeSiteGate() {
     });
   });
 
-  if (form) {
-    form.addEventListener('submit', event => {
-      event.preventDefault();
-      markSiteGateLoginSubmitted();
-      tryEnter();
-    });
-  }
+  initializeGateAccountUI();
 
   const syncLockToggle = () => {
     updateGateLockToggleVisibility();
@@ -6792,22 +7077,27 @@ async function tcFetchHistory() {
 async function tcPersist(message) {
   if (!isSupabaseConfigured() || trollChat.persistOk === false) return;
   try {
+    const account = tcAccount();
+    const token = account ? await window.TrollrunnerAccounts?.getAccessToken?.() : null;
+    const row = {
+      id: message.id,
+      name: message.name,
+      body: message.text,
+      created_at: message.ts,
+    };
+    if (account && token) row.user_id = account.userId;
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${TC_TABLE}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${token || SUPABASE_ANON_KEY}`,
         Prefer: 'return=minimal',
       },
-      body: JSON.stringify([{
-        id: message.id,
-        name: message.name,
-        body: message.text,
-        created_at: message.ts,
-      }]),
+      body: JSON.stringify([row]),
     });
     const ok = response.ok || response.status === 409; // 409 = already saved
+    if (ok && account && token) void window.TrollrunnerAccounts?.awardXp?.('chat_post', 'trollchat');
     if (trollChat.persistOk !== ok) { trollChat.persistOk = ok; tcUpdateNote(); }
   } catch {
     if (trollChat.persistOk !== false) { trollChat.persistOk = false; tcUpdateNote(); }
@@ -6834,6 +7124,33 @@ function tcBroadcastTyping() {
   });
 }
 
+function tcAccount() {
+  return window.TrollrunnerAccounts?.getCachedProfile?.() || null;
+}
+
+// Logged-in visitors chat as their account: name comes from the profile and
+// the input locks (the backend RLS policy would reject a mismatch anyway).
+function tcApplyAccountIdentity() {
+  const nameInput = document.getElementById('tc-name');
+  const account = tcAccount();
+  if (account) {
+    trollChat.name = String(account.username).slice(0, 24);
+    if (nameInput) {
+      nameInput.value = trollChat.name;
+      nameInput.disabled = true;
+      nameInput.title = 'Chatting as your TrollRunner account';
+    }
+  } else if (nameInput && nameInput.disabled) {
+    nameInput.disabled = false;
+    nameInput.title = '';
+    trollChat.name = tcDefaultName();
+    nameInput.value = trollChat.name;
+  }
+  if (trollChat.channel && trollChat.subscribed) {
+    trollChat.channel.track({ id: trollChat.guestId, name: trollChat.name });
+  }
+}
+
 async function tcSend(text) {
   const trimmed = String(text || '').trim();
   if (!trimmed) return false;
@@ -6844,6 +7161,8 @@ async function tcSend(text) {
     return false;
   }
   trollChat.lastSendAt = now;
+  const account = tcAccount();
+  if (account) trollChat.name = String(account.username).slice(0, 24);
   const message = {
     id: window.crypto?.randomUUID ? window.crypto.randomUUID() : `${trollChat.guestId}-${now}-${Math.random().toString(16).slice(2)}`,
     name: trollChat.name,
@@ -6910,6 +7229,8 @@ function initializeTrollChat() {
   trollChat.guestId = tcGuestId();
   trollChat.name = tcDefaultName();
   nameInput.value = trollChat.name;
+  tcApplyAccountIdentity();
+  window.addEventListener('trollrunner:auth-changed', tcApplyAccountIdentity);
 
   // seed from local cache so returning visitors see recent chatter instantly
   tcLoadCache().forEach(item => tcAddMessage(item, { silent: true }));
