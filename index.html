@@ -4062,7 +4062,15 @@ body.desktop-mode .troll-desktop { display: block; }
   border-radius: 999px; color: #cfe2ff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5); }
 .tw-url .url::before { content: '🔍'; margin-right: 9px; font-size: 12px; opacity: 0.65; }
+.tw-url-ext { width: 26px; height: 24px; flex: none; display: grid; place-items: center; font-size: 12px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px;
+  color: #93a8c4; text-decoration: none; transition: background 0.15s ease, color 0.15s ease; }
+.tw-url-ext:hover, .tw-url-ext:focus-visible { outline: none; background: rgba(255, 255, 255, 0.16); color: #fff; }
 #tw-hub .tw-body { container-type: inline-size; }
+/* Iframe-backed subdomain windows (Games, Finances, ...) fill the whole
+   body edge-to-edge instead of using the padded content layout. */
+.tw-body--iframe { padding: 0; overflow: hidden; }
+.tw-body--iframe iframe { display: block; width: 100%; height: 100%; min-height: 60vh; border: 0; background: #fff; }
 .tw-body { flex: 1; overflow: auto; padding: 14px; position: relative;
   background:
     radial-gradient(circle at 84% 0%, rgba(98, 66, 224, 0.18), transparent 44%),
@@ -5150,13 +5158,13 @@ function initializeGateAccountUI() {
    because the DOM nodes survive the move.
    =================================================================== */
 const TD_SITES = [
-  { label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true, href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.' },
-  { label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
-  { label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.' },
-  { label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.' },
-  { label: 'Stickers / Shop', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
-  { label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
-  { label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.' },
+  { id: 'games', label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true, href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.' },
+  { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
+  { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.' },
+  { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.' },
+  { id: 'stickers', label: 'Stickers / Shop', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
+  { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
+  { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.' },
 ];
 
 const TD_WINDOWS = {
@@ -5167,6 +5175,23 @@ const TD_WINDOWS = {
   feedback: { title: 'Feedback', icon: '⌨️', width: 660, source: '#feedback' },
   about: { title: 'About TrollRunner', icon: 'ℹ️', width: 720, source: 'footer .footer-inner' },
   recycle: { title: 'Recycle Bin', icon: '🗑️', img: 'assets/images/icons/recycle.png', width: 420, build: tdBuildRecycle },
+};
+
+// Every subdomain site opens as its own in-page "browser" window (an iframe
+// inside the desktop chrome) instead of a new tab — the URL bar just shows
+// the subdomain like a real browser would, but the page never leaves this tab.
+TD_SITES.forEach(site => {
+  TD_WINDOWS[site.id] = {
+    title: site.label, icon: site.icon, img: site.img, flat: site.flat, width: 1040, browser: true,
+    url: site.href.replace(/^https?:\/\//, '').replace(/\/$/, ''),
+    iframeSrc: site.href,
+    build: body => tdBuildIframe(body, site.href, site.label),
+  };
+});
+TD_WINDOWS.nutrition = {
+  title: 'Nutrition', icon: '🥗', width: 1040, browser: true,
+  url: 'nutrition.trollrunner.net', iframeSrc: 'https://nutrition.trollrunner.net',
+  build: body => tdBuildIframe(body, 'https://nutrition.trollrunner.net', 'Nutrition'),
 };
 
 const tdState = { init: false, booted: false, z: 20, cascade: 0, windows: new Map() };
@@ -5206,6 +5231,18 @@ function tdBuildRecycle(body) {
   line.textContent = 'Empty. The trash talks itself out.';
   wrap.append(img, line);
   body.appendChild(wrap);
+}
+
+function tdBuildIframe(body, url, label) {
+  body.innerHTML = '';
+  body.classList.add('tw-body--iframe');
+  const frame = document.createElement('iframe');
+  frame.src = url;
+  frame.title = label;
+  frame.loading = 'lazy';
+  frame.referrerPolicy = 'strict-origin-when-cross-origin';
+  frame.setAttribute('allow', 'clipboard-write; fullscreen; autoplay');
+  body.appendChild(frame);
 }
 
 function tdBuildHub(body) {
@@ -5252,13 +5289,12 @@ function tdBuildHub(body) {
   };
   const cards = [];
   TD_SITES.forEach(site => {
-    const card = document.createElement('a');
+    const card = document.createElement('button');
+    card.type = 'button';
     card.className = 'hub-card';
-    card.href = site.href;
-    card.target = '_blank';
-    card.rel = 'noopener noreferrer';
     card.style.setProperty('--hc', site.color);
     card.appendChild(mkCard(site.icon, site.img, site.label, site.desc));
+    card.addEventListener('click', () => twOpen(site.id));
     cards.push(card);
   });
   const chatCard = document.createElement('button');
@@ -5324,6 +5360,12 @@ function twOpen(id) {
   const win = tdState.windows.get(id);
   if (!cfg || !win) return;
   tdCloseStartMenu();
+  // Iframe-backed site windows only fetch the remote page the first time
+  // they're opened, not eagerly for all subdomains at desktop boot.
+  if (cfg.iframeSrc && typeof cfg.build === 'function' && !win.built) {
+    cfg.build(win.el.querySelector('.tw-body'));
+    win.built = true;
+  }
   if (win.minimized) win.minimized = false;
   if (!win.el.classList.contains('is-open')) {
     win.el.classList.add('is-open');
@@ -5423,7 +5465,13 @@ function twCreate(id) {
       <button class="tw-btn tw-btn--max" type="button" aria-label="Maximize">▢</button>
       <button class="tw-btn tw-btn--close" type="button" aria-label="Close">✕</button>
     </div>
-    ${cfg.browser ? '<div class="tw-url" aria-hidden="true"><span>◀</span><span>▶</span><span>⌂</span><span class="url"></span><span>★</span></div>' : ''}
+    ${cfg.browser ? `<div class="tw-url">
+      <span aria-hidden="true">◀</span><span aria-hidden="true">▶</span><span aria-hidden="true">⌂</span>
+      <span class="url"></span>
+      ${cfg.iframeSrc
+        ? `<a class="tw-url-ext" href="${cfg.iframeSrc}" target="_blank" rel="noopener noreferrer" title="Open in a new tab" aria-label="Open ${cfg.title} in a new tab">↗</a>`
+        : '<span aria-hidden="true">★</span>'}
+    </div>` : ''}
     <div class="tw-body"></div>`;
   el.querySelector('.tw-title-icon').textContent = cfg.icon;
   el.querySelector('.tw-title').textContent = cfg.title;
@@ -5432,7 +5480,7 @@ function twCreate(id) {
   if (cfg.source) {
     const node = document.querySelector(cfg.source);
     if (node) body.appendChild(node);
-  } else if (typeof cfg.build === 'function') {
+  } else if (typeof cfg.build === 'function' && !cfg.iframeSrc) {
     cfg.build(body);
   }
   el.querySelector('.tw-btn--min').addEventListener('click', () => twMinimize(id));
@@ -5444,7 +5492,7 @@ function twCreate(id) {
   tdMakeDraggable(id);
 }
 
-function tdAddIcon(host, { icon, img, flat, label, ext }, onOpen, href) {
+function tdAddIcon(host, { icon, img, flat, label, ext, dblclick }, onOpen, href) {
   const node = href ? document.createElement('a') : document.createElement('button');
   node.className = `td-icon${ext ? ' td-icon--ext' : ''}`;
   if (href) {
@@ -5453,7 +5501,7 @@ function tdAddIcon(host, { icon, img, flat, label, ext }, onOpen, href) {
     node.rel = 'noopener noreferrer';
   } else {
     node.type = 'button';
-    node.addEventListener('click', onOpen);
+    node.addEventListener(dblclick ? 'dblclick' : 'click', onOpen);
   }
   node.innerHTML = '<span class="td-icon-img" aria-hidden="true"></span><span class="td-icon-label"></span>';
   const imgBox = node.querySelector('.td-icon-img');
@@ -5555,8 +5603,8 @@ function tdBuildStartMenu() {
   });
   addSep();
   addLabel('SITES');
-  TD_SITES.forEach(site => addItem(site.icon, site.label, null, site.href));
-  addItem('🥗', 'Nutrition', null, 'https://nutrition.trollrunner.net');
+  TD_SITES.forEach(site => addItem(site.icon, site.label, () => twOpen(site.id)));
+  addItem('🥗', 'Nutrition', () => twOpen('nutrition'));
   addSep();
   const liveStack = document.querySelector('.header-live-stack');
   if (liveStack) menu.appendChild(liveStack);
@@ -5597,10 +5645,10 @@ function initializeTrollDesktop() {
 
   const icons = document.getElementById('td-icons');
   if (icons) {
-    tdAddIcon(icons, { icon: TD_WINDOWS.hub.icon, img: TD_WINDOWS.hub.img, flat: TD_WINDOWS.hub.flat, label: 'TrollRunner Hub' }, () => twOpen('hub'));
-    TD_SITES.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, ext: true }, null, site.href));
+    tdAddIcon(icons, { icon: TD_WINDOWS.hub.icon, img: TD_WINDOWS.hub.img, flat: TD_WINDOWS.hub.flat, label: 'TrollRunner Hub', dblclick: true }, () => twOpen('hub'));
+    TD_SITES.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label }, () => twOpen(site.id)));
     tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: TD_WINDOWS.chat.flat, label: 'TrollChat' }, () => twOpen('chat'));
-    TD_SITES.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, ext: true }, null, site.href));
+    TD_SITES.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label }, () => twOpen(site.id)));
     tdAddIcon(icons, { icon: TD_WINDOWS.cam.icon, label: 'Live Cam' }, () => twOpen('cam'));
     tdAddIcon(icons, { icon: TD_WINDOWS.updates.icon, label: 'Updates' }, () => twOpen('updates'));
     tdAddIcon(icons, { icon: TD_WINDOWS.feedback.icon, label: 'Feedback' }, () => twOpen('feedback'));
@@ -5677,7 +5725,7 @@ function trollDesktopShow(boot) {
       desk.classList.add('is-booting');
       desk.addEventListener('animationend', () => desk.classList.remove('is-booting'), { once: true });
     }
-    twOpen('hub');
+    // Hub no longer auto-opens on boot — double-click its desktop icon.
   }
 }
 
