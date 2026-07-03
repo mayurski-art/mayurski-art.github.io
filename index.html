@@ -4034,6 +4034,7 @@ body.desktop-mode .troll-desktop { display: block; }
   box-shadow: 0 0 0 1px rgba(122, 92, 255, 0.4), 0 22px 55px rgba(0, 0, 0, 0.55), 14px 18px 0 rgba(0, 0, 0, 0.4); }
 .tw.is-open { display: flex; }
 .tw.is-focus { box-shadow: 0 0 0 1px rgba(148, 102, 255, 0.75), 0 0 30px rgba(122, 92, 255, 0.4), 0 22px 55px rgba(0, 0, 0, 0.55), 14px 18px 0 rgba(0, 0, 0, 0.4); }
+.tw.is-closing { transition: transform 140ms ease-in, opacity 140ms ease-in; transform: scale(0.85); opacity: 0; }
 .tw-titlebar { display: flex; align-items: center; gap: 9px; padding: 8px 9px 8px 13px; position: relative;
   cursor: grab; user-select: none; touch-action: none; color: #fff;
   background: linear-gradient(180deg, #6242e0, #3a2495 62%, #2c1a74); border-bottom: 2px solid #000;
@@ -4101,6 +4102,12 @@ body.desktop-mode .troll-desktop { display: block; }
 .td-task-btn:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07)); }
 .td-task-btn.is-active { background: linear-gradient(180deg, rgba(77, 255, 115, 0.32), rgba(77, 255, 115, 0.1)); color: #ecfff2;
   box-shadow: inset 0 1px 0 rgba(200, 255, 215, 0.35), inset 0 -2px 0 rgba(0, 60, 20, 0.4), 0 0 10px rgba(77, 255, 115, 0.25); }
+.td-close-all { display: none; align-items: center; gap: 6px; flex: 0 0 auto; padding: 0 12px; cursor: pointer;
+  font: inherit; font-size: 14px; color: #ffd9dc; white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255, 60, 80, 0.28), rgba(255, 60, 80, 0.1)); border: 2px solid #000; border-radius: 7px;
+  box-shadow: inset 0 1px 0 rgba(255, 200, 205, 0.3); }
+.td-close-all:hover { background: linear-gradient(180deg, rgba(255, 60, 80, 0.4), rgba(255, 60, 80, 0.16)); }
+.td-close-all.is-visible { display: flex; }
 .td-tray { display: flex; align-items: center; gap: 11px; padding-left: 12px;
   border-left: 1px solid rgba(180, 150, 255, 0.28); box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.5); }
 .td-music { width: 30px; height: 30px; align-self: center; display: grid; place-items: center; cursor: pointer;
@@ -4392,6 +4399,7 @@ body.desktop-mode .troll-desktop { display: block; }
   <div class="td-taskbar">
     <button id="td-start" class="td-start" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="td-startmenu">🧌 Start</button>
     <div id="td-task-btns" class="td-task-btns" role="tablist" aria-label="Open windows"></div>
+    <button id="td-close-all" class="td-close-all" type="button" aria-label="Close all open tabs">✕ Close all tabs</button>
     <div id="td-tray" class="td-tray">
       <button id="td-clock" class="td-clock" type="button" aria-label="Clock — click to switch 12/24 hour format"></button>
       <span class="td-online" title="Site is live">ONLINE</span>
@@ -5397,26 +5405,55 @@ function twClose(id) {
   win.minimized = false;
   win.taskBtn?.remove();
   win.taskBtn = null;
+  tdUpdateCloseAllBtn();
+}
+
+function twCloseAll() {
+  const openIds = [...tdState.windows.entries()]
+    .filter(([, win]) => win.el.classList.contains('is-open'))
+    .map(([id]) => id);
+  const STAGGER = 70;
+  openIds.forEach((id, i) => {
+    window.setTimeout(() => {
+      const win = tdState.windows.get(id);
+      if (!win || !win.el.classList.contains('is-open')) return;
+      win.el.classList.add('is-closing');
+      window.setTimeout(() => {
+        win.el.classList.remove('is-closing');
+        twClose(id);
+      }, 140);
+    }, i * STAGGER);
+  });
+}
+
+function tdUpdateCloseAllBtn() {
+  const btn = document.getElementById('td-close-all');
+  if (!btn) return;
+  const openCount = [...tdState.windows.values()].filter(win => win.el.classList.contains('is-open')).length;
+  btn.classList.toggle('is-visible', openCount > 3);
 }
 
 function tdEnsureTaskBtn(id) {
   const win = tdState.windows.get(id);
   const bar = document.getElementById('td-task-btns');
-  if (!win || !bar || win.taskBtn) return;
-  const cfg = TD_WINDOWS[id];
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'td-task-btn';
-  btn.innerHTML = '<span aria-hidden="true"></span><span></span>';
-  btn.firstChild.textContent = cfg.icon;
-  btn.lastChild.textContent = cfg.title;
-  btn.addEventListener('click', () => {
-    if (win.minimized || win.el.style.display === 'none') twOpen(id);
-    else if (win.el.classList.contains('is-focus')) twMinimize(id);
-    else twFocus(id);
-  });
-  bar.appendChild(btn);
-  win.taskBtn = btn;
+  if (!win || !bar) return;
+  if (!win.taskBtn) {
+    const cfg = TD_WINDOWS[id];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'td-task-btn';
+    btn.innerHTML = '<span aria-hidden="true"></span><span></span>';
+    btn.firstChild.textContent = cfg.icon;
+    btn.lastChild.textContent = cfg.title;
+    btn.addEventListener('click', () => {
+      if (win.minimized || win.el.style.display === 'none') twOpen(id);
+      else if (win.el.classList.contains('is-focus')) twMinimize(id);
+      else twFocus(id);
+    });
+    bar.appendChild(btn);
+    win.taskBtn = btn;
+  }
+  tdUpdateCloseAllBtn();
 }
 
 function tdMakeDraggable(id) {
@@ -5711,6 +5748,9 @@ function initializeTrollDesktop() {
 
   window.addEventListener('trollrunner:auth-changed', tdSyncAccountUI);
   tdSyncAccountUI();
+
+  const closeAllBtn = document.getElementById('td-close-all');
+  if (closeAllBtn) closeAllBtn.addEventListener('click', twCloseAll);
 }
 
 function trollDesktopShow(boot) {
