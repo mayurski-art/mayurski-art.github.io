@@ -5645,7 +5645,7 @@ function initializeTrollDesktop() {
 
   const icons = document.getElementById('td-icons');
   if (icons) {
-    tdAddIcon(icons, { icon: TD_WINDOWS.hub.icon, img: TD_WINDOWS.hub.img, flat: TD_WINDOWS.hub.flat, label: 'TrollRunner Hub', dblclick: true }, () => twOpen('hub'));
+    tdAddIcon(icons, { icon: TD_WINDOWS.hub.icon, img: TD_WINDOWS.hub.img, flat: TD_WINDOWS.hub.flat, label: 'TrollRunner Hub' }, () => twOpen('hub'));
     TD_SITES.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label }, () => twOpen(site.id)));
     tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: TD_WINDOWS.chat.flat, label: 'TrollChat' }, () => twOpen('chat'));
     TD_SITES.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label }, () => twOpen(site.id)));
@@ -5725,7 +5725,7 @@ function trollDesktopShow(boot) {
       desk.classList.add('is-booting');
       desk.addEventListener('animationend', () => desk.classList.remove('is-booting'), { once: true });
     }
-    // Hub no longer auto-opens on boot — double-click its desktop icon.
+    // Hub no longer auto-opens on boot — click its desktop icon.
   }
 }
 
