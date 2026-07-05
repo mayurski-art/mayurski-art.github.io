@@ -295,10 +295,18 @@
         notifs, queue,
       };
       const nextUpdates = updates.filter(u => !(u && u.id === NOTIS_META_ID)).concat([meta]);
-      const writeRes = await fetch(SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE, {
+      // Broadcasting an alert is an admin action (only ever triggered from
+      // admin.html), so this goes through the admin-gated RPC — see
+      // assets/supabase/troll_admin_lockdown.sql.
+      const adminHeaders = headers();
+      try {
+        const token = await window.TrollrunnerAdminAuth?.getAccessToken?.();
+        if (token) adminHeaders.Authorization = 'Bearer ' + token;
+      } catch {}
+      const writeRes = await fetch(SUPABASE_URL + '/rest/v1/rpc/troll_admin_replace_site_row', {
         method: 'POST',
-        headers: headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
-        body: JSON.stringify([{ id: SUPABASE_ROW_ID, updates: nextUpdates, updated_at: new Date().toISOString() }]),
+        headers: adminHeaders,
+        body: JSON.stringify({ p_updates: nextUpdates }),
       });
       return writeRes.ok;
     } catch { return false; }

@@ -5,64 +5,134 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Troll Runner Admin</title>
   <style>
+    :root {
+      --bg: #0b0c10;
+      --bg-grad: radial-gradient(1200px 600px at 15% -10%, rgba(0,122,255,0.10), transparent 60%),
+                 radial-gradient(1000px 500px at 100% 0%, rgba(88,86,214,0.10), transparent 55%);
+      --panel: #15161d;
+      --panel-raised: #1a1c25;
+      --border: rgba(255,255,255,0.09);
+      --border-strong: rgba(255,255,255,0.16);
+      --text: #f2f3f7;
+      --text-dim: rgba(237,238,245,0.66);
+      --text-faint: rgba(237,238,245,0.44);
+      --accent: #0a84ff;
+      --accent-dim: rgba(10,132,255,0.14);
+      --radius: 14px;
+      --radius-sm: 9px;
+      --shadow-card: 0 1px 0 rgba(255,255,255,0.03) inset, 0 12px 28px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #111218;
-      color: #fff;
+      background: var(--bg) var(--bg-grad);
+      background-attachment: fixed;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
     }
     .wrap {
       max-width: 1120px;
-      margin: 36px auto;
-      padding: 0 16px;
+      margin: 0 auto;
+      padding: 28px 16px 64px;
     }
     .hero-row {
+      position: sticky;
+      top: 0;
+      z-index: 20;
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       gap: 16px;
       flex-wrap: wrap;
+      margin: -28px -16px 22px;
+      padding: 18px 16px;
+      background: rgba(11,12,16,0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
     }
-    h1 { margin-bottom: 8px; }
-    p { color: rgba(255,255,255,0.7); }
+    .hero-row h1 {
+      font-size: 20px;
+      letter-spacing: -0.01em;
+    }
+    .hero-row .hero-sub {
+      margin: 2px 0 0;
+      font-size: 13px;
+      max-width: 560px;
+    }
+    .hero-row .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border-strong);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .hero-row .back-link:hover {
+      background: rgba(255,255,255,0.09);
+      border-color: rgba(255,255,255,0.28);
+    }
+    h1 { margin: 0 0 8px; font-weight: 700; }
+    h3 { font-size: 16px; letter-spacing: -0.005em; }
+    p { color: var(--text-dim); line-height: 1.5; }
     .card {
-      background: #1a1c24;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px;
-      padding: 14px;
-      margin-top: 14px;
+      background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+      padding: 18px;
+      margin-top: 16px;
     }
-    label { display: block; font-size: 13px; margin-bottom: 6px; color: rgba(255,255,255,0.8); }
+    label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.02em; }
     input, textarea {
       width: 100%;
       box-sizing: border-box;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: #12141a;
-      color: #fff;
-      padding: 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background: #0f1015;
+      color: var(--text);
+      padding: 10px 12px;
       font-size: 14px;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
     }
     textarea { min-height: 100px; resize: vertical; }
     .row { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     button {
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 10px;
-      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
       color: #fff;
-      background: #007aff;
+      background: var(--accent);
       cursor: pointer;
       font-weight: 600;
+      font-size: 13.5px;
+      transition: filter 0.15s ease, transform 0.05s ease;
     }
-    button.secondary { background: #2b2d36; }
-    button.success { background: #1f9d55; }
-    button.alert { background: #c4342b; }
+    button:hover { filter: brightness(1.12); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.55; cursor: progress; filter: none; }
+    button.secondary { background: #262832; }
+    button.success { background: #26a35a; }
+    button.alert { background: #d9433a; }
     button.danger { background: #b3261e; }
     .preview .item {
-      background: #12141a;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      padding: 10px;
+      background: #101116;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
       margin-top: 8px;
     }
     .preview .item p {
@@ -71,12 +141,12 @@
     .workspace {
       display: grid;
       grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
-      gap: 14px;
-      margin-top: 14px;
+      gap: 16px;
+      margin-top: 16px;
     }
     .editor-card {
       position: sticky;
-      top: 16px;
+      top: 88px;
       align-self: start;
     }
     .preview-pane {
@@ -107,13 +177,14 @@
     .summary-note {
       display: inline-flex;
       align-items: center;
-      min-height: 28px;
-      padding: 0 10px;
+      min-height: 26px;
+      padding: 0 11px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.14);
+      border: 1px solid var(--border-strong);
       background: rgba(255,255,255,0.05);
       color: rgba(255,255,255,0.82);
-      font-size: 12px;
+      font-size: 11.5px;
+      font-weight: 600;
       white-space: nowrap;
     }
     .preview-shell {
@@ -156,15 +227,35 @@
       gap: 12px;
       cursor: pointer;
       list-style: none;
+      padding: 2px 0;
+      border-radius: var(--radius-sm);
+      transition: opacity 0.15s ease;
     }
-    .collapsible summary::-webkit-details-marker {
-      display: none;
-    }
+    summary::-webkit-details-marker { display: none; }
+    summary::-moz-list-bullet { list-style-type: none; }
+    .collapsible summary:hover { opacity: 0.82; }
     .collapsible summary span:first-child {
       font-weight: 700;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .collapsible summary span:first-child::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid var(--text-dim);
+      border-bottom: 2px solid var(--text-dim);
+      transform: rotate(-45deg);
+      transition: transform 0.18s ease;
+      flex: none;
+    }
+    .collapsible[open] summary span:first-child::before {
+      transform: rotate(45deg);
     }
     .collapsible[open] summary {
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
     .collapsible-body {
       padding-top: 2px;
@@ -205,15 +296,16 @@
       margin-top: 10px;
     }
     .analytics-stat {
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      background: #12141a;
-      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #101116;
+      padding: 14px;
     }
     .analytics-stat strong {
       display: block;
       font-size: 26px;
       line-height: 1;
+      letter-spacing: -0.01em;
     }
     .analytics-stat span {
       display: block;
@@ -229,20 +321,26 @@
     }
     .analytics-table th,
     .analytics-table td {
-      padding: 9px 8px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border);
       text-align: left;
     }
+    .analytics-table tbody tr:hover {
+      background: rgba(255,255,255,0.03);
+    }
     .analytics-table th {
-      color: rgba(255,255,255,0.68);
+      color: rgba(255,255,255,0.6);
       font-weight: 700;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
     .analytics-chart-panel {
       margin-top: 12px;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      background: #12141a;
-      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #101116;
+      padding: 14px;
     }
     .analytics-chart-head {
       display: flex;
@@ -262,14 +360,14 @@
     }
     .analytics-range-controls button {
       min-height: 34px;
-      padding: 7px 10px;
+      padding: 7px 12px;
       border-radius: 999px;
-      background: #2b2d36;
+      background: #262832;
       font-size: 12px;
     }
     .analytics-range-controls button.is-active {
-      border-color: rgba(102,170,255,0.9);
-      background: #007aff;
+      border-color: rgba(10,132,255,0.9);
+      background: var(--accent);
     }
     .analytics-chart {
       display: grid;
@@ -331,8 +429,8 @@
       width: 100%;
       min-height: 2px;
       border-radius: inherit;
-      background: linear-gradient(180deg, #66aaff, #1f9d55);
-      box-shadow: 0 0 20px rgba(102,170,255,0.28);
+      background: linear-gradient(180deg, #4da3ff, #26a35a);
+      box-shadow: 0 0 20px rgba(77,163,255,0.28);
     }
     .analytics-bar-label {
       color: rgba(255,255,255,0.68);
@@ -348,11 +446,11 @@
     .accounts-toolbar input { flex: 1 1 220px; width: auto; }
     .accounts-toolbar select {
       flex: 0 0 auto;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: #12141a;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background: #0f1015;
       color: #fff;
-      padding: 10px;
+      padding: 10px 12px;
       font-size: 14px;
     }
     .accounts-table-scroll { overflow-x: auto; }
@@ -363,7 +461,7 @@
       object-fit: cover;
       display: inline-grid;
       place-items: center;
-      background: #2b2d36;
+      background: #262832;
       font-size: 16px;
       vertical-align: middle;
       margin-right: 8px;
@@ -393,12 +491,13 @@
       justify-content: center;
       gap: 8px;
       padding: 12px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: #12141a;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background: #101116;
       color: #fff;
       font-weight: 700;
       cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
     }
     .notis-seg-btn .glyph { font-size: 16px; line-height: 1; }
     .notis-seg-btn[aria-pressed="true"] { border-color: #66aaff; background: #16202e; }
@@ -414,7 +513,7 @@
       font-size: 14px;
       color: rgba(255,255,255,0.9);
     }
-    .notis-check input { width: auto; margin-top: 2px; flex: none; accent-color: #1f9d55; }
+    .notis-check input { width: auto; margin-top: 2px; flex: none; accent-color: #26a35a; }
     .notis-check small { display: block; color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 2px; }
     .notis-schedule { margin: 8px 0 0; min-height: 1.2em; font-size: 12.5px; color: #9fe6b0; }
     .notis-schedule:empty { display: none; }
@@ -423,6 +522,7 @@
     #notis-status[data-tone="warn"] { color: #f4d35e; }
     #notis-status[data-tone="err"] { color: #ff8a9c; }
     @media (max-width: 960px) {
+      .hero-row { margin: -18px -16px 18px; }
       .workspace {
         grid-template-columns: 1fr;
       }
@@ -445,10 +545,10 @@
   <div class="wrap">
     <div class="hero-row">
       <div>
-        <h1>Troll Runner Admin</h1>
-        <p>Add latest updates quickly. These updates save locally and also sync to shared Supabase storage so they appear on other devices.</p>
+        <h1>🧌 Troll Runner Admin</h1>
+        <p class="hero-sub">Add latest updates quickly. These updates save locally and also sync to shared Supabase storage so they appear on other devices.</p>
       </div>
-      <p><a href="index.html">← Back to site</a></p>
+      <a class="back-link" href="index.html">← Back to site</a>
     </div>
 
     <div class="workspace">
@@ -505,26 +605,28 @@
       <p id="admin-control-status" class="lock-console-status">Use the admin password to control the public lock.</p>
     </div>
 
-    <details class="card collapsible">
-      <summary>
-        <span>Live status popup controls</span>
-        <span class="summary-note">Homepage toggles</span>
-      </summary>
-      <div class="collapsible-body">
-        <p>Toggle the homepage live popups shown below the header buttons.</p>
-        <p id="live-status-running-state">Running/trolling live popup is currently off.</p>
-        <p id="sync-state">Shared sync status will appear here.</p>
-        <div class="row">
-          <button class="alert" onclick="setLiveStatus('running', true)">Turn running/trolling on</button>
-          <button class="secondary" onclick="setLiveStatus('running', false)">Turn running/trolling off</button>
+    <div class="card">
+      <div class="pane-head">
+        <div>
+          <h3>Live status popup controls</h3>
+          <p class="pane-subtitle">Toggle the homepage live popups shown below the header buttons.</p>
         </div>
-        <p id="live-status-coding-state">Coding/trolling live popup is currently off.</p>
-        <div class="row">
-          <button class="success" onclick="setLiveStatus('coding', true)">Turn coding/trolling on</button>
-          <button class="secondary" onclick="setLiveStatus('coding', false)">Turn coding/trolling off</button>
+        <div class="pane-stats">
+          <span class="summary-note">Homepage toggles</span>
         </div>
       </div>
-    </details>
+      <p id="live-status-running-state">Running/trolling live popup is currently off.</p>
+      <p id="sync-state">Shared sync status will appear here.</p>
+      <div class="row">
+        <button class="alert" onclick="setLiveStatus('running', true)">Turn running/trolling on</button>
+        <button class="secondary" onclick="setLiveStatus('running', false)">Turn running/trolling off</button>
+      </div>
+      <p id="live-status-coding-state">Coding/trolling live popup is currently off.</p>
+      <div class="row">
+        <button class="success" onclick="setLiveStatus('coding', true)">Turn coding/trolling on</button>
+        <button class="secondary" onclick="setLiveStatus('coding', false)">Turn coding/trolling off</button>
+      </div>
+    </div>
 
     <details class="card collapsible" open>
       <summary>
@@ -1089,6 +1191,30 @@ Fixed some admin system bugs.`,
       };
     }
 
+    // Writes to site_updates now require a real admin session — see
+    // assets/supabase/troll_admin_lockdown.sql. The anon key alone (used for
+    // reads above) is no longer enough.
+    async function adminRpcHeaders() {
+      const headers = supabaseHeaders();
+      try {
+        const token = await window.TrollrunnerAdminAuth?.getAccessToken?.();
+        if (token) headers.Authorization = `Bearer ${token}`;
+      } catch {}
+      return headers;
+    }
+
+    async function writeSiteRow(updates, liveStatusEnabled) {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_admin_replace_site_row`, {
+        method: 'POST',
+        headers: await adminRpcHeaders(),
+        body: JSON.stringify({
+          p_updates: updates,
+          p_live_status_enabled: typeof liveStatusEnabled === 'boolean' ? liveStatusEnabled : null,
+        }),
+      });
+      return response;
+    }
+
     async function parseSupabaseError(response) {
       if (!response) return 'No response from Supabase.';
       const prefix = `HTTP ${response.status}`;
@@ -1145,48 +1271,26 @@ Fixed some admin system bugs.`,
       if (!isSupabaseConfigured()) return false;
       const status = document.getElementById('sync-state');
       const liveStatuses = getCurrentLiveStatuses();
-      const payload = {
-        id: SUPABASE_ROW_ID,
-        updates: buildSharedUpdatesPayload(items, liveStatuses, getFeedback()),
-        live_status_enabled: liveStatuses.running,
-        updated_at: new Date().toISOString(),
-      };
+      const updates = buildSharedUpdatesPayload(items, liveStatuses, getFeedback());
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders(),
-            Prefer: 'resolution=merge-duplicates,return=minimal',
-          },
-          body: JSON.stringify([payload]),
-        });
+        const response = await writeSiteRow(updates, liveStatuses.running);
         if (response.ok) {
           if (status) status.textContent = `Shared sync updated (${items.length} items).`;
           return true;
         }
-      } catch {}
-      if (status) status.textContent = 'Shared sync write failed. Check Supabase table policy/availability.';
+        if (status) status.textContent = `Shared sync write failed: ${await parseSupabaseError(response)}`;
+      } catch {
+        if (status) status.textContent = 'Shared sync write failed. Check Supabase table policy/availability.';
+      }
       return false;
     }
 
     async function pushLiveStatusesToBackend(liveStatuses) {
       if (!isSupabaseConfigured()) return false;
       const status = document.getElementById('sync-state');
-      const payload = {
-        id: SUPABASE_ROW_ID,
-        updates: buildSharedUpdatesPayload(ensureSeededUpdates(), liveStatuses, getFeedback()),
-        live_status_enabled: Boolean(liveStatuses.running),
-        updated_at: new Date().toISOString(),
-      };
+      const updates = buildSharedUpdatesPayload(ensureSeededUpdates(), liveStatuses, getFeedback());
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders(),
-            Prefer: 'resolution=merge-duplicates,return=minimal',
-          },
-          body: JSON.stringify([payload]),
-        });
+        const response = await writeSiteRow(updates, Boolean(liveStatuses.running));
         if (response.ok) {
           if (status) {
             const active = [];
@@ -1198,8 +1302,10 @@ Fixed some admin system bugs.`,
           }
           return true;
         }
-      } catch {}
-      if (status) status.textContent = 'Shared live status write failed. Check Supabase table policy/availability.';
+        if (status) status.textContent = `Shared live status write failed: ${await parseSupabaseError(response)}`;
+      } catch {
+        if (status) status.textContent = 'Shared live status write failed. Check Supabase table policy/availability.';
+      }
       return false;
     }
 
@@ -1250,22 +1356,10 @@ Fixed some admin system bugs.`,
       if (!isSupabaseConfigured()) return false;
       const status = document.getElementById('sync-state');
       const liveStatuses = getCurrentLiveStatuses();
-      const payload = {
-        id: SUPABASE_ROW_ID,
-        updates: buildSharedUpdatesPayload(items, liveStatuses, getFeedback()),
-        live_status_enabled: liveStatuses.running,
-        updated_at: new Date().toISOString(),
-      };
+      const updates = buildSharedUpdatesPayload(items, liveStatuses, getFeedback());
       let lastError = '';
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders(),
-            Prefer: 'resolution=merge-duplicates,return=minimal',
-          },
-          body: JSON.stringify([payload]),
-        });
+        const response = await writeSiteRow(updates, liveStatuses.running);
         if (response.ok) {
           if (status) status.textContent = `Shared sync updated (${items.length} items).`;
           return true;

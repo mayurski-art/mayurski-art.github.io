@@ -5957,21 +5957,9 @@ function getLocalDateKey(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
-function mergeViewAnalyticsPayload(basePayload, event) {
-  const analytics = normalizeViewAnalyticsPayload(basePayload);
-  const dateKey = event?.dateKey || getLocalDateKey();
-  const day = analytics.days[dateKey] || { totalViews: 0, viewerIds: [], lastSeenAt: '' };
-  const viewerIds = new Set(Array.isArray(day.viewerIds) ? day.viewerIds : []);
-  if (event?.viewerId) viewerIds.add(String(event.viewerId).slice(0, 80));
-  analytics.days[dateKey] = {
-    totalViews: Math.max(0, Number(day.totalViews || 0) || 0) + (event?.incrementViews ? 1 : 0),
-    viewerIds: Array.from(viewerIds).slice(-5000),
-    lastSeenAt: String(event?.seenAt || new Date().toISOString()),
-  };
-  analytics.updatedAt = new Date().toISOString();
-  return analytics;
-}
-
+// Records a view through the troll_record_view RPC (see
+// assets/supabase/troll_admin_lockdown.sql), which merges the counter into
+// its own meta key server-side -- no full-row read/write needed anymore.
 async function recordWebsiteView() {
   if (!isSupabaseConfigured()) return false;
   const viewerId = getViewerId();
@@ -5980,36 +5968,14 @@ async function recordWebsiteView() {
   if (sessionStorage.getItem(sessionKey) === '1') return false;
   sessionStorage.setItem(sessionKey, '1');
   try {
-    const sharedState = await loadSharedStateFromBackend();
-    const viewAnalytics = mergeViewAnalyticsPayload(sharedState.viewAnalytics, {
-      dateKey,
-      viewerId,
-      incrementViews: true,
-      seenAt: new Date().toISOString(),
-    });
-    cachedViewAnalytics = viewAnalytics;
-    const body = {
-      id: SUPABASE_ROW_ID,
-      updates: buildSharedUpdatesPayload(
-        Array.isArray(sharedState.updates) ? sharedState.updates : [],
-        sharedState.liveStatuses || { running: false, coding: false },
-        sharedState.feedback || getFeedback(),
-        sharedState.siteLock || getSitePublicLockRecord(),
-        sharedState.liveChat || getLocalLiveChatPayload(),
-        viewAnalytics
-      ),
-      live_status_enabled: Boolean(sharedState.liveStatuses?.running),
-      updated_at: new Date().toISOString(),
-    };
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_record_view`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Prefer: 'resolution=merge-duplicates,return=minimal',
       },
-      body: JSON.stringify([body]),
+      body: JSON.stringify({ p_date_key: dateKey, p_viewer_id: viewerId }),
     });
     return response.ok;
   } catch {
@@ -7140,18 +7106,6 @@ function parseSharedViewAnalyticsPayload(payload) {
   return normalizeViewAnalyticsPayload(meta?.viewAnalytics || payload?.viewAnalytics || {});
 }
 
-function buildViewAnalyticsMetaItem(payload = cachedViewAnalytics) {
-  return {
-    id: VIEW_ANALYTICS_META_ID,
-    title: '__view_analytics_meta__',
-    body: '__view_analytics_meta__',
-    createdAt: new Date().toISOString(),
-    archived: true,
-    source: 'system',
-    viewAnalytics: normalizeViewAnalyticsPayload(payload),
-  };
-}
-
 function mergeLiveChatPayloads(...payloads) {
   const rooms = [];
   const messages = [];
@@ -7161,59 +7115,6 @@ function mergeLiveChatPayloads(...payloads) {
     messages.push(...normalized.messages);
   });
   return normalizeLiveChatPayload({ rooms, messages, updatedAt: new Date().toISOString() });
-}
-
-function buildLiveChatMetaItem(payload = getLocalLiveChatPayload()) {
-  return {
-    id: LIVE_CHAT_META_ID,
-    title: '__live_chat_meta__',
-    body: '__live_chat_meta__',
-    createdAt: new Date().toISOString(),
-    archived: true,
-    source: 'system',
-    liveChat: normalizeLiveChatPayload(payload),
-  };
-}
-
-function buildSharedUpdatesPayload(items, liveStatuses = { running: false, coding: false }, feedbackItems = [], siteLock = getSitePublicLockRecord(), liveChat = getLocalLiveChatPayload(), viewAnalytics = cachedViewAnalytics) {
-  const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item)) : [];
-  const normalizedViewAnalytics = normalizeViewAnalyticsPayload(viewAnalytics);
-  cachedViewAnalytics = normalizedViewAnalytics;
-  return [
-    ...visibleItems,
-    {
-      id: SHARED_STATUS_META_ID,
-      title: '__live_status_meta__',
-      body: '__live_status_meta__',
-      createdAt: new Date().toISOString(),
-      archived: true,
-      source: 'system',
-      liveStatuses: {
-        running: Boolean(liveStatuses.running),
-        coding: Boolean(liveStatuses.coding),
-      },
-    },
-    {
-      id: SHARED_FEEDBACK_META_ID,
-      title: '__feedback_meta__',
-      body: '__feedback_meta__',
-      createdAt: new Date().toISOString(),
-      archived: true,
-      source: 'system',
-      feedback: mergeFeedbackItems(feedbackItems),
-    },
-    window.TrollrunnerSiteLock ? window.TrollrunnerSiteLock.buildMetaItem(siteLock) : {
-      id: '__trollrunner_site_lock_meta__',
-      title: '__site_lock_meta__',
-      body: '__site_lock_meta__',
-      createdAt: new Date().toISOString(),
-      archived: true,
-      source: 'system',
-      siteLock: normalizeSiteGateLockRecord(siteLock),
-    },
-    buildLiveChatMetaItem(liveChat),
-    buildViewAnalyticsMetaItem(normalizedViewAnalytics),
-  ];
 }
 
 async function parseSupabaseError(response) {
@@ -7233,65 +7134,27 @@ async function parseSupabaseError(response) {
   }
 }
 
-async function syncFeedbackToBackend(items) {
+// Submits one feedback item through the troll_submit_feedback RPC (see
+// assets/supabase/troll_admin_lockdown.sql), which merges it into the
+// feedback meta key server-side -- the visitor's anon key can no longer
+// touch site lock / live status / notis / update content in the process.
+async function submitFeedbackToBackend(item) {
   if (!isSupabaseConfigured()) return false;
   try {
-    const qs = new URLSearchParams({
-      select: 'updates,live_status_enabled',
-      id: `eq.${SUPABASE_ROW_ID}`,
-      limit: '1'
-    });
-    const existingResponse = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${qs.toString()}`, supabaseReadOptions());
-    if (!existingResponse.ok) return false;
-    const existingJson = await existingResponse.json();
-    const existingPayload = Array.isArray(existingJson) ? existingJson[0] : existingJson;
-    const visibleUpdates = parseSharedUpdatesPayload(existingPayload);
-    const liveStatuses = parseSharedLiveStatusesPayload(existingPayload);
-    const liveStatusEnabled = parseSharedStatusFlag(existingPayload?.live_status_enabled);
-    const siteLock = parseSharedSiteLockPayload(existingPayload);
-    const liveChat = parseSharedLiveChatPayload(existingPayload);
-    const viewAnalytics = parseSharedViewAnalyticsPayload(existingPayload);
-
-    const payload = {
-      id: SUPABASE_ROW_ID,
-      updates: buildSharedUpdatesPayload(
-        [
-          ...visibleUpdates,
-          {
-            id: SHARED_FEEDBACK_META_ID,
-            title: '__feedback_meta__',
-            body: '__feedback_meta__',
-            createdAt: new Date().toISOString(),
-            archived: true,
-            source: 'system',
-            items: Array.isArray(items) ? items : [],
-          }
-        ],
-        {
-          running: typeof liveStatuses.running === 'boolean'
-            ? liveStatuses.running
-            : (liveStatusEnabled === null ? false : liveStatusEnabled),
-          coding: typeof liveStatuses.coding === 'boolean' ? liveStatuses.coding : false,
-        },
-        items,
-        siteLock,
-        liveChat,
-        viewAnalytics
-      ),
-      live_status_enabled: typeof liveStatuses.running === 'boolean'
-        ? liveStatuses.running
-        : (liveStatusEnabled === null ? false : liveStatusEnabled),
-      updated_at: new Date().toISOString(),
-    };
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_submit_feedback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Prefer: 'resolution=merge-duplicates,return=minimal',
       },
-      body: JSON.stringify([payload]),
+      body: JSON.stringify({
+        p_message: item.rawMessage || item.message,
+        p_username: item.includeUsername ? item.username : null,
+        p_include_username: Boolean(item.includeUsername),
+        p_topic: item.aiTopic,
+        p_priority: item.aiPriority,
+      }),
     });
     return response.ok;
   } catch {
@@ -7477,39 +7340,6 @@ function initializeFeedbackIdentity() {
   });
 }
 
-async function syncFeedbackToBackend(feedbackItems, sharedStateOverride = null) {
-  if (!isSupabaseConfigured()) return false;
-  const sharedState = sharedStateOverride || await loadSharedStateFromBackend();
-  const payload = {
-    id: SUPABASE_ROW_ID,
-    updates: buildSharedUpdatesPayload(
-      Array.isArray(sharedState.updates) ? sharedState.updates : [],
-      sharedState.liveStatuses || { running: false, coding: false },
-      feedbackItems,
-      sharedState.siteLock || getSitePublicLockRecord(),
-      sharedState.liveChat || getLocalLiveChatPayload(),
-      sharedState.viewAnalytics || cachedViewAnalytics
-    ),
-    live_status_enabled: Boolean(sharedState.liveStatuses?.running),
-    updated_at: new Date().toISOString(),
-  };
-  try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Prefer: 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify([payload]),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
 function classifyFeedback(message) {
   const text = message.toLowerCase();
   let topic = 'general';
@@ -7558,11 +7388,7 @@ function submitFeedback() {
   }
   status.textContent = 'Sending feedback...';
 
-  loadSharedStateFromBackend().then(sharedState => {
-    const mergedFeedback = mergeFeedbackItems([feedbackItem], sharedState.feedback, localItems);
-    setFeedback(mergedFeedback);
-    return syncFeedbackToBackend(mergedFeedback, sharedState);
-  }).then(sharedSyncOk => {
+  submitFeedbackToBackend(feedbackItem).then(sharedSyncOk => {
     if (sharedSyncOk) {
       status.textContent = `Feedback saved to admin system (${ai.topic}, ${ai.priority} priority).`;
     } else {
@@ -7744,6 +7570,12 @@ function renderLiveChat() {
   renderLiveChatPresence();
 }
 
+// Writes the live-chat presence/room cache through the troll_write_live_chat
+// RPC (see assets/supabase/troll_admin_lockdown.sql), which sets ONLY that
+// meta key server-side. The merge logic (dedup rooms/messages) still runs
+// client-side against the current state read below -- that's fine, this
+// key is presence/UI cache, not chat message integrity, which is enforced
+// separately by real RLS on the `troll_chat` table.
 async function writeLiveChatPayloadToBackend(payload, options = {}) {
   if (!isSupabaseConfigured()) return false;
   try {
@@ -7751,28 +7583,14 @@ async function writeLiveChatPayloadToBackend(payload, options = {}) {
     const liveChat = options.replace
       ? normalizeLiveChatPayload(payload)
       : mergeLiveChatPayloads(sharedState.liveChat, payload);
-    const body = {
-      id: SUPABASE_ROW_ID,
-      updates: buildSharedUpdatesPayload(
-        Array.isArray(sharedState.updates) ? sharedState.updates : [],
-        sharedState.liveStatuses || { running: false, coding: false },
-        sharedState.feedback || getFeedback(),
-        sharedState.siteLock || getSitePublicLockRecord(),
-        liveChat,
-        sharedState.viewAnalytics || cachedViewAnalytics
-      ),
-      live_status_enabled: Boolean(sharedState.liveStatuses?.running),
-      updated_at: new Date().toISOString(),
-    };
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_write_live_chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Prefer: 'resolution=merge-duplicates,return=minimal',
       },
-      body: JSON.stringify([body]),
+      body: JSON.stringify({ p_payload: liveChat }),
     });
     if (!response.ok) return false;
     applyLiveChatPayload(liveChat, { replace: Boolean(options.replace) });
