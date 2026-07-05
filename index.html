@@ -5404,6 +5404,18 @@ function twMinimize(id) {
 function twClose(id) {
   const win = tdState.windows.get(id);
   if (!win) return;
+  // Games: ask the iframe to autosave, then reset it back to the arcade
+  // home screen so reopening "Games" lands on Game Night, not mid-run.
+  if (id === 'games') {
+    const frame = win.el.querySelector('.tw-body iframe');
+    const homeUrl = TD_WINDOWS.games?.iframeSrc;
+    if (frame && homeUrl) {
+      try { frame.contentWindow?.postMessage({ type: 'trollrunner:request-save' }, homeUrl); } catch {}
+      window.setTimeout(() => {
+        if (frame.isConnected && frame.src !== homeUrl) frame.src = homeUrl;
+      }, 400);
+    }
+  }
   win.el.classList.remove('is-open', 'is-max');
   win.el.style.display = '';
   win.minimized = false;
