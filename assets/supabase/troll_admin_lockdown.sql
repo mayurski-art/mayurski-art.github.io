@@ -88,19 +88,23 @@ revoke insert, update, delete on public.site_updates from anon, authenticated;
 grant select on public.site_updates to anon, authenticated;
 
 -- ============================================================
--- 3. ADMIN-ONLY: full-row replace (site lock / live status / notis / posts)
+-- 3. ADMIN-ONLY: full-row replace (site lock / live status / notis / posts,
+--    and per-sibling-site content rows like trollrunner-finance's
+--    'finance_timeline' -- site_updates is one shared table across every
+--    Troll Runner subdomain, keyed by row id)
 -- ============================================================
+drop function if exists public.troll_admin_replace_site_row(jsonb, boolean);
+
 create or replace function public.troll_admin_replace_site_row(
   p_updates jsonb,
-  p_live_status_enabled boolean default null
+  p_live_status_enabled boolean default null,
+  p_row_id text default 'main'
 )
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_row_id text := 'main';
 begin
   if not troll_is_admin() then
     raise exception 'Admin session required.';
@@ -108,9 +112,12 @@ begin
   if p_updates is null or jsonb_typeof(p_updates) <> 'array' then
     raise exception 'p_updates must be a JSON array.';
   end if;
+  if p_row_id is null or p_row_id = '' then
+    raise exception 'p_row_id is required.';
+  end if;
 
   insert into public.site_updates as su (id, updates, live_status_enabled, updated_at)
-  values (v_row_id, p_updates, coalesce(p_live_status_enabled, false), now())
+  values (p_row_id, p_updates, coalesce(p_live_status_enabled, false), now())
   on conflict (id) do update
      set updates = excluded.updates,
          live_status_enabled = coalesce(p_live_status_enabled, su.live_status_enabled),
@@ -120,8 +127,8 @@ begin
 end;
 $$;
 
-revoke all on function public.troll_admin_replace_site_row(jsonb, boolean) from public, anon;
-grant execute on function public.troll_admin_replace_site_row(jsonb, boolean) to authenticated;
+revoke all on function public.troll_admin_replace_site_row(jsonb, boolean, text) from public, anon;
+grant execute on function public.troll_admin_replace_site_row(jsonb, boolean, text) to authenticated;
 
 -- ============================================================
 -- 4. ANON-CALLABLE, SCOPED: feedback submission (touches ONLY the
