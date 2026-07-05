@@ -29,4 +29,6 @@ jobs:
         with:
           node-version: '20'
       - name: Fire due resends
+        env:
+          TROLLRUNNER_ADMIN_PASSWORD: ${{ secrets.TROLLRUNNER_ADMIN_PASSWORD }}
         run: node scripts/notis-resend.mjs

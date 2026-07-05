@@ -1191,6 +1191,30 @@ Fixed some admin system bugs.`,
       };
     }
 
+    // Writes to site_updates now require a real admin session — see
+    // assets/supabase/troll_admin_lockdown.sql. The anon key alone (used for
+    // reads above) is no longer enough.
+    async function adminRpcHeaders() {
+      const headers = supabaseHeaders();
+      try {
+        const token = await window.TrollrunnerAdminAuth?.getAccessToken?.();
+        if (token) headers.Authorization = `Bearer ${token}`;
+      } catch {}
+      return headers;
+    }
+
+    async function writeSiteRow(updates, liveStatusEnabled) {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_admin_replace_site_row`, {
+        method: 'POST',
+        headers: await adminRpcHeaders(),
+        body: JSON.stringify({
+          p_updates: updates,
+          p_live_status_enabled: typeof liveStatusEnabled === 'boolean' ? liveStatusEnabled : null,
+        }),
+      });
+      return response;
+    }
+
     async function parseSupabaseError(response) {
       if (!response) return 'No response from Supabase.';
       const prefix = `HTTP ${response.status}`;
@@ -1247,48 +1271,26 @@ Fixed some admin system bugs.`,
       if (!isSupabaseConfigured()) return false;
       const status = document.getElementById('sync-state');
       const liveStatuses = getCurrentLiveStatuses();
-      const payload = {
-        id: SUPABASE_ROW_ID,
-        updates: buildSharedUpdatesPayload(items, liveStatuses, getFeedback()),
-        live_status_enabled: liveStatuses.running,
-        updated_at: new Date().toISOString(),
-      };
+      const updates = buildSharedUpdatesPayload(items, liveStatuses, getFeedback());
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders(),
-            Prefer: 'resolution=merge-duplicates,return=minimal',
-          },
-          body: JSON.stringify([payload]),
-        });
+        const response = await writeSiteRow(updates, liveStatuses.running);
         if (response.ok) {
           if (status) status.textContent = `Shared sync updated (${items.length} items).`;
           return true;
         }
-      } catch {}
-      if (status) status.textContent = 'Shared sync write failed. Check Supabase table policy/availability.';
+        if (status) status.textContent = `Shared sync write failed: ${await parseSupabaseError(response)}`;
+      } catch {
+        if (status) status.textContent = 'Shared sync write failed. Check Supabase table policy/availability.';
+      }
       return false;
     }
 
     async function pushLiveStatusesToBackend(liveStatuses) {
       if (!isSupabaseConfigured()) return false;
       const status = document.getElementById('sync-state');
-      const payload = {
-        id: SUPABASE_ROW_ID,
-        updates: buildSharedUpdatesPayload(ensureSeededUpdates(), liveStatuses, getFeedback()),
-        live_status_enabled: Boolean(liveStatuses.running),
-        updated_at: new Date().toISOString(),
-      };
+      const updates = buildSharedUpdatesPayload(ensureSeededUpdates(), liveStatuses, getFeedback());
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders(),
-            Prefer: 'resolution=merge-duplicates,return=minimal',
-          },
-          body: JSON.stringify([payload]),
-        });
+        const response = await writeSiteRow(updates, Boolean(liveStatuses.running));
         if (response.ok) {
           if (status) {
             const active = [];
@@ -1300,8 +1302,10 @@ Fixed some admin system bugs.`,
           }
           return true;
         }
-      } catch {}
-      if (status) status.textContent = 'Shared live status write failed. Check Supabase table policy/availability.';
+        if (status) status.textContent = `Shared live status write failed: ${await parseSupabaseError(response)}`;
+      } catch {
+        if (status) status.textContent = 'Shared live status write failed. Check Supabase table policy/availability.';
+      }
       return false;
     }
 
@@ -1352,22 +1356,10 @@ Fixed some admin system bugs.`,
       if (!isSupabaseConfigured()) return false;
       const status = document.getElementById('sync-state');
       const liveStatuses = getCurrentLiveStatuses();
-      const payload = {
-        id: SUPABASE_ROW_ID,
-        updates: buildSharedUpdatesPayload(items, liveStatuses, getFeedback()),
-        live_status_enabled: liveStatuses.running,
-        updated_at: new Date().toISOString(),
-      };
+      const updates = buildSharedUpdatesPayload(items, liveStatuses, getFeedback());
       let lastError = '';
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders(),
-            Prefer: 'resolution=merge-duplicates,return=minimal',
-          },
-          body: JSON.stringify([payload]),
-        });
+        const response = await writeSiteRow(updates, liveStatuses.running);
         if (response.ok) {
           if (status) status.textContent = `Shared sync updated (${items.length} items).`;
           return true;
