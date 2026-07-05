@@ -138,6 +138,7 @@
           repeating-linear-gradient(0deg, rgba(255, 64, 88, 0.07) 0 2px, transparent 2px 9px),
           rgba(0, 0, 0, 0.68);
         animation: none;
+        pointer-events: auto;
       }
       .site-lock-overlay-panel {
         width: min(100vw, 100%);
@@ -204,6 +205,21 @@
     return overlayEl;
   }
 
+  // While truly locked (not just the pending countdown warning), nothing
+  // on the page should be usable except the overlay itself -- covers
+  // login/register, feedback, chat, games, and everything else, not just
+  // the parts a click-through overlay happened to sit visually on top of.
+  // `inert` blocks both pointer AND keyboard/AT interaction for the whole
+  // subtree; admin.html is a separate document and is never affected.
+  function setBackgroundInert(isLocked) {
+    if (!document.body) return;
+    Array.from(document.body.children).forEach(child => {
+      if (child === overlayEl) return;
+      if (isLocked) child.setAttribute('inert', '');
+      else child.removeAttribute('inert');
+    });
+  }
+
   function buildTickerText(state) {
     if (state.mode === 'pending') {
       const seconds = getRemainingSeconds(state);
@@ -222,6 +238,7 @@
     overlay.classList.toggle('is-locked', state.mode === 'locked');
     document.body.classList.toggle('site-lock-warning', state.mode === 'pending');
     document.body.classList.toggle('site-lock-locked', state.mode === 'locked');
+    setBackgroundInert(state.mode === 'locked');
 
     if (tickerEl) tickerEl.textContent = buildTickerText(state);
     if (countdownEl) countdownEl.textContent = state.mode === 'pending' ? `${getRemainingSeconds(state)} SECOND WARNING` : 'ACCESS PAUSED';
