@@ -4847,10 +4847,14 @@ function updateGateLockToggleVisibility() {
 
 function hydrateSiteGateFields() {
   const name = document.getElementById('gate-login-name');
+  const pass = document.getElementById('gate-login-pass');
   clearSiteGateProfile();
   if (name) {
     name.value = '';
     name.setAttribute('autocomplete', 'off');
+  }
+  if (pass) {
+    pass.value = '';
   }
 }
 
