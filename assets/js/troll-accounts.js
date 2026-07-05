@@ -192,7 +192,7 @@
       if (loginError) throw friendlyError(loginError, 'Account created — but login failed. Try logging in.');
     }
     await refreshProfile();
-    void awardXp('daily_login', 'register');
+    void awardXp('login_streak', 'register');
     return toPublicSession();
   }
 
@@ -220,7 +220,7 @@
     if (error) throw friendlyError(error, 'Login failed. Check your details and try again.');
 
     await refreshProfile();
-    void awardXp('daily_login', 'login');
+    void awardXp('login_streak', 'login');
     return toPublicSession();
   }
 
@@ -261,6 +261,17 @@
     return toPublicSession();
   }
 
+  async function updateBio(next) {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const bio = String(next || '').trim().slice(0, 280);
+    const { error } = await sb.from('troll_profiles').update({ bio }).eq('id', cachedProfile.id);
+    if (error) throw friendlyError(error, 'Could not update the bio.');
+    await refreshProfile();
+    if (bio) void awardXp('profile_bio', 'settings');
+    return toPublicSession();
+  }
+
   async function updatePassword(next) {
     const sb = getClient();
     if (String(next || '').length < 8) throw new Error('Use a password with at least 8 characters.');
@@ -294,6 +305,7 @@
     try {
       await sb.from('troll_user_settings').update({ contact_email: addr }).eq('user_id', cachedProfile.id);
     } catch {}
+    void awardXp('profile_email', 'settings');
     return true;
   }
 
@@ -345,6 +357,7 @@
     const { error: profileError } = await sb.from('troll_profiles').update({ avatar_url: url }).eq('id', cachedProfile.id);
     if (profileError) throw friendlyError(profileError, 'Avatar saved but the profile update failed.');
     await refreshProfile();
+    void awardXp('profile_avatar', 'settings');
     return url;
   }
 
@@ -377,9 +390,30 @@
     });
   }
 
+  function showLevelUpToast(level) {
+    try {
+      document.getElementById('ta-levelup-toast')?.remove();
+      const el = document.createElement('div');
+      el.id = 'ta-levelup-toast';
+      el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99998;' +
+        'background:linear-gradient(135deg,#ffe88a,#ffd84d 50%,#e6b521);color:#08110a;' +
+        'font:800 14px "DM Mono","Courier New",monospace;padding:10px 18px;border:2px solid #000;' +
+        'border-radius:8px;box-shadow:0 8px 0 rgba(0,0,0,0.35);letter-spacing:0.04em;' +
+        'text-transform:uppercase;pointer-events:none;opacity:0;transition:opacity .25s ease;';
+      el.textContent = `🧌 Level up! You're now LV ${level}`;
+      document.body.appendChild(el);
+      requestAnimationFrame(() => { el.style.opacity = '1'; });
+      setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+      }, 3500);
+    } catch {}
+  }
+
   async function awardXp(eventType, source, meta) {
     const sb = getClient();
     if (!sb) return null;
+    const prevLevel = cachedProfile?.level || 1;
     try {
       const { data, error } = await sb.rpc('troll_award_xp', {
         p_event: eventType,
@@ -387,11 +421,26 @@
         p_meta: meta || {},
       });
       if (error) return null;
-      if (data?.awarded > 0) void refreshProfile();
+      if (data?.awarded > 0) {
+        await refreshProfile();
+        if (typeof data.level === 'number' && data.level > prevLevel) showLevelUpToast(data.level);
+      }
       return data;
     } catch {
       return null;
     }
+  }
+
+  async function getXpHistory(limit = 20) {
+    const sb = getClient();
+    if (!sb || !cachedProfile) return [];
+    const { data } = await sb
+      .from('troll_xp_events')
+      .select('event_type, xp, source, created_at')
+      .eq('user_id', cachedProfile.id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    return Array.isArray(data) ? data : [];
   }
 
   async function recordGameResult(gameId, score, meta) {
@@ -552,6 +601,26 @@
     return { pct, xp, next: ceil };
   }
 
+  const XP_EVENT_LABELS = {
+    daily_login: 'Daily login',
+    login_streak: 'Login streak',
+    chat_post: 'TrollChat message',
+    game_run: 'Played a game',
+    high_score: 'New high score',
+    feedback_post: 'Feedback submitted',
+    profile_avatar: 'Set a profile picture',
+    profile_bio: 'Wrote a bio',
+    profile_email: 'Added a recovery email',
+    game_first_daily: 'First game of the day',
+    boss_kill: 'Boss defeated',
+    versus_match: 'Versus match played',
+  };
+
+  function xpEventLabel(eventType, source) {
+    const label = XP_EVENT_LABELS[eventType] || eventType;
+    return source ? `${label} (${source})` : label;
+  }
+
   async function openProfile() {
     const body = buildModal('Profile');
     body.innerHTML = '<p class="ta-muted">Loading profile…</p>';
@@ -582,6 +651,31 @@
     xpSection.querySelector('.ta-bar > span').style.width = `${progress.pct}%`;
     xpSection.querySelector('.ta-muted').textContent = `${progress.xp} XP — next level at ${progress.next}`;
     body.appendChild(xpSection);
+
+    const xpLog = document.createElement('div');
+    xpLog.className = 'ta-section';
+    xpLog.innerHTML = '<h4>XP log</h4><p class="ta-muted">Loading…</p>';
+    body.appendChild(xpLog);
+    void getXpHistory(12).then(events => {
+      if (!events.length) {
+        xpLog.innerHTML = '<h4>XP log</h4><p class="ta-muted">No XP earned yet — log in tomorrow or play a game.</p>';
+        return;
+      }
+      const table = document.createElement('table');
+      table.className = 'ta-table';
+      events.forEach(ev => {
+        const tr = document.createElement('tr');
+        const label = document.createElement('td');
+        const when = new Date(ev.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        label.textContent = `${xpEventLabel(ev.event_type, ev.source)} · ${when}`;
+        const amount = document.createElement('td');
+        amount.textContent = `+${ev.xp} XP`;
+        tr.append(label, amount);
+        table.appendChild(tr);
+      });
+      xpLog.innerHTML = '<h4>XP log</h4>';
+      xpLog.appendChild(table);
+    });
 
     const games = document.createElement('div');
     games.className = 'ta-section';
@@ -705,6 +799,26 @@
     }, 'Avatar updated.'));
     avatarSection.append(avatarRow, avatarBtn, avatarStatus);
     body.appendChild(avatarSection);
+
+    // Bio
+    const bioSection = document.createElement('div');
+    bioSection.className = 'ta-section';
+    bioSection.innerHTML = `<h4>Bio</h4><p class="ta-muted">Shown on your profile card.</p>`;
+    const bioInput = document.createElement('textarea');
+    bioInput.className = 'ta-input';
+    bioInput.rows = 3;
+    bioInput.maxLength = 280;
+    bioInput.value = cachedProfile?.bio || '';
+    bioInput.placeholder = 'Tell other trolls about yourself…';
+    const bioBtn = document.createElement('button');
+    bioBtn.className = 'ta-btn';
+    bioBtn.type = 'button';
+    bioBtn.textContent = 'Save bio';
+    const bioStatus = mkStatus();
+    bioBtn.addEventListener('click', () => run(bioBtn, bioStatus,
+      () => updateBio(bioInput.value), 'Bio saved.'));
+    bioSection.append(bioInput, bioBtn, bioStatus);
+    body.appendChild(bioSection);
 
     // Recovery email
     const emailSection = document.createElement('div');
@@ -853,14 +967,57 @@
     passInput.focus();
   }
 
+  /* ------------------------------------------------------------------
+     Cross-origin session bridge — trollrunner.net, games.trollrunner.net,
+     and every sibling subdomain each run this same script, but Supabase
+     Auth sessions live in localStorage scoped per-origin, so logging in
+     on the main site does NOT automatically log you in inside an iframed
+     subdomain (e.g. the "Games" desktop window). The PARENT page pushes
+     its session down to iframed children it controls (see twOpen/
+     tdBuildIframe in the main site's index.html); children here just
+     accept it from a known allowlist of parent origins and adopt it.
+     Only ever acted on inside an iframe -- a top-level page ignores it.
+     ------------------------------------------------------------------ */
+  const SSO_ALLOWED_PARENT_ORIGINS = [
+    'https://mayurski-art.github.io',
+    'https://www.trollrunner.net',
+    'https://trollrunner.net',
+  ];
+
+  async function getRawTokens() {
+    const sb = getClient();
+    if (!sb) return null;
+    const { data } = await sb.auth.getSession();
+    const session = data?.session;
+    if (!session) return null;
+    return { access_token: session.access_token, refresh_token: session.refresh_token };
+  }
+
+  function initSsoBridge() {
+    if (window === window.top) return; // only iframed pages adopt a parent's session
+    window.addEventListener('message', event => {
+      if (!SSO_ALLOWED_PARENT_ORIGINS.includes(event.origin)) return;
+      const msg = event.data;
+      if (!msg || typeof msg !== 'object') return;
+      const sb = getClient();
+      if (!sb) return;
+      if (msg.type === 'trollrunner:sso-session' && msg.accessToken && msg.refreshToken) {
+        void sb.auth.setSession({ access_token: msg.accessToken, refresh_token: msg.refreshToken });
+      } else if (msg.type === 'trollrunner:sso-logout') {
+        void logout();
+      }
+    });
+  }
+
   function init() {
     const sb = getClient();
     if (!sb) return;
     detectRecoveryLink();
+    initSsoBridge();
     void getSession().then(session => {
       if (session) {
         dispatch(session);
-        void awardXp('daily_login', 'visit');
+        void awardXp('login_streak', 'visit');
       }
     });
   }
@@ -869,12 +1026,14 @@
     getClient,
     getSession,
     getAccessToken,
+    getRawTokens,
     getCachedProfile: () => (cachedProfile ? toPublicSession() : null),
     refreshProfile,
     register,
     login,
     logout,
     updateUsername,
+    updateBio,
     updatePassword,
     updateRecoveryEmail,
     requestPasswordReset,
@@ -884,6 +1043,7 @@
     recordGameResult,
     logPendingSpend,
     getProfileData,
+    getXpHistory,
     openProfile,
     openSettings,
   };

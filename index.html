@@ -5206,7 +5206,31 @@ TD_WINDOWS.nutrition = {
   build: body => tdBuildIframe(body, 'https://nutrition.trollrunner.net', 'Nutrition'),
 };
 
-const tdState = { init: false, booted: false, z: 20, cascade: 0, windows: new Map() };
+const tdState = { init: false, booted: false, z: 20, cascade: 0, windows: new Map(), syncedFrames: [] };
+
+// Cross-origin session bridge: every subdomain runs its own independent
+// Supabase Auth session (localStorage is scoped per-origin), so logging in
+// here does NOT automatically log you in inside an iframed subdomain like
+// games.trollrunner.net. Push this page's session down to any iframe we
+// build, and re-push whenever it changes while that iframe is open.
+async function tdSyncFrameSession(frame, url) {
+  try {
+    const targetOrigin = new URL(url, location.href).origin;
+    const helper = window.TrollrunnerAccounts;
+    const tokens = helper?.getRawTokens ? await helper.getRawTokens() : null;
+    if (tokens) {
+      frame.contentWindow?.postMessage(
+        { type: 'trollrunner:sso-session', accessToken: tokens.access_token, refreshToken: tokens.refresh_token },
+        targetOrigin
+      );
+    } else {
+      frame.contentWindow?.postMessage({ type: 'trollrunner:sso-logout' }, targetOrigin);
+    }
+  } catch {}
+}
+window.addEventListener('trollrunner:auth-changed', () => {
+  tdState.syncedFrames.forEach(({ frame, url }) => void tdSyncFrameSession(frame, url));
+});
 
 function tdIsMobile() {
   return window.matchMedia('(max-width: 760px)').matches;
@@ -5254,6 +5278,8 @@ function tdBuildIframe(body, url, label) {
   frame.loading = 'lazy';
   frame.referrerPolicy = 'strict-origin-when-cross-origin';
   frame.setAttribute('allow', 'clipboard-write; fullscreen; autoplay');
+  frame.addEventListener('load', () => void tdSyncFrameSession(frame, url));
+  tdState.syncedFrames.push({ frame, url });
   body.appendChild(frame);
 }
 
