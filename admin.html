@@ -344,6 +344,41 @@
       margin: 0;
       color: rgba(255,255,255,0.7);
     }
+    .accounts-toolbar { align-items: center; }
+    .accounts-toolbar input { flex: 1 1 220px; width: auto; }
+    .accounts-toolbar select {
+      flex: 0 0 auto;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: #12141a;
+      color: #fff;
+      padding: 10px;
+      font-size: 14px;
+    }
+    .accounts-table-scroll { overflow-x: auto; }
+    .accounts-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      object-fit: cover;
+      display: inline-grid;
+      place-items: center;
+      background: #2b2d36;
+      font-size: 16px;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    .accounts-level-pill {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,216,77,0.5);
+      background: rgba(255,216,77,0.12);
+      color: #ffd84d;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
     a { color: #66aaff; }
     .notis-seg {
       display: flex;
@@ -541,6 +576,30 @@
         <div class="row">
           <button class="secondary" onclick="clearFeedback()">Clear feedback inbox</button>
         </div>
+      </div>
+    </details>
+
+    <details class="card collapsible" open>
+      <summary>
+        <span>Player accounts</span>
+        <span class="summary-note">Everyone registered</span>
+      </summary>
+      <div class="collapsible-body">
+        <p>Every TrollRunner account, live from Supabase. Levels and XP are the server-verified values — the same numbers players see in their profile.</p>
+        <div id="accounts-summary" class="analytics-grid"></div>
+        <div class="row accounts-toolbar">
+          <input id="accounts-search" type="search" placeholder="Search username…" aria-label="Search accounts by username">
+          <select id="accounts-sort" aria-label="Sort accounts">
+            <option value="newest">Newest first</option>
+            <option value="xp">Most XP</option>
+            <option value="games">Most games played</option>
+            <option value="active">Recently active</option>
+            <option value="name">Username A–Z</option>
+          </select>
+          <button id="accounts-refresh" class="secondary" type="button">Refresh</button>
+        </div>
+        <div id="accounts-table-wrap" class="accounts-table-scroll"></div>
+        <p id="accounts-status" class="lock-console-status">Loading accounts…</p>
       </div>
     </details>
 
@@ -1973,6 +2032,166 @@ Fixed some admin system bugs.`,
 
       document.addEventListener('trollnotis:ready', () => setStatus('Live sync connected — ready to broadcast.', 'ok'));
       setTimeout(() => { if (!window.TrollNotis.isReady()) setStatus('Live sync slow to connect — broadcasts still save & deliver via fallback.', 'warn'); }, 6000);
+    })();
+  </script>
+
+  <script>
+    /* ---- Player accounts panel (reads troll_profiles + troll_game_stats) ---- */
+    (function () {
+      const summaryEl = document.getElementById('accounts-summary');
+      const tableWrap = document.getElementById('accounts-table-wrap');
+      const statusEl = document.getElementById('accounts-status');
+      const searchEl = document.getElementById('accounts-search');
+      const sortEl = document.getElementById('accounts-sort');
+      const refreshBtn = document.getElementById('accounts-refresh');
+      if (!tableWrap || !statusEl) return;
+
+      let accounts = [];
+
+      function setStatus(message, mode) {
+        statusEl.textContent = message;
+        statusEl.dataset.mode = mode || '';
+      }
+
+      async function fetchRows(path) {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, supabaseReadOptions());
+        if (!response.ok) throw new Error(await parseSupabaseError(response));
+        return response.json();
+      }
+
+      async function loadAccounts() {
+        if (!isSupabaseConfigured()) {
+          setStatus('Supabase is not configured — accounts cannot load.', 'locked');
+          return;
+        }
+        setStatus('Loading accounts…');
+        if (refreshBtn) refreshBtn.disabled = true;
+        try {
+          const [profiles, stats] = await Promise.all([
+            fetchRows('troll_profiles?select=id,username,avatar_url,level,xp,created_at,updated_at&order=created_at.desc&limit=1000'),
+            fetchRows('troll_game_stats?select=user_id,game_id,games_played,high_score,updated_at&limit=5000'),
+          ]);
+          const statsByUser = new Map();
+          (Array.isArray(stats) ? stats : []).forEach(stat => {
+            const entry = statsByUser.get(stat.user_id) || { games: 0, best: null, lastPlayed: 0 };
+            entry.games += Number(stat.games_played || 0);
+            if (!entry.best || Number(stat.high_score || 0) > Number(entry.best.high_score || 0)) entry.best = stat;
+            entry.lastPlayed = Math.max(entry.lastPlayed, new Date(stat.updated_at || 0).getTime() || 0);
+            statsByUser.set(stat.user_id, entry);
+          });
+          accounts = (Array.isArray(profiles) ? profiles : []).map(profile => {
+            const games = statsByUser.get(profile.id) || { games: 0, best: null, lastPlayed: 0 };
+            const joined = new Date(profile.created_at || 0).getTime() || 0;
+            const lastSeen = Math.max(games.lastPlayed, new Date(profile.updated_at || 0).getTime() || 0, joined);
+            return {
+              id: profile.id,
+              username: String(profile.username || 'unknown'),
+              avatarUrl: profile.avatar_url || '',
+              level: Number(profile.level || 1),
+              xp: Number(profile.xp || 0),
+              joined,
+              lastSeen,
+              games: games.games,
+              best: games.best,
+            };
+          });
+          renderAccounts();
+          setStatus(`${accounts.length} account${accounts.length === 1 ? '' : 's'} loaded — refreshed ${new Date().toLocaleTimeString()}.`, 'open');
+        } catch (err) {
+          setStatus(`Could not load accounts: ${err && err.message ? err.message : 'unknown error'}`, 'locked');
+        } finally {
+          if (refreshBtn) refreshBtn.disabled = false;
+        }
+      }
+
+      function fmtDate(stamp) {
+        if (!stamp) return '—';
+        return new Date(stamp).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      }
+
+      function fmtAgo(stamp) {
+        if (!stamp) return '—';
+        const mins = Math.floor((Date.now() - stamp) / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        if (days < 30) return `${days}d ago`;
+        return fmtDate(stamp);
+      }
+
+      function renderSummary(list) {
+        if (!summaryEl) return;
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const tiles = [
+          { value: list.length, label: 'Total accounts' },
+          { value: list.filter(a => a.joined >= weekAgo).length, label: 'New this week' },
+          { value: list.filter(a => a.lastSeen >= weekAgo).length, label: 'Active this week' },
+        ];
+        summaryEl.innerHTML = tiles.map(tile =>
+          `<div class="analytics-stat"><strong>${Number(tile.value).toLocaleString()}</strong><span>${escapeHtml(tile.label)}</span></div>`
+        ).join('');
+      }
+
+      function sortedFiltered() {
+        const query = String(searchEl?.value || '').trim().toLowerCase();
+        const mode = sortEl?.value || 'newest';
+        const list = accounts.filter(a => !query || a.username.toLowerCase().includes(query));
+        const cmp = {
+          newest: (a, b) => b.joined - a.joined,
+          xp: (a, b) => b.xp - a.xp || b.level - a.level,
+          games: (a, b) => b.games - a.games,
+          active: (a, b) => b.lastSeen - a.lastSeen,
+          name: (a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' }),
+        }[mode] || ((a, b) => b.joined - a.joined);
+        return list.sort(cmp);
+      }
+
+      function avatarHtml(account) {
+        if (account.avatarUrl) {
+          return `<img class="accounts-avatar" src="${escapeHtml(account.avatarUrl)}" alt="" loading="lazy">`;
+        }
+        return '<span class="accounts-avatar">🧌</span>';
+      }
+
+      function renderAccounts() {
+        renderSummary(accounts);
+        const list = sortedFiltered();
+        if (!accounts.length) {
+          tableWrap.innerHTML = '<p>No accounts registered yet.</p>';
+          return;
+        }
+        if (!list.length) {
+          tableWrap.innerHTML = '<p>No accounts match that search.</p>';
+          return;
+        }
+        const rows = list.map(account => {
+          const best = account.best
+            ? `${escapeHtml(account.best.game_id)} · ${Number(account.best.high_score).toLocaleString()}`
+            : '—';
+          return `<tr>
+            <td>${avatarHtml(account)}${escapeHtml(account.username)}</td>
+            <td><span class="accounts-level-pill">LV ${account.level}</span></td>
+            <td>${account.xp.toLocaleString()}</td>
+            <td>${account.games.toLocaleString()}</td>
+            <td>${best}</td>
+            <td>${escapeHtml(fmtDate(account.joined))}</td>
+            <td>${escapeHtml(fmtAgo(account.lastSeen))}</td>
+          </tr>`;
+        }).join('');
+        tableWrap.innerHTML = `<table class="analytics-table">
+          <thead><tr>
+            <th>Player</th><th>Level</th><th>XP</th><th>Games</th><th>Best score</th><th>Joined</th><th>Last seen</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }
+
+      if (searchEl) searchEl.addEventListener('input', renderAccounts);
+      if (sortEl) sortEl.addEventListener('change', renderAccounts);
+      if (refreshBtn) refreshBtn.addEventListener('click', () => void loadAccounts());
+      void loadAccounts();
     })();
   </script>
 </body>
