@@ -5427,27 +5427,75 @@ function twMinimize(id) {
   win.taskBtn?.classList.remove('is-active');
 }
 
-function twClose(id) {
-  const win = tdState.windows.get(id);
-  if (!win) return;
-  // Games: ask the iframe to autosave, then reset it back to the arcade
-  // home screen so reopening "Games" lands on Game Night, not mid-run.
-  if (id === 'games') {
-    const frame = win.el.querySelector('.tw-body iframe');
-    const homeUrl = TD_WINDOWS.games?.iframeSrc;
-    if (frame && homeUrl) {
-      try { frame.contentWindow?.postMessage({ type: 'trollrunner:request-save' }, homeUrl); } catch {}
-      window.setTimeout(() => {
-        if (frame.isConnected && frame.src !== homeUrl) frame.src = homeUrl;
-      }, 400);
-    }
-  }
+function twFinishClose(win) {
   win.el.classList.remove('is-open', 'is-max');
   win.el.style.display = '';
   win.minimized = false;
   win.taskBtn?.remove();
   win.taskBtn = null;
   tdUpdateCloseAllBtn();
+}
+
+// Games (and any game with a persistent guest run) get a chance to confirm
+// before we actually close: a logged-in mid-run save is quick (ack right
+// away); a guest gets a real confirm-or-create-account gate first, since
+// guest progress is never persisted. If the game doesn't reply at all
+// (doesn't implement this, or isn't a game), we just close as before --
+// no added delay for the common case.
+function twRequestGameClose(id, win, frame, homeUrl) {
+  const targetOrigin = new URL(homeUrl, location.href).origin;
+  let settled = false;
+  let longTimer = null;
+  const quickTimer = window.setTimeout(() => proceed(), 500);
+
+  function cleanup() {
+    window.removeEventListener('message', onMessage);
+    window.clearTimeout(quickTimer);
+    if (longTimer) window.clearTimeout(longTimer);
+  }
+  function proceed() {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    if (frame.isConnected && frame.src !== homeUrl) frame.src = homeUrl;
+    twFinishClose(win);
+  }
+  function abort() {
+    if (settled) return;
+    settled = true;
+    cleanup();
+  }
+  function onMessage(e) {
+    if (e.origin !== targetOrigin || e.source !== frame.contentWindow) return;
+    if (e.data?.type === 'trollrunner:close-ack') proceed();
+    else if (e.data?.type === 'trollrunner:close-cancel') abort();
+    else if (e.data?.type === 'trollrunner:close-pending') {
+      // the game is showing its own confirm/create-account UI -- give the
+      // player real time to decide instead of force-closing under them.
+      window.clearTimeout(quickTimer);
+      longTimer = window.setTimeout(() => proceed(), 5 * 60 * 1000);
+    }
+  }
+  window.addEventListener('message', onMessage);
+  try {
+    frame.contentWindow?.postMessage({ type: 'trollrunner:request-close' }, targetOrigin);
+  } catch {
+    proceed();
+  }
+}
+
+function twClose(id) {
+  const win = tdState.windows.get(id);
+  if (!win) return;
+  if (id === 'games') {
+    const frame = win.el.querySelector('.tw-body iframe');
+    const homeUrl = TD_WINDOWS.games?.iframeSrc;
+    if (frame && homeUrl) {
+      twRequestGameClose(id, win, frame, homeUrl);
+      return;
+    }
+  }
+  twFinishClose(win);
 }
 
 function twCloseAll() {
