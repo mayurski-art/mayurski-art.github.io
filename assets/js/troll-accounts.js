@@ -578,6 +578,110 @@
     return overlay.querySelector('.ta-body');
   }
 
+  /* ------------------------------------------------------------------
+     Guest exit gate — games call this before actually discarding an
+     unsaved guest run (closing the window, quitting to title, etc.)
+     since guest progress is intentionally never persisted. Resolves:
+       'leave'  — proceed, discard the run
+       'cancel' — stay / keep playing
+       'saved'  — an account was just created; onAccountCreated already
+                  ran (the caller's own save call), so progress is safe
+     ------------------------------------------------------------------ */
+  function renderGuestSignupForm(body, onSuccess) {
+    body.innerHTML = `<div class="ta-section">
+      <h4>Create your account</h4>
+      <p class="ta-muted">Saves your current progress to a real account.</p>
+    </div>`;
+    const section = body.querySelector('.ta-section');
+    const nameInput = document.createElement('input');
+    nameInput.className = 'ta-input';
+    nameInput.placeholder = 'Username';
+    nameInput.autocomplete = 'off';
+    nameInput.autocapitalize = 'none';
+    nameInput.spellcheck = false;
+    const passInput = document.createElement('input');
+    passInput.type = 'password';
+    passInput.className = 'ta-input';
+    passInput.placeholder = '8+ character password';
+    passInput.autocomplete = 'new-password';
+    const submitBtn = document.createElement('button');
+    submitBtn.className = 'ta-btn';
+    submitBtn.type = 'button';
+    submitBtn.textContent = 'Create account & save';
+    const status = document.createElement('div');
+    status.className = 'ta-status';
+    section.append(nameInput, passInput, submitBtn, status);
+
+    submitBtn.addEventListener('click', async () => {
+      submitBtn.disabled = true;
+      status.textContent = 'Creating account…';
+      status.dataset.kind = '';
+      try {
+        await register({ username: nameInput.value, password: passInput.value });
+        status.textContent = 'Account created — saving your progress…';
+        status.dataset.kind = 'success';
+        await onSuccess();
+      } catch (error) {
+        status.textContent = error?.message || 'Could not create the account.';
+        status.dataset.kind = 'error';
+        submitBtn.disabled = false;
+      }
+    });
+    nameInput.focus();
+  }
+
+  async function confirmGuestExit({
+    title = 'Leave without saving?',
+    message = 'You are not logged in — this progress will not be saved.',
+    declineLabel = 'Leave anyway — don’t save',
+    stayLabel = 'Stay',
+    onAccountCreated,
+  } = {}) {
+    return new Promise(resolve => {
+      let settled = false;
+      const settle = value => { if (!settled) { settled = true; resolve(value); } };
+
+      const body = buildModal(title);
+      body.innerHTML = `<p class="ta-muted">${message}</p>`;
+      const choices = document.createElement('div');
+      choices.className = 'row';
+      choices.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:12px;';
+      const createBtn = document.createElement('button');
+      createBtn.className = 'ta-btn';
+      createBtn.type = 'button';
+      createBtn.textContent = '🧌 Create account & save';
+      const leaveBtn = document.createElement('button');
+      leaveBtn.className = 'ta-btn ta-btn--ghost';
+      leaveBtn.type = 'button';
+      leaveBtn.textContent = declineLabel;
+      const stayBtn = document.createElement('button');
+      stayBtn.className = 'ta-btn ta-btn--ghost';
+      stayBtn.type = 'button';
+      stayBtn.textContent = stayLabel;
+      choices.append(createBtn, leaveBtn, stayBtn);
+      body.appendChild(choices);
+
+      const overlay = document.getElementById(MODAL_ID);
+      const observer = new MutationObserver(() => {
+        if (overlay && !document.body.contains(overlay)) {
+          observer.disconnect();
+          settle('cancel');
+        }
+      });
+      observer.observe(document.body, { childList: true });
+
+      const finish = value => { observer.disconnect(); closeModal(); settle(value); };
+      leaveBtn.addEventListener('click', () => finish('leave'));
+      stayBtn.addEventListener('click', () => finish('cancel'));
+      createBtn.addEventListener('click', () => {
+        renderGuestSignupForm(body, async () => {
+          try { if (onAccountCreated) await onAccountCreated(); } catch {}
+          finish('saved');
+        });
+      });
+    });
+  }
+
   function avatarNode(session) {
     const box = document.createElement('span');
     box.className = 'ta-avatar';
@@ -1044,6 +1148,7 @@
     logPendingSpend,
     getProfileData,
     getXpHistory,
+    confirmGuestExit,
     openProfile,
     openSettings,
   };
