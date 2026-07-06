@@ -213,9 +213,17 @@
   // subtree; admin.html is a separate document and is never affected.
   function setBackgroundInert(isLocked) {
     if (!document.body) return;
+    // The "coming soon" gate (assets/js/coming-soon.js) also needs everything
+    // behind it inert until an admin unlocks it. Both scripts run a render
+    // loop that touches every body child's `inert` attribute, so without this
+    // check they fight each other every ~250ms. Folding its state in here
+    // keeps a single source of truth instead of each loop clobbering the other.
+    const comingSoonGate = document.getElementById('coming-soon-gate');
+    const comingSoonActive = Boolean(comingSoonGate) && !comingSoonGate.classList.contains('is-unlocked');
+    const shouldInert = isLocked || comingSoonActive;
     Array.from(document.body.children).forEach(child => {
-      if (child === overlayEl) return;
-      if (isLocked) child.setAttribute('inert', '');
+      if (child === overlayEl || child === comingSoonGate) return;
+      if (shouldInert) child.setAttribute('inert', '');
       else child.removeAttribute('inert');
     });
   }

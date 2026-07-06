@@ -4257,9 +4257,163 @@ body.desktop-mode .troll-desktop { display: block; }
   .td-clock small { display: none; }
 }
 
+/* ============================================================
+   COMING SOON GATE — sits above everything (gate, desktop, all
+   of it) until an admin session unlocks it. Public sees only the
+   hero image + newsletter form; the admin corner is deliberately
+   understated ("my eyes only").
+   ============================================================ */
+.coming-soon-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--n-bg);
+  overflow-y: auto;
+  padding: 24px 0;
+}
+.coming-soon-gate.is-unlocked { display: none; }
+.cs-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  width: 100%;
+  max-width: 900px;
+  margin: auto;
+  padding: 0 20px;
+}
+.cs-bg {
+  width: 100%;
+  height: auto;
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.cs-newsletter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(92vw, 420px);
+  text-align: center;
+}
+.cs-newsletter-label {
+  color: var(--n-ink, #f4f3ee);
+  font-family: var(--pixel);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.6);
+}
+.cs-newsletter-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.cs-newsletter-input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(10,11,13,0.72);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 14px;
+}
+.cs-newsletter-input::placeholder { color: rgba(255,255,255,0.45); }
+.cs-newsletter-input:focus { outline: 2px solid var(--n-green); outline-offset: 1px; }
+.cs-newsletter-btn {
+  padding: 11px 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--n-green);
+  color: #04140a;
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cs-newsletter-btn:hover { filter: brightness(1.08); }
+.cs-newsletter-btn:disabled { opacity: 0.6; cursor: default; }
+.cs-newsletter-status {
+  min-height: 1.2em;
+  font-family: var(--font);
+  font-size: 12.5px;
+  color: rgba(255,255,255,0.75);
+}
+.cs-newsletter-status[data-kind="success"] { color: var(--n-green); }
+.cs-newsletter-status[data-kind="error"] { color: #ff6b6b; }
+
+.cs-admin-corner {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.28;
+  transition: opacity 0.2s ease;
+}
+.cs-admin-corner:hover,
+.cs-admin-corner:focus-within { opacity: 1; }
+.cs-admin-input {
+  width: 74px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(10,11,13,0.7);
+  color: #fff;
+  font-size: 12px;
+}
+.cs-admin-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(10,11,13,0.7);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cs-admin-status {
+  position: absolute;
+  right: 0;
+  bottom: 32px;
+  width: max-content;
+  max-width: 200px;
+  font-size: 11px;
+  color: #ff6b6b;
+  text-align: right;
+}
+
 </style>
 </head>
 <body class="site-entry-locked">
+<div id="coming-soon-gate" class="coming-soon-gate" role="dialog" aria-modal="true" aria-label="Trollrunner.net — coming soon">
+  <div class="cs-inner">
+    <img class="cs-bg" src="assets/img/coming-soon.png" alt="Trollrunner.net — the official Trollrunner website. Coming soon this summer." loading="eager">
+
+    <form id="cs-newsletter-form" class="cs-newsletter" autocomplete="off" novalidate>
+      <label class="cs-newsletter-label" for="cs-newsletter-email">Get notified when we launch</label>
+      <div class="cs-newsletter-row">
+        <input id="cs-newsletter-email" class="cs-newsletter-input" type="email" placeholder="you@email.com" required autocomplete="email">
+        <button type="submit" class="cs-newsletter-btn">Notify Me</button>
+      </div>
+      <div id="cs-newsletter-status" class="cs-newsletter-status" aria-live="polite"></div>
+    </form>
+  </div>
+
+  <div id="coming-soon-admin" class="cs-admin-corner">
+    <input id="cs-admin-pass" class="cs-admin-input" type="password" placeholder="•••" aria-label="Admin password" autocomplete="current-password">
+    <button id="cs-admin-go" class="cs-admin-btn" type="button" aria-label="Admin unlock" title="Admin">🧌</button>
+    <div id="cs-admin-status" class="cs-admin-status" aria-live="polite"></div>
+  </div>
+</div>
 <div id="nostalgia-fx" aria-hidden="true"></div>
 
 <div id="site-gate" class="site-gate" role="dialog" aria-modal="true" aria-labelledby="site-gate-title">
@@ -4632,6 +4786,7 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="assets/js/site-lock.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/admin-auth.js"></script>
+<script src="assets/js/coming-soon.js"></script>
 <script src="assets/js/troll-accounts.js"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>

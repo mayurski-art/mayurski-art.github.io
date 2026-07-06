@@ -707,6 +707,24 @@
 
     <details class="card collapsible" open>
       <summary>
+        <span>Newsletter signups</span>
+        <span class="summary-note">Launch list</span>
+      </summary>
+      <div class="collapsible-body">
+        <p>Emails collected from the coming-soon gate on the homepage. Only your admin session can read this list — the public anon key can submit but never read.</p>
+        <div id="newsletter-summary" class="analytics-grid"></div>
+        <div class="row">
+          <button id="newsletter-refresh" class="secondary" type="button">Refresh</button>
+          <button id="newsletter-copy" class="secondary" type="button">Copy all emails</button>
+          <button id="newsletter-csv" class="secondary" type="button">Download CSV</button>
+        </div>
+        <div id="newsletter-table-wrap" class="accounts-table-scroll"></div>
+        <p id="newsletter-status" class="lock-console-status">Loading signups…</p>
+      </div>
+    </details>
+
+    <details class="card collapsible" open>
+      <summary>
         <span>Website views</span>
         <span class="summary-note">Admin only</span>
       </summary>
@@ -2286,6 +2304,111 @@ Fixed some admin system bugs.`,
       if (sortEl) sortEl.addEventListener('change', renderAccounts);
       if (refreshBtn) refreshBtn.addEventListener('click', () => void loadAccounts());
       void loadAccounts();
+    })();
+
+    /* ---- Newsletter signups panel (reads newsletter_signups — RLS means
+       this only works with a live admin session token, so it uses
+       adminRpcHeaders(), not the anon-key read options) ---- */
+    (function () {
+      const summaryEl = document.getElementById('newsletter-summary');
+      const tableWrap = document.getElementById('newsletter-table-wrap');
+      const statusEl = document.getElementById('newsletter-status');
+      const refreshBtn = document.getElementById('newsletter-refresh');
+      const copyBtn = document.getElementById('newsletter-copy');
+      const csvBtn = document.getElementById('newsletter-csv');
+      if (!tableWrap || !statusEl) return;
+
+      let signups = [];
+
+      function setStatus(message, mode) {
+        statusEl.textContent = message;
+        statusEl.dataset.mode = mode || '';
+      }
+
+      async function loadSignups() {
+        if (!isSupabaseConfigured()) {
+          setStatus('Supabase is not configured — signups cannot load.', 'locked');
+          return;
+        }
+        setStatus('Loading signups…');
+        if (refreshBtn) refreshBtn.disabled = true;
+        try {
+          const response = await fetch(
+            `${SUPABASE_URL}/rest/v1/newsletter_signups?select=email,created_at&order=created_at.desc&limit=10000`,
+            { cache: 'no-store', headers: await adminRpcHeaders() }
+          );
+          if (!response.ok) throw new Error(await parseSupabaseError(response));
+          const rows = await response.json();
+          signups = (Array.isArray(rows) ? rows : []).map(row => ({
+            email: String(row.email || ''),
+            createdAt: new Date(row.created_at || 0).getTime() || 0,
+          }));
+          renderSignups();
+          setStatus(`${signups.length} signup${signups.length === 1 ? '' : 's'} loaded — refreshed ${new Date().toLocaleTimeString()}.`, 'open');
+        } catch (err) {
+          setStatus(`Could not load signups: ${err && err.message ? err.message : 'unknown error'} (run assets/supabase/troll_newsletter.sql if you haven't yet)`, 'locked');
+        } finally {
+          if (refreshBtn) refreshBtn.disabled = false;
+        }
+      }
+
+      function renderSignups() {
+        if (summaryEl) {
+          const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+          const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+          const tiles = [
+            { value: signups.length, label: 'Total signups' },
+            { value: signups.filter(s => s.createdAt >= weekAgo).length, label: 'New this week' },
+            { value: signups.filter(s => s.createdAt >= dayAgo).length, label: 'New today' },
+          ];
+          summaryEl.innerHTML = tiles.map(tile =>
+            `<div class="analytics-stat"><strong>${Number(tile.value).toLocaleString()}</strong><span>${escapeHtml(tile.label)}</span></div>`
+          ).join('');
+        }
+        if (!signups.length) {
+          tableWrap.innerHTML = '<p>No signups yet — share the coming-soon page. 🧌</p>';
+          return;
+        }
+        const rows = signups.map(item => `<tr>
+          <td>${escapeHtml(item.email)}</td>
+          <td>${escapeHtml(item.createdAt ? new Date(item.createdAt).toLocaleString() : '—')}</td>
+        </tr>`).join('');
+        tableWrap.innerHTML = `<table class="analytics-table">
+          <thead><tr><th>Email</th><th>Signed up</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }
+
+      copyBtn?.addEventListener('click', async () => {
+        if (!signups.length) {
+          setStatus('Nothing to copy yet.', 'locked');
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(signups.map(s => s.email).join('\n'));
+          setStatus(`Copied ${signups.length} email${signups.length === 1 ? '' : 's'} to clipboard.`, 'open');
+        } catch {
+          setStatus('Clipboard blocked — use Download CSV instead.', 'locked');
+        }
+      });
+
+      csvBtn?.addEventListener('click', () => {
+        if (!signups.length) {
+          setStatus('Nothing to download yet.', 'locked');
+          return;
+        }
+        const csv = ['email,signed_up']
+          .concat(signups.map(s => `${s.email.replace(/"/g, '""')},${s.createdAt ? new Date(s.createdAt).toISOString() : ''}`))
+          .join('\n');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        link.download = `trollrunner-newsletter-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      });
+
+      if (refreshBtn) refreshBtn.addEventListener('click', () => void loadSignups());
+      void loadSignups();
     })();
   </script>
 </body>
