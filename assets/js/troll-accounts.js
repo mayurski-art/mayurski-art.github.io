@@ -456,6 +456,20 @@
     return data;
   }
 
+  // Safe wrapper for games: no-ops for guests (recordGameResult requires a
+  // real session) and never throws, so a flaky network call can't break a
+  // run. This is what actually makes game_run / high_score / game_first_daily
+  // XP fire -- games call this alongside their own (unrelated) mock/local
+  // weekly-leaderboard display, which this does not touch.
+  async function reportGameResult(gameId, score, meta) {
+    try {
+      if (!cachedProfile) return null;
+      return await recordGameResult(gameId, score, meta);
+    } catch {
+      return null;
+    }
+  }
+
   // Files a PENDING spend/donation claim. Confirmation happens server-side
   // only (future Edge Function verifies the signature on-chain) — never here.
   async function logPendingSpend({ token, amount, wallet, signature, purpose, feature }) {
@@ -1145,6 +1159,7 @@
     uploadAvatar,
     awardXp,
     recordGameResult,
+    reportGameResult,
     logPendingSpend,
     getProfileData,
     getXpHistory,
