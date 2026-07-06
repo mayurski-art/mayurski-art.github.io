@@ -442,6 +442,19 @@
       margin: 0;
       color: rgba(255,255,255,0.7);
     }
+    .ff-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #101116;
+    }
+    .ff-row.is-sub { margin-left: 18px; opacity: 0.88; }
+    .ff-row .row { margin: 0; }
     .accounts-toolbar { align-items: center; }
     .accounts-toolbar input { flex: 1 1 220px; width: auto; }
     .accounts-toolbar select {
@@ -608,6 +621,20 @@
     <div class="card">
       <div class="pane-head">
         <div>
+          <h3>Site features</h3>
+          <p class="pane-subtitle">Turn parts of Troll Runner on or off for everyone. Off hides the nav link/card on trollrunner.net and games.trollrunner.net — it doesn't lock the page itself.</p>
+        </div>
+        <div class="pane-stats">
+          <span class="summary-note">Public visibility</span>
+        </div>
+      </div>
+      <div id="feature-flags-list"></div>
+      <p id="feature-flags-status" class="lock-console-status">Loading feature flags...</p>
+    </div>
+
+    <div class="card">
+      <div class="pane-head">
+        <div>
           <h3>Live status popup controls</h3>
           <p class="pane-subtitle">Toggle the homepage live popups shown below the header buttons.</p>
         </div>
@@ -755,6 +782,7 @@
   </div>
 
   <script src="assets/js/site-lock.js"></script>
+  <script src="assets/js/feature-flags.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/admin-auth.js"></script>
   <script src="assets/js/troll-notis.js"></script>
@@ -767,6 +795,22 @@
     const LIVE_CHAT_META_ID = '__trollrunner_live_chat_meta__';
     const VIEW_ANALYTICS_META_ID = '__trollrunner_view_analytics_meta__';
     const NOTIS_META_ID = '__trollrunner_notis_meta__';
+    const FEATURE_FLAGS_META_ID = '__trollrunner_feature_flags_meta__';
+    const FEATURE_FLAGS_DEFS = [
+      { id: 'games', label: 'Games (master)', group: 'games' },
+      { id: 'game_meme_metro', label: '— Troll Dash: Meme Metro', group: 'games' },
+      { id: 'game_troll_kombat', label: '— Troll Kombat', group: 'games' },
+      { id: 'game_trollrreria', label: '— Trollrreria', group: 'games' },
+      { id: 'game_troll_casino', label: '— Troll Casino', group: 'games' },
+      { id: 'troll_chat', label: 'TrollChat', group: 'site' },
+      { id: 'finance', label: 'Finances', group: 'site' },
+      { id: 'blog', label: 'Blog', group: 'site' },
+      { id: 'nutrition', label: 'Nutrition', group: 'site' },
+      { id: 'videos', label: 'Videos', group: 'site' },
+      { id: 'projects', label: 'Projects', group: 'site' },
+      { id: 'stickers', label: 'Stickers', group: 'site' },
+      { id: 'garden', label: 'Garden', group: 'site' },
+    ];
     const LIVE_RUNNING_STATUS_KEY = 'trollrunner_live_status_running_enabled';
     const LIVE_RUNNING_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_running_override';
     const LIVE_CODING_STATUS_KEY = 'trollrunner_live_status_coding_enabled';
@@ -786,6 +830,7 @@
     let cachedLiveChatMeta = null;
     let cachedViewAnalyticsMeta = null;
     let cachedNotisMeta = null;
+    let cachedFeatureFlags = null;
     let viewAnalyticsRange = 'week';
     const DEFAULT_UPDATES = [
   {
@@ -984,6 +1029,34 @@ Fixed some admin system bugs.`,
       return Boolean(item) && typeof item === 'object' && item.id === NOTIS_META_ID;
     }
 
+    function isSharedFeatureFlagsMetaItem(item) {
+      return Boolean(item) && typeof item === 'object' && item.id === FEATURE_FLAGS_META_ID;
+    }
+
+    function normalizeFeatureFlags(raw) {
+      const helper = window.TrollrunnerFeatureFlags;
+      if (helper?.extractFlagsFromPayload) return helper.extractFlagsFromPayload({ featureFlags: raw });
+      const defaults = Object.fromEntries(FEATURE_FLAGS_DEFS.map(def => [def.id, true]));
+      const input = raw && typeof raw === 'object' ? raw : {};
+      const normalized = { ...defaults };
+      Object.keys(defaults).forEach(key => {
+        if (typeof input[key] === 'boolean') normalized[key] = input[key];
+      });
+      return normalized;
+    }
+
+    function getFeatureFlags() {
+      if (cachedFeatureFlags) return cachedFeatureFlags;
+      cachedFeatureFlags = normalizeFeatureFlags(window.TrollrunnerFeatureFlags?.getFlags?.() || {});
+      return cachedFeatureFlags;
+    }
+
+    function rememberSharedFeatureFlagsMeta(payload) {
+      const meta = getSharedUpdatesArray(payload).find(isSharedFeatureFlagsMetaItem);
+      if (meta?.featureFlags) cachedFeatureFlags = normalizeFeatureFlags(meta.featureFlags);
+      return cachedFeatureFlags;
+    }
+
     function rememberSharedNotisMeta(payload) {
       const meta = getSharedUpdatesArray(payload).find(isSharedNotisMetaItem);
       if (meta) cachedNotisMeta = meta;
@@ -1006,7 +1079,8 @@ Fixed some admin system bugs.`,
       rememberSharedLiveChatMeta(payload);
       rememberSharedViewAnalyticsMeta(payload);
       rememberSharedNotisMeta(payload);
-      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item));
+      rememberSharedFeatureFlagsMeta(payload);
+      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item) && !isSharedFeatureFlagsMetaItem(item));
     }
 
     function parseStatusFlag(value) {
@@ -1116,7 +1190,7 @@ Fixed some admin system bugs.`,
       };
     }
 
-    function buildSharedUpdatesPayload(items, liveStatuses = getCurrentLiveStatuses(), feedbackItems = getFeedback(), siteLock = getStoredSiteLockRecord(), liveChatMeta = cachedLiveChatMeta, viewAnalyticsMeta = cachedViewAnalyticsMeta) {
+    function buildSharedUpdatesPayload(items, liveStatuses = getCurrentLiveStatuses(), feedbackItems = getFeedback(), siteLock = getStoredSiteLockRecord(), liveChatMeta = cachedLiveChatMeta, viewAnalyticsMeta = cachedViewAnalyticsMeta, featureFlags = cachedFeatureFlags) {
       const liveChatMetaFromItems = Array.isArray(items) ? items.find(isSharedLiveChatMetaItem) : null;
       const preservedLiveChatMeta = liveChatMetaFromItems || liveChatMeta;
       if (preservedLiveChatMeta) cachedLiveChatMeta = preservedLiveChatMeta;
@@ -1126,7 +1200,10 @@ Fixed some admin system bugs.`,
       const notisMetaFromItems = Array.isArray(items) ? items.find(isSharedNotisMetaItem) : null;
       const preservedNotisMeta = notisMetaFromItems || cachedNotisMeta;
       if (preservedNotisMeta) cachedNotisMeta = preservedNotisMeta;
-      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item)) : [];
+      const featureFlagsFromItems = Array.isArray(items) ? items.find(isSharedFeatureFlagsMetaItem) : null;
+      const preservedFeatureFlags = normalizeFeatureFlags(featureFlagsFromItems?.featureFlags || featureFlags || getFeatureFlags());
+      cachedFeatureFlags = preservedFeatureFlags;
+      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item) && !isSharedFeatureFlagsMetaItem(item)) : [];
       return [
         ...visibleItems,
         {
@@ -1180,6 +1257,15 @@ Fixed some admin system bugs.`,
           archived: true,
           source: 'system',
         }] : []),
+        {
+          id: FEATURE_FLAGS_META_ID,
+          title: '__feature_flags_meta__',
+          body: '__feature_flags_meta__',
+          createdAt: new Date().toISOString(),
+          archived: true,
+          source: 'system',
+          featureFlags: preservedFeatureFlags,
+        },
       ];
     }
 
@@ -1873,6 +1959,41 @@ Fixed some admin system bugs.`,
       }
     }
 
+    function renderFeatureFlags() {
+      const list = document.getElementById('feature-flags-list');
+      if (!list) return;
+      const flags = getFeatureFlags();
+      list.innerHTML = FEATURE_FLAGS_DEFS.map(def => {
+        const enabled = def.id.startsWith('game_') && flags.games === false ? false : flags[def.id] !== false;
+        const disabledByMaster = def.id.startsWith('game_') && flags.games === false;
+        return `
+          <div class="ff-row${def.group === 'games' && def.id !== 'games' ? ' is-sub' : ''}">
+            <span>${escapeHtml(def.label)}${disabledByMaster ? ' <small style="color:rgba(255,255,255,0.5);">(hidden — Games is off)</small>' : ''}</span>
+            <span class="row">
+              <button type="button" class="${enabled ? 'success' : 'secondary'}" onclick="toggleFeatureFlag('${def.id}', true)" ${enabled ? 'disabled' : ''}>On</button>
+              <button type="button" class="${!enabled ? 'alert' : 'secondary'}" onclick="toggleFeatureFlag('${def.id}', false)" ${!enabled ? 'disabled' : ''}>Off</button>
+            </span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function toggleFeatureFlag(id, enabled) {
+      const flags = { ...getFeatureFlags(), [id]: enabled };
+      cachedFeatureFlags = normalizeFeatureFlags(flags);
+      window.TrollrunnerFeatureFlags?.setCachedFlags?.(cachedFeatureFlags);
+      renderFeatureFlags();
+      const statusEl = document.getElementById('feature-flags-status');
+      if (statusEl) statusEl.textContent = 'Saving...';
+      const updates = buildSharedUpdatesPayload(ensureSeededUpdates());
+      const response = await writeSiteRow(updates, getCurrentLiveStatuses().running);
+      if (response.ok) {
+        if (statusEl) statusEl.textContent = 'Saved — synced to every Troll Runner site.';
+      } else if (statusEl) {
+        statusEl.textContent = `Save failed: ${await parseSupabaseError(response)}`;
+      }
+    }
+
     function getStoredSiteLockRecord() {
       const helper = window.TrollrunnerSiteLock;
       if (helper?.getComputedRecord) return helper.getComputedRecord();
@@ -2035,6 +2156,7 @@ Fixed some admin system bugs.`,
       renderFeedback();
       renderViewAnalytics();
       renderLiveStatusState();
+      renderFeatureFlags();
       bindPublicLockConsole();
 
       if (isSupabaseConfigured()) {
@@ -2050,6 +2172,7 @@ Fixed some admin system bugs.`,
             renderUpdates();
             renderFeedback();
             renderViewAnalytics();
+            renderFeatureFlags();
           }
         }, LIVE_STATUS_SYNC_POLL_MS);
       }

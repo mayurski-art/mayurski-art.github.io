@@ -4414,14 +4414,14 @@ body.desktop-mode .troll-desktop { display: block; }
     </div>
     <nav class="header-links" aria-label="Top navigation">
       <div class="header-links-row">
-        <a class="header-link-btn" href="https://blog.trollrunner.net">Blogs</a>
-        <a class="header-link-btn" href="https://finance.trollrunner.net">Finances</a>
-        <a class="header-link-btn" href="https://garden.trollrunner.net">Garden</a>
-        <a class="header-link-btn" href="https://games.trollrunner.net">Games</a>
-        <a class="header-link-btn" href="https://nutrition.trollrunner.net">Nutrition</a>
-        <a class="header-link-btn" href="https://projects.trollrunner.net/">Projects</a>
-        <a class="header-link-btn" href="https://stickers.trollrunner.net">Stickers</a>
-        <a class="header-link-btn" href="https://videos.trollrunner.net">Videos</a>
+        <a class="header-link-btn" href="https://blog.trollrunner.net" data-feature="blog">Blogs</a>
+        <a class="header-link-btn" href="https://finance.trollrunner.net" data-feature="finance">Finances</a>
+        <a class="header-link-btn" href="https://garden.trollrunner.net" data-feature="garden">Garden</a>
+        <a class="header-link-btn" href="https://games.trollrunner.net" data-feature="games">Games</a>
+        <a class="header-link-btn" href="https://nutrition.trollrunner.net" data-feature="nutrition">Nutrition</a>
+        <a class="header-link-btn" href="https://projects.trollrunner.net/" data-feature="projects">Projects</a>
+        <a class="header-link-btn" href="https://stickers.trollrunner.net" data-feature="stickers">Stickers</a>
+        <a class="header-link-btn" href="https://videos.trollrunner.net" data-feature="videos">Videos</a>
         <span id="site-viewer-pill" class="header-viewer-pill" role="status" aria-live="polite" aria-label="Current viewers">
           <svg class="header-viewer-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -4507,7 +4507,7 @@ body.desktop-mode .troll-desktop { display: block; }
   </div>
 </section>
 
-<section class="live-chat-panel" id="trollchat" aria-label="Trollchat live chat room">
+<section class="live-chat-panel" id="trollchat" data-feature="troll_chat" aria-label="Trollchat live chat room">
   <div class="live-chat-window">
     <div class="live-chat-titlebar">
       <div class="tc-title-left">
@@ -4630,6 +4630,7 @@ body.desktop-mode .troll-desktop { display: block; }
 </div>
 
 <script src="assets/js/site-lock.js"></script>
+<script src="assets/js/feature-flags.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/admin-auth.js"></script>
 <script src="assets/js/coming-soon.js"></script>
@@ -5331,6 +5332,7 @@ function tdBuildHub(body) {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'hub-card';
+    card.dataset.feature = site.id;
     card.style.setProperty('--hc', site.color);
     card.appendChild(mkCard(site.icon, site.img, site.label, site.desc));
     card.addEventListener('click', () => twOpen(site.id));
@@ -5339,6 +5341,7 @@ function tdBuildHub(body) {
   const chatCard = document.createElement('button');
   chatCard.type = 'button';
   chatCard.className = 'hub-card';
+  chatCard.dataset.feature = 'troll_chat';
   chatCard.style.setProperty('--hc', '#3ddad7');
   chatCard.appendChild(mkCard('💬', TD_WINDOWS.chat.img, 'TrollChat', 'Chat anonymously. Trade lies, troll lore.'));
   chatCard.addEventListener('click', () => twOpen('chat'));
@@ -5358,6 +5361,7 @@ function tdBuildHub(body) {
     '<span>Original Art: <a href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer">@SwishPng</a> · Adapted: <a href="https://twitter.com/troll_runner" target="_blank" rel="noreferrer">@troll_runner</a></span>';
   body.appendChild(foot);
   tdSyncAccountUI();
+  window.TrollrunnerFeatureFlags?.applyFeatureVisibility(body);
 }
 
 function tdSyncAccountUI() {
@@ -5620,9 +5624,10 @@ function twCreate(id) {
   tdMakeDraggable(id);
 }
 
-function tdAddIcon(host, { icon, img, flat, label, ext, dblclick }, onOpen, href) {
+function tdAddIcon(host, { icon, img, flat, label, ext, dblclick, feature }, onOpen, href) {
   const node = href ? document.createElement('a') : document.createElement('button');
   node.className = `td-icon${ext ? ' td-icon--ext' : ''}`;
+  if (feature) node.dataset.feature = feature;
   if (href) {
     node.href = href;
     node.target = '_blank';
@@ -5697,9 +5702,10 @@ function tdBuildStartMenu() {
   head.addEventListener('click', tdOpenAccount);
   menu.appendChild(head);
 
-  const addItem = (icon, label, onClick, href) => {
+  const addItem = (icon, label, onClick, href, feature) => {
     const item = href ? document.createElement('a') : document.createElement('button');
     item.className = 'td-sm-item';
+    if (feature) item.dataset.feature = feature;
     if (href) {
       item.href = href;
       item.target = '_blank';
@@ -5727,11 +5733,11 @@ function tdBuildStartMenu() {
 
   addLabel('APPS');
   ['hub', 'chat', 'cam', 'updates', 'feedback', 'about'].forEach(id => {
-    addItem(TD_WINDOWS[id].icon, TD_WINDOWS[id].title, () => twOpen(id));
+    addItem(TD_WINDOWS[id].icon, TD_WINDOWS[id].title, () => twOpen(id), null, id === 'chat' ? 'troll_chat' : null);
   });
   addSep();
   addLabel('SITES');
-  TD_SITES.forEach(site => addItem(site.icon, site.label, () => twOpen(site.id)));
+  TD_SITES.forEach(site => addItem(site.icon, site.label, () => twOpen(site.id), null, site.id));
   addItem('🥗', 'Nutrition', () => twOpen('nutrition'));
   addSep();
   const liveStack = document.querySelector('.header-live-stack');
@@ -5774,17 +5780,19 @@ function initializeTrollDesktop() {
   const icons = document.getElementById('td-icons');
   if (icons) {
     tdAddIcon(icons, { icon: TD_WINDOWS.hub.icon, img: TD_WINDOWS.hub.img, flat: TD_WINDOWS.hub.flat, label: 'TrollRunner Hub' }, () => twOpen('hub'));
-    TD_SITES.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label }, () => twOpen(site.id)));
-    tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: TD_WINDOWS.chat.flat, label: 'TrollChat' }, () => twOpen('chat'));
-    TD_SITES.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label }, () => twOpen(site.id)));
+    TD_SITES.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, feature: site.id }, () => twOpen(site.id)));
+    tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: TD_WINDOWS.chat.flat, label: 'TrollChat', feature: 'troll_chat' }, () => twOpen('chat'));
+    TD_SITES.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, feature: site.id }, () => twOpen(site.id)));
     tdAddIcon(icons, { icon: TD_WINDOWS.cam.icon, label: 'Live Cam' }, () => twOpen('cam'));
     tdAddIcon(icons, { icon: TD_WINDOWS.updates.icon, label: 'Updates' }, () => twOpen('updates'));
     tdAddIcon(icons, { icon: TD_WINDOWS.feedback.icon, label: 'Feedback' }, () => twOpen('feedback'));
     tdAddIcon(icons, { icon: '👤', label: 'Account' }, tdOpenAccount);
     tdAddIcon(icons, { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, label: 'Recycle Bin' }, () => twOpen('recycle'));
+    window.TrollrunnerFeatureFlags?.applyFeatureVisibility(icons);
   }
 
   tdBuildStartMenu();
+  window.TrollrunnerFeatureFlags?.applyFeatureVisibility(document.getElementById('td-startmenu'));
 
   const tray = document.getElementById('td-tray');
   const clockBtn = document.getElementById('td-clock');
