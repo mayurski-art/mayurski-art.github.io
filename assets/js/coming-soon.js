@@ -43,6 +43,15 @@
 
   form?.addEventListener('submit', async event => {
     event.preventDefault();
+    // Honeypot: hidden field humans can't see. If it's filled, a bot did it —
+    // show fake success and never touch the network.
+    const honeypot = document.getElementById('cs-newsletter-website');
+    if (honeypot && honeypot.value) {
+      newsletterStatus.textContent = "You're on the list. 🧌";
+      newsletterStatus.dataset.kind = 'success';
+      form.reset();
+      return;
+    }
     const email = String(emailInput?.value || '').trim();
     if (!email) return;
     const submitBtn = form.querySelector('button[type="submit"]');

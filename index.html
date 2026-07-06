@@ -4347,6 +4347,8 @@ body.desktop-mode .troll-desktop { display: block; }
 }
 .cs-newsletter-status[data-kind="success"] { color: var(--n-green); }
 .cs-newsletter-status[data-kind="error"] { color: #ff6b6b; }
+/* Honeypot: invisible to humans, irresistible to dumb bots. */
+.cs-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 .cs-admin-corner {
   position: absolute;
@@ -4400,6 +4402,7 @@ body.desktop-mode .troll-desktop { display: block; }
 
     <form id="cs-newsletter-form" class="cs-newsletter" autocomplete="off" novalidate>
       <label class="cs-newsletter-label" for="cs-newsletter-email">Get notified when we launch</label>
+      <input id="cs-newsletter-website" class="cs-hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
       <div class="cs-newsletter-row">
         <input id="cs-newsletter-email" class="cs-newsletter-input" type="email" placeholder="you@email.com" required autocomplete="email">
         <button type="submit" class="cs-newsletter-btn">Notify Me</button>
