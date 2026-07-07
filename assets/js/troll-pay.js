@@ -43,6 +43,22 @@
   var _token = 'USDC';    // current pay token
   var _accountListener = false;  // attached the Phantom accountChanged listener?
 
+  // ── Admin bypass ─────────────────────────────────────────────────────────────
+  // The Troll Runner's own account (username "troll_runner") never has to pay
+  // to revive/play — this is the site owner testing/enjoying their own games,
+  // not a real customer transaction. Tips (the finance tip jar) are excluded on
+  // purpose: those are real gifts to the treasury and should stay real even when
+  // signed in as the owner. Memo tags come from the "TR|<category>|..." scheme
+  // shared with the finance tip jar (see troll-pay-config / tip-jar.js).
+  var ADMIN_USERNAME = 'troll_runner';
+  function isAdminUser() {
+    var accounts = window.TrollrunnerAccounts;
+    var profile = accounts && accounts.getCachedProfile && accounts.getCachedProfile();
+    return !!(profile && String(profile.username || '').toLowerCase() === ADMIN_USERNAME);
+  }
+  function isTipMemo(memo) { return /^TR\|tip\|/i.test(memo || ''); }
+  function adminBypassActive(memo) { return isAdminUser() && !isTipMemo(memo); }
+
   // ── web3.js loader ──────────────────────────────────────────────────────────
   function loadWeb3() {
     if (_web3) return Promise.resolve(_web3);
@@ -333,6 +349,9 @@
     var taxRate = Number(opts.taxRate) || 0;
     var tax   = base * taxRate;
     var total = base + tax;
+    if (adminBypassActive(opts.memo)) {
+      return { ok: true, free: true, txSig: 'ADMIN_BYPASS', base: base, tax: 0, total: 0 };
+    }
     try {
       var sig = await sendUsd(total, token, opts.onProgress, opts.memo);
       return { ok: true, txSig: sig, base: base, tax: tax, total: total };
@@ -344,6 +363,7 @@
 
   // ── Public: convenience revive payment (uses config price + tax) ─────────────────
   async function payForRevive(onProgress) {
+    if (adminBypassActive()) return { ok: true, free: true, txSig: 'ADMIN_BYPASS' };
     var p = revivePricing();
     var token = getToken();
     try {
@@ -410,6 +430,9 @@
   }
   // True when we should hand off to the Phantom app (mobile, no injected wallet).
   function shouldUseSolanaPay() {
+    // Admin bypass never hands off to the Phantom app — it short-circuits inside
+    // pay()/payForRevive() below instead, so force the desktop branch here.
+    if (adminBypassActive()) return false;
     return !getPhantom() && isTouchMobile();
   }
   function trimAmount(n, decimals) {
@@ -514,6 +537,7 @@
     shouldUseSolanaPay: shouldUseSolanaPay,
     solanaPayUrl:      solanaPayUrl,
     warmTrollPrice:    warmTrollPrice,
+    isAdminBypass:     function () { return adminBypassActive(); },
     latestTreasurySig: latestTreasurySig,
     waitForNewTreasuryPayment: waitForNewTreasuryPayment,
     config:            CFG,
