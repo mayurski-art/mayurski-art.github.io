@@ -1,8 +1,10 @@
 /*
  * TrollPay — canonical Phantom / Solana payment library for Troll Runner.
  *
- * This is the reference copy. The arcade games and the finance tip jar each
- * keep their own working copy of this file; keep them in sync with this one.
+ * There is only one copy: this file, served from trollrunner.net. Every
+ * sibling site (arcade games, the finance tip jar) loads it cross-origin
+ * (<script src="https://trollrunner.net/assets/js/troll-pay.js">) — edits
+ * here go live everywhere on next deploy, nothing to sync by hand.
  *
  * A payment is a single SPL token transfer to the treasury, signed in Phantom
  * and confirmed on-chain. There is no backend — for tips/revives the confirmed
@@ -16,6 +18,7 @@
  * Public API (window.TrollPay):
  *   loadWeb3()                       -> Promise<web3 namespace>
  *   connect()                        -> Promise<{ address }>   (opens Phantom)
+ *   warmConnect()                    -> Promise<{ address }|null>  (silent, no popup)
  *   isConnected() / getWallet()
  *   trollAvailable()                 -> bool   ($TROLL usable on this network)
  *   setToken('USDC'|'TROLL') / getToken()
@@ -98,6 +101,33 @@
 
   function isConnected() { return !!_wallet; }
   function getWallet()   { return _wallet; }
+
+  // Silent reconnect: if this origin already has Phantom's trust (e.g. the
+  // visitor used the "Connect Wallet" button elsewhere on the site, or paid
+  // here before), `connect({ onlyIfTrusted: true })` resolves immediately
+  // with no popup. Warms `_wallet` so pay()/payForRevive() can skip straight
+  // to the sign prompt. No-ops silently if the origin isn't trusted yet —
+  // never shows a connect popup itself. Callers should fire this once on
+  // page load; the actual pay button still calls connect() as a fallback.
+  async function warmConnect() {
+    if (_wallet) return _wallet;
+    var phantom = getPhantom();
+    if (!phantom || !phantom.isPhantom) return null;
+    try {
+      var resp = await phantom.connect({ onlyIfTrusted: true });
+      if (!resp || !resp.publicKey) return null;
+      _wallet = { address: resp.publicKey.toString() };
+      if (phantom.on && !_accountListener) {
+        _accountListener = true;
+        phantom.on('accountChanged', function (pubkey) {
+          _wallet = pubkey ? { address: pubkey.toString() } : null;
+        });
+      }
+      return _wallet;
+    } catch (e) {
+      return null; // not trusted yet — connect() will prompt normally
+    }
+  }
 
   // ── Token availability + selection ────────────────────────────────────────────
   function trollAvailable() {
@@ -523,6 +553,7 @@
   window.TrollPay = {
     loadWeb3:          loadWeb3,
     connect:           connect,
+    warmConnect:       warmConnect,
     isConnected:       isConnected,
     getWallet:         getWallet,
     trollAvailable:    trollAvailable,
