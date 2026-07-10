@@ -684,6 +684,7 @@ header h1 {
   padding: 6px 10px;
   cursor: pointer;
 }
+a.header-music-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .header-song-wrap {
   width: 220px;
   overflow: hidden;
@@ -1318,6 +1319,10 @@ header p {
 .troll-radio-bar .header-music-btn:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.2)); }
 .troll-radio-body { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 16px 6px; }
 .troll-radio-art { font-size: 38px; line-height: 1; filter: drop-shadow(0 0 10px rgba(122, 92, 255, 0.55)); }
+.troll-radio-art img { width: 38px; height: 38px; object-fit: contain; display: block; border-radius: 8px; }
+.troll-emoji-icon { height: 1em; width: auto; display: inline-block; vertical-align: -0.15em; border-radius: 3px; }
+.gate-profile-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; display: block; }
+.pin-letter img { width: 16px; height: 16px; object-fit: cover; border-radius: 50%; display: block; }
 .troll-radio-track { width: 100%; text-align: center; }
 .troll-radio-song { font-family: var(--disp); font-size: 15px; color: #fff; letter-spacing: 0.04em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4362,7 +4367,7 @@ body.desktop-mode .troll-desktop { display: block; }
 
         <div id="gate-profile-panel" class="gate-profile-panel" hidden>
           <div class="gate-profile-row">
-            <span id="gate-profile-avatar" class="gate-profile-avatar" aria-hidden="true">🧌</span>
+            <span id="gate-profile-avatar" class="gate-profile-avatar" aria-hidden="true"><img src="assets/animations/troll-grin.gif" alt=""></span>
             <div class="gate-profile-meta">
               <span id="gate-profile-name" class="gate-profile-name">runner</span>
               <span id="gate-profile-level" class="gate-profile-level">LV 1</span>
@@ -4422,7 +4427,7 @@ body.desktop-mode .troll-desktop { display: block; }
   <div id="td-windows"></div>
   <nav id="td-startmenu" class="td-startmenu" aria-label="Start menu"></nav>
   <div class="td-taskbar">
-    <button id="td-start" class="td-start" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="td-startmenu">🧌 Start</button>
+    <button id="td-start" class="td-start" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="td-startmenu"><img class="troll-emoji-icon" src="assets/animations/troll-grin.gif" alt=""> Start</button>
     <div id="td-task-btns" class="td-task-btns" role="tablist" aria-label="Open windows"></div>
     <button id="td-close-all" class="td-close-all" type="button" aria-label="Close all open tabs">✕ Close all tabs</button>
     <div id="td-tray" class="td-tray">
@@ -4473,6 +4478,7 @@ body.desktop-mode .troll-desktop { display: block; }
         <button id="header-music-playpause" class="header-music-btn" onclick="trollRadioTogglePlay()" aria-label="Play or pause">▶</button>
         <button id="header-music-next" class="header-music-btn" onclick="trollRadioNext()" aria-label="Next track">⏭</button>
         <button id="header-music-loop" class="header-music-btn" onclick="trollRadioToggleLoop()" aria-label="Toggle repeat" aria-pressed="false">🔁</button>
+        <a id="header-music-playlist" class="header-music-btn" href="https://open.spotify.com/playlist/0ni59E9HbWpAe8Ydnseh4O" target="_blank" rel="noreferrer" aria-label="Open Troll Radio playlist on Spotify" title="Open playlist on Spotify">↗</a>
       </div>
       <div class="header-song-wrap" aria-live="polite">
         <span id="header-song-status" class="header-song-text">Loading music…</span>
@@ -4649,10 +4655,11 @@ body.desktop-mode .troll-desktop { display: block; }
   <div class="troll-radio-bar">
     <span aria-hidden="true">🎵</span>
     <span class="troll-radio-title">TROLL RADIO</span>
+    <a id="troll-radio-open-spotify" class="tw-btn" href="https://open.spotify.com/playlist/0ni59E9HbWpAe8Ydnseh4O" target="_blank" rel="noopener noreferrer" aria-label="Open playlist in Spotify" title="Open in Spotify">↗</a>
     <button id="troll-radio-close" class="tw-btn tw-btn--close" type="button" aria-label="Close Troll Radio">✕</button>
   </div>
   <div class="troll-radio-body">
-    <div class="troll-radio-art" aria-hidden="true">🧌</div>
+    <div class="troll-radio-art" aria-hidden="true"><img src="assets/animations/troll-grin.gif" alt=""></div>
     <div class="troll-radio-track">
       <div id="troll-radio-song" class="troll-radio-song">Loading music…</div>
       <div id="troll-radio-artist" class="troll-radio-artist">Streaming via Spotify</div>
@@ -5100,8 +5107,10 @@ function initializeGateAccountUI() {
         img.alt = '';
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:4px;';
         profileAvatar.appendChild(img);
+      } else if (session.avatar) {
+        profileAvatar.textContent = String(session.avatar);
       } else {
-        profileAvatar.textContent = String(session.avatar || '🧌');
+        profileAvatar.innerHTML = '<img src="assets/animations/troll-grin.gif" alt="">';
       }
     }
   };
@@ -5222,6 +5231,12 @@ const TD_SITES = [
   { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
   { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.' },
 ];
+
+function tdSetIcon(el, icon) {
+  if (!el) return;
+  if (icon === '🧌') el.innerHTML = '<img class="troll-emoji-icon" src="assets/animations/troll-grin.gif" alt="">';
+  else el.textContent = icon;
+}
 
 const TD_WINDOWS = {
   hub: { title: 'TrollRunner Hub', icon: '🧌', img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: true, url: 'https://www.trollrunner.net', build: tdBuildHub },
@@ -5461,7 +5476,17 @@ function tdSyncAccountUI() {
   void tdSyncWalletUI();
   const session = tdAccountSession();
   document.querySelectorAll('[data-td-account]').forEach(btn => {
-    btn.textContent = session ? `🧌 ${session.username} · LV ${session.level}` : 'Login / Register';
+    btn.textContent = '';
+    if (session) {
+      const icon = document.createElement('img');
+      icon.className = 'troll-emoji-icon';
+      icon.src = 'assets/animations/troll-grin.gif';
+      icon.alt = '';
+      btn.appendChild(icon);
+      btn.appendChild(document.createTextNode(` ${session.username} · LV ${session.level}`));
+    } else {
+      btn.textContent = 'Login / Register';
+    }
   });
   const smUser = document.getElementById('td-sm-user');
   const smSub = document.getElementById('td-sm-sub');
@@ -5476,7 +5501,7 @@ function tdSyncAccountUI() {
       img.alt = '';
       smAvatar.appendChild(img);
     } else {
-      smAvatar.textContent = '🧌';
+      smAvatar.innerHTML = '<img src="assets/animations/troll-grin.gif" alt="">';
     }
   }
 }
@@ -5632,7 +5657,7 @@ function tdEnsureTaskBtn(id) {
     btn.type = 'button';
     btn.className = 'td-task-btn';
     btn.innerHTML = '<span aria-hidden="true"></span><span></span>';
-    btn.firstChild.textContent = cfg.icon;
+    tdSetIcon(btn.firstChild, cfg.icon);
     btn.lastChild.textContent = cfg.title;
     btn.addEventListener('click', () => {
       if (win.minimized || win.el.style.display === 'none') twOpen(id);
@@ -5699,7 +5724,7 @@ function twCreate(id) {
         : '<span aria-hidden="true">★</span>'}
     </div>` : ''}
     <div class="tw-body"></div>`;
-  el.querySelector('.tw-title-icon').textContent = cfg.icon;
+  tdSetIcon(el.querySelector('.tw-title-icon'), cfg.icon);
   el.querySelector('.tw-title').textContent = cfg.title;
   if (cfg.browser) el.querySelector('.tw-url .url').textContent = cfg.url || '';
   const body = el.querySelector('.tw-body');
@@ -5792,7 +5817,7 @@ function tdBuildStartMenu() {
   const head = document.createElement('button');
   head.type = 'button';
   head.className = 'td-sm-head';
-  head.innerHTML = '<span class="td-sm-avatar" id="td-sm-avatar" aria-hidden="true">🧌</span><span><div class="td-sm-user" id="td-sm-user">Guest troll</div><div class="td-sm-sub" id="td-sm-sub">Login to save your runs</div></span>';
+  head.innerHTML = '<span class="td-sm-avatar" id="td-sm-avatar" aria-hidden="true"><img src="assets/animations/troll-grin.gif" alt=""></span><span><div class="td-sm-user" id="td-sm-user">Guest troll</div><div class="td-sm-sub" id="td-sm-sub">Login to save your runs</div></span>';
   head.addEventListener('click', tdOpenAccount);
   menu.appendChild(head);
 
@@ -6733,7 +6758,7 @@ function renderPins() {
     const idx = DATA.indexOf(loc);
     const col = CITIES[loc.city];
     const html = `<div class="lf-pin${activeIdx === idx ? ' active-pin' : ''}">
-      <div class="pin-body" style="background:${col.pin}"><span class="pin-letter">🧌</span></div>
+      <div class="pin-body" style="background:${col.pin}"><span class="pin-letter"><img src="assets/animations/troll-grin.gif" alt=""></span></div>
       ${loc.count>1?`<div class="pin-count">${loc.count}</div>`:''}
     </div>`;
     const marker = L.marker(getLatLngForLocation(loc), {
