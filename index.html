@@ -1273,8 +1273,8 @@ header p {
   .live-chat-typing.is-active::after { animation: none; }
 }
 
-/* Troll Radio — Spotify popup. Closed: parked offscreen (never display:none,
-   never re-parented — either would kill/reload the embed iframe + audio). */
+/* Troll Radio — MP3 player popup. Closed: parked offscreen (never display:none,
+   never re-parented — either would interrupt the <audio> element's playback). */
 .troll-radio {
   position: fixed;
   left: -9999px;
@@ -1316,9 +1316,27 @@ header p {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.1));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.3); }
 .troll-radio-bar .header-music-btn:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.2)); }
-#spotify-embed { height: 430px; max-height: calc(100vh - 220px); background: #0a0719; }
-#spotify-embed iframe { width: 100%; height: 100%; }
-.troll-radio:not(.is-open) #spotify-embed iframe { pointer-events: none; }
+.troll-radio-body { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 16px 6px; }
+.troll-radio-art { font-size: 38px; line-height: 1; filter: drop-shadow(0 0 10px rgba(122, 92, 255, 0.55)); }
+.troll-radio-track { width: 100%; text-align: center; }
+.troll-radio-song { font-family: var(--disp); font-size: 15px; color: #fff; letter-spacing: 0.04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.troll-radio-artist { font-size: 11px; color: rgba(255, 255, 255, 0.55); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.troll-radio-progress { width: 100%; display: flex; align-items: center; gap: 8px; font-size: 10px;
+  color: rgba(255, 255, 255, 0.6); font-family: var(--pixel); }
+.troll-radio-time { flex: none; min-width: 30px; text-align: center; }
+.troll-radio-seek { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18); outline: none; cursor: pointer; }
+.troll-radio-seek::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--n-green); box-shadow: 0 0 6px rgba(77, 255, 115, 0.7); cursor: pointer; }
+.troll-radio-seek::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; border: none;
+  background: var(--n-green); box-shadow: 0 0 6px rgba(77, 255, 115, 0.7); cursor: pointer; }
+.header-music-btn.is-active { color: var(--n-green); text-shadow: 0 0 8px rgba(77, 255, 115, 0.7);
+  background: linear-gradient(180deg, rgba(77, 255, 115, 0.3), rgba(77, 255, 115, 0.1)); }
+/* Real Spotify player, kept alive for playback but never shown — our own
+   controls above drive it. Not display:none (would kill the audio). */
+#spotify-embed { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
 .troll-radio-foot {
   display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 15px; color: #bfe9cc;
   border-top: 2px solid #000; background: #0b1410;
@@ -4450,11 +4468,14 @@ body.desktop-mode .troll-desktop { display: block; }
       </div>
     </nav>
     <div class="header-spacer">
-      <div class="header-music-controls" aria-label="Music controls">
-        <button id="spotify-play-pause" class="header-music-btn" onclick="toggleSpotifyPlayPause()" aria-label="Play or pause">▶</button>
+      <div id="header-music-controls" class="header-music-controls" aria-label="Music controls">
+        <button id="header-music-prev" class="header-music-btn" onclick="trollRadioPrev()" aria-label="Previous track">⏮</button>
+        <button id="header-music-playpause" class="header-music-btn" onclick="trollRadioTogglePlay()" aria-label="Play or pause">▶</button>
+        <button id="header-music-next" class="header-music-btn" onclick="trollRadioNext()" aria-label="Next track">⏭</button>
+        <button id="header-music-loop" class="header-music-btn" onclick="trollRadioToggleLoop()" aria-label="Toggle repeat" aria-pressed="false">🔁</button>
       </div>
       <div class="header-song-wrap" aria-live="polite">
-        <span id="spotify-status" class="header-song-text">Loading music…</span>
+        <span id="header-song-status" class="header-song-text">Loading music…</span>
       </div>
     </div>
   </div>
@@ -4630,7 +4651,19 @@ body.desktop-mode .troll-desktop { display: block; }
     <span class="troll-radio-title">TROLL RADIO</span>
     <button id="troll-radio-close" class="tw-btn tw-btn--close" type="button" aria-label="Close Troll Radio">✕</button>
   </div>
-  <div id="spotify-embed" aria-label="Troll Runner Spotify playlist"></div>
+  <div class="troll-radio-body">
+    <div class="troll-radio-art" aria-hidden="true">🧌</div>
+    <div class="troll-radio-track">
+      <div id="troll-radio-song" class="troll-radio-song">Loading music…</div>
+      <div id="troll-radio-artist" class="troll-radio-artist">Streaming via Spotify</div>
+    </div>
+    <div class="troll-radio-progress">
+      <span id="troll-radio-time-cur" class="troll-radio-time">0:00</span>
+      <input id="troll-radio-seek" class="troll-radio-seek" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek through track">
+      <span id="troll-radio-time-dur" class="troll-radio-time">0:00</span>
+    </div>
+  </div>
+  <div id="spotify-embed" aria-hidden="true"></div>
   <div class="troll-radio-foot">
     <span id="troll-radio-status" aria-live="polite">Loading music…</span>
   </div>
@@ -4704,6 +4737,9 @@ let spotifyLoaded = false;
 let spotifyIsPlaying = false;
 let spotifyTrackLabel = 'Waiting for current track…';
 let spotifyCurrentUri = '';
+let spotifyLoopOne = false;
+let spotifyDuration = 0;
+const spotifyTrackLabelCache = new Map();
 const MOBILE_SIDEBAR_TRACKER_KEY = 'trollrunner_mobile_sidebar_tracker_open';
 let viewerPresenceClient = null;
 let viewerPresenceChannel = null;
@@ -4715,7 +4751,6 @@ const liveCoordinateMap = {};
 let geoCache = null;
 const geoInflight = new Set();
 const ENABLE_LIVE_GEOCODING = false;
-const spotifyTrackLabelCache = new Map();
 const SHARED_STATUS_META_ID = '__trollrunner_live_status_meta__';
 const LIVE_RUNNING_STATUS_KEY = 'trollrunner_live_status_running_enabled';
 const LIVE_CODING_STATUS_KEY = 'trollrunner_live_status_coding_enabled';
@@ -5857,9 +5892,9 @@ function initializeTrollDesktop() {
   const clockBtn = document.getElementById('td-clock');
   if (tray && clockBtn) {
     const radioBar = document.querySelector('.troll-radio-bar');
-    const musicBtn = document.getElementById('spotify-play-pause');
+    const musicControls = document.getElementById('header-music-controls');
     const radioClose = document.getElementById('troll-radio-close');
-    if (radioBar && musicBtn && radioClose) radioBar.insertBefore(musicBtn, radioClose);
+    if (radioBar && musicControls && radioClose) radioBar.insertBefore(musicControls, radioClose);
     const trayMusic = document.createElement('button');
     trayMusic.id = 'td-music';
     trayMusic.className = 'td-music';
@@ -5953,7 +5988,7 @@ function initializeSiteGate() {
   const tryEnter = () => {
     if (!dismissSiteGate()) return;
     window.setTimeout(() => {
-      const focusTarget = document.getElementById('spotify-play-pause') || document.querySelector('main a, main button, main input, main textarea');
+      const focusTarget = document.getElementById('header-music-playpause') || document.querySelector('main a, main button, main input, main textarea');
       if (focusTarget && typeof focusTarget.focus === 'function') focusTarget.focus();
     }, 0);
   };
@@ -6192,22 +6227,39 @@ window.addEventListener('storage', (event) => {
 
 applyLiveStatusVisibility();
 
-function setSpotifyStatus(message) {
-  const radioStatus = document.getElementById('troll-radio-status');
-  if (radioStatus) radioStatus.textContent = message;
-  const status = document.getElementById('spotify-status');
-  if (status) status.textContent = message;
+function formatTrollTime(sec) {
+  if (!isFinite(sec) || sec < 0) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
 }
 
-function updateSpotifyButtons() {
+function setMusicStatus(message) {
+  const radioStatus = document.getElementById('troll-radio-status');
+  if (radioStatus) radioStatus.textContent = message;
+  const headerStatus = document.getElementById('header-song-status');
+  if (headerStatus) headerStatus.textContent = message;
+}
+
+function updateTrackInfo() {
+  const songEl = document.getElementById('troll-radio-song');
+  if (songEl) songEl.textContent = spotifyTrackLabel;
+}
+
+function updateMusicButtons() {
+  const playBtn = document.getElementById('header-music-playpause');
+  if (playBtn) playBtn.textContent = spotifyIsPlaying ? '⏸' : '▶';
   const trayMusic = document.getElementById('td-music');
   if (trayMusic) trayMusic.classList.toggle('is-playing', spotifyIsPlaying);
-  const playBtn = document.getElementById('spotify-play-pause');
-  if (playBtn) playBtn.textContent = spotifyIsPlaying ? '⏸' : '▶';
+  const loopBtn = document.getElementById('header-music-loop');
+  if (loopBtn) {
+    loopBtn.classList.toggle('is-active', spotifyLoopOne);
+    loopBtn.setAttribute('aria-pressed', spotifyLoopOne ? 'true' : 'false');
+  }
 }
 
 function updateSongStatus(isPlaying = spotifyIsPlaying) {
-  setSpotifyStatus(`${isPlaying ? 'Now Playing' : 'Paused'}: ${spotifyTrackLabel}`);
+  setMusicStatus(`${isPlaying ? 'Now Playing' : 'Paused'}: ${spotifyTrackLabel}`);
 }
 
 function parseLabelFromSpotifyUri(uri) {
@@ -6268,6 +6320,7 @@ async function refreshTrackLabelFromUri(uri) {
   const resolved = await resolveTrackLabelFromUri(uri);
   if (spotifyCurrentUri === uri) {
     spotifyTrackLabel = resolved;
+    updateTrackInfo();
     updateSongStatus();
   }
 }
@@ -6275,20 +6328,15 @@ async function refreshTrackLabelFromUri(uri) {
 window.onSpotifyIframeApiReady = (IFrameAPI) => {
   const element = document.getElementById('spotify-embed');
   if (!element) return;
-  element.addEventListener('focusin', () => {
-    if (document.getElementById('troll-radio')?.classList.contains('is-open')) return;
-    const active = document.activeElement;
-    if (active && typeof active.blur === 'function') active.blur();
-  });
   const options = {
     uri: SPOTIFY_PLAYLIST_URI,
-    width: '100%',
-    height: '152'
+    width: '1',
+    height: '1'
   };
   IFrameAPI.createController(element, options, (EmbedController) => {
     spotifyEmbedController = EmbedController;
     spotifyLoaded = true;
-    setSpotifyStatus('Ready: press ▶ to start');
+    setMusicStatus('Ready: press ▶ to start');
     if (typeof spotifyEmbedController.addListener === 'function') {
       spotifyEmbedController.addListener('playback_started', (event) => {
         if (event && event.data && event.data.playingURI) {
@@ -6296,43 +6344,79 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
         }
       });
       spotifyEmbedController.addListener('playback_update', (event) => {
-        if (event && event.data && event.data.playingURI && event.data.playingURI !== spotifyCurrentUri) {
+        if (!event || !event.data) return;
+        if (event.data.playingURI && event.data.playingURI !== spotifyCurrentUri) {
           refreshTrackLabelFromUri(event.data.playingURI);
         }
-        if (event && event.data && typeof event.data.isPaused === 'boolean') {
+        if (typeof event.data.isPaused === 'boolean') {
           spotifyIsPlaying = !event.data.isPaused;
-          updateSpotifyButtons();
+          updateMusicButtons();
           updateSongStatus();
+        }
+        const seek = document.getElementById('troll-radio-seek');
+        const curEl = document.getElementById('troll-radio-time-cur');
+        const durEl = document.getElementById('troll-radio-time-dur');
+        if (typeof event.data.duration === 'number' && typeof event.data.position === 'number' && event.data.duration > 0) {
+          spotifyDuration = event.data.duration;
+          if (seek) seek.value = (event.data.position / event.data.duration) * 100;
+          if (curEl) curEl.textContent = formatTrollTime(event.data.position);
+          if (durEl) durEl.textContent = formatTrollTime(event.data.duration);
         }
       });
     }
-    updateSpotifyButtons();
+    updateMusicButtons();
     updateSongStatus(false);
   });
 };
 
-function toggleSpotifyPlayPause() {
+function trollRadioTogglePlay() {
   if (!spotifyEmbedController || !spotifyLoaded) {
-    setSpotifyStatus('Music is still loading…');
+    setMusicStatus('Music is still loading…');
     return;
   }
-
   if (spotifyIsPlaying) {
     if (!callSpotifyMethod(['pause', 'togglePlay'])) {
-      setSpotifyStatus('Pause is unavailable in this Spotify embed.');
-      return;
+      setMusicStatus('Pause is unavailable in this Spotify embed.');
     }
   } else {
     if (!callSpotifyMethod(['resume', 'togglePlay', 'play'])) {
-      setSpotifyStatus('Play is unavailable in this Spotify embed.');
-      return;
+      setMusicStatus('Play is unavailable in this Spotify embed.');
     }
   }
 }
 
+function trollRadioNext() {
+  if (!callSpotifyMethod(['skipToNext', 'next', 'nextTrack'])) {
+    setMusicStatus('Skip isn’t supported by this Spotify embed.');
+  }
+}
+
+function trollRadioPrev() {
+  if (!callSpotifyMethod(['skipToPrevious', 'previous', 'previousTrack'])) {
+    setMusicStatus('Skip isn’t supported by this Spotify embed.');
+  }
+}
+
+function trollRadioToggleLoop() {
+  spotifyLoopOne = !spotifyLoopOne;
+  if (!callSpotifyMethod(['toggleRepeat', 'setRepeat', 'repeat']) && spotifyLoopOne) {
+    setMusicStatus('Repeat isn’t supported by this Spotify embed.');
+  }
+  updateMusicButtons();
+}
+
+const trollRadioSeekEl = document.getElementById('troll-radio-seek');
+if (trollRadioSeekEl) {
+  trollRadioSeekEl.addEventListener('change', (event) => {
+    if (!spotifyEmbedController || typeof spotifyEmbedController.seek !== 'function' || !spotifyDuration) return;
+    const seconds = (Number(event.target.value) / 100) * spotifyDuration;
+    spotifyEmbedController.seek(seconds);
+  });
+}
+
 window.setTimeout(() => {
   if (!spotifyLoaded) {
-    setSpotifyStatus('Spotify failed to load. Please refresh and try again.');
+    setMusicStatus('Spotify failed to load. Please refresh and try again.');
   }
 }, 8000);
 
