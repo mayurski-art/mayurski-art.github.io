@@ -14,6 +14,8 @@
      getClient()                     → the supabase client
      updateUsername(next) / updatePassword(next) / uploadAvatar(file)
      updateRecoveryEmail(email) / requestPasswordReset(email) / openRecovery()
+     connectWallet() → address | null   (opens Phantom, links it if logged in)
+     getWalletAddress() / unlinkWallet()
      awardXp(event, source, meta)    → server-guarded XP (cooldowns/caps)
      recordGameResult(gameId, score, meta)
      logPendingSpend({token,amount,wallet,signature,purpose,feature})
@@ -48,6 +50,56 @@
   let cachedProfile = null;
   let profilePromise = null;
 
+  /* ----------------------------------------------------------- cross-domain SSO
+     Supabase's own session storage is localStorage, which is scoped per-origin --
+     trollrunner.net and games.trollrunner.net never see each other's copy even
+     though they're sibling subdomains of the same site. The iframe postMessage
+     bridge below (initSsoBridge) covers pages embedded in the main site's desktop
+     shell, but a subdomain opened directly (its own tab/popup, e.g. someone
+     bookmarking games.trollrunner.net) is a top-level page, so that bridge never
+     fires and the visitor silently looks logged-out there even with an active
+     session elsewhere.
+       Fix: every subdomain shares one registrable domain (trollrunner.net), so a
+     cookie set with Domain=.trollrunner.net *is* visible to all of them on a
+     normal top-level load, no embedding required. We mirror the current session's
+     tokens into such a cookie on every auth change, and on init adopt it into this
+     origin's own Supabase client if this origin doesn't already have a session.
+     Same trust model as localStorage already documented above (a JWT re-verified
+     server-side by RLS on every request) -- this isn't a new attack surface, just
+     a wider read scope for the same token. Local/preview hosts (localhost, the
+     raw *.github.io domain) don't get this cookie -- they fall back to per-origin
+     localStorage only, same as before. */
+  const SSO_COOKIE = 'trollrunner_sso';
+  function ssoCookieDomain() {
+    return /(^|\.)trollrunner\.net$/i.test(location.hostname) ? '.trollrunner.net' : null;
+  }
+  function writeSsoCookie(session) {
+    const domain = ssoCookieDomain();
+    if (!domain) return;
+    if (!session) {
+      document.cookie = `${SSO_COOKIE}=; Domain=${domain}; Path=/; Max-Age=0; SameSite=Lax; Secure`;
+      return;
+    }
+    const value = encodeURIComponent(JSON.stringify({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    }));
+    document.cookie = `${SSO_COOKIE}=${value}; Domain=${domain}; Path=/; Max-Age=2592000; SameSite=Lax; Secure`;
+  }
+  function readSsoCookie() {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${SSO_COOKIE}=([^;]*)`));
+    if (!match) return null;
+    try { return JSON.parse(decodeURIComponent(match[1])); } catch { return null; }
+  }
+  async function adoptSsoCookie(sb) {
+    if (!ssoCookieDomain()) return;
+    const { data } = await sb.auth.getSession();
+    if (data?.session) return; // this origin already has its own session
+    const cookieSession = readSsoCookie();
+    if (!cookieSession?.access_token || !cookieSession?.refresh_token) return;
+    try { await sb.auth.setSession(cookieSession); } catch { /* stale/expired -- ignore */ }
+  }
+
   function getClient() {
     if (client) return client;
     if (!window.supabase?.createClient) return null;
@@ -59,7 +111,14 @@
         storageKey: 'trollrunner-accounts-auth',
       },
     });
-    client.auth.onAuthStateChange((_event, session) => {
+    client.auth.onAuthStateChange((event, session) => {
+      // INITIAL_SESSION fires on every fresh page load, including origins that
+      // have never signed in locally and are relying on adoptSsoCookie() to pull
+      // in a session from the cookie. Writing here (with session:null, since this
+      // origin's own localStorage is empty) would wipe that cookie out from under
+      // adoptSsoCookie before/while it's trying to read it. Only mirror the cookie
+      // on events that reflect an actual sign-in/out action.
+      if (event !== 'INITIAL_SESSION') writeSsoCookie(session);
       if (!session) {
         cachedProfile = null;
         profilePromise = null;
@@ -306,6 +365,78 @@
       await sb.from('troll_user_settings').update({ contact_email: addr }).eq('user_id', cachedProfile.id);
     } catch {}
     void awardXp('profile_email', 'settings');
+    return true;
+  }
+
+  /* ------------------------------------------------------------------
+     Wallet link — Phantom/Solana address attached to the account.
+     Desktop: the injected provider (browser extension) handles connect.
+     Mobile: a normal mobile browser has no injected provider, so instead
+     of failing we bounce the visitor into the Phantom app's own in-app
+     browser (which does inject one) via its universal link, same handoff
+     pattern troll-pay.js uses for payments. There's no return callback —
+     they land back here already inside Phantom's browser and just tap
+     Connect Wallet again to finish.
+     ------------------------------------------------------------------ */
+  const SOLANA_ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+  function getPhantomProvider() {
+    return (window.phantom && window.phantom.solana) || window.solana || null;
+  }
+
+  function isTouchMobile() {
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
+      (('ontouchstart' in window) && Math.min(screen.width || 9999, screen.height || 9999) < 820);
+  }
+
+  function openPhantomAppBrowser() {
+    const url = encodeURIComponent(location.href);
+    const ref = encodeURIComponent(location.origin);
+    location.href = `https://phantom.app/ul/browse/${url}?ref=${ref}`;
+  }
+
+  async function connectWallet() {
+    const provider = getPhantomProvider();
+    if (!provider || !provider.isPhantom) {
+      if (isTouchMobile()) {
+        openPhantomAppBrowser();
+        return null; // navigating away — nothing to return yet
+      }
+      throw new Error('Phantom wallet not found. Install the browser extension, or open this site in the Phantom app on mobile.');
+    }
+    const resp = await provider.connect();
+    const address = resp?.publicKey?.toString();
+    if (!address) throw new Error('Could not read the wallet address.');
+    if (cachedProfile) await updateWalletAddress(address);
+    return address;
+  }
+
+  async function getWalletAddress() {
+    const sb = getClient();
+    if (!sb || !cachedProfile) return null;
+    const { data } = await sb
+      .from('troll_user_settings')
+      .select('wallet_address')
+      .eq('user_id', cachedProfile.id)
+      .maybeSingle();
+    return data?.wallet_address || null;
+  }
+
+  async function updateWalletAddress(address) {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const addr = String(address || '').trim();
+    if (!SOLANA_ADDRESS_RE.test(addr)) throw new Error('That does not look like a valid Solana address.');
+    const { error } = await sb.from('troll_user_settings').update({ wallet_address: addr }).eq('user_id', cachedProfile.id);
+    if (error) throw friendlyError(error, 'Could not link the wallet.');
+    return true;
+  }
+
+  async function unlinkWallet() {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const { error } = await sb.from('troll_user_settings').update({ wallet_address: null }).eq('user_id', cachedProfile.id);
+    if (error) throw friendlyError(error, 'Could not unlink the wallet.');
     return true;
   }
 
@@ -960,6 +1091,60 @@
     emailSection.append(emailInput, emailBtn, emailStatus);
     body.appendChild(emailSection);
 
+    // Wallet
+    const walletSection = document.createElement('div');
+    walletSection.className = 'ta-section';
+    walletSection.innerHTML = `<h4>Wallet</h4>
+      <p class="ta-muted">Link your Phantom wallet — only visible to you here.</p>`;
+    const walletStatus = mkStatus();
+    const walletRow = document.createElement('div');
+    walletRow.className = 'ta-row';
+    const walletConnectBtn = document.createElement('button');
+    walletConnectBtn.className = 'ta-btn';
+    walletConnectBtn.type = 'button';
+    const walletUnlinkBtn = document.createElement('button');
+    walletUnlinkBtn.className = 'ta-btn ta-btn--ghost';
+    walletUnlinkBtn.type = 'button';
+    walletUnlinkBtn.textContent = 'Unlink';
+    walletUnlinkBtn.hidden = true;
+    walletRow.append(walletConnectBtn, walletUnlinkBtn);
+    walletSection.append(walletRow, walletStatus);
+    body.appendChild(walletSection);
+
+    const refreshWalletUi = async () => {
+      const addr = await getWalletAddress();
+      if (addr) {
+        walletConnectBtn.textContent = `${addr.slice(0, 4)}…${addr.slice(-4)} — reconnect`;
+        walletUnlinkBtn.hidden = false;
+      } else {
+        walletConnectBtn.textContent = '👛 Connect Phantom wallet';
+        walletUnlinkBtn.hidden = true;
+      }
+    };
+    walletConnectBtn.addEventListener('click', async () => {
+      walletConnectBtn.disabled = true;
+      report(walletStatus, 'Connecting…', '');
+      try {
+        const address = await connectWallet();
+        if (!address) {
+          // Mobile handoff: navigating to the Phantom app, nothing more to do here.
+          report(walletStatus, 'Opening the Phantom app… tap Connect again once you land back here.', '');
+          return;
+        }
+        await refreshWalletUi();
+        report(walletStatus, 'Wallet linked.', 'success');
+      } catch (error) {
+        report(walletStatus, error?.message || 'Could not connect the wallet.', 'error');
+      } finally {
+        walletConnectBtn.disabled = false;
+      }
+    });
+    walletUnlinkBtn.addEventListener('click', () => run(walletUnlinkBtn, walletStatus, async () => {
+      await unlinkWallet();
+      await refreshWalletUi();
+    }, 'Wallet unlinked.'));
+    void refreshWalletUi();
+
     // Password
     const passSection = document.createElement('div');
     passSection.className = 'ta-section';
@@ -1132,7 +1317,7 @@
     if (!sb) return;
     detectRecoveryLink();
     initSsoBridge();
-    void getSession().then(session => {
+    void adoptSsoCookie(sb).then(() => getSession()).then(session => {
       if (session) {
         dispatch(session);
         void awardXp('login_streak', 'visit');
@@ -1156,6 +1341,9 @@
     updateRecoveryEmail,
     requestPasswordReset,
     openRecovery,
+    connectWallet,
+    getWalletAddress,
+    unlinkWallet,
     uploadAvatar,
     awardXp,
     recordGameResult,

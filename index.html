@@ -4186,6 +4186,13 @@ body.desktop-mode .troll-desktop { display: block; }
   text-shadow: 0 0 8px rgba(255, 216, 77, 0.45); transition: background 0.14s ease, box-shadow 0.14s ease; }
 .hub-account-btn:hover { background: linear-gradient(180deg, rgba(255, 216, 77, 0.28), rgba(255, 216, 77, 0.1));
   box-shadow: 0 0 18px rgba(255, 216, 77, 0.35), inset 0 1px 0 rgba(255, 240, 180, 0.3), 2px 2px 0 rgba(0, 0, 0, 0.4); }
+.hub-wallet-btn { color: #b9f6ff; border-color: rgba(77, 238, 255, 0.75);
+  background: linear-gradient(180deg, rgba(77, 238, 255, 0.16), rgba(77, 238, 255, 0.05));
+  box-shadow: 0 0 12px rgba(77, 238, 255, 0.18), inset 0 1px 0 rgba(180, 245, 255, 0.25), 2px 2px 0 rgba(0, 0, 0, 0.4);
+  text-shadow: 0 0 8px rgba(77, 238, 255, 0.45); }
+.hub-wallet-btn:hover { background: linear-gradient(180deg, rgba(77, 238, 255, 0.28), rgba(77, 238, 255, 0.1));
+  box-shadow: 0 0 18px rgba(77, 238, 255, 0.35), inset 0 1px 0 rgba(180, 245, 255, 0.3), 2px 2px 0 rgba(0, 0, 0, 0.4); }
+.hub-wallet-btn[disabled] { opacity: 0.6; cursor: progress; }
 .hub-main { position: relative; }
 .hub-deco { position: absolute; top: -6px; right: -8px; bottom: 0; width: 34cqw; min-width: 190px; pointer-events: none; opacity: 0.85;
   background:
@@ -5258,6 +5265,51 @@ function tdOpenAccount() {
   else tdShowGate();
 }
 
+async function tdOpenWallet() {
+  const session = tdAccountSession();
+  tdCloseStartMenu();
+  if (!session) { tdShowGate(); return; }
+  const accounts = window.TrollrunnerAccounts;
+  if (!accounts) return;
+  const btn = document.querySelector('[data-td-wallet]');
+  const linked = await accounts.getWalletAddress();
+  if (linked) {
+    if (window.confirm(`Wallet linked: ${linked}\n\nUnlink this wallet?`)) {
+      await accounts.unlinkWallet();
+      tdSyncWalletUI();
+    }
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
+  try {
+    const address = await accounts.connectWallet();
+    if (!address) {
+      // Mobile handoff: navigating to the Phantom app now.
+      if (btn) btn.textContent = 'Opening Phantom…';
+      return;
+    }
+  } catch (error) {
+    window.alert(error?.message || 'Could not connect the wallet.');
+  } finally {
+    if (btn) btn.disabled = false;
+    tdSyncWalletUI();
+  }
+}
+
+async function tdSyncWalletUI() {
+  const session = tdAccountSession();
+  const btns = document.querySelectorAll('[data-td-wallet]');
+  if (!btns.length) return;
+  if (!session) {
+    btns.forEach(btn => { btn.textContent = '👛 Connect Wallet'; });
+    return;
+  }
+  const addr = await window.TrollrunnerAccounts?.getWalletAddress?.();
+  btns.forEach(btn => {
+    btn.textContent = addr ? `👛 ${addr.slice(0, 4)}…${addr.slice(-4)}` : '👛 Connect Wallet';
+  });
+}
+
 function tdBuildRecycle(body) {
   body.innerHTML = '';
   const wrap = document.createElement('div');
@@ -5295,12 +5347,18 @@ function tdBuildHub(body) {
   const main = document.createElement('div');
   main.className = 'hub-head-main';
   main.innerHTML = '<h2 class="hub-title">TROLL RUNNER</h2><p class="hub-tagline">TROLL THE WORLD. ANONYMITY. PERSEVERANCE. REVENGE.</p>';
+  const walletBtn = document.createElement('button');
+  walletBtn.type = 'button';
+  walletBtn.className = 'hub-account-btn hub-wallet-btn';
+  walletBtn.dataset.tdWallet = '1';
+  walletBtn.textContent = '👛 Connect Wallet';
+  walletBtn.addEventListener('click', tdOpenWallet);
   const accountBtn = document.createElement('button');
   accountBtn.type = 'button';
   accountBtn.className = 'hub-account-btn';
   accountBtn.dataset.tdAccount = '1';
   accountBtn.addEventListener('click', tdOpenAccount);
-  head.append(face, main, accountBtn);
+  head.append(face, main, walletBtn, accountBtn);
   body.appendChild(head);
 
   const mainWrap = document.createElement('div');
@@ -5365,6 +5423,7 @@ function tdBuildHub(body) {
 }
 
 function tdSyncAccountUI() {
+  void tdSyncWalletUI();
   const session = tdAccountSession();
   document.querySelectorAll('[data-td-account]').forEach(btn => {
     btn.textContent = session ? `🧌 ${session.username} · LV ${session.level}` : 'Login / Register';
