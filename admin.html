@@ -701,6 +701,10 @@
         <span class="summary-note">Inbox</span>
       </summary>
       <div class="collapsible-body">
+        <label class="row" style="align-items:center; gap:6px;">
+          <input type="checkbox" id="feedback-show-archived" onchange="renderFeedback()">
+          Show archived <span id="feedback-archived-count" class="summary-note"></span>
+        </label>
         <div id="feedback-preview"></div>
         <div class="row">
           <button class="secondary" onclick="clearFeedback()">Clear feedback inbox</button>
@@ -1153,6 +1157,7 @@ Fixed some admin system bugs.`,
         aiTopic: String(item?.aiTopic || 'general'),
         aiPriority: String(item?.aiPriority || 'normal'),
         createdAt,
+        archived: Boolean(item?.archived),
       };
     }
 
@@ -1727,15 +1732,37 @@ Fixed some admin system bugs.`,
 
     function renderFeedback() {
       const wrap = document.getElementById('feedback-preview');
+      const countNote = document.getElementById('feedback-archived-count');
+      const showArchived = Boolean(document.getElementById('feedback-show-archived')?.checked);
       const items = getFeedback();
-      wrap.innerHTML = items.length
-        ? items.map(item => {
+      const archivedCount = items.filter(item => item.archived).length;
+      if (countNote) countNote.textContent = archivedCount ? `(${archivedCount} archived)` : '';
+      const visible = items.filter(item => showArchived || !item.archived);
+      wrap.innerHTML = visible.length
+        ? visible.map(item => {
             const created = item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Unknown time';
             const username = String(item.username || '').trim();
             const userLine = username ? `<br><small>Username: ${escapeHtml(username)}</small>` : '';
-            return `<div class="item"><strong>${escapeHtml(item.aiTopic || 'general')}</strong> · ${escapeHtml(item.aiPriority || 'normal')} priority<br><small>${escapeHtml(created)}</small>${userLine}<p>${escapeHtml(item.message || '')}</p></div>`;
+            const idAttr = escapeHtml(item.id);
+            return `<div class="item${item.archived ? ' is-archived' : ''}">
+              <label style="display:flex; align-items:center; gap:6px; font-weight:normal;">
+                <input type="checkbox" ${item.archived ? 'checked' : ''} onchange="toggleFeedbackArchived('${idAttr}', this.checked)">
+                Archived
+              </label>
+              <strong>${escapeHtml(item.aiTopic || 'general')}</strong> · ${escapeHtml(item.aiPriority || 'normal')} priority<br><small>${escapeHtml(created)}</small>${userLine}<p>${escapeHtml(item.message || '')}</p>
+            </div>`;
           }).join('')
-        : '<p>No feedback submissions yet.</p>';
+        : (items.length ? '<p>No feedback to show (all archived — check "Show archived" above).</p>' : '<p>No feedback submissions yet.</p>');
+    }
+
+    async function toggleFeedbackArchived(id, archived) {
+      const items = getFeedback().map(item => item.id === id ? { ...item, archived: Boolean(archived) } : item);
+      localStorage.setItem(FEEDBACK_KEY, JSON.stringify(items));
+      renderFeedback();
+      const synced = await syncUpdatesToBackend(getUpdates().map(item => normalizeUpdate(item, item?.source || 'custom')).filter(Boolean));
+      if (!synced) {
+        alert(`Feedback updated on this device, but shared sync failed.\n\n${getSyncStatusText() || 'No sync status available.'}`);
+      }
     }
 
     function normalizeViewAnalyticsPayload(payload) {
