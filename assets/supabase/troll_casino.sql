@@ -20,10 +20,13 @@
 --     paid/rejected. Rejecting refunds the balance atomically.
 --   * In-round bet/win adjustments (troll_casino_adjust_balance) are, like
 --     every other game's score submission in this schema, CLIENT-TRUSTED —
---     there is no server-side RNG authority here. This function only
---     guarantees atomicity and a floor at 0, not fairness. Real-money risk
---     is capped by the fact that money only LEAVES via the manual-review
---     redemption path above.
+--     there is no server-side RNG authority here. This function guarantees
+--     atomicity, a floor at 0, a per-call delta cap, and a balance ceiling —
+--     not fairness. Real-money risk is capped by the fact that money only
+--     LEAVES via the manual-review redemption path above, and
+--     troll_casino_admin_player_summary() gives that reviewer a lifetime
+--     deposit/payout comparison to catch an implausible balance before
+--     approving it.
 --
 -- ADMIN ACCESS
 --   Adds `is_admin` to troll_profiles. Flip it to true for your own account
@@ -85,8 +88,13 @@ $$;
 revoke all on function public.troll_casino_ensure_wallet() from public, anon;
 grant execute on function public.troll_casino_ensure_wallet() to authenticated;
 
--- Gameplay bet/win adjustments. Client-trusted (see header) but atomic and
--- floored at 0 so a client can never push its own balance negative.
+-- Gameplay bet/win adjustments. Client-trusted (see header) but atomic,
+-- floored at 0 so a client can never push its own balance negative, and
+-- capped so a single bogus call (e.g. someone calling credit(999999999)
+-- straight from devtools) can't inflate a balance past anything a real
+-- spin/hand/round could ever produce. The per-call cap is well above the
+-- biggest legitimate single win (Troll Wheel WHALE at max chip, or a GRAND
+-- jackpot share); the balance ceiling is a second, generous backstop.
 create or replace function public.troll_casino_adjust_balance(
   p_delta    numeric,
   p_currency text,
@@ -100,20 +108,27 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_new numeric;
+  v_max_delta   numeric;
+  v_max_balance numeric;
 begin
   if v_uid is null then raise exception 'Login required.'; end if;
   if p_currency not in ('TROLL', 'USDC') then raise exception 'Bad currency.'; end if;
+
+  v_max_delta   := case when p_currency = 'TROLL' then 1000000 else 5000 end;
+  v_max_balance := case when p_currency = 'TROLL' then 10000000 else 50000 end;
+  if abs(p_delta) > v_max_delta then raise exception 'Delta out of range.'; end if;
+
   insert into troll_casino_wallet (user_id) values (v_uid)
   on conflict (user_id) do nothing;
 
   if p_currency = 'TROLL' then
     update troll_casino_wallet
-       set troll_balance = greatest(0, troll_balance + p_delta), updated_at = now()
+       set troll_balance = least(v_max_balance, greatest(0, troll_balance + p_delta)), updated_at = now()
      where user_id = v_uid
      returning troll_balance into v_new;
   else
     update troll_casino_wallet
-       set usdc_balance = greatest(0, usdc_balance + p_delta), updated_at = now()
+       set usdc_balance = least(v_max_balance, greatest(0, usdc_balance + p_delta)), updated_at = now()
      where user_id = v_uid
      returning usdc_balance into v_new;
   end if;
@@ -322,6 +337,46 @@ end;
 $$;
 revoke all on function public.troll_casino_admin_reject_redemption(uuid, text) from public, anon;
 grant execute on function public.troll_casino_admin_reject_redemption(uuid, text) to authenticated;
+
+-- Admin-only: a player's lifetime money-in/money-out summary, so the
+-- redemption panel can show current balance alongside what they've actually
+-- deposited and been paid — an inflated gameplay balance (see the cap in
+-- troll_casino_adjust_balance above) stands out immediately next to a
+-- deposit history that doesn't support it.
+create or replace function public.troll_casino_admin_player_summary(p_user_id uuid)
+returns table(
+  troll_balance   numeric,
+  usdc_balance    numeric,
+  troll_deposited numeric,
+  usdc_deposited  numeric,
+  troll_paid_out  numeric,
+  usdc_paid_out   numeric,
+  deposit_count   int
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from troll_profiles where id = auth.uid() and is_admin) then
+    raise exception 'Admin only.';
+  end if;
+
+  return query
+  select
+    coalesce(w.troll_balance, 0),
+    coalesce(w.usdc_balance, 0),
+    coalesce((select sum(d.token_amount) from troll_casino_deposits d where d.user_id = p_user_id and d.token = 'TROLL'), 0),
+    coalesce((select sum(d.token_amount) from troll_casino_deposits d where d.user_id = p_user_id and d.token = 'USDC'), 0),
+    coalesce((select sum(r.token_amount) from troll_casino_redemptions r where r.user_id = p_user_id and r.token = 'TROLL' and r.status = 'paid'), 0),
+    coalesce((select sum(r.token_amount) from troll_casino_redemptions r where r.user_id = p_user_id and r.token = 'USDC' and r.status = 'paid'), 0),
+    (select count(*) from troll_casino_deposits d where d.user_id = p_user_id)::int
+  from (select p_user_id as user_id) u
+  left join troll_casino_wallet w on w.user_id = u.user_id;
+end;
+$$;
+revoke all on function public.troll_casino_admin_player_summary(uuid) from public, anon;
+grant execute on function public.troll_casino_admin_player_summary(uuid) to authenticated;
 
 -- ============================================================
 -- 4. SHARED PROGRESSIVE JACKPOT (Doge Jackpot Reels), per currency
