@@ -40,6 +40,7 @@
   var COMPUTE_BUDGET_PROGRAM_ID_STR = 'ComputeBudget111111111111111111111111111111';
   var MEMO_PROGRAM_ID_STR = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
   var WEB3_CDN = 'https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js';
+  var WEB3_CDN_INTEGRITY = 'sha384-ujeTtvHxhu2g5lnu14Roii2ajvVKJ74KQ6eo6GGfAi0IrKZ1YkF8N68Iw5VmIJO0';
 
   var _web3 = null;       // loaded @solana/web3.js namespace
   var _wallet = null;     // { address }
@@ -69,6 +70,8 @@
     return new Promise(function (resolve, reject) {
       var s = document.createElement('script');
       s.src = WEB3_CDN;
+      s.integrity = WEB3_CDN_INTEGRITY;
+      s.crossOrigin = 'anonymous';
       s.onload = function () {
         if (window.solanaWeb3) { _web3 = window.solanaWeb3; resolve(_web3); }
         else reject(new Error('web3.js failed to initialise'));
