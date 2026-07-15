@@ -2,6 +2,9 @@
 -- TROLL CASINO — real-money chip ledger, deposits, redemptions, jackpot.
 -- Run ONCE in the Supabase SQL editor (same project as troll_accounts.sql).
 -- Requires troll_accounts.sql to already be applied (troll_profiles, auth).
+-- Every statement below is idempotent (create if not exists / create or
+-- replace / drop policy if exists), so re-running this whole file to pick up
+-- a later change is safe.
 --
 -- MONEY MODEL
 --   * Two real balances per user: troll_balance and usdc_balance, both held
@@ -20,13 +23,19 @@
 --     paid/rejected. Rejecting refunds the balance atomically.
 --   * In-round bet/win adjustments (troll_casino_adjust_balance) are, like
 --     every other game's score submission in this schema, CLIENT-TRUSTED —
---     there is no server-side RNG authority here. This function guarantees
---     atomicity, a floor at 0, a per-call delta cap, and a balance ceiling —
---     not fairness. Real-money risk is capped by the fact that money only
---     LEAVES via the manual-review redemption path above, and
---     troll_casino_admin_player_summary() gives that reviewer a lifetime
---     deposit/payout comparison to catch an implausible balance before
---     approving it.
+--     there is no server-side RNG authority for Troll Wheel / Blackjack /
+--     Slots. (Whale Launch Crash is the one exception: its crash point comes
+--     from the server-side troll_casino_crash_round() below, provably fair.)
+--     adjust_balance guarantees atomicity, a floor at 0, a per-call delta
+--     cap, a balance ceiling, a burst rate limit, and an audit row per call —
+--     not fairness for the other three games. Real-money risk is further
+--     capped by the fact that money only LEAVES via the manual-review
+--     redemption path above, and troll_casino_admin_player_summary() gives
+--     that reviewer a lifetime deposit/payout comparison to catch an
+--     implausible balance before approving it.
+--   * Players can opt into their own daily loss cap and/or self-exclusion
+--     window (troll_casino_set_limits), enforced inside adjust_balance —
+--     see "LIMITS" below.
 --
 -- ADMIN ACCESS
 --   Adds `is_admin` to troll_profiles. Flip it to true for your own account
@@ -36,6 +45,8 @@
 --   Any client-side password prompt the admin page shows is just a UI
 --   convenience layer on top of this, not a substitute for it.
 -- ============================================================================
+
+create extension if not exists pgcrypto;
 
 alter table public.troll_profiles
   add column if not exists is_admin boolean not null default false;
@@ -88,13 +99,116 @@ $$;
 revoke all on function public.troll_casino_ensure_wallet() from public, anon;
 grant execute on function public.troll_casino_ensure_wallet() to authenticated;
 
+-- ============================================================
+-- 1b. ADJUSTMENT AUDIT TRAIL + PLAYER-SET LIMITS
+--     Both feed the gate inside troll_casino_adjust_balance further down —
+--     defined first since that function references them.
+-- ============================================================
+create table if not exists public.troll_casino_adjustments (
+  id            bigint generated always as identity primary key,
+  user_id       uuid not null references auth.users (id) on delete cascade,
+  delta         numeric not null,
+  currency      text not null check (currency in ('TROLL', 'USDC')),
+  reason        text,
+  balance_after numeric not null,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists troll_casino_adjustments_user_idx
+  on public.troll_casino_adjustments (user_id, created_at desc);
+
+alter table public.troll_casino_adjustments enable row level security;
+
+drop policy if exists troll_casino_adjustments_read on public.troll_casino_adjustments;
+create policy troll_casino_adjustments_read on public.troll_casino_adjustments
+  for select to authenticated using (auth.uid() = user_id);
+
+revoke all on public.troll_casino_adjustments from anon, authenticated;
+grant select on public.troll_casino_adjustments to authenticated;
+
+-- Player-settable limits. Both are opt-in (null = no cap) and can only ever
+-- be tightened by the player themselves via troll_casino_set_limits — there
+-- is deliberately no player-facing "raise my cap early" escape hatch once a
+-- self-exclusion window is active (see the check inside that function).
+create table if not exists public.troll_casino_limits (
+  user_id            uuid primary key references auth.users (id) on delete cascade,
+  daily_loss_cap     numeric check (daily_loss_cap is null or daily_loss_cap > 0),
+  self_exclude_until timestamptz,
+  updated_at         timestamptz not null default now()
+);
+
+alter table public.troll_casino_limits enable row level security;
+
+drop policy if exists troll_casino_limits_read on public.troll_casino_limits;
+create policy troll_casino_limits_read on public.troll_casino_limits
+  for select to authenticated using (auth.uid() = user_id);
+
+revoke all on public.troll_casino_limits from anon, authenticated;
+grant select on public.troll_casino_limits to authenticated;
+
+create or replace function public.troll_casino_set_limits(
+  p_daily_loss_cap numeric default null,
+  p_self_exclude_hours numeric default null
+)
+returns public.troll_casino_limits
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_existing troll_casino_limits%rowtype;
+  v_new_exclude timestamptz;
+  v_row troll_casino_limits%rowtype;
+begin
+  if v_uid is null then raise exception 'Login required.'; end if;
+
+  select * into v_existing from troll_casino_limits where user_id = v_uid;
+
+  -- Tightening only: a lower/absent cap always applies; raising or clearing
+  -- an existing cap is refused so a losing streak can't self-serve a bigger
+  -- limit mid-session. Same for self-exclusion — it can be extended or left
+  -- alone, never shortened.
+  if v_existing.daily_loss_cap is not null and p_daily_loss_cap is not null
+     and p_daily_loss_cap > v_existing.daily_loss_cap then
+    raise exception 'Loss cap can only be lowered while one is active.';
+  end if;
+  if v_existing.daily_loss_cap is not null and p_daily_loss_cap is null then
+    raise exception 'An active loss cap cannot be removed here — it expires automatically each day.';
+  end if;
+
+  if p_self_exclude_hours is not null and p_self_exclude_hours > 0 then
+    v_new_exclude := now() + (p_self_exclude_hours || ' hours')::interval;
+    if v_existing.self_exclude_until is not null and v_existing.self_exclude_until > v_new_exclude then
+      v_new_exclude := v_existing.self_exclude_until; -- never shorten
+    end if;
+  else
+    v_new_exclude := v_existing.self_exclude_until;
+  end if;
+
+  insert into troll_casino_limits (user_id, daily_loss_cap, self_exclude_until, updated_at)
+  values (v_uid, coalesce(p_daily_loss_cap, v_existing.daily_loss_cap), v_new_exclude, now())
+  on conflict (user_id) do update
+    set daily_loss_cap = excluded.daily_loss_cap,
+        self_exclude_until = excluded.self_exclude_until,
+        updated_at = now()
+  returning * into v_row;
+
+  return v_row;
+end;
+$$;
+revoke all on function public.troll_casino_set_limits(numeric, numeric) from public, anon;
+grant execute on function public.troll_casino_set_limits(numeric, numeric) to authenticated;
+
 -- Gameplay bet/win adjustments. Client-trusted (see header) but atomic,
 -- floored at 0 so a client can never push its own balance negative, and
 -- capped so a single bogus call (e.g. someone calling credit(999999999)
 -- straight from devtools) can't inflate a balance past anything a real
 -- spin/hand/round could ever produce. The per-call cap is well above the
 -- biggest legitimate single win (Troll Wheel WHALE at max chip, or a GRAND
--- jackpot share); the balance ceiling is a second, generous backstop.
+-- jackpot share); the balance ceiling is a second, generous backstop. Also
+-- writes an audit row per call, enforces a burst rate limit, and honors any
+-- daily loss cap / self-exclusion window the player has set for themselves.
 create or replace function public.troll_casino_adjust_balance(
   p_delta    numeric,
   p_currency text,
@@ -110,6 +224,9 @@ declare
   v_new numeric;
   v_max_delta   numeric;
   v_max_balance numeric;
+  v_recent_calls int;
+  v_limits troll_casino_limits%rowtype;
+  v_lost_today numeric;
 begin
   if v_uid is null then raise exception 'Login required.'; end if;
   if p_currency not in ('TROLL', 'USDC') then raise exception 'Bad currency.'; end if;
@@ -117,6 +234,31 @@ begin
   v_max_delta   := case when p_currency = 'TROLL' then 1000000 else 5000 end;
   v_max_balance := case when p_currency = 'TROLL' then 10000000 else 50000 end;
   if abs(p_delta) > v_max_delta then raise exception 'Delta out of range.'; end if;
+
+  -- Burst limit: no legitimate UI flow (wheel/slots/blackjack/crash) issues
+  -- more than a couple of adjust calls per round, and rounds take at least
+  -- a second or two end to end. 20 calls inside a 10-second window is a
+  -- generous ceiling above real play and a hard stop for a scripted loop.
+  select count(*) into v_recent_calls
+    from troll_casino_adjustments
+   where user_id = v_uid and created_at > now() - interval '10 seconds';
+  if v_recent_calls >= 20 then
+    raise exception 'Slow down — too many balance updates in a short window.';
+  end if;
+
+  select * into v_limits from troll_casino_limits where user_id = v_uid;
+  if v_limits.self_exclude_until is not null and v_limits.self_exclude_until > now() then
+    raise exception 'Self-exclusion active until %.', v_limits.self_exclude_until;
+  end if;
+  if p_delta < 0 and v_limits.daily_loss_cap is not null then
+    select coalesce(sum(-delta), 0) into v_lost_today
+      from troll_casino_adjustments
+     where user_id = v_uid and currency = p_currency and delta < 0
+       and created_at > date_trunc('day', now());
+    if v_lost_today + abs(p_delta) > v_limits.daily_loss_cap then
+      raise exception 'Daily loss cap reached for %.', p_currency;
+    end if;
+  end if;
 
   insert into troll_casino_wallet (user_id) values (v_uid)
   on conflict (user_id) do nothing;
@@ -132,6 +274,9 @@ begin
      where user_id = v_uid
      returning usdc_balance into v_new;
   end if;
+
+  insert into troll_casino_adjustments (user_id, delta, currency, reason, balance_after)
+  values (v_uid, p_delta, p_currency, p_reason, v_new);
 
   return v_new;
 end;
@@ -379,7 +524,9 @@ revoke all on function public.troll_casino_admin_player_summary(uuid) from publi
 grant execute on function public.troll_casino_admin_player_summary(uuid) to authenticated;
 
 -- ============================================================
--- 4. SHARED PROGRESSIVE JACKPOT (Doge Jackpot Reels), per currency
+-- 4. SHARED PROGRESSIVE JACKPOT (Doge Jackpot Reels), per currency,
+--    + a public log of every win so the pot's payouts are visible, not
+--    just its running total.
 -- ============================================================
 create table if not exists public.troll_casino_jackpot (
   id           int primary key default 1,
@@ -401,6 +548,24 @@ create policy troll_casino_jackpot_read on public.troll_casino_jackpot
 
 revoke all on public.troll_casino_jackpot from anon, authenticated;
 grant select on public.troll_casino_jackpot to anon, authenticated;
+
+create table if not exists public.troll_casino_jackpot_wins (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  currency   text not null check (currency in ('TROLL', 'USDC')),
+  amount     numeric not null,
+  tier       text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.troll_casino_jackpot_wins enable row level security;
+
+drop policy if exists troll_casino_jackpot_wins_read on public.troll_casino_jackpot_wins;
+create policy troll_casino_jackpot_wins_read on public.troll_casino_jackpot_wins
+  for select to anon, authenticated using (true);
+
+revoke all on public.troll_casino_jackpot_wins from anon, authenticated;
+grant select on public.troll_casino_jackpot_wins to anon, authenticated;
 
 create or replace function public.troll_casino_jackpot_contribute(p_currency text, p_delta numeric)
 returns numeric
@@ -433,8 +598,8 @@ grant execute on function public.troll_casino_jackpot_contribute(text, numeric) 
 -- the caller's own balance, so the client (which already knows how to
 -- credit + queue a sync for every other kind of win) credits it exactly
 -- once via the normal debit/credit path instead of being double-credited
--- here as well.
-create or replace function public.troll_casino_jackpot_win(p_currency text, p_share numeric default 1)
+-- here as well. Also logs a public row to troll_casino_jackpot_wins.
+create or replace function public.troll_casino_jackpot_win(p_currency text, p_share numeric default 1, p_tier text default null)
 returns numeric
 language plpgsql
 security definer
@@ -469,17 +634,112 @@ begin
      where id = 1;
   end if;
 
+  insert into troll_casino_jackpot_wins (user_id, currency, amount, tier)
+  values (v_uid, p_currency, v_won, p_tier);
+
   return v_won;
 end;
 $$;
-revoke all on function public.troll_casino_jackpot_win(text, numeric) from public, anon;
-grant execute on function public.troll_casino_jackpot_win(text, numeric) to authenticated;
+revoke all on function public.troll_casino_jackpot_win(text, numeric, text) from public, anon;
+grant execute on function public.troll_casino_jackpot_win(text, numeric, text) to authenticated;
 
 -- ============================================================
--- 5. ONE-TIME RESET — troll-casino stats only, run once at launch.
---    Clears prior mock-era leaderboard/stats rows for this game so real
---    money starts every player at a clean slate. Does not touch any
---    other game's data.
+-- 5. PROVABLY-FAIR WHALE LAUNCH CRASH
+--    One RPC per round: server generates + hashes a seed, combines it with
+--    the player's client seed via HMAC-SHA256, derives the crash point with
+--    the exact same formula crash.js's local sampleCrash() uses as its
+--    fallback, and returns the seed + hash + point together. Because the
+--    hash is computed from a seed that's fixed before the client seed or
+--    point are ever exposed, there is no window for the server to pick a
+--    point after the fact — the player can independently recompute
+--    HMAC(client_seed:nonce, server_seed) and confirm it against
+--    server_seed_hash forever after.
 -- ============================================================
-delete from public.troll_leaderboard where game_id = 'troll-casino';
-delete from public.troll_game_stats where game_id = 'troll-casino';
+create table if not exists public.troll_casino_crash_rounds (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null references auth.users (id) on delete cascade,
+  server_seed       text not null,
+  server_seed_hash  text not null,
+  client_seed       text not null,
+  nonce             bigint not null,
+  crash_point       numeric not null,
+  created_at        timestamptz not null default now()
+);
+
+create index if not exists troll_casino_crash_rounds_user_idx
+  on public.troll_casino_crash_rounds (user_id, created_at desc);
+
+alter table public.troll_casino_crash_rounds enable row level security;
+
+drop policy if exists troll_casino_crash_rounds_read on public.troll_casino_crash_rounds;
+create policy troll_casino_crash_rounds_read on public.troll_casino_crash_rounds
+  for select to authenticated using (auth.uid() = user_id);
+
+revoke all on public.troll_casino_crash_rounds from anon, authenticated;
+grant select on public.troll_casino_crash_rounds to authenticated;
+
+create or replace function public.troll_casino_crash_round(p_client_seed text default null)
+returns table(
+  round_id         uuid,
+  server_seed      text,
+  server_seed_hash text,
+  client_seed      text,
+  nonce            bigint,
+  crash_point      numeric
+)
+language plpgsql
+security definer
+-- Supabase installs pgcrypto into the `extensions` schema by default, not
+-- `public` — this is the only function here that calls gen_random_bytes/
+-- digest/hmac, so it's the only one that needs that schema on the path.
+set search_path = public, extensions
+as $$
+declare
+  v_uid    uuid := auth.uid();
+  v_seed   text := encode(gen_random_bytes(32), 'hex');
+  v_hash   text;
+  v_cseed  text := coalesce(nullif(trim(p_client_seed), ''), encode(gen_random_bytes(8), 'hex'));
+  v_nonce  bigint;
+  v_id     uuid;
+  v_hex    text;
+  v_u      double precision;
+  v_edge   numeric := 0.04;
+  v_point  numeric;
+begin
+  if v_uid is null then raise exception 'Login required.'; end if;
+
+  -- digest()/hmac() take bytea; plpgsql text variables need an explicit cast
+  -- (unlike an untyped string literal, which Postgres resolves for you).
+  v_hash := encode(digest(v_seed::bytea, 'sha256'), 'hex');
+
+  select coalesce(max(troll_casino_crash_rounds.nonce), 0) + 1 into v_nonce
+    from troll_casino_crash_rounds where user_id = v_uid;
+
+  v_hex := encode(hmac((v_cseed || ':' || v_nonce::text)::bytea, v_seed::bytea, 'sha256'), 'hex');
+  -- first 13 hex chars → 52-bit uniform in [0, 1); same shape as crash.js's
+  -- original crypto.getRandomValues()-based crRand01().
+  v_u := ('x' || substr(v_hex, 1, 13))::bit(52)::bigint::double precision / (2.0 ^ 52);
+
+  if v_u < v_edge then
+    v_point := 1.00;
+  else
+    v_point := greatest(1.00, floor(100 * (1 - v_edge) / (1 - v_u)) / 100.0);
+  end if;
+
+  insert into troll_casino_crash_rounds
+    (user_id, server_seed, server_seed_hash, client_seed, nonce, crash_point)
+  values (v_uid, v_seed, v_hash, v_cseed, v_nonce, v_point)
+  returning id into v_id;
+
+  return query select v_id, v_seed, v_hash, v_cseed, v_nonce, v_point;
+end;
+$$;
+revoke all on function public.troll_casino_crash_round(text) from public, anon;
+grant execute on function public.troll_casino_crash_round(text) to authenticated;
+
+-- ============================================================
+-- NOTE — the original one-time launch reset (clearing pre-launch mock-era
+-- troll-casino leaderboard/stats rows) has been removed from this file after
+-- running once. Do not re-add a DELETE here — this file is now safe to
+-- re-run in full, and a reset statement would defeat that.
+-- ============================================================
