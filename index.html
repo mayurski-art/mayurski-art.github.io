@@ -662,6 +662,174 @@ header h1 {
   min-width: 1ch;
   text-align: right;
 }
+button.header-viewer-pill {
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+button.header-viewer-pill:hover,
+button.header-viewer-pill[aria-expanded="true"] {
+  background: rgba(9, 22, 44, 0.62);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* Who's-online roster — popup anchored to the viewer pill */
+.viewer-roster {
+  position: fixed;
+  z-index: 99960;
+  width: min(272px, calc(100vw - 24px));
+  max-height: min(340px, 62vh);
+  overflow: auto;
+  padding: 8px;
+  box-sizing: border-box;
+  background: linear-gradient(160deg, #131a15, #0a0d0b);
+  border: 2px solid #000;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(77, 255, 115, 0.22), 0 18px 40px rgba(0, 0, 0, 0.55);
+  color: #e6f2e6;
+  font-family: 'DM Mono', 'Courier New', monospace;
+  font-size: 13px;
+}
+.viewer-roster-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px 8px;
+  color: #8cffbf;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.viewer-roster-list { display: grid; gap: 2px; }
+.viewer-roster-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 6px 7px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  box-sizing: border-box;
+}
+button.viewer-roster-row { cursor: pointer; }
+button.viewer-roster-row:hover,
+button.viewer-roster-row:focus-visible { background: rgba(77, 255, 115, 0.12); }
+.viewer-roster-avatar {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  border: 1.5px solid #000;
+  border-radius: 6px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #17231b, #0c100e);
+  box-shadow: inset 0 0 0 1px rgba(77, 255, 115, 0.24);
+}
+.viewer-roster-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.viewer-roster-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff;
+}
+.viewer-roster-row.is-guest .viewer-roster-avatar { opacity: 0.55; }
+.viewer-roster-row.is-guest .viewer-roster-name { color: #9db3a3; }
+.viewer-roster-lv {
+  flex: none;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: #08110a;
+  background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521);
+  border: 1.5px solid #000;
+  border-radius: 4px;
+}
+.viewer-roster-you { flex: none; font-size: 10px; color: #8cffbf; }
+.viewer-roster-empty { padding: 10px 7px; color: #8fa396; }
+
+/* Public troll profile card (opened from the roster) */
+.viewer-profile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99970;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(4, 6, 5, 0.78);
+}
+.viewer-profile-card {
+  width: min(340px, 100%);
+  max-height: 82vh;
+  overflow: auto;
+  color: #e6f2e6;
+  font-family: 'DM Mono', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.45;
+  background: linear-gradient(160deg, #131a15, #0a0d0b);
+  border: 2px solid #000;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(77, 255, 115, 0.22), 6px 8px 0 rgba(0, 0, 0, 0.55);
+}
+.viewer-profile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 2px solid #000;
+  background: rgba(77, 255, 115, 0.08);
+}
+.viewer-profile-title {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4dff73;
+}
+.viewer-profile-close {
+  border: 2px solid #000;
+  border-radius: 6px;
+  background: #1d2620;
+  color: #cfe9cf;
+  font: inherit;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.viewer-profile-close:hover { background: #2a372e; }
+.viewer-profile-body { padding: 14px; display: grid; gap: 12px; }
+.viewer-profile-row { display: flex; align-items: center; gap: 12px; }
+.viewer-profile-avatar { width: 56px; height: 56px; font-size: 30px; border-radius: 8px; border-width: 2px; }
+.viewer-profile-name { margin: 0; font-size: 18px; color: #fff; word-break: break-all; }
+.viewer-profile-muted { margin: 0; color: #8fa396; font-size: 12px; }
+.viewer-profile-section {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 2px solid #000;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+}
+.viewer-profile-section h4 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8cffbf;
+}
+.viewer-profile-bio { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.viewer-profile-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.viewer-profile-table td { padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.viewer-profile-table td:last-child { text-align: right; color: #ffd84d; }
 .header-spacer {
   justify-self: end;
   display: flex;
@@ -4444,13 +4612,13 @@ body.desktop-mode .troll-desktop { display: block; }
         <a class="header-link-btn" href="https://projects.trollrunner.net/" data-feature="projects">Projects</a>
         <a class="header-link-btn" href="https://stickers.trollrunner.net" data-feature="stickers">Stickers</a>
         <a class="header-link-btn" href="https://videos.trollrunner.net" data-feature="videos">Videos</a>
-        <span id="site-viewer-pill" class="header-viewer-pill" role="status" aria-live="polite" aria-label="Current viewers">
+        <button id="site-viewer-pill" class="header-viewer-pill" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Current viewers — see who's online">
           <svg class="header-viewer-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
           </svg>
           <span id="site-viewer-count" class="header-viewer-count">1</span>
-        </span>
+        </button>
       </div>
       <div class="header-text-view-note">Recommended text view be 50% for mobile and 100% tablet devices</div>
       <div class="header-live-stack" aria-live="polite">
@@ -6139,9 +6307,83 @@ function updateViewerCount(count) {
   if (countNode) countNode.textContent = String(safeCount);
   if (pillNode) {
     const label = safeCount === 1 ? '1 current viewer' : `${safeCount} current viewers`;
-    pillNode.setAttribute('aria-label', label);
-    pillNode.title = label;
+    pillNode.setAttribute('aria-label', `${label} — see who's online`);
+    pillNode.title = `${label} — click to see who's online`;
   }
+}
+
+// Presence carries the account identity (when logged in) so the roster can
+// show real usernames. Identity fields are re-tracked on every auth change;
+// onlineAt stays fixed for the tab so guest numbering doesn't reshuffle.
+let viewerPresenceJoined = false;
+const viewerPresenceOnlineAt = new Date().toISOString();
+
+function viewerPresencePayload() {
+  const account = window.TrollrunnerAccounts?.getCachedProfile?.() || null;
+  return {
+    viewerId: getViewerId(),
+    userId: account?.userId || null,
+    username: account?.username || null,
+    avatarUrl: account?.avatarUrl || null,
+    level: account?.level || null,
+    host: window.location.hostname,
+    path: window.location.pathname,
+    onlineAt: viewerPresenceOnlineAt,
+    trackedAt: new Date().toISOString(),
+  };
+}
+
+/* Roster = presence state deduped per browser (viewerId) and per account
+   (userId), split into logged-in trolls and guests. Guests get Guest001,
+   Guest002, … by join order, so every open roster shows the same labels.
+   Identity fields arrive from other clients, so they're sanitized with the
+   same guards TrollChat uses (tcSafeUid / tcSafeAvatarUrl). */
+function getViewerRoster() {
+  const byViewer = new Map();
+  const state = viewerPresenceChannel?.presenceState?.() || {};
+  Object.values(state).forEach(entries => {
+    if (!Array.isArray(entries)) return;
+    entries.forEach(entry => {
+      if (!entry?.viewerId) return;
+      // A viewer's identity is whatever they tracked LAST. Leave-diffs for
+      // re-tracked metas don't always reach every client, so stale metas can
+      // linger under a key — the freshest trackedAt wins, never the array
+      // order or "has a userId".
+      const prev = byViewer.get(entry.viewerId);
+      if (!prev || String(entry.trackedAt || '') >= String(prev.trackedAt || '')) {
+        byViewer.set(entry.viewerId, entry);
+      }
+    });
+  });
+  if (!byViewer.size) byViewer.set(getViewerId(), viewerPresencePayload());
+  const members = [];
+  const guests = [];
+  const seenUsers = new Set();
+  byViewer.forEach(entry => {
+    const userId = tcSafeUid(entry.userId);
+    const username = String(entry.username || '').trim().slice(0, 20);
+    if (userId && username) {
+      if (seenUsers.has(userId)) return; // same account in another tab
+      seenUsers.add(userId);
+      members.push({
+        viewerId: entry.viewerId,
+        userId,
+        username,
+        avatarUrl: tcSafeAvatarUrl(entry.avatarUrl, userId),
+        level: Math.max(1, Number(entry.level) || 1),
+      });
+    } else {
+      guests.push({ viewerId: entry.viewerId, onlineAt: String(entry.onlineAt || '') });
+    }
+  });
+  members.sort((a, b) => a.username.localeCompare(b.username));
+  guests.sort((a, b) =>
+    a.onlineAt.localeCompare(b.onlineAt) ||
+    String(a.viewerId).localeCompare(String(b.viewerId)));
+  guests.forEach((guest, index) => {
+    guest.guestLabel = `Guest${String(index + 1).padStart(3, '0')}`;
+  });
+  return { members, guests };
 }
 
 function syncViewerPresenceCount() {
@@ -6149,15 +6391,302 @@ function syncViewerPresenceCount() {
     updateViewerCount(1);
     return;
   }
-  const state = viewerPresenceChannel.presenceState();
-  const viewerIds = new Set();
-  Object.values(state || {}).forEach(entries => {
-    if (!Array.isArray(entries)) return;
-    entries.forEach(entry => {
-      if (entry?.viewerId) viewerIds.add(entry.viewerId);
+  const { members, guests } = getViewerRoster();
+  updateViewerCount(members.length + guests.length);
+  renderViewerRosterList();
+}
+
+/* ---------------------------------------------------------------------
+   Who's-online roster popup (opened from the viewer pill in the tray).
+   --------------------------------------------------------------------- */
+const VIEWER_ROSTER_ID = 'viewer-roster';
+
+function viewerRosterAvatar(url) {
+  const box = document.createElement('span');
+  box.className = 'viewer-roster-avatar';
+  box.setAttribute('aria-hidden', 'true');
+  if (url) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    box.appendChild(img);
+  } else {
+    box.textContent = '🧌';
+  }
+  return box;
+}
+
+function renderViewerRosterList() {
+  const panel = document.getElementById(VIEWER_ROSTER_ID);
+  const list = panel?.querySelector('.viewer-roster-list');
+  if (!list) return;
+  const { members, guests } = getViewerRoster();
+  const headCount = panel.querySelector('.viewer-roster-count');
+  if (headCount) headCount.textContent = `${members.length + guests.length} online`;
+  list.innerHTML = '';
+  const myViewerId = getViewerId();
+  const myUserId = window.TrollrunnerAccounts?.getCachedProfile?.()?.userId || null;
+
+  const appendYouTag = row => {
+    const you = document.createElement('span');
+    you.className = 'viewer-roster-you';
+    you.textContent = '(you)';
+    row.appendChild(you);
+  };
+
+  members.forEach(entry => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'viewer-roster-row';
+    row.setAttribute('aria-label', `Open ${entry.username}'s profile`);
+    row.appendChild(viewerRosterAvatar(entry.avatarUrl));
+    const name = document.createElement('span');
+    name.className = 'viewer-roster-name';
+    name.textContent = entry.username;
+    row.appendChild(name);
+    if (myUserId && entry.userId === myUserId) appendYouTag(row);
+    const lv = document.createElement('span');
+    lv.className = 'viewer-roster-lv';
+    lv.textContent = `LV ${entry.level}`;
+    row.appendChild(lv);
+    row.addEventListener('click', () => {
+      closeViewerRoster();
+      if (myUserId && entry.userId === myUserId) window.TrollrunnerAccounts?.openProfile?.();
+      else void openViewerProfileCard(entry.userId, entry.username);
     });
+    list.appendChild(row);
   });
-  updateViewerCount(viewerIds.size || 1);
+
+  guests.forEach(entry => {
+    const row = document.createElement('div');
+    row.className = 'viewer-roster-row is-guest';
+    row.appendChild(viewerRosterAvatar(null));
+    const name = document.createElement('span');
+    name.className = 'viewer-roster-name';
+    name.textContent = entry.guestLabel;
+    row.appendChild(name);
+    if (!myUserId && entry.viewerId === myViewerId) appendYouTag(row);
+    list.appendChild(row);
+  });
+
+  if (!list.childElementCount) {
+    const empty = document.createElement('div');
+    empty.className = 'viewer-roster-empty';
+    empty.textContent = 'Nobody here but us trolls.';
+    list.appendChild(empty);
+  }
+}
+
+function handleViewerRosterOutside(event) {
+  const panel = document.getElementById(VIEWER_ROSTER_ID);
+  const pill = document.getElementById('site-viewer-pill');
+  if (panel && !panel.contains(event.target) && !(pill && pill.contains(event.target))) {
+    closeViewerRoster();
+  }
+}
+
+function handleViewerRosterKey(event) {
+  if (event.key === 'Escape') closeViewerRoster();
+}
+
+function closeViewerRoster() {
+  document.getElementById(VIEWER_ROSTER_ID)?.remove();
+  document.getElementById('site-viewer-pill')?.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('pointerdown', handleViewerRosterOutside, true);
+  document.removeEventListener('keydown', handleViewerRosterKey, true);
+}
+
+function openViewerRoster() {
+  closeViewerRoster();
+  const pill = document.getElementById('site-viewer-pill');
+  const panel = document.createElement('div');
+  panel.id = VIEWER_ROSTER_ID;
+  panel.className = 'viewer-roster';
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-label', "Who's online");
+  const head = document.createElement('div');
+  head.className = 'viewer-roster-head';
+  const title = document.createElement('span');
+  title.textContent = 'Trolls online';
+  const count = document.createElement('span');
+  count.className = 'viewer-roster-count';
+  head.append(title, count);
+  const list = document.createElement('div');
+  list.className = 'viewer-roster-list';
+  panel.append(head, list);
+  document.body.appendChild(panel);
+  renderViewerRosterList();
+  // Anchor to the pill: above it when it sits in the taskbar, below it while
+  // it's still up in the header.
+  const rect = pill?.getBoundingClientRect();
+  if (rect && rect.width) {
+    panel.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+    if (rect.top > window.innerHeight / 2) {
+      panel.style.bottom = `${Math.max(8, window.innerHeight - rect.top + 8)}px`;
+    } else {
+      panel.style.top = `${Math.min(window.innerHeight - 80, rect.bottom + 8)}px`;
+    }
+  } else {
+    panel.style.right = '12px';
+    panel.style.bottom = '56px';
+  }
+  pill?.setAttribute('aria-expanded', 'true');
+  document.addEventListener('pointerdown', handleViewerRosterOutside, true);
+  document.addEventListener('keydown', handleViewerRosterKey, true);
+}
+
+function toggleViewerRoster() {
+  if (document.getElementById(VIEWER_ROSTER_ID)) closeViewerRoster();
+  else openViewerRoster();
+}
+
+/* ---------------------------------------------------------------------
+   Public troll profile card — troll_profiles and troll_game_stats are
+   anon-readable, so any visitor can peek at any logged-in troll.
+   --------------------------------------------------------------------- */
+const VIEWER_PROFILE_ID = 'viewer-profile-overlay';
+
+function closeViewerProfileCard() {
+  document.getElementById(VIEWER_PROFILE_ID)?.remove();
+}
+
+async function openViewerProfileCard(userId, fallbackName) {
+  closeViewerProfileCard();
+  const overlay = document.createElement('div');
+  overlay.id = VIEWER_PROFILE_ID;
+  overlay.className = 'viewer-profile-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', `${fallbackName || 'Troll'} profile`);
+  const card = document.createElement('div');
+  card.className = 'viewer-profile-card';
+  const head = document.createElement('div');
+  head.className = 'viewer-profile-head';
+  const title = document.createElement('h3');
+  title.className = 'viewer-profile-title';
+  title.textContent = 'Troll profile';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'viewer-profile-close';
+  closeBtn.type = 'button';
+  closeBtn.setAttribute('aria-label', 'Close');
+  closeBtn.textContent = '✕';
+  head.append(title, closeBtn);
+  const body = document.createElement('div');
+  body.className = 'viewer-profile-body';
+  const setMessage = text => {
+    body.innerHTML = '';
+    const note = document.createElement('p');
+    note.className = 'viewer-profile-muted';
+    note.textContent = text;
+    body.appendChild(note);
+  };
+  setMessage('Loading profile…');
+  card.append(head, body);
+  overlay.appendChild(card);
+  overlay.addEventListener('click', event => { if (event.target === overlay) closeViewerProfileCard(); });
+  closeBtn.addEventListener('click', closeViewerProfileCard);
+  const onKey = event => {
+    if (event.key === 'Escape') {
+      closeViewerProfileCard();
+      window.removeEventListener('keydown', onKey);
+    }
+  };
+  window.addEventListener('keydown', onKey);
+  document.body.appendChild(overlay);
+
+  const safeUserId = tcSafeUid(userId);
+  if (!isSupabaseConfigured() || !safeUserId) {
+    setMessage('Profile unavailable right now.');
+    return;
+  }
+  try {
+    const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+    const profileQs = new URLSearchParams({
+      select: 'id,username,avatar_url,bio,level,xp,created_at',
+      id: `eq.${safeUserId}`,
+      limit: '1',
+    });
+    const statsQs = new URLSearchParams({
+      select: 'game_id,games_played,high_score',
+      user_id: `eq.${safeUserId}`,
+      order: 'high_score.desc',
+      limit: '6',
+    });
+    const [profileRes, statsRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/troll_profiles?${profileQs.toString()}`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/troll_game_stats?${statsQs.toString()}`, { headers }),
+    ]);
+    const profileRows = profileRes.ok ? await profileRes.json() : [];
+    const profile = Array.isArray(profileRows) ? profileRows[0] : null;
+    if (!profile) {
+      setMessage('Could not find that troll.');
+      return;
+    }
+    const statsRows = statsRes.ok ? await statsRes.json() : [];
+    const stats = Array.isArray(statsRows) ? statsRows : [];
+
+    body.innerHTML = '';
+    const row = document.createElement('div');
+    row.className = 'viewer-profile-row';
+    const avatar = viewerRosterAvatar(tcSafeAvatarUrl(profile.avatar_url, profile.id));
+    avatar.classList.add('viewer-profile-avatar');
+    row.appendChild(avatar);
+    const meta = document.createElement('div');
+    const name = document.createElement('p');
+    name.className = 'viewer-profile-name';
+    name.textContent = profile.username;
+    const lv = document.createElement('span');
+    lv.className = 'viewer-roster-lv';
+    lv.textContent = `LV ${Math.max(1, Number(profile.level) || 1)} · ${Number(profile.xp || 0).toLocaleString()} XP`;
+    const joined = document.createElement('div');
+    joined.className = 'viewer-profile-muted';
+    joined.textContent = profile.created_at
+      ? `Running since ${new Date(profile.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}`
+      : 'Running since —';
+    meta.append(name, lv, joined);
+    row.appendChild(meta);
+    body.appendChild(row);
+
+    if (profile.bio) {
+      const bioSection = document.createElement('div');
+      bioSection.className = 'viewer-profile-section';
+      const bioHead = document.createElement('h4');
+      bioHead.textContent = 'Bio';
+      const bio = document.createElement('p');
+      bio.className = 'viewer-profile-bio';
+      bio.textContent = String(profile.bio).slice(0, 280);
+      bioSection.append(bioHead, bio);
+      body.appendChild(bioSection);
+    }
+
+    const gamesSection = document.createElement('div');
+    gamesSection.className = 'viewer-profile-section';
+    const gamesHead = document.createElement('h4');
+    gamesHead.textContent = 'Game stats';
+    gamesSection.appendChild(gamesHead);
+    if (stats.length) {
+      const table = document.createElement('table');
+      table.className = 'viewer-profile-table';
+      stats.forEach(stat => {
+        const tr = document.createElement('tr');
+        const label = document.createElement('td');
+        label.textContent = `${stat.game_id} · ${Number(stat.games_played || 0)} runs`;
+        const score = document.createElement('td');
+        score.textContent = `best ${Number(stat.high_score || 0).toLocaleString()}`;
+        tr.append(label, score);
+        table.appendChild(tr);
+      });
+      gamesSection.appendChild(table);
+    } else {
+      const none = document.createElement('p');
+      none.className = 'viewer-profile-muted';
+      none.textContent = 'No saved runs yet.';
+      gamesSection.appendChild(none);
+    }
+    body.appendChild(gamesSection);
+  } catch {
+    setMessage('Could not load the profile. Try again.');
+  }
 }
 
 function getLocalDateKey(date = new Date()) {
@@ -6195,6 +6724,8 @@ async function recordWebsiteView() {
 }
 
 function initializeViewerPresence() {
+  const pill = document.getElementById('site-viewer-pill');
+  if (pill) pill.addEventListener('click', toggleViewerRoster);
   if (!isSupabaseConfigured() || !window.supabase?.createClient) {
     updateViewerCount(1);
     return;
@@ -6218,14 +6749,21 @@ function initializeViewerPresence() {
       .on('presence', { event: 'sync' }, syncViewerPresenceCount)
       .subscribe(status => {
         if (status === 'SUBSCRIBED') {
-          viewerPresenceChannel.track({
-            viewerId,
-            host: window.location.hostname,
-            path: window.location.pathname,
-            onlineAt: new Date().toISOString(),
-          });
+          viewerPresenceJoined = true;
+          viewerPresenceChannel.track(viewerPresencePayload());
         }
       });
+    // Login/logout swaps this tab's roster entry between username and guest.
+    // Re-tracking without untracking first ACCUMULATES metas under this
+    // viewer's presence key (the old identity never leaves), so the stale
+    // entry has to be explicitly untracked before the new one is sent.
+    window.addEventListener('trollrunner:auth-changed', async () => {
+      if (!viewerPresenceJoined || !viewerPresenceChannel) return;
+      try {
+        await viewerPresenceChannel.untrack();
+        await viewerPresenceChannel.track(viewerPresencePayload());
+      } catch {}
+    });
     void recordWebsiteView();
   } catch {
     updateViewerCount(1);
