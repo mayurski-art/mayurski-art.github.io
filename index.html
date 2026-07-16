@@ -4674,6 +4674,7 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="assets/js/coming-soon.js"></script>
 <script src="assets/js/troll-accounts.js"></script>
 <script src="assets/js/troll-notis.js"></script>
+<script src="assets/js/troll-chat-extras.js"></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
 const ADMIN_UPDATES_KEY = 'trollrunner_updates';
@@ -8072,7 +8073,9 @@ function tcSafeAvatarUrl(url, uid) {
 function tcNormalizeMessage(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const id = String(raw.id || '').trim();
-  const text = String(raw.text != null ? raw.text : raw.body || '').trim().slice(0, TC_MSG_MAX);
+  const body = String(raw.text != null ? raw.text : raw.body || '').trim();
+  // drawings ("draw:data:image/png;base64,…") are allowed a bigger cap
+  const text = body.slice(0, window.TrollChatExtras ? window.TrollChatExtras.bodyCap(body) : TC_MSG_MAX);
   if (!id || !text) return null;
   const uid = tcSafeUid(raw.uid || raw.user_id);
   return {
@@ -8170,7 +8173,8 @@ function tcRenderFeed() {
     time.textContent = tcFormatTime(message.ts);
     const text = document.createElement('div');
     text.className = 'live-chat-text';
-    text.textContent = message.text;
+    if (window.TrollChatExtras) window.TrollChatExtras.renderBodyInto(text, message.text);
+    else text.textContent = message.text;
 
     head.appendChild(name);
     head.appendChild(time);
@@ -8303,6 +8307,13 @@ async function tcPersist(message) {
     });
     const ok = response.ok || response.status === 409; // 409 = already saved
     if (ok && account && token) void window.TrollrunnerAccounts?.awardXp?.('chat_post', 'trollchat');
+    // A rejected drawing just means troll_chat_v2.sql hasn't run yet — don't
+    // flip the whole room into "live only" mode over it.
+    if (!ok && message.text.startsWith('draw:')) {
+      tcSetNote('Drawing went out live — run troll_chat_v2.sql so drawings save too.');
+      window.setTimeout(tcUpdateNote, 4500);
+      return;
+    }
     if (trollChat.persistOk !== ok) { trollChat.persistOk = ok; tcUpdateNote(); }
   } catch {
     if (trollChat.persistOk !== false) { trollChat.persistOk = false; tcUpdateNote(); }
@@ -8372,10 +8383,11 @@ async function tcSend(text) {
   trollChat.lastSendAt = now;
   const account = tcAccount();
   if (account) trollChat.name = String(account.username).slice(0, 24);
+  const cap = window.TrollChatExtras ? window.TrollChatExtras.bodyCap(trimmed) : TC_MSG_MAX;
   const message = {
     id: window.crypto?.randomUUID ? window.crypto.randomUUID() : `${trollChat.guestId}-${now}-${Math.random().toString(16).slice(2)}`,
     name: trollChat.name,
-    text: trimmed.slice(0, TC_MSG_MAX),
+    text: trimmed.slice(0, cap),
     ts: new Date(now).toISOString(),
   };
   if (account) {
@@ -8466,6 +8478,8 @@ function initializeTrollChat() {
       if (sent) messageInput.value = '';
     });
   });
+
+  if (window.TrollChatExtras) window.TrollChatExtras.attachComposer({ form, send: tcSend });
 
   tcStartRealtime();
   void tcFetchHistory();

@@ -211,6 +211,7 @@
   <script src="assets/js/coming-soon.js"></script>
   <script src="assets/js/site-lock.js"></script>
   <script src="assets/js/troll-notis.js"></script>
+  <script src="assets/js/troll-chat-extras.js"></script>
   <script>
   /* TROLLCHAT standalone — shares the SAME channel + table + identity as the
      embedded homepage widget, so it's literally the same live room. */
@@ -270,7 +271,9 @@
     function normalize(raw) {
       if (!raw || typeof raw !== 'object') return null;
       const id = String(raw.id || '').trim();
-      const text = String(raw.text != null ? raw.text : raw.body || '').trim().slice(0, TC_MSG_MAX);
+      const body = String(raw.text != null ? raw.text : raw.body || '').trim();
+      // drawings ("draw:data:image/png;base64,…") are allowed a bigger cap
+      const text = body.slice(0, window.TrollChatExtras ? window.TrollChatExtras.bodyCap(body) : TC_MSG_MAX);
       if (!id || !text) return null;
       const uid = safeUid(raw.uid || raw.user_id);
       return { id, name: (String(raw.name || 'Guest').trim() || 'Guest').slice(0, 24), text, ts: String(raw.ts || raw.created_at || new Date().toISOString()), uid, avatar: safeAvatarUrl(raw.avatar, uid) };
@@ -323,7 +326,8 @@
         const head = document.createElement('div'); head.className = 'name-row';
         const name = document.createElement('span'); name.className = 'author'; name.textContent = m.name; if (m.name !== state.name) name.style.color = nameColor(m.name);
         const time = document.createElement('span'); time.className = 'time'; time.textContent = fmtTime(m.ts);
-        const text = document.createElement('div'); text.className = 'text'; text.textContent = m.text;
+        const text = document.createElement('div'); text.className = 'text';
+        if (window.TrollChatExtras) window.TrollChatExtras.renderBodyInto(text, m.text); else text.textContent = m.text;
         head.append(name, time); body.append(head, text); row.append(avatar, body); els.feed.appendChild(row);
       });
       els.feed.scrollTop = els.feed.scrollHeight;
@@ -382,6 +386,13 @@
           body: JSON.stringify([{ id: m.id, name: m.name, body: m.text, created_at: m.ts }]),
         });
         const ok = res.ok || res.status === 409;
+        // A rejected drawing just means troll_chat_v2.sql hasn't run yet —
+        // don't flip the whole room into "live only" mode over it.
+        if (!ok && m.text.indexOf('draw:') === 0) {
+          setNote('Drawing went out live — run troll_chat_v2.sql so drawings save too.');
+          setTimeout(updateNote, 4500);
+          return;
+        }
         if (state.persistOk !== ok) { state.persistOk = ok; updateNote(); }
       } catch { if (state.persistOk !== false) { state.persistOk = false; updateNote(); } }
     }
@@ -397,7 +408,8 @@
       const now = Date.now();
       if (now - state.lastSendAt < TC_COOLDOWN_MS) { setNote('Whoa, slow down a sec…'); setTimeout(updateNote, 1200); return false; }
       state.lastSendAt = now;
-      const m = { id: (crypto.randomUUID ? crypto.randomUUID() : state.guestId + '-' + now + '-' + Math.random().toString(16).slice(2)), name: state.name, text: t.slice(0, TC_MSG_MAX), ts: new Date(now).toISOString() };
+      const cap = window.TrollChatExtras ? window.TrollChatExtras.bodyCap(t) : TC_MSG_MAX;
+      const m = { id: (crypto.randomUUID ? crypto.randomUUID() : state.guestId + '-' + now + '-' + Math.random().toString(16).slice(2)), name: state.name, text: t.slice(0, cap), ts: new Date(now).toISOString() };
       addMessage(m);
       if (state.channel && state.subscribed) state.channel.send({ type: 'broadcast', event: 'msg', payload: m });
       persist(m); return true;
@@ -442,6 +454,7 @@
       });
       msgInput.addEventListener('input', broadcastTyping);
       form.addEventListener('submit', e => { e.preventDefault(); send(msgInput.value).then(ok => { if (ok) msgInput.value = ''; }); });
+      if (window.TrollChatExtras) window.TrollChatExtras.attachComposer({ form, send });
 
       startRealtime();
       fetchHistory();

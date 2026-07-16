@@ -421,19 +421,27 @@ alter table public.troll_chat
   add column if not exists user_id uuid references auth.users (id) on delete set null;
 
 -- Guests can still post, but cannot claim a registered username and cannot
--- attach a user_id.
+-- attach a user_id. Drawings ('draw:data:image/png;base64,…' bodies) get a
+-- bigger cap — 32 KB, matching DRAW_MAX in assets/js/troll-chat-extras.js
+-- (kept in sync with troll_chat_v2.sql).
 drop policy if exists troll_chat_insert on public.troll_chat;
 create policy troll_chat_insert
   on public.troll_chat
   for insert
   to anon
   with check (
-    char_length(body) between 1 and 240
-    and char_length(name) <= 24
+    char_length(name) <= 24
     and user_id is null
     and not exists (
       select 1 from public.troll_profiles p
       where p.username_lower = lower(troll_chat.name)
+    )
+    and (
+      char_length(body) between 1 and 240
+      or (
+        body like 'draw:data:image/png;base64,%'
+        and char_length(body) between 30 and 32000
+      )
     )
   );
 
@@ -444,9 +452,15 @@ create policy troll_chat_insert_auth
   for insert
   to authenticated
   with check (
-    char_length(body) between 1 and 240
-    and user_id = auth.uid()
+    user_id = auth.uid()
     and name = (select username from public.troll_profiles where id = auth.uid())
+    and (
+      char_length(body) between 1 and 240
+      or (
+        body like 'draw:data:image/png;base64,%'
+        and char_length(body) between 30 and 32000
+      )
+    )
   );
 
 drop policy if exists troll_chat_read_auth on public.troll_chat;

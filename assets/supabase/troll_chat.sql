@@ -33,14 +33,22 @@ create policy troll_chat_read
 
 -- Anyone (anon) may POST a message, with light server-side length guards so a
 -- bad actor can't stuff giant rows. The site also rate-limits on the client.
+-- Drawings ship as 'draw:data:image/png;base64,…' bodies and get a bigger cap
+-- (32 KB, matching DRAW_MAX in assets/js/troll-chat-extras.js).
 drop policy if exists troll_chat_insert on public.troll_chat;
 create policy troll_chat_insert
   on public.troll_chat
   for insert
   to anon
   with check (
-    char_length(body) between 1 and 240
-    and char_length(name) <= 24
+    char_length(name) <= 24
+    and (
+      char_length(body) between 1 and 240
+      or (
+        body like 'draw:data:image/png;base64,%'
+        and char_length(body) between 30 and 32000
+      )
+    )
   );
 
 -- Optional housekeeping: keep only the most recent 500 messages.
