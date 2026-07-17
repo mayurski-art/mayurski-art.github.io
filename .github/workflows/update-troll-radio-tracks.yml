@@ -1,0 +1,35 @@
+name: Update Troll Radio tracklist
+
+on:
+  schedule:
+    # 13:00 UTC daily (~6am Pacific)
+    - cron: '0 13 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update-tracklist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Regenerate TROLL_RADIO_TRACKS from the live playlist
+        run: node scripts/update-troll-radio-tracks.js
+
+      - name: Commit if the tracklist changed
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No changes to the playlist."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Auto-update Troll Radio tracklist from Spotify playlist"
+          git push
