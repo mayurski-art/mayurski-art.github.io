@@ -1114,7 +1114,8 @@ header p {
 .live-chat-panel {
   grid-column: 2;
   grid-row: 1 / span 2;
-  align-self: stretch;
+  align-self: start;
+  height: 430px;
   min-height: 430px;
   --tc-ink: #14231d;
   --tc-line: #10201a;
@@ -1169,6 +1170,10 @@ header p {
   gap: 9px;
   min-width: 0;
 }
+.tc-title-left > div {
+  min-width: 0;
+  flex: 1;
+}
 .tc-title-troll {
   width: 34px;
   height: 34px;
@@ -1183,9 +1188,12 @@ header p {
 .tc-title {
   font-family: var(--tc-pixel);
   font-size: 13px;
-  line-height: 1;
+  line-height: 1.3;
   color: #0c1a12;
   text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tc-subtitle {
   margin-top: 5px;
@@ -1195,6 +1203,9 @@ header p {
   letter-spacing: 0.02em;
   color: #143524;
   opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .live-chat-status {
   display: flex;
@@ -1432,6 +1443,126 @@ header p {
   color: #5a6f5e;
 }
 .tc-note a { color: #0f6b3c; text-decoration: underline; }
+.tc-groups-btn {
+  border: 2px solid var(--tc-line);
+  border-radius: 2px;
+  background: #fff;
+  color: #0c1a12;
+  padding: 4px 7px;
+  font-family: var(--tc-pixel);
+  font-size: 8px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 rgba(16,32,26,0.35);
+  white-space: nowrap;
+}
+.tc-groups-btn:hover { background: #eafff0; }
+.tc-groups-overlay {
+  position: absolute;
+  inset: 9px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  border: 3px solid var(--tc-line);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #f3f8e9, #d7e7cf);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+.tc-groups-overlay[hidden] { display: none; }
+.tc-groups-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 3px solid var(--tc-line);
+  background: linear-gradient(90deg, var(--tc-green), var(--tc-teal) 60%, var(--tc-yellow));
+}
+.tc-groups-title {
+  font-family: var(--tc-pixel);
+  font-size: 11px;
+  color: #0c1a12;
+  text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+}
+.tc-groups-close {
+  border: 2px solid var(--tc-line);
+  border-radius: 2px;
+  background: #fff;
+  color: #0c1a12;
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 12px;
+}
+.tc-groups-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--tc-term);
+  font-size: 15px;
+  color: var(--tc-ink);
+}
+.tc-groups-section { display: flex; flex-direction: column; gap: 6px; }
+.tc-groups-h {
+  font-family: var(--tc-pixel);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  color: #143524;
+}
+.tc-groups-muted { font-size: 13px; opacity: 0.75; }
+.tc-groups-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tc-groups-row input[type="text"] {
+  min-width: 0;
+  flex: 1;
+  border: 2px solid var(--tc-line);
+  border-radius: 3px;
+  background: #fbfdf2;
+  color: #16261d;
+  padding: 6px 8px;
+  font: 15px var(--tc-term);
+}
+.tc-groups-row button {
+  border: 2px solid var(--tc-line);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #ffe27a, var(--tc-yellow));
+  color: #1a1306;
+  padding: 6px 10px;
+  font-family: var(--tc-pixel);
+  font-size: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tc-groups-row button:hover { background: linear-gradient(180deg, #fff0a8, #ffd94e); }
+.tc-groups-row button.tc-groups-ghost {
+  background: #fff;
+}
+.tc-group-card {
+  border: 2px solid var(--tc-line);
+  border-radius: 3px;
+  background: #fbfdf2;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tc-group-card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tc-group-name { font-weight: 700; word-break: break-word; }
+.tc-group-code {
+  font-family: var(--tc-pixel);
+  font-size: 9px;
+  background: #eafff0;
+  border: 2px solid var(--tc-line);
+  border-radius: 2px;
+  padding: 3px 5px;
+  letter-spacing: 0.05em;
+}
+.tc-group-role { font-size: 12px; opacity: 0.7; }
+.tc-invite-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 @keyframes tc-blink { 50% { opacity: 0.25; } }
 @keyframes tc-pulse {
   0% { box-shadow: 0 0 0 0 rgba(43, 214, 111, 0.65); }
@@ -1508,9 +1639,13 @@ header p {
   background: var(--n-green); box-shadow: 0 0 6px rgba(77, 255, 115, 0.7); cursor: pointer; }
 .header-music-btn.is-active { color: var(--n-green); text-shadow: 0 0 8px rgba(77, 255, 115, 0.7);
   background: linear-gradient(180deg, rgba(77, 255, 115, 0.3), rgba(77, 255, 115, 0.1)); }
-/* Real Spotify player, kept alive for playback but never shown — our own
-   controls above drive it. Not display:none (would kill the audio). */
-#spotify-embed { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+/* Real Spotify player. Collapsed by default (clipped via max-height, never
+   display:none — that would kill the audio). Expands to Spotify's own
+   tracklist UI so listeners can pick a song straight from the playlist. */
+.troll-radio-browser iframe { display: block; border: none; width: 100%; }
+.troll-radio-browser { width: 100%; max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height 0.22s ease, opacity 0.18s ease; border-top: 0 solid #000; }
+.troll-radio.is-browsing .troll-radio-browser { max-height: 360px; opacity: 1; border-top-width: 2px; }
 .troll-radio-foot {
   display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 15px; color: #bfe9cc;
   border-top: 2px solid #000; background: #0b1410;
@@ -4707,8 +4842,8 @@ body.desktop-mode .troll-desktop { display: block; }
       <div class="tc-title-left">
         <img class="tc-title-troll" src="assets/animations/troll-grin.gif" alt="" aria-hidden="true">
         <div>
-          <div class="tc-title">TROLLCHAT</div>
-          <div class="tc-subtitle">Trade Less, Troll More</div>
+          <div class="tc-title" id="tc-room-title">TROLLCHAT</div>
+          <div class="tc-subtitle" id="tc-room-subtitle">Trade Less, Troll More</div>
         </div>
       </div>
       <div class="live-chat-status">
@@ -4716,6 +4851,7 @@ body.desktop-mode .troll-desktop { display: block; }
         <span class="tc-online" id="tc-online" title="Trolls in the room right now">
           <span class="tc-online-num" id="tc-online-num">1</span>&nbsp;online
         </span>
+        <button id="tc-groups-btn" class="tc-groups-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tc-groups-overlay">👥 GROUPS</button>
       </div>
     </div>
 
@@ -4731,6 +4867,14 @@ body.desktop-mode .troll-desktop { display: block; }
       <button id="tc-send" class="tc-send" type="submit">SEND</button>
     </form>
     <div id="tc-note" class="tc-note"></div>
+
+    <div id="tc-groups-overlay" class="tc-groups-overlay" role="dialog" aria-label="Group chats" hidden>
+      <div class="tc-groups-head">
+        <span class="tc-groups-title">GROUP CHATS</span>
+        <button id="tc-groups-close" class="tc-groups-close" type="button" aria-label="Close group chats">✕</button>
+      </div>
+      <div id="tc-groups-body" class="tc-groups-body"></div>
+    </div>
   </div>
 </section>
 
@@ -4815,6 +4959,7 @@ body.desktop-mode .troll-desktop { display: block; }
   <div class="troll-radio-bar">
     <span aria-hidden="true">🎵</span>
     <span class="troll-radio-title">TROLL RADIO</span>
+    <button id="troll-radio-browse" class="tw-btn" type="button" aria-label="Browse playlist" aria-expanded="false" aria-controls="troll-radio-browser" title="Choose a song">☰</button>
     <button id="troll-radio-close" class="tw-btn tw-btn--close" type="button" aria-label="Close Troll Radio">✕</button>
   </div>
   <div class="troll-radio-body">
@@ -4829,7 +4974,9 @@ body.desktop-mode .troll-desktop { display: block; }
       <span id="troll-radio-time-dur" class="troll-radio-time">0:00</span>
     </div>
   </div>
-  <div id="spotify-embed" aria-hidden="true"></div>
+  <div id="troll-radio-browser" class="troll-radio-browser" aria-hidden="true" inert>
+    <div id="spotify-embed"></div>
+  </div>
   <div class="troll-radio-foot">
     <span id="troll-radio-status" aria-live="polite">Loading music…</span>
   </div>
@@ -6885,8 +7032,8 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
   if (!element) return;
   const options = {
     uri: SPOTIFY_PLAYLIST_URI,
-    width: '1',
-    height: '1'
+    width: '100%',
+    height: '352'
   };
   IFrameAPI.createController(element, options, (EmbedController) => {
     spotifyEmbedController = EmbedController;
@@ -6958,6 +7105,19 @@ function trollRadioToggleLoop() {
     setMusicStatus('Repeat isn’t supported by this Spotify embed.');
   }
   updateMusicButtons();
+}
+
+const trollRadioBrowseBtn = document.getElementById('troll-radio-browse');
+const trollRadioBrowserEl = document.getElementById('troll-radio-browser');
+if (trollRadioBrowseBtn && trollRadioBrowserEl) {
+  trollRadioBrowseBtn.addEventListener('click', () => {
+    const opening = !document.getElementById('troll-radio').classList.contains('is-browsing');
+    document.getElementById('troll-radio').classList.toggle('is-browsing', opening);
+    trollRadioBrowseBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+    trollRadioBrowseBtn.setAttribute('aria-label', opening ? 'Hide playlist' : 'Browse playlist');
+    trollRadioBrowserEl.toggleAttribute('inert', !opening);
+    trollRadioBrowserEl.setAttribute('aria-hidden', opening ? 'false' : 'true');
+  });
 }
 
 const trollRadioSeekEl = document.getElementById('troll-radio-seek');
@@ -8549,6 +8709,11 @@ const trollChat = {
   typingSentAt: 0,
   typingTimer: null,
   els: null,
+  groupId: null,         // null = the global room
+  groupName: null,
+  groupCode: null,
+  myGroups: [],
+  myInvites: [],
 };
 
 function tcGuestId() {
@@ -8799,11 +8964,13 @@ async function tcFetchHistory() {
       select: 'id,name,body,created_at,user_id',
       order: 'created_at.desc',
       limit: String(TC_HISTORY),
+      group_id: trollChat.groupId ? `eq.${trollChat.groupId}` : 'is.null',
     });
+    const token = trollChat.groupId ? (await window.TrollrunnerAccounts?.getAccessToken?.()) : null;
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${TC_TABLE}?${qs.toString()}`, {
       headers: {
         apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${token || SUPABASE_ANON_KEY}`,
       },
     });
     if (!response.ok) { trollChat.persistOk = false; tcUpdateNote(); return; }
@@ -8833,6 +9000,7 @@ async function tcPersist(message) {
       created_at: message.ts,
     };
     if (account && token) row.user_id = account.userId;
+    if (trollChat.groupId) row.group_id = trollChat.groupId;
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${TC_TABLE}`, {
       method: 'POST',
       headers: {
@@ -8940,6 +9108,10 @@ async function tcSend(text) {
   return true;
 }
 
+function tcRoomChannelName() {
+  return trollChat.groupId ? `trollchat_group_${trollChat.groupId}` : TC_CHANNEL;
+}
+
 function tcStartRealtime() {
   if (!isSupabaseConfigured() || !window.supabase?.createClient) return;
   try {
@@ -8948,7 +9120,7 @@ function tcStartRealtime() {
       : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           auth: { autoRefreshToken: false, persistSession: false },
         });
-    trollChat.channel = trollChat.client.channel(TC_CHANNEL, {
+    trollChat.channel = trollChat.client.channel(tcRoomChannelName(), {
       config: { presence: { key: trollChat.guestId }, broadcast: { self: false } },
     });
     trollChat.channel
@@ -8971,6 +9143,332 @@ function tcStartRealtime() {
   } catch {
     trollChat.channel = null;
   }
+}
+
+/* ---- Group chats: rooms layered on top of the global room -----------
+   Requires an account (membership is tied to a real user id) — guests only
+   ever see the global room. Every write goes through a SECURITY DEFINER
+   RPC (see assets/supabase/troll_chat_groups.sql); there's no direct
+   insert/update access to the groups/members/invites tables. */
+function tcSwitchRoom(groupId, name, code) {
+  if (trollChat.channel) {
+    try { trollChat.channel.unsubscribe(); } catch {}
+  }
+  trollChat.channel = null;
+  trollChat.subscribed = false;
+  trollChat.messages = [];
+  trollChat.seen = new Set();
+  trollChat.typingPeers = new Map();
+  trollChat.persistOk = null;
+  trollChat.groupId = groupId || null;
+  trollChat.groupName = groupId ? name : null;
+  trollChat.groupCode = groupId ? code : null;
+
+  const titleEl = document.getElementById('tc-room-title');
+  const subtitleEl = document.getElementById('tc-room-subtitle');
+  if (titleEl) titleEl.textContent = groupId ? `TROLLCHAT · ${name}` : 'TROLLCHAT';
+  if (subtitleEl) subtitleEl.textContent = groupId ? `Group code ${code}` : 'Trade Less, Troll More';
+
+  tcRenderFeed();
+  tcRenderOnline(1);
+  tcSetNote('');
+  void tcFetchHistory();
+  tcStartRealtime();
+}
+
+function tcGroupsClient() {
+  return window.TrollrunnerAccounts?.getClient?.() || null;
+}
+
+function tcOpenGroups() {
+  const overlay = document.getElementById('tc-groups-overlay');
+  const btn = document.getElementById('tc-groups-btn');
+  if (!overlay) return;
+  overlay.hidden = false;
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+  void tcLoadGroupsData();
+}
+
+function tcCloseGroups() {
+  const overlay = document.getElementById('tc-groups-overlay');
+  const btn = document.getElementById('tc-groups-btn');
+  if (overlay) overlay.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+async function tcLoadGroupsData() {
+  const account = tcAccount();
+  const body = document.getElementById('tc-groups-body');
+  if (!body) return;
+  if (!account) {
+    body.innerHTML = '';
+    const p = document.createElement('p');
+    p.className = 'tc-groups-muted';
+    p.textContent = 'Login (Account, in the taskbar) to create or join group chats.';
+    body.appendChild(p);
+    return;
+  }
+  const sb = tcGroupsClient();
+  if (!sb) return;
+  const [groupsRes, invitesRes] = await Promise.all([
+    sb.rpc('troll_chat_my_groups'),
+    sb.rpc('troll_chat_my_invites'),
+  ]);
+  trollChat.myGroups = groupsRes?.data || [];
+  trollChat.myInvites = invitesRes?.data || [];
+  tcRenderGroupsPanel();
+}
+
+function tcGroupsStatusLine(text, kind) {
+  const line = document.createElement('div');
+  line.className = 'tc-groups-muted';
+  line.textContent = text;
+  if (kind === 'error') line.style.color = '#b8431f';
+  return line;
+}
+
+function tcRenderGroupsPanel() {
+  const body = document.getElementById('tc-groups-body');
+  if (!body) return;
+  body.innerHTML = '';
+
+  // Pending invites
+  if (trollChat.myInvites.length) {
+    const section = document.createElement('div');
+    section.className = 'tc-groups-section';
+    const h = document.createElement('div');
+    h.className = 'tc-groups-h';
+    h.textContent = 'PENDING INVITES';
+    section.appendChild(h);
+    trollChat.myInvites.forEach(invite => {
+      const row = document.createElement('div');
+      row.className = 'tc-invite-row';
+      const label = document.createElement('span');
+      label.textContent = `${invite.group_name} — invited by ${invite.invited_by_username || 'someone'}`;
+      const actions = document.createElement('div');
+      actions.className = 'tc-groups-row';
+      const acceptBtn = document.createElement('button');
+      acceptBtn.type = 'button';
+      acceptBtn.textContent = 'ACCEPT';
+      acceptBtn.addEventListener('click', () => void tcRespondInvite(invite.group_id, true));
+      const declineBtn = document.createElement('button');
+      declineBtn.type = 'button';
+      declineBtn.className = 'tc-groups-ghost';
+      declineBtn.textContent = 'DECLINE';
+      declineBtn.addEventListener('click', () => void tcRespondInvite(invite.group_id, false));
+      actions.append(acceptBtn, declineBtn);
+      row.append(label, actions);
+      section.appendChild(row);
+    });
+    body.appendChild(section);
+  }
+
+  // Current rooms (global + my groups)
+  const roomsSection = document.createElement('div');
+  roomsSection.className = 'tc-groups-section';
+  const roomsH = document.createElement('div');
+  roomsH.className = 'tc-groups-h';
+  roomsH.textContent = 'YOUR ROOMS';
+  roomsSection.appendChild(roomsH);
+
+  const globalCard = document.createElement('div');
+  globalCard.className = 'tc-group-card';
+  const globalTop = document.createElement('div');
+  globalTop.className = 'tc-group-card-top';
+  const globalName = document.createElement('span');
+  globalName.className = 'tc-group-name';
+  globalName.textContent = '🌐 Global room';
+  const globalBtn = document.createElement('button');
+  globalBtn.type = 'button';
+  globalBtn.textContent = trollChat.groupId ? 'OPEN' : 'HERE';
+  globalBtn.disabled = !trollChat.groupId;
+  globalBtn.addEventListener('click', () => { tcSwitchRoom(null); tcCloseGroups(); });
+  globalTop.append(globalName, globalBtn);
+  globalCard.appendChild(globalTop);
+  roomsSection.appendChild(globalCard);
+
+  trollChat.myGroups.forEach(group => {
+    const card = document.createElement('div');
+    card.className = 'tc-group-card';
+    const top = document.createElement('div');
+    top.className = 'tc-group-card-top';
+    const name = document.createElement('span');
+    name.className = 'tc-group-name';
+    name.textContent = `👥 ${group.name}`;
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    const isHere = trollChat.groupId === group.id;
+    openBtn.textContent = isHere ? 'HERE' : 'OPEN';
+    openBtn.disabled = isHere;
+    openBtn.addEventListener('click', () => { tcSwitchRoom(group.id, group.name, group.code); tcCloseGroups(); });
+    top.append(name, openBtn);
+    card.appendChild(top);
+
+    const meta = document.createElement('div');
+    meta.className = 'tc-groups-row';
+    const code = document.createElement('span');
+    code.className = 'tc-group-code';
+    code.textContent = group.code;
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'tc-groups-ghost';
+    copyBtn.textContent = 'COPY CODE';
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard?.writeText(group.code).catch(() => {});
+      copyBtn.textContent = 'COPIED';
+      window.setTimeout(() => { copyBtn.textContent = 'COPY CODE'; }, 1400);
+    });
+    const role = document.createElement('span');
+    role.className = 'tc-group-role';
+    role.textContent = group.role === 'owner' ? 'Owner' : 'Member';
+    meta.append(code, copyBtn, role);
+    card.appendChild(meta);
+
+    if (group.role === 'owner') {
+      const auctionRow = document.createElement('div');
+      auctionRow.className = 'tc-groups-row';
+      const auctionBtn = document.createElement('button');
+      auctionBtn.type = 'button';
+      auctionBtn.className = 'tc-groups-ghost';
+      auctionBtn.textContent = '💰 AUCTION CODE — COMING SOON';
+      auctionBtn.disabled = true;
+      auctionBtn.title = 'Real-money code auctions (Phantom/SOL) are not live yet.';
+      auctionRow.appendChild(auctionBtn);
+      card.appendChild(auctionRow);
+    }
+
+    if (isHere) {
+      const inviteSection = document.createElement('div');
+      inviteSection.className = 'tc-groups-row';
+      const inviteInput = document.createElement('input');
+      inviteInput.type = 'text';
+      inviteInput.placeholder = 'invite by username';
+      inviteInput.maxLength = 20;
+      const inviteBtn = document.createElement('button');
+      inviteBtn.type = 'button';
+      inviteBtn.textContent = 'INVITE';
+      inviteSection.append(inviteInput, inviteBtn);
+      card.appendChild(inviteSection);
+      const inviteStatus = document.createElement('div');
+      card.appendChild(inviteStatus);
+      const doInvite = () => void tcInviteUsername(group.id, inviteInput.value, inviteInput, inviteStatus);
+      inviteBtn.addEventListener('click', doInvite);
+      inviteInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doInvite(); } });
+
+      const leaveBtn = document.createElement('button');
+      leaveBtn.type = 'button';
+      leaveBtn.className = 'tc-groups-ghost';
+      leaveBtn.textContent = 'LEAVE GROUP';
+      leaveBtn.addEventListener('click', () => void tcLeaveGroup(group.id));
+      const leaveRow = document.createElement('div');
+      leaveRow.className = 'tc-groups-row';
+      leaveRow.appendChild(leaveBtn);
+      card.appendChild(leaveRow);
+    }
+
+    roomsSection.appendChild(card);
+  });
+  body.appendChild(roomsSection);
+
+  // Create group
+  const createSection = document.createElement('div');
+  createSection.className = 'tc-groups-section';
+  const createH = document.createElement('div');
+  createH.className = 'tc-groups-h';
+  createH.textContent = 'CREATE A GROUP';
+  const createRow = document.createElement('div');
+  createRow.className = 'tc-groups-row';
+  const createInput = document.createElement('input');
+  createInput.type = 'text';
+  createInput.placeholder = 'group name';
+  createInput.maxLength = 40;
+  const createBtn = document.createElement('button');
+  createBtn.type = 'button';
+  createBtn.textContent = 'CREATE';
+  createRow.append(createInput, createBtn);
+  const createStatus = document.createElement('div');
+  createSection.append(createH, createRow, createStatus);
+  const doCreate = () => void tcCreateGroup(createInput.value, createInput, createStatus);
+  createBtn.addEventListener('click', doCreate);
+  createInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doCreate(); } });
+  body.appendChild(createSection);
+
+  // Join by code
+  const joinSection = document.createElement('div');
+  joinSection.className = 'tc-groups-section';
+  const joinH = document.createElement('div');
+  joinH.className = 'tc-groups-h';
+  joinH.textContent = 'JOIN BY CODE';
+  const joinRow = document.createElement('div');
+  joinRow.className = 'tc-groups-row';
+  const joinInput = document.createElement('input');
+  joinInput.type = 'text';
+  joinInput.placeholder = 'paste a group code';
+  joinInput.maxLength = 8;
+  const joinBtn = document.createElement('button');
+  joinBtn.type = 'button';
+  joinBtn.textContent = 'JOIN';
+  joinRow.append(joinInput, joinBtn);
+  const joinStatus = document.createElement('div');
+  joinSection.append(joinH, joinRow, joinStatus);
+  const doJoin = () => void tcJoinByCode(joinInput.value, joinInput, joinStatus);
+  joinBtn.addEventListener('click', doJoin);
+  joinInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doJoin(); } });
+  body.appendChild(joinSection);
+}
+
+async function tcCreateGroup(name, input, statusEl) {
+  const sb = tcGroupsClient();
+  const trimmed = String(name || '').trim();
+  if (!sb || !trimmed) return;
+  statusEl.replaceChildren(tcGroupsStatusLine('Creating…'));
+  const { data, error } = await sb.rpc('troll_chat_create_group', { p_name: trimmed });
+  if (error) { statusEl.replaceChildren(tcGroupsStatusLine(error.message || 'Could not create group.', 'error')); return; }
+  if (input) input.value = '';
+  await tcLoadGroupsData();
+  if (data) { tcSwitchRoom(data.id, data.name, data.code); tcCloseGroups(); }
+}
+
+async function tcJoinByCode(code, input, statusEl) {
+  const sb = tcGroupsClient();
+  const trimmed = String(code || '').trim();
+  if (!sb || !trimmed) return;
+  statusEl.replaceChildren(tcGroupsStatusLine('Joining…'));
+  const { data, error } = await sb.rpc('troll_chat_join_group', { p_code: trimmed });
+  if (error) { statusEl.replaceChildren(tcGroupsStatusLine(error.message || 'Could not join that group.', 'error')); return; }
+  if (input) input.value = '';
+  await tcLoadGroupsData();
+  if (data) { tcSwitchRoom(data.id, data.name, data.code); tcCloseGroups(); }
+}
+
+async function tcInviteUsername(groupId, username, input, statusEl) {
+  const sb = tcGroupsClient();
+  const trimmed = String(username || '').trim();
+  if (!sb || !trimmed) return;
+  statusEl.replaceChildren(tcGroupsStatusLine('Inviting…'));
+  const { data, error } = await sb.rpc('troll_chat_invite_username', { p_group_id: groupId, p_username: trimmed });
+  if (error) { statusEl.replaceChildren(tcGroupsStatusLine(error.message || 'Could not send that invite.', 'error')); return; }
+  if (input) input.value = '';
+  const message = data === 'added' ? `${trimmed} joined the group.`
+    : data === 'invited' ? `Invite sent — ${trimmed} has invites off, they'll see it in Group Chats.`
+    : `${trimmed} is already in the group.`;
+  statusEl.replaceChildren(tcGroupsStatusLine(message));
+}
+
+async function tcRespondInvite(groupId, accept) {
+  const sb = tcGroupsClient();
+  if (!sb) return;
+  await sb.rpc(accept ? 'troll_chat_accept_invite' : 'troll_chat_decline_invite', { p_group_id: groupId });
+  await tcLoadGroupsData();
+}
+
+async function tcLeaveGroup(groupId) {
+  const sb = tcGroupsClient();
+  if (!sb) return;
+  if (!window.confirm('Leave this group?')) return;
+  await sb.rpc('troll_chat_leave_group', { p_group_id: groupId });
+  if (trollChat.groupId === groupId) tcSwitchRoom(null);
+  await tcLoadGroupsData();
 }
 
 function initializeTrollChat() {
@@ -9018,6 +9516,11 @@ function initializeTrollChat() {
   });
 
   if (window.TrollChatExtras) window.TrollChatExtras.attachComposer({ form, send: tcSend });
+
+  const groupsBtn = document.getElementById('tc-groups-btn');
+  const groupsClose = document.getElementById('tc-groups-close');
+  if (groupsBtn) groupsBtn.addEventListener('click', tcOpenGroups);
+  if (groupsClose) groupsClose.addEventListener('click', tcCloseGroups);
 
   tcStartRealtime();
   void tcFetchHistory();

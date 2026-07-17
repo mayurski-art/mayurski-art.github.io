@@ -158,7 +158,7 @@
     if (!profilePromise) {
       profilePromise = sb
         .from('troll_profiles')
-        .select('id, username, avatar_url, bio, level, xp, created_at')
+        .select('id, username, avatar_url, bio, level, xp, created_at, auto_join_groups')
         .eq('id', userId)
         .maybeSingle()
         .then(({ data }) => {
@@ -191,6 +191,7 @@
       avatarUrl: cachedProfile.avatar_url || null,
       avatar: cachedProfile.avatar_url ? null : '🧌',
       joinedAt: cachedProfile.created_at || null,
+      autoJoinGroups: cachedProfile.auto_join_groups !== false,
     };
   }
 
@@ -329,6 +330,16 @@
     await refreshProfile();
     if (bio) void awardXp('profile_bio', 'settings');
     return toPublicSession();
+  }
+
+  async function updateAutoJoinGroups(next) {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const value = Boolean(next);
+    const { error } = await sb.from('troll_profiles').update({ auto_join_groups: value }).eq('id', cachedProfile.id);
+    if (error) throw friendlyError(error, 'Could not update that setting.');
+    cachedProfile.auto_join_groups = value;
+    return value;
   }
 
   async function updatePassword(next) {
@@ -1145,6 +1156,26 @@
     }, 'Wallet unlinked.'));
     void refreshWalletUi();
 
+    // Group chat invites
+    const groupSection = document.createElement('div');
+    groupSection.className = 'ta-section';
+    groupSection.innerHTML = `<h4>Group chat invites</h4>
+      <p class="ta-muted">When another troll invites you to a group by username, join automatically or land in a pending-invites list to accept/decline yourself.</p>`;
+    const groupRow = document.createElement('label');
+    groupRow.className = 'ta-row';
+    groupRow.style.gap = '8px';
+    const groupCheckbox = document.createElement('input');
+    groupCheckbox.type = 'checkbox';
+    groupCheckbox.checked = session.autoJoinGroups !== false;
+    const groupLabel = document.createElement('span');
+    groupLabel.textContent = 'Auto-join groups I’m invited to';
+    groupRow.append(groupCheckbox, groupLabel);
+    const groupStatus = mkStatus();
+    groupCheckbox.addEventListener('change', () => run(groupCheckbox, groupStatus,
+      () => updateAutoJoinGroups(groupCheckbox.checked), 'Saved.'));
+    groupSection.append(groupRow, groupStatus);
+    body.appendChild(groupSection);
+
     // Password
     const passSection = document.createElement('div');
     passSection.className = 'ta-section';
@@ -1337,6 +1368,7 @@
     logout,
     updateUsername,
     updateBio,
+    updateAutoJoinGroups,
     updatePassword,
     updateRecoveryEmail,
     requestPasswordReset,
