@@ -3043,59 +3043,165 @@ header p {
   max-width: 860px;
   margin: 0 auto 40px;
   padding: 0 24px;
+  font-size: 16px;
 }
 .checklist-intro {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--text-secondary);
   margin: 0 0 16px;
+}
+.checklist-signin-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fontana-txt);
+  background: var(--fontana-bg);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 0 0 16px;
+}
+.checklist-signin-note[hidden] {
+  display: none;
+}
+.checklist-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+.checklist-progress-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 6px;
+  background: var(--bg-card-hover);
+  overflow: hidden;
+}
+.checklist-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--riverside), var(--fontana));
+  transition: width 0.25s ease;
+}
+.checklist-progress-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .checklist-group {
   background: #ffffff;
   border-radius: 14px;
   border: 0.5px solid var(--border);
-  padding: 14px 18px 6px;
-  margin-bottom: 14px;
+  padding: 16px 20px 8px;
+  margin-bottom: 16px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.05);
 }
 .checklist-group-title {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 12px;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  padding: 3px 10px 3px 8px;
+  padding: 4px 12px 4px 10px;
   border-radius: 20px;
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
 .checklist-group-title .dot {
-  width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none;
+  width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: none;
 }
 .checklist-items { list-style: none; margin: 0; padding: 0; }
 .checklist-items li {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 6px 0;
   border-bottom: 0.5px solid var(--border);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-primary);
 }
 .checklist-items li:last-child { border-bottom: none; }
-.checklist-items li::before {
-  content: '\2610';
+.checklist-items li label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.checklist-items input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
   flex: none;
-  font-size: 14px;
-  line-height: 1.4;
-  color: var(--text-hint);
+  margin-top: 1px;
+  border-radius: 7px;
+  border: 2px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.checklist-items input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.checklist-items input[type="checkbox"]:checked {
+  background: var(--riverside);
+  border-color: var(--riverside);
+}
+.checklist-items input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 6px; top: 2px;
+  width: 6px; height: 11px;
+  border: solid #06210f;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+.checklist-items input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--fontana);
+  outline-offset: 2px;
+}
+.checklist-items li.is-checked label > span:first-of-type {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: var(--border);
 }
 .checklist-items li .note {
   display: block;
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--text-secondary);
+  font-weight: 400;
+  text-decoration: none !important;
+}
+.checklist-xp-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--rancho-txt);
+  background: var(--rancho-bg);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 4px;
+}
+.checklist-xp-banner.is-done {
+  color: var(--riverside-txt);
+  background: var(--riverside-bg);
+}
+.checklist-xp-banner .xp-pill {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 13px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.65);
+  white-space: nowrap;
 }
 
 .found-sticker-card {
@@ -4195,7 +4301,7 @@ footer a:hover { color: #fff; }
 .gate-account-card--portal [hidden] { display: none !important; }
 .gate-account-card--portal {
   padding: 14px !important;
-  min-height: 0;
+  min-height: 320px;
   background: linear-gradient(160deg, rgba(16,22,20,0.92), rgba(10,12,13,0.94)) !important;
   box-shadow: 3px 3px 0 rgba(0,0,0,0.5), inset 0 0 0 1px rgba(77,255,115,0.14), inset 0 0 26px rgba(77,255,115,0.05) !important;
 }
@@ -4997,73 +5103,82 @@ body.desktop-mode .troll-desktop { display: block; }
 <section id="checklist">
   <p class="checklist-intro">Beta pass — check these off as you go. Leave something unchecked and tell us in Feedback if it doesn't hold up.</p>
 
+  <p id="checklist-signin-note" class="checklist-signin-note" hidden>🔒 Log in to check items off and save your progress.</p>
+
+  <div class="checklist-progress-wrap">
+    <div class="checklist-progress-track"><div class="checklist-progress-fill" id="checklist-progress-fill"></div></div>
+    <span class="checklist-progress-count" id="checklist-progress-count">0 / 0</span>
+  </div>
+
   <div class="checklist-group">
     <p class="checklist-group-title" style="background: var(--fontana-bg); color: var(--fontana);"><span class="dot"></span>Hub</p>
     <ul class="checklist-items">
-      <li>Sticker map loads, city tabs filter, totals match the pins</li>
-      <li>Register / log in, session survives a refresh</li>
-      <li>TROLLCHAT sends and the viewer roster shows you online</li>
-      <li>Troll Radio plays, skip / back / repeat behave</li>
-      <li>Wallet connects, tip jar transaction goes through<span class="note">Connect Phantom first</span></li>
+      <li><label><input type="checkbox" id="chk-hub-map" disabled><span>Sticker map loads, city tabs filter, totals match the pins</span></label></li>
+      <li><label><input type="checkbox" id="chk-hub-login" disabled><span>Register / log in, session survives a refresh</span></label></li>
+      <li><label><input type="checkbox" id="chk-hub-chat" disabled><span>TROLLCHAT sends and the viewer roster shows you online</span></label></li>
+      <li><label><input type="checkbox" id="chk-hub-radio" disabled><span>Troll Radio plays, skip / back / repeat behave</span></label></li>
+      <li><label><input type="checkbox" id="chk-hub-wallet" disabled><span>Wallet connects, tip jar transaction goes through<span class="note">Connect Phantom first</span></span></label></li>
     </ul>
   </div>
 
   <div class="checklist-group">
     <p class="checklist-group-title" style="background: rgba(167,139,250,0.15); color: #7c5cf0;"><span class="dot"></span>Games</p>
     <ul class="checklist-items">
-      <li>Each game loads and is playable start to finish</li>
-      <li>Touch controls work on phone, not just keyboard</li>
-      <li>Score submits to the shared leaderboard<span class="note">Prizes shown are display-only, not real payouts</span></li>
-      <li>Troll Kombat versus works as shared-keyboard hot-seat<span class="note">Not online multiplayer</span></li>
+      <li><label><input type="checkbox" id="chk-games-load" disabled><span>Each game loads and is playable start to finish</span></label></li>
+      <li><label><input type="checkbox" id="chk-games-touch" disabled><span>Touch controls work on phone, not just keyboard</span></label></li>
+      <li><label><input type="checkbox" id="chk-games-leaderboard" disabled><span>Score submits to the shared leaderboard<span class="note">Prizes shown are display-only, not real payouts</span></span></label></li>
+      <li><label><input type="checkbox" id="chk-games-kombat" disabled><span>Troll Kombat versus works as shared-keyboard hot-seat<span class="note">Not online multiplayer</span></span></label></li>
     </ul>
   </div>
 
   <div class="checklist-group">
     <p class="checklist-group-title" style="background: rgba(255,216,77,0.18); color: #a07800;"><span class="dot"></span>Finances</p>
     <ul class="checklist-items">
-      <li>Tip jar sends and confirms</li>
-      <li>Timeline reads correctly on mobile</li>
+      <li><label><input type="checkbox" id="chk-fin-tip" disabled><span>Tip jar sends and confirms</span></label></li>
+      <li><label><input type="checkbox" id="chk-fin-timeline" disabled><span>Timeline reads correctly on mobile</span></label></li>
     </ul>
   </div>
 
   <div class="checklist-group">
     <p class="checklist-group-title" style="background: var(--riverside-bg); color: var(--riverside-txt);"><span class="dot"></span>Garden</p>
     <ul class="checklist-items">
-      <li>Page loads, core interaction works end to end</li>
+      <li><label><input type="checkbox" id="chk-garden-load" disabled><span>Page loads, core interaction works end to end</span></label></li>
     </ul>
   </div>
 
   <div class="checklist-group">
     <p class="checklist-group-title" style="background: var(--rialto-bg); color: var(--rialto-txt);"><span class="dot"></span>Blog / Nutrition</p>
     <ul class="checklist-items">
-      <li>Post feed loads, tags and filters narrow it correctly</li>
-      <li>Video embeds play without console errors</li>
+      <li><label><input type="checkbox" id="chk-blog-feed" disabled><span>Post feed loads, tags and filters narrow it correctly</span></label></li>
+      <li><label><input type="checkbox" id="chk-blog-embeds" disabled><span>Video embeds play without console errors</span></label></li>
     </ul>
   </div>
 
   <div class="checklist-group">
     <p class="checklist-group-title" style="background: var(--rancho-bg); color: var(--rancho-txt);"><span class="dot"></span>Stickers</p>
     <ul class="checklist-items">
-      <li>Gallery browses and thumbnails load</li>
-      <li>Print sheet PDF generates at every size</li>
-      <li>Skip the paid AI generator<span class="note">Not built yet, don't file bugs here</span></li>
+      <li><label><input type="checkbox" id="chk-stickers-gallery" disabled><span>Gallery browses and thumbnails load</span></label></li>
+      <li><label><input type="checkbox" id="chk-stickers-pdf" disabled><span>Print sheet PDF generates at every size</span></label></li>
+      <li><label><input type="checkbox" id="chk-stickers-ai" disabled><span>Skip the paid AI generator<span class="note">Not built yet, don't file bugs here</span></span></label></li>
     </ul>
   </div>
 
   <div class="checklist-group">
     <p class="checklist-group-title" style="background: rgba(192,132,252,0.18); color: #8a2fd8;"><span class="dot"></span>Videos</p>
     <ul class="checklist-items">
-      <li>Video wall loads, every embed source plays</li>
-      <li>Tag filtering narrows the wall correctly</li>
+      <li><label><input type="checkbox" id="chk-videos-wall" disabled><span>Video wall loads, every embed source plays</span></label></li>
+      <li><label><input type="checkbox" id="chk-videos-tags" disabled><span>Tag filtering narrows the wall correctly</span></label></li>
     </ul>
   </div>
 
   <div class="checklist-group">
     <p class="checklist-group-title" style="background: var(--chino-bg); color: var(--chino-txt);"><span class="dot"></span>Projects / Community</p>
     <ul class="checklist-items">
-      <li>Page loads, no dead links</li>
+      <li><label><input type="checkbox" id="chk-projects-load" disabled><span>Page loads, no dead links</span></label></li>
     </ul>
   </div>
+
+  <p class="checklist-xp-banner" id="checklist-xp-banner">🧌 Finish the whole checklist for <span class="xp-pill">+30 XP</span>, once per account.</p>
 </section>
 
 <footer>
@@ -6522,6 +6637,116 @@ function initializeTrollDesktop() {
 
   const closeAllBtn = document.getElementById('td-close-all');
   if (closeAllBtn) closeAllBtn.addEventListener('click', twCloseAll);
+
+  checklistInit();
+  window.addEventListener('trollrunner:auth-changed', checklistInit);
+}
+
+/* ---- Beta checklist: per-account progress + one-time XP on completion ---- */
+const CHECKLIST_XP_EVENT = 'checklist_complete';
+let checklistSaveTimer = null;
+let checklistBound = false;
+let checklistState = {};
+
+function checklistBoxes() {
+  return Array.from(document.querySelectorAll('#checklist .checklist-items input[type="checkbox"]'));
+}
+
+function checklistRenderProgress(state) {
+  const boxes = checklistBoxes();
+  const total = boxes.length;
+  const done = boxes.filter(b => b.checked).length;
+  const fill = document.getElementById('checklist-progress-fill');
+  const count = document.getElementById('checklist-progress-count');
+  if (fill) fill.style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
+  if (count) count.textContent = `${done} / ${total}`;
+  boxes.forEach(b => b.closest('li')?.classList.toggle('is-checked', b.checked));
+
+  const banner = document.getElementById('checklist-xp-banner');
+  if (!banner) return;
+  if (state?.xpAwarded) {
+    banner.className = 'checklist-xp-banner is-done';
+    banner.innerHTML = '✅ Checklist complete — <span class="xp-pill">+30 XP</span> awarded. Thanks for testing!';
+  } else if (total && done === total) {
+    banner.className = 'checklist-xp-banner is-done';
+    banner.innerHTML = '🎉 All checked off — claiming your <span class="xp-pill">+30 XP</span>…';
+  } else {
+    banner.className = 'checklist-xp-banner';
+    banner.innerHTML = '🧌 Finish the whole checklist for <span class="xp-pill">+30 XP</span>, once per account.';
+  }
+}
+
+function checklistScheduleSave(profileId, state) {
+  const sb = window.TrollrunnerAccounts?.getClient?.();
+  if (!sb || !profileId) return;
+  clearTimeout(checklistSaveTimer);
+  checklistSaveTimer = setTimeout(() => {
+    sb.from('troll_user_settings')
+      .update({ checklist_progress: state })
+      .eq('user_id', profileId)
+      .then(() => {});
+  }, 500);
+}
+
+async function checklistMaybeAwardXp(profileId, state) {
+  if (state.xpAwarded) return;
+  const boxes = checklistBoxes();
+  if (!boxes.length || !boxes.every(b => b.checked)) return;
+  checklistRenderProgress(state);
+  const result = await window.TrollrunnerAccounts?.awardXp?.(CHECKLIST_XP_EVENT, 'checklist_app');
+  if (result && (result.awarded > 0 || result.reason === 'lifetime_cap')) {
+    state.xpAwarded = true;
+    checklistScheduleSave(profileId, state);
+  }
+  checklistRenderProgress(state);
+}
+
+async function checklistInit() {
+  const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
+  const note = document.getElementById('checklist-signin-note');
+  const boxes = checklistBoxes();
+
+  if (!profile) {
+    checklistState = {};
+    boxes.forEach(b => { b.checked = false; b.disabled = true; });
+    if (note) note.hidden = false;
+    checklistRenderProgress(checklistState);
+    return;
+  }
+
+  if (note) note.hidden = true;
+  const sb = window.TrollrunnerAccounts.getClient();
+  checklistState = {};
+  if (sb) {
+    const { data } = await sb
+      .from('troll_user_settings')
+      .select('checklist_progress')
+      .eq('user_id', profile.id)
+      .single();
+    checklistState = data?.checklist_progress || {};
+  }
+
+  boxes.forEach(b => {
+    b.disabled = false;
+    b.checked = !!checklistState[b.id];
+  });
+  checklistRenderProgress(checklistState);
+
+  if (!checklistBound) {
+    checklistBound = true;
+    document.getElementById('checklist')?.addEventListener('change', event => {
+      const box = event.target.closest('.checklist-items input[type="checkbox"]');
+      if (!box) return;
+      const currentProfile = window.TrollrunnerAccounts?.getCachedProfile?.();
+      if (!currentProfile) return;
+      checklistState[box.id] = box.checked;
+      checklistRenderProgress(checklistState);
+      checklistScheduleSave(currentProfile.id, checklistState);
+      void checklistMaybeAwardXp(currentProfile.id, checklistState);
+    });
+  }
+
+  void checklistMaybeAwardXp(profile.id, checklistState);
 }
 
 function trollDesktopShow(boot) {
