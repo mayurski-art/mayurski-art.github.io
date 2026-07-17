@@ -3040,6 +3040,66 @@ header p {
   margin-top: 6px;
 }
 
+/* BETA CHECKLIST */
+#checklist {
+  max-width: 860px;
+  margin: 0 auto 40px;
+  padding: 0 24px;
+}
+.checklist-intro {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0 0 16px;
+}
+.checklist-group {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 0.5px solid var(--border);
+  padding: 14px 18px 6px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+.checklist-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px 10px 3px 8px;
+  border-radius: 20px;
+  margin: 0 0 10px;
+}
+.checklist-group-title .dot {
+  width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none;
+}
+.checklist-items { list-style: none; margin: 0; padding: 0; }
+.checklist-items li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 6px 0;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.checklist-items li:last-child { border-bottom: none; }
+.checklist-items li::before {
+  content: '\2610';
+  flex: none;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-hint);
+}
+.checklist-items li .note {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
 .found-sticker-card {
   position: relative;
   overflow: hidden;
@@ -4937,6 +4997,78 @@ body.desktop-mode .troll-desktop { display: block; }
   </section>
 </div>
 
+<section id="checklist">
+  <p class="checklist-intro">Beta pass — check these off as you go. Leave something unchecked and tell us in Feedback if it doesn't hold up.</p>
+
+  <div class="checklist-group">
+    <p class="checklist-group-title" style="background: var(--fontana-bg); color: var(--fontana);"><span class="dot"></span>Hub</p>
+    <ul class="checklist-items">
+      <li>Sticker map loads, city tabs filter, totals match the pins</li>
+      <li>Register / log in, session survives a refresh</li>
+      <li>TROLLCHAT sends and the viewer roster shows you online</li>
+      <li>Troll Radio plays, skip / back / repeat behave</li>
+      <li>Wallet connects, tip jar transaction goes through<span class="note">Connect Phantom first</span></li>
+    </ul>
+  </div>
+
+  <div class="checklist-group">
+    <p class="checklist-group-title" style="background: rgba(167,139,250,0.15); color: #7c5cf0;"><span class="dot"></span>Games</p>
+    <ul class="checklist-items">
+      <li>Each game loads and is playable start to finish</li>
+      <li>Touch controls work on phone, not just keyboard</li>
+      <li>Score submits to the shared leaderboard<span class="note">Prizes shown are display-only, not real payouts</span></li>
+      <li>Troll Kombat versus works as shared-keyboard hot-seat<span class="note">Not online multiplayer</span></li>
+    </ul>
+  </div>
+
+  <div class="checklist-group">
+    <p class="checklist-group-title" style="background: rgba(255,216,77,0.18); color: #a07800;"><span class="dot"></span>Finances</p>
+    <ul class="checklist-items">
+      <li>Tip jar sends and confirms</li>
+      <li>Timeline reads correctly on mobile</li>
+    </ul>
+  </div>
+
+  <div class="checklist-group">
+    <p class="checklist-group-title" style="background: var(--riverside-bg); color: var(--riverside-txt);"><span class="dot"></span>Garden</p>
+    <ul class="checklist-items">
+      <li>Page loads, core interaction works end to end</li>
+    </ul>
+  </div>
+
+  <div class="checklist-group">
+    <p class="checklist-group-title" style="background: var(--rialto-bg); color: var(--rialto-txt);"><span class="dot"></span>Blog / Nutrition</p>
+    <ul class="checklist-items">
+      <li>Post feed loads, tags and filters narrow it correctly</li>
+      <li>Video embeds play without console errors</li>
+    </ul>
+  </div>
+
+  <div class="checklist-group">
+    <p class="checklist-group-title" style="background: var(--rancho-bg); color: var(--rancho-txt);"><span class="dot"></span>Stickers</p>
+    <ul class="checklist-items">
+      <li>Gallery browses and thumbnails load</li>
+      <li>Print sheet PDF generates at every size</li>
+      <li>Skip the paid AI generator<span class="note">Not built yet, don't file bugs here</span></li>
+    </ul>
+  </div>
+
+  <div class="checklist-group">
+    <p class="checklist-group-title" style="background: rgba(192,132,252,0.18); color: #8a2fd8;"><span class="dot"></span>Videos</p>
+    <ul class="checklist-items">
+      <li>Video wall loads, every embed source plays</li>
+      <li>Tag filtering narrows the wall correctly</li>
+    </ul>
+  </div>
+
+  <div class="checklist-group">
+    <p class="checklist-group-title" style="background: var(--chino-bg); color: var(--chino-txt);"><span class="dot"></span>Projects / Community</p>
+    <ul class="checklist-items">
+      <li>Page loads, no dead links</li>
+    </ul>
+  </div>
+</section>
+
 <footer>
   <div class="footer-inner">
     <div class="footer-left">
@@ -5666,6 +5798,7 @@ const TD_WINDOWS = {
   cam: { title: 'Live Cam', icon: '📹', img: 'assets/images/icons/cam.png', flat: true, width: 620, source: '#bio-artwork' },
   updates: { title: 'Latest Updates', icon: '📰', img: 'assets/images/icons/updates.png', flat: true, width: 620, source: '#updates' },
   feedback: { title: 'Feedback', icon: '⌨️', img: 'assets/images/icons/feedback.png', flat: true, width: 660, source: '#feedback' },
+  checklist: { title: 'Beta Checklist', icon: '✅', width: 620, source: '#checklist' },
   about: { title: 'About TrollRunner', icon: 'ℹ️', width: 720, source: 'footer .footer-inner' },
   recycle: { title: 'Recycle Bin', icon: '🗑️', img: 'assets/images/icons/recycle.png', width: 420, build: tdBuildRecycle },
 };
@@ -6273,7 +6406,7 @@ function tdBuildStartMenu() {
   };
 
   addLabel('APPS');
-  ['hub', 'chat', 'cam', 'updates', 'feedback', 'about'].forEach(id => {
+  ['hub', 'chat', 'cam', 'updates', 'feedback', 'checklist', 'about'].forEach(id => {
     addItem(TD_WINDOWS[id].icon, TD_WINDOWS[id].title, () => twOpen(id), null, id === 'chat' ? 'troll_chat' : null);
   });
   addSep();
@@ -6327,6 +6460,7 @@ function initializeTrollDesktop() {
     tdAddIcon(icons, { icon: TD_WINDOWS.cam.icon, img: TD_WINDOWS.cam.img, flat: TD_WINDOWS.cam.flat, label: 'Live Cam' }, () => twOpen('cam'));
     tdAddIcon(icons, { icon: TD_WINDOWS.updates.icon, img: TD_WINDOWS.updates.img, flat: TD_WINDOWS.updates.flat, label: 'Updates' }, () => twOpen('updates'));
     tdAddIcon(icons, { icon: TD_WINDOWS.feedback.icon, img: TD_WINDOWS.feedback.img, flat: TD_WINDOWS.feedback.flat, label: 'Feedback' }, () => twOpen('feedback'));
+    tdAddIcon(icons, { icon: TD_WINDOWS.checklist.icon, label: 'Checklist' }, () => twOpen('checklist'));
     tdAddIcon(icons, { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account' }, tdOpenAccount);
     tdAddIcon(icons, { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, flat: true, label: 'Recycle Bin' }, () => twOpen('recycle'));
     window.TrollrunnerFeatureFlags?.applyFeatureVisibility(icons);
