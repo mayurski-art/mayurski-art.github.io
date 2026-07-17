@@ -5053,6 +5053,10 @@ let spotifyTrackLabel = 'Waiting for current track…';
 let spotifyCurrentUri = '';
 let spotifyLoopOne = false;
 let spotifyDuration = 0;
+let spotifyLoopTargetUri = '';
+let spotifyLastPosition = 0;
+let spotifyEndArmed = false;
+let spotifyLoopRestarting = false;
 const spotifyTrackLabelCache = new Map();
 const MOBILE_SIDEBAR_TRACKER_KEY = 'trollrunner_mobile_sidebar_tracker_open';
 let viewerPresenceClient = null;
@@ -7043,6 +7047,12 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
       spotifyEmbedController.addListener('playback_started', (event) => {
         if (event && event.data && event.data.playingURI) {
           refreshTrackLabelFromUri(event.data.playingURI);
+          if (spotifyLoopOne && !spotifyLoopRestarting) {
+            spotifyLoopTargetUri = event.data.playingURI;
+          }
+          spotifyLoopRestarting = false;
+          spotifyEndArmed = false;
+          spotifyLastPosition = 0;
         }
       });
       spotifyEmbedController.addListener('playback_update', (event) => {
@@ -7063,6 +7073,27 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
           if (seek) seek.value = (event.data.position / event.data.duration) * 100;
           if (curEl) curEl.textContent = formatTrollTime(event.data.position);
           if (durEl) durEl.textContent = formatTrollTime(event.data.duration);
+
+          const pos = event.data.position;
+          const dur = event.data.duration;
+          if (spotifyLoopOne) {
+            const reachedEnd = pos >= dur - 900;
+            const droppedBack = spotifyEndArmed && pos < spotifyLastPosition - 1500;
+            if (reachedEnd) spotifyEndArmed = true;
+            if ((reachedEnd && event.data.isPaused) || droppedBack) {
+              spotifyEndArmed = false;
+              const target = spotifyLoopTargetUri || spotifyCurrentUri;
+              if (target && typeof spotifyEmbedController.loadUri === 'function') {
+                spotifyLoopRestarting = true;
+                spotifyEmbedController.loadUri(target);
+                window.setTimeout(() => {
+                  if (typeof spotifyEmbedController.play === 'function') spotifyEmbedController.play();
+                  else if (typeof spotifyEmbedController.resume === 'function') spotifyEmbedController.resume();
+                }, 150);
+              }
+            }
+          }
+          spotifyLastPosition = pos;
         }
       });
     }
@@ -7101,8 +7132,11 @@ function trollRadioPrev() {
 
 function trollRadioToggleLoop() {
   spotifyLoopOne = !spotifyLoopOne;
-  if (!callSpotifyMethod(['toggleRepeat', 'setRepeat', 'repeat']) && spotifyLoopOne) {
-    setMusicStatus('Repeat isn’t supported by this Spotify embed.');
+  if (spotifyLoopOne) {
+    spotifyLoopTargetUri = spotifyCurrentUri;
+    spotifyEndArmed = false;
+  } else {
+    spotifyLoopTargetUri = '';
   }
   updateMusicButtons();
 }
