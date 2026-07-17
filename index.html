@@ -4470,6 +4470,12 @@ body.desktop-mode .troll-desktop { display: block; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07); }
 .tw-url > span:not(.url) { width: 26px; height: 24px; flex: none; display: grid; place-items: center; font-size: 12px;
   background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; }
+.tw-nav { width: 26px; height: 24px; flex: none; display: grid; place-items: center; font-size: 12px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px;
+  color: #93a8c4; font-family: inherit; cursor: pointer; padding: 0; transition: background 0.15s ease, color 0.15s ease; }
+.tw-nav:hover:not(:disabled), .tw-nav:focus-visible:not(:disabled) { outline: none; background: rgba(255, 255, 255, 0.16); color: #fff; }
+.tw-nav:active:not(:disabled) { background: rgba(255, 255, 255, 0.22); }
+.tw-nav:disabled { opacity: 0.4; cursor: default; }
 .tw-url .url { flex: 1; min-width: 0; padding: 5px 12px; background: #090d16; border: 1px solid rgba(148, 102, 255, 0.3);
   border-radius: 999px; color: #cfe2ff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5); }
@@ -6302,7 +6308,9 @@ function twCreate(id) {
       <button class="tw-btn tw-btn--close" type="button" aria-label="Close">✕</button>
     </div>
     ${cfg.browser ? `<div class="tw-url">
-      <span aria-hidden="true">◀</span><span aria-hidden="true">▶</span><span aria-hidden="true">⌂</span>
+      <button type="button" class="tw-nav tw-nav--back" aria-label="Back">◀</button>
+      <button type="button" class="tw-nav tw-nav--fwd" aria-label="Forward">▶</button>
+      <button type="button" class="tw-nav tw-nav--home" aria-label="Home">⌂</button>
       <span class="url"></span>
       ${cfg.iframeSrc
         ? `<a class="tw-url-ext" href="${cfg.iframeSrc}" target="_blank" rel="noopener noreferrer" title="Open in a new tab" aria-label="Open ${cfg.title} in a new tab">↗</a>`
@@ -6318,6 +6326,21 @@ function twCreate(id) {
     if (node) body.appendChild(node);
   } else if (typeof cfg.build === 'function' && !cfg.iframeSrc) {
     cfg.build(body);
+  }
+  if (cfg.browser) {
+    const backBtn = el.querySelector('.tw-nav--back');
+    const fwdBtn = el.querySelector('.tw-nav--fwd');
+    const homeBtn = el.querySelector('.tw-nav--home');
+    if (cfg.iframeSrc) {
+      const getFrame = () => el.querySelector('.tw-body iframe');
+      // Cross-origin iframes still allow calling history.back()/forward() on
+      // their contentWindow -- only *reading* cross-origin history is blocked.
+      backBtn.addEventListener('click', () => { try { getFrame()?.contentWindow?.history.back(); } catch {} });
+      fwdBtn.addEventListener('click', () => { try { getFrame()?.contentWindow?.history.forward(); } catch {} });
+      homeBtn.addEventListener('click', () => { const frame = getFrame(); if (frame) frame.src = cfg.iframeSrc; });
+    } else {
+      [backBtn, fwdBtn, homeBtn].forEach(btn => { btn.disabled = true; });
+    }
   }
   el.querySelector('.tw-btn--min').addEventListener('click', () => twMinimize(id));
   el.querySelector('.tw-btn--max').addEventListener('click', () => { el.classList.toggle('is-max'); twFocus(id); });
