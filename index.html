@@ -5839,6 +5839,7 @@ TD_SITES.forEach(site => {
     url: site.href.replace(/^https?:\/\//, '').replace(/\/$/, ''),
     iframeSrc: site.href,
     build: body => tdBuildIframe(body, site.href, site.label),
+    maximizeByDefault: site.id === 'games',
   };
 });
 TD_WINDOWS.nutrition = {
@@ -6113,6 +6114,7 @@ function twOpen(id) {
   if (win.minimized) win.minimized = false;
   if (!win.el.classList.contains('is-open')) {
     win.el.classList.add('is-open');
+    if (cfg.maximizeByDefault) win.el.classList.add('is-max');
     if (!win.placed && !tdIsMobile()) {
       const n = tdState.cascade++;
       win.el.style.left = `${Math.min(96 + (n % 6) * 38, Math.max(8, window.innerWidth - (cfg.width || 660) - 20))}px`;
@@ -6290,6 +6292,7 @@ function twCreate(id) {
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-label', cfg.title);
   if (cfg.width) el.style.width = `min(${cfg.width}px, calc(100vw - 20px))`;
+  if (cfg.maximizeByDefault) el.classList.add('is-max');
   el.innerHTML = `
     <div class="tw-titlebar">
       <span class="tw-title-icon" aria-hidden="true"></span>
