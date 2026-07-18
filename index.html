@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://*.spotifycdn.com https://nominatim.openstreetmap.org; frame-src https://open.spotify.com https://*.spotify.com https://trollrunner.net https://*.trollrunner.net; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://*.spotifycdn.com https://nominatim.openstreetmap.org https://solana-rpc.publicnode.com; frame-src https://open.spotify.com https://*.spotify.com https://trollrunner.net https://*.trollrunner.net; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Troll Runner</title>
 <script>
@@ -4610,6 +4610,8 @@ body.desktop-mode .troll-desktop { display: block; }
 .hub-wallet-btn:hover { background: linear-gradient(180deg, rgba(77, 238, 255, 0.28), rgba(77, 238, 255, 0.1));
   box-shadow: 0 0 18px rgba(77, 238, 255, 0.35), inset 0 1px 0 rgba(180, 245, 255, 0.3), 2px 2px 0 rgba(0, 0, 0, 0.4); }
 .hub-wallet-btn[disabled] { opacity: 0.6; cursor: progress; }
+.hub-wallet-balances { align-self: center; font-size: 12px; letter-spacing: 0.03em; color: #b9f6ff;
+  text-shadow: 0 0 8px rgba(77, 238, 255, 0.35); white-space: nowrap; }
 .hub-main { position: relative; }
 .hub-deco { position: absolute; top: -6px; right: -8px; bottom: 0; width: 34cqw; min-width: 190px; pointer-events: none; opacity: 0.85;
   background:
@@ -5169,6 +5171,8 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
 <script src="assets/js/admin-auth.js"></script>
 <script src="assets/js/coming-soon.js"></script>
+<script src="assets/js/troll-pay-config.js"></script>
+<script src="assets/js/troll-pay.js"></script>
 <script src="assets/js/troll-accounts.js"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script src="assets/js/troll-chat-extras.js"></script>
@@ -5937,15 +5941,27 @@ async function tdOpenWallet() {
 async function tdSyncWalletUI() {
   const session = tdAccountSession();
   const btns = document.querySelectorAll('[data-td-wallet]');
+  const balEls = document.querySelectorAll('[data-td-wallet-balances]');
   if (!btns.length) return;
   if (!session) {
     btns.forEach(btn => { btn.textContent = '👛 Connect Wallet'; });
+    balEls.forEach(el => { el.textContent = ''; });
     return;
   }
   const addr = await window.TrollrunnerAccounts?.getWalletAddress?.();
   btns.forEach(btn => {
     btn.textContent = addr ? `👛 ${addr.slice(0, 4)}…${addr.slice(-4)}` : '👛 Connect Wallet';
   });
+  if (!addr || !window.TrollPay?.getBalances) {
+    balEls.forEach(el => { el.textContent = ''; });
+    return;
+  }
+  balEls.forEach(el => { el.textContent = 'Loading balances…'; });
+  const bal = await window.TrollPay.getBalances(addr).catch(() => null);
+  const parts = [];
+  if (bal?.troll != null) parts.push(`${bal.troll.toLocaleString('en-US', { maximumFractionDigits: 0 })} $TROLL`);
+  if (bal?.usdc != null) parts.push(`${bal.usdc.toLocaleString('en-US', { maximumFractionDigits: 2 })} USDC`);
+  balEls.forEach(el => { el.textContent = parts.join(' · '); });
 }
 
 function tdBuildRecycle(body) {
@@ -5991,12 +6007,15 @@ function tdBuildHub(body) {
   walletBtn.dataset.tdWallet = '1';
   walletBtn.textContent = '👛 Connect Wallet';
   walletBtn.addEventListener('click', tdOpenWallet);
+  const walletBalances = document.createElement('span');
+  walletBalances.className = 'hub-wallet-balances';
+  walletBalances.dataset.tdWalletBalances = '1';
   const accountBtn = document.createElement('button');
   accountBtn.type = 'button';
   accountBtn.className = 'hub-account-btn';
   accountBtn.dataset.tdAccount = '1';
   accountBtn.addEventListener('click', tdOpenAccount);
-  head.append(face, main, walletBtn, accountBtn);
+  head.append(face, main, walletBtn, walletBalances, accountBtn);
   body.appendChild(head);
 
   const mainWrap = document.createElement('div');

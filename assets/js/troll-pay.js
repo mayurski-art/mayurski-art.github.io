@@ -26,6 +26,9 @@
  *        -> { ok, txSig, base, tax, total } | { ok:false, reason }
  *   payForRevive(onProgress)         -> { ok, txSig } | { ok:false, reason }
  *        (convenience: uses CONFIG.REVIVE_PRICE_USD + CONFIG.TAX_RATE)
+ *   getBalances(address?)            -> { troll, usdc }  (raw uiAmount reads,
+ *        null per-token on RPC failure or if $TROLL isn't configured; no
+ *        connect prompt — reads whatever address is passed or already connected)
  *   explorerUrl(sig) / costLabel(token) / mountTokenPicker(el)
  */
 (function () {
@@ -522,6 +525,32 @@
   function mintForToken(token) {
     return (token === 'TROLL' && trollAvailable()) ? CFG.TROLL_MINT : CFG.USDC_MINT;
   }
+
+  // ── Public: read a wallet's held token balances ──────────────────────────────
+  // Plain JSON-RPC reads (no web3.js, no connect prompt) — safe to call as soon
+  // as an address is known (e.g. right after Phantom connect) to show the
+  // visitor what they're holding, not just what they're about to pay.
+  async function tokenUiBalance(ownerAddress, mint) {
+    try {
+      var res = await rpcCall('getTokenAccountsByOwner',
+        [ownerAddress, { mint: mint }, { encoding: 'jsonParsed' }]);
+      var acc = res && res.value && res.value[0];
+      var info = acc && acc.account && acc.account.data && acc.account.data.parsed && acc.account.data.parsed.info;
+      var amount = info && info.tokenAmount;
+      // No token account for that mint yet == holds zero, not an error.
+      return amount ? Number(amount.uiAmount || 0) : 0;
+    } catch (e) {
+      return null; // RPC unreachable/flaky — let the caller show "—", not 0
+    }
+  }
+  async function getBalances(address) {
+    var addr = address || (_wallet && _wallet.address);
+    if (!addr) return { troll: null, usdc: null };
+    var usdcP = tokenUiBalance(addr, CFG.USDC_MINT);
+    var trollP = trollAvailable() ? tokenUiBalance(addr, CFG.TROLL_MINT) : Promise.resolve(null);
+    var results = await Promise.all([usdcP, trollP]);
+    return { usdc: results[0], troll: results[1] };
+  }
   async function treasuryAta(token) {
     var res = await rpcCall('getTokenAccountsByOwner',
       [CFG.TREASURY_WALLET, { mint: mintForToken(token) }, { encoding: 'jsonParsed' }]);
@@ -574,6 +603,7 @@
     isAdminBypass:     function () { return adminBypassActive(); },
     latestTreasurySig: latestTreasurySig,
     waitForNewTreasuryPayment: waitForNewTreasuryPayment,
+    getBalances:       getBalances,
     config:            CFG,
   };
 })();
