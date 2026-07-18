@@ -4838,14 +4838,14 @@ body.desktop-mode .troll-desktop { display: block; }
     </div>
     <nav class="header-links" aria-label="Top navigation">
       <div class="header-links-row">
-        <a class="header-link-btn" href="https://blog.trollrunner.net" data-feature="blog">Blogs</a>
-        <a class="header-link-btn" href="https://finance.trollrunner.net" data-feature="finance">Finances</a>
-        <a class="header-link-btn" href="https://garden.trollrunner.net" data-feature="garden">Garden</a>
-        <a class="header-link-btn" href="https://games.trollrunner.net" data-feature="games">Games</a>
-        <a class="header-link-btn" href="https://nutrition.trollrunner.net" data-feature="nutrition">Nutrition</a>
-        <a class="header-link-btn" href="https://projects.trollrunner.net/" data-feature="projects">Projects</a>
-        <a class="header-link-btn" href="https://stickers.trollrunner.net" data-feature="stickers">Stickers</a>
-        <a class="header-link-btn" href="https://videos.trollrunner.net" data-feature="videos">Videos</a>
+        <a class="header-link-btn" href="https://blog.trollrunner.net">Blogs</a>
+        <a class="header-link-btn" href="https://finance.trollrunner.net">Finances</a>
+        <a class="header-link-btn" href="https://garden.trollrunner.net">Garden</a>
+        <a class="header-link-btn" href="https://games.trollrunner.net">Games</a>
+        <a class="header-link-btn" href="https://nutrition.trollrunner.net">Nutrition</a>
+        <a class="header-link-btn" href="https://projects.trollrunner.net/">Projects</a>
+        <a class="header-link-btn" href="https://stickers.trollrunner.net">Stickers</a>
+        <a class="header-link-btn" href="https://videos.trollrunner.net">Videos</a>
         <button id="site-viewer-pill" class="header-viewer-pill" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Current viewers — see who's online">
           <svg class="header-viewer-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -4934,7 +4934,7 @@ body.desktop-mode .troll-desktop { display: block; }
   </div>
 </section>
 
-<section class="live-chat-panel" id="trollchat" data-feature="troll_chat" aria-label="Trollchat live chat room">
+<section class="live-chat-panel" id="trollchat" aria-label="Trollchat live chat room">
   <div class="live-chat-window">
     <div class="live-chat-titlebar">
       <div class="tc-title-left">
@@ -5166,7 +5166,6 @@ body.desktop-mode .troll-desktop { display: block; }
 <div id="spotify-embed" class="troll-radio-embed-host" aria-hidden="true"></div>
 
 <script src="assets/js/site-lock.js"></script>
-<script src="assets/js/feature-flags.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
 <script src="assets/js/admin-auth.js"></script>
 <script src="assets/js/coming-soon.js"></script>
@@ -6058,7 +6057,6 @@ function tdBuildHub(body) {
     '<span>Original Art: <a href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer">@SwishPng</a> · Adapted: <a href="https://twitter.com/troll_runner" target="_blank" rel="noreferrer">@troll_runner</a></span>';
   body.appendChild(foot);
   tdSyncAccountUI();
-  window.TrollrunnerFeatureFlags?.applyFeatureVisibility(body);
 }
 
 function tdSyncAccountUI() {
@@ -6333,10 +6331,14 @@ function twCreate(id) {
     const homeBtn = el.querySelector('.tw-nav--home');
     if (cfg.iframeSrc) {
       const getFrame = () => el.querySelector('.tw-body iframe');
-      // Cross-origin iframes still allow calling history.back()/forward() on
-      // their contentWindow -- only *reading* cross-origin history is blocked.
-      backBtn.addEventListener('click', () => { try { getFrame()?.contentWindow?.history.back(); } catch {} });
-      fwdBtn.addEventListener('click', () => { try { getFrame()?.contentWindow?.history.forward(); } catch {} });
+      // `history` isn't in the cross-origin-accessible property allowlist, so
+      // the iframe's contentWindow can't be driven directly from here -- ask
+      // the embedded page to navigate its own history instead. Sites that
+      // don't listen for this just no-op, same as an inert button.
+      const targetOrigin = new URL(cfg.iframeSrc, location.href).origin;
+      const sendNav = action => { try { getFrame()?.contentWindow?.postMessage({ type: 'trollrunner:nav', action }, targetOrigin); } catch {} };
+      backBtn.addEventListener('click', () => sendNav('back'));
+      fwdBtn.addEventListener('click', () => sendNav('forward'));
       homeBtn.addEventListener('click', () => { const frame = getFrame(); if (frame) frame.src = cfg.iframeSrc; });
     } else {
       [backBtn, fwdBtn, homeBtn].forEach(btn => { btn.disabled = true; });
@@ -6516,11 +6518,9 @@ function initializeTrollDesktop() {
     tdAddIcon(icons, { icon: TD_WINDOWS.checklist.icon, label: 'Checklist' }, () => twOpen('checklist'));
     tdAddIcon(icons, { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account' }, tdOpenAccount);
     tdAddIcon(icons, { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, flat: true, label: 'Recycle Bin' }, () => twOpen('recycle'));
-    window.TrollrunnerFeatureFlags?.applyFeatureVisibility(icons);
   }
 
   tdBuildStartMenu();
-  window.TrollrunnerFeatureFlags?.applyFeatureVisibility(document.getElementById('td-startmenu'));
 
   const tray = document.getElementById('td-tray');
   const clockBtn = document.getElementById('td-clock');
