@@ -20,7 +20,12 @@
 --     the balance immediately and files a PENDING request. There is NO
 --     automatic payout — you (the admin) review pending redemptions, pay
 --     the player manually from your own wallet, then mark the request
---     paid/rejected. Rejecting refunds the balance atomically.
+--     paid/rejected. Rejecting refunds the balance atomically. The admin
+--     panel's "Pay via Phantom" button (casino-admin.js, TrollPay.payExact)
+--     is a convenience that signs+sends that same manual payment for you and
+--     auto-fills the paid tx signature — it still requires you to personally
+--     approve and sign every transaction in Phantom; nothing here runs
+--     unattended or without a human clicking "Confirm" in the wallet.
 --   * In-round bet/win adjustments (troll_casino_adjust_balance) are, like
 --     every other game's score submission in this schema, CLIENT-TRUSTED —
 --     there is no server-side RNG authority for Troll Wheel / Blackjack /
@@ -384,6 +389,20 @@ create policy troll_casino_redemptions_admin_update on public.troll_casino_redem
 revoke all on public.troll_casino_redemptions from anon, authenticated;
 grant select on public.troll_casino_redemptions to authenticated;
 grant update (status, admin_note, paid_tx, updated_at) on public.troll_casino_redemptions to authenticated;
+
+-- Realtime: lets the admin panel react the instant a request is filed,
+-- instead of only on page load/refresh. RLS above still applies to what a
+-- given subscriber actually receives (admins see all rows, players see only
+-- their own), so this is safe to broadcast broadly.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'troll_casino_redemptions'
+  ) then
+    alter publication supabase_realtime add table public.troll_casino_redemptions;
+  end if;
+end $$;
 
 -- Player-facing: debit + file the request atomically.
 create or replace function public.troll_casino_request_redemption(

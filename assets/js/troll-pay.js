@@ -24,6 +24,11 @@
  *   setToken('USDC'|'TROLL') / getToken()
  *   pay({ amountUsd, token?, taxRate?, onProgress? })
  *        -> { ok, txSig, base, tax, total } | { ok:false, reason }
+ *   payExact({ toAddress, token, amount, memo?, onProgress? })
+ *        -> { ok, txSig } | { ok:false, reason }
+ *        (sends an exact native-token amount to an arbitrary address, from the
+ *        connected wallet — for admin payouts, e.g. Troll Casino redemptions.
+ *        Not for tips/revives; those always go to the treasury via pay().)
  *   payForRevive(onProgress)         -> { ok, txSig } | { ok:false, reason }
  *        (convenience: uses CONFIG.REVIVE_PRICE_USD + CONFIG.TAX_RATE)
  *   getBalances(address?)            -> { troll, usdc }  (raw uiAmount reads,
@@ -107,6 +112,16 @@
 
   function isConnected() { return !!_wallet; }
   function getWallet()   { return _wallet; }
+
+  // Revoke this origin's Phantom trust and clear local wallet state, so the
+  // next connect() shows the picker again instead of silently reconnecting.
+  async function disconnect() {
+    var phantom = getPhantom();
+    if (phantom && phantom.disconnect) {
+      try { await phantom.disconnect(); } catch (e) { /* ignore — clear local state anyway */ }
+    }
+    _wallet = null;
+  }
 
   // Silent reconnect: if this origin already has Phantom's trust (e.g. the
   // visitor used the "Connect Wallet" button elsewhere on the site, or paid
@@ -267,15 +282,18 @@
     });
   }
 
-  async function buildTransferTx(web3, senderAddress, mintStr, rawAmount, memo) {
+  // `destAddress` defaults to the treasury (every existing caller — tips,
+  // revives — pays INTO the treasury). Admin payouts pass an explicit player
+  // wallet instead; see payExact() below.
+  async function buildTransferTx(web3, senderAddress, mintStr, rawAmount, memo, destAddress) {
     var connection = new web3.Connection(CFG.SOLANA_RPC, 'confirmed');
     var sender     = new web3.PublicKey(senderAddress);
-    var treasury   = new web3.PublicKey(CFG.TREASURY_WALLET);
+    var dest       = new web3.PublicKey(destAddress || CFG.TREASURY_WALLET);
     var mint       = new web3.PublicKey(mintStr);
     var pk         = programKeys(web3);
 
     var sourceATA = findATA(web3, sender, mint);
-    var destATA   = findATA(web3, treasury, mint);
+    var destATA   = findATA(web3, dest, mint);
 
     // We intentionally do NOT pre-check balances here — always build the transfer
     // and let Phantom show it. If the wallet lacks the token/funds, Phantom (and
@@ -289,9 +307,9 @@
     tx.add(computeUnitLimitIx(web3, 100000));
     tx.add(computeUnitPriceIx(web3, 100000));
 
-    // Always idempotently ensure the treasury's token account exists. No-op if it
-    // already does; otherwise the sender pays ~0.002 SOL rent to create it once.
-    tx.add(createAtaIdempotentInstruction(web3, sender, treasury, mint));
+    // Always idempotently ensure the destination's token account exists. No-op if
+    // it already does; otherwise the sender pays ~0.002 SOL rent to create it once.
+    tx.add(createAtaIdempotentInstruction(web3, sender, dest, mint));
 
     tx.add(new web3.TransactionInstruction({
       programId: pk.TOKEN,
@@ -368,6 +386,46 @@
     return sendAndConfirm(built.connection, phantom, built.tx, built.blockhashInfo, function (ev) {
       if (ev.stage === 'sent' && onProgress) onProgress({ stage: 'confirming', sig: ev.sig });
     });
+  }
+
+  // ── Public: pay an EXACT native token amount to an arbitrary address ────────────
+  // For admin-initiated payouts (e.g. Troll Casino redemption review), not tips/
+  // revives — those always go to the treasury via pay()/payForRevive() above.
+  // `amount` is in native token units (e.g. 12.5 USDC), NOT USD-priced like pay().
+  // No admin bypass here: this literally IS the admin sending real funds out of
+  // their own connected wallet, so there is nothing to bypass.
+  // payExact({ toAddress, token: 'USDC'|'TROLL', amount, memo?, onProgress? })
+  //   -> { ok, txSig } | { ok:false, reason }
+  async function payExact(opts) {
+    opts = opts || {};
+    var toAddress = String(opts.toAddress || '').trim();
+    var token     = (opts.token === 'TROLL' && trollAvailable()) ? 'TROLL' : 'USDC';
+    var amount    = Number(opts.amount);
+    if (!toAddress) return { ok: false, reason: 'Enter a payout address' };
+    if (!(amount > 0)) return { ok: false, reason: 'Enter an amount' };
+    try {
+      var onProgress = opts.onProgress;
+      if (onProgress) onProgress({ stage: 'connecting' });
+      var web3 = await loadWeb3();
+      if (!isConnected()) await connect();
+      var phantom = getPhantom();
+
+      var mintStr  = token === 'TROLL' ? CFG.TROLL_MINT : CFG.USDC_MINT;
+      var decimals = token === 'TROLL' ? CFG.TROLL_DECIMALS : CFG.USDC_DECIMALS;
+      var rawAmount = BigInt(Math.round(amount * Math.pow(10, decimals)));
+
+      if (onProgress) onProgress({ stage: 'building' });
+      var built = await buildTransferTx(web3, _wallet.address, mintStr, rawAmount, opts.memo, toAddress);
+
+      if (onProgress) onProgress({ stage: 'awaiting' });
+      var sig = await sendAndConfirm(built.connection, phantom, built.tx, built.blockhashInfo, function (ev) {
+        if (ev.stage === 'sent' && onProgress) onProgress({ stage: 'confirming', sig: ev.sig });
+      });
+      return { ok: true, txSig: sig };
+    } catch (err) {
+      if (window.console) console.error('[TrollPay] payout error:', err);
+      return { ok: false, reason: friendlyError(err) };
+    }
   }
 
   // ── Public: generic payment ──────────────────────────────────────────────────────
@@ -586,12 +644,14 @@
     loadWeb3:          loadWeb3,
     connect:           connect,
     warmConnect:       warmConnect,
+    disconnect:        disconnect,
     isConnected:       isConnected,
     getWallet:         getWallet,
     trollAvailable:    trollAvailable,
     setToken:          setToken,
     getToken:          getToken,
     pay:               pay,
+    payExact:          payExact,
     payForRevive:      payForRevive,
     costLabel:         costLabel,
     explorerUrl:       explorerUrl,
