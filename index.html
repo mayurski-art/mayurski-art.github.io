@@ -4612,6 +4612,11 @@ body.desktop-mode .troll-desktop { display: block; }
 .hub-wallet-btn[disabled] { opacity: 0.6; cursor: progress; }
 .hub-wallet-balances { align-self: center; font-size: 12px; letter-spacing: 0.03em; color: #b9f6ff;
   text-shadow: 0 0 8px rgba(77, 238, 255, 0.35); white-space: nowrap; }
+.hub-wallet-disconnect { align-self: center; width: 22px; height: 22px; padding: 0; cursor: pointer; font: inherit; font-size: 12px;
+  line-height: 1; color: #ff9fae; background: rgba(255, 45, 111, 0.08); border: 1px solid rgba(255, 45, 111, 0.5); border-radius: 50%;
+  transition: background 0.14s ease, box-shadow 0.14s ease; }
+.hub-wallet-disconnect:hover { background: rgba(255, 45, 111, 0.22); box-shadow: 0 0 10px rgba(255, 45, 111, 0.3); }
+.hub-wallet-disconnect[disabled] { opacity: 0.5; cursor: progress; }
 .hub-main { position: relative; }
 .hub-deco { position: absolute; top: -6px; right: -8px; bottom: 0; width: 34cqw; min-width: 190px; pointer-events: none; opacity: 0.85;
   background:
@@ -4845,7 +4850,6 @@ body.desktop-mode .troll-desktop { display: block; }
         <a class="header-link-btn" href="https://garden.trollrunner.net">Garden</a>
         <a class="header-link-btn" href="https://games.trollrunner.net">Games</a>
         <a class="header-link-btn" href="https://nutrition.trollrunner.net">Nutrition</a>
-        <a class="header-link-btn" href="https://projects.trollrunner.net/">Projects</a>
         <a class="header-link-btn" href="https://stickers.trollrunner.net">Stickers</a>
         <a class="header-link-btn" href="https://videos.trollrunner.net">Videos</a>
         <button id="site-viewer-pill" class="header-viewer-pill" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Current viewers — see who's online">
@@ -5819,8 +5823,12 @@ const TD_SITES = [
   { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.' },
   { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
   { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
-  { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.' },
+  { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
 ];
+// Admin-only entries (e.g. Projects/Community) are excluded from the public
+// desktop icons and start menu, but stay in TD_SITES so twOpen() and
+// admin.html can still reach them.
+const TD_SITES_PUBLIC = TD_SITES.filter(site => !site.adminOnly);
 
 function tdSetIcon(el, icon) {
   if (!el) return;
@@ -5938,20 +5946,35 @@ async function tdOpenWallet() {
   }
 }
 
+async function tdDisconnectWallet() {
+  const btn = document.querySelector('[data-td-wallet-disconnect]');
+  if (btn) btn.disabled = true;
+  try {
+    await window.TrollrunnerAccounts?.unlinkWallet?.();
+    await window.TrollPay?.disconnect?.();
+  } finally {
+    if (btn) btn.disabled = false;
+    tdSyncWalletUI();
+  }
+}
+
 async function tdSyncWalletUI() {
   const session = tdAccountSession();
   const btns = document.querySelectorAll('[data-td-wallet]');
   const balEls = document.querySelectorAll('[data-td-wallet-balances]');
+  const disconnectBtns = document.querySelectorAll('[data-td-wallet-disconnect]');
   if (!btns.length) return;
   if (!session) {
     btns.forEach(btn => { btn.textContent = '👛 Connect Wallet'; });
     balEls.forEach(el => { el.textContent = ''; });
+    disconnectBtns.forEach(el => { el.style.display = 'none'; });
     return;
   }
   const addr = await window.TrollrunnerAccounts?.getWalletAddress?.();
   btns.forEach(btn => {
     btn.textContent = addr ? `👛 ${addr.slice(0, 4)}…${addr.slice(-4)}` : '👛 Connect Wallet';
   });
+  disconnectBtns.forEach(el => { el.style.display = addr ? '' : 'none'; });
   if (!addr || !window.TrollPay?.getBalances) {
     balEls.forEach(el => { el.textContent = ''; });
     return;
@@ -6010,12 +6033,21 @@ function tdBuildHub(body) {
   const walletBalances = document.createElement('span');
   walletBalances.className = 'hub-wallet-balances';
   walletBalances.dataset.tdWalletBalances = '1';
+  const walletDisconnectBtn = document.createElement('button');
+  walletDisconnectBtn.type = 'button';
+  walletDisconnectBtn.className = 'hub-wallet-disconnect';
+  walletDisconnectBtn.dataset.tdWalletDisconnect = '1';
+  walletDisconnectBtn.textContent = '✕';
+  walletDisconnectBtn.title = 'Disconnect wallet';
+  walletDisconnectBtn.setAttribute('aria-label', 'Disconnect wallet');
+  walletDisconnectBtn.style.display = 'none';
+  walletDisconnectBtn.addEventListener('click', tdDisconnectWallet);
   const accountBtn = document.createElement('button');
   accountBtn.type = 'button';
   accountBtn.className = 'hub-account-btn';
   accountBtn.dataset.tdAccount = '1';
   accountBtn.addEventListener('click', tdOpenAccount);
-  head.append(face, main, walletBtn, walletBalances, accountBtn);
+  head.append(face, main, walletBtn, walletBalances, walletDisconnectBtn, accountBtn);
   body.appendChild(head);
 
   const mainWrap = document.createElement('div');
@@ -6043,7 +6075,7 @@ function tdBuildHub(body) {
     return inner;
   };
   const cards = [];
-  TD_SITES.forEach(site => {
+  TD_SITES_PUBLIC.forEach(site => {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'hub-card';
@@ -6485,7 +6517,7 @@ function tdBuildStartMenu() {
   });
   addSep();
   addLabel('SITES');
-  TD_SITES.forEach(site => addItem(site.icon, site.label, () => twOpen(site.id), null, site.id));
+  TD_SITES_PUBLIC.forEach(site => addItem(site.icon, site.label, () => twOpen(site.id), null, site.id));
   addItem('🥗', 'Nutrition', () => twOpen('nutrition'));
   addSep();
   const liveStack = document.querySelector('.header-live-stack');
@@ -6528,9 +6560,9 @@ function initializeTrollDesktop() {
   const icons = document.getElementById('td-icons');
   if (icons) {
     tdAddIcon(icons, { icon: TD_WINDOWS.hub.icon, img: TD_WINDOWS.hub.img, flat: TD_WINDOWS.hub.flat, label: 'TrollRunner Hub' }, () => twOpen('hub'));
-    TD_SITES.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, feature: site.id }, () => twOpen(site.id)));
+    TD_SITES_PUBLIC.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, feature: site.id }, () => twOpen(site.id)));
     tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: TD_WINDOWS.chat.flat, label: 'TrollChat', feature: 'troll_chat' }, () => twOpen('chat'));
-    TD_SITES.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, feature: site.id }, () => twOpen(site.id)));
+    TD_SITES_PUBLIC.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, feature: site.id }, () => twOpen(site.id)));
     tdAddIcon(icons, { icon: TD_WINDOWS.cam.icon, img: TD_WINDOWS.cam.img, flat: TD_WINDOWS.cam.flat, label: 'Live Cam' }, () => twOpen('cam'));
     tdAddIcon(icons, { icon: TD_WINDOWS.updates.icon, img: TD_WINDOWS.updates.img, flat: TD_WINDOWS.updates.flat, label: 'Updates' }, () => twOpen('updates'));
     tdAddIcon(icons, { icon: TD_WINDOWS.feedback.icon, img: TD_WINDOWS.feedback.img, flat: TD_WINDOWS.feedback.flat, label: 'Feedback' }, () => twOpen('feedback'));
