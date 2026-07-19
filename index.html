@@ -6118,7 +6118,7 @@ function tdSyncAccountUI() {
     if (session) {
       const icon = document.createElement('img');
       icon.className = 'troll-emoji-icon';
-      icon.src = 'assets/animations/troll-grin.gif';
+      icon.src = session.avatarUrl ? String(session.avatarUrl) : 'assets/animations/troll-grin.gif';
       icon.alt = '';
       btn.appendChild(icon);
       btn.appendChild(document.createTextNode(` ${session.username} · LV ${session.level}`));
