@@ -1115,6 +1115,10 @@ header p {
   align-self: start;
   height: 430px;
   min-height: 430px;
+  /* Inside the desktop window shell this panel opens maximized (see
+     `maximizeByDefault` on the chat window config) so the log itself
+     should fill that space instead of staying pinned to its old
+     fixed-height, small-floating-window size. */
   --tc-ink: #14231d;
   --tc-line: #10201a;
   --tc-paper: #eef6e2;
@@ -4495,7 +4499,15 @@ body.desktop-mode .troll-desktop { display: block; }
     radial-gradient(circle at 0% 100%, rgba(77, 255, 115, 0.05), transparent 38%),
     #0b0e17; }
 .tw-body > section, .tw-body > div, .tw-body > footer { margin: 0; }
-.tw.is-max { inset: 8px 8px 54px 8px !important; width: auto !important; max-height: none; }
+/* TrollChat opens maximized (maximizeByDefault) — let the panel fill that
+   space instead of sitting at its old small-floating-window fixed height,
+   so the log itself gets taller instead of just scrolling more. */
+.tw-body > .live-chat-panel { width: 100%; height: 100%; min-height: 0; }
+/* #td-windows already reserves the 46px taskbar strip via its own inset,
+   so a maximized window only needs a small even margin here — the old
+   54px bottom value double-counted that clearance and wasted ~54px of
+   height a maximized window (e.g. Games) could otherwise use. */
+.tw.is-max { inset: 8px 8px 8px 8px !important; width: auto !important; max-height: none; }
 
 /* ---- taskbar ---- */
 .td-taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 46px; z-index: 900;
@@ -5838,7 +5850,7 @@ function tdSetIcon(el, icon) {
 
 const TD_WINDOWS = {
   hub: { title: 'TrollRunner Hub', icon: '🧌', img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: true, url: 'https://www.trollrunner.net', build: tdBuildHub },
-  chat: { title: 'TrollChat', icon: '💬', img: 'assets/images/icons/trollchat.png', flat: true, width: 540, source: '#trollchat' },
+  chat: { title: 'TrollChat', icon: '💬', img: 'assets/images/icons/trollchat.png', flat: true, width: 540, source: '#trollchat', maximizeByDefault: true },
   cam: { title: 'Live Cam', icon: '📹', img: 'assets/images/icons/cam.png', flat: true, width: 620, source: '#bio-artwork' },
   updates: { title: 'Latest Updates', icon: '📰', img: 'assets/images/icons/updates.png', flat: true, width: 620, source: '#updates' },
   feedback: { title: 'Feedback', icon: '⌨️', img: 'assets/images/icons/feedback.png', flat: true, width: 660, source: '#feedback' },
