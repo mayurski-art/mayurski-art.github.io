@@ -7318,15 +7318,42 @@ function getLocalDateKey(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+// Skips counting a view when the visitor is logged into a troll_runner
+// admin account (via troll_is_admin(), see troll_admin_lockdown.sql) so our
+// own dev/testing traffic doesn't inflate the analytics.
+async function isAdminViewer() {
+  try {
+    const token = await window.TrollrunnerAccounts?.getAccessToken?.();
+    if (!token) return false;
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_is_admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+      },
+      body: '{}',
+    });
+    if (!response.ok) return false;
+    return (await response.json()) === true;
+  } catch {
+    return false;
+  }
+}
+
 // Records a view through the troll_record_view RPC (see
 // assets/supabase/troll_admin_lockdown.sql), which merges the counter into
 // its own meta key server-side -- no full-row read/write needed anymore.
 async function recordWebsiteView() {
   if (!isSupabaseConfigured()) return false;
-  const viewerId = getViewerId();
   const dateKey = getLocalDateKey();
   const sessionKey = `${VIEWER_DAILY_TRACK_KEY}:${dateKey}`;
   if (sessionStorage.getItem(sessionKey) === '1') return false;
+  if (await isAdminViewer()) {
+    sessionStorage.setItem(sessionKey, '1');
+    return false;
+  }
+  const viewerId = getViewerId();
   sessionStorage.setItem(sessionKey, '1');
   try {
     const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_record_view`, {

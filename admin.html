@@ -478,6 +478,24 @@
       font-weight: 700;
       white-space: nowrap;
     }
+    .accounts-type-pill {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .accounts-type-pill.is-npc {
+      border: 1px solid rgba(255,69,58,0.5);
+      background: rgba(255,69,58,0.12);
+      color: #ff453a;
+    }
+    .accounts-type-pill.is-player {
+      border: 1px solid rgba(90,200,250,0.5);
+      background: rgba(90,200,250,0.12);
+      color: #5ac8fa;
+    }
     a { color: #66aaff; }
     .notis-seg {
       display: flex;
@@ -2291,7 +2309,7 @@ Fixed some admin system bugs.`,
         if (refreshBtn) refreshBtn.disabled = true;
         try {
           const [profiles, stats] = await Promise.all([
-            fetchRows('troll_profiles?select=id,username,avatar_url,level,xp,created_at,updated_at&order=created_at.desc&limit=1000'),
+            fetchRows('troll_profiles?select=id,username,avatar_url,level,xp,is_npc,created_at,updated_at&order=created_at.desc&limit=1000'),
             fetchRows('troll_game_stats?select=user_id,game_id,games_played,high_score,updated_at&limit=5000'),
           ]);
           const statsByUser = new Map();
@@ -2310,6 +2328,7 @@ Fixed some admin system bugs.`,
               id: profile.id,
               username: String(profile.username || 'unknown'),
               avatarUrl: profile.avatar_url || '',
+              isNpc: Boolean(profile.is_npc),
               level: Number(profile.level || 1),
               xp: Number(profile.xp || 0),
               joined,
@@ -2393,8 +2412,12 @@ Fixed some admin system bugs.`,
           const best = account.best
             ? `${escapeHtml(account.best.game_id)} · ${Number(account.best.high_score).toLocaleString()}`
             : '—';
+          const typePill = account.isNpc
+            ? '<span class="accounts-type-pill is-npc">NPC</span>'
+            : '<span class="accounts-type-pill is-player">Player</span>';
           return `<tr>
             <td>${avatarHtml(account)}${escapeHtml(account.username)}</td>
+            <td>${typePill}</td>
             <td><span class="accounts-level-pill">LV ${account.level}</span></td>
             <td>${account.xp.toLocaleString()}</td>
             <td>${account.games.toLocaleString()}</td>
@@ -2405,7 +2428,7 @@ Fixed some admin system bugs.`,
         }).join('');
         tableWrap.innerHTML = `<table class="analytics-table">
           <thead><tr>
-            <th>Player</th><th>Level</th><th>XP</th><th>Games</th><th>Best score</th><th>Joined</th><th>Last seen</th>
+            <th>Player</th><th>Type</th><th>Level</th><th>XP</th><th>Games</th><th>Best score</th><th>Joined</th><th>Last seen</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
