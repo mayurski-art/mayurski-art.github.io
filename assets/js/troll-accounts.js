@@ -456,6 +456,19 @@
      with tokens in the URL hash (implicit flow); we swap them for a
      session, scrub the URL, and ask for a new password.
      ------------------------------------------------------------------ */
+  // JWTs from other Trollrunner auth clients (e.g. the site-admin login) can
+  // land in this same hash. Peek at the unverified payload so we don't steal
+  // a token that isn't ours — admin-auth.js owns admin@login.trollrunner.net.
+  function jwtEmail(token) {
+    try {
+      const payload = token.split('.')[1];
+      const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+      return JSON.parse(json)?.email || null;
+    } catch {
+      return null;
+    }
+  }
+
   function detectRecoveryLink() {
     const hash = String(location.hash || '');
     if (!/access_token=/.test(hash)) return;
@@ -465,6 +478,7 @@
     const refreshToken = params.get('refresh_token');
     const scrub = () => history.replaceState(null, '', location.pathname + location.search);
     if (!accessToken || !refreshToken) return;
+    if (jwtEmail(accessToken) === 'admin@login.trollrunner.net') return;
     if (type === 'recovery') {
       const sb = getClient();
       if (!sb) return;

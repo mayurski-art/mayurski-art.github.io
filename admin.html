@@ -858,6 +858,7 @@ Fixed some admin system bugs.`,
 ];
     (async () => {
       const helper = window.TrollrunnerAdminAuth;
+      if (helper?.awaitPasswordRecoverySettled) await helper.awaitPasswordRecoverySettled();
       const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
       if (!authed) {
         localStorage.removeItem(AUTH_KEY);
