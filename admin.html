@@ -2555,6 +2555,18 @@ Fixed some admin system bugs.`,
       loadSignups().then(() => {
         if (statusEl.dataset.mode === 'locked') setTimeout(() => void loadSignups(), 1200);
       });
+
+      // Best-effort live updates, same pattern as the payouts panel — reacts
+      // instantly to new signups instead of only on manual refresh.
+      try {
+        const client = window.TrollrunnerAdminAuth?.getAuthClient?.();
+        if (client) {
+          const ch = client.channel('trollrunner-admin-newsletter')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'newsletter_signups' }, () => loadSignups())
+            .subscribe();
+          window.addEventListener('beforeunload', () => client.removeChannel(ch));
+        }
+      } catch {}
     })();
   </script>
 </body>

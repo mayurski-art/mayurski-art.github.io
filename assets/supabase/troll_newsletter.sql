@@ -72,3 +72,14 @@ $$;
 
 revoke all on function public.troll_submit_newsletter_signup(text) from public;
 grant execute on function public.troll_submit_newsletter_signup(text) to anon, authenticated;
+
+-- Realtime, so the admin panel shows a new signup the instant it lands.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'newsletter_signups'
+  ) then
+    alter publication supabase_realtime add table public.newsletter_signups;
+  end if;
+end $$;
