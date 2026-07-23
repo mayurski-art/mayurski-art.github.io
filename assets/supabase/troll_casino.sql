@@ -312,8 +312,117 @@ create policy troll_casino_deposits_read on public.troll_casino_deposits
 revoke all on public.troll_casino_deposits from anon, authenticated;
 grant select on public.troll_casino_deposits to authenticated;
 
+-- ------------------------------------------------------------
+-- Real on-chain verification. Everything above the deposits table used to
+-- trust p_amount_usd/p_token_amount as reported by the client — any
+-- authenticated session could call troll_casino_confirm_deposit directly
+-- (devtools/curl), skip TrollPay entirely, hand it a made-up signature and
+-- an arbitrary amount, and get instantly credited. This looks p_tx_sig up on
+-- Solana mainnet itself (server-side, via the `http` extension — the CORS
+-- restriction that pushes the browser client to a different RPC endpoint
+-- doesn't apply here) and derives the credited amount from the transaction's
+-- own token-balance change at the treasury wallet — never from anything the
+-- caller said. It also requires p_wallet's OWN balance to have decreased in
+-- that same transaction, so a second party watching the chain can't race to
+-- claim someone else's real, already-broadcast deposit as their own.
+create extension if not exists http with schema extensions;
+
+create or replace function public.troll_casino_verify_treasury_deposit(
+  p_tx_sig text,
+  p_token  text,
+  p_wallet text
+)
+returns numeric
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  -- Public, no-key mainnet RPC — fine for hobby-site deposit volume. If this
+  -- ever needs to scale past its rate limit, swap in a dedicated provider
+  -- (Helius/QuickNode/etc.) here; nothing else in this function changes.
+  v_rpc_url       text := 'https://api.mainnet-beta.solana.com';
+  v_treasury      text := '79vVRZ7qnZfj9xCto5d9Kwf4eAimqMDrQysZjHBbFbsA';
+  v_mint          text;
+  v_decimals      int := 6; -- both USDC and $TROLL are 6-decimal SPL tokens
+  v_body          jsonb;
+  v_resp          jsonb;
+  v_result        jsonb;
+  v_treasury_pre  numeric;
+  v_treasury_post numeric;
+  v_wallet_pre    numeric;
+  v_wallet_post   numeric;
+  v_delta         numeric;
+begin
+  if p_token not in ('USDC', 'TROLL') then raise exception 'Bad token.'; end if;
+  if p_tx_sig is null or length(p_tx_sig) < 10 then raise exception 'Missing transaction signature.'; end if;
+  if p_wallet is null or length(trim(p_wallet)) < 20 then
+    raise exception 'A connected wallet address is required to verify a deposit.';
+  end if;
+  v_mint := case p_token
+    when 'USDC' then 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+    else '5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2'
+  end;
+
+  v_body := jsonb_build_object(
+    'jsonrpc', '2.0', 'id', 1, 'method', 'getTransaction',
+    'params', jsonb_build_array(
+      p_tx_sig,
+      jsonb_build_object('encoding', 'jsonParsed', 'commitment', 'confirmed', 'maxSupportedTransactionVersion', 0)
+    )
+  );
+
+  begin
+    perform extensions.http_set_curlopt('CURLOPT_TIMEOUT_MS', '15000');
+    select (extensions.http_post(v_rpc_url, v_body::text, 'application/json')).content::jsonb into v_resp;
+  exception when others then
+    raise exception 'Could not reach Solana to verify this payment — try again in a moment.';
+  end;
+
+  if v_resp ? 'error' then
+    raise exception 'Solana RPC error while verifying payment: %', v_resp -> 'error' ->> 'message';
+  end if;
+
+  v_result := v_resp -> 'result';
+  if v_result is null or v_result = 'null'::jsonb then
+    raise exception 'Transaction not found on-chain yet — wait a few seconds and try again.';
+  end if;
+  if (v_result -> 'meta' ->> 'err') is not null then
+    raise exception 'That transaction failed on-chain — nothing was actually paid.';
+  end if;
+
+  select coalesce(sum((e -> 'uiTokenAmount' ->> 'amount')::numeric), 0) into v_treasury_pre
+    from jsonb_array_elements(coalesce(v_result -> 'meta' -> 'preTokenBalances', '[]'::jsonb)) e
+   where e ->> 'owner' = v_treasury and e ->> 'mint' = v_mint;
+  select coalesce(sum((e -> 'uiTokenAmount' ->> 'amount')::numeric), 0) into v_treasury_post
+    from jsonb_array_elements(coalesce(v_result -> 'meta' -> 'postTokenBalances', '[]'::jsonb)) e
+   where e ->> 'owner' = v_treasury and e ->> 'mint' = v_mint;
+  select coalesce(sum((e -> 'uiTokenAmount' ->> 'amount')::numeric), 0) into v_wallet_pre
+    from jsonb_array_elements(coalesce(v_result -> 'meta' -> 'preTokenBalances', '[]'::jsonb)) e
+   where e ->> 'owner' = p_wallet and e ->> 'mint' = v_mint;
+  select coalesce(sum((e -> 'uiTokenAmount' ->> 'amount')::numeric), 0) into v_wallet_post
+    from jsonb_array_elements(coalesce(v_result -> 'meta' -> 'postTokenBalances', '[]'::jsonb)) e
+   where e ->> 'owner' = p_wallet and e ->> 'mint' = v_mint;
+
+  if v_treasury_post <= v_treasury_pre then
+    raise exception 'That transaction did not pay % to the treasury wallet.', p_token;
+  end if;
+  if v_wallet_pre <= v_wallet_post then
+    raise exception 'That transaction was not paid from your connected wallet.';
+  end if;
+
+  v_delta := (v_treasury_post - v_treasury_pre) / power(10, v_decimals);
+  return v_delta;
+end;
+$$;
+revoke all on function public.troll_casino_verify_treasury_deposit(text, text, text) from public, anon;
+grant execute on function public.troll_casino_verify_treasury_deposit(text, text, text) to authenticated;
+
 -- The ONE door tokens come in through. tx_sig is unique, so replaying the
--- same signature twice (e.g. a retried client call) can't double-credit.
+-- same signature twice (e.g. a retried client call) can't double-credit —
+-- and now the credited amount itself comes only from the verified on-chain
+-- transfer above, never from p_amount_usd/p_token_amount (kept only as the
+-- client's self-reported figures for the deposits log/display).
 create or replace function public.troll_casino_confirm_deposit(
   p_token        text,
   p_amount_usd   numeric,
@@ -329,6 +438,7 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_new numeric;
+  v_verified_amount numeric;
 begin
   if v_uid is null then raise exception 'Login required.'; end if;
   if p_token not in ('USDC', 'TROLL') then raise exception 'Bad token.'; end if;
@@ -336,12 +446,14 @@ begin
   if p_token_amount is null or p_token_amount <= 0 then raise exception 'Bad token amount.'; end if;
   if p_tx_sig is null or length(p_tx_sig) < 10 then raise exception 'Missing transaction signature.'; end if;
 
+  v_verified_amount := troll_casino_verify_treasury_deposit(p_tx_sig, p_token, p_wallet);
+
   insert into troll_casino_deposits (user_id, token, amount_usd, token_amount, tx_sig, wallet)
-  values (v_uid, p_token, p_amount_usd, p_token_amount, p_tx_sig, p_wallet);
+  values (v_uid, p_token, p_amount_usd, v_verified_amount, p_tx_sig, p_wallet);
   -- unique violation on tx_sig raises and aborts the whole function —
   -- the same signature can never credit twice.
 
-  v_new := troll_casino_adjust_balance(p_token_amount, p_token, 'deposit');
+  v_new := troll_casino_adjust_balance(v_verified_amount, p_token, 'deposit');
   return v_new;
 end;
 $$;
@@ -367,6 +479,11 @@ create table if not exists public.troll_casino_redemptions (
 
 create index if not exists troll_casino_redemptions_status_idx
   on public.troll_casino_redemptions (status, created_at desc);
+
+-- Reconciliation guard: the same paid tx signature should never back two
+-- different redemption rows.
+create unique index if not exists troll_casino_redemptions_paid_tx_uidx
+  on public.troll_casino_redemptions (paid_tx) where paid_tx is not null;
 
 alter table public.troll_casino_redemptions enable row level security;
 
@@ -465,9 +582,15 @@ begin
   if not exists (select 1 from troll_profiles where id = auth.uid() and is_admin) then
     raise exception 'Admin only.';
   end if;
+  if p_tx is null or length(trim(p_tx)) < 10 then
+    raise exception 'A payout tx signature (10+ characters) is required to mark a request paid.';
+  end if;
   update troll_casino_redemptions
      set status = 'paid', paid_tx = p_tx, admin_note = coalesce(p_note, admin_note), updated_at = now()
    where id = p_id and status = 'pending';
+  if not found then
+    raise exception 'Request not pending (already paid/rejected, or does not exist).';
+  end if;
 end;
 $$;
 revoke all on function public.troll_casino_admin_mark_paid(uuid, text, text) from public, anon;
@@ -485,6 +608,8 @@ set search_path = public
 as $$
 declare
   v_row troll_casino_redemptions%rowtype;
+  v_max_balance numeric;
+  v_new numeric;
 begin
   if not exists (select 1 from troll_profiles where id = auth.uid() and is_admin) then
     raise exception 'Admin only.';
@@ -496,7 +621,32 @@ begin
      set status = 'rejected', admin_note = coalesce(p_note, admin_note), updated_at = now()
    where id = p_id;
 
-  perform troll_casino_adjust_balance(v_row.token_amount, v_row.token, 'redemption-rejected-refund');
+  -- Refund the ORIGINAL requester (v_row.user_id) — NOT whoever is calling this
+  -- function. troll_casino_adjust_balance always credits auth.uid() (the caller's
+  -- own session), which here would be the ADMIN reviewing the request, silently
+  -- crediting the admin's wallet instead of refunding the rejected player. This
+  -- does the refund directly against v_row.user_id's wallet row instead, mirroring
+  -- adjust_balance's floor-at-0/balance-cap/audit-log behavior but targeted at the
+  -- right account.
+  v_max_balance := case when v_row.token = 'TROLL' then 10000000 else 50000 end;
+
+  insert into troll_casino_wallet (user_id) values (v_row.user_id)
+  on conflict (user_id) do nothing;
+
+  if v_row.token = 'TROLL' then
+    update troll_casino_wallet
+       set troll_balance = least(v_max_balance, greatest(0, troll_balance + v_row.token_amount)), updated_at = now()
+     where user_id = v_row.user_id
+     returning troll_balance into v_new;
+  else
+    update troll_casino_wallet
+       set usdc_balance = least(v_max_balance, greatest(0, usdc_balance + v_row.token_amount)), updated_at = now()
+     where user_id = v_row.user_id
+     returning usdc_balance into v_new;
+  end if;
+
+  insert into troll_casino_adjustments (user_id, delta, currency, reason, balance_after)
+  values (v_row.user_id, v_row.token_amount, v_row.token, 'redemption-rejected-refund', v_new);
 end;
 $$;
 revoke all on function public.troll_casino_admin_reject_redemption(uuid, text) from public, anon;
@@ -607,8 +757,13 @@ begin
   return v_new;
 end;
 $$;
-revoke all on function public.troll_casino_jackpot_contribute(text, numeric) from public, anon;
-grant execute on function public.troll_casino_jackpot_contribute(text, numeric) to authenticated;
+-- No longer called directly by any client — troll_casino_slots_spin (below)
+-- is the only caller now, and it does so as this function's SECURITY DEFINER
+-- owner, which needs no grant. Direct client access is revoked because the
+-- old client-supplied p_delta had no bounds check at all: any authenticated
+-- session could call this straight from devtools with an arbitrary p_delta
+-- and inflate the shared jackpot display to anything.
+revoke all on function public.troll_casino_jackpot_contribute(text, numeric) from public, anon, authenticated;
 
 -- p_share lets a tier take only a slice of the pot (e.g. 0.25/0.6 for
 -- MINOR/MAJOR) instead of draining it — the pot only resets to its seed
@@ -659,8 +814,13 @@ begin
   return v_won;
 end;
 $$;
-revoke all on function public.troll_casino_jackpot_win(text, numeric, text) from public, anon;
-grant execute on function public.troll_casino_jackpot_win(text, numeric, text) to authenticated;
+-- No longer called directly by any client — troll_casino_slots_spin (below)
+-- is the only caller now. Direct client access is revoked because the old
+-- client-supplied p_share/p_tier had no relationship to any real spin at
+-- all: any authenticated session could call this straight from devtools
+-- with p_share=1, p_tier='GRAND' and drain the entire shared jackpot pot
+-- without a single gold symbol ever landing.
+revoke all on function public.troll_casino_jackpot_win(text, numeric, text) from public, anon, authenticated;
 
 -- ============================================================
 -- 5. PROVABLY-FAIR WHALE LAUNCH CRASH
@@ -755,6 +915,338 @@ end;
 $$;
 revoke all on function public.troll_casino_crash_round(text) from public, anon;
 grant execute on function public.troll_casino_crash_round(text) to authenticated;
+
+-- ============================================================
+-- 6. SERVER-AUTHORITATIVE TROLL WHEEL
+--    Was: game.js picked the landing segment itself with a local crypto RNG,
+--    then called wallet debit()/credit() directly — a client console call to
+--    TrollCasinoWallet.credit() (or a spoofed win) could mint balance with no
+--    spin ever happening. This moves stake-debit + segment pick + payout-
+--    credit into one atomic call. v_segments/v_pays/v_bettable below mirror
+--    game.js's SEGMENTS/ZONES exactly — if that paytable ever changes, mirror
+--    the change here too (same "kept duplicated on purpose" convention the
+--    client RNG helpers already use across wheel/blackjack/slots/crash).
+-- ============================================================
+create or replace function public.troll_casino_wheel_spin(
+  p_bets     jsonb,
+  p_currency text
+)
+returns table(
+  segment_index int,
+  zone_id       text,
+  total_staked  numeric,
+  payout        numeric,
+  won           boolean,
+  new_balance   numeric
+)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid      uuid := auth.uid();
+  v_segments text[] := array[
+    'troll','double','troll','double','troll','triple','troll','double',
+    'triple','double','troll','triple','troll','double','troll','whale',
+    'troll','double','troll','triple','troll','double','troll','rug'
+  ];
+  v_pays     jsonb := '{"troll":2,"double":3,"triple":5,"whale":20,"rug":0}'::jsonb;
+  v_bettable jsonb := '{"troll":true,"double":true,"triple":true,"whale":true,"rug":false}'::jsonb;
+  v_key      text;
+  v_amount   numeric;
+  v_total    numeric := 0;
+  v_rand     bytea;
+  v_raw      bigint;
+  v_idx      int;
+  v_zone     text;
+  v_pays_n   numeric;
+  v_payout   numeric := 0;
+  v_won      boolean;
+  v_new      numeric;
+begin
+  if v_uid is null then raise exception 'Login required.'; end if;
+  if p_currency not in ('TROLL', 'USDC') then raise exception 'Bad currency.'; end if;
+  if p_bets is null or jsonb_typeof(p_bets) <> 'object' or p_bets = '{}'::jsonb then
+    raise exception 'Place a bet first.';
+  end if;
+
+  for v_key, v_amount in select key, value::numeric from jsonb_each_text(p_bets) loop
+    if not (v_bettable ? v_key) or not (v_bettable ->> v_key)::boolean then
+      raise exception 'Bad bet zone: %', v_key;
+    end if;
+    if v_amount is null or v_amount <= 0 then
+      raise exception 'Bad bet amount for %.', v_key;
+    end if;
+    v_total := v_total + v_amount;
+  end loop;
+  if v_total <= 0 then raise exception 'Place a bet first.'; end if;
+
+  -- Debit the stake atomically — this already enforces the balance floor,
+  -- per-call delta cap, daily loss cap, and self-exclusion window every
+  -- other balance change in this file goes through.
+  perform troll_casino_adjust_balance(-v_total, p_currency, 'wheel-stake');
+
+  -- Secure, uniform pick over 24 segments. Rejection sampling: 2^32 doesn't
+  -- divide evenly by 24, so a plain modulo would very slightly favor the
+  -- first 16 segments — this keeps every segment exactly 1/24.
+  loop
+    v_rand := gen_random_bytes(4);
+    v_raw := (get_byte(v_rand, 0)::bigint << 24) | (get_byte(v_rand, 1)::bigint << 16)
+           | (get_byte(v_rand, 2)::bigint << 8)  |  get_byte(v_rand, 3)::bigint;
+    exit when v_raw < (4294967296::bigint / 24) * 24;
+  end loop;
+  v_idx := (v_raw % 24)::int;
+
+  v_zone := v_segments[v_idx + 1]; -- Postgres arrays are 1-indexed
+  v_pays_n := (v_pays ->> v_zone)::numeric;
+  if (v_bettable ->> v_zone)::boolean then
+    v_payout := coalesce((p_bets ->> v_zone)::numeric, 0) * v_pays_n;
+  else
+    v_payout := 0;
+  end if;
+  v_won := v_payout > 0;
+
+  if v_payout > 0 then
+    v_new := troll_casino_adjust_balance(v_payout, p_currency, 'wheel-win');
+  else
+    select case when p_currency = 'TROLL' then troll_balance else usdc_balance end into v_new
+      from troll_casino_wallet where user_id = v_uid;
+  end if;
+
+  return query select v_idx, v_zone, v_total, v_payout, v_won, v_new;
+end;
+$$;
+revoke all on function public.troll_casino_wheel_spin(jsonb, text) from public, anon;
+grant execute on function public.troll_casino_wheel_spin(jsonb, text) to authenticated;
+
+-- ============================================================
+-- 7. SERVER-AUTHORITATIVE DOGE JACKPOT REELS (slots)
+--    Was: slots.js drew its own grid, evaluated its own paylines, and called
+--    wallet debit()/credit() directly — and separately called
+--    troll_casino_jackpot_contribute/_win with client-chosen amounts, so a
+--    devtools call could inflate the shared jackpot display arbitrarily or
+--    drain the entire real jackpot pot with p_share=1 and no gold symbols
+--    ever landing. This does the whole spin — bet debit, 5×3 grid draw,
+--    10-payline evaluation, scatter/jackpot detection, jackpot draw, and win
+--    credit — atomically server-side. v_symbols/v_paylines/v_scatter_pays/
+--    v_jackpot_tiers mirror slots.js's SL_SYMBOLS/PAYLINES/SCATTER_PAYS/
+--    JACKPOT_TIERS exactly — if that paytable ever changes, mirror the
+--    change here too.
+-- ============================================================
+create or replace function public.troll_casino_secure_rand01()
+returns double precision
+language sql
+security definer
+set search_path = public, extensions
+as $$
+  select (
+    (get_byte(b, 0)::bigint << 24) | (get_byte(b, 1)::bigint << 16)
+    | (get_byte(b, 2)::bigint << 8) | get_byte(b, 3)::bigint
+  )::double precision / 4294967296.0
+  from (select gen_random_bytes(4) as b) s;
+$$;
+-- Internal helper only (used by troll_casino_wheel_spin's sibling functions
+-- and troll_casino_slots_spin below) — no client ever needs to call this.
+revoke all on function public.troll_casino_secure_rand01() from public, anon, authenticated;
+
+create or replace function public.troll_casino_slots_draw_symbol(p_symbols jsonb)
+returns text
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_total numeric;
+  v_roll  numeric;
+  e       jsonb;
+begin
+  select sum((s ->> 'weight')::numeric) into v_total from jsonb_array_elements(p_symbols) s;
+  v_roll := troll_casino_secure_rand01() * v_total;
+  for e in select * from jsonb_array_elements(p_symbols) loop
+    v_roll := v_roll - (e ->> 'weight')::numeric;
+    if v_roll < 0 then return e ->> 'id'; end if;
+  end loop;
+  return p_symbols -> 0 ->> 'id';
+end;
+$$;
+revoke all on function public.troll_casino_slots_draw_symbol(jsonb) from public, anon, authenticated;
+
+create or replace function public.troll_casino_slots_spin(
+  p_bet      numeric,
+  p_currency text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_symbols jsonb := '[
+    {"id":"candle","weight":24,"pays":{"3":10,"4":25,"5":75}},
+    {"id":"usdc","weight":22,"pays":{"3":15,"4":40,"5":125}},
+    {"id":"troll","weight":20,"pays":{"3":20,"4":50,"5":175}},
+    {"id":"rug","weight":18,"pays":{}},
+    {"id":"pepe","weight":14,"pays":{"3":25,"4":75,"5":250}},
+    {"id":"diamond","weight":10,"pays":{"3":35,"4":100,"5":350}},
+    {"id":"whale","weight":6,"pays":{"3":50,"4":175,"5":700}},
+    {"id":"rocket","weight":6,"pays":{},"scatter":true},
+    {"id":"wild","weight":4,"pays":{"3":75,"4":250,"5":1000},"wild":true},
+    {"id":"gold","weight":2,"pays":{},"jackpot":true}
+  ]'::jsonb;
+  v_paylines int[] := array[
+    1,1,1,1,1,  0,0,0,0,0,  2,2,2,2,2,  0,1,2,1,0,  2,1,0,1,2,
+    0,0,1,2,2,  2,2,1,0,0,  1,0,0,0,1,  1,2,2,2,1,  0,1,1,1,2
+  ];
+  v_scatter_pays  jsonb := '{"3":2,"4":10,"5":50}'::jsonb;
+  v_jackpot_tiers jsonb := '{"3":["MINOR",0.25],"4":["MAJOR",0.6],"5":["GRAND",1]}'::jsonb;
+
+  v_grid          jsonb := '[]'::jsonb;
+  v_reel          jsonb;
+  r               int;
+  v_row           int;
+  li              int;
+  v_line_bet      numeric;
+  v_line_wins     jsonb := '[]'::jsonb;
+  v_pay_sym       text;
+  v_count         int;
+  v_cells         jsonb;
+  v_sym_id        text;
+  v_sym_def       jsonb;
+  v_pay           numeric;
+  v_broke         boolean;
+  v_scatters      int := 0;
+  v_golds         int := 0;
+  v_scatter_cells jsonb := '[]'::jsonb;
+  v_gold_cells    jsonb := '[]'::jsonb;
+  v_scatter_win   numeric := 0;
+  v_jackpot_tier  jsonb;
+  v_line_total    numeric := 0;
+  v_jackpot_won   numeric := 0;
+  v_new_balance   numeric;
+begin
+  if v_uid is null then raise exception 'Login required.'; end if;
+  if p_currency not in ('TROLL', 'USDC') then raise exception 'Bad currency.'; end if;
+  if p_bet is null or p_bet <= 0 then raise exception 'Bad bet.'; end if;
+
+  -- Debit up front — enforces balance floor / per-call delta cap / daily
+  -- loss cap / self-exclusion, same as every other game in this file.
+  perform troll_casino_adjust_balance(-p_bet, p_currency, 'slots-bet');
+
+  -- 5x3 grid, reel-major and 0-indexed (grid[reel][row] — same shape
+  -- slots.js's spinGrid()/evalSpin() already expect).
+  for r in 0..4 loop
+    v_reel := '[]'::jsonb;
+    for v_row in 0..2 loop
+      v_reel := v_reel || to_jsonb(troll_casino_slots_draw_symbol(v_symbols));
+    end loop;
+    v_grid := v_grid || jsonb_build_array(v_reel);
+  end loop;
+
+  v_line_bet := p_bet / 10.0;
+
+  -- 10 paylines. For each: walk reels 0..4, wild substitutes for anything
+  -- but scatter/jackpot, the paying symbol is the first non-wild hit, break
+  -- on scatter/jackpot or a mismatch. Mirrors slots.js's evalSpin() exactly,
+  -- including looking up pays[count] unconditionally after the walk (counts
+  -- below 3 simply have no entry in a symbol's pays object, so nothing is
+  -- added — no special-casing needed for an early break).
+  for li in 0..9 loop
+    v_pay_sym := null;
+    v_count := 0;
+    v_cells := '[]'::jsonb;
+    v_broke := false;
+    for r in 0..4 loop
+      v_row := v_paylines[li * 5 + r + 1];
+      v_sym_id := v_grid -> r ->> v_row;
+      select s into v_sym_def from jsonb_array_elements(v_symbols) s where s ->> 'id' = v_sym_id limit 1;
+
+      if coalesce((v_sym_def ->> 'scatter')::boolean, false) or coalesce((v_sym_def ->> 'jackpot')::boolean, false) then
+        v_broke := true;
+      elsif coalesce((v_sym_def ->> 'wild')::boolean, false) then
+        v_count := v_count + 1;
+        v_cells := v_cells || jsonb_build_array(jsonb_build_array(r, v_row));
+      elsif v_pay_sym is null then
+        v_pay_sym := v_sym_id;
+        v_count := v_count + 1;
+        v_cells := v_cells || jsonb_build_array(jsonb_build_array(r, v_row));
+      elsif v_sym_id = v_pay_sym then
+        v_count := v_count + 1;
+        v_cells := v_cells || jsonb_build_array(jsonb_build_array(r, v_row));
+      else
+        v_broke := true;
+      end if;
+      exit when v_broke;
+    end loop;
+
+    select s into v_sym_def from jsonb_array_elements(v_symbols) s where s ->> 'id' = coalesce(v_pay_sym, 'wild') limit 1;
+    v_pay := (v_sym_def -> 'pays' ->> v_count::text)::numeric;
+    if v_pay is not null and v_pay > 0 then
+      v_pay := round(v_pay * v_line_bet, 2);
+      v_line_total := v_line_total + v_pay;
+      v_line_wins := v_line_wins || jsonb_build_object(
+        'line', li, 'symbol', coalesce(v_pay_sym, 'wild'), 'count', v_count,
+        'win', v_pay, 'cells', v_cells
+      );
+    end if;
+  end loop;
+
+  -- Scatter (🚀, pays anywhere on total bet) and gold (🐕, feeds the shared
+  -- jackpot) are counted across the WHOLE grid, not per payline.
+  for r in 0..4 loop
+    for v_row in 0..2 loop
+      v_sym_id := v_grid -> r ->> v_row;
+      select s into v_sym_def from jsonb_array_elements(v_symbols) s where s ->> 'id' = v_sym_id limit 1;
+      if coalesce((v_sym_def ->> 'scatter')::boolean, false) then
+        v_scatters := v_scatters + 1;
+        v_scatter_cells := v_scatter_cells || jsonb_build_array(jsonb_build_array(r, v_row));
+      end if;
+      if coalesce((v_sym_def ->> 'jackpot')::boolean, false) then
+        v_golds := v_golds + 1;
+        v_gold_cells := v_gold_cells || jsonb_build_array(jsonb_build_array(r, v_row));
+      end if;
+    end loop;
+  end loop;
+
+  v_scatter_win := coalesce((v_scatter_pays ->> least(v_scatters, 5)::text)::numeric, 0);
+  if v_scatter_win > 0 then v_scatter_win := round(v_scatter_win * p_bet, 2); end if;
+  v_jackpot_tier := v_jackpot_tiers -> least(v_golds, 5)::text; -- null unless 3/4/5
+
+  -- Feed the shared pot — a fixed 1.5% of this bet, same formula slots.js
+  -- used to call client-side. No longer client-triggered at all.
+  perform troll_casino_jackpot_contribute(p_currency, round(p_bet * 0.015, 2));
+
+  if v_line_total + v_scatter_win > 0 then
+    perform troll_casino_adjust_balance(v_line_total + v_scatter_win, p_currency, 'slots-win');
+  end if;
+
+  -- Jackpot draw only ever runs because THIS spin's own grid actually hit
+  -- 3+ gold symbols — the old direct-RPC path that trusted a client-chosen
+  -- tier/share is gone (see the revoke above troll_casino_jackpot_win).
+  if v_jackpot_tier is not null then
+    v_jackpot_won := troll_casino_jackpot_win(p_currency, (v_jackpot_tier ->> 1)::numeric, v_jackpot_tier ->> 0);
+    if v_jackpot_won > 0 then
+      perform troll_casino_adjust_balance(v_jackpot_won, p_currency, 'slots-jackpot');
+    end if;
+  end if;
+
+  select case when p_currency = 'TROLL' then troll_balance else usdc_balance end into v_new_balance
+    from troll_casino_wallet where user_id = v_uid;
+
+  return jsonb_build_object(
+    'grid', v_grid,
+    'lineWins', v_line_wins,
+    'scatters', v_scatters, 'scatterWin', v_scatter_win, 'scatterCells', v_scatter_cells,
+    'golds', v_golds, 'goldCells', v_gold_cells, 'jackpotTier', v_jackpot_tier,
+    'jackpotWon', v_jackpot_won,
+    'nearMiss', (v_scatters = 2 or v_golds = 2),
+    'total', round(v_line_total + v_scatter_win, 2),
+    'newBalance', v_new_balance
+  );
+end;
+$$;
+revoke all on function public.troll_casino_slots_spin(numeric, text) from public, anon;
+grant execute on function public.troll_casino_slots_spin(numeric, text) to authenticated;
 
 -- ============================================================
 -- NOTE — the original one-time launch reset (clearing pre-launch mock-era

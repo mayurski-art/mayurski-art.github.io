@@ -498,6 +498,165 @@
       background: rgba(90,200,250,0.12);
       color: #5ac8fa;
     }
+
+    /* ---- Payout requests (colorful, per-game grouped) ---- */
+    .payouts-live-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-left: 4px;
+      border-radius: 50%;
+      background: #34d97a;
+      box-shadow: 0 0 0 rgba(52,217,122,0.6);
+      animation: payouts-pulse 1.8s ease-out infinite;
+      vertical-align: middle;
+    }
+    @keyframes payouts-pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(52,217,122,0.55); }
+      70%  { box-shadow: 0 0 0 7px rgba(52,217,122,0); }
+      100% { box-shadow: 0 0 0 0 rgba(52,217,122,0); }
+    }
+    .payouts-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .payouts-pill-row { margin-top: 12px; }
+    .payout-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 13px;
+      border-radius: 999px;
+      border: 1px solid var(--pill-c, var(--border-strong));
+      background: var(--pill-bg, rgba(255,255,255,0.05));
+      color: var(--pill-c, var(--text));
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .payout-pill:hover { transform: translateY(-1px); }
+    .payout-pill.is-active {
+      background: var(--pill-c, var(--accent));
+      color: #0b0c10;
+      box-shadow: 0 4px 14px -4px var(--pill-c, var(--accent));
+    }
+    .payout-pill .pp-count {
+      display: inline-flex;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.22);
+      font-size: 11px;
+    }
+    .payout-pill.is-active .pp-count { background: rgba(0,0,0,0.28); }
+    .payouts-toolbar { margin-top: 12px; }
+    .payouts-toolbar input { flex: 1; min-width: 200px; }
+    .payout-game-group {
+      margin-top: 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 60%);
+      overflow: hidden;
+    }
+    .payout-game-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, var(--game-c, var(--accent)) 0%, transparent 130%);
+    }
+    .payout-game-head h4 {
+      margin: 0;
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #0b0c10;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.25);
+    }
+    .payout-game-head .payout-game-stats {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .payout-game-head .payout-game-stats span {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 999px;
+      background: rgba(11,12,16,0.32);
+      color: #0b0c10;
+    }
+    .payout-cards { padding: 12px 16px 16px; display: grid; gap: 10px; }
+    .payout-card {
+      display: grid;
+      gap: 8px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--game-c, var(--accent));
+      background: #101116;
+    }
+    .payout-card.is-overdue { border-color: rgba(255,69,58,0.5); }
+    .payout-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .payout-amount {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+    .payout-status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .payout-status-badge.st-pending { background: rgba(255,149,0,0.16); color: #ff9f0a; }
+    .payout-status-badge.st-paid { background: rgba(52,199,89,0.16); color: #34c759; }
+    .payout-status-badge.st-rejected { background: rgba(255,69,58,0.16); color: #ff453a; }
+    .payout-overdue-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 700;
+      background: rgba(255,69,58,0.16);
+      color: #ff8a80;
+    }
+    .payout-meta { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; }
+    .payout-meta .mono { font-family: "DM Mono", ui-monospace, SFMono-Regular, monospace; }
+    .payout-meta button.copy-wallet {
+      border: none;
+      background: none;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 0 0 6px;
+    }
+    .payout-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .payout-actions input[type="text"] { width: 220px; }
+    .payout-actions button { padding: 8px 12px; font-size: 12.5px; }
+    .payout-readonly-note {
+      font-size: 12.5px;
+      color: var(--text-dim);
+    }
+    .payout-readonly-note a { font-weight: 700; }
+    .payout-card-status { font-size: 12px; }
+    .payout-card-status[data-mode="open"] { color: #9fe6b0; }
+    .payout-card-status[data-mode="locked"] { color: #ff5252; }
     a { color: #66aaff; }
     .notis-seg {
       display: flex;
@@ -749,6 +908,28 @@
         </div>
         <div id="accounts-table-wrap" class="accounts-table-scroll"></div>
         <p id="accounts-status" class="lock-console-status">Loading accounts…</p>
+      </div>
+    </details>
+
+    <details class="card collapsible payouts-card" open>
+      <summary>
+        <span>💸 Payout requests<span id="payouts-live-dot" class="payouts-live-dot" title="Live updates connected" hidden></span></span>
+        <span id="payouts-pending-note" class="summary-note">Loading…</span>
+      </summary>
+      <div class="collapsible-body">
+        <p>Every manually-reviewed payout claim across every game, in one place. Troll Kombat (and future arcade) wager
+          claims can be marked paid or rejected right here. Troll Casino redemptions are shown for visibility — use
+          the Troll Casino admin panel to actually pay or reject those (it already knows how to refund a rejected
+          player's in-game balance).</p>
+        <div id="payouts-summary" class="analytics-grid payouts-summary"></div>
+        <div class="row payouts-pill-row" id="payouts-game-pills"></div>
+        <div class="row payouts-pill-row" id="payouts-status-pills"></div>
+        <div class="row payouts-toolbar">
+          <input id="payouts-search" type="search" placeholder="Search wallet address…" aria-label="Search payout requests by wallet">
+          <button id="payouts-refresh" class="secondary" type="button">Refresh</button>
+        </div>
+        <div id="payouts-groups"></div>
+        <p id="payouts-status" class="lock-console-status">Loading payout requests…</p>
       </div>
     </details>
 
@@ -2441,6 +2622,349 @@ Fixed some admin system bugs.`,
       if (sortEl) sortEl.addEventListener('change', renderAccounts);
       if (refreshBtn) refreshBtn.addEventListener('click', () => void loadAccounts());
       void loadAccounts();
+    })();
+
+    /* ---- Payout requests (reads payout_requests + troll_casino_redemptions —
+       both RLS-gated to a real admin session, see assets/supabase/
+       troll_payouts_admin.sql). payout_requests is fully actionable here
+       (mark paid / reject); troll_casino_redemptions is shown read-only with
+       a link out to the Troll Casino admin panel, which already knows how
+       to refund a rejected player's in-game balance correctly. ---- */
+    (function () {
+      const summaryEl = document.getElementById('payouts-summary');
+      const gamePillsEl = document.getElementById('payouts-game-pills');
+      const statusPillsEl = document.getElementById('payouts-status-pills');
+      const groupsEl = document.getElementById('payouts-groups');
+      const statusEl = document.getElementById('payouts-status');
+      const searchEl = document.getElementById('payouts-search');
+      const refreshBtn = document.getElementById('payouts-refresh');
+      const liveDot = document.getElementById('payouts-live-dot');
+      const pendingNote = document.getElementById('payouts-pending-note');
+      if (!groupsEl || !statusEl) return;
+
+      const CASINO_URL = 'https://games.trollrunner.net/troll-casino.html?admin=1';
+      // Vivid, hand-picked accents for known games; anything new gets a
+      // consistent color hashed out of this same palette automatically.
+      const KNOWN_COLORS = { 'troll-casino': '#ffc94d', 'troll-kombat': '#ff375f' };
+      const PALETTE = ['#5856d6', '#34c759', '#ff9500', '#ff2d55', '#007aff', '#30d5c8', '#af52de'];
+      function gameColor(game) {
+        if (KNOWN_COLORS[game]) return KNOWN_COLORS[game];
+        let h = 0;
+        for (let i = 0; i < game.length; i++) h = (h * 31 + game.charCodeAt(i)) >>> 0;
+        return PALETTE[h % PALETTE.length];
+      }
+      function gameLabel(game) {
+        if (game === 'troll-casino') return 'Troll Casino';
+        return String(game || 'unknown').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+
+      let rows = [];               // normalized rows from both sources
+      let activeGame = 'all';
+      let activeStatus = 'all';
+
+      function setStatus(message, mode) {
+        statusEl.textContent = message;
+        statusEl.dataset.mode = mode || '';
+      }
+
+      function fmtAgo(iso) {
+        if (!iso) return '—';
+        const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
+      }
+
+      function normalizePayoutRequest(r) {
+        const parts = [];
+        if (r.mode) parts.push(r.mode === 'cpu' ? `vs CPU${r.difficulty != null ? ` (lvl ${r.difficulty})` : ''}` : 'multiplayer');
+        if (r.stage) parts.push(r.stage);
+        if (r.won != null) parts.push(r.won ? 'won' : 'lost');
+        if (r.rounds_won != null || r.rounds_lost != null) parts.push(`${r.rounds_won ?? 0}-${r.rounds_lost ?? 0} rounds`);
+        return {
+          id: r.id,
+          source: 'payout_requests',
+          game: r.game || 'unknown',
+          wallet: r.wallet || '',
+          amount: r.stake_amount,
+          token: r.stake_token || '',
+          status: r.status || 'pending',
+          createdAt: r.created_at,
+          note: r.admin_note || '',
+          paidTx: r.paid_tx || '',
+          detail: parts.join(' · '),
+        };
+      }
+
+      function normalizeCasinoRedemption(r) {
+        return {
+          id: r.id,
+          source: 'casino_redemption',
+          game: 'troll-casino',
+          wallet: r.wallet || '',
+          amount: r.token_amount,
+          token: r.token || '',
+          status: r.status || 'pending',
+          createdAt: r.created_at,
+          note: r.admin_note || '',
+          paidTx: r.paid_tx || '',
+          detail: '',
+        };
+      }
+
+      async function fetchTable(path, query) {
+        const headers = await adminRpcHeaders();
+        if (!headers.Authorization) throw new Error('No admin session token yet — click Refresh in a moment.');
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}?${query}`, { cache: 'no-store', headers });
+        if (!response.ok) throw new Error(await parseSupabaseError(response));
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      }
+
+      async function loadPayouts() {
+        if (!isSupabaseConfigured()) {
+          setStatus('Supabase is not configured — payout requests cannot load.', 'locked');
+          return;
+        }
+        setStatus('Loading payout requests…');
+        if (refreshBtn) refreshBtn.disabled = true;
+        try {
+          const [claims, redemptions] = await Promise.all([
+            fetchTable('payout_requests', 'select=*&order=created_at.desc&limit=1000'),
+            fetchTable('troll_casino_redemptions', 'select=*&order=created_at.desc&limit=1000'),
+          ]);
+          rows = [
+            ...claims.map(normalizePayoutRequest),
+            ...redemptions.map(normalizeCasinoRedemption),
+          ];
+          renderAll();
+          setStatus(`${rows.length} payout request${rows.length === 1 ? '' : 's'} loaded — refreshed ${new Date().toLocaleTimeString()}.`, 'open');
+        } catch (err) {
+          setStatus(`Could not load payout requests: ${err && err.message ? err.message : 'unknown error'} (run assets/supabase/troll_payouts_admin.sql if you haven't yet)`, 'locked');
+        } finally {
+          if (refreshBtn) refreshBtn.disabled = false;
+        }
+      }
+
+      function renderSummary(list) {
+        const pending = list.filter(r => r.status === 'pending').length;
+        const paid = list.filter(r => r.status === 'paid').length;
+        const rejected = list.filter(r => r.status === 'rejected').length;
+        const games = new Set(list.map(r => r.game)).size;
+        const tiles = [
+          { value: pending, label: 'Pending review' },
+          { value: paid, label: 'Paid' },
+          { value: rejected, label: 'Rejected' },
+          { value: games, label: 'Games with claims' },
+        ];
+        if (summaryEl) {
+          summaryEl.innerHTML = tiles.map(tile =>
+            `<div class="analytics-stat"><strong>${Number(tile.value).toLocaleString()}</strong><span>${escapeHtml(tile.label)}</span></div>`
+          ).join('');
+        }
+        if (pendingNote) {
+          pendingNote.textContent = pending ? `${pending} pending` : 'All caught up';
+        }
+      }
+
+      function renderPills() {
+        const gameCounts = new Map();
+        rows.forEach(r => gameCounts.set(r.game, (gameCounts.get(r.game) || 0) + 1));
+        const gamePills = [{ key: 'all', label: 'All games', color: null, count: rows.length }]
+          .concat([...gameCounts.entries()].sort((a, b) => b[1] - a[1]).map(([game, count]) => ({
+            key: game, label: gameLabel(game), color: gameColor(game), count,
+          })));
+        gamePillsEl.innerHTML = gamePills.map(p => `
+          <button type="button" class="payout-pill${activeGame === p.key ? ' is-active' : ''}"
+            data-game="${escapeHtml(p.key)}" style="${p.color ? `--pill-c:${p.color}` : ''}">
+            ${escapeHtml(p.label)}<span class="pp-count">${p.count}</span>
+          </button>`).join('');
+        gamePillsEl.querySelectorAll('[data-game]').forEach(btn => btn.addEventListener('click', () => {
+          activeGame = btn.dataset.game;
+          renderPills();
+          renderGroups();
+        }));
+
+        const statusDefs = [
+          { key: 'all', label: 'All statuses', color: null },
+          { key: 'pending', label: 'Pending', color: '#ff9f0a' },
+          { key: 'paid', label: 'Paid', color: '#34c759' },
+          { key: 'rejected', label: 'Rejected', color: '#ff453a' },
+        ];
+        statusPillsEl.innerHTML = statusDefs.map(s => {
+          const count = s.key === 'all' ? rows.length : rows.filter(r => r.status === s.key).length;
+          return `<button type="button" class="payout-pill${activeStatus === s.key ? ' is-active' : ''}"
+            data-status="${s.key}" style="${s.color ? `--pill-c:${s.color}` : ''}">
+            ${escapeHtml(s.label)}<span class="pp-count">${count}</span>
+          </button>`;
+        }).join('');
+        statusPillsEl.querySelectorAll('[data-status]').forEach(btn => btn.addEventListener('click', () => {
+          activeStatus = btn.dataset.status;
+          renderPills();
+          renderGroups();
+        }));
+      }
+
+      function filteredRows() {
+        const query = String(searchEl?.value || '').trim().toLowerCase();
+        return rows.filter(r =>
+          (activeGame === 'all' || r.game === activeGame) &&
+          (activeStatus === 'all' || r.status === activeStatus) &&
+          (!query || r.wallet.toLowerCase().includes(query))
+        );
+      }
+
+      function payoutCardHtml(r) {
+        const hrsOld = (Date.now() - new Date(r.createdAt).getTime()) / 3600000;
+        const overdue = r.status === 'pending' && hrsOld > 24;
+        const amount = r.amount != null ? Number(r.amount).toLocaleString() : '—';
+        const walletShort = r.wallet ? `${r.wallet.slice(0, 6)}…${r.wallet.slice(-4)}` : '—';
+        const actions = r.source === 'payout_requests' && r.status === 'pending'
+          ? `<div class="payout-actions">
+               <input type="text" placeholder="Payout tx signature (required to mark paid)" data-tx-for="${r.id}">
+               <button type="button" class="success" data-mark-paid="${r.id}">Mark paid</button>
+               <button type="button" class="alert" data-reject="${r.id}">Reject</button>
+             </div>
+             <p class="payout-card-status" data-status-for="${r.id}" aria-live="polite"></p>`
+          : r.source === 'payout_requests'
+            ? `<div class="payout-actions"><button type="button" class="secondary" data-mark-paid="${r.id}" data-relabel="pending">Move back to pending</button></div>`
+            : `<p class="payout-readonly-note">Casino redemptions are paid/rejected from the
+                 <a href="${CASINO_URL}" target="_blank" rel="noopener noreferrer">Troll Casino admin panel</a> —
+                 that flow refunds a rejected player's balance correctly.</p>`;
+        return `
+          <div class="payout-card${overdue ? ' is-overdue' : ''}" style="--game-c:${gameColor(r.game)}">
+            <div class="payout-card-top">
+              <span class="payout-amount">${amount} ${escapeHtml(r.token)}</span>
+              <span class="payout-status-badge st-${r.status}">${escapeHtml(r.status)}</span>
+              ${overdue ? `<span class="payout-overdue-badge">⏰ ${Math.round(hrsOld)}h — past 24h SLA</span>` : ''}
+            </div>
+            <div class="payout-meta">
+              wallet: <span class="mono">${escapeHtml(walletShort)}</span>
+              <button type="button" class="copy-wallet" data-copy-wallet="${escapeHtml(r.wallet)}">copy</button><br>
+              requested ${fmtAgo(r.createdAt)} · ${escapeHtml(new Date(r.createdAt).toLocaleString())}
+              ${r.detail ? `<br>${escapeHtml(r.detail)}` : ''}
+              ${r.paidTx ? `<br>paid tx: <span class="mono">${escapeHtml(r.paidTx)}</span>` : ''}
+            </div>
+            ${actions}
+          </div>`;
+      }
+
+      function renderGroups() {
+        const list = filteredRows();
+        if (!rows.length) {
+          groupsEl.innerHTML = '<p>No payout requests filed yet.</p>';
+          return;
+        }
+        if (!list.length) {
+          groupsEl.innerHTML = '<p>No payout requests match those filters.</p>';
+          return;
+        }
+        const byGame = new Map();
+        list.forEach(r => {
+          if (!byGame.has(r.game)) byGame.set(r.game, []);
+          byGame.get(r.game).push(r);
+        });
+        const groups = [...byGame.entries()].sort((a, b) => {
+          const pendingA = a[1].filter(r => r.status === 'pending').length;
+          const pendingB = b[1].filter(r => r.status === 'pending').length;
+          return pendingB - pendingA;
+        });
+        const rank = { pending: 0, paid: 1, rejected: 2 };
+        groupsEl.innerHTML = groups.map(([game, items]) => {
+          const sorted = [...items].sort((a, b) => (rank[a.status] - rank[b.status]) || (new Date(b.createdAt) - new Date(a.createdAt)));
+          const pending = items.filter(r => r.status === 'pending').length;
+          const paid = items.filter(r => r.status === 'paid').length;
+          const rejected = items.filter(r => r.status === 'rejected').length;
+          return `
+            <div class="payout-game-group">
+              <div class="payout-game-head" style="--game-c:${gameColor(game)}">
+                <h4>${escapeHtml(gameLabel(game))}</h4>
+                <div class="payout-game-stats">
+                  <span>${pending} pending</span><span>${paid} paid</span><span>${rejected} rejected</span>
+                </div>
+              </div>
+              <div class="payout-cards">${sorted.map(payoutCardHtml).join('')}</div>
+            </div>`;
+        }).join('');
+
+        groupsEl.querySelectorAll('[data-copy-wallet]').forEach(btn => btn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(btn.dataset.copyWallet);
+            const old = btn.textContent;
+            btn.textContent = 'copied!';
+            setTimeout(() => { btn.textContent = old; }, 1200);
+          } catch {}
+        }));
+        groupsEl.querySelectorAll('[data-mark-paid]').forEach(btn => btn.addEventListener('click', async () => {
+          const id = btn.dataset.markPaid;
+          const relabel = btn.dataset.relabel === 'pending';
+          const status = relabel ? 'pending' : 'paid';
+          const row = rows.find(r => r.id === id);
+          const txInput = groupsEl.querySelector(`[data-tx-for="${id}"]`);
+          const statusNode = groupsEl.querySelector(`[data-status-for="${id}"]`);
+          const paidTx = txInput ? txInput.value.trim() : '';
+          if (!relabel && paidTx.length < 10) {
+            if (statusNode) { statusNode.dataset.mode = 'locked'; statusNode.textContent = 'Enter the payout tx signature (10+ characters) before marking paid.'; }
+            else alert('Enter the payout tx signature (10+ characters) before marking paid.');
+            return;
+          }
+          if (!relabel && !confirm('Mark this payout request as paid?')) return;
+          btn.disabled = true;
+          await updateRequest(id, status, row ? row.status : 'pending', paidTx, statusNode);
+        }));
+        groupsEl.querySelectorAll('[data-reject]').forEach(btn => btn.addEventListener('click', async () => {
+          const id = btn.dataset.reject;
+          const row = rows.find(r => r.id === id);
+          const statusNode = groupsEl.querySelector(`[data-status-for="${id}"]`);
+          if (!confirm('Reject this payout request?')) return;
+          btn.disabled = true;
+          await updateRequest(id, 'rejected', row ? row.status : 'pending', '', statusNode);
+        }));
+      }
+
+      async function updateRequest(id, status, expectedStatus, paidTx, statusNode) {
+        try {
+          const headers = await adminRpcHeaders();
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_admin_update_payout_request`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ p_id: id, p_status: status, p_expected_status: expectedStatus, p_note: null, p_paid_tx: paidTx || null }),
+          });
+          if (!response.ok) throw new Error(await parseSupabaseError(response));
+          await loadPayouts();
+        } catch (err) {
+          if (statusNode) { statusNode.dataset.mode = 'locked'; statusNode.textContent = err.message || 'Update failed.'; }
+          else alert(err.message || 'Update failed.');
+        }
+      }
+
+      function renderAll() {
+        renderSummary(rows);
+        renderPills();
+        renderGroups();
+      }
+
+      if (searchEl) searchEl.addEventListener('input', renderGroups);
+      if (refreshBtn) refreshBtn.addEventListener('click', () => void loadPayouts());
+      loadPayouts().then(() => {
+        if (statusEl.dataset.mode === 'locked') setTimeout(() => void loadPayouts(), 1200);
+      });
+
+      // Best-effort live updates via the same admin auth client already used
+      // for login — reacts instantly instead of only on manual refresh.
+      try {
+        const client = window.TrollrunnerAdminAuth?.getAuthClient?.();
+        if (client) {
+          const ch = client.channel('trollrunner-admin-payouts')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'payout_requests' }, () => loadPayouts())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'troll_casino_redemptions' }, () => loadPayouts())
+            .subscribe(status => { if (liveDot) liveDot.hidden = status !== 'SUBSCRIBED'; });
+          window.addEventListener('beforeunload', () => client.removeChannel(ch));
+        }
+      } catch {}
     })();
 
     /* ---- Newsletter signups panel (reads newsletter_signups — RLS means
