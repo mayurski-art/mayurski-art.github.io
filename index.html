@@ -5822,7 +5822,7 @@ TD_SITES.forEach(site => {
     url: site.href.replace(/^https?:\/\//, '').replace(/\/$/, ''),
     iframeSrc: site.href,
     build: body => tdBuildIframe(body, site.href, site.label),
-    maximizeByDefault: site.id === 'games',
+    maximizeByDefault: site.id === 'games' || site.id === 'finance',
   };
 });
 TD_WINDOWS.nutrition = {
