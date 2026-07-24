@@ -944,12 +944,65 @@
       .ta-status[data-kind="error"] { color: #ff9ab6; }
       .ta-status[data-kind="success"] { color: #8cffbf; }
       @media (max-width: 480px) { .ta-card { font-size: 13px; } }
+      /* Non-blocking drawer (another runner's profile) — pinned to the far
+         right so it never covers the middle of the page (e.g. TrollChat)
+         while it's open. */
+      .ta-drawer-overlay { position: fixed; inset: 0; z-index: 99985; pointer-events: none; }
+      .ta-drawer-card { position: absolute; top: 0; right: 0; height: 100%; width: min(340px, 92vw);
+        overflow: auto; pointer-events: auto; transform: translateX(100%); transition: transform 0.22s ease;
+        border-width: 0 0 0 2px; box-shadow: -6px 0 0 rgba(0,0,0,0.4), -1px 0 0 1px rgba(77,255,115,0.22); border-radius: 0; }
+      .ta-drawer-overlay.is-open .ta-drawer-card { transform: translateX(0); }
+      @media (max-width: 480px) { .ta-drawer-card { width: 100vw; } }
     `;
     document.head.appendChild(style);
   }
 
   function closeModal() {
     document.getElementById(MODAL_ID)?.remove();
+  }
+
+  const DRAWER_ID = 'troll-accounts-drawer';
+  let drawerOutsideClick = null;
+
+  function closeDrawer() {
+    document.getElementById(DRAWER_ID)?.remove();
+    if (drawerOutsideClick) {
+      document.removeEventListener('click', drawerOutsideClick, true);
+      drawerOutsideClick = null;
+    }
+  }
+
+  // Same content shell as buildModal (ta-head/ta-body), but rendered as a
+  // right-side drawer that doesn't block the rest of the page — used for
+  // viewing OTHER runners' profiles (not the built-in Profile/Settings/
+  // Friends modals, which stay centered).
+  function buildDrawer(title) {
+    ensureModalStyles();
+    closeDrawer();
+    const overlay = document.createElement('div');
+    overlay.id = DRAWER_ID;
+    overlay.className = 'ta-drawer-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'false');
+    overlay.setAttribute('aria-label', title);
+    overlay.innerHTML = `
+      <div class="ta-card ta-drawer-card">
+        <div class="ta-head">
+          <h3 class="ta-title"></h3>
+          <button class="ta-close" type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="ta-body"></div>
+      </div>`;
+    overlay.querySelector('.ta-title').textContent = title;
+    const card = overlay.querySelector('.ta-drawer-card');
+    overlay.querySelector('.ta-close').addEventListener('click', closeDrawer);
+    drawerOutsideClick = event => { if (!card.contains(event.target)) closeDrawer(); };
+    document.addEventListener('click', drawerOutsideClick, true);
+    const onKey = event => { if (event.key === 'Escape') { closeDrawer(); window.removeEventListener('keydown', onKey); } };
+    window.addEventListener('keydown', onKey);
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('is-open'));
+    return overlay.querySelector('.ta-body');
   }
 
   function buildModal(title) {
@@ -1610,7 +1663,7 @@
   async function openProfileCard(userId) {
     if (!userId) return;
     if (cachedProfile && userId === cachedProfile.id) { await openProfile(); return; }
-    const body = buildModal('Profile');
+    const body = buildDrawer('Profile');
     body.innerHTML = '<p class="ta-muted">Loading profile…</p>';
     const [profile, stats, status] = await Promise.all([
       getPublicProfile(userId),

@@ -726,29 +726,38 @@ button.viewer-roster-row:focus-visible { background: rgba(77, 255, 115, 0.12); }
 .viewer-roster-you { flex: none; font-size: 10px; color: #8cffbf; }
 .viewer-roster-empty { padding: 10px 7px; color: #8fa396; }
 
-/* Public troll profile card (opened from the roster) */
+/* Public troll profile card — a non-blocking drawer pinned to the far right,
+   so it never covers the middle of the page (e.g. TrollChat) while open. */
 .viewer-profile-overlay {
   position: fixed;
   inset: 0;
   z-index: 99970;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(4, 6, 5, 0.78);
+  pointer-events: none;
+  background: none;
 }
 .viewer-profile-card {
-  width: min(340px, 100%);
-  max-height: 82vh;
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(340px, 92vw);
+  max-height: none;
   overflow: auto;
+  pointer-events: auto;
   color: #e6f2e6;
   font-family: 'DM Mono', 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.45;
   background: linear-gradient(160deg, #131a15, #0a0d0b);
   border: 2px solid #000;
-  border-radius: 8px;
-  box-shadow: 0 0 0 1px rgba(77, 255, 115, 0.22), 6px 8px 0 rgba(0, 0, 0, 0.55);
+  border-width: 0 0 0 2px;
+  box-shadow: -6px 0 0 rgba(0, 0, 0, 0.4), -1px 0 0 1px rgba(77, 255, 115, 0.22);
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+}
+.viewer-profile-overlay.is-open .viewer-profile-card { transform: translateX(0); }
+@media (max-width: 560px) {
+  .viewer-profile-card { width: 100vw; }
 }
 .viewer-profile-head {
   display: flex;
@@ -7127,18 +7136,27 @@ function toggleViewerRoster() {
    anon-readable, so any visitor can peek at any logged-in troll.
    --------------------------------------------------------------------- */
 const VIEWER_PROFILE_ID = 'viewer-profile-overlay';
+let viewerProfileOutsideClick = null;
 
 function closeViewerProfileCard() {
   document.getElementById(VIEWER_PROFILE_ID)?.remove();
+  if (viewerProfileOutsideClick) {
+    document.removeEventListener('click', viewerProfileOutsideClick, true);
+    viewerProfileOutsideClick = null;
+  }
 }
 
+// A non-blocking drawer, not a modal: the backdrop has pointer-events:none
+// (see .viewer-profile-overlay) so clicks elsewhere on the page — e.g. still
+// typing in TrollChat — keep working while this is open. It closes itself
+// via Escape, its own ✕, or a click outside the card.
 async function openViewerProfileCard(userId, fallbackName) {
   closeViewerProfileCard();
   const overlay = document.createElement('div');
   overlay.id = VIEWER_PROFILE_ID;
   overlay.className = 'viewer-profile-overlay';
   overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-modal', 'false');
   overlay.setAttribute('aria-label', `${fallbackName || 'Troll'} profile`);
   const card = document.createElement('div');
   card.className = 'viewer-profile-card';
@@ -7165,8 +7183,11 @@ async function openViewerProfileCard(userId, fallbackName) {
   setMessage('Loading profile…');
   card.append(head, body);
   overlay.appendChild(card);
-  overlay.addEventListener('click', event => { if (event.target === overlay) closeViewerProfileCard(); });
   closeBtn.addEventListener('click', closeViewerProfileCard);
+  viewerProfileOutsideClick = event => { if (!card.contains(event.target)) closeViewerProfileCard(); };
+  document.addEventListener('click', viewerProfileOutsideClick, true);
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('is-open'));
   const onKey = event => {
     if (event.key === 'Escape') {
       closeViewerProfileCard();
@@ -7174,7 +7195,6 @@ async function openViewerProfileCard(userId, fallbackName) {
     }
   };
   window.addEventListener('keydown', onKey);
-  document.body.appendChild(overlay);
 
   const safeUserId = tcSafeUid(userId);
   if (!isSupabaseConfigured() || !safeUserId) {

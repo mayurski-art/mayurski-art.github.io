@@ -212,6 +212,7 @@
   <script src="assets/js/site-lock.js"></script>
   <script src="assets/js/troll-notis.js"></script>
   <script src="assets/js/troll-chat-extras.js"></script>
+  <script src="assets/js/troll-accounts.js"></script>
   <script>
   /* TROLLCHAT standalone — shares the SAME channel + table + identity as the
      embedded homepage widget, so it's literally the same live room. */
@@ -325,6 +326,11 @@
         const body = document.createElement('div');
         const head = document.createElement('div'); head.className = 'name-row';
         const name = document.createElement('span'); name.className = 'author'; name.textContent = m.name; if (m.name !== state.name) name.style.color = nameColor(m.name);
+        if (m.uid) {
+          name.style.cursor = 'pointer';
+          name.title = 'View ' + m.name + "'s profile";
+          name.addEventListener('click', () => window.TrollrunnerAccounts?.openProfileCard?.(m.uid));
+        }
         const time = document.createElement('span'); time.className = 'time'; time.textContent = fmtTime(m.ts);
         const text = document.createElement('div'); text.className = 'text';
         if (window.TrollChatExtras) window.TrollChatExtras.renderBodyInto(text, m.text); else text.textContent = m.text;
