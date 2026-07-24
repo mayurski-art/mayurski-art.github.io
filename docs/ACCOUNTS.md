@@ -66,14 +66,32 @@ Supabase's own `auth.identities`, read via `getXIdentity()`.
   scrubs the URL, and opens a "Set a new password" modal. The request modal
   always reports success (no account enumeration).
 
+## Friends (optional, one more SQL step)
+
+Adds friend requests/accepts, a click-anywhere public profile card (username
+in TrollChat → profile), and a "recently played" list on that card sourced
+from the existing `troll_game_stats` table (no new schema for that part).
+
+8. **SQL Editor**: run
+   [`assets/supabase/troll_friends.sql`](../assets/supabase/troll_friends.sql)
+   (idempotent — safe to re-run). Adds `troll_friendships` + the RPCs
+   `troll_send_friend_request` / `troll_respond_friend_request` /
+   `troll_remove_friend` / `troll_friend_status`. All writes go through those
+   RPCs — there are no direct insert/update/delete grants on the table.
+
+Until this runs, the "Friends" button and profile-card "Add friend" action
+will fail (the RPCs won't exist yet); everything else in this doc is
+unaffected.
+
 ## Files
 
 | File | Role |
 |---|---|
 | `assets/supabase/troll_accounts.sql` | Full backend: tables, RLS, RPCs, storage |
-| `assets/js/troll-accounts.js` | Shared client lib → `window.TrollrunnerAccounts` (+ built-in Profile/Settings modals) |
-| `index.html` (gate section) | Account portal UI: Login/Create Account tabs, logged-in panel |
-| `index.html` (TrollChat section) | Chat posts as the account identity when logged in |
+| `assets/supabase/troll_friends.sql` | Friends backend: `troll_friendships` table + request/accept/remove RPCs |
+| `assets/js/troll-accounts.js` | Shared client lib → `window.TrollrunnerAccounts` (+ built-in Profile/Settings/Friends modals, public profile cards) |
+| `index.html` (gate section) | Account portal UI: Login/Create Account tabs, logged-in panel, Friends button |
+| `index.html` (TrollChat section) | Chat posts as the account identity when logged in; usernames are clickable → profile card |
 
 ## Why fake login is impossible now
 

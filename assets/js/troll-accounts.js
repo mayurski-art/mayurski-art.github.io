@@ -40,6 +40,22 @@
   const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   const AVATAR_SIZE = 256;
 
+  // Display names/icons for "recently played" — keyed by the same game_id
+  // games already pass to recordGameResult(). Unknown ids fall back to the
+  // raw id so a new game never breaks the list.
+  const GAME_META = {
+    'troll-kombat': { name: 'Troll Kombat', icon: '🥋' },
+    'troll-casino': { name: 'Troll Casino', icon: '🎰' },
+    'troll-pizzeria': { name: "Papa Troll's Pizzeria", icon: '🍕' },
+    'bridge-patrol': { name: 'Bridge Patrol', icon: '🌉' },
+    'trollrreria': { name: 'Trollrreria', icon: '⛏️' },
+    'meme-metro': { name: 'Meme Metro', icon: '🚇' },
+    'troll-high': { name: 'Troll High', icon: '🏫' },
+  };
+  function gameMeta(gameId) {
+    return GAME_META[gameId] || { name: gameId, icon: '🕹️' };
+  }
+
   // Password-reset links land on the main site (the only place with the
   // reset UI); local/preview hosts land on themselves for testing.
   function recoveryRedirectUrl() {
@@ -755,6 +771,116 @@
   }
 
   /* ------------------------------------------------------------------
+     Friends — requests go through SECURITY DEFINER RPCs (troll_friends.sql);
+     there are no direct table grants, so the server is the only place a
+     request/accept/remove can actually happen.
+     ------------------------------------------------------------------ */
+  async function sendFriendRequest(targetId) {
+    const sb = getClient();
+    const { data, error } = await sb.rpc('troll_send_friend_request', { p_target: targetId });
+    if (error) throw friendlyError(error, 'Could not send that friend request.');
+    return data?.status || 'pending_out';
+  }
+
+  async function respondFriendRequest(requesterId, accept) {
+    const sb = getClient();
+    const { data, error } = await sb.rpc('troll_respond_friend_request', { p_requester: requesterId, p_accept: !!accept });
+    if (error) throw friendlyError(error, 'Could not update that request.');
+    return data?.status || 'none';
+  }
+
+  async function removeFriend(otherId) {
+    const sb = getClient();
+    const { error } = await sb.rpc('troll_remove_friend', { p_other: otherId });
+    if (error) throw friendlyError(error, 'Could not remove that friend.');
+    return true;
+  }
+
+  async function friendStatus(otherId) {
+    if (!cachedProfile) return 'none';
+    if (otherId === cachedProfile.id) return 'self';
+    const sb = getClient();
+    const { data, error } = await sb.rpc('troll_friend_status', { p_other: otherId });
+    if (error) return 'none';
+    return data || 'none';
+  }
+
+  // Splits troll_friendships_view rows (stored as an ordered pair) into "me"
+  // vs "the other runner" from the caller's point of view.
+  function friendRowOther(row) {
+    const uid = cachedProfile?.id;
+    const iAmA = row.user_a === uid;
+    return {
+      id: iAmA ? row.user_b : row.user_a,
+      username: iAmA ? row.user_b_username : row.user_a_username,
+      avatar_url: iAmA ? row.user_b_avatar : row.user_a_avatar,
+      level: iAmA ? row.user_b_level : row.user_a_level,
+      requestedByMe: row.requested_by === uid,
+      status: row.status,
+      created_at: row.created_at,
+    };
+  }
+
+  async function listFriends() {
+    const sb = getClient();
+    if (!cachedProfile) return [];
+    const { data, error } = await sb.from('troll_friendships_view')
+      .select('*')
+      .eq('status', 'accepted')
+      .order('responded_at', { ascending: false });
+    if (error || !Array.isArray(data)) return [];
+    return data.map(friendRowOther);
+  }
+
+  // Incoming = someone else requested me; outgoing = I requested someone else.
+  async function listFriendRequests() {
+    const sb = getClient();
+    if (!cachedProfile) return { incoming: [], outgoing: [] };
+    const { data, error } = await sb.from('troll_friendships_view')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error || !Array.isArray(data)) return { incoming: [], outgoing: [] };
+    const rows = data.map(friendRowOther);
+    return {
+      incoming: rows.filter(r => !r.requestedByMe),
+      outgoing: rows.filter(r => r.requestedByMe),
+    };
+  }
+
+  async function findProfileByUsername(username) {
+    const sb = getClient();
+    const clean = String(username || '').trim();
+    if (!clean) return null;
+    const { data, error } = await sb.from('troll_profiles')
+      .select('id, username, avatar_url, bio, level')
+      .ilike('username', clean)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data;
+  }
+
+  async function getPublicProfile(userId) {
+    const sb = getClient();
+    const { data, error } = await sb.from('troll_profiles')
+      .select('id, username, avatar_url, bio, level')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data;
+  }
+
+  async function getRecentlyPlayed(userId, limit = 5) {
+    const sb = getClient();
+    const { data, error } = await sb.from('troll_game_stats')
+      .select('game_id, games_played, high_score, updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+    return Array.isArray(data) && !error ? data : [];
+  }
+
+  /* ------------------------------------------------------------------
      Built-in Profile / Settings modals (pixel-arcade style, self-styled
      so subdomains get them for free).
      ------------------------------------------------------------------ */
@@ -1408,6 +1534,260 @@
     body.appendChild(logoutBtn);
   }
 
+  // Friend-action button whose label/behavior depends on live status. Shared
+  // by the profile card and the Friends panel so the two stay in sync.
+  function friendActionButton(otherId, status, onChange) {
+    const btn = document.createElement('button');
+    btn.className = 'ta-btn ta-btn--sm';
+    btn.type = 'button';
+    const paint = s => {
+      status = s;
+      btn.disabled = false;
+      if (s === 'self') { btn.hidden = true; return; }
+      btn.hidden = false;
+      if (s === 'accepted') { btn.textContent = '✓ Friends — remove'; btn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
+      else if (s === 'pending_out') { btn.textContent = 'Request sent — cancel'; btn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
+      else if (s === 'pending_in') { btn.textContent = 'Accept friend request'; btn.className = 'ta-btn ta-btn--sm'; }
+      else { btn.textContent = '+ Add friend'; btn.className = 'ta-btn ta-btn--sm'; }
+    };
+    btn.addEventListener('click', async () => {
+      if (!cachedProfile) { btn.textContent = 'Login to add friends'; return; }
+      btn.disabled = true;
+      try {
+        let next = status;
+        if (status === 'none') next = await sendFriendRequest(otherId);
+        else if (status === 'pending_in') next = await respondFriendRequest(otherId, true);
+        else if (status === 'pending_out' || status === 'accepted') { await removeFriend(otherId); next = 'none'; }
+        paint(next);
+        if (onChange) onChange(next);
+      } catch (error) {
+        btn.disabled = false;
+        btn.textContent = error?.message || 'Something broke.';
+      }
+    });
+    paint(status);
+    return btn;
+  }
+
+  function recentlyPlayedSection(stats) {
+    const section = document.createElement('div');
+    section.className = 'ta-section';
+    section.innerHTML = '<h4>Recently played</h4>';
+    if (!stats.length) {
+      section.insertAdjacentHTML('beforeend', '<p class="ta-muted">No games played yet.</p>');
+      return section;
+    }
+    const table = document.createElement('table');
+    table.className = 'ta-table';
+    stats.slice(0, 5).forEach(stat => {
+      const meta = gameMeta(stat.game_id);
+      const tr = document.createElement('tr');
+      const name = document.createElement('td');
+      name.textContent = `${meta.icon} ${meta.name} · ${stat.games_played} runs`;
+      const score = document.createElement('td');
+      score.textContent = `best ${Number(stat.high_score).toLocaleString()}`;
+      tr.append(name, score);
+      table.appendChild(tr);
+    });
+    section.appendChild(table);
+    return section;
+  }
+
+  // Lets host pages (e.g. index.html's richer viewer/chat profile card)
+  // embed the same add/accept/remove friend button this file uses
+  // internally, without duplicating the friendship logic.
+  async function renderFriendAction(otherId, container, onChange) {
+    if (!container || !otherId) return;
+    if (!cachedProfile || otherId === cachedProfile.id) return;
+    ensureModalStyles();
+    const status = await friendStatus(otherId);
+    container.appendChild(friendActionButton(otherId, status, onChange));
+  }
+
+  // Public profile card for ANY runner — click a username in TrollChat, the
+  // leaderboard, or the Friends panel to open it.
+  async function openProfileCard(userId) {
+    if (!userId) return;
+    if (cachedProfile && userId === cachedProfile.id) { await openProfile(); return; }
+    const body = buildModal('Profile');
+    body.innerHTML = '<p class="ta-muted">Loading profile…</p>';
+    const [profile, stats, status] = await Promise.all([
+      getPublicProfile(userId),
+      getRecentlyPlayed(userId, 5),
+      friendStatus(userId),
+    ]);
+    if (!profile) { body.innerHTML = '<p class="ta-muted">Couldn’t find that runner.</p>'; return; }
+    body.innerHTML = '';
+
+    const row = document.createElement('div');
+    row.className = 'ta-row';
+    row.appendChild(avatarNode({ avatarUrl: profile.avatar_url }));
+    const meta = document.createElement('div');
+    meta.innerHTML = `<p class="ta-name"></p><span class="ta-pill"></span>`;
+    meta.querySelector('.ta-name').textContent = profile.username;
+    meta.querySelector('.ta-pill').textContent = `LV ${profile.level}`;
+    row.appendChild(meta);
+    body.appendChild(row);
+
+    if (profile.bio) {
+      const bio = document.createElement('div');
+      bio.className = 'ta-section';
+      bio.innerHTML = '<h4>Bio</h4>';
+      const p = document.createElement('p');
+      p.className = 'ta-muted';
+      p.textContent = profile.bio;
+      bio.appendChild(p);
+      body.appendChild(bio);
+    }
+
+    body.appendChild(recentlyPlayedSection(stats));
+
+    if (cachedProfile) {
+      const actions = document.createElement('div');
+      actions.className = 'ta-section';
+      actions.appendChild(friendActionButton(userId, status));
+      body.appendChild(actions);
+    }
+  }
+
+  // Prefer the site's richer roster/chat profile card (avatar + bio + full
+  // stats table) when it's on the page; fall back to the lean built-in one
+  // on subdomains that don't have it.
+  function viewProfile(id, name) {
+    if (typeof window.openViewerProfileCard === 'function') window.openViewerProfileCard(id, name);
+    else openProfileCard(id);
+  }
+
+  function friendListRow(friend, { onRespond } = {}) {
+    const row = document.createElement('div');
+    row.className = 'ta-row';
+    row.style.cursor = 'pointer';
+    row.appendChild(avatarNode({ avatarUrl: friend.avatar_url }));
+    const meta = document.createElement('div');
+    meta.style.flex = '1';
+    meta.innerHTML = `<p class="ta-name" style="font-size:15px;"></p><span class="ta-muted"></span>`;
+    meta.querySelector('.ta-name').textContent = friend.username || 'runner';
+    meta.querySelector('.ta-muted').textContent = `LV ${friend.level ?? 1}`;
+    row.appendChild(meta);
+    meta.addEventListener('click', () => viewProfile(friend.id, friend.username));
+
+    if (onRespond) {
+      const acceptBtn = document.createElement('button');
+      acceptBtn.className = 'ta-btn ta-btn--sm';
+      acceptBtn.type = 'button';
+      acceptBtn.textContent = 'Accept';
+      const declineBtn = document.createElement('button');
+      declineBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost';
+      declineBtn.type = 'button';
+      declineBtn.textContent = 'Decline';
+      acceptBtn.addEventListener('click', () => onRespond(friend.id, true));
+      declineBtn.addEventListener('click', () => onRespond(friend.id, false));
+      row.append(acceptBtn, declineBtn);
+    } else {
+      const msgBtn = document.createElement('button');
+      msgBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost';
+      msgBtn.type = 'button';
+      msgBtn.textContent = 'View';
+      msgBtn.addEventListener('click', () => viewProfile(friend.id, friend.username));
+      row.appendChild(msgBtn);
+    }
+    return row;
+  }
+
+  async function openFriendsPanel() {
+    const body = buildModal('Friends');
+    if (!cachedProfile) {
+      body.innerHTML = '<p class="ta-muted">Login to add friends.</p>';
+      return;
+    }
+    body.innerHTML = '<p class="ta-muted">Loading…</p>';
+
+    const addSection = document.createElement('div');
+    addSection.className = 'ta-section';
+    addSection.innerHTML = '<h4>Add a friend</h4>';
+    const addRow = document.createElement('div');
+    addRow.className = 'ta-row';
+    const addInput = document.createElement('input');
+    addInput.className = 'ta-input';
+    addInput.placeholder = 'username';
+    addInput.autocapitalize = 'none';
+    addInput.spellcheck = false;
+    const addBtn = document.createElement('button');
+    addBtn.className = 'ta-btn ta-btn--sm';
+    addBtn.type = 'button';
+    addBtn.textContent = 'Send request';
+    const addStatus = document.createElement('div');
+    addStatus.className = 'ta-status';
+    addRow.append(addInput, addBtn);
+    addSection.append(addRow, addStatus);
+    addBtn.addEventListener('click', async () => {
+      addBtn.disabled = true;
+      addStatus.textContent = 'Looking…';
+      addStatus.dataset.kind = '';
+      try {
+        const target = await findProfileByUsername(addInput.value);
+        if (!target) throw new Error('No runner with that username.');
+        if (target.id === cachedProfile.id) throw new Error("That's you.");
+        const status = await sendFriendRequest(target.id);
+        addStatus.textContent = status === 'accepted' ? `You and ${target.username} are now friends.` : `Request sent to ${target.username}.`;
+        addStatus.dataset.kind = 'success';
+        addInput.value = '';
+        void renderLists();
+      } catch (error) {
+        addStatus.textContent = error?.message || 'Could not send that request.';
+        addStatus.dataset.kind = 'error';
+      } finally {
+        addBtn.disabled = false;
+      }
+    });
+
+    const requestsSection = document.createElement('div');
+    requestsSection.className = 'ta-section';
+    requestsSection.innerHTML = '<h4>Requests</h4>';
+
+    const friendsSection = document.createElement('div');
+    friendsSection.className = 'ta-section';
+    friendsSection.innerHTML = '<h4>Friends</h4>';
+
+    body.innerHTML = '';
+    body.append(addSection, requestsSection, friendsSection);
+
+    async function renderLists() {
+      const [{ incoming, outgoing }, friends] = await Promise.all([listFriendRequests(), listFriends()]);
+
+      requestsSection.innerHTML = '<h4>Requests</h4>';
+      if (!incoming.length && !outgoing.length) {
+        requestsSection.insertAdjacentHTML('beforeend', '<p class="ta-muted">No pending requests.</p>');
+      } else {
+        incoming.forEach(req => {
+          requestsSection.appendChild(friendListRow(req, {
+            onRespond: async (id, accept) => {
+              await respondFriendRequest(id, accept);
+              void renderLists();
+            },
+          }));
+        });
+        outgoing.forEach(req => {
+          const row = friendListRow(req);
+          const tag = document.createElement('span');
+          tag.className = 'ta-muted';
+          tag.textContent = 'pending';
+          row.appendChild(tag);
+          requestsSection.appendChild(row);
+        });
+      }
+
+      friendsSection.innerHTML = '<h4>Friends</h4>';
+      if (!friends.length) {
+        friendsSection.insertAdjacentHTML('beforeend', '<p class="ta-muted">No friends yet — add one above.</p>');
+      } else {
+        friends.forEach(friend => friendsSection.appendChild(friendListRow(friend)));
+      }
+    }
+
+    void renderLists();
+  }
+
   function openRecovery() {
     const body = buildModal('Reset password');
     body.innerHTML = '';
@@ -1581,6 +1961,18 @@
     confirmGuestExit,
     openProfile,
     openSettings,
+    openProfileCard,
+    openFriendsPanel,
+    renderFriendAction,
+    sendFriendRequest,
+    respondFriendRequest,
+    removeFriend,
+    friendStatus,
+    listFriends,
+    listFriendRequests,
+    findProfileByUsername,
+    getPublicProfile,
+    getRecentlyPlayed,
   };
 
   if (document.readyState === 'loading') {

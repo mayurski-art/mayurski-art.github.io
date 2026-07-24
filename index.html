@@ -4738,6 +4738,7 @@ body.desktop-mode .troll-desktop { display: block; }
           </div>
           <div class="gate-profile-actions">
             <button id="gate-profile-btn" class="gate-action-btn" type="button">Profile</button>
+            <button id="gate-friends-btn" class="gate-action-btn" type="button">Friends</button>
             <button id="gate-settings-btn" class="gate-action-btn" type="button">Settings</button>
             <button id="gate-logout-btn" class="gate-action-btn gate-action-btn--ghost" type="button">Logout</button>
           </div>
@@ -5764,6 +5765,11 @@ function initializeGateAccountUI() {
     const backend = getBackend();
     if (backend?.openSettings) backend.openSettings();
     else setMessage('Account settings are on the roadmap — not wired up yet.', 'info');
+  });
+  document.getElementById('gate-friends-btn')?.addEventListener('click', () => {
+    const backend = getBackend();
+    if (backend?.openFriendsPanel) backend.openFriendsPanel();
+    else setMessage('Friends are on the roadmap — not wired up yet.', 'info');
   });
 
   const backend = getBackend();
@@ -7260,6 +7266,11 @@ async function openViewerProfileCard(userId, fallbackName) {
       gamesSection.appendChild(none);
     }
     body.appendChild(gamesSection);
+
+    const friendSection = document.createElement('div');
+    friendSection.className = 'viewer-profile-section';
+    body.appendChild(friendSection);
+    void window.TrollrunnerAccounts?.renderFriendAction?.(profile.id, friendSection);
   } catch {
     setMessage('Could not load the profile. Try again.');
   }
@@ -9430,6 +9441,11 @@ function tcRenderFeed() {
     name.className = 'live-chat-author';
     name.textContent = message.name;
     if (message.name !== trollChat.name) name.style.color = tcNameColor(message.name);
+    if (message.uid) {
+      name.style.cursor = 'pointer';
+      name.title = `View ${message.name}'s profile`;
+      name.addEventListener('click', () => openViewerProfileCard(message.uid, message.name));
+    }
     const time = document.createElement('span');
     time.className = 'live-chat-time';
     time.textContent = tcFormatTime(message.ts);
