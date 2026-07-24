@@ -261,7 +261,9 @@ create policy troll_dm_messages_insert on public.troll_dm_messages
 
 revoke all on public.troll_dm_messages from anon, authenticated;
 grant select on public.troll_dm_messages to authenticated;
-grant insert (thread_id, sender_id, body) on public.troll_dm_messages to authenticated;
+-- id is included: the client sets it client-side (same pattern as
+-- troll_chat) so it can render its own sent message immediately.
+grant insert (id, thread_id, sender_id, body) on public.troll_dm_messages to authenticated;
 
 -- Opens (or reuses) a thread with a FRIEND. Not open to non-friends, so DMs
 -- can't be used to spam a stranger who never agreed to be added.
