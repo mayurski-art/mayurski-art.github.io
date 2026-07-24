@@ -39,11 +39,18 @@ fine for now; plug in custom SMTP (Resend etc.) if reset volume ever grows.
 
 ### X (Twitter) account linking (optional, one-time)
 
-6. Create an X Developer App (developer.x.com) with OAuth 2.0 enabled and a
+6. Create an X Developer App (console.x.com) with OAuth 2.0 enabled and a
    callback URL of `https://tjsyhfplxjtakdfkpdtg.supabase.co/auth/v1/callback`.
-7. **Supabase dashboard → Authentication → Sign In / Up → Twitter**: turn it
-   ON and paste the app's Client ID/Secret. No client-side secret is ever
+7. **Supabase dashboard → Authentication → Sign In / Providers → X**: turn it
+   ON and paste the app's OAuth 2.0 Client ID/Secret. Use the **X** provider
+   (`provider: 'x'`), not the legacy **Twitter** (OAuth 1.0a) one — Supabase
+   split these into two separate entries; the legacy one is deprecated and
+   won't accept OAuth 2.0 credentials. No client-side secret is ever
    involved — the whole token exchange happens on Supabase's side.
+8. **Authentication → Sign In / Providers → Advanced settings** (bottom of
+   the page): turn on **Allow manual linking** — required for
+   `linkIdentity()` to attach X to an already-logged-in account instead of
+   only working as a first-time sign-up method.
 
 No table/migration is needed for this — the connected handle lives in
 Supabase's own `auth.identities`, read via `getXIdentity()`.
@@ -72,7 +79,7 @@ Adds friend requests/accepts, a click-anywhere public profile card (username
 in TrollChat → profile), and a "recently played" list on that card sourced
 from the existing `troll_game_stats` table (no new schema for that part).
 
-8. **SQL Editor**: run
+9. **SQL Editor**: run
    [`assets/supabase/troll_friends.sql`](../assets/supabase/troll_friends.sql)
    (idempotent — safe to re-run). Adds `troll_friendships` + the RPCs
    `troll_send_friend_request` / `troll_respond_friend_request` /

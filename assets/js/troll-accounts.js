@@ -495,7 +495,7 @@
     const sb = getClient();
     if (!sb) throw new Error('Account service failed to load. Refresh and try again.');
     if (!cachedProfile) throw new Error('Login first.');
-    const { error } = await sb.auth.linkIdentity({ provider: 'twitter', options: { redirectTo: xRedirectUrl() } });
+    const { error } = await sb.auth.linkIdentity({ provider: 'x', options: { redirectTo: xRedirectUrl() } });
     if (error) throw friendlyError(error, 'Could not start the X connection.');
     // Success navigates the browser to X — nothing left to do on this page load.
   }
@@ -505,7 +505,7 @@
     if (!sb || !cachedProfile) return null;
     const { data, error } = await sb.auth.getUserIdentities();
     if (error) return null;
-    const identity = (data?.identities || []).find(i => i.provider === 'twitter');
+    const identity = (data?.identities || []).find(i => i.provider === 'x' || i.provider === 'twitter');
     if (!identity) return null;
     const meta = identity.identity_data || {};
     return {
@@ -520,7 +520,7 @@
     if (!cachedProfile) throw new Error('Login first.');
     const { data, error: listError } = await sb.auth.getUserIdentities();
     if (listError) throw friendlyError(listError, 'Could not look up your X connection.');
-    const identity = (data?.identities || []).find(i => i.provider === 'twitter');
+    const identity = (data?.identities || []).find(i => i.provider === 'x' || i.provider === 'twitter');
     if (!identity) return true;
     const { error } = await sb.auth.unlinkIdentity(identity);
     if (error) throw friendlyError(error, 'Could not disconnect X.');
