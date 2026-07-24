@@ -4191,6 +4191,14 @@ footer a:hover { color: #fff; }
   padding: 7px 15px !important;
 }
 .gate-save-btn:active, .gate-action-btn:active { transform: translateY(2px); }
+.gate-action-btn { position: relative; }
+.gate-friend-badge {
+  position: absolute; top: -7px; right: -7px; min-width: 16px; height: 16px; padding: 0 4px;
+  display: flex; align-items: center; justify-content: center; border-radius: 999px;
+  background: #ff2d55; color: #fff; font-size: 10px; font-weight: 700; border: 2px solid #000;
+  font-family: var(--disp) !important; line-height: 1;
+}
+.gate-friend-badge[hidden] { display: none; }
 .gate-lock-label { font-family: var(--disp) !important; letter-spacing: 0.04em; }
 
 /* ---- Gate: account portal (login / register / logged-in) ---- */
@@ -4747,7 +4755,7 @@ body.desktop-mode .troll-desktop { display: block; }
           </div>
           <div class="gate-profile-actions">
             <button id="gate-profile-btn" class="gate-action-btn" type="button">Profile</button>
-            <button id="gate-friends-btn" class="gate-action-btn" type="button">Friends</button>
+            <button id="gate-friends-btn" class="gate-action-btn" type="button">Friends<span id="gate-friends-badge" class="gate-friend-badge" hidden>0</span></button>
             <button id="gate-settings-btn" class="gate-action-btn" type="button">Settings</button>
             <button id="gate-logout-btn" class="gate-action-btn gate-action-btn--ghost" type="button">Logout</button>
           </div>
@@ -5780,6 +5788,13 @@ function initializeGateAccountUI() {
     if (backend?.openFriendsPanel) backend.openFriendsPanel();
     else setMessage('Friends are on the roadmap — not wired up yet.', 'info');
   });
+  window.addEventListener('trollrunner:friend-requests-changed', event => {
+    const badge = document.getElementById('gate-friends-badge');
+    if (!badge) return;
+    const count = Number(event.detail?.count) || 0;
+    badge.hidden = count <= 0;
+    badge.textContent = count > 9 ? '9+' : String(count);
+  });
 
   const backend = getBackend();
   if (backend?.getSession) {
@@ -6161,6 +6176,7 @@ function twOpen(id) {
   }
   win.el.style.display = '';
   twFocus(id);
+  updateActivePresenceWindow();
 }
 
 function twMinimize(id) {
@@ -6169,6 +6185,7 @@ function twMinimize(id) {
   win.minimized = true;
   win.el.style.display = 'none';
   win.taskBtn?.classList.remove('is-active');
+  updateActivePresenceWindow();
 }
 
 function twFinishClose(win) {
@@ -6178,6 +6195,7 @@ function twFinishClose(win) {
   win.taskBtn?.remove();
   win.taskBtn = null;
   tdUpdateCloseAllBtn();
+  updateActivePresenceWindow();
 }
 
 // Games (and any game with a persistent guest run) get a chance to confirm
@@ -6909,6 +6927,23 @@ function updateViewerCount(count) {
 let viewerPresenceJoined = false;
 const viewerPresenceOnlineAt = new Date().toISOString();
 
+// "Currently playing" — only tracks whether the Games window (an iframe onto
+// games.trollrunner.net) is open, not which specific game: cross-origin, so
+// this page can't read into the iframe's own route. Kept as a plain flag
+// (not an arbitrary string) since presence payloads aren't authenticated —
+// nothing here trusts free text from another client.
+let activePresenceWindow = null;
+function updateActivePresenceWindow() {
+  const win = tdState.windows.get('games');
+  const isOpen = !!(win && win.el.classList.contains('is-open') && !win.minimized);
+  const next = isOpen ? 'games' : null;
+  if (next === activePresenceWindow) return;
+  activePresenceWindow = next;
+  if (viewerPresenceChannel && viewerPresenceJoined) {
+    viewerPresenceChannel.track(viewerPresencePayload());
+  }
+}
+
 function viewerPresencePayload() {
   const account = window.TrollrunnerAccounts?.getCachedProfile?.() || null;
   return {
@@ -6919,6 +6954,7 @@ function viewerPresencePayload() {
     level: account?.level || null,
     host: window.location.hostname,
     path: window.location.pathname,
+    activeWindow: activePresenceWindow,
     onlineAt: viewerPresenceOnlineAt,
     trackedAt: new Date().toISOString(),
   };
@@ -6962,6 +6998,7 @@ function getViewerRoster() {
         username,
         avatarUrl: tcSafeAvatarUrl(entry.avatarUrl, userId),
         level: Math.max(1, Number(entry.level) || 1),
+        activeWindow: entry.activeWindow === 'games' ? 'games' : null,
       });
     } else {
       guests.push({ viewerId: entry.viewerId, onlineAt: String(entry.onlineAt || '') });
@@ -6985,6 +7022,9 @@ function syncViewerPresenceCount() {
   const { members, guests } = getViewerRoster();
   updateViewerCount(members.length + guests.length);
   renderViewerRosterList();
+  // Lets troll-accounts.js (friends list, profile drawers) refresh its own
+  // online dots/"currently playing" tags off the same roster data.
+  try { window.dispatchEvent(new CustomEvent('trollrunner:presence-sync')); } catch {}
 }
 
 /* ---------------------------------------------------------------------
@@ -7152,6 +7192,7 @@ function closeViewerProfileCard() {
 // via Escape, its own ✕, or a click outside the card.
 async function openViewerProfileCard(userId, fallbackName) {
   closeViewerProfileCard();
+  window.TrollrunnerAccounts?.ensureSocialStyles?.();
   const overlay = document.createElement('div');
   overlay.id = VIEWER_PROFILE_ID;
   overlay.className = 'viewer-profile-overlay';
@@ -7236,7 +7277,17 @@ async function openViewerProfileCard(userId, fallbackName) {
     const meta = document.createElement('div');
     const name = document.createElement('p');
     name.className = 'viewer-profile-name';
-    name.textContent = profile.username;
+    name.style.cssText = 'display:flex;align-items:center;';
+    const dot = document.createElement('span');
+    dot.className = 'ta-dot';
+    dot.setAttribute('data-ta-online-for', profile.id);
+    name.appendChild(dot);
+    name.appendChild(document.createTextNode(profile.username));
+    const playingTag = document.createElement('span');
+    playingTag.className = 'ta-playing-tag';
+    playingTag.setAttribute('data-ta-playing-for', profile.id);
+    playingTag.hidden = true;
+    name.appendChild(playingTag);
     const lv = document.createElement('span');
     lv.className = 'viewer-roster-lv';
     lv.textContent = `LV ${Math.max(1, Number(profile.level) || 1)} · ${Number(profile.xp || 0).toLocaleString()} XP`;
@@ -7287,10 +7338,30 @@ async function openViewerProfileCard(userId, fallbackName) {
     }
     body.appendChild(gamesSection);
 
+    const badges = await window.TrollrunnerAccounts?.getLeaderboardBadges?.(profile.id).catch(() => []);
+    if (Array.isArray(badges) && badges.length) {
+      const medalsSection = document.createElement('div');
+      medalsSection.className = 'viewer-profile-section';
+      const medalsHead = document.createElement('h4');
+      medalsHead.textContent = 'Leaderboard badges';
+      const medalsWrap = document.createElement('div');
+      medalsWrap.className = 'ta-medals';
+      const medal = r => (r === 1 ? '🥇' : r === 2 ? '🥈' : '🥉');
+      badges.forEach(b => {
+        const chip = document.createElement('span');
+        chip.className = 'ta-medal';
+        chip.textContent = `${medal(b.rank)} #${b.rank} ${b.game_id}`;
+        medalsWrap.appendChild(chip);
+      });
+      medalsSection.append(medalsHead, medalsWrap);
+      body.appendChild(medalsSection);
+    }
+
     const friendSection = document.createElement('div');
     friendSection.className = 'viewer-profile-section';
     body.appendChild(friendSection);
-    void window.TrollrunnerAccounts?.renderFriendAction?.(profile.id, friendSection);
+    void window.TrollrunnerAccounts?.renderFriendAction?.(profile.id, profile.username, friendSection);
+    window.dispatchEvent(new CustomEvent('trollrunner:presence-sync'));
   } catch {
     setMessage('Could not load the profile. Try again.');
   }

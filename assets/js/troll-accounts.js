@@ -880,6 +880,86 @@
     return Array.isArray(data) && !error ? data : [];
   }
 
+  // Top-3 leaderboard placements — cosmetic medal badges on a profile card.
+  async function getLeaderboardBadges(userId) {
+    const sb = getClient();
+    const { data, error } = await sb.rpc('troll_leaderboard_badges', { p_user: userId });
+    return Array.isArray(data) && !error ? data : [];
+  }
+
+  // Recent high scores among a user's friends — no new schema, just the
+  // public leaderboard view filtered to friend ids (both are already
+  // anon/authenticated-readable).
+  async function getFriendActivity(friendIds, limit = 8) {
+    if (!Array.isArray(friendIds) || !friendIds.length) return [];
+    const sb = getClient();
+    const { data, error } = await sb.from('troll_leaderboard_view')
+      .select('user_id, username, avatar_url, game_id, score, achieved_at')
+      .in('user_id', friendIds)
+      .order('achieved_at', { ascending: false })
+      .limit(limit);
+    return Array.isArray(data) && !error ? data : [];
+  }
+
+  /* ------------------------------------------------------------------
+     Direct messages — friends-only threads (troll_dm_open enforces the
+     friendship server-side). Realtime broadcast for instant delivery,
+     table insert for history; same two-layer pattern as TrollChat.
+     ------------------------------------------------------------------ */
+  const dmChannels = new Map(); // threadId -> { channel, subscribed }
+
+  async function openDmThread(otherId) {
+    const sb = getClient();
+    const { data, error } = await sb.rpc('troll_dm_open', { p_other: otherId });
+    if (error) throw friendlyError(error, 'Could not open that conversation.');
+    return data;
+  }
+
+  async function getDmHistory(threadId, limit = 60) {
+    const sb = getClient();
+    const { data, error } = await sb.from('troll_dm_messages')
+      .select('id, sender_id, body, created_at')
+      .eq('thread_id', threadId)
+      .order('created_at', { ascending: true })
+      .limit(limit);
+    return Array.isArray(data) && !error ? data : [];
+  }
+
+  async function sendDm(threadId, body) {
+    const text = String(body || '').trim().slice(0, 240);
+    if (!text || !cachedProfile) return null;
+    const sb = getClient();
+    const row = { id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, thread_id: threadId, sender_id: cachedProfile.id, body: text };
+    const { error } = await sb.from('troll_dm_messages').insert(row);
+    if (error) throw friendlyError(error, 'Could not send that message.');
+    const entry = dmChannels.get(threadId);
+    if (entry?.subscribed) entry.channel.send({ type: 'broadcast', event: 'msg', payload: { ...row, created_at: new Date().toISOString() } });
+    return row;
+  }
+
+  // Subscribes once per thread; returns an unsubscribe function.
+  function subscribeDm(threadId, onMessage) {
+    const sb = getClient();
+    let entry = dmChannels.get(threadId);
+    if (!entry) {
+      const channel = sb.channel(`trolldm_${threadId}`, { config: { broadcast: { self: false } } });
+      entry = { channel, subscribed: false, listeners: new Set() };
+      channel.on('broadcast', { event: 'msg' }, ({ payload }) => {
+        entry.listeners.forEach(fn => { try { fn(payload); } catch {} });
+      });
+      channel.subscribe(status => { if (status === 'SUBSCRIBED') entry.subscribed = true; });
+      dmChannels.set(threadId, entry);
+    }
+    entry.listeners.add(onMessage);
+    return () => {
+      entry.listeners.delete(onMessage);
+      if (!entry.listeners.size) {
+        try { entry.channel.unsubscribe(); } catch {}
+        dmChannels.delete(threadId);
+      }
+    };
+  }
+
   /* ------------------------------------------------------------------
      Built-in Profile / Settings modals (pixel-arcade style, self-styled
      so subdomains get them for free).
@@ -953,6 +1033,36 @@
         border-width: 0 0 0 2px; box-shadow: -6px 0 0 rgba(0,0,0,0.4), -1px 0 0 1px rgba(77,255,115,0.22); border-radius: 0; }
       .ta-drawer-overlay.is-open .ta-drawer-card { transform: translateX(0); }
       @media (max-width: 480px) { .ta-drawer-card { width: 100vw; } }
+      /* Online dot + "playing" tag, shown next to a username anywhere */
+      .ta-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px;
+        background: #3a4a3f; box-shadow: 0 0 0 1px #000; flex: none; }
+      .ta-dot[data-online="1"] { background: #4dff73; box-shadow: 0 0 0 1px #000, 0 0 5px rgba(77,255,115,0.9); }
+      .ta-playing-tag { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: 10px;
+        color: #ffd84d; }
+      /* Leaderboard medal badges */
+      .ta-medals { display: flex; flex-wrap: wrap; gap: 6px; }
+      .ta-medal { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px;
+        border: 2px solid #000; border-radius: 4px; background: rgba(255,216,77,0.12); color: #ffd84d; }
+      /* Direct-message drawer */
+      .ta-dm-feed { flex: 1; overflow-y: auto; display: grid; gap: 8px; padding: 4px 2px; min-height: 0; }
+      .ta-dm-msg { max-width: 84%; padding: 6px 9px; border: 2px solid #000; border-radius: 8px;
+        background: rgba(255,255,255,0.06); font-size: 13px; word-break: break-word; }
+      .ta-dm-msg.is-me { margin-left: auto; background: rgba(77,255,115,0.16); }
+      .ta-dm-msg .ta-dm-time { display: block; margin-top: 3px; font-size: 10px; color: #8fa396; }
+      .ta-dm-composer { display: flex; gap: 6px; margin-top: 8px; }
+      .ta-dm-composer .ta-input { flex: 1; }
+      /* Small self-dismissing local toast (friend requests / accepts) —
+         intentionally separate from TrollNotis, which is a social-post
+         announcer, not a generic notification system. */
+      .ta-toast-root { position: fixed; top: 14px; right: 14px; z-index: 99995; display: grid; gap: 8px;
+        pointer-events: none; }
+      .ta-toast { pointer-events: auto; width: min(280px, 84vw); padding: 10px 12px; border: 2px solid #000;
+        border-radius: 8px; background: linear-gradient(160deg, #131a15, #0a0d0b); color: #e6f2e6;
+        font-family: 'DM Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.4;
+        box-shadow: 0 0 0 1px rgba(77,255,115,0.22), 4px 6px 0 rgba(0,0,0,0.5);
+        animation: ta-toast-in 0.18s ease; cursor: pointer; }
+      .ta-toast strong { display: block; color: #4dff73; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; }
+      @keyframes ta-toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     `;
     document.head.appendChild(style);
   }
@@ -1588,25 +1698,41 @@
     body.appendChild(logoutBtn);
   }
 
-  // Friend-action button whose label/behavior depends on live status. Shared
-  // by the profile card and the Friends panel so the two stay in sync.
-  function friendActionButton(otherId, status, onChange) {
-    const btn = document.createElement('button');
-    btn.className = 'ta-btn ta-btn--sm';
-    btn.type = 'button';
+  // Friend/DM controls whose buttons depend on live status. Shared by the
+  // profile card, the roster's richer card (via renderFriendAction), and
+  // the Friends panel so they all stay in sync.
+  function friendControls(otherId, otherName, status, onChange) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;';
+    const mainBtn = document.createElement('button');
+    mainBtn.className = 'ta-btn ta-btn--sm';
+    mainBtn.type = 'button';
+    const declineBtn = document.createElement('button');
+    declineBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost';
+    declineBtn.type = 'button';
+    declineBtn.textContent = 'Decline';
+    declineBtn.hidden = true;
+    const msgBtn = document.createElement('button');
+    msgBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost';
+    msgBtn.type = 'button';
+    msgBtn.textContent = '💬 Message';
+    msgBtn.hidden = true;
+    msgBtn.addEventListener('click', () => openDmPanel(otherId, otherName));
+
     const paint = s => {
       status = s;
-      btn.disabled = false;
-      if (s === 'self') { btn.hidden = true; return; }
-      btn.hidden = false;
-      if (s === 'accepted') { btn.textContent = '✓ Friends — remove'; btn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
-      else if (s === 'pending_out') { btn.textContent = 'Request sent — cancel'; btn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
-      else if (s === 'pending_in') { btn.textContent = 'Accept friend request'; btn.className = 'ta-btn ta-btn--sm'; }
-      else { btn.textContent = '+ Add friend'; btn.className = 'ta-btn ta-btn--sm'; }
+      mainBtn.disabled = false;
+      mainBtn.hidden = s === 'self';
+      declineBtn.hidden = s !== 'pending_in';
+      msgBtn.hidden = s !== 'accepted';
+      if (s === 'accepted') { mainBtn.textContent = '✓ Friends — remove'; mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
+      else if (s === 'pending_out') { mainBtn.textContent = 'Request sent — cancel'; mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
+      else if (s === 'pending_in') { mainBtn.textContent = 'Accept'; mainBtn.className = 'ta-btn ta-btn--sm'; }
+      else { mainBtn.textContent = '+ Add friend'; mainBtn.className = 'ta-btn ta-btn--sm'; }
     };
-    btn.addEventListener('click', async () => {
-      if (!cachedProfile) { btn.textContent = 'Login to add friends'; return; }
-      btn.disabled = true;
+    mainBtn.addEventListener('click', async () => {
+      if (!cachedProfile) { mainBtn.textContent = 'Login to add friends'; return; }
+      mainBtn.disabled = true;
       try {
         let next = status;
         if (status === 'none') next = await sendFriendRequest(otherId);
@@ -1615,12 +1741,75 @@
         paint(next);
         if (onChange) onChange(next);
       } catch (error) {
-        btn.disabled = false;
-        btn.textContent = error?.message || 'Something broke.';
+        mainBtn.disabled = false;
+        mainBtn.textContent = error?.message || 'Something broke.';
       }
     });
+    declineBtn.addEventListener('click', async () => {
+      declineBtn.disabled = true;
+      try {
+        await respondFriendRequest(otherId, false);
+        paint('none');
+        if (onChange) onChange('none');
+      } catch { declineBtn.disabled = false; }
+    });
     paint(status);
-    return btn;
+    wrap.append(mainBtn, declineBtn, msgBtn);
+    return wrap;
+  }
+
+  // Presence-driven UI: an online dot (data-ta-online-for="<uid>") and a
+  // "currently playing" tag (data-ta-playing-for="<uid>"), refreshed from
+  // the site's existing viewer-presence roster (window.getViewerRoster,
+  // defined in index.html) whenever it re-syncs. On subdomains without that
+  // roster, dots simply stay grey — nothing breaks.
+  function refreshPresenceUI() {
+    const roster = typeof window.getViewerRoster === 'function' ? window.getViewerRoster() : null;
+    const online = new Map();
+    (roster?.members || []).forEach(m => { if (m.userId) online.set(m.userId, m); });
+    document.querySelectorAll('[data-ta-online-for]').forEach(el => {
+      const m = online.get(el.getAttribute('data-ta-online-for'));
+      el.dataset.online = m ? '1' : '0';
+    });
+    document.querySelectorAll('[data-ta-playing-for]').forEach(el => {
+      const m = online.get(el.getAttribute('data-ta-playing-for'));
+      el.hidden = !(m && m.activeWindow === 'games');
+      if (!el.hidden) el.textContent = '🎮 Playing';
+    });
+  }
+  window.addEventListener('trollrunner:presence-sync', refreshPresenceUI);
+
+  function onlineDotNode(userId) {
+    const dot = document.createElement('span');
+    dot.className = 'ta-dot';
+    dot.setAttribute('data-ta-online-for', userId);
+    return dot;
+  }
+  function playingTagNode(userId) {
+    const tag = document.createElement('span');
+    tag.className = 'ta-playing-tag';
+    tag.setAttribute('data-ta-playing-for', userId);
+    tag.hidden = true;
+    return tag;
+  }
+
+  function medalsSection(badges) {
+    if (!badges.length) return null;
+    const section = document.createElement('div');
+    section.className = 'ta-section';
+    section.innerHTML = '<h4>Leaderboard badges</h4>';
+    const wrap = document.createElement('div');
+    wrap.className = 'ta-medals';
+    const medal = r => (r === 1 ? '🥇' : r === 2 ? '🥈' : '🥉');
+    badges.forEach(b => {
+      const meta = gameMeta(b.game_id);
+      const chip = document.createElement('span');
+      chip.className = 'ta-medal';
+      chip.textContent = `${medal(b.rank)} #${b.rank} ${meta.name}`;
+      wrap.appendChild(chip);
+    });
+    section.appendChild(wrap);
+    return section;
   }
 
   function recentlyPlayedSection(stats) {
@@ -1648,14 +1837,14 @@
   }
 
   // Lets host pages (e.g. index.html's richer viewer/chat profile card)
-  // embed the same add/accept/remove friend button this file uses
+  // embed the same add/accept/remove/message controls this file uses
   // internally, without duplicating the friendship logic.
-  async function renderFriendAction(otherId, container, onChange) {
+  async function renderFriendAction(otherId, otherName, container, onChange) {
     if (!container || !otherId) return;
     if (!cachedProfile || otherId === cachedProfile.id) return;
     ensureModalStyles();
     const status = await friendStatus(otherId);
-    container.appendChild(friendActionButton(otherId, status, onChange));
+    container.appendChild(friendControls(otherId, otherName, status, onChange));
   }
 
   // Public profile card for ANY runner — click a username in TrollChat, the
@@ -1665,10 +1854,11 @@
     if (cachedProfile && userId === cachedProfile.id) { await openProfile(); return; }
     const body = buildDrawer('Profile');
     body.innerHTML = '<p class="ta-muted">Loading profile…</p>';
-    const [profile, stats, status] = await Promise.all([
+    const [profile, stats, status, badges] = await Promise.all([
       getPublicProfile(userId),
       getRecentlyPlayed(userId, 5),
       friendStatus(userId),
+      getLeaderboardBadges(userId),
     ]);
     if (!profile) { body.innerHTML = '<p class="ta-muted">Couldn’t find that runner.</p>'; return; }
     body.innerHTML = '';
@@ -1677,9 +1867,12 @@
     row.className = 'ta-row';
     row.appendChild(avatarNode({ avatarUrl: profile.avatar_url }));
     const meta = document.createElement('div');
-    meta.innerHTML = `<p class="ta-name"></p><span class="ta-pill"></span>`;
-    meta.querySelector('.ta-name').textContent = profile.username;
+    meta.innerHTML = `<p class="ta-name" style="display:flex;align-items:center;"></p><span class="ta-pill"></span>`;
+    const nameEl = meta.querySelector('.ta-name');
+    nameEl.appendChild(onlineDotNode(userId));
+    nameEl.appendChild(document.createTextNode(profile.username));
     meta.querySelector('.ta-pill').textContent = `LV ${profile.level}`;
+    meta.appendChild(playingTagNode(userId));
     row.appendChild(meta);
     body.appendChild(row);
 
@@ -1694,14 +1887,18 @@
       body.appendChild(bio);
     }
 
+    const medals = medalsSection(badges);
+    if (medals) body.appendChild(medals);
+
     body.appendChild(recentlyPlayedSection(stats));
 
     if (cachedProfile) {
       const actions = document.createElement('div');
       actions.className = 'ta-section';
-      actions.appendChild(friendActionButton(userId, status));
+      actions.appendChild(friendControls(userId, profile.username, status));
       body.appendChild(actions);
     }
+    refreshPresenceUI();
   }
 
   // Prefer the site's richer roster/chat profile card (avatar + bio + full
@@ -1712,39 +1909,32 @@
     else openProfileCard(id);
   }
 
-  function friendListRow(friend, { onRespond } = {}) {
+  // status: 'accepted' | 'pending_in' | 'pending_out' — drives which
+  // friendControls buttons show. onChange re-renders the panel's lists.
+  function friendListRow(person, status, onChange) {
     const row = document.createElement('div');
     row.className = 'ta-row';
-    row.style.cursor = 'pointer';
-    row.appendChild(avatarNode({ avatarUrl: friend.avatar_url }));
+    row.style.alignItems = 'flex-start';
+    const avatarWrap = document.createElement('span');
+    avatarWrap.style.cursor = 'pointer';
+    avatarWrap.appendChild(avatarNode({ avatarUrl: person.avatar_url }));
+    avatarWrap.addEventListener('click', () => viewProfile(person.id, person.username));
+    row.appendChild(avatarWrap);
+
     const meta = document.createElement('div');
     meta.style.flex = '1';
-    meta.innerHTML = `<p class="ta-name" style="font-size:15px;"></p><span class="ta-muted"></span>`;
-    meta.querySelector('.ta-name').textContent = friend.username || 'runner';
-    meta.querySelector('.ta-muted').textContent = `LV ${friend.level ?? 1}`;
+    const nameEl = document.createElement('p');
+    nameEl.className = 'ta-name';
+    nameEl.style.cssText = 'font-size:15px;cursor:pointer;display:flex;align-items:center;';
+    nameEl.appendChild(onlineDotNode(person.id));
+    nameEl.appendChild(document.createTextNode(person.username || 'runner'));
+    nameEl.addEventListener('click', () => viewProfile(person.id, person.username));
+    const sub = document.createElement('span');
+    sub.className = 'ta-muted';
+    sub.textContent = `LV ${person.level ?? 1}`;
+    meta.append(nameEl, sub, playingTagNode(person.id), friendControls(person.id, person.username, status, onChange));
     row.appendChild(meta);
-    meta.addEventListener('click', () => viewProfile(friend.id, friend.username));
-
-    if (onRespond) {
-      const acceptBtn = document.createElement('button');
-      acceptBtn.className = 'ta-btn ta-btn--sm';
-      acceptBtn.type = 'button';
-      acceptBtn.textContent = 'Accept';
-      const declineBtn = document.createElement('button');
-      declineBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost';
-      declineBtn.type = 'button';
-      declineBtn.textContent = 'Decline';
-      acceptBtn.addEventListener('click', () => onRespond(friend.id, true));
-      declineBtn.addEventListener('click', () => onRespond(friend.id, false));
-      row.append(acceptBtn, declineBtn);
-    } else {
-      const msgBtn = document.createElement('button');
-      msgBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost';
-      msgBtn.type = 'button';
-      msgBtn.textContent = 'View';
-      msgBtn.addEventListener('click', () => viewProfile(friend.id, friend.username));
-      row.appendChild(msgBtn);
-    }
+    refreshPresenceUI();
     return row;
   }
 
@@ -1803,8 +1993,34 @@
     friendsSection.className = 'ta-section';
     friendsSection.innerHTML = '<h4>Friends</h4>';
 
+    const activitySection = document.createElement('div');
+    activitySection.className = 'ta-section';
+    activitySection.innerHTML = '<h4>Activity</h4>';
+
     body.innerHTML = '';
-    body.append(addSection, requestsSection, friendsSection);
+    body.append(addSection, requestsSection, friendsSection, activitySection);
+
+    async function renderActivity(friendIds) {
+      activitySection.innerHTML = '<h4>Activity</h4>';
+      const events = await getFriendActivity(friendIds, 8);
+      if (!events.length) {
+        activitySection.insertAdjacentHTML('beforeend', '<p class="ta-muted">Nothing from your friends yet.</p>');
+        return;
+      }
+      events.forEach(ev => {
+        const row = document.createElement('div');
+        row.className = 'ta-row';
+        row.style.cssText = 'cursor:pointer;gap:8px;';
+        row.appendChild(avatarNode({ avatarUrl: ev.avatar_url }));
+        const meta = gameMeta(ev.game_id);
+        const text = document.createElement('span');
+        text.style.fontSize = '13px';
+        text.textContent = `${ev.username} scored ${Number(ev.score).toLocaleString()} in ${meta.icon} ${meta.name}`;
+        row.appendChild(text);
+        row.addEventListener('click', () => viewProfile(ev.user_id, ev.username));
+        activitySection.appendChild(row);
+      });
+    }
 
     async function renderLists() {
       const [{ incoming, outgoing }, friends] = await Promise.all([listFriendRequests(), listFriends()]);
@@ -1813,34 +2029,182 @@
       if (!incoming.length && !outgoing.length) {
         requestsSection.insertAdjacentHTML('beforeend', '<p class="ta-muted">No pending requests.</p>');
       } else {
-        incoming.forEach(req => {
-          requestsSection.appendChild(friendListRow(req, {
-            onRespond: async (id, accept) => {
-              await respondFriendRequest(id, accept);
-              void renderLists();
-            },
-          }));
-        });
-        outgoing.forEach(req => {
-          const row = friendListRow(req);
-          const tag = document.createElement('span');
-          tag.className = 'ta-muted';
-          tag.textContent = 'pending';
-          row.appendChild(tag);
-          requestsSection.appendChild(row);
-        });
+        incoming.forEach(req => requestsSection.appendChild(friendListRow(req, 'pending_in', () => renderLists())));
+        outgoing.forEach(req => requestsSection.appendChild(friendListRow(req, 'pending_out', () => renderLists())));
       }
 
       friendsSection.innerHTML = '<h4>Friends</h4>';
       if (!friends.length) {
         friendsSection.insertAdjacentHTML('beforeend', '<p class="ta-muted">No friends yet — add one above.</p>');
       } else {
-        friends.forEach(friend => friendsSection.appendChild(friendListRow(friend)));
+        friends.forEach(friend => friendsSection.appendChild(friendListRow(friend, 'accepted', () => renderLists())));
       }
+
+      void renderActivity(friends.map(f => f.id));
     }
 
     void renderLists();
   }
+
+  // Friends-only 1:1 chat — reuses the drawer shell + ta- styles, plain
+  // text only (no gif/draw protocol, unlike TrollChat). Realtime broadcast
+  // for instant delivery, troll_dm_messages for history; troll_dm_open
+  // enforces server-side that you can only message an accepted friend.
+  async function openDmPanel(otherId, otherName) {
+    if (!cachedProfile) return;
+    const body = buildDrawer(`💬 ${otherName || 'Message'}`);
+    body.style.cssText = 'display:flex;flex-direction:column;height:100%;box-sizing:border-box;';
+    body.innerHTML = '<p class="ta-muted">Opening…</p>';
+
+    let threadId;
+    try {
+      threadId = await openDmThread(otherId);
+    } catch (error) {
+      body.innerHTML = `<p class="ta-muted">${error?.message || 'Could not open that conversation.'}</p>`;
+      return;
+    }
+    body.innerHTML = '';
+
+    const feed = document.createElement('div');
+    feed.className = 'ta-dm-feed';
+    const composerRow = document.createElement('div');
+    composerRow.className = 'ta-dm-composer';
+    const input = document.createElement('input');
+    input.className = 'ta-input';
+    input.placeholder = 'Message…';
+    input.maxLength = 240;
+    const sendBtn = document.createElement('button');
+    sendBtn.className = 'ta-btn ta-btn--sm';
+    sendBtn.type = 'button';
+    sendBtn.textContent = 'Send';
+    composerRow.append(input, sendBtn);
+    body.append(feed, composerRow);
+
+    const renderMsg = m => {
+      const el = document.createElement('div');
+      el.className = 'ta-dm-msg' + (m.sender_id === cachedProfile.id ? ' is-me' : '');
+      const text = document.createElement('div');
+      text.textContent = m.body;
+      const time = document.createElement('span');
+      time.className = 'ta-dm-time';
+      time.textContent = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      el.append(text, time);
+      feed.appendChild(el);
+      feed.scrollTop = feed.scrollHeight;
+    };
+
+    (await getDmHistory(threadId, 60)).forEach(renderMsg);
+    feed.scrollTop = feed.scrollHeight;
+
+    const unsub = subscribeDm(threadId, payload => {
+      if (payload.sender_id === cachedProfile.id) return; // already rendered on send
+      renderMsg(payload);
+    });
+    // buildDrawer doesn't expose a close hook, so watch for its own removal
+    // to stop listening once the panel closes.
+    const watcher = new MutationObserver(() => {
+      if (!document.getElementById(DRAWER_ID)) { unsub(); watcher.disconnect(); }
+    });
+    watcher.observe(document.body, { childList: true });
+
+    const doSend = async () => {
+      const text = input.value;
+      if (!String(text || '').trim()) return;
+      input.value = '';
+      sendBtn.disabled = true;
+      try {
+        const row = await sendDm(threadId, text);
+        if (row) renderMsg({ ...row, created_at: new Date().toISOString() });
+      } catch {
+        input.value = text;
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    };
+    sendBtn.addEventListener('click', doSend);
+    input.addEventListener('keydown', event => { if (event.key === 'Enter') void doSend(); });
+    input.focus();
+  }
+
+  /* ------------------------------------------------------------------
+     Local toasts (friend requests/accepts) — a small self-dismissing
+     corner popup, intentionally separate from TrollNotis (that engine is
+     a social-post cross-announcer, not a generic notification system).
+     ------------------------------------------------------------------ */
+  function showLocalToast(title, message, onClick) {
+    ensureModalStyles();
+    let root = document.getElementById('ta-toast-root');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'ta-toast-root';
+      root.className = 'ta-toast-root';
+      document.body.appendChild(root);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'ta-toast';
+    toast.innerHTML = '<strong></strong><span></span>';
+    toast.querySelector('strong').textContent = title;
+    toast.querySelector('span').textContent = message;
+    if (onClick) toast.addEventListener('click', onClick);
+    root.appendChild(toast);
+    window.setTimeout(() => toast.remove(), 7000);
+  }
+
+  /* ------------------------------------------------------------------
+     Friend-activity polling: dispatches a pending-request count (host
+     pages badge their Friends button off it) and toasts NEW incoming
+     requests / newly-accepted friends since the last poll. No realtime
+     subscription needed (and none of this table's replication is on) —
+     a cheap poll while a session is open is enough.
+     ------------------------------------------------------------------ */
+  let friendPollTimer = null;
+  let friendPollSeeded = false;
+  let seenIncomingIds = new Set();
+  let seenFriendIds = new Set();
+
+  function dispatchFriendCount(count) {
+    try { window.dispatchEvent(new CustomEvent('trollrunner:friend-requests-changed', { detail: { count } })); } catch {}
+  }
+
+  async function pollFriendActivity() {
+    if (!cachedProfile) return;
+    try {
+      const [{ incoming }, friends] = await Promise.all([listFriendRequests(), listFriends()]);
+      dispatchFriendCount(incoming.length);
+      if (!friendPollSeeded) {
+        seenIncomingIds = new Set(incoming.map(r => r.id));
+        seenFriendIds = new Set(friends.map(f => f.id));
+        friendPollSeeded = true;
+        return;
+      }
+      incoming.forEach(req => {
+        if (seenIncomingIds.has(req.id)) return;
+        seenIncomingIds.add(req.id);
+        showLocalToast('Friend request', `${req.username} wants to be friends.`, () => openFriendsPanel());
+      });
+      friends.forEach(f => {
+        if (seenFriendIds.has(f.id)) return;
+        seenFriendIds.add(f.id);
+        showLocalToast('New friend', `You and ${f.username} are now friends.`, () => viewProfile(f.id, f.username));
+      });
+    } catch {}
+  }
+
+  function startFriendActivityPolling() {
+    stopFriendActivityPolling();
+    friendPollSeeded = false;
+    void pollFriendActivity();
+    friendPollTimer = window.setInterval(pollFriendActivity, 45000);
+  }
+  function stopFriendActivityPolling() {
+    if (friendPollTimer) { window.clearInterval(friendPollTimer); friendPollTimer = null; }
+    dispatchFriendCount(0);
+  }
+  window.addEventListener('trollrunner:auth-changed', event => {
+    if (event.detail) startFriendActivityPolling();
+    else stopFriendActivityPolling();
+  });
 
   function openRecovery() {
     const body = buildModal('Reset password');
@@ -2027,6 +2391,13 @@
     findProfileByUsername,
     getPublicProfile,
     getRecentlyPlayed,
+    getLeaderboardBadges,
+    getFriendActivity,
+    ensureSocialStyles: ensureModalStyles,
+    openDmPanel,
+    openDmThread,
+    getDmHistory,
+    sendDm,
   };
 
   if (document.readyState === 'loading') {

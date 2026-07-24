@@ -76,29 +76,50 @@ Supabase's own `auth.identities`, read via `getXIdentity()`.
 ## Friends (optional, one more SQL step)
 
 Adds friend requests/accepts, a click-anywhere public profile card (username
-in TrollChat → profile), and a "recently played" list on that card sourced
-from the existing `troll_game_stats` table (no new schema for that part).
+in TrollChat → profile) with an online dot / "playing" tag / leaderboard
+medals, friends-only DMs, and a friend-activity feed. Recently-played and
+activity both read the existing `troll_game_stats` / `troll_leaderboard_view`
+tables — no new schema for those.
 
 9. **SQL Editor**: run
    [`assets/supabase/troll_friends.sql`](../assets/supabase/troll_friends.sql)
-   (idempotent — safe to re-run). Adds `troll_friendships` + the RPCs
+   (idempotent — safe to re-run, including after pulling an update to this
+   file: it only ever adds/replaces, never drops). Adds `troll_friendships` +
+   `troll_dm_threads` / `troll_dm_messages` + the RPCs
    `troll_send_friend_request` / `troll_respond_friend_request` /
-   `troll_remove_friend` / `troll_friend_status`. All writes go through those
-   RPCs — there are no direct insert/update/delete grants on the table.
+   `troll_remove_friend` / `troll_friend_status` / `troll_dm_open` /
+   `troll_leaderboard_badges`. All writes go through those RPCs (or RLS
+   scoped to thread participants for DM messages) — no direct table grants.
 
 Until this runs, the "Friends" button and profile-card "Add friend" action
 will fail (the RPCs won't exist yet); everything else in this doc is
-unaffected.
+unaffected. If you already ran an earlier version of this file (friends
+only, no DMs/badges), **re-run it once** to pick up the new tables/RPCs —
+that's the only extra step, nothing to undo first.
+
+**Direct messages**: friends-only — `troll_dm_open` refuses to create a
+thread unless `troll_friendships` already has an `accepted` row for the
+pair, so you can't DM a stranger. Delivery is Realtime Broadcast on a
+per-thread channel (`trolldm_<threadId>`) plus a `troll_dm_messages` row for
+history; no history retention/expiry is enforced. Plain text only (240
+chars) — unlike TrollChat, the DM composer does not support the gif/draw
+protocol from `troll-chat-extras.js`.
+
+**"Currently playing"**: presence-only, not per-game — the Games window is
+a cross-origin iframe onto `games.trollrunner.net`, so the parent page can't
+read which specific game is open inside it, only that the window itself is
+open. Shows as a generic "🎮 Playing" tag.
 
 ## Files
 
 | File | Role |
 |---|---|
 | `assets/supabase/troll_accounts.sql` | Full backend: tables, RLS, RPCs, storage |
-| `assets/supabase/troll_friends.sql` | Friends backend: `troll_friendships` table + request/accept/remove RPCs |
-| `assets/js/troll-accounts.js` | Shared client lib → `window.TrollrunnerAccounts` (+ built-in Profile/Settings/Friends modals, public profile cards) |
-| `index.html` (gate section) | Account portal UI: Login/Create Account tabs, logged-in panel, Friends button |
-| `index.html` (TrollChat section) | Chat posts as the account identity when logged in; usernames are clickable → profile card |
+| `assets/supabase/troll_friends.sql` | Friends + DM backend: `troll_friendships`, `troll_dm_threads`/`troll_dm_messages`, request/accept/remove/DM/badges RPCs |
+| `assets/js/troll-accounts.js` | Shared client lib → `window.TrollrunnerAccounts` (Profile/Settings/Friends modals, profile drawer, DM panel, friend-request toasts) |
+| `index.html` (gate section) | Account portal UI: Login/Create Account tabs, logged-in panel, Friends button (with a pending-request count badge) |
+| `index.html` (TrollChat + presence) | Chat posts as the account identity when logged in; usernames clickable → profile drawer; site presence carries an `activeWindow` flag ("🎮 Playing") that the drawer reads |
+| `chat.html` | Standalone TrollChat page — also loads `troll-accounts.js` so its usernames are clickable → the same profile drawer |
 
 ## Why fake login is impossible now
 
