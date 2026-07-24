@@ -784,6 +784,8 @@
         <button id="public-lock-btn" class="alert" type="button">Lock public site</button>
         <button id="public-unlock-btn" class="success" type="button">Unlock public site</button>
         <button id="public-refresh-btn" class="secondary" type="button">Refresh status</button>
+        <button id="admin-link-btn" class="secondary" type="button">Sign in as admin</button>
+        <button id="admin-signout-btn" class="secondary" type="button">Sign out</button>
       </div>
       <p id="admin-control-status" class="lock-console-status">Use the admin password to control the public lock.</p>
     </div>
@@ -1467,18 +1469,27 @@ Fixed some admin system bugs.`,
     async function parseSupabaseError(response) {
       if (!response) return 'No response from Supabase.';
       const prefix = `HTTP ${response.status}`;
+      let message;
       try {
         const payload = await response.clone().json();
         const details = [payload?.message, payload?.hint, payload?.details].filter(Boolean).join(' | ');
-        return details ? `${prefix}: ${details}` : prefix;
+        message = details ? `${prefix}: ${details}` : prefix;
       } catch {
         try {
           const text = await response.clone().text();
-          return text ? `${prefix}: ${text}` : prefix;
+          message = text ? `${prefix}: ${text}` : prefix;
         } catch {
-          return prefix;
+          message = prefix;
         }
       }
+      // "Admin session required" means the admin login (separate from any
+      // regular troll_runner account login — see admin-auth.js) has
+      // actually expired, not just a flaky request. Say so plainly instead
+      // of leaving it to read like a generic server error.
+      if (/admin session required/i.test(message)) {
+        message += ' — your admin login expired. Click "Sign in as admin" in the Public lock console below, then try saving again.';
+      }
+      return message;
     }
 
     async function pullUpdatesFromBackend() {

@@ -90,8 +90,24 @@
     }
   }
 
+  // A session sitting in a backgrounded tab can outlive its access token:
+  // supabase-js's own autoRefreshToken timer can get throttled by the
+  // browser and miss the refresh window, so getSession() hands back a
+  // token that LOOKS present but the server already considers expired —
+  // every admin write then fails with a confusing "Admin session required"
+  // even though the UI still says "Admin: signed in". Refresh proactively
+  // whenever the token is expired or about to be (30s buffer) instead of
+  // trusting whatever's cached.
   async function getAccessToken() {
-    const session = await getSession();
+    const sb = getAuthClient();
+    if (!sb) return null;
+    const { data } = await sb.auth.getSession();
+    let session = data?.session || null;
+    const expiresAtMs = session?.expires_at ? session.expires_at * 1000 : 0;
+    if (session && expiresAtMs && expiresAtMs < Date.now() + 30000) {
+      const { data: refreshed, error } = await sb.auth.refreshSession();
+      if (!error && refreshed?.session) session = refreshed.session;
+    }
     return session?.access_token || null;
   }
 
