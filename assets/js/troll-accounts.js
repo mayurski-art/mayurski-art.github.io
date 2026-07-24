@@ -939,6 +939,7 @@
       .ta-x-badge svg { width: 12px; height: 12px; fill: #cfe9cf; flex: none; }
       .ta-x-badge:hover { color: #fff; }
       .ta-x-badge:hover svg { fill: #fff; }
+      .ta-btn--x[hidden], .ta-x-badge[hidden] { display: none; }
       .ta-status { min-height: 16px; font-size: 12px; color: #8fa396; }
       .ta-status[data-kind="error"] { color: #ff9ab6; }
       .ta-status[data-kind="success"] { color: #8cffbf; }
