@@ -37,6 +37,17 @@ doesn't exist yet.
 Note: Supabase's built-in mailer is rate-limited to a few emails per hour —
 fine for now; plug in custom SMTP (Resend etc.) if reset volume ever grows.
 
+### X (Twitter) account linking (optional, one-time)
+
+6. Create an X Developer App (developer.x.com) with OAuth 2.0 enabled and a
+   callback URL of `https://tjsyhfplxjtakdfkpdtg.supabase.co/auth/v1/callback`.
+7. **Supabase dashboard → Authentication → Sign In / Up → Twitter**: turn it
+   ON and paste the app's Client ID/Secret. No client-side secret is ever
+   involved — the whole token exchange happens on Supabase's side.
+
+No table/migration is needed for this — the connected handle lives in
+Supabase's own `auth.identities`, read via `getXIdentity()`.
+
 ## How password recovery works
 
 - **Signup with an email** → that email *is* the auth email; Supabase can
@@ -93,6 +104,9 @@ TrollrunnerAccounts.openRecovery();           // "forgot password" modal
 await TrollrunnerAccounts.uploadAvatar(file); // PNG/JPG/WebP → 256px square webp
 TrollrunnerAccounts.openProfile();            // built-in modal
 TrollrunnerAccounts.openSettings();           // username / avatar / recovery email / password / logout
+await TrollrunnerAccounts.connectX();         // starts the X OAuth link, navigates away
+await TrollrunnerAccounts.getXIdentity();     // {handle, name, avatarUrl} | null
+await TrollrunnerAccounts.unlinkX();
 ```
 
 Auth changes broadcast `window` event **`trollrunner:auth-changed`**

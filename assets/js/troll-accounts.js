@@ -16,6 +16,8 @@
      updateRecoveryEmail(email) / requestPasswordReset(email) / openRecovery()
      connectWallet() → address | null   (opens Phantom, links it if logged in)
      getWalletAddress() / unlinkWallet()
+     connectX()                      → starts the X (Twitter) OAuth link, navigates away
+     getXIdentity() → {handle,name,avatarUrl} | null   /   unlinkX()
      awardXp(event, source, meta)    → server-guarded XP (cooldowns/caps)
      recordGameResult(gameId, score, meta)
      logPendingSpend({token,amount,wallet,signature,purpose,feature})
@@ -49,6 +51,10 @@
   let client = null;
   let cachedProfile = null;
   let profilePromise = null;
+  // Set by detectRecoveryLink() when the page just came back from an X
+  // (Twitter) identity-link round trip; openSettings() reads + clears these.
+  let justLinkedX = false;
+  let lastXLinkError = null;
 
   /* ----------------------------------------------------------- cross-domain SSO
      Supabase's own session storage is localStorage, which is scoped per-origin --
@@ -452,6 +458,60 @@
   }
 
   /* ------------------------------------------------------------------
+     X (Twitter) link — uses Supabase Auth's identity linking, so no
+     custom backend/token exchange lives in this repo. Requires the
+     "Twitter" provider to be turned on in the Supabase dashboard with
+     an X Developer App's client id/secret (see docs/ACCOUNTS.md).
+     linkIdentity() navigates the whole page to X and back; the return
+     trip is caught by detectRecoveryLink() below (same hash-token path
+     password recovery already uses) and completed with setSession().
+     ------------------------------------------------------------------ */
+  const X_LINK_PARAM = 'x_linked';
+
+  function xRedirectUrl() {
+    const url = new URL(location.href);
+    url.hash = '';
+    url.searchParams.set(X_LINK_PARAM, '1');
+    return url.toString();
+  }
+
+  async function connectX() {
+    const sb = getClient();
+    if (!sb) throw new Error('Account service failed to load. Refresh and try again.');
+    if (!cachedProfile) throw new Error('Login first.');
+    const { error } = await sb.auth.linkIdentity({ provider: 'twitter', options: { redirectTo: xRedirectUrl() } });
+    if (error) throw friendlyError(error, 'Could not start the X connection.');
+    // Success navigates the browser to X — nothing left to do on this page load.
+  }
+
+  async function getXIdentity() {
+    const sb = getClient();
+    if (!sb || !cachedProfile) return null;
+    const { data, error } = await sb.auth.getUserIdentities();
+    if (error) return null;
+    const identity = (data?.identities || []).find(i => i.provider === 'twitter');
+    if (!identity) return null;
+    const meta = identity.identity_data || {};
+    return {
+      handle: meta.user_name || meta.preferred_username || meta.screen_name || null,
+      name: meta.name || meta.full_name || null,
+      avatarUrl: meta.picture || meta.avatar_url || null,
+    };
+  }
+
+  async function unlinkX() {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const { data, error: listError } = await sb.auth.getUserIdentities();
+    if (listError) throw friendlyError(listError, 'Could not look up your X connection.');
+    const identity = (data?.identities || []).find(i => i.provider === 'twitter');
+    if (!identity) return true;
+    const { error } = await sb.auth.unlinkIdentity(identity);
+    if (error) throw friendlyError(error, 'Could not disconnect X.');
+    return true;
+  }
+
+  /* ------------------------------------------------------------------
      Password recovery — reset links from Supabase land back on the site
      with tokens in the URL hash (implicit flow); we swap them for a
      session, scrub the URL, and ask for a new password.
@@ -469,14 +529,33 @@
     }
   }
 
+  function scrubXLinkParam() {
+    const url = new URL(location.href);
+    if (!url.searchParams.has(X_LINK_PARAM)) return;
+    url.searchParams.delete(X_LINK_PARAM);
+    history.replaceState(null, '', url.pathname + url.search);
+  }
+
   function detectRecoveryLink() {
     const hash = String(location.hash || '');
-    if (!/access_token=/.test(hash)) return;
+    const wasXLink = new URLSearchParams(location.search).get(X_LINK_PARAM) === '1';
+
+    // X (Twitter) link errors come back as #error=...&error_description=...
+    // (no access_token), e.g. the visitor cancelled on X's side.
+    if (wasXLink && /error=/.test(hash) && !/access_token=/.test(hash)) {
+      const params = new URLSearchParams(hash.slice(1));
+      history.replaceState(null, '', location.pathname);
+      lastXLinkError = decodeURIComponent(params.get('error_description') || params.get('error') || 'X connection was cancelled.');
+      void openSettings();
+      return;
+    }
+
+    if (!/access_token=/.test(hash)) { if (wasXLink) scrubXLinkParam(); return; }
     const params = new URLSearchParams(hash.slice(1));
     const type = params.get('type');
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
-    const scrub = () => history.replaceState(null, '', location.pathname + location.search);
+    const scrub = () => history.replaceState(null, '', location.pathname + (wasXLink ? '' : location.search));
     if (!accessToken || !refreshToken) return;
     if (jwtEmail(accessToken) === 'admin@login.trollrunner.net') return;
     if (type === 'recovery') {
@@ -488,6 +567,20 @@
       });
     } else if (type === 'email_change' || type === 'signup' || type === 'magiclink') {
       scrub(); // confirmation links: session tokens are consumed, nothing to show
+    } else if (!type) {
+      // OAuth identity-link return (currently only used by connectX()).
+      const sb = getClient();
+      if (!sb) return;
+      void sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(async ({ error }) => {
+        scrub();
+        if (!error) {
+          await refreshProfile();
+          if (wasXLink) { justLinkedX = true; void openSettings(); }
+        } else if (wasXLink) {
+          lastXLinkError = friendlyError(error, 'Could not finish connecting X.').message;
+          void openSettings();
+        }
+      });
     }
   }
 
@@ -710,6 +803,14 @@
       .ta-btn:active { transform: translateY(2px); }
       .ta-btn[disabled] { opacity: 0.6; cursor: progress; }
       .ta-btn--ghost { background: linear-gradient(180deg, #222a25, #141a16); color: #cfe9cf; box-shadow: 0 3px 0 #000; }
+      .ta-btn--x { display: inline-flex; align-items: center; gap: 8px; background: #000; color: #fff;
+        box-shadow: 0 3px 0 #000; }
+      .ta-btn--x svg { width: 14px; height: 14px; fill: #fff; flex: none; }
+      .ta-x-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 12px;
+        color: #cfe9cf; text-decoration: none; }
+      .ta-x-badge svg { width: 12px; height: 12px; fill: #cfe9cf; flex: none; }
+      .ta-x-badge:hover { color: #fff; }
+      .ta-x-badge:hover svg { fill: #fff; }
       .ta-status { min-height: 16px; font-size: 12px; color: #8fa396; }
       .ta-status[data-kind="error"] { color: #ff9ab6; }
       .ta-status[data-kind="success"] { color: #8cffbf; }
@@ -866,6 +967,8 @@
     return box;
   }
 
+  const X_LOGO_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
+
   function xpProgress(session) {
     const level = Math.max(1, session?.level || 1);
     const floor = 50 * (level - 1) * (level - 1);
@@ -916,6 +1019,19 @@
     meta.querySelector('.ta-name').textContent = session.username;
     meta.querySelector('.ta-pill').textContent = `LV ${session.level}`;
     meta.querySelector('.ta-muted').textContent = `Running since ${joined}`;
+    const xLink = document.createElement('a');
+    xLink.className = 'ta-x-badge';
+    xLink.target = '_blank';
+    xLink.rel = 'noopener noreferrer';
+    xLink.hidden = true;
+    xLink.innerHTML = X_LOGO_SVG;
+    meta.appendChild(xLink);
+    void getXIdentity().then(identity => {
+      if (!identity?.handle) return;
+      xLink.href = `https://x.com/${identity.handle}`;
+      xLink.appendChild(document.createTextNode(`@${identity.handle}`));
+      xLink.hidden = false;
+    });
     row.appendChild(meta);
     body.appendChild(row);
 
@@ -1170,6 +1286,51 @@
     }, 'Wallet unlinked.'));
     void refreshWalletUi();
 
+    // X (Twitter)
+    const xSection = document.createElement('div');
+    xSection.className = 'ta-section';
+    xSection.innerHTML = `<h4>X</h4><p class="ta-muted">Connect your X account — shown on your profile card.</p>`;
+    const xStatus = mkStatus();
+    const xRow = document.createElement('div');
+    xRow.className = 'ta-row';
+    const xConnectBtn = document.createElement('button');
+    xConnectBtn.className = 'ta-btn ta-btn--x';
+    xConnectBtn.type = 'button';
+    xConnectBtn.innerHTML = `${X_LOGO_SVG}<span>Connect</span>`;
+    const xUnlinkBtn = document.createElement('button');
+    xUnlinkBtn.className = 'ta-btn ta-btn--ghost';
+    xUnlinkBtn.type = 'button';
+    xUnlinkBtn.textContent = 'Disconnect';
+    xUnlinkBtn.hidden = true;
+    xRow.append(xConnectBtn, xUnlinkBtn);
+    xSection.append(xRow, xStatus);
+    body.appendChild(xSection);
+
+    const refreshXUi = async () => {
+      const identity = await getXIdentity();
+      if (identity?.handle) {
+        xConnectBtn.innerHTML = `${X_LOGO_SVG}<span>@${identity.handle} — reconnect</span>`;
+        xUnlinkBtn.hidden = false;
+      } else {
+        xConnectBtn.innerHTML = `${X_LOGO_SVG}<span>Connect X account</span>`;
+        xUnlinkBtn.hidden = true;
+      }
+    };
+    if (lastXLinkError) {
+      report(xStatus, lastXLinkError, 'error');
+      lastXLinkError = null;
+    } else if (justLinkedX) {
+      report(xStatus, 'X connected.', 'success');
+      justLinkedX = false;
+    }
+    xConnectBtn.addEventListener('click', () => run(xConnectBtn, xStatus, () => connectX(),
+      'Redirecting to X…'));
+    xUnlinkBtn.addEventListener('click', () => run(xUnlinkBtn, xStatus, async () => {
+      await unlinkX();
+      await refreshXUi();
+    }, 'X disconnected.'));
+    void refreshXUi();
+
     // Group chat invites
     const groupSection = document.createElement('div');
     groupSection.className = 'ta-section';
@@ -1390,6 +1551,9 @@
     connectWallet,
     getWalletAddress,
     unlinkWallet,
+    connectX,
+    getXIdentity,
+    unlinkX,
     uploadAvatar,
     awardXp,
     recordGameResult,
