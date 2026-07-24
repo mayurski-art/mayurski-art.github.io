@@ -806,6 +806,8 @@
       .ta-btn--x { display: inline-flex; align-items: center; gap: 8px; background: #000; color: #fff;
         box-shadow: 0 3px 0 #000; }
       .ta-btn--x svg { width: 14px; height: 14px; fill: #fff; flex: none; }
+      .ta-btn--sm { padding: 4px 10px; font-size: 12px; margin-top: 4px; }
+      .ta-btn--sm svg { width: 12px; height: 12px; }
       .ta-x-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 12px;
         color: #cfe9cf; text-decoration: none; }
       .ta-x-badge svg { width: 12px; height: 12px; fill: #cfe9cf; flex: none; }
@@ -1026,8 +1028,23 @@
     xLink.hidden = true;
     xLink.innerHTML = X_LOGO_SVG;
     meta.appendChild(xLink);
+    const xConnectBtn = document.createElement('button');
+    xConnectBtn.className = 'ta-btn ta-btn--x ta-btn--sm';
+    xConnectBtn.type = 'button';
+    xConnectBtn.innerHTML = `${X_LOGO_SVG}<span>Connect X</span>`;
+    xConnectBtn.hidden = true;
+    xConnectBtn.addEventListener('click', async () => {
+      xConnectBtn.disabled = true;
+      try {
+        await connectX();
+      } catch (error) {
+        xConnectBtn.disabled = false;
+        xConnectBtn.innerHTML = `${X_LOGO_SVG}<span>${error?.message || 'Could not connect X'}</span>`;
+      }
+    });
+    meta.appendChild(xConnectBtn);
     void getXIdentity().then(identity => {
-      if (!identity?.handle) return;
+      if (!identity?.handle) { xConnectBtn.hidden = false; return; }
       xLink.href = `https://x.com/${identity.handle}`;
       xLink.appendChild(document.createTextNode(`@${identity.handle}`));
       xLink.hidden = false;
