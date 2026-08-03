@@ -5862,6 +5862,8 @@ function tdRefreshSiteVisibility() {
   if (startMenu) tdBuildStartMenu();
   const hubBody = document.querySelector('#tw-hub .tw-body');
   if (hubBody && typeof TD_WINDOWS.hub?.build === 'function') TD_WINDOWS.hub.build(hubBody);
+  if (document.getElementById('td-icons')) tdRenderDockIcons();
+  if (document.querySelector('#td-hotspots .td-hot')) tdApplyHotspotVisibility();
 }
 async function tdRefreshAdminState() {
   try { tdIsAdmin = await isAdminViewer(); } catch { tdIsAdmin = false; }
@@ -5885,7 +5887,7 @@ const TD_WINDOWS = {
   cam: { title: 'Live Cam', icon: '📹', img: 'assets/images/icons/cam.png', flat: true, width: 620, source: '#bio-artwork' },
   updates: { title: 'Latest Updates', icon: '📰', img: 'assets/images/icons/updates.png', flat: true, width: 620, source: '#updates' },
   feedback: { title: 'Feedback', icon: '⌨️', img: 'assets/images/icons/feedback.png', flat: true, width: 660, source: '#feedback' },
-  checklist: { title: 'Beta Checklist', icon: '✅', width: 620, source: '#checklist' },
+  checklist: { title: 'Beta Checklist', icon: '✅', width: 620, source: '#checklist', adminOnly: true },
   about: { title: 'About TrollRunner', icon: 'ℹ️', width: 720, source: 'footer .footer-inner' },
   recycle: { title: 'Recycle Bin', icon: '🗑️', img: 'assets/images/icons/recycle.png', width: 420, build: tdBuildRecycle },
 };
@@ -5900,12 +5902,14 @@ TD_SITES.forEach(site => {
     iframeSrc: site.href,
     build: body => tdBuildIframe(body, site.href, site.label),
     maximizeByDefault: site.id === 'games' || site.id === 'finance',
+    adminOnly: site.adminOnly,
   };
 });
 TD_WINDOWS.nutrition = {
   title: 'Nutrition', icon: '🥗', width: 1040, browser: true,
   url: 'nutrition.trollrunner.net', iframeSrc: 'https://nutrition.trollrunner.net',
   build: body => tdBuildIframe(body, 'https://nutrition.trollrunner.net', 'Nutrition'),
+  adminOnly: true,
 };
 
 const tdState = { init: false, booted: false, z: 20, cascade: 0, windows: new Map(), syncedFrames: [] };
@@ -6202,6 +6206,10 @@ function twOpen(id) {
   const cfg = TD_WINDOWS[id];
   const win = tdState.windows.get(id);
   if (!cfg || !win) return;
+  // Central enforcement point: hub cards, start menu, trail hotspots and
+  // dock icons all route through here, so hiding an adminOnly entry from
+  // one of those surfaces is a UX nicety, not the actual gate — this is.
+  if (cfg.adminOnly && !tdIsAdmin) return;
   tdCloseStartMenu();
   // Iframe-backed site windows only fetch the remote page the first time
   // they're opened, not eagerly for all subdomains at desktop boot.
@@ -6477,6 +6485,35 @@ function tdAddIcon(host, { icon, img, flat, label, ext, dblclick, feature }, onO
   host.appendChild(node);
 }
 
+// The illustrated trail-run wallpaper is the app launcher for most sites
+// (see #td-hotspots) — this classic dock only carries a few frequently-used
+// or system-level shortcuts. Rebuildable (not just built once at boot) so
+// it can drop/restore Checklist the moment admin status resolves.
+function tdRenderDockIcons() {
+  const icons = document.getElementById('td-icons');
+  if (!icons) return;
+  icons.innerHTML = '';
+  tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: true, label: 'TrollChat', feature: 'troll_chat' }, () => twOpen('chat'));
+  if (tdIsAdmin) {
+    tdAddIcon(icons, { icon: TD_WINDOWS.checklist.icon, label: 'Checklist' }, () => twOpen('checklist'));
+  }
+  tdAddIcon(icons, { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account' }, tdOpenAccount);
+  tdAddIcon(icons, { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, flat: true, label: 'Recycle Bin' }, () => twOpen('recycle'));
+}
+
+// Trail hotspots are wired with click listeners once at boot (twOpen()
+// itself refuses adminOnly ids either way), but a non-admin visitor
+// shouldn't even see a clickable Finance/Games/etc. object on the map —
+// hide those buttons outright, and re-run whenever admin status changes.
+function tdApplyHotspotVisibility() {
+  document.querySelectorAll('#td-hotspots .td-hot').forEach(btn => {
+    const id = btn.dataset.tdApp;
+    const restricted = Boolean(TD_WINDOWS[id]?.adminOnly) && !tdIsAdmin;
+    btn.hidden = restricted;
+    btn.style.display = restricted ? 'none' : '';
+  });
+}
+
 // Start-menu route into admin.html (the old footer entry now lives inside
 // the About window — this is the discoverable path).
 async function tdOpenAdmin() {
@@ -6558,9 +6595,11 @@ function tdBuildStartMenu() {
   };
 
   addLabel('APPS');
-  ['hub', 'chat', 'cam', 'updates', 'feedback', 'checklist', 'about'].forEach(id => {
-    addItem(TD_WINDOWS[id].icon, TD_WINDOWS[id].title, () => twOpen(id), null, id === 'chat' ? 'troll_chat' : null);
-  });
+  ['hub', 'chat', 'cam', 'updates', 'feedback', 'checklist', 'about']
+    .filter(id => !TD_WINDOWS[id].adminOnly || tdIsAdmin)
+    .forEach(id => {
+      addItem(TD_WINDOWS[id].icon, TD_WINDOWS[id].title, () => twOpen(id), null, id === 'chat' ? 'troll_chat' : null);
+    });
   addSep();
   addLabel('SITES');
   tdVisibleSites().forEach(site => addItem(site.icon, site.label, () => twOpen(site.id), null, site.id));
@@ -6602,18 +6641,7 @@ function initializeTrollDesktop() {
 
   Object.keys(TD_WINDOWS).forEach(twCreate);
 
-  // The illustrated trail-run wallpaper is the app launcher now (see
-  // #td-hotspots below) — hub/fitness/games/finance/chat/garden/blog/
-  // stickers/videos/cam/updates/feedback all open through their trackside
-  // object instead of a dock icon. Only system-level items (not "apps" in
-  // the world) stay in the classic dock; everything else is still reachable
-  // from the Start Menu regardless.
-  const icons = document.getElementById('td-icons');
-  if (icons) {
-    tdAddIcon(icons, { icon: TD_WINDOWS.checklist.icon, label: 'Checklist' }, () => twOpen('checklist'));
-    tdAddIcon(icons, { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account' }, tdOpenAccount);
-    tdAddIcon(icons, { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, flat: true, label: 'Recycle Bin' }, () => twOpen('recycle'));
-  }
+  tdRenderDockIcons();
 
   document.querySelectorAll('#td-hotspots .td-hot').forEach(btn => {
     const id = btn.dataset.tdApp;
@@ -6621,6 +6649,7 @@ function initializeTrollDesktop() {
     btn.setAttribute('aria-label', label);
     btn.addEventListener('click', () => twOpen(id));
   });
+  tdApplyHotspotVisibility();
 
   tdBuildStartMenu();
 
