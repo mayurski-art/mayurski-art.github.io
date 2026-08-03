@@ -31,8 +31,9 @@
   const RESEND_HOURS = [8, 17];       // 8 AM & 5 PM Pacific
 
   const PLATFORMS = {
-    x:      { app: 'TROLL RUNNER on 𝕏', kicker: 'New post', badge: '𝕏', cta: 'Open on X', handle: '@troll_runner', base: 'https://x.com/troll_runner' },
-    tiktok: { app: 'TROLL RUNNER · TikTok', kicker: 'New video', badge: 'TT', cta: 'Watch on TikTok', handle: '@mayurski', base: 'https://www.tiktok.com/@mayurski' },
+    x:       { app: 'TROLL RUNNER on 𝕏', kicker: 'New post', badge: '𝕏', cta: 'Open on X', handle: '@troll_runner', base: 'https://x.com/troll_runner' },
+    tiktok:  { app: 'TROLL RUNNER · TikTok', kicker: 'New video', badge: 'TT', cta: 'Watch on TikTok', handle: '@mayurski', base: 'https://www.tiktok.com/@mayurski' },
+    account: { app: 'TROLL RUNNER', kicker: 'Account created', badge: '🧌', cta: 'View profile', handle: '', base: '#' },
   };
 
   let client = null, channel = null, subscribed = false, pollTimer = null;
@@ -114,7 +115,7 @@
       .tn-content{min-width:0;flex:1;}
       .tn-kicker{font-family:'Press Start 2P','VT323',monospace;font-size:8px;letter-spacing:0.06em;color:#1c5b38;text-transform:uppercase;margin-bottom:4px;}
       .tn-summary{font-family:'VT323','DM Mono',monospace;font-size:18px;line-height:1.18;color:#10231a;margin-bottom:9px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
-      .tn-cta{display:inline-flex;align-items:center;gap:6px;font-family:'Press Start 2P','VT323',monospace;font-size:9px;letter-spacing:0.03em;text-decoration:none;color:#08160f;background:#f4d35e;border:2px solid #10201a;border-radius:4px;padding:7px 10px;box-shadow:2px 2px 0 rgba(16,32,26,0.45);}
+      .tn-cta{display:inline-flex;align-items:center;gap:6px;font-family:'Press Start 2P','VT323',monospace;font-size:9px;letter-spacing:0.03em;text-decoration:none;color:#08160f;background:#f4d35e;border:2px solid #10201a;border-radius:4px;padding:7px 10px;box-shadow:2px 2px 0 rgba(16,32,26,0.45);cursor:pointer;}
       .tn-cta:active{transform:translate(2px,2px);box-shadow:none;}
       .tn-toast[data-platform="x"] .tn-cta{background:#fff;}
       .tn-toast[data-platform="tiktok"] .tn-cta{background:#00f2ea;}
@@ -163,19 +164,52 @@
     return fallback;
   }
 
-  /* ---- render one toast ---- */
-  function show(notif) {
+  /* ---- carry an in-flight toast's remaining time across a same-origin
+     navigation (e.g. admin.html -> index.html), instead of it just
+     vanishing because the new page's engine thinks it's already "seen". ---- */
+  const ACTIVE_KEY = 'trollrunner_notis_active_v1';
+  function saveActive(notif, expiresAt) {
+    if (typeof notif.onCta === 'function') return; // page-local callback can't survive navigation
+    try { sessionStorage.setItem(ACTIVE_KEY, JSON.stringify({ notif, expiresAt })); } catch {}
+  }
+  function clearActive(id) {
+    try {
+      const raw = sessionStorage.getItem(ACTIVE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!id || (saved && saved.notif && saved.notif.id === id)) sessionStorage.removeItem(ACTIVE_KEY);
+    } catch {}
+  }
+  function resumeActive() {
+    try {
+      const raw = sessionStorage.getItem(ACTIVE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      const remaining = (saved && saved.expiresAt) - Date.now();
+      if (saved && saved.notif && remaining > 300) show(saved.notif, remaining);
+      else sessionStorage.removeItem(ACTIVE_KEY);
+    } catch {}
+  }
+
+  /* ---- render one toast. ttlMs lets a resumed toast pick up with its
+     actual remaining time instead of restarting the full countdown. ---- */
+  function show(notif, ttlMs) {
     if (!notif) return;
     injectStyles();
     const p = platform(notif.platform);
     const root = rootEl();
     const url = safeUrl(notif.url, p.base);
     const summary = String(notif.summary || '').trim() || `${p.handle} just posted something new.`;
+    const kicker = p.handle ? (p.kicker + ' · ' + p.handle) : p.kicker;
+    const ttl = Number.isFinite(ttlMs) ? Math.max(0, ttlMs) : TOAST_TTL_MS;
 
     const toast = document.createElement('div');
     toast.className = 'tn-toast';
     toast.dataset.platform = (notif.platform in PLATFORMS) ? notif.platform : 'x';
     toast.setAttribute('role', 'alert');
+    // onCta: local in-page action (e.g. open a panel) instead of an outbound link.
+    const ctaTag = typeof notif.onCta === 'function' ? 'button' : 'a';
+    const ctaAttrs = ctaTag === 'a' ? ' href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' : ' type="button"';
     toast.innerHTML =
       '<div class="tn-titlebar">'
         + '<span class="tn-badge">' + esc(p.badge) + '</span>'
@@ -185,27 +219,34 @@
       + '<div class="tn-body">'
         + '<img class="tn-avatar" src="' + esc(TN_AVATAR) + '" alt="" aria-hidden="true">'
         + '<div class="tn-content">'
-          + '<div class="tn-kicker">' + esc(p.kicker) + ' · ' + esc(p.handle) + '</div>'
+          + '<div class="tn-kicker">' + esc(kicker) + '</div>'
           + '<div class="tn-summary">' + esc(summary) + '</div>'
-          + '<a class="tn-cta" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(p.cta) + ' →</a>'
+          + '<' + ctaTag + ' class="tn-cta"' + ctaAttrs + '>' + esc(p.cta) + ' →</' + ctaTag + '>'
         + '</div>'
       + '</div>'
-      + '<div class="tn-progress"><span style="animation-duration:' + TOAST_TTL_MS + 'ms"></span></div>';
+      + '<div class="tn-progress"><span style="animation-duration:' + ttl + 'ms"></span></div>';
 
     root.appendChild(toast);
 
-    let ttl = null;
+    const expiresAt = Date.now() + ttl;
+    if (notif.id) saveActive(notif, expiresAt);
+
+    let ttlTimer = null;
     const dismiss = () => {
       if (toast.classList.contains('tn-leaving')) return;
-      window.clearTimeout(ttl);
+      window.clearTimeout(ttlTimer);
+      if (notif.id) clearActive(notif.id);
       toast.classList.add('tn-leaving');
       toast.addEventListener('animationend', () => toast.remove(), { once: true });
     };
     toast.querySelector('.tn-close').addEventListener('click', dismiss);
-    toast.querySelector('.tn-cta').addEventListener('click', () => setTimeout(dismiss, 120));
-    ttl = window.setTimeout(dismiss, TOAST_TTL_MS);
-    toast.addEventListener('mouseenter', () => window.clearTimeout(ttl));
-    toast.addEventListener('mouseleave', () => { ttl = window.setTimeout(dismiss, 4000); });
+    toast.querySelector('.tn-cta').addEventListener('click', () => {
+      if (typeof notif.onCta === 'function') notif.onCta();
+      setTimeout(dismiss, 120);
+    });
+    ttlTimer = window.setTimeout(dismiss, ttl);
+    toast.addEventListener('mouseenter', () => window.clearTimeout(ttlTimer));
+    toast.addEventListener('mouseleave', () => { ttlTimer = window.setTimeout(dismiss, 4000); });
 
     return toast;
   }
@@ -345,6 +386,7 @@
 
   function connect() {
     injectStyles();
+    resumeActive(); // pick up a toast still counting down from the page we navigated from
     const c = getClient();
     if (!c) { startPolling(); return; }
     channel = c.channel(NOTIS_CHANNEL, { config: { broadcast: { self: false } } });

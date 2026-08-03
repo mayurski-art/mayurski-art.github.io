@@ -4351,6 +4351,10 @@ body.desktop-mode .troll-desktop { display: block; }
    between them based on the chosen wallpaper's saved animate preference. */
 .td-wallpaper-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .td-wallpaper-media[hidden] { display: none; }
+/* The two crossfading videos stack on top of each other inside the wrapper;
+   opacity (not [hidden]) does the fade so the transition can animate. */
+.td-wallpaper-video { opacity: 0; transition: opacity 700ms ease; }
+.td-wallpaper-video.is-active { opacity: 1; }
 
 /* ---- trackside launchers: every app is a hand-drawn object in the scene ---- */
 .td-hotspots { position: absolute; inset: 0; z-index: 4; }
@@ -4780,7 +4784,14 @@ body.desktop-mode .troll-desktop { display: block; }
   <div class="td-wall td-wall--art" aria-hidden="true">
     <div class="td-scene">
       <img id="td-wallpaper-img" class="td-wallpaper-media" alt="" />
-      <video id="td-wallpaper-video" class="td-wallpaper-media" hidden autoplay loop muted playsinline></video>
+      <!-- Two videos, not one: native `loop` jump-cuts back to frame 0. We
+           crossfade video A into video B (same source, started a beat
+           early) right before A's loop point, then swap roles — see
+           tdStartWallpaperLoop(). -->
+      <div id="td-wallpaper-videowrap" class="td-wallpaper-media" hidden>
+        <video id="td-wallpaper-video" class="td-wallpaper-media td-wallpaper-video" muted playsinline></video>
+        <video id="td-wallpaper-video-b" class="td-wallpaper-media td-wallpaper-video" muted playsinline></video>
+      </div>
       <!-- Trackside app launchers + the running-frog decoration are hidden
            for now — the left-side dock in #td-icons is the only public way
            to open apps until these get a fresh look to match the new
@@ -5779,6 +5790,12 @@ function initializeGateAccountUI() {
       if (session && (session.username || session.handle)) {
         renderSession(session);
         setMessage(`Account created. Welcome, ${session.username || session.handle}.`, 'success');
+        window.TrollNotis?.show({
+          id: 'account-' + (session.id || Date.now()),
+          platform: 'account',
+          summary: `Welcome, ${session.username || session.handle}! Your Troll Runner account is live.`,
+          onCta: () => window.TrollrunnerAccounts?.openProfile?.(),
+        });
         window.setTimeout(() => { dismissSiteGate(); }, 900);
       } else {
         setMode('login');
@@ -5840,10 +5857,10 @@ const TD_SITES = [
   { id: 'terminal', label: 'Terminal', icon: '💻', img: 'assets/images/icons/terminal.png', flat: true, href: 'https://terminal.trollrunner.net', color: '#30d158', desc: 'Chat with the trollface terminal AI.' },
   { id: 'fitness', label: 'Fitness', icon: '🏃', img: 'assets/images/icons/fitness.png', flat: true, href: 'https://fitness.trollrunner.net', color: '#ff5a1f', desc: 'Your AI running and strength coach.', adminOnly: true },
   { id: 'games', label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true, href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.', adminOnly: true },
-  { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.', adminOnly: true },
+  { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
   { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.', adminOnly: true },
   { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
-  { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.', adminOnly: true },
+  { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
   { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.', adminOnly: true },
   { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
 ];
@@ -6669,23 +6686,84 @@ function tdWallpaperPrefs() {
   return { wallpaper, animated };
 }
 
+// Crossfades video A into video B a beat before A's native loop point (and
+// back again), so the wallpaper loop blends instead of jump-cutting to
+// frame 0. `state` tracks which of the pair is currently the visible/active
+// one; swaps every cycle. CROSSFADE_S must stay shorter than the clip.
+const TD_WALLPAPER_CROSSFADE_S = 0.7;
+let tdWallpaperLoopState = null;
+
+function tdStopWallpaperLoop() {
+  if (!tdWallpaperLoopState) return;
+  const { videoA, videoB, onTimeA, onTimeB } = tdWallpaperLoopState;
+  videoA.removeEventListener('timeupdate', onTimeA);
+  videoB.removeEventListener('timeupdate', onTimeB);
+  videoA.pause();
+  videoB.pause();
+  tdWallpaperLoopState = null;
+}
+
+function tdStartWallpaperLoop(src) {
+  tdStopWallpaperLoop();
+  const videoA = document.getElementById('td-wallpaper-video');
+  const videoB = document.getElementById('td-wallpaper-video-b');
+  if (!videoA || !videoB) return;
+
+  videoA.src = src;
+  videoB.src = src;
+  videoA.currentTime = 0;
+  videoA.classList.add('is-active');
+  videoB.classList.remove('is-active');
+
+  const state = { active: videoA, standby: videoB, crossfading: false };
+
+  function armCrossfade(activeVideo, standbyVideo) {
+    const duration = activeVideo.duration;
+    if (!Number.isFinite(duration) || duration <= TD_WALLPAPER_CROSSFADE_S) return;
+    if (state.crossfading) return;
+    if (duration - activeVideo.currentTime > TD_WALLPAPER_CROSSFADE_S) return;
+    state.crossfading = true;
+    standbyVideo.currentTime = 0;
+    void standbyVideo.play().catch(() => {});
+    standbyVideo.classList.add('is-active');
+    activeVideo.classList.remove('is-active');
+    window.setTimeout(() => {
+      activeVideo.pause();
+      activeVideo.currentTime = 0;
+      state.active = standbyVideo;
+      state.standby = activeVideo;
+      state.crossfading = false;
+    }, TD_WALLPAPER_CROSSFADE_S * 1000);
+  }
+
+  const onTimeA = () => { if (state.active === videoA) armCrossfade(videoA, videoB); };
+  const onTimeB = () => { if (state.active === videoB) armCrossfade(videoB, videoA); };
+  videoA.addEventListener('timeupdate', onTimeA);
+  videoB.addEventListener('timeupdate', onTimeB);
+  void videoA.play().catch(() => {});
+
+  tdWallpaperLoopState = { videoA, videoB, onTimeA, onTimeB };
+}
+
 function tdApplyWallpaper() {
   const { wallpaper, animated } = tdWallpaperPrefs();
   const img = document.getElementById('td-wallpaper-img');
-  const video = document.getElementById('td-wallpaper-video');
+  const videowrap = document.getElementById('td-wallpaper-videowrap');
   const useVideo = animated && Boolean(wallpaper.video);
   if (img) {
     img.src = wallpaper.img;
     img.hidden = useVideo;
   }
-  if (video) {
+  if (videowrap) {
     if (useVideo) {
-      if (video.getAttribute('src') !== wallpaper.video) video.src = wallpaper.video;
-      video.hidden = false;
-      void video.play().catch(() => {});
+      videowrap.hidden = false;
+      const videoA = document.getElementById('td-wallpaper-video');
+      if (videoA?.getAttribute('src') !== wallpaper.video || !tdWallpaperLoopState) {
+        tdStartWallpaperLoop(wallpaper.video);
+      }
     } else {
-      video.hidden = true;
-      video.pause();
+      videowrap.hidden = true;
+      tdStopWallpaperLoop();
     }
   }
 }
