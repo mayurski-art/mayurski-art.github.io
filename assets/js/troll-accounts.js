@@ -973,7 +973,7 @@
     style.textContent = `
       .ta-overlay { position: fixed; inset: 0; z-index: 99990; display: flex; align-items: center;
         justify-content: center; padding: 16px; background: rgba(4,6,5,0.78); }
-      .ta-card { width: min(430px, 100%); max-height: 86vh; overflow: auto; color: #e6f2e6;
+      .ta-card { width: min(560px, 100%); max-height: 86vh; overflow: auto; color: #e6f2e6;
         font-family: 'DM Mono', 'Courier New', monospace; font-size: 14px; line-height: 1.45;
         background: linear-gradient(160deg, #131a15, #0a0d0b); border: 2px solid #000; border-radius: 8px;
         box-shadow: 0 0 0 1px rgba(77,255,115,0.22), 6px 8px 0 rgba(0,0,0,0.55); }
@@ -1028,7 +1028,7 @@
          right so it never covers the middle of the page (e.g. TrollChat)
          while it's open. */
       .ta-drawer-overlay { position: fixed; inset: 0; z-index: 99985; pointer-events: none; }
-      .ta-drawer-card { position: absolute; top: 0; right: 0; height: 100%; width: min(340px, 92vw);
+      .ta-drawer-card { position: absolute; top: 0; right: 0; height: 100%; width: min(400px, 92vw);
         overflow: auto; pointer-events: auto; transform: translateX(100%); transition: transform 0.22s ease;
         border-width: 0 0 0 2px; box-shadow: -6px 0 0 rgba(0,0,0,0.4), -1px 0 0 1px rgba(77,255,115,0.22); border-radius: 0; }
       .ta-drawer-overlay.is-open .ta-drawer-card { transform: translateX(0); }
