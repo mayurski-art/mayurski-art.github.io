@@ -6493,12 +6493,19 @@ function tdRenderDockIcons() {
   const icons = document.getElementById('td-icons');
   if (!icons) return;
   icons.innerHTML = '';
-  tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: true, label: 'TrollChat', feature: 'troll_chat' }, () => twOpen('chat'));
+  const entries = [
+    { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account', onOpen: tdOpenAccount },
+    { icon: TD_WINDOWS.feedback.icon, img: TD_WINDOWS.feedback.img, flat: true, label: 'Feedback', onOpen: () => twOpen('feedback') },
+    { icon: TD_WINDOWS.updates.icon, img: TD_WINDOWS.updates.img, flat: true, label: 'Latest Updates', onOpen: () => twOpen('updates') },
+    { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, flat: true, label: 'Recycle Bin', onOpen: () => twOpen('recycle') },
+    { icon: TD_WINDOWS.terminal.icon, img: TD_WINDOWS.terminal.img, flat: true, label: 'Terminal', onOpen: () => twOpen('terminal') },
+    { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: true, label: 'TrollChat', feature: 'troll_chat', onOpen: () => twOpen('chat') },
+  ];
   if (tdIsAdmin) {
-    tdAddIcon(icons, { icon: TD_WINDOWS.checklist.icon, label: 'Checklist' }, () => twOpen('checklist'));
+    entries.push({ icon: TD_WINDOWS.checklist.icon, label: 'Checklist', onOpen: () => twOpen('checklist') });
   }
-  tdAddIcon(icons, { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account' }, tdOpenAccount);
-  tdAddIcon(icons, { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, flat: true, label: 'Recycle Bin' }, () => twOpen('recycle'));
+  entries.sort((a, b) => a.label.localeCompare(b.label));
+  entries.forEach(({ onOpen, ...cfg }) => tdAddIcon(icons, cfg, onOpen));
 }
 
 // Trail hotspots are wired with click listeners once at boot (twOpen()
