@@ -4347,48 +4347,35 @@ body.desktop-mode .troll-desktop { display: block; }
    (torches, river glints, banner glow, fireflies) always land in the right
    spot on the image no matter how much letterboxing the viewport needs. */
 .td-scene { position: relative; width: 100%; max-width: 100%; max-height: 100%; aspect-ratio: 1360 / 768;
-  background-image: url('assets/images/trollrunner-frontpage-final.jpg');
+  background-image: url('assets/images/wallpaper/bg-track.png');
   background-size: 100% 100%; background-repeat: no-repeat; }
 
-.td-fx-flame { position: absolute; width: 3.2%; height: auto; pointer-events: none;
-  transform: translate(-50%, -96%);
-  filter: drop-shadow(0 0 6px rgba(120, 255, 150, 0.5)) drop-shadow(0 0 14px rgba(255, 180, 60, 0.32));
-  animation: td-flame-flicker 1.8s ease-in-out infinite; transform-origin: 50% 100%; }
-.td-fx-flame--l { left: 40.4%; top: 47.5%; animation-delay: 0s; }
-.td-fx-flame--r { left: 62.9%; top: 47.5%; animation-delay: 0.6s; }
-@keyframes td-flame-flicker {
-  0%, 100% { transform: translate(-50%, -96%) scale(1, 1) skewX(0deg); opacity: 0.92; }
-  25% { transform: translate(-50%, -96%) scale(1.05, 0.96) skewX(-2deg); opacity: 1; }
-  50% { transform: translate(-50%, -96%) scale(0.95, 1.06) skewX(2deg); opacity: 0.86; }
-  75% { transform: translate(-50%, -96%) scale(1.02, 0.98) skewX(-1deg); opacity: 0.97; }
-}
+/* ---- trackside launchers: every app is a hand-drawn object in the scene ---- */
+.td-hotspots { position: absolute; inset: 0; z-index: 4; }
+.td-hot { position: absolute; transform: translate(-50%, -100%); width: var(--w);
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer; z-index: 5; }
+.td-hot:hover, .td-hot:focus-visible { z-index: 40; }
+.td-hot:focus-visible { outline: none; }
+.td-hot img { width: 100%; height: auto; display: block;
+  filter: drop-shadow(2px 5px 4px rgba(0, 0, 0, 0.45));
+  transition: transform 0.18s ease, filter 0.18s ease; transform-origin: 50% 100%; }
+.td-hot:hover img, .td-hot:focus-visible img {
+  transform: translateY(-5px) scale(1.06);
+  filter: drop-shadow(2px 5px 4px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 12px var(--c)); }
+.td-hot-chip { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translate(-50%, 4px);
+  opacity: 0; pointer-events: none; transition: opacity 0.16s ease, transform 0.16s ease;
+  background: #fffdf7; color: #201510; border: 2px solid #201510; border-radius: 8px;
+  padding: 5px 11px; font-family: var(--pixel); font-size: 15px; white-space: nowrap;
+  box-shadow: 2px 2px 0 rgba(32, 21, 16, 0.4); }
+.td-hot:hover .td-hot-chip, .td-hot:focus-visible .td-hot-chip { opacity: 1; transform: translate(-50%, 0); }
+.td-hot:focus-visible .td-hot-chip { box-shadow: 2px 2px 0 rgba(32, 21, 16, 0.4), 0 0 0 3px var(--c); }
+.td-runner { position: absolute; width: 4%; left: 40%; top: 65%; transform: translate(-50%, -100%);
+  pointer-events: none; z-index: 3; }
+.td-runner img { width: 100%; height: auto; display: block; filter: drop-shadow(2px 4px 3px rgba(0, 0, 0, 0.35)); }
+@keyframes td-run-bounce { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-1.5deg); } }
+.td-runner img { animation: td-run-bounce 0.6s ease-in-out infinite; transform-origin: 50% 100%; }
+@media (prefers-reduced-motion: reduce) { .td-runner img { animation: none; } }
 
-.td-fx-glow--banner { position: absolute; left: 33.1%; top: 36.5%; width: 9%; height: 11%;
-  transform: translate(-50%, -50%); border-radius: 10%; pointer-events: none;
-  background: radial-gradient(closest-side, rgba(210, 140, 255, 0.5), transparent 72%);
-  mix-blend-mode: screen; animation: td-banner-pulse 3.2s ease-in-out infinite; }
-@keyframes td-banner-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.75; } }
-
-.td-fx-glint { position: absolute; width: 3.2%; height: 1.4%; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.45), rgba(160, 220, 255, 0.2) 55%, transparent 75%);
-  mix-blend-mode: screen; filter: blur(1px); animation: td-glint-drift 6s ease-in-out infinite; }
-.td-fx-glint--1 { left: 68.4%; top: 62.5%; animation-delay: 0s; }
-.td-fx-glint--2 { left: 75.7%; top: 61.2%; animation-delay: 2s; }
-.td-fx-glint--3 { left: 84.6%; top: 63.8%; animation-delay: 4s; }
-@keyframes td-glint-drift {
-  0%, 100% { opacity: 0; transform: translate(calc(-50% - 6px), -50%); }
-  50% { opacity: 0.8; transform: translate(calc(-50% + 6px), -50%); }
-}
-
-.td-firefly { position: absolute; width: 5px; height: 5px; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, #fff6c8, #ffe9a8 45%, transparent 75%);
-  box-shadow: 0 0 6px 2px rgba(255, 230, 150, 0.8);
-  animation: td-firefly-drift 5s ease-in-out infinite, td-firefly-blink 2.4s ease-in-out infinite; }
-@keyframes td-firefly-drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(7px, -11px); } }
-@keyframes td-firefly-blink { 0%, 100% { opacity: 0.12; } 50% { opacity: 0.9; } }
-@media (prefers-reduced-motion: reduce) {
-  .td-fx-flame, .td-fx-glow--banner, .td-fx-glint, .td-firefly { animation: none; }
-}
 
 /* ---- desktop icons ---- */
 .td-icons { position: absolute; top: 14px; left: 10px; bottom: 58px; z-index: 5;
@@ -4790,22 +4777,57 @@ body.desktop-mode .troll-desktop { display: block; }
 <div id="troll-desktop" class="troll-desktop" aria-hidden="true">
   <div class="td-wall td-wall--art" aria-hidden="true">
     <div class="td-scene">
-      <img class="td-fx-flame td-fx-flame--l" src="assets/images/fx/torch-flame.png" alt="">
-      <img class="td-fx-flame td-fx-flame--r" src="assets/images/fx/torch-flame.png" alt="">
-      <div class="td-fx-glow--banner"></div>
-      <div class="td-fx-glint td-fx-glint--1"></div>
-      <div class="td-fx-glint td-fx-glint--2"></div>
-      <div class="td-fx-glint td-fx-glint--3"></div>
-      <span class="td-firefly" style="left:6%;top:78%;animation-delay:0s,0.2s"></span>
-      <span class="td-firefly" style="left:11%;top:88%;animation-delay:0.8s,1.1s"></span>
-      <span class="td-firefly" style="left:18%;top:70%;animation-delay:1.6s,0.4s"></span>
-      <span class="td-firefly" style="left:26%;top:92%;animation-delay:0.3s,1.8s"></span>
-      <span class="td-firefly" style="left:33%;top:81%;animation-delay:2.1s,0.6s"></span>
-      <span class="td-firefly" style="left:47%;top:88%;animation-delay:1.2s,2.2s"></span>
-      <span class="td-firefly" style="left:58%;top:92%;animation-delay:0.5s,1.4s"></span>
-      <span class="td-firefly" style="left:69%;top:85%;animation-delay:1.9s,0.9s"></span>
-      <span class="td-firefly" style="left:9%;top:58%;animation-delay:2.4s,0.1s"></span>
-      <span class="td-firefly" style="left:37%;top:62%;animation-delay:0.7s,1.6s"></span>
+      <div class="td-runner"><img src="assets/images/wallpaper/obj-runner.png" alt=""></div>
+      <div id="td-hotspots" class="td-hotspots" aria-label="Desktop apps">
+        <button class="td-hot" type="button" data-td-app="hub" style="--w:13%; --c:#4dff73; left:50%; top:70%;">
+          <img src="assets/images/wallpaper/obj-hub.png" alt="">
+          <span class="td-hot-chip">TrollRunner Hub</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="fitness" style="--w:8%; --c:#ff5a1f; left:22.3%; top:57.5%;">
+          <img src="assets/images/wallpaper/obj-fitness.png" alt="">
+          <span class="td-hot-chip">Fitness</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="games" style="--w:5.5%; --c:#a78bfa; left:22.3%; top:32.5%;">
+          <img src="assets/images/wallpaper/obj-games.png" alt="">
+          <span class="td-hot-chip">Games</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="finance" style="--w:7.5%; --c:#ffd84d; left:34%; top:23.4%;">
+          <img src="assets/images/wallpaper/obj-finances.png" alt="">
+          <span class="td-hot-chip">Finances</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="chat" style="--w:6%; --c:#ff9500; left:18%; top:45%;">
+          <img src="assets/images/wallpaper/obj-chat.png" alt="">
+          <span class="td-hot-chip">TrollChat</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="garden" style="--w:8%; --c:#4dff73; left:66%; top:66.7%;">
+          <img src="assets/images/wallpaper/obj-garden.png" alt="">
+          <span class="td-hot-chip">Garden</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="blog" style="--w:8%; --c:#ff2d55; left:77.7%; top:57.5%;">
+          <img src="assets/images/wallpaper/obj-blog.png" alt="">
+          <span class="td-hot-chip">Blog / Nutrition</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="stickers" style="--w:3.5%; --c:#ff9500; left:82%; top:45%;">
+          <img src="assets/images/wallpaper/obj-stickers.png" alt="">
+          <span class="td-hot-chip">Stickers</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="videos" style="--w:7.5%; --c:#c084fc; left:77.7%; top:32.5%;">
+          <img src="assets/images/wallpaper/obj-videos.png" alt="">
+          <span class="td-hot-chip">Videos</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="updates" style="--w:8%; --c:#7aa0c4; left:66%; top:23.4%;">
+          <img src="assets/images/wallpaper/obj-updates.png" alt="">
+          <span class="td-hot-chip">Latest Updates</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="cam" style="--w:4.5%; --c:#4deeff; left:50%; top:20%;">
+          <img src="assets/images/wallpaper/obj-livecam.png" alt="">
+          <span class="td-hot-chip">Live Cam</span>
+        </button>
+        <button class="td-hot" type="button" data-td-app="feedback" style="--w:4.5%; --c:#e3b579; left:34%; top:66.7%;">
+          <img src="assets/images/wallpaper/obj-feedback.png" alt="">
+          <span class="td-hot-chip">Feedback</span>
+        </button>
+      </div>
     </div>
   </div>
   <nav id="td-icons" class="td-icons" aria-label="Desktop icons"></nav>
@@ -4829,14 +4851,7 @@ body.desktop-mode .troll-desktop { display: block; }
     </div>
     <nav class="header-links" aria-label="Top navigation">
       <div class="header-links-row">
-        <a class="header-link-btn" href="https://blog.trollrunner.net">Blogs</a>
-        <a class="header-link-btn" href="https://finance.trollrunner.net">Finances</a>
-        <a class="header-link-btn" href="https://fitness.trollrunner.net">Fitness</a>
-        <a class="header-link-btn" href="https://garden.trollrunner.net">Garden</a>
-        <a class="header-link-btn" href="https://games.trollrunner.net">Games</a>
-        <a class="header-link-btn" href="https://nutrition.trollrunner.net">Nutrition</a>
-        <a class="header-link-btn" href="https://stickers.trollrunner.net">Stickers</a>
-        <a class="header-link-btn" href="https://videos.trollrunner.net">Videos</a>
+        <a class="header-link-btn" href="https://terminal.trollrunner.net">Terminal</a>
         <button id="site-viewer-pill" class="header-viewer-pill" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Current viewers — see who's online">
           <svg class="header-viewer-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -5814,19 +5829,49 @@ function initializeGateAccountUI() {
    because the DOM nodes survive the move.
    =================================================================== */
 const TD_SITES = [
-  { id: 'fitness', label: 'Fitness', icon: '🏃', img: 'assets/images/icons/fitness.png', flat: true, href: 'https://fitness.trollrunner.net', color: '#ff5a1f', desc: 'Your AI running and strength coach.' },
-  { id: 'games', label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true, href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.' },
-  { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
-  { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.' },
-  { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.' },
-  { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
-  { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
+  { id: 'terminal', label: 'Terminal', icon: '💻', img: 'assets/images/icons/terminal.png', flat: true, href: 'https://terminal.trollrunner.net', color: '#30d158', desc: 'Chat with the trollface terminal AI.' },
+  { id: 'fitness', label: 'Fitness', icon: '🏃', img: 'assets/images/icons/fitness.png', flat: true, href: 'https://fitness.trollrunner.net', color: '#ff5a1f', desc: 'Your AI running and strength coach.', adminOnly: true },
+  { id: 'games', label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true, href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.', adminOnly: true },
+  { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.', adminOnly: true },
+  { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.', adminOnly: true },
+  { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
+  { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.', adminOnly: true },
+  { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.', adminOnly: true },
   { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
 ];
-// Admin-only entries (e.g. Projects/Community) are excluded from the public
-// desktop icons and start menu, but stay in TD_SITES so twOpen() and
-// admin.html can still reach them.
+// Admin-only entries are excluded from the public desktop icons and start
+// menu, but stay in TD_SITES so twOpen() and admin.html can still reach
+// them. Terminal is the only app the general public gets — everything
+// else here is still being soft-launched behind the coming-soon gate on
+// its own subdomain. The real troll_runner admin account (checked below
+// via isAdminViewer(), the same server-verified troll_is_admin() RPC
+// used for view-count filtering) still sees the full list.
 const TD_SITES_PUBLIC = TD_SITES.filter(site => !site.adminOnly);
+
+// isAdminViewer() is defined further down but hoisted (function
+// declaration), so it's safe to call from here. Kept as cached state
+// rather than re-checked on every render since the hub/start-menu can be
+// opened repeatedly and this only needs to reflect the current login.
+let tdIsAdmin = false;
+// The hub window and start menu are each built ONCE (at desktop boot) and
+// reused, not rebuilt on every open — so a login that resolves admin
+// status AFTER boot (or after the very first, pre-login check below) needs
+// to explicitly re-render both, not just flip the flag.
+function tdRefreshSiteVisibility() {
+  const startMenu = document.getElementById('td-startmenu');
+  if (startMenu) tdBuildStartMenu();
+  const hubBody = document.querySelector('#tw-hub .tw-body');
+  if (hubBody && typeof TD_WINDOWS.hub?.build === 'function') TD_WINDOWS.hub.build(hubBody);
+}
+async function tdRefreshAdminState() {
+  try { tdIsAdmin = await isAdminViewer(); } catch { tdIsAdmin = false; }
+  tdRefreshSiteVisibility();
+}
+tdRefreshAdminState();
+window.addEventListener('trollrunner:auth-changed', () => { tdRefreshAdminState(); });
+function tdVisibleSites() {
+  return tdIsAdmin ? TD_SITES : TD_SITES_PUBLIC;
+}
 
 function tdSetIcon(el, icon) {
   if (!el) return;
@@ -6073,7 +6118,7 @@ function tdBuildHub(body) {
     return inner;
   };
   const cards = [];
-  TD_SITES_PUBLIC.forEach(site => {
+  tdVisibleSites().forEach(site => {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'hub-card';
@@ -6518,8 +6563,7 @@ function tdBuildStartMenu() {
   });
   addSep();
   addLabel('SITES');
-  TD_SITES_PUBLIC.forEach(site => addItem(site.icon, site.label, () => twOpen(site.id), null, site.id));
-  addItem('🥗', 'Nutrition', () => twOpen('nutrition'));
+  tdVisibleSites().forEach(site => addItem(site.icon, site.label, () => twOpen(site.id), null, site.id));
   addSep();
   const liveStack = document.querySelector('.header-live-stack');
   if (liveStack) menu.appendChild(liveStack);
@@ -6558,19 +6602,25 @@ function initializeTrollDesktop() {
 
   Object.keys(TD_WINDOWS).forEach(twCreate);
 
+  // The illustrated trail-run wallpaper is the app launcher now (see
+  // #td-hotspots below) — hub/fitness/games/finance/chat/garden/blog/
+  // stickers/videos/cam/updates/feedback all open through their trackside
+  // object instead of a dock icon. Only system-level items (not "apps" in
+  // the world) stay in the classic dock; everything else is still reachable
+  // from the Start Menu regardless.
   const icons = document.getElementById('td-icons');
   if (icons) {
-    tdAddIcon(icons, { icon: TD_WINDOWS.hub.icon, img: TD_WINDOWS.hub.img, flat: TD_WINDOWS.hub.flat, label: 'TrollRunner Hub' }, () => twOpen('hub'));
-    TD_SITES_PUBLIC.slice(0, 3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, feature: site.id }, () => twOpen(site.id)));
-    tdAddIcon(icons, { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: TD_WINDOWS.chat.flat, label: 'TrollChat', feature: 'troll_chat' }, () => twOpen('chat'));
-    TD_SITES_PUBLIC.slice(3).forEach(site => tdAddIcon(icons, { icon: site.icon, img: site.img, flat: site.flat, label: site.label, feature: site.id }, () => twOpen(site.id)));
-    tdAddIcon(icons, { icon: TD_WINDOWS.cam.icon, img: TD_WINDOWS.cam.img, flat: TD_WINDOWS.cam.flat, label: 'Live Cam' }, () => twOpen('cam'));
-    tdAddIcon(icons, { icon: TD_WINDOWS.updates.icon, img: TD_WINDOWS.updates.img, flat: TD_WINDOWS.updates.flat, label: 'Updates' }, () => twOpen('updates'));
-    tdAddIcon(icons, { icon: TD_WINDOWS.feedback.icon, img: TD_WINDOWS.feedback.img, flat: TD_WINDOWS.feedback.flat, label: 'Feedback' }, () => twOpen('feedback'));
     tdAddIcon(icons, { icon: TD_WINDOWS.checklist.icon, label: 'Checklist' }, () => twOpen('checklist'));
     tdAddIcon(icons, { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account' }, tdOpenAccount);
     tdAddIcon(icons, { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, flat: true, label: 'Recycle Bin' }, () => twOpen('recycle'));
   }
+
+  document.querySelectorAll('#td-hotspots .td-hot').forEach(btn => {
+    const id = btn.dataset.tdApp;
+    const label = btn.querySelector('.td-hot-chip')?.textContent || id;
+    btn.setAttribute('aria-label', label);
+    btn.addEventListener('click', () => twOpen(id));
+  });
 
   tdBuildStartMenu();
 
