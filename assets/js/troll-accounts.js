@@ -1023,6 +1023,16 @@
       .ta-status { min-height: 16px; font-size: 12px; color: #8fa396; }
       .ta-status[data-kind="error"] { color: #ff9ab6; }
       .ta-status[data-kind="success"] { color: #8cffbf; }
+      /* Desktop wallpaper picker */
+      .ta-wallpaper-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+      .ta-wallpaper-card { display: grid; gap: 5px; padding: 5px; font: inherit; color: #cfe9cf; text-align: center;
+        border: 2px solid #000; border-radius: 6px; background: rgba(255,255,255,0.04); cursor: pointer; }
+      .ta-wallpaper-card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 3px; display: block; }
+      .ta-wallpaper-card span { font-size: 12px; }
+      .ta-wallpaper-card.is-selected { border-color: #4dff73; box-shadow: 0 0 0 1px #4dff73, 0 0 10px rgba(77,255,115,0.35); }
+      .ta-checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #cfe9cf; cursor: pointer; }
+      .ta-checkbox-row input[disabled] { cursor: not-allowed; }
+      .ta-checkbox-row input[disabled] ~ span { opacity: 0.55; }
       @media (max-width: 480px) { .ta-card { font-size: 13px; } }
       /* Non-blocking drawer (another runner's profile) — pinned to the far
          right so it never covers the middle of the page (e.g. TrollChat)
@@ -1498,6 +1508,59 @@
     }, 'Avatar updated.'));
     avatarSection.append(avatarRow, avatarBtn, avatarStatus);
     body.appendChild(avatarSection);
+
+    // Desktop wallpaper — list + apply/setters live in index.html (shared
+    // global scope) so new wallpapers only need an entry in TD_WALLPAPERS.
+    const wallpapers = window.TD_WALLPAPERS || [];
+    if (wallpapers.length) {
+      const wallpaperSection = document.createElement('div');
+      wallpaperSection.className = 'ta-section';
+      wallpaperSection.innerHTML = `<h4>Desktop wallpaper</h4><p class="ta-muted">Pick a wallpaper for the trollrunner.net desktop.</p>`;
+      const wallpaperGrid = document.createElement('div');
+      wallpaperGrid.className = 'ta-wallpaper-grid';
+      const animateLabel = document.createElement('label');
+      animateLabel.className = 'ta-checkbox-row';
+      const animateBox = document.createElement('input');
+      animateBox.type = 'checkbox';
+      const animateText = document.createElement('span');
+      animateLabel.append(animateBox, animateText);
+
+      const prefs = window.tdWallpaperPrefs ? window.tdWallpaperPrefs() : { wallpaper: wallpapers[0], animated: false };
+      let selectedId = prefs.wallpaper?.id;
+
+      const syncAnimateBox = () => {
+        const wp = wallpapers.find(w => w.id === selectedId);
+        animateBox.disabled = !wp?.video;
+        animateText.textContent = wp?.video
+          ? 'Animate wallpaper (loops a short video instead of the still image)'
+          : 'Animate wallpaper (no animated version for this one yet)';
+      };
+      const renderGrid = () => {
+        wallpaperGrid.innerHTML = '';
+        wallpapers.forEach(wp => {
+          const card = document.createElement('button');
+          card.type = 'button';
+          card.className = `ta-wallpaper-card${wp.id === selectedId ? ' is-selected' : ''}`;
+          card.innerHTML = `<img src="${wp.img}" alt=""><span></span>`;
+          card.querySelector('span').textContent = wp.label;
+          card.addEventListener('click', () => {
+            selectedId = wp.id;
+            window.tdSetWallpaper?.(wp.id);
+            renderGrid();
+            syncAnimateBox();
+          });
+          wallpaperGrid.appendChild(card);
+        });
+      };
+
+      animateBox.checked = prefs.animated;
+      animateBox.addEventListener('change', () => window.tdSetWallpaperAnimated?.(animateBox.checked));
+      renderGrid();
+      syncAnimateBox();
+
+      wallpaperSection.append(wallpaperGrid, animateLabel);
+      body.appendChild(wallpaperSection);
+    }
 
     // Bio
     const bioSection = document.createElement('div');

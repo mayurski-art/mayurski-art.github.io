@@ -4346,9 +4346,11 @@ body.desktop-mode .troll-desktop { display: block; }
 /* Scene keeps the art's native ratio so the % -anchored FX overlays below
    (torches, river glints, banner glow, fireflies) always land in the right
    spot on the image no matter how much letterboxing the viewport needs. */
-.td-scene { position: relative; width: 100%; max-width: 100%; max-height: 100%; aspect-ratio: 1360 / 768;
-  background-image: url('assets/images/wallpaper/bg-track.png');
-  background-size: 100% 100%; background-repeat: no-repeat; }
+.td-scene { position: relative; width: 100%; max-width: 100%; max-height: 100%; aspect-ratio: 1360 / 768; }
+/* Static image + looping video share the same box; JS toggles [hidden]
+   between them based on the chosen wallpaper's saved animate preference. */
+.td-wallpaper-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.td-wallpaper-media[hidden] { display: none; }
 
 /* ---- trackside launchers: every app is a hand-drawn object in the scene ---- */
 .td-hotspots { position: absolute; inset: 0; z-index: 4; }
@@ -4777,8 +4779,14 @@ body.desktop-mode .troll-desktop { display: block; }
 <div id="troll-desktop" class="troll-desktop" aria-hidden="true">
   <div class="td-wall td-wall--art" aria-hidden="true">
     <div class="td-scene">
-      <div class="td-runner"><img src="assets/images/wallpaper/obj-runner.png" alt=""></div>
-      <div id="td-hotspots" class="td-hotspots" aria-label="Desktop apps">
+      <img id="td-wallpaper-img" class="td-wallpaper-media" alt="" />
+      <video id="td-wallpaper-video" class="td-wallpaper-media" hidden autoplay loop muted playsinline></video>
+      <!-- Trackside app launchers + the running-frog decoration are hidden
+           for now — the left-side dock in #td-icons is the only public way
+           to open apps until these get a fresh look to match the new
+           wallpaper art. -->
+      <div class="td-runner" hidden><img src="assets/images/wallpaper/obj-runner.png" alt=""></div>
+      <div id="td-hotspots" class="td-hotspots" hidden aria-label="Desktop apps">
         <button class="td-hot" type="button" data-td-app="hub" style="--w:13%; --c:#4dff73; left:50%; top:70%;">
           <img src="assets/images/wallpaper/obj-hub.png" alt="">
           <span class="td-hot-chip">TrollRunner Hub</span>
@@ -6640,6 +6648,58 @@ function tdTickClock() {
   btn.title = `Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone} — click to switch 12/24h`;
 }
 
+// Desktop wallpapers — each entry is a still image with an optional looping
+// video variant. New wallpapers just get appended here; the settings picker
+// and preview grid render straight off this list, nothing else to wire up.
+const TD_WALLPAPERS = [
+  { id: 'track-island-1', label: 'Track Island', img: 'assets/images/wallpaper/trollrunner wallpaper 1.jpg', video: 'assets/animations/trollrunner wallpaper 1 animated.mp4' },
+];
+window.TD_WALLPAPERS = TD_WALLPAPERS;
+const TD_WALLPAPER_ID_KEY = 'td_wallpaper_id';
+const TD_WALLPAPER_ANIMATE_KEY = 'td_wallpaper_animated';
+
+function tdWallpaperPrefs() {
+  let id = null;
+  let animated = false;
+  try {
+    id = localStorage.getItem(TD_WALLPAPER_ID_KEY);
+    animated = localStorage.getItem(TD_WALLPAPER_ANIMATE_KEY) === '1';
+  } catch {}
+  const wallpaper = TD_WALLPAPERS.find(w => w.id === id) || TD_WALLPAPERS[0];
+  return { wallpaper, animated };
+}
+
+function tdApplyWallpaper() {
+  const { wallpaper, animated } = tdWallpaperPrefs();
+  const img = document.getElementById('td-wallpaper-img');
+  const video = document.getElementById('td-wallpaper-video');
+  const useVideo = animated && Boolean(wallpaper.video);
+  if (img) {
+    img.src = wallpaper.img;
+    img.hidden = useVideo;
+  }
+  if (video) {
+    if (useVideo) {
+      if (video.getAttribute('src') !== wallpaper.video) video.src = wallpaper.video;
+      video.hidden = false;
+      void video.play().catch(() => {});
+    } else {
+      video.hidden = true;
+      video.pause();
+    }
+  }
+}
+
+function tdSetWallpaper(id) {
+  try { localStorage.setItem(TD_WALLPAPER_ID_KEY, id); } catch {}
+  tdApplyWallpaper();
+}
+
+function tdSetWallpaperAnimated(on) {
+  try { localStorage.setItem(TD_WALLPAPER_ANIMATE_KEY, on ? '1' : '0'); } catch {}
+  tdApplyWallpaper();
+}
+
 function initializeTrollDesktop() {
   if (tdState.init) return;
   const desk = document.getElementById('troll-desktop');
@@ -6648,6 +6708,7 @@ function initializeTrollDesktop() {
 
   Object.keys(TD_WINDOWS).forEach(twCreate);
 
+  tdApplyWallpaper();
   tdRenderDockIcons();
 
   document.querySelectorAll('#td-hotspots .td-hot').forEach(btn => {
