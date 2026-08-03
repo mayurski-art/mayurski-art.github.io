@@ -1349,6 +1349,8 @@
     xpSection.querySelector('.ta-muted').textContent = `${progress.xp} XP — next level at ${progress.next}`;
     body.appendChild(xpSection);
 
+    body.appendChild(friendSearchSection());
+
     const xpLog = document.createElement('div');
     xpLog.className = 'ta-section';
     xpLog.innerHTML = '<h4>XP log</h4><p class="ta-muted">Loading…</p>';
@@ -1936,6 +1938,69 @@
     row.appendChild(meta);
     refreshPresenceUI();
     return row;
+  }
+
+  // Username search, built for the Profile panel — the only place you could
+  // previously find/add someone was by already seeing their name in chat or
+  // the online roster. Reuses friendListRow so results look/behave exactly
+  // like the Friends panel's own rows.
+  function friendSearchSection() {
+    const section = document.createElement('div');
+    section.className = 'ta-section';
+    section.innerHTML = '<h4>Find friends</h4>';
+
+    const searchRow = document.createElement('div');
+    searchRow.style.cssText = 'display:flex;gap:8px;';
+    const input = document.createElement('input');
+    input.className = 'ta-input';
+    input.type = 'text';
+    input.placeholder = 'Search by username…';
+    input.maxLength = 20;
+    input.autocomplete = 'off';
+    const searchBtn = document.createElement('button');
+    searchBtn.className = 'ta-btn ta-btn--sm';
+    searchBtn.type = 'button';
+    searchBtn.textContent = 'Search';
+    searchRow.append(input, searchBtn);
+
+    const results = document.createElement('div');
+    results.style.cssText = 'display:grid;gap:8px;margin-top:10px;';
+
+    section.append(searchRow, results);
+
+    let searchToken = 0;
+    const runSearch = async () => {
+      const q = input.value.trim();
+      if (!q) { results.innerHTML = ''; return; }
+      const token = ++searchToken;
+      results.innerHTML = '<p class="ta-muted">Searching…</p>';
+      const sb = getClient();
+      if (!sb || !cachedProfile) { results.innerHTML = ''; return; }
+      const { data, error } = await sb
+        .from('troll_profiles')
+        .select('id, username, avatar_url, level')
+        .ilike('username', `%${q}%`)
+        .neq('id', cachedProfile.id)
+        .order('username')
+        .limit(8);
+      if (token !== searchToken) return; // a newer search superseded this one
+      if (error || !Array.isArray(data) || !data.length) {
+        results.innerHTML = '<p class="ta-muted">No trolls found.</p>';
+        return;
+      }
+      results.innerHTML = '';
+      for (const person of data) {
+        const status = await friendStatus(person.id);
+        if (token !== searchToken) return;
+        results.appendChild(friendListRow(person, status, () => void runSearch()));
+      }
+    };
+    searchBtn.addEventListener('click', () => void runSearch());
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') { event.preventDefault(); void runSearch(); }
+    });
+
+    return section;
   }
 
   async function openFriendsPanel() {
