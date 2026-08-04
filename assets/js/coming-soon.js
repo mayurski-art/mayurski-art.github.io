@@ -17,7 +17,8 @@
    The main hub (trollrunner.net / mayurski-art.github.io) is EXEMPT from
    this gate — it has its own login/create-account front door (the
    "site-gate" panel in index.html) and is meant to be publicly reachable
-   so visitors can sign up. Every app subdomain (games, finance, fitness,
+   so visitors can sign up. finance.trollrunner.net is also EXEMPT (launched,
+   no longer "coming soon"). Every other app subdomain (games, fitness,
    garden, blog, nutrition, stickers, videos, projects) still honors the
    shared toggle above, so they stay behind "coming soon" until launched
    individually — see the TD_SITES `adminOnly` flags in index.html for the
@@ -33,7 +34,7 @@
   const GATE_STORAGE_KEY = 'trollrunner_coming_soon_gate_v1';
   const GATE_POLL_MS = 1500;
   const GATE_BROADCAST_CHANNEL = 'trollrunner-coming-soon-gate';
-  const GATE_EXEMPT_HOSTS = new Set(['trollrunner.net', 'www.trollrunner.net', 'mayurski-art.github.io']);
+  const GATE_EXEMPT_HOSTS = new Set(['trollrunner.net', 'www.trollrunner.net', 'mayurski-art.github.io', 'finance.trollrunner.net']);
   const isAdminPage = /\/admin\.html(?:$|\?)/.test(window.location.pathname);
   const isExemptHost = GATE_EXEMPT_HOSTS.has(window.location.hostname);
   const isPublicPage = !isAdminPage && !isExemptHost;
