@@ -265,8 +265,55 @@ grant select on public.troll_dm_messages to authenticated;
 -- troll_chat) so it can render its own sent message immediately.
 grant insert (id, thread_id, sender_id, body) on public.troll_dm_messages to authenticated;
 
--- Opens (or reuses) a thread with a FRIEND. Not open to non-friends, so DMs
--- can't be used to spam a stranger who never agreed to be added.
+-- Anyone can DM by default. A user may lock their inbox to friends-only via
+-- troll_user_settings.privacy->>'dm' ('everyone' | 'friends'; missing/null
+-- means 'everyone').
+create or replace function public.troll_dm_privacy(p_user uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select s.privacy->>'dm' from troll_user_settings s where s.user_id = p_user),
+    'everyone'
+  );
+$$;
+
+revoke all on function public.troll_dm_privacy(uuid) from public, anon;
+grant execute on function public.troll_dm_privacy(uuid) to authenticated;
+
+-- Set your own "who can DM me" preference.
+create or replace function public.troll_set_dm_privacy(p_value text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then
+    raise exception 'Login required.';
+  end if;
+  if p_value not in ('everyone', 'friends') then
+    raise exception 'Invalid privacy value.';
+  end if;
+
+  update troll_user_settings
+     set privacy = privacy || jsonb_build_object('dm', p_value),
+         updated_at = now()
+   where user_id = v_uid;
+end;
+$$;
+
+revoke all on function public.troll_set_dm_privacy(text) from public, anon;
+grant execute on function public.troll_set_dm_privacy(text) to authenticated;
+
+-- Opens (or reuses) a thread with another runner. Open to everyone by
+-- default; only enforces the friends-only check when the TARGET has locked
+-- their inbox down, so DMs can't be used to spam someone who opted out.
 create or replace function public.troll_dm_open(p_other uuid)
 returns uuid
 language plpgsql
@@ -289,11 +336,11 @@ begin
   v_a := least(v_uid, p_other);
   v_b := greatest(v_uid, p_other);
 
-  if not exists (
+  if public.troll_dm_privacy(p_other) = 'friends' and not exists (
     select 1 from troll_friendships
      where user_a = v_a and user_b = v_b and status = 'accepted'
   ) then
-    raise exception 'You can only message friends.';
+    raise exception 'This runner only accepts DMs from friends.';
   end if;
 
   insert into troll_dm_threads (user_a, user_b)

@@ -4527,6 +4527,10 @@ body.desktop-mode .troll-desktop { display: block; }
 .td-online::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--n-green);
   box-shadow: 0 0 9px var(--n-green); animation: td-online-pulse 2.4s ease-in-out infinite; }
 @keyframes td-online-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.td-taskbar-live { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  z-index: 901; pointer-events: none; }
+.td-taskbar-live .header-live-stack { flex-direction: row; gap: 8px; }
+.td-taskbar-live .header-live-pill { pointer-events: auto; padding: 5px 11px; font-size: 11px; }
 
 /* ---- start menu ---- */
 .td-startmenu { position: absolute; left: 8px; bottom: 54px; z-index: 950; width: min(348px, calc(100vw - 16px));
@@ -4563,7 +4567,6 @@ body.desktop-mode .troll-desktop { display: block; }
   box-shadow: inset 3px 0 0 var(--n-green), inset 0 0 0 1px rgba(77, 255, 115, 0.22); }
 .td-sm-item:hover .td-sm-chev, .td-sm-item:focus-visible .td-sm-chev { color: var(--n-green); transform: translateX(3px); }
 .td-sm-sep { height: 1px; margin: 7px 4px; background: linear-gradient(90deg, transparent, rgba(148, 102, 255, 0.45), transparent); }
-.td-startmenu .header-live-stack { display: grid; gap: 6px; padding: 2px 4px 6px; }
 
 /* ---- hub window content ---- */
 #tw-hub .tw-body { padding: 22px 24px 16px; }
@@ -4855,6 +4858,18 @@ body.desktop-mode .troll-desktop { display: block; }
   <div class="td-taskbar">
     <button id="td-start" class="td-start" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="td-startmenu"><img class="troll-emoji-icon" src="assets/animations/troll-grin.gif" alt=""> Start</button>
     <div id="td-task-btns" class="td-task-btns" role="tablist" aria-label="Open windows"></div>
+    <div class="td-taskbar-live" aria-live="polite">
+      <div class="header-live-stack">
+        <div id="live-status-running-pill" class="header-live-pill header-live-pill--running">
+          <span class="header-live-dot" aria-hidden="true"></span>
+          <span>Live: Currently <span class="header-live-strike">running</span> <span class="header-live-replacement">trolling</span> around...</span>
+        </div>
+        <div id="live-status-coding-pill" class="header-live-pill header-live-pill--coding">
+          <span class="header-live-dot" aria-hidden="true"></span>
+          <span>Live: Currently <span class="header-live-strike">coding</span> <span class="header-live-replacement">trolling</span> around...</span>
+        </div>
+      </div>
+    </div>
     <button id="td-close-all" class="td-close-all" type="button" aria-label="Close all open tabs">✕ Close all tabs</button>
     <div id="td-tray" class="td-tray">
       <button id="td-clock" class="td-clock" type="button" aria-label="Clock — click to switch 12/24 hour format"></button>
@@ -4880,16 +4895,6 @@ body.desktop-mode .troll-desktop { display: block; }
         </button>
       </div>
       <div class="header-text-view-note">Recommended text view be 50% for mobile and 100% tablet devices</div>
-      <div class="header-live-stack" aria-live="polite">
-        <div id="live-status-running-pill" class="header-live-pill header-live-pill--running">
-          <span class="header-live-dot" aria-hidden="true"></span>
-          <span>Live: Currently <span class="header-live-strike">running</span> <span class="header-live-replacement">trolling</span> around...</span>
-        </div>
-        <div id="live-status-coding-pill" class="header-live-pill header-live-pill--coding">
-          <span class="header-live-dot" aria-hidden="true"></span>
-          <span>Live: Currently <span class="header-live-strike">coding</span> <span class="header-live-replacement">trolling</span> around...</span>
-        </div>
-      </div>
     </nav>
     <div class="header-spacer">
       <div id="header-music-controls" class="header-music-controls" aria-label="Music controls">
@@ -6637,9 +6642,6 @@ function tdBuildStartMenu() {
   addSep();
   addLabel('SITES');
   tdVisibleSites().forEach(site => addItem(site.icon, site.label, () => twOpen(site.id), null, site.id));
-  addSep();
-  const liveStack = document.querySelector('.header-live-stack');
-  if (liveStack) menu.appendChild(liveStack);
   addSep();
   addLabel('SYSTEM');
   addItem('⚙️', 'Settings', () => {
@@ -9577,6 +9579,7 @@ const TC_TABLE = 'troll_chat';
 const TC_NAME_KEY = 'trollchat_name_v1';
 const TC_ID_KEY = 'trollchat_guest_id_v1';
 const TC_CACHE_KEY = 'trollchat_cache_v1';
+const TC_LASTREAD_KEY = 'trollchat_lastread_v1'; // id of the message the user last had in view
 const TC_MSG_MAX = 240;
 const TC_KEEP = 80;
 const TC_HISTORY = 60;
@@ -9604,6 +9607,9 @@ const trollChat = {
   groupCode: null,
   myGroups: [],
   myInvites: [],
+  lastSeenId: null,      // message the user last had in view — restored on open
+  initialScrollDone: false,
+  lastSeenSaveTimer: null,
 };
 
 function tcGuestId() {
@@ -9716,9 +9722,42 @@ async function tcResolveAvatars() {
   } catch {}
 }
 
+function tcLoadLastSeen() {
+  try { return localStorage.getItem(TC_LASTREAD_KEY) || null; } catch { return null; }
+}
+
+function tcSaveLastSeen(id) {
+  if (!id || id === trollChat.lastSeenId) return;
+  trollChat.lastSeenId = id;
+  if (trollChat.lastSeenSaveTimer) window.clearTimeout(trollChat.lastSeenSaveTimer);
+  trollChat.lastSeenSaveTimer = window.setTimeout(() => {
+    try { localStorage.setItem(TC_LASTREAD_KEY, id); } catch {}
+  }, 400);
+}
+
+// The topmost message still (at least partly) visible in the scrolled feed —
+// that's "where they left off" from the user's point of view.
+function tcTopVisibleId() {
+  const feed = trollChat.els?.feed;
+  if (!feed) return null;
+  const rows = feed.querySelectorAll('.live-chat-message');
+  for (const row of rows) {
+    if (row.offsetTop + row.offsetHeight - feed.scrollTop > 4) return row.dataset.id || null;
+  }
+  return null;
+}
+
+function tcHandleFeedScroll() {
+  tcSaveLastSeen(tcTopVisibleId());
+}
+
 function tcRenderFeed() {
   const feed = trollChat.els?.feed;
   if (!feed) return;
+  const isFirstRender = !trollChat.initialScrollDone;
+  const hadRows = feed.childElementCount > 0;
+  const distanceFromBottom = hadRows ? (feed.scrollHeight - feed.scrollTop - feed.clientHeight) : 0;
+  const wasNearBottom = !hadRows || distanceFromBottom < 60;
   feed.innerHTML = '';
   if (!trollChat.messages.length) {
     const empty = document.createElement('div');
@@ -9740,6 +9779,7 @@ function tcRenderFeed() {
   trollChat.messages.forEach(message => {
     const row = document.createElement('article');
     row.className = 'live-chat-message';
+    row.dataset.id = message.id;
     if (message.name === trollChat.name) row.classList.add('is-me');
 
     const avatar = document.createElement('span');
@@ -9782,7 +9822,18 @@ function tcRenderFeed() {
     row.appendChild(body);
     feed.appendChild(row);
   });
-  feed.scrollTop = feed.scrollHeight;
+
+  if (isFirstRender) {
+    trollChat.initialScrollDone = true;
+    const targetId = trollChat.lastSeenId || tcLoadLastSeen();
+    const target = targetId ? feed.querySelector(`[data-id="${CSS.escape(targetId)}"]`) : null;
+    feed.scrollTop = target ? Math.max(0, target.offsetTop - 12) : feed.scrollHeight;
+  } else if (wasNearBottom) {
+    feed.scrollTop = feed.scrollHeight;
+  } else {
+    feed.scrollTop = Math.max(0, feed.scrollHeight - feed.clientHeight - distanceFromBottom);
+  }
+  tcSaveLastSeen(tcTopVisibleId());
 }
 
 function tcAddMessage(raw, options = {}) {
@@ -10419,6 +10470,16 @@ function initializeTrollChat() {
 
   tcStartRealtime();
   void tcFetchHistory();
+
+  let scrollSaveTimer = null;
+  feed.addEventListener('scroll', () => {
+    if (scrollSaveTimer) window.clearTimeout(scrollSaveTimer);
+    scrollSaveTimer = window.setTimeout(tcHandleFeedScroll, 250);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') tcHandleFeedScroll();
+  });
+  window.addEventListener('beforeunload', tcHandleFeedScroll);
 
   window.setInterval(tcRenderTyping, 1500);
   trollChat.ready = true;

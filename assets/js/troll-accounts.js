@@ -364,6 +364,28 @@
     return value;
   }
 
+  // DMs are open to everyone by default; 'friends' locks the inbox down.
+  // See troll_dm_privacy/troll_set_dm_privacy in troll_friends.sql.
+  async function getDmPrivacy() {
+    const sb = getClient();
+    if (!sb || !cachedProfile) return 'everyone';
+    const { data } = await sb
+      .from('troll_user_settings')
+      .select('privacy')
+      .eq('user_id', cachedProfile.id)
+      .maybeSingle();
+    return data?.privacy?.dm === 'friends' ? 'friends' : 'everyone';
+  }
+
+  async function updateDmPrivacy(value) {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const next = value === 'friends' ? 'friends' : 'everyone';
+    const { error } = await sb.rpc('troll_set_dm_privacy', { p_value: next });
+    if (error) throw friendlyError(error, 'Could not update that setting.');
+    return next;
+  }
+
   async function updatePassword(next) {
     const sb = getClient();
     if (String(next || '').length < 8) throw new Error('Use a password with at least 8 characters.');
@@ -1582,6 +1604,23 @@
     bioSection.append(bioInput, bioBtn, bioStatus);
     body.appendChild(bioSection);
 
+    // Direct message privacy — everyone by default, friends-only opt-in.
+    const dmSection = document.createElement('div');
+    dmSection.className = 'ta-section';
+    dmSection.innerHTML = `<h4>Direct messages</h4><p class="ta-muted">Who can open a DM with you.</p>`;
+    const dmSelect = document.createElement('select');
+    dmSelect.className = 'ta-input';
+    dmSelect.innerHTML = `
+      <option value="everyone">Everyone</option>
+      <option value="friends">Friends only</option>
+    `;
+    const dmStatus = mkStatus();
+    void getDmPrivacy().then(value => { dmSelect.value = value; });
+    dmSelect.addEventListener('change', () => run(dmSelect, dmStatus,
+      () => updateDmPrivacy(dmSelect.value), 'Saved.'));
+    dmSection.append(dmSelect, dmStatus);
+    body.appendChild(dmSection);
+
     // Recovery email
     const emailSection = document.createElement('div');
     emailSection.className = 'ta-section';
@@ -1789,7 +1828,9 @@
       mainBtn.disabled = false;
       mainBtn.hidden = s === 'self';
       declineBtn.hidden = s !== 'pending_in';
-      msgBtn.hidden = s !== 'accepted';
+      // Anyone can DM by default — troll_dm_open only blocks this at the
+      // server if the target has locked their inbox to friends-only.
+      msgBtn.hidden = s === 'self';
       if (s === 'accepted') { mainBtn.textContent = '✓ Friends — remove'; mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
       else if (s === 'pending_out') { mainBtn.textContent = 'Request sent — cancel'; mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
       else if (s === 'pending_in') { mainBtn.textContent = 'Accept'; mainBtn.className = 'ta-btn ta-btn--sm'; }
@@ -2174,10 +2215,11 @@
     void renderLists();
   }
 
-  // Friends-only 1:1 chat — reuses the drawer shell + ta- styles, plain
-  // text only (no gif/draw protocol, unlike TrollChat). Realtime broadcast
-  // for instant delivery, troll_dm_messages for history; troll_dm_open
-  // enforces server-side that you can only message an accepted friend.
+  // 1:1 chat — reuses the drawer shell + ta- styles, plain text only (no
+  // gif/draw protocol, unlike TrollChat). Realtime broadcast for instant
+  // delivery, troll_dm_messages for history; troll_dm_open is open to
+  // everyone by default and only blocks the thread server-side if the
+  // target has locked their inbox to friends-only via Settings.
   async function openDmPanel(otherId, otherName) {
     if (!cachedProfile) return;
     const body = buildDrawer(`💬 ${otherName || 'Message'}`);

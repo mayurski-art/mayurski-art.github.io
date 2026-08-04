@@ -224,6 +224,7 @@
     const TC_NAME_KEY = 'trollchat_name_v1';
     const TC_ID_KEY = 'trollchat_guest_id_v1';
     const TC_CACHE_KEY = 'trollchat_cache_v1';
+    const TC_LASTREAD_KEY = 'trollchat_lastread_v1'; // id of the message the user last had in view
     const TC_MSG_MAX = 240, TC_KEEP = 80, TC_HISTORY = 60;
     const TC_COOLDOWN_MS = 1500, TC_TYPING_TTL_MS = 3200;
     const NAME_COLORS = ['#0f6b3c', '#1565c0', '#b8431f', '#7b1fa2', '#0097a7', '#c2185b', '#5d4037', '#2e7d32'];
@@ -232,6 +233,7 @@
       guestId: '', name: '', client: null, channel: null, subscribed: false,
       persistOk: null, messages: [], seen: new Set(), typingPeers: new Map(),
       lastSendAt: 0, typingSentAt: 0,
+      lastSeenId: null, initialScrollDone: false, lastSeenSaveTimer: null,
     };
     const els = {};
 
@@ -309,7 +311,28 @@
       } catch {}
     }
 
+    function loadLastSeen() { try { return localStorage.getItem(TC_LASTREAD_KEY) || null; } catch { return null; } }
+    function saveLastSeen(id) {
+      if (!id || id === state.lastSeenId) return;
+      state.lastSeenId = id;
+      if (state.lastSeenSaveTimer) clearTimeout(state.lastSeenSaveTimer);
+      state.lastSeenSaveTimer = setTimeout(() => { try { localStorage.setItem(TC_LASTREAD_KEY, id); } catch {} }, 400);
+    }
+    // The topmost message still (at least partly) visible in the scrolled feed.
+    function topVisibleId() {
+      const rows = els.feed.querySelectorAll('.msg');
+      for (const row of rows) {
+        if (row.offsetTop + row.offsetHeight - els.feed.scrollTop > 4) return row.dataset.id || null;
+      }
+      return null;
+    }
+    function handleFeedScroll() { saveLastSeen(topVisibleId()); }
+
     function renderFeed() {
+      const isFirstRender = !state.initialScrollDone;
+      const hadRows = els.feed.childElementCount > 0;
+      const distanceFromBottom = hadRows ? (els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight) : 0;
+      const wasNearBottom = !hadRows || distanceFromBottom < 60;
       els.feed.innerHTML = '';
       if (!state.messages.length) {
         const empty = document.createElement('div'); empty.className = 'empty';
@@ -319,7 +342,7 @@
         empty.append(img, strong, span); els.feed.appendChild(empty); return;
       }
       state.messages.forEach(m => {
-        const row = document.createElement('article'); row.className = 'msg'; if (m.name === state.name) row.classList.add('is-me');
+        const row = document.createElement('article'); row.className = 'msg'; row.dataset.id = m.id; if (m.name === state.name) row.classList.add('is-me');
         const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.setAttribute('aria-hidden', 'true');
         const avatarUrl = avatarFor(m);
         if (avatarUrl) { const av = document.createElement('img'); av.src = avatarUrl; av.alt = ''; av.loading = 'lazy'; avatar.appendChild(av); }
@@ -336,7 +359,18 @@
         if (window.TrollChatExtras) window.TrollChatExtras.renderBodyInto(text, m.text); else text.textContent = m.text;
         head.append(name, time); body.append(head, text); row.append(avatar, body); els.feed.appendChild(row);
       });
-      els.feed.scrollTop = els.feed.scrollHeight;
+
+      if (isFirstRender) {
+        state.initialScrollDone = true;
+        const targetId = state.lastSeenId || loadLastSeen();
+        const target = targetId ? els.feed.querySelector(`[data-id="${CSS.escape(targetId)}"]`) : null;
+        els.feed.scrollTop = target ? Math.max(0, target.offsetTop - 12) : els.feed.scrollHeight;
+      } else if (wasNearBottom) {
+        els.feed.scrollTop = els.feed.scrollHeight;
+      } else {
+        els.feed.scrollTop = Math.max(0, els.feed.scrollHeight - els.feed.clientHeight - distanceFromBottom);
+      }
+      saveLastSeen(topVisibleId());
     }
 
     function addMessage(raw, opts) {
@@ -465,6 +499,14 @@
       startRealtime();
       fetchHistory();
       setInterval(renderTyping, 1500);
+
+      let scrollSaveTimer = null;
+      els.feed.addEventListener('scroll', () => {
+        if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
+        scrollSaveTimer = setTimeout(handleFeedScroll, 250);
+      });
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') handleFeedScroll(); });
+      window.addEventListener('beforeunload', handleFeedScroll);
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
