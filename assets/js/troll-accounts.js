@@ -623,18 +623,20 @@
   }
 
   // Mobile pickers are inconsistent about file.type: iPhones hand over
-  // image/heic for camera-roll photos, and some Android gallery apps leave
-  // file.type empty entirely. Accept those and fall back to the filename
-  // extension when the browser didn't bother to sniff a MIME type.
-  const AVATAR_MIME_RE = /^image\/(png|jpe?g|pjpeg|webp|heic|heif)$/i;
+  // image/heic for camera-roll photos, some Android gallery apps leave
+  // file.type empty entirely, and some mobile WebViews append extra bits
+  // like "image/jpeg;charset=binary" that fail a strict full-string match.
+  // So: match the MIME loosely (no trailing anchor) and always fall back
+  // to the filename extension if the MIME check doesn't pass.
+  const AVATAR_MIME_RE = /^image\/(png|jpe?g|pjpeg|webp|heic|heif)/i;
   const AVATAR_EXT_RE = /\.(png|jpe?g|webp|heic|heif)$/i;
 
   async function uploadAvatar(file) {
     const sb = getClient();
     if (!cachedProfile) throw new Error('Login first.');
     const looksLikeImage = file && (
-      AVATAR_MIME_RE.test(file.type) ||
-      (!file.type && AVATAR_EXT_RE.test(file.name || ''))
+      AVATAR_MIME_RE.test(file.type || '') ||
+      AVATAR_EXT_RE.test(file.name || '')
     );
     if (!looksLikeImage) {
       throw new Error('Use a PNG, JPG, WebP, or HEIC image.');
@@ -1067,6 +1069,13 @@
         border: 2px solid #000; border-radius: 8px; overflow: hidden;
         background: linear-gradient(180deg, #17231b, #0c100e); box-shadow: inset 0 0 0 1px rgba(77,255,115,0.24); }
       .ta-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .ta-avatar-edit { position: relative; flex: none; padding: 0; border: none; background: none; cursor: pointer; }
+      .ta-avatar-edit .ta-avatar { transition: opacity 0.15s; }
+      .ta-avatar-edit:hover .ta-avatar { opacity: 0.55; }
+      .ta-avatar-edit-badge { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 0; font-size: 9px;
+        letter-spacing: 0.08em; text-transform: uppercase; text-align: center; color: #08110a;
+        background: #4dff73; opacity: 0; transition: opacity 0.15s; border-radius: 0 0 6px 6px; }
+      .ta-avatar-edit:hover .ta-avatar-edit-badge, .ta-avatar-edit:focus-visible .ta-avatar-edit-badge { opacity: 1; }
       .ta-name { margin: 0; font-size: 19px; color: #fff; word-break: break-all; }
       .ta-pill { display: inline-block; margin-top: 4px; padding: 1px 8px; font-size: 12px; color: #08110a;
         background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521); border: 2px solid #000; border-radius: 4px; }
@@ -1122,8 +1131,11 @@
          while it's open. */
       .ta-drawer-overlay { position: fixed; inset: 0; z-index: 99985; pointer-events: none; }
       .ta-drawer-card { position: absolute; top: 0; right: 0; height: 100%; width: min(400px, 92vw);
-        overflow: auto; pointer-events: auto; transform: translateX(100%); transition: transform 0.22s ease;
+        max-height: none; display: flex; flex-direction: column; overflow: hidden; pointer-events: auto;
+        transform: translateX(100%); transition: transform 0.22s ease;
         border-width: 0 0 0 2px; box-shadow: -6px 0 0 rgba(0,0,0,0.4), -1px 0 0 1px rgba(77,255,115,0.22); border-radius: 0; }
+      .ta-drawer-card > .ta-head { flex: none; }
+      .ta-drawer-card > .ta-body { flex: 1; min-height: 0; overflow-y: auto; }
       .ta-drawer-overlay.is-open .ta-drawer-card { transform: translateX(0); }
       @media (max-width: 480px) { .ta-drawer-card { width: 100vw; } }
       /* Online dot + "playing" tag, shown next to a username anywhere */
@@ -1397,7 +1409,17 @@
 
     const row = document.createElement('div');
     row.className = 'ta-row';
-    row.appendChild(avatarNode(session));
+    const avatarWrap = document.createElement('button');
+    avatarWrap.type = 'button';
+    avatarWrap.className = 'ta-avatar-edit';
+    avatarWrap.title = 'Change profile picture';
+    avatarWrap.appendChild(avatarNode(session));
+    const avatarEditBadge = document.createElement('span');
+    avatarEditBadge.className = 'ta-avatar-edit-badge';
+    avatarEditBadge.textContent = 'edit';
+    avatarWrap.appendChild(avatarEditBadge);
+    avatarWrap.addEventListener('click', () => void openSettings());
+    row.appendChild(avatarWrap);
     const meta = document.createElement('div');
     const joined = session.joinedAt ? new Date(session.joinedAt).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
     meta.innerHTML = `<p class="ta-name"></p><span class="ta-pill"></span><div class="ta-muted"></div>`;
@@ -2323,7 +2345,7 @@
   async function openDmPanel(otherId, otherName) {
     if (!cachedProfile) return;
     const body = buildDrawer(`💬 ${otherName || 'Message'}`);
-    body.style.cssText = 'display:flex;flex-direction:column;height:100%;box-sizing:border-box;';
+    body.style.cssText = 'display:flex;flex-direction:column;box-sizing:border-box;';
     body.innerHTML = '<p class="ta-muted">Opening…</p>';
 
     let threadId;
