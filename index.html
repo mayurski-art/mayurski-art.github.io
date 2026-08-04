@@ -6407,7 +6407,16 @@ function twOpen(id) {
       win.placed = true;
     }
     tdEnsureTaskBtn(id);
-    if (id === 'chat') tcOpenPreview();
+    if (id === 'chat') {
+      tcOpenPreview();
+      // The feed renders (and its one-shot scroll restore fires) at page
+      // boot while this window is still hidden, so by the time someone
+      // actually opens it initialScrollDone is already spent and it just
+      // snaps to the bottom. Re-arm it here so "remember your place"
+      // happens while the feed is actually visible.
+      trollChat.initialScrollDone = false;
+      tcRenderFeed();
+    }
   }
   win.el.style.display = '';
   twFocus(id);
