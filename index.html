@@ -1221,8 +1221,7 @@ header p {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-family: var(--tc-term);
-  font-size: 15px;
+  font: 15px var(--tc-term);
   line-height: 1;
   color: #0c1a12;
   border: 2px solid var(--tc-line);
@@ -1230,7 +1229,26 @@ header p {
   background: #d9ffe6;
   padding: 3px 7px;
   white-space: nowrap;
+  cursor: pointer;
 }
+.tc-online:hover, .tc-online:focus-visible { background: #c3ffda; }
+.tc-status-btns { display: flex; gap: 6px; }
+.tc-message-popover {
+  position: absolute;
+  top: 44px;
+  right: 9px;
+  z-index: 8;
+  width: min(230px, 90%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 3px solid var(--tc-line);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #f3f8e9, #d7e7cf);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+.tc-message-popover[hidden] { display: none; }
 .tc-online::before {
   content: '';
   width: 8px;
@@ -1546,6 +1564,82 @@ header p {
 }
 .tc-group-role { font-size: 12px; opacity: 0.7; }
 .tc-invite-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+/* TROLLCHAT preview/landing screen — shown once per window-open so people
+   pick general chat, a DM, or a group instead of always landing in the
+   live room. */
+.tc-preview {
+  position: absolute;
+  inset: 9px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  border: 3px solid var(--tc-line);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #f3f8e9, #d7e7cf);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+.tc-preview[hidden] { display: none; }
+.tc-preview-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 520px;
+  width: 100%;
+  padding: 24px 20px;
+  text-align: center;
+}
+.tc-preview-troll { width: 56px; height: 56px; image-rendering: pixelated; filter: drop-shadow(3px 3px 0 rgba(16,32,26,0.3)); }
+.tc-preview-title {
+  font-family: var(--tc-pixel);
+  font-size: clamp(14px, 3vw, 18px);
+  color: #143524;
+  text-shadow: 2px 2px 0 rgba(255,255,255,0.4);
+}
+.tc-preview-sub { font-size: 16px; color: #2a4636; opacity: 0.85; margin-bottom: 6px; }
+.tc-preview-options { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; }
+.tc-preview-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 150px;
+  padding: 14px 10px;
+  border: 3px solid var(--tc-line);
+  border-radius: 4px;
+  background: #fbfdf2;
+  color: #16261d;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 rgba(16,32,26,0.35);
+  font: inherit;
+}
+.tc-preview-card:hover, .tc-preview-card:focus-visible {
+  background: #eafff0;
+  transform: translateY(-2px);
+  box-shadow: 4px 5px 0 rgba(16,32,26,0.4);
+}
+.tc-preview-card:active { transform: translateY(1px); box-shadow: 1px 2px 0 rgba(16,32,26,0.4); }
+.tc-preview-icon { font-size: 26px; line-height: 1; }
+.tc-preview-label { font-family: var(--tc-pixel); font-size: 10px; letter-spacing: 0.02em; }
+.tc-preview-desc { font-size: 13px; line-height: 1.25; color: #2a4636; opacity: 0.8; }
+.tc-preview-skip {
+  margin-top: 8px;
+  border: none;
+  background: none;
+  color: #2a4636;
+  opacity: 0.7;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.tc-preview-skip:hover { opacity: 1; }
+@media (max-width: 480px) {
+  .tc-preview-card { width: 44%; }
+}
 @keyframes tc-blink { 50% { opacity: 0.25; } }
 @keyframes tc-pulse {
   0% { box-shadow: 0 0 0 0 rgba(43, 214, 111, 0.65); }
@@ -4976,10 +5070,21 @@ body.desktop-mode .troll-desktop { display: block; }
       </div>
       <div class="live-chat-status">
         <span class="tc-live"><span class="tc-live-dot" aria-hidden="true"></span>LIVE</span>
-        <span class="tc-online" id="tc-online" title="Trolls in the room right now">
+        <button id="tc-online" class="tc-online" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="viewer-roster" aria-label="Trolls in the room right now — click to see who's online">
           <span class="tc-online-num" id="tc-online-num">1</span>&nbsp;online
-        </span>
-        <button id="tc-groups-btn" class="tc-groups-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tc-groups-overlay">👥 GROUPS</button>
+        </button>
+        <div class="tc-status-btns">
+          <button id="tc-message-btn" class="tc-groups-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tc-message-popover">✉ MESSAGE</button>
+          <button id="tc-groups-btn" class="tc-groups-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tc-groups-overlay">👥 GROUPS</button>
+        </div>
+        <div id="tc-message-popover" class="tc-message-popover" role="dialog" aria-label="Message a runner" hidden>
+          <div class="tc-groups-h">DM a runner</div>
+          <div class="tc-groups-row">
+            <input type="text" id="tc-message-username" placeholder="username" maxlength="24" autocomplete="off">
+            <button id="tc-message-go" type="button">Message</button>
+          </div>
+          <div id="tc-message-note" class="tc-groups-muted"></div>
+        </div>
       </div>
     </div>
 
@@ -5002,6 +5107,32 @@ body.desktop-mode .troll-desktop { display: block; }
         <button id="tc-groups-close" class="tc-groups-close" type="button" aria-label="Close group chats">✕</button>
       </div>
       <div id="tc-groups-body" class="tc-groups-body"></div>
+    </div>
+
+    <div id="tc-preview" class="tc-preview" role="dialog" aria-label="Choose how to chat" hidden>
+      <div class="tc-preview-inner">
+        <img class="tc-preview-troll" src="assets/animations/troll-grin.gif" alt="" aria-hidden="true">
+        <div class="tc-preview-title">TROLLCHAT</div>
+        <div class="tc-preview-sub">How do you want to troll today?</div>
+        <div class="tc-preview-options">
+          <button type="button" class="tc-preview-card" id="tc-preview-general">
+            <span class="tc-preview-icon" aria-hidden="true">💬</span>
+            <span class="tc-preview-label">General Chat</span>
+            <span class="tc-preview-desc">Jump into the live room — everyone's here.</span>
+          </button>
+          <button type="button" class="tc-preview-card" id="tc-preview-dm">
+            <span class="tc-preview-icon" aria-hidden="true">✉️</span>
+            <span class="tc-preview-label">Direct Message</span>
+            <span class="tc-preview-desc">DM a runner by username.</span>
+          </button>
+          <button type="button" class="tc-preview-card" id="tc-preview-groups">
+            <span class="tc-preview-icon" aria-hidden="true">👥</span>
+            <span class="tc-preview-label">Group Chat</span>
+            <span class="tc-preview-desc">Create or join a group room.</span>
+          </button>
+        </div>
+        <button type="button" class="tc-preview-skip" id="tc-preview-skip">Skip — take me straight in</button>
+      </div>
     </div>
   </div>
 </section>
@@ -6258,6 +6389,7 @@ function twOpen(id) {
       win.placed = true;
     }
     tdEnsureTaskBtn(id);
+    if (id === 'chat') tcOpenPreview();
   }
   win.el.style.display = '';
   twFocus(id);
@@ -10143,6 +10275,101 @@ function tcCloseGroups() {
   if (btn) btn.setAttribute('aria-expanded', 'false');
 }
 
+// Lets anyone in TROLLCHAT jump straight into a DM by typing a username,
+// instead of having to find them in the who's-online roster first.
+function tcOpenMessagePopover() {
+  const popover = document.getElementById('tc-message-popover');
+  const btn = document.getElementById('tc-message-btn');
+  if (!popover) return;
+  popover.hidden = false;
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+  document.getElementById('tc-message-username')?.focus();
+  document.addEventListener('pointerdown', tcHandleMessagePopoverOutside, true);
+}
+
+function tcCloseMessagePopover() {
+  const popover = document.getElementById('tc-message-popover');
+  const btn = document.getElementById('tc-message-btn');
+  const note = document.getElementById('tc-message-note');
+  if (popover) popover.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  if (note) note.textContent = '';
+  document.removeEventListener('pointerdown', tcHandleMessagePopoverOutside, true);
+}
+
+function tcHandleMessagePopoverOutside(event) {
+  const popover = document.getElementById('tc-message-popover');
+  const btn = document.getElementById('tc-message-btn');
+  if (popover && !popover.contains(event.target) && event.target !== btn) tcCloseMessagePopover();
+}
+
+async function tcStartMessage() {
+  const input = document.getElementById('tc-message-username');
+  const note = document.getElementById('tc-message-note');
+  const username = String(input?.value || '').trim();
+  if (!username) return;
+  const accounts = window.TrollrunnerAccounts;
+  if (!accounts?.getCachedProfile?.()) {
+    if (note) note.textContent = 'Login (Account, in the taskbar) to send DMs.';
+    return;
+  }
+  if (note) note.textContent = 'Looking up…';
+  const profile = await accounts.findProfileByUsername(username);
+  if (!profile) {
+    if (note) note.textContent = `No runner named "${username}".`;
+    return;
+  }
+  if (input) input.value = '';
+  tcCloseMessagePopover();
+  accounts.openDmPanel(profile.id, profile.username);
+}
+
+// Landing screen shown the first time TROLLCHAT's window opens each
+// session — lets people pick general chat, a DM, or a group instead of
+// always dropping into the live room feed.
+function tcOpenPreview() {
+  const preview = document.getElementById('tc-preview');
+  if (preview) preview.hidden = false;
+}
+
+function tcClosePreview() {
+  const preview = document.getElementById('tc-preview');
+  if (preview) preview.hidden = true;
+}
+
+function tcWirePreview() {
+  const generalBtn = document.getElementById('tc-preview-general');
+  const dmBtn = document.getElementById('tc-preview-dm');
+  const groupsBtn = document.getElementById('tc-preview-groups');
+  const skipBtn = document.getElementById('tc-preview-skip');
+  if (generalBtn) generalBtn.addEventListener('click', () => tcClosePreview());
+  if (dmBtn) dmBtn.addEventListener('click', () => {
+    tcClosePreview();
+    tcOpenMessagePopover();
+  });
+  if (groupsBtn) groupsBtn.addEventListener('click', () => {
+    tcClosePreview();
+    tcOpenGroups();
+  });
+  if (skipBtn) skipBtn.addEventListener('click', () => tcClosePreview());
+}
+
+function tcWireMessagePopover() {
+  const btn = document.getElementById('tc-message-btn');
+  const goBtn = document.getElementById('tc-message-go');
+  const input = document.getElementById('tc-message-username');
+  if (btn) btn.addEventListener('click', () => {
+    const popover = document.getElementById('tc-message-popover');
+    if (popover?.hidden === false) tcCloseMessagePopover();
+    else tcOpenMessagePopover();
+  });
+  if (goBtn) goBtn.addEventListener('click', () => { void tcStartMessage(); });
+  if (input) input.addEventListener('keydown', event => { if (event.key === 'Enter') void tcStartMessage(); });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && document.getElementById('tc-message-popover')?.hidden === false) tcCloseMessagePopover();
+  });
+}
+
 async function tcLoadGroupsData() {
   const account = tcAccount();
   const body = document.getElementById('tc-groups-body');
@@ -10468,6 +10695,14 @@ function initializeTrollChat() {
   const groupsClose = document.getElementById('tc-groups-close');
   if (groupsBtn) groupsBtn.addEventListener('click', tcOpenGroups);
   if (groupsClose) groupsClose.addEventListener('click', tcCloseGroups);
+
+  const onlineBtn = document.getElementById('tc-online');
+  if (onlineBtn) onlineBtn.addEventListener('click', () => {
+    if (typeof toggleViewerRoster === 'function') toggleViewerRoster();
+  });
+
+  tcWireMessagePopover();
+  tcWirePreview();
 
   tcStartRealtime();
   void tcFetchHistory();
