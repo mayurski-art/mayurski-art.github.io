@@ -622,16 +622,27 @@
     }
   }
 
+  // Mobile pickers are inconsistent about file.type: iPhones hand over
+  // image/heic for camera-roll photos, and some Android gallery apps leave
+  // file.type empty entirely. Accept those and fall back to the filename
+  // extension when the browser didn't bother to sniff a MIME type.
+  const AVATAR_MIME_RE = /^image\/(png|jpe?g|pjpeg|webp|heic|heif)$/i;
+  const AVATAR_EXT_RE = /\.(png|jpe?g|webp|heic|heif)$/i;
+
   async function uploadAvatar(file) {
     const sb = getClient();
     if (!cachedProfile) throw new Error('Login first.');
-    if (!file || !/^image\/(png|jpeg|webp)$/.test(file.type)) {
-      throw new Error('Use a PNG, JPG, or WebP image.');
+    const looksLikeImage = file && (
+      AVATAR_MIME_RE.test(file.type) ||
+      (!file.type && AVATAR_EXT_RE.test(file.name || ''))
+    );
+    if (!looksLikeImage) {
+      throw new Error('Use a PNG, JPG, WebP, or HEIC image.');
     }
     if (file.size > 8 * 1024 * 1024) throw new Error('Image too large (8 MB max before resize).');
 
     const blob = await resizeToAvatar(file);
-    const path = `${cachedProfile.id}/avatar.webp`;
+    const path = `${cachedProfile.id}/avatar-${Date.now()}.webp`;
     const { error } = await sb.storage.from('avatars').upload(path, blob, {
       upsert: true,
       contentType: blob.type,
@@ -645,7 +656,49 @@
     if (profileError) throw friendlyError(profileError, 'Avatar saved but the profile update failed.');
     await refreshProfile();
     void awardXp('profile_avatar', 'settings');
+    void trimOldAvatars(cachedProfile.id);
     return url;
+  }
+
+  const RECENT_AVATAR_LIMIT = 6;
+
+  // Points troll_profiles.avatar_url at an already-uploaded file — used when
+  // switching back to a previously saved look instead of re-uploading it.
+  async function setActiveAvatar(url) {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const { error } = await sb.from('troll_profiles').update({ avatar_url: url }).eq('id', cachedProfile.id);
+    if (error) throw friendlyError(error, 'Could not switch avatar.');
+    await refreshProfile();
+  }
+
+  async function listRecentAvatars() {
+    const sb = getClient();
+    if (!sb || !cachedProfile) return [];
+    const { data, error } = await sb.storage.from('avatars').list(cachedProfile.id, {
+      sortBy: { column: 'created_at', order: 'desc' },
+    });
+    if (error || !data) return [];
+    return data
+      .filter((f) => f.name.startsWith('avatar-'))
+      .slice(0, RECENT_AVATAR_LIMIT)
+      .map((f) => {
+        const path = `${cachedProfile.id}/${f.name}`;
+        const { data: pub } = sb.storage.from('avatars').getPublicUrl(path);
+        return { path, url: pub.publicUrl };
+      });
+  }
+
+  async function trimOldAvatars(userId) {
+    const sb = getClient();
+    if (!sb) return;
+    const { data, error } = await sb.storage.from('avatars').list(userId, {
+      sortBy: { column: 'created_at', order: 'desc' },
+    });
+    if (error || !data) return;
+    const versioned = data.filter((f) => f.name.startsWith('avatar-'));
+    const stale = versioned.slice(RECENT_AVATAR_LIMIT).map((f) => `${userId}/${f.name}`);
+    if (stale.length) await sb.storage.from('avatars').remove(stale);
   }
 
   function resizeToAvatar(file) {
@@ -671,7 +724,10 @@
       };
       img.onerror = () => {
         URL.revokeObjectURL(objectUrl);
-        reject(new Error('Could not read that image.'));
+        const isHeic = /^image\/hei[cf]$/i.test(file.type) || /\.hei[cf]$/i.test(file.name || '');
+        reject(new Error(isHeic
+          ? "This browser can't open HEIC photos. On iPhone: open the photo, tap Share, then Save to Files (or edit it) to get a JPEG, and upload that instead."
+          : 'Could not read that image.'));
       };
       img.src = objectUrl;
     });
@@ -1035,6 +1091,11 @@
         box-shadow: 0 3px 0 #000; }
       .ta-btn--x svg { width: 14px; height: 14px; fill: #fff; flex: none; }
       .ta-btn--sm { padding: 4px 10px; font-size: 12px; margin-top: 4px; }
+      .ta-recent-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+      .ta-recent-thumb { width: 44px; height: 44px; padding: 0; flex: none; border: 2px solid #000; border-radius: 6px;
+        overflow: hidden; background: #0c100e; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(77,255,115,0.18); }
+      .ta-recent-thumb:hover { box-shadow: inset 0 0 0 2px #4dff73; }
+      .ta-recent-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .ta-btn--sm svg { width: 12px; height: 12px; }
       .ta-x-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 12px;
         color: #cfe9cf; text-decoration: none; }
@@ -1510,7 +1571,7 @@
     const avatarPreview = avatarNode(session);
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.accept = 'image/png,image/jpeg,image/webp';
+    fileInput.accept = 'image/*';
     fileInput.className = 'ta-input';
     avatarRow.append(avatarPreview, fileInput);
     const avatarBtn = document.createElement('button');
@@ -1518,17 +1579,56 @@
     avatarBtn.type = 'button';
     avatarBtn.textContent = 'Upload avatar';
     const avatarStatus = mkStatus();
-    avatarBtn.addEventListener('click', () => run(avatarBtn, avatarStatus, async () => {
-      const file = fileInput.files?.[0];
-      if (!file) throw new Error('Pick an image first.');
-      const url = await uploadAvatar(file);
+    const setAvatarPreview = (url) => {
       avatarPreview.innerHTML = '';
       const img = document.createElement('img');
       img.src = url;
       img.alt = '';
       avatarPreview.appendChild(img);
+    };
+    avatarBtn.addEventListener('click', () => run(avatarBtn, avatarStatus, async () => {
+      const file = fileInput.files?.[0];
+      if (!file) throw new Error('Pick an image first.');
+      const url = await uploadAvatar(file);
+      setAvatarPreview(url);
     }, 'Avatar updated.'));
-    avatarSection.append(avatarRow, avatarBtn, avatarStatus);
+
+    const recentBtn = document.createElement('button');
+    recentBtn.className = 'ta-btn ta-btn--ghost';
+    recentBtn.type = 'button';
+    recentBtn.textContent = 'Choose from recent';
+    const recentGrid = document.createElement('div');
+    recentGrid.className = 'ta-recent-grid';
+    recentGrid.hidden = true;
+    const recentStatus = mkStatus();
+    let recentLoaded = false;
+    recentBtn.addEventListener('click', () => run(recentBtn, recentStatus, async () => {
+      recentGrid.hidden = !recentGrid.hidden;
+      if (recentGrid.hidden || recentLoaded) return;
+      const avatars = await listRecentAvatars();
+      recentGrid.innerHTML = '';
+      if (!avatars.length) {
+        recentGrid.innerHTML = '<p class="ta-muted">No saved pictures yet — upload one first.</p>';
+      } else {
+        avatars.forEach((a) => {
+          const thumb = document.createElement('button');
+          thumb.type = 'button';
+          thumb.className = 'ta-recent-thumb';
+          thumb.title = 'Set as profile picture';
+          const img = document.createElement('img');
+          img.src = a.url;
+          img.alt = '';
+          thumb.appendChild(img);
+          thumb.addEventListener('click', () => run(recentBtn, recentStatus, async () => {
+            await setActiveAvatar(a.url);
+            setAvatarPreview(a.url);
+          }, 'Switched profile picture.'));
+          recentGrid.appendChild(thumb);
+        });
+      }
+      recentLoaded = true;
+    }, ''));
+    avatarSection.append(avatarRow, avatarBtn, avatarStatus, recentBtn, recentGrid, recentStatus);
     body.appendChild(avatarSection);
 
     // Desktop wallpaper — list + apply/setters live in index.html (shared
