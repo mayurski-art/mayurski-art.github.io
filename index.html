@@ -6681,10 +6681,11 @@ const TD_WALLPAPER_ANIMATE_KEY = 'td_wallpaper_animated';
 
 function tdWallpaperPrefs() {
   let id = null;
-  let animated = false;
+  let animated = true; // animated by default; users opt out in Settings
   try {
     id = localStorage.getItem(TD_WALLPAPER_ID_KEY);
-    animated = localStorage.getItem(TD_WALLPAPER_ANIMATE_KEY) === '1';
+    const raw = localStorage.getItem(TD_WALLPAPER_ANIMATE_KEY);
+    if (raw !== null) animated = raw === '1';
   } catch {}
   const wallpaper = TD_WALLPAPERS.find(w => w.id === id) || TD_WALLPAPERS[0];
   return { wallpaper, animated };
