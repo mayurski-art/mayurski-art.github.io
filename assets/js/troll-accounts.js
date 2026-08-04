@@ -2376,6 +2376,10 @@
       body.innerHTML = `<p class="ta-muted">${error?.message || 'Could not open that conversation.'}</p>`;
       return;
     }
+    // Marks the thread read for TROLLCHAT's Messages inbox unread dot
+    // (tcThreadSeenKey in index.html), regardless of which entry point
+    // opened this panel — roster, inbox search, or the inbox list itself.
+    try { localStorage.setItem(`tc_seen_dm_${threadId}`, new Date().toISOString()); } catch {}
     body.innerHTML = '';
 
     const feed = document.createElement('div');
