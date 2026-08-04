@@ -27,6 +27,11 @@
 --
 -- New allowlist entry: terminal_session — +10 XP, once per ~day, awarded
 -- from the terminal's chat route after a successful reply.
+--
+-- undervoice_session — +13 XP (25% more than terminal_session), once per
+-- ~day, awarded from the terminal's undervoice route when a session closes.
+-- Undervoice costs PROBLEMS to open, so it's rewarded a bit richer than the
+-- free regular chat.
 -- ============================================================================
 
 create or replace function public.troll_award_xp_internal(
@@ -73,6 +78,7 @@ begin
     when 'boss_kill'       then v_xp := 50; v_cooldown := interval '30 seconds'; v_daily_cap := 3;
     when 'versus_match'    then v_xp := 10; v_cooldown := interval '20 seconds'; v_daily_cap := 10;
     when 'terminal_session' then v_xp := 10; v_cooldown := interval '20 hours'; v_daily_cap := 1;
+    when 'undervoice_session' then v_xp := 13; v_cooldown := interval '20 hours'; v_daily_cap := 1;
     else raise exception 'Unknown XP event: %', p_event;
   end case;
 
