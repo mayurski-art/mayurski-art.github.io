@@ -1565,6 +1565,41 @@ header p {
 .tc-group-role { font-size: 12px; opacity: 0.7; }
 .tc-invite-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 
+/* TROLLCHAT "new message in general chat" toast — bottom-right, shares
+   TrollNotis's #troll-notis-root stack (see tcToastRoot() in the JS). */
+.tc-toast {
+  pointer-events: auto; position: relative; width: 100%;
+  display: flex; align-items: flex-start; gap: 9px; padding: 9px 10px;
+  border: 3px solid #10201a; border-radius: 5px; cursor: pointer;
+  background: repeating-linear-gradient(0deg, rgba(16,32,26,0.05) 0 2px, transparent 2px 4px), linear-gradient(180deg, #f3f8e9, #d7e7cf);
+  color: #14231d;
+  box-shadow: 0 0 0 3px #cfe3cd, 5px 5px 0 3px rgba(16,32,26,0.5), 0 16px 36px rgba(0,0,0,0.4);
+  image-rendering: pixelated; overflow: hidden;
+  transform: translateX(120%); opacity: 0; animation: tn-in .42s steps(6,end) forwards;
+}
+.tc-toast.tc-toast-leave { animation: tn-out .3s steps(5,end) forwards; }
+.tc-toast-badge {
+  flex: none; width: 30px; height: 30px; display: grid; place-items: center;
+  border: 2px solid #10201a; border-radius: 3px; background: linear-gradient(90deg, #2bd66f, #2fb3a6 60%, #f4d35e);
+  font-size: 15px; box-shadow: 1px 1px 0 rgba(16,32,26,0.4);
+}
+.tc-toast-body { min-width: 0; flex: 1; }
+.tc-toast-name {
+  font-family: 'Press Start 2P', 'VT323', monospace; font-size: 8px; letter-spacing: 0.05em;
+  text-transform: uppercase; color: #1c5b38; margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tc-toast-text {
+  font-family: 'VT323', 'DM Mono', monospace; font-size: 17px; line-height: 1.2; color: #10231a;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tc-toast-close {
+  flex: none; width: 20px; height: 20px; cursor: pointer; border: 2px solid #10201a; border-radius: 3px;
+  background: #fff; font-size: 8px; color: #000; line-height: 1; display: grid; place-items: center; padding: 0;
+  box-shadow: 1px 1px 0 rgba(16,32,26,0.4);
+}
+.tc-toast-close:active { transform: translate(1px, 1px); box-shadow: none; }
+
 /* TROLLCHAT preview/landing screen — shown once per window-open so people
    pick general chat, a DM, or a group instead of always landing in the
    live room. */
@@ -4502,6 +4537,13 @@ body.desktop-mode .troll-desktop { display: block; }
 .td-icon-label { font-size: 15px; line-height: 1.15; text-align: center; letter-spacing: 0.02em;
   text-shadow: 1px 1px 0 #000, 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.9); }
 .td-icon--ext .td-icon-label::after { content: ' ↗'; font-size: 11px; color: #93a8c4; }
+/* iMessage-style unread count on the TrollChat dock icon */
+.td-icon-img { position: relative; }
+.td-icon-badge { position: absolute; top: -6px; right: -6px; min-width: 19px; height: 19px; padding: 0 5px;
+  display: grid; place-items: center; border-radius: 999px; background: #ff2d55; color: #fff;
+  font: 700 11px/1 'DM Sans', system-ui, sans-serif; border: 2px solid #150e08;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6); }
+.td-icon-badge[hidden] { display: none; }
 
 /* ---- windows ---- */
 #td-windows { position: absolute; inset: 0 0 46px 0; z-index: 10; pointer-events: none; }
@@ -6361,6 +6403,7 @@ function twFocus(id) {
     other.el.classList.toggle('is-focus', otherId === id);
     other.taskBtn?.classList.toggle('is-active', otherId === id && !other.minimized);
   });
+  if (id === 'chat' && typeof tcClearUnreadIfVisible === 'function') tcClearUnreadIfVisible();
 }
 
 function twOpen(id) {
@@ -6632,7 +6675,7 @@ function tdAddIcon(host, { icon, img, flat, label, ext, dblclick, feature }, onO
     node.type = 'button';
     node.addEventListener(dblclick ? 'dblclick' : 'click', onOpen);
   }
-  node.innerHTML = '<span class="td-icon-img" aria-hidden="true"></span><span class="td-icon-label"></span>';
+  node.innerHTML = '<span class="td-icon-img" aria-hidden="true"><span class="td-icon-badge" hidden></span></span><span class="td-icon-label"></span>';
   const imgBox = node.querySelector('.td-icon-img');
   if (img) {
     if (flat) imgBox.classList.add('td-icon-img--flat');
@@ -6670,6 +6713,7 @@ function tdRenderDockIcons() {
   }
   entries.sort((a, b) => a.label.localeCompare(b.label));
   entries.forEach(({ onOpen, ...cfg }) => tdAddIcon(icons, cfg, onOpen));
+  if (typeof tcUpdateUnreadBadge === 'function') tcUpdateUnreadBadge();
 }
 
 // Trail hotspots are wired with click listeners once at boot (twOpen()
@@ -9712,6 +9756,7 @@ const TC_TABLE = 'troll_chat';
 const TC_NAME_KEY = 'trollchat_name_v1';
 const TC_ID_KEY = 'trollchat_guest_id_v1';
 const TC_CACHE_KEY = 'trollchat_cache_v1';
+const TC_NOTIFY_KEY = 'trollchat_notify_v1'; // opt-out toggle, device-local (Settings)
 const TC_LASTREAD_KEY = 'trollchat_lastread_v1'; // id of the message the user last had in view
 const TC_MSG_MAX = 240;
 const TC_KEEP = 80;
@@ -9743,6 +9788,7 @@ const trollChat = {
   lastSeenId: null,      // message the user last had in view — restored on open
   initialScrollDone: false,
   lastSeenSaveTimer: null,
+  unread: 0,             // messages missed in the global room since it was last actually viewed
 };
 
 function tcGuestId() {
@@ -9967,6 +10013,100 @@ function tcRenderFeed() {
     feed.scrollTop = Math.max(0, feed.scrollHeight - feed.clientHeight - distanceFromBottom);
   }
   tcSaveLastSeen(tcTopVisibleId());
+}
+
+/* ---- notifications: unread dock badge + bottom-right toast, global room
+   only (like iMessage's app-icon count). Opt-out lives in Settings. ---- */
+function tcNotifyEnabled() {
+  try { const raw = localStorage.getItem(TC_NOTIFY_KEY); return raw === null ? true : raw === '1'; }
+  catch { return true; }
+}
+function tcSetNotifyEnabled(on) {
+  try { localStorage.setItem(TC_NOTIFY_KEY, on ? '1' : '0'); } catch {}
+}
+window.tcNotifyEnabled = tcNotifyEnabled;
+window.tcSetNotifyEnabled = tcSetNotifyEnabled;
+
+// True only while the user is actually looking at the global room right now:
+// window open, not minimized, focused, and the tab itself is visible.
+function tcRoomIsInView() {
+  if (trollChat.groupId) return false; // badge/toast only track the global room
+  const win = tdState.windows.get('chat');
+  if (!win || !win.el.classList.contains('is-open') || win.minimized) return false;
+  if (win.el.style.display === 'none') return false;
+  if (!win.el.classList.contains('is-focus')) return false;
+  return document.visibilityState === 'visible';
+}
+
+function tcUpdateUnreadBadge() {
+  const badge = document.querySelector('.td-icon[data-feature="troll_chat"] .td-icon-badge');
+  if (!badge) return;
+  const n = trollChat.unread;
+  badge.hidden = n <= 0;
+  badge.textContent = n > 99 ? '99+' : String(n);
+}
+
+function tcClearUnreadIfVisible() {
+  if (!trollChat.unread || !tcRoomIsInView()) return;
+  trollChat.unread = 0;
+  tcUpdateUnreadBadge();
+}
+
+// Local-only toast (no persistence/broadcast of its own — unlike TrollNotis,
+// which is for admin platform announcements). Bottom-right, iMessage-ish.
+function tcToastRoot() {
+  // Shares TrollNotis's bottom-right stack (assets/js/troll-notis.js) so the
+  // two toast systems queue in one column instead of overlapping — same id,
+  // same injected CSS, whichever script creates it first.
+  let root = document.getElementById('troll-notis-root');
+  if (root) return root;
+  root = document.createElement('div');
+  root.id = 'troll-notis-root';
+  root.setAttribute('aria-live', 'polite');
+  root.setAttribute('aria-label', 'Troll Runner notifications');
+  document.body.appendChild(root);
+  return root;
+}
+
+function tcShowMessageToast(message) {
+  if (!tcNotifyEnabled()) return;
+  const root = tcToastRoot();
+  const toast = document.createElement('div');
+  toast.className = 'tc-toast';
+  toast.setAttribute('role', 'button');
+  toast.tabIndex = 0;
+  toast.innerHTML =
+    '<span class="tc-toast-badge" aria-hidden="true">💬</span>' +
+    '<div class="tc-toast-body">' +
+      '<div class="tc-toast-name"></div>' +
+      '<div class="tc-toast-text"></div>' +
+    '</div>' +
+    '<button class="tc-toast-close" type="button" aria-label="Dismiss notification">✕</button>';
+  toast.querySelector('.tc-toast-name').textContent = `${message.name} · general chat`;
+  toast.querySelector('.tc-toast-text').textContent = message.text.startsWith('draw:') ? '🎨 sent a drawing' : message.text;
+  const dismiss = () => {
+    if (toast.classList.contains('tc-toast-leave')) return;
+    toast.classList.add('tc-toast-leave');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  };
+  const open = () => { twOpen('chat'); dismiss(); };
+  toast.querySelector('.tc-toast-close').addEventListener('click', (e) => { e.stopPropagation(); dismiss(); });
+  toast.addEventListener('click', open);
+  toast.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  root.appendChild(toast);
+  window.setTimeout(dismiss, 6000);
+}
+
+// Wraps a just-received broadcast message: adds it to the room, then (global
+// room, not currently in view) bumps the dock badge and pops the toast.
+function tcHandleIncoming(payload) {
+  const message = tcNormalizeMessage(payload);
+  const added = tcAddMessage(payload);
+  if (!added || !message || trollChat.groupId) return;
+  if (tcRoomIsInView()) { tcSaveLastSeen(message.id); return; }
+  trollChat.unread += 1;
+  tcUpdateUnreadBadge();
+  tcShowMessageToast(message);
 }
 
 function tcAddMessage(raw, options = {}) {
@@ -10203,7 +10343,7 @@ function tcStartRealtime() {
       config: { presence: { key: trollChat.guestId }, broadcast: { self: false } },
     });
     trollChat.channel
-      .on('broadcast', { event: 'msg' }, ({ payload }) => tcAddMessage(payload))
+      .on('broadcast', { event: 'msg' }, ({ payload }) => tcHandleIncoming(payload))
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
         if (!payload || payload.id === trollChat.guestId) return;
         trollChat.typingPeers.set(String(payload.id), {
@@ -10666,6 +10806,7 @@ function initializeTrollChat() {
   nameInput.value = trollChat.name;
   tcApplyAccountIdentity();
   window.addEventListener('trollrunner:auth-changed', tcApplyAccountIdentity);
+  document.addEventListener('visibilitychange', tcClearUnreadIfVisible);
 
   // seed from local cache so returning visitors see recent chatter instantly
   tcLoadCache().forEach(item => tcAddMessage(item, { silent: true }));

@@ -1743,6 +1743,27 @@
     dmSection.append(dmSelect, dmStatus);
     body.appendChild(dmSection);
 
+    // TROLLCHAT notifications — dock-icon unread badge + bottom-right toast
+    // for the general room. Device-local (like the wallpaper prefs above),
+    // read/written straight through window.tcNotifyEnabled/tcSetNotifyEnabled
+    // in index.html so this modal doesn't need its own storage key.
+    if (window.tcNotifyEnabled && window.tcSetNotifyEnabled) {
+      const notifySection = document.createElement('div');
+      notifySection.className = 'ta-section';
+      notifySection.innerHTML = `<h4>Notifications</h4><p class="ta-muted">Unread badge on the TROLLCHAT icon + a toast when someone posts in general chat.</p>`;
+      const notifyLabel = document.createElement('label');
+      notifyLabel.className = 'ta-checkbox-row';
+      const notifyBox = document.createElement('input');
+      notifyBox.type = 'checkbox';
+      notifyBox.checked = window.tcNotifyEnabled();
+      const notifyText = document.createElement('span');
+      notifyText.textContent = 'Notify me about new TROLLCHAT messages';
+      notifyLabel.append(notifyBox, notifyText);
+      notifyBox.addEventListener('change', () => window.tcSetNotifyEnabled(notifyBox.checked));
+      notifySection.appendChild(notifyLabel);
+      body.appendChild(notifySection);
+    }
+
     // Recovery email
     const emailSection = document.createElement('div');
     emailSection.className = 'ta-section';
