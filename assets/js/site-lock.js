@@ -3,6 +3,11 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
   const SUPABASE_TABLE = 'site_updates';
   const SUPABASE_ROW_ID = 'main';
+  // Where admin-auth.js (and, if needed, the supabase-js CDN build) get
+  // lazy-loaded from — same cross-origin pattern as coming-soon.js's
+  // ensureAdminAuth(), so every subdomain's own copy of THIS file can still
+  // authenticate as admin without bundling admin-auth.js locally too.
+  const ASSET_ORIGIN = 'https://mayurski-art.github.io';
   const SITE_LOCK_STORAGE_KEY = 'trollrunner_site_public_lock_v1';
   const SITE_LOCK_META_ID = '__trollrunner_site_lock_meta__';
   const SITE_LOCK_WARNING_MS = 10000;
@@ -62,6 +67,39 @@
       if (token) headers.Authorization = `Bearer ${token}`;
     } catch {}
     return headers;
+  }
+
+  // Lazy-loads a <script> once, resolving immediately if it's already on
+  // the page (copied verbatim from coming-soon.js's identical helper, kept
+  // in sync intentionally).
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${src}"]`);
+      if (existing) {
+        existing.addEventListener('load', resolve);
+        existing.addEventListener('error', reject);
+        setTimeout(resolve, 0);
+        return;
+      }
+      const el = document.createElement('script');
+      el.src = src;
+      el.onload = resolve;
+      el.onerror = () => reject(new Error(`Failed to load ${src}`));
+      document.head.appendChild(el);
+    });
+  }
+
+  // Only the admin-unlock corner needs real Supabase auth (sign-in, not
+  // just anon reads) — everything else in this file already works off the
+  // anon key. Pulled in on demand from the hub origin so every subdomain's
+  // own copy of this file doesn't need to bundle admin-auth.js too.
+  async function ensureAdminAuth() {
+    if (window.TrollrunnerAdminAuth) return window.TrollrunnerAdminAuth;
+    if (!window.supabase?.createClient) {
+      await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+    }
+    await loadScript(`${ASSET_ORIGIN}/assets/js/admin-auth.js`);
+    return window.TrollrunnerAdminAuth || null;
   }
 
   function setStoredRecord(record) {
@@ -183,6 +221,50 @@
       body.site-lock-warning {
         overflow-x: hidden;
       }
+      .site-lock-admin-corner {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        opacity: 0.28;
+        transition: opacity 0.2s ease;
+        pointer-events: auto;
+      }
+      .site-lock-admin-corner:hover,
+      .site-lock-admin-corner:focus-within {
+        opacity: 1;
+      }
+      .site-lock-admin-input {
+        width: 100px;
+        padding: 5px 8px;
+        border-radius: 7px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font-size: 12px;
+      }
+      .site-lock-admin-btn {
+        padding: 5px 10px;
+        border-radius: 7px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .site-lock-admin-status {
+        position: absolute;
+        right: 0;
+        bottom: 32px;
+        width: max-content;
+        max-width: 220px;
+        font-size: 11px;
+        color: #ff9fae;
+        text-align: right;
+      }
     `;
     document.head.appendChild(style);
 
@@ -197,12 +279,59 @@
         </div>
         <div id="site-lock-status" class="site-lock-overlay-subtext"></div>
       </div>
+      <div class="site-lock-admin-corner">
+        <input id="site-lock-admin-pass" class="site-lock-admin-input" type="password" placeholder="admin password" aria-label="Admin password" autocomplete="current-password">
+        <button id="site-lock-admin-go" class="site-lock-admin-btn" type="button" aria-label="Admin unlock">Unlock</button>
+        <div id="site-lock-admin-status" class="site-lock-admin-status" aria-live="polite"></div>
+      </div>
     `;
     document.body.appendChild(overlayEl);
     tickerEl = overlayEl.querySelector('#site-lock-ticker-a');
     statusEl = overlayEl.querySelector('#site-lock-status');
     countdownEl = overlayEl.querySelector('#site-lock-ticker-b');
+    wireAdminCorner();
     return overlayEl;
+  }
+
+  // The corner box that lets an admin unlock the whole network from
+  // wherever they actually land while locked — any subdomain, any browser
+  // state, no need to separately find and navigate to admin.html first.
+  // Wired once, right alongside the overlay it lives in.
+  function wireAdminCorner() {
+    const input = overlayEl.querySelector('#site-lock-admin-pass');
+    const goBtn = overlayEl.querySelector('#site-lock-admin-go');
+    const status = overlayEl.querySelector('#site-lock-admin-status');
+    if (!input || !goBtn || !status) return;
+
+    async function submit() {
+      const password = String(input.value || '');
+      if (!password) {
+        input.focus();
+        return;
+      }
+      goBtn.disabled = true;
+      status.textContent = 'Checking...';
+      try {
+        const auth = await ensureAdminAuth();
+        if (!auth?.signInWithAdminPassword) throw new Error('Admin login service failed to load.');
+        await auth.signInWithAdminPassword(password, { silent: true });
+        input.value = '';
+        status.textContent = '';
+        requestLockTransition(false);
+      } catch (error) {
+        status.textContent = error?.message ? String(error.message) : 'Wrong admin password.';
+      } finally {
+        goBtn.disabled = false;
+      }
+    }
+
+    goBtn.addEventListener('click', submit);
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void submit();
+      }
+    });
   }
 
   // While truly locked (not just the pending countdown warning), nothing
