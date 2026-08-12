@@ -216,7 +216,7 @@
       level: cachedProfile.level || 1,
       xp: cachedProfile.xp || 0,
       avatarUrl: cachedProfile.avatar_url || null,
-      avatar: cachedProfile.avatar_url ? null : '🧌',
+      avatar: null,
       joinedAt: cachedProfile.created_at || null,
       autoJoinGroups: cachedProfile.auto_join_groups !== false,
     };
@@ -794,7 +794,7 @@
         'font:800 14px "DM Mono","Courier New",monospace;padding:10px 18px;border:2px solid #000;' +
         'border-radius:8px;box-shadow:0 8px 0 rgba(0,0,0,0.35);letter-spacing:0.04em;' +
         'text-transform:uppercase;pointer-events:none;opacity:0;transition:opacity .25s ease;';
-      el.textContent = `🧌 Level up! You're now LV ${level}`;
+      el.textContent = `Level up! You're now LV ${level}`;
       document.body.appendChild(el);
       requestAnimationFrame(() => { el.style.opacity = '1'; });
       setTimeout(() => {
@@ -1366,7 +1366,7 @@
       const createBtn = document.createElement('button');
       createBtn.className = 'ta-btn';
       createBtn.type = 'button';
-      createBtn.textContent = '🧌 Create account & save';
+      createBtn.textContent = 'Create account & save';
       const leaveBtn = document.createElement('button');
       leaveBtn.className = 'ta-btn ta-btn--ghost';
       leaveBtn.type = 'button';
@@ -1402,14 +1402,10 @@
   function avatarNode(session) {
     const box = document.createElement('span');
     box.className = 'ta-avatar';
-    if (session?.avatarUrl) {
-      const img = document.createElement('img');
-      img.src = session.avatarUrl;
-      img.alt = '';
-      box.appendChild(img);
-    } else {
-      box.textContent = '🧌';
-    }
+    const img = document.createElement('img');
+    img.src = session?.avatarUrl || 'assets/animations/troll-grin.gif';
+    img.alt = '';
+    box.appendChild(img);
     return box;
   }
 

@@ -33,7 +33,7 @@
   const PLATFORMS = {
     x:       { app: 'TROLL RUNNER on 𝕏', kicker: 'New post', badge: '𝕏', cta: 'Open on X', handle: '@troll_runner', base: 'https://x.com/troll_runner' },
     tiktok:  { app: 'TROLL RUNNER · TikTok', kicker: 'New video', badge: 'TT', cta: 'Watch on TikTok', handle: '@mayurski', base: 'https://www.tiktok.com/@mayurski' },
-    account: { app: 'TROLL RUNNER', kicker: 'Account created', badge: '🧌', cta: 'View profile', handle: '', base: '#' },
+    account: { app: 'TROLL RUNNER', kicker: 'Account created', badge: 'TR', cta: 'View profile', handle: '', base: '#' },
   };
 
   let client = null, channel = null, subscribed = false, pollTimer = null;

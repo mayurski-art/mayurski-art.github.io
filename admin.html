@@ -725,7 +725,7 @@
   <div class="wrap">
     <div class="hero-row">
       <div>
-        <h1>🧌 Troll Runner Admin</h1>
+        <h1>Troll Runner Admin</h1>
         <p class="hero-sub">Add latest updates quickly. These updates save locally and also sync to shared Supabase storage so they appear on other devices.</p>
       </div>
       <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
@@ -2589,7 +2589,7 @@ Fixed some admin system bugs.`,
         if (account.avatarUrl) {
           return `<img class="accounts-avatar" src="${escapeHtml(account.avatarUrl)}" alt="" loading="lazy">`;
         }
-        return '<span class="accounts-avatar">🧌</span>';
+        return '<img class="accounts-avatar" src="assets/animations/troll-grin.gif" alt="" loading="lazy">';
       }
 
       function renderAccounts() {
@@ -3045,7 +3045,7 @@ Fixed some admin system bugs.`,
           ).join('');
         }
         if (!signups.length) {
-          tableWrap.innerHTML = '<p>No signups yet — share the coming-soon page. 🧌</p>';
+          tableWrap.innerHTML = '<p>No signups yet — share the coming-soon page.</p>';
           return;
         }
         const rows = signups.map(item => `<tr>

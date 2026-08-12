@@ -5277,7 +5277,7 @@ body.desktop-mode .troll-desktop { display: block; }
     </ul>
   </div>
 
-  <p class="checklist-xp-banner" id="checklist-xp-banner">🧌 Finish the whole checklist for <span class="xp-pill">+30 XP</span>, once per account.</p>
+  <p class="checklist-xp-banner" id="checklist-xp-banner">Finish the whole checklist for <span class="xp-pill">+30 XP</span>, once per account.</p>
 </section>
 
 <footer>
@@ -6054,14 +6054,19 @@ function tdVisibleSites() {
   return tdIsAdmin ? TD_SITES : TD_SITES_PUBLIC;
 }
 
+// Sentinel meaning "draw the real trollface art here". Deliberately not the
+// troll emoji: the mascot is the artwork, never the glyph. Anything rendering
+// an icon must go through tdSetIcon() or it prints this string literally.
+const TROLL_ICON = 'troll-grin';
+
 function tdSetIcon(el, icon) {
   if (!el) return;
-  if (icon === '🧌') el.innerHTML = '<img class="troll-emoji-icon" src="assets/animations/troll-grin.gif" alt="">';
+  if (icon === TROLL_ICON) el.innerHTML = '<img class="troll-emoji-icon" src="assets/animations/troll-grin.gif" alt="">';
   else el.textContent = icon;
 }
 
 const TD_WINDOWS = {
-  hub: { title: 'TrollRunner Hub', icon: '🧌', img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: true, url: 'https://www.trollrunner.net', build: tdBuildHub },
+  hub: { title: 'TrollRunner Hub', icon: TROLL_ICON, img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: true, url: 'https://www.trollrunner.net', build: tdBuildHub },
   chat: { title: 'TrollChat', icon: '💬', img: 'assets/images/icons/trollchat.png', flat: true, width: 540, source: '#trollchat', maximizeByDefault: true },
   cam: { title: 'Live Cam', icon: '📹', img: 'assets/images/icons/cam.png', flat: true, width: 620, source: '#bio-artwork' },
   updates: { title: 'Latest Updates', icon: '📰', img: 'assets/images/icons/updates.png', flat: true, width: 620, source: '#updates' },
@@ -6790,7 +6795,7 @@ function tdBuildStartMenu() {
       item.addEventListener('click', onClick);
     }
     item.innerHTML = '<span class="td-sm-ico" aria-hidden="true"></span><span></span><span class="td-sm-chev" aria-hidden="true">›</span>';
-    item.firstChild.textContent = icon;
+    tdSetIcon(item.firstChild, icon);
     item.children[1].textContent = label;
     menu.appendChild(item);
   };
@@ -7068,7 +7073,7 @@ function checklistRenderProgress(state) {
     banner.innerHTML = '🎉 All checked off — claiming your <span class="xp-pill">+30 XP</span>…';
   } else {
     banner.className = 'checklist-xp-banner';
-    banner.innerHTML = '🧌 Finish the whole checklist for <span class="xp-pill">+30 XP</span>, once per account.';
+    banner.innerHTML = 'Finish the whole checklist for <span class="xp-pill">+30 XP</span>, once per account.';
   }
 }
 
@@ -7441,14 +7446,10 @@ function viewerRosterAvatar(url) {
   const box = document.createElement('span');
   box.className = 'viewer-roster-avatar';
   box.setAttribute('aria-hidden', 'true');
-  if (url) {
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = '';
-    box.appendChild(img);
-  } else {
-    box.textContent = '🧌';
-  }
+  const img = document.createElement('img');
+  img.src = url || 'assets/animations/troll-grin.gif';
+  img.alt = '';
+  box.appendChild(img);
   return box;
 }
 
