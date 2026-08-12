@@ -334,19 +334,23 @@
       return next;
     }
 
-    /** Drop trait ids that aren't in the manifest (renamed/removed art). */
+    /** Drop trait ids that aren't in the manifest (renamed/removed art), then
+     *  apply the solo rule. Builds arriving from localStorage or a shared link
+     *  never went through setBuild(), so without enforceSolo() here a saved
+     *  Ninja-plus-outfit combo loads straight past the rule and renders the
+     *  broken troll it exists to prevent. */
     function sanitize(raw) {
       const next = {};
       for (const layer of manifest.layers) {
         const want = raw?.[layer.id];
-        next[layer.id] = want && traitById(layer.id, want) ? want : (OPTIONAL.has(layer.id) ? null : null);
+        next[layer.id] = want && traitById(layer.id, want) ? want : null;
       }
       // Anything required that got dropped falls back to the default.
       const base = defaultBuild();
       for (const layer of manifest.layers) {
         if (!next[layer.id] && !OPTIONAL.has(layer.id)) next[layer.id] = base[layer.id];
       }
-      return next;
+      return enforceSolo(next);
     }
 
     function readUrlBuild() {
