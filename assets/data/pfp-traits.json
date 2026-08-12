@@ -336,11 +336,13 @@
         },
         {
           "id": "logo-face",
-          "name": "Logo face"
+          "name": "Logo face",
+          "solo": true
         },
         {
           "id": "ninja",
-          "name": "Ninja"
+          "name": "Ninja",
+          "solo": true
         },
         {
           "id": "og",

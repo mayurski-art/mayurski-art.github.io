@@ -14,8 +14,12 @@ Pages via CNAME.
 - Each city has a single accent color used for pin, tab, badge, popup tag.
   Current palette: Fontana #5856d6, Riverside #34c759, Rancho Cucamonga
   #ff9500, Rialto #ff2d55, Chino Hills #007aff.
-- Keep copy short, sentence case, slightly cheeky. Troll emoji 🧌 is the
-  mascot and should stay in pins + header.
+- Keep copy short, sentence case, slightly cheeky.
+- NEVER use the troll Unicode emoji (U+1F9CC) anywhere — not in copy, UI
+  labels, pins, headers, avatars, or code comments. The mascot is the real
+  trollface ART (assets/animations/troll-grin.gif, assets/images/icons/*,
+  assets/pfp/*), never the emoji. Where a mascot mark is needed, use the
+  artwork; where it was only decoration, drop it entirely.
 
 ## Data model (DATA array)
 {city, name, date:"MMM D, YYYY", count, px, py} where px/py are 0–100

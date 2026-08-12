@@ -63,10 +63,13 @@ const EXTRA = [
   { src: `${B2}/Trump hair.png`,       layer: 'headwear',   pack: 'Booster 2' },
   { src: `${B2}/UncleSam.png`,         layer: 'headwear',   pack: 'Booster 2', name: 'Uncle Sam' },
   { src: `${B2}/Hotdog.png`,           layer: 'accessory',  pack: 'Booster 2' },
-  // Head-only / fully-composed art, filed under base so it still stacks on a
-  // background rather than being unreachable.
-  { src: 'JUST FACES/OFFICIAL LOGO FACE.png', layer: 'base', name: 'Logo face' },
-  { src: 'NINJA FILES/NINJA PFP.png',         layer: 'base', name: 'Ninja' },
+  // Not layerable traits: the logo face is a head at its own scale with no
+  // neck or shoulders, and the ninja is a finished character that already
+  // has an outfit and hands. Stacking an outfit under either one produces a
+  // visibly broken troll, so they're flagged `solo` — the picker parks them
+  // in Base but locks the clothing layers off while one is worn.
+  { src: 'JUST FACES/OFFICIAL LOGO FACE.png', layer: 'base', name: 'Logo face', solo: true },
+  { src: 'NINJA FILES/NINJA PFP.png',         layer: 'base', name: 'Ninja',     solo: true },
 ];
 
 const slugify = s => s.toLowerCase().trim()
@@ -103,6 +106,7 @@ for (const L of LAYERS) {
 
     const t = { id, name };
     if (job.pack) t.pack = job.pack;
+    if (job.solo) t.solo = true;
     traits.push(t);
   }
   traits.sort((a, b) => a.name.localeCompare(b.name));
