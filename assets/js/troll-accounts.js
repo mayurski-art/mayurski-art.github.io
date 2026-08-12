@@ -386,6 +386,50 @@
     return next;
   }
 
+  // Where a troll is from, shown on profiles and on maps.trollrunner.net.
+  // The pin itself is dropped over there; here we only read it and let the
+  // owner hide it. See troll_locations.sql in the trollrunner-maps repo.
+  // Hidden pins are filtered out by RLS, so someone else's row simply does
+  // not come back — there is nothing to hide client-side.
+  async function getLocation(userId) {
+    const sb = getClient();
+    const id = userId || cachedProfile?.id;
+    if (!sb || !id) return null;
+    const { data } = await sb
+      .from('troll_locations')
+      .select('lat, lng, label, country, is_visible')
+      .eq('user_id', id)
+      .maybeSingle();
+    if (!data) return null;
+    return {
+      lat: data.lat,
+      lng: data.lng,
+      label: data.label,
+      country: data.country,
+      isVisible: data.is_visible,
+    };
+  }
+
+  async function setLocationVisible(next) {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const value = Boolean(next);
+    const { error } = await sb
+      .from('troll_locations')
+      .update({ is_visible: value })
+      .eq('user_id', cachedProfile.id);
+    if (error) throw friendlyError(error, 'Could not update that setting.');
+    return value;
+  }
+
+  // "Fontana, United States" — the country is dropped when it would just
+  // repeat the label (e.g. someone who pinned a whole country).
+  function locationText(location) {
+    if (!location) return '';
+    if (!location.country || location.country === location.label) return location.label;
+    return `${location.label}, ${location.country}`;
+  }
+
   async function updatePassword(next) {
     const sb = getClient();
     if (String(next || '').length < 8) throw new Error('Use a password with at least 8 characters.');
@@ -1426,6 +1470,17 @@
     meta.querySelector('.ta-name').textContent = session.username;
     meta.querySelector('.ta-pill').textContent = `LV ${session.level}`;
     meta.querySelector('.ta-muted').textContent = `Running since ${joined}`;
+    const whereFrom = document.createElement('div');
+    whereFrom.className = 'ta-muted';
+    whereFrom.hidden = true;
+    meta.appendChild(whereFrom);
+    void getLocation().then(location => {
+      if (!location) return;
+      whereFrom.textContent = location.isVisible
+        ? `📍 ${locationText(location)}`
+        : `📍 ${locationText(location)} — hidden`;
+      whereFrom.hidden = false;
+    });
     const xLink = document.createElement('a');
     xLink.className = 'ta-x-badge';
     xLink.target = '_blank';
@@ -1742,6 +1797,45 @@
       () => updateDmPrivacy(dmSelect.value), 'Saved.'));
     dmSection.append(dmSelect, dmStatus);
     body.appendChild(dmSection);
+
+    // Location — the pin is dropped on maps.trollrunner.net; this is the
+    // switch that takes it off the map and off your profile.
+    const locSection = document.createElement('div');
+    locSection.className = 'ta-section';
+    locSection.innerHTML = `<h4>Location</h4>`;
+    const locNote = document.createElement('p');
+    locNote.className = 'ta-muted';
+    locNote.textContent = 'Loading…';
+    locSection.appendChild(locNote);
+    body.appendChild(locSection);
+
+    void getLocation().then(location => {
+      if (!location) {
+        locNote.innerHTML = 'You haven’t dropped a pin yet. ' +
+          '<a href="https://maps.trollrunner.net" target="_blank" rel="noopener noreferrer">Put yourself on the map</a>.';
+        return;
+      }
+      locNote.textContent = locationText(location);
+
+      const locLabel = document.createElement('label');
+      locLabel.className = 'ta-checkbox-row';
+      const locBox = document.createElement('input');
+      locBox.type = 'checkbox';
+      locBox.checked = location.isVisible;
+      const locText = document.createElement('span');
+      locText.textContent = 'Show my location on my profile and the troll map';
+      locLabel.append(locBox, locText);
+      const locStatus = mkStatus();
+      locBox.addEventListener('change', () => run(locBox, locStatus,
+        () => setLocationVisible(locBox.checked),
+        locBox.checked ? 'Your pin is public again.' : 'Your pin is hidden from everyone else.'));
+
+      const locLink = document.createElement('p');
+      locLink.className = 'ta-muted';
+      locLink.innerHTML = '<a href="https://maps.trollrunner.net" target="_blank" rel="noopener noreferrer">Move or remove your pin</a>';
+
+      locSection.append(locLabel, locStatus, locLink);
+    });
 
     // TROLLCHAT notifications — dock-icon unread badge + bottom-right toast
     // for the general room. Device-local (like the wallpaper prefs above),
@@ -2122,6 +2216,16 @@
     nameEl.appendChild(document.createTextNode(profile.username));
     meta.querySelector('.ta-pill').textContent = `LV ${profile.level}`;
     meta.appendChild(playingTagNode(userId));
+    // A hidden pin never comes back from the query, so this simply stays off.
+    const whereFrom = document.createElement('div');
+    whereFrom.className = 'ta-muted';
+    whereFrom.hidden = true;
+    meta.appendChild(whereFrom);
+    void getLocation(userId).then(location => {
+      if (!location) return;
+      whereFrom.textContent = `📍 ${locationText(location)}`;
+      whereFrom.hidden = false;
+    });
     row.appendChild(meta);
     body.appendChild(row);
 
@@ -2676,6 +2780,8 @@
     updateUsername,
     updateBio,
     updateAutoJoinGroups,
+    getLocation,
+    setLocationVisible,
     updatePassword,
     updateRecoveryEmail,
     requestPasswordReset,

@@ -6016,6 +6016,7 @@ const TD_SITES = [
   { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
   { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.', adminOnly: true },
   { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
+  { id: 'maps', label: 'Maps', icon: '📍', flat: true, href: 'https://maps.trollrunner.net', color: '#30d158', desc: 'See where every troll is from and drop your own pin.' },
 ];
 // Admin-only entries are excluded from the public desktop icons and start
 // menu, but stay in TD_SITES so twOpen() and admin.html can still reach
@@ -6691,6 +6692,7 @@ function tdRenderDockIcons() {
     { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: true, label: 'TrollChat', feature: 'troll_chat', onOpen: () => twOpen('chat') },
     { icon: TD_WINDOWS.finance.icon, img: TD_WINDOWS.finance.img, flat: true, label: 'Finances', onOpen: () => twOpen('finance') },
     { icon: TD_WINDOWS.stickers.icon, img: TD_WINDOWS.stickers.img, flat: true, label: 'Stickers', onOpen: () => twOpen('stickers') },
+    { icon: TD_WINDOWS.maps.icon, img: TD_WINDOWS.maps.img, flat: true, label: 'Maps', onOpen: () => twOpen('maps') },
   ];
   if (tdIsAdmin) {
     entries.push({ icon: TD_WINDOWS.checklist.icon, label: 'Checklist', onOpen: () => twOpen('checklist') });
