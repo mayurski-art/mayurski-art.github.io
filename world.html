@@ -34,7 +34,11 @@
                       inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 #ffffff08;
       --glass-bg: linear-gradient(165deg, #ffffff0d 0%, #ffffff04 38%, #00000047 100%), var(--glass-fill);
 
-      --world-w: min(94vw, 1240px, calc((100vh - 240px) * 1.5714));
+      --world-w: min(96vw, 1500px, calc((100vh - 190px) * 1.5714));
+
+      /* Their site swaps the pointer for a troll; ours uses our own face,
+         cut from the official logo art in the PFP set. */
+      --cursor-troll: url(assets/images/troll-cursor.png) 6 3, pointer;
     }
 
     * { box-sizing: border-box; }
@@ -46,6 +50,7 @@
     }
     a { color: inherit; text-decoration: none; }
     button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    a, button, .spot, .app, .runner { cursor: var(--cursor-troll); }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
     .vh {
       position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -294,6 +299,16 @@
     .dock svg { width: 22px; height: 22px; fill: var(--fg); }
     .dock span { font-size: 10.5px; color: var(--fg-dim); }
 
+    /* ================= FOOTER (desktop) ================= */
+    .foot {
+      display: none;
+      align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+      padding: 0 30px 24px;
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em;
+      color: var(--fg-dim); text-transform: uppercase;
+    }
+    .foot a:hover { color: var(--accent); }
+
     /* ================= MENU SHEET ================= */
     .sheet {
       position: fixed; inset: 0; z-index: 80; overflow-y: auto;
@@ -349,8 +364,18 @@
       .runner img { width: 38px; height: 38px; }
     }
     @media (min-width: 721px) {
-      /* Desktop keeps the island as the launcher; the grid is the phone's. */
+      /* Desktop keeps the island as the launcher and a quiet footer line,
+         the way their desktop does. The grid and dock are the phone's. */
       .apps { display: none; }
+      .dock { display: none; }
+      .foot { display: flex; }
+      .world { transition: transform .5s var(--ease); will-change: transform; }
+      /* Their desktop anchors the wordmark top-left rather than centring it,
+         and drops the stat line the phone header carries. */
+      .topbar { display: flex; justify-content: space-between; padding: 26px 30px; }
+      .stat { display: none; }
+      .wordmark { font-size: 27px; }
+      .wordmark img { width: 29px; height: 29px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -462,6 +487,19 @@
           <path d="M468 524 C466 562 464 592 462 620" stroke="#fff" stroke-opacity=".3"
                 stroke-width="2.5" fill="none" stroke-linecap="round"/>
           <ellipse cx="454" cy="520" rx="30" ry="7" fill="#bff2fb" fill-opacity=".85"/>
+
+          <!-- Their desktop has something quietly crossing the scene on a long
+               loop. Ours is the obvious one for this brand: a troll running a
+               lap of the island, ~46s a length. Lives in the SVG so it scales
+               with the viewBox instead of needing pixel maths. Stripped out
+               entirely for reduced-motion viewers. -->
+          <g id="lap" opacity="0">
+            <image href="assets/images/wallpaper/obj-runner.png" x="-38" y="-74" width="76" height="76"/>
+            <animateMotion id="lap-motion" dur="46s" repeatCount="indefinite" calcMode="linear"
+                           path="M 236 402 Q 552 488 866 402"/>
+            <animate attributeName="opacity" dur="46s" repeatCount="indefinite"
+                     values="0;1;1;0" keyTimes="0;0.06;0.94;1"/>
+          </g>
         </svg>
       </div>
     </main>
@@ -481,6 +519,12 @@
     </div>
 
     <nav class="dock" id="dock" aria-label="Social"></nav>
+
+    <footer class="foot">
+      <span>© 2026 Troll Runner · Art by
+        <a href="https://twitter.com/SwishPng" target="_blank" rel="noopener noreferrer">@SwishPng</a></span>
+      <span id="foot-hint">Click an object to travel</span>
+    </footer>
   </div>
 
   <!-- ============ MENU ============ -->
@@ -533,7 +577,8 @@
         l: 85, t: 434, w: 6.5 },
     ];
 
-    const PROPS = [{ img: 'assets/images/wallpaper/obj-runner.png', l: 62, t: 446, w: 7.5 }];
+    // The runner is no longer a static prop — it laps the island in the SVG.
+    const PROPS = [];
 
     const SOCIALS = [
       { name: 'X', href: 'https://x.com/troll_runner',
@@ -829,6 +874,31 @@
     addEventListener('resize', render, { passive: true });
     render();
     runBoot();
+
+    /* ---------- ambient lap runner ---------- */
+    if (calm.matches) {
+      // SMIL ignores prefers-reduced-motion, so park the runner mid-island.
+      const lap = $('lap');
+      lap.querySelectorAll('animateMotion, animate').forEach(n => n.remove());
+      lap.setAttribute('opacity', '1');
+      lap.setAttribute('transform', 'translate(552 446)');
+    }
+
+    /* ---------- pointer parallax (desktop) ----------
+       A few pixels of drift, enough to feel like the island is floating in
+       front of the stars rather than pasted onto them. */
+    if (!calm.matches) {
+      // The spawn keyframes are `fill: both`, so they keep asserting
+      // `transform: none` after finishing and an animation beats an inline
+      // style — drop the animation once it has played or parallax never moves.
+      world.addEventListener('animationend', () => { world.style.animation = 'none'; }, { once: true });
+      addEventListener('pointermove', e => {
+        if (narrow.matches || e.pointerType !== 'mouse') return;
+        const dx = (e.clientX / innerWidth - 0.5) * 2;
+        const dy = (e.clientY / innerHeight - 0.5) * 2;
+        world.style.transform = `translate3d(${(-dx * 9).toFixed(1)}px, ${(-dy * 6).toFixed(1)}px, 0)`;
+      }, { passive: true });
+    }
 
     /* ================= STARFIELD ================= */
     const canvas = $('stars'), ctx = canvas.getContext('2d');
