@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>TROLLRUNNER WORLD</title>
+  <meta name="description" content="The TrollRunner world — every app on the island. Click an object to go there.">
+  <meta name="theme-color" content="#000000">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-display: "Archivo Black", Impact, "Arial Black", sans-serif;
+      --font-ui: "Space Grotesk", system-ui, Arial, sans-serif;
+      --font-mono: "Rubik", system-ui, Arial, sans-serif;
+
+      --accent: #8fe36a;
+      --fg: #ffffffeb;
+      --fg-dim: #ffffff8c;
+      --legible: 0 1px 12px #00000059;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+
+      /* Frosted panel system — menu, labels, footer chips all share it. */
+      --glass-fill: #060608d1;
+      --glass-stroke: #ffffff1a;
+      --glass-highlight: #ffffff14;
+      --glass-radius: 8px;
+      --glass-blur: blur(34px) saturate(160%);
+      --glass-shadow: 0 28px 70px #000000a6, 0 2px 10px #00000073,
+                      inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 #ffffff08;
+      --glass-bg: linear-gradient(165deg, #ffffff0d 0%, #ffffff04 38%, #00000047 100%), var(--glass-fill);
+
+      /* Also bounded by height (island is 1100×700 ≈ 1.571:1) so the waterfall
+         never gets clipped by the footer on short viewports. */
+      --world-w: min(94vw, 1240px, calc((100vh - 210px) * 1.5714));
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: #000;
+      color: var(--fg);
+      font-family: var(--font-ui);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+    /* ---------- deep space ---------- */
+    .space { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #000; }
+    .space canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .space::after {
+      content: ""; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 55% at 50% 58%, #0d1a12 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ---------- chrome ---------- */
+    .shell {
+      position: relative; z-index: 2; min-height: 100%;
+      display: flex; flex-direction: column;
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 26px 30px; gap: 18px;
+    }
+    .wordmark {
+      display: inline-flex; align-items: center; gap: 2px;
+      font-family: var(--font-display); font-size: 27px; letter-spacing: -0.01em;
+      text-shadow: var(--legible); line-height: 1;
+    }
+    .wordmark img {
+      width: 30px; height: 30px; object-fit: contain;
+      margin: 0 1px; vertical-align: middle;
+    }
+    .menu-btn {
+      width: 42px; height: 42px; display: grid; place-items: center;
+      border-radius: 8px; transition: background .2s var(--ease);
+    }
+    .menu-btn:hover { background: #ffffff14; }
+    .menu-btn span, .menu-btn span::before, .menu-btn span::after {
+      display: block; width: 21px; height: 2px; background: var(--fg); border-radius: 2px;
+      transition: transform .3s var(--ease), opacity .2s var(--ease);
+    }
+    .menu-btn span { position: relative; }
+    .menu-btn span::before, .menu-btn span::after { content: ""; position: absolute; left: 0; }
+    .menu-btn span::before { top: -7px; }
+    .menu-btn span::after { top: 7px; }
+    .menu-btn[aria-expanded="true"] span { background: transparent; }
+    .menu-btn[aria-expanded="true"] span::before { transform: translateY(7px) rotate(45deg); }
+    .menu-btn[aria-expanded="true"] span::after { transform: translateY(-7px) rotate(-45deg); }
+
+    /* ---------- menu panel ---------- */
+    .menu {
+      position: absolute; top: 74px; right: 30px; z-index: 30;
+      min-width: 232px; padding: 8px;
+      background: var(--glass-bg); border: 1px solid var(--glass-stroke);
+      border-radius: var(--glass-radius); box-shadow: var(--glass-shadow);
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      /* visibility (not just opacity) so the closed menu's links leave the tab
+         order instead of being 8 invisible stops before the island */
+      opacity: 0; transform: translateY(-8px) scale(.98); pointer-events: none;
+      visibility: hidden;
+      transition: opacity .22s var(--ease), transform .28s var(--ease), visibility 0s linear .22s;
+    }
+    .menu.is-open {
+      opacity: 1; transform: none; pointer-events: auto; visibility: visible;
+      transition: opacity .22s var(--ease), transform .28s var(--ease), visibility 0s;
+    }
+    .menu a {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 12px; border-radius: 6px; font-size: 14px; font-weight: 500;
+      transition: background .16s var(--ease), color .16s var(--ease);
+    }
+    .menu a:hover { background: #ffffff12; color: #fff; }
+    .menu .ext {
+      font-family: var(--font-mono); font-size: 10px; color: var(--fg-dim);
+      letter-spacing: .04em;
+    }
+    .menu hr { border: 0; border-top: 1px solid var(--glass-stroke); margin: 6px 4px; }
+
+    /* ---------- world stage ---------- */
+    .stage {
+      flex: 1; display: grid; place-items: center;
+      padding: 0 20px 40px; min-height: 0;
+    }
+    .world {
+      position: relative; width: var(--world-w); aspect-ratio: 1100 / 700;
+      animation: spawn 1.5s cubic-bezier(.16, 1, .3, 1) both;
+    }
+    @keyframes spawn {
+      from { opacity: 0; transform: translateY(26px) scale(.965); }
+      to   { opacity: 1; transform: none; }
+    }
+    .world > svg.island { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+    /* ---------- hotspots ---------- */
+    .spot {
+      position: absolute;
+      left: calc(var(--l) * 1%); top: calc(var(--t) * 1%);
+      width: calc(var(--w) * 1%);
+      transform: translate(-50%, -100%);
+      display: block; padding: 0; line-height: 0;
+      transition: transform .3s var(--ease), filter .3s var(--ease);
+    }
+    .spot img { width: 100%; height: auto; display: block; filter: drop-shadow(0 8px 14px #00000073); }
+    .spot:hover, .spot:focus-visible { transform: translate(-50%, -100%) translateY(-7px) scale(1.045); z-index: 20; }
+    .spot:hover img, .spot:focus-visible img {
+      filter: drop-shadow(0 14px 22px #000000a6) drop-shadow(0 0 14px color-mix(in srgb, var(--c, var(--accent)) 60%, transparent));
+    }
+    .spot .tag {
+      position: absolute; left: 50%; bottom: calc(100% + 9px);
+      transform: translate(-50%, 5px);
+      padding: 6px 11px; white-space: nowrap; line-height: 1.2;
+      font-size: 12px; font-weight: 700; letter-spacing: .02em;
+      background: var(--glass-bg); border: 1px solid var(--glass-stroke);
+      border-radius: var(--glass-radius); box-shadow: var(--glass-shadow);
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      color: var(--c, var(--fg));
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s var(--ease), transform .28s var(--ease);
+    }
+    .spot:hover .tag, .spot:focus-visible .tag { opacity: 1; transform: translate(-50%, 0); }
+    .spot .tag small {
+      display: block; font-family: var(--font-mono); font-weight: 400;
+      font-size: 9.5px; color: var(--fg-dim); letter-spacing: .05em; margin-top: 1px;
+    }
+
+    /* The PFP object is a stand-in until the real art lands — it should read
+       as deliberately unfinished, not as a broken image. */
+    .spot-placeholder .plate {
+      width: 100%; aspect-ratio: 1 / 1.05; border-radius: 10px;
+      border: 2px dashed color-mix(in srgb, var(--c) 70%, transparent);
+      background: linear-gradient(165deg, #ffffff14, #00000059);
+      display: grid; place-content: center; gap: 3px; text-align: center;
+      box-shadow: 0 10px 24px #00000080, inset 0 0 26px color-mix(in srgb, var(--c) 16%, transparent);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    }
+    .spot-placeholder .plate b {
+      font-family: var(--font-display); font-size: clamp(11px, 1.5vw, 17px);
+      color: var(--c); line-height: 1; letter-spacing: .01em;
+    }
+    .spot-placeholder .plate i {
+      font-family: var(--font-mono); font-style: normal;
+      font-size: clamp(6px, .82vw, 9px); color: var(--fg-dim); letter-spacing: .1em;
+    }
+
+    /* ---------- footer ---------- */
+    .foot {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap;
+      padding: 0 30px 26px;
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em;
+      color: var(--fg-dim); text-transform: uppercase;
+    }
+    .foot a:hover { color: var(--accent); }
+
+    /* On a phone the island is only ~360px wide, which makes every hotspot a
+       sub-30px tap target and crushes the labels into each other. Below 720px
+       the island becomes the picture and this list becomes the navigation. */
+    .dests { display: none; }
+    @media (max-width: 720px) {
+      .topbar { padding: 18px 18px; }
+      .wordmark { font-size: 21px; }
+      .wordmark img { width: 24px; height: 24px; }
+      .menu { right: 18px; top: 64px; left: 18px; }
+      .stage { padding: 0 14px 24px; align-content: start; gap: 22px; }
+      :root { --world-w: 96vw; }
+      .foot { padding: 0 18px 20px; font-size: 9.5px; gap: 8px; }
+      .spot .tag { display: none; }
+
+      .dests {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+        width: 100%; max-width: 460px; margin: 0 auto;
+      }
+      .dests a {
+        display: flex; flex-direction: column; gap: 2px;
+        min-height: 56px; justify-content: center;
+        padding: 10px 13px; border-radius: var(--glass-radius);
+        background: var(--glass-bg); border: 1px solid var(--glass-stroke);
+        box-shadow: var(--glass-shadow);
+        font-size: 14px; font-weight: 700; color: var(--c, var(--fg));
+      }
+      .dests a small {
+        font-family: var(--font-mono); font-weight: 400; font-size: 10px;
+        color: var(--fg-dim); letter-spacing: .04em;
+      }
+      .dests a:active { background: #ffffff1a; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .world { animation: none; }
+      .spot, .spot .tag, .menu { transition: none; }
+      .spot:hover, .spot:focus-visible { transform: translate(-50%, -100%); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="space" aria-hidden="true"><canvas id="stars"></canvas></div>
+
+  <div class="shell">
+    <header class="topbar">
+      <a class="wordmark" href="/" aria-label="TrollRunner home">
+        TR<img src="assets/animations/troll-grin.gif" alt="">LLRUNNER
+      </a>
+      <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Open menu">
+        <span></span>
+      </button>
+    </header>
+
+    <nav class="menu" id="menu" aria-label="All apps"></nav>
+
+    <main class="stage">
+      <div class="world" id="world">
+        <svg class="island" viewBox="0 0 1100 700" role="img" aria-label="The TrollRunner island floating in space">
+          <defs>
+            <linearGradient id="grass" x1=".2" y1="0" x2=".7" y2="1">
+              <stop offset="0%" stop-color="#8ede63"/><stop offset="55%" stop-color="#63c247"/>
+              <stop offset="100%" stop-color="#3f9433"/>
+            </linearGradient>
+            <linearGradient id="cliff" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#8a6b47"/><stop offset="100%" stop-color="#5b432c"/>
+            </linearGradient>
+            <linearGradient id="rock" x1=".3" y1="0" x2=".7" y2="1">
+              <stop offset="0%" stop-color="#5a4632"/><stop offset="45%" stop-color="#392c20"/>
+              <stop offset="100%" stop-color="#150f0a"/>
+            </linearGradient>
+            <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#8fe9f7"/><stop offset="100%" stop-color="#2b9fd4"/>
+            </linearGradient>
+            <linearGradient id="fall" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#bff2fb"/><stop offset="55%" stop-color="#7fdcf0" stop-opacity=".8"/>
+              <stop offset="100%" stop-color="#7fdcf0" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+
+          <!-- rock keel: irregular slabs, widest under the land, tapering to a spur -->
+          <path d="M176 404
+                   C196 470 214 512 246 556 C258 512 262 486 268 452
+                   C296 540 320 594 356 646 C372 596 378 560 386 520
+                   C414 612 452 668 502 700 C520 646 528 604 534 560
+                   C560 640 592 678 632 646 C646 606 650 574 654 540
+                   C688 604 722 618 754 574 C766 538 770 508 774 476
+                   C812 528 846 522 880 462 C898 436 910 418 922 400 Z"
+                fill="url(#rock)" stroke="#000" stroke-width="4.5" stroke-linejoin="round"/>
+          <!-- striations -->
+          <g stroke="#000" stroke-opacity=".26" stroke-width="3" fill="none" stroke-linecap="round">
+            <path d="M268 452 C280 500 292 534 306 566"/>
+            <path d="M386 520 C400 570 414 604 432 636"/>
+            <path d="M534 560 C548 606 560 634 574 656"/>
+            <path d="M654 540 C666 576 678 598 690 614"/>
+            <path d="M774 476 C788 508 800 524 814 534"/>
+          </g>
+
+          <!-- cliff wall: the visible side of the land -->
+          <path d="M126 392 A424 132 0 0 0 974 392 L974 426 A424 132 0 0 1 126 426 Z"
+                fill="url(#cliff)" stroke="#000" stroke-width="4.5"/>
+          <!-- land surface -->
+          <ellipse cx="550" cy="392" rx="424" ry="132" fill="url(#grass)" stroke="#000" stroke-width="5"/>
+          <!-- beach ring -->
+          <ellipse cx="550" cy="394" rx="388" ry="114" fill="#f4e6b8" stroke="#000" stroke-width="3"/>
+          <!-- inner grass -->
+          <ellipse cx="548" cy="388" rx="356" ry="100" fill="url(#grass)" stroke="#000" stroke-width="3"/>
+          <!-- grass shading patches -->
+          <g fill="#000" fill-opacity=".07">
+            <ellipse cx="360" cy="352" rx="120" ry="28"/>
+            <ellipse cx="742" cy="356" rx="104" ry="24"/>
+          </g>
+
+          <!-- lagoon, pushed to the near-left so the middle stays walkable -->
+          <ellipse cx="452" cy="432" rx="128" ry="36" fill="url(#sea)" stroke="#000" stroke-width="3"/>
+          <ellipse cx="452" cy="428" rx="96" ry="22" fill="#fff" fill-opacity=".18"/>
+          <!-- stream: lagoon edge across the beach to the lip -->
+          <path d="M428 462 C424 486 424 500 426 516 L482 516 C480 500 478 486 476 462 Z"
+                fill="url(#sea)" stroke="#000" stroke-width="2.5"/>
+
+          <!-- bushes: lighter than the grass so they read as planting, not holes -->
+          <g stroke="#000" stroke-width="3">
+            <g fill="#77d15c">
+              <ellipse cx="244" cy="352" rx="24" ry="15"/>
+              <ellipse cx="292" cy="338" rx="17" ry="11"/>
+              <ellipse cx="872" cy="356" rx="24" ry="15"/>
+              <ellipse cx="828" cy="340" rx="16" ry="11"/>
+              <ellipse cx="596" cy="326" rx="20" ry="13"/>
+            </g>
+            <g fill="#9ae57f" stroke="none">
+              <ellipse cx="238" cy="347" rx="12" ry="6"/>
+              <ellipse cx="866" cy="351" rx="12" ry="6"/>
+              <ellipse cx="592" cy="322" rx="10" ry="5"/>
+            </g>
+          </g>
+
+          <!-- Waterfall last, so it falls IN FRONT of the cliff and rock. It
+               starts at the front rim (y≈520) and never crosses the surface. -->
+          <path d="M426 516 C420 576 414 630 408 686 L500 686 C494 628 488 574 482 516 Z"
+                fill="url(#fall)"/>
+          <path d="M436 522 C432 566 428 604 424 640" stroke="#fff" stroke-opacity=".5"
+                stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <path d="M468 524 C466 562 464 592 462 620" stroke="#fff" stroke-opacity=".3"
+                stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <ellipse cx="454" cy="520" rx="30" ry="7" fill="#bff2fb" fill-opacity=".85"/>
+        </svg>
+      </div>
+      <nav class="dests" id="dests" aria-label="Destinations"></nav>
+    </main>
+
+    <footer class="foot">
+      <span>© 2026 Troll Runner · Art by <a href="https://twitter.com/SwishPng" target="_blank" rel="noopener noreferrer">@SwishPng</a></span>
+      <span id="foot-hint">Click an object to travel</span>
+    </footer>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    /* Hotspots are percentage rects over the artwork, so they track the island
+       at any viewport width and survive an art swap with only coordinate
+       tuning. `external` sends you off-site; everything else is a local page. */
+    /* Laid out in three depth bands — back / mid / front — so objects read as
+       standing on a surface instead of stacked in a row, and so none of their
+       bounding boxes collide. `t` is in viewBox px (0–700) and gets converted
+       to a percentage below, keeping these numbers readable against the SVG. */
+    const SPOTS = [
+      // back band
+      { id: 'terminal', label: 'Terminal',    sub: 'terminal.trollrunner.net',
+        href: 'https://terminal.trollrunner.net', external: true,
+        color: '#30d158', img: 'assets/images/wallpaper/obj-updates.png',  l: 39,   t: 346, w: 10 },
+      { id: 'stickers', label: 'Stickers',    sub: 'stickers.trollrunner.net',
+        href: 'https://stickers.trollrunner.net', external: true,
+        color: '#ff9500', img: 'assets/images/wallpaper/obj-stickers.png', l: 64,   t: 352, w: 4 },
+      // mid band
+      { id: 'hub',      label: 'The Hub',     sub: 'trollrunner.net',
+        href: 'https://www.trollrunner.net', external: true,
+        color: '#4dff73', img: 'assets/images/wallpaper/obj-hub.png',      l: 27,   t: 400, w: 12 },
+      { id: 'pfp',      label: 'PFP Studio',  sub: 'Build your troll', to: 'pfp.html',
+        color: '#8fe36a', l: 50,   t: 384, w: 8.5, placeholder: true },
+      { id: 'finance',  label: 'Finances',    sub: 'finance.trollrunner.net',
+        href: 'https://finance.trollrunner.net', external: true,
+        color: '#ffd84d', img: 'assets/images/wallpaper/obj-finances.png', l: 74,   t: 388, w: 9.5 },
+      // front band
+      { id: 'chat',     label: 'TrollChat',   sub: 'Live room', to: 'chat.html',
+        color: '#ff9500', img: 'assets/images/wallpaper/obj-chat.png',     l: 15,   t: 428, w: 7 },
+      { id: 'maps',     label: 'Maps',        sub: 'maps.trollrunner.net',
+        href: 'https://maps.trollrunner.net', external: true,
+        color: '#30d158', img: 'assets/images/icons/troll-map.png',        l: 85,   t: 434, w: 6.5 },
+    ];
+
+    // Pure scenery — no link, no focus stop.
+    const PROPS = [
+      { img: 'assets/images/wallpaper/obj-runner.png', l: 62, t: 446, w: 7.5 },
+    ];
+
+    const world = document.getElementById('world');
+
+    const place = (el, s) => {
+      el.style.setProperty('--l', s.l);
+      el.style.setProperty('--t', (s.t / 700) * 100);
+      el.style.setProperty('--w', s.w);
+      if (s.color) el.style.setProperty('--c', s.color);
+    };
+
+    for (const s of SPOTS) {
+      const el = document.createElement('a');
+      el.className = 'spot' + (s.placeholder ? ' spot-placeholder' : '');
+      el.id = `spot-${s.id}`;
+      place(el, s);
+
+      if (s.external) {
+        el.href = s.href;
+        el.target = '_blank';
+        el.rel = 'noopener noreferrer';
+      } else {
+        el.href = s.to;
+      }
+      el.setAttribute('aria-label', s.external ? `${s.label} — opens in a new tab` : s.label);
+
+      if (s.placeholder) {
+        const plate = document.createElement('span');
+        plate.className = 'plate';
+        const b = document.createElement('b'); b.textContent = 'PFP';
+        const i = document.createElement('i'); i.textContent = 'ART SOON';
+        plate.append(b, i);
+        el.appendChild(plate);
+      } else {
+        const img = document.createElement('img');
+        img.src = s.img; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+        el.appendChild(img);
+      }
+
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = s.label;
+      if (s.sub) {
+        const small = document.createElement('small');
+        small.textContent = s.sub;
+        tag.appendChild(small);
+      }
+      el.appendChild(tag);
+      world.appendChild(el);
+    }
+
+    for (const p of PROPS) {
+      const el = document.createElement('span');
+      el.className = 'spot';
+      el.setAttribute('aria-hidden', 'true');
+      el.style.pointerEvents = 'none';
+      place(el, p);
+      const img = document.createElement('img');
+      img.src = p.img; img.alt = ''; img.loading = 'lazy';
+      el.appendChild(img);
+      world.appendChild(el);
+    }
+
+    /* ---------- phone destination list ----------
+       Same data as the hotspots, rendered as real tap targets. Hidden above
+       720px by CSS, where the island itself is the navigation. */
+    const dests = document.getElementById('dests');
+    for (const s of SPOTS) {
+      const a = document.createElement('a');
+      if (s.external) {
+        a.href = s.href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.setAttribute('aria-label', `${s.label} — opens in a new tab`);
+      } else {
+        a.href = s.to;
+      }
+      if (s.color) a.style.setProperty('--c', s.color);
+      a.textContent = s.label;
+      if (s.sub) {
+        const small = document.createElement('small');
+        small.textContent = s.sub;
+        a.appendChild(small);
+      }
+      dests.appendChild(a);
+    }
+
+    /* Exactly one of the two navigations is live at a time. Without this the
+       island's links stay focusable when visually superseded by the list, and
+       keyboard users get every destination twice. */
+    const narrow = window.matchMedia('(max-width: 720px)');
+    const syncNav = () => {
+      world.inert = narrow.matches;
+      world.setAttribute('aria-hidden', String(narrow.matches));
+      dests.hidden = !narrow.matches;
+      const hint = document.getElementById('foot-hint');
+      if (hint) hint.textContent = narrow.matches ? 'Pick a destination' : 'Click an object to travel';
+    };
+    narrow.addEventListener?.('change', syncNav);
+    syncNav();
+
+    /* ---------- menu ---------- */
+    const menu = document.getElementById('menu');
+    const menuBtn = document.getElementById('menu-btn');
+    for (const s of SPOTS) {
+      const a = document.createElement('a');
+      a.textContent = s.label;
+      if (s.external) {
+        a.href = s.href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        const ext = document.createElement('span');
+        ext.className = 'ext'; ext.textContent = '↗';
+        a.appendChild(ext);
+      } else {
+        a.href = s.to;
+      }
+      menu.appendChild(a);
+    }
+    menu.appendChild(document.createElement('hr'));
+    const desk = document.createElement('a');
+    desk.href = '/'; desk.textContent = 'Classic desktop';
+    menu.appendChild(desk);
+
+    const setMenu = open => {
+      menu.classList.toggle('is-open', open);
+      menuBtn.setAttribute('aria-expanded', String(open));
+      menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    };
+    menuBtn.addEventListener('click', () => setMenu(!menu.classList.contains('is-open')));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+    document.addEventListener('click', e => {
+      if (!menu.contains(e.target) && !menuBtn.contains(e.target)) setMenu(false);
+    });
+
+    /* ---------- starfield ----------
+       Canvas rather than hundreds of DOM nodes; redrawn only on resize unless
+       the viewer is happy with motion. */
+    const canvas = document.getElementById('stars');
+    const ctx = canvas.getContext('2d');
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let stars = [], raf = 0;
+
+    function seed() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(innerWidth * dpr);
+      canvas.height = Math.floor(innerHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const count = Math.round((innerWidth * innerHeight) / 9000);
+      stars = Array.from({ length: count }, () => ({
+        x: Math.random() * innerWidth,
+        y: Math.random() * innerHeight,
+        r: Math.random() * 1.25 + 0.25,
+        a: Math.random() * 0.5 + 0.25,
+        tw: Math.random() * 0.02 + 0.004,
+        p: Math.random() * Math.PI * 2,
+      }));
+    }
+
+    function draw(t) {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      for (const s of stars) {
+        const alpha = calm.matches ? s.a : s.a + Math.sin(t * s.tw + s.p) * 0.22;
+        ctx.globalAlpha = Math.max(0.05, Math.min(1, alpha));
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function loop(t) { draw(t); raf = requestAnimationFrame(loop); }
+    function start() {
+      cancelAnimationFrame(raf);
+      seed();
+      if (calm.matches) draw(0); else raf = requestAnimationFrame(loop);
+    }
+    addEventListener('resize', start, { passive: true });
+    calm.addEventListener?.('change', start);
+    start();
+  })();
+  </script>
+</body>
+</html>
