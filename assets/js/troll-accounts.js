@@ -179,15 +179,61 @@
     return `u_${String(username).toLowerCase()}@${LOGIN_EMAIL_DOMAIN}`;
   }
 
+  /* Profile tags — Discord-style role badges next to a username. Display only:
+     the tags column has no client write grant, so the ONLY way one gets set is
+     an admin session calling troll_admin_set_profile_tags (admin.html → Player
+     accounts → Tags). See assets/supabase/troll_profile_tags.sql. */
+  const PROFILE_TAGS = {
+    developer: { label: 'Developer' },
+    admin: { label: 'Admin' },
+    trollrunner: { label: 'TrollRunner' },
+  };
+
+  function normalizeProfileTags(tags) {
+    if (!Array.isArray(tags)) return [];
+    const out = [];
+    tags.forEach(raw => {
+      const tag = String(raw || '').trim().toLowerCase();
+      if (PROFILE_TAGS[tag] && !out.includes(tag)) out.push(tag);
+    });
+    return out;
+  }
+
+  // Returns an always-appendable node; it just stays hidden when there are
+  // no tags, so callers don't need to branch.
+  function profileTagsNode(tags) {
+    ensureModalStyles();
+    const wrap = document.createElement('span');
+    wrap.className = 'ta-tags';
+    const list = normalizeProfileTags(tags);
+    if (!list.length) { wrap.hidden = true; return wrap; }
+    list.forEach(tag => {
+      const pill = document.createElement('span');
+      pill.className = 'ta-tag';
+      pill.dataset.tag = tag;
+      pill.textContent = PROFILE_TAGS[tag].label;
+      wrap.appendChild(pill);
+    });
+    return wrap;
+  }
+
+  const PROFILE_COLUMNS = 'id, username, avatar_url, bio, level, xp, created_at, auto_join_groups';
+
   async function loadProfile(userId) {
     const sb = getClient();
     if (!sb || !userId) return null;
     if (!profilePromise) {
+      // `tags` only exists once troll_profile_tags.sql has been run; without
+      // the fallback an un-migrated project would 400 here and break login
+      // everywhere, not just the tag pills.
       profilePromise = sb
         .from('troll_profiles')
-        .select('id, username, avatar_url, bio, level, xp, created_at, auto_join_groups')
+        .select(`${PROFILE_COLUMNS}, tags`)
         .eq('id', userId)
         .maybeSingle()
+        .then(res => (res.error
+          ? sb.from('troll_profiles').select(PROFILE_COLUMNS).eq('id', userId).maybeSingle()
+          : res))
         .then(({ data }) => {
           cachedProfile = data || null;
           return cachedProfile;
@@ -218,6 +264,7 @@
       avatarUrl: cachedProfile.avatar_url || null,
       avatar: null,
       joinedAt: cachedProfile.created_at || null,
+      tags: normalizeProfileTags(cachedProfile.tags),
       autoJoinGroups: cachedProfile.auto_join_groups !== false,
     };
   }
@@ -991,10 +1038,19 @@
 
   async function getPublicProfile(userId) {
     const sb = getClient();
-    const { data, error } = await sb.from('troll_profiles')
-      .select('id, username, avatar_url, bio, level')
+    const base = 'id, username, avatar_url, bio, level';
+    let { data, error } = await sb.from('troll_profiles')
+      .select(`${base}, tags`)
       .eq('id', userId)
       .maybeSingle();
+    // Same pre-migration fallback as loadProfile — a missing tags column must
+    // not take the whole profile card down with it.
+    if (error) {
+      ({ data, error } = await sb.from('troll_profiles')
+        .select(base)
+        .eq('id', userId)
+        .maybeSingle());
+    }
     if (error || !data) return null;
     return data;
   }
@@ -1128,6 +1184,14 @@
       .ta-name { margin: 0; font-size: 19px; color: #fff; word-break: break-all; }
       .ta-pill { display: inline-block; margin-top: 4px; padding: 1px 8px; font-size: 12px; color: #08110a;
         background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521); border: 2px solid #000; border-radius: 4px; }
+      .ta-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+      .ta-tags[hidden] { display: none; }
+      .ta-tag { display: inline-flex; align-items: center; padding: 1px 8px; font-size: 11px; font-weight: 700;
+        letter-spacing: 0.06em; text-transform: uppercase; color: #fff; border: 2px solid #000; border-radius: 4px;
+        background: #8fa396; }
+      .ta-tag[data-tag="developer"] { background: linear-gradient(180deg, #7f8bff, #5865f2 55%, #414bd4); }
+      .ta-tag[data-tag="admin"] { background: linear-gradient(180deg, #ff6b6d, #ed4245 55%, #c62b2e); }
+      .ta-tag[data-tag="trollrunner"] { background: linear-gradient(180deg, #ff77c2, #eb459e 55%, #c62784); }
       .ta-muted { color: #8fa396; font-size: 12px; }
       .ta-bar { height: 12px; border: 2px solid #000; border-radius: 4px; background: #0c100e; overflow: hidden; }
       .ta-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #1ec94f, #4dff73); }
@@ -1471,6 +1535,7 @@
     meta.querySelector('.ta-name').textContent = session.username;
     meta.querySelector('.ta-pill').textContent = `LV ${session.level}`;
     meta.querySelector('.ta-muted').textContent = `Running since ${joined}`;
+    meta.querySelector('.ta-pill').after(profileTagsNode(session.tags));
     const whereFrom = document.createElement('div');
     whereFrom.className = 'ta-muted';
     whereFrom.hidden = true;
@@ -2216,6 +2281,7 @@
     nameEl.appendChild(onlineDotNode(userId));
     nameEl.appendChild(document.createTextNode(profile.username));
     meta.querySelector('.ta-pill').textContent = `LV ${profile.level}`;
+    meta.querySelector('.ta-pill').after(profileTagsNode(profile.tags));
     meta.appendChild(playingTagNode(userId));
     // A hidden pin never comes back from the query, so this simply stays off.
     const whereFrom = document.createElement('div');
@@ -2818,6 +2884,9 @@
     getLeaderboardBadges,
     getFriendActivity,
     ensureSocialStyles: ensureModalStyles,
+    profileTags: PROFILE_TAGS,
+    normalizeProfileTags,
+    profileTagsNode,
     openDmPanel,
     openDmThread,
     getDmHistory,

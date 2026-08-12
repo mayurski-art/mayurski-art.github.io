@@ -7651,7 +7651,7 @@ async function openViewerProfileCard(userId, fallbackName) {
   try {
     const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
     const profileQs = new URLSearchParams({
-      select: 'id,username,avatar_url,bio,level,xp,created_at',
+      select: 'id,username,avatar_url,bio,level,xp,created_at,tags',
       id: `eq.${safeUserId}`,
       limit: '1',
     });
@@ -7661,10 +7661,16 @@ async function openViewerProfileCard(userId, fallbackName) {
       order: 'high_score.desc',
       limit: '6',
     });
-    const [profileRes, statsRes] = await Promise.all([
+    let [profileRes, statsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/troll_profiles?${profileQs.toString()}`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/troll_game_stats?${statsQs.toString()}`, { headers }),
     ]);
+    // `tags` only exists after troll_profile_tags.sql has been run — fall back
+    // so an un-migrated project still shows the card, just without pills.
+    if (!profileRes.ok) {
+      profileQs.set('select', 'id,username,avatar_url,bio,level,xp,created_at');
+      profileRes = await fetch(`${SUPABASE_URL}/rest/v1/troll_profiles?${profileQs.toString()}`, { headers });
+    }
     const profileRows = profileRes.ok ? await profileRes.json() : [];
     const profile = Array.isArray(profileRows) ? profileRows[0] : null;
     if (!profile) {
@@ -7697,12 +7703,15 @@ async function openViewerProfileCard(userId, fallbackName) {
     const lv = document.createElement('span');
     lv.className = 'viewer-roster-lv';
     lv.textContent = `LV ${Math.max(1, Number(profile.level) || 1)} · ${Number(profile.xp || 0).toLocaleString()} XP`;
+    const tags = window.TrollrunnerAccounts?.profileTagsNode?.(profile.tags);
     const joined = document.createElement('div');
     joined.className = 'viewer-profile-muted';
     joined.textContent = profile.created_at
       ? `Running since ${new Date(profile.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}`
       : 'Running since —';
-    meta.append(name, lv, joined);
+    meta.append(name, lv);
+    if (tags) meta.appendChild(tags);
+    meta.appendChild(joined);
     row.appendChild(meta);
     body.appendChild(row);
 

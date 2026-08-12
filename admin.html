@@ -498,6 +498,39 @@
       background: rgba(90,200,250,0.12);
       color: #5ac8fa;
     }
+    /* Profile tags — click to grant/revoke. Off state is an outline, on state
+       fills with that tag's colour so a row reads at a glance. */
+    .accounts-tag-row {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .accounts-tag-btn {
+      --tag-color: #8e8e93;
+      padding: 2px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--tag-color);
+      background: transparent;
+      color: var(--tag-color);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      opacity: 0.55;
+      white-space: nowrap;
+    }
+    .accounts-tag-btn:hover { opacity: 0.85; }
+    .accounts-tag-btn.is-on {
+      background: var(--tag-color);
+      color: #0b0c10;
+      opacity: 1;
+    }
+    .accounts-tag-btn:disabled { cursor: wait; opacity: 0.35; }
+    .accounts-tag-btn[data-tag="developer"] { --tag-color: #7f8bff; }
+    .accounts-tag-btn[data-tag="admin"] { --tag-color: #ff6b6d; }
+    .accounts-tag-btn[data-tag="trollrunner"] { --tag-color: #ff77c2; }
 
     /* ---- Payout requests (colorful, per-game grouped) ---- */
     .payouts-live-dot {
@@ -2484,6 +2517,16 @@ Fixed some admin system bugs.`,
 
       let accounts = [];
 
+      // Profile tags (assets/supabase/troll_profile_tags.sql). Setting one is
+      // admin-only server-side — this UI is just the switchboard.
+      const PROFILE_TAGS = [
+        { slug: 'developer', label: 'Developer' },
+        { slug: 'admin', label: 'Admin' },
+        { slug: 'trollrunner', label: 'TrollRunner' },
+      ];
+      const TAG_SLUGS = PROFILE_TAGS.map(tag => tag.slug);
+      let tagsColumnMissing = false;
+
       function setStatus(message, mode) {
         statusEl.textContent = message;
         statusEl.dataset.mode = mode || '';
@@ -2495,6 +2538,16 @@ Fixed some admin system bugs.`,
         return response.json();
       }
 
+      function cleanTags(tags) {
+        if (!Array.isArray(tags)) return [];
+        const out = [];
+        tags.forEach(raw => {
+          const tag = String(raw || '').trim().toLowerCase();
+          if (TAG_SLUGS.includes(tag) && !out.includes(tag)) out.push(tag);
+        });
+        return out;
+      }
+
       async function loadAccounts() {
         if (!isSupabaseConfigured()) {
           setStatus('Supabase is not configured — accounts cannot load.', 'locked');
@@ -2503,8 +2556,17 @@ Fixed some admin system bugs.`,
         setStatus('Loading accounts…');
         if (refreshBtn) refreshBtn.disabled = true;
         try {
+          const profileCols = 'id,username,avatar_url,level,xp,is_npc,created_at,updated_at';
           const [profiles, stats] = await Promise.all([
-            fetchRows('troll_profiles?select=id,username,avatar_url,level,xp,is_npc,created_at,updated_at&order=created_at.desc&limit=1000'),
+            // `tags` needs troll_profile_tags.sql — without it the column
+            // request 400s, so fall back and say so instead of failing the
+            // whole accounts panel.
+            fetchRows(`troll_profiles?select=${profileCols},tags&order=created_at.desc&limit=1000`)
+              .then(rows => { tagsColumnMissing = false; return rows; })
+              .catch(() => {
+                tagsColumnMissing = true;
+                return fetchRows(`troll_profiles?select=${profileCols}&order=created_at.desc&limit=1000`);
+              }),
             fetchRows('troll_game_stats?select=user_id,game_id,games_played,high_score,updated_at&limit=5000'),
           ]);
           const statsByUser = new Map();
@@ -2524,6 +2586,7 @@ Fixed some admin system bugs.`,
               username: String(profile.username || 'unknown'),
               avatarUrl: profile.avatar_url || '',
               isNpc: Boolean(profile.is_npc),
+              tags: cleanTags(profile.tags),
               level: Number(profile.level || 1),
               xp: Number(profile.xp || 0),
               joined,
@@ -2533,7 +2596,10 @@ Fixed some admin system bugs.`,
             };
           });
           renderAccounts();
-          setStatus(`${accounts.length} account${accounts.length === 1 ? '' : 's'} loaded — refreshed ${new Date().toLocaleTimeString()}.`, 'open');
+          const tagNote = tagsColumnMissing
+            ? ' Tags are off until you run assets/supabase/troll_profile_tags.sql in the Supabase SQL editor.'
+            : '';
+          setStatus(`${accounts.length} account${accounts.length === 1 ? '' : 's'} loaded — refreshed ${new Date().toLocaleTimeString()}.${tagNote}`, tagsColumnMissing ? '' : 'open');
         } catch (err) {
           setStatus(`Could not load accounts: ${err && err.message ? err.message : 'unknown error'}`, 'locked');
         } finally {
@@ -2613,6 +2679,7 @@ Fixed some admin system bugs.`,
           return `<tr>
             <td>${avatarHtml(account)}${escapeHtml(account.username)}</td>
             <td>${typePill}</td>
+            <td>${tagCellHtml(account)}</td>
             <td><span class="accounts-level-pill">LV ${account.level}</span></td>
             <td>${account.xp.toLocaleString()}</td>
             <td>${account.games.toLocaleString()}</td>
@@ -2623,11 +2690,55 @@ Fixed some admin system bugs.`,
         }).join('');
         tableWrap.innerHTML = `<table class="analytics-table">
           <thead><tr>
-            <th>Username</th><th>Player</th><th>Level</th><th>XP</th><th>Games</th><th>Best score</th><th>Joined</th><th>Last seen</th>
+            <th>Username</th><th>Player</th><th>Tags</th><th>Level</th><th>XP</th><th>Games</th><th>Best score</th><th>Joined</th><th>Last seen</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
       }
+
+      function tagCellHtml(account) {
+        if (tagsColumnMissing) return '<span class="accounts-type-pill">—</span>';
+        const buttons = PROFILE_TAGS.map(tag => {
+          const on = account.tags.includes(tag.slug);
+          return `<button type="button" class="accounts-tag-btn${on ? ' is-on' : ''}" data-tag="${tag.slug}"
+            data-user="${escapeHtml(account.id)}" aria-pressed="${on ? 'true' : 'false'}"
+            title="${on ? 'Remove' : 'Give'} the ${escapeHtml(tag.label)} tag">${escapeHtml(tag.label)}</button>`;
+        }).join('');
+        return `<div class="accounts-tag-row">${buttons}</div>`;
+      }
+
+      // One admin-only RPC per click — the server re-checks the admin session
+      // and drops any slug it doesn't recognise.
+      async function toggleTag(button) {
+        const userId = button.dataset.user;
+        const slug = button.dataset.tag;
+        const account = accounts.find(a => a.id === userId);
+        if (!account) return;
+        const next = account.tags.includes(slug)
+          ? account.tags.filter(tag => tag !== slug)
+          : account.tags.concat(slug);
+        button.disabled = true;
+        try {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_admin_set_profile_tags`, {
+            method: 'POST',
+            headers: await adminRpcHeaders(),
+            body: JSON.stringify({ p_user: userId, p_tags: next }),
+          });
+          if (!response.ok) throw new Error(await parseSupabaseError(response));
+          const saved = await response.json();
+          account.tags = cleanTags(saved);
+          renderAccounts();
+          setStatus(`Tags for ${account.username}: ${account.tags.length ? account.tags.join(', ') : 'none'}.`, 'open');
+        } catch (err) {
+          button.disabled = false;
+          setStatus(`Could not update tags: ${err && err.message ? err.message : 'unknown error'}`, 'locked');
+        }
+      }
+
+      tableWrap.addEventListener('click', event => {
+        const button = event.target.closest('.accounts-tag-btn');
+        if (button && !button.disabled) void toggleTag(button);
+      });
 
       if (searchEl) searchEl.addEventListener('input', renderAccounts);
       if (sortEl) sortEl.addEventListener('change', renderAccounts);
