@@ -136,11 +136,16 @@
     client.auth.onAuthStateChange((event, session) => {
       // INITIAL_SESSION fires on every fresh page load, including origins that
       // have never signed in locally and are relying on adoptSsoCookie() to pull
-      // in a session from the cookie. Writing here (with session:null, since this
-      // origin's own localStorage is empty) would wipe that cookie out from under
-      // adoptSsoCookie before/while it's trying to read it. Only mirror the cookie
-      // on events that reflect an actual sign-in/out action.
-      if (event !== 'INITIAL_SESSION') writeSsoCookie(session);
+      // in a session from the cookie. Writing session:null here (this origin's
+      // own localStorage being empty) would wipe that cookie out from under
+      // adoptSsoCookie before/while it's trying to read it -- so never mirror a
+      // null on INITIAL_SESSION.
+      //   A *non-null* INITIAL_SESSION is the opposite case and must be written:
+      // the cookie otherwise only ever gets set at the moment of sign-in, so a
+      // long-lived session that just keeps being restored from localStorage lets
+      // the 30-day cookie lapse, and every sibling subdomain silently looks
+      // logged-out even though this origin is fine.
+      if (event !== 'INITIAL_SESSION' || session) writeSsoCookie(session);
       if (!session) {
         cachedProfile = null;
         profilePromise = null;
