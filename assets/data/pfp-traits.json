@@ -1,0 +1,1042 @@
+{
+  "version": 1,
+  "size": 1024,
+  "thumb": 160,
+  "layers": [
+    {
+      "id": "background",
+      "name": "Background",
+      "traits": [
+        {
+          "id": "911",
+          "name": "911"
+        },
+        {
+          "id": "batcave",
+          "name": "Batcave"
+        },
+        {
+          "id": "bedroom",
+          "name": "Bedroom"
+        },
+        {
+          "id": "biden",
+          "name": "Biden"
+        },
+        {
+          "id": "binance-spaceship",
+          "name": "Binance spaceship"
+        },
+        {
+          "id": "blue",
+          "name": "Blue",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "bob-ross-painting",
+          "name": "Bob Ross painting"
+        },
+        {
+          "id": "braveheart",
+          "name": "Braveheart"
+        },
+        {
+          "id": "cars",
+          "name": "Cars"
+        },
+        {
+          "id": "chapo-tunnel",
+          "name": "Chapo tunnel"
+        },
+        {
+          "id": "chinese-restaurant",
+          "name": "Chinese restaurant"
+        },
+        {
+          "id": "cod",
+          "name": "Cod"
+        },
+        {
+          "id": "comic",
+          "name": "Comic"
+        },
+        {
+          "id": "dark",
+          "name": "Dark",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "death-note",
+          "name": "Death note"
+        },
+        {
+          "id": "diddy",
+          "name": "Diddy"
+        },
+        {
+          "id": "dollartroll",
+          "name": "Dollartroll"
+        },
+        {
+          "id": "epstein",
+          "name": "Epstein"
+        },
+        {
+          "id": "fantasy-revised",
+          "name": "Fantasy revised"
+        },
+        {
+          "id": "fishing",
+          "name": "Fishing"
+        },
+        {
+          "id": "forest",
+          "name": "Forest"
+        },
+        {
+          "id": "frog-world",
+          "name": "Frog world"
+        },
+        {
+          "id": "german-techno",
+          "name": "German techno"
+        },
+        {
+          "id": "green",
+          "name": "Green",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "halo",
+          "name": "Halo"
+        },
+        {
+          "id": "holo",
+          "name": "Holo"
+        },
+        {
+          "id": "inside-mansion",
+          "name": "Inside mansion"
+        },
+        {
+          "id": "lofi",
+          "name": "Lofi"
+        },
+        {
+          "id": "microsoft",
+          "name": "Microsoft"
+        },
+        {
+          "id": "minecraft",
+          "name": "Minecraft"
+        },
+        {
+          "id": "minecraft-lava",
+          "name": "Minecraft lava"
+        },
+        {
+          "id": "moon",
+          "name": "Moon"
+        },
+        {
+          "id": "mount-everest",
+          "name": "Mount Everest"
+        },
+        {
+          "id": "mushroom-forest",
+          "name": "Mushroom forest"
+        },
+        {
+          "id": "news",
+          "name": "News"
+        },
+        {
+          "id": "night",
+          "name": "Night"
+        },
+        {
+          "id": "oasis",
+          "name": "Oasis"
+        },
+        {
+          "id": "orange",
+          "name": "Orange",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "orc",
+          "name": "Orc"
+        },
+        {
+          "id": "ovaloffice",
+          "name": "Ovaloffice"
+        },
+        {
+          "id": "pink",
+          "name": "Pink",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "prison",
+          "name": "Prison"
+        },
+        {
+          "id": "pumpfun-crowd",
+          "name": "Pumpfun crowd"
+        },
+        {
+          "id": "purple",
+          "name": "Purple",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "pyramids",
+          "name": "Pyramids"
+        },
+        {
+          "id": "red",
+          "name": "Red",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "red-light-district",
+          "name": "Red light district"
+        },
+        {
+          "id": "runescape",
+          "name": "Runescape"
+        },
+        {
+          "id": "ships-at-sea",
+          "name": "Ships at sea"
+        },
+        {
+          "id": "singapore-token2049",
+          "name": "Singapore token2049"
+        },
+        {
+          "id": "sky",
+          "name": "Sky",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "slap-chris",
+          "name": "Slap chris"
+        },
+        {
+          "id": "smurf-house",
+          "name": "Smurf house"
+        },
+        {
+          "id": "solana",
+          "name": "Solana",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "t-keyboard",
+          "name": "T keyboard"
+        },
+        {
+          "id": "teal",
+          "name": "Teal",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "the-couch",
+          "name": "The couch"
+        },
+        {
+          "id": "tokyo-lights",
+          "name": "Tokyo lights"
+        },
+        {
+          "id": "trenches",
+          "name": "Trenches"
+        },
+        {
+          "id": "trinity-ave",
+          "name": "Trinity ave"
+        },
+        {
+          "id": "troll-chambers",
+          "name": "Troll chambers"
+        },
+        {
+          "id": "troll-forest",
+          "name": "Troll forest"
+        },
+        {
+          "id": "troll-matrix",
+          "name": "Troll matrix"
+        },
+        {
+          "id": "troll-summer",
+          "name": "Troll summer"
+        },
+        {
+          "id": "trump-background",
+          "name": "Trump background",
+          "pack": "Booster 2"
+        },
+        {
+          "id": "uhoh",
+          "name": "Uhoh"
+        },
+        {
+          "id": "waffle",
+          "name": "WAFFLE"
+        },
+        {
+          "id": "white",
+          "name": "White",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "wow",
+          "name": "WoW"
+        },
+        {
+          "id": "xbox-menu",
+          "name": "Xbox menu"
+        },
+        {
+          "id": "yellow",
+          "name": "Yellow",
+          "pack": "Booster 1"
+        }
+      ]
+    },
+    {
+      "id": "base",
+      "name": "Base",
+      "traits": [
+        {
+          "id": "black",
+          "name": "Black"
+        },
+        {
+          "id": "blue",
+          "name": "Blue"
+        },
+        {
+          "id": "brown",
+          "name": "Brown"
+        },
+        {
+          "id": "brown-tattoo",
+          "name": "Brown tattoo"
+        },
+        {
+          "id": "green",
+          "name": "Green"
+        },
+        {
+          "id": "kisses",
+          "name": "Kisses"
+        },
+        {
+          "id": "logo-face",
+          "name": "Logo face"
+        },
+        {
+          "id": "ninja",
+          "name": "Ninja"
+        },
+        {
+          "id": "og",
+          "name": "OG"
+        },
+        {
+          "id": "og-tattoo",
+          "name": "OG Tattoo"
+        },
+        {
+          "id": "pink",
+          "name": "Pink"
+        },
+        {
+          "id": "purple",
+          "name": "Purple"
+        },
+        {
+          "id": "red",
+          "name": "Red"
+        },
+        {
+          "id": "space",
+          "name": "Space"
+        },
+        {
+          "id": "stone",
+          "name": "Stone"
+        },
+        {
+          "id": "yellow",
+          "name": "Yellow"
+        },
+        {
+          "id": "yellow-tattoo",
+          "name": "Yellow tattoo"
+        }
+      ]
+    },
+    {
+      "id": "outfit",
+      "name": "Outfit",
+      "traits": [
+        {
+          "id": "69-lakers",
+          "name": "69 lakers"
+        },
+        {
+          "id": "art-denim",
+          "name": "Art denim"
+        },
+        {
+          "id": "astronaut",
+          "name": "Astronaut"
+        },
+        {
+          "id": "badboy",
+          "name": "Badboy"
+        },
+        {
+          "id": "bandage-nipples",
+          "name": "Bandage nipples"
+        },
+        {
+          "id": "barrel",
+          "name": "Barrel"
+        },
+        {
+          "id": "beater-black",
+          "name": "Beater black"
+        },
+        {
+          "id": "beater-white",
+          "name": "Beater white"
+        },
+        {
+          "id": "bikini-pink",
+          "name": "Bikini pink"
+        },
+        {
+          "id": "boobs-black",
+          "name": "Boobs black",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "boobs-green",
+          "name": "Boobs green",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "boobs-red",
+          "name": "Boobs red",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "boobs-white",
+          "name": "Boobs white",
+          "pack": "Booster 1"
+        },
+        {
+          "id": "bounty-hunter",
+          "name": "Bounty hunter"
+        },
+        {
+          "id": "bow-tie-suit",
+          "name": "Bow tie suit"
+        },
+        {
+          "id": "cape-black",
+          "name": "Cape black"
+        },
+        {
+          "id": "cape-green",
+          "name": "Cape green"
+        },
+        {
+          "id": "cape-red",
+          "name": "Cape red"
+        },
+        {
+          "id": "coconuts",
+          "name": "Coconuts"
+        },
+        {
+          "id": "colourful",
+          "name": "Colourful"
+        },
+        {
+          "id": "cowboy",
+          "name": "Cowboy"
+        },
+        {
+          "id": "fishnets",
+          "name": "Fishnets"
+        },
+        {
+          "id": "floral-necklace",
+          "name": "Floral necklace"
+        },
+        {
+          "id": "fur-coat",
+          "name": "Fur coat"
+        },
+        {
+          "id": "gamer-hoodie",
+          "name": "Gamer hoodie"
+        },
+        {
+          "id": "green",
+          "name": "Green"
+        },
+        {
+          "id": "hike-vest",
+          "name": "Hike vest"
+        },
+        {
+          "id": "hobo",
+          "name": "Hobo"
+        },
+        {
+          "id": "jester",
+          "name": "Jester"
+        },
+        {
+          "id": "knit-vest",
+          "name": "Knit vest"
+        },
+        {
+          "id": "leather-vest",
+          "name": "Leather vest"
+        },
+        {
+          "id": "monk",
+          "name": "Monk"
+        },
+        {
+          "id": "muscles-black",
+          "name": "Muscles black"
+        },
+        {
+          "id": "muscles-white",
+          "name": "Muscles white"
+        },
+        {
+          "id": "nipple-rings",
+          "name": "Nipple rings"
+        },
+        {
+          "id": "nomad",
+          "name": "Nomad"
+        },
+        {
+          "id": "pink-dress",
+          "name": "Pink dress"
+        },
+        {
+          "id": "pink-nipples",
+          "name": "Pink nipples"
+        },
+        {
+          "id": "polo-black-and-yellow",
+          "name": "Polo Black and yellow"
+        },
+        {
+          "id": "polo-blue",
+          "name": "Polo blue"
+        },
+        {
+          "id": "polo-green",
+          "name": "Polo green"
+        },
+        {
+          "id": "polo-red",
+          "name": "Polo red"
+        },
+        {
+          "id": "prisoner",
+          "name": "Prisoner"
+        },
+        {
+          "id": "psycho",
+          "name": "Psycho"
+        },
+        {
+          "id": "puff-pink",
+          "name": "Puff pink"
+        },
+        {
+          "id": "puffer-black",
+          "name": "Puffer black"
+        },
+        {
+          "id": "puffer-blue",
+          "name": "Puffer blue"
+        },
+        {
+          "id": "puffer-green",
+          "name": "Puffer green"
+        },
+        {
+          "id": "puffer-red",
+          "name": "Puffer red"
+        },
+        {
+          "id": "puffer-white",
+          "name": "Puffer white"
+        },
+        {
+          "id": "robe-black",
+          "name": "Robe black"
+        },
+        {
+          "id": "robe-white",
+          "name": "Robe white"
+        },
+        {
+          "id": "sailor",
+          "name": "Sailor"
+        },
+        {
+          "id": "scarf",
+          "name": "Scarf"
+        },
+        {
+          "id": "seductive-black",
+          "name": "Seductive black"
+        },
+        {
+          "id": "seductive-blue",
+          "name": "Seductive blue"
+        },
+        {
+          "id": "seductive-green",
+          "name": "Seductive green"
+        },
+        {
+          "id": "seductive-pink",
+          "name": "Seductive pink"
+        },
+        {
+          "id": "seductive-white",
+          "name": "Seductive white"
+        },
+        {
+          "id": "shirt-black",
+          "name": "Shirt black"
+        },
+        {
+          "id": "shirt-white",
+          "name": "Shirt white"
+        },
+        {
+          "id": "sk8-hood-black",
+          "name": "Sk8 hood black"
+        },
+        {
+          "id": "sk8-hood-blue",
+          "name": "Sk8 hood blue"
+        },
+        {
+          "id": "sk8-hood-red",
+          "name": "Sk8 hood red"
+        },
+        {
+          "id": "suit",
+          "name": "Suit"
+        },
+        {
+          "id": "swimming",
+          "name": "Swimming"
+        },
+        {
+          "id": "team-blue",
+          "name": "Team blue"
+        },
+        {
+          "id": "team-red",
+          "name": "Team red"
+        },
+        {
+          "id": "tee-black",
+          "name": "Tee black"
+        },
+        {
+          "id": "tee-blue",
+          "name": "Tee blue"
+        },
+        {
+          "id": "tee-green",
+          "name": "Tee green"
+        },
+        {
+          "id": "tee-grey",
+          "name": "Tee grey"
+        },
+        {
+          "id": "tee-red",
+          "name": "Tee red"
+        },
+        {
+          "id": "tee-yellow",
+          "name": "Tee yellow"
+        },
+        {
+          "id": "toga",
+          "name": "Toga"
+        },
+        {
+          "id": "tracksuit-green",
+          "name": "Tracksuit green"
+        },
+        {
+          "id": "tracksuit-red",
+          "name": "Tracksuit red"
+        },
+        {
+          "id": "tracksuit-white",
+          "name": "Tracksuit white"
+        },
+        {
+          "id": "tracksuit-yellow",
+          "name": "Tracksuit yellow"
+        },
+        {
+          "id": "troll-face-shirt",
+          "name": "Troll face shirt"
+        },
+        {
+          "id": "troll-gang-chain",
+          "name": "Troll gang chain"
+        },
+        {
+          "id": "trollionaire-robe",
+          "name": "Trollionaire robe"
+        },
+        {
+          "id": "trump-tshirt",
+          "name": "Trump tshirt",
+          "pack": "Booster 2"
+        },
+        {
+          "id": "turtle-neck",
+          "name": "Turtle neck"
+        },
+        {
+          "id": "vamp-cape",
+          "name": "Vamp cape"
+        },
+        {
+          "id": "web-suit",
+          "name": "Web suit"
+        },
+        {
+          "id": "white-fur-coat",
+          "name": "White fur coat"
+        },
+        {
+          "id": "white-suit",
+          "name": "White suit"
+        },
+        {
+          "id": "wizard",
+          "name": "Wizard"
+        }
+      ]
+    },
+    {
+      "id": "headwear",
+      "name": "Headwear",
+      "traits": [
+        {
+          "id": "1-golden-tooth",
+          "name": "1 golden tooth"
+        },
+        {
+          "id": "beanie",
+          "name": "Beanie"
+        },
+        {
+          "id": "black-tooth",
+          "name": "Black tooth"
+        },
+        {
+          "id": "bushes",
+          "name": "Bushes"
+        },
+        {
+          "id": "cap-black",
+          "name": "Cap black"
+        },
+        {
+          "id": "cap-blue",
+          "name": "Cap blue"
+        },
+        {
+          "id": "cap-green",
+          "name": "Cap green"
+        },
+        {
+          "id": "cap-pink",
+          "name": "Cap pink"
+        },
+        {
+          "id": "cap-white",
+          "name": "Cap white"
+        },
+        {
+          "id": "cap-yellow",
+          "name": "Cap yellow"
+        },
+        {
+          "id": "cartier",
+          "name": "Cartier"
+        },
+        {
+          "id": "condom",
+          "name": "Condom"
+        },
+        {
+          "id": "cowboy-hat",
+          "name": "Cowboy hat"
+        },
+        {
+          "id": "crown",
+          "name": "Crown"
+        },
+        {
+          "id": "diamond-teeth",
+          "name": "Diamond teeth"
+        },
+        {
+          "id": "durag",
+          "name": "Durag"
+        },
+        {
+          "id": "french-art-hat",
+          "name": "French art hat"
+        },
+        {
+          "id": "fresh-prince",
+          "name": "Fresh prince"
+        },
+        {
+          "id": "glasses",
+          "name": "Glasses"
+        },
+        {
+          "id": "glowing-eyes",
+          "name": "Glowing eyes"
+        },
+        {
+          "id": "glowing-red-eyes",
+          "name": "Glowing red eyes"
+        },
+        {
+          "id": "golden-teeth",
+          "name": "Golden teeth"
+        },
+        {
+          "id": "green-thong",
+          "name": "Green thong"
+        },
+        {
+          "id": "halo",
+          "name": "Halo"
+        },
+        {
+          "id": "headset",
+          "name": "Headset"
+        },
+        {
+          "id": "high-eyes",
+          "name": "High eyes"
+        },
+        {
+          "id": "horns",
+          "name": "Horns"
+        },
+        {
+          "id": "jigsaw-hair",
+          "name": "Jigsaw hair"
+        },
+        {
+          "id": "khabib",
+          "name": "Khabib"
+        },
+        {
+          "id": "lipstick",
+          "name": "Lipstick"
+        },
+        {
+          "id": "long-black",
+          "name": "Long black"
+        },
+        {
+          "id": "long-blonde",
+          "name": "Long blonde"
+        },
+        {
+          "id": "long-brown",
+          "name": "Long brown"
+        },
+        {
+          "id": "make-trolling-great-again",
+          "name": "Make Trolling Great Again"
+        },
+        {
+          "id": "make-trolling-great-again-black",
+          "name": "Make trolling great again_black"
+        },
+        {
+          "id": "mcdonalds-cap",
+          "name": "Mcdonalds cap"
+        },
+        {
+          "id": "mog",
+          "name": "Mog"
+        },
+        {
+          "id": "old-man",
+          "name": "Old man"
+        },
+        {
+          "id": "pumpfun-general",
+          "name": "Pumpfun general"
+        },
+        {
+          "id": "punk",
+          "name": "Punk"
+        },
+        {
+          "id": "smurf-hat",
+          "name": "Smurf hat"
+        },
+        {
+          "id": "solami-mamis",
+          "name": "Solami mamis"
+        },
+        {
+          "id": "spinning-hat",
+          "name": "Spinning hat"
+        },
+        {
+          "id": "strainer",
+          "name": "Strainer"
+        },
+        {
+          "id": "straw-hat",
+          "name": "Straw hat"
+        },
+        {
+          "id": "tears",
+          "name": "Tears"
+        },
+        {
+          "id": "the-usual",
+          "name": "The usual"
+        },
+        {
+          "id": "troll-senses",
+          "name": "Troll senses"
+        },
+        {
+          "id": "trucker-hat-basic",
+          "name": "Trucker hat basic"
+        },
+        {
+          "id": "trump-hair",
+          "name": "Trump hair",
+          "pack": "Booster 2"
+        },
+        {
+          "id": "uncle-sam",
+          "name": "Uncle Sam",
+          "pack": "Booster 2"
+        }
+      ]
+    },
+    {
+      "id": "accessory",
+      "name": "Accessory",
+      "traits": [
+        {
+          "id": "boxing-gloves",
+          "name": "Boxing gloves"
+        },
+        {
+          "id": "candle",
+          "name": "Candle"
+        },
+        {
+          "id": "cigar",
+          "name": "Cigar"
+        },
+        {
+          "id": "deal-w-it-shades",
+          "name": "Deal w it shades"
+        },
+        {
+          "id": "demon-pack",
+          "name": "Demon pack"
+        },
+        {
+          "id": "diamond-hand",
+          "name": "Diamond hand"
+        },
+        {
+          "id": "gold-chains",
+          "name": "Gold chains"
+        },
+        {
+          "id": "hotdog",
+          "name": "Hotdog",
+          "pack": "Booster 2"
+        },
+        {
+          "id": "middle-fingers",
+          "name": "Middle fingers"
+        },
+        {
+          "id": "monster-can",
+          "name": "Monster can"
+        },
+        {
+          "id": "newspaper",
+          "name": "Newspaper"
+        },
+        {
+          "id": "paintbrush",
+          "name": "Paintbrush"
+        },
+        {
+          "id": "palm-leaf",
+          "name": "Palm leaf"
+        },
+        {
+          "id": "princess-bat",
+          "name": "Princess bat"
+        },
+        {
+          "id": "shovel",
+          "name": "Shovel"
+        },
+        {
+          "id": "spliff",
+          "name": "Spliff"
+        },
+        {
+          "id": "super-soaker",
+          "name": "Super soaker"
+        },
+        {
+          "id": "troll-sign",
+          "name": "Troll sign"
+        }
+      ]
+    }
+  ]
+}
