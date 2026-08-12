@@ -105,6 +105,7 @@
     .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
     .btn-primary { grid-column: span 2; background: var(--pf-accent); border-color: transparent; }
     .btn-primary:hover { background: #6a68e0; }
+    .btn-wide { grid-column: span 2; }
     .btn-save { grid-column: span 2; background: var(--pf-green); border-color: transparent; color: #06210f; }
     .btn-save:hover { background: #45d76a; }
 
@@ -222,12 +223,13 @@
         </div>
 
         <div class="actions">
+          <button class="btn" id="btn-back" type="button" disabled>← Previous</button>
           <button class="btn" id="btn-random" type="button">🎲 Randomize</button>
+          <button class="btn" id="btn-surprise" type="button">✨ Full random</button>
           <button class="btn" id="btn-reset" type="button">↺ Reset</button>
           <button class="btn btn-primary" id="btn-download" type="button">⬇ Download PNG</button>
           <button class="btn btn-save" id="btn-save" type="button">Save as my profile picture</button>
-          <button class="btn" id="btn-share" type="button">🔗 Copy link</button>
-          <button class="btn" id="btn-surprise" type="button">✨ Full random</button>
+          <button class="btn btn-wide" id="btn-share" type="button">🔗 Copy link</button>
         </div>
 
         <p class="note" id="note" role="status" aria-live="polite"></p>
@@ -274,6 +276,10 @@
     let build = {};
     /** layer id -> <img> in the preview stack, in z-order */
     const layerImg = new Map();
+    /** Previous builds, oldest first. Randomize is one click away from losing
+     *  a good troll forever, so every mutation is undoable. */
+    const past = [];
+    const HISTORY_LIMIT = 60;
 
     const fullSrc = (layer, trait) => `assets/pfp/${layer}/${trait}.webp`;
     const thumbSrc = (layer, trait) => `assets/pfp/${layer}/thumb/${trait}.webp`;
@@ -340,6 +346,35 @@
 
     function persist() {
       try { localStorage.setItem(STORE_KEY, JSON.stringify(build)); } catch {}
+    }
+
+    /** The one way the build changes, so nothing can bypass the undo stack. */
+    function setBuild(next, { record = true } = {}) {
+      if (record) {
+        past.push({ ...build });
+        if (past.length > HISTORY_LIMIT) past.shift();
+      }
+      build = next;
+      persist();
+      renderStack();
+      renderGrid();
+      syncHistory();
+    }
+
+    function stepBack() {
+      const previous = past.pop();
+      if (!previous) return;
+      setBuild(previous, { record: false });
+      note('');
+    }
+
+    function syncHistory() {
+      const btn = document.getElementById('btn-back');
+      if (!btn) return;
+      btn.disabled = past.length === 0;
+      btn.setAttribute('aria-label', past.length
+        ? `Go back to the previous look (${past.length} to step through)`
+        : 'No previous look yet');
     }
 
     function readStored() {
@@ -462,10 +497,7 @@
         `${trait ? trait.name : `No ${layer.name.toLowerCase()}`}${selected ? ' (selected)' : ''}`);
 
       btn.addEventListener('click', () => {
-        build[layer.id] = trait ? trait.id : null;
-        persist();
-        renderStack();
-        renderGrid();
+        setBuild({ ...build, [layer.id]: trait ? trait.id : null });
         note('');
       });
       return btn;
@@ -591,17 +623,19 @@
       persist();
       renderStack();
       renderGrid();
+      syncHistory();
       note('');
 
       el.search.addEventListener('input', renderGrid);
+      document.getElementById('btn-back').addEventListener('click', stepBack);
       document.getElementById('btn-random').addEventListener('click', () => {
-        build = randomBuild(false); persist(); renderStack(); renderGrid(); note('');
+        setBuild(randomBuild(false)); note('');
       });
       document.getElementById('btn-surprise').addEventListener('click', () => {
-        build = randomBuild(true); persist(); renderStack(); renderGrid(); note('');
+        setBuild(randomBuild(true)); note('');
       });
       document.getElementById('btn-reset').addEventListener('click', () => {
-        build = defaultBuild(); persist(); renderStack(); renderGrid(); note('');
+        setBuild(defaultBuild()); note('');
       });
       document.getElementById('btn-download').addEventListener('click', download);
       document.getElementById('btn-save').addEventListener('click', saveToProfile);
