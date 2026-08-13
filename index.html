@@ -54,12 +54,29 @@
       '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">' +
       '<meta name="theme-color" content="#000000"><title>TROLLRUNNER</title>' +
       '<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}' +
-      'iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}</style>' +
+      /* Scoped to this frame by id, never `iframe`. The desktop page below
+         carries its own iframes, and a bare selector promoted one of them to
+         full-screen on top of the entrance. */
+      '#troll-entrance{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;z-index:2147483646}' +
+      /* document.write() inserts at the cursor. It does NOT truncate the
+         file and neither does document.close(), so everything below kept
+         parsing into this same body -- the whole desktop page, ~490KB of it.
+         #site-gate is position:fixed and full-screen at z-index 80, so it
+         landed on top of the entrance and swallowed the first tap on an app
+         icon; the second tap only worked because the first had dismissed
+         it. world.html has its own run-to-enter lock, so the desktop gate is
+         redundant here regardless.
+
+         #coming-soon-gate is deliberately exempt: when that lock is on it
+         must still cover the entrance, so it stays rendered and the rule
+         below keeps the frame hidden behind it. */
+      'body>*:not(#troll-entrance):not(#coming-soon-gate){display:none!important}' +
+      'html.cs-locked body>#troll-entrance{visibility:hidden!important}</style>' +
       // Version bumped on each deploy. GitHub Pages can't send cache headers,
       // and phones hold onto HTML hard enough that several rounds of changes
       // went unseen on a device that already had this page. The query makes
       // the browser fetch a URL it has never cached.
-      '</head><body><iframe src="/world.html?embed=1&v=20260812i" title="TrollRunner"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&v=20260812i" title="TrollRunner"></iframe></body></html>'
     );
     document.close();
   }
