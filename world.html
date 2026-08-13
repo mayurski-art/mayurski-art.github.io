@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+  <!-- Spotify entries are for Troll Radio: the IFrame Embed API script comes
+       from open.spotify.com and mounts a player iframe, so both script-src
+       and frame-src have to name it or the radio silently never loads. It
+       also evaluates strings, hence 'unsafe-eval' — index.html's CSP carries
+       it for the same player. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://open.spotify.com https://*.spotifycdn.com; frame-src https://open.spotify.com https://*.spotify.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -423,10 +428,133 @@
       .wordmark img { width: 29px; height: 29px; }
     }
 
+    /* ================= TROLL RADIO =================
+       Bottom-right of the home screen, clear of the centred dock. The button
+       is the whole UI until you tap it; the panel slides up from it. */
+    .radio-btn {
+      position: fixed; z-index: 60;
+      right: calc(14px + env(safe-area-inset-right));
+      bottom: calc(20px + env(safe-area-inset-bottom));
+      width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+      background: var(--glass-bg); border: 1px solid var(--glass-stroke);
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      transition: transform .2s var(--ease), opacity .3s var(--ease), border-color .2s var(--ease);
+    }
+    .radio-btn svg { width: 23px; height: 23px; fill: var(--fg); }
+    .radio-btn:active { transform: scale(.94); }
+    /* Playing state has to read at a glance from across the room. */
+    .radio-btn.is-playing { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+    .radio-btn.is-playing svg { fill: var(--accent); }
+    .radio-btn.is-playing::after {
+      content: ""; position: absolute; inset: -4px; border-radius: 50%;
+      border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+      animation: radio-pulse 1.8s var(--ease) infinite;
+    }
+    @keyframes radio-pulse { 0% { transform: scale(.94); opacity: .9; } 100% { transform: scale(1.22); opacity: 0; } }
+    body:not([data-phase="home"]) .radio-btn { opacity: 0; pointer-events: none; }
+
+    .radio {
+      position: fixed; z-index: 61;
+      right: calc(10px + env(safe-area-inset-right));
+      bottom: calc(84px + env(safe-area-inset-bottom));
+      width: min(330px, calc(100vw - 20px));
+      background: var(--glass-bg); border: 1px solid var(--glass-stroke);
+      border-radius: 18px; box-shadow: var(--glass-shadow); overflow: hidden;
+      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      opacity: 0; visibility: hidden; transform: translateY(12px) scale(.97);
+      transform-origin: 100% 100%;
+      transition: opacity .24s var(--ease), transform .3s var(--ease), visibility 0s linear .24s;
+    }
+    .radio.is-open { opacity: 1; visibility: visible; transform: none; transition-delay: 0s, 0s, 0s; }
+    .radio-head {
+      display: flex; align-items: center; gap: 8px; padding: 11px 12px 9px;
+      border-bottom: 1px solid var(--glass-stroke);
+      font-family: var(--font-display); font-size: 13px; letter-spacing: .08em;
+    }
+    .radio-head .grin { width: 18px; height: 18px; object-fit: contain; }
+    .radio-head .sp { flex: 1; }
+    .radio-head button, .radio-head a {
+      width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px;
+      font-family: var(--font-ui); font-size: 13px; color: var(--fg-dim);
+      transition: background .16s var(--ease), color .16s var(--ease);
+    }
+    .radio-head button:hover, .radio-head a:hover { background: #ffffff14; color: var(--fg); }
+    .radio-head button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+
+    .radio-body { display: grid; gap: 10px; padding: 13px 14px 14px; }
+    .radio-now { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .radio-art {
+      width: 46px; height: 46px; flex: none; border-radius: 10px; overflow: hidden;
+      background: #101014; border: 1px solid var(--glass-stroke); display: grid; place-items: center;
+    }
+    .radio-art img { width: 100%; height: 100%; object-fit: cover; }
+    .radio-meta { min-width: 0; flex: 1; }
+    .radio-song {
+      font-weight: 700; font-size: 14px; line-height: 1.25;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .radio-artist {
+      font-size: 11.5px; color: var(--fg-dim); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .radio-seekrow {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font-mono); font-size: 10px; color: var(--fg-dim);
+      font-variant-numeric: tabular-nums;
+    }
+    .radio-seekrow span { flex: none; min-width: 30px; text-align: center; }
+    .radio-seek {
+      flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px;
+      background: #ffffff26; outline: none;
+    }
+    .radio-seek::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+      background: var(--accent); border: 0; cursor: pointer;
+    }
+    .radio-seek::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent); border: 0; }
+    .radio-transport { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .radio-transport button {
+      width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center;
+      background: #ffffff0f; border: 1px solid var(--glass-stroke); font-size: 14px;
+      transition: background .16s var(--ease), transform .16s var(--ease);
+    }
+    .radio-transport button:active { transform: scale(.93); }
+    .radio-transport .play { width: 52px; height: 52px; background: var(--accent); color: #06140a; border-color: transparent; font-size: 17px; }
+    .radio-status {
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em;
+      color: var(--fg-dim); text-align: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    /* Spotify's IFrame API exposes no track list and no skip, so the list is
+       ours (assets/js/troll-radio-tracks.js) and skipping means loading the
+       next URI by hand. */
+    .radio-list { max-height: 0; overflow: hidden; transition: max-height .28s var(--ease); }
+    .radio.is-browsing .radio-list { max-height: 46vh; border-top: 1px solid var(--glass-stroke); }
+    .radio-list-inner { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .radio-row {
+      display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 13px;
+      text-align: left; font-size: 12.5px; border-bottom: 1px solid #ffffff0d;
+    }
+    .radio-row:hover { background: #ffffff0f; }
+    .radio-row.is-current { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+    .radio-row-num {
+      flex: none; width: 18px; text-align: right; font-family: var(--font-mono);
+      font-size: 10px; color: var(--fg-dim);
+    }
+    .radio-row.is-current .radio-row-num { color: var(--accent); }
+    .radio-row-info { min-width: 0; flex: 1; }
+    .radio-row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .radio-row-artist { font-size: 10.5px; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* The real player. Never display:none and never removed — either kills
+       playback — just parked off-screen. */
+    .radio-host { position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
     @media (prefers-reduced-motion: reduce) {
       .apps, .dock, .shell, .boot, .sheet { animation: none !important; transition-duration: .01ms !important; }
       .app-tile { transition: none; }
       .caret { animation: none; }
+      .radio-btn.is-playing::after { animation: none; }
     }
   </style>
 </head>
@@ -492,6 +620,47 @@
     </footer>
   </div>
 
+  <!-- ============ TROLL RADIO ============ -->
+  <button class="radio-btn" id="radio-btn" type="button" aria-expanded="false" aria-controls="radio" aria-label="Troll Radio">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z"/></svg>
+  </button>
+  <div class="radio" id="radio" role="dialog" aria-label="Troll Radio" aria-hidden="true">
+    <div class="radio-head">
+      <img class="grin" src="assets/animations/troll-grin.gif" alt="">
+      <span class="sp">TROLL RADIO</span>
+      <button id="radio-list-btn" type="button" aria-label="Browse the playlist" aria-pressed="false" aria-controls="radio-list">☰</button>
+      <a href="https://open.spotify.com/playlist/0ni59E9HbWpAe8Ydnseh4O" target="_blank" rel="noopener" aria-label="Open the playlist on Spotify">↗</a>
+      <button id="radio-close" type="button" aria-label="Close Troll Radio">✕</button>
+    </div>
+    <div class="radio-body">
+      <div class="radio-now">
+        <span class="radio-art"><img src="assets/animations/troll-grin.gif" alt=""></span>
+        <span class="radio-meta">
+          <span class="radio-song" id="radio-song">Troll Radio</span>
+          <span class="radio-artist" id="radio-artist">Press play</span>
+        </span>
+      </div>
+      <div class="radio-seekrow">
+        <span id="radio-cur">0:00</span>
+        <input class="radio-seek" id="radio-seek" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek through the track">
+        <span id="radio-dur">0:00</span>
+      </div>
+      <div class="radio-transport">
+        <button id="radio-prev" type="button" aria-label="Previous track">⏮</button>
+        <button id="radio-play" class="play" type="button" aria-label="Play">▶</button>
+        <button id="radio-next" type="button" aria-label="Next track">⏭</button>
+      </div>
+      <p class="radio-status" id="radio-status" aria-live="polite">Loading music…</p>
+    </div>
+    <div class="radio-list" id="radio-list">
+      <div class="radio-list-inner" id="radio-list-inner" role="listbox" aria-label="Choose a song"></div>
+    </div>
+  </div>
+  <!-- The API REPLACES the node it's handed with its iframe, taking the
+       node's class with it — so the off-screen box has to be the wrapper,
+       not the target, or the player lands in the middle of the page. -->
+  <div class="radio-host" aria-hidden="true"><div id="radio-host"></div></div>
+
   <!-- ============ MENU ============ -->
   <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Menu">
     <div class="sheet-inner">
@@ -505,6 +674,7 @@
   </div>
   <button class="sheet-close" id="sheet-close" type="button" aria-label="Close menu">✕</button>
 
+  <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
   <script>
   (() => {
     'use strict';
@@ -859,6 +1029,125 @@
     render();
     runBoot();
 
+    /* ================= TROLL RADIO =================
+       Same playlist as the troll desktop, from the shared track file. The
+       Spotify IFrame API can play, pause and load a URI — it cannot list a
+       playlist or skip within one (see the desktop's notes), so the list is
+       ours and "next" means loading the next URI ourselves. */
+    const RADIO_TRACKS = window.TROLL_RADIO_TRACKS || [];
+    const RADIO_PLAYLIST = 'spotify:playlist:0ni59E9HbWpAe8Ydnseh4O';
+    const radioPanel = $('radio'), radioBtn = $('radio-btn');
+    let radioCtl = null, radioReady = false, radioPlaying = false, radioUri = '';
+    let radioDuration = 0, radioSeeking = false;
+
+    const radioTime = ms => {
+      const s = Math.max(0, Math.round((ms || 0) / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    };
+    const radioStatus = text => { $('radio-status').textContent = text; };
+
+    function radioPaint() {
+      const t = RADIO_TRACKS.find(x => x.uri === radioUri);
+      $('radio-song').textContent = t ? t.title : (radioPlaying ? 'Now playing' : 'Troll Radio');
+      $('radio-artist').textContent = t ? t.artist : 'Press play';
+      $('radio-play').textContent = radioPlaying ? '❚❚' : '▶';
+      $('radio-play').setAttribute('aria-label', radioPlaying ? 'Pause' : 'Play');
+      radioBtn.classList.toggle('is-playing', radioPlaying);
+      document.querySelectorAll('.radio-row').forEach(row => {
+        row.classList.toggle('is-current', row.dataset.uri === radioUri);
+      });
+    }
+
+    function radioBuildList() {
+      const host = $('radio-list-inner');
+      RADIO_TRACKS.forEach((t, i) => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'radio-row';
+        row.dataset.uri = t.uri;
+        row.setAttribute('role', 'option');
+        row.innerHTML = '<span class="radio-row-num"></span><span class="radio-row-info">'
+          + '<span class="radio-row-title"></span><span class="radio-row-artist"></span></span>';
+        row.querySelector('.radio-row-num').textContent = String(i + 1);
+        row.querySelector('.radio-row-title').textContent = t.title;
+        row.querySelector('.radio-row-artist').textContent = t.artist;
+        row.addEventListener('click', () => radioLoad(t.uri, true));
+        host.appendChild(row);
+      });
+    }
+
+    function radioLoad(uri, andPlay) {
+      if (!radioCtl) return;
+      radioUri = uri;
+      radioCtl.loadUri(uri);
+      if (andPlay) setTimeout(() => { try { radioCtl.play(); } catch {} }, 160);
+      radioPaint();
+    }
+
+    function radioStep(offset) {
+      if (!RADIO_TRACKS.length) return;
+      const at = RADIO_TRACKS.findIndex(t => t.uri === radioUri);
+      const next = (((at === -1 ? 0 : at + offset) % RADIO_TRACKS.length) + RADIO_TRACKS.length) % RADIO_TRACKS.length;
+      radioLoad(RADIO_TRACKS[next].uri, true);
+    }
+
+    const radioSetOpen = open => {
+      radioPanel.classList.toggle('is-open', open);
+      radioPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+      radioPanel.inert = !open;
+      radioBtn.setAttribute('aria-expanded', String(open));
+    };
+    radioPanel.inert = true;
+    radioBtn.addEventListener('click', () => radioSetOpen(!radioPanel.classList.contains('is-open')));
+    $('radio-close').addEventListener('click', () => { radioSetOpen(false); radioBtn.focus(); });
+    $('radio-list-btn').addEventListener('click', e => {
+      const open = !radioPanel.classList.contains('is-browsing');
+      radioPanel.classList.toggle('is-browsing', open);
+      e.currentTarget.setAttribute('aria-pressed', String(open));
+    });
+    $('radio-play').addEventListener('click', () => {
+      if (!radioReady) { radioStatus('Still loading — one sec'); return; }
+      // togglePlay is the only transport the embed API actually gives us.
+      radioCtl.togglePlay();
+    });
+    $('radio-next').addEventListener('click', () => radioStep(1));
+    $('radio-prev').addEventListener('click', () => radioStep(-1));
+    $('radio-seek').addEventListener('change', e => {
+      if (radioCtl && radioDuration) radioCtl.seek((Number(e.target.value) / 100) * radioDuration / 1000);
+    });
+
+    $('radio-seek').addEventListener('pointerdown', () => { radioSeeking = true; });
+    $('radio-seek').addEventListener('pointerup', () => { radioSeeking = false; });
+
+    radioBuildList();
+    radioStatus(RADIO_TRACKS.length ? `${RADIO_TRACKS.length} tracks — loading player…` : 'Playlist unavailable');
+
+    window.onSpotifyIframeApiReady = (IFrameAPI) => {
+      IFrameAPI.createController($('radio-host'), { uri: RADIO_PLAYLIST, width: '100%', height: '352' }, ctl => {
+        radioCtl = ctl;
+        radioReady = true;
+        radioStatus('Ready — press play');
+        ctl.addListener?.('playback_started', e => {
+          if (e?.data?.playingURI) { radioUri = e.data.playingURI; radioPaint(); }
+        });
+        ctl.addListener?.('playback_update', e => {
+          const d = e?.data;
+          if (!d) return;
+          if (d.playingURI && d.playingURI !== radioUri) { radioUri = d.playingURI; }
+          if (typeof d.isPaused === 'boolean') radioPlaying = !d.isPaused;
+          if (typeof d.duration === 'number' && d.duration > 0) {
+            radioDuration = d.duration;
+            $('radio-dur').textContent = radioTime(d.duration);
+            $('radio-cur').textContent = radioTime(d.position);
+            if (!radioSeeking) $('radio-seek').value = (d.position / d.duration) * 100;
+          }
+          radioPaint();
+          radioStatus(radioPlaying ? 'Trolling to the beat' : 'Paused');
+        });
+        radioPaint();
+      });
+    };
+
     /* ================= STARFIELD =================
        Canvas rather than hundreds of DOM nodes; static single paint when the
        viewer has asked for reduced motion. */
@@ -918,5 +1207,7 @@
     }
   })();
   </script>
+
+  <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 </body>
 </html>
