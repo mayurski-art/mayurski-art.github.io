@@ -929,6 +929,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="assets/js/troll-accounts.js?v=20260803b"></script>
   <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
+  <!-- Rewrites the app icons' cross-site links to same-origin paths so the
+       phone entrance can transition into them — but only once the front door
+       is serving this page. Inert until then. -->
+  <script src="assets/js/troll-frontdoor.js" defer></script>
   <script>
   (() => {
     'use strict';

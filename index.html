@@ -5434,6 +5434,10 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script src="assets/js/troll-chat-extras.js"></script>
+<!-- Points cross-site links at same-origin paths so page transitions can
+     fire, but only once the front door is serving this page. Inert until
+     then — see docs/SAME-ORIGIN-TRANSITIONS.md. -->
+<script src="assets/js/troll-frontdoor.js" defer></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
 const ADMIN_UPDATES_KEY = 'trollrunner_updates';

@@ -324,7 +324,7 @@
       </div>
       <div id="coming-soon-admin" class="cs-admin-corner">
         <input id="cs-admin-pass" class="cs-admin-input" type="password" placeholder="•••" aria-label="Admin password" autocomplete="current-password">
-        <button id="cs-admin-go" class="cs-admin-btn" type="button" aria-label="Admin unlock" title="Admin"><img src="assets/animations/troll-grin.gif" alt="" style="width:18px;height:18px;display:block"></button>
+        <button id="cs-admin-go" class="cs-admin-btn" type="button" aria-label="Admin unlock" title="Admin"><img src="https://mayurski-art.github.io/assets/animations/troll-grin.gif" alt="" style="width:18px;height:18px;display:block"></button>
         <div id="cs-admin-status" class="cs-admin-status" aria-live="polite"></div>
       </div>
     `;

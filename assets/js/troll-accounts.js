@@ -36,6 +36,7 @@
   // Usernames sign in through a synthetic mailbox; a real email (optional)
   // lives privately in troll_user_settings for future password reset.
   const LOGIN_EMAIL_DOMAIN = 'login.trollrunner.net';
+  const TA_FALLBACK_AVATAR = 'https://mayurski-art.github.io/assets/animations/troll-grin.gif';
   const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
   const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   const AVATAR_SIZE = 256;
@@ -1467,7 +1468,12 @@
     const box = document.createElement('span');
     box.className = 'ta-avatar';
     const img = document.createElement('img');
-    img.src = session?.avatarUrl || 'assets/animations/troll-grin.gif';
+    // Absolute on purpose. This script is loaded cross-origin by the sibling
+    // sites, and a relative path resolves against the *page*, not the script
+    // — so on finance/stickers/etc it pointed at an asset that only exists
+    // here and 404d the fallback avatar. troll-notis.js uses the same
+    // absolute form for the same reason.
+    img.src = session?.avatarUrl || TA_FALLBACK_AVATAR;
     img.alt = '';
     box.appendChild(img);
     return box;

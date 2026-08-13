@@ -170,14 +170,21 @@ The old ordering put a coupled step second; this puts it last.
 2. **Static sites.** ✅ Built and verified locally — see §7.2. `finance`
    and `stickers` routed with trailing-slash redirects; both carry the
    transition CSS. Not deployed: blocked on the permission below.
-3. **Internal links → paths.** Convert absolute subdomain links to
-   relative paths so transitions actually fire between the routed sites.
-4. **Shared scripts + CSP.** Move `troll-notis.js` / `troll-accounts.js`
-   to same-origin paths; review CSP headers.
+3. **Internal links → paths.** ✅ Built and verified — see §7.3. Shipped
+   as `assets/js/troll-frontdoor.js`, which rewrites links *only* when the
+   front door is serving the page. Editing the links directly is not
+   possible: `trollrunner.net/terminal` is a 404 today, so hard-coded
+   paths would break every cross-site link until DNS moves.
+4. **Shared scripts + CSP.** ✅ Partly done. Two cross-origin scripts used
+   relative asset paths and 404d on every sibling site; both fixed.
+   Moving the scripts themselves to same-origin paths is **not required**
+   for transitions — those depend on the *document* origin, not the
+   script's — so it is deferred as cleanup. CORS audit below is the part
+   that still matters.
 5. **Cutover — one atomic step.** DNS, `basePath` for the Next apps,
    `maps` `/_next` disambiguation, and 301s from the old subdomains, all
    together. This is the irreversible step, it touches CNAME, and it
-   needs explicit sign-off.
+   needs explicit sign-off. Runbook in §9.
 
 Rollback for phases 1–4: delete the rewrite. The subdomain still serves
 its site directly, because no underlying deployment moved.
@@ -291,6 +298,68 @@ permission to create a Production Deployment for this project`. The public
 URL serves the *first* deployment, which is why the apex fix is not live.
 Raising the account role is a dashboard action, not a code change, and it
 gates every phase after this one.
+
+---
+
+## 7.3 Phase 3 verification (2026-08-13)
+
+Phase 3 could not be done the obvious way. `trollrunner.net/terminal`,
+`/finance/` and `/stickers/` all return **404** today — the apex is the
+GitHub Pages site, not the front door. Rewriting the HTML to point at
+those paths would break every cross-site link on the network until DNS
+moves. And both states share a hostname, so a page cannot tell them apart
+by name.
+
+`assets/js/troll-frontdoor.js` asks instead. The front door serves
+`/__frontdoor.json`; nothing else does. One HEAD request per session,
+cached in `sessionStorage`. Verified in both states:
+
+| Link | Behind front door | Not behind it |
+|---|---|---|
+| `terminal.trollrunner.net` | `/terminal` | unchanged |
+| `finance.trollrunner.net` | `/finance/` | unchanged |
+| `stickers.trollrunner.net/print` | `/stickers/print` | unchanged |
+| `games.trollrunner.net` (unrouted) | unchanged | unchanged |
+| `x.com/troll_runner` (external) | unchanged | unchanged |
+
+It fails closed: any probe failure leaves every link exactly as it is
+today. Smoke-tested against the real `index.html` and `world.html` with
+no front door present — 0 page errors, 0 links altered. Unrouted
+subdomains are deliberately left alone, since an unrouted path would 404,
+which is worse than no transition.
+
+At cutover this turns itself on. No link edit required.
+
+---
+
+## 9. Cutover runbook (phase 5)
+
+Everything below happens together. Ordered so the reversible parts come
+first and the DNS flip is last.
+
+1. **Raise the Vercel role** so production deploys to
+   `trollrunner-frontdoor` are allowed. Nothing else can proceed.
+2. **Add `trollrunner.net` to third-party origin allowlists.** Known:
+   `trollrunner-rpc-proxy.vercel.app`. Audit for others first — this
+   fails silently.
+3. **Decide the `/_next` owner.** `terminal` and `maps` both serve it.
+   Whichever loses takes a `basePath`.
+4. **Set `basePath`** on the loser, and on `terminal` if it is taking one.
+   From this moment that subdomain 404s on its own domain — this is why
+   it lives inside the cutover.
+5. **Add the `maps` rewrites** to `frontdoor/vercel.json`, plus its
+   `/_next` route under whatever prefix step 3 chose.
+6. **Deploy the front door to production** and verify `/`, `/terminal`,
+   `/finance/`, `/stickers/`, `/maps/` all serve, and that terminal's
+   in-app links still resolve.
+7. **Point `trollrunner.net` at the front door.** The CNAME step. Needs
+   explicit sign-off.
+8. **301 the old subdomains** to their new paths.
+9. **Verify SSO survived** — sessions must be adopted from the
+   `Domain=.trollrunner.net` cookie rather than dropped.
+
+Rollback after step 7 means putting DNS back; before it, deleting a
+rewrite.
 
 ---
 
