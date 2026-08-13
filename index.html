@@ -6829,6 +6829,13 @@ function tdBuildStartMenu() {
     void tdOpenAdmin();
   });
   addItem('🔒', 'Lock (entry screen)', () => tdShowGate());
+  if (tdAccountSession()) {
+    addItem('🚪', 'Log out', async () => {
+      tdCloseStartMenu();
+      try { await window.TrollrunnerAccounts?.logout?.(); } catch {}
+      tdShowGate();
+    });
+  }
 }
 
 function tdTickClock() {
