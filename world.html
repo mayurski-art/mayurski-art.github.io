@@ -78,30 +78,18 @@
     }
 
     /* ---------- space ---------- */
-    .space { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #000; }
+    .space { position: fixed; inset: 0; z-index: 2; overflow: hidden; background: transparent; pointer-events: none; }
     .space canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     .space::after {
       content: ""; position: absolute; inset: 0; pointer-events: none;
       background: radial-gradient(ellipse 70% 55% at 50% 58%, #0d1a12 0%, transparent 70%);
     }
 
-    /* ---------- animated island ---------- */
-    .island {
-      position: fixed; z-index: 1; left: 50%; top: 52%;
-      width: min(150vw, 1500px); aspect-ratio: 16 / 9;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
-    .island video { width: 100%; height: 100%; object-fit: contain; display: block; }
-    /* The island sits mid-frame with sky all around it. An ellipse mask keeps
-       the land and its rocky underside and dissolves the painted sky into the
-       starfield; the soft stop hides the cut. */
-    .island video, .island {
-      -webkit-mask-image: radial-gradient(ellipse 37% 46% at 50% 47%, #000 62%, transparent 88%);
-      mask-image: radial-gradient(ellipse 37% 46% at 50% 47%, #000 62%, transparent 88%);
-    }
-    @media (max-width: 720px) {
-      .island { width: 210vw; top: 50%; }
+    /* ---------- animated wallpaper ---------- */
+    .island { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+    .island video {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; display: block;
     }
 
     /* ================= BOOT ================= */
@@ -138,7 +126,7 @@
 
     /* ================= SHELL ================= */
     .shell {
-      position: relative; z-index: 2; min-height: 100%;
+      position: relative; z-index: 3; min-height: 100%;
       display: flex; flex-direction: column;
       opacity: 0; transition: opacity .6s var(--ease);
     }
@@ -518,9 +506,7 @@
     <nav class="dock" id="dock" aria-label="Social"></nav>
 
     <footer class="foot">
-      <span>© 2026 Troll Runner · Art by
-        <a href="https://twitter.com/SwishPng" target="_top" rel="noopener">@SwishPng</a></span>
-      <span id="foot-hint">Click an object to travel</span>
+      <span>© 2026 Troll Runner</span>
     </footer>
   </div>
 
@@ -818,6 +804,10 @@
     // the pointer-capture and touch-delta behaviour underneath. Without this the
     // entrance can simply fail to open, which is the worst bug this page can have.
     runner.addEventListener('click', () => { if (!moved) sprint(); });
+    // The runner circle is ~52px. The bar reads "RUN TO ENTER", so that's what
+    // a thumb goes for — and tapping it did nothing, which is why the home
+    // screen looked unreachable. The whole bar enters now.
+    track.addEventListener('click', e => { if (e.target !== runner && !moved) sprint(); });
     runner.addEventListener('pointerdown', e => {
       if (done) return;
       dragging = true; moved = false; startX = e.clientX; startProgress = progress;
@@ -903,9 +893,27 @@
     calm.addEventListener?.('change', startStars);
     startStars();
 
-    // Some phones refuse muted autoplay until a gesture; entering is one.
+    /* Autoplay, insistently. iOS only honours it when the element is muted AND
+       inline at the moment play is attempted, and it can still refuse on a cold
+       load, which is what leaves a poster sitting there looking like it wants a
+       play button. So set the flags in JS too and retry on the events that fire
+       once the tab is actually visible and the media is ready. */
     const wp = $('wp');
-    if (wp) document.addEventListener('pointerup', () => { wp.play?.().catch(() => {}); }, { once: true });
+    if (wp) {
+      wp.muted = true;
+      wp.defaultMuted = true;
+      wp.playsInline = true;
+      wp.setAttribute('playsinline', '');
+      wp.setAttribute('webkit-playsinline', '');
+      const kick = () => { const r = wp.play?.(); if (r?.catch) r.catch(() => {}); };
+      kick();
+      for (const ev of ['loadeddata', 'canplay', 'canplaythrough']) wp.addEventListener(ev, kick);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
+      // Last resort: the first touch anywhere counts as the gesture some
+      // browsers hold out for.
+      ['pointerdown', 'touchstart'].forEach(ev =>
+        document.addEventListener(ev, kick, { once: true, passive: true }));
+    }
   })();
   </script>
 </body>
