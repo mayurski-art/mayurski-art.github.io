@@ -9,7 +9,7 @@
     { "source": "/faces/:path*", "destination": "https://terminal.trollrunner.net/faces/:path*" },
     { "source": "/lore/:path*", "destination": "https://terminal.trollrunner.net/lore/:path*" },
 
-    { "source": "/", "destination": "https://www.trollrunner.net/" },
-    { "source": "/:path*", "destination": "https://www.trollrunner.net/:path*" }
+    { "source": "/", "destination": "https://trollrunner.net/" },
+    { "source": "/:path*", "destination": "https://trollrunner.net/:path*" }
   ]
 }

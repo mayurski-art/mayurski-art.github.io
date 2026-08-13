@@ -172,7 +172,8 @@ Each phase is independently shippable and reversible.
    Add the mobile view-transition CSS to both. Verify a real transition on
    a real phone. This validates the whole premise cheaply.
 2. **Next.js apps.** Add `basePath` to terminal and fitness; route them
-   through the front door.
+   through the front door. **⚠ This phase cannot ship on its own — see
+   "Phase 2 is coupled to Phase 6" below.**
 3. **Static sites.** Route the remaining nine. Mostly config, given
    relative assets.
 4. **Internal links.** Convert absolute subdomain links to paths, so
@@ -184,6 +185,37 @@ Each phase is independently shippable and reversible.
 
 Rollback at any point: remove the rewrite and the subdomain still serves
 its site directly, because none of the underlying deployments moved.
+
+### ⚠ Phase 2 is coupled to Phase 6
+
+Setting `basePath: '/terminal'` makes the app serve *only* under that
+prefix, so `terminal.trollrunner.net/` starts returning 404. The
+standalone subdomain breaks the moment `basePath` ships, and it stays
+broken until the domain points at the front door (Phase 6). The two
+cannot be separated the way the original phasing implied.
+
+Phase 1 avoided this entirely: with no `basePath`, the front door
+passes `/_next`, `/api`, `/faces` and `/lore` straight through, and the
+subdomain keeps working untouched. That trick does not survive a second
+Next.js app — terminal and fitness both serve `/_next/*` and `/api/*`,
+which collide under one origin. Disambiguating them is exactly what
+`basePath` is for.
+
+So Phase 2 needs one of:
+
+- **Ship 2 and 6 together** — `basePath` plus the DNS cutover and 301s in
+  one move. Cleanest end state, but it is the irreversible step and it
+  touches CNAME, which is off-limits without explicit sign-off.
+- **Accept a broken subdomain window** — ship `basePath` first and leave
+  `terminal.trollrunner.net` 404ing until the cutover. Not recommended on
+  a live site.
+- **Keep going without `basePath`** — extend the Phase 1 passthrough for
+  one more app by giving fitness a distinct asset path. Buys time, adds
+  config that is thrown away at cutover.
+
+This needs a decision before Phase 2 starts. It is also blocked on the
+production-deploy permission above, since none of it is testable without
+publishing a front door.
 
 ---
 
@@ -219,13 +251,31 @@ works.
 suppresses the transition and produces a false negative. Anyone re-running
 this should set only `viewport`, not `isMobile`.
 
-**Deployment note.** The front door is deployed as a Vercel *preview*
-(`trollrunner-frontdoor`), which sits behind Vercel Authentication and so
-cannot be opened on a phone without logging in. Creating a production
-deployment was rejected: the account role lacks permission. Making this
-phone-testable needs either deployment protection disabled for this project
-or a production deploy from an account that can — a dashboard action, not a
-code change.
+### Live and phone-testable
+
+**https://trollrunner-frontdoor.vercel.app/demo.html**
+
+Re-verified against that public URL, with `/terminal` proxying the real
+production terminal (which auto-deployed the CSS on push):
+
+| Viewport | Result |
+|---|---|
+| 390×844 | **transition fired** |
+| 1280×800 | no transition |
+
+**Known wart.** The `home` link 301s away to `trollrunner.net` and leaves
+the front door, because the deployed config still proxies
+`www.trollrunner.net`, which itself redirects to the apex. Fixed in
+`frontdoor/vercel.json` (now points at the apex) but not yet live —
+see below. The `terminal` link is unaffected and is what demonstrates the
+transition.
+
+**Deploy permission is blocked.** Creating a production deployment is
+rejected with `403 — you don't have permission to create a Production
+Deployment for this project`. The public URL above is serving the *first*
+deployment; later fixes cannot be published until the account role is
+raised or someone with production rights deploys. This is a dashboard
+action, not a code change, and it blocks Phase 2.
 
 ---
 
