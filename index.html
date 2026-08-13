@@ -76,7 +76,17 @@
       // and phones hold onto HTML hard enough that several rounds of changes
       // went unseen on a device that already had this page. The query makes
       // the browser fetch a URL it has never cached.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&v=20260812i" title="TrollRunner"></iframe></body></html>'
+      // onload="this.focus()": iOS Safari does not route touches into a
+      // child frame until that frame holds input focus, and normally the
+      // ONLY thing that grants it is a tap -- which is why the first tap on
+      // an app icon did nothing and the second one (now that the frame was
+      // focused) worked. Moving focus in programmatically the moment the
+      // frame loads means no tap has to spend itself on that. This is a
+      // WebKit-specific behavior Chromium does not reproduce, so it could
+      // not be caught by browser-driven testing -- confirmed by the report
+      // itself: dead first tap after a fresh load, one tap after returning
+      // to the same (already-focused) frame via "Done".
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&v=20260812i" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
