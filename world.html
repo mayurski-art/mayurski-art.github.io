@@ -13,6 +13,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+  // The other half of the phone routing in index.html: this page is the phone
+  // entrance, so a desktop visitor who lands here directly is sent to the
+  // troll desktop. ?mobile=1 opts out, which is how you preview this on a
+  // laptop without being bounced.
+  (() => {
+    try {
+      if (new URLSearchParams(location.search).has('mobile')) return;
+    } catch {}
+    const ua = navigator.userAgent || '';
+    const isPhone =
+      /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+      (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ||
+      (matchMedia('(pointer: coarse)').matches && matchMedia('(max-width: 820px)').matches);
+    if (!isPhone) location.replace('/?desktop=1');
+  })();
+  </script>
   <style>
     :root {
       --font-display: "Archivo Black", Impact, "Arial Black", sans-serif;
@@ -560,9 +577,11 @@
   (() => {
     'use strict';
 
-    /* Set this to the real number and it appears top-left, the way trollface.io
-       shows market cap. Left null rather than inventing a figure. */
-    const MILES_RAN = null;
+    /* Lifetime miles, read off the Coros app and updated by hand — there's no
+       Coros API wired up, so this number is only as fresh as the last edit.
+       Shown top-left the way trollface.io shows market cap.
+       Last updated: 12 Aug 2026. */
+    const MILES_RAN = 405;
 
     /* `h` is height as a % of the island box; width comes from the art's own
        aspect. `t` is the ground contact point in viewBox px (0–700), kept in
@@ -753,7 +772,9 @@
     const sheet = $('sheet'), menuBtn = $('menu-btn'), sheetClose = $('sheet-close');
     const sheetLinks = $('sheet-links');
     const GROUPS = [
-      { name: 'World',  items: [{ label: 'Island', to: 'world.html' }, { label: 'Classic desktop', to: '/' }] },
+      // ?desktop=1 tells index.html this was a deliberate choice, so it won't
+      // bounce a phone straight back here.
+      { name: 'World',  items: [{ label: 'Island', to: 'world.html' }, { label: 'Classic desktop', to: '/?desktop=1' }] },
       { name: 'Apps',   items: APPS },
       { name: 'Social', items: SOCIALS.map(s => ({ label: s.name, href: s.href, external: true })) },
     ];

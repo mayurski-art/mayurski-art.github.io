@@ -16,6 +16,31 @@
   const targetPath = redirects[host];
   if (targetPath && (path === '/' || path === '/index.html')) {
     window.location.replace(targetPath);
+    return;
+  }
+
+  // The troll desktop is a windowed, mouse-shaped thing — on a phone it's
+  // cramped. Phones get world.html instead. Anyone who picks "Classic
+  // desktop" from there arrives with ?desktop=1, which is remembered for the
+  // session so this doesn't bounce them straight back and trap them.
+  const FORCE_DESKTOP_KEY = 'trollrunner_force_desktop';
+  let forced = false;
+  try {
+    if (new URLSearchParams(window.location.search).has('desktop')) {
+      sessionStorage.setItem(FORCE_DESKTOP_KEY, '1');
+    }
+    forced = sessionStorage.getItem(FORCE_DESKTOP_KEY) === '1';
+  } catch {}
+
+  const ua = navigator.userAgent || '';
+  const isPhone =
+    /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+    // iPadOS 13+ reports a Mac UA, so touch points are the only tell.
+    (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ||
+    (window.matchMedia('(pointer: coarse)').matches && window.matchMedia('(max-width: 820px)').matches);
+
+  if (isPhone && !forced && (path === '/' || path === '/index.html')) {
+    window.location.replace('/world.html');
   }
 })();
 </script>
