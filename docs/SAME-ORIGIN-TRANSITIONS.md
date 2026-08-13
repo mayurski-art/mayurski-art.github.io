@@ -167,8 +167,9 @@ The old ordering put a coupled step second; this puts it last.
 
 1. **Front door + terminal.** ✅ Shipped and verified — see §7. No
    `basePath`, passthrough routing, subdomain untouched.
-2. **Static sites.** Route `finance` and `stickers`. Zero collisions, no
-   code change, fully reversible. Watch the trailing-slash detail in §4.
+2. **Static sites.** ✅ Built and verified locally — see §7.2. `finance`
+   and `stickers` routed with trailing-slash redirects; both carry the
+   transition CSS. Not deployed: blocked on the permission below.
 3. **Internal links → paths.** Convert absolute subdomain links to
    relative paths so transitions actually fire between the routed sites.
 4. **Shared scripts + CSP.** Move `troll-notis.js` / `troll-accounts.js`
@@ -217,6 +218,64 @@ Flagged as uncertain when first written; isolated and confirmed:
 **Testing note.** Playwright's `isMobile: true` device-emulation flag
 suppresses the transition and produces a false negative. Set only
 `viewport`.
+
+## 7.2 Phase 2 verification (2026-08-13)
+
+Measured against a local mirror of `frontdoor/vercel.json`, counting every
+failed response and request on each page.
+
+| Route | Resources | Broken |
+|---|---|---|
+| `/stickers/` | 50 | **0** |
+| `/terminal` | 21 | **0** (was 4) |
+| `/finance/` | 225 | 3 distinct, all explained below |
+
+**Trailing-slash redirects work.** `/finance` → `/finance/` → 200, with
+every relative asset resolving inside the prefix. This was called out in
+§4 as the most likely way static routing breaks; it doesn't.
+
+### A real defect this caught in Phase 1
+
+Terminal's own page routes — `/vault`, `/logs`, `/reports`,
+`/undervoice`, `/inspect`, `/faces` — are root-absolute, so the catch-all
+was sending them to the apex and every in-app link 404d. Next prefetches
+them on load, which is what surfaced it. Phase 1 handled terminal's
+*assets* but not its *routes*.
+
+Now matched explicitly in `frontdoor/vercel.json`. This list has to track
+`app/**/page.tsx` by hand and will rot the next time terminal adds a
+page — giving terminal a `basePath` at cutover is what makes it
+self-maintaining.
+
+### Failures that are NOT caused by the front door
+
+Established by loading `finance.trollrunner.net` directly and diffing the
+failures, rather than assuming:
+
+| Failure | Verdict |
+|---|---|
+| `403 api.mainnet-beta.solana.com` | pre-existing, fails live too |
+| `FAIL cdn.syndication.twimg.com` (tweet embeds) | pre-existing, fails live too |
+| `404 assets/animations/troll-grin.gif` | pre-existing, fails live too |
+
+The gif is worth its own note: nothing in the finance repo references it.
+It comes from `troll-accounts.js:1470`, which uses the **relative** path
+`assets/animations/troll-grin.gif`. A relative path in a cross-origin
+script resolves against the *page*, so every site that loads
+`troll-accounts.js` without hosting that asset 404s it. `troll-notis.js`
+gets this right with an absolute URL. One-line fix, unrelated to this
+migration, not done here.
+
+### One genuine new failure: third-party origin allowlists
+
+`trollrunner-rpc-proxy.vercel.app/api/rpc` succeeds on
+`finance.trollrunner.net` and fails through the front door. The request
+is unchanged; only the page's origin differs, which points at a CORS
+allowlist keyed to the origin.
+
+This generalises beyond one endpoint: **any third-party service that
+allowlists `*.trollrunner.net` origins needs `trollrunner.net` added
+before cutover.** Worth auditing while phases 3–4 are in flight.
 
 ### Known wart
 

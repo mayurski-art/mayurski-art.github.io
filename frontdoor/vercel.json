@@ -1,12 +1,31 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "//": "finance and stickers reference their assets relatively, so a page served at /finance would resolve them against / and 404 every one. Landing on the trailing slash is what makes relative paths resolve inside the prefix. terminal needs no such redirect: its paths are root-absolute and are matched explicitly below.",
+  "redirects": [
+    { "source": "/finance", "destination": "/finance/", "permanent": false },
+    { "source": "/stickers", "destination": "/stickers/", "permanent": false }
+  ],
+
   "rewrites": [
     { "source": "/terminal", "destination": "https://terminal.trollrunner.net/" },
     { "source": "/terminal/:path*", "destination": "https://terminal.trollrunner.net/:path*" },
 
-    { "source": "/_next/:path*", "destination": "https://terminal.trollrunner.net/_next/:path*" },
+    { "source": "/finance/", "destination": "https://finance.trollrunner.net/" },
+    { "source": "/finance/:path*", "destination": "https://finance.trollrunner.net/:path*" },
+
+    { "source": "/stickers/", "destination": "https://stickers.trollrunner.net/" },
+    { "source": "/stickers/:path*", "destination": "https://stickers.trollrunner.net/:path*" },
+
+    { "//": "terminal's own page routes are root-absolute, so without these the catch-all sends them to the apex and every in-app link 404s -- Next prefetches them on load, which is how it was caught. This list has to track app/**/page.tsx by hand; giving terminal a basePath at cutover is what makes it self-maintaining.",
+      "source": "/:seg(vault|logs|reports|undervoice|inspect|faces)",
+      "destination": "https://terminal.trollrunner.net/:seg" },
+    { "source": "/:seg(vault|logs|reports|undervoice|inspect|faces)/:path*",
+      "destination": "https://terminal.trollrunner.net/:seg/:path*" },
+
+    { "//": "terminal's root-absolute assets. maps also serves /_next and so cannot be routed until one of the two takes a basePath -- see the cutover phase in docs/SAME-ORIGIN-TRANSITIONS.md.",
+      "source": "/_next/:path*", "destination": "https://terminal.trollrunner.net/_next/:path*" },
     { "source": "/api/:path*", "destination": "https://terminal.trollrunner.net/api/:path*" },
-    { "source": "/faces/:path*", "destination": "https://terminal.trollrunner.net/faces/:path*" },
     { "source": "/lore/:path*", "destination": "https://terminal.trollrunner.net/lore/:path*" },
 
     { "source": "/", "destination": "https://trollrunner.net/" },
