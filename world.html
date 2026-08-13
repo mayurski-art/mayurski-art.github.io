@@ -77,12 +77,31 @@
       overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
     }
 
-    /* ---------- starfield ---------- */
+    /* ---------- space ---------- */
     .space { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #000; }
     .space canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     .space::after {
       content: ""; position: absolute; inset: 0; pointer-events: none;
-      background: radial-gradient(ellipse 70% 55% at 50% 60%, #0d1a12 0%, transparent 70%);
+      background: radial-gradient(ellipse 70% 55% at 50% 58%, #0d1a12 0%, transparent 70%);
+    }
+
+    /* ---------- animated island ---------- */
+    .island {
+      position: fixed; z-index: 1; left: 50%; top: 52%;
+      width: min(150vw, 1500px); aspect-ratio: 16 / 9;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .island video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    /* The island sits mid-frame with sky all around it. An ellipse mask keeps
+       the land and its rocky underside and dissolves the painted sky into the
+       starfield; the soft stop hides the cut. */
+    .island video, .island {
+      -webkit-mask-image: radial-gradient(ellipse 37% 46% at 50% 47%, #000 62%, transparent 88%);
+      mask-image: radial-gradient(ellipse 37% 46% at 50% 47%, #000 62%, transparent 88%);
+    }
+    @media (max-width: 720px) {
+      .island { width: 210vw; top: 50%; }
     }
 
     /* ================= BOOT ================= */
@@ -443,7 +462,20 @@
 </head>
 <body data-phase="boot">
 
+  <!-- Track Island, the same wallpaper the desktop uses. The still is the
+       poster so there's art on screen before the video decodes, and it stays
+       the whole picture if a phone refuses to autoplay. -->
   <div class="space" aria-hidden="true"><canvas id="stars"></canvas></div>
+
+  <!-- Track Island, the desktop's animated wallpaper. The clip is painted on a
+       daytime sky, so it's masked down to the island itself — otherwise it
+       lands in the starfield as a sky-blue rectangle. -->
+  <div class="island" aria-hidden="true">
+    <video id="wp" autoplay loop muted playsinline preload="auto"
+           poster="assets/images/wallpaper/trollrunner wallpaper 1.jpg">
+      <source src="assets/animations/trollrunner wallpaper 1 animated.mp4" type="video/mp4">
+    </video>
+  </div>
 
   <!-- ============ BOOT ============ -->
   <div class="boot" id="boot" role="status" aria-live="polite">
@@ -467,100 +499,6 @@
 
     <nav class="apps" id="apps" aria-label="Apps"></nav>
 
-    <main class="stage">
-      <div class="world" id="world">
-        <svg class="island" viewBox="0 0 1100 700" role="img" aria-label="The TrollRunner island floating in space">
-          <defs>
-            <linearGradient id="grass" x1=".2" y1="0" x2=".7" y2="1">
-              <stop offset="0%" stop-color="#8ede63"/><stop offset="55%" stop-color="#63c247"/>
-              <stop offset="100%" stop-color="#3f9433"/>
-            </linearGradient>
-            <linearGradient id="cliff" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#8a6b47"/><stop offset="100%" stop-color="#5b432c"/>
-            </linearGradient>
-            <linearGradient id="rock" x1=".3" y1="0" x2=".7" y2="1">
-              <stop offset="0%" stop-color="#5a4632"/><stop offset="45%" stop-color="#392c20"/>
-              <stop offset="100%" stop-color="#150f0a"/>
-            </linearGradient>
-            <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#8fe9f7"/><stop offset="100%" stop-color="#2b9fd4"/>
-            </linearGradient>
-            <linearGradient id="fall" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#bff2fb"/><stop offset="55%" stop-color="#7fdcf0" stop-opacity=".8"/>
-              <stop offset="100%" stop-color="#7fdcf0" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-
-          <path d="M176 404
-                   C196 470 214 512 246 556 C258 512 262 486 268 452
-                   C296 540 320 594 356 646 C372 596 378 560 386 520
-                   C414 612 452 668 502 700 C520 646 528 604 534 560
-                   C560 640 592 678 632 646 C646 606 650 574 654 540
-                   C688 604 722 618 754 574 C766 538 770 508 774 476
-                   C812 528 846 522 880 462 C898 436 910 418 922 400 Z"
-                fill="url(#rock)" stroke="#000" stroke-width="4.5" stroke-linejoin="round"/>
-          <g stroke="#000" stroke-opacity=".26" stroke-width="3" fill="none" stroke-linecap="round">
-            <path d="M268 452 C280 500 292 534 306 566"/>
-            <path d="M386 520 C400 570 414 604 432 636"/>
-            <path d="M534 560 C548 606 560 634 574 656"/>
-            <path d="M654 540 C666 576 678 598 690 614"/>
-            <path d="M774 476 C788 508 800 524 814 534"/>
-          </g>
-
-          <path d="M126 392 A424 132 0 0 0 974 392 L974 426 A424 132 0 0 1 126 426 Z"
-                fill="url(#cliff)" stroke="#000" stroke-width="4.5"/>
-          <ellipse cx="550" cy="392" rx="424" ry="132" fill="url(#grass)" stroke="#000" stroke-width="5"/>
-          <ellipse cx="550" cy="394" rx="388" ry="114" fill="#f4e6b8" stroke="#000" stroke-width="3"/>
-          <ellipse cx="548" cy="388" rx="356" ry="100" fill="url(#grass)" stroke="#000" stroke-width="3"/>
-          <g fill="#000" fill-opacity=".07">
-            <ellipse cx="360" cy="352" rx="120" ry="28"/>
-            <ellipse cx="742" cy="356" rx="104" ry="24"/>
-          </g>
-
-          <!-- Lagoon pushed to the near-left corner. Centred, it swallowed the
-               whole front of the island and left nowhere to stand an object. -->
-          <ellipse cx="290" cy="450" rx="80" ry="24" fill="url(#sea)" stroke="#000" stroke-width="3"/>
-          <ellipse cx="290" cy="447" rx="58" ry="14" fill="#fff" fill-opacity=".18"/>
-          <path d="M268 470 C266 480 266 488 267 498 L315 498 C314 488 314 480 312 470 Z"
-                fill="url(#sea)" stroke="#000" stroke-width="2.5"/>
-
-          <g stroke="#000" stroke-width="3">
-            <g fill="#77d15c">
-              <ellipse cx="244" cy="352" rx="24" ry="15"/>
-              <ellipse cx="292" cy="338" rx="17" ry="11"/>
-              <ellipse cx="872" cy="356" rx="24" ry="15"/>
-              <ellipse cx="828" cy="340" rx="16" ry="11"/>
-              <ellipse cx="596" cy="326" rx="20" ry="13"/>
-            </g>
-            <g fill="#9ae57f" stroke="none">
-              <ellipse cx="238" cy="347" rx="12" ry="6"/>
-              <ellipse cx="866" cy="351" rx="12" ry="6"/>
-              <ellipse cx="592" cy="322" rx="10" ry="5"/>
-            </g>
-          </g>
-
-          <path d="M266 496 C260 556 254 610 248 664 L336 664 C330 606 324 554 318 496 Z" fill="url(#fall)"/>
-          <path d="M276 502 C272 546 268 584 264 620" stroke="#fff" stroke-opacity=".5"
-                stroke-width="3.5" fill="none" stroke-linecap="round"/>
-          <path d="M306 504 C304 542 302 572 300 600" stroke="#fff" stroke-opacity=".3"
-                stroke-width="2.5" fill="none" stroke-linecap="round"/>
-          <ellipse cx="292" cy="498" rx="27" ry="6" fill="#bff2fb" fill-opacity=".85"/>
-
-          <!-- Their desktop has something quietly crossing the scene on a long
-               loop. Ours is the obvious one for this brand: a troll running a
-               lap of the island, ~46s a length. Lives in the SVG so it scales
-               with the viewBox instead of needing pixel maths. Stripped out
-               entirely for reduced-motion viewers. -->
-          <g id="lap" opacity="0">
-            <image href="assets/images/world/runner.png" x="-38" y="-74" width="76" height="76"/>
-            <animateMotion id="lap-motion" dur="46s" repeatCount="indefinite" calcMode="linear"
-                           path="M 236 402 Q 552 488 866 402"/>
-            <animate attributeName="opacity" dur="46s" repeatCount="indefinite"
-                     values="0;1;1;0" keyTimes="0;0.06;0.94;1"/>
-          </g>
-        </svg>
-      </div>
-    </main>
 
     <!-- ============ RUN TO ENTER ============ -->
     <div class="lockbar" id="lockbar">
@@ -581,7 +519,7 @@
 
     <footer class="foot">
       <span>© 2026 Troll Runner · Art by
-        <a href="https://twitter.com/SwishPng" target="_blank" rel="noopener noreferrer">@SwishPng</a></span>
+        <a href="https://twitter.com/SwishPng" target="_top" rel="noopener">@SwishPng</a></span>
       <span id="foot-hint">Click an object to travel</span>
     </footer>
   </div>
@@ -674,10 +612,10 @@
 
     const linkAttrs = (el, a) => {
       if (a.external) {
-        el.href = a.href; el.target = '_blank'; el.rel = 'noopener noreferrer';
-        el.setAttribute('aria-label', `${a.label} — opens in a new tab`);
+        el.href = a.href; el.target = '_top'; el.rel = 'noopener';
+        el.setAttribute('aria-label', a.label);
       } else {
-        el.href = a.to;
+        el.href = a.to; el.target = '_top';
         el.setAttribute('aria-label', a.label);
       }
     };
@@ -687,54 +625,7 @@
       $('stat').innerHTML = `<span>miles</span> ${Number(MILES_RAN).toLocaleString()}`;
     }
 
-    /* ---------- island hotspots ---------- */
-    const world = $('world');
-    const place = (el, s) => {
-      el.style.setProperty('--l', s.l);
-      el.style.setProperty('--t', (s.t / 700) * 100);
-      el.style.setProperty('--h', s.h);
-      if (s.color) el.style.setProperty('--c', s.color);
-    };
-
-    for (const a of APPS) {
-      const el = document.createElement('a');
-      el.className = 'spot' + (a.placeholder ? ' spot-placeholder' : '');
-      el.id = `spot-${a.id}`;
-      place(el, a);
-      linkAttrs(el, a);
-
-      if (a.placeholder) {
-        const plate = document.createElement('span');
-        plate.className = 'plate';
-        const b = document.createElement('b'); b.textContent = 'PFP';
-        const i = document.createElement('i'); i.textContent = 'ART SOON';
-        plate.append(b, i);
-        el.appendChild(plate);
-      } else {
-        const img = document.createElement('img');
-        img.src = a.img; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
-        el.appendChild(img);
-      }
-
-      const tag = document.createElement('span');
-      tag.className = 'tag';
-      tag.textContent = a.label;
-      if (a.sub) { const s = document.createElement('small'); s.textContent = a.sub; tag.appendChild(s); }
-      el.appendChild(tag);
-      world.appendChild(el);
-    }
-    for (const p of PROPS) {
-      const el = document.createElement('span');
-      el.className = 'spot'; el.setAttribute('aria-hidden', 'true');
-      el.style.pointerEvents = 'none';
-      place(el, p);
-      const img = document.createElement('img');
-      img.src = p.img; img.alt = ''; img.loading = 'lazy';
-      el.appendChild(img);
-      world.appendChild(el);
-    }
-
-    /* ---------- app grid (phone) ---------- */
+    /* ---------- app grid ---------- */
     const apps = $('apps');
     for (const a of APPS) {
       const el = document.createElement('a');
@@ -760,16 +651,6 @@
       apps.appendChild(el);
     }
 
-    /* Exactly one launcher is focusable at a time: the island on desktop, the
-       app grid on a phone. Otherwise every destination appears twice. */
-    const syncNav = () => {
-      world.inert = narrow.matches;
-      world.setAttribute('aria-hidden', String(narrow.matches));
-      apps.inert = !narrow.matches;
-    };
-    narrow.addEventListener?.('change', syncNav);
-    syncNav();
-
     /* ---------- dock ---------- */
     const dock = $('dock');
     const svgIcon = path => {
@@ -783,8 +664,8 @@
     };
     for (const s of SOCIALS) {
       const a = document.createElement('a');
-      a.href = s.href; a.target = '_blank'; a.rel = 'noopener noreferrer';
-      a.setAttribute('aria-label', `${s.name} — opens in a new tab`);
+      a.href = s.href; a.target = '_top'; a.rel = 'noopener';
+      a.setAttribute('aria-label', s.name);
       const ico = document.createElement('span');
       ico.className = 'ico';
       ico.appendChild(svgIcon(s.path));
@@ -823,8 +704,8 @@
     }
     for (const s of SOCIALS) {
       const a = document.createElement('a');
-      a.href = s.href; a.target = '_blank'; a.rel = 'noopener noreferrer';
-      a.setAttribute('aria-label', `${s.name} — opens in a new tab`);
+      a.href = s.href; a.target = '_top'; a.rel = 'noopener';
+      a.setAttribute('aria-label', s.name);
       a.appendChild(svgIcon(s.path));
       $('socials').appendChild(a);
     }
@@ -910,23 +791,53 @@
     function setProgress(p) {
       progress = Math.max(0, Math.min(1, p));
       render();
-      if (progress >= 0.985) finish();
+      // 0.985 demanded a pixel-perfect drag: a thumb that stopped just short
+      // was thrown back to the start with no way in. Past the line is the
+      // finish, and letting go past two-thirds counts as crossing it.
+      if (progress >= 0.9) finish();
     }
 
+    /* A tap runs the race for you. Dragging is the flourish, but making it the
+       only way in meant the front door depended on pointer capture and touch
+       deltas behaving identically everywhere — and when they didn't, there was
+       no way onto the site at all. */
+    function sprint() {
+      if (done) return;
+      const from = progress, start = performance.now(), ms = calm.matches ? 0 : 620;
+      hint.textContent = 'Running…';
+      (function step(now) {
+        const k = ms ? Math.min(1, (now - start) / ms) : 1;
+        setProgress(from + (1 - from) * (1 - Math.pow(1 - k, 3)));
+        if (k < 1 && !done) requestAnimationFrame(step);
+        else finish();
+      })(start);
+    }
+
+    let moved = false;
+    // Belt and braces: `click` is synthesised on tap by every browser, whatever
+    // the pointer-capture and touch-delta behaviour underneath. Without this the
+    // entrance can simply fail to open, which is the worst bug this page can have.
+    runner.addEventListener('click', () => { if (!moved) sprint(); });
     runner.addEventListener('pointerdown', e => {
       if (done) return;
-      dragging = true; startX = e.clientX; startProgress = progress;
-      runner.setPointerCapture(e.pointerId);
+      dragging = true; moved = false; startX = e.clientX; startProgress = progress;
+      try { runner.setPointerCapture(e.pointerId); } catch {}
     });
     runner.addEventListener('pointermove', e => {
       if (!dragging || done) return;
+      if (Math.abs(e.clientX - startX) > 6) moved = true;
       setProgress(startProgress + (e.clientX - startX) / travel());
     });
     const release = () => {
       if (!dragging) return;
       dragging = false;
+      // Barely moved? That was a tap — run it for them.
+      if (!moved && !done) { sprint(); return; }
       if (!done) {
-        // Didn't reach the line — jog back to the start.
+        // Let go past two-thirds and the runner carries through to the line
+        // rather than being punished for stopping short.
+        if (progress >= 0.66) { finish(); return; }
+        // Otherwise jog back to the start.
         runner.style.transition = 'transform .35s var(--ease)';
         fill.style.transition = 'width .35s var(--ease)';
         setProgress(0);
@@ -938,7 +849,7 @@
 
     runner.addEventListener('keydown', e => {
       if (done) return;
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); finish(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sprint(); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); setProgress(progress + 0.14); }
       else if (e.key === 'ArrowLeft')  { e.preventDefault(); setProgress(progress - 0.14); }
     });
@@ -955,23 +866,10 @@
       lap.setAttribute('transform', 'translate(552 446)');
     }
 
-    /* ---------- pointer parallax (desktop) ----------
-       A few pixels of drift, enough to feel like the island is floating in
-       front of the stars rather than pasted onto them. */
-    if (!calm.matches) {
-      // The spawn keyframes are `fill: both`, so they keep asserting
-      // `transform: none` after finishing and an animation beats an inline
-      // style — drop the animation once it has played or parallax never moves.
-      world.addEventListener('animationend', () => { world.style.animation = 'none'; }, { once: true });
-      addEventListener('pointermove', e => {
-        if (narrow.matches || e.pointerType !== 'mouse') return;
-        const dx = (e.clientX / innerWidth - 0.5) * 2;
-        const dy = (e.clientY / innerHeight - 0.5) * 2;
-        world.style.transform = `translate3d(${(-dx * 9).toFixed(1)}px, ${(-dy * 6).toFixed(1)}px, 0)`;
-      }, { passive: true });
-    }
 
-    /* ================= STARFIELD ================= */
+    /* ================= STARFIELD =================
+       Canvas rather than hundreds of DOM nodes; static single paint when the
+       viewer has asked for reduced motion. */
     const canvas = $('stars'), ctx = canvas.getContext('2d');
     let stars = [], raf = 0;
     function seed() {
@@ -1004,6 +902,10 @@
     addEventListener('resize', startStars, { passive: true });
     calm.addEventListener?.('change', startStars);
     startStars();
+
+    // Some phones refuse muted autoplay until a gesture; entering is one.
+    const wp = $('wp');
+    if (wp) document.addEventListener('pointerup', () => { wp.play?.().catch(() => {}); }, { once: true });
   })();
   </script>
 </body>
