@@ -49,20 +49,19 @@ const LAYERS = [
   { id: 'accessory',  name: 'Accessory',  dir: '5 - ACCESSORIES' },
 ];
 
-// Art that lives outside the numbered folders, so its layer is assigned by
-// hand. `pack` surfaces as the orange badge in the picker.
+// Art that lives outside the numbered folders, so its layer is assigned by hand.
 const B1 = '0 - BOOSTER PACKS/BOOSTER 1 - June 25';
 const B2 = '0 - BOOSTER PACKS/BOOSTER 2 - Happy July 4th';
 const EXTRA = [
   ...['Blue','Dark','Green','Orange','Pink','Purple','Red','Sky','Solana','Teal','White','Yellow']
-      .map(n => ({ src: `${B1}/Background/${n}.png`, layer: 'background', pack: 'Booster 1' })),
+      .map(n => ({ src: `${B1}/Background/${n}.png`, layer: 'background' })),
   ...['black','green','red','white']
-      .map(c => ({ src: `${B1}/Boobs ${c}.png`, layer: 'outfit', pack: 'Booster 1' })),
-  { src: `${B2}/Trump background.png`, layer: 'background', pack: 'Booster 2' },
-  { src: `${B2}/Trump tshirt.png`,     layer: 'outfit',     pack: 'Booster 2' },
-  { src: `${B2}/Trump hair.png`,       layer: 'headwear',   pack: 'Booster 2' },
-  { src: `${B2}/UncleSam.png`,         layer: 'headwear',   pack: 'Booster 2', name: 'Uncle Sam' },
-  { src: `${B2}/Hotdog.png`,           layer: 'accessory',  pack: 'Booster 2' },
+      .map(c => ({ src: `${B1}/Boobs ${c}.png`, layer: 'outfit' })),
+  { src: `${B2}/Trump background.png`, layer: 'background' },
+  { src: `${B2}/Trump tshirt.png`,     layer: 'outfit' },
+  { src: `${B2}/Trump hair.png`,       layer: 'headwear' },
+  { src: `${B2}/UncleSam.png`,         layer: 'headwear',   name: 'Uncle Sam' },
+  { src: `${B2}/Hotdog.png`,           layer: 'accessory' },
   // Not layerable traits: the logo face is a head at its own scale with no
   // neck or shoulders, and the ninja is a finished character that already
   // has an outfit and hands. Stacking an outfit under either one produces a
@@ -84,7 +83,7 @@ for (const L of LAYERS) {
 
   const jobs = readdirSync(join(RAW, L.dir))
     .filter(f => /\.png$/i.test(f))
-    .map(f => ({ src: `${L.dir}/${f}`, layer: L.id, pack: null }));
+    .map(f => ({ src: `${L.dir}/${f}`, layer: L.id }));
   for (const e of EXTRA.filter(e => e.layer === L.id)) jobs.push(e);
 
   const traits = [];
@@ -105,7 +104,6 @@ for (const L of LAYERS) {
     bytesFull += big.length; bytesThumb += sm.length; n++;
 
     const t = { id, name };
-    if (job.pack) t.pack = job.pack;
     if (job.solo) t.solo = true;
     traits.push(t);
   }

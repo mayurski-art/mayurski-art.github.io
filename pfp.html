@@ -179,12 +179,11 @@
       -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.4em;
     }
     .cell[aria-pressed="true"] .label { font-weight: 700; }
-    .cell .pack {
+    .cell .badge-solo {
       font-family: var(--pf-mono); font-size: 9.5px; color: #fff;
-      background: var(--pf-orange); border-radius: 999px; padding: 2px 7px;
+      background: var(--pf-accent); border-radius: 999px; padding: 2px 7px;
       align-self: center;
     }
-    .pack-solo { background: var(--pf-accent); }
     .locked { grid-column: 1 / -1; padding: 26px 18px; text-align: center; }
     .locked p { margin: 0 0 14px; color: var(--pf-muted); font-size: 13.5px; line-height: 1.5; }
     .btn-swap {
@@ -255,7 +254,7 @@
           <span class="count" id="count"></span>
         </div>
         <div class="grid" id="grid" role="tabpanel"></div>
-        <div class="picker-foot">Booster-pack traits are tagged in orange. Your build is saved in this browser.</div>
+        <div class="picker-foot">Your build is saved in this browser.</div>
       </section>
     </main>
   </div>
@@ -554,15 +553,9 @@
       label.textContent = trait ? trait.name : 'None';
       btn.appendChild(label);
 
-      if (trait?.pack) {
-        const pack = document.createElement('span');
-        pack.className = 'pack';
-        pack.textContent = trait.pack;
-        btn.appendChild(pack);
-      }
       if (trait?.solo) {
         const solo = document.createElement('span');
-        solo.className = 'pack pack-solo';
+        solo.className = 'badge-solo';
         solo.textContent = 'Complete';
         btn.appendChild(solo);
       }

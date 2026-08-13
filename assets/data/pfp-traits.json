@@ -29,8 +29,7 @@
         },
         {
           "id": "blue",
-          "name": "Blue",
-          "pack": "Booster 1"
+          "name": "Blue"
         },
         {
           "id": "bob-ross-painting",
@@ -62,8 +61,7 @@
         },
         {
           "id": "dark",
-          "name": "Dark",
-          "pack": "Booster 1"
+          "name": "Dark"
         },
         {
           "id": "death-note",
@@ -103,8 +101,7 @@
         },
         {
           "id": "green",
-          "name": "Green",
-          "pack": "Booster 1"
+          "name": "Green"
         },
         {
           "id": "halo",
@@ -160,8 +157,7 @@
         },
         {
           "id": "orange",
-          "name": "Orange",
-          "pack": "Booster 1"
+          "name": "Orange"
         },
         {
           "id": "orc",
@@ -173,8 +169,7 @@
         },
         {
           "id": "pink",
-          "name": "Pink",
-          "pack": "Booster 1"
+          "name": "Pink"
         },
         {
           "id": "prison",
@@ -186,8 +181,7 @@
         },
         {
           "id": "purple",
-          "name": "Purple",
-          "pack": "Booster 1"
+          "name": "Purple"
         },
         {
           "id": "pyramids",
@@ -195,8 +189,7 @@
         },
         {
           "id": "red",
-          "name": "Red",
-          "pack": "Booster 1"
+          "name": "Red"
         },
         {
           "id": "red-light-district",
@@ -216,8 +209,7 @@
         },
         {
           "id": "sky",
-          "name": "Sky",
-          "pack": "Booster 1"
+          "name": "Sky"
         },
         {
           "id": "slap-chris",
@@ -229,8 +221,7 @@
         },
         {
           "id": "solana",
-          "name": "Solana",
-          "pack": "Booster 1"
+          "name": "Solana"
         },
         {
           "id": "t-keyboard",
@@ -238,8 +229,7 @@
         },
         {
           "id": "teal",
-          "name": "Teal",
-          "pack": "Booster 1"
+          "name": "Teal"
         },
         {
           "id": "the-couch",
@@ -275,8 +265,7 @@
         },
         {
           "id": "trump-background",
-          "name": "Trump background",
-          "pack": "Booster 2"
+          "name": "Trump background"
         },
         {
           "id": "uhoh",
@@ -288,8 +277,7 @@
         },
         {
           "id": "white",
-          "name": "White",
-          "pack": "Booster 1"
+          "name": "White"
         },
         {
           "id": "wow",
@@ -301,8 +289,7 @@
         },
         {
           "id": "yellow",
-          "name": "Yellow",
-          "pack": "Booster 1"
+          "name": "Yellow"
         }
       ]
     },
@@ -424,23 +411,19 @@
         },
         {
           "id": "boobs-black",
-          "name": "Boobs black",
-          "pack": "Booster 1"
+          "name": "Boobs black"
         },
         {
           "id": "boobs-green",
-          "name": "Boobs green",
-          "pack": "Booster 1"
+          "name": "Boobs green"
         },
         {
           "id": "boobs-red",
-          "name": "Boobs red",
-          "pack": "Booster 1"
+          "name": "Boobs red"
         },
         {
           "id": "boobs-white",
-          "name": "Boobs white",
-          "pack": "Booster 1"
+          "name": "Boobs white"
         },
         {
           "id": "bounty-hunter",
@@ -720,8 +703,7 @@
         },
         {
           "id": "trump-tshirt",
-          "name": "Trump tshirt",
-          "pack": "Booster 2"
+          "name": "Trump tshirt"
         },
         {
           "id": "turtle-neck",
@@ -951,13 +933,11 @@
         },
         {
           "id": "trump-hair",
-          "name": "Trump hair",
-          "pack": "Booster 2"
+          "name": "Trump hair"
         },
         {
           "id": "uncle-sam",
-          "name": "Uncle Sam",
-          "pack": "Booster 2"
+          "name": "Uncle Sam"
         }
       ]
     },
@@ -995,8 +975,7 @@
         },
         {
           "id": "hotdog",
-          "name": "Hotdog",
-          "pack": "Booster 2"
+          "name": "Hotdog"
         },
         {
           "id": "middle-fingers",

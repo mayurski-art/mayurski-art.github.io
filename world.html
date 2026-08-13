@@ -20,7 +20,10 @@
   // laptop without being bounced.
   (() => {
     try {
-      if (new URLSearchParams(location.search).has('mobile')) return;
+      const q = new URLSearchParams(location.search);
+      // ?mobile=1 previews on a laptop; ?embed=1 means index.html is already
+      // hosting us at the root URL, so bouncing would fight its own swap.
+      if (q.has('mobile') || q.has('embed')) return;
     } catch {}
     const ua = navigator.userAgent || '';
     const isPhone =
@@ -243,13 +246,18 @@
       box-shadow: 0 10px 24px #00000080, inset 0 0 26px color-mix(in srgb, var(--c) 16%, transparent);
     }
     .spot-placeholder .plate b {
-      font-family: var(--font-display); font-size: clamp(11px, 1.5vw, 17px);
-      color: var(--c); line-height: 1;
+      font-family: var(--font-display); font-size: clamp(9px, 1.4vw, 17px);
+      color: var(--c); line-height: 1.05;
     }
+    /* The plate is only ~60px wide on a phone, where "ART SOON" wrapped and
+       collided with the line above it. Below that width it just drops out —
+       the dashed plate already reads as unfinished. */
     .spot-placeholder .plate i {
-      font-family: var(--font-mono); font-style: normal;
-      font-size: clamp(6px, .82vw, 9px); color: var(--fg-dim); letter-spacing: .1em;
+      font-family: var(--font-mono); font-style: normal; white-space: nowrap;
+      font-size: clamp(5px, .8vw, 9px); color: var(--fg-dim); letter-spacing: .08em;
+      line-height: 1.1;
     }
+    @media (max-width: 720px) { .spot-placeholder .plate i { display: none; } }
 
     /* ================= RUN TO ENTER ================= */
     .lockbar {
