@@ -1,8 +1,10 @@
 # Same-origin front door — native page transitions across the network
 
-**Status:** Phase 1 premise verified — see §8
+**Status:** Phase 1 shipped and verified live. Scope narrowed to the four
+public apps.
 **Date:** 2026-08-13
-**Goal:** seamless transitions between all trollrunner sites on mobile.
+**Goal:** seamless transitions between the public trollrunner sites on
+mobile.
 
 ---
 
@@ -10,12 +12,11 @@
 
 The reference (`trollface.io` → `trollface.io/city`) is not doing a
 transition effect. Both URLs serve the *identical* HTML shell and the
-identical bundle (`index-KNK6_RMh.js`). It is a React SPA — react-router
-swaps components in place and the browser never navigates. There is
-nothing to make seamless.
+identical bundle. It is a React SPA — react-router swaps components in
+place and the browser never navigates. There is nothing to make seamless.
 
-The important part is not the SPA, it is the **single origin**. The
-native cross-document View Transitions API —
+The important part is not the SPA, it is the **single origin**. The native
+cross-document View Transitions API —
 
 ```css
 @view-transition { navigation: auto; }
@@ -23,74 +24,63 @@ native cross-document View Transitions API —
 
 — makes the browser animate ordinary multi-page navigations, hardware
 accelerated, no framework. It has one hard requirement: **same origin**.
-Subdomains are separate origins, so between `terminal.trollrunner.net`
-and `games.trollrunner.net` it silently does nothing.
+Subdomains are separate origins, so between `terminal.trollrunner.net` and
+`maps.trollrunner.net` it silently does nothing.
 
 So the goal is not "become an SPA". It is "become one origin". Every site
-can stay exactly what it is today.
-
-### Why not the SPA rewrite
-
-Measured across the 11 repos:
-
-| | Lines |
-|---|---|
-| Static HTML sites (8) | ~104,000 |
-| └ of which `trollrunner-games` | ~58,000 |
-| Next.js apps (3) | ~16,400 |
-| **Total** | **~120,000** |
-
-Three things make it worse than the count suggests: the games repo is 19
-canvas games where React adds nothing to a `requestAnimationFrame` loop;
-`trollrunner-terminal` has 13 API routes holding `ANTHROPIC_API_KEY` and
-`SUPABASE_SERVICE_ROLE`, which a client-side SPA cannot hold; and terminal
-and fitness would lose SSR. Months of work, to arrive at the features that
-already exist.
+stays exactly what it is today. The alternative — consolidating ~120,000
+lines across 11 repos into one React app — was measured and rejected: the
+games repo alone is ~58,000 lines of canvas games that React does nothing
+for, and terminal's 13 API routes hold secrets a client-side SPA cannot.
 
 ---
 
-## 2. Current topology
+## 2. Scope: the four public apps
 
-| Site | Host | Stack |
-|---|---|---|
-| `www` | GitHub Pages | static HTML |
-| `games` | GitHub Pages | static HTML |
-| `blog` | GitHub Pages | static HTML |
-| `finance` | GitHub Pages | static HTML |
-| `nutrition` | GitHub Pages | static HTML |
-| `projects` | GitHub Pages | static HTML |
-| `videos` | GitHub Pages | static HTML |
-| `stickers` | GitHub Pages | static HTML |
-| `garden` | GitHub Pages | static HTML |
-| `maps` | GitHub Pages | Next.js, `output: export` |
-| `terminal` | Vercel | Next.js + 13 API routes |
-| `fitness` | Vercel | Next.js + 1 API route |
+Only what the public can already see is in scope. The app grid is rendered
+from `tdVisibleSites()` in `index.html`, which returns the entries without
+an `adminOnly` flag:
+
+| In scope | Host | Stack | Serves |
+|---|---|---|---|
+| `terminal` | Vercel | Next.js (SSR) | `/_next`, `/api`, `/faces`, `/lore` |
+| `finance` | GitHub Pages | static HTML | relative paths only |
+| `stickers` | GitHub Pages | static HTML | relative paths only |
+| `maps` | GitHub Pages | Next.js static export | `/_next` |
+
+**Out of scope — do not work on these:** `fitness`, `games`, `garden`,
+`blog`/`nutrition`, `videos`, `projects`. All are `adminOnly` and not
+public. This is a deliberate instruction, not an oversight.
+
+This narrowing removed the blocker the previous revision of this doc was
+stuck on. That blocker was terminal and fitness both serving `/_next/*`;
+fitness is admin-only, so it is gone. Of the four public apps only
+terminal is a real SSR app, and two are plain static sites.
 
 ---
 
-## 3. Proposed architecture
+## 3. Architecture
 
-One Vercel project becomes the front door at `trollrunner.net` and
-rewrites paths to the deployments that already exist. Vercel rewrites
-proxy to absolute external URLs, so nothing needs to move hosts.
+One Vercel project is the front door and rewrites paths to the
+deployments that already exist. Vercel rewrites proxy to absolute
+external URLs, so nothing moves hosts.
 
 ```
-trollrunner.net/            → www      (GitHub Pages)
-trollrunner.net/games/*     → games    (GitHub Pages)
-trollrunner.net/terminal/*  → terminal (Vercel)
-trollrunner.net/fitness/*   → fitness  (Vercel)
-trollrunner.net/maps/*      → maps     (GitHub Pages)
-…and so on for blog, finance, nutrition, projects, videos, stickers, garden
+trollrunner.net/            → apex   (GitHub Pages)
+trollrunner.net/terminal/*  → terminal.trollrunner.net (Vercel)
+trollrunner.net/finance/*   → finance.trollrunner.net  (GitHub Pages)
+trollrunner.net/stickers/*  → stickers.trollrunner.net (GitHub Pages)
+trollrunner.net/maps/*      → maps.trollrunner.net     (GitHub Pages)
 ```
 
-Every response now comes from one origin, so view transitions work
-network-wide. Each site keeps its own repo, its own deploy, its own
-release cadence.
+Every response comes from one origin, so view transitions work across
+the set. Each site keeps its own repo, deploy and release cadence.
+
+Config lives in `frontdoor/vercel.json`.
 
 ### The transition itself, mobile only
 
-Added once to each site's CSS. The media query satisfies the mobile-only
-requirement; desktop keeps instant navigation.
+Added once to each site's CSS:
 
 ```css
 @media (max-width: 760px) {
@@ -98,190 +88,158 @@ requirement; desktop keeps instant navigation.
 }
 ```
 
-Shared elements (the header, the mascot) can opt into continuity by
-carrying a matching `view-transition-name` on both sides.
+Shipped already in the main site (`index.html`) and terminal
+(`app/globals.css`).
 
 **Browser support.** Cross-document view transitions shipped in Chrome 126
-and Safari 18.2. Older browsers simply navigate normally with no
-transition — this degrades silently and needs no fallback path.
+and Safari 18.2. Older browsers navigate normally with no transition —
+silent degradation, no fallback needed.
 
 ---
 
-## 4. What each site actually needs
+## 4. What each site needs
 
-Verified against the codebases, not assumed:
+Verified against the codebases, not assumed.
 
-**Static sites — near zero work.** They reference assets *relatively*
-(`assets/js/site-lock.js`, not `/assets/js/site-lock.js`). Grep for
-root-absolute `src=`/`href=` across games, blog, finance and stickers
-returns **0 hits**. Relative paths survive a path prefix unchanged, which
-removes the usual blocker for this kind of migration.
+**`finance` and `stickers` — nothing.** Both reference assets
+*relatively*, and a grep for root-absolute `src=`/`href=` returns **0
+hits** in each. Neither serves `/_next`. They can be routed with no code
+change and nothing to collide over. This is why they go first.
 
-**Next.js apps — one config line each.** Neither terminal nor fitness sets
-`basePath`, so each needs `basePath: '/terminal'` / `'/fitness'` to emit
-correct asset and route URLs under its prefix.
+**`terminal` — nothing, for now.** Phase 1 routes it without `basePath` by
+passing `/_next`, `/api`, `/faces` and `/lore` straight through. Works
+today; the subdomain keeps working untouched.
 
-**Cross-site links.** Internal links currently point at absolute
-subdomain URLs (`https://terminal.trollrunner.net`). These must become
-path-relative (`/terminal`) — a cross-origin link defeats the whole
-exercise, since view transitions will not fire across origins.
+**`maps` — the one real conflict.** It is a Next.js static export and
+serves `/_next/*`, which collides with terminal's `/_next/*` under one
+origin. Only one of the two can own that path. Resolving it means giving
+one of them a `basePath`, which is the coupled step described below.
 
-**Shared scripts.** Sites load
-`https://mayurski-art.github.io/assets/js/troll-notis.js` and
-`https://www.trollrunner.net/assets/js/troll-accounts.js` cross-origin.
-These should become same-origin paths so they stop being third-party
-requests.
+**Cross-site links.** Internal links point at absolute subdomain URLs
+(`https://terminal.trollrunner.net`). They must become path-relative
+(`/terminal`) or transitions will not fire — a cross-origin link defeats
+the whole exercise.
+
+**Trailing slashes.** A page served at `/finance` resolves its relative
+assets against `/`, not `/finance/`. The rewrite must land on `/finance/`
+(or redirect to it) or every relative asset 404s. This is the most likely
+way the static routing breaks.
 
 ---
 
 ## 5. Risks
 
-**CNAME files.** Nine sites are GitHub Pages with `CNAME` files binding
-them to subdomains. Standing instruction is not to touch CNAME. This
-migration eventually implies changing how those domains resolve — that
-step needs explicit sign-off and should be last, not first.
+**`basePath` breaks the standalone subdomain.** Setting
+`basePath: '/maps'` makes the app serve *only* under that prefix, so
+`maps.trollrunner.net/` starts returning 404 and stays broken until the
+domain points at the front door. Any phase that sets `basePath` is
+therefore welded to the DNS cutover. Phase 1 avoided this by not setting
+one.
+
+**CNAME files.** The GitHub Pages sites are bound to their subdomains by
+`CNAME` files, and the standing instruction is not to touch them. The
+cutover implies changing how those domains resolve — explicit sign-off
+required, and it goes last.
 
 **SSO gets simpler, but the cutover can log people out.**
-`troll-accounts.js` writes a `Domain=.trollrunner.net` cookie *specifically*
-because localStorage is per-origin and siblings cannot see each other's
-copy. One origin makes that bridge unnecessary. The risk is the cutover
-itself: sessions live in per-origin localStorage today, so users must be
-re-adopted from the cookie rather than dropped. The existing
-`adoptSsoCookie()` path already does this and should keep working through
-the transition.
+`troll-accounts.js` writes a `Domain=.trollrunner.net` cookie *because*
+localStorage is per-origin and siblings cannot see each other's copy. One
+origin makes that bridge unnecessary. The risk is the cutover itself:
+sessions must be re-adopted from the cookie rather than dropped. The
+existing `adoptSsoCookie()` path already does this.
 
-**Old URLs must keep working.** Anything bookmarked or linked at
-`games.trollrunner.net` needs a 301 to `trollrunner.net/games`. Skipping
-this breaks inbound links and loses SEO.
+**Old URLs must keep working.** Anything bookmarked at
+`maps.trollrunner.net` needs a 301 to `trollrunner.net/maps`.
 
-**Proxy traffic.** All network traffic now flows through one Vercel
-project. Worth watching bandwidth against plan limits, since GitHub Pages
-was previously absorbing most of it.
+**CSP.** `connect-src` and `frame-src` on these sites are strict and fail
+silently. Consolidating origins changes what counts as same-origin;
+headers need review at cutover.
 
-**CSP.** Per prior incidents, `connect-src` and `frame-src` on these sites
-are strict and fail silently. Consolidating origins changes which sources
-are same-origin; CSP headers need review as part of the cutover.
+**Deploy permission.** Production deploys to the front door project are
+currently rejected — see §7. Nothing further ships until that is fixed.
 
 ---
 
 ## 6. Phasing
 
-Each phase is independently shippable and reversible.
+Reordered so everything reversible happens before anything that isn't.
+The old ordering put a coupled step second; this puts it last.
 
-1. **Prototype.** Front door with two routes: `/` (www) and `/terminal`.
-   Add the mobile view-transition CSS to both. Verify a real transition on
-   a real phone. This validates the whole premise cheaply.
-2. **Next.js apps.** Add `basePath` to terminal and fitness; route them
-   through the front door. **⚠ This phase cannot ship on its own — see
-   "Phase 2 is coupled to Phase 6" below.**
-3. **Static sites.** Route the remaining nine. Mostly config, given
-   relative assets.
-4. **Internal links.** Convert absolute subdomain links to paths, so
-   transitions actually fire between sites.
-5. **Shared scripts + CSP.** Move `troll-notis.js` / `troll-accounts.js`
-   to same-origin paths; review CSP.
-6. **Redirects + DNS.** 301 the old subdomains. Requires explicit sign-off
-   (see CNAME risk).
+1. **Front door + terminal.** ✅ Shipped and verified — see §7. No
+   `basePath`, passthrough routing, subdomain untouched.
+2. **Static sites.** Route `finance` and `stickers`. Zero collisions, no
+   code change, fully reversible. Watch the trailing-slash detail in §4.
+3. **Internal links → paths.** Convert absolute subdomain links to
+   relative paths so transitions actually fire between the routed sites.
+4. **Shared scripts + CSP.** Move `troll-notis.js` / `troll-accounts.js`
+   to same-origin paths; review CSP headers.
+5. **Cutover — one atomic step.** DNS, `basePath` for the Next apps,
+   `maps` `/_next` disambiguation, and 301s from the old subdomains, all
+   together. This is the irreversible step, it touches CNAME, and it
+   needs explicit sign-off.
 
-Rollback at any point: remove the rewrite and the subdomain still serves
-its site directly, because none of the underlying deployments moved.
+Rollback for phases 1–4: delete the rewrite. The subdomain still serves
+its site directly, because no underlying deployment moved.
 
-### ⚠ Phase 2 is coupled to Phase 6
-
-Setting `basePath: '/terminal'` makes the app serve *only* under that
-prefix, so `terminal.trollrunner.net/` starts returning 404. The
-standalone subdomain breaks the moment `basePath` ships, and it stays
-broken until the domain points at the front door (Phase 6). The two
-cannot be separated the way the original phasing implied.
-
-Phase 1 avoided this entirely: with no `basePath`, the front door
-passes `/_next`, `/api`, `/faces` and `/lore` straight through, and the
-subdomain keeps working untouched. That trick does not survive a second
-Next.js app — terminal and fitness both serve `/_next/*` and `/api/*`,
-which collide under one origin. Disambiguating them is exactly what
-`basePath` is for.
-
-So Phase 2 needs one of:
-
-- **Ship 2 and 6 together** — `basePath` plus the DNS cutover and 301s in
-  one move. Cleanest end state, but it is the irreversible step and it
-  touches CNAME, which is off-limits without explicit sign-off.
-- **Accept a broken subdomain window** — ship `basePath` first and leave
-  `terminal.trollrunner.net` 404ing until the cutover. Not recommended on
-  a live site.
-- **Keep going without `basePath`** — extend the Phase 1 passthrough for
-  one more app by giving fitness a distinct asset path. Buys time, adds
-  config that is thrown away at cutover.
-
-This needs a decision before Phase 2 starts. It is also blocked on the
-production-deploy permission above, since none of it is testable without
-publishing a front door.
+`maps` deliberately does not appear before phase 5. Routing it requires
+resolving the `/_next` collision, which requires `basePath`, which breaks
+its subdomain — so it belongs with the cutover, not before it.
 
 ---
 
-## 8. Phase 1 verification (2026-08-13)
+## 7. Phase 1 verification (2026-08-13)
 
-The premise was tested against a local proxy mirroring `frontdoor/vercel.json`
-exactly, with `/` → the live GitHub Pages site and `/terminal` → a real
-Next.js build carrying the new CSS. Measured with the `pagereveal` event,
-whose `viewTransition` property is non-null only when a cross-document
-transition actually runs — rather than inferring from timing.
+### Live and phone-testable
+
+**https://trollrunner-frontdoor.vercel.app/demo.html**
+
+Measured with the `pagereveal` event, whose `viewTransition` property is
+non-null only when a cross-document transition actually runs, rather than
+inferred from timing. `/terminal` proxies the real production terminal.
 
 | Viewport | Result |
 |---|---|
-| 390×844 (mobile) | **transition fired** |
-| 1280×800 (desktop) | no transition, as intended |
+| 390×844 | **transition fired** |
+| 1280×800 | no transition, as intended |
 
-Two separately-deployed sites — GitHub Pages and Vercel, different stacks —
-animated between each other natively, purely because the front door put them
-on one origin. No SPA, no framework, no shared bundle.
+Two separately-deployed sites — GitHub Pages and Vercel, different stacks
+— animating between each other natively, purely because the front door put
+them on one origin.
 
 **`@view-transition` inside `@media` is valid and is the correct gate.**
-This was flagged as uncertain when the doc was written. Isolated test:
+Flagged as uncertain when first written; isolated and confirmed:
 
 | | mobile | desktop |
 |---|---|---|
 | bare `@view-transition` | fires | fires |
 | wrapped in `@media (max-width: 760px)` | fires | **does not fire** |
 
-So the media query is what delivers the mobile-only requirement, and it
-works.
-
 **Testing note.** Playwright's `isMobile: true` device-emulation flag
-suppresses the transition and produces a false negative. Anyone re-running
-this should set only `viewport`, not `isMobile`.
+suppresses the transition and produces a false negative. Set only
+`viewport`.
 
-### Live and phone-testable
+### Known wart
 
-**https://trollrunner-frontdoor.vercel.app/demo.html**
+The `home` link 301s away to `trollrunner.net` and leaves the front door,
+because the deployed config still proxies `www.trollrunner.net`, which
+itself redirects to the apex. Fixed in `frontdoor/vercel.json` but not yet
+published — see below.
 
-Re-verified against that public URL, with `/terminal` proxying the real
-production terminal (which auto-deployed the CSS on push):
+### Deploy permission is blocked
 
-| Viewport | Result |
-|---|---|
-| 390×844 | **transition fired** |
-| 1280×800 | no transition |
-
-**Known wart.** The `home` link 301s away to `trollrunner.net` and leaves
-the front door, because the deployed config still proxies
-`www.trollrunner.net`, which itself redirects to the apex. Fixed in
-`frontdoor/vercel.json` (now points at the apex) but not yet live —
-see below. The `terminal` link is unaffected and is what demonstrates the
-transition.
-
-**Deploy permission is blocked.** Creating a production deployment is
-rejected with `403 — you don't have permission to create a Production
-Deployment for this project`. The public URL above is serving the *first*
-deployment; later fixes cannot be published until the account role is
-raised or someone with production rights deploys. This is a dashboard
-action, not a code change, and it blocks Phase 2.
+Creating a production deployment is rejected with `403 — you don't have
+permission to create a Production Deployment for this project`. The public
+URL serves the *first* deployment, which is why the apex fix is not live.
+Raising the account role is a dashboard action, not a code change, and it
+gates every phase after this one.
 
 ---
 
-## 7. Open questions
+## 8. Open questions
 
-1. Which domain is canonical — `trollrunner.net` or `www.trollrunner.net`?
-2. Should subdomains 301 permanently, or keep serving in parallel for a
-   while as a safety net?
-3. Is `garden` in scope? It is live but has no local repo checkout.
+1. ~~Which domain is canonical?~~ **Answered: the apex.**
+   `www.trollrunner.net` 301s to `trollrunner.net`.
+2. Should the old subdomains 301 permanently at cutover, or keep serving
+   in parallel for a while as a safety net?
+3. At cutover, does `maps` take the `basePath` and leave `/_next` to
+   terminal, or the reverse?
