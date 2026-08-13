@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://*.spotifycdn.com https://nominatim.openstreetmap.org https://solana-rpc.publicnode.com; frame-src 'self' https://open.spotify.com https://*.spotify.com https://trollrunner.net https://*.trollrunner.net; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Troll Runner</title>
 <script>
 (() => {
@@ -52,7 +55,11 @@
       '<meta name="theme-color" content="#000000"><title>TROLLRUNNER</title>' +
       '<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}' +
       'iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}</style>' +
-      '</head><body><iframe src="/world.html?embed=1" title="TrollRunner"></iframe></body></html>'
+      // Version bumped on each deploy. GitHub Pages can't send cache headers,
+      // and phones hold onto HTML hard enough that several rounds of changes
+      // went unseen on a device that already had this page. The query makes
+      // the browser fetch a URL it has never cached.
+      '</head><body><iframe src="/world.html?embed=1&v=20260812f" title="TrollRunner"></iframe></body></html>'
     );
     document.close();
   }
