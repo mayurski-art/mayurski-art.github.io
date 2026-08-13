@@ -398,7 +398,24 @@
        lit up every later close button too, so opening the roster put the
        menu's ✕ on top of the roster's ✕ and it swallowed the tap. */
     #sheet.is-open ~ #sheet-close,
-    #roster.is-open ~ #roster-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+    #roster.is-open ~ #roster-close,
+    #updates.is-open ~ #updates-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+
+    /* ---- latest updates ---- */
+    .update-rows { display: flex; flex-direction: column; gap: 14px; }
+    .update-row {
+      border: 1px solid var(--glass-stroke); border-radius: 14px;
+      padding: 14px 16px; background: #ffffff08;
+    }
+    .update-row h3 {
+      margin: 0 0 6px; font-size: 15px; font-weight: 600; letter-spacing: .01em;
+    }
+    .update-row p {
+      margin: 0; color: var(--fg-dim); font-size: 14px; line-height: 1.5;
+      /* Bodies arrive with real newlines and no markup, so keep them. */
+      white-space: pre-wrap;
+    }
+    .update-empty { color: var(--fg-dim); font-size: 14px; margin: 0; }
 
     /* Touch devices take the phone treatment at ANY width, not just under
        720px. iOS ignores the viewport meta of a framed document, and
@@ -812,6 +829,19 @@
   </div>
   <button class="sheet-close" id="roster-close" type="button" aria-label="Close">✕</button>
 
+  <!-- ============ LATEST UPDATES ============ -->
+  <!-- Opens in place rather than handing off to the windowed desktop. The
+       updates are not a subdomain, just a JSON file on this origin, so there
+       is nothing to navigate to. -->
+  <div class="sheet" id="updates" role="dialog" aria-modal="true" aria-label="Latest updates">
+    <div class="sheet-inner">
+      <h2>LATEST UPDATES</h2>
+      <p class="sub" id="updates-sub">What just shipped.</p>
+      <div class="update-rows" id="update-rows"></div>
+    </div>
+  </div>
+  <button class="sheet-close" id="updates-close" type="button" aria-label="Close">✕</button>
+
   <!-- ============ ACCOUNT ============ -->
   <div class="auth" id="auth" role="dialog" aria-modal="true" aria-label="Account">
     <div class="auth-inner">
@@ -1058,6 +1088,13 @@
       // the windowed desktop. The href is still there if JS never runs.
       if (a.id === 'account') {
         el.addEventListener('click', e => { e.preventDefault(); authSetOpen(true); });
+      }
+      // Updates aren't a subdomain — they're a JSON file on this origin — so
+      // there is nothing to navigate to. Open the sheet in place instead of
+      // handing off to the windowed desktop. The href stays as the no-JS
+      // fallback, same as Account.
+      if (a.id === 'updates') {
+        el.addEventListener('click', e => { e.preventDefault(); updatesSetOpen(true); });
       }
 
       const tile = document.createElement('span');
@@ -1519,6 +1556,52 @@
     rosterSheet.inert = true;
     $('viewers').addEventListener('click', () => rosterSetOpen(true));
     rosterClose.addEventListener('click', () => rosterSetOpen(false));
+
+    /* ---------- latest updates ---------- */
+    /* Same JSON the desktop section reads, on this origin, so the sheet can
+       open instantly instead of handing off to the windowed desktop. */
+    const updatesSheet = $('updates'), updatesClose = $('updates-close');
+    let updatesLoaded = false;
+
+    async function updatesPaint() {
+      if (updatesLoaded) return;
+      const rows = $('update-rows');
+      try {
+        const res = await fetch('assets/data/latest-updates.json', { cache: 'no-cache' });
+        if (!res.ok) throw new Error(res.status);
+        const list = (await res.json()).updates || [];
+        list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        rows.innerHTML = '';
+        if (!list.length) {
+          rows.innerHTML = '<p class="update-empty">Nothing shipped yet.</p>';
+        } else {
+          list.slice(0, 12).forEach(u => {
+            const row = document.createElement('article');
+            row.className = 'update-row';
+            const h = document.createElement('h3');
+            h.textContent = u.title || '';
+            const p = document.createElement('p');
+            p.textContent = u.body || '';
+            row.append(h, p);
+            rows.appendChild(row);
+          });
+        }
+        $('updates-sub').textContent = list.length === 1
+          ? 'The latest thing that shipped.'
+          : `The last ${Math.min(list.length, 12)} things that shipped.`;
+        updatesLoaded = true;
+      } catch {
+        rows.innerHTML = '<p class="update-empty">Could not load updates. Try again in a moment.</p>';
+      }
+    }
+
+    const updatesSetOpen = open => {
+      updatesSheet.classList.toggle('is-open', open);
+      updatesSheet.inert = !open;
+      if (open) { updatesPaint(); updatesClose.focus(); }
+    };
+    updatesSheet.inert = true;
+    updatesClose.addEventListener('click', () => updatesSetOpen(false));
 
     viewersPaint();
     if (window.supabase?.createClient) {
