@@ -95,6 +95,7 @@
        track on a portrait phone. No mask: the frame stays as authored. */
     .island {
       position: fixed; z-index: 1; left: 50%; top: 54%;
+      /* Overridden on phones below, where three rows of icons need the room. */
       transform: translate(-50%, -50%);
       width: min(96vw, 1000px); aspect-ratio: 16 / 9;
       pointer-events: none;
@@ -448,8 +449,12 @@
       .spot .tag { display: none; }
       .sheet h2 { font-size: 32px; }
       .sheet .link { font-size: 19px; }
-      .apps { gap: 18px 6px; }
-      .app-tile { width: 58px; height: 58px; }
+      .apps { gap: 12px 4px; margin-top: 2px; }
+      .app-tile { width: 54px; height: 54px; border-radius: 13px; }
+      .app-name { font-size: 11px; }
+      /* Eleven icons make three rows, so the wallpaper drops clear of them
+         instead of having the last row land on top of it. */
+      .island { top: 66%; width: 96vw; }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
@@ -597,6 +602,22 @@
         href: 'https://maps.trollrunner.net', external: true, color: '#30d158',
         icon: 'assets/images/icons/troll-map.png', img: 'assets/images/world/maps.png',
         l: 82, t: 430, h: 11 },
+
+      /* The rest of the desktop dock. These four aren't pages — they're
+         windows inside the troll desktop — so they hand off to it with
+         ?open=<id>, which index.html reads and opens on boot. */
+      { id: 'account',  label: 'Account',        sub: 'Profile & login',
+        to: '/?desktop=1&open=account',  color: '#4dff73',
+        icon: 'assets/images/icons/account.png' },
+      { id: 'updates',  label: 'Latest Updates', sub: 'What just shipped',
+        to: '/?desktop=1&open=updates',  color: '#7aa0c4',
+        icon: 'assets/images/icons/updates.png' },
+      { id: 'feedback', label: 'Feedback',       sub: 'Tell me what broke',
+        to: '/?desktop=1&open=feedback', color: '#e3b579',
+        icon: 'assets/images/icons/feedback.png' },
+      { id: 'recycle',  label: 'Recycle Bin',    sub: 'Deleted, allegedly',
+        to: '/?desktop=1&open=recycle',  color: '#9b9ba1',
+        icon: 'assets/images/icons/recycle.png' },
     ];
 
     // The runner is no longer a static prop — it laps the island in the SVG.

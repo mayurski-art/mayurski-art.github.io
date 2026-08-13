@@ -59,7 +59,7 @@
       // and phones hold onto HTML hard enough that several rounds of changes
       // went unseen on a device that already had this page. The query makes
       // the browser fetch a URL it has never cached.
-      '</head><body><iframe src="/world.html?embed=1&v=20260812f" title="TrollRunner"></iframe></body></html>'
+      '</head><body><iframe src="/world.html?embed=1&v=20260812g" title="TrollRunner"></iframe></body></html>'
     );
     document.close();
   }
@@ -7209,6 +7209,16 @@ function trollDesktopShow(boot) {
       desk.addEventListener('animationend', () => desk.classList.remove('is-booting'), { once: true });
     }
     // Hub no longer auto-opens on boot — click its desktop icon.
+
+    // Handoff from the phone entrance: world.html's Account / Updates /
+    // Feedback / Recycle Bin icons aren't pages, they're windows in here, so
+    // they arrive as ?open=<id>. twOpen() enforces adminOnly itself, so an
+    // unknown or restricted id simply does nothing.
+    try {
+      const wanted = new URLSearchParams(window.location.search).get('open');
+      if (wanted === 'account') requestAnimationFrame(tdOpenAccount);
+      else if (wanted && TD_WINDOWS[wanted]) requestAnimationFrame(() => twOpen(wanted));
+    } catch {}
   }
 }
 
