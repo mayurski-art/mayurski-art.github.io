@@ -211,9 +211,20 @@
       display: grid; place-items: center;
       transition: transform .22s var(--ease), box-shadow .22s var(--ease);
     }
-    .app:hover .app-tile, .app:focus-visible .app-tile {
+    /* Keyboard focus is safe on every device, so it keeps the lift outright. */
+    .app:focus-visible .app-tile {
       transform: translateY(-3px) scale(1.05);
       box-shadow: 0 14px 26px #000000c4, 0 0 16px color-mix(in srgb, var(--c, var(--accent)) 55%, transparent);
+    }
+    /* Hover is gated to real pointers on purpose. A touch browser with no
+       hover still emulates one, and spends the first tap applying this lift
+       instead of following the link — so the app only opened on the second
+       tap. Anything hover-only on a tappable target has to sit in here. */
+    @media (hover: hover) {
+      .app:hover .app-tile {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 14px 26px #000000c4, 0 0 16px color-mix(in srgb, var(--c, var(--accent)) 55%, transparent);
+      }
     }
     .app-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .app-name {
@@ -326,7 +337,12 @@
       background: #14141a; border: 1px solid var(--glass-stroke);
       transition: transform .2s var(--ease);
     }
-    .dock a:hover .ico, .dock a:focus-visible .ico { transform: translateY(-3px) scale(1.06); }
+    /* Same split as the app tiles: hover only for real pointers, or a touch
+       device spends its first tap on the lift rather than the link. */
+    .dock a:focus-visible .ico { transform: translateY(-3px) scale(1.06); }
+    @media (hover: hover) {
+      .dock a:hover .ico { transform: translateY(-3px) scale(1.06); }
+    }
     .dock svg { width: 22px; height: 22px; fill: var(--fg); }
     /* Explicit line-height so the label's box is exactly --dock-label tall —
        that is what makes --dock-ico-center land on the real icon centre. */
@@ -434,7 +450,9 @@
          assets/images/icons, transparent edges and all. */
       .app-tile { background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
       .app-tile img { object-fit: contain; }
-      .app:hover .app-tile, .app:focus-visible .app-tile { box-shadow: none; }
+      /* Hover can't match here any more; focus-visible still can, via a
+         paired keyboard, and keeps the plate off to match the art. */
+      .app:focus-visible .app-tile { box-shadow: none; }
     }
     @media (min-width: 721px) and (pointer: fine) {
       /* The island launcher this branch was written for is gone, so the app
