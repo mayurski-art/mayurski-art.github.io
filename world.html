@@ -57,8 +57,6 @@
                       inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 #ffffff08;
       --glass-bg: linear-gradient(165deg, #ffffff0d 0%, #ffffff04 38%, #00000047 100%), var(--glass-fill);
 
-      --world-w: min(96vw, 1500px, calc((100vh - 190px) * 1.5714));
-
       /* Their site swaps the pointer for a troll; ours uses our own face,
          cut from the official logo art in the PFP set. */
       --cursor-troll: url(assets/images/troll-cursor.png) 6 3, pointer;
@@ -73,7 +71,7 @@
     }
     a { color: inherit; text-decoration: none; }
     button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
-    a, button, .spot, .app, .runner { cursor: var(--cursor-troll); }
+    a, button, .app, .runner { cursor: var(--cursor-troll); }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
     .vh {
       position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -210,78 +208,6 @@
       font-family: var(--font-mono); font-style: normal; font-size: 7px;
       color: var(--fg-dim); letter-spacing: .1em; text-align: center;
     }
-
-    /* ================= ISLAND ================= */
-    .stage { flex: 1; display: grid; place-items: center; padding: 10px 16px 0; min-height: 0; }
-    .world { position: relative; width: var(--world-w); aspect-ratio: 1100 / 700; }
-    body[data-phase="lock"] .world,
-    body[data-phase="home"] .world { animation: spawn 1.4s cubic-bezier(.16, 1, .3, 1) both; }
-    @keyframes spawn {
-      from { opacity: 0; transform: translateY(26px) scale(.965); }
-      to   { opacity: 1; transform: none; }
-    }
-    .world > svg.island { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-
-    /* Sized by HEIGHT, not width. The art runs from aspect 0.29 (lamp post) to
-       1.50 (arch), so a shared width makes tall objects tower and wide ones
-       shrink; a shared ground plane is what actually reads as "standing on the
-       island". Width follows from each image's own aspect. */
-    .spot {
-      position: absolute; left: calc(var(--l) * 1%); top: calc(var(--t) * 1%);
-      height: calc(var(--h) * 1%); transform: translate(-50%, -100%);
-      display: block; padding: 0; line-height: 0;
-      transition: transform .3s var(--ease), filter .3s var(--ease);
-    }
-    .spot img { height: 100%; width: auto; display: block; }
-    /* Contact shadow — without it every object looks pasted on rather than set down. */
-    .spot::after {
-      content: ""; position: absolute; left: 50%; bottom: -2%;
-      width: 86%; padding-bottom: 15%; transform: translateX(-50%);
-      background: radial-gradient(ellipse at center, #00000073 0%, #00000038 45%, transparent 72%);
-      z-index: -1; pointer-events: none;
-      transition: opacity .3s var(--ease), transform .3s var(--ease);
-    }
-    .spot:hover::after, .spot:focus-visible::after { opacity: .55; transform: translateX(-50%) scale(1.08); }
-    .spot:hover, .spot:focus-visible { transform: translate(-50%, -100%) translateY(-7px) scale(1.045); z-index: 20; }
-    .spot img { filter: drop-shadow(0 6px 10px #00000059); }
-    .spot:hover img, .spot:focus-visible img {
-      filter: drop-shadow(0 14px 22px #000000a6) drop-shadow(0 0 14px color-mix(in srgb, var(--c, var(--accent)) 60%, transparent));
-    }
-    .spot .tag {
-      position: absolute; left: 50%; bottom: calc(100% + 9px); transform: translate(-50%, 5px);
-      padding: 6px 11px; white-space: nowrap; line-height: 1.2;
-      font-size: 12px; font-weight: 700; letter-spacing: .02em;
-      background: var(--glass-bg); border: 1px solid var(--glass-stroke);
-      border-radius: var(--glass-radius); box-shadow: var(--glass-shadow);
-      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-      color: var(--c, var(--fg)); opacity: 0; pointer-events: none;
-      transition: opacity .2s var(--ease), transform .28s var(--ease);
-    }
-    .spot:hover .tag, .spot:focus-visible .tag { opacity: 1; transform: translate(-50%, 0); }
-    .spot .tag small {
-      display: block; font-family: var(--font-mono); font-weight: 400;
-      font-size: 9.5px; color: var(--fg-dim); letter-spacing: .05em; margin-top: 1px;
-    }
-    .spot-placeholder .plate {
-      height: 100%; width: auto; aspect-ratio: 1 / 1.05; border-radius: 10px;
-      border: 2px dashed color-mix(in srgb, var(--c) 70%, transparent);
-      background: linear-gradient(165deg, #ffffff14, #00000059);
-      display: grid; place-content: center; gap: 3px; text-align: center;
-      box-shadow: 0 10px 24px #00000080, inset 0 0 26px color-mix(in srgb, var(--c) 16%, transparent);
-    }
-    .spot-placeholder .plate b {
-      font-family: var(--font-display); font-size: clamp(9px, 1.4vw, 17px);
-      color: var(--c); line-height: 1.05;
-    }
-    /* The plate is only ~60px wide on a phone, where "ART SOON" wrapped and
-       collided with the line above it. Below that width it just drops out —
-       the dashed plate already reads as unfinished. */
-    .spot-placeholder .plate i {
-      font-family: var(--font-mono); font-style: normal; white-space: nowrap;
-      font-size: clamp(5px, .8vw, 9px); color: var(--fg-dim); letter-spacing: .08em;
-      line-height: 1.1;
-    }
-    @media (max-width: 720px) { .spot-placeholder .plate i { display: none; } }
 
     /* ================= RUN TO ENTER ================= */
     .lockbar {
@@ -439,14 +365,17 @@
     }
     .sheet.is-open ~ .sheet-close { opacity: 1; visibility: visible; transition-delay: 0s; }
 
-    @media (max-width: 720px) {
+    /* Touch devices take the phone treatment at ANY width, not just under
+       720px. iOS ignores the viewport meta of a framed document, and
+       index.html serves this page to phones inside a full-screen iframe — so
+       a 390px iPhone lays this out at roughly 780 CSS px and used to fall
+       into the desktop branch below, which is how the app icons went
+       missing. Pointer type is the honest question here; width is not. */
+    @media (max-width: 720px), (pointer: coarse) {
       .topbar { padding: 16px 16px; }
       .wordmark { font-size: 19px; }
       .wordmark img { width: 21px; height: 21px; }
       .stat { font-size: 12px; }
-      .stage { padding: 4px 10px 0; }
-      :root { --world-w: 96vw; }
-      .spot .tag { display: none; }
       .sheet h2 { font-size: 32px; }
       .sheet .link { font-size: 19px; }
       .apps { gap: 12px 4px; margin-top: 2px; }
@@ -459,13 +388,21 @@
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
     }
-    @media (min-width: 721px) {
-      /* Desktop keeps the island as the launcher and a quiet footer line,
-         the way their desktop does. The grid and dock are the phone's. */
-      .apps { display: none; }
-      .dock { display: none; }
-      .foot { display: flex; }
-      .world { transition: transform .5s var(--ease); will-change: transform; }
+    /* Same reason: when the layout viewport can't be trusted, px tile sizes
+       can't be either. Sizing in vw with px bounds keeps a tile roughly a
+       thumb wide whether this document thinks it's 390px or 780px. */
+    @media (pointer: coarse) {
+      .apps { max-width: min(520px, 96vw); padding: 0 3vw; gap: 3vw 1vw; }
+      .app-tile { width: clamp(54px, 15vw, 120px); height: clamp(54px, 15vw, 120px);
+        border-radius: clamp(13px, 3.6vw, 28px); }
+      .app-name { font-size: clamp(11px, 3vw, 23px); }
+    }
+    @media (min-width: 721px) and (pointer: fine) {
+      /* The island launcher this branch was written for is gone, so the app
+         grid is the launcher at every size now — it just gets more room. */
+      .apps { max-width: 760px; gap: 26px 14px; }
+      .app-tile { width: 76px; height: 76px; border-radius: 18px; }
+      .app-name { font-size: 13px; }
       /* Their desktop anchors the wordmark top-left rather than centring it,
          and drops the stat line the phone header carries. */
       .topbar { display: flex; justify-content: space-between; padding: 26px 30px; }
@@ -475,9 +412,8 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .world, .apps, .dock, .shell, .boot, .sheet { animation: none !important; transition-duration: .01ms !important; }
-      .spot { transition: none; }
-      .spot:hover, .spot:focus-visible { transform: translate(-50%, -100%); }
+      .apps, .dock, .shell, .boot, .sheet { animation: none !important; transition-duration: .01ms !important; }
+      .app-tile { transition: none; }
       .caret { animation: none; }
     }
   </style>
@@ -619,9 +555,6 @@
         to: '/?desktop=1&open=recycle',  color: '#9b9ba1',
         icon: 'assets/images/icons/recycle.png' },
     ];
-
-    // The runner is no longer a static prop — it laps the island in the SVG.
-    const PROPS = [];
 
     const SOCIALS = [
       { name: 'X', href: 'https://x.com/troll_runner',
@@ -913,16 +846,6 @@
     addEventListener('resize', render, { passive: true });
     render();
     runBoot();
-
-    /* ---------- ambient lap runner ---------- */
-    if (calm.matches) {
-      // SMIL ignores prefers-reduced-motion, so park the runner mid-island.
-      const lap = $('lap');
-      lap.querySelectorAll('animateMotion, animate').forEach(n => n.remove());
-      lap.setAttribute('opacity', '1');
-      lap.setAttribute('transform', 'translate(552 446)');
-    }
-
 
     /* ================= STARFIELD =================
        Canvas rather than hundreds of DOM nodes; static single paint when the
