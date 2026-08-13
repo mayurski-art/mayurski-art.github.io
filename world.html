@@ -7,7 +7,7 @@
        and frame-src have to name it or the radio silently never loads. It
        also evaluates strings, hence 'unsafe-eval' — index.html's CSP carries
        it for the same player. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://open.spotify.com https://*.spotifycdn.com; frame-src https://open.spotify.com https://*.spotify.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://*.spotifycdn.com; frame-src https://open.spotify.com https://*.spotify.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -68,6 +68,9 @@
     }
 
     * { box-sizing: border-box; }
+    /* Any `display` in a class rule outranks the hidden attribute, so a
+       [hidden] grid/flex element stays on screen. Settle it once, up front. */
+    [hidden] { display: none !important; }
     html, body { height: 100%; }
     body {
       margin: 0; background: #000; color: var(--fg);
@@ -368,7 +371,11 @@
       width: 42px; height: 42px; display: grid; place-items: center; font-size: 26px;
       opacity: 0; visibility: hidden; transition: opacity .28s var(--ease), visibility 0s linear .28s;
     }
-    .sheet.is-open ~ .sheet-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+    /* Pair each close button to ITS sheet. `.sheet.is-open ~ .sheet-close`
+       lit up every later close button too, so opening the roster put the
+       menu's ✕ on top of the roster's ✕ and it swallowed the tap. */
+    #sheet.is-open ~ #sheet-close,
+    #roster.is-open ~ #roster-close { opacity: 1; visibility: visible; transition-delay: 0s; }
 
     /* Touch devices take the phone treatment at ANY width, not just under
        720px. iOS ignores the viewport meta of a framed document, and
@@ -427,6 +434,127 @@
       .wordmark { font-size: 27px; }
       .wordmark img { width: 29px; height: 29px; }
     }
+
+    /* ================= WHO'S ONLINE =================
+       A pill in the top bar rather than the desktop's tray widget, because
+       the top bar is the only chrome this shell has. Tap opens the roster. */
+    .viewers {
+      display: inline-flex; align-items: center; gap: 6px; justify-self: start;
+      padding: 5px 10px 5px 8px; border-radius: 999px;
+      background: #ffffff0f; border: 1px solid var(--glass-stroke);
+      font-family: var(--font-ui); font-size: 12px; font-weight: 700;
+      color: var(--fg); text-shadow: var(--legible);
+      transition: background .16s var(--ease);
+    }
+    .viewers:hover { background: #ffffff1c; }
+    .viewers-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 80%, transparent);
+      animation: viewers-blink 2.4s var(--ease) infinite;
+    }
+    @keyframes viewers-blink { 50% { opacity: .35; } }
+    .viewers-n { font-variant-numeric: tabular-nums; }
+    .viewers-label { color: var(--fg-dim); font-weight: 500; }
+    /* The stat and the pill share the left cell of the top bar's grid. */
+    .topbar-left { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-self: start; }
+
+    .roster-rows { display: grid; }
+    .roster-row {
+      display: flex; align-items: center; gap: 11px; padding: 10px 2px;
+      border-bottom: 1px solid #ffffff0d; text-align: left; width: 100%;
+    }
+    .roster-av {
+      width: 38px; height: 38px; flex: none; border-radius: 50%; overflow: hidden;
+      background: #14141a; border: 1px solid var(--glass-stroke);
+      display: grid; place-items: center; font-size: 15px;
+    }
+    .roster-av img { width: 100%; height: 100%; object-fit: cover; }
+    .roster-name { flex: 1; min-width: 0; font-size: 16px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .roster-tag {
+      flex: none; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--fg-dim);
+      padding: 3px 7px; border-radius: 999px; border: 1px solid var(--glass-stroke);
+    }
+    .roster-tag.is-you { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+    .roster-empty { color: var(--fg-dim); font-size: 14px; padding: 10px 0; }
+
+    /* ================= ACCOUNT =================
+       A full-screen sheet, not a handoff to the windowed desktop: on a phone
+       that meant leaving the entrance entirely to type into a 300px window. */
+    .auth {
+      position: fixed; inset: 0; z-index: 85; overflow-y: auto;
+      padding: calc(26px + env(safe-area-inset-top)) 22px calc(34px + env(safe-area-inset-bottom));
+      background: linear-gradient(170deg, #0b0f0c 0%, #000 60%);
+      display: grid; align-content: start; justify-items: stretch; gap: 0;
+      opacity: 0; visibility: hidden; transform: translateY(10px);
+      transition: opacity .26s var(--ease), transform .32s var(--ease), visibility 0s linear .26s;
+    }
+    .auth.is-open { opacity: 1; visibility: visible; transform: none; transition-delay: 0s, 0s, 0s; }
+    .auth-inner { width: 100%; max-width: 420px; margin: 0 auto; display: grid; gap: 18px; }
+    #auth-guest, #auth-me { display: grid; gap: 15px; }
+    .auth-top { display: flex; align-items: center; }
+    .auth-close {
+      width: 42px; height: 42px; margin-left: auto; display: grid; place-items: center;
+      font-size: 24px; border-radius: 10px; color: var(--fg-dim);
+    }
+    .auth-close:hover { background: #ffffff14; color: var(--fg); }
+    .auth-brand { display: grid; justify-items: center; gap: 10px; margin: 6px 0 4px; }
+    .auth-brand .wordmark { font-size: 26px; }
+    .auth-title { font-family: var(--font-display); font-size: 30px; margin: 0; letter-spacing: -.01em; text-align: center; }
+    .auth-sub { margin: 0; text-align: center; color: var(--fg-dim); font-size: 14px; }
+    .auth-form { display: grid; gap: 12px; }
+    .auth-field { display: grid; gap: 6px; }
+    .auth-field label {
+      font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .13em;
+      text-transform: uppercase; color: var(--fg-dim);
+    }
+    .auth-field input {
+      width: 100%; padding: 15px 14px; border-radius: 12px;
+      background: #ffffff0d; border: 1px solid var(--glass-stroke); color: var(--fg);
+      /* 16px keeps iOS from zooming the whole page when a field takes focus. */
+      font-family: var(--font-ui); font-size: 16px;
+      transition: border-color .16s var(--ease), background .16s var(--ease);
+    }
+    .auth-field input:focus {
+      outline: none; background: #ffffff14;
+      border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    }
+    .auth-hint { font-size: 12px; color: var(--fg-dim); margin: -2px 0 0; }
+    .auth-submit {
+      width: 100%; padding: 16px; border-radius: 12px; margin-top: 4px;
+      background: var(--accent); color: #06140a; border: 0;
+      font-family: var(--font-display); font-size: 15px; letter-spacing: .06em;
+      transition: opacity .16s var(--ease), transform .16s var(--ease);
+    }
+    .auth-submit:active { transform: scale(.985); }
+    .auth-submit[disabled] { opacity: .55; }
+    .auth-swap { text-align: center; font-size: 14px; color: var(--fg-dim); }
+    .auth-swap button { color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+    .auth-msg {
+      min-height: 20px; text-align: center; font-size: 13px; line-height: 1.4;
+      color: #ff8a8a;
+    }
+    .auth-msg.is-ok { color: var(--accent); }
+    /* Signed-in view */
+    .auth-me { display: grid; justify-items: center; gap: 12px; text-align: center; }
+    .auth-me-av {
+      width: 92px; height: 92px; border-radius: 50%; overflow: hidden;
+      background: #14141a; border: 1px solid var(--glass-stroke);
+      display: grid; place-items: center; font-size: 34px;
+    }
+    .auth-me-av img { width: 100%; height: 100%; object-fit: cover; }
+    .auth-me-name { font-family: var(--font-display); font-size: 26px; }
+    .auth-me-meta { color: var(--fg-dim); font-size: 13px; font-family: var(--font-mono); letter-spacing: .06em; }
+    .auth-actions { display: grid; gap: 10px; width: 100%; margin-top: 6px; }
+    .auth-action {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      width: 100%; padding: 15px 16px; border-radius: 12px; font-size: 15px;
+      background: #ffffff0d; border: 1px solid var(--glass-stroke); color: var(--fg);
+    }
+    .auth-action:hover { background: #ffffff17; }
+    .auth-action .chev { color: var(--fg-dim); }
+    .auth-action.is-danger { color: #ff8a8a; }
 
     /* ================= TROLL RADIO =================
        Bottom-right of the home screen, clear of the centred dock. The button
@@ -586,7 +714,14 @@
   <!-- ============ SHELL ============ -->
   <div class="shell">
     <header class="topbar">
-      <span class="stat" id="stat"></span>
+      <span class="topbar-left">
+        <span class="stat" id="stat"></span>
+        <button class="viewers" id="viewers" type="button" aria-haspopup="dialog" aria-label="See who's online">
+          <span class="viewers-dot" aria-hidden="true"></span>
+          <span class="viewers-n" id="viewers-n">1</span>
+          <span class="viewers-label">online</span>
+        </button>
+      </span>
       <a class="wordmark" href="/" aria-label="TrollRunner home">
         TR<img src="assets/animations/troll-grin.gif" alt="">LLRUNNER
       </a>
@@ -618,6 +753,74 @@
     <footer class="foot">
       <span>© 2026 Troll Runner</span>
     </footer>
+  </div>
+
+  <!-- ============ WHO'S ONLINE ============ -->
+  <div class="sheet" id="roster" role="dialog" aria-modal="true" aria-label="Who's online">
+    <div class="sheet-inner">
+      <h2>ONLINE NOW</h2>
+      <p class="sub" id="roster-sub">Everyone on the island right now.</p>
+      <div class="roster-rows" id="roster-rows"></div>
+    </div>
+  </div>
+  <button class="sheet-close" id="roster-close" type="button" aria-label="Close">✕</button>
+
+  <!-- ============ ACCOUNT ============ -->
+  <div class="auth" id="auth" role="dialog" aria-modal="true" aria-label="Account">
+    <div class="auth-inner">
+      <div class="auth-top">
+        <button class="auth-close" id="auth-close" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <!-- logged out -->
+      <div id="auth-guest" hidden>
+        <div class="auth-brand">
+          <span class="wordmark">TR<img src="assets/animations/troll-grin.gif" alt="">LLRUNNER</span>
+        </div>
+        <h2 class="auth-title" id="auth-title">Sign in</h2>
+        <p class="auth-sub" id="auth-sub">Your troll, your XP, your spot on the leaderboard.</p>
+        <form class="auth-form" id="auth-form" novalidate>
+          <div class="auth-field">
+            <label for="auth-id" id="auth-id-label">Username</label>
+            <input id="auth-id" name="identifier" type="text" autocomplete="username"
+                   autocapitalize="none" autocorrect="off" spellcheck="false" required>
+          </div>
+          <div class="auth-field" id="auth-email-field" hidden>
+            <label for="auth-email">Email <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
+            <input id="auth-email" name="email" type="email" autocomplete="email"
+                   autocapitalize="none" autocorrect="off" spellcheck="false">
+            <p class="auth-hint">Only used to reset your password. Skip it if you like.</p>
+          </div>
+          <div class="auth-field">
+            <label for="auth-pw">Password</label>
+            <input id="auth-pw" name="password" type="password" autocomplete="current-password" required>
+          </div>
+          <button class="auth-submit" id="auth-submit" type="submit">SIGN IN</button>
+        </form>
+        <p class="auth-msg" id="auth-msg" role="status" aria-live="polite"></p>
+        <p class="auth-swap">
+          <span id="auth-swap-text">New here?</span>
+          <button id="auth-swap" type="button">Create an account</button>
+        </p>
+      </div>
+
+      <!-- logged in -->
+      <div id="auth-me" hidden>
+        <div class="auth-me">
+          <span class="auth-me-av" id="auth-me-av" aria-hidden="true"></span>
+          <span class="auth-me-name" id="auth-me-name"></span>
+          <span class="auth-me-meta" id="auth-me-meta"></span>
+        </div>
+        <div class="auth-actions">
+          <a class="auth-action" id="auth-full" href="/?desktop=1&open=account">
+            <span>Full profile &amp; settings</span><span class="chev">›</span>
+          </a>
+          <button class="auth-action is-danger" id="auth-signout" type="button">
+            <span>Sign out</span><span class="chev">›</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ============ TROLL RADIO ============ -->
@@ -674,6 +877,11 @@
   </div>
   <button class="sheet-close" id="sheet-close" type="button" aria-label="Close menu">✕</button>
 
+  <!-- Same auth client the desktop uses. world.html is same-origin with
+       index.html, so a session started on either shell is already shared —
+       no SSO bridge needed here, unlike the sibling subdomains. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
+  <script src="assets/js/troll-accounts.js?v=20260803b"></script>
   <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
   <script>
   (() => {
@@ -724,6 +932,8 @@
       /* The rest of the desktop dock. These four aren't pages — they're
          windows inside the troll desktop — so they hand off to it with
          ?open=<id>, which index.html reads and opens on boot. */
+      /* Account is handled on this page now (see authSetOpen) — the href
+         stays as the no-JS fallback and as what the menu sheet links to. */
       { id: 'account',  label: 'Account',        sub: 'Profile & login',
         to: '/?desktop=1&open=account',  color: '#4dff73',
         icon: 'assets/images/icons/account.png' },
@@ -794,6 +1004,11 @@
       el.className = 'app';
       if (a.color) el.style.setProperty('--c', a.color);
       linkAttrs(el, a);
+      // Account opens the on-page sheet instead of following the href off to
+      // the windowed desktop. The href is still there if JS never runs.
+      if (a.id === 'account') {
+        el.addEventListener('click', e => { e.preventDefault(); authSetOpen(true); });
+      }
 
       const tile = document.createElement('span');
       tile.className = 'app-tile' + (a.placeholder ? ' is-placeholder' : '');
@@ -1028,6 +1243,255 @@
     addEventListener('resize', render, { passive: true });
     render();
     runBoot();
+
+    /* ================= ACCOUNT =================
+       The Account icon used to hand off to the windowed desktop with
+       ?desktop=1&open=account, which meant leaving the phone entrance to
+       type into a 300px draggable window. It opens this sheet instead; the
+       desktop is still one tap away for the full profile. */
+    const authSheet = $('auth');
+    let authMode = 'login', authBusy = false;
+
+    const authSetOpen = open => {
+      authSheet.classList.toggle('is-open', open);
+      authSheet.inert = !open;
+      document.body.style.overflow = open ? 'hidden' : '';
+      if (open) { authRender(); $('auth-close').focus(); }
+    };
+    authSheet.inert = true;
+
+    function authMsg(text, ok) {
+      const el = $('auth-msg');
+      el.textContent = text || '';
+      el.classList.toggle('is-ok', Boolean(ok));
+    }
+
+    /* One sheet, two faces: signed out shows the form, signed in shows who
+       you are. Re-run on every auth change so it can't show a stale one. */
+    function authRender() {
+      const me = window.TrollrunnerAccounts?.getCachedProfile?.() || null;
+      $('auth-guest').hidden = Boolean(me);
+      $('auth-me').hidden = !me;
+      if (me) {
+        const av = $('auth-me-av');
+        av.textContent = '';
+        if (me.avatarUrl) {
+          const img = document.createElement('img');
+          img.src = me.avatarUrl; img.alt = '';
+          av.appendChild(img);
+        } else {
+          av.textContent = String(me.username || '?').slice(0, 1).toUpperCase();
+        }
+        $('auth-me-name').textContent = me.username || 'Troll';
+        $('auth-me-meta').textContent = `LEVEL ${Math.max(1, Number(me.level) || 1)}`;
+      }
+      authApplyMode();
+    }
+
+    function authApplyMode() {
+      const creating = authMode === 'create';
+      $('auth-title').textContent = creating ? 'Create account' : 'Sign in';
+      $('auth-sub').textContent = creating
+        ? 'Pick a name. Three to twenty letters, numbers or underscores.'
+        : 'Your troll, your XP, your spot on the leaderboard.';
+      $('auth-id-label').textContent = creating ? 'Username' : 'Username or email';
+      $('auth-email-field').hidden = !creating;
+      $('auth-pw').autocomplete = creating ? 'new-password' : 'current-password';
+      $('auth-submit').textContent = creating ? 'CREATE ACCOUNT' : 'SIGN IN';
+      $('auth-swap-text').textContent = creating ? 'Already have one?' : 'New here?';
+      $('auth-swap').textContent = creating ? 'Sign in' : 'Create an account';
+      authMsg('');
+    }
+
+    $('auth-swap').addEventListener('click', () => {
+      authMode = authMode === 'create' ? 'login' : 'create';
+      authApplyMode();
+    });
+    $('auth-close').addEventListener('click', () => authSetOpen(false));
+
+    $('auth-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (authBusy) return;
+      const accounts = window.TrollrunnerAccounts;
+      if (!accounts) { authMsg('Account service is still loading. Try again in a moment.'); return; }
+      const id = $('auth-id').value.trim();
+      const pw = $('auth-pw').value;
+      const email = $('auth-email').value.trim();
+      authBusy = true;
+      $('auth-submit').disabled = true;
+      authMsg(authMode === 'create' ? 'Creating your troll…' : 'Signing in…', true);
+      try {
+        if (authMode === 'create') await accounts.register({ username: id, email, password: pw });
+        else await accounts.login({ identifier: id, password: pw });
+        authMsg('');
+        $('auth-pw').value = '';
+        authRender();
+      } catch (err) {
+        authMsg(err?.message ? String(err.message) : 'That did not work. Try again.');
+      } finally {
+        authBusy = false;
+        $('auth-submit').disabled = false;
+      }
+    });
+
+    $('auth-signout').addEventListener('click', async () => {
+      try { await window.TrollrunnerAccounts?.logout?.(); } catch {}
+      authMode = 'login';
+      authRender();
+    });
+
+    window.addEventListener('trollrunner:auth-changed', () => {
+      authRender();
+      viewersRetrack();
+    });
+
+    /* ================= WHO'S ONLINE =================
+       Same Supabase presence room as the desktop (trollrunner-site-presence)
+       with the same payload shape and the same viewerId, so a phone and a
+       laptop appear as one roster and not two. */
+    const VIEWER_ID_KEY = 'trollrunner_viewer_id_v1';
+    const VIEWER_CHANNEL = 'trollrunner-site-presence';
+    const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
+    const viewerOnlineAt = new Date().toISOString();
+    let viewerChannel = null, viewerJoined = false;
+
+    function getViewerId() {
+      try {
+        const stored = localStorage.getItem(VIEWER_ID_KEY);
+        if (stored) return stored;
+        const made = crypto?.randomUUID ? crypto.randomUUID() : `viewer-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        localStorage.setItem(VIEWER_ID_KEY, made);
+        return made;
+      } catch { return `viewer-${Math.random().toString(16).slice(2)}`; }
+    }
+
+    function viewerPayload() {
+      const me = window.TrollrunnerAccounts?.getCachedProfile?.() || null;
+      return {
+        viewerId: getViewerId(), userId: me?.userId || null, username: me?.username || null,
+        avatarUrl: me?.avatarUrl || null, level: me?.level || null,
+        host: location.hostname, path: location.pathname, activeWindow: null,
+        onlineAt: viewerOnlineAt, trackedAt: new Date().toISOString(),
+      };
+    }
+
+    /* Presence metas ACCUMULATE under a key when you re-track without
+       untracking first — leave-diffs don't reliably reach every client — so
+       a login would leave the old guest entry sitting there forever. */
+    async function viewersRetrack() {
+      if (!viewerJoined || !viewerChannel) return;
+      try { await viewerChannel.untrack(); await viewerChannel.track(viewerPayload()); } catch {}
+    }
+
+    // Deduped the same way the desktop does it: one entry per browser, the
+    // freshest trackedAt wins, one row per account across tabs.
+    function viewerRoster() {
+      const byViewer = new Map();
+      const state = viewerChannel?.presenceState?.() || {};
+      Object.values(state).forEach(entries => {
+        if (!Array.isArray(entries)) return;
+        entries.forEach(entry => {
+          if (!entry?.viewerId) return;
+          const prev = byViewer.get(entry.viewerId);
+          if (!prev || String(entry.trackedAt || '') >= String(prev.trackedAt || '')) {
+            byViewer.set(entry.viewerId, entry);
+          }
+        });
+      });
+      if (!byViewer.size) byViewer.set(getViewerId(), viewerPayload());
+      const members = [], guests = [], seen = new Set();
+      byViewer.forEach(entry => {
+        const username = String(entry.username || '').trim().slice(0, 20);
+        const userId = String(entry.userId || '').trim().slice(0, 64);
+        if (userId && username) {
+          if (seen.has(userId)) return;
+          seen.add(userId);
+          const avatar = String(entry.avatarUrl || '');
+          members.push({
+            viewerId: entry.viewerId, username,
+            // Only ever render an https image URL another client sent us.
+            avatarUrl: /^https:\/\//.test(avatar) ? avatar : '',
+            level: Math.max(1, Number(entry.level) || 1),
+          });
+        } else {
+          guests.push({ viewerId: entry.viewerId, onlineAt: String(entry.onlineAt || '') });
+        }
+      });
+      members.sort((a, b) => a.username.localeCompare(b.username));
+      guests.sort((a, b) => a.onlineAt.localeCompare(b.onlineAt) || String(a.viewerId).localeCompare(String(b.viewerId)));
+      guests.forEach((g, i) => { g.guestLabel = `Guest${String(i + 1).padStart(3, '0')}`; });
+      return { members, guests, total: members.length + guests.length };
+    }
+
+    function viewersPaint() {
+      const { members, guests, total } = viewerRoster();
+      $('viewers-n').textContent = String(total);
+      $('viewers').setAttribute('aria-label', `${total} ${total === 1 ? 'person' : 'people'} online — see who`);
+      const rows = $('roster-rows');
+      const mine = getViewerId();
+      rows.innerHTML = '';
+      [...members, ...guests].forEach(who => {
+        const row = document.createElement('div');
+        row.className = 'roster-row';
+        const av = document.createElement('span');
+        av.className = 'roster-av';
+        if (who.avatarUrl) {
+          const img = document.createElement('img');
+          img.src = who.avatarUrl; img.alt = ''; img.loading = 'lazy';
+          av.appendChild(img);
+        } else {
+          av.textContent = who.username ? who.username.slice(0, 1).toUpperCase() : '👤';
+        }
+        const name = document.createElement('span');
+        name.className = 'roster-name';
+        name.textContent = who.username || who.guestLabel;
+        row.append(av, name);
+        if (who.username) {
+          const lvl = document.createElement('span');
+          lvl.className = 'roster-tag';
+          lvl.textContent = `LVL ${who.level}`;
+          row.appendChild(lvl);
+        }
+        if (who.viewerId === mine) {
+          const you = document.createElement('span');
+          you.className = 'roster-tag is-you';
+          you.textContent = 'You';
+          row.appendChild(you);
+        }
+        rows.appendChild(row);
+      });
+      $('roster-sub').textContent = total === 1
+        ? 'Just you on the island right now.'
+        : `${total} trolls on the island right now.`;
+    }
+
+    const rosterSheet = $('roster'), rosterClose = $('roster-close');
+    const rosterSetOpen = open => {
+      rosterSheet.classList.toggle('is-open', open);
+      rosterSheet.inert = !open;
+      if (open) { viewersPaint(); rosterClose.focus(); }
+    };
+    rosterSheet.inert = true;
+    $('viewers').addEventListener('click', () => rosterSetOpen(true));
+    rosterClose.addEventListener('click', () => rosterSetOpen(false));
+
+    viewersPaint();
+    if (window.supabase?.createClient) {
+      try {
+        const presenceClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        viewerChannel = presenceClient.channel(VIEWER_CHANNEL, { config: { presence: { key: getViewerId() } } });
+        viewerChannel
+          .on('presence', { event: 'sync' }, viewersPaint)
+          .subscribe(status => {
+            if (status !== 'SUBSCRIBED') return;
+            viewerJoined = true;
+            viewerChannel.track(viewerPayload());
+          });
+      } catch {}
+    }
 
     /* ================= TROLL RADIO =================
        Same playlist as the troll desktop, from the shared track file. The
