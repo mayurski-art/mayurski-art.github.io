@@ -381,9 +381,12 @@
       .apps { gap: 12px 4px; margin-top: 2px; }
       .app-tile { width: 54px; height: 54px; border-radius: 13px; }
       .app-name { font-size: 11px; }
-      /* Eleven icons make three rows, so the wallpaper drops clear of them
-         instead of having the last row land on top of it. */
-      .island { top: 66%; width: 96vw; }
+      /* Eleven icons make three rows, so the wallpaper drops clear of them.
+         Anchored off the BOTTOM, above the dock, rather than at a fixed 66%:
+         the grid's height moves with the tile size and the viewport, and a
+         percentage from the top kept letting the last row of labels land on
+         the artwork. */
+      .island { top: auto; bottom: 14vh; transform: translateX(-50%); width: 90vw; }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
@@ -393,9 +396,18 @@
        thumb wide whether this document thinks it's 390px or 780px. */
     @media (pointer: coarse) {
       .apps { max-width: min(520px, 96vw); padding: 0 3vw; gap: 3vw 1vw; }
-      .app-tile { width: clamp(54px, 15vw, 120px); height: clamp(54px, 15vw, 120px);
-        border-radius: clamp(13px, 3.6vw, 28px); }
+      .app-tile { width: clamp(54px, 15vw, 120px); height: clamp(54px, 15vw, 120px); }
       .app-name { font-size: clamp(11px, 3vw, 23px); }
+      /* On a phone the art IS the icon: no plate, no crop, no rounded
+         clipping — the source PNGs render exactly as they sit in
+         assets/images/icons, transparent edges and all. */
+      .app-tile { background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+      .app-tile img { object-fit: contain; }
+      .app:hover .app-tile, .app:focus-visible .app-tile { box-shadow: none; }
+      /* The dashed "PFP SOON" plate is the exception — it has no art behind
+         it, so stripping its box would leave the label floating on nothing. */
+      .app-tile.is-placeholder { border: 1.5px dashed color-mix(in srgb, var(--c) 65%, transparent);
+        background: linear-gradient(165deg, #ffffff12, #00000059); border-radius: clamp(13px, 3.6vw, 28px); }
     }
     @media (min-width: 721px) and (pointer: fine) {
       /* The island launcher this branch was written for is gone, so the app

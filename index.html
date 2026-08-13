@@ -4839,22 +4839,17 @@ body.desktop-mode .troll-desktop { display: block; }
     width: calc(100% - 16px); max-width: none; max-height: 52vh; overflow: auto; }
   .td-icon { width: 100%; max-width: 84px; padding: 8px 2px 6px; gap: 8px; }
   .td-icon:active .td-icon-img { transform: translateY(1px) scale(0.97); }
-  /* The plate is unconditional here, so --flat (which exists to strip the
-     bezel off art with a baked-in box) is overridden back to it. Rounding
-     comes from border-radius on the <img>, not overflow:hidden on the plate
-     — the unread badge hangs outside these bounds and would be clipped. */
+  /* On a phone the art IS the icon: no bezel, no plate, no crop — the source
+     PNGs render exactly as they sit in assets/images/icons. Only the emoji
+     fallback (Checklist) keeps a box, since a bare glyph needs one. */
   .td-icon-img, .td-icon-img--flat { width: 56px; height: 56px; font-size: 27px;
-    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; background: #101014;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65);
-    transition: box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
+    background: none; border: 0; border-radius: 0; box-shadow: none;
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
   .td-icon:hover .td-icon-img, .td-icon:focus-visible .td-icon-img,
   .td-icon:hover .td-icon-img--flat, .td-icon:focus-visible .td-icon-img--flat {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 14px 26px rgba(0, 0, 0, 0.78), 0 0 16px rgba(77, 255, 115, 0.45); }
-  /* cover, not contain: some icons are full-bleed paintings and some are
-     cut-out sprites, and filling the tile is what makes both read as apps. */
-  .td-icon-img img, .td-icon-img--flat img { width: 100%; height: 100%; object-fit: cover;
-    display: block; border-radius: inherit; filter: none; }
+    transform: translateY(-3px) scale(1.05); box-shadow: none; }
+  .td-icon-img img, .td-icon-img--flat img { width: 100%; height: 100%; object-fit: contain;
+    display: block; filter: drop-shadow(2px 3px 1px rgba(0, 0, 0, 0.45)); }
   .td-icon-label { font-size: 12px; }
   .tw { inset: 0 0 46px 0 !important; width: auto !important; max-height: none; border-radius: 0; }
   #tw-hub .tw-body { padding: 16px 14px 12px; }
