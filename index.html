@@ -4548,36 +4548,29 @@ body.desktop-mode .troll-desktop { display: block; }
 @media (prefers-reduced-motion: reduce) { .td-runner img { animation: none; } }
 
 
-/* ---- desktop icons: phone-style home screen ----
-   Laid out the way trollface.io lays out its apps — one centred block of
-   squircle tiles across the top of the wallpaper — rather than a column
-   pinned to the left edge. Same shape as world.html's phone grid, so the
-   two shells read as the same home screen. */
-.td-icons { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); z-index: 5;
-  width: min(100% - 24px, 640px);
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px 8px; justify-items: center; }
-.td-icon { width: 100%; max-width: 104px; padding: 8px 2px 6px; display: grid; justify-items: center; gap: 8px;
-  background: transparent; border: 1px solid transparent; border-radius: 14px; cursor: pointer;
+/* ---- desktop icons ---- */
+.td-icons { position: absolute; top: 14px; left: 10px; bottom: 58px; z-index: 5;
+  display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 7px; max-width: 46vw; }
+.td-icon { width: 96px; padding: 9px 4px 7px; display: grid; justify-items: center; gap: 7px;
+  background: transparent; border: 1px solid transparent; border-radius: 10px; cursor: pointer;
   color: #eaf4ec; font: inherit; text-decoration: none;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
 .td-icon:hover, .td-icon:focus-visible { background: rgba(77, 255, 115, 0.08); border-color: rgba(77, 255, 115, 0.4);
   box-shadow: 0 0 12px rgba(77, 255, 115, 0.16), inset 0 0 14px rgba(77, 255, 115, 0.06); outline: none; }
-.td-icon:active .td-icon-img { transform: translateY(1px) scale(0.97); }
-/* Squircle plate. The art is clipped by border-radius on the <img> itself,
-   not overflow:hidden on the plate — the unread badge hangs outside these
-   bounds and a clipping parent would eat it. */
-.td-icon-img { width: 72px; height: 72px; display: grid; place-items: center; font-size: 34px; line-height: 1;
-  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 18px;
-  background: #101014;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65);
-  transition: box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
+.td-icon:active .td-icon-img { transform: translateY(1px); }
+.td-icon-img { width: 52px; height: 52px; display: grid; place-items: center; font-size: 30px; line-height: 1;
+  border: 2px solid #000; border-radius: 11px;
+  background: linear-gradient(160deg, #3a2c1c 0%, #241a10 55%, #150e08 100%);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 216, 130, 0.28), inset 0 0 0 1px rgba(255, 200, 100, 0.2), 0 0 10px rgba(200, 140, 40, 0.14);
+  transition: box-shadow 0.15s ease, transform 0.1s ease; }
 .td-icon:hover .td-icon-img, .td-icon:focus-visible .td-icon-img {
-  transform: translateY(-3px) scale(1.05);
-  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.78), 0 0 16px rgba(77, 255, 115, 0.45); }
-/* cover, not contain: some icons are full-bleed paintings and some are
-   cut-out sprites, and filling the tile is what makes both read as apps. */
-.td-icon-img img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
-.td-icon-label { font-size: 13px; line-height: 1.2; text-align: center; letter-spacing: 0.02em;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(160, 255, 190, 0.35), inset 0 0 0 1px rgba(77, 255, 115, 0.45), 0 0 14px rgba(77, 255, 115, 0.3); }
+.td-icon-img img { width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.5)); }
+/* Art with its own baked-in border/box (the Hub icon) skips the bezel chrome. */
+.td-icon-img--flat { background: none; border-color: transparent; box-shadow: none; }
+.td-icon:hover .td-icon-img--flat, .td-icon:focus-visible .td-icon-img--flat { box-shadow: 0 0 14px rgba(77, 255, 115, 0.35); }
+.td-icon-img--flat img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(2px 3px 1px rgba(0, 0, 0, 0.45)); }
+.td-icon-label { font-size: 15px; line-height: 1.15; text-align: center; letter-spacing: 0.02em;
   text-shadow: 1px 1px 0 #000, 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.9); }
 .td-icon--ext .td-icon-label::after { content: ' ↗'; font-size: 11px; color: #93a8c4; }
 /* iMessage-style unread count on the TrollChat dock icon */
@@ -4837,9 +4830,31 @@ body.desktop-mode .troll-desktop { display: block; }
 .tw-body .footer-inner { display: grid; gap: 14px; }
 
 @media (max-width: 760px) {
-  .td-icons { top: 10px; width: calc(100% - 16px); grid-template-columns: repeat(4, 1fr); gap: 12px 4px; max-height: 52vh; overflow: auto; }
-  .td-icon { max-width: 84px; }
-  .td-icon-img { width: 56px; height: 56px; border-radius: 14px; font-size: 27px; }
+  /* On a phone the desktop's left-edge column is the wrong shape, so the
+     icons become a phone home screen instead: one centred four-wide grid of
+     squircle tiles, the same shape world.html's entrance already uses. The
+     wide layout above is untouched. */
+  .td-icons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 4px; justify-items: center;
+    top: 10px; left: 50%; right: auto; bottom: auto; transform: translateX(-50%);
+    width: calc(100% - 16px); max-width: none; max-height: 52vh; overflow: auto; }
+  .td-icon { width: 100%; max-width: 84px; padding: 8px 2px 6px; gap: 8px; }
+  .td-icon:active .td-icon-img { transform: translateY(1px) scale(0.97); }
+  /* The plate is unconditional here, so --flat (which exists to strip the
+     bezel off art with a baked-in box) is overridden back to it. Rounding
+     comes from border-radius on the <img>, not overflow:hidden on the plate
+     — the unread badge hangs outside these bounds and would be clipped. */
+  .td-icon-img, .td-icon-img--flat { width: 56px; height: 56px; font-size: 27px;
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; background: #101014;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65);
+    transition: box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
+  .td-icon:hover .td-icon-img, .td-icon:focus-visible .td-icon-img,
+  .td-icon:hover .td-icon-img--flat, .td-icon:focus-visible .td-icon-img--flat {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 14px 26px rgba(0, 0, 0, 0.78), 0 0 16px rgba(77, 255, 115, 0.45); }
+  /* cover, not contain: some icons are full-bleed paintings and some are
+     cut-out sprites, and filling the tile is what makes both read as apps. */
+  .td-icon-img img, .td-icon-img--flat img { width: 100%; height: 100%; object-fit: cover;
+    display: block; border-radius: inherit; filter: none; }
   .td-icon-label { font-size: 12px; }
   .tw { inset: 0 0 46px 0 !important; width: auto !important; max-height: none; border-radius: 0; }
   #tw-hub .tw-body { padding: 16px 14px 12px; }
@@ -4976,7 +4991,7 @@ body.desktop-mode .troll-desktop { display: block; }
         <video id="td-wallpaper-video-b" class="td-wallpaper-media td-wallpaper-video" muted playsinline></video>
       </div>
       <!-- Trackside app launchers + the running-frog decoration are hidden
-           for now — the home-screen grid in #td-icons is the only public way
+           for now — the left-side dock in #td-icons is the only public way
            to open apps until these get a fresh look to match the new
            wallpaper art. -->
       <div class="td-runner" hidden><img src="assets/images/wallpaper/obj-runner.png" alt=""></div>
@@ -6061,16 +6076,16 @@ function initializeGateAccountUI() {
    because the DOM nodes survive the move.
    =================================================================== */
 const TD_SITES = [
-  { id: 'terminal', label: 'Terminal', icon: '💻', img: 'assets/images/icons/terminal.png', href: 'https://terminal.trollrunner.net', color: '#30d158', desc: 'Chat with the trollface terminal AI.' },
-  { id: 'fitness', label: 'Fitness', icon: '🏃', img: 'assets/images/icons/fitness.png', href: 'https://fitness.trollrunner.net', color: '#ff5a1f', desc: 'Your AI running and strength coach.', adminOnly: true },
-  { id: 'games', label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.', adminOnly: true },
-  { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
-  { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.', adminOnly: true },
-  { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
-  { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
-  { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.', adminOnly: true },
-  { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
-  { id: 'maps', label: 'Maps', icon: '📍', img: 'assets/images/icons/troll-map.png', href: 'https://maps.trollrunner.net', color: '#30d158', desc: 'See where every troll is from and drop your own pin.' },
+  { id: 'terminal', label: 'Terminal', icon: '💻', img: 'assets/images/icons/terminal.png', flat: true, href: 'https://terminal.trollrunner.net', color: '#30d158', desc: 'Chat with the trollface terminal AI.' },
+  { id: 'fitness', label: 'Fitness', icon: '🏃', img: 'assets/images/icons/fitness.png', flat: true, href: 'https://fitness.trollrunner.net', color: '#ff5a1f', desc: 'Your AI running and strength coach.', adminOnly: true },
+  { id: 'games', label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true, href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.', adminOnly: true },
+  { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
+  { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.', adminOnly: true },
+  { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
+  { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
+  { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.', adminOnly: true },
+  { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
+  { id: 'maps', label: 'Maps', icon: '📍', img: 'assets/images/icons/troll-map.png', flat: true, href: 'https://maps.trollrunner.net', color: '#30d158', desc: 'See where every troll is from and drop your own pin.' },
 ];
 // Admin-only entries are excluded from the public desktop icons and start
 // menu, but stay in TD_SITES so twOpen() and admin.html can still reach
@@ -6120,11 +6135,11 @@ function tdSetIcon(el, icon) {
 }
 
 const TD_WINDOWS = {
-  hub: { title: 'TrollRunner Hub', icon: TROLL_ICON, img: 'assets/images/icons/hub.png', width: 980, browser: true, url: 'https://www.trollrunner.net', build: tdBuildHub },
-  chat: { title: 'TrollChat', icon: '💬', img: 'assets/images/icons/trollchat.png', width: 540, source: '#trollchat', maximizeByDefault: true },
-  cam: { title: 'Live Cam', icon: '📹', img: 'assets/images/icons/cam.png', width: 620, source: '#bio-artwork' },
-  updates: { title: 'Latest Updates', icon: '📰', img: 'assets/images/icons/updates.png', width: 620, source: '#updates' },
-  feedback: { title: 'Feedback', icon: '⌨️', img: 'assets/images/icons/feedback.png', width: 660, source: '#feedback' },
+  hub: { title: 'TrollRunner Hub', icon: TROLL_ICON, img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: true, url: 'https://www.trollrunner.net', build: tdBuildHub },
+  chat: { title: 'TrollChat', icon: '💬', img: 'assets/images/icons/trollchat.png', flat: true, width: 540, source: '#trollchat', maximizeByDefault: true },
+  cam: { title: 'Live Cam', icon: '📹', img: 'assets/images/icons/cam.png', flat: true, width: 620, source: '#bio-artwork' },
+  updates: { title: 'Latest Updates', icon: '📰', img: 'assets/images/icons/updates.png', flat: true, width: 620, source: '#updates' },
+  feedback: { title: 'Feedback', icon: '⌨️', img: 'assets/images/icons/feedback.png', flat: true, width: 660, source: '#feedback' },
   checklist: { title: 'Beta Checklist', icon: '✅', width: 620, source: '#checklist', adminOnly: true },
   about: { title: 'About TrollRunner', icon: 'ℹ️', width: 720, source: 'footer .footer-inner' },
   recycle: { title: 'Recycle Bin', icon: '🗑️', img: 'assets/images/icons/recycle.png', width: 420, build: tdBuildRecycle },
@@ -6135,7 +6150,7 @@ const TD_WINDOWS = {
 // the subdomain like a real browser would, but the page never leaves this tab.
 TD_SITES.forEach(site => {
   TD_WINDOWS[site.id] = {
-    title: site.label, icon: site.icon, img: site.img, width: 1040, browser: true,
+    title: site.label, icon: site.icon, img: site.img, flat: site.flat, width: 1040, browser: true,
     url: site.href.replace(/^https?:\/\//, '').replace(/\/$/, ''),
     iframeSrc: site.href,
     build: body => tdBuildIframe(body, site.href, site.label),
@@ -6147,7 +6162,7 @@ TD_SITES.forEach(site => {
 // which means it shares this tab's Supabase session with no SSO bridge and
 // "save as my profile picture" just works.
 TD_WINDOWS.pfp = {
-  title: 'PFP Studio', icon: '🎨', img: 'assets/images/icons/pfp.png',
+  title: 'PFP Studio', icon: '🎨', img: 'assets/images/icons/pfp.png', flat: true,
   width: 1040, browser: true,
   url: 'trollrunner.net/pfp', iframeSrc: 'pfp.html',
   build: body => tdBuildIframe(body, 'pfp.html', 'PFP Studio'),
@@ -6717,7 +6732,7 @@ function twCreate(id) {
   tdMakeDraggable(id);
 }
 
-function tdAddIcon(host, { icon, img, label, ext, dblclick, feature }, onOpen, href) {
+function tdAddIcon(host, { icon, img, flat, label, ext, dblclick, feature }, onOpen, href) {
   const node = href ? document.createElement('a') : document.createElement('button');
   node.className = `td-icon${ext ? ' td-icon--ext' : ''}`;
   if (feature) node.dataset.feature = feature;
@@ -6732,6 +6747,7 @@ function tdAddIcon(host, { icon, img, label, ext, dblclick, feature }, onOpen, h
   node.innerHTML = '<span class="td-icon-img" aria-hidden="true"><span class="td-icon-badge" hidden></span></span><span class="td-icon-label"></span>';
   const imgBox = node.querySelector('.td-icon-img');
   if (img) {
+    if (flat) imgBox.classList.add('td-icon-img--flat');
     const el = document.createElement('img');
     el.src = img;
     el.alt = '';
@@ -6744,24 +6760,24 @@ function tdAddIcon(host, { icon, img, label, ext, dblclick, feature }, onOpen, h
 }
 
 // The illustrated trail-run wallpaper is the app launcher for most sites
-// (see #td-hotspots) — this home-screen grid only carries a few frequently-
-// used or system-level shortcuts. Rebuildable (not just built once at boot)
-// so it can drop/restore Checklist the moment admin status resolves.
+// (see #td-hotspots) — this classic dock only carries a few frequently-used
+// or system-level shortcuts. Rebuildable (not just built once at boot) so
+// it can drop/restore Checklist the moment admin status resolves.
 function tdRenderDockIcons() {
   const icons = document.getElementById('td-icons');
   if (!icons) return;
   icons.innerHTML = '';
   const entries = [
-    { icon: '👤', img: 'assets/images/icons/account.png', label: 'Account', onOpen: tdOpenAccount },
-    { icon: TD_WINDOWS.feedback.icon, img: TD_WINDOWS.feedback.img, label: 'Feedback', onOpen: () => twOpen('feedback') },
-    { icon: TD_WINDOWS.updates.icon, img: TD_WINDOWS.updates.img, label: 'Latest Updates', onOpen: () => twOpen('updates') },
-    { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, label: 'Recycle Bin', onOpen: () => twOpen('recycle') },
-    { icon: TD_WINDOWS.terminal.icon, img: TD_WINDOWS.terminal.img, label: 'Terminal', onOpen: () => twOpen('terminal') },
-    { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, label: 'TrollChat', feature: 'troll_chat', onOpen: () => twOpen('chat') },
-    { icon: TD_WINDOWS.finance.icon, img: TD_WINDOWS.finance.img, label: 'Finances', onOpen: () => twOpen('finance') },
-    { icon: TD_WINDOWS.stickers.icon, img: TD_WINDOWS.stickers.img, label: 'Stickers', onOpen: () => twOpen('stickers') },
-    { icon: TD_WINDOWS.maps.icon, img: TD_WINDOWS.maps.img, label: 'Maps', onOpen: () => twOpen('maps') },
-    { icon: TD_WINDOWS.pfp.icon, img: TD_WINDOWS.pfp.img, label: 'PFP Studio', onOpen: () => twOpen('pfp') },
+    { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account', onOpen: tdOpenAccount },
+    { icon: TD_WINDOWS.feedback.icon, img: TD_WINDOWS.feedback.img, flat: true, label: 'Feedback', onOpen: () => twOpen('feedback') },
+    { icon: TD_WINDOWS.updates.icon, img: TD_WINDOWS.updates.img, flat: true, label: 'Latest Updates', onOpen: () => twOpen('updates') },
+    { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, flat: true, label: 'Recycle Bin', onOpen: () => twOpen('recycle') },
+    { icon: TD_WINDOWS.terminal.icon, img: TD_WINDOWS.terminal.img, flat: true, label: 'Terminal', onOpen: () => twOpen('terminal') },
+    { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: true, label: 'TrollChat', feature: 'troll_chat', onOpen: () => twOpen('chat') },
+    { icon: TD_WINDOWS.finance.icon, img: TD_WINDOWS.finance.img, flat: true, label: 'Finances', onOpen: () => twOpen('finance') },
+    { icon: TD_WINDOWS.stickers.icon, img: TD_WINDOWS.stickers.img, flat: true, label: 'Stickers', onOpen: () => twOpen('stickers') },
+    { icon: TD_WINDOWS.maps.icon, img: TD_WINDOWS.maps.img, flat: true, label: 'Maps', onOpen: () => twOpen('maps') },
+    { icon: TD_WINDOWS.pfp.icon, img: TD_WINDOWS.pfp.img, flat: true, label: 'PFP Studio', onOpen: () => twOpen('pfp') },
   ];
   if (tdIsAdmin) {
     entries.push({ icon: TD_WINDOWS.checklist.icon, label: 'Checklist', onOpen: () => twOpen('checklist') });
