@@ -78,19 +78,25 @@
     }
 
     /* ---------- space ---------- */
-    .space { position: fixed; inset: 0; z-index: 2; overflow: hidden; background: transparent; pointer-events: none; }
+    .space { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #000; pointer-events: none; }
     .space canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     .space::after {
       content: ""; position: absolute; inset: 0; pointer-events: none;
       background: radial-gradient(ellipse 70% 55% at 50% 58%, #0d1a12 0%, transparent 70%);
     }
 
-    /* ---------- animated wallpaper ---------- */
-    .island { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
-    .island video {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      object-fit: cover; display: block;
+    /* ---------- animated wallpaper ----------
+       Sits as its own rectangle in the middle of the screen, icons above it
+       and the dock below, with the starfield showing through behind. `contain`
+       keeps the whole clip visible — `cover` cropped it to a close-up of the
+       track on a portrait phone. No mask: the frame stays as authored. */
+    .island {
+      position: fixed; z-index: 1; left: 50%; top: 54%;
+      transform: translate(-50%, -50%);
+      width: min(96vw, 1000px); aspect-ratio: 16 / 9;
+      pointer-events: none;
     }
+    .island video { width: 100%; height: 100%; object-fit: contain; display: block; }
 
     /* ================= BOOT ================= */
     .boot {
@@ -294,7 +300,9 @@
        rule, so it decides the footer in every phase and should say which. */
     body[data-phase="boot"] .foot,
     body[data-phase="lock"] .foot { display: none; }
-    body[data-phase="home"] .foot { display: flex; }
+    /* On home the dock owns the bottom edge; a footer under it only lands on
+       top of the wallpaper as ghost text. */
+    body[data-phase="home"] .foot { display: none; }
     body:not([data-phase="lock"]) .lockbar {
       opacity: 0; transform: translateY(16px); pointer-events: none;
       position: absolute; bottom: 0; left: 0; right: 0;
@@ -357,7 +365,9 @@
 
     /* ================= DOCK ================= */
     .dock {
-      margin: 12px auto calc(18px + env(safe-area-inset-bottom));
+      /* margin-top:auto drops it to the foot of the shell, clear of the
+         wallpaper rectangle rather than floating across it. */
+      margin: auto auto calc(18px + env(safe-area-inset-bottom));
       display: flex; gap: 22px; padding: 12px 20px;
       background: var(--glass-bg); border: 1px solid var(--glass-stroke);
       border-radius: 22px; box-shadow: var(--glass-shadow);
@@ -547,7 +557,7 @@
        Coros API wired up, so this number is only as fresh as the last edit.
        Shown top-left the way trollface.io shows market cap.
        Last updated: 12 Aug 2026. */
-    const MILES_RAN = 405;
+    const MILES_RAN = 401;
 
     /* `h` is height as a % of the island box; width comes from the art's own
        aspect. `t` is the ground contact point in viewBox px (0–700), kept in
@@ -624,7 +634,7 @@
 
     /* ---------- top-left stat ---------- */
     if (MILES_RAN != null) {
-      $('stat').innerHTML = `<span>miles</span> ${Number(MILES_RAN).toLocaleString()}`;
+      $('stat').innerHTML = `<span>Miles ran:</span> ${Number(MILES_RAN).toLocaleString()}`;
     }
 
     /* ---------- app grid ---------- */
