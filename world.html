@@ -94,6 +94,13 @@
     body[data-phase="boot"] .boot { opacity: 1; visibility: visible; transition-delay: 0s; }
     body:not([data-phase="boot"]) .boot { opacity: 0; visibility: hidden; pointer-events: none; }
     .boot .wordmark { font-size: clamp(34px, 9vw, 58px); }
+    /* Carried over from the desktop gate so the phone entrance reads as the
+       same brand, restated in this page's palette rather than its own. */
+    .est {
+      margin: 0; font-family: var(--font-mono); font-size: 11px;
+      letter-spacing: .38em; text-indent: .38em; color: var(--fg-dim);
+      text-transform: uppercase;
+    }
     .boot-bar {
       width: min(64vw, 320px); height: 4px; border-radius: 99px;
       background: #ffffff1f; overflow: hidden;
@@ -315,6 +322,15 @@
       font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim);
       letter-spacing: .08em; text-transform: uppercase;
     }
+    /* The promise above the door. RUN takes the accent because it's the verb
+       the whole brand turns on — and the gesture below it is a race. */
+    .tagline {
+      margin: 0 0 2px; font-family: var(--font-display);
+      font-size: clamp(15px, 4.2vw, 22px); letter-spacing: -.01em;
+      text-transform: uppercase; text-align: center; text-shadow: var(--legible);
+      color: var(--fg);
+    }
+    .tagline em { font-style: normal; color: var(--accent); }
 
     /* ================= DOCK ================= */
     .dock {
@@ -431,6 +447,7 @@
 
   <!-- ============ BOOT ============ -->
   <div class="boot" id="boot" role="status" aria-live="polite">
+    <p class="est" aria-hidden="true">★ EST. 2025 ★</p>
     <span class="wordmark">TR<img src="assets/animations/troll-grin.gif" alt="">LLRUNNER</span>
     <div class="boot-bar"><i id="boot-fill"></i></div>
     <div class="boot-line">&gt; <b id="boot-text"></b><span class="caret"></span></div>
@@ -547,6 +564,7 @@
 
     <!-- ============ RUN TO ENTER ============ -->
     <div class="lockbar" id="lockbar">
+      <p class="tagline">watch troll <em>RUN</em> to billions</p>
       <div class="track" id="track">
         <div class="track-fill" id="track-fill"></div>
         <div class="finish" aria-hidden="true"></div>
