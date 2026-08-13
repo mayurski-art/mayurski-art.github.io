@@ -65,6 +65,23 @@
       /* Their site swaps the pointer for a troll; ours uses our own face,
          cut from the official logo art in the PFP set. */
       --cursor-troll: url(assets/images/troll-cursor.png) 6 3, pointer;
+
+      /* Dock geometry, broken out so the Troll Radio button can sit on the
+         same line as the X / TikTok icons without a magic number that drifts
+         the moment the dock's padding or icon size changes. */
+      --dock-bottom: calc(18px + env(safe-area-inset-bottom));
+      --dock-pad-y: 12px;
+      --dock-pad-x: 20px;
+      --dock-ico: 46px;
+      --dock-item: 56px;
+      --dock-gap: 22px;
+      --dock-row-gap: 6px;
+      --dock-label: 13px;
+      --radio-size: 54px;
+      /* Centre of the dock's icon row, measured up from the viewport bottom. */
+      --dock-ico-center: calc(
+        var(--dock-bottom) + var(--dock-pad-y) + var(--dock-label)
+        + var(--dock-row-gap) + var(--dock-ico) / 2);
     }
 
     * { box-sizing: border-box; }
@@ -203,20 +220,6 @@
       font-size: 12px; font-weight: 500; text-align: center; line-height: 1.2;
       text-shadow: var(--legible); color: var(--fg);
     }
-    /* PFP has no final art yet — the tile says so instead of faking one. */
-    .app-tile.is-placeholder {
-      border: 1.5px dashed color-mix(in srgb, var(--c) 65%, transparent);
-      background: linear-gradient(165deg, #ffffff12, #00000059);
-      display: grid; place-content: center; gap: 2px;
-    }
-    .app-tile.is-placeholder b {
-      font-family: var(--font-display); font-size: 13px; color: var(--c); line-height: 1;
-    }
-    .app-tile.is-placeholder i {
-      font-family: var(--font-mono); font-style: normal; font-size: 7px;
-      color: var(--fg-dim); letter-spacing: .1em; text-align: center;
-    }
-
     /* ================= RUN TO ENTER ================= */
     .lockbar {
       padding: 18px 20px calc(24px + env(safe-area-inset-bottom));
@@ -304,9 +307,11 @@
     /* ================= DOCK ================= */
     .dock {
       /* margin-top:auto drops it to the foot of the shell, clear of the
-         wallpaper rectangle rather than floating across it. */
-      margin: auto auto calc(18px + env(safe-area-inset-bottom));
-      display: flex; gap: 22px; padding: 12px 20px;
+         wallpaper rectangle rather than floating across it. relative so the
+         Troll Radio button can hang off its right edge, on the icon line. */
+      position: relative;
+      margin: auto auto var(--dock-bottom);
+      display: flex; gap: var(--dock-gap); padding: var(--dock-pad-y) var(--dock-pad-x);
       background: var(--glass-bg); border: 1px solid var(--glass-stroke);
       border-radius: 22px; box-shadow: var(--glass-shadow);
       backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
@@ -315,15 +320,17 @@
     }
     body[data-phase="home"] .dock { opacity: 1; transform: none; }
     body:not([data-phase="home"]) .dock { pointer-events: none; }
-    .dock a { display: grid; justify-items: center; gap: 6px; width: 56px; }
+    .dock a { display: grid; justify-items: center; gap: var(--dock-row-gap); width: var(--dock-item); }
     .dock .ico {
-      width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center;
+      width: var(--dock-ico); height: var(--dock-ico); border-radius: 13px; display: grid; place-items: center;
       background: #14141a; border: 1px solid var(--glass-stroke);
       transition: transform .2s var(--ease);
     }
     .dock a:hover .ico, .dock a:focus-visible .ico { transform: translateY(-3px) scale(1.06); }
     .dock svg { width: 22px; height: 22px; fill: var(--fg); }
-    .dock span { font-size: 10.5px; color: var(--fg-dim); }
+    /* Explicit line-height so the label's box is exactly --dock-label tall —
+       that is what makes --dock-ico-center land on the real icon centre. */
+    .dock span { font-size: 10.5px; line-height: var(--dock-label); color: var(--fg-dim); }
 
     /* ================= FOOTER (desktop) ================= */
     .foot {
@@ -393,12 +400,24 @@
       .apps { gap: 12px 4px; margin-top: 2px; }
       .app-tile { width: 54px; height: 54px; border-radius: 13px; }
       .app-name { font-size: 11px; }
-      /* Eleven icons make three rows, so the wallpaper drops clear of them.
-         Anchored off the BOTTOM, above the dock, rather than at a fixed 66%:
-         the grid's height moves with the tile size and the viewport, and a
-         percentage from the top kept letting the last row of labels land on
-         the artwork. */
-      .island { top: auto; bottom: 14vh; transform: translateX(-50%); width: 90vw; }
+      /* On a phone the wallpaper stops being a fixed rectangle and becomes a
+         flex item between the icons and the dock, so it gets exactly the
+         space those two leave over and can never land on either. Fixed
+         offsets — 66% from the top, then 14vh from the bottom — both worked
+         until a tile size or a wrapped label changed the grid's height, and
+         then the last row of labels was sitting on the artwork again. */
+      /* The shell is min-height:100%, so as a flex container it just grows to
+         fit and nothing ever shrinks — the wallpaper kept pushing the dock
+         (and the radio button on it) below the fold. Bounding the shell to
+         the viewport is what lets the island absorb the slack instead. dvh
+         so browser chrome appearing doesn't re-break it. */
+      .shell { height: 100%; height: 100dvh; }
+      .island {
+        position: static; flex: 1 1 auto; min-height: 0;
+        width: 96vw; max-width: 96vw; margin: 6px auto 4px;
+        aspect-ratio: auto; transform: none;
+      }
+      .island video { height: 100%; }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
@@ -407,7 +426,7 @@
        can't be either. Sizing in vw with px bounds keeps a tile roughly a
        thumb wide whether this document thinks it's 390px or 780px. */
     @media (pointer: coarse) {
-      .apps { max-width: min(520px, 96vw); padding: 0 3vw; gap: 3vw 1vw; }
+      .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: 5vw 3vw; }
       .app-tile { width: clamp(54px, 15vw, 120px); height: clamp(54px, 15vw, 120px); }
       .app-name { font-size: clamp(11px, 3vw, 23px); }
       /* On a phone the art IS the icon: no plate, no crop, no rounded
@@ -416,10 +435,6 @@
       .app-tile { background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
       .app-tile img { object-fit: contain; }
       .app:hover .app-tile, .app:focus-visible .app-tile { box-shadow: none; }
-      /* The dashed "PFP SOON" plate is the exception — it has no art behind
-         it, so stripping its box would leave the label floating on nothing. */
-      .app-tile.is-placeholder { border: 1.5px dashed color-mix(in srgb, var(--c) 65%, transparent);
-        background: linear-gradient(165deg, #ffffff12, #00000059); border-radius: clamp(13px, 3.6vw, 28px); }
     }
     @media (min-width: 721px) and (pointer: fine) {
       /* The island launcher this branch was written for is gone, so the app
@@ -559,18 +574,25 @@
     /* ================= TROLL RADIO =================
        Bottom-right of the home screen, clear of the centred dock. The button
        is the whole UI until you tap it; the panel slides up from it. */
+    /* Anchored to the dock, not the viewport. Both used to be positioned
+       independently — fixed button, in-flow dock — so the moment the page
+       was taller than the screen they drifted apart (26px out at 320px wide).
+       As a child of the dock it lands on the X / TikTok icon line by
+       construction, at any size, scrolled or not. */
     .radio-btn {
-      position: fixed; z-index: 60;
-      right: calc(14px + env(safe-area-inset-right));
-      bottom: calc(20px + env(safe-area-inset-bottom));
-      width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+      position: absolute; z-index: 60;
+      left: 100%; margin-left: 4px;
+      top: calc(var(--dock-pad-y) + var(--dock-ico) / 2);
+      transform: translateY(-50%);
+      width: var(--radio-size); height: var(--radio-size);
+      border-radius: 50%; display: grid; place-items: center;
       background: var(--glass-bg); border: 1px solid var(--glass-stroke);
       box-shadow: var(--glass-shadow);
       backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
       transition: transform .2s var(--ease), opacity .3s var(--ease), border-color .2s var(--ease);
     }
     .radio-btn svg { width: 23px; height: 23px; fill: var(--fg); }
-    .radio-btn:active { transform: scale(.94); }
+    .radio-btn:active { transform: translateY(-50%) scale(.94); }
     /* Playing state has to read at a glance from across the room. */
     .radio-btn.is-playing { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
     .radio-btn.is-playing svg { fill: var(--accent); }
@@ -580,12 +602,14 @@
       animation: radio-pulse 1.8s var(--ease) infinite;
     }
     @keyframes radio-pulse { 0% { transform: scale(.94); opacity: .9; } 100% { transform: scale(1.22); opacity: 0; } }
-    body:not([data-phase="home"]) .radio-btn { opacity: 0; pointer-events: none; }
+    /* The dock itself is display:none off the home screen, which takes the
+       button with it now that it lives inside. */
 
     .radio {
       position: fixed; z-index: 61;
       right: calc(10px + env(safe-area-inset-right));
-      bottom: calc(84px + env(safe-area-inset-bottom));
+      /* Clears the button, which now sits on the dock's line. */
+      bottom: calc(var(--dock-ico-center) + var(--radio-size) / 2 + 12px);
       width: min(330px, calc(100vw - 20px));
       background: var(--glass-bg); border: 1px solid var(--glass-stroke);
       border-radius: 18px; box-shadow: var(--glass-shadow); overflow: hidden;
@@ -693,16 +717,6 @@
        the whole picture if a phone refuses to autoplay. -->
   <div class="space" aria-hidden="true"><canvas id="stars"></canvas></div>
 
-  <!-- Track Island, the desktop's animated wallpaper. The clip is painted on a
-       daytime sky, so it's masked down to the island itself — otherwise it
-       lands in the starfield as a sky-blue rectangle. -->
-  <div class="island" aria-hidden="true">
-    <video id="wp" autoplay loop muted playsinline preload="auto"
-           poster="assets/images/wallpaper/trollrunner wallpaper 1.jpg">
-      <source src="assets/animations/trollrunner wallpaper 1 animated.mp4" type="video/mp4">
-    </video>
-  </div>
-
   <!-- ============ BOOT ============ -->
   <div class="boot" id="boot" role="status" aria-live="polite">
     <p class="est" aria-hidden="true">★ EST. 2025 ★</p>
@@ -732,6 +746,17 @@
 
     <nav class="apps" id="apps" aria-label="Apps"></nav>
 
+    <!-- Track Island, the animated wallpaper. It sits in the shell's flow so
+         that on a phone it can flex into whatever room the icons and the dock
+         leave; on desktop it goes back to position:fixed and ignores this
+         spot entirely. -->
+    <div class="island" aria-hidden="true">
+      <video id="wp" autoplay loop muted playsinline preload="auto"
+             poster="assets/images/wallpaper/trollrunner wallpaper 1.jpg">
+        <source src="assets/animations/trollrunner wallpaper 1 animated.mp4" type="video/mp4">
+      </video>
+    </div>
+
 
     <!-- ============ RUN TO ENTER ============ -->
     <div class="lockbar" id="lockbar">
@@ -748,7 +773,11 @@
       <p class="lock-hint" id="lock-hint">Drag the troll to the finish line</p>
     </div>
 
-    <nav class="dock" id="dock" aria-label="Social"></nav>
+    <nav class="dock" id="dock" aria-label="Social">
+      <button class="radio-btn" id="radio-btn" type="button" aria-expanded="false" aria-controls="radio" aria-label="Troll Radio">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z"/></svg>
+      </button>
+    </nav>
 
     <footer class="foot">
       <span>© 2026 Troll Runner</span>
@@ -823,10 +852,9 @@
     </div>
   </div>
 
-  <!-- ============ TROLL RADIO ============ -->
-  <button class="radio-btn" id="radio-btn" type="button" aria-expanded="false" aria-controls="radio" aria-label="Troll Radio">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z"/></svg>
-  </button>
+  <!-- ============ TROLL RADIO ============
+       The button lives inside the dock (above) so it sits on the X / TikTok
+       icon line; only the panel is out here, anchored to the viewport. -->
   <div class="radio" id="radio" role="dialog" aria-label="Troll Radio" aria-hidden="true">
     <div class="radio-head">
       <img class="grin" src="assets/animations/troll-grin.gif" alt="">
@@ -914,7 +942,7 @@
         icon: 'assets/images/icons/hub.png', img: 'assets/images/world/hub.png',
         l: 24, t: 380, h: 15 },
       { id: 'pfp',      label: 'PFP Studio', sub: 'Build your troll', to: 'pfp.html',
-        color: '#8fe36a', placeholder: true,
+        color: '#8fe36a', icon: 'assets/images/icons/pfp.png',
         l: 55, t: 436, h: 13 },
       { id: 'finance',  label: 'Finances',  sub: 'finance.trollrunner.net',
         href: 'https://finance.trollrunner.net', external: true, color: '#ffd84d',
@@ -1011,16 +1039,10 @@
       }
 
       const tile = document.createElement('span');
-      tile.className = 'app-tile' + (a.placeholder ? ' is-placeholder' : '');
-      if (a.placeholder) {
-        const b = document.createElement('b'); b.textContent = 'PFP';
-        const i = document.createElement('i'); i.textContent = 'SOON';
-        tile.append(b, i);
-      } else {
-        const img = document.createElement('img');
-        img.src = a.icon; img.alt = ''; img.loading = 'lazy';
-        tile.appendChild(img);
-      }
+      tile.className = 'app-tile';
+      const img = document.createElement('img');
+      img.src = a.icon; img.alt = ''; img.loading = 'lazy';
+      tile.appendChild(img);
       const name = document.createElement('span');
       name.className = 'app-name';
       name.textContent = a.label;
