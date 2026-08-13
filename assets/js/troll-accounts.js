@@ -1263,8 +1263,8 @@
       .ta-medal { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px;
         border: 2px solid #000; border-radius: 4px; background: rgba(255,216,77,0.12); color: #ffd84d; }
       /* Direct-message drawer */
-      .ta-dm-feed { flex: 1; overflow-y: auto; display: grid; gap: 8px; padding: 4px 2px; min-height: 0; }
-      .ta-dm-msg { max-width: 84%; width: fit-content; justify-self: start; padding: 6px 9px; border: 2px solid #000;
+      .ta-dm-feed { flex: 1; overflow-y: auto; display: grid; align-content: start; gap: 8px; padding: 4px 2px; min-height: 0; }
+      .ta-dm-msg { max-width: 84%; width: fit-content; justify-self: start; align-self: start; padding: 6px 9px; border: 2px solid #000;
         border-radius: 8px; background: rgba(255,255,255,0.06); font-size: 13px; word-break: break-word; }
       .ta-dm-msg.is-me { justify-self: end; background: rgba(77,255,115,0.16); }
       .ta-dm-msg .ta-dm-time { display: block; margin-top: 3px; font-size: 10px; color: #8fa396; }

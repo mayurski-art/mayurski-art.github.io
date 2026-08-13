@@ -1317,7 +1317,9 @@ header p {
   font-family: var(--tc-pixel);
   font-size: 9px;
 }
+.live-chat-feed-wrap { position: relative; min-height: 210px; }
 .live-chat-feed {
+  height: 100%;
   min-height: 210px;
   overflow-y: auto;
   border: 3px solid var(--tc-line);
@@ -1336,6 +1338,15 @@ header p {
   background: var(--tc-teal);
   border: 2px solid var(--tc-line);
 }
+.tc-jump-pill {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 6px; border: 3px solid var(--tc-line); border-radius: 20px;
+  background: linear-gradient(180deg, #ffe27a, var(--tc-yellow)); color: #1a1306;
+  font-family: var(--tc-pixel); font-size: 9px; padding: 8px 14px; cursor: pointer;
+  box-shadow: 3px 3px 0 var(--tc-line); z-index: 3;
+}
+.tc-jump-pill:active { transform: translateX(-50%) translate(2px,2px); box-shadow: 0 0 0 var(--tc-line); }
+.tc-jump-pill[hidden] { display: none; }
 .live-chat-empty {
   min-height: 190px;
   display: grid;
@@ -5209,7 +5220,10 @@ body.desktop-mode .troll-desktop { display: block; }
       </div>
     </div>
 
-    <div id="tc-feed" class="live-chat-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+    <div class="live-chat-feed-wrap">
+      <div id="tc-feed" class="live-chat-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+      <button id="tc-jump" class="tc-jump-pill" type="button" hidden></button>
+    </div>
     <div id="tc-typing" class="live-chat-typing" aria-live="polite">
       <img src="assets/animations/troll-typer.gif" alt="" aria-hidden="true">
       <span id="tc-typing-text"></span>
@@ -9876,7 +9890,11 @@ function tcSaveCache() {
 function tcFormatTime(value) {
   const date = value ? new Date(value) : new Date();
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const now = new Date();
+  const isToday = date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+  if (isToday) return time;
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + time;
 }
 
 // Account user_ids are UUIDs; anything else in a broadcast payload is junk.
@@ -9973,6 +9991,28 @@ function tcTopVisibleId() {
 
 function tcHandleFeedScroll() {
   tcSaveLastSeen(tcTopVisibleId());
+  const feed = trollChat.els?.feed;
+  if (!feed) return;
+  const distanceFromBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight;
+  if (distanceFromBottom < 60) tcHideJumpPill();
+}
+
+// "N new messages" pill: caughtUpCount is the message count as of the last
+// time we knew the user was scrolled to the bottom. The gap between it and
+// the live count is how many they haven't seen yet.
+function tcHideJumpPill() {
+  const jump = trollChat.els?.jump;
+  if (jump) jump.hidden = true;
+  trollChat.caughtUpCount = trollChat.messages.length;
+}
+function tcUpdateJumpPill() {
+  const jump = trollChat.els?.jump;
+  if (!jump) return;
+  if (trollChat.caughtUpCount == null) trollChat.caughtUpCount = trollChat.messages.length;
+  const n = Math.max(0, trollChat.messages.length - trollChat.caughtUpCount);
+  if (n <= 0) { jump.hidden = true; return; }
+  jump.hidden = false;
+  jump.textContent = '↓ ' + n + (n === 1 ? ' new message' : ' new messages');
 }
 
 function tcRenderFeed() {
@@ -10054,10 +10094,13 @@ function tcRenderFeed() {
     const targetId = trollChat.lastSeenId || tcLoadLastSeen();
     const target = targetId ? feed.querySelector(`[data-id="${CSS.escape(targetId)}"]`) : null;
     feed.scrollTop = target ? Math.max(0, target.offsetTop - 12) : feed.scrollHeight;
+    tcHideJumpPill();
   } else if (wasNearBottom) {
     feed.scrollTop = feed.scrollHeight;
+    tcHideJumpPill();
   } else {
     feed.scrollTop = Math.max(0, feed.scrollHeight - feed.clientHeight - distanceFromBottom);
+    tcUpdateJumpPill();
   }
   tcSaveLastSeen(tcTopVisibleId());
 }
@@ -10945,12 +10988,17 @@ function initializeTrollChat() {
 
   trollChat.els = {
     feed,
+    jump: document.getElementById('tc-jump'),
     onlineNum: document.getElementById('tc-online-num'),
     typing: document.getElementById('tc-typing'),
     typingText: document.getElementById('tc-typing-text'),
     note: document.getElementById('tc-note'),
     sendBtn,
   };
+  if (trollChat.els.jump) trollChat.els.jump.addEventListener('click', () => {
+    feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
+    tcHideJumpPill();
+  });
   trollChat.guestId = tcGuestId();
   trollChat.name = tcDefaultName();
   nameInput.value = trollChat.name;

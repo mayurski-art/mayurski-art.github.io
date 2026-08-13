@@ -64,7 +64,7 @@
 
     .room {
       display: grid; grid-template-columns: minmax(220px, 0.7fr) minmax(320px, 1.3fr);
-      gap: 16px; align-items: stretch;
+      gap: 16px; align-items: stretch; height: min(72vh, 640px);
     }
     .panel {
       border: 3px solid var(--tc-line); border-radius: 4px; overflow: hidden;
@@ -104,11 +104,22 @@
       border: 2px solid var(--tc-line); border-radius: 2px; background: #fff; padding: 3px 5px; }
     .live-dot { width: 7px; height: 7px; background: #ff2d3d; border: 1px solid var(--tc-line); animation: tc-blink 1s steps(2,end) infinite; }
 
+    .feed-wrap { position: relative; min-height: 0; }
     .feed {
+      height: 100%;
       overflow-y: auto; border: 3px solid var(--tc-line); border-radius: 3px; padding: 8px;
       background: linear-gradient(180deg, rgba(0,0,0,0.04), transparent 8%), repeating-linear-gradient(0deg, rgba(47,179,166,0.07) 0 22px, transparent 22px 24px), #fbfdf2;
       scrollbar-width: thin; scrollbar-color: var(--tc-teal) #dfeede;
     }
+    .jump-pill {
+      position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+      display: inline-flex; align-items: center; gap: 6px; border: 3px solid var(--tc-line); border-radius: 20px;
+      background: linear-gradient(180deg, #ffe27a, var(--tc-yellow)); color: #1a1306;
+      font-family: var(--tc-pixel); font-size: 9px; padding: 8px 14px; cursor: pointer;
+      box-shadow: 3px 3px 0 var(--tc-line); z-index: 3;
+    }
+    .jump-pill:active { transform: translateX(-50%) translate(2px,2px); box-shadow: 0 0 0 var(--tc-line); }
+    .jump-pill[hidden] { display: none; }
     .feed::-webkit-scrollbar { width: 10px; }
     .feed::-webkit-scrollbar-track { background: #dfeede; }
     .feed::-webkit-scrollbar-thumb { background: var(--tc-teal); border: 2px solid var(--tc-line); }
@@ -151,10 +162,10 @@
     @keyframes tc-pulse { 0% { box-shadow: 0 0 0 0 rgba(43,214,111,0.65); } 100% { box-shadow: 0 0 0 9px rgba(43,214,111,0); } }
 
     @media (max-width: 720px) {
-      .room { grid-template-columns: 1fr; }
+      .room { grid-template-columns: 1fr; height: auto; }
       .mascot { min-height: 0; order: 2; flex-direction: row; align-items: center; }
       .mascot-art { display: none; }
-      .chat { min-height: 70vh; }
+      .chat { height: 70vh; min-height: 0; }
       .composer { grid-template-columns: minmax(76px, 100px) minmax(0,1fr) auto; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -195,7 +206,10 @@
           <span class="live"><span class="live-dot" aria-hidden="true"></span>LIVE</span>
         </div>
 
-        <div id="tc-feed" class="feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+        <div class="feed-wrap">
+          <div id="tc-feed" class="feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+          <button id="tc-jump" class="jump-pill" type="button" hidden></button>
+        </div>
         <div id="tc-typing" class="typing" aria-live="polite">
           <img src="assets/animations/troll-typer.gif" alt="" aria-hidden="true">
           <span id="tc-typing-text"></span>
@@ -260,7 +274,15 @@
     }
     function loadCache() { try { const r = JSON.parse(localStorage.getItem(TC_CACHE_KEY) || '[]'); return Array.isArray(r) ? r : []; } catch { return []; } }
     function saveCache() { try { localStorage.setItem(TC_CACHE_KEY, JSON.stringify(state.messages.slice(-TC_HISTORY))); } catch {} }
-    function fmtTime(v) { const d = v ? new Date(v) : new Date(); return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    function fmtTime(v) {
+      const d = v ? new Date(v) : new Date();
+      if (Number.isNaN(d.getTime())) return '';
+      const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const now = new Date();
+      const isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      if (isToday) return time;
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + time;
+    }
 
     // Account user_ids are UUIDs; anything else in a broadcast payload is junk.
     function safeUid(value) {
@@ -331,7 +353,24 @@
       }
       return null;
     }
-    function handleFeedScroll() { saveLastSeen(topVisibleId()); }
+    function handleFeedScroll() {
+      saveLastSeen(topVisibleId());
+      const distanceFromBottom = els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight;
+      if (distanceFromBottom < 60) hideJumpPill();
+    }
+
+    // "N new messages" pill: caughtUpCount is the message count as of the last
+    // time we knew the user was scrolled to the bottom. The gap between it and
+    // the live count is how many they haven't seen yet.
+    function hideJumpPill() { if (els.jump) els.jump.hidden = true; state.caughtUpCount = state.messages.length; }
+    function updateJumpPill() {
+      if (!els.jump) return;
+      if (state.caughtUpCount == null) state.caughtUpCount = state.messages.length;
+      const n = Math.max(0, state.messages.length - state.caughtUpCount);
+      if (n <= 0) { els.jump.hidden = true; return; }
+      els.jump.hidden = false;
+      els.jump.textContent = '↓ ' + n + (n === 1 ? ' new message' : ' new messages');
+    }
 
     function renderFeed() {
       const isFirstRender = !state.initialScrollDone;
@@ -371,10 +410,13 @@
         const targetId = state.lastSeenId || loadLastSeen();
         const target = targetId ? els.feed.querySelector(`[data-id="${CSS.escape(targetId)}"]`) : null;
         els.feed.scrollTop = target ? Math.max(0, target.offsetTop - 12) : els.feed.scrollHeight;
+        hideJumpPill();
       } else if (wasNearBottom) {
         els.feed.scrollTop = els.feed.scrollHeight;
+        hideJumpPill();
       } else {
         els.feed.scrollTop = Math.max(0, els.feed.scrollHeight - els.feed.clientHeight - distanceFromBottom);
+        updateJumpPill();
       }
       saveLastSeen(topVisibleId());
     }
@@ -480,6 +522,7 @@
 
     function init() {
       els.feed = document.getElementById('tc-feed');
+      els.jump = document.getElementById('tc-jump');
       els.typing = document.getElementById('tc-typing');
       els.typingText = document.getElementById('tc-typing-text');
       els.note = document.getElementById('tc-note');
@@ -505,6 +548,11 @@
       startRealtime();
       fetchHistory();
       setInterval(renderTyping, 1500);
+
+      if (els.jump) els.jump.addEventListener('click', () => {
+        els.feed.scrollTo({ top: els.feed.scrollHeight, behavior: 'smooth' });
+        hideJumpPill();
+      });
 
       let scrollSaveTimer = null;
       els.feed.addEventListener('scroll', () => {
