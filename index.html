@@ -118,6 +118,14 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&family=Press+Start+2P&family=Rubik+Glitch&family=Space+Grotesk:wght@500;700&family=VT323&display=swap');
 
+/* Native cross-document page transitions. Only fires between same-origin
+   documents, so today this covers navigation within this site; once the
+   network is served through the front door it extends across every site.
+   Mobile only — desktop keeps instant navigation. */
+@media (max-width: 760px) {
+  @view-transition { navigation: auto; }
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {

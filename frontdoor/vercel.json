@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/terminal", "destination": "https://terminal.trollrunner.net/" },
+    { "source": "/terminal/:path*", "destination": "https://terminal.trollrunner.net/:path*" },
+
+    { "source": "/_next/:path*", "destination": "https://terminal.trollrunner.net/_next/:path*" },
+    { "source": "/api/:path*", "destination": "https://terminal.trollrunner.net/api/:path*" },
+    { "source": "/faces/:path*", "destination": "https://terminal.trollrunner.net/faces/:path*" },
+    { "source": "/lore/:path*", "destination": "https://terminal.trollrunner.net/lore/:path*" },
+
+    { "source": "/", "destination": "https://www.trollrunner.net/" },
+    { "source": "/:path*", "destination": "https://www.trollrunner.net/:path*" }
+  ]
+}
