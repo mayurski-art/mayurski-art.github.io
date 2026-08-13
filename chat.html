@@ -122,7 +122,12 @@
     .avatar { width: 26px; height: 26px; flex: none; border: 2px solid var(--tc-line); border-radius: 3px;
       background-color: #fff; background-image: url('assets/animations/troll-computer-transparent.png'); background-size: 130%; background-position: center 60%; background-repeat: no-repeat;
       image-rendering: pixelated; box-shadow: 2px 2px 0 rgba(16,32,26,0.35); overflow: hidden; }
-    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: auto; }
+    /* A real picture replaces the placeholder instead of sitting on top of
+       it — PFPs have transparent edges and the fallback troll (plus its white
+       mat) showed through them. And PFP art is pixel art, so it keeps the
+       page's `pixelated` rather than being bilinear-smoothed into a smudge. */
+    .avatar:has(img), .avatar.has-pfp { background-image: none; background-color: transparent; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: pixelated; }
     .name-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; line-height: 1; }
     .author { font-family: var(--tc-pixel); font-size: 8px; color: #0f6b3c; word-break: break-word; }
     .time { font-size: 13px; color: rgba(20,53,36,0.55); }
@@ -345,7 +350,8 @@
         const row = document.createElement('article'); row.className = 'msg'; row.dataset.id = m.id; if (m.name === state.name) row.classList.add('is-me');
         const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.setAttribute('aria-hidden', 'true');
         const avatarUrl = avatarFor(m);
-        if (avatarUrl) { const av = document.createElement('img'); av.src = avatarUrl; av.alt = ''; av.loading = 'lazy'; avatar.appendChild(av); }
+        // has-pfp mirrors the :has(img) rule for engines without :has().
+        if (avatarUrl) { const av = document.createElement('img'); av.src = avatarUrl; av.alt = ''; av.loading = 'lazy'; avatar.appendChild(av); avatar.classList.add('has-pfp'); }
         const body = document.createElement('div');
         const head = document.createElement('div'); head.className = 'name-row';
         const name = document.createElement('span'); name.className = 'author'; name.textContent = m.name; if (m.name !== state.name) name.style.color = nameColor(m.name);

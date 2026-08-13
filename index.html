@@ -1362,12 +1362,21 @@ header p {
   box-shadow: 2px 2px 0 rgba(16,32,26,0.35);
   overflow: hidden;
 }
+/* A real picture replaces the placeholder rather than sitting on top of it —
+   PFPs ship with transparent edges, and the fallback troll (and its white
+   mat) was showing through them onto the chat paper. */
+.live-chat-avatar:has(img), .live-chat-avatar.has-pfp {
+  background-image: none;
+  background-color: transparent;
+}
 .live-chat-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  image-rendering: auto;
+  /* PFP Studio art is pixel art. `auto` bilinear-smoothed it into a smudge
+     inside a UI that is crisp pixels everywhere else. */
+  image-rendering: pixelated;
 }
 .live-chat-name-row {
   display: flex;
@@ -9971,6 +9980,8 @@ function tcRenderFeed() {
       img.alt = '';
       img.loading = 'lazy';
       avatar.appendChild(img);
+      // has-pfp mirrors the :has(img) rule for engines without :has().
+      avatar.classList.add('has-pfp');
     }
 
     const body = document.createElement('div');
