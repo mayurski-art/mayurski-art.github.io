@@ -6148,6 +6148,19 @@ TD_WINDOWS.pfp = {
   build: body => tdBuildIframe(body, 'pfp.html', 'PFP Studio'),
   maximizeByDefault: true,
 };
+// Mirrors the "Classic desktop" link world.html's own World menu offers phone
+// visitors: a way back the other direction, previewing the phone entrance
+// from here. ?mobile=1 stops world.html bouncing a non-phone visitor to '/'.
+// A phone-width window (not maximized) is the point — world.html picks its
+// phone layout off `max-width: 720px` as much as pointer type, so a narrow
+// window is what makes this an honest preview rather than the wide/mouse
+// variant the shell also has.
+TD_WINDOWS.world = {
+  title: 'Island (mobile)', icon: '📱', img: 'assets/images/icons/hub.png', flat: true,
+  width: 400, browser: true,
+  url: 'trollrunner.net/world.html?mobile=1', iframeSrc: 'world.html?mobile=1',
+  build: body => tdBuildIframe(body, 'world.html?mobile=1', 'Island (mobile)'),
+};
 TD_WINDOWS.nutrition = {
   title: 'Nutrition', icon: '🥗', width: 1040, browser: true,
   url: 'nutrition.trollrunner.net', iframeSrc: 'https://nutrition.trollrunner.net',
@@ -6383,6 +6396,14 @@ function tdBuildHub(body) {
   chatCard.appendChild(mkCard('💬', TD_WINDOWS.chat.img, 'TrollChat', 'Chat anonymously. Trade lies, troll lore.'));
   chatCard.addEventListener('click', () => twOpen('chat'));
   cards.splice(3, 0, chatCard);
+  const worldCard = document.createElement('button');
+  worldCard.type = 'button';
+  worldCard.className = 'hub-card';
+  worldCard.dataset.feature = 'world';
+  worldCard.style.setProperty('--hc', '#8fe36a');
+  worldCard.appendChild(mkCard('📱', TD_WINDOWS.world.img, 'Island (mobile)', 'Preview the phone entrance from a desktop.'));
+  worldCard.addEventListener('click', () => twOpen('world'));
+  cards.push(worldCard);
   cards.forEach(card => grid.appendChild(card));
   mainWrap.appendChild(grid);
   body.appendChild(mainWrap);
