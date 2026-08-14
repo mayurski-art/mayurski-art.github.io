@@ -596,6 +596,43 @@
     .auth-me-av img { width: 100%; height: 100%; object-fit: cover; }
     .auth-me-name { font-family: var(--font-display); font-size: 26px; }
     .auth-me-meta { color: var(--fg-dim); font-size: 13px; font-family: var(--font-mono); letter-spacing: .06em; }
+    .auth-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+    .auth-tags[hidden] { display: none; }
+    .auth-tag { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 999px; border: 1px solid var(--glass-stroke); color: #fff; }
+    .auth-tag[data-tag="developer"] { background: color-mix(in srgb, #5865f2 55%, transparent); }
+    .auth-tag[data-tag="admin"] { background: color-mix(in srgb, #ed4245 55%, transparent); }
+    .auth-tag[data-tag="trollrunner"] { background: color-mix(in srgb, #eb459e 55%, transparent); }
+    .auth-x { margin-top: 8px; }
+    .auth-x[hidden] { display: none; }
+    .auth-x-link, .auth-x-connect {
+      display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-size: 12px;
+    }
+    .auth-x-link { color: var(--fg-dim); }
+    .auth-x-link:hover { color: var(--fg); }
+    .auth-x-link svg { width: 12px; height: 12px; fill: currentColor; flex: none; }
+    .auth-x-connect {
+      padding: 6px 13px; border-radius: 999px; background: #000; color: #fff;
+      border: 1px solid var(--glass-stroke); cursor: pointer;
+    }
+    .auth-x-connect svg { width: 12px; height: 12px; fill: #fff; flex: none; }
+    .auth-x-connect[disabled] { opacity: .6; }
+    /* ---- account dashboard (XP + quick stats) ----
+       Same data the desktop's Profile modal shows, restyled in this shell's
+       glass language instead of the desktop's pixel-arcade one. */
+    .auth-xp { width: 100%; display: grid; gap: 6px; margin-top: 4px; }
+    .auth-xp-row { display: flex; align-items: baseline; justify-content: space-between; }
+    .auth-xp-row span { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--fg-dim); }
+    .auth-xp-bar { height: 8px; border-radius: 999px; background: #ffffff14; overflow: hidden; }
+    .auth-xp-fill { display: block; height: 100%; width: 0%; border-radius: 999px;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent)); }
+    .auth-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; margin-top: 4px; }
+    .auth-stat { display: grid; justify-items: center; gap: 3px; padding: 10px 6px; border-radius: 12px;
+      background: #ffffff0d; border: 1px solid var(--glass-stroke); text-align: center; }
+    .auth-stat b { font-family: var(--font-display); font-size: 16px; letter-spacing: -.01em; }
+    .auth-stat span { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--fg-dim); }
     .auth-actions { display: grid; gap: 10px; width: 100%; margin-top: 6px; }
     .auth-action {
       display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -887,7 +924,14 @@
           <span class="auth-me-av" id="auth-me-av" aria-hidden="true"></span>
           <span class="auth-me-name" id="auth-me-name"></span>
           <span class="auth-me-meta" id="auth-me-meta"></span>
+          <div class="auth-tags" id="auth-tags" hidden></div>
+          <div class="auth-x" id="auth-x" hidden></div>
         </div>
+        <div class="auth-xp" id="auth-xp" hidden>
+          <div class="auth-xp-row"><span id="auth-xp-label"></span><span id="auth-xp-next"></span></div>
+          <div class="auth-xp-bar"><span class="auth-xp-fill" id="auth-xp-fill"></span></div>
+        </div>
+        <div class="auth-stats" id="auth-stats" hidden></div>
         <div class="auth-actions">
           <a class="auth-action" id="auth-full" href="/?desktop=1&open=account">
             <span>Full profile &amp; settings</span><span class="chev">›</span>
@@ -989,8 +1033,13 @@
         icon: 'assets/images/icons/stickers.png', img: 'assets/images/world/stickers.png',
         l: 60, t: 352, h: 15 },
       // mid band
+      // Same origin (this repo IS trollrunner.net), so this is a relative
+      // link rather than `external`. Plain '/' would just get bounced right
+      // back to this entrance by index.html's phone check — ?desktop=1 is
+      // what actually lands on the classic desktop. The desktop's taskbar
+      // carries a matching way back to this entrance (#td-mobile-return).
       { id: 'hub',      label: 'The Hub',   sub: 'trollrunner.net',
-        href: 'https://www.trollrunner.net', external: true, color: '#4dff73',
+        to: '/?desktop=1', color: '#4dff73',
         icon: 'assets/images/icons/hub.png', img: 'assets/images/world/hub.png',
         l: 24, t: 380, h: 15 },
       { id: 'pfp',      label: 'PFP Studio', sub: 'Build your troll', to: 'pfp.html',
@@ -1365,8 +1414,105 @@
         }
         $('auth-me-name').textContent = me.username || 'Troll';
         $('auth-me-meta').textContent = `LEVEL ${Math.max(1, Number(me.level) || 1)}`;
+        authRenderTags(me.tags);
+        authRenderDashboard(me);
+        void authRenderX();
+      } else {
+        $('auth-xp').hidden = true;
+        $('auth-stats').hidden = true;
+        $('auth-tags').hidden = true;
+        $('auth-x').hidden = true;
       }
       authApplyMode();
+    }
+
+    function authRenderTags(tags) {
+      const box = $('auth-tags');
+      box.innerHTML = '';
+      const list = Array.isArray(tags) ? tags : [];
+      box.hidden = !list.length;
+      list.forEach(tag => {
+        const pill = document.createElement('span');
+        pill.className = 'auth-tag';
+        pill.dataset.tag = tag;
+        pill.textContent = tag;
+        box.appendChild(pill);
+      });
+    }
+
+    async function authRenderX() {
+      const box = $('auth-x');
+      const accounts = window.TrollrunnerAccounts;
+      if (!accounts?.getXIdentity) { box.hidden = true; return; }
+      const xPath = SOCIALS.find(s => s.name === 'X')?.path;
+      const identity = await accounts.getXIdentity().catch(() => null);
+      box.innerHTML = '';
+      box.hidden = false;
+      if (identity?.handle) {
+        const link = document.createElement('a');
+        link.className = 'auth-x-link';
+        link.href = `https://x.com/${identity.handle}`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        if (xPath) link.appendChild(svgIcon(xPath));
+        link.append(`@${identity.handle}`);
+        box.appendChild(link);
+      } else {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'auth-x-connect';
+        if (xPath) btn.appendChild(svgIcon(xPath));
+        btn.append('Connect X');
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try { await accounts.connectX(); await authRenderX(); }
+          catch (err) { btn.disabled = false; btn.lastChild.textContent = err?.message || 'Could not connect X'; }
+        });
+        box.appendChild(btn);
+      }
+    }
+
+    /* Same level curve troll-accounts.js uses for the desktop Profile modal
+       (xpProgress there) — kept small enough here that duplicating it beats
+       exporting a one-off helper. */
+    function authXpProgress(level, xp) {
+      const lv = Math.max(1, Number(level) || 1);
+      const floor = 50 * (lv - 1) * (lv - 1);
+      const ceil = 50 * lv * lv;
+      const cur = Math.max(Number(xp) || 0, floor);
+      const pct = Math.max(0, Math.min(100, Math.round(((cur - floor) / Math.max(1, ceil - floor)) * 100)));
+      return { pct, xp: cur, next: ceil };
+    }
+
+    function authRenderDashboard(me) {
+      const progress = authXpProgress(me.level, me.xp);
+      $('auth-xp').hidden = false;
+      $('auth-xp-label').textContent = `${progress.xp} XP`;
+      $('auth-xp-next').textContent = `Next level at ${progress.next}`;
+      $('auth-xp-fill').style.width = `${progress.pct}%`;
+
+      const stats = $('auth-stats');
+      stats.hidden = false;
+      stats.innerHTML = '<p class="auth-hint">Loading stats…</p>';
+      window.TrollrunnerAccounts?.getProfileData?.().then(data => {
+        if (!data || $('auth-me-name').textContent !== me.username) return;
+        const runs = (data.stats || []).reduce((sum, s) => sum + (Number(s.games_played) || 0), 0);
+        const best = (data.stats || []).reduce((max, s) => Math.max(max, Number(s.high_score) || 0), 0);
+        const support = Number(data.totals?.USDC || 0) + Number(data.totals?.TROLL || 0);
+        stats.innerHTML = '';
+        [
+          ['Games played', runs.toLocaleString()],
+          ['Best score', best.toLocaleString()],
+          ['Support', support > 0 ? support.toLocaleString() : '—'],
+        ].forEach(([label, value]) => {
+          const tile = document.createElement('div');
+          tile.className = 'auth-stat';
+          const b = document.createElement('b'); b.textContent = value;
+          const s = document.createElement('span'); s.textContent = label;
+          tile.append(b, s);
+          stats.appendChild(tile);
+        });
+      }).catch(() => { stats.hidden = true; });
     }
 
     function authApplyMode() {
@@ -1434,6 +1580,7 @@
     const VIEWER_CHANNEL = 'trollrunner-site-presence';
     const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
+    const SUPABASE_ROW_ID = 'main';
     const viewerOnlineAt = new Date().toISOString();
     let viewerChannel = null, viewerJoined = false;
 
@@ -1563,13 +1710,36 @@
     const updatesSheet = $('updates'), updatesClose = $('updates-close');
     let updatesLoaded = false;
 
+    // Same Supabase row the desktop's Latest Updates window reads — that JSON
+    // file is only a periodic snapshot, so posting an update from admin.html
+    // showed up on desktop immediately but never reached this sheet until the
+    // snapshot next regenerated. Meta rows (site lock, feedback, live status,
+    // …) share the same `updates` column on that row, tagged with a
+    // `__trollrunner_..._meta__` id, so they're filtered out here the same
+    // way index.html's parseSharedUpdatesPayload does.
+    async function fetchLiveUpdates() {
+      try {
+        const qs = new URLSearchParams({ select: 'updates', id: `eq.${SUPABASE_ROW_ID}`, limit: '1' });
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/site_updates?${qs}`, {
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+        });
+        if (!res.ok) return [];
+        const json = await res.json();
+        const raw = Array.isArray(json?.[0]?.updates) ? json[0].updates : [];
+        return raw.filter(u => !(u && typeof u.id === 'string' && u.id.startsWith('__trollrunner_')));
+      } catch { return []; }
+    }
+
     async function updatesPaint() {
       if (updatesLoaded) return;
       const rows = $('update-rows');
       try {
-        const res = await fetch('assets/data/latest-updates.json', { cache: 'no-cache' });
-        if (!res.ok) throw new Error(res.status);
-        const list = (await res.json()).updates || [];
+        const [jsonRes, liveList] = await Promise.all([
+          fetch('assets/data/latest-updates.json', { cache: 'no-cache' }),
+          fetchLiveUpdates(),
+        ]);
+        if (!jsonRes.ok) throw new Error(jsonRes.status);
+        const list = [...((await jsonRes.json()).updates || []), ...liveList];
         list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         rows.innerHTML = '';
         if (!list.length) {
