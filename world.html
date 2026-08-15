@@ -1113,7 +1113,7 @@
       <p class="sub">All of Troll Runner, in one place.</p>
       <div id="sheet-links"></div>
       <hr class="rule">
-      <p class="tagline">Run far. Drop trolls. Problem?</p>
+      <p class="tagline">We run far and drop trolls. Problem?</p>
       <div class="socials" id="socials"></div>
     </div>
   </div>
@@ -1160,15 +1160,6 @@
         icon: 'assets/images/icons/stickers.png', img: 'assets/images/world/stickers.png',
         l: 60, t: 352, h: 15 },
       // mid band
-      // Same origin (this repo IS trollrunner.net), so this is a relative
-      // link rather than `external`. Plain '/' would just get bounced right
-      // back to this entrance by index.html's phone check — ?desktop=1 is
-      // what actually lands on the classic desktop. The desktop's taskbar
-      // carries a matching way back to this entrance (#td-mobile-return).
-      { id: 'hub',      label: 'The Hub',   sub: 'trollrunner.net',
-        to: '/?desktop=1', color: '#4dff73',
-        icon: 'assets/images/icons/hub.png', img: 'assets/images/world/hub.png',
-        l: 24, t: 380, h: 15 },
       { id: 'pfp',      label: 'PFP Studio', sub: 'Build your troll', to: 'pfp.html',
         color: '#8fe36a', icon: 'assets/images/icons/pfp.png',
         l: 55, t: 436, h: 13 },
@@ -1177,9 +1168,18 @@
         icon: 'assets/images/icons/finances.png', img: 'assets/images/world/finance.png',
         l: 72, t: 384, h: 11 },
       // front band
-      { id: 'chat',     label: 'TrollChat', sub: 'Live room', to: 'chat.html',
-        color: '#ff9500', icon: 'assets/images/icons/trollchat.png',
-        img: 'assets/images/world/chat.png', l: 38, t: 470, h: 12 },
+      // Same origin (this repo IS trollrunner.net), so this is a relative
+      // link rather than `external`. Plain '/' would just get bounced right
+      // back to this entrance by index.html's phone check — ?desktop=1 is
+      // what actually lands on the classic desktop. The desktop's taskbar
+      // carries a matching way back to this entrance (#td-mobile-return).
+      // Sits in TrollChat's old spot — TrollChat itself is gone from the
+      // grid/menu (still reachable from the classic desktop's own dock; it
+      // just duplicated what "Classic desktop" already covered here).
+      { id: 'hub',      label: 'The Hub',   sub: 'trollrunner.net',
+        to: '/?desktop=1', color: '#4dff73',
+        icon: 'assets/images/icons/hub.png', img: 'assets/images/world/hub.png',
+        l: 38, t: 470, h: 12 },
       { id: 'maps',     label: 'Maps',      sub: 'maps.trollrunner.net',
         href: 'https://maps.trollrunner.net', external: true, color: '#30d158',
         icon: 'assets/images/icons/troll-map.png', img: 'assets/images/world/maps.png',
