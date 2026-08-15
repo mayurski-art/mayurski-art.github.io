@@ -2,1020 +2,998 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Google Fonts are named in style-src (the stylesheet) and font-src (the
+       woff2 files) so the Archivo Black / Space Grotesk / Rubik type system
+       this page shares with world.html actually loads instead of silently
+       falling back. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net https://open.spotify.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://nominatim.openstreetmap.org; frame-src https://open.spotify.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Troll Runner Admin</title>
+  <meta name="theme-color" content="#000000">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* ===================================================================
+       Troll Runner Admin — dashboard shell.
+
+       Same design system as world.html (the mobile shell): Archivo Black
+       display type, Space Grotesk body, Rubik for small-caps labels, the
+       green accent, and the frosted glass-card treatment. The layout is a
+       dashboard rather than world.html's slide-in drawer: a left rail of
+       grouped sections, a sticky topbar carrying the always-relevant admin
+       state (auth pill + shared-sync line), and one card-based view at a
+       time in the main column.
+
+       IMPORTANT: many class names below are consumed by markup that the
+       inline <script> blocks generate at runtime (.item, .analytics-stat,
+       .analytics-table, .analytics-bar*, .accounts-*, .payout-*, and the
+       button modifiers .secondary/.success/.alert/.danger). Renaming any of
+       those means editing the matching template string in the script too.
+       =================================================================== */
     :root {
-      --bg: #0b0c10;
-      --bg-grad: radial-gradient(1200px 600px at 15% -10%, rgba(0,122,255,0.10), transparent 60%),
-                 radial-gradient(1000px 500px at 100% 0%, rgba(88,86,214,0.10), transparent 55%);
-      --panel: #15161d;
-      --panel-raised: #1a1c25;
-      --border: rgba(255,255,255,0.09);
-      --border-strong: rgba(255,255,255,0.16);
-      --text: #f2f3f7;
-      --text-dim: rgba(237,238,245,0.66);
-      --text-faint: rgba(237,238,245,0.44);
-      --accent: #0a84ff;
-      --accent-dim: rgba(10,132,255,0.14);
-      --radius: 14px;
-      --radius-sm: 9px;
-      --shadow-card: 0 1px 0 rgba(255,255,255,0.03) inset, 0 12px 28px rgba(0,0,0,0.35);
+      --font-display: "Archivo Black", Impact, "Arial Black", sans-serif;
+      --font-ui: "Space Grotesk", system-ui, Arial, sans-serif;
+      --font-mono: "Rubik", system-ui, Arial, sans-serif;
+
+      --accent: #8fe36a;
+      --accent-ink: #06140a;
+      --danger: #ff5c5c;
+      --warn: #ffb020;
+      --info: #6ab0ff;
+
+      --fg: #ffffffeb;
+      --fg-dim: #ffffff8c;
+      --fg-faint: #ffffff5c;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+
+      --glass-fill: #0a0b0ed1;
+      --glass-stroke: #ffffff1a;
+      --glass-stroke-2: #ffffff2e;
+      --glass-highlight: #ffffff14;
+      --glass-blur: blur(34px) saturate(160%);
+      --glass-shadow: 0 28px 70px #000000a6, 0 2px 10px #00000073,
+                      inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 #ffffff08;
+      --glass-bg: linear-gradient(165deg, #ffffff0d 0%, #ffffff04 38%, #00000047 100%), var(--glass-fill);
+
+      --rail-w: 268px;
+      --radius: 18px;
+      --radius-sm: 12px;
     }
+
     * { box-sizing: border-box; }
+    /* Any `display` in a class rule outranks the hidden attribute, so a
+       [hidden] grid/flex element would stay on screen. Settle it up front —
+       the section switcher and #payouts-live-dot both rely on it. */
+    [hidden] { display: none !important; }
     html { background: #000; }
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg) var(--bg-grad);
+      background:
+        radial-gradient(900px 520px at 12% -8%, #8fe36a1a, transparent 62%),
+        radial-gradient(760px 460px at 96% 4%, #6ab0ff14, transparent 58%),
+        #050507;
       background-attachment: fixed;
-      color: var(--text);
+      color: var(--fg);
+      font-family: var(--font-ui);
       -webkit-font-smoothing: antialiased;
     }
-    .wrap {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 28px 16px 64px;
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+    .vh {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
     }
-    .hero-row {
+
+    /* ================= SHELL ================= */
+    .shell {
+      display: grid;
+      grid-template-columns: var(--rail-w) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    /* ---- left rail: grouped section nav, mirroring world.html's sheet ---- */
+    .rail {
       position: sticky;
       top: 0;
-      z-index: 20;
+      align-self: start;
+      height: 100vh;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin: -28px -16px 22px;
-      padding: 18px 16px;
-      background: rgba(11,12,16,0.82);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid var(--border);
+      flex-direction: column;
+      gap: 18px;
+      padding: 26px 18px calc(22px + env(safe-area-inset-bottom));
+      background: #08090c;
+      border-right: 1px solid var(--glass-stroke);
+      overflow-y: auto;
     }
-    .hero-row h1 {
-      font-size: 20px;
-      letter-spacing: -0.01em;
+    .wordmark {
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-size: 19px; letter-spacing: .02em;
+      color: var(--fg); text-decoration: none;
     }
-    .hero-row .hero-sub {
-      margin: 2px 0 0;
-      font-size: 13px;
-      max-width: 560px;
+    .wordmark:hover { text-decoration: none; }
+    .wordmark img { width: 20px; height: 20px; margin: 0 1px; vertical-align: -2px; }
+    .rail-brand { display: grid; justify-items: center; gap: 6px; padding: 2px 0 4px; }
+    .rail-tag {
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--accent);
     }
-    .hero-row .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 14px;
-      border-radius: 999px;
-      border: 1px solid var(--border-strong);
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      white-space: nowrap;
-      transition: background 0.15s ease, border-color 0.15s ease;
+    .rail-nav { display: grid; align-content: start; gap: 2px; }
+    .group {
+      font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--fg-faint);
+      margin: 16px 0 4px; padding: 0 10px;
     }
-    .hero-row .back-link:hover {
-      background: rgba(255,255,255,0.09);
-      border-color: rgba(255,255,255,0.28);
+    .group:first-child { margin-top: 0; }
+    .nav-link {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 9px 12px; border-radius: 10px;
+      color: var(--fg); font-size: 14.5px; font-weight: 700; text-decoration: none;
+      transition: background .16s var(--ease), color .16s var(--ease), padding-left .18s var(--ease);
     }
-    h1 { margin: 0 0 8px; font-weight: 700; }
-    h3 { font-size: 16px; letter-spacing: -0.005em; }
-    p { color: var(--text-dim); line-height: 1.5; }
+    .nav-link:hover { color: var(--accent); background: #ffffff0a; text-decoration: none; padding-left: 16px; }
+    .nav-link.is-active {
+      color: var(--accent-ink);
+      background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #cdf3b6));
+    }
+    .nav-link.is-active:hover { color: var(--accent-ink); padding-left: 12px; }
+    .nav-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex: none;
+      background: currentColor; opacity: .0; transition: opacity .16s var(--ease);
+    }
+    .nav-link.is-active .nav-dot { opacity: .55; }
+    .rail-foot { margin-top: auto; display: grid; gap: 8px; padding-top: 18px; border-top: 1px solid var(--glass-stroke); }
+    .rail-out {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 9px 12px; border-radius: 10px;
+      border: 1px solid var(--glass-stroke); background: #ffffff08;
+      color: var(--fg-dim); font-family: var(--font-mono); font-size: 11.5px;
+      letter-spacing: .06em; text-transform: uppercase; text-decoration: none;
+    }
+    .rail-out:hover { color: var(--fg); border-color: var(--glass-stroke-2); background: #ffffff12; text-decoration: none; }
+
+    /* ---- main column ---- */
+    .main { min-width: 0; display: flex; flex-direction: column; }
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 18px; flex-wrap: wrap;
+      padding: 18px 30px;
+      background: #05050799;
+      backdrop-filter: blur(18px) saturate(150%);
+      -webkit-backdrop-filter: blur(18px) saturate(150%);
+      border-bottom: 1px solid var(--glass-stroke);
+    }
+    .topbar-kicker {
+      margin: 0 0 3px; font-family: var(--font-mono); font-size: 10.5px;
+      letter-spacing: .16em; text-transform: uppercase; color: var(--fg-faint);
+    }
+    .topbar h1 {
+      margin: 0; font-family: var(--font-display); font-size: 25px;
+      letter-spacing: -.01em; text-transform: uppercase; line-height: 1.05;
+    }
+    .topbar-right { display: grid; justify-items: end; gap: 6px; min-width: 0; }
+    .sync-line {
+      margin: 0; max-width: 460px; text-align: right;
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: .03em;
+      color: var(--fg-faint); line-height: 1.4;
+    }
+    .views { padding: 24px 30px 72px; display: grid; gap: 20px; }
+    .view { display: grid; gap: 20px; align-content: start; }
+
+    /* ================= CARDS ================= */
     .card {
-      background: linear-gradient(180deg, var(--panel-raised), var(--panel));
-      border: 1px solid var(--border);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-stroke);
       border-radius: var(--radius);
-      box-shadow: var(--shadow-card);
-      padding: 18px;
-      margin-top: 16px;
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      padding: 22px 24px 24px;
     }
-    label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.02em; }
-    input, textarea {
+    .card-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 14px; flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .card-head h2 {
+      margin: 0 0 5px; font-family: var(--font-display); font-size: 17px;
+      letter-spacing: .02em; text-transform: uppercase;
+    }
+    .card-head h3 { margin: 0 0 5px; font-size: 15px; font-weight: 700; }
+    .card-sub, .pane-subtitle {
+      margin: 0; max-width: 68ch; color: var(--fg-dim);
+      font-size: 13.5px; line-height: 1.55;
+    }
+    .card p { color: var(--fg-dim); line-height: 1.55; }
+    .pill-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+    .pill, .summary-note {
+      display: inline-flex; align-items: center; min-height: 26px; padding: 0 11px;
+      border-radius: 999px; border: 1px solid var(--glass-stroke); background: #ffffff0d;
+      color: var(--fg-dim); font-family: var(--font-mono); font-size: 10.5px;
+      font-weight: 500; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+    }
+    .status-line {
+      margin: 12px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--fg-dim);
+    }
+    .status-line[data-mode="open"] { color: var(--accent); }
+    .status-line[data-mode="locked"] { color: var(--danger); }
+    .status-line[data-mode="pending"] { color: var(--warn); }
+
+    /* ================= CONTROLS ================= */
+    label {
+      display: block; margin-bottom: 7px;
+      font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .13em;
+      text-transform: uppercase; color: var(--fg-dim);
+    }
+    input, textarea, select {
       width: 100%;
-      box-sizing: border-box;
+      padding: 13px 14px;
       border-radius: var(--radius-sm);
-      border: 1px solid var(--border-strong);
-      background: #0f1015;
-      color: var(--text);
-      padding: 10px 12px;
-      font-size: 14px;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      background: #ffffff0d;
+      border: 1px solid var(--glass-stroke);
+      color: var(--fg);
+      font-family: var(--font-ui);
+      font-size: 14.5px;
+      transition: border-color .16s var(--ease), background .16s var(--ease);
     }
+    input::placeholder, textarea::placeholder { color: var(--fg-faint); }
     input:focus, textarea:focus, select:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-dim);
+      outline: none; background: #ffffff14;
+      border-color: color-mix(in srgb, var(--accent) 60%, transparent);
     }
-    textarea { min-height: 100px; resize: vertical; }
-    .row { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    textarea { min-height: 120px; resize: vertical; }
+    select { appearance: none; cursor: pointer; padding-right: 34px; }
+    .field + .field { margin-top: 14px; }
+    .field-hint { margin: 7px 0 0; font-size: 12.5px; color: var(--fg-faint); }
+    .row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+
+    /* Base button = primary action. The modifier classes below are also
+       emitted by the scripts, so keep all four. */
     button {
-      border: 1px solid rgba(255,255,255,0.14);
+      border: 1px solid transparent;
       border-radius: var(--radius-sm);
-      padding: 10px 14px;
-      color: #fff;
+      padding: 12px 17px;
       background: var(--accent);
+      color: var(--accent-ink);
+      font-family: var(--font-display);
+      font-size: 12.5px;
+      letter-spacing: .05em;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 13.5px;
-      transition: filter 0.15s ease, transform 0.05s ease;
+      transition: filter .16s var(--ease), transform .12s var(--ease), background .16s var(--ease);
     }
-    button:hover { filter: brightness(1.12); }
-    button:active { transform: translateY(1px); }
-    button:disabled { opacity: 0.55; cursor: progress; filter: none; }
-    button.secondary { background: #262832; }
-    button.success { background: #26a35a; }
-    button.alert { background: #d9433a; }
-    button.danger { background: #b3261e; }
-    .preview .item {
-      background: #101116;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 12px;
-      margin-top: 8px;
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: scale(.985); }
+    /* Desaturate as well as dim. A disabled amber "Lock public site" that is
+       still amber reads as armed-but-dim; a grey one reads as unavailable,
+       which is what it is. */
+    button:disabled {
+      opacity: .42; cursor: not-allowed; transform: none;
+      filter: grayscale(1) brightness(.85);
     }
-    .preview .item p {
-      margin-bottom: 0;
+    button.secondary {
+      background: #ffffff0d; color: var(--fg); border-color: var(--glass-stroke);
     }
+    button.secondary:hover { background: #ffffff17; border-color: var(--glass-stroke-2); filter: none; }
+    button.success { background: var(--accent); color: var(--accent-ink); }
+    button.alert { background: var(--warn); color: #1a1000; }
+    button.danger { background: var(--danger); color: #240404; }
+
+    /* ================= UPDATES & ARCHIVES ================= */
     .workspace {
       display: grid;
-      grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
-      gap: 16px;
-      margin-top: 16px;
+      grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr);
+      gap: 20px;
+      align-items: start;
     }
-    .editor-card {
-      position: sticky;
-      top: 88px;
-      align-self: start;
+    .editor-card { position: sticky; top: 104px; }
+    .preview-shell { max-height: 560px; overflow: auto; padding-right: 6px; }
+    .preview-shell::-webkit-scrollbar { width: 9px; }
+    .preview-shell::-webkit-scrollbar-thumb { background: #ffffff24; border-radius: 999px; }
+    .preview-shell::-webkit-scrollbar-track { background: transparent; }
+    .preview-shell h4 {
+      margin: 0 0 10px; font-family: var(--font-mono); font-size: 10.5px;
+      letter-spacing: .14em; text-transform: uppercase; color: var(--fg-faint); font-weight: 500;
     }
-    .preview-pane {
-      display: grid;
-      gap: 12px;
+    /* .item is emitted by renderUpdateList() and renderFeedback(). */
+    .item {
+      background: #ffffff08;
+      border: 1px solid var(--glass-stroke);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-top: 10px;
     }
-    .pane-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .pane-head h3 {
-      margin: 0 0 4px;
-    }
-    .pane-subtitle {
-      margin: 0;
-      font-size: 0.92rem;
-    }
-    .pane-stats {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .pane-stats span,
-    .summary-note {
-      display: inline-flex;
-      align-items: center;
-      min-height: 26px;
-      padding: 0 11px;
-      border-radius: 999px;
-      border: 1px solid var(--border-strong);
-      background: rgba(255,255,255,0.05);
-      color: rgba(255,255,255,0.82);
-      font-size: 11.5px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .preview-shell {
-      max-height: 530px;
-      overflow: auto;
-      padding-right: 4px;
-    }
-    .preview-shell::-webkit-scrollbar {
-      width: 10px;
-    }
-    .preview-shell::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.18);
-      border-radius: 999px;
-    }
-    .preview-shell::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .lock-console {
-      display: grid;
-      gap: 10px;
-    }
-    .lock-console .lock-console-status {
-      color: rgba(255,255,255,0.74);
-      margin: 0;
-      line-height: 1.45;
-    }
-    .lock-console .lock-console-status[data-mode="pending"] { color: #ff8a9c; }
-    .lock-console .lock-console-status[data-mode="locked"] { color: #ff5252; }
-    .lock-console .lock-console-status[data-mode="open"] { color: #9fe6b0; }
-    .lock-console .pane-stats {
-      margin-top: 2px;
-    }
-    .lock-console .row button {
-      min-width: 138px;
-    }
-    .collapsible summary {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-      list-style: none;
-      padding: 2px 0;
-      border-radius: var(--radius-sm);
-      transition: opacity 0.15s ease;
-    }
-    summary::-webkit-details-marker { display: none; }
-    summary::-moz-list-bullet { list-style-type: none; }
-    .collapsible summary:hover { opacity: 0.82; }
-    .collapsible summary span:first-child {
-      font-weight: 700;
-      font-size: 15px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .collapsible summary span:first-child::before {
-      content: '';
-      width: 8px;
-      height: 8px;
-      border-right: 2px solid var(--text-dim);
-      border-bottom: 2px solid var(--text-dim);
-      transform: rotate(-45deg);
-      transition: transform 0.18s ease;
-      flex: none;
-    }
-    .collapsible[open] summary span:first-child::before {
-      transform: rotate(45deg);
-    }
-    .collapsible[open] summary {
-      margin-bottom: 14px;
-    }
-    .collapsible-body {
-      padding-top: 2px;
-    }
-    .collapsible-body > :first-child {
-      margin-top: 0;
-    }
-    .formatted-update-body p {
-      margin: 10px 0 0;
-    }
-    .formatted-update-body p:first-child {
-      margin-top: 0;
-    }
-    .formatted-update-body ul,
-    .formatted-update-body ol {
-      margin: 10px 0 0 20px;
-      padding: 0;
-    }
-    .formatted-update-body li + li {
-      margin-top: 6px;
-    }
-    .archive-month {
-      margin-top: 12px;
-    }
+    .item strong { font-size: 14.5px; }
+    .item small { font-family: var(--font-mono); font-size: 11px; color: var(--fg-faint); letter-spacing: .04em; }
+    .item p { margin-bottom: 0; font-size: 14px; }
+    .item.is-archived { opacity: .58; }
+    .item .row { margin-top: 12px; }
+    .item .row button { padding: 8px 13px; font-size: 11px; }
+    .formatted-update-body p { margin: 10px 0 0; font-size: 14px; color: var(--fg-dim); }
+    .formatted-update-body p:first-child { margin-top: 0; }
+    .formatted-update-body ul, .formatted-update-body ol { margin: 10px 0 0 20px; padding: 0; color: var(--fg-dim); font-size: 14px; }
+    .formatted-update-body li + li { margin-top: 6px; }
+    .archive-month { margin-top: 16px; }
     .archive-month h5 {
-      margin: 0 0 8px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.07);
-      color: rgba(255,255,255,0.88);
-      font-size: 13px;
-      letter-spacing: 0.02em;
+      margin: 0; padding: 8px 12px; border-radius: 999px;
+      background: #ffffff0f; border: 1px solid var(--glass-stroke);
+      font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+      letter-spacing: .1em; text-transform: uppercase; color: var(--fg-dim);
     }
+
+    /* ================= STAT TILES + TABLES (shared) ================= */
     .analytics-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
-      margin-top: 10px;
+      margin-top: 4px;
     }
+    .payouts-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .analytics-stat {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: #101116;
-      padding: 14px;
+      display: grid; gap: 5px; padding: 15px 16px;
+      border: 1px solid var(--glass-stroke); border-radius: 14px; background: #ffffff0a;
     }
     .analytics-stat strong {
-      display: block;
-      font-size: 26px;
-      line-height: 1;
-      letter-spacing: -0.01em;
+      font-family: var(--font-display); font-size: 27px; line-height: 1; letter-spacing: -.02em;
     }
     .analytics-stat span {
-      display: block;
-      margin-top: 6px;
-      color: rgba(255,255,255,0.7);
-      font-size: 12px;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--fg-dim); line-height: 1.4;
     }
-    .analytics-table {
-      width: 100%;
-      margin-top: 12px;
-      border-collapse: collapse;
-      font-size: 13px;
+    .analytics-table { width: 100%; margin-top: 14px; border-collapse: collapse; font-size: 13.5px; }
+    .analytics-table th, .analytics-table td {
+      padding: 11px 10px; border-bottom: 1px solid var(--glass-stroke); text-align: left;
     }
-    .analytics-table th,
-    .analytics-table td {
-      padding: 10px 8px;
-      border-bottom: 1px solid var(--border);
-      text-align: left;
-    }
-    .analytics-table tbody tr:hover {
-      background: rgba(255,255,255,0.03);
-    }
+    .analytics-table tbody tr:hover { background: #ffffff08; }
     .analytics-table th {
-      color: rgba(255,255,255,0.6);
-      font-weight: 700;
-      font-size: 11.5px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
-    .analytics-chart-panel {
-      margin-top: 12px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: #101116;
-      padding: 14px;
-    }
-    .analytics-chart-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .analytics-chart-head h4 {
-      margin: 0 0 4px;
-    }
-    .analytics-range-controls {
-      display: inline-flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .analytics-range-controls button {
-      min-height: 34px;
-      padding: 7px 12px;
-      border-radius: 999px;
-      background: #262832;
-      font-size: 12px;
-    }
-    .analytics-range-controls button.is-active {
-      border-color: rgba(10,132,255,0.9);
-      background: var(--accent);
-    }
-    .analytics-chart {
-      display: grid;
-      grid-auto-flow: column;
-      grid-auto-columns: minmax(42px, 1fr);
-      align-items: end;
-      gap: 8px;
-      min-height: 240px;
-      padding: 28px 4px 4px;
-      overflow-x: auto;
-    }
-    .analytics-chart-wrap {
-      display: grid;
-      grid-template-columns: 22px minmax(0, 1fr);
-      gap: 8px;
-      align-items: stretch;
-    }
-    .analytics-axis-y {
-      display: grid;
-      place-items: center;
-      color: rgba(255,255,255,0.64);
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      writing-mode: vertical-rl;
-      transform: rotate(180deg);
-    }
-    .analytics-axis-x {
-      grid-column: 2;
-      color: rgba(255,255,255,0.64);
-      font-size: 11px;
-      font-weight: 800;
-      text-align: center;
-      text-transform: uppercase;
-    }
-    .analytics-bar {
-      display: grid;
-      grid-template-rows: auto minmax(140px, 1fr) auto;
-      gap: 7px;
-      min-width: 42px;
-      text-align: center;
-    }
-    .analytics-bar-value {
-      color: rgba(255,255,255,0.84);
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.1;
-    }
-    .analytics-bar-track {
-      position: relative;
-      display: flex;
-      align-items: end;
-      min-height: 140px;
-      border-radius: 999px 999px 7px 7px;
-      background: rgba(255,255,255,0.06);
-      overflow: hidden;
-    }
-    .analytics-bar-fill {
-      width: 100%;
-      min-height: 2px;
-      border-radius: inherit;
-      background: linear-gradient(180deg, #4da3ff, #26a35a);
-      box-shadow: 0 0 20px rgba(77,163,255,0.28);
-    }
-    .analytics-bar-label {
-      color: rgba(255,255,255,0.68);
-      font-size: 11px;
-      line-height: 1.15;
-      min-height: 26px;
-    }
-    .analytics-chart-empty {
-      margin: 0;
-      color: rgba(255,255,255,0.7);
-    }
-    .accounts-toolbar { align-items: center; }
-    .accounts-toolbar input { flex: 1 1 220px; width: auto; }
-    .accounts-toolbar select {
-      flex: 0 0 auto;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-strong);
-      background: #0f1015;
-      color: #fff;
-      padding: 10px 12px;
-      font-size: 14px;
+      font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+      letter-spacing: .11em; text-transform: uppercase; color: var(--fg-faint);
     }
     .accounts-table-scroll { overflow-x: auto; }
+
+    /* ================= VIEWS CHART ================= */
+    .analytics-chart-panel {
+      margin-top: 16px; padding: 18px;
+      border: 1px solid var(--glass-stroke); border-radius: 14px; background: #ffffff0a;
+    }
+    .analytics-chart-head {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 14px; flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .analytics-chart-head h4 {
+      margin: 0 0 4px; font-family: var(--font-display); font-size: 14px;
+      letter-spacing: .02em; text-transform: uppercase;
+    }
+    .analytics-range-controls { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+    .analytics-range-controls button {
+      padding: 8px 15px; border-radius: 999px;
+      background: #ffffff0d; color: var(--fg-dim); border-color: var(--glass-stroke);
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+    }
+    .analytics-range-controls button:hover { background: #ffffff17; color: var(--fg); filter: none; }
+    .analytics-range-controls button.is-active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+    .analytics-chart-wrap { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+    .analytics-axis-y {
+      display: grid; place-items: center;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--fg-faint);
+      writing-mode: vertical-rl; transform: rotate(180deg);
+    }
+    .analytics-axis-x {
+      grid-column: 2; margin-top: 4px;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--fg-faint); text-align: center;
+    }
+    .analytics-chart {
+      display: grid; grid-auto-flow: column; grid-auto-columns: minmax(42px, 1fr);
+      align-items: end; gap: 8px; min-height: 240px; padding: 24px 4px 4px; overflow-x: auto;
+    }
+    .analytics-bar {
+      display: grid; grid-template-rows: auto minmax(140px, 1fr) auto;
+      gap: 7px; min-width: 42px; text-align: center;
+    }
+    .analytics-bar-value { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg); line-height: 1.1; }
+    .analytics-bar-track {
+      position: relative; display: flex; align-items: end; min-height: 140px;
+      border-radius: 10px; background: #ffffff0f; overflow: hidden;
+    }
+    /* Square-ish, not pill-shaped: `border-radius: inherit` on a 999px track
+       turned every short bar into a lens instead of a bar. */
+    .analytics-bar-fill {
+      width: 100%; min-height: 3px; border-radius: 6px 6px 2px 2px;
+      background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #1d6bff));
+      box-shadow: 0 0 22px -4px color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+    .analytics-bar-label { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-faint); line-height: 1.15; min-height: 26px; }
+    .analytics-chart-empty { margin: 0; color: var(--fg-dim); }
+
+    /* ================= ACCOUNTS ================= */
+    .accounts-toolbar { align-items: center; }
+    .accounts-toolbar input { flex: 1 1 220px; width: auto; }
+    .accounts-toolbar select { flex: 0 0 auto; width: auto; }
     .accounts-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      object-fit: cover;
-      display: inline-grid;
-      place-items: center;
-      background: #262832;
-      font-size: 16px;
-      vertical-align: middle;
-      margin-right: 8px;
+      width: 28px; height: 28px; border-radius: 9px; object-fit: cover;
+      display: inline-grid; place-items: center; background: #ffffff14;
+      vertical-align: middle; margin-right: 9px;
     }
     .accounts-level-pill {
-      display: inline-block;
-      padding: 1px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,216,77,0.5);
-      background: rgba(255,216,77,0.12);
-      color: #ffd84d;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
+      display: inline-block; padding: 2px 9px; border-radius: 999px;
+      border: 1px solid #ffd84d80; background: #ffd84d1f; color: #ffd84d;
+      font-family: var(--font-mono); font-size: 11px; white-space: nowrap;
     }
     .accounts-type-pill {
-      display: inline-block;
-      padding: 1px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
+      display: inline-block; padding: 2px 9px; border-radius: 999px;
+      font-family: var(--font-mono); font-size: 11px; white-space: nowrap;
+      border: 1px solid var(--glass-stroke); color: var(--fg-dim);
     }
-    .accounts-type-pill.is-npc {
-      border: 1px solid rgba(255,69,58,0.5);
-      background: rgba(255,69,58,0.12);
-      color: #ff453a;
-    }
-    .accounts-type-pill.is-player {
-      border: 1px solid rgba(90,200,250,0.5);
-      background: rgba(90,200,250,0.12);
-      color: #5ac8fa;
-    }
+    .accounts-type-pill.is-npc { border-color: #ff453a80; background: #ff453a1f; color: #ff8078; }
+    .accounts-type-pill.is-player { border-color: #5ac8fa80; background: #5ac8fa1f; color: #5ac8fa; }
     /* Profile tags — click to grant/revoke. Off state is an outline, on state
        fills with that tag's colour so a row reads at a glance. */
-    .accounts-tag-row {
-      display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
-    }
+    .accounts-tag-row { display: flex; gap: 5px; flex-wrap: wrap; }
     .accounts-tag-btn {
       --tag-color: #8e8e93;
-      padding: 2px 9px;
-      border-radius: 999px;
-      border: 1px solid var(--tag-color);
-      background: transparent;
-      color: var(--tag-color);
-      font: inherit;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      cursor: pointer;
-      opacity: 0.55;
-      white-space: nowrap;
+      padding: 3px 10px; border-radius: 999px;
+      border: 1px solid var(--tag-color); background: transparent; color: var(--tag-color);
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em;
+      text-transform: uppercase; cursor: pointer; opacity: .55; white-space: nowrap;
     }
-    .accounts-tag-btn:hover { opacity: 0.85; }
-    .accounts-tag-btn.is-on {
-      background: var(--tag-color);
-      color: #0b0c10;
-      opacity: 1;
-    }
-    .accounts-tag-btn:disabled { cursor: wait; opacity: 0.35; }
+    .accounts-tag-btn:hover { opacity: .9; filter: none; }
+    .accounts-tag-btn.is-on { background: var(--tag-color); color: #08090c; opacity: 1; }
+    .accounts-tag-btn:disabled { cursor: wait; opacity: .3; }
     .accounts-tag-btn[data-tag="developer"] { --tag-color: #7f8bff; }
     .accounts-tag-btn[data-tag="admin"] { --tag-color: #ff6b6d; }
     .accounts-tag-btn[data-tag="trollrunner"] { --tag-color: #ff77c2; }
 
-    /* ---- Payout requests (colorful, per-game grouped) ---- */
+    /* ================= PAYOUTS ================= */
     .payouts-live-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      margin-left: 4px;
-      border-radius: 50%;
-      background: #34d97a;
-      box-shadow: 0 0 0 rgba(52,217,122,0.6);
+      display: inline-block; width: 8px; height: 8px; margin-left: 6px;
+      border-radius: 50%; background: var(--accent); vertical-align: middle;
       animation: payouts-pulse 1.8s ease-out infinite;
-      vertical-align: middle;
     }
     @keyframes payouts-pulse {
-      0%   { box-shadow: 0 0 0 0 rgba(52,217,122,0.55); }
-      70%  { box-shadow: 0 0 0 7px rgba(52,217,122,0); }
-      100% { box-shadow: 0 0 0 0 rgba(52,217,122,0); }
+      0%   { box-shadow: 0 0 0 0 #8fe36a8c; }
+      70%  { box-shadow: 0 0 0 7px #8fe36a00; }
+      100% { box-shadow: 0 0 0 0 #8fe36a00; }
     }
-    .payouts-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .payouts-pill-row { margin-top: 12px; }
+    .payouts-pill-row { margin-top: 14px; }
     .payout-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 13px;
-      border-radius: 999px;
-      border: 1px solid var(--pill-c, var(--border-strong));
-      background: var(--pill-bg, rgba(255,255,255,0.05));
-      color: var(--pill-c, var(--text));
-      font-size: 12.5px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.15s ease, transform 0.1s ease;
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 14px; border-radius: 999px;
+      border: 1px solid var(--pill-c, var(--glass-stroke));
+      background: #ffffff0a; color: var(--pill-c, var(--fg));
+      font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .05em;
+      cursor: pointer; transition: transform .12s var(--ease), background .16s var(--ease);
     }
-    .payout-pill:hover { transform: translateY(-1px); }
+    .payout-pill:hover { transform: translateY(-1px); filter: none; background: #ffffff14; }
     .payout-pill.is-active {
-      background: var(--pill-c, var(--accent));
-      color: #0b0c10;
-      box-shadow: 0 4px 14px -4px var(--pill-c, var(--accent));
+      background: var(--pill-c, var(--accent)); color: #08090c; border-color: transparent;
+      box-shadow: 0 6px 18px -6px var(--pill-c, var(--accent));
     }
     .payout-pill .pp-count {
-      display: inline-flex;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 5px;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.22);
-      font-size: 11px;
+      display: inline-flex; min-width: 18px; height: 18px; padding: 0 5px;
+      align-items: center; justify-content: center; border-radius: 999px;
+      background: #00000038; font-size: 10.5px;
     }
-    .payout-pill.is-active .pp-count { background: rgba(0,0,0,0.28); }
-    .payouts-toolbar { margin-top: 12px; }
-    .payouts-toolbar input { flex: 1; min-width: 200px; }
+    .payouts-toolbar { margin-top: 14px; }
+    .payouts-toolbar input { flex: 1; min-width: 200px; width: auto; }
     .payout-game-group {
-      margin-top: 18px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 60%);
-      overflow: hidden;
+      margin-top: 18px; border-radius: 16px; border: 1px solid var(--glass-stroke);
+      background: #ffffff05; overflow: hidden;
     }
     .payout-game-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; flex-wrap: wrap; padding: 12px 18px;
+      border-bottom: 1px solid var(--glass-stroke);
       background: linear-gradient(90deg, var(--game-c, var(--accent)) 0%, transparent 130%);
     }
     .payout-game-head h4 {
-      margin: 0;
-      font-size: 14.5px;
-      font-weight: 800;
-      color: #0b0c10;
-      text-shadow: 0 1px 0 rgba(255,255,255,0.25);
+      margin: 0; font-family: var(--font-display); font-size: 13.5px;
+      letter-spacing: .03em; text-transform: uppercase; color: #08090c;
     }
-    .payout-game-head .payout-game-stats {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
+    .payout-game-stats { display: flex; gap: 6px; flex-wrap: wrap; }
+    .payout-game-stats span {
+      font-family: var(--font-mono); font-size: 10.5px; padding: 3px 10px;
+      border-radius: 999px; background: #00000042; color: #08090c;
     }
-    .payout-game-head .payout-game-stats span {
-      font-size: 11.5px;
-      font-weight: 700;
-      padding: 2px 9px;
-      border-radius: 999px;
-      background: rgba(11,12,16,0.32);
-      color: #0b0c10;
-    }
-    .payout-cards { padding: 12px 16px 16px; display: grid; gap: 10px; }
+    .payout-cards { padding: 14px 18px 18px; display: grid; gap: 10px; }
     .payout-card {
-      display: grid;
-      gap: 8px;
-      padding: 12px 14px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
+      display: grid; gap: 9px; padding: 14px 16px; border-radius: 14px;
+      border: 1px solid var(--glass-stroke);
       border-left: 4px solid var(--game-c, var(--accent));
-      background: #101116;
+      background: #ffffff0a;
     }
-    .payout-card.is-overdue { border-color: rgba(255,69,58,0.5); }
-    .payout-card-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .payout-amount {
-      font-size: 17px;
-      font-weight: 800;
-      letter-spacing: -0.01em;
-    }
+    .payout-card.is-overdue { border-color: #ff453a80; }
+    .payout-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .payout-amount { font-family: var(--font-display); font-size: 17px; letter-spacing: -.01em; }
     .payout-status-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 10px;
-      border-radius: 999px;
-      font-size: 11.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
+      display: inline-flex; align-items: center; padding: 3px 11px; border-radius: 999px;
+      font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
     }
-    .payout-status-badge.st-pending { background: rgba(255,149,0,0.16); color: #ff9f0a; }
-    .payout-status-badge.st-paid { background: rgba(52,199,89,0.16); color: #34c759; }
-    .payout-status-badge.st-rejected { background: rgba(255,69,58,0.16); color: #ff453a; }
+    .payout-status-badge.st-pending { background: #ff9f0a29; color: #ffb020; }
+    .payout-status-badge.st-paid { background: #8fe36a29; color: var(--accent); }
+    .payout-status-badge.st-rejected { background: #ff453a29; color: #ff8078; }
     .payout-overdue-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 10px;
-      border-radius: 999px;
-      font-size: 11.5px;
-      font-weight: 700;
-      background: rgba(255,69,58,0.16);
-      color: #ff8a80;
+      display: inline-flex; align-items: center; padding: 3px 11px; border-radius: 999px;
+      font-family: var(--font-mono); font-size: 10.5px; background: #ff453a29; color: #ff8a80;
     }
-    .payout-meta { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; }
-    .payout-meta .mono { font-family: "DM Mono", ui-monospace, SFMono-Regular, monospace; }
+    .payout-meta { font-size: 12.5px; color: var(--fg-dim); line-height: 1.7; }
+    .payout-meta .mono { font-family: var(--font-mono); letter-spacing: .02em; color: var(--fg); }
     .payout-meta button.copy-wallet {
-      border: none;
-      background: none;
-      color: var(--accent);
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      padding: 0 0 0 6px;
+      border: none; background: none; padding: 0 0 0 6px;
+      color: var(--accent); font-family: var(--font-mono); font-size: 11.5px; cursor: pointer;
     }
+    .payout-meta button.copy-wallet:hover { filter: none; text-decoration: underline; }
     .payout-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    .payout-actions input[type="text"] { width: 220px; }
-    .payout-actions button { padding: 8px 12px; font-size: 12.5px; }
-    .payout-readonly-note {
-      font-size: 12.5px;
-      color: var(--text-dim);
-    }
-    .payout-readonly-note a { font-weight: 700; }
-    .payout-card-status { font-size: 12px; }
-    .payout-card-status[data-mode="open"] { color: #9fe6b0; }
-    .payout-card-status[data-mode="locked"] { color: #ff5252; }
-    a { color: #66aaff; }
-    .notis-seg {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 4px;
-    }
+    .payout-actions input[type="text"] { width: 240px; padding: 10px 12px; font-size: 13px; }
+    .payout-actions button { padding: 9px 14px; font-size: 11px; }
+    .payout-readonly-note { margin: 0; font-size: 12.5px; color: var(--fg-dim); }
+    .payout-card-status { margin: 0; font-size: 12px; color: var(--fg-dim); }
+    .payout-card-status[data-mode="open"] { color: var(--accent); }
+    .payout-card-status[data-mode="locked"] { color: var(--danger); }
+
+    /* ================= PIXEL ALERT COMPOSER ================= */
+    .notis-seg { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
     .notis-seg-btn {
-      flex: 1 1 170px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-strong);
-      background: #101116;
-      color: #fff;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.15s ease, border-color 0.15s ease;
+      flex: 1 1 180px; display: flex; align-items: center; justify-content: center; gap: 9px;
+      padding: 14px; border-radius: var(--radius-sm);
+      border: 1px solid var(--glass-stroke); background: #ffffff0a; color: var(--fg);
+      font-family: var(--font-ui); font-weight: 700; font-size: 13.5px; cursor: pointer;
+      transition: background .16s var(--ease), border-color .16s var(--ease);
     }
+    .notis-seg-btn:hover { filter: none; background: #ffffff14; }
     .notis-seg-btn .glyph { font-size: 16px; line-height: 1; }
-    .notis-seg-btn[aria-pressed="true"] { border-color: #66aaff; background: #16202e; }
+    .notis-seg-btn[aria-pressed="true"] { border-color: var(--accent); background: #8fe36a1f; }
     .notis-seg-btn[data-platform="x"][aria-pressed="true"] { border-color: #fff; background: #000; }
     .notis-seg-btn[data-platform="tiktok"][aria-pressed="true"] { border-color: #ff0050; background: #241019; }
-    .notis-counter { float: right; font-weight: 400; color: rgba(255,255,255,0.55); font-size: 12px; }
+    .notis-counter { float: right; font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-faint); letter-spacing: .06em; }
     .notis-check {
-      display: flex;
-      align-items: flex-start;
-      gap: 9px;
-      margin-top: 14px;
-      cursor: pointer;
-      font-size: 14px;
-      color: rgba(255,255,255,0.9);
+      display: flex; align-items: flex-start; gap: 10px; margin: 16px 0 0;
+      cursor: pointer; font-family: var(--font-ui); font-size: 14px;
+      letter-spacing: 0; text-transform: none; color: var(--fg);
     }
-    .notis-check input { width: auto; margin-top: 2px; flex: none; accent-color: #26a35a; }
-    .notis-check small { display: block; color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 2px; }
-    .notis-schedule { margin: 8px 0 0; min-height: 1.2em; font-size: 12.5px; color: #9fe6b0; }
+    .notis-check input { width: auto; flex: none; margin-top: 3px; padding: 0; accent-color: var(--accent); }
+    .notis-check small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--fg-faint); }
+    .notis-schedule { margin: 10px 0 0; min-height: 1.2em; font-size: 12.5px; color: var(--accent); }
     .notis-schedule:empty { display: none; }
-    #notis-status { margin: 12px 0 0; }
-    #notis-status[data-tone="ok"] { color: #9fe6b0; }
-    #notis-status[data-tone="warn"] { color: #f4d35e; }
-    #notis-status[data-tone="err"] { color: #ff8a9c; }
-    @media (max-width: 960px) {
-      .hero-row { margin: -18px -16px 18px; }
-      .workspace {
-        grid-template-columns: 1fr;
+    #notis-status[data-tone="ok"] { color: var(--accent); }
+    #notis-status[data-tone="warn"] { color: var(--warn); }
+    #notis-status[data-tone="err"] { color: var(--danger); }
+
+    /* ================= FEEDBACK ================= */
+    .inline-check {
+      display: flex; align-items: center; gap: 9px; margin: 0 0 4px;
+      font-family: var(--font-ui); font-size: 14px; letter-spacing: 0;
+      text-transform: none; color: var(--fg); cursor: pointer;
+    }
+    .inline-check input { width: auto; flex: none; padding: 0; accent-color: var(--accent); }
+
+    /* ================= RESPONSIVE ================= */
+    @media (max-width: 1080px) {
+      .workspace { grid-template-columns: 1fr; }
+      .editor-card { position: static; }
+      .preview-shell { max-height: none; }
+      .payouts-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .rail {
+        position: static; height: auto; flex-direction: column; gap: 12px;
+        padding: 16px 16px 12px;
+        border-right: 0; border-bottom: 1px solid var(--glass-stroke);
       }
-      .analytics-grid {
-        grid-template-columns: 1fr;
+      .rail-brand { justify-items: start; }
+      .rail-nav {
+        grid-auto-flow: column; grid-auto-columns: max-content; align-items: center;
+        gap: 6px; overflow-x: auto; padding-bottom: 4px;
       }
-      .editor-card {
-        position: static;
+      .group { display: none; }
+      .nav-link { padding: 8px 14px; border: 1px solid var(--glass-stroke); white-space: nowrap; }
+      .nav-link:hover { padding-left: 14px; }
+      .nav-dot { display: none; }
+      .rail-foot {
+        margin-top: 0; padding-top: 12px;
+        grid-auto-flow: column; grid-auto-columns: max-content; justify-content: start;
       }
-      .preview-shell {
-        max-height: none;
-      }
-      .analytics-chart {
-        grid-auto-columns: minmax(38px, 1fr);
-      }
+      .topbar { padding: 14px 18px; }
+      .topbar-right { justify-items: start; }
+      .sync-line { text-align: left; }
+      .views { padding: 18px 18px 60px; }
+      .card { padding: 18px 18px 20px; }
+      .analytics-grid, .payouts-summary { grid-template-columns: 1fr; }
+      .analytics-chart { grid-auto-columns: minmax(38px, 1fr); }
+      .payout-actions input[type="text"] { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="hero-row">
-      <div>
-        <h1>Troll Runner Admin</h1>
-        <p class="hero-sub">Add latest updates quickly. These updates save locally and also sync to shared Supabase storage so they appear on other devices.</p>
+  <div class="shell">
+    <!-- ============ LEFT RAIL ============ -->
+    <aside class="rail">
+      <div class="rail-brand">
+        <a class="wordmark" href="index.html" aria-label="TrollRunner home">TR<img src="assets/animations/troll-grin.gif" alt="">LLRUNNER</a>
+        <span class="rail-tag">Admin console</span>
       </div>
-      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
-        <a class="back-link" href="index.html">← Back to site</a>
-        <a class="back-link" href="https://projects.trollrunner.net/" target="_blank" rel="noopener noreferrer">🛠️ Projects / Community</a>
+
+      <nav class="rail-nav" aria-label="Admin sections">
+        <p class="group">Site</p>
+        <a class="nav-link" href="#site" data-view="site" data-title="Site controls">Site controls<span class="nav-dot"></span></a>
+        <a class="nav-link" href="#broadcast" data-view="broadcast" data-title="Broadcast">Broadcast<span class="nav-dot"></span></a>
+
+        <p class="group">Content</p>
+        <a class="nav-link" href="#updates" data-view="updates" data-title="Updates &amp; archives">Updates<span class="nav-dot"></span></a>
+        <a class="nav-link" href="#feedback" data-view="feedback" data-title="Feedback inbox">Feedback<span class="nav-dot"></span></a>
+
+        <p class="group">Community</p>
+        <a class="nav-link" href="#accounts" data-view="accounts" data-title="Player accounts">Accounts<span class="nav-dot"></span></a>
+        <a class="nav-link" href="#payouts" data-view="payouts" data-title="Payout requests">Payouts<span class="nav-dot"></span></a>
+
+        <p class="group">Growth</p>
+        <a class="nav-link" href="#newsletter" data-view="newsletter" data-title="Newsletter signups">Newsletter<span class="nav-dot"></span></a>
+        <a class="nav-link" href="#analytics" data-view="analytics" data-title="Website views">Website views<span class="nav-dot"></span></a>
+      </nav>
+
+      <div class="rail-foot">
+        <a class="rail-out" href="index.html">Back to site <span aria-hidden="true">&#8599;</span></a>
+        <a class="rail-out" href="https://projects.trollrunner.net/" target="_blank" rel="noopener noreferrer">Projects / community <span aria-hidden="true">&#8599;</span></a>
       </div>
-    </div>
+    </aside>
 
-    <div class="workspace">
-      <div class="card editor-card">
-        <label for="u-title">Update title</label>
-        <input id="u-title" placeholder="April 7, 2026 — New Drop">
-
-        <div style="height:10px"></div>
-        <label for="u-body">Update body</label>
-        <textarea id="u-body" placeholder="Placed stickers at..."></textarea>
-        <p>Use `- item` for bullets or `1. item` for numbered lists.</p>
-
-        <div class="row">
-          <button id="update-submit-btn" onclick="addUpdate()">Add update</button>
-          <button id="update-cancel-btn" class="secondary" onclick="cancelUpdateEdit()" style="display:none;">Cancel edit</button>
-          <button class="secondary" onclick="clearUpdates()">Clear all custom updates</button>
+    <!-- ============ MAIN ============ -->
+    <div class="main">
+      <header class="topbar">
+        <div>
+          <p class="topbar-kicker">Troll Runner admin</p>
+          <h1 id="view-title">Site controls</h1>
         </div>
-      </div>
-
-      <div class="card preview preview-pane">
-        <div class="pane-head">
-          <div>
-            <h3>Updates & archives</h3>
-            <p class="pane-subtitle">Latest homepage items stay visible at the top. Full update history is grouped below by month and year.</p>
+        <div class="topbar-right">
+          <div class="pill-row">
+            <span class="pill" id="admin-auth-pill">Admin: checking</span>
           </div>
-          <div class="pane-stats">
-            <span id="update-count-pill">0 active</span>
-            <span id="archive-count-pill">0 in history</span>
-          </div>
+          <!-- Every shared-sync write in the page reports through this one
+               node (getSyncStatusText reads it back), so it lives in the
+               topbar where it is visible from whichever section you're in. -->
+          <p class="sync-line" id="sync-state">Shared sync status will appear here.</p>
         </div>
-        <div class="preview-shell">
-          <div id="preview"></div>
-        </div>
-      </div>
-    </div>
+      </header>
 
-    <div class="card lock-console">
-      <div class="pane-head">
-        <div>
-          <h3>Public lock console</h3>
-          <p class="pane-subtitle">Lock or unlock the whole site from one place. The warning still lands everywhere with the 10-second countdown.</p>
-        </div>
-        <div class="pane-stats">
-          <span id="admin-auth-pill">Admin: checking</span>
-          <span id="public-lock-pill">Public: loading</span>
-        </div>
-      </div>
-      <p id="public-lock-status" class="lock-console-status">Checking site lock state...</p>
-      <div class="row">
-        <button id="public-lock-btn" class="alert" type="button">Lock public site</button>
-        <button id="public-unlock-btn" class="success" type="button">Unlock public site</button>
-        <button id="public-refresh-btn" class="secondary" type="button">Refresh status</button>
-        <button id="admin-link-btn" class="secondary" type="button">Sign in as admin</button>
-        <button id="admin-signout-btn" class="secondary" type="button">Sign out</button>
-      </div>
-      <p id="admin-control-status" class="lock-console-status">Use the admin password to control the public lock.</p>
-    </div>
+      <div class="views">
 
-    <div class="card lock-console">
-      <div class="pane-head">
-        <div>
-          <h3>Coming-soon gate</h3>
-          <p class="pane-subtitle">One click flips the "coming soon" splash on or off for every visitor on every Troll Runner app subdomain (games, finance, fitness, garden, blog, nutrition, stickers, videos, projects) — no per-browser admin password needed once you're signed in here. The hub at trollrunner.net and the Terminal app are always open to the public (login/create account) regardless of this switch.</p>
-        </div>
-        <div class="pane-stats">
-          <span id="gate-lock-pill">Gate: loading</span>
-        </div>
-      </div>
-      <p id="gate-lock-status" class="lock-console-status">Checking coming-soon gate state...</p>
-      <div class="row">
-        <button id="gate-on-btn" class="alert" type="button">Turn coming-soon ON</button>
-        <button id="gate-off-btn" class="success" type="button">Turn coming-soon OFF (open site)</button>
-        <button id="gate-refresh-btn" class="secondary" type="button">Refresh status</button>
-      </div>
-    </div>
-
-
-    <div class="card">
-      <div class="pane-head">
-        <div>
-          <h3>Live status popup controls</h3>
-          <p class="pane-subtitle">Toggle the homepage live popups shown below the header buttons.</p>
-        </div>
-        <div class="pane-stats">
-          <span class="summary-note">Homepage toggles</span>
-        </div>
-      </div>
-      <p id="live-status-running-state">Running/trolling live popup is currently off.</p>
-      <p id="sync-state">Shared sync status will appear here.</p>
-      <div class="row">
-        <button class="alert" onclick="setLiveStatus('running', true)">Turn running/trolling on</button>
-        <button class="secondary" onclick="setLiveStatus('running', false)">Turn running/trolling off</button>
-      </div>
-      <p id="live-status-coding-state">Coding/trolling live popup is currently off.</p>
-      <div class="row">
-        <button class="success" onclick="setLiveStatus('coding', true)">Turn coding/trolling on</button>
-        <button class="secondary" onclick="setLiveStatus('coding', false)">Turn coding/trolling off</button>
-      </div>
-    </div>
-
-    <details class="card collapsible" open>
-      <summary>
-        <span>Drop a pixel alert</span>
-        <span class="summary-note">X / TikTok</span>
-      </summary>
-      <div class="collapsible-body">
-        <p>Pops a nostalgic pixel notification on everyone currently browsing any Troll Runner page, with your summary and a tap-through link. Fresh page-loads catch the latest one too.</p>
-
-        <label>Platform</label>
-        <div class="notis-seg" id="notis-seg">
-          <button type="button" class="notis-seg-btn" data-platform="x" aria-pressed="true">
-            <span class="glyph">𝕏</span> X · @troll_runner
-          </button>
-          <button type="button" class="notis-seg-btn" data-platform="tiktok" aria-pressed="false">
-            <span class="glyph">🎵</span> TikTok · @mayurski
-          </button>
-        </div>
-
-        <div style="height:10px"></div>
-        <label for="notis-summary">Post summary <span class="notis-counter" id="notis-count">0 / 180</span></label>
-        <textarea id="notis-summary" maxlength="180" placeholder="Dropped 12 fresh troll stickers across Riverside today — full route in the post 👀"></textarea>
-
-        <div style="height:10px"></div>
-        <label for="notis-url">Link to the post</label>
-        <input id="notis-url" type="url" inputmode="url" placeholder="https://x.com/troll_runner/status/...">
-
-        <label class="notis-check">
-          <input type="checkbox" id="notis-resend" checked>
-          <span>Auto-resend at 8 AM &amp; 5 PM Pacific <small>(same alert pops 3× total: now + 2 reminders)</small></span>
-        </label>
-        <p id="notis-schedule" class="notis-schedule"></p>
-
-        <div class="row">
-          <button id="notis-send" type="button">📣 Broadcast to everyone</button>
-          <button id="notis-preview" class="secondary" type="button">👁 Preview here</button>
-        </div>
-        <p id="notis-status" class="lock-console-status">Connecting to live sync…</p>
-      </div>
-    </details>
-
-    <details class="card collapsible">
-      <summary>
-        <span>Feedback to admin system</span>
-        <span class="summary-note">Inbox</span>
-      </summary>
-      <div class="collapsible-body">
-        <label class="row" style="align-items:center; gap:6px;">
-          <input type="checkbox" id="feedback-show-archived" onchange="renderFeedback()">
-          Show archived <span id="feedback-archived-count" class="summary-note"></span>
-        </label>
-        <div id="feedback-preview"></div>
-        <div class="row">
-          <button class="secondary" onclick="clearFeedback()">Clear feedback inbox</button>
-        </div>
-      </div>
-    </details>
-
-    <details class="card collapsible" open>
-      <summary>
-        <span>Player accounts</span>
-        <span class="summary-note">Everyone registered</span>
-      </summary>
-      <div class="collapsible-body">
-        <p>Every TrollRunner account, live from Supabase. Levels and XP are the server-verified values — the same numbers players see in their profile.</p>
-        <div id="accounts-summary" class="analytics-grid"></div>
-        <div class="row accounts-toolbar">
-          <input id="accounts-search" type="search" placeholder="Search username…" aria-label="Search accounts by username">
-          <select id="accounts-sort" aria-label="Sort accounts">
-            <option value="newest">Newest first</option>
-            <option value="xp">Most XP</option>
-            <option value="games">Most games played</option>
-            <option value="active">Recently active</option>
-            <option value="name">Username A–Z</option>
-          </select>
-          <button id="accounts-refresh" class="secondary" type="button">Refresh</button>
-        </div>
-        <div id="accounts-table-wrap" class="accounts-table-scroll"></div>
-        <p id="accounts-status" class="lock-console-status">Loading accounts…</p>
-      </div>
-    </details>
-
-    <details class="card collapsible payouts-card" open>
-      <summary>
-        <span>💸 Payout requests<span id="payouts-live-dot" class="payouts-live-dot" title="Live updates connected" hidden></span></span>
-        <span id="payouts-pending-note" class="summary-note">Loading…</span>
-      </summary>
-      <div class="collapsible-body">
-        <p>Every manually-reviewed payout claim across every game, in one place. Troll Kombat (and future arcade) wager
-          claims can be marked paid or rejected right here. Troll Casino redemptions are shown for visibility — use
-          the Troll Casino admin panel to actually pay or reject those (it already knows how to refund a rejected
-          player's in-game balance).</p>
-        <div id="payouts-summary" class="analytics-grid payouts-summary"></div>
-        <div class="row payouts-pill-row" id="payouts-game-pills"></div>
-        <div class="row payouts-pill-row" id="payouts-status-pills"></div>
-        <div class="row payouts-toolbar">
-          <input id="payouts-search" type="search" placeholder="Search wallet address…" aria-label="Search payout requests by wallet">
-          <button id="payouts-refresh" class="secondary" type="button">Refresh</button>
-        </div>
-        <div id="payouts-groups"></div>
-        <p id="payouts-status" class="lock-console-status">Loading payout requests…</p>
-      </div>
-    </details>
-
-    <details class="card collapsible" open>
-      <summary>
-        <span>Newsletter signups</span>
-        <span class="summary-note">Launch list</span>
-      </summary>
-      <div class="collapsible-body">
-        <p>Emails collected from the coming-soon gate on the homepage. Only your admin session can read this list — the public anon key can submit but never read.</p>
-        <div id="newsletter-summary" class="analytics-grid"></div>
-        <div class="row">
-          <button id="newsletter-refresh" class="secondary" type="button">Refresh</button>
-          <button id="newsletter-copy" class="secondary" type="button">Copy all emails</button>
-          <button id="newsletter-csv" class="secondary" type="button">Download CSV</button>
-        </div>
-        <div id="newsletter-table-wrap" class="accounts-table-scroll"></div>
-        <p id="newsletter-status" class="lock-console-status">Loading signups…</p>
-      </div>
-    </details>
-
-    <details class="card collapsible" open>
-      <summary>
-        <span>Website views</span>
-        <span class="summary-note">Admin only</span>
-      </summary>
-      <div class="collapsible-body">
-        <p>Daily, weekly, and monthly visitor tracking. This panel only renders inside admin.</p>
-        <div id="view-analytics-summary" class="analytics-grid"></div>
-        <div class="analytics-chart-panel" aria-label="Website viewers over time">
-          <div class="analytics-chart-head">
-            <div>
-              <h4 id="view-analytics-chart-title">Viewers vs time</h4>
-              <p id="view-analytics-chart-subtitle" class="pane-subtitle">Unique viewers by day.</p>
+        <!-- ---------- SITE CONTROLS ---------- -->
+        <section class="view" data-view="site" aria-label="Site controls">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Public lock console</h2>
+                <p class="card-sub">Lock or unlock the whole site from one place. The warning still lands everywhere with the 10-second countdown.</p>
+              </div>
+              <div class="pill-row">
+                <span class="pill" id="public-lock-pill">Public: loading</span>
+              </div>
             </div>
-            <div class="analytics-range-controls" aria-label="Website views time range">
-              <button id="analytics-range-week" type="button" onclick="setViewAnalyticsRange('week')">Week</button>
-              <button id="analytics-range-month" type="button" onclick="setViewAnalyticsRange('month')">Month</button>
-              <button id="analytics-range-year" type="button" onclick="setViewAnalyticsRange('year')">Year</button>
+            <p id="public-lock-status" class="status-line">Checking site lock state...</p>
+            <div class="row">
+              <button id="public-lock-btn" class="alert" type="button">Lock public site</button>
+              <button id="public-unlock-btn" class="success" type="button">Unlock public site</button>
+              <button id="public-refresh-btn" class="secondary" type="button">Refresh status</button>
+              <button id="admin-link-btn" class="secondary" type="button">Sign in as admin</button>
+              <button id="admin-signout-btn" class="secondary" type="button">Sign out</button>
+            </div>
+            <p id="admin-control-status" class="status-line">Use the admin password to control the public lock.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Coming-soon gate</h2>
+                <p class="card-sub">One click flips the "coming soon" splash on or off for every visitor on every Troll Runner app subdomain (games, finance, fitness, garden, blog, nutrition, stickers, videos, projects) — no per-browser admin password needed once you're signed in here. The hub at trollrunner.net and the Terminal app are always open to the public (login/create account) regardless of this switch.</p>
+              </div>
+              <div class="pill-row">
+                <span class="pill" id="gate-lock-pill">Gate: loading</span>
+              </div>
+            </div>
+            <p id="gate-lock-status" class="status-line">Checking coming-soon gate state...</p>
+            <div class="row">
+              <button id="gate-on-btn" class="alert" type="button">Turn coming-soon ON</button>
+              <button id="gate-off-btn" class="success" type="button">Turn coming-soon OFF (open site)</button>
+              <button id="gate-refresh-btn" class="secondary" type="button">Refresh status</button>
             </div>
           </div>
-          <div class="analytics-chart-wrap">
-            <div class="analytics-axis-y">Viewers</div>
-            <div id="view-analytics-chart" class="analytics-chart" role="img" aria-labelledby="view-analytics-chart-title view-analytics-chart-subtitle"></div>
-            <div class="analytics-axis-x">Time</div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Live status popups</h2>
+                <p class="card-sub">Toggle the homepage live popups shown below the header buttons.</p>
+              </div>
+              <div class="pill-row">
+                <span class="summary-note">Homepage toggles</span>
+              </div>
+            </div>
+            <p id="live-status-running-state" class="status-line">Running/trolling live popup is currently off.</p>
+            <div class="row">
+              <button class="alert" onclick="setLiveStatus('running', true)">Turn running/trolling on</button>
+              <button class="secondary" onclick="setLiveStatus('running', false)">Turn running/trolling off</button>
+            </div>
+            <p id="live-status-coding-state" class="status-line">Coding/trolling live popup is currently off.</p>
+            <div class="row">
+              <button class="success" onclick="setLiveStatus('coding', true)">Turn coding/trolling on</button>
+              <button class="secondary" onclick="setLiveStatus('coding', false)">Turn coding/trolling off</button>
+            </div>
           </div>
-        </div>
-        <div id="view-analytics-detail"></div>
+        </section>
+
+        <!-- ---------- BROADCAST ---------- -->
+        <section class="view" data-view="broadcast" aria-label="Broadcast">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Drop a pixel alert</h2>
+                <p class="card-sub">Pops a nostalgic pixel notification on everyone currently browsing any Troll Runner page, with your summary and a tap-through link. Fresh page-loads catch the latest one too.</p>
+              </div>
+              <div class="pill-row">
+                <span class="summary-note">X / TikTok</span>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Platform</label>
+              <div class="notis-seg" id="notis-seg">
+                <button type="button" class="notis-seg-btn" data-platform="x" aria-pressed="true">
+                  <span class="glyph">&#120143;</span> X · @troll_runner
+                </button>
+                <button type="button" class="notis-seg-btn" data-platform="tiktok" aria-pressed="false">
+                  <span class="glyph">&#9835;</span> TikTok · @mayurski
+                </button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="notis-summary">Post summary <span class="notis-counter" id="notis-count">0 / 180</span></label>
+              <textarea id="notis-summary" maxlength="180" placeholder="Dropped 12 fresh troll stickers across Riverside today — full route in the post"></textarea>
+            </div>
+
+            <div class="field">
+              <label for="notis-url">Link to the post</label>
+              <input id="notis-url" type="url" inputmode="url" placeholder="https://x.com/troll_runner/status/...">
+            </div>
+
+            <label class="notis-check">
+              <input type="checkbox" id="notis-resend" checked>
+              <span>Auto-resend at 8 AM &amp; 5 PM Pacific <small>(same alert pops 3× total: now + 2 reminders)</small></span>
+            </label>
+            <p id="notis-schedule" class="notis-schedule"></p>
+
+            <div class="row">
+              <button id="notis-send" type="button">Broadcast to everyone</button>
+              <button id="notis-preview" class="secondary" type="button">Preview here</button>
+            </div>
+            <p id="notis-status" class="status-line">Connecting to live sync…</p>
+          </div>
+        </section>
+
+        <!-- ---------- UPDATES ---------- -->
+        <section class="view" data-view="updates" aria-label="Updates and archives">
+          <div class="workspace">
+            <div class="card editor-card">
+              <div class="card-head">
+                <div>
+                  <h2>Compose</h2>
+                  <p class="card-sub">Updates save locally and sync to shared Supabase storage, so they show up on every device.</p>
+                </div>
+              </div>
+              <div class="field">
+                <label for="u-title">Update title</label>
+                <input id="u-title" placeholder="April 7, 2026 — New Drop">
+              </div>
+              <div class="field">
+                <label for="u-body">Update body</label>
+                <textarea id="u-body" placeholder="Placed stickers at..."></textarea>
+                <p class="field-hint">Use <code>- item</code> for bullets or <code>1. item</code> for numbered lists.</p>
+              </div>
+              <div class="row">
+                <button id="update-submit-btn" onclick="addUpdate()">Add update</button>
+                <button id="update-cancel-btn" class="secondary" onclick="cancelUpdateEdit()" style="display:none;">Cancel edit</button>
+                <button class="secondary" onclick="clearUpdates()">Clear all custom updates</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <h2>Updates &amp; archives</h2>
+                  <p class="card-sub">Latest homepage items stay visible at the top. Full update history is grouped below by month and year.</p>
+                </div>
+                <div class="pill-row">
+                  <span class="pill" id="update-count-pill">0 active</span>
+                  <span class="pill" id="archive-count-pill">0 in history</span>
+                </div>
+              </div>
+              <div class="preview-shell">
+                <div id="preview"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- FEEDBACK ---------- -->
+        <section class="view" data-view="feedback" aria-label="Feedback inbox">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Feedback inbox</h2>
+                <p class="card-sub">Everything submitted through the site's feedback form, newest first.</p>
+              </div>
+              <div class="pill-row">
+                <span class="summary-note">Inbox</span>
+              </div>
+            </div>
+            <label class="inline-check">
+              <input type="checkbox" id="feedback-show-archived" onchange="renderFeedback()">
+              Show archived <span id="feedback-archived-count" class="summary-note"></span>
+            </label>
+            <div id="feedback-preview"></div>
+            <div class="row">
+              <button class="secondary" onclick="clearFeedback()">Clear feedback inbox</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- ACCOUNTS ---------- -->
+        <section class="view" data-view="accounts" aria-label="Player accounts">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Player accounts</h2>
+                <p class="card-sub">Every TrollRunner account, live from Supabase. Levels and XP are the server-verified values — the same numbers players see in their profile.</p>
+              </div>
+              <div class="pill-row">
+                <span class="summary-note">Everyone registered</span>
+              </div>
+            </div>
+            <div id="accounts-summary" class="analytics-grid"></div>
+            <div class="row accounts-toolbar">
+              <input id="accounts-search" type="search" placeholder="Search username…" aria-label="Search accounts by username">
+              <select id="accounts-sort" aria-label="Sort accounts">
+                <option value="newest">Newest first</option>
+                <option value="xp">Most XP</option>
+                <option value="games">Most games played</option>
+                <option value="active">Recently active</option>
+                <option value="name">Username A–Z</option>
+              </select>
+              <button id="accounts-refresh" class="secondary" type="button">Refresh</button>
+            </div>
+            <div id="accounts-table-wrap" class="accounts-table-scroll"></div>
+            <p id="accounts-status" class="status-line">Loading accounts…</p>
+          </div>
+        </section>
+
+        <!-- ---------- PAYOUTS ---------- -->
+        <section class="view" data-view="payouts" aria-label="Payout requests">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Payout requests<span id="payouts-live-dot" class="payouts-live-dot" title="Live updates connected" hidden></span></h2>
+                <p class="card-sub">Every manually-reviewed payout claim across every game, in one place. Troll Kombat (and future arcade) wager claims can be marked paid or rejected right here. Troll Casino redemptions are shown for visibility — use the Troll Casino admin panel to actually pay or reject those (it already knows how to refund a rejected player's in-game balance).</p>
+              </div>
+              <div class="pill-row">
+                <span id="payouts-pending-note" class="summary-note">Loading…</span>
+              </div>
+            </div>
+            <div id="payouts-summary" class="analytics-grid payouts-summary"></div>
+            <div class="row payouts-pill-row" id="payouts-game-pills"></div>
+            <div class="row payouts-pill-row" id="payouts-status-pills"></div>
+            <div class="row payouts-toolbar">
+              <input id="payouts-search" type="search" placeholder="Search wallet address…" aria-label="Search payout requests by wallet">
+              <button id="payouts-refresh" class="secondary" type="button">Refresh</button>
+            </div>
+            <div id="payouts-groups"></div>
+            <p id="payouts-status" class="status-line">Loading payout requests…</p>
+          </div>
+        </section>
+
+        <!-- ---------- NEWSLETTER ---------- -->
+        <section class="view" data-view="newsletter" aria-label="Newsletter signups">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Newsletter signups</h2>
+                <p class="card-sub">Emails collected from the coming-soon gate on the homepage. Only your admin session can read this list — the public anon key can submit but never read.</p>
+              </div>
+              <div class="pill-row">
+                <span class="summary-note">Launch list</span>
+              </div>
+            </div>
+            <div id="newsletter-summary" class="analytics-grid"></div>
+            <div class="row">
+              <button id="newsletter-refresh" class="secondary" type="button">Refresh</button>
+              <button id="newsletter-copy" class="secondary" type="button">Copy all emails</button>
+              <button id="newsletter-csv" class="secondary" type="button">Download CSV</button>
+            </div>
+            <div id="newsletter-table-wrap" class="accounts-table-scroll"></div>
+            <p id="newsletter-status" class="status-line">Loading signups…</p>
+          </div>
+        </section>
+
+        <!-- ---------- WEBSITE VIEWS ---------- -->
+        <section class="view" data-view="analytics" aria-label="Website views">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Website views</h2>
+                <p class="card-sub">Daily, weekly, and monthly visitor tracking. This panel only renders inside admin.</p>
+              </div>
+              <div class="pill-row">
+                <span class="summary-note">Admin only</span>
+              </div>
+            </div>
+            <div id="view-analytics-summary" class="analytics-grid"></div>
+            <div class="analytics-chart-panel" aria-label="Website viewers over time">
+              <div class="analytics-chart-head">
+                <div>
+                  <h4 id="view-analytics-chart-title">Viewers vs time</h4>
+                  <p id="view-analytics-chart-subtitle" class="pane-subtitle">Unique viewers by day.</p>
+                </div>
+                <div class="analytics-range-controls" aria-label="Website views time range">
+                  <button id="analytics-range-week" type="button" onclick="setViewAnalyticsRange('week')">Week</button>
+                  <button id="analytics-range-month" type="button" onclick="setViewAnalyticsRange('month')">Month</button>
+                  <button id="analytics-range-year" type="button" onclick="setViewAnalyticsRange('year')">Year</button>
+                </div>
+              </div>
+              <div class="analytics-chart-wrap">
+                <div class="analytics-axis-y">Viewers</div>
+                <div id="view-analytics-chart" class="analytics-chart" role="img" aria-labelledby="view-analytics-chart-title view-analytics-chart-subtitle"></div>
+                <div class="analytics-axis-x">Time</div>
+              </div>
+            </div>
+            <div id="view-analytics-detail"></div>
+          </div>
+        </section>
+
       </div>
-    </details>
+    </div>
   </div>
+
+  <script>
+    /* ---- Section switcher ----
+       Purely presentational: every panel still exists in the DOM from first
+       paint, so all the panel scripts below bind and poll exactly as they did
+       when this page was one long scroll. Only visibility changes. The chosen
+       section is mirrored into the URL hash and remembered per browser. */
+    (function () {
+      const VIEW_KEY = 'trollrunner_admin_view';
+      const views = Array.from(document.querySelectorAll('.view'));
+      const links = Array.from(document.querySelectorAll('.nav-link'));
+      const titleEl = document.getElementById('view-title');
+      const names = views.map(v => v.dataset.view);
+
+      function show(name) {
+        const target = names.includes(name) ? name : names[0];
+        views.forEach(v => { v.hidden = v.dataset.view !== target; });
+        links.forEach(link => {
+          const on = link.dataset.view === target;
+          link.classList.toggle('is-active', on);
+          if (on) {
+            link.setAttribute('aria-current', 'page');
+            if (titleEl) titleEl.textContent = link.dataset.title || link.textContent.trim();
+          } else {
+            link.removeAttribute('aria-current');
+          }
+        });
+        try { localStorage.setItem(VIEW_KEY, target); } catch {}
+      }
+
+      links.forEach(link => link.addEventListener('click', () => show(link.dataset.view)));
+      window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+
+      let initial = location.hash.slice(1);
+      if (!names.includes(initial)) {
+        try { initial = localStorage.getItem(VIEW_KEY) || ''; } catch { initial = ''; }
+      }
+      show(initial);
+    })();
+  </script>
 
   <script src="assets/js/site-lock.js"></script>
   <script src="assets/js/coming-soon.js"></script>
