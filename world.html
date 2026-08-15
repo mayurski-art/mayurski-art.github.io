@@ -1141,7 +1141,7 @@
        password session, not a regular troll_runner profile login. This is
        what admin.html itself gates on, so it's what the menu's Admin link
        needs too — see checkAdminMenuAccess() below. -->
-  <script src="assets/js/admin-auth.js?v=20260723d"></script>
+  <script src="assets/js/admin-auth.js?v=20260815a"></script>
   <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
   <!-- Rewrites the app icons' cross-site links to same-origin paths so the
        phone entrance can transition into them — but only once the front door
@@ -1186,11 +1186,12 @@
       // back to this entrance by index.html's phone check — ?desktop=1 is
       // what actually lands on the classic desktop. The desktop's taskbar
       // carries a matching way back to this entrance (#td-mobile-return).
-      // Sits in TrollChat's old spot — TrollChat itself is gone from the
-      // grid/menu (still reachable from the classic desktop's own dock; it
-      // just duplicated what "Classic desktop" already covered here).
+      // Sits in TrollChat's old spot. Hands off straight into the chat
+      // window on the classic desktop (?open=chat, same mechanism as the
+      // Account/Updates/Feedback/Recycle tiles below) rather than just
+      // landing on the desktop and making a phone visitor find the dock icon.
       { id: 'hub',      label: 'The Hub',   sub: 'trollrunner.net',
-        to: '/?desktop=1', color: '#4dff73',
+        to: '/?desktop=1&open=chat', color: '#4dff73',
         icon: 'assets/images/icons/hub.png', img: 'assets/images/world/hub.png',
         l: 38, t: 470, h: 12 },
       { id: 'maps',     label: 'Maps',      sub: 'maps.trollrunner.net',
@@ -1367,7 +1368,14 @@
           a.classList.add('is-locked');
           a.setAttribute('aria-disabled', 'true');
           a.removeAttribute('href');
-          a.addEventListener('click', e => { if (a.classList.contains('is-locked')) e.preventDefault(); });
+          // Locked just means "not signed in yet" — same as the desktop's
+          // Admin button, tapping it should prompt for the password
+          // (openAdminPageOrLink) rather than dead-end with preventDefault.
+          a.addEventListener('click', e => {
+            if (!a.classList.contains('is-locked')) return;
+            e.preventDefault();
+            void window.TrollrunnerAdminAuth?.openAdminPageOrLink?.();
+          });
           const lock = document.createElement('span');
           lock.className = 'ext';
           lock.textContent = '🔒';

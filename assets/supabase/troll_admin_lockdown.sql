@@ -408,3 +408,19 @@ grant execute on function public.troll_write_live_chat(jsonb) to anon, authentic
 --      live chat) keeps working exactly as before — it's now enforced
 --      server-side instead of trusted client-side.
 -- ============================================================
+
+-- ============================================================
+-- 8. OPTIONAL: let your regular troll_runner account skip the admin@login
+--    password entirely (added 2026-08-15 — see admin-auth.js's
+--    isTrollRunnerAccountAdmin()/getTrollRunnerAccountToken()). Once your
+--    troll_runner account's user_id is in troll_admins too,
+--    hasAdminSession()/getAccessToken() treat being signed into that
+--    regular account as an admin session on its own — no separate
+--    password, on any device, including mobile where the admin@login
+--    prompt is easy to skip past.
+--
+--    Run this once, swapping in your troll_runner account's username:
+--      insert into public.troll_admins (user_id)
+--      select id from public.troll_profiles where username_lower = lower('troll_runner')
+--      on conflict (user_id) do nothing;
+-- ============================================================

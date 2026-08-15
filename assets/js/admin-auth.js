@@ -6,6 +6,63 @@
   const ADMIN_AUTH_STORAGE_KEY = 'trollrunner-admin-auth';
 
   let client = null;
+  // A second, read-only client pointed at the *regular* troll_runner
+  // account's own storage key (same one troll-accounts.js uses) — lets us
+  // check "is the visitor logged into their normal account, and is that
+  // account server-flagged admin" without requiring troll-accounts.js to be
+  // loaded on this page. It's the same localStorage key either way, so if
+  // troll-accounts.js IS also loaded on the page both clients just read the
+  // same persisted session.
+  let accountsClient = null;
+
+  function getAccountsClient() {
+    if (accountsClient) return accountsClient;
+    if (!window.supabase?.createClient) return null;
+    accountsClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        storageKey: 'trollrunner-accounts-auth',
+      },
+    });
+    return accountsClient;
+  }
+
+  async function getTrollRunnerAccountToken() {
+    try {
+      const sb = getAccountsClient();
+      if (!sb) return null;
+      const { data } = await sb.auth.getSession();
+      return data?.session?.access_token || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Server-verified: is the visitor's regular troll_runner account itself
+  // one of the accounts in troll_admins (see troll_admin_lockdown.sql)?
+  // Lets a signed-in troll_runner account use the admin dashboard without a
+  // separate admin@login password, once its user_id is added to that table.
+  async function isTrollRunnerAccountAdmin() {
+    try {
+      const token = await getTrollRunnerAccountToken();
+      if (!token) return false;
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_is_admin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token}`,
+        },
+        body: '{}',
+      });
+      if (!response.ok) return false;
+      return (await response.json()) === true;
+    } catch {
+      return false;
+    }
+  }
 
   function getAuthClient() {
     if (client) return client;
@@ -78,16 +135,20 @@
   // backend enforces this independently either way.
   async function hasAdminSession() {
     const sb = getAuthClient();
-    if (!sb) return localStorage.getItem(ADMIN_AUTH_KEY) === '1';
-    try {
-      const { data } = await sb.auth.getSession();
-      const authed = Boolean(data?.session);
-      if (authed) localStorage.setItem(ADMIN_AUTH_KEY, '1');
-      else localStorage.removeItem(ADMIN_AUTH_KEY);
-      return authed;
-    } catch {
-      return localStorage.getItem(ADMIN_AUTH_KEY) === '1';
+    let authed = false;
+    let checked = false;
+    if (sb) {
+      try {
+        const { data } = await sb.auth.getSession();
+        authed = Boolean(data?.session);
+        checked = true;
+      } catch { /* fall through to the account-admin check below */ }
     }
+    if (!authed) authed = await isTrollRunnerAccountAdmin();
+    if (!checked && !authed) return localStorage.getItem(ADMIN_AUTH_KEY) === '1';
+    if (authed) localStorage.setItem(ADMIN_AUTH_KEY, '1');
+    else localStorage.removeItem(ADMIN_AUTH_KEY);
+    return authed;
   }
 
   // A session sitting in a backgrounded tab can outlive its access token:
@@ -100,15 +161,21 @@
   // trusting whatever's cached.
   async function getAccessToken() {
     const sb = getAuthClient();
-    if (!sb) return null;
-    const { data } = await sb.auth.getSession();
-    let session = data?.session || null;
-    const expiresAtMs = session?.expires_at ? session.expires_at * 1000 : 0;
-    if (session && expiresAtMs && expiresAtMs < Date.now() + 30000) {
-      const { data: refreshed, error } = await sb.auth.refreshSession();
-      if (!error && refreshed?.session) session = refreshed.session;
+    if (sb) {
+      const { data } = await sb.auth.getSession();
+      let session = data?.session || null;
+      const expiresAtMs = session?.expires_at ? session.expires_at * 1000 : 0;
+      if (session && expiresAtMs && expiresAtMs < Date.now() + 30000) {
+        const { data: refreshed, error } = await sb.auth.refreshSession();
+        if (!error && refreshed?.session) session = refreshed.session;
+      }
+      if (session?.access_token) return session.access_token;
     }
-    return session?.access_token || null;
+    // No live admin@login session — if the visitor's regular troll_runner
+    // account is itself flagged admin, use its token instead so writes
+    // (site lock, notis, admin.html saves) still go through.
+    if (await isTrollRunnerAccountAdmin()) return getTrollRunnerAccountToken();
+    return null;
   }
 
   function promptForAdminPassword() {
@@ -262,6 +329,7 @@
     getUser,
     getAccessToken,
     hasAdminSession,
+    isTrollRunnerAccountAdmin,
     awaitPasswordRecoverySettled,
     signInWithAdminPassword,
     requestAdminLink,
