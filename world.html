@@ -2309,13 +2309,20 @@
       let wpRaf = 0, wpBase = null, wpWaterMask = null;
 
       // Near-white -> transparent, with a short ramp so it's a soft cutout
-      // rather than a hard-edged sticker.
+      // rather than a hard-edged sticker. Luminance alone isn't enough: the
+      // sandy road's tan (~254,247,219) lands in the same bright band as the
+      // white backdrop and was fading out in patches. Requiring low channel
+      // spread too (background is neutral gray/white, road has real color
+      // separation between its channels) keeps the road solid.
       function keyToAlpha(ctx, w, h) {
         const frame = ctx.getImageData(0, 0, w, h);
         const d = frame.data;
-        const HI = 252, LO = 224; // luminance band that fades to alpha 0
+        const HI = 252, LO = 224, SPREAD = 22;
         for (let i = 0; i < d.length; i += 4) {
-          const lum = (d[i] + d[i + 1] + d[i + 2]) / 3;
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          const lum = (r + g + b) / 3;
+          const spread = Math.max(r, g, b) - Math.min(r, g, b);
+          if (spread >= SPREAD) continue;
           if (lum >= HI) d[i + 3] = 0;
           else if (lum > LO) d[i + 3] = Math.round(255 * (HI - lum) / (HI - LO));
         }
@@ -2328,12 +2335,12 @@
       // sparkle glints already drawn into the art (the track infield, the
       // shoreline) rather than inventing new spots.
       const SPARKLES = [
-        { x: 0.407, y: 0.188, r: 0.010, phase: 0.0 },
-        { x: 0.430, y: 0.174, r: 0.008, phase: 1.1 },
-        { x: 0.575, y: 0.337, r: 0.011, phase: 2.4 },
-        { x: 0.884, y: 0.407, r: 0.009, phase: 3.6 },
-        { x: 0.195, y: 0.466, r: 0.008, phase: 4.8 },
-        { x: 0.725, y: 0.694, r: 0.009, phase: 0.6 },
+        { x: 0.407, y: 0.188, r: 0.015, phase: 0.0 },
+        { x: 0.430, y: 0.174, r: 0.012, phase: 1.1 },
+        { x: 0.575, y: 0.337, r: 0.016, phase: 2.4 },
+        { x: 0.884, y: 0.407, r: 0.014, phase: 3.6 },
+        { x: 0.195, y: 0.466, r: 0.012, phase: 4.8 },
+        { x: 0.725, y: 0.694, r: 0.013, phase: 0.6 },
       ];
 
       function buildFrom(img) {
@@ -2346,6 +2353,22 @@
         const baseCtx = base.getContext('2d');
         baseCtx.drawImage(img, 0, 0, w, h);
         keyToAlpha(baseCtx, w, h);
+
+        // The cliff doesn't fully wrap the waterfall at the island's base —
+        // there's a real gap in the source art on both sides of it (roughly
+        // 490-700,810-1010 and 880-990,930-1010 in this image's native
+        // 1792x1008). Keyed transparent, that gap showed bare starfield
+        // instead of the pool a waterfall would actually land in.
+        // destination-over only fills pixels still transparent after
+        // keying, so real art (rock, grass) is untouched — this just closes
+        // the hole with the same blue as the lake, which then also flows
+        // into the water mask below and picks up the shine sweep.
+        baseCtx.save();
+        baseCtx.globalCompositeOperation = 'destination-over';
+        baseCtx.fillStyle = 'rgb(110,219,255)';
+        baseCtx.fillRect(490, 810, 210, 200);
+        baseCtx.fillRect(880, 930, 110, 80);
+        baseCtx.restore();
         wpBase = base;
 
         // The river/lake's water is a consistent sky-blue in the source
@@ -2393,16 +2416,35 @@
         wpCtx.drawImage(shine, 0, 0);
         wpCtx.globalCompositeOperation = 'source-over';
 
-        // Sparkle twinkle: small soft dots pulsing in and out, staggered.
+        // Sparkle twinkle: four-point glints pulsing in and out, staggered,
+        // matching the little hand-drawn sparkle marks already in the art.
         for (const s of SPARKLES) {
-          const a = 0.35 + 0.65 * Math.max(0, Math.sin(t / 1400 + s.phase));
-          const cx = s.x * w, cy = s.y * h, r = s.r * w;
-          const g = wpCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
-          g.addColorStop(0, `rgba(255,255,255,${a})`);
-          g.addColorStop(1, 'rgba(255,255,255,0)');
-          wpCtx.fillStyle = g;
-          wpCtx.beginPath(); wpCtx.arc(cx, cy, r, 0, Math.PI * 2); wpCtx.fill();
+          const pulse = Math.max(0, Math.sin(t / 1400 + s.phase));
+          const a = pulse * pulse; // holds near-zero longer, snaps brighter at the peak
+          if (a < 0.03) continue;
+          const cx = s.x * w, cy = s.y * h, r = s.r * w * (0.7 + 0.3 * pulse);
+          drawSparkle(wpCtx, cx, cy, r, a);
         }
+      }
+
+      function drawSparkle(ctx, cx, cy, r, alpha) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.globalAlpha = alpha;
+        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.6);
+        glow.addColorStop(0, 'rgba(255,255,255,0.9)');
+        glow.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(0, -r);
+        ctx.quadraticCurveTo(r * 0.14, -r * 0.14, r, 0);
+        ctx.quadraticCurveTo(r * 0.14, r * 0.14, 0, r);
+        ctx.quadraticCurveTo(-r * 0.14, r * 0.14, -r, 0);
+        ctx.quadraticCurveTo(-r * 0.14, -r * 0.14, 0, -r);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
       }
 
       function wpLoop(t) { wpPaint(t); wpRaf = requestAnimationFrame(wpLoop); }
