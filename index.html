@@ -6974,11 +6974,21 @@ function tdStartWallpaperLoop(src) {
   const videoB = document.getElementById('td-wallpaper-video-b');
   if (!videoA || !videoB) return;
 
+  // If the video can't play (blocked autoplay, network hiccup, bad codec),
+  // fall back to the still image underneath rather than showing nothing.
+  const videowrap = document.getElementById('td-wallpaper-videowrap');
+  const fallbackToImage = () => {
+    if (videowrap) videowrap.hidden = true;
+    tdStopWallpaperLoop();
+  };
+
   videoA.src = src;
   videoB.src = src;
   videoA.currentTime = 0;
-  videoA.classList.add('is-active');
+  videoA.classList.remove('is-active');
   videoB.classList.remove('is-active');
+  videoA.onerror = fallbackToImage;
+  videoB.onerror = fallbackToImage;
 
   const state = { active: videoA, standby: videoB, crossfading: false };
 
@@ -7005,7 +7015,9 @@ function tdStartWallpaperLoop(src) {
   const onTimeB = () => { if (state.active === videoB) armCrossfade(videoB, videoA); };
   videoA.addEventListener('timeupdate', onTimeA);
   videoB.addEventListener('timeupdate', onTimeB);
-  void videoA.play().catch(() => {});
+  videoA.play().then(() => {
+    videoA.classList.add('is-active');
+  }).catch(fallbackToImage);
 
   tdWallpaperLoopState = { videoA, videoB, onTimeA, onTimeB };
 }
@@ -7016,8 +7028,10 @@ function tdApplyWallpaper() {
   const videowrap = document.getElementById('td-wallpaper-videowrap');
   const useVideo = animated && Boolean(wallpaper.video);
   if (img) {
+    // Always visible: it's the fallback layer under the video, and the only
+    // layer at all when animation is off or fails.
     img.src = wallpaper.img;
-    img.hidden = useVideo;
+    img.hidden = false;
   }
   if (videowrap) {
     if (useVideo) {
