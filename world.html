@@ -148,13 +148,16 @@
       width: min(96vw, 1000px); aspect-ratio: 16 / 9;
       pointer-events: none;
     }
-    .island video { width: 100%; height: 100%; object-fit: contain; display: block; }
-    /* The real decode source. It never paints on screen — .island canvas
-       does, after keying the white studio background out to alpha per
-       frame — but it still has to stay laid out (not display:none) or iOS
-       stops decoding it. */
-    .island video#wp { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
-    .island canvas#wp-canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .island canvas#wp-canvas {
+      width: 100%; height: 100%; object-fit: contain; display: block;
+      animation: wp-bob 4.5s ease-in-out infinite;
+    }
+    /* A full video re-render was blurry at its source resolution (736x400,
+       under half the poster art's 1792x1008) and no cheap fix recovers
+       detail that was never decoded. The poster is animated in place
+       instead — full resolution, and the bob/sparkle/water-shine below cost
+       nothing to regenerate. */
+    @keyframes wp-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
     /* ================= BOOT ================= */
     .boot {
@@ -523,7 +526,6 @@
         width: 96vw; max-width: 96vw; margin: 6px auto 4px;
         aspect-ratio: auto; transform: none;
       }
-      .island video { height: 100%; }
       .island canvas#wp-canvas { height: 100%; }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
@@ -583,7 +585,6 @@
       width: 96vw; max-width: 96vw; margin: 6px auto 4px;
       aspect-ratio: auto; transform: none;
     }
-    html.mobile-preview .island video { height: 100%; }
     html.mobile-preview .island canvas#wp-canvas { height: 100%; }
     html.mobile-preview .track { height: 62px; }
     html.mobile-preview .runner { width: 52px; height: 52px; }
@@ -884,6 +885,7 @@
       .app-tile { transition: none; }
       .caret { animation: none; }
       .radio-btn.is-playing::after { animation: none; }
+      #wp-canvas { animation: none; }
     }
   </style>
 </head>
@@ -928,15 +930,11 @@
          leave; on desktop it goes back to position:fixed and ignores this
          spot entirely. -->
     <div class="island" aria-hidden="true">
-      <video id="wp" autoplay loop muted playsinline preload="auto"
-             poster="assets/images/wallpaper/trollrunner-island.jpg">
-        <source src="assets/animations/trollrunner island animation.mp4" type="video/mp4">
-      </video>
-      <!-- The video's own background is a flat white studio backdrop, not
-           transparency — no codec with real alpha plays reliably across
-           mobile Safari and Android Chrome both. This canvas redraws each
-           decoded frame with the white keyed out to alpha instead, so the
-           starfield shows through behind the island on every phone. -->
+      <!-- The source art's background is a flat white studio backdrop, not
+           transparency. This canvas draws the poster once with the white
+           keyed out to alpha, then layers a moving water-shine and a few
+           twinkling sparkle marks on top each frame — see the WALLPAPER
+           script below. Full 1792x1008 resolution, not a re-decoded video. -->
       <canvas id="wp-canvas"></canvas>
     </div>
 
@@ -2293,68 +2291,27 @@
     calm.addEventListener?.('change', startStars);
     startStars();
 
-    /* Autoplay, insistently. iOS only honours it when the element is muted AND
-       inline at the moment play is attempted, and it can still refuse on a cold
-       load, which is what leaves a poster sitting there looking like it wants a
-       play button. So set the flags in JS too and retry on the events that fire
-       once the tab is actually visible and the media is ready. */
-    const wp = $('wp');
-    if (wp) {
-      wp.muted = true;
-      wp.defaultMuted = true;
-      wp.playsInline = true;
-      wp.setAttribute('playsinline', '');
-      wp.setAttribute('webkit-playsinline', '');
-      const kick = () => { const r = wp.play?.(); if (r?.catch) r.catch(() => {}); };
-      kick();
-      for (const ev of ['loadeddata', 'canplay', 'canplaythrough']) wp.addEventListener(ev, kick);
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
-      // Last resort: the first touch anywhere counts as the gesture some
-      // browsers hold out for.
-      ['pointerdown', 'touchstart'].forEach(ev =>
-        document.addEventListener(ev, kick, { once: true, passive: true }));
-    }
-
-    /* ================= WALLPAPER KEY =================
-       The island art (both the poster jpg and the mp4) was rendered on a
-       flat white studio backdrop, not a real transparent one — no video
-       codec with alpha plays reliably across iOS Safari and Android Chrome
-       both, so "transparent video" has to happen in JS instead. This reads
-       each decoded frame into an offscreen canvas, drops every near-white
-       pixel's alpha (with a soft-edge falloff so the island's own white
-       highlights and cel-shading edges don't get chewed up), and paints the
-       result onto the on-screen canvas that replaces the hidden <video>. */
+    /* ================= WALLPAPER =================
+       A real video re-render of this art came back at 736x400 — under half
+       the poster jpg's 1792x1008 — and looked soft once stretched to fill a
+       phone screen. Nothing recovers detail a decode never had, so the
+       island is animated in place instead: the full-resolution poster, keyed
+       once (its background is a flat white studio backdrop, not real
+       transparency) and cached, then re-composited each frame with a
+       moving shine clipped to the lake/river and a handful of twinkling
+       sparkle marks. The .island's CSS bob (see @keyframes wp-bob above)
+       handles the float. */
     const wpCanvas = $('wp-canvas');
-    if (wp && wpCanvas) {
+    if (wpCanvas) {
       const wpCtx = wpCanvas.getContext('2d');
-      const off = document.createElement('canvas');
-      const offCtx = off.getContext('2d', { willReadFrequently: true });
-      let wpRaf = 0, wpSized = false;
-
-      function keySize(w, h) {
-        if (wpCanvas.width === w && wpCanvas.height === h) return;
-        wpCanvas.width = off.width = w;
-        wpCanvas.height = off.height = h;
-        wpSized = w > 0 && h > 0;
-      }
-
-      // The source art's rock cliff doesn't fully close under the waterfall
-      // gap between the two landmasses — the video crops that corner tighter
-      // than the poster jpg did, so there's a patch of "sky" white sitting
-      // where cliff should be. Keyed transparent, that patch exposed bare
-      // starfield right behind the waterfall, reading as a hole. This rect
-      // (in the video's native 736x400 frame space) sits behind the keyed
-      // frame and is only ever visible through that gap — everywhere else
-      // the video's own opaque rock/grass/water draws over it.
-      const ROCK_PATCH = { x: 160, y: 298, w: 235, h: 102, color: '#3d4551' };
+      const shine = document.createElement('canvas');
+      const shineCtx = shine.getContext('2d');
+      let wpRaf = 0, wpBase = null, wpWaterMask = null;
 
       // Near-white -> transparent, with a short ramp so it's a soft cutout
       // rather than a hard-edged sticker.
-      function keyPaint(source, w, h) {
-        if (!wpSized) return;
-        offCtx.clearRect(0, 0, w, h);
-        offCtx.drawImage(source, 0, 0, w, h);
-        const frame = offCtx.getImageData(0, 0, w, h);
+      function keyToAlpha(ctx, w, h) {
+        const frame = ctx.getImageData(0, 0, w, h);
         const d = frame.data;
         const HI = 252, LO = 224; // luminance band that fades to alpha 0
         for (let i = 0; i < d.length; i += 4) {
@@ -2362,58 +2319,103 @@
           if (lum >= HI) d[i + 3] = 0;
           else if (lum > LO) d[i + 3] = Math.round(255 * (HI - lum) / (HI - LO));
         }
-        offCtx.putImageData(frame, 0, 0);
+        ctx.putImageData(frame, 0, 0);
+        return frame;
+      }
 
+      // A handful of sparkle marks placed by hand, as fractions of the
+      // image so they hold position across sizes. Most sit on top of
+      // sparkle glints already drawn into the art (the track infield, the
+      // shoreline) rather than inventing new spots.
+      const SPARKLES = [
+        { x: 0.407, y: 0.188, r: 0.010, phase: 0.0 },
+        { x: 0.430, y: 0.174, r: 0.008, phase: 1.1 },
+        { x: 0.575, y: 0.337, r: 0.011, phase: 2.4 },
+        { x: 0.884, y: 0.407, r: 0.009, phase: 3.6 },
+        { x: 0.195, y: 0.466, r: 0.008, phase: 4.8 },
+        { x: 0.725, y: 0.694, r: 0.009, phase: 0.6 },
+      ];
+
+      function buildFrom(img) {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        wpCanvas.width = w; wpCanvas.height = h;
+        shine.width = w; shine.height = h;
+
+        const base = document.createElement('canvas');
+        base.width = w; base.height = h;
+        const baseCtx = base.getContext('2d');
+        baseCtx.drawImage(img, 0, 0, w, h);
+        keyToAlpha(baseCtx, w, h);
+        wpBase = base;
+
+        // The river/lake's water is a consistent sky-blue in the source
+        // art. Isolate it once into its own alpha mask so the shine sweep
+        // below can be clipped to "wherever the water is" without having
+        // to trace its shape by hand.
+        const mask = document.createElement('canvas');
+        mask.width = w; mask.height = h;
+        const maskCtx = mask.getContext('2d');
+        maskCtx.drawImage(base, 0, 0);
+        const frame = maskCtx.getImageData(0, 0, w, h);
+        const d = frame.data;
+        const WATER = [110, 219, 255], TOL = 42;
+        for (let i = 0; i < d.length; i += 4) {
+          const dist = Math.hypot(d[i] - WATER[0], d[i + 1] - WATER[1], d[i + 2] - WATER[2]);
+          d[i + 3] = dist < TOL ? d[i + 3] : 0;
+        }
+        maskCtx.putImageData(frame, 0, 0);
+        wpWaterMask = mask;
+      }
+
+      function wpPaint(t) {
+        const w = wpCanvas.width, h = wpCanvas.height;
         wpCtx.clearRect(0, 0, w, h);
-        // Only the still frame (736x400) carries the rock-patch geometry —
-        // the poster jpg is framed differently and doesn't need it.
-        if (w === 736 && h === 400) {
-          const sx = ROCK_PATCH.x / 736 * w, sy = ROCK_PATCH.y / 400 * h;
-          const sw = ROCK_PATCH.w / 736 * w, sh = ROCK_PATCH.h / 400 * h;
-          wpCtx.fillStyle = ROCK_PATCH.color;
-          wpCtx.fillRect(sx, sy, sw, sh);
+        wpCtx.drawImage(wpBase, 0, 0);
+
+        // Water shine: a soft diagonal band swept left-to-right, clipped to
+        // the water mask. Draw the mask first, then fill the gradient with
+        // 'source-in' so only pixels already inside the mask's shape keep
+        // any color — everywhere else in the gradient's (much wider) band
+        // ends up fully transparent instead of glowing past the shoreline.
+        shineCtx.clearRect(0, 0, w, h);
+        shineCtx.globalCompositeOperation = 'source-over';
+        shineCtx.drawImage(wpWaterMask, 0, 0);
+        shineCtx.globalCompositeOperation = 'source-in';
+        const sweep = ((t / 6500) % 1) * (w * 1.6) - w * 0.3;
+        const grad = shineCtx.createLinearGradient(sweep - w * 0.09, 0, sweep + w * 0.09, h);
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(0.5, 'rgba(255,255,255,0.22)');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        shineCtx.fillStyle = grad;
+        shineCtx.fillRect(0, 0, w, h);
+        shineCtx.globalCompositeOperation = 'source-over';
+        wpCtx.globalCompositeOperation = 'lighten';
+        wpCtx.drawImage(shine, 0, 0);
+        wpCtx.globalCompositeOperation = 'source-over';
+
+        // Sparkle twinkle: small soft dots pulsing in and out, staggered.
+        for (const s of SPARKLES) {
+          const a = 0.35 + 0.65 * Math.max(0, Math.sin(t / 1400 + s.phase));
+          const cx = s.x * w, cy = s.y * h, r = s.r * w;
+          const g = wpCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+          g.addColorStop(0, `rgba(255,255,255,${a})`);
+          g.addColorStop(1, 'rgba(255,255,255,0)');
+          wpCtx.fillStyle = g;
+          wpCtx.beginPath(); wpCtx.arc(cx, cy, r, 0, Math.PI * 2); wpCtx.fill();
         }
-        wpCtx.drawImage(off, 0, 0);
       }
 
-      // Poster-equivalent: key the still jpg once so there's keyed art on
-      // screen before the video has decoded a frame (mirrors the old
-      // poster="" behaviour, which a canvas can't do natively).
-      const posterImg = new Image();
-      posterImg.src = wp.getAttribute('poster') || '';
-      posterImg.decoding = 'async';
-      posterImg.addEventListener('load', () => {
-        if (wp.readyState >= 2) return; // a real frame already took over
-        keySize(posterImg.naturalWidth, posterImg.naturalHeight);
-        keyPaint(posterImg, posterImg.naturalWidth, posterImg.naturalHeight);
-      });
-
-      function wpDraw() {
-        if (wp.videoWidth && wp.videoHeight) {
-          keySize(wp.videoWidth, wp.videoHeight);
-          keyPaint(wp, wp.videoWidth, wp.videoHeight);
-        }
-        if (wp.requestVideoFrameCallback) {
-          wp.requestVideoFrameCallback(wpDraw);
-        } else {
-          wpRaf = requestAnimationFrame(wpDraw);
-        }
-      }
-
+      function wpLoop(t) { wpPaint(t); wpRaf = requestAnimationFrame(wpLoop); }
       function wpStart() {
         cancelAnimationFrame(wpRaf);
-        if (wp.videoWidth && wp.videoHeight) keySize(wp.videoWidth, wp.videoHeight);
-        if (calm.matches) {
-          // One keyed frame, then hold still — same spirit as the starfield
-          // going static for reduced motion.
-          keyPaint(wp, wp.videoWidth, wp.videoHeight);
-        } else if (wp.requestVideoFrameCallback) {
-          wp.requestVideoFrameCallback(wpDraw);
-        } else {
-          wpRaf = requestAnimationFrame(wpDraw);
-        }
+        if (calm.matches) wpPaint(0);
+        else wpRaf = requestAnimationFrame(wpLoop);
       }
-      wp.addEventListener('loadeddata', wpStart);
+
+      const posterImg = new Image();
+      posterImg.decoding = 'async';
+      posterImg.addEventListener('load', () => { buildFrom(posterImg); wpStart(); });
+      posterImg.src = 'assets/images/wallpaper/trollrunner-island.jpg';
       calm.addEventListener?.('change', wpStart);
     }
   })();
