@@ -86,7 +86,10 @@
       --dock-gap: 22px;
       --dock-row-gap: 6px;
       --dock-label: 13px;
-      --radio-size: 54px;
+      /* Same square as the X / TikTok icons — it used to be a larger glass
+         circle floating off the pill's edge, which read as an unrelated
+         button rather than a third dock icon. */
+      --radio-size: var(--dock-ico);
       /* Centre of the dock's icon row, measured up from the viewport bottom. */
       --dock-ico-center: calc(
         var(--dock-bottom) + var(--dock-pad-y) + var(--dock-label)
@@ -213,29 +216,39 @@
     }
     body[data-phase="home"] .apps { opacity: 1; transform: none; }
     .app { display: grid; justify-items: center; gap: 7px; }
+    /* No plate, no crop, no rounded clipping, on any device — the art IS the
+       icon here, same PNGs the desktop dock uses (assets/images/icons/*),
+       shown exactly as they sit: transparent edges and all. This used to be
+       gated behind @media (pointer: coarse), which left a leftover grey
+       rounded-square plate on any browser that didn't report a coarse
+       pointer (e.g. a phone whose browser reports pointer:fine, or the
+       desktop's own ?mobile=1 preview). */
     .app-tile {
-      width: 62px; height: 62px; border-radius: 15px; overflow: hidden;
-      background: #101014; border: 1px solid var(--glass-stroke);
-      box-shadow: 0 8px 20px #000000a6;
+      width: 62px; height: 62px;
       display: grid; place-items: center;
-      transition: transform .22s var(--ease), box-shadow .22s var(--ease);
+      transition: transform .22s var(--ease);
     }
-    /* Keyboard focus is safe on every device, so it keeps the lift outright. */
+    /* Keyboard focus is safe on every device, so it keeps the lift outright.
+       A drop-shadow on the image (not a box-shadow on the tile) hugs the
+       art's own silhouette instead of glowing around its transparent
+       margins. */
     .app:focus-visible .app-tile {
       transform: translateY(-3px) scale(1.05);
-      box-shadow: 0 14px 26px #000000c4, 0 0 16px color-mix(in srgb, var(--c, var(--accent)) 55%, transparent);
+    }
+    .app:focus-visible .app-tile img {
+      filter: drop-shadow(0 10px 18px #000000c4) drop-shadow(0 0 12px color-mix(in srgb, var(--c, var(--accent)) 55%, transparent));
     }
     /* Hover is gated to real pointers on purpose. A touch browser with no
        hover still emulates one, and spends the first tap applying this lift
        instead of following the link — so the app only opened on the second
        tap. Anything hover-only on a tappable target has to sit in here. */
     @media (hover: hover) {
-      .app:hover .app-tile {
-        transform: translateY(-3px) scale(1.05);
-        box-shadow: 0 14px 26px #000000c4, 0 0 16px color-mix(in srgb, var(--c, var(--accent)) 55%, transparent);
+      .app:hover .app-tile { transform: translateY(-3px) scale(1.05); }
+      .app:hover .app-tile img {
+        filter: drop-shadow(0 10px 18px #000000c4) drop-shadow(0 0 12px color-mix(in srgb, var(--c, var(--accent)) 55%, transparent));
       }
     }
-    .app-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .app-tile img { width: 100%; height: 100%; object-fit: contain; display: block; }
     .app-name {
       font-size: 12px; font-weight: 500; text-align: center; line-height: 1.2;
       text-shadow: var(--legible); color: var(--fg);
@@ -452,7 +465,7 @@
       .sheet h2 { font-size: 32px; }
       .sheet .link { font-size: 19px; }
       .apps { gap: 12px 4px; margin-top: 2px; }
-      .app-tile { width: 54px; height: 54px; border-radius: 13px; }
+      .app-tile { width: 54px; height: 54px; }
       .app-name { font-size: 11px; }
       /* On a phone the wallpaper stops being a fixed rectangle and becomes a
          flex item between the icons and the dock, so it gets exactly the
@@ -478,19 +491,13 @@
     }
     /* Same reason: when the layout viewport can't be trusted, px tile sizes
        can't be either. Sizing in vw with px bounds keeps a tile roughly a
-       thumb wide whether this document thinks it's 390px or 780px. */
+       thumb wide whether this document thinks it's 390px or 780px. Plate
+       removal itself now lives in the base .app-tile rule above — it's not
+       touch-specific any more. */
     @media (pointer: coarse) {
       .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: 5vw 3vw; }
       .app-tile { width: clamp(54px, 15vw, 120px); height: clamp(54px, 15vw, 120px); }
       .app-name { font-size: clamp(11px, 3vw, 23px); }
-      /* On a phone the art IS the icon: no plate, no crop, no rounded
-         clipping — the source PNGs render exactly as they sit in
-         assets/images/icons, transparent edges and all. */
-      .app-tile { background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
-      .app-tile img { object-fit: contain; }
-      /* Hover can't match here any more; focus-visible still can, via a
-         paired keyboard, and keeps the plate off to match the art. */
-      .app:focus-visible .app-tile { box-shadow: none; }
     }
     /* Guarded with :not(.mobile-preview) — a desktop tab previewing the phone
        shell (see the boot script above) still matches this media query by
@@ -500,7 +507,7 @@
       /* The island launcher this branch was written for is gone, so the app
          grid is the launcher at every size now — it just gets more room. */
       html:not(.mobile-preview) .apps { max-width: 760px; gap: 26px 14px; }
-      html:not(.mobile-preview) .app-tile { width: 76px; height: 76px; border-radius: 18px; }
+      html:not(.mobile-preview) .app-tile { width: 76px; height: 76px; }
       html:not(.mobile-preview) .app-name { font-size: 13px; }
       /* Their desktop anchors the wordmark top-left rather than centring it,
          and drops the stat line the phone header carries. */
@@ -523,7 +530,7 @@
     html.mobile-preview .sheet h2 { font-size: 32px; }
     html.mobile-preview .sheet .link { font-size: 19px; }
     html.mobile-preview .apps { gap: 12px 4px; margin-top: 2px; max-width: 520px; }
-    html.mobile-preview .app-tile { width: 54px; height: 54px; border-radius: 13px; }
+    html.mobile-preview .app-tile { width: 54px; height: 54px; }
     html.mobile-preview .app-name { font-size: 11px; }
     html.mobile-preview .shell { height: 100%; height: 100dvh; }
     html.mobile-preview .island {
@@ -722,19 +729,17 @@
       top: calc(var(--dock-pad-y) + var(--dock-ico) / 2);
       transform: translateY(-50%);
       width: var(--radio-size); height: var(--radio-size);
-      border-radius: 50%; display: grid; place-items: center;
-      background: var(--glass-bg); border: 1px solid var(--glass-stroke);
-      box-shadow: var(--glass-shadow);
-      backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+      border-radius: 13px; display: grid; place-items: center;
+      background: #14141a; border: 1px solid var(--glass-stroke);
       transition: transform .2s var(--ease), opacity .3s var(--ease), border-color .2s var(--ease);
     }
-    .radio-btn svg { width: 23px; height: 23px; fill: var(--fg); }
+    .radio-btn svg { width: 22px; height: 22px; fill: var(--fg); }
     .radio-btn:active { transform: translateY(-50%) scale(.94); }
     /* Playing state has to read at a glance from across the room. */
     .radio-btn.is-playing { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
     .radio-btn.is-playing svg { fill: var(--accent); }
     .radio-btn.is-playing::after {
-      content: ""; position: absolute; inset: -4px; border-radius: 50%;
+      content: ""; position: absolute; inset: -4px; border-radius: 16px;
       border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
       animation: radio-pulse 1.8s var(--ease) infinite;
     }
