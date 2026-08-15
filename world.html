@@ -51,6 +51,19 @@
   })();
   </script>
   <style>
+    /* Native cross-document page transitions — matches index.html's rule
+       (same media gate: mobile only, desktop keeps instant navigation).
+       Same-origin only, so today this covers navigation within this site
+       (pfp.html, chat.html, the classic desktop); once stickers/terminal/
+       finance route through the front door (see troll-frontdoor.js), those
+       crossfade the same way instead of hard-cutting to a different site's
+       look. This is the shell those cross-site links actually live in, so
+       leaving it off here (it was only ever added to index.html) is why the
+       "seamless like trollface.io" transition never fired from mobile. */
+    @media (max-width: 760px) {
+      @view-transition { navigation: auto; }
+    }
+
     :root {
       --font-display: "Archivo Black", Impact, "Arial Black", sans-serif;
       --font-ui: "Space Grotesk", system-ui, Arial, sans-serif;
