@@ -31,7 +31,16 @@
       const q = new URLSearchParams(location.search);
       // ?mobile=1 previews on a laptop; ?embed=1 means index.html is already
       // hosting us at the root URL, so bouncing would fight its own swap.
-      if (q.has('mobile') || q.has('embed')) return;
+      // The .mobile-preview class forces the phone layout (see the CSS below)
+      // even though the real viewport is desktop-wide — without it the phone
+      // shell's `.island` sits fixed at a mid-screen anchor meant for a small
+      // windowed preview, and on a real full-width tab that's just a floating
+      // box surrounded by empty space.
+      if (q.has('mobile')) {
+        document.documentElement.classList.add('mobile-preview');
+        return;
+      }
+      if (q.has('embed')) return;
     } catch {}
     const ua = navigator.userAgent || '';
     const isPhone =
@@ -471,19 +480,49 @@
          paired keyboard, and keeps the plate off to match the art. */
       .app:focus-visible .app-tile { box-shadow: none; }
     }
+    /* Guarded with :not(.mobile-preview) — a desktop tab previewing the phone
+       shell (see the boot script above) still matches this media query by
+       real viewport width, but it should keep the phone layout end to end
+       rather than half-switching to the desktop one below. */
     @media (min-width: 721px) and (pointer: fine) {
       /* The island launcher this branch was written for is gone, so the app
          grid is the launcher at every size now — it just gets more room. */
-      .apps { max-width: 760px; gap: 26px 14px; }
-      .app-tile { width: 76px; height: 76px; border-radius: 18px; }
-      .app-name { font-size: 13px; }
+      html:not(.mobile-preview) .apps { max-width: 760px; gap: 26px 14px; }
+      html:not(.mobile-preview) .app-tile { width: 76px; height: 76px; border-radius: 18px; }
+      html:not(.mobile-preview) .app-name { font-size: 13px; }
       /* Their desktop anchors the wordmark top-left rather than centring it,
          and drops the stat line the phone header carries. */
-      .topbar { display: flex; justify-content: space-between; padding: 26px 30px; }
-      .stat { display: none; }
-      .wordmark { font-size: 27px; }
-      .wordmark img { width: 29px; height: 29px; }
+      html:not(.mobile-preview) .topbar { display: flex; justify-content: space-between; padding: 26px 30px; }
+      html:not(.mobile-preview) .stat { display: none; }
+      html:not(.mobile-preview) .wordmark { font-size: 27px; }
+      html:not(.mobile-preview) .wordmark img { width: 29px; height: 29px; }
     }
+
+    /* ---- Desktop preview of the phone shell (?mobile=1) ----
+       Same values as the "phone treatment at any width" block above, applied
+       unconditionally via class instead of a media query, so a full desktop
+       viewport still lays out like a phone: the island fills the space
+       between the app grid and the dock instead of floating fixed at a
+       mid-screen anchor sized for a small preview window. */
+    html.mobile-preview .topbar { padding: 16px 16px; }
+    html.mobile-preview .wordmark { font-size: 19px; }
+    html.mobile-preview .wordmark img { width: 21px; height: 21px; }
+    html.mobile-preview .stat { font-size: 12px; }
+    html.mobile-preview .sheet h2 { font-size: 32px; }
+    html.mobile-preview .sheet .link { font-size: 19px; }
+    html.mobile-preview .apps { gap: 12px 4px; margin-top: 2px; max-width: 520px; }
+    html.mobile-preview .app-tile { width: 54px; height: 54px; border-radius: 13px; }
+    html.mobile-preview .app-name { font-size: 11px; }
+    html.mobile-preview .shell { height: 100%; height: 100dvh; }
+    html.mobile-preview .island {
+      position: static; flex: 1 1 auto; min-height: 0;
+      width: 96vw; max-width: 96vw; margin: 6px auto 4px;
+      aspect-ratio: auto; transform: none;
+    }
+    html.mobile-preview .island video { height: 100%; }
+    html.mobile-preview .track { height: 62px; }
+    html.mobile-preview .runner { width: 52px; height: 52px; }
+    html.mobile-preview .runner img { width: 38px; height: 38px; }
 
     /* ================= WHO'S ONLINE =================
        A pill in the top bar rather than the desktop's tray widget, because
