@@ -1129,6 +1129,11 @@
        no SSO bridge needed here, unlike the sibling subdomains. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="assets/js/troll-accounts.js?v=20260803b"></script>
+  <!-- Separate credential from the one above: a fixed admin@login.trollrunner.net
+       password session, not a regular troll_runner profile login. This is
+       what admin.html itself gates on, so it's what the menu's Admin link
+       needs too — see checkAdminMenuAccess() below. -->
+  <script src="assets/js/admin-auth.js?v=20260723d"></script>
   <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
   <!-- Rewrites the app icons' cross-site links to same-origin paths so the
        phone entrance can transition into them — but only once the front door
@@ -1748,28 +1753,21 @@
     const SUPABASE_ROW_ID = 'main';
 
     /* ================= ADMIN MENU LINK =================
-       Mirrors isAdminViewer() on the desktop (index.html): server-verified
-       via the troll_is_admin() RPC, not a username string compared client
-       side, so it can't be spoofed by editing a cached profile. Runs once on
-       load and again on every auth change (login/logout/switch account). */
+       This link goes to admin.html, so it has to check the same credential
+       admin.html itself gates on: window.TrollrunnerAdminAuth.hasAdminSession()
+       — a separate admin@login.trollrunner.net password session (admin-auth.js),
+       NOT the regular troll_runner profile login (TrollrunnerAccounts). Those
+       two are independent; being logged into a normal profile, even one
+       flagged admin via troll_is_admin() for other purposes (see the
+       desktop's isAdminViewer(), used to filter which sites show — a
+       different question from "can this link open admin.html"), does not by
+       itself mean admin.html would let that visitor in. */
     async function checkAdminMenuAccess() {
       const link = document.getElementById('admin-menu-link');
       if (!link) return;
       let isAdmin = false;
       try {
-        const token = await window.TrollrunnerAccounts?.getAccessToken?.();
-        if (token) {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_is_admin`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              apikey: SUPABASE_ANON_KEY,
-              Authorization: `Bearer ${token}`,
-            },
-            body: '{}',
-          });
-          if (response.ok) isAdmin = (await response.json()) === true;
-        }
+        isAdmin = Boolean(await window.TrollrunnerAdminAuth?.hasAdminSession?.());
       } catch { isAdmin = false; }
       link.classList.toggle('is-locked', !isAdmin);
       link.setAttribute('aria-disabled', String(!isAdmin));
@@ -1778,6 +1776,10 @@
     }
     checkAdminMenuAccess();
     window.addEventListener('trollrunner:auth-changed', checkAdminMenuAccess);
+    // admin-auth.js has no auth-changed broadcast of its own (there's no
+    // sign-in form on this page to trigger one), but a visitor can leave
+    // this tab, sign into admin.html elsewhere, and come back — catch that.
+    window.addEventListener('focus', checkAdminMenuAccess);
 
     const viewerOnlineAt = new Date().toISOString();
     let viewerChannel = null, viewerJoined = false;
