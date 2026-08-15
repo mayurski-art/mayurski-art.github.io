@@ -26,17 +26,38 @@
   // cramped. Phones get world.html instead. Anyone who picks "Classic
   // desktop" from there arrives with ?desktop=1, which is remembered for the
   // session so this doesn't bounce them straight back and trap them.
+  // ?mobile=1 is the opposite door: a desktop visitor opting INTO the phone
+  // shell (the tray's "Island" toggle). The two flags are mutually
+  // exclusive — picking one clears the other — so switching back and forth
+  // within a session keeps landing on the right side.
   const FORCE_DESKTOP_KEY = 'trollrunner_force_desktop';
+  const FORCE_MOBILE_KEY = 'trollrunner_force_mobile';
   let forced = false;
+  let forcedMobile = false;
   try {
-    if (new URLSearchParams(window.location.search).has('desktop')) {
+    const qp = new URLSearchParams(window.location.search);
+    if (qp.has('desktop')) {
       sessionStorage.setItem(FORCE_DESKTOP_KEY, '1');
+      sessionStorage.removeItem(FORCE_MOBILE_KEY);
+    }
+    if (qp.has('mobile')) {
+      sessionStorage.setItem(FORCE_MOBILE_KEY, '1');
+      sessionStorage.removeItem(FORCE_DESKTOP_KEY);
     }
     forced = sessionStorage.getItem(FORCE_DESKTOP_KEY) === '1';
+    forcedMobile = sessionStorage.getItem(FORCE_MOBILE_KEY) === '1';
+    // The choice now lives in sessionStorage, not the URL — drop ?mobile=1 /
+    // ?desktop=1 from the address bar so it reads trollrunner.net either way
+    // instead of trollrunner.net/?mobile=1. (This is the same reason the
+    // phone entrance below uses document.write instead of a real navigation.)
+    if (qp.has('mobile') || qp.has('desktop')) {
+      history.replaceState(null, '', path + window.location.hash);
+    }
   } catch {}
 
   const ua = navigator.userAgent || '';
   const isPhone =
+    forcedMobile ||
     /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
     // iPadOS 13+ reports a Mac UA, so touch points are the only tell.
     (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ||
@@ -86,7 +107,12 @@
       // not be caught by browser-driven testing -- confirmed by the report
       // itself: dead first tap after a fresh load, one tap after returning
       // to the same (already-focused) frame via "Done".
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&v=20260812i" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      // &mobile=1 forces world.html's own phone-width CSS (see its
+      // .mobile-preview class) regardless of this frame's real dimensions --
+      // needed for the forcedMobile case (a desktop viewport opting into
+      // this shell), and harmless for a genuine phone, which already
+      // computes the same layout naturally.
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260812i" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
@@ -6155,11 +6181,15 @@ TD_WINDOWS.pfp = {
 // phone layout off `max-width: 720px` as much as pointer type, so a narrow
 // window is what makes this an honest preview rather than the wide/mouse
 // variant the shell also has.
+// The width/browser/url/iframeSrc/build fields below are unused leftovers
+// from before "Island (mobile)" became a real navigation (see twOpen) — kept
+// only because other code reads TD_WINDOWS.world.img/.title for the hub
+// card and start menu. Nothing still opens this as a windowed iframe.
 TD_WINDOWS.world = {
   title: 'Island (mobile)', icon: '📱', img: 'assets/images/icons/hub.png', flat: true,
   width: 400, browser: true,
-  url: 'trollrunner.net/world.html?mobile=1', iframeSrc: 'world.html?mobile=1',
-  build: body => tdBuildIframe(body, 'world.html?mobile=1', 'Island (mobile)'),
+  url: 'trollrunner.net', iframeSrc: 'world.html',
+  build: body => tdBuildIframe(body, 'world.html', 'Island (mobile)'),
 };
 TD_WINDOWS.nutrition = {
   title: 'Nutrition', icon: '🥗', width: 1040, browser: true,
@@ -6472,7 +6502,17 @@ function twOpen(id) {
   // desktop chrome — a preview of a preview. Going to the phone entrance is
   // a real same-origin navigation, so it gets to actually leave the desktop
   // and become the full-screen mobile page, not a mini screen inside it.
-  if (id === 'world') { window.location.href = 'world.html?mobile=1'; return; }
+  // The choice is recorded in sessionStorage (not a ?mobile=1 URL param) so
+  // index.html's phone-routing script can do its usual document.write swap
+  // and land on a clean trollrunner.net instead of trollrunner.net/world.html.
+  if (id === 'world') {
+    try {
+      sessionStorage.setItem('trollrunner_force_mobile', '1');
+      sessionStorage.removeItem('trollrunner_force_desktop');
+    } catch {}
+    window.location.href = '/';
+    return;
+  }
   const cfg = TD_WINDOWS[id];
   const win = tdState.windows.get(id);
   if (!cfg || !win) return;
@@ -7256,14 +7296,19 @@ function trollDesktopShow(boot) {
   // ?desktop=1 so a phone visitor can see the classic desktop, and this
   // tray button is the way back for them. It's also the desktop → mobile
   // door for everyone else: same button, same destination either way, just
-  // always visible instead of gated to phone UAs. ?mobile=1 is what stops
-  // world.html bouncing a desktop-UA visitor straight back here.
+  // always visible instead of gated to phone UAs. Recording the choice in
+  // sessionStorage (rather than a ?mobile=1 URL param) is what stops
+  // index.html bouncing a desktop-UA visitor straight back to the desktop,
+  // and lets it land on a clean trollrunner.net instead of /world.html.
   const mobileReturnBtn = document.getElementById('td-mobile-return');
   if (mobileReturnBtn) {
     mobileReturnBtn.hidden = false;
     mobileReturnBtn.onclick = () => {
-      try { sessionStorage.removeItem('trollrunner_force_desktop'); } catch {}
-      window.location.href = 'world.html?mobile=1';
+      try {
+        sessionStorage.setItem('trollrunner_force_mobile', '1');
+        sessionStorage.removeItem('trollrunner_force_desktop');
+      } catch {}
+      window.location.href = '/';
     };
   }
   if (!tdState.booted) {
