@@ -413,7 +413,8 @@
     #sheet.is-open ~ #sheet-close,
     #roster.is-open ~ #roster-close,
     #updates.is-open ~ #updates-close,
-    #recycle.is-open ~ #recycle-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+    #recycle.is-open ~ #recycle-close,
+    #feedback.is-open ~ #feedback-close { opacity: 1; visibility: visible; transition-delay: 0s; }
 
     /* ---- recycle bin (a joke, not a feature — see tdBuildRecycle on the
        desktop, which this mirrors) ---- */
@@ -620,6 +621,20 @@
       outline: none; background: #ffffff14;
       border-color: color-mix(in srgb, var(--accent) 60%, transparent);
     }
+    /* Same field chrome as auth's inputs, shared here so the feedback sheet
+       doesn't need its own set of rules. */
+    .auth-field textarea {
+      width: 100%; padding: 15px 14px; border-radius: 12px; resize: vertical;
+      min-height: 100px; background: #ffffff0d; border: 1px solid var(--glass-stroke);
+      color: var(--fg); font-family: var(--font-ui); font-size: 16px;
+      transition: border-color .16s var(--ease), background .16s var(--ease);
+    }
+    .auth-field textarea:focus {
+      outline: none; background: #ffffff14;
+      border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    }
+    .feedback-toggle-m { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg-dim); margin: 0 0 10px; }
+    .feedback-toggle-m input { width: 16px; height: 16px; accent-color: var(--accent); }
     .auth-hint { font-size: 12px; color: var(--fg-dim); margin: -2px 0 0; }
     .auth-submit {
       width: 100%; padding: 16px; border-radius: 12px; margin-top: 4px;
@@ -943,6 +958,31 @@
   </div>
   <button class="sheet-close" id="recycle-close" type="button" aria-label="Close">✕</button>
 
+  <!-- ============ FEEDBACK ============ -->
+  <!-- Opens in place, same reason as Account/Updates/Recycle above. Submits
+       through the same troll_submit_feedback RPC the desktop's #feedback
+       section uses (see submitFeedbackToBackend() on the desktop), so
+       there's one feedback inbox either way. -->
+  <div class="sheet" id="feedback" role="dialog" aria-modal="true" aria-label="Feedback">
+    <div class="sheet-inner">
+      <h2>FEEDBACK</h2>
+      <p class="sub">Tell me what broke, what you love, or what's missing.</p>
+      <label class="feedback-toggle-m" for="feedback-allow-username-m">
+        <input id="feedback-allow-username-m" type="checkbox">
+        <span>Include a username</span>
+      </label>
+      <div class="auth-field" id="feedback-username-wrap-m" hidden>
+        <input id="feedback-username-m" type="text" maxlength="60" placeholder="Username" autocomplete="nickname">
+      </div>
+      <div class="auth-field">
+        <textarea id="feedback-text-m" placeholder="Keyboard troll here..." rows="5"></textarea>
+      </div>
+      <button class="auth-submit" id="feedback-submit-m" type="button">Submit feedback</button>
+      <p class="auth-msg" id="feedback-status-m"></p>
+    </div>
+  </div>
+  <button class="sheet-close" id="feedback-close" type="button" aria-label="Close">✕</button>
+
   <!-- ============ ACCOUNT ============ -->
   <div class="auth" id="auth" role="dialog" aria-modal="true" aria-label="Account">
     <div class="auth-inner">
@@ -1213,6 +1253,11 @@
       // it shouldn't hand off to the windowed desktop either.
       if (a.id === 'recycle') {
         el.addEventListener('click', e => { e.preventDefault(); recycleSetOpen(true); });
+      }
+      // Feedback posts straight to Supabase from this page (see
+      // submitFeedbackMobile below) — no reason to hand off either.
+      if (a.id === 'feedback') {
+        el.addEventListener('click', e => { e.preventDefault(); feedbackSetOpen(true); });
       }
 
       const tile = document.createElement('span');
@@ -1901,6 +1946,108 @@
     };
     recycleSheet.inert = true;
     recycleClose.addEventListener('click', () => recycleSetOpen(false));
+
+    /* ---------- feedback ----------
+       Same identity keys and RPC as the desktop's #feedback section (see
+       toggleFeedbackUsername / initializeFeedbackIdentity / submitFeedback /
+       submitFeedbackToBackend / classifyFeedback in index.html), so a
+       remembered "include a username" preference and the feedback itself
+       land in the same place regardless of which shell sent it. */
+    const FEEDBACK_USERNAME_KEY = 'trollrunner_feedback_username';
+    const FEEDBACK_ALLOW_USERNAME_KEY = 'trollrunner_feedback_allow_username';
+    const feedbackSheet = $('feedback'), feedbackClose = $('feedback-close');
+    const feedbackAllowUsername = $('feedback-allow-username-m');
+    const feedbackUsernameWrap = $('feedback-username-wrap-m');
+    const feedbackUsernameInput = $('feedback-username-m');
+    const feedbackTextInput = $('feedback-text-m');
+    const feedbackSubmitBtn = $('feedback-submit-m');
+    const feedbackStatus = $('feedback-status-m');
+
+    function feedbackToggleUsername(shouldFocus) {
+      const enabled = Boolean(feedbackAllowUsername.checked);
+      feedbackUsernameWrap.hidden = !enabled;
+      localStorage.setItem(FEEDBACK_ALLOW_USERNAME_KEY, enabled ? '1' : '0');
+      if (!enabled) {
+        feedbackUsernameInput.value = '';
+        localStorage.removeItem(FEEDBACK_USERNAME_KEY);
+      } else if (shouldFocus) {
+        feedbackUsernameInput.focus();
+      }
+    }
+    feedbackAllowUsername.checked = localStorage.getItem(FEEDBACK_ALLOW_USERNAME_KEY) === '1';
+    feedbackUsernameInput.value = localStorage.getItem(FEEDBACK_USERNAME_KEY) || '';
+    feedbackToggleUsername(false);
+    feedbackAllowUsername.addEventListener('change', () => feedbackToggleUsername(true));
+    feedbackUsernameInput.addEventListener('input', () => {
+      const username = feedbackUsernameInput.value.trim();
+      if (username) localStorage.setItem(FEEDBACK_USERNAME_KEY, username);
+      else localStorage.removeItem(FEEDBACK_USERNAME_KEY);
+    });
+
+    function classifyFeedbackMobile(message) {
+      const text = message.toLowerCase();
+      let topic = 'general';
+      if (/(bug|broken|error|issue|not work|crash|fix)/.test(text)) topic = 'bug';
+      else if (/(feature|add|would like|should have|can you|request)/.test(text)) topic = 'feature request';
+      else if (/(love|great|awesome|thanks|good job|nice)/.test(text)) topic = 'positive';
+      const priority = /(urgent|asap|critical|broken|down|immediately)/.test(text) ? 'high' : 'normal';
+      return { topic, priority };
+    }
+
+    // Same troll_submit_feedback RPC the desktop posts through (see
+    // assets/supabase/troll_admin_lockdown.sql) — one shared inbox.
+    async function submitFeedbackToBackendMobile(payload) {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_submit_feedback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        return response.ok;
+      } catch { return false; }
+    }
+
+    feedbackSubmitBtn.addEventListener('click', async () => {
+      const message = feedbackTextInput.value.trim();
+      if (!message) { feedbackStatus.textContent = 'Please enter feedback before submitting.'; return; }
+      const includeUsername = Boolean(feedbackAllowUsername.checked);
+      const username = feedbackUsernameInput.value.trim();
+      if (includeUsername && !username) {
+        feedbackStatus.textContent = 'Add a username or turn off the checkbox before submitting.';
+        return;
+      }
+      const ai = classifyFeedbackMobile(message);
+      feedbackSubmitBtn.disabled = true;
+      feedbackStatus.textContent = 'Sending feedback...';
+      const ok = await submitFeedbackToBackendMobile({
+        p_message: message,
+        p_username: includeUsername ? username : null,
+        p_include_username: includeUsername,
+        p_topic: ai.topic,
+        p_priority: ai.priority,
+      });
+      feedbackSubmitBtn.disabled = false;
+      feedbackStatus.classList.toggle('is-ok', ok);
+      if (ok) {
+        feedbackTextInput.value = '';
+        if (includeUsername) localStorage.setItem(FEEDBACK_USERNAME_KEY, username);
+        feedbackStatus.textContent = `Feedback sent (${ai.topic}, ${ai.priority} priority). Thanks.`;
+      } else {
+        feedbackStatus.textContent = 'Could not send feedback. Try again in a moment.';
+      }
+    });
+
+    const feedbackSetOpen = open => {
+      feedbackSheet.classList.toggle('is-open', open);
+      feedbackSheet.inert = !open;
+      if (open) { feedbackStatus.textContent = ''; feedbackStatus.classList.remove('is-ok'); feedbackTextInput.focus(); }
+    };
+    feedbackSheet.inert = true;
+    feedbackClose.addEventListener('click', () => feedbackSetOpen(false));
 
     viewersPaint();
     if (window.supabase?.createClient) {
