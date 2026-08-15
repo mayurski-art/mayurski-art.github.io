@@ -149,6 +149,12 @@
       pointer-events: none;
     }
     .island video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    /* The real decode source. It never paints on screen — .island canvas
+       does, after keying the white studio background out to alpha per
+       frame — but it still has to stay laid out (not display:none) or iOS
+       stops decoding it. */
+    .island video#wp { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+    .island canvas#wp-canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
 
     /* ================= BOOT ================= */
     .boot {
@@ -513,6 +519,7 @@
         aspect-ratio: auto; transform: none;
       }
       .island video { height: 100%; }
+      .island canvas#wp-canvas { height: 100%; }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
@@ -572,6 +579,7 @@
       aspect-ratio: auto; transform: none;
     }
     html.mobile-preview .island video { height: 100%; }
+    html.mobile-preview .island canvas#wp-canvas { height: 100%; }
     html.mobile-preview .track { height: 62px; }
     html.mobile-preview .runner { width: 52px; height: 52px; }
     html.mobile-preview .runner img { width: 38px; height: 38px; }
@@ -916,9 +924,15 @@
          spot entirely. -->
     <div class="island" aria-hidden="true">
       <video id="wp" autoplay loop muted playsinline preload="auto"
-             poster="assets/images/wallpaper/trollrunner wallpaper 1.jpg">
-        <source src="assets/animations/trollrunner wallpaper 1 animated.mp4" type="video/mp4">
+             poster="assets/images/wallpaper/trollrunner-island.jpg">
+        <source src="assets/animations/trollrunner island animation.mp4" type="video/mp4">
       </video>
+      <!-- The video's own background is a flat white studio backdrop, not
+           transparency — no codec with real alpha plays reliably across
+           mobile Safari and Android Chrome both. This canvas redraws each
+           decoded frame with the white keyed out to alpha instead, so the
+           starfield shows through behind the island on every phone. -->
+      <canvas id="wp-canvas"></canvas>
     </div>
 
 
@@ -2293,6 +2307,86 @@
       // browsers hold out for.
       ['pointerdown', 'touchstart'].forEach(ev =>
         document.addEventListener(ev, kick, { once: true, passive: true }));
+    }
+
+    /* ================= WALLPAPER KEY =================
+       The island art (both the poster jpg and the mp4) was rendered on a
+       flat white studio backdrop, not a real transparent one — no video
+       codec with alpha plays reliably across iOS Safari and Android Chrome
+       both, so "transparent video" has to happen in JS instead. This reads
+       each decoded frame into an offscreen canvas, drops every near-white
+       pixel's alpha (with a soft-edge falloff so the island's own white
+       highlights and cel-shading edges don't get chewed up), and paints the
+       result onto the on-screen canvas that replaces the hidden <video>. */
+    const wpCanvas = $('wp-canvas');
+    if (wp && wpCanvas) {
+      const wpCtx = wpCanvas.getContext('2d');
+      const off = document.createElement('canvas');
+      const offCtx = off.getContext('2d', { willReadFrequently: true });
+      let wpRaf = 0, wpSized = false;
+
+      function keySize(w, h) {
+        if (wpCanvas.width === w && wpCanvas.height === h) return;
+        wpCanvas.width = off.width = w;
+        wpCanvas.height = off.height = h;
+        wpSized = w > 0 && h > 0;
+      }
+
+      // Near-white -> transparent, with a short ramp so it's a soft cutout
+      // rather than a hard-edged sticker.
+      function keyPaint(source, w, h) {
+        if (!wpSized) return;
+        offCtx.drawImage(source, 0, 0, w, h);
+        const frame = offCtx.getImageData(0, 0, w, h);
+        const d = frame.data;
+        const HI = 252, LO = 224; // luminance band that fades to alpha 0
+        for (let i = 0; i < d.length; i += 4) {
+          const lum = (d[i] + d[i + 1] + d[i + 2]) / 3;
+          if (lum >= HI) d[i + 3] = 0;
+          else if (lum > LO) d[i + 3] = Math.round(255 * (HI - lum) / (HI - LO));
+        }
+        wpCtx.putImageData(frame, 0, 0);
+      }
+
+      // Poster-equivalent: key the still jpg once so there's keyed art on
+      // screen before the video has decoded a frame (mirrors the old
+      // poster="" behaviour, which a canvas can't do natively).
+      const posterImg = new Image();
+      posterImg.src = wp.getAttribute('poster') || '';
+      posterImg.decoding = 'async';
+      posterImg.addEventListener('load', () => {
+        if (wp.readyState >= 2) return; // a real frame already took over
+        keySize(posterImg.naturalWidth, posterImg.naturalHeight);
+        keyPaint(posterImg, posterImg.naturalWidth, posterImg.naturalHeight);
+      });
+
+      function wpDraw() {
+        if (wp.videoWidth && wp.videoHeight) {
+          keySize(wp.videoWidth, wp.videoHeight);
+          keyPaint(wp, wp.videoWidth, wp.videoHeight);
+        }
+        if (wp.requestVideoFrameCallback) {
+          wp.requestVideoFrameCallback(wpDraw);
+        } else {
+          wpRaf = requestAnimationFrame(wpDraw);
+        }
+      }
+
+      function wpStart() {
+        cancelAnimationFrame(wpRaf);
+        if (wp.videoWidth && wp.videoHeight) keySize(wp.videoWidth, wp.videoHeight);
+        if (calm.matches) {
+          // One keyed frame, then hold still — same spirit as the starfield
+          // going static for reduced motion.
+          keyPaint(wp, wp.videoWidth, wp.videoHeight);
+        } else if (wp.requestVideoFrameCallback) {
+          wp.requestVideoFrameCallback(wpDraw);
+        } else {
+          wpRaf = requestAnimationFrame(wpDraw);
+        }
+      }
+      wp.addEventListener('loadeddata', wpStart);
+      calm.addEventListener?.('change', wpStart);
     }
   })();
   </script>
