@@ -392,6 +392,10 @@
     }
     .sheet .link:hover { color: var(--accent); padding-left: 6px; }
     .sheet .link .ext { font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim); }
+    /* Only a real troll_runner admin session unlocks this — see
+       checkAdminMenuAccess(). Everyone else sees the door, but it's dead. */
+    .sheet .link.is-locked { color: var(--fg-dim); opacity: .45; cursor: not-allowed; }
+    .sheet .link.is-locked:hover { color: var(--fg-dim); padding-left: 0; }
     .sheet .rule { border: 0; border-top: 1px solid var(--glass-stroke); margin: 26px 0 16px; }
     .sheet .tagline { color: var(--fg-dim); font-size: 13px; margin: 0 0 16px; }
     .socials { display: flex; gap: 20px; }
@@ -408,7 +412,14 @@
        menu's ✕ on top of the roster's ✕ and it swallowed the tap. */
     #sheet.is-open ~ #sheet-close,
     #roster.is-open ~ #roster-close,
-    #updates.is-open ~ #updates-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+    #updates.is-open ~ #updates-close,
+    #recycle.is-open ~ #recycle-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+
+    /* ---- recycle bin (a joke, not a feature — see tdBuildRecycle on the
+       desktop, which this mirrors) ---- */
+    .recycle-body { display: grid; justify-items: center; gap: 14px; padding: 6px 0 4px; text-align: center; }
+    .recycle-body img { width: 130px; opacity: .9; }
+    .recycle-body p { margin: 0; color: var(--fg-dim); font-size: 15px; }
 
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
@@ -918,6 +929,20 @@
   </div>
   <button class="sheet-close" id="updates-close" type="button" aria-label="Close">✕</button>
 
+  <!-- ============ RECYCLE BIN ============ -->
+  <!-- Opens in place, same reason as Account/Updates above — it's a gag, not
+       a page, so there's nothing on the desktop worth navigating away for. -->
+  <div class="sheet" id="recycle" role="dialog" aria-modal="true" aria-label="Recycle bin">
+    <div class="sheet-inner">
+      <h2>RECYCLE BIN</h2>
+      <div class="recycle-body">
+        <img src="assets/animations/troll-lel_transparent.gif" alt="">
+        <p>Empty. The trash talks itself out.</p>
+      </div>
+    </div>
+  </div>
+  <button class="sheet-close" id="recycle-close" type="button" aria-label="Close">✕</button>
+
   <!-- ============ ACCOUNT ============ -->
   <div class="auth" id="auth" role="dialog" aria-modal="true" aria-label="Account">
     <div class="auth-inner">
@@ -1184,6 +1209,11 @@
       if (a.id === 'updates') {
         el.addEventListener('click', e => { e.preventDefault(); updatesSetOpen(true); });
       }
+      // Same reasoning as Account/Updates: it's a gag sheet, not a page, so
+      // it shouldn't hand off to the windowed desktop either.
+      if (a.id === 'recycle') {
+        el.addEventListener('click', e => { e.preventDefault(); recycleSetOpen(true); });
+      }
 
       const tile = document.createElement('span');
       tile.className = 'app-tile';
@@ -1229,6 +1259,12 @@
       // bounce a phone straight back here.
       { name: 'World',  items: [{ label: 'Classic desktop', to: '/?desktop=1' }] },
       { name: 'Apps',   items: APPS },
+      // Rendered for everyone so the door is visible, but only the real
+      // troll_runner admin session can actually walk through it — see
+      // checkAdminMenuAccess() below, which unlocks #admin-menu-link after a
+      // server-verified check. Starts disabled so there's no flash of a live
+      // link before that check resolves.
+      { name: 'Admin',  items: [{ label: 'Admin', to: 'admin.html', adminLink: true }] },
       { name: 'Social', items: SOCIALS.map(s => ({ label: s.name, href: s.href, external: true })) },
     ];
     for (const g of GROUPS) {
@@ -1244,6 +1280,17 @@
           const ext = document.createElement('span');
           ext.className = 'ext'; ext.textContent = '↗';
           a.appendChild(ext);
+        }
+        if (it.adminLink) {
+          a.id = 'admin-menu-link';
+          a.classList.add('is-locked');
+          a.setAttribute('aria-disabled', 'true');
+          a.removeAttribute('href');
+          a.addEventListener('click', e => { if (a.classList.contains('is-locked')) e.preventDefault(); });
+          const lock = document.createElement('span');
+          lock.className = 'ext';
+          lock.textContent = '🔒';
+          a.appendChild(lock);
         }
         sheetLinks.appendChild(a);
       }
@@ -1620,6 +1667,39 @@
     const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
     const SUPABASE_ROW_ID = 'main';
+
+    /* ================= ADMIN MENU LINK =================
+       Mirrors isAdminViewer() on the desktop (index.html): server-verified
+       via the troll_is_admin() RPC, not a username string compared client
+       side, so it can't be spoofed by editing a cached profile. Runs once on
+       load and again on every auth change (login/logout/switch account). */
+    async function checkAdminMenuAccess() {
+      const link = document.getElementById('admin-menu-link');
+      if (!link) return;
+      let isAdmin = false;
+      try {
+        const token = await window.TrollrunnerAccounts?.getAccessToken?.();
+        if (token) {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_is_admin`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${token}`,
+            },
+            body: '{}',
+          });
+          if (response.ok) isAdmin = (await response.json()) === true;
+        }
+      } catch { isAdmin = false; }
+      link.classList.toggle('is-locked', !isAdmin);
+      link.setAttribute('aria-disabled', String(!isAdmin));
+      if (isAdmin) link.href = 'admin.html';
+      else link.removeAttribute('href');
+    }
+    checkAdminMenuAccess();
+    window.addEventListener('trollrunner:auth-changed', checkAdminMenuAccess);
+
     const viewerOnlineAt = new Date().toISOString();
     let viewerChannel = null, viewerJoined = false;
 
@@ -1811,6 +1891,16 @@
     };
     updatesSheet.inert = true;
     updatesClose.addEventListener('click', () => updatesSetOpen(false));
+
+    /* ---------- recycle bin ---------- */
+    const recycleSheet = $('recycle'), recycleClose = $('recycle-close');
+    const recycleSetOpen = open => {
+      recycleSheet.classList.toggle('is-open', open);
+      recycleSheet.inert = !open;
+      if (open) recycleClose.focus();
+    };
+    recycleSheet.inert = true;
+    recycleClose.addEventListener('click', () => recycleSetOpen(false));
 
     viewersPaint();
     if (window.supabase?.createClient) {
