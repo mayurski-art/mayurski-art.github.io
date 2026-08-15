@@ -511,11 +511,16 @@
        can't be either. Sizing in vw with px bounds keeps a tile roughly a
        thumb wide whether this document thinks it's 390px or 780px. Plate
        removal itself now lives in the base .app-tile rule above — it's not
-       touch-specific any more. */
+       touch-specific any more.
+       The vw rates below were calibrated for phone widths (~390–780px). An
+       iPad is pointer:coarse too but 768–1024px+ wide — at the old 15vw/max
+       120px the icon grid grew tall enough to push the dock below the fold,
+       forcing a scroll to reach it. Slower growth + a lower cap keeps tablet
+       tiles sane without shrinking phones (the clamp floor is unchanged). */
     @media (pointer: coarse) {
-      .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: 5vw 3vw; }
-      .app-tile { width: clamp(54px, 15vw, 120px); height: clamp(54px, 15vw, 120px); }
-      .app-name { font-size: clamp(11px, 3vw, 23px); }
+      .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: clamp(10px, 4vw, 18px) clamp(4px, 2.5vw, 12px); }
+      .app-tile { width: clamp(54px, 9vw, 72px); height: clamp(54px, 9vw, 72px); }
+      .app-name { font-size: clamp(11px, 2.6vw, 15px); }
     }
     /* Guarded with :not(.mobile-preview) — a desktop tab previewing the phone
        shell (see the boot script above) still matches this media query by
