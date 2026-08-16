@@ -334,8 +334,13 @@
        below uniformly rather than duplicating the rule into each one. */
     .apps {
       position: fixed !important; z-index: 5 !important;
-      top: 50% !important; left: 10px !important; right: auto !important;
-      transform: translateY(-50%) !important;
+      /* Anchored below the header rather than vertically centered — with
+         labels now shown, ten icon+label rows run taller than a phone
+         screen, and centering that just pushes the top ones up over the
+         header/stat line (the same failure mode the desktop-preview rail
+         had, fixed the same way here at the root instead of per-context). */
+      top: 80px !important; left: 10px !important; right: auto !important;
+      transform: none !important;
       display: flex !important; flex-direction: column !important;
       width: 70px !important; max-width: 70px !important;
       gap: 16px !important; padding: 0 !important; margin: 0 !important;
@@ -632,6 +637,46 @@
       html:not(.mobile-preview) .stat { display: none; }
       html:not(.mobile-preview) .wordmark { font-size: 27px; }
       html:not(.mobile-preview) .wordmark img { width: 29px; height: 29px; }
+
+      /* The .mobile-preview equivalent of the block above — a genuine
+         desktop window (wide + real mouse) previewing the phone shell, as
+         opposed to a real phone that also happens to carry this class (see
+         the long comment where these rules used to live unguarded). Only
+         reachable here, inside this same real-desktop media query, so none
+         of it can leak onto an actual phone again. */
+      html.mobile-preview .topbar { padding: 10px 16px; }
+      html.mobile-preview .dock {
+        --dock-pad-y: 7px; --dock-ico: 38px; --dock-bottom: 10px;
+      }
+      /* Same rail, same look as the real phone (icon + white label,
+         vertical column) — just scaled up from its top-left corner instead
+         of being vertically centered, since centering ten items taller
+         than a short desktop window is what climbed the rail up over the
+         header/stat line in the first place. Pure `transform: scale`, not
+         a redesign, so it can't drift out of visual sync with the phone
+         version — same markup, same CSS, one extra multiplier. No
+         max-height/overflow: a scaled-up rail on a short window just runs
+         past the fold rather than growing a scrollbar. */
+      html.mobile-preview .apps {
+        top: 104px !important; left: 22px !important;
+        transform: scale(1.3) !important; transform-origin: top left !important;
+      }
+      html.mobile-preview .island {
+        /* width:auto (not a fixed vw/px value) is the actual fix here —
+           aspect-ratio only derives an axis that's auto. With an explicit
+           width, flex-grow was filling all available height beyond what
+           that width's 16:9 needed, and the extra just became invisible
+           letterbox padding inside a box taller than the art. align-self
+           overrides the default cross-axis stretch (which would otherwise
+           force width to the container's full width, leaving aspect-ratio
+           nothing auto to compute), so width now genuinely follows
+           whatever height flex-grow resolves to. max-width is only a
+           backstop for extreme aspect ratios. */
+        position: relative; left: auto; top: auto;
+        flex: 1 1 auto; min-height: 0; align-self: center;
+        width: auto; max-width: min(98vw, 1700px);
+        margin: 2px auto; aspect-ratio: 16 / 9; transform: none;
+      }
     }
 
     /* ---- Desktop preview of the phone shell (?mobile=1) ----
@@ -639,50 +684,27 @@
        unconditionally via class instead of a media query, so a full desktop
        viewport still lays out like a phone: the island fills the space
        between the app grid and the dock instead of floating fixed at a
-       mid-screen anchor sized for a small preview window. */
-    /* Trimmed below phone-compact size: on the phone itself this padding
-       protects a thumb-reachable tap target, but nothing here is
-       touch-driven on a desktop preview, so it's pure reclaimable height —
-       the island is flex:1 and eats whatever this and the dock give back. */
-    html.mobile-preview .topbar { padding: 10px 16px; }
-    html.mobile-preview .dock {
-      --dock-pad-y: 7px; --dock-ico: 38px; --dock-bottom: 10px;
-    }
+       mid-screen anchor sized for a small preview window.
+
+       .mobile-preview is NOT exclusive to an actual desktop faking phone
+       mode — index.html hands every phone visitor the exact same
+       /world.html?embed=1&mobile=1 iframe URL a desktop's "Island" toggle
+       uses (see the top of this file), so a real phone gets this class
+       too. The plain rules right below are harmless there because they
+       happen to match the real phone-breakpoint values already. Anything
+       that's meant to look meaningfully different on an actual desktop —
+       bigger rail, repositioned/scaled, a differently-shaped island — MUST
+       live inside the (min-width:721px) and (pointer:fine) block further
+       down, or it silently reapplies to real phones too (this broke once
+       already: a scaled/repositioned rail correctly built for a wide
+       fine-pointer window rendered oversized and mispositioned on a
+       simulated real phone, since both share this class). */
     html.mobile-preview .wordmark { font-size: 19px; }
     html.mobile-preview .wordmark img { width: 21px; height: 21px; }
     html.mobile-preview .stat { font-size: 12px; }
     html.mobile-preview .sheet h2 { font-size: 32px; }
     html.mobile-preview .sheet .link { font-size: 19px; }
-    /* Same rail, same look as the real phone (icon + white label, vertical
-       column) — just scaled up from its top-left corner instead of being
-       vertically centered, since centering ten items taller than a short
-       desktop window is what climbed the rail up over the header/stat
-       line in the first place. Pure `transform: scale`, not a redesign, so
-       it can't drift out of visual sync with the phone version — same
-       markup, same CSS, one extra multiplier. No max-height/overflow: a
-       scaled-up rail on a short window just runs past the fold rather than
-       growing a scrollbar, which reads worse here than a partial rail. */
-    html.mobile-preview .apps {
-      top: 104px !important; left: 22px !important;
-      transform: scale(1.3) !important; transform-origin: top left !important;
-    }
     html.mobile-preview .shell { height: 100%; height: 100dvh; }
-    html.mobile-preview .island {
-      /* width:auto (not a fixed vw/px value) is the actual fix here —
-         aspect-ratio only derives an axis that's auto. With an explicit
-         width, flex-grow was filling all available height beyond what
-         that width's 16:9 needed, and the extra just became invisible
-         letterbox padding inside a box taller than the art. align-self
-         overrides the default cross-axis stretch (which would otherwise
-         force width to the container's full width, leaving aspect-ratio
-         nothing auto to compute), so width now genuinely follows
-         whatever height flex-grow resolves to. max-width is only a
-         backstop for extreme aspect ratios. */
-      position: relative; left: auto; top: auto;
-      flex: 1 1 auto; min-height: 0; align-self: center;
-      width: auto; max-width: min(98vw, 1700px);
-      margin: 2px auto; aspect-ratio: 16 / 9; transform: none;
-    }
     html.mobile-preview .island img { width: 100%; height: 100%; }
     html.mobile-preview .track { height: 62px; }
     html.mobile-preview .runner { width: 52px; height: 52px; }
@@ -1319,8 +1341,8 @@
         l: 55, t: 436, h: 13 },
       { id: 'finance',  label: 'Finances',  sub: 'finance.trollrunner.net',
         href: 'https://finance.trollrunner.net', external: true, color: '#ffd84d',
-        icon: 'assets/images/icons/finances.png', img: 'assets/images/world/finance.png',
-        l: 72, t: 384, h: 11 },
+        icon: 'assets/images/icons/finances.png', img: 'assets/images/wallpaper-src/trollrunner.obj-finances.png',
+        l: 19, t: 30, h: 13, rot: -3, hw: 10, hh: 16 },
       // front band
       // Same origin (this repo IS trollrunner.net), so this is a relative
       // link rather than `external`. Goes straight to the standalone
