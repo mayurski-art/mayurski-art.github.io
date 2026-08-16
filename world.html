@@ -1449,8 +1449,14 @@
     // a real mouse. pointer:coarse alone missed the latter — a browser
     // window merely resized narrow (dev-tools responsive mode without
     // touch emulation on, or a small desktop browser) still reports
-    // pointer:fine, so the failsafe kept firing there.
-    const isTouchDevice = window.matchMedia('(max-width: 720px), (pointer: coarse)').matches;
+    // pointer:fine, so the failsafe kept firing there. .mobile-preview
+    // (?mobile=1, or index.html's "Island" toggle) covers the remaining
+    // gap: a full-width desktop tab deliberately viewing the phone shell —
+    // still mouse+wide, so neither part of the media query catches it, but
+    // it's still the phone experience and should demand the same manual
+    // drag rather than auto-completing itself after a few seconds.
+    const isTouchDevice = window.matchMedia('(max-width: 720px), (pointer: coarse)').matches
+      || document.documentElement.classList.contains('mobile-preview');
     function setPhase(next) {
       body.dataset.phase = next;
       clearTimeout(lockTimer);
