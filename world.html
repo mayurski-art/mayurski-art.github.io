@@ -581,7 +581,7 @@
       .stat { font-size: 12px; }
       .sheet h2 { font-size: 32px; }
       .sheet .link { font-size: 19px; }
-      .app-name { font-size: 8px; }
+      .app-name { font-size: 6px; }
       /* The shell is min-height:100%, so as a flex container it just grows to
          fit and nothing ever shrinks — the wallpaper kept pushing the dock
          (and the radio button on it) below the fold. Bounding the shell to
@@ -628,14 +628,16 @@
            moves the island (and everything sharing this one auto margin)
            up/down — but the item right after the island ends up in the
            exact same place, because its own start position already
-           absorbed that shift. So this -5dvh here only moves the island
-           itself (down, since it's negative); the 10dvh on .apps below
+           absorbed that shift. So this -1dvh here only moves the island
+           itself (down, since it's negative — kept small so the island's
+           bottom edge, waterfall included, clears the icon row instead of
+           overlapping it); the 10dvh on .apps below
            still lifts both the island and the icon row an extra 10dvh
            whenever .apps is actually in flow (home phase only — .apps is
            display:none during lock, so the lock screen only ever sees this
            island rule's own offset, not the .apps one). The dock/lockbar
            underneath never moves. */
-        margin-top: auto; margin-bottom: -5dvh;
+        margin-top: auto; margin-bottom: -1dvh;
         order: 1;
         /* Additive fine-tune on top of the auto-margin stack above — see
            --island-dx/--island-dy at :root. */
@@ -657,10 +659,10 @@
            shares the island's one auto margin, the home-phase island too)
            down by that same 10dvh. */
         margin: 0 auto 0dvh !important; padding: 0 10px !important;
-        gap: 12px 4px !important;
+        gap: 8px 3px !important;
         order: 2;
       }
-      .app-tile { width: 38px; height: 38px; }
+      .app-tile { width: 30px; height: 30px; }
       /* Both share the island's stack instead of fighting it for the leftover
          space with their own auto margins — only the island pushes the group
          down; the panel below it just follows in normal flow. */
@@ -681,9 +683,9 @@
        forcing a scroll to reach it. Slower growth + a lower cap keeps tablet
        tiles sane without shrinking phones (the clamp floor is unchanged). */
     @media (pointer: coarse) {
-      .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: clamp(10px, 4vw, 18px) clamp(4px, 2.5vw, 12px); }
-      .app-tile { width: clamp(38px, 6.3vw, 50px); height: clamp(38px, 6.3vw, 50px); }
-      .app-name { font-size: clamp(8px, 1.8vw, 11px); }
+      .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: clamp(6px, 2.5vw, 12px) clamp(3px, 1.5vw, 8px); }
+      .app-tile { width: clamp(30px, 5vw, 40px); height: clamp(30px, 5vw, 40px); }
+      .app-name { font-size: clamp(6px, 1.4vw, 9px); }
     }
     /* Guarded with :not(.mobile-preview) — a desktop tab previewing the phone
        shell (see the boot script above) still matches this media query by
