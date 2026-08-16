@@ -337,10 +337,12 @@
       top: 50% !important; left: 10px !important; right: auto !important;
       transform: translateY(-50%) !important;
       display: flex !important; flex-direction: column !important;
-      width: 58px !important; max-width: 58px !important;
-      gap: 14px !important; padding: 0 !important; margin: 0 !important;
+      width: 70px !important; max-width: 70px !important;
+      gap: 16px !important; padding: 0 !important; margin: 0 !important;
     }
-    .apps .app-name { display: none !important; }
+    /* White label under each icon — --fg is already ~white, this just makes
+       it explicit and keeps it centered under the (also widened) tile. */
+    .apps .app-name { color: #fff !important; }
     /* ================= RUN TO ENTER ================= */
     .lockbar {
       padding: 18px 20px calc(24px + env(safe-area-inset-bottom));
@@ -644,25 +646,19 @@
     html.mobile-preview .stat { font-size: 12px; }
     html.mobile-preview .sheet h2 { font-size: 32px; }
     html.mobile-preview .sheet .link { font-size: 19px; }
-    /* The compact phone rail (small tiles, no labels, vertically centered —
-       which overflows into the header on a desktop-tall viewport since ten
-       icons at phone size run taller than a phone screen ever does) reads
-       as cramped and broken on an actual desktop window previewing this
-       shell. Same vertical rail, but sized for the room a desktop actually
-       has: bigger tiles, labels back on, anchored below the header instead
-       of vertically centered so it can't climb up over the stat line. */
+    /* Same rail, same look as the real phone (icon + white label, vertical
+       column) — just scaled up from its top-left corner instead of being
+       vertically centered, since centering ten items taller than a short
+       desktop window is what climbed the rail up over the header/stat
+       line in the first place. Pure `transform: scale`, not a redesign, so
+       it can't drift out of visual sync with the phone version — same
+       markup, same CSS, one extra multiplier. No max-height/overflow: a
+       scaled-up rail on a short window just runs past the fold rather than
+       growing a scrollbar, which reads worse here than a partial rail. */
     html.mobile-preview .apps {
-      top: 104px !important; transform: none !important; left: 22px !important;
-      width: 86px !important; max-width: 86px !important; gap: 20px !important;
-      /* Ten icons at this size run taller than a short browser window —
-         scroll within the rail itself rather than spilling under the dock
-         with no way to reach the rest. */
-      max-height: calc(100vh - 130px) !important; overflow-y: auto !important;
-      scrollbar-width: thin;
+      top: 104px !important; left: 22px !important;
+      transform: scale(1.3) !important; transform-origin: top left !important;
     }
-    html.mobile-preview .apps .app-name { display: block !important; }
-    html.mobile-preview .app-tile { width: 62px; height: 62px; }
-    html.mobile-preview .app-name { font-size: 12px; }
     html.mobile-preview .shell { height: 100%; height: 100dvh; }
     html.mobile-preview .island {
       position: relative; left: auto; top: auto;
@@ -2261,6 +2257,10 @@
             viewerJoined = true;
             viewerChannel.track(viewerPayload());
           });
+        // Heartbeat: re-track every 30s so trackedAt stays fresh and every
+        // client's roster (including our own) repaints on a steady cadence
+        // instead of only when someone joins or leaves.
+        setInterval(viewersRetrack, 30000);
       } catch {}
     }
 
