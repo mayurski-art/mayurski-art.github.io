@@ -113,7 +113,7 @@
       /* Their site swaps the pointer for a troll; ours uses our own face,
          cut from the official logo art in the PFP set. */
       --cursor-troll: url(assets/images/troll-cursor.png) 6 3, pointer;
-      /* Width of the right-side drawer sheets (menu/roster/updates/recycle/
+      /* Width of the right-side drawer sheets (menu/roster/updates/
          feedback) — shared so the fixed-position close button can line up
          with the drawer's own edge at any viewport size. */
       --sheet-w: min(340px, 86vw);
@@ -329,7 +329,7 @@
        the look stuck — keeping it even as landmarks (terminal, stickers,
        ...) go on to get their own tappable spots directly on the island
        art, since this rail is still how every other app (including ones
-       that never get island art, like Account/Updates/Recycle) launches.
+       that never get island art, like Account/Updates) launches.
        !important across the board because it overrides every breakpoint
        below uniformly rather than duplicating the rule into each one. */
     .apps {
@@ -477,7 +477,7 @@
     .foot a:hover { color: var(--accent); }
 
     /* ================= MENU SHEET (right-side drawer) =================
-       Every sheet (menu/roster/updates/recycle/feedback) shares this: a
+       Every sheet (menu/roster/updates/feedback) shares this: a
        full-screen dim scrim (.sheet) behind a fixed-width panel (.sheet-inner)
        that slides in from the right edge, rather than a centered card. */
     .sheet {
@@ -536,14 +536,7 @@
     #sheet.is-open ~ #sheet-close,
     #roster.is-open ~ #roster-close,
     #updates.is-open ~ #updates-close,
-    #recycle.is-open ~ #recycle-close,
     #feedback.is-open ~ #feedback-close { opacity: 1; visibility: visible; transition-delay: 0s; }
-
-    /* ---- recycle bin (a joke, not a feature — see tdBuildRecycle on the
-       desktop, which this mirrors) ---- */
-    .recycle-body { display: grid; justify-items: center; gap: 14px; padding: 6px 0 4px; text-align: center; }
-    .recycle-body img { width: 130px; opacity: .9; }
-    .recycle-body p { margin: 0; color: var(--fg-dim); font-size: 15px; }
 
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
@@ -614,8 +607,17 @@
            this identically in both the lock and home phases (only the
            lockbar vs. dock differs below), so the island doesn't jump when
            you unlock. See the .apps/.lockbar/.dock overrides right below for
-           the rest of that stack. */
-        margin-top: auto;
+           the rest of that stack.
+           margin-bottom nudges the island up within that stack without
+           moving the icon row or the dock: adding space anywhere in the
+           column shrinks this auto push by the same amount, which moves the
+           island (and everything sharing this one auto margin) up — but the
+           item right after the island ends up in the exact same place,
+           because its own start position already absorbed that shrink. So
+           this 5dvh here only lifts the island itself; the 10dvh on .apps
+           below lifts both the island (5+10=15dvh total) and the icon row
+           (10dvh), while the dock/lockbar underneath doesn't move at all. */
+        margin-top: auto; margin-bottom: 5dvh;
         order: 1;
       }
       .island img { width: 100%; height: 100%; }
@@ -627,7 +629,7 @@
         right: auto !important; bottom: auto !important; transform: none !important;
         display: grid !important; grid-template-columns: repeat(4, 1fr) !important;
         width: 100% !important; max-width: min(520px, 94vw) !important;
-        margin: 0 auto 14px !important; padding: 0 10px !important;
+        margin: 0 auto 10dvh !important; padding: 0 10px !important;
         gap: 12px 4px !important;
         order: 2;
       }
@@ -1160,22 +1162,8 @@
   </div>
   <button class="sheet-close" id="updates-close" type="button" aria-label="Close">✕</button>
 
-  <!-- ============ RECYCLE BIN ============ -->
-  <!-- Opens in place, same reason as Account/Updates above — it's a gag, not
-       a page, so there's nothing on the desktop worth navigating away for. -->
-  <div class="sheet" id="recycle" role="dialog" aria-modal="true" aria-label="Recycle bin">
-    <div class="sheet-inner">
-      <h2>RECYCLE BIN</h2>
-      <div class="recycle-body">
-        <img src="assets/animations/troll-lel_transparent.gif" alt="">
-        <p>Empty. The trash talks itself out.</p>
-      </div>
-    </div>
-  </div>
-  <button class="sheet-close" id="recycle-close" type="button" aria-label="Close">✕</button>
-
   <!-- ============ FEEDBACK ============ -->
-  <!-- Opens in place, same reason as Account/Updates/Recycle above. Submits
+  <!-- Opens in place, same reason as Account/Updates above. Submits
        through the same troll_submit_feedback RPC the desktop's #feedback
        section uses (see submitFeedbackToBackend() on the desktop), so
        there's one feedback inbox either way. -->
@@ -1408,9 +1396,6 @@
       { id: 'feedback', label: 'Feedback',       sub: 'Tell me what broke',
         to: '/?desktop=1&open=feedback', color: '#e3b579',
         icon: 'assets/images/icons/feedback.png' },
-      { id: 'recycle',  label: 'Recycle Bin',    sub: 'Deleted, allegedly',
-        to: '/?desktop=1&open=recycle',  color: '#9b9ba1',
-        icon: 'assets/images/icons/recycle.png' },
     ];
 
     const SOCIALS = [
@@ -1481,11 +1466,6 @@
       // fallback, same as Account.
       if (a.id === 'updates') {
         el.addEventListener('click', e => { e.preventDefault(); updatesSetOpen(true); });
-      }
-      // Same reasoning as Account/Updates: it's a gag sheet, not a page, so
-      // it shouldn't hand off to the windowed desktop either.
-      if (a.id === 'recycle') {
-        el.addEventListener('click', e => { e.preventDefault(); recycleSetOpen(true); });
       }
       // Feedback posts straight to Supabase from this page (see
       // submitFeedbackMobile below) — no reason to hand off either.
@@ -1708,7 +1688,7 @@
     // Every .sheet is now a scrim behind a right-side drawer (.sheet-inner),
     // so a tap outside the drawer — on the dimmed backdrop — should close it
     // like a tap on its own close button. One handler covers all five
-    // sheets (menu/roster/updates/recycle/feedback) since they all pair an
+    // sheets (menu/roster/updates/feedback) since they all pair an
     // id="X" sheet with an id="X-close" button.
     document.querySelectorAll('.sheet').forEach(sheetEl => {
       sheetEl.addEventListener('click', e => {
@@ -2273,16 +2253,6 @@
     };
     updatesSheet.inert = true;
     updatesClose.addEventListener('click', () => updatesSetOpen(false));
-
-    /* ---------- recycle bin ---------- */
-    const recycleSheet = $('recycle'), recycleClose = $('recycle-close');
-    const recycleSetOpen = open => {
-      recycleSheet.classList.toggle('is-open', open);
-      recycleSheet.inert = !open;
-      if (open) recycleClose.focus();
-    };
-    recycleSheet.inert = true;
-    recycleClose.addEventListener('click', () => recycleSetOpen(false));
 
     /* ---------- feedback ----------
        Same identity keys and RPC as the desktop's #feedback section (see

@@ -4904,11 +4904,6 @@ body.desktop-mode .troll-desktop { display: block; }
 .hub-soc:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(160, 255, 190, 0.3), inset 0 0 0 1px rgba(77, 255, 115, 0.4), 0 0 12px rgba(77, 255, 115, 0.28), 2px 2px 0 rgba(0, 0, 0, 0.4); }
 .hub-soc img { width: 18px; height: 18px; object-fit: contain; }
 
-/* ---- recycle bin gag ---- */
-.td-recycle-body { display: grid; justify-items: center; gap: 10px; padding: 18px 8px; text-align: center; }
-.td-recycle-body img { width: 90px; opacity: 0.85; }
-.td-recycle-body p { margin: 0; font-size: 16px; color: #aeb9d0; }
-
 /* ---- windows: legacy section polish ---- */
 .tw-body #trollchat { padding: 0; }
 .tw-body #trollchat .live-chat-window { max-width: none; }
@@ -6148,7 +6143,6 @@ const TD_WINDOWS = {
   feedback: { title: 'Feedback', icon: '⌨️', img: 'assets/images/icons/feedback.png', flat: true, width: 660, source: '#feedback' },
   checklist: { title: 'Beta Checklist', icon: '✅', width: 620, source: '#checklist', adminOnly: true },
   about: { title: 'About TrollRunner', icon: 'ℹ️', width: 720, source: 'footer .footer-inner' },
-  recycle: { title: 'Recycle Bin', icon: '🗑️', img: 'assets/images/icons/recycle.png', width: 420, build: tdBuildRecycle },
 };
 
 // Every subdomain site opens as its own in-page "browser" window (an iframe
@@ -6318,19 +6312,6 @@ async function tdSyncWalletUI() {
   if (bal?.troll != null) parts.push(`${bal.troll.toLocaleString('en-US', { maximumFractionDigits: 0 })} $TROLL`);
   if (bal?.usdc != null) parts.push(`${bal.usdc.toLocaleString('en-US', { maximumFractionDigits: 2 })} USDC`);
   balEls.forEach(el => { el.textContent = parts.join(' · '); });
-}
-
-function tdBuildRecycle(body) {
-  body.innerHTML = '';
-  const wrap = document.createElement('div');
-  wrap.className = 'td-recycle-body';
-  const img = document.createElement('img');
-  img.src = 'assets/animations/troll-lel_transparent.gif';
-  img.alt = '';
-  const line = document.createElement('p');
-  line.textContent = 'Empty. The trash talks itself out.';
-  wrap.append(img, line);
-  body.appendChild(wrap);
 }
 
 function tdBuildIframe(body, url, label) {
@@ -6817,7 +6798,6 @@ function tdRenderDockIcons() {
     { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account', onOpen: tdOpenAccount },
     { icon: TD_WINDOWS.feedback.icon, img: TD_WINDOWS.feedback.img, flat: true, label: 'Feedback', onOpen: () => twOpen('feedback') },
     { icon: TD_WINDOWS.updates.icon, img: TD_WINDOWS.updates.img, flat: true, label: 'Latest Updates', onOpen: () => twOpen('updates') },
-    { icon: TD_WINDOWS.recycle.icon, img: TD_WINDOWS.recycle.img, flat: true, label: 'Recycle Bin', onOpen: () => twOpen('recycle') },
     { icon: TD_WINDOWS.terminal.icon, img: TD_WINDOWS.terminal.img, flat: true, label: 'Terminal', onOpen: () => twOpen('terminal') },
     { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: true, label: 'TrollChat', feature: 'troll_chat', onOpen: () => twOpen('chat') },
     { icon: TD_WINDOWS.finance.icon, img: TD_WINDOWS.finance.img, flat: true, label: 'Finances', onOpen: () => twOpen('finance') },
@@ -7320,7 +7300,7 @@ function trollDesktopShow(boot) {
     // Hub no longer auto-opens on boot — click its desktop icon.
 
     // Handoff from the phone entrance: world.html's Account / Updates /
-    // Feedback / Recycle Bin icons aren't pages, they're windows in here, so
+    // Feedback icons aren't pages, they're windows in here, so
     // they arrive as ?open=<id>. twOpen() enforces adminOnly itself, so an
     // unknown or restricted id simply does nothing.
     try {
