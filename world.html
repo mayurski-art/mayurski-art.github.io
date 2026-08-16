@@ -8,15 +8,13 @@
        also evaluates strings, hence 'unsafe-eval' — index.html's CSP carries
        it for the same player. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://*.spotifycdn.com; frame-src https://open.spotify.com https://*.spotify.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
-  <!-- No pinch-zoom, same as trollface.io's map: the island art is fixed-size
-       chrome, not content meant to be inspected at arbitrary zoom, and
-       letting it zoom just exposes how low-res it is next to a real photo.
-       maximum-scale=1/user-scalable=no blocks the two-finger gesture: iOS
-       Safari still honors it for pinch (unlike some Android WebViews), it's
-       only double-tap "smart zoom" on an individual text/button element that
-       Apple no longer lets a page opt out of — same residual behavior
-       trollface.io has. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- Pinch-zoom deliberately allowed: the island art is a genuinely
+       vector-traced SVG land base (see the .island comment below) plus
+       full-detail raster objects sized well past the render ceiling, so it
+       holds up under zoom instead of exposing pixelation the way the old
+       flat low-res composite did — worth letting people actually zoom in
+       and look now. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -146,10 +144,6 @@
       margin: 0; background: #000; color: var(--fg);
       font-family: var(--font-ui); -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
-      /* Backs up the viewport meta's user-scalable=no: some Android
-         WebViews pinch-zoom regardless of the meta tag, but do respect
-         touch-action. Panning/scrolling still works, just not pinch. */
-      touch-action: pan-x pan-y;
     }
     a { color: inherit; text-decoration: none; }
     button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
@@ -329,12 +323,15 @@
       font-size: 12px; font-weight: 500; text-align: center; line-height: 1.2;
       text-shadow: var(--legible); color: var(--fg);
     }
-    /* TEMP: the island landmarks (arcade, terminal, sticker booth, ...) aren't
-       built yet, so the app grid still doubles as the launcher. Parked in a
-       vertical rail off to the side, overriding every breakpoint below with
-       !important, purely so the land base art is fully visible while that
-       object art gets generated piece by piece. Delete this whole block once
-       the apps render as positioned pieces on the island itself. */
+    /* Vertical rail along the side, keeping the island fully visible instead
+       of a horizontal grid eating into it. Originally a stopgap for while
+       the island landmarks were still being generated one at a time, but
+       the look stuck — keeping it even as landmarks (terminal, stickers,
+       ...) go on to get their own tappable spots directly on the island
+       art, since this rail is still how every other app (including ones
+       that never get island art, like Account/Updates/Recycle) launches.
+       !important across the board because it overrides every breakpoint
+       below uniformly rather than duplicating the rule into each one. */
     .apps {
       position: fixed !important; z-index: 5 !important;
       top: 50% !important; left: 10px !important; right: auto !important;
@@ -647,17 +644,33 @@
     html.mobile-preview .stat { font-size: 12px; }
     html.mobile-preview .sheet h2 { font-size: 32px; }
     html.mobile-preview .sheet .link { font-size: 19px; }
-    html.mobile-preview .apps { gap: 12px 4px; margin-top: 2px; max-width: 520px; }
-    html.mobile-preview .app-tile { width: 54px; height: 54px; }
-    html.mobile-preview .app-name { font-size: 11px; }
+    /* The compact phone rail (small tiles, no labels, vertically centered —
+       which overflows into the header on a desktop-tall viewport since ten
+       icons at phone size run taller than a phone screen ever does) reads
+       as cramped and broken on an actual desktop window previewing this
+       shell. Same vertical rail, but sized for the room a desktop actually
+       has: bigger tiles, labels back on, anchored below the header instead
+       of vertically centered so it can't climb up over the stat line. */
+    html.mobile-preview .apps {
+      top: 104px !important; transform: none !important; left: 22px !important;
+      width: 86px !important; max-width: 86px !important; gap: 20px !important;
+      /* Ten icons at this size run taller than a short browser window —
+         scroll within the rail itself rather than spilling under the dock
+         with no way to reach the rest. */
+      max-height: calc(100vh - 130px) !important; overflow-y: auto !important;
+      scrollbar-width: thin;
+    }
+    html.mobile-preview .apps .app-name { display: block !important; }
+    html.mobile-preview .app-tile { width: 62px; height: 62px; }
+    html.mobile-preview .app-name { font-size: 12px; }
     html.mobile-preview .shell { height: 100%; height: 100dvh; }
     html.mobile-preview .island {
       position: relative; left: auto; top: auto;
       flex: 1 1 auto; min-height: 0;
-      width: 96vw; max-width: 96vw; margin: 6px auto 4px;
-      aspect-ratio: auto; transform: none;
+      width: min(92vw, 1600px); max-width: min(92vw, 1600px);
+      margin: 6px auto 4px; aspect-ratio: 16 / 9; transform: none;
     }
-    html.mobile-preview .island img { height: 100%; }
+    html.mobile-preview .island img { width: 100%; height: 100%; }
     html.mobile-preview .track { height: 62px; }
     html.mobile-preview .runner { width: 52px; height: 52px; }
     html.mobile-preview .runner img { width: 38px; height: 38px; }
