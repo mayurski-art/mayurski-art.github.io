@@ -659,7 +659,7 @@
            shares the island's one auto margin, the home-phase island too)
            down by that same 10dvh. */
         margin: 0 auto 0dvh !important; padding: 0 10px !important;
-        gap: 8px 3px !important;
+        gap: 8px 1px !important;
         order: 2;
       }
       .app-tile { width: 30px; height: 30px; }
@@ -667,7 +667,13 @@
          space with their own auto margins — only the island pushes the group
          down; the panel below it just follows in normal flow. */
       .lockbar { order: 3; margin-top: 0; }
-      .dock { order: 3; margin-top: 0; }
+      .dock {
+        order: 3; margin-top: 0;
+        --dock-pad-y: 8px; --dock-pad-x: 14px; --dock-ico: 34px;
+        --dock-item: 42px; --dock-gap: 16px; --dock-label: 10px;
+      }
+      .dock svg { width: 16px; height: 16px; }
+      .dock span { font-size: 8px; }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
@@ -683,7 +689,7 @@
        forcing a scroll to reach it. Slower growth + a lower cap keeps tablet
        tiles sane without shrinking phones (the clamp floor is unchanged). */
     @media (pointer: coarse) {
-      .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: clamp(6px, 2.5vw, 12px) clamp(3px, 1.5vw, 8px); }
+      .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: clamp(6px, 2.5vw, 12px) clamp(1px, 1vw, 4px); }
       .app-tile { width: clamp(30px, 5vw, 40px); height: clamp(30px, 5vw, 40px); }
       .app-name { font-size: clamp(6px, 1.4vw, 9px); }
     }
