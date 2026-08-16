@@ -291,6 +291,21 @@
       font-size: 12px; font-weight: 500; text-align: center; line-height: 1.2;
       text-shadow: var(--legible); color: var(--fg);
     }
+    /* TEMP: the island landmarks (arcade, terminal, sticker booth, ...) aren't
+       built yet, so the app grid still doubles as the launcher. Parked in a
+       vertical rail off to the side, overriding every breakpoint below with
+       !important, purely so the land base art is fully visible while that
+       object art gets generated piece by piece. Delete this whole block once
+       the apps render as positioned pieces on the island itself. */
+    .apps {
+      position: fixed !important; z-index: 5 !important;
+      top: 50% !important; left: 10px !important; right: auto !important;
+      transform: translateY(-50%) !important;
+      display: flex !important; flex-direction: column !important;
+      width: 58px !important; max-width: 58px !important;
+      gap: 14px !important; padding: 0 !important; margin: 0 !important;
+    }
+    .apps .app-name { display: none !important; }
     /* ================= RUN TO ENTER ================= */
     .lockbar {
       padding: 18px 20px calc(24px + env(safe-area-inset-bottom));
@@ -936,9 +951,15 @@
          phone it can flex into whatever room the icons and the dock leave;
          on desktop it goes back to position:fixed and ignores this spot
          entirely. The PNG has the studio-white backdrop already cut to
-         alpha, so the starfield shows through behind the island. -->
+         alpha, so the starfield shows through behind the island.
+
+         This is the bare terrain layer only — no buildings baked in. The
+         individual landmarks (arcade, terminal, stickers booth, treasure
+         chest, ...) render as separate positioned pieces on top of it (see
+         the APPS l/t/h/img fields below), so each can be swapped or
+         animated independently instead of living inside one flat image. -->
     <div class="island" aria-hidden="true">
-      <img src="assets/images/wallpaper/trollrunner-island-cutout.png" alt="">
+      <img src="assets/images/wallpaper/trollrunner-island-land.png" alt="">
     </div>
 
 
