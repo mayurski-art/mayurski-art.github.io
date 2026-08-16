@@ -1492,6 +1492,7 @@
        apps with hw/hh get one — that's the ones whose art actually exists
        in trollrunner-island-land.svg today. */
     const island = $('island');
+    const hotspots = new Map();
     for (const a of APPS) {
       if (!a.hw || !a.hh) continue;
       const el = document.createElement('a');
@@ -1503,6 +1504,7 @@
       el.style.height = a.hh + '%';
       linkAttrs(el, a);
       island.appendChild(el);
+      hotspots.set(a.id, el);
     }
 
     /* ---------- position editor (?edit=1) ----------
@@ -1538,6 +1540,11 @@
       });
 
       for (const a of editable) {
+        // Keeps the real tap target (built above, before any dragging
+        // happens) glued to the art while it's repositioned here — without
+        // this the hotspot stays wherever it was at page load and clicking
+        // the moved art misses.
+        const hotspot = hotspots.get(a.id);
         const el = document.createElement('div');
         el.className = 'island-edit-obj';
         el.style.cssText = `
@@ -1564,6 +1571,7 @@
           a.l = startL + (e.clientX - startX) / rect.width * 100;
           a.t = startT + (e.clientY - startY) / rect.height * 100;
           el.style.left = a.l + '%'; el.style.top = a.t + '%';
+          if (hotspot) { hotspot.style.left = a.l + '%'; hotspot.style.top = a.t + '%'; }
           renderPanel();
         });
         el.addEventListener('pointerup', e => {
