@@ -1490,6 +1490,82 @@
       island.appendChild(el);
     }
 
+    /* ---------- position editor (?edit=1) ----------
+       Local-only tool for figuring out l/t/h/rot for the next landmark:
+       drag to reposition, scroll to resize, shift+scroll to rotate. Never
+       linked from anywhere, never shown to a real visitor unless they type
+       the query param themselves — safe to leave in. Only apps that already
+       went through the new % based l/t/h/rot pipeline show up (the old
+       pixel-viewBox entries like pfp/hub/maps have t values in the hundreds
+       and get filtered out rather than rendering nonsensically off-screen). */
+    if (new URLSearchParams(location.search).has('edit')) {
+      const editable = APPS.filter(a => a.img && typeof a.l === 'number' && a.l <= 100 && a.t <= 100);
+      const panel = document.createElement('div');
+      panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#000c;color:#0f0;font:12px/1.5 monospace;padding:10px;max-height:40vh;overflow:auto;white-space:pre;';
+      document.body.appendChild(panel);
+      const copyBtn = document.createElement('button');
+      copyBtn.textContent = 'Copy config';
+      copyBtn.style.cssText = 'position:fixed;bottom:calc(40vh + 8px);right:8px;z-index:99999;padding:6px 10px;';
+      document.body.appendChild(copyBtn);
+
+      const renderPanel = () => {
+        panel.textContent = editable.map(a =>
+          `${a.id}: l:${a.l.toFixed(1)}, t:${a.t.toFixed(1)}, h:${a.h.toFixed(1)}, rot:${(a.rot||0).toFixed(1)}`
+        ).join('\n');
+      };
+      copyBtn.addEventListener('click', () => {
+        const text = editable.map(a =>
+          `{ id: '${a.id}', l: ${a.l.toFixed(1)}, t: ${a.t.toFixed(1)}, h: ${a.h.toFixed(1)}, rot: ${(a.rot||0).toFixed(1)} }`
+        ).join(',\n');
+        navigator.clipboard?.writeText(text);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy config'; }, 1200);
+      });
+
+      for (const a of editable) {
+        const el = document.createElement('div');
+        el.className = 'island-edit-obj';
+        el.style.cssText = `
+          position:absolute; height:${a.h}%; width:auto;
+          left:${a.l}%; top:${a.t}%;
+          transform:translate(-50%,-100%) rotate(${a.rot || 0}deg);
+          cursor:grab; outline:1px dashed #0ff8; touch-action:none;
+          pointer-events:auto;
+        `;
+        const img = document.createElement('img');
+        img.src = a.img;
+        img.style.cssText = 'height:100%; width:auto; display:block; pointer-events:none;';
+        el.appendChild(img);
+        island.appendChild(el);
+
+        let dragging = false, startX = 0, startY = 0, startL = 0, startT = 0;
+        el.addEventListener('pointerdown', e => {
+          dragging = true; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing';
+          startX = e.clientX; startY = e.clientY; startL = a.l; startT = a.t;
+        });
+        el.addEventListener('pointermove', e => {
+          if (!dragging) return;
+          const rect = island.getBoundingClientRect();
+          a.l = startL + (e.clientX - startX) / rect.width * 100;
+          a.t = startT + (e.clientY - startY) / rect.height * 100;
+          el.style.left = a.l + '%'; el.style.top = a.t + '%';
+          renderPanel();
+        });
+        el.addEventListener('pointerup', e => {
+          dragging = false; el.releasePointerCapture(e.pointerId); el.style.cursor = 'grab';
+        });
+        el.addEventListener('wheel', e => {
+          e.preventDefault();
+          if (e.shiftKey) a.rot = (a.rot || 0) + (e.deltaY > 0 ? -2 : 2);
+          else a.h = Math.max(2, Math.min(45, a.h + (e.deltaY > 0 ? -0.3 : 0.3)));
+          el.style.height = a.h + '%';
+          el.style.transform = `translate(-50%,-100%) rotate(${a.rot || 0}deg)`;
+          renderPanel();
+        }, { passive: false });
+      }
+      renderPanel();
+    }
+
     /* ---------- dock ---------- */
     const dock = $('dock');
     const svgIcon = path => {
