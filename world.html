@@ -581,7 +581,7 @@
       .stat { font-size: 12px; }
       .sheet h2 { font-size: 32px; }
       .sheet .link { font-size: 19px; }
-      .app-name { font-size: 11px; }
+      .app-name { font-size: 8px; }
       /* The shell is min-height:100%, so as a flex container it just grows to
          fit and nothing ever shrinks — the wallpaper kept pushing the dock
          (and the radio button on it) below the fold. Bounding the shell to
@@ -660,7 +660,7 @@
         gap: 12px 4px !important;
         order: 2;
       }
-      .app-tile { width: 54px; height: 54px; }
+      .app-tile { width: 38px; height: 38px; }
       /* Both share the island's stack instead of fighting it for the leftover
          space with their own auto margins — only the island pushes the group
          down; the panel below it just follows in normal flow. */
@@ -682,8 +682,8 @@
        tiles sane without shrinking phones (the clamp floor is unchanged). */
     @media (pointer: coarse) {
       .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: clamp(10px, 4vw, 18px) clamp(4px, 2.5vw, 12px); }
-      .app-tile { width: clamp(54px, 9vw, 72px); height: clamp(54px, 9vw, 72px); }
-      .app-name { font-size: clamp(11px, 2.6vw, 15px); }
+      .app-tile { width: clamp(38px, 6.3vw, 50px); height: clamp(38px, 6.3vw, 50px); }
+      .app-name { font-size: clamp(8px, 1.8vw, 11px); }
     }
     /* Guarded with :not(.mobile-preview) — a desktop tab previewing the phone
        shell (see the boot script above) still matches this media query by
