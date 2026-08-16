@@ -181,6 +181,32 @@
       pointer-events: none;
     }
     .island img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    /* Invisible tap target standing over a landmark that's baked into the
+       land art — not a second visible image layer (that's the thing that
+       drifted under pinch-zoom and got removed), just a plain link with no
+       rendered content of its own, positioned by the same percentages the
+       landmark was baked in at. Nothing to visually desync since there's
+       nothing to see; worst case under any zoom/rounding quirk is a tap
+       target that's a few px off, not a broken-looking image. */
+    .island-hotspot {
+      position: absolute; left: 0; top: 0;
+      transform: translate(-50%, -100%);
+      display: block; pointer-events: auto;
+      border-radius: 10px;
+    }
+    .island-hotspot:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 3px;
+    }
+    /* Mouse-only affordance that something's there — a soft glow, not art,
+       so it can't fall out of alignment with the baked image the way a
+       positioned picture could. Touch has no hover state to trigger this,
+       which is fine: the whole island already carries "tap things" framing
+       via the run-to-enter flow. */
+    @media (hover: hover) {
+      .island-hotspot:hover {
+        background: radial-gradient(ellipse at 50% 70%, #ffffff2e 0%, transparent 70%);
+      }
+    }
 
     /* ================= BOOT ================= */
     .boot {
@@ -560,7 +586,14 @@
          so browser chrome appearing doesn't re-break it. */
       .shell { height: 100%; height: 100dvh; }
       .island {
-        position: static; flex: 1 1 auto; min-height: 0;
+        /* relative, not static: .island-hotspot tap targets are positioned
+           absolutely against this box, which only works if it stays a
+           containing block at every breakpoint. left/top: auto resets the
+           base rule's 50%/54% fixed-layout offsets, which position:static
+           used to ignore outright but position:relative would otherwise
+           obey, shoving the whole box off toward the bottom-right. */
+        position: relative; left: auto; top: auto;
+        flex: 1 1 auto; min-height: 0;
         width: 96vw; max-width: 96vw; margin: 6px auto 4px;
         aspect-ratio: auto; transform: none;
       }
@@ -619,7 +652,8 @@
     html.mobile-preview .app-name { font-size: 11px; }
     html.mobile-preview .shell { height: 100%; height: 100dvh; }
     html.mobile-preview .island {
-      position: static; flex: 1 1 auto; min-height: 0;
+      position: relative; left: auto; top: auto;
+      flex: 1 1 auto; min-height: 0;
       width: 96vw; max-width: 96vw; margin: 6px auto 4px;
       aspect-ratio: auto; transform: none;
     }
@@ -979,9 +1013,14 @@
          hand-drawn vectors). Pinch-zoom is already locked out via the
          viewport meta below, but this makes the island razor-sharp at any
          screen density on top of that, with a smaller file than the
-         raster version despite being resolution-independent. -->
-    <div class="island" aria-hidden="true">
-      <img src="assets/images/wallpaper/trollrunner-island-land.svg" alt="">
+         raster version despite being resolution-independent.
+
+         Not aria-hidden any more: real .island-hotspot links get appended
+         here by JS below, one per baked-in landmark that has a
+         destination, so tapping the terminal/stickers art itself navigates
+         there directly instead of only working from the app-icon rail. -->
+    <div class="island" id="island">
+      <img src="assets/images/wallpaper/trollrunner-island-land.svg" alt="" aria-hidden="true">
     </div>
 
 
@@ -1237,14 +1276,17 @@
        the same process, not because anything still reads them live. */
     const APPS = [
       // back band
+      // hw/hh: tap-target size in % of the island box, a bit larger than
+      // the baked art's own footprint (roughly l/t/h scaled by the art's
+      // own aspect ratio) so it's an easy target, not a hitbox puzzle.
       { id: 'terminal', label: 'Terminal',  sub: 'terminal.trollrunner.net',
         href: 'https://terminal.trollrunner.net', external: true, color: '#30d158',
         icon: 'assets/images/icons/terminal.png', img: 'assets/images/wallpaper/obj-terminal.png',
-        l: 23, t: 53, h: 12, rot: -2 },
+        l: 23, t: 53, h: 12, rot: -2, hw: 9, hh: 15 },
       { id: 'stickers', label: 'Stickers',  sub: 'stickers.trollrunner.net',
         href: 'https://stickers.trollrunner.net', external: true, color: '#ff9500',
         icon: 'assets/images/icons/stickers.png', img: 'assets/images/wallpaper/obj-stickers.png',
-        l: 86, t: 58, h: 15, rot: 2 },
+        l: 86, t: 58, h: 15, rot: 2, hw: 11, hh: 18 },
       // mid band
       { id: 'pfp',      label: 'PFP Studio', sub: 'Build your troll', to: 'pfp.html',
         color: '#8fe36a', icon: 'assets/images/icons/pfp.png',
@@ -1255,16 +1297,13 @@
         l: 72, t: 384, h: 11 },
       // front band
       // Same origin (this repo IS trollrunner.net), so this is a relative
-      // link rather than `external`. Plain '/' would just get bounced right
-      // back to this entrance by index.html's phone check — ?desktop=1 is
-      // what actually lands on the classic desktop. The desktop's taskbar
-      // carries a matching way back to this entrance (#td-mobile-return).
-      // Sits in TrollChat's old spot. Hands off straight into the chat
-      // window on the classic desktop (?open=chat, same mechanism as the
-      // Account/Updates/Feedback/Recycle tiles below) rather than just
-      // landing on the desktop and making a phone visitor find the dock icon.
+      // link rather than `external`. Goes straight to the standalone
+      // chat.html room — not the windowed desktop with ?open=chat, which
+      // means a real navigation away from this shell just to land on a
+      // chat window buried inside a whole other UI a phone visitor never
+      // asked to see.
       { id: 'hub',      label: 'The Hub',   sub: 'trollrunner.net',
-        to: '/?desktop=1&open=chat', color: '#4dff73',
+        to: 'chat.html', color: '#4dff73',
         icon: 'assets/images/icons/hub.png', img: 'assets/images/world/hub.png',
         l: 38, t: 470, h: 12 },
       { id: 'maps',     label: 'Maps',      sub: 'maps.trollrunner.net',
@@ -1381,6 +1420,26 @@
       name.textContent = a.label;
       el.append(tile, name);
       apps.appendChild(el);
+    }
+
+    /* ---------- island hotspots ----------
+       Invisible tap targets over the landmarks baked into the island art
+       (see the CSS comment on .island-hotspot for why this is safe against
+       the pinch-zoom drift that killed the old visible object layer). Only
+       apps with hw/hh get one — that's the ones whose art actually exists
+       in trollrunner-island-land.svg today. */
+    const island = $('island');
+    for (const a of APPS) {
+      if (!a.hw || !a.hh) continue;
+      const el = document.createElement('a');
+      el.className = 'island-hotspot';
+      el.dataset.app = a.id;
+      el.style.left = a.l + '%';
+      el.style.top = a.t + '%';
+      el.style.width = a.hw + '%';
+      el.style.height = a.hh + '%';
+      linkAttrs(el, a);
+      island.appendChild(el);
     }
 
     /* ---------- dock ---------- */
