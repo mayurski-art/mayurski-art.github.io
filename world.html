@@ -169,6 +169,24 @@
       pointer-events: none;
     }
     .island img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    /* A landmark object standing on the island. Bottom-anchored on its own
+       l/t point (see the APPS array) so that point is where the art's own
+       ground contact sits, not the image's bounding-box corner — the source
+       PNGs are cropped tight with a contact shadow baked in, no fixed
+       aspect, so height alone (from `h`) drives the size and width follows
+       the art. */
+    .island-obj {
+      position: absolute; left: 0; top: 0;
+      transform: translate(-50%, -100%);
+      display: block; pointer-events: auto;
+      filter: drop-shadow(0 6px 10px #00000055);
+      transition: filter .2s var(--ease), transform .2s var(--ease);
+    }
+    .island-obj img { height: 100%; width: auto; display: block; }
+    .island-obj:hover, .island-obj:focus-visible {
+      filter: drop-shadow(0 10px 16px #00000070);
+      transform: translate(-50%, -100%) translateY(-3px);
+    }
 
     /* ================= BOOT ================= */
     .boot {
@@ -548,7 +566,14 @@
          so browser chrome appearing doesn't re-break it. */
       .shell { height: 100%; height: 100dvh; }
       .island {
-        position: static; flex: 1 1 auto; min-height: 0;
+        /* relative, not static: .island-obj landmarks are positioned
+           absolutely against this box, which only works if it stays a
+           containing block at every breakpoint. left/top: auto resets the
+           base rule's 50%/54% fixed-layout offsets, which position:static
+           used to ignore outright but position:relative would otherwise
+           obey, shoving the whole box off toward the bottom-right. */
+        position: relative; left: auto; top: auto;
+        flex: 1 1 auto; min-height: 0;
         width: 96vw; max-width: 96vw; margin: 6px auto 4px;
         aspect-ratio: auto; transform: none;
       }
@@ -607,7 +632,8 @@
     html.mobile-preview .app-name { font-size: 11px; }
     html.mobile-preview .shell { height: 100%; height: 100dvh; }
     html.mobile-preview .island {
-      position: static; flex: 1 1 auto; min-height: 0;
+      position: relative; left: auto; top: auto;
+      flex: 1 1 auto; min-height: 0;
       width: 96vw; max-width: 96vw; margin: 6px auto 4px;
       aspect-ratio: auto; transform: none;
     }
@@ -958,8 +984,8 @@
          chest, ...) render as separate positioned pieces on top of it (see
          the APPS l/t/h/img fields below), so each can be swapped or
          animated independently instead of living inside one flat image. -->
-    <div class="island" aria-hidden="true">
-      <img src="assets/images/wallpaper/trollrunner-island-land.png" alt="">
+    <div class="island" id="island">
+      <img src="assets/images/wallpaper/trollrunner-island-land.png" alt="" aria-hidden="true">
     </div>
 
 
@@ -1198,21 +1224,25 @@
        Last updated: 15 Aug 2026. */
     const MILES_RAN = 417;
 
-    /* `h` is height as a % of the island box; width comes from the art's own
-       aspect. `t` is the ground contact point in viewBox px (0–700), kept in
-       three depth bands — back, mid, front — so the island reads as a surface
-       rather than a row. Every t sits inside the land ellipse
-       (cx 550, cy 392, rx 424, ry 132) so nothing floats off the edge. */
+    /* `l`/`t` are the object's ground-contact point as a % of the island
+       box (left/top, plotted against trollrunner-island-land.png). `h` is
+       the rendered height as a % of the island box; width comes from the
+       art's own aspect. Anchored bottom-center so `l`/`t` mark where the
+       object actually touches the grass, not its bounding-box corner.
+       `landReady` gates which apps actually render on the island — most
+       still point at old mismatched-style placeholder art (see world.html
+       git history), so only entries with fresh art generated in this
+       style get drawn until the rest are replaced one at a time. */
     const APPS = [
       // back band
       { id: 'terminal', label: 'Terminal',  sub: 'terminal.trollrunner.net',
         href: 'https://terminal.trollrunner.net', external: true, color: '#30d158',
-        icon: 'assets/images/icons/terminal.png', img: 'assets/images/world/terminal.png',
-        l: 41, t: 346, h: 11 },
+        icon: 'assets/images/icons/terminal.png', img: 'assets/images/wallpaper/obj-terminal.png',
+        l: 22, t: 54, h: 12, landReady: true },
       { id: 'stickers', label: 'Stickers',  sub: 'stickers.trollrunner.net',
         href: 'https://stickers.trollrunner.net', external: true, color: '#ff9500',
-        icon: 'assets/images/icons/stickers.png', img: 'assets/images/world/stickers.png',
-        l: 60, t: 352, h: 15 },
+        icon: 'assets/images/icons/stickers.png', img: 'assets/images/wallpaper/obj-stickers.png',
+        l: 88, t: 62, h: 15, landReady: true },
       // mid band
       { id: 'pfp',      label: 'PFP Studio', sub: 'Build your troll', to: 'pfp.html',
         color: '#8fe36a', icon: 'assets/images/icons/pfp.png',
@@ -1349,6 +1379,30 @@
       name.textContent = a.label;
       el.append(tile, name);
       apps.appendChild(el);
+    }
+
+    /* ---------- island landmarks ----------
+       The puzzle-piece layer: apps with landReady art render as positioned
+       cutouts standing directly on trollrunner-island-land.png instead of
+       (or in addition to) their app-grid tile. Bottom-anchored at l/t so the
+       object's own ground contact point lands where it's plotted, and
+       z-indexed by t so lower-on-the-island objects draw in front of
+       farther-back ones, like any isometric scene. */
+    const island = $('island');
+    for (const a of APPS) {
+      if (!a.landReady || !a.img) continue;
+      const el = document.createElement('a');
+      el.className = 'island-obj';
+      el.dataset.app = a.id;
+      el.style.left = a.l + '%';
+      el.style.top = a.t + '%';
+      el.style.height = a.h + '%';
+      el.style.zIndex = String(Math.round(a.t * 10));
+      linkAttrs(el, a);
+      const img = document.createElement('img');
+      img.src = a.img; img.alt = a.label; img.loading = 'lazy';
+      el.appendChild(img);
+      island.appendChild(el);
     }
 
     /* ---------- dock ---------- */
