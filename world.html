@@ -640,7 +640,14 @@
        viewport still lays out like a phone: the island fills the space
        between the app grid and the dock instead of floating fixed at a
        mid-screen anchor sized for a small preview window. */
-    html.mobile-preview .topbar { padding: 16px 16px; }
+    /* Trimmed below phone-compact size: on the phone itself this padding
+       protects a thumb-reachable tap target, but nothing here is
+       touch-driven on a desktop preview, so it's pure reclaimable height —
+       the island is flex:1 and eats whatever this and the dock give back. */
+    html.mobile-preview .topbar { padding: 10px 16px; }
+    html.mobile-preview .dock {
+      --dock-pad-y: 7px; --dock-ico: 38px; --dock-bottom: 10px;
+    }
     html.mobile-preview .wordmark { font-size: 19px; }
     html.mobile-preview .wordmark img { width: 21px; height: 21px; }
     html.mobile-preview .stat { font-size: 12px; }
@@ -661,10 +668,20 @@
     }
     html.mobile-preview .shell { height: 100%; height: 100dvh; }
     html.mobile-preview .island {
+      /* width:auto (not a fixed vw/px value) is the actual fix here —
+         aspect-ratio only derives an axis that's auto. With an explicit
+         width, flex-grow was filling all available height beyond what
+         that width's 16:9 needed, and the extra just became invisible
+         letterbox padding inside a box taller than the art. align-self
+         overrides the default cross-axis stretch (which would otherwise
+         force width to the container's full width, leaving aspect-ratio
+         nothing auto to compute), so width now genuinely follows
+         whatever height flex-grow resolves to. max-width is only a
+         backstop for extreme aspect ratios. */
       position: relative; left: auto; top: auto;
-      flex: 1 1 auto; min-height: 0;
-      width: min(92vw, 1600px); max-width: min(92vw, 1600px);
-      margin: 6px auto 4px; aspect-ratio: 16 / 9; transform: none;
+      flex: 1 1 auto; min-height: 0; align-self: center;
+      width: auto; max-width: min(98vw, 1700px);
+      margin: 2px auto; aspect-ratio: 16 / 9; transform: none;
     }
     html.mobile-preview .island img { width: 100%; height: 100%; }
     html.mobile-preview .track { height: 62px; }
