@@ -657,7 +657,16 @@
         transform: translate(var(--apps-dx), var(--apps-dy)) !important;
         display: grid !important; grid-template-columns: repeat(4, 1fr) !important;
         width: 100% !important; max-width: min(520px, 94vw) !important;
-        margin: auto auto -1dvh !important; padding: 0 10px !important;
+        /* Bottom margin (not top — see the comment above) is what raises the
+           icon row itself higher without moving the island: growing apps'
+           own trailing space shrinks how much of the column's leftover
+           space its margin-top:auto has left to claim, so apps' top edge
+           rises by the same amount its box grew, while the island (whose
+           start position is just "wherever apps' bottom edge lands")
+           ends up in the exact same place. 90px = 3 of this breakpoint's
+           30px app-tile icons, per feedback that the row sat too close to
+           the island. */
+        margin: auto auto 90px !important; padding: 0 10px !important;
         gap: 8px 1px !important;
         order: 0;
       }
@@ -671,27 +680,11 @@
       .lockbar { order: 3; margin-top: 0; }
       .dock {
         order: 3; margin-top: 0;
-        /* Phone dock stacks its three items (X / TikTok / Radio) in a
-           column instead of the desktop's single row — narrower thumb
-           reach on a phone favors a tall thin pill over a wide one. */
-        flex-direction: column;
         --dock-pad-y: 8px; --dock-pad-x: 14px; --dock-ico: 34px;
         --dock-item: 42px; --dock-gap: 16px; --dock-label: 10px;
       }
       .dock svg { width: 16px; height: 16px; }
       .dock span { font-size: 8px; }
-      /* .radio's `bottom` normally clears one icon row via
-         --dock-ico-center (see that var's definition at :root); with the
-         dock now a 3-item column the panel has to clear the whole stack
-         instead, so this recomputes the same "top edge of the dock, plus
-         a gap" distance from the stacked item count rather than reusing
-         the single-row var. Every term stays a --dock-* var so resizing
-         the dock here doesn't silently detach the panel from it again. */
-      .radio {
-        bottom: calc(var(--dock-bottom) + (var(--dock-pad-y) * 2) +
-          (var(--dock-ico) + var(--dock-row-gap) + var(--dock-label)) * 3 +
-          (var(--dock-gap) * 2) + 12px);
-      }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
@@ -735,8 +728,25 @@
          reachable here, inside this same real-desktop media query, so none
          of it can leak onto an actual phone again. */
       html.mobile-preview .topbar { padding: 10px 16px; }
+      /* Vertical here, horizontal on a real phone (the mobile breakpoint
+         above leaves .dock's row default alone) — deliberately the reverse
+         of each other per feedback. Only reachable at min-width:721px +
+         pointer:fine, so it can't leak onto a real phone despite .mobile-
+         preview being shared with one (see the file-level comment on that
+         class further down). */
       html.mobile-preview .dock {
+        flex-direction: column;
         --dock-pad-y: 7px; --dock-ico: 38px; --dock-bottom: 10px;
+      }
+      /* Same reasoning as the old phone-column version: .radio's `bottom`
+         normally clears one icon row via --dock-ico-center, but a 3-item
+         column needs to clear the whole stack instead. Recomputed from the
+         stacked item count using the same --dock-* vars this context
+         overrides above, so it can't silently detach from the dock. */
+      html.mobile-preview .radio {
+        bottom: calc(var(--dock-bottom) + (var(--dock-pad-y) * 2) +
+          (var(--dock-ico) + var(--dock-row-gap) + var(--dock-label)) * 3 +
+          (var(--dock-gap) * 2) + 12px);
       }
       /* Two columns instead of one long single-file column — a scaled-up
          single column ran too tall for comfort on a desktop window even
