@@ -1,5 +1,6 @@
 # Source art kept locally, not shipped. The site references only the exported
 # PNGs in assets/images/icons/ and assets/images/wallpaper/ — these are the
 # originals they were cut from.
-assets/images/wallpaper-src/
+assets/images/wallpaper-src/*
+!assets/images/wallpaper-src/*.js
 assets/images/trollrunner-appicons-*.jpg
