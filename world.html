@@ -118,6 +118,14 @@
          with the drawer's own edge at any viewport size. */
       --sheet-w: min(340px, 86vw);
 
+      /* Manual nudge on top of the phone layout's own centering/flex math —
+         defaults to no-op. Set by the ?edit=1 drag handles (see the position
+         editor script) while hunting for a new value; the numbers it prints
+         get pasted back in here as the permanent offset, same role the old
+         "lower ~10%" margin edits used to serve by hand. */
+      --island-dx: 0px; --island-dy: 0px;
+      --apps-dx: 0px; --apps-dy: 0px;
+
       /* Dock geometry, broken out so the Troll Radio button can sit on the
          same line as the X / TikTok icons without a magic number that drifts
          the moment the dock's padding or icon size changes. */
@@ -623,6 +631,9 @@
            underneath never moves. */
         margin-top: auto; margin-bottom: -5dvh;
         order: 1;
+        /* Additive fine-tune on top of the auto-margin stack above — see
+           --island-dx/--island-dy at :root. */
+        transform: translate(var(--island-dx), var(--island-dy));
       }
       .island img { width: 100%; height: 100%; }
       /* Icons are a horizontal row under the island, not the desktop's
@@ -630,7 +641,10 @@
          which is written for desktop and otherwise wins at every breakpoint. */
       .apps {
         position: static !important; top: auto !important; left: auto !important;
-        right: auto !important; bottom: auto !important; transform: none !important;
+        right: auto !important; bottom: auto !important;
+        /* Additive fine-tune on top of the layout below — see
+           --apps-dx/--apps-dy at :root. */
+        transform: translate(var(--apps-dx), var(--apps-dy)) !important;
         display: grid !important; grid-template-columns: repeat(4, 1fr) !important;
         width: 100% !important; max-width: min(520px, 94vw) !important;
         /* Was 10dvh — dropped to 0 to move the icon row (and, since it
@@ -700,7 +714,8 @@
          columns already roughly halves the total height, no extra
          magnification needed on top of that. */
       html.mobile-preview .apps {
-        top: 90px !important; left: 22px !important; transform: none !important;
+        top: 90px !important; left: 22px !important;
+        transform: translate(var(--apps-dx), var(--apps-dy)) !important;
         display: grid !important; grid-template-columns: repeat(2, 1fr) !important;
         width: 148px !important; max-width: 148px !important;
         gap: 16px 14px !important;
@@ -719,7 +734,8 @@
         position: relative; left: auto; top: auto;
         flex: 1 1 auto; min-height: 0; align-self: center;
         width: auto; max-width: min(98vw, 1700px);
-        margin: 2px auto; aspect-ratio: 16 / 9; transform: none;
+        margin: 2px auto; aspect-ratio: 16 / 9;
+        transform: translate(var(--island-dx), var(--island-dy));
       }
     }
 
@@ -1542,19 +1558,78 @@
       copyBtn.style.cssText = 'position:fixed;bottom:calc(40vh + 8px);right:8px;z-index:99999;padding:6px 10px;';
       document.body.appendChild(copyBtn);
 
+      // Whole-layer nudge — drags the entire land art or the entire icon
+      // rail as one unit, on top of whatever the mobile media query's own
+      // flex/margin math already does. Separate from the per-landmark loop
+      // below, which repositions individual pieces of art baked into the
+      // island image itself.
+      const nudge = { islandX: 0, islandY: 0, appsX: 0, appsY: 0 };
+      const root = document.documentElement;
+      const applyNudge = () => {
+        root.style.setProperty('--island-dx', nudge.islandX + 'px');
+        root.style.setProperty('--island-dy', nudge.islandY + 'px');
+        root.style.setProperty('--apps-dx', nudge.appsX + 'px');
+        root.style.setProperty('--apps-dy', nudge.appsY + 'px');
+      };
+
       const renderPanel = () => {
-        panel.textContent = editable.map(a =>
+        const landmarks = editable.map(a =>
           `${a.id}: l:${a.l.toFixed(1)}, t:${a.t.toFixed(1)}, h:${a.h.toFixed(1)}, rot:${(a.rot||0).toFixed(1)}`
         ).join('\n');
+        panel.textContent =
+          `LAND  dx:${nudge.islandX.toFixed(0)}px dy:${nudge.islandY.toFixed(0)}px\n` +
+          `ICONS dx:${nudge.appsX.toFixed(0)}px dy:${nudge.appsY.toFixed(0)}px\n\n` +
+          landmarks;
       };
       copyBtn.addEventListener('click', () => {
-        const text = editable.map(a =>
-          `{ id: '${a.id}', l: ${a.l.toFixed(1)}, t: ${a.t.toFixed(1)}, h: ${a.h.toFixed(1)}, rot: ${(a.rot||0).toFixed(1)} }`
-        ).join(',\n');
+        const text =
+          `--island-dx: ${nudge.islandX.toFixed(0)}px; --island-dy: ${nudge.islandY.toFixed(0)}px;\n` +
+          `--apps-dx: ${nudge.appsX.toFixed(0)}px; --apps-dy: ${nudge.appsY.toFixed(0)}px;\n\n` +
+          editable.map(a =>
+            `{ id: '${a.id}', l: ${a.l.toFixed(1)}, t: ${a.t.toFixed(1)}, h: ${a.h.toFixed(1)}, rot: ${(a.rot||0).toFixed(1)} }`
+          ).join(',\n');
         navigator.clipboard?.writeText(text);
         copyBtn.textContent = 'Copied!';
         setTimeout(() => { copyBtn.textContent = 'Copy config'; }, 1200);
       });
+
+      // Drag handle floats just above whatever it moves, tracking it on
+      // every frame it's not itself the thing being dragged so it doesn't
+      // wander off during resize/orientation changes.
+      const makeLayerHandle = (target, xKey, yKey, label, color) => {
+        const handle = document.createElement('div');
+        handle.textContent = label;
+        handle.style.cssText = `
+          position:fixed; z-index:99998; background:${color}; color:#000;
+          font:700 11px/1 monospace; padding:6px 10px; border-radius:7px;
+          cursor:grab; touch-action:none; box-shadow:0 2px 8px #0008;
+        `;
+        document.body.appendChild(handle);
+        const place = () => {
+          const r = target.getBoundingClientRect();
+          handle.style.left = Math.round(r.left + r.width / 2 - handle.offsetWidth / 2) + 'px';
+          handle.style.top = Math.round(r.top - handle.offsetHeight - 6) + 'px';
+        };
+        place();
+        let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+        handle.addEventListener('pointerdown', e => {
+          dragging = true; handle.setPointerCapture(e.pointerId); handle.style.cursor = 'grabbing';
+          startX = e.clientX; startY = e.clientY; baseX = nudge[xKey]; baseY = nudge[yKey];
+        });
+        handle.addEventListener('pointermove', e => {
+          if (!dragging) return;
+          nudge[xKey] = baseX + (e.clientX - startX);
+          nudge[yKey] = baseY + (e.clientY - startY);
+          applyNudge(); place(); renderPanel();
+        });
+        handle.addEventListener('pointerup', e => {
+          dragging = false; handle.releasePointerCapture(e.pointerId); handle.style.cursor = 'grab';
+        });
+        return place;
+      };
+      const placeIslandHandle = makeLayerHandle(island, 'islandX', 'islandY', 'DRAG LAND', '#0ff');
+      const placeAppsHandle = makeLayerHandle(apps, 'appsX', 'appsY', 'DRAG ICONS', '#ff0');
+      window.addEventListener('resize', () => { placeIslandHandle(); placeAppsHandle(); });
 
       for (const a of editable) {
         // Keeps the real tap target (built above, before any dragging
