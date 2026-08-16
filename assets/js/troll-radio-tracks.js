@@ -87,5 +87,6 @@ window.TROLL_RADIO_TRACKS = [
   { uri: 'spotify:track:5WODIX9TtDrmD9oAFFoxkG', title: 'Popa', artist: 'Ice Spice' },
   { uri: 'spotify:track:5YSfZJE0EYrGVsWeYqv9xo', title: 'Double Trouble (Quavo feat. Meek Mill)', artist: 'Quality Control, Quavo, Meek Mill' },
   { uri: 'spotify:track:3A3hHhvB7PlwyTnesoLk8d', title: 'Father\'s Day', artist: 'Gucci Mane' },
+  { uri: 'spotify:track:7z1I8xzeOTYAFhTsN2kb09', title: 'Free Melly (feat. YNW Melly)', artist: 'Trippie Redd, YNW Melly' },
 ];
 // TROLL_RADIO_TRACKS:END
