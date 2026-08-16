@@ -633,7 +633,10 @@
         right: auto !important; bottom: auto !important; transform: none !important;
         display: grid !important; grid-template-columns: repeat(4, 1fr) !important;
         width: 100% !important; max-width: min(520px, 94vw) !important;
-        margin: 0 auto 10dvh !important; padding: 0 10px !important;
+        /* Was 10dvh — dropped to 0 to move the icon row (and, since it
+           shares the island's one auto margin, the home-phase island too)
+           down by that same 10dvh. */
+        margin: 0 auto 0dvh !important; padding: 0 10px !important;
         gap: 12px 4px !important;
         order: 2;
       }
