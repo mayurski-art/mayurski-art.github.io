@@ -369,8 +369,14 @@
        out it still reserves space and lifts the track off the bottom. */
     body:not([data-phase="home"]) .dock { display: none; }
     /* Same for the app grid above: invisible during lock, but it shouldn't
-       hold the layout open either. */
-    body:not([data-phase="home"]) .apps { display: none; }
+       hold the layout open either. display:none here loses to the phone/
+       rail rules' `display: grid/flex !important` (they have to win at
+       every breakpoint uniformly, same reason .dock's version below is
+       !important too) — pointer-events is the actual guard: without it the
+       icons stay fully clickable, just invisible, while still on lock. */
+    body:not([data-phase="home"]) .apps {
+      display: none; pointer-events: none !important;
+    }
     /* The footer sits after the lockbar, so with the track pinned to the foot
        it would be shoved past the fold and make the lock screen scroll. Named
        phases rather than :not(home) — this selector outweighs the base .foot
