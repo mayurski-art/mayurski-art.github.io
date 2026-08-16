@@ -597,11 +597,26 @@
            used to ignore outright but position:relative would otherwise
            obey, shoving the whole box off toward the bottom-right. */
         position: relative; left: auto; top: auto;
-        flex: 1 1 auto; min-height: 0;
+        /* flex-grow:0 (not the old flex:1 1 auto) — hotspot l/t percentages
+           are computed against this box's own dimensions, which only lines
+           up with the art if the box stays genuinely 16:9 like the SVG. A
+           growing flex item ignores aspect-ratio on its flex-basis axis
+           (same "aspect-ratio overridden by flex-grow" pitfall as the
+           desktop-preview island fix) and was stretching taller than 16:9
+           to fill leftover column space, letterboxing the contained image
+           and shifting every baked landmark's real screen position out from
+           under its invisible tap target — confirmed by measuring the
+           image's actual object-fit:contain content-box vs this box's full
+           rect, which showed ~85px of dead top/bottom padding invisibly
+           eating into the percentage math. flex:0 1 auto still lets it
+           shrink on short viewports but never grows past its true 16:9
+           size, so no letterbox and no hotspot drift; any unused vertical
+           space is just a small gap, not a correctness bug. */
+        flex: 0 1 auto; min-height: 0;
         width: 96vw; max-width: 96vw; margin: 6px auto 4px;
-        aspect-ratio: auto; transform: none;
+        aspect-ratio: 16 / 9; transform: none;
       }
-      .island img { height: 100%; }
+      .island img { width: 100%; height: 100%; }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
@@ -1330,11 +1345,11 @@
       { id: 'terminal', label: 'Terminal',  sub: 'terminal.trollrunner.net',
         href: 'https://terminal.trollrunner.net', external: true, color: '#30d158',
         icon: 'assets/images/icons/terminal.png', img: 'assets/images/wallpaper/obj-terminal.png',
-        l: 68.9, t: 32.3, h: 12, rot: -2, hw: 9, hh: 15 },
+        l: 23.6, t: 55.7, h: 12.9, rot: -2, hw: 9, hh: 15 },
       { id: 'stickers', label: 'Stickers',  sub: 'stickers.trollrunner.net',
         href: 'https://stickers.trollrunner.net', external: true, color: '#ff9500',
         icon: 'assets/images/icons/stickers.png', img: 'assets/images/wallpaper/obj-stickers.png',
-        l: 86.1, t: 63.6, h: 15, rot: 2, hw: 11, hh: 18 },
+        l: 86.8, t: 66.5, h: 19.5, rot: 2, hw: 11, hh: 20 },
       // mid band
       { id: 'pfp',      label: 'PFP Studio', sub: 'Build your troll', to: 'pfp.html',
         color: '#8fe36a', icon: 'assets/images/icons/pfp.png',
@@ -1342,7 +1357,7 @@
       { id: 'finance',  label: 'Finances',  sub: 'finance.trollrunner.net',
         href: 'https://finance.trollrunner.net', external: true, color: '#ffd84d',
         icon: 'assets/images/icons/finances.png', img: 'assets/images/wallpaper-src/trollrunner.obj-finances.png',
-        l: 19, t: 30, h: 13, rot: -3, hw: 10, hh: 16 },
+        l: 19.8, t: 29.2, h: 12.4, rot: -3, hw: 10, hh: 16 },
       // front band
       // Same origin (this repo IS trollrunner.net), so this is a relative
       // link rather than `external`. Goes straight to the standalone
