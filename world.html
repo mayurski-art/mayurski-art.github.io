@@ -574,15 +574,7 @@
       .stat { font-size: 12px; }
       .sheet h2 { font-size: 32px; }
       .sheet .link { font-size: 19px; }
-      .apps { gap: 12px 4px; margin-top: 2px; }
-      .app-tile { width: 54px; height: 54px; }
       .app-name { font-size: 11px; }
-      /* On a phone the wallpaper stops being a fixed rectangle and becomes a
-         flex item between the icons and the dock, so it gets exactly the
-         space those two leave over and can never land on either. Fixed
-         offsets — 66% from the top, then 14vh from the bottom — both worked
-         until a tile size or a wrapped label changed the grid's height, and
-         then the last row of labels was sitting on the artwork again. */
       /* The shell is min-height:100%, so as a flex container it just grows to
          fit and nothing ever shrinks — the wallpaper kept pushing the dock
          (and the radio button on it) below the fold. Bounding the shell to
@@ -615,8 +607,36 @@
         flex: 0 1 auto; min-height: 0;
         width: 96vw; max-width: 96vw; margin: 6px auto 4px;
         aspect-ratio: 16 / 9; transform: none;
+        /* Pushed down with the group below it (icons, then the lockbar/dock
+           panel) rather than sitting flush under the topbar. margin-top:auto
+           eats the leftover vertical space in the flex column, so the whole
+           island+icons+panel stack lands lower on the screen — and it does
+           this identically in both the lock and home phases (only the
+           lockbar vs. dock differs below), so the island doesn't jump when
+           you unlock. See the .apps/.lockbar/.dock overrides right below for
+           the rest of that stack. */
+        margin-top: auto;
+        order: 1;
       }
       .island img { width: 100%; height: 100%; }
+      /* Icons are a horizontal row under the island, not the desktop's
+         left-edge vertical rail — overriding the !important rail rule above,
+         which is written for desktop and otherwise wins at every breakpoint. */
+      .apps {
+        position: static !important; top: auto !important; left: auto !important;
+        right: auto !important; bottom: auto !important; transform: none !important;
+        display: grid !important; grid-template-columns: repeat(4, 1fr) !important;
+        width: 100% !important; max-width: min(520px, 94vw) !important;
+        margin: 0 auto 14px !important; padding: 0 10px !important;
+        gap: 12px 4px !important;
+        order: 2;
+      }
+      .app-tile { width: 54px; height: 54px; }
+      /* Both share the island's stack instead of fighting it for the leftover
+         space with their own auto margins — only the island pushes the group
+         down; the panel below it just follows in normal flow. */
+      .lockbar { order: 3; margin-top: 0; }
+      .dock { order: 3; margin-top: 0; }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
@@ -1770,10 +1790,10 @@
       if (progress >= 0.9) finish();
     }
 
-    /* A tap runs the race for you. Dragging is the flourish, but making it the
-       only way in meant the front door depended on pointer capture and touch
-       deltas behaving identically everywhere — and when they didn't, there was
-       no way onto the site at all. */
+    // sprint() plays the finishing animation once the runner has actually
+    // been dragged home (release() below) or Enter/arrows are used — it is
+    // never triggered by a bare tap. A tap-to-unlock defeated the point of
+    // "drag the troll to the finish line": it wasn't a swipe at all.
     function sprint() {
       if (done) return;
       const from = progress, start = performance.now(), ms = calm.matches ? 0 : 620;
@@ -1787,20 +1807,6 @@
     }
 
     let moved = false;
-    // Belt and braces: `click` is synthesised on tap by every browser, whatever
-    // the pointer-capture and touch-delta behaviour underneath. Without this the
-    // entrance can simply fail to open, which is the worst bug this page can have.
-    runner.addEventListener('click', () => { if (!moved) sprint(); });
-    // The runner circle is ~52px. The bar reads "RUN TO ENTER", so that's what
-    // a thumb goes for — and tapping it did nothing, which is why the home
-    // screen looked unreachable. The whole bar enters now.
-    track.addEventListener('click', e => { if (e.target !== runner && !moved) sprint(); });
-    // Anywhere on the lock screen enters — the tagline, the hint, the empty
-    // space around them. Nothing about "the icons are behind this" is obvious
-    // enough to justify a small target.
-    $('lockbar').addEventListener('click', e => {
-      if (e.target !== runner && e.target !== track && !moved) sprint();
-    });
     runner.addEventListener('pointerdown', e => {
       if (done) return;
       dragging = true; moved = false; startX = e.clientX; startProgress = progress;
@@ -1814,8 +1820,9 @@
     const release = () => {
       if (!dragging) return;
       dragging = false;
-      // Barely moved? That was a tap — run it for them.
-      if (!moved && !done) { sprint(); return; }
+      // Barely moved? That was a tap, not a swipe — nothing to finish, just
+      // stay put (progress is already ~0, so this is a no-op in practice).
+      if (!moved && !done) return;
       if (!done) {
         // Let go past two-thirds and the runner carries through to the line
         // rather than being punished for stopping short.
