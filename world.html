@@ -1413,9 +1413,15 @@
        with `inert` — otherwise you can tab onto the unlock runner after you've
        already entered. */
     let lockTimer = 0;
-    // Real touch phones only — a fine-pointer desktop tab previewing the
-    // phone shell (?mobile=1) still counts as "desktop" here on purpose.
-    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+    // Same "is this the phone shell" test the CSS uses everywhere else in
+    // this file (see the (max-width: 720px), (pointer: coarse) breakpoint):
+    // OR, not AND, because a real phone laid out at desktop width by an
+    // iframe still needs to count, and so does a narrow desktop window with
+    // a real mouse. pointer:coarse alone missed the latter — a browser
+    // window merely resized narrow (dev-tools responsive mode without
+    // touch emulation on, or a small desktop browser) still reports
+    // pointer:fine, so the failsafe kept firing there.
+    const isTouchDevice = window.matchMedia('(max-width: 720px), (pointer: coarse)').matches;
     function setPhase(next) {
       body.dataset.phase = next;
       clearTimeout(lockTimer);
