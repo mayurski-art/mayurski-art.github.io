@@ -614,39 +614,41 @@
         flex: 0 1 auto; min-height: 0;
         width: 96vw; max-width: 96vw; margin: 6px auto 4px;
         aspect-ratio: 16 / 9; transform: none;
-        /* Pushed down with the group below it (icons, then the lockbar/dock
-           panel) rather than sitting flush under the topbar. margin-top:auto
-           eats the leftover vertical space in the flex column, so the whole
-           island+icons+panel stack lands lower on the screen — and it does
-           this identically in both the lock and home phases (only the
-           lockbar vs. dock differs below), so the island doesn't jump when
-           you unlock. See the .apps/.lockbar/.dock overrides right below for
-           the rest of that stack.
-           margin-bottom nudges the island within that stack without moving
-           the icon row or the dock: adding/removing space anywhere in the
-           column grows/shrinks this auto push by the same amount, which
-           moves the island (and everything sharing this one auto margin)
-           up/down — but the item right after the island ends up in the
-           exact same place, because its own start position already
-           absorbed that shift. So this -1dvh here only moves the island
-           itself (down, since it's negative — kept small so the island's
-           bottom edge, waterfall included, clears the icon row instead of
-           overlapping it); the 10dvh on .apps below
-           still lifts both the island and the icon row an extra 10dvh
-           whenever .apps is actually in flow (home phase only — .apps is
-           display:none during lock, so the lock screen only ever sees this
-           island rule's own offset, not the .apps one). The dock/lockbar
-           underneath never moves. */
-        margin-top: auto; margin-bottom: -1dvh;
+        /* Pushed down toward the lockbar/dock rather than sitting flush
+           under the topbar. margin-top:auto eats the leftover vertical
+           space in the flex column so the group lands lower on the screen.
+           This is the LOCK-phase story: .apps is display:none during lock
+           (see body:not([data-phase="home"]) .apps above), so the island is
+           the first real item in the column and has to carry the push
+           itself. In the HOME phase .apps is visible and reordered ahead of
+           the island (order:0, see below) — it carries the push instead so
+           the icon row lands first, and the rule right after this block
+           zeroes the island's own margin-top so the two don't fight over
+           the same leftover space. */
+        margin-top: auto; margin-bottom: 0;
         order: 1;
         /* Additive fine-tune on top of the auto-margin stack above — see
            --island-dx/--island-dy at :root. */
         transform: translate(var(--island-dx), var(--island-dy));
       }
       .island img { width: 100%; height: 100%; }
-      /* Icons are a horizontal row under the island, not the desktop's
+      /* Icons are a horizontal row above the island, not the desktop's
          left-edge vertical rail — overriding the !important rail rule above,
-         which is written for desktop and otherwise wins at every breakpoint. */
+         which is written for desktop and otherwise wins at every breakpoint.
+         order:0 puts this ahead of the island (order:1) in the flex column,
+         so the icon row reads first and the troll land sits underneath it;
+         the lockbar/dock (order:3) is untouched and keeps its spot at the
+         bottom. margin-top:auto makes .apps (not the island) claim the
+         column's leftover space in the home phase, since it's now the
+         first visible item of the group — the matching
+         body[data-phase="home"] .island rule below zeroes the island's own
+         margin-top so the two don't both try to claim it, which would split
+         the leftover space into two gaps and pull the icon row away from
+         the island instead of sitting flush above it. margin-bottom:-1dvh
+         is the same waterfall-clearance nudge the island used to carry
+         (see the comment there) — the item needing extra room to clear its
+         own overflow is again the one right at that edge, just swapped from
+         the island's bottom to the icon row's bottom. */
       .apps {
         position: static !important; top: auto !important; left: auto !important;
         right: auto !important; bottom: auto !important;
@@ -655,25 +657,41 @@
         transform: translate(var(--apps-dx), var(--apps-dy)) !important;
         display: grid !important; grid-template-columns: repeat(4, 1fr) !important;
         width: 100% !important; max-width: min(520px, 94vw) !important;
-        /* Was 10dvh — dropped to 0 to move the icon row (and, since it
-           shares the island's one auto margin, the home-phase island too)
-           down by that same 10dvh. */
-        margin: 0 auto 0dvh !important; padding: 0 10px !important;
+        margin: auto auto -1dvh !important; padding: 0 10px !important;
         gap: 8px 1px !important;
-        order: 2;
+        order: 0;
       }
+      /* Only takes effect once .apps is actually visible and carrying the
+         push (home phase) — during lock, .apps is display:none and the
+         island keeps its own margin-top:auto from the base rule above. */
+      body[data-phase="home"] .island { margin-top: 0; }
       .app-tile { width: 30px; height: 30px; }
-      /* Both share the island's stack instead of fighting it for the leftover
-         space with their own auto margins — only the island pushes the group
-         down; the panel below it just follows in normal flow. */
+      /* The dock/lockbar just follow in normal flow after the island —
+         .apps now carries the auto-margin push for the group (see above). */
       .lockbar { order: 3; margin-top: 0; }
       .dock {
         order: 3; margin-top: 0;
+        /* Phone dock stacks its three items (X / TikTok / Radio) in a
+           column instead of the desktop's single row — narrower thumb
+           reach on a phone favors a tall thin pill over a wide one. */
+        flex-direction: column;
         --dock-pad-y: 8px; --dock-pad-x: 14px; --dock-ico: 34px;
         --dock-item: 42px; --dock-gap: 16px; --dock-label: 10px;
       }
       .dock svg { width: 16px; height: 16px; }
       .dock span { font-size: 8px; }
+      /* .radio's `bottom` normally clears one icon row via
+         --dock-ico-center (see that var's definition at :root); with the
+         dock now a 3-item column the panel has to clear the whole stack
+         instead, so this recomputes the same "top edge of the dock, plus
+         a gap" distance from the stacked item count rather than reusing
+         the single-row var. Every term stays a --dock-* var so resizing
+         the dock here doesn't silently detach the panel from it again. */
+      .radio {
+        bottom: calc(var(--dock-bottom) + (var(--dock-pad-y) * 2) +
+          (var(--dock-ico) + var(--dock-row-gap) + var(--dock-label)) * 3 +
+          (var(--dock-gap) * 2) + 12px);
+      }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
