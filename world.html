@@ -962,18 +962,26 @@
     <!-- Track Island, the wallpaper. It sits in the shell's flow so that on a
          phone it can flex into whatever room the icons and the dock leave;
          on desktop it goes back to position:fixed and ignores this spot
-         entirely. The PNG has the studio-white backdrop already cut to
-         alpha, so the starfield shows through behind the island.
+         entirely. The studio-white backdrop is already cut to alpha, so
+         the starfield shows through behind the island.
 
          Landmarks (terminal, stickers booth, ...) are composited directly
-         into this PNG offline (see wallpaper-src/bake-land2.js) rather than
+         into this art offline (see wallpaper-src/bake-land2.js) rather than
          rendered as separately positioned DOM elements — a live-positioned
          layer drifts against the land art under pinch-zoom, since the
          browser can rescale the two independently. One flat image, nothing
          to drift. The APPS l/t/h/rot fields still record where each one
-         was baked, for redoing the bake when new art replaces old. -->
+         was baked, for redoing the bake when new art replaces old.
+
+         SVG, not PNG: same art auto-traced into flat-color vector paths
+         (wallpaper-src/vectorize-land.js, same technique trollface.io's own
+         land.svg uses under the hood — a potrace-style raster trace, not
+         hand-drawn vectors). Pinch-zoom is already locked out via the
+         viewport meta below, but this makes the island razor-sharp at any
+         screen density on top of that, with a smaller file than the
+         raster version despite being resolution-independent. -->
     <div class="island" aria-hidden="true">
-      <img src="assets/images/wallpaper/trollrunner-island-land.png" alt="">
+      <img src="assets/images/wallpaper/trollrunner-island-land.svg" alt="">
     </div>
 
 
@@ -1213,7 +1221,7 @@
     const MILES_RAN = 417;
 
     /* `l`/`t` are the object's ground-contact point as a % of the island
-       box (left/top, plotted against trollrunner-island-land.png). `h` is
+       box (left/top, plotted against trollrunner-island-land.svg). `h` is
        the rendered height as a % of the island box; width comes from the
        art's own aspect. Anchored bottom-center so `l`/`t` mark where the
        object actually touches the grass, not its bounding-box corner.
