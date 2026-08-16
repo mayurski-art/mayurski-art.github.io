@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net https://open.spotify.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://nominatim.openstreetmap.org; frame-src https://open.spotify.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TROLLCHAT — Trollrunner Live Room</title>
+  <title>trollrunner.net/hub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
@@ -36,6 +36,46 @@
     button, input { font: inherit; }
 
     .page { max-width: 1080px; margin: 0 auto; padding: 18px 16px 32px; }
+
+    /* Lobby: the landing screen a Hub visitor sees first — a light,
+       cream-green page (not the dark room backdrop) with two doors in:
+       the live room, or DMs. body.lobby-active swaps the page background
+       so it doesn't look like a dark page with a light card dropped on it. */
+    body.lobby-active {
+      background:
+        repeating-linear-gradient(0deg, rgba(16,32,26,0.05) 0 2px, transparent 2px 4px),
+        linear-gradient(180deg, #f3f8e9, #d7e7cf);
+    }
+    .lobby {
+      min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 14px; padding: 40px 20px; text-align: center;
+    }
+    .lobby-mark {
+      width: 72px; height: 72px; border: 3px solid var(--tc-line); border-radius: 6px;
+      background: #fff; image-rendering: pixelated; box-shadow: 4px 4px 0 rgba(16,32,26,0.35);
+    }
+    .lobby h1 {
+      margin: 4px 0 0; font-family: var(--tc-pixel); font-size: clamp(20px, 5vw, 30px);
+      color: #143524; letter-spacing: 1px;
+    }
+    .lobby-sub { margin: 0 0 10px; font-size: 16px; color: #3a5245; }
+    .lobby-cards { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; max-width: 560px; }
+    .lobby-card {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      width: 220px; border: 3px solid var(--tc-line); border-radius: 6px;
+      background: #fbfdf2; color: inherit; text-decoration: none; cursor: pointer;
+      padding: 20px 16px; font: inherit; box-shadow: 4px 4px 0 rgba(16,32,26,0.3);
+    }
+    .lobby-card:hover { background: #fff; }
+    .lobby-card:active { transform: translate(3px,3px); box-shadow: 0 0 0 rgba(16,32,26,0.3); }
+    .lobby-card-icon { font-size: 26px; line-height: 1; }
+    .lobby-card-title { font-family: var(--tc-pixel); font-size: 13px; color: #143524; }
+    .lobby-card-desc { font-size: 14px; line-height: 1.3; color: #3a5245; }
+    .lobby-back {
+      margin-top: 6px; background: none; border: 0; color: #3a5245; text-decoration: underline;
+      font: 14px var(--tc-term); cursor: pointer; padding: 6px;
+    }
+    [hidden] { display: none !important; }
 
     .topbar {
       display: flex; align-items: center; justify-content: space-between;
@@ -184,8 +224,34 @@
     }
   </style>
 </head>
-<body>
-  <main class="page">
+<body class="lobby-active">
+  <section id="tc-lobby" class="lobby">
+    <img class="lobby-mark" src="assets/animations/troll-grin.gif" alt="">
+    <h1>TROLLCHAT</h1>
+    <p class="lobby-sub">How do you want to troll today?</p>
+    <div class="lobby-cards">
+      <button type="button" id="tc-open-general" class="lobby-card">
+        <span class="lobby-card-icon" aria-hidden="true">💬</span>
+        <span class="lobby-card-title">General Chat</span>
+        <span class="lobby-card-desc">Jump into the live room — everyone's here.</span>
+      </button>
+      <button type="button" id="tc-open-messages" class="lobby-card">
+        <span class="lobby-card-icon" aria-hidden="true">💗</span>
+        <span class="lobby-card-title">Messages</span>
+        <span class="lobby-card-desc">DM a runner or start/join a group chat.</span>
+      </button>
+    </div>
+    <a class="lobby-back" href="index.html">&#x2190; Home</a>
+  </section>
+
+  <section id="tc-messages" class="lobby" hidden>
+    <img class="lobby-mark" src="assets/animations/troll-grin.gif" alt="">
+    <h1>MESSAGES</h1>
+    <p class="lobby-sub">DMs and group chats are coming soon.</p>
+    <button type="button" class="lobby-back" id="tc-messages-back">&#x2190; Back to TROLLCHAT</button>
+  </section>
+
+  <main id="tc-room-view" class="page" hidden>
     <div class="topbar">
       <div class="brand">
         <img src="assets/animations/troll-grin.gif" alt="" aria-hidden="true">
@@ -194,7 +260,7 @@
           <p>Trade Less, Troll More</p>
         </div>
       </div>
-      <a class="home-link" href="index.html">&#x2190; Home</a>
+      <button type="button" class="home-link" id="tc-back-to-lobby">&#x2190; Hub</button>
     </div>
 
     <section class="room" aria-label="Trollchat live room">
@@ -531,7 +597,31 @@
       } catch { state.channel = null; }
     }
 
+    function enterRoom() {
+      document.body.classList.remove('lobby-active');
+      document.getElementById('tc-lobby').hidden = true;
+      document.getElementById('tc-messages').hidden = true;
+      document.getElementById('tc-room-view').hidden = false;
+    }
+    function initLobby() {
+      const general = document.getElementById('tc-open-general');
+      const messagesCard = document.getElementById('tc-open-messages');
+      const lobby = document.getElementById('tc-lobby');
+      const messages = document.getElementById('tc-messages');
+      const messagesBack = document.getElementById('tc-messages-back');
+      if (general) general.addEventListener('click', enterRoom);
+      if (messagesCard) messagesCard.addEventListener('click', () => { lobby.hidden = true; messages.hidden = false; });
+      if (messagesBack) messagesBack.addEventListener('click', () => { messages.hidden = true; lobby.hidden = false; });
+      const backToLobby = document.getElementById('tc-back-to-lobby');
+      if (backToLobby) backToLobby.addEventListener('click', () => {
+        document.getElementById('tc-room-view').hidden = true;
+        document.body.classList.add('lobby-active');
+        lobby.hidden = false;
+      });
+    }
+
     function init() {
+      initLobby();
       els.feed = document.getElementById('tc-feed');
       els.jump = document.getElementById('tc-jump');
       els.typing = document.getElementById('tc-typing');

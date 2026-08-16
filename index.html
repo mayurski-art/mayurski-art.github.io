@@ -55,13 +55,11 @@
     }
   } catch {}
 
-  const ua = navigator.userAgent || '';
-  const isPhone =
-    forcedMobile ||
-    /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
-    // iPadOS 13+ reports a Mac UA, so touch points are the only tell.
-    (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ||
-    (window.matchMedia('(pointer: coarse)').matches && window.matchMedia('(max-width: 820px)').matches);
+  // The phone entrance (world.html) is now the default landing experience
+  // for every device, not just phones — desktop visitors who want the
+  // classic dock UI still reach it via the "Classic desktop" link, which
+  // sets FORCE_DESKTOP_KEY above.
+  const isPhone = true;
 
   if (isPhone && !forced && (path === '/' || path === '/index.html')) {
     // Deliberately NOT a redirect: navigating would put /world.html in the
@@ -112,7 +110,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260816c" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260816d" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
