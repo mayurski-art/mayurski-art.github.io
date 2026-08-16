@@ -608,16 +608,20 @@
            lockbar vs. dock differs below), so the island doesn't jump when
            you unlock. See the .apps/.lockbar/.dock overrides right below for
            the rest of that stack.
-           margin-bottom nudges the island up within that stack without
-           moving the icon row or the dock: adding space anywhere in the
-           column shrinks this auto push by the same amount, which moves the
-           island (and everything sharing this one auto margin) up — but the
-           item right after the island ends up in the exact same place,
-           because its own start position already absorbed that shrink. So
-           this 5dvh here only lifts the island itself; the 10dvh on .apps
-           below lifts both the island (5+10=15dvh total) and the icon row
-           (10dvh), while the dock/lockbar underneath doesn't move at all. */
-        margin-top: auto; margin-bottom: 5dvh;
+           margin-bottom nudges the island within that stack without moving
+           the icon row or the dock: adding/removing space anywhere in the
+           column grows/shrinks this auto push by the same amount, which
+           moves the island (and everything sharing this one auto margin)
+           up/down — but the item right after the island ends up in the
+           exact same place, because its own start position already
+           absorbed that shift. So this -5dvh here only moves the island
+           itself (down, since it's negative); the 10dvh on .apps below
+           still lifts both the island and the icon row an extra 10dvh
+           whenever .apps is actually in flow (home phase only — .apps is
+           display:none during lock, so the lock screen only ever sees this
+           island rule's own offset, not the .apps one). The dock/lockbar
+           underneath never moves. */
+        margin-top: auto; margin-bottom: -5dvh;
         order: 1;
       }
       .island img { width: 100%; height: 100%; }
