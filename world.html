@@ -1721,14 +1721,13 @@
     const bootFill = $('boot-fill'), bootText = $('boot-text');
 
     function runBoot() {
-      if (sessionStorage.getItem('trollrunner_world_seen') === '1') {
-        setPhase('home');
-        return;
-      }
+      // Every visit lands on the lock screen and has to be run to the finish
+      // line by hand — this used to remember a past session and jump
+      // straight to the home screen instead, which looked like the site had
+      // swiped/unlocked itself with nobody touching it.
       if (calm.matches) {
         // No typing theatre for reduced motion — get to the lock screen.
         setPhase('lock');
-        sessionStorage.setItem('trollrunner_world_seen', '1');
         return;
       }
       let i = 0, pct = 0;
@@ -1745,7 +1744,6 @@
           setTimeout(() => setPhase('lock'), 320);
         }
       }, 130);
-      sessionStorage.setItem('trollrunner_world_seen', '1');
     }
 
     /* ================= RUN TO ENTER =================
