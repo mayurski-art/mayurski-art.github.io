@@ -1688,12 +1688,12 @@
         sessionStorage.setItem('trollrunner_world_seen', '1');
         return;
       }
-      let i = 0, ch = 0, pct = 0;
+      let i = 0, pct = 0;
+      bootText.textContent = BOOT_LINES[0];
       const type = setInterval(() => {
-        const line = BOOT_LINES[i];
-        bootText.textContent = line.slice(0, ++ch);
-        if (ch >= line.length) { ch = 0; i = Math.min(i + 1, BOOT_LINES.length - 1); }
-      }, 70);
+        i = Math.min(i + 1, BOOT_LINES.length - 1);
+        bootText.textContent = BOOT_LINES[i];
+      }, 500);
       const grow = setInterval(() => {
         pct = Math.min(100, pct + Math.random() * 9 + 3);
         bootFill.style.width = pct + '%';
