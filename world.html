@@ -1413,14 +1413,18 @@
        with `inert` — otherwise you can tab onto the unlock runner after you've
        already entered. */
     let lockTimer = 0;
+    // Real touch phones only — a fine-pointer desktop tab previewing the
+    // phone shell (?mobile=1) still counts as "desktop" here on purpose.
+    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
     function setPhase(next) {
       body.dataset.phase = next;
       clearTimeout(lockTimer);
-      /* Failsafe. The lock screen is the first thing anyone sees and it holds
-         the app icons behind a gesture — so if it goes untouched it enters by
-         itself rather than leaving someone staring at a screen they think is
-         the whole site. The flourish still plays; it just can't trap you. */
-      if (next === 'lock') {
+      /* Desktop-only failsafe. The lock screen is the first thing anyone
+         sees and it holds the app icons behind a gesture — so on a mouse
+         it enters itself if left untouched, rather than trapping someone
+         behind a screen they think is the whole site. On a phone this is
+         off entirely: the run is a manual drag, on purpose, every time. */
+      if (next === 'lock' && !isTouchDevice) {
         lockTimer = setTimeout(() => {
           if (body.dataset.phase === 'lock') sprint();
         }, 4200);
