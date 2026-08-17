@@ -763,6 +763,103 @@
     .hub-send:active { transform: scale(.98); }
     .hub-note { min-height: 14px; font-size: 11px; line-height: 1.3; color: var(--fg-dim); }
 
+    /* ---- messages: DM + group inbox ----
+       Same Supabase tables/RPCs the classic desktop's MESSAGES panel uses
+       (assets/supabase/troll_dm_inbox.sql), restyled from that panel's
+       pixel-terminal look into this Hub's glass/DM-Sans language. The thread
+       view deliberately reuses .hub-feed / .hub-msg / .hub-composer so a DM
+       reads exactly like General Chat, just with a different feed source. */
+    .hub-dm { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+    .hub-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .hub-chip {
+      border: 1px solid var(--glass-stroke); border-radius: 999px; background: #ffffff0d;
+      color: var(--fg); padding: 7px 13px; font-family: var(--font-ui); font-size: 12px;
+      font-weight: 600; cursor: pointer;
+    }
+    .hub-chip:hover { background: #ffffff18; }
+    .hub-chip[aria-expanded="true"] {
+      background: color-mix(in srgb, var(--accent) 20%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--glass-stroke));
+    }
+    .hub-chip--go { background: var(--accent); border-color: transparent; color: #0a1006; }
+    .hub-chip--go:hover { filter: brightness(1.08); background: var(--accent); }
+    .hub-chip:disabled { opacity: .45; cursor: default; }
+
+    .hub-dm-panel {
+      display: grid; gap: 9px; padding: 12px; border-radius: 14px;
+      background: #ffffff08; border: 1px solid var(--glass-stroke);
+    }
+    .hub-dm-panel[hidden] { display: none; }
+    .hub-dm-row { display: flex; gap: 7px; align-items: center; }
+    .hub-dm-input {
+      flex: 1; min-width: 0; border-radius: 10px; border: 1px solid var(--glass-stroke);
+      background: #ffffff08; color: var(--fg); padding: 10px 11px; font: 14px var(--font-ui);
+    }
+    .hub-dm-input::placeholder { color: var(--fg-dim); }
+    .hub-dm-input:focus { outline: none; border-color: var(--accent); background: #ffffff10; }
+    .hub-dm-h {
+      margin: 0; font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+      letter-spacing: .14em; text-transform: uppercase; color: var(--fg-dim);
+    }
+    .hub-dm-note { font-size: 12px; line-height: 1.35; color: var(--fg-dim); }
+    .hub-dm-note.is-bad { color: #ff8a94; }
+
+    .hub-dm-list {
+      flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+      scrollbar-width: thin; scrollbar-color: var(--glass-stroke) transparent;
+    }
+    .hub-dm-list::-webkit-scrollbar { width: 8px; }
+    .hub-dm-list::-webkit-scrollbar-track { background: transparent; }
+    .hub-dm-list::-webkit-scrollbar-thumb { background: var(--glass-stroke); border-radius: 8px; }
+    .hub-dm-item {
+      display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+      width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+      border: 1px solid var(--glass-stroke); border-radius: 14px; background: #ffffff08;
+      padding: 10px 12px; transition: background .16s var(--ease);
+    }
+    .hub-dm-item:hover { background: #ffffff12; }
+    .hub-dm-item.is-static { cursor: default; }
+    .hub-dm-item.is-static:hover { background: #ffffff08; }
+    .hub-dm-av {
+      width: 38px; height: 38px; border-radius: 11px; overflow: hidden;
+      background-color: #ffffff12; background-image: url('assets/animations/troll-computer-transparent.png');
+      background-size: 130%; background-position: center 60%; background-repeat: no-repeat;
+      display: grid; place-items: center; font-size: 16px;
+    }
+    .hub-dm-av.has-pfp { background-image: none; background-color: transparent; }
+    .hub-dm-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .hub-dm-main { min-width: 0; }
+    .hub-dm-title { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
+    .hub-dm-title .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hub-dm-preview {
+      margin-top: 2px; font-size: 12.5px; line-height: 1.3; color: var(--fg-dim);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .hub-dm-side { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+    /* Accept/Decline pairs read as one choice — keep them on one line. */
+    .hub-dm-side--actions { flex-direction: row; align-items: center; }
+    .hub-dm-when { font-family: var(--font-mono); font-size: 10px; color: var(--fg-dim); }
+    .hub-dm-tag {
+      font-family: var(--font-mono); font-size: 9px; font-weight: 500; letter-spacing: .1em;
+      text-transform: uppercase; padding: 2px 6px; border-radius: 6px;
+      background: #ffffff14; color: var(--fg-dim);
+    }
+    /* "New" is a word, not just a dot — unread must not be colour-only. */
+    .hub-dm-tag--new { background: var(--accent); color: #0a1006; }
+    .hub-dm-empty { display: grid; place-items: center; gap: 8px; text-align: center; padding: 22px 12px; color: var(--fg-dim); }
+    .hub-dm-empty img { width: 66px; height: auto; }
+    .hub-dm-empty strong { font-family: var(--font-display); font-size: 12px; letter-spacing: .02em; color: var(--fg); }
+    .hub-dm-empty span { font-size: 13px; }
+    .hub-friend-chip {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--fg);
+      border: 1px solid var(--glass-stroke); border-radius: 999px; background: #ffffff0d;
+      padding: 5px 11px 5px 8px; cursor: pointer;
+    }
+    .hub-friend-chip input { accent-color: var(--accent); margin: 0; }
+    .hub-friend-chip:hover { background: #ffffff18; }
+    /* A DM composer has no guest-name field to sit beside — one input, one send. */
+    .hub-composer--solo { grid-template-columns: minmax(0, 1fr) auto; }
+
     @keyframes hub-blink { 50% { opacity: .25; } }
 
     /* Touch devices take the phone treatment at ANY width, not just under
@@ -1606,11 +1703,53 @@
         </div>
       </section>
 
-      <section id="hub-messages" class="hub-lobby" hidden>
-        <img class="hub-lobby-mark" src="assets/animations/troll-grin.gif" alt="">
-        <h2>MESSAGES</h2>
-        <p class="sub">DMs and group chats are coming soon.</p>
-        <button type="button" class="hub-lobby-back" id="hub-messages-back">&#x2190; Back to the Hub</button>
+      <!-- Messages: the same DM + group inbox the classic desktop has, on the
+           same Supabase tables/RPCs — a runner's threads are identical either
+           way. See initHubMessages in the script below. -->
+      <section id="hub-messages" class="hub-dm" hidden aria-label="Messages">
+        <div class="hub-room-top">
+          <div class="hub-room-title">
+            <div class="title">Messages</div>
+            <div class="subtitle" id="hub-dm-sub">DMs and group chats</div>
+          </div>
+          <button type="button" class="hub-room-back" id="hub-messages-back">&#x2190; Back</button>
+        </div>
+
+        <div class="hub-chips" id="hub-dm-chips">
+          <button type="button" class="hub-chip" id="hub-dm-new" aria-expanded="false" aria-controls="hub-dm-panel">New message</button>
+          <button type="button" class="hub-chip" id="hub-dm-group" aria-expanded="false" aria-controls="hub-dm-panel">New group</button>
+          <button type="button" class="hub-chip" id="hub-dm-join" aria-expanded="false" aria-controls="hub-dm-panel">Join by code</button>
+        </div>
+        <div class="hub-dm-panel" id="hub-dm-panel" hidden></div>
+
+        <div class="hub-dm-list" id="hub-dm-list"></div>
+      </section>
+
+      <!-- One thread — a DM or a group room. Reuses the General Chat feed
+           classes so both rooms look and scroll identically. -->
+      <section id="hub-thread" class="hub-room" hidden aria-label="Conversation">
+        <div class="hub-room-top">
+          <div class="hub-room-title">
+            <div class="title" id="hub-thread-title">Conversation</div>
+            <div class="subtitle" id="hub-thread-sub"></div>
+          </div>
+          <div class="hub-chips">
+            <button type="button" class="hub-chip" id="hub-thread-tools-btn" aria-expanded="false" aria-controls="hub-thread-tools" hidden>Group</button>
+            <button type="button" class="hub-room-back" id="hub-thread-back">&#x2190; Inbox</button>
+          </div>
+        </div>
+        <div class="hub-dm-panel" id="hub-thread-tools" hidden></div>
+
+        <div class="hub-feed-wrap">
+          <div id="hub-thread-feed" class="hub-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+          <button id="hub-thread-jump" class="hub-jump-pill" type="button" hidden></button>
+        </div>
+
+        <form id="hub-thread-form" class="hub-composer hub-composer--solo" autocomplete="off">
+          <input id="hub-thread-input" class="hub-msg-input" type="text" maxlength="240" placeholder="write something…" aria-label="Message" autocomplete="off">
+          <button class="hub-send" type="submit">Send</button>
+        </form>
+        <div id="hub-thread-note" class="hub-note"></div>
       </section>
 
       <section id="hub-room" class="hub-room" hidden aria-label="Live chat">
@@ -3746,9 +3885,13 @@
         return m.avatar || (m.uid ? avatarCache.get(m.uid) : null) || null;
       }
 
-      async function resolveAvatars() {
+      async function resolveAvatars() { return resolveAvatarsFor(state.messages, renderFeed); }
+
+      // Shared by the general room and the Messages thread view — both feeds
+      // hold rows that only carry a user_id and need the profile's avatar.
+      async function resolveAvatarsFor(messages, after) {
         const missing = Array.from(new Set(
-          state.messages.filter(m => m.uid && !m.avatar && !avatarCache.has(m.uid)).map(m => m.uid)
+          messages.filter(m => m.uid && !m.avatar && !avatarCache.has(m.uid)).map(m => m.uid)
         ));
         if (!missing.length) return;
         missing.forEach(uid => avatarCache.set(uid, null)); // no repeat lookups
@@ -3763,7 +3906,7 @@
           (Array.isArray(rows) ? rows : []).forEach(row => {
             if (row && row.id && row.avatar_url) { avatarCache.set(row.id, String(row.avatar_url)); found = true; }
           });
-          if (found) renderFeed();
+          if (found && after) after();
         } catch {}
       }
 
@@ -3801,6 +3944,30 @@
         els.jump.textContent = '↓ ' + n + (n === 1 ? ' new message' : ' new messages');
       }
 
+      /* One message row, shared by the general room and every Messages
+         thread. isMe only drives the highlight colour — the general room
+         knows the author by display name, a thread knows it by user id. */
+      function msgRow(m, isMe) {
+        const row = document.createElement('article'); row.className = 'hub-msg'; row.dataset.id = m.id; if (isMe) row.classList.add('is-me');
+        const avatar = document.createElement('span'); avatar.className = 'hub-avatar'; avatar.setAttribute('aria-hidden', 'true');
+        const avatarUrl = avatarFor(m);
+        // has-pfp mirrors the :has(img) rule for engines without :has().
+        if (avatarUrl) { const av = document.createElement('img'); av.src = avatarUrl; av.alt = ''; av.loading = 'lazy'; avatar.appendChild(av); avatar.classList.add('has-pfp'); }
+        const body = document.createElement('div');
+        const head = document.createElement('div'); head.className = 'hub-name-row';
+        const name = document.createElement('span'); name.className = 'hub-author'; name.textContent = m.name; if (!isMe) name.style.color = nameColor(m.name);
+        if (m.uid) {
+          name.style.cursor = 'pointer';
+          name.title = 'View ' + m.name + "'s profile";
+          name.addEventListener('click', () => window.TrollrunnerAccounts?.openProfileCard?.(m.uid));
+        }
+        const time = document.createElement('span'); time.className = 'hub-time'; time.textContent = fmtTime(m.ts);
+        const text = document.createElement('div'); text.className = 'hub-text';
+        if (window.TrollChatExtras) window.TrollChatExtras.renderBodyInto(text, m.text); else text.textContent = m.text;
+        head.append(name, time); body.append(head, text); row.append(avatar, body);
+        return row;
+      }
+
       function renderFeed() {
         const isFirstRender = !state.initialScrollDone;
         const hadRows = els.feed.childElementCount > 0;
@@ -3814,25 +3981,7 @@
           const span = document.createElement('span'); span.textContent = 'be the first to say something.';
           empty.append(img, strong, span); els.feed.appendChild(empty); return;
         }
-        state.messages.forEach(m => {
-          const row = document.createElement('article'); row.className = 'hub-msg'; row.dataset.id = m.id; if (m.name === state.name) row.classList.add('is-me');
-          const avatar = document.createElement('span'); avatar.className = 'hub-avatar'; avatar.setAttribute('aria-hidden', 'true');
-          const avatarUrl = avatarFor(m);
-          // has-pfp mirrors the :has(img) rule for engines without :has().
-          if (avatarUrl) { const av = document.createElement('img'); av.src = avatarUrl; av.alt = ''; av.loading = 'lazy'; avatar.appendChild(av); avatar.classList.add('has-pfp'); }
-          const body = document.createElement('div');
-          const head = document.createElement('div'); head.className = 'hub-name-row';
-          const name = document.createElement('span'); name.className = 'hub-author'; name.textContent = m.name; if (m.name !== state.name) name.style.color = nameColor(m.name);
-          if (m.uid) {
-            name.style.cursor = 'pointer';
-            name.title = 'View ' + m.name + "'s profile";
-            name.addEventListener('click', () => window.TrollrunnerAccounts?.openProfileCard?.(m.uid));
-          }
-          const time = document.createElement('span'); time.className = 'hub-time'; time.textContent = fmtTime(m.ts);
-          const text = document.createElement('div'); text.className = 'hub-text';
-          if (window.TrollChatExtras) window.TrollChatExtras.renderBodyInto(text, m.text); else text.textContent = m.text;
-          head.append(name, time); body.append(head, text); row.append(avatar, body); els.feed.appendChild(row);
-        });
+        state.messages.forEach(m => els.feed.appendChild(msgRow(m, m.name === state.name)));
 
         if (isFirstRender) {
           state.initialScrollDone = true;
@@ -3949,31 +4098,717 @@
         } catch { state.channel = null; }
       }
 
-      function enterRoom() {
-        document.getElementById('hub-lobby').hidden = true;
-        document.getElementById('hub-messages').hidden = true;
-        document.getElementById('hub-room').hidden = false;
-        document.getElementById('hub').classList.add('is-room');
+      /* The Hub sheet holds four exclusive screens: the lobby, the general
+         room, the Messages inbox, and one open thread. Everything but the
+         lobby wants the taller sheet (.is-room), because all three scroll. */
+      const HUB_SCREENS = ['hub-lobby', 'hub-room', 'hub-messages', 'hub-thread'];
+      function showScreen(id) {
+        HUB_SCREENS.forEach(s => { const el = document.getElementById(s); if (el) el.hidden = s !== id; });
+        document.getElementById('hub').classList.toggle('is-room', id !== 'hub-lobby');
       }
+      function enterRoom() { showScreen('hub-room'); }
+
+      /* ================= MESSAGES (DMs + group chats) =================
+         Same backend as the classic desktop's MESSAGES panel — no new tables
+         or RPCs: troll_dm_my_threads / troll_chat_group_last_messages (from
+         assets/supabase/troll_dm_inbox.sql), troll_chat_my_groups /
+         my_invites / create_group / join_group / invite_username /
+         accept-decline_invite / leave_group (troll_chat_groups.sql), and the
+         friends RPCs behind TrollrunnerAccounts. Threads write to the exact
+         same rows and broadcast on the exact same channel names the desktop
+         uses, so a conversation is live in both UIs at once. */
+      const dm = {
+        groups: [], invites: [], threads: [], lastMsgs: new Map(), friends: [], requests: [],
+        loading: false, panel: null,
+        open: null,           // { kind:'dm'|'group', id, title, code, role, otherId, otherAvatar }
+        messages: [], seen: new Set(), channel: null, subscribed: false,
+        caughtUp: null, lastSendAt: 0,
+      };
+      const dmEls = {};
+
+      function dmAccount() { return window.TrollrunnerAccounts?.getCachedProfile?.() || null; }
+      function dmClient() { return window.TrollrunnerAccounts?.getClient?.() || null; }
+
+      // Read state is client-local and shares the desktop's localStorage keys,
+      // so marking a thread read in one UI marks it read in the other.
+      function dmSeenKey(kind, id) { return 'tc_seen_' + kind + '_' + id; }
+      function dmMarkSeen(kind, id) { if (id) { try { localStorage.setItem(dmSeenKey(kind, id), new Date().toISOString()); } catch {} } }
+      function dmUnread(kind, id, lastAt) {
+        if (!id || !lastAt) return false;
+        let seen = '';
+        try { seen = localStorage.getItem(dmSeenKey(kind, id)) || ''; } catch {}
+        return !seen || new Date(lastAt) > new Date(seen);
+      }
+
+      function dmNote(text, bad) {
+        const line = document.createElement('div');
+        line.className = 'hub-dm-note' + (bad ? ' is-bad' : '');
+        line.textContent = text;
+        return line;
+      }
+
+      function dmAvatarNode(url, fallbackText) {
+        const av = document.createElement('span');
+        av.className = 'hub-dm-av';
+        av.setAttribute('aria-hidden', 'true');
+        if (url) { const img = document.createElement('img'); img.src = url; img.alt = ''; img.loading = 'lazy'; av.appendChild(img); av.classList.add('has-pfp'); }
+        else if (fallbackText) { av.textContent = fallbackText; av.style.backgroundImage = 'none'; }
+        return av;
+      }
+
+      function dmTag(text, isNew) {
+        const el = document.createElement('span');
+        el.className = 'hub-dm-tag' + (isNew ? ' hub-dm-tag--new' : '');
+        el.textContent = text;
+        return el;
+      }
+
+      // Inbox rows and invite/request rows share one shape: avatar, title +
+      // preview, then either a timestamp or a pair of action buttons.
+      function dmItem(opts) {
+        const row = document.createElement(opts.onOpen ? 'button' : 'div');
+        row.className = 'hub-dm-item' + (opts.onOpen ? '' : ' is-static');
+        if (opts.onOpen) { row.type = 'button'; row.addEventListener('click', opts.onOpen); }
+        const main = document.createElement('div');
+        main.className = 'hub-dm-main';
+        const title = document.createElement('div');
+        title.className = 'hub-dm-title';
+        const name = document.createElement('span');
+        name.className = 'name';
+        name.textContent = opts.title;
+        title.appendChild(name);
+        (opts.tags || []).forEach(t => title.appendChild(t));
+        main.appendChild(title);
+        if (opts.preview) {
+          const p = document.createElement('div');
+          p.className = 'hub-dm-preview';
+          p.textContent = opts.preview;
+          main.appendChild(p);
+        }
+        const side = document.createElement('div');
+        side.className = 'hub-dm-side' + (opts.actions ? ' hub-dm-side--actions' : '');
+        (opts.side || []).forEach(el => side.appendChild(el));
+        row.append(dmAvatarNode(opts.avatar, opts.icon), main, side);
+        return row;
+      }
+
+      function dmActionBtn(label, onClick, primary) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'hub-chip' + (primary ? ' hub-chip--go' : '');
+        b.textContent = label;
+        b.addEventListener('click', e => { e.stopPropagation(); onClick(); });
+        return b;
+      }
+
+      async function dmLoadInbox() {
+        if (!dmEls.list) return;
+        const account = dmAccount();
+        if (!account) { dmRenderInbox(); return; }
+        const sb = dmClient();
+        if (!sb) { dmRenderInbox(); return; }
+        dm.loading = true;
+        dmRenderInbox();
+        const [groups, invites, threads, groupMsgs, friends, requests] = await Promise.all([
+          sb.rpc('troll_chat_my_groups').catch(() => null),
+          sb.rpc('troll_chat_my_invites').catch(() => null),
+          sb.rpc('troll_dm_my_threads').catch(() => null),
+          sb.rpc('troll_chat_group_last_messages').catch(() => null),
+          window.TrollrunnerAccounts?.listFriends?.().catch(() => []) || [],
+          window.TrollrunnerAccounts?.listFriendRequests?.().catch(() => null) || null,
+        ]);
+        dm.groups = groups?.data || [];
+        dm.invites = invites?.data || [];
+        dm.threads = threads?.data || [];
+        dm.lastMsgs = new Map((groupMsgs?.data || []).map(g => [g.group_id, g]));
+        dm.friends = friends || [];
+        dm.requests = requests?.incoming || [];
+        dm.loading = false;
+        dmRenderInbox();
+      }
+
+      function dmRenderInbox() {
+        const list = dmEls.list;
+        if (!list) return;
+        list.innerHTML = '';
+        const account = dmAccount();
+        if (dmEls.sub) dmEls.sub.textContent = account ? 'DMs and group chats' : 'Sign in to start messaging';
+        (dmEls.chips || []).forEach(c => { c.disabled = !account; });
+
+        if (!account) {
+          const empty = document.createElement('div');
+          empty.className = 'hub-dm-empty';
+          const img = document.createElement('img'); img.src = 'assets/animations/troll-computer-transparent.png'; img.alt = '';
+          const strong = document.createElement('strong'); strong.textContent = 'Sign in first';
+          const span = document.createElement('span'); span.textContent = 'DMs and groups are tied to your runner account.';
+          const btn = dmActionBtn('Open Account', () => { hubSetOpen(false); authSetOpen(true); }, true);
+          empty.append(img, strong, span, btn);
+          list.appendChild(empty);
+          return;
+        }
+        if (dm.loading && !dm.threads.length && !dm.groups.length) { list.appendChild(dmNote('Loading your conversations…')); return; }
+
+        // Friend requests first — a pending request is usually why a DM
+        // to that runner would bounce, so it belongs above the threads.
+        if (dm.requests.length) {
+          const h = document.createElement('p'); h.className = 'hub-dm-h'; h.textContent = 'Friend requests';
+          list.appendChild(h);
+          dm.requests.forEach(req => {
+            list.appendChild(dmItem({
+              title: req.username || 'someone',
+              preview: 'wants to be friends',
+              avatar: req.avatar_url,
+              actions: true,
+              side: [
+                dmActionBtn('Accept', () => void dmRespondFriend(req.id, true), true),
+                dmActionBtn('Decline', () => void dmRespondFriend(req.id, false)),
+              ],
+            }));
+          });
+        }
+
+        if (dm.invites.length) {
+          const h = document.createElement('p'); h.className = 'hub-dm-h'; h.textContent = 'Group invites';
+          list.appendChild(h);
+          dm.invites.forEach(invite => {
+            list.appendChild(dmItem({
+              title: invite.group_name || 'a group',
+              preview: 'invited by ' + (invite.invited_by_username || 'someone'),
+              icon: '👥',
+              actions: true,
+              side: [
+                dmActionBtn('Accept', () => void dmRespondInvite(invite.group_id, true), true),
+                dmActionBtn('Decline', () => void dmRespondInvite(invite.group_id, false)),
+              ],
+            }));
+          });
+        }
+
+        // One recency-sorted list of DMs and groups — the same merged inbox
+        // the desktop panel shows.
+        const items = [
+          ...dm.groups.map(group => {
+            const last = dm.lastMsgs.get(group.id);
+            const ts = last?.last_at || group.joined_at;
+            const unread = dmUnread('group', group.id, last?.last_at);
+            return { ts, el: dmItem({
+              title: group.name,
+              preview: last?.last_body ? (last.last_name || 'someone') + ': ' + last.last_body : 'No messages yet',
+              icon: '👥',
+              tags: [dmTag('Group'), ...(unread ? [dmTag('New', true)] : [])],
+              side: ts ? [Object.assign(document.createElement('span'), { className: 'hub-dm-when', textContent: fmtTime(ts) })] : [],
+              onOpen: () => void dmOpenGroup(group),
+            }) };
+          }),
+          ...dm.threads.map(thread => {
+            const unread = dmUnread('dm', thread.thread_id, thread.last_at);
+            const mine = thread.last_sender_id && thread.last_sender_id !== thread.other_id;
+            return { ts: thread.last_at, el: dmItem({
+              title: thread.other_username,
+              preview: thread.last_body ? (mine ? 'You: ' : '') + thread.last_body : 'No messages yet',
+              avatar: thread.other_avatar_url,
+              tags: unread ? [dmTag('New', true)] : [],
+              side: thread.last_at ? [Object.assign(document.createElement('span'), { className: 'hub-dm-when', textContent: fmtTime(thread.last_at) })] : [],
+              onOpen: () => void dmOpenDm(thread.other_id, thread.other_username, thread.other_avatar_url, thread.thread_id),
+            }) };
+          }),
+        ];
+        items.sort((a, b) => Date.parse(b.ts || 0) - Date.parse(a.ts || 0));
+        items.forEach(i => list.appendChild(i.el));
+
+        if (!items.length) {
+          const empty = document.createElement('div');
+          empty.className = 'hub-dm-empty';
+          const img = document.createElement('img'); img.src = 'assets/animations/troll-lel_transparent.gif'; img.alt = '';
+          const strong = document.createElement('strong'); strong.textContent = 'No conversations yet';
+          const span = document.createElement('span'); span.textContent = 'Start a DM or spin up a group above.';
+          empty.append(img, strong, span);
+          list.appendChild(empty);
+        }
+      }
+
+      /* ---- the three inbox panels: new DM, new group, join by code ---- */
+      function dmClosePanel() {
+        dm.panel = null;
+        if (!dmEls.panel) return;
+        dmEls.panel.hidden = true;
+        dmEls.panel.innerHTML = '';
+        (dmEls.chips || []).forEach(c => c.setAttribute('aria-expanded', 'false'));
+      }
+
+      function dmTogglePanel(kind, chip) {
+        if (dm.panel === kind) { dmClosePanel(); chip.focus(); return; }
+        dmClosePanel();
+        dm.panel = kind;
+        dmEls.chips.forEach(c => c.setAttribute('aria-expanded', String(c === chip)));
+        const panel = dmEls.panel;
+        panel.hidden = false;
+        const h = document.createElement('p');
+        h.className = 'hub-dm-h';
+        const row = document.createElement('div');
+        row.className = 'hub-dm-row';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'hub-dm-input';
+        const go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'hub-chip hub-chip--go';
+        const status = document.createElement('div');
+        row.append(input, go);
+        panel.append(h, row);
+
+        if (kind === 'new') {
+          h.textContent = 'New message';
+          input.placeholder = 'username';
+          input.maxLength = 24;
+          input.setAttribute('aria-label', 'Runner username');
+          go.textContent = 'Message';
+          const run = () => void dmStartFromUsername(input.value, status);
+          go.addEventListener('click', run);
+          input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
+          panel.appendChild(status);
+          if (dm.friends.length) {
+            const fh = document.createElement('p'); fh.className = 'hub-dm-h'; fh.textContent = 'Friends';
+            const chips = document.createElement('div'); chips.className = 'hub-chips';
+            dm.friends.forEach(f => chips.appendChild(dmActionBtn(f.username, () => void dmOpenDm(f.id, f.username, f.avatar_url))));
+            panel.append(fh, chips);
+          }
+        } else if (kind === 'group') {
+          h.textContent = 'New group';
+          input.placeholder = 'group name';
+          input.maxLength = 40;
+          input.setAttribute('aria-label', 'Group name');
+          go.textContent = 'Create';
+          // Friends get added up front rather than invited one at a time.
+          const picked = new Set();
+          if (dm.friends.length) {
+            const fh = document.createElement('p'); fh.className = 'hub-dm-h'; fh.textContent = 'Add friends (optional)';
+            const chips = document.createElement('div'); chips.className = 'hub-chips';
+            dm.friends.forEach(f => {
+              const label = document.createElement('label');
+              label.className = 'hub-friend-chip';
+              const box = document.createElement('input');
+              box.type = 'checkbox';
+              box.addEventListener('change', () => { if (box.checked) picked.add(f.username); else picked.delete(f.username); });
+              label.append(box, document.createTextNode(f.username));
+              chips.appendChild(label);
+            });
+            panel.append(fh, chips);
+          } else {
+            panel.appendChild(dmNote('Add friends from a profile card to invite them as you create a group.'));
+          }
+          panel.appendChild(status);
+          const run = () => void dmCreateGroup(input.value, Array.from(picked), status);
+          go.addEventListener('click', run);
+          input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
+        } else {
+          h.textContent = 'Join by code';
+          input.placeholder = 'paste a group code';
+          input.maxLength = 8;
+          input.setAttribute('aria-label', 'Group code');
+          go.textContent = 'Join';
+          panel.appendChild(status);
+          const run = () => void dmJoinByCode(input.value, status);
+          go.addEventListener('click', run);
+          input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
+        }
+        input.focus();
+      }
+
+      async function dmStartFromUsername(username, status) {
+        const trimmed = String(username || '').trim();
+        if (!trimmed) return;
+        status.replaceChildren(dmNote('Looking up…'));
+        const profile = await window.TrollrunnerAccounts?.findProfileByUsername?.(trimmed);
+        if (!profile) { status.replaceChildren(dmNote('No runner named "' + trimmed + '".', true)); return; }
+        status.replaceChildren();
+        await dmOpenDm(profile.id, profile.username, profile.avatar_url);
+      }
+
+      async function dmCreateGroup(name, inviteUsernames, status) {
+        const sb = dmClient();
+        const trimmed = String(name || '').trim();
+        if (!sb || !trimmed) return;
+        status.replaceChildren(dmNote('Creating…'));
+        const { data, error } = await sb.rpc('troll_chat_create_group', { p_name: trimmed });
+        if (error) { status.replaceChildren(dmNote(error.message || 'Could not create that group.', true)); return; }
+        for (const username of inviteUsernames || []) {
+          try { await sb.rpc('troll_chat_invite_username', { p_group_id: data.id, p_username: username }); } catch {}
+        }
+        dmClosePanel();
+        await dmLoadInbox();
+        if (data) await dmOpenGroup({ id: data.id, name: data.name, code: data.code, role: 'owner' });
+      }
+
+      async function dmJoinByCode(code, status) {
+        const sb = dmClient();
+        const trimmed = String(code || '').trim();
+        if (!sb || !trimmed) return;
+        status.replaceChildren(dmNote('Joining…'));
+        const { data, error } = await sb.rpc('troll_chat_join_group', { p_code: trimmed });
+        if (error) { status.replaceChildren(dmNote(error.message || 'Could not join that group.', true)); return; }
+        dmClosePanel();
+        await dmLoadInbox();
+        if (data) await dmOpenGroup({ id: data.id, name: data.name, code: data.code, role: 'member' });
+      }
+
+      async function dmRespondInvite(groupId, accept) {
+        const sb = dmClient();
+        if (!sb) return;
+        try { await sb.rpc(accept ? 'troll_chat_accept_invite' : 'troll_chat_decline_invite', { p_group_id: groupId }); } catch {}
+        await dmLoadInbox();
+      }
+
+      async function dmRespondFriend(requesterId, accept) {
+        try { await window.TrollrunnerAccounts?.respondFriendRequest?.(requesterId, accept); } catch {}
+        await dmLoadInbox();
+      }
+
+      /* ---- one open thread ---- */
+      function dmThreadNote(text) { if (dmEls.note) dmEls.note.textContent = text || ''; }
+
+      function dmRenderThread() {
+        const feed = dmEls.feed;
+        if (!feed) return;
+        const account = dmAccount();
+        const hadRows = feed.childElementCount > 0;
+        const distance = hadRows ? (feed.scrollHeight - feed.scrollTop - feed.clientHeight) : 0;
+        const wasNearBottom = !hadRows || distance < 60;
+        feed.innerHTML = '';
+        if (!dm.messages.length) {
+          const empty = document.createElement('div');
+          empty.className = 'hub-empty';
+          const img = document.createElement('img'); img.src = 'assets/animations/troll-lel_transparent.gif'; img.alt = '';
+          const strong = document.createElement('strong'); strong.textContent = 'Nothing here yet';
+          const span = document.createElement('span'); span.textContent = 'say hi first.';
+          empty.append(img, strong, span);
+          feed.appendChild(empty);
+          return;
+        }
+        dm.messages.forEach(m => feed.appendChild(msgRow(m, !!account && m.uid === account.userId)));
+        if (wasNearBottom) { feed.scrollTop = feed.scrollHeight; dmHideJump(); }
+        else { feed.scrollTop = Math.max(0, feed.scrollHeight - feed.clientHeight - distance); dmUpdateJump(); }
+      }
+
+      function dmHideJump() { if (dmEls.jump) dmEls.jump.hidden = true; dm.caughtUp = dm.messages.length; }
+      function dmUpdateJump() {
+        if (!dmEls.jump) return;
+        if (dm.caughtUp == null) dm.caughtUp = dm.messages.length;
+        const n = Math.max(0, dm.messages.length - dm.caughtUp);
+        if (n <= 0) { dmEls.jump.hidden = true; return; }
+        dmEls.jump.hidden = false;
+        dmEls.jump.textContent = '↓ ' + n + (n === 1 ? ' new message' : ' new messages');
+      }
+
+      function dmAddMessage(m, opts) {
+        if (!m || !m.id || !m.text || dm.seen.has(m.id)) return false;
+        dm.seen.add(m.id);
+        dm.messages.push(m);
+        dm.messages.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+        if (dm.messages.length > HUB_KEEP) { dm.messages = dm.messages.slice(-HUB_KEEP); dm.seen = new Set(dm.messages.map(x => x.id)); }
+        if (!(opts && opts.silent)) dmRenderThread();
+        if (m.uid && !m.avatar) resolveAvatarsFor(dm.messages, dmRenderThread);
+        return true;
+      }
+
+      // Group rows carry their own author name; DM rows only carry a
+      // sender_id, so the two names in the thread are filled in from the
+      // account and the thread's other runner.
+      function dmRowToMessage(row) {
+        const kind = dm.open?.kind;
+        if (kind === 'group') {
+          const body = String(row.body != null ? row.body : row.text || '').trim();
+          if (!body) return null;
+          return { id: String(row.id || ''), name: (String(row.name || 'Guest').trim() || 'Guest').slice(0, 24), text: body, ts: String(row.created_at || row.ts || new Date().toISOString()), uid: safeUid(row.user_id || row.uid), avatar: safeAvatarUrl(row.avatar, safeUid(row.user_id || row.uid)) };
+        }
+        const account = dmAccount();
+        const sender = safeUid(row.sender_id);
+        const body = String(row.body || '').trim();
+        if (!body || !sender) return null;
+        const isMe = !!account && sender === account.userId;
+        return {
+          id: String(row.id || ''),
+          name: isMe ? (account.username || 'You') : (dm.open?.title || 'Runner'),
+          text: body,
+          ts: String(row.created_at || new Date().toISOString()),
+          uid: sender,
+          avatar: isMe ? (account.avatarUrl || null) : (dm.open?.otherAvatar || null),
+        };
+      }
+
+      function dmLeaveThread() {
+        if (dm.channel) { try { dm.channel.unsubscribe(); } catch {} }
+        dm.channel = null; dm.subscribed = false;
+        dm.messages = []; dm.seen = new Set(); dm.caughtUp = null;
+        dm.open = null;
+        if (dmEls.feed) dmEls.feed.innerHTML = '';
+        dmThreadNote('');
+        if (dmEls.toolsBtn) { dmEls.toolsBtn.hidden = true; dmEls.toolsBtn.setAttribute('aria-expanded', 'false'); }
+        if (dmEls.tools) { dmEls.tools.hidden = true; dmEls.tools.innerHTML = ''; }
+      }
+
+      // Broadcast rides the same anon realtime client and the same topic names
+      // the desktop uses ('trolldm_<thread>' / 'trollchat_group_<id>'), so
+      // messages sent from either UI land live in the other.
+      function dmSubscribe(topic) {
+        if (!state.client) return;
+        try {
+          dm.channel = state.client.channel(topic, { config: { broadcast: { self: false } } });
+          dm.channel
+            .on('broadcast', { event: 'msg' }, ({ payload }) => {
+              const m = dmRowToMessage(payload);
+              if (m) dmAddMessage(m);
+            })
+            .subscribe(s => { if (s === 'SUBSCRIBED') dm.subscribed = true; });
+        } catch { dm.channel = null; }
+      }
+
+      function dmShowThread(title, sub) {
+        dmEls.title.textContent = title;
+        dmEls.threadSub.textContent = sub || '';
+        showScreen('hub-thread');
+        if (dmEls.input) { dmEls.input.disabled = false; dmEls.input.focus(); }
+      }
+
+      async function dmOpenDm(otherId, otherUsername, otherAvatar, knownThreadId) {
+        const account = dmAccount();
+        if (!account) return;
+        dmLeaveThread();
+        dm.open = { kind: 'dm', id: knownThreadId || null, title: otherUsername, otherId, otherAvatar: otherAvatar || null };
+        dmShowThread(otherUsername, 'Direct message');
+        dmThreadNote('Opening…');
+        let threadId = knownThreadId || null;
+        try {
+          if (!threadId) threadId = await window.TrollrunnerAccounts.openDmThread(otherId);
+        } catch (err) {
+          dmThreadNote(err?.message || 'Could not open that conversation.');
+          if (dmEls.input) dmEls.input.disabled = true;
+          return;
+        }
+        if (!threadId) { dmThreadNote('Could not open that conversation.'); return; }
+        dm.open.id = threadId;
+        dmClosePanel();
+        const rows = await window.TrollrunnerAccounts.getDmHistory(threadId, HUB_HISTORY);
+        (rows || []).forEach(r => { const m = dmRowToMessage(r); if (m) dmAddMessage(m, { silent: true }); });
+        dmRenderThread();
+        resolveAvatarsFor(dm.messages, dmRenderThread);
+        dmThreadNote('');
+        dmMarkSeen('dm', threadId);
+        dmSubscribe('trolldm_' + threadId);
+      }
+
+      async function dmOpenGroup(group) {
+        const account = dmAccount();
+        if (!account) return;
+        dmLeaveThread();
+        dm.open = { kind: 'group', id: group.id, title: group.name, code: group.code, role: group.role };
+        dmShowThread(group.name, group.code ? 'Group · code ' + group.code : 'Group chat');
+        dmClosePanel();
+        dmBuildGroupTools(group);
+        dmThreadNote('Loading…');
+        const rows = await dmGroupHistory(group.id);
+        if (rows === null) dmThreadNote('Could not load this group’s history.');
+        else { rows.forEach(r => { const m = dmRowToMessage(r); if (m) dmAddMessage(m, { silent: true }); }); dmThreadNote(''); }
+        dmRenderThread();
+        resolveAvatarsFor(dm.messages, dmRenderThread);
+        dmMarkSeen('group', group.id);
+        dmSubscribe('trollchat_group_' + group.id);
+      }
+
+      // Group history is the same troll_chat table the general room uses, just
+      // scoped to a group_id — which RLS only allows with the member's token.
+      async function dmGroupHistory(groupId) {
+        try {
+          const token = await window.TrollrunnerAccounts?.getAccessToken?.();
+          const qs = new URLSearchParams({ select: 'id,name,body,created_at,user_id', order: 'created_at.desc', limit: String(HUB_HISTORY), group_id: 'eq.' + groupId });
+          const res = await fetch(SUPABASE_URL + '/rest/v1/' + HUB_TABLE + '?' + qs.toString(), {
+            headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY) },
+          });
+          if (!res.ok) return null;
+          const rows = await res.json();
+          return Array.isArray(rows) ? rows.reverse() : [];
+        } catch { return null; }
+      }
+
+      function dmBuildGroupTools(group) {
+        if (!dmEls.tools || !dmEls.toolsBtn) return;
+        dmEls.toolsBtn.hidden = false;
+        const tools = dmEls.tools;
+        tools.innerHTML = '';
+        const h = document.createElement('p'); h.className = 'hub-dm-h'; h.textContent = 'Group';
+        const row = document.createElement('div'); row.className = 'hub-dm-row';
+        const input = document.createElement('input');
+        input.type = 'text'; input.className = 'hub-dm-input'; input.placeholder = 'invite by username';
+        input.maxLength = 24; input.setAttribute('aria-label', 'Invite a runner by username');
+        const invite = document.createElement('button');
+        invite.type = 'button'; invite.className = 'hub-chip hub-chip--go'; invite.textContent = 'Invite';
+        row.append(input, invite);
+        const status = document.createElement('div');
+        const run = () => void dmInvite(group.id, input.value, input, status);
+        invite.addEventListener('click', run);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
+        const actions = document.createElement('div');
+        actions.className = 'hub-chips';
+        if (group.code) {
+          const copy = dmActionBtn('Copy code', () => {
+            navigator.clipboard?.writeText(group.code).catch(() => {});
+            copy.textContent = 'Copied';
+            setTimeout(() => { copy.textContent = 'Copy code'; }, 1400);
+          });
+          actions.appendChild(copy);
+        }
+        actions.appendChild(dmActionBtn('Leave group', () => void dmLeaveGroup(group.id)));
+        tools.append(h, row, status, actions);
+        if (group.role) {
+          const role = document.createElement('p');
+          role.className = 'hub-dm-note';
+          role.textContent = group.role === 'owner' ? 'You own this group.' : 'You’re a member of this group.';
+          tools.appendChild(role);
+        }
+      }
+
+      async function dmInvite(groupId, username, input, status) {
+        const sb = dmClient();
+        const trimmed = String(username || '').trim();
+        if (!sb || !trimmed) return;
+        status.replaceChildren(dmNote('Inviting…'));
+        const { data, error } = await sb.rpc('troll_chat_invite_username', { p_group_id: groupId, p_username: trimmed });
+        if (error) { status.replaceChildren(dmNote(error.message || 'Could not send that invite.', true)); return; }
+        input.value = '';
+        status.replaceChildren(dmNote(data === 'added' ? trimmed + ' joined the group.'
+          : data === 'invited' ? 'Invite sent — ' + trimmed + ' will see it in their Messages.'
+          : trimmed + ' is already in the group.'));
+      }
+
+      async function dmLeaveGroup(groupId) {
+        const sb = dmClient();
+        if (!sb || !window.confirm('Leave this group?')) return;
+        try { await sb.rpc('troll_chat_leave_group', { p_group_id: groupId }); } catch {}
+        dmLeaveThread();
+        showScreen('hub-messages');
+        await dmLoadInbox();
+      }
+
+      async function dmSend(text) {
+        const trimmed = String(text || '').trim();
+        const account = dmAccount();
+        if (!trimmed || !dm.open || !account) return false;
+        const now = Date.now();
+        if (now - dm.lastSendAt < HUB_COOLDOWN_MS) { dmThreadNote('Whoa, slow down a sec…'); setTimeout(() => dmThreadNote(''), 1200); return false; }
+        dm.lastSendAt = now;
+        const id = crypto.randomUUID ? crypto.randomUUID() : account.userId + '-' + now + '-' + Math.random().toString(16).slice(2);
+        const body = trimmed.slice(0, HUB_MSG_MAX);
+        const ts = new Date(now).toISOString();
+
+        if (dm.open.kind === 'dm') {
+          // Same row shape and same broadcast payload troll-accounts.js's own
+          // sendDm writes, so the desktop DM panel sees it instantly too.
+          const row = { id, thread_id: dm.open.id, sender_id: account.userId, body };
+          const sb = dmClient();
+          const { error } = await sb.from('troll_dm_messages').insert(row);
+          if (error) { dmThreadNote(error.message || 'Could not send that message.'); return false; }
+          dmAddMessage(dmRowToMessage({ ...row, created_at: ts }));
+          if (dm.channel && dm.subscribed) dm.channel.send({ type: 'broadcast', event: 'msg', payload: { ...row, created_at: ts } });
+        } else {
+          const payload = { id, name: String(account.username || 'Guest').slice(0, 24), text: body, ts, uid: account.userId, avatar: account.avatarUrl || null };
+          const ok = await dmPersistGroup(dm.open.id, payload);
+          if (!ok) { dmThreadNote('Could not send that message.'); return false; }
+          dmAddMessage({ ...payload, avatar: payload.avatar });
+          if (dm.channel && dm.subscribed) dm.channel.send({ type: 'broadcast', event: 'msg', payload });
+        }
+        dmMarkSeen(dm.open.kind === 'dm' ? 'dm' : 'group', dm.open.id);
+        dmThreadNote('');
+        return true;
+      }
+
+      async function dmPersistGroup(groupId, m) {
+        try {
+          const token = await window.TrollrunnerAccounts?.getAccessToken?.();
+          if (!token) return false;
+          const res = await fetch(SUPABASE_URL + '/rest/v1/' + HUB_TABLE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token, Prefer: 'return=minimal' },
+            body: JSON.stringify([{ id: m.id, name: m.name, body: m.text, created_at: m.ts, user_id: m.uid, group_id: groupId }]),
+          });
+          const ok = res.ok || res.status === 409;
+          if (ok) void window.TrollrunnerAccounts?.awardXp?.('chat_post', 'trollchat');
+          return ok;
+        } catch { return false; }
+      }
+
+      function initHubMessages() {
+        dmEls.list = document.getElementById('hub-dm-list');
+        dmEls.panel = document.getElementById('hub-dm-panel');
+        dmEls.sub = document.getElementById('hub-dm-sub');
+        dmEls.feed = document.getElementById('hub-thread-feed');
+        dmEls.jump = document.getElementById('hub-thread-jump');
+        dmEls.title = document.getElementById('hub-thread-title');
+        dmEls.threadSub = document.getElementById('hub-thread-sub');
+        dmEls.note = document.getElementById('hub-thread-note');
+        dmEls.input = document.getElementById('hub-thread-input');
+        dmEls.tools = document.getElementById('hub-thread-tools');
+        dmEls.toolsBtn = document.getElementById('hub-thread-tools-btn');
+        const form = document.getElementById('hub-thread-form');
+        if (!dmEls.list || !dmEls.feed || !form) return;
+
+        const chipNew = document.getElementById('hub-dm-new');
+        const chipGroup = document.getElementById('hub-dm-group');
+        const chipJoin = document.getElementById('hub-dm-join');
+        dmEls.chips = [chipNew, chipGroup, chipJoin].filter(Boolean);
+        if (chipNew) chipNew.addEventListener('click', () => dmTogglePanel('new', chipNew));
+        if (chipGroup) chipGroup.addEventListener('click', () => dmTogglePanel('group', chipGroup));
+        if (chipJoin) chipJoin.addEventListener('click', () => dmTogglePanel('join', chipJoin));
+
+        if (dmEls.toolsBtn) dmEls.toolsBtn.addEventListener('click', () => {
+          const open = dmEls.tools.hidden;
+          dmEls.tools.hidden = !open;
+          dmEls.toolsBtn.setAttribute('aria-expanded', String(open));
+        });
+
+        form.addEventListener('submit', e => {
+          e.preventDefault();
+          dmSend(dmEls.input.value).then(ok => { if (ok) dmEls.input.value = ''; });
+        });
+
+        if (dmEls.jump) dmEls.jump.addEventListener('click', () => {
+          dmEls.feed.scrollTo({ top: dmEls.feed.scrollHeight, behavior: 'smooth' });
+          dmHideJump();
+        });
+        dmEls.feed.addEventListener('scroll', () => {
+          if (dmEls.feed.scrollHeight - dmEls.feed.scrollTop - dmEls.feed.clientHeight < 60) dmHideJump();
+        });
+
+        document.getElementById('hub-thread-back').addEventListener('click', () => {
+          dmLeaveThread();
+          showScreen('hub-messages');
+          void dmLoadInbox();
+        });
+
+        // Signing in or out mid-session changes what the inbox can even show.
+        window.addEventListener('trollrunner:auth-changed', () => {
+          if (!document.getElementById('hub-messages').hidden) void dmLoadInbox();
+          else if (!document.getElementById('hub-thread').hidden && !dmAccount()) { dmLeaveThread(); showScreen('hub-messages'); void dmLoadInbox(); }
+        });
+      }
+
       function initHubLobby() {
         const general = document.getElementById('hub-open-general');
         const messagesCard = document.getElementById('hub-open-messages');
-        const lobby = document.getElementById('hub-lobby');
-        const messages = document.getElementById('hub-messages');
         const messagesBack = document.getElementById('hub-messages-back');
         if (general) general.addEventListener('click', enterRoom);
-        if (messagesCard) messagesCard.addEventListener('click', () => { lobby.hidden = true; messages.hidden = false; });
-        if (messagesBack) messagesBack.addEventListener('click', () => { messages.hidden = true; lobby.hidden = false; });
-        const backToLobby = document.getElementById('hub-back-to-lobby');
-        if (backToLobby) backToLobby.addEventListener('click', () => {
-          document.getElementById('hub-room').hidden = true;
-          lobby.hidden = false;
-          document.getElementById('hub').classList.remove('is-room');
+        if (messagesCard) messagesCard.addEventListener('click', () => {
+          showScreen('hub-messages');
+          dmClosePanel();
+          void dmLoadInbox();
         });
+        if (messagesBack) messagesBack.addEventListener('click', () => { dmClosePanel(); showScreen('hub-lobby'); });
+        const backToLobby = document.getElementById('hub-back-to-lobby');
+        if (backToLobby) backToLobby.addEventListener('click', () => showScreen('hub-lobby'));
       }
 
       function init() {
         initHubLobby();
+        initHubMessages();
         els.feed = document.getElementById('hub-feed');
         els.jump = document.getElementById('hub-jump');
         els.typing = document.getElementById('hub-typing');
