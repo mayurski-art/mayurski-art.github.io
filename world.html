@@ -2105,6 +2105,27 @@
       $('stat').innerHTML = `<span>Miles ran:</span> ${Number(MILES_RAN).toLocaleString()}`;
     }
 
+    /* Wires the apps that open an in-page sheet instead of navigating away
+       (Account/Updates/Feedback/Hub/PFP Studio) — shared between the island
+       app grid and the menu sheet's "Apps" list so both stay in sync. Used
+       to live inline in the app-grid loop only, which meant the menu sheet
+       (a separate set of <a> elements built from the same APPS array, see
+       GROUPS below) fell through to a hard navigation instead of the same
+       in-place transition. The href stays on the element either way, as the
+       no-JS fallback. */
+    const wireInPageApp = (el, id) => {
+      // Closing the menu sheet first matters when this fires from inside it
+      // (see GROUPS below) — otherwise the sheet stays open on top of the
+      // app sheet it just launched. A no-op when fired from the island grid,
+      // where the sheet is already closed.
+      const open = fn => e => { e.preventDefault(); setSheet(false); fn(); };
+      if (id === 'account') el.addEventListener('click', open(() => authSetOpen(true)));
+      if (id === 'updates') el.addEventListener('click', open(() => updatesSetOpen(true)));
+      if (id === 'feedback') el.addEventListener('click', open(() => feedbackSetOpen(true)));
+      if (id === 'hub') el.addEventListener('click', open(() => hubSetOpen(true)));
+      if (id === 'pfp') el.addEventListener('click', open(() => pfpSetOpen(true)));
+    };
+
     /* ---------- app grid ---------- */
     const apps = $('apps');
     for (const a of APPS) {
@@ -2113,34 +2134,7 @@
       el.dataset.app = a.id;
       if (a.color) el.style.setProperty('--c', a.color);
       linkAttrs(el, a);
-      // Account opens the on-page sheet instead of following the href off to
-      // the windowed desktop. The href is still there if JS never runs.
-      if (a.id === 'account') {
-        el.addEventListener('click', e => { e.preventDefault(); authSetOpen(true); });
-      }
-      // Updates aren't a subdomain — they're a JSON file on this origin — so
-      // there is nothing to navigate to. Open the sheet in place instead of
-      // handing off to the windowed desktop. The href stays as the no-JS
-      // fallback, same as Account.
-      if (a.id === 'updates') {
-        el.addEventListener('click', e => { e.preventDefault(); updatesSetOpen(true); });
-      }
-      // Feedback posts straight to Supabase from this page (see
-      // submitFeedbackMobile below) — no reason to hand off either.
-      if (a.id === 'feedback') {
-        el.addEventListener('click', e => { e.preventDefault(); feedbackSetOpen(true); });
-      }
-      // The Hub opens in place too (see hubSetOpen below) — same reasoning
-      // as Account/Updates/Feedback, plus it updates the address bar to
-      // /hub itself so the URL still reflects what's open.
-      if (a.id === 'hub') {
-        el.addEventListener('click', e => { e.preventDefault(); hubSetOpen(true); });
-      }
-      // PFP Studio opens in place too (see pfpSetOpen below) — the island
-      // stays put behind it instead of a hard navigation to pfp.html.
-      if (a.id === 'pfp') {
-        el.addEventListener('click', e => { e.preventDefault(); pfpSetOpen(true); });
-      }
+      wireInPageApp(el, a.id);
 
       const tile = document.createElement('span');
       tile.className = 'app-tile';
@@ -2485,6 +2479,7 @@
         const a = document.createElement('a');
         a.className = 'link';
         linkAttrs(a, it);
+        wireInPageApp(a, it.id);
         a.textContent = it.label;
         if (it.external) {
           const ext = document.createElement('span');
