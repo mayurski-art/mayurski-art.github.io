@@ -757,8 +757,16 @@
            margin-bottom push are unaffected) — the baked-in landmark art and
            the .island-hotspot tap targets are both descendants painted
            through this same transform, so they scale up by the same 20%
-           for free, staying pixel-aligned with the bigger art. */
-        transform: translate(var(--island-dx), var(--island-dy)) scale(1.2);
+           for free, staying pixel-aligned with the bigger art. The leading
+           translateY(-19vw) is a flat visual shift (~30% of the scaled
+           island's own rendered height) applied outermost/last in the
+           composed matrix, so it rides on top of the scale unamplified
+           instead of the shift itself getting stretched by 1.2x — a plain
+           layout margin can't do this since the island's top position is
+           invariant to its own margin-bottom (see the .apps comment below),
+           and this way the layout box (and therefore hotspot math) never
+           moves, only the paint. */
+        transform: translateY(-19vw) translate(var(--island-dx), var(--island-dy)) scale(1.2);
       }
       .island img { width: 100%; height: 100%; }
       /* Icons are a horizontal row above the island, not the desktop's
@@ -793,11 +801,11 @@
            rises by the same amount its box grew, while the island's own
            layout box (whose start position is just "wherever apps' bottom
            edge lands") ends up in the exact same place — only the island's
-           painted scale(1.2) grows around that unchanged box, so raising
-           apps here is what keeps the now-bigger land clear of the icon
-           row above it. 112px, up from the original 90px (3 app-tile
-           icons), to buy the extra headroom the 20%-bigger land eats into. */
-        margin: auto auto 112px !important; padding: 0 10px !important;
+           painted scale(1.2) (plus its translateY nudge above) moves around
+           that unchanged box, so raising apps here is what keeps the land
+           clear of the icon row above it. 230px per feedback that the row
+           needed to sit way higher, up from the original 90px. */
+        margin: auto auto 230px !important; padding: 0 10px !important;
         gap: 8px 1px !important;
         order: 0;
       }
@@ -805,16 +813,18 @@
          push (home phase) — during lock, .apps is display:none and the
          island keeps its own margin-top:auto from the base rule above. */
       body[data-phase="home"] .island { margin-top: 0; }
-      .app-tile { width: 30px; height: 30px; }
+      .app-tile { width: 36px; height: 36px; }
       /* The dock/lockbar just follow in normal flow after the island —
          .apps now carries the auto-margin push for the group (see above). */
       .lockbar { order: 3; margin-top: 0; }
       .dock {
         order: 3; margin-top: 0;
-        --dock-pad-y: 8px; --dock-pad-x: 14px; --dock-ico: 34px;
-        --dock-item: 42px; --dock-gap: 16px; --dock-label: 10px;
+        /* --dock-ico/--dock-item/svg size all +20% (34→41, 42→50, 16→19)
+           per feedback on the X/TikTok/Radio dock icons specifically. */
+        --dock-pad-y: 8px; --dock-pad-x: 14px; --dock-ico: 41px;
+        --dock-item: 50px; --dock-gap: 16px; --dock-label: 10px;
       }
-      .dock svg { width: 16px; height: 16px; }
+      .dock svg { width: 19px; height: 19px; }
       .dock span { font-size: 8px; }
       .track { height: 62px; }
       .runner { width: 52px; height: 52px; }
@@ -832,7 +842,10 @@
        tiles sane without shrinking phones (the clamp floor is unchanged). */
     @media (pointer: coarse) {
       .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: clamp(6px, 2.5vw, 12px) clamp(1px, 1vw, 4px); }
-      .app-tile { width: clamp(30px, 5vw, 40px); height: clamp(30px, 5vw, 40px); }
+      /* Floor and cap both +20% (30→36, 40→48) to match the flat .app-tile
+         size above — this rule is later in source order and would
+         otherwise win back over it at the same specificity. */
+      .app-tile { width: clamp(36px, 6vw, 48px); height: clamp(36px, 6vw, 48px); }
       .app-name { font-size: clamp(6px, 1.4vw, 9px); }
     }
     /* Guarded with :not(.mobile-preview) — a desktop tab previewing the phone
