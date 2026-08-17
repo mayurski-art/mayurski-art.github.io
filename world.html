@@ -3285,6 +3285,18 @@
       }
     });
 
+    // Used to hand off to the desktop via ?desktop=1&open=account, but
+    // index.html's own forced-desktop bootstrap strips the whole query
+    // string (see the history.replaceState next to qp.has('desktop') there)
+    // before the ?open=account handoff downstream ever reads it — so the
+    // link just landed on a plain desktop with nothing open, indistinguishable
+    // from a refresh. troll-accounts.js is already loaded in this page, so
+    // open its own Profile modal in place instead of leaving the shell.
+    $('auth-full').addEventListener('click', e => {
+      e.preventDefault();
+      window.TrollrunnerAccounts?.openProfile?.();
+    });
+
     $('auth-signout').addEventListener('click', async () => {
       try { await window.TrollrunnerAccounts?.logout?.(); } catch {}
       authMode = 'login';
