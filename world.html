@@ -531,6 +531,16 @@
       transition: transform .32s var(--ease);
     }
     .sheet.is-open .sheet-inner { transform: none; }
+    /* The menu drawer (#sheet) otherwise inherits .sheet-inner's full-height
+       bottom:0 (right for the Hub/PFP sheets, which have long scrolling
+       content) — but the menu's content is short and fixed, so on a real
+       phone that left a large empty gap below the tagline banner. Shrink-
+       wrap just this drawer to its content instead of stretching to the
+       screen edge. Scoped to html.mobile-preview (real phones + the
+       simulated-phone desktop preview both carry this class, see the class's
+       own comment further down) so the desktop edge-docked drawer keeps its
+       full-height layout. */
+    html.mobile-preview #sheet .sheet-inner { bottom: auto; height: auto; max-height: 100%; }
     .sheet h2 {
       font-family: var(--font-display); font-size: 22px; margin: 2px 0 4px;
       letter-spacing: .02em; text-align: center; text-transform: uppercase;
