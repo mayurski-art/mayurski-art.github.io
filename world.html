@@ -1721,6 +1721,47 @@
       if (e.text != null) el.textContent = e.text;
     }
 
+    /* Two-finger pinch/twist tracker — the touch equivalent of the wheel/
+       shift+wheel scale-and-rotate gesture, since a phone never fires wheel
+       events. Feed it the SAME pointerdown/move/up a single-finger drag
+       already uses; move() returns null on every frame except the ones
+       where exactly two fingers are down, and then returns how much the
+       pinch distance/angle changed since the previous such frame (not
+       since the gesture started) — the same incremental shape the wheel
+       handlers already use, so callers just multiply/add it onto whatever
+       they're already tracking with no extra state of their own. */
+    function makePinchTracker() {
+      const pts = new Map();
+      let prevDist = null, prevAngle = null;
+      const geom = () => {
+        const [a, b] = [...pts.values()];
+        return {
+          dist: Math.hypot(a.x - b.x, a.y - b.y),
+          angle: Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI,
+        };
+      };
+      return {
+        down(e) {
+          pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (pts.size === 2) { const g = geom(); prevDist = g.dist; prevAngle = g.angle; }
+        },
+        move(e) {
+          if (!pts.has(e.pointerId)) return null;
+          pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (pts.size !== 2) return null;
+          const g = geom();
+          const result = prevDist == null ? null : { scaleRatio: g.dist / prevDist, rotateDelta: g.angle - prevAngle };
+          prevDist = g.dist; prevAngle = g.angle;
+          return result;
+        },
+        up(e) {
+          pts.delete(e.pointerId);
+          if (pts.size < 2) { prevDist = null; prevAngle = null; }
+        },
+        fingers: () => pts.size,
+      };
+    }
+
     /* Shared ?edit=1 chrome: a small always-there toggle button plus a
        drawer that's completely absent (not just faded) until opened. Every
        other bit of edit UI — drag handles, selection outlines, buttons,
@@ -2039,24 +2080,42 @@
         };
         place();
         let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+        const pinch = makePinchTracker();
         handle.addEventListener('pointerdown', e => {
           if (!chrome.isOpen()) return;
-          dragging = true; handle.setPointerCapture(e.pointerId); handle.style.cursor = 'grabbing';
+          handle.setPointerCapture(e.pointerId);
+          pinch.down(e);
+          if (pinch.fingers() === 2) { dragging = false; return; }
+          dragging = true; handle.style.cursor = 'grabbing';
           const k = resolve();
           startX = e.clientX; startY = e.clientY; baseX = nudge[k.x]; baseY = nudge[k.y];
         });
         handle.addEventListener('pointermove', e => {
+          // Two fingers on the handle zooms it (the touch equivalent of
+          // wheel below) instead of moving it — a second finger landing
+          // mid-drag cancels the drag rather than fighting it.
+          const p = pinch.move(e);
+          if (p) {
+            const k = resolve();
+            if (k.s) nudge[k.s] = Math.max(0.3, Math.min(3, nudge[k.s] * p.scaleRatio));
+            applyNudge(); renderPanel();
+            return;
+          }
           if (!dragging) return;
           const k = resolve();
           nudge[k.x] = baseX + (e.clientX - startX);
           nudge[k.y] = baseY + (e.clientY - startY);
           applyNudge(); place(); renderPanel();
         });
-        handle.addEventListener('pointerup', e => {
+        const endHandlePointer = e => {
+          pinch.up(e);
           dragging = false; handle.releasePointerCapture(e.pointerId); handle.style.cursor = 'grab';
-        });
+        };
+        handle.addEventListener('pointerup', endHandlePointer);
+        handle.addEventListener('pointercancel', endHandlePointer);
         // Zoom the whole land (no-op for the icon rail, which has no scale
-        // key) — mirrors the per-landmark wheel-to-resize below.
+        // key) — mirrors the per-landmark wheel-to-resize below. Desktop
+        // mouse-wheel only; pinch above covers touch.
         handle.addEventListener('wheel', e => {
           if (!chrome.isOpen()) return;
           const k = resolve();
@@ -2067,10 +2126,38 @@
         }, { passive: false });
         return place;
       };
-      const placeIslandHandle = makeLayerHandle(island, islandKeys, 'DRAG LAND (wheel=zoom)', '#0ff');
+      const placeIslandHandle = makeLayerHandle(island, islandKeys, 'DRAG LAND (pinch/wheel=zoom)', '#0ff');
       const placeAppsHandle = makeLayerHandle(apps, { x: 'appsX', y: 'appsY' }, 'DRAG ICONS', '#ff0');
       window.addEventListener('resize', () => { placeIslandHandle(); placeAppsHandle(); });
       chrome.onToggle(() => { placeIslandHandle(); placeAppsHandle(); });
+
+      // Pinching directly on the land itself (not just the tiny DRAG LAND
+      // handle) also zooms it — the handle is a small target to land two
+      // fingers on precisely, the art underneath it isn't. Ignored when the
+      // gesture starts on a landmark object below (that pinch resizes/
+      // rotates just that landmark instead — see the per-landmark loop).
+      // .island itself is pointer-events:none in production (only hotspots/
+      // edit-obj overlays opt back in — see the CSS comment on
+      // .island-hotspot) so bare art with no landmark on it never receives
+      // a pointer event at all. Switch that on only while the drawer's
+      // open, so pinching empty grass/water actually reaches this handler,
+      // and switch it back off on close so production hit-testing is
+      // untouched once the editor's closed.
+      chrome.onToggle(open => { island.style.pointerEvents = open ? 'auto' : ''; });
+      const islandPinch = makePinchTracker();
+      island.addEventListener('pointerdown', e => {
+        if (!chrome.isOpen() || e.target.closest('.island-edit-obj')) return;
+        islandPinch.down(e);
+      });
+      island.addEventListener('pointermove', e => {
+        const p = islandPinch.move(e);
+        if (!p) return;
+        const k = islandKeys();
+        nudge[k.s] = Math.max(0.3, Math.min(3, nudge[k.s] * p.scaleRatio));
+        applyNudge(); renderPanel();
+      });
+      island.addEventListener('pointerup', e => islandPinch.up(e));
+      island.addEventListener('pointercancel', e => islandPinch.up(e));
 
       for (const a of editable) {
         // Keeps the real tap target (built above, before any dragging
@@ -2094,12 +2181,27 @@
         island.appendChild(el);
 
         let dragging = false, startX = 0, startY = 0, startL = 0, startT = 0;
+        const pinch = makePinchTracker();
         el.addEventListener('pointerdown', e => {
           if (!chrome.isOpen()) return;
-          dragging = true; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing';
+          el.setPointerCapture(e.pointerId);
+          pinch.down(e);
+          if (pinch.fingers() === 2) { dragging = false; return; }
+          dragging = true; el.style.cursor = 'grabbing';
           startX = e.clientX; startY = e.clientY; startL = a.l; startT = a.t;
         });
         el.addEventListener('pointermove', e => {
+          // Two fingers on a landmark resizes/rotates it (touch equivalent
+          // of wheel/shift+wheel below) instead of dragging it.
+          const p = pinch.move(e);
+          if (p) {
+            a.h = Math.max(2, Math.min(45, a.h * p.scaleRatio));
+            a.rot = (a.rot || 0) + p.rotateDelta;
+            el.style.height = a.h + '%';
+            el.style.transform = `translate(-50%,-100%) rotate(${a.rot || 0}deg)`;
+            renderPanel();
+            return;
+          }
           if (!dragging) return;
           const rect = island.getBoundingClientRect();
           a.l = startL + (e.clientX - startX) / rect.width * 100;
@@ -2108,9 +2210,12 @@
           if (hotspot) { hotspot.style.left = a.l + '%'; hotspot.style.top = a.t + '%'; }
           renderPanel();
         });
-        el.addEventListener('pointerup', e => {
+        const endLandmarkPointer = e => {
+          pinch.up(e);
           dragging = false; el.releasePointerCapture(e.pointerId); el.style.cursor = 'grab';
-        });
+        };
+        el.addEventListener('pointerup', endLandmarkPointer);
+        el.addEventListener('pointercancel', endLandmarkPointer);
         el.addEventListener('wheel', e => {
           if (!chrome.isOpen()) return;
           e.preventDefault();
@@ -2372,13 +2477,22 @@
         box.style.display = 'block';
       };
 
+      let selectedPrevTouchAction = '';
       const select = el => {
+        if (selected) selected.style.touchAction = selectedPrevTouchAction;
         selected = el; selKey = cssPath(el);
+        // Stops iOS Safari's native pinch-zoom/scroll from competing with
+        // the two-finger scale/rotate gesture above.
+        selectedPrevTouchAction = el.style.touchAction;
+        el.style.touchAction = 'none';
         entry(selKey);
         placeBox(selectBox, el);
         renderInfo();
       };
-      const deselect = () => { selected = null; selKey = null; selectBox.style.display = 'none'; renderInfo(); };
+      const deselect = () => {
+        if (selected) selected.style.touchAction = selectedPrevTouchAction;
+        selected = null; selKey = null; selectBox.style.display = 'none'; renderInfo();
+      };
       chrome.onToggle(open => { if (!open) { picking = false; deselect(); } });
 
       document.addEventListener('mousemove', e => {
@@ -2421,14 +2535,30 @@
       }, true);
 
       let dragging = false, startX = 0, startY = 0, baseTx = 0, baseTy = 0;
+      const pinch = makePinchTracker();
       document.addEventListener('pointerdown', e => {
-        if (!chrome.isOpen() || !selected || picking) return;
+        if (!chrome.isOpen() || !selected || picking || e.target.closest('.rw-edit-ui')) return;
+        pinch.down(e);
+        if (pinch.fingers() === 2) { dragging = false; return; }
         if (!(e.target === selected || selected.contains(e.target))) return;
         dragging = true; startX = e.clientX; startY = e.clientY;
         const en = entry(selKey); baseTx = en.tx; baseTy = en.ty;
         e.preventDefault();
       });
       document.addEventListener('pointermove', e => {
+        if (!selected) return;
+        // Two fingers anywhere near the selected element scales/rotates it
+        // (touch equivalent of wheel/shift+wheel below) instead of moving it.
+        const p = pinch.move(e);
+        if (p) {
+          const en = entry(selKey);
+          en.scale = Math.max(0.1, Math.min(6, (en.scale ?? 1) * p.scaleRatio));
+          en.rot = (en.rot || 0) + p.rotateDelta;
+          applyElementEdit(selected, en);
+          placeBox(selectBox, selected);
+          renderInfo();
+          return;
+        }
         if (!dragging) return;
         const en = entry(selKey);
         en.tx = baseTx + (e.clientX - startX);
@@ -2437,7 +2567,13 @@
         placeBox(selectBox, selected);
         renderInfo();
       });
-      document.addEventListener('pointerup', () => { if (dragging) { dragging = false; persist(); } });
+      const endSelectedPointer = e => {
+        pinch.up(e);
+        if (selected) persist();
+        dragging = false;
+      };
+      document.addEventListener('pointerup', endSelectedPointer);
+      document.addEventListener('pointercancel', endSelectedPointer);
 
       document.addEventListener('wheel', e => {
         if (!chrome.isOpen() || !selected || !(e.target === selected || selected.contains(e.target))) return;
