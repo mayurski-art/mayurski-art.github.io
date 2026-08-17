@@ -550,19 +550,6 @@
        checkAdminMenuAccess(). Everyone else sees the door, but it's dead. */
     .sheet .link.is-locked { color: var(--fg-dim); opacity: .45; cursor: not-allowed; }
     .sheet .link.is-locked:hover { color: var(--fg-dim); padding-left: 0; }
-    /* Admin-only — see renderDesktopLockUi(). A troll_runner admin session
-       reveals this next to "Classic desktop" to flip the lock; everyone
-       else never sees it (stays [hidden]). */
-    .admin-lock-btn {
-      display: block; width: 100%; margin: 2px 0 10px; padding: 7px 10px;
-      border-radius: 8px; border: 1px solid var(--glass-stroke);
-      background: #ffffff08; color: var(--fg-dim); font-family: var(--font-mono);
-      font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
-      text-align: left; cursor: pointer;
-    }
-    .admin-lock-btn:hover { color: var(--accent); border-color: var(--accent); }
-    .admin-lock-btn:disabled { opacity: .5; cursor: wait; }
-    .admin-lock-btn.is-active { color: #ff6b6b; border-color: #ff6b6b55; }
     .sheet .rule { border: 0; border-top: 1px solid var(--glass-stroke); margin: 20px 0 14px; }
     .sheet .tagline { color: var(--fg-dim); font-size: 12px; margin: auto 0 14px; padding-top: 20px; }
     .socials { display: flex; gap: 16px; }
@@ -2599,11 +2586,10 @@
     const sheet = $('sheet'), menuBtn = $('menu-btn'), sheetClose = $('sheet-close');
     const sheetLinks = $('sheet-links');
     const GROUPS = [
-      // ?desktop=1 tells index.html this was a deliberate choice, so it won't
-      // bounce a phone straight back here. desktopDoor: true marks this one
-      // for the lock toggle below (renderDesktopLockUi()) — a troll_runner
-      // admin can grey it out here to force everyone onto the mobile island.
-      { name: 'World',  items: [{ label: 'Classic desktop', to: '/?desktop=1', desktopDoor: true }] },
+      // Classic desktop is closed off for now — index.html ignores ?desktop=1
+      // unconditionally, so this door is gone rather than left as dead UI.
+      // See index.html's `forced = false` override near the top of its boot
+      // script for the other half of this.
       { name: 'Apps',   items: APPS },
       // Rendered for everyone so the door is visible, but only the real
       // troll_runner admin session can actually walk through it — see
@@ -2628,16 +2614,6 @@
           ext.className = 'ext'; ext.textContent = '↗';
           a.appendChild(ext);
         }
-        if (it.desktopDoor) {
-          a.id = 'classic-desktop-link';
-          // Locked state (and its href) is applied by renderDesktopLockUi()
-          // once the current lock value is known; guard clicks here so a tap
-          // during that brief window (or a stale is-locked class) can't slip
-          // through.
-          a.addEventListener('click', e => {
-            if (a.classList.contains('is-locked')) e.preventDefault();
-          });
-        }
         if (it.adminLink) {
           a.id = 'admin-menu-link';
           a.classList.add('is-locked');
@@ -2659,29 +2635,6 @@
         sheetLinks.appendChild(a);
       }
     }
-
-    // Admin-only lock toggle for the "Classic desktop" door above — hidden
-    // for everyone else. See renderDesktopLockUi()/checkAdminMenuAccess()
-    // below, which reveal it only after a server-verified admin check.
-    const desktopLockBtn = document.createElement('button');
-    desktopLockBtn.type = 'button';
-    desktopLockBtn.id = 'desktop-lock-toggle';
-    desktopLockBtn.className = 'admin-lock-btn';
-    desktopLockBtn.hidden = true;
-    desktopLockBtn.textContent = 'Lock classic desktop';
-    const classicDesktopLink = document.getElementById('classic-desktop-link');
-    if (classicDesktopLink) classicDesktopLink.insertAdjacentElement('afterend', desktopLockBtn);
-    else sheetLinks.appendChild(desktopLockBtn);
-    desktopLockBtn.addEventListener('click', async () => {
-      desktopLockBtn.disabled = true;
-      try {
-        await setDesktopLock(!getCachedDesktopLocked());
-      } catch (err) {
-        window.alert(err?.message || 'Could not update the lock.');
-      } finally {
-        desktopLockBtn.disabled = false;
-      }
-    });
 
     for (const s of SOCIALS) {
       const a = document.createElement('a');
@@ -3340,8 +3293,6 @@
         if (isAdmin) link.href = 'admin.html';
         else link.removeAttribute('href');
       }
-      const lockBtn = document.getElementById('desktop-lock-toggle');
-      if (lockBtn) lockBtn.hidden = !isAdmin;
     }
     checkAdminMenuAccess();
     window.addEventListener('trollrunner:auth-changed', checkAdminMenuAccess);
@@ -3351,27 +3302,10 @@
     window.addEventListener('focus', checkAdminMenuAccess);
 
     /* ================= CLASSIC DESKTOP LOCK =================
-       A troll_runner admin (same hasAdminSession() gate as the Admin link
-       above) can flip this to grey out "Classic desktop" and force every
-       visitor, on every device, onto this mobile island — not just phones.
-       State lives in the shared site_updates row (same table/RPC site-lock.js
-       and the admin dashboard already use) under its own meta key, so it's
-       one flip that applies everywhere, not a per-browser setting.
-       index.html reads the same cached flag (trollrunner_desktop_lock_v1)
-       synchronously before it decides whether to honor a "Classic desktop"
-       visit, so a locked visitor can't route around this by URL either. */
-    const DESKTOP_LOCK_META_ID = '__trollrunner_desktop_lock_meta__';
-    const DESKTOP_LOCK_STORAGE_KEY = 'trollrunner_desktop_lock_v1';
-
-    function getCachedDesktopLocked() {
-      try { return localStorage.getItem(DESKTOP_LOCK_STORAGE_KEY) === '1'; } catch { return false; }
-    }
-    function setCachedDesktopLocked(locked) {
-      try {
-        if (locked) localStorage.setItem(DESKTOP_LOCK_STORAGE_KEY, '1');
-        else localStorage.removeItem(DESKTOP_LOCK_STORAGE_KEY);
-      } catch {}
-    }
+       Classic desktop itself is closed off for now (see index.html's
+       `forced = false` override and the removed "Classic desktop" menu
+       item above), so the lock toggle that used to sit next to it is gone
+       too. fetchSiteUpdates() below is still shared with Live Status. */
 
     async function fetchSiteUpdates() {
       const qs = new URLSearchParams({ select: 'updates', id: `eq.${SUPABASE_ROW_ID}`, limit: '1' });
@@ -3383,55 +3317,6 @@
       const row = Array.isArray(json) ? json[0] : json;
       return Array.isArray(row?.updates) ? row.updates : [];
     }
-
-    function renderDesktopLockUi(locked) {
-      const link = document.getElementById('classic-desktop-link');
-      if (link) {
-        link.classList.toggle('is-locked', locked);
-        link.setAttribute('aria-disabled', String(locked));
-        if (locked) link.removeAttribute('href');
-        else link.setAttribute('href', '/?desktop=1');
-      }
-      const btn = document.getElementById('desktop-lock-toggle');
-      if (btn) {
-        btn.textContent = locked ? 'Unlock classic desktop' : 'Lock classic desktop';
-        btn.classList.toggle('is-active', locked);
-      }
-    }
-
-    async function refreshDesktopLock() {
-      let locked = getCachedDesktopLocked();
-      try {
-        const updates = await fetchSiteUpdates();
-        const meta = updates.find(u => u && u.id === DESKTOP_LOCK_META_ID);
-        locked = Boolean(meta?.desktopLocked);
-        setCachedDesktopLocked(locked);
-      } catch { /* keep the cached value */ }
-      renderDesktopLockUi(locked);
-      return locked;
-    }
-
-    async function setDesktopLock(locked) {
-      const token = await window.TrollrunnerAdminAuth?.getAccessToken?.();
-      if (!token) throw new Error('Admin session required.');
-      const updates = await fetchSiteUpdates();
-      const next = updates.filter(u => !(u && u.id === DESKTOP_LOCK_META_ID));
-      next.push({
-        id: DESKTOP_LOCK_META_ID, title: '__desktop_lock_meta__', body: '__desktop_lock_meta__',
-        archived: true, source: 'system', desktopLocked: locked, updatedAt: new Date().toISOString(),
-      });
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_admin_replace_site_row`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ p_updates: next }),
-      });
-      if (!res.ok) throw new Error('Failed to save the lock. Try again.');
-      setCachedDesktopLocked(locked);
-      renderDesktopLockUi(locked);
-    }
-
-    renderDesktopLockUi(getCachedDesktopLocked());
-    void refreshDesktopLock();
 
     /* ================= LIVE STATUS =================
        Renders admin.html's "Live status popups" toggle (running/coding)

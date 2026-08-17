@@ -37,56 +37,29 @@
   }
 
   // The troll desktop is a windowed, mouse-shaped thing — on a phone it's
-  // cramped. Phones get world.html instead. Anyone who picks "Classic
-  // desktop" from there arrives with ?desktop=1, which is remembered for the
-  // session so this doesn't bounce them straight back and trap them.
-  // ?mobile=1 is the opposite door: a desktop visitor opting INTO the phone
-  // shell (the tray's "Island" toggle). The two flags are mutually
-  // exclusive — picking one clears the other — so switching back and forth
-  // within a session keeps landing on the right side.
-  const FORCE_DESKTOP_KEY = 'trollrunner_force_desktop';
+  // cramped, and the classic-desktop door (?desktop=1, world.html's old
+  // "Classic desktop" link) is closed off for now, so every visitor gets
+  // world.html regardless of device. ?mobile=1 (a desktop visitor opting
+  // INTO the phone shell via the tray's "Island" toggle) still works, but
+  // is a no-op today since isPhone is unconditionally true below.
   const FORCE_MOBILE_KEY = 'trollrunner_force_mobile';
-  let forced = false;
   let forcedMobile = false;
   try {
     const qp = new URLSearchParams(window.location.search);
-    if (qp.has('desktop')) {
-      sessionStorage.setItem(FORCE_DESKTOP_KEY, '1');
-      sessionStorage.removeItem(FORCE_MOBILE_KEY);
-    }
-    if (qp.has('mobile')) {
-      sessionStorage.setItem(FORCE_MOBILE_KEY, '1');
-      sessionStorage.removeItem(FORCE_DESKTOP_KEY);
-    }
-    forced = sessionStorage.getItem(FORCE_DESKTOP_KEY) === '1';
+    if (qp.has('mobile')) sessionStorage.setItem(FORCE_MOBILE_KEY, '1');
     forcedMobile = sessionStorage.getItem(FORCE_MOBILE_KEY) === '1';
-    // The choice now lives in sessionStorage, not the URL — drop ?mobile=1 /
-    // ?desktop=1 from the address bar so it reads trollrunner.net either way
-    // instead of trollrunner.net/?mobile=1. (This is the same reason the
-    // phone entrance below uses document.write instead of a real navigation.)
-    if (qp.has('mobile') || qp.has('desktop')) {
+    // The choice now lives in sessionStorage, not the URL — drop ?mobile=1
+    // from the address bar so it reads trollrunner.net either way instead
+    // of trollrunner.net/?mobile=1. (Same reason the phone entrance below
+    // uses document.write instead of a real navigation.)
+    if (qp.has('mobile')) {
       history.replaceState(null, '', path + window.location.hash);
     }
   } catch {}
 
-  // The phone entrance (world.html) is now the default landing experience
-  // for every device, not just phones — desktop visitors who want the
-  // classic dock UI still reach it via the "Classic desktop" link, which
-  // sets FORCE_DESKTOP_KEY above.
+  // The phone entrance (world.html) is the only landing experience right
+  // now, for every device — see the note above.
   const isPhone = true;
-
-  // A troll_runner admin can lock the "Classic desktop" door from world.html's
-  // menu (see setDesktopLock()/renderDesktopLockUi() there) to force every
-  // visitor onto the mobile island regardless of device. That toggle writes
-  // the authoritative flag to Supabase and mirrors it into this same
-  // localStorage key for instant, synchronous reads — this check has to run
-  // before document.write below fires, too early for a network round trip,
-  // so a stale local cache (refreshed on every world.html visit) is the
-  // trade-off. Overrides `forced` even if a prior session already set
-  // FORCE_DESKTOP_KEY, so an old escape hatch doesn't outlive the lock.
-  let desktopLocked = false;
-  try { desktopLocked = localStorage.getItem('trollrunner_desktop_lock_v1') === '1'; } catch {}
-  if (desktopLocked) forced = false;
 
   // Set by /hub/index.html (a real file GitHub Pages can serve directly for
   // trollrunner.net/hub) right before it bounces here — read once and
@@ -102,7 +75,7 @@
     }
   } catch {}
 
-  if (isPhone && !forced && (path === '/' || path === '/index.html')) {
+  if (isPhone && (path === '/' || path === '/index.html')) {
     // Deliberately NOT a redirect: navigating would put /world.html in the
     // address bar, and the phone entrance should still read trollrunner.net.
     // GitHub Pages is static, so it can't serve different markup per device —
@@ -151,7 +124,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260817i' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260817j' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
