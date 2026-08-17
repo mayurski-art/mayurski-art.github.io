@@ -1834,10 +1834,10 @@
 
     const spend = document.createElement('div');
     spend.className = 'ta-section';
-    spend.innerHTML = `<h4>Confirmed support</h4>
+    spend.innerHTML = `<h4>Donations</h4>
       <table class="ta-table">
-        <tr><td>USDC</td><td>${Number(totals.USDC || 0).toLocaleString()}</td></tr>
         <tr><td>$TROLL</td><td>${Number(totals.TROLL || 0).toLocaleString()}</td></tr>
+        <tr><td>USDC</td><td>${Number(totals.USDC || 0).toLocaleString()}</td></tr>
       </table>
       <p class="ta-muted">Only on-chain confirmed transactions count here.</p>`;
     body.appendChild(spend);
