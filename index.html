@@ -61,6 +61,19 @@
   // sets FORCE_DESKTOP_KEY above.
   const isPhone = true;
 
+  // A troll_runner admin can lock the "Classic desktop" door from world.html's
+  // menu (see setDesktopLock()/renderDesktopLockUi() there) to force every
+  // visitor onto the mobile island regardless of device. That toggle writes
+  // the authoritative flag to Supabase and mirrors it into this same
+  // localStorage key for instant, synchronous reads — this check has to run
+  // before document.write below fires, too early for a network round trip,
+  // so a stale local cache (refreshed on every world.html visit) is the
+  // trade-off. Overrides `forced` even if a prior session already set
+  // FORCE_DESKTOP_KEY, so an old escape hatch doesn't outlive the lock.
+  let desktopLocked = false;
+  try { desktopLocked = localStorage.getItem('trollrunner_desktop_lock_v1') === '1'; } catch {}
+  if (desktopLocked) forced = false;
+
   // Set by /hub/index.html (a real file GitHub Pages can serve directly for
   // trollrunner.net/hub) right before it bounces here — read once and
   // cleared immediately so a plain reload of '/' afterward doesn't reopen
@@ -124,7 +137,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260816j' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260816k' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
