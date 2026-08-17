@@ -123,22 +123,61 @@
       border: 0.5px solid var(--pf-line); border-radius: 18px;
       overflow: hidden; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
     }
-    .tabs {
-      display: flex; gap: 4px; padding: 12px 12px 0; flex-wrap: wrap;
-      background: var(--pf-panel-2); border-bottom: 0.5px solid var(--pf-line);
+
+    /* ---------- room hotspot picker ---------- */
+    .room {
+      position: relative; width: 100%; aspect-ratio: 2047 / 1180;
+      overflow: hidden; background: #0a0a10;
     }
-    .tab {
-      border: 0.5px solid transparent; border-bottom: none;
-      background: transparent; color: var(--pf-muted);
-      padding: 9px 14px; border-radius: 10px 10px 0 0;
-      font-size: 13.5px; font-weight: 500; white-space: nowrap;
+    .room-bg {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; display: block;
     }
-    .tab:hover { color: var(--pf-ink); }
-    .tab[aria-selected="true"] {
-      background: var(--pf-panel); color: var(--pf-ink);
-      border-color: var(--pf-line); margin-bottom: -0.5px;
+    .room-bg.room-bg-open { opacity: 0; transition: opacity 0.35s ease; }
+    .room-bg.room-bg-open.is-visible { opacity: 1; }
+    .hotspot {
+      position: absolute; border: none; background: rgba(255, 255, 255, 0);
+      border-radius: 10px; padding: 0;
+      box-shadow: inset 0 0 0 0 rgba(255, 200, 120, 0);
+      transition: box-shadow 0.2s ease, background 0.2s ease;
     }
-    .tab .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--pf-accent); margin-left: 6px; vertical-align: 1px; }
+    .hotspot:hover, .hotspot:focus-visible {
+      background: rgba(255, 200, 120, 0.10);
+      box-shadow: inset 0 0 0 2px rgba(255, 200, 120, 0.7), 0 0 22px rgba(255, 200, 120, 0.35);
+      outline: none;
+    }
+    .hotspot.is-active {
+      background: rgba(88, 86, 214, 0.14);
+      box-shadow: inset 0 0 0 2px var(--pf-accent), 0 0 22px rgba(88, 86, 214, 0.45);
+    }
+    .hotspot.is-set::after {
+      content: ''; position: absolute; top: 7px; right: 7px; width: 9px; height: 9px;
+      border-radius: 50%; background: var(--pf-accent); box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8);
+    }
+    .hotspot-label {
+      position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -7px);
+      background: rgba(18, 14, 10, 0.92); color: #fff; font-family: var(--pf-mono);
+      font-size: 11px; padding: 4px 9px; border-radius: 7px; white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
+    }
+    .hotspot:hover .hotspot-label, .hotspot:focus-visible .hotspot-label { opacity: 1; }
+
+    .room-hint {
+      margin: 0; padding: 13px 14px; font-size: 12.5px; line-height: 1.5;
+      color: var(--pf-muted); background: var(--pf-panel-2);
+      border-bottom: 0.5px solid var(--pf-line);
+    }
+    .room-panel[hidden] { display: none; }
+    .room-panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 13px 14px 0;
+    }
+    .room-panel-head h2 { margin: 0; font-size: 15px; font-weight: 700; }
+    .room-panel-close {
+      border: none; background: transparent; color: var(--pf-muted);
+      font-size: 15px; line-height: 1; padding: 6px 9px; border-radius: 8px;
+    }
+    .room-panel-close:hover { background: rgba(0, 0, 0, 0.06); color: var(--pf-ink); }
 
     .picker-bar { display: flex; gap: 9px; padding: 12px 14px; align-items: center; border-bottom: 0.5px solid var(--pf-line); }
     .search {
@@ -244,9 +283,8 @@
         backdrop-filter: blur(24px) saturate(160%);
         -webkit-backdrop-filter: blur(24px) saturate(160%);
       }
-      .tabs, .picker-bar, .picker-foot { background: rgba(255,255,255,0.03); }
-      .tab { color: var(--pf-muted); }
-      .tab[aria-selected="true"] { background: rgba(255,255,255,0.08); color: var(--pf-ink); }
+      .room-hint, .picker-bar, .picker-foot { background: rgba(255,255,255,0.03); }
+      .room-panel-close:hover { background: rgba(255,255,255,0.08); }
       .search { background: rgba(255,255,255,0.06); color: var(--pf-ink); }
       .search::placeholder { color: var(--pf-muted); }
       .cell { background: rgba(255,255,255,0.04); }
@@ -312,13 +350,46 @@
       </section>
 
       <section class="picker" aria-label="Trait picker">
-        <div class="tabs" id="tabs" role="tablist"></div>
-        <div class="picker-bar">
-          <input class="search" id="search" type="search" placeholder="Search traits…" aria-label="Search traits in this layer">
-          <span class="count" id="count"></span>
+        <div class="room" id="room">
+          <img class="room-bg" id="roomBgClosed" src="assets/images/world/trollpfproom.jpeg" alt="A messy gamer bedroom at night: bookshelf, closed wardrobe, TV and a backpack on the floor.">
+          <img class="room-bg room-bg-open" id="roomBgOpen" src="assets/images/world/trollpfproomopen.png" alt="" aria-hidden="true">
+
+          <button type="button" class="hotspot" data-layer="base" data-base-label="Base — bookshelf"
+            style="left:3%; top:12%; width:21%; height:45%;">
+            <span class="hotspot-label">Base</span>
+          </button>
+          <button type="button" class="hotspot" data-layer="headwear" data-base-label="Headwear — pile on the wardrobe"
+            style="left:42%; top:2%; width:20%; height:10%;">
+            <span class="hotspot-label">Headwear</span>
+          </button>
+          <button type="button" class="hotspot" data-layer="outfit" data-base-label="Outfit — wardrobe"
+            style="left:40%; top:13%; width:23%; height:42%;">
+            <span class="hotspot-label">Outfit</span>
+          </button>
+          <button type="button" class="hotspot" data-layer="background" data-base-label="Background — TV"
+            style="left:7%; top:53%; width:43%; height:43%;">
+            <span class="hotspot-label">Background</span>
+          </button>
+          <button type="button" class="hotspot" data-layer="accessory" data-base-label="Accessory — backpack"
+            style="left:84%; top:82%; width:15%; height:15%;">
+            <span class="hotspot-label">Accessory</span>
+          </button>
         </div>
-        <div class="grid" id="grid" role="tabpanel"></div>
-        <div class="picker-foot">Your build is saved in this browser.</div>
+
+        <p class="room-hint" id="roomHint">Click something in the room — the wardrobe, the pile on top of it, the bookshelf, the TV, or the backpack — to start dressing your troll.</p>
+
+        <div class="room-panel" id="roomPanel" hidden>
+          <div class="room-panel-head">
+            <h2 id="roomPanelTitle"></h2>
+            <button type="button" class="room-panel-close" id="roomPanelClose" aria-label="Close this drawer">✕</button>
+          </div>
+          <div class="picker-bar">
+            <input class="search" id="search" type="search" placeholder="Search traits…" aria-label="Search traits in this layer">
+            <span class="count" id="count"></span>
+          </div>
+          <div class="grid" id="grid" role="region"></div>
+          <div class="picker-foot">Your build is saved in this browser.</div>
+        </div>
       </section>
     </main>
   </div>
@@ -337,13 +408,18 @@
 
     const el = {
       stack: document.getElementById('stack'),
-      tabs: document.getElementById('tabs'),
       grid: document.getElementById('grid'),
       search: document.getElementById('search'),
       count: document.getElementById('count'),
       note: document.getElementById('note'),
       summary: document.getElementById('summary'),
       total: document.getElementById('trait-total'),
+      roomBgOpen: document.getElementById('roomBgOpen'),
+      roomHint: document.getElementById('roomHint'),
+      roomPanel: document.getElementById('roomPanel'),
+      roomPanelTitle: document.getElementById('roomPanelTitle'),
+      roomPanelClose: document.getElementById('roomPanelClose'),
+      hotspots: Array.from(document.querySelectorAll('.hotspot')),
     };
 
     let manifest = null;
@@ -510,34 +586,50 @@
         .map(l => traitById(l.id, build[l.id])?.name)
         .filter(Boolean);
       el.summary.textContent = worn.length ? worn.join(' · ') : 'Empty troll';
-      renderTabs();
+      renderHotspots();
     }
 
-    function renderTabs() {
-      el.tabs.innerHTML = '';
-      for (const layer of manifest.layers) {
-        const tab = document.createElement('button');
-        tab.type = 'button';
-        tab.className = 'tab';
-        tab.setAttribute('role', 'tab');
-        tab.setAttribute('aria-selected', String(layer.id === activeLayer));
-        tab.textContent = layer.name;
-        if (build[layer.id]) {
-          const dot = document.createElement('span');
-          dot.className = 'dot';
-          // The dot is decorative; the state is already in the label below.
-          dot.setAttribute('aria-hidden', 'true');
-          tab.appendChild(dot);
-          tab.setAttribute('aria-label', `${layer.name} — ${traitById(layer.id, build[layer.id])?.name} selected`);
-        }
-        tab.addEventListener('click', () => {
-          activeLayer = layer.id;
-          el.search.value = '';
-          renderTabs();
-          renderGrid();
-        });
-        el.tabs.appendChild(tab);
+    /** Furniture hotspots stand in for the old tab strip: a lit outline on
+     *  hover, a dot once something's equipped in that layer, and a highlight
+     *  while its drawer is the one open. */
+    function renderHotspots() {
+      const panelOpen = !el.roomPanel.hidden;
+      for (const btn of el.hotspots) {
+        const id = btn.dataset.layer;
+        const label = btn.dataset.baseLabel;
+        btn.classList.toggle('is-set', !!build[id]);
+        btn.classList.toggle('is-active', panelOpen && activeLayer === id);
+        btn.setAttribute('aria-label', build[id]
+          ? `${label} — ${traitById(id, build[id])?.name} selected`
+          : label);
       }
+    }
+
+    function openRoomPanel(layerId) {
+      if (activeLayer === layerId && !el.roomPanel.hidden) { closeRoomPanel(); return; }
+      activeLayer = layerId;
+      el.search.value = '';
+      el.roomHint.hidden = true;
+      el.roomPanel.hidden = false;
+      el.roomPanelTitle.textContent = layerById(layerId)?.name || layerId;
+      renderGrid();
+      renderHotspots();
+      updateRoomArt();
+    }
+
+    function closeRoomPanel() {
+      activeLayer = null;
+      el.roomPanel.hidden = true;
+      el.roomHint.hidden = false;
+      renderHotspots();
+      updateRoomArt();
+    }
+
+    // The wardrobe swaps to its open-doors art (hangers visible) whenever the
+    // outfit hotspot is hovered/focused or its drawer is open.
+    function updateRoomArt(showOpenWardrobe) {
+      const open = showOpenWardrobe ?? activeLayer === 'outfit';
+      el.roomBgOpen.classList.toggle('is-visible', open);
     }
 
     function renderGrid() {
@@ -750,12 +842,29 @@
       el.total.textContent = String(total);
 
       build = sanitize(readUrlBuild() || readStored() || defaultBuild());
-      activeLayer = manifest.layers[0].id;
+      // No drawer is open at boot — the room starts as just a room, with the
+      // hint text inviting the click. If a shared link/saved build already
+      // has picks, jump straight to the outfit drawer so it isn't a dead end.
+      activeLayer = null;
       persist();
       renderStack();
-      renderGrid();
       syncHistory();
       note('');
+
+      for (const btn of el.hotspots) {
+        const layer = btn.dataset.layer;
+        btn.addEventListener('click', () => openRoomPanel(layer));
+        if (layer === 'outfit') {
+          btn.addEventListener('mouseenter', () => updateRoomArt(true));
+          btn.addEventListener('mouseleave', () => updateRoomArt());
+          btn.addEventListener('focus', () => updateRoomArt(true));
+          btn.addEventListener('blur', () => updateRoomArt());
+        }
+      }
+      el.roomPanelClose.addEventListener('click', closeRoomPanel);
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !el.roomPanel.hidden) closeRoomPanel();
+      });
 
       el.search.addEventListener('input', renderGrid);
       document.getElementById('btn-back').addEventListener('click', stepBack);
