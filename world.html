@@ -581,25 +581,44 @@
     #sheet.is-open ~ #sheet-close,
     #roster.is-open ~ #roster-close,
     #updates.is-open ~ #updates-close,
-    #feedback.is-open ~ #feedback-close,
-    #hub.is-open ~ #hub-close,
-    #pfp.is-open ~ #pfp-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+    #feedback.is-open ~ #feedback-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+
+    /* Shared by any sheet whose content runs edge-to-edge (PFP, the Hub)
+       instead of the padded text-list layout the plain .sheet-close assumes.
+       That bare fixed-position X is computed from the drawer's width to
+       float just outside its top-left corner — fine when content is a
+       padded list, but PFP's iframe and the Hub's centered lobby cards both
+       reach close enough to that corner that the X landed on top of their
+       own title text instead of beside it. A close button with real layout
+       space in its own head bar sidesteps the collision at every viewport
+       instead of chasing coordinates, and needs none of the .sheet-close
+       opacity/visibility dance — the parent .sheet's own fade already hides
+       it along with the rest of the drawer's contents. */
+    .sheet-head-bar {
+      flex: 0 0 auto; display: flex; justify-content: flex-end;
+      padding: 10px 10px 0;
+    }
+    .sheet-close-btn {
+      width: 34px; height: 34px; display: grid; place-items: center;
+      font-size: 18px; border-radius: 50%;
+      background: #ffffff14; border: 1px solid var(--glass-stroke);
+      transition: background .16s var(--ease), border-color .16s var(--ease);
+    }
+    .sheet-close-btn:hover { background: #ffffff26; border-color: var(--accent); }
 
     /* PFP Studio is a full app (preview canvas + trait grid), not a menu
        list, so its drawer gets a lot more width than the standard
        --sheet-w — the same 340px column would squeeze pfp.html's own
-       responsive layout tighter than it ever runs standalone. Its close
-       button is repositioned to match, since .sheet-close's default
-       `right` assumes the drawer is exactly --sheet-w wide. */
+       responsive layout tighter than it ever runs standalone. */
     #pfp .pfp-sheet-inner {
       width: min(760px, 96vw);
       padding: 0;
       overflow: hidden;
+      display: flex; flex-direction: column;
     }
     .pfp-sheet-inner #pfp-frame {
       flex: 1; width: 100%; height: 100%; border: 0; display: block; background: #000;
     }
-    #pfp-close { right: calc(min(760px, 96vw) - 58px); }
 
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
@@ -973,6 +992,38 @@
            position — grows together instead of the land and its props
            scaling independently. */
         transform: scale(0.82);
+      }
+
+      /* PFP Studio and the Hub are full mini-apps, not menu lists — on a
+         real desktop window they get room to breathe as a centered modal
+         instead of the standard edge-docked drawer (which was cramping the
+         PFP room preview and the Hub's chat feed into a 340–760px sliver).
+         :not(.mobile-preview) keeps this off the simulated-phone window,
+         same guard as the rest of this block. Swaps the drawer's slide-in-
+         from-the-right transform for a scale/fade so it reads as a modal
+         opening in place rather than sliding off an edge it's no longer
+         docked to. */
+      html:not(.mobile-preview) #pfp .pfp-sheet-inner,
+      html:not(.mobile-preview) #hub .sheet-inner {
+        /* position:fixed + inset:0 (all four offsets, not just top/left) +
+           margin:auto is what actually centers a fixed box with an explicit
+           width/height — dropping any one offset back to auto breaks the
+           trick and pins it to a corner instead. */
+        position: fixed; inset: 0; margin: auto;
+        border-radius: 20px; border: 1px solid var(--glass-stroke);
+        box-shadow: 0 40px 100px rgba(0, 0, 0, .55);
+        transform: scale(.96); opacity: 0;
+        transition: transform .3s var(--ease), opacity .3s var(--ease);
+      }
+      html:not(.mobile-preview) #pfp.is-open .pfp-sheet-inner,
+      html:not(.mobile-preview) #hub.is-open .sheet-inner {
+        transform: scale(1); opacity: 1;
+      }
+      html:not(.mobile-preview) #pfp .pfp-sheet-inner {
+        width: min(1200px, 92vw); height: min(860px, 88vh);
+      }
+      html:not(.mobile-preview) #hub .sheet-inner {
+        width: min(720px, 90vw); height: min(760px, 88vh);
       }
     }
 
@@ -1455,6 +1506,9 @@
        and this sheet reopens itself instead of loading its own document. -->
   <div class="sheet" id="hub" role="dialog" aria-modal="true" aria-label="The Hub">
     <div class="sheet-inner">
+      <div class="sheet-head-bar">
+        <button class="sheet-close-btn" id="hub-close" type="button" aria-label="Close">✕</button>
+      </div>
       <section id="hub-lobby" class="hub-lobby">
         <img class="hub-lobby-mark" src="assets/animations/troll-grin.gif" alt="">
         <h2>THE HUB</h2>
@@ -1509,7 +1563,6 @@
       </section>
     </div>
   </div>
-  <button class="sheet-close" id="hub-close" type="button" aria-label="Close">✕</button>
 
   <!-- ============ PFP STUDIO ============
        Same in-place-sheet treatment as the Hub: the island stays visible
@@ -1518,13 +1571,23 @@
        pfp.html rather than reimplementing the trait picker a second time —
        one build, one source of truth for the trait set. The iframe src is
        set lazily on first open (see pfpSetOpen) so the trait manifest never
-       loads until someone actually opens it. -->
+       loads until someone actually opens it.
+
+       The close button lives in its own head bar ABOVE the iframe rather
+       than floating fixed over it like the other sheets' .sheet-close — the
+       iframe's own content (pfp.html's title/toolbar) runs edge-to-edge
+       with no reserved gap, so a fixed-position X computed from the drawer
+       width used to land right on top of that content instead of beside
+       it. Giving the button real layout space sidesteps the collision at
+       every viewport instead of chasing coordinates. -->
   <div class="sheet" id="pfp" role="dialog" aria-modal="true" aria-label="PFP Studio">
     <div class="sheet-inner pfp-sheet-inner">
+      <div class="sheet-head-bar">
+        <button class="sheet-close-btn" id="pfp-close" type="button" aria-label="Close">✕</button>
+      </div>
       <iframe id="pfp-frame" title="PFP Studio" loading="lazy"></iframe>
     </div>
   </div>
-  <button class="sheet-close" id="pfp-close" type="button" aria-label="Close">✕</button>
 
   <!-- ============ ACCOUNT ============ -->
   <div class="auth" id="auth" role="dialog" aria-modal="true" aria-label="Account">
