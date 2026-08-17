@@ -6096,7 +6096,7 @@ const TD_SITES = [
   { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.', adminOnly: true },
   { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
   { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
-  { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.', adminOnly: true },
+  { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
   { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
   { id: 'maps', label: 'Maps', icon: '📍', img: 'assets/images/icons/troll-map.png', flat: true, href: 'https://maps.trollrunner.net', color: '#30d158', desc: 'See where every troll is from and drop your own pin.' },
 ];
@@ -6166,7 +6166,7 @@ TD_SITES.forEach(site => {
     url: site.href.replace(/^https?:\/\//, '').replace(/\/$/, ''),
     iframeSrc: site.href,
     build: body => tdBuildIframe(body, site.href, site.label),
-    maximizeByDefault: site.id === 'games' || site.id === 'finance' || site.id === 'stickers' || site.id === 'terminal',
+    maximizeByDefault: site.id === 'games' || site.id === 'finance' || site.id === 'stickers' || site.id === 'terminal' || site.id === 'videos',
     adminOnly: site.adminOnly,
   };
 });
