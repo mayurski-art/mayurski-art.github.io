@@ -648,7 +648,10 @@
     }
     html.mobile-preview #hub .sheet-inner { height: auto; max-height: 80vh; }
     html.mobile-preview #hub.is-room .sheet-inner { height: min(620px, 78vh); }
-    html.mobile-preview #pfp .pfp-sheet-inner { height: min(760px, 82vh); }
+    /* PFP's trait grid and preview canvas want more elbow room than a chat
+       bubble does — the same reason its right-drawer width was already
+       wider than the standard sheet (see .pfp-sheet-inner above). */
+    html.mobile-preview #pfp .pfp-sheet-inner { width: min(680px, 97vw); height: min(760px, 84vh); }
 
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
