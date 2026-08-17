@@ -151,7 +151,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260817d' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260817e' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
@@ -850,8 +850,15 @@ button.viewer-roster-row:focus-visible { background: rgba(77, 255, 115, 0.12); }
   box-shadow: inset 0 0 0 1px rgba(77, 255, 115, 0.24);
 }
 .viewer-roster-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.viewer-roster-name {
+.viewer-roster-namewrap {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.viewer-roster-namewrap .ta-bar--sm { width: 60px; }
+.viewer-roster-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7597,6 +7604,7 @@ function viewerPresencePayload() {
     username: account?.username || null,
     avatarUrl: account?.avatarUrl || null,
     level: account?.level || null,
+    xp: account?.xp || null,
     host: window.location.hostname,
     path: window.location.pathname,
     activeWindow: activePresenceWindow,
@@ -7643,6 +7651,7 @@ function getViewerRoster() {
         username,
         avatarUrl: tcSafeAvatarUrl(entry.avatarUrl, userId),
         level: Math.max(1, Number(entry.level) || 1),
+        xp: Math.max(0, Number(entry.xp) || 0),
         activeWindow: entry.activeWindow === 'games' ? 'games' : null,
       });
     } else {
@@ -7712,10 +7721,15 @@ function renderViewerRosterList() {
     row.className = 'viewer-roster-row';
     row.setAttribute('aria-label', `Open ${entry.username}'s profile`);
     row.appendChild(viewerRosterAvatar(entry.avatarUrl));
+    const nameWrap = document.createElement('span');
+    nameWrap.className = 'viewer-roster-namewrap';
     const name = document.createElement('span');
     name.className = 'viewer-roster-name';
     name.textContent = entry.username;
-    row.appendChild(name);
+    nameWrap.appendChild(name);
+    const miniBar = window.TrollrunnerAccounts?.miniXpBarNode?.({ level: entry.level, xp: entry.xp });
+    if (miniBar) nameWrap.appendChild(miniBar);
+    row.appendChild(nameWrap);
     if (myUserId && entry.userId === myUserId) appendYouTag(row);
     const lv = document.createElement('span');
     lv.className = 'viewer-roster-lv';
@@ -7733,10 +7747,13 @@ function renderViewerRosterList() {
     const row = document.createElement('div');
     row.className = 'viewer-roster-row is-guest';
     row.appendChild(viewerRosterAvatar(null));
+    const nameWrap = document.createElement('span');
+    nameWrap.className = 'viewer-roster-namewrap';
     const name = document.createElement('span');
     name.className = 'viewer-roster-name';
     name.textContent = entry.guestLabel;
-    row.appendChild(name);
+    nameWrap.appendChild(name);
+    row.appendChild(nameWrap);
     if (!myUserId && entry.viewerId === myViewerId) appendYouTag(row);
     list.appendChild(row);
   });
@@ -7770,6 +7787,7 @@ function closeViewerRoster() {
 
 function openViewerRoster() {
   closeViewerRoster();
+  window.TrollrunnerAccounts?.ensureSocialStyles?.();
   const pill = document.getElementById('site-viewer-pill');
   const panel = document.createElement('div');
   panel.id = VIEWER_ROSTER_ID;
@@ -7886,7 +7904,7 @@ async function openViewerProfileCard(userId, fallbackName) {
   try {
     const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
     const profileQs = new URLSearchParams({
-      select: 'id,username,avatar_url,bio,level,xp,created_at,tags',
+      select: 'id,username,avatar_url,bio,level,xp,created_at,tags,banner_key',
       id: `eq.${safeUserId}`,
       limit: '1',
     });
@@ -7900,8 +7918,9 @@ async function openViewerProfileCard(userId, fallbackName) {
       fetch(`${SUPABASE_URL}/rest/v1/troll_profiles?${profileQs.toString()}`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/troll_game_stats?${statsQs.toString()}`, { headers }),
     ]);
-    // `tags` only exists after troll_profile_tags.sql has been run — fall back
-    // so an un-migrated project still shows the card, just without pills.
+    // `tags`/`banner_key` only exist once their migrations have been run —
+    // fall back so an un-migrated project still shows the card, just without
+    // pills/banner.
     if (!profileRes.ok) {
       profileQs.set('select', 'id,username,avatar_url,bio,level,xp,created_at');
       profileRes = await fetch(`${SUPABASE_URL}/rest/v1/troll_profiles?${profileQs.toString()}`, { headers });
@@ -7916,10 +7935,14 @@ async function openViewerProfileCard(userId, fallbackName) {
     const stats = Array.isArray(statsRows) ? statsRows : [];
 
     body.innerHTML = '';
+    const banner = window.TrollrunnerAccounts?.bannerNode?.(profile.banner_key) || null;
+    const hasBanner = !!(banner && !banner.hidden);
+    if (hasBanner) body.appendChild(banner);
     const row = document.createElement('div');
-    row.className = 'viewer-profile-row';
+    row.className = hasBanner ? 'viewer-profile-row ta-row--banner' : 'viewer-profile-row';
     const avatar = viewerRosterAvatar(tcSafeAvatarUrl(profile.avatar_url, profile.id));
     avatar.classList.add('viewer-profile-avatar');
+    if (hasBanner) avatar.classList.add('ta-banner-ring');
     row.appendChild(avatar);
     const meta = document.createElement('div');
     const name = document.createElement('p');
@@ -7935,20 +7958,26 @@ async function openViewerProfileCard(userId, fallbackName) {
     playingTag.setAttribute('data-ta-playing-for', profile.id);
     playingTag.hidden = true;
     name.appendChild(playingTag);
-    const lv = document.createElement('span');
-    lv.className = 'viewer-roster-lv';
-    lv.textContent = `LV ${Math.max(1, Number(profile.level) || 1)} · ${Number(profile.xp || 0).toLocaleString()} XP`;
     const tags = window.TrollrunnerAccounts?.profileTagsNode?.(profile.tags);
     const joined = document.createElement('div');
     joined.className = 'viewer-profile-muted';
     joined.textContent = profile.created_at
       ? `Running since ${new Date(profile.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}`
       : 'Running since —';
-    meta.append(name, lv);
+    meta.append(name);
     if (tags) meta.appendChild(tags);
     meta.appendChild(joined);
     row.appendChild(meta);
     body.appendChild(row);
+
+    const xpBar = window.TrollrunnerAccounts?.xpBarNode?.({ level: profile.level, xp: profile.xp });
+    if (xpBar) {
+      const xpSection = document.createElement('div');
+      xpSection.className = 'viewer-profile-section';
+      xpSection.innerHTML = '<h4>XP</h4>';
+      xpSection.appendChild(xpBar);
+      body.appendChild(xpSection);
+    }
 
     if (profile.bio) {
       const bioSection = document.createElement('div');

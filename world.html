@@ -620,6 +620,36 @@
       flex: 1; width: 100%; height: 100%; border: 0; display: block; background: #000;
     }
 
+    /* ---- bottom sheet on phones (mobile-preview) ----
+       On desktop these slide in from the right edge, but on a real phone
+       that left the island visible in a sliver next to a squeezed panel —
+       it read like a separate in-app browser popover, not part of the same
+       app (screenshot feedback). Sliding up from the bottom instead,
+       centered and no wider than it needs to be, matches how a phone-
+       native sheet should feel. Height is auto for the Hub so its lobby
+       (just two short cards) stays compact, growing only once the actual
+       chat room is showing (.is-room, toggled by the hub JS's enterRoom/
+       back-to-lobby handlers) so the message feed has room to scroll.
+       #pfp-frame's iframe has no intrinsic height of its own to drive an
+       auto-sized parent, so PFP keeps a fixed cap instead. */
+    html.mobile-preview #hub .sheet-inner,
+    html.mobile-preview #pfp .pfp-sheet-inner {
+      position: fixed; left: 0; right: 0; top: auto; bottom: 0; margin: 0 auto;
+      width: min(560px, 94vw);
+      border-radius: 20px 20px 0 0;
+      border: 1px solid var(--glass-stroke); border-bottom: 0;
+      box-shadow: 0 -24px 60px rgba(0, 0, 0, .5);
+      transform: translateY(100%);
+      transition: transform .32s var(--ease);
+    }
+    html.mobile-preview #hub.is-open .sheet-inner,
+    html.mobile-preview #pfp.is-open .pfp-sheet-inner {
+      transform: translateY(0);
+    }
+    html.mobile-preview #hub .sheet-inner { height: auto; max-height: 80vh; }
+    html.mobile-preview #hub.is-room .sheet-inner { height: min(620px, 78vh); }
+    html.mobile-preview #pfp .pfp-sheet-inner { height: min(760px, 82vh); }
+
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
     .update-row {
@@ -1747,7 +1777,7 @@
       <p class="sub">All of Troll Runner, in one place.</p>
       <div id="sheet-links"></div>
       <hr class="rule">
-      <p class="tagline">We run far and drop trolls. Problem?</p>
+      <p class="tagline">We run far and never look back. Problem?</p>
       <div class="socials" id="socials"></div>
     </div>
   </div>
@@ -3925,6 +3955,7 @@
         document.getElementById('hub-lobby').hidden = true;
         document.getElementById('hub-messages').hidden = true;
         document.getElementById('hub-room').hidden = false;
+        document.getElementById('hub').classList.add('is-room');
       }
       function initHubLobby() {
         const general = document.getElementById('hub-open-general');
@@ -3939,6 +3970,7 @@
         if (backToLobby) backToLobby.addEventListener('click', () => {
           document.getElementById('hub-room').hidden = true;
           lobby.hidden = false;
+          document.getElementById('hub').classList.remove('is-room');
         });
       }
 
