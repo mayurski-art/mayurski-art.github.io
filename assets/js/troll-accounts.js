@@ -12,7 +12,7 @@
      getCachedProfile()              → last known profile (sync, may be null)
      getAccessToken()                → JWT for authed REST calls | null
      getClient()                     → the supabase client
-     updateUsername(next) / updatePassword(next) / uploadAvatar(file)
+     updatePassword(next) / uploadAvatar(file)   (usernames are locked at signup)
      updateRecoveryEmail(email) / requestPasswordReset(email) / openRecovery()
      connectWallet() → address | null   (opens Phantom, links it if logged in)
      getWalletAddress() / unlinkWallet()
@@ -381,19 +381,10 @@
     dispatch(null);
   }
 
-  async function updateUsername(next) {
-    const sb = getClient();
-    const name = String(next || '').trim();
-    if (!USERNAME_RE.test(name)) throw new Error('Usernames are 3–20 letters, numbers, or underscores.');
-    if (!cachedProfile) throw new Error('Login first.');
-    if (name.toLowerCase() !== cachedProfile.username.toLowerCase() && (await isUsernameTaken(name))) {
-      throw new Error('That username is already taken.');
-    }
-    const { error } = await sb.from('troll_profiles').update({ username: name }).eq('id', cachedProfile.id);
-    if (error) throw friendlyError(error, 'Could not update the username.');
-    await sb.auth.updateUser({ data: { username: name } }).catch(() => {});
-    await refreshProfile();
-    return toPublicSession();
+  // Usernames are permanent once an account is created (locked server-side
+  // too — see troll_lock_username.sql). No client path exists to change one.
+  async function updateUsername() {
+    throw new Error('Usernames are locked and can’t be changed after signup.');
   }
 
   async function updateBio(next) {
@@ -1204,6 +1195,13 @@
       .ta-table td:last-child { text-align: right; color: #ffd84d; }
       .ta-input { width: 100%; box-sizing: border-box; font: inherit; color: #0a0b0d; background: #e9e9e0;
         border: 2px solid #000; border-radius: 0; padding: 7px 9px; box-shadow: inset 2px 2px 0 rgba(0,0,0,0.32); }
+      .ta-input[disabled] { opacity: 0.65; cursor: not-allowed; }
+      .ta-pass-wrap { position: relative; }
+      .ta-pass-wrap .ta-input { padding-right: 34px; }
+      .ta-pass-toggle { position: absolute; top: 0; right: 0; bottom: 0; width: 32px; padding: 0;
+        border: none; background: none; color: #4a5a4e; cursor: pointer; display: grid; place-items: center; }
+      .ta-pass-toggle:hover { color: #0a0b0d; }
+      .ta-pass-toggle svg { width: 16px; height: 16px; fill: currentColor; }
       .ta-btn { font: inherit; font-weight: 700; color: #08110a; border: 2px solid #000; border-radius: 6px;
         background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521);
         box-shadow: 0 3px 0 #9a7a14, 3px 5px 0 rgba(0,0,0,0.4); padding: 7px 14px; cursor: pointer; }
@@ -1358,6 +1356,31 @@
     window.addEventListener('keydown', onKey);
     document.body.appendChild(overlay);
     return overlay.querySelector('.ta-body');
+  }
+
+  // Wraps a password <input> with a show/hide eye toggle. Reveals only what
+  // the user is typing in that field right now — never a stored password,
+  // which Supabase Auth never exposes to the client in the first place.
+  const EYE_SHOW = '<path d="M12 5c-5.5 0-9.3 4.4-10.6 7 1.3 2.6 5.1 7 10.6 7s9.3-4.4 10.6-7C21.3 9.4 17.5 5 12 5zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9zm0-2.2a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6z"/>';
+  const EYE_HIDE = '<path d="M3.3 2.5 1.9 3.9l3.2 3.2C3.3 8.5 1.9 10 1.1 12c1.3 2.6 5.1 7 10.9 7 1.9 0 3.6-.5 5-1.2l3.1 3.1 1.4-1.4L3.3 2.5zM12 16.5c-.5 0-.9-.1-1.3-.2l-1.6-1.6c-.4-.6-.6-1.3-.6-2.1 0-.4.1-.8.2-1.2L7.3 10c-.5.7-.8 1.4-1 2 1.3 2.6 5.1 5.5 5.7 5.5v-1zm8.9-4.5c-.6-1.2-1.6-2.4-2.8-3.4l-1.5-1.5C15.4 6.6 13.8 6 12 6c-.6 0-1.2.1-1.8.2L8.7 4.7C9.7 4.3 10.8 4 12 4c5.8 0 9.6 4.4 10.9 7-.5 1.1-1.3 2.3-2.3 3.4l-1.7-1.4z"/>';
+  function wrapPasswordToggle(input) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ta-pass-wrap';
+    input.replaceWith(wrap);
+    wrap.appendChild(input);
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'ta-pass-toggle';
+    toggle.setAttribute('aria-label', 'Show password');
+    toggle.innerHTML = `<svg viewBox="0 0 24 24">${EYE_SHOW}</svg>`;
+    toggle.addEventListener('click', () => {
+      const shown = input.type === 'text';
+      input.type = shown ? 'password' : 'text';
+      toggle.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+      toggle.innerHTML = `<svg viewBox="0 0 24 24">${shown ? EYE_SHOW : EYE_HIDE}</svg>`;
+    });
+    wrap.appendChild(toggle);
+    return wrap;
   }
 
   /* ------------------------------------------------------------------
@@ -1693,22 +1716,18 @@
       }
     };
 
-    // Username
+    // Username — permanent, shown read-only (see updateUsername above).
     const nameSection = document.createElement('div');
     nameSection.className = 'ta-section';
     nameSection.innerHTML = `<h4>Username</h4>`;
     const nameInput = document.createElement('input');
     nameInput.className = 'ta-input';
     nameInput.value = session.username;
-    nameInput.maxLength = 20;
-    const nameBtn = document.createElement('button');
-    nameBtn.className = 'ta-btn';
-    nameBtn.type = 'button';
-    nameBtn.textContent = 'Save username';
-    const nameStatus = mkStatus();
-    nameBtn.addEventListener('click', () => run(nameBtn, nameStatus,
-      () => updateUsername(nameInput.value), 'Username updated everywhere.'));
-    nameSection.append(nameInput, nameBtn, nameStatus);
+    nameInput.disabled = true;
+    const nameMuted = document.createElement('p');
+    nameMuted.className = 'ta-muted';
+    nameMuted.textContent = 'Locked — usernames can’t be changed after signup.';
+    nameSection.append(nameInput, nameMuted);
     body.appendChild(nameSection);
 
     // Avatar
@@ -2096,7 +2115,9 @@
       passInput.value = '';
       passConfirm.value = '';
     }, 'Password changed.'));
-    passSection.append(passInput, passConfirm, passBtn, passStatus);
+    const passWrap = wrapPasswordToggle(passInput);
+    const passConfirmWrap = wrapPasswordToggle(passConfirm);
+    passSection.append(passWrap, passConfirmWrap, passBtn, passStatus);
     body.appendChild(passSection);
 
     // Logout

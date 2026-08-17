@@ -20,6 +20,13 @@ credentials show "Wrong username or password." and do not enter the site);
 registration will fail with a database error because the profile trigger
 doesn't exist yet.
 
+**Usernames are permanent.** Run
+[`assets/supabase/troll_lock_username.sql`](../assets/supabase/troll_lock_username.sql)
+once — it revokes client update access to the `username` column and adds a
+trigger that rejects any change to it. The Settings modal shows the username
+as a locked, read-only field; `updateUsername()` in the client always throws.
+This is enforced server-side, so it holds even without the client change.
+
 ### Password recovery setup (three more one-time steps)
 
 3. **SQL Editor**: run
@@ -115,6 +122,7 @@ open. Shows as a generic "🎮 Playing" tag.
 | File | Role |
 |---|---|
 | `assets/supabase/troll_accounts.sql` | Full backend: tables, RLS, RPCs, storage |
+| `assets/supabase/troll_lock_username.sql` | Revokes username-column updates + trigger that blocks renames server-side |
 | `assets/supabase/troll_friends.sql` | Friends + DM backend: `troll_friendships`, `troll_dm_threads`/`troll_dm_messages`, request/accept/remove/DM/badges RPCs |
 | `assets/js/troll-accounts.js` | Shared client lib → `window.TrollrunnerAccounts` (Profile/Settings/Friends modals, profile drawer, DM panel, friend-request toasts) |
 | `index.html` (gate section) | Account portal UI: Login/Create Account tabs, logged-in panel, Friends button (with a pending-request count badge) |
@@ -142,7 +150,6 @@ await TrollrunnerAccounts.login({ identifier, password }); // throws on bad cred
 await TrollrunnerAccounts.logout();
 await TrollrunnerAccounts.getSession();       // backend-verified session | null
 TrollrunnerAccounts.getCachedProfile();       // sync snapshot | null
-await TrollrunnerAccounts.updateUsername('new_name');
 await TrollrunnerAccounts.updatePassword('newpass123');
 await TrollrunnerAccounts.updateRecoveryEmail('me@example.com'); // enables reset links
 await TrollrunnerAccounts.requestPasswordReset('me@example.com'); // sends the link
