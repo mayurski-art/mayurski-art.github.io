@@ -80,7 +80,7 @@
     /* Native cross-document page transitions — matches index.html's rule
        (same media gate: mobile only, desktop keeps instant navigation).
        Same-origin only, so today this covers navigation within this site
-       (pfp.html, chat.html, the classic desktop); once stickers/terminal/
+       (pfp.html, hub/, the classic desktop); once stickers/terminal/
        finance route through the front door (see troll-frontdoor.js), those
        crossfade the same way instead of hard-cutting to a different site's
        look. This is the shell those cross-site links actually live in, so
@@ -550,7 +550,8 @@
     #sheet.is-open ~ #sheet-close,
     #roster.is-open ~ #roster-close,
     #updates.is-open ~ #updates-close,
-    #feedback.is-open ~ #feedback-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+    #feedback.is-open ~ #feedback-close,
+    #hub.is-open ~ #hub-close { opacity: 1; visibility: visible; transition-delay: 0s; }
 
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
@@ -567,6 +568,102 @@
       white-space: pre-wrap;
     }
     .update-empty { color: var(--fg-dim); font-size: 14px; margin: 0; }
+
+    /* ---- the hub (live chat room) ----
+       Opens as this same sheet drawer, so the island stays put behind it
+       instead of a hard navigation to a separate page. */
+    #hub .sheet-inner { display: flex; flex-direction: column; overflow: hidden; }
+    .hub-lobby {
+      flex: 1; min-height: 0; overflow-y: auto;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; text-align: center; padding: 10px 0;
+    }
+    .hub-lobby-mark { width: 64px; height: 64px; border-radius: 16px; background: #ffffff0d; padding: 10px; }
+    .hub-lobby-cards { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px; }
+    .hub-lobby-card {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      border: 1px solid var(--glass-stroke); border-radius: 16px; background: #ffffff08;
+      color: inherit; text-decoration: none; cursor: pointer; padding: 18px 16px; font: inherit;
+      transition: background .16s var(--ease), transform .16s var(--ease);
+    }
+    .hub-lobby-card:hover { background: #ffffff12; transform: translateY(-2px); }
+    .hub-lobby-card:active { transform: translateY(0); }
+    .hub-lobby-card-icon {
+      width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px;
+      background: color-mix(in srgb, var(--accent) 22%, transparent); font-size: 19px; line-height: 1;
+    }
+    .hub-lobby-card-title { font-family: var(--font-display); font-size: 13px; letter-spacing: .01em; }
+    .hub-lobby-card-desc { font-size: 13px; line-height: 1.35; color: var(--fg-dim); }
+    .hub-lobby-back {
+      margin-top: 2px; background: none; border: 0; color: var(--fg-dim); text-decoration: underline;
+      font: 13px var(--font-ui); cursor: pointer; padding: 6px;
+    }
+
+    .hub-room { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+    .hub-room-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .hub-room-title .title { font-family: var(--font-display); font-size: 16px; letter-spacing: .01em; }
+    .hub-room-title .subtitle { margin-top: 3px; font-size: 12px; color: var(--fg-dim); display: flex; align-items: center; gap: 6px; }
+    .hub-live { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+      color: #ff8a94; text-transform: uppercase; letter-spacing: .06em; }
+    .hub-live-dot { width: 6px; height: 6px; border-radius: 50%; background: #ff453a; animation: hub-blink 1s steps(2,end) infinite; }
+    .hub-room-back {
+      border: 1px solid var(--glass-stroke); border-radius: 999px; background: #ffffff0d; color: var(--fg);
+      padding: 7px 13px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .hub-room-back:hover { background: #ffffff18; }
+
+    .hub-feed-wrap { position: relative; flex: 1; min-height: 0; }
+    .hub-feed {
+      height: 100%; overflow-y: auto; border-radius: 14px; padding: 10px;
+      background: #ffffff06; border: 1px solid var(--glass-stroke);
+      scrollbar-width: thin; scrollbar-color: var(--glass-stroke) transparent;
+    }
+    .hub-feed::-webkit-scrollbar { width: 8px; }
+    .hub-feed::-webkit-scrollbar-track { background: transparent; }
+    .hub-feed::-webkit-scrollbar-thumb { background: var(--glass-stroke); border-radius: 8px; }
+    .hub-jump-pill {
+      position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+      display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 999px;
+      background: var(--accent); color: #0a1006; font-family: var(--font-ui); font-size: 12px; font-weight: 700;
+      padding: 8px 14px; cursor: pointer; box-shadow: 0 8px 20px #00000066; z-index: 3;
+    }
+    .hub-jump-pill[hidden] { display: none; }
+    .hub-empty { min-height: 160px; display: grid; place-items: center; gap: 8px; text-align: center; color: var(--fg-dim); padding: 16px; }
+    .hub-empty img { width: 76px; height: auto; }
+    .hub-empty strong { font-family: var(--font-display); font-size: 12px; letter-spacing: .02em; color: var(--fg); }
+    .hub-empty span { font-size: 13px; }
+    .hub-msg { display: grid; grid-template-columns: 28px minmax(0,1fr); gap: 9px; padding: 7px 0; border-bottom: 1px solid #ffffff0f; }
+    .hub-msg:last-child { border-bottom: 0; }
+    .hub-msg.is-me .hub-author { color: #ff5ec1; }
+    .hub-avatar { width: 28px; height: 28px; flex: none; border-radius: 8px;
+      background-color: #ffffff12; background-image: url('assets/animations/troll-computer-transparent.png'); background-size: 130%; background-position: center 60%; background-repeat: no-repeat;
+      overflow: hidden; }
+    .hub-avatar:has(img), .hub-avatar.has-pfp { background-image: none; background-color: transparent; }
+    .hub-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 8px; }
+    .hub-name-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; line-height: 1; }
+    .hub-author { font-family: var(--font-display); font-size: 11px; color: var(--accent); word-break: break-word; }
+    .hub-time { font-size: 10.5px; color: var(--fg-dim); font-family: var(--font-mono); }
+    .hub-text { margin-top: 3px; font-size: 14px; line-height: 1.4; color: var(--fg); word-break: break-word; }
+
+    .hub-typing { min-height: 16px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-dim); }
+    .hub-typing.is-active::after { content: '…'; font-weight: 700; animation: hub-blink .7s steps(2,end) infinite; }
+
+    .hub-composer { display: grid; grid-template-columns: minmax(78px, 110px) minmax(0,1fr) auto; gap: 7px; }
+    .hub-name-input, .hub-msg-input {
+      min-width: 0; width: 100%; border-radius: 10px; border: 1px solid var(--glass-stroke);
+      background: #ffffff08; color: var(--fg); padding: 10px 11px; font: 14px var(--font-ui);
+    }
+    .hub-name-input::placeholder, .hub-msg-input::placeholder { color: var(--fg-dim); }
+    .hub-name-input:focus, .hub-msg-input:focus { outline: none; border-color: var(--accent); background: #ffffff10; }
+    .hub-send {
+      border: 0; border-radius: 10px; background: var(--accent); color: #0a1006;
+      padding: 8px 16px; font-family: var(--font-ui); font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .hub-send:hover { filter: brightness(1.08); }
+    .hub-send:active { transform: scale(.98); }
+    .hub-note { min-height: 14px; font-size: 11px; line-height: 1.3; color: var(--fg-dim); }
+
+    @keyframes hub-blink { 50% { opacity: .25; } }
 
     /* Touch devices take the phone treatment at ANY width, not just under
        720px. iOS ignores the viewport meta of a framed document, and
@@ -1252,6 +1349,70 @@
   </div>
   <button class="sheet-close" id="feedback-close" type="button" aria-label="Close">✕</button>
 
+  <!-- ============ THE HUB ============ -->
+  <!-- Opens in place, same reason as Account/Updates/Feedback above — the
+       island stays right where the visitor left it instead of a hard
+       navigation to a separate page. trollrunner.net/hub is still a real,
+       shareable URL (see /hub/index.html): it bounces straight back here
+       and this sheet reopens itself instead of loading its own document. -->
+  <div class="sheet" id="hub" role="dialog" aria-modal="true" aria-label="The Hub">
+    <div class="sheet-inner">
+      <section id="hub-lobby" class="hub-lobby">
+        <img class="hub-lobby-mark" src="assets/animations/troll-grin.gif" alt="">
+        <h2>THE HUB</h2>
+        <p class="sub">How do you want to troll today?</p>
+        <div class="hub-lobby-cards">
+          <button type="button" id="hub-open-general" class="hub-lobby-card">
+            <span class="hub-lobby-card-icon" aria-hidden="true">💬</span>
+            <span class="hub-lobby-card-title">General Chat</span>
+            <span class="hub-lobby-card-desc">Jump into the live room — everyone's here.</span>
+          </button>
+          <button type="button" id="hub-open-messages" class="hub-lobby-card">
+            <span class="hub-lobby-card-icon" aria-hidden="true">💗</span>
+            <span class="hub-lobby-card-title">Messages</span>
+            <span class="hub-lobby-card-desc">DM a runner or start/join a group chat.</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="hub-messages" class="hub-lobby" hidden>
+        <img class="hub-lobby-mark" src="assets/animations/troll-grin.gif" alt="">
+        <h2>MESSAGES</h2>
+        <p class="sub">DMs and group chats are coming soon.</p>
+        <button type="button" class="hub-lobby-back" id="hub-messages-back">&#x2190; Back to the Hub</button>
+      </section>
+
+      <section id="hub-room" class="hub-room" hidden aria-label="Live chat">
+        <div class="hub-room-top">
+          <div class="hub-room-title">
+            <div class="title">General Chat</div>
+            <div class="subtitle">
+              <span class="hub-live"><span class="hub-live-dot" aria-hidden="true"></span>LIVE</span>
+              &middot; <span id="hub-online-num">1</span>&nbsp;online
+            </div>
+          </div>
+          <button type="button" class="hub-room-back" id="hub-back-to-lobby">&#x2190; Back</button>
+        </div>
+
+        <div class="hub-feed-wrap">
+          <div id="hub-feed" class="hub-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
+          <button id="hub-jump" class="hub-jump-pill" type="button" hidden></button>
+        </div>
+        <div id="hub-typing" class="hub-typing" aria-live="polite">
+          <span id="hub-typing-text"></span>
+        </div>
+
+        <form id="hub-form" class="hub-composer" autocomplete="off">
+          <input id="hub-name" class="hub-name-input" type="text" maxlength="24" placeholder="name" aria-label="Your display name" autocomplete="nickname">
+          <input id="hub-input" class="hub-msg-input" type="text" maxlength="240" placeholder="say something trolly…" aria-label="Message" autocomplete="off">
+          <button id="hub-send" class="hub-send" type="submit">Send</button>
+        </form>
+        <div id="hub-note" class="hub-note"></div>
+      </section>
+    </div>
+  </div>
+  <button class="sheet-close" id="hub-close" type="button" aria-label="Close">✕</button>
+
   <!-- ============ ACCOUNT ============ -->
   <div class="auth" id="auth" role="dialog" aria-modal="true" aria-label="Account">
     <div class="auth-inner">
@@ -1381,6 +1542,10 @@
        needs too — see checkAdminMenuAccess() below. -->
   <script src="assets/js/admin-auth.js?v=20260815a"></script>
   <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
+  <!-- GIF pack + PictoChat-style drawing pad for the Hub's live room — same
+       script the standalone chat surface used, see the comment near
+       hubSetOpen below. -->
+  <script src="assets/js/troll-chat-extras.js"></script>
   <!-- Rewrites the app icons' cross-site links to same-origin paths so the
        phone entrance can transition into them — but only once the front door
        is serving this page. Inert until then. -->
@@ -1432,20 +1597,22 @@
         icon: 'assets/images/icons/finances.png', img: 'assets/images/wallpaper-src/trollrunner.obj-finances.png',
         l: 19.8, t: 29.2, h: 12.4, rot: -3, hw: 10, hh: 16 },
       // front band
-      // Same origin (this repo IS trollrunner.net), so this is a relative
-      // link rather than `external`. Goes straight to the standalone
-      // chat.html room — not the windowed desktop with ?open=chat, which
-      // means a real navigation away from this shell just to land on a
-      // chat window buried inside a whole other UI a phone visitor never
-      // asked to see.
+      // Opens the in-page Hub sheet (see hubSetOpen below) instead of
+      // navigating away — the island stays visible behind it. `to` is
+      // still a real URL (/hub) for the no-JS fallback and for whatever
+      // the menu sheet links to.
       { id: 'hub',      label: 'The Hub',   sub: 'trollrunner.net/hub',
-        to: 'chat.html', color: '#4dff73',
+        to: '/hub', color: '#4dff73',
         icon: 'assets/images/icons/hub.png', img: 'assets/images/wallpaper-src/trollrunner.obj-hub.png',
         l: 51, t: 40, h: 15, rot: 0, hw: 10, hh: 17 },
       { id: 'maps',     label: 'Maps',      sub: 'maps.trollrunner.net',
         href: 'https://maps.trollrunner.net', external: true, color: '#30d158',
         icon: 'assets/images/icons/troll-map.png', img: 'assets/images/world/maps.png',
         l: 82, t: 430, h: 11 },
+      { id: 'videos',   label: 'Videos',    sub: 'videos.trollrunner.net',
+        href: 'https://videos.trollrunner.net', external: true, color: '#ff2e88',
+        icon: 'assets/images/icons/videos.png', img: 'assets/images/wallpaper/obj-videos.png',
+        l: 63, t: 24, h: 15, rot: -3, hw: 8, hh: 17 },
 
       /* The rest of the desktop dock. These four aren't pages — they're
          windows inside the troll desktop — so they hand off to it with
@@ -1553,6 +1720,12 @@
       if (a.id === 'feedback') {
         el.addEventListener('click', e => { e.preventDefault(); feedbackSetOpen(true); });
       }
+      // The Hub opens in place too (see hubSetOpen below) — same reasoning
+      // as Account/Updates/Feedback, plus it updates the address bar to
+      // /hub itself so the URL still reflects what's open.
+      if (a.id === 'hub') {
+        el.addEventListener('click', e => { e.preventDefault(); hubSetOpen(true); });
+      }
 
       const tile = document.createElement('span');
       tile.className = 'app-tile';
@@ -1584,6 +1757,12 @@
       el.style.width = a.hw + '%';
       el.style.height = a.hh + '%';
       linkAttrs(el, a);
+      // The Hub's landmark opens the in-page sheet too, same as its rail
+      // icon above — tapping the clubhouse on the island shouldn't behave
+      // differently than tapping its icon in the rail.
+      if (a.id === 'hub') {
+        el.addEventListener('click', e => { e.preventDefault(); hubSetOpen(true); });
+      }
       island.appendChild(el);
       hotspots.set(a.id, el);
     }
@@ -2495,6 +2674,400 @@
     };
     feedbackSheet.inert = true;
     feedbackClose.addEventListener('click', () => feedbackSetOpen(false));
+
+    /* ---------- the hub (live chat room) ----------
+       Same live room the old standalone chat.html page ran — same Realtime
+       channel, same troll_chat table, same identity keys — just mounted as
+       a sheet here instead of its own document, so opening it doesn't
+       navigate away from the island. See hubSetOpen for the open/close +
+       URL wiring; everything below is the chat room itself. */
+    const hubSheet = $('hub'), hubClose = $('hub-close');
+
+    const hubSetOpen = (open, opts) => {
+      opts = opts || {};
+      hubSheet.classList.toggle('is-open', open);
+      hubSheet.inert = !open;
+      if (open) hubClose.focus();
+      if (!opts.skipUrl) {
+        try {
+          const top = window.top || window;
+          const path = top.location.pathname.replace(/\/+$/, '') || '/';
+          if (open && path !== '/hub') top.history.pushState({ trollrunnerHub: true }, '', '/hub');
+          else if (!open && path === '/hub') top.history.replaceState({}, '', '/');
+        } catch {}
+      }
+    };
+    hubSheet.inert = true;
+    hubClose.addEventListener('click', () => hubSetOpen(false));
+    try {
+      (window.top || window).addEventListener('popstate', () => {
+        if (hubSheet.classList.contains('is-open')) hubSetOpen(false, { skipUrl: true });
+      });
+    } catch {}
+
+    // Deep link: /hub/index.html (a real file, so it works with JS off too)
+    // bounces straight back to '/' with ?open=hub forwarded into this
+    // page's iframe src by index.html. Skip the run-to-enter lock screen
+    // outright — a shared chat link should land in the room, not on a
+    // gesture prompt — then open the sheet without re-pushing the URL,
+    // since it's already showing /hub.
+    try {
+      if (new URLSearchParams(location.search).get('open') === 'hub') {
+        finish();
+        requestAnimationFrame(() => hubSetOpen(true, { skipUrl: true }));
+      }
+    } catch {}
+
+    (function initHubChat() {
+      const HUB_CHANNEL = 'trollchat_room_v2';
+      const HUB_TABLE = 'troll_chat';
+      const HUB_NAME_KEY = 'trollchat_name_v1';
+      const HUB_ID_KEY = 'trollchat_guest_id_v1';
+      const HUB_CACHE_KEY = 'trollchat_cache_v1';
+      const HUB_LASTREAD_KEY = 'trollchat_lastread_v1'; // id of the message the user last had in view
+      const HUB_MSG_MAX = 240, HUB_KEEP = 80, HUB_HISTORY = 60;
+      const HUB_COOLDOWN_MS = 1500, HUB_TYPING_TTL_MS = 3200;
+      const NAME_COLORS = ['#8fe36a', '#4deeff', '#ffd84d', '#ff8a5c', '#c792ff', '#ff5ec1', '#5fd6a8', '#7aa0c4'];
+
+      const state = {
+        guestId: '', name: '', client: null, channel: null, subscribed: false,
+        persistOk: null, messages: [], seen: new Set(), typingPeers: new Map(),
+        lastSendAt: 0, typingSentAt: 0,
+        lastSeenId: null, initialScrollDone: false, lastSeenSaveTimer: null,
+      };
+      const els = {};
+
+      function guestId() {
+        let id = '';
+        try { id = localStorage.getItem(HUB_ID_KEY) || ''; } catch {}
+        if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : 'guest-' + Date.now() + '-' + Math.random().toString(16).slice(2)); try { localStorage.setItem(HUB_ID_KEY, id); } catch {} }
+        return id;
+      }
+      function defaultName() {
+        let n = '';
+        try { n = localStorage.getItem(HUB_NAME_KEY) || ''; } catch {}
+        return (n || 'Troll ' + Math.floor(100 + Math.random() * 900)).slice(0, 24);
+      }
+      function nameColor(name) {
+        let h = 0; const s = String(name || '');
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        return NAME_COLORS[h % NAME_COLORS.length];
+      }
+      function loadCache() { try { const r = JSON.parse(localStorage.getItem(HUB_CACHE_KEY) || '[]'); return Array.isArray(r) ? r : []; } catch { return []; } }
+      function saveCache() { try { localStorage.setItem(HUB_CACHE_KEY, JSON.stringify(state.messages.slice(-HUB_HISTORY))); } catch {} }
+      function fmtTime(v) {
+        const d = v ? new Date(v) : new Date();
+        if (Number.isNaN(d.getTime())) return '';
+        const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const now = new Date();
+        const isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+        if (isToday) return time;
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + time;
+      }
+
+      // Account user_ids are UUIDs; anything else in a broadcast payload is junk.
+      function safeUid(value) {
+        const uid = String(value || '').trim();
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid) ? uid : null;
+      }
+
+      // Broadcast payloads are unauthenticated, so an avatar URL is only trusted
+      // when it points into the sender's own folder of the public avatars bucket.
+      function safeAvatarUrl(url, uid) {
+        if (!url || !uid) return null;
+        const prefix = SUPABASE_URL + '/storage/v1/object/public/avatars/' + uid + '/';
+        return String(url).indexOf(prefix) === 0 ? String(url) : null;
+      }
+
+      function normalize(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const id = String(raw.id || '').trim();
+        const body = String(raw.text != null ? raw.text : raw.body || '').trim();
+        // drawings ("draw:data:image/png;base64,…") are allowed a bigger cap
+        const text = body.slice(0, window.TrollChatExtras ? window.TrollChatExtras.bodyCap(body) : HUB_MSG_MAX);
+        if (!id || !text) return null;
+        const uid = safeUid(raw.uid || raw.user_id);
+        return { id, name: (String(raw.name || 'Guest').trim() || 'Guest').slice(0, 24), text, ts: String(raw.ts || raw.created_at || new Date().toISOString()), uid, avatar: safeAvatarUrl(raw.avatar, uid) };
+      }
+
+      /* Profile pictures for account messages — resolved from troll_profiles
+         in one batched lookup and cached (history rows only carry user_id). */
+      const avatarCache = new Map(); // user_id → avatar_url | null
+
+      function avatarFor(m) {
+        return m.avatar || (m.uid ? avatarCache.get(m.uid) : null) || null;
+      }
+
+      async function resolveAvatars() {
+        const missing = Array.from(new Set(
+          state.messages.filter(m => m.uid && !m.avatar && !avatarCache.has(m.uid)).map(m => m.uid)
+        ));
+        if (!missing.length) return;
+        missing.forEach(uid => avatarCache.set(uid, null)); // no repeat lookups
+        try {
+          const qs = new URLSearchParams({ select: 'id,avatar_url', id: 'in.(' + missing.join(',') + ')' });
+          const res = await fetch(SUPABASE_URL + '/rest/v1/troll_profiles?' + qs.toString(), {
+            headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+          });
+          if (!res.ok) return;
+          const rows = await res.json();
+          let found = false;
+          (Array.isArray(rows) ? rows : []).forEach(row => {
+            if (row && row.id && row.avatar_url) { avatarCache.set(row.id, String(row.avatar_url)); found = true; }
+          });
+          if (found) renderFeed();
+        } catch {}
+      }
+
+      function loadLastSeen() { try { return localStorage.getItem(HUB_LASTREAD_KEY) || null; } catch { return null; } }
+      function saveLastSeen(id) {
+        if (!id || id === state.lastSeenId) return;
+        state.lastSeenId = id;
+        if (state.lastSeenSaveTimer) clearTimeout(state.lastSeenSaveTimer);
+        state.lastSeenSaveTimer = setTimeout(() => { try { localStorage.setItem(HUB_LASTREAD_KEY, id); } catch {} }, 400);
+      }
+      // The topmost message still (at least partly) visible in the scrolled feed.
+      function topVisibleId() {
+        const rows = els.feed.querySelectorAll('.hub-msg');
+        for (const row of rows) {
+          if (row.offsetTop + row.offsetHeight - els.feed.scrollTop > 4) return row.dataset.id || null;
+        }
+        return null;
+      }
+      function handleFeedScroll() {
+        saveLastSeen(topVisibleId());
+        const distanceFromBottom = els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight;
+        if (distanceFromBottom < 60) hideJumpPill();
+      }
+
+      // "N new messages" pill: caughtUpCount is the message count as of the last
+      // time we knew the user was scrolled to the bottom. The gap between it and
+      // the live count is how many they haven't seen yet.
+      function hideJumpPill() { if (els.jump) els.jump.hidden = true; state.caughtUpCount = state.messages.length; }
+      function updateJumpPill() {
+        if (!els.jump) return;
+        if (state.caughtUpCount == null) state.caughtUpCount = state.messages.length;
+        const n = Math.max(0, state.messages.length - state.caughtUpCount);
+        if (n <= 0) { els.jump.hidden = true; return; }
+        els.jump.hidden = false;
+        els.jump.textContent = '↓ ' + n + (n === 1 ? ' new message' : ' new messages');
+      }
+
+      function renderFeed() {
+        const isFirstRender = !state.initialScrollDone;
+        const hadRows = els.feed.childElementCount > 0;
+        const distanceFromBottom = hadRows ? (els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight) : 0;
+        const wasNearBottom = !hadRows || distanceFromBottom < 60;
+        els.feed.innerHTML = '';
+        if (!state.messages.length) {
+          const empty = document.createElement('div'); empty.className = 'hub-empty';
+          const img = document.createElement('img'); img.src = 'assets/animations/troll-lel_transparent.gif'; img.alt = '';
+          const strong = document.createElement('strong'); strong.textContent = 'No trolls yet';
+          const span = document.createElement('span'); span.textContent = 'be the first to say something.';
+          empty.append(img, strong, span); els.feed.appendChild(empty); return;
+        }
+        state.messages.forEach(m => {
+          const row = document.createElement('article'); row.className = 'hub-msg'; row.dataset.id = m.id; if (m.name === state.name) row.classList.add('is-me');
+          const avatar = document.createElement('span'); avatar.className = 'hub-avatar'; avatar.setAttribute('aria-hidden', 'true');
+          const avatarUrl = avatarFor(m);
+          // has-pfp mirrors the :has(img) rule for engines without :has().
+          if (avatarUrl) { const av = document.createElement('img'); av.src = avatarUrl; av.alt = ''; av.loading = 'lazy'; avatar.appendChild(av); avatar.classList.add('has-pfp'); }
+          const body = document.createElement('div');
+          const head = document.createElement('div'); head.className = 'hub-name-row';
+          const name = document.createElement('span'); name.className = 'hub-author'; name.textContent = m.name; if (m.name !== state.name) name.style.color = nameColor(m.name);
+          if (m.uid) {
+            name.style.cursor = 'pointer';
+            name.title = 'View ' + m.name + "'s profile";
+            name.addEventListener('click', () => window.TrollrunnerAccounts?.openProfileCard?.(m.uid));
+          }
+          const time = document.createElement('span'); time.className = 'hub-time'; time.textContent = fmtTime(m.ts);
+          const text = document.createElement('div'); text.className = 'hub-text';
+          if (window.TrollChatExtras) window.TrollChatExtras.renderBodyInto(text, m.text); else text.textContent = m.text;
+          head.append(name, time); body.append(head, text); row.append(avatar, body); els.feed.appendChild(row);
+        });
+
+        if (isFirstRender) {
+          state.initialScrollDone = true;
+          const targetId = state.lastSeenId || loadLastSeen();
+          const target = targetId ? els.feed.querySelector(`[data-id="${CSS.escape(targetId)}"]`) : null;
+          els.feed.scrollTop = target ? Math.max(0, target.offsetTop - 12) : els.feed.scrollHeight;
+          hideJumpPill();
+        } else if (wasNearBottom) {
+          els.feed.scrollTop = els.feed.scrollHeight;
+          hideJumpPill();
+        } else {
+          els.feed.scrollTop = Math.max(0, els.feed.scrollHeight - els.feed.clientHeight - distanceFromBottom);
+          updateJumpPill();
+        }
+        saveLastSeen(topVisibleId());
+      }
+
+      function addMessage(raw, opts) {
+        opts = opts || {};
+        const m = normalize(raw);
+        if (!m || state.seen.has(m.id)) return false;
+        state.seen.add(m.id); state.messages.push(m);
+        state.messages.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+        if (state.messages.length > HUB_KEEP) { state.messages = state.messages.slice(-HUB_KEEP); state.seen = new Set(state.messages.map(x => x.id)); }
+        if (m.name) state.typingPeers.forEach((v, k) => { if (v.name === m.name) state.typingPeers.delete(k); });
+        if (!opts.silent) { renderFeed(); renderTyping(); }
+        if (m.uid && !m.avatar) resolveAvatars();
+        saveCache(); return true;
+      }
+
+      function renderOnline(n) { els.onlineNum.forEach(el => { el.textContent = String(Math.max(1, Number(n) || 1)); }); }
+      function syncPresence() {
+        if (!state.channel) { renderOnline(1); return; }
+        const st = state.channel.presenceState(); const ids = new Set();
+        Object.values(st || {}).forEach(arr => { if (Array.isArray(arr)) arr.forEach(e => { if (e && e.id) ids.add(e.id); }); });
+        renderOnline(ids.size || 1);
+      }
+
+      function renderTyping() {
+        const now = Date.now(); const names = [];
+        state.typingPeers.forEach((v, k) => { if (v.until <= now) { state.typingPeers.delete(k); return; } if (v.name && v.name !== state.name) names.push(v.name); });
+        if (!names.length) { els.typing.classList.remove('is-active'); els.typingText.textContent = ''; return; }
+        els.typing.classList.add('is-active');
+        const u = Array.from(new Set(names)).slice(0, 3);
+        els.typingText.textContent = u.length === 1 ? u[0] + ' is typing' : u.join(', ') + ' are typing';
+      }
+
+      function setNote(msg) { els.note.textContent = msg || ''; }
+      function updateNote() { setNote(state.persistOk === false ? 'Live only — chat history isn’t being saved yet.' : ''); }
+
+      async function fetchHistory() {
+        try {
+          const qs = new URLSearchParams({ select: 'id,name,body,created_at,user_id', order: 'created_at.desc', limit: String(HUB_HISTORY) });
+          const res = await fetch(SUPABASE_URL + '/rest/v1/' + HUB_TABLE + '?' + qs.toString(), { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
+          if (!res.ok) { state.persistOk = false; updateNote(); return; }
+          const rows = await res.json();
+          if (Array.isArray(rows)) { rows.reverse().forEach(r => addMessage(r, { silent: true })); renderFeed(); resolveAvatars(); }
+          state.persistOk = true; updateNote();
+        } catch { state.persistOk = false; updateNote(); }
+      }
+
+      async function persist(m) {
+        if (state.persistOk === false) return;
+        try {
+          const res = await fetch(SUPABASE_URL + '/rest/v1/' + HUB_TABLE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
+            body: JSON.stringify([{ id: m.id, name: m.name, body: m.text, created_at: m.ts }]),
+          });
+          const ok = res.ok || res.status === 409;
+          // A rejected drawing just means troll_chat_v2.sql hasn't run yet —
+          // don't flip the whole room into "live only" mode over it.
+          if (!ok && m.text.indexOf('draw:') === 0) {
+            setNote('Drawing went out live — run troll_chat_v2.sql so drawings save too.');
+            setTimeout(updateNote, 4500);
+            return;
+          }
+          if (state.persistOk !== ok) { state.persistOk = ok; updateNote(); }
+        } catch { if (state.persistOk !== false) { state.persistOk = false; updateNote(); } }
+      }
+
+      function broadcastTyping() {
+        if (!state.channel || !state.subscribed) return;
+        const now = Date.now(); if (now - state.typingSentAt < 1200) return; state.typingSentAt = now;
+        state.channel.send({ type: 'broadcast', event: 'typing', payload: { id: state.guestId, name: state.name } });
+      }
+
+      async function send(text) {
+        const t = String(text || '').trim(); if (!t) return false;
+        const now = Date.now();
+        if (now - state.lastSendAt < HUB_COOLDOWN_MS) { setNote('Whoa, slow down a sec…'); setTimeout(updateNote, 1200); return false; }
+        state.lastSendAt = now;
+        const cap = window.TrollChatExtras ? window.TrollChatExtras.bodyCap(t) : HUB_MSG_MAX;
+        const m = { id: (crypto.randomUUID ? crypto.randomUUID() : state.guestId + '-' + now + '-' + Math.random().toString(16).slice(2)), name: state.name, text: t.slice(0, cap), ts: new Date(now).toISOString() };
+        addMessage(m);
+        if (state.channel && state.subscribed) state.channel.send({ type: 'broadcast', event: 'msg', payload: m });
+        persist(m); return true;
+      }
+
+      function startRealtime() {
+        if (!window.supabase || !window.supabase.createClient) { renderOnline(1); return; }
+        try {
+          state.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+          state.channel = state.client.channel(HUB_CHANNEL, { config: { presence: { key: state.guestId }, broadcast: { self: false } } });
+          state.channel
+            .on('broadcast', { event: 'msg' }, ({ payload }) => addMessage(payload))
+            .on('broadcast', { event: 'typing' }, ({ payload }) => {
+              if (!payload || payload.id === state.guestId) return;
+              state.typingPeers.set(String(payload.id), { name: String(payload.name || 'Someone').slice(0, 24), until: Date.now() + HUB_TYPING_TTL_MS });
+              renderTyping();
+            })
+            .on('presence', { event: 'sync' }, syncPresence)
+            .subscribe(s => { if (s === 'SUBSCRIBED') { state.subscribed = true; state.channel.track({ id: state.guestId, name: state.name }); } });
+        } catch { state.channel = null; }
+      }
+
+      function enterRoom() {
+        document.getElementById('hub-lobby').hidden = true;
+        document.getElementById('hub-messages').hidden = true;
+        document.getElementById('hub-room').hidden = false;
+      }
+      function initHubLobby() {
+        const general = document.getElementById('hub-open-general');
+        const messagesCard = document.getElementById('hub-open-messages');
+        const lobby = document.getElementById('hub-lobby');
+        const messages = document.getElementById('hub-messages');
+        const messagesBack = document.getElementById('hub-messages-back');
+        if (general) general.addEventListener('click', enterRoom);
+        if (messagesCard) messagesCard.addEventListener('click', () => { lobby.hidden = true; messages.hidden = false; });
+        if (messagesBack) messagesBack.addEventListener('click', () => { messages.hidden = true; lobby.hidden = false; });
+        const backToLobby = document.getElementById('hub-back-to-lobby');
+        if (backToLobby) backToLobby.addEventListener('click', () => {
+          document.getElementById('hub-room').hidden = true;
+          lobby.hidden = false;
+        });
+      }
+
+      function init() {
+        initHubLobby();
+        els.feed = document.getElementById('hub-feed');
+        els.jump = document.getElementById('hub-jump');
+        els.typing = document.getElementById('hub-typing');
+        els.typingText = document.getElementById('hub-typing-text');
+        els.note = document.getElementById('hub-note');
+        els.onlineNum = Array.from(document.querySelectorAll('#hub-online-num'));
+        const nameInput = document.getElementById('hub-name');
+        const msgInput = document.getElementById('hub-input');
+        const form = document.getElementById('hub-form');
+        if (!els.feed || !form) return;
+
+        state.guestId = guestId(); state.name = defaultName(); nameInput.value = state.name;
+        loadCache().forEach(x => addMessage(x, { silent: true }));
+        renderFeed(); renderOnline(1);
+
+        nameInput.addEventListener('input', () => {
+          state.name = (String(nameInput.value || '').trim() || 'Guest').slice(0, 24);
+          try { localStorage.setItem(HUB_NAME_KEY, state.name); } catch {}
+          if (state.channel && state.subscribed) state.channel.track({ id: state.guestId, name: state.name });
+        });
+        msgInput.addEventListener('input', broadcastTyping);
+        form.addEventListener('submit', e => { e.preventDefault(); send(msgInput.value).then(ok => { if (ok) msgInput.value = ''; }); });
+        if (window.TrollChatExtras) window.TrollChatExtras.attachComposer({ form, send });
+
+        startRealtime();
+        fetchHistory();
+        setInterval(renderTyping, 1500);
+
+        if (els.jump) els.jump.addEventListener('click', () => {
+          els.feed.scrollTo({ top: els.feed.scrollHeight, behavior: 'smooth' });
+          hideJumpPill();
+        });
+
+        let scrollSaveTimer = null;
+        els.feed.addEventListener('scroll', () => {
+          if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
+          scrollSaveTimer = setTimeout(handleFeedScroll, 250);
+        });
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') handleFeedScroll(); });
+        window.addEventListener('beforeunload', handleFeedScroll);
+      }
+
+      init();
+    })();
 
     viewersPaint();
     if (window.supabase?.createClient) {

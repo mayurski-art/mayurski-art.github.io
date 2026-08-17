@@ -61,6 +61,20 @@
   // sets FORCE_DESKTOP_KEY above.
   const isPhone = true;
 
+  // Set by /hub/index.html (a real file GitHub Pages can serve directly for
+  // trollrunner.net/hub) right before it bounces here — read once and
+  // cleared immediately so a plain reload of '/' afterward doesn't reopen
+  // the Hub every time. Forwarded into world.html's iframe below as
+  // ?open=hub, which world.html reads to open the in-page Hub sheet (see
+  // hubSetOpen there) and restore the /hub URL once it's up.
+  let openHubParam = '';
+  try {
+    if (sessionStorage.getItem('trollrunner_open_hub') === '1') {
+      sessionStorage.removeItem('trollrunner_open_hub');
+      openHubParam = '&open=hub';
+    }
+  } catch {}
+
   if (isPhone && !forced && (path === '/' || path === '/index.html')) {
     // Deliberately NOT a redirect: navigating would put /world.html in the
     // address bar, and the phone entrance should still read trollrunner.net.
@@ -110,7 +124,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260816i" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260816j' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
@@ -6603,6 +6617,12 @@ function twRequestGameClose(id, win, frame, homeUrl) {
 function twClose(id) {
   const win = tdState.windows.get(id);
   if (!win) return;
+  // Mirror of the /hub → ?open=chat handoff in trollDesktopShow: closing
+  // the window that URL pointed at should drop the address bar back to a
+  // clean trollrunner.net, not leave it reading /hub after the window's gone.
+  if (id === 'chat' && window.location.pathname.replace(/\/+$/, '') === '/hub') {
+    try { history.replaceState(null, '', '/'); } catch {}
+  }
   if (id === 'games') {
     const frame = win.el.querySelector('.tw-body iframe');
     const homeUrl = TD_WINDOWS.games?.iframeSrc;
@@ -7305,6 +7325,15 @@ function trollDesktopShow(boot) {
       const wanted = new URLSearchParams(window.location.search).get('open');
       if (wanted === 'account') requestAnimationFrame(tdOpenAccount);
       else if (wanted && TD_WINDOWS[wanted]) requestAnimationFrame(() => twOpen(wanted));
+      // /hub/index.html sends classic-desktop visitors here as ?open=chat
+      // (see that file) so they land on the same TrollChat window everyone
+      // else on desktop already uses, styled like the rest of this UI
+      // instead of the mobile sheet. Swap the URL for the same clean /hub
+      // the mobile shell shows, same reasoning as the ?mobile=1/?desktop=1
+      // scrub near the top of this script — twClose() below restores '/'.
+      if (wanted === 'chat') {
+        try { history.replaceState(null, '', '/hub'); } catch {}
+      }
     } catch {}
   }
 }

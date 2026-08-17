@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+  <meta http-equiv="refresh" content="0; url=/">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Hub — trollrunner.net</title>
+</head>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#000;color:#fff;font-family:system-ui,sans-serif;">
+  <script>
+    // GitHub Pages is static, so /hub needs a real file to exist — this is
+    // it. Where the actual Hub lives depends on which shell the visitor is
+    // in, so this file's only job is to figure that out and bounce back to
+    // '/' with the right handoff:
+    //   - classic desktop (trollrunner_force_desktop set): the desktop
+    //     already has its own windowed TrollChat (#trollchat, TD_WINDOWS.chat)
+    //     styled to match the rest of that UI — reopen that, not the mobile
+    //     sheet. index.html's own ?open=<id> boot handling already knows how
+    //     to open a desktop window, so a real query param is fine here.
+    //   - everything else (the default, mobile-first shell): world.html's
+    //     in-page Hub sheet (see hubSetOpen there), reached the same way the
+    //     other phone-entrance windows (Account/Updates/Feedback) hand off —
+    //     a sessionStorage flag, forwarded into world.html's iframe as
+    //     ?open=hub by index.html, so the address bar still lands on a clean
+    //     trollrunner.net instead of trollrunner.net/world.html.
+    let forcedDesktop = false;
+    try { forcedDesktop = sessionStorage.getItem('trollrunner_force_desktop') === '1'; } catch {}
+    if (forcedDesktop) {
+      location.replace('/?open=chat');
+    } else {
+      try { sessionStorage.setItem('trollrunner_open_hub', '1'); } catch {}
+      location.replace('/');
+    }
+  </script>
+  <p>Loading the Hub… if nothing happens, <a href="/" style="color:#8fe36a;">go to trollrunner.net</a>.</p>
+</body>
+</html>
