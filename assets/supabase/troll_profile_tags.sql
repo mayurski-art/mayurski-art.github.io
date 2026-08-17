@@ -8,6 +8,13 @@
 -- Tags column). Run ONCE in Supabase → SQL Editor. Idempotent.
 --
 -- Requires troll_admin_lockdown.sql (for troll_is_admin()).
+--
+-- NOTE: the fixed developer/admin/trollrunner set below has been superseded
+-- by assets/supabase/troll_custom_tags.sql, which lets an admin create/
+-- delete arbitrary tags (with their own colour) from admin.html. Run this
+-- file first (for the `tags` column + troll_admin_set_profile_tags), then
+-- run troll_custom_tags.sql, which replaces troll_profile_tag_slugs() with
+-- a version backed by a real table instead of the hardcoded array below.
 -- ============================================================================
 
 alter table public.troll_profiles

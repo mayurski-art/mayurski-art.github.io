@@ -183,36 +183,66 @@
   /* Profile tags — Discord-style role badges next to a username. Display only:
      the tags column has no client write grant, so the ONLY way one gets set is
      an admin session calling troll_admin_set_profile_tags (admin.html → Player
-     accounts → Tags). See assets/supabase/troll_profile_tags.sql. */
-  const PROFILE_TAGS = {
-    developer: { label: 'Developer' },
-    admin: { label: 'Admin' },
-    trollrunner: { label: 'TrollRunner' },
-  };
+     accounts → Profile tags). Tag defs (label + colour) are admin-created the
+     same place — see assets/supabase/troll_custom_tags.sql. */
+  let tagDefsCache = null;
+  let tagDefsFetchStarted = false;
+
+  function fetchTagDefs() {
+    if (tagDefsFetchStarted) return;
+    tagDefsFetchStarted = true;
+    const sb = getClient();
+    if (!sb) { tagDefsFetchStarted = false; return; }
+    sb.from('troll_tag_defs').select('slug,label,color').then(({ data, error }) => {
+      tagDefsCache = !error && Array.isArray(data) ? data : [];
+    }).catch(() => { tagDefsCache = []; });
+  }
 
   function normalizeProfileTags(tags) {
     if (!Array.isArray(tags)) return [];
+    // Before the defs load, pass everything through so pills don't flash
+    // empty; once loaded, drop anything that isn't (or is no longer) a real
+    // tag def — mirrors the server-side allowlist in troll_profile_tag_slugs.
+    const known = tagDefsCache ? new Set(tagDefsCache.map(t => t.slug)) : null;
     const out = [];
     tags.forEach(raw => {
       const tag = String(raw || '').trim().toLowerCase();
-      if (PROFILE_TAGS[tag] && !out.includes(tag)) out.push(tag);
+      if ((!known || known.has(tag)) && !out.includes(tag)) out.push(tag);
     });
     return out;
+  }
+
+  // Darkens/lightens a #rrggbb hex by `percent` (-100..100) for the pill's
+  // gradient shading, so any admin-picked colour still reads as a badge.
+  function shadeHex(hex, percent) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+    if (!m) return hex;
+    const amt = Math.round(2.55 * percent);
+    const clamp = v => Math.max(0, Math.min(255, v));
+    const r = clamp(parseInt(m[1].slice(0, 2), 16) + amt);
+    const g = clamp(parseInt(m[1].slice(2, 4), 16) + amt);
+    const b = clamp(parseInt(m[1].slice(4, 6), 16) + amt);
+    return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
   }
 
   // Returns an always-appendable node; it just stays hidden when there are
   // no tags, so callers don't need to branch.
   function profileTagsNode(tags) {
     ensureModalStyles();
+    fetchTagDefs();
     const wrap = document.createElement('span');
     wrap.className = 'ta-tags';
     const list = normalizeProfileTags(tags);
     if (!list.length) { wrap.hidden = true; return wrap; }
+    const defsBySlug = new Map((tagDefsCache || []).map(t => [t.slug, t]));
     list.forEach(tag => {
+      const def = defsBySlug.get(tag);
+      const color = def?.color || '#8fa396';
       const pill = document.createElement('span');
       pill.className = 'ta-tag';
       pill.dataset.tag = tag;
-      pill.textContent = PROFILE_TAGS[tag].label;
+      pill.style.background = `linear-gradient(180deg, ${shadeHex(color, 12)}, ${color} 55%, ${shadeHex(color, -22)})`;
+      pill.textContent = def?.label || tag;
       wrap.appendChild(pill);
     });
     return wrap;
@@ -1181,9 +1211,6 @@
       .ta-tag { display: inline-flex; align-items: center; padding: 1px 8px; font-size: 11px; font-weight: 700;
         letter-spacing: 0.06em; text-transform: uppercase; color: #fff; border: 2px solid #000; border-radius: 4px;
         background: #8fa396; }
-      .ta-tag[data-tag="developer"] { background: linear-gradient(180deg, #7f8bff, #5865f2 55%, #414bd4); }
-      .ta-tag[data-tag="admin"] { background: linear-gradient(180deg, #ff6b6d, #ed4245 55%, #c62b2e); }
-      .ta-tag[data-tag="trollrunner"] { background: linear-gradient(180deg, #ff77c2, #eb459e 55%, #c62784); }
       .ta-muted { color: #8fa396; font-size: 12px; }
       .ta-bar { height: 12px; border: 2px solid #000; border-radius: 4px; background: #0c100e; overflow: hidden; }
       .ta-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #1ec94f, #4dff73); }
@@ -2911,7 +2938,7 @@
     getLeaderboardBadges,
     getFriendActivity,
     ensureSocialStyles: ensureModalStyles,
-    profileTags: PROFILE_TAGS,
+    getProfileTagDefs: () => { fetchTagDefs(); return tagDefsCache || []; },
     normalizeProfileTags,
     profileTagsNode,
     openDmPanel,

@@ -442,9 +442,41 @@
     .accounts-tag-btn:hover { opacity: .9; filter: none; }
     .accounts-tag-btn.is-on { background: var(--tag-color); color: #08090c; opacity: 1; }
     .accounts-tag-btn:disabled { cursor: wait; opacity: .3; }
-    .accounts-tag-btn[data-tag="developer"] { --tag-color: #7f8bff; }
-    .accounts-tag-btn[data-tag="admin"] { --tag-color: #ff6b6d; }
-    .accounts-tag-btn[data-tag="trollrunner"] { --tag-color: #ff77c2; }
+
+    /* Tag manager — create/delete custom tag defs (label + colour), colour
+       chosen with a hue/saturation wheel + lightness slider. */
+    .tag-defs-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 18px; }
+    .tag-defs-list:empty::before { content: 'No tags yet — create one below.'; color: var(--fg-dim); font-size: 13px; }
+    .tag-def-chip {
+      display: inline-flex; align-items: center; gap: 7px; padding: 4px 6px 4px 12px;
+      border-radius: 999px; background: var(--chip-c, #8e8e93); color: #08090c;
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    }
+    .tag-def-chip button {
+      border: none; background: #00000030; color: #08090c; width: 18px; height: 18px;
+      border-radius: 50%; cursor: pointer; font-size: 12px; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .tag-def-chip button:hover { background: #00000055; filter: none; }
+    .tag-def-chip button:disabled { cursor: wait; opacity: .5; }
+    .tag-create-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+    .tag-wheel {
+      position: relative; width: 132px; height: 132px; border-radius: 50%; flex: none;
+      cursor: crosshair; border: 1px solid var(--glass-stroke); overflow: hidden; touch-action: none;
+    }
+    .tag-wheel-hue { position: absolute; inset: 0; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
+    .tag-wheel-sat { position: absolute; inset: 0; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 100%); }
+    .tag-wheel-dark { position: absolute; inset: 0; background: #000; opacity: 0; mix-blend-mode: multiply; pointer-events: none; }
+    .tag-wheel-light { position: absolute; inset: 0; background: #fff; opacity: 0; mix-blend-mode: screen; pointer-events: none; }
+    .tag-wheel-cursor {
+      position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+      border: 2px solid #fff; box-shadow: 0 0 0 1px #00000080; pointer-events: none; top: 50%; left: 50%;
+    }
+    .tag-create-fields { display: flex; flex-direction: column; gap: 10px; min-width: 190px; flex: 1 1 190px; }
+    .tag-create-fields input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .tag-preview-row { display: flex; align-items: center; gap: 9px; }
+    .tag-preview-swatch { width: 24px; height: 24px; border-radius: 7px; border: 1px solid var(--glass-stroke); flex: none; }
+    .tag-preview-row input[type="text"] { flex: 1; }
 
     /* ================= PAYOUTS ================= */
     .payouts-live-dot {
@@ -842,6 +874,39 @@
 
         <!-- ---------- ACCOUNTS ---------- -->
         <section class="view" data-view="accounts" aria-label="Player accounts">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Profile tags</h2>
+                <p class="card-sub">Create the tags you can grant on accounts below. Pick a colour on the wheel, name it, and it shows up as a toggle in the Tags column for every account. Deleting a tag here removes it from every profile that has it.</p>
+              </div>
+              <div class="pill-row">
+                <span class="summary-note">Discord-style role badges</span>
+              </div>
+            </div>
+            <div id="tag-defs-list" class="tag-defs-list"></div>
+            <div class="tag-create-row">
+              <div class="tag-wheel" id="tag-color-wheel" role="slider" aria-label="Tag colour" tabindex="0">
+                <div class="tag-wheel-hue"></div>
+                <div class="tag-wheel-sat"></div>
+                <div class="tag-wheel-dark" id="tag-wheel-dark"></div>
+                <div class="tag-wheel-light" id="tag-wheel-light"></div>
+                <div class="tag-wheel-cursor" id="tag-wheel-cursor"></div>
+              </div>
+              <div class="tag-create-fields">
+                <label for="tag-lightness">Lightness</label>
+                <input type="range" id="tag-lightness" min="10" max="90" value="60" aria-label="Colour lightness">
+                <div class="tag-preview-row">
+                  <span class="tag-preview-swatch" id="tag-preview-swatch"></span>
+                  <input type="text" id="tag-hex-input" maxlength="7" placeholder="#7f8bff" aria-label="Hex colour code">
+                </div>
+                <input type="text" id="tag-label-input" maxlength="24" placeholder="Tag name (e.g. Beta tester)" aria-label="New tag name">
+                <button type="button" id="tag-create-btn" class="secondary">+ Create tag</button>
+              </div>
+            </div>
+            <p id="tag-manager-status" class="status-line"></p>
+          </div>
+
           <div class="card">
             <div class="card-head">
               <div>
@@ -2498,15 +2563,14 @@ Fixed some admin system bugs.`,
 
       let accounts = [];
 
-      // Profile tags (assets/supabase/troll_profile_tags.sql). Setting one is
-      // admin-only server-side — this UI is just the switchboard.
-      const PROFILE_TAGS = [
-        { slug: 'developer', label: 'Developer' },
-        { slug: 'admin', label: 'Admin' },
-        { slug: 'trollrunner', label: 'TrollRunner' },
-      ];
-      const TAG_SLUGS = PROFILE_TAGS.map(tag => tag.slug);
+      // Profile tags (assets/supabase/troll_custom_tags.sql). Tag defs
+      // (label + colour) are admin-created here; granting one to an account
+      // is a separate admin-only RPC — see toggleTag() below.
+      let tagDefs = [];
+      let tagDefsMissing = false;
       let tagsColumnMissing = false;
+
+      function tagSlugs() { return tagDefs.map(tag => tag.slug); }
 
       function setStatus(message, mode) {
         statusEl.textContent = message;
@@ -2521,12 +2585,25 @@ Fixed some admin system bugs.`,
 
       function cleanTags(tags) {
         if (!Array.isArray(tags)) return [];
+        const slugs = tagSlugs();
         const out = [];
         tags.forEach(raw => {
           const tag = String(raw || '').trim().toLowerCase();
-          if (TAG_SLUGS.includes(tag) && !out.includes(tag)) out.push(tag);
+          if (slugs.includes(tag) && !out.includes(tag)) out.push(tag);
         });
         return out;
+      }
+
+      async function loadTagDefs() {
+        try {
+          const rows = await fetchRows('troll_tag_defs?select=id,slug,label,color&order=created_at.asc');
+          tagDefs = Array.isArray(rows) ? rows : [];
+          tagDefsMissing = false;
+        } catch {
+          tagDefs = [];
+          tagDefsMissing = true;
+        }
+        renderTagManager();
       }
 
       async function loadAccounts() {
@@ -2679,14 +2756,216 @@ Fixed some admin system bugs.`,
 
       function tagCellHtml(account) {
         if (tagsColumnMissing) return '<span class="accounts-type-pill">—</span>';
-        const buttons = PROFILE_TAGS.map(tag => {
+        if (!tagDefs.length) return '<span class="accounts-type-pill">No tags yet</span>';
+        const buttons = tagDefs.map(tag => {
           const on = account.tags.includes(tag.slug);
-          return `<button type="button" class="accounts-tag-btn${on ? ' is-on' : ''}" data-tag="${tag.slug}"
+          return `<button type="button" class="accounts-tag-btn${on ? ' is-on' : ''}" data-tag="${escapeHtml(tag.slug)}"
             data-user="${escapeHtml(account.id)}" aria-pressed="${on ? 'true' : 'false'}"
+            style="--tag-color:${escapeHtml(tag.color)}"
             title="${on ? 'Remove' : 'Give'} the ${escapeHtml(tag.label)} tag">${escapeHtml(tag.label)}</button>`;
         }).join('');
         return `<div class="accounts-tag-row">${buttons}</div>`;
       }
+
+      // ---- Tag manager: list existing tag defs + create/delete ----
+      const tagDefsListEl = document.getElementById('tag-defs-list');
+      const tagManagerStatusEl = document.getElementById('tag-manager-status');
+
+      function setTagManagerStatus(message, mode) {
+        if (!tagManagerStatusEl) return;
+        tagManagerStatusEl.textContent = message;
+        tagManagerStatusEl.dataset.mode = mode || '';
+      }
+
+      function renderTagManager() {
+        if (!tagDefsListEl) return;
+        if (tagDefsMissing) {
+          tagDefsListEl.innerHTML = '';
+          setTagManagerStatus('Tags are off until you run assets/supabase/troll_custom_tags.sql in the Supabase SQL editor.', 'locked');
+          return;
+        }
+        tagDefsListEl.innerHTML = tagDefs.map(tag => `
+          <span class="tag-def-chip" style="--chip-c:${escapeHtml(tag.color)}">
+            ${escapeHtml(tag.label)}
+            <button type="button" data-slug="${escapeHtml(tag.slug)}" title="Delete the ${escapeHtml(tag.label)} tag" aria-label="Delete the ${escapeHtml(tag.label)} tag">&times;</button>
+          </span>
+        `).join('');
+      }
+
+      async function createTag(label, color) {
+        const createBtn = document.getElementById('tag-create-btn');
+        if (createBtn) createBtn.disabled = true;
+        setTagManagerStatus('Creating tag…');
+        try {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_admin_create_tag`, {
+            method: 'POST',
+            headers: await adminRpcHeaders(),
+            body: JSON.stringify({ p_label: label, p_color: color }),
+          });
+          if (!response.ok) throw new Error(await parseSupabaseError(response));
+          await loadTagDefs();
+          renderAccounts();
+          setTagManagerStatus(`Created the "${label}" tag.`, 'open');
+          const labelInput = document.getElementById('tag-label-input');
+          if (labelInput) labelInput.value = '';
+        } catch (err) {
+          setTagManagerStatus(`Could not create tag: ${err && err.message ? err.message : 'unknown error'}`, 'locked');
+        } finally {
+          if (createBtn) createBtn.disabled = false;
+        }
+      }
+
+      async function deleteTag(slug, button) {
+        const tag = tagDefs.find(t => t.slug === slug);
+        if (!confirm(`Delete the "${tag ? tag.label : slug}" tag? This removes it from every account that has it.`)) return;
+        if (button) button.disabled = true;
+        setTagManagerStatus('Deleting tag…');
+        try {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_admin_delete_tag`, {
+            method: 'POST',
+            headers: await adminRpcHeaders(),
+            body: JSON.stringify({ p_slug: slug }),
+          });
+          if (!response.ok) throw new Error(await parseSupabaseError(response));
+          accounts.forEach(account => { account.tags = account.tags.filter(t => t !== slug); });
+          await loadTagDefs();
+          renderAccounts();
+          setTagManagerStatus(`Deleted the "${tag ? tag.label : slug}" tag.`, 'open');
+        } catch (err) {
+          if (button) button.disabled = false;
+          setTagManagerStatus(`Could not delete tag: ${err && err.message ? err.message : 'unknown error'}`, 'locked');
+        }
+      }
+
+      if (tagDefsListEl) {
+        tagDefsListEl.addEventListener('click', event => {
+          const button = event.target.closest('button[data-slug]');
+          if (button && !button.disabled) void deleteTag(button.dataset.slug, button);
+        });
+      }
+
+      // ---- Colour wheel: hue by angle, saturation by radius, lightness by
+      // the slider below it. Position is tracked in unit-circle coords so it
+      // can be set either from a pointer drag or a typed hex value. ----
+      (function initTagColorWheel() {
+        const wheel = document.getElementById('tag-color-wheel');
+        const darkOverlay = document.getElementById('tag-wheel-dark');
+        const lightOverlay = document.getElementById('tag-wheel-light');
+        const cursor = document.getElementById('tag-wheel-cursor');
+        const lightnessInput = document.getElementById('tag-lightness');
+        const hexInput = document.getElementById('tag-hex-input');
+        const swatch = document.getElementById('tag-preview-swatch');
+        const labelInput = document.getElementById('tag-label-input');
+        const createBtn = document.getElementById('tag-create-btn');
+        if (!wheel || !hexInput || !swatch) return;
+
+        let hue = 235;   // degrees, clockwise from top — matches the conic-gradient
+        let sat = 0.65;  // 0..1, radius from centre
+        let dx = sat * Math.sin(hue * Math.PI / 180);
+        let dy = -sat * Math.cos(hue * Math.PI / 180);
+
+        function hslToHex(h, s, l) {
+          s /= 100; l /= 100;
+          const k = n => (n + h / 30) % 12;
+          const a = s * Math.min(l, 1 - l);
+          const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+          const toHex = v => Math.round(255 * v).toString(16).padStart(2, '0');
+          return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+        }
+
+        function hexToHsl(hex) {
+          const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+          if (!m) return null;
+          const r = parseInt(m[1].slice(0, 2), 16) / 255;
+          const g = parseInt(m[1].slice(2, 4), 16) / 255;
+          const b = parseInt(m[1].slice(4, 6), 16) / 255;
+          const max = Math.max(r, g, b), min = Math.min(r, g, b);
+          const l = (max + min) / 2;
+          let h = 0, s = 0;
+          if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+            else if (max === g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+            h *= 60;
+          }
+          return { h, s: s * 100, l: l * 100 };
+        }
+
+        function currentLightness() { return Number(lightnessInput?.value || 60); }
+
+        function updateUI(fromHexInput) {
+          const light = currentLightness();
+          const hex = hslToHex(hue, sat * 100, light);
+          darkOverlay.style.opacity = light < 50 ? String((50 - light) / 50) : '0';
+          lightOverlay.style.opacity = light > 50 ? String((light - 50) / 50) : '0';
+          cursor.style.left = `${50 + dx * 50}%`;
+          cursor.style.top = `${50 + dy * 50}%`;
+          swatch.style.background = hex;
+          if (!fromHexInput) hexInput.value = hex;
+          return hex;
+        }
+
+        function setFromPointer(clientX, clientY) {
+          const rect = wheel.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const rawDx = (clientX - cx) / (rect.width / 2);
+          const rawDy = (clientY - cy) / (rect.height / 2);
+          const radius = Math.min(1, Math.hypot(rawDx, rawDy));
+          const angle = Math.atan2(rawDx, -rawDy); // clockwise from top
+          hue = ((angle * 180 / Math.PI) + 360) % 360;
+          sat = radius;
+          dx = sat * Math.sin(hue * Math.PI / 180);
+          dy = -sat * Math.cos(hue * Math.PI / 180);
+          updateUI(false);
+        }
+
+        let dragging = false;
+        wheel.addEventListener('pointerdown', event => {
+          dragging = true;
+          wheel.setPointerCapture(event.pointerId);
+          setFromPointer(event.clientX, event.clientY);
+        });
+        wheel.addEventListener('pointermove', event => { if (dragging) setFromPointer(event.clientX, event.clientY); });
+        wheel.addEventListener('pointerup', () => { dragging = false; });
+        wheel.addEventListener('pointercancel', () => { dragging = false; });
+        wheel.addEventListener('keydown', event => {
+          const step = 8;
+          if (event.key === 'ArrowLeft') hue = (hue - step + 360) % 360;
+          else if (event.key === 'ArrowRight') hue = (hue + step) % 360;
+          else if (event.key === 'ArrowUp') sat = Math.min(1, sat + 0.05);
+          else if (event.key === 'ArrowDown') sat = Math.max(0, sat - 0.05);
+          else return;
+          event.preventDefault();
+          dx = sat * Math.sin(hue * Math.PI / 180);
+          dy = -sat * Math.cos(hue * Math.PI / 180);
+          updateUI(false);
+        });
+
+        lightnessInput?.addEventListener('input', () => updateUI(false));
+
+        hexInput.addEventListener('change', () => {
+          const hsl = hexToHsl(hexInput.value);
+          if (!hsl) { updateUI(false); return; }
+          hue = hsl.h; sat = hsl.s / 100;
+          dx = sat * Math.sin(hue * Math.PI / 180);
+          dy = -sat * Math.cos(hue * Math.PI / 180);
+          if (lightnessInput) lightnessInput.value = String(Math.round(Math.min(90, Math.max(10, hsl.l))));
+          updateUI(true);
+        });
+
+        createBtn?.addEventListener('click', () => {
+          const label = String(labelInput?.value || '').trim();
+          if (!label) { setTagManagerStatus('Give the tag a name first.', 'locked'); labelInput?.focus(); return; }
+          const hex = hexInput.value.trim();
+          if (!/^#[0-9a-fA-F]{6}$/.test(hex)) { setTagManagerStatus('Pick a colour on the wheel first.', 'locked'); return; }
+          void createTag(label, hex.toLowerCase());
+        });
+
+        updateUI(false);
+      })();
 
       // One admin-only RPC per click — the server re-checks the admin session
       // and drops any slug it doesn't recognise.
@@ -2724,7 +3003,7 @@ Fixed some admin system bugs.`,
       if (searchEl) searchEl.addEventListener('input', renderAccounts);
       if (sortEl) sortEl.addEventListener('change', renderAccounts);
       if (refreshBtn) refreshBtn.addEventListener('click', () => void loadAccounts());
-      void loadAccounts();
+      void loadTagDefs().then(() => loadAccounts());
     })();
 
     /* ---- Payout requests (reads payout_requests + troll_casino_redemptions —
