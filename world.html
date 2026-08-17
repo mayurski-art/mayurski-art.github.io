@@ -7,7 +7,7 @@
        and frame-src have to name it or the radio silently never loads. It
        also evaluates strings, hence 'unsafe-eval' — index.html's CSP carries
        it for the same player. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://*.spotifycdn.com; frame-src https://open.spotify.com https://*.spotify.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://*.spotifycdn.com; frame-src 'self' https://open.spotify.com https://*.spotify.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
   <!-- Pinch-zoom deliberately allowed: the island art is a genuinely
        vector-traced SVG land base (see the .island comment below) plus
        full-detail raster objects sized well past the render ceiling, so it
@@ -582,7 +582,24 @@
     #roster.is-open ~ #roster-close,
     #updates.is-open ~ #updates-close,
     #feedback.is-open ~ #feedback-close,
-    #hub.is-open ~ #hub-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+    #hub.is-open ~ #hub-close,
+    #pfp.is-open ~ #pfp-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+
+    /* PFP Studio is a full app (preview canvas + trait grid), not a menu
+       list, so its drawer gets a lot more width than the standard
+       --sheet-w — the same 340px column would squeeze pfp.html's own
+       responsive layout tighter than it ever runs standalone. Its close
+       button is repositioned to match, since .sheet-close's default
+       `right` assumes the drawer is exactly --sheet-w wide. */
+    #pfp .pfp-sheet-inner {
+      width: min(760px, 96vw);
+      padding: 0;
+      overflow: hidden;
+    }
+    .pfp-sheet-inner #pfp-frame {
+      flex: 1; width: 100%; height: 100%; border: 0; display: block; background: #000;
+    }
+    #pfp-close { right: calc(min(760px, 96vw) - 58px); }
 
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
@@ -1489,6 +1506,21 @@
   </div>
   <button class="sheet-close" id="hub-close" type="button" aria-label="Close">✕</button>
 
+  <!-- ============ PFP STUDIO ============
+       Same in-place-sheet treatment as the Hub: the island stays visible
+       (dimmed) behind it instead of navigating away to pfp.html. Unlike the
+       Hub this one is a full app, not a chat feed, so it iframes the real
+       pfp.html rather than reimplementing the trait picker a second time —
+       one build, one source of truth for the trait set. The iframe src is
+       set lazily on first open (see pfpSetOpen) so the trait manifest never
+       loads until someone actually opens it. -->
+  <div class="sheet" id="pfp" role="dialog" aria-modal="true" aria-label="PFP Studio">
+    <div class="sheet-inner pfp-sheet-inner">
+      <iframe id="pfp-frame" title="PFP Studio" loading="lazy"></iframe>
+    </div>
+  </div>
+  <button class="sheet-close" id="pfp-close" type="button" aria-label="Close">✕</button>
+
   <!-- ============ ACCOUNT ============ -->
   <div class="auth" id="auth" role="dialog" aria-modal="true" aria-label="Account">
     <div class="auth-inner">
@@ -1954,6 +1986,11 @@
       // /hub itself so the URL still reflects what's open.
       if (a.id === 'hub') {
         el.addEventListener('click', e => { e.preventDefault(); hubSetOpen(true); });
+      }
+      // PFP Studio opens in place too (see pfpSetOpen below) — the island
+      // stays put behind it instead of a hard navigation to pfp.html.
+      if (a.id === 'pfp') {
+        el.addEventListener('click', e => { e.preventDefault(); pfpSetOpen(true); });
       }
 
       const tile = document.createElement('span');
@@ -3416,6 +3453,23 @@
     };
     hubSheet.inert = true;
     hubClose.addEventListener('click', () => hubSetOpen(false));
+
+    /* ---------- PFP Studio ----------
+       An iframe of the real pfp.html rather than a native rebuild — the
+       trait picker, the room hotspot UI and the export/save logic already
+       live there, and duplicating a 246-trait manifest and canvas
+       compositor into this page just to skip an iframe isn't worth it.
+       The src is only set the first time the sheet opens, so boot never
+       pays for the trait manifest fetch unless someone actually opens it. */
+    const pfpSheet = $('pfp'), pfpClose = $('pfp-close'), pfpFrame = $('pfp-frame');
+    const pfpSetOpen = open => {
+      if (open && !pfpFrame.src) pfpFrame.src = 'pfp.html';
+      pfpSheet.classList.toggle('is-open', open);
+      pfpSheet.inert = !open;
+      if (open) pfpClose.focus();
+    };
+    pfpSheet.inert = true;
+    pfpClose.addEventListener('click', () => pfpSetOpen(false));
     try {
       (window.top || window).addEventListener('popstate', () => {
         if (hubSheet.classList.contains('is-open')) hubSetOpen(false, { skipUrl: true });
