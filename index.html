@@ -10,6 +10,20 @@
 <title>Troll Runner</title>
 <script>
 (() => {
+  // iOS "Add to Home Screen" launches don't reliably do a fresh network
+  // navigation — WebKit often just resumes a suspended standalone instance
+  // from wherever the app was left (same mechanism as the back-forward
+  // cache), which is why a home-screen icon can keep showing pre-edit
+  // markup/CSS/JS indefinitely while a plain Safari tab reloads normally.
+  // event.persisted is true exactly on that bfcache-style restore, so this
+  // forces a real reload only for standalone launches hitting it — regular
+  // browser tabs (persisted or not) are untouched.
+  const isStandaloneLaunch = window.navigator.standalone
+    || window.matchMedia('(display-mode: standalone)').matches;
+  if (isStandaloneLaunch) {
+    window.addEventListener('pageshow', e => { if (e.persisted) window.location.reload(); });
+  }
+
   const host = window.location.hostname;
   const path = window.location.pathname;
 
