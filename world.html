@@ -737,36 +737,31 @@
         flex: 0 1 auto; min-height: 0;
         width: 96vw; max-width: 96vw; margin: 6px auto 4px;
         aspect-ratio: 16 / 9; transform: none;
-        /* Pushed down toward the lockbar/dock rather than sitting flush
-           under the topbar. margin-top:auto eats the leftover vertical
-           space in the flex column so the group lands lower on the screen.
-           This is the LOCK-phase story: .apps is display:none during lock
-           (see body:not([data-phase="home"]) .apps above), so the island is
-           the first real item in the column and has to carry the push
-           itself. In the HOME phase .apps is visible and reordered ahead of
-           the island (order:0, see below) — it carries the push instead so
-           the icon row lands first, and the rule right after this block
-           zeroes the island's own margin-top so the two don't fight over
+        /* Sits close under the topbar/icons instead of vacuuming up all the
+           leftover column space above itself — that old margin-top:auto
+           behavior left a large dead gap at the very top of both the lock
+           screen and the home screen (nothing to visually anchor to until
+           the island floated in mid-screen). The LEFTOVER space now belongs
+           to whatever comes AFTER the island instead: .lockbar carries
+           margin-top:auto during lock (.apps is display:none then, so the
+           island is the first real item — see body:not([data-phase="home"])
+           .apps above), and .dock carries it during home (see .dock below).
+           Both are only in-flow in their own phase, so they can't fight over
            the same leftover space. */
-        margin-top: auto; margin-bottom: 0;
+        margin-top: 14px; margin-bottom: 0;
         order: 1;
-        /* Additive fine-tune on top of the auto-margin stack above — see
+        /* Additive fine-tune on top of the layout above — see
            --island-dx/--island-dy at :root. scale(1.2) grows the land 20%
            visually without touching its layout footprint (width/aspect-ratio
-           above stay the box's real size, so the flex math and .apps'
-           margin-bottom push are unaffected) — the baked-in landmark art and
-           the .island-hotspot tap targets are both descendants painted
-           through this same transform, so they scale up by the same 20%
-           for free, staying pixel-aligned with the bigger art. The leading
-           translateY(-19vw) is a flat visual shift (~30% of the scaled
-           island's own rendered height) applied outermost/last in the
-           composed matrix, so it rides on top of the scale unamplified
-           instead of the shift itself getting stretched by 1.2x — a plain
-           layout margin can't do this since the island's top position is
-           invariant to its own margin-bottom (see the .apps comment below),
-           and this way the layout box (and therefore hotspot math) never
-           moves, only the paint. */
-        transform: translateY(-19vw) translate(var(--island-dx), var(--island-dy)) scale(1.2);
+           above stay the box's real size, so the flex math is unaffected) —
+           the baked-in landmark art and the .island-hotspot tap targets are
+           both descendants painted through this same transform, so they
+           scale up by the same 20% for free, staying pixel-aligned with the
+           bigger art. transform-origin pinned to the top edge (see below)
+           means that growth bleeds only downward, toward the lockbar/dock,
+           instead of also pushing up into whatever sits above. */
+        transform-origin: 50% 0%;
+        transform: translate(var(--island-dx), var(--island-dy)) scale(1.2);
       }
       .island img { width: 100%; height: 100%; }
       /* Icons are a horizontal row above the island, not the desktop's
@@ -775,17 +770,9 @@
          order:0 puts this ahead of the island (order:1) in the flex column,
          so the icon row reads first and the troll land sits underneath it;
          the lockbar/dock (order:3) is untouched and keeps its spot at the
-         bottom. margin-top:auto makes .apps (not the island) claim the
-         column's leftover space in the home phase, since it's now the
-         first visible item of the group — the matching
-         body[data-phase="home"] .island rule below zeroes the island's own
-         margin-top so the two don't both try to claim it, which would split
-         the leftover space into two gaps and pull the icon row away from
-         the island instead of sitting flush above it. margin-bottom:-1dvh
-         is the same waterfall-clearance nudge the island used to carry
-         (see the comment there) — the item needing extra room to clear its
-         own overflow is again the one right at that edge, just swapped from
-         the island's bottom to the icon row's bottom. */
+         bottom. Both margins are now small fixed gaps rather than an auto
+         push — see the .island rule above for where the leftover column
+         space actually goes instead (.lockbar/.dock, not .apps). */
       .apps {
         position: static !important; top: auto !important; left: auto !important;
         right: auto !important; bottom: auto !important;
@@ -794,31 +781,38 @@
         transform: translate(var(--apps-dx), var(--apps-dy)) !important;
         display: grid !important; grid-template-columns: repeat(4, 1fr) !important;
         width: 100% !important; max-width: min(520px, 94vw) !important;
-        /* Bottom margin (not top — see the comment above) is what raises the
-           icon row itself higher without moving the island: growing apps'
-           own trailing space shrinks how much of the column's leftover
-           space its margin-top:auto has left to claim, so apps' top edge
-           rises by the same amount its box grew, while the island's own
-           layout box (whose start position is just "wherever apps' bottom
-           edge lands") ends up in the exact same place — only the island's
-           painted scale(1.2) (plus its translateY nudge above) moves around
-           that unchanged box, so raising apps here is what keeps the land
-           clear of the icon row above it. 230px per feedback that the row
-           needed to sit way higher, up from the original 90px. */
-        margin: auto auto 230px !important; padding: 0 10px !important;
+        margin: 10px auto 16px !important; padding: 0 10px !important;
         gap: 8px 1px !important;
         order: 0;
       }
-      /* Only takes effect once .apps is actually visible and carrying the
-         push (home phase) — during lock, .apps is display:none and the
-         island keeps its own margin-top:auto from the base rule above. */
-      body[data-phase="home"] .island { margin-top: 0; }
+      /* Zeroes the base rule's 14px margin-top — .apps is already right
+         above it with its own small gap (see .apps margin above), so the
+         island doesn't need its own additional top offset on top of that.
+         A slightly bigger scale than the lock-phase base (1.2 → 1.35) — the
+         home cluster has more room to bleed downward into before it meets
+         .dock's own margin-top:auto push (see .dock below), whereas lock's
+         1.2 has to stay clear of the tagline/track just under it. */
+      body[data-phase="home"] .island {
+        margin-top: 0;
+        transform: translate(var(--island-dx), var(--island-dy)) scale(1.35);
+      }
       .app-tile { width: 36px; height: 36px; }
-      /* The dock/lockbar just follow in normal flow after the island —
-         .apps now carries the auto-margin push for the group (see above). */
-      .lockbar { order: 3; margin-top: 0; }
+      /* margin-top:auto (only in-flow during lock — see body:not([data-
+         phase="lock"]) .lockbar above, which pulls it out of flow entirely
+         otherwise) claims the leftover space below the island, pinning the
+         tagline/track to the bottom instead of leaving a dead gap under the
+         topbar the way the old island-side auto-margin did. */
+      .lockbar { order: 3; margin-top: auto; }
+      /* Same idea as .lockbar above, but for the home phase: margin-top:auto
+         claims the leftover space between island and dock (not .apps' —
+         .apps already has its own small fixed gap above), pinning the dock
+         to the screen's bottom edge the way a real home-screen dock
+         behaves, while icons+island stay flush under the header with no
+         dead space between them. Only takes effect in the home phase since
+         .dock is display:none otherwise (see the
+         body:not([data-phase="home"]) .dock rule above). */
       .dock {
-        order: 3; margin-top: 0;
+        order: 3; margin-top: auto;
         /* --dock-ico/--dock-item/svg size all +20% (34→41, 42→50, 16→19)
            per feedback on the X/TikTok/Radio dock icons specifically. */
         --dock-pad-y: 8px; --dock-pad-x: 14px; --dock-ico: 41px;
