@@ -751,8 +751,14 @@
         margin-top: auto; margin-bottom: 0;
         order: 1;
         /* Additive fine-tune on top of the auto-margin stack above — see
-           --island-dx/--island-dy at :root. */
-        transform: translate(var(--island-dx), var(--island-dy));
+           --island-dx/--island-dy at :root. scale(1.2) grows the land 20%
+           visually without touching its layout footprint (width/aspect-ratio
+           above stay the box's real size, so the flex math and .apps'
+           margin-bottom push are unaffected) — the baked-in landmark art and
+           the .island-hotspot tap targets are both descendants painted
+           through this same transform, so they scale up by the same 20%
+           for free, staying pixel-aligned with the bigger art. */
+        transform: translate(var(--island-dx), var(--island-dy)) scale(1.2);
       }
       .island img { width: 100%; height: 100%; }
       /* Icons are a horizontal row above the island, not the desktop's
@@ -784,12 +790,14 @@
            icon row itself higher without moving the island: growing apps'
            own trailing space shrinks how much of the column's leftover
            space its margin-top:auto has left to claim, so apps' top edge
-           rises by the same amount its box grew, while the island (whose
-           start position is just "wherever apps' bottom edge lands")
-           ends up in the exact same place. 90px = 3 of this breakpoint's
-           30px app-tile icons, per feedback that the row sat too close to
-           the island. */
-        margin: auto auto 90px !important; padding: 0 10px !important;
+           rises by the same amount its box grew, while the island's own
+           layout box (whose start position is just "wherever apps' bottom
+           edge lands") ends up in the exact same place — only the island's
+           painted scale(1.2) grows around that unchanged box, so raising
+           apps here is what keeps the now-bigger land clear of the icon
+           row above it. 112px, up from the original 90px (3 app-tile
+           icons), to buy the extra headroom the 20%-bigger land eats into. */
+        margin: auto auto 112px !important; padding: 0 10px !important;
         gap: 8px 1px !important;
         order: 0;
       }
