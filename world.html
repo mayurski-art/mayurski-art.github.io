@@ -1609,6 +1609,15 @@
        Last updated: 15 Aug 2026. */
     const MILES_RAN = 417;
 
+    /* Free-form per-element position/scale/rotation/text overrides, keyed by
+       a generated CSS selector (see cssPath in the ?edit=1 editor further
+       down). Empty until something has been tuned with the editor and its
+       "Copy config" output pasted back in here — that's what makes an
+       edit-mode tweak permanent for real visitors instead of living only in
+       one browser's localStorage. Applied to both the lock screen and the
+       home screen; whichever one isn't showing just applies invisibly. */
+    const SAVED_ELEMENT_EDITS = {};
+
     /* `l`/`t` are the object's ground-contact point as a % of the island
        box (left/top, plotted against trollrunner-island-land.svg). `h` is
        the rendered height as a % of the island box; width comes from the
@@ -1688,6 +1697,21 @@
 
     const $ = id => document.getElementById(id);
     const body = document.body;
+
+    /* Applies one SAVED_ELEMENT_EDITS-shaped entry to an element using the
+       standalone `translate`/`scale`/`rotate` CSS properties rather than
+       `transform` — those compose on top of whatever `transform` the
+       element already gets from elsewhere (the runner's drag position, the
+       island's baked-in phone-layout scale) instead of clobbering it, so
+       this is safe to layer onto literally anything on the page. */
+    function applyElementEdit(el, e) {
+      el.style.translate = `${e.tx || 0}px ${e.ty || 0}px`;
+      el.style.scale = String(e.scale ?? 1);
+      el.style.rotate = `${e.rot || 0}deg`;
+      el.style.opacity = e.hidden ? '0.15' : '';
+      el.style.pointerEvents = e.hidden ? 'none' : '';
+      if (e.text != null) el.textContent = e.text;
+    }
 
     /* Single place phases change. Hidden layers are faded with opacity, which
        leaves them focusable, so each phase change also parks the inactive ones
@@ -2100,6 +2124,236 @@
         if (e.target === sheetEl) document.getElementById(`${sheetEl.id}-close`)?.click();
       });
     });
+
+    /* Permanent edits apply for everyone, on both screens, regardless of
+       ?edit — SAVED_ELEMENT_EDITS is empty until the editor below has been
+       used and its output pasted in above. */
+    for (const [key, e] of Object.entries(SAVED_ELEMENT_EDITS)) {
+      const el = document.querySelector(key);
+      if (el) applyElementEdit(el, e);
+    }
+
+    /* ---------- universal element editor (?edit=1) ----------
+       Covers everything the landmark loop above doesn't reach: individual
+       app icons, the lock-screen track/runner/labels, the dock pill,
+       headings, footer text — any element on either screen. Click "Pick"
+       (or Alt+click) a target, then: drag to move it, wheel to scale it,
+       shift+wheel to rotate it, arrow keys to nudge it 1px (10px with
+       shift), dblclick a leaf (no nested elements) to rename its text, H to
+       hide/show, R to reset. Works on the lock screen and the home screen —
+       use the Boot/Lock/Home buttons to force whichever one you want to
+       edit, since normally only one is visible at a time. Edits persist to
+       localStorage as you go; "Copy config" prints a SAVED_ELEMENT_EDITS
+       block to paste in near the top of this script to make them
+       permanent, the same hand-off the landmark panel above uses. */
+    if (new URLSearchParams(location.search).has('edit')) {
+      const STORE_KEY = 'trollrunner_world_edits_v1';
+      let liveEdits;
+      try { liveEdits = { ...SAVED_ELEMENT_EDITS, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') }; }
+      catch { liveEdits = { ...SAVED_ELEMENT_EDITS }; }
+      const persist = () => localStorage.setItem(STORE_KEY, JSON.stringify(liveEdits));
+
+      const cssPath = el => {
+        if (el.id) return '#' + CSS.escape(el.id);
+        if (el === document.body) return 'body';
+        const parent = el.parentElement;
+        if (!parent) return el.tagName.toLowerCase();
+        const sameTag = Array.from(parent.children).filter(c => c.tagName === el.tagName);
+        const idx = sameTag.indexOf(el) + 1;
+        const seg = el.tagName.toLowerCase() + (sameTag.length > 1 ? `:nth-of-type(${idx})` : '');
+        return cssPath(parent) + ' > ' + seg;
+      };
+      const entry = key => liveEdits[key] || (liveEdits[key] = { tx: 0, ty: 0, scale: 1, rot: 0 });
+      let picking = false, selected = null, selKey = null;
+
+      for (const [key, e] of Object.entries(liveEdits)) {
+        const el = document.querySelector(key);
+        if (el) applyElementEdit(el, e);
+      }
+
+      /* ---- UI chrome ---- */
+      const bar = document.createElement('div');
+      bar.className = 'rw-edit-ui';
+      bar.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99999;display:flex;gap:6px;flex-wrap:wrap;font:700 11px/1 monospace;';
+      const mkBtn = (label, on) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = label;
+        b.className = 'rw-edit-ui';
+        b.style.cssText = 'padding:7px 10px;border-radius:7px;border:none;background:#0ff;color:#000;cursor:pointer;';
+        b.addEventListener('click', on);
+        bar.appendChild(b);
+        return b;
+      };
+      const pickBtn = mkBtn('Pick: off', () => {
+        picking = !picking;
+        pickBtn.textContent = picking ? 'Pick: on' : 'Pick: off';
+        pickBtn.style.background = picking ? '#0f0' : '#0ff';
+      });
+      mkBtn('Boot', () => setPhase('boot'));
+      mkBtn('Lock', () => setPhase('lock'));
+      mkBtn('Home', () => setPhase('home'));
+      mkBtn('Copy config', () => {
+        const rows = Object.entries(liveEdits)
+          .map(([k, e]) => `  ${JSON.stringify(k)}: ${JSON.stringify(e)}`).join(',\n');
+        navigator.clipboard?.writeText(`const SAVED_ELEMENT_EDITS = {\n${rows}\n};`);
+        info.textContent = 'Copied!';
+        setTimeout(renderInfo, 900);
+      });
+      mkBtn('Reset all', () => {
+        if (!confirm('Clear every element edit on this page?')) return;
+        for (const key of Object.keys(liveEdits)) {
+          const el = document.querySelector(key);
+          if (el) applyElementEdit(el, { tx: 0, ty: 0, scale: 1, rot: 0 });
+        }
+        liveEdits = {};
+        persist();
+        deselect();
+      });
+      document.body.appendChild(bar);
+
+      const info = document.createElement('div');
+      info.className = 'rw-edit-ui';
+      info.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#000c;color:#0f0;font:11px/1.5 monospace;padding:8px;max-height:26vh;overflow:auto;white-space:pre-wrap;';
+      document.body.appendChild(info);
+      const renderInfo = () => {
+        info.textContent = selected
+          ? `${selKey}\n${JSON.stringify(entry(selKey))}\ndrag=move  wheel=scale  shift+wheel=rotate  arrows=nudge (shift=10px)  dblclick=rename leaf text  H=hide/show  R=reset this  Esc=deselect`
+          : `Pick an element (button above, or Alt+click anywhere) to edit it. ${Object.keys(liveEdits).length} saved edit(s) on this page.`;
+      };
+      renderInfo();
+
+      const hover = document.createElement('div');
+      hover.className = 'rw-edit-ui';
+      hover.style.cssText = 'position:fixed;z-index:99997;pointer-events:none;outline:2px dashed #0ff;display:none;';
+      document.body.appendChild(hover);
+      const selectBox = document.createElement('div');
+      selectBox.className = 'rw-edit-ui';
+      selectBox.style.cssText = 'position:fixed;z-index:99997;pointer-events:none;outline:2px solid #0f0;display:none;';
+      document.body.appendChild(selectBox);
+      const placeBox = (box, el) => {
+        const r = el.getBoundingClientRect();
+        box.style.left = r.left + 'px'; box.style.top = r.top + 'px';
+        box.style.width = r.width + 'px'; box.style.height = r.height + 'px';
+        box.style.display = 'block';
+      };
+
+      const select = el => {
+        selected = el; selKey = cssPath(el);
+        entry(selKey);
+        placeBox(selectBox, el);
+        renderInfo();
+      };
+      const deselect = () => { selected = null; selKey = null; selectBox.style.display = 'none'; renderInfo(); };
+
+      document.addEventListener('mousemove', e => {
+        if (!picking) { hover.style.display = 'none'; return; }
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        if (!el || el.closest('.rw-edit-ui')) { hover.style.display = 'none'; return; }
+        placeBox(hover, el);
+      });
+      window.addEventListener('resize', () => { if (selected) placeBox(selectBox, selected); });
+      window.addEventListener('scroll', () => { if (selected) placeBox(selectBox, selected); }, true);
+
+      // Pick-mode click: consumes the click (no navigation) and selects
+      // whatever was under the cursor.
+      document.addEventListener('click', e => {
+        if (e.target.closest('.rw-edit-ui')) return;
+        if (!picking) return;
+        e.preventDefault(); e.stopPropagation();
+        select(e.target);
+        picking = false;
+        pickBtn.textContent = 'Pick: off';
+        pickBtn.style.background = '#0ff';
+        hover.style.display = 'none';
+      }, true);
+
+      // Alt+click selects directly without switching Pick on first — quicker
+      // once you know it, and leaves normal link-testing alone the rest of
+      // the time.
+      document.addEventListener('click', e => {
+        if (!e.altKey || e.target.closest('.rw-edit-ui')) return;
+        e.preventDefault(); e.stopPropagation();
+        select(e.target);
+      }, true);
+
+      // Whatever's currently selected shouldn't navigate when clicked again
+      // to start a drag.
+      document.addEventListener('click', e => {
+        if (selected && (e.target === selected || selected.contains(e.target))) {
+          e.preventDefault(); e.stopPropagation();
+        }
+      }, true);
+
+      let dragging = false, startX = 0, startY = 0, baseTx = 0, baseTy = 0;
+      document.addEventListener('pointerdown', e => {
+        if (!selected || picking) return;
+        if (!(e.target === selected || selected.contains(e.target))) return;
+        dragging = true; startX = e.clientX; startY = e.clientY;
+        const en = entry(selKey); baseTx = en.tx; baseTy = en.ty;
+        e.preventDefault();
+      });
+      document.addEventListener('pointermove', e => {
+        if (!dragging) return;
+        const en = entry(selKey);
+        en.tx = baseTx + (e.clientX - startX);
+        en.ty = baseTy + (e.clientY - startY);
+        applyElementEdit(selected, en);
+        placeBox(selectBox, selected);
+        renderInfo();
+      });
+      document.addEventListener('pointerup', () => { if (dragging) { dragging = false; persist(); } });
+
+      document.addEventListener('wheel', e => {
+        if (!selected || !(e.target === selected || selected.contains(e.target))) return;
+        e.preventDefault();
+        const en = entry(selKey);
+        if (e.shiftKey) en.rot = (en.rot || 0) + (e.deltaY > 0 ? -3 : 3);
+        else en.scale = Math.max(0.1, Math.min(6, (en.scale ?? 1) + (e.deltaY > 0 ? -0.05 : 0.05)));
+        applyElementEdit(selected, en);
+        placeBox(selectBox, selected);
+        renderInfo();
+        persist();
+      }, { passive: false });
+
+      document.addEventListener('keydown', e => {
+        if (!selected || document.activeElement?.isContentEditable) return;
+        const step = e.shiftKey ? 10 : 1;
+        const en = entry(selKey);
+        let used = true;
+        if (e.key === 'ArrowLeft') en.tx -= step;
+        else if (e.key === 'ArrowRight') en.tx += step;
+        else if (e.key === 'ArrowUp') en.ty -= step;
+        else if (e.key === 'ArrowDown') en.ty += step;
+        else if (e.key.toLowerCase() === 'h') en.hidden = !en.hidden;
+        else if (e.key.toLowerCase() === 'r') { en.tx = 0; en.ty = 0; en.scale = 1; en.rot = 0; en.hidden = false; }
+        else if (e.key === 'Escape') { deselect(); used = false; }
+        else used = false;
+        if (!used) return;
+        e.preventDefault();
+        if (selected) {
+          applyElementEdit(selected, en);
+          placeBox(selectBox, selected);
+          renderInfo();
+          persist();
+        }
+      });
+
+      document.addEventListener('dblclick', e => {
+        if (!selected || !(e.target === selected || selected.contains(e.target))) return;
+        if (selected.children.length) return; // leave anything with nested markup (icons, etc.) alone
+        e.preventDefault();
+        selected.contentEditable = 'true';
+        selected.focus();
+        const onBlur = () => {
+          selected.contentEditable = 'false';
+          entry(selKey).text = selected.textContent;
+          persist();
+          renderInfo();
+          selected.removeEventListener('blur', onBlur);
+        };
+        selected.addEventListener('blur', onBlur);
+      });
+    }
 
     /* ================= BOOT SEQUENCE ================= */
     const BOOT_LINES = ['lacing up', 'stretching', 'trolololol'];
