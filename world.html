@@ -930,19 +930,21 @@
          columns already roughly halves the total height, no extra
          magnification needed on top of that. */
       html.mobile-preview .apps {
-        top: 90px !important; left: 22px !important;
+        top: 64px !important; left: 22px !important;
         /* Deliberately not --apps-dx/--apps-dy — same reasoning as the
            .island rule below: those are tuned for real phones only and
            shouldn't leak into this unrelated desktop-wide preview context. */
         transform: none !important;
         display: grid !important; grid-template-columns: repeat(2, 1fr) !important;
-        width: 180px !important; max-width: 180px !important;
-        gap: 16px 14px !important;
+        width: 168px !important; max-width: 168px !important;
+        gap: clamp(6px, 1.4vh, 16px) 12px !important;
       }
-      /* A bit bigger than the base 62px tile — this preview has a whole
-         desktop window's worth of room, no reason to stay phone-sized. */
-      html.mobile-preview .app-tile { width: 78px; height: 78px; }
-      html.mobile-preview .app-name { font-size: 13px; }
+      /* vh-based (not a flat 78px) so all 10 tiles' worth of rows — 5 at
+         2 columns — stay inside the window instead of running off the
+         bottom on shorter desktop windows; still caps near the old size
+         on tall ones. */
+      html.mobile-preview .app-tile { width: clamp(44px, 6vh, 74px); height: clamp(44px, 6vh, 74px); }
+      html.mobile-preview .app-name { font-size: clamp(9px, 1.15vh, 13px); }
       html.mobile-preview .island {
         /* width:auto (not a fixed vw/px value) is the actual fix here —
            aspect-ratio only derives an axis that's auto. With an explicit
@@ -956,18 +958,21 @@
            backstop for extreme aspect ratios. */
         position: relative; left: auto; top: auto;
         flex: 1 1 auto; min-height: 0; align-self: center;
-        width: auto; max-width: min(98vw, 1700px);
+        width: auto; max-width: min(98vw, 1900px);
         margin: 2px auto; aspect-ratio: 16 / 9;
         /* Deliberately NOT --island-dx-lock/--island-dy-lock — those are
            tuned for real phones only. This is the desktop-wide preview of
            the phone shell, an unrelated context, so it keeps its own
            always-zero offset instead of inheriting the phone tuning.
-           Scaled down and re-centered in its own footprint (transform
-           doesn't touch the box's reserved layout space, just what's
-           painted inside it) so the whole island — and its landmarks,
-           which are baked into the same image and scale down with it —
-           stays inside the viewport instead of filling nearly all of it. */
-        transform: scale(0.62);
+           Scaled up (was 0.62 — the app rail above now takes noticeably
+           less width/height, so there's room to grow) and re-centered in
+           its own footprint (transform doesn't touch the box's reserved
+           layout space, just what's painted inside it) so the whole
+           island — and its landmarks, which are baked into the same image
+           and scale up with it in lockstep, staying pinned to their land
+           position — grows together instead of the land and its props
+           scaling independently. */
+        transform: scale(0.82);
       }
     }
 
@@ -1937,6 +1942,11 @@
       $('lockbar').inert = next !== 'lock';
       $('dock').inert = next !== 'home';
       $('boot').inert = next !== 'boot';
+      // The island art itself carries real .island-hotspot links (terminal,
+      // stickers booth, ...) baked into the landmarks — those shouldn't be
+      // tappable/focusable until the run-to-enter gate is actually cleared,
+      // same as the dock icons below it.
+      $('island').inert = next !== 'home';
     }
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
     const narrow = window.matchMedia('(max-width: 720px)');
