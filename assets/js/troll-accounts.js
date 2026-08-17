@@ -57,6 +57,33 @@
     return GAME_META[gameId] || { name: gameId, icon: '🕹️' };
   }
 
+  // Profile banner catalog — a fixed set of pieces (assets/images/banners/
+  // in the main repo), picked like a preset rather than uploaded. Absolute
+  // URL for the same cross-origin reason as TA_FALLBACK_AVATAR below: this
+  // script loads on every sibling subdomain, where a relative path would
+  // resolve against the wrong site.
+  const BANNER_BASE = 'https://mayurski-art.github.io/assets/images/banners/';
+  const BANNER_DEFS = [
+    { key: 'banner-01', label: 'Gladiator' },
+    { key: 'banner-02', label: 'Boardroom' },
+    { key: 'banner-03', label: 'Heist' },
+    { key: 'banner-04', label: 'Deep Sea' },
+    { key: 'banner-05', label: 'Storm Runner' },
+    { key: 'banner-06', label: 'Buy $TROLL' },
+    { key: 'banner-07', label: 'The Offer' },
+    { key: 'banner-08', label: 'Diamond Hands' },
+    { key: 'banner-09', label: 'Troll Squad' },
+    { key: 'banner-10', label: 'Blade Runner' },
+    { key: 'banner-11', label: 'Jungle Ambush' },
+    { key: 'banner-12', label: 'Unleashed' },
+    { key: 'banner-13', label: 'Speed Of Light' },
+    { key: 'banner-14', label: 'The Trading Floor' },
+    { key: 'banner-15', label: 'The Coven' },
+  ].map(b => ({ ...b, img: `${BANNER_BASE}${b.key}.jpg` }));
+  function bannerUrl(key) {
+    return BANNER_DEFS.find(b => b.key === key)?.img || null;
+  }
+
   // Password-reset links land on the main site (the only place with the
   // reset UI); local/preview hosts land on themselves for testing.
   function recoveryRedirectUrl() {
@@ -254,12 +281,12 @@
     const sb = getClient();
     if (!sb || !userId) return null;
     if (!profilePromise) {
-      // `tags` only exists once troll_profile_tags.sql has been run; without
-      // the fallback an un-migrated project would 400 here and break login
-      // everywhere, not just the tag pills.
+      // `tags`/`banner_key` only exist once their migrations have been run;
+      // without the fallback an un-migrated project would 400 here and break
+      // login everywhere, not just the tag pills / banner.
       profilePromise = sb
         .from('troll_profiles')
-        .select(`${PROFILE_COLUMNS}, tags`)
+        .select(`${PROFILE_COLUMNS}, tags, banner_key`)
         .eq('id', userId)
         .maybeSingle()
         .then(res => (res.error
@@ -294,6 +321,8 @@
       xp: cachedProfile.xp || 0,
       avatarUrl: cachedProfile.avatar_url || null,
       avatar: null,
+      bannerKey: cachedProfile.banner_key || null,
+      bannerUrl: bannerUrl(cachedProfile.banner_key),
       joinedAt: cachedProfile.created_at || null,
       tags: normalizeProfileTags(cachedProfile.tags),
       autoJoinGroups: cachedProfile.auto_join_groups !== false,
@@ -425,6 +454,17 @@
     if (error) throw friendlyError(error, 'Could not update the bio.');
     await refreshProfile();
     if (bio) void awardXp('profile_bio', 'settings');
+    return toPublicSession();
+  }
+
+  async function setBanner(next) {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    const key = next ? String(next).trim() : null;
+    if (key && !BANNER_DEFS.some(b => b.key === key)) throw new Error('Unknown banner.');
+    const { error } = await sb.from('troll_profiles').update({ banner_key: key }).eq('id', cachedProfile.id);
+    if (error) throw friendlyError(error, 'Could not update the banner.');
+    await refreshProfile();
     return toPublicSession();
   }
 
@@ -1087,13 +1127,13 @@
 
   async function getPublicProfile(userId) {
     const sb = getClient();
-    const base = 'id, username, avatar_url, bio, level';
+    const base = 'id, username, avatar_url, bio, level, xp';
     let { data, error } = await sb.from('troll_profiles')
-      .select(`${base}, tags`)
+      .select(`${base}, tags, banner_key`)
       .eq('id', userId)
       .maybeSingle();
-    // Same pre-migration fallback as loadProfile — a missing tags column must
-    // not take the whole profile card down with it.
+    // Same pre-migration fallback as loadProfile — a missing tags/banner_key
+    // column must not take the whole profile card down with it.
     if (error) {
       ({ data, error } = await sb.from('troll_profiles')
         .select(base)
@@ -1219,6 +1259,24 @@
       .ta-close:hover { background: #2a372e; }
       .ta-body { padding: 14px; display: grid; gap: 14px; }
       .ta-row { display: flex; align-items: center; gap: 12px; }
+      /* Profile banner — a full-bleed strip pulled out to the body's own
+         -14px padding, with the row right under it pulled up so the avatar
+         sits half-on-half-off (Twitter-style). Both offsets key off ta-body's
+         padding: 14px, so they only need to change together. */
+      .ta-banner { position: relative; margin: -14px -14px 0; height: 108px; overflow: hidden;
+        background: linear-gradient(160deg, #1c2620, #0a0d0b); border-bottom: 2px solid #000; }
+      .ta-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .ta-banner-edit { position: absolute; right: 8px; bottom: 8px; font-size: 11px; padding: 3px 9px; }
+      .ta-row--banner { margin-top: -30px; position: relative; z-index: 1; }
+      .ta-row--banner .ta-banner-ring { border-radius: 8px; box-shadow: 0 0 0 3px #0a0d0b, inset 0 0 0 1px rgba(77,255,115,0.24); }
+      @media (max-width: 480px) { .ta-banner { height: 80px; } .ta-row--banner { margin-top: -24px; } }
+      .ta-banner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+      .ta-banner-card { display: grid; gap: 5px; padding: 5px; font: inherit; color: #cfe9cf; text-align: center;
+        border: 2px solid #000; border-radius: 6px; background: rgba(255,255,255,0.04); cursor: pointer; }
+      .ta-banner-card img { width: 100%; aspect-ratio: 3/1; object-fit: cover; border-radius: 3px; display: block;
+        background: linear-gradient(180deg, #17231b, #0c100e); }
+      .ta-banner-card span { font-size: 12px; }
+      .ta-banner-card.is-selected { border-color: #4dff73; box-shadow: 0 0 0 1px #4dff73, 0 0 10px rgba(77,255,115,0.35); }
       .ta-avatar { width: 64px; height: 64px; flex: none; display: grid; place-items: center; font-size: 34px;
         border: 2px solid #000; border-radius: 8px; overflow: hidden;
         background: linear-gradient(180deg, #17231b, #0c100e); box-shadow: inset 0 0 0 1px rgba(77,255,115,0.24); }
@@ -1239,8 +1297,17 @@
         letter-spacing: 0.06em; text-transform: uppercase; color: #fff; border: 2px solid #000; border-radius: 4px;
         background: #8fa396; }
       .ta-muted { color: #8fa396; font-size: 12px; }
-      .ta-bar { height: 12px; border: 2px solid #000; border-radius: 4px; background: #0c100e; overflow: hidden; }
-      .ta-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #1ec94f, #4dff73); }
+      .ta-xp-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px;
+        font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #8cffbf; }
+      .ta-xp-head strong { color: #ffd84d; font-size: 13px; letter-spacing: normal; text-transform: none; }
+      .ta-bar { height: 14px; border: 2px solid #000; border-radius: 999px; background: #0c100e; overflow: hidden;
+        box-shadow: inset 0 1px 4px rgba(0,0,0,0.6); }
+      .ta-bar > span { display: block; height: 100%; border-radius: inherit; position: relative;
+        background: linear-gradient(90deg, #1ec94f, #4dff73); box-shadow: 0 0 10px rgba(77,255,115,0.55);
+        transition: width 0.5s ease; }
+      .ta-bar > span::after { content: ''; position: absolute; inset: 0;
+        background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 60%); }
+      .ta-bar--sm { height: 5px; border-width: 1.5px; }
       .ta-section { display: grid; gap: 8px; padding: 12px; border: 2px solid #000; border-radius: 6px;
         background: rgba(0,0,0,0.28); }
       .ta-section h4 { margin: 0; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #8cffbf; }
@@ -1567,6 +1634,53 @@
     return { pct, xp, next: ceil };
   }
 
+  // Always-appendable, like profileTagsNode: hidden (no markup) when there's
+  // no banner set, so every call site can just append it without branching.
+  // `onEdit`, if given, adds a small "change banner" button (own profile only).
+  function bannerNode(bannerKeyOrUrl, onEdit) {
+    const url = bannerKeyOrUrl && bannerKeyOrUrl.includes('/') ? bannerKeyOrUrl : bannerUrl(bannerKeyOrUrl);
+    const wrap = document.createElement('div');
+    wrap.className = 'ta-banner';
+    if (!url) { wrap.hidden = true; return wrap; }
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    wrap.appendChild(img);
+    if (onEdit) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ta-btn ta-btn--ghost ta-banner-edit';
+      btn.textContent = 'Change banner';
+      btn.addEventListener('click', onEdit);
+      wrap.appendChild(btn);
+    }
+    return wrap;
+  }
+
+  // Compact XP bar + level readout, shared by the own-profile modal, the
+  // other-runner drawer, and the richer viewer-profile-card in index.html.
+  function xpBarNode(session) {
+    const progress = xpProgress(session);
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<div class="ta-xp-head"><span>Level ${Math.max(1, session?.level || 1)}</span><strong></strong></div>` +
+      `<div class="ta-bar"><span></span></div>`;
+    wrap.querySelector('.ta-xp-head strong').textContent = `${progress.xp.toLocaleString()} / ${progress.next.toLocaleString()} XP`;
+    wrap.querySelector('.ta-bar > span').style.width = `${progress.pct}%`;
+    return wrap;
+  }
+
+  // Just the bar, no head/labels — for tight spaces like a roster row.
+  function miniXpBarNode(session) {
+    const progress = xpProgress(session);
+    const bar = document.createElement('div');
+    bar.className = 'ta-bar ta-bar--sm';
+    bar.title = `${progress.xp.toLocaleString()} / ${progress.next.toLocaleString()} XP`;
+    const span = document.createElement('span');
+    span.style.width = `${progress.pct}%`;
+    bar.appendChild(span);
+    return bar;
+  }
+
   const XP_EVENT_LABELS = {
     daily_login: 'Daily login',
     login_streak: 'Login streak',
@@ -1596,15 +1710,18 @@
       return;
     }
     const { session, stats, totals } = data;
-    const progress = xpProgress(session);
     body.innerHTML = '';
 
+    const banner = bannerNode(session.bannerUrl, () => void openSettings());
+    if (!banner.hidden) body.appendChild(banner);
+
     const row = document.createElement('div');
-    row.className = 'ta-row';
+    row.className = banner.hidden ? 'ta-row' : 'ta-row ta-row--banner';
     const avatarWrap = document.createElement('button');
     avatarWrap.type = 'button';
     avatarWrap.className = 'ta-avatar-edit';
     avatarWrap.title = 'Change profile picture';
+    if (!banner.hidden) avatarWrap.classList.add('ta-banner-ring');
     avatarWrap.appendChild(avatarNode(session));
     const avatarEditBadge = document.createElement('span');
     avatarEditBadge.className = 'ta-avatar-edit-badge';
@@ -1663,9 +1780,8 @@
 
     const xpSection = document.createElement('div');
     xpSection.className = 'ta-section';
-    xpSection.innerHTML = `<h4>XP</h4><div class="ta-bar"><span></span></div><div class="ta-muted"></div>`;
-    xpSection.querySelector('.ta-bar > span').style.width = `${progress.pct}%`;
-    xpSection.querySelector('.ta-muted').textContent = `${progress.xp} XP — next level at ${progress.next}`;
+    xpSection.innerHTML = '<h4>XP</h4>';
+    xpSection.appendChild(xpBarNode(session));
     body.appendChild(xpSection);
 
     body.appendChild(friendSearchSection());
@@ -1852,6 +1968,45 @@
     }, ''));
     avatarSection.append(avatarRow, avatarBtn, avatarStatus, recentBtn, recentGrid, recentStatus);
     body.appendChild(avatarSection);
+
+    // Profile banner — fixed preset catalog (BANNER_DEFS above), picked like
+    // the avatar-from-recent flow rather than uploaded.
+    const bannerSection = document.createElement('div');
+    bannerSection.className = 'ta-section';
+    bannerSection.innerHTML = `<h4>Profile banner</h4><p class="ta-muted">Shown behind your avatar on your profile.</p>`;
+    const bannerGrid = document.createElement('div');
+    bannerGrid.className = 'ta-banner-grid';
+    const bannerStatus = mkStatus();
+    let selectedBannerKey = session.bannerKey;
+    const renderBannerGrid = () => {
+      bannerGrid.innerHTML = '';
+      const noneCard = document.createElement('button');
+      noneCard.type = 'button';
+      noneCard.className = `ta-banner-card${selectedBannerKey ? '' : ' is-selected'}`;
+      noneCard.innerHTML = '<img alt=""><span>None</span>';
+      noneCard.addEventListener('click', () => run(noneCard, bannerStatus, async () => {
+        await setBanner(null);
+        selectedBannerKey = null;
+        renderBannerGrid();
+      }, 'Banner cleared.'));
+      bannerGrid.appendChild(noneCard);
+      BANNER_DEFS.forEach(b => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = `ta-banner-card${b.key === selectedBannerKey ? ' is-selected' : ''}`;
+        card.innerHTML = `<img src="${b.img}" alt=""><span></span>`;
+        card.querySelector('span').textContent = b.label;
+        card.addEventListener('click', () => run(card, bannerStatus, async () => {
+          await setBanner(b.key);
+          selectedBannerKey = b.key;
+          renderBannerGrid();
+        }, 'Banner updated.'));
+        bannerGrid.appendChild(card);
+      });
+    };
+    renderBannerGrid();
+    bannerSection.append(bannerGrid, bannerStatus);
+    body.appendChild(bannerSection);
 
     // Desktop wallpaper — list + apply/setters live in index.html (shared
     // global scope) so new wallpapers only need an entry in TD_WALLPAPERS.
@@ -2353,9 +2508,14 @@
     if (!profile) { body.innerHTML = '<p class="ta-muted">Couldn’t find that runner.</p>'; return; }
     body.innerHTML = '';
 
+    const banner = bannerNode(profile.banner_key);
+    if (!banner.hidden) body.appendChild(banner);
+
     const row = document.createElement('div');
-    row.className = 'ta-row';
-    row.appendChild(avatarNode({ avatarUrl: profile.avatar_url }));
+    row.className = banner.hidden ? 'ta-row' : 'ta-row ta-row--banner';
+    const avatar = avatarNode({ avatarUrl: profile.avatar_url });
+    if (!banner.hidden) avatar.classList.add('ta-banner-ring');
+    row.appendChild(avatar);
     const meta = document.createElement('div');
     meta.innerHTML = `<p class="ta-name" style="display:flex;align-items:center;"></p><span class="ta-pill"></span>`;
     const nameEl = meta.querySelector('.ta-name');
@@ -2376,6 +2536,12 @@
     });
     row.appendChild(meta);
     body.appendChild(row);
+
+    const xpSection = document.createElement('div');
+    xpSection.className = 'ta-section';
+    xpSection.innerHTML = '<h4>XP</h4>';
+    xpSection.appendChild(xpBarNode({ level: profile.level, xp: profile.xp }));
+    body.appendChild(xpSection);
 
     if (profile.bio) {
       const bio = document.createElement('div');
@@ -2968,6 +3134,13 @@
     getProfileTagDefs: () => { fetchTagDefs(); return tagDefsCache || []; },
     normalizeProfileTags,
     profileTagsNode,
+    bannerDefs: () => BANNER_DEFS,
+    bannerUrl,
+    bannerNode,
+    setBanner,
+    xpProgress,
+    xpBarNode,
+    miniXpBarNode,
     openDmPanel,
     openDmThread,
     getDmHistory,
