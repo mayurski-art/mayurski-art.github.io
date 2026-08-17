@@ -123,8 +123,13 @@
          editor script) while hunting for a new value; the numbers it prints
          get pasted back in here as the permanent offset, same role the old
          "lower ~10%" margin edits used to serve by hand. */
-      --island-dx: 0px; --island-dy: 0px;
-      --apps-dx: 0px; --apps-dy: 0px;
+      /* Home screen (post-drag) land + icon-rail offset, zoom. */
+      --island-dx: 1px; --island-dy: -96px; --island-scale-home: 1.35;
+      /* Lock screen (pre-drag) land offset + zoom — kept separate from the
+         home-screen values above since the two screens don't need to line
+         up with each other at all. */
+      --island-dx-lock: -15px; --island-dy-lock: -107px; --island-scale-lock: 1.2;
+      --apps-dx: 6px; --apps-dy: -20px;
 
       /* Dock geometry, broken out so the Troll Radio button can sit on the
          same line as the X / TikTok icons without a magic number that drifts
@@ -761,7 +766,7 @@
            means that growth bleeds only downward, toward the lockbar/dock,
            instead of also pushing up into whatever sits above. */
         transform-origin: 50% 0%;
-        transform: translate(var(--island-dx), var(--island-dy)) scale(1.2);
+        transform: translate(var(--island-dx-lock), var(--island-dy-lock)) scale(var(--island-scale-lock));
       }
       .island img { width: 100%; height: 100%; }
       /* Icons are a horizontal row above the island, not the desktop's
@@ -794,7 +799,7 @@
          1.2 has to stay clear of the tagline/track just under it. */
       body[data-phase="home"] .island {
         margin-top: 0;
-        transform: translate(var(--island-dx), var(--island-dy)) scale(1.35);
+        transform: translate(var(--island-dx), var(--island-dy)) scale(var(--island-scale-home));
       }
       .app-tile { width: 36px; height: 36px; }
       /* margin-top:auto (only in-flow during lock — see body:not([data-
@@ -923,7 +928,10 @@
         flex: 1 1 auto; min-height: 0; align-self: center;
         width: auto; max-width: min(98vw, 1700px);
         margin: 2px auto; aspect-ratio: 16 / 9;
-        transform: translate(var(--island-dx), var(--island-dy));
+        transform: translate(var(--island-dx-lock), var(--island-dy-lock)) scale(var(--island-scale-lock));
+      }
+      html.mobile-preview body[data-phase="home"] .island {
+        transform: translate(var(--island-dx), var(--island-dy)) scale(var(--island-scale-home));
       }
     }
 
@@ -1713,6 +1721,94 @@
       if (e.text != null) el.textContent = e.text;
     }
 
+    /* Shared ?edit=1 chrome: a small always-there toggle button plus a
+       drawer that's completely absent (not just faded) until opened. Every
+       other bit of edit UI — drag handles, selection outlines, buttons,
+       coordinate readouts — is tagged `rw-edit-only-open` and a stylesheet
+       rule below hard-hides that class while the drawer is closed. That's
+       the fix for editor chrome covering real, interactive parts of the
+       page (the swipe-to-unlock track, a landmark you're trying to tap):
+       closed is really closed, not just visually thin. Both the landmark
+       editor and the universal element editor share this one instance so
+       there's a single toggle and a single drawer instead of two competing
+       panels stacked on top of each other. */
+    let editorChrome = null;
+    function ensureEditorChrome() {
+      if (editorChrome) return editorChrome;
+
+      const style = document.createElement('style');
+      style.textContent = `
+        body:not(.rw-edit-open) .rw-edit-only-open { display: none !important; }
+        .rw-edit-ui button { font: inherit; }
+      `;
+      document.head.appendChild(style);
+
+      const fab = document.createElement('button');
+      fab.type = 'button';
+      fab.className = 'rw-edit-ui';
+      fab.textContent = '✎';
+      fab.setAttribute('aria-label', 'Toggle editor');
+      fab.style.cssText = `
+        position: fixed; right: 10px; top: 50%; transform: translateY(-50%);
+        z-index: 100000; width: 42px; height: 42px; border-radius: 50%;
+        border: none; background: #0ff; color: #000; font-size: 18px;
+        line-height: 1; box-shadow: 0 2px 10px #0008; touch-action: manipulation;
+      `;
+      document.body.appendChild(fab);
+
+      const drawer = document.createElement('div');
+      drawer.className = 'rw-edit-ui';
+      drawer.style.cssText = `
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 99999;
+        max-height: 42vh; overflow: auto; -webkit-overflow-scrolling: touch;
+        background: #000e; color: #0f0; font: 12px/1.5 monospace;
+        padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+        display: none;
+      `;
+      document.body.appendChild(drawer);
+
+      const toolbar = document.createElement('div');
+      toolbar.style.cssText = `
+        display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+        padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #0f04;
+      `;
+      drawer.appendChild(toolbar);
+      const body_ = document.createElement('div');
+      drawer.appendChild(body_);
+
+      const addBtn = (label, on) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = label;
+        b.style.cssText = `
+          flex: 0 0 auto; padding: 8px 12px; border-radius: 7px; border: none;
+          background: #0ff; color: #000; font: 700 12px/1 monospace;
+          cursor: pointer; white-space: nowrap; touch-action: manipulation;
+        `;
+        b.addEventListener('click', on);
+        toolbar.appendChild(b);
+        return b;
+      };
+
+      let open = false;
+      const listeners = [];
+      const setOpen = v => {
+        open = v;
+        drawer.style.display = open ? 'block' : 'none';
+        document.body.classList.toggle('rw-edit-open', open);
+        fab.textContent = open ? '✕' : '✎';
+        fab.style.background = open ? '#0f0' : '#0ff';
+        for (const fn of listeners) fn(open);
+      };
+      fab.addEventListener('click', () => setOpen(!open));
+
+      editorChrome = {
+        toolbar, body: body_, addBtn,
+        isOpen: () => open,
+        onToggle: fn => listeners.push(fn),
+      };
+      return editorChrome;
+    }
+
     /* Single place phases change. Hidden layers are faded with opacity, which
        leaves them focusable, so each phase change also parks the inactive ones
        with `inert` — otherwise you can tab onto the unlock runner after you've
@@ -1847,27 +1943,50 @@
        the query param themselves — safe to leave in. Only apps that already
        went through the new % based l/t/h/rot pipeline show up (the old
        pixel-viewBox entries like pfp/hub/maps have t values in the hundreds
-       and get filtered out rather than rendering nonsensically off-screen). */
+       and get filtered out rather than rendering nonsensically off-screen).
+       All of this — the drag handles, the per-landmark overlays, the read-
+       out — only exists in the DOM's interactive sense while the shared
+       drawer (see ensureEditorChrome above) is open; closed, it's not just
+       hidden, `rw-edit-only-open` is display:none'd, so it can't intercept
+       a real swipe/tap anywhere on the page. */
     if (new URLSearchParams(location.search).has('edit')) {
+      const chrome = ensureEditorChrome();
       const editable = APPS.filter(a => a.img && typeof a.l === 'number' && a.l <= 100 && a.t <= 100);
-      const panel = document.createElement('div');
-      panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#000c;color:#0f0;font:12px/1.5 monospace;padding:10px;max-height:40vh;overflow:auto;white-space:pre;';
-      document.body.appendChild(panel);
-      const copyBtn = document.createElement('button');
-      copyBtn.textContent = 'Copy config';
-      copyBtn.style.cssText = 'position:fixed;bottom:calc(40vh + 8px);right:8px;z-index:99999;padding:6px 10px;';
-      document.body.appendChild(copyBtn);
+      const panel = document.createElement('pre');
+      panel.style.cssText = 'white-space:pre-wrap;margin:0 0 10px;';
+      chrome.body.appendChild(panel);
 
-      // Whole-layer nudge — drags the entire land art or the entire icon
-      // rail as one unit, on top of whatever the mobile media query's own
-      // flex/margin math already does. Separate from the per-landmark loop
-      // below, which repositions individual pieces of art baked into the
-      // island image itself.
-      const nudge = { islandX: 0, islandY: 0, appsX: 0, appsY: 0 };
+      // Whole-layer nudge + zoom — drags/scales the entire land art or the
+      // entire icon rail as one unit, on top of whatever the mobile media
+      // query's own flex/margin math already does. Separate from the
+      // per-landmark loop below, which repositions individual pieces of art
+      // baked into the island image itself. The land has its own lock-
+      // screen vs home-screen pair (--island-*-lock vs --island-*, see
+      // :root) since those two screens don't need to line up with each
+      // other — DRAG LAND figures out which pair to touch from whichever
+      // phase is showing right now.
       const root = document.documentElement;
+      const readVar = (name, fallback) => {
+        const v = parseFloat(getComputedStyle(root).getPropertyValue(name));
+        return Number.isFinite(v) ? v : fallback;
+      };
+      const nudge = {
+        islandLockX: readVar('--island-dx-lock', -15), islandLockY: readVar('--island-dy-lock', -107),
+        islandLockScale: readVar('--island-scale-lock', 1.2),
+        islandHomeX: readVar('--island-dx', 0), islandHomeY: readVar('--island-dy', 0),
+        islandHomeScale: readVar('--island-scale-home', 1.35),
+        appsX: readVar('--apps-dx', 0), appsY: readVar('--apps-dy', 0),
+      };
+      const islandKeys = () => body.dataset.phase === 'home'
+        ? { x: 'islandHomeX', y: 'islandHomeY', s: 'islandHomeScale' }
+        : { x: 'islandLockX', y: 'islandLockY', s: 'islandLockScale' };
       const applyNudge = () => {
-        root.style.setProperty('--island-dx', nudge.islandX + 'px');
-        root.style.setProperty('--island-dy', nudge.islandY + 'px');
+        root.style.setProperty('--island-dx-lock', nudge.islandLockX + 'px');
+        root.style.setProperty('--island-dy-lock', nudge.islandLockY + 'px');
+        root.style.setProperty('--island-scale-lock', nudge.islandLockScale);
+        root.style.setProperty('--island-dx', nudge.islandHomeX + 'px');
+        root.style.setProperty('--island-dy', nudge.islandHomeY + 'px');
+        root.style.setProperty('--island-scale-home', nudge.islandHomeScale);
         root.style.setProperty('--apps-dx', nudge.appsX + 'px');
         root.style.setProperty('--apps-dy', nudge.appsY + 'px');
       };
@@ -1877,31 +1996,39 @@
           `${a.id}: l:${a.l.toFixed(1)}, t:${a.t.toFixed(1)}, h:${a.h.toFixed(1)}, rot:${(a.rot||0).toFixed(1)}`
         ).join('\n');
         panel.textContent =
-          `LAND  dx:${nudge.islandX.toFixed(0)}px dy:${nudge.islandY.toFixed(0)}px\n` +
-          `ICONS dx:${nudge.appsX.toFixed(0)}px dy:${nudge.appsY.toFixed(0)}px\n\n` +
+          `LAND lock  dx:${nudge.islandLockX.toFixed(0)}px dy:${nudge.islandLockY.toFixed(0)}px zoom:${nudge.islandLockScale.toFixed(2)}\n` +
+          `LAND home  dx:${nudge.islandHomeX.toFixed(0)}px dy:${nudge.islandHomeY.toFixed(0)}px zoom:${nudge.islandHomeScale.toFixed(2)}\n` +
+          `ICONS      dx:${nudge.appsX.toFixed(0)}px dy:${nudge.appsY.toFixed(0)}px\n` +
+          `(DRAG LAND edits whichever screen — Boot/Lock/Home above — is showing right now)\n\n` +
           landmarks;
       };
-      copyBtn.addEventListener('click', () => {
+      chrome.addBtn('Copy layout', () => {
         const text =
-          `--island-dx: ${nudge.islandX.toFixed(0)}px; --island-dy: ${nudge.islandY.toFixed(0)}px;\n` +
+          `--island-dx-lock: ${nudge.islandLockX.toFixed(0)}px; --island-dy-lock: ${nudge.islandLockY.toFixed(0)}px; --island-scale-lock: ${nudge.islandLockScale.toFixed(2)};\n` +
+          `--island-dx: ${nudge.islandHomeX.toFixed(0)}px; --island-dy: ${nudge.islandHomeY.toFixed(0)}px; --island-scale-home: ${nudge.islandHomeScale.toFixed(2)};\n` +
           `--apps-dx: ${nudge.appsX.toFixed(0)}px; --apps-dy: ${nudge.appsY.toFixed(0)}px;\n\n` +
           editable.map(a =>
             `{ id: '${a.id}', l: ${a.l.toFixed(1)}, t: ${a.t.toFixed(1)}, h: ${a.h.toFixed(1)}, rot: ${(a.rot||0).toFixed(1)} }`
           ).join(',\n');
         navigator.clipboard?.writeText(text);
-        copyBtn.textContent = 'Copied!';
-        setTimeout(() => { copyBtn.textContent = 'Copy config'; }, 1200);
+        const prev = panel.textContent;
+        panel.textContent = 'Copied!';
+        setTimeout(() => { panel.textContent = prev; }, 900);
       });
 
       // Drag handle floats just above whatever it moves, tracking it on
       // every frame it's not itself the thing being dragged so it doesn't
-      // wander off during resize/orientation changes.
-      const makeLayerHandle = (target, xKey, yKey, label, color) => {
+      // wander off during resize/orientation changes. xKey/yKey/sKey can be
+      // fixed strings (apps) or a function returning the current keys
+      // (island, which switches pair depending on which phase is showing).
+      const makeLayerHandle = (target, keys, label, color) => {
+        const resolve = () => typeof keys === 'function' ? keys() : keys;
         const handle = document.createElement('div');
+        handle.className = 'rw-edit-ui rw-edit-only-open';
         handle.textContent = label;
         handle.style.cssText = `
           position:fixed; z-index:99998; background:${color}; color:#000;
-          font:700 11px/1 monospace; padding:6px 10px; border-radius:7px;
+          font:700 11px/1 monospace; padding:8px 12px; border-radius:7px;
           cursor:grab; touch-action:none; box-shadow:0 2px 8px #0008;
         `;
         document.body.appendChild(handle);
@@ -1913,23 +2040,37 @@
         place();
         let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
         handle.addEventListener('pointerdown', e => {
+          if (!chrome.isOpen()) return;
           dragging = true; handle.setPointerCapture(e.pointerId); handle.style.cursor = 'grabbing';
-          startX = e.clientX; startY = e.clientY; baseX = nudge[xKey]; baseY = nudge[yKey];
+          const k = resolve();
+          startX = e.clientX; startY = e.clientY; baseX = nudge[k.x]; baseY = nudge[k.y];
         });
         handle.addEventListener('pointermove', e => {
           if (!dragging) return;
-          nudge[xKey] = baseX + (e.clientX - startX);
-          nudge[yKey] = baseY + (e.clientY - startY);
+          const k = resolve();
+          nudge[k.x] = baseX + (e.clientX - startX);
+          nudge[k.y] = baseY + (e.clientY - startY);
           applyNudge(); place(); renderPanel();
         });
         handle.addEventListener('pointerup', e => {
           dragging = false; handle.releasePointerCapture(e.pointerId); handle.style.cursor = 'grab';
         });
+        // Zoom the whole land (no-op for the icon rail, which has no scale
+        // key) — mirrors the per-landmark wheel-to-resize below.
+        handle.addEventListener('wheel', e => {
+          if (!chrome.isOpen()) return;
+          const k = resolve();
+          if (!k.s) return;
+          e.preventDefault();
+          nudge[k.s] = Math.max(0.3, Math.min(3, nudge[k.s] + (e.deltaY > 0 ? -0.02 : 0.02)));
+          applyNudge(); renderPanel();
+        }, { passive: false });
         return place;
       };
-      const placeIslandHandle = makeLayerHandle(island, 'islandX', 'islandY', 'DRAG LAND', '#0ff');
-      const placeAppsHandle = makeLayerHandle(apps, 'appsX', 'appsY', 'DRAG ICONS', '#ff0');
+      const placeIslandHandle = makeLayerHandle(island, islandKeys, 'DRAG LAND (wheel=zoom)', '#0ff');
+      const placeAppsHandle = makeLayerHandle(apps, { x: 'appsX', y: 'appsY' }, 'DRAG ICONS', '#ff0');
       window.addEventListener('resize', () => { placeIslandHandle(); placeAppsHandle(); });
+      chrome.onToggle(() => { placeIslandHandle(); placeAppsHandle(); });
 
       for (const a of editable) {
         // Keeps the real tap target (built above, before any dragging
@@ -1938,7 +2079,7 @@
         // the moved art misses.
         const hotspot = hotspots.get(a.id);
         const el = document.createElement('div');
-        el.className = 'island-edit-obj';
+        el.className = 'island-edit-obj rw-edit-ui rw-edit-only-open';
         el.style.cssText = `
           position:absolute; height:${a.h}%; width:auto;
           left:${a.l}%; top:${a.t}%;
@@ -1954,6 +2095,7 @@
 
         let dragging = false, startX = 0, startY = 0, startL = 0, startT = 0;
         el.addEventListener('pointerdown', e => {
+          if (!chrome.isOpen()) return;
           dragging = true; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing';
           startX = e.clientX; startY = e.clientY; startL = a.l; startT = a.t;
         });
@@ -1970,6 +2112,7 @@
           dragging = false; el.releasePointerCapture(e.pointerId); el.style.cursor = 'grab';
         });
         el.addEventListener('wheel', e => {
+          if (!chrome.isOpen()) return;
           e.preventDefault();
           if (e.shiftKey) a.rot = (a.rot || 0) + (e.deltaY > 0 ? -2 : 2);
           else a.h = Math.max(2, Math.min(45, a.h + (e.deltaY > 0 ? -0.3 : 0.3)));
@@ -2145,8 +2288,13 @@
        edit, since normally only one is visible at a time. Edits persist to
        localStorage as you go; "Copy config" prints a SAVED_ELEMENT_EDITS
        block to paste in near the top of this script to make them
-       permanent, the same hand-off the landmark panel above uses. */
+       permanent, the same hand-off the landmark panel above uses. Every
+       interaction below (drag/wheel/keys/click-hijacking) is gated on
+       `chrome.isOpen()` — with the drawer closed this editor is fully
+       inert, so a real swipe or tap on the actual page behaves exactly
+       like it would with ?edit absent. */
     if (new URLSearchParams(location.search).has('edit')) {
+      const chrome = ensureEditorChrome();
       const STORE_KEY = 'trollrunner_world_edits_v1';
       let liveEdits;
       try { liveEdits = { ...SAVED_ELEMENT_EDITS, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') }; }
@@ -2171,35 +2319,24 @@
         if (el) applyElementEdit(el, e);
       }
 
-      /* ---- UI chrome ---- */
-      const bar = document.createElement('div');
-      bar.className = 'rw-edit-ui';
-      bar.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99999;display:flex;gap:6px;flex-wrap:wrap;font:700 11px/1 monospace;';
-      const mkBtn = (label, on) => {
-        const b = document.createElement('button');
-        b.type = 'button'; b.textContent = label;
-        b.className = 'rw-edit-ui';
-        b.style.cssText = 'padding:7px 10px;border-radius:7px;border:none;background:#0ff;color:#000;cursor:pointer;';
-        b.addEventListener('click', on);
-        bar.appendChild(b);
-        return b;
-      };
-      const pickBtn = mkBtn('Pick: off', () => {
+      /* ---- UI chrome (lives in the shared drawer) ---- */
+      const pickBtn = chrome.addBtn('Pick: off', () => {
         picking = !picking;
         pickBtn.textContent = picking ? 'Pick: on' : 'Pick: off';
         pickBtn.style.background = picking ? '#0f0' : '#0ff';
       });
-      mkBtn('Boot', () => setPhase('boot'));
-      mkBtn('Lock', () => setPhase('lock'));
-      mkBtn('Home', () => setPhase('home'));
-      mkBtn('Copy config', () => {
+      chrome.addBtn('Boot', () => setPhase('boot'));
+      chrome.addBtn('Lock', () => setPhase('lock'));
+      chrome.addBtn('Home', () => setPhase('home'));
+      chrome.addBtn('Copy elements', () => {
         const rows = Object.entries(liveEdits)
           .map(([k, e]) => `  ${JSON.stringify(k)}: ${JSON.stringify(e)}`).join(',\n');
         navigator.clipboard?.writeText(`const SAVED_ELEMENT_EDITS = {\n${rows}\n};`);
+        const prev = info.textContent;
         info.textContent = 'Copied!';
-        setTimeout(renderInfo, 900);
+        setTimeout(() => { info.textContent = prev; }, 900);
       });
-      mkBtn('Reset all', () => {
+      chrome.addBtn('Reset elements', () => {
         if (!confirm('Clear every element edit on this page?')) return;
         for (const key of Object.keys(liveEdits)) {
           const el = document.querySelector(key);
@@ -2209,12 +2346,10 @@
         persist();
         deselect();
       });
-      document.body.appendChild(bar);
 
-      const info = document.createElement('div');
-      info.className = 'rw-edit-ui';
-      info.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#000c;color:#0f0;font:11px/1.5 monospace;padding:8px;max-height:26vh;overflow:auto;white-space:pre-wrap;';
-      document.body.appendChild(info);
+      const info = document.createElement('pre');
+      info.style.cssText = 'white-space:pre-wrap;margin:0 0 10px;';
+      chrome.body.insertBefore(info, chrome.body.firstChild);
       const renderInfo = () => {
         info.textContent = selected
           ? `${selKey}\n${JSON.stringify(entry(selKey))}\ndrag=move  wheel=scale  shift+wheel=rotate  arrows=nudge (shift=10px)  dblclick=rename leaf text  H=hide/show  R=reset this  Esc=deselect`
@@ -2223,11 +2358,11 @@
       renderInfo();
 
       const hover = document.createElement('div');
-      hover.className = 'rw-edit-ui';
+      hover.className = 'rw-edit-ui rw-edit-only-open';
       hover.style.cssText = 'position:fixed;z-index:99997;pointer-events:none;outline:2px dashed #0ff;display:none;';
       document.body.appendChild(hover);
       const selectBox = document.createElement('div');
-      selectBox.className = 'rw-edit-ui';
+      selectBox.className = 'rw-edit-ui rw-edit-only-open';
       selectBox.style.cssText = 'position:fixed;z-index:99997;pointer-events:none;outline:2px solid #0f0;display:none;';
       document.body.appendChild(selectBox);
       const placeBox = (box, el) => {
@@ -2244,9 +2379,10 @@
         renderInfo();
       };
       const deselect = () => { selected = null; selKey = null; selectBox.style.display = 'none'; renderInfo(); };
+      chrome.onToggle(open => { if (!open) { picking = false; deselect(); } });
 
       document.addEventListener('mousemove', e => {
-        if (!picking) { hover.style.display = 'none'; return; }
+        if (!chrome.isOpen() || !picking) { hover.style.display = 'none'; return; }
         const el = document.elementFromPoint(e.clientX, e.clientY);
         if (!el || el.closest('.rw-edit-ui')) { hover.style.display = 'none'; return; }
         placeBox(hover, el);
@@ -2257,7 +2393,7 @@
       // Pick-mode click: consumes the click (no navigation) and selects
       // whatever was under the cursor.
       document.addEventListener('click', e => {
-        if (e.target.closest('.rw-edit-ui')) return;
+        if (!chrome.isOpen() || e.target.closest('.rw-edit-ui')) return;
         if (!picking) return;
         e.preventDefault(); e.stopPropagation();
         select(e.target);
@@ -2271,7 +2407,7 @@
       // once you know it, and leaves normal link-testing alone the rest of
       // the time.
       document.addEventListener('click', e => {
-        if (!e.altKey || e.target.closest('.rw-edit-ui')) return;
+        if (!chrome.isOpen() || !e.altKey || e.target.closest('.rw-edit-ui')) return;
         e.preventDefault(); e.stopPropagation();
         select(e.target);
       }, true);
@@ -2279,14 +2415,14 @@
       // Whatever's currently selected shouldn't navigate when clicked again
       // to start a drag.
       document.addEventListener('click', e => {
-        if (selected && (e.target === selected || selected.contains(e.target))) {
+        if (chrome.isOpen() && selected && (e.target === selected || selected.contains(e.target))) {
           e.preventDefault(); e.stopPropagation();
         }
       }, true);
 
       let dragging = false, startX = 0, startY = 0, baseTx = 0, baseTy = 0;
       document.addEventListener('pointerdown', e => {
-        if (!selected || picking) return;
+        if (!chrome.isOpen() || !selected || picking) return;
         if (!(e.target === selected || selected.contains(e.target))) return;
         dragging = true; startX = e.clientX; startY = e.clientY;
         const en = entry(selKey); baseTx = en.tx; baseTy = en.ty;
@@ -2304,7 +2440,7 @@
       document.addEventListener('pointerup', () => { if (dragging) { dragging = false; persist(); } });
 
       document.addEventListener('wheel', e => {
-        if (!selected || !(e.target === selected || selected.contains(e.target))) return;
+        if (!chrome.isOpen() || !selected || !(e.target === selected || selected.contains(e.target))) return;
         e.preventDefault();
         const en = entry(selKey);
         if (e.shiftKey) en.rot = (en.rot || 0) + (e.deltaY > 0 ? -3 : 3);
@@ -2316,7 +2452,7 @@
       }, { passive: false });
 
       document.addEventListener('keydown', e => {
-        if (!selected || document.activeElement?.isContentEditable) return;
+        if (!chrome.isOpen() || !selected || document.activeElement?.isContentEditable) return;
         const step = e.shiftKey ? 10 : 1;
         const en = entry(selKey);
         let used = true;
@@ -2339,7 +2475,7 @@
       });
 
       document.addEventListener('dblclick', e => {
-        if (!selected || !(e.target === selected || selected.contains(e.target))) return;
+        if (!chrome.isOpen() || !selected || !(e.target === selected || selected.contains(e.target))) return;
         if (selected.children.length) return; // leave anything with nested markup (icons, etc.) alone
         e.preventDefault();
         selected.contentEditable = 'true';
