@@ -1081,6 +1081,41 @@
     /* The stat and the pill share the left cell of the top bar's grid. */
     .topbar-left { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-self: start; }
 
+    /* ================= LIVE STATUS =================
+       Admin-toggled "currently running/coding, jk trolling" banner
+       (admin.html's "Live status popups" card). Sits in normal flow right
+       under the topbar — literally below the header buttons, per that
+       card's own description — rather than fixed like .apps, which is
+       pulled out of flow on purpose (see the rail comment above) and would
+       otherwise sit on top of this. Hidden by default; JS toggles
+       .is-visible per pill once the shared site_updates row says so. */
+    .live-status-stack {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 0 16px; margin: -6px 0 10px; position: relative; z-index: 6;
+    }
+    .live-status-pill {
+      display: none; align-items: center; gap: 8px;
+      padding: 6px 12px; border-radius: 999px; width: fit-content; max-width: 100%;
+      background: #ffffff0f; border: 1px solid var(--glass-stroke);
+      font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+      color: var(--fg); text-shadow: var(--legible);
+    }
+    .live-status-pill.is-visible { display: inline-flex; }
+    .live-status-pill--running { --live-dot-color: #ff6b5b; --live-dot-pulse: rgba(255, 107, 91, .85); }
+    .live-status-pill--coding { --live-dot-color: var(--accent); --live-dot-pulse: rgba(143, 227, 106, .85); }
+    .live-status-dot {
+      flex: none; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--live-dot-color, var(--accent));
+      box-shadow: 0 0 0 0 var(--live-dot-pulse, rgba(143, 227, 106, .85));
+      animation: live-status-pulse 1.2s ease-out infinite;
+    }
+    .live-status-strike { text-decoration: line-through; opacity: .7; }
+    @keyframes live-status-pulse {
+      0% { box-shadow: 0 0 0 0 var(--live-dot-pulse, rgba(143, 227, 106, .85)); }
+      70% { box-shadow: 0 0 0 6px rgba(143, 227, 106, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(143, 227, 106, 0); }
+    }
+
     .roster-rows { display: grid; }
     .roster-row {
       display: flex; align-items: center; gap: 11px; padding: 10px 2px;
@@ -1386,6 +1421,17 @@
         <span></span>
       </button>
     </header>
+
+    <div class="live-status-stack" id="live-status-stack" aria-live="polite">
+      <div id="live-status-running-pill" class="live-status-pill live-status-pill--running">
+        <span class="live-status-dot" aria-hidden="true"></span>
+        <span>Live: Currently <span class="live-status-strike">running</span> trolling around&hellip;</span>
+      </div>
+      <div id="live-status-coding-pill" class="live-status-pill live-status-pill--coding">
+        <span class="live-status-dot" aria-hidden="true"></span>
+        <span>Live: Currently <span class="live-status-strike">coding</span> trolling around&hellip;</span>
+      </div>
+    </div>
 
     <nav class="apps" id="apps" aria-label="Apps"></nav>
 
@@ -3207,6 +3253,36 @@
 
     renderDesktopLockUi(getCachedDesktopLocked());
     void refreshDesktopLock();
+
+    /* ================= LIVE STATUS =================
+       Renders admin.html's "Live status popups" toggle (running/coding)
+       on this shell — same meta item on the shared site_updates row that
+       index.html's desktop taskbar reads, via the fetchSiteUpdates()
+       helper above. Polled, not just loaded once, so a toggle flipped in
+       admin shows up on an already-open tab within a few seconds. */
+    const LIVE_STATUS_META_ID = '__trollrunner_live_status_meta__';
+    const LIVE_STATUS_POLL_MS = 10000;
+
+    function renderLiveStatusPills(statuses) {
+      const runningPill = document.getElementById('live-status-running-pill');
+      const codingPill = document.getElementById('live-status-coding-pill');
+      if (runningPill) runningPill.classList.toggle('is-visible', Boolean(statuses.running));
+      if (codingPill) codingPill.classList.toggle('is-visible', Boolean(statuses.coding));
+    }
+
+    async function refreshLiveStatus() {
+      try {
+        const updates = await fetchSiteUpdates();
+        const meta = updates.find(u => u && u.id === LIVE_STATUS_META_ID);
+        renderLiveStatusPills({
+          running: Boolean(meta?.liveStatuses?.running),
+          coding: Boolean(meta?.liveStatuses?.coding),
+        });
+      } catch { /* leave the current pills as they are */ }
+    }
+
+    void refreshLiveStatus();
+    setInterval(refreshLiveStatus, LIVE_STATUS_POLL_MS);
 
     const viewerOnlineAt = new Date().toISOString();
     let viewerChannel = null, viewerJoined = false;
