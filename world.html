@@ -908,7 +908,10 @@
          magnification needed on top of that. */
       html.mobile-preview .apps {
         top: 90px !important; left: 22px !important;
-        transform: translate(var(--apps-dx), var(--apps-dy)) !important;
+        /* Deliberately not --apps-dx/--apps-dy — same reasoning as the
+           .island rule below: those are tuned for real phones only and
+           shouldn't leak into this unrelated desktop-wide preview context. */
+        transform: none !important;
         display: grid !important; grid-template-columns: repeat(2, 1fr) !important;
         width: 148px !important; max-width: 148px !important;
         gap: 16px 14px !important;
@@ -928,10 +931,11 @@
         flex: 1 1 auto; min-height: 0; align-self: center;
         width: auto; max-width: min(98vw, 1700px);
         margin: 2px auto; aspect-ratio: 16 / 9;
-        transform: translate(var(--island-dx-lock), var(--island-dy-lock));
-      }
-      html.mobile-preview body[data-phase="home"] .island {
-        transform: translate(var(--island-dx), var(--island-dy));
+        /* Deliberately NOT --island-dx-lock/--island-dy-lock — those are
+           tuned for real phones only. This is the desktop-wide preview of
+           the phone shell, an unrelated context, so it keeps its own
+           always-zero offset instead of inheriting the phone tuning. */
+        transform: none;
       }
     }
 
