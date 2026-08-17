@@ -873,6 +873,32 @@
     } catch {}
   }
 
+  // TODO: nicer tag-unlock presentation (animation/modal) later -- this is
+  // the plain toast to ship the backend + a visible ack now.
+  function showTagUnlockToast(slug) {
+    try {
+      fetchTagDefs();
+      const def = (tagDefsCache || []).find(t => t.slug === slug);
+      const label = def?.label || slug;
+      const color = def?.color || '#8fa396';
+      document.getElementById('ta-tagunlock-toast')?.remove();
+      const el = document.createElement('div');
+      el.id = 'ta-tagunlock-toast';
+      el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99998;' +
+        `background:linear-gradient(135deg, ${shadeHex(color, 12)}, ${color} 55%, ${shadeHex(color, -22)});color:#08110a;` +
+        'font:800 14px "DM Mono","Courier New",monospace;padding:10px 18px;border:2px solid #000;' +
+        'border-radius:8px;box-shadow:0 8px 0 rgba(0,0,0,0.35);letter-spacing:0.04em;' +
+        'text-transform:uppercase;pointer-events:none;opacity:0;transition:opacity .25s ease;';
+      el.textContent = `Tag unlocked: ${label}`;
+      document.body.appendChild(el);
+      requestAnimationFrame(() => { el.style.opacity = '1'; });
+      setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+      }, 3500);
+    } catch {}
+  }
+
   async function awardXp(eventType, source, meta) {
     const sb = getClient();
     if (!sb) return null;
@@ -887,6 +913,7 @@
       if (data?.awarded > 0) {
         await refreshProfile();
         if (typeof data.level === 'number' && data.level > prevLevel) showLevelUpToast(data.level);
+        if (data.newTag) showTagUnlockToast(data.newTag);
       }
       return data;
     } catch {
