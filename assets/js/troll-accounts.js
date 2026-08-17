@@ -1254,9 +1254,11 @@
       .ta-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
         padding: 12px 14px; border-bottom: 2px solid #000; background: rgba(77,255,115,0.08); }
       .ta-title { margin: 0; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; color: #4dff73; }
+      .ta-head-actions { display: flex; align-items: center; gap: 8px; }
       .ta-close { border: 2px solid #000; border-radius: 6px; background: #1d2620; color: #cfe9cf;
         font: inherit; padding: 3px 10px; cursor: pointer; }
       .ta-close:hover { background: #2a372e; }
+      .ta-settings[hidden] { display: none; }
       .ta-body { padding: 14px; display: grid; gap: 14px; }
       .ta-row { display: flex; align-items: center; gap: 12px; }
       /* Profile banner — a full-bleed strip pulled out to the body's own
@@ -1453,7 +1455,10 @@
     return overlay.querySelector('.ta-body');
   }
 
-  function buildModal(title) {
+  // onSettings: optional callback that adds a gear button to the header,
+  // to the left of Close — only the Profile modal passes this today, so
+  // Settings is one tap away from viewing your own profile.
+  function buildModal(title, onSettings) {
     ensureModalStyles();
     closeModal();
     const overlay = document.createElement('div');
@@ -1466,13 +1471,21 @@
       <div class="ta-card">
         <div class="ta-head">
           <h3 class="ta-title"></h3>
-          <button class="ta-close" type="button" aria-label="Close">✕</button>
+          <div class="ta-head-actions">
+            <button class="ta-close ta-settings" type="button" aria-label="Settings" hidden>⚙</button>
+            <button class="ta-close ta-close-x" type="button" aria-label="Close">✕</button>
+          </div>
         </div>
         <div class="ta-body"></div>
       </div>`;
     overlay.querySelector('.ta-title').textContent = title;
     overlay.addEventListener('click', event => { if (event.target === overlay) closeModal(); });
-    overlay.querySelector('.ta-close').addEventListener('click', closeModal);
+    overlay.querySelector('.ta-close-x').addEventListener('click', closeModal);
+    if (onSettings) {
+      const settingsBtn = overlay.querySelector('.ta-settings');
+      settingsBtn.hidden = false;
+      settingsBtn.addEventListener('click', onSettings);
+    }
     const onKey = event => { if (event.key === 'Escape') { closeModal(); window.removeEventListener('keydown', onKey); } };
     window.addEventListener('keydown', onKey);
     document.body.appendChild(overlay);
@@ -1702,7 +1715,7 @@
   }
 
   async function openProfile() {
-    const body = buildModal('Profile');
+    const body = buildModal('Profile', () => void openSettings());
     body.innerHTML = '<p class="ta-muted">Loading profile…</p>';
     const data = await getProfileData();
     if (!data) {

@@ -1267,7 +1267,7 @@
     }
     .auth.is-open { opacity: 1; visibility: visible; transform: none; transition-delay: 0s, 0s, 0s; }
     .auth-inner { width: 100%; max-width: 420px; margin: 0 auto; display: grid; gap: 18px; }
-    #auth-guest, #auth-me { display: grid; gap: 15px; }
+    #auth-guest { display: grid; gap: 15px; }
     .auth-top { display: flex; align-items: center; }
     .auth-close {
       width: 42px; height: 42px; margin-left: auto; display: grid; place-items: center;
@@ -1325,62 +1325,6 @@
       color: #ff8a8a;
     }
     .auth-msg.is-ok { color: var(--accent); }
-    /* Signed-in view */
-    .auth-me { display: grid; justify-items: center; gap: 12px; text-align: center; }
-    .auth-me-av {
-      width: 92px; height: 92px; border-radius: 50%; overflow: hidden;
-      background: #14141a; border: 1px solid var(--glass-stroke);
-      display: grid; place-items: center; font-size: 34px;
-    }
-    .auth-me-av img { width: 100%; height: 100%; object-fit: cover; }
-    .auth-me-name { font-family: var(--font-display); font-size: 26px; }
-    .auth-me-meta { color: var(--fg-dim); font-size: 13px; font-family: var(--font-mono); letter-spacing: .06em; }
-    .auth-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
-    .auth-tags[hidden] { display: none; }
-    .auth-tag { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase;
-      padding: 3px 9px; border-radius: 999px; border: 1px solid var(--glass-stroke); color: #fff; }
-    .auth-tag[data-tag="developer"] { background: color-mix(in srgb, #5865f2 55%, transparent); }
-    .auth-tag[data-tag="admin"] { background: color-mix(in srgb, #ed4245 55%, transparent); }
-    .auth-tag[data-tag="trollrunner"] { background: color-mix(in srgb, #eb459e 55%, transparent); }
-    .auth-x { margin-top: 8px; }
-    .auth-x[hidden] { display: none; }
-    .auth-x-link, .auth-x-connect {
-      display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-size: 12px;
-    }
-    .auth-x-link { color: var(--fg-dim); }
-    .auth-x-link:hover { color: var(--fg); }
-    .auth-x-link svg { width: 12px; height: 12px; fill: currentColor; flex: none; }
-    .auth-x-connect {
-      padding: 6px 13px; border-radius: 999px; background: #000; color: #fff;
-      border: 1px solid var(--glass-stroke); cursor: pointer;
-    }
-    .auth-x-connect svg { width: 12px; height: 12px; fill: #fff; flex: none; }
-    .auth-x-connect[disabled] { opacity: .6; }
-    /* ---- account dashboard (XP + quick stats) ----
-       Same data the desktop's Profile modal shows, restyled in this shell's
-       glass language instead of the desktop's pixel-arcade one. */
-    .auth-xp { width: 100%; display: grid; gap: 6px; margin-top: 4px; }
-    .auth-xp-row { display: flex; align-items: baseline; justify-content: space-between; }
-    .auth-xp-row span { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em;
-      text-transform: uppercase; color: var(--fg-dim); }
-    .auth-xp-bar { height: 8px; border-radius: 999px; background: #ffffff14; overflow: hidden; }
-    .auth-xp-fill { display: block; height: 100%; width: 0%; border-radius: 999px;
-      background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent)); }
-    .auth-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; margin-top: 4px; }
-    .auth-stat { display: grid; justify-items: center; gap: 3px; padding: 10px 6px; border-radius: 12px;
-      background: #ffffff0d; border: 1px solid var(--glass-stroke); text-align: center; }
-    .auth-stat b { font-family: var(--font-display); font-size: 16px; letter-spacing: -.01em; }
-    .auth-stat span { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--fg-dim); }
-    .auth-actions { display: grid; gap: 10px; width: 100%; margin-top: 6px; }
-    .auth-action {
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-      width: 100%; padding: 15px 16px; border-radius: 12px; font-size: 15px;
-      background: #ffffff0d; border: 1px solid var(--glass-stroke); color: var(--fg);
-    }
-    .auth-action:hover { background: #ffffff17; }
-    .auth-action .chev { color: var(--fg-dim); }
-    .auth-action.is-danger { color: #ff8a8a; }
 
     /* ================= TROLL RADIO =================
        A plain third dock item now, same .ico square as X / TikTok — it used
@@ -1832,30 +1776,9 @@
           <button id="auth-swap" type="button">Create an account</button>
         </p>
       </div>
-
-      <!-- logged in -->
-      <div id="auth-me" hidden>
-        <div class="auth-me">
-          <span class="auth-me-av" id="auth-me-av" aria-hidden="true"></span>
-          <span class="auth-me-name" id="auth-me-name"></span>
-          <span class="auth-me-meta" id="auth-me-meta"></span>
-          <div class="auth-tags" id="auth-tags" hidden></div>
-          <div class="auth-x" id="auth-x" hidden></div>
-        </div>
-        <div class="auth-xp" id="auth-xp" hidden>
-          <div class="auth-xp-row"><span id="auth-xp-label"></span><span id="auth-xp-next"></span></div>
-          <div class="auth-xp-bar"><span class="auth-xp-fill" id="auth-xp-fill"></span></div>
-        </div>
-        <div class="auth-stats" id="auth-stats" hidden></div>
-        <div class="auth-actions">
-          <a class="auth-action" id="auth-full" href="/?desktop=1&open=account">
-            <span>Full profile &amp; settings</span><span class="chev">›</span>
-          </a>
-          <button class="auth-action is-danger" id="auth-signout" type="button">
-            <span>Sign out</span><span class="chev">›</span>
-          </button>
-        </div>
-      </div>
+      <!-- No "logged in" face here anymore — a logged-in tap on the Account
+           icon skips this sheet entirely (see authSetOpen()) and opens
+           troll-accounts.js's own Profile modal instead. -->
     </div>
   </div>
 
@@ -1916,7 +1839,7 @@
        index.html, so a session started on either shell is already shared —
        no SSO bridge needed here, unlike the sibling subdomains. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
-  <script src="assets/js/troll-accounts.js?v=20260803b"></script>
+  <script src="assets/js/troll-accounts.js?v=20260817a"></script>
   <!-- Separate credential from the one above: a fixed admin@login.trollrunner.net
        password session, not a regular troll_runner profile login. This is
        what admin.html itself gates on, so it's what the menu's Admin link
@@ -3054,12 +2977,19 @@
     /* ================= ACCOUNT =================
        The Account icon used to hand off to the windowed desktop with
        ?desktop=1&open=account, which meant leaving the phone entrance to
-       type into a 300px draggable window. It opens this sheet instead; the
-       desktop is still one tap away for the full profile. */
+       type into a 300px draggable window. It opens this sheet instead —
+       but only for the logged-out login form. A logged-in tap skips the
+       sheet entirely and opens troll-accounts.js's own Profile modal (the
+       same one every trollrunner site uses), which is where "Settings" now
+       lives too (see its ta-head gear button, wired to openSettings()). */
     const authSheet = $('auth');
     let authMode = 'login', authBusy = false;
 
     const authSetOpen = open => {
+      if (open && window.TrollrunnerAccounts?.getCachedProfile?.()) {
+        window.TrollrunnerAccounts.openProfile();
+        return;
+      }
       authSheet.classList.toggle('is-open', open);
       authSheet.inert = !open;
       document.body.style.overflow = open ? 'hidden' : '';
@@ -3073,123 +3003,12 @@
       el.classList.toggle('is-ok', Boolean(ok));
     }
 
-    /* One sheet, two faces: signed out shows the form, signed in shows who
-       you are. Re-run on every auth change so it can't show a stale one. */
+    // The sheet only ever shows the login form now — a logged-in tap opens
+    // troll-accounts.js's own Profile modal instead (see authSetOpen()), so
+    // there's no "signed in" face to render here anymore.
     function authRender() {
-      const me = window.TrollrunnerAccounts?.getCachedProfile?.() || null;
-      $('auth-guest').hidden = Boolean(me);
-      $('auth-me').hidden = !me;
-      if (me) {
-        const av = $('auth-me-av');
-        av.textContent = '';
-        if (me.avatarUrl) {
-          const img = document.createElement('img');
-          img.src = me.avatarUrl; img.alt = '';
-          av.appendChild(img);
-        } else {
-          av.textContent = String(me.username || '?').slice(0, 1).toUpperCase();
-        }
-        $('auth-me-name').textContent = me.username || 'Troll';
-        $('auth-me-meta').textContent = `LEVEL ${Math.max(1, Number(me.level) || 1)}`;
-        authRenderTags(me.tags);
-        authRenderDashboard(me);
-        void authRenderX();
-      } else {
-        $('auth-xp').hidden = true;
-        $('auth-stats').hidden = true;
-        $('auth-tags').hidden = true;
-        $('auth-x').hidden = true;
-      }
+      $('auth-guest').hidden = false;
       authApplyMode();
-    }
-
-    function authRenderTags(tags) {
-      const box = $('auth-tags');
-      box.innerHTML = '';
-      const list = Array.isArray(tags) ? tags : [];
-      box.hidden = !list.length;
-      list.forEach(tag => {
-        const pill = document.createElement('span');
-        pill.className = 'auth-tag';
-        pill.dataset.tag = tag;
-        pill.textContent = tag;
-        box.appendChild(pill);
-      });
-    }
-
-    async function authRenderX() {
-      const box = $('auth-x');
-      const accounts = window.TrollrunnerAccounts;
-      if (!accounts?.getXIdentity) { box.hidden = true; return; }
-      const xPath = SOCIALS.find(s => s.name === 'X')?.path;
-      const identity = await accounts.getXIdentity().catch(() => null);
-      box.innerHTML = '';
-      box.hidden = false;
-      if (identity?.handle) {
-        const link = document.createElement('a');
-        link.className = 'auth-x-link';
-        link.href = `https://x.com/${identity.handle}`;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        if (xPath) link.appendChild(svgIcon(xPath));
-        link.append(`@${identity.handle}`);
-        box.appendChild(link);
-      } else {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'auth-x-connect';
-        if (xPath) btn.appendChild(svgIcon(xPath));
-        btn.append('Connect X');
-        btn.addEventListener('click', async () => {
-          btn.disabled = true;
-          try { await accounts.connectX(); await authRenderX(); }
-          catch (err) { btn.disabled = false; btn.lastChild.textContent = err?.message || 'Could not connect X'; }
-        });
-        box.appendChild(btn);
-      }
-    }
-
-    /* Same level curve troll-accounts.js uses for the desktop Profile modal
-       (xpProgress there) — kept small enough here that duplicating it beats
-       exporting a one-off helper. */
-    function authXpProgress(level, xp) {
-      const lv = Math.max(1, Number(level) || 1);
-      const floor = 50 * (lv - 1) * (lv - 1);
-      const ceil = 50 * lv * lv;
-      const cur = Math.max(Number(xp) || 0, floor);
-      const pct = Math.max(0, Math.min(100, Math.round(((cur - floor) / Math.max(1, ceil - floor)) * 100)));
-      return { pct, xp: cur, next: ceil };
-    }
-
-    function authRenderDashboard(me) {
-      const progress = authXpProgress(me.level, me.xp);
-      $('auth-xp').hidden = false;
-      $('auth-xp-label').textContent = `${progress.xp} XP`;
-      $('auth-xp-next').textContent = `Next level at ${progress.next}`;
-      $('auth-xp-fill').style.width = `${progress.pct}%`;
-
-      const stats = $('auth-stats');
-      stats.hidden = false;
-      stats.innerHTML = '<p class="auth-hint">Loading stats…</p>';
-      window.TrollrunnerAccounts?.getProfileData?.().then(data => {
-        if (!data || $('auth-me-name').textContent !== me.username) return;
-        const runs = (data.stats || []).reduce((sum, s) => sum + (Number(s.games_played) || 0), 0);
-        const best = (data.stats || []).reduce((max, s) => Math.max(max, Number(s.high_score) || 0), 0);
-        const support = Number(data.totals?.USDC || 0) + Number(data.totals?.TROLL || 0);
-        stats.innerHTML = '';
-        [
-          ['Games played', runs.toLocaleString()],
-          ['Best score', best.toLocaleString()],
-          ['Support', support > 0 ? support.toLocaleString() : '—'],
-        ].forEach(([label, value]) => {
-          const tile = document.createElement('div');
-          tile.className = 'auth-stat';
-          const b = document.createElement('b'); b.textContent = value;
-          const s = document.createElement('span'); s.textContent = label;
-          tile.append(b, s);
-          stats.appendChild(tile);
-        });
-      }).catch(() => { stats.hidden = true; });
     }
 
     function authApplyMode() {
@@ -3229,31 +3048,17 @@
         else await accounts.login({ identifier: id, password: pw });
         authMsg('');
         $('auth-pw').value = '';
-        authRender();
+        // Now logged in — swap straight to the Profile modal instead of
+        // this sheet's own summary view (see authSetOpen()'s guard, which
+        // only fires on open, not on this in-place login → logged-in flip).
+        authSetOpen(false);
+        accounts.openProfile();
       } catch (err) {
         authMsg(err?.message ? String(err.message) : 'That did not work. Try again.');
       } finally {
         authBusy = false;
         $('auth-submit').disabled = false;
       }
-    });
-
-    // Used to hand off to the desktop via ?desktop=1&open=account, but
-    // index.html's own forced-desktop bootstrap strips the whole query
-    // string (see the history.replaceState next to qp.has('desktop') there)
-    // before the ?open=account handoff downstream ever reads it — so the
-    // link just landed on a plain desktop with nothing open, indistinguishable
-    // from a refresh. troll-accounts.js is already loaded in this page, so
-    // open its own Profile modal in place instead of leaving the shell.
-    $('auth-full').addEventListener('click', e => {
-      e.preventDefault();
-      window.TrollrunnerAccounts?.openProfile?.();
-    });
-
-    $('auth-signout').addEventListener('click', async () => {
-      try { await window.TrollrunnerAccounts?.logout?.(); } catch {}
-      authMode = 'login';
-      authRender();
     });
 
     window.addEventListener('trollrunner:auth-changed', () => {
