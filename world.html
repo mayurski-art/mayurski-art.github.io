@@ -887,7 +887,13 @@
         right: 22px; left: auto !important; bottom: var(--dock-bottom);
         margin: 0;
         flex-direction: column;
-        --dock-pad-y: 7px; --dock-ico: 38px; --dock-bottom: 10px;
+        /* Still bottom-anchored (not top/center) so .radio's own bottom
+           calc below — which reads this same --dock-bottom — stays glued
+           to it automatically. --dock-bottom is just a much bigger offset
+           now: pushed up off the bottom corner toward vertical center,
+           short of actually reaching it. A bit bigger overall too (was
+           38px/7px, phone-sized) since this is a full desktop window. */
+        --dock-pad-y: 10px; --dock-ico: 46px; --dock-bottom: 34vh;
       }
       /* Same reasoning as the old phone-column version: .radio's `bottom`
          normally clears one icon row via --dock-ico-center, but a 3-item
