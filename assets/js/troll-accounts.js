@@ -213,16 +213,20 @@
      accounts → Profile tags). Tag defs (label + colour) are admin-created the
      same place — see assets/supabase/troll_custom_tags.sql. */
   let tagDefsCache = null;
-  let tagDefsFetchStarted = false;
+  let tagDefsPromise = null;
 
+  // Returns a promise so callers that render before the defs are cached
+  // (e.g. profileTagsNode painting with the grey fallback color) can repaint
+  // once the real colors are in.
   function fetchTagDefs() {
-    if (tagDefsFetchStarted) return;
-    tagDefsFetchStarted = true;
+    if (tagDefsPromise) return tagDefsPromise;
     const sb = getClient();
-    if (!sb) { tagDefsFetchStarted = false; return; }
-    sb.from('troll_tag_defs').select('slug,label,color').then(({ data, error }) => {
+    if (!sb) return Promise.resolve(tagDefsCache || []);
+    tagDefsPromise = sb.from('troll_tag_defs').select('slug,label,color').then(({ data, error }) => {
       tagDefsCache = !error && Array.isArray(data) ? data : [];
-    }).catch(() => { tagDefsCache = []; });
+      return tagDefsCache;
+    }).catch(() => { tagDefsCache = []; return tagDefsCache; });
+    return tagDefsPromise;
   }
 
   function normalizeProfileTags(tags) {
@@ -256,22 +260,28 @@
   // no tags, so callers don't need to branch.
   function profileTagsNode(tags) {
     ensureModalStyles();
-    fetchTagDefs();
     const wrap = document.createElement('span');
     wrap.className = 'ta-tags';
     const list = normalizeProfileTags(tags);
     if (!list.length) { wrap.hidden = true; return wrap; }
-    const defsBySlug = new Map((tagDefsCache || []).map(t => [t.slug, t]));
-    list.forEach(tag => {
-      const def = defsBySlug.get(tag);
-      const color = def?.color || '#8fa396';
-      const pill = document.createElement('span');
-      pill.className = 'ta-tag';
-      pill.dataset.tag = tag;
-      pill.style.background = `linear-gradient(180deg, ${shadeHex(color, 12)}, ${color} 55%, ${shadeHex(color, -22)})`;
-      pill.textContent = def?.label || tag;
-      wrap.appendChild(pill);
-    });
+    const paint = () => {
+      wrap.innerHTML = '';
+      const defsBySlug = new Map((tagDefsCache || []).map(t => [t.slug, t]));
+      list.forEach(tag => {
+        const def = defsBySlug.get(tag);
+        const color = def?.color || '#8fa396';
+        const pill = document.createElement('span');
+        pill.className = 'ta-tag';
+        pill.dataset.tag = tag;
+        pill.style.background = `linear-gradient(180deg, ${shadeHex(color, 12)}, ${color} 55%, ${shadeHex(color, -22)})`;
+        pill.textContent = def?.label || tag;
+        wrap.appendChild(pill);
+      });
+    };
+    paint();
+    // First render before the defs arrive uses the grey fallback for
+    // everything — repaint with real colors once they're cached.
+    if (!tagDefsCache) fetchTagDefs().then(paint);
     return wrap;
   }
 
