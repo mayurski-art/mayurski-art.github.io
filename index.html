@@ -137,7 +137,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260818c' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260818d' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
@@ -10175,6 +10175,24 @@ async function tcResolveAvatars() {
     if (found) tcRenderFeed();
   } catch {}
 }
+
+// The viewer-presence roster already carries every online account's CURRENT
+// avatar_url (re-tracked live on profile save), so it doubles as a free push
+// channel for tcAvatarCache: no page reload needed to see someone's new pfp
+// show up next to messages they send while you're both online.
+window.addEventListener('trollrunner:presence-sync', () => {
+  const { members } = getViewerRoster();
+  let changed = false;
+  members.forEach(m => {
+    if (!m.userId) return;
+    const next = m.avatarUrl || null;
+    if (tcAvatarCache.has(m.userId) && tcAvatarCache.get(m.userId) !== next) {
+      tcAvatarCache.set(m.userId, next);
+      changed = true;
+    }
+  });
+  if (changed) tcRenderFeed();
+});
 
 function tcLoadLastSeen() {
   try { return localStorage.getItem(TC_LASTREAD_KEY) || null; } catch { return null; }

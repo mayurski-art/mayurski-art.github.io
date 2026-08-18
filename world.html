@@ -3242,7 +3242,7 @@
           seen.add(userId);
           const avatar = String(entry.avatarUrl || '');
           members.push({
-            viewerId: entry.viewerId, username,
+            viewerId: entry.viewerId, userId, username,
             // Only ever render an https image URL another client sent us.
             avatarUrl: /^https:\/\//.test(avatar) ? avatar : '',
             level: Math.max(1, Number(entry.level) || 1),
@@ -3257,8 +3257,34 @@
       return { members, guests, total: members.length + guests.length };
     }
 
+    // The presence roster already carries every online account's CURRENT
+    // avatar_url (re-tracked live on profile save — see the auth-changed
+    // listener above), so it doubles as a free push channel for chat's
+    // avatarCache: no need to wait for a page reload to see someone's new
+    // pfp show up next to messages they send while you're both online.
+    function syncChatAvatarsFromRoster(members) {
+      if (typeof avatarCache === 'undefined' || !Array.isArray(members)) return;
+      let changed = false;
+      members.forEach(m => {
+        if (!m.userId) return;
+        const next = m.avatarUrl || null;
+        if (avatarCache.has(m.userId) && avatarCache.get(m.userId) !== next) {
+          avatarCache.set(m.userId, next);
+          changed = true;
+        }
+      });
+      if (!changed) return;
+      if (typeof renderFeed === 'function') renderFeed();
+      if (typeof dmRenderThread === 'function' && typeof dm !== 'undefined' && dm?.open?.otherId) dmRenderThread();
+    }
+
     function viewersPaint() {
       const { members, guests, total } = viewerRoster();
+      syncChatAvatarsFromRoster(members);
+      // Lets troll-accounts.js (Friends panel, Find Friends, profile drawers)
+      // refresh its own online dots off this same roster sync — the desktop
+      // already fires this; the phone hub never did.
+      try { window.dispatchEvent(new CustomEvent('trollrunner:presence-sync')); } catch {}
       $('viewers-n').textContent = String(total);
       $('viewers').setAttribute('aria-label', `${total} ${total === 1 ? 'person' : 'people'} online — see who`);
       const rows = $('roster-rows');
