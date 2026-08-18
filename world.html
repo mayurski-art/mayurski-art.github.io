@@ -680,24 +680,28 @@
     .hub-lobby {
       flex: 1; min-height: 0; overflow-y: auto;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 14px; text-align: center; padding: 10px 0;
+      gap: 10px; text-align: center; padding: 6px 0;
     }
-    .hub-lobby-mark { width: 64px; height: 64px; border-radius: 16px; background: #ffffff0d; padding: 10px; }
-    .hub-lobby-cards { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px; }
+    .hub-lobby-mark { width: 46px; height: 46px; border-radius: 14px; background: #ffffff0d; padding: 8px; }
+    /* Three cards in a row instead of a tall stack — the stack pushed total
+       height past the sheet's max-height on short viewports and forced a
+       scrollbar even with just two cards. auto-fit lets it wrap to two
+       columns only if the sheet is too narrow to hold three. */
+    .hub-lobby-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; max-width: 420px; }
     .hub-lobby-card {
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      border: 1px solid var(--glass-stroke); border-radius: 16px; background: #ffffff08;
-      color: inherit; text-decoration: none; cursor: pointer; padding: 18px 16px; font: inherit;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      border: 1px solid var(--glass-stroke); border-radius: 14px; background: #ffffff08;
+      color: inherit; text-decoration: none; cursor: pointer; padding: 14px 8px; font: inherit;
       transition: background .16s var(--ease), transform .16s var(--ease);
     }
     .hub-lobby-card:hover { background: #ffffff12; transform: translateY(-2px); }
     .hub-lobby-card:active { transform: translateY(0); }
     .hub-lobby-card-icon {
-      width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px;
-      background: color-mix(in srgb, var(--accent) 22%, transparent); font-size: 19px; line-height: 1;
+      width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px;
+      background: color-mix(in srgb, var(--accent) 22%, transparent); font-size: 16px; line-height: 1;
     }
-    .hub-lobby-card-title { font-family: var(--font-display); font-size: 13px; letter-spacing: .01em; }
-    .hub-lobby-card-desc { font-size: 13px; line-height: 1.35; color: var(--fg-dim); }
+    .hub-lobby-card-title { font-family: var(--font-display); font-size: 12px; letter-spacing: .01em; }
+    .hub-lobby-card-desc { font-size: 11px; line-height: 1.3; color: var(--fg-dim); }
     .hub-lobby-back {
       margin-top: 2px; background: none; border: 0; color: var(--fg-dim); text-decoration: underline;
       font: 13px var(--font-ui); cursor: pointer; padding: 6px;
@@ -1668,6 +1672,11 @@
             <span class="hub-lobby-card-title">Messages</span>
             <span class="hub-lobby-card-desc">DM a runner or start/join a group chat.</span>
           </button>
+          <button type="button" id="hub-open-connect" class="hub-lobby-card">
+            <span class="hub-lobby-card-icon" aria-hidden="true">👥</span>
+            <span class="hub-lobby-card-title">Connect</span>
+            <span class="hub-lobby-card-desc">Browse every runner to friend or message.</span>
+          </button>
         </div>
       </section>
 
@@ -1691,6 +1700,27 @@
         <div class="hub-dm-panel" id="hub-dm-panel" hidden></div>
 
         <div class="hub-dm-list" id="hub-dm-list"></div>
+      </section>
+
+      <!-- Connect: a browsable directory of every runner, so you don't have
+           to already know a username to friend or message someone. Rows
+           reuse the DM list's item look; tapping one opens the same public
+           profile card the roster/leaderboard use, which already carries
+           its own Friend/Message controls. See initHubConnect below. -->
+      <section id="hub-connect" class="hub-dm" hidden aria-label="Connect">
+        <div class="hub-room-top">
+          <div class="hub-room-title">
+            <div class="title">Connect</div>
+            <div class="subtitle">Every runner on Troll Runner</div>
+          </div>
+          <button type="button" class="hub-room-back" id="hub-connect-back">&#x2190; Back</button>
+        </div>
+
+        <div class="hub-dm-row">
+          <input id="hub-connect-search" class="hub-dm-input" type="text" maxlength="24" placeholder="Search runners…" autocomplete="off" aria-label="Search runners">
+        </div>
+
+        <div class="hub-dm-list" id="hub-connect-list"></div>
       </section>
 
       <!-- One thread — a DM or a group room. Reuses the General Chat feed
@@ -3849,7 +3879,7 @@
       /* The Hub sheet holds four exclusive screens: the lobby, the general
          room, the Messages inbox, and one open thread. Everything but the
          lobby wants the taller sheet (.is-room), because all three scroll. */
-      const HUB_SCREENS = ['hub-lobby', 'hub-room', 'hub-messages', 'hub-thread'];
+      const HUB_SCREENS = ['hub-lobby', 'hub-room', 'hub-messages', 'hub-thread', 'hub-connect'];
       function showScreen(id) {
         HUB_SCREENS.forEach(s => { const el = document.getElementById(s); if (el) el.hidden = s !== id; });
         document.getElementById('hub').classList.toggle('is-room', id !== 'hub-lobby');
@@ -3947,6 +3977,82 @@
         b.textContent = label;
         b.addEventListener('click', e => { e.stopPropagation(); onClick(); });
         return b;
+      }
+
+      /* ---- Connect: browse every runner ----
+         Straight troll_profiles reads (same table/columns the desktop's
+         "Find friends" search already queries), paged 30 at a time, newest
+         search wins via a token so a fast typist can't race stale results
+         into the list. Each row opens the shared public profile card, which
+         already carries Friend/Message controls — no need to duplicate
+         them here. */
+      const connect = { query: '', offset: 0, loading: false, done: false, token: 0 };
+      function connectClient() { return window.TrollrunnerAccounts?.getClient?.() || null; }
+
+      async function loadConnectPage(reset) {
+        const list = document.getElementById('hub-connect-list');
+        if (!list) return;
+        if (reset) { connect.offset = 0; connect.done = false; list.replaceChildren(); }
+        if (connect.done || connect.loading) return;
+        const sb = connectClient();
+        if (!sb) { if (reset) list.replaceChildren(dmNote('Login to browse runners.', true)); connect.done = true; return; }
+        const token = ++connect.token;
+        connect.loading = true;
+        const more = document.getElementById('hub-connect-more');
+        if (more) more.remove();
+        if (reset) list.appendChild(dmNote('Loading…'));
+        const me = window.TrollrunnerAccounts?.getCachedProfile?.();
+        let q = sb.from('troll_profiles').select('id, username, avatar_url, level')
+          .order('username').range(connect.offset, connect.offset + 29);
+        if (connect.query) q = q.ilike('username', `%${connect.query}%`);
+        if (me?.id) q = q.neq('id', me.id);
+        const { data, error } = await q;
+        connect.loading = false;
+        if (token !== connect.token) return; // a newer search/page superseded this one
+        if (reset) list.replaceChildren();
+        if (error) { if (reset) list.appendChild(dmNote('Could not load runners.', true)); return; }
+        if (!data || !data.length) {
+          if (reset) {
+            const empty = document.createElement('div');
+            empty.className = 'hub-dm-empty';
+            const img = document.createElement('img'); img.src = 'assets/animations/troll-lel_transparent.gif'; img.alt = '';
+            const strong = document.createElement('strong'); strong.textContent = 'No runners found';
+            const span = document.createElement('span'); span.textContent = connect.query ? 'Try a different username.' : 'Nobody here yet.';
+            empty.append(img, strong, span);
+            list.appendChild(empty);
+          }
+          connect.done = true;
+          return;
+        }
+        data.forEach(person => list.appendChild(dmItem({
+          title: person.username || 'runner',
+          preview: `LV ${person.level ?? 1}`,
+          avatar: person.avatar_url,
+          icon: '🧑',
+          onOpen: () => window.TrollrunnerAccounts?.openProfileCard?.(person.id),
+        })));
+        connect.offset += data.length;
+        if (data.length < 30) {
+          connect.done = true;
+        } else {
+          const btn = dmActionBtn('Load more', () => void loadConnectPage(false));
+          btn.id = 'hub-connect-more';
+          btn.style.alignSelf = 'center';
+          list.appendChild(btn);
+        }
+      }
+
+      function initHubConnect() {
+        const search = document.getElementById('hub-connect-search');
+        if (!search) return;
+        let debounce;
+        search.addEventListener('input', () => {
+          clearTimeout(debounce);
+          debounce = setTimeout(() => {
+            connect.query = search.value.trim();
+            void loadConnectPage(true);
+          }, 280);
+        });
       }
 
       async function dmLoadInbox() {
@@ -4543,6 +4649,8 @@
         const general = document.getElementById('hub-open-general');
         const messagesCard = document.getElementById('hub-open-messages');
         const messagesBack = document.getElementById('hub-messages-back');
+        const connectCard = document.getElementById('hub-open-connect');
+        const connectBack = document.getElementById('hub-connect-back');
         if (general) general.addEventListener('click', enterRoom);
         if (messagesCard) messagesCard.addEventListener('click', () => {
           showScreen('hub-messages');
@@ -4550,12 +4658,18 @@
           void dmLoadInbox();
         });
         if (messagesBack) messagesBack.addEventListener('click', () => { dmClosePanel(); showScreen('hub-lobby'); });
+        if (connectCard) connectCard.addEventListener('click', () => {
+          showScreen('hub-connect');
+          void loadConnectPage(true);
+        });
+        if (connectBack) connectBack.addEventListener('click', () => showScreen('hub-lobby'));
         const backToLobby = document.getElementById('hub-back-to-lobby');
         if (backToLobby) backToLobby.addEventListener('click', () => showScreen('hub-lobby'));
       }
 
       function init() {
         initHubLobby();
+        initHubConnect();
         initHubMessages();
         els.feed = document.getElementById('hub-feed');
         els.jump = document.getElementById('hub-jump');
