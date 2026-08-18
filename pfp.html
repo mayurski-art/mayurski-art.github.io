@@ -284,7 +284,8 @@
       html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
       body { display: flex; flex-direction: column; }
       .wrap {
-        flex: 1; min-height: 0; display: flex; flex-direction: column;
+        flex: 1; min-height: 0; width: 100%; margin: 0; max-width: none;
+        display: flex; flex-direction: column;
         padding: 10px 10px calc(8px + env(safe-area-inset-bottom));
         overflow: hidden;
       }
@@ -292,7 +293,7 @@
       .brand h1 { font-size: 16px; }
       .credit { padding: 5px 10px; font-size: 10.5px; }
 
-      .studio { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+      .studio { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
 
       /* preview + actions collapse into one compact header row instead of
          a tall stacked card */
