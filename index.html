@@ -124,7 +124,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260817t' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260817u' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
@@ -1580,6 +1580,7 @@ header p {
 }
 .tc-note a { color: #0f6b3c; text-decoration: underline; }
 .tc-groups-btn {
+  position: relative;
   border: 2px solid var(--tc-line);
   border-radius: 2px;
   background: #fff;
@@ -5289,7 +5290,7 @@ body.desktop-mode .troll-desktop { display: block; }
           <span class="tc-online-num" id="tc-online-num">1</span>&nbsp;online
         </button>
         <div class="tc-status-btns">
-          <button id="tc-groups-btn" class="tc-groups-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tc-groups-overlay">💌 MESSAGES</button>
+          <button id="tc-groups-btn" class="tc-groups-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tc-groups-overlay">💌 MESSAGES<span id="tc-groups-badge" class="gate-friend-badge" hidden>0</span></button>
         </div>
       </div>
     </div>
@@ -5535,7 +5536,7 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="assets/js/coming-soon.js"></script>
 <script src="assets/js/troll-pay-config.js"></script>
 <script src="assets/js/troll-pay.js"></script>
-<script src="assets/js/troll-accounts.js?v=20260817d"></script>
+<script src="assets/js/troll-accounts.js?v=20260818a"></script>
 <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script src="assets/js/troll-chat-extras.js"></script>
@@ -6109,6 +6110,16 @@ function initializeGateAccountUI() {
   });
   window.addEventListener('trollrunner:friend-requests-changed', event => {
     const badge = document.getElementById('gate-friends-badge');
+    if (!badge) return;
+    const count = Number(event.detail?.count) || 0;
+    badge.hidden = count <= 0;
+    badge.textContent = count > 9 ? '9+' : String(count);
+  });
+  // Desktop's DM inbox lives behind the TrollChat window's MESSAGES button,
+  // so unread DMs badge that button rather than the Friends one (which is
+  // for pending friend requests only).
+  window.addEventListener('trollrunner:dm-unread-changed', event => {
+    const badge = document.getElementById('tc-groups-badge');
     if (!badge) return;
     const count = Number(event.detail?.count) || 0;
     badge.hidden = count <= 0;

@@ -77,18 +77,16 @@
   });
   </script>
   <style>
-    /* Native cross-document page transitions — matches index.html's rule
-       (same media gate: mobile only, desktop keeps instant navigation).
+    /* Native cross-document page transitions, on unconditionally (index.html
+       gated this to mobile only; here it also covers desktop, since PFP
+       Studio dropped its in-page sheet in favor of a real navigation to
+       pfp.html and wants that hop to crossfade instead of hard-cutting).
        Same-origin only, so today this covers navigation within this site
        (pfp.html, hub/, the classic desktop); once stickers/terminal/
        finance route through the front door (see troll-frontdoor.js), those
        crossfade the same way instead of hard-cutting to a different site's
-       look. This is the shell those cross-site links actually live in, so
-       leaving it off here (it was only ever added to index.html) is why the
-       "seamless like trollface.io" transition never fired from mobile. */
-    @media (max-width: 760px) {
-      @view-transition { navigation: auto; }
-    }
+       look. Unsupported browsers just fall back to an instant navigation. */
+    @view-transition { navigation: auto; }
 
     :root {
       --font-display: "Archivo Black", Impact, "Arial Black", sans-serif;
@@ -532,7 +530,7 @@
     }
     .sheet.is-open .sheet-inner { transform: none; }
     /* The menu drawer (#sheet) otherwise inherits .sheet-inner's full-height
-       bottom:0 (right for the Hub/PFP sheets, which have long scrolling
+       bottom:0 (right for the Hub sheet, which has long scrolling
        content) — but the menu's content is short and fixed, so on a real
        phone that left a large empty gap below the tagline banner. Shrink-
        wrap just this drawer to its content instead of stretching to the
@@ -587,13 +585,13 @@
     #updates.is-open ~ #updates-close,
     #feedback.is-open ~ #feedback-close { opacity: 1; visibility: visible; transition-delay: 0s; }
 
-    /* Shared by any sheet whose content runs edge-to-edge (PFP, the Hub)
-       instead of the padded text-list layout the plain .sheet-close assumes.
-       That bare fixed-position X is computed from the drawer's width to
-       float just outside its top-left corner — fine when content is a
-       padded list, but PFP's iframe and the Hub's centered lobby cards both
-       reach close enough to that corner that the X landed on top of their
-       own title text instead of beside it. A close button with real layout
+    /* Shared by any sheet whose content runs edge-to-edge (the Hub) instead
+       of the padded text-list layout the plain .sheet-close assumes. That
+       bare fixed-position X is computed from the drawer's width to float
+       just outside its top-left corner — fine when content is a padded
+       list, but the Hub's centered lobby cards reach close enough to that
+       corner that the X landed on top of their own title text instead of
+       beside it. A close button with real layout
        space in its own head bar sidesteps the collision at every viewport
        instead of chasing coordinates, and needs none of the .sheet-close
        opacity/visibility dance — the parent .sheet's own fade already hides
@@ -610,20 +608,6 @@
     }
     .sheet-close-btn:hover { background: #ffffff26; border-color: var(--accent); }
 
-    /* PFP Studio is a full app (preview canvas + trait grid), not a menu
-       list, so its drawer gets a lot more width than the standard
-       --sheet-w — the same 340px column would squeeze pfp.html's own
-       responsive layout tighter than it ever runs standalone. */
-    #pfp .pfp-sheet-inner {
-      width: min(760px, 96vw);
-      padding: 0;
-      overflow: hidden;
-      display: flex; flex-direction: column;
-    }
-    .pfp-sheet-inner #pfp-frame {
-      flex: 1; width: 100%; height: 100%; border: 0; display: block; background: #000;
-    }
-
     /* ---- bottom sheet on phones (mobile-preview) ----
        On desktop these slide in from the right edge, but on a real phone
        that left the island visible in a sliver next to a squeezed panel —
@@ -633,11 +617,8 @@
        native sheet should feel. Height is auto for the Hub so its lobby
        (just two short cards) stays compact, growing only once the actual
        chat room is showing (.is-room, toggled by the hub JS's enterRoom/
-       back-to-lobby handlers) so the message feed has room to scroll.
-       #pfp-frame's iframe has no intrinsic height of its own to drive an
-       auto-sized parent, so PFP keeps a fixed cap instead. */
-    html.mobile-preview #hub .sheet-inner,
-    html.mobile-preview #pfp .pfp-sheet-inner {
+       back-to-lobby handlers) so the message feed has room to scroll. */
+    html.mobile-preview #hub .sheet-inner {
       position: fixed; left: 0; right: 0; top: auto; bottom: 0; margin: 0 auto;
       width: min(560px, 94vw);
       border-radius: 20px 20px 0 0;
@@ -646,16 +627,11 @@
       transform: translateY(100%);
       transition: transform .32s var(--ease);
     }
-    html.mobile-preview #hub.is-open .sheet-inner,
-    html.mobile-preview #pfp.is-open .pfp-sheet-inner {
+    html.mobile-preview #hub.is-open .sheet-inner {
       transform: translateY(0);
     }
     html.mobile-preview #hub .sheet-inner { height: auto; max-height: 80vh; }
     html.mobile-preview #hub.is-room .sheet-inner { height: min(620px, 78vh); }
-    /* PFP's trait grid and preview canvas want more elbow room than a chat
-       bubble does — the same reason its right-drawer width was already
-       wider than the standard sheet (see .pfp-sheet-inner above). */
-    html.mobile-preview #pfp .pfp-sheet-inner { width: min(680px, 97vw); height: min(760px, 84vh); }
 
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
@@ -697,9 +673,17 @@
     .hub-lobby-card:hover { background: #ffffff12; transform: translateY(-2px); }
     .hub-lobby-card:active { transform: translateY(0); }
     .hub-lobby-card-icon {
+      position: relative;
       width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px;
       background: color-mix(in srgb, var(--accent) 22%, transparent); font-size: 16px; line-height: 1;
     }
+    .hub-lobby-card-badge {
+      position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px;
+      display: flex; align-items: center; justify-content: center; border-radius: 999px;
+      background: #ff2d55; color: #fff; font-size: 10px; font-weight: 700; border: 2px solid #000;
+      font-family: var(--font-display); line-height: 1;
+    }
+    .hub-lobby-card-badge[hidden] { display: none; }
     .hub-lobby-card-title { font-family: var(--font-display); font-size: 12px; letter-spacing: .01em; }
     .hub-lobby-card-desc { font-size: 11px; line-height: 1.3; color: var(--fg-dim); }
     .hub-lobby-back {
@@ -1132,16 +1116,14 @@
         transform: scale(0.82);
       }
 
-      /* PFP Studio and the Hub are full mini-apps, not menu lists — on a
-         real desktop window they get room to breathe as a centered modal
-         instead of the standard edge-docked drawer (which was cramping the
-         PFP room preview and the Hub's chat feed into a 340–760px sliver).
-         :not(.mobile-preview) keeps this off the simulated-phone window,
-         same guard as the rest of this block. Swaps the drawer's slide-in-
-         from-the-right transform for a scale/fade so it reads as a modal
-         opening in place rather than sliding off an edge it's no longer
-         docked to. */
-      html:not(.mobile-preview) #pfp .pfp-sheet-inner,
+      /* The Hub is a full mini-app, not a menu list — on a real desktop
+         window it gets room to breathe as a centered modal instead of the
+         standard edge-docked drawer (which was cramping its chat feed into
+         a 340px sliver). :not(.mobile-preview) keeps this off the
+         simulated-phone window, same guard as the rest of this block.
+         Swaps the drawer's slide-in-from-the-right transform for a
+         scale/fade so it reads as a modal opening in place rather than
+         sliding off an edge it's no longer docked to. */
       html:not(.mobile-preview) #hub .sheet-inner {
         /* position:fixed + inset:0 (all four offsets, not just top/left) +
            margin:auto is what actually centers a fixed box with an explicit
@@ -1152,35 +1134,9 @@
         box-shadow: 0 40px 100px rgba(0, 0, 0, .55);
         transform: scale(.96); opacity: 0;
         transition: transform .3s var(--ease), opacity .3s var(--ease);
-      }
-      html:not(.mobile-preview) #pfp.is-open .pfp-sheet-inner,
-      html:not(.mobile-preview) #hub.is-open .sheet-inner {
-        transform: scale(1); opacity: 1;
-      }
-      html:not(.mobile-preview) #pfp .pfp-sheet-inner {
-        width: min(1200px, 92vw); height: min(860px, 88vh);
-      }
-      html:not(.mobile-preview) #hub .sheet-inner {
         width: min(720px, 90vw); height: min(760px, 88vh);
       }
-    }
-
-    /* Same roomy centered-modal treatment as the block above, but keyed on
-       width alone — a touchscreen laptop is still a desktop-wide window,
-       and (pointer: fine) was quietly bucketing those into the cramped
-       680px bottom-sheet size meant for actual phones. Layered after the
-       pointer-gated block so it also wins there when both match; the values
-       are identical for a fine-pointer visitor, so nothing changes for them. */
-    @media (min-width: 721px) {
-      html:not(.mobile-preview) #pfp .pfp-sheet-inner {
-        position: fixed; inset: 0; margin: auto;
-        border-radius: 20px; border: 1px solid var(--glass-stroke);
-        box-shadow: 0 40px 100px rgba(0, 0, 0, .55);
-        transform: scale(.96); opacity: 0;
-        transition: transform .3s var(--ease), opacity .3s var(--ease);
-        width: min(1200px, 92vw); height: min(860px, 88vh);
-      }
-      html:not(.mobile-preview) #pfp.is-open .pfp-sheet-inner {
+      html:not(.mobile-preview) #hub.is-open .sheet-inner {
         transform: scale(1); opacity: 1;
       }
     }
@@ -1668,7 +1624,7 @@
             <span class="hub-lobby-card-desc">Jump into the live room — everyone's here.</span>
           </button>
           <button type="button" id="hub-open-messages" class="hub-lobby-card">
-            <span class="hub-lobby-card-icon" aria-hidden="true">💗</span>
+            <span class="hub-lobby-card-icon" aria-hidden="true">💗<span id="hub-messages-badge" class="hub-lobby-card-badge" hidden>0</span></span>
             <span class="hub-lobby-card-title">Messages</span>
             <span class="hub-lobby-card-desc">DM a runner or start/join a group chat.</span>
           </button>
@@ -1779,31 +1735,6 @@
     </div>
   </div>
 
-  <!-- ============ PFP STUDIO ============
-       Same in-place-sheet treatment as the Hub: the island stays visible
-       (dimmed) behind it instead of navigating away to pfp.html. Unlike the
-       Hub this one is a full app, not a chat feed, so it iframes the real
-       pfp.html rather than reimplementing the trait picker a second time —
-       one build, one source of truth for the trait set. The iframe src is
-       set lazily on first open (see pfpSetOpen) so the trait manifest never
-       loads until someone actually opens it.
-
-       The close button lives in its own head bar ABOVE the iframe rather
-       than floating fixed over it like the other sheets' .sheet-close — the
-       iframe's own content (pfp.html's title/toolbar) runs edge-to-edge
-       with no reserved gap, so a fixed-position X computed from the drawer
-       width used to land right on top of that content instead of beside
-       it. Giving the button real layout space sidesteps the collision at
-       every viewport instead of chasing coordinates. -->
-  <div class="sheet" id="pfp" role="dialog" aria-modal="true" aria-label="PFP Studio">
-    <div class="sheet-inner pfp-sheet-inner">
-      <div class="sheet-head-bar">
-        <button class="sheet-close-btn" id="pfp-close" type="button" aria-label="Close">✕</button>
-      </div>
-      <iframe id="pfp-frame" title="PFP Studio" loading="lazy"></iframe>
-    </div>
-  </div>
-
   <!-- ============ ACCOUNT ============ -->
   <div class="auth" id="auth" role="dialog" aria-modal="true" aria-label="Account">
     <div class="auth-inner">
@@ -1905,7 +1836,7 @@
        index.html, so a session started on either shell is already shared —
        no SSO bridge needed here, unlike the sibling subdomains. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
-  <script src="assets/js/troll-accounts.js?v=20260817d"></script>
+  <script src="assets/js/troll-accounts.js?v=20260818a"></script>
   <!-- Separate credential from the one above: a fixed admin@login.trollrunner.net
        password session, not a regular troll_runner profile login. This is
        what admin.html itself gates on, so it's what the menu's Admin link
@@ -2229,13 +2160,15 @@
     }
 
     /* Wires the apps that open an in-page sheet instead of navigating away
-       (Account/Updates/Feedback/Hub/PFP Studio) — shared between the island
-       app grid and the menu sheet's "Apps" list so both stay in sync. Used
-       to live inline in the app-grid loop only, which meant the menu sheet
+       (Account/Updates/Feedback/Hub) — shared between the island app grid
+       and the menu sheet's "Apps" list so both stay in sync. Used to live
+       inline in the app-grid loop only, which meant the menu sheet
        (a separate set of <a> elements built from the same APPS array, see
        GROUPS below) fell through to a hard navigation instead of the same
        in-place transition. The href stays on the element either way, as the
-       no-JS fallback. */
+       no-JS fallback. PFP Studio isn't wired here — it's a real page
+       (pfp.html) with its own big room-preview layout, so it just gets the
+       plain navigation every other unwired app link falls through to. */
     const wireInPageApp = (el, id) => {
       // Closing the menu sheet first matters when this fires from inside it
       // (see GROUPS below) — otherwise the sheet stays open on top of the
@@ -2246,7 +2179,6 @@
       if (id === 'updates') el.addEventListener('click', open(() => updatesSetOpen(true)));
       if (id === 'feedback') el.addEventListener('click', open(() => feedbackSetOpen(true)));
       if (id === 'hub') el.addEventListener('click', open(() => hubSetOpen(true)));
-      if (id === 'pfp') el.addEventListener('click', open(() => pfpSetOpen(true)));
     };
 
     /* ---------- app grid ----------
@@ -3543,36 +3475,9 @@
     };
     hubSheet.inert = true;
     hubClose.addEventListener('click', () => hubSetOpen(false));
-
-    /* ---------- PFP Studio ----------
-       An iframe of the real pfp.html rather than a native rebuild — the
-       trait picker, the room hotspot UI and the export/save logic already
-       live there, and duplicating a 246-trait manifest and canvas
-       compositor into this page just to skip an iframe isn't worth it.
-       The src is only set the first time the sheet opens, so boot never
-       pays for the trait manifest fetch unless someone actually opens it. */
-    const pfpSheet = $('pfp'), pfpClose = $('pfp-close'), pfpFrame = $('pfp-frame');
-    const pfpSetOpen = (open, opts) => {
-      opts = opts || {};
-      if (open && !pfpFrame.src) pfpFrame.src = 'pfp.html';
-      pfpSheet.classList.toggle('is-open', open);
-      pfpSheet.inert = !open;
-      if (open) pfpClose.focus();
-      if (!opts.skipUrl) {
-        try {
-          const top = window.top || window;
-          const path = top.location.pathname.replace(/\/+$/, '') || '/';
-          if (open && path !== '/pfp') top.history.pushState({ trollrunnerPfp: true }, '', '/pfp');
-          else if (!open && path === '/pfp') top.history.replaceState({}, '', '/');
-        } catch {}
-      }
-    };
-    pfpSheet.inert = true;
-    pfpClose.addEventListener('click', () => pfpSetOpen(false));
     try {
       (window.top || window).addEventListener('popstate', () => {
         if (hubSheet.classList.contains('is-open')) hubSetOpen(false, { skipUrl: true });
-        if (pfpSheet.classList.contains('is-open')) pfpSetOpen(false, { skipUrl: true });
       });
     } catch {}
 
@@ -4016,6 +3921,7 @@
           .order('username').range(connect.offset, connect.offset + 29);
         if (connect.query) q = q.ilike('username', `%${connect.query}%`);
         if (me?.id) q = q.neq('id', me.id);
+        q = q.not('username', 'in', '(troll_tester,TrollAdmin)'); // internal test/admin accounts, not real runners
         const { data, error } = await q;
         connect.loading = false;
         if (token !== connect.token) return; // a newer search/page superseded this one
@@ -4668,6 +4574,20 @@
           void dmLoadInbox();
         });
         if (messagesBack) messagesBack.addEventListener('click', () => { dmClosePanel(); showScreen('hub-lobby'); });
+
+        // Messages card badges unread DMs + pending friend requests (both
+        // surface inside that same inbox — see dmLoadInbox's "Friend
+        // requests" section above), so this is one combined count, not two.
+        const messagesBadge = document.getElementById('hub-messages-badge');
+        let hlDmUnread = 0, hlFriendReqs = 0;
+        const hlUpdateBadge = () => {
+          if (!messagesBadge) return;
+          const n = hlDmUnread + hlFriendReqs;
+          messagesBadge.hidden = n <= 0;
+          messagesBadge.textContent = n > 9 ? '9+' : String(n);
+        };
+        window.addEventListener('trollrunner:dm-unread-changed', e => { hlDmUnread = Number(e.detail?.count) || 0; hlUpdateBadge(); });
+        window.addEventListener('trollrunner:friend-requests-changed', e => { hlFriendReqs = Number(e.detail?.count) || 0; hlUpdateBadge(); });
         if (connectCard) connectCard.addEventListener('click', () => {
           showScreen('hub-connect');
           void loadConnectPage(true);
