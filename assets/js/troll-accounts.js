@@ -1183,10 +1183,7 @@
       dropdown.style.display = 'block';
       results.forEach(person => {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;font:13px/1.3 inherit;color:#fff;';
-        const avatar = avatarNode({ avatarUrl: person.avatar_url });
-        avatar.style.cssText = 'width:22px;height:22px;flex:none;';
-        row.appendChild(avatar);
+        row.style.cssText = 'display:flex;align-items:center;padding:8px 10px;cursor:pointer;font:13px/1.3 inherit;color:#fff;';
         row.appendChild(document.createTextNode(person.username || 'runner'));
         row.addEventListener('mouseenter', () => { row.style.background = 'rgba(255,255,255,0.08)'; });
         row.addEventListener('mouseleave', () => { row.style.background = ''; });
