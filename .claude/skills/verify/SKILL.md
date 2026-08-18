@@ -54,6 +54,19 @@ reachable by bare identifier inside evaluate.
   `rest/v1/troll_profiles?select=id,username&limit=3` with the anon key from
   index.html), then
   `window.dispatchEvent(new CustomEvent('trollrunner:auth-changed', {detail: {...}}))`.
+- **If a test genuinely needs the real signup/login flow** (not just an
+  already-logged-in state), it registers a real row in `auth.users` /
+  `troll_profiles` on the live project — there's no separate test database.
+  Prefix the username `pw_test_` and delete it the moment the test finishes,
+  in the same script, don't leave cleanup to a manual pass later:
+  ```sql
+  delete from auth.users
+  where id in (select id from public.troll_profiles where username like 'pw_test_%');
+  ```
+  (`troll_profiles` and every other user-scoped table cascade off
+  `auth.users`, so this one delete is enough.) Leftover `pw_test_*` rows are
+  real accounts and now show up in the Hub's Connect directory, so treat any
+  you find as a cleanup bug, not cosmetic noise.
 - Supabase presence gotcha: re-`track()` ACCUMULATES metas under the key on
   other clients (leave diffs don't reliably arrive). The site untracks
   before re-tracking and picks the freshest `trackedAt` meta per viewer —
