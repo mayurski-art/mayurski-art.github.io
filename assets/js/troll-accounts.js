@@ -1863,6 +1863,7 @@
 
     const xpLog = document.createElement('details');
     xpLog.className = 'ta-section ta-details';
+    xpLog.open = true;
     xpLog.innerHTML = '<summary><h4>XP log</h4></summary><p class="ta-muted">Loading…</p>';
     body.appendChild(xpLog);
     void getXpHistory(12).then(events => {
