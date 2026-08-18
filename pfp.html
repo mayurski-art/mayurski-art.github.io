@@ -37,7 +37,10 @@
       margin: 0;
       font-family: var(--pf-sans);
       color: #f5f5f7;
-      background: #000000;
+      /* Same shell gradient as trollrunner.net's home page — the studio
+         card sits a little smaller than full-bleed so this shows around
+         its edges and it reads as a panel over the main site. */
+      background: radial-gradient(circle at 15% 5%, #2c2065 0%, #111126 45%, #050507 100%);
       -webkit-font-smoothing: antialiased;
     }
     button, input { font: inherit; color: inherit; }
@@ -51,7 +54,7 @@
        top and leaving a dead void underneath. */
     @media (min-width: 861px) {
       body { display: flex; }
-      .wrap { width: 100%; margin: auto; }
+      .wrap { width: 100%; max-width: min(90vw, 1600px); margin: auto; }
     }
 
     /* ---------- header ---------- */
@@ -459,7 +462,7 @@
           <h1>PFP Studio</h1>
         </div>
       </div>
-      <button class="btn-home" id="btn-home" type="button" aria-label="Back to the room" title="Back to the room">&larr;</button>
+      <button class="btn-home" id="btn-home" type="button" aria-label="Back to trollrunner.net" title="Back to trollrunner.net">&larr;</button>
     </header>
 
     <main class="studio">
@@ -1042,7 +1045,13 @@
         }
       }
       el.roomPanelClose.addEventListener('click', closeRoomPanel);
-      document.getElementById('btn-home').addEventListener('click', closeRoomPanel);
+      // Iframed inside the index.html desktop icon, "/" would reload the
+      // whole site's boot/lock sequence into that small window and look
+      // broken — only navigate home when this is a real top-level page.
+      document.getElementById('btn-home').addEventListener('click', () => {
+        if (window.self === window.top) location.href = '/';
+        else closeRoomPanel();
+      });
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && !el.roomPanel.hidden) closeRoomPanel();
       });
