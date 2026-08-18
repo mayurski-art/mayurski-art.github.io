@@ -69,11 +69,14 @@
       padding: 7px 13px; background: rgba(255, 255, 255, 0.05);
     }
     .credit a { color: #d9d9e0; }
-    /* Same pill as the credit tag, but itself a link — the way back to the
-       main site now that PFP Studio is a real page instead of a sheet
-       floating over world.html. */
-    a.credit-back { text-decoration: none; color: #d9d9e0; transition: background 0.15s ease, border-color 0.15s ease; }
-    a.credit-back:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--pf-line-dark); }
+    /* Same pill as the credit tag, but itself a button — closes whatever
+       trait drawer is open and returns to the plain room view, same as
+       landing here fresh. Deliberately stays inside the studio rather than
+       leaving the page: an off-site link here re-triggers the phone
+       entrance's own boot/lock sequence, which reads as a broken reload
+       rather than "going back". */
+    button.credit-back { text-decoration: none; color: #d9d9e0; font-size: 15px; line-height: 1; padding: 6px 14px; transition: background 0.15s ease, border-color 0.15s ease; }
+    button.credit-back:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--pf-line-dark); }
 
     /* ---------- layout ---------- */
     .studio { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -463,7 +466,7 @@
       </div>
       <span class="top-links">
         <span class="credit">Art by <a href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer">@SwishPng</a></span>
-        <a class="credit credit-back" href="/">&larr; trollrunner.net</a>
+        <button class="credit credit-back" id="btn-home" type="button" aria-label="Back to the room" title="Back to the room">&larr;</button>
       </span>
     </header>
 
@@ -1062,6 +1065,7 @@
         }
       }
       el.roomPanelClose.addEventListener('click', closeRoomPanel);
+      document.getElementById('btn-home').addEventListener('click', closeRoomPanel);
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && !el.roomPanel.hidden) closeRoomPanel();
       });
