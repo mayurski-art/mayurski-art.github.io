@@ -2016,18 +2016,6 @@
     panels.overview.appendChild(friendSearchSection());
 
     selectTab('overview');
-
-    const chat = document.createElement('div');
-    chat.className = 'ta-section';
-    chat.innerHTML = '<h4>TrollChat identity</h4>';
-    const chatRow = document.createElement('div');
-    chatRow.className = 'ta-row';
-    chatRow.appendChild(avatarNode(session));
-    const chatName = document.createElement('span');
-    chatName.textContent = `${session.username} · LV ${session.level}`;
-    chatRow.appendChild(chatName);
-    chat.appendChild(chatRow);
-    body.appendChild(chat);
   }
 
   async function openSettings() {
