@@ -1265,24 +1265,41 @@
         background: linear-gradient(160deg, #131a15, #0a0d0b); border: 2px solid #000; border-radius: 8px;
         box-shadow: 0 0 0 1px rgba(77,255,115,0.22), 6px 8px 0 rgba(0,0,0,0.55); }
       .ta-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
-        padding: 12px 14px; border-bottom: 2px solid #000; background: rgba(77,255,115,0.08); }
+        min-height: 50px; box-sizing: border-box; padding: 8px 16px; border-bottom: 2px solid #000;
+        background: rgba(77,255,115,0.08); }
       .ta-head-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
       .ta-title { margin: 0; font-family: 'Archivo Black', Impact, 'Arial Black', sans-serif; font-weight: 400;
-        font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; color: #4dff73; }
+        font-size: 17px; letter-spacing: 0.03em; text-transform: uppercase; color: #4dff73; }
       .ta-head-actions { display: flex; align-items: center; gap: 8px; }
-      .ta-close { border: 2px solid #000; border-radius: 6px; background: #1d2620; color: #cfe9cf;
-        font: inherit; padding: 3px 10px; cursor: pointer; }
+      .ta-close { width: 36px; height: 36px; flex: none; box-sizing: border-box; display: inline-flex;
+        align-items: center; justify-content: center; border: 2px solid #000; border-radius: 8px;
+        background: #1d2620; color: #cfe9cf; font: inherit; font-size: 15px; padding: 0; cursor: pointer; }
       .ta-close:hover { background: #2a372e; }
       .ta-settings[hidden], .ta-back[hidden] { display: none; }
       .ta-body { padding: 14px; display: grid; gap: 14px; }
       .ta-row { display: flex; align-items: center; gap: 12px; }
-      /* Profile banner — a full-bleed strip pulled out to the body's own
-         -14px padding, with the row right under it pulled up so the avatar
-         sits half-on-half-off (Twitter-style). Both offsets key off ta-body's
-         padding: 14px, so they only need to change together. */
-      .ta-banner { position: relative; margin: -14px -14px 0; height: 108px; overflow: hidden;
-        background: linear-gradient(160deg, #1c2620, #0a0d0b); border-bottom: 2px solid #000; }
+      /* Profile banner — a hero image that dissolves into the card instead
+         of sitting in a hard-edged box. The bottom third is darkened toward
+         the card's own background color by a gradient OVERLAY (::after),
+         not alpha transparency — an alpha mask would reveal whatever's
+         behind it verbatim, which bands badly on a light banner (shows the
+         raw color cut, not a blend). Painting toward #0a0d0b instead works
+         the same regardless of how light or dark the source art is. Top/
+         sides stay a hard, bled-out edge (rounded corners + a faint light
+         contour + a soft green ambient glow — a near-black shadow is
+         invisible against a near-black card, so depth here comes from the
+         glow, not shadow) so it still reads as a distinct floating layer up
+         top even with nothing solid to clip against at the bottom. The row
+         right under it is pulled deep into the darkened zone so the avatar
+         looks like it's emerging from the art rather than sitting below a
+         frame. */
+      .ta-banner { position: relative; z-index: 2; margin: 0 -4px; height: 190px; overflow: hidden;
+        border-radius: 14px 14px 0 0; transform: translateY(-4px);
+        box-shadow: 0 18px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.09),
+          0 0 34px rgba(77,255,115,0.12); }
       .ta-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .ta-banner::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+        background: linear-gradient(to bottom, transparent 38%, rgba(10,13,11,0.5) 68%, #0a0d0b 96%); }
       /* The whole banner is the edit trigger; "Change banner" only appears
          as a bottom scrim on hover/focus, so by default the art is fully
          visible instead of a button sitting on top of it. */
@@ -1294,17 +1311,18 @@
       .ta-banner-edit:hover .ta-banner-edit-badge, .ta-banner-edit:focus-visible .ta-banner-edit-badge { opacity: 1; }
       /* Only the avatar peeks over the banner (Twitter-style); it's pulled
          out of flow so the username/pills below it never sit on top of the
-         banner art. padding-top just clears the banner's bottom border —
-         the avatar (taller, overlapping further up) fills the rest of the
-         visual gap on its own. */
-      .ta-row--banner { position: relative; margin-top: 0; padding-top: 10px; }
-      .ta-row--banner .ta-banner-ring { position: absolute; top: -34px; left: 0;
-        border-radius: 8px; box-shadow: 0 0 0 3px #0a0d0b, inset 0 0 0 1px rgba(77,255,115,0.24); }
-      .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 76px; }
+         banner art. padding-top just clears the gap under the floating
+         banner — the avatar (taller, overlapping further up) fills the
+         rest of the visual gap on its own. */
+      .ta-row--banner { position: relative; z-index: 3; margin-top: -6px; padding-top: 10px; }
+      .ta-row--banner .ta-banner-ring { position: absolute; top: -60px; left: 4px;
+        border-radius: 10px; box-shadow: 0 0 0 3px #0a0d0b, inset 0 0 0 1px rgba(77,255,115,0.24),
+        0 6px 14px rgba(0,0,0,0.3); }
+      .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 80px; }
       @media (max-width: 480px) {
-        .ta-banner { height: 80px; }
+        .ta-banner { height: 150px; margin: 0 -4px; }
         .ta-row--banner { padding-top: 8px; }
-        .ta-row--banner .ta-banner-ring { top: -26px; }
+        .ta-row--banner .ta-banner-ring { top: -48px; }
       }
       .ta-banner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
       .ta-banner-card { display: grid; gap: 5px; padding: 5px; font: inherit; color: #cfe9cf; text-align: center;
@@ -1314,8 +1332,9 @@
       .ta-banner-card span { font-size: 12px; }
       .ta-banner-card.is-selected { border-color: #4dff73; box-shadow: 0 0 0 1px #4dff73, 0 0 10px rgba(77,255,115,0.35); }
       .ta-avatar { width: 64px; height: 64px; flex: none; display: grid; place-items: center; font-size: 34px;
-        border: 2px solid #000; border-radius: 8px; overflow: hidden;
-        background: linear-gradient(180deg, #17231b, #0c100e); box-shadow: inset 0 0 0 1px rgba(77,255,115,0.24); }
+        border: 3px solid #000; border-radius: 8px; overflow: hidden;
+        background: linear-gradient(180deg, #17231b, #0c100e);
+        box-shadow: inset 0 0 0 1px rgba(77,255,115,0.24), 0 6px 14px rgba(0,0,0,0.3); }
       .ta-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .ta-avatar-edit { position: relative; flex: none; padding: 0; border: none; background: none; cursor: pointer; }
       .ta-avatar-edit .ta-avatar { transition: opacity 0.15s; }
@@ -1324,16 +1343,22 @@
         letter-spacing: 0.08em; text-transform: uppercase; text-align: center; color: #08110a;
         background: #4dff73; opacity: 0; transition: opacity 0.15s; border-radius: 0 0 6px 6px; }
       .ta-avatar-edit:hover .ta-avatar-edit-badge, .ta-avatar-edit:focus-visible .ta-avatar-edit-badge { opacity: 1; }
-      .ta-name { margin: 0; font-size: 19px; color: #fff; word-break: break-all; }
-      .ta-pill { display: inline-block; margin-top: 4px; padding: 1px 8px; font-family: 'Rubik', system-ui, Arial, sans-serif;
-        font-size: 12px; color: #08110a; background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521);
+      .ta-name-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+      .ta-name { margin: 0; font-size: 22px; font-weight: 700; color: #fff; word-break: break-all; }
+      .ta-pill { display: inline-block; margin-top: 0; padding: 3px 8px; font-family: 'Rubik', system-ui, Arial, sans-serif;
+        font-size: 11px; font-weight: 600; color: #08110a; background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521);
         border: 2px solid #000; border-radius: 4px; }
-      .ta-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+      .ta-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
       .ta-tags[hidden] { display: none; }
-      .ta-tag { display: inline-flex; align-items: center; padding: 1px 8px; font-family: 'Rubik', system-ui, Arial, sans-serif;
-        font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #fff;
-        border: 2px solid #000; border-radius: 4px; background: #8fa396; }
+      .ta-tag { display: inline-flex; align-items: center; padding: 3px 9px; font-family: 'Rubik', system-ui, Arial, sans-serif;
+        font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: #fff;
+        border: 2px solid #000; border-radius: 5px; background: #8fa396;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(0,0,0,0.35); text-shadow: 0 1px 1px rgba(0,0,0,0.4); }
       .ta-muted { color: #8fa396; font-family: 'Rubik', system-ui, Arial, sans-serif; font-size: 12px; }
+      .ta-meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+      .ta-meta-row .ta-x-badge, .ta-meta-row .ta-btn--x { margin-top: 0; }
+      .ta-meta-dot { color: #4a5a4e; }
+      .ta-meta-dot[hidden] { display: none; }
       .ta-xp-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px;
         font-family: 'Rubik', system-ui, Arial, sans-serif; font-size: 11px; letter-spacing: 0.08em;
         text-transform: uppercase; color: #8cffbf; }
@@ -1357,6 +1382,22 @@
         margin-left: 8px; }
       .ta-details:not([open]) > summary::after { transform: rotate(-90deg); }
       .ta-details > summary h4 { display: inline; }
+      /* Profile tab bar — real sections (XP log / game stats), not fake
+         content; there's no "Achievements" tab because there's no
+         achievements data to back it. */
+      .ta-tabs { display: flex; gap: 2px; padding: 3px; border: 2px solid #000; border-radius: 8px;
+        background: rgba(255,255,255,0.03); }
+      .ta-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+        padding: 8px 4px; font: inherit; font-family: 'Rubik', system-ui, Arial, sans-serif;
+        font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+        color: #8fa396; background: none; border: none; border-radius: 6px; cursor: pointer; }
+      .ta-tab:hover:not(.is-active) { color: #cfe9cf; background: rgba(255,255,255,0.05); }
+      .ta-tab.is-active { color: #08110a; background: linear-gradient(180deg, #5dffa0, #4dff73 60%, #1ec94f);
+        box-shadow: 0 2px 0 rgba(0,0,0,0.4); }
+      .ta-tab-panel[hidden] { display: none; }
+      .ta-tab-panel { display: grid; gap: 14px; }
+      .ta-level-head { display: flex; align-items: center; gap: 10px; }
+      .ta-level-trophy { font-size: 26px; line-height: 1; flex: none; }
       .ta-table { width: 100%; border-collapse: collapse; font-family: 'Rubik', system-ui, Arial, sans-serif; font-size: 13px; }
       .ta-table td { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
       .ta-table td:last-child { text-align: right; color: #ffd84d; }
@@ -1806,11 +1847,22 @@
     row.appendChild(avatarWrap);
     const meta = document.createElement('div');
     const joined = session.joinedAt ? new Date(session.joinedAt).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-    meta.innerHTML = `<p class="ta-name"></p><span class="ta-pill"></span><div class="ta-muted"></div>`;
+    meta.innerHTML = `<div class="ta-name-row"><p class="ta-name"></p><span class="ta-pill"></span></div>`;
     meta.querySelector('.ta-name').textContent = session.username;
     meta.querySelector('.ta-pill').textContent = `LV ${session.level}`;
-    meta.querySelector('.ta-muted').textContent = `Running since ${joined}`;
-    meta.querySelector('.ta-pill').after(profileTagsNode(session.tags));
+    meta.appendChild(profileTagsNode(session.tags));
+    const metaRow = document.createElement('div');
+    metaRow.className = 'ta-meta-row';
+    const joinedEl = document.createElement('span');
+    joinedEl.className = 'ta-muted';
+    joinedEl.textContent = `📅 Running since ${joined}`;
+    metaRow.appendChild(joinedEl);
+    const dotSep = document.createElement('span');
+    dotSep.className = 'ta-meta-dot';
+    dotSep.textContent = '•';
+    dotSep.hidden = true;
+    metaRow.appendChild(dotSep);
+    meta.appendChild(metaRow);
     const whereFrom = document.createElement('div');
     whereFrom.className = 'ta-muted';
     whereFrom.hidden = true;
@@ -1828,7 +1880,7 @@
     xLink.rel = 'noopener noreferrer';
     xLink.hidden = true;
     xLink.innerHTML = X_LOGO_SVG;
-    meta.appendChild(xLink);
+    metaRow.appendChild(xLink);
     const xConnectBtn = document.createElement('button');
     xConnectBtn.className = 'ta-btn ta-btn--x ta-btn--sm';
     xConnectBtn.type = 'button';
@@ -1843,32 +1895,84 @@
         xConnectBtn.innerHTML = `${X_LOGO_SVG}<span>${error?.message || 'Could not connect X'}</span>`;
       }
     });
-    meta.appendChild(xConnectBtn);
+    metaRow.appendChild(xConnectBtn);
     void getXIdentity().then(identity => {
-      if (!identity?.handle) { xConnectBtn.hidden = false; return; }
+      if (!identity?.handle) { xConnectBtn.hidden = false; dotSep.hidden = false; return; }
       xLink.href = `https://x.com/${identity.handle}`;
       xLink.appendChild(document.createTextNode(`@${identity.handle}`));
       xLink.hidden = false;
+      dotSep.hidden = false;
     });
     row.appendChild(meta);
     body.appendChild(row);
 
-    const xpSection = document.createElement('div');
-    xpSection.className = 'ta-section';
-    xpSection.innerHTML = '<h4>XP</h4>';
-    xpSection.appendChild(xpBarNode(session));
-    body.appendChild(xpSection);
+    // Tabs — Overview / Activity / Games, all backed by real data already
+    // fetched above. No "Achievements" tab: there's no achievements data to
+    // put in it, and an empty tab would just be a fabricated section.
+    const tabs = [
+      { id: 'overview', label: 'Overview', icon: '⬡' },
+      { id: 'activity', label: 'Activity', icon: '📈' },
+      { id: 'games', label: 'Games', icon: '🎮' },
+    ];
+    const tabBar = document.createElement('div');
+    tabBar.className = 'ta-tabs';
+    tabBar.setAttribute('role', 'tablist');
+    const panelWrap = document.createElement('div');
+    const buttons = {};
+    const panels = {};
+    const selectTab = id => {
+      tabs.forEach(t => {
+        const active = t.id === id;
+        buttons[t.id].classList.toggle('is-active', active);
+        buttons[t.id].setAttribute('aria-selected', String(active));
+        panels[t.id].hidden = !active;
+      });
+    };
+    tabs.forEach(t => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ta-tab';
+      btn.setAttribute('role', 'tab');
+      btn.innerHTML = `<span aria-hidden="true">${t.icon}</span><span>${t.label}</span>`;
+      btn.addEventListener('click', () => selectTab(t.id));
+      buttons[t.id] = btn;
+      tabBar.appendChild(btn);
 
-    body.appendChild(friendSearchSection());
+      const panel = document.createElement('div');
+      panel.className = 'ta-tab-panel';
+      panel.hidden = true;
+      panels[t.id] = panel;
+      panelWrap.appendChild(panel);
+    });
+    body.appendChild(tabBar);
+    body.appendChild(panelWrap);
 
-    const xpLog = document.createElement('details');
-    xpLog.className = 'ta-section ta-details';
-    xpLog.innerHTML = '<summary><h4>XP log</h4></summary><p class="ta-muted">Loading…</p>';
-    body.appendChild(xpLog);
+    // Overview — level/XP as a trophy-style progress card, plus donations.
+    const levelCard = document.createElement('div');
+    levelCard.className = 'ta-section';
+    levelCard.innerHTML = '<div class="ta-level-head"><span class="ta-level-trophy" aria-hidden="true">🏆</span><h4>Level progress</h4></div>';
+    levelCard.appendChild(xpBarNode(session));
+    panels.overview.appendChild(levelCard);
+
+    const spend = document.createElement('div');
+    spend.className = 'ta-section';
+    spend.innerHTML = `<h4>Donations</h4>
+      <table class="ta-table">
+        <tr><td>$TROLL</td><td>${Number(totals.TROLL || 0).toLocaleString()}</td></tr>
+        <tr><td>USDC</td><td>${Number(totals.USDC || 0).toLocaleString()}</td></tr>
+      </table>
+      <p class="ta-muted">Only on-chain confirmed transactions count here.</p>`;
+    panels.overview.appendChild(spend);
+
+    // Activity — the XP log, no longer behind its own extra collapse since
+    // the tab itself is the show/hide now.
+    const xpLog = document.createElement('div');
+    xpLog.className = 'ta-section';
+    xpLog.innerHTML = '<h4>XP log</h4><p class="ta-muted">Loading…</p>';
+    panels.activity.appendChild(xpLog);
     void getXpHistory(12).then(events => {
-      const summary = xpLog.querySelector('summary').outerHTML;
       if (!events.length) {
-        xpLog.innerHTML = `${summary}<p class="ta-muted">No XP earned yet — log in tomorrow or play a game.</p>`;
+        xpLog.innerHTML = '<h4>XP log</h4><p class="ta-muted">No XP earned yet — log in tomorrow or play a game.</p>';
         return;
       }
       const table = document.createElement('table');
@@ -1883,10 +1987,11 @@
         tr.append(label, amount);
         table.appendChild(tr);
       });
-      xpLog.innerHTML = summary;
+      xpLog.innerHTML = '<h4>XP log</h4>';
       xpLog.appendChild(table);
     });
 
+    // Games — per-game breakdown.
     const games = document.createElement('div');
     games.className = 'ta-section';
     games.innerHTML = '<h4>Game stats</h4>';
@@ -1906,17 +2011,11 @@
     } else {
       games.insertAdjacentHTML('beforeend', '<p class="ta-muted">No saved runs yet — play something.</p>');
     }
-    body.appendChild(games);
+    panels.games.appendChild(games);
 
-    const spend = document.createElement('div');
-    spend.className = 'ta-section';
-    spend.innerHTML = `<h4>Donations</h4>
-      <table class="ta-table">
-        <tr><td>$TROLL</td><td>${Number(totals.TROLL || 0).toLocaleString()}</td></tr>
-        <tr><td>USDC</td><td>${Number(totals.USDC || 0).toLocaleString()}</td></tr>
-      </table>
-      <p class="ta-muted">Only on-chain confirmed transactions count here.</p>`;
-    body.appendChild(spend);
+    panels.overview.appendChild(friendSearchSection());
+
+    selectTab('overview');
 
     const chat = document.createElement('div');
     chat.className = 'ta-section';
