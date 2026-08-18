@@ -563,13 +563,14 @@
     .sheet .rule { border: 0; border-top: 1px solid var(--glass-stroke); margin: 20px 0 14px; }
     .sheet .tagline { color: var(--fg-dim); font-size: 12px; margin: auto 0 8px; padding-top: 20px; }
     /* banner-07.jpg is 3000x1000 (3:1) — matching the box to that ratio
-       lets background-size:cover show the whole frame instead of zooming
-       into a thin sliver of it. flex:none keeps it from being shrunk to 0
-       height by the sheet's overflowing flex column. */
+       and using background-size:contain guarantees the whole frame stays
+       visible with no edge cropping, even if rounding nudges the box off
+       an exact 3:1 fit. flex:none keeps it from being shrunk to 0 height
+       by the sheet's overflowing flex column. */
     .sheet .tagline-banner {
       margin: 0 0 14px; border-radius: 8px; overflow: hidden;
       aspect-ratio: 3 / 1; flex: none;
-      background: url('assets/images/banners/banner-07.jpg') center/cover no-repeat;
+      background: #0a0b0d url('assets/images/banners/banner-07.jpg') center/contain no-repeat;
       opacity: .69;
     }
     .sheet-close {
