@@ -58,8 +58,8 @@
   </script>
   <script>
   // Tapping an app icon hands off to a cross-origin subdomain (stickers,
-  // maps, ...); until the front door cutover that's a real navigation away,
-  // and iOS opens it as an in-app browser over this PWA. Dismissing it with
+  // maps, ...) — a real navigation away, and iOS opens it as an in-app
+  // browser over this PWA. Dismissing it with
   // "Done" restores this page from WebKit's bfcache, but WebKit sometimes
   // restores it at the in-app browser's zoomed-in visual-viewport scale
   // instead of the layout viewport's own initial-scale=1 — the page looks
@@ -81,11 +81,10 @@
        gated this to mobile only; here it also covers desktop, since PFP
        Studio dropped its in-page sheet in favor of a real navigation to
        pfp.html and wants that hop to crossfade instead of hard-cutting).
-       Same-origin only, so today this covers navigation within this site
-       (pfp.html, hub/, the classic desktop); once stickers/terminal/
-       finance route through the front door (see troll-frontdoor.js), those
-       crossfade the same way instead of hard-cutting to a different site's
-       look. Unsupported browsers just fall back to an instant navigation. */
+       Same-origin only, so this covers navigation within this site
+       (pfp.html, hub/, the classic desktop) — cross-origin app icons like
+       stickers/terminal/finance just navigate normally, no crossfade.
+       Unsupported browsers fall back to an instant navigation too. */
     @view-transition { navigation: auto; }
 
     :root {
@@ -1870,10 +1869,6 @@
        script the standalone chat surface used, see the comment near
        hubSetOpen below. -->
   <script src="assets/js/troll-chat-extras.js?v=20260818a"></script>
-  <!-- Rewrites the app icons' cross-site links to same-origin paths so the
-       phone entrance can transition into them — but only once the front door
-       is serving this page. Inert until then. -->
-  <script src="assets/js/troll-frontdoor.js" defer></script>
   <script>
   (() => {
     'use strict';

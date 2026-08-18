@@ -196,10 +196,9 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&family=Press+Start+2P&family=Rubik+Glitch&family=Space+Grotesk:wght@500;700&family=VT323&display=swap');
 
-/* Native cross-document page transitions. Only fires between same-origin
-   documents, so today this covers navigation within this site; once the
-   network is served through the front door it extends across every site.
-   Mobile only — desktop keeps instant navigation. */
+/* Native cross-document page transitions between same-origin pages on
+   this site (world.html, pfp.html, hub/). Mobile only — desktop keeps
+   instant navigation. */
 @media (max-width: 760px) {
   @view-transition { navigation: auto; }
 }
@@ -5553,10 +5552,6 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script src="assets/js/troll-chat-extras.js?v=20260818a"></script>
-<!-- Points cross-site links at same-origin paths so page transitions can
-     fire, but only once the front door is serving this page. Inert until
-     then — see docs/SAME-ORIGIN-TRANSITIONS.md. -->
-<script src="assets/js/troll-frontdoor.js" defer></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
 const ADMIN_UPDATES_KEY = 'trollrunner_updates';
