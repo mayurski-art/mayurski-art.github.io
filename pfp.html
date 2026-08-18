@@ -199,23 +199,25 @@
     }
     .room-panel-close:hover { background: rgba(0, 0, 0, 0.06); color: var(--pf-ink); }
 
-    /* Close-up rides alongside the grid as a tall side panel rather than a
-       short banner on top — most of these shots are near-square, so a wide
-       banner crop was cropping them down to an unreadable sliver, and it
-       ate vertical space the grid needed. */
-    .room-panel-body { display: flex; min-height: 0; }
-    .room-closeup {
-      flex: 0 0 34%; max-width: 260px; min-width: 108px;
-      position: relative; overflow: hidden; background: #0a0a10;
-      border-right: 0.5px solid var(--pf-line);
+    /* The whole drawer sits on the room photo for that layer instead of a
+       small cropped strip — background-size stays "contain" so the full
+       shot is visible (nothing sliced off), except "base" which is allowed
+       to crop via .is-cover. Individual trait cards keep their own solid
+       white background (.cell), so items stay readable over a busy photo;
+       only the canvas around them changes. */
+    .room-panel-body {
+      display: flex; min-height: 0; position: relative;
+      background-color: #0a0a10; background-repeat: no-repeat; background-position: center;
+      background-size: contain;
     }
-    .room-closeup img {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      object-fit: cover; display: block;
-    }
+    .room-panel-body.is-cover { background-size: cover; }
     .room-panel-main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 
-    .picker-bar { display: flex; gap: 9px; padding: 12px 14px; align-items: center; border-bottom: 0.5px solid var(--pf-line); }
+    .picker-bar {
+      display: flex; gap: 9px; padding: 12px 14px; align-items: center; border-bottom: 0.5px solid var(--pf-line);
+      background: rgba(245, 245, 247, 0.86);
+      backdrop-filter: blur(10px) saturate(160%); -webkit-backdrop-filter: blur(10px) saturate(160%);
+    }
     .search {
       flex: 1; min-width: 0; border: 0.5px solid var(--pf-line); border-radius: 10px;
       padding: 9px 12px; background: #fff; color: var(--pf-ink); font-size: 13.5px;
@@ -261,7 +263,10 @@
       background: var(--pf-accent); border-radius: 999px; padding: 2px 7px;
       align-self: center;
     }
-    .locked { grid-column: 1 / -1; padding: 26px 18px; text-align: center; }
+    .locked {
+      grid-column: 1 / -1; padding: 26px 18px; text-align: center;
+      background: rgba(255, 255, 255, 0.9); border-radius: 12px;
+    }
     .locked p { margin: 0 0 14px; color: var(--pf-muted); font-size: 13.5px; line-height: 1.5; }
     .btn-swap {
       border: 0.5px solid var(--pf-line); border-radius: 10px; background: #fff;
@@ -272,7 +277,10 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 22px; color: #b9b9c2;
     }
-    .empty { padding: 30px 14px; text-align: center; color: var(--pf-muted); font-size: 13.5px; }
+    .empty {
+      padding: 30px 14px; text-align: center; color: var(--pf-muted); font-size: 13.5px;
+      background: rgba(255, 255, 255, 0.9); border-radius: 12px; margin: 12px;
+    }
 
     /* checkbox-ish toggle row under the grid */
     .picker-foot {
@@ -355,7 +363,6 @@
       }
       .room-panel-head { flex: 0 0 auto; padding: 10px 12px 0; }
       .room-panel-body { flex: 1; min-height: 0; }
-      .room-closeup { flex: 0 0 32%; max-width: 220px; min-width: 88px; }
       .picker-bar { flex: 0 0 auto; padding: 9px 12px; }
       .grid {
         flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
@@ -388,7 +395,6 @@
        broader mobile blocks above at these widths. */
     @media (max-width: 420px) {
       .grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
-      .room-closeup { max-width: 110px; }
     }
 
     /* ---------- mobile: trollface.io/city font + color scheme ----------
@@ -525,10 +531,7 @@
             <h2 id="roomPanelTitle"></h2>
             <button type="button" class="room-panel-close" id="roomPanelClose" aria-label="Close this drawer">✕</button>
           </div>
-          <div class="room-panel-body">
-            <div class="room-closeup" id="roomCloseup">
-              <img id="roomCloseupImg" alt="">
-            </div>
+          <div class="room-panel-body" id="roomPanelBody">
             <div class="room-panel-main">
               <div class="picker-bar">
                 <input class="search" id="search" type="search" placeholder="Search traits…" aria-label="Search traits in this layer">
@@ -554,15 +557,17 @@
     // Layers that may legitimately be empty. Background and base are the
     // two that make a PFP read as a PFP, so they default to something.
     const OPTIONAL = new Set(['outfit', 'headwear', 'accessory']);
-    // Hand-shot close-ups of each hotspot's furniture, shown at the top of
-    // its drawer. object-position keeps the interesting part of each shot
-    // framed inside the wide banner crop.
+    // Hand-shot photo of each hotspot's furniture, filled in as the whole
+    // drawer's background. Every layer shows the full shot uncropped
+    // (background-size: contain) except "base", which is allowed to crop
+    // in tight for a punchier canvas since the wide shot doesn't read well
+    // shrunk to fit.
     const CLOSEUPS = {
-      base: { src: 'assets/images/world/pfp-base.png', pos: '50% 20%' },
-      headwear: { src: 'assets/images/world/pfp-headware.png', pos: '50% 50%' },
-      outfit: { src: 'assets/images/world/pfp-outfit.png', pos: '50% 40%' },
-      background: { src: 'assets/images/world/pfp-background.png', pos: '50% 8%' },
-      accessory: { src: 'assets/images/world/pfp-accesories.png', pos: '50% 35%' },
+      base: { src: 'assets/images/world/pfp-base.png', pos: '50% 20%', fit: 'cover' },
+      headwear: { src: 'assets/images/world/pfp-headware.png', fit: 'contain' },
+      outfit: { src: 'assets/images/world/pfp-outfit.png', fit: 'contain' },
+      background: { src: 'assets/images/world/pfp-background.png', fit: 'contain' },
+      accessory: { src: 'assets/images/world/pfp-accesories.png', fit: 'contain' },
     };
 
     const el = {
@@ -577,7 +582,7 @@
       tvFrames: ['roomBgTvBlue', 'roomBgTvRed', 'roomBgTvGreen'].map(id => document.getElementById(id)),
       picker: document.querySelector('.picker'),
       roomPanel: document.getElementById('roomPanel'),
-      roomCloseupImg: document.getElementById('roomCloseupImg'),
+      roomPanelBody: document.getElementById('roomPanelBody'),
       roomPanelTitle: document.getElementById('roomPanelTitle'),
       roomPanelClose: document.getElementById('roomPanelClose'),
       hotspots: Array.from(document.querySelectorAll('.hotspot')),
@@ -777,9 +782,9 @@
       el.roomPanelTitle.textContent = layerById(layerId)?.name || layerId;
       const closeup = CLOSEUPS[layerId];
       if (closeup) {
-        el.roomCloseupImg.src = closeup.src;
-        el.roomCloseupImg.style.objectPosition = closeup.pos;
-        el.roomCloseupImg.alt = `Close-up of the ${(layerById(layerId)?.name || layerId).toLowerCase()}`;
+        el.roomPanelBody.style.backgroundImage = `url(${closeup.src})`;
+        el.roomPanelBody.style.backgroundPosition = closeup.pos || 'center';
+        el.roomPanelBody.classList.toggle('is-cover', closeup.fit === 'cover');
       }
       renderGrid();
       renderHotspots();
