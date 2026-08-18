@@ -1256,13 +1256,14 @@
         box-shadow: 0 0 0 1px rgba(77,255,115,0.22), 6px 8px 0 rgba(0,0,0,0.55); }
       .ta-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
         padding: 12px 14px; border-bottom: 2px solid #000; background: rgba(77,255,115,0.08); }
+      .ta-head-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
       .ta-title { margin: 0; font-family: 'Archivo Black', Impact, 'Arial Black', sans-serif; font-weight: 400;
         font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; color: #4dff73; }
       .ta-head-actions { display: flex; align-items: center; gap: 8px; }
       .ta-close { border: 2px solid #000; border-radius: 6px; background: #1d2620; color: #cfe9cf;
         font: inherit; padding: 3px 10px; cursor: pointer; }
       .ta-close:hover { background: #2a372e; }
-      .ta-settings[hidden] { display: none; }
+      .ta-settings[hidden], .ta-back[hidden] { display: none; }
       .ta-body { padding: 14px; display: grid; gap: 14px; }
       .ta-row { display: flex; align-items: center; gap: 12px; }
       /* Profile banner — a full-bleed strip pulled out to the body's own
@@ -1272,18 +1273,27 @@
       .ta-banner { position: relative; margin: -14px -14px 0; height: 108px; overflow: hidden;
         background: linear-gradient(160deg, #1c2620, #0a0d0b); border-bottom: 2px solid #000; }
       .ta-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .ta-banner-edit { position: absolute; right: 8px; bottom: 8px; font-size: 11px; padding: 3px 9px; }
+      /* The whole banner is the edit trigger; "Change banner" only appears
+         as a bottom scrim on hover/focus, so by default the art is fully
+         visible instead of a button sitting on top of it. */
+      .ta-banner-edit { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: none; background: none; cursor: pointer; }
+      .ta-banner-edit-badge { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 0;
+        font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; color: #fff;
+        background: linear-gradient(0deg, rgba(0,0,0,0.6), rgba(0,0,0,0) 100%);
+        opacity: 0; transition: opacity 0.15s; }
+      .ta-banner-edit:hover .ta-banner-edit-badge, .ta-banner-edit:focus-visible .ta-banner-edit-badge { opacity: 1; }
       /* Only the avatar peeks over the banner (Twitter-style); it's pulled
          out of flow so the username/pills below it never sit on top of the
-         banner art — padding-top on the row reserves that same overlap
-         height so the text starts clear of the image. */
-      .ta-row--banner { position: relative; margin-top: 0; padding-top: 34px; }
+         banner art. padding-top just clears the banner's bottom border —
+         the avatar (taller, overlapping further up) fills the rest of the
+         visual gap on its own. */
+      .ta-row--banner { position: relative; margin-top: 0; padding-top: 10px; }
       .ta-row--banner .ta-banner-ring { position: absolute; top: -34px; left: 0;
         border-radius: 8px; box-shadow: 0 0 0 3px #0a0d0b, inset 0 0 0 1px rgba(77,255,115,0.24); }
       .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 76px; }
       @media (max-width: 480px) {
         .ta-banner { height: 80px; }
-        .ta-row--banner { padding-top: 26px; }
+        .ta-row--banner { padding-top: 8px; }
         .ta-row--banner .ta-banner-ring { top: -26px; }
       }
       .ta-banner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
@@ -1475,7 +1485,9 @@
   // onSettings: optional callback that adds a gear button to the header,
   // to the left of Close — only the Profile modal passes this today, so
   // Settings is one tap away from viewing your own profile.
-  function buildModal(title, onSettings) {
+  // onBack: optional callback that adds a back arrow to the left of the
+  // title — Settings passes this to jump straight back to Profile.
+  function buildModal(title, onSettings, onBack) {
     ensureModalStyles();
     closeModal();
     const overlay = document.createElement('div');
@@ -1487,7 +1499,10 @@
     overlay.innerHTML = `
       <div class="ta-card">
         <div class="ta-head">
-          <h3 class="ta-title"></h3>
+          <div class="ta-head-left">
+            <button class="ta-close ta-back" type="button" aria-label="Back to profile" hidden>←</button>
+            <h3 class="ta-title"></h3>
+          </div>
           <div class="ta-head-actions">
             <button class="ta-close ta-settings" type="button" aria-label="Settings" hidden>⚙</button>
             <button class="ta-close ta-close-x" type="button" aria-label="Close">✕</button>
@@ -1498,6 +1513,11 @@
     overlay.querySelector('.ta-title').textContent = title;
     overlay.addEventListener('click', event => { if (event.target === overlay) closeModal(); });
     overlay.querySelector('.ta-close-x').addEventListener('click', closeModal);
+    if (onBack) {
+      const backBtn = overlay.querySelector('.ta-back');
+      backBtn.hidden = false;
+      backBtn.addEventListener('click', onBack);
+    }
     if (onSettings) {
       const settingsBtn = overlay.querySelector('.ta-settings');
       settingsBtn.hidden = false;
@@ -1677,10 +1697,18 @@
     img.alt = '';
     wrap.appendChild(img);
     if (onEdit) {
+      // A permanently-visible button ate too much of the banner. Instead the
+      // whole banner is the button, and "Change banner" only shows up as a
+      // bottom scrim on hover/focus — same reveal-on-hover pattern as the
+      // avatar's "edit" badge.
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'ta-btn ta-btn--ghost ta-banner-edit';
-      btn.textContent = 'Change banner';
+      btn.className = 'ta-banner-edit';
+      btn.setAttribute('aria-label', 'Change banner');
+      const badge = document.createElement('span');
+      badge.className = 'ta-banner-edit-badge';
+      badge.textContent = 'Change banner';
+      btn.appendChild(badge);
       btn.addEventListener('click', onEdit);
       wrap.appendChild(btn);
     }
@@ -1886,7 +1914,7 @@
   }
 
   async function openSettings() {
-    const body = buildModal('Settings');
+    const body = buildModal('Settings', null, () => void openProfile());
     const session = await getSession();
     if (!session) {
       body.innerHTML = '<p class="ta-muted">Login to change your settings.</p>';
@@ -2523,10 +2551,12 @@
   }
 
   // Public profile card for ANY runner — click a username in TrollChat, the
-  // leaderboard, or the Friends panel to open it.
+  // leaderboard, or the Friends panel to open it. Clicking your own name
+  // shows this same read-only preview (what everyone else sees), not the
+  // editable modal — that one's still one tap away via the avatar/gear.
   async function openProfileCard(userId) {
     if (!userId) return;
-    if (cachedProfile && userId === cachedProfile.id) { await openProfile(); return; }
+    const isSelf = !!(cachedProfile && userId === cachedProfile.id);
     const body = buildDrawer('Profile');
     body.innerHTML = '<p class="ta-muted">Loading profile…</p>';
     const [profile, stats, status, badges] = await Promise.all([
@@ -2589,7 +2619,7 @@
 
     body.appendChild(recentlyPlayedSection(stats));
 
-    if (cachedProfile) {
+    if (cachedProfile && !isSelf) {
       const actions = document.createElement('div');
       actions.className = 'ta-section';
       actions.appendChild(friendControls(userId, profile.username, status));
