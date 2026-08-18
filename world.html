@@ -1161,6 +1161,26 @@
       }
     }
 
+    /* Same roomy centered-modal treatment as the block above, but keyed on
+       width alone — a touchscreen laptop is still a desktop-wide window,
+       and (pointer: fine) was quietly bucketing those into the cramped
+       680px bottom-sheet size meant for actual phones. Layered after the
+       pointer-gated block so it also wins there when both match; the values
+       are identical for a fine-pointer visitor, so nothing changes for them. */
+    @media (min-width: 721px) {
+      html:not(.mobile-preview) #pfp .pfp-sheet-inner {
+        position: fixed; inset: 0; margin: auto;
+        border-radius: 20px; border: 1px solid var(--glass-stroke);
+        box-shadow: 0 40px 100px rgba(0, 0, 0, .55);
+        transform: scale(.96); opacity: 0;
+        transition: transform .3s var(--ease), opacity .3s var(--ease);
+        width: min(1200px, 92vw); height: min(860px, 88vh);
+      }
+      html:not(.mobile-preview) #pfp.is-open .pfp-sheet-inner {
+        transform: scale(1); opacity: 1;
+      }
+    }
+
     /* ---- Desktop preview of the phone shell (?mobile=1) ----
        Same values as the "phone treatment at any width" block above, applied
        unconditionally via class instead of a media query, so a full desktop
