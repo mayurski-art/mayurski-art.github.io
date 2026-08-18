@@ -1137,6 +1137,76 @@
     return data;
   }
 
+  // Fuzzy username lookup shared by every "type a name" box (find friends,
+  // new DM, invite by username) so they all autopopulate matches the same way.
+  async function searchUsernames(query, { limit = 8, excludeId } = {}) {
+    const q = String(query || '').trim();
+    if (!q) return [];
+    const sb = getClient();
+    if (!sb) return [];
+    let builder = sb.from('troll_profiles')
+      .select('id, username, avatar_url, level')
+      .ilike('username', `%${q}%`)
+      .order('username')
+      .limit(limit);
+    if (excludeId) builder = builder.neq('id', excludeId);
+    const { data, error } = await builder;
+    return error || !Array.isArray(data) ? [] : data;
+  }
+
+  // Generic username-autocomplete dropdown: attaches a debounced live search
+  // to any text input and shows a floating list of matching usernames below
+  // it. onPick(profile) fires when a suggestion is chosen; the dropdown then
+  // closes itself. Reused by the Messages "new message" boxes and any other
+  // plain username input that wants the same type-ahead behavior.
+  function attachUsernameAutocomplete(inputEl, onPick, opts = {}) {
+    if (!inputEl || inputEl.dataset.taAutocomplete) return;
+    inputEl.dataset.taAutocomplete = '1';
+    inputEl.autocomplete = 'off';
+    const wrap = inputEl.parentElement;
+    if (wrap && getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+    const dropdown = document.createElement('div');
+    dropdown.className = 'ta-autocomplete';
+    dropdown.style.cssText = 'position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#1c1c1e;border:0.5px solid rgba(255,255,255,0.15);border-radius:10px;overflow:hidden;z-index:50;display:none;max-height:220px;overflow-y:auto;';
+    (wrap || inputEl.parentNode).appendChild(dropdown);
+
+    const close = () => { dropdown.style.display = 'none'; dropdown.innerHTML = ''; };
+    let token = 0;
+    const run = async () => {
+      const q = inputEl.value.trim();
+      if (!q) { close(); return; }
+      const myToken = ++token;
+      const results = await searchUsernames(q, { limit: opts.limit || 6, excludeId: cachedProfile?.id });
+      if (myToken !== token) return;
+      if (!results.length) { close(); return; }
+      dropdown.innerHTML = '';
+      dropdown.style.display = 'block';
+      results.forEach(person => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;font:13px/1.3 inherit;color:#fff;';
+        const avatar = avatarNode({ avatarUrl: person.avatar_url });
+        avatar.style.cssText = 'width:22px;height:22px;flex:none;';
+        row.appendChild(avatar);
+        row.appendChild(document.createTextNode(person.username || 'runner'));
+        row.addEventListener('mouseenter', () => { row.style.background = 'rgba(255,255,255,0.08)'; });
+        row.addEventListener('mouseleave', () => { row.style.background = ''; });
+        row.addEventListener('mousedown', event => {
+          event.preventDefault();
+          close();
+          onPick(person);
+        });
+        dropdown.appendChild(row);
+      });
+    };
+    let debounceTimer = null;
+    inputEl.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => void run(), 200);
+    });
+    inputEl.addEventListener('blur', () => setTimeout(close, 150));
+    inputEl.addEventListener('focus', () => { if (inputEl.value.trim()) void run(); });
+  }
+
   async function getPublicProfile(userId) {
     const sb = getClient();
     const base = 'id, username, avatar_url, bio, level, xp';
@@ -2829,6 +2899,12 @@
     input.addEventListener('keydown', event => {
       if (event.key === 'Enter') { event.preventDefault(); void runSearch(); }
     });
+    let debounceTimer = null;
+    input.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      if (!input.value.trim()) { results.innerHTML = ''; return; }
+      debounceTimer = setTimeout(() => void runSearch(), 250);
+    });
 
     return section;
   }
@@ -2859,7 +2935,7 @@
     addStatus.className = 'ta-status';
     addRow.append(addInput, addBtn);
     addSection.append(addRow, addStatus);
-    addBtn.addEventListener('click', async () => {
+    const sendAddRequest = async () => {
       addBtn.disabled = true;
       addStatus.textContent = 'Looking…';
       addStatus.dataset.kind = '';
@@ -2878,6 +2954,11 @@
       } finally {
         addBtn.disabled = false;
       }
+    };
+    addBtn.addEventListener('click', () => void sendAddRequest());
+    attachUsernameAutocomplete(addInput, person => {
+      addInput.value = person.username;
+      void sendAddRequest();
     });
 
     const requestsSection = document.createElement('div');
@@ -3346,6 +3427,8 @@
     listFriends,
     listFriendRequests,
     findProfileByUsername,
+    searchUsernames,
+    attachUsernameAutocomplete,
     getPublicProfile,
     getRecentlyPlayed,
     getLeaderboardBadges,

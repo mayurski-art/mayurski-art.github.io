@@ -5549,7 +5549,7 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="assets/js/coming-soon.js"></script>
 <script src="assets/js/troll-pay-config.js"></script>
 <script src="assets/js/troll-pay.js"></script>
-<script src="assets/js/troll-accounts.js?v=20260818a"></script>
+<script src="assets/js/troll-accounts.js?v=20260818b"></script>
 <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script src="assets/js/troll-chat-extras.js?v=20260818a"></script>
@@ -10895,6 +10895,10 @@ function tcRenderGroupsPanel() {
   const doSearch = () => void tcStartDmFromInbox(searchInput.value, searchInput, searchStatus);
   searchBtn.addEventListener('click', doSearch);
   searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+  window.TrollrunnerAccounts?.attachUsernameAutocomplete?.(searchInput, person => {
+    searchInput.value = person.username;
+    doSearch();
+  });
   body.appendChild(searchSection);
 
   // Unified recency list: global room pinned first, then DM threads and
@@ -11089,6 +11093,10 @@ function tcRenderGroupCard(group) {
     const doInvite = () => void tcInviteUsername(group.id, inviteInput.value, inviteInput, inviteStatus);
     inviteBtn.addEventListener('click', doInvite);
     inviteInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doInvite(); } });
+    window.TrollrunnerAccounts?.attachUsernameAutocomplete?.(inviteInput, person => {
+      inviteInput.value = person.username;
+      doInvite();
+    });
 
     const leaveBtn = document.createElement('button');
     leaveBtn.type = 'button';
