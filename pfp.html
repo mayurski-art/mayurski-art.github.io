@@ -168,6 +168,14 @@
       border-bottom: 0.5px solid var(--pf-line);
     }
     .room-panel[hidden] { display: none; }
+    .room-closeup {
+      position: relative; width: 100%; aspect-ratio: 3 / 1; overflow: hidden;
+      background: #0a0a10; border-bottom: 0.5px solid var(--pf-line);
+    }
+    .room-closeup img {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; display: block;
+    }
     .room-panel-head {
       display: flex; align-items: center; justify-content: space-between;
       gap: 10px; padding: 13px 14px 0;
@@ -309,6 +317,16 @@
         flex: 0 0 auto; display: flex; flex-direction: column; min-height: 0;
         height: clamp(240px, 44dvh, 420px);
       }
+      /* A drawer covers the room anyway once it's open, so the sliver of
+         room art left above it (see JS: .picker gets .drawer-open) is dead
+         weight — collapse it and let the drawer take the whole picker. */
+      .picker.drawer-open .room { flex: 0 0 0; min-height: 0; }
+      .picker.drawer-open .room-panel {
+        flex: 1; height: auto;
+      }
+      .room-closeup {
+        flex: 0 0 auto; aspect-ratio: auto; height: clamp(64px, 16dvh, 130px);
+      }
       .room-panel-head { flex: 0 0 auto; padding: 10px 12px 0; }
       .picker-bar { flex: 0 0 auto; padding: 9px 12px; }
       .grid {
@@ -449,6 +467,9 @@
         <p class="room-hint" id="roomHint">Click something in the room — the wardrobe, the pile on top of it, the bookshelf, the TV, or the backpack — to start dressing your troll.</p>
 
         <div class="room-panel" id="roomPanel" hidden>
+          <div class="room-closeup" id="roomCloseup">
+            <img id="roomCloseupImg" alt="">
+          </div>
           <div class="room-panel-head">
             <h2 id="roomPanelTitle"></h2>
             <button type="button" class="room-panel-close" id="roomPanelClose" aria-label="Close this drawer">✕</button>
@@ -475,6 +496,16 @@
     // Layers that may legitimately be empty. Background and base are the
     // two that make a PFP read as a PFP, so they default to something.
     const OPTIONAL = new Set(['outfit', 'headwear', 'accessory']);
+    // Hand-shot close-ups of each hotspot's furniture, shown at the top of
+    // its drawer. object-position keeps the interesting part of each shot
+    // framed inside the wide banner crop.
+    const CLOSEUPS = {
+      base: { src: 'assets/images/world/pfp-base.png', pos: '50% 20%' },
+      headwear: { src: 'assets/images/world/pfp-headware.png', pos: '50% 50%' },
+      outfit: { src: 'assets/images/world/pfp-outfit.png', pos: '50% 40%' },
+      background: { src: 'assets/images/world/pfp-background.png', pos: '50% 8%' },
+      accessory: { src: 'assets/images/world/pfp-accesories.png', pos: '50% 35%' },
+    };
 
     const el = {
       stack: document.getElementById('stack'),
@@ -486,7 +517,9 @@
       total: document.getElementById('trait-total'),
       roomBgOpen: document.getElementById('roomBgOpen'),
       roomHint: document.getElementById('roomHint'),
+      picker: document.querySelector('.picker'),
       roomPanel: document.getElementById('roomPanel'),
+      roomCloseupImg: document.getElementById('roomCloseupImg'),
       roomPanelTitle: document.getElementById('roomPanelTitle'),
       roomPanelClose: document.getElementById('roomPanelClose'),
       hotspots: Array.from(document.querySelectorAll('.hotspot')),
@@ -681,7 +714,14 @@
       el.search.value = '';
       el.roomHint.hidden = true;
       el.roomPanel.hidden = false;
+      el.picker.classList.add('drawer-open');
       el.roomPanelTitle.textContent = layerById(layerId)?.name || layerId;
+      const closeup = CLOSEUPS[layerId];
+      if (closeup) {
+        el.roomCloseupImg.src = closeup.src;
+        el.roomCloseupImg.style.objectPosition = closeup.pos;
+        el.roomCloseupImg.alt = `Close-up of the ${(layerById(layerId)?.name || layerId).toLowerCase()}`;
+      }
       renderGrid();
       renderHotspots();
       updateRoomArt();
@@ -691,6 +731,7 @@
       activeLayer = null;
       el.roomPanel.hidden = true;
       el.roomHint.hidden = false;
+      el.picker.classList.remove('drawer-open');
       renderHotspots();
       updateRoomArt();
     }
