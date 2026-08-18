@@ -5539,7 +5539,7 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="assets/js/troll-accounts.js?v=20260818a"></script>
 <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
 <script src="assets/js/troll-notis.js"></script>
-<script src="assets/js/troll-chat-extras.js"></script>
+<script src="assets/js/troll-chat-extras.js?v=20260818a"></script>
 <!-- Points cross-site links at same-origin paths so page transitions can
      fire, but only once the front door is serving this page. Inert until
      then — see docs/SAME-ORIGIN-TRANSITIONS.md. -->
@@ -10567,6 +10567,7 @@ function tcApplyAccountIdentity() {
   const nameInput = document.getElementById('tc-name');
   const messageInput = document.getElementById('tc-input');
   const sendBtn = document.getElementById('tc-send');
+  const form = document.getElementById('tc-form');
   const account = tcAccount();
   if (account?.userId) {
     tcAvatarCache.set(account.userId, account.avatarUrl || null);
@@ -10597,6 +10598,7 @@ function tcApplyAccountIdentity() {
     }
     if (sendBtn) sendBtn.disabled = true;
   }
+  if (form) window.TrollChatExtras?.setMediaAllowed?.(form, !!account);
   if (trollChat.channel && trollChat.subscribed) {
     trollChat.channel.track({ id: trollChat.guestId, name: trollChat.name });
   }
@@ -11227,7 +11229,7 @@ function initializeTrollChat() {
     });
   });
 
-  if (window.TrollChatExtras) window.TrollChatExtras.attachComposer({ form, send: tcSend });
+  if (window.TrollChatExtras) window.TrollChatExtras.attachComposer({ form, send: tcSend, allowMedia: !!tcAccount() });
 
   const groupsBtn = document.getElementById('tc-groups-btn');
   const groupsClose = document.getElementById('tc-groups-close');

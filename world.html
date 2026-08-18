@@ -734,8 +734,21 @@
     .hub-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 8px; }
     .hub-name-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; line-height: 1; }
     .hub-author { font-family: var(--font-display); font-size: 11px; color: var(--accent); word-break: break-word; }
+    .hub-author--guest { color: var(--fg-dim); }
+    .hub-guest-tag {
+      font-family: var(--font-mono); font-size: 9px; font-weight: 500; letter-spacing: .08em;
+      text-transform: uppercase; padding: 1px 5px; border-radius: 5px;
+      background: #ffffff14; color: var(--fg-dim);
+    }
     .hub-time { font-size: 10.5px; color: var(--fg-dim); font-family: var(--font-mono); }
     .hub-text { margin-top: 3px; font-size: 14px; line-height: 1.4; color: var(--fg); word-break: break-word; }
+
+    .hub-unread-divider {
+      display: flex; align-items: center; gap: 8px; margin: 6px 0 2px;
+      color: #ff5e5e; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+      letter-spacing: .14em; text-transform: uppercase;
+    }
+    .hub-unread-divider::before, .hub-unread-divider::after { content: ''; flex: 1; height: 1px; background: #ff5e5e66; }
 
     .hub-typing { min-height: 16px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-dim); }
     .hub-typing.is-active::after { content: '…'; font-weight: 700; animation: hub-blink .7s steps(2,end) infinite; }
@@ -1846,7 +1859,7 @@
   <!-- GIF pack + PictoChat-style drawing pad for the Hub's live room — same
        script the standalone chat surface used, see the comment near
        hubSetOpen below. -->
-  <script src="assets/js/troll-chat-extras.js"></script>
+  <script src="assets/js/troll-chat-extras.js?v=20260818a"></script>
   <!-- Rewrites the app icons' cross-site links to same-origin paths so the
        phone entrance can transition into them — but only once the front door
        is serving this page. Inert until then. -->
@@ -3510,6 +3523,7 @@
         persistOk: null, messages: [], seen: new Set(), typingPeers: new Map(),
         lastSendAt: 0, typingSentAt: 0,
         lastSeenId: null, initialScrollDone: false, lastSeenSaveTimer: null,
+        unreadMarkerId: null,
       };
       const els = {};
 
@@ -3519,10 +3533,18 @@
         if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : 'guest-' + Date.now() + '-' + Math.random().toString(16).slice(2)); try { localStorage.setItem(HUB_ID_KEY, id); } catch {} }
         return id;
       }
+      // Guests get one stable "troll-####" identity (Roblox-style), generated
+      // once and persisted — never a user-editable field, and never
+      // regenerated on reload/logout, unlike the old call-every-time random
+      // name this replaced.
       function defaultName() {
         let n = '';
         try { n = localStorage.getItem(HUB_NAME_KEY) || ''; } catch {}
-        return (n || 'Troll ' + Math.floor(100 + Math.random() * 900)).slice(0, 24);
+        if (!n) {
+          n = 'troll-' + Math.floor(1000 + Math.random() * 9000);
+          try { localStorage.setItem(HUB_NAME_KEY, n); } catch {}
+        }
+        return n.slice(0, 24);
       }
       function accountName() {
         const session = window.TrollrunnerAccounts?.getCachedProfile?.();
@@ -3648,16 +3670,36 @@
         if (avatarUrl) { const av = document.createElement('img'); av.src = avatarUrl; av.alt = ''; av.loading = 'lazy'; avatar.appendChild(av); avatar.classList.add('has-pfp'); }
         const body = document.createElement('div');
         const head = document.createElement('div'); head.className = 'hub-name-row';
-        const name = document.createElement('span'); name.className = 'hub-author'; name.textContent = m.name; if (!isMe) name.style.color = nameColor(m.name);
+        const name = document.createElement('span'); name.className = 'hub-author'; name.textContent = m.name;
+        // m.uid only exists for a real account's messages — guests are
+        // identified by display name alone, so this is also the signed-in/
+        // guest signal for the tag + colour below.
         if (m.uid) {
+          if (!isMe) name.style.color = nameColor(m.name);
           name.style.cursor = 'pointer';
           name.title = 'View ' + m.name + "'s profile";
           name.addEventListener('click', () => window.TrollrunnerAccounts?.openProfileCard?.(m.uid));
+        } else if (!isMe) {
+          name.classList.add('hub-author--guest');
         }
         const time = document.createElement('span'); time.className = 'hub-time'; time.textContent = fmtTime(m.ts);
         const text = document.createElement('div'); text.className = 'hub-text';
         if (window.TrollChatExtras) window.TrollChatExtras.renderBodyInto(text, m.text); else text.textContent = m.text;
-        head.append(name, time); body.append(head, text); row.append(avatar, body);
+        head.append(name);
+        if (!m.uid) { const tag = document.createElement('span'); tag.className = 'hub-guest-tag'; tag.textContent = 'GUEST'; head.append(tag); }
+        head.append(time);
+        body.append(head, text); row.append(avatar, body);
+        return row;
+      }
+
+      // Discord-style "— NEW —" divider: computed once, right before the
+      // first message you haven't seen yet (per the same lastSeenId the
+      // scroll-restore below already tracks). Stays put for the rest of
+      // this page session even as more messages arrive underneath it.
+      function unreadDivider() {
+        const row = document.createElement('div');
+        row.className = 'hub-unread-divider';
+        row.innerHTML = '<span>NEW</span>';
         return row;
       }
 
@@ -3674,11 +3716,19 @@
           const span = document.createElement('span'); span.textContent = 'be the first to say something.';
           empty.append(img, strong, span); els.feed.appendChild(empty); return;
         }
-        state.messages.forEach(m => els.feed.appendChild(msgRow(m, m.name === state.name)));
+
+        const targetId = isFirstRender ? (state.lastSeenId || loadLastSeen()) : null;
+        if (isFirstRender && targetId) {
+          const idx = state.messages.findIndex(x => x.id === targetId);
+          if (idx >= 0 && idx < state.messages.length - 1) state.unreadMarkerId = state.messages[idx + 1].id;
+        }
+        state.messages.forEach(m => {
+          if (m.id === state.unreadMarkerId) els.feed.appendChild(unreadDivider());
+          els.feed.appendChild(msgRow(m, m.name === state.name));
+        });
 
         if (isFirstRender) {
           state.initialScrollDone = true;
-          const targetId = state.lastSeenId || loadLastSeen();
           const target = targetId ? els.feed.querySelector(`[data-id="${CSS.escape(targetId)}"]`) : null;
           els.feed.scrollTop = target ? Math.max(0, target.offsetTop - 12) : els.feed.scrollHeight;
           hideJumpPill();
@@ -3739,10 +3789,16 @@
       async function persist(m) {
         if (state.persistOk === false) return;
         try {
+          // RLS only allows a non-null user_id through the *authenticated*
+          // insert policy (checked against auth.uid()) — the anon-role policy
+          // requires user_id IS NULL. So a real account's message has to go
+          // out with its own access token, not the shared anon key, or the
+          // insert is rejected outright (see troll_accounts.sql §7).
+          const token = m.uid ? await window.TrollrunnerAccounts?.getAccessToken?.() : null;
           const res = await fetch(SUPABASE_URL + '/rest/v1/' + HUB_TABLE, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
-            body: JSON.stringify([{ id: m.id, name: m.name, body: m.text, created_at: m.ts }]),
+            headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), Prefer: 'return=minimal' },
+            body: JSON.stringify([{ id: m.id, name: m.name, body: m.text, created_at: m.ts, user_id: token ? m.uid : null }]),
           });
           const ok = res.ok || res.status === 409;
           // A rejected drawing just means troll_chat_v2.sql hasn't run yet —
@@ -3769,6 +3825,13 @@
         state.lastSendAt = now;
         const cap = window.TrollChatExtras ? window.TrollChatExtras.bodyCap(t) : HUB_MSG_MAX;
         const m = { id: (crypto.randomUUID ? crypto.randomUUID() : state.guestId + '-' + now + '-' + Math.random().toString(16).slice(2)), name: state.name, text: t.slice(0, cap), ts: new Date(now).toISOString() };
+        // Tie the message to the account so it renders as signed-in (not
+        // GUEST) — this was previously dropped, so persisted rows never
+        // carried user_id and even a logged-in sender's own recent messages
+        // read as guest until a reload re-normalized them from a row that
+        // also never had it.
+        const account = window.TrollrunnerAccounts?.getCachedProfile?.();
+        if (account?.userId) { m.uid = account.userId; if (account.avatarUrl) m.avatar = account.avatarUrl; }
         addMessage(m);
         if (state.channel && state.subscribed) state.channel.send({ type: 'broadcast', event: 'msg', payload: m });
         persist(m); return true;
@@ -3920,7 +3983,7 @@
         let q = sb.from('troll_profiles').select('id, username, avatar_url, level')
           .order('username').range(connect.offset, connect.offset + 29);
         if (connect.query) q = q.ilike('username', `%${connect.query}%`);
-        if (me?.id) q = q.neq('id', me.id);
+        if (me?.userId) q = q.neq('id', me.userId);
         q = q.not('username', 'in', '(troll_tester,TrollAdmin)'); // internal test/admin accounts, not real runners
         const { data, error } = await q;
         connect.loading = false;
@@ -4618,10 +4681,13 @@
         window.addEventListener('trollrunner:auth-changed', () => {
           state.name = accountName() || defaultName();
           if (state.channel && state.subscribed) state.channel.track({ id: state.guestId, name: state.name });
+          window.TrollChatExtras?.setMediaAllowed?.(form, !!accountName());
         });
         msgInput.addEventListener('input', broadcastTyping);
         form.addEventListener('submit', e => { e.preventDefault(); send(msgInput.value).then(ok => { if (ok) msgInput.value = ''; }); });
-        if (window.TrollChatExtras) window.TrollChatExtras.attachComposer({ form, send });
+        // Guests can chat but not post a GIF/drawing — those buttons only
+        // show once signed in (see the auth-changed listener above).
+        if (window.TrollChatExtras) window.TrollChatExtras.attachComposer({ form, send, allowMedia: !!accountName(), btnClass: 'tcx-btn--glass' });
 
         startRealtime();
         fetchHistory();

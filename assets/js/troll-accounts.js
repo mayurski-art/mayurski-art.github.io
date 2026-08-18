@@ -3091,15 +3091,70 @@
     } catch {}
   }
 
+  /* ------------------------------------------------------------------
+     DM-activity polling: same idea as friend-activity above, but for
+     unread direct messages. Read-state reuses the existing client-local
+     `tc_seen_dm_<threadId>` timestamp (see tcThreadSeenKey in index.html /
+     dmSeenKey in world.html) rather than a new DB column, so opening a
+     thread anywhere already marks it read everywhere else reads from.
+     ------------------------------------------------------------------ */
+  let dmPollSeeded = false;
+  let seenDmAlerts = new Set();
+
+  function dispatchDmCount(count) {
+    try { window.dispatchEvent(new CustomEvent('trollrunner:dm-unread-changed', { detail: { count } })); } catch {}
+  }
+
+  async function listDmThreads() {
+    const sb = getClient();
+    if (!cachedProfile) return [];
+    const { data, error } = await sb.rpc('troll_dm_my_threads');
+    return (!error && Array.isArray(data)) ? data : [];
+  }
+
+  function dmThreadIsUnread(thread) {
+    if (!thread.last_at || !thread.last_sender_id || thread.last_sender_id === cachedProfile?.id) return false;
+    let seen = '';
+    try { seen = localStorage.getItem(`tc_seen_dm_${thread.thread_id}`) || ''; } catch {}
+    return !seen || new Date(thread.last_at) > new Date(seen);
+  }
+
+  async function pollDmActivity() {
+    if (!cachedProfile) return;
+    try {
+      const unread = (await listDmThreads()).filter(dmThreadIsUnread);
+      dispatchDmCount(unread.length);
+      if (!dmPollSeeded) {
+        seenDmAlerts = new Set(unread.map(t => `${t.thread_id}:${t.last_at}`));
+        dmPollSeeded = true;
+        return;
+      }
+      unread.forEach(t => {
+        const key = `${t.thread_id}:${t.last_at}`;
+        if (seenDmAlerts.has(key)) return;
+        seenDmAlerts.add(key);
+        const preview = String(t.last_body || '').slice(0, 60);
+        showLocalToast('New message', `${t.other_username}: ${preview}`, () => openDmPanel(t.other_id, t.other_username));
+      });
+    } catch {}
+  }
+
+  async function pollSocialActivity() {
+    await pollFriendActivity();
+    await pollDmActivity();
+  }
+
   function startFriendActivityPolling() {
     stopFriendActivityPolling();
     friendPollSeeded = false;
-    void pollFriendActivity();
-    friendPollTimer = window.setInterval(pollFriendActivity, 45000);
+    dmPollSeeded = false;
+    void pollSocialActivity();
+    friendPollTimer = window.setInterval(pollSocialActivity, 45000);
   }
   function stopFriendActivityPolling() {
     if (friendPollTimer) { window.clearInterval(friendPollTimer); friendPollTimer = null; }
     dispatchFriendCount(0);
+    dispatchDmCount(0);
   }
   window.addEventListener('trollrunner:auth-changed', event => {
     if (event.detail) startFriendActivityPolling();

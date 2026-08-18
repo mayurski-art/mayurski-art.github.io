@@ -78,11 +78,25 @@
 
   /* ---------- styles (injected once; both pages load the same fonts) ------ */
   var CSS = [
-    'form.tcx-host { grid-template-columns: minmax(78px, 118px) minmax(0, 1fr) auto auto auto; }',
-    '@media (max-width: 720px) { form.tcx-host { grid-template-columns: minmax(58px, 82px) minmax(0, 1fr) auto auto auto; gap: 5px; } }',
-    '.tcx-btn { border: 3px solid #10201a; border-radius: 3px; background: linear-gradient(180deg, #eafff1, #bfe9cf); color: #143524; padding: 7px 7px; font-family: "Press Start 2P","VT323",monospace; font-size: 9px; line-height: 1; cursor: pointer; box-shadow: 3px 3px 0 #10201a; }',
+    // Flex, not a fixed grid-template: the desktop composer has a name field
+    // ahead of the message input (5 children once GIF/draw are inserted),
+    // the Hub's mobile composer doesn't (4 children) — a rigid column count
+    // squeezed the message input and stretched the GIF button on mobile.
+    // Sizing to content by element type works for either shape.
+    'form.tcx-host { display: flex; flex-wrap: nowrap; align-items: stretch; gap: 7px; }',
+    'form.tcx-host input[type="text"] { min-width: 0; flex: 1 1 auto; }',
+    'form.tcx-host input.tc-name, form.tcx-host input.hub-name-input { flex: 0 0 clamp(70px, 22vw, 118px); }',
+    'form.tcx-host .tcx-btn, form.tcx-host button[type="submit"] { flex: 0 0 auto; }',
+    '.tcx-btn { border: 3px solid #10201a; border-radius: 3px; background: linear-gradient(180deg, #eafff1, #bfe9cf); color: #143524; padding: 7px 10px; min-width: 38px; font-family: "Press Start 2P","VT323",monospace; font-size: 9px; line-height: 1; cursor: pointer; box-shadow: 3px 3px 0 #10201a; }',
     '.tcx-btn:hover { background: linear-gradient(180deg, #f6fff9, #d3f2dd); }',
     '.tcx-btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 #10201a; }',
+    '.tcx-btn[hidden] { display: none; }',
+    // Hub (mobile "Island") composer uses a glass/DM-Sans look, not the
+    // desktop's pixel-terminal one — attachComposer's opts.btnClass adds
+    // this so the injected buttons match whichever host they land in.
+    '.tcx-btn.tcx-btn--glass { border: 1px solid var(--glass-stroke, rgba(255,255,255,0.18)); border-radius: 10px; background: #ffffff0d; color: var(--fg, #f2f2f2); padding: 8px 12px; font-family: var(--font-ui, "DM Sans", sans-serif); font-size: 13px; font-weight: 700; box-shadow: none; }',
+    '.tcx-btn.tcx-btn--glass:hover { background: #ffffff18; }',
+    '.tcx-btn.tcx-btn--glass:active { transform: scale(.97); }',
     '.tcx-media { display: block; margin-top: 5px; max-width: min(100%, 200px); height: auto; border: 2px solid #10201a; border-radius: 3px; background: #fff; box-shadow: 2px 2px 0 rgba(16,32,26,0.35); }',
     '.tcx-media--draw { max-width: min(100%, 280px); background: #fbfdf2; image-rendering: pixelated; }',
     '.tcx-overlay { position: fixed; inset: 0; z-index: 12000; display: grid; place-items: center; padding: 16px; background: rgba(8, 14, 11, 0.62); }',
@@ -356,9 +370,21 @@
   }
 
   /* ---------- composer hookup --------------------------------------------
-     attachComposer({ form, send })
-       form : the chat composer <form> (buttons are inserted before SEND)
-       send : page send fn — takes the body string, resolves true when sent */
+     attachComposer({ form, send, allowMedia, btnClass })
+       form       : the chat composer <form> (buttons are inserted before SEND)
+       send       : page send fn — takes the body string, resolves true when sent
+       allowMedia : optional, default true — false hides GIF/draw at attach
+                    time (e.g. guests). Toggle later with setMediaAllowed().
+       btnClass   : optional extra class name for the injected buttons, so a
+                    host page can restyle them to match its own look. */
+  var mediaBtns = new WeakMap(); // form -> { gifBtn, drawBtn }
+
+  function setMediaAllowed(form, allowed) {
+    var btns = form && mediaBtns.get(form);
+    if (!btns) return;
+    btns.gifBtn.hidden = btns.drawBtn.hidden = !allowed;
+  }
+
   function attachComposer(opts) {
     var form = opts && opts.form;
     var send = opts && opts.send;
@@ -367,19 +393,22 @@
     injectCss();
     form.classList.add('tcx-host');
 
+    var extraClass = opts.btnClass ? ' ' + opts.btnClass : '';
     var submitBtn = form.querySelector('button[type="submit"]');
     var gifBtn = document.createElement('button');
     gifBtn.type = 'button';
-    gifBtn.className = 'tcx-btn';
+    gifBtn.className = 'tcx-btn' + extraClass;
     gifBtn.textContent = 'GIF';
     gifBtn.setAttribute('aria-label', 'Send a GIF');
     var drawBtn = document.createElement('button');
     drawBtn.type = 'button';
-    drawBtn.className = 'tcx-btn';
+    drawBtn.className = 'tcx-btn' + extraClass;
     drawBtn.textContent = '✎';
     drawBtn.setAttribute('aria-label', 'Draw a doodle');
     form.insertBefore(gifBtn, submitBtn);
     form.insertBefore(drawBtn, submitBtn);
+    mediaBtns.set(form, { gifBtn: gifBtn, drawBtn: drawBtn });
+    if (opts.allowMedia === false) setMediaAllowed(form, false);
 
     var tray = null, pad = null;
     gifBtn.addEventListener('click', function () {
@@ -400,5 +429,6 @@
     parseBody: parseBody,
     renderBodyInto: renderBodyInto,
     attachComposer: attachComposer,
+    setMediaAllowed: setMediaAllowed,
   };
 })();

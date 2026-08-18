@@ -124,7 +124,7 @@ open. Shows as a generic "🎮 Playing" tag.
 | `assets/supabase/troll_accounts.sql` | Full backend: tables, RLS, RPCs, storage |
 | `assets/supabase/troll_lock_username.sql` | Revokes username-column updates + trigger that blocks renames server-side |
 | `assets/supabase/troll_friends.sql` | Friends + DM backend: `troll_friendships`, `troll_dm_threads`/`troll_dm_messages`, request/accept/remove/DM/badges RPCs |
-| `assets/js/troll-accounts.js` | Shared client lib → `window.TrollrunnerAccounts` (Profile/Settings/Friends modals, profile drawer, DM panel, friend-request toasts) |
+| `assets/js/troll-accounts.js` | Shared client lib → `window.TrollrunnerAccounts` (Profile/Settings/Friends modals, profile drawer, DM panel, friend-request + new-DM toasts and unread badges) |
 | `index.html` (gate section) | Account portal UI: Login/Create Account tabs, logged-in panel, Friends button (with a pending-request count badge) |
 | `index.html` (TrollChat + presence) | Chat posts as the account identity when logged in; usernames clickable → profile drawer; site presence carries an `activeWindow` flag ("🎮 Playing") that the drawer reads |
 | `chat.html` | Standalone TrollChat page — also loads `troll-accounts.js` so its usernames are clickable → the same profile drawer |
