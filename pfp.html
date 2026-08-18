@@ -473,8 +473,7 @@
 
         <div class="actions">
           <button class="btn" id="btn-back" type="button" disabled aria-label="No previous look yet" title="No previous look yet"><span class="btn-ic" aria-hidden="true">←</span><span class="btn-label">Previous</span></button>
-          <button class="btn" id="btn-random" type="button" aria-label="Randomize" title="Randomize"><span class="btn-ic" aria-hidden="true">🎲</span><span class="btn-label">Randomize</span></button>
-          <button class="btn" id="btn-surprise" type="button" aria-label="Full random" title="Full random"><span class="btn-ic" aria-hidden="true">✨</span><span class="btn-label">Full random</span></button>
+          <button class="btn" id="btn-surprise" type="button" aria-label="Randomize" title="Randomize"><span class="btn-ic" aria-hidden="true">🎲</span><span class="btn-label">Randomize</span></button>
           <button class="btn" id="btn-reset" type="button" aria-label="Reset" title="Reset"><span class="btn-ic" aria-hidden="true">↺</span><span class="btn-label">Reset</span></button>
           <button class="btn btn-primary" id="btn-download" type="button" aria-label="Download PNG" title="Download PNG"><span class="btn-ic" aria-hidden="true">⬇</span><span class="btn-label">Download PNG</span></button>
           <button class="btn btn-save" id="btn-save" type="button" aria-label="Save as my profile picture" title="Save as my profile picture"><span class="btn-ic" aria-hidden="true">💾</span><span class="btn-label">Save as my profile picture</span></button>
@@ -1050,9 +1049,6 @@
 
       el.search.addEventListener('input', renderGrid);
       document.getElementById('btn-back').addEventListener('click', stepBack);
-      document.getElementById('btn-random').addEventListener('click', () => {
-        setBuild(randomBuild(false)); note('');
-      });
       document.getElementById('btn-surprise').addEventListener('click', () => {
         setBuild(randomBuild(true)); note('');
       });
