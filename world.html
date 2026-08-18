@@ -1463,6 +1463,16 @@
   </style>
 </head>
 <body data-phase="boot">
+  <script>
+    // Runs before the boot markup below is even parsed, so ?enter=1 (set by
+    // index.html when PFP Studio's back arrow sends someone here) never
+    // paints the "EST. 2025 TRLLRUNNER" boot screen at all — the later
+    // setPhase('home') call in the main script would otherwise be a beat
+    // too late, after the browser had already shown it once.
+    if (new URLSearchParams(location.search).get('enter') === '1') {
+      document.body.dataset.phase = 'home';
+    }
+  </script>
 
   <div class="space" aria-hidden="true"><canvas id="stars"></canvas></div>
 
