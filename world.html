@@ -752,7 +752,7 @@
     .hub-typing { min-height: 16px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-dim); }
     .hub-typing.is-active::after { content: '…'; font-weight: 700; animation: hub-blink .7s steps(2,end) infinite; }
 
-    .hub-composer { display: grid; grid-template-columns: minmax(78px, 110px) minmax(0,1fr) auto; gap: 7px; }
+    .hub-composer { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px; }
     .hub-name-input, .hub-msg-input {
       min-width: 0; width: 100%; border-radius: 10px; border: 1px solid var(--glass-stroke);
       background: #ffffff08; color: var(--fg); padding: 10px 11px; font: 14px var(--font-ui);
@@ -1741,7 +1741,6 @@
         </div>
 
         <form id="hub-form" class="hub-composer" autocomplete="off">
-          <input id="hub-name" class="hub-name-input" type="text" maxlength="24" placeholder="name" aria-label="Your display name" autocomplete="nickname">
           <input id="hub-input" class="hub-msg-input" type="text" maxlength="240" placeholder="say something trolly…" aria-label="Message" autocomplete="off">
           <button id="hub-send" class="hub-send" type="submit">Send</button>
         </form>
@@ -3580,6 +3579,10 @@
         try { n = localStorage.getItem(HUB_NAME_KEY) || ''; } catch {}
         return (n || 'Troll ' + Math.floor(100 + Math.random() * 900)).slice(0, 24);
       }
+      function accountName() {
+        const session = window.TrollrunnerAccounts?.getCachedProfile?.();
+        return session?.username ? String(session.username).slice(0, 24) : '';
+      }
       function nameColor(name) {
         let h = 0; const s = String(name || '');
         for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
@@ -4560,18 +4563,16 @@
         els.typingText = document.getElementById('hub-typing-text');
         els.note = document.getElementById('hub-note');
         els.onlineNum = Array.from(document.querySelectorAll('#hub-online-num'));
-        const nameInput = document.getElementById('hub-name');
         const msgInput = document.getElementById('hub-input');
         const form = document.getElementById('hub-form');
         if (!els.feed || !form) return;
 
-        state.guestId = guestId(); state.name = defaultName(); nameInput.value = state.name;
+        state.guestId = guestId(); state.name = accountName() || defaultName();
         loadCache().forEach(x => addMessage(x, { silent: true }));
         renderFeed(); renderOnline(1);
 
-        nameInput.addEventListener('input', () => {
-          state.name = (String(nameInput.value || '').trim() || 'Guest').slice(0, 24);
-          try { localStorage.setItem(HUB_NAME_KEY, state.name); } catch {}
+        window.addEventListener('trollrunner:auth-changed', () => {
+          state.name = accountName() || defaultName();
           if (state.channel && state.subscribed) state.channel.track({ id: state.guestId, name: state.name });
         });
         msgInput.addEventListener('input', broadcastTyping);
