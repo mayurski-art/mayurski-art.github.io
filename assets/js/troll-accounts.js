@@ -1350,6 +1350,13 @@
         background: rgba(0,0,0,0.28); }
       .ta-section h4 { margin: 0; font-family: 'Rubik', system-ui, Arial, sans-serif; font-size: 12px;
         letter-spacing: 0.14em; text-transform: uppercase; color: #8cffbf; }
+      .ta-details > summary { list-style: none; cursor: pointer; display: flex; align-items: center;
+        justify-content: space-between; }
+      .ta-details > summary::-webkit-details-marker { display: none; }
+      .ta-details > summary::after { content: '▾'; font-size: 11px; color: #8fa396; transition: transform 0.2s ease;
+        margin-left: 8px; }
+      .ta-details:not([open]) > summary::after { transform: rotate(-90deg); }
+      .ta-details > summary h4 { display: inline; }
       .ta-table { width: 100%; border-collapse: collapse; font-family: 'Rubik', system-ui, Arial, sans-serif; font-size: 13px; }
       .ta-table td { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
       .ta-table td:last-child { text-align: right; color: #ffd84d; }
@@ -1854,13 +1861,14 @@
 
     body.appendChild(friendSearchSection());
 
-    const xpLog = document.createElement('div');
-    xpLog.className = 'ta-section';
-    xpLog.innerHTML = '<h4>XP log</h4><p class="ta-muted">Loading…</p>';
+    const xpLog = document.createElement('details');
+    xpLog.className = 'ta-section ta-details';
+    xpLog.innerHTML = '<summary><h4>XP log</h4></summary><p class="ta-muted">Loading…</p>';
     body.appendChild(xpLog);
     void getXpHistory(12).then(events => {
+      const summary = xpLog.querySelector('summary').outerHTML;
       if (!events.length) {
-        xpLog.innerHTML = '<h4>XP log</h4><p class="ta-muted">No XP earned yet — log in tomorrow or play a game.</p>';
+        xpLog.innerHTML = `${summary}<p class="ta-muted">No XP earned yet — log in tomorrow or play a game.</p>`;
         return;
       }
       const table = document.createElement('table');
@@ -1875,7 +1883,7 @@
         tr.append(label, amount);
         table.appendChild(tr);
       });
-      xpLog.innerHTML = '<h4>XP log</h4>';
+      xpLog.innerHTML = summary;
       xpLog.appendChild(table);
     });
 
