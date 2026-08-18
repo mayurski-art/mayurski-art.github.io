@@ -62,6 +62,18 @@
     .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .brand h1 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
     .brand p { margin: 2px 0 0; font-size: 13px; color: #9b9ba1; }
+    /* Closes whatever trait drawer is open and returns to the plain room
+       view, same as landing here fresh. Deliberately stays inside the
+       studio rather than leaving the page: an off-site link here
+       re-triggers the phone entrance's own boot/lock sequence, which reads
+       as a broken reload rather than "going back". */
+    button.btn-home {
+      border: 0.5px solid var(--pf-line-dark); border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05); color: #d9d9e0;
+      font-size: 15px; line-height: 1; padding: 7px 14px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    button.btn-home:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--pf-line-dark); }
 
     /* ---------- layout ---------- */
     .studio { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -447,6 +459,7 @@
           <h1>PFP Studio</h1>
         </div>
       </div>
+      <button class="btn-home" id="btn-home" type="button" aria-label="Back to the room" title="Back to the room">&larr;</button>
     </header>
 
     <main class="studio">
@@ -465,7 +478,6 @@
           <button class="btn" id="btn-reset" type="button" aria-label="Reset" title="Reset"><span class="btn-ic" aria-hidden="true">↺</span><span class="btn-label">Reset</span></button>
           <button class="btn btn-primary" id="btn-download" type="button" aria-label="Download PNG" title="Download PNG"><span class="btn-ic" aria-hidden="true">⬇</span><span class="btn-label">Download PNG</span></button>
           <button class="btn btn-save" id="btn-save" type="button" aria-label="Save as my profile picture" title="Save as my profile picture"><span class="btn-ic" aria-hidden="true">💾</span><span class="btn-label">Save as my profile picture</span></button>
-          <button class="btn" id="btn-share" type="button" aria-label="Copy link" title="Copy link"><span class="btn-ic" aria-hidden="true">🔗</span><span class="btn-label">Copy link</span></button>
         </div>
 
         <p class="note" id="note" role="status" aria-live="polite"></p>
@@ -978,19 +990,6 @@
       }
     }
 
-    async function copyLink() {
-      const params = new URLSearchParams();
-      for (const layer of manifest.layers) params.set(layer.id, build[layer.id] || 'none');
-      const url = `${location.origin}${location.pathname}?${params}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        note('Link copied — anyone who opens it lands on this exact troll.', 'ok');
-      } catch {
-        // Clipboard is blocked in some embedded/insecure contexts; show it instead.
-        window.prompt('Copy your build link:', url);
-      }
-    }
-
     /* ---------- boot ---------- */
 
     async function init() {
@@ -1044,6 +1043,7 @@
         }
       }
       el.roomPanelClose.addEventListener('click', closeRoomPanel);
+      document.getElementById('btn-home').addEventListener('click', closeRoomPanel);
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && !el.roomPanel.hidden) closeRoomPanel();
       });
@@ -1061,7 +1061,6 @@
       });
       document.getElementById('btn-download').addEventListener('click', download);
       document.getElementById('btn-save').addEventListener('click', saveToProfile);
-      document.getElementById('btn-share').addEventListener('click', copyLink);
     }
 
     init();
