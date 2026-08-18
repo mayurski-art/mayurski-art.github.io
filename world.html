@@ -2989,7 +2989,13 @@
     });
     addEventListener('resize', render, { passive: true });
     render();
-    runBoot();
+    // ?enter=1: set by index.html when someone is sent back here from
+    // inside the site (PFP Studio's back arrow) rather than arriving fresh
+    // — skip the boot typing animation and the lock-screen drag straight to
+    // the island, since replaying the whole entrance for a return trip
+    // reads as broken rather than as a new visit.
+    if (new URLSearchParams(location.search).get('enter') === '1') setPhase('home');
+    else runBoot();
 
     /* ================= ACCOUNT =================
        The Account icon used to hand off to the windowed desktop with

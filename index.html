@@ -75,6 +75,19 @@
     }
   } catch {}
 
+  // Set by pfp.html's back arrow right before it sends the browser to '/' —
+  // read once and cleared immediately, same as openHubParam above. Skips
+  // world.html's lock-screen drag and boot typing animation, since someone
+  // leaving PFP Studio already came from inside the site and re-running
+  // the whole entrance for them reads as broken, not as a fresh visit.
+  let enterParam = '';
+  try {
+    if (sessionStorage.getItem('trollrunner_skip_entrance') === '1') {
+      sessionStorage.removeItem('trollrunner_skip_entrance');
+      enterParam = '&enter=1';
+    }
+  } catch {}
+
   if (isPhone && (path === '/' || path === '/index.html')) {
     // Deliberately NOT a redirect: navigating would put /world.html in the
     // address bar, and the phone entrance should still read trollrunner.net.
@@ -124,7 +137,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260817u' + openHubParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260818a' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }

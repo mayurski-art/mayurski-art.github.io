@@ -1054,8 +1054,14 @@
       // whole site's boot/lock sequence into that small window and look
       // broken — only navigate home when this is a real top-level page.
       document.getElementById('btn-home').addEventListener('click', () => {
-        if (window.self === window.top) location.href = '/';
-        else closeRoomPanel();
+        if (window.self === window.top) {
+          // Read by index.html to skip world.html's lock-drag and boot
+          // typing animation — we're coming back in, not landing fresh.
+          try { sessionStorage.setItem('trollrunner_skip_entrance', '1'); } catch {}
+          location.href = '/';
+        } else {
+          closeRoomPanel();
+        }
       });
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && !el.roomPanel.hidden) closeRoomPanel();
