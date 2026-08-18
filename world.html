@@ -3552,17 +3552,27 @@
        The src is only set the first time the sheet opens, so boot never
        pays for the trait manifest fetch unless someone actually opens it. */
     const pfpSheet = $('pfp'), pfpClose = $('pfp-close'), pfpFrame = $('pfp-frame');
-    const pfpSetOpen = open => {
+    const pfpSetOpen = (open, opts) => {
+      opts = opts || {};
       if (open && !pfpFrame.src) pfpFrame.src = 'pfp.html';
       pfpSheet.classList.toggle('is-open', open);
       pfpSheet.inert = !open;
       if (open) pfpClose.focus();
+      if (!opts.skipUrl) {
+        try {
+          const top = window.top || window;
+          const path = top.location.pathname.replace(/\/+$/, '') || '/';
+          if (open && path !== '/pfp') top.history.pushState({ trollrunnerPfp: true }, '', '/pfp');
+          else if (!open && path === '/pfp') top.history.replaceState({}, '', '/');
+        } catch {}
+      }
     };
     pfpSheet.inert = true;
     pfpClose.addEventListener('click', () => pfpSetOpen(false));
     try {
       (window.top || window).addEventListener('popstate', () => {
         if (hubSheet.classList.contains('is-open')) hubSetOpen(false, { skipUrl: true });
+        if (pfpSheet.classList.contains('is-open')) pfpSetOpen(false, { skipUrl: true });
       });
     } catch {}
 
