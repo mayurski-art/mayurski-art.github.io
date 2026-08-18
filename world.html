@@ -348,8 +348,8 @@
     .apps {
       position: fixed !important; z-index: 5 !important;
       /* Anchored below the header rather than vertically centered — with
-         labels now shown, ten icon+label rows run taller than a phone
-         screen, and centering that just pushes the top ones up over the
+         labels now shown, the icon+label rows still run tall enough on a
+         phone screen that centering would push the top ones up over the
          header/stat line (the same failure mode the desktop-preview rail
          had, fixed the same way here at the root instead of per-context). */
       top: 80px !important; left: 10px !important; right: auto !important;
@@ -2167,6 +2167,11 @@
         el.href = a.to; el.target = '_top';
         el.setAttribute('aria-label', a.label);
       }
+      // Same hover-tooltip affordance as the pfp studio's icon-only buttons
+      // (native title attr) — the island hotspots have no visible label of
+      // their own, so this is the only way to see what a landmark is before
+      // tapping it.
+      el.title = a.label;
     };
 
     /* ---------- top-left stat ---------- */
@@ -2195,9 +2200,15 @@
       if (id === 'pfp') el.addEventListener('click', open(() => pfpSetOpen(true)));
     };
 
-    /* ---------- app grid ---------- */
+    /* ---------- app grid ----------
+       Landmarks baked into the island (hw/hh set) already get their own
+       tappable spot on the art itself — showing them again in the rail
+       would be a duplicate launch point for the same app. Only apps with
+       no island art (PFP Studio, Maps, Account, Updates, Feedback) get a
+       rail icon. */
     const apps = $('apps');
     for (const a of APPS) {
+      if (a.hw && a.hh) continue;
       const el = document.createElement('a');
       el.className = 'app';
       el.dataset.app = a.id;
