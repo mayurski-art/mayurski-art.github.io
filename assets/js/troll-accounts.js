@@ -895,12 +895,13 @@
 
   function showLevelUpToast(level) {
     try {
+      ensureModalStyles();
       document.getElementById('ta-levelup-toast')?.remove();
       const el = document.createElement('div');
       el.id = 'ta-levelup-toast';
       el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99998;' +
         'background:linear-gradient(135deg,#ffe88a,#ffd84d 50%,#e6b521);color:#08110a;' +
-        'font:800 14px "DM Mono","Courier New",monospace;padding:10px 18px;border:2px solid #000;' +
+        'font:600 14px "Rubik",system-ui,Arial,sans-serif;padding:10px 18px;border:2px solid #000;' +
         'border-radius:8px;box-shadow:0 8px 0 rgba(0,0,0,0.35);letter-spacing:0.04em;' +
         'text-transform:uppercase;pointer-events:none;opacity:0;transition:opacity .25s ease;';
       el.textContent = `Level up! You're now LV ${level}`;
@@ -917,6 +918,7 @@
   // the plain toast to ship the backend + a visible ack now.
   function showTagUnlockToast(slug) {
     try {
+      ensureModalStyles();
       fetchTagDefs();
       const def = (tagDefsCache || []).find(t => t.slug === slug);
       const label = def?.label || slug;
@@ -926,7 +928,7 @@
       el.id = 'ta-tagunlock-toast';
       el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99998;' +
         `background:linear-gradient(135deg, ${shadeHex(color, 12)}, ${color} 55%, ${shadeHex(color, -22)});color:#08110a;` +
-        'font:800 14px "DM Mono","Courier New",monospace;padding:10px 18px;border:2px solid #000;' +
+        'font:600 14px "Rubik",system-ui,Arial,sans-serif;padding:10px 18px;border:2px solid #000;' +
         'border-radius:8px;box-shadow:0 8px 0 rgba(0,0,0,0.35);letter-spacing:0.04em;' +
         'text-transform:uppercase;pointer-events:none;opacity:0;transition:opacity .25s ease;';
       el.textContent = `Tag unlocked: ${label}`;
@@ -1245,15 +1247,17 @@
     const style = document.createElement('style');
     style.id = 'troll-accounts-style';
     style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500;600&display=swap');
       .ta-overlay { position: fixed; inset: 0; z-index: 99990; display: flex; align-items: center;
         justify-content: center; padding: 16px; background: rgba(4,6,5,0.78); }
       .ta-card { width: min(560px, 100%); max-height: 86vh; overflow: auto; color: #e6f2e6;
-        font-family: 'DM Mono', 'Courier New', monospace; font-size: 14px; line-height: 1.45;
+        font-family: 'Space Grotesk', system-ui, Arial, sans-serif; font-size: 14px; line-height: 1.45;
         background: linear-gradient(160deg, #131a15, #0a0d0b); border: 2px solid #000; border-radius: 8px;
         box-shadow: 0 0 0 1px rgba(77,255,115,0.22), 6px 8px 0 rgba(0,0,0,0.55); }
       .ta-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
         padding: 12px 14px; border-bottom: 2px solid #000; background: rgba(77,255,115,0.08); }
-      .ta-title { margin: 0; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; color: #4dff73; }
+      .ta-title { margin: 0; font-family: 'Archivo Black', Impact, 'Arial Black', sans-serif; font-weight: 400;
+        font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; color: #4dff73; }
       .ta-head-actions { display: flex; align-items: center; gap: 8px; }
       .ta-close { border: 2px solid #000; border-radius: 6px; background: #1d2620; color: #cfe9cf;
         font: inherit; padding: 3px 10px; cursor: pointer; }
@@ -1269,9 +1273,19 @@
         background: linear-gradient(160deg, #1c2620, #0a0d0b); border-bottom: 2px solid #000; }
       .ta-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .ta-banner-edit { position: absolute; right: 8px; bottom: 8px; font-size: 11px; padding: 3px 9px; }
-      .ta-row--banner { margin-top: -30px; position: relative; z-index: 1; }
-      .ta-row--banner .ta-banner-ring { border-radius: 8px; box-shadow: 0 0 0 3px #0a0d0b, inset 0 0 0 1px rgba(77,255,115,0.24); }
-      @media (max-width: 480px) { .ta-banner { height: 80px; } .ta-row--banner { margin-top: -24px; } }
+      /* Only the avatar peeks over the banner (Twitter-style); it's pulled
+         out of flow so the username/pills below it never sit on top of the
+         banner art — padding-top on the row reserves that same overlap
+         height so the text starts clear of the image. */
+      .ta-row--banner { position: relative; margin-top: 0; padding-top: 34px; }
+      .ta-row--banner .ta-banner-ring { position: absolute; top: -34px; left: 0;
+        border-radius: 8px; box-shadow: 0 0 0 3px #0a0d0b, inset 0 0 0 1px rgba(77,255,115,0.24); }
+      .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 76px; }
+      @media (max-width: 480px) {
+        .ta-banner { height: 80px; }
+        .ta-row--banner { padding-top: 26px; }
+        .ta-row--banner .ta-banner-ring { top: -26px; }
+      }
       .ta-banner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
       .ta-banner-card { display: grid; gap: 5px; padding: 5px; font: inherit; color: #cfe9cf; text-align: center;
         border: 2px solid #000; border-radius: 6px; background: rgba(255,255,255,0.04); cursor: pointer; }
@@ -1291,16 +1305,18 @@
         background: #4dff73; opacity: 0; transition: opacity 0.15s; border-radius: 0 0 6px 6px; }
       .ta-avatar-edit:hover .ta-avatar-edit-badge, .ta-avatar-edit:focus-visible .ta-avatar-edit-badge { opacity: 1; }
       .ta-name { margin: 0; font-size: 19px; color: #fff; word-break: break-all; }
-      .ta-pill { display: inline-block; margin-top: 4px; padding: 1px 8px; font-size: 12px; color: #08110a;
-        background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521); border: 2px solid #000; border-radius: 4px; }
+      .ta-pill { display: inline-block; margin-top: 4px; padding: 1px 8px; font-family: 'Rubik', system-ui, Arial, sans-serif;
+        font-size: 12px; color: #08110a; background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521);
+        border: 2px solid #000; border-radius: 4px; }
       .ta-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
       .ta-tags[hidden] { display: none; }
-      .ta-tag { display: inline-flex; align-items: center; padding: 1px 8px; font-size: 11px; font-weight: 700;
-        letter-spacing: 0.06em; text-transform: uppercase; color: #fff; border: 2px solid #000; border-radius: 4px;
-        background: #8fa396; }
-      .ta-muted { color: #8fa396; font-size: 12px; }
+      .ta-tag { display: inline-flex; align-items: center; padding: 1px 8px; font-family: 'Rubik', system-ui, Arial, sans-serif;
+        font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #fff;
+        border: 2px solid #000; border-radius: 4px; background: #8fa396; }
+      .ta-muted { color: #8fa396; font-family: 'Rubik', system-ui, Arial, sans-serif; font-size: 12px; }
       .ta-xp-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px;
-        font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #8cffbf; }
+        font-family: 'Rubik', system-ui, Arial, sans-serif; font-size: 11px; letter-spacing: 0.08em;
+        text-transform: uppercase; color: #8cffbf; }
       .ta-xp-head strong { color: #ffd84d; font-size: 13px; letter-spacing: normal; text-transform: none; }
       .ta-bar { height: 14px; border: 2px solid #000; border-radius: 999px; background: #0c100e; overflow: hidden;
         box-shadow: inset 0 1px 4px rgba(0,0,0,0.6); }
@@ -1312,8 +1328,9 @@
       .ta-bar--sm { height: 5px; border-width: 1.5px; }
       .ta-section { display: grid; gap: 8px; padding: 12px; border: 2px solid #000; border-radius: 6px;
         background: rgba(0,0,0,0.28); }
-      .ta-section h4 { margin: 0; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #8cffbf; }
-      .ta-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      .ta-section h4 { margin: 0; font-family: 'Rubik', system-ui, Arial, sans-serif; font-size: 12px;
+        letter-spacing: 0.14em; text-transform: uppercase; color: #8cffbf; }
+      .ta-table { width: 100%; border-collapse: collapse; font-family: 'Rubik', system-ui, Arial, sans-serif; font-size: 13px; }
       .ta-table td { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
       .ta-table td:last-child { text-align: right; color: #ffd84d; }
       .ta-input { width: 100%; box-sizing: border-box; font: inherit; color: #0a0b0d; background: #e9e9e0;
@@ -1398,7 +1415,7 @@
         pointer-events: none; }
       .ta-toast { pointer-events: auto; width: min(280px, 84vw); padding: 10px 12px; border: 2px solid #000;
         border-radius: 8px; background: linear-gradient(160deg, #131a15, #0a0d0b); color: #e6f2e6;
-        font-family: 'DM Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.4;
+        font-family: 'Space Grotesk', system-ui, Arial, sans-serif; font-size: 12px; line-height: 1.4;
         box-shadow: 0 0 0 1px rgba(77,255,115,0.22), 4px 6px 0 rgba(0,0,0,0.5);
         animation: ta-toast-in 0.18s ease; cursor: pointer; }
       .ta-toast strong { display: block; color: #4dff73; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; }
