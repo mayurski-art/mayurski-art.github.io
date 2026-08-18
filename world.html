@@ -3656,10 +3656,20 @@
         }
         return null;
       }
+      // Once the user has scrolled down to (or the feed already fits within)
+      // the caught-up point, the NEW divider has done its job — drop it so
+      // reopening the chat later doesn't show a stale marker for messages
+      // already seen.
+      function clearUnreadMarker() {
+        if (!state.unreadMarkerId) return;
+        state.unreadMarkerId = null;
+        const el = els.feed.querySelector('.hub-unread-divider');
+        if (el) el.remove();
+      }
       function handleFeedScroll() {
         saveLastSeen(topVisibleId());
         const distanceFromBottom = els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight;
-        if (distanceFromBottom < 60) hideJumpPill();
+        if (distanceFromBottom < 60) { hideJumpPill(); clearUnreadMarker(); }
       }
 
       // "N new messages" pill: caughtUpCount is the message count as of the last
@@ -3756,6 +3766,7 @@
           updateJumpPill();
         }
         saveLastSeen(topVisibleId());
+        if (els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight < 60) clearUnreadMarker();
       }
 
       function addMessage(raw, opts) {
@@ -4058,20 +4069,18 @@
         if (!sb) { dmRenderInbox(); return; }
         dm.loading = true;
         dmRenderInbox();
-        const [groups, invites, threads, groupMsgs, friends, requests] = await Promise.all([
-          sb.rpc('troll_chat_my_groups').catch(() => null),
-          sb.rpc('troll_chat_my_invites').catch(() => null),
-          sb.rpc('troll_dm_my_threads').catch(() => null),
-          sb.rpc('troll_chat_group_last_messages').catch(() => null),
-          window.TrollrunnerAccounts?.listFriends?.().catch(() => []) || [],
-          window.TrollrunnerAccounts?.listFriendRequests?.().catch(() => null) || null,
+        // Each call renders as soon as IT lands instead of everything waiting
+        // on the slowest of the six — a new-runner's empty invites/requests
+        // RPC no longer holds up an already-resolved threads/groups list.
+        const track = (promise, apply) => Promise.resolve(promise).then(result => { apply(result); dmRenderInbox(); }).catch(() => {});
+        await Promise.all([
+          track(sb.rpc('troll_chat_my_groups'), r => { dm.groups = r?.data || []; }),
+          track(sb.rpc('troll_chat_my_invites'), r => { dm.invites = r?.data || []; }),
+          track(sb.rpc('troll_dm_my_threads'), r => { dm.threads = r?.data || []; }),
+          track(sb.rpc('troll_chat_group_last_messages'), r => { dm.lastMsgs = new Map((r?.data || []).map(g => [g.group_id, g])); }),
+          track(window.TrollrunnerAccounts?.listFriends?.(), r => { dm.friends = r || []; }),
+          track(window.TrollrunnerAccounts?.listFriendRequests?.(), r => { dm.requests = r?.incoming || []; }),
         ]);
-        dm.groups = groups?.data || [];
-        dm.invites = invites?.data || [];
-        dm.threads = threads?.data || [];
-        dm.lastMsgs = new Map((groupMsgs?.data || []).map(g => [g.group_id, g]));
-        dm.friends = friends || [];
-        dm.requests = requests?.incoming || [];
         dm.loading = false;
         dmRenderInbox();
       }
