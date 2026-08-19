@@ -375,19 +375,17 @@
       }
       /* Hotspots are otherwise invisible rectangles — fine on desktop where
          a mouse hover reveals the label, useless on touch where nothing
-         ever hovers. Give every zone a standing outline and pull its label
-         out from under `:hover` so the tap targets are legible on first
-         glance instead of only the "already set" dot floating with no
-         explanation of what it's sitting on. */
-      .hotspot {
-        border: 1.5px dashed rgba(143, 227, 106, 0.55);
-        background: rgba(143, 227, 106, 0.07);
-      }
-      .hotspot.is-active { background: rgba(143, 227, 106, 0.18); }
+         ever hovers. Pull the label out from under `:hover` so the tap
+         targets are legible on first glance instead of only the "already
+         set" dot floating with no explanation of what it's sitting on. */
       .hotspot-label {
         position: absolute; left: 6px; top: 6px; bottom: auto;
         transform: none; opacity: 1; font-size: 10px; padding: 3px 7px;
       }
+      /* Label sits top-left; move the is-set dot to the opposite corner
+         (bottom-right) so it never lands on top of the label text — some
+         hotspots (accessory) are narrow enough that top-right collided. */
+      .hotspot.is-set::after { top: auto; bottom: 7px; right: 7px; }
       .room-panel {
         flex: 0 0 auto; display: flex; flex-direction: column; min-height: 0;
         height: clamp(240px, 44dvh, 420px);
@@ -536,7 +534,7 @@
 
       <section class="picker" aria-label="Trait picker">
         <div class="room" id="room">
-          <img class="room-bg" id="roomBgClosed" src="assets/images/world/trollpfproombackpack.png" alt="A messy gamer bedroom at night: bookshelf, closed wardrobe, TV and a backpack on the floor.">
+          <img class="room-bg" id="roomBgClosed" src="assets/images/world/trollpfproombooks.png" alt="A messy gamer bedroom at night: bookshelf, closed wardrobe, TV and a backpack on the floor.">
           <img class="room-bg room-bg-open" id="roomBgOpen" src="assets/images/world/trollpfproomopen.png" alt="" aria-hidden="true">
           <img class="room-bg room-bg-open" id="roomBgTvBlue" src="assets/images/world/trollpfproomtvblue.png" alt="" aria-hidden="true">
           <img class="room-bg room-bg-open" id="roomBgTvRed" src="assets/images/world/trollpfproomtvred.png" alt="" aria-hidden="true">
