@@ -204,7 +204,11 @@
       display: flex; align-items: center; justify-content: space-between;
       gap: 10px; padding: 13px 14px 0;
     }
-    .room-panel-head h2 { margin: 0; font-size: 15px; font-weight: 700; }
+    .room-panel-head h2 { margin: 0; font-size: 15px; font-weight: 700; flex: 1; min-width: 0; }
+    /* Live avatar thumbnail pinned in the drawer header — desktop already
+       shows the full preview beside the drawer, so this only exists on the
+       mobile breakpoint where the drawer covers it (see below). */
+    .drawer-preview { display: none; }
     .room-panel-close {
       border: none; background: transparent; color: var(--pf-muted);
       font-size: 15px; line-height: 1; padding: 6px 9px; border-radius: 8px;
@@ -351,13 +355,28 @@
         gap: 8px; padding: 10px;
         container-type: size; container-name: pfp-stage;
       }
-      .studio:has(.picker.drawer-open) .stage { flex: 0 0 auto; }
+      /* container-type: size (below) is only needed for the full-size
+         canvas's cqh-based width formula — once the drawer is open the
+         canvas switches to a plain % width and no longer needs it. Leaving
+         containment on here collapsed .stage's own height to near-zero
+         (it can no longer size from content) while the canvas still
+         rendered at its real size, so it visually floated up over the
+         header instead of sitting in flow. */
+      .studio:has(.picker.drawer-open) .stage { flex: 0 0 auto; padding: 6px; gap: 6px; container-type: normal; }
       /* Square avatar, so it can grow by height as freely as by width —
          min() picks whichever of the two is tighter, same idea as
          object-fit: contain but sizing the box itself. */
       .canvas-wrap {
         flex: 0 0 auto; width: min(92%, calc(100cqh - 90px), 360px);
       }
+      /* Once a trait drawer is open, the preview's job shifts from "the
+         main event" to "quick confirmation while browsing" — shrink it way
+         down so the grid (what you're actually scrolling/tapping) gets the
+         vertical space instead. Still live-updates on every tap. */
+      .studio:has(.picker.drawer-open) .canvas-wrap {
+        width: min(30%, 120px);
+      }
+      .studio:has(.picker.drawer-open) .actions { display: none; }
       .stage-meta { display: none; }
       .actions {
         flex: 0 0 auto; width: 100%; display: flex; gap: 6px;
@@ -384,12 +403,24 @@
       }
       /* A drawer covers the room anyway once it's open, so the sliver of
          room art left above it (see JS: .picker gets .drawer-open) is dead
-         weight — collapse it and let the drawer take the whole picker. */
+         weight — collapse it and let the drawer take the whole picker.
+         (The preview above it shrinks instead, via .canvas-wrap below, so
+         there's still more room for this without the drawer itself needing
+         a hard cap — a capped drawer here just left dead black space.) */
       .picker.drawer-open .room { flex: 0 0 0; min-height: 0; }
       .picker.drawer-open .room-panel {
         flex: 1; height: auto;
       }
       .room-panel-head { flex: 0 0 auto; padding: 10px 12px 0; }
+      /* JS moves the live #stack canvas in here while a drawer is open (see
+         openRoomPanel/closeRoomPanel) — a real reflow-independent thumbnail
+         beats fighting the .stage flex-shrink math to keep it visible under
+         the drawer. */
+      .drawer-preview {
+        display: block; flex: 0 0 auto; width: 40px; height: 40px;
+        border-radius: 10px; overflow: hidden; border: 0.5px solid var(--pf-line-dark);
+      }
+      #drawerPreview .canvas-wrap { width: 40px; border-radius: 10px; border: none; }
       .room-panel-body { flex: 1; min-height: 0; }
       .picker-bar { flex: 0 0 auto; padding: 9px 12px; }
       .grid {
@@ -566,6 +597,7 @@
 
         <div class="room-panel" id="roomPanel" hidden>
           <div class="room-panel-head">
+            <div class="drawer-preview" id="drawerPreview" aria-hidden="true"></div>
             <h2 id="roomPanelTitle"></h2>
             <button type="button" class="room-panel-close" id="roomPanelClose" aria-label="Close this drawer">✕</button>
           </div>
@@ -619,6 +651,8 @@
       roomShots: Array.from(document.querySelectorAll('.room-bg-alt')),
       tvFrames: Array.from(document.querySelectorAll('.room-bg-alt[data-tv-frame]')),
       picker: document.querySelector('.picker'),
+      stage: document.querySelector('.stage'),
+      drawerPreview: document.getElementById('drawerPreview'),
       roomPanel: document.getElementById('roomPanel'),
       roomPanelBody: document.getElementById('roomPanelBody'),
       roomPanelTitle: document.getElementById('roomPanelTitle'),
@@ -813,12 +847,20 @@
       }
     }
 
+    const isMobileLayout = () => window.matchMedia('(max-width: 860px)').matches;
+
     function openRoomPanel(layerId) {
       if (activeLayer === layerId && !el.roomPanel.hidden) { closeRoomPanel(); return; }
       activeLayer = layerId;
       el.search.value = '';
       el.roomPanel.hidden = false;
       el.picker.classList.add('drawer-open');
+      // On mobile the drawer covers the stage, so the live avatar moves into
+      // the drawer header instead — same #stack element, so it keeps
+      // updating live as traits are tapped without any extra sync code.
+      if (isMobileLayout() && !el.drawerPreview.contains(el.stack)) {
+        el.drawerPreview.appendChild(el.stack);
+      }
       el.roomPanelTitle.textContent = layerById(layerId)?.name || layerId;
       const closeup = CLOSEUPS[layerId];
       if (closeup) {
@@ -835,6 +877,9 @@
       activeLayer = null;
       el.roomPanel.hidden = true;
       el.picker.classList.remove('drawer-open');
+      if (el.drawerPreview.contains(el.stack)) {
+        el.stage.insertBefore(el.stack, el.stage.firstChild);
+      }
       renderHotspots();
       updateRoomArt();
     }
