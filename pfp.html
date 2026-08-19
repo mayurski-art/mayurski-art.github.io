@@ -176,8 +176,8 @@
       position: absolute; inset: 0; width: 100%; height: 100%;
       object-fit: cover; display: block;
     }
-    .room-bg.room-bg-open { opacity: 0; transition: opacity 0.35s ease; }
-    .room-bg.room-bg-open.is-visible { opacity: 1; }
+    .room-bg.room-bg-alt { opacity: 0; transition: opacity 0.35s ease; }
+    .room-bg.room-bg-alt.is-visible { opacity: 1; }
     .hotspot {
       position: absolute; border: none; background: transparent;
       border-radius: 10px; padding: 0;
@@ -534,11 +534,21 @@
 
       <section class="picker" aria-label="Trait picker">
         <div class="room" id="room">
-          <img class="room-bg" id="roomBgClosed" src="assets/images/world/trollpfproombooks.png" alt="A messy gamer bedroom at night: bookshelf, closed wardrobe, TV and a backpack on the floor.">
-          <img class="room-bg room-bg-open" id="roomBgOpen" src="assets/images/world/trollpfproomopen.png" alt="" aria-hidden="true">
-          <img class="room-bg room-bg-open" id="roomBgTvBlue" src="assets/images/world/trollpfproomtvblue.png" alt="" aria-hidden="true">
-          <img class="room-bg room-bg-open" id="roomBgTvRed" src="assets/images/world/trollpfproomtvred.png" alt="" aria-hidden="true">
-          <img class="room-bg room-bg-open" id="roomBgTvGreen" src="assets/images/world/trollpfptvgreen.png" alt="" aria-hidden="true">
+          <!-- Idle shot: the whole room dark and quiet. Every alternate below
+               is the same camera with one piece of furniture lit up, stacked
+               on top at opacity 0 and cross-faded in while its hotspot is
+               hovered/focused (or its drawer is open), so the room reads as
+               a single photo reacting to the cursor rather than a slideshow. -->
+          <img class="room-bg" id="roomBgIdle" src="assets/images/world/trollpfproom.jpeg" alt="A messy gamer bedroom at night: bookshelf, closed wardrobe, TV and a backpack on the floor.">
+          <img class="room-bg room-bg-alt" fetchpriority="low" decoding="async" data-room-shot="base" src="assets/images/world/trollpfproombooks.png" alt="" aria-hidden="true">
+          <img class="room-bg room-bg-alt" fetchpriority="low" decoding="async" data-room-shot="headwear" src="assets/images/world/trollpfproomboxes.png" alt="" aria-hidden="true">
+          <img class="room-bg room-bg-alt" fetchpriority="low" decoding="async" data-room-shot="outfit" src="assets/images/world/trollpfproomopen.png" alt="" aria-hidden="true">
+          <img class="room-bg room-bg-alt" fetchpriority="low" decoding="async" data-room-shot="accessory" src="assets/images/world/trollpfproombackpack.png" alt="" aria-hidden="true">
+          <!-- Background/TV is the one hotspot with more than one lit frame:
+               these three cycle on a timer to fake a screen flickering. -->
+          <img class="room-bg room-bg-alt" fetchpriority="low" decoding="async" data-room-shot="background" data-tv-frame src="assets/images/world/trollpfproomtvblue.png" alt="" aria-hidden="true">
+          <img class="room-bg room-bg-alt" fetchpriority="low" decoding="async" data-room-shot="background" data-tv-frame src="assets/images/world/trollpfproomtvred.png" alt="" aria-hidden="true">
+          <img class="room-bg room-bg-alt" fetchpriority="low" decoding="async" data-room-shot="background" data-tv-frame src="assets/images/world/trollpfptvgreen.png" alt="" aria-hidden="true">
 
           <button type="button" class="hotspot" data-layer="base" data-base-label="Base — bookshelf"
             style="left:3%; top:12%; width:21%; height:45%;">
@@ -614,8 +624,8 @@
       note: document.getElementById('note'),
       summary: document.getElementById('summary'),
       total: document.getElementById('trait-total'),
-      roomBgOpen: document.getElementById('roomBgOpen'),
-      tvFrames: ['roomBgTvBlue', 'roomBgTvRed', 'roomBgTvGreen'].map(id => document.getElementById(id)),
+      roomShots: Array.from(document.querySelectorAll('.room-bg-alt')),
+      tvFrames: Array.from(document.querySelectorAll('.room-bg-alt[data-tv-frame]')),
       picker: document.querySelector('.picker'),
       roomPanel: document.getElementById('roomPanel'),
       roomPanelBody: document.getElementById('roomPanelBody'),
@@ -825,7 +835,6 @@
       renderGrid();
       renderHotspots();
       updateRoomArt();
-      updateTvLoop();
     }
 
     function closeRoomPanel() {
@@ -834,19 +843,37 @@
       el.picker.classList.remove('drawer-open');
       renderHotspots();
       updateRoomArt();
-      updateTvLoop();
     }
 
-    // The wardrobe swaps to its open-doors art (hangers visible) whenever the
-    // outfit hotspot is hovered/focused or its drawer is open.
-    function updateRoomArt(showOpenWardrobe) {
-      const open = showOpenWardrobe ?? activeLayer === 'outfit';
-      el.roomBgOpen.classList.toggle('is-visible', open);
+    /* ---- room art ----
+       Only ever one shot is lit at a time. Which one is decided by three
+       inputs in priority order: whatever the cursor is over right now,
+       then whatever has keyboard focus, then whichever drawer is open.
+       With none of them pointing anywhere the room falls back to the idle
+       photo underneath, so moving off the furniture always lands you back
+       on the same neutral shot. */
+    let hoveredLayer = null;
+    let focusedLayer = null;
+
+    /** The shot the room should be showing, or null for the idle photo. */
+    function currentShot() {
+      return hoveredLayer ?? focusedLayer ?? activeLayer ?? null;
     }
 
-    // The TV cycles through its lit-up color frames whenever the background
-    // hotspot is hovered/focused or its drawer is open — same trigger as the
-    // wardrobe swap above, just a loop instead of a single alternate frame.
+    function updateRoomArt() {
+      const shot = currentShot();
+      // The TV is a loop rather than a still, so it runs its own timer and
+      // owns the visibility of its three frames — leave them alone here.
+      for (const img of el.roomShots) {
+        if (img.hasAttribute('data-tv-frame')) continue;
+        img.classList.toggle('is-visible', img.dataset.roomShot === shot);
+      }
+      if (shot === 'background') startTvLoop(); else stopTvLoop();
+    }
+
+    // The TV cycles through its lit-up color frames while the background
+    // hotspot is the live one — same cross-fade as every other shot, just
+    // stepping between three of them instead of holding on one.
     let tvLoopTimer = null;
     function startTvLoop() {
       if (tvLoopTimer) return;
@@ -862,10 +889,6 @@
       window.clearInterval(tvLoopTimer);
       tvLoopTimer = null;
       el.tvFrames.forEach(img => img.classList.remove('is-visible'));
-    }
-    function updateTvLoop(forceOn) {
-      const on = forceOn ?? activeLayer === 'background';
-      if (on) startTvLoop(); else stopTvLoop();
     }
 
     function renderGrid() {
@@ -1077,18 +1100,19 @@
       for (const btn of el.hotspots) {
         const layer = btn.dataset.layer;
         btn.addEventListener('click', () => openRoomPanel(layer));
-        if (layer === 'outfit') {
-          btn.addEventListener('mouseenter', () => updateRoomArt(true));
-          btn.addEventListener('mouseleave', () => updateRoomArt());
-          btn.addEventListener('focus', () => updateRoomArt(true));
-          btn.addEventListener('blur', () => updateRoomArt());
-        }
-        if (layer === 'background') {
-          btn.addEventListener('mouseenter', () => updateTvLoop(true));
-          btn.addEventListener('mouseleave', () => updateTvLoop());
-          btn.addEventListener('focus', () => updateTvLoop(true));
-          btn.addEventListener('blur', () => updateTvLoop());
-        }
+        // Every hotspot lights its own piece of furniture; leaving one
+        // clears the claim so the room drops back to the idle shot unless
+        // something else (focus, an open drawer) still wants a shot up.
+        btn.addEventListener('mouseenter', () => { hoveredLayer = layer; updateRoomArt(); });
+        btn.addEventListener('mouseleave', () => {
+          if (hoveredLayer === layer) hoveredLayer = null;
+          updateRoomArt();
+        });
+        btn.addEventListener('focus', () => { focusedLayer = layer; updateRoomArt(); });
+        btn.addEventListener('blur', () => {
+          if (focusedLayer === layer) focusedLayer = null;
+          updateRoomArt();
+        });
       }
       el.roomPanelClose.addEventListener('click', closeRoomPanel);
       // Iframed inside the index.html desktop icon, "/" would reload the
