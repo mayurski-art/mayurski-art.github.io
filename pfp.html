@@ -182,10 +182,6 @@
       position: absolute; border: none; background: transparent;
       border-radius: 10px; padding: 0;
     }
-    .hotspot.is-active {
-      background: rgba(88, 86, 214, 0.14);
-      box-shadow: inset 0 0 0 2px var(--pf-accent), 0 0 22px rgba(88, 86, 214, 0.45);
-    }
     .hotspot.is-set::after {
       content: ''; position: absolute; top: 7px; right: 7px; width: 9px; height: 9px;
       border-radius: 50%; background: var(--pf-green); box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8);
@@ -338,17 +334,28 @@
 
       .studio { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
 
-      /* preview + actions collapse into one compact header row instead of
-         a tall stacked card */
+      /* Top-down layout: the preview card grows to soak up whatever
+         vertical space the room photo's fixed aspect ratio can't use
+         (it used to sit as a tiny compact strip, leaving a dead gap below
+         the room instead), then shrinks back out of the way once a trait
+         drawer opens and the room needs the room back. See the
+         .studio:has(.picker.drawer-open) override below. */
       .stage {
-        flex: 0 0 auto; max-width: none; margin: 0;
-        display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
-        padding: 8px;
+        flex: 1 1 auto; min-height: 0; max-width: none; margin: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 8px; padding: 10px;
+        container-type: size; container-name: pfp-stage;
       }
-      .canvas-wrap { flex: 0 0 auto; width: clamp(72px, 26vw, 148px); }
+      .studio:has(.picker.drawer-open) .stage { flex: 0 0 auto; }
+      /* Square avatar, so it can grow by height as freely as by width —
+         min() picks whichever of the two is tighter, same idea as
+         object-fit: contain but sizing the box itself. */
+      .canvas-wrap {
+        flex: 0 0 auto; width: min(92%, calc(100cqh - 90px), 360px);
+      }
       .stage-meta { display: none; }
       .actions {
-        flex: 1 1 160px; min-width: 0; display: flex; gap: 6px;
+        flex: 0 0 auto; width: 100%; display: flex; gap: 6px;
         margin-top: 0; overflow-x: auto; -webkit-overflow-scrolling: touch;
         scrollbar-width: none; padding-bottom: 2px;
       }
@@ -357,11 +364,12 @@
         flex: 1 1 0; padding: 9px 8px; white-space: nowrap;
       }
       .note {
-        flex: 1 0 100%; margin: 0; min-height: 0;
+        flex: 0 0 auto; width: 100%; margin: 0; min-height: 0; text-align: center;
       }
       .note:empty { display: none; }
 
-      .picker { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      .picker { flex: 0 0 auto; min-height: 0; display: flex; flex-direction: column; }
+      .picker.drawer-open { flex: 1 1 auto; }
       .room {
         flex: 0 0 auto; width: 100%; aspect-ratio: 2047 / 1180;
       }
@@ -528,7 +536,7 @@
 
       <section class="picker" aria-label="Trait picker">
         <div class="room" id="room">
-          <img class="room-bg" id="roomBgClosed" src="assets/images/world/trollpfproomboxes.png" alt="A messy gamer bedroom at night: bookshelf, closed wardrobe, TV and a backpack on the floor.">
+          <img class="room-bg" id="roomBgClosed" src="assets/images/world/trollpfproombackpack.png" alt="A messy gamer bedroom at night: bookshelf, closed wardrobe, TV and a backpack on the floor.">
           <img class="room-bg room-bg-open" id="roomBgOpen" src="assets/images/world/trollpfproomopen.png" alt="" aria-hidden="true">
           <img class="room-bg room-bg-open" id="roomBgTvBlue" src="assets/images/world/trollpfproomtvblue.png" alt="" aria-hidden="true">
           <img class="room-bg room-bg-open" id="roomBgTvRed" src="assets/images/world/trollpfproomtvred.png" alt="" aria-hidden="true">
