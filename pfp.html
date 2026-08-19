@@ -39,6 +39,7 @@
       --pf-accent: #5856d6;
       --pf-green: #34c759;
       --pf-orange: #ff9500;
+      --pf-share: #00ba7c;
       --pf-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --pf-mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     }
@@ -93,7 +94,7 @@
     button.btn-home:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--pf-line-dark); }
 
     /* ---------- layout ---------- */
-    .studio { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 18px; align-items: start; }
+    .studio { display: grid; grid-template-columns: minmax(0, 456px) minmax(0, 1fr); gap: 18px; align-items: start; }
 
     /* ---------- stage ---------- */
     .stage {
@@ -148,8 +149,16 @@
     .btn:hover { background: rgba(255, 255, 255, 0.14); }
     .btn:active { transform: translateY(1px); }
     .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
-    .btn-primary { background: var(--pf-accent); border-color: transparent; }
-    .btn-primary:hover { background: #6a68e0; }
+    /* Share/download is the button most visitors actually want — give it
+       its own fixed brand color (not the shifting --pf-accent, which turns
+       mint-green on mobile and would blend into btn-save) plus a glow so
+       it reads as the obvious next step, not just another toolbar icon.
+       Retweet-green + a repost-style icon, like X's retweet button. */
+    .btn.btn-primary {
+      background: var(--pf-share); border-color: transparent;
+      box-shadow: 0 3px 14px rgba(0, 186, 124, 0.45);
+    }
+    .btn.btn-primary:hover { background: #00d68f; }
     .btn-save { background: var(--pf-green); border-color: transparent; color: #06210f; }
     .btn-save:hover { background: #45d76a; }
     .btn-label { display: none; }
@@ -557,7 +566,7 @@
       }
       .btn-swap { background: rgba(255,255,255,0.06); color: var(--pf-ink); }
       .btn-swap:hover { border-color: var(--pf-accent); color: var(--pf-accent); }
-      .btn-primary, .btn-save { color: #06210f; }
+      .btn-save { color: #06210f; }
       .canvas-wrap { background-color: #0a0a0b; }
       .canvas-wrap {
         background-image:
@@ -600,7 +609,7 @@
           <button class="btn" id="btn-back" type="button" disabled aria-label="No previous look yet" title="No previous look yet"><span class="btn-ic" aria-hidden="true">←</span><span class="btn-label">Previous</span></button>
           <button class="btn" id="btn-surprise" type="button" aria-label="Randomize" title="Randomize"><span class="btn-ic" aria-hidden="true">🎲</span><span class="btn-label">Randomize</span></button>
           <button class="btn" id="btn-reset" type="button" aria-label="Reset" title="Reset"><span class="btn-ic" aria-hidden="true">↺</span><span class="btn-label">Reset</span></button>
-          <button class="btn btn-primary" id="btn-download" type="button" aria-label="Share or download" title="Share or download"><span class="btn-ic" aria-hidden="true">⬇</span><span class="btn-label">Share or download</span></button>
+          <button class="btn btn-primary" id="btn-download" type="button" aria-label="Share or download" title="Share or download"><span class="btn-ic" aria-hidden="true">🔁</span><span class="btn-label">Share or download</span></button>
           <button class="btn btn-save" id="btn-save" type="button" aria-label="Save as my profile picture" title="Save as my profile picture"><span class="btn-ic" aria-hidden="true">💾</span><span class="btn-label">Save as my profile picture</span></button>
         </div>
 
