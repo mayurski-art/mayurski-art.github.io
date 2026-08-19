@@ -15,6 +15,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="TROLLRUNNER">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/assets/images/icons/app/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
@@ -312,11 +314,11 @@
        to just stack and the whole document scrolled. Instead the page is
        pinned to the viewport and only the trait grid inside the open
        drawer scrolls — everything else is sized to fit. The room image
-       trades its fixed aspect-ratio for flex-filled cropping (object-fit:
-       cover) so it can take "whatever height is left" instead of forcing
-       the page taller than the screen; hotspot positions can drift a
-       little under that crop, which is the accepted trade for zero
-       page-level scrolling. */
+       keeps its real aspect ratio (stretching it to fill the leftover flex
+       height read as a badly cropped, too-tall photo and drifted the
+       hotspots off their landmarks) and just sits at whatever height that
+       ratio works out to, right below the header — any leftover space
+       below it is inert until a drawer opens and takes it over. */
     @media (max-width: 860px) {
       html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
       body { display: flex; flex-direction: column; }
@@ -357,7 +359,7 @@
 
       .picker { flex: 1; min-height: 0; display: flex; flex-direction: column; }
       .room {
-        flex: 1; min-height: 0; aspect-ratio: auto;
+        flex: 0 0 auto; width: 100%; aspect-ratio: 2047 / 1180;
       }
       /* Hotspots are otherwise invisible rectangles — fine on desktop where
          a mouse hover reveals the label, useless on touch where nothing

@@ -24,6 +24,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="TROLLRUNNER">
+  <!-- The legacy apple-mobile-web-app-capable meta above is Apple's pre-2018
+       mechanism and unreliably drops a Home Screen launch back into a
+       chromed Safari view on ordinary multi-page navigations (e.g. tapping
+       into pfp.html) — a real manifest.json with display:"standalone" is
+       what iOS actually honors across page loads within its scope. Only
+       takes effect for icons added to the Home Screen AFTER this ships;
+       existing icons need to be removed and re-added to pick it up. -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/assets/images/icons/app/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
