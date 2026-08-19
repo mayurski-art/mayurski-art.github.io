@@ -193,6 +193,11 @@
       opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
     }
     .hotspot:hover .hotspot-label, .hotspot:focus-visible .hotspot-label { opacity: 1; }
+    /* Headwear sits right at the top edge of the room photo, so its label
+       has no room to pop up above the button like the others do — the
+       room's overflow:hidden was clipping it off-screen. Drop it below
+       the button instead. */
+    .hotspot[data-layer="headwear"] .hotspot-label { bottom: auto; top: 100%; transform: translate(-50%, 7px); }
 
     .room-panel[hidden] { display: none; }
     .room-panel-head {
