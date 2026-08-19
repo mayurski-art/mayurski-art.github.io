@@ -662,8 +662,10 @@
       for (const layer of manifest.layers) {
         next[layer.id] = OPTIONAL.has(layer.id) ? null : (layer.traits[0]?.id ?? null);
       }
-      // A plain dressed troll beats whatever happens to sort first.
-      const preferred = { background: 'holo', base: 'og', outfit: 'tee-black' };
+      // A plain dressed troll beats whatever happens to sort first — and a
+      // fresh visitor should see all five hotspots already lit, not just
+      // the three that happen to be required.
+      const preferred = { background: 'holo', base: 'og', outfit: 'tee-black', headwear: 'cap-black', accessory: 'gold-chains' };
       for (const [id, want] of Object.entries(preferred)) {
         if (traitById(id, want)) next[id] = want;
       }
