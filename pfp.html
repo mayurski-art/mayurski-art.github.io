@@ -846,18 +846,22 @@
     }
 
     /* ---- room art ----
-       Only ever one shot is lit at a time. Which one is decided by three
-       inputs in priority order: whatever the cursor is over right now,
-       then whatever has keyboard focus, then whichever drawer is open.
-       With none of them pointing anywhere the room falls back to the idle
-       photo underneath, so moving off the furniture always lands you back
-       on the same neutral shot. */
+       Only ever one shot is lit at a time. Whichever drawer is open wins
+       outright — hovering other furniture behind an open drawer shouldn't
+       swap the shot out from under it. With no drawer open, hover (then
+       keyboard focus) picks the shot instead. With none of them pointing
+       anywhere the room falls back to the idle photo underneath, so moving
+       off the furniture always lands you back on the same neutral shot. */
     let hoveredLayer = null;
     let focusedLayer = null;
 
-    /** The shot the room should be showing, or null for the idle photo. */
+    /** The shot the room should be showing, or null for the idle photo.
+     *  While a drawer is open, that layer's furniture owns the room shot —
+     *  hovering a different hotspot behind the drawer shouldn't steal it;
+     *  only closing the drawer (or picking another one) lets go of it. */
     function currentShot() {
-      return hoveredLayer ?? focusedLayer ?? activeLayer ?? null;
+      if (activeLayer) return activeLayer;
+      return hoveredLayer ?? focusedLayer ?? null;
     }
 
     function updateRoomArt() {
