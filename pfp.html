@@ -160,6 +160,58 @@
     .note.is-ok { color: #6ee08a; }
     .note.is-err { color: #ff8f9a; }
 
+    /* ---------- share modal ----------
+       Body background is always the dark shell (mobile just swaps the shade
+       of black), so this card doesn't need a separate light variant the way
+       .picker does. */
+    .share-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .share-modal[hidden] { display: none; }
+    .share-modal-backdrop {
+      position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    }
+    .share-modal-card {
+      position: relative; z-index: 1; width: min(360px, 100%);
+      background: linear-gradient(165deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 38%, rgba(0,0,0,0.3) 100%), #131316;
+      border: 0.5px solid var(--pf-line-dark); border-radius: 20px;
+      padding: 20px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .share-modal-close {
+      position: absolute; top: 12px; right: 12px; border: none;
+      background: rgba(255, 255, 255, 0.08); color: #f5f5f7;
+      width: 30px; height: 30px; border-radius: 50%; font-size: 13px; line-height: 1;
+    }
+    .share-modal-close:hover { background: rgba(255, 255, 255, 0.16); }
+    .share-modal-card h2 { margin: 0; padding-right: 30px; font-size: 16px; font-weight: 700; color: #f5f5f7; }
+    .share-modal-preview {
+      aspect-ratio: 1 / 1; border-radius: 14px; overflow: hidden;
+      border: 0.5px solid var(--pf-line-dark); background-color: #0a0a0b;
+      background-image:
+        linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.06) 75%),
+        linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.06) 75%);
+      background-size: 22px 22px; background-position: 0 0, 11px 11px;
+    }
+    .share-modal-preview img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .share-modal-note { margin: 0; font-size: 12px; color: #9b9ba1; min-height: 1.2em; text-align: center; }
+    .share-modal-note.is-ok { color: #6ee08a; }
+    .share-modal-note.is-err { color: #ff8f9a; }
+    .share-modal-actions { display: flex; gap: 10px; }
+    .share-btn {
+      flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px; border-radius: 12px; border: 0.5px solid var(--pf-line-dark);
+      font-size: 13.5px; font-weight: 600; background: rgba(255, 255, 255, 0.08); color: #f5f5f7;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .share-btn:hover { background: rgba(255, 255, 255, 0.16); }
+    .share-btn:active { transform: translateY(1px); }
+    .share-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .share-btn-ic { font-size: 15px; }
+    .share-btn-x { background: #fff; color: #000; border-color: transparent; }
+    .share-btn-x:hover { background: #e6e6e6; }
+    .share-btn-download { background: var(--pf-accent); border-color: transparent; }
+    .share-btn-download:hover { background: #6a68e0; }
+
     /* ---------- picker ---------- */
     .picker {
       background: var(--pf-panel); color: var(--pf-ink);
@@ -548,7 +600,7 @@
           <button class="btn" id="btn-back" type="button" disabled aria-label="No previous look yet" title="No previous look yet"><span class="btn-ic" aria-hidden="true">←</span><span class="btn-label">Previous</span></button>
           <button class="btn" id="btn-surprise" type="button" aria-label="Randomize" title="Randomize"><span class="btn-ic" aria-hidden="true">🎲</span><span class="btn-label">Randomize</span></button>
           <button class="btn" id="btn-reset" type="button" aria-label="Reset" title="Reset"><span class="btn-ic" aria-hidden="true">↺</span><span class="btn-label">Reset</span></button>
-          <button class="btn btn-primary" id="btn-download" type="button" aria-label="Download PNG" title="Download PNG"><span class="btn-ic" aria-hidden="true">⬇</span><span class="btn-label">Download PNG</span></button>
+          <button class="btn btn-primary" id="btn-download" type="button" aria-label="Share or download" title="Share or download"><span class="btn-ic" aria-hidden="true">⬇</span><span class="btn-label">Share or download</span></button>
           <button class="btn btn-save" id="btn-save" type="button" aria-label="Save as my profile picture" title="Save as my profile picture"><span class="btn-ic" aria-hidden="true">💾</span><span class="btn-label">Save as my profile picture</span></button>
         </div>
 
@@ -616,6 +668,26 @@
     </main>
   </div>
 
+  <div class="share-modal" id="shareModal" hidden>
+    <div class="share-modal-backdrop" id="shareModalBackdrop"></div>
+    <div class="share-modal-card" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+      <button type="button" class="share-modal-close" id="shareModalClose" aria-label="Close">✕</button>
+      <h2 id="shareModalTitle">Your troll is ready</h2>
+      <div class="share-modal-preview">
+        <img id="shareModalImg" alt="Your customized troll PFP">
+      </div>
+      <p class="share-modal-note" id="shareModalNote" role="status" aria-live="polite"></p>
+      <div class="share-modal-actions">
+        <button type="button" class="share-btn share-btn-x" id="btnShareX">
+          <span class="share-btn-ic" aria-hidden="true">𝕏</span> Share on X
+        </button>
+        <button type="button" class="share-btn share-btn-download" id="btnShareDownload">
+          <span class="share-btn-ic" aria-hidden="true">⬇</span> Download
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="assets/js/troll-accounts.js?v=20260818c"></script>
   <script>
@@ -658,6 +730,13 @@
       roomPanelTitle: document.getElementById('roomPanelTitle'),
       roomPanelClose: document.getElementById('roomPanelClose'),
       hotspots: Array.from(document.querySelectorAll('.hotspot')),
+      shareModal: document.getElementById('shareModal'),
+      shareModalBackdrop: document.getElementById('shareModalBackdrop'),
+      shareModalClose: document.getElementById('shareModalClose'),
+      shareModalImg: document.getElementById('shareModalImg'),
+      shareModalNote: document.getElementById('shareModalNote'),
+      btnShareX: document.getElementById('btnShareX'),
+      btnShareDownload: document.getElementById('btnShareDownload'),
     };
 
     let manifest = null;
@@ -1064,22 +1143,81 @@
       return `troll-pfp-${parts.slice(0, 3).join('-') || 'blank'}.png`;
     }
 
-    async function download() {
-      note('Rendering…');
+    function triggerBlobDownload(blob) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    /* ---------- share modal ----------
+       Renders once when the sheet opens, then Download and Share on X both
+       reuse that same blob instead of re-compositing per button. */
+    let shareBlob = null;
+    let shareObjectUrl = null;
+
+    function setShareNote(msg, kind) {
+      el.shareModalNote.textContent = msg || '';
+      el.shareModalNote.className = 'share-modal-note' + (kind ? ` is-${kind}` : '');
+    }
+
+    async function openShareModal() {
+      el.shareModal.hidden = false;
+      el.btnShareX.disabled = true;
+      el.btnShareDownload.disabled = true;
+      el.shareModalImg.removeAttribute('src');
+      setShareNote('Rendering…');
       try {
-        const blob = await renderToBlob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename();
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        note('Downloaded. Go be insufferable.', 'ok');
+        shareBlob = await renderToBlob();
+        shareObjectUrl = URL.createObjectURL(shareBlob);
+        el.shareModalImg.src = shareObjectUrl;
+        setShareNote('');
       } catch (err) {
-        note(err.message || 'Could not export that one.', 'err');
+        setShareNote(err.message || 'Could not render that one.', 'err');
+      } finally {
+        el.btnShareX.disabled = false;
+        el.btnShareDownload.disabled = false;
       }
+    }
+
+    function closeShareModal() {
+      el.shareModal.hidden = true;
+      if (shareObjectUrl) { URL.revokeObjectURL(shareObjectUrl); shareObjectUrl = null; }
+      shareBlob = null;
+      el.shareModalImg.removeAttribute('src');
+      setShareNote('');
+    }
+
+    function downloadFromModal() {
+      if (!shareBlob) return;
+      triggerBlobDownload(shareBlob);
+      setShareNote('Downloaded. Go be insufferable.', 'ok');
+    }
+
+    /** Real image attach where the browser supports it (mobile Web Share);
+     *  X's tweet-intent URL can't take an image by link, so everywhere else
+     *  this falls back to downloading the PNG and opening the composer for
+     *  the user to attach it themselves. */
+    async function shareOnX() {
+      if (!shareBlob) return;
+      const text = 'Made my Troll PFP at trollrunner.net — build yours:';
+      const file = new File([shareBlob], filename(), { type: 'image/png' });
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'My Troll PFP', text });
+          setShareNote('Shared.', 'ok');
+          return;
+        } catch (err) {
+          if (err?.name === 'AbortError') return;
+        }
+      }
+      triggerBlobDownload(shareBlob);
+      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+      setShareNote('Downloaded — attach the image to your post.', 'ok');
     }
 
     async function saveToProfile() {
@@ -1172,7 +1310,9 @@
         }
       });
       document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && !el.roomPanel.hidden) closeRoomPanel();
+        if (e.key !== 'Escape') return;
+        if (!el.shareModal.hidden) closeShareModal();
+        else if (!el.roomPanel.hidden) closeRoomPanel();
       });
 
       el.search.addEventListener('input', renderGrid);
@@ -1183,8 +1323,12 @@
       document.getElementById('btn-reset').addEventListener('click', () => {
         setBuild(defaultBuild()); note('');
       });
-      document.getElementById('btn-download').addEventListener('click', download);
+      document.getElementById('btn-download').addEventListener('click', openShareModal);
       document.getElementById('btn-save').addEventListener('click', saveToProfile);
+      el.shareModalClose.addEventListener('click', closeShareModal);
+      el.shareModalBackdrop.addEventListener('click', closeShareModal);
+      el.btnShareX.addEventListener('click', shareOnX);
+      el.btnShareDownload.addEventListener('click', downloadFromModal);
     }
 
     init();
