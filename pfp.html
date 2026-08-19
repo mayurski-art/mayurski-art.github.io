@@ -325,9 +325,9 @@
       .cell:hover, .cell[aria-pressed="true"] { opacity: 1; }
     }
     .cell .label {
-      font-size: 11.5px; line-height: 1.25; color: var(--pf-ink);
-      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
-      -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.4em;
+      font-size: 11.5px; line-height: 1.25; color: var(--pf-ink); text-align: center;
+      overflow: hidden; min-height: 2.4em; max-height: 2.4em;
+      display: flex; align-items: center; justify-content: center;
     }
     .cell[aria-pressed="true"] .label { font-weight: 700; }
     .cell .badge-solo {
