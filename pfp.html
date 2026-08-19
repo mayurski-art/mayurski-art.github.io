@@ -1201,8 +1201,21 @@
       setShareNote('');
     }
 
-    function downloadFromModal() {
+    async function downloadFromModal() {
       if (!shareBlob) return;
+      // iOS Safari's <a download> on a blob URL doesn't save — it just opens
+      // Quick Look, whose share sheet has no direct "Save Image" option. Use
+      // the native file share sheet there instead; it knows it's an image.
+      const file = new File([shareBlob], filename(), { type: 'image/png' });
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'My Troll PFP' });
+          setShareNote('Shared. Go be insufferable.', 'ok');
+          return;
+        } catch (err) {
+          if (err?.name === 'AbortError') return;
+        }
+      }
       triggerBlobDownload(shareBlob);
       setShareNote('Downloaded. Go be insufferable.', 'ok');
     }
