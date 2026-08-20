@@ -718,24 +718,6 @@
           <div class="card">
             <div class="card-head">
               <div>
-                <h2>Coming-soon gate</h2>
-                <p class="card-sub">One click flips the "coming soon" splash on or off for every visitor on every Troll Runner app subdomain (games, finance, fitness, garden, blog, nutrition, stickers, videos, projects) — no per-browser admin password needed once you're signed in here. The hub at trollrunner.net and the Terminal app are always open to the public (login/create account) regardless of this switch.</p>
-              </div>
-              <div class="pill-row">
-                <span class="pill" id="gate-lock-pill">Gate: loading</span>
-              </div>
-            </div>
-            <p id="gate-lock-status" class="status-line">Checking coming-soon gate state...</p>
-            <div class="row">
-              <button id="gate-on-btn" class="alert" type="button">Turn coming-soon ON</button>
-              <button id="gate-off-btn" class="success" type="button">Turn coming-soon OFF (open site)</button>
-              <button id="gate-refresh-btn" class="secondary" type="button">Refresh status</button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head">
-              <div>
                 <h2>Live status popups</h2>
                 <p class="card-sub">Toggle the homepage live popups shown below the header buttons.</p>
               </div>
@@ -964,7 +946,7 @@
             <div class="card-head">
               <div>
                 <h2>Newsletter signups</h2>
-                <p class="card-sub">Emails collected from the coming-soon gate on the homepage. Only your admin session can read this list — the public anon key can submit but never read.</p>
+                <p class="card-sub">Emails collected while the coming-soon splash was live. Only your admin session can read this list — the public anon key can submit but never read.</p>
               </div>
               <div class="pill-row">
                 <span class="summary-note">Launch list</span>
@@ -1061,7 +1043,6 @@
   </script>
 
   <script src="assets/js/site-lock.js"></script>
-  <script src="assets/js/coming-soon.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="assets/js/admin-auth.js?v=20260815a"></script>
   <script src="assets/js/troll-notis.js"></script>
@@ -2299,64 +2280,6 @@ Fixed some admin system bugs.`,
       await refreshPublicLockConsole();
     }
 
-    async function refreshGateConsole() {
-      const gatePill = document.getElementById('gate-lock-pill');
-      const gateStatus = document.getElementById('gate-lock-status');
-      const onBtn = document.getElementById('gate-on-btn');
-      const offBtn = document.getElementById('gate-off-btn');
-      const refreshBtn = document.getElementById('gate-refresh-btn');
-      const helper = window.TrollrunnerAdminAuth;
-      const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
-      const gateHelper = window.TrollrunnerComingSoonGate;
-      const record = gateHelper?.getStoredGate ? gateHelper.getStoredGate() : { enabled: true };
-      const enabled = record.enabled !== false;
-
-      if (gatePill) gatePill.textContent = enabled ? 'Gate: on' : 'Gate: off (site public)';
-      if (gateStatus) {
-        gateStatus.textContent = authed
-          ? (enabled
-            ? 'Visitors see the coming-soon splash right now.'
-            : 'The site is open to everyone right now.')
-          : 'Sign in above to control the coming-soon gate.';
-      }
-      if (onBtn) onBtn.disabled = !authed || enabled;
-      if (offBtn) offBtn.disabled = !authed || !enabled;
-      if (refreshBtn) refreshBtn.disabled = false;
-    }
-
-    async function setGateState(shouldEnable) {
-      const helper = window.TrollrunnerAdminAuth;
-      const authed = helper?.hasAdminSession ? await helper.hasAdminSession() : false;
-      if (!authed) {
-        alert('Unlock the admin account first.');
-        await refreshGateConsole();
-        return;
-      }
-      const gateHelper = window.TrollrunnerComingSoonGate;
-      if (!gateHelper?.requestGateTransition) {
-        alert('Coming-soon gate controls are not available yet.');
-        return;
-      }
-      gateHelper.requestGateTransition(Boolean(shouldEnable));
-      await refreshGateConsole();
-    }
-
-    function bindGateConsole() {
-      const onBtn = document.getElementById('gate-on-btn');
-      const offBtn = document.getElementById('gate-off-btn');
-      const refreshBtn = document.getElementById('gate-refresh-btn');
-      if (onBtn) onBtn.addEventListener('click', () => setGateState(true));
-      if (offBtn) offBtn.addEventListener('click', () => setGateState(false));
-      if (refreshBtn) refreshBtn.addEventListener('click', refreshGateConsole);
-      window.setInterval(refreshGateConsole, 1000);
-      window.addEventListener('storage', event => {
-        if (event.key === window.TrollrunnerComingSoonGate?.storageKey || event.key === AUTH_KEY || event.key === window.TrollrunnerAdminAuth?.adminAuthKey) {
-          void refreshGateConsole();
-        }
-      });
-      void refreshGateConsole();
-    }
-
     async function sendAdminLinkFromConsole() {
       const helper = window.TrollrunnerAdminAuth;
       if (!helper?.requestAdminLink) return;
@@ -2438,7 +2361,6 @@ Fixed some admin system bugs.`,
       renderViewAnalytics();
       renderLiveStatusState();
       bindPublicLockConsole();
-      bindGateConsole();
 
       if (isSupabaseConfigured()) {
         window.setInterval(async () => {
@@ -3416,7 +3338,7 @@ Fixed some admin system bugs.`,
           ).join('');
         }
         if (!signups.length) {
-          tableWrap.innerHTML = '<p>No signups yet — share the coming-soon page.</p>';
+          tableWrap.innerHTML = '<p>No signups yet.</p>';
           return;
         }
         const rows = signups.map(item => `<tr>

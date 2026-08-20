@@ -111,13 +111,8 @@
          landed on top of the entrance and swallowed the first tap on an app
          icon; the second tap only worked because the first had dismissed
          it. world.html has its own run-to-enter lock, so the desktop gate is
-         redundant here regardless.
-
-         #coming-soon-gate is deliberately exempt: when that lock is on it
-         must still cover the entrance, so it stays rendered and the rule
-         below keeps the frame hidden behind it. */
-      'body>*:not(#troll-entrance):not(#coming-soon-gate){display:none!important}' +
-      'html.cs-locked body>#troll-entrance{visibility:hidden!important}</style>' +
+         redundant here regardless. */
+      'body>*:not(#troll-entrance){display:none!important}</style>' +
       // Version bumped on each deploy. GitHub Pages can't send cache headers,
       // and phones hold onto HTML hard enough that several rounds of changes
       // went unseen on a device that already had this page. The query makes
@@ -5545,7 +5540,6 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="assets/js/site-lock.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
 <script src="assets/js/admin-auth.js?v=20260815a"></script>
-<script src="assets/js/coming-soon.js"></script>
 <script src="assets/js/troll-pay-config.js"></script>
 <script src="assets/js/troll-pay.js"></script>
 <script src="assets/js/troll-accounts.js?v=20260818c"></script>
@@ -6165,8 +6159,8 @@ const TD_SITES = [
 // Admin-only entries are excluded from the public desktop icons and start
 // menu, but stay in TD_SITES so twOpen() and admin.html can still reach
 // them. Terminal is the only app the general public gets — everything
-// else here is still being soft-launched behind the coming-soon gate on
-// its own subdomain. The real troll_runner admin account (checked below
+// else here is still being soft-launched on its own subdomain. The real
+// troll_runner admin account (checked below
 // via isAdminViewer(), the same server-verified troll_is_admin() RPC
 // used for view-count filtering) still sees the full list.
 const TD_SITES_PUBLIC = TD_SITES.filter(site => !site.adminOnly);
