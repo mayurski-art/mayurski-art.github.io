@@ -270,6 +270,19 @@
       text-shadow: var(--legible); justify-self: start;
     }
     .stat span { color: var(--fg-dim); font-weight: 500; }
+    /* .is-editable only lands once checkAdminMenuAccess() confirms a real
+       troll_runner admin session — see the Miles ran editor further down. */
+    .stat.is-editable .stat-value {
+      cursor: text; border-radius: 4px;
+      text-decoration: underline dotted 1.5px; text-underline-offset: 3px;
+      text-decoration-color: var(--fg-dim);
+    }
+    .stat-edit {
+      font: inherit; font-weight: 700; color: inherit; background: var(--glass-bg, rgba(0,0,0,.35));
+      border: 1px solid var(--accent, currentColor); border-radius: 4px;
+      width: 5.5ch; padding: 0 3px; -moz-appearance: textfield;
+    }
+    .stat-edit::-webkit-outer-spin-button, .stat-edit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .wordmark {
       display: inline-flex; align-items: center; gap: 1px; justify-self: center;
       font-family: var(--font-display); font-size: 24px; line-height: 1;
@@ -2181,9 +2194,13 @@
       el.title = a.label;
     };
 
-    /* ---------- top-left stat ---------- */
+    /* ---------- top-left stat ----------
+       Shows the MILES_RAN constant instantly so there's no flash of empty
+       space; refreshMilesFromBackend() (further down, once Supabase is
+       wired up) swaps in the live admin-edited value if one has ever been
+       saved. */
     if (MILES_RAN != null) {
-      $('stat').innerHTML = `<span>Miles ran:</span> ${Number(MILES_RAN).toLocaleString()}`;
+      $('stat').innerHTML = `<span>Miles ran:</span> <span id="stat-value" class="stat-value">${Number(MILES_RAN).toLocaleString()}</span>`;
     }
 
     /* Wires the apps that open an in-page sheet instead of navigating away
@@ -3112,6 +3129,10 @@
     const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
     const SUPABASE_ROW_ID = 'main';
+    // Set by checkAdminMenuAccess() below and read by the Miles ran editor
+    // further down — declared up here so it's already past its TDZ by the
+    // time checkAdminMenuAccess() first runs.
+    let milesIsAdmin = false;
 
     /* ================= ADMIN MENU LINK =================
        This link goes to admin.html, so it has to check the same credential
@@ -3135,6 +3156,8 @@
         if (isAdmin) link.href = 'admin.html';
         else link.removeAttribute('href');
       }
+      milesIsAdmin = isAdmin;
+      $('stat')?.classList.toggle('is-editable', isAdmin);
     }
     checkAdminMenuAccess();
     window.addEventListener('trollrunner:auth-changed', checkAdminMenuAccess);
@@ -3142,6 +3165,111 @@
     // sign-in form on this page to trigger one), but a visitor can leave
     // this tab, sign into admin.html elsewhere, and come back — catch that.
     window.addEventListener('focus', checkAdminMenuAccess);
+
+    /* ================= MILES RAN (admin-editable) =================
+       The number is a meta item (MILES_META_ID) tucked into the same
+       site_updates.updates array the Admin link and Live Status above
+       already read/write, so it rides the same troll_is_admin()-gated
+       RPC (troll_admin_replace_site_row, see troll_admin_lockdown.sql) —
+       no new table or policy needed. Only a real troll_runner admin
+       session (checkAdminMenuAccess() above) can double-click the number
+       to edit it; everyone else just sees it. admin.html carries this
+       meta item through untouched on its own saves — see
+       isSharedMilesMetaItem() there. */
+    const MILES_META_ID = '__trollrunner_miles_meta__';
+    let currentMiles = MILES_RAN;
+
+    function isSharedMilesMetaItem(item) {
+      return Boolean(item) && typeof item === 'object' && item.id === MILES_META_ID;
+    }
+
+    function renderMilesStat() {
+      const el = document.getElementById('stat-value');
+      if (el && el.tagName !== 'INPUT') el.textContent = Number(currentMiles).toLocaleString();
+    }
+
+    async function refreshMilesFromBackend() {
+      try {
+        const updates = await fetchSiteUpdates();
+        const meta = updates.find(isSharedMilesMetaItem);
+        const miles = Number(meta?.miles);
+        if (Number.isFinite(miles) && miles > 0) {
+          currentMiles = miles;
+          renderMilesStat();
+        }
+      } catch { /* leave the MILES_RAN fallback showing */ }
+    }
+
+    async function saveMilesToBackend(miles) {
+      const token = await window.TrollrunnerAdminAuth?.getAccessToken?.();
+      if (!token) throw new Error('Admin session required.');
+      const updates = await fetchSiteUpdates();
+      const nextUpdates = [
+        ...updates.filter(item => !isSharedMilesMetaItem(item)),
+        {
+          id: MILES_META_ID, title: '__miles_meta__', body: '__miles_meta__',
+          createdAt: new Date().toISOString(), archived: true, source: 'system',
+          miles,
+        },
+      ];
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_admin_replace_site_row`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ p_updates: nextUpdates, p_live_status_enabled: null }),
+      });
+      if (!res.ok) {
+        let message = `HTTP ${res.status}`;
+        try { message = (await res.json())?.message || message; } catch {}
+        throw new Error(message);
+      }
+    }
+
+    function startMilesEdit() {
+      if (!milesIsAdmin) return;
+      const el = document.getElementById('stat-value');
+      if (!el || el.tagName === 'INPUT') return;
+      const input = document.createElement('input');
+      input.type = 'number'; input.inputMode = 'numeric'; input.id = 'stat-value';
+      input.className = 'stat-edit'; input.min = '0'; input.step = '1';
+      input.value = String(currentMiles);
+      el.replaceWith(input);
+      input.focus(); input.select();
+
+      let settled = false;
+      const finish = async commit => {
+        if (settled) return;
+        settled = true;
+        const value = Math.round(Number(input.value));
+        const span = document.createElement('span');
+        span.id = 'stat-value'; span.className = 'stat-value';
+        span.textContent = Number(currentMiles).toLocaleString();
+        input.replaceWith(span);
+        if (!commit || !Number.isFinite(value) || value <= 0 || value === currentMiles) return;
+        span.textContent = Number(value).toLocaleString();
+        try {
+          await saveMilesToBackend(value);
+          currentMiles = value;
+        } catch (err) {
+          renderMilesStat();
+          window.alert(`Couldn't save miles ran: ${err?.message || err}`);
+        }
+      };
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); void finish(true); }
+        if (e.key === 'Escape') { e.preventDefault(); void finish(false); }
+      });
+      input.addEventListener('blur', () => void finish(true));
+    }
+
+    $('stat')?.addEventListener('dblclick', e => {
+      if (e.target.closest('#stat-value')) startMilesEdit();
+    });
+
+    void refreshMilesFromBackend();
 
     /* ================= CLASSIC DESKTOP LOCK =================
        Classic desktop itself is closed off for now (see index.html's

@@ -1055,6 +1055,7 @@
     const LIVE_CHAT_META_ID = '__trollrunner_live_chat_meta__';
     const VIEW_ANALYTICS_META_ID = '__trollrunner_view_analytics_meta__';
     const NOTIS_META_ID = '__trollrunner_notis_meta__';
+    const MILES_META_ID = '__trollrunner_miles_meta__';
     const LIVE_RUNNING_STATUS_KEY = 'trollrunner_live_status_running_enabled';
     const LIVE_RUNNING_STATUS_OVERRIDE_KEY = 'trollrunner_live_status_running_override';
     const LIVE_CODING_STATUS_KEY = 'trollrunner_live_status_coding_enabled';
@@ -1074,6 +1075,7 @@
     let cachedLiveChatMeta = null;
     let cachedViewAnalyticsMeta = null;
     let cachedNotisMeta = null;
+    let cachedMilesMeta = null;
     let viewAnalyticsRange = 'week';
     const DEFAULT_UPDATES = [
   {
@@ -1276,6 +1278,15 @@ Fixed some admin system bugs.`,
       return Boolean(item) && typeof item === 'object' && item.id === NOTIS_META_ID;
     }
 
+    // Miles ran (world.html's top-left stat) — admin.html never edits this
+    // itself (that happens by double-clicking the number on world.html),
+    // it just has to carry the meta item through untouched on its own
+    // saves instead of letting it fall into visibleItems and show up as a
+    // bogus "__miles_meta__" update post.
+    function isSharedMilesMetaItem(item) {
+      return Boolean(item) && typeof item === 'object' && item.id === MILES_META_ID;
+    }
+
     function rememberSharedNotisMeta(payload) {
       const meta = getSharedUpdatesArray(payload).find(isSharedNotisMetaItem);
       if (meta) cachedNotisMeta = meta;
@@ -1294,11 +1305,18 @@ Fixed some admin system bugs.`,
       return cachedViewAnalyticsMeta;
     }
 
+    function rememberSharedMilesMeta(payload) {
+      const meta = getSharedUpdatesArray(payload).find(isSharedMilesMetaItem);
+      if (meta) cachedMilesMeta = meta;
+      return cachedMilesMeta;
+    }
+
     function parseUpdatesPayload(payload) {
       rememberSharedLiveChatMeta(payload);
       rememberSharedViewAnalyticsMeta(payload);
       rememberSharedNotisMeta(payload);
-      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item));
+      rememberSharedMilesMeta(payload);
+      return getSharedUpdatesArray(payload).filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item) && !isSharedMilesMetaItem(item));
     }
 
     function parseStatusFlag(value) {
@@ -1419,7 +1437,10 @@ Fixed some admin system bugs.`,
       const notisMetaFromItems = Array.isArray(items) ? items.find(isSharedNotisMetaItem) : null;
       const preservedNotisMeta = notisMetaFromItems || cachedNotisMeta;
       if (preservedNotisMeta) cachedNotisMeta = preservedNotisMeta;
-      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item)) : [];
+      const milesMetaFromItems = Array.isArray(items) ? items.find(isSharedMilesMetaItem) : null;
+      const preservedMilesMeta = milesMetaFromItems || cachedMilesMeta;
+      if (preservedMilesMeta) cachedMilesMeta = preservedMilesMeta;
+      const visibleItems = Array.isArray(items) ? items.filter(item => !isSharedStatusMetaItem(item) && !isSharedFeedbackMetaItem(item) && !isSharedSiteLockMetaItem(item) && !isSharedLiveChatMetaItem(item) && !isSharedViewAnalyticsMetaItem(item) && !isSharedNotisMetaItem(item) && !isSharedMilesMetaItem(item)) : [];
       return [
         ...visibleItems,
         {
@@ -1470,6 +1491,12 @@ Fixed some admin system bugs.`,
         ...(preservedNotisMeta ? [{
           ...preservedNotisMeta,
           id: NOTIS_META_ID,
+          archived: true,
+          source: 'system',
+        }] : []),
+        ...(preservedMilesMeta ? [{
+          ...preservedMilesMeta,
+          id: MILES_META_ID,
           archived: true,
           source: 'system',
         }] : []),
