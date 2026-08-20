@@ -712,10 +712,14 @@
     // shrunk to fit.
     const CLOSEUPS = {
       base: { src: 'assets/images/world/pfp-base.png', pos: '50% 20%', fit: 'cover' },
-      headwear: { src: 'assets/images/world/pfp-headware.png', fit: 'contain' },
+      // Desktop shot is a wide panoramic shelf strip that reads fine in the
+      // wide desktop drawer; that same aspect ratio letterboxes badly in the
+      // narrow, roughly-square mobile drawer, so mobile gets its own tighter
+      // square crop of the same wardrobe instead.
+      headwear: { src: 'assets/images/world/pfp-headware.png', mobileSrc: 'assets/images/world/trollpfpheadware-mobile.jpg', fit: 'contain' },
       outfit: { src: 'assets/images/world/pfp-outfit.png', fit: 'contain' },
       background: { src: 'assets/images/world/pfp-background.png', fit: 'contain' },
-      accessory: { src: 'assets/images/world/trollpfp-accessoriesbigger.jpg', fit: 'contain' },
+      accessory: { src: 'assets/images/world/trollpfp-accessoriesbigger.jpg', mobileSrc: 'assets/images/world/trollpfpaccesory-mobile.jpg', fit: 'contain' },
     };
 
     const el = {
@@ -949,7 +953,8 @@
       el.roomPanelTitle.textContent = layerById(layerId)?.name || layerId;
       const closeup = CLOSEUPS[layerId];
       if (closeup) {
-        el.roomPanelBody.style.backgroundImage = `url(${closeup.src})`;
+        const src = (isMobileLayout() && closeup.mobileSrc) ? closeup.mobileSrc : closeup.src;
+        el.roomPanelBody.style.backgroundImage = `url(${src})`;
         el.roomPanelBody.style.backgroundPosition = closeup.pos || 'center';
         el.roomPanelBody.classList.toggle('is-cover', closeup.fit === 'cover');
       }
