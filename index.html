@@ -132,7 +132,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260820b' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260820c' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
@@ -8333,6 +8333,14 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
 function trollRadioTogglePlay() {
   if (!spotifyEmbedController || !spotifyLoaded) {
     setMusicStatus('Music is still loading…');
+    return;
+  }
+  // Nothing has ever been loaded into the embed yet (it's mounted with the
+  // bare playlist URI, not a track) — pause/resume/togglePlay have no
+  // playback state to act on here, so they silently no-op. Load the first
+  // track explicitly on the first press; after that, toggling works fine.
+  if (!spotifyCurrentUri && TROLL_RADIO_TRACKS.length) {
+    trollRadioPlayTrackAt(0);
     return;
   }
   if (spotifyIsPlaying) {

@@ -1934,8 +1934,8 @@
         href: 'https://terminal.trollrunner.net', external: true, color: '#30d158',
         icon: 'assets/images/icons/terminal.png', img: 'assets/images/wallpaper/obj-terminal.png',
         l: 23.6, t: 55.7, h: 12.9, rot: -2, hw: 9, hh: 15 },
-      { id: 'stickers', label: 'Stickers',  sub: 'stickers.trollrunner.net',
-        href: 'https://stickers.trollrunner.net', external: true, color: '#ff9500',
+      { id: 'stickers', label: 'Stickers',  sub: 'trollrunner.net/stickers',
+        to: 'stickers.html', color: '#ff9500',
         icon: 'assets/images/icons/stickers.png', img: 'assets/images/wallpaper/obj-stickers.png',
         l: 86.8, t: 66.5, h: 19.5, rot: 2, hw: 11, hh: 20 },
       // mid band
@@ -5000,7 +5000,11 @@
     });
     $('radio-play').addEventListener('click', () => {
       if (!radioReady) { radioStatus('Still loading — one sec'); return; }
-      // togglePlay is the only transport the embed API actually gives us.
+      // Nothing has ever been loaded into the embed yet (it's mounted with
+      // the bare playlist URI, not a track) — togglePlay has no playback
+      // state to toggle here, so it silently no-ops. Load the first track
+      // explicitly on the first press; after that, toggling works fine.
+      if (!radioUri && RADIO_TRACKS.length) { radioLoad(RADIO_TRACKS[0].uri, true); return; }
       radioCtl.togglePlay();
     });
     $('radio-next').addEventListener('click', () => radioStep(1));
