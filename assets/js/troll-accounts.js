@@ -1290,27 +1290,44 @@
     return row;
   }
 
-  // Subscribes once per thread; returns an unsubscribe function.
-  function subscribeDm(threadId, onMessage) {
+  // Subscribes once per thread; returns an unsubscribe function. onTyping is
+  // optional — fired with { name } whenever the other side is typing.
+  function subscribeDm(threadId, onMessage, onTyping) {
     const sb = getClient();
     let entry = dmChannels.get(threadId);
     if (!entry) {
       const channel = sb.channel(`trolldm_${threadId}`, { config: { broadcast: { self: false } } });
-      entry = { channel, subscribed: false, listeners: new Set() };
+      entry = { channel, subscribed: false, listeners: new Set(), typingListeners: new Set(), typingSentAt: 0 };
       channel.on('broadcast', { event: 'msg' }, ({ payload }) => {
         entry.listeners.forEach(fn => { try { fn(payload); } catch {} });
+      });
+      channel.on('broadcast', { event: 'typing' }, ({ payload }) => {
+        entry.typingListeners.forEach(fn => { try { fn(payload); } catch {} });
       });
       channel.subscribe(status => { if (status === 'SUBSCRIBED') entry.subscribed = true; });
       dmChannels.set(threadId, entry);
     }
     entry.listeners.add(onMessage);
+    if (onTyping) entry.typingListeners.add(onTyping);
     return () => {
       entry.listeners.delete(onMessage);
-      if (!entry.listeners.size) {
+      if (onTyping) entry.typingListeners.delete(onTyping);
+      if (!entry.listeners.size && !entry.typingListeners.size) {
         try { entry.channel.unsubscribe(); } catch {}
         dmChannels.delete(threadId);
       }
     };
+  }
+
+  // Throttled "I'm typing" ping on the thread's own broadcast channel — same
+  // pattern as TrollChat's tcBroadcastTyping, just 1:1 instead of room-wide.
+  function sendDmTyping(threadId) {
+    const entry = dmChannels.get(threadId);
+    if (!entry?.subscribed || !cachedProfile) return;
+    const now = Date.now();
+    if (now - (entry.typingSentAt || 0) < 1200) return;
+    entry.typingSentAt = now;
+    entry.channel.send({ type: 'broadcast', event: 'typing', payload: { name: cachedProfile.username } });
   }
 
   /* ------------------------------------------------------------------
@@ -1541,6 +1558,8 @@
         border-radius: 8px; background: rgba(255,255,255,0.06); font-size: 13px; word-break: break-word; }
       .ta-dm-msg.is-me { justify-self: end; background: rgba(77,255,115,0.16); }
       .ta-dm-msg .ta-dm-time { display: block; margin-top: 3px; font-size: 10px; color: #8fa396; }
+      .ta-dm-typing { min-height: 16px; font-size: 12px; color: #8fa396; padding: 0 2px; visibility: hidden; }
+      .ta-dm-typing.is-active { visibility: visible; }
       .ta-dm-composer { display: flex; gap: 6px; margin-top: 8px; }
       .ta-dm-composer .ta-input { flex: 1; }
       /* Small self-dismissing local toast (friend requests / accepts) —
@@ -3045,6 +3064,9 @@
 
     const feed = document.createElement('div');
     feed.className = 'ta-dm-feed';
+    const typingEl = document.createElement('div');
+    typingEl.className = 'ta-dm-typing';
+    typingEl.setAttribute('aria-live', 'polite');
     const composerRow = document.createElement('div');
     composerRow.className = 'ta-dm-composer';
     const input = document.createElement('input');
@@ -3056,7 +3078,20 @@
     sendBtn.type = 'button';
     sendBtn.textContent = 'Send';
     composerRow.append(input, sendBtn);
-    body.append(feed, composerRow);
+    body.append(feed, typingEl, composerRow);
+
+    let typingHideTimer = null;
+    const hideTyping = () => {
+      if (typingHideTimer) { clearTimeout(typingHideTimer); typingHideTimer = null; }
+      typingEl.classList.remove('is-active');
+      typingEl.textContent = '';
+    };
+    const showTyping = name => {
+      typingEl.textContent = `${name || otherName || 'They'} is typing…`;
+      typingEl.classList.add('is-active');
+      if (typingHideTimer) clearTimeout(typingHideTimer);
+      typingHideTimer = window.setTimeout(hideTyping, 3200);
+    };
 
     const renderMsg = m => {
       const el = document.createElement('div');
@@ -3076,12 +3111,13 @@
 
     const unsub = subscribeDm(threadId, payload => {
       if (payload.sender_id === cachedProfile.id) return; // already rendered on send
+      hideTyping();
       renderMsg(payload);
-    });
+    }, payload => showTyping(payload?.name));
     // buildDrawer doesn't expose a close hook, so watch for its own removal
     // to stop listening once the panel closes.
     const watcher = new MutationObserver(() => {
-      if (!document.getElementById(DRAWER_ID)) { unsub(); watcher.disconnect(); }
+      if (!document.getElementById(DRAWER_ID)) { unsub(); hideTyping(); watcher.disconnect(); }
     });
     watcher.observe(document.body, { childList: true });
 
@@ -3102,6 +3138,7 @@
     };
     sendBtn.addEventListener('click', doSend);
     input.addEventListener('keydown', event => { if (event.key === 'Enter') void doSend(); });
+    input.addEventListener('input', () => sendDmTyping(threadId));
     input.focus();
   }
 
