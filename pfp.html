@@ -287,6 +287,18 @@
     .room-panel-body.is-cover { background-size: cover; }
     .room-panel-main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 
+    /* Desktop only: the drawer used to stay full picker-width no matter how
+       tall/narrow the closeup photo behind it was, so a portrait shot (e.g.
+       the accessories backpack) rendered small and centered with most of
+       the drawer just empty space either side. Fixing the drawer's own
+       height and deriving its width from the photo's real aspect ratio
+       (set as --closeup-ratio in JS) makes the contain-fit image fill the
+       drawer edge-to-edge instead. */
+    @media (min-width: 861px) {
+      .room-panel-body { height: 62vh; margin: 0 auto; }
+      .room-panel-body:not(.is-cover) { width: min(100%, calc(62vh * var(--closeup-ratio, 1.735))); }
+    }
+
     .picker-bar {
       display: flex; gap: 9px; padding: 12px 14px; align-items: center; border-bottom: 0.5px solid var(--pf-line);
       background: rgba(245, 245, 247, 0.86);
@@ -667,7 +679,6 @@
                 <span class="count" id="count"></span>
               </div>
               <div class="grid" id="grid" role="region"></div>
-              <div class="picker-foot">Your build is saved in this browser.</div>
             </div>
           </div>
         </div>
@@ -711,12 +722,15 @@
     // (background-size: contain) except "base", which is allowed to crop
     // in tight for a punchier canvas since the wide shot doesn't read well
     // shrunk to fit.
+    // ratio is each photo's own width/height — on desktop the drawer is
+    // capped to that ratio (see CSS) so the contain-fit image fills the
+    // drawer edge-to-edge instead of pillarboxing inside a wider box.
     const CLOSEUPS = {
-      base: { src: 'assets/images/world/pfp-base.png', pos: '50% 20%', fit: 'cover' },
-      headwear: { src: 'assets/images/world/pfp-headware.png', fit: 'contain' },
-      outfit: { src: 'assets/images/world/pfp-outfit.png', fit: 'contain' },
-      background: { src: 'assets/images/world/pfp-background.png', fit: 'contain' },
-      accessory: { src: 'assets/images/world/pfp-accesories.png', fit: 'contain' },
+      base: { src: 'assets/images/world/pfp-base.png', pos: '50% 20%', fit: 'cover', ratio: 1024 / 1536 },
+      headwear: { src: 'assets/images/world/pfp-headware.png', fit: 'contain', ratio: 2160 / 728 },
+      outfit: { src: 'assets/images/world/pfp-outfit.png', fit: 'contain', ratio: 1317 / 1194 },
+      background: { src: 'assets/images/world/pfp-background.png', fit: 'contain', ratio: 1157 / 1360 },
+      accessory: { src: 'assets/images/world/pfp-accesories.png', fit: 'contain', ratio: 1189 / 1323 },
     };
 
     const el = {
@@ -953,6 +967,7 @@
         el.roomPanelBody.style.backgroundImage = `url(${closeup.src})`;
         el.roomPanelBody.style.backgroundPosition = closeup.pos || 'center';
         el.roomPanelBody.classList.toggle('is-cover', closeup.fit === 'cover');
+        el.roomPanelBody.style.setProperty('--closeup-ratio', closeup.ratio);
       }
       renderGrid();
       renderHotspots();
