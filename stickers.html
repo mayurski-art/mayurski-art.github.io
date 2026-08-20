@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stickers — Troll Runner</title>
+<meta name="description" content="Free printable troll stickers — preview, download a print-ready file, go slap it somewhere.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --st-bg: #1c1c1e;
+    --st-ink: #1c1c1e;
+    --st-line-dark: rgba(255, 255, 255, 0.16);
+    --st-accent: #5856d6;
+    --st-orange: #ff9500;
+    --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    color: #f5f5f7;
+    background: #000000;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--st-orange); outline-offset: 2px; }
+
+  .space { position: fixed; inset: 0; z-index: 0; background: #000; pointer-events: none; }
+  .space canvas { display: block; width: 100%; height: 100%; }
+  .wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 16px 16px 40px; }
+
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .brand h1 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
+  .brand p { margin: 2px 0 0; font-size: 13px; color: #9b9ba1; }
+  button.btn-home {
+    width: 36px; height: 36px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    border: 0.5px solid var(--st-line-dark); border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05); color: #d9d9e0;
+    font-size: 16px; line-height: 1;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  button.btn-home:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--st-line-dark); }
+
+  /* ── PRINTABLE STICKER GALLERY (ported from trollrunner-stickers) ── */
+  #printables-section { margin: 18px 0 6px; }
+  .printables-head { margin-bottom: 16px; }
+  .printables-head h2 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: rgba(255,255,255,0.95); }
+  .printables-sub { margin-top: 4px; max-width: 640px; font-size: 14px; line-height: 1.5; color: rgba(255,255,255,0.66); }
+
+  .printables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  .printable-card {
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border-radius: 14px;
+    border: 0.5px solid #d1d1d6;
+    overflow: hidden;
+    color: #1c1c1e;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .printable-card:hover,
+  .printable-card:focus-within {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.14);
+  }
+  .printable-art {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--printable-art-pad, 14px);
+    background: #f5f5f7;
+    border-bottom: 0.5px solid #e3e3e8;
+  }
+  .printable-art--sky { background: linear-gradient(180deg, #8fc7ff 0%, #cfe9ff 100%); }
+  .printable-art--dark { background: radial-gradient(circle at 50% 30%, #20304a 0%, #0c1320 100%); }
+  .printable-art img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+  }
+  .printable-art .printable-art-missing {
+    display: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6e6e73;
+    text-align: center;
+    padding: 0 8px;
+    line-height: 1.4;
+  }
+  .printable-art.is-missing img { display: none; }
+  .printable-art.is-missing .printable-art-missing { display: block; }
+  .printable-card-body {
+    display: flex;
+    flex-direction: column;
+    padding: var(--printable-body-pad, 12px);
+    padding-top: var(--printable-body-pad-top, var(--printable-body-pad, 12px));
+  }
+  .printable-card--center-btn .printable-download-btn {
+    width: auto; align-self: center; padding-left: 22px; padding-right: 22px;
+  }
+  .printable-download-btn {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #007aff, #5856d6);
+    color: #fff;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 10px 12px;
+    transition: filter 0.15s, transform 0.15s;
+  }
+  .printable-download-btn:hover { filter: brightness(1.07); }
+  .printable-download-btn:active { transform: scale(0.98); }
+  .printable-download-btn:focus-visible { outline: 2px solid #007aff; outline-offset: 2px; }
+
+  .printables-empty { margin-top: 10px; font-size: 13px; color: rgba(255,255,255,0.55); }
+
+  .print-tips {
+    margin-top: 20px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 0.5px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.82);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .print-tips strong { color: #fff; }
+  .print-tips ul { margin: 8px 0 0; padding-left: 18px; }
+  .print-tips li { margin-top: 4px; }
+
+  /* size-picker modal */
+  .print-modal { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; }
+  .print-modal[hidden] { display: none; }
+  .print-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
+  .print-modal-panel {
+    position: relative;
+    width: min(380px, calc(100vw - 32px));
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    background: #ffffff;
+    color: #1c1c1e;
+    border-radius: 18px;
+    padding: 22px 22px 18px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+  }
+  .print-modal-close {
+    position: absolute; top: 12px; right: 14px; width: 30px; height: 30px;
+    border: none; border-radius: 50%; background: #f0f0f3; color: #1c1c1e;
+    font-size: 20px; line-height: 1;
+  }
+  .print-modal-panel h3 { margin: 0; font-size: 18px; font-weight: 700; padding-right: 28px; }
+  .print-modal-hint { margin-top: 4px; font-size: 13px; color: #6e6e73; }
+  .print-modal-options { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .print-opt {
+    display: flex; flex-direction: column; align-items: flex-start; text-align: left;
+    width: 100%; border: 0.5px solid #d1d1d6; border-radius: 12px; background: #fbfbfd;
+    color: #1c1c1e; padding: 11px 14px; font-family: var(--font); font-size: 14px;
+    font-weight: 600; transition: background 0.12s, border-color 0.12s;
+  }
+  .print-opt span { margin-top: 2px; font-size: 11px; font-weight: 400; color: #8a8a8e; }
+  .print-opt:hover { background: #eef1ff; border-color: #5856d6; }
+  .print-opt:focus-visible { outline: 2px solid #007aff; outline-offset: 2px; }
+  .print-opt:disabled { opacity: 0.5; cursor: progress; }
+  .print-modal-status { margin-top: 12px; min-height: 16px; font-size: 12px; color: #6e6e73; }
+
+  @media (max-width: 560px) {
+    .print-modal { align-items: flex-end; }
+    .print-modal-panel { width: 100%; max-width: none; border-bottom-left-radius: 0; border-bottom-right-radius: 0; padding-bottom: 26px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .printable-card, .printable-download-btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="space" aria-hidden="true"><canvas id="stars"></canvas></div>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <h1>Stickers</h1>
+        <p>Free printable troll stickers — preview, download, go slap it somewhere.</p>
+      </div>
+      <button class="btn-home" id="btn-home" type="button" aria-label="Back to trollrunner.net" title="Back to trollrunner.net">&larr;</button>
+    </header>
+
+    <main>
+      <section id="printables-section" aria-labelledby="printables-heading">
+        <div class="printables-head">
+          <h2 id="printables-heading">Free Printable Stickers</h2>
+          <p class="printables-sub">Grab a troll, print it, slap it. Preview below, download a print-ready file, go cause problems. Free forever.</p>
+        </div>
+        <div id="printables-grid" class="printables-grid" aria-live="polite"></div>
+        <p id="printables-empty" class="printables-empty" hidden>Couldn't load the sticker manifest. Refresh and the trolls should show up.</p>
+        <div class="print-tips">
+          <strong>Print tips</strong>
+          <ul>
+            <li>Print on glossy <strong>vinyl or sticker paper</strong> for drops that survive the elements.</li>
+            <li>In the print dialog set <strong>Scale&nbsp;= 100%</strong> (Actual size) — do <em>not</em> pick &ldquo;Fit to page,&rdquo; it shrinks the art and breaks the QR.</li>
+            <li>Choose <strong>Best / High</strong> quality. QR stickers scan cleanly at 2&Prime; and up.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="print-modal" class="print-modal" role="dialog" aria-modal="true" aria-labelledby="print-modal-title" hidden>
+    <div class="print-modal-backdrop" data-print-close></div>
+    <div class="print-modal-panel">
+      <button class="print-modal-close" type="button" aria-label="Close download options" data-print-close>&times;</button>
+      <h3 id="print-modal-title">Download &ldquo;<span id="print-modal-name"></span>&rdquo;</h3>
+      <p class="print-modal-hint">Pick a format. PDFs are sized for real-world printing — the inch value is the long edge.</p>
+      <div class="print-modal-options" id="print-modal-options"></div>
+      <p class="print-modal-status" id="print-modal-status" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <script src="assets/js/printable-gallery.js"></script>
+  <script>
+    document.getElementById('btn-home').addEventListener('click', () => {
+      if (window.self === window.top) {
+        try { sessionStorage.setItem('trollrunner_skip_entrance', '1'); } catch {}
+        location.href = '/';
+      }
+    });
+
+    /* Same starfield treatment as world.html / pfp.html. */
+    const calm = matchMedia('(prefers-reduced-motion: reduce)');
+    const starsCanvas = document.getElementById('stars');
+    const starsCtx = starsCanvas.getContext('2d');
+    let stars = [], starsRaf = 0;
+    function seedStars() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      starsCanvas.width = Math.floor(innerWidth * dpr);
+      starsCanvas.height = Math.floor(innerHeight * dpr);
+      starsCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const count = Math.round((innerWidth * innerHeight) / 9000);
+      stars = Array.from({ length: count }, () => ({
+        x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+        r: Math.random() * 1.25 + 0.25, a: Math.random() * 0.5 + 0.25,
+        tw: Math.random() * 0.02 + 0.004, p: Math.random() * Math.PI * 2,
+      }));
+    }
+    function drawStars(t) {
+      starsCtx.clearRect(0, 0, innerWidth, innerHeight);
+      for (const s of stars) {
+        const alpha = calm.matches ? s.a : s.a + Math.sin(t * s.tw + s.p) * 0.22;
+        starsCtx.globalAlpha = Math.max(0.05, Math.min(1, alpha));
+        starsCtx.fillStyle = '#fff';
+        starsCtx.beginPath(); starsCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2); starsCtx.fill();
+      }
+      starsCtx.globalAlpha = 1;
+    }
+    function loopStars(t) { drawStars(t); starsRaf = requestAnimationFrame(loopStars); }
+    function startStars() {
+      cancelAnimationFrame(starsRaf); seedStars();
+      if (calm.matches) drawStars(0); else starsRaf = requestAnimationFrame(loopStars);
+    }
+    addEventListener('resize', startStars, { passive: true });
+    calm.addEventListener?.('change', startStars);
+    startStars();
+  </script>
+</body>
+</html>

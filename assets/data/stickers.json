@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "note": "Printable sticker gallery manifest. Add a new template by dropping a high-res PNG in assets/stickers/ and appending an entry here. 'image' is the print master AND the preview (scaled by CSS). Keep masters >= 1200px on the long edge so QR codes stay crisp at 4 in / 300 DPI. Optional 'previewScale' (0-1) shrinks a card's preview only (not the print output) so edge-to-edge square art matches the footprint of the portrait posters. Optional 'bodyPad' (px, default 12) sets the white box padding for that card. Optional 'bodyPadTop' (px) overrides just the top of that box — the gap between the image and the Download button — without changing the other sides. Optional 'artPad' (px, default 14) sets the frame padding around the preview image for that card — lower it to let edge-to-edge art (like QR codes) fill more and shed white space. Optional 'centerButton' (bool) centers the Download button instead of stretching it full width. All of these are preview/layout only and never affect downloads.",
+  "stickers": [
+    {
+      "id": "sidelined-bw",
+      "title": "Sidelined? (Classic)",
+      "blurb": "Black-and-white original. Slap it anywhere, troll everywhere.",
+      "tags": ["sidelined", "classic"],
+      "image": "assets/stickers/sidelined-bw.png",
+      "bg": "light",
+      "hasQR": true,
+      "bodyPad": 10
+    },
+    {
+      "id": "flying-troll-qr",
+      "title": "Flying Troll QR",
+      "blurb": "Buff troll mid-leap, wrapped in a scannable QR. Catch him if you can.",
+      "tags": ["qr", "flying"],
+      "image": "assets/stickers/flying-troll-qr.jpg",
+      "bg": "light",
+      "hasQR": true,
+      "bodyPad": 8,
+      "artPad": 0
+    },
+    {
+      "id": "u-mad-bro",
+      "title": "U Mad Bro? ($TROLL)",
+      "blurb": "Infiltrating minds since 2008. Poster-style drop for the believers.",
+      "tags": ["poster", "troll-coin"],
+      "image": "assets/stickers/u-mad-bro.jpg",
+      "bg": "dark",
+      "hasQR": true
+    },
+    {
+      "id": "cupped-hands-qr",
+      "title": "Cupped Hands (Green QR)",
+      "blurb": "A troll offering. Scan what's in the palms if you dare.",
+      "tags": ["qr", "green"],
+      "image": "assets/stickers/cupped-hands-qr.jpg",
+      "bg": "sky",
+      "hasQR": true
+    }
+  ]
+}

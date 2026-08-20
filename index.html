@@ -6150,7 +6150,6 @@ const TD_SITES = [
   { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
   { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.', adminOnly: true },
   { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
-  { id: 'stickers', label: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true, href: 'https://stickers.trollrunner.net', color: '#ff9500', desc: 'Collect stickers and support the project.' },
   { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
   { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
   { id: 'maps', label: 'Maps', icon: '📍', img: 'assets/images/icons/troll-map.png', flat: true, href: 'https://maps.trollrunner.net', color: '#30d158', desc: 'See where every troll is from and drop your own pin.' },
@@ -6221,7 +6220,7 @@ TD_SITES.forEach(site => {
     url: site.href.replace(/^https?:\/\//, '').replace(/\/$/, ''),
     iframeSrc: site.href,
     build: body => tdBuildIframe(body, site.href, site.label),
-    maximizeByDefault: site.id === 'games' || site.id === 'finance' || site.id === 'stickers' || site.id === 'terminal' || site.id === 'videos',
+    maximizeByDefault: site.id === 'games' || site.id === 'finance' || site.id === 'terminal' || site.id === 'videos',
     adminOnly: site.adminOnly,
   };
 });
@@ -6233,6 +6232,16 @@ TD_WINDOWS.pfp = {
   width: 1040, browser: true,
   url: 'trollrunner.net/pfp', iframeSrc: 'pfp.html',
   build: body => tdBuildIframe(body, 'pfp.html', 'PFP Studio'),
+  maximizeByDefault: true,
+};
+// Stickers used to live on its own stickers.trollrunner.net subdomain
+// (trollrunner-stickers repo); folded into a local same-origin page for the
+// same reason as PFP Studio above — no SSO bridge needed, one less repo.
+TD_WINDOWS.stickers = {
+  title: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true,
+  width: 1040, browser: true,
+  url: 'trollrunner.net/stickers', iframeSrc: 'stickers.html',
+  build: body => tdBuildIframe(body, 'stickers.html', 'Stickers'),
   maximizeByDefault: true,
 };
 // Mirrors the "Classic desktop" link world.html's own World menu offers phone
