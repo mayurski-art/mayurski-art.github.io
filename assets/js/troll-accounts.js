@@ -964,6 +964,7 @@
       if (error) return null;
       if (data?.awarded > 0) {
         await refreshProfile();
+        showXpToast(data.awarded, eventType);
         if (typeof data.level === 'number' && data.level > prevLevel) showLevelUpToast(data.level);
         if (data.newTag) showTagUnlockToast(data.newTag);
       }
@@ -988,6 +989,7 @@
   async function recordGameResult(gameId, score, meta) {
     const sb = getClient();
     if (!sb) throw new Error('Account service unavailable.');
+    const prevLevel = cachedProfile?.level || 1;
     const { data, error } = await sb.rpc('troll_record_game_result', {
       p_game_id: gameId,
       p_score: score,
@@ -995,6 +997,10 @@
     });
     if (error) throw friendlyError(error, 'Could not save the game result.');
     void refreshProfile();
+    if (data?.xp?.awarded > 0) {
+      showXpToast(data.xp.awarded, data.new_high ? 'high_score' : 'game_run');
+      if (typeof data.xp.level === 'number' && data.xp.level > prevLevel) showLevelUpToast(data.xp.level);
+    }
     return data;
   }
 
@@ -1901,6 +1907,13 @@
   function xpEventLabel(eventType, source) {
     const label = XP_EVENT_LABELS[eventType] || eventType;
     return source ? `${label} (${source})` : label;
+  }
+
+  // Small local toast for "you just earned XP" — every subdomain gets this
+  // for free since troll-accounts.js loads on all of them.
+  function showXpToast(amount, eventType) {
+    if (!amount) return;
+    showLocalToast(`+${amount} XP`, XP_EVENT_LABELS[eventType] || eventType);
   }
 
   async function openProfile() {
@@ -3143,9 +3156,10 @@
   }
 
   /* ------------------------------------------------------------------
-     Local toasts (friend requests/accepts) — a small self-dismissing
-     corner popup, intentionally separate from TrollNotis (that engine is
-     a social-post cross-announcer, not a generic notification system).
+     Local toasts (friend requests/accepts, XP gains, level-ups, tag
+     unlocks) — a small self-dismissing corner popup, intentionally
+     separate from TrollNotis (that engine is a social-post
+     cross-announcer, not a generic notification system).
      ------------------------------------------------------------------ */
   function showLocalToast(title, message, onClick) {
     ensureModalStyles();
