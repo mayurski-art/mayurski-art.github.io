@@ -152,6 +152,12 @@
     const style = document.createElement('style');
     style.setAttribute('data-site-lock-style', '1');
     style.textContent = `
+      /* Same design system as troll-accounts.js / world.html / admin.html:
+         Archivo Black display type, Rubik for small-caps labels, black
+         2px-bordered "beveled" panels with an offset shadow. Pulled in here
+         too since this file is loaded standalone on subdomains that may not
+         already have troll-accounts.js's copy of the same @import. */
+      @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500&display=swap');
       .site-lock-overlay {
         position: fixed;
         inset: 0;
@@ -166,6 +172,7 @@
           rgba(0, 0, 0, 0.42);
         backdrop-filter: blur(1px);
         animation: trollrunner-site-lock-red-alert 720ms steps(2, end) infinite;
+        font-family: 'Space Grotesk', system-ui, Arial, sans-serif;
       }
       .site-lock-overlay.is-visible { display: flex; }
       .site-lock-overlay.is-locked {
@@ -177,9 +184,13 @@
       }
       .site-lock-overlay-panel {
         width: min(100vw, 100%);
-        padding: clamp(18px, 4vw, 32px) 0;
+        padding: clamp(14px, 3vw, 22px) 0;
         overflow: hidden;
         text-align: center;
+        border-top: 2px solid #000;
+        border-bottom: 2px solid #000;
+        background: rgba(0, 0, 0, 0.55);
+        box-shadow: 0 0 0 1px rgba(255, 64, 88, 0.35);
       }
       .site-lock-overlay-ticker {
         display: flex;
@@ -190,8 +201,9 @@
         padding: 12px 0;
         color: #ff4058;
         text-transform: uppercase;
-        font-weight: 900;
-        letter-spacing: 0.28em;
+        font-family: 'Archivo Black', Impact, 'Arial Black', sans-serif;
+        font-weight: 400;
+        letter-spacing: 0.1em;
         font-size: clamp(18px, 4.2vw, 58px);
         text-shadow: 0 0 16px rgba(255, 64, 88, 0.45), 0 0 36px rgba(255, 64, 88, 0.22);
         animation: trollrunner-site-lock-marquee 10s linear infinite;
@@ -202,6 +214,7 @@
       .site-lock-overlay-subtext {
         margin-top: 18px;
         color: rgba(255, 255, 255, 0.76);
+        font-family: 'Rubik', system-ui, Arial, sans-serif;
         font-size: clamp(12px, 1.6vw, 16px);
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -220,42 +233,50 @@
       }
       .site-lock-admin-corner {
         position: absolute;
-        right: 10px;
-        bottom: 10px;
+        right: 12px;
+        bottom: 12px;
         display: flex;
         align-items: center;
         gap: 6px;
-        opacity: 0.28;
+        opacity: 0.32;
         transition: opacity 0.2s ease;
         pointer-events: auto;
+        font-family: 'Rubik', system-ui, Arial, sans-serif;
       }
       .site-lock-admin-corner:hover,
       .site-lock-admin-corner:focus-within {
         opacity: 1;
       }
       .site-lock-admin-input {
-        width: 100px;
-        padding: 5px 8px;
-        border-radius: 7px;
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        background: rgba(0, 0, 0, 0.6);
-        color: #fff;
+        width: 110px;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        border: 2px solid #000;
+        border-radius: 5px;
+        background: #e9e9e0;
+        color: #0a0b0d;
+        font: inherit;
         font-size: 12px;
+        box-shadow: inset 2px 2px 0 rgba(0,0,0,0.32);
       }
       .site-lock-admin-btn {
-        padding: 5px 10px;
-        border-radius: 7px;
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        background: rgba(0, 0, 0, 0.6);
-        color: #fff;
+        padding: 6px 12px;
+        border: 2px solid #000;
+        border-radius: 5px;
+        background: linear-gradient(180deg, #ff8a8a, #ff4058 50%, #d92a42);
+        color: #2a0509;
+        font: inherit;
+        font-weight: 700;
         font-size: 12px;
         line-height: 1;
         cursor: pointer;
+        box-shadow: 0 3px 0 #7a1420, 3px 5px 0 rgba(0,0,0,0.4);
       }
+      .site-lock-admin-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #7a1420; }
       .site-lock-admin-status {
         position: absolute;
         right: 0;
-        bottom: 32px;
+        bottom: 34px;
         width: max-content;
         max-width: 220px;
         font-size: 11px;

@@ -1886,6 +1886,13 @@
        what admin.html itself gates on, so it's what the menu's Admin link
        needs too — see checkAdminMenuAccess() below. -->
   <script src="assets/js/admin-auth.js?v=20260815a"></script>
+  <!-- The public "Site Lock" overlay + its own inline admin-unlock corner.
+       Previously only loaded on index.html, whose own copy of it renders
+       into a document that's hidden behind troll-entrance's document.write
+       wrapper for every real visitor (see index.html's isPhone note) — so a
+       locked site never actually stopped anyone from reaching the island.
+       This is the real front door now; the lock has to live here. -->
+  <script src="assets/js/site-lock.js?v=20260821a"></script>
   <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
   <!-- GIF pack + PictoChat-style drawing pad for the Hub's live room — same
        script the standalone chat surface used, see the comment near

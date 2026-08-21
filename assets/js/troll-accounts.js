@@ -1542,6 +1542,27 @@
       .ta-checkbox-row input[disabled] { cursor: not-allowed; }
       .ta-checkbox-row input[disabled] ~ span { opacity: 0.55; }
       @media (max-width: 480px) { .ta-card { font-size: 13px; } }
+      /* Desktop: tighten the Profile/Settings modal's spacing so a full
+         profile (banner, avatar row, tabs, level card, donations, XP log,
+         game stats) fits one viewport without the card's own internal
+         scroll (.ta-card is max-height: 86vh, overflow: auto above). */
+      @media (min-width: 761px) {
+        .ta-card { font-size: 13px; }
+        .ta-head { min-height: 42px; padding: 6px 16px; }
+        .ta-title { font-size: 15px; }
+        .ta-body { padding: 10px 16px; gap: 10px; }
+        .ta-banner { height: 150px; }
+        .ta-row { gap: 10px; }
+        .ta-avatar { width: 52px; height: 52px; font-size: 26px; }
+        .ta-name { font-size: 18px; }
+        .ta-tabs { padding: 2px; }
+        .ta-tab { padding: 6px 4px; }
+        .ta-tab-panel { gap: 10px; }
+        .ta-section { padding: 9px 10px; gap: 6px; }
+        .ta-level-trophy { font-size: 20px; }
+        .ta-table { font-size: 12px; }
+        .ta-table td { padding: 3px 0; }
+      }
       /* Non-blocking drawer (another runner's profile) — pinned to the far
          right so it never covers the middle of the page (e.g. TrollChat)
          while it's open. */

@@ -107,11 +107,11 @@
       /* document.write() inserts at the cursor. It does NOT truncate the
          file and neither does document.close(), so everything below kept
          parsing into this same body -- the whole desktop page, ~490KB of it.
-         #site-gate is position:fixed and full-screen at z-index 80, so it
-         landed on top of the entrance and swallowed the first tap on an app
-         icon; the second tap only worked because the first had dismissed
-         it. world.html has its own run-to-enter lock, so the desktop gate is
-         redundant here regardless. */
+         The old #site-gate (since removed) was position:fixed and full-
+         screen, so it landed on top of the entrance and swallowed the first
+         tap on an app icon; the second tap only worked because the first
+         had dismissed it. world.html has its own run-to-enter lock, so a
+         desktop-page gate would be redundant here regardless. */
       'body>*:not(#troll-entrance){display:none!important}</style>' +
       // Version bumped on each deploy. GitHub Pages can't send cache headers,
       // and phones hold onto HTML hard enough that several rounds of changes
@@ -135,56 +135,6 @@
       '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260821b' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
-  }
-})();
-</script>
-<script>
-(() => {
-  const gateSeenKey = 'trollrunner_site_gate_seen_v1';
-  const siteLockKeys = ['trollrunner_site_public_lock_v1', 'trollrunner_site_public_locked_v1'];
-
-  function safeParse(raw) {
-    try {
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  }
-
-  function readCookie(name) {
-    return document.cookie
-      .split(';')
-      .map(part => part.trim())
-      .find(part => part.startsWith(`${name}=`))
-      ?.split('=')
-      .slice(1)
-      .join('=') || '';
-  }
-
-  function isInternalReferrer() {
-    if (!document.referrer) return false;
-    try {
-      const host = new URL(document.referrer).hostname.toLowerCase();
-      return host === 'trollrunner.net' || host.endsWith('.trollrunner.net');
-    } catch {
-      return false;
-    }
-  }
-
-  function isReload() {
-    return performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload';
-  }
-
-  function isPublicLocked() {
-    return siteLockKeys.some(key => {
-      const mode = String(safeParse(localStorage.getItem(key)).mode || 'open').toLowerCase();
-      return mode === 'pending' || mode === 'locked';
-    });
-  }
-
-  const hasSeenGate = localStorage.getItem(gateSeenKey) === '1' || readCookie(gateSeenKey) === '1';
-  if (hasSeenGate && isInternalReferrer() && !isReload() && !isPublicLocked()) {
-    document.documentElement.classList.add('site-gate-skip-initial');
   }
 })();
 </script>
@@ -237,355 +187,6 @@ html, body {
 body.site-entry-locked {
   overflow: hidden;
 }
-html.site-gate-skip-initial body.site-entry-locked {
-  overflow: hidden;
-}
-html.site-gate-skip-initial .site-gate {
-  display: none;
-}
-
-.site-gate {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  background:
-    radial-gradient(circle at 15% 18%, rgba(93, 150, 255, 0.26), transparent 26%),
-    radial-gradient(circle at 82% 16%, rgba(255, 91, 125, 0.22), transparent 24%),
-    linear-gradient(145deg, rgba(7, 9, 20, 0.98), rgba(22, 13, 48, 0.98) 42%, rgba(10, 22, 46, 0.98));
-}
-.site-gate-shell {
-  width: min(1120px, 100%);
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.9fr);
-  gap: 16px;
-  align-items: stretch;
-}
-.site-gate-panel {
-  border: 0.5px solid rgba(255,255,255,0.18);
-  border-radius: 12px;
-  background: rgba(255,255,255,0.08);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.34);
-  backdrop-filter: blur(12px);
-  overflow: hidden;
-}
-.site-gate-preview {
-  position: relative;
-  min-height: 430px;
-  padding: 26px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0) 30%),
-    url('assets/animations/start-line-sparks.jpg') center/cover no-repeat;
-}
-.site-gate-preview::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(2,4,14,0.42), rgba(2,4,14,0.72) 64%, rgba(2,4,14,0.86));
-}
-.site-gate-preview > * {
-  position: relative;
-  z-index: 1;
-}
-.gate-title {
-  max-width: 12ch;
-  margin: 0;
-  font-size: clamp(48px, 7vw, 82px);
-  line-height: 0.92;
-  letter-spacing: 0;
-  text-transform: uppercase;
-  text-shadow: 0 10px 28px rgba(0,0,0,0.38);
-}
-.gate-copy {
-  max-width: 28ch;
-  margin: 10px 0 0;
-  font-size: 15px;
-  line-height: 1.55;
-  color: rgba(255,255,255,0.8);
-}
-.gate-launch-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.gate-enter-btn {
-  border: 0.5px solid rgba(255,255,255,0.26);
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(115,225,255,0.18));
-  color: #fff;
-  padding: 12px 18px;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0;
-  cursor: pointer;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.28);
-}
-.gate-enter-hint {
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.68);
-}
-.site-gate-login {
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background:
-    radial-gradient(circle at 18% 8%, rgba(122, 245, 255, 0.16), transparent 30%),
-    radial-gradient(circle at 92% 28%, rgba(255, 74, 184, 0.16), transparent 34%),
-    rgba(255,255,255,0.08);
-}
-.site-gate-login h2 {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.15;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-.gate-section-copy {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgba(255,255,255,0.72);
-}
-.gate-form {
-  display: grid;
-  gap: 10px;
-}
-.gate-account-stack {
-  display: grid;
-  gap: 10px;
-}
-.gate-account-card {
-  position: relative;
-  overflow: hidden;
-  border: 0.5px solid rgba(255,255,255,0.18);
-  border-radius: 12px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04)),
-    rgba(0,0,0,0.18);
-  padding: 14px;
-  min-height: 142px;
-  padding-right: 104px;
-}
-.gate-account-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, rgba(112, 255, 235, 0.18), transparent 42%, rgba(255, 69, 183, 0.14));
-  opacity: 0.7;
-  pointer-events: none;
-}
-.gate-account-card > * {
-  position: relative;
-  z-index: 1;
-}
-.gate-card-troll {
-  position: absolute;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.82;
-  filter: drop-shadow(0 10px 12px rgba(0,0,0,0.42)) contrast(1.08) saturate(1.04);
-}
-.gate-card-troll-monopoly-wrap {
-  right: 11px;
-  bottom: 8px;
-  width: 89px;
-  height: 89px;
-  animation: gate-card-monopoly-float 3.8s ease-in-out infinite;
-}
-.gate-card-troll-monopoly {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 89px;
-  aspect-ratio: 350 / 324;
-  display: block;
-  background: url('assets/images/trollmonopoly-transparent-sprite.png') 0 0 / 3000% 100% no-repeat;
-  animation:
-    header-monopoly-frames 1.35s steps(29, end) infinite,
-    gate-card-monopoly-wobble 1.2s ease-in-out infinite;
-}
-@keyframes gate-card-monopoly-float {
-  0%, 100% { transform: translate(0, 0) rotate(-7deg) scale(0.98); }
-  35% { transform: translate(-6px, -8px) rotate(8deg) scale(1.06); }
-  68% { transform: translate(4px, -2px) rotate(-4deg) scale(1.01); }
-}
-@keyframes gate-card-monopoly-wobble {
-  0%, 100% { transform: rotate(3deg) scaleX(1); }
-  50% { transform: rotate(-8deg) scaleX(1.08); }
-}
-.gate-account-card--register {
-  box-shadow: inset 0 0 0 1px rgba(112, 255, 235, 0.1), 0 16px 30px rgba(0,0,0,0.18);
-}
-.gate-account-card--login {
-  box-shadow: inset 0 0 0 1px rgba(255, 74, 184, 0.1), 0 16px 30px rgba(0,0,0,0.18);
-}
-.gate-account-kicker {
-  display: none;
-}
-.gate-account-card h3 {
-  margin: 10px 0 6px;
-  font-size: 18px;
-  line-height: 1.05;
-  text-transform: uppercase;
-}
-.gate-account-card p {
-  margin: 0;
-  color: rgba(255,255,255,0.72);
-  font-size: 12px;
-  line-height: 1.45;
-}
-.gate-action-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-.gate-action-btn {
-  border: 0.5px solid rgba(255,255,255,0.24);
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(117,255,237,0.24), rgba(255,255,255,0.08));
-  color: #fff;
-  padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-.gate-action-btn--ghost {
-  background: rgba(255,255,255,0.08);
-}
-.gate-field {
-  width: 100%;
-  border: 0.5px solid rgba(255,255,255,0.18);
-  border-radius: 10px;
-  background: rgba(255,255,255,0.07);
-  color: #fff;
-  padding: 12px 13px;
-  font-size: 13px;
-  font-family: var(--font);
-}
-.gate-field::placeholder {
-  color: rgba(255,255,255,0.48);
-}
-.gate-save-btn {
-  border: 0.5px solid rgba(255,255,255,0.24);
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(255, 74, 184, 0.2), rgba(112, 255, 235, 0.14));
-  color: #fff;
-  padding: 12px 14px;
-  font-size: 13px;
-  font-weight: 800;
-  text-align: center;
-  cursor: pointer;
-}
-.gate-lock-panel {
-  display: grid;
-  gap: 10px;
-  margin-top: 4px;
-  padding: 14px;
-  border: 0.5px solid rgba(255,255,255,0.16);
-  border-radius: 12px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
-    rgba(0,0,0,0.12);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
-}
-.gate-lock-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-.gate-lock-label {
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.56);
-}
-.gate-lock-state {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #8cffbf;
-}
-.gate-lock-state.is-locked {
-  color: #ff8ab8;
-}
-.gate-lock-copy {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.45;
-  color: rgba(255,255,255,0.72);
-}
-.gate-lock-row {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  align-items: center;
-}
-.gate-lock-btn {
-  width: 44px;
-  height: 44px;
-  border: 0.5px solid rgba(255,255,255,0.22);
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(112,255,235,0.2), rgba(255,74,184,0.16));
-  color: #fff;
-  display: inline-grid;
-  place-items: center;
-  cursor: pointer;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.22);
-}
-.gate-lock-btn:hover {
-  border-color: rgba(255,255,255,0.34);
-}
-.gate-lock-btn svg {
-  width: 20px;
-  height: 20px;
-  display: block;
-}
-.gate-lock-btn[hidden],
-.gate-lock-auth[hidden] {
-  display: none;
-}
-.gate-lock-feedback {
-  min-height: 16px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: rgba(255,255,255,0.68);
-}
-.site-gate.is-public-locked .gate-enter-btn {
-  background: linear-gradient(135deg, rgba(255, 92, 148, 0.22), rgba(255,255,255,0.12));
-}
-.site-gate.is-public-locked .site-gate-preview::after {
-  content: 'PUBLIC LOCKED';
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 1;
-  border: 0.5px solid rgba(255,255,255,0.24);
-  border-radius: 999px;
-  background: rgba(0,0,0,0.32);
-  padding: 6px 10px;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: #ff8ab8;
-}
-.site-gate.is-hidden {
-  display: none;
-}
-
 /* ── HEADER ── */
 header {
   position: relative;
@@ -942,6 +543,23 @@ button.viewer-roster-row:focus-visible { background: rgba(77, 255, 115, 0.12); }
 .viewer-profile-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .viewer-profile-table td { padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
 .viewer-profile-table td:last-child { text-align: right; color: #ffd84d; }
+/* Desktop: tighten the drawer's spacing so a full profile (banner, XP, bio,
+   games, medals, friend action) fits one viewport without internal scroll. */
+@media (min-width: 761px) {
+  .viewer-profile-card { font-size: 13px; line-height: 1.3; }
+  .viewer-profile-head { padding: 9px 14px; }
+  .viewer-profile-title { font-size: 13px; }
+  .viewer-profile-body { padding: 10px 14px; gap: 8px; }
+  .viewer-profile-row { gap: 9px; }
+  .viewer-profile-avatar { width: 44px; height: 44px; font-size: 24px; }
+  .viewer-profile-name { font-size: 15px; }
+  .viewer-profile-muted { font-size: 11px; }
+  .viewer-profile-section { padding: 8px 10px; gap: 5px; }
+  .viewer-profile-section h4 { font-size: 11px; }
+  .viewer-profile-bio { font-size: 12px; }
+  .viewer-profile-table { font-size: 12px; }
+  .viewer-profile-table td { padding: 2px 0; }
+}
 .header-spacer {
   justify-self: end;
   display: flex;
@@ -1877,7 +1495,6 @@ header p {
 .troll-radio-art { font-size: 38px; line-height: 1; filter: drop-shadow(0 0 10px rgba(122, 92, 255, 0.55)); }
 .troll-radio-art img { width: 38px; height: 38px; object-fit: contain; display: block; border-radius: 8px; }
 .troll-emoji-icon { height: 1em; width: auto; display: inline-block; vertical-align: -0.15em; border-radius: 3px; }
-.gate-profile-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; display: block; }
 .pin-letter img { width: 16px; height: 16px; object-fit: cover; border-radius: 50%; display: block; }
 .troll-radio-track { width: 100%; text-align: center; }
 .troll-radio-song { font-family: var(--disp); font-size: 15px; color: #fff; letter-spacing: 0.04em;
@@ -3864,27 +3481,6 @@ footer a:hover { color: #fff; }
 
 /* ── MOBILE ── */
 @media (max-width: 900px) {
-  .site-gate {
-    padding: 12px;
-  }
-  .site-gate-preview {
-    min-height: 320px;
-    padding: 20px;
-  }
-  .gate-title {
-    max-width: 10ch;
-    font-size: clamp(38px, 14vw, 54px);
-  }
-  .site-gate-login {
-    padding: 18px;
-  }
-  .gate-account-card {
-    padding-right: 86px;
-  }
-  .gate-card-troll-monopoly-wrap {
-    width: 62px;
-    height: 62px;
-  }
   header { padding: 22px 16px 14px; }
   header h1 { font-size: 30px; }
   #biography .bio-copy { display: none; }
@@ -4306,9 +3902,7 @@ footer a:hover { color: #fff; }
   .header-monopoly-wrap,
   .header-monopoly,
   .header-youngster-wrap,
-  .header-youngster,
-  .gate-card-troll,
-  .gate-card-troll-monopoly {
+  .header-youngster {
     animation: none;
   }
   .sticker-collage-item.is-visible {
@@ -4317,154 +3911,8 @@ footer a:hover { color: #fff; }
   }
 }
 
-/* ===================================================================
-   NOSTALGIA REDESIGN — phase 1: grain overlay + gate
-   =================================================================== */
-
-/* ---- Gate: tiled-troll wallpaper + scanlines ---- */
-.site-gate {
-  overflow: hidden;
-  background:
-    repeating-linear-gradient(0deg, rgba(0,0,0,0.16) 0 2px, transparent 2px 4px),
-    radial-gradient(circle at 18% 24%, rgba(77,255,115,0.3), transparent 34%),
-    radial-gradient(circle at 76% 18%, rgba(255,216,77,0.26), transparent 34%),
-    radial-gradient(circle at 58% 88%, rgba(255,128,32,0.22), transparent 44%),
-    linear-gradient(150deg, #0a0b0d, #172011 44%, #241007 72%, #0a0b0d) !important;
-  background-size: auto, auto, auto, auto, auto !important;
-}
-.site-gate::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: url('https://upload.wikimedia.org/wikipedia/en/7/73/Trollface.png') 0 0 / 76px auto repeat;
-  opacity: 0.11;
-  mix-blend-mode: screen;
-}
-.site-gate-shell {
-  position: relative;
-  z-index: 1;
-}
-
-/* retro beveled panels: hard black border + green keyline + offset shadow */
-.site-gate-panel {
-  border: 2px solid #000 !important;
-  border-radius: 6px !important;
-  background: rgba(10,12,16,0.94) !important;
-  backdrop-filter: none !important;
-  box-shadow: 0 0 0 2px rgba(77,255,115,0.55), 8px 8px 0 rgba(0,0,0,0.6) !important;
-}
-
-.site-gate-preview {
-  padding: 0 !important;
-  min-height: 470px;
-  display: flex; flex-direction: column;
-  background:
-    linear-gradient(180deg, rgba(2,4,14,0.48), rgba(2,4,14,0.82)),
-    radial-gradient(circle at 22% 43%, rgba(77,255,115,0.18), transparent 22%),
-    radial-gradient(circle at 78% 14%, rgba(255,216,77,0.18), transparent 28%),
-    url('assets/animations/start-line-sparks.jpg') 58% 54% / min(118%, 720px) auto no-repeat,
-    linear-gradient(155deg, #10151a, #10200f 52%, #241007) !important;
-  background-blend-mode: normal, screen, screen, normal, normal;
-}
-.site-gate-preview::before { display: none !important; }
-
-.gate-preview-body { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 38px 26px 26px; }
-.gate-eyebrow { font-family: var(--pixel); font-size: 21px; letter-spacing: 0.16em; color: var(--n-gold); text-shadow: 0 2px 0 #000; margin: 0; }
-.gate-tagline { font-family: var(--pixel); font-size: 23px; color: #e6f7e6; margin: 0; min-height: 1.35em; }
-.gate-tagline span { color: var(--n-green); }
-.gate-type-text {
-  display: inline-block;
-  width: 28ch;
-  max-width: 100%;
-  overflow: hidden;
-  white-space: nowrap;
-  vertical-align: bottom;
-  border-right: 3px solid var(--n-green);
-}
-
-.gate-title {
-  font-family: var(--disp) !important; font-weight: 400 !important;
-  font-size: clamp(56px, 8.5vw, 108px) !important; line-height: 0.84 !important;
-  max-width: none !important; color: var(--n-green) !important;
-  position: relative; z-index: 2;
-  width: 100%; text-align: center; padding: 20px 14px 0; margin: 0 !important;
-  -webkit-text-stroke: 3px #000; paint-order: stroke fill;
-  text-shadow: 6px 6px 0 var(--n-magenta), 9px 9px 0 #000, 0 0 28px rgba(77,255,115,0.5) !important;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .gate-type-text {
-    width: 0;
-    animation: gate-type 5.6s steps(28, end) 0.45s infinite, gate-caret 0.72s steps(2) infinite;
-  }
-  .gate-title {
-    animation: gate-logo-drop 850ms cubic-bezier(.18,.89,.32,1.28) both, gate-logo-spark 2.4s ease-in-out 900ms infinite;
-  }
-}
-@keyframes gate-type {
-  0% { width: 0; opacity: 0; transform: translateY(8px); }
-  8% { opacity: 1; transform: translateY(0); }
-  48% { width: 28ch; opacity: 1; transform: translateY(0); }
-  86% { width: 28ch; opacity: 1; transform: translateY(0); }
-  96% { width: 28ch; opacity: 0; transform: translateY(-5px); }
-  100% { width: 0; opacity: 0; transform: translateY(8px); }
-}
-@keyframes gate-caret { 50% { border-right-color: transparent; } }
-@keyframes gate-logo-drop {
-  0% { opacity: 0; transform: translateY(-18px) scale(0.92) skewX(-8deg); filter: blur(2px); }
-  62% { opacity: 1; transform: translateY(4px) scale(1.04) skewX(2deg); filter: blur(0); }
-  100% { opacity: 1; transform: translateY(0) scale(1) skewX(0); filter: blur(0); }
-}
-@keyframes gate-logo-spark {
-  0%, 100% { text-shadow: 6px 6px 0 var(--n-magenta), 9px 9px 0 #000, 0 0 22px rgba(77,255,115,0.45); }
-  45% { text-shadow: 4px 4px 0 #4deeff, 9px 9px 0 #000, 0 0 34px rgba(255,216,77,0.7); }
-  50% { transform: translateX(2px); }
-  55% { transform: translateX(-2px); }
-}
-
-.gate-launch-col { display: flex; flex-direction: column; gap: 12px; }
-.gate-enter-btn {
-  font-family: var(--disp) !important; font-size: 23px !important; letter-spacing: 0.04em !important;
-  color: #08110a !important; border: 2px solid #000 !important; border-radius: 8px !important;
-  background: linear-gradient(180deg, #c6ffd6, #4dff73 48%, #1ec94f) !important;
-  box-shadow: 0 4px 0 #0a7a2e, 4px 9px 0 rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.7) !important;
-  padding: 9px 22px !important;
-}
-@media (prefers-reduced-motion: no-preference) { .gate-enter-btn { animation: gate-enter-pulse 1.1s ease-in-out infinite; } }
-.gate-enter-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #0a7a2e, 2px 5px 0 rgba(0,0,0,0.5) !important; }
-@keyframes gate-enter-pulse { 50% { filter: brightness(1.12); } }
-.gate-enter-hint { font-family: var(--pixel) !important; font-size: 18px !important; color: #cfe9cf !important; }
-.gate-blink { animation: gate-blink 1.1s steps(2) infinite; }
-@keyframes gate-blink { 50% { opacity: 0; } }
-
-.gate-marquee { overflow: hidden; white-space: nowrap; border-top: 2px solid #000; background: #000; }
-.gate-marquee > div {
-  display: inline-block; font-family: var(--disp); font-size: 18px; letter-spacing: 0.06em;
-  color: var(--n-gold); padding: 5px 0; animation: gate-marq 18s linear infinite;
-}
-@keyframes gate-marq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-
-/* ---- Gate: account / login panel as a retro form ---- */
-.site-gate-login { background: rgba(10,12,16,0.94) !important; }
-.site-gate-login h2,
-.gate-account-card h3 { font-family: var(--disp) !important; font-weight: 400 !important; letter-spacing: 0.02em !important; color: var(--n-ink) !important; }
-.gate-account-card { border: 2px solid #000 !important; border-radius: 6px !important; box-shadow: 3px 3px 0 rgba(0,0,0,0.5) !important; }
-.gate-field {
-  font-family: var(--pixel) !important; font-size: 17px !important; color: #0a0b0d !important;
-  background: #e9e9e0 !important; border: 2px solid #000 !important; border-radius: 0 !important;
-  box-shadow: inset 2px 2px 0 rgba(0,0,0,0.32) !important; padding: 7px 9px !important;
-}
-.gate-field::placeholder { color: #5a5a52 !important; }
-.gate-save-btn, .gate-action-btn {
-  font-family: var(--disp) !important; font-weight: 400 !important; letter-spacing: 0.05em !important;
-  color: #08110a !important; border: 2px solid #000 !important; border-radius: 6px !important;
-  background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521) !important;
-  box-shadow: 0 3px 0 #9a7a14, 3px 5px 0 rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.6) !important;
-  padding: 7px 15px !important;
-}
-.gate-save-btn:active, .gate-action-btn:active { transform: translateY(2px); }
-.gate-action-btn { position: relative; }
+/* Shared by the TrollChat window's MESSAGES button (#tc-groups-badge) —
+   not part of the removed site-gate UI, just named alongside it. */
 .gate-friend-badge {
   position: absolute; top: -7px; right: -7px; min-width: 16px; height: 16px; padding: 0 4px;
   display: flex; align-items: center; justify-content: center; border-radius: 999px;
@@ -4472,130 +3920,14 @@ footer a:hover { color: #fff; }
   font-family: var(--disp) !important; line-height: 1;
 }
 .gate-friend-badge[hidden] { display: none; }
-.gate-lock-label { font-family: var(--disp) !important; letter-spacing: 0.04em; }
-
-/* ---- Gate: account portal (login / register / logged-in) ---- */
-.gate-account-card--portal [hidden] { display: none !important; }
-.gate-account-card--portal {
-  padding: 14px !important;
-  min-height: 320px;
-  background: linear-gradient(160deg, rgba(16,22,20,0.92), rgba(10,12,13,0.94)) !important;
-  box-shadow: 3px 3px 0 rgba(0,0,0,0.5), inset 0 0 0 1px rgba(77,255,115,0.14), inset 0 0 26px rgba(77,255,115,0.05) !important;
-}
-.gate-account-card--portal::before { display: none; }
-.gate-auth-panel { display: grid; gap: 12px; }
-.gate-auth-tabs {
-  display: grid; grid-template-columns: 1fr 1fr;
-  border: 2px solid #000; border-radius: 6px; overflow: hidden;
-  background: #0c100e; box-shadow: inset 2px 2px 0 rgba(0,0,0,0.4);
-  margin-right: 44px;
-}
-.gate-auth-tab {
-  font-family: var(--disp); font-size: 15px; letter-spacing: 0.05em;
-  color: #93a89a; background: transparent; border: 0; padding: 9px 6px;
-  cursor: pointer; text-transform: uppercase;
-}
-.gate-auth-tab + .gate-auth-tab { border-left: 2px solid #000; }
-.gate-auth-tab:hover { color: #cfe9cf; }
-.gate-auth-tab.is-active {
-  color: #08110a;
-  background: linear-gradient(180deg, #c6ffd6, #4dff73 48%, #1ec94f);
-}
-.gate-auth-tab:focus-visible { outline: 2px solid var(--n-gold); outline-offset: -3px; }
-.gate-field-group { display: grid; gap: 4px; }
-.gate-field-label {
-  font-family: var(--pixel); font-size: 15px; line-height: 1.2;
-  color: #cfe9cf; letter-spacing: 0.02em;
-}
-.gate-field-optional { color: #7d8f83; }
-.gate-field-wrap { position: relative; }
-.gate-field-wrap .gate-field { width: 100%; box-sizing: border-box; padding-right: 34px !important; }
-.gate-pass-toggle {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 32px; padding: 0;
-  border: none; background: none; color: #6b7e72; cursor: pointer; display: grid; place-items: center;
-}
-.gate-pass-toggle:hover { color: #cfe9cf; }
-.gate-pass-toggle svg { width: 16px; height: 16px; fill: currentColor; }
-.gate-auth-submit { margin-top: 2px; }
-.gate-auth-submit[disabled] { opacity: 0.62; cursor: progress; }
-.gate-auth-swap {
-  justify-self: center; border: 0; background: none; cursor: pointer;
-  font-family: var(--pixel); font-size: 14px; color: #8cffbf;
-  text-decoration: underline; text-underline-offset: 3px; padding: 2px 4px;
-}
-.gate-auth-swap:hover { color: #c6ffd6; }
-.gate-auth-swap:focus-visible { outline: 2px solid var(--n-gold); outline-offset: 2px; }
-.gate-account-msg {
-  margin: 0; padding: 8px 10px;
-  font-family: var(--pixel); font-size: 15px; line-height: 1.4;
-  border: 2px solid #000; border-left-width: 6px; border-radius: 4px;
-  background: rgba(0,0,0,0.35); color: #cfe9cf;
-}
-.gate-account-msg--error { border-left-color: #ff2d6f; color: #ff9ab6; }
-.gate-account-msg--success { border-left-color: #4dff73; color: #8cffbf; }
-.gate-account-msg--info { border-left-color: var(--n-gold); color: #ffe9a8; }
-.gate-profile-panel { display: grid; gap: 12px; }
-.gate-profile-row { display: flex; align-items: center; gap: 12px; }
-.gate-profile-avatar {
-  display: grid; place-items: center; width: 48px; height: 48px;
-  font-size: 26px; line-height: 1; flex: none;
-  border: 2px solid #000; border-radius: 6px;
-  background: linear-gradient(180deg, #17231b, #0c100e);
-  box-shadow: inset 0 0 0 1px rgba(77,255,115,0.24), 2px 2px 0 rgba(0,0,0,0.45);
-}
-.gate-profile-meta { display: grid; gap: 3px; min-width: 0; }
-.gate-profile-name {
-  font-family: var(--disp); font-size: 19px; color: var(--n-ink, #fff);
-  letter-spacing: 0.03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.gate-profile-level {
-  justify-self: start; font-family: var(--pixel); font-size: 13px;
-  color: #08110a; background: linear-gradient(180deg, #ffe88a, #ffd84d 50%, #e6b521);
-  border: 2px solid #000; border-radius: 4px; padding: 1px 7px;
-}
-.gate-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.gate-action-btn--ghost {
-  background: linear-gradient(180deg, #222a25, #141a16) !important;
-  color: #cfe9cf !important;
-  box-shadow: 0 3px 0 #000, 3px 5px 0 rgba(0,0,0,0.4) !important;
-}
-
-@media (max-width: 760px) {
-  .site-gate { align-items: flex-start; box-sizing: border-box; overflow-x: hidden; overflow-y: auto; padding: 10px !important; }
-  .site-gate-shell { width: 100%; }
-  .site-gate-panel { min-width: 0; }
-  .site-gate-shell { grid-template-columns: 1fr !important; transform: scale(1) !important; }
-  .site-gate-preview {
-    min-height: 340px;
-    background:
-      linear-gradient(180deg, rgba(2,4,14,0.46), rgba(2,4,14,0.84)),
-      radial-gradient(circle at 20% 44%, rgba(77,255,115,0.18), transparent 25%),
-      radial-gradient(circle at 78% 14%, rgba(255,216,77,0.18), transparent 30%),
-      url('assets/animations/start-line-sparks.jpg') 56% 50% / min(130%, 520px) auto no-repeat,
-      linear-gradient(155deg, #10151a, #10200f 52%, #241007) !important;
-    background-blend-mode: normal, screen, screen, normal, normal;
-  }
-  .gate-title { font-size: clamp(40px, 11vw, 58px) !important; padding: 17px 8px 0; }
-  .gate-preview-body { padding: 30px 20px 20px; }
-  .gate-tagline { font-size: 18px; }
-  .gate-marquee > div { font-size: 16px; }
-  .site-gate-login { padding: 18px !important; }
-  .gate-lock-head { align-items: flex-start; flex-direction: column; gap: 4px; }
-  .gate-lock-row { display: grid; grid-template-columns: 1fr; justify-content: stretch; }
-  .gate-lock-pass { min-width: 0; width: 100% !important; }
-  .gate-lock-auth { width: 100%; }
-}
-
 /* =====================================================================
    TROLL DESKTOP OS — the site is a retro desktop; sections live in
    draggable windows. Gate (z 80) still covers it when reopened.
    ===================================================================== */
 body.desktop-mode { overflow: hidden; }
 /* Opaque shield under the desktop (z 60): hides the legacy page during the
-   CRT boot animation and pre-JS when the gate will be skipped (subdomain
-   arrivals), so the old front page never flashes through. */
-body.desktop-mode::before,
-html.site-gate-skip-initial body::before {
+   CRT boot animation, so the old front page never flashes through. */
+body.desktop-mode::before {
   content: ''; position: fixed; inset: 0; z-index: 59; background: #04050e;
 }
 body.desktop-mode > header,
@@ -4979,125 +4311,6 @@ body.desktop-mode .troll-desktop { display: block; }
 </head>
 <body class="site-entry-locked">
 
-<div id="site-gate" class="site-gate" role="dialog" aria-modal="true" aria-labelledby="site-gate-title">
-  <div class="site-gate-shell">
-    <section class="site-gate-panel site-gate-preview">
-      <h1 id="site-gate-title" class="gate-title">Troll Runner</h1>
-      <div class="gate-preview-body">
-        <div>
-          <p class="gate-eyebrow" aria-hidden="true">★ EST. 2025 ★</p>
-          <p class="gate-tagline" aria-hidden="true"><span class="gate-type-text">watch troll RUN to billions</span></p>
-        </div>
-        <div class="gate-launch-col">
-          <div class="gate-launch-row">
-            <button id="site-gate-enter" class="gate-enter-btn" type="button">▶ Press Enter ◀</button>
-            <span class="gate-enter-hint gate-blink">or hit Enter on your keyboard</span>
-          </div>
-        </div>
-      </div>
-      <div class="gate-marquee" aria-hidden="true">
-        <div>RUN TROLL RUN ★ U MAD? ★ $TROLL ★ TRADE LESS, TROLL MORE ★ TROLL-LO-LO-LO ★ RUN TROLL RUN ★ U MAD? ★ $TROLL ★ TRADE LESS, TROLL MORE ★ TROLL-LO-LO-LO ★&nbsp;</div>
-      </div>
-    </section>
-
-    <aside class="site-gate-panel site-gate-login" aria-label="Account access">
-      <div>
-        <h2>Account Access</h2>
-        <p class="gate-section-copy">Become part of a community that wishes to see troll RUN to billions.</p>
-      </div>
-      <section id="gate-account" class="gate-account-card gate-account-card--portal" aria-label="Account portal" data-account-state="logged-out">
-        <div id="gate-auth-panel" class="gate-auth-panel">
-          <div class="gate-auth-tabs" role="tablist" aria-label="Login or create account">
-            <button id="gate-tab-login" class="gate-auth-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="site-gate-login-form">Login</button>
-            <button id="gate-tab-register" class="gate-auth-tab" type="button" role="tab" aria-selected="false" aria-controls="site-gate-register-form">Create Account</button>
-          </div>
-
-          <form id="site-gate-login-form" class="gate-form" role="tabpanel" aria-labelledby="gate-tab-login" autocomplete="off" novalidate>
-            <div class="gate-field-group">
-              <label class="gate-field-label" for="gate-login-name">Username or email</label>
-              <input id="gate-login-name" class="gate-field" type="text" placeholder="" autocomplete="off" autocapitalize="none" spellcheck="false">
-            </div>
-            <div class="gate-field-group">
-              <label class="gate-field-label" for="gate-login-pass">Password</label>
-              <div class="gate-field-wrap">
-                <input id="gate-login-pass" class="gate-field" type="password" placeholder="" autocomplete="current-password">
-                <button type="button" class="gate-pass-toggle" data-pass-toggle-for="gate-login-pass" aria-label="Show password"></button>
-              </div>
-            </div>
-            <button id="gate-login-submit" class="gate-save-btn gate-auth-submit" type="submit">Login</button>
-            <button id="gate-forgot-btn" class="gate-auth-swap" type="button">Forgot password?</button>
-            <button class="gate-auth-swap" type="button" data-gate-mode="register">New here? Create an account</button>
-          </form>
-
-          <form id="site-gate-register-form" class="gate-form" role="tabpanel" aria-labelledby="gate-tab-register" autocomplete="off" novalidate hidden>
-            <div class="gate-field-group">
-              <label class="gate-field-label" for="gate-register-name">Username or handle</label>
-              <input id="gate-register-name" class="gate-field" type="text" placeholder="" autocomplete="off" autocapitalize="none" spellcheck="false">
-            </div>
-            <div class="gate-field-group">
-              <label class="gate-field-label" for="gate-register-email">Email <span class="gate-field-optional">(optional)</span></label>
-              <input id="gate-register-email" class="gate-field" type="email" placeholder="" autocomplete="off" spellcheck="false">
-            </div>
-            <div class="gate-field-group">
-              <label class="gate-field-label" for="gate-register-pass">Password</label>
-              <div class="gate-field-wrap">
-                <input id="gate-register-pass" class="gate-field" type="password" placeholder="" autocomplete="new-password">
-                <button type="button" class="gate-pass-toggle" data-pass-toggle-for="gate-register-pass" aria-label="Show password"></button>
-              </div>
-            </div>
-            <div class="gate-field-group">
-              <label class="gate-field-label" for="gate-register-pass2">Confirm password</label>
-              <div class="gate-field-wrap">
-                <input id="gate-register-pass2" class="gate-field" type="password" placeholder="" autocomplete="new-password">
-                <button type="button" class="gate-pass-toggle" data-pass-toggle-for="gate-register-pass2" aria-label="Show password"></button>
-              </div>
-            </div>
-            <button id="gate-register-submit" class="gate-save-btn gate-auth-submit" type="submit">Create Account</button>
-            <button class="gate-auth-swap" type="button" data-gate-mode="login">Already have an account? Login</button>
-          </form>
-        </div>
-
-        <div id="gate-profile-panel" class="gate-profile-panel" hidden>
-          <div class="gate-profile-row">
-            <span id="gate-profile-avatar" class="gate-profile-avatar" aria-hidden="true"><img src="assets/animations/troll-grin.gif" alt=""></span>
-            <div class="gate-profile-meta">
-              <span id="gate-profile-name" class="gate-profile-name">runner</span>
-              <span id="gate-profile-level" class="gate-profile-level">LV 1</span>
-            </div>
-          </div>
-          <div class="gate-profile-actions">
-            <button id="gate-profile-btn" class="gate-action-btn" type="button">Profile</button>
-            <button id="gate-friends-btn" class="gate-action-btn" type="button">Friends<span id="gate-friends-badge" class="gate-friend-badge" hidden>0</span></button>
-            <button id="gate-settings-btn" class="gate-action-btn" type="button">Settings</button>
-            <button id="gate-logout-btn" class="gate-action-btn gate-action-btn--ghost" type="button">Logout</button>
-          </div>
-        </div>
-
-        <p id="gate-account-msg" class="gate-account-msg" role="status" aria-live="polite" hidden></p>
-      </section>
-
-      <section class="gate-lock-panel" aria-labelledby="gate-lock-title">
-        <div class="gate-lock-head">
-          <span id="gate-lock-title" class="gate-lock-label">Site Lock</span>
-          <span id="gate-lock-state" class="gate-lock-state">Public access open</span>
-        </div>
-        <p class="gate-lock-copy">Enter the admin password to reveal the lock control.</p>
-        <div class="gate-lock-row">
-          <input id="gate-lock-pass" class="gate-field gate-lock-pass" type="password" placeholder="Admin password" autocomplete="current-password">
-          <button id="gate-lock-verify" class="gate-save-btn gate-lock-auth" type="button">Admin</button>
-          <button id="gate-lock-toggle" class="gate-lock-btn" type="button" aria-label="Lock public access" title="Lock public access" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-              <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
-            </svg>
-          </button>
-        </div>
-        <div id="gate-admin-status" class="gate-lock-feedback" aria-live="polite"></div>
-        <div id="gate-lock-feedback" class="gate-lock-feedback" aria-live="polite"></div>
-      </section>
-    </aside>
-  </div>
-</div>
 
 <div id="troll-desktop" class="troll-desktop" aria-hidden="true">
   <div class="td-wall td-wall--art" aria-hidden="true">
@@ -5574,9 +4787,6 @@ const SUPABASE_TABLE = 'site_updates';
 const VIEWER_ID_KEY = 'trollrunner_viewer_id_v1';
 const VIEWER_DAILY_TRACK_KEY = 'trollrunner_view_daily_track_v1';
 const VIEWER_PRESENCE_CHANNEL = 'trollrunner-site-presence';
-const SITE_GATE_PROFILE_KEY = 'trollrunner_account_shell_v1';
-const SITE_GATE_SEEN_KEY = 'trollrunner_site_gate_seen_v1';
-const SITE_GATE_COOKIE_DAYS = 365;
 const SITE_PUBLIC_LOCK_KEY = 'trollrunner_site_public_locked_v1';
 const SEEDED_FEEDBACK_ENTRIES = [
   {
@@ -5636,7 +4846,6 @@ const SHARED_STATUS_META_ID = '__trollrunner_live_status_meta__';
 const LIVE_RUNNING_STATUS_KEY = 'trollrunner_live_status_running_enabled';
 const LIVE_CODING_STATUS_KEY = 'trollrunner_live_status_coding_enabled';
 const LEGACY_LIVE_STATUS_KEY = 'trollrunner_live_status_enabled';
-let gateLockAdminVerified = false;
 let mapResizeTimer = 0;
 
 function isSupabaseConfigured() {
@@ -5683,114 +4892,8 @@ function applyLiveStatusVisibility() {
   }
 }
 
-function clearSiteGateProfile() {
-  localStorage.removeItem(SITE_GATE_PROFILE_KEY);
-}
-
-function getRootCookieDomain() {
-  const host = window.location.hostname.toLowerCase();
-  if (host === 'trollrunner.net' || host.endsWith('.trollrunner.net')) return '.trollrunner.net';
-  return '';
-}
-
-function writeSiteGateCookie(value, maxAgeSeconds = SITE_GATE_COOKIE_DAYS * 24 * 60 * 60) {
-  const domain = getRootCookieDomain();
-  const parts = [
-    `${SITE_GATE_SEEN_KEY}=${encodeURIComponent(value)}`,
-    'path=/',
-    `max-age=${maxAgeSeconds}`,
-    'SameSite=Lax',
-  ];
-  if (domain) parts.push(`domain=${domain}`);
-  if (window.location.protocol === 'https:') parts.push('Secure');
-  document.cookie = parts.join('; ');
-}
-
-function readSiteGateCookie() {
-  return document.cookie
-    .split(';')
-    .map(part => part.trim())
-    .find(part => part.startsWith(`${SITE_GATE_SEEN_KEY}=`))
-    ?.split('=')
-    .slice(1)
-    .join('=') || '';
-}
-
-function markSiteGateSeen() {
-  localStorage.setItem(SITE_GATE_SEEN_KEY, '1');
-  writeSiteGateCookie('1');
-}
-
-function clearSiteGateSeen() {
-  localStorage.removeItem(SITE_GATE_SEEN_KEY);
-  writeSiteGateCookie('', 0);
-}
-
-function hasSiteGateSeen() {
-  return localStorage.getItem(SITE_GATE_SEEN_KEY) === '1' || readSiteGateCookie() === '1';
-}
-
-function getNavigationType() {
-  const nav = performance.getEntriesByType?.('navigation')?.[0];
-  return nav?.type || '';
-}
-
-function isInternalTrollrunnerReferrer() {
-  if (!document.referrer) return false;
-  try {
-    const referrerHost = new URL(document.referrer).hostname.toLowerCase();
-    return referrerHost === 'trollrunner.net' || referrerHost.endsWith('.trollrunner.net');
-  } catch {
-    return false;
-  }
-}
-
-function shouldShowSiteGate() {
-  if (isSitePublicLocked()) return true;
-  const navType = getNavigationType();
-  if (navType === 'reload') return true;
-  if (isInternalTrollrunnerReferrer() && hasSiteGateSeen()) return false;
-  if (navType === 'navigate' && !isInternalTrollrunnerReferrer()) return true;
-  return !hasSiteGateSeen();
-}
-
-function getAdminPasswordValue() {
-  return String(document.getElementById('gate-lock-pass')?.value || '').trim();
-}
-
-function updateGateLockToggleVisibility() {
-  const toggleBtn = document.getElementById('gate-lock-toggle');
-  const verifyBtn = document.getElementById('gate-lock-verify');
-  const passInput = document.getElementById('gate-lock-pass');
-  if (toggleBtn) {
-    toggleBtn.hidden = !gateLockAdminVerified;
-    toggleBtn.disabled = !gateLockAdminVerified;
-  }
-  if (verifyBtn) verifyBtn.hidden = gateLockAdminVerified;
-  if (passInput) passInput.hidden = gateLockAdminVerified;
-}
-
-function hydrateSiteGateFields() {
-  const name = document.getElementById('gate-login-name');
-  const pass = document.getElementById('gate-login-pass');
-  clearSiteGateProfile();
-  if (name) {
-    name.value = '';
-    name.setAttribute('autocomplete', 'off');
-  }
-  if (pass) {
-    pass.value = '';
-  }
-}
-
-function safeParseSiteGateLockRecord(raw) {
-  try {
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
+// Used by the general shared-state sync below (siteLock field on the
+// synced site_updates payload), not just the removed site-gate UI.
 function normalizeSiteGateLockRecord(raw) {
   const input = raw && typeof raw === 'object' ? raw : {};
   const mode = String(input.mode || input.state || 'open').toLowerCase();
@@ -5802,340 +4905,16 @@ function normalizeSiteGateLockRecord(raw) {
   };
 }
 
-function getSitePublicLockRecord() {
-  const helper = window.TrollrunnerSiteLock;
-  if (helper?.getComputedRecord) return helper.getComputedRecord();
-  const raw = safeParseSiteGateLockRecord(localStorage.getItem(SITE_PUBLIC_LOCK_KEY));
-  return normalizeSiteGateLockRecord(raw);
-}
-
-function isSitePublicLocked() {
-  return getSitePublicLockRecord().mode !== 'open';
-}
-
-function setSitePublicLocked(locked) {
-  const helper = window.TrollrunnerSiteLock;
-  if (helper?.requestLockTransition) {
-    helper.requestLockTransition(Boolean(locked));
-    return;
-  }
-  const next = locked
-    ? { mode: 'pending', pendingUntil: Date.now() + 10000, updatedAt: new Date().toISOString() }
-    : { mode: 'open', pendingUntil: 0, updatedAt: new Date().toISOString() };
-  localStorage.setItem(SITE_PUBLIC_LOCK_KEY, JSON.stringify(next));
-  updateSiteGateLockUI();
-}
-
-function renderSiteGateLockIcon(locked) {
-  if (locked) {
-    return `
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M17 10V8a5 5 0 10-10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-        <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
-      </svg>`;
-  }
-  return `
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M7 10V8a5 5 0 019.9-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-      <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
-    </svg>`;
-}
-
-function updateSiteGateLockUI() {
-  const gate = document.getElementById('site-gate');
-  const stateNode = document.getElementById('gate-lock-state');
-  const feedbackNode = document.getElementById('gate-lock-feedback');
-  const toggleBtn = document.getElementById('gate-lock-toggle');
-  const record = getSitePublicLockRecord();
-  const locked = record.mode !== 'open';
-  const pending = record.mode === 'pending';
-  const remaining = pending ? Math.max(0, Math.ceil((record.pendingUntil - Date.now()) / 1000)) : 0;
-
-  if (gate) {
-    gate.classList.toggle('is-public-locked', locked);
-    if (locked) gate.classList.remove('is-hidden');
-  }
-  document.body.classList.toggle('site-entry-locked', locked || !gate || !gate.classList.contains('is-hidden'));
-  if (stateNode) {
-    stateNode.textContent = pending
-      ? `Public access locks in ${remaining}s`
-      : (locked ? 'Public access locked' : 'Public access open');
-    stateNode.classList.toggle('is-locked', locked);
-  }
-  if (toggleBtn) {
-    toggleBtn.innerHTML = renderSiteGateLockIcon(locked);
-    toggleBtn.setAttribute('aria-label', locked ? 'Unlock public access' : 'Lock public access');
-    toggleBtn.setAttribute('title', locked ? 'Unlock public access' : 'Lock public access');
-  }
-  updateGateLockToggleVisibility();
-  if (feedbackNode && !feedbackNode.dataset.manual) {
-    feedbackNode.textContent = pending
-      ? `Warning active. Public access locks in ${remaining}s.`
-      : (locked ? 'Locked. Public visitors stay on the preview screen.' : '');
-  }
-}
-
-function setSiteGateLockFeedback(message, kind = 'info') {
-  const feedbackNode = document.getElementById('gate-lock-feedback');
-  if (!feedbackNode) return;
-  feedbackNode.dataset.manual = '1';
-  feedbackNode.textContent = message;
-  feedbackNode.style.color = kind === 'error' ? '#ff9ab6' : 'rgba(255,255,255,0.72)';
-  window.clearTimeout(setSiteGateLockFeedback._timer);
-  setSiteGateLockFeedback._timer = window.setTimeout(() => {
-    delete feedbackNode.dataset.manual;
-    feedbackNode.style.color = '';
-    updateSiteGateLockUI();
-  }, 2200);
-}
-
-function dismissSiteGate() {
-  const gate = document.getElementById('site-gate');
-  const record = getSitePublicLockRecord();
-  if (record.mode !== 'open') {
-    if (record.mode === 'pending') {
-      const remaining = Math.max(0, Math.ceil((record.pendingUntil - Date.now()) / 1000));
-      setSiteGateLockFeedback(`Public access is locking in ${remaining}s.`, 'error');
-    } else {
-      setSiteGateLockFeedback('Public access is locked. Unlock the admin account first.', 'error');
-    }
-    const lockPassInput = document.getElementById('gate-lock-pass');
-    if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
-    return false;
-  }
-  document.body.classList.remove('site-entry-locked');
-  if (gate) gate.classList.add('is-hidden');
-  markSiteGateSeen();
-  trollDesktopShow(true);
-  return true;
-}
-
-// Reveals what's currently typed in a password field — never a stored
-// password, which is never sent to or retrievable by the client.
-function wireGatePasswordToggles() {
-  const EYE_SHOW = '<path d="M12 5c-5.5 0-9.3 4.4-10.6 7 1.3 2.6 5.1 7 10.6 7s9.3-4.4 10.6-7C21.3 9.4 17.5 5 12 5zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9zm0-2.2a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6z"/>';
-  const EYE_HIDE = '<path d="M3.3 2.5 1.9 3.9l3.2 3.2C3.3 8.5 1.9 10 1.1 12c1.3 2.6 5.1 7 10.9 7 1.9 0 3.6-.5 5-1.2l3.1 3.1 1.4-1.4L3.3 2.5zM12 16.5c-.5 0-.9-.1-1.3-.2l-1.6-1.6c-.4-.6-.6-1.3-.6-2.1 0-.4.1-.8.2-1.2L7.3 10c-.5.7-.8 1.4-1 2 1.3 2.6 5.1 5.5 5.7 5.5v-1zm8.9-4.5c-.6-1.2-1.6-2.4-2.8-3.4l-1.5-1.5C15.4 6.6 13.8 6 12 6c-.6 0-1.2.1-1.8.2L8.7 4.7C9.7 4.3 10.8 4 12 4c5.8 0 9.6 4.4 10.9 7-.5 1.1-1.3 2.3-2.3 3.4l-1.7-1.4z"/>';
-  document.querySelectorAll('[data-pass-toggle-for]').forEach(btn => {
-    const input = document.getElementById(btn.getAttribute('data-pass-toggle-for'));
-    if (!input) return;
-    btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${EYE_SHOW}</svg>`;
-    btn.addEventListener('click', () => {
-      const shown = input.type === 'text';
-      input.type = shown ? 'password' : 'text';
-      btn.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
-      btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${shown ? EYE_SHOW : EYE_HIDE}</svg>`;
-    });
-  });
-}
-
-// Account portal UI. Real auth plugs in later via window.TrollrunnerAccounts:
-// { getSession(), login({identifier, password}), register({username, email, password}),
-//   logout(), openProfile?(), openSettings?() } — login/register resolve to a session
-// ({ username, level?, avatar? }) or throw with a user-readable message.
-function initializeGateAccountUI() {
-  const card = document.getElementById('gate-account');
-  if (!card) return;
-  wireGatePasswordToggles();
-  const authPanel = document.getElementById('gate-auth-panel');
-  const profilePanel = document.getElementById('gate-profile-panel');
-  const msgNode = document.getElementById('gate-account-msg');
-  const tabs = {
-    login: document.getElementById('gate-tab-login'),
-    register: document.getElementById('gate-tab-register'),
-  };
-  const forms = {
-    login: document.getElementById('site-gate-login-form'),
-    register: document.getElementById('site-gate-register-form'),
-  };
-  const submits = {
-    login: document.getElementById('gate-login-submit'),
-    register: document.getElementById('gate-register-submit'),
-  };
-  const profileName = document.getElementById('gate-profile-name');
-  const profileLevel = document.getElementById('gate-profile-level');
-  const profileAvatar = document.getElementById('gate-profile-avatar');
-  const getBackend = () => window.TrollrunnerAccounts || null;
-  let accountBusy = false;
-
-  const setMessage = (text, kind = 'info') => {
-    if (!msgNode) return;
-    msgNode.hidden = !text;
-    msgNode.textContent = text || '';
-    msgNode.className = text ? `gate-account-msg gate-account-msg--${kind}` : 'gate-account-msg';
-  };
-
-  const setMode = (mode, focusFirst = false) => {
-    ['login', 'register'].forEach(key => {
-      const active = key === mode;
-      tabs[key]?.classList.toggle('is-active', active);
-      tabs[key]?.setAttribute('aria-selected', active ? 'true' : 'false');
-      if (forms[key]) forms[key].hidden = !active;
-    });
-    setMessage('');
-    if (focusFirst) forms[mode]?.querySelector('input')?.focus?.();
-  };
-
-  const setBusy = next => {
-    accountBusy = next;
-    if (next) card.dataset.accountState = 'loading';
-    Object.values(submits).forEach(btn => { if (btn) btn.disabled = next; });
-  };
-
-  const renderSession = session => {
-    const username = session && typeof session === 'object'
-      ? String(session.username || session.handle || '').trim()
-      : '';
-    const loggedIn = Boolean(username);
-    card.dataset.accountState = loggedIn ? 'logged-in' : 'logged-out';
-    if (authPanel) authPanel.hidden = loggedIn;
-    if (profilePanel) profilePanel.hidden = !loggedIn;
-    if (!loggedIn) return;
-    if (profileName) profileName.textContent = username;
-    if (profileLevel) profileLevel.textContent = `LV ${Number(session.level) > 0 ? Number(session.level) : 1}`;
-    if (profileAvatar) {
-      if (session.avatarUrl) {
-        profileAvatar.innerHTML = '';
-        const img = document.createElement('img');
-        img.src = String(session.avatarUrl);
-        img.alt = '';
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:4px;';
-        profileAvatar.appendChild(img);
-      } else if (session.avatar) {
-        profileAvatar.textContent = String(session.avatar);
-      } else {
-        profileAvatar.innerHTML = '<img src="assets/animations/troll-grin.gif" alt="">';
-      }
-    }
-  };
-
-  const notifyBackendOffline = () => {
-    setMessage('Accounts are not live yet — this form is wired and waiting for the backend. Hit ▶ Press Enter to explore as a guest.', 'info');
-  };
-
-  tabs.login?.addEventListener('click', () => setMode('login'));
-  tabs.register?.addEventListener('click', () => setMode('register'));
-  card.querySelectorAll('[data-gate-mode]').forEach(btn => {
-    btn.addEventListener('click', () => setMode(btn.getAttribute('data-gate-mode'), true));
-  });
-
-  document.getElementById('gate-forgot-btn')?.addEventListener('click', () => {
-    const backend = getBackend();
-    if (backend?.openRecovery) backend.openRecovery();
-    else notifyBackendOffline();
-  });
-
-  forms.login?.addEventListener('submit', async event => {
-    event.preventDefault();
-    if (accountBusy) return;
-    const identifier = String(document.getElementById('gate-login-name')?.value || '').trim();
-    const password = String(document.getElementById('gate-login-pass')?.value || '');
-    if (!identifier || !password) {
-      setMessage('Enter your username (or email) and password.', 'error');
-      return;
-    }
-    const backend = getBackend();
-    if (!backend?.login) { notifyBackendOffline(); return; }
-    setBusy(true);
-    setMessage('Logging in…', 'info');
-    try {
-      const session = await backend.login({ identifier, password });
-      renderSession(session);
-      setMessage(`Welcome back, ${session?.username || identifier}.`, 'success');
-      window.setTimeout(() => { dismissSiteGate(); }, 900);
-    } catch (error) {
-      card.dataset.accountState = 'logged-out';
-      setMessage(error?.message ? String(error.message) : 'Login failed. Check your details and try again.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  });
-
-  forms.register?.addEventListener('submit', async event => {
-    event.preventDefault();
-    if (accountBusy) return;
-    const username = String(document.getElementById('gate-register-name')?.value || '').trim();
-    const email = String(document.getElementById('gate-register-email')?.value || '').trim();
-    const password = String(document.getElementById('gate-register-pass')?.value || '');
-    const confirm = String(document.getElementById('gate-register-pass2')?.value || '');
-    if (username.length < 3) { setMessage('Pick a username with at least 3 characters.', 'error'); return; }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setMessage('That email does not look right. It is optional — leave it blank if you want.', 'error'); return; }
-    if (password.length < 8) { setMessage('Use a password with at least 8 characters.', 'error'); return; }
-    if (password !== confirm) { setMessage('Passwords do not match.', 'error'); return; }
-    const backend = getBackend();
-    if (!backend?.register) { notifyBackendOffline(); return; }
-    setBusy(true);
-    setMessage('Creating your account…', 'info');
-    try {
-      const session = await backend.register({ username, email: email || null, password });
-      if (session && (session.username || session.handle)) {
-        renderSession(session);
-        setMessage(`Account created. Welcome, ${session.username || session.handle}.`, 'success');
-        window.TrollNotis?.show({
-          id: 'account-' + (session.id || Date.now()),
-          platform: 'account',
-          summary: `Welcome, ${session.username || session.handle}! Your Troll Runner account is live.`,
-          onCta: () => window.TrollrunnerAccounts?.openProfile?.(),
-        });
-        window.setTimeout(() => { dismissSiteGate(); }, 900);
-      } else {
-        setMode('login');
-        setMessage('Account created. Login with your new details.', 'success');
-      }
-    } catch (error) {
-      card.dataset.accountState = 'logged-out';
-      setMessage(error?.message ? String(error.message) : 'Could not create the account. Try again.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  });
-
-  document.getElementById('gate-logout-btn')?.addEventListener('click', async () => {
-    try { await getBackend()?.logout?.(); } catch {}
-    renderSession(null);
-    setMessage('Logged out. See you on the next run.', 'info');
-  });
-  document.getElementById('gate-profile-btn')?.addEventListener('click', () => {
-    const backend = getBackend();
-    if (backend?.openProfile) backend.openProfile();
-    else setMessage('Profile pages are on the roadmap — not wired up yet.', 'info');
-  });
-  document.getElementById('gate-settings-btn')?.addEventListener('click', () => {
-    const backend = getBackend();
-    if (backend?.openSettings) backend.openSettings();
-    else setMessage('Account settings are on the roadmap — not wired up yet.', 'info');
-  });
-  document.getElementById('gate-friends-btn')?.addEventListener('click', () => {
-    const backend = getBackend();
-    if (backend?.openFriendsPanel) backend.openFriendsPanel();
-    else setMessage('Friends are on the roadmap — not wired up yet.', 'info');
-  });
-  window.addEventListener('trollrunner:friend-requests-changed', event => {
-    const badge = document.getElementById('gate-friends-badge');
-    if (!badge) return;
-    const count = Number(event.detail?.count) || 0;
-    badge.hidden = count <= 0;
-    badge.textContent = count > 9 ? '9+' : String(count);
-  });
-  // Desktop's DM inbox lives behind the TrollChat window's MESSAGES button,
-  // so unread DMs badge that button rather than the Friends one (which is
-  // for pending friend requests only).
-  window.addEventListener('trollrunner:dm-unread-changed', event => {
-    const badge = document.getElementById('tc-groups-badge');
-    if (!badge) return;
-    const count = Number(event.detail?.count) || 0;
-    badge.hidden = count <= 0;
-    badge.textContent = count > 9 ? '9+' : String(count);
-  });
-
-  const backend = getBackend();
-  if (backend?.getSession) {
-    Promise.resolve()
-      .then(() => backend.getSession())
-      .then(session => { if (session) renderSession(session); })
-      .catch(() => {});
-  }
-  window.addEventListener('trollrunner:auth-changed', event => renderSession(event?.detail || null));
-}
+// Desktop's DM inbox lives behind the TrollChat window's MESSAGES button,
+// so unread DMs badge that button rather than the Friends one (which is
+// for pending friend requests only).
+window.addEventListener('trollrunner:dm-unread-changed', event => {
+  const badge = document.getElementById('tc-groups-badge');
+  if (!badge) return;
+  const count = Number(event.detail?.count) || 0;
+  badge.hidden = count <= 0;
+  badge.textContent = count > 9 ? '9+' : String(count);
+});
 
 /* ===================================================================
    TROLL DESKTOP OS — window manager + icons + taskbar.
@@ -7410,149 +6189,6 @@ function trollDesktopShow(boot) {
       }
     } catch {}
   }
-}
-
-function initializeSiteGate() {
-  hydrateSiteGateFields();
-  const enterBtn = document.getElementById('site-gate-enter');
-  const focusButtons = document.querySelectorAll('[data-gate-focus]');
-  const passInput = document.getElementById('gate-login-pass');
-  const lockPassInput = document.getElementById('gate-lock-pass');
-  const lockVerifyBtn = document.getElementById('gate-lock-verify');
-  const lockToggleBtn = document.getElementById('gate-lock-toggle');
-  const gate = document.getElementById('site-gate');
-  if (!gate) {
-    document.body.classList.remove('site-entry-locked');
-    return;
-  }
-
-  if (!shouldShowSiteGate()) {
-    gate.classList.add('is-hidden');
-    document.body.classList.remove('site-entry-locked');
-    trollDesktopShow(false);
-  }
-  document.documentElement.classList.remove('site-gate-skip-initial');
-  updateSiteGateLockUI();
-  window.setInterval(updateSiteGateLockUI, 1000);
-
-  const tryEnter = () => {
-    if (!dismissSiteGate()) return;
-    window.setTimeout(() => {
-      const focusTarget = document.getElementById('header-music-playpause') || document.querySelector('main a, main button, main input, main textarea');
-      if (focusTarget && typeof focusTarget.focus === 'function') focusTarget.focus();
-    }, 0);
-  };
-
-  if (enterBtn) {
-    enterBtn.addEventListener('click', tryEnter);
-  }
-
-  focusButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      const targetId = button.getAttribute('data-gate-focus');
-      const target = targetId ? document.getElementById(targetId) : null;
-      if (target && typeof target.focus === 'function') target.focus();
-      if (target === enterBtn) tryEnter();
-    });
-  });
-
-  initializeGateAccountUI();
-
-  const syncLockToggle = () => {
-    updateGateLockToggleVisibility();
-  };
-
-  const verifyGateLockAdmin = async () => {
-    const helper = window.TrollrunnerAdminAuth;
-    const enteredPassword = getAdminPasswordValue();
-    if (!enteredPassword) {
-      setSiteGateLockFeedback('Enter the admin password first.', 'error');
-      if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
-      return false;
-    }
-    try {
-      if (!helper?.signInWithAdminPassword) throw new Error('Admin auth is unavailable right now.');
-      await helper.signInWithAdminPassword(enteredPassword, { silent: true });
-      gateLockAdminVerified = true;
-      if (lockPassInput) lockPassInput.value = '';
-      syncLockToggle();
-      if (lockToggleBtn && typeof lockToggleBtn.focus === 'function') lockToggleBtn.focus();
-      const feedbackNode = document.getElementById('gate-lock-feedback');
-      if (feedbackNode) feedbackNode.textContent = '';
-      return true;
-    } catch (error) {
-      gateLockAdminVerified = false;
-      syncLockToggle();
-      setSiteGateLockFeedback(error?.message ? String(error.message) : 'Wrong password. The lock stays put.', 'error');
-      if (lockPassInput) lockPassInput.select?.();
-      return false;
-    }
-  };
-
-  const toggleSiteLock = () => {
-    if (!gateLockAdminVerified) {
-      if (lockPassInput && typeof lockPassInput.focus === 'function') lockPassInput.focus();
-      return;
-    }
-    const nextLocked = getSitePublicLockRecord().mode === 'open';
-    setSitePublicLocked(nextLocked);
-    if (nextLocked) {
-      setSiteGateLockFeedback('Warning sent. Public access locks in 10 seconds.');
-    } else {
-      const feedbackNode = document.getElementById('gate-lock-feedback');
-      if (feedbackNode) {
-        delete feedbackNode.dataset.manual;
-        feedbackNode.textContent = '';
-      }
-    }
-  };
-
-  if (lockVerifyBtn) {
-    lockVerifyBtn.addEventListener('click', () => {
-      void verifyGateLockAdmin();
-    });
-  }
-  if (lockToggleBtn) {
-    lockToggleBtn.addEventListener('click', toggleSiteLock);
-  }
-  if (lockPassInput) {
-    lockPassInput.addEventListener('keydown', event => {
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      void verifyGateLockAdmin();
-    });
-  }
-  syncLockToggle();
-
-  window.addEventListener('keydown', event => {
-    if (event.key !== 'Enter' || gate.classList.contains('is-hidden')) return;
-    const active = document.activeElement;
-    if (active && ['INPUT', 'TEXTAREA'].includes(active.tagName)) {
-      if (active === passInput) return;
-      return;
-    }
-    event.preventDefault();
-    tryEnter();
-  }, { once: false });
-
-  window.addEventListener('storage', event => {
-    if (event.key === SITE_PUBLIC_LOCK_KEY || event.key === window.TrollrunnerSiteLock?.storageKey) updateSiteGateLockUI();
-    if (event.key === window.TrollrunnerAdminAuth?.adminAuthKey) updateSiteGateLockUI();
-  });
-
-  window.TrollrunnerSiteGate = {
-    resetAfterLogout() {
-      clearSiteGateSeen();
-      gateLockAdminVerified = false;
-      if (lockPassInput) lockPassInput.value = '';
-      if (getSitePublicLockRecord().mode === 'open') {
-        gate.classList.remove('is-hidden');
-        document.body.classList.add('site-entry-locked');
-      }
-      updateGateLockToggleVisibility();
-      updateSiteGateLockUI();
-    },
-  };
 }
 
 function getViewerId() {
@@ -11795,7 +10431,7 @@ document.getElementById('admin-pass')?.addEventListener('keydown', event => {
   void goToAdmin();
 });
 
-initializeSiteGate(); loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence(); initializeTrollChat();
+loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence(); initializeTrollChat();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }
