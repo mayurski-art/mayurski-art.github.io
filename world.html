@@ -3913,8 +3913,7 @@
 
         if (isFirstRender) {
           state.initialScrollDone = true;
-          const target = targetId ? els.feed.querySelector(`[data-id="${CSS.escape(targetId)}"]`) : null;
-          els.feed.scrollTop = target ? Math.max(0, target.offsetTop - 12) : els.feed.scrollHeight;
+          els.feed.scrollTop = els.feed.scrollHeight;
           hideJumpPill();
         } else if (wasNearBottom) {
           els.feed.scrollTop = els.feed.scrollHeight;
