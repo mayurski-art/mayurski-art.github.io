@@ -674,11 +674,17 @@
      ------------------------------------------------------------------ */
   const X_LINK_PARAM = 'x_linked';
 
+  // Same www-normalization as recoveryRedirectUrl() above — Supabase's
+  // redirect-URL allowlist only covers https://www.trollrunner.net/*, but
+  // the site's CNAME is the bare apex, and subdomains (games., fitness.,
+  // etc.) are their own top-level pages off the desktop iframe shell. A
+  // visitor on any of those hosts would build a redirect Supabase rejects,
+  // silently breaking connectX() for them while it worked for someone on
+  // www.
   function xRedirectUrl() {
-    const url = new URL(location.href);
-    url.hash = '';
-    url.searchParams.set(X_LINK_PARAM, '1');
-    return url.toString();
+    const onTrollrunner = /(^|\.)trollrunner\.net$/i.test(location.hostname);
+    const base = onTrollrunner ? 'https://www.trollrunner.net' : location.origin;
+    return `${base}/?${X_LINK_PARAM}=1`;
   }
 
   async function connectX() {
