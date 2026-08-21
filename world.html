@@ -3911,16 +3911,31 @@
           els.feed.appendChild(msgRow(m, m.name === state.name));
         });
 
+        let stickToBottom = false;
         if (isFirstRender) {
           state.initialScrollDone = true;
           els.feed.scrollTop = els.feed.scrollHeight;
           hideJumpPill();
+          stickToBottom = true;
         } else if (wasNearBottom) {
           els.feed.scrollTop = els.feed.scrollHeight;
           hideJumpPill();
+          stickToBottom = true;
         } else {
           els.feed.scrollTop = Math.max(0, els.feed.scrollHeight - els.feed.clientHeight - distanceFromBottom);
           updateJumpPill();
+        }
+        // Avatars, GIFs, and drawings load async and grow the feed's height
+        // after we've already set scrollTop — which shoves the "bottom" view
+        // back up toward earlier messages. Re-stick once each image settles.
+        if (stickToBottom) {
+          els.feed.querySelectorAll('img').forEach(img => {
+            if (img.complete) return;
+            img.addEventListener('load', () => {
+              const stillNearBottom = els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight < 200;
+              if (stillNearBottom) els.feed.scrollTop = els.feed.scrollHeight;
+            }, { once: true });
+          });
         }
         saveLastSeen(topVisibleId());
         if (els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight < 60) clearUnreadMarker();
