@@ -695,6 +695,18 @@
       }
     });
 
+    // Same-origin iframe inside the troll desktop: navigating "/" would
+    // replay the whole boot/lock sequence in a small window and look
+    // broken. Only follow the link (with the skip-entrance flag PFP
+    // Studio/Stickers also set) when this is a real top-level page.
+    document.getElementById('back-island').addEventListener('click', (e) => {
+      if (window.self === window.top) {
+        try { sessionStorage.setItem('trollrunner_skip_entrance', '1'); } catch {}
+      } else {
+        e.preventDefault();
+      }
+    });
+
     refreshSession();
   }
 

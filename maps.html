@@ -123,11 +123,15 @@ a { color: inherit; }
 .hud { position: fixed; z-index: 20; pointer-events: none; }
 .hud > * { pointer-events: auto; }
 .top-right { top: 16px; right: 16px; display: flex; align-items: center; gap: 8px; }
+.top-left { top: 16px; left: 16px; }
 .back-island {
-  display: none; width: 36px; height: 36px; border-radius: 50%;
-  align-items: center; justify-content: center; font-size: 16px; text-decoration: none;
+  display: inline-flex; width: 36px; height: 36px; border-radius: 10px;
+  align-items: center; justify-content: center; font-size: 16px;
+  text-decoration: none; background: rgba(255,255,255,0.05);
+  border: 1px solid var(--line); color: var(--foreground);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-@media (max-width: 640px) { .back-island { display: inline-flex; } }
+.back-island:hover, .back-island:focus-visible { background: rgba(255,255,255,0.1); }
 .search-wrap { top: 16px; left: 50%; transform: translateX(-50%); width: min(28rem, calc(100vw - 2rem)); }
 .search-input {
   width: 100%; border-radius: 999px; border: 1px solid var(--line);
@@ -207,8 +211,11 @@ a { color: inherit; }
 
 <div id="pick-banner" class="hud panel pick-banner" style="display:none;">Click anywhere on the map to drop your pin there</div>
 
+<div class="hud top-left">
+  <a href="https://trollrunner.net/" id="back-island" class="panel back-island" aria-label="Back to trollrunner.net" title="Back to trollrunner.net">&larr;</a>
+</div>
+
 <div class="hud top-right">
-  <a href="https://trollrunner.net/" class="panel back-island" aria-label="Back to the Island">&larr;</a>
   <button type="button" id="session-btn" class="btn btn--ghost" style="display:none;padding:8px 14px;font-size:12px;"></button>
   <button type="button" id="drop-pin-btn" class="btn btn--primary">
     <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pin);"></span>
