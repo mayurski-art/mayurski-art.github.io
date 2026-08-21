@@ -1880,7 +1880,7 @@
        index.html, so a session started on either shell is already shared —
        no SSO bridge needed here, unlike the sibling subdomains. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
-  <script src="assets/js/troll-accounts.js?v=20260818c"></script>
+  <script src="assets/js/troll-accounts.js?v=20260821a"></script>
   <!-- Separate credential from the one above: a fixed admin@login.trollrunner.net
        password session, not a regular troll_runner profile login. This is
        what admin.html itself gates on, so it's what the menu's Admin link
@@ -1955,8 +1955,8 @@
         to: '/hub', color: '#4dff73',
         icon: 'assets/images/icons/hub.png', img: 'assets/images/wallpaper-src/trollrunner.obj-hub.png',
         l: 51, t: 40, h: 15, rot: 0, hw: 10, hh: 17 },
-      { id: 'maps',     label: 'Maps',      sub: 'maps.trollrunner.net',
-        href: 'https://maps.trollrunner.net', external: true, color: '#30d158',
+      { id: 'maps',     label: 'Maps',      sub: 'trollrunner.net/maps',
+        to: 'maps.html', color: '#30d158',
         icon: 'assets/images/icons/troll-map.png', img: 'assets/images/world/maps.png',
         l: 82, t: 430, h: 11 },
       { id: 'videos',   label: 'Videos',    sub: 'videos.trollrunner.net',

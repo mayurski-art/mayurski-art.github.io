@@ -5541,7 +5541,7 @@ body.desktop-mode .troll-desktop { display: block; }
 <script src="assets/js/admin-auth.js?v=20260815a"></script>
 <script src="assets/js/troll-pay-config.js"></script>
 <script src="assets/js/troll-pay.js"></script>
-<script src="assets/js/troll-accounts.js?v=20260818c"></script>
+<script src="assets/js/troll-accounts.js?v=20260821a"></script>
 <script src="assets/js/troll-radio-tracks.js?v=20260812a"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script src="assets/js/troll-chat-extras.js?v=20260818a"></script>
@@ -6152,7 +6152,6 @@ const TD_SITES = [
   { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
   { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
   { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
-  { id: 'maps', label: 'Maps', icon: '📍', img: 'assets/images/icons/troll-map.png', flat: true, href: 'https://maps.trollrunner.net', color: '#30d158', desc: 'See where every troll is from and drop your own pin.' },
 ];
 // Admin-only entries are excluded from the public desktop icons and start
 // menu, but stay in TD_SITES so twOpen() and admin.html can still reach
@@ -6242,6 +6241,17 @@ TD_WINDOWS.stickers = {
   width: 1040, browser: true,
   url: 'trollrunner.net/stickers', iframeSrc: 'stickers.html',
   build: body => tdBuildIframe(body, 'stickers.html', 'Stickers'),
+  maximizeByDefault: true,
+};
+// Maps used to live on its own maps.trollrunner.net subdomain
+// (trollrunner-maps repo, a Next.js + MapLibre app); ported into a local
+// same-origin page for the same reason as PFP Studio/Stickers above — no
+// SSO bridge needed, one less repo. assets/js/troll-map.js has the app.
+TD_WINDOWS.maps = {
+  title: 'Maps', icon: '📍', img: 'assets/images/icons/troll-map.png', flat: true,
+  width: 1040, browser: true,
+  url: 'trollrunner.net/maps', iframeSrc: 'maps.html',
+  build: body => tdBuildIframe(body, 'maps.html', 'Maps'),
   maximizeByDefault: true,
 };
 // Mirrors the "Classic desktop" link world.html's own World menu offers phone

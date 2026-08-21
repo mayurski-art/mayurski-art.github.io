@@ -2380,7 +2380,7 @@
     void getLocation().then(location => {
       if (!location) {
         locNote.innerHTML = 'You haven’t dropped a pin yet. ' +
-          '<a href="https://maps.trollrunner.net" target="_blank" rel="noopener noreferrer">Put yourself on the map</a>.';
+          '<a href="https://trollrunner.net/maps.html" target="_blank" rel="noopener noreferrer">Put yourself on the map</a>.';
         return;
       }
       locNote.textContent = locationText(location);
@@ -2400,7 +2400,7 @@
 
       const locLink = document.createElement('p');
       locLink.className = 'ta-muted';
-      locLink.innerHTML = '<a href="https://maps.trollrunner.net" target="_blank" rel="noopener noreferrer">Move or remove your pin</a>';
+      locLink.innerHTML = '<a href="https://trollrunner.net/maps.html" target="_blank" rel="noopener noreferrer">Move or remove your pin</a>';
 
       locSection.append(locLabel, locStatus, locLink);
     });
