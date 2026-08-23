@@ -3921,8 +3921,21 @@
           els.feed.appendChild(msgRow(m, m.name === state.name));
         });
 
+        // initHubChat boots (and fetchHistory/addMessage fire) as soon as the
+        // page loads, long before the user has ever opened the Hub sheet —
+        // #hub-room sits behind the [hidden] attribute until they do, which
+        // means clientHeight/scrollHeight both read 0 here. Positioning the
+        // scroll (or recording topVisibleId as the read marker) against that
+        // fake zero-height layout would wrongly "read" everything down to
+        // row 1 and leave the feed pinned at the very top once it becomes
+        // visible — so both are skipped while hidden and retried by
+        // enterRoom() the moment the room is actually shown.
+        const feedVisible = els.feed.clientHeight > 0;
         let stickToBottom = false;
-        if (isFirstRender) {
+        if (isFirstRender && !feedVisible) {
+          // leave initialScrollDone false — next renderFeed() (triggered by
+          // enterRoom once visible, or the next message) tries again.
+        } else if (isFirstRender) {
           state.initialScrollDone = true;
           // Discord-style resume: land just above the NEW divider (the first
           // message the user hasn't seen yet) instead of jumping to the very
@@ -3956,8 +3969,10 @@
             }, { once: true });
           });
         }
-        saveLastSeen(topVisibleId());
-        if (els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight < 60) clearUnreadMarker();
+        if (feedVisible) {
+          saveLastSeen(topVisibleId());
+          if (els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight < 60) clearUnreadMarker();
+        }
       }
 
       function addMessage(raw, opts) {
@@ -4080,7 +4095,14 @@
         HUB_SCREENS.forEach(s => { const el = document.getElementById(s); if (el) el.hidden = s !== id; });
         document.getElementById('hub').classList.toggle('is-room', id !== 'hub-lobby');
       }
-      function enterRoom() { showScreen('hub-room'); }
+      function enterRoom() {
+        showScreen('hub-room');
+        // renderFeed() ran earlier while #hub-room was still [hidden] (see
+        // its feedVisible guard) and deferred scroll positioning — now that
+        // the feed has real layout, retry so it actually lands at the
+        // divider/bottom instead of sitting wherever scrollTop defaulted to.
+        if (!state.initialScrollDone) renderFeed();
+      }
 
       /* ================= MESSAGES (DMs + group chats) =================
          Same backend as the classic desktop's MESSAGES panel — no new tables
