@@ -1121,6 +1121,12 @@ header p {
   color: #16261d;
   word-break: break-word;
 }
+.live-chat-unread-divider {
+  display: flex; align-items: center; gap: 8px; margin: 6px 0 2px;
+  color: #ff5e5e; font-family: var(--tc-term); font-size: 11px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+}
+.live-chat-unread-divider::before, .live-chat-unread-divider::after { content: ''; flex: 1; height: 1px; background: #ff5e5e66; }
 .live-chat-typing {
   min-height: 18px;
   display: flex;
@@ -8730,6 +8736,8 @@ const trollChat = {
   initialScrollDone: false,
   lastSeenSaveTimer: null,
   unread: 0,             // messages missed in the global room since it was last actually viewed
+  unreadMarkerId: null,  // message the NEW divider sits above, cleared once scrolled into view
+  caughtUpCount: null,
 };
 
 function tcGuestId() {
@@ -8889,12 +8897,30 @@ function tcTopVisibleId() {
   return null;
 }
 
+// Once the user has scrolled down to (or the feed already fits within) the
+// caught-up point, the NEW divider has done its job — drop it so reopening
+// the chat later doesn't show a stale marker for messages already seen.
+function tcClearUnreadMarker() {
+  if (!trollChat.unreadMarkerId) return;
+  trollChat.unreadMarkerId = null;
+  const feed = trollChat.els?.feed;
+  const el = feed?.querySelector('.live-chat-unread-divider');
+  if (el) el.remove();
+}
+
+function tcUnreadDivider() {
+  const row = document.createElement('div');
+  row.className = 'live-chat-unread-divider';
+  row.innerHTML = '<span>NEW</span>';
+  return row;
+}
+
 function tcHandleFeedScroll() {
   tcSaveLastSeen(tcTopVisibleId());
   const feed = trollChat.els?.feed;
   if (!feed) return;
   const distanceFromBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight;
-  if (distanceFromBottom < 60) tcHideJumpPill();
+  if (distanceFromBottom < 60) { tcHideJumpPill(); tcClearUnreadMarker(); }
 }
 
 // "N new messages" pill: caughtUpCount is the message count as of the last
@@ -8940,7 +8966,16 @@ function tcRenderFeed() {
     feed.appendChild(empty);
     return;
   }
+  const targetId = isFirstRender ? (trollChat.lastSeenId || tcLoadLastSeen()) : null;
+  if (isFirstRender && targetId) {
+    const idx = trollChat.messages.findIndex(x => x.id === targetId);
+    if (idx >= 0 && idx < trollChat.messages.length - 1) {
+      trollChat.unreadMarkerId = trollChat.messages[idx + 1].id;
+      trollChat.caughtUpCount = idx + 1;
+    }
+  }
   trollChat.messages.forEach(message => {
+    if (message.id === trollChat.unreadMarkerId) feed.appendChild(tcUnreadDivider());
     const row = document.createElement('article');
     row.className = 'live-chat-message';
     row.dataset.id = message.id;
@@ -8991,10 +9026,16 @@ function tcRenderFeed() {
 
   if (isFirstRender) {
     trollChat.initialScrollDone = true;
-    const targetId = trollChat.lastSeenId || tcLoadLastSeen();
-    const target = targetId ? feed.querySelector(`[data-id="${CSS.escape(targetId)}"]`) : null;
-    feed.scrollTop = target ? Math.max(0, target.offsetTop - 12) : feed.scrollHeight;
-    tcHideJumpPill();
+    // Discord-style resume: land just above the NEW divider (the first
+    // message the user hasn't seen yet) instead of jumping to the bottom.
+    const dividerEl = feed.querySelector('.live-chat-unread-divider');
+    if (dividerEl) {
+      feed.scrollTop = Math.max(0, dividerEl.offsetTop - 12);
+      tcUpdateJumpPill();
+    } else {
+      feed.scrollTop = feed.scrollHeight;
+      tcHideJumpPill();
+    }
   } else if (wasNearBottom) {
     feed.scrollTop = feed.scrollHeight;
     tcHideJumpPill();
@@ -9003,6 +9044,7 @@ function tcRenderFeed() {
     tcUpdateJumpPill();
   }
   tcSaveLastSeen(tcTopVisibleId());
+  if (feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60) tcClearUnreadMarker();
 }
 
 /* ---- notifications: unread dock badge + bottom-right toast, global room
