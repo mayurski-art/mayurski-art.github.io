@@ -132,7 +132,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260823a' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260823b' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
@@ -4362,7 +4362,7 @@ body.desktop-mode .troll-desktop { display: block; }
           <img src="assets/images/wallpaper/obj-stickers.png" alt="">
           <span class="td-hot-chip">Stickers</span>
         </button>
-        <button class="td-hot" type="button" data-td-app="videos" style="--w:7.5%; --c:#c084fc; left:77.7%; top:32.5%;">
+        <button class="td-hot" type="button" data-td-app="videos" data-td-redirect="/videos" style="--w:7.5%; --c:#c084fc; left:77.7%; top:32.5%;">
           <img src="assets/images/wallpaper/obj-videos.png" alt="">
           <span class="td-hot-chip">Videos</span>
         </button>
@@ -4929,7 +4929,6 @@ const TD_SITES = [
   { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
   { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.', adminOnly: true },
   { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
-  { id: 'videos', label: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true, href: 'https://videos.trollrunner.net', color: '#c084fc', desc: 'Watch, create and share troll content.' },
   { id: 'projects', label: 'Projects / Community', icon: '🛠️', img: 'assets/images/icons/projects.png', flat: true, href: 'https://projects.trollrunner.net/', color: '#4deeff', desc: 'Open projects, tools and community hub.', adminOnly: true },
 ];
 // Admin-only entries are excluded from the public desktop icons and start
@@ -4998,7 +4997,7 @@ TD_SITES.forEach(site => {
     url: site.href.replace(/^https?:\/\//, '').replace(/\/$/, ''),
     iframeSrc: site.href,
     build: body => tdBuildIframe(body, site.href, site.label),
-    maximizeByDefault: site.id === 'games' || site.id === 'finance' || site.id === 'terminal' || site.id === 'videos',
+    maximizeByDefault: site.id === 'games' || site.id === 'finance' || site.id === 'terminal',
     adminOnly: site.adminOnly,
   };
 });
@@ -5031,6 +5030,17 @@ TD_WINDOWS.maps = {
   width: 1040, browser: true,
   url: 'trollrunner.net/maps', iframeSrc: 'maps.html',
   build: body => tdBuildIframe(body, 'maps.html', 'Maps'),
+  maximizeByDefault: true,
+};
+// Videos used to live on its own videos.trollrunner.net subdomain
+// (trollrunner-videos repo); folded into a local same-origin page for the
+// same reason as PFP Studio/Stickers/Maps above — no SSO bridge needed,
+// one less repo. assets/js/videos.js has the app.
+TD_WINDOWS.videos = {
+  title: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true,
+  width: 1040, browser: true,
+  url: 'trollrunner.net/videos', iframeSrc: 'videos.html',
+  build: body => tdBuildIframe(body, 'videos.html', 'Videos'),
   maximizeByDefault: true,
 };
 // Mirrors the "Classic desktop" link world.html's own World menu offers phone
@@ -5674,6 +5684,7 @@ function tdRenderDockIcons() {
     { icon: TD_WINDOWS.finance.icon, img: TD_WINDOWS.finance.img, flat: true, label: 'Finances', onOpen: () => twOpen('finance') },
     { icon: TD_WINDOWS.stickers.icon, img: TD_WINDOWS.stickers.img, flat: true, label: 'Stickers', onOpen: () => twOpen('stickers') },
     { icon: TD_WINDOWS.maps.icon, img: TD_WINDOWS.maps.img, flat: true, label: 'Maps', onOpen: () => twOpen('maps') },
+    { icon: TD_WINDOWS.videos.icon, img: TD_WINDOWS.videos.img, flat: true, label: 'Videos', onOpen: () => twOpen('videos') },
     { icon: TD_WINDOWS.pfp.icon, img: TD_WINDOWS.pfp.img, flat: true, label: 'PFP Studio', onOpen: () => twOpen('pfp') },
   ];
   if (tdIsAdmin) {
@@ -5963,7 +5974,15 @@ function initializeTrollDesktop() {
     const id = btn.dataset.tdApp;
     const label = btn.querySelector('.td-hot-chip')?.textContent || id;
     btn.setAttribute('aria-label', label);
-    btn.addEventListener('click', () => twOpen(id));
+    // Videos' tripod landmark is a real link out to trollrunner.net/videos
+    // rather than the usual windowed in-page browser (twOpen) the other
+    // landmarks use — TD_WINDOWS.videos still exists for the taskbar dock
+    // icon, this hotspot alone bypasses it.
+    const redirect = btn.dataset.tdRedirect;
+    btn.addEventListener('click', () => {
+      if (redirect) { window.location.href = redirect; return; }
+      twOpen(id);
+    });
   });
   tdApplyHotspotVisibility();
 
