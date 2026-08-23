@@ -3911,7 +3911,10 @@
         const targetId = isFirstRender ? (state.lastSeenId || loadLastSeen()) : null;
         if (isFirstRender && targetId) {
           const idx = state.messages.findIndex(x => x.id === targetId);
-          if (idx >= 0 && idx < state.messages.length - 1) state.unreadMarkerId = state.messages[idx + 1].id;
+          if (idx >= 0 && idx < state.messages.length - 1) {
+            state.unreadMarkerId = state.messages[idx + 1].id;
+            state.caughtUpCount = idx + 1;
+          }
         }
         state.messages.forEach(m => {
           if (m.id === state.unreadMarkerId) els.feed.appendChild(unreadDivider());
@@ -3921,9 +3924,18 @@
         let stickToBottom = false;
         if (isFirstRender) {
           state.initialScrollDone = true;
-          els.feed.scrollTop = els.feed.scrollHeight;
-          hideJumpPill();
-          stickToBottom = true;
+          // Discord-style resume: land just above the NEW divider (the first
+          // message the user hasn't seen yet) instead of jumping to the very
+          // bottom, so reopening the chat picks up where they left off.
+          const dividerEl = els.feed.querySelector('.hub-unread-divider');
+          if (dividerEl) {
+            els.feed.scrollTop = Math.max(0, dividerEl.offsetTop - 12);
+            updateJumpPill();
+          } else {
+            els.feed.scrollTop = els.feed.scrollHeight;
+            hideJumpPill();
+            stickToBottom = true;
+          }
         } else if (wasNearBottom) {
           els.feed.scrollTop = els.feed.scrollHeight;
           hideJumpPill();
