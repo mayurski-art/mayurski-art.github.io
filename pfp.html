@@ -241,8 +241,18 @@
       border-radius: 10px; padding: 0;
     }
     .hotspot.is-set::after {
-      content: ''; position: absolute; top: 7px; right: 7px; width: 9px; height: 9px;
-      border-radius: 50%; background: var(--pf-green); box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8);
+      content: ''; position: absolute; top: 7px; right: 7px; width: 10px; height: 10px;
+      border-radius: 50%; background: var(--pf-green);
+      box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 0 rgba(52, 199, 89, 0.9);
+      animation: pf-hotspot-pulse 1.3s ease-out infinite;
+    }
+    @keyframes pf-hotspot-pulse {
+      0% { box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 0 rgba(52, 199, 89, 0.9); transform: scale(1); }
+      50% { box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 12px rgba(52, 199, 89, 0); transform: scale(1.15); }
+      100% { box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 12px rgba(52, 199, 89, 0); transform: scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hotspot.is-set::after { animation: none; }
     }
     .hotspot-label {
       position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -7px);
@@ -256,6 +266,14 @@
        room's overflow:hidden was clipping it off-screen. Drop it below
        the button instead. */
     .hotspot[data-layer="headwear"] .hotspot-label { bottom: auto; top: 100%; transform: translate(-50%, 7px); }
+
+    .room-caption { display: none; }
+    @media (min-width: 861px) {
+      .room-caption {
+        margin: 0; padding: 9px 14px; background: var(--pf-bg); color: #fff;
+        font-family: var(--pf-sans); font-size: 12.5px; text-align: center; display: block;
+      }
+    }
 
     .room-panel[hidden] { display: none; }
     .room-panel-head {
@@ -654,6 +672,8 @@
           </button>
         </div>
 
+        <p class="room-caption">Customize your troll intentionally above here</p>
+
         <div class="room-panel" id="roomPanel" hidden>
           <div class="room-panel-head">
             <div class="drawer-preview" id="drawerPreview" aria-hidden="true"></div>
@@ -734,6 +754,8 @@
       tvFrames: Array.from(document.querySelectorAll('.room-bg-alt[data-tv-frame]')),
       picker: document.querySelector('.picker'),
       stage: document.querySelector('.stage'),
+      studio: document.querySelector('.studio'),
+      actions: document.querySelector('.actions'),
       drawerPreview: document.getElementById('drawerPreview'),
       roomPanel: document.getElementById('roomPanel'),
       roomPanelBody: document.getElementById('roomPanelBody'),
@@ -937,6 +959,24 @@
     }
 
     const isMobileLayout = () => window.matchMedia('(max-width: 860px)').matches;
+
+    /** Mobile-only: room card on top, preview card below, with the action
+     *  row lifted out from under the preview to sit between the two cards.
+     *  Desktop keeps the original nesting (actions inside .stage, right
+     *  before .note) — this just moves the same nodes back and forth. */
+    function layoutForViewport() {
+      if (isMobileLayout()) {
+        if (el.actions.parentElement !== el.studio) {
+          el.studio.insertBefore(el.picker, el.stage);
+          el.studio.insertBefore(el.actions, el.stage);
+        }
+      } else if (el.actions.parentElement === el.studio) {
+        el.stage.insertBefore(el.actions, el.note);
+        el.studio.insertBefore(el.stage, el.picker);
+      }
+    }
+    layoutForViewport();
+    addEventListener('resize', layoutForViewport, { passive: true });
 
     function openRoomPanel(layerId) {
       if (activeLayer === layerId && !el.roomPanel.hidden) { closeRoomPanel(); return; }
