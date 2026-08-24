@@ -93,9 +93,9 @@
     }
     button.btn-home:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--pf-line-dark); }
     .top-actions { display: flex; align-items: center; gap: 10px; flex: none; }
-    /* Hidden until we know the visitor is logged out — see updateAuthUI().
-       Save-as-profile silently no-ops for guests otherwise, with no hint
-       why; this is the "you'll need an account for that" nudge. */
+    /* Hidden until updateAuthUI() sets it to "Log in" or the account pill —
+       see JS. Save-as-profile silently no-ops for guests otherwise, with no
+       hint why; the "Log in" state is the "you'll need an account" nudge. */
     .btn-signin {
       display: none; height: 36px; padding: 0 15px; border-radius: 10px;
       border: 0.5px solid transparent; background: var(--pf-accent); color: #fff;
@@ -104,6 +104,17 @@
     }
     .btn-signin.is-visible { display: inline-flex; align-items: center; justify-content: center; }
     .btn-signin:hover { background: #6a68e0; }
+    /* Logged-in state: same button, swapped to an avatar + username pill
+       that opens the real trollrunner.net profile modal (openProfile()). */
+    .btn-signin.is-account {
+      padding: 0 14px 0 4px; gap: 8px; background: rgba(255, 255, 255, 0.06);
+      border-color: var(--pf-line-dark); color: #e7e7ec;
+    }
+    .btn-signin.is-account:hover { background: rgba(255, 255, 255, 0.1); }
+    .btn-signin.is-account img {
+      width: 28px; height: 28px; border-radius: 50%; object-fit: cover;
+      display: block; background: #000;
+    }
 
     /* ---------- layout ---------- */
     .studio { display: grid; grid-template-columns: minmax(0, 456px) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -1395,8 +1406,19 @@
     let pendingSaveAfterAuth = false;
 
     function updateAuthUI() {
-      const loggedIn = !!window.TrollrunnerAccounts?.getCachedProfile?.();
-      el.btnSignin.classList.toggle('is-visible', !loggedIn);
+      const session = window.TrollrunnerAccounts?.getCachedProfile?.() || null;
+      el.btnSignin.classList.add('is-visible');
+      el.btnSignin.classList.toggle('is-account', !!session);
+      el.btnSignin.innerHTML = '';
+      if (session) {
+        const icon = document.createElement('img');
+        icon.src = session.avatarUrl ? String(session.avatarUrl) : 'assets/animations/troll-grin.gif';
+        icon.alt = '';
+        el.btnSignin.appendChild(icon);
+        el.btnSignin.appendChild(document.createTextNode(session.username));
+      } else {
+        el.btnSignin.textContent = 'Log in';
+      }
     }
 
     function authApplyMode() {
@@ -1456,7 +1478,11 @@
         el.authSubmit.disabled = false;
       }
     });
-    el.btnSignin.addEventListener('click', () => openAuthModal(false));
+    el.btnSignin.addEventListener('click', () => {
+      const session = window.TrollrunnerAccounts?.getCachedProfile?.();
+      if (session) window.TrollrunnerAccounts.openProfile();
+      else openAuthModal(false);
+    });
     window.addEventListener('trollrunner:auth-changed', updateAuthUI);
 
     async function saveToProfile() {
