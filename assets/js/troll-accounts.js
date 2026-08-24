@@ -1410,16 +1410,16 @@
          art. It sits to the left of the name/pills, which reserve space via
          margin-left equal to (left offset + avatar width + gap). */
       .ta-row--banner { position: relative; z-index: 3; margin-top: -6px; padding-top: 10px; }
-      .ta-row--banner .ta-banner-ring { position: absolute; top: -38px; left: 4px;
+      .ta-row--banner .ta-banner-ring { position: absolute; top: -48px; left: 4px;
         border-radius: 10px; box-shadow: 0 0 0 3px #0a0d0b, inset 0 0 0 1px rgba(77,255,115,0.24),
         0 6px 14px rgba(0,0,0,0.3); }
-      .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 106px; }
+      .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 128px; }
       @media (max-width: 480px) {
         .ta-banner { height: 150px; margin: 0 -4px; }
         .ta-row--banner { padding-top: 8px; }
-        .ta-row--banner .ta-banner-ring { top: -30px; }
-        .ta-avatar { width: 76px; height: 76px; }
-        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 94px; }
+        .ta-row--banner .ta-banner-ring { top: -38px; }
+        .ta-avatar { width: 95px; height: 95px; }
+        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 113px; }
       }
       .ta-banner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
       .ta-banner-card { display: grid; gap: 5px; padding: 5px; font: inherit; color: #cfe9cf; text-align: center;
@@ -1428,7 +1428,7 @@
         background: linear-gradient(180deg, #17231b, #0c100e); }
       .ta-banner-card span { font-size: 12px; }
       .ta-banner-card.is-selected { border-color: #4dff73; box-shadow: 0 0 0 1px #4dff73, 0 0 10px rgba(77,255,115,0.35); }
-      .ta-avatar { width: 88px; height: 88px; flex: none; display: grid; place-items: center; font-size: 42px;
+      .ta-avatar { width: 110px; height: 110px; flex: none; display: grid; place-items: center; font-size: 53px;
         border: 3px solid #000; border-radius: 8px; overflow: hidden;
         background: linear-gradient(180deg, #17231b, #0c100e);
         box-shadow: inset 0 0 0 1px rgba(77,255,115,0.24), 0 6px 14px rgba(0,0,0,0.3); }
@@ -1554,9 +1554,9 @@
         .ta-body { padding: 10px 16px; gap: 10px; }
         .ta-banner { height: 150px; }
         .ta-row { gap: 10px; }
-        .ta-avatar { width: 72px; height: 72px; font-size: 32px; }
-        .ta-row--banner .ta-banner-ring { top: -30px; }
-        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 90px; }
+        .ta-avatar { width: 90px; height: 90px; font-size: 40px; }
+        .ta-row--banner .ta-banner-ring { top: -38px; }
+        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 108px; }
         .ta-name { font-size: 18px; }
         .ta-tabs { padding: 2px; }
         .ta-tab { padding: 6px 4px; }
