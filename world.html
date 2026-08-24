@@ -14,7 +14,7 @@
        holds up under zoom instead of exposing pixelation the way the old
        flat low-res composite did — worth letting people actually zoom in
        and look now. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -158,7 +158,7 @@
     /* Any `display` in a class rule outranks the hidden attribute, so a
        [hidden] grid/flex element stays on screen. Settle it once, up front. */
     [hidden] { display: none !important; }
-    html, body { height: 100%; }
+    html, body { height: 100%; touch-action: manipulation; }
     body {
       margin: 0; background: #000; color: var(--fg);
       font-family: var(--font-ui); -webkit-font-smoothing: antialiased;
