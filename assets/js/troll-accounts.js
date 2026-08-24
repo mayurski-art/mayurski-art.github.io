@@ -1417,9 +1417,9 @@
       @media (max-width: 480px) {
         .ta-banner { height: 150px; margin: 0 -4px; }
         .ta-row--banner { padding-top: 8px; }
-        .ta-row--banner .ta-banner-ring { top: -38px; }
-        .ta-avatar { width: 95px; height: 95px; }
-        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 113px; }
+        .ta-row--banner .ta-banner-ring { top: -30px; }
+        .ta-avatar { width: 76px; height: 76px; font-size: 36px; }
+        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 94px; }
       }
       .ta-banner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
       .ta-banner-card { display: grid; gap: 5px; padding: 5px; font: inherit; color: #cfe9cf; text-align: center;
