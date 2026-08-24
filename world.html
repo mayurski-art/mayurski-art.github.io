@@ -1592,7 +1592,7 @@
       <div class="track" id="track">
         <div class="track-fill" id="track-fill"></div>
         <div class="finish" aria-hidden="true"></div>
-        <div class="track-label" id="track-label">Run to enter</div>
+        <div class="track-label" id="track-label"></div>
         <div class="runner" id="runner" role="button" tabindex="0"
              aria-label="Run to enter — drag right, or press Enter">
           <img src="assets/images/world/runner.png" alt="">
@@ -2973,7 +2973,7 @@
       if (progress > 0.02) {
         label.innerHTML = `<span class="dist">${(progress * RACE_MILES).toFixed(2)} mi</span>`;
       } else {
-        label.textContent = 'Run to enter';
+        label.textContent = '';
       }
     }
 
