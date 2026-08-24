@@ -2978,11 +2978,26 @@
     let progress = 0, dragging = false, startX = 0, startProgress = 0, done = false;
     if (calm.matches) runnerVideo.pause();
 
+    // Backing resolution matches the actual device pixel ratio (capped at
+    // 2x — video-sourced canvases are heavy enough per frame that 3x on a
+    // high-DPI phone isn't worth the extra cost) instead of a fixed 1x
+    // buffer, which was rendering soft/blurry on any real phone screen.
+    const RUNNER_DPR = Math.min(2, window.devicePixelRatio || 1);
+    runnerCanvas.width = 50 * RUNNER_DPR;
+    runnerCanvas.height = 64 * RUNNER_DPR;
+    runnerCtx.imageSmoothingEnabled = true;
+    runnerCtx.imageSmoothingQuality = 'high';
+
     // Repaints the hidden video's current frame onto the visible canvas
     // every tick, keying out near-black pixels to real alpha as it goes —
     // see the .runner video/.runner canvas comment above for why this
     // exists instead of a CSS blend mode. Cheap: the canvas is tiny, and
-    // the loop is a no-op whenever the lock screen isn't showing.
+    // the loop is a no-op whenever the lock screen isn't showing. Alpha is
+    // a smooth falloff between two luminance thresholds rather than a hard
+    // cutoff, so the key doesn't leave a speckled/binary edge around the
+    // linework — compression noise in the "black" areas fades out instead
+    // of being scattered as stray opaque pixels.
+    const KEY_LO = 24, KEY_HI = 100;
     function paintRunnerFrame() {
       if (runnerVideo.readyState < 2) return;
       const vw = runnerVideo.videoWidth, vh = runnerVideo.videoHeight;
@@ -2995,7 +3010,12 @@
       const frame = runnerCtx.getImageData(0, 0, cw, ch);
       const d = frame.data;
       for (let i = 0; i < d.length; i += 4) {
-        if (d[i] < 60 && d[i + 1] < 60 && d[i + 2] < 60) d[i + 3] = 0;
+        const lum = Math.max(d[i], d[i + 1], d[i + 2]);
+        if (lum <= KEY_LO) { d[i + 3] = 0; continue; }
+        if (lum >= KEY_HI) continue;
+        let t = (lum - KEY_LO) / (KEY_HI - KEY_LO);
+        t = t * t * (3 - 2 * t);
+        d[i + 3] = Math.round(d[i + 3] * t);
       }
       runnerCtx.putImageData(frame, 0, 0);
     }
