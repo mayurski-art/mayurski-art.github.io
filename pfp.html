@@ -791,6 +791,58 @@
     // Layers that may legitimately be empty. Background and base are the
     // two that make a PFP read as a PFP, so they default to something.
     const OPTIONAL = new Set(['outfit', 'headwear', 'accessory']);
+    // Every other layer is one trait at a time — a troll only wears one
+    // outfit, one hat. Accessory is the exception: a handful of props were
+    // drawn to sit together (a cigar in one hand, chains around the neck),
+    // so up to two can be worn at once, but only pairs that were actually
+    // hand-checked to not overlap or read as visual nonsense (two hats,
+    // etc). MULTI_LAYERS is the set that gets that pairing behavior instead
+    // of plain swap-on-click.
+    const MULTI_LAYERS = new Set(['accessory']);
+    const MULTI_LIMIT = 2;
+    // A few accessories are re-skins of another with the exact same fit —
+    // they inherit that trait's whole compatibility list instead of
+    // duplicating every pair below.
+    const ACCESSORY_ALIASES = {
+      spliff: 'cigar',
+      'super-soaker': 'palm-leaf',
+      'troll-sign': 'princess-bat',
+    };
+    const canonicalAccessory = id => ACCESSORY_ALIASES[id] || id;
+    // Hand-approved accessory pairs. Anything not listed here is assumed to
+    // clash (two pairs of glasses, a hand full of props) and is left as a
+    // straight swap rather than guessed at.
+    const ACCESSORY_PAIRS = new Set([
+      ['cigar', 'deal-w-it-shades'], ['cigar', 'demon-pack'], ['deal-w-it-shades', 'demon-pack'],
+      ['cigar', 'diamond-hand'], ['deal-w-it-shades', 'diamond-hand'],
+      ['candle', 'gold-chains'], ['candle', 'demon-pack'], ['candle', 'diamond-hand'], ['candle', 'middle-fingers'],
+      ['cigar', 'gold-chains'], ['gold-chains', 'deal-w-it-shades'],
+      ['gold-chains', 'diamond-hand'], ['demon-pack', 'gold-chains'], ['gold-chains', 'middle-fingers'],
+      ['gold-chains', 'hotdog'], ['middle-fingers', 'demon-pack'], ['middle-fingers', 'deal-w-it-shades'],
+      ['middle-fingers', 'cigar'], ['deal-w-it-shades', 'monster-can'], ['cigar', 'monster-can'],
+      ['newspaper', 'gold-chains'], ['paintbrush', 'deal-w-it-shades'], ['paintbrush', 'cigar'],
+      ['paintbrush', 'boxing-gloves'], ['boxing-gloves', 'gold-chains'], ['paintbrush', 'hotdog'],
+      ['paintbrush', 'middle-fingers'], ['paintbrush', 'diamond-hand'], ['palm-leaf', 'cigar'],
+      ['palm-leaf', 'gold-chains'], ['palm-leaf', 'deal-w-it-shades'], ['princess-bat', 'paintbrush'],
+      ['princess-bat', 'gold-chains'], ['princess-bat', 'deal-w-it-shades'], ['princess-bat', 'cigar'],
+      ['shovel', 'cigar'], ['shovel', 'gold-chains'], ['shovel', 'diamond-hand'], ['shovel', 'deal-w-it-shades'],
+    ].map(pair => pair.map(canonicalAccessory).sort().join('|')));
+    function accessoriesCompatible(a, b) {
+      if (a === b) return false;
+      const key = [canonicalAccessory(a), canonicalAccessory(b)].sort().join('|');
+      return ACCESSORY_PAIRS.has(key);
+    }
+    // Candle was only ever drawn at one angle, so pairings that need it
+    // pointed a different way get that for free via a CSS/canvas transform
+    // rather than new art: flipped for the two "in the other hand" pairs,
+    // rotated upright for the vertical one.
+    const CANDLE_FLIP_WITH = new Set(['demon-pack', 'diamond-hand']);
+    const CANDLE_UPRIGHT_WITH = new Set(['middle-fingers']);
+    function candleTransform(otherIds) {
+      if (otherIds.some(id => CANDLE_UPRIGHT_WITH.has(id))) return 'rotate(90deg)';
+      if (otherIds.some(id => CANDLE_FLIP_WITH.has(id))) return 'scaleX(-1)';
+      return '';
+    }
     // Hand-shot photo of each hotspot's furniture, filled in as the whole
     // drawer's background. Every layer shows the full shot uncropped
     // (background-size: contain) except "base", which is allowed to crop
@@ -853,9 +905,12 @@
 
     let manifest = null;
     let activeLayer = null;
-    /** @type {Record<string, string|null>} layer id -> trait id (null = none) */
+    /** @type {Record<string, string|string[]|null>} layer id -> trait id
+     *  (null = none), except MULTI_LAYERS which hold a string[] instead. */
     let build = {};
-    /** layer id -> <img> in the preview stack, in z-order */
+    /** layer id -> <img>[] in the preview stack, in z-order. One entry for
+     *  ordinary layers, MULTI_LIMIT entries (extras hidden when unused) for
+     *  a multi layer. */
     const layerImg = new Map();
     /** Previous builds, oldest first. Randomize is one click away from losing
      *  a good troll forever, so every mutation is undoable. */
@@ -866,6 +921,29 @@
     const thumbSrc = (layer, trait) => `assets/pfp/${layer}/thumb/${trait}.webp`;
     const layerById = id => manifest.layers.find(l => l.id === id);
     const traitById = (layer, id) => layerById(layer)?.traits.find(t => t.id === id) || null;
+    /** True if a layer's slot in `build` currently holds anything, whether
+     *  that slot is a single id or (for MULTI_LAYERS) an array of them. */
+    const hasValue = v => Array.isArray(v) ? v.length > 0 : !!v;
+    /** Layer id -> array of trait ids, regardless of whether that layer is
+     *  single- or multi-select. Lets rendering/export loops treat every
+     *  layer the same way. */
+    const idsFor = (layerId, v) => MULTI_LAYERS.has(layerId) ? (v || []) : (v ? [v] : []);
+
+    /** Trims an accessory selection down to a valid one: known ids only,
+     *  deduped, capped at MULTI_LIMIT, and every id compatible with every
+     *  other id kept before it (so an incoming array is filtered in order —
+     *  first pick always survives, later picks only survive if they pair
+     *  with everything already kept). */
+    function sanitizeAccessorySet(ids) {
+      const kept = [];
+      for (const id of (ids || [])) {
+        if (!traitById('accessory', id) || kept.includes(id)) continue;
+        if (kept.length && !kept.every(k => accessoriesCompatible(k, id))) continue;
+        kept.push(id);
+        if (kept.length >= MULTI_LIMIT) break;
+      }
+      return kept;
+    }
 
     function note(msg, kind) {
       el.note.textContent = msg || '';
@@ -877,14 +955,15 @@
     function defaultBuild() {
       const next = {};
       for (const layer of manifest.layers) {
-        next[layer.id] = OPTIONAL.has(layer.id) ? null : (layer.traits[0]?.id ?? null);
+        next[layer.id] = MULTI_LAYERS.has(layer.id) ? [] : (OPTIONAL.has(layer.id) ? null : (layer.traits[0]?.id ?? null));
       }
       // A plain dressed troll beats whatever happens to sort first — and a
       // fresh visitor should see all five hotspots already lit, not just
       // the three that happen to be required.
       const preferred = { background: 'holo', base: 'og', outfit: 'tee-black', headwear: 'cap-black', accessory: 'gold-chains' };
       for (const [id, want] of Object.entries(preferred)) {
-        if (traitById(id, want)) next[id] = want;
+        if (!traitById(id, want)) continue;
+        next[id] = MULTI_LAYERS.has(id) ? [want] : want;
       }
       return next;
     }
@@ -893,13 +972,15 @@
       const next = {};
       for (const layer of manifest.layers) {
         const optional = OPTIONAL.has(layer.id);
+        const multi = MULTI_LAYERS.has(layer.id);
         // Solo art wears nothing else, so rolling it would silently strip the
         // rest of the troll — leave it to be chosen deliberately.
         const pool = layer.traits.filter(t => !t.solo);
         // "Randomize" keeps a wearable silhouette; "full random" fills every slot.
         const skip = optional && !all && layer.id === 'accessory' && Math.random() < 0.5;
-        if (skip || !pool.length) { next[layer.id] = null; continue; }
-        next[layer.id] = pool[Math.floor(Math.random() * pool.length)].id;
+        if (skip || !pool.length) { next[layer.id] = multi ? [] : null; continue; }
+        const pick = pool[Math.floor(Math.random() * pool.length)].id;
+        next[layer.id] = multi ? [pick] : pick;
       }
       return next;
     }
@@ -912,12 +993,21 @@
     function sanitize(raw) {
       const next = {};
       for (const layer of manifest.layers) {
+        if (MULTI_LAYERS.has(layer.id)) {
+          const want = raw?.[layer.id];
+          // Older saved builds (pre-multi-select) stored accessory as a
+          // plain string — accept that shape too.
+          const list = Array.isArray(want) ? want : (want ? [want] : []);
+          next[layer.id] = sanitizeAccessorySet(list);
+          continue;
+        }
         const want = raw?.[layer.id];
         next[layer.id] = want && traitById(layer.id, want) ? want : null;
       }
       // Anything required that got dropped falls back to the default.
       const base = defaultBuild();
       for (const layer of manifest.layers) {
+        if (MULTI_LAYERS.has(layer.id)) continue;
         if (!next[layer.id] && !OPTIONAL.has(layer.id)) next[layer.id] = base[layer.id];
       }
       return enforceSolo(next);
@@ -929,6 +1019,10 @@
       const raw = {};
       for (const layer of manifest.layers) {
         const v = params.get(layer.id);
+        if (MULTI_LAYERS.has(layer.id)) {
+          raw[layer.id] = v && v !== 'none' ? v.split(',').filter(Boolean) : [];
+          continue;
+        }
         raw[layer.id] = v && v !== 'none' ? v : null;
       }
       return raw;
@@ -944,6 +1038,7 @@
      *  the optional layers are emptied and locked. */
     function soloTrait() {
       for (const layer of manifest.layers) {
+        if (MULTI_LAYERS.has(layer.id)) continue; // multi-select layers never hold a solo trait
         const t = build[layer.id] && traitById(layer.id, build[layer.id]);
         if (t?.solo) return { layer, trait: t };
       }
@@ -975,9 +1070,11 @@
         // action that turned solo off wins over whatever was stashed.
         const restored = { ...next };
         for (const id of OPTIONAL) {
-          if (restored[id] == null && soloStash[id] && traitById(id, soloStash[id])) {
-            restored[id] = soloStash[id];
-          }
+          if (hasValue(restored[id])) continue;
+          const stashed = soloStash[id];
+          if (!hasValue(stashed)) continue;
+          if (MULTI_LAYERS.has(id)) restored[id] = sanitizeAccessorySet(stashed);
+          else if (traitById(id, stashed)) restored[id] = stashed;
         }
         soloStash = null;
         persistSoloStash();
@@ -985,11 +1082,11 @@
       }
       if (!soloStash) {
         soloStash = {};
-        for (const id of OPTIONAL) if (next[id]) soloStash[id] = next[id];
+        for (const id of OPTIONAL) if (hasValue(next[id])) soloStash[id] = next[id];
         persistSoloStash();
       }
       const clean = { ...next };
-      for (const id of OPTIONAL) clean[id] = null;
+      for (const id of OPTIONAL) clean[id] = MULTI_LAYERS.has(id) ? [] : null;
       return clean;
     }
 
@@ -1033,22 +1130,23 @@
 
     function renderStack() {
       for (const layer of manifest.layers) {
-        const img = layerImg.get(layer.id);
-        const trait = build[layer.id];
-        if (!img) continue;
-        if (trait) {
-          const src = fullSrc(layer.id, trait);
+        const imgs = layerImg.get(layer.id);
+        if (!imgs) continue;
+        const ids = idsFor(layer.id, build[layer.id]);
+        imgs.forEach((img, i) => {
+          const id = ids[i];
+          if (!id) { img.classList.remove('is-on'); img.alt = ''; img.style.transform = ''; return; }
+          const src = fullSrc(layer.id, id);
           if (!img.src.endsWith(src)) img.src = src;
           img.classList.add('is-on');
-          img.alt = `${layer.name}: ${traitById(layer.id, trait)?.name || trait}`;
-        } else {
-          img.classList.remove('is-on');
-          img.alt = '';
-        }
+          img.alt = `${layer.name}: ${traitById(layer.id, id)?.name || id}`;
+          // Candle's the only trait that needs a geometry tweak depending on
+          // what it's paired with — see candleTransform().
+          img.style.transform = id === 'candle' ? candleTransform(ids.filter(x => x !== id)) : '';
+        });
       }
       const worn = manifest.layers
-        .filter(l => build[l.id])
-        .map(l => traitById(l.id, build[l.id])?.name)
+        .flatMap(l => idsFor(l.id, build[l.id]).map(id => traitById(l.id, id)?.name))
         .filter(Boolean);
       el.summary.textContent = worn.length ? worn.join(' · ') : 'Empty troll';
       renderHotspots();
@@ -1062,11 +1160,10 @@
       for (const btn of el.hotspots) {
         const id = btn.dataset.layer;
         const label = btn.dataset.baseLabel;
-        btn.classList.toggle('is-set', !!build[id]);
+        const names = idsFor(id, build[id]).map(t => traitById(id, t)?.name).filter(Boolean);
+        btn.classList.toggle('is-set', names.length > 0);
         btn.classList.toggle('is-active', panelOpen && activeLayer === id);
-        btn.setAttribute('aria-label', build[id]
-          ? `${label} — ${traitById(id, build[id])?.name} selected`
-          : label);
+        btn.setAttribute('aria-label', names.length ? `${label} — ${names.join(' + ')} selected` : label);
       }
     }
 
@@ -1225,11 +1322,42 @@
       }
     }
 
+    /** Click handler for a MULTI_LAYERS cell: toggle off if already worn,
+     *  otherwise add it — replacing the current set instead of stacking if
+     *  it doesn't pair with what's already worn (whitelist in
+     *  ACCESSORY_PAIRS), so a click never silently no-ops. */
+    function toggleAccessory(id) {
+      const current = idsFor('accessory', build.accessory);
+      if (current.includes(id)) {
+        setBuild({ ...build, accessory: current.filter(x => x !== id) });
+        note('');
+        return;
+      }
+      if (!current.length) {
+        setBuild({ ...build, accessory: [id] });
+        note('');
+        return;
+      }
+      if (current.length < MULTI_LIMIT && current.every(k => accessoriesCompatible(k, id))) {
+        setBuild({ ...build, accessory: [...current, id] });
+        note('');
+        return;
+      }
+      // Doesn't pair with the current set — swap it in on its own rather
+      // than silently doing nothing or stacking a clashing combo.
+      const dropped = traitById('accessory', current[0])?.name || 'that';
+      setBuild({ ...build, accessory: [id] });
+      note(`${dropped} and ${traitById('accessory', id)?.name} clash, so it swapped in on its own.`);
+    }
+
     function cell(layer, trait) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'cell' + (trait ? '' : ' cell-none');
-      const selected = trait ? build[layer.id] === trait.id : !build[layer.id];
+      const multi = MULTI_LAYERS.has(layer.id);
+      const selected = trait
+        ? (multi ? idsFor(layer.id, build[layer.id]).includes(trait.id) : build[layer.id] === trait.id)
+        : !hasValue(build[layer.id]);
       btn.setAttribute('aria-pressed', String(selected));
 
       if (trait) {
@@ -1264,6 +1392,11 @@
         `${trait ? trait.name : `No ${layer.name.toLowerCase()}`}${selected ? ' (selected)' : ''}`);
 
       btn.addEventListener('click', () => {
+        if (multi) {
+          if (trait) toggleAccessory(trait.id);
+          else { setBuild({ ...build, [layer.id]: [] }); note(''); }
+          return;
+        }
         setBuild({ ...build, [layer.id]: trait ? trait.id : null });
         note('');
       });
@@ -1291,10 +1424,18 @@
       canvas.height = size;
       const ctx = canvas.getContext('2d');
       for (const layer of manifest.layers) {
-        const trait = build[layer.id];
-        if (!trait) continue;
-        const img = await loadImage(fullSrc(layer.id, trait));
-        ctx.drawImage(img, 0, 0, size, size);
+        const ids = idsFor(layer.id, build[layer.id]);
+        for (const id of ids) {
+          const img = await loadImage(fullSrc(layer.id, id));
+          const transform = id === 'candle' ? candleTransform(ids.filter(x => x !== id)) : '';
+          if (!transform) { ctx.drawImage(img, 0, 0, size, size); continue; }
+          ctx.save();
+          ctx.translate(size / 2, size / 2);
+          if (transform === 'scaleX(-1)') ctx.scale(-1, 1);
+          else if (transform === 'rotate(90deg)') ctx.rotate(Math.PI / 2);
+          ctx.drawImage(img, -size / 2, -size / 2, size, size);
+          ctx.restore();
+        }
       }
       return new Promise((resolve, reject) => {
         canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Export failed.'))), 'image/png');
@@ -1302,7 +1443,7 @@
     }
 
     function filename() {
-      const parts = manifest.layers.map(l => build[l.id]).filter(Boolean);
+      const parts = manifest.layers.flatMap(l => idsFor(l.id, build[l.id]));
       return `troll-pfp-${parts.slice(0, 3).join('-') || 'blank'}.png`;
     }
 
@@ -1520,14 +1661,20 @@
         return;
       }
 
-      // Preview stack: one <img> per layer, appended in manifest order so the
-      // DOM order IS the z-order (background first, accessories last).
+      // Preview stack: one <img> per layer (MULTI_LIMIT for a multi layer),
+      // appended in manifest order so the DOM order IS the z-order
+      // (background first, accessories last).
       for (const layer of manifest.layers) {
-        const img = document.createElement('img');
-        img.alt = '';
-        img.decoding = 'async';
-        el.stack.appendChild(img);
-        layerImg.set(layer.id, img);
+        const slots = MULTI_LAYERS.has(layer.id) ? MULTI_LIMIT : 1;
+        const imgs = [];
+        for (let i = 0; i < slots; i++) {
+          const img = document.createElement('img');
+          img.alt = '';
+          img.decoding = 'async';
+          el.stack.appendChild(img);
+          imgs.push(img);
+        }
+        layerImg.set(layer.id, imgs);
       }
 
       const total = manifest.layers.reduce((n, l) => n + l.traits.length, 0);
