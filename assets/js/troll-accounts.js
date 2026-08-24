@@ -1414,13 +1414,6 @@
         border-radius: 10px; box-shadow: 0 0 0 3px #0a0d0b, inset 0 0 0 1px rgba(77,255,115,0.24),
         0 6px 14px rgba(0,0,0,0.3); }
       .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 128px; }
-      @media (max-width: 480px) {
-        .ta-banner { height: 150px; margin: 0 -4px; }
-        .ta-row--banner { padding-top: 8px; }
-        .ta-row--banner .ta-banner-ring { top: -30px; }
-        .ta-avatar { width: 76px; height: 76px; font-size: 36px; }
-        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 94px; }
-      }
       .ta-banner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
       .ta-banner-card { display: grid; gap: 5px; padding: 5px; font: inherit; color: #cfe9cf; text-align: center;
         border: 2px solid #000; border-radius: 6px; background: rgba(255,255,255,0.04); cursor: pointer; }
@@ -1440,6 +1433,17 @@
         letter-spacing: 0.08em; text-transform: uppercase; text-align: center; color: #08110a;
         background: #4dff73; opacity: 0; transition: opacity 0.15s; border-radius: 0 0 6px 6px; }
       .ta-avatar-edit:hover .ta-avatar-edit-badge, .ta-avatar-edit:focus-visible .ta-avatar-edit-badge { opacity: 1; }
+      /* This has to come after the unconditional .ta-avatar/.ta-row--banner
+         rules above (same specificity — a media query doesn't raise it,
+         source order does) or the mobile shrink silently loses the cascade
+         and never applies. */
+      @media (max-width: 480px) {
+        .ta-banner { height: 150px; margin: 0 -4px; }
+        .ta-row--banner { padding-top: 8px; }
+        .ta-row--banner .ta-banner-ring { top: -30px; }
+        .ta-avatar { width: 76px; height: 76px; font-size: 36px; }
+        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 94px; }
+      }
       .ta-name-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
       .ta-name { margin: 0; font-size: 22px; font-weight: 700; color: #fff; word-break: break-all; }
       .ta-pill { display: inline-block; margin-top: 0; padding: 3px 8px; font-family: 'Rubik', system-ui, Arial, sans-serif;
