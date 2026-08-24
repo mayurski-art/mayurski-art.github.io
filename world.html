@@ -461,20 +461,21 @@
     }
     .runner {
       position: absolute; top: 5px; left: 5px; width: 58px; height: 58px;
-      border-radius: 999px; background: #0d0d11;
-      border: 1px solid var(--glass-stroke); box-shadow: 0 6px 18px #000000a6;
       display: grid; place-items: center; cursor: grab; touch-action: none;
       will-change: transform;
     }
     .runner:active { cursor: grabbing; }
-    /* cover (not contain) so the video fills the badge edge-to-edge with
-       no letterbox bars — the videos' "black" isn't pure #000 once
-       compressed, so any visible bar reads as a mismatched gray seam
-       against the badge's own background. object-position biases the
-       crop toward the head/torso, the part that reads at this size. */
-    .runner video {
-      width: 56px; height: 56px; object-fit: cover; object-position: 50% 15%;
-      pointer-events: none; border-radius: 999px;
+    /* No circular badge, no crop. The videos are baked onto solid black
+       with no real alpha — mix-blend-mode: screen would be the clean fix,
+       but <video> elements get their own hardware compositing layer in
+       Chromium/Edge and don't actually blend with CSS blend modes despite
+       reporting the computed style correctly. So the video itself stays
+       invisible (decode source only) and a same-size canvas repaints each
+       frame with near-black pixels keyed out to real alpha (see the
+       render loop below) — a manual chroma key that works everywhere. */
+    .runner video { position: absolute; opacity: 0; pointer-events: none; }
+    .runner canvas {
+      width: 50px; height: 64px; pointer-events: none;
     }
     .lock-hint {
       font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim);
@@ -1606,6 +1607,7 @@
              aria-label="Run to enter — drag right, or press Enter">
           <video id="runner-video" src="assets/images/world/trollrunner-idle.mp4"
                  muted autoplay loop playsinline disablepictureinpicture></video>
+          <canvas id="runner-canvas" width="50" height="64" aria-hidden="true"></canvas>
         </div>
       </div>
       <p class="lock-hint" id="lock-hint">Drag the troll to the finish line</p>
@@ -2970,19 +2972,46 @@
        the readout counts distance up as you go. Keyboard users get the same
        thing on arrow keys or Enter, because a drag-only door locks people out. */
     const track = $('track'), runner = $('runner'), runnerVideo = $('runner-video');
+    const runnerCanvas = $('runner-canvas'), runnerCtx = runnerCanvas.getContext('2d', { willReadFrequently: true });
     const fill = $('track-fill'), label = $('track-label'), hint = $('lock-hint');
     const RACE_MILES = 1.0;
     let progress = 0, dragging = false, startX = 0, startProgress = 0, done = false;
     if (calm.matches) runnerVideo.pause();
 
-    // Four looping video poses, all rendered on solid black so they blend
-    // into the badge's own dark background with no visible seam: idle
-    // waves whenever nobody's holding the runner, running plays while the
-    // drag is actually advancing, sad kicks in if the pointer stays down
-    // without moving — a thumb resting on the troll rather than swiping
-    // it — and victory takes over the instant the finish line is crossed.
-    // setMood() no-ops on repeat calls so it's safe to call every
-    // pointermove without thrashing the video element.
+    // Repaints the hidden video's current frame onto the visible canvas
+    // every tick, keying out near-black pixels to real alpha as it goes —
+    // see the .runner video/.runner canvas comment above for why this
+    // exists instead of a CSS blend mode. Cheap: the canvas is tiny, and
+    // the loop is a no-op whenever the lock screen isn't showing.
+    function paintRunnerFrame() {
+      if (runnerVideo.readyState < 2) return;
+      const vw = runnerVideo.videoWidth, vh = runnerVideo.videoHeight;
+      if (!vw || !vh) return;
+      const cw = runnerCanvas.width, ch = runnerCanvas.height;
+      const scale = Math.min(cw / vw, ch / vh);
+      const dw = vw * scale, dh = vh * scale;
+      runnerCtx.clearRect(0, 0, cw, ch);
+      runnerCtx.drawImage(runnerVideo, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+      const frame = runnerCtx.getImageData(0, 0, cw, ch);
+      const d = frame.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i] < 60 && d[i + 1] < 60 && d[i + 2] < 60) d[i + 3] = 0;
+      }
+      runnerCtx.putImageData(frame, 0, 0);
+    }
+    (function runnerLoop() {
+      if (body.dataset.phase === 'lock') paintRunnerFrame();
+      requestAnimationFrame(runnerLoop);
+    })();
+
+    // Four looping video poses, all rendered on solid black so the chroma
+    // key above has a clean color to cut against: idle waves whenever
+    // nobody's holding the runner, running plays while the drag is
+    // actually advancing, sad kicks in if the pointer stays down without
+    // moving — a thumb resting on the troll rather than swiping it — and
+    // victory takes over the instant the finish line is crossed. setMood()
+    // no-ops on repeat calls so it's safe to call every pointermove
+    // without thrashing the video element.
     const POSE = {
       idle: 'assets/images/world/trollrunner-idle.mp4',
       running: 'assets/images/world/trollrunner.mp4',
@@ -3002,7 +3031,7 @@
       runner.classList.add('mood-' + next);
     }
     let stallTimer = null;
-    const STALL_MS = 260;
+    const STALL_MS = 450;
     function armStallTimer() {
       clearTimeout(stallTimer);
       stallTimer = setTimeout(() => { if (dragging && !done) setMood('sad'); }, STALL_MS);
