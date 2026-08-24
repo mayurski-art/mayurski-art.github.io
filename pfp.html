@@ -792,45 +792,55 @@
     // two that make a PFP read as a PFP, so they default to something.
     const OPTIONAL = new Set(['outfit', 'headwear', 'accessory']);
     // Every other layer is one trait at a time — a troll only wears one
-    // outfit, one hat. Accessory is the exception: a handful of props were
-    // drawn to sit together (a cigar in one hand, chains around the neck),
-    // so up to two can be worn at once, but only pairs that were actually
-    // hand-checked to not overlap or read as visual nonsense (two hats,
+    // outfit. Accessory and headwear are the exceptions: a handful of props
+    // and hats/faces were drawn to sit together (a cigar in one hand,
+    // chains around the neck; a cap over glasses), so up to two can be worn
+    // at once per layer, but only pairs that were actually hand-checked to
+    // not overlap or read as visual nonsense (two full pairs of glasses,
     // etc). MULTI_LAYERS is the set that gets that pairing behavior instead
     // of plain swap-on-click.
-    const MULTI_LAYERS = new Set(['accessory']);
+    const MULTI_LAYERS = new Set(['accessory', 'headwear']);
     const MULTI_LIMIT = 2;
-    // A few accessories are re-skins of another with the exact same fit —
-    // they inherit that trait's whole compatibility list instead of
-    // duplicating every pair below.
-    const ACCESSORY_ALIASES = {
-      spliff: 'cigar',
-      'super-soaker': 'palm-leaf',
-      'troll-sign': 'princess-bat',
+    // A few traits are re-skins of another with the exact same fit — they
+    // inherit that trait's whole compatibility list instead of duplicating
+    // every pair below.
+    const MULTI_ALIASES = {
+      accessory: { spliff: 'cigar', 'super-soaker': 'palm-leaf', 'troll-sign': 'princess-bat' },
+      headwear: {},
     };
-    const canonicalAccessory = id => ACCESSORY_ALIASES[id] || id;
-    // Hand-approved accessory pairs. Anything not listed here is assumed to
-    // clash (two pairs of glasses, a hand full of props) and is left as a
-    // straight swap rather than guessed at.
-    const ACCESSORY_PAIRS = new Set([
-      ['cigar', 'deal-w-it-shades'], ['cigar', 'demon-pack'], ['deal-w-it-shades', 'demon-pack'],
-      ['cigar', 'diamond-hand'], ['deal-w-it-shades', 'diamond-hand'],
-      ['candle', 'gold-chains'], ['candle', 'demon-pack'], ['candle', 'diamond-hand'], ['candle', 'middle-fingers'],
-      ['cigar', 'gold-chains'], ['gold-chains', 'deal-w-it-shades'],
-      ['gold-chains', 'diamond-hand'], ['demon-pack', 'gold-chains'], ['gold-chains', 'middle-fingers'],
-      ['gold-chains', 'hotdog'], ['middle-fingers', 'demon-pack'], ['middle-fingers', 'deal-w-it-shades'],
-      ['middle-fingers', 'cigar'], ['deal-w-it-shades', 'monster-can'], ['cigar', 'monster-can'],
-      ['newspaper', 'gold-chains'], ['paintbrush', 'deal-w-it-shades'], ['paintbrush', 'cigar'],
-      ['paintbrush', 'boxing-gloves'], ['boxing-gloves', 'gold-chains'], ['paintbrush', 'hotdog'],
-      ['paintbrush', 'middle-fingers'], ['paintbrush', 'diamond-hand'], ['palm-leaf', 'cigar'],
-      ['palm-leaf', 'gold-chains'], ['palm-leaf', 'deal-w-it-shades'], ['princess-bat', 'paintbrush'],
-      ['princess-bat', 'gold-chains'], ['princess-bat', 'deal-w-it-shades'], ['princess-bat', 'cigar'],
-      ['shovel', 'cigar'], ['shovel', 'gold-chains'], ['shovel', 'diamond-hand'], ['shovel', 'deal-w-it-shades'],
-    ].map(pair => pair.map(canonicalAccessory).sort().join('|')));
-    function accessoriesCompatible(a, b) {
+    const canonicalTrait = (layerId, id) => MULTI_ALIASES[layerId]?.[id] || id;
+    function pairSet(layerId, pairs) {
+      return new Set(pairs.map(pair => pair.map(id => canonicalTrait(layerId, id)).sort().join('|')));
+    }
+    const CAP_IDS = ['cap-black', 'cap-blue', 'cap-green', 'cap-pink', 'cap-white', 'cap-yellow'];
+    // Hand-approved trait pairs, per multi-select layer. Anything not
+    // listed here is assumed to clash (two pairs of glasses, a hand full of
+    // props) and is left as a straight swap rather than guessed at.
+    const MULTI_PAIRS = {
+      accessory: pairSet('accessory', [
+        ['cigar', 'deal-w-it-shades'], ['cigar', 'demon-pack'], ['deal-w-it-shades', 'demon-pack'],
+        ['cigar', 'diamond-hand'], ['deal-w-it-shades', 'diamond-hand'],
+        ['candle', 'gold-chains'], ['candle', 'demon-pack'], ['candle', 'diamond-hand'], ['candle', 'middle-fingers'],
+        ['cigar', 'gold-chains'], ['gold-chains', 'deal-w-it-shades'],
+        ['gold-chains', 'diamond-hand'], ['demon-pack', 'gold-chains'], ['gold-chains', 'middle-fingers'],
+        ['gold-chains', 'hotdog'], ['middle-fingers', 'demon-pack'], ['middle-fingers', 'deal-w-it-shades'],
+        ['middle-fingers', 'cigar'], ['deal-w-it-shades', 'monster-can'], ['cigar', 'monster-can'],
+        ['newspaper', 'gold-chains'], ['paintbrush', 'deal-w-it-shades'], ['paintbrush', 'cigar'],
+        ['paintbrush', 'boxing-gloves'], ['boxing-gloves', 'gold-chains'], ['paintbrush', 'hotdog'],
+        ['paintbrush', 'middle-fingers'], ['paintbrush', 'diamond-hand'], ['palm-leaf', 'cigar'],
+        ['palm-leaf', 'gold-chains'], ['palm-leaf', 'deal-w-it-shades'], ['princess-bat', 'paintbrush'],
+        ['princess-bat', 'gold-chains'], ['princess-bat', 'deal-w-it-shades'], ['princess-bat', 'cigar'],
+        ['shovel', 'cigar'], ['shovel', 'gold-chains'], ['shovel', 'diamond-hand'], ['shovel', 'deal-w-it-shades'],
+      ]),
+      headwear: pairSet('headwear', [
+        ['diamond-teeth', 'bushes'], ['headset', 'diamond-teeth'],
+        ...CAP_IDS.map(cap => [cap, 'glasses']),
+      ]),
+    };
+    function traitsCompatible(layerId, a, b) {
       if (a === b) return false;
-      const key = [canonicalAccessory(a), canonicalAccessory(b)].sort().join('|');
-      return ACCESSORY_PAIRS.has(key);
+      const key = [canonicalTrait(layerId, a), canonicalTrait(layerId, b)].sort().join('|');
+      return MULTI_PAIRS[layerId]?.has(key) ?? false;
     }
     // Candle was only ever drawn at one angle, so pairings that need it
     // pointed a different way get that for free via a CSS/canvas transform
@@ -843,6 +853,15 @@
       if (otherIds.some(id => CANDLE_FLIP_WITH.has(id))) return 'scaleX(-1)';
       return '';
     }
+    // Paint order is normally just manifest layer order (background at the
+    // back, accessory at the front), but a couple of specific traits need
+    // to break that rule: the troll gang chain (an outfit trait) sits in
+    // front of gold chains (an accessory trait) but both still sit behind
+    // headwear, so a chain never clips through a hat/hair/bushes. Anything
+    // not listed here just uses its layer's normal rank.
+    const LAYER_RANK = { background: 0, base: 10, outfit: 20, headwear: 30, accessory: 40 };
+    const RANK_OVERRIDES = { 'gold-chains': 25, 'troll-gang-chain': 26 };
+    const rankFor = (layerId, id) => (id && RANK_OVERRIDES[id] != null) ? RANK_OVERRIDES[id] : LAYER_RANK[layerId];
     // Hand-shot photo of each hotspot's furniture, filled in as the whole
     // drawer's background. Every layer shows the full shot uncropped
     // (background-size: contain) except "base", which is allowed to crop
@@ -929,16 +948,16 @@
      *  layer the same way. */
     const idsFor = (layerId, v) => MULTI_LAYERS.has(layerId) ? (v || []) : (v ? [v] : []);
 
-    /** Trims an accessory selection down to a valid one: known ids only,
-     *  deduped, capped at MULTI_LIMIT, and every id compatible with every
-     *  other id kept before it (so an incoming array is filtered in order —
-     *  first pick always survives, later picks only survive if they pair
-     *  with everything already kept). */
-    function sanitizeAccessorySet(ids) {
+    /** Trims a multi-select layer's selection down to a valid one: known
+     *  ids only, deduped, capped at MULTI_LIMIT, and every id compatible
+     *  with every other id kept before it (so an incoming array is
+     *  filtered in order — first pick always survives, later picks only
+     *  survive if they pair with everything already kept). */
+    function sanitizeMultiSet(layerId, ids) {
       const kept = [];
       for (const id of (ids || [])) {
-        if (!traitById('accessory', id) || kept.includes(id)) continue;
-        if (kept.length && !kept.every(k => accessoriesCompatible(k, id))) continue;
+        if (!traitById(layerId, id) || kept.includes(id)) continue;
+        if (kept.length && !kept.every(k => traitsCompatible(layerId, k, id))) continue;
         kept.push(id);
         if (kept.length >= MULTI_LIMIT) break;
       }
@@ -998,7 +1017,7 @@
           // Older saved builds (pre-multi-select) stored accessory as a
           // plain string — accept that shape too.
           const list = Array.isArray(want) ? want : (want ? [want] : []);
-          next[layer.id] = sanitizeAccessorySet(list);
+          next[layer.id] = sanitizeMultiSet(layer.id, list);
           continue;
         }
         const want = raw?.[layer.id];
@@ -1073,7 +1092,7 @@
           if (hasValue(restored[id])) continue;
           const stashed = soloStash[id];
           if (!hasValue(stashed)) continue;
-          if (MULTI_LAYERS.has(id)) restored[id] = sanitizeAccessorySet(stashed);
+          if (MULTI_LAYERS.has(id)) restored[id] = sanitizeMultiSet(id, stashed);
           else if (traitById(id, stashed)) restored[id] = stashed;
         }
         soloStash = null;
@@ -1129,12 +1148,14 @@
     /* ---------- rendering ---------- */
 
     function renderStack() {
+      const stackOrder = [];
       for (const layer of manifest.layers) {
         const imgs = layerImg.get(layer.id);
         if (!imgs) continue;
         const ids = idsFor(layer.id, build[layer.id]);
         imgs.forEach((img, i) => {
           const id = ids[i];
+          stackOrder.push({ img, rank: rankFor(layer.id, id) });
           if (!id) { img.classList.remove('is-on'); img.alt = ''; img.style.transform = ''; return; }
           const src = fullSrc(layer.id, id);
           if (!img.src.endsWith(src)) img.src = src;
@@ -1145,6 +1166,14 @@
           img.style.transform = id === 'candle' ? candleTransform(ids.filter(x => x !== id)) : '';
         });
       }
+      // Paint order is DOM order for these absolutely-positioned layers —
+      // appendChild on an existing node moves it, so replaying every slot
+      // in rank order (see RANK_OVERRIDES) keeps the stack in sync even
+      // when a trait's visual front/back position differs from its layer's
+      // normal spot.
+      stackOrder.sort((a, b) => a.rank - b.rank);
+      for (const { img } of stackOrder) el.stack.appendChild(img);
+
       const worn = manifest.layers
         .flatMap(l => idsFor(l.id, build[l.id]).map(id => traitById(l.id, id)?.name))
         .filter(Boolean);
@@ -1325,29 +1354,29 @@
     /** Click handler for a MULTI_LAYERS cell: toggle off if already worn,
      *  otherwise add it — replacing the current set instead of stacking if
      *  it doesn't pair with what's already worn (whitelist in
-     *  ACCESSORY_PAIRS), so a click never silently no-ops. */
-    function toggleAccessory(id) {
-      const current = idsFor('accessory', build.accessory);
+     *  MULTI_PAIRS), so a click never silently no-ops. */
+    function toggleMulti(layerId, id) {
+      const current = idsFor(layerId, build[layerId]);
       if (current.includes(id)) {
-        setBuild({ ...build, accessory: current.filter(x => x !== id) });
+        setBuild({ ...build, [layerId]: current.filter(x => x !== id) });
         note('');
         return;
       }
       if (!current.length) {
-        setBuild({ ...build, accessory: [id] });
+        setBuild({ ...build, [layerId]: [id] });
         note('');
         return;
       }
-      if (current.length < MULTI_LIMIT && current.every(k => accessoriesCompatible(k, id))) {
-        setBuild({ ...build, accessory: [...current, id] });
+      if (current.length < MULTI_LIMIT && current.every(k => traitsCompatible(layerId, k, id))) {
+        setBuild({ ...build, [layerId]: [...current, id] });
         note('');
         return;
       }
       // Doesn't pair with the current set — swap it in on its own rather
       // than silently doing nothing or stacking a clashing combo.
-      const dropped = traitById('accessory', current[0])?.name || 'that';
-      setBuild({ ...build, accessory: [id] });
-      note(`${dropped} and ${traitById('accessory', id)?.name} clash, so it swapped in on its own.`);
+      const dropped = traitById(layerId, current[0])?.name || 'that';
+      setBuild({ ...build, [layerId]: [id] });
+      note(`${dropped} and ${traitById(layerId, id)?.name} clash, so it swapped in on its own.`);
     }
 
     function cell(layer, trait) {
@@ -1393,7 +1422,7 @@
 
       btn.addEventListener('click', () => {
         if (multi) {
-          if (trait) toggleAccessory(trait.id);
+          if (trait) toggleMulti(layer.id, trait.id);
           else { setBuild({ ...build, [layer.id]: [] }); note(''); }
           return;
         }
@@ -1423,19 +1452,26 @@
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
+      // Same rank order as the live preview (see renderStack) — otherwise
+      // a saved PNG could disagree with what was actually on screen.
+      const entries = [];
       for (const layer of manifest.layers) {
         const ids = idsFor(layer.id, build[layer.id]);
         for (const id of ids) {
-          const img = await loadImage(fullSrc(layer.id, id));
           const transform = id === 'candle' ? candleTransform(ids.filter(x => x !== id)) : '';
-          if (!transform) { ctx.drawImage(img, 0, 0, size, size); continue; }
-          ctx.save();
-          ctx.translate(size / 2, size / 2);
-          if (transform === 'scaleX(-1)') ctx.scale(-1, 1);
-          else if (transform === 'rotate(90deg)') ctx.rotate(Math.PI / 2);
-          ctx.drawImage(img, -size / 2, -size / 2, size, size);
-          ctx.restore();
+          entries.push({ layerId: layer.id, id, transform, rank: rankFor(layer.id, id) });
         }
+      }
+      entries.sort((a, b) => a.rank - b.rank);
+      for (const { layerId, id, transform } of entries) {
+        const img = await loadImage(fullSrc(layerId, id));
+        if (!transform) { ctx.drawImage(img, 0, 0, size, size); continue; }
+        ctx.save();
+        ctx.translate(size / 2, size / 2);
+        if (transform === 'scaleX(-1)') ctx.scale(-1, 1);
+        else if (transform === 'rotate(90deg)') ctx.rotate(Math.PI / 2);
+        ctx.drawImage(img, -size / 2, -size / 2, size, size);
+        ctx.restore();
       }
       return new Promise((resolve, reject) => {
         canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Export failed.'))), 'image/png');
