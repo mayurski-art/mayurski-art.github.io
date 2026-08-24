@@ -19,22 +19,25 @@
   const HOME_ZOOM = 2;
   const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 
-  // The stock dark style paints water lighter than land, which reads as a
-  // flat grey wash from orbit — this repaints it the way a map should look.
+  // The stock dark style has no generic "land" polygon at all — everything
+  // that isn't water/wood/park/residential/ice just shows the bare
+  // `background` fill, same as the ocean, which is why it read as a flat
+  // grey wash. Repainting `background` green and `water` blue makes land
+  // and ocean actually read as land and ocean, with pale ice at the poles.
   const REPAINT = [
-    ['background', 'background-color', '#1b2331'],
-    ['water', 'fill-color', '#070d17'],
-    ['waterway', 'line-color', '#0b1524'],
-    ['landcover_wood', 'fill-color', '#1b2a26'],
-    ['landuse_park', 'fill-color', '#1b2a26'],
-    ['landuse_residential', 'fill-color', '#212a39'],
-    ['landcover_glacier', 'fill-color', '#2b3546'],
-    ['landcover_ice_shelf', 'fill-color', '#232d3d'],
-    ['building', 'fill-color', '#141b26'],
-    ['boundary_country_z0-4', 'line-color', '#6b7a93'],
-    ['boundary_country_z5-', 'line-color', '#6b7a93'],
-    ['boundary_state', 'line-color', '#3f4b5e'],
-    ['water_name', 'text-color', '#7f93b0'],
+    ['background', 'background-color', '#16210f'],
+    ['water', 'fill-color', '#071b2c'],
+    ['waterway', 'line-color', '#0a2740'],
+    ['landcover_wood', 'fill-color', '#0f2a13'],
+    ['landuse_park', 'fill-color', '#1d3a1a'],
+    ['landuse_residential', 'fill-color', '#332c22'],
+    ['landcover_glacier', 'fill-color', '#cfe3ee'],
+    ['landcover_ice_shelf', 'fill-color', '#b7cad8'],
+    ['building', 'fill-color', '#241d16'],
+    ['boundary_country_z0-4', 'line-color', '#8fa3c2'],
+    ['boundary_country_z5-', 'line-color', '#8fa3c2'],
+    ['boundary_state', 'line-color', '#4a5a46'],
+    ['water_name', 'text-color', '#7fb8d9'],
     ['water_name', 'text-halo-color', 'rgba(3,6,12,0.9)'],
   ];
   const LABEL_LAYERS = [
@@ -42,6 +45,52 @@
     'place_city', 'place_city_large', 'place_state',
     'place_country_other', 'place_country_minor', 'place_country_major',
   ];
+
+  // A country's fill scales with how many trolls have pinned there — purple
+  // instead of the land's green so it stays visually distinct from the
+  // terrain underneath it. Matched by country *name*: the countries.json
+  // polygons and Nominatim's address.country mostly agree, with a few
+  // well-known exceptions covered here.
+  const COUNTRY_NAME_ALIASES = {
+    'United States': 'United States of America',
+    'Republic of Korea': 'South Korea',
+    'Korea, Republic of': 'South Korea',
+    "Democratic People's Republic of Korea": 'North Korea',
+    'Czech Republic': 'Czechia',
+    'Ivory Coast': "Côte d'Ivoire",
+    'Democratic Republic of the Congo': 'Dem. Rep. Congo',
+    'Republic of the Congo': 'Congo',
+    'Russian Federation': 'Russia',
+  };
+  const DENSITY_STEPS = [
+    [1, 'rgba(88,86,214,0.28)'],
+    [2, 'rgba(105,103,224,0.42)'],
+    [4, 'rgba(124,122,232,0.58)'],
+    [8, 'rgba(150,148,240,0.72)'],
+    [16, 'rgba(190,188,255,0.85)'],
+  ];
+  function densityColor(count) {
+    let color = DENSITY_STEPS[0][1];
+    DENSITY_STEPS.forEach(([min, c]) => { if (count >= min) color = c; });
+    return color;
+  }
+  function buildDensityExpression(pins) {
+    const counts = new Map();
+    pins.forEach((pin) => {
+      if (!pin.country) return;
+      const name = COUNTRY_NAME_ALIASES[pin.country] || pin.country;
+      counts.set(name, (counts.get(name) || 0) + 1);
+    });
+    const expr = ['match', ['get', 'name']];
+    counts.forEach((count, name) => { expr.push(name, densityColor(count)); });
+    expr.push('rgba(0,0,0,0)');
+    return expr;
+  }
+  let countryLayerReady = false;
+  function updateCountryDensity() {
+    if (!map || !countryLayerReady) return;
+    map.setPaintProperty('country-density', 'fill-color', buildDensityExpression(state.pins));
+  }
 
   function esc(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({
@@ -250,6 +299,24 @@
         repaint(layer, 'text-halo-color', 'rgba(3,6,12,0.95)');
       });
       map.setProjection({ type: state.mode === '3d' ? 'globe' : 'mercator' });
+
+      // Country-density choropleth: above the base land/water fills, below
+      // borders and labels, so it reads as a tint rather than a mask.
+      fetch('assets/geo/countries.json')
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error('no countries.json'))))
+        .then((geojson) => {
+          if (map.getSource('countries')) return;
+          map.addSource('countries', { type: 'geojson', data: geojson });
+          const beforeId = LABEL_LAYERS.find((id) => map.getLayer(id));
+          map.addLayer({
+            id: 'country-density',
+            type: 'fill',
+            source: 'countries',
+            paint: { 'fill-color': buildDensityExpression(state.pins) },
+          }, beforeId);
+          countryLayerReady = true;
+        })
+        .catch((err) => { console.warn('[map] country density layer failed to load', err); });
     });
     map.on('click', (event) => {
       if (state.picking) handleMapPick(event.lngLat.lat, event.lngLat.lng);
@@ -314,6 +381,7 @@
     }
     renderStats();
     renderMarkers();
+    updateCountryDensity();
   }
 
   async function refreshMyLocation() {
