@@ -467,15 +467,38 @@
     }
     .runner:active { cursor: grabbing; }
     .runner img { width: 42px; height: 42px; object-fit: contain; pointer-events: none; }
-    /* Idle wave loops only while the idle pose is showing — gated on
-       .mood-idle rather than drag state, so a keyboard-triggered sprint
-       (no pointer drag involved) doesn't inherit the bob too. */
+    /* Each mood gets its own loop, gated on a .mood-* class rather than
+       drag state directly — so a keyboard-triggered sprint (no pointer
+       drag involved) still gets the running loop, and nothing plays two
+       animations at once. transform-origin is nudged toward the raised
+       hand/shoulder for idle so the "wave" reads as a pivot, not a bob of
+       the whole body. */
     .runner.mood-idle img {
-      animation: runner-idle-bob 1.8s ease-in-out infinite;
+      transform-origin: 78% 15%;
+      animation: runner-idle-wave 1.4s ease-in-out infinite;
     }
-    @keyframes runner-idle-bob {
-      0%, 100% { transform: translateY(0) rotate(0deg); }
-      50% { transform: translateY(-2px) rotate(-4deg); }
+    .runner.mood-running img {
+      animation: runner-running-cycle .38s ease-in-out infinite;
+    }
+    .runner.mood-sad img {
+      transform-origin: 50% 0%;
+      animation: runner-sad-sway 2.6s ease-in-out infinite;
+    }
+    @keyframes runner-idle-wave {
+      0%, 100% { transform: rotate(0deg) translateY(0); }
+      25% { transform: rotate(-10deg) translateY(-1px); }
+      50% { transform: rotate(4deg) translateY(0); }
+      75% { transform: rotate(-6deg) translateY(-1px); }
+    }
+    @keyframes runner-running-cycle {
+      0%, 100% { transform: translateY(0) rotate(-2deg) scaleX(1) scaleY(1); }
+      25% { transform: translateY(-3px) rotate(2deg) scaleX(.97) scaleY(1.03); }
+      50% { transform: translateY(0) rotate(-2deg) scaleX(1.02) scaleY(.98); }
+      75% { transform: translateY(-3px) rotate(2deg) scaleX(.97) scaleY(1.03); }
+    }
+    @keyframes runner-sad-sway {
+      0%, 100% { transform: rotate(0deg) translateY(0); }
+      50% { transform: rotate(3deg) translateY(2px); }
     }
     @media (prefers-reduced-motion: reduce) {
       .runner img { animation: none !important; }
@@ -2993,7 +3016,8 @@
       if (next === mood) return;
       mood = next;
       runnerImg.src = POSE[next];
-      runner.classList.toggle('mood-idle', next === 'idle');
+      runner.classList.remove('mood-idle', 'mood-running', 'mood-sad');
+      runner.classList.add('mood-' + next);
     }
     let stallTimer = null;
     const STALL_MS = 260;
