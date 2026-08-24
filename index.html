@@ -132,11 +132,23 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260824a' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260824b' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
 })();
+</script>
+<script>
+// iOS Safari ignores user-scalable=no/maximum-scale in the viewport meta
+// (an accessibility override since iOS 10) — the only thing that actually
+// blocks pinch-zoom there is preventDefault on WebKit's proprietary gesture
+// events. touchmove covers the Chrome/Android two-finger case.
+['gesturestart', 'gesturechange', 'gestureend'].forEach(type => {
+  document.addEventListener(type, e => e.preventDefault());
+});
+document.addEventListener('touchmove', e => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&family=Press+Start+2P&family=Rubik+Glitch&family=Space+Grotesk:wght@500;700&family=VT323&display=swap');
@@ -184,6 +196,7 @@ html, body {
   background: var(--bg-shell);
   color: white;
   touch-action: manipulation;
+  overscroll-behavior: none;
 }
 body.site-entry-locked {
   overflow: hidden;

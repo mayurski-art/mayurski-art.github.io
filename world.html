@@ -8,12 +8,11 @@
        also evaluates strings, hence 'unsafe-eval' — index.html's CSP carries
        it for the same player. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://*.spotifycdn.com; frame-src 'self' https://open.spotify.com https://*.spotify.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
-  <!-- Pinch-zoom deliberately allowed: the island art is a genuinely
-       vector-traced SVG land base (see the .island comment below) plus
-       full-detail raster objects sized well past the render ceiling, so it
-       holds up under zoom instead of exposing pixelation the way the old
-       flat low-res composite did — worth letting people actually zoom in
-       and look now. -->
+  <!-- Pinch/double-tap zoom disabled to match the app-shell feel (see
+       trollface.io) — overrides the earlier "let people zoom the vector art"
+       call. iOS ignores user-scalable=no/maximum-scale on their own, so the
+       actual block is the gesturestart/gesturechange/gestureend
+       preventDefault() below. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -84,6 +83,18 @@
     vp.setAttribute('content', content + ', maximum-scale=1');
     requestAnimationFrame(() => vp.setAttribute('content', content));
   });
+  </script>
+  <script>
+  // iOS Safari ignores user-scalable=no/maximum-scale in the viewport meta
+  // (an accessibility override since iOS 10) — the only thing that actually
+  // blocks pinch-zoom there is preventDefault on WebKit's proprietary
+  // gesture events. touchmove covers the Chrome/Android two-finger case.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(type => {
+    document.addEventListener(type, e => e.preventDefault());
+  });
+  document.addEventListener('touchmove', e => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
   </script>
   <style>
     /* Native cross-document page transitions, on unconditionally (index.html
@@ -158,7 +169,7 @@
     /* Any `display` in a class rule outranks the hidden attribute, so a
        [hidden] grid/flex element stays on screen. Settle it once, up front. */
     [hidden] { display: none !important; }
-    html, body { height: 100%; touch-action: manipulation; }
+    html, body { height: 100%; touch-action: manipulation; overscroll-behavior: none; }
     body {
       margin: 0; background: #000; color: var(--fg);
       font-family: var(--font-ui); -webkit-font-smoothing: antialiased;
