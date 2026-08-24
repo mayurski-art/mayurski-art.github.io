@@ -284,6 +284,9 @@
       style: STYLE_URL,
       center: [-40, 20],
       zoom: HOME_ZOOM,
+      // Don't let users zoom out past the default framing — the globe
+      // shrinking to a speck looks bad.
+      minZoom: HOME_ZOOM,
       attributionControl: { compact: true },
       pitchWithRotate: false,
       dragRotate: false,

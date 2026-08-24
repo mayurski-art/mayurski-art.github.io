@@ -151,6 +151,16 @@ a { color: inherit; }
 .pick-banner { top: 64px; left: 50%; transform: translateX(-50%); padding: 8px 16px; font-size: 14px; font-weight: 500; }
 .right-rail { top: 50%; right: 16px; transform: translateY(-50%); display: none; flex-direction: column; gap: 8px; }
 @media (min-width: 640px) { .right-rail { display: flex; } }
+
+/* Below 640px the back button, search bar, and profile/pin controls all
+   collide at top:16px since search-wrap is nearly full-viewport width and
+   centered over them. Drop the search bar to its own row underneath. */
+@media (max-width: 639px) {
+  .search-wrap { top: 64px; left: 16px; right: 16px; width: auto; transform: none; }
+  .pick-banner { top: 112px; }
+  .top-right { max-width: calc(100vw - 68px); }
+  .top-right #session-btn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; }
+}
 .rail-btn { display: flex; align-items: center; gap: 8px; padding: 12px 16px; font-size: 14px; font-weight: 500; background: none; border: none; cursor: pointer; color: inherit; border-radius: 16px; }
 .stats {
   bottom: 16px; left: 16px; padding: 12px 16px; position: fixed; overflow: hidden;
@@ -257,8 +267,8 @@ a { color: inherit; }
 <aside id="side-panel" class="side-panel panel scroll-thin"></aside>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
-<script src="assets/js/troll-accounts.js?v=20260824b"></script>
+<script src="assets/js/troll-accounts.js?v=20260824c"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-<script src="assets/js/troll-map.js?v=20260824b"></script>
+<script src="assets/js/troll-map.js?v=20260824c"></script>
 </body>
 </html>
