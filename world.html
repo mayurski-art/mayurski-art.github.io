@@ -3079,7 +3079,10 @@
       label.innerHTML = '<span class="dist">Finished</span>';
       hint.textContent = 'Welcome to the island';
       runner.setAttribute('aria-disabled', 'true');
-      setTimeout(() => setPhase('home'), calm.matches ? 0 : 420);
+      // Give the victory loop a real beat on screen before the lockbar
+      // disappears into the home phase — 420ms was barely a flash, not
+      // long enough to register as a celebration.
+      setTimeout(() => setPhase('home'), calm.matches ? 0 : 1500);
     }
 
     function setProgress(p) {
