@@ -40,6 +40,15 @@
       "image": "assets/stickers/cupped-hands-qr.jpg",
       "bg": "sky",
       "hasQR": true
+    },
+    {
+      "id": "crypto-com-champion",
+      "title": "Champion Troll ($TROLL)",
+      "blurb": "Belt raised, arena lit. Scan to buy $TROLL.",
+      "tags": ["qr", "troll-coin", "poster"],
+      "image": "assets/stickers/crypto.com-trollsticker.jpeg",
+      "bg": "dark",
+      "hasQR": true
     }
   ]
 }
