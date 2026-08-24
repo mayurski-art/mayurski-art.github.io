@@ -4688,6 +4688,14 @@ function tdRenderDockIcons() {
     entries.push({ icon: TD_WINDOWS.checklist.icon, label: 'Checklist', onOpen: () => twOpen('checklist') });
   }
   entries.sort((a, b) => a.label.localeCompare(b.label));
+  // Games is pinned right after Feedback instead of sorting alphabetically
+  // (it would otherwise land after Finances, two spots away).
+  const gamesIdx = entries.findIndex(e => e.label === 'Games');
+  if (gamesIdx !== -1) {
+    const [gamesEntry] = entries.splice(gamesIdx, 1);
+    const feedbackIdx = entries.findIndex(e => e.label === 'Feedback');
+    entries.splice(feedbackIdx + 1, 0, gamesEntry);
+  }
   entries.forEach(({ onOpen, ...cfg }) => tdAddIcon(icons, cfg, onOpen));
   if (typeof tcUpdateUnreadBadge === 'function') tcUpdateUnreadBadge();
 }
