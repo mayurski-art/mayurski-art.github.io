@@ -1405,20 +1405,21 @@
         background: linear-gradient(0deg, rgba(0,0,0,0.6), rgba(0,0,0,0) 100%);
         opacity: 0; transition: opacity 0.15s; }
       .ta-banner-edit:hover .ta-banner-edit-badge, .ta-banner-edit:focus-visible .ta-banner-edit-badge { opacity: 1; }
-      /* Only the avatar peeks over the banner (Twitter-style); it's pulled
-         out of flow so the username/pills below it never sit on top of the
-         banner art. padding-top just clears the gap under the floating
-         banner — the avatar (taller, overlapping further up) fills the
-         rest of the visual gap on its own. */
+      /* The avatar peeks over the banner (Twitter-style); it's pulled out of
+         flow so the username/pills below it never sit on top of the banner
+         art. It sits to the left of the name/pills, which reserve space via
+         margin-left equal to (left offset + avatar width + gap). */
       .ta-row--banner { position: relative; z-index: 3; margin-top: -6px; padding-top: 10px; }
-      .ta-row--banner .ta-banner-ring { position: absolute; top: -60px; left: 4px;
+      .ta-row--banner .ta-banner-ring { position: absolute; top: -38px; left: 4px;
         border-radius: 10px; box-shadow: 0 0 0 3px #0a0d0b, inset 0 0 0 1px rgba(77,255,115,0.24),
         0 6px 14px rgba(0,0,0,0.3); }
-      .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 80px; }
+      .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 106px; }
       @media (max-width: 480px) {
         .ta-banner { height: 150px; margin: 0 -4px; }
         .ta-row--banner { padding-top: 8px; }
-        .ta-row--banner .ta-banner-ring { top: -48px; }
+        .ta-row--banner .ta-banner-ring { top: -30px; }
+        .ta-avatar { width: 76px; height: 76px; }
+        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 94px; }
       }
       .ta-banner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
       .ta-banner-card { display: grid; gap: 5px; padding: 5px; font: inherit; color: #cfe9cf; text-align: center;
@@ -1427,7 +1428,7 @@
         background: linear-gradient(180deg, #17231b, #0c100e); }
       .ta-banner-card span { font-size: 12px; }
       .ta-banner-card.is-selected { border-color: #4dff73; box-shadow: 0 0 0 1px #4dff73, 0 0 10px rgba(77,255,115,0.35); }
-      .ta-avatar { width: 64px; height: 64px; flex: none; display: grid; place-items: center; font-size: 34px;
+      .ta-avatar { width: 88px; height: 88px; flex: none; display: grid; place-items: center; font-size: 42px;
         border: 3px solid #000; border-radius: 8px; overflow: hidden;
         background: linear-gradient(180deg, #17231b, #0c100e);
         box-shadow: inset 0 0 0 1px rgba(77,255,115,0.24), 0 6px 14px rgba(0,0,0,0.3); }
@@ -1553,7 +1554,9 @@
         .ta-body { padding: 10px 16px; gap: 10px; }
         .ta-banner { height: 150px; }
         .ta-row { gap: 10px; }
-        .ta-avatar { width: 52px; height: 52px; font-size: 26px; }
+        .ta-avatar { width: 72px; height: 72px; font-size: 32px; }
+        .ta-row--banner .ta-banner-ring { top: -30px; }
+        .ta-row--banner > *:not(.ta-banner-ring) { margin-left: 90px; }
         .ta-name { font-size: 18px; }
         .ta-tabs { padding: 2px; }
         .ta-tab { padding: 6px 4px; }
