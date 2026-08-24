@@ -467,42 +467,6 @@
     }
     .runner:active { cursor: grabbing; }
     .runner img { width: 42px; height: 42px; object-fit: contain; pointer-events: none; }
-    /* Each mood gets its own loop, gated on a .mood-* class rather than
-       drag state directly — so a keyboard-triggered sprint (no pointer
-       drag involved) still gets the running loop, and nothing plays two
-       animations at once. transform-origin is nudged toward the raised
-       hand/shoulder for idle so the "wave" reads as a pivot, not a bob of
-       the whole body. */
-    .runner.mood-idle img {
-      transform-origin: 78% 15%;
-      animation: runner-idle-wave 1.4s ease-in-out infinite;
-    }
-    .runner.mood-running img {
-      animation: runner-running-cycle .38s ease-in-out infinite;
-    }
-    .runner.mood-sad img {
-      transform-origin: 50% 0%;
-      animation: runner-sad-sway 2.6s ease-in-out infinite;
-    }
-    @keyframes runner-idle-wave {
-      0%, 100% { transform: rotate(0deg) translateY(0); }
-      25% { transform: rotate(-10deg) translateY(-1px); }
-      50% { transform: rotate(4deg) translateY(0); }
-      75% { transform: rotate(-6deg) translateY(-1px); }
-    }
-    @keyframes runner-running-cycle {
-      0%, 100% { transform: translateY(0) rotate(-2deg) scaleX(1) scaleY(1); }
-      25% { transform: translateY(-3px) rotate(2deg) scaleX(.97) scaleY(1.03); }
-      50% { transform: translateY(0) rotate(-2deg) scaleX(1.02) scaleY(.98); }
-      75% { transform: translateY(-3px) rotate(2deg) scaleX(.97) scaleY(1.03); }
-    }
-    @keyframes runner-sad-sway {
-      0%, 100% { transform: rotate(0deg) translateY(0); }
-      50% { transform: rotate(3deg) translateY(2px); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .runner img { animation: none !important; }
-    }
     .lock-hint {
       font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim);
       letter-spacing: .08em; text-transform: uppercase;
@@ -1631,7 +1595,7 @@
         <div class="track-label" id="track-label"></div>
         <div class="runner mood-idle" id="runner" role="button" tabindex="0"
              aria-label="Run to enter — drag right, or press Enter">
-          <img src="assets/images/world/trollrunner-idle.png" alt="" id="runner-img">
+          <img src="assets/images/world/trollrunner-idle.svg" alt="" id="runner-img">
         </div>
       </div>
       <p class="lock-hint" id="lock-hint">Drag the troll to the finish line</p>
@@ -3000,16 +2964,16 @@
     const RACE_MILES = 1.0;
     let progress = 0, dragging = false, startX = 0, startProgress = 0, done = false;
 
-    // Three static poses stand in for a real sprite animation: idle waves
-    // on a CSS loop (see .runner.mood-idle img) whenever nobody's holding
-    // it, running shows while the drag is actually advancing, and sad
-    // kicks in if the pointer stays down without moving — a thumb resting
-    // on the troll rather than swiping it. setMood() no-ops on repeat
-    // calls so it's safe to call every pointermove without thrashing the img.
+    // Three static poses (vector SVGs, no motion): idle waves whenever
+    // nobody's holding the runner, running shows while the drag is
+    // actually advancing, and sad kicks in if the pointer stays down
+    // without moving — a thumb resting on the troll rather than swiping
+    // it. setMood() no-ops on repeat calls so it's safe to call every
+    // pointermove without thrashing the img.
     const POSE = {
-      idle: 'assets/images/world/trollrunner-idle.png',
-      running: 'assets/images/world/trollrunner.png',
-      sad: 'assets/images/world/trollrunner-sad.png',
+      idle: 'assets/images/world/trollrunner-idle.svg',
+      running: 'assets/images/world/trollrunner.svg',
+      sad: 'assets/images/world/trollrunner-sad.svg',
     };
     let mood = 'idle';
     function setMood(next) {
