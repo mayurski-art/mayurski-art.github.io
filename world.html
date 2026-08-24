@@ -467,6 +467,19 @@
     }
     .runner:active { cursor: grabbing; }
     .runner img { width: 42px; height: 42px; object-fit: contain; pointer-events: none; }
+    /* Idle wave loops only while the idle pose is showing — gated on
+       .mood-idle rather than drag state, so a keyboard-triggered sprint
+       (no pointer drag involved) doesn't inherit the bob too. */
+    .runner.mood-idle img {
+      animation: runner-idle-bob 1.8s ease-in-out infinite;
+    }
+    @keyframes runner-idle-bob {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-2px) rotate(-4deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .runner img { animation: none !important; }
+    }
     .lock-hint {
       font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim);
       letter-spacing: .08em; text-transform: uppercase;
@@ -1593,9 +1606,9 @@
         <div class="track-fill" id="track-fill"></div>
         <div class="finish" aria-hidden="true"></div>
         <div class="track-label" id="track-label"></div>
-        <div class="runner" id="runner" role="button" tabindex="0"
+        <div class="runner mood-idle" id="runner" role="button" tabindex="0"
              aria-label="Run to enter — drag right, or press Enter">
-          <img src="assets/images/world/trollrunner.png" alt="">
+          <img src="assets/images/world/trollrunner-idle.png" alt="" id="runner-img">
         </div>
       </div>
       <p class="lock-hint" id="lock-hint">Drag the troll to the finish line</p>
@@ -2959,10 +2972,35 @@
        handle is the runner, the bar is a lane with a chequered finish, and
        the readout counts distance up as you go. Keyboard users get the same
        thing on arrow keys or Enter, because a drag-only door locks people out. */
-    const track = $('track'), runner = $('runner');
+    const track = $('track'), runner = $('runner'), runnerImg = $('runner-img');
     const fill = $('track-fill'), label = $('track-label'), hint = $('lock-hint');
     const RACE_MILES = 1.0;
     let progress = 0, dragging = false, startX = 0, startProgress = 0, done = false;
+
+    // Three static poses stand in for a real sprite animation: idle waves
+    // on a CSS loop (see .runner.mood-idle img) whenever nobody's holding
+    // it, running shows while the drag is actually advancing, and sad
+    // kicks in if the pointer stays down without moving — a thumb resting
+    // on the troll rather than swiping it. setMood() no-ops on repeat
+    // calls so it's safe to call every pointermove without thrashing the img.
+    const POSE = {
+      idle: 'assets/images/world/trollrunner-idle.png',
+      running: 'assets/images/world/trollrunner.png',
+      sad: 'assets/images/world/trollrunner-sad.png',
+    };
+    let mood = 'idle';
+    function setMood(next) {
+      if (next === mood) return;
+      mood = next;
+      runnerImg.src = POSE[next];
+      runner.classList.toggle('mood-idle', next === 'idle');
+    }
+    let stallTimer = null;
+    const STALL_MS = 260;
+    function armStallTimer() {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => { if (dragging && !done) setMood('sad'); }, STALL_MS);
+    }
 
     const travel = () => track.clientWidth - runner.offsetWidth - 10;
 
@@ -2980,6 +3018,8 @@
     function finish() {
       if (done) return;
       done = true;
+      clearTimeout(stallTimer);
+      setMood('running');
       progress = 1; render();
       label.innerHTML = '<span class="dist">Finished</span>';
       hint.textContent = 'Welcome to the island';
@@ -3002,6 +3042,7 @@
     // "drag the troll to the finish line": it wasn't a swipe at all.
     function sprint() {
       if (done) return;
+      setMood('running');
       const from = progress, start = performance.now(), ms = calm.matches ? 0 : 620;
       hint.textContent = 'Running…';
       (function step(now) {
@@ -3016,16 +3057,22 @@
     runner.addEventListener('pointerdown', e => {
       if (done) return;
       dragging = true; moved = false; startX = e.clientX; startProgress = progress;
+      setMood('running');
+      armStallTimer();
       try { runner.setPointerCapture(e.pointerId); } catch {}
     });
     runner.addEventListener('pointermove', e => {
       if (!dragging || done) return;
       if (Math.abs(e.clientX - startX) > 6) moved = true;
+      setMood('running');
+      armStallTimer();
       setProgress(startProgress + (e.clientX - startX) / travel());
     });
     const release = () => {
       if (!dragging) return;
       dragging = false;
+      clearTimeout(stallTimer);
+      if (!done) setMood('idle');
       // Barely moved? That was a tap, not a swipe — nothing to finish, just
       // stay put (progress is already ~0, so this is a no-op in practice).
       if (!moved && !done) return;
