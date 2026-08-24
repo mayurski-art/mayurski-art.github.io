@@ -271,10 +271,15 @@
       box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 0 rgba(52, 199, 89, 0.9);
       animation: pf-hotspot-pulse 1.3s ease-out infinite;
     }
+    /* Ring spread is capped at 8px, not the more dramatic 12px it started
+       at — the headwear and accessory dots sit close enough to the room's
+       clipped edge (~11px, see .room's overflow: hidden) that a wider ring
+       was getting cut off there and reading as "not pulsing" on the
+       shorter mobile room. */
     @keyframes pf-hotspot-pulse {
       0% { box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 0 rgba(52, 199, 89, 0.9); transform: scale(1); }
-      50% { box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 12px rgba(52, 199, 89, 0); transform: scale(1.15); }
-      100% { box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 12px rgba(52, 199, 89, 0); transform: scale(1); }
+      50% { box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 8px rgba(52, 199, 89, 0); transform: scale(1.15); }
+      100% { box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 8px rgba(52, 199, 89, 0); transform: scale(1); }
     }
     @media (prefers-reduced-motion: reduce) {
       .hotspot.is-set::after { animation: none; }
