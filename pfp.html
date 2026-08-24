@@ -988,6 +988,21 @@
       return next;
     }
 
+    // For a multi layer, sometimes rolls a whole compatible pair instead of
+    // a single trait, so Randomize actually exercises MULTI_PAIRS rather
+    // than only ever landing on one trait per layer.
+    const MULTI_PAIR_CHANCE = 0.4;
+    function randomMultiPick(layerId, pool) {
+      const poolIds = new Set(pool.map(t => t.id));
+      const validPairs = [...(MULTI_PAIRS[layerId] || [])]
+        .map(key => key.split('|'))
+        .filter(([a, b]) => poolIds.has(a) && poolIds.has(b));
+      if (validPairs.length && Math.random() < MULTI_PAIR_CHANCE) {
+        return validPairs[Math.floor(Math.random() * validPairs.length)];
+      }
+      return [pool[Math.floor(Math.random() * pool.length)].id];
+    }
+
     function randomBuild(all) {
       const next = {};
       for (const layer of manifest.layers) {
@@ -999,8 +1014,8 @@
         // "Randomize" keeps a wearable silhouette; "full random" fills every slot.
         const skip = optional && !all && layer.id === 'accessory' && Math.random() < 0.5;
         if (skip || !pool.length) { next[layer.id] = multi ? [] : null; continue; }
-        const pick = pool[Math.floor(Math.random() * pool.length)].id;
-        next[layer.id] = multi ? [pick] : pick;
+        if (multi) { next[layer.id] = randomMultiPick(layer.id, pool); continue; }
+        next[layer.id] = pool[Math.floor(Math.random() * pool.length)].id;
       }
       return next;
     }
