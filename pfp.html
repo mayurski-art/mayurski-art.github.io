@@ -428,7 +428,7 @@
       .stage {
         flex: 1 1 auto; min-height: 0; max-width: none; margin: 0;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 8px; padding: 10px;
+        gap: 8px; padding: 10px 0;
         container-type: size; container-name: pfp-stage;
         background: none; border: 0; box-shadow: none;
       }
@@ -444,14 +444,15 @@
          min() picks whichever of the two is tighter, same idea as
          object-fit: contain but sizing the box itself. */
       .canvas-wrap {
-        flex: 0 0 auto; width: min(92%, calc(100cqh - 90px), 360px);
+        flex: 0 0 auto; width: min(100vw, calc(100cqh - 70px), 450px);
+        margin-left: -10px; margin-right: -10px;
       }
       /* Once a trait drawer is open, the preview's job shifts from "the
          main event" to "quick confirmation while browsing" — shrink it way
          down so the grid (what you're actually scrolling/tapping) gets the
          vertical space instead. Still live-updates on every tap. */
       .studio:has(.picker.drawer-open) .canvas-wrap {
-        width: min(30%, 120px);
+        width: min(30%, 120px); margin-left: 0; margin-right: 0;
       }
       .studio:has(.picker.drawer-open) .actions { display: none; }
       .stage-meta { display: none; }
