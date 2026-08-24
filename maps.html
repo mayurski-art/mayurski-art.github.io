@@ -152,7 +152,10 @@ a { color: inherit; }
 .right-rail { top: 50%; right: 16px; transform: translateY(-50%); display: none; flex-direction: column; gap: 8px; }
 @media (min-width: 640px) { .right-rail { display: flex; } }
 .rail-btn { display: flex; align-items: center; gap: 8px; padding: 12px 16px; font-size: 14px; font-weight: 500; background: none; border: none; cursor: pointer; color: inherit; border-radius: 16px; }
-.stats { bottom: 16px; left: 16px; padding: 12px 16px; position: relative; overflow: hidden; }
+.stats {
+  bottom: 16px; left: 16px; padding: 12px 16px; position: fixed; overflow: hidden;
+  width: 220px; min-height: 96px; display: flex; align-items: flex-end;
+}
 .stats-bg {
   position: absolute; inset: 0; z-index: 0;
   background-size: cover; background-position: center; background-repeat: no-repeat;
