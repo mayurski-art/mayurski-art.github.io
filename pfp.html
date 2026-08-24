@@ -92,6 +92,18 @@
       transition: background 0.15s ease, border-color 0.15s ease;
     }
     button.btn-home:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--pf-line-dark); }
+    .top-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+    /* Hidden until we know the visitor is logged out — see updateAuthUI().
+       Save-as-profile silently no-ops for guests otherwise, with no hint
+       why; this is the "you'll need an account for that" nudge. */
+    .btn-signin {
+      display: none; height: 36px; padding: 0 15px; border-radius: 10px;
+      border: 0.5px solid transparent; background: var(--pf-accent); color: #fff;
+      font-family: var(--pf-sans); font-size: 13px; font-weight: 600; white-space: nowrap;
+      transition: background 0.15s ease;
+    }
+    .btn-signin.is-visible { display: inline-flex; align-items: center; justify-content: center; }
+    .btn-signin:hover { background: #6a68e0; }
 
     /* ---------- layout ---------- */
     .studio { display: grid; grid-template-columns: minmax(0, 456px) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -217,6 +229,19 @@
     .share-btn-x:hover { background: #e6e6e6; }
     .share-btn-download { background: var(--pf-accent); border-color: transparent; }
     .share-btn-download:hover { background: #6a68e0; }
+
+    /* ---------- auth modal ---------- */
+    .auth-field { display: flex; flex-direction: column; gap: 5px; text-align: left; }
+    .auth-field[hidden] { display: none; }
+    .auth-field label { font-size: 12px; color: #9b9ba1; }
+    .auth-field input {
+      width: 100%; padding: 10px 12px; border-radius: 10px;
+      border: 0.5px solid var(--pf-line-dark); background: rgba(255, 255, 255, 0.06);
+      color: #f5f5f7; font-family: var(--pf-sans); font-size: 14px;
+    }
+    .auth-field input:focus { outline: 2px solid var(--pf-accent); outline-offset: 1px; }
+    .auth-swap { background: transparent; border-color: transparent; color: #9b9ba1; }
+    .auth-swap:hover { background: transparent; color: #f5f5f7; }
 
     /* ---------- picker ---------- */
     .picker {
@@ -579,6 +604,7 @@
       .btn-swap { background: rgba(255,255,255,0.06); color: var(--pf-ink); }
       .btn-swap:hover { border-color: var(--pf-accent); color: var(--pf-accent); }
       .btn-save { color: #06210f; }
+      .btn-signin { color: #06210f; }
       .canvas-wrap { background-color: #0a0a0b; }
       .canvas-wrap {
         background-image:
@@ -605,7 +631,10 @@
           <h1>PFP Studio</h1>
         </div>
       </div>
-      <button class="btn-home" id="btn-home" type="button" aria-label="Back to trollrunner.net" title="Back to trollrunner.net">&larr;</button>
+      <div class="top-actions">
+        <button class="btn-signin" id="btn-signin" type="button">Log in</button>
+        <button class="btn-home" id="btn-home" type="button" aria-label="Back to trollrunner.net" title="Back to trollrunner.net">&larr;</button>
+      </div>
     </header>
 
     <main class="studio">
@@ -710,6 +739,32 @@
     </div>
   </div>
 
+  <div class="share-modal" id="authModal" hidden>
+    <div class="share-modal-backdrop" id="authModalBackdrop"></div>
+    <div class="share-modal-card" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+      <button type="button" class="share-modal-close" id="authModalClose" aria-label="Close">✕</button>
+      <h2 id="authModalTitle">Sign in</h2>
+      <p class="share-modal-note" id="authModalSub">Log in to save this as your trollrunner.net profile picture.</p>
+      <form id="authForm" style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="auth-field">
+          <label for="authId" id="authIdLabel">Username or email</label>
+          <input id="authId" type="text" required autocomplete="username">
+        </div>
+        <div class="auth-field" id="authEmailField" hidden>
+          <label for="authEmail">Email</label>
+          <input id="authEmail" type="email" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label for="authPw">Password</label>
+          <input id="authPw" type="password" required autocomplete="current-password">
+        </div>
+        <p class="share-modal-note" id="authMsg" role="status" aria-live="polite"></p>
+        <button type="submit" class="share-btn share-btn-download" id="authSubmit">Sign in</button>
+        <button type="button" class="share-btn auth-swap" id="authSwap">New here? Create an account</button>
+      </form>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="assets/js/troll-accounts.js?v=20260821a"></script>
   <script>
@@ -765,6 +820,20 @@
       shareModalNote: document.getElementById('shareModalNote'),
       btnShareX: document.getElementById('btnShareX'),
       btnShareDownload: document.getElementById('btnShareDownload'),
+      btnSignin: document.getElementById('btn-signin'),
+      authModal: document.getElementById('authModal'),
+      authModalTitle: document.getElementById('authModalTitle'),
+      authModalBackdrop: document.getElementById('authModalBackdrop'),
+      authModalClose: document.getElementById('authModalClose'),
+      authForm: document.getElementById('authForm'),
+      authIdLabel: document.getElementById('authIdLabel'),
+      authId: document.getElementById('authId'),
+      authEmailField: document.getElementById('authEmailField'),
+      authEmail: document.getElementById('authEmail'),
+      authPw: document.getElementById('authPw'),
+      authMsg: document.getElementById('authMsg'),
+      authSubmit: document.getElementById('authSubmit'),
+      authSwap: document.getElementById('authSwap'),
     };
 
     let manifest = null;
@@ -1280,10 +1349,84 @@
       setShareNote('Downloaded — attach the image to your post.', 'ok');
     }
 
+    /* ---------- sign in / create account ----------
+       Save-as-profile is a dead click for a logged-out visitor otherwise —
+       nothing on the page explains why, so the button just looks broken.
+       This nudges them straight into a real login form instead of bouncing
+       them off the page and losing whatever look they'd already built. */
+    let authMode = 'login';
+    let authBusy = false;
+    let pendingSaveAfterAuth = false;
+
+    function updateAuthUI() {
+      const loggedIn = !!window.TrollrunnerAccounts?.getCachedProfile?.();
+      el.btnSignin.classList.toggle('is-visible', !loggedIn);
+    }
+
+    function authApplyMode() {
+      const creating = authMode === 'create';
+      el.authModalTitle.textContent = creating ? 'Create account' : 'Sign in';
+      el.authIdLabel.textContent = creating ? 'Username' : 'Username or email';
+      el.authEmailField.hidden = !creating;
+      el.authPw.autocomplete = creating ? 'new-password' : 'current-password';
+      el.authSubmit.textContent = creating ? 'Create account' : 'Sign in';
+      el.authSwap.textContent = creating ? 'Already have one? Sign in' : 'New here? Create an account';
+      el.authMsg.textContent = '';
+      el.authMsg.className = 'share-modal-note';
+    }
+
+    function openAuthModal(afterSave) {
+      pendingSaveAfterAuth = !!afterSave;
+      authMode = 'login';
+      authApplyMode();
+      el.authModal.hidden = false;
+      el.authId.focus();
+    }
+    function closeAuthModal() {
+      el.authModal.hidden = true;
+      el.authForm.reset();
+      pendingSaveAfterAuth = false;
+    }
+
+    el.authSwap.addEventListener('click', () => {
+      authMode = authMode === 'create' ? 'login' : 'create';
+      authApplyMode();
+    });
+    el.authModalClose.addEventListener('click', closeAuthModal);
+    el.authModalBackdrop.addEventListener('click', closeAuthModal);
+    el.authForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (authBusy) return;
+      const accounts = window.TrollrunnerAccounts;
+      if (!accounts) { el.authMsg.textContent = 'Account service is still loading. Try again in a moment.'; return; }
+      const id = el.authId.value.trim();
+      const pw = el.authPw.value;
+      const email = el.authEmail.value.trim();
+      authBusy = true;
+      el.authSubmit.disabled = true;
+      el.authMsg.textContent = authMode === 'create' ? 'Creating your troll…' : 'Signing in…';
+      try {
+        if (authMode === 'create') await accounts.register({ username: id, email, password: pw });
+        else await accounts.login({ identifier: id, password: pw });
+        const wantsSave = pendingSaveAfterAuth;
+        closeAuthModal();
+        updateAuthUI();
+        if (wantsSave) saveToProfile();
+      } catch (err) {
+        el.authMsg.textContent = err?.message ? String(err.message) : 'That did not work. Try again.';
+        el.authMsg.className = 'share-modal-note is-err';
+      } finally {
+        authBusy = false;
+        el.authSubmit.disabled = false;
+      }
+    });
+    el.btnSignin.addEventListener('click', () => openAuthModal(false));
+    window.addEventListener('trollrunner:auth-changed', updateAuthUI);
+
     async function saveToProfile() {
       const accounts = window.TrollrunnerAccounts;
       if (!accounts?.getCachedProfile?.()) {
-        note('Log in on the desktop first — then this saves straight to your troll.', 'err');
+        openAuthModal(true);
         return;
       }
       const btn = document.getElementById('btn-save');
@@ -1371,9 +1514,11 @@
       });
       document.addEventListener('keydown', e => {
         if (e.key !== 'Escape') return;
-        if (!el.shareModal.hidden) closeShareModal();
+        if (!el.authModal.hidden) closeAuthModal();
+        else if (!el.shareModal.hidden) closeShareModal();
         else if (!el.roomPanel.hidden) closeRoomPanel();
       });
+      updateAuthUI();
 
       el.search.addEventListener('input', renderGrid);
       document.getElementById('btn-back').addEventListener('click', stepBack);
