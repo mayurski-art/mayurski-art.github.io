@@ -1351,6 +1351,13 @@
     .auth-submit[disabled] { opacity: .55; }
     .auth-swap { text-align: center; font-size: 14px; color: var(--fg-dim); }
     .auth-swap button { color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+    .auth-bottom-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .auth-bottom-row .auth-swap { text-align: left; }
+    #auth-forgot {
+      font-size: 14px; color: var(--accent); font-weight: 700;
+      text-decoration: underline; text-underline-offset: 3px;
+      background: none; border: 0; padding: 0;
+    }
     .auth-msg {
       min-height: 20px; text-align: center; font-size: 13px; line-height: 1.4;
       color: #ff8a8a;
@@ -1812,10 +1819,13 @@
           <button class="auth-submit" id="auth-submit" type="submit">SIGN IN</button>
         </form>
         <p class="auth-msg" id="auth-msg" role="status" aria-live="polite"></p>
-        <p class="auth-swap">
-          <span id="auth-swap-text">New here?</span>
-          <button id="auth-swap" type="button">Create an account</button>
-        </p>
+        <div class="auth-bottom-row">
+          <p class="auth-swap">
+            <span id="auth-swap-text">New here?</span>
+            <button id="auth-swap" type="button">Create an account</button>
+          </p>
+          <button id="auth-forgot" type="button">Forgot password</button>
+        </div>
       </div>
       <!-- No "logged in" face here anymore — a logged-in tap on the Account
            icon skips this sheet entirely (see authSetOpen()) and opens
@@ -3087,12 +3097,16 @@
       $('auth-submit').textContent = creating ? 'CREATE ACCOUNT' : 'SIGN IN';
       $('auth-swap-text').textContent = creating ? 'Already have one?' : 'New here?';
       $('auth-swap').textContent = creating ? 'Sign in' : 'Create an account';
+      $('auth-forgot').hidden = creating;
       authMsg('');
     }
 
     $('auth-swap').addEventListener('click', () => {
       authMode = authMode === 'create' ? 'login' : 'create';
       authApplyMode();
+    });
+    $('auth-forgot').addEventListener('click', () => {
+      window.TrollrunnerAccounts?.openRecovery?.();
     });
     $('auth-close').addEventListener('click', () => authSetOpen(false));
 
