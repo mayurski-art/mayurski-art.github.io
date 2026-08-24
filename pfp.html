@@ -297,12 +297,9 @@
        the button instead. */
     .hotspot[data-layer="headwear"] .hotspot-label { bottom: auto; top: 100%; transform: translate(-50%, 7px); }
 
-    .room-caption { display: none; }
-    @media (min-width: 861px) {
-      .room-caption {
-        margin: 0; padding: 9px 14px; background: var(--pf-bg); color: #fff;
-        font-family: var(--pf-sans); font-size: 12.5px; text-align: center; display: block;
-      }
+    .room-caption {
+      margin: 0; padding: 9px 14px; background: var(--pf-bg); color: #fff;
+      font-family: var(--pf-sans); font-size: 12.5px; text-align: center; display: block;
     }
 
     .room-panel[hidden] { display: none; }
@@ -505,6 +502,7 @@
       .room {
         flex: 0 0 auto; width: 100%; aspect-ratio: 2047 / 1180;
       }
+      .room-caption { flex: 0 0 auto; }
       .room-panel {
         flex: 0 0 auto; display: flex; flex-direction: column; min-height: 0;
         height: clamp(240px, 44dvh, 420px);
