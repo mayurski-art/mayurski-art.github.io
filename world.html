@@ -467,7 +467,10 @@
       will-change: transform;
     }
     .runner:active { cursor: grabbing; }
-    .runner img { width: 42px; height: 42px; object-fit: contain; pointer-events: none; }
+    .runner video {
+      width: 42px; height: 42px; object-fit: contain; pointer-events: none;
+      border-radius: 999px;
+    }
     .lock-hint {
       font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim);
       letter-spacing: .08em; text-transform: uppercase;
@@ -1596,7 +1599,8 @@
         <div class="track-label" id="track-label"></div>
         <div class="runner mood-idle" id="runner" role="button" tabindex="0"
              aria-label="Run to enter — drag right, or press Enter">
-          <img src="assets/images/world/trollrunner-idle.svg" alt="" id="runner-img">
+          <video id="runner-video" src="assets/images/world/trollrunner-idle.mp4"
+                 muted autoplay loop playsinline disablepictureinpicture></video>
         </div>
       </div>
       <p class="lock-hint" id="lock-hint">Drag the troll to the finish line</p>
@@ -2960,28 +2964,36 @@
        handle is the runner, the bar is a lane with a chequered finish, and
        the readout counts distance up as you go. Keyboard users get the same
        thing on arrow keys or Enter, because a drag-only door locks people out. */
-    const track = $('track'), runner = $('runner'), runnerImg = $('runner-img');
+    const track = $('track'), runner = $('runner'), runnerVideo = $('runner-video');
     const fill = $('track-fill'), label = $('track-label'), hint = $('lock-hint');
     const RACE_MILES = 1.0;
     let progress = 0, dragging = false, startX = 0, startProgress = 0, done = false;
+    if (calm.matches) runnerVideo.pause();
 
-    // Three static poses (vector SVGs, no motion): idle waves whenever
-    // nobody's holding the runner, running shows while the drag is
-    // actually advancing, and sad kicks in if the pointer stays down
+    // Four looping video poses, all rendered on solid black so they blend
+    // into the badge's own dark background with no visible seam: idle
+    // waves whenever nobody's holding the runner, running plays while the
+    // drag is actually advancing, sad kicks in if the pointer stays down
     // without moving — a thumb resting on the troll rather than swiping
-    // it. setMood() no-ops on repeat calls so it's safe to call every
-    // pointermove without thrashing the img.
+    // it — and victory takes over the instant the finish line is crossed.
+    // setMood() no-ops on repeat calls so it's safe to call every
+    // pointermove without thrashing the video element.
     const POSE = {
-      idle: 'assets/images/world/trollrunner-idle.svg',
-      running: 'assets/images/world/trollrunner.svg',
-      sad: 'assets/images/world/trollrunner-sad.svg',
+      idle: 'assets/images/world/trollrunner-idle.mp4',
+      running: 'assets/images/world/trollrunner.mp4',
+      sad: 'assets/images/world/trollrunner-sad.mp4',
+      victory: 'assets/images/world/trollrunner-victory.mp4',
     };
     let mood = 'idle';
     function setMood(next) {
       if (next === mood) return;
       mood = next;
-      runnerImg.src = POSE[next];
-      runner.classList.remove('mood-idle', 'mood-running', 'mood-sad');
+      runnerVideo.src = POSE[next];
+      runnerVideo.load();
+      // Reduced motion still gets the right pose (first frame of the loop),
+      // just without the continuous loop playing.
+      if (!calm.matches) runnerVideo.play().catch(() => {});
+      runner.classList.remove('mood-idle', 'mood-running', 'mood-sad', 'mood-victory');
       runner.classList.add('mood-' + next);
     }
     let stallTimer = null;
@@ -3008,7 +3020,7 @@
       if (done) return;
       done = true;
       clearTimeout(stallTimer);
-      setMood('running');
+      setMood('victory');
       progress = 1; render();
       label.innerHTML = '<span class="dist">Finished</span>';
       hint.textContent = 'Welcome to the island';
