@@ -984,7 +984,7 @@
       // A plain dressed troll beats whatever happens to sort first — and a
       // fresh visitor should see all five hotspots already lit, not just
       // the three that happen to be required.
-      const preferred = { background: 'holo', base: 'og', outfit: 'tee-black', headwear: 'cap-black', accessory: 'gold-chains' };
+      const preferred = { background: 'white', base: 'og', outfit: 'tee-black', headwear: 'cap-black', accessory: 'gold-chains' };
       for (const [id, want] of Object.entries(preferred)) {
         if (!traitById(id, want)) continue;
         next[id] = MULTI_LAYERS.has(id) ? [want] : want;
