@@ -765,7 +765,7 @@
           <input id="authId" type="text" required autocomplete="username">
         </div>
         <div class="auth-field" id="authEmailField" hidden>
-          <label for="authEmail">Email</label>
+          <label for="authEmail">Email (optional — password recovery)</label>
           <input id="authEmail" type="email" autocomplete="email">
         </div>
         <div class="auth-field">
@@ -774,7 +774,10 @@
         </div>
         <p class="share-modal-note" id="authMsg" role="status" aria-live="polite"></p>
         <button type="submit" class="share-btn share-btn-download" id="authSubmit">Sign in</button>
-        <button type="button" class="share-btn auth-swap" id="authSwap">New here? Create an account</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <button type="button" class="share-btn auth-swap" id="authSwap">New here? Create an account</button>
+          <button type="button" class="share-btn auth-swap" id="authForgot">Forgot password</button>
+        </div>
       </form>
     </div>
   </div>
@@ -921,6 +924,7 @@
       authMsg: document.getElementById('authMsg'),
       authSubmit: document.getElementById('authSubmit'),
       authSwap: document.getElementById('authSwap'),
+      authForgot: document.getElementById('authForgot'),
     };
 
     let manifest = null;
@@ -1622,6 +1626,7 @@
       el.authPw.autocomplete = creating ? 'new-password' : 'current-password';
       el.authSubmit.textContent = creating ? 'Create account' : 'Sign in';
       el.authSwap.textContent = creating ? 'Already have one? Sign in' : 'New here? Create an account';
+      el.authForgot.hidden = creating;
       el.authMsg.textContent = '';
       el.authMsg.className = 'share-modal-note';
     }
@@ -1642,6 +1647,9 @@
     el.authSwap.addEventListener('click', () => {
       authMode = authMode === 'create' ? 'login' : 'create';
       authApplyMode();
+    });
+    el.authForgot.addEventListener('click', () => {
+      window.TrollrunnerAccounts?.openRecovery?.();
     });
     el.authModalClose.addEventListener('click', closeAuthModal);
     el.authModalBackdrop.addEventListener('click', closeAuthModal);
