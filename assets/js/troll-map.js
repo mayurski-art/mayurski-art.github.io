@@ -685,10 +685,55 @@
     });
   }
 
-  /* ── Stats + global search + projection toggle ──────────────────────── */
+  /* ── Stats pill: rotating background + info slides ──────────────────────
+     Each slide pairs a background image with a render() that returns the
+     count/label to show. Only one slide today (see maps.md for the plan) —
+     add more here and the crossfade rotation below picks them up for free. */
+  const STATS_SLIDES = [
+    {
+      bg: 'assets/images/world/troll-world 2.png',
+      render: () => ({
+        count: state.pins.length,
+        label: state.pins.length === 1 ? 'troll on the map' : 'trolls on the map',
+      }),
+    },
+  ];
+  const STATS_SLIDE_MS = 6000;
+  let statsSlideIdx = 0;
+  let statsBgShowingA = false;
+
+  function applyStatsSlide(idx, opts) {
+    const advanceBg = !opts || opts.advanceBg !== false;
+    const slide = STATS_SLIDES[idx];
+    const { count, label } = slide.render();
+    document.getElementById('pin-count').textContent = String(count);
+    document.getElementById('pin-count-label').textContent = label;
+
+    if (advanceBg) {
+      const bgA = document.querySelector('.stats-bg--a');
+      const bgB = document.querySelector('.stats-bg--b');
+      const nextLayer = statsBgShowingA ? bgB : bgA;
+      const prevLayer = statsBgShowingA ? bgA : bgB;
+      if (nextLayer) nextLayer.style.backgroundImage = 'url("' + slide.bg + '")';
+      if (nextLayer) nextLayer.classList.add('is-active');
+      if (prevLayer) prevLayer.classList.remove('is-active');
+      statsBgShowingA = !statsBgShowingA;
+    }
+  }
+
+  function startStatsRotation() {
+    applyStatsSlide(0);
+    if (STATS_SLIDES.length < 2) return;
+    setInterval(() => {
+      statsSlideIdx = (statsSlideIdx + 1) % STATS_SLIDES.length;
+      applyStatsSlide(statsSlideIdx);
+    }, STATS_SLIDE_MS);
+  }
+
   function renderStats() {
-    document.getElementById('pin-count').textContent = String(state.pins.length);
-    document.getElementById('pin-count-label').textContent = state.pins.length === 1 ? 'troll on the map' : 'trolls on the map';
+    // Refresh the current slide's numbers without touching the background —
+    // that only advances on the rotation timer.
+    applyStatsSlide(statsSlideIdx, { advanceBg: false });
     const errEl = document.getElementById('load-error');
     if (state.loadError) { errEl.textContent = state.loadError; errEl.style.display = ''; }
     else errEl.style.display = 'none';
@@ -751,6 +796,7 @@
     initMap();
     initGlobalSearch();
     initProjectionToggle();
+    startStatsRotation();
 
     document.getElementById('drop-pin-btn').addEventListener('click', openPinPanel);
     document.getElementById('top-cities-btn').addEventListener('click', () => {
