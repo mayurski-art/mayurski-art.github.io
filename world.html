@@ -467,9 +467,14 @@
       will-change: transform;
     }
     .runner:active { cursor: grabbing; }
+    /* cover (not contain) so the video fills the badge edge-to-edge with
+       no letterbox bars — the videos' "black" isn't pure #000 once
+       compressed, so any visible bar reads as a mismatched gray seam
+       against the badge's own background. object-position biases the
+       crop toward the head/torso, the part that reads at this size. */
     .runner video {
-      width: 42px; height: 42px; object-fit: contain; pointer-events: none;
-      border-radius: 999px;
+      width: 56px; height: 56px; object-fit: cover; object-position: 50% 15%;
+      pointer-events: none; border-radius: 999px;
     }
     .lock-hint {
       font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim);
