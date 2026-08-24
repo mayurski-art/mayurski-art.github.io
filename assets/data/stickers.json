@@ -49,6 +49,16 @@
       "image": "assets/stickers/crypto.com-trollsticker.jpeg",
       "bg": "dark",
       "hasQR": true
+    },
+    {
+      "id": "sidelined-redeyes",
+      "title": "Sidelined? (Red Eyes)",
+      "blurb": "Same classic grin, laser red eyes this time. Slap it anywhere.",
+      "tags": ["sidelined", "red-eyes"],
+      "image": "assets/stickers/sidelined-redeyes.jpeg",
+      "bg": "light",
+      "hasQR": false,
+      "bodyPad": 10
     }
   ]
 }
