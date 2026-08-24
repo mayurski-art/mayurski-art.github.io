@@ -778,6 +778,7 @@
 
     const MANIFEST_URL = 'assets/data/pfp-traits.json';
     const STORE_KEY = 'trollrunner_pfp_build_v1';
+    const SOLO_STASH_KEY = 'trollrunner_pfp_solo_stash_v1';
     // Layers that may legitimately be empty. Background and base are the
     // two that make a PFP read as a PFP, so they default to something.
     const OPTIONAL = new Set(['outfit', 'headwear', 'accessory']);
@@ -940,12 +941,44 @@
       return null;
     }
 
+    // Remembers the outfit/headwear/accessory a solo base wiped, so switching
+    // back to a layerable base later restores them instead of leaving the
+    // troll bare — see enforceSolo() below. Persisted so a reload mid-solo
+    // doesn't drop it either.
+    let soloStash = (() => {
+      try { return JSON.parse(localStorage.getItem(SOLO_STASH_KEY) || 'null'); } catch { return null; }
+    })();
+    function persistSoloStash() {
+      try {
+        if (soloStash) localStorage.setItem(SOLO_STASH_KEY, JSON.stringify(soloStash));
+        else localStorage.removeItem(SOLO_STASH_KEY);
+      } catch {}
+    }
+
     function enforceSolo(next) {
       const solo = manifest.layers.some(l => {
         const t = next[l.id] && traitById(l.id, next[l.id]);
         return t?.solo;
       });
-      if (!solo) return next;
+      if (!solo) {
+        if (!soloStash) return next;
+        // Only fill slots the caller left empty — a trait picked in the same
+        // action that turned solo off wins over whatever was stashed.
+        const restored = { ...next };
+        for (const id of OPTIONAL) {
+          if (restored[id] == null && soloStash[id] && traitById(id, soloStash[id])) {
+            restored[id] = soloStash[id];
+          }
+        }
+        soloStash = null;
+        persistSoloStash();
+        return restored;
+      }
+      if (!soloStash) {
+        soloStash = {};
+        for (const id of OPTIONAL) if (next[id]) soloStash[id] = next[id];
+        persistSoloStash();
+      }
       const clean = { ...next };
       for (const id of OPTIONAL) clean[id] = null;
       return clean;
