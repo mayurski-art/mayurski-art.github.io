@@ -981,10 +981,10 @@
       for (const layer of manifest.layers) {
         next[layer.id] = MULTI_LAYERS.has(layer.id) ? [] : (OPTIONAL.has(layer.id) ? null : (layer.traits[0]?.id ?? null));
       }
-      // A plain dressed troll beats whatever happens to sort first — and a
-      // fresh visitor should see all five hotspots already lit, not just
-      // the three that happen to be required.
-      const preferred = { background: 'white', base: 'og', outfit: 'tee-black', headwear: 'cap-black', accessory: 'gold-chains' };
+      // The default troll is just White background + OG base — bare, no
+      // outfit/headwear/accessory — so those three fall through to the
+      // null/[] already set above rather than being overridden here.
+      const preferred = { background: 'white', base: 'og' };
       for (const [id, want] of Object.entries(preferred)) {
         if (!traitById(id, want)) continue;
         next[id] = MULTI_LAYERS.has(id) ? [want] : want;
