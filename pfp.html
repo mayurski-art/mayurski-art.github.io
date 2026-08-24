@@ -992,19 +992,17 @@
       return next;
     }
 
-    // For a multi layer, sometimes rolls a whole compatible pair instead of
-    // a single trait, so Randomize actually exercises MULTI_PAIRS rather
-    // than only ever landing on one trait per layer.
-    const MULTI_PAIR_CHANCE = 0.4;
+    // Every single trait and every valid pair for this pool are one flat
+    // list of candidates, drawn from uniformly — no weighting toward
+    // singles or pairs, so Randomize actually exercises MULTI_PAIRS instead
+    // of only ever landing on one trait per layer.
     function randomMultiPick(layerId, pool) {
       const poolIds = new Set(pool.map(t => t.id));
       const validPairs = [...(MULTI_PAIRS[layerId] || [])]
         .map(key => key.split('|'))
         .filter(([a, b]) => poolIds.has(a) && poolIds.has(b));
-      if (validPairs.length && Math.random() < MULTI_PAIR_CHANCE) {
-        return validPairs[Math.floor(Math.random() * validPairs.length)];
-      }
-      return [pool[Math.floor(Math.random() * pool.length)].id];
+      const candidates = [...pool.map(t => [t.id]), ...validPairs];
+      return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
     function randomBuild(all) {
