@@ -1290,6 +1290,11 @@
       display: flex; align-items: center; gap: 11px; padding: 10px 2px;
       border-bottom: 1px solid #ffffff0d; text-align: left; width: 100%;
     }
+    button.roster-row {
+      background: none; border: none; border-bottom: 1px solid #ffffff0d;
+      font: inherit; color: inherit; cursor: pointer; border-radius: 8px;
+    }
+    button.roster-row:hover, button.roster-row:focus-visible { background: #ffffff0f; }
     .roster-av {
       width: 38px; height: 38px; flex: none; border-radius: 50%; overflow: hidden;
       background: #14141a; border: 1px solid var(--glass-stroke);
@@ -3633,8 +3638,13 @@
       const mine = getViewerId();
       rows.innerHTML = '';
       [...members, ...guests].forEach(who => {
-        const row = document.createElement('div');
+        const clickable = !!who.userId;
+        const row = document.createElement(clickable ? 'button' : 'div');
         row.className = 'roster-row';
+        if (clickable) {
+          row.type = 'button';
+          row.setAttribute('aria-label', `View ${who.username}'s profile`);
+        }
         const av = document.createElement('span');
         av.className = 'roster-av';
         if (who.avatarUrl) {
@@ -3659,6 +3669,16 @@
           you.className = 'roster-tag is-you';
           you.textContent = 'You';
           row.appendChild(you);
+        }
+        if (clickable) {
+          row.addEventListener('click', () => {
+            rosterSetOpen(false);
+            if (who.userId === window.TrollrunnerAccounts?.getCachedProfile?.()?.id) {
+              window.TrollrunnerAccounts?.openProfile?.();
+            } else {
+              window.TrollrunnerAccounts?.openProfileCard?.(who.userId);
+            }
+          });
         }
         rows.appendChild(row);
       });

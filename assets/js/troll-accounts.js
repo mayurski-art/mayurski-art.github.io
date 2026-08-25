@@ -1617,6 +1617,8 @@
         box-shadow: 0 3px 0 #000; }
       .ta-btn--x svg { width: 14px; height: 14px; fill: #fff; flex: none; }
       .ta-btn--sm { padding: 4px 10px; font-size: 12px; margin-top: 4px; }
+      .ta-btn--icon { display: inline-flex; align-items: center; justify-content: center;
+        width: 30px; height: 30px; padding: 0; font-size: 15px; line-height: 1; }
       .ta-recent-grid { display: flex; flex-wrap: wrap; gap: 8px; }
       .ta-recent-thumb { width: 44px; height: 44px; padding: 0; flex: none; border: 2px solid #000; border-radius: 6px;
         overflow: hidden; background: #0c100e; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(77,255,115,0.18); }
@@ -2783,13 +2785,23 @@
       // Anyone can DM by default — troll_dm_open only blocks this at the
       // server if the target has locked their inbox to friends-only.
       msgBtn.hidden = s === 'self';
-      if (s === 'accepted') { mainBtn.textContent = '✓ Friends — remove'; mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
-      else if (s === 'pending_out') { mainBtn.textContent = 'Request sent — cancel'; mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; }
-      else if (s === 'pending_in') { mainBtn.textContent = 'Accept'; mainBtn.className = 'ta-btn ta-btn--sm'; }
-      else { mainBtn.textContent = '+ Add friend'; mainBtn.className = 'ta-btn ta-btn--sm'; }
+      if (s === 'accepted') { mainBtn.textContent = '✓ Friends — remove'; mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; mainBtn.title = 'Remove friend'; mainBtn.removeAttribute('aria-label'); }
+      else if (s === 'pending_out') { mainBtn.textContent = 'Request sent — cancel'; mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost'; mainBtn.title = 'Cancel request'; mainBtn.removeAttribute('aria-label'); }
+      else if (s === 'pending_in') { mainBtn.textContent = 'Accept'; mainBtn.className = 'ta-btn ta-btn--sm'; mainBtn.title = 'Accept friend request'; mainBtn.removeAttribute('aria-label'); }
+      else {
+        mainBtn.textContent = '➕';
+        mainBtn.className = 'ta-btn ta-btn--sm ta-btn--icon';
+        mainBtn.title = 'Add friend';
+        mainBtn.setAttribute('aria-label', 'Add friend');
+      }
     };
     mainBtn.addEventListener('click', async () => {
-      if (!cachedProfile) { mainBtn.textContent = 'Login to add friends'; return; }
+      if (!cachedProfile) {
+        mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost';
+        mainBtn.removeAttribute('aria-label');
+        mainBtn.textContent = 'Login to add friends';
+        return;
+      }
       mainBtn.disabled = true;
       try {
         let next = status;
@@ -2800,6 +2812,8 @@
         if (onChange) onChange(next);
       } catch (error) {
         mainBtn.disabled = false;
+        mainBtn.className = 'ta-btn ta-btn--sm ta-btn--ghost';
+        mainBtn.removeAttribute('aria-label');
         mainBtn.textContent = error?.message || 'Something broke.';
       }
     });

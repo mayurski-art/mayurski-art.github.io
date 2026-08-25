@@ -115,8 +115,11 @@
       .tp-wrap[data-align="left"] .tp-pop{left:0;}
       .tp-pop.is-open{display:block;}
       .tp-pop-sub{font-size:11.5px;color:rgba(255,255,255,.55);margin:2px 6px 8px;}
-      .tp-row{display:flex;align-items:center;gap:8px;padding:6px;border-radius:10px;}
+      .tp-row{display:flex;align-items:center;gap:8px;padding:6px;border-radius:10px;width:100%;
+        text-align:left;background:none;border:none;font:inherit;color:inherit;}
       .tp-row:hover{background:rgba(255,255,255,.06);}
+      button.tp-row{cursor:pointer;}
+      button.tp-row:focus-visible{outline:1px solid rgba(255,255,255,.4);}
       .tp-av{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;
         align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex:none;overflow:hidden;}
       .tp-av img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -140,8 +143,13 @@
       const mine = getViewerId();
       w.rows.innerHTML = '';
       [...roster.members, ...roster.guests].forEach(who => {
-        const row = document.createElement('div');
+        const clickable = !!who.userId;
+        const row = document.createElement(clickable ? 'button' : 'div');
         row.className = 'tp-row';
+        if (clickable) {
+          row.type = 'button';
+          row.setAttribute('aria-label', `View ${who.username}'s profile`);
+        }
         const av = document.createElement('span');
         av.className = 'tp-av';
         if (who.avatarUrl) {
@@ -166,6 +174,15 @@
           you.className = 'tp-tag is-you';
           you.textContent = 'You';
           row.appendChild(you);
+        }
+        if (clickable) {
+          row.addEventListener('click', () => {
+            w.setOpen(false);
+            const me = window.TrollrunnerAccounts?.getCachedProfile?.();
+            if (me && who.userId === me.id) window.TrollrunnerAccounts?.openProfile?.();
+            else if (typeof window.openViewerProfileCard === 'function') window.openViewerProfileCard(who.userId, who.username);
+            else window.TrollrunnerAccounts?.openProfileCard?.(who.userId);
+          });
         }
         w.rows.appendChild(row);
       });
@@ -216,7 +233,7 @@
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
 
-    widgets.push({ pill, countEl, sub, rows });
+    widgets.push({ pill, countEl, sub, rows, setOpen });
     paintAll();
     return wrap;
   }
