@@ -277,6 +277,26 @@
   let markers = [];
   let mapReady = false;
 
+  /* ── Idle auto-spin — pauses the instant the user touches the globe,
+     resumes the instant they let go ─────────────────────────────────── */
+  const SPIN_SECONDS_PER_REV = 120;
+  const SPIN_MAX_ZOOM = 4;
+  const SPIN_SLOW_ZOOM = 3;
+  let userInteracting = false;
+
+  function spinGlobe() {
+    if (!map || userInteracting) return;
+    const zoom = map.getZoom();
+    if (zoom >= SPIN_MAX_ZOOM) return;
+    let distancePerSecond = 360 / SPIN_SECONDS_PER_REV;
+    if (zoom > SPIN_SLOW_ZOOM) {
+      distancePerSecond *= (SPIN_MAX_ZOOM - zoom) / (SPIN_MAX_ZOOM - SPIN_SLOW_ZOOM);
+    }
+    const center = map.getCenter();
+    center.lng -= distancePerSecond;
+    map.easeTo({ center, duration: 1000, easing: (n) => n });
+  }
+
   /* ── Map ──────────────────────────────────────────────────────────────── */
   function initMap() {
     map = new maplibregl.Map({
@@ -320,10 +340,23 @@
           countryLayerReady = true;
         })
         .catch((err) => { console.warn('[map] country density layer failed to load', err); });
+
+      spinGlobe();
     });
     map.on('click', (event) => {
       if (state.picking) handleMapPick(event.lngLat.lat, event.lngLat.lng);
     });
+
+    map.on('mousedown', () => { userInteracting = true; });
+    map.on('touchstart', () => { userInteracting = true; });
+    map.on('wheel', () => { userInteracting = true; });
+    map.on('mouseup', () => { userInteracting = false; spinGlobe(); });
+    map.on('touchend', () => { userInteracting = false; spinGlobe(); });
+    map.on('dragend', () => { userInteracting = false; spinGlobe(); });
+    map.on('pitchend', () => { userInteracting = false; spinGlobe(); });
+    map.on('rotateend', () => { userInteracting = false; spinGlobe(); });
+    map.on('zoomend', () => { userInteracting = false; spinGlobe(); });
+    map.on('moveend', () => { spinGlobe(); });
   }
 
   function flyTo(lat, lng, zoom) {
