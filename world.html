@@ -475,7 +475,7 @@
        render loop below) — a manual chroma key that works everywhere. */
     .runner video { position: absolute; opacity: 0; pointer-events: none; }
     .runner canvas {
-      width: 50px; height: 64px; pointer-events: none;
+      width: 50px; height: 50px; pointer-events: none;
     }
     .lock-hint {
       font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim);
@@ -1626,7 +1626,7 @@
              aria-label="Run to enter — drag right, or press Enter">
           <video id="runner-video" src="assets/images/world/trollrunner-idle.mp4"
                  muted autoplay loop playsinline disablepictureinpicture></video>
-          <canvas id="runner-canvas" width="50" height="64" aria-hidden="true"></canvas>
+          <canvas id="runner-canvas" width="50" height="50" aria-hidden="true"></canvas>
         </div>
       </div>
       <p class="lock-hint" id="lock-hint">Drag the troll to the finish line</p>
@@ -3009,7 +3009,7 @@
     // buffer, which was rendering soft/blurry on any real phone screen.
     const RUNNER_DPR = Math.min(2, window.devicePixelRatio || 1);
     runnerCanvas.width = 50 * RUNNER_DPR;
-    runnerCanvas.height = 64 * RUNNER_DPR;
+    runnerCanvas.height = 50 * RUNNER_DPR;
     runnerCtx.imageSmoothingEnabled = true;
     runnerCtx.imageSmoothingQuality = 'high';
 
