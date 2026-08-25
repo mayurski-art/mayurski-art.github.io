@@ -450,12 +450,16 @@
 
   function renderSessionButton() {
     const btn = document.getElementById('session-btn');
+    btn.style.display = '';
     if (state.session) {
-      btn.style.display = '';
       btn.textContent = state.session.username;
       btn.title = 'Logged in as ' + state.session.username + ' — click to log out';
     } else {
-      btn.style.display = 'none';
+      // Hiding this entirely when logged out left no way back in short of
+      // going through "Drop my pin" — a log-out-then-look-for-login visitor
+      // had nothing to click.
+      btn.textContent = 'Log in';
+      btn.title = 'Log in';
     }
   }
 
@@ -978,9 +982,14 @@
       renderPanel();
     });
     document.getElementById('session-btn').addEventListener('click', async () => {
-      if (state.session && window.confirm('Log out of ' + state.session.username + '?')) {
-        await window.TrollrunnerAccounts.logout();
+      if (state.session) {
+        if (window.confirm('Log out of ' + state.session.username + '?')) {
+          await window.TrollrunnerAccounts.logout();
+        }
+        return;
       }
+      state.panel = 'auth';
+      renderPanel();
     });
 
     // Same-origin iframe inside the troll desktop: navigating "/" would
