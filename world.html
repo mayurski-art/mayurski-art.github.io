@@ -1624,8 +1624,14 @@
         <div class="track-label" id="track-label"></div>
         <div class="runner mood-idle" id="runner" role="button" tabindex="0"
              aria-label="Run to enter — drag right, or press Enter">
-          <video id="runner-video" src="assets/images/world/trollrunner-idle.mp4"
-                 muted autoplay loop playsinline disablepictureinpicture></video>
+          <video class="runner-src" data-mood="idle" src="assets/images/world/trollrunner-idle.mp4"
+                 muted autoplay loop playsinline disablepictureinpicture preload="auto"></video>
+          <video class="runner-src" data-mood="running" src="assets/images/world/trollrunner.mp4"
+                 muted loop playsinline disablepictureinpicture preload="auto"></video>
+          <video class="runner-src" data-mood="sad" src="assets/images/world/trollrunner-sad.mp4"
+                 muted loop playsinline disablepictureinpicture preload="auto"></video>
+          <video class="runner-src" data-mood="victory" src="assets/images/world/trollrunner-victory.mp4"
+                 muted loop playsinline disablepictureinpicture preload="auto"></video>
           <canvas id="runner-canvas" width="50" height="50" aria-hidden="true"></canvas>
         </div>
       </div>
@@ -2996,7 +3002,24 @@
        handle is the runner, the bar is a lane with a chequered finish, and
        the readout counts distance up as you go. Keyboard users get the same
        thing on arrow keys or Enter, because a drag-only door locks people out. */
-    const track = $('track'), runner = $('runner'), runnerVideo = $('runner-video');
+    const track = $('track'), runner = $('runner');
+    // One <video> per pose, all preloaded from page load instead of a single
+    // element whose src gets swapped on mood change — swapping src forced a
+    // fresh fetch + decode restart every time (readyState back to
+    // HAVE_NOTHING), which read as a stall on the idle-to-running
+    // transition. With every pose already buffered, switching moods is just
+    // pausing one element and playing another, both already decodable.
+    const runnerVideos = {};
+    runner.querySelectorAll('.runner-src').forEach(v => {
+      runnerVideos[v.dataset.mood] = v;
+      // preload="auto" is only a hint — some browsers won't actually start
+      // fetching a non-autoplaying video without a nudge. These four are
+      // invisible either way (opacity:0, painted onto the canvas instead),
+      // so forcing the fetch now costs nothing and is what makes the later
+      // mood swap instant instead of a cold start.
+      if (v.dataset.mood !== 'idle') v.load();
+    });
+    let runnerVideo = runnerVideos.idle;
     const runnerCanvas = $('runner-canvas'), runnerCtx = runnerCanvas.getContext('2d', { willReadFrequently: true });
     const fill = $('track-fill'), label = $('track-label'), hint = $('lock-hint');
     const RACE_MILES = 1.0;
@@ -3056,19 +3079,15 @@
     // moving — a thumb resting on the troll rather than swiping it — and
     // victory takes over the instant the finish line is crossed. setMood()
     // no-ops on repeat calls so it's safe to call every pointermove
-    // without thrashing the video element.
-    const POSE = {
-      idle: 'assets/images/world/trollrunner-idle.mp4',
-      running: 'assets/images/world/trollrunner.mp4',
-      sad: 'assets/images/world/trollrunner-sad.mp4',
-      victory: 'assets/images/world/trollrunner-victory.mp4',
-    };
+    // without thrashing the video elements.
     let mood = 'idle';
     function setMood(next) {
       if (next === mood) return;
+      const prevVideo = runnerVideo;
       mood = next;
-      runnerVideo.src = POSE[next];
-      runnerVideo.load();
+      runnerVideo = runnerVideos[next];
+      prevVideo.pause();
+      runnerVideo.currentTime = 0;
       // Reduced motion still gets the right pose (first frame of the loop),
       // just without the continuous loop playing.
       if (!calm.matches) runnerVideo.play().catch(() => {});
