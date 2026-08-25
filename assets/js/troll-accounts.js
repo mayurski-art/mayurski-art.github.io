@@ -16,7 +16,10 @@
      updateRecoveryEmail(email) / requestPasswordReset(email) / openRecovery()
      connectWallet() → address | null   (opens Phantom, links it if logged in)
      getWalletAddress() / unlinkWallet()
-     connectX()                      → starts the X (Twitter) OAuth link, navigates away
+     connectX()                      → starts the X (Twitter) OAuth link, navigates away (requires an existing session)
+     signInWithX()                   → starts X sign-in/sign-up (no session needed) — first-time X connect auto-creates an account
+     consumeXSigninNotice()          → {justCreated, usernameChangeAvailable} | {error} | null, read once after a signInWithX() round trip
+     changeUsernameOnce(next)        → the one free rename an X-auto-created account gets (throws once used)
      getXIdentity() → {handle,name,avatarUrl} | null   /   unlinkX()
      awardXp(event, source, meta)    → server-guarded XP (cooldowns/caps)
      recordGameResult(gameId, score, meta)
@@ -291,12 +294,12 @@
     const sb = getClient();
     if (!sb || !userId) return null;
     if (!profilePromise) {
-      // `tags`/`banner_key` only exist once their migrations have been run;
-      // without the fallback an un-migrated project would 400 here and break
-      // login everywhere, not just the tag pills / banner.
+      // `tags`/`banner_key`/`username_change_available` only exist once their
+      // migrations have been run; without the fallback an un-migrated project
+      // would 400 here and break login everywhere, not just those features.
       profilePromise = sb
         .from('troll_profiles')
-        .select(`${PROFILE_COLUMNS}, tags, banner_key`)
+        .select(`${PROFILE_COLUMNS}, tags, banner_key, username_change_available`)
         .eq('id', userId)
         .maybeSingle()
         .then(res => (res.error
@@ -336,6 +339,7 @@
       joinedAt: cachedProfile.created_at || null,
       tags: normalizeProfileTags(cachedProfile.tags),
       autoJoinGroups: cachedProfile.auto_join_groups !== false,
+      usernameChangeAvailable: Boolean(cachedProfile.username_change_available),
     };
   }
 
@@ -454,6 +458,28 @@
   // too — see troll_lock_username.sql). No client path exists to change one.
   async function updateUsername() {
     throw new Error('Usernames are locked and can’t be changed after signup.');
+  }
+
+  // The one exception: an account auto-created by connecting X starts with
+  // its raw X handle as the username and gets exactly one free rename (see
+  // troll_x_signin.sql — username_change_available flips true on creation,
+  // false the moment this succeeds). Enforced server-side by the same
+  // trigger; this call just surfaces a friendly error if it isn't allowed.
+  async function changeUsernameOnce(next) {
+    const sb = getClient();
+    if (!cachedProfile) throw new Error('Login first.');
+    if (!cachedProfile.username_change_available) {
+      throw new Error('Your one-time username change has already been used.');
+    }
+    const name = String(next || '').trim();
+    if (!USERNAME_RE.test(name)) throw new Error('Usernames are 3–20 letters, numbers, or underscores.');
+    if (name.toLowerCase() !== String(cachedProfile.username || '').toLowerCase() && await isUsernameTaken(name)) {
+      throw new Error('That username is already taken.');
+    }
+    const { error } = await sb.from('troll_profiles').update({ username: name }).eq('id', cachedProfile.id);
+    if (error) throw friendlyError(error, 'Could not change the username.');
+    await refreshProfile();
+    return toPublicSession();
   }
 
   async function updateBio(next) {
@@ -673,6 +699,7 @@
      password recovery already uses) and completed with setSession().
      ------------------------------------------------------------------ */
   const X_LINK_PARAM = 'x_linked';
+  const X_SIGNIN_PARAM = 'x_signin';
 
   // Same www-normalization as recoveryRedirectUrl() above — Supabase's
   // redirect-URL allowlist only covers https://www.trollrunner.net/*, but
@@ -680,20 +707,49 @@
   // etc.) are their own top-level pages off the desktop iframe shell. A
   // visitor on any of those hosts would build a redirect Supabase rejects,
   // silently breaking connectX() for them while it worked for someone on
-  // www.
-  function xRedirectUrl() {
+  // www. The allowlist covers the whole path (…/*), so the current page's
+  // path+query is preserved — X sign-in/connect from maps.html bounces the
+  // visitor back to maps.html, not to the homepage.
+  function xRedirectUrl(param) {
     const onTrollrunner = /(^|\.)trollrunner\.net$/i.test(location.hostname);
     const base = onTrollrunner ? 'https://www.trollrunner.net' : location.origin;
-    return `${base}/?${X_LINK_PARAM}=1`;
+    const url = new URL(location.pathname + location.search, base);
+    url.searchParams.set(param, '1');
+    return url.toString();
   }
 
   async function connectX() {
     const sb = getClient();
     if (!sb) throw new Error('Account service failed to load. Refresh and try again.');
     if (!cachedProfile) throw new Error('Login first.');
-    const { error } = await sb.auth.linkIdentity({ provider: 'x', options: { redirectTo: xRedirectUrl() } });
+    const { error } = await sb.auth.linkIdentity({ provider: 'x', options: { redirectTo: xRedirectUrl(X_LINK_PARAM) } });
     if (error) throw friendlyError(error, 'Could not start the X connection.');
     // Success navigates the browser to X — nothing left to do on this page load.
+  }
+
+  // Sign in (or sign up, on a first-time visitor) with X directly — no
+  // existing trollrunner.net account required. If this is the first time
+  // this X identity has ever hit the site, troll_handle_new_user() (see
+  // troll_x_signin.sql) auto-creates a profile using the X handle as the
+  // username. Works from a logged-out page only; use connectX() to link X
+  // onto an account you're already signed into.
+  async function signInWithX() {
+    const sb = getClient();
+    if (!sb) throw new Error('Account service failed to load. Refresh and try again.');
+    const { error } = await sb.auth.signInWithOAuth({ provider: 'x', options: { redirectTo: xRedirectUrl(X_SIGNIN_PARAM) } });
+    if (error) throw friendlyError(error, 'Could not start X sign-in.');
+    // Success navigates the browser to X — nothing left to do on this page load.
+  }
+
+  // Set once by detectRecoveryLink() right after a signInWithX() round trip
+  // lands back on the page; callers (e.g. troll-map.js's pin flow) read it
+  // once via consumeXSigninNotice() to show "account created for you" only
+  // on the page load that actually just did that, not on every later visit.
+  let xSigninNotice = null;
+  function consumeXSigninNotice() {
+    const notice = xSigninNotice;
+    xSigninNotice = null;
+    return notice;
   }
 
   async function getXIdentity() {
@@ -741,33 +797,39 @@
     }
   }
 
-  function scrubXLinkParam() {
+  function scrubXParam(param) {
     const url = new URL(location.href);
-    if (!url.searchParams.has(X_LINK_PARAM)) return;
-    url.searchParams.delete(X_LINK_PARAM);
+    if (!url.searchParams.has(param)) return;
+    url.searchParams.delete(param);
     history.replaceState(null, '', url.pathname + url.search);
   }
 
   function detectRecoveryLink() {
     const hash = String(location.hash || '');
     const wasXLink = new URLSearchParams(location.search).get(X_LINK_PARAM) === '1';
+    const wasXSignin = new URLSearchParams(location.search).get(X_SIGNIN_PARAM) === '1';
 
-    // X (Twitter) link errors come back as #error=...&error_description=...
+    // X (Twitter) link/sign-in errors come back as #error=...&error_description=...
     // (no access_token), e.g. the visitor cancelled on X's side.
-    if (wasXLink && /error=/.test(hash) && !/access_token=/.test(hash)) {
+    if ((wasXLink || wasXSignin) && /error=/.test(hash) && !/access_token=/.test(hash)) {
       const params = new URLSearchParams(hash.slice(1));
       history.replaceState(null, '', location.pathname);
-      lastXLinkError = decodeURIComponent(params.get('error_description') || params.get('error') || 'X connection was cancelled.');
-      void openSettings();
+      const message = decodeURIComponent(params.get('error_description') || params.get('error') || 'X connection was cancelled.');
+      if (wasXLink) { lastXLinkError = message; void openSettings(); }
+      else { xSigninNotice = { error: message }; dispatch(null); }
       return;
     }
 
-    if (!/access_token=/.test(hash)) { if (wasXLink) scrubXLinkParam(); return; }
+    if (!/access_token=/.test(hash)) {
+      if (wasXLink) scrubXParam(X_LINK_PARAM);
+      if (wasXSignin) scrubXParam(X_SIGNIN_PARAM);
+      return;
+    }
     const params = new URLSearchParams(hash.slice(1));
     const type = params.get('type');
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
-    const scrub = () => history.replaceState(null, '', location.pathname + (wasXLink ? '' : location.search));
+    const scrub = () => history.replaceState(null, '', location.pathname + ((wasXLink || wasXSignin) ? '' : location.search));
     if (!accessToken || !refreshToken) return;
     if (jwtEmail(accessToken) === 'admin@login.trollrunner.net') return;
     if (type === 'recovery') {
@@ -780,17 +842,30 @@
     } else if (type === 'email_change' || type === 'signup' || type === 'magiclink') {
       scrub(); // confirmation links: session tokens are consumed, nothing to show
     } else if (!type) {
-      // OAuth identity-link return (currently only used by connectX()).
+      // OAuth identity-link/sign-in return (connectX() or signInWithX()).
       const sb = getClient();
       if (!sb) return;
-      void sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(async ({ error }) => {
+      void sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(async ({ error, data }) => {
         scrub();
         if (!error) {
           await refreshProfile();
           if (wasXLink) { justLinkedX = true; void openSettings(); }
+          else if (wasXSignin) {
+            // A brand-new auth.users row's created_at is this same round
+            // trip's timestamp; an existing user signing back in with X has
+            // one from the past. That's the signal for "account was just
+            // auto-created", not just "signed in via X".
+            const createdAt = new Date(data?.user?.created_at || 0).getTime();
+            const justCreated = Date.now() - createdAt < 60000;
+            xSigninNotice = { justCreated, usernameChangeAvailable: Boolean(cachedProfile?.username_change_available) };
+            dispatch(toPublicSession());
+          }
         } else if (wasXLink) {
           lastXLinkError = friendlyError(error, 'Could not finish connecting X.').message;
           void openSettings();
+        } else if (wasXSignin) {
+          xSigninNotice = { error: friendlyError(error, 'Could not finish signing in with X.').message };
+          dispatch(null);
         }
       });
     }
@@ -2182,18 +2257,39 @@
       }
     };
 
-    // Username — permanent, shown read-only (see updateUsername above).
+    // Username — permanent, shown read-only, EXCEPT an X-auto-created
+    // account gets exactly one free rename (see changeUsernameOnce above).
     const nameSection = document.createElement('div');
     nameSection.className = 'ta-section';
     nameSection.innerHTML = `<h4>Username</h4>`;
     const nameInput = document.createElement('input');
     nameInput.className = 'ta-input';
     nameInput.value = session.username;
-    nameInput.disabled = true;
+    nameInput.disabled = !session.usernameChangeAvailable;
+    if (session.usernameChangeAvailable) {
+      nameInput.maxLength = 20;
+      nameInput.autocomplete = 'username';
+    }
     const nameMuted = document.createElement('p');
     nameMuted.className = 'ta-muted';
-    nameMuted.textContent = 'Locked — usernames can’t be changed after signup.';
     nameSection.append(nameInput, nameMuted);
+    if (session.usernameChangeAvailable) {
+      nameMuted.textContent = 'You get one free rename since this account was created by connecting X — pick carefully, it locks after this.';
+      const nameBtn = document.createElement('button');
+      nameBtn.className = 'ta-btn';
+      nameBtn.type = 'button';
+      nameBtn.textContent = 'Save username';
+      const nameStatus = mkStatus();
+      nameBtn.addEventListener('click', () => run(nameBtn, nameStatus, async () => {
+        await changeUsernameOnce(nameInput.value);
+        nameInput.disabled = true;
+        nameMuted.textContent = 'Locked — usernames can’t be changed again.';
+        nameBtn.remove();
+      }, 'Username changed — locked from here on.'));
+      nameSection.append(nameBtn, nameStatus);
+    } else {
+      nameMuted.textContent = 'Locked — usernames can’t be changed after signup.';
+    }
     body.appendChild(nameSection);
 
     // Avatar
@@ -3475,6 +3571,7 @@
     login,
     logout,
     updateUsername,
+    changeUsernameOnce,
     updateBio,
     updateAutoJoinGroups,
     getLocation,
@@ -3487,6 +3584,8 @@
     getWalletAddress,
     unlinkWallet,
     connectX,
+    signInWithX,
+    consumeXSigninNotice,
     getXIdentity,
     unlinkX,
     uploadAvatar,

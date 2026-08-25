@@ -62,6 +62,36 @@ fine for now; plug in custom SMTP (Resend etc.) if reset volume ever grows.
 No table/migration is needed for this — the connected handle lives in
 Supabase's own `auth.identities`, read via `getXIdentity()`.
 
+### X sign-in / sign-up (needs one more SQL step)
+
+`signInWithX()` lets a brand-new visitor create a trollrunner.net account
+just by connecting X — no username/password step. It's a separate entry
+point from `connectX()` above: `connectX()` links X onto an account you're
+*already* signed into (`linkIdentity`); `signInWithX()` works from a
+logged-out page and creates the account on the spot on a first-time X
+identity (`signInWithOAuth`). Both return through the same hash-token round
+trip; `detectRecoveryLink()` tells them apart by the `x_signin=1` vs
+`x_linked=1` query param.
+
+9. **SQL Editor**: run
+   [`assets/supabase/troll_x_signin.sql`](../assets/supabase/troll_x_signin.sql)
+   (idempotent — safe to re-run). Updates `troll_handle_new_user()` to use
+   the X handle as the username on a fresh X sign-up (falling back to
+   `handle_2`, `handle_3`, … on collision, then to the random `troll_xxxxxxxx`
+   id like every other signup if the handle is unusable), and adds
+   `username_change_available` — true only on accounts created this way, so
+   the person gets exactly one free rename via `changeUsernameOnce(next)`
+   before the username locks for good like everyone else's. Supersedes the
+   trigger from `troll_lock_username.sql`; running this file after that one
+   is fine, and it's also safe to run first (it can create the lock trigger
+   itself).
+
+Where each is wired up: `maps.html`'s "Drop your pin" flow requires X
+connected (not just any login) — `getXIdentity()` gates the panel, with
+`signInWithX()`/`connectX()` as the two ways in. `world.html`'s swipe-to-
+unlock entrance auto-opens the sign-in sheet (with a "Continue with X"
+button) once per browser session if the visitor isn't signed in.
+
 ## How password recovery works
 
 - **Signup with an email** → that email *is* the auth email; Supabase can
@@ -157,7 +187,10 @@ TrollrunnerAccounts.openRecovery();           // "forgot password" modal
 await TrollrunnerAccounts.uploadAvatar(file); // PNG/JPG/WebP → 256px square webp
 TrollrunnerAccounts.openProfile();            // built-in modal
 TrollrunnerAccounts.openSettings();           // username / avatar / recovery email / password / logout
-await TrollrunnerAccounts.connectX();         // starts the X OAuth link, navigates away
+await TrollrunnerAccounts.connectX();         // starts the X OAuth link, navigates away (needs a session)
+await TrollrunnerAccounts.signInWithX();      // starts X sign-in/sign-up, navigates away (no session needed)
+TrollrunnerAccounts.consumeXSigninNotice();   // {justCreated, usernameChangeAvailable} | {error} | null, read once
+await TrollrunnerAccounts.changeUsernameOnce('newname'); // the one free rename an X-auto-created account gets
 await TrollrunnerAccounts.getXIdentity();     // {handle, name, avatarUrl} | null
 await TrollrunnerAccounts.unlinkX();
 ```

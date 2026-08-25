@@ -213,6 +213,15 @@
     }));
   }
 
+  const X_LOGO_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
+
+  // Set right before navigating away to X (connectX() from the connect-x
+  // panel, or signInWithX() from the auth panel) so boot() knows to reopen
+  // the pin flow on return — connectX()'s own success path opens the
+  // generic Settings modal on top of it, which is fine; this just makes
+  // sure the visitor isn't left staring at a blank map underneath.
+  const PIN_INTENT_KEY = 'trollrunner_maps_pin_intent';
+
   /* ── Pin markers — plain DOM, vector-crisp in both projections ─────────── */
   function pinSvg(fill, stroke) {
     return '<svg viewBox="0 0 26 34" aria-hidden="true">' +
@@ -263,7 +272,7 @@
   /* ── State ────────────────────────────────────────────────────────────── */
   const state = {
     mode: '3d',
-    panel: 'none', // none | pin | auth | top
+    panel: 'none', // none | pin | connect-x | auth | top
     pins: [],
     myLocation: null,
     draft: null,
@@ -271,6 +280,8 @@
     picking: false,
     pickError: null,
     session: null,
+    xIdentity: null, // {handle,name,avatarUrl} | null — dropping a pin requires this
+    notice: null, // banner shown atop the pin/connect-x panel, e.g. "account created for you"
   };
 
   let map = null;
@@ -460,19 +471,30 @@
     renderSessionButton();
     updateDropPinButtonLabel();
     refreshAll();
+    // Fires (with a null detail on failure) right after signInWithX()'s
+    // round trip lands a session — this is the reliable point to pick up
+    // consumeXSigninNotice(), not a fixed delay after boot().
+    void handleXSigninReturn();
   });
 
   /* ── Side panel ──────────────────────────────────────────────────────── */
   function closePanel() {
     state.panel = 'none';
     state.draft = null;
+    state.notice = null;
     setPicking(false);
     renderMarkers();
     renderPanel();
   }
 
-  function openPinPanel() {
-    state.panel = state.session ? 'pin' : 'auth';
+  // Dropping a pin requires X connected, not just any login — see
+  // renderConnectXPanel(). Checking freshly (rather than trusting a cached
+  // state.xIdentity) means unlinking X in Settings and coming straight back
+  // here correctly re-gates instead of showing a stale "connected" state.
+  async function openPinPanel() {
+    if (!state.session) { state.panel = 'auth'; renderPanel(); return; }
+    state.xIdentity = await window.TrollrunnerAccounts.getXIdentity();
+    state.panel = state.xIdentity ? 'pin' : 'connect-x';
     renderPanel();
   }
 
@@ -481,8 +503,15 @@
     if (state.panel === 'none') { host.classList.remove('open'); host.innerHTML = ''; return; }
     host.classList.add('open');
     if (state.panel === 'auth') renderAuthPanel(host);
+    else if (state.panel === 'connect-x') renderConnectXPanel(host);
     else if (state.panel === 'pin') renderPinPanel(host);
     else if (state.panel === 'top') renderTopPanel(host);
+  }
+
+  function noticeHtml() {
+    if (!state.notice) return '';
+    const kind = state.notice.kind || 'success';
+    return '<p class="' + (kind === 'error' ? 'error-text' : 'notice-text') + '" role="status">' + esc(state.notice.text) + '</p>';
   }
 
   /* ── Auth panel ──────────────────────────────────────────────────────── */
@@ -490,8 +519,12 @@
     let mode = host.dataset.authMode || 'login';
     host.innerHTML =
       '<div class="stack">' +
-      '<div><h2>' + (mode === 'login' ? 'Log in to drop your pin' : 'Create your troll account') + '</h2>' +
-      '<p>One account works across every TrollRunner site.</p></div>' +
+      '<div><h2>Dropping a pin needs X connected</h2>' +
+      '<p>One account works across every TrollRunner site. Connect X and, if you\'re new here, it makes you an account on the spot.</p></div>' +
+      noticeHtml() +
+      '<button type="button" class="x-signin-btn" id="auth-x-signin">' + X_LOGO_SVG + '<span>Continue with X</span></button>' +
+      '<p id="auth-x-error" class="error-text" style="display:none;" role="alert"></p>' +
+      '<div class="auth-or-sep">or use a username</div>' +
       '<div class="mode-tabs">' +
       '<button type="button" data-authmode="login" class="' + (mode === 'login' ? 'active' : '') + '">Log in</button>' +
       '<button type="button" data-authmode="register" class="' + (mode === 'register' ? 'active' : '') + '">Sign up</button>' +
@@ -539,13 +572,59 @@
         renderSessionButton();
         updateDropPinButtonLabel();
         await refreshAll();
-        state.panel = 'pin';
-        renderPanel();
+        await openPinPanel(); // routes to 'pin' or 'connect-x' depending on whether X is already linked
       } catch (err) {
         errEl.textContent = err.message || 'Something went wrong.';
         errEl.style.display = '';
         submitBtn.disabled = false;
         submitBtn.textContent = mode === 'login' ? 'Log in' : 'Create account';
+      }
+    });
+
+    document.getElementById('auth-x-signin').addEventListener('click', async () => {
+      const btn = document.getElementById('auth-x-signin');
+      const errEl = document.getElementById('auth-x-error');
+      errEl.style.display = 'none';
+      btn.disabled = true;
+      try {
+        try { sessionStorage.setItem(PIN_INTENT_KEY, '1'); } catch {}
+        await window.TrollrunnerAccounts.signInWithX();
+        // Success navigates away to X — nothing left to do on this page load.
+      } catch (err) {
+        btn.disabled = false;
+        errEl.textContent = err.message || 'Could not start X sign-in.';
+        errEl.style.display = '';
+      }
+    });
+  }
+
+  /* ── Connect-X panel — shown when logged in but X isn't linked yet ──────── */
+  function renderConnectXPanel(host) {
+    host.innerHTML =
+      '<div class="stack">' +
+      '<div class="panel-head">' +
+      '<div><h2>Connect X to drop your pin</h2>' +
+      '<p>Pins are tied to a real X account so the map stays legit — link yours and you\'re set.</p></div>' +
+      '<button type="button" class="btn btn--ghost" style="padding:4px 12px;font-size:12px;" id="cx-close" aria-label="Close">Close</button>' +
+      '</div>' +
+      noticeHtml() +
+      '<button type="button" class="x-signin-btn" id="cx-connect">' + X_LOGO_SVG + '<span>Connect X account</span></button>' +
+      '<p id="cx-error" class="error-text" style="display:none;" role="alert"></p>' +
+      '</div>';
+    document.getElementById('cx-close').addEventListener('click', closePanel);
+    document.getElementById('cx-connect').addEventListener('click', async () => {
+      const btn = document.getElementById('cx-connect');
+      const errEl = document.getElementById('cx-error');
+      errEl.style.display = 'none';
+      btn.disabled = true;
+      try {
+        try { sessionStorage.setItem(PIN_INTENT_KEY, '1'); } catch {}
+        await window.TrollrunnerAccounts.connectX();
+        // Success navigates away to X — nothing left to do on this page load.
+      } catch (err) {
+        btn.disabled = false;
+        errEl.textContent = err.message || 'Could not start the X connection.';
+        errEl.style.display = '';
       }
     });
   }
@@ -564,6 +643,14 @@
       '<p>Pick the town you rep. Nothing more precise than that gets stored.</p></div>' +
       '<button type="button" class="btn btn--ghost" style="padding:4px 12px;font-size:12px;" id="pin-close" aria-label="Close">Close</button>' +
       '</div>' +
+      noticeHtml() +
+      (state.session?.usernameChangeAvailable
+        ? '<div class="saved-pin"><p class="name">You\'re @' + esc(state.session.username) + '</p>' +
+          '<p class="country">Want a different name? You get one free change since this account came from X.</p>' +
+          '<label class="block" style="margin-top:8px;"><input class="field" id="rename-input" maxlength="20" value="' + esc(state.session.username) + '"></label>' +
+          '<button type="button" class="btn btn--ghost" style="width:100%;font-size:13px;margin-top:4px;" id="rename-save">Change username</button>' +
+          '<p id="rename-error" class="error-text" style="display:none;" role="alert"></p></div>'
+        : '') +
       (myLocation && !draft
         ? '<div class="saved-pin"><p class="name">' + esc(myLocation.label) + '</p>' +
           (myLocation.country ? '<p class="country">' + esc(myLocation.country) + '</p>' : '') + '</div>'
@@ -586,6 +673,27 @@
       '</div>';
 
     document.getElementById('pin-close').addEventListener('click', closePanel);
+
+    const renameSaveBtn = document.getElementById('rename-save');
+    if (renameSaveBtn) {
+      renameSaveBtn.addEventListener('click', async () => {
+        const input = document.getElementById('rename-input');
+        const errEl = document.getElementById('rename-error');
+        errEl.style.display = 'none';
+        renameSaveBtn.disabled = true;
+        try {
+          await window.TrollrunnerAccounts.changeUsernameOnce(input.value);
+          state.session = await window.TrollrunnerAccounts.getSession();
+          renderSessionButton();
+          state.notice = { kind: 'success', text: 'Username changed.' };
+          renderPanel();
+        } catch (err) {
+          renameSaveBtn.disabled = false;
+          errEl.textContent = err.message || 'Could not change the username.';
+          errEl.style.display = '';
+        }
+      });
+    }
 
     const searchInput = document.getElementById('pin-search');
     const resultsEl = document.getElementById('pin-search-results');
@@ -827,8 +935,24 @@
     });
   }
 
+  // After a signInWithX() round trip navigates back here, show what
+  // happened and reopen the pin flow so the visitor lands right back where
+  // they were trying to go.
+  async function handleXSigninReturn() {
+    const notice = window.TrollrunnerAccounts.consumeXSigninNotice();
+    if (!notice) return;
+    if (notice.error) {
+      state.notice = { kind: 'error', text: notice.error };
+    } else if (notice.justCreated) {
+      state.notice = { kind: 'success', text: 'An account has been created for you since you connected your X account.' };
+    } else {
+      state.notice = { kind: 'success', text: 'X connected.' };
+    }
+    await openPinPanel();
+  }
+
   /* ── Boot ────────────────────────────────────────────────────────────── */
-  function boot() {
+  async function boot() {
     initMap();
     initGlobalSearch();
     initProjectionToggle();
@@ -857,7 +981,11 @@
       }
     });
 
-    refreshSession();
+    await refreshSession();
+
+    let hadPinIntent = false;
+    try { hadPinIntent = sessionStorage.getItem(PIN_INTENT_KEY) === '1'; sessionStorage.removeItem(PIN_INTENT_KEY); } catch {}
+    if (hadPinIntent) await openPinPanel();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

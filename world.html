@@ -1384,6 +1384,20 @@
       color: #ff8a8a;
     }
     .auth-msg.is-ok { color: var(--accent); }
+    .auth-x-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--glass-stroke);
+      background: #000; color: #fff; font-family: var(--font-ui); font-size: 15px;
+      font-weight: 600; transition: background .16s var(--ease);
+    }
+    .auth-x-btn:hover { background: #1a1a1a; }
+    .auth-x-btn[disabled] { opacity: .55; }
+    .auth-x-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .auth-or-sep {
+      display: flex; align-items: center; gap: 10px; font-size: 12px;
+      color: var(--fg-dim); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em;
+    }
+    .auth-or-sep::before, .auth-or-sep::after { content: ''; flex: 1; height: 1px; background: var(--glass-stroke); }
 
     /* ================= TROLL RADIO =================
        A plain third dock item now, same .ico square as X / TikTok — it used
@@ -1823,6 +1837,11 @@
         </div>
         <h2 class="auth-title" id="auth-title">Sign in</h2>
         <p class="auth-sub" id="auth-sub">Your troll, your XP, your spot on the leaderboard.</p>
+        <button class="auth-x-btn" id="auth-x-signin" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          <span>Continue with X</span>
+        </button>
+        <div class="auth-or-sep">or use a username</div>
         <form class="auth-form" id="auth-form" novalidate>
           <div class="auth-field">
             <label for="auth-id" id="auth-id-label">Username</label>
@@ -1913,7 +1932,8 @@
        index.html, so a session started on either shell is already shared —
        no SSO bridge needed here, unlike the sibling subdomains. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
-  <script src="assets/js/troll-accounts.js?v=20260824b"></script>
+  <script src="assets/js/troll-accounts.js?v=20260825a"></script>
+  <script src="assets/js/troll-notis.js"></script>
   <!-- Separate credential from the one above: a fixed admin@login.trollrunner.net
        password session, not a regular troll_runner profile login. This is
        what admin.html itself gates on, so it's what the menu's Admin link
@@ -3082,7 +3102,23 @@
       // Give the victory loop a real beat on screen before the lockbar
       // disappears into the home phase — 420ms was barely a flash, not
       // long enough to register as a celebration.
-      setTimeout(() => setPhase('home'), calm.matches ? 0 : 1500);
+      setTimeout(() => { setPhase('home'); maybePromptAuth(); }, calm.matches ? 0 : 1500);
+    }
+
+    // Once per browser session: if this visitor just unlocked the island
+    // and isn't signed in, put the sign-in sheet (with Continue with X) in
+    // front of them instead of waiting for a tap on the Account icon.
+    // getSession() (not the sync getCachedProfile()) so a session restored
+    // from the cross-subdomain SSO cookie is picked up before deciding.
+    async function maybePromptAuth() {
+      try { if (sessionStorage.getItem('trollrunner_auth_prompted') === '1') return; } catch {}
+      const accounts = window.TrollrunnerAccounts;
+      if (!accounts) return;
+      let session = null;
+      try { session = await accounts.getSession(); } catch {}
+      if (session) return;
+      try { sessionStorage.setItem('trollrunner_auth_prompted', '1'); } catch {}
+      authSetOpen(true);
     }
 
     function setProgress(p) {
@@ -3255,9 +3291,43 @@
       }
     });
 
+    $('auth-x-signin').addEventListener('click', async () => {
+      if (authBusy) return;
+      const accounts = window.TrollrunnerAccounts;
+      if (!accounts) { authMsg('Account service is still loading. Try again in a moment.'); return; }
+      authBusy = true;
+      $('auth-x-signin').disabled = true;
+      authMsg('');
+      try {
+        await accounts.signInWithX();
+        // Success navigates away to X — nothing left to do on this page load.
+      } catch (err) {
+        authBusy = false;
+        $('auth-x-signin').disabled = false;
+        authMsg(err?.message ? String(err.message) : 'Could not start X sign-in.');
+      }
+    });
+
+    // After a signInWithX() round trip lands back here, say what happened —
+    // "account created for you" only fires the first time this X identity
+    // has ever hit the site (see consumeXSigninNotice() in troll-accounts.js).
+    function handleXSigninReturn() {
+      const notice = window.TrollrunnerAccounts?.consumeXSigninNotice?.();
+      if (!notice) return;
+      if (notice.error) { authMsg(notice.error); authSetOpen(true); return; }
+      window.TrollNotis?.show({
+        platform: 'account',
+        summary: notice.justCreated
+          ? 'An account has been created for you since you connected your X account.'
+          : 'X connected.',
+        onCta: () => window.TrollrunnerAccounts?.openProfile?.(),
+      });
+    }
+
     window.addEventListener('trollrunner:auth-changed', () => {
       authRender();
       viewersRetrack();
+      handleXSigninReturn();
     });
 
     /* ================= WHO'S ONLINE =================
