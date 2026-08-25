@@ -718,13 +718,30 @@
     return url.toString();
   }
 
+  // X sets X-Frame-Options/CSP so its login page refuses to render inside
+  // ANY iframe (anti-clickjacking) — and world.html (the phone entrance) is
+  // itself embedded in an iframe by index.html on mobile. Letting Supabase
+  // do its default same-window redirect would navigate that iframe to X and
+  // just show a blocked/broken page. skipBrowserRedirect + a manual
+  // window.top navigation breaks out to the real top-level tab instead,
+  // which X is happy to render. window.top === window.self when there's no
+  // iframe, so this is a no-op change for pages that aren't embedded.
+  function goToX(url) {
+    try { (window.top || window).location.href = url; }
+    catch { window.location.href = url; } // cross-origin frame: can't reach window.top, fall back
+  }
+
   async function connectX() {
     const sb = getClient();
     if (!sb) throw new Error('Account service failed to load. Refresh and try again.');
     if (!cachedProfile) throw new Error('Login first.');
-    const { error } = await sb.auth.linkIdentity({ provider: 'x', options: { redirectTo: xRedirectUrl(X_LINK_PARAM) } });
+    const { data, error } = await sb.auth.linkIdentity({
+      provider: 'x',
+      options: { redirectTo: xRedirectUrl(X_LINK_PARAM), skipBrowserRedirect: true },
+    });
     if (error) throw friendlyError(error, 'Could not start the X connection.');
-    // Success navigates the browser to X — nothing left to do on this page load.
+    if (!data?.url) throw new Error('Could not start the X connection.');
+    goToX(data.url);
   }
 
   // Sign in (or sign up, on a first-time visitor) with X directly — no
@@ -736,9 +753,13 @@
   async function signInWithX() {
     const sb = getClient();
     if (!sb) throw new Error('Account service failed to load. Refresh and try again.');
-    const { error } = await sb.auth.signInWithOAuth({ provider: 'x', options: { redirectTo: xRedirectUrl(X_SIGNIN_PARAM) } });
+    const { data, error } = await sb.auth.signInWithOAuth({
+      provider: 'x',
+      options: { redirectTo: xRedirectUrl(X_SIGNIN_PARAM), skipBrowserRedirect: true },
+    });
     if (error) throw friendlyError(error, 'Could not start X sign-in.');
-    // Success navigates the browser to X — nothing left to do on this page load.
+    if (!data?.url) throw new Error('Could not start X sign-in.');
+    goToX(data.url);
   }
 
   // Set once by detectRecoveryLink() right after a signInWithX() round trip

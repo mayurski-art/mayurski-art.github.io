@@ -279,6 +279,7 @@
     loadError: null,
     picking: false,
     pickError: null,
+    pinConsent: false, // must ack the privacy notice before a drop/move saves
     session: null,
     xIdentity: null, // {handle,name,avatarUrl} | null — dropping a pin requires this
     notice: null, // banner shown atop the pin/connect-x panel, e.g. "account created for you"
@@ -482,6 +483,7 @@
     state.panel = 'none';
     state.draft = null;
     state.notice = null;
+    state.pinConsent = false;
     setPicking(false);
     renderMarkers();
     renderPanel();
@@ -665,9 +667,12 @@
       '<label class="visible-row"><input type="checkbox" id="pin-visible" ' + (visible ? 'checked' : '') + '>' +
       '<span><span class="title">Show my pin publicly</span>' +
       '<span class="sub">Off means only you can see it — it disappears from the map and from your profile.</span></span></label>' +
+      '<label class="visible-row"><input type="checkbox" id="pin-consent" ' + (state.pinConsent ? 'checked' : '') + '>' +
+      '<span><span class="title">I understand and agree</span>' +
+      '<span class="sub">This marks a general area only — please avoid placing it at your exact home address.</span></span></label>' +
       '<p id="pin-error" class="error-text" style="display:none;" role="alert"></p>' +
       '<div class="row-btns">' +
-      '<button type="button" class="btn btn--primary" id="pin-save" ' + (draft ? '' : 'disabled') + '>' + (myLocation ? 'Move my pin here' : 'Drop my pin') + '</button>' +
+      '<button type="button" class="btn btn--primary" id="pin-save" ' + (draft && state.pinConsent ? '' : 'disabled') + '>' + (myLocation ? 'Move my pin here' : 'Drop my pin') + '</button>' +
       (myLocation ? '<button type="button" class="btn btn--danger" id="pin-remove">Remove</button>' : '') +
       '</div>' +
       '</div>';
@@ -735,8 +740,13 @@
       }
     });
 
+    document.getElementById('pin-consent').addEventListener('change', (e) => {
+      state.pinConsent = e.target.checked;
+      document.getElementById('pin-save').disabled = !(state.draft && state.pinConsent);
+    });
+
     document.getElementById('pin-save').addEventListener('click', async () => {
-      if (!state.draft) return;
+      if (!state.draft || !state.pinConsent) return;
       const saveBtn = document.getElementById('pin-save');
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
