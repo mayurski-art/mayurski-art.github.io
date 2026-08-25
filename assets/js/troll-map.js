@@ -758,6 +758,10 @@
         if (state.session && !document.getElementById('pin-visible').checked) {
           await setMyLocationVisible(state.session.userId, false);
         }
+        // Server enforces a lifetime cap of 1 on 'map_pin' (see
+        // troll_map_pin_xp.sql), so calling this on every save — first drop
+        // or a later move — is safe: only the very first one ever awards.
+        void window.TrollrunnerAccounts?.awardXp?.('map_pin', 'maps');
         state.draft = null;
         await refreshAll();
       } catch (err) {
