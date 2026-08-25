@@ -460,7 +460,7 @@
       color: var(--accent); text-transform: none;
     }
     .runner {
-      position: absolute; top: 5px; left: 5px; width: 58px; height: 58px;
+      position: absolute; top: 5px; left: 32px; width: 58px; height: 58px;
       display: grid; place-items: center; cursor: grab; touch-action: none;
       will-change: transform;
     }
@@ -1039,7 +1039,7 @@
       .dock svg { width: 19px; height: 19px; }
       .dock span { font-size: 8px; }
       .track { height: 62px; }
-      .runner { width: 52px; height: 52px; }
+      .runner { left: 30px; width: 52px; height: 52px; }
       .runner img { width: 38px; height: 38px; }
     }
     /* Same reason: when the layout viewport can't be trusted, px tile sizes
@@ -1224,7 +1224,7 @@
     html.mobile-preview .shell { height: 100%; height: 100dvh; }
     html.mobile-preview .island img { width: 100%; height: 100%; }
     html.mobile-preview .track { height: 62px; }
-    html.mobile-preview .runner { width: 52px; height: 52px; }
+    html.mobile-preview .runner { left: 30px; width: 52px; height: 52px; }
     html.mobile-preview .runner img { width: 38px; height: 38px; }
 
     /* ================= WHO'S ONLINE =================
@@ -3077,7 +3077,7 @@
       stallTimer = setTimeout(() => { if (dragging && !done) setMood('sad'); }, STALL_MS);
     }
 
-    const travel = () => track.clientWidth - runner.offsetWidth - 10;
+    const travel = () => track.clientWidth - runner.offsetWidth - (parseFloat(getComputedStyle(runner).left) || 5) * 2;
 
     function render() {
       const x = progress * travel();
