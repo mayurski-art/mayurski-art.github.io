@@ -899,10 +899,6 @@
             <div class="card-head">
               <div>
                 <h2>Player accounts</h2>
-                <p class="card-sub">Every TrollRunner account, live from Supabase. Levels and XP are the server-verified values — the same numbers players see in their profile.</p>
-              </div>
-              <div class="pill-row">
-                <span class="summary-note">Everyone registered</span>
               </div>
             </div>
             <div id="accounts-summary" class="analytics-grid"></div>
@@ -1612,7 +1608,7 @@ Fixed some admin system bugs.`,
         setStoredSiteLockRecord(siteLock);
         renderLiveStatusState();
         localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedback));
-        status.textContent = `Shared updates loaded (${updates.length} items).`;
+        status.textContent = '';
         return { updates, feedback, siteLock };
       } catch (err) {
         status.textContent = `Shared sync read failed: ${err.message}`;
@@ -1692,7 +1688,7 @@ Fixed some admin system bugs.`,
           setStoredSiteLockRecord(siteLock);
           renderLiveStatusState();
           localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedback));
-          if (status) status.textContent = `Shared updates loaded (${updates.length} items).`;
+          if (status) status.textContent = '';
           return { updates, feedback, siteLock };
         }
       } catch (err) {
@@ -3014,7 +3010,6 @@ Fixed some admin system bugs.`,
           const saved = await response.json();
           account.tags = cleanTags(saved);
           renderAccounts();
-          setStatus(`Tags for ${account.username}: ${account.tags.length ? account.tags.join(', ') : 'none'}.`, 'open');
         } catch (err) {
           button.disabled = false;
           setStatus(`Could not update tags: ${err && err.message ? err.message : 'unknown error'}`, 'locked');
