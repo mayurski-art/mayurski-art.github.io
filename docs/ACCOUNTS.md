@@ -206,11 +206,11 @@ and bot loops earn nothing:
 
 | Event | XP | Cooldown | Cap/day |
 |---|---|---|---|
-| `daily_login` | 10 | 20 h | 1 |
-| `chat_post` | 2 | 2 min | 20 |
+| `daily_login` | 20 | 20 h | 1 |
+| `chat_post` | 3 | 2 min | 20 |
 | `game_run` | 5 | 30 s | 60 |
 | `high_score` | 20 | 30 s | 20 |
-| `feedback_post` | 5 | 6 h | 2 |
+| `feedback_post` | 100 | 6 h | 2 |
 
 Level = `floor(sqrt(xp / 50)) + 1` (L2 at 50 XP, L3 at 200, L5 at 800…).
 Clients cannot write `xp`/`level` columns at all (column-level grants).

@@ -459,7 +459,14 @@
     }
     .tag-def-chip button:hover { background: #00000055; filter: none; }
     .tag-def-chip button:disabled { cursor: wait; opacity: .5; }
+    .tag-def-chip button.tag-def-label {
+      border: none; background: transparent; width: auto; height: auto; border-radius: 0;
+      padding: 0; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+    }
+    .tag-def-chip button.tag-def-label:hover { text-decoration: underline; }
+    .tag-def-chip.is-editing { outline: 2px solid #08090c; outline-offset: 1px; }
     .tag-create-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+    .tag-create-actions { display: flex; gap: 8px; align-items: center; }
     .tag-wheel {
       position: relative; width: 132px; height: 132px; border-radius: 50%; flex: none;
       cursor: crosshair; border: 1px solid var(--glass-stroke); overflow: hidden; touch-action: none;
@@ -862,9 +869,6 @@
                 <h2>Profile tags</h2>
                 <p class="card-sub">Create the tags you can grant on accounts below. Pick a colour on the wheel, name it, and it shows up as a toggle in the Tags column for every account. Deleting a tag here removes it from every profile that has it.</p>
               </div>
-              <div class="pill-row">
-                <span class="summary-note">Discord-style role badges</span>
-              </div>
             </div>
             <div id="tag-defs-list" class="tag-defs-list"></div>
             <div class="tag-create-row">
@@ -883,7 +887,10 @@
                   <input type="text" id="tag-hex-input" maxlength="7" placeholder="#7f8bff" aria-label="Hex colour code">
                 </div>
                 <input type="text" id="tag-label-input" maxlength="24" placeholder="Tag name (e.g. Beta tester)" aria-label="New tag name">
-                <button type="button" id="tag-create-btn" class="secondary">+ Create tag</button>
+                <div class="tag-create-actions">
+                  <button type="button" id="tag-create-btn" class="secondary">+ Create tag</button>
+                  <button type="button" id="tag-cancel-edit-btn" class="secondary" hidden>Cancel edit</button>
+                </div>
               </div>
             </div>
             <p id="tag-manager-status" class="status-line"></p>
@@ -2734,11 +2741,41 @@ Fixed some admin system bugs.`,
           return;
         }
         tagDefsListEl.innerHTML = tagDefs.map(tag => `
-          <span class="tag-def-chip" style="--chip-c:${escapeHtml(tag.color)}">
-            ${escapeHtml(tag.label)}
+          <span class="tag-def-chip${tag.slug === editingSlug ? ' is-editing' : ''}" style="--chip-c:${escapeHtml(tag.color)}">
+            <button type="button" class="tag-def-label" data-edit-slug="${escapeHtml(tag.slug)}" data-label="${escapeHtml(tag.label)}" data-color="${escapeHtml(tag.color)}" title="Edit the ${escapeHtml(tag.label)} tag" aria-label="Edit the ${escapeHtml(tag.label)} tag">${escapeHtml(tag.label)}</button>
             <button type="button" data-slug="${escapeHtml(tag.slug)}" title="Delete the ${escapeHtml(tag.label)} tag" aria-label="Delete the ${escapeHtml(tag.label)} tag">&times;</button>
           </span>
         `).join('');
+      }
+
+      // ---- Edit mode: clicking a chip's label loads it into the create
+      // form below (reusing the same wheel/label input) and swaps the
+      // create button over to "Save changes" until cancelled or saved. ----
+      let editingSlug = null;
+      let applyWheelHex = null; // set by initTagColorWheel() below
+
+      function enterEditMode(slug, label, color) {
+        editingSlug = slug;
+        const labelInput = document.getElementById('tag-label-input');
+        const createBtn = document.getElementById('tag-create-btn');
+        const cancelBtn = document.getElementById('tag-cancel-edit-btn');
+        if (labelInput) labelInput.value = label;
+        if (createBtn) createBtn.textContent = 'Save changes';
+        if (cancelBtn) cancelBtn.hidden = false;
+        if (applyWheelHex) applyWheelHex(color);
+        renderTagManager();
+        labelInput?.focus();
+      }
+
+      function exitEditMode() {
+        editingSlug = null;
+        const createBtn = document.getElementById('tag-create-btn');
+        const cancelBtn = document.getElementById('tag-cancel-edit-btn');
+        const labelInput = document.getElementById('tag-label-input');
+        if (createBtn) createBtn.textContent = '+ Create tag';
+        if (cancelBtn) cancelBtn.hidden = true;
+        if (labelInput) labelInput.value = '';
+        renderTagManager();
       }
 
       async function createTag(label, color) {
@@ -2777,6 +2814,7 @@ Fixed some admin system bugs.`,
           });
           if (!response.ok) throw new Error(await parseSupabaseError(response));
           accounts.forEach(account => { account.tags = account.tags.filter(t => t !== slug); });
+          if (editingSlug === slug) exitEditMode();
           await loadTagDefs();
           renderAccounts();
           setTagManagerStatus(`Deleted the "${tag ? tag.label : slug}" tag.`, 'open');
@@ -2786,12 +2824,38 @@ Fixed some admin system bugs.`,
         }
       }
 
+      async function updateTag(slug, label, color) {
+        const createBtn = document.getElementById('tag-create-btn');
+        if (createBtn) createBtn.disabled = true;
+        setTagManagerStatus('Saving tag…');
+        try {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_admin_update_tag`, {
+            method: 'POST',
+            headers: await adminRpcHeaders(),
+            body: JSON.stringify({ p_slug: slug, p_label: label, p_color: color }),
+          });
+          if (!response.ok) throw new Error(await parseSupabaseError(response));
+          exitEditMode();
+          await loadTagDefs();
+          renderAccounts();
+          setTagManagerStatus(`Updated the "${label}" tag.`, 'open');
+        } catch (err) {
+          setTagManagerStatus(`Could not update tag: ${err && err.message ? err.message : 'unknown error'}`, 'locked');
+        } finally {
+          if (createBtn) createBtn.disabled = false;
+        }
+      }
+
       if (tagDefsListEl) {
         tagDefsListEl.addEventListener('click', event => {
-          const button = event.target.closest('button[data-slug]');
-          if (button && !button.disabled) void deleteTag(button.dataset.slug, button);
+          const editBtn = event.target.closest('button[data-edit-slug]');
+          if (editBtn) { enterEditMode(editBtn.dataset.editSlug, editBtn.dataset.label, editBtn.dataset.color); return; }
+          const deleteBtn = event.target.closest('button[data-slug]');
+          if (deleteBtn && !deleteBtn.disabled) void deleteTag(deleteBtn.dataset.slug, deleteBtn);
         });
       }
+
+      document.getElementById('tag-cancel-edit-btn')?.addEventListener('click', () => exitEditMode());
 
       // ---- Colour wheel: hue by angle, saturation by radius, lightness by
       // the slider below it. Position is tracked in unit-circle coords so it
@@ -2893,6 +2957,19 @@ Fixed some admin system bugs.`,
           updateUI(false);
         });
 
+        // Exposed to the tag manager above so clicking a chip's label can
+        // load that tag's colour into the wheel from outside this closure.
+        applyWheelHex = function (hex) {
+          const hsl = hexToHsl(hex);
+          if (!hsl) return;
+          hue = hsl.h; sat = hsl.s / 100;
+          dx = sat * Math.sin(hue * Math.PI / 180);
+          dy = -sat * Math.cos(hue * Math.PI / 180);
+          if (lightnessInput) lightnessInput.value = String(Math.round(Math.min(90, Math.max(10, hsl.l))));
+          hexInput.value = hex;
+          updateUI(true);
+        };
+
         lightnessInput?.addEventListener('input', () => updateUI(false));
 
         hexInput.addEventListener('change', () => {
@@ -2910,7 +2987,8 @@ Fixed some admin system bugs.`,
           if (!label) { setTagManagerStatus('Give the tag a name first.', 'locked'); labelInput?.focus(); return; }
           const hex = hexInput.value.trim();
           if (!/^#[0-9a-fA-F]{6}$/.test(hex)) { setTagManagerStatus('Pick a colour on the wheel first.', 'locked'); return; }
-          void createTag(label, hex.toLowerCase());
+          if (editingSlug) void updateTag(editingSlug, label, hex.toLowerCase());
+          else void createTag(label, hex.toLowerCase());
         });
 
         updateUI(false);
