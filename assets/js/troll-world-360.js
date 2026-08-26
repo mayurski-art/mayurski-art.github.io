@@ -25,7 +25,11 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
   const SPHERE_RADIUS = 500;
 
   let renderer, scene, camera, sphere;
-  let lon = 180, lat = 0, targetLon = 180, targetLat = 0;
+  // Pitched down on entry rather than level with the horizon, so the first
+  // thing you see is the terrain itself — recognizable as "the map" right
+  // away instead of mostly sky until you drag.
+  const START_LAT = -35;
+  let lon = 180, lat = START_LAT, targetLon = 180, targetLat = START_LAT;
   let dragging = false, startX = 0, startY = 0, startLon = 0, startLat = 0;
   let rafId = null;
   let resizeObserver = null;
@@ -143,6 +147,11 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
   }
 
   async function open() {
+    // Reset the view every time — without this, reopening after a previous
+    // visit's drag would resume wherever that drag left off instead of
+    // greeting the visitor with the ground again.
+    lon = targetLon = 180;
+    lat = targetLat = START_LAT;
     modal.classList.add('is-open');
     // Double rAF so the opacity transition actually runs instead of
     // snapping straight to opaque — same pattern the observatory arrival
