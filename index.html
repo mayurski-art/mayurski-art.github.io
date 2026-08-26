@@ -80,11 +80,19 @@
   // world.html's lock-screen drag and boot typing animation, since someone
   // leaving PFP Studio already came from inside the site and re-running
   // the whole entrance for them reads as broken, not as a fresh visit.
+  //
+  // games.trollrunner.net's Home button is a different-origin link, so it
+  // can't set this page's sessionStorage the way a same-origin redirect
+  // (pfp.html, stickers.html) does — it passes a plain ?enter=1 instead,
+  // which a straight link can always do regardless of origin.
   let enterParam = '';
   try {
     if (sessionStorage.getItem('trollrunner_skip_entrance') === '1') {
       sessionStorage.removeItem('trollrunner_skip_entrance');
       enterParam = '&enter=1';
+    } else if (new URLSearchParams(window.location.search).get('enter') === '1') {
+      enterParam = '&enter=1';
+      history.replaceState(null, '', path + window.location.hash);
     }
   } catch {}
 
