@@ -2,7 +2,29 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+<!-- CSP notes for the Coach tab's client-side embedding model (Phase 7):
+     script-src already allowed cdn.jsdelivr.net (Supabase JS), which is
+     also where @huggingface/transformers is dynamic-import()ed from and
+     where its ONNX-runtime-web WASM binaries default to — so no new
+     script-src host was needed there. 'wasm-unsafe-eval' was added because
+     onnxruntime-web calls WebAssembly.instantiate() to run the embedding
+     model in-browser, which plain script-src (even with 'unsafe-inline')
+     does not permit; this token only unblocks WASM compilation, not JS eval.
+     'blob:' was added to script-src because onnxruntime-web's WASM backend
+     loads its own glue code from a same-page-generated `blob:` URL (not a
+     real CDN host) — confirmed load-bearing by testing: the model load
+     fails with "Failed to fetch dynamically imported module: blob:..." and
+     a CSP script-src violation without it. connect-src gained:
+     https://cdn.jsdelivr.net (fetching the WASM binary itself is a network
+     request, gated separately from the script-src host allowance above),
+     and https://huggingface.co plus the *.huggingface.co / hf.co / *.hf.co
+     wildcards (the model weights for Xenova/all-MiniLM-L6-v2 are fetched
+     from the HF Hub, which 302-redirects to its cdn-lfs-* storage
+     subdomains — HF's own docs say allowlisting the huggingface.co and
+     hf.co suffixes is the only way to cover all current and future redirect
+     targets). Verified end-to-end with Playwright against this exact CSP:
+     the model downloads, compiles, and returns a real 384-dim embedding. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://hf.co https://*.hf.co; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Fitness — Troll Runner</title>
 <meta name="description" content="Troll Runner Fitness — log runs and lifts, follow a training plan, and chat with the troll running coach. Coming online in phases.">
@@ -452,6 +474,32 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 .pr-timeline-date{ font-size:11.5px; color:var(--pf-muted); margin-top:2px; }
 .pr-timeline-1rm{ font-family:var(--pf-mono); font-size:12px; color:var(--pf-muted); flex:none; }
 
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+/* ── COACH CHAT (Phase 7) ── */
+.coach-chat-card{ gap:10px; }
+.coach-status{ font-size:12px; color:var(--pf-muted); min-height:16px; }
+.coach-status.is-err{ color:#c0392b; }
+.coach-log{
+  display:flex; flex-direction:column; gap:8px; width:100%; max-height:min(52vh, 460px);
+  overflow-y:auto; padding:2px 2px 4px;
+}
+.coach-msg{ max-width:86%; border-radius:14px; padding:9px 13px; font-size:13.5px; line-height:1.45; white-space:pre-wrap; }
+.coach-msg-user{ align-self:flex-end; background:var(--fit-accent); color:#fff; border-bottom-right-radius:4px; }
+.coach-msg-coach{ align-self:flex-start; background:#f2efe9; color:var(--pf-ink); border-bottom-left-radius:4px; }
+.coach-msg-empty{ align-self:flex-start; max-width:100%; color:var(--pf-muted); background:transparent; padding:0; }
+.coach-msg-typing{ align-self:flex-start; background:#f2efe9; color:var(--pf-muted); font-style:italic; }
+.coach-input-row{ display:flex; gap:8px; width:100%; }
+.coach-input-row .fit-input{ flex:1; }
+.coach-input-row .fit-btn{ flex:none; }
+
+.coach-admin-item{ border:.5px solid var(--pf-line); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+.coach-admin-item + .coach-admin-item{ margin-top:10px; }
+.coach-admin-q{ font-size:13.5px; font-weight:600; }
+.coach-admin-meta{ font-size:11.5px; color:var(--pf-muted); }
+.coach-admin-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+.coach-admin-actions .fit-btn{ padding:8px 14px; font-size:12.5px; }
+
 /* ── ONBOARDING WIZARD (Phase 4) ── */
 .ob-modal-card{ width:min(520px,100%); max-height:88vh; overflow-y:auto; gap:12px; }
 .ob-progress{ width:100%; height:4px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden; flex:none; }
@@ -744,9 +792,35 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
         </div>
       </section>
       <section class="tabpanel" id="tabpanel-coach" data-tab="coach" role="tabpanel" aria-labelledby="coach">
-        <span class="soon">Coming soon</span>
-        <h2>Coach</h2>
-        <p class="desc">Chat with the troll running coach — ask about pacing, recovery, or what to do about that nagging knee.</p>
+        <div class="signedout-block" id="coachSignedOut">
+          <h2>Coach</h2>
+          <p class="desc">Chat with the troll running coach — ask about pacing, recovery, or what to do about that nagging knee. Sign in to start.</p>
+          <button type="button" class="fit-btn fit-btn-primary" id="coachSigninBtn" style="width:auto;">Log in</button>
+        </div>
+
+        <div class="fit-body" id="coachBody" hidden>
+          <div class="fit-head">
+            <h2>Coach</h2>
+            <button type="button" class="fit-btn fit-btn-ghost" id="coachAdminToggleBtn" style="width:auto;" hidden>Unanswered questions</button>
+          </div>
+          <p class="desc">Ask about your training load, recovery, this week's plan, nutrition, or training science — this is educational coaching, not medical advice.</p>
+
+          <section class="fit-card coach-chat-card" aria-label="Coach chat">
+            <p class="coach-status" id="coachStatus" role="status" aria-live="polite"></p>
+            <div class="coach-log" id="coachLog" role="log" aria-live="polite" aria-label="Conversation with the coach"></div>
+            <form class="coach-input-row" id="coachForm">
+              <label class="sr-only" for="coachInput">Ask the coach something</label>
+              <input class="fit-input" id="coachInput" type="text" placeholder="Ask something…" autocomplete="off">
+              <button type="submit" class="fit-btn fit-btn-primary" id="coachSendBtn" style="width:auto;">Send</button>
+            </form>
+          </section>
+
+          <section class="fit-card" id="coachAdminCard" aria-label="Unanswered questions" hidden>
+            <div class="fit-head"><h3>Unanswered questions</h3></div>
+            <p class="desc">Answers you give here are added to the coach's answer library, so future questions like this one get matched automatically.</p>
+            <div id="coachAdminList"></div>
+          </section>
+        </div>
       </section>
       <section class="tabpanel" id="tabpanel-learn" data-tab="learn" role="tabpanel" aria-labelledby="learn">
         <span class="soon">Coming soon</span>

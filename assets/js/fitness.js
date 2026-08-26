@@ -2702,6 +2702,675 @@
     renderLeaderboard(user.userId).catch(() => {});
   }
 
+  /* ==========================================================================
+     COACH (Phase 7) — ported from src/app/coach/coach-client.tsx (chat UI
+     only — the training-status/predictions/plan/nutrition cards further up
+     that file live on Home per Phase 3's own comment, so they're not
+     duplicated here), src/components/coach/coach-chat.tsx,
+     src/lib/coach-chat/{embeddings,retrieval,answer-library,learned-answers,
+     context}.ts, src/lib/coach/race-predictor.ts and src/lib/nutrition/*.
+
+     No server route exists in this static-site port (the original's
+     /api/coach-chat/route.ts ran findAnswer() server-side), so all of that
+     — building CoachFacts, embedding + matching, queueing unmatched
+     questions — runs client-side here instead, through fitClient()/
+     fitUser() like everything else, respecting the RLS policies already
+     defined in fit_schema.sql §7 (fit_coach_questions, fit_coach_learned_
+     answers). Nothing here needed a new Supabase client.
+     ========================================================================== */
+
+  // Matches fit_schema.sql §7's hardcoded RLS check (username = 'troll_runner')
+  // exactly, rather than reusing index.html's isAdminViewer()/troll_is_admin()
+  // RPC — that RPC checks a *different* admin table (troll_admins, see
+  // troll_admin_lockdown.sql) that troll_runner is only optionally added to.
+  // The actual security boundary for the coach queue is the username check
+  // baked into the RLS policies, so the UI gate mirrors that exact check
+  // (same as the original app's COACH_ADMIN_USERNAME env var) instead of a
+  // different admin flag that could drift out of sync with it.
+  const COACH_ADMIN_USERNAME = 'troll_runner';
+
+  // ── Race predictions (ported from src/lib/coach/race-predictor.ts) ──
+  const COACH_RACE_DISTANCES = [
+    { key: '5K', mi: 3.107 },
+    { key: '10K', mi: 6.214 },
+    { key: 'Half marathon', mi: 13.109 },
+    { key: 'Marathon', mi: 26.219 },
+  ];
+  function coachRiegel(fromMi, fromSec, toMi) { return fromSec * Math.pow(toMi / fromMi, 1.06); }
+  function coachFormatPace(secPerMi) {
+    const m = Math.floor(secPerMi / 60), s = Math.round(secPerMi % 60);
+    return m + ':' + String(s).padStart(2, '0') + '/mi';
+  }
+  function coachBestReferenceRun(activities) {
+    const cutoff = Date.now() - 120 * 24 * 60 * 60 * 1000;
+    const candidates = activities.filter((a) => a.type === 'run' && a.distanceMi && a.distanceMi >= 1 && a.durationSec && new Date(a.occurredAt).getTime() >= cutoff);
+    if (!candidates.length) return null;
+    const best = candidates.reduce((a, b) => (a.durationSec / a.distanceMi < b.durationSec / b.distanceMi ? a : b));
+    return { mi: best.distanceMi, sec: best.durationSec };
+  }
+  function predictRaceTimes(activities) {
+    const ref = coachBestReferenceRun(activities);
+    if (!ref) return null;
+    return COACH_RACE_DISTANCES.map((d) => {
+      const timeSec = coachRiegel(ref.mi, ref.sec, d.mi);
+      return { label: d.key, timeSec: Math.round(timeSec), pace: coachFormatPace(timeSec / d.mi) };
+    });
+  }
+
+  // ── Nutrition (ported from src/lib/nutrition/{targets,profile,education}.ts) ──
+  async function getBodyProfile(userId) {
+    const empty = { age: null, sex: null, heightCm: null, weightKg: null };
+    const sb = fitClient(); if (!sb) return empty;
+    try {
+      const { data } = await sb.from('fit_profiles').select('age, sex, height_cm, weight_kg').eq('user_id', userId).maybeSingle();
+      if (!data) return empty;
+      return { age: data.age, sex: data.sex, heightCm: data.height_cm, weightKg: data.weight_kg };
+    } catch { return empty; }
+  }
+  function coachBmr(p) {
+    if (!p.age || !p.heightCm || !p.weightKg) return null;
+    const male = 10 * p.weightKg + 6.25 * p.heightCm - 5 * p.age + 5;
+    const female = 10 * p.weightKg + 6.25 * p.heightCm - 5 * p.age - 161;
+    const s = String(p.sex || '').trim().toLowerCase();
+    if (s.indexOf('m') === 0) return male;
+    if (s.indexOf('f') === 0) return female;
+    return (male + female) / 2;
+  }
+  function coachActivityMultiplier(sessionsPerWeek) {
+    if (sessionsPerWeek >= 6) return 1.725;
+    if (sessionsPerWeek >= 4) return 1.55;
+    if (sessionsPerWeek >= 2) return 1.375;
+    return 1.2;
+  }
+  const COACH_MUSCLE_GOALS = ['Gain muscle', 'Hypertrophy', 'Strength'];
+  const COACH_CUT_GOALS = ['Lose weight', 'Body recomposition'];
+  const COACH_ENDURANCE_GOALS = ['Run first 5K', 'Run first half marathon', 'Run first marathon', 'Boston qualifier', 'Sub-3 marathon', 'Ultra marathon', 'Ironman', 'Increase endurance'];
+  function computeNutritionTargets(profile, goals, sessionsPerWeek) {
+    const base = coachBmr(profile);
+    const weightKg = profile.weightKg != null ? profile.weightKg : 70;
+    if (base === null) {
+      const proteinG = Math.round(weightKg * 1.8);
+      return {
+        calories: Math.round(weightKg * 30), proteinG,
+        carbsG: Math.round((weightKg * 30 * 0.45) / 4), fatG: Math.round((weightKg * 30 * 0.25) / 9),
+        waterOz: Math.round((weightKg * 2.2) / 2), hasFullProfile: false,
+      };
+    }
+    const tdee = base * coachActivityMultiplier(sessionsPerWeek);
+    let calories = tdee;
+    if (goals.some((g) => COACH_CUT_GOALS.indexOf(g) !== -1)) calories -= 500;
+    else if (goals.some((g) => COACH_MUSCLE_GOALS.indexOf(g) !== -1)) calories += 300;
+    const proteinPerKg = goals.some((g) => COACH_MUSCLE_GOALS.indexOf(g) !== -1 || COACH_CUT_GOALS.indexOf(g) !== -1) ? 2.0
+      : goals.some((g) => COACH_ENDURANCE_GOALS.indexOf(g) !== -1) ? 1.4 : 1.6;
+    const proteinG = Math.round(weightKg * proteinPerKg);
+    const fatG = Math.round((calories * 0.25) / 9);
+    const carbCalories = calories - proteinG * 4 - fatG * 9;
+    const carbsG = Math.round(Math.max(carbCalories, 0) / 4);
+    return { calories: Math.round(calories), proteinG, carbsG, fatG, waterOz: Math.round((weightKg * 2.2) / 2 + sessionsPerWeek * 6), hasFullProfile: true };
+  }
+  function preWorkoutTips() {
+    return [
+      'Eat a carb-focused meal 2-3 hours before training, or a small snack 30-60 min before if that\'s all the time you have.',
+      'Keep pre-workout food low in fat and fiber to avoid GI issues, especially before running.',
+      'Sip water in the hours leading up to training rather than chugging right before.',
+    ];
+  }
+  function postWorkoutTips(workoutType) {
+    const common = [
+      'Aim for protein + carbs within about 2 hours after training — the exact minute doesn\'t matter as much as getting there.',
+      'Rehydrate with water; add electrolytes if the session was long or sweaty.',
+    ];
+    if (workoutType === 'Long run' || workoutType === 'Race / long run') return ['Long runs deplete glycogen the most — prioritize carbs in the next meal, not just protein.'].concat(common);
+    if (workoutType && /rest/i.test(workoutType)) return ['Rest day — eat at your target calories and lean slightly more on protein to support recovery.'];
+    return common;
+  }
+  function raceFuelingTips(raceDistanceMi) {
+    if (raceDistanceMi === null) return ['Set a race goal with a target distance (from onboarding or the Coach tab) to get distance-specific fueling guidance here.'];
+    if (raceDistanceMi <= 3.2) return ['5K-distance efforts don\'t need mid-race fueling — a light pre-race snack 1-2 hours out is plenty.', 'Don\'t experiment with anything new on race morning.'];
+    if (raceDistanceMi <= 6.3) return ['10K is still short enough that fueling during the race is optional for most runners.', 'A carb-focused dinner the night before helps top off glycogen.'];
+    if (raceDistanceMi <= 13.2) return ['Consider one gel or carb source around 45-60 minutes in for a half marathon.', 'Practice your exact race-morning breakfast on a long training run first.'];
+    return ['Marathon+ distances: plan 30-60g of carbs per hour once you\'re past the first 45 minutes.', 'Carb-load for 1-2 days before the race by shifting toward more carbs, not necessarily more calories.', 'Rehearse your full fueling plan (gels/chews/drink) on at least one long run — race day is not the place to test it.'];
+  }
+  function supplementNotes() {
+    return [
+      'Creatine monohydrate (3-5g/day) has the strongest evidence base for strength/power support — consistent daily use matters more than timing.',
+      'A protein supplement is just a convenient way to hit your protein target, not a requirement — whole food works the same if you prefer it.',
+      'Electrolytes matter most for sessions over ~90 minutes or in heat — plain water is fine for shorter, easier efforts.',
+      'This is general education, not a prescription — check with a doctor before starting any supplement, especially with existing medical conditions.',
+    ];
+  }
+
+  // interpretLoad()/interpretRecoveryScore() above (Home, Phase 3) return
+  // {label, why}/{label} without a "tone" — Home's own UI doesn't need one.
+  // The ported answer-library render() functions do (rest_day_question), so
+  // it's derived here from the same label text rather than editing those
+  // Home functions (out of scope for this phase).
+  function coachLoadTone(label) {
+    if (label === 'Overreaching' || label === 'Fatigued') return 'critical';
+    if (label === 'Ramping up fast') return 'warning';
+    return 'good';
+  }
+  function coachRecoveryTone(label) {
+    if (label === 'Poor') return 'critical';
+    if (label === 'Fair') return 'warning';
+    return 'good';
+  }
+
+  // ── CoachFacts (ported from src/lib/coach-chat/context.ts buildCoachFacts) ──
+  async function buildCoachFacts(userId) {
+    const results = await Promise.all([
+      listActivities(userId, 200).catch(() => []),
+      getGoals(userId),
+      getOnboardingWeeklyMileage(userId),
+      listRecentRecovery(userId, 7),
+      getBodyProfile(userId),
+    ]);
+    const activities = results[0], goals = results[1], onboardingMileage = results[2], recovery = results[3], bodyProfile = results[4];
+
+    const load = computeTrainingLoad(activities);
+    const loadStatusRaw = interpretLoad(load);
+    const loadStatus = { label: loadStatusRaw.label, why: loadStatusRaw.why, tone: coachLoadTone(loadStatusRaw.label) };
+    const predictions = predictRaceTimes(activities);
+    const recoveryScore = averageRecentScore(recovery, 7);
+    const recoveryStatusRaw = interpretRecoveryScore(recoveryScore);
+    const recoveryStatus = { label: recoveryStatusRaw.label, tone: coachRecoveryTone(recoveryStatusRaw.label) };
+
+    const recentWeeks = weeklyTrend(activities, 4);
+    const loggedAvg = recentWeeks.reduce((s, w) => s + w.mileage, 0) / (recentWeeks.length || 1);
+    const baseline = loggedAvg > 0 ? loggedAvg : onboardingMileage;
+    const raceGoal = primaryRaceGoal(goals);
+    const plan = generateWeekPlan({
+      goalLabel: raceGoal ? raceGoal.goal_key : null,
+      targetDate: raceGoal ? raceGoal.target_date : null,
+      baselineWeeklyMileage: baseline,
+      recoveryMultiplier: recoveryLoadMultiplier(recoveryScore),
+    });
+    const raceDistanceMi = raceGoal ? (GOAL_DISTANCE_MI[raceGoal.goal_key] || null) : null;
+    const todayPlan = plan.days.find((d) => d.day === todayDayLabel()) || null;
+
+    const sessionsPerWeek = activities.filter((a) => new Date(a.occurredAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000).length;
+    const nutrition = computeNutritionTargets(bodyProfile, goals.map((g) => g.goal_key), sessionsPerWeek);
+
+    return {
+      goals: goals.map((g) => g.goal_key),
+      weeklyMileage: weeklyMileage(activities),
+      streak: currentStreak(activities),
+      load: load, loadStatus: loadStatus, predictions: predictions,
+      recoveryScore: recoveryScore, recoveryStatus: recoveryStatus,
+      plan: plan, raceDistanceMi: raceDistanceMi,
+      todayWorkout: todayPlan ? { type: todayPlan.type, detail: todayPlan.detail } : null,
+      nutrition: nutrition,
+      recentActivities: activities.slice(0, 8).map((a) => ({ type: a.type, title: a.title, date: new Date(a.occurredAt).toLocaleDateString() })),
+    };
+  }
+
+  /* ── Client-side embeddings (ported from src/lib/coach-chat/embeddings.ts) ──
+     @huggingface/transformers runs the Xenova/all-MiniLM-L6-v2 embedding
+     model entirely in-browser via WASM/ONNX — same library the original app
+     used, just client-side instead of server-side (there's no server here).
+     Loaded lazily via dynamic import() (works fine from this classic
+     script — no <script type="module"> conversion needed) only once the
+     Coach tab is opened by a signed-in user, and cached: transformers.js
+     itself caches downloaded model weights via the browser's Cache API, so
+     repeat visits don't re-download. numThreads is forced to 1 because
+     multi-threaded WASM needs SharedArrayBuffer, which needs COOP/COEP
+     response headers GitHub Pages doesn't send — single-threaded is plenty
+     fast for embedding one short sentence at a time. See fitness.html's CSP
+     comment for exactly which new hosts this required and why. */
+  const COACH_MODEL_ID = 'Xenova/all-MiniLM-L6-v2';
+  const COACH_TRANSFORMERS_CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm';
+  let coachExtractorPromise = null;
+  let coachModelFailed = false;
+  function coachGetExtractor() {
+    if (coachModelFailed) return Promise.reject(new Error('Coach model previously failed to load.'));
+    if (!coachExtractorPromise) {
+      coachExtractorPromise = Promise.resolve()
+        .then(() => import(/* webpackIgnore: true */ COACH_TRANSFORMERS_CDN))
+        .then((mod) => {
+          try { mod.env.backends.onnx.wasm.numThreads = 1; } catch { /* older/newer builds may nest this differently — non-fatal */ }
+          return mod.pipeline('feature-extraction', COACH_MODEL_ID);
+        })
+        .catch((err) => { coachModelFailed = true; coachExtractorPromise = null; throw err; });
+    }
+    return coachExtractorPromise;
+  }
+  async function coachEmbedText(text) {
+    const extractor = await coachGetExtractor();
+    const output = await extractor(text, { pooling: 'mean', normalize: true });
+    return output.data;
+  }
+  function coachCosineSimilarity(a, b) {
+    let dot = 0;
+    for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
+    return dot; // both vectors already normalize:true above, so dot product alone is cosine similarity
+  }
+
+  /* ── Answer library (ported 1:1 from src/lib/coach-chat/answer-library.ts).
+     tier/sources metadata from the original dropped — nothing in this port's
+     UI displays them (the original UI doesn't either; they're bookkeeping
+     for whoever maintains the library), so keeping only what retrieval.ts
+     and the chat UI actually use: id (unused but kept for readability),
+     topic, samples, render. Every render() string is unchanged. ── */
+  const COACH_MEDICAL_DISCLAIMER = 'This is educational fitness coaching, not medical advice — if that sounds like pain, an injury, or a health condition, see a doctor rather than pushing through it.';
+  const COACH_ANSWER_LIBRARY = [
+    { id: 'training_load_status', topic: 'training_load', samples: ['how is my training going', "what's my training status", 'am I overtraining', "how's my fitness right now"],
+      render: (f) => `Your training status is "${f.loadStatus.label}". ${f.loadStatus.why} Right now: Fitness (CTL) ${f.load.ctl}, Fatigue (ATL) ${f.load.atl}, Form (TSB) ${f.load.tsb}.` },
+    { id: 'training_load_explain', topic: 'training_load', samples: ['what do CTL ATL TSB mean', 'explain fitness fatigue form', 'what is training load'],
+      render: (f) => `CTL (Fitness) is your 42-day rolling training load. ATL (Fatigue) is the same idea over 7 days. TSB (Form) is CTL minus ATL: positive means fresh, negative means carrying fatigue. Yours right now: CTL ${f.load.ctl}, ATL ${f.load.atl}, TSB ${f.load.tsb}.` },
+    { id: 'recovery_score', topic: 'recovery', samples: ["how's my recovery", 'why is my recovery score low', 'am I recovered'],
+      render: (f) => f.recoveryScore !== null ? `Your 7-day recovery average is ${f.recoveryScore}/100 ("${f.recoveryStatus.label}"), built from sleep, soreness, and stress from your daily check-ins.` : "You haven't logged a recovery check-in yet — do one on the Home tab and I can tell you how you're trending." },
+    { id: 'plan_this_week', topic: 'plan', samples: ["what's this week's plan", 'what should I do today', "what's my workout"],
+      render: (f) => `This week you're in the "${f.plan.phase}" phase, targeting ${f.plan.targetMileage} mi.${f.plan.recoveryNote ? ' ' + f.plan.recoveryNote : ''}${f.todayWorkout ? ' Today: ' + f.todayWorkout.type + ' — ' + f.todayWorkout.detail + '.' : ''}` },
+    { id: 'plan_phase_explain', topic: 'plan', samples: ['why am I in this training phase', 'what does base build peak taper mean', 'why does the plan look this way'],
+      render: (f) => `${f.plan.phaseWhy} That's why this week targets ${f.plan.targetMileage} mi.` },
+    { id: 'race_predictions', topic: 'race', samples: ["what's my race time prediction", 'how fast could I race right now', 'predict my marathon time'],
+      render: (f) => f.predictions ? `Based on your recent training: ${f.predictions.map((p) => p.label + ' ~' + p.pace).join(', ')}.` : 'Log a timed run (distance + duration) and I can predict your race times using the Riegel formula.' },
+    { id: 'nutrition_targets', topic: 'nutrition_personal', samples: ['what should I eat', 'what are my macros', 'how many calories should I eat'],
+      render: (f) => `Your targets: ${f.nutrition.calories} kcal, ${f.nutrition.proteinG}g protein, ${f.nutrition.carbsG}g carbs, ${f.nutrition.fatG}g fat, and about ${f.nutrition.waterOz} oz of water a day.${f.nutrition.hasFullProfile ? '' : ' These are weight-based estimates — add your age, sex, height, and weight in onboarding for more precise numbers.'}` },
+    { id: 'plateau_explain', topic: 'training_load', samples: ['why am I plateauing', 'why am I not improving', 'why does my training feel stuck'],
+      render: (f) => `Your Form (TSB) is ${f.load.tsb} and status is "${f.loadStatus.label}". ${f.loadStatus.why} A plateau is usually either not enough stimulus (TSB staying high, load flat) or too much fatigue masking fitness gains (TSB very negative) — check which one matches before changing anything drastic.` },
+    { id: 'mileage_progress', topic: 'plan', samples: ['how many miles have I run this week', "what's my weekly mileage"],
+      render: (f) => `You're at ${f.weeklyMileage.toFixed(1)} mi this week, targeting ${f.plan.targetMileage} mi.` },
+    { id: 'streak', topic: 'misc', samples: ["what's my streak", 'how many days have I logged in a row'],
+      render: (f) => `You're on a ${f.streak}-day logging streak.` },
+    { id: 'goals', topic: 'plan', samples: ['what are my goals', 'what am I training for'],
+      render: (f) => f.goals.length ? `Your current goal(s): ${f.goals.join(', ')}.` : 'You haven\'t set a race goal yet — add one in onboarding or your profile to unlock phase-based planning and race predictions.' },
+    { id: 'rest_day_question', topic: 'recovery', samples: ['should I take a rest day', "should I skip today's workout", 'am I too tired to train'],
+      render: (f) => `Form (TSB) is ${f.load.tsb} and recovery is "${f.recoveryStatus.label}"${f.recoveryScore !== null ? ' (' + f.recoveryScore + '/100)' : ''}. ${(f.loadStatus.tone === 'critical' || f.recoveryStatus.tone === 'critical') ? 'Both signals lean toward taking it easy or resting today.' : 'Nothing here says you need to rest, but listen to how your body actually feels.'}` },
+    { id: 'hydration', topic: 'nutrition_general', samples: ['how much water should I drink day to day'],
+      render: (f) => `Target about ${f.nutrition.waterOz} oz/day, scaled up on training days.` },
+    { id: 'how_to_checkin', topic: 'misc', samples: ['how do I log a check-in', 'where do I log sleep and soreness'],
+      render: () => 'Log your daily check-in (sleep, soreness, stress) on the Home tab — it takes a few seconds and unlocks your recovery score here.' },
+    { id: 'how_to_log_activity', topic: 'misc', samples: ['how do I log a run', 'where do I log a workout'],
+      render: () => 'Log activities from the Log tab — distance, duration, and effort for runs, or sets/reps for strength work.' },
+    { id: 'greeting', topic: 'misc', samples: ['hi', 'hello', 'what can you help with', 'what can you do'],
+      render: (f) => `Hey${f.goals.length ? '' : ' runner'}! Ask about your training load, recovery, this week's plan, nutrition, race science, or training myths — I'll answer from your data or from sourced research. ${COACH_MEDICAL_DISCLAIMER}` },
+    { id: 'polarized_training', topic: 'training_science', samples: ['should I do most of my runs easy', "what's the 80/20 rule", 'how should I split easy vs hard runs'],
+      render: () => "Research on 'polarized' training (~80% easy, ~20% hard) generally shows it works well for endurance gains, and elite distance runners tend toward polarized or pyramidal intensity distributions rather than threshold-heavy ones. That said, at least one study found a different, more focused-endurance approach did just as well or better — so treat 80/20 as a solid default, not a rigid law." },
+    { id: 'strike_pattern', topic: 'training_science', samples: ['should I switch to forefoot striking', 'is heel striking bad for me', 'what running form is best'],
+      render: () => "No strike pattern is universally safer — heel striking shifts load toward the knee, forefoot striking shifts it toward the ankle/Achilles/calf. If you're an uninjured heel striker, there's no proven benefit to switching, and uninformed switches during the adaptation period have been linked to more injuries, not fewer." },
+    { id: 'stretching_myth', topic: 'training_science', samples: ['does stretching before a run prevent injury', 'should I stretch before running'],
+      render: () => "Static stretching before a run doesn't reduce injury risk in controlled trials, and holding a stretch too long beforehand can temporarily reduce power and speed for up to about an hour. A dynamic warm-up (leg swings, drills) doesn't carry that cost and may help running economy — save static stretching for after." },
+    { id: 'strength_running_economy', topic: 'training_science', samples: ['does lifting weights make me a faster runner', 'does strength training help running economy'],
+      render: () => 'Yes — a 2024 meta-analysis found strength training (heavy loads, plyometrics, or both), done 2-3x/week for 8-12 weeks, meaningfully improves running economy in middle- and long-distance runners. Plyometrics helped more at slower speeds; heavy/combined lifting helped across a range of speeds.' },
+    { id: 'strength_injury_prevention', topic: 'training_science', samples: ['does strength training prevent running injuries', 'will lifting keep me from getting hurt'],
+      render: () => "This one's less settled than the running-economy benefit. It's plausible that strengthening tendons/bone reduces overuse injury, but a systematic review of injury-prevention conditioning programs didn't find consistent, clear evidence that it lowers running-injury risk directly. Worth doing for the performance benefit; don't count on it as injury insurance." },
+    { id: 'interference_effect', topic: 'training_science', samples: ['will lifting hurt my endurance gains', 'does strength training interfere with running gains'],
+      render: () => "Less than commonly believed. Recent meta-analyses (covering 40+ studies) find concurrent strength+endurance training doesn't meaningfully hurt strength or hypertrophy gains — the 'interference effect' shows up mainly in explosive/power output, not general strength. If your goals are strength and endurance together, you can train both without much tradeoff." },
+    { id: 'overtraining_signs', topic: 'training_science', samples: ['what are the signs of overtraining', "how do I know if I'm overtraining vs just tired"],
+      render: () => "There's no single blood test for overtraining — it's diagnosed by ruling other things out. Watch for a cluster: performance decline despite training, persistent fatigue, elevated resting heart rate, mood changes (irritability, low motivation), disrupted sleep, and getting sick more often. If several show up together over weeks, that's worth backing off for, not pushing through." },
+    { id: 'acwr_explain', topic: 'training_science', samples: ['how much can I safely increase my training', "what's a safe way to ramp up mileage"],
+      render: () => "Sudden jumps in training load relative to your recent baseline are linked to higher injury risk — that part is well supported. The specific 'ACWR' ratio numbers (like 1.0-1.5) you'll see quoted online are more folklore than precise science; sports scientists have criticized the math behind them. Safer takeaway: avoid big spikes, not a magic ratio." },
+    { id: 'ten_percent_rule', topic: 'training_science', samples: ['is the 10 percent rule real', 'how much should I increase my weekly mileage'],
+      render: () => "The classic 'never increase weekly mileage more than 10%' rule has no solid evidence behind it — a controlled comparison found no injury-rate difference between runners who followed it and those who didn't. A newer, more specific finding suggests the real risk factor is a big jump in your single longest run, not your weekly total — so be more cautious about sudden long-run jumps than weekly mileage math." },
+    { id: 'red_s', topic: 'training_science', samples: ['what is RED-S', 'am I at risk of energy deficiency', 'am I eating enough for how much I train'],
+      render: () => 'RED-S (Relative Energy Deficiency in Sport) happens when you eat too little relative to how much you train, and it can affect hormones, bone health, immunity, and mood — not just performance. Endurance athletes and anyone restricting food while training heavily are most at risk. If your periods have changed, you\'re getting sick often, or bone-stress injuries keep happening, that\'s worth discussing with a doctor.' },
+    { id: 'injury_stats', topic: 'training_science', samples: ['how common are running injuries', 'is it normal to get injured from running'],
+      render: () => 'More common than people assume — roughly 4 in 10 runners experience an injury in a given period, and new runners get hurt more than experienced ones. About 80% of running injuries are overuse (gradual load exceeding what tissue can handle) rather than acute trauma, most often at the knee, lower leg, or ankle/foot. Getting hurt doesn\'t mean you did something uniquely wrong.' },
+    { id: 'exercise_mental_health', topic: 'mental_health', samples: ['does running help with anxiety or depression', 'does exercise help my mood'],
+      render: () => 'Strongly, yes — one of the best-supported findings in exercise science. A large umbrella review found exercise produces meaningful reductions in depression, anxiety, and psychological distress, matching or exceeding medication/therapy in some comparisons. Group or supervised exercise tends to help depression most; shorter, lower-intensity sessions tend to help anxiety most.' },
+    { id: 'exercise_addiction', topic: 'mental_health', samples: ['can you overdo exercise', 'is exercise addiction real', 'am I addicted to training'],
+      render: () => "It's a real, documented phenomenon, more common in competitive/endurance athletes than recreational ones — exact prevalence numbers vary a lot by study. Watch for training that continues despite injury or cost to relationships/work, and distress when you can't train. If that sounds familiar, it's worth talking to someone." },
+    { id: 'carb_loading', topic: 'nutrition_general', samples: ['should I carb load before a race', 'do I need to load carbs before my marathon'],
+      render: () => 'Worth it for events over about 90 minutes — loading up on carbs (roughly 10-12g/kg bodyweight/day) for 36-48 hours before maximizes glycogen stores. For shorter races the benefit is less clear; one study found extra glycogen from loading didn\'t actually improve half-marathon performance.' },
+    { id: 'protein_timing_myth', topic: 'nutrition_general', samples: ['do I need to eat protein right after my workout', 'is there an anabolic window'],
+      render: () => "The strict 30-60 minute 'anabolic window' is a myth in its common form — a meta-analysis of 65 trials found protein timing didn't matter once total daily protein intake was accounted for. The real window is several hours wide, especially if you ate a meal a few hours before training. Hit your daily protein target; don't stress about the clock." },
+    { id: 'hyponatremia', topic: 'nutrition_general', samples: ['how much water should I drink during a long run', 'am I drinking too much water on race day'],
+      render: () => 'Overhydration is the underrated danger on race day, not dehydration — drinking beyond thirst has caused fatal cases of hyponatremia (dangerously diluted blood sodium) in marathoners. Drink to thirst rather than a fixed schedule, and add sodium on runs over ~90 minutes.' },
+    { id: 'creatine', topic: 'nutrition_general', samples: ['should I take creatine', 'does creatine help running'],
+      render: () => "Creatine monohydrate is the most well-evidenced supplement for strength/power and is well established as safe for long-term use. For endurance running specifically, its benefit is most plausible for the high-intensity surges in a race (sprint finishes, hills) rather than steady aerobic pace — that endurance-specific benefit is a newer, smaller evidence base than the strength-sport one." },
+    { id: 'bcaa', topic: 'nutrition_general', samples: ['should I take BCAAs'],
+      render: () => "Not much benefit if your protein intake is already adequate. Complete-protein supplementation produces roughly double the muscle-building response of BCAAs alone, since BCAAs are missing several essential amino acids. There's modest evidence BCAAs reduce soreness, but that's a smaller effect than just getting enough total protein." },
+    { id: 'beet_juice', topic: 'nutrition_general', samples: ['does beet juice make me run faster', 'does nitrate help running performance'],
+      render: () => 'Mixed evidence depending on the effort type. Beetroot/nitrate helps some high-intensity, short-effort metrics, but for actual race times the picture is inconsistent — one 10K study found a faster first half but no overall time improvement. Worth experimenting with in training, not something to bank on for a PR.' },
+    { id: 'supplements_general', topic: 'nutrition_general', samples: ['should I take supplements', 'what supplements help running'],
+      render: () => supplementNotes().join(' ') },
+    { id: 'ice_bath', topic: 'recovery_science', samples: ['do ice baths help recovery', 'should I do cold water immersion'],
+      render: () => 'Cold water immersion reliably reduces muscle soreness and a blood marker of muscle damage compared to just resting, especially after hard or eccentric-heavy sessions. It doesn\'t do much for strength, and can actually blunt explosive power right afterward — so avoid it right before a power-focused session.' },
+    { id: 'foam_rolling', topic: 'recovery_science', samples: ['is foam rolling worth it', 'does foam rolling help performance'],
+      render: () => 'It genuinely reduces soreness, especially 2-3 days after a hard session — that part is well supported. Evidence that it improves actual performance (strength, jump, agility) is much weaker. Treat it as a comfort tool, not a performance enhancer.' },
+    { id: 'sleep_matters', topic: 'recovery_science', samples: ['does sleep actually matter for training', 'how important is sleep for recovery'],
+      render: () => 'One of the most consistently supported recovery factors there is. Insufficient sleep is linked to worse endurance/strength, slower glycogen replenishment, and higher injury risk, while sleep-extension studies have directly improved athletes\' performance metrics. If you\'re optimizing one thing for recovery, sleep is a strong first choice.' },
+    { id: 'injury_pain', topic: 'medical', samples: ['my knee hurts', 'I have pain when I run', 'is this injury serious', 'should I run through pain'],
+      render: () => `I can't assess pain or injuries — ${COACH_MEDICAL_DISCLAIMER} If it's mild soreness rather than pain, logging it in your daily check-in helps the plan adjust.` },
+    { id: 'cardiac_screening', topic: 'medical', samples: ['should I get my heart checked before training hard', 'how do I know if it\'s safe to train intensely', 'what cardiac screening should athletes get'],
+      render: () => `Before ramping up serious training, it's worth doing the standard pre-participation check the AHA recommends for every athlete: personal cardiac history, a physical exam (blood pressure, resting heart rate, heart murmur check), and a detailed family history — specifically, has anyone in your family died suddenly and unexpectedly before age 50, or been diagnosed with a heart condition young. Any yes there is worth a conversation with a doctor before pushing hard efforts. ${COACH_MEDICAL_DISCLAIMER}` },
+    { id: 'sudden_cardiac_death_context', topic: 'medical', samples: ['how risky is sudden cardiac death for athletes', 'can intense exercise cause a heart attack'],
+      render: () => 'In absolute terms it\'s rare — roughly 1-2 per 100,000 athlete-years in young competitive athletes. It\'s the leading cause of death during sport in that age group, which is why the family-history and screening questions matter, but it shouldn\'t be a reason to avoid training for the vast majority of people.' },
+    { id: 'sickle_cell_trait', topic: 'medical', samples: ['what is sickle cell trait', 'does sickle cell trait affect exercise', 'am I at risk from sickle cell trait'],
+      render: () => `Sickle cell trait is more common in people with ancestry from regions with a history of malaria — parts of Africa, the Mediterranean, the Middle East, and South Asia — but it isn't tied to any single ethnicity, and most carriers train normally without issue. Under extreme, sustained exertion (hard conditioning sessions, heat, altitude) it carries a rare but serious risk, so if you know you carry the trait, pace hard efforts, hydrate, and stop immediately at any unusual cramping or weakness. If you don't know your status and want to, that's a conversation for your doctor, not something this app can determine. ${COACH_MEDICAL_DISCLAIMER}` },
+    { id: 'vitamin_d', topic: 'medical', samples: ['should I worry about vitamin D', 'do I need a vitamin D supplement'],
+      render: () => 'Skin with more melanin needs more sun exposure to make the same amount of vitamin D, and training mostly indoors, at higher latitudes, or through winter adds to that. Low vitamin D matters for bone health and possibly muscle function. If any of that sounds like you, ask your doctor about a simple blood test before starting a supplement.' },
+    { id: 'lactose_sensitivity', topic: 'medical', samples: ['why does dairy bother my stomach after workouts', 'should I avoid dairy for recovery nutrition'],
+      render: () => 'Lactase non-persistence (trouble digesting dairy sugar) is genetically more common in people with East Asian, African, Mediterranean, or Jewish ancestry, and less common in those with Northern European ancestry — though plenty of individual variation exists either way. If dairy-heavy recovery shakes/meals give you GI issues, that\'s worth trying lactose-free alternatives rather than pushing through it.' },
+    { id: 'aha_activity_guidelines', topic: 'medical', samples: ['how much exercise do I need for heart health', 'am I doing enough cardio for my heart'],
+      render: () => "The AHA's baseline is 150+ min/week of moderate cardio (or 75+ min/week vigorous, or a mix), plus muscle-strengthening work 2+ days/week — and 300+ min/week of cardio gives additional benefit on top of that. Most runners training for a race clear this easily; it's a good floor to know if you're ever cutting back." },
+    { id: 'aha_warning_signs', topic: 'medical', samples: ['what symptoms during a workout should worry me', 'what are heart attack warning signs while exercising'],
+      render: () => `The AHA's heart attack warning signs apply just as much mid-workout as at rest: chest discomfort/pressure that lasts more than a few minutes or comes and goes, discomfort in the arms/back/neck/jaw/stomach, shortness of breath, cold sweat, nausea, or lightheadedness. If any of that shows up during a run, stop — don't push through it to finish a workout. ${COACH_MEDICAL_DISCLAIMER}` },
+    { id: 'cardiac_rehab', topic: 'medical', samples: ['can I still run after a heart attack', 'how do I return to training after a cardiac event'],
+      render: () => `Return-to-exercise after a cardiac event should go through a structured cardiac rehab program, not self-directed training — a Cochrane review found exercise-based cardiac rehab cuts cardiovascular mortality by roughly 26% and hospital readmissions by 18%. This is one of the best-evidenced interventions in cardiology; if this applies to you, ask your doctor about a referral. ${COACH_MEDICAL_DISCLAIMER}` },
+    { id: 'know_your_numbers', topic: 'medical', samples: ['what heart health numbers should I track', 'does family history of heart disease matter for me'],
+      render: () => 'Beyond training data, the numbers worth knowing are blood pressure, LDL/HDL cholesterol, and whether a parent or sibling had heart disease young — family history is an independent risk factor on its own, and risk rises with more affected relatives. The AHA estimates over 80% of cardiovascular disease is preventable by managing these, which is as much about a yearly checkup as it is about training.' },
+    { id: 'vo2max_heart_health', topic: 'medical', samples: ['does my VO2max matter for long-term health', 'is fitness actually linked to living longer'],
+      render: () => "Yes, notably so — the AHA has called cardiorespiratory fitness (essentially VO2max) a 'clinical vital sign' because it predicts mortality more strongly than smoking, blood pressure, cholesterol, or diabetes status individually. Improving it over time is one of the best-evidenced things you can do for long-term heart health, separate from any single workout." },
+    { id: 'elite_training_overview', topic: 'elite_training', samples: ['how do elite marathoners train differently', "what does Kipchoge's training look like"],
+      render: () => 'Elite marathoners typically run 100-140 miles/week across 11-14 sessions, with 80%+ of that volume at easy effort year-round (not constant hard running) — the same polarized principle recreational plans use, just at much higher volume. Many East African elites also live and train at altitude (2,000-2,500m) year-round rather than doing short altitude camps. The exact mileage figures you\'ll see quoted for specific athletes (e.g. Kipchoge) vary by outlet and aren\'t published training logs — treat specific numbers as estimates, the overall pattern as solid.' },
+    { id: 'zone2_myth', topic: 'elite_training', samples: ['is zone 2 training the secret to getting fast', 'should I just do all zone 2 training'],
+      render: () => 'Oversimplified. Elites do spend most of their volume at low intensity, which is where this claim comes from, but the science doesn\'t show Zone 2 is uniquely special for fat-burning or mitochondrial adaptation over other easy intensities. Its real value is that it lets you accumulate high weekly volume without excess fatigue, which is what makes the smaller dose of hard training on top of it effective — the volume and the hard sessions both matter, not just the zone.' },
+    { id: 'high_mileage_myth', topic: 'elite_training', samples: ['do I need to run 100 miles a week to get fast', 'how much mileage do I need to run a fast marathon'],
+      render: () => 'Only true at the elite level. An analysis of over 119,000 amateur marathoners found the fastest finishers averaged around 62 miles/week, not 100+, and most of what separated fast from slow runners was more easy running, not more hard running. Sub-3-hour marathoner training data shows peak weeks closer to 75 miles on average.' },
+    { id: 'altitude_training_myth', topic: 'elite_training', samples: ['does altitude training guarantee performance gains', 'should I train at altitude'],
+      render: () => "Not guaranteed — this is a real effect on average, but highly variable individually. Some athletes get a solid VO2max/hemoglobin boost from altitude exposure; others show little to no change, with individual factors like iron status playing a role. It can help, but it's not a reliable shortcut for everyone." },
+    { id: 'elite_injury_myth', topic: 'elite_training', samples: ['do elite runners never get injured because of their form', 'does good running form make you injury-proof'],
+      render: () => "Not supported — elites get injured too, and elite ultra-trail runners in one study actually showed a higher injury rate than typical recreational runners. Certain biomechanical patterns are linked to higher injury odds in research, but no study shows 'good form' makes anyone immune — that's a media narrative, not a finding." },
+    { id: 'supershoes', topic: 'elite_training', samples: ['do carbon plate shoes actually make me faster', 'are supershoes worth it', 'how much do vaporfly shoes help'],
+      render: () => "The shoe effect itself is well measured: carbon-plated 'supershoes' improve running economy by roughly 3-4% at race pace, worth an estimated 1-3% off marathon finish times. What's genuinely unresolved is how much of the last decade's world-record improvements come from shoes versus better pacing, flatter record courses, and a deeper global talent pool — no single study cleanly separates those factors for any specific record." },
+    { id: 'ethnicity_performance_myth', topic: 'medical', samples: ['are certain ethnicities better runners', 'am I not built for running because of my ethnicity', 'is running performance genetic'],
+      render: () => "No reliable genetic test or established science ties your ancestry to an athletic performance ceiling. Popular claims about specific ethnicities being 'built for' sprinting or endurance mostly trace back to opinion pieces, not peer-reviewed research — a 2022 review looking specifically at elite East African runners found 'no compelling explanation' linking genetics to their success despite years of searching. Individual variation within any population dwarfs the average differences between populations. Train based on your own data, not your ancestry." },
+  ];
+
+  /* ── Retrieval (ported from src/lib/coach-chat/retrieval.ts) ── */
+  const COACH_MATCH_THRESHOLD = 0.55;
+  const COACH_SINGLE_MATCH_THRESHOLD = 0.72;
+  const COACH_MAX_COMPOSED_TOPICS = 3;
+
+  function coachSplitClauses(message) {
+    const bySentence = message.split(/[?.!]+/).map((s) => s.trim()).filter(Boolean);
+    const clauses = bySentence.reduce((acc, s) => acc.concat(s.split(/\s+and\s+(?=how|what|why|does|is|are|should|can|will|do)/i)), []);
+    const trimmed = clauses.map((c) => c.trim()).filter((c) => c.split(/\s+/).length >= 3);
+    return trimmed.length > 1 ? trimmed : [message];
+  }
+
+  let coachStaticIndexPromise = null;
+  function coachBuildStaticIndex() {
+    const tasks = [];
+    COACH_ANSWER_LIBRARY.forEach((entry) => {
+      entry.samples.forEach((sample) => {
+        tasks.push(coachEmbedText(sample).then((vector) => ({ vector: vector, topic: entry.topic, render: entry.render })));
+      });
+    });
+    return Promise.all(tasks);
+  }
+  function coachGetStaticIndex() {
+    if (!coachStaticIndexPromise) coachStaticIndexPromise = coachBuildStaticIndex().catch((err) => { coachStaticIndexPromise = null; throw err; });
+    return coachStaticIndexPromise;
+  }
+
+  function coachBestPerTopic(candidates) {
+    const byTopic = new Map();
+    candidates.forEach((c) => {
+      const existing = byTopic.get(c.topic);
+      if (!existing || c.score > existing.score) byTopic.set(c.topic, c);
+    });
+    return Array.from(byTopic.values()).sort((a, b) => b.score - a.score);
+  }
+
+  async function coachCandidatesForClause(clauseVector, facts, learned) {
+    const staticIndex = await coachGetStaticIndex();
+    const candidates = staticIndex.map((sample) => ({ score: coachCosineSimilarity(clauseVector, sample.vector), topic: sample.topic, reply: sample.render(facts) }));
+    for (const entry of learned) {
+      const vector = await coachEmbedText(entry.question);
+      candidates.push({ score: coachCosineSimilarity(clauseVector, vector), topic: 'learned:' + entry.question, reply: entry.answer });
+    }
+    return candidates;
+  }
+
+  async function coachBestMatchForClause(clause, facts, learned) {
+    const queryVector = await coachEmbedText(clause);
+    const candidates = await coachCandidatesForClause(queryVector, facts, learned);
+    const ranked = coachBestPerTopic(candidates);
+    if (!ranked.length || ranked[0].score < COACH_MATCH_THRESHOLD) return null;
+    return ranked[0];
+  }
+
+  async function coachFindAnswer(message, facts, learned) {
+    const clauses = coachSplitClauses(message);
+
+    if (clauses.length === 1) {
+      const clauseVector = await coachEmbedText(clauses[0]);
+      const candidates = await coachCandidatesForClause(clauseVector, facts, learned);
+      const ranked = coachBestPerTopic(candidates);
+      if (!ranked.length || ranked[0].score < COACH_MATCH_THRESHOLD) return null;
+      if (ranked[0].score >= COACH_SINGLE_MATCH_THRESHOLD) return { reply: ranked[0].reply };
+      const relevant = ranked.filter((c) => c.score >= COACH_MATCH_THRESHOLD).slice(0, COACH_MAX_COMPOSED_TOPICS);
+      if (relevant.length === 1) return { reply: relevant[0].reply };
+      return { reply: relevant.map((c) => c.reply).join('\n\n') };
+    }
+
+    const perClause = await Promise.all(clauses.map((c) => coachBestMatchForClause(c, facts, learned)));
+    const matched = perClause.filter((c) => c !== null);
+    if (!matched.length) return null;
+    const deduped = coachBestPerTopic(matched).slice(0, COACH_MAX_COMPOSED_TOPICS);
+    if (deduped.length === 1) return { reply: deduped[0].reply };
+    return { reply: deduped.map((c) => c.reply).join('\n\n') };
+  }
+
+  /* ── Learned-answers queue (ported from src/lib/coach-chat/learned-answers.ts) ── */
+  async function coachQueueQuestion(userId, question) {
+    const sb = fitClient(); if (!sb) return;
+    try { await sb.from('fit_coach_questions').insert({ user_id: userId, question: question }); }
+    catch (err) { console.warn('coach: failed to queue question', err); }
+  }
+  async function coachListLearnedAnswers() {
+    const sb = fitClient(); if (!sb) return [];
+    try {
+      const { data, error } = await sb.from('fit_coach_learned_answers').select('question, answer');
+      if (error) throw error;
+      return (data || []).map((row) => ({ question: row.question, answer: row.answer }));
+    } catch { return []; }
+  }
+  async function coachListPendingQuestions() {
+    const sb = fitClient(); if (!sb) return [];
+    const { data, error } = await sb.from('fit_coach_questions').select('id, question, created_at').eq('status', 'pending').order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data || []).map((row) => ({ id: row.id, question: row.question, createdAt: row.created_at }));
+  }
+  async function coachAnswerQuestion(id, question, answer) {
+    const sb = fitClient(); if (!sb) throw new Error('Account service unavailable.');
+    const upd = await sb.from('fit_coach_questions').update({ status: 'answered', answer: answer, answered_at: new Date().toISOString() }).eq('id', id);
+    if (upd.error) throw upd.error;
+    const ins = await sb.from('fit_coach_learned_answers').insert({ question: question, answer: answer, source_id: id });
+    if (ins.error) throw ins.error;
+  }
+  async function coachDismissQuestion(id) {
+    const sb = fitClient(); if (!sb) throw new Error('Account service unavailable.');
+    const { error } = await sb.from('fit_coach_questions').update({ status: 'dismissed' }).eq('id', id);
+    if (error) throw error;
+  }
+
+  /* ── Chat UI (ported from src/components/coach/coach-chat.tsx +
+     src/app/coach/admin/coach-admin-client.tsx, merged into one tab) ── */
+  const COACH_NO_MATCH_REPLY = "I don't have a stored answer for that yet — I've sent your question to Troll Runner, and it'll be added here once answered.";
+  const coach = { messages: [], busy: false, degraded: false, adminOpen: false, userId: null, facts: null, learned: null };
+  let coachWarmed = false;
+
+  function initCoach() {
+    coach.signedOut = document.getElementById('coachSignedOut');
+    coach.body = document.getElementById('coachBody');
+    coach.signinBtn = document.getElementById('coachSigninBtn');
+    if (!coach.body) return;
+    coach.signinBtn.addEventListener('click', () => document.getElementById('btn-signin').click());
+    coach.statusEl = document.getElementById('coachStatus');
+    coach.logEl = document.getElementById('coachLog');
+    coach.form = document.getElementById('coachForm');
+    coach.input = document.getElementById('coachInput');
+    coach.adminToggleBtn = document.getElementById('coachAdminToggleBtn');
+    coach.adminCard = document.getElementById('coachAdminCard');
+    coach.adminList = document.getElementById('coachAdminList');
+    coach.form.addEventListener('submit', (e) => { e.preventDefault(); coachHandleSubmit(); });
+    coach.adminToggleBtn.addEventListener('click', () => coachToggleAdmin());
+  }
+
+  function coachSetStatus(text, isErr) {
+    if (!coach.statusEl) return;
+    coach.statusEl.textContent = text || '';
+    coach.statusEl.classList.toggle('is-err', !!isErr);
+  }
+
+  async function coachWarmModel() {
+    if (coachWarmed || coachModelFailed) return;
+    coachWarmed = true;
+    coachSetStatus('Loading coach model… (one-time download, cached after)');
+    try {
+      await coachGetExtractor();
+      coachSetStatus('');
+    } catch (err) {
+      console.warn('coach: model failed to load, falling back to queue-only mode', err);
+      coach.degraded = true;
+      coachSetStatus("Running in a limited mode — the coach model couldn't load, so questions go straight to Troll Runner.", true);
+    }
+  }
+
+  function coachRenderLog() {
+    const log = coach.logEl;
+    if (!log) return;
+    log.innerHTML = '';
+    if (!coach.messages.length) {
+      const p = document.createElement('p');
+      p.className = 'coach-msg coach-msg-empty';
+      p.textContent = "Ask about your training load, why the plan looks the way it does, this week's plan, nutrition, race science, or training myths.";
+      log.appendChild(p);
+    }
+    coach.messages.forEach((m) => {
+      const div = document.createElement('div');
+      div.className = 'coach-msg ' + (m.role === 'user' ? 'coach-msg-user' : 'coach-msg-coach');
+      div.textContent = m.text;
+      log.appendChild(div);
+    });
+    if (coach.busy) {
+      const div = document.createElement('div');
+      div.className = 'coach-msg coach-msg-coach coach-msg-typing';
+      div.textContent = 'Thinking…';
+      log.appendChild(div);
+    }
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function coachHandleSubmit() {
+    const text = coach.input.value.trim();
+    if (!text || coach.busy || !coach.userId) return;
+    coach.messages.push({ role: 'user', text: text });
+    coach.input.value = '';
+    coach.busy = true;
+    coachRenderLog();
+
+    let reply;
+    try {
+      if (coach.degraded) {
+        await coachQueueQuestion(coach.userId, text);
+        reply = COACH_NO_MATCH_REPLY;
+      } else {
+        if (!coach.facts) coach.facts = await buildCoachFacts(coach.userId);
+        if (!coach.learned) coach.learned = await coachListLearnedAnswers();
+        let match = null;
+        try {
+          match = await coachFindAnswer(text, coach.facts, coach.learned);
+        } catch (err) {
+          console.warn('coach: retrieval failed, falling back to queue-only mode', err);
+          coach.degraded = true;
+          coachSetStatus("Running in a limited mode — the coach model couldn't load, so questions go straight to Troll Runner.", true);
+        }
+        if (match) {
+          reply = match.reply;
+        } else {
+          await coachQueueQuestion(coach.userId, text);
+          reply = COACH_NO_MATCH_REPLY;
+        }
+      }
+    } catch (err) {
+      console.warn('coach: chat failed', err);
+      reply = "Couldn't reach the coach — try again in a moment.";
+    }
+    coach.messages.push({ role: 'coach', text: reply });
+    coach.busy = false;
+    coachRenderLog();
+  }
+
+  async function coachToggleAdmin() {
+    coach.adminOpen = !coach.adminOpen;
+    coach.adminCard.hidden = !coach.adminOpen;
+    if (coach.adminOpen) await coachRefreshAdminList();
+  }
+
+  function coachBuildAdminRow(q) {
+    const wrap = document.createElement('div');
+    wrap.className = 'coach-admin-item';
+    const question = document.createElement('p');
+    question.className = 'coach-admin-q';
+    question.textContent = q.question;
+    const meta = document.createElement('p');
+    meta.className = 'coach-admin-meta';
+    meta.textContent = 'Asked ' + new Date(q.createdAt).toLocaleString();
+    const textarea = document.createElement('textarea');
+    textarea.className = 'fit-textarea';
+    textarea.placeholder = 'Write the answer…';
+    textarea.rows = 3;
+    textarea.style.width = '100%';
+    const actions = document.createElement('div');
+    actions.className = 'coach-admin-actions';
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button'; saveBtn.className = 'fit-btn fit-btn-primary'; saveBtn.textContent = 'Save answer'; saveBtn.disabled = true;
+    const dismissBtn = document.createElement('button');
+    dismissBtn.type = 'button'; dismissBtn.className = 'fit-btn fit-btn-ghost'; dismissBtn.textContent = 'Dismiss';
+    textarea.addEventListener('input', () => { saveBtn.disabled = !textarea.value.trim(); });
+    saveBtn.addEventListener('click', async () => {
+      const answer = textarea.value.trim();
+      if (!answer) return;
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      try {
+        await coachAnswerQuestion(q.id, q.question, answer);
+        wrap.remove();
+        coach.learned = null; // next question re-fetches the learned-answers library, including this new one
+      } catch {
+        saveBtn.disabled = false; saveBtn.textContent = 'Save answer';
+        meta.textContent = "Couldn't save that answer — try again.";
+        meta.classList.add('is-err');
+      }
+    });
+    dismissBtn.addEventListener('click', async () => {
+      dismissBtn.disabled = true;
+      try { await coachDismissQuestion(q.id); wrap.remove(); }
+      catch { dismissBtn.disabled = false; }
+    });
+    actions.appendChild(saveBtn); actions.appendChild(dismissBtn);
+    wrap.appendChild(question); wrap.appendChild(meta); wrap.appendChild(textarea); wrap.appendChild(actions);
+    return wrap;
+  }
+
+  async function coachRefreshAdminList() {
+    coach.adminList.innerHTML = '<p class="desc">Loading…</p>';
+    let rows;
+    try { rows = await coachListPendingQuestions(); } catch { rows = null; }
+    if (rows === null) { coach.adminList.innerHTML = '<p class="desc">Couldn\'t load the queue — try refreshing.</p>'; return; }
+    if (!rows.length) { coach.adminList.innerHTML = '<p class="desc">Nothing waiting — the queue is empty.</p>'; return; }
+    coach.adminList.innerHTML = '';
+    rows.forEach((q) => coach.adminList.appendChild(coachBuildAdminRow(q)));
+  }
+
+  async function refreshCoach() {
+    if (!coach.body) return;
+    const user = fitUser();
+    if (!user) {
+      coach.signedOut.hidden = false;
+      coach.body.hidden = true;
+      return;
+    }
+    coach.signedOut.hidden = true;
+    coach.body.hidden = false;
+    coach.userId = user.userId;
+    coach.messages = [];
+    coach.facts = null;
+    coach.learned = null;
+    coach.adminOpen = false;
+    coach.adminCard.hidden = true;
+    coach.adminToggleBtn.hidden = user.username !== COACH_ADMIN_USERNAME;
+    coachSetStatus('');
+    coachRenderLog();
+    // Warm the embedding model as soon as a signed-in user has Coach visible,
+    // so the first real question doesn't have to wait on the full download.
+    coachWarmModel();
+  }
+
   // ── Boot ──
   function boot() {
     initTabs();
@@ -2711,12 +3380,14 @@
     initHome();
     initOnboarding();
     initYou();
+    initCoach();
     updateAuthUI();
     refreshLog();
     refreshTraining();
     refreshHome();
     refreshYou();
-    window.addEventListener('trollrunner:auth-changed', () => { refreshLog(); refreshTraining(); refreshHome(); refreshYou(); });
+    refreshCoach();
+    window.addEventListener('trollrunner:auth-changed', () => { refreshLog(); refreshTraining(); refreshHome(); refreshYou(); refreshCoach(); });
   }
 
   if (document.readyState === 'loading') {
