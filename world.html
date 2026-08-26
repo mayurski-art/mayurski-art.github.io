@@ -1311,6 +1311,19 @@
       70% { box-shadow: 0 0 0 6px rgba(143, 227, 106, 0); }
       100% { box-shadow: 0 0 0 0 rgba(143, 227, 106, 0); }
     }
+    /* "Live: Currently ..." pill, shrunk 10% on phones (all figures × 0.9
+       against the base rules above) so its box takes less vertical room
+       above the app rail and doesn't crowd the icons below it. Placed
+       AFTER the base rules on purpose — the base .live-status-pill rule
+       above has no media query of its own, so an override placed earlier
+       in the file (e.g. inside the max-width:720px block further up) would
+       lose the cascade to it despite matching; this wins because it comes
+       later at equal specificity. Desktop is untouched. */
+    @media (max-width: 720px), (pointer: coarse) {
+      .live-status-pill { padding: 5.4px 10.8px; font-size: 10.8px; gap: 7.2px; }
+      .live-status-dot { width: 6.3px; height: 6.3px; }
+      .live-status-stack { gap: 5.4px; }
+    }
 
     .roster-rows { display: grid; }
     .roster-row {
@@ -2037,7 +2050,7 @@
         icon: 'assets/images/icons/stickers.png', img: 'assets/images/wallpaper/obj-stickers.png',
         l: 86.8, t: 66.5, h: 19.5, rot: 2, hw: 11, hh: 20 },
       { id: 'fitness',  label: 'Fitness',  sub: 'trollrunner.net/fitness',
-        to: 'fitness.html', color: '#ff5a1f',
+        to: 'fitness.html', color: '#ff5a1f', alwaysRail: true,
         icon: 'assets/images/icons/fitness.png', img: 'assets/images/wallpaper/obj-fitness.png',
         l: 22.3, t: 57.5, h: 13, rot: -2, hw: 9, hh: 15 },
       // mid band
@@ -2355,11 +2368,13 @@
        would be a duplicate launch point for the same app. Only apps with
        no island art (PFP Studio, Maps, Account, Updates, Feedback) get a
        rail icon — except on phones, where the land base above has no
-       landmark art at all, so every app needs a rail icon there. */
+       landmark art at all, so every app needs a rail icon there, and
+       except Fitness (alwaysRail) — per feedback it keeps a rail icon on
+       desktop too, alongside its existing island landmark. */
     const apps = $('apps');
     const railIds = new Set();
     for (const a of APPS) {
-      if (a.hw && a.hh && !isPhoneLayout) continue;
+      if (a.hw && a.hh && !isPhoneLayout && !a.alwaysRail) continue;
       // APPS has two 'fitness' entries (a landmark one and a rail-only one,
       // added separately) — on phones the loop above would otherwise hit
       // both and render "Fitness" twice.
