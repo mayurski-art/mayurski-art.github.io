@@ -3141,20 +3141,29 @@
         setPhase('lock');
         return;
       }
-      let i = 0, pct = 0;
+      let i = 0;
       bootText.textContent = BOOT_LINES[0];
       const type = setInterval(() => {
         i = Math.min(i + 1, BOOT_LINES.length - 1);
         bootText.textContent = BOOT_LINES[i];
       }, 500);
-      const grow = setInterval(() => {
-        pct = Math.min(100, pct + Math.random() * 9 + 3);
-        bootFill.style.width = pct + '%';
-        if (pct >= 100) {
-          clearInterval(grow); clearInterval(type);
+      // A single eased rAF sweep instead of random setInterval jumps — the
+      // old version stepped in jagged +3-12% bursts every 130ms, which read
+      // as stutter instead of a fill flowing to 100%.
+      const DURATION = 1500;
+      const start = performance.now();
+      function grow(now) {
+        const t = Math.min(1, (now - start) / DURATION);
+        const eased = 1 - Math.pow(1 - t, 2);
+        bootFill.style.width = (eased * 100) + '%';
+        if (t < 1) {
+          requestAnimationFrame(grow);
+        } else {
+          clearInterval(type);
           setTimeout(() => setPhase('lock'), 320);
         }
-      }, 130);
+      }
+      requestAnimationFrame(grow);
     }
 
     /* ================= RUN TO ENTER =================
