@@ -290,23 +290,55 @@
   let mapReady = false;
 
   /* ── Idle auto-spin — pauses the instant the user touches the globe,
-     resumes the instant they let go ─────────────────────────────────── */
+     resumes the instant they let go.
+     Driven by requestAnimationFrame + jumpTo rather than a chained
+     easeTo()->moveend->easeTo() loop: the chained version could resolve
+     synchronously (e.g. reduced-motion) and re-enter itself within the same
+     call stack, or get restarted redundantly by touchend/dragend/moveend
+     all firing off one gesture — either way freezing the tab after a
+     single swipe. A rAF loop can't recurse and costs a plain jumpTo per
+     frame, so it's safe to start/stop as often as interaction state changes. ─ */
   const SPIN_SECONDS_PER_REV = 120;
   const SPIN_MAX_ZOOM = 4;
   const SPIN_SLOW_ZOOM = 3;
   let userInteracting = false;
+  let spinning = false; // true for the lifetime of the loop, set before the
+                         // frame's jumpTo() fires so a moveend re-entering
+                         // spinGlobe() mid-frame sees it and no-ops
+  let spinFrame = null;
+  let spinLastTs = null;
 
-  function spinGlobe() {
-    if (!map || userInteracting) return;
+  function spinStep(ts) {
+    spinFrame = null;
+    if (!map || userInteracting) { spinning = false; spinLastTs = null; return; }
     const zoom = map.getZoom();
-    if (zoom >= SPIN_MAX_ZOOM) return;
+    if (zoom >= SPIN_MAX_ZOOM) { spinning = false; spinLastTs = null; return; }
+    const dt = spinLastTs == null ? 0 : Math.min(ts - spinLastTs, 100);
+    spinLastTs = ts;
     let distancePerSecond = 360 / SPIN_SECONDS_PER_REV;
     if (zoom > SPIN_SLOW_ZOOM) {
       distancePerSecond *= (SPIN_MAX_ZOOM - zoom) / (SPIN_MAX_ZOOM - SPIN_SLOW_ZOOM);
     }
     const center = map.getCenter();
-    center.lng -= distancePerSecond;
-    map.easeTo({ center, duration: 1000, easing: (n) => n });
+    center.lng -= distancePerSecond * (dt / 1000);
+    spinFrame = requestAnimationFrame(spinStep); // schedule next frame before
+                                                   // jumpTo, in case it fires
+                                                   // moveend synchronously
+    map.jumpTo({ center });
+  }
+
+  function spinGlobe() {
+    if (spinning) return; // already running — moveend etc. can call this
+                           // redundantly, this makes it a safe no-op
+    spinning = true;
+    spinLastTs = null;
+    spinFrame = requestAnimationFrame(spinStep);
+  }
+
+  function stopSpin() {
+    userInteracting = true;
+    spinning = false;
+    if (spinFrame != null) { cancelAnimationFrame(spinFrame); spinFrame = null; }
   }
 
   /* ── Map ──────────────────────────────────────────────────────────────── */
@@ -359,15 +391,23 @@
       if (state.picking) handleMapPick(event.lngLat.lat, event.lngLat.lng);
     });
 
-    map.on('mousedown', () => { userInteracting = true; });
-    map.on('touchstart', () => { userInteracting = true; });
-    map.on('wheel', () => { userInteracting = true; });
+    map.on('mousedown', stopSpin);
+    map.on('touchstart', stopSpin);
+    map.on('wheel', stopSpin);
     map.on('mouseup', () => { userInteracting = false; spinGlobe(); });
     map.on('touchend', () => { userInteracting = false; spinGlobe(); });
+    // touchcancel (the browser reinterpreting a swipe as a system/scroll
+    // gesture, or an interrupted touch) fires instead of touchend often
+    // enough on real devices — without this, userInteracting sticks true
+    // forever and the globe just stops spinning after one swipe.
+    map.on('touchcancel', () => { userInteracting = false; spinGlobe(); });
     map.on('dragend', () => { userInteracting = false; spinGlobe(); });
     map.on('pitchend', () => { userInteracting = false; spinGlobe(); });
     map.on('rotateend', () => { userInteracting = false; spinGlobe(); });
     map.on('zoomend', () => { userInteracting = false; spinGlobe(); });
+    // Safe to re-add here (unlike the old easeTo-chain version): spinGlobe()
+    // just schedules a rAF and no-ops if one is already pending, so this
+    // can't recurse — it only resumes spin after a flyTo (e.g. clicking a pin).
     map.on('moveend', () => { spinGlobe(); });
   }
 
