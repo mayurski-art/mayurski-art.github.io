@@ -1268,7 +1268,8 @@
         '<div class="activity-top"><p class="activity-title"></p><p class="activity-when"></p></div>' +
         (stats.length ? '<p class="activity-stats"></p>' : '') +
         (a.notes ? '<p class="activity-notes"></p>' : '') +
-        '<button type="button" class="kudos-btn"></button>' +
+        '<div class="activity-actions"><button type="button" class="kudos-btn"></button><button type="button" class="comment-toggle-btn"></button></div>' +
+        '<div class="comment-thread" hidden></div>' +
       '</div>';
     item.querySelector('.activity-icon').textContent = (a.owner.username || '?').charAt(0).toUpperCase();
     item.querySelector('.activity-title').innerHTML =
@@ -1292,6 +1293,54 @@
         paintKudos();
       } catch { /* best effort — button just won't reflect the toggle */ }
       finally { btn.disabled = false; }
+    });
+
+    // Comments (ported from src/lib/social/comments.ts + friend-activity-card.tsx).
+    const commentBtn = item.querySelector('.comment-toggle-btn');
+    const threadEl = item.querySelector('.comment-thread');
+    let comments = null;
+    function paintCommentBtn() { commentBtn.textContent = '💬 ' + (comments && comments.length ? comments.length + ' comments' : 'Comment'); }
+    paintCommentBtn();
+    function paintThread() {
+      threadEl.innerHTML = '';
+      (comments || []).forEach((c) => {
+        const p = document.createElement('p');
+        p.className = 'comment-line';
+        const strong = document.createElement('strong');
+        strong.textContent = c.author.username;
+        p.appendChild(strong);
+        p.appendChild(document.createTextNode(' ' + c.body));
+        threadEl.appendChild(p);
+      });
+      const form = document.createElement('form');
+      form.className = 'comment-form';
+      form.innerHTML = '<input class="fit-input comment-input" type="text" placeholder="Add a comment…" maxlength="500"><button type="submit" class="fit-btn fit-btn-ghost">Post</button>';
+      const input = form.querySelector('.comment-input');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const body = input.value.trim();
+        if (!body) return;
+        input.disabled = true;
+        try {
+          await addComment(a.id, currentUserId, body);
+          input.value = '';
+          comments = await listComments(a.id);
+          paintCommentBtn();
+          paintThread();
+        } catch { /* best effort — comment just won't appear if the write fails */ }
+        finally { input.disabled = false; }
+      });
+      threadEl.appendChild(form);
+    }
+    commentBtn.addEventListener('click', async () => {
+      const opening = threadEl.hidden;
+      threadEl.hidden = !opening;
+      if (opening && comments === null) {
+        threadEl.innerHTML = '<p class="session-note">Loading…</p>';
+        comments = await listComments(a.id);
+        paintCommentBtn();
+        paintThread();
+      }
     });
     return item;
   }
@@ -1852,18 +1901,14 @@
     } catch { return false; }
   }
 
-  async function refreshYou() {
+  /** Coach-profile pill/desc/button inside the You tab's onboarding card — split
+   *  out of the old refreshYou() so the Phase 5 rewrite below can call it as
+   *  just one piece of a fully signed-in-gated You tab (see refreshYou below). */
+  async function refreshYouOnboardingCard(user) {
     const statusEl = document.getElementById('youOnboardingStatus');
     if (!statusEl) return;
     const descEl = document.getElementById('youOnboardingDesc');
     const btn = document.getElementById('youOnboardingBtn');
-    const user = fitUser();
-    if (!user) {
-      statusEl.textContent = 'Sign in required';
-      descEl.textContent = 'Sign in to build your coach profile — goals, training history, equipment, and health basics that shape your plan.';
-      btn.textContent = 'Log in';
-      return;
-    }
     statusEl.textContent = 'Checking…';
     const completed = await getOnboardingCompleted(user.userId);
     statusEl.textContent = completed ? 'Complete' : 'Not started';
@@ -1921,6 +1966,385 @@
     if (homeBtn) homeBtn.addEventListener('click', openIfSignedIn);
   }
 
+  /* ==========================================================================
+     YOU (Phase 5) — ported from trollrunner-fitness's src/app/you/you-client.tsx
+     + src/lib/gamification/badges.ts + humor.ts + src/lib/social/follows.ts +
+     leaderboard.ts + comments.ts. Same rules as every other tab above: no new
+     Supabase client (fitClient()/fitUser() only), no new XP wiring beyond the
+     existing awardActivityXp()/awardPrXp(), fail-soft on missing/empty data.
+
+     Badges are computed CLIENT-SIDE from a fresh fetch of the user's own
+     activities (listActivities(), already defined above for Log/Home) — there
+     is no badge table, same as the original (a fresh fetch scoped to this tab
+     was simpler/more isolated than threading Home's activities array over,
+     since You can be opened without ever visiting Home first).
+
+     Find people reuses window.TrollrunnerAccounts.searchUsernames() — the
+     same debounced username search troll-accounts.js already exposes for
+     Messages/friends elsewhere on the site — instead of inventing a new
+     ilike query here. Follow/unfollow themselves go through fit_follows (a
+     separate, fitness-specific follow graph from troll-accounts' own
+     friend-request system) since that's what Home's already-built friends
+     feed and kudos already read from.
+
+     Analytics (src/components/analytics/analytics-section.tsx in the
+     original) is explicitly Phase 6 territory per the project plan — this
+     tab just points back to Home's existing stats/trend chart plus two
+     quick numbers, rather than duplicating real charts here.
+
+     Comments (src/components/social/comments in the original) are wired
+     into Home's friend-activity feed items below (buildFriendActivityItem),
+     since fit_comments already has RLS policies and the task called this a
+     small stretch worth doing alongside the core social/gamification work.
+     ========================================================================== */
+
+  // ── Badges (ported 1:1 from src/lib/gamification/badges.ts) ──
+  function computePRTimeline(activities) {
+    const sorted = activities.slice().sort((a, b) => new Date(a.occurredAt) - new Date(b.occurredAt));
+    const bests = new Map();
+    const timeline = [];
+    for (const a of sorted) {
+      if (a.type !== 'strength') continue;
+      for (const s of a.sets) {
+        if (!s.weight_lb || !s.reps) continue;
+        const estOneRm = estOneRepMax(s.weight_lb, s.reps);
+        const k = exerciseKey(s.exercise);
+        const prior = bests.get(k);
+        if (!prior || estOneRm > prior.estOneRm) {
+          const entry = { exercise: s.exercise, estOneRm, weightLb: s.weight_lb, reps: s.reps };
+          bests.set(k, entry);
+          timeline.push(Object.assign({ achievedAt: a.occurredAt }, entry));
+        }
+      }
+    }
+    return timeline.reverse();
+  }
+  function computeBadges(activities) {
+    const runs = activities.filter((a) => a.type === 'run');
+    const runCount = runs.length;
+    const strengthCount = activities.filter((a) => a.type === 'strength').length;
+    const mileage = runs.reduce((s, a) => s + (a.distanceMi || 0), 0);
+    const streak = currentStreak(activities);
+    const prCount = computePRTimeline(activities).length;
+    const longestRun = Math.max(0, ...runs.map((a) => a.distanceMi || 0));
+    return [
+      { id: 'first_log', label: 'First activity logged', emoji: '🏅', earned: activities.length >= 1 },
+      { id: 'ten_logs', label: '10 activities logged', emoji: '📈', earned: activities.length >= 10 },
+      { id: 'fifty_logs', label: '50 activities logged', emoji: '🏅', earned: activities.length >= 50 },
+      { id: 'first_run', label: 'First run', emoji: '🏃', earned: runCount >= 1 },
+      { id: 'ten_runs', label: '10 runs', emoji: '🏃‍♂️', earned: runCount >= 10 },
+      { id: 'hundred_miles', label: '100 total miles', emoji: '💯', earned: mileage >= 100 },
+      { id: 'long_run', label: 'Ran 10+ miles in one go', emoji: '🦵', earned: longestRun >= 10 },
+      { id: 'first_strength', label: 'First strength workout', emoji: '🏋️', earned: strengthCount >= 1 },
+      { id: 'ten_strength', label: '10 strength workouts', emoji: '💪', earned: strengthCount >= 10 },
+      { id: 'first_pr', label: 'First PR', emoji: '🏆', earned: prCount >= 1 },
+      { id: 'five_prs', label: '5 PRs', emoji: '🥇', earned: prCount >= 5 },
+      { id: 'streak_7', label: '7-day streak', emoji: '🔥', earned: streak >= 7 },
+      { id: 'streak_30', label: '30-day streak', emoji: '🌋', earned: streak >= 30 },
+      { id: 'streak_100', label: '100-day streak', emoji: '👹', earned: streak >= 100 },
+    ];
+  }
+
+  // ── Humor toggle write (getHumorEnabled already defined above for Log) ──
+  async function setHumorEnabled(userId, enabled) {
+    const sb = fitClient();
+    if (!sb) throw new Error('Account service unavailable.');
+    const { error } = await sb.from('fit_profiles').upsert({ user_id: userId, humor_enabled: enabled }, { onConflict: 'user_id' });
+    if (error) throw error;
+  }
+
+  // ── Follows (ported from src/lib/social/follows.ts; listFollowingIds is
+  //    already defined above for Home's friends feed) ──
+  async function profilesForIds(ids) {
+    if (!ids.length) return [];
+    const sb = fitClient(); if (!sb) return [];
+    const { data, error } = await sb.from('troll_profiles').select('id, username, avatar_url').in('id', ids);
+    if (error) throw error;
+    return (data || []).map((p) => ({ id: p.id, username: p.username, avatarUrl: p.avatar_url }));
+  }
+  async function listFollowingProfiles(userId) { return profilesForIds(await listFollowingIds(userId)); }
+  async function listFollowerProfiles(userId) {
+    const sb = fitClient(); if (!sb) return [];
+    try {
+      const { data, error } = await sb.from('fit_follows').select('follower_id').eq('followed_id', userId);
+      if (error) throw error;
+      return await profilesForIds((data || []).map((r) => r.follower_id));
+    } catch { return []; }
+  }
+  async function followUser(followerId, followedId) {
+    const sb = fitClient(); if (!sb) throw new Error('Account service unavailable.');
+    const { error } = await sb.from('fit_follows').insert({ follower_id: followerId, followed_id: followedId });
+    if (error) throw error;
+  }
+  async function unfollowUser(followerId, followedId) {
+    const sb = fitClient(); if (!sb) throw new Error('Account service unavailable.');
+    const { error } = await sb.from('fit_follows').delete().eq('follower_id', followerId).eq('followed_id', followedId);
+    if (error) throw error;
+  }
+  // Reuses troll-accounts.js's shared searchUsernames() — the same debounced
+  // lookup Messages/friends already use — instead of a new ilike query.
+  async function searchPeople(query, excludeId) {
+    if (!window.TrollrunnerAccounts || !window.TrollrunnerAccounts.searchUsernames) return [];
+    const rows = await window.TrollrunnerAccounts.searchUsernames(query, { limit: 10, excludeId });
+    return (rows || []).map((p) => ({ id: p.id, username: p.username, avatarUrl: p.avatar_url }));
+  }
+
+  // ── Weekly leaderboard (ported 1:1 from src/lib/social/leaderboard.ts;
+  //    reuses homeStartOfWeek() already defined above for Home's trend). ──
+  async function weeklyLeaderboardRows(userId) {
+    const followingIds = await listFollowingIds(userId);
+    const userIds = Array.from(new Set([userId].concat(followingIds)));
+    const sb = fitClient(); if (!sb) return [];
+    const since = homeStartOfWeek().toISOString();
+    const { data, error } = await sb.from('fit_activities')
+      .select('user_id, distance_mi').in('user_id', userIds).eq('type', 'run').eq('source', 'native').gte('occurred_at', since);
+    if (error) throw error;
+    const mileageByUser = new Map();
+    (data || []).forEach((row) => mileageByUser.set(row.user_id, (mileageByUser.get(row.user_id) || 0) + (row.distance_mi || 0)));
+    const { data: profiles } = await sb.from('troll_profiles').select('id, username, avatar_url').in('id', userIds);
+    return (profiles || [])
+      .map((p) => ({
+        id: p.id, username: p.username, avatarUrl: p.avatar_url,
+        mileage: Math.round((mileageByUser.get(p.id) || 0) * 10) / 10,
+        isMe: p.id === userId,
+      }))
+      .sort((a, b) => b.mileage - a.mileage);
+  }
+
+  // ── Comments (ported from src/lib/social/comments.ts) — used by Home's
+  //    friend-activity cards, see buildFriendActivityItem above. ──
+  async function listComments(activityId) {
+    const sb = fitClient(); if (!sb) return [];
+    try {
+      const { data, error } = await sb.from('fit_comments').select('id, body, created_at, user_id').eq('activity_id', activityId).order('created_at', { ascending: true });
+      if (error) throw error;
+      const rows = data || [];
+      if (!rows.length) return [];
+      const authorIds = Array.from(new Set(rows.map((r) => r.user_id)));
+      const profileMap = new Map((await profilesForIds(authorIds)).map((p) => [p.id, p]));
+      return rows.map((r) => ({ id: r.id, body: r.body, createdAt: r.created_at, author: profileMap.get(r.user_id) || { id: r.user_id, username: 'runner', avatarUrl: null } }));
+    } catch { return []; }
+  }
+  async function addComment(activityId, userId, body) {
+    const trimmed = String(body || '').trim();
+    if (!trimmed) return;
+    const sb = fitClient(); if (!sb) throw new Error('Account service unavailable.');
+    const { error } = await sb.from('fit_comments').insert({ activity_id: activityId, user_id: userId, body: trimmed.slice(0, 500) });
+    if (error) throw error;
+  }
+
+  // ── Render: profile header ──
+  function renderYouProfileHeader(user) {
+    const card = document.getElementById('youProfileCard');
+    const joined = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : null;
+    card.innerHTML =
+      '<div class="you-avatar" id="youAvatar"></div>' +
+      '<div><p class="you-profile-name"></p><p class="you-profile-meta"></p></div>';
+    const avatar = card.querySelector('#youAvatar');
+    if (user.avatarUrl) {
+      const img = document.createElement('img'); img.src = user.avatarUrl; img.alt = '';
+      avatar.appendChild(img);
+    } else {
+      avatar.textContent = (user.username || '?').charAt(0).toUpperCase();
+    }
+    card.querySelector('.you-profile-name').textContent = user.username;
+    card.querySelector('.you-profile-meta').textContent =
+      'Level ' + (user.level || 1) + ' · ' + (user.xp || 0) + ' XP' + (joined ? ' · joined ' + joined : '');
+  }
+
+  // ── Render: badges ──
+  function renderBadges(activities) {
+    const card = document.getElementById('youBadgesCard');
+    const badges = computeBadges(activities);
+    const earned = badges.filter((b) => b.earned).length;
+    card.innerHTML =
+      '<div class="fit-head"><h3>Badges</h3><span class="fit-pill">' + earned + '/' + badges.length + '</span></div>' +
+      '<div class="badges-grid"></div>';
+    const grid = card.querySelector('.badges-grid');
+    badges.forEach((b) => {
+      const tile = document.createElement('div');
+      tile.className = 'badge-tile' + (b.earned ? ' is-earned' : '');
+      tile.title = b.label;
+      tile.innerHTML = '<span class="badge-emoji" aria-hidden="true"></span><span class="badge-label"></span>';
+      tile.querySelector('.badge-emoji').textContent = b.emoji;
+      tile.querySelector('.badge-label').textContent = b.label;
+      grid.appendChild(tile);
+    });
+  }
+
+  // ── Render: humor toggle ──
+  async function renderHumorToggle(userId) {
+    const card = document.getElementById('youHumorCard');
+    card.innerHTML =
+      '<div class="humor-row">' +
+      '<div><p class="fit-label">Troll humor</p><p class="desc" style="margin-top:2px;">Confetti, one-liners, and extra flair on celebrations. Turn off for a more no-nonsense tool.</p></div>' +
+      '<button type="button" class="humor-switch" id="humorSwitch" aria-pressed="false" aria-label="Toggle troll humor"><span class="humor-thumb"></span></button>' +
+      '</div>';
+    const btn = document.getElementById('humorSwitch');
+    let enabled = true;
+    try { enabled = await getHumorEnabled(userId); } catch { enabled = true; }
+    btn.setAttribute('aria-pressed', String(enabled));
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const next = btn.getAttribute('aria-pressed') !== 'true';
+      try {
+        await setHumorEnabled(userId, next);
+        btn.setAttribute('aria-pressed', String(next));
+        logHumor = next; // Log tab's celebration copy reads this same flag
+      } catch { /* best effort — switch just won't flip if the write fails */ }
+      finally { btn.disabled = false; }
+    });
+  }
+
+  // ── Render: weekly leaderboard ──
+  async function renderLeaderboard(userId) {
+    const card = document.getElementById('youLeaderboardCard');
+    card.innerHTML = '<p class="fit-label">Weekly leaderboard</p><p class="desc" style="margin-top:2px;">You + people you follow, running mileage this week.</p><div class="activity-list" id="lbRows" style="margin-top:10px;"></div>';
+    const rowsWrap = document.getElementById('lbRows');
+    let rows = [];
+    try { rows = await weeklyLeaderboardRows(userId); } catch { rows = []; }
+    if (rows.length <= 1) {
+      rowsWrap.innerHTML = '<p class="desc">Follow people below to see a leaderboard here.</p>';
+      return;
+    }
+    rowsWrap.innerHTML = '';
+    rows.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'leaderboard-row' + (r.isMe ? ' is-me' : '');
+      row.innerHTML = '<span class="lb-rank"></span><span class="lb-name"></span><span class="lb-mileage"></span>';
+      row.querySelector('.lb-rank').textContent = String(i + 1);
+      row.querySelector('.lb-name').textContent = r.isMe ? 'You' : r.username;
+      row.querySelector('.lb-mileage').textContent = r.mileage + ' mi';
+      rowsWrap.appendChild(row);
+    });
+  }
+
+  // ── Render: find people (search + following/followers) ──
+  function buildPersonRow(person, following, userId, onToggled) {
+    const row = document.createElement('div');
+    row.className = 'person-row';
+    row.innerHTML =
+      '<span class="person-id"><span class="person-avatar"></span><span class="person-name"></span></span>' +
+      '<button type="button" class="follow-btn"></button>';
+    const avatar = row.querySelector('.person-avatar');
+    if (person.avatarUrl) { const img = document.createElement('img'); img.src = person.avatarUrl; img.alt = ''; avatar.appendChild(img); }
+    else avatar.textContent = (person.username || '?').charAt(0).toUpperCase();
+    row.querySelector('.person-name').textContent = person.username || 'runner';
+    const btn = row.querySelector('.follow-btn');
+    function paint() { btn.classList.toggle('is-following', following); btn.textContent = following ? 'Following' : 'Follow'; }
+    paint();
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        if (following) await unfollowUser(userId, person.id);
+        else await followUser(userId, person.id);
+        following = !following;
+        paint();
+        if (onToggled) onToggled();
+      } catch { /* best effort */ }
+      finally { btn.disabled = false; }
+    });
+    return row;
+  }
+
+  let youFollowingIds = new Set();
+  async function refreshYouFollowLists(userId) {
+    const grid = document.getElementById('youPeopleGrid');
+    let following = [], followers = [];
+    try { [following, followers] = await Promise.all([listFollowingProfiles(userId), listFollowerProfiles(userId)]); } catch { /* stays empty */ }
+    youFollowingIds = new Set(following.map((p) => p.id));
+    grid.innerHTML =
+      '<div class="fit-card"><p class="fit-label">Following (' + following.length + ')</p><div class="you-people-list" id="youFollowingList" style="margin-top:8px;"></div></div>' +
+      '<div class="fit-card"><p class="fit-label">Followers (' + followers.length + ')</p><div class="you-people-list" id="youFollowersList" style="margin-top:8px;"></div></div>';
+    const followingWrap = document.getElementById('youFollowingList');
+    const followersWrap = document.getElementById('youFollowersList');
+    if (!following.length) followingWrap.innerHTML = '<p class="desc">Not following anyone yet.</p>';
+    else following.forEach((p) => followingWrap.appendChild(buildPersonRow(p, true, userId, () => refreshYouSocial(userId))));
+    if (!followers.length) followersWrap.innerHTML = '<p class="desc">No followers yet.</p>';
+    else followers.forEach((p) => followersWrap.appendChild(buildPersonRow(p, youFollowingIds.has(p.id), userId, () => refreshYouSocial(userId))));
+  }
+  /** Re-paints everything that depends on the follow graph after a follow/unfollow. */
+  async function refreshYouSocial(userId) {
+    await Promise.all([refreshYouFollowLists(userId), renderLeaderboard(userId)]);
+  }
+
+  let youSearchWired = false;
+  function wireYouSearch() {
+    if (youSearchWired) return;
+    youSearchWired = true;
+    const input = document.getElementById('youSearchInput');
+    const results = document.getElementById('youSearchResults');
+    let debounceTimer = null;
+    input.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      const q = input.value.trim();
+      if (!q) { results.innerHTML = ''; return; }
+      debounceTimer = setTimeout(async () => {
+        const user = fitUser(); if (!user) return;
+        let people = [];
+        try { people = await searchPeople(q, user.userId); } catch { people = []; }
+        if (input.value.trim() !== q) return; // stale response
+        results.innerHTML = '';
+        if (!people.length) { results.innerHTML = '<p class="desc">No one found.</p>'; return; }
+        people.forEach((p) => results.appendChild(buildPersonRow(p, youFollowingIds.has(p.id), user.userId, () => refreshYouSocial(user.userId))));
+      }, 250);
+    });
+  }
+
+  // ── Render: analytics stub (real charts are Phase 6 — this just points
+  //    back at Home's already-built stats/trend chart, plus a couple of
+  //    numbers computed from the same fresh activity fetch as badges above). ──
+  function renderYouAnalytics(activities) {
+    const card = document.getElementById('youAnalyticsCard');
+    const month = monthSummary(activities);
+    card.innerHTML =
+      '<p class="fit-label">Analytics</p>' +
+      '<p class="desc" style="margin-top:2px;">Full charts and trends live on Home for now — training load, weekly mileage sparkline, and this month’s totals. Deeper analytics is a later phase.</p>' +
+      '<div class="stat-grid" style="margin-top:10px;">' +
+      '<div class="stat-tile"><span class="stat-label">Total activities</span><span class="stat-value">' + activities.length + '</span></div>' +
+      '<div class="stat-tile"><span class="stat-label">Mileage this month</span><span class="stat-value">' + month.totalMileage + ' mi</span></div>' +
+      '</div>' +
+      '<button type="button" class="link-accent" id="youAnalyticsHomeLink" style="margin-top:10px;">See Home for full trends →</button>';
+    const link = document.getElementById('youAnalyticsHomeLink');
+    if (link) link.addEventListener('click', () => document.querySelector('.tab[data-tab="home"]').click());
+  }
+
+  const you = {};
+  function initYou() {
+    you.signedOut = document.getElementById('youSignedOut');
+    you.body = document.getElementById('youBody');
+    you.signinBtn = document.getElementById('youSigninBtn');
+    if (!you.body) return;
+    you.signinBtn.addEventListener('click', () => document.getElementById('btn-signin').click());
+    const signoutBtn = document.getElementById('youSignoutBtn');
+    if (signoutBtn) signoutBtn.addEventListener('click', () => { window.TrollrunnerAccounts && window.TrollrunnerAccounts.logout && window.TrollrunnerAccounts.logout(); });
+    wireYouSearch();
+  }
+
+  async function refreshYou() {
+    if (!you.body) return;
+    const user = fitUser();
+    if (!user) {
+      you.signedOut.hidden = false;
+      you.body.hidden = true;
+      return;
+    }
+    you.signedOut.hidden = true;
+    you.body.hidden = false;
+
+    renderYouProfileHeader(user);
+    refreshYouOnboardingCard(user).catch(() => {});
+
+    let activities = [];
+    try { activities = await listActivities(user.userId, 1000); } catch { activities = []; }
+    renderBadges(activities);
+    renderYouAnalytics(activities);
+
+    renderHumorToggle(user.userId).catch(() => {});
+    await refreshYouFollowLists(user.userId);
+    renderLeaderboard(user.userId).catch(() => {});
+  }
+
   // ── Boot ──
   function boot() {
     initTabs();
@@ -1929,6 +2353,7 @@
     initTraining();
     initHome();
     initOnboarding();
+    initYou();
     updateAuthUI();
     refreshLog();
     refreshTraining();

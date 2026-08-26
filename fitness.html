@@ -181,7 +181,7 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 .fit-body{ display:flex; flex-direction:column; align-items:flex-start; gap:16px; width:100%; }
 .fit-body[hidden], .fit-form[hidden], .signedout-block[hidden], .fit-pill[hidden],
 .rest-timer-presets[hidden], .rest-timer-active[hidden], .celebration[hidden],
-.stat-grid[hidden]{ display:none; }
+.stat-grid[hidden], .comment-thread[hidden]{ display:none; }
 
 .fit-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; width:100%; }
 .fit-pill{
@@ -333,6 +333,19 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 .kudos-btn.is-given{ border-color:var(--fit-accent); color:var(--fit-accent); background:#fff0e8; }
 .kudos-btn[disabled]{ opacity:.6; cursor:not-allowed; }
 
+.activity-actions{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+.activity-actions .kudos-btn{ margin-top:0; }
+.comment-toggle-btn{
+  border-radius:999px; border:.5px solid var(--pf-line); background:transparent;
+  color:var(--pf-muted); font-size:12px; font-weight:600; padding:5px 12px;
+}
+.comment-thread{ display:flex; flex-direction:column; gap:6px; margin-top:10px; padding-top:10px; border-top:.5px solid var(--pf-line); }
+.comment-thread .comment-line{ font-size:12.5px; }
+.comment-thread .comment-line strong{ font-weight:700; margin-right:4px; }
+.comment-form{ display:flex; gap:8px; margin-top:2px; }
+.comment-form .comment-input{ flex:1; }
+.comment-form .fit-btn{ flex:none; padding:8px 14px; font-size:12.5px; }
+
 .recovery-form{ display:flex; flex-direction:column; gap:12px; width:100%; max-width:420px; }
 .recovery-summary{ display:flex; align-items:center; justify-content:space-between; width:100%; gap:10px; }
 .scale-row{ display:flex; flex-direction:column; gap:4px; }
@@ -349,6 +362,69 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 }
 .home-learn-link:hover{ background:#efece5; }
 .home-learn-link span{ color:var(--fit-accent); font-weight:700; }
+
+/* ── YOU: profile / badges / humor / leaderboard / find people (Phase 5) ── */
+.you-profile-card{ display:flex; align-items:center; gap:14px; }
+.you-avatar{
+  width:56px; height:56px; border-radius:50%; flex:none; background:#f2efe9;
+  display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; overflow:hidden;
+}
+.you-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+.you-profile-name{ font-size:16px; font-weight:700; }
+.you-profile-meta{ font-size:12.5px; color:var(--pf-muted); margin-top:2px; }
+
+.badges-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; width:100%; margin-top:10px; }
+@media (min-width:620px){ .badges-grid{ grid-template-columns:repeat(4, 1fr); } }
+.badge-tile{
+  display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center;
+  border-radius:12px; border:.5px solid var(--pf-line); background:#fff; padding:12px 8px;
+}
+.badge-tile.is-earned{ border-color:rgba(255,90,31,.35); background:#fff0e8; }
+.badge-tile:not(.is-earned){ opacity:.42; }
+.badge-tile .badge-emoji{ font-size:22px; }
+.badge-tile .badge-label{ font-size:10.5px; line-height:1.25; color:var(--pf-muted); }
+
+.humor-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%; }
+.humor-row .fit-label{ font-size:13.5px; font-weight:700; color:var(--pf-ink); }
+.humor-switch{
+  flex:none; width:44px; height:26px; border-radius:999px; border:0; background:#e0ddd4;
+  position:relative; transition:background .15s ease;
+}
+.humor-switch[aria-pressed="true"]{ background:var(--fit-accent); }
+.humor-switch .humor-thumb{
+  position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .15s ease;
+}
+.humor-switch[aria-pressed="true"] .humor-thumb{ transform:translateX(18px); }
+
+.leaderboard-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:8px 10px; border-radius:10px; font-size:13.5px;
+}
+.leaderboard-row.is-me{ background:#fff0e8; }
+.leaderboard-row .lb-rank{ width:18px; flex:none; font-family:var(--pf-mono); font-size:12px; color:var(--pf-muted); }
+.leaderboard-row .lb-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.leaderboard-row.is-me .lb-name{ font-weight:700; color:var(--fit-accent); }
+.leaderboard-row .lb-mileage{ font-family:var(--pf-mono); font-size:12.5px; color:var(--pf-muted); flex:none; }
+
+.you-people-list{ display:flex; flex-direction:column; gap:6px; }
+.you-people-grid{ display:grid; grid-template-columns:1fr; gap:12px; width:100%; margin-top:10px; }
+@media (min-width:620px){ .you-people-grid{ grid-template-columns:1fr 1fr; } }
+.person-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.person-row .person-id{ display:flex; align-items:center; gap:8px; font-size:13.5px; min-width:0; }
+.person-row .person-avatar{
+  width:28px; height:28px; border-radius:50%; flex:none; background:#f2efe9;
+  display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; overflow:hidden;
+}
+.person-row .person-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+.person-row .person-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.follow-btn{
+  flex:none; border-radius:999px; border:.5px solid var(--pf-line); background:#fff; color:var(--pf-muted);
+  font-size:11.5px; font-weight:700; padding:5px 12px;
+}
+.follow-btn.is-following{ border-color:var(--pf-line); color:var(--pf-muted); }
+.follow-btn:not(.is-following){ border-color:transparent; background:var(--fit-accent); color:#fff; }
+.follow-btn[disabled]{ opacity:.6; cursor:not-allowed; }
 
 /* ── ONBOARDING WIZARD (Phase 4) ── */
 .ob-modal-card{ width:min(520px,100%); max-height:88vh; overflow-y:auto; gap:12px; }
@@ -596,17 +672,50 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
         </div>
       </section>
       <section class="tabpanel" id="tabpanel-you" data-tab="you" role="tabpanel" aria-labelledby="you">
-        <span class="soon">Coming soon</span>
-        <h2>You</h2>
-        <p class="desc">Your profile: stats, streaks, personal bests, and settings for how Fitness trains with you.</p>
-        <section class="fit-card you-onboarding-card" id="youOnboardingCard" style="max-width:520px;">
+        <div class="signedout-block" id="youSignedOut">
+          <h2>You</h2>
+          <p class="desc">Your profile: stats, streaks, personal bests, badges, and settings for how Fitness trains with you. Sign in to see it.</p>
+          <button type="button" class="fit-btn fit-btn-primary" id="youSigninBtn" style="width:auto;">Log in</button>
+        </div>
+
+        <div class="fit-body" id="youBody" hidden>
           <div class="fit-head">
-            <h3>Coach profile</h3>
-            <span class="fit-pill" id="youOnboardingStatus">—</span>
+            <h2>You</h2>
           </div>
-          <p class="desc" id="youOnboardingDesc">Sign in to build your coach profile — goals, training history, equipment, and health basics that shape your plan.</p>
-          <button type="button" class="fit-btn fit-btn-primary" id="youOnboardingBtn" style="width:auto; margin-top:10px;">Complete your profile</button>
-        </section>
+
+          <section class="fit-card you-profile-card" id="youProfileCard" aria-label="Profile"></section>
+
+          <section class="fit-card you-onboarding-card" id="youOnboardingCard" style="max-width:520px;">
+            <div class="fit-head">
+              <h3>Coach profile</h3>
+              <span class="fit-pill" id="youOnboardingStatus">—</span>
+            </div>
+            <p class="desc" id="youOnboardingDesc">Answer a few questions about your goals, training history, equipment, and health basics — this personalizes your weekly plan and the coach.</p>
+            <button type="button" class="fit-btn fit-btn-primary" id="youOnboardingBtn" style="width:auto; margin-top:10px;">Complete your profile</button>
+          </section>
+
+          <section class="fit-card" id="youBadgesCard" aria-label="Badges"></section>
+
+          <section class="fit-card" id="youHumorCard" aria-label="Troll humor settings"></section>
+
+          <section class="fit-card" id="youLeaderboardCard" aria-label="Weekly leaderboard"></section>
+
+          <section aria-label="Find people" style="width:100%;">
+            <div class="fit-head"><h3>Find people</h3></div>
+            <div class="fit-card" style="gap:10px; display:flex; flex-direction:column;">
+              <div class="fit-field">
+                <label for="youSearchInput">Search by username</label>
+                <input class="fit-input" id="youSearchInput" type="text" placeholder="Search…" autocomplete="off">
+              </div>
+              <div class="you-people-list" id="youSearchResults"></div>
+            </div>
+            <div class="you-people-grid" id="youPeopleGrid"></div>
+          </section>
+
+          <section class="fit-card" id="youAnalyticsCard" aria-label="Analytics"></section>
+
+          <button type="button" class="fit-btn fit-btn-ghost" id="youSignoutBtn" style="width:auto;">Sign out</button>
+        </div>
       </section>
       <section class="tabpanel" id="tabpanel-coach" data-tab="coach" role="tabpanel" aria-labelledby="coach">
         <span class="soon">Coming soon</span>
