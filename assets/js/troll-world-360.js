@@ -169,7 +169,40 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
     setTimeout(() => modal.classList.remove('is-open'), 350);
   }
 
-  openBtn.addEventListener('click', open);
+  /* ── "Fall into the grin" entrance ────────────────────────────────────
+     The world IS a giant trollface, so entering it means diving through
+     its own grin: a cropped, grin-framed copy of the map image rushes the
+     camera toward the teeth-island coastline and darkens to black, then
+     the actual photosphere (already fading in underneath, via open())
+     is revealed as the drop overlay fades away. See #world360-drop in
+     maps.html for the crop framing. */
+  const dropOverlay = document.getElementById('world360-drop');
+  function enterWorld() {
+    if (!dropOverlay || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      open();
+      return;
+    }
+    dropOverlay.classList.remove('is-fading', 'is-diving');
+    dropOverlay.classList.add('is-active');
+    // A real pause (not just a double-rAF) before the rush starts — long
+    // enough for the freshly-fetched map image to actually finish decoding
+    // and for the grin to register as "the world" before it goes anywhere.
+    // The 800ms scale-up plus its 350ms filter delay + 500ms darken (see
+    // the CSS) puts full black at ~250+350+500=1100ms; the timers below
+    // are paced off that.
+    setTimeout(() => { dropOverlay.classList.add('is-diving'); }, 250);
+    // Kick off the modal's own fade-in a bit before the dive finishes —
+    // by the time the drop overlay is fully black and starts fading away,
+    // the photosphere underneath is already lit and ready to be revealed
+    // instead of the reveal exposing a still-loading blank frame.
+    setTimeout(() => { open(); }, 1000);
+    setTimeout(() => { dropOverlay.classList.add('is-fading'); }, 1150);
+    setTimeout(() => {
+      dropOverlay.classList.remove('is-active', 'is-diving', 'is-fading');
+    }, 1600);
+  }
+
+  openBtn.addEventListener('click', enterWorld);
   closeBtn.addEventListener('click', close);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modal.classList.contains('is-open')) close();

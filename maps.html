@@ -302,6 +302,41 @@ a { color: inherit; }
 }
 @keyframes world360-spin { to { transform: rotate(360deg); } }
 #world360.is-ready #world360-loading { opacity: 0; pointer-events: none; }
+
+/* ── "Fall into the grin" — the entrance dive played before #world360 opens.
+   A crop of the same map image, framed on the grin/teeth-island coastline,
+   rushes toward camera and darkens to black — as if diving between the
+   teeth — then fades out once the photosphere has faded in underneath it.
+   See enterWorld() in troll-world-360.js. ───────────────────────────────── */
+#world360-drop {
+  display: none; position: fixed; inset: 0; z-index: 4200;
+  background: #000; overflow: hidden;
+  opacity: 1; transition: opacity .4s ease;
+}
+#world360-drop.is-active { display: block; }
+#world360-drop.is-fading { opacity: 0; }
+#world360-drop-img {
+  position: absolute; inset: -20%; /* oversized so scaling never shows an edge */
+  background-image: url('assets/images/world/trollrunner%20maps.png');
+  background-repeat: no-repeat;
+  background-position: 50% 54%; /* framed on the teeth-island grin */
+  background-size: 190%;
+  transform: scale(1);
+  filter: brightness(1);
+  transition: none;
+}
+#world360-drop.is-diving #world360-drop-img {
+  transform: scale(7);
+  filter: brightness(.05);
+  /* The scale-up (the "rush toward the teeth") starts right away, but the
+     filter's transition-delay holds brightness at full for the first beat
+     so the grin actually reads before it's gone — darkening only kicks in
+     for the final push into black. */
+  transition: transform .8s cubic-bezier(.6,0,.9,0), filter .5s ease-in .35s;
+}
+@media (prefers-reduced-motion: reduce) {
+  #world360-drop, #world360-drop-img { transition: none !important; }
+}
 @media (prefers-reduced-motion: reduce) {
   #world360 { transition: none; }
   #world360-hint { transition: none; }
@@ -425,13 +460,14 @@ a { color: inherit; }
     <span>Loading the world…</span>
   </div>
 </div>
+<div id="world360-drop" aria-hidden="true"><div id="world360-drop-img"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
 <script src="assets/js/troll-accounts.js?v=20260825a"></script>
 <script src="assets/js/troll-presence.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
 <script src="assets/js/troll-map.js?v=20260825a"></script>
-<script type="module" src="assets/js/troll-world-360.js?v=20260826c"></script>
+<script type="module" src="assets/js/troll-world-360.js?v=20260826e"></script>
 <script>window.TrollPresence?.mount(document.getElementById('presence-mount'), { align: 'right' });</script>
 </body>
 </html>
