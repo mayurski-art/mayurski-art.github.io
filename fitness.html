@@ -32,6 +32,7 @@
   --fit-accent:#ff5a1f;
   --fit-accent-ink:#fff5f0;
   --fit-green:#34c759;
+  --fit-indigo:#5856d6;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -425,6 +426,31 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 .follow-btn.is-following{ border-color:var(--pf-line); color:var(--pf-muted); }
 .follow-btn:not(.is-following){ border-color:transparent; background:var(--fit-accent); color:#fff; }
 .follow-btn[disabled]{ opacity:.6; cursor:not-allowed; }
+
+/* ── ANALYTICS CHARTS (Phase 6, You tab) ──
+   Shared by every canvas chart drawn from fitness.js's drawBarChart /
+   drawLineChart helpers. Home's own sparkline stays untouched (see the
+   drawSparkline comment in fitness.js) — this styling only applies inside
+   #youAnalyticsCard. */
+.fit-charts-grid{ display:grid; grid-template-columns:1fr; gap:12px; width:100%; margin-top:10px; }
+@media (min-width:680px){ .fit-charts-grid{ grid-template-columns:1fr 1fr; } }
+.fit-chart-wrap{ width:100%; margin-top:8px; }
+.fit-chart-canvas{ display:block; width:100%; height:160px; }
+@media (max-width:760px){ .fit-chart-canvas{ height:140px; } }
+.fit-chart-legend{ display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
+.fit-chart-legend-item{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--pf-muted); }
+.fit-chart-legend-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:none; }
+.fit-chart-table-toggle{ margin-top:6px; }
+.fit-chart-table{ margin-top:8px; width:100%; border-collapse:collapse; font-size:12px; }
+.fit-chart-table th, .fit-chart-table td{ text-align:left; padding:4px 8px; border-bottom:.5px solid var(--pf-line); font-weight:400; }
+.fit-chart-table th{ font-weight:700; color:var(--pf-muted); }
+.fit-chart-table[hidden]{ display:none; }
+.pr-timeline{ display:flex; flex-direction:column; width:100%; background:#fff; border:.5px solid var(--pf-line); border-radius:14px; overflow:hidden; margin-top:10px; }
+.pr-timeline-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; border-bottom:.5px solid var(--pf-line); }
+.pr-timeline-row:last-child{ border-bottom:0; }
+.pr-timeline-title{ font-size:13.5px; font-weight:600; }
+.pr-timeline-date{ font-size:11.5px; color:var(--pf-muted); margin-top:2px; }
+.pr-timeline-1rm{ font-family:var(--pf-mono); font-size:12px; color:var(--pf-muted); flex:none; }
 
 /* ── ONBOARDING WIZARD (Phase 4) ── */
 .ob-modal-card{ width:min(520px,100%); max-height:88vh; overflow-y:auto; gap:12px; }

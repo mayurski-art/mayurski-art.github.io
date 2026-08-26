@@ -29,6 +29,11 @@
         p.dataset.active = active ? 'true' : 'false';
       });
       try { history.replaceState(null, '', `#${id}`); } catch {}
+      // Charts drawn while their tab was display:none have 0 width and
+      // skipped painting (see fitChartSetupCanvas) — repaint now that the
+      // panel is actually laid out. Cheap no-op if fitChartRedrawAll hasn't
+      // been defined yet (this can run before Analytics's script section).
+      if (typeof fitChartRedrawAll === 'function') requestAnimationFrame(fitChartRedrawAll);
     }
 
     tabs.forEach((tab) => {
@@ -1044,7 +1049,14 @@
       const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 7);
       const inWeek = activities.filter((a) => { const t = new Date(a.occurredAt); return t >= weekStart && t < weekEnd; });
       const mileage = inWeek.filter((a) => a.type === 'run').reduce((s, a) => s + (a.distanceMi || 0), 0);
-      buckets.push({ label: weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), mileage: Math.round(mileage * 10) / 10 });
+      // volume (lb x reps) added for Phase 6's weekly-strength-volume chart — ported
+      // from the original's src/lib/activities/trends.ts weeklyTrend() 1:1.
+      const volume = inWeek.filter((a) => a.type === 'strength')
+        .reduce((s, a) => s + a.sets.reduce((ss, set) => ss + (set.weight_lb || 0) * (set.reps || 0), 0), 0);
+      buckets.push({
+        label: weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        mileage: Math.round(mileage * 10) / 10, volume: Math.round(volume),
+      });
     }
     return buckets;
   }
@@ -1230,6 +1242,253 @@
       ctx.fillStyle = '#ff5a1f';
       ctx.fill();
     });
+  }
+
+  /* ==========================================================================
+     ANALYTICS CHARTS (Phase 6) — shared canvas chart helper for the You tab's
+     real analytics section (ported from src/components/charts/trend-chart.tsx
+     + analytics-section.tsx / weekly-trends.tsx). This is deliberately a
+     SEPARATE, richer drawing path from drawSparkline() above: Home stays the
+     lightweight glance-dashboard it already was (single accent-colored line,
+     no legend, no gridlines, no resize plumbing beyond its own requestAnimation
+     Frame redraw), while the denser gridlined/legended/resizable charts below
+     live only inside #youAnalyticsCard, where a deep-dive is the point. Kept
+     as one small shared module (fitChartSetupCanvas/drawBarChart/drawLineChart/
+     fitChartObserve/appendChartTable) rather than copy-pasting per-chart draw
+     code three times.
+     ========================================================================== */
+
+  function getCssVar(name, fallback) {
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    } catch { return fallback; }
+  }
+  const FIT_CHART_COLORS = {
+    accent: getCssVar('--fit-accent', '#ff5a1f'),
+    green: getCssVar('--fit-green', '#34c759'),
+    indigo: getCssVar('--fit-indigo', '#5856d6'),
+  };
+  function fitChartFont() {
+    try { return getComputedStyle(document.body).fontFamily || 'sans-serif'; } catch { return 'sans-serif'; }
+  }
+
+  /** Sizes a chart canvas's backing store to its CSS box x devicePixelRatio,
+   *  so lines/text stay crisp at any width — the CSS box itself (width:100%,
+   *  fixed height) is what actually drives layout/resize, this just matches
+   *  the drawing surface to it. Returns null if the box isn't laid out yet
+   *  (e.g. its tab is currently hidden via display:none). */
+  function fitChartSetupCanvas(canvas) {
+    const cssWidth = canvas.clientWidth;
+    const cssHeight = canvas.clientHeight;
+    if (!cssWidth || !cssHeight) return null;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(cssWidth * dpr));
+    canvas.height = Math.max(1, Math.round(cssHeight * dpr));
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: cssWidth, h: cssHeight };
+  }
+
+  function fitChartEmptyState(ctx, w, h, text) {
+    ctx.fillStyle = '#9b9ba1';
+    ctx.font = '12px ' + fitChartFont();
+    ctx.textAlign = 'center';
+    ctx.fillText(text, w / 2, h / 2);
+    ctx.textAlign = 'left';
+  }
+
+  function fitChartGrid(ctx, padL, padT, plotW, plotH, min, max, lines) {
+    ctx.strokeStyle = 'rgba(0,0,0,.08)';
+    ctx.lineWidth = 1;
+    ctx.font = '10px ' + fitChartFont();
+    ctx.fillStyle = '#6e6e73';
+    ctx.textAlign = 'left';
+    const range = max - min;
+    for (let i = 0; i <= lines; i++) {
+      const y = padT + plotH - (plotH * i / lines);
+      ctx.beginPath(); ctx.moveTo(padL, Math.round(y) + 0.5); ctx.lineTo(padL + plotW, Math.round(y) + 0.5); ctx.stroke();
+      const val = Math.round((min + range * i / lines) * 10) / 10;
+      ctx.fillText(String(val), 2, y + 3);
+    }
+  }
+
+  function fitChartXLabels(ctx, points, padL, slotOrStepFn, h) {
+    const n = points.length;
+    if (!n) return;
+    ctx.fillStyle = '#6e6e73';
+    ctx.font = '10px ' + fitChartFont();
+    ctx.textAlign = 'center';
+    const everyN = Math.max(1, Math.ceil(n / 8));
+    points.forEach((p, i) => {
+      if (n <= 8 || i % everyN === 0 || i === n - 1) {
+        ctx.fillText(p.label, slotOrStepFn(i), h - 4);
+      }
+    });
+    ctx.textAlign = 'left';
+  }
+
+  function roundRectTop(ctx, x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h));
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h);
+    ctx.closePath();
+  }
+
+  /** Single-series bar chart — points: [{label, value}]. Mirrors the
+   *  original's recharts <BarChart> (rounded top corners, gridlines, an
+   *  all-zero/empty "No data logged yet" state). */
+  function drawBarChart(canvas, points, opts) {
+    opts = opts || {};
+    const color = opts.color || FIT_CHART_COLORS.accent;
+    function paint() {
+      const box = fitChartSetupCanvas(canvas);
+      if (!box) return;
+      const { ctx, w, h } = box;
+      ctx.clearRect(0, 0, w, h);
+      const padL = 30, padR = 6, padT = 10, padB = 18;
+      const plotW = Math.max(1, w - padL - padR);
+      const plotH = Math.max(1, h - padT - padB);
+      const values = points.map((p) => p.value);
+      const max = Math.max.apply(null, values.concat([0]));
+      fitChartGrid(ctx, padL, padT, plotW, plotH, 0, max > 0 ? max : 1, 3);
+      if (!points.length || max <= 0) {
+        fitChartEmptyState(ctx, w, h, 'No data logged yet');
+        return;
+      }
+      const n = points.length;
+      const slot = plotW / n;
+      const barW = Math.max(3, Math.min(28, slot * 0.55));
+      points.forEach((p, i) => {
+        const barH = (p.value / max) * plotH;
+        const x = padL + i * slot + (slot - barW) / 2;
+        const y = padT + plotH - barH;
+        ctx.fillStyle = color;
+        roundRectTop(ctx, x, y, barW, Math.max(barH, 1), 4);
+        ctx.fill();
+      });
+      fitChartXLabels(ctx, points, padL, (i) => padL + i * slot + slot / 2, h);
+    }
+    canvas.__redraw = paint;
+    fitChartObserve(canvas);
+    paint();
+  }
+
+  /** Multi-series line chart — seriesList: [{label, color, points:[{label,value}]}].
+   *  All series share one axis (never a dual-axis chart) since CTL/ATL/TSB
+   *  are the same training-load unit. Caller is responsible for rendering the
+   *  legend as real HTML (see appendChartLegend) — color is never the only
+   *  way to tell series apart. */
+  function drawLineChart(canvas, seriesList) {
+    function paint() {
+      const box = fitChartSetupCanvas(canvas);
+      if (!box) return;
+      const { ctx, w, h } = box;
+      ctx.clearRect(0, 0, w, h);
+      const padL = 30, padR = 6, padT = 10, padB = 18;
+      const plotW = Math.max(1, w - padL - padR);
+      const plotH = Math.max(1, h - padT - padB);
+      const allValues = [].concat.apply([], seriesList.map((s) => s.points.map((p) => p.value)));
+      const hasData = allValues.some((v) => v !== 0);
+      const max = Math.max.apply(null, allValues.concat([0]));
+      const min = Math.min.apply(null, allValues.concat([0]));
+      const range = (max - min) || 1;
+      fitChartGrid(ctx, padL, padT, plotW, plotH, min, max, 3);
+      if (!hasData) {
+        fitChartEmptyState(ctx, w, h, 'No data logged yet');
+        return;
+      }
+      const points0 = seriesList[0].points;
+      const n = points0.length;
+      const stepX = n > 1 ? plotW / (n - 1) : 0;
+      seriesList.forEach((s) => {
+        ctx.beginPath();
+        s.points.forEach((p, i) => {
+          const x = padL + i * stepX;
+          const y = padT + plotH - ((p.value - min) / range) * plotH;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      });
+      fitChartXLabels(ctx, points0, padL, (i) => padL + i * stepX, h);
+    }
+    canvas.__redraw = paint;
+    fitChartObserve(canvas);
+    paint();
+  }
+
+  /** Real HTML legend (never canvas-drawn text) so series identity never
+   *  depends on color alone — appended into `container`. */
+  function appendChartLegend(container, seriesList) {
+    const legend = document.createElement('div');
+    legend.className = 'fit-chart-legend';
+    seriesList.forEach((s) => {
+      const item = document.createElement('span');
+      item.className = 'fit-chart-legend-item';
+      const dot = document.createElement('span');
+      dot.className = 'fit-chart-legend-dot';
+      dot.style.background = s.color;
+      item.appendChild(dot);
+      item.appendChild(document.createTextNode(s.label));
+      legend.appendChild(item);
+    });
+    container.appendChild(legend);
+  }
+
+  /** Toggle-able real <table> of a chart's underlying data — the non-mouse,
+   *  non-hover-dependent way to get everything the chart shows (canvas has
+   *  no text content for a screen reader beyond the aria-label summary). */
+  function appendChartTable(container, headers, rows) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'link-accent fit-chart-table-toggle';
+    btn.textContent = 'View as table';
+    btn.setAttribute('aria-expanded', 'false');
+    const table = document.createElement('table');
+    table.className = 'fit-chart-table';
+    table.hidden = true;
+    table.innerHTML =
+      '<thead><tr>' + headers.map((hd) => '<th>' + escapeHtml(hd) + '</th>').join('') + '</tr></thead>' +
+      '<tbody>' + rows.map((r) => '<tr>' + r.map((c) => '<td>' + escapeHtml(String(c)) + '</td>').join('') + '</tr>').join('') + '</tbody>';
+    btn.addEventListener('click', () => {
+      const show = table.hidden;
+      table.hidden = !show;
+      btn.setAttribute('aria-expanded', String(show));
+      btn.textContent = show ? 'Hide table' : 'View as table';
+    });
+    container.appendChild(btn);
+    container.appendChild(table);
+  }
+
+  // ── Resize plumbing: redraw every mounted chart on container/window
+  //    resize, and again on tab-activation (a chart drawn while its tab is
+  //    display:none has clientWidth 0 and skips painting — see
+  //    fitChartSetupCanvas — so it needs a repaint once it's actually shown;
+  //    ResizeObserver firing for a display:none -> block transition isn't
+  //    reliable across browsers, so initTabs' activate() also calls this). ──
+  let fitChartResizeObserver = null;
+  function fitChartRedrawAll() {
+    document.querySelectorAll('canvas[data-fit-chart]').forEach((c) => { if (c.__redraw) c.__redraw(); });
+  }
+  function fitChartObserve(canvas) {
+    canvas.setAttribute('data-fit-chart', '1');
+    if (window.ResizeObserver) {
+      if (!fitChartResizeObserver) {
+        fitChartResizeObserver = new ResizeObserver(() => { requestAnimationFrame(fitChartRedrawAll); });
+      }
+      fitChartResizeObserver.observe(canvas.parentElement);
+    } else if (!fitChartObserve._winBound) {
+      fitChartObserve._winBound = true;
+      window.addEventListener('resize', () => requestAnimationFrame(fitChartRedrawAll));
+    }
   }
 
   // ── Activity list items (own + friends') ──
@@ -2291,22 +2550,120 @@
     });
   }
 
-  // ── Render: analytics stub (real charts are Phase 6 — this just points
-  //    back at Home's already-built stats/trend chart, plus a couple of
-  //    numbers computed from the same fresh activity fetch as badges above). ──
+  // ── Render: Analytics (Phase 6) — ported from src/components/analytics/
+  //    analytics-section.tsx + weekly-trends.tsx. Real charts, not a stub:
+  //    weekly mileage + weekly strength volume bars, a training-load (CTL/
+  //    ATL/TSB) line trend, a PR history timeline (computePRTimeline is
+  //    already ported above for badges), and all-time summary tiles. The
+  //    original's week/month/year range toggle + custom date range isn't
+  //    ported — a fixed last-8-weeks window covers the same ground without
+  //    the extra UI surface; Home still gets the fast single-glance version
+  //    (drawSparkline), this is the deep-dive. ──
+  function allTimeSummary(activities) {
+    const runs = activities.filter((a) => a.type === 'run');
+    const strength = activities.filter((a) => a.type === 'strength');
+    return {
+      totalActivities: activities.length,
+      totalMileage: Math.round(runs.reduce((s, a) => s + (a.distanceMi || 0), 0) * 10) / 10,
+      runCount: runs.length,
+      strengthCount: strength.length,
+      longestRunMi: Math.max(0, ...runs.map((a) => a.distanceMi || 0)),
+    };
+  }
+  /** Weekly CTL/ATL/TSB series for the last `weeks` weeks — reuses
+   *  computeTrainingLoad(activities, asOf) (already ported for Home) by
+   *  evaluating it as-of each week's end date. */
+  function computeLoadTrend(activities, weeks) {
+    weeks = weeks || 8;
+    const thisWeekStart = homeStartOfWeek();
+    const ctl = [], atl = [], tsb = [];
+    for (let i = weeks - 1; i >= 0; i--) {
+      const weekEnd = new Date(thisWeekStart);
+      weekEnd.setDate(weekEnd.getDate() - i * 7 + 6);
+      const label = weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const load = computeTrainingLoad(activities, weekEnd);
+      ctl.push({ label, value: load.ctl });
+      atl.push({ label, value: load.atl });
+      tsb.push({ label, value: load.tsb });
+    }
+    return { ctl, atl, tsb };
+  }
+  function renderPrTimeline(activities) {
+    const wrap = document.getElementById('anPrList');
+    const timeline = computePRTimeline(activities).slice(0, 15);
+    if (!timeline.length) {
+      wrap.innerHTML = '<p class="desc">No PRs yet — log strength sets with weight and reps to start tracking records.</p>';
+      return;
+    }
+    const list = document.createElement('div');
+    list.className = 'pr-timeline';
+    timeline.forEach((pr) => {
+      const row = document.createElement('div');
+      row.className = 'pr-timeline-row';
+      row.innerHTML =
+        '<div><p class="pr-timeline-title"></p><p class="pr-timeline-date"></p></div><span class="pr-timeline-1rm"></span>';
+      row.querySelector('.pr-timeline-title').textContent = '🏆 ' + pr.exercise + ' — ' + pr.weightLb + ' lb × ' + pr.reps;
+      row.querySelector('.pr-timeline-date').textContent = new Date(pr.achievedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      row.querySelector('.pr-timeline-1rm').textContent = '~' + Math.round(pr.estOneRm) + ' lb 1RM';
+      list.appendChild(row);
+    });
+    wrap.innerHTML = '';
+    wrap.appendChild(list);
+  }
   function renderYouAnalytics(activities) {
     const card = document.getElementById('youAnalyticsCard');
-    const month = monthSummary(activities);
+    const weeks = weeklyTrend(activities, 8);
+    const summary = allTimeSummary(activities);
     card.innerHTML =
       '<p class="fit-label">Analytics</p>' +
-      '<p class="desc" style="margin-top:2px;">Full charts and trends live on Home for now — training load, weekly mileage sparkline, and this month’s totals. Deeper analytics is a later phase.</p>' +
-      '<div class="stat-grid" style="margin-top:10px;">' +
-      '<div class="stat-tile"><span class="stat-label">Total activities</span><span class="stat-value">' + activities.length + '</span></div>' +
-      '<div class="stat-tile"><span class="stat-label">Mileage this month</span><span class="stat-value">' + month.totalMileage + ' mi</span></div>' +
+      '<p class="desc" style="margin-top:2px;">Weekly volume, training load, and personal-record history.</p>' +
+      '<div class="fit-charts-grid">' +
+        '<div class="fit-card"><p class="fit-label">Weekly mileage</p><p class="desc" style="margin-top:2px;">Last 8 weeks, runs only</p>' +
+          '<div class="fit-chart-wrap"><canvas class="fit-chart-canvas" id="anMileageChart" role="img" aria-label="Weekly mileage, last 8 weeks"></canvas></div>' +
+        '</div>' +
+        '<div class="fit-card"><p class="fit-label">Weekly strength volume</p><p class="desc" style="margin-top:2px;">Last 8 weeks, lb × reps</p>' +
+          '<div class="fit-chart-wrap"><canvas class="fit-chart-canvas" id="anVolumeChart" role="img" aria-label="Weekly strength volume, last 8 weeks"></canvas></div>' +
+        '</div>' +
       '</div>' +
-      '<button type="button" class="link-accent" id="youAnalyticsHomeLink" style="margin-top:10px;">See Home for full trends →</button>';
-    const link = document.getElementById('youAnalyticsHomeLink');
-    if (link) link.addEventListener('click', () => document.querySelector('.tab[data-tab="home"]').click());
+      '<section class="fit-card" id="anLoadCard" style="margin-top:12px;">' +
+        '<p class="fit-label">Training load — fitness, fatigue &amp; form</p>' +
+        '<p class="desc" style="margin-top:2px;">CTL/ATL/TSB over the last 8 weeks — see Home for what these mean.</p>' +
+        '<div class="fit-chart-wrap"><canvas class="fit-chart-canvas" id="anLoadChart" role="img" aria-label="Training load trend, last 8 weeks"></canvas></div>' +
+      '</section>' +
+      '<section aria-label="PR history" style="width:100%; margin-top:12px;">' +
+        '<div class="fit-head"><h3>PR history</h3></div>' +
+        '<div id="anPrList"></div>' +
+      '</section>' +
+      '<div class="stat-grid" style="margin-top:12px;">' +
+        '<div class="stat-tile"><span class="stat-label">Total activities</span><span class="stat-value">' + summary.totalActivities + '</span></div>' +
+        '<div class="stat-tile"><span class="stat-label">Total mileage</span><span class="stat-value">' + summary.totalMileage + ' mi</span></div>' +
+        '<div class="stat-tile"><span class="stat-label">Longest run</span><span class="stat-value">' + summary.longestRunMi.toFixed(1) + ' mi</span></div>' +
+        '<div class="stat-tile"><span class="stat-label">Strength sessions</span><span class="stat-value">' + summary.strengthCount + '</span></div>' +
+      '</div>';
+
+    const mileagePoints = weeks.map((w) => ({ label: w.label, value: w.mileage }));
+    const volumePoints = weeks.map((w) => ({ label: w.label, value: w.volume }));
+    const mileageCanvas = document.getElementById('anMileageChart');
+    const volumeCanvas = document.getElementById('anVolumeChart');
+    drawBarChart(mileageCanvas, mileagePoints, { color: FIT_CHART_COLORS.accent });
+    drawBarChart(volumeCanvas, volumePoints, { color: FIT_CHART_COLORS.green });
+    appendChartTable(mileageCanvas.closest('.fit-card'), ['Week', 'Mileage (mi)'], mileagePoints.map((p) => [p.label, p.value]));
+    appendChartTable(volumeCanvas.closest('.fit-card'), ['Week', 'Volume (lb×reps)'], volumePoints.map((p) => [p.label, p.value]));
+
+    const load = computeLoadTrend(activities, 8);
+    const loadSeries = [
+      { label: 'Fitness (CTL)', color: FIT_CHART_COLORS.accent, points: load.ctl },
+      { label: 'Fatigue (ATL)', color: FIT_CHART_COLORS.indigo, points: load.atl },
+      { label: 'Form (TSB)', color: FIT_CHART_COLORS.green, points: load.tsb },
+    ];
+    const loadCanvas = document.getElementById('anLoadChart');
+    drawLineChart(loadCanvas, loadSeries);
+    const loadCard = document.getElementById('anLoadCard');
+    appendChartLegend(loadCard, loadSeries);
+    appendChartTable(loadCard, ['Week', 'Fitness (CTL)', 'Fatigue (ATL)', 'Form (TSB)'],
+      load.ctl.map((p, i) => [p.label, load.ctl[i].value, load.atl[i].value, load.tsb[i].value]));
+
+    renderPrTimeline(activities);
   }
 
   const you = {};
