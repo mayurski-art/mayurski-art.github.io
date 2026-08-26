@@ -17,6 +17,11 @@
 
   const CITY_ZOOM = 9;
   const HOME_ZOOM = 2;
+  // Starting zoom for the observatory arrival flight (see playArrival()
+  // below) — far enough out that the globe reads as a small planet in open
+  // space, so easing up to HOME_ZOOM feels like the camera closing in on it
+  // rather than a simple zoom.
+  const ARRIVAL_START_ZOOM = -1.2;
   const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 
   // The stock dark style has no generic "land" polygon at all — everything
@@ -342,15 +347,45 @@
   }
 
   /* ── Map ──────────────────────────────────────────────────────────────── */
+  // Set by maps.html's inline arrival script (before it strips ?enter=scope
+  // from the URL, which happens too early in the document for this file to
+  // still see the query param itself — this file's <script src> only runs
+  // once the parser reaches the bottom of <body>) when arriving from the
+  // island's observatory landmark. See playArrival() below.
+  const arrivalPending = window.__trollMapArrival === true;
+  let pendingArrivalDuration = null;
+
+  function startArrivalFlight(duration) {
+    map.easeTo({ zoom: HOME_ZOOM, duration, easing: (t) => t * (2 - t) });
+    // A plain timer rather than waiting on 'moveend'/'zoomend': the spin
+    // loop's own jumpTo() calls (see spinStep) would otherwise fire
+    // 'moveend' the instant spin resumes and could race this restore.
+    setTimeout(() => {
+      map.setMinZoom(HOME_ZOOM);
+      spinGlobe();
+    }, duration);
+  }
+
+  // Called by maps.html once the CSS iris-open reveal starts, so the camera
+  // closing in on the globe and the overlay opening happen in lockstep
+  // instead of the map just appearing already at rest mid-reveal.
+  function playArrival(duration) {
+    if (!arrivalPending || !map) return;
+    if (mapReady) startArrivalFlight(duration);
+    else pendingArrivalDuration = duration; // style.load below picks this up
+  }
+  window.TrollMap = { playArrival, getZoom: () => map && map.getZoom() };
+
   function initMap() {
     map = new maplibregl.Map({
       container: document.getElementById('map'),
       style: STYLE_URL,
       center: [-40, 20],
-      zoom: HOME_ZOOM,
+      zoom: arrivalPending ? ARRIVAL_START_ZOOM : HOME_ZOOM,
       // Don't let users zoom out past the default framing — the globe
-      // shrinking to a speck looks bad.
-      minZoom: HOME_ZOOM,
+      // shrinking to a speck looks bad. Relaxed to ARRIVAL_START_ZOOM only
+      // for the duration of the arrival flight above, then restored.
+      minZoom: arrivalPending ? ARRIVAL_START_ZOOM : HOME_ZOOM,
       attributionControl: { compact: true },
       pitchWithRotate: false,
       dragRotate: false,
@@ -385,7 +420,13 @@
         })
         .catch((err) => { console.warn('[map] country density layer failed to load', err); });
 
-      spinGlobe();
+      if (arrivalPending) {
+        if (pendingArrivalDuration != null) startArrivalFlight(pendingArrivalDuration);
+        // else: playArrival() hasn't been called yet — it'll see mapReady
+        // and start the flight itself once maps.html calls it.
+      } else {
+        spinGlobe();
+      }
     });
     map.on('click', (event) => {
       if (state.picking) handleMapPick(event.lngLat.lat, event.lngLat.lng);

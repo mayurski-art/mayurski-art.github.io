@@ -289,6 +289,14 @@ a { color: inherit; }
   history.replaceState(null, '', clean);
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
+  // Read by troll-map.js's own <script src>, further down the page, before
+  // it constructs the map — that's the signal to start the globe zoomed
+  // way out (see ARRIVAL_START_ZOOM there) instead of already at rest, and
+  // to hold off auto-spin until playArrival() below tells it the reveal
+  // has started. Set only on the motion-allowed path above, so a reduced-
+  // motion visitor's map just inits normally at its resting zoom.
+  window.__trollMapArrival = true;
+
   const mapEl = document.getElementById('map');
   const overlay = document.getElementById('scope-arrival');
   mapEl.classList.add('is-arriving');
@@ -312,6 +320,11 @@ a { color: inherit; }
         overlay.classList.add('is-open');
         mapEl.classList.remove('is-arriving');
         mapEl.classList.add('is-revealing');
+        // Longer than the .75s iris-open on purpose: the curtain finishes
+        // opening while the globe is still visibly closing in, so the
+        // camera's own arrival reads as the point of the reveal instead of
+        // the globe just sitting there already at rest behind the iris.
+        window.TrollMap?.playArrival(1400);
         setTimeout(() => overlay.classList.add('is-done'), 800);
         setTimeout(() => overlay.remove(), 1200);
       });
