@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Fitness — Troll Runner</title>
+<meta name="description" content="Troll Runner Fitness — log runs and lifts, follow a training plan, and chat with the troll running coach. Coming online in phases.">
+<meta property="og:title" content="Troll Runner — Fitness">
+<meta property="og:description" content="Log runs and lifts, follow a training plan, and chat with the troll running coach.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://trollrunner.net/fitness">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Troll Runner — Fitness">
+<meta name="twitter:description" content="Log runs and lifts, follow a training plan, and chat with the troll running coach.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pf-bg:#1c1c1e;
+  --pf-panel:#f5f5f7;
+  --pf-panel-2:#f2efe9;
+  --pf-ink:#1c1c1e;
+  --pf-muted:#6e6e73;
+  --pf-line:rgba(0,0,0,.14);
+  --pf-line-dark:rgba(255,255,255,.16);
+  --pf-sans:'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --pf-mono:'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Fitness's single app accent, per the site's one-accent-per-app rule
+     (see CLAUDE.md's city-color convention applied to app icons). */
+  --fit-accent:#ff5a1f;
+  --fit-accent-ink:#fff5f0;
+  --fit-green:#34c759;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--pf-sans);
+  color:#f5f5f7;
+  background:
+    radial-gradient(circle at 12% -10%, rgba(255,90,31,.18) 0%, transparent 45%),
+    radial-gradient(circle at 90% 0%, rgba(255,90,31,.08) 0%, transparent 40%),
+    var(--pf-bg);
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--fit-accent); outline-offset:2px; border-radius:6px;}
+
+.back-island{
+  position:fixed; top:16px; left:16px; z-index:50;
+  display:inline-flex; width:36px; height:36px; border-radius:10px;
+  align-items:center; justify-content:center; font-size:16px;
+  background:rgba(255,255,255,.05); border:.5px solid var(--pf-line-dark); color:#d9d9e0;
+  text-decoration:none; transition:background .15s ease, border-color .15s ease;
+}
+.back-island:hover, .back-island:focus-visible{ background:rgba(255,255,255,.1); }
+
+.wrap{ width:min(1040px, calc(100% - 32px)); margin:0 auto; padding:64px 0 60px; }
+
+/* ── HEADER ── */
+.top{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:16px; flex-wrap:wrap; margin-bottom:22px;
+}
+.brand{ display:flex; align-items:center; gap:12px; min-width:0; }
+.brand-icon{
+  width:44px; height:44px; border-radius:12px; flex:none;
+  display:flex; align-items:center; justify-content:center; font-size:22px;
+  background:var(--fit-accent); color:var(--fit-accent-ink);
+}
+.brand h1{ font-size:22px; font-weight:700; letter-spacing:-.02em; }
+.brand p{ margin-top:2px; font-size:13px; color:#9b9ba1; }
+
+.btn-signin{
+  display:none; height:38px; padding:0 16px; border-radius:10px;
+  border:.5px solid transparent; background:var(--fit-accent); color:#fff;
+  font-family:var(--pf-sans); font-size:13px; font-weight:600; white-space:nowrap;
+  transition:background .15s ease;
+}
+.btn-signin.is-visible{ display:inline-flex; align-items:center; justify-content:center; }
+.btn-signin:hover{ filter:brightness(1.08); }
+.btn-signin.is-account{
+  padding:0 14px 0 4px; gap:8px; background:rgba(255,255,255,.06);
+  border-color:var(--pf-line-dark); color:#e7e7ec;
+}
+.btn-signin.is-account:hover{ background:rgba(255,255,255,.1); }
+.btn-signin.is-account img{
+  width:28px; height:28px; border-radius:50%; object-fit:cover; display:block; background:#000;
+}
+
+/* ── NAV TABS ── */
+.tabs{
+  display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px;
+  padding:6px; border-radius:14px; background:rgba(255,255,255,.05); border:.5px solid var(--pf-line-dark);
+}
+.tab{
+  flex:1; min-width:88px; text-align:center; padding:9px 12px; border-radius:10px;
+  border:0; background:transparent; color:#c8c8ce; font-size:13px; font-weight:600;
+  transition:background .15s ease, color .15s ease;
+}
+.tab:hover{ color:#f5f5f7; }
+.tab[aria-selected="true"]{ background:var(--fit-accent); color:var(--fit-accent-ink); }
+
+/* ── PANEL ── */
+.panel{
+  background:var(--pf-panel); color:var(--pf-ink);
+  border:.5px solid var(--pf-line); border-radius:18px;
+  box-shadow:0 12px 34px rgba(0,0,0,.28);
+  min-height:340px;
+}
+.tabpanel{ display:none; padding:36px 28px; }
+.tabpanel[data-active="true"]{ display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
+.tabpanel h2{ font-size:19px; font-weight:700; letter-spacing:-.01em; }
+.tabpanel .soon{
+  display:inline-flex; align-items:center; gap:6px; font-family:var(--pf-mono);
+  font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--fit-accent);
+  background:#fff0e8; border:.5px solid rgba(255,90,31,.25); border-radius:999px; padding:4px 10px;
+}
+.tabpanel p.desc{ color:var(--pf-muted); font-size:14px; max-width:560px; line-height:1.5; }
+.tabpanel .session-note{ margin-top:8px; font-size:12.5px; color:var(--pf-muted); }
+.tabpanel .session-note strong{ color:var(--pf-ink); }
+
+footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px; }
+
+/* ── AUTH MODAL (trimmed from PFP Studio's own sign-in flow) ── */
+.share-modal{ position:fixed; inset:0; z-index:9500; display:flex; align-items:center; justify-content:center; padding:20px; }
+.share-modal[hidden]{ display:none; }
+.share-modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+.share-modal-card{
+  position:relative; z-index:1; width:min(360px,100%);
+  background:linear-gradient(165deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 38%, rgba(0,0,0,.3) 100%), #131316;
+  border:.5px solid var(--pf-line-dark); border-radius:20px;
+  padding:20px; box-shadow:0 24px 60px rgba(0,0,0,.5);
+  display:flex; flex-direction:column; gap:14px;
+}
+.share-modal-close{
+  position:absolute; top:12px; right:12px; border:none;
+  background:rgba(255,255,255,.08); color:#f5f5f7;
+  width:30px; height:30px; border-radius:50%; font-size:13px; line-height:1;
+}
+.share-modal-close:hover{ background:rgba(255,255,255,.16); }
+.share-modal-card h2{ padding-right:30px; font-size:16px; font-weight:700; color:#f5f5f7; }
+.share-modal-note{ font-size:12px; color:#9b9ba1; min-height:1.2em; text-align:center; }
+.share-modal-note.is-err{ color:#ff8f9a; }
+.share-btn{
+  flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:11px; border-radius:12px; border:.5px solid var(--pf-line-dark);
+  font-size:13.5px; font-weight:600; background:rgba(255,255,255,.08); color:#f5f5f7;
+  transition:background .15s ease, transform .1s ease;
+}
+.share-btn:hover{ background:rgba(255,255,255,.16); }
+.share-btn:active{ transform:translateY(1px); }
+.share-btn[disabled]{ opacity:.5; cursor:not-allowed; }
+.share-btn-x{ width:100%; background:#fff; color:#000; border-color:transparent; }
+.share-btn-x:hover{ background:#e6e6e6; }
+.share-btn-download{ background:var(--fit-accent); border-color:transparent; }
+.share-btn-download:hover{ filter:brightness(1.08); }
+.auth-or-sep{ display:flex; align-items:center; gap:10px; font-size:11px; color:#9b9ba1; }
+.auth-or-sep::before, .auth-or-sep::after{ content:''; flex:1; height:1px; background:var(--pf-line-dark); }
+.auth-field{ display:flex; flex-direction:column; gap:5px; text-align:left; }
+.auth-field[hidden]{ display:none; }
+.auth-field label{ font-size:12px; color:#9b9ba1; }
+.auth-field input{
+  width:100%; padding:10px 12px; border-radius:10px;
+  border:.5px solid var(--pf-line-dark); background:rgba(255,255,255,.06);
+  color:#f5f5f7; font-family:var(--pf-sans); font-size:14px;
+}
+.auth-field input:focus{ outline:2px solid var(--fit-accent); outline-offset:1px; }
+.auth-swap{ background:transparent; border-color:transparent; color:#9b9ba1; }
+.auth-swap:hover{ background:transparent; color:#f5f5f7; }
+
+/* ── MOBILE: stack under 760px ── */
+@media (max-width:760px){
+  .wrap{ padding:60px 0 40px; }
+  .top{ flex-direction:column; align-items:flex-start; }
+  .btn-signin{ align-self:flex-start; }
+  .tabs{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .tab{ flex:none; min-width:76px; }
+  .tabpanel{ padding:26px 18px; }
+}
+</style>
+</head>
+<body>
+  <a href="https://trollrunner.net/" class="back-island" aria-label="Back to trollrunner.net" title="Back to trollrunner.net">&larr;</a>
+
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">🏃</div>
+        <div>
+          <h1>Fitness</h1>
+          <p>Your AI running and strength coach.</p>
+        </div>
+      </div>
+      <button type="button" class="btn-signin" id="btn-signin" aria-label="Sign in to Troll Runner">Log in</button>
+    </header>
+
+    <nav class="tabs" id="fit-tabs" aria-label="Fitness sections">
+      <button type="button" class="tab" role="tab" data-tab="home" aria-selected="true">Home</button>
+      <button type="button" class="tab" role="tab" data-tab="log" aria-selected="false">Log</button>
+      <button type="button" class="tab" role="tab" data-tab="training" aria-selected="false">Training</button>
+      <button type="button" class="tab" role="tab" data-tab="you" aria-selected="false">You</button>
+      <button type="button" class="tab" role="tab" data-tab="coach" aria-selected="false">Coach</button>
+      <button type="button" class="tab" role="tab" data-tab="learn" aria-selected="false">Learn</button>
+    </nav>
+
+    <main class="panel">
+      <section class="tabpanel" id="tabpanel-home" data-tab="home" data-active="true" role="tabpanel" aria-labelledby="home">
+        <span class="soon">Coming soon</span>
+        <h2>Home</h2>
+        <p class="desc">Your dashboard: today's plan, recent runs and lifts, and a snapshot of how training's going. This is where Fitness will land once it opens for real.</p>
+        <p class="session-note" id="session-note"></p>
+      </section>
+      <section class="tabpanel" id="tabpanel-log" data-tab="log" role="tabpanel" aria-labelledby="log">
+        <span class="soon">Coming soon</span>
+        <h2>Log</h2>
+        <p class="desc">Log a run or a lift — distance, pace, sets and reps, however you train. Ported over from the old fitness.trollrunner.net app in a later phase.</p>
+      </section>
+      <section class="tabpanel" id="tabpanel-training" data-tab="training" role="tabpanel" aria-labelledby="training">
+        <span class="soon">Coming soon</span>
+        <h2>Training</h2>
+        <p class="desc">A running/strength plan built around your goals, with the week laid out and progress tracked automatically.</p>
+      </section>
+      <section class="tabpanel" id="tabpanel-you" data-tab="you" role="tabpanel" aria-labelledby="you">
+        <span class="soon">Coming soon</span>
+        <h2>You</h2>
+        <p class="desc">Your profile: stats, streaks, personal bests, and settings for how Fitness trains with you.</p>
+      </section>
+      <section class="tabpanel" id="tabpanel-coach" data-tab="coach" role="tabpanel" aria-labelledby="coach">
+        <span class="soon">Coming soon</span>
+        <h2>Coach</h2>
+        <p class="desc">Chat with the troll running coach — ask about pacing, recovery, or what to do about that nagging knee.</p>
+      </section>
+      <section class="tabpanel" id="tabpanel-learn" data-tab="learn" role="tabpanel" aria-labelledby="learn">
+        <span class="soon">Coming soon</span>
+        <h2>Learn</h2>
+        <p class="desc">Guides and explainers on running form, strength basics, and how to actually read your own training data.</p>
+      </section>
+    </main>
+
+    <footer>TROLLRUNNER FITNESS</footer>
+  </div>
+
+  <!-- SIGN IN / CREATE ACCOUNT MODAL -->
+  <div class="share-modal" id="authModal" hidden>
+    <div class="share-modal-backdrop" id="authModalBackdrop"></div>
+    <div class="share-modal-card" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+      <button type="button" class="share-modal-close" id="authModalClose" aria-label="Close">✕</button>
+      <h2 id="authModalTitle">Sign in</h2>
+      <p class="share-modal-note" id="authModalSub">Log in to track your runs and lifts on Troll Runner Fitness.</p>
+      <button type="button" class="share-btn share-btn-x" id="authXSignin">
+        <span aria-hidden="true">𝕏</span> Continue with X
+      </button>
+      <p class="auth-or-sep">or use a username</p>
+      <form id="authForm" style="display:flex; flex-direction:column; gap:12px;">
+        <div class="auth-field">
+          <label for="authId" id="authIdLabel">Username or email</label>
+          <input id="authId" type="text" required autocomplete="username">
+        </div>
+        <div class="auth-field" id="authEmailField" hidden>
+          <label for="authEmail">Email (optional — password recovery)</label>
+          <input id="authEmail" type="email" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label for="authPw">Password</label>
+          <input id="authPw" type="password" required autocomplete="current-password">
+        </div>
+        <p class="share-modal-note" id="authMsg" role="status" aria-live="polite"></p>
+        <button type="submit" class="share-btn share-btn-download" id="authSubmit">Sign in</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <button type="button" class="share-btn auth-swap" id="authSwap">New here? Create an account</button>
+          <button type="button" class="share-btn auth-swap" id="authForgot">Forgot password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
+  <script src="assets/js/troll-accounts.js?v=20260825a"></script>
+  <script src="assets/js/fitness.js"></script>
+</body>
+</html>

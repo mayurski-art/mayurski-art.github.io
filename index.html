@@ -132,7 +132,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260825f' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260825g' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
@@ -3934,7 +3934,6 @@ window.addEventListener('trollrunner:dm-unread-changed', event => {
    =================================================================== */
 const TD_SITES = [
   { id: 'terminal', label: 'Terminal', icon: '💻', img: 'assets/images/icons/terminal.png', flat: true, href: 'https://terminal.trollrunner.net', color: '#30d158', desc: 'Chat with the trollface terminal AI.' },
-  { id: 'fitness', label: 'Fitness', icon: '🏃', img: 'assets/images/icons/fitness.png', flat: true, href: 'https://fitness.trollrunner.net', color: '#ff5a1f', desc: 'Your AI running and strength coach.' },
   { id: 'games', label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true, href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.' },
   { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
   { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.', adminOnly: true },
@@ -4051,6 +4050,18 @@ TD_WINDOWS.videos = {
   width: 1040, browser: true,
   url: 'trollrunner.net/videos', iframeSrc: 'videos.html',
   build: body => tdBuildIframe(body, 'videos.html', 'Videos'),
+  maximizeByDefault: true,
+};
+// Fitness used to live on its own fitness.trollrunner.net subdomain
+// (trollrunner-fitness repo, a Next.js app); ported into a local
+// same-origin page for the same reason as PFP Studio/Stickers/Maps/Videos
+// above — no SSO bridge needed, one less repo, and it can reuse this
+// page's Supabase session directly via troll-accounts.js.
+TD_WINDOWS.fitness = {
+  title: 'Fitness', icon: '🏃', img: 'assets/images/icons/fitness.png', flat: true,
+  width: 1040, browser: true,
+  url: 'trollrunner.net/fitness', iframeSrc: 'fitness.html',
+  build: body => tdBuildIframe(body, 'fitness.html', 'Fitness'),
   maximizeByDefault: true,
 };
 // Mirrors the "Classic desktop" link world.html's own World menu offers phone
