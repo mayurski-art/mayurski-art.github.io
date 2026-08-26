@@ -3270,12 +3270,21 @@
       stallTimer = setTimeout(() => { if (dragging && !done) setMood('sad'); }, STALL_MS);
     }
 
-    const travel = () => track.clientWidth - runner.offsetWidth - (parseFloat(getComputedStyle(runner).left) || 5) * 2;
+    const runnerInset = () => parseFloat(getComputedStyle(runner).left) || 5;
+    const travel = () => track.clientWidth - runner.offsetWidth - runnerInset() * 2;
 
     function render() {
       const x = progress * travel();
       runner.style.transform = `translateX(${x}px)`;
-      fill.style.width = `${progress * 100}%`;
+      // Fill width used to be a flat progress*100% of the whole track, but
+      // the runner only ever moves through travel() (track width minus its
+      // own size and inset on both sides) — the two disagreed on how far
+      // "100%" was, so the fill's leading edge drifted away from the runner
+      // instead of tracking under it. Deriving the edge from the runner's
+      // actual pixel position keeps them locked together at every point of
+      // the drag.
+      const edgePx = runnerInset() + x + runner.offsetWidth / 2;
+      fill.style.width = `${(edgePx / track.clientWidth) * 100}%`;
       if (progress > 0.02) {
         label.innerHTML = `<span class="dist">${(progress * RACE_MILES).toFixed(2)} mi</span>`;
       } else {
