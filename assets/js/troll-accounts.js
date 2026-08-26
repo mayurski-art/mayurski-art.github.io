@@ -1452,6 +1452,7 @@
       @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500;600&display=swap');
       .ta-overlay { position: fixed; inset: 0; z-index: 99990; display: flex; align-items: center;
         justify-content: center; padding: 16px; background: rgba(4,6,5,0.78); }
+      body.ta-modal-locked { overflow: hidden; }
       .ta-card { width: min(560px, 100%); max-height: 86vh; overflow: auto; color: #e6f2e6;
         font-family: 'Space Grotesk', system-ui, Arial, sans-serif; font-size: 14px; line-height: 1.45;
         background: linear-gradient(160deg, #131a15, #0a0d0b); border: 2px solid #000; border-radius: 8px;
@@ -1718,6 +1719,7 @@
 
   function closeModal() {
     document.getElementById(MODAL_ID)?.remove();
+    document.body.classList.remove('ta-modal-locked');
   }
 
   const DRAWER_ID = 'troll-accounts-drawer';
@@ -1808,6 +1810,7 @@
     const onKey = event => { if (event.key === 'Escape') { closeModal(); window.removeEventListener('keydown', onKey); } };
     window.addEventListener('keydown', onKey);
     document.body.appendChild(overlay);
+    document.body.classList.add('ta-modal-locked');
     return overlay.querySelector('.ta-body');
   }
 
