@@ -2255,6 +2255,14 @@
     // drag rather than auto-completing itself after a few seconds.
     const isTouchDevice = window.matchMedia('(max-width: 720px), (pointer: coarse)').matches
       || document.documentElement.classList.contains('mobile-preview');
+    // Narrower than isTouchDevice on purpose: index.html forces &mobile=1
+    // (the .mobile-preview class) onto EVERY visit right now, phone or
+    // desktop (see its isPhone comment), so isTouchDevice's mobile-preview
+    // clause is true site-wide and can't tell an actual phone apart from a
+    // wide desktop tab. Landmark-art decisions need the real signal — the
+    // same width/pointer check the phone-only CSS above keys off of —
+    // without that always-on clause.
+    const isPhoneLayout = window.matchMedia('(max-width: 720px), (pointer: coarse)').matches;
     function setPhase(next) {
       body.dataset.phase = next;
       clearTimeout(lockTimer);
@@ -2332,7 +2340,7 @@
        point for every app instead of some living as invisible hotspots on
        art that's no longer there. Desktop keeps the fully-landmarked art
        and its on-island hotspots untouched. */
-    if (isTouchDevice) {
+    if (isPhoneLayout) {
       const islandImg = $('island-img');
       if (islandImg) islandImg.src = 'assets/images/wallpaper/trollrunner-island-land-mobile.png';
     }
@@ -2347,7 +2355,7 @@
     const apps = $('apps');
     const railIds = new Set();
     for (const a of APPS) {
-      if (a.hw && a.hh && !isTouchDevice) continue;
+      if (a.hw && a.hh && !isPhoneLayout) continue;
       // APPS has two 'fitness' entries (a landmark one and a rail-only one,
       // added separately) — on phones the loop above would otherwise hit
       // both and render "Fitness" twice.
@@ -2383,7 +2391,7 @@
     const island = $('island');
     const hotspots = new Map();
     for (const a of APPS) {
-      if (!a.hw || !a.hh || isTouchDevice) continue;
+      if (!a.hw || !a.hh || isPhoneLayout) continue;
       const el = document.createElement('a');
       el.className = 'island-hotspot';
       el.dataset.app = a.id;
