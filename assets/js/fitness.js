@@ -1385,7 +1385,8 @@
 
   function renderHome() {
     if (!homeState) return;
-    const { user, activities, goals, onboardingMileage, recentRecovery, todayRecovery, feed, kudosMap } = homeState;
+    const { user, activities, goals, onboardingMileage, onboardingCompleted, recentRecovery, todayRecovery, feed, kudosMap } = homeState;
+    document.getElementById('homeOnboardingPrompt').hidden = !!onboardingCompleted;
 
     const avgScore = averageRecentScore(recentRecovery, 7);
     const load = computeTrainingLoad(activities);
@@ -1499,7 +1500,7 @@
     home.body.hidden = false;
     document.getElementById('homeLoadingPill').hidden = false;
 
-    let activities = [], goals = [], onboardingMileage = 0, recentRecovery = [], todayRecovery = null, feed = [], kudosMap = new Map();
+    let activities = [], goals = [], onboardingMileage = 0, onboardingCompleted = false, recentRecovery = [], todayRecovery = null, feed = [], kudosMap = new Map();
     try {
       const results = await Promise.all([
         listActivities(user.userId, 200),
@@ -1507,8 +1508,9 @@
         getOnboardingWeeklyMileage(user.userId),
         listRecentRecovery(user.userId, 7),
         getTodayRecovery(user.userId),
+        getOnboardingCompleted(user.userId),
       ]);
-      activities = results[0]; goals = results[1]; onboardingMileage = results[2]; recentRecovery = results[3]; todayRecovery = results[4];
+      activities = results[0]; goals = results[1]; onboardingMileage = results[2]; recentRecovery = results[3]; todayRecovery = results[4]; onboardingCompleted = results[5];
     } catch { /* everything already defaulted above — Home still renders with empty state */ }
 
     try {
@@ -1517,9 +1519,406 @@
     } catch { feed = []; }
 
     homeRecoveryEditing = false;
-    homeState = { user, activities, goals, onboardingMileage, recentRecovery, todayRecovery, feed, kudosMap };
+    homeState = { user, activities, goals, onboardingMileage, onboardingCompleted, recentRecovery, todayRecovery, feed, kudosMap };
     document.getElementById('homeLoadingPill').hidden = true;
     renderHome();
+  }
+
+  /* ==========================================================================
+     ONBOARDING WIZARD (Phase 4) — ported from trollrunner-fitness's
+     src/app/onboarding/onboarding-client.tsx + src/lib/onboarding/api.ts +
+     constants.ts + types.ts.
+
+     The original app had no dedicated tab for this either — it was a
+     one-time /onboarding route hit before the rest of the app, gating on
+     session status. There's no such route here, so it's surfaced as a
+     modal wizard instead: launched from a "Complete your profile" card on
+     the You tab (which otherwise stays the Phase-later placeholder), and
+     from a dismissible-by-completion prompt card on Home that shows only
+     until fit_profiles.onboarding_completed_at is set (wired into
+     refreshHome/renderHome above).
+
+     Field names inside the fit_onboarding JSONB columns (running/strength/
+     equipment/lifestyle/nutrition/medical) and the fit_profiles columns
+     match the original exactly — same object shapes, same key casing —
+     since Home's getOnboardingWeeklyMileage() (already ported, above)
+     reads data.running.weeklyMileage straight off this same table, and
+     getStrengthSplit() reads data.strength.split. Values are saved as the
+     raw strings out of each input, same as the original (numeric parsing
+     only happens for the handful of fit_profiles columns that are actual
+     numeric columns, and at read time for weeklyMileage) — not converted
+     to numbers here either, to keep the two apps' data byte-for-byte
+     compatible.
+     ========================================================================== */
+
+  const OB_GOALS = ['Lose weight', 'Gain muscle', 'Body recomposition', 'Hypertrophy', 'Strength', 'General health', 'Run first 5K', 'Run first half marathon', 'Run first marathon', 'Boston qualifier', 'Sub-3 marathon', 'Ultra marathon', 'Ironman', 'Improve VO2 max', 'Increase endurance', 'Improve mobility', 'Longevity'];
+  const OB_EXPERIENCE_LEVELS = ['New to training', 'Casual', 'Consistent', 'Competitive', 'Elite'];
+  const OB_STRENGTH_SPLITS = ['None yet', 'Full body', 'Upper / lower', 'Push / pull / legs', 'Bro split', 'Powerlifting', 'Olympic weightlifting', 'Running strength'];
+  const OB_EQUIPMENT_OPTIONS = ['Commercial gym', 'Home gym', 'Barbell', 'Dumbbells', 'Resistance bands', 'Treadmill', 'Exercise bike', 'Track access', 'Pool', 'Rowing machine', 'None'];
+  const OB_DIET_OPTIONS = ['No preference', 'Vegetarian', 'Vegan', 'Mediterranean', 'Keto', 'High protein', 'Halal', 'Kosher'];
+  const OB_MEDICAL_CONDITIONS = ['Asthma', 'Diabetes', 'Hypertension', 'Heart disease', 'Joint problems'];
+  const OB_STRESS_LEVELS = ['Low', 'Moderate', 'High', 'Very high'];
+  const OB_ALCOHOL_LEVELS = ['None', 'Occasional', 'Regular', 'Frequent'];
+  const OB_SMOKING_LEVELS = ['Never', 'Former', 'Occasional', 'Regular'];
+
+  function obEmptyDraft() {
+    return {
+      goals: [], targetDate: '',
+      personal: { units: 'imperial', age: '', sex: '', height: '', weight: '', bodyFatPct: '', country: '', occupation: '', experienceLevel: '' },
+      running: { longestRunMi: '', weeklyMileage: '', weeklyRuns: '', easyPace: '', fiveKPr: '', tenKPr: '', halfPr: '', marathonPr: '', trailRunning: false, trackExperience: false },
+      strength: { yearsLifting: '', split: '', squat: '', bench: '', deadlift: '', overheadPress: '', pullUps: '', pushUps: '', plankSeconds: '', favoriteExercises: '', leastFavoriteExercises: '' },
+      equipment: { items: [] },
+      lifestyle: { sleepHours: '', stressLevel: '', alcohol: '', smoking: '', dailySteps: '', trainingDaysPerWeek: '', workoutDurationMin: '', recoveryHabits: '' },
+      nutrition: { diet: '', allergies: '', preferences: '', calorieTracking: false, macroTracking: false },
+      medical: { previousInjuries: '', surgeries: '', conditions: [], medications: '', limitations: '' },
+      ethnicity: '',
+    };
+  }
+  function obGet(draft, path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), draft); }
+  function obSet(draft, path, value) {
+    const parts = path.split('.');
+    let node = draft;
+    for (let i = 0; i < parts.length - 1; i++) node = node[parts[i]];
+    node[parts[parts.length - 1]] = value;
+  }
+
+  // Step boundaries match the original's STEPS array 1:1: welcome (intro,
+  // no fields) + the 9 data groups (goals, personal, running, strength,
+  // equipment, lifestyle, nutrition, medical, ethnicity), each grouping
+  // several related fields per screen rather than one-field-per-step.
+  const OB_STEPS = [
+    { key: 'welcome', title: "Let's build the strongest version of you.", quote: 'Every elite athlete started somewhere.', fields: [] },
+    { key: 'goals', title: 'What are you chasing?', quote: 'Pick as many as you want — plans adapt as goals change.', fields: [
+      { type: 'multiselect', path: 'goals', label: 'Goals', options: OB_GOALS },
+      { type: 'date', path: 'targetDate', label: 'Target date (optional)' },
+    ] },
+    { key: 'personal', title: 'The basics', quote: "Today's effort becomes tomorrow's strength.", fields: [
+      { type: 'select', path: 'personal.units', label: 'Units', options: ['imperial', 'metric'] },
+      { type: 'number', path: 'personal.age', label: 'Age', group: true },
+      { type: 'text', path: 'personal.sex', label: 'Sex', group: true },
+      { type: 'number', path: 'personal.height', label: (d) => (d.personal.units === 'imperial' ? 'Height (in)' : 'Height (cm)'), group: true },
+      { type: 'number', path: 'personal.weight', label: (d) => (d.personal.units === 'imperial' ? 'Weight (lb)' : 'Weight (kg)'), group: true },
+      { type: 'number', path: 'personal.bodyFatPct', label: 'Body fat % (optional)', group: true },
+      { type: 'text', path: 'personal.country', label: 'Country', group: true },
+      { type: 'text', path: 'personal.occupation', label: 'Occupation' },
+      { type: 'select', path: 'personal.experienceLevel', label: 'Fitness experience', options: OB_EXPERIENCE_LEVELS },
+    ] },
+    { key: 'running', title: 'Running history', quote: "Skip this whole section if running isn't your thing yet.", fields: [
+      { type: 'number', path: 'running.longestRunMi', label: 'Longest run (mi)', group: true },
+      { type: 'number', path: 'running.weeklyMileage', label: 'Weekly mileage', group: true },
+      { type: 'number', path: 'running.weeklyRuns', label: 'Runs per week', group: true },
+      { type: 'text', path: 'running.easyPace', label: 'Easy pace (min/mi)', group: true },
+      { type: 'text', path: 'running.fiveKPr', label: '5K PR', group: true },
+      { type: 'text', path: 'running.tenKPr', label: '10K PR', group: true },
+      { type: 'text', path: 'running.halfPr', label: 'Half marathon PR', group: true },
+      { type: 'text', path: 'running.marathonPr', label: 'Marathon PR', group: true },
+      { type: 'toggle', path: 'running.trailRunning', label: 'I run trails' },
+      { type: 'toggle', path: 'running.trackExperience', label: 'I have track experience' },
+    ] },
+    { key: 'strength', title: 'Strength history', quote: "Numbers rusty or nonexistent? Leave it blank — we'll find out together.", fields: [
+      { type: 'number', path: 'strength.yearsLifting', label: 'Years lifting' },
+      { type: 'select', path: 'strength.split', label: 'Current split', options: OB_STRENGTH_SPLITS },
+      { type: 'text', path: 'strength.squat', label: 'Squat', group: true },
+      { type: 'text', path: 'strength.bench', label: 'Bench', group: true },
+      { type: 'text', path: 'strength.deadlift', label: 'Deadlift', group: true },
+      { type: 'text', path: 'strength.overheadPress', label: 'Overhead press', group: true },
+      { type: 'text', path: 'strength.pullUps', label: 'Pull-ups (max reps)', group: true },
+      { type: 'text', path: 'strength.pushUps', label: 'Push-ups (max reps)', group: true },
+      { type: 'text', path: 'strength.plankSeconds', label: 'Plank (seconds)', group: true },
+      { type: 'textarea', path: 'strength.favoriteExercises', label: 'Favorite exercises' },
+      { type: 'textarea', path: 'strength.leastFavoriteExercises', label: 'Least favorite exercises' },
+    ] },
+    { key: 'equipment', title: 'What do you train with?', quote: "We'll only ever suggest workouts you can actually do.", fields: [
+      { type: 'multiselect', path: 'equipment.items', label: 'Equipment access', options: OB_EQUIPMENT_OPTIONS },
+    ] },
+    { key: 'lifestyle', title: 'Life outside the gym', quote: 'Recovery is training too.', fields: [
+      { type: 'number', path: 'lifestyle.sleepHours', label: 'Sleep (hrs/night)', group: true },
+      { type: 'number', path: 'lifestyle.dailySteps', label: 'Daily steps', group: true },
+      { type: 'number', path: 'lifestyle.trainingDaysPerWeek', label: 'Training days/week', group: true },
+      { type: 'number', path: 'lifestyle.workoutDurationMin', label: 'Workout duration (min)', group: true },
+      { type: 'select', path: 'lifestyle.stressLevel', label: 'Stress level', options: OB_STRESS_LEVELS },
+      { type: 'select', path: 'lifestyle.alcohol', label: 'Alcohol', options: OB_ALCOHOL_LEVELS },
+      { type: 'select', path: 'lifestyle.smoking', label: 'Smoking', options: OB_SMOKING_LEVELS },
+      { type: 'textarea', path: 'lifestyle.recoveryHabits', label: 'Recovery habits (stretching, sauna, massage...)' },
+    ] },
+    { key: 'nutrition', title: 'Nutrition', quote: 'This shapes your calorie and fueling targets, not a diet lecture.', fields: [
+      { type: 'select', path: 'nutrition.diet', label: 'Diet style', options: OB_DIET_OPTIONS },
+      { type: 'text', path: 'nutrition.allergies', label: 'Food allergies' },
+      { type: 'textarea', path: 'nutrition.preferences', label: 'Food preferences / dislikes' },
+      { type: 'toggle', path: 'nutrition.calorieTracking', label: 'I want calorie tracking' },
+      { type: 'toggle', path: 'nutrition.macroTracking', label: 'I want macro tracking' },
+    ] },
+    { key: 'medical', title: 'Health history', quote: 'Educational, not medical advice — this just keeps the engine conservative.', fields: [
+      { type: 'multiselect', path: 'medical.conditions', label: 'Any of these apply?', options: OB_MEDICAL_CONDITIONS },
+      { type: 'textarea', path: 'medical.previousInjuries', label: 'Previous injuries' },
+      { type: 'textarea', path: 'medical.surgeries', label: 'Surgeries' },
+      { type: 'textarea', path: 'medical.medications', label: 'Current medications' },
+      { type: 'textarea', path: 'medical.limitations', label: 'Any limitations the coach should know about' },
+      { type: 'note', text: 'This is educational, not medical advice, and never a substitute for personalized care from a doctor.' },
+    ] },
+    { key: 'ethnicity', title: 'One optional question', quote: 'Skip this one freely — it changes nothing if left blank.', fields: [
+      { type: 'text', path: 'ethnicity', label: 'Ethnic background (optional)' },
+      { type: 'note', text: 'Only used to personalize nutrition guidance and surface population-level considerations — your own data, preferences, and goals always come first, and we never make assumptions based on this answer.' },
+    ] },
+  ];
+
+  const ob = {};
+  let obDraft = obEmptyDraft();
+  let obStepIndex = 0;
+  let obBusy = false;
+
+  function obFieldLabel(field, draft) { return typeof field.label === 'function' ? field.label(draft) : field.label; }
+
+  function obBuildField(field) {
+    const wrap = document.createElement('div');
+    wrap.className = 'fit-field';
+    if (field.group) { wrap.style.flex = '1'; wrap.style.minWidth = '140px'; }
+    const label = obFieldLabel(field, obDraft);
+    if (field.type === 'text' || field.type === 'number' || field.type === 'date') {
+      wrap.innerHTML = '<label></label><input class="fit-input">';
+      wrap.querySelector('label').textContent = label;
+      const input = wrap.querySelector('input');
+      input.type = field.type;
+      if (field.type === 'number') input.inputMode = 'decimal';
+      input.value = obGet(obDraft, field.path) || '';
+      input.addEventListener('input', () => obSet(obDraft, field.path, input.value));
+    } else if (field.type === 'textarea') {
+      wrap.innerHTML = '<label></label><textarea class="fit-textarea"></textarea>';
+      wrap.querySelector('label').textContent = label;
+      const ta = wrap.querySelector('textarea');
+      ta.value = obGet(obDraft, field.path) || '';
+      ta.addEventListener('input', () => obSet(obDraft, field.path, ta.value));
+    } else if (field.type === 'select') {
+      wrap.innerHTML = '<label></label><select class="fit-input"></select>';
+      wrap.querySelector('label').textContent = label;
+      const sel = wrap.querySelector('select');
+      const blank = document.createElement('option'); blank.value = ''; blank.textContent = 'Select…';
+      sel.appendChild(blank);
+      field.options.forEach((opt) => {
+        const o = document.createElement('option'); o.value = opt; o.textContent = opt;
+        sel.appendChild(o);
+      });
+      sel.value = obGet(obDraft, field.path) || '';
+      sel.addEventListener('change', () => {
+        obSet(obDraft, field.path, sel.value);
+        if (field.path === 'personal.units') renderObStep(); // relabel height/weight for the new units
+      });
+    } else if (field.type === 'multiselect') {
+      wrap.innerHTML = '<p class="fit-label"></p><div class="chip-row"></div>';
+      wrap.querySelector('p').textContent = label;
+      const row = wrap.querySelector('.chip-row');
+      const current = obGet(obDraft, field.path) || [];
+      field.options.forEach((opt) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'chip'; b.textContent = opt;
+        const active = current.indexOf(opt) !== -1;
+        b.setAttribute('aria-pressed', String(active));
+        b.classList.toggle('is-active', active);
+        b.addEventListener('click', () => {
+          const arr = obGet(obDraft, field.path).slice();
+          const i = arr.indexOf(opt);
+          if (i === -1) arr.push(opt); else arr.splice(i, 1);
+          obSet(obDraft, field.path, arr);
+          const nowActive = arr.indexOf(opt) !== -1;
+          b.setAttribute('aria-pressed', String(nowActive));
+          b.classList.toggle('is-active', nowActive);
+        });
+        row.appendChild(b);
+      });
+    } else if (field.type === 'toggle') {
+      wrap.innerHTML = '<div class="chip-row"><button type="button" class="chip"></button></div>';
+      const b = wrap.querySelector('.chip');
+      b.textContent = label;
+      const val = !!obGet(obDraft, field.path);
+      b.setAttribute('aria-pressed', String(val));
+      b.classList.toggle('is-active', val);
+      b.addEventListener('click', () => {
+        const next = !obGet(obDraft, field.path);
+        obSet(obDraft, field.path, next);
+        b.setAttribute('aria-pressed', String(next));
+        b.classList.toggle('is-active', next);
+      });
+    } else if (field.type === 'note') {
+      wrap.className = '';
+      wrap.innerHTML = '<p class="session-note"></p>';
+      wrap.querySelector('p').textContent = field.text;
+    }
+    return wrap;
+  }
+
+  function renderObStep() {
+    const step = OB_STEPS[obStepIndex];
+    ob.title.textContent = step.title;
+    ob.quote.textContent = step.quote;
+    ob.stepCount.textContent = 'Step ' + (obStepIndex + 1) + ' of ' + OB_STEPS.length;
+    ob.progressBar.style.width = (((obStepIndex + 1) / OB_STEPS.length) * 100) + '%';
+    ob.body.innerHTML = '';
+    if (step.key === 'welcome') {
+      const p = document.createElement('p');
+      p.className = 'desc';
+      p.textContent = "A few quick questions — goals, training history, lifestyle, and health — so your coach can build a plan around the real you, not a generic template. Nothing here is required to finish; skip anything you'd rather leave blank.";
+      ob.body.appendChild(p);
+    } else {
+      const groupWrap = document.createElement('div');
+      groupWrap.className = 'fit-form';
+      let row = null;
+      step.fields.forEach((field) => {
+        const el = obBuildField(field);
+        if (field.group) {
+          if (!row) { row = document.createElement('div'); row.className = 'fit-row'; groupWrap.appendChild(row); }
+          row.appendChild(el);
+        } else {
+          row = null;
+          groupWrap.appendChild(el);
+        }
+      });
+      ob.body.appendChild(groupWrap);
+    }
+    ob.back.disabled = obStepIndex === 0;
+    ob.back.hidden = false;
+    ob.next.disabled = obBusy;
+    ob.next.textContent = obBusy ? 'Saving…' : (obStepIndex === OB_STEPS.length - 1 ? 'Finish' : 'Next');
+    obShowError('');
+  }
+
+  function obShowError(msg) {
+    ob.error.hidden = !msg;
+    ob.error.textContent = msg || '';
+  }
+
+  function openObModal() {
+    obDraft = obEmptyDraft();
+    obStepIndex = 0;
+    obBusy = false;
+    ob.modal.hidden = false;
+    renderObStep();
+  }
+  function closeObModal() { ob.modal.hidden = true; }
+
+  /** Ported 1:1 from src/lib/onboarding/api.ts submitOnboarding(). */
+  async function obSubmit(userId) {
+    const isImperial = obDraft.personal.units === 'imperial';
+    const rawHeight = toNumberOrNull(obDraft.personal.height);
+    const rawWeight = toNumberOrNull(obDraft.personal.weight);
+    const heightCm = rawHeight === null ? null : (isImperial ? rawHeight * 2.54 : rawHeight);
+    const weightKg = rawWeight === null ? null : (isImperial ? rawWeight * 0.453592 : rawWeight);
+    const sb = fitClient();
+    if (!sb) throw new Error('Account service unavailable.');
+
+    const { error: profileError } = await sb.from('fit_profiles').upsert({
+      user_id: userId, units: obDraft.personal.units, age: toNumberOrNull(obDraft.personal.age),
+      sex: obDraft.personal.sex || null, height_cm: heightCm, weight_kg: weightKg,
+      body_fat_pct: toNumberOrNull(obDraft.personal.bodyFatPct), country: obDraft.personal.country || null,
+      occupation: obDraft.personal.occupation || null, experience_level: obDraft.personal.experienceLevel || null,
+      ethnicity: obDraft.ethnicity || null,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      onboarding_completed_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+    if (profileError) throw profileError;
+
+    if (obDraft.goals.length) {
+      const rows = obDraft.goals.map((goal_key) => ({ user_id: userId, goal_key, target_date: obDraft.targetDate || null }));
+      const { error: goalsError } = await sb.from('fit_goals').upsert(rows, { onConflict: 'user_id,goal_key' });
+      if (goalsError) throw goalsError;
+    }
+
+    const { error: onboardingError } = await sb.from('fit_onboarding').upsert({
+      user_id: userId, running: obDraft.running, strength: obDraft.strength, equipment: obDraft.equipment,
+      lifestyle: obDraft.lifestyle, nutrition: obDraft.nutrition, medical: obDraft.medical,
+    }, { onConflict: 'user_id' });
+    if (onboardingError) throw onboardingError;
+  }
+
+  function obShowDone() {
+    ob.body.innerHTML = '';
+    ob.stepCount.textContent = '';
+    ob.progressBar.style.width = '100%';
+    ob.title.textContent = "You're all set.";
+    ob.quote.textContent = '';
+    const p = document.createElement('p');
+    p.className = 'desc';
+    p.textContent = 'Your coach now knows the real you — head back to Home for a plan built around your numbers.';
+    ob.body.appendChild(p);
+    ob.back.hidden = true;
+    ob.next.disabled = false;
+    ob.next.textContent = 'Done';
+  }
+
+  async function getOnboardingCompleted(userId) {
+    const sb = fitClient(); if (!sb) return false;
+    try {
+      const { data } = await sb.from('fit_profiles').select('onboarding_completed_at').eq('user_id', userId).maybeSingle();
+      return !!(data && data.onboarding_completed_at);
+    } catch { return false; }
+  }
+
+  async function refreshYou() {
+    const statusEl = document.getElementById('youOnboardingStatus');
+    if (!statusEl) return;
+    const descEl = document.getElementById('youOnboardingDesc');
+    const btn = document.getElementById('youOnboardingBtn');
+    const user = fitUser();
+    if (!user) {
+      statusEl.textContent = 'Sign in required';
+      descEl.textContent = 'Sign in to build your coach profile — goals, training history, equipment, and health basics that shape your plan.';
+      btn.textContent = 'Log in';
+      return;
+    }
+    statusEl.textContent = 'Checking…';
+    const completed = await getOnboardingCompleted(user.userId);
+    statusEl.textContent = completed ? 'Complete' : 'Not started';
+    descEl.textContent = completed
+      ? 'Your coach profile is set. Retake it any time your goals or training history change.'
+      : 'Answer a few questions about your goals, training history, equipment, and health basics — this personalizes your weekly plan and the coach.';
+    btn.textContent = completed ? 'Update your profile' : 'Complete your profile';
+  }
+
+  function initOnboarding() {
+    ob.modal = document.getElementById('obModal');
+    if (!ob.modal) return;
+    ob.backdrop = document.getElementById('obModalBackdrop');
+    ob.close = document.getElementById('obModalClose');
+    ob.title = document.getElementById('obModalTitle');
+    ob.quote = document.getElementById('obQuote');
+    ob.stepCount = document.getElementById('obStepCount');
+    ob.progressBar = document.getElementById('obProgressBar');
+    ob.body = document.getElementById('obStepBody');
+    ob.error = document.getElementById('obError');
+    ob.back = document.getElementById('obBack');
+    ob.next = document.getElementById('obNext');
+
+    ob.close.addEventListener('click', closeObModal);
+    ob.backdrop.addEventListener('click', closeObModal);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ob.modal.hidden) closeObModal(); });
+    ob.back.addEventListener('click', () => { if (obStepIndex > 0 && !obBusy) { obStepIndex -= 1; renderObStep(); } });
+
+    ob.next.addEventListener('click', async () => {
+      if (obBusy) return;
+      if (ob.next.textContent === 'Done') { closeObModal(); refreshHome(); refreshYou(); return; }
+      if (obStepIndex < OB_STEPS.length - 1) { obStepIndex += 1; renderObStep(); return; }
+      const user = fitUser();
+      if (!user) { closeObModal(); document.getElementById('btn-signin').click(); return; }
+      obBusy = true; ob.next.disabled = true; ob.next.textContent = 'Saving…'; obShowError('');
+      try {
+        await obSubmit(user.userId);
+        obBusy = false;
+        obShowDone();
+      } catch (err) {
+        obBusy = false;
+        ob.next.disabled = false;
+        ob.next.textContent = 'Finish';
+        obShowError((err && err.message) ? err.message : 'Could not save — try again.');
+      }
+    });
+
+    function openIfSignedIn() {
+      const user = fitUser();
+      if (!user) { document.getElementById('btn-signin').click(); return; }
+      openObModal();
+    }
+    document.getElementById('youOnboardingBtn').addEventListener('click', openIfSignedIn);
+    const homeBtn = document.getElementById('homeOnboardingBtn');
+    if (homeBtn) homeBtn.addEventListener('click', openIfSignedIn);
   }
 
   // ── Boot ──
@@ -1529,11 +1928,13 @@
     initLog();
     initTraining();
     initHome();
+    initOnboarding();
     updateAuthUI();
     refreshLog();
     refreshTraining();
     refreshHome();
-    window.addEventListener('trollrunner:auth-changed', () => { refreshLog(); refreshTraining(); refreshHome(); });
+    refreshYou();
+    window.addEventListener('trollrunner:auth-changed', () => { refreshLog(); refreshTraining(); refreshHome(); refreshYou(); });
   }
 
   if (document.readyState === 'loading') {

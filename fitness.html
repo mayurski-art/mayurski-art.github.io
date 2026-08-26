@@ -350,6 +350,22 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 .home-learn-link:hover{ background:#efece5; }
 .home-learn-link span{ color:var(--fit-accent); font-weight:700; }
 
+/* ── ONBOARDING WIZARD (Phase 4) ── */
+.ob-modal-card{ width:min(520px,100%); max-height:88vh; overflow-y:auto; gap:12px; }
+.ob-progress{ width:100%; height:4px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden; flex:none; }
+.ob-progress-bar{ height:100%; width:10%; background:var(--fit-accent); transition:width .2s ease; }
+.ob-step-count{ font-family:var(--pf-mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:#9b9ba1; }
+.ob-modal-card h2{ padding-right:0; }
+.ob-quote{ font-size:12.5px; color:#9b9ba1; margin-top:-4px; }
+.ob-modal-card .fit-field label, .ob-modal-card .fit-label{ color:#c8c8ce; }
+.ob-modal-card .desc, .ob-modal-card .session-note{ color:#9b9ba1; }
+.ob-nav{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.ob-nav .fit-btn-ghost{ color:#e7e7ec; border-color:var(--pf-line-dark); background:transparent; }
+.ob-nav .fit-btn-ghost:hover{ background:rgba(255,255,255,.1); }
+.ob-nav .fit-btn-ghost:disabled{ opacity:.25; cursor:not-allowed; }
+.ob-nav .fit-btn-primary{ width:auto; }
+.you-onboarding-card .fit-head{ width:100%; }
+
 /* ── MOBILE: stack under 760px ── */
 @media (max-width:760px){
   .wrap{ padding:60px 0 40px; }
@@ -408,6 +424,12 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
           <div class="stat-grid" id="homeStats"></div>
 
           <section class="fit-card" id="recoveryCard" aria-label="Recovery check-in"></section>
+
+          <section class="fit-card" id="homeOnboardingPrompt" hidden aria-label="Personalize your plan">
+            <p class="fit-label">Personalize your plan</p>
+            <p class="desc">Your weekly plan is using a generic baseline. Answer a few questions about your goals and training history to get a plan built around you.</p>
+            <button type="button" class="fit-btn fit-btn-primary" id="homeOnboardingBtn" style="width:auto; margin-top:8px;">Complete onboarding →</button>
+          </section>
 
           <section class="fit-card" id="trendCard" hidden aria-label="Weekly trend">
             <p class="fit-label">Weekly mileage</p>
@@ -577,6 +599,14 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
         <span class="soon">Coming soon</span>
         <h2>You</h2>
         <p class="desc">Your profile: stats, streaks, personal bests, and settings for how Fitness trains with you.</p>
+        <section class="fit-card you-onboarding-card" id="youOnboardingCard" style="max-width:520px;">
+          <div class="fit-head">
+            <h3>Coach profile</h3>
+            <span class="fit-pill" id="youOnboardingStatus">—</span>
+          </div>
+          <p class="desc" id="youOnboardingDesc">Sign in to build your coach profile — goals, training history, equipment, and health basics that shape your plan.</p>
+          <button type="button" class="fit-btn fit-btn-primary" id="youOnboardingBtn" style="width:auto; margin-top:10px;">Complete your profile</button>
+        </section>
       </section>
       <section class="tabpanel" id="tabpanel-coach" data-tab="coach" role="tabpanel" aria-labelledby="coach">
         <span class="soon">Coming soon</span>
@@ -624,6 +654,24 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
           <button type="button" class="share-btn auth-swap" id="authForgot">Forgot password</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ONBOARDING WIZARD MODAL (Phase 4) -->
+  <div class="share-modal" id="obModal" hidden>
+    <div class="share-modal-backdrop" id="obModalBackdrop"></div>
+    <div class="share-modal-card ob-modal-card" role="dialog" aria-modal="true" aria-labelledby="obModalTitle">
+      <button type="button" class="share-modal-close" id="obModalClose" aria-label="Close">✕</button>
+      <div class="ob-progress"><div class="ob-progress-bar" id="obProgressBar"></div></div>
+      <p class="ob-step-count" id="obStepCount"></p>
+      <h2 id="obModalTitle"></h2>
+      <p class="ob-quote" id="obQuote"></p>
+      <div id="obStepBody"></div>
+      <p class="share-modal-note is-err" id="obError" role="alert" hidden></p>
+      <div class="ob-nav">
+        <button type="button" class="fit-btn fit-btn-ghost" id="obBack">Back</button>
+        <button type="button" class="fit-btn fit-btn-primary" id="obNext">Next</button>
+      </div>
     </div>
   </div>
 
