@@ -172,6 +172,127 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 .auth-swap{ background:transparent; border-color:transparent; color:#9b9ba1; }
 .auth-swap:hover{ background:transparent; color:#f5f5f7; }
 
+/* ── LOG / TRAINING (Phase 2) ── */
+/* Any element in this section that pairs the [hidden] attribute with a
+   class that also sets its own `display` (flex/grid/etc.) needs this —
+   otherwise the author-stylesheet `display` rule beats the user-agent's
+   default `[hidden]{display:none}` at equal specificity and it shows
+   anyway. Same gotcha already worked around for .share-modal above. */
+.fit-body{ display:flex; flex-direction:column; align-items:flex-start; gap:16px; width:100%; }
+.fit-body[hidden], .fit-form[hidden], .signedout-block[hidden], .fit-pill[hidden],
+.rest-timer-presets[hidden], .rest-timer-active[hidden], .celebration[hidden]{ display:none; }
+
+.fit-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; width:100%; }
+.fit-pill{
+  display:inline-flex; align-items:center; font-family:var(--pf-mono); font-size:11px;
+  letter-spacing:.04em; font-weight:600; color:var(--fit-accent);
+  background:#fff0e8; border:.5px solid rgba(255,90,31,.25); border-radius:999px; padding:4px 10px;
+}
+.signedout-block{ display:flex; flex-direction:column; align-items:flex-start; gap:10px; width:100%; }
+
+.mode-toggle{
+  display:flex; gap:4px; padding:4px; border-radius:999px; background:#e9e6de;
+  border:.5px solid var(--pf-line); width:100%; max-width:320px;
+}
+.mode-btn{
+  flex:1; padding:8px 10px; border-radius:999px; border:0; background:transparent;
+  color:var(--pf-muted); font-size:13px; font-weight:600; transition:background .15s ease, color .15s ease;
+}
+.mode-btn[aria-pressed="true"]{ background:#fff; color:var(--pf-ink); box-shadow:0 1px 4px rgba(0,0,0,.12); }
+
+.fit-form{ display:flex; flex-direction:column; gap:14px; width:100%; max-width:520px; }
+.fit-field{ display:flex; flex-direction:column; gap:5px; }
+.fit-field label{ font-size:12px; font-weight:600; color:var(--pf-muted); }
+.fit-input, .fit-textarea{
+  width:100%; padding:10px 12px; border-radius:10px; border:.5px solid var(--pf-line);
+  background:#fff; color:var(--pf-ink); font-family:var(--pf-sans); font-size:14px;
+}
+.fit-textarea{ resize:vertical; min-height:64px; }
+.fit-row{ display:flex; gap:10px; flex-wrap:wrap; }
+.fit-row .fit-field{ flex:1; min-width:120px; }
+
+.chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip{
+  border-radius:999px; border:.5px solid var(--pf-line); background:#fff; color:var(--pf-muted);
+  font-size:12.5px; font-weight:600; padding:6px 12px; transition:background .15s ease, color .15s ease, border-color .15s ease;
+}
+.chip:hover{ color:var(--pf-ink); }
+.chip[aria-pressed="true"], .chip.is-active{
+  border-color:var(--fit-accent); background:#fff0e8; color:var(--fit-accent);
+}
+
+.sets-list{ display:flex; flex-direction:column; gap:8px; width:100%; }
+.set-row{ display:grid; grid-template-columns:1fr 84px 64px auto; gap:8px; align-items:end; }
+.set-row .fit-field label{ min-height:14px; }
+.set-remove{
+  border-radius:8px; border:.5px solid var(--pf-line); background:#fff; color:var(--pf-muted);
+  width:34px; height:34px; font-size:12px; align-self:center;
+}
+.set-remove:hover{ color:#d32f2f; border-color:#d32f2f; }
+.add-set-btn{
+  align-self:flex-start; border-radius:999px; border:.5px dashed var(--pf-line); background:transparent;
+  color:var(--pf-muted); font-size:13px; font-weight:600; padding:7px 14px;
+}
+.add-set-btn:hover{ color:var(--pf-ink); border-color:var(--pf-ink); }
+
+.fit-card{ background:#fff; border:.5px solid var(--pf-line); border-radius:14px; padding:14px 16px; width:100%; }
+.effort-head{ display:flex; align-items:center; justify-content:space-between; }
+.effort-head .effort-label{ font-size:12px; font-weight:600; color:var(--pf-muted); }
+.effort-head .effort-current{ font-size:12px; font-weight:700; color:var(--fit-accent); }
+.effort-row{ display:flex; align-items:center; gap:12px; margin-top:8px; }
+.effort-emoji{ font-size:30px; line-height:1; }
+.effort-row input[type="range"]{
+  flex:1; height:6px; border-radius:999px; appearance:none; background:#e0ddd4; accent-color:var(--fit-accent);
+}
+
+.rest-timer-presets{ display:flex; flex-wrap:wrap; gap:8px; }
+.rest-timer-active{ display:flex; align-items:center; gap:12px; }
+.rest-ring{ font-family:var(--pf-mono); font-size:15px; font-weight:600; width:52px; text-align:center; }
+.rest-timer-active p{ flex:1; font-size:13.5px; color:var(--pf-muted); }
+.rest-timer-active p.is-done{ color:var(--fit-accent); font-weight:600; }
+
+.fit-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  border-radius:999px; border:0; padding:11px 18px; font-size:14px; font-weight:700;
+  transition:filter .15s ease, opacity .15s ease;
+}
+.fit-btn-primary{ background:var(--fit-accent); color:#fff; width:100%; max-width:520px; }
+.fit-btn-primary:hover{ filter:brightness(1.06); }
+.fit-btn-primary[disabled]{ opacity:.6; cursor:not-allowed; }
+.fit-btn-ghost{ background:transparent; border:.5px solid var(--pf-line); color:var(--pf-ink); }
+.fit-btn-ghost:hover{ background:#efece5; }
+
+.fit-error{ color:#c0392b; font-size:13px; }
+
+.celebration{
+  width:100%; max-width:420px; text-align:center; background:#fff; border:.5px solid var(--pf-line);
+  border-radius:16px; padding:30px 22px; display:flex; flex-direction:column; align-items:center; gap:12px;
+}
+.celebration .cele-emoji{ font-size:44px; }
+.celebration .cele-msg{ font-size:17px; font-weight:700; }
+.celebration .cele-streak{ font-size:13.5px; color:var(--pf-muted); }
+.pr-box{
+  width:100%; text-align:left; background:#fff0e8; border:.5px solid rgba(255,90,31,.25);
+  border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:4px;
+}
+.pr-box .pr-title{ font-size:12px; font-weight:700; color:var(--fit-accent); }
+.pr-box p{ font-size:13.5px; }
+
+.program-card{ display:flex; flex-direction:column; gap:4px; }
+.program-card .fit-label{ font-size:12px; color:var(--pf-muted); }
+.day-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; width:100%; }
+.day-card{ background:#fff; border:.5px solid var(--pf-line); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+.day-card-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.day-card-head h3{ font-size:14.5px; font-weight:700; }
+.day-card-head span{ font-size:11.5px; color:var(--pf-muted); }
+.day-card ul{ list-style:none; display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--pf-muted); }
+.day-start-btn{
+  align-self:flex-start; margin-top:2px; border-radius:999px; border:0; background:var(--fit-accent);
+  color:#fff; font-size:12.5px; font-weight:700; padding:7px 14px;
+}
+.day-start-btn:hover{ filter:brightness(1.06); }
+.fit-label{ font-size:12px; font-weight:600; color:var(--pf-muted); }
+
 /* ── MOBILE: stack under 760px ── */
 @media (max-width:760px){
   .wrap{ padding:60px 0 40px; }
@@ -180,6 +301,8 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
   .tabs{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .tab{ flex:none; min-width:76px; }
   .tabpanel{ padding:26px 18px; }
+  .set-row{ grid-template-columns:1fr; }
+  .day-grid{ grid-template-columns:1fr; }
 }
 </style>
 </head>
@@ -215,14 +338,132 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
         <p class="session-note" id="session-note"></p>
       </section>
       <section class="tabpanel" id="tabpanel-log" data-tab="log" role="tabpanel" aria-labelledby="log">
-        <span class="soon">Coming soon</span>
-        <h2>Log</h2>
-        <p class="desc">Log a run or a lift — distance, pace, sets and reps, however you train. Ported over from the old fitness.trollrunner.net app in a later phase.</p>
+        <div class="signedout-block" id="logSignedOut" hidden>
+          <h2>Log activity</h2>
+          <p class="desc">Sign in first to log runs and lifts and start tracking streaks and PRs.</p>
+          <button type="button" class="fit-btn fit-btn-primary" id="logSigninBtn" style="width:auto;">Log in</button>
+        </div>
+
+        <div class="fit-body" id="logBody" hidden>
+          <div class="fit-head">
+            <h2>Log activity</h2>
+            <span class="fit-pill">Manual logging</span>
+          </div>
+
+          <div class="mode-toggle" id="logModeToggle" role="tablist" aria-label="Activity type">
+            <button type="button" class="mode-btn" data-mode="run" role="tab" aria-pressed="true">🏃 Run</button>
+            <button type="button" class="mode-btn" data-mode="strength" role="tab" aria-pressed="false">🏋️ Strength</button>
+          </div>
+
+          <form class="fit-form" id="runForm">
+            <div class="fit-field">
+              <label for="runTitle">Title</label>
+              <input class="fit-input" id="runTitle" type="text" value="Run" required>
+            </div>
+            <div class="fit-field">
+              <label for="runWhen">When</label>
+              <input class="fit-input" id="runWhen" type="datetime-local" required>
+            </div>
+            <div class="fit-field">
+              <p class="fit-label">Quick distance</p>
+              <div class="chip-row" id="runDistancePresets"></div>
+            </div>
+            <div class="fit-row">
+              <div class="fit-field">
+                <label for="runDistance">Distance (mi)</label>
+                <input class="fit-input" id="runDistance" type="number" step="0.01" inputmode="decimal">
+              </div>
+              <div class="fit-field">
+                <label for="runDuration">Duration (min)</label>
+                <input class="fit-input" id="runDuration" type="number" step="1" inputmode="numeric">
+              </div>
+              <div class="fit-field">
+                <label for="runElevation">Elevation gain (ft)</label>
+                <input class="fit-input" id="runElevation" type="number" step="1" inputmode="numeric">
+              </div>
+            </div>
+            <div class="fit-card">
+              <div class="effort-head"><span class="effort-label">How did it feel?</span><span class="effort-current" id="runEffortLabel"></span></div>
+              <div class="effort-row">
+                <span class="effort-emoji" id="runEffortEmoji" aria-hidden="true">🤔</span>
+                <input type="range" id="runEffort" min="1" max="10" aria-label="Effort, 1 to 10">
+              </div>
+            </div>
+            <div class="fit-field">
+              <label for="runNotes">Notes</label>
+              <textarea class="fit-textarea" id="runNotes"></textarea>
+            </div>
+            <p class="fit-error" id="runError" role="alert" hidden></p>
+            <button type="submit" class="fit-btn fit-btn-primary" id="runSubmit">Save run</button>
+          </form>
+
+          <form class="fit-form" id="strengthForm" hidden>
+            <div class="fit-field">
+              <label for="strengthTitle">Title</label>
+              <input class="fit-input" id="strengthTitle" type="text" value="Strength workout" required>
+            </div>
+            <div class="fit-field">
+              <label for="strengthWhen">When</label>
+              <input class="fit-input" id="strengthWhen" type="datetime-local" required>
+            </div>
+            <div class="fit-field">
+              <p class="fit-label">Quick add</p>
+              <div class="chip-row" id="strengthExercisePresets"></div>
+            </div>
+            <div class="fit-field">
+              <p class="fit-label">Sets</p>
+              <div class="sets-list" id="strengthSets"></div>
+              <button type="button" class="add-set-btn" id="strengthAddSet">+ Add set</button>
+            </div>
+            <div class="fit-card" id="restTimer">
+              <p class="fit-label">Rest timer</p>
+              <div class="rest-timer-presets" id="restTimerPresets"></div>
+              <div class="rest-timer-active" id="restTimerActive" hidden>
+                <span class="rest-ring" id="restTimerRing"></span>
+                <p id="restTimerText"></p>
+                <button type="button" class="fit-btn fit-btn-ghost" id="restTimerCancel">Cancel</button>
+              </div>
+            </div>
+            <div class="fit-card">
+              <div class="effort-head"><span class="effort-label">How did it feel?</span><span class="effort-current" id="strengthEffortLabel"></span></div>
+              <div class="effort-row">
+                <span class="effort-emoji" id="strengthEffortEmoji" aria-hidden="true">🤔</span>
+                <input type="range" id="strengthEffort" min="1" max="10" aria-label="Effort, 1 to 10">
+              </div>
+            </div>
+            <div class="fit-field">
+              <label for="strengthNotes">Notes</label>
+              <textarea class="fit-textarea" id="strengthNotes"></textarea>
+            </div>
+            <p class="fit-error" id="strengthError" role="alert" hidden></p>
+            <button type="submit" class="fit-btn fit-btn-primary" id="strengthSubmit">Save workout</button>
+          </form>
+
+          <div class="celebration" id="celebration" hidden></div>
+        </div>
       </section>
       <section class="tabpanel" id="tabpanel-training" data-tab="training" role="tabpanel" aria-labelledby="training">
-        <span class="soon">Coming soon</span>
-        <h2>Training</h2>
-        <p class="desc">A running/strength plan built around your goals, with the week laid out and progress tracked automatically.</p>
+        <div class="signedout-block" id="trainingSignedOut" hidden>
+          <h2>Training</h2>
+          <p class="desc">Sign in to see your strength split and log straight from a workout day.</p>
+          <button type="button" class="fit-btn fit-btn-primary" id="trainingSigninBtn" style="width:auto;">Log in</button>
+        </div>
+
+        <div class="fit-body" id="trainingBody" hidden>
+          <div class="fit-head">
+            <h2>Training</h2>
+            <span class="fit-pill" id="trainingFlag" hidden>Defaulted — no split saved yet</span>
+          </div>
+          <section class="fit-card program-card" id="programCard">
+            <h3 id="programName"></h3>
+            <p class="desc" id="programDesc"></p>
+          </section>
+          <div class="fit-field" style="width:100%;">
+            <p class="fit-label">Switch split</p>
+            <div class="chip-row" id="splitChips"></div>
+          </div>
+          <div class="day-grid" id="dayGrid"></div>
+        </div>
       </section>
       <section class="tabpanel" id="tabpanel-you" data-tab="you" role="tabpanel" aria-labelledby="you">
         <span class="soon">Coming soon</span>
