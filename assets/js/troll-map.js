@@ -445,7 +445,8 @@
 
   /* ── Session ─────────────────────────────────────────────────────────── */
   function updateDropPinButtonLabel() {
-    document.getElementById('drop-pin-label').textContent = state.myLocation ? 'My pin' : 'Drop my pin';
+    const btn = document.getElementById('drop-pin-btn');
+    btn.setAttribute('aria-label', state.myLocation ? 'My pin' : 'Drop my pin');
   }
 
   function renderSessionButton() {
