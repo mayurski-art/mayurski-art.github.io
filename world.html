@@ -1629,7 +1629,7 @@
          destination, so tapping the terminal/stickers art itself navigates
          there directly instead of only working from the app-icon rail. -->
     <div class="island" id="island">
-      <img src="assets/images/wallpaper/trollrunner-island-land.svg" alt="" aria-hidden="true">
+      <img id="island-img" src="assets/images/wallpaper/trollrunner-island-land.svg" alt="" aria-hidden="true">
     </div>
 
 
@@ -2321,15 +2321,33 @@
       if (id === 'hub') el.addEventListener('click', open(() => hubSetOpen(true)));
     };
 
+    /* On phones the baked-in landmarks (treasure chest, arcade, ...) are
+       swapped out for the plain land base — same shape/perspective, no
+       objects composited in — so the app rail below can be the ONE launch
+       point for every app instead of some living as invisible hotspots on
+       art that's no longer there. Desktop keeps the fully-landmarked art
+       and its on-island hotspots untouched. */
+    if (isTouchDevice) {
+      const islandImg = $('island-img');
+      if (islandImg) islandImg.src = 'assets/images/wallpaper/trollrunner-island-land-mobile.png';
+    }
+
     /* ---------- app grid ----------
        Landmarks baked into the island (hw/hh set) already get their own
        tappable spot on the art itself — showing them again in the rail
        would be a duplicate launch point for the same app. Only apps with
        no island art (PFP Studio, Maps, Account, Updates, Feedback) get a
-       rail icon. */
+       rail icon — except on phones, where the land base above has no
+       landmark art at all, so every app needs a rail icon there. */
     const apps = $('apps');
+    const railIds = new Set();
     for (const a of APPS) {
-      if (a.hw && a.hh) continue;
+      if (a.hw && a.hh && !isTouchDevice) continue;
+      // APPS has two 'fitness' entries (a landmark one and a rail-only one,
+      // added separately) — on phones the loop above would otherwise hit
+      // both and render "Fitness" twice.
+      if (railIds.has(a.id)) continue;
+      railIds.add(a.id);
       const el = document.createElement('a');
       el.className = 'app';
       el.dataset.app = a.id;
@@ -2354,11 +2372,13 @@
        (see the CSS comment on .island-hotspot for why this is safe against
        the pinch-zoom drift that killed the old visible object layer). Only
        apps with hw/hh get one — that's the ones whose art actually exists
-       in trollrunner-island-land.svg today. */
+       in trollrunner-island-land.svg today. Skipped entirely on phones,
+       where that art was just swapped out for the landmark-free land base
+       above — a hotspot with nothing under it to tap. */
     const island = $('island');
     const hotspots = new Map();
     for (const a of APPS) {
-      if (!a.hw || !a.hh) continue;
+      if (!a.hw || !a.hh || isTouchDevice) continue;
       const el = document.createElement('a');
       el.className = 'island-hotspot';
       el.dataset.app = a.id;
