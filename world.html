@@ -175,6 +175,10 @@
       margin: 0; background: #000; color: var(--fg);
       font-family: var(--font-ui); -webkit-font-smoothing: antialiased;
       overflow: hidden; touch-action: manipulation; overscroll-behavior: none;
+      /* App shell, not readable copy — a click-drag anywhere (the runner
+         track especially) should drag, never select text/backgrounds. */
+      -webkit-user-select: none; -moz-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
     }
     a { color: inherit; text-decoration: none; }
     button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
@@ -400,6 +404,10 @@
          lock screen's only controls, and they belong under the thumb. */
       margin-top: auto;
       transition: opacity .45s var(--ease), transform .5s var(--ease);
+      /* This whole strip is drag surface (the runner track), not readable
+         copy — without this a click-drag anywhere near it highlights the
+         tagline/hint text instead of dragging the troll. */
+      -webkit-user-select: none; user-select: none;
     }
     /* The dock follows the lockbar in source order, so while it's only faded
        out it still reserves space and lifts the track off the bottom. */
@@ -433,6 +441,7 @@
       box-shadow: var(--glass-shadow);
       backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
       touch-action: none;
+      -webkit-user-select: none; -moz-user-select: none; user-select: none;
     }
     /* lane markings so it reads as a running track, not a slider */
     .track::before {
