@@ -180,7 +180,8 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
    anyway. Same gotcha already worked around for .share-modal above. */
 .fit-body{ display:flex; flex-direction:column; align-items:flex-start; gap:16px; width:100%; }
 .fit-body[hidden], .fit-form[hidden], .signedout-block[hidden], .fit-pill[hidden],
-.rest-timer-presets[hidden], .rest-timer-active[hidden], .celebration[hidden]{ display:none; }
+.rest-timer-presets[hidden], .rest-timer-active[hidden], .celebration[hidden],
+.stat-grid[hidden]{ display:none; }
 
 .fit-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; width:100%; }
 .fit-pill{
@@ -293,6 +294,62 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 .day-start-btn:hover{ filter:brightness(1.06); }
 .fit-label{ font-size:12px; font-weight:600; color:var(--pf-muted); }
 
+/* ── HOME (Phase 3) ── */
+.fit-head h3{ font-size:14.5px; font-weight:700; }
+.link-accent{
+  background:none; border:0; padding:0; font-size:12.5px; font-weight:700;
+  color:var(--fit-accent); text-decoration:none; cursor:pointer;
+}
+.link-accent:hover{ text-decoration:underline; }
+
+.stat-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; width:100%; }
+@media (min-width:620px){ .stat-grid{ grid-template-columns:repeat(4, 1fr); } }
+.stat-tile{
+  background:#fff; border:.5px solid var(--pf-line); border-radius:14px;
+  padding:12px 14px; display:flex; flex-direction:column; gap:2px;
+}
+.stat-tile .stat-label{ font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--pf-muted); }
+.stat-tile .stat-value{ font-family:var(--pf-mono); font-size:20px; font-weight:700; }
+.stat-tile .stat-note{ font-size:11.5px; color:var(--pf-muted); }
+
+#trendSparkline{ display:block; width:100%; height:auto; max-width:600px; }
+
+.activity-list{ display:flex; flex-direction:column; gap:8px; width:100%; margin-top:8px; }
+.activity-item{ display:flex; gap:12px; background:#fff; border:.5px solid var(--pf-line); border-radius:14px; padding:12px 14px; align-items:flex-start; }
+.activity-item .activity-icon{
+  width:36px; height:36px; border-radius:50%; background:#f2efe9; flex:none;
+  display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700;
+}
+.activity-item .activity-main{ min-width:0; flex:1; }
+.activity-item .activity-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.activity-item .activity-title{ font-weight:700; font-size:13.5px; }
+.activity-item .activity-when{ flex:none; font-size:11.5px; color:var(--pf-muted); white-space:nowrap; }
+.activity-item .activity-stats{ font-family:var(--pf-mono); font-size:12.5px; color:var(--pf-muted); margin-top:2px; }
+.activity-item .activity-notes{ font-size:12.5px; color:var(--pf-muted); margin-top:3px; }
+.kudos-btn{
+  margin-top:8px; border-radius:999px; border:.5px solid var(--pf-line); background:transparent;
+  color:var(--pf-muted); font-size:12px; font-weight:600; padding:5px 12px;
+}
+.kudos-btn.is-given{ border-color:var(--fit-accent); color:var(--fit-accent); background:#fff0e8; }
+.kudos-btn[disabled]{ opacity:.6; cursor:not-allowed; }
+
+.recovery-form{ display:flex; flex-direction:column; gap:12px; width:100%; max-width:420px; }
+.recovery-summary{ display:flex; align-items:center; justify-content:space-between; width:100%; gap:10px; }
+.scale-row{ display:flex; flex-direction:column; gap:4px; }
+.scale-row-head{ display:flex; align-items:center; justify-content:space-between; }
+.scale-row-head .scale-emoji{ font-size:18px; }
+.scale-row input[type="range"]{
+  width:100%; height:6px; border-radius:999px; appearance:none; background:#e0ddd4; accent-color:var(--fit-accent);
+}
+
+.home-learn-link{
+  display:flex; align-items:center; justify-content:space-between; width:100%;
+  text-align:left; border:.5px solid var(--pf-line); border-radius:14px; background:#fff;
+  padding:14px 16px; font-size:13.5px; font-weight:600; color:var(--pf-ink);
+}
+.home-learn-link:hover{ background:#efece5; }
+.home-learn-link span{ color:var(--fit-accent); font-weight:700; }
+
 /* ── MOBILE: stack under 760px ── */
 @media (max-width:760px){
   .wrap{ padding:60px 0 40px; }
@@ -303,6 +360,9 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
   .tabpanel{ padding:26px 18px; }
   .set-row{ grid-template-columns:1fr; }
   .day-grid{ grid-template-columns:1fr; }
+  .stat-grid{ grid-template-columns:1fr 1fr; }
+  .activity-item{ flex-direction:column; }
+  .activity-item .activity-icon{ width:30px; height:30px; }
 }
 </style>
 </head>
@@ -332,10 +392,58 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 
     <main class="panel">
       <section class="tabpanel" id="tabpanel-home" data-tab="home" data-active="true" role="tabpanel" aria-labelledby="home">
-        <span class="soon">Coming soon</span>
-        <h2>Home</h2>
-        <p class="desc">Your dashboard: today's plan, recent runs and lifts, and a snapshot of how training's going. This is where Fitness will land once it opens for real.</p>
-        <p class="session-note" id="session-note"></p>
+        <div class="signedout-block" id="homeSignedOut">
+          <h2>Home</h2>
+          <p class="desc">Your dashboard: today's plan, recent runs and lifts, and a snapshot of how training's going. Sign in to see it.</p>
+          <button type="button" class="fit-btn fit-btn-primary" id="homeSigninBtn" style="width:auto;">Log in</button>
+          <p class="session-note" id="session-note"></p>
+        </div>
+
+        <div class="fit-body" id="homeBody" hidden>
+          <div class="fit-head">
+            <h2>Home</h2>
+            <span class="fit-pill" id="homeLoadingPill">Loading…</span>
+          </div>
+
+          <div class="stat-grid" id="homeStats"></div>
+
+          <section class="fit-card" id="recoveryCard" aria-label="Recovery check-in"></section>
+
+          <section class="fit-card" id="trendCard" hidden aria-label="Weekly trend">
+            <p class="fit-label">Weekly mileage</p>
+            <canvas id="trendSparkline" width="600" height="120" role="img" aria-label="Weekly mileage trend, last 8 weeks"></canvas>
+          </section>
+
+          <div class="stat-grid" id="monthStats" hidden aria-label="This month"></div>
+
+          <section class="fit-card" id="todayWorkoutCard" aria-label="Today's workout">
+            <div class="fit-head">
+              <span class="fit-label">Today's workout</span>
+              <button type="button" class="link-accent" id="todayFullPlanBtn">Full plan →</button>
+            </div>
+            <p class="desc" id="todayWorkoutText"></p>
+            <p class="session-note" id="todayWorkoutNote" hidden></p>
+            <button type="button" class="fit-btn fit-btn-ghost" id="todayWorkoutBtn" style="margin-top:10px;">Log it →</button>
+          </section>
+
+          <section aria-label="Recent activities" style="width:100%;">
+            <div class="fit-head">
+              <h3>Recent activities</h3>
+              <button type="button" class="link-accent" id="homeLogLink">Log one →</button>
+            </div>
+            <div class="activity-list" id="homeRecentList"></div>
+          </section>
+
+          <section aria-label="Friends' activity" style="width:100%;">
+            <div class="fit-head"><h3>Friends&rsquo; activity</h3></div>
+            <div class="activity-list" id="homeFriendsList"></div>
+          </section>
+
+          <button type="button" class="home-learn-link" id="homeLearnLink">
+            <span>📚 Learn — running form, recovery, nutrition, and race-day guides</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
       </section>
       <section class="tabpanel" id="tabpanel-log" data-tab="log" role="tabpanel" aria-labelledby="log">
         <div class="signedout-block" id="logSignedOut" hidden>
