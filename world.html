@@ -1568,6 +1568,46 @@
       .caret { animation: none; }
       .radio-btn.is-playing::after { animation: none; }
     }
+
+    /* ---------- observatory transition ----------
+       Plays when the Maps landmark is tapped: looking-through-a-telescope
+       zoom that hands off into maps.html's matching arrival animation (see
+       the ?enter=scope handling in maps.html). Pure CSS/JS, no image
+       assets — swap in real eyepiece/vignette art later without touching
+       the timing logic in launchObservatory() below. */
+    #scope-transition {
+      position: fixed; inset: 0; z-index: 99999;
+      background: #000; opacity: 0; pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; transition: opacity .18s ease;
+    }
+    #scope-transition.is-active { opacity: 1; pointer-events: auto; }
+    .scope-aperture {
+      position: relative; width: 34vmin; height: 34vmin; border-radius: 50%;
+      background: #000; overflow: hidden;
+      border: 1px solid rgba(255,255,255,.32);
+      box-shadow: 0 0 0 9999px #000, inset 0 0 40px rgba(0,0,0,.7);
+      opacity: 0; filter: blur(2px);
+      transition: opacity .22s ease, filter .32s ease, transform .55s cubic-bezier(.5,0,.85,0);
+    }
+    #scope-transition.is-active .scope-aperture { opacity: 1; filter: blur(0); }
+    #scope-transition.is-warp .scope-aperture { transform: scale(24); }
+    .scope-ring { position: absolute; inset: 12%; border: 1px solid rgba(255,255,255,.22); border-radius: 50%; }
+    .scope-reticle { position: absolute; inset: 0; }
+    .scope-reticle::before, .scope-reticle::after { content: ''; position: absolute; background: rgba(255,255,255,.45); }
+    .scope-reticle::before { left: 50%; top: 10%; bottom: 10%; width: 1px; transform: translateX(-50%); }
+    .scope-reticle::after { top: 50%; left: 10%; right: 10%; height: 1px; transform: translateY(-50%); }
+    .scope-streaks { position: absolute; inset: 0; opacity: 0; transition: opacity .25s ease; }
+    #scope-transition.is-warp .scope-streaks { opacity: 1; }
+    .scope-streak {
+      position: absolute; left: 50%; top: 50%; width: 1px; height: 0;
+      background: linear-gradient(to top, rgba(255,255,255,0), rgba(255,255,255,.85));
+      transform-origin: bottom center; transition: height .5s ease-in;
+    }
+    #scope-transition.is-warp .scope-streak { height: 60vmax; }
+    @media (prefers-reduced-motion: reduce) {
+      #scope-transition, .scope-aperture, .scope-streaks, .scope-streak { transition: none !important; }
+    }
   </style>
 </head>
 <body data-phase="boot">
@@ -1966,6 +2006,17 @@
        not the target, or the player lands in the middle of the page. -->
   <div class="radio-host" aria-hidden="true"><div id="radio-host"></div></div>
 
+  <!-- ============ OBSERVATORY TRANSITION ============
+       Telescope zoom-in played on tap of the Maps landmark; see
+       launchObservatory() below. Streak lines are appended by JS. -->
+  <div id="scope-transition" aria-hidden="true">
+    <div class="scope-aperture">
+      <div class="scope-ring"></div>
+      <div class="scope-reticle"></div>
+      <div class="scope-streaks" id="scope-streaks"></div>
+    </div>
+  </div>
+
   <!-- ============ MENU ============ -->
   <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Menu">
     <div class="sheet-inner">
@@ -2349,7 +2400,42 @@
       if (id === 'updates') el.addEventListener('click', open(() => updatesSetOpen(true)));
       if (id === 'feedback') el.addEventListener('click', open(() => feedbackSetOpen(true)));
       if (id === 'hub') el.addEventListener('click', open(() => hubSetOpen(true)));
+      // Maps still navigates (it's a real page), but plays the telescope
+      // zoom-in first — see launchObservatory() and the matching ?enter=scope
+      // arrival animation in maps.html.
+      if (id === 'maps') el.addEventListener('click', open(() => launchObservatory(el.href)));
     };
+
+    /* Telescope zoom-in handoff into maps.html — see the #scope-transition
+       markup above and its CSS. Streak lines are generated once here rather
+       than hand-written 20 times in the HTML. Skips straight to navigation
+       under reduced-motion, same as every other animated affordance on this
+       page (see the prefers-reduced-motion block in <style>). */
+    const scopeOverlay = $('scope-transition');
+    const scopeStreaksWrap = $('scope-streaks');
+    if (scopeStreaksWrap) {
+      const STREAK_COUNT = 20;
+      for (let i = 0; i < STREAK_COUNT; i++) {
+        const s = document.createElement('div');
+        s.className = 'scope-streak';
+        // translate(-50%,-100%) first pins the div's bottom-center exactly on
+        // the aperture's center point regardless of its own width/height,
+        // THEN rotate spins it around that now-fixed point — do rotate alone
+        // and the pivot (the element's own bottom edge) drifts away from
+        // center as height grows, fanning every streak toward one side
+        // instead of radiating outward evenly.
+        s.style.transform = `translate(-50%,-100%) rotate(${(360 / STREAK_COUNT) * i}deg)`;
+        s.style.transitionDelay = `${(i % 5) * 15}ms`;
+        scopeStreaksWrap.appendChild(s);
+      }
+    }
+    function launchObservatory(url) {
+      const dest = url + (url.includes('?') ? '&' : '?') + 'enter=scope';
+      if (!scopeOverlay || calm.matches) { window.top.location.href = dest; return; }
+      scopeOverlay.classList.add('is-active');
+      setTimeout(() => scopeOverlay.classList.add('is-warp'), 450);
+      setTimeout(() => { window.top.location.href = dest; }, 1050);
+    }
 
     /* On phones the baked-in landmarks (treasure chest, arcade, ...) are
        swapped out for the plain land base — same shape/perspective, no

@@ -36,7 +36,49 @@ body {
   overscroll-behavior: none;
 }
 
-#map { position: fixed; inset: 0; }
+#map { position: fixed; inset: 0; opacity: 1; transform: scale(1); }
+
+/* ── Observatory arrival ──────────────────────────────────────────────── */
+/* Reveal that mirrors world.html's telescope zoom-in (#scope-transition) —
+   played when arriving via ?enter=scope from the Maps landmark on the
+   island. Pure CSS/JS placeholder; swap the eyepiece art later without
+   touching the timing in the script block near the bottom of this file.
+   is-arriving snaps to the dim/scaled starting state with no transition
+   (so there's no flash of the transition playing before JS is ready);
+   is-revealing swaps in the transition and the resting values in the same
+   frame, so removing is-arriving next tick animates the reveal. */
+#map.is-arriving { opacity: .45; transform: scale(1.08); transition: none; }
+#map.is-revealing { transition: opacity .75s ease, transform .75s cubic-bezier(.2,.8,.2,1); }
+#scope-arrival { display: none; position: fixed; inset: 0; z-index: 99999; pointer-events: none; }
+#scope-arrival.is-showing { display: block; }
+/* The "hole" is a 1px transparent dot whose box-shadow paints solid black
+   everywhere else on screen (same box-shadow-as-vignette trick world.html's
+   #scope-transition uses, just inverted: there the circle IS the visible
+   content; here the circle is the see-through gap). Scaling that dot up
+   grows the transparent gap and the black recedes with it — a plain
+   `transform: scale()` transition, not clip-path/mask, so there's no
+   gradient-interpolation edge cases to fight. */
+.scope-arrival-hole {
+  position: absolute; left: 50%; top: 50%; width: 1px; height: 1px; border-radius: 50%;
+  background: transparent; box-shadow: 0 0 0 9999px #000;
+  transform: translate(-50%,-50%) scale(1);
+}
+#scope-arrival.is-open .scope-arrival-hole {
+  transform: translate(-50%,-50%) scale(3000);
+  transition: transform .75s cubic-bezier(.2,.8,.2,1);
+}
+#scope-arrival.is-done { opacity: 0; transition: opacity .2s ease; }
+.scope-arrival-reticle {
+  position: absolute; inset: 0; opacity: 1; transition: opacity .3s ease;
+}
+#scope-arrival.is-open .scope-arrival-reticle { opacity: 0; }
+.scope-arrival-reticle::before, .scope-arrival-reticle::after { content: ''; position: absolute; background: rgba(255,255,255,.45); }
+.scope-arrival-reticle::before { left: 50%; top: 42%; bottom: 42%; width: 1px; transform: translateX(-50%); }
+.scope-arrival-reticle::after { top: 50%; left: 42%; right: 42%; height: 1px; transform: translateY(-50%); }
+@media (prefers-reduced-motion: reduce) {
+  #map.is-arriving { opacity: 1; transform: none; transition: none; }
+  #scope-arrival { display: none !important; }
+}
 
 /* ── MapLibre chrome, dragged into this theme ─────────────────────────── */
 .maplibregl-ctrl-attrib, .maplibregl-ctrl-attrib a {
@@ -232,6 +274,53 @@ a { color: inherit; }
 <body>
 
 <div id="map"></div>
+
+<!-- ============ OBSERVATORY ARRIVAL ============
+     Reveal played when arriving via ?enter=scope from the Maps landmark's
+     telescope zoom-in on world.html (see #scope-transition there). -->
+<div id="scope-arrival" aria-hidden="true"><div class="scope-arrival-hole"></div><div class="scope-arrival-reticle"></div></div>
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  if (params.get('enter') !== 'scope') return;
+  // Strip the marker so a refresh (or sharing the URL) doesn't replay it.
+  params.delete('enter');
+  const clean = location.pathname + (params.toString() ? '?' + params.toString() : '') + location.hash;
+  history.replaceState(null, '', clean);
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const mapEl = document.getElementById('map');
+  const overlay = document.getElementById('scope-arrival');
+  mapEl.classList.add('is-arriving');
+  overlay.classList.add('is-showing');
+
+  // Waiting for window 'load' (not just running inline here) matters: this
+  // script runs the instant the parser reaches it, well before the
+  // render-blocking Supabase/MapLibre <script src> tags further down have
+  // even fetched — starting the reveal here would let the whole animation
+  // play out (and the overlay remove itself) while those are still loading,
+  // so a real visitor's first paint of the page would land on an already-
+  // finished reveal instead of watching it happen.
+  const startReveal = () => {
+    // Two rAFs: the first lets the browser paint the dim/scaled starting
+    // state (set with transition:none), the second then flips the classes
+    // that add the transition and the resting values — otherwise the two
+    // class changes would land in the same frame and just jump to the end
+    // state with no visible animation.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        overlay.classList.add('is-open');
+        mapEl.classList.remove('is-arriving');
+        mapEl.classList.add('is-revealing');
+        setTimeout(() => overlay.classList.add('is-done'), 800);
+        setTimeout(() => overlay.remove(), 1200);
+      });
+    });
+  };
+  if (document.readyState === 'complete') startReveal();
+  else window.addEventListener('load', startReveal, { once: true });
+})();
+</script>
 
 <div class="hud search-wrap">
   <input id="global-search" class="search-input" placeholder="Search Location" autocomplete="off" aria-label="Search for a place on the map">
