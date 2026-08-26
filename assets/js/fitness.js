@@ -203,9 +203,8 @@
      RPC path games use — no separate XP wiring invented here.
 
      Tables read/written (fit_activities, fit_strength_sets, fit_onboarding,
-     fit_profiles.humor_enabled) are defined in trollrunner-fitness's
-     supabase/fit_activities.sql, fit_onboarding.sql and fit_humor_toggle.sql.
-     Those need to have been run against the SHARED TrollRunner Supabase
+     fit_profiles.humor_enabled) are defined in assets/supabase/fit_schema.sql.
+     That needs to have been run against the SHARED TrollRunner Supabase
      project for any of this to persist — every query here is wrapped so a
      missing table fails soft (console warning + friendly on-page message)
      instead of breaking the tab.
