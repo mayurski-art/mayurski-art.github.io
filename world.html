@@ -180,7 +180,12 @@
       -webkit-user-select: none; -moz-user-select: none; user-select: none;
       -webkit-touch-callout: none;
     }
-    a { color: inherit; text-decoration: none; }
+    /* iOS Safari sets -webkit-touch-callout: default directly on a[href] in
+       its UA stylesheet, which beats the inherited "none" from body above —
+       without repeating it here, long-pressing any link (e.g. the menu
+       sheet's Finances/Terminal/X rows) still pops the native title+URL
+       preview card. */
+    a { color: inherit; text-decoration: none; -webkit-touch-callout: none; user-select: none; }
     button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
     a, button, .app, .runner { cursor: var(--cursor-troll); }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
