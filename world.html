@@ -1030,7 +1030,12 @@
            clipping further into both edges than the lock screen did. */
         width: min(96vw, calc(98vw / var(--island-scale-home)));
         max-width: min(96vw, calc(98vw / var(--island-scale-home)));
-        transform: translate(var(--island-dx), var(--island-dy)) scale(var(--island-scale-home));
+        /* translateY(10%) is a flat 10% of the island's own rendered
+           height, per feedback on the mobile home screen — percentage
+           transform args always resolve against the element's untransformed
+           box regardless of where they sit in the function list, so this
+           stays "10% of the land" at any --island-scale-home value. */
+        transform: translate(var(--island-dx), var(--island-dy)) scale(var(--island-scale-home)) translateY(10%);
       }
       .app-tile { width: 36px; height: 36px; }
       /* margin-top:auto (only in-flow during lock — see body:not([data-
