@@ -953,7 +953,19 @@
            size, so no letterbox and no hotspot drift; any unused vertical
            space is just a small gap, not a correctness bug. */
         flex: 0 1 auto; min-height: 0;
-        width: 96vw; max-width: 96vw; margin: 6px auto 4px;
+        /* Capped against the LOCK-phase zoom, not a flat 96vw — scale()
+           below grows the box symmetrically from its horizontal center, so
+           a fixed 96vw box at scale(1.2)+ renders wider than the viewport.
+           html is overflow:hidden (see the comment up top), so that excess
+           doesn't reflow anywhere, it just gets sliced off both edges —
+           the island touching the screen edges with hard-cut sides instead
+           of its normal tapering rock silhouette. Dividing by the scale
+           keeps the POST-transform width at ~98vw regardless of how the
+           zoom variable gets tuned later; body[data-phase="home"] below
+           repeats this against its own (bigger) scale var. */
+        width: min(96vw, calc(98vw / var(--island-scale-lock)));
+        max-width: min(96vw, calc(98vw / var(--island-scale-lock)));
+        margin: 6px auto 4px;
         aspect-ratio: 16 / 9; transform: none;
         /* Sits close under the topbar/icons instead of vacuuming up all the
            leftover column space above itself — that old margin-top:auto
@@ -1012,6 +1024,12 @@
          1.2 has to stay clear of the tagline/track just under it. */
       body[data-phase="home"] .island {
         margin-top: 0;
+        /* Same overflow-guard as the base rule above, against the
+           home-phase's own (bigger) zoom var — otherwise the island grows
+           an extra 15% wider right at the moment it's revealed post-drag,
+           clipping further into both edges than the lock screen did. */
+        width: min(96vw, calc(98vw / var(--island-scale-home)));
+        max-width: min(96vw, calc(98vw / var(--island-scale-home)));
         transform: translate(var(--island-dx), var(--island-dy)) scale(var(--island-scale-home));
       }
       .app-tile { width: 36px; height: 36px; }
