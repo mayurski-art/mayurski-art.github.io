@@ -6,9 +6,10 @@
    inside-out so the inside faces render with the texture the right way
    round, no BackSide material needed).
 
-   TEXTURE_URL below doesn't exist in the repo yet — until the real
-   equirectangular troll-world art is dropped in at that path, loadTexture()
-   falls back to a procedural placeholder gradient so the viewer still works.
+   TEXTURE_URL points at the real troll-planet equirectangular art
+   (assets/images/world/trollrunner maps.png). If that ever goes missing —
+   renamed, moved — loadTexture() falls back to a procedural placeholder
+   gradient rather than breaking the viewer outright.
    ========================================================================= */
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
@@ -20,7 +21,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
   const openBtn = document.getElementById('enter-world-btn');
   if (!modal || !openBtn || !closeBtn) return;
 
-  const TEXTURE_URL = 'assets/images/world/troll-planet-360.jpg';
+  const TEXTURE_URL = 'assets/images/world/trollrunner%20maps.png';
   const SPHERE_RADIUS = 500;
 
   let renderer, scene, camera, sphere;
