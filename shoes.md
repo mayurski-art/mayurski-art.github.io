@@ -12,6 +12,47 @@ lore as **§45** (`docs/TROLL-LORE.md`).
 First product being designed against this system: a running shoe, since
 running is core to the Troll Runner identity.
 
+## Design philosophy — creative technique reference (applies to ALL lines)
+
+Standing note, not tied to one shoe: user flagged the **Vans Old Skool 36
+Pearlized "Red"** ([House of Heat](https://houseofheat.co/vans/vans-old-skool-36-pearlized-red-vn000e8vizq-release-details),
+style `VN000E8VIZQ`, $130, Holiday 2026) as an example of the level of
+creativity/craft to study and hold Troll Runner shoe concepts to, going
+forward, across every line (Troll Runner 1s, Troll Heelies, Trollface
+Crocs, and anything future). Its design: red canvas upper with darker red
+suede at the toe/eyestays/heel, **pearls and crystals of mixed sizes worked
+directly into the white Jazz Stripe and scattered across toe/tongue/heel**,
+mixed with silver eyelets and small metal studs, plus an aged/distressed
+midsole treatment (darkened spots, edge scuffing) rather than a clean new-
+shoe finish.
+
+Paired with the Yu-Gi-Oh! x Crocs collection (see below, molded dragon
+wings / staff attachment built into the shoe itself), the pattern across
+both references is: **the interesting part is never just a flat colorway
+or a printed graphic — it's a physical/material technique that changes how
+the shoe is actually made.** Techniques worth keeping in the toolbox when
+concepting any future colorway or line, beyond "pick a palette":
+
+- **Embedded embellishment** — pearls, crystals, studs, or beads worked
+  directly into stitching/stripes/panels (Vans Pearlized), not glued-on
+  decoration.
+- **Molded/sculptural geometry** — a signature shape built into the
+  upper, sole, or a physical attachment rather than printed on top (Yu-Gi-Oh
+  dragon wings, magician's staff clip).
+- **Aged/distressed finishing** — deliberately worn-in midsole, scuffing,
+  tonal fading, rather than a pristine studio-clean render, when it suits
+  the shoe's story.
+- **Material contrast within one upper** — canvas vs. suede panel-swaps in
+  the same colorway (Vans toe/eyestay/heel suede), not one uniform fabric.
+- **Embroidery** as its own distinct technique from printing — raised
+  thread texture and visible stitch density, called out explicitly rather
+  than assumed, since it renders and reads differently from a flat graphic
+  (relevant to the existing embroidered-vs-PVC patch question above).
+
+When drafting future render prompts for any Troll shoe, actively consider
+whether one of these techniques (not just a color/graphic swap) is what
+would make that specific design feel "sick and unique" instead of generic.
+
 ## The shoe
 
 - **Name:** Troll Runner 1s
@@ -375,6 +416,155 @@ Show two views composited side by side:
 
 Clean but moody commercial product photography lighting (bright key light on the shoe, near-black shadow falloff, matching a stealth/camo aesthetic), consistent shoe proportions and camera height across both panels, no other props.
 ```
+
+### Rebrand + base-shoe swap — "Troll Heelies," AF1 LV8 silhouette
+
+User renamed the spinoff from "Troll Runner Walkers" to **Troll Heelies** and
+pivoted the base-shoe reference off the ASICS GT-2000 15 comfort-walker
+shape entirely. New silhouette source: the Nike Air Force 1 LV8 (Grade
+School), style code `FN6980-657`, in University Red/White/Deep Royal Blue —
+[shiekh.com listing](https://www.shiekh.com/nike-grade-school-air-force-1-lv8-university-red-white-deep-royal-blue-fn6980-657.html).
+Reference construction details pulled from that listing:
+
+- **Silhouette:** classic AF1 shape — leather upper, cupsole construction,
+  low-cut padded collar, chunky rounded toe box. Reads as a lifestyle
+  sneaker, not a runner or a comfort-walker — matches the "goofy novelty
+  shoe" energy better than the Skechers-style base did.
+- **Sole:** rubber outsole with heritage hoops pivot circle on the
+  forefoot — a natural landmark to build the heel wheel housing against on
+  the opposite end of the sole.
+- **Air unit:** visible Nike Air cushioning in the heel is a real detail
+  worth either working around or leaning into (a wheel module recessed
+  where an Air bubble would normally sit is a fun visual pun, open idea).
+
+**Explicitly NOT copying the AF1 LV8's own colorway or branding** (that's
+Nike's specific SKU) — silhouette/construction reference only. User wants:
+
+- **New color pattern** — palette still open, needs its own pass rather
+  than reusing the red/white/blue from the reference listing or either
+  ASICS-based colorway from the Walkers version. Candidates to consider
+  next: reuse the Electric $TROLL (navy/lightning/chrome) or Jungle Ambush
+  (leaf-camo/olive) treatments already designed above, since both were
+  built to be silhouette-agnostic.
+- **Material changes** — leather AF1 upper needs at least one panel swapped
+  to loop-side velcro-compatible material (or a stitched-on velcro field
+  the way earlier prompts specified) to carry the patch system; open
+  whether that's the toe-box overlay, the eyestay, or a dedicated panel on
+  the lateral vamp like the original Walkers patch placement.
+- Heel wheel mechanic (single, detachable, clicks in/out of a molded
+  socket) carries over unchanged from the Walkers concept — same open
+  questions about single vs. dual wheel and patch-panel vs. wheel-well
+  turf war on the heel.
+- Seven-patch starter set (classic, eclipse, waifu, Solana glyph, "MAD?"
+  wordmark, gold coin, holographic) carries over unchanged.
+
+**Locked for the next render:**
+- **Colorway:** reusing **Electric $TROLL** (deep navy/blue gradient,
+  jagged white lightning bolts, chrome hardware) rather than inventing a
+  new palette — same source art as `assets/images/banners/banner-07.jpg`.
+- **Velcro patch placement:** the **lateral quarter panel** — the flat
+  overlay area on an AF1 where the Swoosh normally sits — since it's the
+  single most visible flat panel on this silhouette and mirrors how morale
+  patches sit on tactical boots. Heel stays clear for the wheel mechanic;
+  no competition between the two features.
+
+### Final prompt (v8 — AF1 LV8 silhouette + Electric $TROLL lightning + patch)
+
+```
+Studio product photography of a lifestyle sneaker called "Troll Heelies," built on a classic Nike Air Force 1-style silhouette (leather-look cupsole construction, low-cut padded collar, chunky rounded toe box, visible heel Air cushioning unit) in an "Electric $TROLL" colorway: deep blue-to-navy gradient upper material with bold jagged white lightning-bolt graphics streaking across it from heel to toe, chrome/silver metallic eyelets and a chrome lace-lock tab at the tongue, black rubber outsole with a hoops-style pivot circle tread pattern on the forefoot. In place of any brand Swoosh, the lateral quarter panel (the flat overlay area on the side of the shoe, above the toe box) is a rectangular loop-side velcro field, about 2.5 x 2 inches, with a bold black-and-tan classic troll face grin patch (wide gap-tooth smirk, thick black outline) attached to it.
+
+Composite three views into one clean image on a seamless dark gradient background (matching the lightning-bolt art style), soft studio shadows, consistent shoe proportions and camera height across all panels:
+
+(1) LEFT: full lateral side profile view of the shoe, showing the lightning-bolt upper graphic, chrome hardware, and velcro patch panel clearly, with a small round black skate wheel visibly protruding slightly from the back/bottom of the heel, past the edge of the outsole — same way real Heelys show their wheel poking out in side profile, not hidden or flush.
+
+(2) TOP-RIGHT: 3/4 front/toe view of the same shoe, showing the rounded toe box, lightning graphic wrap, and patch panel from an angled front perspective.
+
+(3) BOTTOM-RIGHT: close-up detail shot of the heel wheel from a slight rear-3/4 angle, showing it as a separate removable puck-shaped module that clicks into a molded socket built into the heel of the outsole, with a small inset showing the module popped just slightly out of its socket to indicate it's detachable.
+
+Clean commercial product photography lighting throughout, no other props or text overlays.
+```
+
+## New line — Trollface Crocs (concept only, revisit later)
+
+Third shoe line, separate from the Troll Runner 1s (performance trainer)
+and Troll Heelies (velcro-patch novelty walker): a **Crocs-style clog**,
+inspired directly by the upcoming
+[Cars x Crocs Classic Clog "Lightning McQueen Dinoco"](https://x.com/JustFreshKicks/status/2092662105422135467?s=20)
+release.
+
+**Reference product details** (Crocs Classic Clog "Lightning McQueen
+Dinoco," style `213582-90H`, releasing **September 16, 2026** via Crocs.com
+and select retailers, price TBD — second Cars x Crocs collab after a Mater
+clog in May 2025, tied to the film's 20th anniversary):
+- Light-blue "Dinoco" livery referencing the Cars movie's Dinoco-daydream
+  scene, with "95" racing number and Lightyear tire graphics on the side.
+- Toe-cap Jibbitz styled as cartoon eyes + the Dinoco dinosaur logo with a
+  grinning mouth; Dinoco wordmark on the heel strap.
+- New construction detail for this release: the **heel strap itself is
+  molded into a spoiler shape**, not just a flat strap.
+- Note: the user described this as "light-up Crocs," but none of the
+  coverage found (JustFreshKicks, WWD, Men's Journal, SneakerNews) mentions
+  any LED/light-up feature on this specific release — worth double-checking
+  with the user before assuming Trollface Crocs need working lights, since
+  that'd be a real hardware feature, not just a graphic treatment.
+
+**Adaptation direction (not yet designed):**
+- Base shape: standard Crocs clog silhouette (perforated upper, molded
+  footbed, heel strap).
+- Trollface angle: same toe-cap-as-face trick as the Dinoco reference —
+  the two forefoot vent holes or a toe-cap Jibbitz pair standing in for
+  eyes, classic grin worked into the front vamp shape or as a large
+  toe-cap patch.
+- Heel strap as a design surface, same as the reference's spoiler idea —
+  open to reworking into something on-brand (a small trollface flag/tab,
+  a "$TROLL" wordmark strap, etc.) rather than a literal spoiler.
+- Charms/Jibbitz: natural fit for the same patch-style variety the Troll
+  Heelies use (classic/eclipse/waifu/Solana/MAD?/gold-coin/holographic
+  grins) — Crocs' Jibbitz slot system may actually be an easier hardware
+  fit for swappable trollface charms than the velcro patch panel is.
+- Whether to actually pursue the light-up feature (would need real
+  hardware, LED + battery + on/off mechanism) or keep it a graphic-only
+  clog like the Dinoco reference actually is.
+
+No prompt drafted yet — parking this here per the user's request to come
+back to it later.
+
+### More inspiration — Yu-Gi-Oh! x Crocs collection
+
+User flagged this collab as a reference for "how sick and unique the
+designs are" — worth studying the *approach*, not just copying a
+colorway: [House of Heat post](https://x.com/houseofheat/status/2092755649130107216?s=20),
+full writeup at [houseofheat.co](https://houseofheat.co/crocs/yu-gi-oh-crocs-collection-2026-release-details).
+
+**Yu-Gi-Oh! x Crocs Collection** — releases September 1, 2026 via Crocs.com
+and select retailers (Foot Locker, etc.), four pairs across two clog
+models:
+
+- **Classic Clog — Yugi Mutou** ($70): purple/black/gold/red, card-inspired
+  graphic details, chain elements and accents referencing his signature
+  look (millennium puzzle chain, etc).
+- **Classic Clog — Seto Kaiba** ($70): grey/white/burgundy/blue, details
+  pulled from his outfit and his Duel Disk.
+- **Echo Clog — Blue-Eyes White Dragon** ($90): almost entirely icy blue,
+  **wing-like molded elements extending off the upper itself** (not just a
+  printed graphic — actual 3D sculpted geometry), themed graphics
+  throughout, matching strap.
+  - *(This is the specific pair the user's Sept. 1 / $90 note referred
+    to.)*
+- **Echo Clog — Dark Magician** ($90): purple with green accents, a
+  **staff-inspired physical attachment** clipped onto the shoe, plus more
+  molded character-specific details.
+
+**Why this is the reference worth studying:** all four pairs go past
+"character-colored clog + a couple of Jibbitz" — they build the character's
+signature silhouette directly into the shoe's molded geometry (dragon
+wings growing out of the upper, a wand-shaped physical attachment) rather
+than relying only on flat graphics and charms. That's the bar to hit if
+Trollface Crocs wants to feel "sick and unique" rather than generic:
+consider where a trollface-specific molded element (grin shape worked into
+the strap or heel, ear/horn nubs, etc.) could do the same job the dragon
+wings or magician's staff do here, instead of leaning entirely on
+toe-cap-eyes + Jibbitz.
 
 ## Note to self
 
