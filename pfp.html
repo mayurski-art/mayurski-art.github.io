@@ -862,7 +862,7 @@
     const CANDLE_FLIP_WITH = new Set(['demon-pack', 'diamond-hand']);
     const CANDLE_UPRIGHT_WITH = new Set(['middle-fingers']);
     function candleTransform(otherIds) {
-      if (otherIds.some(id => CANDLE_UPRIGHT_WITH.has(id))) return 'rotate(90deg)';
+      if (otherIds.some(id => CANDLE_UPRIGHT_WITH.has(id))) return 'rotate(-27deg)';
       if (otherIds.some(id => CANDLE_FLIP_WITH.has(id))) return 'scaleX(-1)';
       return '';
     }
