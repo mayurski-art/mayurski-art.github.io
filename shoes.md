@@ -77,21 +77,33 @@ running is core to the Troll Runner identity.
    - **Deep forest green** (semi-dark, not neon) — midsole gradient, pull tab
    - **Deep plum purple** (semi-dark) — laces, trim, secondary accent
 
-## Current prompt set (v5 palette, ready to run)
+6. **v6 — text dropped from the upper.** First v5 render came back: palette,
+   pull tab, and insole stamp all landed well, but the jacquard city-name
+   weave rendered as garbled nonsense ("RAVERSIDO CUCAMONGA," "UMACHO,"
+   "RIVECHO CUCAMONGA") — same AI-text failure mode as v1, just moved from
+   the midsole to the whole upper. User confirmed: drop the city
+   names/route-collage concept entirely, no need for it, and also drop the
+   "5:20 AM" line from the insole stamp. Keep the trollface + "UMADBRO.SHOP"
+   emblem (that rendered clean) and the color scheme (confirmed working).
+   Upper reverts to a clean heathered mesh with no text/graphics at all —
+   branding carried entirely by the pull tab and the insole stamp instead of
+   an all-over print.
+
+## Current prompt set (v6 — palette + emblem, no text on upper/insole beyond wordmark)
 
 **File 1 — Hero grid (2x2 composite: lateral, medial, 3/4 front, 3/4 rear):**
 ```
-Studio product photography of a running shoe called "Troll Runner 1s," max-cushion daily trainer (Mizuno Neo Zen 2 / Brooks Ghost Max 4 / Asics Superblast 3 proportions — high stack, soft rounded midsole, no visible carbon plate). Upper is an off-white engineered mesh with an all-over tone-on-tone jacquard knit texture: the words "FONTANA," "RIVERSIDE," "RANCHO CUCAMONGA," "RIALTO," "CHINO HILLS," "$TROLL," and "UMADBRO" repeated and woven into the fabric in black, subtle enough to read as texture from a distance and only resolve into legible text up close. A small deep forest-green fabric pull tab at the tongue with a tiny embroidered trollface grin logo. Deep plum-purple laces threaded through small woven fabric lace-loop keepers with a miniature repeating grin-motif pattern. Midsole is a smooth off-white-to-deep-forest-green gradient foam, thick and pillowy, with a thin plum-purple pinstripe along the rim. Outsole is black rubber with small traction pods. Composite four studio shots into one clean 2x2 grid on a seamless light gray background, soft shadows, no props: (1) lateral side view, (2) medial side view, (3) 3/4 front/toe view, (4) 3/4 rear/heel view. Consistent texture and color placement across all four panels.
+Studio product photography of a running shoe called "Troll Runner 1s," max-cushion daily trainer (Mizuno Neo Zen 2 / Brooks Ghost Max 4 / Asics Superblast 3 proportions — high stack, soft rounded midsole, no visible carbon plate). Upper is an off-white heathered engineered mesh with a subtle fine knit texture, no text or graphics printed or woven into it. A small deep forest-green fabric pull tab at the tongue with a tiny embroidered trollface grin logo. Deep plum-purple laces threaded through small woven fabric lace-loop keepers with a miniature repeating grin-motif pattern. Midsole is a smooth off-white-to-deep-forest-green gradient foam, thick and pillowy, with a thin plum-purple pinstripe along the rim. Outsole is black rubber with small traction pods. Composite four studio shots into one clean 2x2 grid on a seamless light gray background, soft shadows, no props: (1) lateral side view, (2) medial side view, (3) 3/4 front/toe view, (4) 3/4 rear/heel view. Consistent color placement across all four panels.
 ```
 
-**File 2 — Insole finisher stamp:**
+**File 2 — Insole finisher stamp (time removed):**
 ```
-Close-up macro photograph of a running shoe sockliner/insole, shot from directly above, in the style of a marathon finisher shoe stamp. Insole is off-white knit fabric. Centered on the heel area is a circular stamped badge graphic printed directly onto the fabric in black ink, passport-stamp style: arched text along the top reading "TROLL RUNNER 1s," arched text along the bottom reading "UMADBRO.SHOP," a small hand-drawn trollface grin icon in the center where a finisher checkmark would be, and a small line of text below it reading "5:20 AM." Deep forest-green midsole foam visible around the edges of the frame, deep plum-purple lace visible at the edge. Slightly moody, close, directional lighting like a macro product detail shot, matching a real sneaker unboxing photo rather than a flat studio render.
+Close-up macro photograph of a running shoe sockliner/insole, shot from directly above, in the style of a marathon finisher shoe stamp. Insole is off-white knit fabric. Centered on the heel area is a circular stamped badge graphic printed directly onto the fabric in black ink, passport-stamp style: arched text along the top reading "TROLL RUNNER 1s," a small hand-drawn trollface grin icon centered in the middle, and arched text along the bottom reading "UMADBRO.SHOP." The rest of the insole is clean, no other graphics. Deep forest-green midsole foam visible around the edges of the frame, deep plum-purple lace visible at the edge. Slightly moody, close, directional lighting like a macro product detail shot, matching a real sneaker unboxing photo rather than a flat studio render.
 ```
 
 **File 3 — In action:**
 ```
-Low-angle action photograph of a runner's feet mid-stride at sunrise on a paved trail in the Inland Empire (Southern California, dry hills in the background), wearing "Troll Runner 1s" — off-white mesh upper with a subtle woven black jacquard text texture, deep forest-green midsole gradient, deep plum-purple laces, small embroidered trollface grin on the heel tab. Warm golden-hour light, slight motion blur on the trailing foot, sharp focus on the shoe, editorial running-brand photography style.
+Low-angle action photograph of a runner's feet mid-stride at sunrise on a paved trail in the Inland Empire (Southern California, dry hills in the background), wearing "Troll Runner 1s" — off-white heathered mesh upper, deep forest-green midsole gradient, deep plum-purple laces, small embroidered trollface grin on the heel tab. Warm golden-hour light, slight motion blur on the trailing foot, sharp focus on the shoe, editorial running-brand photography style.
 ```
 
 ## Reference inspirations
@@ -106,11 +118,17 @@ Low-angle action photograph of a runner's feet mid-stride at sunrise on a paved 
 
 ## Open items
 
-- Regenerate v5-palette renders and critique (garbled text and
-  panel-to-panel consistency were the two flagged issues on the v1 render;
-  worth re-checking once black jacquard text is in play).
+- Regenerate v6 renders (text-free upper) and critique — confirm
+  panel-to-panel consistency across the 2x2 grid holds up without the
+  jacquard text to distract from it.
 - Decide whether $69 pricing holds — the render quality reads closer to a
   $150+ shoe, may be worth revisiting once final art is locked.
 - Listing description copy for the (uncapped) description field.
 - Possible dedicated lore sub-entry once the shoe actually ships / gets
   voted in, covering the design process itself as its own thread.
+
+## Note to self
+
+Keep this file updated after every shoe-design exchange in conversation —
+new ideas, palette/concept changes, critiques of renders — not just when
+explicitly asked to write it up.
