@@ -560,7 +560,7 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
 </style>
 </head>
 <body>
-  <a href="https://trollrunner.net/" class="back-island" aria-label="Back to trollrunner.net" title="Back to trollrunner.net">&larr;</a>
+  <a href="https://trollrunner.net/" class="back-island" id="btn-home" aria-label="Back to trollrunner.net" title="Back to trollrunner.net">&larr;</a>
 
   <div class="wrap">
     <header class="top">
@@ -929,5 +929,13 @@ footer{ text-align:center; padding:26px 16px 10px; color:#8b8b90; font-size:13px
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="assets/js/troll-accounts.js?v=20260825a"></script>
   <script src="assets/js/fitness.js"></script>
+  <script>
+  // Read by index.html to skip world.html's lock-drag and boot typing
+  // animation — we're coming back in from Fitness, not landing fresh.
+  // Same pattern as pfp.html's own back-arrow handler.
+  document.getElementById('btn-home').addEventListener('click', () => {
+    try { sessionStorage.setItem('trollrunner_skip_entrance', '1'); } catch {}
+  });
+  </script>
 </body>
 </html>
