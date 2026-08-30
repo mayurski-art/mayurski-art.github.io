@@ -295,9 +295,16 @@
       position: absolute; border: none; background: transparent;
       border-radius: 10px; padding: 0;
     }
-    .hotspot.is-set::after {
+    /* Resting-state marker so empty layers (headwear/outfit/accessory,
+       which get no dot until something's equipped) are still discoverable
+       on touch devices — there's no hover crossfade to find them by there. */
+    .hotspot::after {
       content: ''; position: absolute; top: 7px; right: 7px; width: 10px; height: 10px;
-      border-radius: 50%; background: var(--pf-green);
+      border-radius: 50%; background: rgba(255, 255, 255, 0.35);
+      box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.75);
+    }
+    .hotspot.is-set::after {
+      background: var(--pf-green);
       box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 0 rgba(52, 199, 89, 0.9);
       animation: pf-hotspot-pulse 1.3s ease-out infinite;
     }
