@@ -3,8 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>PFP Studio — Troll Runner</title>
+  <script>
+  // iOS Safari ignores user-scalable=no/maximum-scale in the viewport meta
+  // (an accessibility override since iOS 10) — the only thing that actually
+  // blocks pinch-zoom there is preventDefault on WebKit's proprietary gesture
+  // events. touchmove covers the Chrome/Android two-finger case, and wheel+
+  // ctrlKey covers trackpad pinch-zoom on desktop (macOS/Windows), which none
+  // of the touch/gesture handlers see at all.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(type => {
+    document.addEventListener(type, e => e.preventDefault());
+  });
+  document.addEventListener('touchmove', e => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('wheel', e => {
+    if (e.ctrlKey) e.preventDefault();
+  }, { passive: false });
+  </script>
   <meta name="description" content="Build your own troll profile picture from Swish's trait set — background, base, outfit, headwear and accessories.">
   <!-- Matches world.html's standalone-mode meta exactly. Without these, iOS
        treats the hop from the home-screen app into this page as leaving the

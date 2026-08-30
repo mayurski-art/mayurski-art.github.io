@@ -95,6 +95,12 @@
   document.addEventListener('touchmove', e => {
     if (e.touches.length > 1) e.preventDefault();
   }, { passive: false });
+  // Trackpad pinch-zoom (macOS and Windows precision touchpads) fires as a
+  // wheel event with ctrlKey set — none of the touch/gesture handlers above
+  // see it at all, so it needs its own block.
+  document.addEventListener('wheel', e => {
+    if (e.ctrlKey) e.preventDefault();
+  }, { passive: false });
   </script>
   <style>
     /* Native cross-document page transitions, on unconditionally (index.html
@@ -240,6 +246,65 @@
       .island-hotspot:hover {
         background: radial-gradient(ellipse at 50% 70%, #ffffff2e 0%, transparent 70%);
       }
+    }
+
+    /* Portal to trollface.io: every other landmark (terminal, hub, videos,
+       ...) is pre-composited into the single trollrunner-island-land.svg
+       raster, so there's no code path to add a new one without re-baking
+       that master image. This is a real, separately positioned <img> layer
+       instead — same l/t/h percentages driving its placement as the
+       invisible hotspot sitting on top of it, see the JS below. */
+    .landmark-overlay {
+      position: absolute; left: 0; top: 0;
+      transform: translate(-50%, -100%);
+      pointer-events: none; height: 100%; width: auto;
+    }
+    /* The one spot on the island meant to read as "active machinery" rather
+       than scenery — a soft pulsing halo behind the art. */
+    .portal-glow {
+      position: absolute; inset: -20%; border-radius: 50%; pointer-events: none;
+      background: radial-gradient(circle, #4dff7370 0%, transparent 70%);
+      animation: portal-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes portal-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+      .portal-glow { animation: none; }
+    }
+
+    /* Warp transition played on click, before trollface.io opens in a new
+       tab — an iframe can't do this (trollface.io sends frame-ancestors
+       'none'/X-Frame-Options: DENY, so it refuses to be embedded anywhere,
+       including here), so the "leaving this world" feeling has to come from
+       this animation instead of an actual cross-world render. */
+    .warp-flash {
+      position: fixed; inset: 0; z-index: 100001; background: #eafff0;
+      opacity: 0; pointer-events: none;
+    }
+    body.warping .warp-flash {
+      animation: warp-flash-anim .7s ease-in forwards;
+    }
+    /* Standalone scale/rotate (not `transform`) compose on top of whatever
+       transform .island already carries at this breakpoint (mobile's own
+       dx/dy/scale offset, see the ?edit=1 nudge vars) instead of clobbering
+       it — same trick applyElementEdit uses elsewhere in this file. */
+    body.warping .island {
+      animation: warp-suck .7s cubic-bezier(.6,0,.9,.4) forwards;
+      transform-origin: 50% 50%;
+    }
+    @keyframes warp-flash-anim {
+      0% { opacity: 0; }
+      70% { opacity: 0; }
+      92% { opacity: 1; }
+      100% { opacity: 1; }
+    }
+    @keyframes warp-suck {
+      0% { scale: 1; rotate: 0deg; filter: brightness(1) saturate(1); }
+      60% { scale: 1.12; rotate: 4deg; filter: brightness(1.3) saturate(1.4); }
+      100% { scale: 0.05; rotate: 50deg; filter: brightness(2.5) saturate(0); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      body.warping .warp-flash { animation: none; opacity: 1; transition: opacity .3s; }
+      body.warping .island { animation: none; }
     }
 
     /* ================= BOOT ================= */
@@ -1707,6 +1772,7 @@
     <div class="island" id="island">
       <img id="island-img" src="assets/images/wallpaper/trollrunner-island-land.svg" alt="" aria-hidden="true">
     </div>
+    <div class="warp-flash" id="warp-flash" aria-hidden="true"></div>
 
 
     <!-- ============ RUN TO ENTER ============ -->
@@ -2142,6 +2208,15 @@
         to: '/videos', color: '#ff2e88',
         icon: 'assets/images/icons/videos.png', img: 'assets/images/wallpaper/obj-videos.png',
         l: 63, t: 24, h: 15, rot: -3, hw: 8, hh: 17 },
+      // Real landmark art (the swirl ring-gate, user-supplied) replaces the
+      // earlier CSS-drawn ring placeholder. href points to trollface.io
+      // directly; the warp animation (wireInPageApp below) plays first and
+      // opens it in a new tab, since trollface.io sends frame-ancestors
+      // 'none' and refuses to be iframed by anyone.
+      { id: 'portal',   label: 'Trollface Island', sub: 'trollface.io',
+        href: 'https://www.trollface.io/', external: true, color: '#4dff73',
+        icon: 'assets/images/icons/troll-map.png', img: 'assets/images/wallpaper/obj-portal.svg',
+        l: 9, t: 38, h: 10, hw: 9, hh: 10 },
 
       /* The rest of the desktop dock. These four aren't pages — they're
          windows inside the troll desktop — so they hand off to it with
@@ -2417,6 +2492,21 @@
       // zoom-in first — see launchObservatory() and the matching ?enter=scope
       // arrival animation in maps.html.
       if (id === 'maps') el.addEventListener('click', open(() => launchObservatory(el.href)));
+      // Portal to trollface.io: play the warp-out animation (see .warping
+      // in the stylesheet) before opening in a NEW tab. linkAttrs sets
+      // target="_top" for every external link, which would otherwise
+      // navigate this tab away mid-animation and cut the warp short.
+      if (id === 'portal') {
+        el.target = '_blank';
+        el.addEventListener('click', e => {
+          e.preventDefault();
+          setSheet(false);
+          if (body.classList.contains('warping')) return;
+          body.classList.add('warping');
+          window.open(el.href, '_blank', 'noopener');
+          setTimeout(() => body.classList.remove('warping'), 750);
+        });
+      }
     };
 
     /* Telescope zoom-in handoff into maps.html — see the #scope-transition
@@ -2503,13 +2593,27 @@
        (see the CSS comment on .island-hotspot for why this is safe against
        the pinch-zoom drift that killed the old visible object layer). Only
        apps with hw/hh get one — that's the ones whose art actually exists
-       in trollrunner-island-land.svg today. Skipped entirely on phones,
-       where that art was just swapped out for the landmark-free land base
-       above — a hotspot with nothing under it to tap. */
+       in trollrunner-island-land.svg today, PLUS the portal below, whose art
+       is a separate positioned <img> layer instead (see .landmark-overlay)
+       since it isn't baked into that master image. Skipped entirely on
+       phones, where that art was just swapped out for the landmark-free
+       land base above — a hotspot with nothing under it to tap. */
     const island = $('island');
     const hotspots = new Map();
     for (const a of APPS) {
       if (!a.hw || !a.hh || isPhoneLayout) continue;
+      // The portal's art isn't baked into trollrunner-island-land.svg like
+      // every other landmark, so it needs its own real <img> layer, placed
+      // with the same l/t/h the hotspot below uses.
+      if (a.id === 'portal' && a.img) {
+        const layer = document.createElement('img');
+        layer.className = 'landmark-overlay';
+        layer.src = a.img; layer.alt = ''; layer.setAttribute('aria-hidden', 'true');
+        layer.style.left = a.l + '%';
+        layer.style.top = a.t + '%';
+        layer.style.height = a.h + '%';
+        island.appendChild(layer);
+      }
       const el = document.createElement('a');
       el.className = 'island-hotspot';
       el.dataset.app = a.id;
@@ -2523,6 +2627,16 @@
       // differently than tapping its icon in the rail.
       if (a.id === 'hub') {
         el.addEventListener('click', e => { e.preventDefault(); hubSetOpen(true); });
+      }
+      // The portal gets a soft pulsing glow behind its landmark art (see
+      // .portal-glow) so it reads as active machinery, not scenery — the
+      // warp-out click behavior is wired below via wireInPageApp, same
+      // helper the rail icon uses.
+      if (a.id === 'portal') {
+        const glow = document.createElement('span');
+        glow.className = 'portal-glow'; glow.setAttribute('aria-hidden', 'true');
+        el.prepend(glow);
+        wireInPageApp(el, a.id);
       }
       island.appendChild(el);
       hotspots.set(a.id, el);

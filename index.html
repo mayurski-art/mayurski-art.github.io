@@ -157,6 +157,12 @@
 document.addEventListener('touchmove', e => {
   if (e.touches.length > 1) e.preventDefault();
 }, { passive: false });
+// Trackpad pinch-zoom (macOS and Windows precision touchpads) fires as a
+// wheel event with ctrlKey set — none of the touch/gesture handlers above
+// see it at all, so it needs its own block.
+document.addEventListener('wheel', e => {
+  if (e.ctrlKey) e.preventDefault();
+}, { passive: false });
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&family=Press+Start+2P&family=Rubik+Glitch&family=Space+Grotesk:wght@500;700&family=VT323&display=swap');
