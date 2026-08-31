@@ -13,7 +13,6 @@
   LB.register({
     gameId: "grin-halls",
     gameName: "Backrooms",
-    mount: "#lb-root",
 
     blank: () => ({ score: 0, bestLevel: 0, bestTimeSeconds: null, runs: 0 }),
     reduce: (you, ev) => {

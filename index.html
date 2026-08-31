@@ -3948,7 +3948,6 @@ window.addEventListener('trollrunner:dm-unread-changed', event => {
    =================================================================== */
 const TD_SITES = [
   { id: 'terminal', label: 'Terminal', icon: '💻', img: 'assets/images/icons/terminal.png', flat: true, href: 'https://terminal.trollrunner.net', color: '#30d158', desc: 'Chat with the trollface terminal AI.' },
-  { id: 'games', label: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true, href: 'https://games.trollrunner.net', color: '#a78bfa', desc: 'Play troll games, arcade classics and more.' },
   { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
   { id: 'garden', label: 'Garden', icon: '🪴', img: 'assets/images/icons/garden.png', flat: true, href: 'https://garden.trollrunner.net', color: '#4dff73', desc: 'Grow plants, ideas and good vibes.', adminOnly: true },
   { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
@@ -4076,6 +4075,19 @@ TD_WINDOWS.fitness = {
   width: 1040, browser: true,
   url: 'trollrunner.net/fitness', iframeSrc: 'fitness.html',
   build: body => tdBuildIframe(body, 'fitness.html', 'Fitness'),
+  maximizeByDefault: true,
+};
+// Games used to live on its own games.trollrunner.net subdomain
+// (trollrunner-games repo); ported into a local same-origin page for the
+// same reason as PFP Studio/Stickers/Maps/Videos/Fitness above — no SSO
+// bridge needed, one less repo. Removed from TD_SITES (which auto-builds a
+// cross-origin iframe window off site.href) since games.html is now
+// same-origin; this explicit entry replaces it.
+TD_WINDOWS.games = {
+  title: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true,
+  width: 1040, browser: true,
+  url: 'trollrunner.net/games', iframeSrc: 'games.html',
+  build: body => tdBuildIframe(body, 'games.html', 'Games'),
   maximizeByDefault: true,
 };
 // Mirrors the "Classic desktop" link world.html's own World menu offers phone
