@@ -2540,16 +2540,16 @@
       setTimeout(() => { window.top.location.href = dest; }, 1050);
     }
 
-    /* On phones the baked-in landmarks (treasure chest, arcade, ...) are
-       swapped out for the plain land base — same shape/perspective, no
-       objects composited in — so the app rail below can be the ONE launch
-       point for every app instead of some living as invisible hotspots on
-       art that's no longer there. Desktop keeps the fully-landmarked art
-       and its on-island hotspots untouched. */
-    if (isPhoneLayout) {
-      const islandImg = $('island-img');
-      if (islandImg) islandImg.src = 'assets/images/wallpaper/trollrunner-island-land-mobile.png';
-    }
+    /* Phones used to swap in a flattened trollrunner-island-land-mobile.png
+       here instead of the vector art desktop gets — same shape/perspective,
+       landmarks stripped so the app rail below could be the ONE launch
+       point for every app. But that PNG was a fixed 1672x941 raster, and
+       between the island's own zoom transform and phone device-pixel-ratio
+       it was visibly blurry — especially once real SVG landmark art (the
+       treasure chest, arcade, ...) existed to show off. The SVG is real
+       vector paths, so it stays crisp at any scale; phones now load the
+       same file desktop does and just skip wiring up its landmark hotspots
+       below (isPhoneLayout gate on the APPS loop), same as before. */
 
     /* ---------- app grid ----------
        Landmarks baked into the island (hw/hh set) already get their own

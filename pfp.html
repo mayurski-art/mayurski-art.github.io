@@ -295,16 +295,17 @@
       position: absolute; border: none; background: transparent;
       border-radius: 10px; padding: 0;
     }
-    /* Resting-state marker so empty layers (headwear/outfit/accessory,
-       which get no dot until something's equipped) are still discoverable
-       on touch devices — there's no hover crossfade to find them by there. */
+    /* All hotspots read as green + pulsing from the start, whether or not
+       a layer has something equipped yet — no separate grey "empty" state.
+       Every dot exists in the DOM from initial paint and none of them ever
+       gets the animation re-triggered later (renderHotspots() used to add
+       is-set at whatever moment a layer got its first item, restarting
+       that one dot's clock and knocking it out of sync with the rest) —
+       so with nothing left to trigger a restart, all dots share one
+       timeline for free. */
     .hotspot::after {
       content: ''; position: absolute; top: 7px; right: 7px; width: 10px; height: 10px;
-      border-radius: 50%; background: rgba(255, 255, 255, 0.35);
-      box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.75);
-    }
-    .hotspot.is-set::after {
-      background: var(--pf-green);
+      border-radius: 50%; background: var(--pf-green);
       box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 0 rgba(52, 199, 89, 0.9);
       animation: pf-hotspot-pulse 1.3s ease-out infinite;
     }
@@ -319,7 +320,7 @@
       100% { box-shadow: 0 0 0 2px rgba(10, 10, 16, 0.8), 0 0 0 8px rgba(52, 199, 89, 0); transform: scale(1); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .hotspot.is-set::after { animation: none; }
+      .hotspot::after { animation: none; }
     }
     .hotspot-label {
       position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -7px);
@@ -1234,15 +1235,14 @@
     }
 
     /** Furniture hotspots stand in for the old tab strip: a lit outline on
-     *  hover, a dot once something's equipped in that layer, and a highlight
-     *  while its drawer is the one open. */
+     *  hover, an always-on pulsing green dot, and a highlight while its
+     *  drawer is the one open. */
     function renderHotspots() {
       const panelOpen = !el.roomPanel.hidden;
       for (const btn of el.hotspots) {
         const id = btn.dataset.layer;
         const label = btn.dataset.baseLabel;
         const names = idsFor(id, build[id]).map(t => traitById(id, t)?.name).filter(Boolean);
-        btn.classList.toggle('is-set', names.length > 0);
         btn.classList.toggle('is-active', panelOpen && activeLayer === id);
         btn.setAttribute('aria-label', names.length ? `${label} — ${names.join(' + ')} selected` : label);
       }
