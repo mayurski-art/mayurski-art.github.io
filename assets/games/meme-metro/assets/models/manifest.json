@@ -1,0 +1,215 @@
+{
+  "project": "Troll Dash: Meme Metro",
+  "asset_format": "glb",
+  "coordinate_notes": "Z-up primitive placeholders; adjust rotation/scale in Three.js if needed.",
+  "assets": [
+    {
+      "type": "character",
+      "displayName": "Trollface Runner",
+      "collision": "capsule",
+      "notes": "Primitive placeholder styled after the concept sheet; replace with final model later.",
+      "file": "character_trollface_runner.glb"
+    },
+    {
+      "type": "character",
+      "displayName": "Pepe Runner",
+      "collision": "capsule",
+      "notes": "Green frog hoodie runner placeholder.",
+      "file": "character_pepe_runner.glb"
+    },
+    {
+      "type": "character",
+      "displayName": "Doge Runner",
+      "collision": "capsule",
+      "notes": "Shiba meme runner with cap and shades placeholder.",
+      "file": "character_doge_runner.glb"
+    },
+    {
+      "type": "character",
+      "displayName": "Tech-Billionaire Rocket Runner",
+      "collision": "capsule",
+      "notes": "Stylized parody runner with rocket boots; no real likeness.",
+      "file": "character_tech_billionaire_rocket_runner.glb"
+    },
+    {
+      "type": "character",
+      "displayName": "Business-Prophet Laser Runner",
+      "collision": "capsule",
+      "notes": "Stylized parody runner with laser-eye effect; no real likeness.",
+      "file": "character_business_prophet_laser_runner.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Bear Market Train",
+      "collision": "large_lane_blocker",
+      "requiredAction": "dodge",
+      "file": "obstacle_bear_market_train.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Rug Pull Carpet Trap",
+      "collision": "low_jump",
+      "requiredAction": "jump",
+      "file": "obstacle_rug_pull_carpet.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Red Candle Barrier",
+      "collision": "lane_blocker_or_jump",
+      "requiredAction": "dodge_or_jump",
+      "file": "obstacle_red_candle_barrier.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Laser Gate",
+      "collision": "slide_or_dodge",
+      "requiredAction": "slide_or_dodge",
+      "file": "obstacle_laser_gate.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Troll Toll Gate",
+      "collision": "lane_choice",
+      "requiredAction": "dodge",
+      "file": "obstacle_troll_toll_gate.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Doge Bone Barrier",
+      "collision": "lane_blocker",
+      "requiredAction": "dodge",
+      "file": "obstacle_doge_bone_barrier.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Paper Hands Barricade",
+      "collision": "slide_or_dodge",
+      "requiredAction": "slide_or_dodge",
+      "file": "obstacle_paper_hands_barricade.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "FUD Fog Cloud",
+      "collision": "soft_visibility",
+      "requiredAction": "avoid_optional",
+      "file": "obstacle_fud_fog_cloud.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Rocket Debris",
+      "collision": "falling_hazard",
+      "requiredAction": "switch_lane",
+      "file": "obstacle_rocket_debris.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Scam Bot Drone",
+      "collision": "moving_high",
+      "requiredAction": "slide_or_dodge",
+      "file": "obstacle_scam_bot_drone.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Liquidity Pool Pit",
+      "collision": "gap",
+      "requiredAction": "jump",
+      "file": "obstacle_liquidity_pool_pit.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "NFT Floor Crack",
+      "collision": "gap_or_jump",
+      "requiredAction": "jump",
+      "file": "obstacle_nft_floor_crack.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Captcha Door",
+      "collision": "lane_blocker",
+      "requiredAction": "dodge_or_slide",
+      "file": "obstacle_captcha_door.glb"
+    },
+    {
+      "type": "obstacle",
+      "displayName": "Pepe Swamp Puddle",
+      "collision": "soft_slowdown",
+      "requiredAction": "avoid",
+      "file": "obstacle_pepe_swamp_puddle.glb"
+    },
+    {
+      "type": "collectible",
+      "displayName": "Troll Coin",
+      "collision": "pickup",
+      "effect": "coin",
+      "file": "collectible_troll_coin.glb"
+    },
+    {
+      "type": "collectible",
+      "displayName": "Rare Gold Troll Coin",
+      "collision": "pickup",
+      "effect": "rare_coin",
+      "file": "collectible_rare_gold_troll_coin.glb"
+    },
+    {
+      "type": "collectible",
+      "displayName": "Green Candle Token",
+      "collision": "pickup",
+      "effect": "bonus",
+      "file": "collectible_green_candle_token.glb"
+    },
+    {
+      "type": "powerup",
+      "displayName": "Diamond Hands Shield",
+      "effect": "blocks_one_crash",
+      "file": "powerup_diamond_hands_shield.glb"
+    },
+    {
+      "type": "powerup",
+      "displayName": "Troll Coin Magnet",
+      "effect": "attracts_coins",
+      "file": "powerup_troll_coin_magnet.glb"
+    },
+    {
+      "type": "powerup",
+      "displayName": "Rocket Boost",
+      "effect": "temporary_invincible_speed_burst",
+      "file": "powerup_rocket_boost.glb"
+    },
+    {
+      "type": "powerup",
+      "displayName": "Doge Dash",
+      "effect": "short_invincible_dash",
+      "file": "powerup_doge_dash.glb"
+    },
+    {
+      "type": "powerup",
+      "displayName": "Pepe Cloak",
+      "effect": "temporary_ghost_invincibility",
+      "file": "powerup_pepe_cloak.glb"
+    },
+    {
+      "type": "powerup",
+      "displayName": "Laser Focus",
+      "effect": "score_multiplier_or_clear_path",
+      "file": "powerup_laser_focus.glb"
+    },
+    {
+      "type": "powerup",
+      "displayName": "HODL Helmet",
+      "effect": "extra_protection_coin_bonus",
+      "file": "powerup_hodl_helmet.glb"
+    },
+    {
+      "type": "stage_prop",
+      "displayName": "Meme Metro Track Segment",
+      "usage": "repeatable track tile",
+      "file": "stage_meme_metro_track_segment.glb"
+    },
+    {
+      "type": "stage_prop",
+      "displayName": "Neon Crypto Billboard",
+      "usage": "background prop",
+      "file": "stage_neon_crypto_billboard.glb"
+    }
+  ]
+}
