@@ -24,7 +24,6 @@
     { "type": "teacher-desk", "x": 3, "y": 2 },
     { "type": "trash-can", "x": 1, "y": 2 },
 
-    { "type": "computer-desk", "x": 3, "y": 5, "game": "bridge-patrol.html", "gameName": "Bridge Patrol" },
     { "type": "computer-desk", "x": 6, "y": 5, "game": "troll-pizzeria.html", "gameName": "Papa Troll's Pizzeria" },
     { "type": "computer-desk", "x": 12, "y": 5, "game": "meme-metro.html", "gameName": "Meme Metro" },
     { "type": "computer-desk", "x": 15, "y": 5, "game": "troll-kombat.html", "gameName": "Troll Kombat" },

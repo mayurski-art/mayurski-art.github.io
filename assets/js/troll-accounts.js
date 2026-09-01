@@ -51,7 +51,6 @@
     'troll-kombat': { name: 'Troll Kombat', icon: '🥋' },
     'troll-casino': { name: 'Troll Casino', icon: '🎰' },
     'troll-pizzeria': { name: "Papa Troll's Pizzeria", icon: '🍕' },
-    'bridge-patrol': { name: 'Bridge Patrol', icon: '🌉' },
     'trollrreria': { name: 'Trollrreria', icon: '⛏️' },
     'meme-metro': { name: 'Meme Metro', icon: '🚇' },
     'troll-high': { name: 'Troll High', icon: '🏫' },
