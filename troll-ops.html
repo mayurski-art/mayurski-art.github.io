@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://solana-rpc.publicnode.com https://api.devnet.solana.com https://lite-api.jup.ag; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0c0a">
+  <meta name="description" content="Troll Ops: a fast, brutal horde shooter in the Troll Runner Arcade. Three weapons, real recoil, ADS, and waves of trollface grunts that keep coming.">
+  <title>Troll Ops | Troll Runner Arcade</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23161a14'/%3E%3Ctext x='8' y='44' font-size='34'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-p1">
+</head>
+<body>
+
+  <header class="site-header">
+    <a class="brand" href="games.html" aria-label="Troll Runner Arcade home">
+      <span class="brand-mark">$TROLL</span>
+      <span class="brand-copy">
+        <span>Troll Runner</span>
+        <small>Troll Ops</small>
+      </span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="games.html">Arcade</a>
+      <a href="nullface.html">NULLFACE</a>
+      <a href="grin-halls.html">Grin Halls</a>
+    </nav>
+  </header>
+
+  <main class="arcade-shell">
+    <section class="to-cabinet" id="to-cabinet" aria-label="Troll Ops">
+
+      <!-- Title / loadout screen -->
+      <div class="to-screen to-title" id="to-title">
+        <div class="to-title-bg" aria-hidden="true"></div>
+        <div class="to-title-inner">
+          <p class="to-eyebrow">Troll Runner Arcade presents</p>
+          <h1 class="to-logo">TROLL <span>OPS</span></h1>
+          <p class="to-tagline">Grins in, grins out. Hold the arena.</p>
+
+          <div class="to-loadout" role="group" aria-label="Choose your weapon">
+            <button type="button" class="to-weapon-card" data-weapon="smg">
+              <span class="to-weapon-icon">🔫</span>
+              <strong>Grinder SMG</strong>
+              <span class="to-weapon-desc">Fast fire, red dot, low recoil</span>
+            </button>
+            <button type="button" class="to-weapon-card" data-weapon="shotgun">
+              <span class="to-weapon-icon">💥</span>
+              <strong>Widemouth 12</strong>
+              <span class="to-weapon-desc">Iron sights, devastating up close</span>
+            </button>
+            <button type="button" class="to-weapon-card" data-weapon="marksman">
+              <span class="to-weapon-icon">🎯</span>
+              <strong>Longsmile .50</strong>
+              <span class="to-weapon-desc">Iron sights, one-shot heavy hits</span>
+            </button>
+          </div>
+
+          <button type="button" class="to-btn to-btn-primary" id="to-start-btn" disabled>Drop In</button>
+          <p class="to-hint">WASD move · Mouse look · LMB fire · RMB ADS · R reload · Shift sprint · Space jump</p>
+          <p class="to-hint to-hint-mobile">Touch: left stick move, right side look/fire, ADS + reload buttons</p>
+
+          <a class="to-back-link" href="games.html">← Back to arcade</a>
+        </div>
+      </div>
+
+      <!-- Pause / paused overlay -->
+      <div class="to-screen to-pause" id="to-pause" hidden>
+        <div class="to-pause-inner">
+          <h2>Paused</h2>
+          <button type="button" class="to-btn to-btn-primary" id="to-resume-btn">Resume</button>
+          <button type="button" class="to-btn to-btn-ghost" id="to-quit-btn">Quit to menu</button>
+        </div>
+      </div>
+
+      <!-- Game over screen -->
+      <div class="to-screen to-gameover" id="to-gameover" hidden>
+        <div class="to-gameover-inner">
+          <h2 id="to-go-title">You went down</h2>
+          <div class="to-go-stats">
+            <div><strong id="to-go-wave">0</strong><span>Wave reached</span></div>
+            <div><strong id="to-go-kills">0</strong><span>Kills</span></div>
+            <div><strong id="to-go-time">0:00</strong><span>Time survived</span></div>
+          </div>
+          <button type="button" class="to-btn to-btn-primary" id="to-retry-btn">Drop in again</button>
+          <a class="to-btn to-btn-ghost" href="games.html">Back to arcade</a>
+        </div>
+      </div>
+
+      <!-- HUD -->
+      <div class="to-hud" id="to-hud" hidden>
+        <div class="to-hud-top">
+          <div class="to-hud-wave">
+            <span class="to-hud-label">Wave</span>
+            <strong id="hud-wave">1</strong>
+          </div>
+          <div class="to-hud-timer" id="hud-wave-banner" aria-hidden="true"></div>
+          <div class="to-hud-hostiles">
+            <span class="to-hud-label">Hostiles</span>
+            <strong id="hud-hostiles">0</strong>
+          </div>
+          <div class="to-hud-score">
+            <span class="to-hud-label">Kills</span>
+            <strong id="hud-kills">0</strong>
+          </div>
+        </div>
+
+        <div class="to-crosshair" id="to-crosshair" aria-hidden="true">
+          <span class="to-ch-dot"></span>
+          <span class="to-ch-line to-ch-t"></span>
+          <span class="to-ch-line to-ch-b"></span>
+          <span class="to-ch-line to-ch-l"></span>
+          <span class="to-ch-line to-ch-r"></span>
+        </div>
+
+        <div class="to-hitmarker" id="to-hitmarker" aria-hidden="true"></div>
+        <div class="to-hitflash" id="to-hitflash" aria-hidden="true"></div>
+        <div class="to-lowhp" id="to-lowhp" aria-hidden="true"></div>
+
+        <div class="to-hud-bottom">
+          <div class="to-hud-health">
+            <div class="to-hp-bar"><div class="to-hp-fill" id="hud-hp-fill"></div></div>
+            <span id="hud-hp-text">100</span>
+          </div>
+          <div class="to-hud-ammo">
+            <strong id="hud-ammo-cur">30</strong>
+            <span id="hud-ammo-sep">/</span>
+            <span id="hud-ammo-res">90</span>
+            <span class="to-hud-reload" id="hud-reload-tag" hidden>RELOADING</span>
+          </div>
+        </div>
+
+        <div class="to-killfeed" id="to-killfeed" aria-live="polite"></div>
+      </div>
+
+      <!-- Touch controls -->
+      <div class="to-touch" id="to-touch" hidden>
+        <div class="to-touch-stick" id="to-touch-move">
+          <div class="to-touch-stick-nub"></div>
+        </div>
+        <button type="button" class="to-touch-btn to-touch-jump" id="to-touch-jump">↑</button>
+        <button type="button" class="to-touch-btn to-touch-ads" id="to-touch-ads">ADS</button>
+        <button type="button" class="to-touch-btn to-touch-fire" id="to-touch-fire">FIRE</button>
+        <button type="button" class="to-touch-btn to-touch-reload" id="to-touch-reload">R</button>
+        <div class="to-touch-look" id="to-touch-look"></div>
+      </div>
+
+      <div class="to-loading" id="to-loading">
+        <div class="to-loading-inner">
+          <div class="to-loading-spinner"></div>
+          <p>Loading arena…</p>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./assets/vendor/three.module.min.js",
+        "three/addons/": "./assets/vendor/addons/"
+      }
+    }
+  </script>
+  <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
+  <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p1" defer></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-p1"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
+  <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>
+  <script src="assets/js/site-lock.js"></script>
+  <script src="https://mayurski-art.github.io/assets/js/troll-notis.js"></script>
+</body>
+</html>
