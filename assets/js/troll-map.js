@@ -95,6 +95,157 @@
   function updateCountryDensity() {
     if (!map || !countryLayerReady) return;
     map.setPaintProperty('country-density', 'fill-color', buildDensityExpression(state.pins));
+    renderCountryBadge(); // pin counts changed, so the badge's tally is stale
+  }
+
+  /* ── Country click-to-zoom ─────────────────────────────────────────────
+     Clicking a country flies the camera to fit that country's bounds, the
+     way clicking a pin flies to a city. Three pieces make it work:
+
+       1. 'country-hit' — a near-transparent fill over every country. The
+          density layer only paints countries that have pins (everything
+          else resolves to rgba(0,0,0,0) in its match expression), and
+          MapLibre won't return a hit for a feature whose fill is fully
+          transparent, so un-pinned countries were unclickable. A dedicated
+          hit layer keeps every country queryable without tinting them.
+       2. 'country-hover' / 'country-selected-line' — wash + outline drawn
+          from the same source, filtered by name, so the country under the
+          cursor reads as a target and the one you flew to stays marked.
+       3. countryBounds() — countries.json carries no bbox, so bounds are
+          computed from the geometry on demand and memoised by name.
+
+     Bounds come from the *largest* ring rather than every coordinate:
+     Russia/US/France have territory across the antimeridian or far-flung
+     overseas parts, and fitting all of it just zooms back out to the whole
+     globe. Fitting the dominant landmass is what someone clicking the big
+     shape actually meant. ─────────────────────────────────────────────── */
+  const COUNTRY_MAX_FIT_ZOOM = 6; // Vatican City shouldn't slam to street level
+  const boundsCache = new Map();
+
+  // Ring area in raw degrees² — only ever used to rank a country's own
+  // parts against each other, so an equal-area projection isn't needed.
+  function ringArea(ring) {
+    let area = 0;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      area += (ring[j][0] * ring[i][1]) - (ring[i][0] * ring[j][1]);
+    }
+    return Math.abs(area / 2);
+  }
+
+  function countryBounds(feature) {
+    const name = feature.properties && feature.properties.name;
+    if (name && boundsCache.has(name)) return boundsCache.get(name);
+    const geom = feature.geometry;
+    if (!geom) return null;
+    // Outer rings only (index 0 of each polygon) — holes can't extend bounds.
+    const polys = geom.type === 'Polygon' ? [geom.coordinates]
+      : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+    let best = null;
+    let bestArea = -1;
+    polys.forEach((poly) => {
+      const ring = poly && poly[0];
+      if (!ring || !ring.length) return;
+      const area = ringArea(ring);
+      if (area > bestArea) { bestArea = area; best = ring; }
+    });
+    if (!best) return null;
+    let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+    best.forEach((coord) => {
+      const lng = coord[0], lat = coord[1];
+      if (lng < west) west = lng;
+      if (lng > east) east = lng;
+      if (lat < south) south = lat;
+      if (lat > north) north = lat;
+    });
+    if (!isFinite(west) || !isFinite(south)) return null;
+    const bounds = [[west, south], [east, north]];
+    if (name) boundsCache.set(name, bounds);
+    return bounds;
+  }
+
+  // The country the camera is currently focused on, or null.
+  let selectedCountry = null;
+  let hoveredCountry = null;
+
+  // A filter that matches nothing — MapLibre has no "match none" literal, so
+  // a name no country can have does the job.
+  const MATCH_NONE = ['==', ['get', 'name'], '\u0000none\u0000'];
+  function setCountryFilter(layer, name) {
+    if (!map || !map.getLayer(layer)) return;
+    map.setFilter(layer, name ? ['==', ['get', 'name'], name] : MATCH_NONE);
+  }
+
+  function setHoveredCountry(name) {
+    if (hoveredCountry === (name || null)) return;
+    hoveredCountry = name || null;
+    setCountryFilter('country-hover', hoveredCountry);
+    setCountryFilter('country-hover-line', hoveredCountry);
+  }
+
+  function setSelectedCountry(name) {
+    selectedCountry = name || null;
+    setCountryFilter('country-selected-line', selectedCountry);
+    renderCountryBadge();
+  }
+
+  // Leave room for the side panel so the country lands centred in the
+  // *visible* map rather than partly under the UI.
+  function countryFitPadding() {
+    const narrow = window.matchMedia('(max-width: 860px)').matches;
+    return narrow
+      ? { top: 70, bottom: 90, left: 30, right: 30 }
+      : { top: 80, bottom: 80, left: 60, right: 60 };
+  }
+
+  function zoomToCountry(feature) {
+    const bounds = countryBounds(feature);
+    if (!map || !bounds) return;
+    setSelectedCountry(feature.properties && feature.properties.name);
+    stopSpin(); // a flight that lands then drifts sideways feels broken
+    map.fitBounds(bounds, {
+      padding: countryFitPadding(),
+      maxZoom: COUNTRY_MAX_FIT_ZOOM,
+      duration: 1400,
+      essential: true,
+    });
+    // fitBounds ends in 'moveend', which resumes the idle spin. Hold the
+    // interaction lock until the flight lands so it can't drift mid-flight;
+    // the existing moveend handler takes it from there.
+    window.setTimeout(() => { userInteracting = false; }, 1450);
+  }
+
+  // How many pins sit in a country, by the polygon's name. state.pins carry
+  // Nominatim's country name, so map through the same alias table the density
+  // choropleth uses before comparing.
+  function pinsInCountry(name) {
+    if (!name) return 0;
+    return state.pins.reduce((total, pin) => {
+      if (!pin.country) return total;
+      const mapped = COUNTRY_NAME_ALIASES[pin.country] || pin.country;
+      return mapped === name ? total + 1 : total;
+    }, 0);
+  }
+
+  function renderCountryBadge() {
+    const badge = document.getElementById('country-badge');
+    if (!badge) return;
+    // Picking mode shows its own banner in the same slot — stay out of its way.
+    if (!selectedCountry || state.picking) { badge.style.display = 'none'; return; }
+    const count = pinsInCountry(selectedCountry);
+    document.getElementById('country-badge-name').textContent = selectedCountry;
+    document.getElementById('country-badge-count').textContent =
+      count === 0 ? 'no trolls yet' : count === 1 ? '1 troll' : count + ' trolls';
+    badge.style.display = '';
+  }
+
+  // Flying back out clears the selection and hands the globe back to spin.
+  function resetCountryView() {
+    if (!map) return;
+    setSelectedCountry(null);
+    setHoveredCountry(null);
+    stopSpin();
+    map.easeTo({ center: [map.getCenter().lng, 20], zoom: HOME_ZOOM, duration: 1200, essential: true });
+    window.setTimeout(() => { userInteracting = false; spinGlobe(); }, 1250);
   }
 
   function esc(str) {
@@ -416,6 +567,42 @@
             source: 'countries',
             paint: { 'fill-color': buildDensityExpression(state.pins) },
           }, beforeId);
+
+          // Invisible-but-hittable fill over every country. MapLibre skips
+          // fully transparent fills when hit-testing, and the density layer
+          // above is transparent for any country without pins — so without
+          // this, only pinned countries would be clickable.
+          map.addLayer({
+            id: 'country-hit',
+            type: 'fill',
+            source: 'countries',
+            paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.001 },
+          }, beforeId);
+
+          // Hover + selection affordances, filtered down to a single country
+          // by name (see setHoveredCountry / setSelectedCountry).
+          map.addLayer({
+            id: 'country-hover',
+            type: 'fill',
+            source: 'countries',
+            filter: MATCH_NONE,
+            paint: { 'fill-color': '#7c7ae8', 'fill-opacity': 0.18 },
+          }, beforeId);
+          map.addLayer({
+            id: 'country-hover-line',
+            type: 'line',
+            source: 'countries',
+            filter: MATCH_NONE,
+            paint: { 'line-color': '#bebcff', 'line-width': 1.2, 'line-opacity': 0.75 },
+          }, beforeId);
+          map.addLayer({
+            id: 'country-selected-line',
+            type: 'line',
+            source: 'countries',
+            filter: MATCH_NONE,
+            paint: { 'line-color': '#ffffff', 'line-width': 2, 'line-opacity': 0.9 },
+          }, beforeId);
+
           countryLayerReady = true;
         })
         .catch((err) => { console.warn('[map] country density layer failed to load', err); });
@@ -429,8 +616,25 @@
       }
     });
     map.on('click', (event) => {
-      if (state.picking) handleMapPick(event.lngLat.lat, event.lngLat.lng);
+      if (state.picking) { handleMapPick(event.lngLat.lat, event.lngLat.lng); return; }
+      // Drop-a-pin mode owns the click; otherwise a click on a country flies
+      // the camera to fit it. Above COUNTRY_MAX_FIT_ZOOM the user has already
+      // zoomed past country scale and is reading cities, so clicking there
+      // would yank them back out — leave the map alone.
+      if (!countryLayerReady || map.getZoom() > COUNTRY_MAX_FIT_ZOOM) return;
+      const feature = countryAt(event.point);
+      if (feature) zoomToCountry(feature);
     });
+
+    // Hover highlight + pointer cursor, so countries read as clickable.
+    map.on('mousemove', (event) => {
+      if (state.picking || !countryLayerReady) return;
+      if (map.getZoom() > COUNTRY_MAX_FIT_ZOOM) { setHoveredCountry(null); return; }
+      const feature = countryAt(event.point);
+      setHoveredCountry(feature && feature.properties ? feature.properties.name : null);
+      map.getCanvas().style.cursor = feature ? 'pointer' : '';
+    });
+    map.on('mouseout', () => setHoveredCountry(null));
 
     map.on('mousedown', stopSpin);
     map.on('touchstart', stopSpin);
@@ -452,6 +656,14 @@
     map.on('moveend', () => { spinGlobe(); });
   }
 
+  // The country polygon under a screen point, or null. Queries the dedicated
+  // hit layer so un-pinned (fully transparent) countries still register.
+  function countryAt(point) {
+    if (!map || !map.getLayer('country-hit')) return null;
+    const hits = map.queryRenderedFeatures(point, { layers: ['country-hit'] });
+    return hits && hits.length ? hits[0] : null;
+  }
+
   function flyTo(lat, lng, zoom) {
     map && map.flyTo({ center: [lng, lat], zoom: zoom == null ? CITY_ZOOM : zoom, duration: 1600, essential: true });
   }
@@ -460,6 +672,10 @@
     state.picking = next;
     document.getElementById('pick-banner').style.display = next ? '' : 'none';
     if (map) map.getCanvas().style.cursor = next ? 'crosshair' : '';
+    // The pick banner and the country badge occupy the same slot, and while
+    // picking, a click means "drop a pin here", not "zoom to this country".
+    if (next) setHoveredCountry(null);
+    renderCountryBadge();
   }
 
   function renderMarkers() {
@@ -1059,6 +1275,12 @@
     startStatsRotation();
 
     document.getElementById('drop-pin-btn').addEventListener('click', openPinPanel);
+    document.getElementById('country-badge-out').addEventListener('click', resetCountryView);
+    // Escape backs out of a country the same way it closes the other overlays.
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && selectedCountry && !state.picking) resetCountryView();
+    });
+
     document.getElementById('top-cities-btn').addEventListener('click', () => {
       state.panel = state.panel === 'top' ? 'none' : 'top';
       renderPanel();

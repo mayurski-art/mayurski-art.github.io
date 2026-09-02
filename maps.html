@@ -192,6 +192,18 @@ a { color: inherit; }
 .result-label { display: block; font-size: 14px; font-weight: 500; }
 .result-detail { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pick-banner { top: 64px; left: 50%; transform: translateX(-50%); padding: 8px 16px; font-size: 14px; font-weight: 500; }
+.country-badge {
+  top: 64px; left: 50%; transform: translateX(-50%); padding: 8px 8px 8px 16px;
+  display: flex; align-items: center; gap: 12px; font-size: 14px; max-width: calc(100vw - 32px);
+}
+.country-badge-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.country-badge-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.country-badge-out {
+  border: 1px solid var(--line); background: rgba(255,255,255,.05); color: inherit;
+  font: inherit; font-size: 13px; border-radius: 999px; padding: 5px 12px; cursor: pointer;
+  white-space: nowrap; transition: background .15s ease;
+}
+.country-badge-out:hover { background: rgba(255,255,255,.12); }
 .right-rail { top: 50%; right: 16px; transform: translateY(-50%); display: none; flex-direction: column; gap: 8px; }
 @media (min-width: 640px) { .right-rail { display: flex; } }
 
@@ -201,6 +213,7 @@ a { color: inherit; }
 @media (max-width: 639px) {
   .search-wrap { top: 64px; left: 16px; right: 16px; width: auto; transform: none; }
   .pick-banner { top: 112px; }
+  .country-badge { top: 112px; }
   .top-right { max-width: calc(100vw - 68px); }
   .top-right #session-btn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; }
 }
@@ -413,6 +426,14 @@ a { color: inherit; }
 </div>
 
 <div id="pick-banner" class="hud panel pick-banner" style="display:none;">Click anywhere on the map to drop your pin there</div>
+
+<!-- Shown once a country is clicked: which country the camera is on, plus
+     the way back out to the whole globe. Populated by troll-map.js. -->
+<div id="country-badge" class="hud panel country-badge" style="display:none;">
+  <span class="country-badge-name" id="country-badge-name"></span>
+  <span class="country-badge-count" id="country-badge-count"></span>
+  <button type="button" id="country-badge-out" class="country-badge-out" aria-label="Zoom back out to the whole globe">Zoom out</button>
+</div>
 
 <div class="hud top-left">
   <a href="https://trollrunner.net/" id="back-island" class="panel back-island" aria-label="Back to trollrunner.net" title="Back to trollrunner.net">&larr;</a>
