@@ -512,6 +512,7 @@
       backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
       touch-action: none;
       -webkit-user-select: none; -moz-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
     }
     /* lane markings so it reads as a running track, not a slider */
     .track::before {
@@ -542,6 +543,8 @@
       position: absolute; top: 5px; left: 32px; width: 58px; height: 58px;
       display: grid; place-items: center; cursor: grab; touch-action: none;
       will-change: transform;
+      -webkit-user-select: none; -moz-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
     }
     .runner:active { cursor: grabbing; }
     /* No circular badge, no crop. The videos are baked onto solid black
@@ -552,9 +555,27 @@
        invisible (decode source only) and a same-size canvas repaints each
        frame with near-black pixels keyed out to real alpha (see the
        render loop below) — a manual chroma key that works everywhere. */
-    .runner video { position: absolute; opacity: 0; pointer-events: none; }
+    /* Decode sources only — never presented. iOS Safari yanks a <video>
+       into its native fullscreen player (AirPlay/PiP chrome, scrub bar, the
+       works) when play() is called during a touch gesture on an element it
+       doesn't consider properly presented inline. These four had no CSS box
+       at all, so they laid out at intrinsic video size and tripped exactly
+       that heuristic the instant a drag flipped the mood from idle to
+       running — the drag opened a video player instead of moving the troll.
+       Pinning them to a 1px box and taking them out of hit-testing and
+       selection keeps Safari on the inline path while the canvas above does
+       all the real drawing. */
+    .runner video {
+      position: absolute; left: 0; top: 0;
+      width: 1px; height: 1px; opacity: 0;
+      pointer-events: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
+    }
     .runner canvas {
       width: 50px; height: 50px; pointer-events: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
     }
     .lock-hint {
       font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim);
@@ -1785,13 +1806,17 @@
         <div class="runner mood-idle" id="runner" role="button" tabindex="0"
              aria-label="Run to enter — drag right, or press Enter">
           <video class="runner-src" data-mood="idle" src="assets/images/world/trollrunner-idle.mp4"
-                 muted autoplay loop playsinline disablepictureinpicture preload="auto"></video>
+                 muted autoplay loop playsinline webkit-playsinline x-webkit-airplay="deny"
+                 disablepictureinpicture disableremoteplayback preload="auto" tabindex="-1" aria-hidden="true"></video>
           <video class="runner-src" data-mood="running" src="assets/images/world/trollrunner.mp4"
-                 muted loop playsinline disablepictureinpicture preload="auto"></video>
+                 muted loop playsinline webkit-playsinline x-webkit-airplay="deny"
+                 disablepictureinpicture disableremoteplayback preload="auto" tabindex="-1" aria-hidden="true"></video>
           <video class="runner-src" data-mood="sad" src="assets/images/world/trollrunner-sad.mp4"
-                 muted loop playsinline disablepictureinpicture preload="auto"></video>
+                 muted loop playsinline webkit-playsinline x-webkit-airplay="deny"
+                 disablepictureinpicture disableremoteplayback preload="auto" tabindex="-1" aria-hidden="true"></video>
           <video class="runner-src" data-mood="victory" src="assets/images/world/trollrunner-victory.mp4"
-                 muted loop playsinline disablepictureinpicture preload="auto"></video>
+                 muted loop playsinline webkit-playsinline x-webkit-airplay="deny"
+                 disablepictureinpicture disableremoteplayback preload="auto" tabindex="-1" aria-hidden="true"></video>
           <canvas id="runner-canvas" width="50" height="50" aria-hidden="true"></canvas>
         </div>
       </div>
@@ -3308,6 +3333,16 @@
     const runnerVideos = {};
     runner.querySelectorAll('.runner-src').forEach(v => {
       runnerVideos[v.dataset.mood] = v;
+      // Last line of defence behind the CSS/attribute fixes above. If an
+      // iOS build still decides to present one of these decode-only
+      // sources in the native fullscreen player — which is what turned a
+      // drag on the troll into a video player with a scrub bar and an
+      // AirPlay button — bail straight back out. Non-standard and
+      // WebKit-only, hence the guards.
+      v.addEventListener('webkitbeginfullscreen', () => {
+        if (typeof v.webkitExitFullscreen === 'function') v.webkitExitFullscreen();
+        else if (typeof document.exitFullscreen === 'function') document.exitFullscreen().catch(() => {});
+      });
       // preload="auto" is only a hint — some browsers won't actually start
       // fetching a non-autoplaying video without a nudge. These four are
       // invisible either way (opacity:0, painted onto the canvas instead),
