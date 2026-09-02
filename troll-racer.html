@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net https://www.trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://solana-rpc.publicnode.com https://api.devnet.solana.com https://lite-api.jup.ag; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#05070d">
+  <meta name="description" content="Troll Racer: a GT-style circuit racer in the Troll Runner Arcade. The track is the classic trollface — run the brow, dive the grin, hang on through the hairpins.">
+  <title>Troll Racer | Troll Runner Arcade</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2305070d'/%3E%3Ctext x='8' y='44' font-size='34'%3E%F0%9F%8F%8E%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/games/troll-dash/style.css?v=hub-v2-20260627">
+  <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
+  <link rel="stylesheet" href="assets/games/troll-racer/style.css?v=tr-v1">
+</head>
+<body>
+
+<div class="tr-shell" id="tr-shell">
+  <canvas class="tr-canvas" id="tr-canvas"></canvas>
+
+  <!-- ---------------------------------------------------------- loading -->
+  <div class="tr-boot" id="tr-boot">
+    <div class="tr-boot-logo">TROLL<br>RACER</div>
+    <p class="tr-boot-sub" id="tr-boot-sub">Loading…</p>
+    <div class="tr-boot-bar"><span></span></div>
+  </div>
+
+  <!-- -------------------------------------------------------------- HUD -->
+  <div class="tr-hud" id="tr-hud" hidden>
+    <div class="tr-hud-tl">
+      <div class="tr-chip">
+        <span class="tr-chip-label">Lap</span>
+        <span class="tr-chip-value"><span id="tr-lap">1</span><small>/<span id="tr-lap-total">3</span></small></span>
+      </div>
+      <div class="tr-chip">
+        <span class="tr-chip-label">Pos</span>
+        <span class="tr-chip-value"><span id="tr-pos">6</span><small>/<span id="tr-pos-total">6</span></small></span>
+      </div>
+    </div>
+
+    <div class="tr-hud-tr">
+      <div class="tr-time-row tr-time-cur"><span>Current</span><b id="tr-cur">--:--.---</b></div>
+      <div class="tr-time-row tr-time-best"><span>Best</span><b id="tr-best">--:--.---</b></div>
+      <div class="tr-delta" id="tr-delta"></div>
+    </div>
+
+    <div class="tr-map" id="tr-map">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <path id="tr-map-path" d="" fill="none" stroke="rgba(255,255,255,.34)" stroke-width="11" stroke-linejoin="round"/>
+        <g id="tr-map-ai"></g>
+        <circle id="tr-map-dot" cx="0" cy="0" r="12" fill="#4dff73"/>
+      </svg>
+    </div>
+
+    <div class="tr-cluster">
+      <div class="tr-speed">
+        <span class="tr-speed-num" id="tr-speed">0</span>
+        <span class="tr-speed-unit">km/h</span>
+      </div>
+      <div class="tr-gear" id="tr-gear">1</div>
+    </div>
+
+    <div class="tr-rev" id="tr-rev"><span></span></div>
+
+    <div class="tr-banner" id="tr-banner"></div>
+    <div class="tr-warn" id="tr-warn" hidden>Wrong way</div>
+  </div>
+
+  <!-- --------------------------------------------------- touch controls -->
+  <div class="tr-touch" id="tr-touch">
+    <button type="button" class="tr-touch-btn tr-t-left"  id="tr-t-left"  aria-label="Steer left">◀</button>
+    <button type="button" class="tr-touch-btn tr-t-right" id="tr-t-right" aria-label="Steer right">▶</button>
+    <button type="button" class="tr-touch-btn tr-t-brake" id="tr-t-brake" aria-label="Brake">BRAKE</button>
+    <button type="button" class="tr-touch-btn tr-t-gas"   id="tr-t-gas"   aria-label="Accelerate">GAS</button>
+  </div>
+
+  <!-- ------------------------------------------------------- setup menu -->
+  <div class="tr-overlay" id="tr-setup" hidden>
+    <div class="tr-card">
+      <p class="tr-eyebrow">Troll Runner Arcade presents</p>
+      <h1>TROLL RACER</h1>
+      <p>
+        The circuit <em>is</em> the trollface. You start on the brow, sweep the
+        whole head, then dive into the infield and run the grin back the other
+        way — with a hairpin at each corner of that smile.
+      </p>
+
+      <div class="tr-setup">
+        <label class="tr-field">
+          <span>Race length</span>
+          <div class="tr-seg">
+            <button type="button" data-laps="2" aria-pressed="false">2 laps</button>
+            <button type="button" data-laps="3" aria-pressed="true">3 laps</button>
+            <button type="button" data-laps="5" aria-pressed="false">5 laps</button>
+          </div>
+        </label>
+
+        <label class="tr-field">
+          <span>Rival skill</span>
+          <div class="tr-seg">
+            <button type="button" data-diff="rookie" aria-pressed="false">Rookie</button>
+            <button type="button" data-diff="pro" aria-pressed="true">Pro</button>
+            <button type="button" data-diff="ace" aria-pressed="false">Ace</button>
+          </div>
+        </label>
+
+        <label class="tr-field">
+          <span>Your paint</span>
+          <div class="tr-swatches">
+            <button type="button" data-color="#4dff73" aria-pressed="true"  aria-label="Troll green"></button>
+            <button type="button" data-color="#ff314f" aria-pressed="false" aria-label="Racing red"></button>
+            <button type="button" data-color="#4deeff" aria-pressed="false" aria-label="Cyan"></button>
+            <button type="button" data-color="#ffd84d" aria-pressed="false" aria-label="Gold"></button>
+            <button type="button" data-color="#9a5cff" aria-pressed="false" aria-label="Purple"></button>
+            <button type="button" data-color="#f2f2f4" aria-pressed="false" aria-label="White"></button>
+          </div>
+        </label>
+      </div>
+
+      <p style="font-size:12px;margin-top:16px">
+        <strong>WASD / arrows</strong> drive · <strong>Space</strong> handbrake ·
+        <strong>C</strong> camera · <strong>R</strong> recover · <strong>Esc</strong> pause
+      </p>
+
+      <div class="tr-actions">
+        <button type="button" class="tr-btn tr-btn-primary" id="tr-start">Start race</button>
+        <a class="tr-btn" href="games.html">Back to arcade</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------------------------------------------------------- results -->
+  <div class="tr-overlay" id="tr-results" hidden>
+    <div class="tr-card">
+      <p class="tr-eyebrow">Chequered flag</p>
+      <h2 id="tr-results-title">Race complete</h2>
+      <p id="tr-results-sub"></p>
+      <table class="tr-results">
+        <thead>
+          <tr><th></th><th>Driver</th><th>Best lap</th><th>Result</th></tr>
+        </thead>
+        <tbody id="tr-results-body"></tbody>
+      </table>
+      <div class="tr-actions">
+        <button type="button" class="tr-btn tr-btn-primary" id="tr-again">Race again</button>
+        <a class="tr-btn" href="games.html">Back to arcade</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------ pause -->
+  <div class="tr-overlay" id="tr-pause" hidden>
+    <div class="tr-card">
+      <h2>Paused</h2>
+      <p>Take a breath. The grid will wait.</p>
+      <div class="tr-actions">
+        <button type="button" class="tr-btn tr-btn-primary" id="tr-resume">Resume</button>
+        <a class="tr-btn" href="games.html">Quit to arcade</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------- weekly ladder -->
+<section class="arcade-rack leaderboard-rack" aria-labelledby="lb-title" style="max-width:1080px;margin:0 auto;padding:40px 18px 64px">
+  <div class="section-heading">
+    <p class="eyebrow">Weekly ladder</p>
+    <h2 id="lb-title">Fastest around the grin</h2>
+  </div>
+  <div id="lb-root" class="lb-root"><p class="lb-foot">Loading leaderboard…</p></div>
+</section>
+
+<script type="importmap">
+  { "imports": { "three": "./assets/vendor/three.module.min.js" } }
+</script>
+<script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
+<script src="assets/games/troll-racer/leaderboard.js?v=tr-lb-v1" defer></script>
+<script src="assets/games/troll-racer/track-data.js?v=tr-v1"></script>
+<script src="assets/games/troll-racer/track-build.js?v=tr-v1"></script>
+<script src="assets/games/troll-racer/car-build.js?v=tr-v1"></script>
+<script type="module" src="assets/games/troll-racer/game.js?v=tr-v1"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
+<script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>
+<script src="assets/games/shared/site-lock.js"></script>
+<script src="https://mayurski-art.github.io/assets/js/troll-notis.js"></script>
+</body>
+</html>
