@@ -3396,11 +3396,14 @@
     // same size on the canvas (measured head widths in the source frame:
     // running 170/544, idle 145/416, sad 187/352, victory 132/448) — capped
     // so the tallest resulting body (victory) still fits the full 50px
-    // height with nothing cropped off. That cap is why running now draws
-    // at ~32px tall instead of 50: at equal head size, a crouched runner
-    // really is shorter than a standing troll, and now looks it instead of
-    // being stretched to match.
-    const MOOD_SCALE = { running: 0.647, idle: 0.997, sad: 0.874, victory: 1 };
+    // height with nothing cropped off. Strict head-matching put running at
+    // 0.647 (~32px tall), but that's the pose you actually watch while
+    // dragging, and dropping to that size right as the drag starts read as
+    // the troll shrinking, not as "correctly proportioned". Bumped by hand
+    // toward its own natural fit (1.0 fills the box, same as the original
+    // pre-fix code) — 0.85 is bigger and no longer looks like a size drop,
+    // while stopping short of 1.0 so it still doesn't dwarf the others.
+    const MOOD_SCALE = { running: 0.85, idle: 0.997, sad: 0.874, victory: 1 };
     // Declared up here rather than beside setMood() below, because the
     // render loop starts before that point and paintRunnerFrame() reads it.
     let mood = 'idle';
