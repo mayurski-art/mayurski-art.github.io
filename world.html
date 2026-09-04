@@ -3380,42 +3380,27 @@
 
     // Each pose was exported cropped tight to its own silhouette, at a
     // different aspect ratio (running 544x560, idle 416x736, sad 352x832,
-    // victory 448x672). A plain contain-fit therefore scales every clip to
-    // the same *height*, which is the wrong invariant: running is a
-    // crouched pose that occupies little vertical space, so it got blown up
-    // and its head rendered ~15px, while the upright idle/sad/victory poses
-    // were squeezed down to ~10px heads. Same box, four different-looking
-    // trolls.
+    // victory 448x672) — every clip already fills ~99% of its own frame in
+    // both axes, so there's no padding to trim; the frames themselves are
+    // just different shapes because the poses are different shapes (a
+    // crouched runner is shorter than a troll standing with an arm up).
     //
-    // What the eye actually reads as "how big is the troll" is the head, so
-    // `scale` normalises each pose against the running one (measured head
-    // widths: running 170/544, idle 145/416, sad 187/352, victory 132/448 —
-    // see the ratios those imply). Running stays 1 and is the reference;
-    // the others scale up to match it.
+    // A plain contain-fit (the original code) makes every pose exactly
+    // 50px *tall* regardless of that, which is the wrong invariant: it
+    // blows the compact running pose up to full height and its head reads
+    // huge, while the upright poses get squeezed thin and their heads read
+    // tiny. What the eye actually judges as "same size troll" is head size,
+    // not bounding-box height.
     //
-    // Scaling up means an upright pose no longer fits the 50px box, so
-    // something has to be cropped. `head` is the vertical midpoint of the
-    // face as a fraction of the source frame, and the draw below lines that
-    // point up across all four moods — the crop then comes off the legs
-    // rather than the face. Anchoring to the bottom instead was tried first
-    // and decapitated idle and victory outright.
-    const MOODS = {
-      running: { scale: 1,    head: (20 + 165) / 2 / 560 },
-      idle:    { scale: 1.54, head: (25 + 150) / 2 / 736 },
-      // Sad is the one pose that moves vertically: he slumps down and rises
-      // back up over the loop, his head travelling from y=1 to y=168. Anchor
-      // on the UPRIGHT extreme, not a mid-slump frame — calibrating against
-      // the slumped frame pushed the head off the top for most of the loop.
-      sad:     { scale: 1.35, head: (1 + 170) / 2 / 832 },
-      // Victory jumps, so like sad its head moves — from y=0 to y=91 over
-      // the loop. Same rule: anchor the highest point so the peak of the
-      // leap stays in frame.
-      victory: { scale: 1.55, head: (0 + 115) / 2 / 672 },
-    };
-    // The running pose fills the canvas exactly (544x560 into a square is
-    // height-limited, scale 1), so its face lands this far down the canvas.
-    // Everything else is registered to this line.
-    const REF_HEAD_Y = MOODS.running.head;
+    // So `scale` here is chosen per pose so every clip's head lands at the
+    // same size on the canvas (measured head widths in the source frame:
+    // running 170/544, idle 145/416, sad 187/352, victory 132/448) — capped
+    // so the tallest resulting body (victory) still fits the full 50px
+    // height with nothing cropped off. That cap is why running now draws
+    // at ~32px tall instead of 50: at equal head size, a crouched runner
+    // really is shorter than a standing troll, and now looks it instead of
+    // being stretched to match.
+    const MOOD_SCALE = { running: 0.647, idle: 0.997, sad: 0.874, victory: 1 };
     // Declared up here rather than beside setMood() below, because the
     // render loop starts before that point and paintRunnerFrame() reads it.
     let mood = 'idle';
@@ -3425,16 +3410,15 @@
       const vw = runnerVideo.videoWidth, vh = runnerVideo.videoHeight;
       if (!vw || !vh) return;
       const cw = runnerCanvas.width, ch = runnerCanvas.height;
-      const pose = MOODS[mood] || MOODS.running;
-      const scale = Math.min(cw / vw, ch / vh) * pose.scale;
+      const scale = Math.min(cw / vw, ch / vh) * (MOOD_SCALE[mood] || 1);
       const dw = vw * scale, dh = vh * scale;
-      // Where the running troll's face sits in the canvas — the fixed line
-      // every other pose is registered against, so the head neither grows
-      // nor drifts as the mood changes. Derived from the running clip's own
-      // dimensions (not the current video's), since it is the reference.
-      const headY = REF_HEAD_Y * ch;
       runnerCtx.clearRect(0, 0, cw, ch);
-      runnerCtx.drawImage(runnerVideo, (cw - dw) / 2, headY - pose.head * dh, dw, dh);
+      // Bottom-anchored, not centred: every pose stands on the same ground
+      // line regardless of its height, which is what actually standing on
+      // the track looks like. Every mood now fits within `ch` by
+      // construction (that's what MOOD_SCALE was capped against), so this
+      // never crops — it only ever leaves empty canvas above a shorter pose.
+      runnerCtx.drawImage(runnerVideo, (cw - dw) / 2, ch - dh, dw, dh);
       const frame = runnerCtx.getImageData(0, 0, cw, ch);
       const d = frame.data;
       for (let i = 0; i < d.length; i += 4) {
