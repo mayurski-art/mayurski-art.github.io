@@ -606,11 +606,43 @@ h1, h2 { font-family: "Black Ops One", var(--font); letter-spacing: 0.01em; }
   .cabinet-footer { display: none; }   /* keyboard hints are dead weight once the touch pad is shown */
   .select-footer { flex-direction: column; align-items: stretch; }
   .select-actions { justify-content: space-between; }
+
+  /* A 1280:600 canvas can only get so tall on a narrow phone before it'd
+     overflow the width, so title+cabinet+pad never reach the bottom of a
+     tall viewport on their own. During an active fight, center that whole
+     block in the leftover height instead of leaving it stuck to the top
+     with dead space below — the pad also grows (below) to help fill the
+     gap, but centering is what makes the empty space stop reading as a
+     mistake. Pre-match select screens are left alone: those overlays are
+     position:fixed full-viewport already (see the .game-overlay rule
+     further down) so there's nothing behind them to center. */
+  body[data-game-state="fight"] .fight-hero {
+    min-height: calc(100svh - 20px); justify-content: center;
+  }
 }
 @media (max-width: 430px) {
   .roster-pick .portrait { width: 64px; height: 64px; }
   .touch-pad { grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 46px); }
   .touch-acts { grid-template-columns: repeat(2, 50px); }
+}
+
+/* Bigger on-screen pad while actively fighting on mobile: claims the
+   vertical room a 1280:600 canvas can't use on a narrow phone, and gives
+   thumbs a larger, easier target than the pre-match-sized buttons. */
+@media (max-width: 760px) {
+  body[data-game-state="fight"] .touch-controls {
+    padding: clamp(14px, 4svh, 28px) 16px; gap: clamp(16px, 5vw, 32px);
+  }
+  body[data-game-state="fight"] .touch-pad {
+    grid-template-columns: repeat(3, clamp(52px, 15vw, 84px));
+    grid-template-rows: repeat(2, clamp(52px, 15vw, 84px));
+    gap: 8px;
+  }
+  body[data-game-state="fight"] .touch-acts {
+    grid-template-columns: repeat(2, clamp(56px, 16vw, 88px));
+    gap: 10px;
+  }
+  body[data-game-state="fight"] .tbtn { font-size: clamp(20px, 5.5vw, 30px); border-radius: 16px; }
 }
 
 /* Pre-match overlays (choose match type / difficulty / fighter / stage) are
@@ -621,6 +653,12 @@ h1, h2 { font-family: "Black Ops One", var(--font); letter-spacing: 0.01em; }
    so setup screens get the whole screen, not just the game-canvas box. */
 @media (max-width: 760px) {
   .game-overlay { position: fixed; z-index: 30; }
+  /* Fixed-position overlay and the touch pad's own compositing layers can
+     paint out of DOM z-order on some mobile GPUs (buttons visibly showing
+     through the "on top" overlay despite it winning hit-testing) — the pad
+     has nothing to control before a fight starts anyway, so just hide it
+     for the pre-match screens instead of fighting the paint order. */
+  body[data-game-state="select"] .touch-controls { display: none; }
 }
 
 /* Pointer (desktop) layouts hide the touch pad */
