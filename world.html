@@ -34,7 +34,7 @@
   <link rel="apple-touch-icon" href="/assets/images/icons/app/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=Rubik:wght@400;500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <script>
   // The other half of the phone routing in index.html: this page is the phone
   // entrance, so a desktop visitor who lands here directly is sent to the
@@ -793,8 +793,152 @@
 
     /* ---- the hub (live chat room) ----
        Opens as this same sheet drawer, so the island stays put behind it
-       instead of a hard navigation to a separate page. */
-    #hub .sheet-inner { display: flex; flex-direction: column; overflow: hidden; }
+       instead of a hard navigation to a separate page.
+
+       Styled to read as trollrunner-terminal's monochrome/red-yellow
+       terminal, seamlessly this time — the terminal *is* the hub, just
+       delivered as a sheet in the main repo instead of a separate
+       subdomain hop. Scoped as local custom-property overrides on #hub
+       alone (not touched at :root) so every other sheet in this shell
+       keeps its own glass/Archivo look untouched. Terminal's own palette,
+       see trollrunner-terminal/app/globals.css §"Monochrome terminal +
+       red/yellow accent system": every color means exactly one thing. */
+    #hub {
+      --hub-bg: #0a0a0a;
+      --hub-panel: #111111;
+      --hub-fg: #d6d6d6;
+      --hub-terminal: #f2f2f2; /* the room speaking / live state */
+      --hub-dim: #5c5c5c; /* chrome, timestamps, labels */
+      --hub-you: #9a9a9a; /* your own messages */
+      --hub-problem: #ffd21f; /* unread, badges, CTAs — "the economy" hue */
+      --hub-alert: #ff3b3b; /* live dot, danger, brand accent */
+      --hub-mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+    /* Background-image is the generated interior-of-the-hub scene, PFP
+       Studio-style curated art rather than a plain flat color — a dark
+       scrim is baked in via the gradient so the mono terminal text stays
+       legible over whatever the art's own brightness turns out to be.
+       --hub-bg-url is set by setHubBackground() below, picked from one of
+       4 files (desktop/mobile x day/night) based on viewport + the
+       visitor's local clock; it falls back to none (url('') is a no-op,
+       not a 404) until those files exist, leaving the flat --hub-bg
+       color visible. */
+    #hub .sheet-inner {
+      display: flex; flex-direction: column; overflow: hidden;
+      position: relative;
+      background-color: var(--hub-bg); color: var(--hub-fg);
+      background-image:
+        linear-gradient(180deg, #0a0a0acc 0%, #0a0a0af0 70%, #0a0a0a 100%),
+        var(--hub-bg-url, none);
+      background-size: cover;
+      background-position: center;
+      font-family: var(--hub-mono);
+    }
+    /* Every display/UI font inside the Hub collapses to the terminal mono —
+       simpler than re-pointing each rule below one at a time. */
+    #hub .hub-lobby-card-title, #hub .hub-room-title .title, #hub h2,
+    #hub .hub-author, #hub .hub-dm-title, #hub .hub-empty strong,
+    #hub .hub-dm-empty strong {
+      font-family: var(--hub-mono) !important;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+    #hub .sub, #hub .hub-lobby-card-desc, #hub .hub-room-title .subtitle,
+    #hub .hub-dm-preview, #hub .hub-note, #hub .hub-dm-note, #hub .hub-empty span,
+    #hub .hub-dm-empty span, #hub .hub-typing {
+      font-family: var(--hub-mono); color: var(--hub-dim);
+    }
+    #hub h2 { color: var(--hub-terminal); }
+    /* Thin scanline texture over the whole sheet — decorative only, so it
+       can't intercept clicks. */
+    #hub .sheet-inner::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+      background: repeating-linear-gradient(180deg, #ffffff08 0px, transparent 1px, transparent 3px);
+      mix-blend-mode: overlay; opacity: .5;
+    }
+    #hub .hub-lobby-mark { background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px; }
+    #hub .hub-lobby-card {
+      background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px;
+      color: var(--hub-fg);
+    }
+    #hub .hub-lobby-card:hover { border-color: var(--hub-terminal); background: #161616; transform: none; }
+    #hub .hub-lobby-card-icon { background: #000; border-radius: 4px; }
+    #hub .hub-lobby-card-badge {
+      background: var(--hub-alert); border-color: var(--hub-bg); border-radius: 3px; font-family: var(--hub-mono);
+    }
+    #hub .hub-lobby-back { color: var(--hub-dim); font-family: var(--hub-mono); }
+    #hub .hub-lobby-back:hover { color: var(--hub-terminal); }
+    #hub .hub-room-back, #hub .hub-chip {
+      background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px;
+      color: var(--hub-fg); font-family: var(--hub-mono);
+    }
+    #hub .hub-room-back:hover, #hub .hub-chip:hover { border-color: var(--hub-terminal); background: #161616; }
+    #hub .hub-chip[aria-expanded="true"] { border-color: var(--hub-problem); color: var(--hub-problem); background: var(--hub-panel); }
+    #hub .hub-chip--go { background: var(--hub-alert); border-color: var(--hub-alert); color: #0a0a0a; }
+    #hub .hub-chip--go:hover { filter: brightness(1.1); background: var(--hub-alert); }
+    #hub .hub-live { color: var(--hub-alert); font-family: var(--hub-mono); }
+    #hub .hub-live-dot { background: var(--hub-alert); box-shadow: 0 0 6px var(--hub-alert); }
+    #hub .hub-feed {
+      background: var(--hub-bg); border: 1px solid var(--hub-dim); border-radius: 4px;
+      scrollbar-color: var(--hub-dim) transparent;
+    }
+    #hub .hub-feed::-webkit-scrollbar-thumb { background: var(--hub-dim); }
+    #hub .hub-jump-pill {
+      background: var(--hub-problem); color: #0a0a0a; border-radius: 4px; font-family: var(--hub-mono);
+    }
+    #hub .hub-msg { border-bottom: 1px dashed var(--hub-dim); }
+    #hub .hub-avatar { border-radius: 3px; background-color: var(--hub-panel); }
+    #hub .hub-avatar img { border-radius: 3px; }
+    #hub .hub-author { color: var(--hub-terminal); }
+    #hub .hub-msg.is-me .hub-author { color: var(--hub-you); }
+    #hub .hub-author--guest { color: var(--hub-dim); }
+    #hub .hub-guest-tag { background: var(--hub-panel); color: var(--hub-dim); border-radius: 3px; font-family: var(--hub-mono); }
+    #hub .hub-time { color: var(--hub-dim); }
+    #hub .hub-text { color: var(--hub-fg); }
+    #hub .hub-unread-divider { color: var(--hub-alert); }
+    #hub .hub-unread-divider::before, #hub .hub-unread-divider::after { background: color-mix(in srgb, var(--hub-alert) 40%, transparent); }
+    #hub .hub-name-input, #hub .hub-msg-input, #hub .hub-dm-input {
+      background: var(--hub-bg); border: 1px solid var(--hub-dim); border-radius: 4px;
+      color: var(--hub-fg); font-family: var(--hub-mono);
+    }
+    #hub .hub-name-input:focus, #hub .hub-msg-input:focus, #hub .hub-dm-input:focus {
+      border-color: var(--hub-terminal); background: var(--hub-bg);
+    }
+    /* Blinking terminal caret standing in front of the message input's own
+       placeholder — the classic "prompt waiting for input" tell. Hidden the
+       instant there's real text or focus so it never overlaps what's typed. */
+    #hub .hub-composer { position: relative; }
+    #hub .hub-msg-input { padding-left: 18px; }
+    #hub .hub-composer::before {
+      content: '_'; position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+      color: var(--hub-terminal); font-family: var(--hub-mono); pointer-events: none;
+      animation: hub-caret-blink 1s steps(1) infinite;
+    }
+    #hub .hub-msg-input:focus ~ .hub-composer::before,
+    #hub .hub-composer:has(.hub-msg-input:focus)::before,
+    #hub .hub-composer:has(.hub-msg-input:not(:placeholder-shown))::before {
+      display: none;
+    }
+    @keyframes hub-caret-blink { 50% { opacity: 0; } }
+    #hub .hub-send {
+      background: var(--hub-alert); color: #0a0a0a; border-radius: 4px; font-family: var(--hub-mono);
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    #hub .hub-send:hover { filter: brightness(1.1); }
+    #hub .hub-dm-panel { background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px; }
+    #hub .hub-dm-h { color: var(--hub-dim); font-family: var(--hub-mono); }
+    #hub .hub-dm-note.is-bad { color: var(--hub-alert); }
+    #hub .hub-dm-item { background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px; color: var(--hub-fg); }
+    #hub .hub-dm-item:hover { border-color: var(--hub-terminal); background: #161616; }
+    #hub .hub-dm-av { border-radius: 3px; background-color: #000; }
+    #hub .hub-dm-when { color: var(--hub-dim); }
+    #hub .hub-dm-tag { background: var(--hub-panel); border: 1px solid var(--hub-dim); color: var(--hub-dim); border-radius: 3px; font-family: var(--hub-mono); }
+    #hub .hub-dm-tag--new { background: var(--hub-problem); border-color: var(--hub-problem); color: #0a0a0a; }
+    #hub .hub-friend-chip { background: var(--hub-panel); border: 1px solid var(--hub-dim); color: var(--hub-fg); }
+    #hub .hub-friend-chip:hover { border-color: var(--hub-terminal); background: #161616; }
+    #hub .hub-friend-chip input { accent-color: var(--hub-alert); }
+    #hub .sheet-close-btn { color: var(--hub-dim); }
+    #hub .sheet-close-btn:hover { color: var(--hub-terminal); }
     .hub-lobby {
       flex: 1; min-height: 0; overflow-y: auto;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -832,6 +976,41 @@
       margin-top: 2px; background: none; border: 0; color: var(--fg-dim); text-decoration: underline;
       font: 13px var(--font-ui); cursor: pointer; padding: 6px;
     }
+
+    /* Persistent 6-tab bar, always visible above whichever screen is
+       showing. Sized/positioned to sit inside the blank tab-shape slots
+       painted into hub-interior-*.jpg (day/night x desktop/mobile) — see
+       setHubBackground() — so the real buttons read as part of the same
+       tavern-menu art rather than a plain HTML strip floating on top. */
+    .hub-tabbar {
+      display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px;
+      padding: 4px 0 8px; flex: none;
+    }
+    .hub-tab {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      border: 1px solid var(--hub-dim); border-radius: 8px; background: var(--hub-panel);
+      color: var(--hub-fg); cursor: pointer; padding: 7px 2px; font: inherit;
+      transition: background .16s var(--ease), border-color .16s var(--ease);
+    }
+    .hub-tab:hover { border-color: var(--hub-terminal); background: #161616; }
+    .hub-tab[aria-selected="true"] { border-color: var(--hub-problem); color: var(--hub-problem); }
+    .hub-tab-icon { position: relative; font-size: 15px; line-height: 1; }
+    .hub-tab-label { font-family: var(--hub-mono); font-size: 9px; letter-spacing: .01em; white-space: nowrap; }
+    .hub-friends-btn {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin: 0 auto 6px; border: 1px solid var(--hub-dim); border-radius: 999px;
+      background: var(--hub-panel); color: var(--hub-fg); cursor: pointer;
+      padding: 6px 14px; font: 12px var(--hub-mono); flex: none;
+    }
+    .hub-friends-btn:hover { border-color: var(--hub-terminal); background: #161616; }
+
+    /* PFP Studio / Games — iframed in-sheet since they're same-origin
+       (pfp.html/games.html share frame-ancestors 'self' with world.html).
+       Terminal stays a navigate-away tab instead (see launchTerminalWarp)
+       since it's cross-origin and a third-party iframe risks silently
+       breaking its Supabase login under Safari ITP / storage partitioning. */
+    .hub-embed { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+    .hub-embed-frame { flex: 1; min-height: 0; width: 100%; border: 0; border-radius: 10px; background: #000; }
 
     .hub-room { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
     .hub-room-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1897,27 +2076,74 @@
       <div class="sheet-head-bar">
         <button class="sheet-close-btn" id="hub-close" type="button" aria-label="Close">✕</button>
       </div>
+      <!-- Persistent tab bar — always visible above whichever screen is
+           active (including the lobby placeholder itself), styled to sit
+           inside the blank tab slots baked into hub-interior-*.jpg. Chat
+           and Messages open real in-sheet screens; Terminal and Maps play
+           the telescope transition and navigate away (see launchObservatory/
+           launchTerminalWarp below — Terminal is deliberately never iframed,
+           it lives on a different origin and cross-origin iframing risks
+           silently breaking its Supabase login under Safari ITP); PFP
+           Studio and Games are same-origin so they're iframed in-sheet. -->
+      <div class="hub-tabbar" role="tablist" aria-label="Hub sections">
+        <button type="button" id="hub-open-general" class="hub-tab" role="tab" aria-selected="true">
+          <span class="hub-tab-icon" aria-hidden="true">💬</span>
+          <span class="hub-tab-label">Chat</span>
+        </button>
+        <button type="button" id="hub-open-messages" class="hub-tab" role="tab" aria-selected="false">
+          <span class="hub-tab-icon" aria-hidden="true">💗<span id="hub-messages-badge" class="hub-lobby-card-badge" hidden>0</span></span>
+          <span class="hub-tab-label">Messages</span>
+        </button>
+        <button type="button" id="hub-open-terminal" class="hub-tab" role="tab" aria-selected="false">
+          <span class="hub-tab-icon" aria-hidden="true">⌨️</span>
+          <span class="hub-tab-label">Terminal</span>
+        </button>
+        <button type="button" id="hub-open-maps" class="hub-tab" role="tab" aria-selected="false">
+          <span class="hub-tab-icon" aria-hidden="true">🗺️</span>
+          <span class="hub-tab-label">Maps</span>
+        </button>
+        <button type="button" id="hub-open-pfp" class="hub-tab" role="tab" aria-selected="false">
+          <span class="hub-tab-icon" aria-hidden="true">🖼️</span>
+          <span class="hub-tab-label">PFP Studio</span>
+        </button>
+        <button type="button" id="hub-open-games" class="hub-tab" role="tab" aria-selected="false">
+          <span class="hub-tab-icon" aria-hidden="true">🕹️</span>
+          <span class="hub-tab-label">Games</span>
+        </button>
+      </div>
+      <button type="button" id="hub-open-connect" class="hub-friends-btn" aria-label="Friends — browse every runner to friend or message">
+        <span aria-hidden="true">👥</span> Friends
+      </button>
+
       <section id="hub-lobby" class="hub-lobby">
         <img class="hub-lobby-mark" src="assets/animations/troll-grin.gif" alt="">
         <h2>THE HUB</h2>
         <p class="sub">How do you want to troll today?</p>
-        <div class="hub-lobby-cards">
-          <button type="button" id="hub-open-general" class="hub-lobby-card">
-            <span class="hub-lobby-card-icon" aria-hidden="true">💬</span>
-            <span class="hub-lobby-card-title">General Chat</span>
-            <span class="hub-lobby-card-desc">Jump into the live room — everyone's here.</span>
-          </button>
-          <button type="button" id="hub-open-messages" class="hub-lobby-card">
-            <span class="hub-lobby-card-icon" aria-hidden="true">💗<span id="hub-messages-badge" class="hub-lobby-card-badge" hidden>0</span></span>
-            <span class="hub-lobby-card-title">Messages</span>
-            <span class="hub-lobby-card-desc">DM a runner or start/join a group chat.</span>
-          </button>
-          <button type="button" id="hub-open-connect" class="hub-lobby-card">
-            <span class="hub-lobby-card-icon" aria-hidden="true">👥</span>
-            <span class="hub-lobby-card-title">Connect</span>
-            <span class="hub-lobby-card-desc">Browse every runner to friend or message.</span>
-          </button>
+      </section>
+
+      <!-- PFP Studio and Games: same-origin pages iframed in-sheet, lazy-
+           loaded (src set on first open, not on Hub open) with a fallback
+           link in case anyone prefers the full page. See initHubIframeTab
+           below. -->
+      <section id="hub-pfp" class="hub-embed" hidden aria-label="PFP Studio">
+        <div class="hub-room-top">
+          <div class="hub-room-title"><div class="title">PFP Studio</div></div>
+          <div class="hub-chips">
+            <a class="hub-chip" href="pfp.html" target="_top">Open full page ↗</a>
+            <button type="button" class="hub-room-back" id="hub-pfp-back">&#x2190; Back</button>
+          </div>
         </div>
+        <iframe id="hub-pfp-iframe" class="hub-embed-frame" title="PFP Studio" loading="lazy"></iframe>
+      </section>
+      <section id="hub-games" class="hub-embed" hidden aria-label="Games">
+        <div class="hub-room-top">
+          <div class="hub-room-title"><div class="title">Games</div></div>
+          <div class="hub-chips">
+            <a class="hub-chip" href="games.html" target="_top">Open full page ↗</a>
+            <button type="button" class="hub-room-back" id="hub-games-back">&#x2190; Back</button>
+          </div>
+        </div>
+        <iframe id="hub-games-iframe" class="hub-embed-frame" title="Games" loading="lazy"></iframe>
       </section>
 
       <!-- Messages: the same DM + group inbox the classic desktop has, on the
@@ -2444,6 +2670,24 @@
     // same width/pointer check the phone-only CSS above keys off of —
     // without that always-on clause.
     const isPhoneLayout = window.matchMedia('(max-width: 720px), (pointer: coarse)').matches;
+
+    /* Hub interior background — 4 generated stills (desktop/mobile x
+       day/night), picked from the visitor's own device width and local
+       clock, not a server-side guess. "Night" is 7pm-6:59am local time,
+       matching how most people would call it dark out; re-checked every
+       time the Hub sheet opens (hubSetOpen calls this) rather than once at
+       load, so a session left open across the day/night boundary still
+       picks up the right art next time it's opened. Missing files are
+       harmless — see the --hub-bg-url fallback in #hub .sheet-inner's CSS. */
+    function setHubBackground() {
+      const hour = new Date().getHours();
+      const isNight = hour >= 19 || hour < 7;
+      const variant = (isPhoneLayout ? 'mobile' : 'desktop') + '-' + (isNight ? 'night' : 'day');
+      const hubInner = document.querySelector('#hub .sheet-inner');
+      if (hubInner) hubInner.style.setProperty('--hub-bg-url', `url('assets/images/hub/hub-interior-${variant}.jpg')`);
+    }
+    setHubBackground();
+
     function setPhase(next) {
       body.dataset.phase = next;
       clearTimeout(lockTimer);
@@ -2563,6 +2807,22 @@
       scopeOverlay.classList.add('is-active');
       setTimeout(() => scopeOverlay.classList.add('is-warp'), 450);
       setTimeout(() => { window.top.location.href = dest; }, 1050);
+    }
+
+    /* Same telescope zoom used for Maps, minus the ?enter=scope handoff —
+       terminal.trollrunner.net has no matching arrival animation to catch
+       it, so appending that param would just be a dead querystring there.
+       This is also why Terminal is a navigate-away tab rather than an
+       iframe: it's the one Hub tab on a different origin, and third-party
+       iframing risks silently breaking its Supabase login under Safari ITP
+       / Chrome storage partitioning — a hard-to-debug failure with no good
+       in-frame error signal, so it gets the same seamless exit as Maps
+       instead of a session-fragile embed. */
+    function launchTerminalWarp(url) {
+      if (!scopeOverlay || calm.matches) { window.top.location.href = url; return; }
+      scopeOverlay.classList.add('is-active');
+      setTimeout(() => scopeOverlay.classList.add('is-warp'), 450);
+      setTimeout(() => { window.top.location.href = url; }, 1050);
     }
 
     /* Phones used to swap in a flattened trollrunner-island-land-mobile.png
@@ -4275,7 +4535,7 @@
       opts = opts || {};
       hubSheet.classList.toggle('is-open', open);
       hubSheet.inert = !open;
-      if (open) hubClose.focus();
+      if (open) { hubClose.focus(); setHubBackground(); }
       if (!opts.skipUrl) {
         try {
           const top = window.top || window;
@@ -4705,13 +4965,25 @@
         } catch { state.channel = null; }
       }
 
-      /* The Hub sheet holds four exclusive screens: the lobby, the general
-         room, the Messages inbox, and one open thread. Everything but the
-         lobby wants the taller sheet (.is-room), because all three scroll. */
-      const HUB_SCREENS = ['hub-lobby', 'hub-room', 'hub-messages', 'hub-thread', 'hub-connect'];
+      /* The Hub sheet holds several exclusive screens under the persistent
+         tab bar: the lobby placeholder, the general room, the Messages
+         inbox, one open thread, Connect (opened via the Friends button, not
+         a tab), and the two same-origin iframed apps (PFP Studio, Games).
+         Everything but the lobby wants the taller sheet (.is-room), because
+         all of them scroll or need real vertical room. Terminal and Maps
+         are NOT screens — their tabs play a transition and navigate away
+         (see launchTerminalWarp / launchObservatory), so they never appear
+         here. */
+      const HUB_SCREENS = ['hub-lobby', 'hub-room', 'hub-messages', 'hub-thread', 'hub-connect', 'hub-pfp', 'hub-games'];
       function showScreen(id) {
         HUB_SCREENS.forEach(s => { const el = document.getElementById(s); if (el) el.hidden = s !== id; });
         document.getElementById('hub').classList.toggle('is-room', id !== 'hub-lobby');
+      }
+      /* Reflects which top-level tab is "current" via aria-selected — purely
+         a11y/visual state, independent of showScreen's hidden-toggling,
+         since Terminal/Maps tabs never show a screen to sync against. */
+      function setActiveTab(tabId) {
+        document.querySelectorAll('.hub-tab').forEach(t => t.setAttribute('aria-selected', t.id === tabId ? 'true' : 'false'));
       }
       function enterRoom() {
         showScreen('hub-room');
@@ -5488,19 +5760,45 @@
         });
       }
 
+      /* PFP Studio / Games tabs: same-origin iframe, lazy-loaded — the src
+         is only set the first time the tab opens, not when the Hub itself
+         opens, so a visitor who never touches these tabs never pays for
+         loading pfp.html/games.html in the background. */
+      function initHubIframeTab({ tabId, screenId, frameId, backId, src }) {
+        const tab = document.getElementById(tabId);
+        const frame = document.getElementById(frameId);
+        const back = document.getElementById(backId);
+        if (tab) tab.addEventListener('click', () => {
+          if (frame && !frame.src) frame.src = src;
+          setActiveTab(tabId);
+          showScreen(screenId);
+        });
+        if (back) back.addEventListener('click', () => { setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
+      }
+
       function initHubLobby() {
         const general = document.getElementById('hub-open-general');
         const messagesCard = document.getElementById('hub-open-messages');
         const messagesBack = document.getElementById('hub-messages-back');
         const connectCard = document.getElementById('hub-open-connect');
         const connectBack = document.getElementById('hub-connect-back');
-        if (general) general.addEventListener('click', enterRoom);
+        const terminalTab = document.getElementById('hub-open-terminal');
+        const mapsTab = document.getElementById('hub-open-maps');
+        if (general) general.addEventListener('click', () => { setActiveTab('hub-open-general'); enterRoom(); });
         if (messagesCard) messagesCard.addEventListener('click', () => {
+          setActiveTab('hub-open-messages');
           showScreen('hub-messages');
           dmClosePanel();
           void dmLoadInbox();
         });
-        if (messagesBack) messagesBack.addEventListener('click', () => { dmClosePanel(); showScreen('hub-lobby'); });
+        if (messagesBack) messagesBack.addEventListener('click', () => { dmClosePanel(); setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
+        // Terminal and Maps deliberately never become an in-sheet screen —
+        // they play the telescope transition, then navigate the top-level
+        // window away. See launchTerminalWarp/launchObservatory below.
+        if (terminalTab) terminalTab.addEventListener('click', () => launchTerminalWarp('https://terminal.trollrunner.net'));
+        if (mapsTab) mapsTab.addEventListener('click', () => launchObservatory('maps.html'));
+        initHubIframeTab({ tabId: 'hub-open-pfp', screenId: 'hub-pfp', frameId: 'hub-pfp-iframe', backId: 'hub-pfp-back', src: 'pfp.html?embed=1' });
+        initHubIframeTab({ tabId: 'hub-open-games', screenId: 'hub-games', frameId: 'hub-games-iframe', backId: 'hub-games-back', src: 'games.html?embed=1' });
 
         // Messages card badges unread DMs + pending friend requests (both
         // surface inside that same inbox — see dmLoadInbox's "Friend
@@ -5519,9 +5817,9 @@
           showScreen('hub-connect');
           void loadConnectPage(true);
         });
-        if (connectBack) connectBack.addEventListener('click', () => showScreen('hub-lobby'));
+        if (connectBack) connectBack.addEventListener('click', () => { setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
         const backToLobby = document.getElementById('hub-back-to-lobby');
-        if (backToLobby) backToLobby.addEventListener('click', () => showScreen('hub-lobby'));
+        if (backToLobby) backToLobby.addEventListener('click', () => { setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
       }
 
       function init() {

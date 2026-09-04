@@ -1838,9 +1838,11 @@
         });
       }
       el.roomPanelClose.addEventListener('click', closeRoomPanel);
-      // Iframed inside the index.html desktop icon, "/" would reload the
-      // whole site's boot/lock sequence into that small window and look
-      // broken — only navigate home when this is a real top-level page.
+      // Iframed inside the index.html desktop icon (or, now, the Hub's PFP
+      // Studio tab — window.self === window.top is false either way, one
+      // level deep or two), "/" would reload the whole site's boot/lock
+      // sequence into that small window and look broken — only navigate
+      // home when this is a real top-level page.
       document.getElementById('btn-home').addEventListener('click', () => {
         if (window.self === window.top) {
           // Read by index.html to skip world.html's lock-drag and boot
