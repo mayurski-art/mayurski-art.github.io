@@ -3377,15 +3377,64 @@
     // linework — compression noise in the "black" areas fades out instead
     // of being scattered as stray opaque pixels.
     const KEY_LO = 24, KEY_HI = 100;
+
+    // Each pose was exported cropped tight to its own silhouette, at a
+    // different aspect ratio (running 544x560, idle 416x736, sad 352x832,
+    // victory 448x672). A plain contain-fit therefore scales every clip to
+    // the same *height*, which is the wrong invariant: running is a
+    // crouched pose that occupies little vertical space, so it got blown up
+    // and its head rendered ~15px, while the upright idle/sad/victory poses
+    // were squeezed down to ~10px heads. Same box, four different-looking
+    // trolls.
+    //
+    // What the eye actually reads as "how big is the troll" is the head, so
+    // `scale` normalises each pose against the running one (measured head
+    // widths: running 170/544, idle 145/416, sad 187/352, victory 132/448 —
+    // see the ratios those imply). Running stays 1 and is the reference;
+    // the others scale up to match it.
+    //
+    // Scaling up means an upright pose no longer fits the 50px box, so
+    // something has to be cropped. `head` is the vertical midpoint of the
+    // face as a fraction of the source frame, and the draw below lines that
+    // point up across all four moods — the crop then comes off the legs
+    // rather than the face. Anchoring to the bottom instead was tried first
+    // and decapitated idle and victory outright.
+    const MOODS = {
+      running: { scale: 1,    head: (20 + 165) / 2 / 560 },
+      idle:    { scale: 1.54, head: (25 + 150) / 2 / 736 },
+      // Sad is the one pose that moves vertically: he slumps down and rises
+      // back up over the loop, his head travelling from y=1 to y=168. Anchor
+      // on the UPRIGHT extreme, not a mid-slump frame — calibrating against
+      // the slumped frame pushed the head off the top for most of the loop.
+      sad:     { scale: 1.35, head: (1 + 170) / 2 / 832 },
+      // Victory jumps, so like sad its head moves — from y=0 to y=91 over
+      // the loop. Same rule: anchor the highest point so the peak of the
+      // leap stays in frame.
+      victory: { scale: 1.55, head: (0 + 115) / 2 / 672 },
+    };
+    // The running pose fills the canvas exactly (544x560 into a square is
+    // height-limited, scale 1), so its face lands this far down the canvas.
+    // Everything else is registered to this line.
+    const REF_HEAD_Y = MOODS.running.head;
+    // Declared up here rather than beside setMood() below, because the
+    // render loop starts before that point and paintRunnerFrame() reads it.
+    let mood = 'idle';
+
     function paintRunnerFrame() {
       if (runnerVideo.readyState < 2) return;
       const vw = runnerVideo.videoWidth, vh = runnerVideo.videoHeight;
       if (!vw || !vh) return;
       const cw = runnerCanvas.width, ch = runnerCanvas.height;
-      const scale = Math.min(cw / vw, ch / vh);
+      const pose = MOODS[mood] || MOODS.running;
+      const scale = Math.min(cw / vw, ch / vh) * pose.scale;
       const dw = vw * scale, dh = vh * scale;
+      // Where the running troll's face sits in the canvas — the fixed line
+      // every other pose is registered against, so the head neither grows
+      // nor drifts as the mood changes. Derived from the running clip's own
+      // dimensions (not the current video's), since it is the reference.
+      const headY = REF_HEAD_Y * ch;
       runnerCtx.clearRect(0, 0, cw, ch);
-      runnerCtx.drawImage(runnerVideo, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+      runnerCtx.drawImage(runnerVideo, (cw - dw) / 2, headY - pose.head * dh, dw, dh);
       const frame = runnerCtx.getImageData(0, 0, cw, ch);
       const d = frame.data;
       for (let i = 0; i < d.length; i += 4) {
@@ -3410,8 +3459,8 @@
     // moving — a thumb resting on the troll rather than swiping it — and
     // victory takes over the instant the finish line is crossed. setMood()
     // no-ops on repeat calls so it's safe to call every pointermove
-    // without thrashing the video elements.
-    let mood = 'idle';
+    // without thrashing the video elements. (`mood` itself is declared
+    // above, next to MOODS, so the render loop can read it.)
     function setMood(next) {
       if (next === mood) return;
       const prevVideo = runnerVideo;
