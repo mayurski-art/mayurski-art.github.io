@@ -123,6 +123,29 @@
     '.tcx-cancel { background: #fbfdf2; color: #143524; }',
     '.tcx-submit { background: linear-gradient(180deg, #ffe27a, #f4d35e); color: #1a1306; }',
     '.tcx-cancel:active, .tcx-submit:active { transform: translate(3px, 3px); box-shadow: 0 0 0 #10201a; }',
+    // Glass variant: the Hub (mobile "Island") uses a dark glass/DM-Sans
+    // look for its composer buttons (tcx-btn--glass above) but the tray/pad
+    // popups it opens still rendered in the pixel-terminal green/yellow
+    // theme, clashing with the host UI. These rules retheme the popup to
+    // match whenever attachComposer's btnClass was the glass one.
+    '.tcx-overlay--glass { background: rgba(0,0,0,0.55); }',
+    '.tcx-overlay--glass .tcx-modal { border: 1px solid var(--glass-stroke, rgba(255,255,255,0.18)); border-radius: 16px; background: var(--hub-bg, #1c1c1e); box-shadow: 0 24px 60px rgba(0,0,0,0.5); font-family: var(--font-ui, "DM Sans", sans-serif); color: var(--fg, #f2f2f2); }',
+    '.tcx-overlay--glass .tcx-head { border: none; border-radius: 0; padding: 4px 4px 12px; background: none; }',
+    '.tcx-overlay--glass .tcx-title { font-family: var(--font-ui, "DM Sans", sans-serif); font-size: 13px; font-weight: 700; letter-spacing: .02em; color: var(--fg, #f2f2f2); text-shadow: none; }',
+    '.tcx-overlay--glass .tcx-x { border: 1px solid var(--glass-stroke, rgba(255,255,255,0.18)); border-radius: 8px; background: #ffffff0d; color: var(--fg, #f2f2f2); font-family: var(--font-ui, "DM Sans", sans-serif); }',
+    '.tcx-overlay--glass .tcx-x:hover { background: #ffffff18; }',
+    '.tcx-overlay--glass .tcx-gif { border: 1px solid var(--glass-stroke, rgba(255,255,255,0.18)); border-radius: 10px; background: #ffffff0d; font: 13px var(--font-ui, "DM Sans", sans-serif); color: var(--fg, #f2f2f2); }',
+    '.tcx-overlay--glass .tcx-gif:hover, .tcx-overlay--glass .tcx-gif:focus-visible { background: #ffffff18; border-color: var(--accent, #8fe36a); }',
+    '.tcx-overlay--glass .tcx-note { color: var(--fg-dim, #9a9a9e); }',
+    '.tcx-overlay--glass .tcx-canvas { border: 1px solid var(--glass-stroke, rgba(255,255,255,0.18)); }',
+    '.tcx-overlay--glass .tcx-swatch { border: 1px solid var(--glass-stroke, rgba(255,255,255,0.18)); }',
+    '.tcx-overlay--glass .tcx-tool { border: 1px solid var(--glass-stroke, rgba(255,255,255,0.18)); border-radius: 8px; background: #ffffff0d; box-shadow: none; font-family: var(--font-ui, "DM Sans", sans-serif); font-size: 11px; font-weight: 700; color: var(--fg, #f2f2f2); }',
+    '.tcx-overlay--glass .tcx-tool[aria-pressed="true"] { background: var(--accent, #8fe36a); color: #0c1a12; }',
+    '.tcx-overlay--glass .tcx-tool:active { transform: none; box-shadow: none; }',
+    '.tcx-overlay--glass .tcx-cancel, .tcx-overlay--glass .tcx-submit { border: 1px solid var(--glass-stroke, rgba(255,255,255,0.18)); border-radius: 10px; box-shadow: none; font-family: var(--font-ui, "DM Sans", sans-serif); font-size: 12px; font-weight: 700; }',
+    '.tcx-overlay--glass .tcx-cancel { background: #ffffff0d; color: var(--fg, #f2f2f2); }',
+    '.tcx-overlay--glass .tcx-submit { background: var(--accent, #8fe36a); color: #0c1a12; }',
+    '.tcx-overlay--glass .tcx-cancel:active, .tcx-overlay--glass .tcx-submit:active { transform: none; box-shadow: none; }',
   ].join('\n');
 
   function injectCss() {

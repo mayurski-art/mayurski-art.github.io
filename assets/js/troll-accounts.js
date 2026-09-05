@@ -1722,14 +1722,9 @@
   }
 
   const DRAWER_ID = 'troll-accounts-drawer';
-  let drawerOutsideClick = null;
 
   function closeDrawer() {
     document.getElementById(DRAWER_ID)?.remove();
-    if (drawerOutsideClick) {
-      document.removeEventListener('click', drawerOutsideClick, true);
-      drawerOutsideClick = null;
-    }
   }
 
   // Same content shell as buildModal (ta-head/ta-body), but rendered as a
@@ -1754,10 +1749,13 @@
         <div class="ta-body"></div>
       </div>`;
     overlay.querySelector('.ta-title').textContent = title;
-    const card = overlay.querySelector('.ta-drawer-card');
     overlay.querySelector('.ta-close').addEventListener('click', closeDrawer);
-    drawerOutsideClick = event => { if (!card.contains(event.target)) closeDrawer(); };
-    document.addEventListener('click', drawerOutsideClick, true);
+    // Deliberately non-modal (see the comment above buildDrawer) — it should
+    // stay open while you keep using the rest of the page (e.g. the Hub's
+    // tab bar), so it only closes via its own ✕ or Escape, never on a click
+    // elsewhere. (It used to also close on any outside click, which defeated
+    // that "doesn't block the rest of the page" intent — clicking literally
+    // anything else, like a Hub tab's dismiss ✕, closed it.)
     const onKey = event => { if (event.key === 'Escape') { closeDrawer(); window.removeEventListener('keydown', onKey); } };
     window.addEventListener('keydown', onKey);
     document.body.appendChild(overlay);

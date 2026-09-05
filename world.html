@@ -772,8 +772,8 @@
     html.mobile-preview #hub.is-open .sheet-inner {
       transform: translateY(0);
     }
-    html.mobile-preview #hub .sheet-inner { height: auto; max-height: 80vh; }
-    html.mobile-preview #hub.is-room .sheet-inner { height: min(620px, 78vh); }
+    html.mobile-preview #hub .sheet-inner { height: auto; max-height: 90vh; }
+    html.mobile-preview #hub.is-room .sheet-inner { height: min(720px, 88vh); }
 
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
@@ -879,7 +879,7 @@
     #hub .hub-live { color: var(--hub-alert); font-family: var(--hub-mono); }
     #hub .hub-live-dot { background: var(--hub-alert); box-shadow: 0 0 6px var(--hub-alert); }
     #hub .hub-feed {
-      background: var(--hub-bg); border: 1px solid var(--hub-dim); border-radius: 4px;
+      background: transparent; border: none;
       scrollbar-color: var(--hub-dim) transparent;
     }
     #hub .hub-feed::-webkit-scrollbar-thumb { background: var(--hub-dim); }
@@ -925,11 +925,11 @@
       text-transform: uppercase; letter-spacing: .04em;
     }
     #hub .hub-send:hover { filter: brightness(1.1); }
-    #hub .hub-dm-panel { background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px; }
+    #hub .hub-dm-panel { background: transparent; border: 1px solid var(--hub-dim); border-radius: 4px; }
     #hub .hub-dm-h { color: var(--hub-dim); font-family: var(--hub-mono); }
     #hub .hub-dm-note.is-bad { color: var(--hub-alert); }
-    #hub .hub-dm-item { background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px; color: var(--hub-fg); }
-    #hub .hub-dm-item:hover { border-color: var(--hub-terminal); background: #161616; }
+    #hub .hub-dm-item { background: transparent; border: 1px solid var(--hub-dim); border-radius: 4px; color: var(--hub-fg); }
+    #hub .hub-dm-item:hover { border-color: var(--hub-terminal); background: #ffffff12; }
     #hub .hub-dm-av { border-radius: 3px; background-color: #000; }
     #hub .hub-dm-when { color: var(--hub-dim); }
     #hub .hub-dm-tag { background: var(--hub-panel); border: 1px solid var(--hub-dim); color: var(--hub-dim); border-radius: 3px; font-family: var(--hub-mono); }
@@ -977,9 +977,11 @@
       font: 13px var(--font-ui); cursor: pointer; padding: 6px;
     }
 
-    /* Persistent 6-tab bar, always visible above whichever screen is
-       showing. Sized/positioned to sit inside the blank tab-shape slots
-       painted into hub-interior-*.jpg (day/night x desktop/mobile) — see
+    /* Persistent 6-slot tab bar, always visible above whichever screen is
+       showing: Chat and Messages are fixed, the remaining 4 slots fill
+       dynamically with recent DM/group tabs (see renderRecentTabs()).
+       Sized/positioned to sit inside the blank tab-shape slots painted
+       into hub-interior-*.jpg (day/night x desktop/mobile) — see
        setHubBackground() — so the real buttons read as part of the same
        tavern-menu art rather than a plain HTML strip floating on top. */
     .hub-tabbar {
@@ -995,22 +997,47 @@
     .hub-tab:hover { border-color: var(--hub-terminal); background: #161616; }
     .hub-tab[aria-selected="true"] { border-color: var(--hub-problem); color: var(--hub-problem); }
     .hub-tab-icon { position: relative; font-size: 15px; line-height: 1; }
-    .hub-tab-label { font-family: var(--hub-mono); font-size: 9px; letter-spacing: .01em; white-space: nowrap; }
+    .hub-tab-label {
+      font-family: var(--hub-mono); font-size: 9px; letter-spacing: .01em; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    }
+    /* The 4 dynamic slots after Chat/Messages: a container with display:
+       contents so its buttons become direct children of the 6-col grid
+       above (filling the remaining painted slots) instead of being nested
+       inside a 7th grid cell. Empty until a signed-in visitor has recent
+       DMs/groups — see renderRecentTabs(). */
+    .hub-recent-tabs { display: contents; }
+    .hub-tab--recent { position: relative; }
+    .hub-tab--recent .hub-tab-icon img {
+      width: 18px; height: 18px; border-radius: 4px; object-fit: cover; display: block;
+    }
+    .hub-tab--recent .hub-tab-icon .hub-lobby-card-badge {
+      position: absolute; top: -3px; left: -5px; width: 7px; height: 7px; padding: 0; min-width: 0;
+      border-radius: 50%; background: var(--hub-alert); border: 1px solid var(--hub-bg);
+    }
+    /* Corner dismiss button on each recent-DM tab — plain black/white so it
+       reads as chrome, not part of the colored unread/live indicators.
+       Inset INSIDE the tab's own border (not overflowing past it) so tightly
+       packed tabs never collide with a neighbor's close button, and hidden
+       until the tab is hovered/focused so the idle tab bar stays clean. */
+    .hub-tab-close {
+      position: absolute; top: 2px; right: 2px; width: 12px; height: 12px; padding: 0;
+      display: grid; place-items: center; border-radius: 50%;
+      border: 1px solid #fff; background: #000; color: #fff;
+      font-size: 7px; line-height: 1; cursor: pointer;
+      opacity: 0; transition: opacity .12s var(--ease);
+    }
+    .hub-tab--recent:hover .hub-tab-close,
+    .hub-tab-close:focus-visible { opacity: 1; }
+    .hub-tab-close:hover { background: #fff; color: #000; }
+    .hub-friends-row { display: flex; justify-content: center; gap: 8px; margin: 0 0 6px; flex: none; }
     .hub-friends-btn {
       display: flex; align-items: center; justify-content: center; gap: 6px;
-      margin: 0 auto 6px; border: 1px solid var(--hub-dim); border-radius: 999px;
+      border: 1px solid var(--hub-dim); border-radius: 999px;
       background: var(--hub-panel); color: var(--hub-fg); cursor: pointer;
-      padding: 6px 14px; font: 12px var(--hub-mono); flex: none;
+      padding: 6px 14px; font: 12px var(--hub-mono);
     }
     .hub-friends-btn:hover { border-color: var(--hub-terminal); background: #161616; }
-
-    /* PFP Studio / Games — iframed in-sheet since they're same-origin
-       (pfp.html/games.html share frame-ancestors 'self' with world.html).
-       Terminal stays a navigate-away tab instead (see launchTerminalWarp)
-       since it's cross-origin and a third-party iframe risks silently
-       breaking its Supabase login under Safari ITP / storage partitioning. */
-    .hub-embed { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-    .hub-embed-frame { flex: 1; min-height: 0; width: 100%; border: 0; border-radius: 10px; background: #000; }
 
     .hub-room { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
     .hub-room-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1495,7 +1522,7 @@
         box-shadow: 0 40px 100px rgba(0, 0, 0, .55);
         transform: scale(.96); opacity: 0;
         transition: transform .3s var(--ease), opacity .3s var(--ease);
-        width: min(720px, 90vw); height: min(760px, 88vh);
+        width: min(720px, 56vw); height: min(900px, 86vh);
       }
       html:not(.mobile-preview) #hub.is-open .sheet-inner {
         transform: scale(1); opacity: 1;
@@ -2079,12 +2106,12 @@
       <!-- Persistent tab bar — always visible above whichever screen is
            active (including the lobby placeholder itself), styled to sit
            inside the blank tab slots baked into hub-interior-*.jpg. Chat
-           and Messages open real in-sheet screens; Terminal and Maps play
-           the telescope transition and navigate away (see launchObservatory/
-           launchTerminalWarp below — Terminal is deliberately never iframed,
-           it lives on a different origin and cross-origin iframing risks
-           silently breaking its Supabase login under Safari ITP); PFP
-           Studio and Games are same-origin so they're iframed in-sheet. -->
+           and Messages are the two fixed tabs; the remaining 4 slots are
+           filled dynamically with your most-recent DM/group threads (see
+           renderRecentTabs below) so a conversation is one tap away without
+           digging into the Messages inbox. Terminal/Maps/PFP/Games moved out
+           of the Hub entirely — reach them from wherever else they already
+           live on the site (desktop icons, nav). -->
       <div class="hub-tabbar" role="tablist" aria-label="Hub sections">
         <button type="button" id="hub-open-general" class="hub-tab" role="tab" aria-selected="true">
           <span class="hub-tab-icon" aria-hidden="true">💬</span>
@@ -2094,56 +2121,21 @@
           <span class="hub-tab-icon" aria-hidden="true">💗<span id="hub-messages-badge" class="hub-lobby-card-badge" hidden>0</span></span>
           <span class="hub-tab-label">Messages</span>
         </button>
-        <button type="button" id="hub-open-terminal" class="hub-tab" role="tab" aria-selected="false">
-          <span class="hub-tab-icon" aria-hidden="true">⌨️</span>
-          <span class="hub-tab-label">Terminal</span>
+        <div id="hub-recent-tabs" class="hub-recent-tabs" data-count="4"></div>
+      </div>
+      <div class="hub-friends-row">
+        <button type="button" id="hub-open-connect" class="hub-friends-btn" aria-label="Connect — browse every runner to friend or message">
+          <span aria-hidden="true">👥</span> Connect
         </button>
-        <button type="button" id="hub-open-maps" class="hub-tab" role="tab" aria-selected="false">
-          <span class="hub-tab-icon" aria-hidden="true">🗺️</span>
-          <span class="hub-tab-label">Maps</span>
-        </button>
-        <button type="button" id="hub-open-pfp" class="hub-tab" role="tab" aria-selected="false">
-          <span class="hub-tab-icon" aria-hidden="true">🖼️</span>
-          <span class="hub-tab-label">PFP Studio</span>
-        </button>
-        <button type="button" id="hub-open-games" class="hub-tab" role="tab" aria-selected="false">
-          <span class="hub-tab-icon" aria-hidden="true">🕹️</span>
-          <span class="hub-tab-label">Games</span>
+        <button type="button" id="hub-open-friends" class="hub-friends-btn" aria-label="Friends — runners you're already friends with">
+          <span aria-hidden="true">💛</span> Friends
         </button>
       </div>
-      <button type="button" id="hub-open-connect" class="hub-friends-btn" aria-label="Friends — browse every runner to friend or message">
-        <span aria-hidden="true">👥</span> Friends
-      </button>
 
       <section id="hub-lobby" class="hub-lobby">
         <img class="hub-lobby-mark" src="assets/animations/troll-grin.gif" alt="">
         <h2>THE HUB</h2>
         <p class="sub">How do you want to troll today?</p>
-      </section>
-
-      <!-- PFP Studio and Games: same-origin pages iframed in-sheet, lazy-
-           loaded (src set on first open, not on Hub open) with a fallback
-           link in case anyone prefers the full page. See initHubIframeTab
-           below. -->
-      <section id="hub-pfp" class="hub-embed" hidden aria-label="PFP Studio">
-        <div class="hub-room-top">
-          <div class="hub-room-title"><div class="title">PFP Studio</div></div>
-          <div class="hub-chips">
-            <a class="hub-chip" href="pfp.html" target="_top">Open full page ↗</a>
-            <button type="button" class="hub-room-back" id="hub-pfp-back">&#x2190; Back</button>
-          </div>
-        </div>
-        <iframe id="hub-pfp-iframe" class="hub-embed-frame" title="PFP Studio" loading="lazy"></iframe>
-      </section>
-      <section id="hub-games" class="hub-embed" hidden aria-label="Games">
-        <div class="hub-room-top">
-          <div class="hub-room-title"><div class="title">Games</div></div>
-          <div class="hub-chips">
-            <a class="hub-chip" href="games.html" target="_top">Open full page ↗</a>
-            <button type="button" class="hub-room-back" id="hub-games-back">&#x2190; Back</button>
-          </div>
-        </div>
-        <iframe id="hub-games-iframe" class="hub-embed-frame" title="Games" loading="lazy"></iframe>
       </section>
 
       <!-- Messages: the same DM + group inbox the classic desktop has, on the
@@ -2187,6 +2179,23 @@
         </div>
 
         <div class="hub-dm-list" id="hub-connect-list"></div>
+      </section>
+
+      <!-- Friends: the subset of Connect's directory you're already friends
+           with, so "who do I actually know here" doesn't require scrolling
+           the full runner list. Same row look, filtered from dm.friends
+           (already loaded by dmLoadInbox) instead of a fresh query. See
+           renderFriendsList below. -->
+      <section id="hub-friends" class="hub-dm" hidden aria-label="Friends">
+        <div class="hub-room-top">
+          <div class="hub-room-title">
+            <div class="title">Friends</div>
+            <div class="subtitle">Runners you're friends with</div>
+          </div>
+          <button type="button" class="hub-room-back" id="hub-friends-back">&#x2190; Back</button>
+        </div>
+
+        <div class="hub-dm-list" id="hub-friends-list"></div>
       </section>
 
       <!-- One thread — a DM or a group room. Reuses the General Chat feed
@@ -4535,7 +4544,7 @@
       opts = opts || {};
       hubSheet.classList.toggle('is-open', open);
       hubSheet.inert = !open;
-      if (open) { hubClose.focus(); setHubBackground(); }
+      if (open) { hubClose.focus(); setHubBackground(); window.dispatchEvent(new CustomEvent('trollrunner:hub-opened')); }
       if (!opts.skipUrl) {
         try {
           const top = window.top || window;
@@ -4967,14 +4976,10 @@
 
       /* The Hub sheet holds several exclusive screens under the persistent
          tab bar: the lobby placeholder, the general room, the Messages
-         inbox, one open thread, Connect (opened via the Friends button, not
-         a tab), and the two same-origin iframed apps (PFP Studio, Games).
-         Everything but the lobby wants the taller sheet (.is-room), because
-         all of them scroll or need real vertical room. Terminal and Maps
-         are NOT screens — their tabs play a transition and navigate away
-         (see launchTerminalWarp / launchObservatory), so they never appear
-         here. */
-      const HUB_SCREENS = ['hub-lobby', 'hub-room', 'hub-messages', 'hub-thread', 'hub-connect', 'hub-pfp', 'hub-games'];
+         inbox, one open thread, and Connect (opened via the Friends button,
+         not a tab). Everything but the lobby wants the taller sheet
+         (.is-room), because all of them scroll or need real vertical room. */
+      const HUB_SCREENS = ['hub-lobby', 'hub-room', 'hub-messages', 'hub-thread', 'hub-connect', 'hub-friends'];
       function showScreen(id) {
         HUB_SCREENS.forEach(s => { const el = document.getElementById(s); if (el) el.hidden = s !== id; });
         document.getElementById('hub').classList.toggle('is-room', id !== 'hub-lobby');
@@ -5024,6 +5029,22 @@
         let seen = '';
         try { seen = localStorage.getItem(dmSeenKey(kind, id)) || ''; } catch {}
         return !seen || new Date(lastAt) > new Date(seen);
+      }
+
+      // Recent-tab dismissals (the ✕ on a hub-recent-tabs slot) persist like
+      // read state does — same localStorage-timestamp pattern as dmSeenKey/
+      // dmUnread above, just keyed by the merged dmRecentItems() id ('dm:'
+      // or 'group:' + id) instead of kind+id separately. A dismissal only
+      // "wins" while no message has landed since it was dismissed — once the
+      // conversation's last-message time passes the dismiss time, it's
+      // relevant again and reappears, same as any other unread thread would.
+      function dmDismissKey(itemId) { return 'tc_tab_dismissed_' + itemId; }
+      function dmDismissTab(itemId) { if (itemId) { try { localStorage.setItem(dmDismissKey(itemId), new Date().toISOString()); } catch {} } }
+      function dmTabDismissed(itemId, lastAt) {
+        let dismissedAt = '';
+        try { dismissedAt = localStorage.getItem(dmDismissKey(itemId)) || ''; } catch {}
+        if (!dismissedAt) return false;
+        return !lastAt || new Date(dismissedAt) >= new Date(lastAt);
       }
 
       function dmNote(text, bad) {
@@ -5164,6 +5185,33 @@
         });
       }
 
+      // Friends: dm.friends is already loaded by dmLoadInbox (same call that
+      // feeds the Messages inbox and the recent-tabs bar), so this just
+      // renders that list — no separate query, no pagination.
+      function renderFriendsList() {
+        const list = document.getElementById('hub-friends-list');
+        if (!list) return;
+        list.replaceChildren();
+        if (!dmAccount()) { list.appendChild(dmNote('Login to see your friends.', true)); return; }
+        if (!dm.friends.length) {
+          const empty = document.createElement('div');
+          empty.className = 'hub-dm-empty';
+          const img = document.createElement('img'); img.src = 'assets/animations/troll-lel_transparent.gif'; img.alt = '';
+          const strong = document.createElement('strong'); strong.textContent = 'No friends yet';
+          const span = document.createElement('span'); span.textContent = 'Add some from Connect.';
+          empty.append(img, strong, span);
+          list.appendChild(empty);
+          return;
+        }
+        dm.friends.forEach(friend => list.appendChild(dmItem({
+          title: friend.username || 'runner',
+          preview: `LV ${friend.level ?? 1}`,
+          avatar: friend.avatar_url,
+          icon: '🧑',
+          onOpen: () => window.TrollrunnerAccounts?.openProfileCard?.(friend.id),
+        })));
+      }
+
       async function dmLoadInbox() {
         if (!dmEls.list) return;
         const account = dmAccount();
@@ -5188,7 +5236,97 @@
         dmRenderInbox();
       }
 
+      // Merged, recency-sorted DM + group list as plain data — shared by the
+      // full Messages inbox (dmRenderInbox) and the tab bar's recent-chats
+      // slots (renderRecentTabs), so both read the exact same ordering.
+      function dmRecentItems() {
+        const items = [
+          ...dm.groups.map(group => {
+            const last = dm.lastMsgs.get(group.id);
+            const ts = last?.last_at || group.joined_at;
+            return {
+              id: 'group:' + group.id,
+              ts, isGroup: true, icon: '👥', title: group.name,
+              preview: last?.last_body ? (last.last_name || 'someone') + ': ' + last.last_body : 'No messages yet',
+              unread: dmUnread('group', group.id, last?.last_at),
+              open: () => void dmOpenGroup(group),
+            };
+          }),
+          ...dm.threads.map(thread => {
+            const mine = thread.last_sender_id && thread.last_sender_id !== thread.other_id;
+            return {
+              id: 'dm:' + thread.thread_id,
+              ts: thread.last_at, isGroup: false, avatar: thread.other_avatar_url, title: thread.other_username,
+              preview: thread.last_body ? (mine ? 'You: ' : '') + thread.last_body : 'No messages yet',
+              unread: dmUnread('dm', thread.thread_id, thread.last_at),
+              open: () => void dmOpenDm(thread.other_id, thread.other_username, thread.other_avatar_url, thread.thread_id),
+            };
+          }),
+        ];
+        items.sort((a, b) => Date.parse(b.ts || 0) - Date.parse(a.ts || 0));
+        return items;
+      }
+
+      // The 4 dynamic tab-bar slots (see the hub-recent-tabs comment in the
+      // markup) show your most-recent conversations so one is always a tap
+      // away without opening the full Messages inbox. Clicking a tab just
+      // calls the same open() dmOpenDm/dmOpenGroup the inbox row would —
+      // there's one active thread at a time (dmLeaveThread tears down the
+      // realtime subscription before the next opens), so "switching tabs"
+      // means re-entering that thread, not keeping several subscribed live.
+      function renderRecentTabs() {
+        const bar = document.getElementById('hub-recent-tabs');
+        if (!bar) return;
+        bar.innerHTML = '';
+        const account = dmAccount();
+        if (!account) return;
+        const items = dmRecentItems().filter(i => !dmTabDismissed(i.id, i.ts)).slice(0, 4);
+        items.forEach(item => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'hub-tab hub-tab--recent';
+          btn.setAttribute('role', 'tab');
+          btn.setAttribute('aria-selected', 'false');
+          btn.title = item.title;
+          const icon = document.createElement('span');
+          icon.className = 'hub-tab-icon';
+          icon.setAttribute('aria-hidden', 'true');
+          if (item.avatar) {
+            const img = document.createElement('img');
+            img.src = item.avatar; img.alt = ''; img.loading = 'lazy';
+            icon.appendChild(img);
+          } else {
+            icon.textContent = item.icon || '💬';
+          }
+          if (item.unread) icon.appendChild(Object.assign(document.createElement('span'), { className: 'hub-lobby-card-badge', textContent: '' }));
+          const label = document.createElement('span');
+          label.className = 'hub-tab-label';
+          label.textContent = item.title;
+          // Dismissal persists (dmDismissTab/dmTabDismissed, localStorage —
+          // same pattern as dmSeenKey/dmUnread above) until a NEW message
+          // lands on this conversation, not just for the current Hub-open
+          // session. The conversation itself is untouched: it's still in the
+          // full Messages inbox and in dmRecentItems(), just filtered out of
+          // this tab-bar slice until it's newly relevant again.
+          const closeBtn = document.createElement('button');
+          closeBtn.type = 'button';
+          closeBtn.className = 'hub-tab-close';
+          closeBtn.setAttribute('aria-label', 'Dismiss ' + item.title + ' from tabs');
+          closeBtn.textContent = '✕';
+          closeBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            dmDismissTab(item.id);
+            renderRecentTabs();
+          });
+          btn.append(icon, label, closeBtn);
+          btn.addEventListener('click', () => { setActiveTab(null); btn.setAttribute('aria-selected', 'true'); item.open(); });
+          bar.appendChild(btn);
+        });
+      }
+
       function dmRenderInbox() {
+        renderRecentTabs();
+        if (!document.getElementById('hub-friends')?.hidden) renderFriendsList();
         const list = dmEls.list;
         if (!list) return;
         list.innerHTML = '';
@@ -5247,34 +5385,15 @@
 
         // One recency-sorted list of DMs and groups — the same merged inbox
         // the desktop panel shows.
-        const items = [
-          ...dm.groups.map(group => {
-            const last = dm.lastMsgs.get(group.id);
-            const ts = last?.last_at || group.joined_at;
-            const unread = dmUnread('group', group.id, last?.last_at);
-            return { ts, el: dmItem({
-              title: group.name,
-              preview: last?.last_body ? (last.last_name || 'someone') + ': ' + last.last_body : 'No messages yet',
-              icon: '👥',
-              tags: [dmTag('Group'), ...(unread ? [dmTag('New', true)] : [])],
-              side: ts ? [Object.assign(document.createElement('span'), { className: 'hub-dm-when', textContent: fmtTime(ts) })] : [],
-              onOpen: () => void dmOpenGroup(group),
-            }) };
-          }),
-          ...dm.threads.map(thread => {
-            const unread = dmUnread('dm', thread.thread_id, thread.last_at);
-            const mine = thread.last_sender_id && thread.last_sender_id !== thread.other_id;
-            return { ts: thread.last_at, el: dmItem({
-              title: thread.other_username,
-              preview: thread.last_body ? (mine ? 'You: ' : '') + thread.last_body : 'No messages yet',
-              avatar: thread.other_avatar_url,
-              tags: unread ? [dmTag('New', true)] : [],
-              side: thread.last_at ? [Object.assign(document.createElement('span'), { className: 'hub-dm-when', textContent: fmtTime(thread.last_at) })] : [],
-              onOpen: () => void dmOpenDm(thread.other_id, thread.other_username, thread.other_avatar_url, thread.thread_id),
-            }) };
-          }),
-        ];
-        items.sort((a, b) => Date.parse(b.ts || 0) - Date.parse(a.ts || 0));
+        const items = dmRecentItems().map(r => ({ ts: r.ts, el: dmItem({
+          title: r.title,
+          preview: r.preview,
+          avatar: r.avatar,
+          icon: r.icon,
+          tags: [...(r.isGroup ? [dmTag('Group')] : []), ...(r.unread ? [dmTag('New', true)] : [])],
+          side: r.ts ? [Object.assign(document.createElement('span'), { className: 'hub-dm-when', textContent: fmtTime(r.ts) })] : [],
+          onOpen: r.open,
+        }) }));
         items.forEach(i => list.appendChild(i.el));
 
         if (!items.length) {
@@ -5757,23 +5876,13 @@
         window.addEventListener('trollrunner:auth-changed', () => {
           if (!document.getElementById('hub-messages').hidden) void dmLoadInbox();
           else if (!document.getElementById('hub-thread').hidden && !dmAccount()) { dmLeaveThread(); showScreen('hub-messages'); void dmLoadInbox(); }
+          else renderRecentTabs();
         });
-      }
 
-      /* PFP Studio / Games tabs: same-origin iframe, lazy-loaded — the src
-         is only set the first time the tab opens, not when the Hub itself
-         opens, so a visitor who never touches these tabs never pays for
-         loading pfp.html/games.html in the background. */
-      function initHubIframeTab({ tabId, screenId, frameId, backId, src }) {
-        const tab = document.getElementById(tabId);
-        const frame = document.getElementById(frameId);
-        const back = document.getElementById(backId);
-        if (tab) tab.addEventListener('click', () => {
-          if (frame && !frame.src) frame.src = src;
-          setActiveTab(tabId);
-          showScreen(screenId);
-        });
-        if (back) back.addEventListener('click', () => { setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
+        // Refresh the tab bar's recent-chats slots every time the Hub opens,
+        // not just when the Messages screen itself is visited — that's the
+        // whole point of surfacing them as tabs.
+        window.addEventListener('trollrunner:hub-opened', () => void dmLoadInbox());
       }
 
       function initHubLobby() {
@@ -5782,8 +5891,8 @@
         const messagesBack = document.getElementById('hub-messages-back');
         const connectCard = document.getElementById('hub-open-connect');
         const connectBack = document.getElementById('hub-connect-back');
-        const terminalTab = document.getElementById('hub-open-terminal');
-        const mapsTab = document.getElementById('hub-open-maps');
+        const friendsCard = document.getElementById('hub-open-friends');
+        const friendsBack = document.getElementById('hub-friends-back');
         if (general) general.addEventListener('click', () => { setActiveTab('hub-open-general'); enterRoom(); });
         if (messagesCard) messagesCard.addEventListener('click', () => {
           setActiveTab('hub-open-messages');
@@ -5792,13 +5901,6 @@
           void dmLoadInbox();
         });
         if (messagesBack) messagesBack.addEventListener('click', () => { dmClosePanel(); setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
-        // Terminal and Maps deliberately never become an in-sheet screen —
-        // they play the telescope transition, then navigate the top-level
-        // window away. See launchTerminalWarp/launchObservatory below.
-        if (terminalTab) terminalTab.addEventListener('click', () => launchTerminalWarp('https://terminal.trollrunner.net'));
-        if (mapsTab) mapsTab.addEventListener('click', () => launchObservatory('maps.html'));
-        initHubIframeTab({ tabId: 'hub-open-pfp', screenId: 'hub-pfp', frameId: 'hub-pfp-iframe', backId: 'hub-pfp-back', src: 'pfp.html?embed=1' });
-        initHubIframeTab({ tabId: 'hub-open-games', screenId: 'hub-games', frameId: 'hub-games-iframe', backId: 'hub-games-back', src: 'games.html?embed=1' });
 
         // Messages card badges unread DMs + pending friend requests (both
         // surface inside that same inbox — see dmLoadInbox's "Friend
@@ -5818,6 +5920,12 @@
           void loadConnectPage(true);
         });
         if (connectBack) connectBack.addEventListener('click', () => { setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
+        if (friendsCard) friendsCard.addEventListener('click', () => {
+          showScreen('hub-friends');
+          renderFriendsList();
+          void dmLoadInbox();
+        });
+        if (friendsBack) friendsBack.addEventListener('click', () => { setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
         const backToLobby = document.getElementById('hub-back-to-lobby');
         if (backToLobby) backToLobby.addEventListener('click', () => { setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
       }
