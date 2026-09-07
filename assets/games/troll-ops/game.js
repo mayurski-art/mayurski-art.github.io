@@ -1,15 +1,16 @@
 // Troll Ops — main game module.
 import * as THREE from "three";
-import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WEAPON_DEFS, WeaponState, computeDamage } from "./weapons.js";
-import { ImpactShader, makeMuzzleFlashMaterial, makeTracerMaterial, makeImpactSparkMaterial, makeGroundMaterial } from "./shaders.js";
+import { WEAPON_DEFS, WeaponState } from "./weapons.js";
+import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial, makeGroundMaterial } from "./shaders.js";
 import { WaveSpawner } from "./enemies.js";
+import { BulletSystem } from "./ballistics.js";
+import { MovementController, STANCE } from "./movement.js";
 
 const els = {
   cabinet: document.getElementById("to-cabinet"),
@@ -49,6 +50,9 @@ const els = {
   touchAds: document.getElementById("to-touch-ads"),
   touchJump: document.getElementById("to-touch-jump"),
   touchReload: document.getElementById("to-touch-reload"),
+  touchSlide: document.getElementById("to-touch-slide"),
+  touchLeanL: document.getElementById("to-touch-lean-l"),
+  touchLeanR: document.getElementById("to-touch-lean-r"),
 };
 
 const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
@@ -144,7 +148,9 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const colliders = []; // { min: Vector3, max: Vector3 }
+// { min, max, pen } — `pen` is penetration power consumed per metre of
+// material, so crates are shootable-through and the perimeter wall isn't.
+const colliders = [];
 
 function addCrate(x, z, w, d, h, color = 0x5c6b4a) {
   const geo = new THREE.BoxGeometry(w, h, d);
@@ -157,6 +163,7 @@ function addCrate(x, z, w, d, h, color = 0x5c6b4a) {
   colliders.push({
     min: new THREE.Vector3(x - w / 2, 0, z - d / 2),
     max: new THREE.Vector3(x + w / 2, h, z + d / 2),
+    pen: 0.9,
   });
 }
 
@@ -178,6 +185,7 @@ function addWallRing() {
     colliders.push({
       min: new THREE.Vector3(x - w / 2, 0, z - d / 2),
       max: new THREE.Vector3(x + w / 2, h, z + d / 2),
+      pen: 8,
     });
   }
 }
@@ -358,34 +366,6 @@ weaponRig.add(muzzleLight);
 
 // -------------------- tracers / impact sparks pools --------------------
 
-const tracerPool = [];
-function spawnTracer(from, to, color) {
-  const dir = new THREE.Vector3().subVectors(to, from);
-  const len = dir.length();
-  const geo = new THREE.PlaneGeometry(0.02, len);
-  const mat = makeTracerMaterial(color);
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.copy(from).addScaledVector(dir, 0.5);
-  mesh.lookAt(to);
-  mesh.rotateX(Math.PI / 2);
-  scene.add(mesh);
-  tracerPool.push({ mesh, life: 0.06, maxLife: 0.06 });
-}
-
-function updateTracers(dt) {
-  for (let i = tracerPool.length - 1; i >= 0; i--) {
-    const t = tracerPool[i];
-    t.life -= dt;
-    t.mesh.material.uniforms.uOpacity.value = Math.max(0, t.life / t.maxLife);
-    if (t.life <= 0) {
-      scene.remove(t.mesh);
-      t.mesh.geometry.dispose();
-      t.mesh.material.dispose();
-      tracerPool.splice(i, 1);
-    }
-  }
-}
-
 const sparkGeo = new THREE.BufferGeometry();
 const SPARK_MAX = 400;
 const sparkPositions = new Float32Array(SPARK_MAX * 3);
@@ -429,31 +409,45 @@ function updateSparks(dt) {
 // -------------------- player state --------------------
 
 const player = {
-  pos: new THREE.Vector3(0, 1.7, 8),
-  velocity: new THREE.Vector3(),
+  pos: new THREE.Vector3(0, 1.7, 8), // eye position, mirrored from `move` each frame
   hp: 100,
   maxHp: 100,
-  grounded: true,
-  jumping: false,
-  sprinting: false,
   weaponId: "smg",
   weapons: {},
   kills: 0,
   wave: 0,
-  startTime: 0,
   alive: true,
 };
 for (const id of Object.keys(WEAPON_DEFS)) player.weapons[id] = new WeaponState(id);
 
-const EYE_HEIGHT = 1.7;
-const CROUCH_HEIGHT = 1.1;
-const PLAYER_RADIUS = 0.35;
-const GRAVITY = 22;
-const JUMP_SPEED = 7.2;
-const WALK_SPEED = 5.2;
+const move = new MovementController({ colliders, arena: ARENA });
+const bullets = new BulletSystem(scene);
 
-const controls = new PointerLockControls(camera, renderer.domElement);
-camera.position.copy(player.pos);
+// Look is composed by hand rather than by PointerLockControls: recoil, lean
+// roll and the touch stick all need to write into the same orientation, and
+// letting PLC own the camera quaternion made them fight each other.
+const look = { yaw: 0, pitch: 0 };
+const MOUSE_SENS = 0.0022;
+const PITCH_LIMIT = 1.5;
+
+const controls = new EventTarget();
+controls.isLocked = false;
+// requestPointerLock rejects (not throws) when the document isn't focused,
+// so swallow it rather than surfacing an unhandled rejection.
+controls.lock = () => { try { renderer.domElement.requestPointerLock?.()?.catch?.(() => {}); } catch { /* unsupported */ } };
+controls.unlock = () => { try { document.exitPointerLock?.(); } catch { /* not locked */ } };
+
+document.addEventListener("pointerlockchange", () => {
+  const locked = document.pointerLockElement === renderer.domElement;
+  controls.isLocked = locked;
+  controls.dispatchEvent(new Event(locked ? "lock" : "unlock"));
+});
+document.addEventListener("mousemove", (e) => {
+  if (!controls.isLocked) return;
+  look.yaw -= e.movementX * MOUSE_SENS;
+  look.pitch -= e.movementY * MOUSE_SENS;
+  look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
+});
 
 let spawner = null;
 
@@ -461,27 +455,29 @@ const keys = new Set();
 window.addEventListener("keydown", (e) => {
   keys.add(e.code);
   if (e.code === "KeyR") tryReload();
-  if (e.code === "KeyQ") adsHeld = true;
-  if (e.code === "Escape") { /* handled by pointerlock change */ }
+  if (e.code === "Space" && gameState === "playing") e.preventDefault();
 });
-window.addEventListener("keyup", (e) => {
-  keys.delete(e.code);
-  if (e.code === "KeyQ") adsHeld = false;
-});
+window.addEventListener("keyup", (e) => keys.delete(e.code));
 
 let mouseDown = false, adsHeld = false;
 renderer.domElement.addEventListener("mousedown", (e) => {
   if (!controls.isLocked) return;
   if (e.button === 0) mouseDown = true;
+  if (e.button === 2) adsHeld = true;   // PF parity: right mouse aims
 });
 window.addEventListener("mouseup", (e) => {
   if (e.button === 0) mouseDown = false;
+  if (e.button === 2) adsHeld = false;
 });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 
 // -------------------- touch controls --------------------
 
-const touchState = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, firing: false, ads: false, jump: false };
+const touchState = {
+  moveX: 0, moveY: 0, lookDX: 0, lookDY: 0,
+  firing: false, ads: false, jump: false,
+  crouch: false, dive: false, lean: 0,
+};
 
 function bindStick(el, nub) {
   let active = false, startX = 0, startY = 0, id = null;
@@ -530,13 +526,16 @@ bindStick(els.touchMove, els.touchMoveNub);
 })();
 
 function bindHold(el, onDown, onUp) {
-  el.addEventListener("touchstart", (e) => { e.preventDefault(); onDown(); }, { passive: false });
-  el.addEventListener("touchend", (e) => { e.preventDefault(); onUp(); });
-  el.addEventListener("touchcancel", () => onUp());
+  el.addEventListener("touchstart", (e) => { e.preventDefault(); el.classList.add("is-held"); onDown(); }, { passive: false });
+  el.addEventListener("touchend", (e) => { e.preventDefault(); el.classList.remove("is-held"); onUp(); });
+  el.addEventListener("touchcancel", () => { el.classList.remove("is-held"); onUp(); });
 }
 bindHold(els.touchFire, () => touchState.firing = true, () => touchState.firing = false);
 bindHold(els.touchAds, () => touchState.ads = true, () => touchState.ads = false);
 bindHold(els.touchJump, () => touchState.jump = true, () => touchState.jump = false);
+bindHold(els.touchSlide, () => touchState.crouch = true, () => touchState.crouch = false);
+bindHold(els.touchLeanL, () => touchState.lean = -1, () => touchState.lean = 0);
+bindHold(els.touchLeanR, () => touchState.lean = 1, () => touchState.lean = 0);
 els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); tryReload(); });
 
 // -------------------- HUD helpers --------------------
@@ -588,48 +587,43 @@ function fireOnce() {
   muzzleFlashT = 0.045;
   muzzleLight.intensity = 3.2;
 
+  // Part of the kick is permanent climb the player has to pull back down —
+  // that's what makes recoil control a skill rather than a wait.
+  look.pitch = Math.min(PITCH_LIMIT, look.pitch + def.recoilKickPitch * 0.35);
+
   const pellets = def.pellets || 1;
   const origin = new THREE.Vector3();
   camera.getWorldPosition(origin);
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward);
 
+  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+  const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+  const muzzle = origin.clone().addScaledVector(forward, 0.35);
+
   for (let i = 0; i < pellets; i++) {
-    const spread = def.pelletSpread ? def.pelletSpread : w.spread;
-    const dir = forward.clone();
-    const spreadAngleX = (Math.random() - 0.5) * spread;
-    const spreadAngleY = (Math.random() - 0.5) * spread;
-    dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), spreadAngleX);
-    dir.applyAxisAngle(new THREE.Vector3(1, 0, 0), spreadAngleY);
+    const spread = def.pelletSpread != null ? def.pelletSpread : w.spread;
+    // Uniform disc around the aim axis — an even cone, unlike the old
+    // world-axis rotation which skewed badly when looking up or down.
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * spread * 0.5;
+    const dir = forward.clone()
+      .addScaledVector(right, Math.cos(a) * r)
+      .addScaledVector(up, Math.sin(a) * r)
+      .normalize();
+    bullets.spawn({ origin: muzzle.clone(), dir, def, ownerId: "player" });
+  }
+}
 
-    const raycaster = new THREE.Raycaster(origin, dir, 0.1, 120);
-    const hittable = [];
-    for (const g of spawner.grunts) if (g.alive && !g.dying) hittable.push(g.mesh);
-    const worldHits = raycaster.intersectObjects([...hittable, ...sceneColliderMeshes], true);
-
-    let endPoint = origin.clone().addScaledVector(dir, 80);
-    if (worldHits.length) {
-      const hit = worldHits[0];
-      endPoint = hit.point;
-      const grunt = findGruntFromObject(hit.object);
-      if (grunt) {
-        const isHead = !!hit.object.userData.isHead || hit.object.parent?.userData?.isHead;
-        const dist = origin.distanceTo(hit.point);
-        const dmg = computeDamage(def, dist, isHead);
-        const knockDir = dir.clone(); knockDir.y = 0; knockDir.normalize();
-        const result = grunt.takeDamage(dmg, isHead, knockDir);
-        showHitmarker(isHead);
-        spawnImpactBurst(hit.point, isHead ? 0xffe27a : 0xff8a5a, isHead ? 16 : 8);
-        if (result.killed) {
-          player.kills++;
-          els.hudKills.textContent = String(player.kills);
-          pushKillfeed(`${isHead ? "Headshot — " : ""}Grunt down`);
-        }
-      } else {
-        spawnImpactBurst(hit.point, 0xbfc4b8, 6);
-      }
-    }
-    if (i < 3) spawnTracer(origin.clone().addScaledVector(forward, 0.3), endPoint, 0xfff2c0);
+function onBulletActorHit(grunt, { damage, isHead, point, dir }) {
+  const knockDir = dir.clone(); knockDir.y = 0; knockDir.normalize();
+  const result = grunt.takeDamage(damage, isHead, knockDir);
+  showHitmarker(isHead);
+  spawnImpactBurst(point, isHead ? 0xffe27a : 0xff8a5a, isHead ? 16 : 8);
+  if (result.killed) {
+    player.kills++;
+    els.hudKills.textContent = String(player.kills);
+    pushKillfeed(`${isHead ? "Headshot — " : ""}Grunt down`);
   }
 }
 
@@ -645,46 +639,6 @@ function findGruntFromObject(obj) {
   return null;
 }
 
-let sceneColliderMeshes = [];
-function isPartOfGrunt(o) {
-  let cur = o;
-  while (cur) {
-    if (cur.userData?.dissolveMat) return true;
-    cur = cur.parent;
-  }
-  return false;
-}
-
-function rebuildColliderMeshCache() {
-  sceneColliderMeshes = [];
-  scene.traverse((o) => {
-    if (!o.isMesh || o === ground || o === sky || o.userData.noBulletCollide) return;
-    if (isPartOfGrunt(o)) return;
-    sceneColliderMeshes.push(o);
-  });
-}
-
-// -------------------- collision helpers --------------------
-
-function resolveCollisions(pos, radius) {
-  for (const c of colliders) {
-    const closestX = Math.max(c.min.x, Math.min(pos.x, c.max.x));
-    const closestZ = Math.max(c.min.z, Math.min(pos.z, c.max.z));
-    const dx = pos.x - closestX, dz = pos.z - closestZ;
-    const distSq = dx * dx + dz * dz;
-    if (distSq < radius * radius && distSq > 1e-6) {
-      const dist = Math.sqrt(distSq);
-      const push = (radius - dist);
-      pos.x += (dx / dist) * push;
-      pos.z += (dz / dist) * push;
-    } else if (distSq <= 1e-6) {
-      pos.x += radius;
-    }
-  }
-  pos.x = Math.max(ARENA.minX + radius, Math.min(ARENA.maxX - radius, pos.x));
-  pos.z = Math.max(ARENA.minZ + radius, Math.min(ARENA.maxZ - radius, pos.z));
-}
-
 // -------------------- game flow --------------------
 
 let gameState = "menu"; // menu | playing | paused | gameover
@@ -694,10 +648,12 @@ function startGame() {
   player.hp = player.maxHp;
   player.kills = 0;
   player.wave = 0;
-  player.pos.set(0, EYE_HEIGHT, 8);
-  player.velocity.set(0, 0, 0);
   player.alive = true;
   elapsedRun = 0;
+  move.reset(0, 8);
+  look.yaw = 0;
+  look.pitch = 0;
+  bullets.clear();
   for (const id of Object.keys(WEAPON_DEFS)) player.weapons[id] = new WeaponState(id);
   player.weaponId = selectedWeaponId || "smg";
 
@@ -705,7 +661,6 @@ function startGame() {
     for (const g of spawner.grunts) g.dispose(scene);
   }
   spawner = new WaveSpawner(scene, ARENA, spawnPoints);
-  rebuildColliderMeshCache();
 
   for (const id of Object.keys(weaponMeshes)) weaponMeshes[id].visible = id === player.weaponId;
 
@@ -806,7 +761,15 @@ function animate() {
 
     if (spawner.isWaveClear()) nextWave();
 
-    updateTracers(dt);
+    const targetMeshes = [];
+    for (const g of spawner.grunts) if (g.alive && !g.dying) targetMeshes.push(g.mesh);
+    bullets.update(dt, {
+      colliders,
+      targetMeshes,
+      resolveTarget: findGruntFromObject,
+      onActorHit: onBulletActorHit,
+      onWorldHit: (point) => spawnImpactBurst(point, 0xbfc4b8, 5),
+    });
     updateSparks(dt);
 
     // HUD updates
@@ -831,7 +794,8 @@ function animate() {
     const def = w.def;
     let targetFov = baseFov;
     if (w.ads) targetFov = baseFov * def.adsFovMult;
-    if (player.sprinting && !w.ads) targetFov = baseFov * 1.06;
+    if (move.sprinting && !w.ads) targetFov = baseFov * 1.06;
+    if (move.stance === STANCE.SLIDE) targetFov = baseFov * 1.12;
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
     camera.updateProjectionMatrix();
 
@@ -850,91 +814,75 @@ function animate() {
   }
 }
 
+const _euler = new THREE.Euler(0, 0, 0, "YXZ");
+
 function updatePlayer(dt) {
   const w = currentWeapon();
 
-  // rotation from touch look
   if (isTouch && (touchState.lookDX || touchState.lookDY)) {
-    camera.rotation.y -= touchState.lookDX;
-    camera.rotation.x -= touchState.lookDY;
-    camera.rotation.x = Math.max(-1.4, Math.min(1.4, camera.rotation.x));
-    camera.rotation.order = "YXZ";
+    look.yaw -= touchState.lookDX;
+    look.pitch -= touchState.lookDY;
+    look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
     touchState.lookDX = 0; touchState.lookDY = 0;
   }
 
-  // input
   let ix = 0, iz = 0;
   if (isTouch) {
-    ix = touchState.moveX; iz = touchState.moveY;
+    ix = touchState.moveX;
+    iz = -touchState.moveY;
   } else {
-    if (keys.has("KeyW")) iz -= 1;
-    if (keys.has("KeyS")) iz += 1;
+    if (keys.has("KeyW")) iz += 1;
+    if (keys.has("KeyS")) iz -= 1;
     if (keys.has("KeyA")) ix -= 1;
     if (keys.has("KeyD")) ix += 1;
   }
-  const inputLen = Math.hypot(ix, iz);
-  const moving = inputLen > 0.05;
-  player.sprinting = moving && (isTouch ? false : keys.has("ShiftLeft")) && !w.ads;
 
-  const speedMult = w.moveSpeedMult * (player.sprinting ? w.def.sprintMult : 1);
-  const speed = WALK_SPEED * speedMult;
+  const leanDir = isTouch
+    ? touchState.lean
+    : (keys.has("KeyQ") ? -1 : 0) + (keys.has("KeyE") ? 1 : 0);
 
-  if (moving) {
-    const nx = ix / (inputLen || 1), nz = iz / (inputLen || 1);
-    const forward = new THREE.Vector3();
-    camera.getWorldDirection(forward);
-    forward.y = 0; forward.normalize();
-    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
-    const moveDir = new THREE.Vector3()
-      .addScaledVector(forward, -nz)
-      .addScaledVector(right, nx);
-    if (moveDir.lengthSq() > 0) moveDir.normalize();
-    player.velocity.x += (moveDir.x * speed - player.velocity.x) * Math.min(1, dt * w.def.inertia);
-    player.velocity.z += (moveDir.z * speed - player.velocity.z) * Math.min(1, dt * w.def.inertia);
-  } else {
-    player.velocity.x += (0 - player.velocity.x) * Math.min(1, dt * w.def.inertia);
-    player.velocity.z += (0 - player.velocity.z) * Math.min(1, dt * w.def.inertia);
-  }
-
-  const wantJump = isTouch ? touchState.jump : keys.has("Space");
-  if (wantJump && player.grounded) {
-    player.velocity.y = JUMP_SPEED;
-    player.grounded = false;
-    player.jumping = true;
-  }
-  player.velocity.y -= GRAVITY * dt;
-
-  player.pos.x += player.velocity.x * dt;
-  player.pos.z += player.velocity.z * dt;
-  player.pos.y += player.velocity.y * dt;
-
-  if (player.pos.y <= EYE_HEIGHT) {
-    player.pos.y = EYE_HEIGHT;
-    player.velocity.y = 0;
-    player.grounded = true;
-    player.jumping = false;
-  }
-
-  resolveCollisions(player.pos, PLAYER_RADIUS);
-  camera.position.copy(player.pos);
-
-  // fire input
   const wantAds = isTouch ? touchState.ads : adsHeld;
   const wantFire = isTouch ? touchState.firing : mouseDown;
 
-  w.update(dt, { moving, sprinting: player.sprinting, grounded: player.grounded, jumping: player.jumping, adsHeld: wantAds, canAds: true });
+  move.update(dt, {
+    forward: iz,
+    strafe: ix,
+    sprint: isTouch ? iz > 0.82 : keys.has("ShiftLeft"),
+    jump: isTouch ? touchState.jump : keys.has("Space"),
+    crouch: isTouch ? touchState.crouch : keys.has("KeyC"),
+    dive: isTouch ? touchState.dive : keys.has("ControlLeft") || keys.has("ControlRight"),
+    leanDir,
+    yaw: look.yaw,
+    adsHeld: wantAds,
+    speedMult: w.moveSpeedMult,
+    sprintMult: w.def.sprintMult,
+    inertia: w.def.inertia,
+  });
 
-  if (wantFire) {
+  move.eyePosition(player.pos);
+  camera.position.copy(player.pos);
+
+  // One place composes the camera: aim + weapon recoil + lean roll.
+  _euler.set(look.pitch + w.recoilPitch, look.yaw + w.recoilYaw, move.leanRoll);
+  camera.quaternion.setFromEuler(_euler);
+
+  const canAct = !move.busy;
+  w.update(dt, {
+    moving: move.moving,
+    sprinting: move.sprinting,
+    grounded: move.grounded,
+    jumping: move.jumping,
+    adsHeld: wantAds && canAct,
+    canAds: canAct,
+  });
+
+  if (wantFire && canAct) {
     if (w.def.fireMode === "auto") {
       if (w.canFire()) fireOnce();
-    } else {
-      if (fireEdgeTrigger && w.canFire()) fireOnce();
+    } else if (fireEdgeTrigger && w.canFire()) {
+      fireOnce();
     }
   }
-
-  // apply recoil to camera
-  camera.rotation.x -= w.recoilPitch * dt * 6;
-  camera.rotation.y += w.recoilYaw * dt * 6;
 }
 
 let fireEdgeTrigger = false;
@@ -942,6 +890,8 @@ window.addEventListener("mousedown", (e) => {
   if (e.button === 0) { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); }
 });
 els.touchFire.addEventListener("touchstart", () => { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); });
+
+let weaponLowerT = 0;
 
 function updateWeaponView(dt) {
   const w = currentWeapon();
@@ -961,15 +911,19 @@ function updateWeaponView(dt) {
   const adsPos = new THREE.Vector3(-aimPoint.x, -aimPoint.y, adsViewDistance - aimPoint.z);
   const basePos = hipPos.clone().lerp(adsPos, adsOffset);
 
+  // Gun drops out of the way while sprinting, sliding or vaulting.
+  const wantLower = (move.sprinting || move.stance === STANCE.SLIDE || move.busy) ? 1 : 0;
+  weaponLowerT += (wantLower - weaponLowerT) * Math.min(1, dt * 9);
+
   mesh.position.set(
-    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4,
-    basePos.y + bobY + swayY,
-    basePos.z + w.viewKickKnockback * 0.6
+    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + weaponLowerT * 0.05,
+    basePos.y + bobY + swayY - weaponLowerT * 0.17,
+    basePos.z + w.viewKickKnockback * 0.6 + weaponLowerT * 0.08
   );
   mesh.rotation.set(
-    -w.viewKickPitch * 0.8,
+    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55,
     w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05,
-    (1 - adsOffset) * 0.08
+    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38
   );
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;

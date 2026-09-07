@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-p1">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-p2">
 </head>
 <body>
 
@@ -61,8 +61,8 @@
           </div>
 
           <button type="button" class="to-btn to-btn-primary" id="to-start-btn" disabled>Drop In</button>
-          <p class="to-hint">WASD move · Mouse look · LMB fire · Q ADS · R reload · Shift sprint · Space jump</p>
-          <p class="to-hint to-hint-mobile">Touch: left stick move, right side look/fire, ADS + reload buttons</p>
+          <p class="to-hint">WASD move · Mouse look · LMB fire · RMB aim · R reload · Shift sprint · C slide · Ctrl dive · Q/E lean · Space jump &amp; vault</p>
+          <p class="to-hint to-hint-mobile">Touch: left stick move (push full forward to sprint), right side look, then fire, aim, slide and lean buttons</p>
 
           <a class="to-back-link" href="games.html">← Back to arcade</a>
         </div>
@@ -146,6 +146,9 @@
         <button type="button" class="to-touch-btn to-touch-ads" id="to-touch-ads">ADS</button>
         <button type="button" class="to-touch-btn to-touch-fire" id="to-touch-fire">FIRE</button>
         <button type="button" class="to-touch-btn to-touch-reload" id="to-touch-reload">R</button>
+        <button type="button" class="to-touch-btn to-touch-slide" id="to-touch-slide">SLIDE</button>
+        <button type="button" class="to-touch-btn to-touch-lean to-touch-lean-l" id="to-touch-lean-l" aria-label="Lean left">◀</button>
+        <button type="button" class="to-touch-btn to-touch-lean to-touch-lean-r" id="to-touch-lean-r" aria-label="Lean right">▶</button>
         <div class="to-touch-look" id="to-touch-look"></div>
       </div>
 
@@ -169,7 +172,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p1" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-p1"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-p2"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

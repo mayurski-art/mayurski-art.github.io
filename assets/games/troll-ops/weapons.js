@@ -15,7 +15,8 @@ export const WEAPON_DEFS = {
     adsTime: 0.16, adsFovMult: 0.82, adsMoveMult: 0.72,
     hipMoveMult: 1.0, sprintMult: 1.35,
     bobAmp: 0.028, bobSpeed: 11, swayAmp: 0.010, swaySpeed: 1.6, inertia: 9.5,
-    muzzleFlashScale: 0.85, tracerWidth: 0.02, pellets: 1,
+    muzzleFlashScale: 0.85, tracerWidth: 0.02, tracerLength: 7, pellets: 1,
+    muzzleVelocity: 420, penetration: 0.8,
     weight: "light",
   },
   shotgun: {
@@ -31,7 +32,8 @@ export const WEAPON_DEFS = {
     adsTime: 0.22, adsFovMult: 0.92, adsMoveMult: 0.8,
     hipMoveMult: 0.95, sprintMult: 1.3,
     bobAmp: 0.034, bobSpeed: 9, swayAmp: 0.016, swaySpeed: 1.3, inertia: 6,
-    muzzleFlashScale: 1.5, tracerWidth: 0.015,
+    muzzleFlashScale: 1.5, tracerWidth: 0.015, tracerLength: 4,
+    muzzleVelocity: 380, penetration: 0.35,
     weight: "heavy",
   },
   marksman: {
@@ -46,7 +48,8 @@ export const WEAPON_DEFS = {
     adsTime: 0.32, adsFovMult: 0.55, adsMoveMult: 0.55,
     hipMoveMult: 0.85, sprintMult: 1.15,
     bobAmp: 0.02, bobSpeed: 7, swayAmp: 0.02, swaySpeed: 1.0, inertia: 4,
-    muzzleFlashScale: 1.8, tracerWidth: 0.028,
+    muzzleFlashScale: 1.8, tracerWidth: 0.028, tracerLength: 14,
+    muzzleVelocity: 900, penetration: 2.6,
     weight: "heavy",
   },
 };

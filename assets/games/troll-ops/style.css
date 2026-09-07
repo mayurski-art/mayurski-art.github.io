@@ -310,6 +310,11 @@
 .to-touch-ads { right: 108px; bottom: 100px; width: 58px; height: 58px; font-size: 11px; }
 .to-touch-jump { right: 20px; bottom: 130px; width: 50px; height: 50px; font-size: 16px; }
 .to-touch-reload { right: 130px; bottom: 30px; width: 50px; height: 50px; font-size: 12px; }
+.to-touch-slide { left: 134px; bottom: 30px; width: 56px; height: 56px; font-size: 10px; }
+.to-touch-lean { width: 52px; height: 52px; bottom: 136px; font-size: 14px; }
+.to-touch-lean-l { left: 22px; }
+.to-touch-lean-r { left: 86px; }
+.to-touch-btn.is-held { background: rgba(255,255,255,.26); }
 
 @media (max-width: 760px), (pointer: coarse) {
   .to-hint { display: none; }
