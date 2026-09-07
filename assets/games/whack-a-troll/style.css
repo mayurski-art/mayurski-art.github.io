@@ -79,6 +79,20 @@
   color: var(--red);
 }
 
+.wt-chip-value.wt-strikes {
+  color: var(--red);
+  letter-spacing: 0.15em;
+}
+
+body.wt-blitz .wt-board {
+  box-shadow: var(--shadow), 0 0 0 2px var(--red-soft);
+}
+
+body.wt-blitz .wt-title::after {
+  content: " · BLITZ";
+  color: var(--red);
+}
+
 .wt-board {
   position: relative;
   width: 100%;
@@ -142,12 +156,21 @@
 }
 
 .wt-troll img {
+  position: absolute;
+  bottom: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
   object-position: bottom;
   filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+  opacity: 0;
 }
+
+.wt-char-troll { opacity: 1; }
+
+.wt-hole.is-pepe .wt-char-troll { opacity: 0; }
+.wt-hole.is-pepe .wt-char-pepe { opacity: 1; }
 
 .wt-hole.is-up .wt-troll {
   bottom: 6%;
@@ -163,6 +186,19 @@
   position: absolute;
   inset: 0;
   background: radial-gradient(circle, var(--green-soft) 0%, transparent 70%);
+  animation: wt-pop-flash 0.3s ease-out;
+}
+
+.wt-hole.is-strike .wt-troll {
+  bottom: -100%;
+  transition: bottom 0.12s ease-in;
+}
+
+.wt-hole.is-strike::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, var(--red-soft) 0%, transparent 70%);
   animation: wt-pop-flash 0.3s ease-out;
 }
 
