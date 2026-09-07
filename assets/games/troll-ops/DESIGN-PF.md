@@ -106,13 +106,19 @@ The PF *feel*, still against AI grunts so it stays playable throughout.
   lean roll no longer fight over the camera quaternion
 - ✅ Slide + lean touch controls for mobile parity
 
-### Phase 2 — Weapon roster + attachments
-- ~20 weapons across 6 classes (table in §5)
-- Data-driven procedural weapon model builder — one builder reads a parts spec
-  per weapon instead of the current hardcoded if-chain
-- Attachment system: **optic / barrel / underbarrel / ammo**, each applying real
-  stat deltas
-- PF-style loadout screen: class → weapon → attachments → stat bars
+### Phase 2 — Weapon roster + attachments ✅ SHIPPED
+- ✅ **22 weapons across 8 classes** (table in §5), built from per-class base
+  templates so each definition only states what makes that gun different
+- ✅ Data-driven procedural model builder (`weapon-model.js`) — bullpups, drum
+  mags, tube mags, wood furniture and pistols all come out of one code path
+- ✅ Attachment system (`attachments.js`): **optic / barrel / underbarrel / ammo**
+  with real stat deltas. Optics use `set` for zoom so magnification doesn't
+  compound off the weapon's own ADS FOV
+- ✅ PF-style loadout screen (`loadout.js`): class → weapon → attachments →
+  stat bars, with lock states and rank requirements
+- ✅ Rank/XP (`progression.js`) — localStorage for now, moves to the accounts
+  system in phase 6. Weapons gate at ranks 0–40; XP is `kills×50 + wave×300`
+  against 2,500 per rank, so the roster opens over a few sessions
 
 ### Phase 3 — Map system + 5 maps
 - Extract arena construction into a data-driven loader (geometry, colliders,
@@ -147,7 +153,7 @@ The PF *feel*, still against AI grunts so it stays playable throughout.
 
 ---
 
-## 5. Weapon roster (~20, 6 classes)
+## 5. Weapon roster (22, 8 classes)
 
 Names follow the voice already established by *Grinder SMG* / *Widemouth 12* /
 *Longsmile .50* — descriptive, faintly cheeky, never the troll emoji.

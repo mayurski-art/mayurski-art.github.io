@@ -6,7 +6,10 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WEAPON_DEFS, WeaponState } from "./weapons.js";
+import { WeaponState } from "./weapons.js";
+import { buildWeaponMesh } from "./weapon-model.js";
+import { Loadout } from "./loadout.js";
+import { addXp, xpForRun } from "./progression.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial, makeGroundMaterial } from "./shaders.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem } from "./ballistics.js";
@@ -17,7 +20,14 @@ const els = {
   loading: document.getElementById("to-loading"),
   title: document.getElementById("to-title"),
   startBtn: document.getElementById("to-start-btn"),
-  weaponCards: Array.from(document.querySelectorAll(".to-weapon-card")),
+  loClasses: document.getElementById("to-lo-classes"),
+  loList: document.getElementById("to-lo-list"),
+  loName: document.getElementById("to-lo-name"),
+  loBlurb: document.getElementById("to-lo-blurb"),
+  loStats: document.getElementById("to-lo-stats"),
+  loAtts: document.getElementById("to-lo-atts"),
+  loRank: document.getElementById("to-lo-rank-label"),
+  loRankFill: document.getElementById("to-lo-rank-fill"),
   pause: document.getElementById("to-pause"),
   resumeBtn: document.getElementById("to-resume-btn"),
   quitBtn: document.getElementById("to-quit-btn"),
@@ -26,6 +36,8 @@ const els = {
   goWave: document.getElementById("to-go-wave"),
   goKills: document.getElementById("to-go-kills"),
   goTime: document.getElementById("to-go-time"),
+  goXp: document.getElementById("to-go-xp"),
+  goRank: document.getElementById("to-go-rank"),
   retryBtn: document.getElementById("to-retry-btn"),
   hud: document.getElementById("to-hud"),
   hudWave: document.getElementById("hud-wave"),
@@ -58,14 +70,15 @@ const els = {
 const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
 if (isTouch) { els.touch.hidden = false; }
 
-let selectedWeaponId = null;
-els.weaponCards.forEach((card) => {
-  card.addEventListener("click", () => {
-    els.weaponCards.forEach((c) => c.classList.remove("is-active"));
-    card.classList.add("is-active");
-    selectedWeaponId = card.dataset.weapon;
-    els.startBtn.disabled = false;
-  });
+const loadout = new Loadout({
+  classes: els.loClasses,
+  list: els.loList,
+  name: els.loName,
+  blurb: els.loBlurb,
+  stats: els.loStats,
+  atts: els.loAtts,
+  rank: els.loRank,
+  rankFill: els.loRankFill,
 });
 
 // -------------------- renderer / scene --------------------
@@ -271,86 +284,21 @@ weaponScene.add(weaponFillLight);
 
 scene.add(camera);
 
-function buildWeaponMesh(def) {
-  const group = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a4f48, roughness: 0.4, metalness: 0.7 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x2a2c28, roughness: 0.55, metalness: 0.5 });
-  const accentMat = new THREE.MeshStandardMaterial({ color: 0x6b7a5e, roughness: 0.4, metalness: 0.6 });
 
-  let bodyLen = 0.5, bodyH = 0.07, bodyW = 0.06;
-  if (def.id === "shotgun") { bodyLen = 0.62; bodyH = 0.08; bodyW = 0.07; }
-  if (def.id === "marksman") { bodyLen = 0.78; bodyH = 0.065; bodyW = 0.055; }
+// Only the equipped weapon is built, and it's rebuilt whenever the loadout
+// changes, because attachments alter the geometry.
+let activeWeaponMesh = null;
 
-  // receiver (main body), sits roughly centered in view
-  const body = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyLen * 0.55), bodyMat);
-  body.position.z = -bodyLen * 0.12;
-  group.add(body);
-
-  // barrel shroud extends forward
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, bodyLen * 0.5, 10), darkMat);
-  barrel.rotation.x = Math.PI / 2;
-  barrel.position.set(0, bodyH * 0.1, -bodyLen * 0.62);
-  group.add(barrel);
-
-  // stock extends backward
-  const stock = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 0.7, bodyH * 0.75, bodyLen * 0.32), darkMat);
-  stock.position.set(0, -bodyH * 0.05, bodyLen * 0.28);
-  group.add(stock);
-
-  // pistol grip, hangs below receiver
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.15, 0.055), darkMat);
-  grip.position.set(0, -bodyH * 1.3, bodyLen * 0.02);
-  grip.rotation.x = 0.32;
-  group.add(grip);
-
-  // magazine, hangs below receiver forward of grip
-  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.19, 0.06), darkMat);
-  mag.position.set(0, -bodyH * 1.6, -bodyLen * 0.14);
-  mag.rotation.x = -0.12;
-  group.add(mag);
-
-  // handguard accent strip
-  const handguard = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 1.05, bodyH * 0.55, bodyLen * 0.32), accentMat);
-  handguard.position.set(0, -bodyH * 0.05, -bodyLen * 0.4);
-  group.add(handguard);
-
-  // sight
-  let sight;
-  if (def.sight === "reddot") {
-    sight = new THREE.Group();
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.004, 6, 16), darkMat);
-    const mount = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.03), darkMat);
-    mount.position.y = -0.015;
-    sight.add(ring, mount);
-    const dotMat = new THREE.MeshBasicMaterial({ color: 0xff2222, side: THREE.DoubleSide, depthTest: false });
-    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.005, 10), dotMat);
-    dot.position.z = 0.003;
-    dot.renderOrder = 10;
-    sight.add(dot);
-    sight.position.set(0, bodyH * 0.75, -bodyLen * 0.35);
-    group.userData.aimPoint = new THREE.Vector3(0, bodyH * 0.75, -bodyLen * 0.35);
-  } else {
-    sight = new THREE.Group();
-    const rear = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.02, 0.01), darkMat);
-    const front = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.022, 0.006), darkMat);
-    rear.position.set(0, bodyH * 0.7, -bodyLen * 0.15);
-    front.position.set(0, bodyH * 0.7, -bodyLen * 0.85);
-    sight.add(rear, front);
-    group.userData.aimPoint = new THREE.Vector3(0, bodyH * 0.7, -bodyLen * 0.15);
+function setActiveWeaponMesh(def) {
+  if (activeWeaponMesh) {
+    weaponRig.remove(activeWeaponMesh);
+    activeWeaponMesh.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose?.();
+    });
   }
-  group.add(sight);
-  group.userData.sight = sight;
-
-  group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
-  return group;
-}
-
-const weaponMeshes = {};
-for (const id of Object.keys(WEAPON_DEFS)) {
-  const m = buildWeaponMesh(WEAPON_DEFS[id]);
-  m.visible = false;
-  weaponRig.add(m);
-  weaponMeshes[id] = m;
+  activeWeaponMesh = buildWeaponMesh(def);
+  weaponRig.add(activeWeaponMesh);
 }
 
 // muzzle flash sprite
@@ -412,13 +360,12 @@ const player = {
   pos: new THREE.Vector3(0, 1.7, 8), // eye position, mirrored from `move` each frame
   hp: 100,
   maxHp: 100,
-  weaponId: "smg",
+  weaponId: "problem416",
   weapons: {},
   kills: 0,
   wave: 0,
   alive: true,
 };
-for (const id of Object.keys(WEAPON_DEFS)) player.weapons[id] = new WeaponState(id);
 
 const move = new MovementController({ colliders, arena: ARENA });
 const bullets = new BulletSystem(scene);
@@ -654,15 +601,15 @@ function startGame() {
   look.yaw = 0;
   look.pitch = 0;
   bullets.clear();
-  for (const id of Object.keys(WEAPON_DEFS)) player.weapons[id] = new WeaponState(id);
-  player.weaponId = selectedWeaponId || "smg";
+  const equipped = loadout.resolved;
+  player.weaponId = equipped.id;
+  player.weapons = { [equipped.id]: new WeaponState(equipped) };
+  setActiveWeaponMesh(equipped);
 
   if (spawner) {
     for (const g of spawner.grunts) g.dispose(scene);
   }
   spawner = new WaveSpawner(scene, ARENA, spawnPoints);
-
-  for (const id of Object.keys(weaponMeshes)) weaponMeshes[id].visible = id === player.weaponId;
 
   els.title.hidden = true;
   els.gameover.hidden = true;
@@ -696,6 +643,13 @@ function endGame(reason) {
 
   const score = player.wave * 10000 + player.kills * 10;
   window.TrollLeaderboard?.report?.("troll-ops", { score, wave: player.wave, kills: player.kills });
+
+  const gained = xpForRun({ kills: player.kills, wave: player.wave });
+  const { rankedUp, rank } = addXp(gained);
+  els.goXp.textContent = `+${gained.toLocaleString()} XP`;
+  els.goRank.textContent = rankedUp ? `Rank up — now rank ${rank}` : "";
+  els.goRank.hidden = !rankedUp;
+  loadout.render();
 }
 
 els.startBtn.addEventListener("click", startGame);
@@ -879,9 +833,17 @@ function updatePlayer(dt) {
   if (wantFire && canAct) {
     if (w.def.fireMode === "auto") {
       if (w.canFire()) fireOnce();
+    } else if (w.def.fireMode === "burst") {
+      if (fireEdgeTrigger && w.burstLeft <= 0 && w.canFire()) w.burstLeft = w.def.burst || 2;
     } else if (fireEdgeTrigger && w.canFire()) {
       fireOnce();
     }
+  }
+
+  // A burst finishes on its own cadence even if the trigger is released.
+  if (w.burstLeft > 0 && canAct && w.canFire()) {
+    fireOnce();
+    w.burstLeft--;
   }
 }
 
@@ -895,9 +857,8 @@ let weaponLowerT = 0;
 
 function updateWeaponView(dt) {
   const w = currentWeapon();
-  const mesh = weaponMeshes[player.weaponId];
+  const mesh = activeWeaponMesh;
   if (!mesh) return;
-  for (const id of Object.keys(weaponMeshes)) weaponMeshes[id].visible = id === player.weaponId;
 
   const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5;
   const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp;
@@ -936,8 +897,8 @@ function updateWeaponView(dt) {
     muzzleMat.uniforms.uIntensity.value = 0;
   }
   muzzleLight.intensity *= Math.max(0, 1 - dt * 30);
-  const barrelTipLocal = new THREE.Vector3(0, 0.02, -0.62);
-  muzzleFlash.position.copy(basePos).add(barrelTipLocal.multiplyScalar(1));
+  const barrelTipLocal = new THREE.Vector3(0, 0.02, mesh.userData.muzzleZ ?? -0.62);
+  muzzleFlash.position.copy(basePos).add(barrelTipLocal);
   muzzleLight.position.copy(muzzleFlash.position);
 }
 
