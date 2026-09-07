@@ -14,8 +14,10 @@
     score: document.getElementById("wt-score"),
     time: document.getElementById("wt-time"),
     combo: document.getElementById("wt-combo"),
+    strikes: document.getElementById("wt-strikes"),
     start: document.getElementById("wt-start-overlay"),
     startBtn: document.getElementById("wt-start-btn"),
+    blitzBtn: document.getElementById("wt-blitz-btn"),
     results: document.getElementById("wt-results-overlay"),
     finalScore: document.getElementById("wt-final-score"),
     finalSub: document.getElementById("wt-final-sub"),
@@ -27,9 +29,11 @@
   let combo = 0;
   let timeLeft = ROUND_SECONDS;
   let running = false;
-  let popTimer = null;
+  let spawnTimer = null;
   let tickTimer = null;
-  let activeHole = null;
+  let activeCount = 0;
+  let blitz = false;
+  const MAX_ACTIVE = 3;
 
   function buildBoard() {
     els.board.innerHTML = "";
@@ -41,7 +45,10 @@
       hole.setAttribute("aria-label", "Whack the troll");
       hole.innerHTML =
         '<div class="wt-mound"></div>' +
-        '<div class="wt-troll"><img src="assets/pfp/base/og.webp" alt="" aria-hidden="true"></div>';
+        '<div class="wt-troll">' +
+          '<img class="wt-char-troll" src="assets/pfp/base/og.webp" alt="" aria-hidden="true">' +
+          '<img class="wt-char-pepe" src="assets/games/troll-burger/art/customers/pepe-stand.png" alt="" aria-hidden="true">' +
+        '</div>';
       hole.addEventListener("pointerdown", () => whack(i));
       hole.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -54,52 +61,69 @@
     }
   }
 
-  function randomHoleIndex(excludeIndex) {
-    let idx;
-    do {
-      idx = Math.floor(Math.random() * HOLE_COUNT);
-    } while (idx === excludeIndex && HOLE_COUNT > 1);
-    return idx;
+  const PEPE_CHANCE = 0.28;
+  const MAX_STRIKES = 3;
+  let strikes = 0;
+
+  function freeHoleIndex() {
+    const free = [];
+    for (let i = 0; i < HOLE_COUNT; i++) {
+      if (holes[i].dataset.live !== "1") free.push(i);
+    }
+    if (!free.length) return -1;
+    return free[Math.floor(Math.random() * free.length)];
   }
 
   function popSpeedMs() {
-    // Starts slow (~1000ms up-time), ramps down to ~450ms as score climbs.
-    const floor = 450;
-    const start = 1000;
-    const decay = Math.min(score * 8, start - floor);
+    // Starts slow, ramps down as score climbs. Blitz mode runs the whole
+    // curve faster and bottoms out lower.
+    const floor = blitz ? 280 : 500;
+    const start = blitz ? 650 : 1100;
+    const decay = Math.min(score * (blitz ? 4 : 6), start - floor);
     return start - decay;
   }
 
-  function scheduleNextPop() {
+  function scheduleNextSpawn() {
     if (!running) return;
-    const delay = 260 + Math.random() * 320;
-    popTimer = setTimeout(() => {
-      const idx = randomHoleIndex(activeHole);
-      showTroll(idx);
+    const base = blitz ? 110 : 220;
+    const span = blitz ? 140 : 260;
+    const delay = base + Math.random() * span;
+    spawnTimer = setTimeout(() => {
+      if (activeCount < MAX_ACTIVE) {
+        const idx = freeHoleIndex();
+        if (idx >= 0) showCharacter(idx);
+      }
+      scheduleNextSpawn();
     }, delay);
   }
 
-  function showTroll(idx) {
+  function showCharacter(idx) {
     if (!running) return;
     const hole = holes[idx];
-    activeHole = idx;
+    const isPepe = Math.random() < PEPE_CHANCE;
     hole.classList.remove("is-hit", "is-missed");
-    hole.classList.add("is-up");
+    hole.classList.toggle("is-pepe", isPepe);
+    hole.dataset.pepe = isPepe ? "1" : "0";
     hole.dataset.live = "1";
+    activeCount += 1;
 
     const upTime = popSpeedMs();
     hole.dataset.timer = setTimeout(() => {
       if (hole.dataset.live === "1") {
         hole.dataset.live = "0";
         hole.classList.remove("is-up");
-        hole.classList.add("is-missed");
-        combo = 0;
-        updateHud();
-        setTimeout(() => hole.classList.remove("is-missed"), 400);
+        activeCount -= 1;
+        if (!isPepe) {
+          hole.classList.add("is-missed");
+          combo = 0;
+          updateHud();
+          setTimeout(() => hole.classList.remove("is-missed"), 400);
+        }
       }
-      activeHole = null;
-      scheduleNextPop();
     }, upTime);
+
+    // Separate frame so the "is-up" transition always runs from a clean state.
+    requestAnimationFrame(() => hole.classList.add("is-up"));
   }
 
   function whack(idx) {
@@ -110,6 +134,21 @@
     hole.dataset.live = "0";
     clearTimeout(Number(hole.dataset.timer));
     hole.classList.remove("is-up");
+    activeCount -= 1;
+
+    if (hole.dataset.pepe === "1") {
+      hole.classList.add("is-strike");
+      setTimeout(() => hole.classList.remove("is-strike", "is-pepe"), 300);
+      strikes += 1;
+      combo = 0;
+      updateHud();
+      if (strikes >= MAX_STRIKES) {
+        endRound(true);
+        return;
+      }
+      return;
+    }
+
     hole.classList.add("is-hit");
     setTimeout(() => hole.classList.remove("is-hit"), 300);
 
@@ -118,8 +157,6 @@
     score += points;
     showScorePop(hole, points);
     updateHud();
-
-    if (activeHole === idx) activeHole = null;
   }
 
   function showScorePop(hole, points) {
@@ -135,51 +172,61 @@
     els.combo.textContent = combo > 1 ? "x" + combo : "";
     els.time.textContent = timeLeft;
     els.time.classList.toggle("wt-time-low", timeLeft <= 10);
+    els.strikes.textContent = "•".repeat(strikes) + "◦".repeat(MAX_STRIKES - strikes);
   }
 
-  function startRound() {
+  function startRound(isBlitz) {
+    blitz = !!isBlitz;
     score = 0;
     combo = 0;
-    timeLeft = ROUND_SECONDS;
+    strikes = 0;
+    activeCount = 0;
+    timeLeft = blitz ? Math.round(ROUND_SECONDS * 0.6) : ROUND_SECONDS;
     running = true;
-    activeHole = null;
-    holes.forEach((h) => h.classList.remove("is-up", "is-hit", "is-missed"));
+    holes.forEach((h) => {
+      h.classList.remove("is-up", "is-hit", "is-missed", "is-pepe", "is-strike");
+      h.dataset.live = "0";
+      h.dataset.pepe = "0";
+    });
+    document.body.classList.toggle("wt-blitz", blitz);
     updateHud();
 
     els.start.hidden = true;
     els.results.hidden = true;
 
-    scheduleNextPop();
+    scheduleNextSpawn();
     tickTimer = setInterval(() => {
       timeLeft -= 1;
       updateHud();
-      if (timeLeft <= 0) endRound();
+      if (timeLeft <= 0) endRound(false);
     }, 1000);
   }
 
-  function endRound() {
+  function endRound(struckOut) {
     running = false;
-    clearTimeout(popTimer);
+    clearTimeout(spawnTimer);
     clearInterval(tickTimer);
     holes.forEach((h) => {
       clearTimeout(Number(h.dataset.timer));
-      h.classList.remove("is-up", "is-hit", "is-missed");
+      h.classList.remove("is-up", "is-hit", "is-missed", "is-pepe", "is-strike");
       h.dataset.live = "0";
     });
 
     els.finalScore.textContent = score;
-    els.finalSub.textContent =
-      score >= 400 ? "Certified troll exterminator." :
-      score >= 200 ? "Solid whacking. They fear you." :
-      "The trolls barely noticed.";
+    els.finalSub.textContent = struckOut
+      ? "Three Pepes whacked. Game over."
+      : score >= 400 ? "Certified troll exterminator." :
+        score >= 200 ? "Solid whacking. They fear you." :
+        "The trolls barely noticed.";
     els.results.hidden = false;
 
     if (window.TrollLeaderboard) {
-      window.TrollLeaderboard.record("whack-a-troll", { score });
+      window.TrollLeaderboard.record("whack-a-troll", { score, blitz });
     }
   }
 
   buildBoard();
-  els.startBtn.addEventListener("click", startRound);
-  els.againBtn.addEventListener("click", startRound);
+  els.startBtn.addEventListener("click", () => startRound(false));
+  if (els.blitzBtn) els.blitzBtn.addEventListener("click", () => startRound(true));
+  els.againBtn.addEventListener("click", () => startRound(blitz));
 })();
