@@ -461,19 +461,21 @@ const keys = new Set();
 window.addEventListener("keydown", (e) => {
   keys.add(e.code);
   if (e.code === "KeyR") tryReload();
+  if (e.code === "KeyQ") adsHeld = true;
   if (e.code === "Escape") { /* handled by pointerlock change */ }
 });
-window.addEventListener("keyup", (e) => keys.delete(e.code));
+window.addEventListener("keyup", (e) => {
+  keys.delete(e.code);
+  if (e.code === "KeyQ") adsHeld = false;
+});
 
 let mouseDown = false, adsHeld = false;
 renderer.domElement.addEventListener("mousedown", (e) => {
   if (!controls.isLocked) return;
   if (e.button === 0) mouseDown = true;
-  if (e.button === 2) adsHeld = true;
 });
 window.addEventListener("mouseup", (e) => {
   if (e.button === 0) mouseDown = false;
-  if (e.button === 2) adsHeld = false;
 });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 
