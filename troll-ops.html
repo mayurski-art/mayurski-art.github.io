@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-p5">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-p6">
 </head>
 <body>
 
@@ -46,6 +46,16 @@
             <div class="to-lo-rank">
               <strong id="to-lo-rank-label">Rank 0</strong>
               <i class="to-lo-rank-bar"><b id="to-lo-rank-fill"></b></i>
+            </div>
+            <div class="to-lo-mode" id="to-lo-mode" role="group" aria-label="Game mode">
+              <button type="button" class="to-lo-modebtn is-active" data-mode="ops" aria-pressed="true">Ops · solo horde</button>
+              <button type="button" class="to-lo-modebtn" data-mode="pvp" aria-pressed="false">PvP · Phantoms v Ghosts</button>
+            </div>
+            <div class="to-lo-pvp" id="to-lo-pvp" hidden>
+              <label for="to-room">Room code</label>
+              <input id="to-room" class="to-room-input" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
+              <button type="button" class="to-room-new" id="to-newroom">New code</button>
+              <span class="to-net-status" id="to-net-status">Share the code with whoever you want in the match.</span>
             </div>
             <div class="to-lo-maps" id="to-lo-maps" role="group" aria-label="Map"></div>
             <div class="to-lo-classes" id="to-lo-classes" role="group" aria-label="Weapon class"></div>
@@ -111,6 +121,16 @@
           </div>
         </div>
 
+        <div class="to-hud-teams" id="to-hud-teams" hidden>
+          <span class="to-team to-team-phantom"><b id="hud-score-phantom">0</b> Phantoms</span>
+          <span class="to-team-sep">·</span>
+          <span class="to-team to-team-ghost">Ghosts <b id="hud-score-ghost">0</b></span>
+        </div>
+
+        <div class="to-scoreboard" id="to-scoreboard" hidden aria-live="polite"></div>
+
+        <div class="to-respawn" id="to-respawn" hidden><span id="to-respawn-text"></span></div>
+
         <div class="to-crosshair" id="to-crosshair" aria-hidden="true">
           <span class="to-ch-dot"></span>
           <span class="to-ch-line to-ch-t"></span>
@@ -174,7 +194,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p1" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-p5"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-p6"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

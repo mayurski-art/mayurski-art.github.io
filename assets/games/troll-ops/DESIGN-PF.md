@@ -135,13 +135,32 @@ The PF *feel*, still against AI grunts so it stays playable throughout.
 - ✅ Map picker on the loadout screen
 - Map vote / rotation between matches → deferred to phase 5 with match flow
 
-### Phase 4 — Multiplayer PvP
-- Supabase Realtime rooms with join codes, `BroadcastChannel` fallback
-- Team assignment (Phantoms vs Ghosts), balanced on join
-- Position/rotation/animation sync with interpolation + extrapolation
-- Client-authoritative hit reporting, damage numbers, kill confirmation
-- Remote player models — trollface operators with lean/crouch/slide poses
-- Live killfeed, Tab scoreboard, team score HUD
+### Phase 4 — Multiplayer PvP ✅ SHIPPED
+- ✅ Supabase Realtime rooms with join codes (`net.js`), `BroadcastChannel`
+  fallback for same-browser tabs. Verified connecting two live clients
+- ✅ Team assignment balanced on join. This took three attempts — see the note
+  below, it's the subtlest thing in the phase
+- ✅ Position/rotation/stance sync at 15Hz, rendered 110ms in the past and
+  interpolated between the bracketing snapshots (`remote-players.js`).
+  Extrapolating from a 15Hz feed reads as jitter; a small fixed delay is smoother
+- ✅ Client-authoritative hit reporting — the shooter decides and reports, the
+  target applies it to itself and nobody else can
+- ✅ Remote operators with team colours, name tags, stance heights and grins
+- ✅ Killfeed, Tab scoreboard, team score HUD, death and respawn cycle
+- Bots to fill empty rooms → phase 5, alongside game modes
+
+**Team balancing, and why it was fiddly.** Picking "the side with fewer
+players" is wrong three different ways in a peer-to-peer room:
+1. Peers defaulted to `phantom` before announcing, so two simultaneous joiners
+   each counted one phantom and both "balanced" onto ghost. Unknown teams must
+   not be counted.
+2. The `Net` constructor also defaulted its own team to `phantom`, which then
+   leaked into the `hello` handshake — same collision, one level deeper. The
+   team stays `null` until it's genuinely chosen.
+3. Choosing the moment the channel subscribes means balancing against a room
+   that still looks empty. `start()` now settles for 700ms before returning, so
+   the choice sees real teams. Genuine ties fall back to id ordering, which
+   splits simultaneous joiners deterministically.
 
 ### Phase 5 — Game modes
 - **Team Deathmatch** — first team to N kills

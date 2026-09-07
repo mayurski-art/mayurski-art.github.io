@@ -1,5 +1,9 @@
 /* Troll Ops — arena shooter UI */
 
+/* Several UI blocks below set `display: flex`, which beats the `hidden`
+   attribute's default styling and leaves "hidden" panels on screen. */
+[hidden] { display: none !important; }
+
 .to-cabinet {
   position: relative;
   width: 100%;
@@ -97,6 +101,75 @@
   background: rgba(255,255,255,.1);
 }
 .to-lo-rank-bar b { display: block; height: 100%; background: #7fe066; border-radius: 3px; }
+
+/* mode toggle + PvP room row */
+.to-lo-mode { display: flex; gap: 5px; }
+.to-lo-modebtn {
+  flex: 1; font-family: "Oswald", sans-serif; font-size: 12px; letter-spacing: .04em;
+  padding: 7px 10px; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  color: #9aa596; transition: background .14s, border-color .14s, color .14s;
+}
+.to-lo-modebtn:hover { border-color: rgba(127,224,102,.4); color: #cfe0c4; }
+.to-lo-modebtn.is-active { background: rgba(127,224,102,.14); border-color: #7fe066; color: #eaf5e4; }
+
+.to-lo-pvp { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.to-lo-pvp label {
+  font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: #7c8778; font-family: "DM Mono", monospace;
+}
+.to-room-input {
+  width: 92px; padding: 5px 8px; border-radius: 7px;
+  background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.14);
+  color: #eaf5e4; font-family: "DM Mono", monospace; font-size: 13px;
+  letter-spacing: .18em; text-transform: uppercase; text-align: center;
+}
+.to-room-input:focus { outline: none; border-color: #7fe066; }
+.to-room-new {
+  font-size: 10px; padding: 5px 9px; border-radius: 6px; cursor: pointer;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: #9aa596;
+}
+.to-room-new:hover { border-color: rgba(127,224,102,.4); color: #cfe0c4; }
+.to-net-status {
+  font-size: 10.5px; color: #7c8778; font-family: "DM Mono", monospace; font-style: italic;
+}
+.to-net-status.is-live { color: #7fe066; font-style: normal; }
+.to-net-status.is-bad { color: #ff8a5a; font-style: normal; }
+
+/* in-match team score + scoreboard */
+.to-hud-teams {
+  position: absolute; top: 46px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  font-family: "Oswald", sans-serif; font-size: 13px; letter-spacing: .06em;
+}
+.to-team { color: #cfd8c8; }
+.to-team b { font-size: 17px; }
+.to-team-phantom b { color: #a98cf0; }
+.to-team-ghost b { color: #e8bf76; }
+.to-team-sep { color: #6f7a68; }
+
+.to-scoreboard {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  min-width: 340px; max-width: 88%; padding: 14px 16px; border-radius: 12px;
+  background: rgba(6,9,7,.9); border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(6px); z-index: 14;
+  font-family: "DM Mono", monospace; font-size: 12px; color: #dfe6da;
+}
+.to-sb-team { margin-bottom: 10px; }
+.to-sb-head {
+  display: flex; justify-content: space-between;
+  font-family: "Oswald", sans-serif; font-size: 13px; letter-spacing: .08em;
+  padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.to-sb-row { display: flex; justify-content: space-between; padding: 2px 0; }
+.to-sb-row.is-you { color: #7fe066; }
+.to-sb-row span:last-child { color: #9aa596; }
+
+.to-respawn {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-family: "Oswald", sans-serif; font-size: 20px; letter-spacing: .08em;
+  color: #ff8a5a; text-align: center; z-index: 13;
+}
 
 /* map picker */
 .to-lo-maps { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }

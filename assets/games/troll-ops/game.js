@@ -11,6 +11,8 @@ import { buildWeaponMesh } from "./weapon-model.js";
 import { Loadout } from "./loadout.js";
 import { addXp, xpForRun } from "./progression.js";
 import { buildMap, disposeMap } from "./maps.js";
+import { Net, makeRoomCode } from "./net.js";
+import { RemotePlayers, TEAMS } from "./remote-players.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem } from "./ballistics.js";
@@ -21,6 +23,19 @@ const els = {
   loading: document.getElementById("to-loading"),
   title: document.getElementById("to-title"),
   startBtn: document.getElementById("to-start-btn"),
+  loMode: document.getElementById("to-lo-mode"),
+  loPvp: document.getElementById("to-lo-pvp"),
+  room: document.getElementById("to-room"),
+  newRoom: document.getElementById("to-newroom"),
+  netStatus: document.getElementById("to-net-status"),
+  hudTeams: document.getElementById("to-hud-teams"),
+  scorePhantom: document.getElementById("hud-score-phantom"),
+  scoreGhost: document.getElementById("hud-score-ghost"),
+  scoreboard: document.getElementById("to-scoreboard"),
+  respawn: document.getElementById("to-respawn"),
+  respawnText: document.getElementById("to-respawn-text"),
+  hudWaveBox: document.querySelector(".to-hud-wave"),
+  hudHostilesBox: document.querySelector(".to-hud-hostiles"),
   loMaps: document.getElementById("to-lo-maps"),
   loClasses: document.getElementById("to-lo-classes"),
   loList: document.getElementById("to-lo-list"),
@@ -82,6 +97,71 @@ const loadout = new Loadout({
   atts: els.loAtts,
   rank: els.loRank,
   rankFill: els.loRankFill,
+});
+
+// -------------------- mode + networking --------------------
+
+let mode = "ops"; // "ops" = solo horde, "pvp" = Phantoms v Ghosts
+const teamScores = { phantom: 0, ghost: 0 };
+
+function playerName() {
+  const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
+  return String(profile?.username || "operator").slice(0, 14);
+}
+
+function setNetStatus(text, state = "") {
+  els.netStatus.textContent = text;
+  els.netStatus.classList.toggle("is-live", state === "live");
+  els.netStatus.classList.toggle("is-bad", state === "bad");
+}
+
+els.loMode.addEventListener("click", (e) => {
+  const btn = e.target.closest(".to-lo-modebtn");
+  if (!btn) return;
+  mode = btn.dataset.mode;
+  for (const b of els.loMode.children) {
+    const on = b === btn;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-pressed", String(on));
+  }
+  els.loPvp.hidden = mode !== "pvp";
+  if (mode === "pvp" && !els.room.value) els.room.value = makeRoomCode();
+});
+
+els.newRoom.addEventListener("click", () => { els.room.value = makeRoomCode(); });
+els.room.addEventListener("input", () => {
+  els.room.value = els.room.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
+});
+
+function registerDeath(victimName, killerId, weaponId) {
+  const iKilled = killerId === net.id;
+  const killer = iKilled ? "You" : (net.peers.get(killerId)?.name || "Someone");
+  const killerTeam = iKilled ? net.team : net.peers.get(killerId)?.team;
+  pushKillfeed(`${killer} → ${victimName}`);
+  if (iKilled) {
+    player.kills++;
+    els.hudKills.textContent = String(player.kills);
+  }
+  if (killerTeam && teamScores[killerTeam] != null) {
+    teamScores[killerTeam]++;
+    updateTeamHud();
+  }
+}
+
+function updateTeamHud() {
+  els.scorePhantom.textContent = String(teamScores.phantom);
+  els.scoreGhost.textContent = String(teamScores.ghost);
+}
+
+const net = new Net({
+  onJoin: (p) => pushKillfeed(`${p.name} joined`),
+  onLeave: (p) => pushKillfeed(`${p.name} left`),
+  onHitTaken: (m) => damagePlayer(m.dmg, m.id, m.w),
+  onPeerDied: (p, m) => registerDeath(p.name, m.by, m.w),
+  onRemoteShot: (p, m) => {
+    // Show someone else's tracer so fights are readable from across the map.
+    spawnImpactBurst(new THREE.Vector3(m.ox, m.oy, m.oz), 0xffcf8a, 3);
+  },
 });
 
 // -------------------- renderer / scene --------------------
@@ -316,6 +396,7 @@ const player = {
 
 const move = new MovementController({ colliders, arena: ARENA });
 const bullets = new BulletSystem(scene);
+const remotes = new RemotePlayers(scene);
 
 // Look is composed by hand rather than by PointerLockControls: recoil, lean
 // roll and the touch stick all need to write into the same orientation, and
@@ -350,8 +431,42 @@ window.addEventListener("keydown", (e) => {
   keys.add(e.code);
   if (e.code === "KeyR") tryReload();
   if (e.code === "Space" && gameState === "playing") e.preventDefault();
+  if (e.code === "Tab" && gameState === "playing" && mode === "pvp") {
+    e.preventDefault();
+    renderScoreboard();
+    els.scoreboard.hidden = false;
+  }
 });
-window.addEventListener("keyup", (e) => keys.delete(e.code));
+window.addEventListener("keyup", (e) => {
+  keys.delete(e.code);
+  if (e.code === "Tab") els.scoreboard.hidden = true;
+});
+
+function renderScoreboard() {
+  const rows = [{ name: `${playerName()} (you)`, team: net.team, kills: player.kills, you: true }];
+  for (const p of net.peers.values()) {
+    rows.push({ name: p.name, team: p.team, kills: p.kills | 0, you: false });
+  }
+  let html = "";
+  for (const teamId of ["phantom", "ghost"]) {
+    const team = TEAMS[teamId];
+    const members = rows.filter((r) => r.team === teamId).sort((a, b) => b.kills - a.kills);
+    html += `<div class="to-sb-team"><div class="to-sb-head">`
+      + `<span style="color:${team.ui}">${team.name}</span><span>${teamScores[teamId]}</span></div>`;
+    html += members.length
+      ? members.map((r) => `<div class="to-sb-row${r.you ? " is-you" : ""}">`
+          + `<span>${escapeHtml(r.name)}</span><span>${r.kills} kills</span></div>`).join("")
+      : `<div class="to-sb-row"><span>—</span><span></span></div>`;
+    html += `</div>`;
+  }
+  els.scoreboard.innerHTML = html;
+}
+
+// Peer names come off the wire, so they are never trusted as markup.
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 
 let mouseDown = false, adsHeld = false;
 renderer.domElement.addEventListener("mousedown", (e) => {
@@ -494,6 +609,7 @@ function fireOnce() {
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
   const up = new THREE.Vector3().crossVectors(right, forward).normalize();
   const muzzle = origin.clone().addScaledVector(forward, 0.35);
+  if (mode === "pvp") net.reportShot(muzzle, forward, player.weaponId);
 
   for (let i = 0; i < pellets; i++) {
     const spread = def.pelletSpread != null ? def.pelletSpread : w.spread;
@@ -509,7 +625,22 @@ function fireOnce() {
   }
 }
 
-function onBulletActorHit(grunt, { damage, isHead, point, dir }) {
+function resolveBulletTarget(object) {
+  return remotes.resolve(object) || findGruntFromObject(object);
+}
+
+function onBulletActorHit(actor, info) {
+  // Remote players own their own health: we report the hit and they apply it.
+  if (actor.netId) {
+    net.reportHit(actor.netId, info.damage, info.isHead, player.weaponId);
+    showHitmarker(info.isHead);
+    spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xff8a5a, info.isHead ? 16 : 8);
+    return;
+  }
+  onGruntBulletHit(actor, info);
+}
+
+function onGruntBulletHit(grunt, { damage, isHead, point, dir }) {
   const knockDir = dir.clone(); knockDir.y = 0; knockDir.normalize();
   const result = grunt.takeDamage(damage, isHead, knockDir);
   showHitmarker(isHead);
@@ -538,26 +669,69 @@ function findGruntFromObject(obj) {
 let gameState = "menu"; // menu | playing | paused | gameover
 let elapsedRun = 0;
 
-function startGame() {
+/* Team spawns are the map's spawn ring split in half — no map needs bespoke
+   team zones yet, and opposite halves are naturally far apart. */
+function teamSpawn() {
+  const pts = builtMap.spawnPoints;
+  const half = Math.ceil(pts.length / 2);
+  const pool = net.team === "ghost" ? pts.slice(half) : pts.slice(0, half);
+  return pool[Math.floor(Math.random() * pool.length)] || pts[0];
+}
+
+function equipFromLoadout() {
+  const equipped = loadout.resolved;
+  player.weaponId = equipped.id;
+  player.weapons = { [equipped.id]: new WeaponState(equipped) };
+  return equipped;
+}
+
+async function startGame() {
+  if (mode === "pvp") {
+    const code = els.room.value || makeRoomCode();
+    els.room.value = code;
+    els.startBtn.disabled = true;
+    setNetStatus("Connecting…");
+    const kind = await net.start(code, { name: playerName(), mapId: loadout.mapId });
+    els.startBtn.disabled = false;
+    if (!kind) { setNetStatus("Couldn't reach the room. Try another code.", "bad"); return; }
+    net.chooseTeam();
+    setNetStatus(`Live · ${kind} · room ${code} · ${TEAMS[net.team].name}`, "live");
+  } else {
+    net.stop();
+  }
+
   player.hp = player.maxHp;
   player.kills = 0;
   player.wave = 0;
   player.alive = true;
   elapsedRun = 0;
+  respawnT = 0;
+  teamScores.phantom = 0;
+  teamScores.ghost = 0;
+  updateTeamHud();
+
   loadMap(loadout.mapId);
-  move.reset(builtMap.playerSpawn.x, builtMap.playerSpawn.z);
+  const sp = mode === "pvp" ? teamSpawn() : builtMap.playerSpawn;
+  move.reset(sp.x, sp.z);
   look.yaw = 0;
   look.pitch = 0;
   bullets.clear();
-  const equipped = loadout.resolved;
-  player.weaponId = equipped.id;
-  player.weapons = { [equipped.id]: new WeaponState(equipped) };
-  setActiveWeaponMesh(equipped);
+  remotes.clear();
+
+  setActiveWeaponMesh(equipFromLoadout());
 
   if (spawner) {
     for (const g of spawner.grunts) g.dispose(scene);
+    spawner = null;
   }
-  spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
+  if (mode === "ops") spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
+
+  const pvp = mode === "pvp";
+  els.hudTeams.hidden = !pvp;
+  els.hudWaveBox.hidden = pvp;
+  els.hudHostilesBox.hidden = pvp;
+  els.respawn.hidden = true;
+  els.scoreboard.hidden = true;
 
   els.title.hidden = true;
   els.gameover.hidden = true;
@@ -565,7 +739,8 @@ function startGame() {
   els.hud.hidden = false;
   gameState = "playing";
 
-  nextWave();
+  if (mode === "ops") nextWave();
+  else showWaveBanner(`${TEAMS[net.team].name.toUpperCase()} — ${builtMap.map.name}`, 2400);
 
   if (!isTouch) controls.lock();
 }
@@ -603,7 +778,15 @@ function endGame(reason) {
 els.startBtn.addEventListener("click", startGame);
 els.retryBtn.addEventListener("click", startGame);
 els.resumeBtn.addEventListener("click", () => { if (!isTouch) controls.lock(); });
-els.quitBtn.addEventListener("click", () => { gameState = "menu"; els.pause.hidden = true; els.hud.hidden = true; els.title.hidden = false; });
+els.quitBtn.addEventListener("click", () => {
+  gameState = "menu";
+  net.stop();
+  remotes.clear();
+  setNetStatus("Share the code with whoever you want in the match.");
+  els.pause.hidden = true;
+  els.hud.hidden = true;
+  els.title.hidden = false;
+});
 
 controls.addEventListener("lock", () => { if (gameState === "paused") gameState = "playing"; els.pause.hidden = true; });
 controls.addEventListener("unlock", () => {
@@ -616,11 +799,34 @@ document.addEventListener("visibilitychange", () => {
 
 // -------------------- damage to player --------------------
 
-function damagePlayer(amount) {
+let respawnT = 0;
+
+function damagePlayer(amount, fromId, weaponId) {
   if (!player.alive) return;
   player.hp = Math.max(0, player.hp - amount);
   flashHit();
-  if (player.hp <= 0) endGame("dead");
+  if (player.hp > 0) return;
+
+  if (mode === "pvp") {
+    // In PvP dying is a respawn, not the end of the run.
+    player.alive = false;
+    respawnT = 4;
+    net.reportDeath(fromId, weaponId);
+    registerDeath("You", fromId, weaponId);
+    els.respawn.hidden = false;
+  } else {
+    endGame("dead");
+  }
+}
+
+function respawnPlayer() {
+  const sp = teamSpawn();
+  move.reset(sp.x, sp.z);
+  look.pitch = 0;
+  player.hp = player.maxHp;
+  player.alive = true;
+  setActiveWeaponMesh(equipFromLoadout());
+  els.respawn.hidden = true;
 }
 
 function onGruntAttack(grunt, dmg, ranged) {
@@ -658,17 +864,34 @@ function animate() {
     updatePlayer(dt);
     updateWeaponView(dt);
 
-    spawner.update(dt, player.pos, onGruntAttack);
-    els.hudHostiles.textContent = String(spawner.aliveCount + spawner.toSpawn);
+    let targetMeshes = [];
+    if (mode === "ops") {
+      spawner.update(dt, player.pos, onGruntAttack);
+      els.hudHostiles.textContent = String(spawner.aliveCount + spawner.toSpawn);
+      if (spawner.isWaveClear()) nextWave();
+      for (const g of spawner.grunts) if (g.alive && !g.dying) targetMeshes.push(g.mesh);
+    } else {
+      net.update(dt, {
+        x: move.pos.x, y: move.pos.y, z: move.pos.z,
+        yaw: look.yaw, pitch: look.pitch,
+        stance: move.stance, moving: move.moving,
+        hp: player.hp, alive: player.alive, weapon: player.weaponId, kills: player.kills,
+      });
+      remotes.sync(net.peers);
+      remotes.update();
+      targetMeshes = remotes.hitMeshes(net.team);
 
-    if (spawner.isWaveClear()) nextWave();
+      if (!player.alive) {
+        respawnT -= dt;
+        els.respawnText.textContent = `Down — back in ${Math.max(1, Math.ceil(respawnT))}`;
+        if (respawnT <= 0) respawnPlayer();
+      }
+    }
 
-    const targetMeshes = [];
-    for (const g of spawner.grunts) if (g.alive && !g.dying) targetMeshes.push(g.mesh);
     bullets.update(dt, {
       colliders,
       targetMeshes,
-      resolveTarget: findGruntFromObject,
+      resolveTarget: resolveBulletTarget,
       onActorHit: onBulletActorHit,
       onWorldHit: (point) => spawnImpactBurst(point, 0xbfc4b8, 5),
     });
@@ -739,6 +962,9 @@ function updatePlayer(dt) {
     if (keys.has("KeyD")) ix += 1;
   }
 
+  // Dead players keep their camera but stop driving anything.
+  if (!player.alive) { ix = 0; iz = 0; }
+
   const leanDir = isTouch
     ? touchState.lean
     : (keys.has("KeyQ") ? -1 : 0) + (keys.has("KeyE") ? 1 : 0);
@@ -768,7 +994,7 @@ function updatePlayer(dt) {
   _euler.set(look.pitch + w.recoilPitch, look.yaw + w.recoilYaw, move.leanRoll);
   camera.quaternion.setFromEuler(_euler);
 
-  const canAct = !move.busy;
+  const canAct = !move.busy && player.alive;
   w.update(dt, {
     moving: move.moving,
     sprinting: move.sprinting,
