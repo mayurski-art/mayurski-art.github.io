@@ -884,7 +884,7 @@ function updatePlayer(dt) {
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
     forward.y = 0; forward.normalize();
-    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).negate();
+    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
     const moveDir = new THREE.Vector3()
       .addScaledVector(forward, -nz)
       .addScaledVector(right, nx);
