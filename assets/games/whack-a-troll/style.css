@@ -1,0 +1,299 @@
+/* Whack a Troll — uses the shared arcade token system from troll-dash/style.css */
+
+.wt-shell {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 14px 40px;
+  gap: 18px;
+}
+
+.wt-topbar {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wt-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.wt-title {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.wt-hud {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  gap: 10px;
+}
+
+.wt-chip {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;
+  text-align: center;
+}
+
+.wt-chip-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.wt-chip-value {
+  display: block;
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 24px;
+  color: var(--ink);
+}
+
+.wt-chip-value.wt-time-low {
+  color: var(--red);
+}
+
+.wt-board {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  aspect-ratio: 4 / 3;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.06), transparent 60%),
+    var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 14px;
+  padding: 22px;
+  overflow: hidden;
+}
+
+.wt-hole {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 40%, #241227 0%, #0c0710 70%);
+  box-shadow: inset 0 8px 18px rgba(0, 0, 0, 0.6), inset 0 -2px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wt-hole:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.wt-mound {
+  position: absolute;
+  bottom: -6%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 92%;
+  height: 34%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #3a2a44 0%, #241a2b 100%);
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.wt-troll {
+  position: absolute;
+  bottom: -100%;
+  left: 50%;
+  width: 70%;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, 0);
+  transition: bottom 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.wt-troll img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+
+.wt-hole.is-up .wt-troll {
+  bottom: 6%;
+}
+
+.wt-hole.is-hit .wt-troll {
+  bottom: -100%;
+  transition: bottom 0.12s ease-in;
+}
+
+.wt-hole.is-hit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, var(--green-soft) 0%, transparent 70%);
+  animation: wt-pop-flash 0.3s ease-out;
+}
+
+@keyframes wt-pop-flash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.wt-hole.is-missed .wt-troll {
+  animation: wt-taunt 0.4s ease;
+}
+
+@keyframes wt-taunt {
+  0%, 100% { transform: translate(-50%, 0) rotate(0deg); }
+  25% { transform: translate(-50%, 0) rotate(-8deg); }
+  75% { transform: translate(-50%, 0) rotate(8deg); }
+}
+
+.wt-score-pop {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--green);
+  pointer-events: none;
+  z-index: 3;
+  animation: wt-score-rise 0.6s ease-out forwards;
+}
+
+@keyframes wt-score-rise {
+  0% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -28px); }
+}
+
+.wt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 1, 6, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 20px;
+}
+
+.wt-overlay[hidden] {
+  display: none;
+}
+
+.wt-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+
+.wt-eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--purple);
+  margin: 0 0 8px;
+}
+
+.wt-card h2 {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 26px;
+  margin: 0 0 10px;
+}
+
+.wt-card p {
+  color: var(--muted);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.wt-final-score {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 48px;
+  color: var(--green);
+  margin: 0 0 6px;
+}
+
+.wt-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.wt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 22px;
+  border-radius: 12px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.wt-btn-primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: #04120a;
+}
+
+@media (max-width: 520px) {
+  .wt-board {
+    gap: 10px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+  .wt-title {
+    font-size: 17px;
+  }
+  .wt-chip-value {
+    font-size: 20px;
+  }
+}
