@@ -39,6 +39,48 @@ const LEAN_ANGLE = 0.24;     // radians of camera roll at full lean
 const LEAN_OFFSET = 0.42;    // metres the head shifts sideways
 const LEAN_SPEED = 8;
 
+/* Highest walkable surface under (x,z) that isn't above `ceiling`.
+   Shared with the enemy AI so grunts stand on platforms too. */
+export function groundHeightAt(colliders, x, z, ceiling, radius = RADIUS * 0.8) {
+  let best = 0;
+  for (const c of colliders) {
+    if (c.max.y > ceiling + 1e-3) continue;
+    if (x < c.min.x - radius || x > c.max.x + radius) continue;
+    if (z < c.min.z - radius || z > c.max.z + radius) continue;
+    if (c.max.y > best) best = c.max.y;
+  }
+  return best;
+}
+
+/* Push a circle out of anything tall enough to block it at this feet height. */
+export function resolveCircle(colliders, pos, radius, feetY, headroom = 2, stepUp = STEP_UP) {
+  for (const c of colliders) {
+    if (c.max.y <= feetY + stepUp) continue;       // low enough to walk onto
+    if (c.min.y > feetY + headroom) continue;      // overhead, we pass under
+    const cx = Math.max(c.min.x, Math.min(pos.x, c.max.x));
+    const cz = Math.max(c.min.z, Math.min(pos.z, c.max.z));
+    const dx = pos.x - cx, dz = pos.z - cz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < radius * radius && d2 > 1e-6) {
+      const d = Math.sqrt(d2);
+      const push = radius - d;
+      pos.x += (dx / d) * push;
+      pos.z += (dz / d) * push;
+    } else if (d2 <= 1e-6) {
+      // Centre is inside the box, so there's no push direction to derive —
+      // leave by the nearest face instead of always heading +x, which can't
+      // escape a wall that spans that axis.
+      const toMinX = pos.x - c.min.x, toMaxX = c.max.x - pos.x;
+      const toMinZ = pos.z - c.min.z, toMaxZ = c.max.z - pos.z;
+      const m = Math.min(toMinX, toMaxX, toMinZ, toMaxZ);
+      if (m === toMinX) pos.x = c.min.x - radius;
+      else if (m === toMaxX) pos.x = c.max.x + radius;
+      else if (m === toMinZ) pos.z = c.min.z - radius;
+      else pos.z = c.max.z + radius;
+    }
+  }
+}
+
 export class MovementController {
   constructor({ colliders, arena }) {
     this.colliders = colliders;
@@ -82,40 +124,18 @@ export class MovementController {
   get crouched() { return this.stance === STANCE.CROUCH || this.stance === STANCE.SLIDE || this.stance === STANCE.PRONE; }
   get busy() { return this.stance === STANCE.VAULT || this.diveT > 0; }
 
-  /* Highest walkable surface under (x,z) that is not above `ceiling`. */
   groundHeightAt(x, z, ceiling) {
-    let best = 0;
-    const r = RADIUS * 0.8;
-    for (const c of this.colliders) {
-      if (c.max.y > ceiling + 1e-3) continue;
-      if (x < c.min.x - r || x > c.max.x + r) continue;
-      if (z < c.min.z - r || z > c.max.z + r) continue;
-      if (c.max.y > best) best = c.max.y;
-    }
-    return best;
+    return groundHeightAt(this.colliders, x, z, ceiling);
   }
 
-  /* Push out of anything tall enough to actually block us at this feet height. */
   resolveHorizontal(pos, feetY) {
-    for (const c of this.colliders) {
-      if (c.max.y <= feetY + STEP_UP) continue;      // low enough to walk onto
-      if (c.min.y > feetY + this.eyeHeight) continue; // overhead, we pass under
-      const cx = Math.max(c.min.x, Math.min(pos.x, c.max.x));
-      const cz = Math.max(c.min.z, Math.min(pos.z, c.max.z));
-      const dx = pos.x - cx, dz = pos.z - cz;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < RADIUS * RADIUS && d2 > 1e-6) {
-        const d = Math.sqrt(d2);
-        const push = RADIUS - d;
-        pos.x += (dx / d) * push;
-        pos.z += (dz / d) * push;
-      } else if (d2 <= 1e-6) {
-        pos.x += RADIUS;
-      }
-    }
+    // Bounds first, geometry second. A map's bounds can sit outside its
+    // perimeter wall, and clamping last would shove us back into that wall
+    // with no way out.
     const a = this.arena;
     pos.x = Math.max(a.minX + RADIUS, Math.min(a.maxX - RADIUS, pos.x));
     pos.z = Math.max(a.minZ + RADIUS, Math.min(a.maxZ - RADIUS, pos.z));
+    resolveCircle(this.colliders, pos, RADIUS, feetY, this.eyeHeight);
   }
 
   /* Is there a mantle-able ledge directly ahead? Returns the landing spot. */

@@ -1,6 +1,7 @@
 // Troll Ops — grunt (horde enemy) definitions, spawning, and simple steering AI.
 import * as THREE from "three";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
+import { groundHeightAt, resolveCircle } from "./movement.js";
 
 const GRUNT_TYPES = {
   runner: { hp: 40, speed: 4.4, radius: 0.42, height: 1.7, color: 0x6bd15a, scoreValue: 100, damage: 8, attackRange: 1.3, attackCd: 0.7 },
@@ -64,6 +65,7 @@ export class Grunt {
     this.velocity = new THREE.Vector3();
     this.mesh = buildGruntMesh(this.type);
     this.mesh.position.copy(position);
+    this.groundY = position.y || 0;
     this.bobPhase = Math.random() * Math.PI * 2;
     scene.add(this.mesh);
   }
@@ -82,7 +84,7 @@ export class Grunt {
     return { killed: false };
   }
 
-  update(dt, playerPos, onAttack, arenaBounds) {
+  update(dt, playerPos, onAttack, arenaBounds, colliders = []) {
     if (this.dying) {
       this.dissolveT += dt * 1.6;
       this.mesh.userData.dissolveMat.uniforms.uDissolve.value = this.dissolveT;
@@ -126,11 +128,17 @@ export class Grunt {
     this.mesh.position.z += this.velocity.z * dt;
 
     const r = this.type.radius;
+    // Maps have real geometry now, so grunts have to be pushed out of walls
+    // and stand on whatever surface is under them instead of sitting at y=0.
     this.mesh.position.x = Math.max(arenaBounds.minX + r, Math.min(arenaBounds.maxX - r, this.mesh.position.x));
     this.mesh.position.z = Math.max(arenaBounds.minZ + r, Math.min(arenaBounds.maxZ - r, this.mesh.position.z));
+    resolveCircle(colliders, this.mesh.position, r, this.groundY, this.type.height, 0.5);
+
+    const support = groundHeightAt(colliders, this.mesh.position.x, this.mesh.position.z, this.groundY + 0.5, r * 0.8);
+    this.groundY += (support - this.groundY) * Math.min(1, dt * 9);
 
     this.bobPhase += dt * (dist > this.type.attackRange ? 8 : 2);
-    this.mesh.position.y = Math.abs(Math.sin(this.bobPhase)) * 0.06;
+    this.mesh.position.y = this.groundY + Math.abs(Math.sin(this.bobPhase)) * 0.06;
   }
 
   dispose(scene) {
@@ -144,10 +152,11 @@ export class Grunt {
 }
 
 export class WaveSpawner {
-  constructor(scene, arenaBounds, spawnPoints) {
+  constructor(scene, arenaBounds, spawnPoints, colliders = []) {
     this.scene = scene;
     this.arenaBounds = arenaBounds;
     this.spawnPoints = spawnPoints;
+    this.colliders = colliders;
     this.grunts = [];
     this.wave = 0;
     this.toSpawn = 0;
@@ -182,6 +191,7 @@ export class WaveSpawner {
         const sp = this.spawnPoints[Math.floor(Math.random() * this.spawnPoints.length)];
         const jitter = new THREE.Vector3((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
         const pos = sp.clone().add(jitter);
+        pos.y = groundHeightAt(this.colliders, pos.x, pos.z, 3);
         this.grunts.push(new Grunt(this.pickType(), pos, this.scene));
         this.toSpawn--;
       }
@@ -189,7 +199,7 @@ export class WaveSpawner {
     }
 
     for (const g of this.grunts) {
-      if (g.alive) g.update(dt, playerPos, onAttack, this.arenaBounds);
+      if (g.alive) g.update(dt, playerPos, onAttack, this.arenaBounds, this.colliders);
     }
 
     const dead = this.grunts.filter((g) => !g.alive);

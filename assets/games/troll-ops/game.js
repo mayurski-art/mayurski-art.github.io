@@ -10,7 +10,8 @@ import { WeaponState } from "./weapons.js";
 import { buildWeaponMesh } from "./weapon-model.js";
 import { Loadout } from "./loadout.js";
 import { addXp, xpForRun } from "./progression.js";
-import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial, makeGroundMaterial } from "./shaders.js";
+import { buildMap, disposeMap } from "./maps.js";
+import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem } from "./ballistics.js";
 import { MovementController, STANCE } from "./movement.js";
@@ -20,6 +21,7 @@ const els = {
   loading: document.getElementById("to-loading"),
   title: document.getElementById("to-title"),
   startBtn: document.getElementById("to-start-btn"),
+  loMaps: document.getElementById("to-lo-maps"),
   loClasses: document.getElementById("to-lo-classes"),
   loList: document.getElementById("to-lo-list"),
   loName: document.getElementById("to-lo-name"),
@@ -71,6 +73,7 @@ const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in win
 if (isTouch) { els.touch.hidden = false; }
 
 const loadout = new Loadout({
+  maps: els.loMaps,
   classes: els.loClasses,
   list: els.loList,
   name: els.loName,
@@ -152,107 +155,51 @@ sun.shadow.bias = -0.0015;
 scene.add(sun);
 scene.add(sun.target);
 
-// -------------------- arena --------------------
+// -------------------- map --------------------
 
-const ARENA = { minX: -30, maxX: 30, minZ: -30, maxZ: 30 };
-
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(64, 64, 1, 1), makeGroundMaterial());
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
-
-// { min, max, pen } — `pen` is penetration power consumed per metre of
-// material, so crates are shootable-through and the perimeter wall isn't.
+// Mutated in place by buildMap — the movement controller holds references
+// to both, so they must never be reassigned.
+const ARENA = { minX: -34, maxX: 34, minZ: -34, maxZ: 34 };
 const colliders = [];
 
-function addCrate(x, z, w, d, h, color = 0x5c6b4a) {
-  const geo = new THREE.BoxGeometry(w, h, d);
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05 });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(x, h / 2, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  scene.add(mesh);
-  colliders.push({
-    min: new THREE.Vector3(x - w / 2, 0, z - d / 2),
-    max: new THREE.Vector3(x + w / 2, h, z + d / 2),
-    pen: 0.9,
-  });
+let builtMap = null;
+let spawnPoints = [];
+
+function applyEnvironment(map) {
+  skyMat.uniforms.uTop.value.set(map.sky.top);
+  skyMat.uniforms.uHorizon.value.set(map.sky.horizon);
+  skyMat.uniforms.uBottom.value.set(map.sky.bottom);
+
+  scene.fog.color.set(map.fog.color);
+  scene.fog.density = map.fog.density;
+
+  sun.color.set(map.sun.color);
+  sun.intensity = map.sun.intensity;
+  sun.position.set(...map.sun.pos);
+
+  // Keep the shadow frustum tight around whatever this map actually spans.
+  const span = Math.max(map.bounds.maxX - map.bounds.minX, map.bounds.maxZ - map.bounds.minZ) * 0.62;
+  sun.shadow.camera.left = -span;
+  sun.shadow.camera.right = span;
+  sun.shadow.camera.top = span;
+  sun.shadow.camera.bottom = -span;
+  sun.shadow.camera.updateProjectionMatrix();
+
+  hemi.color.set(map.hemi.sky);
+  hemi.groundColor.set(map.hemi.ground);
+  hemi.intensity = map.hemi.intensity;
+
+  ambient.color.set(map.ambient.color);
+  ambient.intensity = map.ambient.intensity;
 }
 
-function addWallRing() {
-  const t = 1.2, h = 5, s = 30;
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x3a4530, roughness: 0.9 });
-  const walls = [
-    [0, s, s * 2 + t * 2, t],
-    [0, -s, s * 2 + t * 2, t],
-    [s, 0, t, s * 2],
-    [-s, 0, t, s * 2],
-  ];
-  for (const [x, z, w, d] of walls) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-    mesh.position.set(x, h / 2, z);
-    mesh.receiveShadow = true;
-    mesh.castShadow = true;
-    scene.add(mesh);
-    colliders.push({
-      min: new THREE.Vector3(x - w / 2, 0, z - d / 2),
-      max: new THREE.Vector3(x + w / 2, h, z + d / 2),
-      pen: 8,
-    });
-  }
+function loadMap(id) {
+  disposeMap(builtMap, scene);
+  builtMap = buildMap(id, { colliders, arena: ARENA });
+  scene.add(builtMap.root);
+  spawnPoints = builtMap.spawnPoints;
+  applyEnvironment(builtMap.map);
 }
-addWallRing();
-
-// scattered cover crates
-const crateLayout = [
-  [10, 6, 3, 3, 1.6], [-8, -10, 4, 2.5, 1.4], [4, -14, 2.5, 2.5, 2.2],
-  [-14, 4, 3, 3, 1.4], [16, -8, 2.5, 4, 1.8], [-4, 16, 4, 2.5, 1.6],
-  [6, -3, 3, 3, 1.2], [-18, -18, 3, 3, 2.0], [18, 16, 3.5, 3, 1.5],
-];
-for (const [x, z, w, d, h] of crateLayout) addCrate(x, z, w, d, h);
-
-// floodlight poles around the arena perimeter for a lit night-arena feel
-function addFloodlight(x, z) {
-  const poleMat = new THREE.MeshStandardMaterial({ color: 0x2a2e26, roughness: 0.6, metalness: 0.4 });
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 9, 8), poleMat);
-  pole.position.set(x, 4.5, z);
-  pole.castShadow = true;
-  pole.userData.noBulletCollide = true;
-  scene.add(pole);
-
-  const headMat = new THREE.MeshStandardMaterial({ color: 0x15170f, roughness: 0.5, metalness: 0.5 });
-  const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.6), headMat);
-  head.position.set(x, 9, z);
-  head.lookAt(0, 0, 0);
-  head.userData.noBulletCollide = true;
-  scene.add(head);
-
-  const lensMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0 });
-  const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.35), lensMat);
-  lens.position.copy(head.position);
-  const toCenter = new THREE.Vector3(0, 0, 0).sub(head.position).normalize();
-  lens.position.addScaledVector(toCenter, 0.32);
-  lens.lookAt(0, 3, 0);
-  lens.userData.noBulletCollide = true;
-  scene.add(lens);
-
-  const spot = new THREE.SpotLight(0xfff0c0, 60, 45, Math.PI / 5, 0.5, 1.2);
-  spot.position.copy(head.position);
-  spot.target.position.set(0, 0, 0);
-  scene.add(spot, spot.target);
-}
-addFloodlight(-26, -26);
-addFloodlight(26, -26);
-addFloodlight(-26, 26);
-addFloodlight(26, 26);
-
-const spawnPoints = [
-  new THREE.Vector3(-27, 0, -27), new THREE.Vector3(27, 0, -27),
-  new THREE.Vector3(-27, 0, 27), new THREE.Vector3(27, 0, 27),
-  new THREE.Vector3(0, 0, -27), new THREE.Vector3(0, 0, 27),
-  new THREE.Vector3(-27, 0, 0), new THREE.Vector3(27, 0, 0),
-];
 
 // -------------------- postprocessing --------------------
 
@@ -597,7 +544,8 @@ function startGame() {
   player.wave = 0;
   player.alive = true;
   elapsedRun = 0;
-  move.reset(0, 8);
+  loadMap(loadout.mapId);
+  move.reset(builtMap.playerSpawn.x, builtMap.playerSpawn.z);
   look.yaw = 0;
   look.pitch = 0;
   bullets.clear();
@@ -609,7 +557,7 @@ function startGame() {
   if (spawner) {
     for (const g of spawner.grunts) g.dispose(scene);
   }
-  spawner = new WaveSpawner(scene, ARENA, spawnPoints);
+  spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
 
   els.title.hidden = true;
   els.gameover.hidden = true;

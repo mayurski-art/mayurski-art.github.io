@@ -98,6 +98,21 @@
 }
 .to-lo-rank-bar b { display: block; height: 100%; background: #7fe066; border-radius: 3px; }
 
+/* map picker */
+.to-lo-maps { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.to-lo-map {
+  font-family: "Oswald", sans-serif; font-size: 11px; letter-spacing: .04em;
+  padding: 5px 9px; border-radius: 7px; cursor: pointer;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  color: #9aa596; transition: background .14s, border-color .14s, color .14s;
+}
+.to-lo-map:hover { border-color: rgba(127,209,224,.45); color: #cfe0e4; }
+.to-lo-map.is-active { background: rgba(127,209,224,.14); border-color: #7fd1e0; color: #e4f2f5; }
+.to-lo-map-blurb {
+  font-size: 10.5px; color: #7c8778; font-family: "DM Mono", monospace;
+  font-style: italic; margin-left: 2px;
+}
+
 /* class tabs */
 .to-lo-classes { display: flex; flex-wrap: wrap; gap: 5px; }
 .to-lo-class {
@@ -218,7 +233,13 @@
 
 /* ---------- HUD ---------- */
 
-.to-hud { position: absolute; inset: 0; z-index: 10; pointer-events: none; font-family: "DM Sans", sans-serif; }
+/* The shadow is load-bearing, not decoration: on the bright maps the HUD sits
+   against pale sand and sunset sky and is otherwise unreadable. */
+.to-hud {
+  position: absolute; inset: 0; z-index: 10; pointer-events: none;
+  font-family: "DM Sans", sans-serif;
+  text-shadow: 0 1px 3px rgba(0,0,0,.85), 0 0 10px rgba(0,0,0,.5);
+}
 
 .to-hud-top {
   position: absolute; top: 14px; left: 0; right: 0;
@@ -226,7 +247,7 @@
   padding: 0 18px;
 }
 .to-hud-wave, .to-hud-hostiles, .to-hud-score { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.to-hud-label { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: #92a08a; }
+.to-hud-label { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: #c3cfbb; }
 .to-hud-wave strong, .to-hud-hostiles strong, .to-hud-score strong {
   font-family: "Oswald", sans-serif; font-size: 22px; color: #f2f5ee;
   text-shadow: 0 2px 6px rgba(0,0,0,.6);

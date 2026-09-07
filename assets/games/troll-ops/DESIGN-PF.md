@@ -120,11 +120,20 @@ The PF *feel*, still against AI grunts so it stays playable throughout.
   system in phase 6. Weapons gate at ranks 0–40; XP is `kills×50 + wave×300`
   against 2,500 per rank, so the roster opens over a few sessions
 
-### Phase 3 — Map system + 5 maps
-- Extract arena construction into a data-driven loader (geometry, colliders,
-  team spawn zones, objective points, sky/fog/light palette per map)
-- Five maps covering PF's archetype spread (§6)
-- Map vote / rotation between matches
+### Phase 3 — Map system + 5 maps ✅ SHIPPED
+- ✅ Data-driven map loader (`maps.js`) — each map states bounds, palette and
+  layout; the builder produces geometry, colliders and spawns. `colliders` and
+  `arena` are mutated in place because the movement controller holds references
+- ✅ Five maps covering PF's archetype spread (§6), each with its own sky, fog,
+  sun angle and light rig
+- ✅ Verticality from stepped boxes rather than sloped surfaces — collision is
+  AABB-only, and a 0.3m rise is under the step height, so stairs are walked up
+  for free
+- ✅ Enemies became terrain-aware: grunts were hard-pinned to y=0 and ignored
+  geometry, which broke the moment maps had platforms. `groundHeightAt` and
+  `resolveCircle` are now shared between the player and the AI
+- ✅ Map picker on the loadout screen
+- Map vote / rotation between matches → deferred to phase 5 with match flow
 
 ### Phase 4 — Multiplayer PvP
 - Supabase Realtime rooms with join codes, `BroadcastChannel` fallback

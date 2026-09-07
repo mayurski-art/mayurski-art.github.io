@@ -3,6 +3,7 @@
 import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js";
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars } from "./attachments.js";
 import { getRank, isUnlocked, rankProgress, MAX_RANK } from "./progression.js";
+import { MAPS, MAP_IDS } from "./maps.js";
 
 const STORE = "trollops:loadout";
 
@@ -23,7 +24,9 @@ export class Loadout {
     this.weaponId = saved.weaponId && WEAPON_DEFS[saved.weaponId] ? saved.weaponId : "problem416";
     if (!isUnlocked(this.weaponId)) this.weaponId = "problem416";
     this.cls = WEAPON_DEFS[this.weaponId].cls;
+    this.mapId = MAPS[saved.mapId] ? saved.mapId : MAP_IDS[0];
 
+    this.buildMaps();
     this.buildClasses();
     this.buildSlots();
     this.render();
@@ -39,8 +42,32 @@ export class Loadout {
   get resolved() { return resolveWeapon(this.weaponId, this.attachments); }
 
   persist() {
-    save({ weaponId: this.weaponId, attachments: this.attachmentsByWeapon });
+    save({ weaponId: this.weaponId, mapId: this.mapId, attachments: this.attachmentsByWeapon });
     this.onChange(this.resolved);
+  }
+
+  buildMaps() {
+    const wrap = this.els.maps;
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    for (const id of MAP_IDS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "to-lo-map";
+      b.textContent = MAPS[id].name;
+      b.dataset.map = id;
+      b.title = MAPS[id].blurb;
+      b.setAttribute("aria-label", `Map: ${MAPS[id].name} — ${MAPS[id].blurb}`);
+      b.addEventListener("click", () => {
+        this.mapId = id;
+        this.persist();
+        this.render();
+      });
+      wrap.appendChild(b);
+    }
+    this.mapBlurb = document.createElement("span");
+    this.mapBlurb.className = "to-lo-map-blurb";
+    wrap.appendChild(this.mapBlurb);
   }
 
   buildClasses() {
@@ -101,6 +128,15 @@ export class Loadout {
   render() {
     const rank = getRank();
     const def = this.resolved;
+
+    if (this.els.maps) {
+      for (const b of this.els.maps.children) {
+        if (!b.dataset.map) continue;
+        b.classList.toggle("is-active", b.dataset.map === this.mapId);
+        b.setAttribute("aria-pressed", String(b.dataset.map === this.mapId));
+      }
+      if (this.mapBlurb) this.mapBlurb.textContent = MAPS[this.mapId].blurb;
+    }
 
     for (const b of this.els.classes.children) {
       b.classList.toggle("is-active", b.dataset.cls === this.cls);

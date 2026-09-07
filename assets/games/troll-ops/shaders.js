@@ -141,12 +141,12 @@ export function makeImpactSparkMaterial() {
 }
 
 // Ground shader — subtle grid + grime for the arena floor, cheap and stylized.
-export function makeGroundMaterial() {
+export function makeGroundMaterial({ colorA = 0x4a5240, colorB = 0x363f2e, grid = 0x8fae6e } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: {
-      uColorA: { value: new THREE.Color(0x4a5240) },
-      uColorB: { value: new THREE.Color(0x363f2e) },
-      uGridColor: { value: new THREE.Color(0x8fae6e) },
+      uColorA: { value: new THREE.Color(colorA) },
+      uColorB: { value: new THREE.Color(colorB) },
+      uGridColor: { value: new THREE.Color(grid) },
     },
     vertexShader: /* glsl */`
       varying vec2 vWorldXZ;
