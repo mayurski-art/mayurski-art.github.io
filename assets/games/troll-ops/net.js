@@ -12,7 +12,7 @@
 const SUPABASE_URL = "https://tjsyhfplxjtakdfkpdtg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ";
 
-export const MAX_PLAYERS = 12;
+export const MAX_PLAYERS = 20;
 const STATE_HZ = 15;
 const PEER_TIMEOUT = 5000;
 const HANDSHAKE_SETTLE = 700;
