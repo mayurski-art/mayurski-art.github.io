@@ -750,30 +750,50 @@
     }
     .sheet-close-btn:hover { background: #ffffff26; border-color: var(--accent); }
 
-    /* ---- bottom sheet on phones (mobile-preview) ----
-       On desktop these slide in from the right edge, but on a real phone
-       that left the island visible in a sliver next to a squeezed panel —
-       it read like a separate in-app browser popover, not part of the same
-       app (screenshot feedback). Sliding up from the bottom instead,
-       centered and no wider than it needs to be, matches how a phone-
-       native sheet should feel. Height is auto for the Hub so its lobby
-       (just two short cards) stays compact, growing only once the actual
-       chat room is showing (.is-room, toggled by the hub JS's enterRoom/
-       back-to-lobby handlers) so the message feed has room to scroll. */
+    /* ---- the Hub on phones ----
+       The Hub used to be a partial bottom sheet here (and a right-edge
+       drawer on desktop). It's now a full-screen tavern room on BOTH — see
+       the #hub .sheet-inner rules further down — so the old bottom-sheet
+       geometry is gone. What's left is phone-specific tuning of that same
+       full-screen room.
+
+       Note this class is NOT a reliable phone test: mobile=1 is forced
+       site-wide, so html.mobile-preview matches on desktop too. Anything
+       that must be true phones only belongs in the media query below,
+       which is why the sizing here is deliberately viewport-relative
+       rather than device-conditional. */
     html.mobile-preview #hub .sheet-inner {
-      position: fixed; left: 0; right: 0; top: auto; bottom: 0; margin: 0 auto;
-      width: min(560px, 94vw);
-      border-radius: 20px 20px 0 0;
-      border: 1px solid var(--glass-stroke); border-bottom: 0;
-      box-shadow: 0 -24px 60px rgba(0, 0, 0, .5);
-      transform: translateY(100%);
-      transition: transform .32s var(--ease);
+      position: fixed; inset: 0; margin: 0;
+      width: 100%; height: 100%; max-height: none;
+      border: 0; border-radius: 0;
+      box-shadow: none;
     }
-    html.mobile-preview #hub.is-open .sheet-inner {
-      transform: translateY(0);
+    /* Minimized wins over the full-screen phone rule above — same specificity,
+       so it has to come after it to take effect. */
+    html.mobile-preview #hub.is-min .sheet-inner {
+      inset: auto;
+      left: var(--hub-min-x, 12px); top: var(--hub-min-y, 80px);
+      width: min(340px, 86vw); height: min(400px, 58vh);
+      border: 1px solid #3a2c1b; border-radius: 12px;
+      box-shadow: 0 22px 60px #000000b3;
     }
-    html.mobile-preview #hub .sheet-inner { height: auto; max-height: 90vh; }
-    html.mobile-preview #hub.is-room .sheet-inner { height: min(720px, 88vh); }
+    /* Real phones: the painted frame occupies a taller share of the portrait
+       art, and there's no room for generous chrome padding. */
+    @media (max-width: 720px) {
+      #hub .hub-ui { padding: 0 8px; }
+      #hub .hub-winbar { padding: 8px 10px 0; }
+      .hub-tabbar { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+      /* The portrait frame is taller than the landscape one, so the room can
+         take more of it before it needs to grow up into the tavern. */
+      #hub.is-room .hub-panel,
+      #hub .hub-panel:has(#hub-room:not([hidden])),
+      #hub .hub-panel:has(#hub-thread:not([hidden])),
+      #hub .hub-panel:has(#hub-messages:not([hidden])),
+      #hub .hub-panel:has(#hub-connect:not([hidden])),
+      #hub .hub-panel:has(#hub-friends:not([hidden])) {
+        height: min(calc(var(--hub-art-h, 100vh) * var(--hub-frame-h-n, .227) + 240px), 68vh);
+      }
+    }
 
     /* ---- latest updates ---- */
     .update-rows { display: flex; flex-direction: column; gap: 14px; }
@@ -813,6 +833,16 @@
       --hub-problem: #ffd21f; /* unread, badges, CTAs — "the economy" hue */
       --hub-alert: #ff3b3b; /* live dot, danger, brand accent */
       --hub-mono: "JetBrains Mono", ui-monospace, monospace;
+      /* Painted-frame geometry, measured off the art itself (see the
+         .sheet-inner comment below): on the desktop image the panel's slate
+         interior starts 71.9% down and ends 6.1% up from the bottom, with
+         ~2.3% of carved frame either side. syncHubFrame() overwrites these
+         with the mobile figures (73.6% / 3.7%) when the portrait art loads. */
+      --hub-frame-l: 2.3%;
+      --hub-frame-r: 2.3%;
+      --hub-frame-t-n: .719;
+      --hub-frame-h-n: .22;
+      --hub-frame-b-n: .061;
     }
     /* Background-image is the generated interior-of-the-hub scene, PFP
        Studio-style curated art rather than a plain flat color — a dark
@@ -823,17 +853,246 @@
        visitor's local clock; it falls back to none (url('') is a no-op,
        not a 404) until those files exist, leaving the flat --hub-bg
        color visible. */
+    /* ---- full-screen tavern takeover ----
+       The Hub is no longer a right-edge drawer. hub-interior-*.jpg is a real
+       room with a carved wooden chat panel painted into its lower third, so
+       the sheet fills the viewport and the art is treated as CHROME rather
+       than wallpaper: the tavern reads clearly up top, and the live chat
+       sits down inside the painted frame.
+
+       --hub-frame-* are the panel's MEASURED bounds in the source art, as
+       percentages of the image box (sampled off the decoded JPEG: the panel
+       interior is the longest run of dark, near-zero-variance rows, since
+       it's empty carved slate while the tavern above it is full of lit
+       detail). Desktop 1672x941 -> T 71.9%, B 6.1%, L/R 2.3%. Mobile
+       941x1672 -> T 73.6%, B 3.7%. The chat panel is pinned to those, so it
+       lands INSIDE the carving at any viewport instead of floating over it.
+
+       The art is 16:9-ish and the viewport isn't, so background-size:cover
+       crops — meaning the frame's on-screen position drifts from the raw
+       percentages above. The .hub-stage element below carries the image at a
+       fixed aspect ratio instead, and the chat panel is positioned against
+       THAT box, so the alignment holds no matter the window shape. */
     #hub .sheet-inner {
       display: flex; flex-direction: column; overflow: hidden;
-      position: relative;
-      background-color: var(--hub-bg); color: var(--hub-fg);
-      background-image:
-        linear-gradient(180deg, #0a0a0acc 0%, #0a0a0af0 70%, #0a0a0a 100%),
-        var(--hub-bg-url, none);
-      background-size: cover;
-      background-position: center;
+      position: fixed; inset: 0;
+      width: 100%; max-width: none; height: 100%; max-height: none;
+      margin: 0; padding: 0; border: 0; border-radius: 0;
+      box-shadow: none;
+      background: var(--hub-bg); color: var(--hub-fg);
       font-family: var(--hub-mono);
+      transform: translateY(1.5%);
+      opacity: 0;
+      transition: transform .34s var(--ease), opacity .28s var(--ease);
     }
+    #hub.is-open .sheet-inner { transform: none; opacity: 1; }
+
+    /* The tavern art itself. Kept at the source aspect ratio and centred, so
+       the painted frame's position is predictable; the room's own dark edges
+       blend into --hub-bg where the viewport is a different shape. */
+    #hub .hub-stage {
+      position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      overflow: hidden;
+      background-color: var(--hub-bg);
+    }
+    #hub .hub-stage::before {
+      content: ''; position: absolute; left: 50%; bottom: 0;
+      transform: translateX(-50%);
+      /* The carved chat frame is at the BOTTOM of the art, so the art is
+         anchored to the bottom edge and scaled to cover — never letterboxed
+         and never bottom-cropped, which would slice the frame in half.
+         Overflow, when there is any, is taken off the ceiling of the tavern
+         where nothing important lives. */
+      width: max(100%, calc(100vh * var(--hub-art-ar, 1.7768)));
+      height: max(100%, calc(100vw / var(--hub-art-ar, 1.7768)));
+      background-image: var(--hub-bg-url, none);
+      background-size: 100% 100%;
+      background-position: center bottom;
+      background-repeat: no-repeat;
+    }
+    /* Warm lantern glow breathing over the room — the tavern is lit by
+       candles and hanging lamps, so the light should not be dead static. */
+    #hub .hub-stage::after {
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(60% 42% at 50% 30%, #ffb45711 0%, transparent 70%),
+        linear-gradient(180deg, #0a0a0a55 0%, #0a0a0a11 34%, #0a0a0a40 100%);
+      animation: hub-lantern 7.5s ease-in-out infinite alternate;
+    }
+    @keyframes hub-lantern { from { opacity: .72; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+      #hub .hub-stage::after { animation: none; }
+    }
+
+    /* Everything interactive rides above the stage. */
+    #hub .hub-ui {
+      position: relative; z-index: 2;
+      flex: 1; min-height: 0; display: flex; flex-direction: column;
+      /* Chrome (tabs, friends row, close) lives in the tavern's open upper
+         air; the chat panel below is pinned into the carved frame. */
+      padding: 0 clamp(10px, 4vw, 34px);
+    }
+
+    /* ---- the carved frame ----
+       Pinned to the measured panel bounds so the feed sits inside the wood.
+       The art already draws the border, so this element contributes only a
+       faint inner tint for text contrast — no border of its own, or it
+       would double up with the painted one. */
+    #hub .hub-panel {
+      position: relative;
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column;
+      margin: 0 auto;
+      width: 100%;
+      max-width: var(--hub-panel-w, 1180px);
+      padding: clamp(8px, 1.4vh, 16px) clamp(10px, 1.6vw, 22px);
+      border-radius: 6px;
+      background: linear-gradient(180deg, #05050699 0%, #050506cc 100%);
+      box-shadow: inset 0 0 40px #00000099;
+    }
+    #hub .hub-ui { justify-content: flex-start; gap: 0; }
+    #hub .hub-chrome { flex: none; padding-top: clamp(6px, 1.2vh, 14px); }
+    /* ---- pinning the chat panel into the painted frame ----
+       .hub-stage paints the art into a box that covers the viewport at the
+       art's own ratio, and syncHubFrame() publishes that box as
+       --hub-art-w/h in pixels. The frame's measured bounds within it are the
+       --hub-frame-* fractions, so:
+
+         art top   = (100vh - artH) / 2      (negative when the art is cropped)
+         panel top = artTop + artH * frame-t
+         panel h   = artH * frame-h
+
+       which lands the feed inside the carving at any window shape, instead
+       of assuming the art exactly fills the viewport. */
+    #hub .hub-panel {
+      flex: none;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(var(--hub-art-w, 100vw) * (100 - 2.3 - 2.3) / 100);
+      max-width: 100vw;
+      /* Art is bottom-anchored (see .hub-stage::before), so the frame's
+         distance from the viewport bottom is simply its own bottom inset
+         scaled by the art height. */
+      bottom: calc(var(--hub-art-h, 100vh) * var(--hub-frame-b-n, .061));
+      /* The painted frame is only ~22% of the art's height — enough for the
+         lobby, but a real chat room spends most of that on its header and
+         composer and leaves almost nothing for messages. So the frame sets
+         the panel's BASE, not a ceiling: the lobby sits exactly in the
+         carving, and the room grows upward out of it into the tavern's
+         lower air, which is empty floor in the art anyway. */
+      height: calc(var(--hub-art-h, 100vh) * var(--hub-frame-h-n, .22));
+      min-height: 190px;
+    }
+    /* .is-room is toggled by the hub's own enterRoom/back handlers. */
+    #hub.is-room .hub-panel,
+    #hub .hub-panel:has(#hub-room:not([hidden])),
+    #hub .hub-panel:has(#hub-thread:not([hidden])),
+    #hub .hub-panel:has(#hub-messages:not([hidden])),
+    #hub .hub-panel:has(#hub-connect:not([hidden])),
+    #hub .hub-panel:has(#hub-friends:not([hidden])) {
+      height: min(
+        calc(var(--hub-art-h, 100vh) * var(--hub-frame-h-n, .22) + 300px),
+        62vh
+      );
+      /* Fade the top edge so the panel dissolves into the tavern instead of
+         cutting a hard rectangle across the floor. */
+      -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 46px, #000 100%);
+      mask-image: linear-gradient(180deg, transparent 0, #000 46px, #000 100%);
+      padding-top: 40px;
+    }
+    /* Short viewports: the pinned band is too small to hold a real feed, so
+       drop the alignment and let the panel take the room it needs. */
+    @media (max-height: 560px) {
+      #hub .hub-panel {
+        position: relative; top: auto; left: auto; transform: none;
+        width: 100%; height: auto; flex: 1 1 auto; min-height: 0;
+        margin: 0 auto 8px;
+      }
+      #hub .hub-ui { justify-content: flex-end; }
+    }
+
+    /* ---- minimized: a draggable tavern window on the island ----
+       Minimizing does not close the room — the sheet shrinks to a small
+       framed window that can be dragged anywhere over the island, so chat
+       keeps streaming while you use the rest of the site. Position is
+       written to --hub-min-x/y by the drag handler. */
+    #hub.is-min { pointer-events: none; }
+    #hub.is-min .sheet-inner {
+      pointer-events: auto;
+      position: fixed; inset: auto;
+      left: var(--hub-min-x, 24px); top: var(--hub-min-y, 96px);
+      width: min(380px, 88vw); height: min(440px, 62vh);
+      border-radius: 12px;
+      border: 1px solid #3a2c1b;
+      box-shadow: 0 22px 60px #000000b3, 0 0 0 1px #00000080;
+      transform: none; opacity: 1;
+    }
+    #hub.is-min .hub-ui { padding: 0 8px; }
+    /* Minimized, the art can't do its framing job — the window is far too
+       small for the painted frame to line up with anything, and the vh-based
+       stage maths above is measuring the viewport, not this little box. So
+       the stage drops to a plain cover-fit backdrop of the same room and the
+       panel goes back to simple flex sizing. */
+    #hub.is-min .hub-stage::before {
+      left: 0; bottom: 0; transform: none;
+      width: 100%; height: 100%;
+      background-size: cover;
+      background-position: center 38%;
+      opacity: .5;
+    }
+    #hub.is-min .hub-panel {
+      position: relative; inset: auto; transform: none;
+      height: auto; flex: 1 1 auto; margin: 0 0 6px;
+      width: 100%; max-width: none; min-height: 0; padding: 8px;
+      /* Legibility beats atmosphere at this size — the feed needs a solid
+         ground or the messages disappear into the art (they did). */
+      background: #06060acc;
+      -webkit-mask-image: none; mask-image: none;
+      backdrop-filter: blur(2px);
+    }
+    /* The tab bar and friends row are the first things to go when the window
+       is this small — the feed and composer are the point. */
+    #hub.is-min .hub-tabbar,
+    #hub.is-min .hub-friends-row { display: none; }
+    #hub.is-min .hub-stage::after { animation: none; opacity: .9; }
+    /* Dragging: kill the transition so the window tracks the pointer 1:1. */
+    #hub.is-min.is-dragging .sheet-inner { transition: none; }
+    #hub.is-min.is-dragging { cursor: grabbing; }
+
+    /* ---- window controls (minimize / expand / close) ---- */
+    #hub .hub-winbar {
+      position: relative; z-index: 3;
+      flex: none; display: flex; align-items: center; gap: 8px;
+      padding: 10px clamp(10px, 4vw, 34px) 0;
+    }
+    /* The drag handle fills the bar so the whole title strip is grabbable,
+       the way a real title bar behaves. Only active while minimized. */
+    #hub .hub-drag {
+      flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
+      font: 11px var(--hub-mono); color: var(--hub-dim);
+      letter-spacing: .14em; text-transform: uppercase;
+      padding: 4px 2px; border-radius: 6px;
+    }
+    #hub.is-min .hub-drag { cursor: grab; touch-action: none; }
+    #hub.is-min.is-dragging .hub-drag { cursor: grabbing; }
+    #hub .hub-drag-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #hub .hub-winbtn {
+      width: 30px; height: 30px; flex: none;
+      display: grid; place-items: center;
+      font-size: 13px; line-height: 1; border-radius: 7px;
+      background: #14100acc; border: 1px solid #4a3a25;
+      color: var(--hub-fg); cursor: pointer;
+      transition: background .16s var(--ease), border-color .16s var(--ease), color .16s var(--ease);
+    }
+    #hub .hub-winbtn:hover { background: #221a10; border-color: var(--hub-problem); color: var(--hub-problem); }
+    #hub .hub-winbtn:focus-visible { outline: 2px solid var(--hub-problem); outline-offset: 2px; }
+    /* Only one of minimize/expand is meaningful at a time. */
+    #hub .hub-winbtn--expand { display: none; }
+    #hub.is-min .hub-winbtn--expand { display: grid; }
+    #hub.is-min .hub-winbtn--min { display: none; }
+    /* The old bare close button in .sheet-head-bar is replaced by this bar. */
+    #hub .sheet-head-bar { display: none; }
     /* Every display/UI font inside the Hub collapses to the terminal mono —
        simpler than re-pointing each rule below one at a time. */
     #hub .hub-lobby-card-title, #hub .hub-room-title .title, #hub h2,
@@ -851,14 +1110,16 @@
     #hub h2 { color: var(--hub-terminal); }
     /* Thin scanline texture over the whole sheet — decorative only, so it
        can't intercept clicks. */
-    #hub .sheet-inner::before {
-      content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+    #hub .hub-panel::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+      border-radius: inherit;
       background: repeating-linear-gradient(180deg, #ffffff08 0px, transparent 1px, transparent 3px);
-      mix-blend-mode: overlay; opacity: .5;
+      mix-blend-mode: overlay; opacity: .28;
     }
-    #hub .hub-lobby-mark { background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px; }
+    #hub .hub-panel > * { position: relative; z-index: 2; }
+    #hub .hub-lobby-mark { background: #0a0a0a80; border: 1px solid var(--hub-dim); border-radius: 4px; }
     #hub .hub-lobby-card {
-      background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px;
+      background: #0d0d0dbf; backdrop-filter: blur(3px); border: 1px solid var(--hub-dim); border-radius: 4px;
       color: var(--hub-fg);
     }
     #hub .hub-lobby-card:hover { border-color: var(--hub-terminal); background: #161616; transform: none; }
@@ -869,7 +1130,8 @@
     #hub .hub-lobby-back { color: var(--hub-dim); font-family: var(--hub-mono); }
     #hub .hub-lobby-back:hover { color: var(--hub-terminal); }
     #hub .hub-room-back, #hub .hub-chip {
-      background: var(--hub-panel); border: 1px solid var(--hub-dim); border-radius: 4px;
+      background: #0d0d0dbf; backdrop-filter: blur(3px);
+      border: 1px solid var(--hub-dim); border-radius: 4px;
       color: var(--hub-fg); font-family: var(--hub-mono);
     }
     #hub .hub-room-back:hover, #hub .hub-chip:hover { border-color: var(--hub-terminal); background: #161616; }
@@ -990,7 +1252,8 @@
     }
     .hub-tab {
       display: flex; flex-direction: column; align-items: center; gap: 3px;
-      border: 1px solid var(--hub-dim); border-radius: 8px; background: var(--hub-panel);
+      border: 1px solid #4a3a25; border-radius: 8px;
+      background: #14100acc; backdrop-filter: blur(4px);
       color: var(--hub-fg); cursor: pointer; padding: 7px 2px; font: inherit;
       transition: background .16s var(--ease), border-color .16s var(--ease);
     }
@@ -1033,8 +1296,9 @@
     .hub-friends-row { display: flex; justify-content: center; gap: 8px; margin: 0 0 6px; flex: none; }
     .hub-friends-btn {
       display: flex; align-items: center; justify-content: center; gap: 6px;
-      border: 1px solid var(--hub-dim); border-radius: 999px;
-      background: var(--hub-panel); color: var(--hub-fg); cursor: pointer;
+      border: 1px solid #4a3a25; border-radius: 999px;
+      background: #14100acc; backdrop-filter: blur(4px);
+      color: var(--hub-fg); cursor: pointer;
       padding: 6px 14px; font: 12px var(--hub-mono);
     }
     .hub-friends-btn:hover { border-color: var(--hub-terminal); background: #161616; }
@@ -2100,9 +2364,27 @@
        and this sheet reopens itself instead of loading its own document. -->
   <div class="sheet" id="hub" role="dialog" aria-modal="true" aria-label="The Hub">
     <div class="sheet-inner">
-      <div class="sheet-head-bar">
-        <button class="sheet-close-btn" id="hub-close" type="button" aria-label="Close">✕</button>
+      <!-- The tavern art, as a real layer rather than a CSS background on
+           the panel — see .hub-stage. Decorative, so it's aria-hidden and
+           never takes pointer events. -->
+      <div class="hub-stage" aria-hidden="true"></div>
+
+      <!-- Title bar. Doubles as the drag handle once minimized (see
+           initHubWindow below), which is why the whole strip is one
+           grabbable element rather than a bare row of buttons. -->
+      <div class="hub-winbar">
+        <div class="hub-drag" id="hub-drag">
+          <span class="hub-drag-title">The Hub</span>
+        </div>
+        <button class="hub-winbtn hub-winbtn--min" id="hub-min" type="button"
+                aria-label="Minimize the Hub into a draggable window">&#x2013;</button>
+        <button class="hub-winbtn hub-winbtn--expand" id="hub-expand" type="button"
+                aria-label="Expand the Hub back to full screen">&#x2921;</button>
+        <button class="hub-winbtn" id="hub-close" type="button" aria-label="Close">&#x2715;</button>
       </div>
+
+      <div class="hub-ui">
+      <div class="hub-chrome">
       <!-- Persistent tab bar — always visible above whichever screen is
            active (including the lobby placeholder itself), styled to sit
            inside the blank tab slots baked into hub-interior-*.jpg. Chat
@@ -2131,7 +2413,9 @@
           <span aria-hidden="true">💛</span> Friends
         </button>
       </div>
+      </div><!-- /.hub-chrome -->
 
+      <div class="hub-panel">
       <section id="hub-lobby" class="hub-lobby">
         <img class="hub-lobby-mark" src="assets/animations/troll-grin.gif" alt="">
         <h2>THE HUB</h2>
@@ -2251,6 +2535,8 @@
         </form>
         <div id="hub-note" class="hub-note"></div>
       </section>
+      </div><!-- /.hub-panel -->
+      </div><!-- /.hub-ui -->
     </div>
   </div>
 
@@ -2691,10 +2977,44 @@
     function setHubBackground() {
       const hour = new Date().getHours();
       const isNight = hour >= 19 || hour < 7;
-      const variant = (isPhoneLayout ? 'mobile' : 'desktop') + '-' + (isNight ? 'night' : 'day');
+      const portrait = isPhoneLayout || window.innerHeight > window.innerWidth;
+      const variant = (portrait ? 'mobile' : 'desktop') + '-' + (isNight ? 'night' : 'day');
       const hubInner = document.querySelector('#hub .sheet-inner');
-      if (hubInner) hubInner.style.setProperty('--hub-bg-url', `url('assets/images/hub/hub-interior-${variant}.jpg')`);
+      if (!hubInner) return;
+      hubInner.style.setProperty('--hub-bg-url', `url('assets/images/hub/hub-interior-${variant}.jpg')`);
+      // The stage sizes itself from the art's own aspect ratio so the painted
+      // chat frame keeps a predictable position instead of being cropped
+      // unpredictably by background-size:cover. Desktop art is 1672x941,
+      // mobile is the same image rotated to 941x1672.
+      hubInner.style.setProperty('--hub-art-ar', portrait ? '0.5628' : '1.7768');
+      // Frame bounds differ between the landscape and portrait crops.
+      hubInner.style.setProperty('--hub-frame-t-n', portrait ? '.736' : '.719');
+      hubInner.style.setProperty('--hub-frame-h-n', portrait ? '.227' : '.22');
+      hubInner.style.setProperty('--hub-frame-b-n', portrait ? '.037' : '.061');
+      syncHubFrame();
     }
+
+    /* The stage sizes the art with max()/vh maths in CSS; rather than
+       duplicating that formula in the panel's own calc() (two places to get
+       out of sync), measure the painted box once and publish it as pixels.
+       Called on open, on resize, and whenever the art variant changes. */
+    function syncHubFrame() {
+      const hubInner = document.querySelector('#hub .sheet-inner');
+      if (!hubInner) return;
+      const ar = parseFloat(getComputedStyle(hubInner).getPropertyValue('--hub-art-ar')) || 1.7768;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      // Same rule as .hub-stage::before: cover the viewport at the art's ratio.
+      const w = Math.max(vw, vh * ar);
+      const h = Math.max(vh, vw / ar);
+      hubInner.style.setProperty('--hub-art-w', w + 'px');
+      hubInner.style.setProperty('--hub-art-h', h + 'px');
+    }
+    window.addEventListener('resize', syncHubFrame);
+    // The day/night + portrait/landscape choice depends on the viewport, so
+    // re-pick it when the window changes shape while the Hub is open.
+    window.addEventListener('resize', () => {
+      if (document.getElementById('hub')?.classList.contains('is-open')) setHubBackground();
+    });
     setHubBackground();
 
     function setPhase(next) {
@@ -4545,6 +4865,9 @@
       hubSheet.classList.toggle('is-open', open);
       hubSheet.inert = !open;
       if (open) { hubClose.focus(); setHubBackground(); window.dispatchEvent(new CustomEvent('trollrunner:hub-opened')); }
+      // A closed Hub always reopens full-screen — leaving it minimized would
+      // reopen it as a stray little window with no obvious cause.
+      else { hubSheet.classList.remove('is-min', 'is-dragging'); hubSheet.setAttribute('aria-modal', 'true'); }
       if (!opts.skipUrl) {
         try {
           const top = window.top || window;
@@ -4554,6 +4877,115 @@
         } catch {}
       }
     };
+    /* ---------- minimize / expand / drag ----------
+       Minimizing does NOT tear down the room: the same sheet just shrinks to
+       a small framed tavern window pinned over the island, so Realtime stays
+       subscribed and messages keep arriving while you use the rest of the
+       site. Expanding puts it back full-screen.
+
+       Drag notes:
+       - The pointer capture goes on the TITLE BAR, never on the window
+         container. Capturing on the container retargets every subsequent
+         click to it, which silently kills clicks on the children inside
+         (the composer, the send button, the tabs).
+       - Position is stored as plain left/top pixels in --hub-min-x/y and
+         clamped to the viewport on drop and on resize, so the window can
+         never be stranded off-screen where it can't be grabbed again. */
+    const hubMinBtn = $('hub-min'), hubExpandBtn = $('hub-expand'), hubDrag = $('hub-drag');
+    const HUB_MIN_KEY = 'trollrunner_hub_min_pos';
+
+    const hubMinPos = { x: null, y: null };
+    const hubWinSize = () => {
+      const inner = hubSheet.querySelector('.sheet-inner');
+      const r = inner.getBoundingClientRect();
+      return { w: r.width || 380, h: r.height || 440 };
+    };
+    const hubClampMin = () => {
+      if (hubMinPos.x === null) return;
+      const { w, h } = hubWinSize();
+      const maxX = Math.max(4, window.innerWidth - w - 4);
+      const maxY = Math.max(4, window.innerHeight - h - 4);
+      hubMinPos.x = Math.min(Math.max(4, hubMinPos.x), maxX);
+      hubMinPos.y = Math.min(Math.max(4, hubMinPos.y), maxY);
+      hubSheet.style.setProperty('--hub-min-x', hubMinPos.x + 'px');
+      hubSheet.style.setProperty('--hub-min-y', hubMinPos.y + 'px');
+    };
+
+    const hubSetMinimized = (min) => {
+      hubSheet.classList.toggle('is-min', min);
+      // Minimized, the Hub is a floating window over a usable page — it must
+      // not keep trapping focus or hiding the island from assistive tech.
+      hubSheet.setAttribute('aria-modal', min ? 'false' : 'true');
+      if (min) {
+        if (hubMinPos.x === null) {
+          const { w } = hubWinSize();
+          hubMinPos.x = Math.max(4, window.innerWidth - w - 24);
+          hubMinPos.y = 96;
+        }
+        hubClampMin();
+        hubExpandBtn.focus();
+      } else {
+        hubMinBtn.focus();
+      }
+      try { localStorage.setItem(HUB_MIN_KEY, JSON.stringify({ min, x: hubMinPos.x, y: hubMinPos.y })); } catch {}
+    };
+
+    hubMinBtn.addEventListener('click', () => hubSetMinimized(true));
+    hubExpandBtn.addEventListener('click', () => hubSetMinimized(false));
+
+    // Restore where the window was last parked (not whether it was open —
+    // that's the sheet's own URL/open logic).
+    try {
+      const saved = JSON.parse(localStorage.getItem(HUB_MIN_KEY) || 'null');
+      if (saved && typeof saved.x === 'number') { hubMinPos.x = saved.x; hubMinPos.y = saved.y; }
+    } catch {}
+
+    let hubDragging = false, hubDX = 0, hubDY = 0;
+    hubDrag.addEventListener('pointerdown', e => {
+      if (!hubSheet.classList.contains('is-min')) return;
+      const inner = hubSheet.querySelector('.sheet-inner');
+      const r = inner.getBoundingClientRect();
+      hubDragging = true;
+      hubDX = e.clientX - r.left;
+      hubDY = e.clientY - r.top;
+      hubSheet.classList.add('is-dragging');
+      try { hubDrag.setPointerCapture(e.pointerId); } catch {}
+      e.preventDefault();
+    });
+    hubDrag.addEventListener('pointermove', e => {
+      if (!hubDragging) return;
+      hubMinPos.x = e.clientX - hubDX;
+      hubMinPos.y = e.clientY - hubDY;
+      hubSheet.style.setProperty('--hub-min-x', hubMinPos.x + 'px');
+      hubSheet.style.setProperty('--hub-min-y', hubMinPos.y + 'px');
+    });
+    const hubDragEnd = e => {
+      if (!hubDragging) return;
+      hubDragging = false;
+      hubSheet.classList.remove('is-dragging');
+      try { hubDrag.releasePointerCapture(e.pointerId); } catch {}
+      hubClampMin();
+      try { localStorage.setItem(HUB_MIN_KEY, JSON.stringify({ min: true, x: hubMinPos.x, y: hubMinPos.y })); } catch {}
+    };
+    hubDrag.addEventListener('pointerup', hubDragEnd);
+    hubDrag.addEventListener('pointercancel', hubDragEnd);
+    // Keyboard parity for the drag — arrow keys nudge the parked window.
+    hubDrag.addEventListener('keydown', e => {
+      if (!hubSheet.classList.contains('is-min')) return;
+      const step = e.shiftKey ? 24 : 8;
+      const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+      const m = moves[e.key];
+      if (!m) return;
+      e.preventDefault();
+      hubMinPos.x = (hubMinPos.x || 0) + m[0];
+      hubMinPos.y = (hubMinPos.y || 0) + m[1];
+      hubClampMin();
+    });
+    hubDrag.tabIndex = 0;
+    hubDrag.setAttribute('role', 'button');
+    hubDrag.setAttribute('aria-label', 'Drag the Hub window; arrow keys move it');
+    window.addEventListener('resize', hubClampMin);
+
     hubSheet.inert = true;
     hubClose.addEventListener('click', () => hubSetOpen(false));
     try {
