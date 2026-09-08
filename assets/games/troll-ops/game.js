@@ -115,10 +115,38 @@ const els = {
 };
 
 const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+
+// Standard gamepad mapping: left stick moves, right stick looks, triggers
+// fire/aim. Covers Bluetooth/MFi pads on iPad as well as desktop controllers
+// — no separate "controller mode" toggle, it activates the moment a pad
+// reports input, same way key state does.
+const GP_DEADZONE = 0.18;
+const gamepadState = {
+  connected: false, moveX: 0, moveY: 0, lookDX: 0, lookDY: 0,
+  firing: false, ads: false, jump: false, crouch: false,
+};
+let gpIndex = null;
+let gpPrev = {};
+
 // The touch pad belongs to the match, not the lobby — it used to sit over
 // the menu, bleeding FIRE and RELOAD through the translucent panels.
-function setTouchControls(on) { els.touch.hidden = !(isTouch && on); }
+// A paired controller (common on iPad) replaces the on-screen sticks, so the
+// overlay hides itself the moment one is detected rather than stacking both.
+function setTouchControls(on) { els.touch.hidden = !(isTouch && on) || gamepadState.connected; }
 setTouchControls(false);
+window.addEventListener("gamepadconnected", (e) => {
+  gpIndex = e.gamepad.index;
+  gamepadState.connected = true;
+  if (gameState === "playing") setTouchControls(true);
+});
+window.addEventListener("gamepaddisconnected", (e) => {
+  if (e.gamepad.index !== gpIndex) return;
+  gpIndex = null;
+  gamepadState.connected = false;
+  gamepadState.moveX = gamepadState.moveY = 0;
+  gamepadState.firing = gamepadState.ads = gamepadState.jump = gamepadState.crouch = false;
+  if (gameState === "playing") setTouchControls(true);
+});
 
 const loadout = new Loadout({
   sum: {
@@ -1100,6 +1128,46 @@ els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); swing
 // Touch cooks for as long as the button is held, same as the key.
 bindHold(els.touchNade, () => startCook("lethal"), () => releaseCook());
 
+// -------------------- gamepad --------------------
+
+function deadzone(v) { return Math.abs(v) < GP_DEADZONE ? 0 : v; }
+
+function pollGamepad(dt) {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  let gp = gpIndex != null ? pads[gpIndex] : null;
+  if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
+  if (!gp) { gamepadState.connected = false; return; }
+  gpIndex = gp.index;
+  gamepadState.connected = true;
+
+  gamepadState.moveX = deadzone(gp.axes[0] || 0);
+  gamepadState.moveY = deadzone(gp.axes[1] || 0);
+  const lookX = deadzone(gp.axes[2] || 0);
+  const lookY = deadzone(gp.axes[3] || 0);
+  const sens = BASE_MOUSE_SENS * (settings.sens / 100) * 42;
+  gamepadState.lookDX += lookX * sens * dt * 60;
+  gamepadState.lookDY += lookY * sens * dt * 60 * (settings.invert ? -1 : 1);
+
+  const btn = (i) => !!gp.buttons[i]?.pressed;
+  const pressedEdge = (i) => btn(i) && !gpPrev[i];
+
+  const firingNow = gp.buttons[7]?.value > 0.15 || btn(7);   // R2
+  if (firingNow && !gamepadState.firing) { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); }
+  gamepadState.firing = firingNow;
+  gamepadState.ads = gp.buttons[6]?.value > 0.15 || btn(6);      // L2
+  gamepadState.jump = btn(0);                                     // A / cross
+  gamepadState.crouch = btn(1);                                   // B / circle
+
+  if (pressedEdge(4)) tryReload();          // L1 -> reload (kept off fire face buttons)
+  if (pressedEdge(2)) swingMelee();         // X / square -> melee
+  if (pressedEdge(3)) setHolding(player.holding === "gun" ? "melee" : "gun"); // Y / triangle
+  if (pressedEdge(5)) startCook("lethal");  // R1 -> cook nade
+  if (gpPrev[5] && !btn(5)) releaseCook();
+
+  gpPrev = {};
+  for (let i = 0; i < gp.buttons.length; i++) gpPrev[i] = btn(i);
+}
+
 // -------------------- HUD helpers --------------------
 
 function pushKillfeed(text) {
@@ -1135,7 +1203,7 @@ function showWaveBanner(text, ms = 1800) {
 function currentWeapon() { return player.weapons[player.weaponId]; }
 
 function tryReload() {
-  if (!controls.isLocked && !isTouch) return;
+  if (!controls.isLocked && !isTouch && !gamepadState.connected) return;
   if (currentWeapon().startReload()) audio.reload();
 }
 
@@ -1903,6 +1971,7 @@ function animate() {
 
   if (gameState === "playing") {
     elapsedRun += dt;
+    pollGamepad(dt);
     updatePlayer(dt);
     updateWeaponView(dt);
 
@@ -2060,23 +2129,33 @@ let stepPhase = 0;
 function updatePlayer(dt) {
   const w = currentWeapon();
 
-  if (isTouch && (touchState.lookDX || touchState.lookDY)) {
-    look.yaw -= touchState.lookDX;
-    look.pitch -= touchState.lookDY;
+  const gp = gamepadState.connected;
+
+  if ((isTouch && (touchState.lookDX || touchState.lookDY)) || (gp && (gamepadState.lookDX || gamepadState.lookDY))) {
+    look.yaw -= touchState.lookDX + gamepadState.lookDX;
+    look.pitch -= touchState.lookDY + gamepadState.lookDY;
     look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
     touchState.lookDX = 0; touchState.lookDY = 0;
+    gamepadState.lookDX = 0; gamepadState.lookDY = 0;
   }
 
   let ix = 0, iz = 0;
   if (isTouch) {
-    ix = touchState.moveX;
-    iz = -touchState.moveY;
-  } else {
+    ix += touchState.moveX;
+    iz += -touchState.moveY;
+  }
+  if (gp) {
+    ix += gamepadState.moveX;
+    iz += -gamepadState.moveY;
+  }
+  if (!isTouch && !gp) {
     if (keys.has("KeyW")) iz += 1;
     if (keys.has("KeyS")) iz -= 1;
     if (keys.has("KeyA")) ix -= 1;
     if (keys.has("KeyD")) ix += 1;
   }
+  ix = Math.max(-1, Math.min(1, ix));
+  iz = Math.max(-1, Math.min(1, iz));
 
   // Dead players keep their camera but stop driving anything.
   if (!player.alive) { ix = 0; iz = 0; }
@@ -2086,16 +2165,16 @@ function updatePlayer(dt) {
     : (keys.has("KeyZ") ? -1 : 0) + (keys.has("KeyX") ? 1 : 0);
 
   // Q aims as well as right mouse; lean moved to Z/X to free it up.
-  const wantAds = isTouch ? touchState.ads : (adsHeld || keys.has("KeyQ"));
-  const wantFire = isTouch ? touchState.firing : mouseDown;
+  const wantAds = (isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ");
+  const wantFire = (isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown;
 
   move.update(dt, {
     forward: iz,
     strafe: ix,
-    sprint: isTouch ? iz > 0.82 : keys.has("ShiftLeft"),
-    jump: isTouch ? touchState.jump : keys.has("Space"),
-    crouch: isTouch ? touchState.crouch : keys.has("KeyC"),
-    dive: isTouch ? touchState.dive : keys.has("ControlLeft") || keys.has("ControlRight"),
+    sprint: (isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft"),
+    jump: (isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space"),
+    crouch: (isTouch && touchState.crouch) || (gp && gamepadState.crouch) || keys.has("KeyC"),
+    dive: (isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight"),
     leanDir,
     yaw: look.yaw,
     adsHeld: wantAds,
