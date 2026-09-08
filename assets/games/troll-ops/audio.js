@@ -13,6 +13,7 @@ export class GameAudio {
   constructor() {
     this.ctx = null;
     this.enabled = true;
+    this.volume = 0.4;
     this.noise = null;
   }
 
@@ -23,7 +24,7 @@ export class GameAudio {
     this.ctx = new Ctx();
 
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.5;
+    this.master.gain.value = this.volume;
     this.master.connect(this.ctx.destination);
 
     // A single noise buffer backs gunfire, impacts and footsteps.
@@ -41,7 +42,14 @@ export class GameAudio {
 
   setEnabled(on) {
     this.enabled = on;
-    if (this.master) this.master.gain.value = on ? 0.5 : 0;
+    if (this.master) this.master.gain.value = on ? this.volume : 0;
+  }
+
+  /* 0..1 */
+  setVolume(v) {
+    this.volume = Math.max(0, Math.min(1, v)) * 0.8;
+    this.enabled = this.volume > 0;
+    if (this.master) this.master.gain.value = this.volume;
   }
 
   get now() { return this.ctx.currentTime; }

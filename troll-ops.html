@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-p11">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-p13">
 </head>
 <body>
 
@@ -69,19 +69,81 @@
           </div>
 
           <button type="button" class="to-btn to-btn-primary" id="to-start-btn">Drop In</button>
-          <p class="to-hint">WASD move · Mouse look · LMB fire · RMB aim · R reload · Shift sprint · C slide · Ctrl dive · Q/E lean · Space jump &amp; vault</p>
+          <p class="to-hint">WASD move · LMB fire · Q or RMB aim · R reload · Shift sprint · C slide · Ctrl dive · Z/X lean · Space jump &amp; vault · Esc menu</p>
           <p class="to-hint to-hint-mobile">Touch: left stick move (push full forward to sprint), right side look, then fire, aim, slide and lean buttons</p>
 
-          <a class="to-back-link" href="games.html">← Back to arcade</a>
+          <a class="to-btn to-btn-ghost to-btn-sm" href="games.html">← Back to arcade</a>
         </div>
       </div>
 
-      <!-- Pause / paused overlay -->
+      <!-- Escape menu: settings, controls, players, and the way out -->
       <div class="to-screen to-pause" id="to-pause" hidden>
         <div class="to-pause-inner">
-          <h2>Paused</h2>
-          <button type="button" class="to-btn to-btn-primary" id="to-resume-btn">Resume</button>
-          <button type="button" class="to-btn to-btn-ghost" id="to-quit-btn">Quit to menu</button>
+          <div class="to-menu-head">
+            <h2>Menu</h2>
+            <span class="to-menu-esc">Esc to close</span>
+          </div>
+
+          <div class="to-menu-tabs" id="to-menu-tabs" role="group" aria-label="Menu section">
+            <button type="button" class="to-menu-tab is-active" data-tab="settings" aria-pressed="true">Settings</button>
+            <button type="button" class="to-menu-tab" data-tab="controls" aria-pressed="false">Controls</button>
+            <button type="button" class="to-menu-tab" data-tab="players" aria-pressed="false">Players</button>
+          </div>
+
+          <div class="to-menu-panel" id="to-panel-settings">
+            <label class="to-set-row">
+              <span>Master volume</span>
+              <input type="range" id="to-set-volume" min="0" max="100" step="1">
+              <output id="to-set-volume-out">50</output>
+            </label>
+            <label class="to-set-row">
+              <span>Look sensitivity</span>
+              <input type="range" id="to-set-sens" min="20" max="300" step="5">
+              <output id="to-set-sens-out">100</output>
+            </label>
+            <label class="to-set-row">
+              <span>Field of view</span>
+              <input type="range" id="to-set-fov" min="60" max="100" step="1">
+              <output id="to-set-fov-out">78</output>
+            </label>
+            <label class="to-set-row to-set-check">
+              <span>Invert look</span>
+              <input type="checkbox" id="to-set-invert">
+            </label>
+            <label class="to-set-row to-set-check">
+              <span>Show minimap</span>
+              <input type="checkbox" id="to-set-minimap" checked>
+            </label>
+          </div>
+
+          <div class="to-menu-panel" id="to-panel-controls" hidden>
+            <div class="to-key-list">
+              <div><kbd>W A S D</kbd><span>Move</span></div>
+              <div><kbd>Mouse</kbd><span>Look</span></div>
+              <div><kbd>LMB</kbd><span>Fire</span></div>
+              <div><kbd>Q</kbd><span>Aim down sights</span></div>
+              <div><kbd>RMB</kbd><span>Aim down sights</span></div>
+              <div><kbd>Shift</kbd><span>Sprint</span></div>
+              <div><kbd>C</kbd><span>Crouch · slide when sprinting</span></div>
+              <div><kbd>Ctrl</kbd><span>Dive</span></div>
+              <div><kbd>Space</kbd><span>Jump · vault at ledges</span></div>
+              <div><kbd>Z</kbd><span>Lean left</span></div>
+              <div><kbd>X</kbd><span>Lean right</span></div>
+              <div><kbd>R</kbd><span>Reload</span></div>
+              <div><kbd>Tab</kbd><span>Scoreboard</span></div>
+              <div><kbd>Esc</kbd><span>This menu</span></div>
+            </div>
+          </div>
+
+          <div class="to-menu-panel" id="to-panel-players" hidden>
+            <div id="to-menu-roster" class="to-menu-roster">Solo run — no other operators.</div>
+          </div>
+
+          <div class="to-menu-actions">
+            <button type="button" class="to-btn to-btn-primary" id="to-resume-btn">Resume</button>
+            <button type="button" class="to-btn to-btn-ghost" id="to-quit-btn">Leave match</button>
+            <a class="to-btn to-btn-danger" href="games.html" id="to-exit-btn">Exit to arcade</a>
+          </div>
         </div>
       </div>
 
@@ -126,6 +188,8 @@
         </div>
 
         <canvas class="to-minimap" id="to-minimap" width="170" height="170" aria-hidden="true"></canvas>
+
+        <button type="button" class="to-gear" id="to-gear" aria-label="Open menu">☰</button>
 
         <div class="to-scoreboard" id="to-scoreboard" hidden aria-live="polite"></div>
 
@@ -194,7 +258,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-p11"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-p13"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

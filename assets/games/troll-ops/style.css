@@ -9,6 +9,10 @@
   width: 100%;
   aspect-ratio: 16 / 9;
   max-height: calc(100vh - 140px);
+  /* The menu has to compact against the CABINET's height, not the viewport's:
+     on a portrait phone the viewport is tall while the cabinet is ~210px. */
+  container-type: size;
+  container-name: cab;
   margin: 0 auto;
   background: #05070a;
   border-radius: 14px;
@@ -25,11 +29,21 @@
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 20;
 }
 .to-screen[hidden] { display: none; }
+
+/* Auto margins centre a panel when it fits and collapse when it doesn't.
+   `align-items: center` alone overflows equally at both ends inside the
+   cabinet's `overflow: hidden`, which put Drop In off-screen and unclickable
+   on anything shorter than a 900px viewport. */
+.to-title-inner,
+.to-pause-inner,
+.to-gameover-inner { margin: auto; }
 
 /* ---------- Title / loadout ---------- */
 
@@ -305,6 +319,80 @@
 /* ---------- Pause / gameover ---------- */
 
 .to-pause, .to-gameover { background: rgba(4,6,4,.82); backdrop-filter: blur(6px); }
+
+/* ---------- Escape menu ---------- */
+
+.to-pause-inner {
+  width: min(560px, 92%);
+  padding: 16px 18px !important;
+  gap: 12px !important;
+  align-items: stretch !important;
+  text-align: left;
+}
+.to-menu-head { display: flex; align-items: baseline; justify-content: space-between; }
+.to-menu-head h2 { margin: 0; font-family: "Oswald", sans-serif; font-size: 22px; letter-spacing: .06em; }
+.to-menu-esc { font-family: "DM Mono", monospace; font-size: 10.5px; color: #7c8778; }
+
+.to-menu-tabs { display: flex; gap: 5px; }
+.to-menu-tab {
+  flex: 1; font-family: "Oswald", sans-serif; font-size: 12px; letter-spacing: .05em;
+  padding: 7px 10px; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: #9aa596;
+  transition: background .14s, border-color .14s, color .14s;
+}
+.to-menu-tab:hover { border-color: rgba(127,224,102,.4); color: #cfe0c4; }
+.to-menu-tab.is-active { background: rgba(127,224,102,.14); border-color: #7fe066; color: #eaf5e4; }
+
+.to-menu-panel {
+  min-height: 168px; max-height: 230px; overflow-y: auto;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+}
+
+.to-set-row {
+  display: grid; grid-template-columns: 1fr 150px 38px;
+  align-items: center; gap: 10px; padding: 7px 0;
+  font-size: 12.5px; color: #dfe6da;
+}
+.to-set-row + .to-set-row { border-top: 1px solid rgba(255,255,255,.06); }
+/* the shared `.to-pause-inner` rule below re-centres text, so state it here */
+.to-set-row > span, .to-key-list, .to-menu-roster { text-align: left; }
+.to-set-row output { font-family: "DM Mono", monospace; font-size: 11px; color: #9aa596; text-align: right; }
+.to-set-check { grid-template-columns: 1fr auto; }
+.to-set-row input[type="range"] { width: 100%; accent-color: #7fe066; }
+.to-set-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #7fe066; }
+
+.to-key-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
+.to-key-list div { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #b9c4b2; }
+.to-key-list kbd {
+  flex: 0 0 auto; min-width: 46px; text-align: center;
+  font-family: "DM Mono", monospace; font-size: 10px;
+  padding: 3px 6px; border-radius: 5px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); color: #eaf5e4;
+}
+
+.to-menu-roster { font-family: "DM Mono", monospace; font-size: 12px; color: #9aa596; }
+
+.to-menu-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.to-menu-actions .to-btn { flex: 1; min-width: 120px; text-align: center; }
+
+.to-btn-danger {
+  background: rgba(214,74,58,.16);
+  border: 1px solid rgba(255,110,90,.5);
+  color: #ff9f8c;
+}
+.to-btn-danger:hover { background: rgba(214,74,58,.28); }
+.to-btn-sm { padding: 7px 16px !important; font-size: 12px !important; }
+
+/* in-match menu button, for touch where there is no Esc key */
+.to-gear {
+  position: absolute; right: 16px; top: 46px;
+  width: 34px; height: 34px; border-radius: 9px;
+  background: rgba(6,9,7,.5); border: 1px solid rgba(255,255,255,.16);
+  color: #dfe6da; font-size: 15px; line-height: 1;
+  cursor: pointer; pointer-events: auto;
+}
+.to-gear:hover { border-color: rgba(127,224,102,.45); }
 .to-pause-inner, .to-gameover-inner {
   display: flex; flex-direction: column; align-items: center; gap: 14px;
   padding: 30px; text-align: center;
@@ -488,6 +576,43 @@
   .to-lo-body { grid-template-columns: 1fr; }
   .to-lo-list { max-height: 132px; }
   .to-lo-stats { grid-template-columns: 1fr; }
+}
+
+/* Shed the decorative rows first, then tighten, so the loadout itself stays
+   usable as the cabinet gets shorter. */
+@container cab (max-height: 780px) {
+  .to-title-inner { gap: 9px; padding: 14px 18px; }
+  .to-logo { font-size: clamp(30px, 5vw, 46px); }
+  .to-tagline { margin-bottom: 0; font-size: 13px; }
+  .to-lo-list { max-height: 190px; }
+}
+
+@container cab (max-height: 640px) {
+  .to-eyebrow, .to-tagline { display: none; }
+  .to-title-inner { gap: 7px; padding: 10px 16px; }
+  .to-logo { font-size: clamp(24px, 3.4vw, 34px); }
+  .to-lo-list { max-height: 148px; }
+  .to-lo-detail { padding: 9px; gap: 6px; }
+  .to-lo-name { font-size: 16px; }
+  .to-lo-blurb { display: none; }
+  .to-btn { padding: 9px 24px; font-size: 14px; }
+  .to-menu-panel { min-height: 120px; max-height: 150px; }
+}
+
+@container cab (max-height: 500px) {
+  .to-logo { font-size: 22px; }
+  .to-lo-list { max-height: 104px; }
+  .to-lo-stats { display: none; }
+  .to-hint, .to-hint-mobile { display: none; }
+  .to-title-inner { gap: 5px; padding: 8px 12px; }
+  .to-lo-rank, .to-lo-modeblurb { display: none; }
+  .to-menu-panel { min-height: 92px; max-height: 116px; }
+}
+
+@container cab (max-height: 320px) {
+  .to-logo { display: none; }
+  .to-lo-atts { display: none; }
+  .to-lo-list { max-height: 84px; }
 }
 
 /* ---------- Loading ---------- */

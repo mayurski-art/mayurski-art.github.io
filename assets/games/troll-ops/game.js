@@ -120,6 +120,99 @@ let hillAcc = 0;
 const audio = new GameAudio();
 let suppressT = 0;
 
+// -------------------- settings + escape menu --------------------
+
+const SETTINGS_KEY = "trollops:settings";
+const settings = {
+  volume: 50, sens: 100, fov: 78, invert: false, minimap: true,
+  ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
+};
+
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* private mode */ }
+}
+
+function applySettings() {
+  audio.setVolume(settings.volume / 100);
+  baseFov = settings.fov;
+  minimapCanvas.hidden = !settings.minimap;
+
+  const set = (id, value, outId, suffix = "") => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === "checkbox") el.checked = !!value;
+    else el.value = value;
+    const out = outId && document.getElementById(outId);
+    if (out) out.textContent = `${value}${suffix}`;
+  };
+  set("to-set-volume", settings.volume, "to-set-volume-out");
+  set("to-set-sens", settings.sens, "to-set-sens-out", "%");
+  set("to-set-fov", settings.fov, "to-set-fov-out", "°");
+  set("to-set-invert", settings.invert);
+  set("to-set-minimap", settings.minimap);
+}
+
+function initEscapeMenu() {
+  const bindRange = (id, key, outId, suffix = "") => {
+    const el = document.getElementById(id);
+    el?.addEventListener("input", () => {
+      settings[key] = Number(el.value);
+      const out = document.getElementById(outId);
+      if (out) out.textContent = `${el.value}${suffix}`;
+      applySettings();
+      saveSettings();
+    });
+  };
+  bindRange("to-set-volume", "volume", "to-set-volume-out");
+  bindRange("to-set-sens", "sens", "to-set-sens-out", "%");
+  bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
+
+  const bindCheck = (id, key) => {
+    const el = document.getElementById(id);
+    el?.addEventListener("change", () => {
+      settings[key] = el.checked;
+      applySettings();
+      saveSettings();
+    });
+  };
+  bindCheck("to-set-invert", "invert");
+  bindCheck("to-set-minimap", "minimap");
+
+  const tabs = document.getElementById("to-menu-tabs");
+  tabs?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".to-menu-tab");
+    if (!btn) return;
+    for (const b of tabs.children) {
+      const on = b === btn;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-pressed", String(on));
+    }
+    for (const name of ["settings", "controls", "players"]) {
+      const panel = document.getElementById(`to-panel-${name}`);
+      if (panel) panel.hidden = name !== btn.dataset.tab;
+    }
+    if (btn.dataset.tab === "players") renderMenuRoster();
+  });
+
+  // Touch has no Esc key, so the in-match button opens the same menu.
+  document.getElementById("to-gear")?.addEventListener("click", () => {
+    if (gameState !== "playing") return;
+    if (controls.isLocked) controls.unlock();
+    else { gameState = "paused"; els.pause.hidden = false; }
+  });
+}
+
+function renderMenuRoster() {
+  const box = document.getElementById("to-menu-roster");
+  if (!box) return;
+  if (!isPvp() || !net.connected) {
+    box.textContent = "Solo run — no other operators.";
+    return;
+  }
+  renderScoreboard();
+  box.innerHTML = els.scoreboard.innerHTML;
+}
+
 /* A round cracking past raises suppression — washes the colour out, tightens
    the vignette and jitters the frame, so being shot at actually costs you. */
 function nearMiss(strength) {
@@ -315,7 +408,7 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(250, 24, 16), skyMat);
 scene.add(sky);
 
 const camera = new THREE.PerspectiveCamera(78, 16 / 9, 0.05, 300);
-const baseFov = 78;
+let baseFov = 78;   // driven by the FOV setting
 
 // Lighting
 const hemi = new THREE.HemisphereLight(0xb9d4ff, 0x39432c, 1.1);
@@ -613,7 +706,7 @@ const remotes = new RemotePlayers(scene);
 // roll and the touch stick all need to write into the same orientation, and
 // letting PLC own the camera quaternion made them fight each other.
 const look = { yaw: 0, pitch: 0 };
-const MOUSE_SENS = 0.0022;
+const BASE_MOUSE_SENS = 0.0022;
 const PITCH_LIMIT = 1.5;
 
 const controls = new EventTarget();
@@ -630,8 +723,9 @@ document.addEventListener("pointerlockchange", () => {
 });
 document.addEventListener("mousemove", (e) => {
   if (!controls.isLocked) return;
-  look.yaw -= e.movementX * MOUSE_SENS;
-  look.pitch -= e.movementY * MOUSE_SENS;
+  const sens = BASE_MOUSE_SENS * (settings.sens / 100);
+  look.yaw -= e.movementX * sens;
+  look.pitch += (settings.invert ? 1 : -1) * e.movementY * sens;
   look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
 });
 
@@ -1330,9 +1424,10 @@ function updatePlayer(dt) {
 
   const leanDir = isTouch
     ? touchState.lean
-    : (keys.has("KeyQ") ? -1 : 0) + (keys.has("KeyE") ? 1 : 0);
+    : (keys.has("KeyZ") ? -1 : 0) + (keys.has("KeyX") ? 1 : 0);
 
-  const wantAds = isTouch ? touchState.ads : adsHeld;
+  // Q aims as well as right mouse; lean moved to Z/X to free it up.
+  const wantAds = isTouch ? touchState.ads : (adsHeld || keys.has("KeyQ"));
   const wantFire = isTouch ? touchState.firing : mouseDown;
 
   move.update(dt, {
@@ -1449,6 +1544,8 @@ function updateWeaponView(dt) {
 // -------------------- boot --------------------
 
 resize();
+applySettings();
+initEscapeMenu();
 els.loading.hidden = true;
 animate();
 
