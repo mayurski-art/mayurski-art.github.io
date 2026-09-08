@@ -353,12 +353,14 @@ export class WeaponState {
     if (this.def.fireMode === "pump" || this.def.fireMode === "bolt") {
       this.pumpT = this.def.fireMode === "bolt" ? 0.55 : 0.4;
     }
-    const yawKick = (Math.random() * 2 - 1) * this.def.recoilKickYawRand + this.def.recoilKickYaw;
-    this.recoilPitch += this.def.recoilKickPitch;
+    // Shouldering the weapon steadies it: aimed fire kicks less than hipfire.
+    const steady = 1 - this.adsT * 0.35;
+    const yawKick = ((Math.random() * 2 - 1) * this.def.recoilKickYawRand + this.def.recoilKickYaw) * steady;
+    this.recoilPitch += this.def.recoilKickPitch * steady;
     this.recoilYaw += yawKick;
-    this.viewKickPitch += this.def.recoilKickPitch * 1.8;
+    this.viewKickPitch += this.def.recoilKickPitch * 1.8 * steady;
     this.viewKickYaw += yawKick * 1.6;
-    this.viewKickKnockback += this.def.recoilKickKnockback;
+    this.viewKickKnockback += this.def.recoilKickKnockback * steady;
     this.spread = Math.min(this.def.spreadMax, this.spread + this.def.spreadPerShot);
   }
 
@@ -375,11 +377,21 @@ export class WeaponState {
     this.adsT = Math.max(0, Math.min(1, this.adsT));
     this.ads = this.adsT > 0.5;
 
-    // Spread: recover toward base, add moving/jump/ads modifiers
-    let targetBase = def.spreadBase;
-    if (moving) targetBase = Math.max(targetBase, def.spreadMoving);
-    if (!grounded || jumping) targetBase = Math.max(targetBase, def.spreadJump);
-    targetBase *= 1 - this.adsT * (1 - def.spreadAds / def.spreadBase);
+    // Spread: hip and ADS are two separate cones and `adsT` blends between
+    // them. Scaling the hip figure by an ADS ratio instead (the old way) let
+    // the moving penalty ride through the blend, so walking while aimed sat
+    // at roughly twice the intended cone — the sights lied about where the
+    // round was going. Phantom Forces keeps aimed fire tight while walking
+    // and only really punishes sprinting and jumping, so mirror that.
+    let hipTarget = def.spreadBase;
+    if (moving) hipTarget = Math.max(hipTarget, def.spreadMoving);
+    if (!grounded || jumping) hipTarget = Math.max(hipTarget, def.spreadJump);
+
+    let adsTarget = def.spreadAds;
+    if (moving) adsTarget *= sprinting ? 2.2 : 1.45;
+    if (!grounded || jumping) adsTarget *= 3.5;
+
+    const targetBase = hipTarget + (adsTarget - hipTarget) * this.adsT;
     this.spread += (targetBase - this.spread) * Math.min(1, dt * def.spreadRecoverRate);
 
     // Recoil recovery (camera returns toward center)

@@ -8,6 +8,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState } from "./weapons.js";
 import { buildWeaponMesh } from "./weapon-model.js";
+import { WeaponInspector } from "./inspector.js";
 import { Loadout } from "./loadout.js";
 import { addXp, xpForRun } from "./progression.js";
 import { buildMap, disposeMap } from "./maps.js";
@@ -95,9 +96,21 @@ const els = {
 };
 
 const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
-if (isTouch) { els.touch.hidden = false; }
+// The touch pad belongs to the match, not the lobby — it used to sit over
+// the menu, bleeding FIRE and RELOAD through the translucent panels.
+function setTouchControls(on) { els.touch.hidden = !(isTouch && on); }
+setTouchControls(false);
 
 const loadout = new Loadout({
+  sum: {
+    cls: document.getElementById("to-pf-sum-class"),
+    name: document.getElementById("to-pf-sum-name"),
+    atts: document.getElementById("to-pf-sum-atts"),
+    stats: document.getElementById("to-pf-sum-stats"),
+    attWeapon: document.getElementById("to-pf-att-weapon"),
+    xp: document.getElementById("to-pf-xp"),
+    next: document.getElementById("to-pf-next"),
+  },
   maps: els.loMaps,
   classes: els.loClasses,
   list: els.loList,
@@ -107,6 +120,9 @@ const loadout = new Loadout({
   atts: els.loAtts,
   rank: els.loRank,
   rankFill: els.loRankFill,
+}, () => {
+  refreshLobbyMap();
+  if (inspectorLive) inspector?.show(loadout.resolved);
 });
 
 // -------------------- mode + networking --------------------
@@ -261,9 +277,110 @@ function renderModes() {
   }
   els.loModeBlurb.textContent = currentMode().blurb;
   els.loPvp.hidden = !isPvp();
+  const soloNote = document.getElementById("to-pf-solo-note");
+  if (soloNote) soloNote.hidden = isPvp();
   els.loMaps.hidden = !!currentMode().forceMap;   // Zombies has its own map
   if (isPvp() && !els.room.value) els.room.value = makeRoomCode();
+  renderLobbyRoster();   // no-ops until the lobby is ready
+  if (lobbyReady) refreshLobbyMap();
 }
+
+// -------------------- lobby chrome --------------------
+// The rail on the left swaps one centre panel, Phantom Forces style, rather
+// than scrolling one long column of controls.
+
+const LOBBY_PANELS = ["deploy", "loadout", "customize", "server", "controls"];
+const railButtons = [...document.querySelectorAll("#to-pf-rail [data-panel]")];
+
+const gunView = document.getElementById("to-gun-view");
+const gunCanvas = document.getElementById("to-gun-canvas");
+const inspector = gunCanvas ? new WeaponInspector(gunCanvas) : null;
+let inspectorLive = false;
+
+/* One inspector, two panels that want to show it: move the element rather
+   than standing up a second WebGL context for the same gun. */
+function mountGunView(panel) {
+  const mount = document.getElementById(`to-gun-mount-${panel}`);
+  inspectorLive = !!(gunView && mount);
+  if (!inspectorLive) return;
+  if (gunView.parentElement !== mount) mount.appendChild(gunView);
+  gunView.style.display = "";
+}
+
+function showLobbyPanel(name) {
+  for (const id of LOBBY_PANELS) {
+    const panel = document.getElementById(`to-pfp-${id}`);
+    if (panel) panel.hidden = id !== name;
+  }
+  for (const b of railButtons) {
+    const on = b.dataset.panel === name;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-pressed", String(on));
+  }
+  // Card thumbnails can only measure themselves once the panel is on screen.
+  if (name === "deploy") loadout.drawMapThumbs();
+
+  if (name === "loadout" || name === "customize") {
+    mountGunView(name);
+    inspector?.show(loadout.resolved);
+  } else {
+    inspectorLive = false;
+    if (gunView) gunView.style.display = "none";
+  }
+}
+
+for (const b of railButtons) {
+  b.addEventListener("click", () => showLobbyPanel(b.dataset.panel));
+}
+
+// `net` is constructed further down this module, so nothing may paint the
+// roster until initLobbyChrome() runs at the end of setup.
+let lobbyReady = false;
+
+function renderLobbyRoster() {
+  const box = document.getElementById("to-pf-roster");
+  if (!box || !lobbyReady) return;
+
+  const rows = [{ name: playerName(), state: "READY", you: true }];
+  if (isPvp() && net.connected) {
+    for (const p of net.peers.values()) {
+      rows.push({ name: p.name, state: isBotPeer(p) ? "BOT" : "IN ROOM" });
+    }
+  }
+
+  box.innerHTML = "";
+  for (const row of rows) {
+    const el = document.createElement("div");
+    el.className = row.you ? "to-pf-op is-you" : "to-pf-op is-idle";
+    const box2 = document.createElement("i");
+    const name = document.createElement("span");
+    name.textContent = row.name;
+    const state = document.createElement("b");
+    state.textContent = row.state;
+    el.append(box2, name, state);
+    box.appendChild(el);
+  }
+
+  if (rows.length === 1) {
+    const note = document.createElement("p");
+    note.className = "to-pf-empty";
+    note.textContent = isPvp()
+      ? "No one else in the room yet — share the code."
+      : "Solo drop. No other operators.";
+    box.appendChild(note);
+  }
+}
+
+function renderCallsign() {
+  const el = document.getElementById("to-pf-callsign");
+  if (el) el.textContent = `Signed in as ${playerName()}`;
+}
+
+// The profile arrives after the accounts script signs in, so redraw then.
+window.addEventListener("trollrunner:auth-changed", () => {
+  renderCallsign();
+  renderLobbyRoster();
+});
 
 function playerName() {
   const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
@@ -361,6 +478,10 @@ const net = new Net({
     }
   },
 });
+
+lobbyReady = true;
+renderCallsign();
+renderLobbyRoster();
 
 // -------------------- renderer / scene --------------------
 
@@ -471,13 +592,48 @@ function applyEnvironment(map) {
   ambient.intensity = map.ambient.intensity;
 }
 
+let loadedMapId = null;
+
 function loadMap(id) {
+  if (id === loadedMapId) return;    // the lobby already put us in this one
   disposeMap(builtMap, scene);
   builtMap = buildMap(id, { colliders, arena: ARENA });
   scene.add(builtMap.root);
   spawnPoints = builtMap.spawnPoints;
   applyEnvironment(builtMap.map);
   buildMinimapBase();
+  loadedMapId = id;
+}
+
+// -------------------- lobby backdrop --------------------
+// The menu hangs over the arena you are about to drop into, drifting around
+// it, rather than over a flat gradient — the map card and the view agree.
+
+let lobbyAngle = 0.6;
+
+function lobbyMapId() { return currentMode().forceMap || loadout.mapId; }
+
+function refreshLobbyMap() {
+  if (gameState !== "menu") return;
+  loadMap(lobbyMapId());
+}
+
+function updateLobbyCamera(dt) {
+  lobbyAngle += dt * 0.05;
+  const cx = (ARENA.minX + ARENA.maxX) / 2;
+  const cz = (ARENA.minZ + ARENA.maxZ) / 2;
+  const span = Math.max(ARENA.maxX - ARENA.minX, ARENA.maxZ - ARENA.minZ);
+  const r = span * 0.44;
+  camera.position.set(
+    cx + Math.cos(lobbyAngle) * r,
+    13 + Math.sin(lobbyAngle * 0.7) * 2.5,
+    cz + Math.sin(lobbyAngle) * r
+  );
+  camera.lookAt(cx, 2.4, cz);
+  if (camera.fov !== baseFov) {
+    camera.fov = baseFov;
+    camera.updateProjectionMatrix();
+  }
 }
 
 // -------------------- minimap --------------------
@@ -921,7 +1077,7 @@ function fireOnce() {
 
   // Part of the kick is permanent climb the player has to pull back down —
   // that's what makes recoil control a skill rather than a wait.
-  look.pitch = Math.min(PITCH_LIMIT, look.pitch + def.recoilKickPitch * 0.35);
+  look.pitch = Math.min(PITCH_LIMIT, look.pitch + def.recoilKickPitch * 0.35 * (1 - w.adsT * 0.35));
 
   const pellets = def.pellets || 1;
   const origin = new THREE.Vector3();
@@ -1155,6 +1311,7 @@ async function startGame() {
   els.gameover.hidden = true;
   els.pause.hidden = true;
   els.hud.hidden = false;
+  setTouchControls(true);
   gameState = "playing";
 
   if (isZombies()) nextZombieRound();
@@ -1189,6 +1346,7 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel) {
   player.alive = false;
   if (controls.isLocked) controls.unlock();
   els.hud.hidden = true;
+  setTouchControls(false);
   els.gameover.hidden = false;
   els.goTitle.textContent = title;
   els.goWave.textContent = headline;
@@ -1259,7 +1417,11 @@ els.quitBtn.addEventListener("click", () => {
   setNetStatus("Share the code with whoever you want in the match.");
   els.pause.hidden = true;
   els.hud.hidden = true;
+  setTouchControls(false);
   els.title.hidden = false;
+  loadout.render();
+  renderLobbyRoster();
+  showLobbyPanel("deploy");
 });
 
 controls.addEventListener("lock", () => { if (gameState === "paused") gameState = "playing"; els.pause.hidden = true; });
@@ -1447,6 +1609,11 @@ function animate() {
     weaponCamera.updateProjectionMatrix();
   }
 
+  if (gameState === "menu") {
+    updateLobbyCamera(dt);
+    if (inspectorLive && !els.title.hidden) inspector?.tick(dt);
+  }
+
   composer.render();
 
   if (gameState === "playing") {
@@ -1561,10 +1728,14 @@ function updateWeaponView(dt) {
   const mesh = activeWeaponMesh;
   if (!mesh) return;
 
-  const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5;
-  const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp;
-  const swayX = Math.sin(clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp;
-  const swayY = Math.cos(clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6;
+  // Aiming plants the sight: bob and idle sway fall away as the weapon
+  // comes up, so walking while aimed no longer swims the whole gun across
+  // the screen the way full-amplitude bob did.
+  const steady = 1 - w.adsT * 0.85;
+  const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5 * steady;
+  const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp * steady;
+  const swayX = Math.sin(clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp * steady;
+  const swayY = Math.cos(clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6 * steady;
 
   const adsOffset = w.adsT;
   const hipPos = new THREE.Vector3(0.22, -0.2, -0.55);
@@ -1608,6 +1779,7 @@ function updateWeaponView(dt) {
 resize();
 applySettings();
 initEscapeMenu();
+loadMap(lobbyMapId());
 els.loading.hidden = true;
 animate();
 

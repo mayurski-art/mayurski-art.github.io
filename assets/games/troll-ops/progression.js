@@ -7,7 +7,7 @@
 import { WEAPON_DEFS } from "./weapons.js";
 
 const KEY = "trollops:xp";
-const XP_PER_RANK = 2500;
+export const XP_PER_RANK = 2500;
 export const MAX_RANK = 40;
 
 export function getXp() {

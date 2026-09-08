@@ -390,6 +390,33 @@ export function buildMap(id, { colliders, arena }) {
   };
 }
 
+/* Top-down schematic of a map, for the lobby's map cards.
+
+   It builds the map into a throwaway group, keeps the ground-level collider
+   footprints and drops the geometry again. Cheaper than holding five arenas
+   alive just to draw five thumbnails, and — unlike a hand-drawn preview — it
+   can't drift away from the layout you actually spawn into. */
+const schematics = new Map();
+
+export function mapSchematic(id) {
+  if (schematics.has(id)) return schematics.get(id);
+  const colliders = [];
+  const arena = {};
+  const built = buildMap(id, { colliders, arena });
+  const out = {
+    bounds: { ...arena },
+    rects: colliders
+      .filter((c) => c.min.y < 1.6)          // overhead structures aren't walls
+      .map((c) => ({ x0: c.min.x, z0: c.min.z, x1: c.max.x, z1: c.max.z })),
+  };
+  built.root.traverse((o) => {
+    o.geometry?.dispose?.();
+    if (o.material) for (const m of [].concat(o.material)) m.dispose?.();
+  });
+  schematics.set(id, out);
+  return out;
+}
+
 export function disposeMap(built, scene) {
   if (!built) return;
   scene.remove(built.root);

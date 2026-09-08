@@ -12,67 +12,140 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-z2">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-pf1">
 </head>
 <body>
-
-  <header class="site-header">
-    <a class="brand" href="games.html" aria-label="Troll Runner Arcade home">
-      <span class="brand-mark">$TROLL</span>
-      <span class="brand-copy">
-        <span>Troll Runner</span>
-        <small>Troll Ops</small>
-      </span>
-    </a>
-    <nav class="site-nav" aria-label="Primary">
-      <a href="games.html">Arcade</a>
-      <a href="nullface.html">NULLFACE</a>
-      <a href="backrooms.html">Backrooms</a>
-    </nav>
-  </header>
 
   <main class="arcade-shell">
     <section class="to-cabinet" id="to-cabinet" aria-label="Troll Ops">
 
-      <!-- Title / loadout screen -->
+      <!-- Title screen: the Phantom Forces-style deployment lobby -->
       <div class="to-screen to-title" id="to-title">
         <div class="to-title-bg" aria-hidden="true"></div>
-        <div class="to-title-inner">
-          <p class="to-eyebrow">Troll Runner Arcade presents</p>
-          <h1 class="to-logo">TROLL <span>OPS</span></h1>
-          <p class="to-tagline">Grins in, grins out. Hold the arena.</p>
 
-          <div class="to-loadout">
-            <div class="to-lo-rank">
-              <strong id="to-lo-rank-label">Rank 0</strong>
-              <i class="to-lo-rank-bar"><b id="to-lo-rank-fill"></b></i>
-            </div>
-            <div class="to-lo-mode" id="to-lo-mode" role="group" aria-label="Game mode"></div>
-            <p class="to-lo-modeblurb" id="to-lo-modeblurb"></p>
-            <div class="to-lo-pvp" id="to-lo-pvp" hidden>
-              <label for="to-room">Room code</label>
-              <input id="to-room" class="to-room-input" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
-              <button type="button" class="to-room-new" id="to-newroom">New code</button>
-              <span class="to-net-status" id="to-net-status">Share the code with whoever you want in the match.</span>
-            </div>
-            <div class="to-lo-maps" id="to-lo-maps" role="group" aria-label="Map"></div>
-            <div class="to-lo-classes" id="to-lo-classes" role="group" aria-label="Weapon class"></div>
-            <div class="to-lo-body">
-              <div class="to-lo-list" id="to-lo-list" role="group" aria-label="Weapon"></div>
-              <div class="to-lo-detail">
-                <h2 class="to-lo-name" id="to-lo-name"></h2>
-                <p class="to-lo-blurb" id="to-lo-blurb"></p>
-                <div class="to-lo-stats" id="to-lo-stats"></div>
-                <div class="to-lo-atts" id="to-lo-atts"></div>
-              </div>
-            </div>
+        <div class="to-pf">
+
+          <div class="to-pf-top">
+            <span class="to-pf-logo">TROLL <b>OPS</b></span>
+            <span class="to-pf-tagline">Grins in, grins out. Hold the arena.</span>
+            <span class="to-pf-bonus" id="to-pf-callsign">Signed in as operator</span>
           </div>
 
-          <button type="button" class="to-btn to-btn-primary" id="to-start-btn">Drop In</button>
-          <p class="to-hint">WASD move · LMB fire · Q or RMB aim · R reload · Shift sprint · C slide · Ctrl dive · Z/X lean · Space jump &amp; vault · Esc menu</p>
-          <p class="to-hint to-hint-mobile">Touch: left stick move (push full forward to sprint), right side look, then fire, aim, slide and lean buttons</p>
+          <nav class="to-pf-rail" id="to-pf-rail" aria-label="Lobby menu">
+            <button type="button" class="to-pf-btn to-pf-btn-go" id="to-start-btn">Deploy</button>
+            <button type="button" class="to-pf-btn is-active" data-panel="deploy" aria-pressed="true">Match Setup</button>
+            <button type="button" class="to-pf-btn" data-panel="loadout" aria-pressed="false">Weapon Loadout</button>
+            <button type="button" class="to-pf-btn" data-panel="customize" aria-pressed="false">Customize</button>
+            <button type="button" class="to-pf-btn" data-panel="server" aria-pressed="false">Server Browser</button>
+            <button type="button" class="to-pf-btn" data-panel="controls" aria-pressed="false">Controls</button>
+            <a class="to-pf-btn to-pf-btn-exit" href="games.html">Back to arcade</a>
+          </nav>
 
-          <a class="to-btn to-btn-ghost to-btn-sm" href="games.html">← Back to arcade</a>
+          <section class="to-pf-roster" aria-label="Operators in the room">
+            <div class="to-pf-roster-head">Operators</div>
+            <div class="to-pf-roster-list" id="to-pf-roster"></div>
+          </section>
+
+          <section class="to-pf-center" id="to-pf-center">
+
+            <div class="to-pf-panel" id="to-pfp-deploy">
+              <div class="to-pf-panel-bar">Map Select</div>
+              <div class="to-lo-maps" id="to-lo-maps" role="group" aria-label="Map"></div>
+              <div class="to-pf-panel-bar">Game Mode</div>
+              <div class="to-lo-mode" id="to-lo-mode" role="group" aria-label="Game mode"></div>
+              <p class="to-lo-modeblurb" id="to-lo-modeblurb"></p>
+            </div>
+
+            <div class="to-pf-panel" id="to-pfp-loadout" hidden>
+              <div class="to-pf-panel-bar">Weapon Loadout</div>
+              <div class="to-lo-classes" id="to-lo-classes" role="group" aria-label="Weapon class"></div>
+              <div class="to-lo-body">
+                <div class="to-lo-list" id="to-lo-list" role="group" aria-label="Weapon"></div>
+                <div class="to-lo-detail">
+                  <div class="to-gun-mount" id="to-gun-mount-loadout"></div>
+                  <h2 class="to-lo-name" id="to-lo-name"></h2>
+                  <p class="to-lo-blurb" id="to-lo-blurb"></p>
+                  <div class="to-lo-stats" id="to-lo-stats"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="to-pf-panel" id="to-pfp-customize" hidden>
+              <div class="to-pf-panel-bar">Customize<span id="to-pf-att-weapon"></span></div>
+              <div class="to-gun-mount" id="to-gun-mount-customize"></div>
+              <div class="to-lo-atts" id="to-lo-atts"></div>
+            </div>
+
+            <div class="to-pf-panel" id="to-pfp-server" hidden>
+              <div class="to-pf-panel-bar">Server Browser</div>
+              <div class="to-lo-pvp" id="to-lo-pvp" hidden>
+                <label for="to-room">Room code</label>
+                <input id="to-room" class="to-room-input" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
+                <button type="button" class="to-room-new" id="to-newroom">New code</button>
+                <span class="to-net-status" id="to-net-status">Share the code with whoever you want in the match.</span>
+              </div>
+              <p class="to-pf-note" id="to-pf-solo-note">This mode runs solo — pick a versus mode under Match Setup to open a room.</p>
+            </div>
+
+            <div class="to-pf-panel" id="to-pfp-controls" hidden>
+              <div class="to-pf-panel-bar">Controls</div>
+              <div class="to-key-list to-key-list-lobby">
+                <div><kbd>W A S D</kbd><span>Move</span></div>
+                <div><kbd>Mouse</kbd><span>Look</span></div>
+                <div><kbd>LMB</kbd><span>Fire</span></div>
+                <div><kbd>Q</kbd><span>Aim down sights</span></div>
+                <div><kbd>Shift</kbd><span>Sprint</span></div>
+                <div><kbd>C</kbd><span>Crouch · slide</span></div>
+                <div><kbd>Ctrl</kbd><span>Dive</span></div>
+                <div><kbd>Space</kbd><span>Jump · vault</span></div>
+                <div><kbd>Z</kbd><span>Lean left</span></div>
+                <div><kbd>X</kbd><span>Lean right</span></div>
+                <div><kbd>R</kbd><span>Reload</span></div>
+                <div><kbd>Tab</kbd><span>Scoreboard</span></div>
+                <div><kbd>Esc</kbd><span>Menu · settings</span></div>
+              </div>
+              <p class="to-pf-note">Sensitivity, field of view and volume live in the Esc menu once you are in the match.</p>
+            </div>
+
+          </section>
+
+          <aside class="to-pf-right">
+            <div class="to-pf-card">
+              <div class="to-pf-card-bar" id="to-pf-sum-class">Loadout</div>
+              <div class="to-pf-rows">
+                <div class="to-pf-row is-primary"><span>Primary</span><b id="to-pf-sum-name">—</b></div>
+                <div id="to-pf-sum-atts"></div>
+              </div>
+              <div class="to-pf-card-bar is-sub">Ballistics</div>
+              <div class="to-pf-rows" id="to-pf-sum-stats"></div>
+            </div>
+
+            <div class="to-pf-card to-pf-card-xp">
+              <div class="to-pf-rows">
+                <div class="to-pf-row"><span id="to-lo-rank-label">Rank 0</span><b id="to-pf-xp">0 XP</b></div>
+              </div>
+              <i class="to-lo-rank-bar"><b id="to-lo-rank-fill"></b></i>
+              <div class="to-pf-rows">
+                <div class="to-pf-row"><span>Next unlock</span><b id="to-pf-next">—</b></div>
+              </div>
+            </div>
+          </aside>
+
+          <div class="to-gun-view" id="to-gun-view">
+            <canvas id="to-gun-canvas" aria-label="Weapon preview: drag to turn, scroll to zoom" role="img"></canvas>
+            <span class="to-gun-hint">Drag to turn · scroll to zoom · double-click resets</span>
+          </div>
+
+          <div class="to-pf-chat">
+            <p class="to-hint"><b>move</b> WASD · Shift sprint · Space jump</p>
+            <p class="to-hint"><b>fight</b> LMB fire · Q aim · R reload</p>
+            <p class="to-hint"><b>tricks</b> C slide · Ctrl dive · Z/X lean</p>
+            <p class="to-hint"><b>meta</b> Tab scoreboard · Esc menu</p>
+            <p class="to-hint-mobile"><b>move</b> left stick, full forward sprints</p>
+            <p class="to-hint-mobile"><b>look</b> drag the right half of the screen</p>
+            <p class="to-hint-mobile"><b>fight</b> buttons down the right edge</p>
+          </div>
+
         </div>
       </div>
 
@@ -258,7 +331,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-z2"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-pf1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>
