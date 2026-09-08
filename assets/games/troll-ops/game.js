@@ -12,7 +12,7 @@ import { WeaponInspector } from "./inspector.js";
 import { Loadout } from "./loadout.js";
 import { addXp, xpForRun } from "./progression.js";
 import { buildMap, disposeMap } from "./maps.js";
-import { Net, makeRoomCode } from "./net.js";
+import { Net, makeRoomCode, MAX_PLAYERS } from "./net.js";
 import { RemotePlayers, TEAMS } from "./remote-players.js";
 import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, Hill } from "./modes.js";
 import { BotManager } from "./bots.js";
@@ -154,6 +154,14 @@ let modeId = "ops";
 const teamScores = { phantom: 0, ghost: 0 };
 const bots = new BotManager();
 const BOT_TARGET = 8;      // participants a PvP room is padded up to
+
+// Quickplay: everyone who leaves the room code untouched lands in the same
+// public server for their mode, instead of each getting their own random
+// room. Only overflow into a numbered shard (QTDM2, QTDM3, ...) once the
+// base room is genuinely full of real people — see joinQuickplay().
+const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN" };
+const QUICKPLAY_MAX_SHARDS = 9;
+let roomIsCustom = false;   // true once the player types a code or asks for a new one
 let gunGameProgress = 0;
 let hill = null;
 let hillAcc = 0;
@@ -305,7 +313,6 @@ function renderModes() {
   const soloNote = document.getElementById("to-pf-solo-note");
   if (soloNote) soloNote.hidden = isPvp();
   els.loMaps.hidden = !!currentMode().forceMap;   // Zombies has its own map
-  if (isPvp() && !els.room.value) els.room.value = makeRoomCode();
   renderLobbyRoster();   // no-ops until the lobby is ready
   if (lobbyReady) refreshLobbyMap();
 }
@@ -420,9 +427,13 @@ function setNetStatus(text, state = "") {
 
 buildModeButtons();
 
-els.newRoom.addEventListener("click", () => { els.room.value = makeRoomCode(); });
+els.newRoom.addEventListener("click", () => {
+  els.room.value = makeRoomCode();
+  roomIsCustom = true;   // an explicit fresh code means "private room", not quickplay
+});
 els.room.addEventListener("input", () => {
   els.room.value = els.room.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
+  roomIsCustom = els.room.value.length > 0;
 });
 
 function registerDeath(victimName, killerId, weaponId) {
@@ -1580,19 +1591,42 @@ function equipFromLoadout() {
   return def;
 }
 
+/* Put everyone who didn't ask for a private room into the same public
+   server for the mode they picked. Tries the base room first (QTDM, QKOH,
+   ...); only spills into a numbered shard once the base room already has
+   enough real people that MAX_PLAYERS would be exceeded, so a lone player
+   never gets sharded off by themselves. Modes without a quickplay base
+   (none currently) fall back to a private random room, same as before. */
+async function joinQuickplay() {
+  const base = QUICKPLAY_BASE[modeId];
+  if (!base) {
+    const code = makeRoomCode();
+    return { code, kind: await net.start(code, { name: playerName(), mapId: loadout.mapId }) };
+  }
+  for (let shard = 1; shard <= QUICKPLAY_MAX_SHARDS; shard++) {
+    const code = shard === 1 ? base : `${base}${shard}`;
+    setNetStatus(shard === 1 ? "Connecting…" : `Server full, trying another (${shard})…`);
+    const kind = await net.start(code, { name: playerName(), mapId: loadout.mapId });
+    if (!kind) return { code, kind };   // real connectivity failure — retrying won't help
+    if (net.playerCount <= MAX_PLAYERS || shard === QUICKPLAY_MAX_SHARDS) return { code, kind };
+    net.stop();
+  }
+}
+
 async function startGame() {
   audio.resume();   // the click that got us here is the gesture Web Audio needs
   suppressT = 0;
   if (isPvp()) {
-    const code = els.room.value || makeRoomCode();
-    els.room.value = code;
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
-    const kind = await net.start(code, { name: playerName(), mapId: loadout.mapId });
+    const result = els.room.value && roomIsCustom
+      ? { code: els.room.value, kind: await net.start(els.room.value, { name: playerName(), mapId: loadout.mapId }) }
+      : await joinQuickplay();
     els.startBtn.disabled = false;
-    if (!kind) { setNetStatus("Couldn't reach the room. Try another code.", "bad"); return; }
+    if (!result.kind) { setNetStatus("Couldn't reach the room. Try another code.", "bad"); return; }
+    els.room.value = result.code;
     net.chooseTeam();
-    setNetStatus(`Live · ${kind} · room ${code} · ${TEAMS[net.team].name}`, "live");
+    setNetStatus(`Live · ${result.kind} · room ${result.code} · ${TEAMS[net.team].name}`, "live");
   } else {
     net.stop();
   }
