@@ -2,8 +2,9 @@
 
 import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js";
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars } from "./attachments.js";
-import { getRank, getXp, isUnlocked, rankProgress, MAX_RANK, XP_PER_RANK } from "./progression.js";
+import { getRank, getXp, isUnlocked, rankUnlocked, rankProgress, MAX_RANK, XP_PER_RANK } from "./progression.js";
 import { MAPS, MAP_IDS, mapSchematic } from "./maps.js";
+import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js";
 
 const STORE = "trollops:loadout";
 
@@ -72,9 +73,16 @@ export class Loadout {
     this.cls = WEAPON_DEFS[this.weaponId].cls;
     this.mapId = MAPS[saved.mapId] ? saved.mapId : MAP_IDS[0];
 
+    // Gear falls back to the rank-0 option whenever a saved pick is unknown
+    // or has been locked again (the rank track is local and can be reset).
+    this.meleeId = this.validGear(saved.meleeId, MELEE_DEFS, MELEE_IDS);
+    this.lethalId = this.validGear(saved.lethalId, THROWABLE_DEFS, LETHAL_IDS);
+    this.tacticalId = this.validGear(saved.tacticalId, THROWABLE_DEFS, TACTICAL_IDS);
+
     this.buildMaps();
     this.buildClasses();
     this.buildSlots();
+    this.buildGear();
     this.render();
   }
 
@@ -87,8 +95,20 @@ export class Loadout {
 
   get resolved() { return resolveWeapon(this.weaponId, this.attachments); }
 
+  get melee() { return MELEE_DEFS[this.meleeId]; }
+  get lethal() { return THROWABLE_DEFS[this.lethalId]; }
+  get tactical() { return THROWABLE_DEFS[this.tacticalId]; }
+
+  validGear(id, defs, ids) {
+    if (id && defs[id] && rankUnlocked(defs[id].rank)) return id;
+    return ids.find((k) => rankUnlocked(defs[k].rank)) || ids[0];
+  }
+
   persist() {
-    save({ weaponId: this.weaponId, mapId: this.mapId, attachments: this.attachmentsByWeapon });
+    save({
+      weaponId: this.weaponId, mapId: this.mapId, attachments: this.attachmentsByWeapon,
+      meleeId: this.meleeId, lethalId: this.lethalId, tacticalId: this.tacticalId,
+    });
     this.onChange(this.resolved);
   }
 
@@ -200,6 +220,73 @@ export class Loadout {
     }
   }
 
+  /* Gear panel: one row per slot, each a strip of rank-gated cards. The
+     three slots differ only in which table they read, so they share a
+     builder rather than three near-identical blocks. */
+  buildGear() {
+    const wrap = this.els.gear;
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    this.gearButtons = {};
+
+    const rows = [
+      ["melee", "Melee", MELEE_DEFS, MELEE_IDS, "meleeId"],
+      ["lethal", "Lethal", THROWABLE_DEFS, LETHAL_IDS, "lethalId"],
+      ["tactical", "Tactical", THROWABLE_DEFS, TACTICAL_IDS, "tacticalId"],
+    ];
+
+    for (const [slot, label, defs, ids, prop] of rows) {
+      const row = document.createElement("div");
+      row.className = "to-lo-gearrow";
+      const head = document.createElement("span");
+      head.className = "to-lo-slot-label";
+      head.textContent = label;
+      row.appendChild(head);
+
+      const opts = document.createElement("div");
+      opts.className = "to-lo-gearopts";
+      this.gearButtons[slot] = {};
+      for (const id of ids) {
+        const def = defs[id];
+        const unlocked = rankUnlocked(def.rank);
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "to-lo-gear";
+        b.disabled = !unlocked;
+        b.classList.toggle("is-locked", !unlocked);
+        b.innerHTML = "<strong></strong><span></span>";
+        b.querySelector("strong").textContent = def.name;
+        b.querySelector("span").textContent = unlocked
+          ? (slot === "melee" ? `${def.damage} dmg` : `Carry ${def.carried}`)
+          : `Rank ${def.rank}`;
+        b.title = def.blurb;
+        b.setAttribute("aria-label",
+          `${label}: ${def.name} — ${unlocked ? def.blurb : `locked until rank ${def.rank}`}`);
+        b.addEventListener("click", () => {
+          this[prop] = id;
+          this.persist();
+          this.render();
+        });
+        opts.appendChild(b);
+        this.gearButtons[slot][id] = b;
+      }
+      row.appendChild(opts);
+      wrap.appendChild(row);
+    }
+  }
+
+  renderGear() {
+    if (!this.gearButtons) return;
+    const active = { melee: this.meleeId, lethal: this.lethalId, tactical: this.tacticalId };
+    for (const [slot, buttons] of Object.entries(this.gearButtons)) {
+      for (const [id, b] of Object.entries(buttons)) {
+        const on = active[slot] === id;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-pressed", String(on));
+      }
+    }
+  }
+
   render() {
     const rank = getRank();
     const def = this.resolved;
@@ -272,6 +359,7 @@ export class Loadout {
       this.els.rankFill.style.width = `${Math.round(rankProgress() * 100)}%`;
     }
 
+    this.renderGear();
     this.renderSummary(def, bars, rank);
   }
 
@@ -284,6 +372,9 @@ export class Loadout {
     if (sum.cls) sum.cls.textContent = CLASS_LABELS[this.cls] || "Loadout";
     if (sum.name) sum.name.textContent = def.name;
     if (sum.attWeapon) sum.attWeapon.textContent = ` — ${def.name}`;
+    if (sum.melee) sum.melee.textContent = this.melee.name;
+    if (sum.lethal) sum.lethal.textContent = `${this.lethal.name} ×${this.lethal.carried}`;
+    if (sum.tactical) sum.tactical.textContent = `${this.tactical.name} ×${this.tactical.carried}`;
 
     if (sum.atts) {
       sum.atts.innerHTML = "";

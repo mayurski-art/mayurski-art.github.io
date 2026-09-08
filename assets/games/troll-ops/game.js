@@ -22,8 +22,9 @@ import { ZombieDirector } from "./zombies.js";
 import { zombieWindows } from "./pentagrin.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
 import { WaveSpawner } from "./enemies.js";
-import { BulletSystem } from "./ballistics.js";
+import { BulletSystem, segmentBlocked } from "./ballistics.js";
 import { MovementController, STANCE } from "./movement.js";
+import { MeleeState, buildMeleeMesh, GrenadeSystem, blastDamage } from "./gear.js";
 
 const els = {
   cabinet: document.getElementById("to-cabinet"),
@@ -93,6 +94,19 @@ const els = {
   touchSlide: document.getElementById("to-touch-slide"),
   touchLeanL: document.getElementById("to-touch-lean-l"),
   touchLeanR: document.getElementById("to-touch-lean-r"),
+  touchMelee: document.getElementById("to-touch-melee"),
+  touchNade: document.getElementById("to-touch-nade"),
+  gearMelee: document.getElementById("to-gear-melee"),
+  gearMeleeName: document.getElementById("to-gear-melee-name"),
+  gearLethal: document.getElementById("to-gear-lethal"),
+  gearLethalName: document.getElementById("to-gear-lethal-name"),
+  gearLethalN: document.getElementById("to-gear-lethal-n"),
+  gearTactical: document.getElementById("to-gear-tactical"),
+  gearTacticalName: document.getElementById("to-gear-tactical-name"),
+  gearTacticalN: document.getElementById("to-gear-tactical-n"),
+  cook: document.getElementById("to-cook"),
+  cookFill: document.getElementById("to-cook-fill"),
+  blind: document.getElementById("to-blind"),
 };
 
 const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
@@ -108,6 +122,9 @@ const loadout = new Loadout({
     atts: document.getElementById("to-pf-sum-atts"),
     stats: document.getElementById("to-pf-sum-stats"),
     attWeapon: document.getElementById("to-pf-att-weapon"),
+    melee: document.getElementById("to-pf-sum-melee"),
+    lethal: document.getElementById("to-pf-sum-lethal"),
+    tactical: document.getElementById("to-pf-sum-tactical"),
     xp: document.getElementById("to-pf-xp"),
     next: document.getElementById("to-pf-next"),
   },
@@ -118,6 +135,7 @@ const loadout = new Loadout({
   blurb: els.loBlurb,
   stats: els.loStats,
   atts: els.loAtts,
+  gear: document.getElementById("to-lo-gear"),
   rank: els.loRank,
   rankFill: els.loRankFill,
 }, () => {
@@ -289,7 +307,7 @@ function renderModes() {
 // The rail on the left swaps one centre panel, Phantom Forces style, rather
 // than scrolling one long column of controls.
 
-const LOBBY_PANELS = ["deploy", "loadout", "customize", "server", "controls"];
+const LOBBY_PANELS = ["deploy", "loadout", "customize", "gear", "server", "controls"];
 const railButtons = [...document.querySelectorAll("#to-pf-rail [data-panel]")];
 
 const gunView = document.getElementById("to-gun-view");
@@ -803,6 +821,21 @@ function setActiveWeaponMesh(def) {
   weaponRig.add(activeWeaponMesh);
 }
 
+let activeMeleeMesh = null;
+
+function setActiveMeleeMesh(def) {
+  if (activeMeleeMesh) {
+    weaponRig.remove(activeMeleeMesh);
+    activeMeleeMesh.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose?.();
+    });
+  }
+  activeMeleeMesh = buildMeleeMesh(def);
+  activeMeleeMesh.visible = false;
+  weaponRig.add(activeMeleeMesh);
+}
+
 // muzzle flash sprite
 const muzzleMat = makeMuzzleFlashMaterial();
 const muzzleFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22), muzzleMat);
@@ -868,7 +901,15 @@ const player = {
   deaths: 0,
   wave: 0,
   alive: true,
+  melee: null,          // MeleeState, rebuilt from the loadout on every spawn
+  holding: "gun",       // "gun" | "melee"
+  gear: { lethal: 0, tactical: 0 },
 };
+
+/* One in the hand: which throwable is cooking, and how much fuse is left. */
+const cooking = { def: null, fuse: 0, slot: null };
+let blindT = 0;         // seconds of flashbang whiteout left
+let shakeT = 0, shakeMag = 0;
 
 const move = new MovementController({ colliders, arena: ARENA });
 const bullets = new BulletSystem(scene);
@@ -907,6 +948,11 @@ const keys = new Set();
 window.addEventListener("keydown", (e) => {
   keys.add(e.code);
   if (e.code === "KeyR") tryReload();
+  if (e.code === "KeyV" && !e.repeat) swingMelee();
+  if (e.code === "Digit1") setHolding("gun");
+  if (e.code === "Digit3") setHolding("melee");
+  if (e.code === "KeyG" && !e.repeat) startCook("lethal");
+  if (e.code === "KeyF" && !e.repeat) startCook("tactical");
   if (e.code === "Space" && gameState === "playing") e.preventDefault();
   if (e.code === "Tab" && gameState === "playing" && isPvp()) {
     e.preventDefault();
@@ -917,6 +963,8 @@ window.addEventListener("keydown", (e) => {
 window.addEventListener("keyup", (e) => {
   keys.delete(e.code);
   if (e.code === "Tab") els.scoreboard.hidden = true;
+  if ((e.code === "KeyG" && cooking.slot === "lethal")
+    || (e.code === "KeyF" && cooking.slot === "tactical")) releaseCook();
 });
 
 function renderScoreboard() {
@@ -1023,6 +1071,9 @@ bindHold(els.touchSlide, () => touchState.crouch = true, () => touchState.crouch
 bindHold(els.touchLeanL, () => touchState.lean = -1, () => touchState.lean = 0);
 bindHold(els.touchLeanR, () => touchState.lean = 1, () => touchState.lean = 0);
 els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); tryReload(); });
+els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); swingMelee(); });
+// Touch cooks for as long as the button is held, same as the key.
+bindHold(els.touchNade, () => startCook("lethal"), () => releaseCook());
 
 // -------------------- HUD helpers --------------------
 
@@ -1166,6 +1217,230 @@ function findGruntFromObject(obj) {
   return null;
 }
 
+// -------------------- melee + throwables --------------------
+
+const grenades = new GrenadeSystem(scene);
+
+/* Whatever the bullets are allowed to hit this frame. Hoisted out of the
+   frame loop because melee and blasts need the same list. */
+let targetMeshes = [];
+
+/* Everything alive that a blast could reach, as { actor, pos } pairs. The
+   three enemy systems keep their own arrays, so this is the one place that
+   has to know about all of them. */
+function blastCandidates() {
+  const out = [];
+  if (zdir) {
+    for (const z of zdir.zombies) {
+      if (z.alive && !z.dying) out.push({ actor: z, pos: z.mesh.position });
+    }
+  }
+  if (spawner) {
+    for (const g of spawner.grunts) {
+      if (g.alive && !g.dying) out.push({ actor: g, pos: g.mesh.position });
+    }
+  }
+  for (const rp of remotes.byId.values()) {
+    if (rp.alive) out.push({ actor: rp, pos: rp.pos });
+  }
+  return out;
+}
+
+/* Radial damage. Torso height is added to each target so a grenade resting
+   on the floor still measures to a standing chest, not a pair of boots. */
+function areaDamage(centre, radius, damage, def, { fire = false } = {}) {
+  const scaled = { ...def, radius, damage, minDamage: fire ? damage * 0.5 : def.minDamage };
+  for (const { actor, pos } of blastCandidates()) {
+    const torso = pos.clone();
+    torso.y += 0.9;
+    const dmg = blastDamage(scaled, centre.distanceTo(torso));
+    if (dmg <= 0) continue;
+    const dir = torso.clone().sub(centre);
+    dir.y = 0;
+    dir.normalize();
+    onBulletActorHit(actor, { damage: dmg, isHead: false, point: torso, dir });
+  }
+
+  // Your own grenade counts. Cooking one too long has to cost you.
+  if (player.alive) {
+    const selfDmg = blastDamage(scaled, centre.distanceTo(player.pos)) * (def.selfMult ?? 1);
+    if (selfDmg > 0) damagePlayer(selfDmg, net.id, def.id);
+  }
+}
+
+/* Everything about a blast that isn't damage: light, sparks, sound, shove. */
+function explosionFx(def, pos) {
+  const big = def.kind === "tactical" ? 0.5 : 1;
+  spawnImpactBurst(pos, def.glow, def.kind === "tactical" ? 14 : 26);
+
+  const flash = new THREE.PointLight(def.glow, 260 * big, def.radius * 2.6, 2);
+  flash.position.copy(pos);
+  scene.add(flash);
+  blastLights.push({ light: flash, life: 0.3, max: 0.3, peak: 260 * big });
+
+  if (def.kind === "tactical") audio.flashbang(0);
+  else audio.explosion(big);
+
+  const near = Math.max(0, 1 - pos.distanceTo(player.pos) / (def.radius * 2));
+  if (near > 0) { shakeMag = Math.max(shakeMag, near * 0.08); shakeT = 0.45; }
+}
+
+const blastLights = [];
+
+function updateBlastLights(dt) {
+  for (let i = blastLights.length - 1; i >= 0; i--) {
+    const b = blastLights[i];
+    b.life -= dt;
+    b.light.intensity = Math.max(0, (b.life / b.max) * b.peak);
+    if (b.life <= 0) { scene.remove(b.light); blastLights.splice(i, 1); }
+  }
+}
+
+/* Flashbangs only blind what can see them, so a wall is real cover and
+   turning away actually helps. */
+function flashPlayer(pos, def) {
+  const dist = pos.distanceTo(player.pos);
+  if (dist <= def.radius && !segmentBlocked(colliders, player.pos, pos)) {
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    const toBang = pos.clone().sub(player.pos).normalize();
+    const facing = Math.max(0, forward.dot(toBang));   // 1 = staring right at it
+    const strength = (1 - dist / def.radius) * (0.35 + facing * 0.65);
+    blindT = Math.max(blindT, def.blind * strength);
+    audio.flashbang(strength);
+  }
+
+  for (const { actor, pos: apos } of blastCandidates()) {
+    if (pos.distanceTo(apos) > def.radius) continue;
+    if (segmentBlocked(colliders, apos, pos)) continue;
+    actor.stun?.(def.stun);
+  }
+}
+
+function grenadeCtx() {
+  return {
+    colliders,
+    arena: builtMap ? builtMap.map.bounds : ARENA,
+    onExplode: explosionFx,
+    onAreaDamage: areaDamage,
+    onFlash: flashPlayer,
+  };
+}
+
+function refillGear() {
+  player.gear.lethal = loadout.lethal.carried;
+  player.gear.tactical = loadout.tactical.carried;
+}
+
+/* Cooking: holding the key starts the fuse while the grenade is still in
+   your hand. Impact throwables ignore it — they go off where they land. */
+function startCook(slot) {
+  if (cooking.def || !player.alive || gameState !== "playing") return;
+  if (player.gear[slot] <= 0) return;
+  const def = slot === "lethal" ? loadout.lethal : loadout.tactical;
+  cooking.def = def;
+  cooking.slot = slot;
+  cooking.fuse = def.fuse;
+}
+
+function releaseCook() {
+  if (!cooking.def) return;
+  const def = cooking.def;
+  const slot = cooking.slot;
+  cooking.def = null;
+  cooking.slot = null;
+  els.cook.hidden = true;
+  if (player.gear[slot] <= 0) return;
+  player.gear[slot]--;
+
+  const origin = new THREE.Vector3();
+  camera.getWorldPosition(origin);
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  // Throws arc up a little, so aiming flat still lobs it somewhere useful.
+  dir.y += 0.18;
+  dir.normalize();
+  origin.addScaledVector(dir, 0.6);
+
+  grenades.throwGrenade(def, origin, dir, "player", { fuseLeft: cooking.fuse });
+  audio.throwGear();
+  updateGearHud();
+}
+
+/* Quick melee swings without putting the gun away; pressing 3 makes the
+   melee weapon the thing in your hands, which swings and moves faster. */
+function swingMelee() {
+  if (!player.alive || move.busy || gameState !== "playing") return;
+  if (!player.melee || !player.melee.start()) return;
+  audio.swing();
+}
+
+/* The swing itself: a short fan of rays rather than one, so a swing that is
+   only nearly on target still connects the way a wide arc should. */
+function meleeConnect() {
+  const def = player.melee.def;
+  const origin = new THREE.Vector3();
+  camera.getWorldPosition(origin);
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+  const ray = new THREE.Raycaster();
+  ray.near = 0;
+  ray.far = def.range;
+
+  for (const off of [0, -def.arc / 2, def.arc / 2]) {
+    const dir = forward.clone().addScaledVector(right, Math.tan(off)).normalize();
+    ray.set(origin, dir);
+    const hits = targetMeshes.length ? ray.intersectObjects(targetMeshes, true) : [];
+    for (const h of hits) {
+      const actor = resolveBulletTarget(h.object);
+      if (!actor) continue;
+      // A hit from behind is a backstab, decided by which way they face.
+      let mult = 1;
+      const root = actor.mesh || actor.group;
+      if (root) {
+        const theirs = new THREE.Vector3(Math.sin(root.rotation.y), 0, Math.cos(root.rotation.y));
+        const swing = dir.clone();
+        swing.y = 0;
+        swing.normalize();
+        if (theirs.dot(swing) > 0.35) mult = def.backstabMult;
+      }
+      audio.meleeHit();
+      onBulletActorHit(actor, {
+        damage: def.damage * mult,
+        isHead: mult > 1,
+        point: h.point,
+        dir: dir.clone(),
+      });
+      return;
+    }
+  }
+  audio.impact();
+}
+
+function setHolding(what) {
+  if (player.holding === what) return;
+  if (what === "melee" && !player.melee) return;
+  player.holding = what;
+  if (activeWeaponMesh) activeWeaponMesh.visible = what === "gun";
+  if (activeMeleeMesh) activeMeleeMesh.visible = what === "melee";
+  muzzleFlash.visible = what === "gun";
+  updateGearHud();
+}
+
+function updateGearHud() {
+  const melee = (player.melee && player.melee.def) || loadout.melee;
+  els.gearMeleeName.textContent = melee.name;
+  els.gearMelee.classList.toggle("is-active", player.holding === "melee");
+  els.gearLethalName.textContent = loadout.lethal.name;
+  els.gearLethalN.textContent = String(player.gear.lethal);
+  els.gearLethal.classList.toggle("is-empty", player.gear.lethal <= 0);
+  els.gearTacticalName.textContent = loadout.tactical.name;
+  els.gearTacticalN.textContent = String(player.gear.tactical);
+  els.gearTactical.classList.toggle("is-empty", player.gear.tactical <= 0);
+}
+
 // -------------------- game flow --------------------
 
 let gameState = "menu"; // menu | playing | paused | gameover
@@ -1237,6 +1512,12 @@ function equipFromLoadout() {
   if (mode.tuneWeapon) def = mode.tuneWeapon(def);
   player.weaponId = def.id;
   player.weapons = { [def.id]: new WeaponState(def) };
+  player.melee = new MeleeState(loadout.melee);
+  setActiveMeleeMesh(loadout.melee);
+  player.holding = "gun";
+  if (activeMeleeMesh) activeMeleeMesh.visible = false;
+  refillGear();
+  updateGearHud();
   return def;
 }
 
@@ -1277,6 +1558,13 @@ async function startGame() {
   look.yaw = yawTowardCentre(sp);
   look.pitch = 0;
   bullets.clear();
+  grenades.clear();
+  cooking.def = null;
+  cooking.slot = null;
+  els.cook.hidden = true;
+  blindT = 0;
+  shakeT = 0;
+  shakeMag = 0;
   remotes.clear();
   bots.clear();
 
@@ -1510,7 +1798,7 @@ function animate() {
     updatePlayer(dt);
     updateWeaponView(dt);
 
-    let targetMeshes = [];
+    targetMeshes = [];
     if (isZombies()) {
       const roundOver = zdir.update(dt, player.pos, onZombieAttack);
       if (roundOver) nextZombieRound();
@@ -1565,6 +1853,9 @@ function animate() {
       }
     }
 
+    grenades.update(dt, grenadeCtx());
+    updateBlastLights(dt);
+
     bullets.update(dt, {
       colliders,
       targetMeshes,
@@ -1584,6 +1875,28 @@ function animate() {
     els.reloadTag.hidden = !w.reloading;
     els.crosshair.classList.toggle("is-ads", w.ads);
     els.lowhp.classList.toggle("is-low", player.hp < 25);
+
+    // A cooked grenade keeps ticking in your hand, and can go off in it.
+    if (cooking.def) {
+      cooking.fuse -= dt;
+      els.cook.hidden = !cooking.def.cookable;
+      els.cookFill.style.width = `${Math.max(0, (cooking.fuse / cooking.def.fuse) * 100)}%`;
+      if (cooking.fuse <= 0) {
+        const held = cooking.def;
+        cooking.fuse = 0;
+        releaseCook();               // it leaves the hand at zero fuse…
+        const at = player.pos.clone();
+        explosionFx(held, at);       // …and detonates right there
+        if (held.damage > 0) areaDamage(at, held.radius, held.damage, held, {});
+        if (held.blind) flashPlayer(at, held);
+      }
+    }
+
+    blindT = Math.max(0, blindT - dt);
+    els.blind.style.opacity = String(Math.min(1, blindT * 0.85));
+
+    shakeT = Math.max(0, shakeT - dt);
+    if (shakeT <= 0) shakeMag = 0;
 
     hitFlashT = Math.max(0, hitFlashT - dt * 4);
     els.hitflash.classList.toggle("is-hit", hitFlashT > 0.05);
@@ -1685,8 +1998,17 @@ function updatePlayer(dt) {
   camera.position.copy(player.pos);
 
   // One place composes the camera: aim + weapon recoil + lean roll.
-  _euler.set(look.pitch + w.recoilPitch, look.yaw + w.recoilYaw, move.leanRoll);
+  const shake = shakeT > 0 ? shakeMag * (shakeT / 0.45) : 0;
+  _euler.set(
+    look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake,
+    look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake,
+    move.leanRoll + (Math.random() - 0.5) * shake * 0.6,
+  );
   camera.quaternion.setFromEuler(_euler);
+
+  // Swinging locks out the trigger; the melee weapon has no trigger at all.
+  const swinging = !!player.melee && player.melee.busy;
+  if (player.melee && player.melee.update(dt)) meleeConnect();
 
   const canAct = !move.busy && player.alive;
   w.update(dt, {
@@ -1698,7 +2020,13 @@ function updatePlayer(dt) {
     canAds: canAct,
   });
 
-  if (wantFire && canAct) {
+  // Holding the melee weapon turns the fire button into a swing.
+  if (player.holding === "melee") {
+    if (wantFire && fireEdgeTrigger && canAct) swingMelee();
+    return;
+  }
+
+  if (wantFire && canAct && !swinging) {
     if (w.def.fireMode === "auto") {
       if (w.canFire()) fireOnce();
     } else if (w.def.fireMode === "burst") {
@@ -1721,10 +2049,44 @@ window.addEventListener("mousedown", (e) => {
 });
 els.touchFire.addEventListener("touchstart", () => { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); });
 
+/* The melee view model: raised whenever it's the held weapon, and swung
+   through an arc on `phase`. A quick melee borrows the same mesh, so it
+   pops in for the swing and drops out again the moment it's over. */
+function updateMeleeView(dt) {
+  const mesh = activeMeleeMesh;
+  const melee = player.melee;
+  if (!mesh || !melee) return;
+
+  const held = player.holding === "melee";
+  const swinging = melee.busy;
+  mesh.visible = held || swinging;
+  if (activeWeaponMesh) activeWeaponMesh.visible = !held && !swinging;
+  if (!mesh.visible) return;
+
+  const w = currentWeapon();
+  const steady = 1;
+  const bobX = Math.sin(w.bobPhase) * 0.03 * steady;
+  const bobY = Math.abs(Math.cos(w.bobPhase)) * 0.03 * steady;
+  const swing = melee.phase;
+
+  // Held low and to the right at rest, then thrown across the view and down.
+  mesh.position.set(
+    0.26 + bobX - swing * 0.34,
+    -0.24 + bobY + Math.sin(swing * Math.PI) * 0.13,
+    -0.5 - swing * 0.16,
+  );
+  mesh.rotation.set(
+    -0.3 - swing * 1.35,
+    0.4 - swing * 1.15,
+    0.25 + swing * 1.0,
+  );
+}
+
 let weaponLowerT = 0;
 
 function updateWeaponView(dt) {
   const w = currentWeapon();
+  updateMeleeView(dt);
   const mesh = activeWeaponMesh;
   if (!mesh) return;
 

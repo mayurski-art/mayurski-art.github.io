@@ -36,6 +36,11 @@ export function rankProgress() {
   return (getXp() % XP_PER_RANK) / XP_PER_RANK;
 }
 
+/* Rank gate for anything that isn't in WEAPON_DEFS — melee, throwables. */
+export function rankUnlocked(rank) {
+  return getRank() >= (rank || 0);
+}
+
 export function isUnlocked(weaponId) {
   const def = WEAPON_DEFS[weaponId];
   if (!def) return false;

@@ -61,6 +61,7 @@ export class Zombie {
     this.dissolveT = 0;
     this.attackCdT = 0.6;
     this.staggerT = 0;
+    this.stunT = 0;
     this.velocity = new THREE.Vector3();
     this.groundY = position.y || 0;
     this.phase = Math.random() * Math.PI * 2;
@@ -89,7 +90,17 @@ export class Zombie {
     return { killed: true, points: isHead ? POINTS.headshotKill : POINTS.kill, isHead };
   }
 
+  stun(seconds) {
+    this.stunT = Math.max(this.stunT || 0, seconds);
+  }
+
   update(dt, playerPos, onAttack, arena, colliders) {
+    if (this.stunT > 0 && !this.dying) {
+      this.stunT -= dt;
+      this.mesh.rotation.y += dt * 3;
+      this.velocity.multiplyScalar(Math.max(0, 1 - 6 * dt));
+      return;
+    }
     if (this.dying) {
       this.dissolveT += dt * 1.5;
       this.mesh.userData.dissolveMat.uniforms.uDissolve.value = this.dissolveT;

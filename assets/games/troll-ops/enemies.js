@@ -31,6 +31,7 @@ export class Grunt {
     this.dissolveT = 0;
     this.attackCdT = 0;
     this.staggerT = 0;
+    this.stunT = 0;
     this.velocity = new THREE.Vector3();
     this.rig = buildGruntRig(this.type);
     this.mesh = this.rig.root;
@@ -54,7 +55,18 @@ export class Grunt {
     return { killed: false };
   }
 
+  /* Flashbanged: stands there swaying until it wears off. */
+  stun(seconds) {
+    this.stunT = Math.max(this.stunT || 0, seconds);
+  }
+
   update(dt, playerPos, onAttack, arenaBounds, colliders = []) {
+    if (this.stunT > 0 && !this.dying) {
+      this.stunT -= dt;
+      this.mesh.rotation.y += dt * 2.4;
+      this.velocity.multiplyScalar(Math.max(0, 1 - 6 * dt));
+      return;
+    }
     if (this.dying) {
       this.dissolveT += dt * 1.6;
       this.mesh.userData.dissolveMat.uniforms.uDissolve.value = this.dissolveT;

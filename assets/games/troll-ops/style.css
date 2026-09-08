@@ -480,6 +480,57 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 @keyframes to-blink { 50% { opacity: .25; } }
 
+/* ---------- Gear: lobby picker, HUD strip, cook meter, flashbang ---------- */
+
+.to-lo-gearlist { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; }
+.to-lo-gearrow { display: flex; align-items: flex-start; gap: 10px; }
+.to-lo-gearopts { display: flex; flex-wrap: wrap; gap: 6px; }
+.to-lo-gear {
+  display: flex; flex-direction: column; gap: 2px; text-align: left;
+  min-width: 116px; padding: 7px 10px; border-radius: 9px; cursor: pointer;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  color: #9aa596; transition: border-color .14s, color .14s, background .14s;
+}
+.to-lo-gear:hover:not(:disabled) { border-color: rgba(127,224,102,.4); color: #cfe0c4; }
+.to-lo-gear strong { font-size: 12.5px; font-weight: 700; color: #eef2ea; }
+.to-lo-gear span { font-size: 10px; font-family: "DM Mono", monospace; }
+.to-lo-gear.is-active { background: rgba(127,224,102,.12); border-color: #7fe066; }
+.to-lo-gear.is-locked { opacity: .45; cursor: not-allowed; }
+.to-lo-gear.is-locked strong { color: #9aa596; }
+
+/* Sits above the health bar in the bottom-left corner, out of the ammo's way. */
+.to-hud-gear {
+  position: absolute; left: 18px; bottom: 44px; z-index: 12;
+  display: flex; gap: 6px;
+}
+.to-gear-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 7px;
+  background: rgba(6,9,7,.5); border: 1px solid rgba(255,255,255,.12);
+  font-family: "DM Mono", monospace; font-size: 10.5px; color: #cfd8c8;
+}
+.to-gear-chip b {
+  font-size: 9px; letter-spacing: .06em; color: #0d1210;
+  background: #9aa596; border-radius: 3px; padding: 1px 4px;
+}
+.to-gear-chip i { font-style: normal; color: #7fe066; font-weight: 700; }
+.to-gear-chip.is-empty { opacity: .4; }
+.to-gear-chip.is-active { border-color: #7fe066; background: rgba(127,224,102,.16); }
+
+/* Cook meter: how much fuse is left while a grenade is still in your hand. */
+.to-cook {
+  position: absolute; left: 50%; top: 58%; transform: translateX(-50%);
+  width: 120px; height: 4px; border-radius: 3px; z-index: 13;
+  background: rgba(0,0,0,.45); overflow: hidden;
+}
+.to-cook i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ffdf6b, #ff5a3d); }
+
+/* Flashbang whiteout — a full-cabinet wash that fades back over a few seconds. */
+.to-blind {
+  position: absolute; inset: 0; z-index: 18; pointer-events: none;
+  background: #fff; opacity: 0;
+}
+
 .to-killfeed {
   position: absolute; top: 60px; right: 16px;
   display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
@@ -520,6 +571,8 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-touch-jump { right: 20px; bottom: 130px; width: 50px; height: 50px; font-size: 16px; }
 .to-touch-reload { right: 130px; bottom: 30px; width: 50px; height: 50px; font-size: 12px; }
 .to-touch-slide { left: 134px; bottom: 30px; width: 56px; height: 56px; font-size: 10px; }
+.to-touch-melee { right: 130px; bottom: 96px; width: 50px; height: 50px; font-size: 9px; }
+.to-touch-nade { right: 66px; bottom: 148px; width: 50px; height: 50px; font-size: 9px; }
 .to-touch-lean { width: 52px; height: 52px; bottom: 136px; font-size: 14px; }
 .to-touch-lean-l { left: 22px; }
 .to-touch-lean-r { left: 86px; }

@@ -123,6 +123,46 @@ export class GameAudio {
   }
 
   /* Round striking the world. */
+  /* Melee: air first, then the meaty part only if it connected. */
+  swing() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.14, gain: 0.16, type: "bandpass", freq: 900, sweepTo: 2600, q: 0.8 });
+  }
+
+  meleeHit() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.12, gain: 0.5, type: "lowpass", freq: 900, sweepTo: 160 });
+    this._tone({ freq: 150, to: 60, duration: 0.13, gain: 0.22, type: "square" });
+  }
+
+  throwGear() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.16, gain: 0.14, type: "bandpass", freq: 600, sweepTo: 1800, q: 1.4 });
+  }
+
+  /* Blast: low body, long tail, and a crack on top so it reads outdoors. */
+  explosion(scale = 1) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.1, gain: 0.7 * scale, type: "highpass", freq: 2200, sweepTo: 900 });
+    this._noise({ duration: 1.1 * scale, gain: 0.6 * scale, type: "lowpass", freq: 700, sweepTo: 70 });
+    this._tone({ freq: 90, to: 28, duration: 0.7 * scale, gain: 0.35 * scale, type: "sine" });
+  }
+
+  /* Flashbang: the bang, then the ringing that replaces everything else. */
+  flashbang(close = 1) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.28, gain: 0.55, type: "highpass", freq: 1800, sweepTo: 3400 });
+    if (close > 0.2) {
+      this._tone({ freq: 4200, duration: 2.6 * close, gain: 0.09 * close, type: "sine" });
+      this._tone({ freq: 6300, duration: 2.2 * close, gain: 0.05 * close, type: "sine" });
+    }
+  }
+
+  fire() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.5, gain: 0.1, type: "lowpass", freq: 500, sweepTo: 180 });
+  }
+
   impact() {
     if (!this._ready()) return;
     this._noise({ duration: 0.07, gain: 0.16, type: "bandpass", freq: 1800 + Math.random() * 1200, q: 2 });

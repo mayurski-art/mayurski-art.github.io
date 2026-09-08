@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-pf1">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-gear1">
 </head>
 <body>
 
@@ -36,6 +36,7 @@
             <button type="button" class="to-pf-btn is-active" data-panel="deploy" aria-pressed="true">Match Setup</button>
             <button type="button" class="to-pf-btn" data-panel="loadout" aria-pressed="false">Weapon Loadout</button>
             <button type="button" class="to-pf-btn" data-panel="customize" aria-pressed="false">Customize</button>
+            <button type="button" class="to-pf-btn" data-panel="gear" aria-pressed="false">Gear</button>
             <button type="button" class="to-pf-btn" data-panel="server" aria-pressed="false">Server Browser</button>
             <button type="button" class="to-pf-btn" data-panel="controls" aria-pressed="false">Controls</button>
             <a class="to-pf-btn to-pf-btn-exit" href="games.html">Back to arcade</a>
@@ -76,6 +77,12 @@
               <div class="to-lo-atts" id="to-lo-atts"></div>
             </div>
 
+            <div class="to-pf-panel" id="to-pfp-gear" hidden>
+              <div class="to-pf-panel-bar">Gear</div>
+              <div class="to-lo-gearlist" id="to-lo-gear"></div>
+              <p class="to-pf-note">In the match: <kbd>V</kbd> quick melee · <kbd>3</kbd> hold the melee weapon · <kbd>G</kbd> lethal · <kbd>F</kbd> tactical. Hold <kbd>G</kbd> to cook a frag.</p>
+            </div>
+
             <div class="to-pf-panel" id="to-pfp-server" hidden>
               <div class="to-pf-panel-bar">Server Browser</div>
               <div class="to-lo-pvp" id="to-lo-pvp" hidden>
@@ -101,6 +108,10 @@
                 <div><kbd>Z</kbd><span>Lean left</span></div>
                 <div><kbd>X</kbd><span>Lean right</span></div>
                 <div><kbd>R</kbd><span>Reload</span></div>
+                <div><kbd>V</kbd><span>Quick melee</span></div>
+                <div><kbd>3</kbd><span>Hold melee · 1 back to the gun</span></div>
+                <div><kbd>G</kbd><span>Lethal — hold to cook</span></div>
+                <div><kbd>F</kbd><span>Tactical</span></div>
                 <div><kbd>Tab</kbd><span>Scoreboard</span></div>
                 <div><kbd>Esc</kbd><span>Menu · settings</span></div>
               </div>
@@ -115,6 +126,12 @@
               <div class="to-pf-rows">
                 <div class="to-pf-row is-primary"><span>Primary</span><b id="to-pf-sum-name">—</b></div>
                 <div id="to-pf-sum-atts"></div>
+              </div>
+              <div class="to-pf-card-bar is-sub">Gear</div>
+              <div class="to-pf-rows">
+                <div class="to-pf-row"><span>Melee</span><b id="to-pf-sum-melee">—</b></div>
+                <div class="to-pf-row"><span>Lethal</span><b id="to-pf-sum-lethal">—</b></div>
+                <div class="to-pf-row"><span>Tactical</span><b id="to-pf-sum-tactical">—</b></div>
               </div>
               <div class="to-pf-card-bar is-sub">Ballistics</div>
               <div class="to-pf-rows" id="to-pf-sum-stats"></div>
@@ -140,6 +157,7 @@
             <p class="to-hint"><b>move</b> WASD · Shift sprint · Space jump</p>
             <p class="to-hint"><b>fight</b> LMB fire · Q aim · R reload</p>
             <p class="to-hint"><b>tricks</b> C slide · Ctrl dive · Z/X lean</p>
+            <p class="to-hint"><b>gear</b> V melee · G lethal · F tactical</p>
             <p class="to-hint"><b>meta</b> Tab scoreboard · Esc menu</p>
             <p class="to-hint-mobile"><b>move</b> left stick, full forward sprints</p>
             <p class="to-hint-mobile"><b>look</b> drag the right half of the screen</p>
@@ -203,6 +221,11 @@
               <div><kbd>Z</kbd><span>Lean left</span></div>
               <div><kbd>X</kbd><span>Lean right</span></div>
               <div><kbd>R</kbd><span>Reload</span></div>
+              <div><kbd>V</kbd><span>Quick melee</span></div>
+              <div><kbd>3</kbd><span>Hold the melee weapon</span></div>
+              <div><kbd>1</kbd><span>Back to the primary</span></div>
+              <div><kbd>G</kbd><span>Throw lethal — hold to cook</span></div>
+              <div><kbd>F</kbd><span>Throw tactical</span></div>
               <div><kbd>Tab</kbd><span>Scoreboard</span></div>
               <div><kbd>Esc</kbd><span>This menu</span></div>
             </div>
@@ -276,6 +299,7 @@
           <span class="to-ch-line to-ch-r"></span>
         </div>
 
+        <div class="to-blind" id="to-blind" aria-hidden="true"></div>
         <div class="to-hitmarker" id="to-hitmarker" aria-hidden="true"></div>
         <div class="to-hitflash" id="to-hitflash" aria-hidden="true"></div>
         <div class="to-lowhp" id="to-lowhp" aria-hidden="true"></div>
@@ -293,6 +317,14 @@
           </div>
         </div>
 
+        <div class="to-hud-gear" id="to-hud-gear">
+          <div class="to-gear-chip" id="to-gear-melee"><b>V</b><span id="to-gear-melee-name">Knife</span></div>
+          <div class="to-gear-chip" id="to-gear-lethal"><b>G</b><span id="to-gear-lethal-name">Frag</span><i id="to-gear-lethal-n">2</i></div>
+          <div class="to-gear-chip" id="to-gear-tactical"><b>F</b><span id="to-gear-tactical-name">Flash</span><i id="to-gear-tactical-n">2</i></div>
+        </div>
+
+        <div class="to-cook" id="to-cook" hidden aria-hidden="true"><i id="to-cook-fill"></i></div>
+
         <div class="to-killfeed" id="to-killfeed" aria-live="polite"></div>
       </div>
 
@@ -306,6 +338,8 @@
         <button type="button" class="to-touch-btn to-touch-fire" id="to-touch-fire">FIRE</button>
         <button type="button" class="to-touch-btn to-touch-reload" id="to-touch-reload">R</button>
         <button type="button" class="to-touch-btn to-touch-slide" id="to-touch-slide">SLIDE</button>
+        <button type="button" class="to-touch-btn to-touch-melee" id="to-touch-melee" aria-label="Melee">MELEE</button>
+        <button type="button" class="to-touch-btn to-touch-nade" id="to-touch-nade" aria-label="Throw lethal grenade">NADE</button>
         <button type="button" class="to-touch-btn to-touch-lean to-touch-lean-l" id="to-touch-lean-l" aria-label="Lean left">◀</button>
         <button type="button" class="to-touch-btn to-touch-lean to-touch-lean-r" id="to-touch-lean-r" aria-label="Lean right">▶</button>
         <div class="to-touch-look" id="to-touch-look"></div>
@@ -331,7 +365,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-pf1"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-gear1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>
