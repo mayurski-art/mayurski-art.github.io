@@ -4,20 +4,26 @@
    attribute's default styling and leaves "hidden" panels on screen. */
 [hidden] { display: none !important; }
 
+/* The page is only ever the game, so the shell adds no chrome of its own. */
+html, body { margin: 0; padding: 0; background: #05070a; }
+.arcade-shell { width: 100%; margin: 0; padding: 0; }
+
 .to-cabinet {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: calc(100vh - 140px);
+  /* Sized to the viewport itself rather than a 16/9 box: on a wide desktop the
+     16/9 cabinet was clamped by max-height and left the screen letterboxed. */
+  height: 100vh;
+  height: 100dvh;
   /* The menu has to compact against the CABINET's height, not the viewport's:
      on a portrait phone the viewport is tall while the cabinet is ~210px. */
   container-type: size;
   container-name: cab;
   margin: 0 auto;
   background: #05070a;
-  border-radius: 14px;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 .5px rgba(255,255,255,.06) inset;
+  box-shadow: none;
   font-family: "DM Sans", sans-serif;
   color: #eef2ea;
   user-select: none;
