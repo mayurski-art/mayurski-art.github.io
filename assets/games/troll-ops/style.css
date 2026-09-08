@@ -480,6 +480,42 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 @keyframes to-blink { 50% { opacity: .25; } }
 
+/* ---------- Test range readout ---------- */
+
+.to-range {
+  position: absolute; right: 16px; bottom: 96px; z-index: 12;
+  width: 232px; border-radius: 10px; overflow: hidden;
+  background: rgba(6,9,7,.62); border: 1px solid rgba(255,255,255,.12);
+  font-family: "DM Mono", monospace; font-size: 10.5px; color: #cfd8c8;
+}
+.to-range-bar {
+  padding: 5px 10px; background: rgba(127,224,102,.16);
+  font-family: "Oswald", sans-serif; font-size: 11px;
+  letter-spacing: .1em; text-transform: uppercase; color: #eaf5e4;
+}
+.to-range-shot {
+  padding: 8px 10px; font-family: "Oswald", sans-serif; font-size: 16px;
+  letter-spacing: .04em; color: #f2f5ee;
+}
+.to-range-shot.is-new { animation: to-range-pop .22s ease-out; }
+@keyframes to-range-pop {
+  from { transform: scale(1.12); color: #7fe066; }
+  to { transform: none; }
+}
+.to-range-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 3px 10px;
+}
+.to-range-row b { color: #7fe066; }
+.to-range-row kbd {
+  display: inline-block; padding: 0 3px; margin-right: 2px; border-radius: 3px;
+  background: rgba(255,255,255,.12); color: #eef2ea; font-size: 9.5px;
+}
+.to-range-note {
+  margin: 4px 0 0; padding: 6px 10px; font-size: 9.5px; color: #8b9686;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
 /* ---------- Gear: lobby picker, HUD strip, cook meter, flashbang ---------- */
 
 .to-lo-gearlist { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; }

@@ -25,6 +25,7 @@ import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked } from "./ballistics.js";
 import { MovementController, STANCE } from "./movement.js";
 import { MeleeState, buildMeleeMesh, GrenadeSystem, blastDamage } from "./gear.js";
+import { RangeSet } from "./range.js";
 
 const els = {
   cabinet: document.getElementById("to-cabinet"),
@@ -107,6 +108,10 @@ const els = {
   cook: document.getElementById("to-cook"),
   cookFill: document.getElementById("to-cook-fill"),
   blind: document.getElementById("to-blind"),
+  rangeHud: document.getElementById("to-range"),
+  rangeShot: document.getElementById("to-range-shot"),
+  rangeSens: document.getElementById("to-range-sens"),
+  rangeFov: document.getElementById("to-range-fov"),
 };
 
 const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
@@ -268,7 +273,9 @@ function rayDistanceTo(origin, dir, point) {
 function currentMode() { return MODES[modeId]; }
 function isPvp() { return currentMode().pvp; }
 function isZombies() { return !!currentMode().zombies; }
+function isRange() { return !!currentMode().range; }
 let zdir = null;
+let rangeSet = null;
 function isBotPeer(p) { return p.isBot || String(p.id).startsWith("bot-"); }
 
 function buildModeButtons() {
@@ -953,6 +960,13 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Digit3") setHolding("melee");
   if (e.code === "KeyG" && !e.repeat) startCook("lethal");
   if (e.code === "KeyF" && !e.repeat) startCook("tactical");
+  // Range-only live tuning, so a sensitivity change can be felt immediately.
+  if (isRange() && gameState === "playing") {
+    if (e.code === "Minus") nudgeSetting("sens", -5, 20, 300);
+    if (e.code === "Equal") nudgeSetting("sens", 5, 20, 300);
+    if (e.code === "BracketLeft") nudgeSetting("fov", -1, 60, 100);
+    if (e.code === "BracketRight") nudgeSetting("fov", 1, 60, 100);
+  }
   if (e.code === "Space" && gameState === "playing") e.preventDefault();
   if (e.code === "Tab" && gameState === "playing" && isPvp()) {
     e.preventDefault();
@@ -1156,10 +1170,21 @@ function fireOnce() {
 }
 
 function resolveBulletTarget(object) {
-  return remotes.resolve(object) || zdir?.resolve(object) || findGruntFromObject(object);
+  return rangeSet?.resolve(object)
+    || remotes.resolve(object)
+    || zdir?.resolve(object)
+    || findGruntFromObject(object);
 }
 
 function onBulletActorHit(actor, info) {
+  if (actor.isRangeTarget) {
+    const { killed } = actor.takeDamage(info.damage, info.isHead);
+    showHitmarker(info.isHead);
+    spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xbfc4b8, info.isHead ? 14 : 7);
+    reportRangeShot(actor, info, killed);
+    return;
+  }
+
   if (actor.isZombie) {
     const { killed, points } = actor.takeDamage(info.damage, info.isHead);
     zdir.award(points);
@@ -1242,6 +1267,11 @@ function blastCandidates() {
   }
   for (const rp of remotes.byId.values()) {
     if (rp.alive) out.push({ actor: rp, pos: rp.pos });
+  }
+  if (rangeSet) {
+    for (const t of rangeSet.targets) {
+      if (t.down <= 0) out.push({ actor: t, pos: t.mesh.position });
+    }
   }
   return out;
 }
@@ -1441,6 +1471,35 @@ function updateGearHud() {
   els.gearTactical.classList.toggle("is-empty", player.gear.tactical <= 0);
 }
 
+// -------------------- the test range --------------------
+
+/* The whole point of the range: say exactly what that round did, at what
+   distance, so a sensitivity or FOV change can be judged on evidence. */
+function reportRangeShot(target, info, dropped = false) {
+  if (!els.rangeShot) return;
+  const dist = info.distance != null ? info.distance : target.distance;
+  els.rangeShot.textContent =
+    `${info.isHead ? "HEADSHOT" : "HIT"} · ${Math.round(dist)} m · ${Math.round(info.damage)} dmg${dropped ? " · DOWN" : ""}`;
+  els.rangeShot.classList.remove("is-new");
+  void els.rangeShot.offsetWidth;
+  els.rangeShot.classList.add("is-new");
+}
+
+function updateRangeHud() {
+  if (!els.rangeSens) return;
+  els.rangeSens.textContent = `${settings.sens}%`;
+  els.rangeFov.textContent = `${settings.fov}°`;
+}
+
+/* Sensitivity and FOV are adjustable without unlocking the mouse, because
+   the only honest way to judge either is while you are actually aiming. */
+function nudgeSetting(key, delta, min, max) {
+  settings[key] = Math.max(min, Math.min(max, settings[key] + delta));
+  applySettings();
+  saveSettings();
+  updateRangeHud();
+}
+
 // -------------------- game flow --------------------
 
 let gameState = "menu"; // menu | playing | paused | gameover
@@ -1577,9 +1636,14 @@ async function startGame() {
     for (const g of spawner.grunts) g.dispose(scene);
     spawner = null;
   }
+  els.rangeHud.hidden = true;
   if (zdir) { zdir.clear(); zdir = null; }
 
-  if (isZombies()) {
+  if (rangeSet) { rangeSet.clear(); rangeSet = null; }
+
+  if (isRange()) {
+    rangeSet = new RangeSet(scene);
+  } else if (isZombies()) {
     zdir = new ZombieDirector(scene, ARENA, colliders, zombieWindows());
   } else if (!isPvp()) {
     spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
@@ -1587,8 +1651,10 @@ async function startGame() {
 
   const pvp = isPvp();
   els.hudTeams.hidden = !pvp;
-  els.hudWaveBox.hidden = pvp;
-  els.hudHostilesBox.hidden = pvp;
+  els.hudWaveBox.hidden = pvp || isRange();
+  els.hudHostilesBox.hidden = pvp || isRange();
+  els.rangeHud.hidden = !isRange();
+  updateRangeHud();
   document.getElementById("hud-l-wave").textContent = isZombies() ? "Round" : "Wave";
   document.getElementById("hud-l-hostiles").textContent = isZombies() ? "Zombies" : "Hostiles";
   document.getElementById("hud-l-kills").textContent = isZombies() ? "Points" : "Kills";
@@ -1602,7 +1668,8 @@ async function startGame() {
   setTouchControls(true);
   gameState = "playing";
 
-  if (isZombies()) nextZombieRound();
+  if (isRange()) showWaveBanner("Test range — nothing here shoots back", 2600);
+  else if (isZombies()) nextZombieRound();
   else if (!isPvp()) nextWave();
   else showWaveBanner(`${TEAMS[net.team].name.toUpperCase()} — ${builtMap.map.name}`, 2400);
 
@@ -1727,6 +1794,13 @@ let respawnT = 0;
 
 function damagePlayer(amount, fromId, weaponId) {
   if (!player.alive) return;
+  // Your own grenade can still sting on the range; it can't end the session.
+  if (isRange()) {
+    player.hp = Math.max(1, player.hp - amount);
+    flashHit();
+    audio.hurt();
+    return;
+  }
   player.hp = Math.max(0, player.hp - amount);
   flashHit();
   audio.hurt();
@@ -1799,7 +1873,16 @@ function animate() {
     updateWeaponView(dt);
 
     targetMeshes = [];
-    if (isZombies()) {
+    if (isRange()) {
+      rangeSet.update(dt);
+      targetMeshes = rangeSet.hitMeshes();
+      // Ammo and gear are free here — the range is for testing, not rationing.
+      const w = currentWeapon();
+      w.ammoReserve = w.def.reserveMax;
+      player.gear.lethal = loadout.lethal.carried;
+      player.gear.tactical = loadout.tactical.carried;
+      player.hp = Math.min(player.maxHp, player.hp + dt * 12);
+    } else if (isZombies()) {
       const roundOver = zdir.update(dt, player.pos, onZombieAttack);
       if (roundOver) nextZombieRound();
       els.hudHostiles.textContent = String(zdir.remaining);

@@ -14,6 +14,16 @@ export const MODES = {
     blurb: "Solo. Waves of grunts until they get you.",
   },
 
+  range: {
+    id: "range",
+    name: "Test Range",
+    short: "Test Range",
+    pvp: false,
+    range: true,
+    forceMap: "range",
+    blurb: "No enemies, no clock. Set your sensitivity and FOV, then shoot things that stand back up.",
+  },
+
   zombies: {
     id: "zombies",
     name: "Zombies",

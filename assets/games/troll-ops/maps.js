@@ -305,6 +305,66 @@ export const MAPS = {
     spawns: [[-25, -19], [25, -19], [-25, 19], [25, 19], [0, -20], [0, 20], [-26, 0], [26, 0]],
   },
 
+  range: {
+    name: "The Grinnery",
+    blurb: "Covered range. Fixed distances, targets that stand back up.",
+    bounds: { minX: -22, maxX: 22, minZ: -34, maxZ: 30 },
+    playerSpawn: { x: 0, z: 26 },
+    sky: { top: 0x243044, horizon: 0x53637a, bottom: 0x2b3340 },
+    fog: { color: 0x39424f, density: 0.006 },
+    ground: { colorA: 0x4d5348, colorB: 0x3c4239, grid: 0x77836a },
+    sun: { color: 0xfff2d8, intensity: 1.5, pos: [18, 40, 30] },
+    hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.0 },
+    ambient: { color: 0xffffff, intensity: 0.7 },
+    build(api) {
+      const WALL = 0x59604f;
+      const BAY = 0x6d7462;
+
+      // outer shell, high enough that stray rounds stay inside
+      api.walls(0, -2, 44, 64, 8, 1.2, { color: WALL, pen: 14 });
+
+      // firing line: a low bench you shoot over, with three bays
+      api.box(0, 27.2, 44, 0.6, 1.05, { color: BAY, pen: 6 });
+      for (const x of [-7, 7]) api.box(x, 28.6, 0.5, 3.2, 2.4, { color: BAY, pen: 6 });
+
+      // roof over the firing line only — the lane itself stays open to the sky
+      api.box(0, 28.4, 44, 5.2, 0.4, { color: 0x4a5044, y: 4.2, pen: 10 });
+      for (const x of [-20, -7, 7, 20]) {
+        api.box(x, 30.4, 0.5, 0.5, 4.2, { color: 0x3e443a, pen: 8 });
+      }
+
+      // distance boards down the left wall, one per marked range
+      const board = (dz, label) => {
+        const z = 26 - dz;
+        api.box(-20.6, z, 0.4, 2.4, 0.9, { color: 0x2b3128, y: 1.6, pen: 4 });
+        api.lamp(-19.4, 2.6, z, 0xffe2b0, 5, 9);
+        // a stripe on the deck so the distance reads from the firing line too
+        api.box(0, z, 40, 0.35, 0.06, { color: label % 2 ? 0x8f9a80 : 0xb9c2a8, pen: 0.4 });
+      };
+      board(10, 1); board(25, 2); board(40, 3); board(55, 4);
+
+      // cover blocks mid-lane: something to lean out of and bounce nades off
+      for (const [x, z, w, d, h] of [[-11, 8, 3, 3, 1.5], [11, 8, 3, 3, 1.5],
+        [-6, -2, 2.4, 6, 1.2], [6, -2, 2.4, 6, 1.2], [0, 14, 5, 1.6, 1.1]]) {
+        api.box(x, z, w, d, h, { color: 0x545c48, pen: 2.5 });
+      }
+
+      // a short flight up to a raised platform, for testing angles and vaults
+      api.stairs(16, 20, 4, 8, 0.34, 0.7, "-z", { color: 0x5e6553 });
+      api.box(16, 10, 6, 10, 2.7, { color: 0x5e6553, pen: 8 });
+
+      // penetration wall: three thicknesses of the same material, side by side
+      api.box(-14, -14, 3, 0.4, 2.4, { color: 0x7a7268, pen: 1 });
+      api.box(-9, -14, 3, 1.0, 2.4, { color: 0x7a7268, pen: 1 });
+      api.box(-4, -14, 3, 1.8, 2.4, { color: 0x7a7268, pen: 1 });
+
+      for (const [x, z] of [[-16, 24], [16, 24], [-16, -6], [16, -6]]) {
+        api.lamp(x, 5, z, 0xfff0d0, 14, 26);
+      }
+    },
+    spawns: [[0, 26], [-8, 26], [8, 26], [0, 22], [-8, 22], [8, 22], [-14, 24], [14, 24]],
+  },
+
   culdegrin: {
     name: "Cul-de-Grin",
     blurb: "Quiet street. Every window is a problem.",
@@ -359,7 +419,8 @@ export const MAPS = {
 // Zombies-only, so it's registered for buildMap but kept out of the PvP picker.
 MAPS.pentagrin = PENTAGRIN;
 
-export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin");
+// Neither the zombies map nor the range is a place you pick to fight in.
+export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id !== "range");
 
 /* ------------------------------------------------------------------ builder */
 
