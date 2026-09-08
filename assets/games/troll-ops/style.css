@@ -152,6 +152,18 @@
 .to-team-ghost b { color: #e8bf76; }
 .to-team-sep { color: #6f7a68; }
 
+/* `.to-cabinet canvas` above stretches the WebGL canvas to fill the cabinet
+   and out-specifies a lone class, so this selector has to match it or the
+   minimap is drawn across the whole screen. */
+.to-cabinet canvas.to-minimap {
+  position: absolute; left: 18px; top: 96px;
+  width: 132px; height: 132px;
+  border-radius: 10px;
+  background: rgba(6,9,7,.55);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 6px 18px rgba(0,0,0,.4);
+}
+
 .to-scoreboard {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   min-width: 340px; max-width: 88%; padding: 14px 16px; border-radius: 12px;

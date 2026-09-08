@@ -188,11 +188,40 @@ conclude it wasn't the host, drop its own bots, and immediately recreate them �
 an endless join/leave churn in the killfeed. Bot ids are now skipped when
 electing.
 
-### Phase 6 — Progression + polish
-- Rank/XP on the existing Supabase accounts system; weapons unlock by rank
-- Suppression effect (near-miss screen distortion — very PF)
-- Minimap, positional-ish audio, hit/kill sounds
-- Leaderboard rework for PvP stats (K/D, score/min, best streak)
+### Phase 6 — Progression + polish ✅ SHIPPED
+- ✅ **Audio** (`audio.js`) — the game was silent. Everything is synthesized
+  with Web Audio rather than loaded as files: no assets to ship, nothing new
+  for the CSP, and per-weapon variation falls out of the parameters instead of
+  needing a sample per gun. Gunfire scales with calibre, suppressors swap the
+  crack for a thud, plus impacts, hitmarkers, kills, reloads, footsteps and
+  bullet whizz. Distant shots are attenuated by range
+- ✅ **Suppression** — rounds cracking past desaturate the frame, tighten the
+  vignette and jitter the view, so being shot at actually costs you. Fed by
+  remote shot rays that pass within 3m and by bot misses
+- ✅ **Minimap** — static geometry is rendered once per map into an offscreen
+  canvas and blitted, so only the moving dots cost anything per frame
+- ✅ **Leaderboard** reworked for both playlists: PvP kills, K/D and wins
+  alongside best wave, on one combined ladder
+- ✅ Runs are filed with the accounts system via `reportGameResult`, which
+  no-ops for guests
+
+**Why weapon rank stayed local.** The plan was to move progression onto the
+Supabase accounts system. The account's `awardXp` is server-guarded with
+cooldowns and caps for *site-wide* level, which is the right design for that
+and the wrong one for a per-game unlock track — weapon unlocks would inherit
+unrelated cooldowns. Rank stays in localStorage; the account gets the match
+result, which is what its API is for.
+
+---
+
+## 10. Status
+
+All six phases are shipped and on `main`. What's deferred, and deliberately so:
+
+- **Infection mode** — the grunt AI reuse is still the plan, nothing blocks it
+- **Map vote / rotation between matches** — folded into a future match-flow pass
+- **Attachment unlocks** — attachments are all available; only weapons gate by
+  rank, to avoid stacking two grinds at once
 
 ---
 

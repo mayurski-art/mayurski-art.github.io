@@ -16,6 +16,7 @@ import { RemotePlayers, TEAMS } from "./remote-players.js";
 import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, Hill } from "./modes.js";
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
+import { GameAudio } from "./audio.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem } from "./ballistics.js";
@@ -116,6 +117,25 @@ let gunGameProgress = 0;
 let hill = null;
 let hillAcc = 0;
 
+const audio = new GameAudio();
+let suppressT = 0;
+
+/* A round cracking past raises suppression — washes the colour out, tightens
+   the vignette and jitters the frame, so being shot at actually costs you. */
+function nearMiss(strength) {
+  suppressT = Math.min(1, suppressT + strength);
+  audio.whiz();
+}
+
+/* Closest approach of a ray to a point; used to tell a near miss from a
+   shot that was never coming near us. */
+function rayDistanceTo(origin, dir, point) {
+  const toPoint = point.clone().sub(origin);
+  const along = toPoint.dot(dir);
+  if (along < 0) return Infinity;
+  return toPoint.addScaledVector(dir, -along).length();
+}
+
 function currentMode() { return MODES[modeId]; }
 function isPvp() { return currentMode().pvp; }
 function isBotPeer(p) { return p.isBot || String(p.id).startsWith("bot-"); }
@@ -174,6 +194,7 @@ function registerDeath(victimName, killerId, weaponId) {
 
   if (iKilled) {
     player.kills++;
+    audio.kill();
     els.hudKills.textContent = String(player.kills);
 
     if (mode.ladder) {
@@ -228,8 +249,18 @@ const net = new Net({
     registerDeath(bot.name, m.id, m.w);
   },
   onRemoteShot: (p, m) => {
-    // Show someone else's tracer so fights are readable from across the map.
-    spawnImpactBurst(new THREE.Vector3(m.ox, m.oy, m.oz), 0xffcf8a, 3);
+    const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
+    spawnImpactBurst(origin, 0xffcf8a, 3);
+
+    const dist = origin.distanceTo(player.pos);
+    audio.shot({ damage: 26, pellets: 1 }, Math.max(0, 1 - dist / 55) * 0.8);
+
+    // Was it aimed near our head? If so, suppress.
+    const dir = new THREE.Vector3(m.dx, m.dy, m.dz);
+    if (dir.lengthSq() > 0.001 && player.alive) {
+      const miss = rayDistanceTo(origin, dir.normalize(), player.pos);
+      if (miss < 3) nearMiss(0.55 * (1 - miss / 3));
+    }
   },
 });
 
@@ -348,6 +379,95 @@ function loadMap(id) {
   scene.add(builtMap.root);
   spawnPoints = builtMap.spawnPoints;
   applyEnvironment(builtMap.map);
+  buildMinimapBase();
+}
+
+// -------------------- minimap --------------------
+// Static geometry is drawn once per map into an offscreen canvas and blitted
+// each frame, so only the handful of moving dots costs anything.
+
+const minimapCanvas = document.getElementById("to-minimap");
+const minimapCtx = minimapCanvas.getContext("2d");
+const minimapBase = document.createElement("canvas");
+minimapBase.width = minimapCanvas.width;
+minimapBase.height = minimapCanvas.height;
+
+function mapToMinimap(x, z) {
+  const w = ARENA.maxX - ARENA.minX;
+  const d = ARENA.maxZ - ARENA.minZ;
+  const pad = 6;
+  const size = minimapCanvas.width - pad * 2;
+  return [
+    pad + ((x - ARENA.minX) / w) * size,
+    pad + ((z - ARENA.minZ) / d) * size,
+  ];
+}
+
+function buildMinimapBase() {
+  const ctx = minimapBase.getContext("2d");
+  ctx.clearRect(0, 0, minimapBase.width, minimapBase.height);
+  ctx.fillStyle = "rgba(150,170,140,.16)";
+  ctx.strokeStyle = "rgba(190,210,180,.28)";
+  ctx.lineWidth = 1;
+  for (const c of colliders) {
+    if (c.min.y > 1.6) continue;           // overhead structures aren't walls
+    const [x0, z0] = mapToMinimap(c.min.x, c.min.z);
+    const [x1, z1] = mapToMinimap(c.max.x, c.max.z);
+    ctx.fillRect(x0, z0, Math.max(1, x1 - x0), Math.max(1, z1 - z0));
+    ctx.strokeRect(x0, z0, Math.max(1, x1 - x0), Math.max(1, z1 - z0));
+  }
+}
+
+function drawMinimap() {
+  const ctx = minimapCtx;
+  const size = minimapCanvas.width;
+  ctx.clearRect(0, 0, size, size);
+  ctx.drawImage(minimapBase, 0, 0);
+
+  if (hill) {
+    const [hx, hz] = mapToMinimap(hill.position.x, hill.position.z);
+    const r = (hill.radius / (ARENA.maxX - ARENA.minX)) * (size - 12);
+    ctx.strokeStyle = "rgba(127,224,102,.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(hx, hz, Math.max(4, r), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  if (isPvp()) {
+    for (const rp of remotes.byId.values()) {
+      if (!rp.alive) continue;
+      const [x, z] = mapToMinimap(rp.pos.x, rp.pos.z);
+      ctx.fillStyle = rp.team === net.team ? "#7fd1e0" : "#ff6b5a";
+      ctx.beginPath();
+      ctx.arc(x, z, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (spawner) {
+    ctx.fillStyle = "#ff6b5a";
+    for (const g of spawner.grunts) {
+      if (!g.alive || g.dying) continue;
+      const [x, z] = mapToMinimap(g.mesh.position.x, g.mesh.position.z);
+      ctx.beginPath();
+      ctx.arc(x, z, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // us, as an arrow pointing where we're looking
+  const [px, pz] = mapToMinimap(move.pos.x, move.pos.z);
+  ctx.save();
+  ctx.translate(px, pz);
+  ctx.rotate(-look.yaw);
+  ctx.fillStyle = "#eaf5e4";
+  ctx.beginPath();
+  ctx.moveTo(0, -6);
+  ctx.lineTo(4, 5);
+  ctx.lineTo(0, 2.5);
+  ctx.lineTo(-4, 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 // King of the Hill's capture ring — an open cylinder so you can see through it.
@@ -480,6 +600,7 @@ const player = {
   weaponId: "problem416",
   weapons: {},
   kills: 0,
+  deaths: 0,
   wave: 0,
   alive: true,
 };
@@ -648,6 +769,7 @@ function pushKillfeed(text) {
 }
 
 function showHitmarker(isCrit) {
+  audio.hitmarker(isCrit);
   els.hitmarker.classList.remove("pop");
   els.hitmarker.classList.toggle("is-crit", isCrit);
   void els.hitmarker.offsetWidth;
@@ -672,7 +794,7 @@ function currentWeapon() { return player.weapons[player.weaponId]; }
 
 function tryReload() {
   if (!controls.isLocked && !isTouch) return;
-  currentWeapon().startReload();
+  if (currentWeapon().startReload()) audio.reload();
 }
 
 function fireOnce() {
@@ -683,6 +805,7 @@ function fireOnce() {
     return;
   }
   w.fire();
+  audio.shot(def);
   muzzleFlashT = 0.045;
   muzzleLight.intensity = 3.2;
 
@@ -792,7 +915,13 @@ function botTargets() {
   return list;
 }
 
-function onBotShoot(bot, target, dmg, isHead) {
+function onBotShoot(bot, target, dmg, isHead, hit, range = 30) {
+  audio.shot({ damage: 24, pellets: 1 }, Math.max(0, 1 - range / 55) * 0.7);
+
+  if (!hit) {
+    if (target.id === net.id) nearMiss(0.45);
+    return;
+  }
   if (target.id === net.id) { damagePlayer(dmg, bot.id, "problem416"); return; }
 
   if (bots.byId(target.id)) {
@@ -832,6 +961,8 @@ function equipFromLoadout() {
 }
 
 async function startGame() {
+  audio.resume();   // the click that got us here is the gesture Web Audio needs
+  suppressT = 0;
   if (isPvp()) {
     const code = els.room.value || makeRoomCode();
     els.room.value = code;
@@ -848,6 +979,7 @@ async function startGame() {
 
   player.hp = player.maxHp;
   player.kills = 0;
+  player.deaths = 0;
   player.wave = 0;
   player.alive = true;
   elapsedRun = 0;
@@ -902,6 +1034,7 @@ function nextWave() {
   player.wave++;
   els.hudWave.textContent = String(player.wave);
   showWaveBanner(`WAVE ${player.wave}`);
+  audio.wave();
   spawner.startWave(player.wave);
 }
 
@@ -926,6 +1059,17 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel) {
   els.goRank.textContent = rankedUp ? `Rank up — now rank ${rank}` : "";
   els.goRank.hidden = !rankedUp;
   loadout.render();
+
+  // Weapon rank stays local — it's a per-game unlock track, and the account's
+  // XP is server-guarded with its own cooldowns and caps. Filing the run is
+  // what the account API is actually for; it no-ops for guests.
+  window.TrollrunnerAccounts?.reportGameResult?.("troll-ops", player.wave * 10000 + player.kills * 10, {
+    mode: modeId,
+    kills: player.kills,
+    deaths: player.deaths,
+    wave: player.wave,
+    map: loadout.mapId,
+  });
 }
 
 function endGame(reason) {
@@ -933,14 +1077,21 @@ function endGame(reason) {
     reason === "quit" ? "Extracted" : "You went down",
     String(player.wave), "Wave reached", "Kills", "Time survived",
   );
-  const score = player.wave * 10000 + player.kills * 10;
-  window.TrollLeaderboard?.report?.("troll-ops", { score, wave: player.wave, kills: player.kills });
+  window.TrollLeaderboard?.report?.("troll-ops", { pvp: false, wave: player.wave, kills: player.kills });
 }
 
 function endMatch(title) {
   const mode = currentMode();
   const headline = mode.ffa ? String(player.kills) : String(teamScores[net.team] ?? 0);
+  const won = mode.ffa
+    ? title.startsWith("You")
+    : title === `${TEAMS[net.team]?.name} win`;
   finishRun(title, headline, mode.ffa ? "Your score" : "Your side", "Your kills", "Match length");
+
+  window.TrollLeaderboard?.report?.("troll-ops", {
+    pvp: true, kills: player.kills, deaths: player.deaths, won,
+  });
+
   net.stop();
   remotes.clear();
   bots.clear();
@@ -978,11 +1129,14 @@ function damagePlayer(amount, fromId, weaponId) {
   if (!player.alive) return;
   player.hp = Math.max(0, player.hp - amount);
   flashHit();
+  audio.hurt();
   if (player.hp > 0) return;
+  audio.died();
 
   if (isPvp()) {
     // In PvP dying is a respawn, not the end of the run.
     player.alive = false;
+    player.deaths++;
     respawnT = 4;
     net.reportDeath(fromId, weaponId);
     registerDeath("You", fromId, weaponId);
@@ -1098,7 +1252,7 @@ function animate() {
       targetMeshes,
       resolveTarget: resolveBulletTarget,
       onActorHit: onBulletActorHit,
-      onWorldHit: (point) => spawnImpactBurst(point, 0xbfc4b8, 5),
+      onWorldHit: (point) => { spawnImpactBurst(point, 0xbfc4b8, 5); audio.impact(); },
     });
     updateSparks(dt);
 
@@ -1119,6 +1273,9 @@ function animate() {
     impactPass.uniforms.uLowHp.value = player.hp < 25 ? 1 : 0;
     impactPass.uniforms.uAberration.value = Math.min(1, w.viewKickKnockback * 6);
     impactPass.uniforms.uTime.value = t;
+    suppressT = Math.max(0, suppressT - dt * 1.1);
+    impactPass.uniforms.uSuppress.value = suppressT;
+    drawMinimap();
 
     // fov kick based on sprint/ads
     const def = w.def;
@@ -1145,6 +1302,7 @@ function animate() {
 }
 
 const _euler = new THREE.Euler(0, 0, 0, "YXZ");
+let stepPhase = 0;
 
 function updatePlayer(dt) {
   const w = currentWeapon();
@@ -1191,6 +1349,13 @@ function updatePlayer(dt) {
     sprintMult: w.def.sprintMult,
     inertia: w.def.inertia,
   });
+
+  if (move.moving && move.grounded && player.alive) {
+    stepPhase += dt * (move.sprinting ? 13 : 9);
+    if (stepPhase > Math.PI) { stepPhase -= Math.PI; audio.step(); }
+  } else {
+    stepPhase = 0;
+  }
 
   move.eyePosition(player.pos);
   camera.position.copy(player.pos);

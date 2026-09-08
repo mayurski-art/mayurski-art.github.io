@@ -118,10 +118,10 @@ class Bot {
     this.fireT -= dt;
     if (best && bestD < FIRE_RANGE && this.fireT <= 0) {
       this.fireT = FIRE_INTERVAL * (0.75 + Math.random() * 0.6);
-      if (Math.random() < HIT_CHANCE) {
-        const head = Math.random() < HEADSHOT_CHANCE;
-        onShoot(this, best, BOT_DAMAGE * (head ? 2 : 1), head);
-      }
+      // Misses are reported too, so the target hears the round go past.
+      const hit = Math.random() < HIT_CHANCE;
+      const head = hit && Math.random() < HEADSHOT_CHANCE;
+      onShoot(this, best, hit ? BOT_DAMAGE * (head ? 2 : 1) : 0, head, hit, bestD);
     }
   }
 }

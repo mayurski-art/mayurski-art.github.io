@@ -10,6 +10,7 @@ export const ImpactShader = {
     uAberration: { value: 0 },    // 0..1, spikes on heavy recoil / explosions
     uVignette: { value: 0.35 },
     uLowHp: { value: 0 },         // 0..1, red pulse when low health
+    uSuppress: { value: 0 },      // 0..1, rounds cracking past your head
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -25,6 +26,7 @@ export const ImpactShader = {
     uniform float uAberration;
     uniform float uVignette;
     uniform float uLowHp;
+    uniform float uSuppress;
     varying vec2 vUv;
 
     void main() {
@@ -33,14 +35,25 @@ export const ImpactShader = {
       vec2 dir = uv - center;
       float dist = length(dir);
 
-      float ab = uAberration * 0.006;
+      // Suppression nudges the whole frame around so aiming under fire is
+      // genuinely harder, not just tinted.
+      uv += vec2(
+        sin(uTime * 37.0) * 0.0018,
+        cos(uTime * 41.0) * 0.0018
+      ) * uSuppress;
+      dir = uv - center;
+
+      float ab = uAberration * 0.006 + uSuppress * 0.004;
       float r = texture2D(tDiffuse, uv + dir * ab).r;
       float g = texture2D(tDiffuse, uv).g;
       float b = texture2D(tDiffuse, uv - dir * ab).b;
       vec3 color = vec3(r, g, b);
 
-      float vig = smoothstep(0.35, 1.0, dist) * uVignette;
+      float vig = smoothstep(0.35, 1.0, dist) * (uVignette + uSuppress * 0.5);
       color *= 1.0 - vig;
+
+      float grey = dot(color, vec3(0.299, 0.587, 0.114));
+      color = mix(color, vec3(grey), uSuppress * 0.55);
 
       color = mix(color, vec3(0.9, 0.05, 0.05), uHitFlash * 0.35 * (1.0 - dist * 0.4));
 
