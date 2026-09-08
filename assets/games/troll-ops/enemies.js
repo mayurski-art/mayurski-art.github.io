@@ -71,8 +71,17 @@ export class Grunt {
     const dist = toPlayer.length();
     this.attackCdT = Math.max(0, this.attackCdT - dt);
 
+    // Same rule as the zombies: only damp when we aren't steering, or the
+    // per-frame multiply fights the lerp and caps speed at ~0.375x.
+    const damp = (rate) => {
+      const k = Math.max(0, 1 - rate * dt);
+      this.velocity.x *= k;
+      this.velocity.z *= k;
+    };
+
     if (this.staggerT > 0) {
       this.staggerT -= dt;
+      damp(7);
     } else if (dist > this.type.attackRange) {
       toPlayer.normalize();
       const speed = this.type.speed;
@@ -82,17 +91,12 @@ export class Grunt {
       this.mesh.rotation.y += (angle - this.mesh.rotation.y + Math.PI * 3) % (Math.PI * 2) - Math.PI;
       this.mesh.rotation.y = angle;
     } else {
-      this.velocity.x *= 0.8;
-      this.velocity.z *= 0.8;
+      damp(9);
       if (this.attackCdT <= 0) {
         this.attackCdT = this.type.attackCd;
         onAttack(this, this.type.damage, this.type.ranged);
       }
     }
-
-    // damping for knockback velocity beyond steering
-    this.velocity.x *= 0.9;
-    this.velocity.z *= 0.9;
 
     this.mesh.position.x += this.velocity.x * dt;
     this.mesh.position.z += this.velocity.z * dt;

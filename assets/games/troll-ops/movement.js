@@ -110,8 +110,9 @@ export class MovementController {
     this._prevDive = false;
   }
 
-  reset(x, z) {
-    this.pos.set(x, 0, z);
+  /* `y` is the floor to stand on — multi-storey maps spawn above ground. */
+  reset(x, z, y = 0) {
+    this.pos.set(x, y, z);
     this.velocity.set(0, 0, 0);
     this.stance = STANCE.STAND;
     this.eyeHeight = EYE.stand;

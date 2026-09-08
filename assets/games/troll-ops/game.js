@@ -17,6 +17,8 @@ import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, Hill } from "./
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
+import { ZombieDirector } from "./zombies.js";
+import { zombieWindows } from "./pentagrin.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem } from "./ballistics.js";
@@ -231,6 +233,8 @@ function rayDistanceTo(origin, dir, point) {
 
 function currentMode() { return MODES[modeId]; }
 function isPvp() { return currentMode().pvp; }
+function isZombies() { return !!currentMode().zombies; }
+let zdir = null;
 function isBotPeer(p) { return p.isBot || String(p.id).startsWith("bot-"); }
 
 function buildModeButtons() {
@@ -257,6 +261,7 @@ function renderModes() {
   }
   els.loModeBlurb.textContent = currentMode().blurb;
   els.loPvp.hidden = !isPvp();
+  els.loMaps.hidden = !!currentMode().forceMap;   // Zombies has its own map
   if (isPvp() && !els.room.value) els.room.value = makeRoomCode();
 }
 
@@ -534,6 +539,17 @@ function drawMinimap() {
       ctx.fillStyle = rp.team === net.team ? "#7fd1e0" : "#ff6b5a";
       ctx.beginPath();
       ctx.arc(x, z, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (zdir) {
+    for (const z of zdir.zombies) {
+      if (!z.alive || z.dying) continue;
+      const [mx, mz] = mapToMinimap(z.mesh.position.x, z.mesh.position.z);
+      // only the ones sharing our floor, or the map reads as a swarm
+      const sameFloor = Math.abs(z.groundY - move.pos.y) < 2.5;
+      ctx.fillStyle = sameFloor ? "#8fd15a" : "rgba(143,209,90,.25)";
+      ctx.beginPath();
+      ctx.arc(mx, mz, sameFloor ? 2.8 : 1.8, 0, Math.PI * 2);
       ctx.fill();
     }
   } else if (spawner) {
@@ -933,10 +949,24 @@ function fireOnce() {
 }
 
 function resolveBulletTarget(object) {
-  return remotes.resolve(object) || findGruntFromObject(object);
+  return remotes.resolve(object) || zdir?.resolve(object) || findGruntFromObject(object);
 }
 
 function onBulletActorHit(actor, info) {
+  if (actor.isZombie) {
+    const { killed, points } = actor.takeDamage(info.damage, info.isHead);
+    zdir.award(points);
+    showHitmarker(info.isHead);
+    spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0x8fd15a, info.isHead ? 16 : 8);
+    if (killed) {
+      zdir.kills++;
+      player.kills++;
+      audio.kill();
+      pushKillfeed(`${info.isHead ? "Headshot — " : ""}+${points}`);
+    }
+    return;
+  }
+
   // Remote players own their own health: we report the hit and they apply it.
   if (actor.netId) {
     // Our own bots never hear our broadcasts, so resolve those locally.
@@ -1085,9 +1115,9 @@ async function startGame() {
   gunGameProgress = 0;
   hillAcc = 0;
 
-  loadMap(loadout.mapId);
+  loadMap(currentMode().forceMap || loadout.mapId);
   const sp = isPvp() ? teamSpawn() : builtMap.playerSpawn;
-  move.reset(sp.x, sp.z);
+  move.reset(sp.x, sp.z, sp.y || 0);
   look.yaw = yawTowardCentre(sp);
   look.pitch = 0;
   bullets.clear();
@@ -1103,12 +1133,21 @@ async function startGame() {
     for (const g of spawner.grunts) g.dispose(scene);
     spawner = null;
   }
-  if (!isPvp()) spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
+  if (zdir) { zdir.clear(); zdir = null; }
+
+  if (isZombies()) {
+    zdir = new ZombieDirector(scene, ARENA, colliders, zombieWindows());
+  } else if (!isPvp()) {
+    spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
+  }
 
   const pvp = isPvp();
   els.hudTeams.hidden = !pvp;
   els.hudWaveBox.hidden = pvp;
   els.hudHostilesBox.hidden = pvp;
+  document.getElementById("hud-l-wave").textContent = isZombies() ? "Round" : "Wave";
+  document.getElementById("hud-l-hostiles").textContent = isZombies() ? "Zombies" : "Hostiles";
+  document.getElementById("hud-l-kills").textContent = isZombies() ? "Points" : "Kills";
   els.respawn.hidden = true;
   els.scoreboard.hidden = true;
 
@@ -1118,10 +1157,23 @@ async function startGame() {
   els.hud.hidden = false;
   gameState = "playing";
 
-  if (!isPvp()) nextWave();
+  if (isZombies()) nextZombieRound();
+  else if (!isPvp()) nextWave();
   else showWaveBanner(`${TEAMS[net.team].name.toUpperCase()} — ${builtMap.map.name}`, 2400);
 
   if (!isTouch) controls.lock();
+}
+
+function nextZombieRound() {
+  player.wave = zdir.round + 1;
+  zdir.startRound(player.wave);
+  els.hudWave.textContent = String(player.wave);
+  showWaveBanner(`ROUND ${player.wave}`);
+  audio.wave();
+}
+
+function onZombieAttack(zombie, dmg) {
+  damagePlayer(dmg, null, null);
 }
 
 function nextWave() {
@@ -1167,9 +1219,13 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel) {
 }
 
 function endGame(reason) {
+  const zombies = isZombies();
   finishRun(
-    reason === "quit" ? "Extracted" : "You went down",
-    String(player.wave), "Wave reached", "Kills", "Time survived",
+    reason === "quit" ? "Extracted" : (zombies ? "They got you" : "You went down"),
+    String(player.wave),
+    zombies ? "Round reached" : "Wave reached",
+    zombies ? "Zombies killed" : "Kills",
+    "Time survived",
   );
   window.TrollLeaderboard?.report?.("troll-ops", { pvp: false, wave: player.wave, kills: player.kills });
 }
@@ -1248,7 +1304,7 @@ function yawTowardCentre(sp) {
 
 function respawnPlayer() {
   const sp = teamSpawn();
-  move.reset(sp.x, sp.z);
+  move.reset(sp.x, sp.z, sp.y || 0);
   look.yaw = yawTowardCentre(sp);
   look.pitch = 0;
   player.hp = player.maxHp;
@@ -1293,7 +1349,13 @@ function animate() {
     updateWeaponView(dt);
 
     let targetMeshes = [];
-    if (!isPvp()) {
+    if (isZombies()) {
+      const roundOver = zdir.update(dt, player.pos, onZombieAttack);
+      if (roundOver) nextZombieRound();
+      els.hudHostiles.textContent = String(zdir.remaining);
+      els.hudKills.textContent = zdir.points.toLocaleString();
+      targetMeshes = zdir.hitMeshes();
+    } else if (!isPvp()) {
       spawner.update(dt, player.pos, onGruntAttack);
       els.hudHostiles.textContent = String(spawner.aliveCount + spawner.toSpawn);
       if (spawner.isWaveClear()) nextWave();

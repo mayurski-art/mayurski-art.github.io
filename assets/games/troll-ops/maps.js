@@ -8,6 +8,7 @@
 
 import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
+import { PENTAGRIN } from "./pentagrin.js";
 
 /* ------------------------------------------------------------ build helpers */
 
@@ -71,8 +72,9 @@ function makeApi(root, colliders) {
       }
     },
 
-    /* Rectangular room shell with an optional gap for a doorway per side. */
-    walls(cx, cz, w, d, h, thickness, { color = 0x3a4530, pen = 8, gaps = {} } = {}) {
+    /* Rectangular room shell with an optional gap for a doorway per side.
+       `y` lifts the whole shell, so upper floors can reuse it. */
+    walls(cx, cz, w, d, h, thickness, { color = 0x3a4530, pen = 8, gaps = {}, y = 0 } = {}) {
       const half = thickness / 2;
       const sides = [
         ["n", cx, cz - d / 2 + half, w, thickness, "x"],
@@ -82,7 +84,7 @@ function makeApi(root, colliders) {
       ];
       for (const [side, sx, sz, sw, sd, axis] of sides) {
         const gap = gaps[side];
-        if (!gap) { api.box(sx, sz, sw, sd, h, { color, pen }); continue; }
+        if (!gap) { api.box(sx, sz, sw, sd, h, { color, pen, y }); continue; }
         // split the wall around a centred opening of width `gap`
         const span = axis === "x" ? sw : sd;
         const seg = (span - gap) / 2;
@@ -94,7 +96,7 @@ function makeApi(root, colliders) {
             axis === "z" ? sz + off : sz,
             axis === "x" ? seg : sw,
             axis === "z" ? seg : sd,
-            h, { color, pen },
+            h, { color, pen, y },
           );
         }
       }
@@ -354,7 +356,10 @@ export const MAPS = {
   },
 };
 
-export const MAP_IDS = Object.keys(MAPS);
+// Zombies-only, so it's registered for buildMap but kept out of the PvP picker.
+MAPS.pentagrin = PENTAGRIN;
+
+export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin");
 
 /* ------------------------------------------------------------------ builder */
 

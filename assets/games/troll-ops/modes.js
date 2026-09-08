@@ -14,6 +14,16 @@ export const MODES = {
     blurb: "Solo. Waves of grunts until they get you.",
   },
 
+  zombies: {
+    id: "zombies",
+    name: "Zombies",
+    short: "Zombies · The Pentagrin",
+    pvp: false,
+    zombies: true,
+    forceMap: "pentagrin",
+    blurb: "Three floors of Pentagon. Pepe and trollface, and they do not stop coming.",
+  },
+
   tdm: {
     id: "tdm",
     name: "Team Deathmatch",

@@ -386,7 +386,8 @@
 
 /* in-match menu button, for touch where there is no Esc key */
 .to-gear {
-  position: absolute; right: 16px; top: 46px;
+  /* clear of the top-right readout, which runs to about 100px */
+  position: absolute; right: 16px; top: 104px;
   width: 34px; height: 34px; border-radius: 9px;
   background: rgba(6,9,7,.5); border: 1px solid rgba(255,255,255,.16);
   color: #dfe6da; font-size: 15px; line-height: 1;

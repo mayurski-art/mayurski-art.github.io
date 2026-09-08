@@ -18,7 +18,7 @@ function capsule(r, len, mat) {
 
 /* Build a humanoid `height` metres tall. Returns the root plus every part the
    animator needs to pose. */
-export function buildHumanoid(material, { height = 1.8, build = 1, gun = true } = {}) {
+export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, face = "grin" } = {}) {
   const s = height / 1.8;
   const w = build;
 
@@ -56,19 +56,41 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true } 
   head.userData.isHead = true;
   headPivot.add(head);
 
-  // grin — the mascot is the artwork, never the emoji
-  const eyeGeo = new THREE.SphereGeometry(0.028 * s, 7, 7);
-  const eyeL = new THREE.Mesh(eyeGeo, DARK);
-  const eyeR = new THREE.Mesh(eyeGeo, DARK);
-  eyeL.position.set(-0.055 * s, 0.205 * s, 0.145 * s);
-  eyeR.position.set(0.055 * s, 0.205 * s, 0.145 * s);
-  const mouth = new THREE.Mesh(
-    new THREE.TorusGeometry(0.075 * s, 0.016 * s, 6, 14, Math.PI),
-    DARK,
-  );
-  mouth.rotation.x = Math.PI;
-  mouth.position.set(0, 0.155 * s, 0.15 * s);
-  headPivot.add(eyeL, eyeR, mouth);
+  if (face === "pepe") {
+    // Bulging eyes set high and wide, with a broad flat frog mouth.
+    const white = new THREE.MeshBasicMaterial({ color: 0xf2f4ee });
+    const eyeGeo = new THREE.SphereGeometry(0.062 * s, 10, 10);
+    const pupilGeo = new THREE.SphereGeometry(0.026 * s, 8, 8);
+    for (const side of [-1, 1]) {
+      const eye = new THREE.Mesh(eyeGeo, white);
+      eye.position.set(side * 0.085 * s, 0.255 * s, 0.115 * s);
+      const pupil = new THREE.Mesh(pupilGeo, DARK);
+      pupil.position.set(side * 0.095 * s, 0.25 * s, 0.163 * s);
+      headPivot.add(eye, pupil);
+    }
+    const lips = new THREE.Mesh(
+      new THREE.TorusGeometry(0.115 * s, 0.019 * s, 6, 18, Math.PI * 0.85),
+      DARK,
+    );
+    lips.rotation.x = Math.PI;
+    lips.rotation.z = -Math.PI * 0.075;
+    lips.position.set(0, 0.14 * s, 0.125 * s);
+    headPivot.add(lips);
+  } else {
+    // grin — the mascot is the artwork, never the emoji
+    const eyeGeo = new THREE.SphereGeometry(0.028 * s, 7, 7);
+    const eyeL = new THREE.Mesh(eyeGeo, DARK);
+    const eyeR = new THREE.Mesh(eyeGeo, DARK);
+    eyeL.position.set(-0.055 * s, 0.205 * s, 0.145 * s);
+    eyeR.position.set(0.055 * s, 0.205 * s, 0.145 * s);
+    const mouth = new THREE.Mesh(
+      new THREE.TorusGeometry(0.075 * s, 0.016 * s, 6, 14, Math.PI),
+      DARK,
+    );
+    mouth.rotation.x = Math.PI;
+    mouth.position.set(0, 0.155 * s, 0.15 * s);
+    headPivot.add(eyeL, eyeR, mouth);
+  }
 
   // --- arms, pivoting at the shoulders
   const mkArm = (side) => {
@@ -136,7 +158,7 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true } 
 
 /* Pose the rig. `phase` advances with movement; `lower` is 0..1 how far the
    body is crouched (1 = prone). */
-export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, dt = 0.016 }) {
+export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, dt = 0.016, zombie = false }) {
   const p = rig.parts;
   const s = rig.scale;
 
@@ -145,6 +167,21 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
 
   p.legL.rotation.x = swing;
   p.legR.rotation.x = -swing;
+
+  if (zombie) {
+    // both arms out front, with a lopsided shamble
+    p.armL.rotation.x = -1.5 + Math.sin(phase * 0.5) * 0.12;
+    p.armR.rotation.x = -1.42 + Math.cos(phase * 0.5) * 0.12;
+    p.armL.rotation.z = 0.12;
+    p.armR.rotation.z = -0.18;
+    p.headPivot.rotation.x = 0.16;
+    p.headPivot.rotation.z = Math.sin(phase * 0.5) * 0.09;
+    p.torso.rotation.x = 0.14;
+    p.chest.rotation.x = 0.14;
+    p.hips.position.y = rig.hipY - Math.abs(Math.sin(phase)) * 0.045 * s;
+    return;
+  }
+
   p.armL.rotation.x = -swing * 0.55 - 0.15;
 
   // the shooting arm stays up and tracks the aim
