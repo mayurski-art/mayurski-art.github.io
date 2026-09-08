@@ -390,14 +390,22 @@ export function boardedWindow(api, { x, z, y, rot = 0 }) {
 }
 
 /* Ceiling strip light. */
-export function stripLight(api, { x, z, y, color = 0xdfe9ff, intensity = 10, range = 16 }) {
+/* A false lit flag gives the fitting without the light. Point lights are the
+   most expensive thing in this renderer, so a ceiling gets a few real ones
+   and fills the rest of the run with bars that only look lit. */
+export function stripLight(api, { x, z, y, color = 0xdfe9ff, intensity = 10, range = 16, lit = true }) {
   const bar = new THREE.Mesh(
     new THREE.BoxGeometry(2.4, 0.08, 0.3),
     new THREE.MeshBasicMaterial({ color }),
   );
   bar.position.set(x, y, z);
   api.prop(bar);
+  if (!lit) return;
   const l = new THREE.PointLight(color, intensity, range, 2);
   l.position.set(x, y - 0.3, z);
   api.prop(l);
+  // api.prop() flags everything a shadow caster, which on a light means a
+  // whole cube shadow map. A ceiling full of them exhausts the texture
+  // units and the renderer drops the lighting entirely — the room goes black.
+  l.castShadow = false;
 }

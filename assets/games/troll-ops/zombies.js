@@ -7,10 +7,11 @@
 // Pentagrin's three levels are only reachable by stairs.
 
 import * as THREE from "three";
+import { FlowField } from "./nav.js";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { buildHumanoid, poseHumanoid } from "./character.js";
 import { groundHeightAt, resolveCircle } from "./movement.js";
-import { floorOf } from "./pentagrin.js";
+import { floorOf, FLOOR } from "./pentagrin.js";
 
 export const ZOMBIE_TYPES = {
   troll: {
@@ -94,7 +95,7 @@ export class Zombie {
     this.stunT = Math.max(this.stunT || 0, seconds);
   }
 
-  update(dt, playerPos, onAttack, arena, colliders) {
+  update(dt, playerPos, onAttack, arena, colliders, field = null) {
     if (this.stunT > 0 && !this.dying) {
       this.stunT -= dt;
       this.mesh.rotation.y += dt * 3;
@@ -128,9 +129,13 @@ export class Zombie {
       damp(7);
     } else if (dist > this.type.attackRange) {
       to.normalize();
-      this.velocity.x += (to.x * this.speed - this.velocity.x) * Math.min(1, dt * 5);
-      this.velocity.z += (to.z * this.speed - this.velocity.z) * Math.min(1, dt * 5);
-      this.mesh.rotation.y = Math.atan2(-to.x, -to.z);
+      // Indoors the field knows the way round the walls; close in, or when
+      // this spot has no route, fall back to walking straight at them.
+      const steer = (field && dist > 2.5) ? field.steer(this.mesh.position.x, this.mesh.position.z) : null;
+      const dir = steer || to;
+      this.velocity.x += (dir.x * this.speed - this.velocity.x) * Math.min(1, dt * 5);
+      this.velocity.z += (dir.z * this.speed - this.velocity.z) * Math.min(1, dt * 5);
+      this.mesh.rotation.y = Math.atan2(-dir.x, -dir.z);
     } else {
       damp(9);
       if (this.attackCdT <= 0) {
@@ -177,6 +182,25 @@ export class ZombieDirector {
     this.points = 0;
     this.kills = 0;
     this.state = "idle";  // idle | spawning | fighting | between
+    this.fields = new Map();   // floor id -> FlowField, built on first use
+    this.fieldT = 0;
+  }
+
+  /* The field for the floor the player is on. One per floor, built lazily,
+     re-swept a few times a second rather than every frame. */
+  fieldFor(playerPos, dt) {
+    const floor = floorOf(playerPos.y);
+    if (!this.fields.has(floor)) {
+      const floorY = FLOOR[floor] ?? 0;
+      this.fields.set(floor, new FlowField(this.colliders, this.arena, floorY));
+    }
+    const field = this.fields.get(floor);
+    this.fieldT -= dt;
+    if (this.fieldT <= 0) {
+      this.fieldT = 0.3;
+      field.compute(playerPos.x, playerPos.z);
+    }
+    return field;
   }
 
   get aliveCount() { return this.zombies.filter((z) => z.alive && !z.dying).length; }
@@ -241,8 +265,9 @@ export class ZombieDirector {
       }
     }
 
+    const field = this.fieldFor(playerPos, dt);
     for (const z of this.zombies) {
-      if (z.alive) z.update(dt, playerPos, onAttack, this.arena, this.colliders);
+      if (z.alive) z.update(dt, playerPos, onAttack, this.arena, this.colliders, field);
     }
 
     const dead = this.zombies.filter((z) => !z.alive);
