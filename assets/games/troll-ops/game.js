@@ -13,6 +13,9 @@ import { addXp, xpForRun } from "./progression.js";
 import { buildMap, disposeMap } from "./maps.js";
 import { Net, makeRoomCode } from "./net.js";
 import { RemotePlayers, TEAMS } from "./remote-players.js";
+import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, Hill } from "./modes.js";
+import { BotManager } from "./bots.js";
+import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem } from "./ballistics.js";
@@ -24,6 +27,10 @@ const els = {
   title: document.getElementById("to-title"),
   startBtn: document.getElementById("to-start-btn"),
   loMode: document.getElementById("to-lo-mode"),
+  loModeBlurb: document.getElementById("to-lo-modeblurb"),
+  goL1: document.getElementById("to-go-l1"),
+  goL2: document.getElementById("to-go-l2"),
+  goL3: document.getElementById("to-go-l3"),
   loPvp: document.getElementById("to-lo-pvp"),
   room: document.getElementById("to-room"),
   newRoom: document.getElementById("to-newroom"),
@@ -101,8 +108,44 @@ const loadout = new Loadout({
 
 // -------------------- mode + networking --------------------
 
-let mode = "ops"; // "ops" = solo horde, "pvp" = Phantoms v Ghosts
+let modeId = "ops";
 const teamScores = { phantom: 0, ghost: 0 };
+const bots = new BotManager();
+const BOT_TARGET = 8;      // participants a PvP room is padded up to
+let gunGameProgress = 0;
+let hill = null;
+let hillAcc = 0;
+
+function currentMode() { return MODES[modeId]; }
+function isPvp() { return currentMode().pvp; }
+function isBotPeer(p) { return p.isBot || String(p.id).startsWith("bot-"); }
+
+function buildModeButtons() {
+  els.loMode.innerHTML = "";
+  for (const id of MODE_IDS) {
+    const m = MODES[id];
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "to-lo-modebtn";
+    b.dataset.mode = id;
+    b.textContent = m.short;
+    b.title = m.blurb;
+    b.addEventListener("click", () => { modeId = id; renderModes(); });
+    els.loMode.appendChild(b);
+  }
+  renderModes();
+}
+
+function renderModes() {
+  for (const b of els.loMode.children) {
+    const on = b.dataset.mode === modeId;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-pressed", String(on));
+  }
+  els.loModeBlurb.textContent = currentMode().blurb;
+  els.loPvp.hidden = !isPvp();
+  if (isPvp() && !els.room.value) els.room.value = makeRoomCode();
+}
 
 function playerName() {
   const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
@@ -115,18 +158,7 @@ function setNetStatus(text, state = "") {
   els.netStatus.classList.toggle("is-bad", state === "bad");
 }
 
-els.loMode.addEventListener("click", (e) => {
-  const btn = e.target.closest(".to-lo-modebtn");
-  if (!btn) return;
-  mode = btn.dataset.mode;
-  for (const b of els.loMode.children) {
-    const on = b === btn;
-    b.classList.toggle("is-active", on);
-    b.setAttribute("aria-pressed", String(on));
-  }
-  els.loPvp.hidden = mode !== "pvp";
-  if (mode === "pvp" && !els.room.value) els.room.value = makeRoomCode();
-});
+buildModeButtons();
 
 els.newRoom.addEventListener("click", () => { els.room.value = makeRoomCode(); });
 els.room.addEventListener("input", () => {
@@ -134,18 +166,47 @@ els.room.addEventListener("input", () => {
 });
 
 function registerDeath(victimName, killerId, weaponId) {
+  const mode = currentMode();
   const iKilled = killerId === net.id;
-  const killer = iKilled ? "You" : (net.peers.get(killerId)?.name || "Someone");
-  const killerTeam = iKilled ? net.team : net.peers.get(killerId)?.team;
+  const killer = iKilled ? "You" : (net.peers.get(killerId)?.name || bots.byId(killerId)?.name || "Someone");
+  const killerTeam = iKilled ? net.team : (net.peers.get(killerId)?.team || bots.byId(killerId)?.team);
   pushKillfeed(`${killer} → ${victimName}`);
+
   if (iKilled) {
     player.kills++;
     els.hudKills.textContent = String(player.kills);
+
+    if (mode.ladder) {
+      gunGameProgress++;
+      if (playerWon(mode, gunGameProgress)) { endMatch("You cleared the rack"); return; }
+      const next = equipFromLoadout();
+      setActiveWeaponMesh(next);
+      showWaveBanner(`${gunGameProgress + 1} / ${mode.ladder.length} — ${next.name}`, 1400);
+    }
+    if (mode.oneShot) {
+      // landing the shot buys the round back
+      const w = currentWeapon();
+      w.ammoInMag = Math.min(w.def.magSize, w.ammoInMag + 1);
+    }
   }
+
   if (killerTeam && teamScores[killerTeam] != null) {
     teamScores[killerTeam]++;
     updateTeamHud();
   }
+  checkMatchEnd();
+}
+
+function checkMatchEnd() {
+  const mode = currentMode();
+  if (!mode.pvp || gameState !== "playing") return;
+  const winner = matchWinner(mode, {
+    teamScores,
+    selfScore: player.kills,
+    selfName: "You",
+    peers: [...net.peers.values()],
+  });
+  if (winner) endMatch(winner);
 }
 
 function updateTeamHud() {
@@ -154,10 +215,18 @@ function updateTeamHud() {
 }
 
 const net = new Net({
-  onJoin: (p) => pushKillfeed(`${p.name} joined`),
-  onLeave: (p) => pushKillfeed(`${p.name} left`),
+  // Bots filling the room isn't news; only announce real people.
+  onJoin: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} joined`); },
+  onLeave: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} left`); },
   onHitTaken: (m) => damagePlayer(m.dmg, m.id, m.w),
   onPeerDied: (p, m) => registerDeath(p.name, m.by, m.w),
+  ownsBot: (id) => !!bots.byId(id),
+  onBotHit: (m) => {
+    const { killed, bot } = bots.applyHit(m.target, m.dmg);
+    if (!killed) return;
+    net.reportDeathAs(m.target, m.id, m.w);
+    registerDeath(bot.name, m.id, m.w);
+  },
   onRemoteShot: (p, m) => {
     // Show someone else's tracer so fights are readable from across the map.
     spawnImpactBurst(new THREE.Vector3(m.ox, m.oy, m.oz), 0xffcf8a, 3);
@@ -279,6 +348,27 @@ function loadMap(id) {
   scene.add(builtMap.root);
   spawnPoints = builtMap.spawnPoints;
   applyEnvironment(builtMap.map);
+}
+
+// King of the Hill's capture ring — an open cylinder so you can see through it.
+let hillMarker = null;
+function setHillMarker(h) {
+  if (!hillMarker) {
+    hillMarker = new THREE.Mesh(
+      new THREE.CylinderGeometry(6, 6, 2.6, 32, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0x7fe066, transparent: true, opacity: 0.22,
+        side: THREE.DoubleSide, depthWrite: false,
+      }),
+    );
+    hillMarker.userData.noBulletCollide = true;
+    scene.add(hillMarker);
+  }
+  hillMarker.visible = !!h;
+  if (h) {
+    const p = h.position;
+    hillMarker.position.set(p.x, 1.3, p.z);
+  }
 }
 
 // -------------------- postprocessing --------------------
@@ -431,7 +521,7 @@ window.addEventListener("keydown", (e) => {
   keys.add(e.code);
   if (e.code === "KeyR") tryReload();
   if (e.code === "Space" && gameState === "playing") e.preventDefault();
-  if (e.code === "Tab" && gameState === "playing" && mode === "pvp") {
+  if (e.code === "Tab" && gameState === "playing" && isPvp()) {
     e.preventDefault();
     renderScoreboard();
     els.scoreboard.hidden = false;
@@ -609,7 +699,7 @@ function fireOnce() {
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
   const up = new THREE.Vector3().crossVectors(right, forward).normalize();
   const muzzle = origin.clone().addScaledVector(forward, 0.35);
-  if (mode === "pvp") net.reportShot(muzzle, forward, player.weaponId);
+  if (isPvp()) net.reportShot(muzzle, forward, player.weaponId);
 
   for (let i = 0; i < pellets; i++) {
     const spread = def.pelletSpread != null ? def.pelletSpread : w.spread;
@@ -632,7 +722,16 @@ function resolveBulletTarget(object) {
 function onBulletActorHit(actor, info) {
   // Remote players own their own health: we report the hit and they apply it.
   if (actor.netId) {
-    net.reportHit(actor.netId, info.damage, info.isHead, player.weaponId);
+    // Our own bots never hear our broadcasts, so resolve those locally.
+    if (bots.byId(actor.netId)) {
+      const { killed, bot } = bots.applyHit(actor.netId, info.damage);
+      if (killed) {
+        net.reportDeathAs(actor.netId, net.id, player.weaponId);
+        registerDeath(bot.name, net.id, player.weaponId);
+      }
+    } else {
+      net.reportHit(actor.netId, info.damage, info.isHead, player.weaponId);
+    }
     showHitmarker(info.isHead);
     spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xff8a5a, info.isHead ? 16 : 8);
     return;
@@ -671,22 +770,69 @@ let elapsedRun = 0;
 
 /* Team spawns are the map's spawn ring split in half — no map needs bespoke
    team zones yet, and opposite halves are naturally far apart. */
-function teamSpawn() {
+function spawnForTeam(team) {
   const pts = builtMap.spawnPoints;
   const half = Math.ceil(pts.length / 2);
-  const pool = net.team === "ghost" ? pts.slice(half) : pts.slice(0, half);
+  const pool = team === "ghost" ? pts.slice(half) : pts.slice(0, half);
   return pool[Math.floor(Math.random() * pool.length)] || pts[0];
 }
 
+function teamSpawn() { return spawnForTeam(net.team); }
+
+/* Everything a bot could shoot at: us, other humans, and other bots. */
+function botTargets() {
+  const list = [];
+  if (player.alive) {
+    list.push({ id: net.id, team: net.team, alive: true, pos: move.pos, groundY: move.pos.y });
+  }
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive) continue;
+    list.push({ id: rp.netId, team: rp.team, alive: true, pos: rp.pos, groundY: rp.pos.y });
+  }
+  return list;
+}
+
+function onBotShoot(bot, target, dmg, isHead) {
+  if (target.id === net.id) { damagePlayer(dmg, bot.id, "problem416"); return; }
+
+  if (bots.byId(target.id)) {
+    const { killed, bot: victim } = bots.applyHit(target.id, dmg);
+    if (killed) {
+      bot.kills++;
+      net.reportDeathAs(target.id, bot.id, "problem416");
+      registerDeath(victim.name, bot.id, "problem416");
+    }
+    return;
+  }
+  net.reportHitAs(bot.id, target.id, dmg, isHead, "problem416");
+}
+
+function scoreHill() {
+  let phantom = 0, ghost = 0;
+  const tally = (team) => { if (team === "ghost") ghost++; else phantom++; };
+  if (player.alive && hill.contains(move.pos.x, move.pos.z)) tally(net.team);
+  for (const rp of remotes.byId.values()) {
+    if (rp.alive && hill.contains(rp.pos.x, rp.pos.z)) tally(rp.team);
+  }
+  if (phantom > ghost) teamScores.phantom += phantom;
+  else if (ghost > phantom) teamScores.ghost += ghost;
+  if (phantom || ghost) { updateTeamHud(); checkMatchEnd(); }
+}
+
+/* Gun Game and One in the Chamber decide what you're holding; every other
+   mode uses whatever the loadout screen has equipped. */
 function equipFromLoadout() {
-  const equipped = loadout.resolved;
-  player.weaponId = equipped.id;
-  player.weapons = { [equipped.id]: new WeaponState(equipped) };
-  return equipped;
+  const mode = currentMode();
+  const forcedId = weaponForMode(mode, gunGameProgress);
+  let def = forcedId ? resolveWeapon(forcedId, defaultLoadoutFor(forcedId)) : loadout.resolved;
+  if (mode.tuneWeapon) def = mode.tuneWeapon(def);
+  player.weaponId = def.id;
+  player.weapons = { [def.id]: new WeaponState(def) };
+  return def;
 }
 
 async function startGame() {
-  if (mode === "pvp") {
+  if (isPvp()) {
     const code = els.room.value || makeRoomCode();
     els.room.value = code;
     els.startBtn.disabled = true;
@@ -710,13 +856,20 @@ async function startGame() {
   teamScores.ghost = 0;
   updateTeamHud();
 
+  gunGameProgress = 0;
+  hillAcc = 0;
+
   loadMap(loadout.mapId);
-  const sp = mode === "pvp" ? teamSpawn() : builtMap.playerSpawn;
+  const sp = isPvp() ? teamSpawn() : builtMap.playerSpawn;
   move.reset(sp.x, sp.z);
-  look.yaw = 0;
+  look.yaw = yawTowardCentre(sp);
   look.pitch = 0;
   bullets.clear();
   remotes.clear();
+  bots.clear();
+
+  hill = currentMode().hill ? new Hill(builtMap.spawnPoints) : null;
+  setHillMarker(hill);
 
   setActiveWeaponMesh(equipFromLoadout());
 
@@ -724,9 +877,9 @@ async function startGame() {
     for (const g of spawner.grunts) g.dispose(scene);
     spawner = null;
   }
-  if (mode === "ops") spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
+  if (!isPvp()) spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
 
-  const pvp = mode === "pvp";
+  const pvp = isPvp();
   els.hudTeams.hidden = !pvp;
   els.hudWaveBox.hidden = pvp;
   els.hudHostilesBox.hidden = pvp;
@@ -739,7 +892,7 @@ async function startGame() {
   els.hud.hidden = false;
   gameState = "playing";
 
-  if (mode === "ops") nextWave();
+  if (!isPvp()) nextWave();
   else showWaveBanner(`${TEAMS[net.team].name.toUpperCase()} — ${builtMap.map.name}`, 2400);
 
   if (!isTouch) controls.lock();
@@ -752,20 +905,20 @@ function nextWave() {
   spawner.startWave(player.wave);
 }
 
-function endGame(reason) {
+function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel) {
   gameState = "gameover";
   player.alive = false;
   if (controls.isLocked) controls.unlock();
   els.hud.hidden = true;
   els.gameover.hidden = false;
-  els.goTitle.textContent = reason === "quit" ? "Extracted" : "You went down";
-  els.goWave.textContent = String(player.wave);
+  els.goTitle.textContent = title;
+  els.goWave.textContent = headline;
+  els.goL1.textContent = headlineLabel;
   els.goKills.textContent = String(player.kills);
+  els.goL2.textContent = secondLabel;
   const mins = Math.floor(elapsedRun / 60), secs = Math.floor(elapsedRun % 60);
   els.goTime.textContent = `${mins}:${String(secs).padStart(2, "0")}`;
-
-  const score = player.wave * 10000 + player.kills * 10;
-  window.TrollLeaderboard?.report?.("troll-ops", { score, wave: player.wave, kills: player.kills });
+  els.goL3.textContent = thirdLabel;
 
   const gained = xpForRun({ kills: player.kills, wave: player.wave });
   const { rankedUp, rank } = addXp(gained);
@@ -773,6 +926,26 @@ function endGame(reason) {
   els.goRank.textContent = rankedUp ? `Rank up — now rank ${rank}` : "";
   els.goRank.hidden = !rankedUp;
   loadout.render();
+}
+
+function endGame(reason) {
+  finishRun(
+    reason === "quit" ? "Extracted" : "You went down",
+    String(player.wave), "Wave reached", "Kills", "Time survived",
+  );
+  const score = player.wave * 10000 + player.kills * 10;
+  window.TrollLeaderboard?.report?.("troll-ops", { score, wave: player.wave, kills: player.kills });
+}
+
+function endMatch(title) {
+  const mode = currentMode();
+  const headline = mode.ffa ? String(player.kills) : String(teamScores[net.team] ?? 0);
+  finishRun(title, headline, mode.ffa ? "Your score" : "Your side", "Your kills", "Match length");
+  net.stop();
+  remotes.clear();
+  bots.clear();
+  setHillMarker(null);
+  setNetStatus("Match over. Pick a mode to drop in again.");
 }
 
 els.startBtn.addEventListener("click", startGame);
@@ -807,7 +980,7 @@ function damagePlayer(amount, fromId, weaponId) {
   flashHit();
   if (player.hp > 0) return;
 
-  if (mode === "pvp") {
+  if (isPvp()) {
     // In PvP dying is a respawn, not the end of the run.
     player.alive = false;
     respawnT = 4;
@@ -819,9 +992,16 @@ function damagePlayer(amount, fromId, weaponId) {
   }
 }
 
+/* Spawns ring the map edge, so face inward — otherwise you open your eyes
+   looking at the perimeter wall. */
+function yawTowardCentre(sp) {
+  return Math.atan2(sp.x, sp.z);
+}
+
 function respawnPlayer() {
   const sp = teamSpawn();
   move.reset(sp.x, sp.z);
+  look.yaw = yawTowardCentre(sp);
   look.pitch = 0;
   player.hp = player.maxHp;
   player.alive = true;
@@ -865,12 +1045,31 @@ function animate() {
     updateWeaponView(dt);
 
     let targetMeshes = [];
-    if (mode === "ops") {
+    if (!isPvp()) {
       spawner.update(dt, player.pos, onGruntAttack);
       els.hudHostiles.textContent = String(spawner.aliveCount + spawner.toSpawn);
       if (spawner.isWaveClear()) nextWave();
       for (const g of spawner.grunts) if (g.alive && !g.dying) targetMeshes.push(g.mesh);
     } else {
+      const ffa = !!currentMode().ffa;
+
+      // Exactly one client simulates the bots and publishes them as peers, so
+      // everyone else needs no bot-specific code at all.
+      if (net.isBotHost()) {
+        const humans = 1 + [...net.peers.values()].filter((p) => !isBotPeer(p)).length;
+        bots.fill(BOT_TARGET, humans, spawnForTeam, ffa);
+        bots.update(dt, {
+          colliders, arena: ARENA, ffa,
+          targets: botTargets(),
+          onShoot: onBotShoot,
+          spawnFor: spawnForTeam,
+        });
+        for (const b of bots.bots) net.publishBot(b);
+      } else if (bots.count) {
+        for (const b of bots.bots) net.dropBot(b.id);
+        bots.clear();
+      }
+
       net.update(dt, {
         x: move.pos.x, y: move.pos.y, z: move.pos.z,
         yaw: look.yaw, pitch: look.pitch,
@@ -878,8 +1077,14 @@ function animate() {
         hp: player.hp, alive: player.alive, weapon: player.weaponId, kills: player.kills,
       });
       remotes.sync(net.peers);
-      remotes.update();
-      targetMeshes = remotes.hitMeshes(net.team);
+      remotes.update(dt);
+      targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
+
+      if (hill) {
+        if (hill.update(dt)) { setHillMarker(hill); showWaveBanner("Hill moved", 1300); }
+        hillAcc += dt;
+        if (hillAcc >= 1) { hillAcc = 0; scoreHill(); }
+      }
 
       if (!player.alive) {
         respawnT -= dt;

@@ -2,50 +2,19 @@
 import * as THREE from "three";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { groundHeightAt, resolveCircle } from "./movement.js";
+import { buildHumanoid, poseHumanoid } from "./character.js";
 
 const GRUNT_TYPES = {
-  runner: { hp: 40, speed: 4.4, radius: 0.42, height: 1.7, color: 0x6bd15a, scoreValue: 100, damage: 8, attackRange: 1.3, attackCd: 0.7 },
-  brute:  { hp: 140, speed: 2.6, radius: 0.62, height: 2.3, color: 0xd15a5a, scoreValue: 250, damage: 18, attackRange: 1.7, attackCd: 1.1 },
-  spitter:{ hp: 55, speed: 3.2, radius: 0.44, height: 1.75, color: 0xd1c85a, scoreValue: 160, damage: 12, attackRange: 12, attackCd: 1.8, ranged: true },
+  runner: { hp: 40, speed: 4.4, radius: 0.42, height: 1.7, build: 1.0, color: 0x6bd15a, scoreValue: 100, damage: 8, attackRange: 1.3, attackCd: 0.7 },
+  brute:  { hp: 140, speed: 2.6, radius: 0.62, height: 2.3, build: 1.4, color: 0xd15a5a, scoreValue: 250, damage: 18, attackRange: 1.7, attackCd: 1.1 },
+  spitter:{ hp: 55, speed: 3.2, radius: 0.44, height: 1.75, build: 0.9, color: 0xd1c85a, scoreValue: 160, damage: 12, attackRange: 12, attackCd: 1.8, ranged: true },
 };
 
-function buildGruntMesh(type) {
-  const group = new THREE.Group();
+function buildGruntRig(type) {
   const mat = makeEnemyDissolveMaterial(type.color);
-
-  const bodyGeo = new THREE.CapsuleGeometry(type.radius, type.height - type.radius * 2, 4, 8);
-  const body = new THREE.Mesh(bodyGeo, mat);
-  body.position.y = type.height / 2;
-  body.castShadow = true;
-  group.add(body);
-
-  const headGeo = new THREE.SphereGeometry(type.radius * 0.85, 12, 10);
-  const head = new THREE.Mesh(headGeo, mat);
-  head.position.y = type.height + type.radius * 0.3;
-  head.castShadow = true;
-  head.userData.isHead = true;
-  group.add(head);
-
-  // grin — two dark eyes + a wide mouth arc, classic trollface energy without the emoji
-  const eyeGeo = new THREE.SphereGeometry(type.radius * 0.14, 6, 6);
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-  const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-  eyeL.position.set(-type.radius * 0.32, type.height + type.radius * 0.4, type.radius * 0.72);
-  eyeR.position.set(type.radius * 0.32, type.height + type.radius * 0.4, type.radius * 0.72);
-  group.add(eyeL, eyeR);
-
-  const mouthGeo = new THREE.TorusGeometry(type.radius * 0.42, type.radius * 0.08, 6, 12, Math.PI);
-  const mouthMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
-  const mouth = new THREE.Mesh(mouthGeo, mouthMat);
-  mouth.rotation.x = Math.PI;
-  mouth.position.set(0, type.height + type.radius * 0.08, type.radius * 0.75);
-  group.add(mouth);
-
-  group.userData.dissolveMat = mat;
-  group.userData.headMesh = head;
-  group.userData.bodyMesh = body;
-  return group;
+  const rig = buildHumanoid(mat, { height: type.height, build: type.build || 1, gun: false });
+  rig.root.userData.dissolveMat = mat;
+  return rig;
 }
 
 let idCounter = 0;
@@ -63,7 +32,8 @@ export class Grunt {
     this.attackCdT = 0;
     this.staggerT = 0;
     this.velocity = new THREE.Vector3();
-    this.mesh = buildGruntMesh(this.type);
+    this.rig = buildGruntRig(this.type);
+    this.mesh = this.rig.root;
     this.mesh.position.copy(position);
     this.groundY = position.y || 0;
     this.bobPhase = Math.random() * Math.PI * 2;
@@ -137,16 +107,15 @@ export class Grunt {
     const support = groundHeightAt(colliders, this.mesh.position.x, this.mesh.position.z, this.groundY + 0.5, r * 0.8);
     this.groundY += (support - this.groundY) * Math.min(1, dt * 9);
 
-    this.bobPhase += dt * (dist > this.type.attackRange ? 8 : 2);
-    this.mesh.position.y = this.groundY + Math.abs(Math.sin(this.bobPhase)) * 0.06;
+    const chasing = dist > this.type.attackRange;
+    this.bobPhase += dt * (chasing ? 9 : 3);
+    this.mesh.position.y = this.groundY;
+    poseHumanoid(this.rig, { phase: this.bobPhase, moving: chasing, pitch: 0, lower: 0, dt });
   }
 
   dispose(scene) {
     scene.remove(this.mesh);
-    this.mesh.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material && o.material !== this.mesh.userData.dissolveMat) o.material.dispose?.();
-    });
+    this.mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
     this.mesh.userData.dissolveMat.dispose();
   }
 }

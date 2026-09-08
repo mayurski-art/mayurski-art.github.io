@@ -189,9 +189,9 @@ export class Net {
         break;
       }
       case "hit": {
-        // Only the target applies it, and only to itself.
-        if (m.target !== this.id) break;
-        this.h.onHitTaken?.(m);
+        // Only the target applies it — to itself, or to a bot it owns.
+        if (m.target === this.id) { this.h.onHitTaken?.(m); break; }
+        if (this.h.ownsBot?.(m.target)) this.h.onBotHit?.(m);
         break;
       }
       case "died": {
@@ -227,6 +227,66 @@ export class Net {
     for (const [id, p] of this.peers) {
       if (now - p.last > PEER_TIMEOUT) { this.h.onLeave?.(p); this.peers.delete(id); }
     }
+  }
+
+  /* Exactly one client simulates the bots: the lowest id in the room. Every
+     client computes this from the same set, so they agree without electing. */
+  isBotHost() {
+    if (!this.connected) return true;
+    for (const id of this.peers.keys()) {
+      // Bots live in this map too, and their ids would otherwise make the
+      // host conclude it isn't the host and drop its own bots.
+      if (String(id).startsWith("bot-")) continue;
+      if (id < this.id) return false;
+    }
+    return true;
+  }
+
+  /* Broadcast a bot as if it were a player, and mirror it into our own peer
+     map so the local renderer treats it like any other operator. */
+  publishBot(bot) {
+    const snap = {
+      t: performance.now(),
+      x: bot.pos.x, y: bot.pos.y, z: bot.pos.z,
+      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: true,
+    };
+    let p = this.peers.get(bot.id);
+    if (!p) {
+      p = { id: bot.id, team: bot.team, name: bot.name, hp: bot.hp, alive: bot.alive, snaps: [], isBot: true };
+      this.peers.set(bot.id, p);
+      this.h.onJoin?.(p);
+    }
+    p.team = bot.team;
+    p.name = bot.name;
+    p.hp = bot.hp;
+    p.alive = bot.alive;
+    p.kills = bot.kills;
+    p.last = performance.now();
+    p.snaps.push(snap);
+    if (p.snaps.length > 12) p.snaps.shift();
+
+    if (!this.connected) return;
+    this.send({
+      t: "state", id: bot.id,
+      x: round2(bot.pos.x), y: round2(bot.pos.y), z: round2(bot.pos.z),
+      ry: round2(bot.yaw), rp: 0, st: "stand", mv: 1,
+      hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,
+      w: "problem416", tm: bot.team, n: bot.name, k: bot.kills | 0,
+    });
+  }
+
+  dropBot(botId) {
+    const p = this.peers.get(botId);
+    if (p) { this.h.onLeave?.(p); this.peers.delete(botId); }
+    this.send({ t: "bye", id: botId });
+  }
+
+  reportHitAs(fromId, targetId, dmg, isHead, weaponId) {
+    this.send({ t: "hit", id: fromId, target: targetId, dmg: Math.round(dmg), hd: isHead ? 1 : 0, w: weaponId });
+  }
+
+  reportDeathAs(whoId, byId, weaponId) {
+    this.send({ t: "died", id: whoId, by: byId, w: weaponId });
   }
 
   reportShot(origin, dir, weaponId) {

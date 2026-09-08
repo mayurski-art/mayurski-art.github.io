@@ -39,6 +39,20 @@ function segmentAABB(origin, dir, len, min, max) {
   return { t0, t1 };
 }
 
+/* Is the straight line between two points broken by solid geometry?
+   Used by the bot AI to decide whether it can actually see a target. */
+export function segmentBlocked(colliders, from, to) {
+  const dir = new THREE.Vector3().subVectors(to, from);
+  const len = dir.length();
+  if (len < 1e-6) return false;
+  dir.divideScalar(len);
+  for (const c of colliders) {
+    const hit = segmentAABB(from, dir, len, c.min, c.max);
+    if (hit && hit.t1 > 0 && hit.t0 < len) return true;
+  }
+  return false;
+}
+
 class Tracer {
   constructor(scene, geo) {
     this.mat = makeTracerMaterial(0xfff2c0);

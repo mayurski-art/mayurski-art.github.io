@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-p6">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-p9">
 </head>
 <body>
 
@@ -47,10 +47,8 @@
               <strong id="to-lo-rank-label">Rank 0</strong>
               <i class="to-lo-rank-bar"><b id="to-lo-rank-fill"></b></i>
             </div>
-            <div class="to-lo-mode" id="to-lo-mode" role="group" aria-label="Game mode">
-              <button type="button" class="to-lo-modebtn is-active" data-mode="ops" aria-pressed="true">Ops · solo horde</button>
-              <button type="button" class="to-lo-modebtn" data-mode="pvp" aria-pressed="false">PvP · Phantoms v Ghosts</button>
-            </div>
+            <div class="to-lo-mode" id="to-lo-mode" role="group" aria-label="Game mode"></div>
+            <p class="to-lo-modeblurb" id="to-lo-modeblurb"></p>
             <div class="to-lo-pvp" id="to-lo-pvp" hidden>
               <label for="to-room">Room code</label>
               <input id="to-room" class="to-room-input" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
@@ -92,9 +90,9 @@
         <div class="to-gameover-inner">
           <h2 id="to-go-title">You went down</h2>
           <div class="to-go-stats">
-            <div><strong id="to-go-wave">0</strong><span>Wave reached</span></div>
-            <div><strong id="to-go-kills">0</strong><span>Kills</span></div>
-            <div><strong id="to-go-time">0:00</strong><span>Time survived</span></div>
+            <div><strong id="to-go-wave">0</strong><span id="to-go-l1">Wave reached</span></div>
+            <div><strong id="to-go-kills">0</strong><span id="to-go-l2">Kills</span></div>
+            <div><strong id="to-go-time">0:00</strong><span id="to-go-l3">Time survived</span></div>
           </div>
           <p class="to-go-xp" id="to-go-xp"></p>
           <p class="to-go-rank" id="to-go-rank" hidden></p>
@@ -194,7 +192,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p1" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-p6"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-p9"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

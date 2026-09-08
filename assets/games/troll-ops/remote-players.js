@@ -6,6 +6,7 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
+import { buildHumanoid, poseHumanoid } from "./character.js";
 
 const RENDER_DELAY = 110; // ms
 
@@ -14,7 +15,8 @@ export const TEAMS = {
   ghost:   { name: "Ghosts",   color: 0xd6a85a, ui: "#e8bf76" },
 };
 
-const STANCE_HEIGHT = { stand: 1.8, crouch: 1.25, slide: 1.0, prone: 0.75, vault: 1.5 };
+// How far the body is folded down in each stance, 0 = upright.
+const STANCE_LOWER = { stand: 0, crouch: 0.55, slide: 0.8, prone: 1, vault: 0.3 };
 
 function makeNameTag(text, colorHex) {
   const canvas = document.createElement("canvas");
@@ -31,7 +33,7 @@ function makeNameTag(text, colorHex) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.needsUpdate = true;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  sprite.scale.set(1.6, 0.4, 1);
+  sprite.scale.set(1.5, 0.38, 1);
   sprite.renderOrder = 20;
   return sprite;
 }
@@ -44,46 +46,32 @@ export class RemotePlayer {
     this.team = peer.team;
 
     const team = TEAMS[peer.team] || TEAMS.phantom;
-    const mat = new THREE.MeshStandardMaterial({ color: team.color, roughness: 0.7, metalness: 0.1 });
-    this.material = mat;
+    this.material = new THREE.MeshStandardMaterial({ color: team.color, roughness: 0.7, metalness: 0.1 });
 
-    this.group = new THREE.Group();
+    this.rig = buildHumanoid(this.material, { height: 1.8 });
+    this.group = this.rig.root;
 
-    this.body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.85, 4, 10), mat);
-    this.body.castShadow = true;
-    this.group.add(this.body);
-
-    this.head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), mat);
-    this.head.castShadow = true;
-    this.head.userData.isHead = true;
-    this.group.add(this.head);
-
-    // grin, same language as the grunts — art, never the emoji
-    const dark = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
-    const eyeGeo = new THREE.SphereGeometry(0.045, 6, 6);
-    this.eyeL = new THREE.Mesh(eyeGeo, dark);
-    this.eyeR = new THREE.Mesh(eyeGeo, dark);
-    this.mouth = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.026, 6, 12, Math.PI), dark);
-    this.mouth.rotation.x = Math.PI;
-    this.group.add(this.eyeL, this.eyeR, this.mouth);
-
-    // stubby held weapon so you can read which way they're pointing
-    this.gun = new THREE.Mesh(
-      new THREE.BoxGeometry(0.09, 0.12, 0.62),
-      new THREE.MeshStandardMaterial({ color: 0x2a2c28, roughness: 0.5, metalness: 0.6 }),
-    );
-    this.group.add(this.gun);
+    // everything except the held weapon counts as a target
+    this.targets = [];
+    this.rig.root.traverse((o) => {
+      if (!o.isMesh) return;
+      if (this.rig.parts.gun && isDescendantOf(o, this.rig.parts.gun)) return;
+      if (o.material === undefined) return;
+      this.targets.push(o);
+    });
 
     this.tag = makeNameTag(peer.name || "operator", team.ui);
-    this.group.add(this.tag);
+    this.tag.position.y = 2.15;
+    this.rig.root.add(this.tag);
 
-    this.group.userData.remotePlayer = this;
-    scene.add(this.group);
+    this.rig.root.userData.remotePlayer = this;
+    scene.add(this.rig.root);
 
     this.pos = new THREE.Vector3();
     this.yaw = 0;
     this.pitch = 0;
-    this.height = STANCE_HEIGHT.stand;
+    this.lower = 0;
+    this.phase = Math.random() * Math.PI * 2;
   }
 
   setTeam(teamId) {
@@ -92,17 +80,16 @@ export class RemotePlayer {
     this.material.color.set((TEAMS[teamId] || TEAMS.phantom).color);
   }
 
-  /* Meshes a bullet can hit. */
-  hitMeshes() { return [this.body, this.head]; }
+  hitMeshes() { return this.targets; }
 
   get alive() { return this.peer.alive !== false; }
 
-  update() {
+  update(dt = 0.016) {
     const snaps = this.peer.snaps;
     this.setTeam(this.peer.team);
 
     const visible = this.alive && snaps.length > 0;
-    this.group.visible = visible;
+    this.rig.root.visible = visible;
     if (!visible) return;
 
     const target = performance.now() - RENDER_DELAY;
@@ -124,47 +111,40 @@ export class RemotePlayer {
     this.yaw = lerpAngle(a.yaw, b.yaw, k);
     this.pitch = a.pitch + (b.pitch - a.pitch) * k;
 
-    const targetH = STANCE_HEIGHT[b.stance] ?? STANCE_HEIGHT.stand;
-    this.height += (targetH - this.height) * 0.25;
+    const wantLower = STANCE_LOWER[b.stance] ?? 0;
+    this.lower += (wantLower - this.lower) * Math.min(1, dt * 8);
 
-    const bodyH = this.height * 0.62;
-    this.body.position.set(this.pos.x, this.pos.y + bodyH, this.pos.z);
-    this.body.scale.y = this.height / STANCE_HEIGHT.stand;
+    const moving = !!b.moving;
+    if (moving) this.phase += dt * 9;
 
-    const headY = this.pos.y + this.height - 0.22;
-    this.head.position.set(this.pos.x, headY, this.pos.z);
+    this.rig.root.position.copy(this.pos);
+    this.rig.root.rotation.y = this.yaw;
 
-    // face the way they're looking
-    const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
-    const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
-    this.eyeL.position.set(this.pos.x + fx * 0.26 - rx * 0.11, headY + 0.07, this.pos.z + fz * 0.26 - rz * 0.11);
-    this.eyeR.position.set(this.pos.x + fx * 0.26 + rx * 0.11, headY + 0.07, this.pos.z + fz * 0.26 + rz * 0.11);
-    this.mouth.position.set(this.pos.x + fx * 0.27, headY - 0.04, this.pos.z + fz * 0.27);
-    this.mouth.rotation.set(Math.PI, -this.yaw, 0);
+    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, dt });
 
-    this.gun.position.set(
-      this.pos.x + fx * 0.42 + rx * 0.2,
-      this.pos.y + this.height * 0.72,
-      this.pos.z + fz * 0.42 + rz * 0.2,
-    );
-    this.gun.rotation.set(this.pitch, this.yaw, 0, "YXZ");
-
-    this.tag.position.set(this.pos.x, this.pos.y + this.height + 0.4, this.pos.z);
+    this.tag.position.y = 2.15 - this.lower * 0.75;
   }
 
   /* Where a shot at this player should be reported from. */
   centre(out = new THREE.Vector3()) {
-    return out.set(this.pos.x, this.pos.y + this.height * 0.6, this.pos.z);
+    return out.set(this.pos.x, this.pos.y + 1.1 - this.lower * 0.5, this.pos.z);
   }
 
   dispose() {
-    this.scene.remove(this.group);
-    this.group.traverse((o) => {
+    this.scene.remove(this.rig.root);
+    this.rig.root.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
-      if (o.material) o.material.dispose?.();
     });
+    this.material.dispose();
     this.tag.material.map?.dispose();
+    this.tag.material.dispose();
   }
+}
+
+function isDescendantOf(node, ancestor) {
+  let o = node;
+  while (o) { if (o === ancestor) return true; o = o.parent; }
+  return false;
 }
 
 function lerpAngle(a, b, k) {
@@ -190,15 +170,16 @@ export class RemotePlayers {
     }
   }
 
-  update() {
-    for (const rp of this.byId.values()) rp.update();
+  update(dt = 0.016) {
+    for (const rp of this.byId.values()) rp.update(dt);
   }
 
-  /* Only enemies are shootable — no friendly fire. */
+  /* Pass a team to spare friendlies, or null in free-for-all. */
   hitMeshes(myTeam) {
     const out = [];
     for (const rp of this.byId.values()) {
-      if (!rp.alive || rp.team === myTeam) continue;
+      if (!rp.alive) continue;
+      if (myTeam && rp.team === myTeam) continue;
       out.push(...rp.hitMeshes());
     }
     return out;

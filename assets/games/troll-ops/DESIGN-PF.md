@@ -162,16 +162,31 @@ players" is wrong three different ways in a peer-to-peer room:
    the choice sees real teams. Genuine ties fall back to id ordering, which
    splits simultaneous joiners deterministically.
 
-### Phase 5 — Game modes
-- **Team Deathmatch** — first team to N kills
-- **King of the Hill** — single rotating capture point
-- **Gun Game** — every kill advances you through the roster
-- **One in the Chamber** — everyone gets a pistol, one bullet, and a one-shot
-  kill. Land it and you're refunded a round; miss and you're down to melee until
-  you take someone out. Three lives each, last grin standing wins.
-- **Infection** — reuses the existing grunt AI; infected vs survivors
-- **Ops** — the current PvE horde mode, preserved as solo play
-- Match flow: lobby → warmup → match → end-of-round scoreboard → next map
+### Phase 5 — Game modes, bots and 3D characters ✅ SHIPPED
+- ✅ **Ops** — the PvE horde mode, preserved as solo play
+- ✅ **Team Deathmatch** — first side to 30
+- ✅ **King of the Hill** — a capture ring that relocates every 45s; holding it
+  ticks the meter
+- ✅ **One in the Chamber** — free-for-all, one bullet, one-shot kill, refunded
+  when you land it
+- ✅ **Gun Game** — every kill moves you up an 11-weapon rack; clear it to win
+- ✅ **Bots** (`bots.js`) fill PvP rooms to 8. Exactly one client simulates them
+  — the lowest human id — and publishes them as ordinary peers, so every other
+  client renders and shoots them with no bot-specific code
+- ✅ Match end with per-mode result screen
+- ✅ **Articulated 3D characters** (`character.js`) — one rig with hips, torso,
+  head, two arms and two legs serves both operators and grunts, with a walk
+  cycle, aim tracking and crouch fold. Replaces the capsule-and-sphere
+  placeholder. Verified: a 1.8m character's feet sit at y=0 and its crown at 1.80
+- ✅ Players spawn facing the map centre — spawn points ring the perimeter, so
+  the old fixed yaw meant opening your eyes at a wall
+- **Infection** — deferred; the grunt AI reuse is still the plan
+
+**Bot host election.** Bots live in the same peer map as players, and their ids
+sort before a human's random id, so the "lowest id hosts" rule made the host
+conclude it wasn't the host, drop its own bots, and immediately recreate them —
+an endless join/leave churn in the killfeed. Bot ids are now skipped when
+electing.
 
 ### Phase 6 — Progression + polish
 - Rank/XP on the existing Supabase accounts system; weapons unlock by rank
