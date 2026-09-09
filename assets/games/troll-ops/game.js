@@ -128,6 +128,30 @@ const gamepadState = {
 let gpIndex = null;
 let gpPrev = {};
 
+// Debug readout for controllers that don't behave — shows the raw id/mapping
+// and live axes/buttons so a pad that connects but does nothing (common with
+// non-MFi/generic Bluetooth pads on iOS, which often report mapping:"" instead
+// of "standard") can be diagnosed without a desktop devtools connection.
+const gpDebugEl = document.getElementById("to-gp-debug");
+const gpDebugForced = /[?&]gpdebug=1/.test(location.search);
+function renderGpDebug(gp) {
+  if (!gpDebugEl) return;
+  if (!gp) {
+    if (!gpDebugForced) gpDebugEl.hidden = true;
+    else gpDebugEl.textContent = "No gamepad detected.\nPress any button on the controller.";
+    return;
+  }
+  const nonStandard = gp.mapping !== "standard";
+  gpDebugEl.hidden = false;
+  const axes = gp.axes.map((a, i) => `${i}:${a.toFixed(2)}`).join(" ");
+  const buttons = gp.buttons.map((b, i) => (b.pressed || b.value > 0.1) ? i : null).filter((v) => v !== null).join(",") || "none";
+  gpDebugEl.textContent =
+    `id: ${gp.id}\n` +
+    `mapping: "${gp.mapping}"${nonStandard ? "  (NON-STANDARD — layout may be scrambled)" : ""}\n` +
+    `axes: ${axes}\n` +
+    `pressed: ${buttons}`;
+}
+
 // The touch pad belongs to the match, not the lobby — it used to sit over
 // the menu, bleeding FIRE and RELOAD through the translucent panels.
 // A paired controller (common on iPad) replaces the on-screen sticks, so the
@@ -1136,9 +1160,11 @@ function pollGamepad(dt) {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let gp = gpIndex != null ? pads[gpIndex] : null;
   if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
-  if (!gp) { gamepadState.connected = false; return; }
+  if (!gp) { gamepadState.connected = false; renderGpDebug(null); return; }
   gpIndex = gp.index;
   gamepadState.connected = true;
+  if (gpDebugForced || gp.mapping !== "standard") renderGpDebug(gp);
+  else if (gpDebugEl && !gpDebugEl.hidden) gpDebugEl.hidden = true;
 
   gamepadState.moveX = deadzone(gp.axes[0] || 0);
   gamepadState.moveY = deadzone(gp.axes[1] || 0);
