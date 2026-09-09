@@ -1628,6 +1628,8 @@ async function boot() {
     last = nowMs;
     if (!running) { renderer.frame(zone, [player.entity()], 0, todaysEventInfo?.tint, todaysEventId); return; }
 
+    input.pollGamepad();
+
     // fade-driven zone transition
     if (pendingDoor) {
       fade = Math.min(1, fade + dt * 4);

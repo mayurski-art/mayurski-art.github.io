@@ -855,11 +855,12 @@ export class Game {
     // never one frame behind having been generated.
     this.world.streamChunks(this.player.pos.x, this.player.pos.z);
 
+    this.input.pollGamepad();
     const look = this.input.consumeLook();
     this.player.lookDelta(look.dx, look.dy);
 
     const move = this.input.moveVector;
-    const fellOff = this.player.update(dt, move.x, move.z, this.input.jumpHeld);
+    const fellOff = this.player.update(dt, move.x, move.z, this.input.jumpOrGpHeld);
 
     if (this.player.grounded && (move.x !== 0 || move.z !== 0)) {
       this.footstepTimer -= dt;

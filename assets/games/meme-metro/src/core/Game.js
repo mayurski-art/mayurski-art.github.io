@@ -214,6 +214,7 @@ export class Game {
 
   tick() {
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    this.input.pollGamepad();
     let speedT = 0;
 
     if (this.state === 'running') {

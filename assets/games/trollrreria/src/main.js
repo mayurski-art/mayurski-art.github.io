@@ -445,6 +445,7 @@ class Game {
   frame(now) {
     const raw = Math.min(0.1, (now - this._last) / 1000);
     this._last = now;
+    this.input.pollGamepad();
     /* hit-pause: a brief freeze-frame on impactful hits. Skips physics
        for its duration but keeps rendering, so the game visibly holds on
        the hit instead of just continuing -- kept short (tens of ms) and
@@ -475,6 +476,7 @@ class Game {
        panels (inventory/dialog/map/shop, see ui.js), so sharing it with the
        pause toggle meant a panel-close eating the first Escape press and
        pause needing a second. B has no other binding. */
+    if (this.input.gpInteractPressed() && this.state === "play") this.interact();
     if (this.input.hit("KeyB")) {
       if (this.state === "pause") {
         this.enterPlay();

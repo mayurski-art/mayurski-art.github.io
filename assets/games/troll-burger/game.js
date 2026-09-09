@@ -11,6 +11,19 @@
 
   const $ = (s) => document.querySelector(s);
   const SAVE_KEY = "troll-burger-save-v1";
+
+  /* ---- gamepad -------------------------------------------------------------
+     This is a plain script (no ES module), so the shared debug helper is
+     pulled in with a dynamic import; gpDebug stays a no-op render() until
+     that promise resolves. Only facing (turn left/right) is mirrored here —
+     everything else in this game is click-only DOM targets (grill slots,
+     bins, tickets) with no generic "confirm" key to translate a button to. */
+  let gpDebug = { render() {} };
+  import("../shared/gamepad-debug.js").then((m) => { gpDebug = m.createGamepadDebug(); });
+  const GP = { index: null, prevLeft: false, prevRight: false };
+  window.addEventListener("gamepadconnected", (e) => { GP.index = e.gamepad.index; });
+  window.addEventListener("gamepaddisconnected", (e) => { if (e.gamepad.index === GP.index) GP.index = null; });
+  const GP_DEADZONE = 0.5;
   const ART = "assets/games/troll-burger/art/";
   /* PixelLab top-down sprites for the burger layers — see art/README.md.
      Every use goes through layerDiv()'s fallback-first swap (matches the
@@ -1488,12 +1501,29 @@
 
   /* ---- main loop ---------------------------------------------------------- */
   let lastT = 0, patienceAcc = 0, visualAcc = 0;
+  function pollGamepad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let gp = GP.index != null ? pads[GP.index] : null;
+    if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
+    gpDebug.render(gp);
+    if (!gp) { GP.prevLeft = false; GP.prevRight = false; return; }
+    GP.index = gp.index;
+    if (S.screen !== "shift" || !el.orderOverlay.hidden || !el.shiftOverlay.hidden || !el.howto.hidden) return;
+    const axisX = gp.axes[0] || 0;
+    const left = !!gp.buttons[14]?.pressed || axisX < -GP_DEADZONE;
+    const right = !!gp.buttons[15]?.pressed || axisX > GP_DEADZONE;
+    if (left && !GP.prevLeft) face(S.face - 1);
+    if (right && !GP.prevRight) face(S.face + 1);
+    GP.prevLeft = left; GP.prevRight = right;
+  }
+
   function tick(t) {
     if (!S.running) return;
     if (!lastT) lastT = t;
     const dt = Math.min((t - lastT) / 1000, 0.25);
     lastT = t;
     S.clock += dt;
+    pollGamepad();
 
     for (let i = 0; i < S.grill.length; i++) {
       const p = S.grill[i];

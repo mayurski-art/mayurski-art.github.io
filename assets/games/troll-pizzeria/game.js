@@ -13,6 +13,19 @@
   const SAVE_KEY = "troll-pizzeria-save-v1";
   const GAME_ID = "troll-pizzeria";
 
+  /* ---- gamepad ----------------------------------------------------------
+     The core build mechanic (drag toppings bin -> pie) doesn't map to a pad
+     sensibly, so this stays scoped to what's already button-shaped on
+     keyboard: station tabs (1-4) and the cut-minigame's timed cut (space/
+     enter). Not a module, so the shared debug overlay loads via dynamic
+     import; gpDebug stays a no-op render() until that resolves. */
+  let gpDebug = { render() {} };
+  import("../shared/gamepad-debug.js").then((m) => { gpDebug = m.createGamepadDebug(); });
+  const GP = { index: null, prevL: false, prevR: false, prevCut: false };
+  window.addEventListener("gamepadconnected", (e) => { GP.index = e.gamepad.index; });
+  window.addEventListener("gamepaddisconnected", (e) => { if (e.gamepad.index === GP.index) GP.index = null; });
+  const GP_STATIONS = ["order", "build", "bake", "cut"];
+
   /* Pizza Cam (pizza3d.js) / Kitchen3D (kitchen3d.js): big pies render in
      3D when a 3D module initialized; everything falls back to the DOM
      pizza otherwise. ?flat=1 forces the fallback (docs/TROLL-PIZZERIA-V2.md,
@@ -1267,6 +1280,11 @@
       if (!S.cut.sweeping) return;
       S.cut.angle = (S.cut.angle + speed * (now - last) / 1000) % 180;
       last = now;
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const gp = (GP.index != null ? pads[GP.index] : null) || Array.from(pads).find((p) => p && p.connected);
+      const cutBtn = !!gp?.buttons[0]?.pressed; // A — same moment as space/enter
+      if (cutBtn && !GP.prevCut) doCut();
+      GP.prevCut = cutBtn;
       if (p3d()) {
         p3d().updateSweep(S.cut.angle);
       } else {
@@ -1608,8 +1626,23 @@
 
   /* =============================== ticking ============================= */
 
+  function pollGamepadStations() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let gp = GP.index != null ? pads[GP.index] : null;
+    if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
+    gpDebug.render(gp);
+    if (!gp || S.screen !== "game") { GP.prevL = false; GP.prevR = false; return; }
+    GP.index = gp.index;
+    const l = !!gp.buttons[4]?.pressed;   // LB — previous station
+    const r = !!gp.buttons[5]?.pressed;   // RB — next station
+    if (l && !GP.prevL) switchStation(GP_STATIONS[(GP_STATIONS.indexOf(S.station) + 3) % 4]);
+    if (r && !GP.prevR) switchStation(GP_STATIONS[(GP_STATIONS.indexOf(S.station) + 1) % 4]);
+    GP.prevL = l; GP.prevR = r;
+  }
+
   function tick(dt) {
     if (S.screen !== "game") return;
+    pollGamepadStations();
     S.shiftElapsed += dt;
 
     // rush hour (v3): one telegraphed back-to-back-arrivals window per shift

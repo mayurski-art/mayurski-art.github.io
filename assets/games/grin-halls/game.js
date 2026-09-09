@@ -14,6 +14,10 @@
 
 import * as THREE from "three";
 import { GrinHallsSound } from "./sound.js";
+import { createGamepadDebug } from "../shared/gamepad-debug.js";
+
+const GP_DEADZONE = 0.18;
+const GP_LOOK_SENSITIVITY = 0.045;
 
 const CELL = 6;
 const WALL_H = 3.4;
@@ -274,6 +278,13 @@ class GrinHalls {
     this.startTime = performance.now();
     this.faceTex = this._loadFaceTexture();
     this.sound = new GrinHallsSound();
+
+    this.gpIndex = null;
+    this.gpMove = { fwd: 0, strafe: 0 };
+    this.gpHiding = false;
+    this.gpDebug = createGamepadDebug();
+    window.addEventListener("gamepadconnected", (e) => { this.gpIndex = e.gamepad.index; });
+    window.addEventListener("gamepaddisconnected", (e) => { if (e.gamepad.index === this.gpIndex) this.gpIndex = null; });
 
     this._bindInput();
     this._buildScene(this.level);
@@ -565,9 +576,30 @@ class GrinHalls {
     if (this.keys.has("KeyS") || this.keys.has("ArrowDown")) fwd -= 1;
     if (this.keys.has("KeyD") || this.keys.has("ArrowRight")) strafe += 1;
     if (this.keys.has("KeyA") || this.keys.has("ArrowLeft")) strafe -= 1;
-    fwd = Math.max(-1, Math.min(1, fwd + this.touchMove.fwd));
-    strafe = Math.max(-1, Math.min(1, strafe + this.touchMove.strafe));
+    fwd = Math.max(-1, Math.min(1, fwd + this.touchMove.fwd + this.gpMove.fwd));
+    strafe = Math.max(-1, Math.min(1, strafe + this.touchMove.strafe + this.gpMove.strafe));
     return { fwd, strafe };
+  }
+
+  // Left stick moves, right stick looks, A hides/interacts (mirrors KeyE).
+  _pollGamepad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let gp = this.gpIndex != null ? pads[this.gpIndex] : null;
+    if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
+    this.gpDebug.render(gp);
+    if (!gp) { this.gpMove.fwd = 0; this.gpMove.strafe = 0; this.gpHiding = false; return; }
+    this.gpIndex = gp.index;
+
+    const dz = (v) => (Math.abs(v) < GP_DEADZONE ? 0 : v);
+    this.gpMove.strafe = dz(gp.axes[0] || 0);
+    this.gpMove.fwd = -dz(gp.axes[1] || 0);
+    const lookX = dz(gp.axes[2] || 0);
+    const lookY = dz(gp.axes[3] || 0);
+    if (document.pointerLockElement === this.canvas) {
+      this.yaw -= lookX * GP_LOOK_SENSITIVITY;
+      this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch - lookY * GP_LOOK_SENSITIVITY));
+    }
+    this.gpHiding = !!gp.buttons[0]?.pressed;
   }
 
   _resolveCollision(pos, radius) {
@@ -593,6 +625,7 @@ class GrinHalls {
 
   // -------------------------------------------------------------- update
   _update(dt) {
+    this._pollGamepad();
     const { fwd, strafe } = this._moveKeys();
     const canSprint = this.sprinting && this.stamina > 0 && (fwd !== 0 || strafe !== 0);
     if (canSprint) this.stamina = Math.max(0, this.stamina - STAMINA_DRAIN * dt);
@@ -617,7 +650,7 @@ class GrinHalls {
     this.visited.add(`${cx},${cz}`);
     this.currentCell = [cx, cz];
 
-    this.hiding = (this.keys.has("KeyE") || this.touchHiding) && this.safeCells.some(([sx, sz]) => sx === cx && sz === cz);
+    this.hiding = (this.keys.has("KeyE") || this.touchHiding || this.gpHiding) && this.safeCells.some(([sx, sz]) => sx === cx && sz === cz);
 
     const t = performance.now() * 0.001;
     for (const l of this.lights) {

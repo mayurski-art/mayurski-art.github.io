@@ -21,6 +21,7 @@ import { EffectComposer } from "../../vendor/addons/postprocessing/EffectCompose
 import { RenderPass } from "../../vendor/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "../../vendor/addons/postprocessing/UnrealBloomPass.js";
 import { ShaderPass } from "../../vendor/addons/postprocessing/ShaderPass.js";
+import { createGamepadDebug } from "../shared/gamepad-debug.js";
 import { FXAAShader } from "../../vendor/addons/shaders/FXAAShader.js";
 import { OutputPass } from "../../vendor/addons/postprocessing/OutputPass.js";
 
@@ -698,11 +699,35 @@ import { OutputPass } from "../../vendor/addons/postprocessing/OutputPass.js";
   bindTouch("#tr-t-gas", "up");
   bindTouch("#tr-t-brake", "down");
 
+  // gamepad — left stick or d-pad steers, right trigger gas, left trigger
+  // brake, A handbrake. Blends with keys/touch rather than replacing them.
+  const GP_DEADZONE = 0.15;
+  const gpDebug = createGamepadDebug();
+  let gpIndex = null;
+  window.addEventListener("gamepadconnected", (e) => { gpIndex = e.gamepad.index; });
+  window.addEventListener("gamepaddisconnected", (e) => { if (e.gamepad.index === gpIndex) gpIndex = null; });
+  function readGamepad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let gp = gpIndex != null ? pads[gpIndex] : null;
+    if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
+    gpDebug.render(gp);
+    if (!gp) return { steer: 0, throttle: 0, brake: 0 };
+    gpIndex = gp.index;
+    let steer = gp.axes[0] || 0;
+    if (Math.abs(steer) < GP_DEADZONE) steer = 0;
+    if (gp.buttons[14]?.pressed) steer = -1;   // d-pad left
+    if (gp.buttons[15]?.pressed) steer = 1;    // d-pad right
+    const throttle = Math.max(gp.buttons[7]?.value || 0, gp.buttons[7]?.pressed ? 1 : 0);
+    const brake = Math.max(gp.buttons[6]?.value || 0, gp.buttons[6]?.pressed ? 1 : 0, gp.buttons[0]?.pressed ? 0.85 : 0);
+    return { steer, throttle, brake };
+  }
+
   function readInput(dt) {
-    const want = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-    input.steer += (want - input.steer) * Math.min(1, 9 * dt);
-    input.throttle = keys.up ? 1 : 0;
-    input.brake = keys.down ? 1 : 0;
+    const gpad = readGamepad();
+    const want = (keys.right ? 1 : 0) - (keys.left ? 1 : 0) + gpad.steer;
+    input.steer += (Math.max(-1, Math.min(1, want)) - input.steer) * Math.min(1, 9 * dt);
+    input.throttle = keys.up ? 1 : Math.max(0, gpad.throttle);
+    input.brake = keys.down ? 1 : Math.max(0, gpad.brake);
     if (keys.hand) input.brake = Math.max(input.brake, 0.85);
     return input;
   }

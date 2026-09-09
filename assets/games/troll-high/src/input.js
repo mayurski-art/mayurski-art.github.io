@@ -1,13 +1,22 @@
 /* Troll High — keyboard + touch input.
    axis() returns {x, y} in [-1, 1]; interact is edge-triggered. */
 
+import { createGamepadDebug } from "../../shared/gamepad-debug.js";
+
 const isTyping = el => el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+const GP_DEADZONE = 0.2;
 
 export class Input {
   constructor() {
     this.keys = new Set();
     this._interactQueued = false;
     this.touch = { active: false, x: 0, y: 0 };
+    this.gp = { x: 0, y: 0 };
+    this.gpIndex = null;
+    this.gpPrevA = false;
+    this.gpDebug = createGamepadDebug();
+    addEventListener("gamepadconnected", e => { this.gpIndex = e.gamepad.index; });
+    addEventListener("gamepaddisconnected", e => { if (e.gamepad.index === this.gpIndex) this.gpIndex = null; });
 
     addEventListener("keydown", e => {
       if (isTyping(e.target)) return; // chat/name inputs handle their own keys
@@ -71,8 +80,29 @@ export class Input {
     if (this.keys.has("ArrowRight") || this.keys.has("KeyD")) x += 1;
     if (this.keys.has("ArrowUp") || this.keys.has("KeyW")) y -= 1;
     if (this.keys.has("ArrowDown") || this.keys.has("KeyS")) y += 1;
+    if (x === 0 && y === 0 && (this.gp.x || this.gp.y)) return { x: this.gp.x, y: this.gp.y };
     if (x && y) { const s = Math.SQRT1_2; x *= s; y *= s; }
     return { x, y };
+  }
+
+  /* Left stick move + A interact. Chat/typing already short-circuits keydown
+     above; same not-typing guard applies here via isTyping(document.activeElement)
+     so a controller can't fire interact while the chat/name input has focus. */
+  pollGamepad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let gp = this.gpIndex != null ? pads[this.gpIndex] : null;
+    if (!gp) gp = Array.from(pads).find(p => p && p.connected) || null;
+    this.gpDebug.render(gp);
+    if (!gp) { this.gp.x = 0; this.gp.y = 0; this.gpPrevA = false; return; }
+    this.gpIndex = gp.index;
+    if (isTyping(document.activeElement)) return;
+
+    const dz = v => (Math.abs(v) < GP_DEADZONE ? 0 : v);
+    this.gp.x = dz(gp.axes[0] || 0);
+    this.gp.y = dz(gp.axes[1] || 0);
+    const a = !!gp.buttons[0]?.pressed;
+    if (a && !this.gpPrevA) this._interactQueued = true;
+    this.gpPrevA = a;
   }
 
   /* True once per press. */

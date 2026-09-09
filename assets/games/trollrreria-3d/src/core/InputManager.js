@@ -1,5 +1,9 @@
+import { createGamepadDebug } from '../../../shared/gamepad-debug.js';
+
 const LOOK_SENSITIVITY = 0.0022;
 const TOUCH_LOOK_SENSITIVITY = 0.006;
+const GP_LOOK_SENSITIVITY = 0.045;
+const GP_DEADZONE = 0.18;
 
 // Keyboard + mouse (pointer lock) + touch (joystick/look-pad/buttons) input,
 // polled each frame by Game for movement and edge-triggered for actions.
@@ -15,9 +19,50 @@ export class InputManager {
     this.jumpHeld = false;
     this.digHeld = false;
 
+    this.gpIndex = null;
+    this.gpMove = { x: 0, z: 0 };
+    this.gpJumpHeld = false;
+    this.gpPrev = {};
+    this.gpDebug = createGamepadDebug();
+    window.addEventListener('gamepadconnected', (e) => { this.gpIndex = e.gamepad.index; });
+    window.addEventListener('gamepaddisconnected', (e) => { if (e.gamepad.index === this.gpIndex) this.gpIndex = null; });
+
     this._bindKeyboard();
     this._bindMouse();
     this._bindTouch();
+  }
+
+  // Left stick digs/mines(hold), right stick looks, A jumps, X places,
+  // Y opens inventory, B backs out of a screen. Polled once per frame from
+  // Game._loop rather than event-driven, matching how movement keys work.
+  pollGamepad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let gp = this.gpIndex != null ? pads[this.gpIndex] : null;
+    if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
+    this.gpDebug.render(gp);
+    if (!gp) { this.gpMove.x = 0; this.gpMove.z = 0; this.gpJumpHeld = false; return; }
+    this.gpIndex = gp.index;
+
+    const dz = (v) => (Math.abs(v) < GP_DEADZONE ? 0 : v);
+    this.gpMove.x = dz(gp.axes[0] || 0);
+    this.gpMove.z = -dz(gp.axes[1] || 0);
+    const lookX = dz(gp.axes[2] || 0);
+    const lookY = dz(gp.axes[3] || 0);
+    this.lookDX += lookX * GP_LOOK_SENSITIVITY;
+    this.lookDY += lookY * GP_LOOK_SENSITIVITY;
+
+    const btn = (i) => !!gp.buttons[i]?.pressed;
+    const edge = (i) => btn(i) && !this.gpPrev[i];
+    this.gpJumpHeld = btn(0); // A
+
+    if (btn(7)) { this.digHeld = true; if (edge(7)) this.callbacks.onDig?.(); } // R2 mine
+    else if (!btn(7) && this.gpPrev[7]) this.digHeld = false;
+    if (edge(2)) this.callbacks.onPlace?.(); // X place
+    if (edge(3)) this.callbacks.onInventory?.(); // Y inventory
+    if (edge(1)) this.callbacks.onEscape?.(); // B back/pause
+
+    this.gpPrev = {};
+    for (let i = 0; i < gp.buttons.length; i++) this.gpPrev[i] = btn(i);
   }
 
   _bindKeyboard() {
@@ -144,7 +189,7 @@ export class InputManager {
   }
 
   get moveVector() {
-    let x = this.touchMove.x, z = this.touchMove.z;
+    let x = this.touchMove.x + this.gpMove.x, z = this.touchMove.z + this.gpMove.z;
     if (this.keys.has('KeyW')) z += 1;
     if (this.keys.has('KeyS')) z -= 1;
     if (this.keys.has('KeyD')) x += 1;
@@ -152,6 +197,10 @@ export class InputManager {
     const len = Math.hypot(x, z);
     if (len > 1) { x /= len; z /= len; }
     return { x, z };
+  }
+
+  get jumpOrGpHeld() {
+    return this.jumpHeld || this.gpJumpHeld;
   }
 
   consumeLook() {

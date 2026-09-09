@@ -1933,6 +1933,57 @@
   });
 
   /* ==========================================================================
+     GAMEPAD  —  same local-hot-seat model as the keyboard: the first connected
+     pad drives slot 0, a second pad drives slot 1 only when local versus is
+     actually active (mirrors how touch is single-player-only). Not a module,
+     so the shared debug overlay loads via dynamic import.
+     Face buttons follow a standard fighting-game layout: bottom=punch,
+     right=kick, top=special, left=block, shoulders=dash.
+     ========================================================================== */
+  let gpDebug = { render() {} };
+  import("../shared/gamepad-debug.js").then(m => { gpDebug = m.createGamepadDebug(); });
+  const GP_DEADZONE = 0.35;
+  const gpSlotIndex = [null, null];   // gamepad index currently bound to each slot
+  const gpPrevEdge = [{}, {}];
+  function pollGamepads() {
+    if (pause.active) return;
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const connected = Array.from(pads).filter(p => p && p.connected);
+    gpDebug.render(connected.find(p => p.mapping !== "standard") || connected[0] || null);
+    const maxSlots = keymaps.length; // 1 = solo, 2 = local versus
+    for (let slot = 0; slot < maxSlots && slot < 2; slot++) {
+      // keep this slot's existing pad if still connected, else claim the next
+      // free one in gamepad order so slot 0 always gets the first pad found.
+      if (gpSlotIndex[slot] != null && !connected.some(p => p.index === gpSlotIndex[slot])) gpSlotIndex[slot] = null;
+      if (gpSlotIndex[slot] == null) {
+        const claimed = new Set(gpSlotIndex);
+        const free = connected.find(p => !claimed.has(p.index));
+        if (free) gpSlotIndex[slot] = free.index;
+      }
+      const gp = gpSlotIndex[slot] != null ? pads[gpSlotIndex[slot]] : null;
+      if (!gp) continue;
+      const s = inputs[slot];
+      const axisX = gp.axes[0] || 0;
+      s.held.left = !!gp.buttons[14]?.pressed || axisX < -GP_DEADZONE;
+      s.held.right = !!gp.buttons[15]?.pressed || axisX > GP_DEADZONE;
+      s.held.up = !!gp.buttons[12]?.pressed || (gp.axes[1] || 0) < -GP_DEADZONE;
+      s.held.crouch = !!gp.buttons[13]?.pressed || (gp.axes[1] || 0) > GP_DEADZONE;
+      s.held.block = !!gp.buttons[2]?.pressed;   // X/square = block
+      const punch = !!gp.buttons[0]?.pressed;    // A/cross
+      const kick = !!gp.buttons[1]?.pressed;     // B/circle
+      const special = !!gp.buttons[3]?.pressed;  // Y/triangle
+      const dash = !!gp.buttons[4]?.pressed || !!gp.buttons[5]?.pressed; // shoulders
+      const prev = gpPrevEdge[slot];
+      if (punch && !prev.punch) s.edge.punch = true;
+      if (kick && !prev.kick) s.edge.kick = true;
+      if (special && !prev.special) s.edge.special = true;
+      if (dash && !prev.dash) s.edge.dash = true;
+      s.held.punch = punch; s.held.kick = kick; s.held.special = special; s.held.dash = dash;
+      gpPrevEdge[slot] = { punch, kick, special, dash };
+    }
+  }
+
+  /* ==========================================================================
      PAUSE  (Phase 7)
      Solo / CPU: a pause key freezes the match instantly. Local versus: one
      player REQUESTS, the others must agree — gameplay keeps running until the
@@ -3007,6 +3058,8 @@
     dt = Math.min(dt, 0.05);
 
     online.tick(dt);
+
+    if (match.phase === "fight") pollGamepads();
 
     // The pause request timer ticks in real time, even while the sim is frozen.
     // (Online guest: pause.active/pending mirror the host's state via snapshots,
