@@ -251,33 +251,48 @@ function applySettings() {
   set("to-set-fov", settings.fov, "to-set-fov-out", "°");
   set("to-set-invert", settings.invert);
   set("to-set-minimap", settings.minimap);
+
+  set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
+  set("to-set-sens-lobby", settings.sens, "to-set-sens-lobby-out", "%");
+  set("to-set-fov-lobby", settings.fov, "to-set-fov-lobby-out", "°");
+  set("to-set-invert-lobby", settings.invert);
+  set("to-set-minimap-lobby", settings.minimap);
 }
 
+function bindRange(id, key, outId, suffix = "") {
+  const el = document.getElementById(id);
+  el?.addEventListener("input", () => {
+    settings[key] = Number(el.value);
+    const out = document.getElementById(outId);
+    if (out) out.textContent = `${el.value}${suffix}`;
+    applySettings();
+    saveSettings();
+  });
+}
+
+function bindCheck(id, key) {
+  const el = document.getElementById(id);
+  el?.addEventListener("change", () => {
+    settings[key] = el.checked;
+    applySettings();
+    saveSettings();
+  });
+}
+
+// Same settings, reachable from both the in-match Esc menu and the lobby's
+// Controls tab — a player shouldn't have to deploy just to fix sensitivity.
 function initEscapeMenu() {
-  const bindRange = (id, key, outId, suffix = "") => {
-    const el = document.getElementById(id);
-    el?.addEventListener("input", () => {
-      settings[key] = Number(el.value);
-      const out = document.getElementById(outId);
-      if (out) out.textContent = `${el.value}${suffix}`;
-      applySettings();
-      saveSettings();
-    });
-  };
   bindRange("to-set-volume", "volume", "to-set-volume-out");
   bindRange("to-set-sens", "sens", "to-set-sens-out", "%");
   bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
-
-  const bindCheck = (id, key) => {
-    const el = document.getElementById(id);
-    el?.addEventListener("change", () => {
-      settings[key] = el.checked;
-      applySettings();
-      saveSettings();
-    });
-  };
   bindCheck("to-set-invert", "invert");
   bindCheck("to-set-minimap", "minimap");
+
+  bindRange("to-set-volume-lobby", "volume", "to-set-volume-lobby-out");
+  bindRange("to-set-sens-lobby", "sens", "to-set-sens-lobby-out", "%");
+  bindRange("to-set-fov-lobby", "fov", "to-set-fov-lobby-out", "°");
+  bindCheck("to-set-invert-lobby", "invert");
+  bindCheck("to-set-minimap-lobby", "minimap");
 
   const tabs = document.getElementById("to-menu-tabs");
   tabs?.addEventListener("click", (e) => {
@@ -449,7 +464,9 @@ function renderLobbyRoster() {
     const note = document.createElement("p");
     note.className = "to-pf-empty";
     note.textContent = isPvp()
-      ? "No one else in the room yet — share the code."
+      ? (roomIsCustom
+          ? "No one else in the room yet — share the code."
+          : "No one else has deployed into this mode yet. Anyone who hits Deploy lands here with you.")
       : "Solo drop. No other operators.";
     box.appendChild(note);
   }
@@ -1189,9 +1206,25 @@ function pollGamepad(dt) {
   if (pressedEdge(3)) setHolding(player.holding === "gun" ? "melee" : "gun"); // Y / triangle
   if (pressedEdge(5)) startCook("lethal");  // R1 -> cook nade
   if (gpPrev[5] && !btn(5)) releaseCook();
+  if (pressedEdge(9)) {                     // Start/Home -> same as the on-screen gear icon
+    if (controls.isLocked) controls.unlock();
+    else { gameState = "paused"; els.pause.hidden = false; }
+  }
 
   gpPrev = {};
   for (let i = 0; i < gp.buttons.length; i++) gpPrev[i] = btn(i);
+}
+
+// Start/Home resumes from the pause menu the same way it opened it — kept
+// separate from pollGamepad since that only runs during gameState==="playing".
+let gpMenuPrev = {};
+function pollGamepadMenu() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = (gpIndex != null ? pads[gpIndex] : null) || Array.from(pads).find((p) => p && p.connected) || null;
+  if (!gp) { gpMenuPrev = {}; return; }
+  const pressed = !!gp.buttons[9]?.pressed;
+  if (pressed && !gpMenuPrev[9]) { if (!isTouch) controls.lock(); else { gameState = "playing"; els.pause.hidden = true; } }
+  gpMenuPrev = { 9: pressed };
 }
 
 // -------------------- HUD helpers --------------------
@@ -1994,6 +2027,8 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, clock.getDelta());
   const t = clock.elapsedTime;
+
+  if (gameState === "paused") pollGamepadMenu();
 
   if (gameState === "playing") {
     elapsedRun += dt;
