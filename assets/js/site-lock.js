@@ -9,7 +9,7 @@
   const SITE_LOCK_STORAGE_KEY = 'trollrunner_site_public_lock_v1';
   const SITE_LOCK_META_ID = '__trollrunner_site_lock_meta__';
   const SITE_LOCK_WARNING_MS = 10000;
-  const SITE_LOCK_POLL_MS = 1500;
+  const SITE_LOCK_POLL_MS = 30000;
   const SITE_LOCK_BROADCAST_CHANNEL = 'trollrunner-site-lock';
   const isAdminPage = /\/admin\.html(?:$|\?)/.test(window.location.pathname);
   const isPublicPage = !isAdminPage;
@@ -485,8 +485,16 @@
     renderOverlay();
     if (pollTimer) window.clearInterval(pollTimer);
     if (renderTimer) window.clearInterval(renderTimer);
-    pollTimer = window.setInterval(pollRemoteState, SITE_LOCK_POLL_MS);
+    pollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') pollRemoteState();
+    }, SITE_LOCK_POLL_MS);
     renderTimer = window.setInterval(renderOverlay, 250);
+    if (!hydrate._visListenerAdded) {
+      hydrate._visListenerAdded = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') pollRemoteState();
+      });
+    }
     if (hasBroadcastChannel && !broadcastChannel) {
       try {
         broadcastChannel = new BroadcastChannel(SITE_LOCK_BROADCAST_CHANNEL);
