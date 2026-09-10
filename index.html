@@ -231,6 +231,11 @@ html, body {
 }
 body.site-entry-locked {
   overflow: hidden;
+  /* Pure black from first paint, overriding --bg-shell's purple gradient,
+     until trollDesktopShow() takes over -- a plain black screen reads as
+     "loading" whereas any visible gradient or content reads as a flash of
+     the wrong page. */
+  background: #000;
 }
 /* ── HEADER ── */
 header {
@@ -2987,10 +2992,21 @@ body.desktop-mode { overflow: hidden; }
 body.desktop-mode::before {
   content: ''; position: fixed; inset: 0; z-index: 59; background: #04050e;
 }
-body.desktop-mode > header,
-body.desktop-mode #intro-band,
-body.desktop-mode .updates-feedback-grid,
-body.desktop-mode > footer { display: none; }
+/* Hidden from first paint (site-entry-locked is present in the initial HTML,
+   before any script runs) so the scrolling landing page never flashes ahead
+   of the desktop UI taking over. desktop-mode keeps the same rule so the
+   landing page stays hidden if trollDesktopShow() runs after entry-locked
+   was already removed. */
+/* Blanket rule instead of enumerating each landing-page section by id/class:
+   the landing page has grown several top-level siblings between header and
+   footer (bio-artwork, updates-feedback-grid, checklist, ...) and missing
+   any one of them here is exactly what let the checklist section flash
+   through before troll-desktop took over. Hide every direct child of body
+   except troll-desktop and the floating overlays (Troll Radio + its Spotify
+   host) that stay usable from inside the desktop via their own .is-open /
+   JS-driven visibility. */
+body.site-entry-locked > :not(#troll-desktop):not(#troll-radio):not(#spotify-embed),
+body.desktop-mode > :not(#troll-desktop):not(#troll-radio):not(#spotify-embed) { display: none; }
 
 .troll-desktop {
   position: fixed; inset: 0; z-index: 60; display: none; overflow: hidden;
@@ -3361,12 +3377,44 @@ body.desktop-mode .troll-desktop { display: block; }
 </style>
 </head>
 <body class="site-entry-locked">
+<script>
+// Safety net: site-entry-locked hides the landing page from first paint so
+// it doesn't flash ahead of the desktop UI (trollDesktopShow() removes this
+// class once it takes over, near the end of the page's main script). If
+// that main script throws before reaching trollDesktopShow(), this class
+// would otherwise never come off and the page would stay blank forever
+// instead of just losing the desktop UI -- so un-hide the landing content
+// after a timeout as a fallback.
+setTimeout(function () {
+  document.body.classList.remove('site-entry-locked');
+}, 6000);
+</script>
 
 
 <div id="troll-desktop" class="troll-desktop" aria-hidden="true">
   <div class="td-wall td-wall--art" aria-hidden="true">
     <div class="td-scene">
       <img id="td-wallpaper-img" class="td-wallpaper-media" alt="" />
+      <script>
+      // Set the wallpaper <img> src synchronously at parse time, before the
+      // rest of the page's script runs. Without this, td-wall's dark
+      // fallback gradient (tuned for the old torch-lit art) paints first and
+      // flashes before tdApplyWallpaper() gets around to assigning img.src
+      // on desktop-show -- jarring now that wallpapers can be bright.
+      // TD_WALLPAPER_IDS_TO_IMG must be kept in sync with TD_WALLPAPERS below.
+      (function () {
+        var TD_WALLPAPER_IDS_TO_IMG = {
+          'track-island-1': 'assets/images/wallpaper/trollrunner wallpaper 1.jpg',
+          'troll-bliss-1': 'assets/images/wallpaper/trollface-bliss.png',
+        };
+        var DEFAULT_WALLPAPER_ID = 'troll-bliss-1';
+        var id = null;
+        try { id = localStorage.getItem('td_wallpaper_id'); } catch (e) {}
+        var src = TD_WALLPAPER_IDS_TO_IMG[id] || TD_WALLPAPER_IDS_TO_IMG[DEFAULT_WALLPAPER_ID];
+        var img = document.currentScript.previousElementSibling;
+        if (img && src) img.src = src;
+      })();
+      </script>
       <!-- Two videos, not one: native `loop` jump-cuts back to frame 0. We
            crossfade video A into video B (same source, started a beat
            early) right before A's loop point, then swap roles — see
@@ -4903,6 +4951,7 @@ function tdTickClock() {
 // and preview grid render straight off this list, nothing else to wire up.
 const TD_WALLPAPERS = [
   { id: 'track-island-1', label: 'Track Island', img: 'assets/images/wallpaper/trollrunner wallpaper 1.jpg', video: 'assets/animations/trollrunner wallpaper 1 animated.mp4' },
+  { id: 'troll-bliss-1', label: 'Grin Hill', img: 'assets/images/wallpaper/trollface-bliss.png' },
 ];
 window.TD_WALLPAPERS = TD_WALLPAPERS;
 const TD_WALLPAPER_ID_KEY = 'td_wallpaper_id';
@@ -4916,7 +4965,7 @@ function tdWallpaperPrefs() {
     const raw = localStorage.getItem(TD_WALLPAPER_ANIMATE_KEY);
     if (raw !== null) animated = raw === '1';
   } catch {}
-  const wallpaper = TD_WALLPAPERS.find(w => w.id === id) || TD_WALLPAPERS[0];
+  const wallpaper = TD_WALLPAPERS.find(w => w.id === id) || TD_WALLPAPERS.find(w => w.id === 'troll-bliss-1') || TD_WALLPAPERS[0];
   return { wallpaper, animated };
 }
 
