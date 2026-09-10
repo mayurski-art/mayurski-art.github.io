@@ -273,6 +273,14 @@ export class Net {
     if (p.snaps.length > 12) p.snaps.shift();
 
     if (!this.connected) return;
+    // Bots are simulated locally every frame (60Hz) so the local mirror above
+    // stays smooth, but the network send needs the same throttle the human
+    // player's own state gets in update() — otherwise every bot broadcasts at
+    // full frame rate instead of STATE_HZ, multiplying outbound traffic with
+    // bot count and dragging the whole match down.
+    const now = snap.t;
+    if (now - (p.lastSent || 0) < 1000 / STATE_HZ) return;
+    p.lastSent = now;
     this.send({
       t: "state", id: bot.id,
       x: round2(bot.pos.x), y: round2(bot.pos.y), z: round2(bot.pos.z),

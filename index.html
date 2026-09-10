@@ -4226,6 +4226,17 @@ function twOpen(id) {
     window.location.href = '/';
     return;
   }
+  // Games used to open as a windowed iframe inside the desktop chrome (see
+  // the TD_WINDOWS.games comment above) — a titlebar and browser URL bar
+  // around a game picker felt like a browser tab, not an arcade. Since
+  // games.html is a same-origin page, a real navigation gets players there
+  // exactly as if they'd typed trollrunner.net/games, with no desktop chrome
+  // at all; games.html's own fs-launcher.js handles the actual fullscreen
+  // game overlay from there.
+  if (id === 'games') {
+    window.location.href = TD_WINDOWS.games.iframeSrc;
+    return;
+  }
   const cfg = TD_WINDOWS[id];
   const win = tdState.windows.get(id);
   if (!cfg || !win) return;
