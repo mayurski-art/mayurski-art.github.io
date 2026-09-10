@@ -278,7 +278,7 @@ export class Net {
       x: round2(bot.pos.x), y: round2(bot.pos.y), z: round2(bot.pos.z),
       ry: round2(bot.yaw), rp: 0, st: "stand", mv: 1,
       hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,
-      w: "problem416", tm: bot.team, n: bot.name, k: bot.kills | 0,
+      w: bot.weaponId || "problem416", tm: bot.team, n: bot.name, k: bot.kills | 0,
     });
   }
 
@@ -322,8 +322,8 @@ export class Net {
     this.send({ t: "hit", id: fromId, target: targetId, dmg: Math.round(dmg), hd: isHead ? 1 : 0, w: weaponId });
   }
 
-  reportDeathAs(whoId, byId, weaponId) {
-    this.send({ t: "died", id: whoId, by: byId, w: weaponId });
+  reportDeathAs(whoId, byId, weaponId, isHead) {
+    this.send({ t: "died", id: whoId, by: byId, w: weaponId, hd: isHead ? 1 : 0 });
   }
 
   reportShot(origin, dir, weaponId) {
@@ -339,8 +339,8 @@ export class Net {
     this.send({ t: "hit", id: this.id, target: targetId, dmg: Math.round(dmg), hd: isHead ? 1 : 0, w: weaponId });
   }
 
-  reportDeath(byId, weaponId) {
-    this.send({ t: "died", id: this.id, by: byId, w: weaponId });
+  reportDeath(byId, weaponId, isHead) {
+    this.send({ t: "died", id: this.id, by: byId, w: weaponId, hd: isHead ? 1 : 0 });
   }
 }
 

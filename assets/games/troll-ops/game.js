@@ -6,11 +6,11 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState } from "./weapons.js";
+import { WeaponState, WEAPON_DEFS } from "./weapons.js";
 import { buildWeaponMesh } from "./weapon-model.js";
 import { WeaponInspector } from "./inspector.js";
 import { Loadout } from "./loadout.js";
-import { addXp, xpForRun } from "./progression.js";
+import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS } from "./net.js";
 import { RemotePlayers, TEAMS } from "./remote-players.js";
@@ -48,6 +48,10 @@ const els = {
   respawn: document.getElementById("to-respawn"),
   respawnText: document.getElementById("to-respawn-text"),
   spawnGuard: document.getElementById("to-spawnguard"),
+  deathBy: document.getElementById("to-deathby"),
+  deathByName: document.getElementById("to-deathby-name"),
+  deathByMeta: document.getElementById("to-deathby-meta"),
+  xpPopups: document.getElementById("to-xp-pops"),
   hudWaveBox: document.querySelector(".to-hud-wave"),
   hudHostilesBox: document.querySelector(".to-hud-hostiles"),
   loMaps: document.getElementById("to-lo-maps"),
@@ -230,7 +234,7 @@ let suppressT = 0;
 
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
-  volume: 50, sens: 100, fov: 78, invert: false, minimap: true,
+  volume: 50, sens: 100, fov: 78, invert: false, minimap: true, botSkill: "regular",
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
 
@@ -262,6 +266,10 @@ function applySettings() {
   set("to-set-fov-lobby", settings.fov, "to-set-fov-lobby-out", "°");
   set("to-set-invert-lobby", settings.invert);
   set("to-set-minimap-lobby", settings.minimap);
+  set("to-set-botskill", settings.botSkill);
+  // Takes effect for bots created from here on, so a change mid-match applies
+  // as they respawn rather than rewriting the ones already in the fight.
+  bots.difficulty = settings.botSkill;
 }
 
 function bindRange(id, key, outId, suffix = "") {
@@ -284,6 +292,15 @@ function bindCheck(id, key) {
   });
 }
 
+function bindSelect(id, key) {
+  const el = document.getElementById(id);
+  el?.addEventListener("change", () => {
+    settings[key] = el.value;
+    applySettings();
+    saveSettings();
+  });
+}
+
 // Same settings, reachable from both the in-match Esc menu and the lobby's
 // Controls tab — a player shouldn't have to deploy just to fix sensitivity.
 function initEscapeMenu() {
@@ -298,6 +315,7 @@ function initEscapeMenu() {
   bindRange("to-set-fov-lobby", "fov", "to-set-fov-lobby-out", "°");
   bindCheck("to-set-invert-lobby", "invert");
   bindCheck("to-set-minimap-lobby", "minimap");
+  bindSelect("to-set-botskill", "botSkill");
 
   const tabs = document.getElementById("to-menu-tabs");
   tabs?.addEventListener("click", (e) => {
@@ -510,17 +528,34 @@ els.room.addEventListener("input", () => {
   roomIsCustom = els.room.value.length > 0;
 });
 
-function registerDeath(victimName, killerId, weaponId) {
+function registerDeath(victimName, killerId, weaponId, opts = {}) {
   const mode = currentMode();
   const iKilled = killerId === net.id;
-  const killer = iKilled ? "You" : (net.peers.get(killerId)?.name || bots.byId(killerId)?.name || "Someone");
+  const iDied = opts.victimIsMe;
+  const killer = iKilled ? "You" : nameFor(killerId);
   const killerTeam = iKilled ? net.team : (net.peers.get(killerId)?.team || bots.byId(killerId)?.team);
-  pushKillfeed(`${killer} → ${victimName}`);
+
+  pushKillfeed({
+    killer,
+    victim: victimName,
+    weapon: weaponNameFor(weaponId),
+    head: !!opts.head,
+    killerTeam,
+    victimTeam: opts.victimTeam,
+    mine: iKilled || iDied,
+  });
 
   if (iKilled) {
     player.kills++;
+    player.streak++;
+    if (opts.head) player.headshots++;
     audio.kill();
     els.hudKills.textContent = String(player.kills);
+
+    // XP lands per kill, not in a lump at the end — the immediate feedback
+    // is most of what makes the grind feel like progress.
+    awardKillXp(opts.head);
+    announceStreak(player.streak);
 
     if (mode.ladder) {
       gunGameProgress++;
@@ -541,6 +576,63 @@ function registerDeath(victimName, killerId, weaponId) {
     updateTeamHud();
   }
   checkMatchEnd();
+}
+
+/* Bank XP mid-match and show it floating up. Only PvP pays as it goes; Ops
+   still settles once at the end via xpForRun, which its wave curve suits. */
+function addMatchXp(amount, label) {
+  if (!isPvp() || amount <= 0) return;
+  player.matchXp += amount;
+  showXpPopup(amount, label);
+}
+
+function awardKillXp(isHead) {
+  addMatchXp(XP.kill + (isHead ? XP.headshot : 0), isHead ? "HEADSHOT" : "KILL");
+}
+
+const STREAKS = { 3: "Triple", 5: "Rampage", 7: "Unstoppable", 10: "Godlike" };
+
+function announceStreak(n) {
+  player.bestStreak = Math.max(player.bestStreak, n);
+  const label = STREAKS[n];
+  if (!label) return;
+  showWaveBanner(`${label.toUpperCase()} — ${n} in a row`, 1500);
+  audio.wave();
+}
+
+function showXpPopup(amount, label) {
+  if (!els.xpPopups) return;
+  const div = document.createElement("div");
+  div.className = "to-xp-pop";
+  div.textContent = label ? `+${amount} · ${label}` : `+${amount}`;
+  els.xpPopups.appendChild(div);
+  while (els.xpPopups.children.length > 4) els.xpPopups.firstChild.remove();
+  setTimeout(() => div.remove(), 1400);
+}
+
+/* Damage we've dealt to each target, so that softening someone up still
+   counts when a teammate lands the last shot. Without this, 90 damage and a
+   stolen kill is indistinguishable from doing nothing at all. */
+const dealtLog = new Map();       // victim id -> { dmg, last }
+
+function noteDealt(targetId, amount) {
+  if (!targetId || !isPvp()) return;
+  const e = dealtLog.get(targetId) || { dmg: 0, last: 0 };
+  e.dmg += amount;
+  e.last = performance.now();
+  dealtLog.set(targetId, e);
+}
+
+function creditAssistIfOwed(victimId, victimName) {
+  const e = dealtLog.get(victimId);
+  if (!e) return;
+  dealtLog.delete(victimId);
+  if (performance.now() - e.last > ASSIST_MEMORY * 1000) return;
+  if (e.dmg < ASSIST_MIN_DAMAGE) return;
+
+  player.assists++;
+  addMatchXp(XP.assist, "ASSIST");
+  pushKillfeed({ killer: "You", victim: victimName, assist: true, mine: true });
 }
 
 function checkMatchEnd() {
@@ -564,15 +656,20 @@ const net = new Net({
   // Bots filling the room isn't news; only announce real people.
   onJoin: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} joined`); },
   onLeave: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} left`); },
-  onHitTaken: (m) => damagePlayer(m.dmg, m.id, m.w),
-  onPeerDied: (p, m) => registerDeath(p.name, m.by, m.w),
+  // `hd` has always been on the wire; we just never read it.
+  onHitTaken: (m) => damagePlayer(m.dmg, m.id, m.w, !!m.hd),
+  onPeerDied: (p, m) => {
+    registerDeath(p.name, m.by, m.w, { head: !!m.hd, victimTeam: p.team });
+    if (m.by !== net.id) creditAssistIfOwed(p.id, p.name);
+  },
   onVote: () => { if (intermissionT > 0) renderVote(); },
   ownsBot: (id) => !!bots.byId(id),
   onBotHit: (m) => {
     const { killed, bot } = bots.applyHit(m.target, m.dmg);
     if (!killed) return;
-    net.reportDeathAs(m.target, m.id, m.w);
-    registerDeath(bot.name, m.id, m.w);
+    net.reportDeathAs(m.target, m.id, m.w, !!m.hd);
+    registerDeath(bot.name, m.id, m.w, { head: !!m.hd, victimTeam: bot.team });
+    if (m.id !== net.id) creditAssistIfOwed(m.target, bot.name);
   },
   onRemoteShot: (p, m) => {
     const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
@@ -713,6 +810,9 @@ function loadMap(id) {
   spawnPoints = builtMap.spawnPoints;
   applyEnvironment(builtMap.map);
   buildMinimapBase();
+  // Bot pathfinding is built from the map's colliders, so it has to follow
+  // the map — a field from the old geometry routes them into new walls.
+  bots.rebuildNav(colliders, ARENA, 0);
   loadedMapId = id;
 }
 
@@ -998,6 +1098,11 @@ const player = {
   holding: "gun",       // "gun" | "melee"
   gear: { lethal: 0, tactical: 0 },
   spawnGuard: 0,        // seconds of spawn protection left; broken by firing
+  assists: 0,
+  headshots: 0,
+  streak: 0,            // kills since last death
+  bestStreak: 0,
+  matchXp: 0,           // XP banked during this match, shown on the result screen
 };
 
 /* One in the hand: which throwable is cooking, and how much fuse is left. */
@@ -1236,11 +1341,61 @@ function pollGamepadMenu() {
 
 // -------------------- HUD helpers --------------------
 
-function pushKillfeed(text) {
+/* Accepts a plain string (joins, leaves, Ops points) or a structured kill.
+   A kill reads "killer — weapon → victim", with the headshot marked and both
+   names in their team colour, so the feed says what happened rather than just
+   that something did. */
+function pushKillfeed(entry) {
   const div = document.createElement("div");
   div.className = "to-kf-item";
-  div.textContent = text;
+
+  if (typeof entry === "string") {
+    div.textContent = entry;
+  } else {
+    if (entry.mine) div.classList.add("is-mine");
+
+    const nameSpan = (text, team) => {
+      const s = document.createElement("span");
+      s.className = "to-kf-name";
+      // `.ui` is the CSS string; `.color` is a hex number for three.js.
+      if (team && TEAMS[team]) s.style.color = TEAMS[team].ui;
+      s.textContent = text;
+      return s;
+    };
+
+    div.appendChild(nameSpan(entry.killer, entry.killerTeam));
+
+    if (entry.assist) {
+      const tag = document.createElement("span");
+      tag.className = "to-kf-tag";
+      tag.textContent = "assist";
+      div.appendChild(tag);
+    } else {
+      if (entry.weapon) {
+        const w = document.createElement("span");
+        w.className = "to-kf-weapon";
+        w.textContent = entry.weapon;
+        div.appendChild(w);
+      }
+      if (entry.head) {
+        const h = document.createElement("span");
+        h.className = "to-kf-head";
+        h.textContent = "HS";
+        h.title = "Headshot";
+        div.appendChild(h);
+      }
+    }
+
+    const arrow = document.createElement("span");
+    arrow.className = "to-kf-arrow";
+    arrow.textContent = "→";
+    div.appendChild(arrow);
+    div.appendChild(nameSpan(entry.victim, entry.victimTeam));
+  }
+
   els.killfeed.appendChild(div);
+  // Keep the feed from growing without bound in a busy match.
+  while (els.killfeed.children.length > 6) els.killfeed.firstChild.remove();
   setTimeout(() => div.remove(), 2700);
 }
 
@@ -1347,12 +1502,16 @@ function onBulletActorHit(actor, info) {
 
   // Remote players own their own health: we report the hit and they apply it.
   if (actor.netId) {
+    noteDealt(actor.netId, info.damage);
     // Our own bots never hear our broadcasts, so resolve those locally.
     if (bots.byId(actor.netId)) {
       const { killed, bot } = bots.applyHit(actor.netId, info.damage);
       if (killed) {
-        net.reportDeathAs(actor.netId, net.id, player.weaponId);
-        registerDeath(bot.name, net.id, player.weaponId);
+        dealtLog.delete(actor.netId);
+        net.reportDeathAs(actor.netId, net.id, player.weaponId, info.isHead);
+        registerDeath(bot.name, net.id, player.weaponId, {
+          head: info.isHead, victimTeam: bot.team,
+        });
       }
     } else {
       net.reportHit(actor.netId, info.damage, info.isHead, player.weaponId);
@@ -1778,36 +1937,46 @@ function botTargets() {
 }
 
 function onBotShoot(bot, target, dmg, isHead, hit, range = 30) {
-  audio.shot({ damage: 24, pellets: 1 }, Math.max(0, 1 - range / 55) * 0.7);
+  const wid = bot.weaponId || "problem416";
+  const def = WEAPON_DEFS[wid];
+  audio.shot(def || { damage: 24, pellets: 1 }, Math.max(0, 1 - range / 55) * 0.7);
 
   if (!hit) {
     if (target.id === net.id) nearMiss(0.45);
     return;
   }
-  if (target.id === net.id) { damagePlayer(dmg, bot.id, "problem416"); return; }
+  if (target.id === net.id) { damagePlayer(dmg, bot.id, wid, isHead); return; }
 
   if (bots.byId(target.id)) {
     const { killed, bot: victim } = bots.applyHit(target.id, dmg);
     if (killed) {
       bot.kills++;
-      net.reportDeathAs(target.id, bot.id, "problem416");
-      registerDeath(victim.name, bot.id, "problem416");
+      net.reportDeathAs(target.id, bot.id, wid, isHead);
+      registerDeath(victim.name, bot.id, wid, { head: isHead });
     }
     return;
   }
-  net.reportHitAs(bot.id, target.id, dmg, isHead, "problem416");
+  net.reportHitAs(bot.id, target.id, dmg, isHead, wid);
 }
+
+let hillHeldT = 0;   // seconds we've personally stood on the hill
 
 function scoreHill() {
   let phantom = 0, ghost = 0;
   const tally = (team) => { if (team === "ghost") ghost++; else phantom++; };
-  if (player.alive && hill.contains(move.pos.x, move.pos.z)) tally(net.team);
+  const onHill = player.alive && hill.contains(move.pos.x, move.pos.z);
+  if (onHill) tally(net.team);
   for (const rp of remotes.byId.values()) {
     if (rp.alive && hill.contains(rp.pos.x, rp.pos.z)) tally(rp.team);
   }
   if (phantom > ghost) teamScores.phantom += phantom;
   else if (ghost > phantom) teamScores.ghost += ghost;
   if (phantom || ghost) { updateTeamHud(); checkMatchEnd(); }
+
+  // Holding the objective is worth XP, but paid in blocks — this runs once a
+  // second and a popup every second would be noise.
+  if (!onHill) { hillHeldT = 0; return; }
+  if (++hillHeldT >= 5) { hillHeldT = 0; addMatchXp(XP.objective, "HOLDING"); }
 }
 
 /* Gun Game and One in the Chamber decide what you're holding; every other
@@ -1880,6 +2049,14 @@ function beginMatch(mapId = null) {
   player.deaths = 0;
   player.wave = 0;
   player.alive = true;
+  player.assists = 0;
+  player.headshots = 0;
+  player.streak = 0;
+  player.bestStreak = 0;
+  player.matchXp = 0;
+  damageLog.clear();
+  dealtLog.clear();
+  if (els.deathBy) els.deathBy.hidden = true;
   elapsedRun = 0;
   respawnT = 0;
   teamScores.phantom = 0;
@@ -1992,7 +2169,7 @@ function nextWave() {
   spawner.startWave(player.wave);
 }
 
-function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel) {
+function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts = {}) {
   gameState = "gameover";
   player.alive = false;
   if (controls.isLocked) controls.unlock();
@@ -2008,7 +2185,11 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel) {
   els.goTime.textContent = `${mins}:${String(secs).padStart(2, "0")}`;
   els.goL3.textContent = thirdLabel;
 
-  const gained = xpForRun({ kills: player.kills, wave: player.wave });
+  // PvP banks XP per kill as the match runs, so only the end-of-match
+  // bonuses are settled here. Ops still pays once, on its wave curve.
+  const gained = isPvp()
+    ? player.matchXp + xpForMatch({ won: !!opts.won, completed: !!opts.completed })
+    : xpForRun({ kills: player.kills, wave: player.wave });
   const { rankedUp, rank } = addXp(gained);
   els.goXp.textContent = `+${gained.toLocaleString()} XP`;
   els.goRank.textContent = rankedUp ? `Rank up — now rank ${rank}` : "";
@@ -2045,10 +2226,11 @@ function endMatch(title) {
   const won = mode.ffa
     ? title.startsWith("You")
     : title === `${TEAMS[net.team]?.name} win`;
-  finishRun(title, headline, mode.ffa ? "Your score" : "Your side", "Your kills", "Match length");
+  finishRun(title, headline, mode.ffa ? "Your score" : "Your side", "Your kills", "Match length", { won, completed: true });
 
   window.TrollLeaderboard?.report?.("troll-ops", {
     pvp: true, kills: player.kills, deaths: player.deaths, won,
+    assists: player.assists, headshots: player.headshots, streak: player.bestStreak,
   });
 
   bots.clear();
@@ -2188,7 +2370,60 @@ document.addEventListener("visibilitychange", () => {
 
 let respawnT = 0;
 
-function damagePlayer(amount, fromId, weaponId) {
+/* Who has hurt us lately, and how much. The shooter's client already sends
+   dmg / headshot / weapon with every hit — we were throwing all of it away.
+   Keeping a short ledger is what turns "you died" into "who killed you, what
+   with, and how close you got", and it's what assists are computed from. */
+const damageLog = new Map();      // attacker id -> { dmg, last, weaponId, head }
+const ASSIST_MEMORY = 10;         // seconds a contribution still counts
+const ASSIST_MIN_DAMAGE = 25;     // below this it isn't an assist
+
+function noteDamage(fromId, amount, weaponId, isHead) {
+  if (!fromId || fromId === net.id) return;
+  const e = damageLog.get(fromId) || { dmg: 0, last: 0, weaponId: null, head: false };
+  e.dmg += amount;
+  e.last = performance.now();
+  e.weaponId = weaponId || e.weaponId;
+  e.head = !!isHead;
+  damageLog.set(fromId, e);
+}
+
+/* Everyone who contributed inside the memory window, minus the killer. */
+function assistersFor(killerId) {
+  const now = performance.now();
+  const out = [];
+  for (const [id, e] of damageLog) {
+    if (now - e.last > ASSIST_MEMORY * 1000) { damageLog.delete(id); continue; }
+    if (id === killerId || e.dmg < ASSIST_MIN_DAMAGE) continue;
+    out.push({ id, dmg: e.dmg });
+  }
+  return out;
+}
+
+function nameFor(id) {
+  if (id === net.id) return "You";
+  return net.peers.get(id)?.name || bots.byId(id)?.name || "Someone";
+}
+
+function weaponNameFor(id) {
+  return WEAPON_DEFS[id]?.name || null;
+}
+
+/* How much health the player who killed us had left — the single most useful
+   thing a death screen can tell you, because it says whether to change the
+   approach or just the aim. */
+function killerHpFor(id) {
+  // Bots we simulate are checked first: publishBot mirrors them into the peer
+  // map, and that mirror only refreshes at 15Hz, so the peer copy can be a
+  // stale snapshot of a bot whose real health we're holding right here.
+  const b = bots.byId(id);
+  if (b) return Math.max(0, Math.round(b.hp));
+  const p = net.peers.get(id);
+  if (p && Number.isFinite(p.hp)) return Math.max(0, Math.round(p.hp));
+  return null;
+}
+
+function damagePlayer(amount, fromId, weaponId, isHead = false) {
   if (!player.alive) return;
   // Your own grenade can still sting on the range; it can't end the session.
   if (isRange()) {
@@ -2201,6 +2436,7 @@ function damagePlayer(amount, fromId, weaponId) {
   if (player.spawnGuard > 0 && isPvp()) return;
 
   player.hp = Math.max(0, player.hp - amount);
+  noteDamage(fromId, amount, weaponId, isHead);
   flashHit();
   audio.hurt();
   if (player.hp > 0) return;
@@ -2210,15 +2446,44 @@ function damagePlayer(amount, fromId, weaponId) {
     // In PvP dying is a respawn, not the end of the run.
     player.alive = false;
     player.deaths++;
+    player.streak = 0;
     respawnT = 4;
     // Remember where we fell, so the picker stops handing out this corner.
     notePointDeath(move.pos.x, move.pos.z);
-    net.reportDeath(fromId, weaponId);
-    registerDeath("You", fromId, weaponId);
+    net.reportDeath(fromId, weaponId, isHead);
+    registerDeath("You", fromId, weaponId, {
+      head: isHead, victimIsMe: true, victimTeam: net.team,
+    });
+    showDeathCard(fromId, weaponId, isHead);
+    damageLog.clear();
     els.respawn.hidden = false;
   } else {
     endGame("dead");
   }
+}
+
+/* Who got you, with what, and how close you came. "They had 12 HP left" is
+   the difference between "aim better" and "that fight was unwinnable". */
+function showDeathCard(killerId, weaponId, isHead) {
+  if (!els.deathBy) return;
+  const name = killerId ? nameFor(killerId) : null;
+  if (!name || name === "You") {
+    els.deathBy.hidden = true;
+    return;
+  }
+  const weapon = weaponNameFor(weaponId);
+  const hp = killerHpFor(killerId);
+
+  els.deathByName.textContent = name;
+  const team = net.peers.get(killerId)?.team || bots.byId(killerId)?.team;
+  els.deathByName.style.color = team && TEAMS[team] ? TEAMS[team].ui : "";
+
+  const bits = [];
+  if (weapon) bits.push(weapon);
+  if (isHead) bits.push("headshot");
+  if (hp != null) bits.push(`${hp} HP left`);
+  els.deathByMeta.textContent = bits.join(" · ");
+  els.deathBy.hidden = false;
 }
 
 /* Spawns ring the map edge, so face inward — otherwise you open your eyes
@@ -2672,6 +2937,9 @@ if (/[?&]tohooks=1/.test(location.search)) {
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
     startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
     startIntermission, updateIntermission, occupants, notePointDeath,
+    registerDeath, noteDealt, creditAssistIfOwed, showDeathCard,
+    noteDamage, assistersFor, addMatchXp, awardKillXp, pushKillfeed,
+    damageLog: () => damageLog, dealtLog: () => dealtLog,
     voteOptions: () => voteOptions,
     intermissionT: () => intermissionT,
     state: () => gameState,

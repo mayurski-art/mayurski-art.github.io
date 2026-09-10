@@ -139,6 +139,14 @@
                 <span>Show minimap</span>
                 <input type="checkbox" id="to-set-minimap-lobby" checked>
               </label>
+              <label class="to-set-row">
+                <span>Bot skill</span>
+                <select id="to-set-botskill">
+                  <option value="recruit">Recruit</option>
+                  <option value="regular" selected>Regular</option>
+                  <option value="veteran">Veteran</option>
+                </select>
+              </label>
             </div>
 
           </section>
@@ -316,7 +324,16 @@
 
         <div class="to-scoreboard" id="to-scoreboard" hidden aria-live="polite"></div>
 
-        <div class="to-respawn" id="to-respawn" hidden><span id="to-respawn-text"></span></div>
+        <div class="to-respawn" id="to-respawn" hidden>
+          <span id="to-respawn-text"></span>
+          <div class="to-deathby" id="to-deathby" hidden>
+            <span class="to-deathby-l">Killed by</span>
+            <span class="to-deathby-name" id="to-deathby-name"></span>
+            <span class="to-deathby-meta" id="to-deathby-meta"></span>
+          </div>
+        </div>
+
+        <div class="to-xp-pops" id="to-xp-pops" aria-hidden="true"></div>
 
         <div class="to-spawnguard" id="to-spawnguard" hidden aria-live="polite">Spawn protected — firing ends it</div>
 
