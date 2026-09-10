@@ -613,6 +613,38 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   background: #fff; opacity: 0;
 }
 
+/* Standing inside smoke. Grey wash plus a soft vignette so the edges of the
+   screen close in — you can still see your gun, just not the room. */
+.to-smoke {
+  position: absolute; inset: 0; z-index: 16; pointer-events: none; opacity: 0;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(158,164,172,.42) 0%, rgba(132,138,146,.82) 78%);
+  transition: opacity .18s linear;
+}
+
+/* EMP scramble: cold blue static, a scanline crawl, and the HUD dropping out
+   from under it (that part is done by .to-emp-down on the HUD itself). */
+.to-emp {
+  position: absolute; inset: 0; z-index: 17; pointer-events: none; opacity: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(79,214,255,.22) 0px, rgba(79,214,255,.22) 1px, transparent 1px, transparent 3px),
+    radial-gradient(circle at 50% 50%, rgba(8,26,36,.18) 0%, rgba(4,14,20,.78) 100%);
+}
+.to-emp.is-on { opacity: 1; animation: to-emp-flicker .16s steps(2) infinite; }
+@keyframes to-emp-flicker { 0% { opacity: .82; } 50% { opacity: 1; } 100% { opacity: .88; } }
+
+/* What the EMP actually takes from you: the readouts. Everything in the HUD
+   drops out except the overlays that aren't instruments — the whiteout, the
+   smoke wash, the EMP layer itself, and anything the round still needs to
+   tell you (respawn timer, scoreboard). */
+.to-emp-down > *:not(.to-blind):not(.to-smoke):not(.to-emp):not(.to-respawn):not(.to-scoreboard):not(.to-hitflash) {
+  opacity: .06; filter: blur(1.5px) saturate(0); transition: opacity .12s linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .to-emp.is-on { animation: none; }
+}
+
 .to-killfeed {
   position: absolute; top: 60px; right: 16px;
   display: flex; flex-direction: column; align-items: flex-end; gap: 4px;

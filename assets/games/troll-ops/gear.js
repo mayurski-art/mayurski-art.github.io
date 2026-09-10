@@ -157,6 +157,24 @@ export const THROWABLE_DEFS = {
     color: 0x8f959c, glow: 0xffffff,
     blurb: "No damage. Everything in the room forgets what it was doing.",
   },
+  smoke: {
+    id: "smoke", name: "Smoke", kind: "tactical", rank: 4,
+    carried: 2, fuse: 1.6,
+    radius: 0, damage: 0, minDamage: 0, selfMult: 1,
+    smoke: { radius: 5.2, duration: 16, grow: 1.6 },
+    throwSpeed: 19, bounce: 0.3, roll: 0.62,
+    color: 0x5c6169, glow: 0xd8dde3,
+    blurb: "Buys you the crossing. Nobody sees through it — including you.",
+  },
+  emp: {
+    id: "emp", name: "EMP", kind: "tactical", rank: 9,
+    carried: 1, fuse: 2.4, cookable: true,
+    radius: 11, damage: 0, minDamage: 0, selfMult: 1,
+    emp: { scramble: 6.5, drain: true },
+    throwSpeed: 20, bounce: 0.4, roll: 0.5,
+    color: 0x2d4a55, glow: 0x4fd6ff,
+    blurb: "Kills optics, HUD and radar in the blast. Sights go dark, not you.",
+  },
 };
 
 export const THROWABLE_IDS = Object.keys(THROWABLE_DEFS);
@@ -208,16 +226,93 @@ class FirePool {
   }
 }
 
+/* A smoke cloud is a clump of drifting billboards rather than one sphere:
+   overlapping soft puffs read as volume from outside and as a wall from
+   inside, which one transparent ball never does. `sightRadius` is what
+   line-of-sight tests use, and it grows in as the cloud actually fills. */
+const PUFFS = 14;
+
+class SmokeCloud {
+  constructor(def, pos) {
+    this.def = def;
+    this.pos = pos.clone();
+    this.pos.y = Math.max(this.pos.y, 0.4);
+    this.life = def.smoke.duration;
+    this.age = 0;
+    this.puffs = [];
+    for (let i = 0; i < PUFFS; i++) {
+      // Spread through the volume, biased low and wide like real smoke.
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(Math.random()) * def.smoke.radius * 0.78;
+      this.puffs.push({
+        offset: new THREE.Vector3(Math.cos(a) * r, Math.random() * def.smoke.radius * 0.62, Math.sin(a) * r),
+        drift: new THREE.Vector3((Math.random() - 0.5) * 0.16, 0.06 + Math.random() * 0.1, (Math.random() - 0.5) * 0.16),
+        scale: def.smoke.radius * (0.5 + Math.random() * 0.45),
+        spin: (Math.random() - 0.5) * 0.5,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  /* 0 while the canister is still venting, 1 once it's a full wall. */
+  get fill() {
+    const inT = Math.min(1, this.age / this.def.smoke.grow);
+    const outT = Math.min(1, this.life / 2.2);
+    return Math.min(inT, outT);
+  }
+
+  get sightRadius() { return this.def.smoke.radius * this.fill; }
+
+  blocks(a, b) {
+    if (this.fill < 0.25) return false;
+    return segmentHitsSphere(a, b, this.pos, this.sightRadius);
+  }
+}
+
+/* Does the segment a→b pass within `radius` of `centre`? Used for smoke
+   line-of-sight; the same closest-point-on-segment test the bots use. */
+export function segmentHitsSphere(a, b, centre, radius) {
+  if (radius <= 0) return false;
+  const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+  const acx = centre.x - a.x, acy = centre.y - a.y, acz = centre.z - a.z;
+  const len2 = abx * abx + aby * aby + abz * abz;
+  let t = len2 > 0 ? (acx * abx + acy * aby + acz * abz) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  const dx = acx - abx * t, dy = acy - aby * t, dz = acz - abz * t;
+  return dx * dx + dy * dy + dz * dz <= radius * radius;
+}
+
+/* Soft round blob, drawn once and shared by every puff. Canvas rather than
+   an image file keeps this dependency-free and out of the CSP's way. */
+function makePuffTexture() {
+  const size = 128;
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.45, "rgba(255,255,255,0.72)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export class GrenadeSystem {
   constructor(scene) {
     this.scene = scene;
     this.live = [];
     this.pools = [];
+    this.clouds = [];
     this.root = new THREE.Group();
     scene.add(this.root);
     this.geo = new THREE.IcosahedronGeometry(RADIUS, 0);
     this.mats = new Map();
     this.fireGeo = new THREE.CircleGeometry(1, 20);
+    this.puffGeo = new THREE.PlaneGeometry(1, 1);
+    this.puffTex = makePuffTexture();
   }
 
   matFor(def) {
@@ -245,8 +340,13 @@ export class GrenadeSystem {
   clear() {
     for (const g of this.live) { this.root.remove(g.mesh, g.light); }
     for (const p of this.pools) { this.root.remove(p.mesh, p.light); }
+    for (const c of this.clouds) {
+      for (const puff of c.puffs) puff.mesh.material.dispose();
+      this.root.remove(c.group);
+    }
     this.live.length = 0;
     this.pools.length = 0;
+    this.clouds.length = 0;
   }
 
   /* ctx: { colliders, arena, onExplode(def, pos), onAreaDamage(pos, radius, damage, def) } */
@@ -336,6 +436,9 @@ export class GrenadeSystem {
     ctx.onExplode?.(def, g.pos.clone());
     if (def.damage > 0) ctx.onAreaDamage?.(g.pos.clone(), def.radius, def.damage, def, {});
     if (def.blind) ctx.onFlash?.(g.pos.clone(), def);
+    if (def.emp) ctx.onEmp?.(g.pos.clone(), def);
+
+    if (def.smoke) this.spawnSmoke(def, g.pos);
 
     if (def.pool) {
       const p = new FirePool(def, g.pos);
@@ -350,6 +453,74 @@ export class GrenadeSystem {
       p.light.position.set(g.pos.x, g.pos.y + 0.8, g.pos.z);
       this.root.add(p.mesh, p.light);
       this.pools.push(p);
+    }
+  }
+
+  spawnSmoke(def, pos) {
+    const cloud = new SmokeCloud(def, pos);
+    cloud.group = new THREE.Group();
+    for (const puff of cloud.puffs) {
+      puff.mesh = new THREE.Mesh(this.puffGeo, new THREE.MeshBasicMaterial({
+        map: this.puffTex, color: def.color, transparent: true, opacity: 0,
+        depthWrite: false, side: THREE.DoubleSide, fog: true,
+      }));
+      puff.mesh.position.copy(cloud.pos).add(puff.offset);
+      puff.mesh.scale.setScalar(puff.scale);
+      cloud.group.add(puff.mesh);
+    }
+    this.root.add(cloud.group);
+    this.clouds.push(cloud);
+    return cloud;
+  }
+
+  /* True if smoke stands between these two points — the reason smoke is
+     worth throwing. Bots and the flashbang both ask this. */
+  blocksSight(a, b) {
+    for (const c of this.clouds) if (c.blocks(a, b)) return true;
+    return false;
+  }
+
+  /* How thick the smoke is at a point, 0..1 — drives the screen haze when
+     you're the one standing inside it. */
+  densityAt(point) {
+    let d = 0;
+    for (const c of this.clouds) {
+      const r = c.sightRadius;
+      if (r <= 0) continue;
+      const dist = c.pos.distanceTo(point);
+      if (dist < r) d = Math.max(d, (1 - dist / r) * c.fill);
+    }
+    return Math.min(1, d);
+  }
+
+  updateSmoke(dt, camera) {
+    for (let i = this.clouds.length - 1; i >= 0; i--) {
+      const c = this.clouds[i];
+      c.life -= dt;
+      c.age += dt;
+      const fill = c.fill;
+
+      for (const puff of c.puffs) {
+        puff.offset.addScaledVector(puff.drift, dt);
+        // Keep the cloud from climbing off its own footprint.
+        if (puff.offset.y > c.def.smoke.radius * 0.85) puff.drift.y *= -0.4;
+        puff.mesh.position.copy(c.pos).add(puff.offset);
+        puff.mesh.scale.setScalar(puff.scale * (0.55 + fill * 0.45) * (1 + Math.sin(c.age * 0.9 + puff.phase) * 0.05));
+        puff.mesh.material.opacity = 0.5 * fill;
+        // Face the camera, then roll around the view axis, so the spin
+        // survives the billboarding instead of being overwritten by it.
+        puff.roll = (puff.roll ?? puff.phase) + puff.spin * dt;
+        if (camera) {
+          puff.mesh.quaternion.copy(camera.quaternion);
+          puff.mesh.rotateZ(puff.roll);
+        }
+      }
+
+      if (c.life <= 0) {
+        for (const puff of c.puffs) puff.mesh.material.dispose();
+        this.root.remove(c.group);
+        this.clouds.splice(i, 1);
+      }
     }
   }
 }

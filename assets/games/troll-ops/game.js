@@ -116,6 +116,8 @@ const els = {
   cook: document.getElementById("to-cook"),
   cookFill: document.getElementById("to-cook-fill"),
   blind: document.getElementById("to-blind"),
+  smoke: document.getElementById("to-smoke"),
+  emp: document.getElementById("to-emp"),
   rangeHud: document.getElementById("to-range"),
   rangeShot: document.getElementById("to-range-shot"),
   rangeSens: document.getElementById("to-range-sens"),
@@ -354,9 +356,51 @@ function renderMenuRoster() {
 
 /* A round cracking past raises suppression — washes the colour out, tightens
    the vignette and jitters the frame, so being shot at actually costs you. */
-function nearMiss(strength) {
+function nearMiss(strength, at = null) {
   suppressT = Math.min(1, suppressT + strength);
-  audio.whiz();
+  audio.whiz(at);
+}
+
+/* Footsteps for everyone who isn't you. Panned, so the direction of the
+   sound is real information — the thing you actually listen for in a PF
+   fight. Tracked per-actor by distance travelled rather than a timer, so
+   someone walking slowly is quieter and rarer than someone sprinting. */
+const stepTrack = new Map();
+const STEP_STRIDE = 1.9;     // metres between footfalls
+const STEP_HEARING = 34;     // beyond this we don't bother emitting
+
+function updateEnemySteps(dt) {
+  const seen = new Set();
+  const sources = [];
+  for (const rp of remotes.byId.values()) {
+    if (rp.alive) sources.push({ key: `r${rp.netId}`, pos: rp.pos });
+  }
+  for (const b of bots.bots) {
+    if (b.alive) sources.push({ key: `b${b.id}`, pos: b.pos });
+  }
+
+  for (const s of sources) {
+    seen.add(s.key);
+    let t = stepTrack.get(s.key);
+    if (!t) { stepTrack.set(s.key, { last: s.pos.clone(), dist: 0 }); continue; }
+
+    const moved = s.pos.distanceTo(t.last);
+    t.last.copy(s.pos);
+    // A teleport (respawn, net correction) shouldn't fire a burst of steps.
+    if (moved > 3) { t.dist = 0; continue; }
+    t.dist += moved;
+
+    if (t.dist >= STEP_STRIDE) {
+      t.dist -= STEP_STRIDE;
+      const range = s.pos.distanceTo(player.pos);
+      if (range < STEP_HEARING) {
+        // Louder than your own steps: these are the ones worth hearing.
+        audio.step(s.pos, 0.16);
+      }
+    }
+  }
+
+  for (const key of stepTrack.keys()) if (!seen.has(key)) stepTrack.delete(key);
 }
 
 /* Closest approach of a ray to a point; used to tell a near miss from a
@@ -675,14 +719,17 @@ const net = new Net({
     const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
     spawnImpactBurst(origin, 0xffcf8a, 3);
 
-    const dist = origin.distanceTo(player.pos);
-    audio.shot({ damage: 26, pellets: 1 }, Math.max(0, 1 - dist / 55) * 0.8);
+    audio.shot({ damage: 26, pellets: 1 }, 0.8, origin);
 
     // Was it aimed near our head? If so, suppress.
     const dir = new THREE.Vector3(m.dx, m.dy, m.dz);
     if (dir.lengthSq() > 0.001 && player.alive) {
       const miss = rayDistanceTo(origin, dir.normalize(), player.pos);
-      if (miss < 3) nearMiss(0.55 * (1 - miss / 3));
+      if (miss < 3) {
+        // The crack comes from where the round passed us, not the muzzle.
+        const near = player.pos.clone().addScaledVector(dir, origin.distanceTo(player.pos));
+        nearMiss(0.55 * (1 - miss / 3), near);
+      }
     }
   },
 });
@@ -1108,6 +1155,7 @@ const player = {
 /* One in the hand: which throwable is cooking, and how much fuse is left. */
 const cooking = { def: null, fuse: 0, slot: null };
 let blindT = 0;         // seconds of flashbang whiteout left
+let empT = 0;           // seconds of EMP scramble left — HUD and optics down
 let shakeT = 0, shakeMag = 0;
 
 const move = new MovementController({ colliders, arena: ARENA });
@@ -1613,8 +1661,10 @@ function explosionFx(def, pos) {
   scene.add(flash);
   blastLights.push({ light: flash, life: 0.3, max: 0.3, peak: 260 * big });
 
-  if (def.kind === "tactical") audio.flashbang(0);
-  else audio.explosion(big);
+  if (def.smoke) audio.smoke(pos);
+  else if (def.emp) audio.emp(pos);
+  else if (def.kind === "tactical") audio.flashbang(0, pos);
+  else audio.explosion(big, pos);
 
   const near = Math.max(0, 1 - pos.distanceTo(player.pos) / (def.radius * 2));
   if (near > 0) { shakeMag = Math.max(shakeMag, near * 0.08); shakeT = 0.45; }
@@ -1635,20 +1685,46 @@ function updateBlastLights(dt) {
    turning away actually helps. */
 function flashPlayer(pos, def) {
   const dist = pos.distanceTo(player.pos);
-  if (dist <= def.radius && !segmentBlocked(colliders, player.pos, pos)) {
+  // Smoke eats a flash the same way a wall does.
+  if (dist <= def.radius && !segmentBlocked(colliders, player.pos, pos)
+      && !grenades.blocksSight(player.pos, pos)) {
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
     const toBang = pos.clone().sub(player.pos).normalize();
     const facing = Math.max(0, forward.dot(toBang));   // 1 = staring right at it
     const strength = (1 - dist / def.radius) * (0.35 + facing * 0.65);
     blindT = Math.max(blindT, def.blind * strength);
-    audio.flashbang(strength);
+    audio.flashbang(strength, pos);
   }
 
   for (const { actor, pos: apos } of blastCandidates()) {
     if (pos.distanceTo(apos) > def.radius) continue;
     if (segmentBlocked(colliders, apos, pos)) continue;
+    if (grenades.blocksSight(apos, pos)) continue;
     actor.stun?.(def.stun);
+  }
+}
+
+function applyEmpState(on) {
+  els.emp.classList.toggle("is-on", on);
+  els.hud.classList.toggle("to-emp-down", on);
+}
+
+/* EMP: no damage, no blindness — it takes your gear away. Optics go dark,
+   the HUD scrambles, and the radar stops updating, so you have to fight the
+   room on what you can actually see. Walls stop it; smoke doesn't. */
+function empPlayer(pos, def) {
+  const dist = pos.distanceTo(player.pos);
+  if (dist > def.radius || segmentBlocked(colliders, player.pos, pos)) return;
+  const strength = 1 - dist / def.radius;
+  empT = Math.max(empT, def.emp.scramble * (0.4 + strength * 0.6));
+  audio.empHit();
+
+  for (const { actor, pos: apos } of blastCandidates()) {
+    if (pos.distanceTo(apos) > def.radius) continue;
+    if (segmentBlocked(colliders, apos, pos)) continue;
+    // Bots run on sight, so scrambling them reads as a short stun.
+    actor.stun?.(def.emp.scramble * 0.35);
   }
 }
 
@@ -1659,6 +1735,7 @@ function grenadeCtx() {
     onExplode: explosionFx,
     onAreaDamage: areaDamage,
     onFlash: flashPlayer,
+    onEmp: empPlayer,
   };
 }
 
@@ -1939,10 +2016,10 @@ function botTargets() {
 function onBotShoot(bot, target, dmg, isHead, hit, range = 30) {
   const wid = bot.weaponId || "problem416";
   const def = WEAPON_DEFS[wid];
-  audio.shot(def || { damage: 24, pellets: 1 }, Math.max(0, 1 - range / 55) * 0.7);
+  audio.shot(def || { damage: 24, pellets: 1 }, 0.7, bot.pos);
 
   if (!hit) {
-    if (target.id === net.id) nearMiss(0.45);
+    if (target.id === net.id) nearMiss(0.45, bot.pos);
     return;
   }
   if (target.id === net.id) { damagePlayer(dmg, bot.id, wid, isHead); return; }
@@ -2083,6 +2160,9 @@ function beginMatch(mapId = null) {
   cooking.slot = null;
   els.cook.hidden = true;
   blindT = 0;
+  empT = 0;
+  applyEmpState(false);
+  els.smoke.style.opacity = "0";
   shakeT = 0;
   shakeMag = 0;
   remotes.clear();
@@ -2598,6 +2678,7 @@ function animate() {
           targets: botTargets(),
           onShoot: onBotShoot,
           spawnFor: spawnForTeam,
+          sightBlocked: (a, b) => grenades.blocksSight(a, b),
         });
         for (const b of bots.bots) net.publishBot(b);
       } else if (bots.count) {
@@ -2628,6 +2709,7 @@ function animate() {
     }
 
     grenades.update(dt, grenadeCtx());
+    grenades.updateSmoke(dt, camera);
     updateBlastLights(dt);
 
     bullets.update(dt, {
@@ -2635,7 +2717,7 @@ function animate() {
       targetMeshes,
       resolveTarget: resolveBulletTarget,
       onActorHit: onBulletActorHit,
-      onWorldHit: (point) => { spawnImpactBurst(point, 0xbfc4b8, 5); audio.impact(); },
+      onWorldHit: (point) => { spawnImpactBurst(point, 0xbfc4b8, 5); audio.impact(point); },
     });
     updateSparks(dt);
 
@@ -2663,11 +2745,24 @@ function animate() {
         explosionFx(held, at);       // …and detonates right there
         if (held.damage > 0) areaDamage(at, held.radius, held.damage, held, {});
         if (held.blind) flashPlayer(at, held);
+        if (held.emp) empPlayer(at, held);
+        if (held.smoke) grenades.spawnSmoke(held, at);
       }
     }
 
     blindT = Math.max(0, blindT - dt);
     els.blind.style.opacity = String(Math.min(1, blindT * 0.85));
+
+    const wasEmp = empT > 0;
+    empT = Math.max(0, empT - dt);
+    if (wasEmp !== empT > 0 || empT > 0) applyEmpState(empT > 0);
+
+    // Standing in your own smoke should cost you the same visibility it
+    // costs everyone else.
+    // Capped well below opaque: inside the cloud you lose the room, but you
+    // keep your weapon and your footing. A full whiteout just reads as broken.
+    const haze = grenades.densityAt(camera.position);
+    els.smoke.style.opacity = String(haze * 0.66);
 
     shakeT = Math.max(0, shakeT - dt);
     if (shakeT <= 0) shakeMag = 0;
@@ -2712,6 +2807,8 @@ function animate() {
 }
 
 const _euler = new THREE.Euler(0, 0, 0, "YXZ");
+const _listenFwd = new THREE.Vector3();
+const _listenUp = new THREE.Vector3();
 let stepPhase = 0;
 
 function updatePlayer(dt) {
@@ -2753,7 +2850,9 @@ function updatePlayer(dt) {
     : (keys.has("KeyZ") ? -1 : 0) + (keys.has("KeyX") ? 1 : 0);
 
   // Q aims as well as right mouse; lean moved to Z/X to free it up.
-  const wantAds = (isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ");
+  // An EMP kills the optic, so there is nothing to aim down until it clears.
+  const wantAds = empT <= 0
+    && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
   const wantFire = (isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown;
 
   move.update(dt, {
@@ -2778,6 +2877,8 @@ function updatePlayer(dt) {
     stepPhase = 0;
   }
 
+  updateEnemySteps(dt);
+
   move.eyePosition(player.pos);
   camera.position.copy(player.pos);
 
@@ -2789,6 +2890,11 @@ function updatePlayer(dt) {
     move.leanRoll + (Math.random() - 0.5) * shake * 0.6,
   );
   camera.quaternion.setFromEuler(_euler);
+
+  // Panned sounds resolve against wherever the camera now is and faces.
+  _listenFwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
+  _listenUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+  audio.setListener(camera.position, _listenFwd, _listenUp);
 
   // Swinging locks out the trigger; the melee weapon has no trigger at all.
   const swinging = !!player.melee && player.melee.busy;
@@ -2943,6 +3049,9 @@ if (/[?&]tohooks=1/.test(location.search)) {
     voteOptions: () => voteOptions,
     intermissionT: () => intermissionT,
     state: () => gameState,
+    grenades, audio, camera, colliders,
+    empT: () => empT,
+    empPlayer, flashPlayer, explosionFx,
     setMode: (id) => { modeId = id; },
     THREE,
   };

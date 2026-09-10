@@ -105,7 +105,7 @@ class Bot {
   }
 
   update(dt, ctx) {
-    const { colliders, arena, targets, onShoot, ffa, navFor } = ctx;
+    const { colliders, arena, targets, onShoot, ffa, navFor, sightBlocked } = ctx;
 
     if (!this.alive) {
       this.respawnT -= dt;
@@ -130,6 +130,8 @@ class Bot {
       if (d > SIGHT_RANGE || d >= bestD) continue;
       const theirEye = new THREE.Vector3(t.pos.x, (t.groundY ?? t.pos.y ?? 0) + 1.4, t.pos.z);
       if (segmentBlocked(colliders, eye, theirEye)) continue;
+      // Smoke and the like: opaque to bots exactly as it is to players.
+      if (sightBlocked?.(eye, theirEye)) continue;
       best = t; bestD = d;
     }
 
