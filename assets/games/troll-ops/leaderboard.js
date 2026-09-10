@@ -14,6 +14,7 @@
     blank: () => ({
       score: 0, bestWave: 0, bestKills: 0, runs: 0,
       pvpKills: 0, pvpDeaths: 0, pvpWins: 0, matches: 0, kd: 0,
+      assists: 0, headshots: 0, bestStreak: 0,
     }),
 
     reduce: (you, ev) => {
@@ -21,6 +22,9 @@
         you.pvpKills += ev.kills || 0;
         you.pvpDeaths += ev.deaths || 0;
         you.pvpWins += ev.won ? 1 : 0;
+        you.assists += ev.assists || 0;
+        you.headshots += ev.headshots || 0;
+        you.bestStreak = Math.max(you.bestStreak || 0, ev.streak || 0);
         you.matches += 1;
       } else {
         you.bestWave = Math.max(you.bestWave, ev.wave || 0);
@@ -55,6 +59,9 @@
         bestWave, bestKills, pvpKills, pvpDeaths, pvpWins,
         matches: pvpWins + Math.floor(rng() * 8),
         runs: 1 + Math.floor(rng() * 8),
+        assists: Math.floor(pvpKills * (0.3 + rng() * 0.5)),
+        headshots: Math.floor(pvpKills * (0.1 + rng() * 0.3)),
+        bestStreak: 1 + Math.floor(rng() * 8),
         kd: Math.round((pvpKills / Math.max(1, pvpDeaths)) * 100) / 100,
         score: bestWave * 10000 + bestKills * 10 + pvpKills * 40 + pvpWins * 2500,
       };
