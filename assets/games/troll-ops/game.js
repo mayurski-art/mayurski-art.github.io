@@ -52,6 +52,7 @@ const els = {
   deathByName: document.getElementById("to-deathby-name"),
   deathByMeta: document.getElementById("to-deathby-meta"),
   xpPopups: document.getElementById("to-xp-pops"),
+  damageNumbers: document.getElementById("to-dmg-nums"),
   hudWaveBox: document.querySelector(".to-hud-wave"),
   hudHostilesBox: document.querySelector(".to-hud-hostiles"),
   loMaps: document.getElementById("to-lo-maps"),
@@ -1195,6 +1196,7 @@ const keys = new Set();
 window.addEventListener("keydown", (e) => {
   keys.add(e.code);
   if (e.code === "KeyR") tryReload();
+  if (e.code === "KeyT" && !e.repeat) startInspect();
   if (e.code === "KeyV" && !e.repeat) swingMelee();
   if (e.code === "Digit1") setHolding("gun");
   if (e.code === "Digit3") setHolding("melee");
@@ -1447,12 +1449,63 @@ function pushKillfeed(entry) {
   setTimeout(() => div.remove(), 2700);
 }
 
-function showHitmarker(isCrit) {
+function showHitmarker(isCrit, damage = 0, point = null) {
   audio.hitmarker(isCrit);
   els.hitmarker.classList.remove("pop");
   els.hitmarker.classList.toggle("is-crit", isCrit);
   void els.hitmarker.offsetWidth;
   els.hitmarker.classList.add("pop");
+  if (damage > 0 && point) spawnDamageNumber(damage, point, isCrit);
+}
+
+/* Damage numbers that live in the world: they start at the point the round
+   actually landed and drift up from there, so a burst across a moving target
+   leaves a legible trail instead of stacking in the middle of the screen. */
+const damageNumbers = [];
+const DAMAGE_NUMBER_LIFE = 0.9;
+
+function spawnDamageNumber(damage, point, isCrit) {
+  const el = document.createElement("span");
+  el.className = "to-dmg-num" + (isCrit ? " is-crit" : "");
+  el.textContent = String(Math.round(damage));
+  els.damageNumbers.appendChild(el);
+  damageNumbers.push({
+    el,
+    pos: point.clone(),
+    life: DAMAGE_NUMBER_LIFE,
+    // A little sideways drift keeps rapid hits from printing on top of
+    // each other.
+    drift: (Math.random() - 0.5) * 26,
+  });
+  // A long burst on several targets could otherwise pile up unbounded.
+  while (damageNumbers.length > 24) {
+    damageNumbers.shift().el.remove();
+  }
+}
+
+const _dmgProject = new THREE.Vector3();
+
+function updateDamageNumbers(dt) {
+  for (let i = damageNumbers.length - 1; i >= 0; i--) {
+    const d = damageNumbers[i];
+    d.life -= dt;
+    if (d.life <= 0) { d.el.remove(); damageNumbers.splice(i, 1); continue; }
+
+    const t = 1 - d.life / DAMAGE_NUMBER_LIFE;
+    _dmgProject.copy(d.pos).project(camera);
+    // Behind the camera projects to a mirrored on-screen point, so hide it.
+    if (_dmgProject.z > 1) { d.el.style.opacity = "0"; continue; }
+
+    const x = (_dmgProject.x * 0.5 + 0.5) * window.innerWidth + d.drift * t;
+    const y = (-_dmgProject.y * 0.5 + 0.5) * window.innerHeight - t * 46;
+    d.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${(1 + (1 - t) * 0.25).toFixed(2)})`;
+    d.el.style.opacity = String(Math.min(1, d.life / 0.35));
+  }
+}
+
+function clearDamageNumbers() {
+  for (const d of damageNumbers) d.el.remove();
+  damageNumbers.length = 0;
 }
 
 let hitFlashT = 0;
@@ -1484,6 +1537,7 @@ function fireOnce() {
     return;
   }
   w.fire();
+  inspectT = 0;      // shooting always wins over the flourish
   breakSpawnGuard();
   audio.shot(def);
   muzzleFlashT = 0.045;
@@ -1528,7 +1582,7 @@ function resolveBulletTarget(object) {
 function onBulletActorHit(actor, info) {
   if (actor.isRangeTarget) {
     const { killed } = actor.takeDamage(info.damage, info.isHead);
-    showHitmarker(info.isHead);
+    showHitmarker(info.isHead, info.damage, info.point);
     spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xbfc4b8, info.isHead ? 14 : 7);
     reportRangeShot(actor, info, killed);
     return;
@@ -1537,7 +1591,7 @@ function onBulletActorHit(actor, info) {
   if (actor.isZombie) {
     const { killed, points } = actor.takeDamage(info.damage, info.isHead);
     zdir.award(points);
-    showHitmarker(info.isHead);
+    showHitmarker(info.isHead, info.damage, info.point);
     spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0x8fd15a, info.isHead ? 16 : 8);
     if (killed) {
       zdir.kills++;
@@ -1564,7 +1618,7 @@ function onBulletActorHit(actor, info) {
     } else {
       net.reportHit(actor.netId, info.damage, info.isHead, player.weaponId);
     }
-    showHitmarker(info.isHead);
+    showHitmarker(info.isHead, info.damage, info.point);
     spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xff8a5a, info.isHead ? 16 : 8);
     return;
   }
@@ -1574,7 +1628,7 @@ function onBulletActorHit(actor, info) {
 function onGruntBulletHit(grunt, { damage, isHead, point, dir }) {
   const knockDir = dir.clone(); knockDir.y = 0; knockDir.normalize();
   const result = grunt.takeDamage(damage, isHead, knockDir);
-  showHitmarker(isHead);
+  showHitmarker(isHead, damage, point);
   spawnImpactBurst(point, isHead ? 0xffe27a : 0xff8a5a, isHead ? 16 : 8);
   if (result.killed) {
     player.kills++;
@@ -2161,6 +2215,7 @@ function beginMatch(mapId = null) {
   els.cook.hidden = true;
   blindT = 0;
   empT = 0;
+  clearDamageNumbers();
   applyEmpState(false);
   els.smoke.style.opacity = "0";
   shakeT = 0;
@@ -2896,6 +2951,10 @@ function updatePlayer(dt) {
   _listenUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
   audio.setListener(camera.position, _listenFwd, _listenUp);
 
+  // Projects against the camera, so it has to follow the camera update or
+  // every number trails a frame behind the thing it is stuck to.
+  updateDamageNumbers(dt);
+
   // Swinging locks out the trigger; the melee weapon has no trigger at all.
   const swinging = !!player.melee && player.melee.busy;
   if (player.melee && player.melee.update(dt)) meleeConnect();
@@ -2974,6 +3033,58 @@ function updateMeleeView(dt) {
 
 let weaponLowerT = 0;
 
+/* Weapon inspect (T). Turns the gun over in your hands for a couple of
+   seconds — pure flourish, cancelled by anything that matters (firing,
+   aiming, reloading, sprinting) so it can never cost you a fight. */
+const INSPECT_TIME = 2.1;
+let inspectT = 0;
+
+function startInspect() {
+  if (inspectT > 0 || !player.alive || gameState !== "playing") return;
+  if (player.holding !== "gun" || move.busy) return;
+  const w = currentWeapon();
+  if (w.reloading || w.adsT > 0.05) return;
+  inspectT = INSPECT_TIME;
+  audio.reload();     // the same handling clicks, which is what an inspect is
+}
+
+function updateInspect(dt) {
+  if (inspectT <= 0) return;
+  const w = currentWeapon();
+  // Anything that matters takes the gun back immediately.
+  if (!player.alive || move.sprinting || move.busy || w.reloading || w.adsT > 0.05
+      || player.holding !== "gun") {
+    inspectT = 0;
+    return;
+  }
+  inspectT = Math.max(0, inspectT - dt);
+}
+
+const _inspectPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
+
+function inspectPose() {
+  const p = _inspectPose;
+  if (inspectT <= 0) {
+    p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0;
+    return p;
+  }
+  const t = 1 - inspectT / INSPECT_TIME;          // 0..1 through the animation
+  // Ease in and out so the gun doesn't snap at either end.
+  const ease = Math.sin(Math.min(1, t / 0.18) * Math.PI / 2)
+    * Math.sin(Math.min(1, (1 - t) / 0.22) * Math.PI / 2);
+  const turn = Math.sin(t * Math.PI * 2);
+
+  // Kept deliberately small: the gun should turn over in the corner of the
+  // view, not swing across it and blind you while it plays.
+  p.x = ease * (-0.03 + turn * 0.02);
+  p.y = ease * 0.02;
+  p.z = ease * 0.05;
+  p.pitch = ease * (0.12 + Math.sin(t * Math.PI) * 0.07);
+  p.yaw = ease * turn * 0.34;
+  p.roll = ease * (0.26 + Math.sin(t * Math.PI * 2 + 1) * 0.2);
+  return p;
+}
+
 function updateWeaponView(dt) {
   const w = currentWeapon();
   updateMeleeView(dt);
@@ -3000,15 +3111,18 @@ function updateWeaponView(dt) {
   const wantLower = (move.sprinting || move.stance === STANCE.SLIDE || move.busy) ? 1 : 0;
   weaponLowerT += (wantLower - weaponLowerT) * Math.min(1, dt * 9);
 
+  updateInspect(dt);
+  const insp = inspectPose();
+
   mesh.position.set(
-    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + weaponLowerT * 0.05,
-    basePos.y + bobY + swayY - weaponLowerT * 0.17,
-    basePos.z + w.viewKickKnockback * 0.6 + weaponLowerT * 0.08
+    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + weaponLowerT * 0.05 + insp.x,
+    basePos.y + bobY + swayY - weaponLowerT * 0.17 + insp.y,
+    basePos.z + w.viewKickKnockback * 0.6 + weaponLowerT * 0.08 + insp.z
   );
   mesh.rotation.set(
-    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55,
-    w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05,
-    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38
+    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55 + insp.pitch,
+    w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + insp.yaw,
+    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + insp.roll
   );
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
@@ -3052,6 +3166,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     grenades, audio, camera, colliders,
     empT: () => empT,
     empPlayer, flashPlayer, explosionFx,
+    startInspect, inspectT: () => inspectT, inspectPose,
+    showHitmarker, damageNumbers: () => damageNumbers,
     setMode: (id) => { modeId = id; },
     THREE,
   };

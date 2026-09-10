@@ -613,6 +613,18 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   background: #fff; opacity: 0;
 }
 
+/* Damage numbers. Positioned by script from the world point the round hit,
+   so the container is a full-bleed layer and each number is placed by
+   transform — top/left would fight the transform used for the drift. */
+.to-dmg-nums { position: absolute; inset: 0; z-index: 15; pointer-events: none; }
+.to-dmg-num {
+  position: absolute; top: 0; left: 0; will-change: transform, opacity;
+  font-family: "DM Mono", monospace; font-size: 15px; font-weight: 500;
+  color: #f2f5ee; text-shadow: 0 1px 3px rgba(0,0,0,.85), 0 0 8px rgba(0,0,0,.5);
+  transform-origin: 0 0; white-space: nowrap;
+}
+.to-dmg-num.is-crit { color: #ffe27a; font-size: 19px; font-weight: 600; }
+
 /* Standing inside smoke. Grey wash plus a soft vignette so the edges of the
    screen close in — you can still see your gun, just not the room. */
 .to-smoke {
