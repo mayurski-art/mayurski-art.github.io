@@ -1499,6 +1499,17 @@
          the viewport is what lets the island absorb the slack instead. dvh
          so browser chrome appearing doesn't re-break it. */
       .shell { height: 100%; height: 100dvh; }
+      /* The island (track/landmark art) is gone on real phones — every app
+         already gets its own rail icon here (see the APPS render loop's
+         isPhoneLayout gate), so the baked landmark art underneath was a
+         second, redundant launch point for the same handful of apps and ate
+         the screen the icon rail could otherwise use. Desktop and the
+         desktop-wide phone-shell preview (html.mobile-preview, gated to
+         min-width:721px/pointer:fine above) both keep the island — this
+         rule only reaches a real phone/tablet viewport. display:none, not
+         visibility, so .apps below can actually claim the freed layout
+         space instead of leaving a blank gap where the island used to sit. */
+      .island, .warp-flash { display: none !important; }
       .island {
         /* relative, not static: .island-hotspot tap targets are positioned
            absolutely against this box, which only works if it stays a
@@ -1582,8 +1593,14 @@
         display: grid !important; grid-template-columns: repeat(4, 1fr) !important;
         width: 100% !important; max-width: min(520px, 94vw) !important;
         margin: 10px auto 16px !important; padding: 0 10px !important;
-        gap: 8px 1px !important;
+        gap: 20px 1px !important;
         order: 0;
+        /* .island (order:1, right after this) is display:none on phones now
+           (see the rule above), so this is the only thing left to fill the
+           space between the header and the lockbar/dock — margin-top:auto
+           on those two already claims whatever room opens up below, same
+           mechanism as before, just with a bigger icon grid to fill it. */
+        flex: 0 0 auto;
       }
       /* Zeroes the base rule's 14px margin-top — .apps is already right
          above it with its own small gap (see .apps margin above), so the
@@ -1611,7 +1628,12 @@
            rule at the top of the file. */
         transform: translate(var(--island-dx), var(--island-dy)) scale(var(--island-scale-home)) translateY(30%);
       }
-      .app-tile { width: 36px; height: 36px; }
+      /* Bigger than the old 36px — that size was tuned for a thin icon strip
+         squeezed above the island; with the island gone (see above) these
+         are the only launcher on the screen and get to read as the real
+         home-screen grid instead of a secondary row. */
+      .app-tile { width: 58px; height: 58px; }
+      .app-name { font-size: 11px; }
       /* margin-top:auto (only in-flow during lock — see body:not([data-
          phase="lock"]) .lockbar above, which pulls it out of flow entirely
          otherwise) claims the leftover space below the island, pinning the
@@ -1650,12 +1672,14 @@
        forcing a scroll to reach it. Slower growth + a lower cap keeps tablet
        tiles sane without shrinking phones (the clamp floor is unchanged). */
     @media (pointer: coarse) {
-      .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: clamp(6px, 2.5vw, 12px) clamp(1px, 1vw, 4px); }
-      /* Floor and cap both +20% (30→36, 40→48) to match the flat .app-tile
-         size above — this rule is later in source order and would
-         otherwise win back over it at the same specificity. */
-      .app-tile { width: clamp(36px, 6vw, 48px); height: clamp(36px, 6vw, 48px); }
-      .app-name { font-size: clamp(6px, 1.4vw, 9px); }
+      .apps { max-width: min(560px, 96vw); padding: 0 3vw; gap: clamp(16px, 2.5vw, 24px) clamp(1px, 1vw, 4px); }
+      /* Floor and cap both raised to match the island-less .app-tile size
+         above (58px) — this rule is later in source order and would
+         otherwise win back over it at the same specificity. Still a clamp,
+         not a flat size, so a real tablet (pointer:coarse but much wider
+         than a phone) doesn't get phone-sized icons verbatim. */
+      .app-tile { width: clamp(48px, 8vw, 64px); height: clamp(48px, 8vw, 64px); }
+      .app-name { font-size: clamp(9px, 1.6vw, 12px); }
     }
     /* Guarded with :not(.mobile-preview) — a desktop tab previewing the phone
        shell (see the boot script above) still matches this media query by
@@ -3537,10 +3561,6 @@
     const sheet = $('sheet'), menuBtn = $('menu-btn'), sheetClose = $('sheet-close');
     const sheetLinks = $('sheet-links');
     const GROUPS = [
-      // Classic desktop is closed off for now — index.html ignores ?desktop=1
-      // unconditionally, so this door is gone rather than left as dead UI.
-      // See index.html's `forced = false` override near the top of its boot
-      // script for the other half of this.
       // A sorted copy, not APPS itself — that array's order also encodes
       // the island's back/mid/front stacking bands (see the comments above
       // it), which reordering here would silently break.
@@ -4469,12 +4489,6 @@
     });
 
     void refreshMilesFromBackend();
-
-    /* ================= CLASSIC DESKTOP LOCK =================
-       Classic desktop itself is closed off for now (see index.html's
-       `forced = false` override and the removed "Classic desktop" menu
-       item above), so the lock toggle that used to sit next to it is gone
-       too. fetchSiteUpdates() below is still shared with Live Status. */
 
     async function fetchSiteUpdates() {
       const qs = new URLSearchParams({ select: 'updates', id: `eq.${SUPABASE_ROW_ID}`, limit: '1' });
