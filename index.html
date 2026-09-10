@@ -5238,15 +5238,18 @@ function trollDesktopShow(boot) {
   desk.setAttribute('aria-hidden', 'false');
   // The Hub icon on the phone entrance (world.html) hands off here with
   // ?desktop=1 so a phone visitor can see the classic desktop, and this
-  // tray button is the way back for them. It's also the desktop → mobile
-  // door for everyone else: same button, same destination either way, just
-  // always visible instead of gated to phone UAs. Recording the choice in
-  // sessionStorage (rather than a ?mobile=1 URL param) is what stops
-  // index.html bouncing a desktop-UA visitor straight back to the desktop,
-  // and lets it land on a clean trollrunner.net instead of /world.html.
+  // tray button is their way back — only shown when trollrunner_force_desktop
+  // is set, i.e. they actually came from that escape hatch. A real desktop
+  // visitor never sets that key, so they never see a "Mobile" button in
+  // their own taskbar. Recording the choice in sessionStorage (rather than
+  // a ?mobile=1 URL param) is what stops index.html bouncing a desktop-UA
+  // visitor straight back to the desktop, and lets it land on a clean
+  // trollrunner.net instead of /world.html.
   const mobileReturnBtn = document.getElementById('td-mobile-return');
   if (mobileReturnBtn) {
-    mobileReturnBtn.hidden = false;
+    let cameFromMobile = false;
+    try { cameFromMobile = sessionStorage.getItem('trollrunner_force_desktop') === '1'; } catch {}
+    mobileReturnBtn.hidden = !cameFromMobile;
     mobileReturnBtn.onclick = () => {
       try {
         sessionStorage.setItem('trollrunner_force_mobile', '1');
