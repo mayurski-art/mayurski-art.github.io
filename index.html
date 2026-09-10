@@ -8744,6 +8744,15 @@ document.getElementById('admin-pass')?.addEventListener('keydown', event => {
   void goToAdmin();
 });
 
+// The site-gate ("Enter") screen that used to reveal the desktop is gone —
+// it was the only caller of trollDesktopShow(), so nothing ever added
+// body.desktop-mode any more and every visitor got stuck on the plain
+// scrolling landing markup underneath. Booting straight into the desktop
+// here is the direct replacement for that gate's "already seen, skip
+// straight in" path.
+document.body.classList.remove('site-entry-locked');
+trollDesktopShow(true);
+
 loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence(); initializeTrollChat();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
