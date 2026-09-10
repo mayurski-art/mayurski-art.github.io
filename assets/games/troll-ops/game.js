@@ -11,7 +11,7 @@ import { buildWeaponMesh } from "./weapon-model.js";
 import { WeaponInspector } from "./inspector.js";
 import { Loadout } from "./loadout.js";
 import { addXp, xpForRun } from "./progression.js";
-import { buildMap, disposeMap } from "./maps.js";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS } from "./net.js";
 import { RemotePlayers, TEAMS } from "./remote-players.js";
 import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, Hill } from "./modes.js";
@@ -47,6 +47,7 @@ const els = {
   scoreboard: document.getElementById("to-scoreboard"),
   respawn: document.getElementById("to-respawn"),
   respawnText: document.getElementById("to-respawn-text"),
+  spawnGuard: document.getElementById("to-spawnguard"),
   hudWaveBox: document.querySelector(".to-hud-wave"),
   hudHostilesBox: document.querySelector(".to-hud-hostiles"),
   loMaps: document.getElementById("to-lo-maps"),
@@ -69,6 +70,9 @@ const els = {
   goXp: document.getElementById("to-go-xp"),
   goRank: document.getElementById("to-go-rank"),
   retryBtn: document.getElementById("to-retry-btn"),
+  intermission: document.getElementById("to-intermission"),
+  voteList: document.getElementById("to-vote-list"),
+  voteClock: document.getElementById("to-vote-clock"),
   hud: document.getElementById("to-hud"),
   hudWave: document.getElementById("hud-wave"),
   hudHostiles: document.getElementById("hud-hostiles"),
@@ -203,6 +207,7 @@ const loadout = new Loadout({
 // -------------------- mode + networking --------------------
 
 let modeId = "ops";
+let matchesPlayed = 0;   // seeds the map-vote shortlist, so it changes each round
 const teamScores = { phantom: 0, ghost: 0 };
 const bots = new BotManager();
 const BOT_TARGET = 8;      // participants a PvP room is padded up to
@@ -561,6 +566,7 @@ const net = new Net({
   onLeave: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} left`); },
   onHitTaken: (m) => damagePlayer(m.dmg, m.id, m.w),
   onPeerDied: (p, m) => registerDeath(p.name, m.by, m.w),
+  onVote: () => { if (intermissionT > 0) renderVote(); },
   ownsBot: (id) => !!bots.byId(id),
   onBotHit: (m) => {
     const { killed, bot } = bots.applyHit(m.target, m.dmg);
@@ -991,6 +997,7 @@ const player = {
   melee: null,          // MeleeState, rebuilt from the loadout on every spawn
   holding: "gun",       // "gun" | "melee"
   gear: { lethal: 0, tactical: 0 },
+  spawnGuard: 0,        // seconds of spawn protection left; broken by firing
 };
 
 /* One in the hand: which throwable is cooking, and how much fuse is left. */
@@ -1274,6 +1281,7 @@ function fireOnce() {
     return;
   }
   w.fire();
+  breakSpawnGuard();
   audio.shot(def);
   muzzleFlashT = 0.045;
   muzzleLight.intensity = 3.2;
@@ -1531,6 +1539,7 @@ function releaseCook() {
   origin.addScaledVector(dir, 0.6);
 
   grenades.throwGrenade(def, origin, dir, "player", { fuseLeft: cooking.fuse });
+  breakSpawnGuard();
   audio.throwGear();
   updateGearHud();
 }
@@ -1540,6 +1549,7 @@ function releaseCook() {
 function swingMelee() {
   if (!player.alive || move.busy || gameState !== "playing") return;
   if (!player.melee || !player.melee.start()) return;
+  breakSpawnGuard();
   audio.swing();
 }
 
@@ -1643,13 +1653,114 @@ function nudgeSetting(key, delta, min, max) {
 let gameState = "menu"; // menu | playing | paused | gameover
 let elapsedRun = 0;
 
+/* The local player as the wire sees them. Shared by the match loop and the
+   intermission, which keeps broadcasting so the room doesn't time us out
+   (PEER_TIMEOUT is 5s and an intermission runs for 20). */
+function netSnapshot() {
+  return {
+    x: move.pos.x, y: move.pos.y, z: move.pos.z,
+    yaw: look.yaw, pitch: look.pitch,
+    stance: move.stance, moving: move.moving,
+    hp: player.hp, alive: player.alive, weapon: player.weaponId, kills: player.kills,
+  };
+}
+
+/* Everyone currently standing in the world, us included. Spawn scoring and
+   the bot targeting both need this; they just filter it differently. */
+function occupants() {
+  const list = [];
+  if (player.alive) {
+    list.push({ id: net.id, team: net.team, pos: move.pos, yaw: look.yaw });
+  }
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive) continue;
+    list.push({ id: rp.netId, team: rp.team, pos: rp.pos, yaw: rp.yaw ?? 0 });
+  }
+  return list;
+}
+
+/* Spawn points that recently got someone killed, so we can stop feeding
+   players back into a camped corner. Keyed by spawn index. */
+const spawnDeaths = new Map();
+const SPAWN_DEATH_MEMORY = 20;    // seconds a death keeps counting against a point
+const SPAWN_SAFE_RADIUS = 18;     // an enemy nearer than this is a real threat
+const SPAWN_VIEW_CONE = Math.cos(THREE.MathUtils.degToRad(50));
+const SPAWN_TOLERANCE = 25;       // spawns within this of the best are all "safe enough"
+const SPAWN_GUARD = 1.5;          // seconds of respawn protection; ends the moment you fire
+
+function notePointDeath(x, z) {
+  const pts = builtMap?.spawnPoints;
+  if (!pts) return;
+  let bestI = -1, bestD = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const d = Math.hypot(pts[i].x - x, pts[i].z - z);
+    if (d < bestD) { bestD = d; bestI = i; }
+  }
+  // Only blame the spawn if the death happened close enough to be its fault.
+  if (bestI >= 0 && bestD < 12) spawnDeaths.set(bestI, performance.now());
+}
+
 /* Team spawns are the map's spawn ring split in half — no map needs bespoke
-   team zones yet, and opposite halves are naturally far apart. */
-function spawnForTeam(team) {
+   team zones yet, and opposite halves are naturally far apart.
+
+   Within that half the point is *scored* rather than picked at random: a
+   uniform pick will happily drop you on top of someone who has been farming
+   that corner, and with a 4s respawn that is the fastest way to make a match
+   miserable. Enemies nearby, enemies looking this way and recent deaths all
+   push a point down; nearby friendlies pull it up. */
+function spawnForTeam(team, forId = net.id) {
   const pts = builtMap.spawnPoints;
+  if (!pts?.length) return { x: 0, y: 0, z: 0 };
   const half = Math.ceil(pts.length / 2);
-  const pool = team === "ghost" ? pts.slice(half) : pts.slice(0, half);
-  return pool[Math.floor(Math.random() * pool.length)] || pts[0];
+  const lo = team === "ghost" ? half : 0;
+  const hi = team === "ghost" ? pts.length : half;
+
+  // Never score against ourselves: the corpse we're respawning from would
+  // read as a nearby "teammate" and pull us straight back to where we died.
+  const others = occupants().filter((o) => o.id !== forId);
+  const now = performance.now();
+  let best = null, bestScore = -Infinity;
+  const scored = [];
+
+  for (let i = lo; i < hi; i++) {
+    const sp = pts[i];
+    let score = 0;
+
+    for (const o of others) {
+      const dx = sp.x - o.pos.x, dz = sp.z - o.pos.z;
+      const d = Math.hypot(dx, dz);
+      // In a free-for-all everyone still standing is an enemy.
+      const enemy = currentMode().ffa || o.team !== team;
+
+      if (!enemy) {
+        // Spawning near a living teammate is usually where the fight is.
+        if (d < 30) score += 12 * (1 - d / 30);
+        continue;
+      }
+      if (d < SPAWN_SAFE_RADIUS) score -= 140 * (1 - d / SPAWN_SAFE_RADIUS);
+      // Being inside their view cone is worse than merely being close.
+      if (d < 45 && d > 0.01) {
+        const fx = -Math.sin(o.yaw), fz = -Math.cos(o.yaw);
+        if ((dx / d) * fx + (dz / d) * fz > SPAWN_VIEW_CONE) score -= 70 * (1 - d / 45);
+      }
+    }
+
+    const died = spawnDeaths.get(i);
+    if (died && now - died < SPAWN_DEATH_MEMORY * 1000) {
+      score -= 90 * (1 - (now - died) / (SPAWN_DEATH_MEMORY * 1000));
+    }
+
+    scored.push({ sp, score });
+    if (score > bestScore) { bestScore = score; best = sp; }
+  }
+
+  // Pick at random among the spawns that are *near enough* to the best rather
+  // than always taking the winner. Safety is a threshold, not a ranking, and
+  // an always-optimal choice is a predictable one — which is the camping
+  // problem again from the other side.
+  const good = scored.filter((s) => s.score >= bestScore - SPAWN_TOLERANCE);
+  const pick = good[Math.floor(Math.random() * good.length)];
+  return pick?.sp || best || pts[lo] || pts[0];
 }
 
 function teamSpawn() { return spawnForTeam(net.team); }
@@ -1657,12 +1768,11 @@ function teamSpawn() { return spawnForTeam(net.team); }
 /* Everything a bot could shoot at: us, other humans, and other bots. */
 function botTargets() {
   const list = [];
-  if (player.alive) {
-    list.push({ id: net.id, team: net.team, alive: true, pos: move.pos, groundY: move.pos.y });
-  }
-  for (const rp of remotes.byId.values()) {
-    if (!rp.alive) continue;
-    list.push({ id: rp.netId, team: rp.team, alive: true, pos: rp.pos, groundY: rp.pos.y });
+  for (const o of occupants()) {
+    // No point emptying a magazine into someone spawn protection is going to
+    // shrug off — and it would look like the bot is broken.
+    if (o.id === net.id && player.spawnGuard > 0) continue;
+    list.push({ id: o.id, team: o.team, alive: true, pos: o.pos, groundY: o.pos.y });
   }
   return list;
 }
@@ -1742,7 +1852,6 @@ async function joinQuickplay() {
 
 async function startGame() {
   audio.resume();   // the click that got us here is the gesture Web Audio needs
-  suppressT = 0;
   if (isPvp()) {
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
@@ -1758,6 +1867,14 @@ async function startGame() {
     net.stop();
   }
 
+  beginMatch();
+}
+
+/* Everything a match needs reset, with no connection work — so a rematch can
+   reuse the room the lobby already joined instead of tearing it down and
+   making everyone re-handshake. */
+function beginMatch(mapId = null) {
+  suppressT = 0;
   player.hp = player.maxHp;
   player.kills = 0;
   player.deaths = 0;
@@ -1772,7 +1889,13 @@ async function startGame() {
   gunGameProgress = 0;
   hillAcc = 0;
 
-  loadMap(currentMode().forceMap || loadout.mapId);
+  spawnDeaths.clear();
+  // Opening seconds deserve the same cover as a respawn — everyone loads in
+  // at once, onto spawns the other side already knows.
+  player.spawnGuard = isPvp() ? SPAWN_GUARD : 0;
+  updateSpawnGuardHud();
+
+  loadMap(currentMode().forceMap || mapId || loadout.mapId);
   const sp = isPvp() ? teamSpawn() : builtMap.playerSpawn;
   move.reset(sp.x, sp.z, sp.y || 0);
   look.yaw = yawTowardCentre(sp);
@@ -1834,7 +1957,19 @@ async function startGame() {
   else if (!isPvp()) nextWave();
   else showWaveBanner(`${TEAMS[net.team].name.toUpperCase()} — ${builtMap.map.name}`, 2400);
 
-  if (!isTouch) controls.lock();
+  // Browsers refuse a pointer lock requested too soon after an unlock without
+  // a fresh gesture, which the auto-advance out of an intermission doesn't
+  // have. If it's refused we land on the pause screen instead of in a live
+  // match with dead mouse-look, and clicking resume picks it back up.
+  if (!isTouch) {
+    try { controls.lock(); } catch { /* refused — the pause screen catches it */ }
+    setTimeout(() => {
+      if (gameState === "playing" && !controls.isLocked) {
+        gameState = "paused";
+        els.pause.hidden = false;
+      }
+    }, 260);
+  }
 }
 
 function nextZombieRound() {
@@ -1916,18 +2051,118 @@ function endMatch(title) {
     pvp: true, kills: player.kills, deaths: player.deaths, won,
   });
 
-  net.stop();
-  remotes.clear();
   bots.clear();
   setHillMarker(null);
-  setNetStatus("Match over. Pick a mode to drop in again.");
+
+  // The room stays up. Tearing the channel down here meant everyone had to
+  // re-enter a code and re-handshake to play a second match — and quickplay
+  // could shard them apart on the way back.
+  if (net.active) startIntermission();
+  else setNetStatus("Match over. Pick a mode to drop in again.");
+}
+
+// -------------------- intermission --------------------
+
+const INTERMISSION = 20;          // seconds between matches
+const VOTE_CANDIDATES = 3;
+let intermissionT = 0;
+let voteOptions = [];
+
+/* The three maps on offer. Derived from the room code and the match count so
+   every client lands on the same shortlist without anyone hosting the vote. */
+function pickVoteOptions() {
+  const pool = MAP_IDS.filter((id) => id !== loadout.mapId);
+  const seedSrc = `${net.room || ""}:${matchesPlayed}`;
+  let seed = 0;
+  for (let i = 0; i < seedSrc.length; i++) seed = (seed * 31 + seedSrc.charCodeAt(i)) >>> 0;
+  const out = [];
+  const avail = [...pool];
+  while (out.length < Math.min(VOTE_CANDIDATES, avail.length + 0) && avail.length) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    out.push(avail.splice(seed % avail.length, 1)[0]);
+  }
+  // Always let people re-run the map they just played.
+  if (out.length < VOTE_CANDIDATES) out.push(loadout.mapId);
+  return out;
+}
+
+function startIntermission() {
+  matchesPlayed++;
+  net.clearVotes();
+  voteOptions = pickVoteOptions();
+  intermissionT = INTERMISSION;
+  renderVote();
+  els.intermission.hidden = false;
+  setNetStatus(`Match over · next map in ${INTERMISSION}s`, "live");
+}
+
+function renderVote() {
+  if (!els.voteList) return;
+  const tally = new Map();
+  const add = (m) => { if (m) tally.set(m, (tally.get(m) || 0) + 1); };
+  add(net.myVote);
+  for (const p of net.peers.values()) {
+    if (!isBotPeer(p)) add(p.vote);
+  }
+
+  els.voteList.replaceChildren();
+  for (const id of voteOptions) {
+    const n = tally.get(id) || 0;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "to-vote-opt";
+    btn.classList.toggle("is-mine", net.myVote === id);
+    btn.setAttribute("aria-pressed", String(net.myVote === id));
+    btn.innerHTML =
+      `<span class="to-vote-name">${MAPS[id]?.name || id}</span>` +
+      `<span class="to-vote-n">${n || ""}</span>`;
+    btn.addEventListener("click", () => {
+      net.castVote(id);
+      renderVote();
+    });
+    els.voteList.appendChild(btn);
+  }
+}
+
+function cancelIntermission() {
+  intermissionT = 0;
+  voteOptions = [];
+  net.clearVotes();
+  if (els.intermission) els.intermission.hidden = true;
+}
+
+/* Ticked from the frame loop so it shares the same clock as everything else. */
+function updateIntermission(dt) {
+  if (intermissionT <= 0) return;
+  intermissionT -= dt;
+  if (els.voteClock) els.voteClock.textContent = String(Math.max(0, Math.ceil(intermissionT)));
+  if (intermissionT > 0) return;
+
+  intermissionT = 0;
+  els.intermission.hidden = true;
+
+  // Everyone tallies the same votes, so everyone loads the same map.
+  const winner = net.voteWinner() || voteOptions[0] || loadout.mapId;
+  net.clearVotes();
+
+  if (!net.active) { setNetStatus("Match over. Pick a mode to drop in again."); return; }
+
+  loadout.mapId = winner;
+  els.gameover.hidden = true;
+  beginMatch(winner);
 }
 
 els.startBtn.addEventListener("click", startGame);
-els.retryBtn.addEventListener("click", startGame);
+/* Mid-intermission this means "don't make me wait", not "reconnect" — the
+   room is still up, so drop straight into the map the vote is currently on. */
+els.retryBtn.addEventListener("click", () => {
+  if (intermissionT > 0) { intermissionT = 0.0001; return; }
+  startGame();
+});
 els.resumeBtn.addEventListener("click", () => { if (!isTouch) controls.lock(); });
 els.quitBtn.addEventListener("click", () => {
   gameState = "menu";
+  cancelIntermission();
   net.stop();
   remotes.clear();
   setNetStatus("Share the code with whoever you want in the match.");
@@ -1962,6 +2197,9 @@ function damagePlayer(amount, fromId, weaponId) {
     audio.hurt();
     return;
   }
+  // Freshly respawned and haven't fired yet — the round passes through.
+  if (player.spawnGuard > 0 && isPvp()) return;
+
   player.hp = Math.max(0, player.hp - amount);
   flashHit();
   audio.hurt();
@@ -1973,6 +2211,8 @@ function damagePlayer(amount, fromId, weaponId) {
     player.alive = false;
     player.deaths++;
     respawnT = 4;
+    // Remember where we fell, so the picker stops handing out this corner.
+    notePointDeath(move.pos.x, move.pos.z);
     net.reportDeath(fromId, weaponId);
     registerDeath("You", fromId, weaponId);
     els.respawn.hidden = false;
@@ -1987,6 +2227,7 @@ function yawTowardCentre(sp) {
   return Math.atan2(sp.x, sp.z);
 }
 
+
 function respawnPlayer() {
   const sp = teamSpawn();
   move.reset(sp.x, sp.z, sp.y || 0);
@@ -1994,8 +2235,24 @@ function respawnPlayer() {
   look.pitch = 0;
   player.hp = player.maxHp;
   player.alive = true;
+  player.spawnGuard = SPAWN_GUARD;
   setActiveWeaponMesh(equipFromLoadout());
   els.respawn.hidden = true;
+}
+
+/* Spawn protection is a promise not to be shot, not a licence to shoot, so
+   firing drops it immediately. */
+function breakSpawnGuard() {
+  if (player.spawnGuard > 0) {
+    player.spawnGuard = 0;
+    updateSpawnGuardHud();
+  }
+}
+
+function updateSpawnGuardHud() {
+  const on = player.spawnGuard > 0;
+  if (els.spawnGuard) els.spawnGuard.hidden = !on;
+  document.body.classList.toggle("to-spawn-guarded", on);
 }
 
 function onGruntAttack(grunt, dmg, ranged) {
@@ -2029,6 +2286,12 @@ function animate() {
   const t = clock.elapsedTime;
 
   if (gameState === "paused") pollGamepadMenu();
+
+  // Runs during "gameover", between two matches in a room that stayed up.
+  if (intermissionT > 0) {
+    updateIntermission(dt);
+    net.update(dt, netSnapshot());
+  }
 
   if (gameState === "playing") {
     elapsedRun += dt;
@@ -2077,12 +2340,7 @@ function animate() {
         bots.clear();
       }
 
-      net.update(dt, {
-        x: move.pos.x, y: move.pos.y, z: move.pos.z,
-        yaw: look.yaw, pitch: look.pitch,
-        stance: move.stance, moving: move.moving,
-        hp: player.hp, alive: player.alive, weapon: player.weaponId, kills: player.kills,
-      });
+      net.update(dt, netSnapshot());
       remotes.sync(net.peers);
       remotes.update(dt);
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
@@ -2097,6 +2355,10 @@ function animate() {
         respawnT -= dt;
         els.respawnText.textContent = `Down — back in ${Math.max(1, Math.ceil(respawnT))}`;
         if (respawnT <= 0) respawnPlayer();
+      } else if (player.spawnGuard > 0) {
+        player.spawnGuard -= dt;
+        if (player.spawnGuard <= 0) { player.spawnGuard = 0; updateSpawnGuardHud(); }
+        else if (els.spawnGuard?.hidden) updateSpawnGuardHud();
       }
     }
 
@@ -2401,4 +2663,20 @@ initEscapeMenu();
 loadMap(lobbyMapId());
 els.loading.hidden = true;
 animate();
+
+/* Test hook. This file is a module, so nothing above is reachable from a
+   headless harness by bare identifier the way the main site's inline script
+   is. Behind ?tohooks=1 so normal play never exposes it. */
+if (/[?&]tohooks=1/.test(location.search)) {
+  window.__trollOps = {
+    els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
+    startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
+    startIntermission, updateIntermission, occupants, notePointDeath,
+    voteOptions: () => voteOptions,
+    intermissionT: () => intermissionT,
+    state: () => gameState,
+    setMode: (id) => { modeId = id; },
+    THREE,
+  };
+}
 

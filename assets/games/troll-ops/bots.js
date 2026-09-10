@@ -155,7 +155,7 @@ export class BotManager {
   update(dt, ctx) {
     for (const bot of this.bots) {
       bot.update(dt, ctx);
-      if (!bot.alive && bot.respawnT <= 0) bot.respawn(ctx.spawnFor(bot.team));
+      if (!bot.alive && bot.respawnT <= 0) bot.respawn(ctx.spawnFor(bot.team, bot.id));
     }
   }
 

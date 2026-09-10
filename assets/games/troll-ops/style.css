@@ -155,6 +155,27 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   color: #ff8a5a; text-align: center; z-index: 13;
 }
 
+/* Spawn protection — a visible promise, so the player knows why nothing is
+   hurting them and that shooting gives it up. */
+.to-spawnguard {
+  position: absolute; left: 50%; bottom: 21%; transform: translateX(-50%);
+  font-family: "Oswald", sans-serif; font-size: 12px; letter-spacing: .1em;
+  text-transform: uppercase; white-space: nowrap;
+  color: #9fe7ff; background: rgba(12,26,32,.62);
+  border: 1px solid rgba(127,209,224,.4); border-radius: 999px;
+  padding: 5px 13px; z-index: 13; pointer-events: none;
+  animation: to-guard-pulse 1.1s ease-in-out infinite;
+}
+@keyframes to-guard-pulse { 50% { opacity: .55; } }
+/* A cool rim on the frame reinforces it without hiding the fight. */
+.to-spawn-guarded #to-hud::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  box-shadow: inset 0 0 54px rgba(127,209,224,.34);
+}
+@media (prefers-reduced-motion: reduce) {
+  .to-spawnguard { animation: none; }
+}
+
 /* map picker */
 .to-lo-maps { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .to-lo-map {
@@ -231,6 +252,31 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   margin: 0; font-family: "Oswald", sans-serif; font-size: 15px;
   letter-spacing: .05em; color: #7fe066;
 }
+/* Between-match map vote. The room stays connected through this, so it reads
+   as a countdown to the next match rather than a menu you have to act on. */
+.to-intermission {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  padding: 14px 18px; border-radius: 12px;
+  background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.09);
+}
+.to-vote-head {
+  margin: 0; font-family: "Oswald", sans-serif; font-size: 12px;
+  letter-spacing: .12em; text-transform: uppercase; color: #9aa596;
+}
+.to-vote-head span { color: #7fd1e0; }
+.to-vote-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+.to-vote-opt {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  font-family: "Oswald", sans-serif; font-size: 12px; letter-spacing: .05em;
+  padding: 7px 12px; border-radius: 8px; color: #cfe0e4;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  transition: background .14s, border-color .14s, color .14s;
+}
+.to-vote-opt:hover { border-color: rgba(127,209,224,.45); }
+.to-vote-opt.is-mine { border-color: #7fd1e0; color: #eaf7fa; background: rgba(127,209,224,.14); }
+.to-vote-opt:focus-visible { outline: 2px solid #7fd1e0; outline-offset: 2px; }
+.to-vote-n { font-size: 11px; color: #7fe066; min-width: 8px; }
+
 .to-go-rank {
   margin: -6px 0 0; font-family: "Oswald", sans-serif; font-size: 13px;
   letter-spacing: .06em; text-transform: uppercase; color: #ffd166;

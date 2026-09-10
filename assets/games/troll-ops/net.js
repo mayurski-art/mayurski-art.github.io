@@ -71,6 +71,7 @@ export class Net {
     this.transport = null;
     this.room = null;
     this.connected = false;
+    this.myVote = null; // our map vote during an intermission
     this.team = null;   // stays unset until chooseTeam, so it can't leak into the handshake
     this.name = "operator";
     this.mapId = "grinsite";
@@ -144,7 +145,7 @@ export class Net {
     let p = this.peers.get(id);
     if (!p) {
       // team stays null until they tell us — see chooseTeam
-      p = { id, team: null, name: "operator", hp: 100, alive: true, snaps: [] };
+      p = { id, team: null, name: "operator", hp: 100, alive: true, snaps: [], vote: null };
       this.peers.set(id, p);
       this.h.onJoin?.(p);
     }
@@ -198,6 +199,12 @@ export class Net {
         const p = this.peer(m.id);
         p.alive = false;
         this.h.onPeerDied?.(p, m);
+        break;
+      }
+      case "vote": {
+        const p = this.peer(m.id);
+        p.vote = m.map;
+        this.h.onVote?.(p, m.map);
         break;
       }
       case "bye": {
@@ -279,6 +286,36 @@ export class Net {
     const p = this.peers.get(botId);
     if (p) { this.h.onLeave?.(p); this.peers.delete(botId); }
     this.send({ t: "bye", id: botId });
+  }
+
+  /* Map vote. Peers keep the last vote each id sent, so a late joiner's
+     tally still converges on the same answer everyone else has. */
+  castVote(mapId) {
+    this.myVote = mapId;
+    this.send({ t: "vote", id: this.id, map: mapId });
+  }
+
+  clearVotes() {
+    this.myVote = null;
+    for (const p of this.peers.values()) p.vote = null;
+  }
+
+  /* Winner of the current vote, or null when nothing has been cast. Ties are
+     broken by map id so every client independently agrees, the same trick
+     chooseTeam uses for simultaneous joiners. */
+  voteWinner() {
+    const tally = new Map();
+    const add = (m) => { if (m) tally.set(m, (tally.get(m) || 0) + 1); };
+    add(this.myVote);
+    for (const p of this.peers.values()) {
+      if (String(p.id).startsWith("bot-")) continue;   // bots don't get a say
+      add(p.vote);
+    }
+    let best = null, bestN = 0;
+    for (const [map, n] of [...tally].sort((a, b) => a[0] < b[0] ? -1 : 1)) {
+      if (n > bestN) { best = map; bestN = n; }
+    }
+    return best;
   }
 
   reportHitAs(fromId, targetId, dmg, isHead, weaponId) {
