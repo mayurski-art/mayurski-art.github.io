@@ -1084,8 +1084,11 @@ muzzleFlash.rotation.z = Math.random() * Math.PI;
 weaponRig.add(muzzleFlash);
 let muzzleFlashT = 0;
 
-// muzzle point light for dynamic illumination on each shot
-const muzzleLight = new THREE.PointLight(0xffcf8a, 0, 4, 2);
+// muzzle point light for dynamic illumination on each shot. Intensity stays
+// small because the light sits centimetres from the gun mesh in the weapon
+// overlay — anything near the old 3.2 blew the whole screen out to white
+// under ACES tone mapping at this range.
+const muzzleLight = new THREE.PointLight(0xffcf8a, 0, 1.2, 2);
 weaponRig.add(muzzleLight);
 
 // -------------------- tracers / impact sparks pools --------------------
@@ -1541,7 +1544,7 @@ function fireOnce() {
   breakSpawnGuard();
   audio.shot(def);
   muzzleFlashT = 0.045;
-  muzzleLight.intensity = 3.2;
+  muzzleLight.intensity = 0.35;
 
   // Part of the kick is permanent climb the player has to pull back down —
   // that's what makes recoil control a skill rather than a wait.

@@ -133,7 +133,11 @@ export function makeImpactSparkMaterial() {
       void main() {
         vLife = aLife;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = mix(6.0, 0.5, 1.0 - aLife) * (300.0 / -mv.z);
+        // Clamped: unbounded 1/-mv.z blows sprites up to hundreds of pixels
+        // when a hit lands close to the camera (a nearby wall or the ground
+        // right underfoot), and stacked additive sparks then bloom into a
+        // solid white dome across the screen.
+        gl_PointSize = min(24.0, mix(6.0, 0.5, 1.0 - aLife) * (300.0 / max(0.3, -mv.z)));
         gl_Position = projectionMatrix * mv;
       }
     `,
