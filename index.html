@@ -3198,12 +3198,6 @@ body.desktop-mode .troll-desktop { display: block; }
   background: none; border: 0; color: #d5e4ff; font: inherit; font-size: 15px; text-align: right; }
 .td-clock small { font-size: 11px; color: #8fa3c0; }
 .td-clock:hover { color: #fff; }
-.td-mobile-return { display: flex; align-items: center; gap: 6px; padding: 3px 11px; font-size: 12px; letter-spacing: 0.04em;
-  color: #dfe9ff; background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
-  border: 2px solid #000; border-radius: 5px; cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2); }
-.td-mobile-return:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.09)); }
-.td-mobile-return[hidden] { display: none; }
 .td-online { display: flex; align-items: center; gap: 7px; padding: 3px 11px; font-size: 13px; letter-spacing: 0.1em;
   color: var(--n-green); background: #081209; border: 2px solid #000; border-radius: 5px;
   box-shadow: inset 0 0 8px rgba(77, 255, 115, 0.12), 0 0 8px rgba(77, 255, 115, 0.14); text-shadow: 0 0 6px rgba(77, 255, 115, 0.6); }
@@ -3458,7 +3452,6 @@ body.desktop-mode .troll-desktop { display: block; }
     </div>
     <button id="td-close-all" class="td-close-all" type="button" aria-label="Close all open tabs">✕ Close all tabs</button>
     <div id="td-tray" class="td-tray">
-      <button id="td-mobile-return" class="td-mobile-return" type="button" aria-label="Go to the mobile entrance" hidden>📱 Mobile</button>
       <button id="td-clock" class="td-clock" type="button" aria-label="Clock — click to switch 12/24 hour format"></button>
       <span class="td-online" title="Site is live">ONLINE</span>
     </div>
@@ -5236,28 +5229,6 @@ function trollDesktopShow(boot) {
   if (!desk) return;
   document.body.classList.add('desktop-mode');
   desk.setAttribute('aria-hidden', 'false');
-  // The Hub icon on the phone entrance (world.html) hands off here with
-  // ?desktop=1 so a phone visitor can see the classic desktop, and this
-  // tray button is their way back — only shown when trollrunner_force_desktop
-  // is set, i.e. they actually came from that escape hatch. A real desktop
-  // visitor never sets that key, so they never see a "Mobile" button in
-  // their own taskbar. Recording the choice in sessionStorage (rather than
-  // a ?mobile=1 URL param) is what stops index.html bouncing a desktop-UA
-  // visitor straight back to the desktop, and lets it land on a clean
-  // trollrunner.net instead of /world.html.
-  const mobileReturnBtn = document.getElementById('td-mobile-return');
-  if (mobileReturnBtn) {
-    let cameFromMobile = false;
-    try { cameFromMobile = sessionStorage.getItem('trollrunner_force_desktop') === '1'; } catch {}
-    mobileReturnBtn.hidden = !cameFromMobile;
-    mobileReturnBtn.onclick = () => {
-      try {
-        sessionStorage.setItem('trollrunner_force_mobile', '1');
-        sessionStorage.removeItem('trollrunner_force_desktop');
-      } catch {}
-      window.location.href = '/';
-    };
-  }
   if (!tdState.booted) {
     tdState.booted = true;
     if (boot) {
