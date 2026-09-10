@@ -273,6 +273,13 @@
   color: var(--muted);
   font-size: 12px;
   text-align: center;
+  /* Same drag/selection lockdown as .hub-card-art img above — the emoji and
+     text here are otherwise natively draggable/selectable, which hijacks the
+     carousel's own drag handling exactly like an unlocked <img> would. */
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+  pointer-events: none;
 }
 
 .hub-card-art-placeholder .icon {
