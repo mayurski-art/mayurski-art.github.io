@@ -128,7 +128,7 @@
       /* Scoped to this frame by id, never `iframe`. The desktop page below
          carries its own iframes, and a bare selector promoted one of them to
          full-screen on top of the entrance. */
-      '#troll-entrance{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;z-index:2147483646}' +
+      '#troll-entrance{position:fixed;inset:0;width:100%;height:100%;border:0;display:block!important;z-index:2147483646}' +
       /* document.write() inserts at the cursor. It does NOT truncate the
          file and neither does document.close(), so everything below kept
          parsing into this same body -- the whole desktop page, ~490KB of it.
@@ -136,7 +136,15 @@
          screen, so it landed on top of the entrance and swallowed the first
          tap on an app icon; the second tap only worked because the first
          had dismissed it. world.html has its own run-to-enter lock, so a
-         desktop-page gate would be redundant here regardless. */
+         desktop-page gate would be redundant here regardless.
+         The desktop page's own stylesheet later hides #troll-entrance too:
+         body.desktop-mode/.site-entry-locked > :not(#troll-desktop):not(...)
+         {display:none} matches this iframe (it's a direct body child that
+         isn't one of those ids) and, being later in source order, won the
+         cascade over the plain `display:block` above -- a real-device-only
+         black screen (desktop-first-paint state briefly sets one of those
+         body classes) that browser automation with a clean load didn't
+         reproduce. The `!important` here beats it regardless of ordering. */
       'body>*:not(#troll-entrance){display:none!important}</style>' +
       // Version bumped on each deploy. GitHub Pages can't send cache headers,
       // and phones hold onto HTML hard enough that several rounds of changes
