@@ -120,6 +120,35 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-team-ghost b { color: #e8bf76; }
 .to-team-sep { color: #6f7a68; }
 
+/* Search & Destroy: side reminder, and the bomb clock once it's live. */
+.to-bomb-status {
+  position: absolute; top: 68px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  font-family: "Oswald", sans-serif; font-size: 11.5px; letter-spacing: .08em;
+  text-transform: uppercase; color: #cfd8c8;
+}
+.to-bomb-timer {
+  font-family: "DM Mono", monospace; font-weight: 700; font-size: 14px;
+  color: #ff5a3d; animation: to-bomb-pulse .6s ease-in-out infinite;
+}
+@keyframes to-bomb-pulse { 50% { opacity: .55; } }
+
+/* Hold-E plant/defuse prompt, dead centre-low like the cook meter. */
+.to-bomb-prompt {
+  position: absolute; left: 50%; top: 62%; transform: translateX(-50%);
+  text-align: center; z-index: 13; pointer-events: none;
+  font-family: "Oswald", sans-serif; font-size: 12px; letter-spacing: .06em;
+  text-transform: uppercase; color: #eef2ea; text-shadow: 0 1px 6px rgba(0,0,0,.7);
+}
+.to-bomb-bar {
+  margin-top: 5px; width: 140px; height: 4px; border-radius: 3px;
+  background: rgba(0,0,0,.45); overflow: hidden;
+}
+.to-bomb-bar b {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, #ff8a5a, #ff5a3d); transition: width .05s linear;
+}
+
 /* `.to-cabinet canvas` above stretches the WebGL canvas to fill the cabinet
    and out-specifies a lone class, so this selector has to match it or the
    minimap is drawn across the whole screen. */
@@ -798,6 +827,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-touch-slide { left: 134px; bottom: 30px; width: 56px; height: 56px; font-size: 10px; }
 .to-touch-melee { right: 130px; bottom: 96px; width: 50px; height: 50px; font-size: 9px; }
 .to-touch-nade { right: 66px; bottom: 148px; width: 50px; height: 50px; font-size: 9px; }
+.to-touch-interact { left: 134px; bottom: 96px; width: 50px; height: 50px; font-size: 14px; background: rgba(255,138,90,.22); }
 .to-touch-lean { width: 52px; height: 52px; bottom: 136px; font-size: 14px; }
 .to-touch-lean-l { left: 22px; }
 .to-touch-lean-r { left: 86px; }

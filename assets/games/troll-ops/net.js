@@ -208,6 +208,14 @@ export class Net {
         this.h.onStage?.(m);
         break;
       }
+      /* Search & Destroy: bomb state, plant/defuse progress, and round
+         transitions. Whoever is holding the interact key owns the progress
+         and broadcasts it; the outcome (planted/defused/exploded) is the one
+         thing every client must agree on regardless of who reports it. */
+      case "bomb": {
+        this.h.onBomb?.(m);
+        break;
+      }
       case "vote": {
         const p = this.peer(m.id);
         p.vote = m.map;
@@ -312,6 +320,14 @@ export class Net {
       t: "stage", id: this.id, map: mapId, mode: modeId,
       left: Math.max(0, round2(secondsLeft)),
     });
+  }
+
+  /* Search & Destroy bomb state. `kind` is "action" for a live plant/defuse
+     in progress (sent a few times a second by whoever is holding it) or
+     "event" for a one-off outcome (planted/defused/exploded/reset) that
+     every client applies once and remembers regardless of order. */
+  publishBomb(payload) {
+    this.send({ t: "bomb", id: this.id, ...payload });
   }
 
   /* Map vote. Peers keep the last vote each id sent, so a late joiner's

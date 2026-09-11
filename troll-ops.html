@@ -312,6 +312,12 @@
           </div>
         </div>
 
+        <!-- Search & Destroy: bomb timer once planted, side reminder otherwise. -->
+        <div class="to-bomb-status" id="to-bomb-status" hidden>
+          <span class="to-bomb-side" id="to-bomb-side"></span>
+          <span class="to-bomb-timer" id="to-bomb-timer" hidden></span>
+        </div>
+
         <div class="to-hud-teams" id="to-hud-teams" hidden>
           <span class="to-team to-team-phantom"><b id="hud-score-phantom">0</b> Phantoms</span>
           <span class="to-team-sep">·</span>
@@ -331,6 +337,12 @@
           <strong class="to-staging-clock" id="to-staging-clock">5</strong>
           <p class="to-staging-sub" id="to-staging-sub">Get ready</p>
           <p class="to-staging-roster" id="to-staging-roster"></p>
+        </div>
+
+        <!-- Search & Destroy plant/defuse: hold-E prompt and progress ring. -->
+        <div class="to-bomb-prompt" id="to-bomb-prompt" hidden>
+          <span id="to-bomb-prompt-text">Hold E to plant</span>
+          <div class="to-bomb-bar"><b id="to-bomb-bar-fill"></b></div>
         </div>
 
         <div class="to-respawn" id="to-respawn" hidden>
@@ -408,6 +420,7 @@
         <button type="button" class="to-touch-btn to-touch-slide" id="to-touch-slide">SLIDE</button>
         <button type="button" class="to-touch-btn to-touch-melee" id="to-touch-melee" aria-label="Melee">MELEE</button>
         <button type="button" class="to-touch-btn to-touch-nade" id="to-touch-nade" aria-label="Throw lethal grenade">NADE</button>
+        <button type="button" class="to-touch-btn to-touch-interact" id="to-touch-interact" hidden aria-label="Plant or defuse the bomb">E</button>
         <button type="button" class="to-touch-btn to-touch-lean to-touch-lean-l" id="to-touch-lean-l" aria-label="Lean left">◀</button>
         <button type="button" class="to-touch-btn to-touch-lean to-touch-lean-r" id="to-touch-lean-r" aria-label="Lean right">▶</button>
         <div class="to-touch-look" id="to-touch-look"></div>
