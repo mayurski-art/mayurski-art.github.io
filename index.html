@@ -219,6 +219,12 @@ document.addEventListener('wheel', e => {
   --n-line: rgba(255,255,255,0.12);
   --disp: 'Anton', Impact, 'Arial Black', sans-serif;
   --pixel: 'VT323', 'DM Mono', monospace;
+  /* --- Terminal-chrome tokens (trollrunner-terminal's palette), desktop
+     OS taskbar/start-menu/icons/windows only — every hue means the same
+     thing it does on terminal.trollrunner.net. See app/globals.css there. */
+  --tm-bg: #0a0a0a; --tm-panel: #111111; --tm-ink: #d6d6d6; --tm-bright: #f2f2f2;
+  --tm-dim: #5c5c5c; --tm-gold: #ffd21f; --tm-alert: #ff3b3b; --tm-gain: #3ddc84;
+  --tm-ghost: #3a3a3a; --tm-mono: 'DM Mono', ui-monospace, monospace;
 }
 
 html, body {
@@ -3171,6 +3177,137 @@ body.desktop-mode .troll-desktop { display: block; }
   transition: box-shadow 0.14s ease, transform 0.14s ease; }
 .hub-soc:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(160, 255, 190, 0.3), inset 0 0 0 1px rgba(77, 255, 115, 0.4), 0 0 12px rgba(77, 255, 115, 0.28), 2px 2px 0 rgba(0, 0, 0, 0.4); }
 .hub-soc img { width: 18px; height: 18px; object-fit: contain; }
+
+/* ====================================================================
+   TERMINAL-CHROME DESKTOP OVERRIDE — restyles the desktop OS shell
+   (icons, taskbar, start button/menu, window frames, hub window) to
+   match trollrunner-terminal's look: near-black panels, JetBrains-Mono-
+   style monospace, bracket "[ title ]" framing, and the same red/gold/
+   green accent trio. Desktop only (min-width matches the phone
+   breakpoint used everywhere else in this file) — phones keep the
+   existing green/purple "nostalgia" chrome untouched. Scoped to the OS
+   shell's own classes so iframed sub-sites (Terminal, Finance, Games,
+   Stickers, PFP, Maps...) render exactly as they always have. */
+@media (min-width: 761px) {
+  .td-taskbar { background: var(--tm-panel); border-top: 1px solid var(--tm-ghost);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 -1px 0 #000; }
+  .td-start { font-family: var(--tm-mono); font-size: 14px; letter-spacing: 0.04em; color: var(--tm-bg);
+    background: var(--tm-gold); border: 1px solid var(--tm-gold); border-radius: 4px;
+    box-shadow: 0 0 10px rgba(255, 210, 31, 0.25); text-shadow: none; }
+  .td-start:hover, .td-start[aria-expanded="true"] { background: #ffdc4d; border-color: #ffdc4d;
+    box-shadow: 0 0 16px rgba(255, 210, 31, 0.45); }
+  .td-start:active { box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3); }
+  .td-task-btn { font-family: var(--tm-mono); font-size: 13px; color: var(--tm-ink);
+    background: var(--tm-bg); border: 1px solid var(--tm-ghost); border-radius: 4px; box-shadow: none; }
+  .td-task-btn:hover { background: #161616; border-color: var(--tm-dim); }
+  .td-task-btn.is-active { background: #161616; color: var(--tm-bright); border-color: var(--tm-bright);
+    box-shadow: 0 0 8px rgba(242, 242, 242, 0.15); }
+  .td-close-all { font-family: var(--tm-mono); color: var(--tm-alert);
+    background: rgba(255, 59, 59, 0.08); border: 1px solid rgba(255, 59, 59, 0.5); box-shadow: none; }
+  .td-close-all:hover { background: rgba(255, 59, 59, 0.16); }
+  .td-tray { border-left: 1px solid var(--tm-ghost); box-shadow: none; }
+  .td-music { color: var(--tm-ink); border: 1px solid var(--tm-ghost); border-radius: 4px;
+    background: var(--tm-bg); box-shadow: none; }
+  .td-music:hover { background: #161616; border-color: var(--tm-dim); }
+  .td-music.is-playing { color: var(--tm-gain); text-shadow: 0 0 8px rgba(61, 220, 132, 0.6); }
+  .td-music[aria-expanded="true"] { background: #161616; border-color: var(--tm-gain);
+    box-shadow: 0 0 8px rgba(61, 220, 132, 0.25); }
+  .td-clock { color: var(--tm-ink); font-family: var(--tm-mono); }
+  .td-clock small { color: var(--tm-dim); }
+  .td-clock:hover { color: var(--tm-bright); }
+  .td-online { font-family: var(--tm-mono); letter-spacing: 0.08em; color: var(--tm-gain);
+    background: #081209; border: 1px solid rgba(61, 220, 132, 0.4); border-radius: 3px;
+    box-shadow: none; text-shadow: 0 0 6px rgba(61, 220, 132, 0.5); }
+  .td-online::before { background: var(--tm-gain); box-shadow: 0 0 8px var(--tm-gain); }
+
+  /* ---- start menu ---- */
+  .td-startmenu { border: 1px solid var(--tm-ghost); border-radius: 6px;
+    background: var(--tm-panel); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 22px 55px rgba(0, 0, 0, 0.55);
+    scrollbar-color: var(--tm-dim) transparent; }
+  .td-sm-head { font-family: var(--tm-mono); background: rgba(61, 220, 132, 0.08);
+    border: 1px solid rgba(61, 220, 132, 0.3); border-radius: 4px; box-shadow: none; }
+  .td-sm-head:hover { background: rgba(61, 220, 132, 0.14); }
+  .td-sm-head .td-sm-avatar { border: 1px solid var(--tm-ghost); border-radius: 4px;
+    background: var(--tm-bg); box-shadow: none; }
+  .td-sm-head .td-sm-user { font-family: var(--tm-mono); color: var(--tm-bright); letter-spacing: 0.02em; }
+  .td-sm-head .td-sm-sub { color: var(--tm-dim); }
+  .td-sm-label { color: var(--tm-gold); letter-spacing: 0.2em; text-shadow: none; }
+  .td-sm-item { font-family: var(--tm-mono); font-size: 14px; color: var(--tm-ink); border-radius: 4px; }
+  .td-sm-item .td-sm-chev { color: var(--tm-dim); }
+  .td-sm-item:hover, .td-sm-item:focus-visible { background: rgba(255, 255, 255, 0.05);
+    box-shadow: inset 3px 0 0 var(--tm-gold); }
+  .td-sm-item:hover .td-sm-chev, .td-sm-item:focus-visible .td-sm-chev { color: var(--tm-gold); }
+  .td-sm-sep { background: linear-gradient(90deg, transparent, var(--tm-ghost), transparent); }
+
+  /* ---- desktop icons ---- */
+  .td-icon { color: var(--tm-ink); font-family: var(--tm-mono); border-radius: 4px; }
+  .td-icon:hover, .td-icon:focus-visible { background: rgba(255, 255, 255, 0.04);
+    border-color: var(--tm-dim); box-shadow: none; outline: none; }
+  .td-icon-img { border: 1px solid var(--tm-ghost); border-radius: 6px;
+    background: var(--tm-panel); box-shadow: none; }
+  .td-icon:hover .td-icon-img, .td-icon:focus-visible .td-icon-img {
+    border-color: var(--tm-gold); box-shadow: 0 0 12px rgba(255, 210, 31, 0.25); }
+  .td-icon:hover .td-icon-img--flat, .td-icon:focus-visible .td-icon-img--flat {
+    box-shadow: 0 0 12px rgba(255, 210, 31, 0.3); }
+  .td-icon-label { font-family: var(--tm-mono); font-size: 13px; letter-spacing: 0; text-shadow: none; }
+  .td-icon--ext .td-icon-label::after { color: var(--tm-dim); }
+  .td-icon-badge { background: var(--tm-alert); border-color: var(--tm-bg); box-shadow: none; }
+
+  /* ---- windows ---- */
+  .tw { border: 1px solid var(--tm-ghost); border-radius: 6px; background: var(--tm-bg);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 22px 55px rgba(0, 0, 0, 0.55); }
+  .tw.is-focus { box-shadow: 0 0 0 1px var(--tm-dim), 0 0 20px rgba(255, 255, 255, 0.05), 0 22px 55px rgba(0, 0, 0, 0.55); }
+  .tw-titlebar { color: var(--tm-bright); background: var(--tm-panel); border-bottom: 1px solid var(--tm-ghost);
+    box-shadow: none; }
+  .tw-titlebar::after { display: none; }
+  .tw.is-focus .tw-titlebar { background: #161616; }
+  .tw-title { font-family: var(--tm-mono); letter-spacing: 0.02em; text-shadow: none; }
+  .tw-title::before { content: '[ '; color: var(--tm-dim); }
+  .tw-title::after { content: ' ]'; color: var(--tm-dim); }
+  .tw-btn { color: var(--tm-ink); border: 1px solid var(--tm-ghost); border-radius: 3px;
+    background: var(--tm-bg); box-shadow: none; }
+  .tw-btn:hover { background: #1c1c1c; }
+  .tw-btn:active { box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.4); }
+  .tw-btn--close { background: rgba(255, 59, 59, 0.12); color: var(--tm-alert); }
+  .tw-btn--close:hover { background: rgba(255, 59, 59, 0.22); box-shadow: 0 0 8px rgba(255, 59, 59, 0.35); }
+  .tw-url { background: var(--tm-panel); border-bottom: 1px solid var(--tm-ghost); color: var(--tm-dim); box-shadow: none; }
+  .tw-url > span:not(.url) { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--tm-ghost); }
+  .tw-nav { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--tm-ghost); color: var(--tm-dim); }
+  .tw-nav:hover:not(:disabled), .tw-nav:focus-visible:not(:disabled) { background: rgba(255, 255, 255, 0.08); color: var(--tm-bright); }
+  .tw-url .url { background: var(--tm-bg); border: 1px solid var(--tm-ghost); color: var(--tm-ink); box-shadow: none; }
+  .tw-url-ext { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--tm-ghost); color: var(--tm-dim); }
+  .tw-url-ext:hover, .tw-url-ext:focus-visible { background: rgba(255, 255, 255, 0.08); color: var(--tm-bright); }
+  .tw-body { background: var(--tm-bg); }
+  .tw-body::before { content: none; }
+
+  /* ---- hub window ---- */
+  .hub-title { font-family: var(--tm-mono); font-size: 22px; font-weight: 700; color: var(--tm-bright);
+    transform: none; letter-spacing: 0.06em; text-shadow: none; }
+  .hub-title::before { content: '[ '; color: var(--tm-dim); }
+  .hub-title::after { content: ' ]'; color: var(--tm-dim); }
+  .hub-tagline { color: var(--tm-gold); text-shadow: none; font-family: var(--tm-mono); }
+  .hub-account-btn { font-family: var(--tm-mono); color: var(--tm-gold);
+    background: rgba(255, 210, 31, 0.08); border: 1px solid rgba(255, 210, 31, 0.5); border-radius: 4px;
+    box-shadow: none; text-shadow: none; }
+  .hub-account-btn:hover { background: rgba(255, 210, 31, 0.16); box-shadow: 0 0 12px rgba(255, 210, 31, 0.2); }
+  .hub-wallet-btn { color: var(--tm-gain); border-color: rgba(61, 220, 132, 0.5);
+    background: rgba(61, 220, 132, 0.08); box-shadow: none; text-shadow: none; }
+  .hub-wallet-btn:hover { background: rgba(61, 220, 132, 0.16); box-shadow: 0 0 12px rgba(61, 220, 132, 0.2); }
+  .hub-deco { display: none; }
+  .hub-card { --hc: var(--tm-dim); font-family: var(--tm-mono); color: var(--tm-ink);
+    background: var(--tm-panel); border: 1px solid var(--tm-ghost); border-radius: 4px;
+    box-shadow: none; }
+  .hub-card:hover, .hub-card:focus-visible { transform: none; background: #161616;
+    border-color: var(--tm-gold); box-shadow: 0 0 14px rgba(255, 210, 31, 0.15); }
+  .hub-card h3 { font-family: var(--tm-mono); color: var(--tm-bright); text-shadow: none; letter-spacing: 0.04em; }
+  .hub-card p { font-family: var(--tm-mono); color: var(--tm-dim); }
+  .hub-card .hub-card-arrow { color: var(--tm-gold); text-shadow: none; }
+  .hub-card:hover .hub-card-arrow, .hub-card:focus-visible .hub-card-arrow { transform: translateX(3px); }
+  .hub-foot { border-top: 1px solid var(--tm-ghost); color: var(--tm-dim); font-family: var(--tm-mono); }
+  .hub-foot a { color: var(--tm-ink); }
+  .hub-soc { background: var(--tm-panel); border: 1px solid var(--tm-ghost); border-radius: 4px; box-shadow: none; }
+  .hub-soc:hover { transform: none; border-color: var(--tm-gold); box-shadow: 0 0 10px rgba(255, 210, 31, 0.2); }
+}
 
 /* ---- windows: legacy section polish ---- */
 .tw-body #trollchat { padding: 0; }
