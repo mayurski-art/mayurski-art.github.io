@@ -1,19 +1,24 @@
+/* Steam-storefront palette: dark blue-black chrome, Steam-blue links/accents,
+   a green "positive"/price hue standing in for the old --green everywhere it
+   meant "good" (arcade rack highlights, price-style tags), and the original
+   red/gold/purple/cyan kept only as per-card accent hues (Steam itself has no
+   real equivalent, but individual troll games still key off these). */
 :root {
-  --bg: #050008;
-  --panel: #100816;
-  --panel-strong: #190b22;
-  --green: #4dff73;
-  --green-soft: rgba(77, 255, 115, 0.22);
+  --bg: #1b2838;
+  --panel: #16202d;
+  --panel-strong: #0f1720;
+  --green: #a4d007;
+  --green-soft: rgba(164, 208, 7, 0.22);
   --red: #ff314f;
   --red-soft: rgba(255, 49, 79, 0.22);
   --purple: #9a5cff;
   --purple-soft: rgba(154, 92, 255, 0.22);
   --gold: #ffd84d;
-  --cyan: #4deeff;
-  --ink: #f7fff8;
-  --muted: rgba(247, 255, 248, 0.72);
-  --line: rgba(255, 255, 255, 0.14);
-  --shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
+  --cyan: #66c0f4;
+  --ink: #e8f0fe;
+  --muted: rgba(196, 210, 227, 0.72);
+  --line: rgba(255, 255, 255, 0.1);
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   --font: "DM Sans", system-ui, sans-serif;
   --mono: "DM Mono", monospace;
   --display: "DM Sans", system-ui, sans-serif;
@@ -35,11 +40,7 @@ body {
   margin: 0;
   font-family: var(--font);
   color: var(--ink);
-  background:
-    radial-gradient(circle at 18% 8%, rgba(77, 255, 115, 0.18), transparent 26%),
-    radial-gradient(circle at 86% 16%, rgba(255, 49, 79, 0.16), transparent 24%),
-    radial-gradient(circle at 50% 92%, rgba(154, 92, 255, 0.18), transparent 34%),
-    linear-gradient(145deg, #040005 0%, #120615 46%, #030106 100%);
+  background: linear-gradient(180deg, #1b2838 0%, #171a21 60%, #0f1720 100%);
   overflow-x: hidden;
 }
 

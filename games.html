@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net https://www.trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://solana-rpc.publicnode.com https://api.devnet.solana.com https://lite-api.jup.ag; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#050008">
-  <meta name="description" content="Troll Runner Arcade — Trollrunner Game Night. 12 cursed meme-coin cabinets from Troll Kombat to NULLFACE. Take the controller.">
+  <meta name="description" content="Troll Runner Arcade — Trollrunner Game Night. Cursed meme-coin cabinets from Troll Kombat to Papa Troll's Pizzeria. Take the controller.">
   <title>Troll Runner Arcade — Game Night</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23050008'/%3E%3Ctext x='6' y='40' font-size='17' fill='%234dff73' font-family='monospace' font-weight='900'%3E%24T%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,6 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/games/troll-dash/style.css?v=hub-v2-20260627">
   <link rel="stylesheet" href="assets/games/hub/arcade-hub.css?v=hub-v5-home-lock-img">
+  <link rel="stylesheet" href="assets/games/hub/preview.css?v=preview-v1">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
   <style>
     /* Matches the back-arrow added to Maps/Stickers/Videos/PFP Studio when
@@ -60,9 +61,9 @@
         <h1>Choose Games</h1>
       </div>
 
-      <div class="hub-carousel" id="hub-carousel" aria-label="Games — drag to browse, hover to pause">
+      <div class="hub-carousel" id="hub-carousel" aria-label="Games">
         <div class="hub-carousel-track" id="hub-carousel-track">
-        <article class="hub-card" data-accent="green">
+        <article class="hub-card" data-accent="green" data-preview='{"summary":"A meme-coin fighting game — pick your troll, brawl locally on one keyboard or host/join an online match with a room code.","controls":["P1 — A/D move, W jump, S crouch, J punch, K kick, L special, Space block, Shift dash","P2 — ←/→ move, ↑ jump, ↓ crouch, 1 punch, 2 kick, 3 special, 0 block, 5 dash","Touch — pad to move, 👊 punch, 🦵 kick, ✨ special, 🛡 block","Pause — P1 Esc/P, P2 Enter (versus mode needs both players to approve)"],"playersOnline":"live"}'>
           <div class="hub-card-art">
             <span class="hub-card-tag">Fighting</span>
             <img src="assets/games/troll-kombat/ui/trollkombat-prescreen.jpg" alt="Troll Kombat key art — Pepe, the gladiator trollface, and Doge facing off">
@@ -74,99 +75,7 @@
           </div>
         </article>
 
-        <article class="hub-card" data-accent="cyan" data-category="arcade" data-title="dash meme metro">
-          <div class="hub-card-art">
-            <span class="hub-card-tag">Arcade</span>
-            <div class="hub-card-art-placeholder">
-              <span class="icon">🖼️</span>
-              <strong>Placeholder background</strong>
-              <span>1920 x 1080px</span>
-              <span>(Replace this image)</span>
-            </div>
-          </div>
-          <div class="hub-card-body">
-            <h3>Dash: Meme Metro</h3>
-            <p class="hub-card-meta">∞ Endless</p>
-            <a class="hub-card-play" href="meme-metro.html" data-fs="Troll Dash: Meme Metro">Play Now ▶</a>
-          </div>
-        </article>
-
-        <article class="hub-card" data-accent="gold" data-category="sandbox" data-title="trollrreria">
-          <div class="hub-card-art">
-            <span class="hub-card-tag">Sandbox</span>
-            <div class="hub-card-art-placeholder">
-              <span class="icon">🖼️</span>
-              <strong>Placeholder background</strong>
-              <span>1920 x 1080px</span>
-              <span>(Replace this image)</span>
-            </div>
-          </div>
-          <div class="hub-card-body">
-            <h3>Trollrreria</h3>
-            <p class="hub-card-meta">🤝 Co-op</p>
-            <a class="hub-card-play" href="trollrreria.html" data-fs="Trollrreria">Play Now ▶</a>
-          </div>
-        </article>
-
-        <article class="hub-card" data-accent="gold" data-category="sandbox" data-title="trollrreria 3d">
-          <div class="hub-card-art">
-            <span class="hub-card-tag">Sandbox · MVP</span>
-            <div class="hub-card-art-placeholder">
-              <span class="icon">🖼️</span>
-              <strong>Placeholder background</strong>
-              <span>1920 x 1080px</span>
-              <span>(Replace this image)</span>
-            </div>
-          </div>
-          <div class="hub-card-body">
-            <h3>Trollrreria 3D</h3>
-            <p class="hub-card-meta">⛏️ Voxel · Early build</p>
-            <a class="hub-card-play" href="trollrreria-3d.html" data-fs="Trollrreria 3D">Play Now ▶</a>
-          </div>
-        </article>
-
-        <article class="hub-card" data-accent="cyan" data-category="social" data-title="troll high school mmo">
-          <div class="hub-card-art">
-            <span class="hub-card-tag">Social</span>
-            <div class="hub-card-art-placeholder">
-              <span class="icon">🖼️</span>
-              <strong>Placeholder background</strong>
-              <span>1920 x 1080px</span>
-              <span>(Replace this image)</span>
-            </div>
-          </div>
-          <div class="hub-card-body">
-            <h3>Troll High</h3>
-            <p class="hub-card-meta">👥 Shared World · Login required</p>
-            <a class="hub-card-play" href="troll-high.html" data-fs="Troll High">Play Now ▶</a>
-          </div>
-        </article>
-
-        <article class="hub-card" data-accent="red" data-category="casino" data-title="troll casino">
-          <div class="hub-card-art">
-            <span class="hub-card-tag">Casino</span>
-            <img src="assets/games/troll-casino/ui/trollcasino-prescreen.jpg" alt="Troll Casino key art — a trollface dealer leaning over a glowing roulette table">
-          </div>
-          <div class="hub-card-body">
-            <h3>Troll Casino</h3>
-            <p class="hub-card-meta">👤 1-Player</p>
-            <a class="hub-card-play" href="troll-casino.html?boot=1" data-fs="Troll Casino">Play Now ▶</a>
-          </div>
-        </article>
-
-        <article class="hub-card" data-accent="gold" data-category="cooking" data-title="papa trolls pizzeria cooking">
-          <div class="hub-card-art">
-            <span class="hub-card-tag">Cooking</span>
-            <img src="assets/games/troll-pizzeria/art/pizzeria-card.jpg" alt="Papa Troll's Pizzeria key art — a glowing pixel pizzeria storefront at dusk">
-          </div>
-          <div class="hub-card-body">
-            <h3>Papa Troll's Pizzeria</h3>
-            <p class="hub-card-meta">👤 1-Player</p>
-            <a class="hub-card-play" href="troll-pizzeria.html" data-fs="Papa Troll's Pizzeria">Play Now ▶</a>
-          </div>
-        </article>
-
-        <article class="hub-card" data-accent="green" data-category="shooter" data-title="troll ops arena shooter">
+        <article class="hub-card" data-accent="green" data-category="shooter" data-title="troll ops arena shooter" data-preview='{"summary":"Horde-mode arena FPS — hold the line against waves of trolls with a growing arsenal.","controls":["WASD to move, mouse to aim","Left click to fire, R to reload","Shift to sprint, Space to jump"],"playersOnline":"single"}'>
           <div class="hub-card-art">
             <span class="hub-card-tag">Shooter</span>
             <div class="hub-card-art-placeholder">
@@ -183,41 +92,99 @@
           </div>
         </article>
 
-        <article class="hub-card" data-accent="cyan" data-category="racing" data-title="troll racer trollface circuit">
+        <article class="hub-card" data-accent="red" data-category="casino" data-title="troll casino" data-preview='{"summary":"A trollface-run casino floor — spin the wheel or pull the slots with real deposited balance on the line.","controls":["Click to place a bet","Click SPIN / PULL to play","Cash out any time from the wallet menu"],"playersOnline":"single"}'>
           <div class="hub-card-art">
-            <span class="hub-card-tag">Racing</span>
+            <span class="hub-card-tag">Casino</span>
+            <img src="assets/games/troll-casino/ui/trollcasino-prescreen.jpg" alt="Troll Casino key art — a trollface dealer leaning over a glowing roulette table">
+          </div>
+          <div class="hub-card-body">
+            <h3>Troll Casino</h3>
+            <p class="hub-card-meta">👤 1-Player</p>
+            <a class="hub-card-play" href="troll-casino.html?boot=1" data-fs="Troll Casino">Play Now ▶</a>
+          </div>
+        </article>
+
+        <article class="hub-card" data-accent="gold" data-category="cooking" data-title="papa trolls pizzeria cooking" data-preview='{"summary":"A Papa&#39;s-style cooking sim — take orders, build pizzas, and keep a rush of cursed customers happy.","controls":["Click ingredients to build the pizza","Drag finished pies to the oven, then the counter","Click a customer to serve their order"],"playersOnline":"single"}'>
+          <div class="hub-card-art">
+            <span class="hub-card-tag">Cooking</span>
+            <img src="assets/games/troll-pizzeria/art/pizzeria-card.jpg" alt="Papa Troll's Pizzeria key art — a glowing pixel pizzeria storefront at dusk">
+          </div>
+          <div class="hub-card-body">
+            <h3>Papa Troll's Pizzeria</h3>
+            <p class="hub-card-meta">👤 1-Player</p>
+            <a class="hub-card-play" href="troll-pizzeria.html" data-fs="Papa Troll's Pizzeria">Play Now ▶</a>
+          </div>
+        </article>
+
+        <article class="hub-card" data-accent="cyan" data-category="arcade" data-title="dash meme metro" data-preview='{"summary":"An endless 3D runner through a meme-coin metro — dodge, jump, and slide as far as you can.","controls":["A/D or Left/Right to change lanes","Space to jump","S or Down to slide"],"playersOnline":"single"}'>
+          <div class="hub-card-art">
+            <span class="hub-card-tag">Arcade</span>
             <div class="hub-card-art-placeholder">
-              <span class="icon">🏎️</span>
+              <span class="icon">🖼️</span>
               <strong>Placeholder background</strong>
               <span>1920 x 1080px</span>
               <span>(Replace this image)</span>
             </div>
           </div>
           <div class="hub-card-body">
-            <h3>Troll Racer</h3>
-            <p class="hub-card-meta">👤 1-Player · The track is the trollface</p>
-            <a class="hub-card-play" href="troll-racer.html" data-fs="Troll Racer">Play Now ▶</a>
+            <h3>Dash: Meme Metro</h3>
+            <p class="hub-card-meta">∞ Endless</p>
+            <a class="hub-card-play" href="meme-metro.html" data-fs="Troll Dash: Meme Metro">Play Now ▶</a>
           </div>
         </article>
 
-        <article class="hub-card" data-accent="red" data-category="horror" data-title="nullface corrupted mainframe">
+        <article class="hub-card" data-accent="gold" data-category="sandbox" data-title="trollrreria" data-preview='{"summary":"A 2D Terraria-style survival sandbox — mine, craft, build, and take on hardmode with friends in real co-op.","controls":["WASD or arrows to move","Left click to mine/attack, right click to place","E for inventory"],"playersOnline":"live"}'>
           <div class="hub-card-art">
-            <span class="hub-card-tag">Horror</span>
+            <span class="hub-card-tag">Sandbox</span>
             <div class="hub-card-art-placeholder">
-              <span class="icon">💀</span>
+              <span class="icon">🖼️</span>
               <strong>Placeholder background</strong>
               <span>1920 x 1080px</span>
               <span>(Replace this image)</span>
             </div>
           </div>
           <div class="hub-card-body">
-            <h3>NULLFACE</h3>
-            <p class="hub-card-meta">👤 1-Player · ~15 min runs</p>
-            <a class="hub-card-play" href="nullface.html" data-fs="NULLFACE">Play Now ▶</a>
+            <h3>Trollrreria</h3>
+            <p class="hub-card-meta">🤝 Co-op</p>
+            <a class="hub-card-play" href="trollrreria.html" data-fs="Trollrreria">Play Now ▶</a>
           </div>
         </article>
 
-        <article class="hub-card" data-accent="gold" data-category="horror" data-title="backrooms liminal maze">
+        <article class="hub-card" data-accent="gold" data-category="sandbox" data-title="trollrreria 3d" data-preview='{"summary":"A 3D voxel building sandbox with infinite terrain — build whatever you want, then host or join a room to build alongside other trolls.","controls":["WASD to move, mouse to look","Left click to dig, right click to place","🌐 button to host or join a shared world"],"playersOnline":"live"}'>
+          <div class="hub-card-art">
+            <span class="hub-card-tag">Sandbox · MVP</span>
+            <div class="hub-card-art-placeholder">
+              <span class="icon">🖼️</span>
+              <strong>Placeholder background</strong>
+              <span>1920 x 1080px</span>
+              <span>(Replace this image)</span>
+            </div>
+          </div>
+          <div class="hub-card-body">
+            <h3>Trollrreria 3D</h3>
+            <p class="hub-card-meta">⛏️ Voxel · Early build</p>
+            <a class="hub-card-play" href="trollrreria-3d.html" data-fs="Trollrreria 3D">Play Now ▶</a>
+          </div>
+        </article>
+
+        <article class="hub-card" data-accent="cyan" data-category="social" data-title="troll high school mmo" data-preview='{"summary":"A 2000s-throwback school MMO — hang out, quest, and socialize with other trolls in one shared world.","controls":["WASD to move","E to interact with trolls and objects","Enter to open chat"],"playersOnline":"live"}'>
+          <div class="hub-card-art">
+            <span class="hub-card-tag">Social</span>
+            <div class="hub-card-art-placeholder">
+              <span class="icon">🖼️</span>
+              <strong>Placeholder background</strong>
+              <span>1920 x 1080px</span>
+              <span>(Replace this image)</span>
+            </div>
+          </div>
+          <div class="hub-card-body">
+            <h3>Troll High</h3>
+            <p class="hub-card-meta">👥 Shared World · Login required</p>
+            <a class="hub-card-play" href="troll-high.html" data-fs="Troll High">Play Now ▶</a>
+          </div>
+        </article>
+
+        <article class="hub-card" data-accent="gold" data-category="horror" data-title="backrooms liminal maze" data-preview='{"summary":"A first-person liminal-space maze — find your way out while staying hidden from whatever else is in there.","controls":["WASD to move, mouse to look","Shift to sprint","Crouch to break line of sight"],"playersOnline":"single"}'>
           <div class="hub-card-art">
             <span class="hub-card-tag">Horror</span>
             <div class="hub-card-art-placeholder">
@@ -234,19 +201,7 @@
           </div>
         </article>
 
-        <article class="hub-card" data-accent="gold" data-category="cooking" data-title="the rusty troll fry cook">
-          <div class="hub-card-art">
-            <span class="hub-card-tag">Cooking</span>
-            <img src="assets/games/troll-burger/art/burger-card.png" alt="The Rusty Troll key art — a greasy pixel burger shack glowing under a rusty steel bridge at dusk">
-          </div>
-          <div class="hub-card-body">
-            <h3>The Rusty Troll</h3>
-            <p class="hub-card-meta">👤 1-Player · First-person</p>
-            <a class="hub-card-play" href="troll-burger.html" data-fs="The Rusty Troll">Play Now ▶</a>
-          </div>
-        </article>
-
-        <article class="hub-card" data-accent="cyan" data-category="toy" data-title="voyage in glass ship bottle voxel">
+        <article class="hub-card" data-accent="cyan" data-category="toy" data-title="voyage in glass ship bottle voxel" data-preview='{"summary":"A tiny voxel diorama toy — rotate, zoom, and just enjoy a ship in a bottle. No goals, no pressure.","controls":["Drag to rotate the bottle","Scroll to zoom","Click details to see them light up"],"playersOnline":"single"}'>
           <div class="hub-card-art">
             <span class="hub-card-tag">Toy Box</span>
             <div class="hub-card-art-placeholder">
@@ -263,7 +218,7 @@
           </div>
         </article>
 
-        <article class="hub-card" data-accent="purple" data-category="arcade" data-title="whack a troll reflex">
+        <article class="hub-card" data-accent="purple" data-category="arcade" data-title="whack a troll reflex" data-preview='{"summary":"A fast reflex arcade game — whack the right trolls before the 45-second timer runs out.","controls":["Click/tap a troll to whack it","Watch for decoys — some cost you points"],"playersOnline":"single"}'>
           <div class="hub-card-art">
             <span class="hub-card-tag">Arcade</span>
             <div class="hub-card-art-placeholder">
@@ -280,7 +235,7 @@
           </div>
         </article>
 
-        <article class="hub-card is-locked" data-accent="purple" data-category="adventure" data-title="troll wizard">
+        <article class="hub-card is-locked" data-accent="purple" data-category="adventure" data-title="troll wizard" data-preview='{"summary":"An upcoming adventure game — details are still under wraps. Check back soon.","controls":[],"playersOnline":null}'>
           <div class="hub-card-art">
             <span class="hub-card-tag">Adventure</span>
             <div class="hub-card-art-placeholder">
@@ -345,6 +300,7 @@
   </div>
 
   <script src="assets/games/hub/arcade-hub.js?v=hub-v8-fix-click-and-home" defer></script>
+  <script src="assets/games/hub/preview.js?v=preview-v1" defer></script>
   <script src="assets/js/fs-launcher.js?v=fsl-v1" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://www.trollrunner.net/assets/js/troll-accounts.js"></script>

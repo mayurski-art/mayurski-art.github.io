@@ -17,9 +17,19 @@
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 
+/* The cabinet's --screenH is clamped to fit the viewport (see .fight-cabinet
+   below), but title/padding on top of it can still add up to a hair more
+   than 100svh on some viewports — height:100% + overflow:hidden on both
+   html and body (not just min-height on body) is what actually stops the
+   page from becoming scrollable in that case, since a lone min-height lets
+   the box grow past the viewport instead of clipping it. */
+html, body {
+  height: 100%;
+  height: 100svh;
+  overflow: hidden;
+}
+
 body {
-  min-height: 100vh;
-  min-height: 100svh;
   margin: 0;
   font-family: var(--font);
   color: var(--ink);
@@ -28,7 +38,6 @@ body {
     radial-gradient(circle at 86% 16%, rgba(255, 49, 79, 0.16), transparent 24%),
     radial-gradient(circle at 50% 92%, rgba(154, 92, 255, 0.18), transparent 34%),
     linear-gradient(145deg, #040005 0%, #120615 46%, #030106 100%);
-  overflow-x: hidden;
 }
 button, a, select { font: inherit; }
 a { color: inherit; text-decoration: none; }
@@ -230,14 +239,15 @@ h1, h2 { font-family: "Black Ops One", var(--font); letter-spacing: 0.01em; }
 
 /* ---- Screen + canvas --------------------------------------------------- */
 /* --screenH is sized from what's actually left in the viewport after the
-   footer/touch rows (~110px on desktop) and the slim title strip above the
-   cabinet (~40px incl. margin), instead of a flat 84svh that ignored those
-   and forced a scroll to reach the pre-match overlays (choose match type /
-   fighter / stage). Floor keeps it usable on very short viewports; ceiling
-   raised so the cabinet can actually fill large desktop screens instead of
-   capping out early. .game-overlay's own overflow:auto is the fallback if a
-   screen still can't fit its content at that size. */
-.fight-cabinet { --screenH: clamp(300px, calc(100svh - 150px), 1200px); }
+   slim title strip above the cabinet (~40px incl. margin) — the old text
+   footer that used to sit below the cabinet is gone (removed in favor of
+   the hub's game-preview screen showing controls before launch), so only
+   ~50px of desktop chrome needs reserving now, not ~150px. Floor keeps it
+   usable on very short viewports; ceiling raised so the cabinet can
+   actually fill large desktop screens instead of capping out early.
+   .game-overlay's own overflow:auto is the fallback if a screen still
+   can't fit its content at that size. */
+.fight-cabinet { --screenH: clamp(300px, calc(100svh - 50px), 1200px); }
 .screen-wrap {
   position: relative; z-index: 1;
   width: min(calc(100vw - 8px), calc(var(--screenH) * 1280 / 600));
@@ -909,10 +919,10 @@ h1, h2 { font-family: "Black Ops One", var(--font); letter-spacing: 0.01em; }
 .stage-retro { max-width: 980px; }
 .stage-hero {
   display: flex; gap: 14px; align-items: stretch; text-align: left;
-  border: 2px solid var(--line); border-radius: 8px; background: #0a0d0b; padding: 12px; margin: 4px 0 16px;
+  border: 2px solid var(--line); border-radius: 8px; background: #0a0d0b; padding: 8px; margin: 4px 0 10px;
 }
 .stage-hero-img {
-  flex: 1; min-height: clamp(140px, 24vh, 220px); border-radius: 6px; overflow: hidden;
+  flex: 1; min-height: clamp(90px, 16vh, 160px); border-radius: 6px; overflow: hidden;
   border: 2px solid #000; background: #050608;
 }
 .stage-hero-img img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: pixelated; }
@@ -930,7 +940,7 @@ h1, h2 { font-family: "Black Ops One", var(--font); letter-spacing: 0.01em; }
   border: 2px solid var(--line); border-radius: 8px; background: #050608;
   transition: transform 140ms ease, border-color 140ms ease;
 }
-.stage-thumb img { display: block; flex: 0 0 58px; width: 100%; height: 58px; object-fit: cover; image-rendering: pixelated; }
+.stage-thumb img { display: block; flex: 0 0 40px; width: 100%; height: 40px; object-fit: cover; image-rendering: pixelated; }
 .stage-thumb span {
   flex: 0 0 auto; display: block; padding: 4px 4px; font-family: var(--mono); font-size: 9px;
   text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); background: #0a0d0b;
@@ -959,8 +969,8 @@ h1, h2 { font-family: "Black Ops One", var(--font); letter-spacing: 0.01em; }
    glass blur, monospace chrome. Replaces the old baked-mockup-PNG approach
    for these two screens — same copy/flow, new rendering register. */
 .retro-screen {
-  width: min(880px, 100%); max-height: 100%; overflow: auto;
-  padding: clamp(16px, 2.6vw, 28px);
+  width: min(880px, 100%); max-height: 100%; overflow: hidden;
+  padding: clamp(10px, 2vw, 28px);
   border: 3px solid #000; border-radius: 8px;
   box-shadow: 0 0 0 2px #3a2f3a, 0 0 0 6px #000, 0 18px 60px rgba(0, 0, 0, 0.6);
   background: #0d0b12;
@@ -973,13 +983,13 @@ h1, h2 { font-family: "Black Ops One", var(--font); letter-spacing: 0.01em; }
 }
 .retro-sub {
   font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--gold); margin: 0 0 20px;
+  color: var(--gold); margin: 0 0 10px;
 }
 .retro-sub::before, .retro-sub::after { content: "\25C6"; margin: 0 8px; color: var(--red); }
 .retro-footnote {
   margin-top: 18px; font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.04em;
 }
-.retro-nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; gap: 12px; }
+.retro-nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 12px; }
 .retro-back, .retro-confirm {
   font-family: var(--mono); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
   border-radius: 6px; cursor: pointer; padding: 10px 20px; font-size: 13px; transition: background 140ms ease;
@@ -1046,7 +1056,7 @@ button.pc-card:hover, button.pc-card:focus-visible { outline: none; transform: t
 .fsel-retro { max-width: 980px; }
 .fsel-body {
   display: grid; grid-template-columns: 1fr 1.35fr 1fr; gap: 14px; align-items: stretch;
-  margin: 4px 0 18px; min-height: clamp(260px, 40vh, 400px);
+  margin: 4px 0 10px; min-height: clamp(180px, 28vh, 320px);
 }
 .fsel-panel {
   --slot: var(--green);

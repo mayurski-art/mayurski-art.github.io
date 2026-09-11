@@ -1,0 +1,215 @@
+/* ============================================================================
+   GAME PREVIEW — Steam-style "store page" modal shown before launch.
+   Tokens (--bg/--panel/--ink/--cyan/--green/--line/--shadow) come from
+   troll-dash/style.css's :root, already loaded before this file on games.html.
+   ============================================================================ */
+
+.gp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5, 8, 12, 0.72);
+  backdrop-filter: blur(2px);
+  animation: gp-backdrop-in 160ms ease both;
+  overflow-y: auto;
+}
+
+@keyframes gp-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.gp-modal {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  margin: auto;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: gp-modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes gp-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gp-backdrop, .gp-modal { animation: none; }
+}
+
+.gp-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: rgba(15, 23, 32, 0.75);
+  color: var(--ink);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.gp-close:hover, .gp-close:focus-visible {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(15, 23, 32, 0.95);
+}
+
+.gp-gallery {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--panel-strong);
+  overflow: hidden;
+}
+
+.gp-gallery img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gp-tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: rgba(23, 26, 33, 0.85);
+}
+
+.gp-body {
+  padding: 20px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gp-title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 22px;
+}
+
+.gp-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.gp-badge--live {
+  border-color: rgba(164, 208, 7, 0.5);
+  color: var(--green);
+}
+
+.gp-badge--single {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.gp-summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.gp-section-label {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.gp-controls {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.gp-controls li {
+  font-size: 13px;
+  color: var(--ink);
+  padding-left: 14px;
+  position: relative;
+}
+
+.gp-controls li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--cyan);
+}
+
+.gp-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 3px;
+  border: none;
+  background: var(--cyan);
+  color: #04140a;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.gp-play:hover, .gp-play:focus-visible {
+  filter: brightness(1.08);
+}
+
+.gp-play[disabled],
+.gp-play.is-disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  cursor: default;
+  pointer-events: none;
+}
+
+@media (max-width: 560px) {
+  .gp-backdrop { padding: 12px; }
+  .gp-body { padding: 16px 16px 18px; gap: 12px; }
+  .gp-title { font-size: 19px; }
+}

@@ -16,17 +16,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 16px clamp(20px, 4vw, 48px);
+  padding: 14px clamp(20px, 4vw, 48px);
   border-bottom: 1px solid var(--line);
-  background: rgba(5, 0, 8, 0.5);
+  background: rgba(23, 26, 33, 0.7);
 }
 
 .hub-logo {
   font-family: var(--display);
-  font-weight: 900;
-  font-size: 20px;
+  font-weight: 700;
+  font-size: 18px;
   line-height: 1.15;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .hub-logo span {
@@ -148,10 +148,10 @@
 .hub-hero h1 {
   margin: 6px 0 8px;
   font-family: var(--display);
-  font-weight: 900;
-  font-size: clamp(38px, 5.2vw, 64px);
-  line-height: 0.96;
-  text-transform: uppercase;
+  font-weight: 700;
+  font-size: clamp(26px, 3vw, 34px);
+  line-height: 1.1;
+  text-transform: none;
 }
 
 .hub-hero p {
@@ -160,51 +160,47 @@
   font-size: 16px;
 }
 
-/* ---- game carousel ---- */
-/* Continuous, draggable, infinite-loop strip (JS in arcade-hub.js clones the
-   card set once and drives .hub-carousel-track's transform via rAF — no CSS
-   animation here, that's all script-driven so drag/hover-pause stay simple). */
+/* ---- game grid ---- */
+/* Steam-storefront style: a plain top-down grid, 3 capsule cards per row on
+   desktop, stacking down to 1 on phones. No carousel/drag rig — the whole
+   point of "looks like Steam" is a scrollable list of store capsules, not a
+   horizontal strip. */
 .hub-carousel {
-  position: relative;
-  overflow: hidden;
   margin-bottom: 30px;
-  cursor: grab;
-  touch-action: pan-y;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
-}
-
-.hub-carousel.is-dragging {
-  cursor: grabbing;
 }
 
 .hub-carousel-track {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
-  width: max-content;
-  will-change: transform;
 }
 
-.hub-carousel-track .hub-card {
-  width: 260px;
-  flex: 0 0 auto;
+@media (max-width: 1100px) {
+  .hub-carousel-track {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .hub-carousel-track {
+    grid-template-columns: 1fr;
+  }
 }
 
 .hub-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
+  border-radius: 4px;
   border: 1px solid var(--line);
   overflow: hidden;
   background: var(--panel);
-  user-select: none;
-  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .hub-card:hover,
 .hub-card:focus-within {
-  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.3);
   box-shadow: var(--shadow);
 }
 
@@ -216,17 +212,17 @@
 
 .hub-card-tag {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 10px;
+  left: 10px;
   z-index: 2;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 3px 9px;
+  border-radius: 3px;
   font-family: var(--mono);
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  background: rgba(5, 0, 8, 0.75);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  background: rgba(23, 26, 33, 0.85);
 }
 
 .hub-card[data-accent="green"] .hub-card-tag { color: var(--green); border: 1px solid rgba(77, 255, 115, 0.5); }
@@ -304,9 +300,9 @@
 .hub-card-body h3 {
   margin: 0;
   font-family: var(--display);
-  font-weight: 900;
-  font-size: 19px;
-  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 17px;
+  text-transform: none;
 }
 
 .hub-card-meta {
@@ -324,13 +320,13 @@
   justify-content: center;
   gap: 8px;
   margin-top: 4px;
-  padding: 11px 14px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 3px;
   border: none;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 13px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
   cursor: pointer;
 }
 
@@ -355,7 +351,7 @@
 .arcade-rack { padding: clamp(12px, 3vw, 32px) 0 0; }
 .arcade-rack .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .arcade-rack .eyebrow { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
-.arcade-rack .section-heading h2 { font-size: clamp(24px, 3.6vw, 40px); line-height: 1; text-transform: uppercase; color: var(--ink); }
+.arcade-rack .section-heading h2 { font-size: clamp(20px, 2.4vw, 26px); font-weight: 700; line-height: 1.2; text-transform: none; color: var(--ink); }
 
 /* ---- stats + tip footer ---- */
 .hub-footer {
@@ -371,7 +367,7 @@
   gap: 10px;
   padding: 18px 22px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -419,10 +415,6 @@
   .hub-profile-card {
     padding: 6px;
     border-radius: 50%;
-  }
-
-  .hub-carousel-track .hub-card {
-    width: 220px;
   }
 
   .hub-footer {

@@ -47,7 +47,7 @@
         '<div class="wt-mound"></div>' +
         '<div class="wt-troll">' +
           '<img class="wt-char-troll" src="assets/pfp/base/og.webp" alt="" aria-hidden="true">' +
-          '<img class="wt-char-pepe" src="assets/games/troll-burger/art/customers/pepe-stand.png" alt="" aria-hidden="true">' +
+          '<img class="wt-char-pepe" src="assets/games/whack-a-troll/art/pepe-stand.png" alt="" aria-hidden="true">' +
         '</div>';
       hole.addEventListener("pointerdown", () => whack(i));
       hole.addEventListener("keydown", (e) => {
