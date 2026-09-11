@@ -4711,7 +4711,11 @@ function tdTickClock() {
 // and preview grid render straight off this list, nothing else to wire up.
 const TD_WALLPAPERS = [
   { id: 'track-island-1', label: 'Track Island', img: 'assets/images/wallpaper/trollrunner wallpaper 1.jpg', video: 'assets/animations/trollrunner wallpaper 1 animated.mp4' },
-  { id: 'troll-bliss-1', label: 'Grin Hill', img: 'assets/images/wallpaper/trollface-bliss.jpg' },
+  // loopPauseMs: Grin Hill is a one-shot reveal-blink-hide animation, not an
+  // ambient seamless loop like Track Island -- it should rest on its empty
+  // final frame for a beat before playing again, both on first load and
+  // between repeats, rather than crossfading straight back into the rise.
+  { id: 'troll-bliss-1', label: 'Grin Hill', img: 'assets/images/wallpaper/trollface-bliss.jpg', video: 'assets/animations/troll-windows desktop v1.mp4', loopPauseMs: 4000, emptyImg: 'assets/images/wallpaper/trollface-bliss-empty.jpg' },
 ];
 window.TD_WALLPAPERS = TD_WALLPAPERS;
 const TD_WALLPAPER_ID_KEY = 'td_wallpaper_id';
@@ -4738,15 +4742,21 @@ let tdWallpaperLoopState = null;
 
 function tdStopWallpaperLoop() {
   if (!tdWallpaperLoopState) return;
-  const { videoA, videoB, onTimeA, onTimeB } = tdWallpaperLoopState;
-  videoA.removeEventListener('timeupdate', onTimeA);
-  videoB.removeEventListener('timeupdate', onTimeB);
+  const { videoA, videoB, onTimeA, onTimeB, onEndedA, pauseTimer } = tdWallpaperLoopState;
+  if (onTimeA) videoA.removeEventListener('timeupdate', onTimeA);
+  if (onTimeB) videoB.removeEventListener('timeupdate', onTimeB);
+  if (onEndedA) videoA.removeEventListener('ended', onEndedA);
+  if (pauseTimer) window.clearTimeout(pauseTimer);
   videoA.pause();
   videoB.pause();
   tdWallpaperLoopState = null;
 }
 
-function tdStartWallpaperLoop(src) {
+// loopPauseMs: for a one-shot reveal animation (not an ambient seamless
+// loop), rest on the video's own final frame for this long before playing
+// again -- both before the very first play and between repeats -- instead
+// of crossfading straight back into the start.
+function tdStartWallpaperLoop(src, loopPauseMs) {
   tdStopWallpaperLoop();
   const videoA = document.getElementById('td-wallpaper-video');
   const videoB = document.getElementById('td-wallpaper-video-b');
@@ -4767,6 +4777,44 @@ function tdStartWallpaperLoop(src) {
   videoB.classList.remove('is-active');
   videoA.onerror = fallbackToImage;
   videoB.onerror = fallbackToImage;
+
+  if (loopPauseMs) {
+    // Single-video, no crossfade: play through once, hold on the last
+    // frame for loopPauseMs, then replay -- repeated for as long as this
+    // wallpaper stays active.
+    videoA.loop = false;
+    videoA.removeAttribute('loop');
+    const img = document.getElementById('td-wallpaper-img');
+    // During the pause, show the video's own resting frame (empty hill) as
+    // the fallback <img>, not the wallpaper's normal risen-trollface still
+    // -- otherwise the still-to-video handoff jump-cuts the trollface in.
+    const emptyImgSrc = img?.dataset.emptySrc;
+    let pauseTimer = null;
+    const showEmptyPoster = () => { if (img && emptyImgSrc) img.src = emptyImgSrc; };
+    const playAfterPause = () => {
+      showEmptyPoster();
+      videoA.classList.remove('is-active');
+      pauseTimer = window.setTimeout(() => {
+        videoA.currentTime = 0;
+        videoA.play().then(() => {
+          videoA.classList.add('is-active');
+        }).catch(fallbackToImage);
+      }, loopPauseMs);
+    };
+    const onEndedA = () => playAfterPause();
+    videoA.addEventListener('ended', onEndedA);
+    tdWallpaperLoopState = { videoA, videoB, onEndedA, get pauseTimer() { return pauseTimer; } };
+    // Initial pause before the very first play too, so a fresh page load
+    // doesn't jump straight into the animation -- 0.3s shorter than the
+    // between-repeats pause so the first reveal feels a little snappier.
+    showEmptyPoster();
+    const initialPauseMs = Math.max(0, loopPauseMs - 300);
+    pauseTimer = window.setTimeout(() => {
+      videoA.classList.add('is-active');
+      void videoA.play().catch(fallbackToImage);
+    }, initialPauseMs);
+    return;
+  }
 
   const state = { active: videoA, standby: videoB, crossfading: false };
 
@@ -4810,13 +4858,17 @@ function tdApplyWallpaper() {
     // layer at all when animation is off or fails.
     img.src = wallpaper.img;
     img.hidden = false;
+    // Used during a paused one-shot loop's rest period (see loopPauseMs in
+    // tdStartWallpaperLoop) so the pause shows the video's own resting
+    // frame instead of the wallpaper's normal (already-risen) still.
+    img.dataset.emptySrc = wallpaper.emptyImg || '';
   }
   if (videowrap) {
     if (useVideo) {
       videowrap.hidden = false;
       const videoA = document.getElementById('td-wallpaper-video');
       if (videoA?.getAttribute('src') !== wallpaper.video || !tdWallpaperLoopState) {
-        tdStartWallpaperLoop(wallpaper.video);
+        tdStartWallpaperLoop(wallpaper.video, wallpaper.loopPauseMs);
       }
     } else {
       videowrap.hidden = true;
