@@ -3812,7 +3812,7 @@ function tdSetIcon(el, icon) {
 }
 
 const TD_WINDOWS = {
-  hub: { title: 'TrollRunner Hub', icon: TROLL_ICON, img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: true, url: 'https://www.trollrunner.net', build: tdBuildHub },
+  hub: { title: 'TrollRunner Hub', icon: TROLL_ICON, img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: false, url: 'https://www.trollrunner.net', build: tdBuildHub },
   chat: { title: 'TrollChat', icon: '💬', img: 'assets/images/icons/trollchat.png', flat: true, width: 540, source: '#trollchat', maximizeByDefault: true },
   cam: { title: 'Live Cam', icon: '📹', img: 'assets/images/icons/cam.png', flat: true, width: 620, source: '#bio-artwork' },
   updates: { title: 'Latest Updates', icon: '📰', img: 'assets/images/icons/updates.png', flat: true, width: 620, source: '#updates' },
@@ -3825,7 +3825,7 @@ const TD_WINDOWS = {
 // the subdomain like a real browser would, but the page never leaves this tab.
 TD_SITES.forEach(site => {
   TD_WINDOWS[site.id] = {
-    title: site.label, icon: site.icon, img: site.img, flat: site.flat, width: 1040, browser: true,
+    title: site.label, icon: site.icon, img: site.img, flat: site.flat, width: 1040, browser: false,
     url: site.href.replace(/^https?:\/\//, '').replace(/\/$/, ''),
     iframeSrc: site.href,
     build: body => tdBuildIframe(body, site.href, site.label),
@@ -3838,7 +3838,7 @@ TD_SITES.forEach(site => {
 // "save as my profile picture" just works.
 TD_WINDOWS.pfp = {
   title: 'PFP Studio', icon: '🎨', img: 'assets/images/icons/pfp.png', flat: true,
-  width: 1040, browser: true,
+  width: 1040, browser: false,
   url: 'trollrunner.net/pfp', iframeSrc: 'pfp.html',
   build: body => tdBuildIframe(body, 'pfp.html', 'PFP Studio'),
   maximizeByDefault: true,
@@ -3848,7 +3848,7 @@ TD_WINDOWS.pfp = {
 // same reason as PFP Studio above — no SSO bridge needed, one less repo.
 TD_WINDOWS.stickers = {
   title: 'Stickers', icon: '🏷️', img: 'assets/images/icons/stickers.png', flat: true,
-  width: 1040, browser: true,
+  width: 1040, browser: false,
   url: 'trollrunner.net/stickers', iframeSrc: 'stickers.html',
   build: body => tdBuildIframe(body, 'stickers.html', 'Stickers'),
   maximizeByDefault: true,
@@ -3859,7 +3859,7 @@ TD_WINDOWS.stickers = {
 // SSO bridge needed, one less repo. assets/js/troll-map.js has the app.
 TD_WINDOWS.maps = {
   title: 'Maps', icon: '📍', img: 'assets/images/icons/troll-map.png', flat: true,
-  width: 1040, browser: true,
+  width: 1040, browser: false,
   url: 'trollrunner.net/maps', iframeSrc: 'maps.html',
   build: body => tdBuildIframe(body, 'maps.html', 'Maps'),
   maximizeByDefault: true,
@@ -3870,7 +3870,7 @@ TD_WINDOWS.maps = {
 // one less repo. assets/js/videos.js has the app.
 TD_WINDOWS.videos = {
   title: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true,
-  width: 1040, browser: true,
+  width: 1040, browser: false,
   url: 'trollrunner.net/videos', iframeSrc: 'videos.html',
   build: body => tdBuildIframe(body, 'videos.html', 'Videos'),
   maximizeByDefault: true,
@@ -3882,7 +3882,7 @@ TD_WINDOWS.videos = {
 // page's Supabase session directly via troll-accounts.js.
 TD_WINDOWS.fitness = {
   title: 'Fitness', icon: '🏃', img: 'assets/images/icons/fitness.png', flat: true,
-  width: 1040, browser: true,
+  width: 1040, browser: false,
   url: 'trollrunner.net/fitness', iframeSrc: 'fitness.html',
   build: body => tdBuildIframe(body, 'fitness.html', 'Fitness'),
   maximizeByDefault: true,
@@ -3895,7 +3895,7 @@ TD_WINDOWS.fitness = {
 // same-origin; this explicit entry replaces it.
 TD_WINDOWS.games = {
   title: 'Games', icon: '🕹️', img: 'assets/images/icons/games.png', flat: true,
-  width: 1040, browser: true,
+  width: 1040, browser: false,
   url: 'trollrunner.net/games', iframeSrc: 'games.html',
   build: body => tdBuildIframe(body, 'games.html', 'Games'),
   maximizeByDefault: true,
@@ -3913,12 +3913,12 @@ TD_WINDOWS.games = {
 // card and start menu. Nothing still opens this as a windowed iframe.
 TD_WINDOWS.world = {
   title: 'Island (mobile)', icon: '📱', img: 'assets/images/icons/hub.png', flat: true,
-  width: 400, browser: true,
+  width: 400, browser: false,
   url: 'trollrunner.net', iframeSrc: 'world.html',
   build: body => tdBuildIframe(body, 'world.html', 'Island (mobile)'),
 };
 TD_WINDOWS.nutrition = {
-  title: 'Nutrition', icon: '🥗', width: 1040, browser: true,
+  title: 'Nutrition', icon: '🥗', width: 1040, browser: false,
   url: 'nutrition.trollrunner.net', iframeSrc: 'https://nutrition.trollrunner.net',
   build: body => tdBuildIframe(body, 'https://nutrition.trollrunner.net', 'Nutrition'),
   adminOnly: true,
