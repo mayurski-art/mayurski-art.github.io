@@ -201,6 +201,13 @@ export class Net {
         this.h.onPeerDied?.(p, m);
         break;
       }
+      /* The staging countdown is shared state: whoever started the match owns
+         the clock and republishes it, so a client joining or reloading mid
+         countdown lands on the same number everyone else already sees. */
+      case "stage": {
+        this.h.onStage?.(m);
+        break;
+      }
       case "vote": {
         const p = this.peer(m.id);
         p.vote = m.map;
@@ -294,6 +301,17 @@ export class Net {
     const p = this.peers.get(botId);
     if (p) { this.h.onLeave?.(p); this.peers.delete(botId); }
     this.send({ t: "bye", id: botId });
+  }
+
+  /* Pre-match staging. The client that starts the match owns the clock and
+     republishes the remaining seconds, so everyone drops in together and a
+     late arrival joins the countdown already in progress rather than
+     starting its own. */
+  publishStage(mapId, modeId, secondsLeft) {
+    this.send({
+      t: "stage", id: this.id, map: mapId, mode: modeId,
+      left: Math.max(0, round2(secondsLeft)),
+    });
   }
 
   /* Map vote. Peers keep the last vote each id sent, so a late joiner's

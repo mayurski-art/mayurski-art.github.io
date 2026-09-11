@@ -290,4 +290,14 @@ export class GameAudio {
     this._tone({ freq: 420, duration: 0.16, gain: 0.14, type: "triangle" });
     this._tone({ freq: 630, duration: 0.22, gain: 0.13, type: "triangle", delay: 0.14 });
   }
+
+  /* One second off the pre-match clock. Deliberately dry and quiet — it fires
+     up to six times in a row, so anything with a tail would smear. */
+  stageTick(last = false) {
+    if (!this._ready()) return;
+    this._tone({
+      freq: last ? 880 : 560, duration: last ? 0.2 : 0.07,
+      gain: last ? 0.15 : 0.1, type: "square",
+    });
+  }
 }

@@ -155,6 +155,42 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   color: #ff8a5a; text-align: center; z-index: 13;
 }
 
+/* Pre-match staging. Deliberately the loudest thing on screen — it's the only
+   moment the player is meant to be looking at the HUD rather than the map. */
+.to-staging {
+  position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%);
+  text-align: center; z-index: 14; pointer-events: none;
+  font-family: "Oswald", sans-serif; text-shadow: 0 2px 14px rgba(0,0,0,.8);
+}
+.to-staging-mode {
+  margin: 0; font-size: 13px; letter-spacing: .22em; text-transform: uppercase;
+  color: #9fe7ff;
+}
+.to-staging-clock {
+  display: block; font-size: 88px; line-height: 1; font-weight: 700;
+  color: #f4f7f2; margin: 2px 0 0;
+}
+/* Each new second re-triggers the pop, so the number feels like a clock
+   rather than static text. */
+.to-staging-clock.is-tick { animation: to-stage-tick .42s ease-out; }
+@keyframes to-stage-tick {
+  0% { transform: scale(1.28); color: #7fe066; }
+  100% { transform: scale(1); color: #f4f7f2; }
+}
+.to-staging-sub {
+  margin: 4px 0 0; font-size: 15px; letter-spacing: .14em;
+  text-transform: uppercase; color: #d7ded2;
+}
+.to-staging-roster {
+  margin: 7px 0 0; font-size: 11.5px; letter-spacing: .08em; color: #9aa694;
+  font-family: "DM Mono", ui-monospace, monospace;
+}
+/* Dim the world slightly so the countdown reads over any map palette. */
+.to-staging-on #to-hud::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(ellipse at 50% 38%, rgba(4,10,8,.5), rgba(4,10,8,.72));
+}
+
 /* Spawn protection — a visible promise, so the player knows why nothing is
    hurting them and that shooting gives it up. */
 .to-spawnguard {

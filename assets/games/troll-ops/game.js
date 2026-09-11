@@ -48,6 +48,11 @@ const els = {
   respawn: document.getElementById("to-respawn"),
   respawnText: document.getElementById("to-respawn-text"),
   spawnGuard: document.getElementById("to-spawnguard"),
+  staging: document.getElementById("to-staging"),
+  stagingMode: document.getElementById("to-staging-mode"),
+  stagingClock: document.getElementById("to-staging-clock"),
+  stagingSub: document.getElementById("to-staging-sub"),
+  stagingRoster: document.getElementById("to-staging-roster"),
   deathBy: document.getElementById("to-deathby"),
   deathByName: document.getElementById("to-deathby-name"),
   deathByMeta: document.getElementById("to-deathby-meta"),
@@ -708,6 +713,16 @@ const net = new Net({
     if (m.by !== net.id) creditAssistIfOwed(p.id, p.name);
   },
   onVote: () => { if (intermissionT > 0) renderVote(); },
+  /* Adopt the owner's countdown rather than running our own, so two clients
+     that started a fraction of a second apart still hit zero together. We
+     only ever take a *shorter* remaining time: a late "6" arriving after we
+     are down to 2 must not push us back up the clock. */
+  onStage: (m) => {
+    if (gameState !== "playing" || !isPvp()) return;
+    const left = Number(m.left);
+    if (!Number.isFinite(left) || left <= 0) { if (isStaging()) endStaging(); return; }
+    if (isStaging() && left < stageT) { stageT = left; stageOwner = false; }
+  },
   ownsBot: (id) => !!bots.byId(id),
   onBotHit: (m) => {
     const { killed, bot } = bots.applyHit(m.target, m.dmg);
@@ -1804,7 +1819,7 @@ function refillGear() {
 /* Cooking: holding the key starts the fuse while the grenade is still in
    your hand. Impact throwables ignore it — they go off where they land. */
 function startCook(slot) {
-  if (cooking.def || !player.alive || gameState !== "playing") return;
+  if (cooking.def || !player.alive || gameState !== "playing" || isStaging()) return;
   if (player.gear[slot] <= 0) return;
   const def = slot === "lethal" ? loadout.lethal : loadout.tactical;
   cooking.def = def;
@@ -1840,7 +1855,7 @@ function releaseCook() {
 /* Quick melee swings without putting the gun away; pressing 3 makes the
    melee weapon the thing in your hands, which swings and moves faster. */
 function swingMelee() {
-  if (!player.alive || move.busy || gameState !== "playing") return;
+  if (!player.alive || move.busy || gameState !== "playing" || isStaging()) return;
   if (!player.melee || !player.melee.start()) return;
   breakSpawnGuard();
   audio.swing();
@@ -1949,13 +1964,17 @@ let elapsedRun = 0;
 /* The local player as the wire sees them. Shared by the match loop and the
    intermission, which keeps broadcasting so the room doesn't time us out
    (PEER_TIMEOUT is 5s and an intermission runs for 20). */
+// net.update() only actually sends this at 15Hz, but it used to get a fresh
+// object every animate() frame at 60Hz regardless — three throwaway objects
+// for every one that ships. One reused object costs nothing to overwrite.
+const _netSnapshot = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, stance: null, moving: false, hp: 0, alive: true, weapon: null, kills: 0 };
 function netSnapshot() {
-  return {
-    x: move.pos.x, y: move.pos.y, z: move.pos.z,
-    yaw: look.yaw, pitch: look.pitch,
-    stance: move.stance, moving: move.moving,
-    hp: player.hp, alive: player.alive, weapon: player.weaponId, kills: player.kills,
-  };
+  _netSnapshot.x = move.pos.x; _netSnapshot.y = move.pos.y; _netSnapshot.z = move.pos.z;
+  _netSnapshot.yaw = look.yaw; _netSnapshot.pitch = look.pitch;
+  _netSnapshot.stance = move.stance; _netSnapshot.moving = move.moving;
+  _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
+  _netSnapshot.weapon = player.weaponId; _netSnapshot.kills = player.kills;
+  return _netSnapshot;
 }
 
 /* Everyone currently standing in the world, us included. Spawn scoring and
@@ -2173,6 +2192,107 @@ async function startGame() {
   beginMatch();
 }
 
+/* -------------------- pre-match staging --------------------
+
+   A match used to begin the instant the map loaded: you were dropped on your
+   spawn, already live, while the bots that fill the room only appeared a frame
+   later from inside the animate loop. That reads as abrupt, and a room with one
+   or two humans looks empty at exactly the moment it should feel like a match
+   about to kick off.
+
+   Staging is a short countdown *inside* `playing` rather than a sixth game
+   state — the world renders, remote players and bots stream in and are visible,
+   but nobody can move, shoot or take damage until the clock hits zero. Keeping
+   it a flag rather than a state means the ~25 existing `gameState === "playing"`
+   checks all keep working untouched. */
+const STAGE_SECONDS = 6;
+let stageT = 0;                  // seconds left; 0 means the match is live
+let stageShown = -1;             // last whole second painted, so we only touch the DOM on a change
+let stageOwner = false;          // are we the client publishing the clock?
+let stagePub = 0;                // throttle on republishing it
+
+function isStaging() { return stageT > 0; }
+
+/* Frozen: input is ignored and damage is refused. The camera still moves so
+   the player can look around the room while they wait. */
+function beginStaging(seconds = STAGE_SECONDS) {
+  stageT = seconds;
+  stageShown = -1;
+  stagePub = 0;
+  // Solo play always "owns" its own clock; PvP re-derives ownership every
+  // publish tick in updateStaging() rather than latching a one-time guess
+  // here — a peer's `hello` can land a beat after this runs, and a stale
+  // "I'm alone" snapshot would leave two clients both convinced they own it.
+  stageOwner = !isPvp() || !net.active;
+  els.staging.hidden = false;
+  document.body.classList.add("to-staging-on");
+  els.stagingMode.textContent = isPvp()
+    ? `${currentMode().name} — ${builtMap.map.name}`
+    : builtMap.map.name;
+  els.stagingSub.textContent = isPvp() && net.team
+    ? `You are ${TEAMS[net.team].name}`
+    : "Get ready";
+  updateStagingRoster();
+}
+
+function endStaging() {
+  if (stageT <= 0 && els.staging.hidden) return;
+  stageT = 0;
+  els.staging.hidden = true;
+  document.body.classList.remove("to-staging-on");
+  // The opening seconds still deserve the cover a respawn gets.
+  player.spawnGuard = isPvp() ? SPAWN_GUARD : 0;
+  updateSpawnGuardHud();
+  if (isPvp()) showWaveBanner("FIGHT", 1100);
+  audio.stageTick(true);
+  // The horde/zombie clock — and the first wave banner — start now, not when
+  // the map loaded, so nothing was ever ticking behind the countdown.
+  if (isZombies()) nextZombieRound();
+  else if (!isPvp() && !isRange()) nextWave();
+}
+
+/* How full the room looks right now — the whole point of staging is that the
+   bots are already standing there when the player counts down. */
+function updateStagingRoster() {
+  if (!isPvp()) { els.stagingRoster.textContent = ""; return; }
+  let humans = 1, botCount = 0;
+  for (const p of net.peers.values()) (isBotPeer(p) ? botCount++ : humans++);
+  const parts = [`${humans} operator${humans === 1 ? "" : "s"}`];
+  if (botCount) parts.push(`${botCount} bot${botCount === 1 ? "" : "s"}`);
+  els.stagingRoster.textContent = parts.join(" · ");
+}
+
+function updateStaging(dt) {
+  stageT -= dt;
+
+  // Only the owner publishes, ~3×/sec, so a client that joins or reloads
+  // mid-countdown adopts the clock already running rather than its own.
+  // Re-checked every tick (not latched once) so a peer whose `hello` arrived
+  // a beat late still hands ownership off the moment it's known about.
+  if (isPvp() && net.active) {
+    stageOwner = net.isBotHost();
+    stagePub -= dt;
+    if (stageOwner && stagePub <= 0) {
+      stagePub = 0.33;
+      net.publishStage(loadout.mapId, modeId, stageT);
+    }
+  }
+
+  const whole = Math.max(0, Math.ceil(stageT));
+  if (whole !== stageShown) {
+    stageShown = whole;
+    els.stagingClock.textContent = whole > 0 ? String(whole) : "GO";
+    // Restarting a CSS animation needs the class off for a reflow first.
+    els.stagingClock.classList.remove("is-tick");
+    void els.stagingClock.offsetWidth;
+    els.stagingClock.classList.add("is-tick");
+    if (whole > 0) audio.stageTick(whole <= 3);
+    updateStagingRoster();
+  }
+
+  if (stageT <= 0) endStaging();
+}
+
 /* Everything a match needs reset, with no connection work — so a rematch can
    reuse the room the lobby already joined instead of tearing it down and
    making everyone re-handshake. */
@@ -2201,9 +2321,9 @@ function beginMatch(mapId = null) {
   hillAcc = 0;
 
   spawnDeaths.clear();
-  // Opening seconds deserve the same cover as a respawn — everyone loads in
-  // at once, onto spawns the other side already knows.
-  player.spawnGuard = isPvp() ? SPAWN_GUARD : 0;
+  // Spawn protection starts when the countdown ends, not when the map loads —
+  // burning it during staging would spend it before anyone can shoot.
+  player.spawnGuard = 0;
   updateSpawnGuardHud();
 
   loadMap(currentMode().forceMap || mapId || loadout.mapId);
@@ -2267,10 +2387,22 @@ function beginMatch(mapId = null) {
   setTouchControls(true);
   gameState = "playing";
 
-  if (isRange()) showWaveBanner("Test range — nothing here shoots back", 2600);
-  else if (isZombies()) nextZombieRound();
-  else if (!isPvp()) nextWave();
-  else showWaveBanner(`${TEAMS[net.team].name.toUpperCase()} — ${builtMap.map.name}`, 2400);
+  // The range is a sandbox, not a match — there is nothing to count down to.
+  if (isRange()) {
+    showWaveBanner("Test range — nothing here shoots back", 2600);
+  } else {
+    // Bots are filled here rather than on the first live frame, so the room is
+    // already populated while the player watches the clock.
+    if (isPvp() && net.isBotHost()) {
+      const humans = 1 + [...net.peers.values()].filter((p) => !isBotPeer(p)).length;
+      bots.fill(BOT_TARGET, humans, spawnForTeam, !!currentMode().ffa);
+      for (const b of bots.bots) net.publishBot(b);
+    }
+    // Wave 1 / Round 1 don't spawn until the countdown clears — starting the
+    // spawner immediately would have grunts standing idle mid-countdown and
+    // "WAVE 1" competing on screen with "GET READY".
+    beginStaging();
+  }
 
   // Browsers refuse a pointer lock requested too soon after an unlock without
   // a fresh gesture, which the auto-advance out of an intermission doesn't
@@ -2359,6 +2491,7 @@ function endGame(reason) {
 }
 
 function endMatch(title) {
+  endStaging();          // a match can be ended from outside (everyone left)
   const mode = currentMode();
   const headline = mode.ffa ? String(player.kills) : String(teamScores[net.team] ?? 0);
   const won = mode.ffa
@@ -2482,6 +2615,7 @@ els.retryBtn.addEventListener("click", () => {
 els.resumeBtn.addEventListener("click", () => { if (!isTouch) controls.lock(); });
 els.quitBtn.addEventListener("click", () => {
   gameState = "menu";
+  endStaging();
   cancelIntermission();
   net.stop();
   remotes.clear();
@@ -2563,6 +2697,8 @@ function killerHpFor(id) {
 
 function damagePlayer(amount, fromId, weaponId, isHead = false) {
   if (!player.alive) return;
+  // Nothing lands before the match is live, whoever reports it.
+  if (isStaging()) return;
   // Your own grenade can still sting on the range; it can't end the session.
   if (isRange()) {
     player.hp = Math.max(1, player.hp - amount);
@@ -2697,13 +2833,25 @@ function animate() {
   }
 
   if (gameState === "playing") {
-    elapsedRun += dt;
+    if (isStaging()) updateStaging(dt);
+    // The clock itself isn't playtime, and nothing hostile moves during it.
+    else elapsedRun += dt;
+    const staging = isStaging();
+
     pollGamepad(dt);
     updatePlayer(dt);
     updateWeaponView(dt);
 
     targetMeshes = [];
-    if (isRange()) {
+    if (staging) {
+      // Hostiles hold still, but remote operators and bots still stream in so
+      // the room visibly fills while the player waits.
+      if (isPvp()) {
+        net.update(dt, netSnapshot());
+        remotes.sync(net.peers);
+        remotes.update(dt);
+      }
+    } else if (isRange()) {
       rangeSet.update(dt);
       targetMeshes = rangeSet.hitMeshes();
       // Ammo and gear are free here — the range is for testing, not rationing.
@@ -2779,16 +2927,21 @@ function animate() {
     });
     updateSparks(dt);
 
-    // HUD updates
+    // HUD updates — each only touches the DOM when its value actually changed.
     const w = currentWeapon();
-    els.hpFill.style.width = `${(player.hp / player.maxHp) * 100}%`;
-    els.hpFill.classList.toggle("is-low", player.hp < 30);
-    els.hpText.textContent = Math.ceil(player.hp);
-    els.ammoCur.textContent = w.ammoInMag;
-    els.ammoRes.textContent = w.ammoReserve;
-    els.reloadTag.hidden = !w.reloading;
-    els.crosshair.classList.toggle("is-ads", w.ads);
-    els.lowhp.classList.toggle("is-low", player.hp < 25);
+    const hpPct = (player.hp / player.maxHp) * 100;
+    if (hpPct !== hudCache.hpPct) { hudCache.hpPct = hpPct; els.hpFill.style.width = `${hpPct}%`; }
+    const hpLow = player.hp < 30;
+    if (hpLow !== hudCache.hpLow) { hudCache.hpLow = hpLow; els.hpFill.classList.toggle("is-low", hpLow); }
+    const hpText = Math.ceil(player.hp);
+    if (hpText !== hudCache.hpText) { hudCache.hpText = hpText; els.hpText.textContent = hpText; }
+    if (w.ammoInMag !== hudCache.ammoCur) { hudCache.ammoCur = w.ammoInMag; els.ammoCur.textContent = w.ammoInMag; }
+    if (w.ammoReserve !== hudCache.ammoRes) { hudCache.ammoRes = w.ammoReserve; els.ammoRes.textContent = w.ammoReserve; }
+    const reloadHidden = !w.reloading;
+    if (reloadHidden !== hudCache.reloadHidden) { hudCache.reloadHidden = reloadHidden; els.reloadTag.hidden = reloadHidden; }
+    if (w.ads !== hudCache.ads) { hudCache.ads = w.ads; els.crosshair.classList.toggle("is-ads", w.ads); }
+    const lowhp = player.hp < 25;
+    if (lowhp !== hudCache.lowhp) { hudCache.lowhp = lowhp; els.lowhp.classList.toggle("is-low", lowhp); }
 
     // A cooked grenade keeps ticking in your hand, and can go off in it.
     if (cooking.def) {
@@ -2869,6 +3022,12 @@ const _listenFwd = new THREE.Vector3();
 const _listenUp = new THREE.Vector3();
 let stepPhase = 0;
 
+/* Last value written to each per-frame HUD node. The DOM write itself is
+   cheap, but it was unconditional — every one of these touched layout/paint
+   60×/sec even sitting still with full ammo and health. Comparing first
+   means the browser only does anything the frame a number actually moves. */
+const hudCache = { hpPct: -1, hpLow: null, hpText: -1, ammoCur: -1, ammoRes: -1, reloadHidden: null, ads: null, lowhp: null };
+
 function updatePlayer(dt) {
   const w = currentWeapon();
 
@@ -2900,8 +3059,11 @@ function updatePlayer(dt) {
   ix = Math.max(-1, Math.min(1, ix));
   iz = Math.max(-1, Math.min(1, iz));
 
-  // Dead players keep their camera but stop driving anything.
-  if (!player.alive) { ix = 0; iz = 0; }
+  // Dead players keep their camera but stop driving anything — and so does
+  // everyone during the pre-match countdown. Look is deliberately still live:
+  // you can size up the room while you wait, you just can't leave the mark.
+  const frozen = !player.alive || isStaging();
+  if (frozen) { ix = 0; iz = 0; }
 
   const leanDir = isTouch
     ? touchState.lean
@@ -2917,9 +3079,9 @@ function updatePlayer(dt) {
     forward: iz,
     strafe: ix,
     sprint: (isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft"),
-    jump: (isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space"),
-    crouch: (isTouch && touchState.crouch) || (gp && gamepadState.crouch) || keys.has("KeyC"),
-    dive: (isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight"),
+    jump: !frozen && ((isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space")),
+    crouch: !frozen && ((isTouch && touchState.crouch) || (gp && gamepadState.crouch) || keys.has("KeyC")),
+    dive: !frozen && ((isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight")),
     leanDir,
     yaw: look.yaw,
     adsHeld: wantAds,
@@ -2962,7 +3124,7 @@ function updatePlayer(dt) {
   const swinging = !!player.melee && player.melee.busy;
   if (player.melee && player.melee.update(dt)) meleeConnect();
 
-  const canAct = !move.busy && player.alive;
+  const canAct = !move.busy && player.alive && !isStaging();
   w.update(dt, {
     moving: move.moving,
     sprinting: move.sprinting,
@@ -3160,6 +3322,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
     startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
     startIntermission, updateIntermission, occupants, notePointDeath,
+    isStaging, beginStaging, endStaging, updateStaging,
+    stageT: () => stageT, stageOwner: () => stageOwner,
     registerDeath, noteDealt, creditAssistIfOwed, showDeathCard,
     noteDamage, assistersFor, addMatchXp, awardKillXp, pushKillfeed,
     damageLog: () => damageLog, dealtLog: () => dealtLog,
