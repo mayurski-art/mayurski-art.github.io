@@ -302,8 +302,21 @@ export function buildWeaponMesh(def) {
     group.add(unit);
     const lensMat = new THREE.MeshBasicMaterial({ color: 0xff3b30 });
     const lens = new THREE.Mesh(new THREE.CircleGeometry(0.006, 8), lensMat);
-    lens.position.set(0, -bodyH * 0.85, -len * 0.47);
+    const lensZ = -len * 0.47;
+    lens.position.set(0, -bodyH * 0.85, lensZ);
     group.add(lens);
+
+    // The beam itself: a thin, always-facing-forward cylinder the game code
+    // rescales to the raycast distance and shows only while aiming, so it
+    // reads as an activated sight rather than a cosmetic glued to the rail.
+    const beamMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.85, depthWrite: false });
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 1, 6), beamMat);
+    beam.rotation.x = Math.PI / 2;   // cylinder's height axis runs along +Z after this
+    beam.position.set(0, -bodyH * 0.85, lensZ);
+    beam.visible = false;
+    group.add(beam);
+    group.userData.laserBeam = beam;
+    group.userData.laserOrigin = new THREE.Vector3(0, -bodyH * 0.85, lensZ);
   }
 
   group.traverse((o) => { if (o.isMesh) o.castShadow = false; });

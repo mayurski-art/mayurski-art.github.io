@@ -23,7 +23,7 @@ import { ZombieDirector } from "./zombies.js";
 import { zombieWindows } from "./pentagrin.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
 import { WaveSpawner } from "./enemies.js";
-import { BulletSystem, segmentBlocked } from "./ballistics.js";
+import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js";
 import { MeleeState, buildMeleeMesh, GrenadeSystem, blastDamage } from "./gear.js";
 import { RangeSet } from "./range.js";
@@ -3615,13 +3615,17 @@ function updatePlayer(dt) {
   if (player.melee && player.melee.update(dt)) meleeConnect();
 
   const canAct = !move.busy && player.alive && !isStaging();
+  // Aiming itself is harmless during the pre-match countdown — no shooting,
+  // no movement change beyond what ADS already slows — so it gets its own,
+  // looser gate instead of inheriting the staging freeze from canAct.
+  const canAds = !move.busy && player.alive;
   w.update(dt, {
     moving: move.moving,
     sprinting: move.sprinting,
     grounded: move.grounded,
     jumping: move.jumping,
-    adsHeld: wantAds && canAct,
-    canAds: canAct,
+    adsHeld: wantAds && canAds,
+    canAds,
   });
 
   // Holding the melee weapon turns the fire button into a swing.
@@ -3745,6 +3749,45 @@ function inspectPose() {
   return p;
 }
 
+const _laserRay = new THREE.Raycaster();
+const _laserOrigin = new THREE.Vector3();
+const _laserDir = new THREE.Vector3();
+const LASER_ADS_THRESHOLD = 0.4; // beam only reads as "activated" once the sight has actually come up
+
+/* The laser attachment only exists on the gun model if it's equipped
+   (weapon-model.js), so absence of the beam node means "no laser" — nothing
+   here needs to re-check the loadout. Aiming, not equipping, turns it on:
+   the beam is dark until the sight comes up, same as the reflex/ACOG glass. */
+function updateLaserBeam(mesh, w) {
+  const beam = mesh.userData.laserBeam;
+  if (!beam) return;
+  if (w.adsT < LASER_ADS_THRESHOLD) { beam.visible = false; return; }
+
+  camera.getWorldPosition(_laserOrigin);
+  camera.getWorldDirection(_laserDir);
+
+  let range = raycastWorld(colliders, _laserOrigin, _laserDir, 60);
+  if (targetMeshes.length) {
+    _laserRay.set(_laserOrigin, _laserDir);
+    _laserRay.near = 0;
+    _laserRay.far = range;
+    const hits = _laserRay.intersectObjects(targetMeshes, true);
+    if (hits.length) range = hits[0].distance;
+  }
+
+  // Cylinder height runs along the geometry's own Y axis; rotation.x = 90deg
+  // (set at build time) is what points that axis down the barrel, so the
+  // beam is stretched with scale.y, not scale.z, and re-centered along
+  // local Z to keep its near end pinned at the laser unit.
+  const origin = mesh.userData.laserOrigin;
+  const len = Math.max(0.02, range - (-origin.z));
+  beam.scale.y = len;
+  beam.position.z = origin.z - len / 2;
+  const fade = Math.min(1, (w.adsT - LASER_ADS_THRESHOLD) / (1 - LASER_ADS_THRESHOLD));
+  beam.material.opacity = 0.85 * fade;
+  beam.visible = true;
+}
+
 function updateWeaponView(dt) {
   const w = currentWeapon();
   updateMeleeView(dt);
@@ -3786,6 +3829,7 @@ function updateWeaponView(dt) {
   );
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
+  updateLaserBeam(mesh, w);
 
   if (muzzleFlashT > 0) {
     muzzleFlashT -= dt;

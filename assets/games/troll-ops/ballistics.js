@@ -53,6 +53,18 @@ export function segmentBlocked(colliders, from, to) {
   return false;
 }
 
+/* Nearest world-collider hit along a ray, in metres, or `len` if nothing is
+   struck. Used for anything that needs a wall distance without the full
+   bullet simulation — the laser sight sizes its beam this way. */
+export function raycastWorld(colliders, origin, dir, len) {
+  let nearest = len;
+  for (const c of colliders) {
+    const hit = segmentAABB(origin, dir, len, c.min, c.max);
+    if (hit && hit.t1 > 0 && hit.t0 < nearest) nearest = Math.max(0, hit.t0);
+  }
+  return nearest;
+}
+
 class Tracer {
   constructor(scene, geo) {
     this.mat = makeTracerMaterial(0xfff2c0);
