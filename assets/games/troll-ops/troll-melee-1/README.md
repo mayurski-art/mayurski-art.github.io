@@ -194,29 +194,48 @@ washed the dark caps to pale grey.
 The exported value is ~1.35, which looks dim in Blender and correct in
 Godot. **Judge emission in the engine, never in the Blender viewport.**
 
-## Known issue: keycap legends read upside down
+## Resolved: keycap legends were reading upside down
 
-The legends are present and legible in game, but they read bottom-to-top
-from the player's viewpoint rather than top-to-bottom.
+Fixed. The legends now read correctly top-to-bottom from the player's
+viewpoint.
 
-Seven rotation permutations were tried on the text objects (X/Y/Z 180, X
-+/-90, combinations, plus reversing the row and column indices) and none
-fixed it. Notes for whoever picks this up:
+Seven rotation guesses had failed before this (X/Y/Z 180, X +/-90,
+combinations, reversing row/column indices) because each one composed with
+`keyboard_sword.tscn`'s -90-about-X model rotation in a way that was hard
+to reason about analytically. The fix that worked: **stop guessing
+rotations and measure directly.** A single oversized test glyph (a bare
+"F", unmistakable right-way-up vs mirrored) was placed on one cap with
+ZERO rotation and rendered through the actual game camera (not a separate
+Blender probe camera, which turned out to have its own orientation bugs).
+It came out correctly oriented. The fix was to remove ALL rotation and
+flip logic from the legend placement entirely - the glyphs were already
+correct by default, and every rotation attempt had been actively making it
+worse.
 
-- Blender font text stands upright in the XY plane facing +Z. Measured, not
-  assumed: with no rotation a glyph's height spans Y and its thickness
-  spans Z.
-- The keycaps also face +/-Z, so the glyph is already flat on the cap. Any
-  X rotation stands it on edge instead - visible as thin slivers.
-- `keyboard_sword.tscn` rotates the whole model -90 about X to stand the
-  sword up in the hand, so every rotation authored in Blender composes with
-  that before it reaches the screen.
-- Mirroring the glyph's vertices after `object.convert` did NOT take
-  effect, which suggests the later join/transform-apply in `build()`
-  re-bakes from the original curve data. That is the most promising thread:
-  apply the mirror before conversion, or as a negative-scale transform that
-  gets applied along with everything else.
+Lesson for next time: when a parent transform is in the loop, do not
+reason about composed rotations by hand across many files - render one
+unambiguous test case through the FINAL, real camera path and read the
+answer off the pixels.
 
-It is cosmetic and only noticeable if you stop and read the keys, so it is
-not worth blocking on - but it is wrong, and it should not be described as
-finished.
+## Trollface pommel: proportions and a lighting trap
+
+The pommel's grin, eyes and brows were reworked for more accurate trollface
+proportions - narrower slit eyes, steeper brows, a wider crescent grin with
+hooked-up corners, and a row of teeth.
+
+Two real bugs surfaced while building this:
+
+- **A concave outline whose two edges can cross is not safe.** An early
+  grin used independent curves for its top and bottom edges; near the tips
+  the "corner hook" term overpowered the "depth" term and the two edges
+  crossed, producing one huge self-intersecting shape that swallowed most
+  of the face. Fixed by building the grin from a centreline plus a
+  thickness that **tapers to zero at both tips** - the two edges can then
+  only ever meet, never cross, no matter how the curve parameters are tuned.
+- **Blender's default single-key-light studio setup can make correct
+  geometry look broken.** With one harsh area light, the grin's dark ink
+  material read as one big shadow blob that appeared to swallow the teeth
+  entirely. Re-lighting with four soft, even lights showed the teeth were
+  correctly positioned inside the mouth opening the whole time. If a
+  feature looks wrong in a render, check with flat/even lighting before
+  reworking the geometry - the shading can lie.

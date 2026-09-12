@@ -280,11 +280,14 @@ def build_keys():
                         # about X to stand the sword up in the hand, so any
                         # rotation here composes with that. Judge this in
                         # the game view, never in the Blender viewport.
-                        rotation=(0.0, 0.0, 0.0) if z_sign > 0
-                                 else (math.radians(180.0), 0.0, 0.0),
+                        # Verified empirically: a bare glyph at (0,0,0)
+                        # rotation renders right-side-up and readable on
+                        # the FRONT face in the actual game camera. Every
+                        # rotation guess tried before this made it worse.
+                        rotation=(0.0, 0.0, 0.0),
                         extrude=0.0012,
                         resolution=1,
-                        flip_y=True,
+                        flip_y=False,
                     )
                     label.name = f"Legend_{side}_{row}_{col}"
                     assign(label, legend_mat)
@@ -489,53 +492,85 @@ def build_pommel():
     parts = [head]
     fy = face_y - ink_depth * 0.85          # clear of the skull, not coplanar
 
-    # The grin: the trollface's defining feature. A wide crescent with the
-    # corners hooked up, drawn as an outline so it has real shape.
-    # Two arcs sharing endpoints: a deep lower curve and a shallower upper
-    # one. Generated rather than hand-placed so the crescent stays smooth
-    # and the corners hook up into the smirk.
-    grin_outline = []
-    span = 14
-    for k in range(span + 1):                       # lower edge, L -> R
+    # The grin: a crescent built from a centreline plus a thickness profile
+    # that tapers to ZERO at both tips, so the two edges can only meet,
+    # never cross. Kept deliberately CONSERVATIVE after an earlier attempt
+    # let the corner-hook term overpower the depth term and produced one
+    # giant diagonal slash covering half the face instead of a mouth.
+    grin_span = 0.85         # half-width of the mouth
+    grin_depth = 0.32        # centreline dip at the middle (mouth corners
+                             # sit ABOVE this, corners are the reference)
+    grin_thick = 0.30        # mouth open-height at the centre
+    hook_lift = 0.10         # corners rise only slightly above the corners'
+                             # own baseline - subtle smirk, not a slash
+
+    span = 20
+    centre = []
+    thickness = []
+    for k in range(span + 1):
         u = -1.0 + 2.0 * (k / float(span))
-        grin_outline.append((u * 0.95, -0.52 * (1.0 - u * u) - 0.04))
-    for k in range(span, -1, -1):                   # upper edge, R -> L
-        u = -1.0 + 2.0 * (k / float(span))
-        grin_outline.append((u * 0.95, -0.30 * (1.0 - u * u) + 0.02))
+        t = abs(u)                                   # 0 at centre, 1 at tips
+        # Baseline: shallow smile arc (corners near 0, deepest at centre).
+        # Then a SMALL additional upturn right at the tips for the smirk -
+        # capped well below the arc's own depth so it cannot invert the
+        # whole shape into a slash.
+        base = -grin_depth * (1.0 - u * u)
+        smirk = hook_lift * (t ** 6)                  # only kicks in near t=1
+        c = base + smirk
+        centre.append((u * grin_span, c))
+        thickness.append(grin_thick * (1.0 - t ** 2) ** 0.7)   # -> 0 at tips
+
+    grin_outline = [(x, y + th * 0.5) for (x, y), th in zip(centre, thickness)]
+    grin_outline += [(x, y - th * 0.5)
+                     for (x, y), th in reversed(list(zip(centre, thickness)))]
     grin = _face_feature("Pommel_Grin", grin_outline, ink_depth,
-                         (0.0, fy, 0.10 * s), s * 0.92)
+                         (0.0, fy, 0.02 * s), s * 0.95)
     parts.append(grin)
 
-    # Teeth line across the grin, so it reads as a toothy smirk up close.
-    teeth = new_box(
-        "Pommel_Teeth",
-        (s * 1.30, ink_depth * 0.8, s * 0.07),
-        (0.0, fy + ink_depth * 0.1, 0.10 * s - s * 0.16),
-    )
-    parts.append(teeth)
+    # Teeth: a simple row across the mouth opening. Positioned by eye
+    # against a zoomed render rather than derived from the grin's curve -
+    # a formula meant to track the curve twice landed the teeth outside
+    # the visible mouth opening (once near the eyes, once below the chin),
+    # so a fixed, verified offset is more reliable here.
+    tooth_count = 7
+    tooth_span = grin_span * 0.55
+    tooth_w = (tooth_span * 2.0) / tooth_count
+    teeth_z = -grin_depth * 0.42 * s   # inside the mouth opening, centred
+    for i in range(tooth_count):
+        tx = -tooth_span + tooth_w * (i + 0.5)
+        tu = tx / grin_span
+        arc = -grin_depth * 0.25 * (1.0 - tu * tu) * s  # slight sag, centre lower
+        th = s * 0.11 if i % 2 == 0 else s * 0.075
+        tooth = new_box(
+            f"Pommel_Tooth_{i}",
+            (tooth_w * 0.70 * s, ink_depth * 3.0, th),
+            (tx * s, fy - ink_depth * 4.0, teeth_z + arc),
+        )
+        parts.append(tooth)
 
-    # Eyes: squashed ellipses, angled inward for the smug look.
+    # Eyes: narrow slits, close-set, angled - the trollface squint, not
+    # round smiley eyes. Kept small and well clear of the brows/grin.
     for i, sx in enumerate((-1.0, 1.0)):
         eye_outline = []
-        steps = 12
+        steps = 14
         for k in range(steps):
             a = (k / float(steps)) * math.tau
-            eye_outline.append((math.cos(a) * 0.9, math.sin(a) * 0.52))
+            eye_outline.append((math.cos(a) * 1.0, math.sin(a) * 0.22))
         eye = _face_feature(f"Pommel_Eye_{i}", eye_outline, ink_depth,
-                            (sx * s * 0.40, fy, s * 0.44), s * 0.26)
-        eye.rotation_euler[1] = math.radians(-12.0 * sx)
+                            (sx * s * 0.36, fy, s * 0.42), s * 0.24)
+        eye.rotation_euler[1] = math.radians(-16.0 * sx)
         parts.append(eye)
 
-    # Brows: heavy angled bars above the eyes.
+    # Brows: thick, arched, sitting clearly above the eyes with a visible
+    # gap - the single most recognisable trollface cue.
     for i, sx in enumerate((-1.0, 1.0)):
         brow = new_box(
             f"Pommel_Brow_{i}",
-            (s * 0.52, ink_depth, s * 0.11),
-            (sx * s * 0.40, fy, s * 0.70),
+            (s * 0.56, ink_depth, s * 0.12),
+            (sx * s * 0.40, fy, s * 0.72),
         )
-        brow.rotation_euler[1] = math.radians(16.0 * sx)
+        brow.rotation_euler[1] = math.radians(26.0 * sx)
         parts.append(brow)
-
     return parts
 
 # ----------------------------------------------------------------------
@@ -555,6 +590,8 @@ def build():
                                 roughness=0.22, metallic=1.0)
     mat_ink     = make_material("Trollface_Ink", (0.008, 0.008, 0.011),
                                 roughness=0.85, metallic=0.0)
+    mat_teeth   = make_material("Trollface_Teeth", (0.92, 0.90, 0.84),
+                                roughness=0.5, metallic=0.0)
 
     blade  = build_blade()
     keys   = build_keys()
@@ -569,9 +606,14 @@ def build():
         assign(o, mat_ink if "Text" in o.name else mat_metal)
     for o in grip:
         assign(o, mat_leather)
-    # Chrome skull; every facial feature in dark ink so the face reads.
+    # Chrome skull, dark ink for the grin/eyes/brows, off-white for teeth.
     for o in pommel:
-        assign(o, mat_troll if o.name == "Pommel_Trollface" else mat_ink)
+        if o.name == "Pommel_Trollface":
+            assign(o, mat_troll)
+        elif "Tooth" in o.name:
+            assign(o, mat_teeth)
+        else:
+            assign(o, mat_ink)
 
     everything = blade + keys + guard + grip + pommel
 
