@@ -8,7 +8,7 @@ import { WEAPON_DEFS } from "./weapons.js";
 
 const KEY = "trollops:xp";
 export const XP_PER_RANK = 2500;
-export const MAX_RANK = 40;
+export const MAX_RANK = 420;
 
 export function getXp() {
   const raw = Number(localStorage.getItem(KEY));
