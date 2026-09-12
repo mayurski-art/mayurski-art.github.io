@@ -27,7 +27,7 @@ signal swing_finished
 @export var window_close: float = 0.62
 
 @export_group("Feel")
-@export var swing_animations: Array[String] = ["swing_1", "swing_2"]
+@export var swing_animations: Array[String] = ["swing_1", "thrust"]
 @export var idle_animation: String = "idle"
 ## Sway/bob amount as the player moves the camera.
 @export var sway_amount: float = 0.014

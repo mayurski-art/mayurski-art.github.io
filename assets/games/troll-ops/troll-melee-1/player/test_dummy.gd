@@ -15,6 +15,13 @@ var _wobble: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
+	# Layer 2 is what a weapon's HitArea masks for. Set here rather than
+	# left to the scene file: opening a hand-written .tscn in the editor
+	# makes Godot rewrite it and silently drop properties, and a dummy that
+	# loses its layer stops being hittable with no visible symptom.
+	collision_layer = 2
+	collision_mask = 0
+
 	_health = max_health
 	_base_pos = position
 	_update_label()

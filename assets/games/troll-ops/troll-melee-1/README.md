@@ -136,3 +136,33 @@ const REST_ROT := Vector3(34.0, -16.0, 18.0)
 
 Duplicate `keyboard_sword.tscn`, swap the mesh, resize `HitArea` to the new
 blade, and tune `damage` / `cooldown` in the inspector.
+
+## Authoring an attack
+
+Two approaches live in `keyboard_sword.gd`, and which one to use depends on
+the motion:
+
+- **Arcing cuts** go through `_tip_path_anim()`. You give it the path the
+  blade TIP should travel and it solves the grip transform backwards. Do
+  not keyframe rotation directly for these: a few degrees of roll move the
+  tip further than any plausible hand movement, so the tip ends up
+  wandering backwards even when every position offset points forward.
+- **Thrusts** keyframe the grip directly. The tip solver aims the blade at
+  wherever the tip is heading, which for a straight thrust is almost dead
+  ahead - so it leaves the sword in its resting diagonal and just slides it
+  forward, which reads as shoving the flat of the board at someone.
+
+Whatever you author, run the arc test:
+
+```bash
+godot --headless --script res://tools/test_swing_arc.gd
+```
+
+It measures where the blade actually goes rather than whether the animation
+plays, which is the only way to catch a swing that runs in reverse - that
+looks completely wrong on screen while passing every other check.
+
+One gotcha when screenshotting a pose: the weapon auto-plays `idle` on
+ready, and its tracks overwrite anything you `seek()` to on the very next
+frame. Call `pause()` after seeking or you will photograph the rest pose
+over and over.

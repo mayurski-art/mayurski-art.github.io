@@ -14,6 +14,13 @@ var _pitch: float = 0.0
 
 
 func _ready() -> void:
+	# Layer/mask 1 is the world. Set here rather than left to the scene
+	# file: opening a hand-written .tscn in the editor makes Godot rewrite
+	# it and silently drop properties, and losing the mask drops the player
+	# through the floor.
+	collision_layer = 1
+	collision_mask = 1
+
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if _weapon:
 		_weapon.hit_landed.connect(_on_hit_landed)

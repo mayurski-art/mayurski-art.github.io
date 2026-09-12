@@ -47,7 +47,8 @@ func _run() -> void:
 	if anim:
 		_ok("idle animation built", anim.has_animation("idle"))
 		_ok("swing_1 animation built", anim.has_animation("swing_1"))
-		_ok("swing_2 animation built", anim.has_animation("swing_2"))
+		_ok("thrust animation built", anim.has_animation("thrust"))
+		_ok("mirrored swing_2 is gone", not anim.has_animation("swing_2"))
 
 		var sw: Animation = anim.get_animation("swing_1")
 		var method_tracks := 0
@@ -78,11 +79,14 @@ func _run() -> void:
 	_ok("second swing blocked during cooldown", not blocked)
 
 	# Step through the swing and watch the hit window open and close.
+	#
+	# Track REAL elapsed time, not a frame count times 1/60. Headless runs
+	# nowhere near 60fps, so counting frames exits the loop long before the
+	# animation has finished and the window has had a chance to close.
 	var saw_open := false
-	var elapsed := 0.0
-	while elapsed < 0.75:
+	var started_at := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - started_at < 900:
 		await process_frame
-		elapsed += 1.0 / 60.0
 		if hit_area and hit_area.monitoring:
 			saw_open = true
 	_ok("hit window opened mid-swing", saw_open)

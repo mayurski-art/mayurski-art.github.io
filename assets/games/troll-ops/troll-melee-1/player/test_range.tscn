@@ -53,6 +53,7 @@ shadow_enabled = true
 collision_layer = 1
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=360980539]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.10302639, -0.038177967, 0.034303904)
 mesh = SubResource("Plane_floor")
 surface_material_override/0 = SubResource("Mat_floor")
 
@@ -62,8 +63,6 @@ shape = SubResource("Shape_floor")
 
 [node name="Player" type="CharacterBody3D" parent="." unique_id=737966909]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3)
-collision_layer = 1
-collision_mask = 1
 script = ExtResource("1_player")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1282617987]
@@ -83,7 +82,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, -1.2)
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("2_dummy")
-max_health = 200.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy1" unique_id=1161034789]
 mesh = SubResource("Mesh_dummy")
@@ -102,7 +100,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 0.95, -1.9)
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("2_dummy")
-max_health = 200.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy2" unique_id=1604692504]
 mesh = SubResource("Mesh_dummy")
@@ -121,7 +118,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 0.95, -2.1)
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("2_dummy")
-max_health = 200.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy3" unique_id=655912833]
 mesh = SubResource("Mesh_dummy")
