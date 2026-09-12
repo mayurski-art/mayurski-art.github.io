@@ -98,15 +98,27 @@ function buildTankLauncher(def, spec, len) {
   button.position.set(0.046, 0.03, len * 0.18);
   group.add(button);
 
-  const muzzleZ = -len * 0.08;
-  const muzzleY = cellY + cellH / 2 + cellH * 0.16;
-  const aimY = muzzleY * 0.55;
-  const aimZ = len * 0.02;
-  group.userData.sight = null;
-  group.userData.aimPoint = new THREE.Vector3(0, aimY, aimZ);
-  group.userData.muzzleZ = muzzleZ;
-  group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
-  return group;
+  // The horn+cell stack is built tall (true to a canister launcher) but
+  // that makes it ~5x the on-screen height of a held rifle at the same
+  // view distance — it fills the frame instead of sitting in the corner.
+  // Wrap it in an outer group, scaled down and re-centered on the grip so
+  // it reads at the same size/position other weapons hold at.
+  const wrap = new THREE.Group();
+  group.position.y -= bodyH * 0.4;
+  wrap.add(group);
+  const holdScale = 0.38;
+  wrap.scale.setScalar(holdScale);
+
+  const muzzleZ = (-len * 0.08) * holdScale;
+  // No sight on a tank launcher — aim along the housing's top edge, same
+  // height band every other weapon's aimPoint uses, not the horn's height.
+  const aimY = bodyH * 0.7;
+  const aimZ = -len * 0.15;
+  wrap.userData.sight = null;
+  wrap.userData.aimPoint = new THREE.Vector3(0, aimY, aimZ);
+  wrap.userData.muzzleZ = muzzleZ;
+  wrap.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return wrap;
 }
 
 export function buildWeaponMesh(def) {

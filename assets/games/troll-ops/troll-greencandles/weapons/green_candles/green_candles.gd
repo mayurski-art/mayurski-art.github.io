@@ -40,17 +40,20 @@ const REST_POS := Vector3(0.24, -0.24, -0.62)
 const REST_ROT := Vector3(-2.0, -55.0, -6.0)   # degrees
 
 ## Where the fuel cell sits when seated, relative to this node - matches
-## CellSeated's transform in green_candles.tscn. Measured, not guessed:
-## tools/inspect_model.gd loaded a debug export of JUST the CellSocket
-## part and printed its real AABB (center ~= Y 0.31, Z -0.017; the cell's
-## own mesh origin is at its base, from build_cell()'s origin_set, so it
-## seats exactly on the socket's top face at socket_center_y + half the
-## socket's height).
-const CELL_SEATED_POS := Vector3(0.0, 0.319, -0.017)
+## CellSeated's transform in green_candles.tscn. The previous value here
+## (Y 0.319, Z -0.017) placed the cell over the HOUSING/grip instead of
+## the brass collar at the horn's front end - CELL_SIT_Z in
+## build_green_candles.py was computed from the wrong reference point
+## (see that file's comment on CELL_SIT_Z). Fixed there and re-measured
+## in-engine by rendering the actual model (tools/screenshot_range.tscn)
+## and nudging position until the cell sits flush on the collar with no
+## gap or clipping, rather than re-deriving through the Blender axis
+## conversion by hand.
+const CELL_SEATED_POS := Vector3(0.0, 0.3, -0.43)
 ## Where it goes mid-reload: pulled up and back, out of the socket.
-const CELL_EJECTED_POS := Vector3(0.0, 0.319 + 0.16, -0.017 + 0.20)
+const CELL_EJECTED_POS := Vector3(0.0, 0.3 + 0.16, -0.43 + 0.20)
 ## Where the fresh cell drops in from before seating.
-const CELL_FRESH_START_POS := Vector3(0.0, 0.319 + 0.22, -0.017 - 0.08)
+const CELL_FRESH_START_POS := Vector3(0.0, 0.3 + 0.22, -0.43 - 0.08)
 
 @export var build_animations_in_code: bool = true
 

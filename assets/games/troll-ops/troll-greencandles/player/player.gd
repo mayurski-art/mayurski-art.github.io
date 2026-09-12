@@ -7,6 +7,8 @@ extends CharacterBody3D
 @export var jump_velocity: float = 4.6
 @export var mouse_sensitivity: float = 0.0022
 
+const ViewmodelArmsScene := preload("res://player/viewmodel_arms.gd")
+
 @onready var _camera: Camera3D = $Camera3D
 @onready var _weapon: RangedWeapon = $Camera3D/WeaponHolder/GreenCandles
 @onready var _ammo_label: Label = get_node_or_null("../HUD/AmmoLabel")
@@ -27,6 +29,13 @@ func _ready() -> void:
 		_weapon.fired.connect(_on_fired)
 		_weapon.ammo_changed.connect(_on_ammo_changed)
 		_on_ammo_changed(_weapon.ammo_in_mag(), _weapon.ammo_reserve())
+
+	# Trollface viewmodel arms, added in code rather than saved into the
+	# scene for the same reason the collision layers are set here: it
+	# survives editor re-saves of test_range.tscn intact.
+	var arms := ViewmodelArmsScene.new()
+	arms.name = "ViewmodelArms"
+	_camera.add_child(arms)
 
 
 func _unhandled_input(event: InputEvent) -> void:

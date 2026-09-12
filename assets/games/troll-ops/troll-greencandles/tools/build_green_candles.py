@@ -58,7 +58,15 @@ BRASS_BACK_R   = 0.062
 CELL_RADIUS    = 0.042
 CELL_HEIGHT    = 0.22    # stands upright (local Y) on top of the barrel
 CELL_NUB_H     = CELL_HEIGHT * 0.16
-CELL_SIT_Z     = LEN * 0.5   # how far along the barrel (forward = +Z) the cell sits
+# How far along the barrel (forward = +Z) the cell sits. Must match the
+# brass collar's own center (HOUSING_SIZE[2] + HORN_LENGTH + BRASS_LENGTH*0.5,
+# see build_horn_and_collar()) or the cell floats over the housing/mid-horn
+# instead of seating in the collar at the horn's front end - this was
+# LEN*0.5 before, which put it about a third of the horn's length short of
+# the collar. Recomputed below instead of hardcoded so it can't drift out
+# of sync with the collar again if HOUSING_SIZE/HORN_LENGTH/BRASS_LENGTH
+# change.
+CELL_SIT_Z     = HOUSING_SIZE[2] + HORN_LENGTH + BRASS_LENGTH * 0.5
 
 COLLAR_HEIGHT  = 0.018   # dark socket ring the cell seats into
 
