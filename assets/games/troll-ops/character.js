@@ -18,6 +18,10 @@ import * as THREE from "three";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
 const HAND_MAT = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.6 });
+// Feet get their own darker tone (a "shoe") distinct from the pale mitten
+// hands - sharing one light color meant a hand caught mid-swing near the
+// hip, at a glance, read as a third foot next to the real two.
+const FOOT_MAT = new THREE.MeshStandardMaterial({ color: 0x2c2c2e, roughness: 0.7 });
 
 // One texture load, one material, shared by every head in the game -
 // loaded once at module scope rather than per-rig.
@@ -175,7 +179,7 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     pivot.position.set(side * 0.02 * s * w, 0, 0);
     const leg = stick([0, 0, 0], [side * 0.16 * s * w, -0.86 * s, 0], limbRadius, material);
     leg.castShadow = true;
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.07 * s * w, 0.05 * s, 0.16 * s), HAND_MAT);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.07 * s * w, 0.05 * s, 0.16 * s), FOOT_MAT);
     foot.position.set(side * 0.16 * s * w, -0.86 * s, 0.03 * s);
     pivot.add(leg, foot);
     hips.add(pivot);
@@ -245,7 +249,11 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
     return;
   }
 
-  p.armL.rotation.x = -swing * 0.55 - 0.15;
+  // Kept shy of hip height (peaks around -0.5 rad, well short of the legs'
+  // reach) - swung further, the off-hand drops into the same screen space
+  // as the legs and, sharing their thin-stick silhouette, reads as a third
+  // leg from a low, close viewing angle.
+  p.armL.rotation.x = -swing * 0.35 - 0.15;
 
   // the shooting arm stays up and tracks the aim
   p.armR.rotation.x = -1.25 - pitch * 0.7;
