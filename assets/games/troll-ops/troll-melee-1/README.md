@@ -59,7 +59,9 @@ Or open Blender (free: <https://www.blender.org/download/>), Scripting tab →
 Open → pick the script → Run Script. It overwrites the `.glb` in place, and
 Godot re-imports it on next open. Blender costs nothing — there is no quota.
 
-Current cost: **~7.4k triangles, 16 primitives**. Two numbers to respect if
+Current cost: **~9.7k triangles, 17 primitives** (the "U MAD BRO?" lettering
+is real extruded geometry and accounts for ~2.3k of that). Two numbers to
+respect if
 you change the key field:
 
 - Triangles: aim for 3k–8k for a first-person weapon.
@@ -76,10 +78,27 @@ pommel — then joins it into one mesh with the origin at the grip so it
 rotates around the hand. Tunables are at the top of the file; change a
 number, re-run, iterate on the silhouette.
 
-Still to do by hand in Blender: UV unwrap, the "U MAD BRO?" text on the
-crossguard, and a proper trollface on the pommel. The pommel currently has
-a blocked-in grin and brow ridges so it reads in silhouette; the real face
-belongs in a normal map on the flattened front, not in geometry.
+Still to do by hand in Blender: UV unwrap, and a proper trollface on the
+pommel. The pommel has a blocked-in grin and brow ridges so it reads in
+silhouette; the real face belongs in a normal map on the flattened front,
+not in geometry.
+
+## The same weapon lives in two places
+
+This Godot project is the modeling and prototyping track. The weapon that
+players actually swing is in the browser game, built with Three.js in
+`../gear.js` (`buildKeyboardSword`). The two are deliberately kept
+recognisably identical - same proportions, same parts, same lettering - so
+changing one means changing the other.
+
+Where they differ, and why:
+
+- Keycaps: Blender makes 360 separate boxes joined into one mesh; the web
+  build uses a single `InstancedMesh`. Same look, and the web version stays
+  at one draw call.
+- Lettering: Blender extrudes real 3D text. Three.js `TextGeometry` needs a
+  font file the game does not ship, so the web build paints the text onto a
+  canvas texture instead. Indistinguishable at view-model distance.
 
 ## Collision layers
 

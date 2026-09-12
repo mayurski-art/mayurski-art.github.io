@@ -222,8 +222,36 @@ def build_keys():
     return keys
 
 
+def build_engraved_text(body, size, location, rotation, extrude=0.004):
+    """Extruded 3D text, converted to a mesh.
+
+    Real geometry rather than a texture, so the lettering survives without
+    a UV unwrap. Blender's default font is used - it ships with Blender, so
+    this needs no font file on disk.
+    """
+    curve = bpy.data.curves.new(type="FONT", name=f"Font_{body}")
+    curve.body = body
+    curve.size = size
+    curve.extrude = extrude
+    curve.align_x = "CENTER"
+    curve.align_y = "CENTER"
+
+    obj = bpy.data.objects.new(f"Text_{body}", curve)
+    bpy.context.collection.objects.link(obj)
+    obj.location = location
+    obj.rotation_euler = rotation
+
+    # Curves cannot be joined into a mesh, so convert before assembly.
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.ops.object.convert(target="MESH")
+
+    return bpy.context.active_object
+
+
 def build_guard():
-    """Crossguard - the 'U MAD BRO?' bar. Text goes in the texture."""
+    """Crossguard - the 'U MAD BRO?' bar, lettering included."""
     y = GRIP_LENGTH * 0.5 + GUARD_THICK * 0.5
     guard = new_box(
         "Guard",
@@ -240,13 +268,25 @@ def build_guard():
         x = -span * 0.5 + span * (i / (count - 1))
         bpy.ops.mesh.primitive_uv_sphere_add(
             radius=0.0085, segments=10, ring_count=8,
-            location=(x, y - GUARD_THICK * 0.52, -GUARD_HEIGHT * 0.12),
+            location=(x, y - GUARD_THICK * 0.52, -GUARD_HEIGHT * 0.34),
         )
         r = bpy.context.active_object
         r.name = f"Rivet_{i}"
         rivets.append(r)
 
-    return [guard] + rivets
+    # "U MAD BRO?" across the player-facing side of the guard. Sitting
+    # proud of the surface rather than cut into it, so it reads at the
+    # distance a first-person weapon is actually seen from.
+    text = build_engraved_text(
+        "U MAD BRO?",
+        size=GUARD_HEIGHT * 0.62,
+        location=(0, y - GUARD_THICK * 0.5 - 0.001, GUARD_HEIGHT * 0.16),
+        rotation=(math.radians(90), 0, 0),
+        extrude=0.0035,
+    )
+    text.name = "Guard_Text"
+
+    return [guard] + rivets + [text]
 
 
 def build_grip():
@@ -382,8 +422,9 @@ def build():
 
     for o in blade:
         assign(o, mat_chassis)
+    # Dark lettering on the chrome bar so "U MAD BRO?" is legible.
     for o in guard:
-        assign(o, mat_metal)
+        assign(o, mat_ink if "Text" in o.name else mat_metal)
     for o in grip:
         assign(o, mat_leather)
     # Chrome skull, dark ink for the grin and brows so the face reads.

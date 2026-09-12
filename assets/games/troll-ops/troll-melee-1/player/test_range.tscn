@@ -1,7 +1,7 @@
-[gd_scene load_steps=12 format=3 uid="uid://ctstrng0rng1"]
+[gd_scene format=3 uid="uid://ctstrng0rng1"]
 
-[ext_resource type="Script" path="res://player/player.gd" id="1_player"]
-[ext_resource type="Script" path="res://player/test_dummy.gd" id="2_dummy"]
+[ext_resource type="Script" uid="uid://ddsnjff4t2w27" path="res://player/player.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://dk12yvi6nd686" path="res://player/test_dummy.gd" id="2_dummy"]
 [ext_resource type="PackedScene" uid="uid://bk3yws0rd1swd" path="res://weapons/keyboard_sword/keyboard_sword.tscn" id="3_ksword"]
 
 [sub_resource type="ProceduralSkyMaterial" id="Sky_mat"]
@@ -39,109 +39,105 @@ height = 1.8
 radius = 0.42
 height = 1.9
 
-[node name="TestRange" type="Node3D"]
+[node name="TestRange" type="Node3D" unique_id=1932806554]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=933453192]
 environment = SubResource("Env_res")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=312898807]
 transform = Transform3D(0.87, -0.34, 0.36, 0, 0.72, 0.69, -0.49, -0.6, 0.63, 0, 8, 0)
 light_energy = 1.1
 shadow_enabled = true
 
-[node name="Floor" type="StaticBody3D" parent="."]
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1093202]
 collision_layer = 1
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=360980539]
 mesh = SubResource("Plane_floor")
 surface_material_override/0 = SubResource("Mat_floor")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=1750888450]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
 shape = SubResource("Shape_floor")
 
-[node name="Player" type="CharacterBody3D" parent="."]
+[node name="Player" type="CharacterBody3D" parent="." unique_id=737966909]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3)
 collision_layer = 1
 collision_mask = 1
 script = ExtResource("1_player")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1282617987]
 shape = SubResource("Shape_player")
 
-[node name="Camera3D" type="Camera3D" parent="Player"]
+[node name="Camera3D" type="Camera3D" parent="Player" unique_id=609191337]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
 fov = 78.0
 
-[node name="WeaponHolder" type="Node3D" parent="Player/Camera3D"]
+[node name="WeaponHolder" type="Node3D" parent="Player/Camera3D" unique_id=1314035920]
 
-[node name="KeyboardSword" parent="Player/Camera3D/WeaponHolder" instance=ExtResource("3_ksword")]
+[node name="KeyboardSword" parent="Player/Camera3D/WeaponHolder" unique_id=1772487604 instance=ExtResource("3_ksword")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.26, -0.2, -0.3)
 
-
-[node name="Dummy1" type="StaticBody3D" parent="."]
+[node name="Dummy1" type="StaticBody3D" parent="." unique_id=864897333]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, -1.2)
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("2_dummy")
 max_health = 200.0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy1"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy1" unique_id=1161034789]
 mesh = SubResource("Mesh_dummy")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Dummy1"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Dummy1" unique_id=185643667]
 shape = SubResource("Shape_player")
 
-[node name="Label3D" type="Label3D" parent="Dummy1"]
+[node name="Label3D" type="Label3D" parent="Dummy1" unique_id=808480644]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
 billboard = 1
-font_size = 48
-outline_size = 12
 text = "200 / 200"
+font_size = 48
 
-[node name="Dummy2" type="StaticBody3D" parent="."]
+[node name="Dummy2" type="StaticBody3D" parent="." unique_id=1049630671]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 0.95, -1.9)
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("2_dummy")
 max_health = 200.0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy2"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy2" unique_id=1604692504]
 mesh = SubResource("Mesh_dummy")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Dummy2"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Dummy2" unique_id=431851523]
 shape = SubResource("Shape_player")
 
-[node name="Label3D" type="Label3D" parent="Dummy2"]
+[node name="Label3D" type="Label3D" parent="Dummy2" unique_id=972424498]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
 billboard = 1
-font_size = 48
-outline_size = 12
 text = "200 / 200"
+font_size = 48
 
-[node name="Dummy3" type="StaticBody3D" parent="."]
+[node name="Dummy3" type="StaticBody3D" parent="." unique_id=1003727117]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 0.95, -2.1)
 collision_layer = 2
 collision_mask = 0
 script = ExtResource("2_dummy")
 max_health = 200.0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy3"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy3" unique_id=655912833]
 mesh = SubResource("Mesh_dummy")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Dummy3"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Dummy3" unique_id=582830276]
 shape = SubResource("Shape_player")
 
-[node name="Label3D" type="Label3D" parent="Dummy3"]
+[node name="Label3D" type="Label3D" parent="Dummy3" unique_id=2059579706]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
 billboard = 1
-font_size = 48
-outline_size = 12
 text = "200 / 200"
+font_size = 48
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=947060068]
 
-[node name="Hint" type="Label" parent="HUD"]
+[node name="Hint" type="Label" parent="HUD" unique_id=1362543881]
 offset_left = 18.0
 offset_top = 16.0
 offset_right = 520.0

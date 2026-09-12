@@ -18,27 +18,22 @@ const RADIUS = 0.11;
 
 /* ------------------------------------------------------------------ melee */
 
+/* Custom trollface melee. Every one of these is a real thing somebody
+   built - the keyboard sword exists as a fabricated prop - so the models
+   below are read off the design sheets rather than invented here. */
 export const MELEE_DEFS = {
-  grinknife: {
-    id: "grinknife", name: "Grin Knife", rank: 0,
-    damage: 65, backstabMult: 3, range: 2.4, arc: 0.42,
-    swing: 0.16, recover: 0.24, knock: 2.2,
-    blurb: "Quick, quiet, and lethal from behind.",
-    model: { kind: "knife", len: 0.2, wide: 0.032, blade: 0.014, color: 0xcfd6de, grip: 0x22262b },
-  },
-  crowgrin: {
-    id: "crowgrin", name: "Crowgrin", rank: 7,
-    damage: 95, backstabMult: 2, range: 2.7, arc: 0.5,
-    swing: 0.22, recover: 0.34, knock: 4,
-    blurb: "Heavier swing, and it opens doors nobody offered.",
-    model: { kind: "bar", len: 0.46, wide: 0.036, blade: 0.036, color: 0xb4453a, grip: 0x8d3630, hook: true },
-  },
-  louisville: {
-    id: "louisville", name: "Grinslugger", rank: 19,
-    damage: 130, backstabMult: 1.6, range: 2.9, arc: 0.62,
-    swing: 0.28, recover: 0.46, knock: 7,
-    blurb: "Slow as a freight train, and about as forgiving.",
-    model: { kind: "bat", len: 0.6, wide: 0.055, blade: 0.028, color: 0xa97844, grip: 0x2c2620 },
+  keyboard: {
+    id: "keyboard", name: "Keyboard Warrior", rank: 0,
+    damage: 120, backstabMult: 1.8, range: 3.0, arc: 0.66,
+    swing: 0.26, recover: 0.42, knock: 6.5,
+    blurb: "The keyboard is mightier than the sword. U mad bro?",
+    model: {
+      kind: "keyboard",
+      len: 0.78, wide: 0.30, blade: 0.038,
+      color: 0x111114, grip: 0x30170d,
+      guardWide: 0.42, guardTall: 0.052,
+      keyCols: 10, keyRows: 18,
+    },
   },
 };
 
@@ -85,12 +80,20 @@ export class MeleeState {
   }
 }
 
-/* First-person melee model — same blocky vocabulary as the guns. */
+/* First-person melee model — same blocky vocabulary as the guns.
+
+   The keyboard sword mirrors the Blender build in
+   assets/games/troll-ops/troll-melee-1/tools/build_keyboard_sword.py, so
+   the two stay recognisably the same weapon. Keycaps go through one
+   InstancedMesh: 180 separate meshes would be 180 draw calls for a thing
+   that lives in the corner of the screen. */
 export function buildMeleeMesh(def) {
   const m = def.model;
   const group = new THREE.Group();
   const mat = (c, rough = 0.45, metal = 0.65) =>
     new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: metal });
+
+  if (m.kind === "keyboard") return buildKeyboardSword(m, mat, group);
 
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.036, 0.15), mat(m.grip, 0.85, 0.05));
   grip.position.set(0, 0, 0.06);
@@ -122,6 +125,164 @@ export function buildMeleeMesh(def) {
     tip.rotation.z = Math.PI / 4;
     tip.position.set(0, 0, -m.len - 0.06);
     group.add(tip);
+  }
+
+  group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return group;
+}
+
+/* "U MAD BRO?" decal for the crossguard. Built once and shared - every
+   player carries this weapon, so rebuilding the canvas per spawn would
+   leak a texture each time. */
+let guardTexCache = null;
+function guardTextTexture(THREE) {
+  if (guardTexCache) return guardTexCache;
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 128;
+  const g = c.getContext("2d");
+  g.clearRect(0, 0, c.width, c.height);
+  g.font = "bold 74px 'DM Mono', ui-monospace, monospace";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillStyle = "#0a0a0c";
+  g.fillText("U MAD BRO?", c.width / 2, c.height / 2 + 4);
+  guardTexCache = new THREE.CanvasTexture(c);
+  guardTexCache.anisotropy = 4;
+  return guardTexCache;
+}
+
+/* Keyboard Warrior. Blade runs down -Z, grip at the origin, so it drops
+   into the same view-model slot as the guns. */
+function buildKeyboardSword(m, mat, group) {
+  const GRIP_LEN = 0.26;
+  const GUARD_THICK = 0.075;
+  const TIP_LEN = 0.15;
+  const bodyLen = m.len - TIP_LEN;
+  const z0 = -(GRIP_LEN * 0.5 + GUARD_THICK);   // where the blade starts
+
+  // Chassis.
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(m.wide, m.blade, bodyLen), mat(m.color, 0.42, 0.65));
+  body.position.set(0, 0, z0 - bodyLen * 0.5);
+  group.add(body);
+
+  // Chisel tip: a box tapered to an edge at the far end.
+  const tipGeo = new THREE.BoxGeometry(m.wide, m.blade, TIP_LEN);
+  const pos = tipGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    if (pos.getZ(i) < 0) {                       // far face
+      pos.setX(i, pos.getX(i) * 0.12);
+      pos.setY(i, pos.getY(i) * 0.35);
+    }
+  }
+  tipGeo.computeVertexNormals();
+  const tip = new THREE.Mesh(tipGeo, mat(m.color, 0.42, 0.65));
+  tip.position.set(0, 0, z0 - bodyLen - TIP_LEN * 0.5);
+  group.add(tip);
+
+  // Keycaps, both faces, one draw call. Colour rides the instance buffer.
+  const margin = 0.016, gap = 0.0035;
+  const usable = m.wide - margin * 2;
+  const keyW = (usable - gap * (m.keyCols - 1)) / m.keyCols;
+  const fieldLen = bodyLen - margin * 2;
+  const pitchY = (fieldLen + gap) / m.keyRows;
+  const keyL = pitchY - gap;
+  const count = m.keyCols * m.keyRows * 2;
+
+  const caps = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(keyW, 0.008, keyL),
+    new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0.1 }),
+    count);
+  const dummy = new THREE.Object3D();
+  const colour = new THREE.Color();
+  let i = 0;
+  for (const sign of [1, -1]) {
+    for (let row = 0; row < m.keyRows; row++) {
+      for (let col = 0; col < m.keyCols; col++) {
+        dummy.position.set(
+          -usable * 0.5 + (keyW + gap) * col + keyW * 0.5,
+          sign * (m.blade * 0.5 + 0.004),
+          z0 - margin - pitchY * row - keyL * 0.5);
+        dummy.updateMatrix();
+        caps.setMatrixAt(i, dummy.matrix);
+        const t = (col / m.keyCols) * 0.7 + (row / m.keyRows) * 0.3;
+        caps.setColorAt(i, colour.setHSL(t % 1, 0.9, 0.62));
+        i++;
+      }
+    }
+  }
+  caps.instanceMatrix.needsUpdate = true;
+  if (caps.instanceColor) caps.instanceColor.needsUpdate = true;
+  group.add(caps);
+
+  // "U MAD BRO?" crossguard, with rivets along the face.
+  const guard = new THREE.Mesh(
+    new THREE.BoxGeometry(m.guardWide, m.guardTall, GUARD_THICK),
+    mat(0xc2c6cd, 0.3, 0.55));
+  guard.position.set(0, 0, -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5));
+  group.add(guard);
+
+  // "U MAD BRO?" as a canvas texture on a thin plate. The Blender model
+  // extrudes real letters, but TextGeometry needs a font file this game
+  // does not ship - and at view-model distance a decal is indistinguishable.
+  const plate = new THREE.Mesh(
+    new THREE.PlaneGeometry(m.guardWide * 0.86, m.guardTall * 0.52),
+    new THREE.MeshStandardMaterial({
+      map: guardTextTexture(THREE),
+      transparent: true,
+      roughness: 0.35,
+      metalness: 0.2,
+    }));
+  plate.position.set(0, m.guardTall * 0.14, -(GRIP_LEN * 0.5) + 0.0015);
+  group.add(plate);
+
+  // Rivets sit proud of the guard's PLAYER-facing side (+Z of the guard),
+  // half-sunk so they read as studs. On the blade side they would be
+  // hidden behind the guard itself. Kept below the lettering so the two
+  // do not collide.
+  const rivetGeo = new THREE.SphereGeometry(0.0085, 6, 5);
+  const rivets = new THREE.InstancedMesh(rivetGeo, mat(0xe2e5ea, 0.28, 0.5), 11);
+  for (let r = 0; r < 11; r++) {
+    dummy.position.set(
+      -m.guardWide * 0.41 + (m.guardWide * 0.82) * (r / 10),
+      -m.guardTall * 0.28,
+      -(GRIP_LEN * 0.5) + 0.004);
+    dummy.updateMatrix();
+    rivets.setMatrixAt(r, dummy.matrix);
+  }
+  rivets.instanceMatrix.needsUpdate = true;
+  group.add(rivets);
+
+  // Wrapped grip.
+  const grip = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.026, 0.026, GRIP_LEN, 10),
+    mat(m.grip, 0.85, 0.05));
+  grip.rotation.x = Math.PI / 2;
+  group.add(grip);
+
+  // Trollface pommel - chrome skull with a blocked-in grin.
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.055, 12, 9), mat(0xd0d4da, 0.26, 0.5));
+  head.scale.set(1.05, 1.12, 0.8);
+  head.position.set(0, 0, GRIP_LEN * 0.5 + 0.03);
+  group.add(head);
+
+  // Grin and brows ride on the pommel's back face (+Z, toward the player,
+  // which is the side you actually see in first person). The head is
+  // squashed to 0.8 in Z, so anything at the sphere's nominal radius
+  // would sink inside it.
+  const faceZ = GRIP_LEN * 0.5 + 0.03 + 0.055 * 0.8;
+  const ink = mat(0x08080a, 0.55, 0.0);
+
+  const grin = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.013, 0.005), ink);
+  grin.position.set(0, -0.010, faceZ);
+  group.add(grin);
+
+  for (const sx of [-1, 1]) {
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.008, 0.005), ink);
+    brow.position.set(sx * 0.017, 0.016, faceZ);
+    brow.rotation.z = sx * 0.28;
+    group.add(brow);
   }
 
   group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
