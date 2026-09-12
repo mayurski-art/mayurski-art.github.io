@@ -2850,11 +2850,14 @@ body.desktop-mode::before {
    footer (bio-artwork, updates-feedback-grid, ...) and missing any one of
    them here is exactly what let a hidden section flash through before
    troll-desktop took over. Hide every direct child of body
-   except troll-desktop and the floating overlays (Troll Radio + its Spotify
+   except troll-desktop, the floating overlays (Troll Radio + its Spotify
    host) that stay usable from inside the desktop via their own .is-open /
-   JS-driven visibility. */
-body.site-entry-locked > :not(#troll-desktop):not(#troll-radio):not(#spotify-embed),
-body.desktop-mode > :not(#troll-desktop):not(#troll-radio):not(#spotify-embed) { display: none; }
+   JS-driven visibility, and troll-accounts.js's own body-appended modal/
+   drawer/toast root (login, profile, settings) — without these exceptions
+   this blanket rule silently swallowed the login modal on every page using
+   the desktop shell. */
+body.site-entry-locked > :not(#troll-desktop):not(#troll-radio):not(#spotify-embed):not(#troll-accounts-modal):not(#troll-accounts-drawer):not(#ta-toast-root),
+body.desktop-mode > :not(#troll-desktop):not(#troll-radio):not(#spotify-embed):not(#troll-accounts-modal):not(#troll-accounts-drawer):not(#ta-toast-root) { display: none; }
 
 .troll-desktop {
   position: fixed; inset: 0; z-index: 60; display: none; overflow: hidden;
@@ -4328,8 +4331,8 @@ function tdSyncAccountUI() {
   });
   const smUser = document.getElementById('td-sm-user');
   const smSub = document.getElementById('td-sm-sub');
-  if (smUser) smUser.textContent = session ? session.username : 'Guest troll';
-  if (smSub) smSub.textContent = session ? `Level ${session.level} runner` : 'Login to save your runs';
+  if (smUser) smUser.textContent = session ? session.username : 'Login / Register';
+  if (smSub) smSub.textContent = session ? `Level ${session.level} runner` : 'Click to sign in or create an account';
   const smAvatar = document.getElementById('td-sm-avatar');
   if (smAvatar) {
     if (session?.avatarUrl) {
@@ -4776,7 +4779,7 @@ function tdBuildStartMenu() {
   const head = document.createElement('button');
   head.type = 'button';
   head.className = 'td-sm-head';
-  head.innerHTML = '<span class="td-sm-avatar" id="td-sm-avatar" aria-hidden="true"><img src="assets/animations/troll-grin.gif" alt=""></span><span><div class="td-sm-user" id="td-sm-user">Guest troll</div><div class="td-sm-sub" id="td-sm-sub">Login to save your runs</div></span>';
+  head.innerHTML = '<span class="td-sm-avatar" id="td-sm-avatar" aria-hidden="true"><img src="assets/animations/troll-grin.gif" alt=""></span><span><div class="td-sm-user" id="td-sm-user">Login / Register</div><div class="td-sm-sub" id="td-sm-sub">Click to sign in or create an account</div></span>';
   head.addEventListener('click', tdOpenAccount);
   menu.appendChild(head);
 
