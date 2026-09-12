@@ -24,6 +24,7 @@
      awardXp(event, source, meta)    → server-guarded XP (cooldowns/caps)
      recordGameResult(gameId, score, meta)
      logPendingSpend({token,amount,wallet,signature,purpose,feature})
+     openLogin(mode)                 → built-in sign-in / create-account modal ('login' | 'create')
      openProfile() / openSettings()  → built-in modals
 
    Auth state changes dispatch:  window 'trollrunner:auth-changed'
@@ -3496,6 +3497,118 @@
     emailInput.focus();
   }
 
+  // Login/Create-account modal — the entry point for a logged-out visitor.
+  // world.html has its own inline sheet for this (the phone entrance), but
+  // the desktop shell in index.html only ever had this UI inside the old
+  // #site-gate markup; once that was removed (93b9814) desktop visitors had
+  // no way to sign in at all. This gives every page loading troll-accounts.js
+  // a working modal without depending on gate markup that may not exist.
+  let loginModalMode = 'login';
+  function openLogin(mode) {
+    loginModalMode = mode === 'create' ? 'create' : 'login';
+    const body = buildModal(loginModalMode === 'create' ? 'Create account' : 'Sign in');
+    body.innerHTML = '';
+
+    const section = document.createElement('div');
+    section.className = 'ta-section';
+    const sub = document.createElement('p');
+    sub.className = 'ta-muted';
+    section.appendChild(sub);
+
+    const idInput = document.createElement('input');
+    idInput.className = 'ta-input';
+    const emailInput = document.createElement('input');
+    emailInput.type = 'email';
+    emailInput.className = 'ta-input';
+    emailInput.placeholder = 'Email (optional — needed to recover your password)';
+    emailInput.autocomplete = 'email';
+    const passInput = document.createElement('input');
+    passInput.type = 'password';
+    passInput.className = 'ta-input';
+    passInput.placeholder = 'Password';
+
+    const submitBtn = document.createElement('button');
+    submitBtn.className = 'ta-btn';
+    submitBtn.type = 'button';
+
+    const status = document.createElement('div');
+    status.className = 'ta-status';
+
+    const xBtn = document.createElement('button');
+    xBtn.className = 'ta-btn ta-btn--x';
+    xBtn.type = 'button';
+    xBtn.innerHTML = `${X_LOGO_SVG}<span>Continue with X</span>`;
+    xBtn.addEventListener('click', async () => {
+      xBtn.disabled = true;
+      try { await signInWithX(); }
+      catch (error) {
+        xBtn.disabled = false;
+        status.textContent = error?.message || 'Could not start X sign-in.';
+        status.dataset.kind = 'error';
+      }
+    });
+
+    const forgotBtn = document.createElement('button');
+    forgotBtn.className = 'ta-btn ta-btn--ghost ta-btn--sm';
+    forgotBtn.type = 'button';
+    forgotBtn.textContent = 'Forgot password?';
+    forgotBtn.addEventListener('click', openRecovery);
+
+    const swapRow = document.createElement('p');
+    swapRow.className = 'ta-muted';
+    const swapBtn = document.createElement('button');
+    swapBtn.className = 'ta-btn ta-btn--ghost ta-btn--sm';
+    swapBtn.type = 'button';
+
+    const applyMode = () => {
+      const creating = loginModalMode === 'create';
+      sub.textContent = creating
+        ? 'Pick a name. Three to twenty letters, numbers or underscores.'
+        : 'Your troll, your XP, your spot on the leaderboard.';
+      idInput.placeholder = creating ? 'Username' : 'Username or email';
+      idInput.autocomplete = creating ? 'username' : 'username email';
+      emailInput.hidden = !creating;
+      passInput.autocomplete = creating ? 'new-password' : 'current-password';
+      submitBtn.textContent = creating ? 'Create account' : 'Sign in';
+      forgotBtn.hidden = creating;
+      swapBtn.textContent = creating ? 'Sign in' : 'Create an account';
+      swapRow.replaceChildren(document.createTextNode(creating ? 'Already have one? ' : 'New here? '), swapBtn);
+      status.textContent = '';
+      status.dataset.kind = '';
+    };
+    swapBtn.addEventListener('click', () => {
+      loginModalMode = loginModalMode === 'create' ? 'login' : 'create';
+      applyMode();
+      idInput.focus();
+    });
+
+    const submit = async () => {
+      submitBtn.disabled = true;
+      status.textContent = loginModalMode === 'create' ? 'Creating your troll…' : 'Signing in…';
+      status.dataset.kind = '';
+      try {
+        if (loginModalMode === 'create') {
+          await register({ username: idInput.value, email: emailInput.value, password: passInput.value });
+        } else {
+          await login({ identifier: idInput.value, password: passInput.value });
+        }
+        closeModal();
+        void openProfile();
+      } catch (error) {
+        status.textContent = error?.message || 'Something broke. Try again.';
+        status.dataset.kind = 'error';
+        submitBtn.disabled = false;
+      }
+    };
+    submitBtn.addEventListener('click', submit);
+    passInput.addEventListener('keydown', event => { if (event.key === 'Enter') void submit(); });
+
+    applyMode();
+    section.append(xBtn, idInput, emailInput, passInput, submitBtn, forgotBtn, status, swapRow);
+    body.appendChild(section);
+    idInput.focus();
+  }
+
   function openPasswordReset() {
     const body = buildModal('Set a new password');
     body.innerHTML = '';
@@ -3632,6 +3745,7 @@
     getProfileData,
     getXpHistory,
     confirmGuestExit,
+    openLogin,
     openProfile,
     openSettings,
     openProfileCard,

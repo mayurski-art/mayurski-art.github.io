@@ -37,7 +37,10 @@
         name.textContent = "Guest troll";
         sub.textContent = "Login to save your runs";
         card.classList.remove("is-logged-in");
-        card.onclick = () => { window.location.href = "https://www.trollrunner.net/"; };
+        card.onclick = () => {
+          if (window.TrollrunnerAccounts?.openLogin) window.TrollrunnerAccounts.openLogin();
+          else window.location.href = "https://www.trollrunner.net/";
+        };
       }
     }
 

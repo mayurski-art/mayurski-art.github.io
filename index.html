@@ -4100,12 +4100,13 @@ function tdIsMobile() {
 }
 
 function tdShowGate() {
-  const gate = document.getElementById('site-gate');
-  if (!gate) return;
+  // #site-gate was removed with the site-gate itself (93b9814) — this used
+  // to reveal that markup, but there's nothing left to reveal. The account
+  // portal now lives in troll-accounts.js's own modal (openLogin), shared
+  // by every trollrunner.net page instead of duplicated gate HTML here.
   tdCloseStartMenu();
   tdToggleRadio(false);
-  gate.classList.remove('is-hidden');
-  document.body.classList.add('site-entry-locked');
+  window.TrollrunnerAccounts?.openLogin?.();
 }
 
 function tdAccountSession() {
