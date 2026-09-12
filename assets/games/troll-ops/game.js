@@ -267,7 +267,7 @@ let suppressT = 0;
 
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
-  volume: 50, sens: 100, fov: 78, invert: false, minimap: true, botSkill: "regular",
+  volume: 50, sens: 100, fov: 78, invert: false, minimap: true, botSkill: "regular", aimAssist: true,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
 
@@ -293,12 +293,14 @@ function applySettings() {
   set("to-set-fov", settings.fov, "to-set-fov-out", "°");
   set("to-set-invert", settings.invert);
   set("to-set-minimap", settings.minimap);
+  set("to-set-aimassist", settings.aimAssist);
 
   set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
   set("to-set-sens-lobby", settings.sens, "to-set-sens-lobby-out", "%");
   set("to-set-fov-lobby", settings.fov, "to-set-fov-lobby-out", "°");
   set("to-set-invert-lobby", settings.invert);
   set("to-set-minimap-lobby", settings.minimap);
+  set("to-set-aimassist-lobby", settings.aimAssist);
   set("to-set-botskill", settings.botSkill);
   // Takes effect for bots created from here on, so a change mid-match applies
   // as they respawn rather than rewriting the ones already in the fight.
@@ -342,12 +344,14 @@ function initEscapeMenu() {
   bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
   bindCheck("to-set-invert", "invert");
   bindCheck("to-set-minimap", "minimap");
+  bindCheck("to-set-aimassist", "aimAssist");
 
   bindRange("to-set-volume-lobby", "volume", "to-set-volume-lobby-out");
   bindRange("to-set-sens-lobby", "sens", "to-set-sens-lobby-out", "%");
   bindRange("to-set-fov-lobby", "fov", "to-set-fov-lobby-out", "°");
   bindCheck("to-set-invert-lobby", "invert");
   bindCheck("to-set-minimap-lobby", "minimap");
+  bindCheck("to-set-aimassist-lobby", "aimAssist");
   bindSelect("to-set-botskill", "botSkill");
 
   const tabs = document.getElementById("to-menu-tabs");
@@ -1527,6 +1531,82 @@ bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = fa
 
 function deadzone(v) { return Math.abs(v) < GP_DEADZONE ? 0 : v; }
 
+/* Controller aim assist — a soft rotational pull toward whoever is already
+   near the crosshair, the way GTA5's "assisted aim" (not the full auto-lock
+   option) nudges a stick-and-trigger aim rather than replacing it. Mouse
+   play never touches this; a controller reticle just moves slower and less
+   precisely than a mouse cursor, so this buys back some of that gap instead
+   of asking for full aim-bot lock. */
+const AIM_ASSIST_CONE = Math.cos(THREE.MathUtils.degToRad(7));   // ~14° wide search cone
+const AIM_ASSIST_SLOWDOWN_CONE = Math.cos(THREE.MathUtils.degToRad(3.5));
+const AIM_ASSIST_RANGE = 55;
+const AIM_ASSIST_PULL = 3.4;       // rad/sec at the very centre of a lock
+const AIM_ASSIST_SLOWDOWN = 0.45;  // multiplies the player's own stick turn near a target
+const _aaOrigin = new THREE.Vector3();
+const _aaForward = new THREE.Vector3();
+const _aaToTarget = new THREE.Vector3();
+
+/* Best enemy to assist toward right now, or null. Picks whoever is closest
+   to the crosshair (not just closest in space) among enemies inside the
+   search cone, alive, and with actual line of sight. */
+function findAimAssistTarget() {
+  camera.getWorldPosition(_aaOrigin);
+  camera.getWorldDirection(_aaForward);
+
+  let best = null, bestDot = -Infinity;
+  for (const o of occupants()) {
+    if (o.id === net.id) continue;
+    const enemy = currentMode().ffa || o.team !== net.team;
+    if (!enemy) continue;
+
+    _aaToTarget.set(o.pos.x - _aaOrigin.x, o.pos.y + 1.3 - _aaOrigin.y, o.pos.z - _aaOrigin.z);
+    const dist = _aaToTarget.length();
+    if (dist < 0.01 || dist > AIM_ASSIST_RANGE) continue;
+    _aaToTarget.multiplyScalar(1 / dist);
+
+    const dot = _aaToTarget.dot(_aaForward);
+    if (dot < AIM_ASSIST_CONE) continue;
+    if (segmentBlocked(colliders, _aaOrigin, { x: o.pos.x, y: o.pos.y + 1.3, z: o.pos.z })) continue;
+
+    if (dot > bestDot) { bestDot = dot; best = { pos: o.pos, dot }; }
+  }
+  return best;
+}
+
+/* Blends a rotational pull toward `target` into the pending look delta, and
+   damps the player's own stick turn when it's already close — the "sticky"
+   half GTA5 pairs with the pull. Both effects fall off with angle so the
+   assist never overrides a deliberate flick past the target. */
+function applyAimAssist(dt) {
+  if (!settings.aimAssist) return;
+  const target = findAimAssistTarget();
+  if (!target) return;
+
+  camera.getWorldPosition(_aaOrigin);
+  _aaToTarget.set(target.pos.x - _aaOrigin.x, target.pos.y + 1.3 - _aaOrigin.y, target.pos.z - _aaOrigin.z).normalize();
+
+  // Desired yaw/pitch to look straight at the target, minus what we're
+  // already facing — small angular deltas pulled toward zero.
+  const desiredYaw = Math.atan2(-_aaToTarget.x, -_aaToTarget.z);
+  const desiredPitch = Math.asin(THREE.MathUtils.clamp(_aaToTarget.y, -1, 1));
+  let dYaw = desiredYaw - look.yaw;
+  while (dYaw > Math.PI) dYaw -= Math.PI * 2;
+  while (dYaw < -Math.PI) dYaw += Math.PI * 2;
+  const dPitch = desiredPitch - look.pitch;
+
+  // Pull strength eases out toward the edge of the cone rather than cutting
+  // off sharply, so entering/leaving lock doesn't feel like a snap.
+  const edge = (target.dot - AIM_ASSIST_CONE) / (1 - AIM_ASSIST_CONE);
+  const pull = AIM_ASSIST_PULL * edge * dt;
+  look.yaw += THREE.MathUtils.clamp(dYaw, -pull, pull);
+  look.pitch += THREE.MathUtils.clamp(dPitch, -pull, pull);
+
+  if (target.dot > AIM_ASSIST_SLOWDOWN_CONE) {
+    gamepadState.lookDX *= AIM_ASSIST_SLOWDOWN;
+    gamepadState.lookDY *= AIM_ASSIST_SLOWDOWN;
+  }
+}
+
 function pollGamepad(dt) {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let gp = gpIndex != null ? pads[gpIndex] : null;
@@ -1544,6 +1624,8 @@ function pollGamepad(dt) {
   const sens = BASE_MOUSE_SENS * (settings.sens / 100) * 42;
   gamepadState.lookDX += lookX * sens * dt * 60;
   gamepadState.lookDY += lookY * sens * dt * 60 * (settings.invert ? -1 : 1);
+
+  if (player.alive && !isStaging()) applyAimAssist(dt);
 
   const btn = (i) => !!gp.buttons[i]?.pressed;
   const pressedEdge = (i) => btn(i) && !gpPrev[i];
@@ -2205,7 +2287,12 @@ function netSnapshot() {
 }
 
 /* Everyone currently standing in the world, us included. Spawn scoring and
-   the bot targeting both need this; they just filter it differently. */
+   the bot targeting both need this; they just filter it differently.
+
+   Bots are included here too — spawnForTeam leans on this list to keep
+   people apart, and in solo/bot-filled matches almost everyone on the field
+   *is* a bot. Leaving them out made the anti-clump scoring blind to the
+   very occupants it was supposed to be spacing out. */
 function occupants() {
   const list = [];
   if (player.alive) {
@@ -2214,6 +2301,10 @@ function occupants() {
   for (const rp of remotes.byId.values()) {
     if (!rp.alive) continue;
     list.push({ id: rp.netId, team: rp.team, pos: rp.pos, yaw: rp.yaw ?? 0 });
+  }
+  for (const b of bots.bots) {
+    if (!b.alive) continue;
+    list.push({ id: b.id, team: b.team, pos: b.pos, yaw: b.yaw ?? 0 });
   }
   return list;
 }
