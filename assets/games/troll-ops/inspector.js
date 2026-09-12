@@ -12,6 +12,7 @@
 
 import * as THREE from "three";
 import { buildWeaponMesh } from "./weapon-model.js";
+import { buildMeleeMesh } from "./gear.js";
 
 const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 2.4;
@@ -137,7 +138,7 @@ export class WeaponInspector {
       });
     }
 
-    this.mesh = buildWeaponMesh(def);
+    this.mesh = def.model?.kind ? buildMeleeMesh(def) : buildWeaponMesh(def);
     const box = new THREE.Box3().setFromObject(this.mesh);
     const centre = box.getCenter(new THREE.Vector3());
     this.mesh.position.sub(centre);

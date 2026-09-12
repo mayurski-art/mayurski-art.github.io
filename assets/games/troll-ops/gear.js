@@ -151,10 +151,94 @@ function guardTextTexture(THREE) {
   return guardTexCache;
 }
 
+/* The pommel wears the real mascot art (assets/animations/troll-grin.gif),
+   not a hand-built grin - per CLAUDE.md the trollface emoji and lookalike
+   primitives are never the mark, the actual artwork is.
+   Wrapping it spherically warped the face into an unrecognisable band (the
+   source frame is mostly black margin around an off-centre face, and
+   equirectangular mapping spends most of the sphere's surface on that
+   margin). A flat decal on the sphere's front face - the same trick as the
+   "U MAD BRO?" guard plate - keeps the art undistorted and legible instead.
+
+   The black isn't a removable background here: the source frame shades
+   half the face in solid black as part of the drawing, fused pixel-for-
+   pixel with the black behind it, so no colour-based cutout (threshold or
+   flood fill) can separate "background" from "shaded cheek" - they're the
+   same ink. Rather than mutilate the art trying, this crops tight to the
+   drawn content and mounts it as an opaque plate, like a portrait set into
+   the pommel instead of a sticker cut around it. */
+let trollfaceTexCache = null;
+let trollfaceTexLoading = null;
+function trollfaceTexture(THREE) {
+  if (trollfaceTexCache) return Promise.resolve(trollfaceTexCache);
+  if (trollfaceTexLoading) return trollfaceTexLoading;
+
+  trollfaceTexLoading = new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const full = document.createElement("canvas");
+      full.width = img.width; full.height = img.height;
+      const fg = full.getContext("2d");
+      fg.drawImage(img, 0, 0);
+
+      // Trim the frame down to its drawn content (anything not near-black)
+      // so the decal isn't mostly dead margin.
+      const { data: px } = fg.getImageData(0, 0, full.width, full.height);
+      let minX = full.width, minY = full.height, maxX = 0, maxY = 0;
+      for (let y = 0; y < full.height; y++) {
+        for (let x = 0; x < full.width; x++) {
+          const i = (y * full.width + x) * 4;
+          if ((px[i] + px[i + 1] + px[i + 2]) / 3 > 60) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      const pad = Math.round(Math.max(full.width, full.height) * 0.04);
+      minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+      maxX = Math.min(full.width - 1, maxX + pad); maxY = Math.min(full.height - 1, maxY + pad);
+      const w = maxX - minX + 1, h = maxY - minY + 1;
+
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(full, minX, minY, w, h, 0, 0, w, h);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      trollfaceTexCache = { tex, aspect: w / h };
+      resolve(trollfaceTexCache);
+    };
+    img.src = new URL("../../animations/troll-grin.gif", import.meta.url).href;
+  });
+  return trollfaceTexLoading;
+}
+
+/* Decal plate for one sword's pommel: starts as a small invisible
+   placeholder and grows to the art's real aspect ratio once it decodes, so
+   a square face crop never looks stretched. */
+function buildTrollfaceDecal(THREE, size) {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.001, 0.001),
+    new THREE.MeshStandardMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  trollfaceTexture(THREE).then(({ tex, aspect }) => {
+    mesh.geometry.dispose();
+    mesh.geometry = aspect >= 1
+      ? new THREE.PlaneGeometry(size, size / aspect)
+      : new THREE.PlaneGeometry(size * aspect, size);
+    mesh.material.dispose();
+    mesh.material = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.55, metalness: 0.05 });
+  });
+  return mesh;
+}
+
 /* Keyboard Warrior. Blade runs down -Z, grip at the origin, so it drops
    into the same view-model slot as the guns. */
 function buildKeyboardSword(m, mat, group) {
-  const GRIP_LEN = 0.26;
+  const GRIP_LEN = 0.34;
   const GUARD_THICK = 0.075;
   const TIP_LEN = 0.15;
   const bodyLen = m.len - TIP_LEN;
@@ -243,18 +327,22 @@ function buildKeyboardSword(m, mat, group) {
   guard.position.set(0, 0, -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5));
   group.add(guard);
 
-  // "U MAD BRO?" as a canvas texture on a thin plate. The Blender model
-  // extrudes real letters, but TextGeometry needs a font file this game
-  // does not ship - and at view-model distance a decal is indistinguishable.
+  // "U MAD BRO?" as a canvas texture on a thin plate, laid flat on the
+  // guard's TOP face so it reads right-side up when the sword is set down
+  // flat on a display stand — not standing up facing the player. The
+  // Blender model extrudes real letters, but TextGeometry needs a font
+  // file this game does not ship - and at view-model distance a decal is
+  // indistinguishable.
   const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(m.guardWide * 0.86, m.guardTall * 0.52),
+    new THREE.PlaneGeometry(m.guardWide * 0.86, GUARD_THICK * 0.7),
     new THREE.MeshStandardMaterial({
       map: guardTextTexture(THREE),
       transparent: true,
       roughness: 0.35,
       metalness: 0.2,
     }));
-  plate.position.set(0, m.guardTall * 0.14, -(GRIP_LEN * 0.5) + 0.0015);
+  plate.rotation.x = -Math.PI / 2;
+  plate.position.set(0, m.guardTall * 0.5 + 0.0015, -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5));
   group.add(plate);
 
   // Rivets sit proud of the guard's PLAYER-facing side (+Z of the guard),
@@ -281,30 +369,22 @@ function buildKeyboardSword(m, mat, group) {
   grip.rotation.x = Math.PI / 2;
   group.add(grip);
 
-  // Trollface pommel - chrome skull with a blocked-in grin.
+  // Trollface pommel: a chrome skull with the real mascot art (not a
+  // hand-built grin from primitives, not the emoji - see CLAUDE.md) decaled
+  // flat onto its player-facing side. A flat plane instead of a spherical
+  // wrap, because the source frame is mostly black margin around an
+  // off-centre face - wrapped around a sphere that margin eats most of the
+  // surface and squashes the face into an unrecognisable band.
   const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.055, 12, 9), mat(0xd0d4da, 0.26, 0.5));
+    new THREE.SphereGeometry(0.055, 16, 12), mat(0xd0d4da, 0.26, 0.5));
   head.scale.set(1.05, 1.12, 0.8);
-  head.position.set(0, 0, GRIP_LEN * 0.5 + 0.03);
+  head.position.set(0, 0, GRIP_LEN * 0.5 + 0.06);
   group.add(head);
 
-  // Grin and brows ride on the pommel's back face (+Z, toward the player,
-  // which is the side you actually see in first person). The head is
-  // squashed to 0.8 in Z, so anything at the sphere's nominal radius
-  // would sink inside it.
-  const faceZ = GRIP_LEN * 0.5 + 0.03 + 0.055 * 0.8;
-  const ink = mat(0x08080a, 0.55, 0.0);
-
-  const grin = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.013, 0.005), ink);
-  grin.position.set(0, -0.010, faceZ);
-  group.add(grin);
-
-  for (const sx of [-1, 1]) {
-    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.008, 0.005), ink);
-    brow.position.set(sx * 0.017, 0.016, faceZ);
-    brow.rotation.z = sx * 0.28;
-    group.add(brow);
-  }
+  const faceZ = GRIP_LEN * 0.5 + 0.06 + 0.055 * 0.8 + 0.001;
+  const decal = buildTrollfaceDecal(THREE, 0.1);
+  decal.position.set(0, 0, faceZ);
+  group.add(decal);
 
   group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   return group;

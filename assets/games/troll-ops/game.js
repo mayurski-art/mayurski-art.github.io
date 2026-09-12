@@ -220,7 +220,10 @@ const loadout = new Loadout({
   rankFill: els.loRankFill,
 }, () => {
   refreshLobbyMap();
-  if (inspectorLive) inspector?.show(loadout.resolved);
+  if (inspectorLive) {
+    const gearPanel = document.getElementById("to-pfp-gear");
+    inspector?.show(gearPanel && !gearPanel.hidden ? loadout.melee : loadout.resolved);
+  }
 });
 
 // -------------------- mode + networking --------------------
@@ -512,6 +515,9 @@ function showLobbyPanel(name) {
   if (name === "loadout" || name === "customize") {
     mountGunView(name);
     inspector?.show(loadout.resolved);
+  } else if (name === "gear") {
+    mountGunView(name);
+    inspector?.show(loadout.melee);
   } else {
     inspectorLive = false;
     if (gunView) gunView.style.display = "none";
@@ -3521,16 +3527,19 @@ function updateMeleeView(dt) {
   const bobY = Math.abs(Math.cos(w.bobPhase)) * 0.03 * steady;
   const swing = melee.phase;
 
-  // Held low and to the right at rest, then thrown across the view and down.
+  // Diagonal chop, matching the Godot reference arc: raised up and to the
+  // right at rest, then a right-to-left downward cut that drives forward
+  // and comes back to rest — never a mirrored/reversed sweep.
+  const ease = swing * swing * (3 - 2 * swing); // smoothstep, matches the anim's easing
   mesh.position.set(
-    0.26 + bobX - swing * 0.34,
-    -0.24 + bobY + Math.sin(swing * Math.PI) * 0.13,
-    -0.5 - swing * 0.16,
+    0.26 + bobX - ease * 0.5,
+    -0.24 + bobY + 0.16 - ease * 0.34,
+    -0.5 - ease * 0.22,
   );
   mesh.rotation.set(
-    -0.3 - swing * 1.35,
-    0.4 - swing * 1.15,
-    0.25 + swing * 1.0,
+    -0.3 - ease * 0.55,
+    0.4 - ease * 1.15,
+    0.25 + ease * 1.35,
   );
 }
 
