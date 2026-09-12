@@ -1,0 +1,171 @@
+[gd_scene format=3 uid="uid://ctstrng0rng2"]
+
+[ext_resource type="Script" uid="uid://dw31lst0pt1fu" path="res://player/player.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://gptx4ddcvjdl" path="res://player/test_dummy.gd" id="2_dummy"]
+[ext_resource type="PackedScene" uid="uid://cj51qrrlt6xnm" path="res://weapons/green_candles/green_candles.tscn" id="3_gcandles"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_mat"]
+sky_top_color = Color(0.32, 0.42, 0.58, 1)
+sky_horizon_color = Color(0.62, 0.65, 0.7, 1)
+ground_bottom_color = Color(0.12, 0.12, 0.14, 1)
+ground_horizon_color = Color(0.42, 0.42, 0.45, 1)
+
+[sub_resource type="Sky" id="Sky_res"]
+sky_material = SubResource("Sky_mat")
+
+[sub_resource type="Environment" id="Env_res"]
+background_mode = 2
+sky = SubResource("Sky_res")
+tonemap_mode = 2
+ssao_enabled = true
+glow_enabled = true
+glow_intensity = 0.55
+
+[sub_resource type="PlaneMesh" id="Plane_floor"]
+size = Vector2(60, 60)
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.22, 0.23, 0.25, 1)
+roughness = 0.9
+
+[sub_resource type="BoxShape3D" id="Shape_floor"]
+size = Vector3(60, 0.2, 60)
+
+[sub_resource type="CapsuleShape3D" id="Shape_player"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="Mesh_dummy"]
+radius = 0.42
+height = 1.9
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_crosshair"]
+bg_color = Color(1, 1, 1, 0.92)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.55)
+shadow_size = 2
+
+[node name="TestRange" type="Node3D" unique_id=331501544]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=593138555]
+environment = SubResource("Env_res")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=2017752897]
+transform = Transform3D(0.87, -0.34, 0.36, 0, 0.72, 0.69, -0.49, -0.6, 0.63, 0, 8, 0)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=2128683697]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=1641816977]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.5632782)
+mesh = SubResource("Plane_floor")
+surface_material_override/0 = SubResource("Mat_floor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=915388429]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+shape = SubResource("Shape_floor")
+
+[node name="Player" type="CharacterBody3D" parent="." unique_id=764230194]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 6)
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=82350842]
+shape = SubResource("Shape_player")
+
+[node name="Camera3D" type="Camera3D" parent="Player" unique_id=1727598622]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
+fov = 78.0
+
+[node name="WeaponHolder" type="Node3D" parent="Player/Camera3D" unique_id=595928280]
+
+[node name="GreenCandles" parent="Player/Camera3D/WeaponHolder" unique_id=1146905383 instance=ExtResource("3_gcandles")]
+
+[node name="Dummy1" type="StaticBody3D" parent="." unique_id=615974196]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, -6)
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("2_dummy")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy1" unique_id=1295630661]
+mesh = SubResource("Mesh_dummy")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Dummy1" unique_id=621612656]
+shape = SubResource("Shape_player")
+
+[node name="Label3D" type="Label3D" parent="Dummy1" unique_id=880990364]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+billboard = 1
+text = "200 / 200"
+font_size = 48
+
+[node name="Dummy2" type="StaticBody3D" parent="." unique_id=123474682]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.4, 0.95, -9)
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("2_dummy")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy2" unique_id=307082845]
+mesh = SubResource("Mesh_dummy")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Dummy2" unique_id=2038163011]
+shape = SubResource("Shape_player")
+
+[node name="Label3D" type="Label3D" parent="Dummy2" unique_id=1816606487]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+billboard = 1
+text = "200 / 200"
+font_size = 48
+
+[node name="Dummy3" type="StaticBody3D" parent="." unique_id=250460882]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 0.95, -11)
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("2_dummy")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Dummy3" unique_id=1004568038]
+mesh = SubResource("Mesh_dummy")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Dummy3" unique_id=495592422]
+shape = SubResource("Shape_player")
+
+[node name="Label3D" type="Label3D" parent="Dummy3" unique_id=818965645]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+billboard = 1
+text = "200 / 200"
+font_size = 48
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=2113966425]
+
+[node name="Hint" type="Label" parent="HUD" unique_id=1074461145]
+offset_left = 18.0
+offset_top = 16.0
+offset_right = 520.0
+offset_bottom = 120.0
+text = "WASD move  ·  Shift sprint  ·  Space jump
+Left click  ·  FIRE      R  ·  reload
+Esc  ·  release mouse"
+
+[node name="AmmoLabel" type="Label" parent="HUD" unique_id=1526194631]
+offset_left = 18.0
+offset_top = 130.0
+offset_right = 260.0
+offset_bottom = 170.0
+theme_override_font_sizes/font_size = 28
+text = "12 / 48"
+
+[node name="Crosshair" type="Panel" parent="HUD" unique_id=320826449]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -3.0
+offset_top = -3.0
+offset_right = 3.0
+offset_bottom = 3.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_crosshair")

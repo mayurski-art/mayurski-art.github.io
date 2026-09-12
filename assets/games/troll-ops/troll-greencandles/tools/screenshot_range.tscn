@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://bshotgcrange1"]
+
+[ext_resource type="PackedScene" path="res://player/test_range.tscn" id="1_range"]
+[ext_resource type="Script" path="res://tools/screenshot.gd" id="2_shot"]
+
+[node name="ScreenshotRange" instance=ExtResource("1_range")]
+
+[node name="Screenshot" type="Node" parent="."]
+script = ExtResource("2_shot")

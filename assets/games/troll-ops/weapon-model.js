@@ -11,13 +11,107 @@ const MATS = {
   dark:   () => new THREE.MeshStandardMaterial({ color: 0x2a2c28, roughness: 0.55, metalness: 0.5 }),
   accent: () => new THREE.MeshStandardMaterial({ color: 0x6b7a5e, roughness: 0.4, metalness: 0.6 }),
   wood:   () => new THREE.MeshStandardMaterial({ color: 0x6b4a2c, roughness: 0.75, metalness: 0.05 }),
+  brass:  () => new THREE.MeshStandardMaterial({ color: 0xb08d3e, roughness: 0.35, metalness: 0.85 }),
+  glow:   () => new THREE.MeshBasicMaterial({ color: 0x6dff4a }),
+  glowTube: () => new THREE.MeshStandardMaterial({ color: 0x4ee62f, emissive: 0x4ee62f, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0.92 }),
 };
 
 function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
 function cyl(rt, rb, h, mat, seg = 10) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); }
 
+function buildTankLauncher(def, spec, len) {
+  // Modeled on a chemical-canister launcher held muzzle-up: a tapered
+  // brass-collared horn body carries a glowing fuel cylinder on top, fed by
+  // a hose from a side tank, over a conventional grip/trigger housing.
+  const group = new THREE.Group();
+  const darkMat = MATS.dark();
+  const brassMat = MATS.brass();
+  const bodyH = 0.09;
+
+  // --- housing (horizontal, holds grip/trigger — this is what points forward)
+  const housingLen = len * 0.5;
+  const housing = box(0.09, bodyH * 1.3, housingLen, darkMat);
+  housing.position.set(0, 0, len * 0.06);
+  group.add(housing);
+
+  // --- horn body: tapers upward from the housing into the brass collar
+  const hornH = len * 0.62;
+  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.088, hornH, 14), darkMat);
+  horn.position.set(0, hornH / 2 + bodyH * 0.4, -len * 0.08);
+  group.add(horn);
+
+  // --- brass collar band, sits at the horn's neck
+  const brass = cyl(0.052, 0.062, 0.05, brassMat, 14);
+  brass.position.set(0, hornH + bodyH * 0.4 + 0.025, -len * 0.08);
+  group.add(brass);
+
+  // --- glowing green fuel cylinder, standing on the brass collar
+  const cellR = 0.045;
+  const cellH = len * 0.42;
+  const cellY = hornH + bodyH * 0.4 + 0.05 + cellH / 2;
+  const cellGroup = new THREE.Group();
+  cellGroup.position.set(0, cellY, -len * 0.08);
+  const cell = cyl(cellR, cellR, cellH, MATS.glowTube(), 14);
+  cellGroup.add(cell);
+  const nub = cyl(cellR * 0.3, cellR * 0.3, cellH * 0.16, MATS.glowTube(), 8);
+  nub.position.y = cellH / 2 + cellH * 0.08;
+  cellGroup.add(nub);
+  group.add(cellGroup);
+  const glowLight = new THREE.PointLight(0x4ee62f, 1.1, 1.4, 2);
+  glowLight.position.set(0, cellY, -len * 0.08);
+  group.add(glowLight);
+
+  // --- side tank ("Green Candles"), fed by a hose up into the horn
+  const tankH = len * 0.34;
+  const tank = box(0.05, tankH, 0.075, darkMat);
+  tank.position.set(-0.1, -bodyH * 0.2, -len * 0.02);
+  group.add(tank);
+  const tankStripe = box(0.006, tankH * 0.62, 0.078, MATS.glowTube());
+  tankStripe.position.set(-0.1 - 0.028, -bodyH * 0.2, -len * 0.02);
+  group.add(tankStripe);
+
+  const hoseMat = MATS.glowTube();
+  const hose = cyl(0.009, 0.009, len * 0.22, hoseMat, 8);
+  hose.rotation.z = Math.PI / 5;
+  hose.position.set(-0.075, bodyH * 1.1, -len * 0.14);
+  group.add(hose);
+  const hoseElbow = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.009, 6, 10, Math.PI * 0.6), hoseMat);
+  hoseElbow.position.set(-0.05, bodyH * 1.85, -len * 0.2);
+  hoseElbow.rotation.set(0, 0, Math.PI * 0.15);
+  group.add(hoseElbow);
+
+  // --- pistol grip + trigger under the housing
+  const grip = box(0.05, 0.16, 0.06, darkMat);
+  grip.position.set(0, -bodyH * 1.4, len * 0.2);
+  grip.rotation.x = 0.28;
+  group.add(grip);
+  const trigger = box(0.03, 0.05, 0.04, darkMat);
+  trigger.position.set(0, -bodyH * 0.7, len * 0.1);
+  group.add(trigger);
+
+  // --- vent slit + control button on the housing, matching the reference
+  const vent = box(0.006, 0.045, 0.05, MATS.glow());
+  vent.position.set(0.046, -bodyH * 0.15, len * 0.02);
+  group.add(vent);
+  const button = cyl(0.012, 0.012, 0.01, darkMat, 10);
+  button.rotation.z = Math.PI / 2;
+  button.position.set(0.046, 0.03, len * 0.18);
+  group.add(button);
+
+  const muzzleZ = -len * 0.08;
+  const muzzleY = cellY + cellH / 2 + cellH * 0.16;
+  const aimY = muzzleY * 0.55;
+  const aimZ = len * 0.02;
+  group.userData.sight = null;
+  group.userData.aimPoint = new THREE.Vector3(0, aimY, aimZ);
+  group.userData.muzzleZ = muzzleZ;
+  group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return group;
+}
+
 export function buildWeaponMesh(def) {
   const spec = def.model || {};
+  if (spec.stock === "tank") return buildTankLauncher(def, spec, spec.len || 0.5);
   const len = spec.len || 0.5;
   const heavy = !!spec.heavy;
   const bodyH = (heavy ? 0.085 : 0.07) * (def.cls === "sidearm" ? 0.85 : 1);

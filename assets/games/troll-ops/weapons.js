@@ -219,6 +219,15 @@ export const WEAPON_DEFS = {
     blurb: "Semi-auto sledgehammer.",
     model: { len: 0.6, stock: "folding", mag: "curved", barrel: 1.05 },
   }),
+  greencandle: mk("battle", {
+    id: "greencandle", name: "Green Candles", rank: 28, sight: "none",
+    damage: 48, rpm: 340, magSize: 12, reserveMax: 60, reloadTime: 3.0,
+    falloffStart: 40, falloffEnd: 100, falloffMin: 0.58,
+    recoilKickPitch: 0.038, recoilKickKnockback: 0.03, recoilRecover: 7.5,
+    adsTime: 0.3, adsFovMult: 0.82, muzzleVelocity: 620, muzzleFlashScale: 1.15,
+    blurb: "Backpack tank, brass barrel, and a glow that means business.",
+    model: { len: 0.58, stock: "tank", mag: "none", barrel: 0.85, heavy: true },
+  }),
 
   // ---------------- snipers
   deadpan: mk("sniper", {

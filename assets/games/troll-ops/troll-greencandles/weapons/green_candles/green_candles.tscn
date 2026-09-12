@@ -1,0 +1,41 @@
+[gd_scene load_steps=5 format=3 uid="uid://bgc0reencand1es"]
+
+[ext_resource type="Script" path="res://weapons/green_candles/green_candles.gd" id="1_gcandles"]
+[ext_resource type="PackedScene" path="res://weapons/green_candles/green_candles.glb" id="2_glb"]
+[ext_resource type="PackedScene" path="res://weapons/projectile.tscn" id="3_proj"]
+[ext_resource type="PackedScene" path="res://weapons/green_candles/green_candles_cell.glb" id="4_cell"]
+
+[node name="GreenCandles" type="Node3D"]
+script = ExtResource("1_gcandles")
+mag_size = 12
+reserve_max = 60
+reload_time = 3.0
+damage = 48.0
+muzzle_velocity = 26.0
+rounds_per_minute = 340.0
+projectile_scene = ExtResource("3_proj")
+
+[node name="Model" type="Node3D" parent="."]
+
+[node name="Gun" parent="Model" instance=ExtResource("2_glb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="CellSeated" parent="Model" instance=ExtResource("4_cell")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.319, -0.017)
+
+[node name="Muzzle" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, -0.45)
+
+[node name="MuzzleFlash" type="OmniLight3D" parent="Muzzle"]
+light_color = Color(0.42, 1, 0.35, 1)
+light_energy = 3.0
+omni_range = 2.0
+visible = false
+
+[node name="FireAudio" type="AudioStreamPlayer3D" parent="."]
+unit_size = 5.0
+max_db = 0.0
+
+[node name="ReloadAudio" type="AudioStreamPlayer3D" parent="."]
+unit_size = 4.0
+max_db = -2.0
