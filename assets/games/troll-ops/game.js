@@ -9,6 +9,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { WeaponState, WEAPON_DEFS } from "./weapons.js";
 import { buildWeaponMesh } from "./weapon-model.js";
 import { WeaponInspector } from "./inspector.js";
+import { CharacterInspector } from "./char-inspector.js";
 import { Loadout } from "./loadout.js";
 import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
@@ -489,6 +490,11 @@ const gunCanvas = document.getElementById("to-gun-canvas");
 const inspector = gunCanvas ? new WeaponInspector(gunCanvas) : null;
 let inspectorLive = false;
 
+const charView = document.getElementById("to-char-view");
+const charCanvas = document.getElementById("to-char-canvas");
+const charInspector = charCanvas ? new CharacterInspector(charCanvas) : null;
+let charInspectorLive = false;
+
 /* One inspector, two panels that want to show it: move the element rather
    than standing up a second WebGL context for the same gun. */
 function mountGunView(panel) {
@@ -498,6 +504,23 @@ function mountGunView(panel) {
   if (gunView.parentElement !== mount) mount.appendChild(gunView);
   gunView.style.display = "";
 }
+
+/* Same move-the-element trick as mountGunView, for the operator locker
+   viewer - it only ever lives on the Match Setup ("deploy") panel today,
+   but is written the same way so a second panel can pick it up later. */
+function mountCharView(panel) {
+  const mount = document.getElementById(`to-char-mount-${panel}`);
+  charInspectorLive = !!(charView && mount);
+  if (!charInspectorLive) return;
+  if (charView.parentElement !== mount) mount.appendChild(charView);
+  charView.style.display = "";
+}
+
+// "deploy" (Match Setup) is the panel left un-hidden in the HTML, so it's
+// what a player sees first without any click - nothing else calls
+// showLobbyPanel("deploy") on first load, so the locker view has to be
+// mounted here or it sits empty until the player clicks away and back.
+mountCharView("deploy");
 
 function showLobbyPanel(name) {
   for (const id of LOBBY_PANELS) {
@@ -521,6 +544,13 @@ function showLobbyPanel(name) {
   } else {
     inspectorLive = false;
     if (gunView) gunView.style.display = "none";
+  }
+
+  if (name === "deploy") {
+    mountCharView(name);
+  } else {
+    charInspectorLive = false;
+    if (charView) charView.style.display = "none";
   }
 }
 
@@ -3348,6 +3378,7 @@ function animate() {
   if (gameState === "menu") {
     updateLobbyCamera(dt);
     if (inspectorLive && !els.title.hidden) inspector?.tick(dt);
+    if (charInspectorLive && !els.title.hidden) charInspector?.tick(dt);
   }
 
   composer.render();

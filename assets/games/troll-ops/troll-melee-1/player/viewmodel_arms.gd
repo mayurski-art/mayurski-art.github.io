@@ -7,43 +7,42 @@ extends Node3D
 ##
 ## Instances the shared character.glb (TrollfaceRig > Skeleton3D >
 ## {Mesh_Arm_L, Mesh_Arm_R, Mesh_Head, Mesh_Leg_L, Mesh_Leg_R}, each mesh
-## rigidly weighted 1.0 to its like-named bone). Meshes and bones are
-## deliberately NOT given identical names - see the naming note in
-## ../../trollface-characters/tools/build_trollface_character.py
-## (parent_and_weight docstring) for why.
+## rigidly weighted 1.0 to its like-named bone - Arm_L/Arm_R/Head/Leg_L/
+## Leg_R. Meshes and bones are deliberately NOT given identical names: the
+## Blender build script (../../trollface-characters/tools/
+## build_trollface_character.py) prefixes meshes with "Mesh_" because
+## Blender's glTF exporter silently renames one side of a name collision
+## (a bone called "Arm_L" next to a mesh object also called "Arm_L"
+## exports as bone "Arm_L_2"), which would otherwise break bone lookups
+## here without any error.
 ##
 ## The Head and both Leg meshes are hidden - only the arms belong in view
-## space. The whole rig is scaled/positioned as one unit and the arms are
-## posed by moving their BONES in the Skeleton3D, matching a two-handed
-## rifle grip rather than troll-melee-1's one-handed sword pose.
+## space. Rather than fighting the skeleton binding by reparenting mesh
+## nodes (which would detach them from their bone), the whole rig is
+## scaled/positioned as one unit and the ARMS ARE POSED BY MOVING THEIR
+## BONES in the Skeleton3D, exactly like poseHumanoid() does at runtime in
+## ../../character.js for the web build.
 
 const CHARACTER_SCENE := preload("res://character/trollface_operator.glb")
 
-const RIG_OFFSET := Vector3(0.2, -0.9, -0.65)
+## Where the whole rig sits so its shoulder hub lands where a viewmodel
+## weapon rest pose expects (see keyboard_sword.gd's REST_POS/ROT). The
+## rig's own origin is at ground level (Hub bone sits ~1.4m up), so this
+## offset pulls that hub down into view-space reach.
+const RIG_OFFSET := Vector3(0.0, -1.15, -0.35)
 const RIG_SCALE := 0.62
 
-## Arm_L/Arm_R's bind pose already carries a large baked-in rest rotation
-## (~-25, ~147, ~147 degrees - hanging straight down at the character's
-## side), and set_bone_pose_rotation() sets an ABSOLUTE pose rotation that
-## composes with that rest, not a small delta from a neutral pose. The
-## first values tried here (small deltas, copied from troll-melee-1's
-## working one-handed pose) left the arms hanging almost straight down
-## past the camera instead of raised - the two rigs' numbers aren't
-## interchangeable because the composed result depends on the exact rest
-## orientation, which isn't obvious from the angles alone. These values
-## were found by rendering actual screenshots of the arm mesh at several
-## candidates (not reasoned out from the rest transform) and picking the
-## one that reads as two hands gripping the weapon in front of the
-## camera - re-render (tools/screenshot_range.tscn) rather than
-## re-deriving by hand if this ever needs retuning.
-const ARM_L_POSE_ROT := Vector3(-170.0, 20.0, 0.0)
-const ARM_R_POSE_ROT := Vector3(-170.0, -20.0, 0.0)
+## Bone-local rest rotations (degrees) that pull the resting T-pose arms
+## in to a "holding something" FPS pose. Applied as pose overrides on top
+## of the bone's rest transform.
+const ARM_L_POSE_ROT := Vector3(-40.0, -8.0, 18.0)
+const ARM_R_POSE_ROT := Vector3(-46.0, 10.0, -14.0)
 
 ## Walk bob: a figure-8 the whole rig traces while moving on the ground -
 ## down-and-across on each footfall, back up between steps. Frequency is
-## driven by actual speed (see apply_motion()) rather than a fixed rate,
-## so a walk and a sprint bob at visibly different tempos instead of the
-## same loop just playing faster underneath.
+## driven by actual speed (see tick()) rather than a fixed rate, so a walk
+## and a sprint bob at visibly different tempos instead of the same loop
+## just playing faster underneath.
 const BOB_AMP_Y := 0.028
 const BOB_AMP_X := 0.018
 const BOB_SPEED_FOR_FULL_BOB := 7.8   # matches player.gd's sprint_speed
@@ -126,6 +125,9 @@ func _apply_rest_pose() -> void:
 ## move_and_slide() clamps velocity.y on landing, or the impact speed is
 ## already gone by the time this runs.
 func apply_motion(delta: float, horizontal_speed: float, is_grounded: bool, fall_speed: float = 0.0) -> void:
+	# Walk bob only while actually moving on the ground - airborne or
+	# standing still, it settles back to the rest pose instead of still
+	# bobbing in place.
 	var bob_strength := 0.0
 	if is_grounded and horizontal_speed > 0.1:
 		bob_strength = clampf(horizontal_speed / BOB_SPEED_FOR_FULL_BOB, 0.0, 1.0)

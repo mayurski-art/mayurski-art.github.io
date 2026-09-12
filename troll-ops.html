@@ -50,6 +50,8 @@
           <section class="to-pf-center" id="to-pf-center">
 
             <div class="to-pf-panel" id="to-pfp-deploy">
+              <div class="to-pf-panel-bar">Operator</div>
+              <div class="to-char-mount" id="to-char-mount-deploy"></div>
               <div class="to-pf-panel-bar">Map Select</div>
               <div class="to-lo-maps" id="to-lo-maps" role="group" aria-label="Map"></div>
               <div class="to-pf-panel-bar">Game Mode</div>
@@ -182,6 +184,11 @@
 
           <div class="to-gun-view" id="to-gun-view">
             <canvas id="to-gun-canvas" aria-label="Weapon preview: drag to turn, scroll to zoom" role="img"></canvas>
+            <span class="to-gun-hint">Drag to turn · scroll to zoom · double-click resets</span>
+          </div>
+
+          <div class="to-char-view" id="to-char-view">
+            <canvas id="to-char-canvas" aria-label="Operator preview: drag to turn, scroll to zoom" role="img"></canvas>
             <span class="to-gun-hint">Drag to turn · scroll to zoom · double-click resets</span>
           </div>
 
@@ -447,7 +454,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-gp-menu1"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-char-locker1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

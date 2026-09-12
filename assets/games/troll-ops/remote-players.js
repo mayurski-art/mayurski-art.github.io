@@ -117,10 +117,26 @@ export class RemotePlayer {
     const moving = !!b.moving;
     if (moving) this.phase += dt * 9;
 
+    // Strafe is not sent over the wire (net.js snapshots carry position/
+    // yaw/pitch/stance/moving only) - derive it locally from how the
+    // player actually moved between the two bracketing snapshots,
+    // projected onto the player's own left/right axis. Cheap, needs no
+    // protocol change, and only matters for a few frames of lean anyway.
+    let strafe = 0;
+    if (b.t > a.t) {
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
+      // Local right axis for a yaw-only rotation about Y.
+      const rightX = cos, rightZ = -sin;
+      const lateral = dx * rightX + dz * rightZ;
+      const speed = Math.hypot(dx, dz) / ((b.t - a.t) / 1000 || 1);
+      strafe = speed > 0.05 ? Math.max(-1, Math.min(1, lateral * 6)) : 0;
+    }
+
     this.rig.root.position.copy(this.pos);
     this.rig.root.rotation.y = this.yaw;
 
-    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, dt });
+    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, dt });
 
     this.tag.position.y = 2.15 - this.lower * 0.75;
   }

@@ -14,6 +14,7 @@ const ViewmodelArmsScene := preload("res://player/viewmodel_arms.gd")
 @onready var _ammo_label: Label = get_node_or_null("../HUD/AmmoLabel")
 
 var _pitch: float = 0.0
+var _viewmodel_arms: ViewmodelArms
 
 
 func _ready() -> void:
@@ -33,9 +34,9 @@ func _ready() -> void:
 	# Trollface viewmodel arms, added in code rather than saved into the
 	# scene for the same reason the collision layers are set here: it
 	# survives editor re-saves of test_range.tscn intact.
-	var arms := ViewmodelArmsScene.new()
-	arms.name = "ViewmodelArms"
-	_camera.add_child(arms)
+	_viewmodel_arms = ViewmodelArmsScene.new()
+	_viewmodel_arms.name = "ViewmodelArms"
+	_camera.add_child(_viewmodel_arms)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -81,7 +82,16 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, speed)
 		velocity.z = move_toward(velocity.z, 0.0, speed)
 
+	# Captured before move_and_slide() clamps velocity.y on impact - this
+	# is the actual speed the body was falling at the moment it lands,
+	# which is what the viewmodel's landing dip needs to scale against.
+	var fall_speed := -velocity.y
+
 	move_and_slide()
+
+	if _viewmodel_arms:
+		var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+		_viewmodel_arms.apply_motion(delta, horizontal_speed, is_on_floor(), fall_speed)
 
 
 func _on_fired(_muzzle_position: Vector3, _muzzle_forward: Vector3) -> void:
