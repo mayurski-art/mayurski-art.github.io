@@ -32,7 +32,7 @@ export const MELEE_DEFS = {
       len: 0.78, wide: 0.30, blade: 0.038,
       color: 0x111114, grip: 0x30170d,
       guardWide: 0.42, guardTall: 0.052,
-      keyCols: 10, keyRows: 18,
+      keyCols: 8, keyRows: 14,
     },
   },
 };
@@ -180,39 +180,60 @@ function buildKeyboardSword(m, mat, group) {
   tip.position.set(0, 0, z0 - bodyLen - TIP_LEN * 0.5);
   group.add(tip);
 
-  // Keycaps, both faces, one draw call. Colour rides the instance buffer.
-  const margin = 0.016, gap = 0.0035;
+  // Keycaps, both faces. Two draw calls: a glowing base per key and a dark
+  // cap sitting on it, each as one InstancedMesh.
+  //
+  // The RGB goes UNDER the caps, not on them. A real backlit board has dark
+  // plastic keycaps with the LED beneath, so the colour reads as light
+  // escaping around each cap. Colouring the cap tops directly turns the
+  // whole blade into a pastel candy grid.
+  const margin = 0.016, gap = 0.0065;
   const usable = m.wide - margin * 2;
   const keyW = (usable - gap * (m.keyCols - 1)) / m.keyCols;
   const fieldLen = bodyLen - margin * 2;
   const pitchY = (fieldLen + gap) / m.keyRows;
   const keyL = pitchY - gap;
   const count = m.keyCols * m.keyRows * 2;
+  const capH = 0.010;
 
-  const caps = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(keyW, 0.008, keyL),
-    new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0.1 }),
+  const lights = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(keyW + gap * 1.5, capH * 0.5, keyL + gap * 1.5),
+    new THREE.MeshBasicMaterial({ toneMapped: false }),
     count);
+  const caps = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(keyW, capH, keyL),
+    new THREE.MeshStandardMaterial({
+      color: 0x050507, roughness: 0.6, metalness: 0.1,
+    }),
+    count);
+
   const dummy = new THREE.Object3D();
   const colour = new THREE.Color();
   let i = 0;
   for (const sign of [1, -1]) {
     for (let row = 0; row < m.keyRows; row++) {
       for (let col = 0; col < m.keyCols; col++) {
-        dummy.position.set(
-          -usable * 0.5 + (keyW + gap) * col + keyW * 0.5,
-          sign * (m.blade * 0.5 + 0.004),
-          z0 - margin - pitchY * row - keyL * 0.5);
+        const x = -usable * 0.5 + (keyW + gap) * col + keyW * 0.5;
+        const z = z0 - margin - pitchY * row - keyL * 0.5;
+        const face = sign * (m.blade * 0.5);
+
+        dummy.position.set(x, face + sign * capH * 0.26, z);
+        dummy.updateMatrix();
+        lights.setMatrixAt(i, dummy.matrix);
+        const t = (col / m.keyCols) * 0.7 + (row / m.keyRows) * 0.3;
+        lights.setColorAt(i, colour.setHSL(t % 1, 0.95, 0.55));
+
+        dummy.position.set(x, face + sign * capH * 0.55, z);
         dummy.updateMatrix();
         caps.setMatrixAt(i, dummy.matrix);
-        const t = (col / m.keyCols) * 0.7 + (row / m.keyRows) * 0.3;
-        caps.setColorAt(i, colour.setHSL(t % 1, 0.9, 0.62));
         i++;
       }
     }
   }
+  lights.instanceMatrix.needsUpdate = true;
+  if (lights.instanceColor) lights.instanceColor.needsUpdate = true;
   caps.instanceMatrix.needsUpdate = true;
-  if (caps.instanceColor) caps.instanceColor.needsUpdate = true;
+  group.add(lights);
   group.add(caps);
 
   // "U MAD BRO?" crossguard, with rivets along the face.

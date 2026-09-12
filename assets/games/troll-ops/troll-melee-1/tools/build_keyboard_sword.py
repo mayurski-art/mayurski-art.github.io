@@ -29,11 +29,11 @@ TIP_LENGTH     = 0.15    # the wedge at the end
 # The key field fills the blade face on both sides. Cap size is derived
 # from the blade, so changing BLADE_WIDTH/LENGTH rescales the keys instead
 # of leaving a bare slab or overflowing the edge.
-KEY_COLS       = 10      # keys across the width
-KEY_ASPECT     = 1.25    # cap length / width - keeps caps square-ish
+KEY_COLS       = 8       # keys across the width
+KEY_ASPECT     = 1.35    # cap length / width - keeps caps square-ish
 KEY_HUES       = 12      # shared RGB materials (NOT one per key)
-KEY_GAP        = 0.0035
-KEY_HEIGHT     = 0.008
+KEY_GAP        = 0.0065   # wide enough for the backlight to show through
+KEY_HEIGHT     = 0.010
 KEY_MARGIN     = 0.016   # bezel around the key field
 
 GUARD_WIDTH    = 0.42    # the "U MAD BRO?" crossbar
@@ -185,16 +185,25 @@ def build_keys():
     # A shared palette. Reusing materials keeps the export to a handful of
     # primitives instead of one per key - 990 unique materials would mean
     # ~990 draw calls for a single weapon.
-    palette = []
+    #
+    # The RGB belongs UNDER the caps, not on them. A real backlit board has
+    # dark plastic keycaps with the LED beneath, so the colour reads as
+    # light bleeding up through the gaps. Colouring the cap tops directly
+    # turns the whole blade into a pastel candy grid.
+    glow_palette = []
     for i in range(KEY_HUES):
-        rgb = hsv_to_rgb(i / float(KEY_HUES), 0.9, 1.0)
-        palette.append(make_material(
+        rgb = hsv_to_rgb(i / float(KEY_HUES), 0.95, 1.0)
+        glow_palette.append(make_material(
             f"KeyGlow_{i:02d}",
-            base_color=(rgb[0] * 0.55, rgb[1] * 0.55, rgb[2] * 0.55),
-            roughness=0.32,
+            base_color=rgb,
+            roughness=0.4,
             emission=rgb,
-            emission_strength=1.6,
+            emission_strength=1.35,
         ))
+
+    # Dark ABS keycap. One material for every cap on the board.
+    cap_mat = make_material(
+        "Keycap", base_color=(0.022, 0.022, 0.028), roughness=0.6)
 
     keys = []
     for side, z_sign in ((0, 1.0), (1, -1.0)):
@@ -203,17 +212,32 @@ def build_keys():
                 x = -total_w * 0.5 + pitch_x * col + key_w * 0.5
                 y = field_start_y + pitch_y * row + key_l * 0.5
 
+                # Glowing base, slightly larger than the cap that sits on
+                # it, so a lit rim shows around all four sides.
+                #
+                # A single flat slab under the whole field does not work:
+                # opaque caps simply occlude it, and light cannot spill
+                # sideways in a rasterizer the way it does on a real board.
+                # A per-key skirt puts the emissive surface exactly where
+                # the light actually escapes.
+                base = new_box(
+                    f"KeyLight_{side}_{row}_{col}",
+                    (key_w + KEY_GAP * 0.85, key_l + KEY_GAP * 0.85,
+                     KEY_HEIGHT * 0.55),
+                    (x, y, z_sign * (z_top + KEY_HEIGHT * 0.26)),
+                )
+                t = (col / float(KEY_COLS)) * 0.7 + (row / float(rows)) * 0.3
+                assign(base, glow_palette[int(t * KEY_HUES) % KEY_HUES])
+                keys.append(base)
+
                 k = new_box(
                     f"Key_{side}_{row}_{col}",
                     (key_w, key_l, KEY_HEIGHT),
-                    (x, y, z_sign * (z_top + KEY_HEIGHT * 0.4)),
+                    (x, y, z_sign * (z_top + KEY_HEIGHT * 0.62)),
                 )
                 # No bevel on caps: invisible at this scale, and it would
                 # roughly triple the triangle count of the whole weapon.
-
-                # Diagonal rainbow sweep, like a real RGB wave preset.
-                t = (col / float(KEY_COLS)) * 0.7 + (row / float(rows)) * 0.3
-                assign(k, palette[int(t * KEY_HUES) % KEY_HUES])
+                assign(k, cap_mat)
                 keys.append(k)
 
     print(f"[keyboard_sword] key field: {KEY_COLS} x {rows} x2 sides "

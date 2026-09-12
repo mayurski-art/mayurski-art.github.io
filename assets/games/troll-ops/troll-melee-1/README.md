@@ -59,7 +59,7 @@ Or open Blender (free: <https://www.blender.org/download/>), Scripting tab →
 Open → pick the script → Run Script. It overwrites the `.glb` in place, and
 Godot re-imports it on next open. Blender costs nothing — there is no quota.
 
-Current cost: **~9.7k triangles, 17 primitives** (the "U MAD BRO?" lettering
+Current cost: **~10.7k triangles** (the "U MAD BRO?" lettering
 is real extruded geometry and accounts for ~2.3k of that). Two numbers to
 respect if
 you change the key field:
@@ -166,3 +166,30 @@ One gotcha when screenshotting a pose: the weapon auto-plays `idle` on
 ready, and its tracks overwrite anything you `seek()` to on the very next
 frame. Call `pause()` after seeking or you will photograph the rest pose
 over and over.
+
+## Why the RGB sits under the caps
+
+The obvious way to build a backlit keyboard is to colour the keycaps. It
+looks wrong - the blade turns into a pastel candy grid, nothing like the
+reference.
+
+A real board has *dark plastic caps with the LED underneath*, so the colour
+you see is light escaping around each cap. The model matches that: every key
+is a glowing base with a near-black cap sitting on it, slightly smaller, so
+a lit rim shows on all four sides.
+
+A single glowing slab under the whole field does not work either. Opaque
+caps just occlude it, and light cannot spill sideways in a rasterizer the
+way it does on a real board - you get a lit border around the key field and
+nothing between the keys. The emissive surface has to be per-key, where the
+light actually escapes.
+
+## Emission does not survive the trip to Godot unchanged
+
+glTF carries emission strength through as a raw multiplier, and Godot's
+filmic tonemap plus the test scene's bloom amplify it hard. A value tuned by
+eye in Blender's EEVEE preview (9.0) blew out to solid white in-engine and
+washed the dark caps to pale grey.
+
+The exported value is ~1.35, which looks dim in Blender and correct in
+Godot. **Judge emission in the engine, never in the Blender viewport.**
