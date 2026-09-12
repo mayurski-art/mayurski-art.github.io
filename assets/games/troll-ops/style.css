@@ -831,9 +831,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-touch-melee { right: 130px; bottom: 96px; width: 50px; height: 50px; font-size: 9px; }
 .to-touch-nade { right: 66px; bottom: 148px; width: 50px; height: 50px; font-size: 9px; }
 .to-touch-interact { left: 134px; bottom: 96px; width: 50px; height: 50px; font-size: 14px; background: rgba(255,138,90,.22); }
-.to-touch-lean { width: 52px; height: 52px; bottom: 136px; font-size: 14px; }
-.to-touch-lean-l { left: 22px; }
-.to-touch-lean-r { left: 86px; }
+.to-touch-swap { left: 22px; bottom: 136px; width: 52px; height: 52px; font-size: 14px; }
 .to-touch-btn.is-held { background: rgba(255,255,255,.26); }
 
 @media (max-width: 760px), (pointer: coarse) {

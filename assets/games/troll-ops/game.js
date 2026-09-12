@@ -27,6 +27,7 @@ import { BulletSystem, segmentBlocked } from "./ballistics.js";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js";
 import { MeleeState, buildMeleeMesh, GrenadeSystem, blastDamage } from "./gear.js";
 import { RangeSet } from "./range.js";
+import { PickupSystem, SwapHold } from "./pickups.js";
 
 const els = {
   cabinet: document.getElementById("to-cabinet"),
@@ -60,6 +61,9 @@ const els = {
   bombPrompt: document.getElementById("to-bomb-prompt"),
   bombPromptText: document.getElementById("to-bomb-prompt-text"),
   bombBarFill: document.getElementById("to-bomb-bar-fill"),
+  pickupPrompt: document.getElementById("to-pickup-prompt"),
+  pickupPromptText: document.getElementById("to-pickup-prompt-text"),
+  pickupBarFill: document.getElementById("to-pickup-bar-fill"),
   deathBy: document.getElementById("to-deathby"),
   deathByName: document.getElementById("to-deathby-name"),
   deathByMeta: document.getElementById("to-deathby-meta"),
@@ -114,11 +118,10 @@ const els = {
   touchJump: document.getElementById("to-touch-jump"),
   touchReload: document.getElementById("to-touch-reload"),
   touchSlide: document.getElementById("to-touch-slide"),
-  touchLeanL: document.getElementById("to-touch-lean-l"),
-  touchLeanR: document.getElementById("to-touch-lean-r"),
   touchMelee: document.getElementById("to-touch-melee"),
   touchNade: document.getElementById("to-touch-nade"),
   touchInteract: document.getElementById("to-touch-interact"),
+  touchSwap: document.getElementById("to-touch-swap"),
   gearMelee: document.getElementById("to-gear-melee"),
   gearMeleeName: document.getElementById("to-gear-melee-name"),
   gearLethal: document.getElementById("to-gear-lethal"),
@@ -683,6 +686,14 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
     updateTeamHud();
   }
   if (!isSnd()) checkMatchEnd();
+
+  // Whatever the victim was holding falls where they stood. Our own death
+  // drops from damagePlayer instead, with the exact live WeaponState — this
+  // covers everyone else's (bots we host, peers, bots peers host).
+  if (!opts.victimIsMe && opts.victimPos && opts.victimWeaponId && scavengeAllowed()) {
+    const def = resolveWeapon(opts.victimWeaponId, defaultLoadoutFor(opts.victimWeaponId));
+    if (def) pickups.drop(`${killerId}:${performance.now()}`, def, opts.victimPos);
+  }
 }
 
 /* Bank XP mid-match and show it floating up. Only PvP pays as it goes; Ops
@@ -766,7 +777,12 @@ const net = new Net({
   // `hd` has always been on the wire; we just never read it.
   onHitTaken: (m) => damagePlayer(m.dmg, m.id, m.w, !!m.hd),
   onPeerDied: (p, m) => {
-    registerDeath(p.name, m.by, m.w, { head: !!m.hd, victimTeam: p.team });
+    const snap = p.snaps?.[p.snaps.length - 1];
+    registerDeath(p.name, m.by, m.w, {
+      head: !!m.hd, victimTeam: p.team,
+      victimPos: snap ? new THREE.Vector3(snap.x, snap.y, snap.z) : null,
+      victimWeaponId: p.weapon,
+    });
     if (m.by !== net.id) creditAssistIfOwed(p.id, p.name);
   },
   onVote: () => { if (intermissionT > 0) renderVote(); },
@@ -832,7 +848,10 @@ const net = new Net({
     const { killed, bot } = bots.applyHit(m.target, m.dmg);
     if (!killed) return;
     net.reportDeathAs(m.target, m.id, m.w, !!m.hd);
-    registerDeath(bot.name, m.id, m.w, { head: !!m.hd, victimTeam: bot.team });
+    registerDeath(bot.name, m.id, m.w, {
+      head: !!m.hd, victimTeam: bot.team,
+      victimPos: bot.pos, victimWeaponId: bot.weaponId,
+    });
     if (m.id !== net.id) creditAssistIfOwed(m.target, bot.name);
   },
   onRemoteShot: (p, m) => {
@@ -1332,10 +1351,12 @@ let shakeT = 0, shakeMag = 0;
 const move = new MovementController({ colliders, arena: ARENA });
 const bullets = new BulletSystem(scene);
 const remotes = new RemotePlayers(scene);
+const pickups = new PickupSystem(scene);
+const swapHold = new SwapHold();
 
-// Look is composed by hand rather than by PointerLockControls: recoil, lean
-// roll and the touch stick all need to write into the same orientation, and
-// letting PLC own the camera quaternion made them fight each other.
+// Look is composed by hand rather than by PointerLockControls: recoil and the
+// touch stick both need to write into the same orientation, and letting PLC
+// own the camera quaternion made them fight each other.
 const look = { yaw: 0, pitch: 0 };
 const BASE_MOUSE_SENS = 0.0022;
 const PITCH_LIMIT = 1.5;
@@ -1437,7 +1458,7 @@ renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 const touchState = {
   moveX: 0, moveY: 0, lookDX: 0, lookDY: 0,
   firing: false, ads: false, jump: false,
-  crouch: false, dive: false, lean: 0, interact: false,
+  crouch: false, dive: false, interact: false, swap: false,
 };
 
 function bindStick(el, nub) {
@@ -1495,13 +1516,12 @@ bindHold(els.touchFire, () => touchState.firing = true, () => touchState.firing 
 bindHold(els.touchAds, () => touchState.ads = true, () => touchState.ads = false);
 bindHold(els.touchJump, () => touchState.jump = true, () => touchState.jump = false);
 bindHold(els.touchSlide, () => touchState.crouch = true, () => touchState.crouch = false);
-bindHold(els.touchLeanL, () => touchState.lean = -1, () => touchState.lean = 0);
-bindHold(els.touchLeanR, () => touchState.lean = 1, () => touchState.lean = 0);
 els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); tryReload(); });
 els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); swingMelee(); });
 // Touch cooks for as long as the button is held, same as the key.
 bindHold(els.touchNade, () => startCook("lethal"), () => releaseCook());
 bindHold(els.touchInteract, () => touchState.interact = true, () => touchState.interact = false);
+bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = false);
 
 // -------------------- gamepad --------------------
 
@@ -1789,6 +1809,7 @@ function onBulletActorHit(actor, info) {
         net.reportDeathAs(actor.netId, net.id, shotWith, info.isHead);
         registerDeath(bot.name, net.id, shotWith, {
           head: info.isHead, victimTeam: bot.team,
+          victimPos: bot.pos, victimWeaponId: bot.weaponId,
         });
       }
     } else {
@@ -2088,6 +2109,38 @@ function switchWeapon(slot) {
   setHolding("gun");
 }
 
+/* Hold X: standing over a dropped weapon, picks it up into the secondary
+   slot — replacing the sidearm there if any, same as Call of Duty. Nothing
+   underfoot, the same hold instead instantly swaps primary/secondary. */
+function updatePickupPrompt(dt) {
+  const held = !frozenPlayer() && ((isTouch && touchState.swap) || keys.has("KeyX"));
+  const drop = player.alive ? pickups.nearest(move.pos.x, move.pos.z) : null;
+
+  const action = swapHold.update(dt, held, !!drop);
+  if (action === "swap") {
+    switchWeapon(currentWeaponSlot === "secondary" ? "primary" : "secondary");
+  } else if (action === "pickup" && drop) {
+    pickups.take(drop);
+    player.secondaryId = drop.def.id;
+    player.weapons[drop.def.id] = new WeaponState(drop.def);
+    audio.reload();
+    showWaveBanner(`Picked up ${drop.def.name}`, 1200);
+  }
+
+  if (els.pickupPrompt) {
+    if (drop && player.alive) {
+      els.pickupPrompt.hidden = false;
+      els.pickupPromptText.textContent = swapHold.active
+        ? `Picking up ${drop.def.name}…` : `Hold X to pick up ${drop.def.name}`;
+      els.pickupBarFill.style.width = `${Math.round(swapHold.progress * 100)}%`;
+    } else {
+      els.pickupPrompt.hidden = true;
+    }
+  }
+}
+
+function frozenPlayer() { return !player.alive || isStaging(); }
+
 function updateGearHud() {
   const melee = (player.melee && player.melee.def) || loadout.melee;
   els.gearMeleeName.textContent = melee.name;
@@ -2279,7 +2332,10 @@ function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = 
     if (killed) {
       bot.kills++;
       net.reportDeathAs(target.id, bot.id, wid, isHead);
-      registerDeath(victim.name, bot.id, wid, { head: isHead });
+      registerDeath(victim.name, bot.id, wid, {
+        head: isHead, victimTeam: victim.team,
+        victimPos: victim.pos, victimWeaponId: victim.weaponId,
+      });
     }
     return;
   }
@@ -2438,11 +2494,25 @@ function updateSnd(dt) {
   }
 }
 
-/* Gun Game and One in the Chamber decide what you're holding; every other
-   mode uses whatever the loadout screen has equipped. Those forced modes
-   hand out exactly one weapon and no secondary — Gun Game because the
-   ladder already dictates a single gun to switch to on each kill, One in
-   the Chamber because the whole point is one pistol, one bullet. */
+/* Gun Game and One in the Chamber force what you're holding and leave no
+   secondary slot to scavenge into, so a dead player's gun in those modes
+   isn't worth dropping — the ladder or the one-shot pistol already decides
+   the next gun for everyone. */
+function scavengeAllowed() {
+  return !weaponForMode(currentMode(), gunGameProgress);
+}
+
+/* Drop whatever gun the player was holding right where they died, so
+   another operator can scavenge it as a secondary. Melee kills, the range,
+   and Gun Game/OITC never drop anything — you can't scavenge into a slot
+   those modes don't give you. */
+function dropCarriedWeapon() {
+  if (!scavengeAllowed()) return;
+  const w = currentWeapon();
+  if (!w) return;
+  pickups.drop(net.id, w.def, move.pos);
+}
+
 function equipFromLoadout() {
   const mode = currentMode();
   const forcedId = weaponForMode(mode, gunGameProgress);
@@ -2651,6 +2721,8 @@ function beginMatch(mapId = null) {
   look.pitch = 0;
   bullets.clear();
   grenades.clear();
+  pickups.clear();
+  swapHold.reset();
   cooking.def = null;
   cooking.slot = null;
   els.cook.hidden = true;
@@ -2910,6 +2982,8 @@ function endMatch(title) {
   setHillMarker(null);
   setBombSiteMarkers(null);
   els.bombPrompt.hidden = true;
+  if (els.pickupPrompt) els.pickupPrompt.hidden = true;
+  pickups.clear();
   bomb = null;
 
   // The room stays up. Tearing the channel down here meant everyone had to
@@ -3024,6 +3098,8 @@ els.quitBtn.addEventListener("click", () => {
   cancelIntermission();
   setBombSiteMarkers(null);
   if (els.bombPrompt) els.bombPrompt.hidden = true;
+  if (els.pickupPrompt) els.pickupPrompt.hidden = true;
+  pickups.clear();
   bomb = null;
   net.stop();
   remotes.clear();
@@ -3135,6 +3211,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false) {
     if (!isSnd()) respawnT = 4;
     // Remember where we fell, so the picker stops handing out this corner.
     notePointDeath(move.pos.x, move.pos.z);
+    dropCarriedWeapon();
     net.reportDeath(fromId, weaponId, isHead);
     registerDeath("You", fromId, weaponId, {
       head: isHead, victimIsMe: true, victimTeam: net.team,
@@ -3308,6 +3385,9 @@ function animate() {
       remotes.update(dt);
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
 
+      if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
+      else if (pickups.drops.length) pickups.clear();
+
       if (hill) {
         if (hill.update(dt)) { setHillMarker(hill); showWaveBanner("Hill moved", 1300); }
         hillAcc += dt;
@@ -3479,11 +3559,7 @@ function updatePlayer(dt) {
   const frozen = !player.alive || isStaging();
   if (frozen) { ix = 0; iz = 0; }
 
-  const leanDir = isTouch
-    ? touchState.lean
-    : (keys.has("KeyZ") ? -1 : 0) + (keys.has("KeyX") ? 1 : 0);
-
-  // Q aims as well as right mouse; lean moved to Z/X to free it up.
+  // Q aims as well as right mouse.
   // An EMP kills the optic, so there is nothing to aim down until it clears.
   const wantAds = empT <= 0
     && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
@@ -3497,7 +3573,6 @@ function updatePlayer(dt) {
     jump: !frozen && ((isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space")),
     crouch: !frozen && ((isTouch && touchState.crouch) || (gp && gamepadState.crouch) || keys.has("KeyC")),
     dive: !frozen && ((isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight")),
-    leanDir,
     yaw: look.yaw,
     adsHeld: wantAds,
     speedMult: w.moveSpeedMult,
@@ -3517,12 +3592,12 @@ function updatePlayer(dt) {
   move.eyePosition(player.pos);
   camera.position.copy(player.pos);
 
-  // One place composes the camera: aim + weapon recoil + lean roll.
+  // One place composes the camera: aim + weapon recoil.
   const shake = shakeT > 0 ? shakeMag * (shakeT / 0.45) : 0;
   _euler.set(
     look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake,
     look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake,
-    move.leanRoll + (Math.random() - 0.5) * shake * 0.6,
+    (Math.random() - 0.5) * shake * 0.6,
   );
   camera.quaternion.setFromEuler(_euler);
 
@@ -3579,8 +3654,10 @@ window.addEventListener("mousedown", (e) => {
 els.touchFire.addEventListener("touchstart", () => { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); });
 
 /* The melee view model: raised whenever it's the held weapon, and swung
-   through an arc on `phase`. A quick melee borrows the same mesh, so it
-   pops in for the swing and drops out again the moment it's over. */
+   through the pose MeleeState solves each frame — the same rest grip, chop
+   and thrust as the Godot reference. A quick melee borrows the same mesh, so
+   it pops in for the swing and drops out again the moment it's over. */
+let meleeIdleT = 0;
 function updateMeleeView(dt) {
   const mesh = activeMeleeMesh;
   const melee = player.melee;
@@ -3590,29 +3667,29 @@ function updateMeleeView(dt) {
   const swinging = melee.busy;
   mesh.visible = held || swinging;
   if (activeWeaponMesh) activeWeaponMesh.visible = !held && !swinging;
-  if (!mesh.visible) return;
+  if (!mesh.visible) { meleeIdleT = 0; return; }
 
-  const w = currentWeapon();
-  const steady = 1;
-  const bobX = Math.sin(w.bobPhase) * 0.03 * steady;
-  const bobY = Math.abs(Math.cos(w.bobPhase)) * 0.03 * steady;
-  const swing = melee.phase;
+  const { pos, quat } = melee.pose();
+  mesh.position.copy(pos);
+  mesh.quaternion.copy(quat);
 
-  // Diagonal chop, matching the Godot reference arc: raised up and to the
-  // right at rest, then a right-to-left downward cut that drives forward
-  // and comes back to rest — never a mirrored/reversed sweep.
-  const ease = swing * swing * (3 - 2 * swing); // smoothstep, matches the anim's easing
-  mesh.position.set(
-    0.26 + bobX - ease * 0.5,
-    -0.24 + bobY + 0.16 - ease * 0.34,
-    -0.5 - ease * 0.22,
-  );
-  mesh.rotation.set(
-    -0.3 - ease * 0.55,
-    0.4 - ease * 1.15,
-    0.25 + ease * 1.35,
-  );
+  // Slow figure-eight breathing bob while idle, matching the reference's
+  // idle animation — suppressed mid-swing so it doesn't fight the pose.
+  if (!swinging) {
+    meleeIdleT = (meleeIdleT + dt) % MELEE_IDLE_PERIOD;
+    const phase = (meleeIdleT / MELEE_IDLE_PERIOD) * Math.PI * 2;
+    const bob = 0.012;
+    mesh.position.x += Math.sin(phase) * bob * 0.6;
+    mesh.position.y -= Math.abs(Math.cos(phase)) * bob;
+    _meleeIdleEuler.set(
+      THREE.MathUtils.degToRad(Math.cos(phase) * 1.4),
+      THREE.MathUtils.degToRad(Math.sin(phase) * 1.8),
+      0);
+    mesh.quaternion.multiply(new THREE.Quaternion().setFromEuler(_meleeIdleEuler));
+  }
 }
+const MELEE_IDLE_PERIOD = 3.2;
+const _meleeIdleEuler = new THREE.Euler();
 
 let weaponLowerT = 0;
 

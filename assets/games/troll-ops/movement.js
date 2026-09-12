@@ -1,8 +1,8 @@
 // Troll Ops — Phantom Forces movement.
 //
 // PF players describe that game by how it moves before how it shoots, so this
-// module owns the whole stance machine: sprint, slide, dive-to-prone, vault
-// over waist-high geometry, and lean peeking.
+// module owns the whole stance machine: sprint, slide, dive-to-prone, and
+// vault over waist-high geometry.
 //
 // Position is tracked at the FEET (not the eye, as the old controller did), so
 // stance changes are just a change of eye height and crates become walkable
@@ -34,10 +34,6 @@ const VAULT_TIME = 0.34;
 const VAULT_MIN = 0.35;      // ledge heights we can mantle, relative to the feet
 const VAULT_MAX = 1.55;
 const VAULT_REACH = 1.05;
-
-const LEAN_ANGLE = 0.24;     // radians of camera roll at full lean
-const LEAN_OFFSET = 0.42;    // metres the head shifts sideways
-const LEAN_SPEED = 8;
 
 /* Highest walkable surface under (x,z) that isn't above `ceiling`.
    Shared with the enemy AI so grunts stand on platforms too. */
@@ -95,9 +91,6 @@ export class MovementController {
     this.moving = false;
 
     this.eyeHeight = EYE.stand;
-    this.lean = 0;                               // smoothed -1..1
-    this.leanRoll = 0;
-    this.leanOffset = new THREE.Vector3();
 
     this.slideT = 0;
     this.slideCd = 0;
@@ -118,7 +111,6 @@ export class MovementController {
     this.eyeHeight = EYE.stand;
     this.slideT = this.slideCd = this.diveT = 0;
     this.vault = null;
-    this.lean = 0;
     this.grounded = true;
   }
 
@@ -166,7 +158,7 @@ export class MovementController {
     return landing;
   }
 
-  /* input: { forward, strafe, sprint, jump, crouch, dive, leanDir, yaw, adsHeld, speedMult } */
+  /* input: { forward, strafe, sprint, jump, crouch, dive, yaw, adsHeld, speedMult } */
   update(dt, input) {
     const { yaw, speedMult = 1 } = input;
 
@@ -187,7 +179,7 @@ export class MovementController {
         this.velocity.set(0, 0, 0);
         this.grounded = true;
       }
-      this.applyEye(dt, input.leanDir, yaw);
+      this.applyEye(dt);
       return;
     }
 
@@ -321,39 +313,17 @@ export class MovementController {
       this.grounded = false;
     }
 
-    this.applyEye(dt, input.leanDir, yaw);
+    this.applyEye(dt);
   }
 
-  /* Eye height + lean, with the lean blocked when it would put the head in a wall. */
-  applyEye(dt, leanDir, yaw) {
+  /* Eases eye height toward the current stance's target. */
+  applyEye(dt) {
     const targetEye = EYE[this.stance] ?? EYE.stand;
     this.eyeHeight += (targetEye - this.eyeHeight) * Math.min(1, dt * 12);
-
-    const canLean = this.stance !== STANCE.SLIDE && this.stance !== STANCE.PRONE && this.stance !== STANCE.VAULT;
-    let want = canLean ? (leanDir || 0) : 0;
-
-    if (want !== 0) {
-      const rightVec = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-      const head = this.pos.clone();
-      head.y += this.eyeHeight;
-      head.addScaledVector(rightVec, want * LEAN_OFFSET);
-      for (const c of this.colliders) {
-        if (head.y < c.min.y || head.y > c.max.y) continue;
-        if (head.x < c.min.x - 0.18 || head.x > c.max.x + 0.18) continue;
-        if (head.z < c.min.z - 0.18 || head.z > c.max.z + 0.18) continue;
-        want = 0;
-        break;
-      }
-    }
-
-    this.lean += (want - this.lean) * Math.min(1, dt * LEAN_SPEED);
-    this.leanRoll = -this.lean * LEAN_ANGLE;
-    const rightVec = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-    this.leanOffset.copy(rightVec).multiplyScalar(this.lean * LEAN_OFFSET);
   }
 
   /* Where the camera goes this frame. */
   eyePosition(out = new THREE.Vector3()) {
-    return out.copy(this.pos).add(this.leanOffset).setY(this.pos.y + this.eyeHeight);
+    return out.copy(this.pos).setY(this.pos.y + this.eyeHeight);
   }
 }

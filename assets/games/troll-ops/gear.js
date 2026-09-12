@@ -24,8 +24,7 @@ const RADIUS = 0.11;
 export const MELEE_DEFS = {
   keyboard: {
     id: "keyboard", name: "Keyboard Warrior", rank: 0,
-    damage: 120, backstabMult: 1.8, range: 3.0, arc: 0.66,
-    swing: 0.26, recover: 0.42, knock: 6.5,
+    damage: 120, backstabMult: 1.8, range: 3.0, arc: 0.66, knock: 6.5,
     blurb: "The keyboard is mightier than the sword. U mad bro?",
     model: {
       kind: "keyboard",
@@ -39,17 +38,131 @@ export const MELEE_DEFS = {
 
 export const MELEE_IDS = Object.keys(MELEE_DEFS);
 
+/* Keyboard Warrior rest pose and swing keyframes, ported 1:1 from the Godot
+   reference build (troll-melee-1/weapons/keyboard_sword/keyboard_sword.gd)
+   so the browser weapon reads as the same sword held the same way — grip at
+   the origin, blade down -Z, matching buildKeyboardSword's own convention.
+
+   Every attack there is authored as the path the blade TIP takes rather than
+   as raw grip rotation: a few degrees of roll move the tip further than any
+   plausible hand movement, so keyframing rotation directly makes the tip
+   wander backwards even when every position offset points forward. The grip
+   transform is solved backwards from where the tip needs to be. */
+const REST_POS = new THREE.Vector3(0.44, -0.52, -0.78);
+const REST_ROT = new THREE.Euler(
+  THREE.MathUtils.degToRad(15), THREE.MathUtils.degToRad(-20), THREE.MathUtils.degToRad(20));
+const REST_QUAT = new THREE.Quaternion().setFromEuler(REST_ROT);
+const TIP_LOCAL = new THREE.Vector3(0, 0, -0.9);
+const REST_TIP = REST_POS.clone().add(TIP_LOCAL.clone().applyQuaternion(REST_QUAT));
+
+/* A basis whose -Z axis points along `dir`, rolled `rollDeg` about it. Falls
+   back to a safe up vector when `dir` is near-vertical, which would
+   otherwise make the cross product degenerate. */
+const _upAxis = new THREE.Vector3(0, 1, 0);
+const _backAxis = new THREE.Vector3(0, 0, 1);
+
+function basisPointing(dir, rollDeg) {
+  const forward = dir.clone().normalize();     // this becomes the basis's -Z
+  const up = Math.abs(forward.dot(_upAxis)) > 0.985 ? _backAxis : _upAxis;
+  const right = up.clone().cross(forward).normalize();
+  const trueUp = forward.clone().cross(right).normalize();
+  const m = new THREE.Matrix4().makeBasis(right, trueUp, forward.clone().negate());
+  const q = new THREE.Quaternion().setFromRotationMatrix(m);
+  return q.premultiply(new THREE.Quaternion().setFromAxisAngle(forward, THREE.MathUtils.degToRad(rollDeg)));
+}
+
+/* Turns [t, tipOffset, rollDeg] keys into position+quaternion samplers by
+   solving the grip transform at each key from the tip path, same as the
+   reference's _tip_path_anim. */
+function tipPathTrack(length, keys) {
+  const posKeys = [], quatKeys = [];
+  for (const [t, tipOffset, rollDeg] of keys) {
+    const tipTarget = REST_TIP.clone().add(tipOffset);
+    let quat = REST_QUAT.clone();
+    if (t > 0 && t < length) {
+      const dir = tipTarget.clone().sub(REST_POS).normalize();
+      quat = basisPointing(dir, rollDeg);
+    }
+    const tipLocal = TIP_LOCAL.clone().applyQuaternion(quat);
+    posKeys.push({ t, v: tipTarget.clone().sub(tipLocal) });
+    quatKeys.push({ t, q: quat });
+  }
+  return { length, posKeys, quatKeys };
+}
+
+/* Straight thrust keyframes the GRIP directly (see the .gd source): the
+   tip-path solver aims the blade almost dead ahead for a thrust, which
+   leaves the sword in its resting diagonal and just slides it forward —
+   reading as shoving the flat of the board rather than stabbing. */
+function gripTrack(length, keys) {
+  const posKeys = [], quatKeys = [];
+  for (const [t, pos, rotDeg] of keys) {
+    posKeys.push({ t, v: pos });
+    quatKeys.push({ t, q: new THREE.Quaternion().setFromEuler(new THREE.Euler(
+      THREE.MathUtils.degToRad(rotDeg.x), THREE.MathUtils.degToRad(rotDeg.y), THREE.MathUtils.degToRad(rotDeg.z))) });
+  }
+  return { length, posKeys, quatKeys };
+}
+
+/* Diagonal overhead chop, right to left — the strike leg is monotonic down
+   and forward so the blade never doubles back mid-cut. */
+const SWING_TRACK = tipPathTrack(0.58, [
+  [0.00, new THREE.Vector3(0, 0, 0), 0],
+  [0.12, new THREE.Vector3(0.52, 0.52, 0.30), -34],   // wind up over the shoulder
+  [0.22, new THREE.Vector3(0.38, 0.26, -0.10), -12],  // start the cut
+  [0.31, new THREE.Vector3(-0.06, -0.20, -0.46), 22], // through the target
+  [0.40, new THREE.Vector3(-0.52, -0.52, -0.58), 48], // follow through
+  [0.48, new THREE.Vector3(-0.40, -0.40, -0.30), 30], // settle
+  [0.58, new THREE.Vector3(0, 0, 0), 0],
+]);
+const SWING_WINDOW = { open: 0.19, close: 0.40 };
+
+/* Straight thrust: chambered at the hip, driven point-first down the centre
+   line, retracted. A different technique from the chop, not its mirror. */
+const THRUST_AIMED = { x: 2, y: -3, z: 55 };
+const THRUST_TRACK = gripTrack(0.46, [
+  [0.00, REST_POS, { x: 15, y: -20, z: 20 }],
+  [0.10, REST_POS.clone().add(new THREE.Vector3(0.10, 0.04, 0.26)), { x: -2, y: -14, z: 40 }],
+  [0.16, REST_POS.clone().add(new THREE.Vector3(0.07, 0.03, 0.16)), { x: 1, y: -8, z: 49 }],
+  [0.26, REST_POS.clone().add(new THREE.Vector3(-0.05, 0.02, -0.66)), THRUST_AIMED],
+  [0.30, REST_POS.clone().add(new THREE.Vector3(-0.06, 0.02, -0.80)), { x: THRUST_AIMED.x + 1, y: THRUST_AIMED.y, z: THRUST_AIMED.z + 3 }],
+  [0.38, REST_POS.clone().add(new THREE.Vector3(-0.01, 0.00, -0.26)), { x: 8, y: -16, z: 38 }],
+  [0.46, REST_POS, { x: 15, y: -20, z: 20 }],
+]);
+const THRUST_WINDOW = { open: 0.20, close: 0.32 };
+
+/* Smoothstep-eased lerp across whichever pair of keys straddle `t` — the
+   reference uses cubic interpolation; smoothstep between adjacent keys
+   reads the same for tracks this short and needs no spline library. */
+function sampleTrack(track, t) {
+  const { posKeys, quatKeys } = track;
+  let i = 0;
+  while (i < posKeys.length - 2 && posKeys[i + 1].t < t) i++;
+  const a = posKeys[i], b = posKeys[i + 1] || a;
+  const span = Math.max(1e-5, b.t - a.t);
+  const k = Math.max(0, Math.min(1, (t - a.t) / span));
+  const ease = k * k * (3 - 2 * k);
+  const pos = a.v.clone().lerp(b.v, ease);
+  const quat = quatKeys[i].q.clone().slerp(quatKeys[i + 1]?.q || quatKeys[i].q, ease);
+  return { pos, quat };
+}
+
 /* Swing state machine. A swing is wind-up (`swing`) then recovery
    (`recover`); damage lands exactly once, on the frame the arc bottoms out,
-   so holding the button can't machine-gun a knife. */
+   so holding the button can't machine-gun a knife. Alternates the chop and
+   the thrust like the reference — two different techniques, not one mirrored
+   over itself. */
 export class MeleeState {
   constructor(def) {
     this.def = typeof def === "string" ? MELEE_DEFS[def] : def;
     this.t = 0;             // seconds into the current swing, 0 = idle
     this.landed = true;     // has this swing's damage already been dealt?
+    this.swingIndex = 0;
   }
 
-  get total() { return this.def.swing + this.def.recover; }
+  get track() { return this.swingIndex % 2 === 0 ? SWING_TRACK : THRUST_TRACK; }
+  get window() { return this.swingIndex % 2 === 0 ? SWING_WINDOW : THRUST_WINDOW; }
+  get total() { return this.track.length; }
   get busy() { return this.t > 0; }
   canSwing() { return this.t <= 0; }
 
@@ -60,23 +173,31 @@ export class MeleeState {
     return true;
   }
 
-  /* Returns true on the single frame the blade should connect. */
+  /* Returns true on the single frame the blade should connect — matches the
+     reference's hit window (open_at/close_at) instead of one instant. */
   update(dt) {
     if (this.t <= 0) return false;
+    const prevT = this.t;
     this.t += dt;
     let hit = false;
-    if (!this.landed && this.t >= this.def.swing) { this.landed = true; hit = true; }
-    if (this.t >= this.total) this.t = 0;
+    const w = this.window;
+    if (!this.landed && prevT < w.open && this.t >= w.open) { this.landed = true; hit = true; }
+    if (this.t >= this.total) { this.t = 0; this.swingIndex++; }
     return hit;
   }
 
-  /* 0 → 1 → 0 over the whole swing, for the view model animation. */
+  /* Grip position + orientation for the view model this frame. */
+  pose() {
+    if (this.t <= 0) return { pos: REST_POS, quat: REST_QUAT };
+    return sampleTrack(this.track, Math.min(this.t, this.total));
+  }
+
+  /* 0 → 1 → 0 over the whole swing, kept for callers that only need a
+     scalar (e.g. a UI flourish, not the pose itself). */
   get phase() {
     if (this.t <= 0) return 0;
-    const d = this.def;
-    return this.t < d.swing
-      ? this.t / d.swing
-      : Math.max(0, 1 - (this.t - d.swing) / d.recover);
+    const k = this.t / this.total;
+    return k < 0.5 ? k * 2 : (1 - k) * 2;
   }
 }
 

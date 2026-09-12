@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://solana-rpc.publicnode.com https://api.devnet.solana.com https://lite-api.jup.ag; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0a0c0a">
-  <meta name="description" content="Troll Ops: a Phantom Forces-style shooter in the Troll Runner Arcade. Twenty-plus weapons with attachments, projectile ballistics, sliding, vaulting and leaning, and waves of trollface grunts that keep coming.">
+  <meta name="description" content="Troll Ops: a Phantom Forces-style shooter in the Troll Runner Arcade. Twenty-plus weapons with attachments, projectile ballistics, sliding, vaulting and weapon pickups, and waves of trollface grunts that keep coming.">
   <title>Troll Ops | Troll Runner Arcade</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23161a14'/%3E%3Ctext x='8' y='44' font-size='34'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -109,13 +109,12 @@
                 <div><kbd>C</kbd><span>Crouch · slide</span></div>
                 <div><kbd>Ctrl</kbd><span>Dive</span></div>
                 <div><kbd>Space</kbd><span>Jump · vault</span></div>
-                <div><kbd>Z</kbd><span>Lean left</span></div>
-                <div><kbd>X</kbd><span>Lean right</span></div>
                 <div><kbd>R</kbd><span>Reload</span></div>
                 <div><kbd>V</kbd><span>Quick melee</span></div>
                 <div><kbd>1</kbd><span>Primary weapon</span></div>
                 <div><kbd>2</kbd><span>Secondary weapon</span></div>
                 <div><kbd>3</kbd><span>Hold melee</span></div>
+                <div><kbd>X</kbd><span>Hold — swap · pick up dropped weapon</span></div>
                 <div><kbd>G</kbd><span>Lethal — hold to cook</span></div>
                 <div><kbd>F</kbd><span>Tactical</span></div>
                 <div><kbd>Tab</kbd><span>Scoreboard</span></div>
@@ -199,7 +198,7 @@
           <div class="to-pf-chat">
             <p class="to-hint"><b>move</b> WASD · Shift sprint · Space jump</p>
             <p class="to-hint"><b>fight</b> LMB fire · Q aim · R reload</p>
-            <p class="to-hint"><b>tricks</b> C slide · Ctrl dive · Z/X lean</p>
+            <p class="to-hint"><b>tricks</b> C slide · Ctrl dive · hold X swap/pickup</p>
             <p class="to-hint"><b>gear</b> V melee · G lethal · F tactical</p>
             <p class="to-hint"><b>meta</b> Tab scoreboard · Esc menu</p>
             <p class="to-hint-mobile"><b>move</b> left stick, full forward sprints</p>
@@ -261,12 +260,11 @@
               <div><kbd>C</kbd><span>Crouch · slide when sprinting</span></div>
               <div><kbd>Ctrl</kbd><span>Dive</span></div>
               <div><kbd>Space</kbd><span>Jump · vault at ledges</span></div>
-              <div><kbd>Z</kbd><span>Lean left</span></div>
-              <div><kbd>X</kbd><span>Lean right</span></div>
               <div><kbd>R</kbd><span>Reload</span></div>
               <div><kbd>V</kbd><span>Quick melee</span></div>
               <div><kbd>3</kbd><span>Hold the melee weapon</span></div>
               <div><kbd>1</kbd><span>Back to the primary</span></div>
+              <div><kbd>X</kbd><span>Hold — swap · pick up dropped weapon</span></div>
               <div><kbd>G</kbd><span>Throw lethal — hold to cook</span></div>
               <div><kbd>F</kbd><span>Throw tactical</span></div>
               <div><kbd>Tab</kbd><span>Scoreboard</span></div>
@@ -357,6 +355,12 @@
           <div class="to-bomb-bar"><b id="to-bomb-bar-fill"></b></div>
         </div>
 
+        <!-- Dropped-weapon pickup: hold-X prompt and progress bar. -->
+        <div class="to-bomb-prompt" id="to-pickup-prompt" hidden>
+          <span id="to-pickup-prompt-text">Hold X to pick up</span>
+          <div class="to-bomb-bar"><b id="to-pickup-bar-fill"></b></div>
+        </div>
+
         <div class="to-respawn" id="to-respawn" hidden>
           <span id="to-respawn-text"></span>
           <div class="to-deathby" id="to-deathby" hidden>
@@ -433,8 +437,7 @@
         <button type="button" class="to-touch-btn to-touch-melee" id="to-touch-melee" aria-label="Melee">MELEE</button>
         <button type="button" class="to-touch-btn to-touch-nade" id="to-touch-nade" aria-label="Throw lethal grenade">NADE</button>
         <button type="button" class="to-touch-btn to-touch-interact" id="to-touch-interact" hidden aria-label="Plant or defuse the bomb">E</button>
-        <button type="button" class="to-touch-btn to-touch-lean to-touch-lean-l" id="to-touch-lean-l" aria-label="Lean left">◀</button>
-        <button type="button" class="to-touch-btn to-touch-lean to-touch-lean-r" id="to-touch-lean-r" aria-label="Lean right">▶</button>
+        <button type="button" class="to-touch-btn to-touch-swap" id="to-touch-swap" aria-label="Hold to swap weapons or pick up a dropped weapon">X</button>
         <div class="to-touch-look" id="to-touch-look"></div>
       </div>
 
