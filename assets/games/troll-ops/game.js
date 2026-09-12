@@ -2318,6 +2318,15 @@ const SPAWN_VIEW_CONE = Math.cos(THREE.MathUtils.degToRad(50));
 const SPAWN_TOLERANCE = 25;       // spawns within this of the best are all "safe enough"
 const SPAWN_GUARD = 1.5;          // seconds of respawn protection; ends the moment you fire
 
+// Teammate spacing, Black Ops 2 style: a team spawns loosely spread across
+// its side of the map rather than stacked on whoever's nearest. Too close
+// is penalized outright (that's how two people end up standing on top of
+// each other), and the reward band sits well out from the min so the "best"
+// spot is genuinely spread, not just the least-bad crowd.
+const SPAWN_MATE_TOO_CLOSE = 10;  // stacking distance — actively bad
+const SPAWN_MATE_SWEET_LO = 20;   // reward band: far enough to feel spread...
+const SPAWN_MATE_SWEET_HI = 35;   // ...but still the same fight, not the far side of the map
+
 function notePointDeath(x, z) {
   const pts = builtMap?.spawnPoints;
   if (!pts) return;
@@ -2363,8 +2372,15 @@ function spawnForTeam(team, forId = net.id) {
       const enemy = currentMode().ffa || o.team !== team;
 
       if (!enemy) {
-        // Spawning near a living teammate is usually where the fight is.
-        if (d < 30) score += 12 * (1 - d / 30);
+        // Being right on top of a teammate is bad in its own right — one
+        // stray grenade or a burst that overpenetrates gets both of you.
+        if (d < SPAWN_MATE_TOO_CLOSE) score -= 60 * (1 - d / SPAWN_MATE_TOO_CLOSE);
+        // The reward band is a plateau, not a single point, so many spawns
+        // qualify as "well spread" rather than the field collapsing onto one
+        // ideal ring around each teammate.
+        else if (d < SPAWN_MATE_SWEET_LO) score += 10 * ((d - SPAWN_MATE_TOO_CLOSE) / (SPAWN_MATE_SWEET_LO - SPAWN_MATE_TOO_CLOSE));
+        else if (d <= SPAWN_MATE_SWEET_HI) score += 10;
+        else score += 10 * Math.max(0, 1 - (d - SPAWN_MATE_SWEET_HI) / 30);
         continue;
       }
       if (d < SPAWN_SAFE_RADIUS) score -= 140 * (1 - d / SPAWN_SAFE_RADIUS);
