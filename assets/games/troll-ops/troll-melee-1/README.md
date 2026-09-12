@@ -193,3 +193,30 @@ washed the dark caps to pale grey.
 
 The exported value is ~1.35, which looks dim in Blender and correct in
 Godot. **Judge emission in the engine, never in the Blender viewport.**
+
+## Known issue: keycap legends read upside down
+
+The legends are present and legible in game, but they read bottom-to-top
+from the player's viewpoint rather than top-to-bottom.
+
+Seven rotation permutations were tried on the text objects (X/Y/Z 180, X
++/-90, combinations, plus reversing the row and column indices) and none
+fixed it. Notes for whoever picks this up:
+
+- Blender font text stands upright in the XY plane facing +Z. Measured, not
+  assumed: with no rotation a glyph's height spans Y and its thickness
+  spans Z.
+- The keycaps also face +/-Z, so the glyph is already flat on the cap. Any
+  X rotation stands it on edge instead - visible as thin slivers.
+- `keyboard_sword.tscn` rotates the whole model -90 about X to stand the
+  sword up in the hand, so every rotation authored in Blender composes with
+  that before it reaches the screen.
+- Mirroring the glyph's vertices after `object.convert` did NOT take
+  effect, which suggests the later join/transform-apply in `build()`
+  re-bakes from the original curve data. That is the most promising thread:
+  apply the mirror before conversion, or as a negative-scale transform that
+  gets applied along with everything else.
+
+It is cosmetic and only noticeable if you stop and read the keys, so it is
+not worth blocking on - but it is wrong, and it should not be described as
+finished.

@@ -45,6 +45,18 @@ GRIP_RADIUS    = 0.026
 
 POMMEL_RADIUS  = 0.055   # trollface head
 
+# Key legends, top row first. Cycled to fill however many rows the blade
+# ends up with, so this does not have to match KEY_COLS/rows exactly.
+# A real QWERTY board, because "keyboard sword" only lands if you can read
+# the keys.
+KEY_LEGENDS = [
+    "1234567890",
+    "QWERTYUIOP",
+    "ASDFGHJKL;",
+    "ZXCVBNM,./",
+    "UMADBRO?!*",
+]
+
 EXPORT_NAME    = "keyboard_sword.glb"
 
 
@@ -205,6 +217,12 @@ def build_keys():
     cap_mat = make_material(
         "Keycap", base_color=(0.022, 0.022, 0.028), roughness=0.6)
 
+    # Legend ink. Slightly emissive so it stays legible on a dark cap in
+    # a dim scene - real doubleshot caps are lit from below.
+    legend_mat = make_material(
+        "Legend", base_color=(0.86, 0.87, 0.90), roughness=0.45,
+        emission=(0.86, 0.87, 0.90), emission_strength=0.55)
+
     keys = []
     for side, z_sign in ((0, 1.0), (1, -1.0)):
         for row in range(rows):
@@ -240,23 +258,62 @@ def build_keys():
                 assign(k, cap_mat)
                 keys.append(k)
 
+                # Legend. Blank caps are the giveaway that this is a slab
+                # with squares on it rather than a keyboard, so every cap
+                # gets its character - the letters are the whole joke.
+                legend_row = KEY_LEGENDS[(rows - 1 - row) % len(KEY_LEGENDS)]
+                glyph = legend_row[col % len(legend_row)]
+                if glyph != " ":
+                    label = build_engraved_text(
+                        glyph,
+                        size=key_w * 0.52,
+                        location=(x, y,
+                                  z_sign * (z_top + KEY_HEIGHT * 1.12)),
+                        # Font text stands upright in the XY plane facing
+                        # +Z, and the caps also face +/-Z, so the glyph is
+                        # already flat on the cap, so it needs NO X rotation
+                        # - only a Z-180 to point that up-axis back toward
+                        # the grip, where the player reads it from. An X
+                        # rotation stands the glyph on edge instead.
+                        #
+                        # The scene node also rotates the whole model -90
+                        # about X to stand the sword up in the hand, so any
+                        # rotation here composes with that. Judge this in
+                        # the game view, never in the Blender viewport.
+                        rotation=(0.0, 0.0, 0.0) if z_sign > 0
+                                 else (math.radians(180.0), 0.0, 0.0),
+                        extrude=0.0012,
+                        resolution=1,
+                        flip_y=True,
+                    )
+                    label.name = f"Legend_{side}_{row}_{col}"
+                    assign(label, legend_mat)
+                    keys.append(label)
+
     print(f"[keyboard_sword] key field: {KEY_COLS} x {rows} x2 sides "
           f"({key_w * 1000:.0f} x {key_l * 1000:.0f}mm caps, "
           f"{KEY_HUES} shared materials)")
     return keys
 
 
-def build_engraved_text(body, size, location, rotation, extrude=0.004):
+def build_engraved_text(body, size, location, rotation, extrude=0.004,
+                        resolution=2, flip_y=False):
     """Extruded 3D text, converted to a mesh.
 
     Real geometry rather than a texture, so the lettering survives without
     a UV unwrap. Blender's default font is used - it ships with Blender, so
     this needs no font file on disk.
+
+    `resolution` is the curve subdivision. Font curves default to 12, which
+    is wildly over-detailed for a 15mm keycap glyph: 224 of them at that
+    setting cost ~48k triangles on their own, five times the rest of the
+    weapon combined. Drop it for anything small.
     """
     curve = bpy.data.curves.new(type="FONT", name=f"Font_{body}")
     curve.body = body
     curve.size = size
     curve.extrude = extrude
+    curve.resolution_u = resolution
     curve.align_x = "CENTER"
     curve.align_y = "CENTER"
 
@@ -270,8 +327,19 @@ def build_engraved_text(body, size, location, rotation, extrude=0.004):
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.ops.object.convert(target="MESH")
+    out = bpy.context.active_object
 
-    return bpy.context.active_object
+    # Mirroring the mesh beats another rotation guess: the scene node spins
+    # the whole model -90 about X, so every rotation authored here composes
+    # with that and it is genuinely hard to reason about. Negating Y on the
+    # vertices is invariant to whatever the parent does.
+    if flip_y:
+        me = out.data
+        for v in me.vertices:
+            v.co.y = -v.co.y
+        me.flip_normals()
+
+    return out
 
 
 def build_guard():
@@ -348,77 +416,127 @@ def build_grip():
     return [grip]
 
 
-def build_pommel():
-    """Trollface head at the base.
+def _face_feature(name, verts_2d, depth, centre, scale, flip_x=False):
+    """Extrude a flat 2D outline into a face feature on the pommel.
 
-    A flattened sphere for the skull, plus a raised grin bar and two brow
-    ridges so the mascot reads in silhouette. The fine detail of the face
-    belongs in a normal map painted onto the flat front - this is just
-    enough geometry that it isn't a featureless ball.
+    verts_2d are (x, z) pairs in a -1..1 unit square; centre is where the
+    shape lands in world space. The face looks down -Y, so the outline is
+    laid out in X/Z and given thickness along Y.
+    """
+    bm = bmesh.new()
+    ring = []
+    for vx, vz in verts_2d:
+        x = (-vx if flip_x else vx) * scale
+        ring.append(bm.verts.new((centre[0] + x,
+                                  centre[1],
+                                  centre[2] + vz * scale)))
+    face = bm.faces.new(ring)
+
+    # Concave outlines (the grin crescent especially) come out shattered if
+    # left as one n-gon - bmesh cannot fan-triangulate them, so the shape
+    # renders as disconnected wings. Triangulate before solidifying.
+    bmesh.ops.triangulate(bm, faces=[face])
+    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=depth)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    obj = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+
+def build_pommel():
+    """Trollface head at the butt of the sword.
+
+    The face looks OUT along -Y, down the grip axis - that is the only
+    direction it is ever seen from. An earlier version flattened the skull
+    on +Z and put the features there, which pointed the whole face sideways
+    off the edge of the blade where nobody could see it, leaving a blank
+    chrome ball at the pommel.
+
+    The grin, eyes and brows are extruded outlines rather than boxes, so
+    the mascot is actually recognisable instead of being two bars and a
+    smear.
     """
     y = -GRIP_LENGTH * 0.5 - POMMEL_RADIUS * 0.55
-    face_z = POMMEL_RADIUS * 0.48
+    face_y = y - POMMEL_RADIUS * 0.62      # the flattened front plane
+    ink_depth = 0.006
+    s = POMMEL_RADIUS                       # feature scale
 
     bpy.ops.mesh.primitive_uv_sphere_add(
-        radius=POMMEL_RADIUS, segments=22, ring_count=16,
+        radius=POMMEL_RADIUS, segments=24, ring_count=18,
         location=(0, y, 0),
     )
     head = bpy.context.active_object
     head.name = "Pommel_Trollface"
-    head.scale = (1.05, 0.80, 1.12)
+    head.scale = (1.06, 0.72, 1.14)         # wide, shallow, tall - a face
 
     bpy.context.view_layer.objects.active = head
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
 
-    # Flatten the front into a clean plane for the face decal.
+    # Flatten the FRONT (-Y) into a clean plane to carry the features.
     me = head.data
     bm = bmesh.new()
     bm.from_mesh(me)
     for v in bm.verts:
-        if v.co.z > face_z:
-            v.co.z = face_z
+        if v.co.y < face_y:
+            v.co.y = face_y
     bm.to_mesh(me)
     bm.free()
 
     parts = [head]
+    fy = face_y - ink_depth * 0.85          # clear of the skull, not coplanar
 
-    # The grin - a wide flattened box, slightly curved by tapering the ends.
-    grin = new_box(
-        "Pommel_Grin",
-        (POMMEL_RADIUS * 1.30, POMMEL_RADIUS * 0.30, 0.006),
-        (0, y - POMMEL_RADIUS * 0.10, face_z + 0.002),
-    )
-    bpy.context.view_layer.objects.active = grin
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    me = grin.data
-    bm = bmesh.new()
-    bm.from_mesh(me)
-    xs = [abs(v.co.x) for v in bm.verts]
-    far_x = max(xs) if xs else 1.0
-    for v in bm.verts:
-        # Curl the mouth corners up into a smirk.
-        t = (abs(v.co.x) / far_x) if far_x else 0.0
-        v.co.y += t * t * POMMEL_RADIUS * 0.22
-    bm.to_mesh(me)
-    bm.free()
-    bevel(grin, 0.0015, segments=1)
+    # The grin: the trollface's defining feature. A wide crescent with the
+    # corners hooked up, drawn as an outline so it has real shape.
+    # Two arcs sharing endpoints: a deep lower curve and a shallower upper
+    # one. Generated rather than hand-placed so the crescent stays smooth
+    # and the corners hook up into the smirk.
+    grin_outline = []
+    span = 14
+    for k in range(span + 1):                       # lower edge, L -> R
+        u = -1.0 + 2.0 * (k / float(span))
+        grin_outline.append((u * 0.95, -0.52 * (1.0 - u * u) - 0.04))
+    for k in range(span, -1, -1):                   # upper edge, R -> L
+        u = -1.0 + 2.0 * (k / float(span))
+        grin_outline.append((u * 0.95, -0.30 * (1.0 - u * u) + 0.02))
+    grin = _face_feature("Pommel_Grin", grin_outline, ink_depth,
+                         (0.0, fy, 0.10 * s), s * 0.92)
     parts.append(grin)
 
-    # Brow ridges above the grin.
+    # Teeth line across the grin, so it reads as a toothy smirk up close.
+    teeth = new_box(
+        "Pommel_Teeth",
+        (s * 1.30, ink_depth * 0.8, s * 0.07),
+        (0.0, fy + ink_depth * 0.1, 0.10 * s - s * 0.16),
+    )
+    parts.append(teeth)
+
+    # Eyes: squashed ellipses, angled inward for the smug look.
+    for i, sx in enumerate((-1.0, 1.0)):
+        eye_outline = []
+        steps = 12
+        for k in range(steps):
+            a = (k / float(steps)) * math.tau
+            eye_outline.append((math.cos(a) * 0.9, math.sin(a) * 0.52))
+        eye = _face_feature(f"Pommel_Eye_{i}", eye_outline, ink_depth,
+                            (sx * s * 0.40, fy, s * 0.44), s * 0.26)
+        eye.rotation_euler[1] = math.radians(-12.0 * sx)
+        parts.append(eye)
+
+    # Brows: heavy angled bars above the eyes.
     for i, sx in enumerate((-1.0, 1.0)):
         brow = new_box(
             f"Pommel_Brow_{i}",
-            (POMMEL_RADIUS * 0.46, POMMEL_RADIUS * 0.16, 0.005),
-            (sx * POMMEL_RADIUS * 0.34,
-             y + POMMEL_RADIUS * 0.30,
-             face_z + 0.002),
+            (s * 0.52, ink_depth, s * 0.11),
+            (sx * s * 0.40, fy, s * 0.70),
         )
-        brow.rotation_euler[1] = math.radians(-10.0 * sx)
-        bevel(brow, 0.0012, segments=1)
+        brow.rotation_euler[1] = math.radians(16.0 * sx)
         parts.append(brow)
 
     return parts
-
 
 # ----------------------------------------------------------------------
 # Assemble
@@ -435,8 +553,8 @@ def build():
                                 roughness=0.85)
     mat_troll   = make_material("Trollface_Metal", (0.74, 0.75, 0.78),
                                 roughness=0.22, metallic=1.0)
-    mat_ink     = make_material("Trollface_Ink", (0.02, 0.02, 0.025),
-                                roughness=0.55)
+    mat_ink     = make_material("Trollface_Ink", (0.008, 0.008, 0.011),
+                                roughness=0.85, metallic=0.0)
 
     blade  = build_blade()
     keys   = build_keys()
@@ -451,10 +569,9 @@ def build():
         assign(o, mat_ink if "Text" in o.name else mat_metal)
     for o in grip:
         assign(o, mat_leather)
-    # Chrome skull, dark ink for the grin and brows so the face reads.
+    # Chrome skull; every facial feature in dark ink so the face reads.
     for o in pommel:
-        assign(o, mat_ink if ("Grin" in o.name or "Brow" in o.name)
-               else mat_troll)
+        assign(o, mat_troll if o.name == "Pommel_Trollface" else mat_ink)
 
     everything = blade + keys + guard + grip + pommel
 
