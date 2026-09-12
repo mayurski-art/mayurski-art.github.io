@@ -42,9 +42,9 @@ const MAG_SIZE = 26;
 const RELOAD_TIME = 2.3;
 
 const DIFFICULTY = {
-  recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.15, reaction: 0.45 },
-  regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.85, reaction: 0.28 },
-  veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.62, reaction: 0.16 },
+  recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.15, reaction: 0.45, strafe: 0.55, lead: 0.15 },
+  regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.85, reaction: 0.28, strafe: 0.75, lead: 0.4 },
+  veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.62, reaction: 0.16, strafe: 1.0, lead: 0.75 },
 };
 export const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
 
@@ -79,6 +79,11 @@ class Bot {
     this.acquireT = 0;        // how long the current target has been in view
     this.lastTargetId = null;
     this.roam = null;         // a point to head for when nobody is visible
+    this.strafeDir = Math.random() < 0.5 ? 1 : -1;
+    this.strafeT = 1 + Math.random() * 1.5;
+    this.flinchT = 0;         // briefly turns/steps off-line after taking a hit
+    this.prevTargetPos = null;    // for velocity-based lead
+    this.targetVel = new THREE.Vector3();
   }
 
   respawn(spawn) {
@@ -92,16 +97,32 @@ class Bot {
     this.acquireT = 0;
     this.lastTargetId = null;
     this.roam = null;
+    this.flinchT = 0;
+    this.prevTargetPos = null;
+  }
+
+  /* Called when a shot connects on this bot. Real players flinch off-line
+     immediately — that's the difference between a bot that eats a flank in
+     silence and one that reacts like it's actually being shot at. */
+  onDamaged() {
+    this.flinchT = 0.35 + Math.random() * 0.25;
+    this.strafeDir = -this.strafeDir;
   }
 
   /* Chance to land a shot right now: better the closer they are and the
-     longer they've been tracked, with the difficulty tier setting the ceiling. */
+     longer they've been tracked, with the difficulty tier setting the ceiling.
+     A target strafing hard is genuinely harder to hit — how much harder
+     depends on the bot's `lead` skill, so a veteran tracks a juking player
+     far better than a recruit does, the same gap a real skill difference
+     would produce. */
   hitChance(range) {
     const acquired = Math.min(1, this.acquireT / ACQUIRE_TIME);
     const falloff = range <= NEAR_RANGE
       ? 1
       : Math.max(0.25, 1 - (range - NEAR_RANGE) / (FIRE_RANGE - NEAR_RANGE) * 0.75);
-    return this.diff.hit * falloff * (0.35 + 0.65 * acquired);
+    const targetSpeed = this.targetVel ? this.targetVel.length() : 0;
+    const evasion = Math.min(1, targetSpeed / 6) * (1 - this.diff.lead) * 0.5;
+    return this.diff.hit * falloff * (0.35 + 0.65 * acquired) * (1 - evasion);
   }
 
   update(dt, ctx) {
@@ -140,14 +161,49 @@ class Bot {
     else this.acquireT = 0;
     this.lastTargetId = best?.id ?? null;
 
+    // Track target velocity for lead-aim, and let a flinch from a recent hit
+    // fade out over time.
+    if (best) {
+      if (this.prevTargetPos) {
+        this.targetVel.set(
+          (best.pos.x - this.prevTargetPos.x) / Math.max(dt, 1e-3),
+          0,
+          (best.pos.z - this.prevTargetPos.z) / Math.max(dt, 1e-3),
+        );
+        this.prevTargetPos.copy(best.pos);
+      } else {
+        this.prevTargetPos = best.pos.clone();
+      }
+    } else {
+      this.prevTargetPos = null;
+      this.targetVel.set(0, 0, 0);
+    }
+    if (this.flinchT > 0) this.flinchT -= dt;
+
     // --- steer
     let desired;
     if (best) {
       this.yaw = Math.atan2(-(best.pos.x - this.pos.x), -(best.pos.z - this.pos.z));
-      // close to a comfortable range rather than walking into their face
-      const sign = bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
-      desired = new THREE.Vector3(best.pos.x - this.pos.x, 0, best.pos.z - this.pos.z)
-        .normalize().multiplyScalar(sign);
+      // Close to a comfortable range rather than walking into their face,
+      // and strafe laterally the whole time — a bot that holds still while
+      // trading shots reads as scripted, not skilled. Flip strafe direction
+      // periodically (and instantly on taking a hit) so it isn't a metronome.
+      this.strafeT -= dt;
+      if (this.strafeT <= 0) {
+        this.strafeT = 0.6 + Math.random() * 1.2;
+        if (Math.random() < 0.5) this.strafeDir = -this.strafeDir;
+      }
+      const toTarget = new THREE.Vector3(best.pos.x - this.pos.x, 0, best.pos.z - this.pos.z).normalize();
+      const lateral = new THREE.Vector3(-toTarget.z, 0, toTarget.x).multiplyScalar(this.strafeDir);
+      const closeSign = bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
+      desired = toTarget.multiplyScalar(closeSign * 0.6)
+        .addScaledVector(lateral, this.diff.strafe)
+        .normalize();
+      // A fresh flinch briefly overrides strafing with a hard juke off-line —
+      // the instinctive first move a real player makes under fire.
+      if (this.flinchT > 0.15) {
+        desired = lateral.clone().normalize();
+      }
     } else if (lead) {
       // Nobody in sight: walk the flow field toward the nearest enemy rather
       // than straight at them. Straight-line steering is fine on an open
@@ -297,6 +353,7 @@ export class BotManager {
     const bot = this.byId(botId);
     if (!bot || !bot.alive) return { killed: false, bot: null };
     bot.hp -= dmg;
+    bot.onDamaged();
     if (bot.hp > 0) return { killed: false, bot };
     bot.alive = false;
     bot.respawnT = RESPAWN;
