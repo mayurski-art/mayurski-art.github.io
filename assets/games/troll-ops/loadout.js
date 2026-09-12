@@ -70,6 +70,12 @@ export class Loadout {
     this.attachmentsByWeapon = saved.attachments || {};
     this.weaponId = saved.weaponId && WEAPON_DEFS[saved.weaponId] ? saved.weaponId : "problem416";
     if (!isUnlocked(this.weaponId)) this.weaponId = "problem416";
+    // Secondary is always a sidearm - pocketgrin (rank 0) is the one every
+    // account has unlocked, same reasoning as the problem416 primary fallback.
+    this.secondaryId = saved.secondaryId && WEAPON_DEFS[saved.secondaryId]?.cls === "sidearm"
+      ? saved.secondaryId : "pocketgrin";
+    if (!isUnlocked(this.secondaryId)) this.secondaryId = "pocketgrin";
+    this.slot = "primary";   // which slot the class/weapon list below is editing
     this.cls = WEAPON_DEFS[this.weaponId].cls;
     this.mapId = MAPS[saved.mapId] ? saved.mapId : MAP_IDS[0];
 
@@ -80,20 +86,35 @@ export class Loadout {
     this.tacticalId = this.validGear(saved.tacticalId, THROWABLE_DEFS, TACTICAL_IDS);
 
     this.buildMaps();
+    this.buildSlotToggle();
     this.buildClasses();
     this.buildSlots();
     this.buildGear();
     this.render();
   }
 
-  get attachments() {
-    if (!this.attachmentsByWeapon[this.weaponId]) {
-      this.attachmentsByWeapon[this.weaponId] = defaultLoadoutFor(this.weaponId);
-    }
-    return this.attachmentsByWeapon[this.weaponId];
+  // Which weapon id the class/weapon list panel is currently editing -
+  // the primary by default, or the secondary while the slot toggle is set
+  // to "Secondary". Attachments, the detail panel and the weapon list all
+  // key off this instead of `weaponId` directly, so the same UI serves
+  // both slots without duplicating it.
+  get activeId() { return this.slot === "secondary" ? this.secondaryId : this.weaponId; }
+  set activeId(id) {
+    if (this.slot === "secondary") this.secondaryId = id;
+    else this.weaponId = id;
   }
 
-  get resolved() { return resolveWeapon(this.weaponId, this.attachments); }
+  attachmentsFor(id) {
+    if (!this.attachmentsByWeapon[id]) {
+      this.attachmentsByWeapon[id] = defaultLoadoutFor(id);
+    }
+    return this.attachmentsByWeapon[id];
+  }
+
+  get attachments() { return this.attachmentsFor(this.activeId); }
+
+  get resolved() { return resolveWeapon(this.weaponId, this.attachmentsFor(this.weaponId)); }
+  get resolvedSecondary() { return resolveWeapon(this.secondaryId, this.attachmentsFor(this.secondaryId)); }
 
   get melee() { return MELEE_DEFS[this.meleeId]; }
   get lethal() { return THROWABLE_DEFS[this.lethalId]; }
@@ -106,7 +127,8 @@ export class Loadout {
 
   persist() {
     save({
-      weaponId: this.weaponId, mapId: this.mapId, attachments: this.attachmentsByWeapon,
+      weaponId: this.weaponId, secondaryId: this.secondaryId, mapId: this.mapId,
+      attachments: this.attachmentsByWeapon,
       meleeId: this.meleeId, lethalId: this.lethalId, tacticalId: this.tacticalId,
     });
     this.onChange(this.resolved);
@@ -165,10 +187,35 @@ export class Loadout {
     step();
   }
 
+  /* Primary/Secondary toggle above the class tabs. Secondary only ever
+     picks from the sidearm class - there's nowhere else to put that
+     restriction, since buildClasses/the weapon list below are shared by
+     both slots verbatim. */
+  buildSlotToggle() {
+    const wrap = this.els.slotToggle;
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    for (const slot of ["primary", "secondary"]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "to-lo-class to-lo-slotbtn";
+      b.textContent = slot === "primary" ? "Primary" : "Secondary";
+      b.dataset.slot = slot;
+      b.addEventListener("click", () => {
+        this.slot = slot;
+        this.cls = WEAPON_DEFS[this.activeId].cls;
+        this.buildClasses();
+        this.render();
+      });
+      wrap.appendChild(b);
+    }
+  }
+
   buildClasses() {
     const wrap = this.els.classes;
     wrap.innerHTML = "";
-    for (const cls of CLASS_ORDER) {
+    const classes = this.slot === "secondary" ? ["sidearm"] : CLASS_ORDER;
+    for (const cls of classes) {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "to-lo-class";
@@ -177,7 +224,7 @@ export class Loadout {
       b.addEventListener("click", () => {
         this.cls = cls;
         const first = weaponsInClass(cls).find((id) => isUnlocked(id)) || weaponsInClass(cls)[0];
-        if (first) this.weaponId = first;
+        if (first) this.activeId = first;
         this.persist();
         this.render();
       });
@@ -289,7 +336,15 @@ export class Loadout {
 
   render() {
     const rank = getRank();
-    const def = this.resolved;
+    const def = resolveWeapon(this.activeId, this.attachments);
+
+    if (this.els.slotToggle) {
+      for (const b of this.els.slotToggle.children) {
+        const on = b.dataset.slot === this.slot;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-pressed", String(on));
+      }
+    }
 
     if (this.els.maps) {
       for (const b of this.els.maps.children) {
@@ -317,14 +372,14 @@ export class Loadout {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "to-lo-weapon";
-      b.classList.toggle("is-active", id === this.weaponId);
+      b.classList.toggle("is-active", id === this.activeId);
       b.classList.toggle("is-locked", !unlocked);
       b.disabled = !unlocked;
-      b.setAttribute("aria-pressed", String(id === this.weaponId));
+      b.setAttribute("aria-pressed", String(id === this.activeId));
       b.innerHTML = `<strong>${w.name}</strong><span>${unlocked ? `${w.damage} dmg · ${w.rpm} rpm` : `Unlocks at rank ${w.rank}`}</span>`;
       if (!unlocked) b.setAttribute("aria-label", `${w.name}, locked, unlocks at rank ${w.rank}`);
       b.addEventListener("click", () => {
-        this.weaponId = id;
+        this.activeId = id;
         this.persist();
         this.render();
       });
@@ -370,7 +425,8 @@ export class Loadout {
     if (!sum) return;
 
     if (sum.cls) sum.cls.textContent = CLASS_LABELS[this.cls] || "Loadout";
-    if (sum.name) sum.name.textContent = def.name;
+    if (sum.name) sum.name.textContent = this.resolved.name;
+    if (sum.secondary) sum.secondary.textContent = this.resolvedSecondary.name;
     if (sum.attWeapon) sum.attWeapon.textContent = ` — ${def.name}`;
     if (sum.melee) sum.melee.textContent = this.melee.name;
     if (sum.lethal) sum.lethal.textContent = `${this.lethal.name} ×${this.lethal.carried}`;

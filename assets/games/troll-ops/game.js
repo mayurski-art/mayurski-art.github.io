@@ -200,6 +200,7 @@ const loadout = new Loadout({
   sum: {
     cls: document.getElementById("to-pf-sum-class"),
     name: document.getElementById("to-pf-sum-name"),
+    secondary: document.getElementById("to-pf-sum-secondary"),
     atts: document.getElementById("to-pf-sum-atts"),
     stats: document.getElementById("to-pf-sum-stats"),
     attWeapon: document.getElementById("to-pf-att-weapon"),
@@ -210,6 +211,7 @@ const loadout = new Loadout({
     next: document.getElementById("to-pf-next"),
   },
   maps: els.loMaps,
+  slotToggle: document.getElementById("to-lo-slot-toggle"),
   classes: els.loClasses,
   list: els.loList,
   name: els.loName,
@@ -1299,6 +1301,7 @@ const player = {
   hp: 100,
   maxHp: 100,
   weaponId: "problem416",
+  secondaryId: null,     // set by equipFromLoadout when the mode allows one
   weapons: {},
   kills: 0,
   deaths: 0,
@@ -1314,6 +1317,11 @@ const player = {
   bestStreak: 0,
   matchXp: 0,           // XP banked during this match, shown on the result screen
 };
+
+// Which slot (primary/secondary) currentWeapon() resolves against - reset
+// to primary on every spawn/equip so a fresh life always starts on the
+// main gun regardless of what was held when the last one ended.
+let currentWeaponSlot = "primary";
 
 /* One in the hand: which throwable is cooking, and how much fuse is left. */
 const cooking = { def: null, fuse: 0, slot: null };
@@ -1360,7 +1368,8 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyR") tryReload();
   if (e.code === "KeyT" && !e.repeat) startInspect();
   if (e.code === "KeyV" && !e.repeat) swingMelee();
-  if (e.code === "Digit1") setHolding("gun");
+  if (e.code === "Digit1") switchWeapon("primary");
+  if (e.code === "Digit2") switchWeapon("secondary");
   if (e.code === "Digit3") setHolding("melee");
   if (e.code === "KeyG" && !e.repeat) startCook("lethal");
   if (e.code === "KeyF" && !e.repeat) startCook("tactical");
@@ -1685,7 +1694,10 @@ function showWaveBanner(text, ms = 1800) {
 
 // -------------------- weapon actions --------------------
 
-function currentWeapon() { return player.weapons[player.weaponId]; }
+function currentWeapon() {
+  const id = currentWeaponSlot === "secondary" ? player.secondaryId : player.weaponId;
+  return player.weapons[id] || player.weapons[player.weaponId];
+}
 
 function tryReload() {
   if (!controls.isLocked && !isTouch && !gamepadState.connected) return;
@@ -1719,7 +1731,7 @@ function fireOnce() {
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
   const up = new THREE.Vector3().crossVectors(right, forward).normalize();
   const muzzle = origin.clone().addScaledVector(forward, 0.35);
-  if (isPvp()) net.reportShot(muzzle, forward, player.weaponId);
+  if (isPvp()) net.reportShot(muzzle, forward, def.id);
 
   for (let i = 0; i < pellets; i++) {
     const spread = def.pelletSpread != null ? def.pelletSpread : w.spread;
@@ -1769,17 +1781,18 @@ function onBulletActorHit(actor, info) {
   if (actor.netId) {
     noteDealt(actor.netId, info.damage);
     // Our own bots never hear our broadcasts, so resolve those locally.
+    const shotWith = currentWeapon().def.id;
     if (bots.byId(actor.netId)) {
       const { killed, bot } = bots.applyHit(actor.netId, info.damage);
       if (killed) {
         dealtLog.delete(actor.netId);
-        net.reportDeathAs(actor.netId, net.id, player.weaponId, info.isHead);
-        registerDeath(bot.name, net.id, player.weaponId, {
+        net.reportDeathAs(actor.netId, net.id, shotWith, info.isHead);
+        registerDeath(bot.name, net.id, shotWith, {
           head: info.isHead, victimTeam: bot.team,
         });
       }
     } else {
-      net.reportHit(actor.netId, info.damage, info.isHead, player.weaponId);
+      net.reportHit(actor.netId, info.damage, info.isHead, shotWith);
     }
     showHitmarker(info.isHead, info.damage, info.point);
     spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xff8a5a, info.isHead ? 16 : 8);
@@ -2060,6 +2073,21 @@ function setHolding(what) {
   updateGearHud();
 }
 
+/* 1 draws the primary, 2 the secondary - rebuilds the visible gun mesh for
+   whichever def that slot now points at and makes it the active weapon.
+   No-op in modes with no secondary (equipFromLoadout leaves
+   player.secondaryId null there - Gun Game, One in the Chamber) or when
+   already holding that slot's gun. */
+function switchWeapon(slot) {
+  const id = slot === "secondary" ? player.secondaryId : player.weaponId;
+  if (!id || !player.weapons[id]) return;
+  const w = player.weapons[id];
+  if (player.holding === "gun" && w === currentWeapon()) return;
+  currentWeaponSlot = slot;
+  setActiveWeaponMesh(w.def);
+  setHolding("gun");
+}
+
 function updateGearHud() {
   const melee = (player.melee && player.melee.def) || loadout.melee;
   els.gearMeleeName.textContent = melee.name;
@@ -2118,7 +2146,8 @@ function netSnapshot() {
   _netSnapshot.yaw = look.yaw; _netSnapshot.pitch = look.pitch;
   _netSnapshot.stance = move.stance; _netSnapshot.moving = move.moving;
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
-  _netSnapshot.weapon = player.weaponId; _netSnapshot.kills = player.kills;
+  _netSnapshot.weapon = (player.holding === "gun" ? currentWeapon()?.def.id : null) || player.weaponId;
+  _netSnapshot.kills = player.kills;
   return _netSnapshot;
 }
 
@@ -2234,8 +2263,8 @@ function botTargets() {
   return list;
 }
 
-function onBotShoot(bot, target, dmg, isHead, hit, range = 30) {
-  const wid = bot.weaponId || "problem416";
+function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = false) {
+  const wid = (usingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
   const def = WEAPON_DEFS[wid];
   audio.shot(def || { damage: 24, pellets: 1 }, 0.7, bot.pos);
 
@@ -2410,7 +2439,10 @@ function updateSnd(dt) {
 }
 
 /* Gun Game and One in the Chamber decide what you're holding; every other
-   mode uses whatever the loadout screen has equipped. */
+   mode uses whatever the loadout screen has equipped. Those forced modes
+   hand out exactly one weapon and no secondary — Gun Game because the
+   ladder already dictates a single gun to switch to on each kill, One in
+   the Chamber because the whole point is one pistol, one bullet. */
 function equipFromLoadout() {
   const mode = currentMode();
   const forcedId = weaponForMode(mode, gunGameProgress);
@@ -2418,8 +2450,16 @@ function equipFromLoadout() {
   if (mode.tuneWeapon) def = mode.tuneWeapon(def);
   player.weaponId = def.id;
   player.weapons = { [def.id]: new WeaponState(def) };
+  if (!forcedId) {
+    const secDef = loadout.resolvedSecondary;
+    player.secondaryId = secDef.id;
+    player.weapons[secDef.id] = new WeaponState(secDef);
+  } else {
+    player.secondaryId = null;
+  }
   player.melee = new MeleeState(loadout.melee);
   setActiveMeleeMesh(loadout.melee);
+  currentWeaponSlot = "primary";
   player.holding = "gun";
   if (activeMeleeMesh) activeMeleeMesh.visible = false;
   refillGear();

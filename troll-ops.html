@@ -61,6 +61,7 @@
 
             <div class="to-pf-panel" id="to-pfp-loadout" hidden>
               <div class="to-pf-panel-bar">Weapon Loadout</div>
+              <div class="to-lo-slot-toggle" id="to-lo-slot-toggle" role="group" aria-label="Weapon slot"></div>
               <div class="to-lo-classes" id="to-lo-classes" role="group" aria-label="Weapon class"></div>
               <div class="to-lo-body">
                 <div class="to-lo-list" id="to-lo-list" role="group" aria-label="Weapon"></div>
@@ -83,7 +84,7 @@
               <div class="to-pf-panel-bar">Gear</div>
               <div class="to-gun-mount" id="to-gun-mount-gear"></div>
               <div class="to-lo-gearlist" id="to-lo-gear"></div>
-              <p class="to-pf-note">In the match: <kbd>V</kbd> quick melee · <kbd>3</kbd> hold the melee weapon · <kbd>G</kbd> lethal · <kbd>F</kbd> tactical. Hold <kbd>G</kbd> to cook a frag.</p>
+              <p class="to-pf-note">In the match: <kbd>1</kbd> primary · <kbd>2</kbd> secondary · <kbd>3</kbd> melee · <kbd>V</kbd> quick melee · <kbd>G</kbd> lethal · <kbd>F</kbd> tactical. Hold <kbd>G</kbd> to cook a frag.</p>
             </div>
 
             <div class="to-pf-panel" id="to-pfp-server" hidden>
@@ -112,7 +113,9 @@
                 <div><kbd>X</kbd><span>Lean right</span></div>
                 <div><kbd>R</kbd><span>Reload</span></div>
                 <div><kbd>V</kbd><span>Quick melee</span></div>
-                <div><kbd>3</kbd><span>Hold melee · 1 back to the gun</span></div>
+                <div><kbd>1</kbd><span>Primary weapon</span></div>
+                <div><kbd>2</kbd><span>Secondary weapon</span></div>
+                <div><kbd>3</kbd><span>Hold melee</span></div>
                 <div><kbd>G</kbd><span>Lethal — hold to cook</span></div>
                 <div><kbd>F</kbd><span>Tactical</span></div>
                 <div><kbd>Tab</kbd><span>Scoreboard</span></div>
@@ -160,6 +163,7 @@
               <div class="to-pf-rows">
                 <div class="to-pf-row is-primary"><span>Primary</span><b id="to-pf-sum-name">—</b></div>
                 <div id="to-pf-sum-atts"></div>
+                <div class="to-pf-row is-primary"><span>Secondary</span><b id="to-pf-sum-secondary">—</b></div>
               </div>
               <div class="to-pf-card-bar is-sub">Gear</div>
               <div class="to-pf-rows">

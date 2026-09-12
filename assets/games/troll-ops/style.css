@@ -256,6 +256,9 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   font-style: italic; margin-left: 2px;
 }
 
+/* primary/secondary slot toggle, sits above the class tabs */
+.to-lo-slot-toggle { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+
 /* class tabs */
 .to-lo-classes { display: flex; flex-wrap: wrap; gap: 5px; }
 .to-lo-class {
@@ -1104,6 +1107,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-pf .to-lo-modeblurb { margin: 0; padding: 0 9px 9px; }
 
 /* weapon loadout panel */
+.to-pf .to-lo-slot-toggle { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 8px 0; margin-bottom: 0; }
 .to-pf .to-lo-classes { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 8px 0; }
 .to-pf .to-lo-body { padding: 8px; }
 .to-pf .to-lo-list { max-height: 240px; }

@@ -52,6 +52,13 @@ export const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
    so the killfeed says something true about how you died. */
 const BOT_WEAPONS = ["problem416", "snubgrin", "smg", "trollboy", "sneer", "cackle"];
 
+// Everyone also carries a sidearm and draws it the instant the primary runs
+// dry rather than standing there reloading in a firefight - the same reason
+// a player reaches for 2 instead of holding R with someone shooting at them.
+const BOT_SIDEARMS = ["pocketgrin", "widedeagle", "chortle"];
+const SIDEARM_MAG_SIZE = 12;
+const SIDEARM_RELOAD_TIME = 1.5;
+
 let counter = 0;
 
 class Bot {
@@ -62,6 +69,10 @@ class Bot {
     this.isBot = true;
     this.diff = DIFFICULTY[difficulty] || DIFFICULTY.regular;
     this.weaponId = BOT_WEAPONS[counter % BOT_WEAPONS.length];
+    this.secondaryId = BOT_SIDEARMS[counter % BOT_SIDEARMS.length];
+    this.holdingSecondary = false;
+    this.sidearmAmmo = SIDEARM_MAG_SIZE;
+    this.sidearmReloadT = 0;
     this.hp = BOT_HP;
     this.alive = true;
     this.kills = 0;
@@ -94,6 +105,9 @@ class Bot {
     this.groundY = 0;
     this.ammo = MAG_SIZE;
     this.reloadT = 0;
+    this.holdingSecondary = false;
+    this.sidearmAmmo = SIDEARM_MAG_SIZE;
+    this.sidearmReloadT = 0;
     this.acquireT = 0;
     this.lastTargetId = null;
     this.roam = null;
@@ -236,10 +250,37 @@ class Bot {
 
     // --- shoot
     this.fireT -= dt;
+    if (this.sidearmReloadT > 0) {
+      this.sidearmReloadT -= dt;
+      if (this.sidearmReloadT <= 0) this.sidearmAmmo = SIDEARM_MAG_SIZE;
+    }
     const canSee = best && bestD < FIRE_RANGE;
     // A short reaction delay before the first shot, so they don't snap onto
     // someone the instant they round a corner.
     const reacted = this.acquireT >= this.diff.reaction;
+
+    // Dry primary with someone still in sight draws the sidearm instead of
+    // reloading into a firefight; holstering it again (back to the rifle)
+    // waits for a clear moment, same as the primary's own out-of-contact
+    // reload just below.
+    if (!this.holdingSecondary && this.ammo <= 0 && canSee) this.holdingSecondary = true;
+    else if (this.holdingSecondary && !canSee && this.reloadT <= 0) this.holdingSecondary = false;
+
+    if (this.holdingSecondary) {
+      if (reacted && canSee && this.sidearmReloadT <= 0 && this.fireT <= 0) {
+        if (this.sidearmAmmo <= 0) {
+          this.sidearmReloadT = SIDEARM_RELOAD_TIME;
+        } else {
+          this.sidearmAmmo--;
+          this.fireT = this.diff.interval * (0.9 + Math.random() * 0.6);
+          const hit = Math.random() < this.hitChance(bestD) * 0.85; // pistols are less accurate at range
+          const head = hit && Math.random() < HEADSHOT_CHANCE;
+          onShoot(this, best, hit ? this.diff.damage * 0.8 * (head ? 2 : 1) : 0, head, hit, bestD, true);
+        }
+      }
+      if (!canSee && this.ammo < MAG_SIZE && this.reloadT <= 0) this.reloadT = RELOAD_TIME;
+      return;
+    }
 
     if (canSee && reacted && this.reloadT <= 0 && this.fireT <= 0) {
       if (this.ammo <= 0) {
