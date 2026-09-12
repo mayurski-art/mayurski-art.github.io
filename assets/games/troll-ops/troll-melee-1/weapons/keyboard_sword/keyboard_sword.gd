@@ -8,8 +8,8 @@ extends MeleeWeapon
 ## and the AnimationPlayer will use yours instead.
 
 ## Resting pose in view space. Right side, angled across the screen.
-const REST_POS := Vector3(0.30, -0.30, -0.62)
-const REST_ROT := Vector3(34.0, -16.0, 18.0)   # degrees - X rolls the key face into view
+const REST_POS := Vector3(0.44, -0.52, -0.78)
+const REST_ROT := Vector3(15.0, -20.0, 20.0)   # degrees - angled across the view
 
 @export var build_animations_in_code: bool = true
 

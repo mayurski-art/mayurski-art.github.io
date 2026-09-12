@@ -1,44 +1,7 @@
-[gd_scene load_steps=11 format=3 uid="uid://bk3yws0rd1swd"]
+[gd_scene load_steps=3 format=3 uid="uid://bk3yws0rd1swd"]
 
 [ext_resource type="Script" path="res://weapons/keyboard_sword/keyboard_sword.gd" id="1_ksword"]
-
-[sub_resource type="BoxMesh" id="BoxMesh_blade"]
-size = Vector3(0.3, 0.055, 0.78)
-
-[sub_resource type="StandardMaterial3D" id="Mat_blade"]
-albedo_color = Color(0.06, 0.06, 0.07, 1)
-metallic = 0.65
-roughness = 0.42
-
-[sub_resource type="BoxMesh" id="BoxMesh_guard"]
-size = Vector3(0.42, 0.052, 0.075)
-
-[sub_resource type="StandardMaterial3D" id="Mat_guard"]
-albedo_color = Color(0.62, 0.63, 0.66, 1)
-metallic = 1.0
-roughness = 0.28
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_grip"]
-top_radius = 0.026
-bottom_radius = 0.026
-height = 0.26
-radial_segments = 12
-rings = 1
-
-[sub_resource type="StandardMaterial3D" id="Mat_grip"]
-albedo_color = Color(0.19, 0.09, 0.05, 1)
-roughness = 0.85
-
-[sub_resource type="SphereMesh" id="SphereMesh_pommel"]
-radius = 0.055
-height = 0.11
-radial_segments = 16
-rings = 10
-
-[sub_resource type="StandardMaterial3D" id="Mat_pommel"]
-albedo_color = Color(0.74, 0.75, 0.78, 1)
-metallic = 1.0
-roughness = 0.22
+[ext_resource type="PackedScene" uid="uid://c00626adev2ra" path="res://weapons/keyboard_sword/keyboard_sword.glb" id="2_glb"]
 
 [sub_resource type="BoxShape3D" id="BoxShape_hit"]
 size = Vector3(0.32, 0.08, 0.8)
@@ -53,25 +16,8 @@ cooldown = 0.62
 [node name="Model" type="Node3D" parent="."]
 
 
-[node name="Blade" type="MeshInstance3D" parent="Model"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.52)
-mesh = SubResource("BoxMesh_blade")
-surface_material_override/0 = SubResource("Mat_blade")
-
-[node name="Guard" type="MeshInstance3D" parent="Model"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.17)
-mesh = SubResource("BoxMesh_guard")
-surface_material_override/0 = SubResource("Mat_guard")
-
-[node name="Grip" type="MeshInstance3D" parent="Model"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0.02)
-mesh = SubResource("CylinderMesh_grip")
-surface_material_override/0 = SubResource("Mat_grip")
-
-[node name="Pommel" type="MeshInstance3D" parent="Model"]
-transform = Transform3D(1, 0, 0, 0, 0.82, 0, 0, 0, 1, 0, 0, 0.17)
-mesh = SubResource("SphereMesh_pommel")
-surface_material_override/0 = SubResource("Mat_pommel")
+[node name="Sword" parent="Model" instance=ExtResource("2_glb")]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
 
 [node name="HitArea" type="Area3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.52)

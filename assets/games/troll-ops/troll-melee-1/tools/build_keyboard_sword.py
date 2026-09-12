@@ -23,14 +23,18 @@ from mathutils import Vector
 
 BLADE_LENGTH   = 0.78    # keyboard body, grip to tip
 BLADE_WIDTH    = 0.30    # matches a full-size board
-BLADE_THICK    = 0.055
-TIP_LENGTH     = 0.13    # the wedge at the end
+BLADE_THICK    = 0.038   # slimmer - a board, not a plank
+TIP_LENGTH     = 0.15    # the wedge at the end
 
-KEY_COLS       = 14      # key field across the blade
-KEY_ROWS       = 5
-KEY_SIZE       = 0.019
+# The key field fills the blade face on both sides. Cap size is derived
+# from the blade, so changing BLADE_WIDTH/LENGTH rescales the keys instead
+# of leaving a bare slab or overflowing the edge.
+KEY_COLS       = 10      # keys across the width
+KEY_ASPECT     = 1.25    # cap length / width - keeps caps square-ish
+KEY_HUES       = 12      # shared RGB materials (NOT one per key)
 KEY_GAP        = 0.0035
-KEY_HEIGHT     = 0.009
+KEY_HEIGHT     = 0.008
+KEY_MARGIN     = 0.016   # bezel around the key field
 
 GUARD_WIDTH    = 0.42    # the "U MAD BRO?" crossbar
 GUARD_HEIGHT   = 0.052
@@ -152,41 +156,69 @@ def build_blade():
 
 
 def build_keys():
-    """Arrayed keycaps across the blade face, each with its own RGB glow."""
-    y0 = GRIP_LENGTH * 0.5 + GUARD_THICK
-    pitch = KEY_SIZE + KEY_GAP
-    total_w = KEY_COLS * pitch - KEY_GAP
-    total_l = KEY_ROWS * pitch - KEY_GAP
+    """Keycaps covering both blade faces, lit by a shared RGB palette.
 
-    field_start_y = y0 + 0.06
+    Cap size is derived from the blade dimensions. Both faces get keys -
+    it is a sword, you see both sides mid-swing.
+    """
+    y0 = GRIP_LENGTH * 0.5 + GUARD_THICK
     z_top = BLADE_THICK * 0.5
 
+    # Fit KEY_COLS keys across the usable width.
+    usable_w = BLADE_WIDTH - KEY_MARGIN * 2.0
+    key_w = (usable_w - KEY_GAP * (KEY_COLS - 1)) / KEY_COLS
+    pitch_x = key_w + KEY_GAP
+    total_w = KEY_COLS * pitch_x - KEY_GAP
+
+    # Row count follows from the cap aspect ratio rather than being fixed:
+    # pinning rows makes caps stretch into strips whenever the blade is
+    # long. Rows are then re-fitted to the exact field length so the last
+    # row lands flush with the tip.
+    field_start_y = y0 + KEY_MARGIN
+    field_end_y = y0 + (BLADE_LENGTH - TIP_LENGTH) - KEY_MARGIN
+    field_len = field_end_y - field_start_y
+
+    rows = max(int(round(field_len / (key_w * KEY_ASPECT + KEY_GAP))), 1)
+    pitch_y = (field_len + KEY_GAP) / float(rows)
+    key_l = pitch_y - KEY_GAP
+
+    # A shared palette. Reusing materials keeps the export to a handful of
+    # primitives instead of one per key - 990 unique materials would mean
+    # ~990 draw calls for a single weapon.
+    palette = []
+    for i in range(KEY_HUES):
+        rgb = hsv_to_rgb(i / float(KEY_HUES), 0.9, 1.0)
+        palette.append(make_material(
+            f"KeyGlow_{i:02d}",
+            base_color=(rgb[0] * 0.55, rgb[1] * 0.55, rgb[2] * 0.55),
+            roughness=0.32,
+            emission=rgb,
+            emission_strength=1.6,
+        ))
+
     keys = []
-    for row in range(KEY_ROWS):
-        for col in range(KEY_COLS):
-            x = -total_w * 0.5 + pitch * col + KEY_SIZE * 0.5
-            y = field_start_y + pitch * row + KEY_SIZE * 0.5
+    for side, z_sign in ((0, 1.0), (1, -1.0)):
+        for row in range(rows):
+            for col in range(KEY_COLS):
+                x = -total_w * 0.5 + pitch_x * col + key_w * 0.5
+                y = field_start_y + pitch_y * row + key_l * 0.5
 
-            k = new_box(
-                f"Key_{row}_{col}",
-                (KEY_SIZE, KEY_SIZE, KEY_HEIGHT),
-                (x, y, z_top + KEY_HEIGHT * 0.4),
-            )
-            bevel(k, 0.0015, segments=1)
+                k = new_box(
+                    f"Key_{side}_{row}_{col}",
+                    (key_w, key_l, KEY_HEIGHT),
+                    (x, y, z_sign * (z_top + KEY_HEIGHT * 0.4)),
+                )
+                # No bevel on caps: invisible at this scale, and it would
+                # roughly triple the triangle count of the whole weapon.
 
-            # Diagonal rainbow sweep, like a real RGB wave preset.
-            hue = ((col / KEY_COLS) * 0.75 + (row / KEY_ROWS) * 0.25) % 1.0
-            rgb = hsv_to_rgb(hue, 0.85, 1.0)
-            mat = make_material(
-                f"KeyGlow_{row}_{col}",
-                base_color=(0.05, 0.05, 0.06),
-                roughness=0.35,
-                emission=rgb,
-                emission_strength=3.5,
-            )
-            assign(k, mat)
-            keys.append(k)
+                # Diagonal rainbow sweep, like a real RGB wave preset.
+                t = (col / float(KEY_COLS)) * 0.7 + (row / float(rows)) * 0.3
+                assign(k, palette[int(t * KEY_HUES) % KEY_HUES])
+                keys.append(k)
 
+    print(f"[keyboard_sword] key field: {KEY_COLS} x {rows} x2 sides "
+          f"({key_w * 1000:.0f} x {key_l * 1000:.0f}mm caps, "
+          f"{KEY_HUES} shared materials)")
     return keys
 
 
@@ -207,8 +239,8 @@ def build_guard():
     for i in range(count):
         x = -span * 0.5 + span * (i / (count - 1))
         bpy.ops.mesh.primitive_uv_sphere_add(
-            radius=0.006, segments=8, ring_count=6,
-            location=(x, y - GUARD_THICK * 0.5, -GUARD_HEIGHT * 0.15),
+            radius=0.0085, segments=10, ring_count=8,
+            location=(x, y - GUARD_THICK * 0.52, -GUARD_HEIGHT * 0.12),
         )
         r = bpy.context.active_object
         r.name = f"Rivet_{i}"
@@ -253,29 +285,75 @@ def build_grip():
 
 
 def build_pommel():
-    """Trollface head at the base. Sphere now, normal-map the grin later."""
+    """Trollface head at the base.
+
+    A flattened sphere for the skull, plus a raised grin bar and two brow
+    ridges so the mascot reads in silhouette. The fine detail of the face
+    belongs in a normal map painted onto the flat front - this is just
+    enough geometry that it isn't a featureless ball.
+    """
     y = -GRIP_LENGTH * 0.5 - POMMEL_RADIUS * 0.55
+    face_z = POMMEL_RADIUS * 0.48
+
     bpy.ops.mesh.primitive_uv_sphere_add(
-        radius=POMMEL_RADIUS, segments=20, ring_count=14,
+        radius=POMMEL_RADIUS, segments=22, ring_count=16,
         location=(0, y, 0),
     )
     head = bpy.context.active_object
     head.name = "Pommel_Trollface"
-    head.scale = (1.0, 0.82, 1.08)
+    head.scale = (1.05, 0.80, 1.12)
 
-    # Flatten the front so there's a clean face for the trollface decal.
     bpy.context.view_layer.objects.active = head
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    # Flatten the front into a clean plane for the face decal.
     me = head.data
     bm = bmesh.new()
     bm.from_mesh(me)
     for v in bm.verts:
-        if v.co.z > POMMEL_RADIUS * 0.45:
-            v.co.z = POMMEL_RADIUS * 0.45
+        if v.co.z > face_z:
+            v.co.z = face_z
     bm.to_mesh(me)
     bm.free()
 
-    return [head]
+    parts = [head]
+
+    # The grin - a wide flattened box, slightly curved by tapering the ends.
+    grin = new_box(
+        "Pommel_Grin",
+        (POMMEL_RADIUS * 1.30, POMMEL_RADIUS * 0.30, 0.006),
+        (0, y - POMMEL_RADIUS * 0.10, face_z + 0.002),
+    )
+    bpy.context.view_layer.objects.active = grin
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    me = grin.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    xs = [abs(v.co.x) for v in bm.verts]
+    far_x = max(xs) if xs else 1.0
+    for v in bm.verts:
+        # Curl the mouth corners up into a smirk.
+        t = (abs(v.co.x) / far_x) if far_x else 0.0
+        v.co.y += t * t * POMMEL_RADIUS * 0.22
+    bm.to_mesh(me)
+    bm.free()
+    bevel(grin, 0.0015, segments=1)
+    parts.append(grin)
+
+    # Brow ridges above the grin.
+    for i, sx in enumerate((-1.0, 1.0)):
+        brow = new_box(
+            f"Pommel_Brow_{i}",
+            (POMMEL_RADIUS * 0.46, POMMEL_RADIUS * 0.16, 0.005),
+            (sx * POMMEL_RADIUS * 0.34,
+             y + POMMEL_RADIUS * 0.30,
+             face_z + 0.002),
+        )
+        brow.rotation_euler[1] = math.radians(-10.0 * sx)
+        bevel(brow, 0.0012, segments=1)
+        parts.append(brow)
+
+    return parts
 
 
 # ----------------------------------------------------------------------
@@ -293,6 +371,8 @@ def build():
                                 roughness=0.85)
     mat_troll   = make_material("Trollface_Metal", (0.74, 0.75, 0.78),
                                 roughness=0.22, metallic=1.0)
+    mat_ink     = make_material("Trollface_Ink", (0.02, 0.02, 0.025),
+                                roughness=0.55)
 
     blade  = build_blade()
     keys   = build_keys()
@@ -306,8 +386,10 @@ def build():
         assign(o, mat_metal)
     for o in grip:
         assign(o, mat_leather)
+    # Chrome skull, dark ink for the grin and brows so the face reads.
     for o in pommel:
-        assign(o, mat_troll)
+        assign(o, mat_ink if ("Grin" in o.name or "Brow" in o.name)
+               else mat_troll)
 
     everything = blade + keys + guard + grip + pommel
 
@@ -333,10 +415,15 @@ def build():
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
     # Smooth shading with an angle threshold keeps the keycaps crisp
-    # while the grip and pommel round off.
-    bpy.ops.object.shade_smooth()
-    sword.data.use_auto_smooth = True if hasattr(
-        sword.data, "use_auto_smooth") else False
+    # while the grip and pommel round off. Blender 4.1 removed
+    # use_auto_smooth in favour of shade_smooth_by_angle().
+    if hasattr(bpy.ops.object, "shade_smooth_by_angle"):
+        bpy.ops.object.shade_smooth_by_angle(angle=math.radians(35))
+    else:
+        bpy.ops.object.shade_smooth()
+        if hasattr(sword.data, "use_auto_smooth"):
+            sword.data.use_auto_smooth = True
+            sword.data.auto_smooth_angle = math.radians(35)
 
     return sword
 

@@ -19,11 +19,12 @@ LMB     SWING
 weapons/melee_weapon.gd              base class — swing, hit window, damage
 weapons/keyboard_sword/
   keyboard_sword.gd                  rest pose + procedural swing animations
-  keyboard_sword.tscn                the weapon scene (placeholder geometry)
+  keyboard_sword.tscn                the weapon scene
+  keyboard_sword.glb                 generated model (7.4k tris)
 player/player.gd                     minimal FPS controller
 player/test_dummy.gd                 punching bag implementing take_damage()
 player/test_range.tscn               the test scene (main scene)
-tools/build_keyboard_sword.py        Blender script → generates the real model
+tools/build_keyboard_sword.py        Blender script that generates the .glb
 tools/test_melee.gd                  headless smoke test
 tools/screenshot.gd                  renders swing frames to disk
 ```
@@ -44,19 +45,30 @@ If an animation has no method tracks, `melee_weapon.gd` falls back to
 timers at `window_open`/`window_close` fractions, so a weapon works even
 before anyone authors animations for it.
 
-## Getting the real model in
+## Regenerating the model
 
-The weapon currently uses **placeholder boxes** sized to match the real
-model. To replace them:
+The real model is already built and wired in (`keyboard_sword.glb`). To
+change it, edit the tunables at the top of `tools/build_keyboard_sword.py`
+and re-run:
 
-1. Install Blender — it's free: <https://www.blender.org/download/>
-2. Open the Scripting tab → Open → `tools/build_keyboard_sword.py` → Run
-3. It writes `weapons/keyboard_sword/keyboard_sword.glb`
-4. In Godot, open `keyboard_sword.tscn`, delete the four `MeshInstance3D`
-   nodes under `Model`, and drag the `.glb` in as a child of `Model`
+```bash
+blender --background --python tools/build_keyboard_sword.py
+```
 
-Because the placeholder matches the real dimensions, the hit box, animations
-and hand position all stay correct after the swap. Nothing else changes.
+Or open Blender (free: <https://www.blender.org/download/>), Scripting tab →
+Open → pick the script → Run Script. It overwrites the `.glb` in place, and
+Godot re-imports it on next open. Blender costs nothing — there is no quota.
+
+Current cost: **~7.4k triangles, 16 primitives**. Two numbers to respect if
+you change the key field:
+
+- Triangles: aim for 3k–8k for a first-person weapon.
+- Primitives (draw calls): keys share a 12-colour palette via `KEY_HUES`.
+  Giving each key its own material took this to 995 primitives — one draw
+  call per key. Do not do that.
+
+Key caps have no bevel on purpose: invisible at this size, and it tripled
+the triangle count.
 
 The script builds everything procedurally — blade, arrayed keycaps with a
 per-key RGB emission ramp, riveted crossguard, wrapped grip, trollface
@@ -65,8 +77,9 @@ rotates around the hand. Tunables are at the top of the file; change a
 number, re-run, iterate on the silhouette.
 
 Still to do by hand in Blender: UV unwrap, the "U MAD BRO?" text on the
-crossguard, and the trollface grin on the pommel (normal map on the
-flattened front face, not sculpted geometry).
+crossguard, and a proper trollface on the pommel. The pommel currently has
+a blocked-in grin and brow ridges so it reads in silhouette; the real face
+belongs in a normal map on the flattened front, not in geometry.
 
 ## Collision layers
 
