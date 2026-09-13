@@ -10,6 +10,10 @@ import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
+import {
+  portrait, picketFence, mailbox, kiddiePool, houseExterior,
+  toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
+} from "./house-props.js";
 
 /* ------------------------------------------------------------ build helpers */
 
@@ -108,6 +112,36 @@ function makeApi(root, colliders) {
             axis === "x" ? seg : sw,
             axis === "z" ? seg : sd,
             h, { color, pen, y },
+          );
+        }
+      }
+    },
+
+    /* Collider-only room shell — same door-gap geometry as walls(), but
+       with no visible boxes, for pairing with a modelled house exterior
+       (house-props.js's houseExterior) instead of procedural walls. */
+    ghostWalls(cx, cz, w, d, h, thickness, { pen = 8, gaps = {}, y = 0 } = {}) {
+      const half = thickness / 2;
+      const sides = [
+        ["n", cx, cz - d / 2 + half, w, thickness, "x"],
+        ["s", cx, cz + d / 2 - half, w, thickness, "x"],
+        ["w", cx - w / 2 + half, cz, thickness, d, "z"],
+        ["e", cx + w / 2 - half, cz, thickness, d, "z"],
+      ];
+      for (const [side, sx, sz, sw, sd, axis] of sides) {
+        const gap = gaps[side];
+        if (!gap) { api.ghostBox(sx, sz, sw, sd, h, { y, pen }); continue; }
+        const span = axis === "x" ? sw : sd;
+        const seg = (span - gap) / 2;
+        if (seg <= 0.05) continue;
+        for (const s of [-1, 1]) {
+          const off = s * (gap / 2 + seg / 2);
+          api.ghostBox(
+            axis === "x" ? sx + off : sx,
+            axis === "z" ? sz + off : sz,
+            axis === "x" ? seg : sw,
+            axis === "z" ? seg : sd,
+            h, { y, pen },
           );
         }
       }
@@ -404,22 +438,80 @@ export const MAPS = {
       road.receiveShadow = true;
       api.prop(road);
 
-      // houses either side, each enterable with a doorway facing the street
+      // houses either side, each enterable with a doorway facing the street.
+      // Exteriors are real modelled meshes (models/build_houses.blender.py —
+      // pitched roof, porch, windows, chimney) instead of a flat-roofed
+      // procedural box; ghostWalls() gives them the same door-gap collider
+      // shape the old api.walls() box had, sized to match each model's
+      // true footprint exactly. Mirrored across the road (same z, same
+      // size) so the map keeps the symmetry that makes a Nuketown-style
+      // layout learnable by callout, while still looking like six
+      // different houses rather than one copy-pasted six times.
       const houses = [
-        [-18, -18, "e"], [-18, 0, "e"], [-18, 18, "e"],
-        [18, -18, "w"], [18, 0, "w"], [18, 18, "w"],
+        { x: -18, z: -18, door: "e", w: 12, d: 10, variant: "terracotta", hue: 15 },
+        { x: -18, z: 0, door: "e", w: 14, d: 12, variant: "sage-attic", hue: 130, attic: true },
+        { x: -18, z: 18, door: "e", w: 11, d: 11, variant: "violet", hue: 260 },
+        { x: 18, z: -18, door: "w", w: 11, d: 11, variant: "violet", hue: 260 },
+        { x: 18, z: 0, door: "w", w: 14, d: 12, variant: "sage", hue: 130 },
+        { x: 18, z: 18, door: "w", w: 12, d: 10, variant: "terracotta-attic", hue: 15, attic: true },
       ];
-      for (const [x, z, door] of houses) {
+      for (const { x, z, door, w, d, variant, hue, attic } of houses) {
         const gaps = { [door]: 3 };
-        api.walls(x, z, 14, 12, 3.6, 0.7, { color: 0xa8896a, gaps });
-        // roof, decorative so you can still shoot in through the doorway
-        const roof = new THREE.Mesh(new THREE.BoxGeometry(15, 0.5, 13), api.mat(0x6b4436, 0.9));
-        roof.position.set(x, 3.85, z);
-        api.prop(roof);
+        api.ghostWalls(x, z, w, d, 3.2, 0.7, { gaps });
+        houseExterior(api, { x, z, door, variant });
         // interior cover
-        api.box(x + (door === "e" ? -3 : 3), z + 3, 3, 2, 1.2, { color: 0x8a7358, pen: 1.5 });
+        const inX = door === "e" ? -1 : 1;
+        api.box(x + inX * (w / 2 - 4), z + 3, 3, 2, 1.2, { color: 0x8a7358, pen: 1.5 });
         api.lamp(x, 3.2, z, 0xffcf9a, 8, 12);
+        // a portrait on the back interior wall, facing the doorway, plus a
+        // second on a side wall so there's something to see from most angles
+        const backWallX = x + (door === "e" ? w / 2 - 0.4 : -(w / 2 - 0.4));
+        portrait(api, { x: backWallX, y: 2, z, facing: door === "e" ? "w" : "e", hue });
+        portrait(api, { x, y: 2, z: z - d / 2 + 0.4, facing: "s", hue: hue + 40 });
+        // yard: mailbox by the street-facing doorway, low picket fence
+        // along the same front edge (a soft, see-through yard boundary,
+        // not a wall to hide behind)
+        const streetX = x + (door === "e" ? (w / 2 + 2) : -(w / 2 + 2));
+        mailbox(api, { x: streetX, z: z + d / 2 - 1, hue });
+        picketFence(api, { x: x + (door === "e" ? w / 2 + 1.2 : -(w / 2 + 1.2)), z, w: d - 2, rot: Math.PI / 2 });
+        // lawn clutter — a different little scene per house so all six
+        // read as distinct homes, not six repaints of one lawn
+        const lawnX = x + (door === "e" ? (w / 2 + 3.2) : -(w / 2 + 3.2));
+        if (variant.startsWith("terracotta")) {
+          toyCar(api, { x: lawnX, z: z - d / 2 + 1.5, rot: door === "e" ? 0.3 : Math.PI + 0.3 });
+          gardenGnome(api, { x: lawnX + 0.6, z: z - d / 2 + 3, rot: Math.random() * Math.PI });
+        } else if (variant.startsWith("sage")) {
+          tireSwing(api, { x: lawnX, z: z - d / 2 + 2, rot: 0 });
+          trashCan(api, { x: lawnX - 0.4, z: z + d / 2 - 1.5 });
+        } else {
+          gardenGnome(api, { x: lawnX, z: z - d / 2 + 2, rot: Math.random() * Math.PI });
+          trashCan(api, { x: lawnX, z: z + d / 2 - 1.5 });
+        }
+
+        // Attic sniper perch — a real floor above the ground floor, matched
+        // to house-sage-attic.glb's attic box (inset 1m from each wall,
+        // 2.2m tall, dormer window facing +z i.e. street-side for this
+        // house's orientation) and reached by an interior stair against
+        // the wall opposite the door, out of the way of the ground-floor
+        // cover box. The stair's own boxes are solid (api.stairs default
+        // pen), so a bullet lands on them same as any other cover — the
+        // perch has to be climbed, not just seen through.
+        if (attic) {
+          const ATTIC_Y = 3.2;
+          // stair run hugs the back (non-door) wall, well clear of the
+          // ground-floor cover box which sits closer to the door side
+          const stairX = x + (door === "e" ? -(w / 2 - 1.3) : (w / 2 - 1.3));
+          api.stairs(stairX, z - 2.8, 2, 12, 0.27, 0.48, "+z", { color: 0x8a7358 });
+          // attic floor: solid so the player can stand on it, sized to the
+          // model's inset attic room (w-2 by d-2, per build_houses.blender.py)
+          api.box(x, z, w - 2, d - 2, 0.15, { color: 0x9a8a72, y: ATTIC_Y, pen: 6 });
+          api.lamp(x, ATTIC_Y + 1.6, z, 0xffe6b8, 7, 11);
+        }
       }
+      // backyard pool, Nuketown-style centrepiece — tucked behind the
+      // middle house rather than the road itself (already busy with the
+      // checkpoint barricade), giving the flank route a hazard to duck behind
+      kiddiePool(api, { x: -27, z: 5.5, r: 1.8 });
       // street furniture
       for (const [x, z, w, d, h] of [[-7, -10, 2, 4, 1.4], [7, 10, 2, 4, 1.4],
         [-7, 14, 2.4, 2.4, 1.6], [7, -14, 2.4, 2.4, 1.6]]) {
@@ -434,6 +526,12 @@ export const MAPS = {
         api.box(x, z, w, d, 1.5, { color: 0x3f6b3a, pen: 0.5 });
       }
       for (const [x, z] of [[-6, -26], [6, 26]]) api.floodlight(x, z, new THREE.Vector3(0, 0, 0), 0xffe2b0);
+      // real streetlamps down the road, alternating sides like an actual
+      // suburban street — replaces bare point-light bulbs with a modelled
+      // fixture (models/build_houses.blender.py's build_streetlamp)
+      for (const [x, z, rot] of [[-6.5, -9, Math.PI / 2], [6.5, 0, -Math.PI / 2], [-6.5, 9, Math.PI / 2]]) {
+        streetlamp(api, { x, z, rot });
+      }
     },
     spawns: [[-30, -26], [30, -26], [-30, 26], [30, 26], [0, -28], [0, 28], [-31, 0], [31, 0]],
   },
