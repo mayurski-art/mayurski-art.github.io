@@ -48,9 +48,15 @@ export const MELEE_IDS = Object.keys(MELEE_DEFS);
    plausible hand movement, so keyframing rotation directly makes the tip
    wander backwards even when every position offset points forward. The grip
    transform is solved backwards from where the tip needs to be. */
-const REST_POS = new THREE.Vector3(0.44, -0.52, -0.78);
+// Held upright at guard height, blade tip up and just slightly forward of
+// vertical — a real one-handed grip lets the tip droop a few degrees toward
+// gravity rather than standing dead straight, which reads as stiff/robotic.
+// X near +90° swings the blade (rest: -Z) up to +Y; the small shortfall from
+// 90° and the Y/Z tilt are that droop plus a forward cant so the flat
+// doesn't read edge-on to the camera.
+const REST_POS = new THREE.Vector3(0.40, -0.34, -0.62);
 const REST_ROT = new THREE.Euler(
-  THREE.MathUtils.degToRad(15), THREE.MathUtils.degToRad(-20), THREE.MathUtils.degToRad(20));
+  THREE.MathUtils.degToRad(78), THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(8));
 const REST_QUAT = new THREE.Quaternion().setFromEuler(REST_ROT);
 const TIP_LOCAL = new THREE.Vector3(0, 0, -0.9);
 const REST_TIP = REST_POS.clone().add(TIP_LOCAL.clone().applyQuaternion(REST_QUAT));

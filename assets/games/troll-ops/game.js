@@ -15,7 +15,7 @@ import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS } from "./net.js";
 import { RemotePlayers, TEAMS } from "./remote-players.js";
-import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, Hill, Bomb, pickBombSites, PLANT_TIME, DEFUSE_TIME } from "./modes.js";
+import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout, Hill, Bomb, pickBombSites, PLANT_TIME, DEFUSE_TIME } from "./modes.js";
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
@@ -44,6 +44,7 @@ const els = {
   newRoom: document.getElementById("to-newroom"),
   netStatus: document.getElementById("to-net-status"),
   hudTeams: document.getElementById("to-hud-teams"),
+  hudMatchClock: document.getElementById("to-hud-matchclock"),
   scorePhantom: document.getElementById("hud-score-phantom"),
   scoreGhost: document.getElementById("hud-score-ghost"),
   scoreboard: document.getElementById("to-scoreboard"),
@@ -502,7 +503,7 @@ function renderModes() {
 // The rail on the left swaps one centre panel, Phantom Forces style, rather
 // than scrolling one long column of controls.
 
-const LOBBY_PANELS = ["deploy", "loadout", "customize", "gear", "server", "controls"];
+const LOBBY_PANELS = ["deploy", "mode", "loadout", "customize", "gear", "server", "controls"];
 const railButtons = [...document.querySelectorAll("#to-pf-rail [data-panel]")];
 
 const gunView = document.getElementById("to-gun-view");
@@ -542,7 +543,13 @@ function mountCharView(panel) {
 // mounted here or it sits empty until the player clicks away and back.
 mountCharView("deploy");
 
+// Which panel is currently open, or `null` when every panel is collapsed —
+// clicking the already-active rail button toggles it closed instead of
+// forcing some other tab to take its place.
+let activeLobbyPanel = "deploy";
+
 function showLobbyPanel(name) {
+  activeLobbyPanel = name;
   for (const id of LOBBY_PANELS) {
     const panel = document.getElementById(`to-pfp-${id}`);
     if (panel) panel.hidden = id !== name;
@@ -575,7 +582,9 @@ function showLobbyPanel(name) {
 }
 
 for (const b of railButtons) {
-  b.addEventListener("click", () => showLobbyPanel(b.dataset.panel));
+  b.addEventListener("click", () => {
+    showLobbyPanel(activeLobbyPanel === b.dataset.panel ? null : b.dataset.panel);
+  });
 }
 
 // `net` is constructed further down this module, so nothing may paint the
@@ -771,18 +780,51 @@ function creditAssistIfOwed(victimId, victimName) {
 function checkMatchEnd() {
   const mode = currentMode();
   if (!mode.pvp || gameState !== "playing") return;
-  const winner = matchWinner(mode, {
+  const args = {
     teamScores,
     selfScore: player.kills,
     selfName: "You",
     peers: [...net.peers.values()],
-  });
-  if (winner) endMatch(winner);
+  };
+  const winner = matchWinner(mode, args);
+  if (winner) { endMatch(winner); return; }
+  if (mode.timeLimit && matchClockT !== null && matchClockT <= 0) {
+    endMatch(matchWinnerOnTimeout(mode, args));
+  }
 }
 
 function updateTeamHud() {
   els.scorePhantom.textContent = String(teamScores.phantom);
   els.scoreGhost.textContent = String(teamScores.ghost);
+}
+
+/* Match clock: counts down once a timed PvP mode goes live, independent of
+   the staging countdown. `null` means this mode has no clock at all, so the
+   HUD element stays hidden rather than showing a stray "0:00". */
+let matchClockT = null;
+let matchClockShown = -1;
+
+function resetMatchClock() {
+  const mode = currentMode();
+  matchClockT = mode.pvp && mode.timeLimit ? mode.timeLimit : null;
+  matchClockShown = -1;
+  els.hudMatchClock.hidden = matchClockT === null;
+  if (matchClockT !== null) paintMatchClock();
+}
+
+function paintMatchClock() {
+  const whole = Math.max(0, Math.ceil(matchClockT));
+  if (whole === matchClockShown) return;
+  matchClockShown = whole;
+  const mins = Math.floor(whole / 60), secs = whole % 60;
+  els.hudMatchClock.textContent = `${mins}:${String(secs).padStart(2, "0")}`;
+}
+
+function updateMatchClock(dt) {
+  if (matchClockT === null) return;
+  matchClockT = Math.max(0, matchClockT - dt);
+  paintMatchClock();
+  if (matchClockT <= 0) checkMatchEnd();
 }
 
 const net = new Net({
@@ -2788,6 +2830,10 @@ function endStaging() {
   if (isZombies()) nextZombieRound();
   else if (isSnd()) beginSndRound();
   else if (!isPvp() && !isRange()) nextWave();
+
+  // Search & Destroy's clock is per-round elsewhere (PLANT_TIME/DEFUSE_TIME);
+  // this is the whole-match clock for score-limited modes like TDM.
+  if (isPvp() && !isSnd()) resetMatchClock();
 }
 
 /* How full the room looks right now — the whole point of staging is that the
@@ -3472,7 +3518,7 @@ function animate() {
   if (gameState === "playing") {
     if (isStaging()) updateStaging(dt);
     // The clock itself isn't playtime, and nothing hostile moves during it.
-    else elapsedRun += dt;
+    else { elapsedRun += dt; updateMatchClock(dt); }
     const staging = isStaging();
 
     pollGamepad(dt);
@@ -3814,6 +3860,7 @@ els.touchFire.addEventListener("touchstart", () => { fireEdgeTrigger = true; set
    and thrust as the Godot reference. A quick melee borrows the same mesh, so
    it pops in for the swing and drops out again the moment it's over. */
 let meleeIdleT = 0;
+let meleeLowerT = 0;
 function updateMeleeView(dt) {
   const mesh = activeMeleeMesh;
   const melee = player.melee;
@@ -3829,19 +3876,41 @@ function updateMeleeView(dt) {
   mesh.position.copy(pos);
   mesh.quaternion.copy(quat);
 
-  // Slow figure-eight breathing bob while idle, matching the reference's
-  // idle animation — suppressed mid-swing so it doesn't fight the pose.
   if (!swinging) {
-    meleeIdleT = (meleeIdleT + dt) % MELEE_IDLE_PERIOD;
-    const phase = (meleeIdleT / MELEE_IDLE_PERIOD) * Math.PI * 2;
-    const bob = 0.012;
-    mesh.position.x += Math.sin(phase) * bob * 0.6;
-    mesh.position.y -= Math.abs(Math.cos(phase)) * bob;
-    _meleeIdleEuler.set(
-      THREE.MathUtils.degToRad(Math.cos(phase) * 1.4),
-      THREE.MathUtils.degToRad(Math.sin(phase) * 1.8),
-      0);
-    mesh.quaternion.multiply(new THREE.Quaternion().setFromEuler(_meleeIdleEuler));
+    const w = currentWeapon();
+    // Walking/running bob, same phase source the gun view model rides
+    // (w.bobPhase keeps advancing even while melee is the held weapon) —
+    // without this the sword held dead still while sprinting read as
+    // "glued to the screen" rather than carried.
+    const moveBob = move.moving ? 0.018 : 0;
+    mesh.position.x += Math.sin(w.bobPhase) * moveBob * 0.5;
+    mesh.position.y -= Math.abs(Math.cos(w.bobPhase)) * moveBob;
+
+    // Sprinting drops the blade out of guard the same way a sprinting gun
+    // lowers out of the sight line.
+    const wantLower = move.sprinting ? 1 : 0;
+    meleeLowerT += (wantLower - meleeLowerT) * Math.min(1, dt * 9);
+    mesh.position.y -= meleeLowerT * 0.1;
+    mesh.position.z += meleeLowerT * 0.08;
+    mesh.rotateX(meleeLowerT * 0.5);
+
+    // Slow figure-eight breathing sway while fully idle, matching the
+    // reference's idle animation — the walk bob above already covers
+    // movement, so this only adds while standing still.
+    if (!move.moving) {
+      meleeIdleT = (meleeIdleT + dt) % MELEE_IDLE_PERIOD;
+      const phase = (meleeIdleT / MELEE_IDLE_PERIOD) * Math.PI * 2;
+      const bob = 0.012;
+      mesh.position.x += Math.sin(phase) * bob * 0.6;
+      mesh.position.y -= Math.abs(Math.cos(phase)) * bob;
+      _meleeIdleEuler.set(
+        THREE.MathUtils.degToRad(Math.cos(phase) * 1.4),
+        THREE.MathUtils.degToRad(Math.sin(phase) * 1.8),
+        0);
+      mesh.quaternion.multiply(new THREE.Quaternion().setFromEuler(_meleeIdleEuler));
+    } else {
+      meleeIdleT = 0;
+    }
   }
 }
 const MELEE_IDLE_PERIOD = 3.2;
@@ -4031,6 +4100,10 @@ if (/[?&]tohooks=1/.test(location.search)) {
     showHitmarker, damageNumbers: () => damageNumbers,
     setMode: (id) => { modeId = id; },
     THREE,
+    activeMeleeMesh: () => activeMeleeMesh,
+    matchClockT: () => matchClockT,
+    resetMatchClock, swingMelee,
+    activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
   };
 }
 

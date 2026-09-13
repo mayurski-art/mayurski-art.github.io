@@ -39,8 +39,9 @@ export const MODES = {
     name: "Team Deathmatch",
     short: "Team Deathmatch",
     pvp: true, ffa: false,
-    scoreLimit: 30,
-    blurb: "Phantoms against Ghosts. First side to 30.",
+    scoreLimit: 69,
+    timeLimit: 600,   // 10 minutes — highest score wins if nobody hits 69 first
+    blurb: "Phantoms against Ghosts. First side to 69, or most kills at the buzzer.",
   },
 
   koth: {
@@ -128,6 +129,23 @@ export function matchWinner(mode, { teamScores, selfScore, selfName, peers }) {
   if (teamScores.phantom >= limit) return "Phantoms win";
   if (teamScores.ghost >= limit) return "Ghosts win";
   return null;
+}
+
+/* The clock ran out before anyone hit the score limit: highest score takes
+   it, a tie splits the difference rather than picking a side arbitrarily. */
+export function matchWinnerOnTimeout(mode, { teamScores, selfScore, selfName, peers }) {
+  if (mode.ffa) {
+    let bestName = selfName, bestScore = selfScore, tie = false;
+    for (const p of peers) {
+      const k = p.kills | 0;
+      if (k > bestScore) { bestScore = k; bestName = p.name; tie = false; }
+      else if (k === bestScore) tie = true;
+    }
+    return tie ? "Time's up — tie" : `${bestName} wins`;
+  }
+
+  if (teamScores.phantom === teamScores.ghost) return "Time's up — tie";
+  return teamScores.phantom > teamScores.ghost ? "Phantoms win" : "Ghosts win";
 }
 
 /* King of the Hill: a capture ring that relocates on a timer. */

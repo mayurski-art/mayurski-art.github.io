@@ -298,8 +298,16 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // leg from a low, close viewing angle.
   p.armL.rotation.x = -swing * 0.35 - 0.15;
 
-  // the shooting arm stays up and tracks the aim
-  p.armR.rotation.x = -1.25 - pitch * 0.7;
+  // The gun arm holds a level, forward "carry" pose (-1.02 rad ≈ mostly
+  // forward, barely dipped) rather than tracking raw camera pitch 1:1 -
+  // uncapped pitch coupling was what read as "the weapon points straight
+  // down" any time a player (or a remote peer whose look angle just came
+  // over the wire) looked down while running. Pitch still nudges the arm so
+  // aiming up/down is still legible, but clamped well short of vertical, and
+  // a small counter-swing ties it to footfall so walking doesn't look like
+  // the arm is welded in place mid-stride.
+  const carrySwing = moving ? Math.sin(phase) * 0.05 : 0;
+  p.armR.rotation.x = -1.02 - pitch * 0.32 + carrySwing;
   p.armR.rotation.z = -0.15;
 
   // crouching drops the hips and folds the knees
