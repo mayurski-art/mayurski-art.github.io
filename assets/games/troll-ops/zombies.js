@@ -291,7 +291,7 @@ export class ZombieDirector {
     const out = [];
     for (const z of this.zombies) {
       if (!z.alive || z.dying) continue;
-      z.mesh.traverse((o) => { if (o.isMesh) out.push(o); });
+      out.push(...z.rig.hitboxMeshes);
     }
     return out;
   }

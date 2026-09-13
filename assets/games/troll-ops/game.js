@@ -374,7 +374,7 @@ function initEscapeMenu() {
   document.getElementById("to-gear")?.addEventListener("click", () => {
     if (gameState !== "playing") return;
     if (controls.isLocked) controls.unlock();
-    else { gameState = "paused"; els.pause.hidden = false; }
+    else openPauseMenu();
   });
 }
 
@@ -455,6 +455,17 @@ function isSnd() { return !!currentMode().rounds; }
 let zdir = null;
 let rangeSet = null;
 function isBotPeer(p) { return p.isBot || String(p.id).startsWith("bot-"); }
+
+/* Any OTHER real (non-bot) person currently connected to this match. When
+   true, pausing must stay local-only — this client's own net feed, bots
+   (this client may be the bot host, publishing them for the whole room)
+   and incoming bullets keep simulating so nobody else's match freezes
+   because one operator opened their menu. */
+function otherHumansInMatch() {
+  if (!net.connected) return false;
+  for (const p of net.peers.values()) if (!isBotPeer(p)) return true;
+  return false;
+}
 
 function buildModeButtons() {
   els.loMode.innerHTML = "";
@@ -1390,23 +1401,28 @@ let spawner = null;
 const keys = new Set();
 window.addEventListener("keydown", (e) => {
   keys.add(e.code);
-  if (e.code === "KeyR") tryReload();
-  if (e.code === "KeyT" && !e.repeat) startInspect();
-  if (e.code === "KeyV" && !e.repeat) swingMelee();
-  if (e.code === "Digit1") switchWeapon("primary");
-  if (e.code === "Digit2") switchWeapon("secondary");
-  if (e.code === "Digit3") setHolding("melee");
-  if (e.code === "KeyG" && !e.repeat) startCook("lethal");
-  if (e.code === "KeyF" && !e.repeat) startCook("tactical");
+  // Pause with other people still live in the match keeps gameState at
+  // "playing" (see openPauseMenu) so their match doesn't stall, so these
+  // action keys need their own guard now instead of relying on gameState.
+  if (!localPauseOnly) {
+    if (e.code === "KeyR") tryReload();
+    if (e.code === "KeyT" && !e.repeat) startInspect();
+    if (e.code === "KeyV" && !e.repeat) swingMelee();
+    if (e.code === "Digit1") switchWeapon("primary");
+    if (e.code === "Digit2") switchWeapon("secondary");
+    if (e.code === "Digit3") setHolding("melee");
+    if (e.code === "KeyG" && !e.repeat) startCook("lethal");
+    if (e.code === "KeyF" && !e.repeat) startCook("tactical");
+  }
   // Range-only live tuning, so a sensitivity change can be felt immediately.
-  if (isRange() && gameState === "playing") {
+  if (isRange() && gameState === "playing" && !localPauseOnly) {
     if (e.code === "Minus") nudgeSetting("sens", -5, 20, 300);
     if (e.code === "Equal") nudgeSetting("sens", 5, 20, 300);
     if (e.code === "BracketLeft") nudgeSetting("fov", -1, 60, 100);
     if (e.code === "BracketRight") nudgeSetting("fov", 1, 60, 100);
   }
-  if (e.code === "Space" && gameState === "playing") e.preventDefault();
-  if (e.code === "Tab" && gameState === "playing" && isPvp()) {
+  if (e.code === "Space" && gameState === "playing" && !localPauseOnly) e.preventDefault();
+  if (e.code === "Tab" && gameState === "playing" && !localPauseOnly && isPvp()) {
     e.preventDefault();
     renderScoreboard();
     els.scoreboard.hidden = false;
@@ -1637,14 +1653,19 @@ function pollGamepad(dt) {
   gamepadState.jump = btn(0);                                     // A / cross
   gamepadState.crouch = btn(1);                                   // B / circle
 
-  if (pressedEdge(4)) tryReload();          // L1 -> reload (kept off fire face buttons)
-  if (pressedEdge(2)) swingMelee();         // X / square -> melee
-  if (pressedEdge(3)) setHolding(player.holding === "gun" ? "melee" : "gun"); // Y / triangle
-  if (pressedEdge(5)) startCook("lethal");  // R1 -> cook nade
-  if (gpPrev[5] && !btn(5)) releaseCook();
+  // The pause menu being open (with other people still live in the match)
+  // keeps this function running so the Start button can still resume, but
+  // every other action button must stop reaching the player's weapon/gear.
+  if (!localPauseOnly) {
+    if (pressedEdge(4)) tryReload();          // L1 -> reload (kept off fire face buttons)
+    if (pressedEdge(2)) swingMelee();         // X / square -> melee
+    if (pressedEdge(3)) setHolding(player.holding === "gun" ? "melee" : "gun"); // Y / triangle
+    if (pressedEdge(5)) startCook("lethal");  // R1 -> cook nade
+    if (gpPrev[5] && !btn(5)) releaseCook();
+  }
   if (pressedEdge(9)) {                     // Start/Home -> same as the on-screen gear icon
     if (controls.isLocked) controls.unlock();
-    else { gameState = "paused"; els.pause.hidden = false; }
+    else openPauseMenu();
   }
 
   gpPrev = {};
@@ -1659,7 +1680,7 @@ function pollGamepadMenu() {
   const gp = (gpIndex != null ? pads[gpIndex] : null) || Array.from(pads).find((p) => p && p.connected) || null;
   if (!gp) { gpMenuPrev = {}; return; }
   const pressed = !!gp.buttons[9]?.pressed;
-  if (pressed && !gpMenuPrev[9]) { if (!isTouch) controls.lock(); else { gameState = "playing"; els.pause.hidden = true; } }
+  if (pressed && !gpMenuPrev[9]) { if (!isTouch) controls.lock(); else closePauseMenu(); }
   gpMenuPrev = { 9: pressed };
 }
 
@@ -2268,6 +2289,29 @@ function nudgeSetting(key, delta, min, max) {
 
 let gameState = "menu"; // menu | playing | paused | gameover
 let elapsedRun = 0;
+
+// True while the pause menu is open in a match that has other real people
+// in it. Unlike a solo `gameState = "paused"` (which stops the whole
+// simulation block below), this leaves gameState at "playing" so net
+// updates, the bot host's bot sim, remote interpolation and in-flight
+// bullets all keep running for everyone else in the room — only this
+// client's own movement/aim/fire freezes, the same way a dead or
+// pre-match player already freezes via the `frozen` flag in updatePlayer.
+let localPauseOnly = false;
+function openPauseMenu() {
+  if (otherHumansInMatch()) {
+    localPauseOnly = true;
+    els.pause.hidden = false;
+  } else {
+    gameState = "paused";
+    els.pause.hidden = false;
+  }
+}
+function closePauseMenu() {
+  localPauseOnly = false;
+  if (gameState === "paused") gameState = "playing";
+  els.pause.hidden = true;
+}
 
 /* The local player as the wire sees them. Shared by the match loop and the
    intermission, which keeps broadcasting so the room doesn't time us out
@@ -2925,10 +2969,7 @@ function beginMatch(mapId = null) {
   if (!isTouch) {
     try { controls.lock(); } catch { /* refused — the pause screen catches it */ }
     setTimeout(() => {
-      if (gameState === "playing" && !controls.isLocked) {
-        gameState = "paused";
-        els.pause.hidden = false;
-      }
+      if (gameState === "playing" && !controls.isLocked) openPauseMenu();
     }, 260);
   }
 }
@@ -3201,6 +3242,7 @@ els.retryBtn.addEventListener("click", () => {
 els.resumeBtn.addEventListener("click", () => { if (!isTouch) controls.lock(); });
 els.quitBtn.addEventListener("click", () => {
   gameState = "menu";
+  localPauseOnly = false;
   endStaging();
   cancelIntermission();
   setBombSiteMarkers(null);
@@ -3220,13 +3262,13 @@ els.quitBtn.addEventListener("click", () => {
   showLobbyPanel("deploy");
 });
 
-controls.addEventListener("lock", () => { if (gameState === "paused") gameState = "playing"; els.pause.hidden = true; });
+controls.addEventListener("lock", () => closePauseMenu());
 controls.addEventListener("unlock", () => {
-  if (gameState === "playing") { gameState = "paused"; els.pause.hidden = false; }
+  if (gameState === "playing") openPauseMenu();
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && gameState === "playing") { gameState = "paused"; els.pause.hidden = false; }
+  if (document.hidden && gameState === "playing") openPauseMenu();
 });
 
 // -------------------- damage to player --------------------
@@ -3419,7 +3461,7 @@ function animate() {
   const dt = Math.min(0.05, clock.getDelta());
   const t = clock.elapsedTime;
 
-  if (gameState === "paused") pollGamepadMenu();
+  if (gameState === "paused" || localPauseOnly) pollGamepadMenu();
 
   // Runs during "gameover", between two matches in a room that stayed up.
   if (intermissionT > 0) {
@@ -3465,7 +3507,7 @@ function animate() {
       spawner.update(dt, player.pos, onGruntAttack);
       els.hudHostiles.textContent = String(spawner.aliveCount + spawner.toSpawn);
       if (spawner.isWaveClear()) nextWave();
-      for (const g of spawner.grunts) if (g.alive && !g.dying) targetMeshes.push(g.mesh);
+      for (const g of spawner.grunts) if (g.alive && !g.dying) targetMeshes.push(...g.rig.hitboxMeshes);
     } else {
       const ffa = !!currentMode().ffa;
 
@@ -3663,14 +3705,17 @@ function updatePlayer(dt) {
   // Dead players keep their camera but stop driving anything — and so does
   // everyone during the pre-match countdown. Look is deliberately still live:
   // you can size up the room while you wait, you just can't leave the mark.
-  const frozen = !player.alive || isStaging();
+  // The pause menu being open in a live-with-others match freezes this
+  // client's own avatar the same way death or staging does, while net
+  // updates, bots and remote players keep simulating around it.
+  const frozen = !player.alive || isStaging() || localPauseOnly;
   if (frozen) { ix = 0; iz = 0; }
 
   // Q aims as well as right mouse.
   // An EMP kills the optic, so there is nothing to aim down until it clears.
-  const wantAds = empT <= 0
+  const wantAds = !frozen && empT <= 0
     && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
-  const wantFire = (isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown;
+  const wantFire = !frozen && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
   if (isSnd()) sndInteractHeld = !frozen && ((isTouch && touchState.interact) || keys.has("KeyE"));
 
   move.update(dt, {

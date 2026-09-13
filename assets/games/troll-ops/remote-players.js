@@ -51,14 +51,10 @@ export class RemotePlayer {
     this.rig = buildHumanoid(this.material, { height: 1.8 });
     this.group = this.rig.root;
 
-    // everything except the held weapon counts as a target
-    this.targets = [];
-    this.rig.root.traverse((o) => {
-      if (!o.isMesh) return;
-      if (this.rig.parts.gun && isDescendantOf(o, this.rig.parts.gun)) return;
-      if (o.material === undefined) return;
-      this.targets.push(o);
-    });
+    // Raycasts hit the invisible, generously-sized hitbox proxies rather
+    // than the true stick-figure meshes - those are too thin to reliably
+    // land shots on, especially with a controller.
+    this.targets = this.rig.hitboxMeshes;
 
     this.tag = makeNameTag(peer.name || "operator", team.ui);
     this.tag.position.y = 2.15;
@@ -155,12 +151,6 @@ export class RemotePlayer {
     this.tag.material.map?.dispose();
     this.tag.material.dispose();
   }
-}
-
-function isDescendantOf(node, ancestor) {
-  let o = node;
-  while (o) { if (o === ancestor) return true; o = o.parent; }
-  return false;
 }
 
 function lerpAngle(a, b, k) {

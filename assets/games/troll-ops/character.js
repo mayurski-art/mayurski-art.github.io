@@ -23,6 +23,10 @@ const HAND_MAT = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.
 // hip, at a glance, read as a third foot next to the real two.
 const FOOT_MAT = new THREE.MeshStandardMaterial({ color: 0x2c2c2e, roughness: 0.7 });
 
+// Shared by every invisible hit-proxy primitive (see buildHumanoid below).
+// Never rendered, just needs to be a real material so raycasting works.
+const HIT_PROXY_MAT = new THREE.MeshBasicMaterial({ visible: false });
+
 // One texture load, one material, shared by every head in the game -
 // loaded once at module scope rather than per-rig.
 const TEXTURE_LOADER = new THREE.TextureLoader();
@@ -204,9 +208,48 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     armR.add(gunMesh);
   }
 
+  // --- hit proxies: invisible, generously-sized primitives used ONLY for
+  // bullet raycasts. The visible rig above is a deliberately thin stick
+  // figure (limbs a few cm across, head a flat plane) - true to the look,
+  // but a needle-thin true hitbox makes the rig nearly unhittable at range
+  // or with imprecise (controller) aim. These proxies are never rendered
+  // (visible=false, no shadows) and follow the same bones the real limbs
+  // do, so they track poseHumanoid for free.
+  const makeHitProxy = (geo, parent, isHead) => {
+    const m = new THREE.Mesh(geo, HIT_PROXY_MAT);
+    m.visible = false;
+    m.userData.isHitProxy = true;
+    if (isHead) m.userData.isHead = true;
+    parent.add(m);
+    return m;
+  };
+
+  const hitHead = makeHitProxy(new THREE.SphereGeometry(0.19 * s, 8, 6), headPivot, true);
+  hitHead.position.y = headH * 0.5 + 0.03 * s;
+
+  const hitTorso = makeHitProxy(new THREE.CapsuleGeometry(0.16 * s * w, 0.42 * s, 4, 8), chest, false);
+  hitTorso.position.y = 0.24 * s;
+
+  const hitHips = makeHitProxy(new THREE.SphereGeometry(0.15 * s * w, 8, 6), hips, false);
+
+  // Arm/leg sticks run from the pivot origin to [side*reach*s*w, -drop*s, 0];
+  // the proxy capsule is centered on that stick's midpoint, matching mkArm/mkLeg above.
+  const hitArmL = makeHitProxy(new THREE.CapsuleGeometry(0.075 * s * w, 0.5 * s, 4, 6), armL, false);
+  hitArmL.position.set(-0.15 * s * w, -0.31 * s, 0);
+  const hitArmR = makeHitProxy(new THREE.CapsuleGeometry(0.075 * s * w, 0.5 * s, 4, 6), armR, false);
+  hitArmR.position.set(0.15 * s * w, -0.31 * s, 0);
+
+  const hitLegL = makeHitProxy(new THREE.CapsuleGeometry(0.08 * s * w, 0.7 * s, 4, 6), legL, false);
+  hitLegL.position.set(-0.08 * s * w, -0.43 * s, 0);
+  const hitLegR = makeHitProxy(new THREE.CapsuleGeometry(0.08 * s * w, 0.7 * s, 4, 6), legR, false);
+  hitLegR.position.set(0.08 * s * w, -0.43 * s, 0);
+
+  const hitboxMeshes = [hitHead, hitTorso, hitHips, hitArmL, hitArmR, hitLegL, hitLegR];
+
   return {
     root,
     parts: { hips, torso, chest, neckPivot, headPivot, head, armL, armR, legL, legR, gun: gunMesh },
+    hitboxMeshes,
     scale: s,
     hipY,
   };
