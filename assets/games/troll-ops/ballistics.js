@@ -71,16 +71,21 @@ class Tracer {
     this.mesh = new THREE.Mesh(geo, this.mat);
     this.mesh.visible = false;
     this.mesh.frustumCulled = false;
+    this._color = 0xfff2c0;
     scene.add(this.mesh);
   }
   // Stretch the quad from `tip` backwards along `dir` by `len`.
-  place(tip, dir, len, width, opacity) {
+  place(tip, dir, len, width, opacity, color) {
     const tail = tip.clone().addScaledVector(dir, -len);
     this.mesh.position.copy(tip).addScaledVector(dir, -len * 0.5);
     this.mesh.lookAt(tail);
     this.mesh.rotateX(Math.PI / 2);
     this.mesh.scale.set(width, len, 1);
     this.mat.uniforms.uOpacity.value = opacity;
+    if (color != null && color !== this._color) {
+      this._color = color;
+      this.mat.uniforms.uColor.value.setHex(color);
+    }
     this.mesh.visible = true;
   }
   hide() { this.mesh.visible = false; }
@@ -222,7 +227,7 @@ export class BulletSystem {
       const dir = b.vel.clone().divideScalar(speed);
       const len = Math.min(b.dist, b.def.tracerLength || 9);
       if (len < 0.4) { this.tracers[i].hide(); continue; }
-      this.tracers[i].place(b.pos, dir, len, b.def.tracerWidth || 0.02, 0.9);
+      this.tracers[i].place(b.pos, dir, len, b.def.tracerWidth || 0.02, 0.9, b.def.tracerColor);
     }
   }
 }

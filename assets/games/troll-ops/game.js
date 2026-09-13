@@ -1883,6 +1883,8 @@ function fireOnce() {
   audio.shot(def);
   muzzleFlashT = 0.045;
   muzzleLight.intensity = 0.35;
+  muzzleMat.uniforms.uColor.value.setHex(def.muzzleColor ?? 0xfff2c0);
+  muzzleLight.color.setHex(def.muzzleColor ?? 0xffcf8a);
 
   // Part of the kick is permanent climb the player has to pull back down —
   // that's what makes recoil control a skill rather than a wait.
@@ -3971,6 +3973,34 @@ function inspectPose() {
   return p;
 }
 
+/* Reload animation: the weapon dips down and tilts away from view for the
+   middle stretch of the reload, then rises back into position — timed off
+   the same w.reloading/reloadT the ammo swap already uses, so it needs no
+   extra state and can never fall out of sync with when ammo actually lands. */
+const _reloadPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
+
+function reloadPose(w) {
+  const p = _reloadPose;
+  if (!w.reloading || !w.def.reloadTime) {
+    p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0;
+    return p;
+  }
+  const total = w.def.reloadTime;
+  const t = 1 - Math.max(0, w.reloadT) / total;  // 0..1 through the reload
+  // Ease down then back up: dips hardest around the middle third, where the
+  // mag actually swaps, and eases in/out so it never snaps at either end.
+  const dip = Math.sin(Math.min(1, t / 0.3) * Math.PI / 2)
+    * Math.sin(Math.min(1, (1 - t) / 0.3) * Math.PI / 2);
+
+  p.x = -dip * 0.06;
+  p.y = -dip * 0.16;
+  p.z = dip * 0.05;
+  p.pitch = dip * 0.5;
+  p.yaw = -dip * 0.22;
+  p.roll = dip * 0.3;
+  return p;
+}
+
 const _laserRay = new THREE.Raycaster();
 const _laserOrigin = new THREE.Vector3();
 const _laserDir = new THREE.Vector3();
@@ -4038,16 +4068,17 @@ function updateWeaponView(dt) {
 
   updateInspect(dt);
   const insp = inspectPose();
+  const rl = reloadPose(w);
 
   mesh.position.set(
-    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + weaponLowerT * 0.05 + insp.x,
-    basePos.y + bobY + swayY - weaponLowerT * 0.17 + insp.y,
-    basePos.z + w.viewKickKnockback * 0.6 + weaponLowerT * 0.08 + insp.z
+    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + weaponLowerT * 0.05 + insp.x + rl.x,
+    basePos.y + bobY + swayY - weaponLowerT * 0.17 + insp.y + rl.y,
+    basePos.z + w.viewKickKnockback * 0.6 + weaponLowerT * 0.08 + insp.z + rl.z
   );
   mesh.rotation.set(
-    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55 + insp.pitch,
-    w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + insp.yaw,
-    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + insp.roll
+    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55 + insp.pitch + rl.pitch,
+    w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + insp.yaw + rl.yaw,
+    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + insp.roll + rl.roll
   );
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;

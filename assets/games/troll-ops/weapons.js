@@ -14,6 +14,8 @@ const COMMON = {
   pellets: 1,
   tracerWidth: 0.02,
   tracerLength: 8,
+  tracerColor: 0xfff2c0,
+  muzzleColor: 0xfff2c0,
   penetration: 1,
 };
 
@@ -225,6 +227,7 @@ export const WEAPON_DEFS = {
     falloffStart: 40, falloffEnd: 100, falloffMin: 0.58,
     recoilKickPitch: 0.038, recoilKickKnockback: 0.03, recoilRecover: 7.5,
     adsTime: 0.3, adsFovMult: 0.82, muzzleVelocity: 620, muzzleFlashScale: 1.15,
+    tracerColor: 0x4ee62f, muzzleColor: 0x4ee62f, tracerWidth: 0.045, tracerLength: 3.5,
     blurb: "Backpack tank, brass barrel, and a glow that means business.",
     model: { len: 0.58, stock: "tank", mag: "none", barrel: 0.85, heavy: true },
   }),

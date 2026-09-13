@@ -20,100 +20,104 @@ function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d
 function cyl(rt, rb, h, mat, seg = 10) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); }
 
 function buildTankLauncher(def, spec, len) {
-  // Modeled on a chemical-canister launcher held muzzle-up: a tapered
-  // brass-collared horn body carries a glowing fuel cylinder on top, fed by
-  // a hose from a side tank, over a conventional grip/trigger housing.
+  // A robotic arm-extension weapon: the horn+cell "candle" stack runs
+  // forward along -Z, level with the grip, like a barrel — not standing
+  // up off a housing. It should read as a straight extension of the arm.
   const group = new THREE.Group();
   const darkMat = MATS.dark();
   const brassMat = MATS.brass();
   const bodyH = 0.09;
 
-  // --- housing (horizontal, holds grip/trigger — this is what points forward)
+  // --- housing (holds grip/trigger, sits behind the horn)
   const housingLen = len * 0.5;
   const housing = box(0.09, bodyH * 1.3, housingLen, darkMat);
-  housing.position.set(0, 0, len * 0.06);
+  housing.position.set(0, 0, len * 0.16);
   group.add(housing);
 
-  // --- horn body: tapers upward from the housing into the brass collar
-  const hornH = len * 0.62;
-  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.088, hornH, 14), darkMat);
-  horn.position.set(0, hornH / 2 + bodyH * 0.4, -len * 0.08);
+  // --- horn body: tapers forward from the housing into the brass collar,
+  // muzzle end pointing down -Z (the weapon's forward axis).
+  const hornLen = len * 0.62;
+  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.088, hornLen, 14), darkMat);
+  horn.rotation.x = Math.PI / 2;
+  horn.position.set(0, bodyH * 0.1, -hornLen / 2 - housingLen * 0.15);
   group.add(horn);
+  const hornTipZ = horn.position.z - hornLen / 2;
 
-  // --- brass collar band, sits at the horn's neck
+  // --- brass collar band, sits at the horn's muzzle-end neck
   const brass = cyl(0.052, 0.062, 0.05, brassMat, 14);
-  brass.position.set(0, hornH + bodyH * 0.4 + 0.025, -len * 0.08);
+  brass.rotation.x = Math.PI / 2;
+  brass.position.set(0, bodyH * 0.1, hornTipZ - 0.025);
   group.add(brass);
 
-  // --- glowing green fuel cylinder, standing on the brass collar
+  // --- glowing green fuel cylinder, running forward alongside the horn
+  // on top, like a barrel shroud — the "candle" itself points forward.
   const cellR = 0.045;
-  const cellH = len * 0.42;
-  const cellY = hornH + bodyH * 0.4 + 0.05 + cellH / 2;
+  const cellLen = len * 0.42;
+  const cellZ = hornTipZ - 0.05 - cellLen / 2;
   const cellGroup = new THREE.Group();
-  cellGroup.position.set(0, cellY, -len * 0.08);
-  const cell = cyl(cellR, cellR, cellH, MATS.glowTube(), 14);
+  cellGroup.position.set(0, bodyH * 0.1, cellZ);
+  const cell = cyl(cellR, cellR, cellLen, MATS.glowTube(), 14);
+  cell.rotation.x = Math.PI / 2;
   cellGroup.add(cell);
-  const nub = cyl(cellR * 0.3, cellR * 0.3, cellH * 0.16, MATS.glowTube(), 8);
-  nub.position.y = cellH / 2 + cellH * 0.08;
+  const nub = cyl(cellR * 0.3, cellR * 0.3, cellLen * 0.16, MATS.glowTube(), 8);
+  nub.rotation.x = Math.PI / 2;
+  nub.position.z = -(cellLen / 2 + cellLen * 0.08);
   cellGroup.add(nub);
   group.add(cellGroup);
   const glowLight = new THREE.PointLight(0x4ee62f, 1.1, 1.4, 2);
-  glowLight.position.set(0, cellY, -len * 0.08);
+  glowLight.position.set(0, bodyH * 0.1, cellZ);
   group.add(glowLight);
+  const muzzleTipZ = cellZ - cellLen / 2 - cellLen * 0.16;
 
-  // --- side tank ("Green Candles"), fed by a hose up into the horn
-  const tankH = len * 0.34;
-  const tank = box(0.05, tankH, 0.075, darkMat);
-  tank.position.set(-0.1, -bodyH * 0.2, -len * 0.02);
+  // --- side tank ("Green Candles"), fed by a hose forward into the horn
+  const tankLen = len * 0.34;
+  const tank = box(0.05, 0.075, tankLen, darkMat);
+  tank.position.set(-0.1, -bodyH * 0.2, len * 0.14);
   group.add(tank);
-  const tankStripe = box(0.006, tankH * 0.62, 0.078, MATS.glowTube());
-  tankStripe.position.set(-0.1 - 0.028, -bodyH * 0.2, -len * 0.02);
+  const tankStripe = box(0.006, 0.078, tankLen * 0.62, MATS.glowTube());
+  tankStripe.position.set(-0.1 - 0.028, -bodyH * 0.2, len * 0.14);
   group.add(tankStripe);
 
   const hoseMat = MATS.glowTube();
   const hose = cyl(0.009, 0.009, len * 0.22, hoseMat, 8);
-  hose.rotation.z = Math.PI / 5;
-  hose.position.set(-0.075, bodyH * 1.1, -len * 0.14);
+  hose.rotation.x = Math.PI / 5;
+  hose.position.set(-0.075, bodyH * 0.55, len * 0.02);
   group.add(hose);
   const hoseElbow = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.009, 6, 10, Math.PI * 0.6), hoseMat);
-  hoseElbow.position.set(-0.05, bodyH * 1.85, -len * 0.2);
-  hoseElbow.rotation.set(0, 0, Math.PI * 0.15);
+  hoseElbow.position.set(-0.05, bodyH * 0.35, -len * 0.06);
+  hoseElbow.rotation.set(0, Math.PI / 2, Math.PI * 0.15);
   group.add(hoseElbow);
 
   // --- pistol grip + trigger under the housing
   const grip = box(0.05, 0.16, 0.06, darkMat);
-  grip.position.set(0, -bodyH * 1.4, len * 0.2);
+  grip.position.set(0, -bodyH * 1.4, len * 0.3);
   grip.rotation.x = 0.28;
   group.add(grip);
   const trigger = box(0.03, 0.05, 0.04, darkMat);
-  trigger.position.set(0, -bodyH * 0.7, len * 0.1);
+  trigger.position.set(0, -bodyH * 0.7, len * 0.2);
   group.add(trigger);
 
   // --- vent slit + control button on the housing, matching the reference
   const vent = box(0.006, 0.045, 0.05, MATS.glow());
-  vent.position.set(0.046, -bodyH * 0.15, len * 0.02);
+  vent.position.set(0.046, -bodyH * 0.15, len * 0.12);
   group.add(vent);
   const button = cyl(0.012, 0.012, 0.01, darkMat, 10);
   button.rotation.z = Math.PI / 2;
-  button.position.set(0.046, 0.03, len * 0.18);
+  button.position.set(0.046, 0.03, len * 0.28);
   group.add(button);
 
-  // The horn+cell stack is built tall (true to a canister launcher) but
-  // that makes it ~5x the on-screen height of a held rifle at the same
-  // view distance — it fills the frame instead of sitting in the corner.
-  // Wrap it in an outer group, scaled down and re-centered on the grip so
-  // it reads at the same size/position other weapons hold at.
+  // The horn+cell stack, held level as an arm extension, reads well
+  // without needing the big rescale the old vertical build required —
+  // just a mild trim so it sits in the corner like other weapons.
   const wrap = new THREE.Group();
-  group.position.y -= bodyH * 0.4;
   wrap.add(group);
-  const holdScale = 0.38;
+  const holdScale = 0.75;
   wrap.scale.setScalar(holdScale);
 
-  const muzzleZ = (-len * 0.08) * holdScale;
-  // No sight on a tank launcher — aim along the housing's top edge, same
-  // height band every other weapon's aimPoint uses, not the horn's height.
-  const aimY = bodyH * 0.7;
-  const aimZ = -len * 0.15;
+  const muzzleZ = muzzleTipZ * holdScale;
+  // No sight on a tank launcher — aim straight down the horn/cell axis.
+  const aimY = bodyH * 0.1 * holdScale;
+  const aimZ = muzzleZ * 0.6;
   wrap.userData.sight = null;
   wrap.userData.aimPoint = new THREE.Vector3(0, aimY, aimZ);
   wrap.userData.muzzleZ = muzzleZ;
