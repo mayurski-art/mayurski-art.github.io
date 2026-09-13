@@ -3915,8 +3915,10 @@ function updateMeleeView(dt) {
 
     // Slow figure-eight breathing sway while fully idle, matching the
     // reference's idle animation — the walk bob above already covers
-    // movement, so this only adds while standing still.
-    if (!move.moving) {
+    // movement, so this only adds while standing still. Skipped while the
+    // inspect flourish is playing so the two don't fight over the same
+    // quaternion.
+    if (!move.moving && inspectT <= 0) {
       meleeIdleT = (meleeIdleT + dt) % MELEE_IDLE_PERIOD;
       const phase = (meleeIdleT / MELEE_IDLE_PERIOD) * Math.PI * 2;
       const bob = 0.012;
@@ -3927,8 +3929,16 @@ function updateMeleeView(dt) {
         THREE.MathUtils.degToRad(Math.sin(phase) * 1.8),
         0);
       mesh.quaternion.multiply(new THREE.Quaternion().setFromEuler(_meleeIdleEuler));
-    } else {
+    } else if (move.moving) {
       meleeIdleT = 0;
+    }
+
+    // Blade-showoff flourish (D-pad up / T while holding the sword) — see
+    // inspectMeleePose for the raise/turn/lower shape.
+    if (inspectT > 0) {
+      const { quat, pos } = inspectMeleePose();
+      mesh.position.add(pos);
+      mesh.quaternion.multiply(quat);
     }
   }
 }
@@ -3937,56 +3947,178 @@ const _meleeIdleEuler = new THREE.Euler();
 
 let weaponLowerT = 0;
 
-/* Weapon inspect (T). Turns the gun over in your hands for a couple of
+/* Weapon inspect (D-pad up / T). Admires whatever's in hand for a couple of
    seconds — pure flourish, cancelled by anything that matters (firing,
-   aiming, reloading, sprinting) so it can never cost you a fight. */
-const INSPECT_TIME = 2.1;
+   aiming, reloading, sprinting, swinging) so it can never cost you a fight.
+   Works for guns and melee alike; which flourish plays is picked by weapon
+   class (see INSPECT_ARCHETYPES) or, for melee, by inspectMeleePose below —
+   a rifle mag-check and a pistol twirl are different enough motions that one
+   shared sine-wave turn-over read as generic no matter which gun played it. */
+const INSPECT_TIME = 2.2;
 let inspectT = 0;
 
 function startInspect() {
-  if (inspectT > 0 || !player.alive || gameState !== "playing") return;
-  if (player.holding !== "gun" || move.busy) return;
-  const w = currentWeapon();
-  if (w.reloading || w.adsT > 0.05) return;
+  if (inspectT > 0 || !player.alive || gameState !== "playing" || move.busy) return;
+  if (player.holding === "gun") {
+    const w = currentWeapon();
+    if (w.reloading || w.adsT > 0.05) return;
+  } else if (player.holding === "melee") {
+    if (!player.melee || player.melee.busy) return;
+  } else {
+    return;
+  }
   inspectT = INSPECT_TIME;
   audio.reload();     // the same handling clicks, which is what an inspect is
 }
 
 function updateInspect(dt) {
   if (inspectT <= 0) return;
-  const w = currentWeapon();
-  // Anything that matters takes the gun back immediately.
-  if (!player.alive || move.sprinting || move.busy || w.reloading || w.adsT > 0.05
-      || player.holding !== "gun") {
+  // Anything that matters takes the weapon back immediately.
+  if (!player.alive || move.sprinting || move.busy) { inspectT = 0; return; }
+  if (player.holding === "gun") {
+    const w = currentWeapon();
+    if (w.reloading || w.adsT > 0.05) { inspectT = 0; return; }
+  } else if (player.holding === "melee") {
+    if (!player.melee || player.melee.busy) { inspectT = 0; return; }
+  } else {
     inspectT = 0;
     return;
   }
   inspectT = Math.max(0, inspectT - dt);
 }
 
+/* Each archetype gets its own staged motion (raise -> business -> settle)
+   rather than one continuous wave, so it reads as a deliberate action instead
+   of a wobble. `t` is 0..1 through the animation; `stage(a,b)` returns 0..1
+   eased progress between two points in that timeline, 0 outside it. */
+function stage(t, a, b) {
+  if (t <= a || t >= b) return 0;
+  const k = (t - a) / (b - a);
+  return Math.sin(k * Math.PI); // eases in and back out, peaks mid-stage
+}
+function rise(t, a, b) {
+  // Monotonic 0->1 ease across the stage, then holds at 1 (for moves that
+  // land and stay, like a twirl settling the muzzle back level).
+  if (t <= a) return 0;
+  if (t >= b) return 1;
+  const k = (t - a) / (b - a);
+  return k * k * (3 - 2 * k);
+}
+
 const _inspectPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
+function _zeroPose(p) { p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0; return p; }
 
-function inspectPose() {
-  const p = _inspectPose;
-  if (inspectT <= 0) {
-    p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0;
-    return p;
-  }
-  const t = 1 - inspectT / INSPECT_TIME;          // 0..1 through the animation
-  // Ease in and out so the gun doesn't snap at either end.
-  const ease = Math.sin(Math.min(1, t / 0.18) * Math.PI / 2)
-    * Math.sin(Math.min(1, (1 - t) / 0.22) * Math.PI / 2);
+/* Pistol/sidearm: a one-handed showman's twirl around the trigger guard —
+   spins fast, flat roll, no up/down business since there's no mag well or
+   pump to look at. */
+function inspectTwirl(t, p) {
+  const overallEase = Math.sin(Math.min(1, t / 0.1) * Math.PI / 2)
+    * Math.sin(Math.min(1, (1 - t) / 0.15) * Math.PI / 2);
+  const spins = 1.5; // full turns
+  p.roll = Math.sin(t * Math.PI * 2 * spins) * overallEase * 0.9;
+  p.yaw = overallEase * Math.sin(t * Math.PI * 2 * spins + 0.6) * 0.22;
+  p.pitch = overallEase * 0.1;
+  p.x = overallEase * -0.02;
+  p.y = overallEase * 0.03;
+  p.z = overallEase * 0.06;
+}
+
+/* Assault/carbine/pdw: quick tilt-and-flip mag glance, tightened from the
+   original one-size wobble — still brisk since these are the fast, light
+   guns. */
+function inspectMagGlance(t, p) {
+  const ease = Math.sin(Math.min(1, t / 0.16) * Math.PI / 2)
+    * Math.sin(Math.min(1, (1 - t) / 0.2) * Math.PI / 2);
   const turn = Math.sin(t * Math.PI * 2);
-
-  // Kept deliberately small: the gun should turn over in the corner of the
-  // view, not swing across it and blind you while it plays.
   p.x = ease * (-0.03 + turn * 0.02);
   p.y = ease * 0.02;
   p.z = ease * 0.05;
   p.pitch = ease * (0.12 + Math.sin(t * Math.PI) * 0.07);
   p.yaw = ease * turn * 0.34;
   p.roll = ease * (0.26 + Math.sin(t * Math.PI * 2 + 1) * 0.2);
+}
+
+/* Battle rifle/sniper/LMG: heavier, slower guns get a deliberate bolt/feed
+   check — tilted hard to peer down at the action, a beat held there, then
+   levelled back out. One clean gesture instead of a spin; these are not
+   guns you flip. */
+function inspectHeavyCheck(t, p) {
+  const holdIn = rise(t, 0.08, 0.3) * (1 - rise(t, 0.68, 0.94));
+  const settle = Math.sin(Math.min(1, t / 0.12) * Math.PI / 2)
+    * Math.sin(Math.min(1, (1 - t) / 0.16) * Math.PI / 2);
+  p.pitch = holdIn * 0.5 + settle * 0.05;
+  p.yaw = holdIn * -0.16;
+  p.roll = holdIn * 0.12;
+  p.x = holdIn * -0.02;
+  p.y = holdIn * -0.05 + settle * 0.01;
+  p.z = holdIn * 0.03;
+}
+
+/* Shotgun: rack the pump mid-inspect — a short forward-back slide on the
+   fore-end timed to a beat in the middle of the flourish, themed to the one
+   thing a pump gun actually does that no other class here can. */
+function inspectPumpRack(t, p) {
+  const settle = Math.sin(Math.min(1, t / 0.14) * Math.PI / 2)
+    * Math.sin(Math.min(1, (1 - t) / 0.18) * Math.PI / 2);
+  const rackWindow = stage(t, 0.30, 0.62); // one pump-back-and-forward, mid-flourish
+  p.pitch = settle * 0.14 + rackWindow * -0.05;
+  p.yaw = settle * -0.12;
+  p.roll = settle * 0.1;
+  p.x = settle * -0.015;
+  p.y = settle * 0.02;
+  p.z = settle * 0.05 - rackWindow * 0.09; // fore-end slides toward the shoulder and back
+}
+
+const INSPECT_ARCHETYPES = {
+  sidearm: inspectTwirl,
+  assault: inspectMagGlance,
+  carbine: inspectMagGlance,
+  pdw: inspectMagGlance,
+  battle: inspectHeavyCheck,
+  sniper: inspectHeavyCheck,
+  lmg: inspectHeavyCheck,
+  shotgun: inspectPumpRack,
+};
+
+function inspectPose() {
+  const p = _inspectPose;
+  if (inspectT <= 0 || player.holding !== "gun") return _zeroPose(p);
+  const t = 1 - inspectT / INSPECT_TIME; // 0..1 through the animation
+  const w = currentWeapon();
+  const fn = INSPECT_ARCHETYPES[w.def.cls] || inspectMagGlance;
+  fn(t, p);
   return p;
+}
+
+/* Melee inspect: the Keyboard Warrior gets raised to eye height, turned to
+   show off the "U MAD BRO?" crossguard decal and let the keycap blade catch
+   the light, then lowered back to guard — a blade-showoff spin themed to it
+   being a sword, not the gun turn-over reused verbatim. Returns a quaternion
+   offset (multiplied onto the rest pose) plus a small position lift, since
+   the melee view model is driven by quaternion, not the gun's Euler angles. */
+const _inspectMeleeQuat = new THREE.Quaternion();
+const _inspectMeleeEuler = new THREE.Euler();
+const _inspectMeleePos = new THREE.Vector3();
+function inspectMeleePose() {
+  if (inspectT <= 0 || player.holding !== "melee") {
+    _inspectMeleeQuat.identity();
+    _inspectMeleePos.set(0, 0, 0);
+    return { quat: _inspectMeleeQuat, pos: _inspectMeleePos };
+  }
+  const t = 1 - inspectT / INSPECT_TIME;
+  // Raise (0-0.22), hold up while it turns to show the decal (0.22-0.72),
+  // lower back to guard (0.72-1) — one clean showoff arc, not a loop.
+  const raise = rise(t, 0.0, 0.22) * (1 - rise(t, 0.78, 1.0));
+  const turn = Math.sin(Math.max(0, Math.min(1, (t - 0.22) / 0.5)) * Math.PI * 2) * rise(t, 0.22, 0.3) * (1 - rise(t, 0.7, 0.78));
+
+  _inspectMeleeEuler.set(
+    raise * -0.55,                 // tip up toward eye level
+    turn * 0.85,                   // slow turn to show both faces
+    raise * 0.18 + turn * -0.12,   // slight roll so the flat catches light as it turns
+  );
+  _inspectMeleeQuat.setFromEuler(_inspectMeleeEuler);
+  _inspectMeleePos.set(-0.06 * raise, 0.14 * raise, 0.1 * raise);
+  return { quat: _inspectMeleeQuat, pos: _inspectMeleePos };
 }
 
 /* Reload animation: the weapon dips down and tilts away from view for the
@@ -4058,6 +4190,7 @@ function updateLaserBeam(mesh, w) {
 
 function updateWeaponView(dt) {
   const w = currentWeapon();
+  updateInspect(dt);
   updateMeleeView(dt);
   const mesh = activeWeaponMesh;
   if (!mesh) return;
@@ -4082,7 +4215,6 @@ function updateWeaponView(dt) {
   const wantLower = (move.sprinting || move.stance === STANCE.SLIDE || move.busy) ? 1 : 0;
   weaponLowerT += (wantLower - weaponLowerT) * Math.min(1, dt * 9);
 
-  updateInspect(dt);
   const insp = inspectPose();
   const rl = reloadPose(w);
 

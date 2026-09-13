@@ -85,6 +85,7 @@ class Bot {
     this.respawnT = 0;
     this.wander = new THREE.Vector3();
     this.wanderT = 0;
+    this.moving = false;   // real ground speed, not "has steering input" — see update()
     this.ammo = MAG_SIZE;
     this.reloadT = 0;
     this.acquireT = 0;        // how long the current target has been in view
@@ -247,6 +248,12 @@ class Bot {
     const support = groundHeightAt(colliders, this.pos.x, this.pos.z, this.groundY + 0.5, BOT_RADIUS * 0.8);
     this.groundY += (support - this.groundY) * Math.min(1, dt * 9);
     this.pos.y = this.groundY;
+
+    // Real ground speed, not "had steering input" — a bot holding its strafe
+    // dance to trade shots was reporting `moving: true` every tick (see the
+    // old hardcoded flag this replaced in net.js's publishBot), so remote
+    // viewers saw it play a full forward jog while it barely drifted.
+    this.moving = Math.hypot(this.vel.x, this.vel.z) > 0.4;
 
     // --- shoot
     this.fireT -= dt;

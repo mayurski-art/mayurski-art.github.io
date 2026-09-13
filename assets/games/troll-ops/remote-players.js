@@ -167,24 +167,30 @@ export class RemotePlayer {
     const wantLower = STANCE_LOWER[b.stance] ?? 0;
     this.lower += (wantLower - this.lower) * Math.min(1, dt * 8);
 
-    const moving = !!b.moving;
-    if (moving) this.phase += dt * 9;
-
-    // Strafe is not sent over the wire (net.js snapshots carry position/
-    // yaw/pitch/stance/moving only) - derive it locally from how the
-    // player actually moved between the two bracketing snapshots,
-    // projected onto the player's own left/right axis. Cheap, needs no
-    // protocol change, and only matters for a few frames of lean anyway.
+    // Strafe (and the leg-swing rate below) are not sent over the wire
+    // (net.js snapshots carry position/yaw/pitch/stance/moving only) -
+    // derive actual ground speed locally from how far the player moved
+    // between the two bracketing snapshots, projected onto their own
+    // left/right axis for strafe. Cheap, needs no protocol change.
     let strafe = 0;
+    let speed = 0;
     if (b.t > a.t) {
       const dx = b.x - a.x, dz = b.z - a.z;
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       // Local right axis for a yaw-only rotation about Y.
       const rightX = cos, rightZ = -sin;
       const lateral = dx * rightX + dz * rightZ;
-      const speed = Math.hypot(dx, dz) / ((b.t - a.t) / 1000 || 1);
+      speed = Math.hypot(dx, dz) / ((b.t - a.t) / 1000 || 1);
       strafe = speed > 0.05 ? Math.max(-1, Math.min(1, lateral * 6)) : 0;
     }
+
+    // `moving` (from the wire) gates whether the legs animate at all; the
+    // measured speed then sets how fast that cycle plays, so a bot easing
+    // into a strafe or barely drifting doesn't play a full sprint-speed jog -
+    // it used to always report moving:true and always advance at one fixed
+    // rate regardless of how fast (or slow) it was actually travelling.
+    const moving = !!b.moving;
+    if (moving) this.phase += dt * 9 * Math.max(0.35, Math.min(1.6, speed / 4.2));
 
     this.rig.root.position.copy(this.pos);
     this.rig.root.rotation.y = this.yaw;

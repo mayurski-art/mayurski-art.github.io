@@ -270,7 +270,7 @@ export class Net {
     const snap = {
       t: performance.now(),
       x: bot.pos.x, y: bot.pos.y, z: bot.pos.z,
-      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: true,
+      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: !!bot.moving,
     };
     let p = this.peers.get(bot.id);
     if (!p) {
