@@ -34,6 +34,7 @@
           <nav class="to-pf-rail" id="to-pf-rail" aria-label="Lobby menu">
             <button type="button" class="to-pf-btn to-pf-btn-go" id="to-start-btn">Deploy</button>
             <button type="button" class="to-pf-btn is-active" data-panel="deploy" aria-pressed="true">Match Setup</button>
+            <button type="button" class="to-pf-btn" data-panel="mode" aria-pressed="false">Game Mode</button>
             <button type="button" class="to-pf-btn" data-panel="loadout" aria-pressed="false">Weapon Loadout</button>
             <button type="button" class="to-pf-btn" data-panel="customize" aria-pressed="false">Customize</button>
             <button type="button" class="to-pf-btn" data-panel="gear" aria-pressed="false">Gear</button>
@@ -54,6 +55,9 @@
               <div class="to-char-mount" id="to-char-mount-deploy"></div>
               <div class="to-pf-panel-bar">Map Select</div>
               <div class="to-lo-maps" id="to-lo-maps" role="group" aria-label="Map"></div>
+            </div>
+
+            <div class="to-pf-panel" id="to-pfp-mode" hidden>
               <div class="to-pf-panel-bar">Game Mode</div>
               <div class="to-lo-mode" id="to-lo-mode" role="group" aria-label="Game mode"></div>
               <p class="to-lo-modeblurb" id="to-lo-modeblurb"></p>
@@ -338,6 +342,7 @@
 
         <div class="to-hud-teams" id="to-hud-teams" hidden>
           <span class="to-team to-team-phantom"><b id="hud-score-phantom">0</b> Phantoms</span>
+          <strong class="to-hud-matchclock" id="to-hud-matchclock" hidden aria-label="Time remaining">10:00</strong>
           <span class="to-team-sep">·</span>
           <span class="to-team to-team-ghost">Ghosts <b id="hud-score-ghost">0</b></span>
         </div>

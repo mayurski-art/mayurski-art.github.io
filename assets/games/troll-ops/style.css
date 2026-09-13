@@ -119,6 +119,10 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-team-phantom b { color: #a98cf0; }
 .to-team-ghost b { color: #e8bf76; }
 .to-team-sep { color: #6f7a68; }
+.to-hud-matchclock {
+  color: #cfd8c8; font-size: 13px; letter-spacing: .04em;
+  font-variant-numeric: tabular-nums; opacity: .85;
+}
 
 /* Search & Destroy: side reminder, and the bomb clock once it's live. */
 .to-bomb-status {
