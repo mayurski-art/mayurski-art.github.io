@@ -9,6 +9,7 @@
 import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
+import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 
 /* ------------------------------------------------------------ build helpers */
 
@@ -40,6 +41,16 @@ function makeApi(root, colliders) {
 
     /* Decorative only — no collider, bullets pass through. */
     prop(mesh) { mesh.castShadow = true; root.add(mesh); return mesh; },
+
+    /* Collider only, no mesh — for GLTF-modelled props whose visible shape
+       comes from a loaded model rather than a generated box. */
+    ghostBox(x, z, w, d, h, { y = 0, pen = 0.9 } = {}) {
+      colliders.push({
+        min: new THREE.Vector3(x - w / 2, y, z - d / 2),
+        max: new THREE.Vector3(x + w / 2, y + h, z + d / 2),
+        pen,
+      });
+    },
 
     cylinder(x, z, r, h, { color = 0x3a4530, y = 0, solid = true, pen = 4 } = {}) {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 12), mat(color, 0.7, 0.3));
@@ -257,6 +268,12 @@ export const MAPS = {
       for (const [x, z, w, d] of [[-20, -6, 14, 1], [20, 6, 14, 1], [-6, 18, 1, 12], [6, -18, 1, 12]]) {
         api.box(x, z, w, d, 1.2, { color: 0x94794e, pen: 4 });
       }
+      // sandbag emplacements and dropped supply barrels along the lanes
+      sandbagWall(api, { x: -20, z: -6, w: 14, rot: 0 });
+      sandbagWall(api, { x: 6, z: -18, w: 12, rot: Math.PI / 2 });
+      for (const [x, z] of [[-30, -10], [30, 12], [-4, 26], [4, -26]]) {
+        barrel(api, { x, z });
+      }
     },
     spawns: [[-40, -40], [40, -40], [-40, 40], [40, 40], [0, -42], [0, 42], [-42, 0], [42, 0]],
   },
@@ -294,11 +311,13 @@ export const MAPS = {
       }
       api.stairs(-21, 14, 4, 14, 0.33, 0.62, "-z", { color: 0x4b5158 });
       api.stairs(21, -14, 4, 14, 0.33, 0.62, "+z", { color: 0x4b5158 });
-      // loose crates on the floor
-      for (const [x, z, s, h] of [[-12, -17, 2.4, 1.6], [11, 16, 2.6, 1.8], [-2, 6, 2.2, 1.4],
-        [2, -6, 2.2, 1.4], [-20, 6, 2.6, 2.0], [20, -6, 2.6, 2.0]]) {
-        api.box(x, z, s, s, h, { color: 0x93794a, pen: 2 });
+      // loose crate stacks on the floor
+      for (const [x, z, size] of [[-12, -17, 2.0], [11, 16, 2.2], [-2, 6, 1.4],
+        [2, -6, 1.4], [-20, 6, 2.2], [20, -6, 2.2]]) {
+        crateStack(api, { x, z, size });
       }
+      // a shipping container athwart the aisle between shelving rows
+      shippingContainer(api, { x: 0, z: -5.5, rot: 0, len: 5 });
       for (const [x, z] of [[-18, -14], [0, -14], [18, -14], [-18, 0], [0, 0], [18, 0],
         [-18, 14], [0, 14], [18, 14]]) api.lamp(x, 8.2, z, 0xffe0b0, 28, 30);
     },
@@ -403,9 +422,13 @@ export const MAPS = {
       }
       // street furniture
       for (const [x, z, w, d, h] of [[-7, -10, 2, 4, 1.4], [7, 10, 2, 4, 1.4],
-        [-7, 14, 2.4, 2.4, 1.6], [7, -14, 2.4, 2.4, 1.6], [0, 0, 3, 3, 1.1]]) {
+        [-7, 14, 2.4, 2.4, 1.6], [7, -14, 2.4, 2.4, 1.6]]) {
         api.box(x, z, w, d, h, { color: 0x54604a, pen: 2 });
       }
+      // a checkpoint barricade thrown across the road, mid-street
+      chainBarricade(api, { x: 0, z: 0, w: 5, rot: Math.PI / 2 });
+      barrel(api, { x: -2.6, z: 1.2 });
+      barrel(api, { x: 2.8, z: -1 });
       // hedges — soft cover, bullets punch through
       for (const [x, z, w, d] of [[-10, 24, 14, 1.2], [10, -24, 14, 1.2], [-10, -24, 14, 1.2], [10, 24, 14, 1.2]]) {
         api.box(x, z, w, d, 1.5, { color: 0x3f6b3a, pen: 0.5 });
