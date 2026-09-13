@@ -1386,6 +1386,7 @@ const player = {
   melee: null,          // MeleeState, rebuilt from the loadout on every spawn
   holding: "gun",       // "gun" | "melee"
   gear: { lethal: 0, tactical: 0 },
+  lastHurtAt: -Infinity, // performance.now() of the last damage taken; gates regen
   spawnGuard: 0,        // seconds of spawn protection left; broken by firing
   assists: 0,
   headshots: 0,
@@ -3392,6 +3393,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false) {
   if (player.spawnGuard > 0 && isPvp()) return;
 
   player.hp = Math.max(0, player.hp - amount);
+  player.lastHurtAt = performance.now();
   noteDamage(fromId, amount, weaponId, isHead);
   flashHit();
   audio.hurt();
@@ -3526,6 +3528,7 @@ function animate() {
 
     pollGamepad(dt);
     updatePlayer(dt);
+    if (!isRange()) regenPlayer(dt);
     updateWeaponView(dt);
 
     targetMeshes = [];
@@ -3719,6 +3722,19 @@ let stepPhase = 0;
    60×/sec even sitting still with full ammo and health. Comparing first
    means the browser only does anything the frame a number actually moves. */
 const hudCache = { hpPct: -1, hpLow: null, hpText: -1, ammoCur: -1, ammoRes: -1, reloadHidden: null, ads: null, lowhp: null };
+
+/* Passive regen: health climbs back to full on its own once you've been out
+   of a fight for a beat, instead of every scratch being permanent until the
+   next respawn (there is no med pickup). The delay after the last hit is
+   what keeps trading meaningful — regen never starts mid-fight. */
+const REGEN_DELAY = 4.5;   // seconds since last hit before regen kicks in
+const REGEN_RATE = 12;     // hp per second once it starts
+
+function regenPlayer(dt) {
+  if (!player.alive || player.hp >= player.maxHp) return;
+  if (performance.now() - player.lastHurtAt < REGEN_DELAY * 1000) return;
+  player.hp = Math.min(player.maxHp, player.hp + REGEN_RATE * dt);
+}
 
 function updatePlayer(dt) {
   const w = currentWeapon();

@@ -329,6 +329,39 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   _poseNeckAndHead(rig, { pitch, sway: 0, dt, lead: str });
 }
 
+/* Collapse the rig into a fallen heap. `t` is 0 (moment of death) to 1
+   (fully down); callers drive it up over ~0.5-0.6s then hide the rig. Tips
+   the whole body over sideways onto the ground and folds the limbs rather
+   than just freezing the last standing pose or popping out of existence —
+   a body that stays upright or vanishes instantly reads as a UI toggle,
+   not a kill. */
+export function poseDeath(rig, t) {
+  const p = rig.parts;
+  const k = Math.max(0, Math.min(1, t));
+  const ease = 1 - Math.pow(1 - k, 3);
+
+  p.hips.rotation.x = ease * (Math.PI / 2);
+  p.hips.rotation.z = 0.35 * ease;
+  p.hips.position.y = rig.hipY * (1 - ease * 0.92);
+
+  p.torso.rotation.x = ease * 0.3;
+  p.chest.rotation.x = ease * 0.2;
+
+  p.legL.rotation.x = ease * 0.5;
+  p.legR.rotation.x = -ease * 0.3;
+  p.legL.rotation.z = ease * 0.2;
+  p.legR.rotation.z = -ease * 0.15;
+
+  p.armL.rotation.x = -0.2 - ease * 0.9;
+  p.armR.rotation.x = -0.2 - ease * 0.7;
+  p.armL.rotation.z = ease * 0.4;
+  p.armR.rotation.z = -ease * 0.3;
+
+  p.neckPivot.rotation.x = ease * 0.6;
+  p.headPivot.rotation.x = ease * 0.4;
+  p.headPivot.rotation.z = ease * 0.5;
+}
+
 /* Neck + head sub-pose, shared by the zombie and normal paths. The neck
    leans a little further into the strafe/idle sway than the head does
    ("lead") so a turn or idle shift visibly starts at the neck before the

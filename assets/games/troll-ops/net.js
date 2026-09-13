@@ -283,6 +283,11 @@ export class Net {
     p.hp = bot.hp;
     p.alive = bot.alive;
     p.kills = bot.kills;
+    // The wire "state" message sets this on every OTHER client (case "state"
+    // above); the bot-hosting client never routes its own bots' state through
+    // onMessage, so without this line the host's own view of its bots never
+    // learns their weapon and always falls back to the rig's generic gun.
+    p.weapon = (bot.holdingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
     p.last = performance.now();
     p.snaps.push(snap);
     if (p.snaps.length > 12) p.snaps.shift();
@@ -301,7 +306,7 @@ export class Net {
       x: round2(bot.pos.x), y: round2(bot.pos.y), z: round2(bot.pos.z),
       ry: round2(bot.yaw), rp: 0, st: "stand", mv: 1,
       hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,
-      w: bot.weaponId || "problem416", tm: bot.team, n: bot.name, k: bot.kills | 0,
+      w: p.weapon, tm: bot.team, n: bot.name, k: bot.kills | 0,
     });
   }
 

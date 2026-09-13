@@ -6,9 +6,12 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid } from "./character.js";
+import { buildHumanoid, poseHumanoid, poseDeath } from "./character.js";
+import { buildWeaponMesh } from "./weapon-model.js";
+import { WEAPON_DEFS } from "./weapons.js";
 
 const RENDER_DELAY = 110; // ms
+const DEATH_FALL_TIME = 0.55; // seconds to collapse before the rig is hidden
 
 export const TEAMS = {
   phantom: { name: "Phantoms", color: 0x8a6ad6, ui: "#a98cf0" },
@@ -48,8 +51,16 @@ export class RemotePlayer {
     const team = TEAMS[peer.team] || TEAMS.phantom;
     this.material = new THREE.MeshStandardMaterial({ color: team.color, roughness: 0.7, metalness: 0.1 });
 
-    this.rig = buildHumanoid(this.material, { height: 1.8 });
+    // Placeholder gun off: the rig carries the peer's actual weapon model
+    // instead (see setWeaponModel below), swapped in whenever their loadout
+    // changes, so bots and other operators visibly hold what they're
+    // shooting rather than a fixed generic rifle shape.
+    this.rig = buildHumanoid(this.material, { height: 1.8, gun: false });
     this.group = this.rig.root;
+
+    this.weaponMesh = null;
+    this.weaponId = null;
+    this.setWeaponModel(peer.weapon);
 
     // Raycasts hit the invisible, generously-sized hitbox proxies rather
     // than the true stick-figure meshes - those are too thin to reliably
@@ -68,6 +79,34 @@ export class RemotePlayer {
     this.pitch = 0;
     this.lower = 0;
     this.phase = Math.random() * Math.PI * 2;
+
+    this.wasAlive = true;
+    this.dying = false;
+    this.deathT = 0;
+  }
+
+  /* Build and attach the real weapon model for whatever this peer is
+     currently holding, replacing whatever was there before. Mirrors the
+     same held pose the old placeholder gun used (right hand, arm-relative). */
+  setWeaponModel(weaponId) {
+    if (weaponId === this.weaponId) return;
+    this.weaponId = weaponId;
+    const arm = this.rig.parts.armR;
+    if (this.weaponMesh) {
+      arm.remove(this.weaponMesh);
+      this.weaponMesh.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) o.material.dispose?.();
+      });
+      this.weaponMesh = null;
+    }
+    const def = WEAPON_DEFS[weaponId];
+    if (!def) return;
+    const s = this.rig.scale;
+    const mesh = buildWeaponMesh(def);
+    mesh.position.set(0.30 * s, -0.62 * s - 0.12 * s, -0.12 * s);
+    arm.add(mesh);
+    this.weaponMesh = mesh;
   }
 
   setTeam(teamId) {
@@ -83,6 +122,24 @@ export class RemotePlayer {
   update(dt = 0.016) {
     const snaps = this.peer.snaps;
     this.setTeam(this.peer.team);
+    this.setWeaponModel(this.peer.weapon);
+
+    // Just died: hold the last known pose and play a collapse instead of
+    // instantly popping out of existence. Respawning (alive flips back to
+    // true) cancels the fall immediately.
+    if (!this.alive && this.wasAlive) { this.dying = true; this.deathT = 0; }
+    if (this.alive) this.dying = false;
+    this.wasAlive = this.alive;
+
+    if (this.dying) {
+      this.deathT += dt;
+      this.rig.root.visible = true;
+      this.tag.visible = false;
+      poseDeath(this.rig, this.deathT / DEATH_FALL_TIME);
+      if (this.deathT >= DEATH_FALL_TIME) this.dying = false;
+      return;
+    }
+    this.tag.visible = true;
 
     const visible = this.alive && snaps.length > 0;
     this.rig.root.visible = visible;
@@ -146,6 +203,7 @@ export class RemotePlayer {
     this.scene.remove(this.rig.root);
     this.rig.root.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
+      if (o !== this.rig.root && o.material && o.material !== this.material) o.material.dispose?.();
     });
     this.material.dispose();
     this.tag.material.map?.dispose();
