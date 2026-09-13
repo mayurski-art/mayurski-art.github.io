@@ -1704,6 +1704,7 @@ function pollGamepad(dt) {
     if (pressedEdge(3)) setHolding(player.holding === "gun" ? "melee" : "gun"); // Y / triangle
     if (pressedEdge(5)) startCook("lethal");  // R1 -> cook nade
     if (gpPrev[5] && !btn(5)) releaseCook();
+    if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
   }
   if (pressedEdge(9)) {                     // Start/Home -> same as the on-screen gear icon
     if (controls.isLocked) controls.unlock();
