@@ -29,8 +29,15 @@ export const SURFACES = {
    texture down to near-black. `repeat` sets how many times the 1K texture
    tiles across the mesh's face; small props want a small repeat (a crate
    lid is not a wall) so this is per-material rather than derived from a
-   box size like maps.js's `surf()` can do. */
-function buildSurfaceMaterial(surface, color, repeat = 1) {
+   box size like maps.js's `surf()` can do.
+
+   `bakedLightMap` carries over a per-instance baked lightmap (see
+   applyBakedLightMap below) from the material this one replaces — the
+   procedural surface swap must not silently drop a real Blender AO/light
+   bake in favor of the flat runtime aoMap tiling, since the two textures
+   answer different questions (bake = this exact mesh's real occlusion,
+   aoMap = generic tiled photo texture) and read fine layered together. */
+function buildSurfaceMaterial(surface, color, repeat = 1, bakedLightMap = null) {
   const s = SURFACES[surface];
   if (!s) return null;
   const tint = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.55);
@@ -44,6 +51,7 @@ function buildSurfaceMaterial(surface, color, repeat = 1) {
   };
   if (s.ao) opts.aoMap = s.ao.clone();
   if (s.metal) opts.metalnessMap = s.metal.clone();
+  if (bakedLightMap) opts.lightMap = bakedLightMap;
   const m = new THREE.MeshStandardMaterial(opts);
   for (const map of [m.map, m.normalMap, m.roughnessMap, m.aoMap, m.metalnessMap]) {
     if (!map) continue;
@@ -52,6 +60,29 @@ function buildSurfaceMaterial(surface, color, repeat = 1) {
     map.needsUpdate = true;
   }
   return m;
+}
+
+/* Wires up a baked lightmap on one mesh, if its geometry actually has the
+   second UV channel a bake needs. GLTFLoader puts a glTF mesh's second
+   TEXCOORD set on geometry.attributes.uv1; three.js's lightMap sampler
+   reads uv2 by default, so this copies uv1 -> uv2 rather than requiring
+   every Blender export to duplicate the channel itself. No-ops (returns
+   false) for any model without a baked second UV set — i.e. every model
+   exported before a Blender lightmap-baking pass exists — so this is
+   inert until that pass starts shipping real bakes; nothing to update
+   here to bring the baking online, `bake` just has to be truthy and named
+   right. `bake` is a THREE.Texture already loaded from e.g. a
+   "<name>-bake.jpg" beside the model's .glb; caller decides whether one
+   exists for this model. */
+export function applyBakedLightMap(mesh, bake) {
+  const geo = mesh.geometry;
+  if (!bake || !geo || !geo.attributes.uv1) return false;
+  if (!geo.attributes.uv2) geo.setAttribute("uv2", geo.attributes.uv1);
+  bake.colorSpace = THREE.SRGBColorSpace;
+  mesh.material.lightMap = bake;
+  mesh.material.lightMapIntensity = 1;
+  mesh.material.needsUpdate = true;
+  return true;
 }
 
 /* Swaps flat-color materials on a loaded (already-cloned) GLTF object for
@@ -72,7 +103,7 @@ export function retexture(obj, mapping) {
     if (!rule) return;
     const [surface, repeat] = rule;
     const color = n.material.color ? n.material.color.getHex() : 0xffffff;
-    const textured = buildSurfaceMaterial(surface, color, repeat);
+    const textured = buildSurfaceMaterial(surface, color, repeat, n.material.lightMap || null);
     if (textured) n.material = textured;
   });
 }

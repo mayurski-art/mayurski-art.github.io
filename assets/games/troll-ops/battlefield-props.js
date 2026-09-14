@@ -13,11 +13,29 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture } from "./surface-textures.js";
+import { retexture, applyBakedLightMap } from "./surface-textures.js";
 
 const MODEL_BASE = new URL("./models/", import.meta.url).href;
 const loader = new GLTFLoader();
 const cache = new Map();
+const bakeCache = new Map();
+
+/* Optional per-model baked lightmap: models/<name>-bake.jpg, if a Blender
+   bake pass has produced one — see house-props.js's loadBakeTexture for
+   why a missing file just resolves to null instead of failing. */
+function loadBakeTexture(name) {
+  if (!bakeCache.has(name)) {
+    bakeCache.set(name, new Promise((resolve) => {
+      new THREE.TextureLoader().load(
+        `${MODEL_BASE}${name}-bake.jpg`,
+        (tex) => resolve(tex),
+        undefined,
+        () => resolve(null),
+      );
+    }));
+  }
+  return bakeCache.get(name);
+}
 
 /* Blender material name -> [surface, repeat] (models/build_props.blender.py's
    make_material calls). Rims/bands/trim/mesh/sandbag cloth are left flat —
@@ -46,12 +64,13 @@ export function loadModel(name) {
       return scene;
     }));
   }
-  return cache.get(name).then((scene) => {
+  return Promise.all([cache.get(name), loadBakeTexture(name)]).then(([scene, bake]) => {
     const clone = scene.clone(true);
     clone.traverse((n) => {
       if (n.isMesh) {
         n.material = n.material.clone();
         n.castShadow = true;
+        if (bake) applyBakedLightMap(n, bake);
       }
     });
     retexture(clone, PROP_RETEXTURE);

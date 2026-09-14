@@ -1704,6 +1704,30 @@ function applyEnvironment(map) {
 
 let loadedMapId = null;
 
+// ?colliderdebug=1 draws every entry in `colliders` as a wireframe box, so a
+// mismatch between a house's real modelled walls and its ghostWalls/ghostBox
+// collider (the two are hand-authored separately, per house-props.js and
+// battlefield-props.js's file comments) shows up as a wireframe visibly
+// poking through or floating short of the visible mesh, instead of only
+// surfacing as a confusing "shot through the wall" bug report later.
+const colliderDebugForced = /[?&]colliderdebug=1/.test(location.search);
+let colliderDebugGroup = null;
+function buildColliderDebugOverlay() {
+  const group = new THREE.Group();
+  group.name = "collider-debug";
+  const mat = new THREE.LineBasicMaterial({ color: 0xff2d55 });
+  for (const c of colliders) {
+    const size = new THREE.Vector3().subVectors(c.max, c.min);
+    const center = new THREE.Vector3().addVectors(c.max, c.min).multiplyScalar(0.5);
+    const geo = new THREE.BoxGeometry(size.x, size.y, size.z);
+    const edges = new THREE.EdgesGeometry(geo);
+    const line = new THREE.LineSegments(edges, mat);
+    line.position.copy(center);
+    group.add(line);
+  }
+  return group;
+}
+
 function loadMap(id) {
   if (id === loadedMapId) return;    // the lobby already put us in this one
   disposeMap(builtMap, scene);
@@ -1716,6 +1740,11 @@ function loadMap(id) {
   // the map — a field from the old geometry routes them into new walls.
   bots.rebuildNav(colliders, ARENA, 0);
   loadedMapId = id;
+  if (colliderDebugForced) {
+    colliderDebugGroup?.parent?.remove(colliderDebugGroup);
+    colliderDebugGroup = buildColliderDebugOverlay();
+    builtMap.root.add(colliderDebugGroup);
+  }
 }
 
 // -------------------- lobby backdrop --------------------

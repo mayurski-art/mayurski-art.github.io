@@ -6,12 +6,32 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture } from "./surface-textures.js";
+import { retexture, applyBakedLightMap } from "./surface-textures.js";
 
 const portraitCache = new Map();
 const MODEL_BASE = new URL("./models/", import.meta.url).href;
 const houseLoader = new GLTFLoader();
 const houseCache = new Map();
+const bakeCache = new Map();
+
+/* Optional per-model baked lightmap: models/<name>-bake.jpg, if a Blender
+   bake pass has produced one. Missing file just means no bake yet (this
+   loader has nothing to opt into until a Blender pass exports one — see
+   applyBakedLightMap's comment for why it's an inert no-op until then),
+   so a failed fetch resolves to null rather than throwing. */
+function loadBakeTexture(name) {
+  if (!bakeCache.has(name)) {
+    bakeCache.set(name, new Promise((resolve) => {
+      new THREE.TextureLoader().load(
+        `${MODEL_BASE}${name}-bake.jpg`,
+        (tex) => resolve(tex),
+        undefined,
+        () => resolve(null),
+      );
+    }));
+  }
+  return bakeCache.get(name);
+}
 
 /* Blender material name -> [surface, repeat]. concrete's texture set is a
    visible cinder-block pattern (color AND normal) — right for bunker walls
@@ -39,10 +59,15 @@ function loadHouseModel(name) {
       return scene;
     }));
   }
-  return houseCache.get(name).then((scene) => {
+  return Promise.all([houseCache.get(name), loadBakeTexture(name)]).then(([scene, bake]) => {
     const clone = scene.clone(true);
     clone.traverse((n) => {
-      if (n.isMesh) { n.material = n.material.clone(); n.castShadow = true; n.receiveShadow = true; }
+      if (n.isMesh) {
+        n.material = n.material.clone();
+        n.castShadow = true;
+        n.receiveShadow = true;
+        if (bake) applyBakedLightMap(n, bake);
+      }
     });
     retexture(clone, HOUSE_RETEXTURE);
     return clone;
