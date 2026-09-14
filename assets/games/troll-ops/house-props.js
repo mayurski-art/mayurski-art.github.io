@@ -6,11 +6,26 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { retexture } from "./surface-textures.js";
 
 const portraitCache = new Map();
 const MODEL_BASE = new URL("./models/", import.meta.url).href;
 const houseLoader = new GLTFLoader();
 const houseCache = new Map();
+
+/* Blender material name -> [surface, repeat]. concrete's texture set is a
+   visible cinder-block pattern (color AND normal) — right for bunker walls
+   elsewhere on the maps, wrong for a suburban house, so walls use wood's
+   subtler plank grain as clapboard siding instead, at a wider tile than
+   the roof so the two don't read as the same material up close. Chimney
+   is small enough that brick's texture scale still tiles convincingly.
+   Trim/Glass/Canvas are left flat — a photo texture on thin bright trim
+   or the hand-painted portrait canvas reads worse than the plain color. */
+const HOUSE_RETEXTURE = {
+  Wall: ["wood", 5],
+  Roof: ["wood", 10],
+  Chimney: ["brick", 1],
+};
 
 /* Fetches (once) and returns a clone of the named house model — same
    cache-then-clone shape as battlefield-props.js's loadModel, kept as a
@@ -29,6 +44,7 @@ function loadHouseModel(name) {
     clone.traverse((n) => {
       if (n.isMesh) { n.material = n.material.clone(); n.castShadow = true; n.receiveShadow = true; }
     });
+    retexture(clone, HOUSE_RETEXTURE);
     return clone;
   });
 }

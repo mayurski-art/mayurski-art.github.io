@@ -13,10 +13,24 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { retexture } from "./surface-textures.js";
 
 const MODEL_BASE = new URL("./models/", import.meta.url).href;
 const loader = new GLTFLoader();
 const cache = new Map();
+
+/* Blender material name -> [surface, repeat] (models/build_props.blender.py's
+   make_material calls). Rims/bands/trim/mesh/sandbag cloth are left flat —
+   thin metal edges and fabric don't have a matching texture set here and
+   read worse tiled than solid. */
+const PROP_RETEXTURE = {
+  CrateWood: ["wood", 1.5],
+  BarrelBody: ["metal", 1],
+  BarricadeFrame: ["metal", 1],
+  ContainerBody: ["metal", 3],
+  ContainerRib: ["metal", 1],
+  ContainerDoor: ["metal", 1.5],
+};
 
 /* Fetches (once) and returns a clone of the named model's root object.
    Callers get their own independent Object3D, safe to position/rotate.
@@ -40,6 +54,7 @@ export function loadModel(name) {
         n.castShadow = true;
       }
     });
+    retexture(clone, PROP_RETEXTURE);
     return clone;
   });
 }

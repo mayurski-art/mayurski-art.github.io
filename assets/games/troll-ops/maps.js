@@ -9,6 +9,7 @@
 import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
+import { SURFACES } from "./surface-textures.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
@@ -16,27 +17,9 @@ import {
 } from "./house-props.js";
 
 /* ------------------------------------------------------------ surface PBR */
-
-// CC0 tileable sets (ambientCG), one diffuse/normal/roughness triplet per
-// surface family. Loaded once at module scope and reused by every map —
-// repeats are set per-box below since a wall face and a crate lid need very
-// different tiling scales from the same 1K source image.
-const TEX_LOADER = new THREE.TextureLoader();
-const TEX_BASE = new URL("./textures/", import.meta.url);
-function loadTex(name, srgb) {
-  const t = TEX_LOADER.load(new URL(name, TEX_BASE).href);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-const SURFACES = {
-  concrete: { color: loadTex("concrete_color.jpg", true), normal: loadTex("concrete_normal.jpg"), rough: loadTex("concrete_rough.jpg") },
-  brick: { color: loadTex("brick_color.jpg", true), normal: loadTex("brick_normal.jpg"), rough: loadTex("brick_rough.jpg"), ao: loadTex("brick_ao.jpg") },
-  metal: { color: loadTex("metal_color.jpg", true), normal: loadTex("metal_normal.jpg"), rough: loadTex("metal_rough.jpg"), metal: loadTex("metal_metal.jpg") },
-  wood: { color: loadTex("wood_color.jpg", true), normal: loadTex("wood_normal.jpg"), rough: loadTex("wood_rough.jpg") },
-  asphalt: { color: loadTex("asphalt_color.jpg", true), normal: loadTex("asphalt_normal.jpg"), rough: loadTex("asphalt_rough.jpg") },
-  rock: { color: loadTex("rock_color.jpg", true), normal: loadTex("rock_normal.jpg"), rough: loadTex("rock_rough.jpg"), ao: loadTex("rock_ao.jpg") },
-};
+// SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,
+// shared with house-props.js and battlefield-props.js so modelled houses
+// and cover props can be retextured the same way as procedural geometry.
 
 /* ------------------------------------------------------------ build helpers */
 
