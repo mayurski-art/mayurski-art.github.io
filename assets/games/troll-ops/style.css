@@ -870,6 +870,12 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   color: #eaf5e4; background: rgba(0,0,0,.55); border-left-color: #7fe066;
 }
 .to-ss-slot.is-ready .to-ss-key { opacity: 1; }
+/* Controller only: which ready streak d-pad right currently fires. A
+   brighter rail than the plain-ready state, since "ready" and "the one
+   that's actually armed right now" are different facts on a pad. */
+.to-ss-slot.is-selected {
+  border-left-color: #ffd166; background: rgba(40,32,10,.6);
+}
 .to-ss-key {
   opacity: 0; font-size: 9px; letter-spacing: .06em;
   color: #0d1410; background: #7fe066; border-radius: 2px; padding: 0 3px;

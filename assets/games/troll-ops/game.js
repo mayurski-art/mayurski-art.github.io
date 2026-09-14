@@ -301,12 +301,48 @@ const pendingStrikes = [];          // { x, z, t, owned, team }
    they share it. */
 let markingStreak = null;
 
+/* Controller-only: which ready streak d-pad right will fire. Keyboard's `4`
+   doesn't use this — it always calls the cheapest ready one directly, same
+   as it has since launch. This is purely for a pad, which has a spare button
+   to dedicate to "pick" separately from "use". */
+let selectedStreak = null;
+
 function clearStreakEntities() {
   for (const e of streakEntities.values()) e.dispose();
   streakEntities.clear();
   pendingStrikes.length = 0;
   markingStreak = null;
+  selectedStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
+}
+
+/* Cheapest-first order, the same tiebreak the keyboard path already used. */
+function readyStreaksOrdered() {
+  return streaks.readyIds().sort((a, b) => STREAK_DEFS[a].cost - STREAK_DEFS[b].cost);
+}
+
+/* D-pad down: move the pointer to the next ready streak. Does nothing with
+   none ready, per how BO2's own equipment wheel behaves — there's nothing to
+   select yet. */
+function cycleSelectedStreak() {
+  if (!streaksAllowed(currentMode()) || !player.alive || markingStreak) return;
+  const ready = readyStreaksOrdered();
+  if (!ready.length) { selectedStreak = null; updateStreakHud(); return; }
+  const at = ready.indexOf(selectedStreak);
+  selectedStreak = ready[(at + 1) % ready.length];
+  updateStreakHud();
+}
+
+/* D-pad right: fire whatever is currently selected. Falls back to the
+   cheapest ready streak if the pointer is stale (its streak got spent
+   elsewhere, or this is the first press with nothing cycled yet) — the
+   button should never require two presses to do something the first time. */
+function useSelectedStreak() {
+  if (!streaksAllowed(currentMode()) || !player.alive) return;
+  if (markingStreak) { confirmMark(); return; }
+  const id = streaks.ready(selectedStreak) ? selectedStreak : readyStreaksOrdered()[0];
+  if (!id) return;
+  callStreak(id);
 }
 
 /* Where the player is looking, on the ground. Both marking streaks land at
@@ -343,12 +379,15 @@ function callReadyStreak() {
   // Already lining one up: this press is the confirm, not a new call.
   if (markingStreak) { confirmMark(); return; }
 
-  const ready = streaks.readyIds();
-  if (!ready.length) return;
-  // Cheapest first, so holding a gunship doesn't block calling a UAV.
-  ready.sort((a, b) => STREAK_DEFS[a].cost - STREAK_DEFS[b].cost);
-  const id = ready[0];
+  const id = readyStreaksOrdered()[0];
+  if (!id) return;
+  callStreak(id);
+}
 
+/* Spend and fire a specific streak — or, for the two that need a ground
+   point, enter marking instead of spending yet. Shared by the keyboard's
+   single-button call and the pad's cycle-then-use pair. */
+function callStreak(id) {
   // The marking streaks don't spend until the point is confirmed — dying or
   // cancelling mid-mark must not eat the reward.
   if (id === "carepackage" || id === "airstrike") {
@@ -360,6 +399,9 @@ function callReadyStreak() {
 
   if (!streaks.spend(id)) return;
   fireStreak(id);
+  // Firing clears the pointer to the next ready one, so d-pad right on a
+  // controller is immediately useful again without a re-cycle.
+  selectedStreak = readyStreaksOrdered()[0] || null;
   updateStreakHud();
 }
 
@@ -375,10 +417,11 @@ function confirmMark() {
   updateStreakHud();
 }
 
-/* What to call the streak button in prompts. A controller player told to
-   "press 4" has no 4 to press. */
+/* What to call the FIRE/confirm action in prompts. A controller player told
+   to "press 4" has no 4 to press — and on a pad, firing/confirming is d-pad
+   right, not the d-pad down that only cycles the selection. */
 function streakKeyLabel() {
-  return gamepadState.connected && !isTouch ? "D-pad down" : "4";
+  return gamepadState.connected && !isTouch ? "D-pad right" : "4";
 }
 
 function cancelMark() {
@@ -2353,15 +2396,25 @@ function pollGamepad(dt) {
     if (pressedEdge(14)) startCook("tactical");
     if (gpPrev[14] && !btn(14)) releaseCook();
     if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
-    // D-pad down calls the next ready scorestreak, and is also the confirm
-    // for the ones that ask you to mark a spot — same double-press shape as
-    // tapping 4 twice on a keyboard.
-    if (pressedEdge(13)) callReadyStreak();
+    // D-pad down cycles which ready streak d-pad right will fire — a pick,
+    // not a use, since the pad has a button to spare for it and keyboard's
+    // single-button "4" doesn't need one.
+    if (pressedEdge(13)) cycleSelectedStreak();
+    // D-pad right is context-dependent, the same way holding X already is:
+    // over a dropped weapon or a landed package, hold it to pick up/open —
+    // otherwise it fires whichever streak is currently selected. Checked
+    // here (edge-triggered) only when nothing is underfoot; the hold case is
+    // handled below by updatePickupPrompt reading gamepadState.pickup.
+    if (pressedEdge(15) && !nearbyPackage() && !pickups.nearest(move.pos.x, move.pos.z)) {
+      useSelectedStreak();
+    }
   }
-  // D-pad right is the pad's equivalent of holding X: swap weapons, pick up
-  // a dropped one, or open a care package underfoot. Read as a level rather
-  // than an edge because all three of those are holds, and gated on the
-  // pause the same way every other action button is.
+  // D-pad right, held: the pad's equivalent of holding X for swap/pickup/
+  // open. Read as a level because all three are holds, and gated on the
+  // pause the same way every other action button is. Whether this or the
+  // edge-triggered streak-fire above actually does anything is decided by
+  // updatePickupPrompt/useSelectedStreak looking at what's underfoot, same
+  // question both ask.
   gamepadState.pickup = !localPauseOnly && btn(15);
   if (pressedEdge(9)) {                     // Start/Home -> same as the on-screen gear icon
     if (controls.isLocked) controls.unlock();
@@ -2533,22 +2586,31 @@ function updateStreakHud() {
   const next = streaks.nextProgress();
   els.ssMeterFill.style.width = next ? `${Math.round(next.frac * 100)}%` : "100%";
 
-  const key = gamepadState.connected && !isTouch ? "↓" : "4";
-  const signature = `${key}|` + streaks.selected.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
+  const onPad = gamepadState.connected && !isTouch;
+  const key = onPad ? "→" : "4";
+  // On a pad, a ready streak also needs to show WHICH one d-pad right will
+  // fire — d-pad down moved off "call directly" onto "pick", so the ready
+  // key alone no longer says that.
+  const signature = `${key}|${onPad ? selectedStreak : ""}|`
+    + streaks.selected.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
   if (els.ssSlots.dataset.sig !== signature) {
     els.ssSlots.dataset.sig = signature;
     els.ssSlots.innerHTML = "";
     for (const id of streaks.selected) {
       const def = STREAK_DEFS[id];
       const ready = streaks.ready(id);
+      const isSelected = onPad && ready && id === selectedStreak;
       const row = document.createElement("div");
-      row.className = `to-ss-slot${ready ? " is-ready" : ""}`;
+      row.className = `to-ss-slot${ready ? " is-ready" : ""}${isSelected ? " is-selected" : ""}`;
       const name = document.createElement("span");
       name.textContent = streakShortName(id);
       row.appendChild(name);
       const tag = document.createElement("span");
       tag.className = ready ? "to-ss-key" : "to-ss-cost";
-      tag.textContent = ready ? key : String(def.cost);
+      // On a pad, only the actually-selected slot shows the fire glyph —
+      // the other ready ones are one d-pad-down press away, not a button
+      // press away.
+      tag.textContent = ready ? (onPad ? (isSelected ? key : "↓") : key) : String(def.cost);
       row.appendChild(tag);
       els.ssSlots.appendChild(row);
     }
@@ -5075,7 +5137,9 @@ if (/[?&]tohooks=1/.test(location.search)) {
     resetMatchClock, swingMelee,
     activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
     streaks, streakPicker, killstreakUi, achievements,
-    awardScore, callReadyStreak, fireStreak, startUav, applyRemoteStreak,
+    awardScore, callReadyStreak, callStreak, fireStreak, startUav, applyRemoteStreak,
+    cycleSelectedStreak, useSelectedStreak, selectedStreak: () => selectedStreak,
+    readyStreaksOrdered,
     updateStreakHud, enemiesRevealed, uavBucket, uavUntil, drawMinimap,
     lastHitRange: () => lastHitRange,
     streakEntities, pendingStrikes,
