@@ -53,6 +53,7 @@ const els = {
   loPvp: document.getElementById("to-lo-pvp"),
   room: document.getElementById("to-room"),
   newRoom: document.getElementById("to-newroom"),
+  noBots: document.getElementById("to-nobots"),
   netStatus: document.getElementById("to-net-status"),
   hudTeams: document.getElementById("to-hud-teams"),
   hudMatchClock: document.getElementById("to-hud-matchclock"),
@@ -1223,9 +1224,11 @@ function renderLobbyRoster() {
     const note = document.createElement("p");
     note.className = "to-pf-empty";
     note.textContent = isPvp()
-      ? (roomIsCustom
-          ? "No one else in the room yet — share the code."
-          : "No one else has deployed into this mode yet. Anyone who hits Deploy lands here with you.")
+      ? (noBotsRoom()
+          ? "No bots room — just you until you share the code above."
+          : roomIsCustom
+            ? "No one else in the room yet — share the code."
+            : "No one else has deployed into this mode yet. Anyone who hits Deploy lands here with you.")
       : "Solo drop. No other operators.";
     box.appendChild(note);
   }
@@ -1262,6 +1265,18 @@ els.newRoom.addEventListener("click", () => {
 els.room.addEventListener("input", () => {
   els.room.value = els.room.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
   roomIsCustom = els.room.value.length > 0;
+});
+
+/* "No bots" — walk a map alone without a match happening around you. Ticking
+   it alone is enough to get a private room (auto-generates a code exactly
+   like clicking "Private room", if one isn't already set) — you only need
+   to hand the code to anyone if you actually want them to join you. */
+function noBotsRoom() { return !!els.noBots?.checked; }
+els.noBots?.addEventListener("change", () => {
+  if (els.noBots.checked && !els.room.value) {
+    els.room.value = makeRoomCode();
+    roomIsCustom = true;
+  }
 });
 
 function registerDeath(victimName, killerId, weaponId, opts = {}) {
@@ -3858,7 +3873,7 @@ function beginMatch(mapId = null) {
     // already populated while the player watches the clock.
     if (isPvp() && net.isBotHost()) {
       const humans = 1 + [...net.peers.values()].filter((p) => !isBotPeer(p)).length;
-      bots.fill(BOT_TARGET, humans, spawnForTeam, !!currentMode().ffa);
+      bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, !!currentMode().ffa);
       for (const b of bots.bots) net.publishBot(b);
     }
     // Wave 1 / Round 1 don't spawn until the countdown clears — starting the
@@ -4454,7 +4469,7 @@ function animate() {
       // everyone else needs no bot-specific code at all.
       if (net.isBotHost()) {
         const humans = 1 + [...net.peers.values()].filter((p) => !isBotPeer(p)).length;
-        bots.fill(BOT_TARGET, humans, spawnForTeam, ffa);
+        bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, ffa);
         bots.update(dt, {
           colliders, arena: ARENA, ffa,
           targets: botTargets(),

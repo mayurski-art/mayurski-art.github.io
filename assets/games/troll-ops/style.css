@@ -58,9 +58,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 
 .to-title-bg {
   position: absolute; inset: 0;
-  background:
-    repeating-linear-gradient(115deg, rgba(140,255,120,.035) 0 2px, transparent 2px 60px),
-    radial-gradient(60% 50% at 50% 100%, rgba(90,200,90,.12), transparent 70%);
+  background: radial-gradient(60% 50% at 50% 100%, rgba(90,200,90,.12), transparent 70%);
   pointer-events: none;
 }
 
@@ -107,6 +105,12 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 .to-net-status.is-live { color: #7fe066; font-style: normal; }
 .to-net-status.is-bad { color: #ff8a5a; font-style: normal; }
+.to-lo-nobots {
+  flex-basis: 100%; display: flex; align-items: flex-start; gap: 7px;
+  font-size: 10.5px; line-height: 1.4; color: #9aa596; cursor: pointer;
+  text-transform: none; letter-spacing: normal; font-family: "DM Mono", monospace;
+}
+.to-lo-nobots input { margin-top: 2px; accent-color: #7fe066; cursor: pointer; }
 
 /* in-match team score + scoreboard */
 .to-hud-teams {
