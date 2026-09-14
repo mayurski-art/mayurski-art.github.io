@@ -4466,7 +4466,7 @@ function animate() {
       if (isPvp()) {
         net.update(dt, netSnapshot());
         remotes.sync(net.peers);
-        remotes.update(dt);
+        remotes.update(dt, net.team, !!currentMode().ffa);
       }
     } else if (isRange()) {
       rangeSet.update(dt);
@@ -4511,7 +4511,7 @@ function animate() {
 
       net.update(dt, netSnapshot());
       remotes.sync(net.peers);
-      remotes.update(dt);
+      remotes.update(dt, net.team, ffa);
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
 
       if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }

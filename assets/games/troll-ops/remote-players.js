@@ -18,6 +18,12 @@ export const TEAMS = {
   ghost:   { name: "Ghosts",   color: 0xd6a85a, ui: "#e8bf76" },
 };
 
+// Name tags read relative to the local player, not by team identity: white
+// for friendlies, red for enemies - so who's who is obvious at a glance
+// instead of requiring the player to remember which color is their team.
+const FRIENDLY_TAG_COLOR = "#ffffff";
+const ENEMY_TAG_COLOR = "#ff4d3d";
+
 // How far the body is folded down in each stance, 0 = upright.
 const STANCE_LOWER = { stand: 0, crouch: 0.55, slide: 0.8, prone: 1, vault: 0.3 };
 
@@ -48,10 +54,10 @@ export class RemotePlayer {
     this.scene = scene;
     this.team = peer.team;
 
-    const team = TEAMS[peer.team] || TEAMS.phantom;
     // Limbs are always black - the classic trollface stick-figure look -
-    // team color now only marks the name tag, not the body, so Phantoms
-    // and Ghosts read as the same silhouette and differ by tag/HUD color.
+    // team identity no longer tints anything on the body or tag; the tag
+    // instead reads friendly (white) vs enemy (red) relative to whoever
+    // is looking, set via setLocalTeam() below.
     this.material = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
 
     // Placeholder gun off: the rig carries the peer's actual weapon model
@@ -70,7 +76,9 @@ export class RemotePlayer {
     // land shots on, especially with a controller.
     this.targets = this.rig.hitboxMeshes;
 
-    this.tag = makeNameTag(peer.name || "operator", team.ui);
+    this.tagText = peer.name || "operator";
+    this.tagColor = null; // resolved on first setLocalTeam() call
+    this.tag = makeNameTag(this.tagText, FRIENDLY_TAG_COLOR);
     this.tag.position.y = 2.15;
     this.rig.root.add(this.tag);
 
@@ -113,19 +121,32 @@ export class RemotePlayer {
   }
 
   setTeam(teamId) {
-    if (teamId === this.team) return;
     this.team = teamId;
-    // Body stays black on a team switch - only the (already-built) name
-    // tag carries the team color.
+  }
+
+  /* Recolor the name tag white (friendly) or red (enemy) relative to
+     whoever's looking. ffa/no local team means everyone reads as an enemy. */
+  setLocalTeam(myTeam, ffa) {
+    const friendly = !ffa && !!myTeam && this.team === myTeam;
+    const color = friendly ? FRIENDLY_TAG_COLOR : ENEMY_TAG_COLOR;
+    if (color === this.tagColor) return;
+    this.tagColor = color;
+    const tex = this.tag.material.map;
+    this.tag.material.map = null;
+    this.tag.material.dispose();
+    tex.dispose();
+    const fresh = makeNameTag(this.tagText, color);
+    this.tag.material = fresh.material;
   }
 
   hitMeshes() { return this.targets; }
 
   get alive() { return this.peer.alive !== false; }
 
-  update(dt = 0.016) {
+  update(dt = 0.016, myTeam = null, ffa = false) {
     const snaps = this.peer.snaps;
     this.setTeam(this.peer.team);
+    this.setLocalTeam(myTeam, ffa);
     this.setWeaponModel(this.peer.weapon);
 
     // Just died: hold the last known pose and play a collapse instead of
@@ -249,8 +270,8 @@ export class RemotePlayers {
     }
   }
 
-  update(dt = 0.016) {
-    for (const rp of this.byId.values()) rp.update(dt);
+  update(dt = 0.016, myTeam = null, ffa = false) {
+    for (const rp of this.byId.values()) rp.update(dt, myTeam, ffa);
   }
 
   /* Pass a team to spare friendlies, or null in free-for-all. */
