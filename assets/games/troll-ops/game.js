@@ -4,6 +4,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS } from "./weapons.js";
@@ -1928,6 +1929,12 @@ function setBombSiteMarkers(sites) {
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
+const ssao = new SSAOPass(scene, camera, 1, 1);
+ssao.kernelRadius = 0.6;
+ssao.minDistance = 0.001;
+ssao.maxDistance = 0.15;
+ssao.output = SSAOPass.OUTPUT.Default;
+composer.addPass(ssao);
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.5, 0.82);
 composer.addPass(bloom);
 const impactPass = new ShaderPass(ImpactShader);
@@ -4350,6 +4357,7 @@ function resize() {
   renderer.setSize(w, h, false);
   composer.setSize(w, h);
   bloom.setSize(w, h);
+  ssao.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   weaponCamera.aspect = w / h;

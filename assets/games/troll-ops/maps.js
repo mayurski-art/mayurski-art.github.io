@@ -15,6 +15,29 @@ import {
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js";
 
+/* ------------------------------------------------------------ surface PBR */
+
+// CC0 tileable sets (ambientCG), one diffuse/normal/roughness triplet per
+// surface family. Loaded once at module scope and reused by every map —
+// repeats are set per-box below since a wall face and a crate lid need very
+// different tiling scales from the same 1K source image.
+const TEX_LOADER = new THREE.TextureLoader();
+const TEX_BASE = new URL("./textures/", import.meta.url);
+function loadTex(name, srgb) {
+  const t = TEX_LOADER.load(new URL(name, TEX_BASE).href);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const SURFACES = {
+  concrete: { color: loadTex("concrete_color.jpg", true), normal: loadTex("concrete_normal.jpg"), rough: loadTex("concrete_rough.jpg") },
+  brick: { color: loadTex("brick_color.jpg", true), normal: loadTex("brick_normal.jpg"), rough: loadTex("brick_rough.jpg"), ao: loadTex("brick_ao.jpg") },
+  metal: { color: loadTex("metal_color.jpg", true), normal: loadTex("metal_normal.jpg"), rough: loadTex("metal_rough.jpg"), metal: loadTex("metal_metal.jpg") },
+  wood: { color: loadTex("wood_color.jpg", true), normal: loadTex("wood_normal.jpg"), rough: loadTex("wood_rough.jpg") },
+  asphalt: { color: loadTex("asphalt_color.jpg", true), normal: loadTex("asphalt_normal.jpg"), rough: loadTex("asphalt_rough.jpg") },
+  rock: { color: loadTex("rock_color.jpg", true), normal: loadTex("rock_normal.jpg"), rough: loadTex("rock_rough.jpg"), ao: loadTex("rock_ao.jpg") },
+};
+
 /* ------------------------------------------------------------ build helpers */
 
 function makeApi(root, colliders) {
@@ -27,10 +50,54 @@ function makeApi(root, colliders) {
     return matCache.get(key);
   };
 
+  // Tinted, textured material for a box of world-space size (w,h,d): tiles
+  // the surface's maps at roughly 1 repeat per `tileSize` metres so bricks
+  // and boards read at a consistent real-world scale across every box that
+  // uses them, then multiplies in `color` so each map keeps its palette.
+  // `color` here still carries the old flat-color values (often quite dark,
+  // tuned for a solid fill), and MeshStandardMaterial's color multiplies
+  // straight into the texture — applied at full strength it crushes the
+  // photo texture down to near-black. Blending 55% toward white keeps the
+  // hue and the map's mood while leaving the texture's own contrast visible.
+  const surfMatCache = new Map();
+  const tint = new THREE.Color();
+  const surf = (surface, color, w, h, tileSize = 2) => {
+    const s = SURFACES[surface];
+    if (!s) return mat(color);
+    const rx = Math.max(1, Math.round(w / tileSize));
+    const ry = Math.max(1, Math.round(h / tileSize));
+    const key = `${surface}|${color}|${rx}|${ry}`;
+    if (surfMatCache.has(key)) return surfMatCache.get(key);
+    tint.set(color).lerp(new THREE.Color(0xffffff), 0.55);
+    const opts = {
+      color: tint.getHex(),
+      map: s.color.clone(),
+      normalMap: s.normal.clone(),
+      roughnessMap: s.rough.clone(),
+      roughness: 1,
+      metalness: surface === "metal" ? 0.7 : 0.05,
+    };
+    if (s.ao) opts.aoMap = s.ao.clone();
+    if (s.metal) opts.metalnessMap = s.metal.clone();
+    const m = new THREE.MeshStandardMaterial(opts);
+    for (const map of [m.map, m.normalMap, m.roughnessMap, m.aoMap, m.metalnessMap]) {
+      if (!map) continue;
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.repeat.set(rx, ry);
+      map.needsUpdate = true;
+    }
+    surfMatCache.set(key, m);
+    return m;
+  };
+
   const api = {
-    /* Solid box sitting on `y`, centred on (x,z). Collides and blocks bullets. */
-    box(x, z, w, d, h, { color = 0x5c6b4a, y = 0, pen = 0.9, rough = 0.85, metal = 0.05 } = {}) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, rough, metal));
+    /* Solid box sitting on `y`, centred on (x,z). Collides and blocks bullets.
+       `surface` picks a PBR material from SURFACES (tinted by `color`)
+       instead of the flat-color fallback; `tile` overrides the metres-per-
+       repeat used to compute that surface's UV tiling for this box. */
+    box(x, z, w, d, h, { color = 0x5c6b4a, y = 0, pen = 0.9, rough = 0.85, metal = 0.05, surface = null, tile = 2 } = {}) {
+      const material = surface ? surf(surface, color, w, h, tile) : mat(color, rough, metal);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
       mesh.position.set(x, y + h / 2, z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -56,8 +123,9 @@ function makeApi(root, colliders) {
       });
     },
 
-    cylinder(x, z, r, h, { color = 0x3a4530, y = 0, solid = true, pen = 4 } = {}) {
-      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 12), mat(color, 0.7, 0.3));
+    cylinder(x, z, r, h, { color = 0x3a4530, y = 0, solid = true, pen = 4, surface = null, tile = 1.5 } = {}) {
+      const material = surface ? surf(surface, color, r * 2, h, tile) : mat(color, 0.7, 0.3);
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 12), material);
       mesh.position.set(x, y + h / 2, z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -89,8 +157,9 @@ function makeApi(root, colliders) {
 
     /* Rectangular room shell with an optional gap for a doorway per side.
        `y` lifts the whole shell, so upper floors can reuse it. */
-    walls(cx, cz, w, d, h, thickness, { color = 0x3a4530, pen = 8, gaps = {}, y = 0 } = {}) {
+    walls(cx, cz, w, d, h, thickness, { color = 0x3a4530, pen = 8, gaps = {}, y = 0, surface = null, tile = 2 } = {}) {
       const half = thickness / 2;
+      const boxOpts = { color, pen, y, surface, tile };
       const sides = [
         ["n", cx, cz - d / 2 + half, w, thickness, "x"],
         ["s", cx, cz + d / 2 - half, w, thickness, "x"],
@@ -99,7 +168,7 @@ function makeApi(root, colliders) {
       ];
       for (const [side, sx, sz, sw, sd, axis] of sides) {
         const gap = gaps[side];
-        if (!gap) { api.box(sx, sz, sw, sd, h, { color, pen, y }); continue; }
+        if (!gap) { api.box(sx, sz, sw, sd, h, boxOpts); continue; }
         // split the wall around a centred opening of width `gap`
         const span = axis === "x" ? sw : sd;
         const seg = (span - gap) / 2;
@@ -111,7 +180,7 @@ function makeApi(root, colliders) {
             axis === "z" ? sz + off : sz,
             axis === "x" ? seg : sw,
             axis === "z" ? seg : sd,
-            h, { color, pen, y },
+            h, boxOpts,
           );
         }
       }
@@ -191,13 +260,13 @@ export const MAPS = {
     hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.1 },
     ambient: { color: 0xffffff, intensity: 0.55 },
     build(api) {
-      api.walls(0, 0, 68, 68, 6, 1.4);
+      api.walls(0, 0, 68, 68, 6, 1.4, { surface: "concrete" });
       // central half-finished tower with stairs up two storeys
-      api.box(0, 0, 12, 12, 0.4, { color: 0x6a6a60, pen: 6 });
-      api.box(-4, -4, 4, 4, 3.2, { color: 0x59614a });
-      api.box(4, 4, 4, 4, 3.2, { color: 0x59614a });
-      api.stairs(-2, 8, 5, 10, 0.32, 0.7, "-z", { color: 0x6a6a60 });
-      api.box(0, -1, 12, 5, 3.4, { color: 0x6a6a60, pen: 6 });
+      api.box(0, 0, 12, 12, 0.4, { color: 0x6a6a60, pen: 6, surface: "concrete" });
+      api.box(-4, -4, 4, 4, 3.2, { color: 0x59614a, surface: "concrete" });
+      api.box(4, 4, 4, 4, 3.2, { color: 0x59614a, surface: "concrete" });
+      api.stairs(-2, 8, 5, 10, 0.32, 0.7, "-z", { color: 0x6a6a60, surface: "concrete", tile: 1 });
+      api.box(0, -1, 12, 5, 3.4, { color: 0x6a6a60, pen: 6, surface: "concrete" });
       // stacked container blocks
       const containers = [
         [-16, -12, 6, 2.6, 2.6, 0x8a5a3a], [-16, -12, 6, 2.6, 2.6, 0x8a5a3a],
@@ -205,8 +274,8 @@ export const MAPS = {
         [18, 13, 6, 2.6, 2.6, 0x6a3a4a],
       ];
       for (const [x, z, w, d, h, c] of containers) {
-        api.box(x, z, w, d, h, { color: c, pen: 3 });
-        api.box(x + 1.4, z, w * 0.8, d, h, { color: c, y: h, pen: 3 });
+        api.box(x, z, w, d, h, { color: c, pen: 3, surface: "metal", tile: 1.3 });
+        api.box(x + 1.4, z, w * 0.8, d, h, { color: c, y: h, pen: 3, surface: "metal", tile: 1.3 });
       }
       // scaffold towers
       for (const [x, z] of [[-24, -24], [24, -24], [-24, 24], [24, 24]]) {
@@ -243,14 +312,14 @@ export const MAPS = {
     hemi: { sky: 0x3a4658, ground: 0x14161a, intensity: 0.5 },
     ambient: { color: 0x8899bb, intensity: 0.35 },
     build(api) {
-      api.walls(0, 0, 26, 64, 7, 1.5, { color: 0x2b2f36 });
+      api.walls(0, 0, 26, 64, 7, 1.5, { color: 0x2b2f36, surface: "concrete" });
       // ceiling so it reads as underground
       const ceil = new THREE.Mesh(new THREE.BoxGeometry(26, 0.6, 64), api.mat(0x1e2127, 0.9));
       ceil.position.set(0, 7, 0);
       api.prop(ceil);
       // raised platforms either side of a sunken track
-      api.box(-8.5, 0, 9, 62, 1.1, { color: 0x3a3f47, pen: 8 });
-      api.box(8.5, 0, 9, 62, 1.1, { color: 0x3a3f47, pen: 8 });
+      api.box(-8.5, 0, 9, 62, 1.1, { color: 0x3a3f47, pen: 8, surface: "concrete", tile: 3 });
+      api.box(8.5, 0, 9, 62, 1.1, { color: 0x3a3f47, pen: 8, surface: "concrete", tile: 3 });
       // support pillars
       for (let z = -26; z <= 26; z += 6.5) {
         api.cylinder(-4.2, z, 0.55, 6, { color: 0x33373e });
@@ -283,20 +352,20 @@ export const MAPS = {
     hemi: { sky: 0xffe6bb, ground: 0x6a5730, intensity: 0.62 },
     ambient: { color: 0xfff2dd, intensity: 0.26 },
     build(api) {
-      api.walls(0, 0, 90, 90, 5, 1.6, { color: 0x8a7346 });
+      api.walls(0, 0, 90, 90, 5, 1.6, { color: 0x8a7346, surface: "brick", tile: 2.5 });
       // ruined compound in the middle
-      api.walls(0, 0, 22, 18, 4, 1, { color: 0xad8d5c, gaps: { n: 5, s: 5, w: 4, e: 4 } });
-      api.box(0, 0, 7, 6, 3.2, { color: 0x94794e });
+      api.walls(0, 0, 22, 18, 4, 1, { color: 0xad8d5c, gaps: { n: 5, s: 5, w: 4, e: 4 }, surface: "brick", tile: 2.5 });
+      api.box(0, 0, 7, 6, 3.2, { color: 0x94794e, surface: "brick", tile: 2.5 });
       api.stairs(0, 5, 5, 9, 0.34, 0.62, "-z", { color: 0x94794e });
       // outlying ruins
       for (const [cx, cz] of [[-26, -20], [24, -22], [-24, 24], [26, 22]]) {
-        api.walls(cx, cz, 12, 10, 3.4, 0.9, { color: 0xad8d5c, gaps: { n: 3.5, e: 3 } });
-        api.box(cx, cz, 3, 3, 1.6, { color: 0x7f6a44 });
+        api.walls(cx, cz, 12, 10, 3.4, 0.9, { color: 0xad8d5c, gaps: { n: 3.5, e: 3 }, surface: "brick", tile: 2.5 });
+        api.box(cx, cz, 3, 3, 1.6, { color: 0x7f6a44, surface: "brick", tile: 2.5 });
       }
       // rock cover scattered along the open lanes
       for (const [x, z, r, h] of [[-12, -34, 2.2, 2.0], [14, -32, 2.6, 2.4], [-16, 8, 2.0, 1.8],
         [18, 10, 2.4, 2.2], [-34, 2, 2.8, 2.6], [34, -4, 2.4, 2.2], [6, 30, 2.2, 1.9], [-8, 32, 2.6, 2.3]]) {
-        api.cylinder(x, z, r, h, { color: 0x6f5d3c, pen: 3 });
+        api.cylinder(x, z, r, h, { color: 0x6f5d3c, pen: 3, surface: "rock", tile: 2 });
       }
       // low walls giving sniper lanes something to break up
       for (const [x, z, w, d] of [[-20, -6, 14, 1], [20, 6, 14, 1], [-6, 18, 1, 12], [6, -18, 1, 12]]) {
@@ -326,7 +395,7 @@ export const MAPS = {
     hemi: { sky: 0x7c8ea8, ground: 0x2a2f36, intensity: 0.85 },
     ambient: { color: 0xccd8e6, intensity: 0.8 },
     build(api) {
-      api.walls(0, 0, 56, 44, 9, 1.5, { color: 0x2f343a });
+      api.walls(0, 0, 56, 44, 9, 1.5, { color: 0x2f343a, surface: "concrete" });
       const ceil = new THREE.Mesh(new THREE.BoxGeometry(56, 0.6, 44), api.mat(0x22262b, 0.9));
       ceil.position.set(0, 9, 0);
       api.prop(ceil);
@@ -334,14 +403,14 @@ export const MAPS = {
       // shelving rows — the main sightline breakers
       for (const rowZ of [-11, 0, 11]) {
         for (const x of [-18, -6, 6, 18]) {
-          api.box(x, rowZ, 8, 3, 2.6, { color: 0x93794a, pen: 2.2 });
-          api.box(x, rowZ, 8, 3, 2.2, { color: 0xa88b56, y: 2.6, pen: 2.2 });
+          api.box(x, rowZ, 8, 3, 2.6, { color: 0x93794a, pen: 2.2, surface: "wood", tile: 1.5 });
+          api.box(x, rowZ, 8, 3, 2.2, { color: 0xa88b56, y: 2.6, pen: 2.2, surface: "wood", tile: 1.5 });
         }
       }
       // catwalk ring at height, reached by stairs in two corners
       const CAT_Y = 4.6;
       for (const [x, z, w, d] of [[0, -19, 54, 3], [0, 19, 54, 3], [-25.5, 0, 3, 38], [25.5, 0, 3, 38]]) {
-        api.box(x, z, w, d, 0.4, { color: 0x4b5158, y: CAT_Y, pen: 6 });
+        api.box(x, z, w, d, 0.4, { color: 0x4b5158, y: CAT_Y, pen: 6, surface: "metal", tile: 2 });
       }
       api.stairs(-21, 14, 4, 14, 0.33, 0.62, "-z", { color: 0x4b5158 });
       api.stairs(21, -14, 4, 14, 0.33, 0.62, "+z", { color: 0x4b5158 });
@@ -374,7 +443,7 @@ export const MAPS = {
       const BAY = 0x6d7462;
 
       // outer shell, high enough that stray rounds stay inside
-      api.walls(0, -2, 44, 64, 8, 1.2, { color: WALL, pen: 14 });
+      api.walls(0, -2, 44, 64, 8, 1.2, { color: WALL, pen: 14, surface: "concrete" });
 
       // firing line: a low bench you shoot over, with three bays
       api.box(0, 27.2, 44, 0.6, 1.05, { color: BAY, pen: 6 });
@@ -407,9 +476,9 @@ export const MAPS = {
       api.box(16, 10, 6, 10, 2.7, { color: 0x5e6553, pen: 8 });
 
       // penetration wall: three thicknesses of the same material, side by side
-      api.box(-14, -14, 3, 0.4, 2.4, { color: 0x7a7268, pen: 1 });
-      api.box(-9, -14, 3, 1.0, 2.4, { color: 0x7a7268, pen: 1 });
-      api.box(-4, -14, 3, 1.8, 2.4, { color: 0x7a7268, pen: 1 });
+      api.box(-14, -14, 3, 0.4, 2.4, { color: 0x7a7268, pen: 1, surface: "brick", tile: 1.5 });
+      api.box(-9, -14, 3, 1.0, 2.4, { color: 0x7a7268, pen: 1, surface: "brick", tile: 1.5 });
+      api.box(-4, -14, 3, 1.8, 2.4, { color: 0x7a7268, pen: 1, surface: "brick", tile: 1.5 });
 
       for (const [x, z] of [[-16, 24], [16, 24], [-16, -6], [16, -6]]) {
         api.lamp(x, 5, z, 0xfff0d0, 14, 26);
@@ -430,9 +499,20 @@ export const MAPS = {
     hemi: { sky: 0x8aa2cc, ground: 0x2e3326, intensity: 0.9 },
     ambient: { color: 0xffe0cc, intensity: 0.5 },
     build(api) {
-      api.walls(0, 0, 68, 60, 6, 1.4, { color: 0x3c4436 });
+      api.walls(0, 0, 68, 60, 6, 1.4, { color: 0x3c4436, surface: "concrete" });
       // road down the middle
-      const road = new THREE.Mesh(new THREE.PlaneGeometry(12, 58), api.mat(0x3a3a3c, 0.95));
+      const roadMat = new THREE.MeshStandardMaterial({
+        color: 0x8a8a8c,
+        map: SURFACES.asphalt.color.clone(),
+        normalMap: SURFACES.asphalt.normal.clone(),
+        roughnessMap: SURFACES.asphalt.rough.clone(),
+        roughness: 1,
+      });
+      for (const t of [roadMat.map, roadMat.normalMap, roadMat.roughnessMap]) {
+        t.repeat.set(4, 20);
+        t.needsUpdate = true;
+      }
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(12, 58), roadMat);
       road.rotation.x = -Math.PI / 2;
       road.position.set(0, 0.02, 0);
       road.receiveShadow = true;
