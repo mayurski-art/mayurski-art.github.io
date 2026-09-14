@@ -49,7 +49,10 @@ export class RemotePlayer {
     this.team = peer.team;
 
     const team = TEAMS[peer.team] || TEAMS.phantom;
-    this.material = new THREE.MeshStandardMaterial({ color: team.color, roughness: 0.7, metalness: 0.1 });
+    // Limbs are always black - the classic trollface stick-figure look -
+    // team color now only marks the name tag, not the body, so Phantoms
+    // and Ghosts read as the same silhouette and differ by tag/HUD color.
+    this.material = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
 
     // Placeholder gun off: the rig carries the peer's actual weapon model
     // instead (see setWeaponModel below), swapped in whenever their loadout
@@ -112,7 +115,8 @@ export class RemotePlayer {
   setTeam(teamId) {
     if (teamId === this.team) return;
     this.team = teamId;
-    this.material.color.set((TEAMS[teamId] || TEAMS.phantom).color);
+    // Body stays black on a team switch - only the (already-built) name
+    // tag carries the team color.
   }
 
   hitMeshes() { return this.targets; }
@@ -190,12 +194,17 @@ export class RemotePlayer {
     // it used to always report moving:true and always advance at one fixed
     // rate regardless of how fast (or slow) it was actually travelling.
     const moving = !!b.moving;
+    // Same 4.2 m/s reference speed used to drive the phase rate above,
+    // reused here as the 0..1 intensity that scales stride/arm-swing/lean
+    // so a jog and a sprint are visibly different gaits, not just the same
+    // cycle replayed faster.
+    const gaitSpeed = Math.max(0, Math.min(1, speed / 4.2));
     if (moving) this.phase += dt * 9 * Math.max(0.35, Math.min(1.6, speed / 4.2));
 
     this.rig.root.position.copy(this.pos);
     this.rig.root.rotation.y = this.yaw;
 
-    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, dt });
+    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, speed: gaitSpeed, dt });
 
     this.tag.position.y = 2.15 - this.lower * 0.75;
   }

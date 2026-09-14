@@ -259,16 +259,22 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
    body is crouched (1 = prone). `strafe` is -1..1, the mover's LOCAL
    sideways velocity component (negative = moving left, positive = right,
    0 = pure forward/back or standing still) - it drives the lean/splay that
-   makes strafing read differently from walking straight ahead. Callers
-   that only ever move straight at a target (enemies.js, zombies.js) can
-   omit it and get the old forward-only cycle for free. */
-export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, dt = 0.016, zombie = false }) {
+   makes strafing read differently from walking straight ahead. `speed` is
+   0..1, how fast the mover is going relative to a full sprint (1 = sprint,
+   ~0.35-0.5 = a jog/walk) - it scales the whole cycle (stride length, arm
+   swing, forward lean, vertical bob) so a walk and a sprint are visibly
+   different gaits rather than the same animation just replayed faster.
+   Callers that only ever move at one speed (enemies.js, zombies.js) can
+   omit it; it defaults to a full-intensity cycle whenever `moving` is true,
+   matching the old fixed-amplitude behavior. */
+export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, speed = 1, dt = 0.016, zombie = false }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
+  const spd = moving ? Math.max(0.28, Math.min(1, speed)) : 0;
 
-  const swing = moving ? Math.sin(phase) * 0.75 : 0;
-  const lift = moving ? Math.abs(Math.cos(phase)) * 0.25 : 0;
+  const swing = moving ? Math.sin(phase) * (0.55 + spd * 0.45) : 0;
+  const lift = moving ? Math.abs(Math.cos(phase)) * (0.15 + spd * 0.2) : 0;
 
   p.legL.rotation.x = swing;
   p.legR.rotation.x = -swing;
@@ -292,22 +298,23 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
     return;
   }
 
-  // Kept shy of hip height (peaks around -0.5 rad, well short of the legs'
-  // reach) - swung further, the off-hand drops into the same screen space
-  // as the legs and, sharing their thin-stick silhouette, reads as a third
-  // leg from a low, close viewing angle.
-  p.armL.rotation.x = -swing * 0.35 - 0.15;
+  // Off-hand counter-swings opposite the legs, like a real running arm
+  // pump: it's forward when the same-side leg is back, and vice versa.
+  // Amplitude grows with speed - a walk barely swings the arms, a sprint
+  // pumps them hard - and stays shy of hip height (peaks well short of
+  // the legs' reach) so it doesn't read as a third leg from a low angle.
+  p.armL.rotation.x = swing * (0.5 + spd * 0.55) - 0.15;
+  p.armL.rotation.z = 0.04 + spd * 0.05;
 
-  // The gun arm holds a level, forward "carry" pose (-1.02 rad ≈ mostly
-  // forward, barely dipped) rather than tracking raw camera pitch 1:1 -
-  // uncapped pitch coupling was what read as "the weapon points straight
-  // down" any time a player (or a remote peer whose look angle just came
-  // over the wire) looked down while running. Pitch still nudges the arm so
-  // aiming up/down is still legible, but clamped well short of vertical, and
-  // a small counter-swing ties it to footfall so walking doesn't look like
-  // the arm is welded in place mid-stride.
-  const carrySwing = moving ? Math.sin(phase) * 0.05 : 0;
-  p.armR.rotation.x = -1.02 - pitch * 0.32 + carrySwing;
+  // The gun arm holds a raised, level "ready" carry (barrel roughly
+  // horizontal, across the body) instead of dangling down at the old
+  // -1.02 rad angle - that read as the weapon pointing at the ground any
+  // time the body leaned forward into a run. Pitch still nudges it for
+  // aim legibility, clamped well short of vertical, and a small
+  // counter-swing tied to footfall keeps the carry from looking welded
+  // in place mid-stride.
+  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd : 0;
+  p.armR.rotation.x = -1.35 - pitch * 0.32 + carrySwing;
   p.armR.rotation.z = -0.15;
 
   // crouching drops the hips and folds the knees
@@ -316,10 +323,10 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   p.legL.rotation.x += crouch * 0.9;
   p.legR.rotation.x += crouch * 0.9;
 
-  // Body lean: forward while moving, banked into the strafe direction -
-  // a real body committing sideways tips into the turn rather than
-  // sliding like a statue on rails.
-  const moveLean = moving ? 0.12 : 0;
+  // Body lean: forward while moving (more at a sprint than a walk),
+  // banked into the strafe direction - a real body committing sideways
+  // tips into the turn rather than sliding like a statue on rails.
+  const moveLean = moving ? 0.05 + spd * 0.13 : 0;
   p.torso.rotation.x = crouch * 0.35 + moveLean;
   p.torso.rotation.z = str * -0.16;
   p.chest.rotation.x = crouch * 0.35 + moveLean * 0.6;
