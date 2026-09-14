@@ -29,7 +29,8 @@ export const STREAK_DEFS = {
   uav: {
     id: "uav",
     name: "UAV",
-    cost: 400,
+    icon: "uav",
+    cost: 200,
     rank: 0,
     duration: 25,
     blurb: "Enemy positions on your minimap for 25 seconds. Your whole team sees it.",
@@ -37,7 +38,8 @@ export const STREAK_DEFS = {
   carepackage: {
     id: "carepackage",
     name: "Care Package",
-    cost: 550,
+    icon: "carepackage",
+    cost: 300,
     rank: 5,
     blurb: "Mark a spot, a crate drops in. Ammo, a weapon, or another streak — you find out when you open it.",
   },
@@ -45,14 +47,16 @@ export const STREAK_DEFS = {
     id: "drone",
     name: "Hunter-Killer Drone",
     short: "Hunter-Killer",
-    cost: 700,
+    icon: "drone",
+    cost: 350,
     rank: 12,
     blurb: "Launches and hunts the nearest enemy. One kill, then it's gone.",
   },
   airstrike: {
     id: "airstrike",
     name: "Lightning Strike",
-    cost: 900,
+    icon: "airstrike",
+    cost: 450,
     rank: 20,
     blurb: "Mark a spot. Five seconds later it stops being a spot.",
   },
@@ -60,7 +64,8 @@ export const STREAK_DEFS = {
     id: "helicopter",
     name: "Helicopter Gunship",
     short: "Gunship",
-    cost: 1400,
+    icon: "helicopter",
+    cost: 700,
     rank: 30,
     duration: 45,
     blurb: "A gunship on station for 45 seconds, picking off whatever it can see.",
@@ -77,6 +82,26 @@ export const PACKAGE_STREAK_POOL = ["uav", "drone", "airstrike"];
 export function streakUnlocked(id) {
   const def = STREAK_DEFS[id];
   return !!def && rankUnlocked(def.rank);
+}
+
+/* Minimal single-color line-art glyphs, one per streak — the picker and HUD
+   both had nothing but text before this, so even a plain silhouette reads as
+   a big step up and doesn't need new art assets to ship. `currentColor`
+   throughout so the existing ready/selected CSS states just work. */
+const STREAK_ICON_PATHS = {
+  uav: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/><circle cx="12" cy="12" r="7.5" fill="none"/>',
+  carepackage: '<rect x="4" y="10" width="16" height="10" rx="1"/><path d="M4 14h16M12 10v10" stroke="#0d1410" stroke-width="1"/><path d="M12 2v8M7 5l5-3 5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  drone: '<path d="M12 8l7-4M12 8l-7-4M12 16l7 4M12 16l-7 4" stroke-linecap="round" fill="none"/><circle cx="19" cy="4" r="2.4"/><circle cx="5" cy="4" r="2.4"/><circle cx="19" cy="20" r="2.4"/><circle cx="5" cy="20" r="2.4"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/>',
+  airstrike: '<path d="M12 1v10" stroke-linecap="round" fill="none"/><path d="M12 11l-3.5 8h7L12 11z"/><path d="M8 15l-4 1.5M16 15l4 1.5" fill="none" stroke-linecap="round"/>',
+  helicopter: '<ellipse cx="10" cy="14" rx="7" ry="4"/><rect x="16" y="13" width="6" height="2" rx="1"/><rect x="9" y="6" width="2" height="6" rx="1"/><path d="M2 6h16" fill="none" stroke-linecap="round"/><rect x="7" y="18" width="6" height="2" rx="1"/>',
+};
+
+/* `<svg>` markup for a streak's icon, sized by the caller via CSS. Falls
+   back to a plain dot rather than throwing if a def is ever added without
+   one — a missing icon shouldn't break the card it's on. */
+export function streakIconSvg(id) {
+  const paths = STREAK_ICON_PATHS[STREAK_DEFS[id]?.icon] || '<circle cx="12" cy="12" r="4"/>';
+  return `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" aria-hidden="true">${paths}</svg>`;
 }
 
 /* Name for the in-match HUD strip, which is narrower than the lobby card. */

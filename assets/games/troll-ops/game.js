@@ -13,7 +13,7 @@ import { WeaponInspector } from "./inspector.js";
 import { CharacterInspector } from "./char-inspector.js";
 import { Loadout } from "./loadout.js";
 import { StreakPicker } from "./streak-picker.js";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
 import {
   CarePackage, HunterDrone, HelicopterGunship,
   PACKAGE_CLAIM_RADIUS, DRONE_DAMAGE, DRONE_KILL_RADIUS,
@@ -1846,16 +1846,20 @@ function drawMinimap() {
   }
 
   if (isPvp()) {
-    // Friendlies always show. Enemies are fogged unless a UAV is up — before
-    // scorestreaks this map handed out permanent free radar on both sides,
-    // which left nothing for a UAV to actually do.
+    // Friendlies always show. Enemies are fogged unless a UAV is up, or
+    // they're close enough to hear/see without a radar's help — scaled to
+    // the current map's size so small maps don't hand out free radar and
+    // huge ones don't demand near-melee range before anything shows.
     const showEnemies = enemiesRevealed();
+    const arenaSpan = Math.max(ARENA.maxX - ARENA.minX, ARENA.maxZ - ARENA.minZ);
+    const proximityRadius = Math.min(28, Math.max(14, arenaSpan * 0.16));
     for (const rp of remotes.byId.values()) {
       if (!rp.alive) continue;
       // No team of our own (free-for-all, or offline before chooseTeam runs)
       // means nobody is a friendly, so everyone is subject to the fog.
       const friendly = !currentMode().ffa && !!net.team && rp.team === net.team;
-      if (!friendly && !showEnemies) continue;
+      const nearby = Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z) <= proximityRadius;
+      if (!friendly && !showEnemies && !nearby) continue;
       const [x, z] = mapToMinimap(rp.pos.x, rp.pos.z);
       ctx.fillStyle = friendly ? "#7fd1e0" : "#ff6b5a";
       ctx.beginPath();
@@ -2653,9 +2657,16 @@ function updateStreakHud() {
       const isSelected = onPad && ready && id === selectedStreak;
       const row = document.createElement("div");
       row.className = `to-ss-slot${ready ? " is-ready" : ""}${isSelected ? " is-selected" : ""}`;
+      const label = document.createElement("span");
+      label.className = "to-ss-label";
+      const icon = document.createElement("i");
+      icon.className = "to-ss-icon";
+      icon.innerHTML = streakIconSvg(id);
+      label.appendChild(icon);
       const name = document.createElement("span");
       name.textContent = streakShortName(id);
-      row.appendChild(name);
+      label.appendChild(name);
+      row.appendChild(label);
       const tag = document.createElement("span");
       tag.className = ready ? "to-ss-key" : "to-ss-cost";
       // On a pad, only the actually-selected slot shows the fire glyph —
@@ -4175,6 +4186,14 @@ els.retryBtn.addEventListener("click", () => {
 });
 els.resumeBtn.addEventListener("click", () => { if (!isTouch) controls.lock(); });
 els.quitBtn.addEventListener("click", () => {
+  // Quitting mid-match used to just discard player.matchXp — every kill's
+  // banked XP for the session, gone, with no result screen to explain why.
+  // finishRun settles it normally on a real match end; here there's no
+  // result screen to show, so just fold the banked amount into the total.
+  if (isPvp() && gameState === "playing" && player.matchXp > 0) {
+    addXp(player.matchXp);
+    player.matchXp = 0;
+  }
   gameState = "menu";
   localPauseOnly = false;
   endStaging();
@@ -4203,6 +4222,13 @@ controls.addEventListener("unlock", () => {
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && gameState === "playing") openPauseMenu();
+  // Backgrounding the tab is also the last reliable moment to flush banked
+  // match XP — a closed tab never runs another frame, so this can't wait
+  // for the "playing" branch above's later logic or a normal match end.
+  if (document.hidden && isPvp() && player.matchXp > 0) {
+    addXp(player.matchXp);
+    player.matchXp = 0;
+  }
 });
 
 // -------------------- damage to player --------------------

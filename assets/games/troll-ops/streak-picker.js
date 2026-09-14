@@ -5,7 +5,7 @@
 // folding it into that class would mean threading unrelated state through a
 // constructor already building five regions.
 
-import { STREAK_DEFS, STREAK_IDS, LOADOUT_SIZE, streakUnlocked } from "./scorestreaks.js";
+import { STREAK_DEFS, STREAK_IDS, LOADOUT_SIZE, streakUnlocked, streakIconSvg } from "./scorestreaks.js";
 
 const STORE = "trollops:streaks";
 
@@ -69,7 +69,7 @@ export class StreakPicker {
       b.className = "to-ss-card";
       b.disabled = !unlocked;
       b.classList.toggle("is-locked", !unlocked);
-      b.innerHTML = "<strong></strong><span></span><em></em>";
+      b.innerHTML = `<i class="to-ss-icon">${streakIconSvg(id)}</i><strong></strong><span></span><em></em>`;
       b.querySelector("strong").textContent = def.name;
       b.querySelector("span").textContent = unlocked ? `${def.cost} score` : `Rank ${def.rank}`;
       b.querySelector("em").textContent = def.blurb;

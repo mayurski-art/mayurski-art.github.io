@@ -92,7 +92,13 @@ export class SwapHold {
   update(dt, held, canPickup) {
     if (!held) { this.reset(); return null; }
     if (!canPickup) {
-      if (!this.active) { this.active = true; return "swap"; }
+      // Drifting out of pickup range mid-hold shouldn't fire a swap (the
+      // press already committed to a pickup attempt) but it also can't be
+      // allowed to just freeze t — otherwise walking away and back "banks"
+      // partial hold progress instead of restarting the hold.
+      const wasPicking = this.t > 0;
+      this.reset();
+      if (!wasPicking) { this.active = true; return "swap"; }
       return null;
     }
     this.active = true;

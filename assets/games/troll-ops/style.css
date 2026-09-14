@@ -866,9 +866,12 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 /* One line per streak: "Helicopter Gunship" is wider than the strip, and
    letting it wrap makes the rows different heights. */
-.to-ss-slot > span:first-child {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+.to-ss-label {
+  display: flex; align-items: center; gap: 5px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.to-ss-slot .to-ss-icon { width: 14px; height: 14px; color: #9aa596; opacity: .8; flex-shrink: 0; }
+.to-ss-slot.is-ready .to-ss-icon { color: #7fe066; opacity: 1; }
 /* Ready to call — the key hint only appears when pressing it does something. */
 .to-ss-slot.is-ready {
   color: #eaf5e4; background: rgba(0,0,0,.55); border-left-color: #7fe066;
@@ -908,19 +911,26 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-ss-picker { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
 .to-ss-card {
   position: relative; text-align: left; cursor: pointer;
-  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+  display: grid; grid-template-columns: 28px 1fr auto; gap: 2px 10px;
   background: rgba(255,255,255,.03); border: 1px solid rgba(190,215,180,.14);
   border-radius: 8px; padding: 8px 10px; color: #dfe6da;
   font: inherit; transition: border-color .12s, background .12s;
 }
+.to-ss-card > .to-ss-icon { grid-row: 1 / 3; align-self: center; }
 .to-ss-card > strong { font-size: 13px; }
 .to-ss-card > span {
   font-family: "DM Mono", monospace; font-size: 10px; color: #9aa596;
-  grid-column: 2; grid-row: 1; text-align: right; white-space: nowrap;
+  grid-column: 3; grid-row: 1; text-align: right; white-space: nowrap;
 }
 .to-ss-card > em {
-  grid-column: 1 / -1; font-style: normal; font-size: 11px; color: #9aa596;
+  grid-column: 2 / -1; font-style: normal; font-size: 11px; color: #9aa596;
 }
+.to-ss-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; color: #7fe066; opacity: .85; flex-shrink: 0;
+}
+.to-ss-icon svg { width: 100%; height: 100%; }
+.to-ss-card.is-locked .to-ss-icon { color: #9aa596; }
 .to-ss-card:hover:not(:disabled) { border-color: rgba(127,224,102,.4); }
 .to-ss-card.is-active {
   border-color: #7fe066; background: rgba(127,224,102,.09);
