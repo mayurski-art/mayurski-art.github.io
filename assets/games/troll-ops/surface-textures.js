@@ -80,7 +80,13 @@ export function applyBakedLightMap(mesh, bake) {
   if (!geo.attributes.uv2) geo.setAttribute("uv2", geo.attributes.uv1);
   bake.colorSpace = THREE.SRGBColorSpace;
   mesh.material.lightMap = bake;
-  mesh.material.lightMapIntensity = 1;
+  // The bake carries a full directional-diffuse + AO pass, but the game
+  // already lights every mesh dynamically (sun + ambient + point lamps) —
+  // at full strength the two multiply and crush indoor faces that get no
+  // direct sun to near-black (confirmed in-game: house interiors read as
+  // solid black at intensity 1). Dialed down so the bake reads as a subtle
+  // AO/shadow tint on top of the real-time lighting instead of replacing it.
+  mesh.material.lightMapIntensity = 0.3;
   mesh.material.needsUpdate = true;
   return true;
 }

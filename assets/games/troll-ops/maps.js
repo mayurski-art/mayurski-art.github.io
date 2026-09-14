@@ -520,10 +520,10 @@ export const MAPS = {
       ];
       for (const { x, z, door, w, d, variant, hue, attic } of houses) {
         const gaps = { [door]: 3 };
-        // thickness/door-gap match build_houses.blender.py's build_ground_floor
-        // exactly (wall_t=0.25, door_w=3.0) so the invisible collider lines up
-        // with the modelled wall instead of the old guessed 0.7 slab
-        api.ghostWalls(x, z, w, d, 3.2, 0.25, { gaps });
+        // thickness/door-gap match build_houses.blender.py's WALL_T/door_w
+        // exactly (0.35/3.0) so the invisible collider lines up with the
+        // modelled wall instead of the old guessed 0.7 slab
+        api.ghostWalls(x, z, w, d, 3.2, 0.35, { gaps });
         houseExterior(api, { x, z, door, variant });
         // interior cover
         const inX = door === "e" ? -1 : 1;
@@ -573,13 +573,14 @@ export const MAPS = {
           api.box(x, z, w - 2, d - 2, 0.15, { color: 0x9a8a72, y: ATTIC_Y, pen: 6 });
           api.lamp(x, ATTIC_Y + 1.6, z, 0xffe6b8, 7, 11);
           // attic walls had no collider at all — the perch's own room shell
-          // (build_house_attic: inset w-2 by d-2, wall_t=0.2, one long side
-          // open for the dormer window per ATTIC_VARIANTS' dormer_side) was
-          // visible but walkable/shootable through on every side. Blender's
-          // Y-up export maps +y -> three.js +z, i.e. this file's "s" side;
-          // sage-attic's dormer_side="+y" -> "s", terracotta-attic's "-y" -> "n".
+          // (build_house_attic: inset w-2 by d-2, ATTIC_WALL_T=0.28, one
+          // long side open for the dormer window per ATTIC_VARIANTS'
+          // dormer_side) was visible but walkable/shootable through on
+          // every side. Blender's Y-up export maps +y -> three.js +z, i.e.
+          // this file's "s" side; sage-attic's dormer_side="+y" -> "s",
+          // terracotta-attic's "-y" -> "n".
           const dormerGap = variant === "sage-attic" ? "s" : "n";
-          api.ghostWalls(x, z, w - 2, d - 2, 2.2, 0.2, { y: ATTIC_Y + 0.15, gaps: { [dormerGap]: 1.6 } });
+          api.ghostWalls(x, z, w - 2, d - 2, 2.2, 0.28, { y: ATTIC_Y + 0.15, gaps: { [dormerGap]: 1.6 } });
         }
       }
       // backyard pool, Nuketown-style centrepiece — tucked behind the
