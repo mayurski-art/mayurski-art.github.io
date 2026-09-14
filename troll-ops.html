@@ -38,6 +38,7 @@
             <button type="button" class="to-pf-btn" data-panel="loadout" aria-pressed="false">Weapon Loadout</button>
             <button type="button" class="to-pf-btn" data-panel="customize" aria-pressed="false">Customize</button>
             <button type="button" class="to-pf-btn" data-panel="gear" aria-pressed="false">Gear</button>
+            <button type="button" class="to-pf-btn" data-panel="streaks" aria-pressed="false" id="to-pf-btn-streaks">Scorestreaks</button>
             <button type="button" class="to-pf-btn" data-panel="server" aria-pressed="false">Server Browser</button>
             <button type="button" class="to-pf-btn" data-panel="controls" aria-pressed="false">Controls</button>
             <a class="to-pf-btn to-pf-btn-exit" href="games.html">Back to arcade</a>
@@ -91,6 +92,13 @@
               <p class="to-pf-note">In the match: <kbd>1</kbd> primary · <kbd>2</kbd> secondary · <kbd>3</kbd> melee · <kbd>V</kbd> quick melee · <kbd>G</kbd> lethal · <kbd>F</kbd> tactical. Hold <kbd>G</kbd> to cook a frag.</p>
             </div>
 
+            <div class="to-pf-panel" id="to-pfp-streaks" hidden>
+              <div class="to-pf-panel-bar">Scorestreaks<span class="to-ss-count" id="to-ss-count"></span></div>
+              <div class="to-ss-picker" id="to-ss-picker" role="group" aria-label="Scorestreaks"></div>
+              <p class="to-pf-note" id="to-ss-note">Score builds from kills, assists and objectives. Dying resets the meter but never takes a streak you already earned. In the match: <kbd>4</kbd> calls the next one that's ready.</p>
+              <p class="to-pf-note" id="to-ss-solo-note" hidden>Scorestreaks are versus-only — pick Team Deathmatch, King of the Hill or Search &amp; Destroy under Game Mode.</p>
+            </div>
+
             <div class="to-pf-panel" id="to-pfp-server" hidden>
               <div class="to-pf-panel-bar">Server Browser</div>
               <div class="to-lo-pvp" id="to-lo-pvp" hidden>
@@ -118,6 +126,7 @@
                 <div><kbd>1</kbd><span>Primary weapon</span></div>
                 <div><kbd>2</kbd><span>Secondary weapon</span></div>
                 <div><kbd>3</kbd><span>Hold melee</span></div>
+                <div><kbd>4</kbd><span>Call scorestreak</span></div>
                 <div><kbd>X</kbd><span>Hold — swap · pick up dropped weapon</span></div>
                 <div><kbd>G</kbd><span>Lethal — hold to cook</span></div>
                 <div><kbd>F</kbd><span>Tactical</span></div>
@@ -276,6 +285,7 @@
               <div><kbd>V</kbd><span>Quick melee</span></div>
               <div><kbd>3</kbd><span>Hold the melee weapon</span></div>
               <div><kbd>1</kbd><span>Back to the primary</span></div>
+              <div><kbd>4</kbd><span>Call scorestreak</span></div>
               <div><kbd>X</kbd><span>Hold — swap · pick up dropped weapon</span></div>
               <div><kbd>G</kbd><span>Throw lethal — hold to cook</span></div>
               <div><kbd>F</kbd><span>Throw tactical</span></div>
@@ -381,6 +391,13 @@
             <span class="to-deathby-name" id="to-deathby-name"></span>
             <span class="to-deathby-meta" id="to-deathby-meta"></span>
           </div>
+        </div>
+
+        <div class="to-ks-badges" id="to-ks-badges" aria-live="polite"></div>
+
+        <div class="to-ss-hud" id="to-ss-hud" hidden aria-label="Scorestreaks">
+          <div class="to-ss-meter"><b id="to-ss-meter-fill"></b></div>
+          <div class="to-ss-slots" id="to-ss-slots"></div>
         </div>
 
         <div class="to-xp-pops" id="to-xp-pops" aria-hidden="true"></div>

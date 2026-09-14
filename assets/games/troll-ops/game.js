@@ -11,9 +11,13 @@ import { buildWeaponMesh } from "./weapon-model.js";
 import { WeaponInspector } from "./inspector.js";
 import { CharacterInspector } from "./char-inspector.js";
 import { Loadout } from "./loadout.js";
+import { StreakPicker } from "./streak-picker.js";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName } from "./scorestreaks.js";
+import { KillstreakUi } from "./killstreak-ui.js";
+import { Achievements } from "./achievements.js";
 import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
-import { Net, makeRoomCode, MAX_PLAYERS } from "./net.js";
+import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
 import { RemotePlayers, TEAMS } from "./remote-players.js";
 import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout, Hill, Bomb, pickBombSites, PLANT_TIME, DEFUSE_TIME } from "./modes.js";
 import { BotManager } from "./bots.js";
@@ -70,6 +74,12 @@ const els = {
   deathByMeta: document.getElementById("to-deathby-meta"),
   xpPopups: document.getElementById("to-xp-pops"),
   damageNumbers: document.getElementById("to-dmg-nums"),
+  ksBadges: document.getElementById("to-ks-badges"),
+  ssHud: document.getElementById("to-ss-hud"),
+  ssMeterFill: document.getElementById("to-ss-meter-fill"),
+  ssSlots: document.getElementById("to-ss-slots"),
+  ssPicker: document.getElementById("to-ss-picker"),
+  ssCount: document.getElementById("to-ss-count"),
   hudWaveBox: document.querySelector(".to-hud-wave"),
   hudHostilesBox: document.querySelector(".to-hud-hostiles"),
   loMaps: document.getElementById("to-lo-maps"),
@@ -232,6 +242,118 @@ const loadout = new Loadout({
     inspector?.show(gearPanel && !gearPanel.hidden ? loadout.melee : loadout.resolved);
   }
 });
+
+// -------------------- scorestreaks --------------------
+
+const streakPicker = new StreakPicker({ picker: els.ssPicker, count: els.ssCount });
+
+/* The local player's score meter and banked calls. Peers' meters aren't
+   modelled: only the client that earned a streak calls it, and it tells
+   everyone else what happened. */
+const streaks = new StreakState();
+
+const killstreakUi = new KillstreakUi({ badges: els.ksBadges });
+
+const achievements = new Achievements((def) => {
+  killstreakUi.note(def.name, "tier-note");
+});
+
+/* UAV is a team-wide reveal with a clock, so it lives as two timestamps
+   rather than on `streaks` — an enemy UAV reveals us to them, not them to us,
+   and both sides can have one up at once. */
+const uavUntil = { phantom: 0, ghost: 0 };
+
+function uavActiveFor(team) {
+  return !!team && uavUntil[team] > performance.now();
+}
+
+/* Which bucket a UAV we call belongs in. Free-for-all has no sides to share a
+   reveal with, and offline play never runs chooseTeam so `net.team` is null —
+   both collapse onto the same single bucket, which is also what keeps a solo
+   match against bots from calling a UAV that reveals nothing. */
+function uavBucket() {
+  if (currentMode().ffa || !net.team) return "phantom";
+  return net.team;
+}
+
+/* Whether we can currently see enemies on the minimap. */
+function enemiesRevealed() {
+  return uavActiveFor(uavBucket());
+}
+
+/* Call the cheapest streak that's ready. Bound to a single key rather than a
+   menu: in BO2 you never stop moving to pick one, and everything here is
+   either instant or puts you into a marking mode. */
+function callReadyStreak() {
+  if (!streaksAllowed(currentMode()) || !player.alive) return;
+  const ready = streaks.readyIds();
+  if (!ready.length) return;
+  // Cheapest first, so holding a gunship doesn't block calling a UAV.
+  ready.sort((a, b) => STREAK_DEFS[a].cost - STREAK_DEFS[b].cost);
+  const id = ready[0];
+  if (!streaks.spend(id)) return;
+  fireStreak(id);
+  updateStreakHud();
+}
+
+/* Run a streak we just called. Each one decides everything locally and then
+   tells the room; nobody else re-derives any of it. */
+function fireStreak(id) {
+  switch (id) {
+    case "uav": {
+      const team = uavBucket();
+      startUav(team, STREAK_DEFS.uav.duration);
+      if (net.active) {
+        net.publishStreak({ kind: "uav", action: "start", team, duration: STREAK_DEFS.uav.duration });
+      }
+      showWaveBanner("UAV OVERHEAD", 1600);
+      break;
+    }
+    default:
+      // Phases 3-6 land carepackage / drone / airstrike / helicopter here.
+      showWaveBanner(`${STREAK_DEFS[id].name.toUpperCase()} — not wired yet`, 1400);
+      break;
+  }
+}
+
+function startUav(team, duration) {
+  if (!team) return;
+  const until = performance.now() + duration * 1000;
+  // A second UAV extends rather than restarts, so stacking two isn't a
+  // downgrade for whoever called the first.
+  uavUntil[team] = Math.max(uavUntil[team] || 0, until);
+}
+
+/* Say when our radar drops, so losing it reads as the UAV expiring rather
+   than the minimap breaking. */
+let uavWasUp = false;
+function updateUavState() {
+  const up = enemiesRevealed();
+  if (uavWasUp && !up) showWaveBanner("UAV OFFLINE", 1200);
+  uavWasUp = up;
+}
+
+/* Streak events from someone else. Display and world state only — our own
+   meter is never touched from the wire. */
+function applyRemoteStreak(m) {
+  switch (m.kind) {
+    case "uav":
+      if (m.action === "start") {
+        startUav(m.team, m.duration || STREAK_DEFS.uav.duration);
+        // Only say so when it's our side's UAV — an enemy one reveals us to
+        // them, which is not something we'd be told about.
+        if (m.team === uavBucket() && !currentMode().ffa) {
+          showWaveBanner("FRIENDLY UAV OVERHEAD", 1500);
+        }
+      }
+      break;
+    case "callout":
+      // Match-wide hype: the nuclear-tier badge and (later) a gunship
+      // arriving. Purely cosmetic, never gameplay.
+      killstreakUi.note(`${m.who || "Someone"} — ${m.label}`, "tier-nuclear");
+      break;
+  }
+}
 
 // -------------------- mode + networking --------------------
 
@@ -455,7 +577,7 @@ function isRange() { return !!currentMode().range; }
 function isSnd() { return !!currentMode().rounds; }
 let zdir = null;
 let rangeSet = null;
-function isBotPeer(p) { return p.isBot || String(p.id).startsWith("bot-"); }
+function isBotPeer(p) { return p.isBot || isSyntheticId(p.id); }
 
 /* Any OTHER real (non-bot) person currently connected to this match. When
    true, pausing must stay local-only — this client's own net feed, bots
@@ -494,6 +616,16 @@ function renderModes() {
   els.loPvp.hidden = !isPvp();
   const soloNote = document.getElementById("to-pf-solo-note");
   if (soloNote) soloNote.hidden = isPvp();
+
+  // Scorestreaks are versus-only, and Gun Game / One in the Chamber opt out
+  // (see modes.js noStreaks). The picker stays reachable either way so the
+  // note can explain why it's empty, rather than the tab vanishing.
+  const allowed = streaksAllowed(currentMode());
+  const ssPanelNote = document.getElementById("to-ss-note");
+  const ssSoloNote = document.getElementById("to-ss-solo-note");
+  if (ssPanelNote) ssPanelNote.hidden = !allowed;
+  if (ssSoloNote) ssSoloNote.hidden = allowed;
+  if (els.ssPicker) els.ssPicker.hidden = !allowed;
   els.loMaps.hidden = !!currentMode().forceMap;   // Zombies has its own map
   renderLobbyRoster();   // no-ops until the lobby is ready
   if (lobbyReady) refreshLobbyMap();
@@ -503,7 +635,7 @@ function renderModes() {
 // The rail on the left swaps one centre panel, Phantom Forces style, rather
 // than scrolling one long column of controls.
 
-const LOBBY_PANELS = ["deploy", "mode", "loadout", "customize", "gear", "server", "controls"];
+const LOBBY_PANELS = ["deploy", "mode", "loadout", "customize", "gear", "streaks", "server", "controls"];
 const railButtons = [...document.querySelectorAll("#to-pf-rail [data-panel]")];
 
 const gunView = document.getElementById("to-gun-view");
@@ -688,6 +820,25 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
     // is most of what makes the grind feel like progress.
     awardKillXp(opts.head);
     announceStreak(player.streak);
+    awardScore(SCORE.kill);
+
+    // Badges are a second layer over announceStreak's banner: that tracks
+    // kills-without-dying, this one tracks kills-close-together, and BO2
+    // calls out both.
+    const called = killstreakUi.onKill({
+      head: !!opts.head, streak: player.streak, distance: opts.distance || 0,
+    });
+    // Ordinary badges stay local; the top of the ladder is a match-wide
+    // moment, so it goes on the wire.
+    if (called.nuclear && net.active) {
+      net.publishStreak({ kind: "callout", label: "NUCLEAR", who: net.name });
+    }
+    achievements.onKill({
+      victimId: killerId === net.id ? opts.victimId : null,
+      victimStreak: opts.victimStreak || 0,
+      distance: opts.distance || 0,
+      lastKilledBy: player.lastKilledBy,
+    });
 
     if (mode.ladder) {
       gunGameProgress++;
@@ -702,6 +853,9 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
       w.ammoInMag = Math.min(w.def.magSize, w.ammoInMag + 1);
     }
   }
+
+  // First Blood is a match-wide fact, so a peer's kill closes it for us too.
+  if (!iKilled) achievements.noteKillByOther();
 
   // S&D scores round wins, not kills — sndRoundWin() owns teamScores and the
   // match-end check there instead, once the round itself is decided.
@@ -732,6 +886,19 @@ function awardKillXp(isHead) {
   addMatchXp(XP.kill + (isHead ? XP.headshot : 0), isHead ? "HEADSHOT" : "KILL");
 }
 
+/* Pay into the scorestreak meter. Separate from XP on purpose: XP is
+   permanent and unlocks weapons, this is per-life and buys streaks. A kill
+   pays into both, which is why every call site here sits next to an
+   addMatchXp call. */
+function awardScore(amount) {
+  if (!streaksAllowed(currentMode())) return;
+  for (const id of streaks.addScore(amount)) {
+    killstreakUi.note(`${STREAK_DEFS[id].name} ready`, "tier-streak");
+    audio.wave();
+  }
+  updateStreakHud();
+}
+
 const STREAKS = { 3: "Triple", 5: "Rampage", 7: "Unstoppable", 10: "Godlike" };
 
 function announceStreak(n) {
@@ -757,6 +924,12 @@ function showXpPopup(amount, label) {
    stolen kill is indistinguishable from doing nothing at all. */
 const dealtLog = new Map();       // victim id -> { dmg, last }
 
+/* How far away each target was when we last hit it. A peer applies its own
+   damage and announces its own death, so by the time we learn we killed
+   someone the shot is long gone — this is the only place the range survives,
+   and Longshot needs it. */
+const lastHitRange = new Map();   // victim id -> metres
+
 function noteDealt(targetId, amount) {
   if (!targetId || !isPvp()) return;
   const e = dealtLog.get(targetId) || { dmg: 0, last: 0 };
@@ -774,6 +947,7 @@ function creditAssistIfOwed(victimId, victimName) {
 
   player.assists++;
   addMatchXp(XP.assist, "ASSIST");
+  awardScore(SCORE.assist);
   pushKillfeed({ killer: "You", victim: victimName, assist: true, mine: true });
 }
 
@@ -796,6 +970,13 @@ function checkMatchEnd() {
 function updateTeamHud() {
   els.scorePhantom.textContent = String(teamScores.phantom);
   els.scoreGhost.textContent = String(teamScores.ghost);
+  // How far behind we ever got, for Comeback. Free-for-all has no side to be
+  // behind, so it only tracks in team modes.
+  if (!currentMode().ffa && net.team) {
+    const mine = teamScores[net.team] || 0;
+    const theirs = net.team === "phantom" ? teamScores.ghost : teamScores.phantom;
+    achievements.noteScores(mine, theirs);
+  }
 }
 
 /* Match clock: counts down once a timed PvP mode goes live, independent of
@@ -839,9 +1020,15 @@ const net = new Net({
       head: !!m.hd, victimTeam: p.team,
       victimPos: snap ? new THREE.Vector3(snap.x, snap.y, snap.z) : null,
       victimWeaponId: p.weapon,
+      // `sk` is the victim's own streak, which only they were tracking —
+      // Shutdown needs it and can't derive it.
+      victimId: p.id, victimStreak: m.sk | 0,
+      distance: lastHitRange.get(p.id) || 0,
     });
+    lastHitRange.delete(p.id);
     if (m.by !== net.id) creditAssistIfOwed(p.id, p.name);
   },
+  onStreak: (m) => applyRemoteStreak(m),
   onVote: () => { if (intermissionT > 0) renderVote(); },
   /* Adopt the owner's countdown rather than running our own, so two clients
      that started a fraction of a second apart still hit zero together. We
@@ -1143,13 +1330,27 @@ function drawMinimap() {
   }
 
   if (isPvp()) {
+    // Friendlies always show. Enemies are fogged unless a UAV is up — before
+    // scorestreaks this map handed out permanent free radar on both sides,
+    // which left nothing for a UAV to actually do.
+    const showEnemies = enemiesRevealed();
     for (const rp of remotes.byId.values()) {
       if (!rp.alive) continue;
+      // No team of our own (free-for-all, or offline before chooseTeam runs)
+      // means nobody is a friendly, so everyone is subject to the fog.
+      const friendly = !currentMode().ffa && !!net.team && rp.team === net.team;
+      if (!friendly && !showEnemies) continue;
       const [x, z] = mapToMinimap(rp.pos.x, rp.pos.z);
-      ctx.fillStyle = rp.team === net.team ? "#7fd1e0" : "#ff6b5a";
+      ctx.fillStyle = friendly ? "#7fd1e0" : "#ff6b5a";
       ctx.beginPath();
       ctx.arc(x, z, 3, 0, Math.PI * 2);
       ctx.fill();
+    }
+    if (showEnemies) {
+      // A thin sweep ring, so it reads as "the UAV is why you can see this".
+      ctx.strokeStyle = "rgba(255,107,90,.5)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(1.5, 1.5, size - 3, size - 3);
     }
   } else if (zdir) {
     for (const z of zdir.zombies) {
@@ -1393,6 +1594,7 @@ const player = {
   streak: 0,            // kills since last death
   bestStreak: 0,
   matchXp: 0,           // XP banked during this match, shown on the result screen
+  lastKilledBy: null,   // whose kill sent us back, for the Revenge achievement
 };
 
 // Which slot (primary/secondary) currentWeapon() resolves against - reset
@@ -1454,6 +1656,7 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "Digit1") switchWeapon("primary");
     if (e.code === "Digit2") switchWeapon("secondary");
     if (e.code === "Digit3") setHolding("melee");
+    if (e.code === "Digit4" && !e.repeat) callReadyStreak();
     if (e.code === "KeyG" && !e.repeat) startCook("lethal");
     if (e.code === "KeyF" && !e.repeat) startCook("tactical");
   }
@@ -1859,6 +2062,39 @@ function showWaveBanner(text, ms = 1800) {
   showWaveBanner._t = setTimeout(() => els.waveBanner.classList.remove("is-visible"), ms);
 }
 
+/* The scorestreak strip: a meter toward the cheapest streak that isn't ready
+   yet, then one row per selected streak. Rebuilt only when the set of rows
+   changes; the meter itself is just a width. */
+function updateStreakHud() {
+  if (!els.ssHud) return;
+  const on = streaksAllowed(currentMode()) && streaks.selected.length > 0;
+  els.ssHud.hidden = !on;
+  if (!on) return;
+
+  const next = streaks.nextProgress();
+  els.ssMeterFill.style.width = next ? `${Math.round(next.frac * 100)}%` : "100%";
+
+  const signature = streaks.selected.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
+  if (els.ssSlots.dataset.sig !== signature) {
+    els.ssSlots.dataset.sig = signature;
+    els.ssSlots.innerHTML = "";
+    for (const id of streaks.selected) {
+      const def = STREAK_DEFS[id];
+      const ready = streaks.ready(id);
+      const row = document.createElement("div");
+      row.className = `to-ss-slot${ready ? " is-ready" : ""}`;
+      const name = document.createElement("span");
+      name.textContent = streakShortName(id);
+      row.appendChild(name);
+      const tag = document.createElement("span");
+      tag.className = ready ? "to-ss-key" : "to-ss-cost";
+      tag.textContent = ready ? "4" : String(def.cost);
+      row.appendChild(tag);
+      els.ssSlots.appendChild(row);
+    }
+  }
+}
+
 // -------------------- weapon actions --------------------
 
 function currentWeapon() {
@@ -1959,10 +2195,15 @@ function onBulletActorHit(actor, info) {
         registerDeath(bot.name, net.id, shotWith, {
           head: info.isHead, victimTeam: bot.team,
           victimPos: bot.pos, victimWeaponId: bot.weaponId,
+          victimId: bot.id, distance: info.distance || 0,
         });
       }
     } else {
       net.reportHit(actor.netId, info.damage, info.isHead, shotWith);
+      // A peer applies its own damage and reports its own death, so the range
+      // we hit it from is only known here. Remember the last one per target
+      // so the kill that comes back off the wire can still be a Longshot.
+      lastHitRange.set(actor.netId, info.distance || 0);
     }
     showHitmarker(info.isHead, info.damage, info.point);
     spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xff8a5a, info.isHead ? 16 : 8);
@@ -2564,6 +2805,9 @@ function scoreHill() {
   // Holding the objective is worth XP, but paid in blocks — this runs once a
   // second and a popup every second would be noise.
   if (!onHill) { hillHeldT = 0; return; }
+  // Score ticks every second the hill is held, unlike the XP block below —
+  // objective play is meant to build streaks as fast as killing does.
+  awardScore(SCORE.objectiveTick);
   if (++hillHeldT >= 5) { hillHeldT = 0; addMatchXp(XP.objective, "HOLDING"); }
 }
 
@@ -2678,10 +2922,14 @@ function updateSnd(dt) {
         audio.wave();
         showWaveBanner(`Bomb planted — site ${onSite.id}`, 1800);
         if (net.active) net.publishBomb({ kind: "event", action: "planted", site: onSite.id });
+        awardScore(SCORE.plant);
+        achievements.award("bombtech");
       } else {
         bomb.defuse();
         sndRoundWin(sndDefendTeam(), "bomb defused");
         if (net.active) net.publishBomb({ kind: "event", action: "defused" });
+        awardScore(SCORE.defuse);
+        achievements.award("bombtech");
       }
       bomb.action = null;
       els.bombPrompt.hidden = true;
@@ -2905,8 +3153,20 @@ function beginMatch(mapId = null) {
   player.streak = 0;
   player.bestStreak = 0;
   player.matchXp = 0;
+  player.lastKilledBy = null;
+  // A fresh match starts with nothing earned and nothing banked, and picks up
+  // whatever three streaks the lobby has selected.
+  streaks.reset();
+  streaks.setSelected(streakPicker.selected);
+  uavUntil.phantom = 0;
+  uavUntil.ghost = 0;
+  killstreakUi.reset();
+  achievements.reset();
+  if (els.ssSlots) els.ssSlots.dataset.sig = "";
+  updateStreakHud();
   damageLog.clear();
   dealtLog.clear();
+  lastHitRange.clear();
   if (els.deathBy) els.deathBy.hidden = true;
   elapsedRun = 0;
   respawnT = 0;
@@ -3065,6 +3325,13 @@ function beginSndRound() {
   sndRound++;
   sndRoundOver = false;
   sndEliminated = false;
+  // One life a round means a round boundary is the only other place a life
+  // ends, so it has to reset the meter the way a death does. Earned streaks
+  // still carry, same as across a death.
+  streaks.onRoundEnd();
+  uavUntil.phantom = 0;
+  uavUntil.ghost = 0;
+  updateStreakHud();
   bomb.reset();
   els.bombPrompt.hidden = true;
   els.bombTimer.hidden = true;
@@ -3178,6 +3445,10 @@ function endMatch(title) {
     ? title.startsWith("You")
     : title === `${TEAMS[net.team]?.name} win`;
   finishRun(title, headline, mode.ffa ? "Your score" : "Your side", "Your kills", "Match length", { won, completed: true });
+
+  achievements.onMatchEnd({
+    won, deaths: player.deaths, assists: player.assists, kills: player.kills,
+  });
 
   window.TrollLeaderboard?.report?.("troll-ops", {
     pvp: true, kills: player.kills, deaths: player.deaths, won,
@@ -3412,7 +3683,16 @@ function damagePlayer(amount, fromId, weaponId, isHead = false) {
     // In PvP dying is a respawn, not the end of the run.
     player.alive = false;
     player.deaths++;
+    // Report the streak we were on before clearing it — it's what lets our
+    // killer know they ended a run (Shutdown).
+    const endedStreak = player.streak;
     player.streak = 0;
+    // Dying takes the meter but not a streak already earned — BO2's rule,
+    // and the reason this isn't streaks.reset().
+    streaks.onDeath();
+    updateStreakHud();
+    // Who to look for, for Revenge.
+    player.lastKilledBy = fromId || null;
     // S&D has no respawn timer — updateSnd() owns the "eliminated" HUD text
     // once this sets player.alive false; every other PvP mode counts this
     // down and calls respawnPlayer() itself.
@@ -3420,7 +3700,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false) {
     // Remember where we fell, so the picker stops handing out this corner.
     notePointDeath(move.pos.x, move.pos.z);
     dropCarriedWeapon();
-    net.reportDeath(fromId, weaponId, isHead);
+    net.reportDeath(fromId, weaponId, isHead, endedStreak);
     registerDeath("You", fromId, weaponId, {
       head: isHead, victimIsMe: true, victimTeam: net.team,
     });
@@ -3688,6 +3968,7 @@ function animate() {
     impactPass.uniforms.uTime.value = t;
     suppressT = Math.max(0, suppressT - dt * 1.1);
     impactPass.uniforms.uSuppress.value = suppressT;
+    updateUavState();
     drawMinimap();
 
     // fov kick based on sprint/ads
@@ -4292,6 +4573,10 @@ if (/[?&]tohooks=1/.test(location.search)) {
     matchClockT: () => matchClockT,
     resetMatchClock, swingMelee,
     activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
+    streaks, streakPicker, killstreakUi, achievements,
+    awardScore, callReadyStreak, fireStreak, startUav, applyRemoteStreak,
+    updateStreakHud, enemiesRevealed, uavBucket, uavUntil, drawMinimap,
+    lastHitRange: () => lastHitRange,
   };
 }
 

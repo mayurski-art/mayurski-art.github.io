@@ -64,6 +64,19 @@ export function makeRoomCode() {
   return s;
 }
 
+/* Ids that share the peer map with real operators but aren't people: bots,
+   and the scorestreak entities (drones, gunships) that ride the same
+   publishBot channel so remote clients render them for free. Anything that
+   counts players — host election, map votes, "is anyone human here" — has to
+   skip these, and having one predicate means adding a new entity kind can't
+   quietly miss one of those call sites. */
+export const SYNTHETIC_ID_PREFIXES = ["bot-", "streak-"];
+
+export function isSyntheticId(id) {
+  const s = String(id);
+  return SYNTHETIC_ID_PREFIXES.some((p) => s.startsWith(p));
+}
+
 export class Net {
   constructor(handlers = {}) {
     this.h = handlers;
@@ -216,6 +229,16 @@ export class Net {
         this.h.onBomb?.(m);
         break;
       }
+      /* Scorestreaks. Same authority model as the bomb above: whoever earned
+         the streak decides everything about it — where the crate lands, what
+         is inside, which enemy the drone picks, where the strike falls — and
+         broadcasts the decision. Everyone else renders it and never re-rolls
+         anything locally, or two clients would disagree about a crate they
+         are both looking at. */
+      case "streak": {
+        this.h.onStreak?.(m);
+        break;
+      }
       case "vote": {
         const p = this.peer(m.id);
         p.vote = m.map;
@@ -257,8 +280,11 @@ export class Net {
     if (!this.connected) return true;
     for (const id of this.peers.keys()) {
       // Bots live in this map too, and their ids would otherwise make the
-      // host conclude it isn't the host and drop its own bots.
-      if (String(id).startsWith("bot-")) continue;
+      // host conclude it isn't the host and drop its own bots. Scorestreak
+      // entities (drones, gunships) ride the same publishBot channel and are
+      // simulated by whoever called them, so they are not operators either —
+      // miss them here and calling a streak silently flips host election.
+      if (isSyntheticId(id)) continue;
       if (id < this.id) return false;
     }
     return true;
@@ -335,6 +361,15 @@ export class Net {
     this.send({ t: "bomb", id: this.id, ...payload });
   }
 
+  /* Scorestreak events. `kind` names the streak ("uav", "carepackage",
+     "drone", "airstrike", "heli") or "callout" for the match-wide hype
+     messages, and `action` its step within that streak's lifecycle. The
+     sender is always the client that earned it and is the only one that
+     decides anything — see the "streak" case in onMessage. */
+  publishStreak(payload) {
+    this.send({ t: "streak", id: this.id, ...payload });
+  }
+
   /* Map vote. Peers keep the last vote each id sent, so a late joiner's
      tally still converges on the same answer everyone else has. */
   castVote(mapId) {
@@ -355,7 +390,7 @@ export class Net {
     const add = (m) => { if (m) tally.set(m, (tally.get(m) || 0) + 1); };
     add(this.myVote);
     for (const p of this.peers.values()) {
-      if (String(p.id).startsWith("bot-")) continue;   // bots don't get a say
+      if (isSyntheticId(p.id)) continue;   // bots and streak entities don't get a say
       add(p.vote);
     }
     let best = null, bestN = 0;
@@ -369,8 +404,11 @@ export class Net {
     this.send({ t: "hit", id: fromId, target: targetId, dmg: Math.round(dmg), hd: isHead ? 1 : 0, w: weaponId });
   }
 
-  reportDeathAs(whoId, byId, weaponId, isHead) {
-    this.send({ t: "died", id: whoId, by: byId, w: weaponId, hd: isHead ? 1 : 0 });
+  /* `streak` is the dying actor's own kill streak. Nobody else tracks it, so
+     the killer can only know it ended a run if the victim says so — that's
+     what the Shutdown achievement reads. */
+  reportDeathAs(whoId, byId, weaponId, isHead, streak = 0) {
+    this.send({ t: "died", id: whoId, by: byId, w: weaponId, hd: isHead ? 1 : 0, sk: streak | 0 });
   }
 
   reportShot(origin, dir, weaponId) {
@@ -386,8 +424,8 @@ export class Net {
     this.send({ t: "hit", id: this.id, target: targetId, dmg: Math.round(dmg), hd: isHead ? 1 : 0, w: weaponId });
   }
 
-  reportDeath(byId, weaponId, isHead) {
-    this.send({ t: "died", id: this.id, by: byId, w: weaponId, hd: isHead ? 1 : 0 });
+  reportDeath(byId, weaponId, isHead, streak = 0) {
+    this.send({ t: "died", id: this.id, by: byId, w: weaponId, hd: isHead ? 1 : 0, sk: streak | 0 });
   }
 }
 

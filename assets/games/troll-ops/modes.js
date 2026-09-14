@@ -62,6 +62,9 @@ export const MODES = {
     scoreLimit: 12,
     weapon: "widedeagle",
     oneShot: true,
+    // Both this and Gun Game are decided entirely by the weapon in your
+    // hands, so a gunship overhead reads as broken rather than earned.
+    noStreaks: true,
     blurb: "One bullet, one kill. Land it and you get the round back; miss and you're empty.",
     // Everyone is lethal and nearly out of ammo.
     tuneWeapon(def) {
@@ -88,6 +91,7 @@ export const MODES = {
       "pocketgrin", "smg", "snubgrin", "chuckle", "problem416",
       "sneer", "shotgun", "bellow", "cackle", "deadpan", "widedeagle",
     ],
+    noStreaks: true,   // see oitc
     blurb: "Every kill moves you up the rack. Clear the rack to win.",
   },
 };

@@ -790,6 +790,124 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   100% { opacity: 0; transform: translateY(-16px); }
 }
 
+/* Killstreak badges and achievement callouts. Above the crosshair rather
+   than below it, so they don't collide with the XP pops. */
+.to-ks-badges {
+  position: absolute; left: 50%; top: 30%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  pointer-events: none; z-index: 14;
+}
+/* Opaque by default and animated from there, rather than animating up from
+   opacity:0 — if the animation never runs (reduced motion, a throttled or
+   headless tab) a badge that starts transparent never appears at all. */
+.to-ks-badge {
+  font-family: "Oswald", sans-serif; font-size: 19px; letter-spacing: .1em;
+  text-transform: uppercase; white-space: nowrap;
+  padding: 2px 12px; border-radius: 4px;
+  text-shadow: 0 1px 4px rgba(0,0,0,.85);
+  opacity: 1;
+  animation: to-ks-pop 1.8s ease-out forwards;
+}
+/* Gold for headshots, matching the killfeed's HS tag. */
+.to-ks-badge.tier-head { color: #0d1410; background: #ffd166; text-shadow: none; }
+/* Cyan for multikills, matching the killfeed's assist tag. */
+.to-ks-badge.tier-multi {
+  color: #7fd1e0; background: rgba(0,0,0,.45);
+  border: 1px solid rgba(127,209,224,.55);
+}
+/* Earned-a-streak and achievements sit below those two in the hierarchy. */
+.to-ks-badge.tier-note {
+  font-size: 15px; color: #dfe6da; background: rgba(0,0,0,.45);
+  border: 1px solid rgba(154,165,150,.4);
+}
+.to-ks-badge.tier-streak {
+  font-size: 16px; color: #7fe066; background: rgba(0,0,0,.5);
+  border: 1px solid rgba(127,224,102,.55);
+}
+/* The one everybody in the match hears about. */
+.to-ks-badge.tier-nuclear {
+  font-size: 30px; font-weight: 700; letter-spacing: .18em;
+  color: #1a0d0d; background: #ff6b5a; text-shadow: none;
+  box-shadow: 0 0 24px rgba(255,107,90,.7);
+}
+/* Starts at full opacity so the un-animated resting state is correct; the
+   punch-in is scale only. */
+@keyframes to-ks-pop {
+  0% { transform: scale(.88); }
+  12% { transform: scale(1); }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* In-match scorestreak strip: progress toward the next one, then a slot per
+   selected streak that lights up once it's callable. */
+.to-ss-hud {
+  position: absolute; left: 16px; bottom: 96px;
+  display: flex; flex-direction: column; gap: 5px;
+  pointer-events: none; z-index: 13; width: 132px;
+}
+.to-ss-meter {
+  height: 3px; background: rgba(0,0,0,.5); border-radius: 2px; overflow: hidden;
+}
+.to-ss-meter > b {
+  display: block; height: 100%; width: 0;
+  background: #7fe066; transition: width .18s linear;
+}
+.to-ss-slots { display: flex; flex-direction: column; gap: 3px; }
+.to-ss-slot {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font-family: "DM Mono", monospace; font-size: 10px; color: #9aa596;
+  background: rgba(0,0,0,.35); border-radius: 4px; padding: 2px 6px;
+  border-left: 2px solid transparent;
+}
+/* One line per streak: "Helicopter Gunship" is wider than the strip, and
+   letting it wrap makes the rows different heights. */
+.to-ss-slot > span:first-child {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+/* Ready to call — the key hint only appears when pressing it does something. */
+.to-ss-slot.is-ready {
+  color: #eaf5e4; background: rgba(0,0,0,.55); border-left-color: #7fe066;
+}
+.to-ss-slot.is-ready .to-ss-key { opacity: 1; }
+.to-ss-key {
+  opacity: 0; font-size: 9px; letter-spacing: .06em;
+  color: #0d1410; background: #7fe066; border-radius: 2px; padding: 0 3px;
+}
+.to-ss-cost { font-size: 9px; color: #6f7a6a; }
+
+/* Lobby picker: pick three. */
+.to-ss-count { float: right; font-size: 10px; color: #9aa596; letter-spacing: .06em; }
+.to-ss-picker { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
+.to-ss-card {
+  position: relative; text-align: left; cursor: pointer;
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(190,215,180,.14);
+  border-radius: 8px; padding: 8px 10px; color: #dfe6da;
+  font: inherit; transition: border-color .12s, background .12s;
+}
+.to-ss-card > strong { font-size: 13px; }
+.to-ss-card > span {
+  font-family: "DM Mono", monospace; font-size: 10px; color: #9aa596;
+  grid-column: 2; grid-row: 1; text-align: right; white-space: nowrap;
+}
+.to-ss-card > em {
+  grid-column: 1 / -1; font-style: normal; font-size: 11px; color: #9aa596;
+}
+.to-ss-card:hover:not(:disabled) { border-color: rgba(127,224,102,.4); }
+.to-ss-card.is-active {
+  border-color: #7fe066; background: rgba(127,224,102,.09);
+}
+/* Which of the three slots it landed in, so the order is visible. */
+.to-ss-card.is-active::after {
+  content: attr(data-slot);
+  position: absolute; top: -6px; left: -6px;
+  width: 16px; height: 16px; border-radius: 50%;
+  font-family: "DM Mono", monospace; font-size: 9px; line-height: 16px;
+  text-align: center; color: #0d1410; background: #7fe066;
+}
+.to-ss-card.is-locked { opacity: .45; cursor: not-allowed; }
+
 /* Death card — who got you, with what, and how close you came. */
 .to-deathby {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -803,6 +921,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 
 @media (prefers-reduced-motion: reduce) {
   .to-xp-pop { animation-duration: .01s; animation-fill-mode: forwards; }
+  .to-ks-badge { animation: none; }
 }
 
 /* ---------- Touch controls ---------- */
