@@ -2272,6 +2272,14 @@ function updatePickupPrompt(dt) {
     pickups.take(drop);
     player.secondaryId = drop.def.id;
     player.weapons[drop.def.id] = new WeaponState(drop.def);
+    // Equip it into your hands immediately, same as CoD - without this,
+    // player.secondaryId/weapons updated but the held mesh (and holding
+    // "melee" at the time) never refreshed, so picking up a weapon looked
+    // like it did nothing unless you happened to already be on the
+    // secondary slot and pressed 2 afterward.
+    currentWeaponSlot = "secondary";
+    setActiveWeaponMesh(drop.def);
+    setHolding("gun");
     audio.reload();
     showWaveBanner(`Picked up ${drop.def.name}`, 1200);
   }
