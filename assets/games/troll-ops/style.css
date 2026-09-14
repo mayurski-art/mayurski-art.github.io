@@ -893,10 +893,6 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   background: rgba(10,20,10,.6);
 }
 
-/* The package prompt shares the bomb/pickup prompt styling; it only needs to
-   sit a line clear of the weapon-pickup one, which can show at the same time. */
-.to-pkg-prompt { top: 70%; }
-
 /* Lobby picker: pick three. */
 .to-ss-count { float: right; font-size: 10px; color: #9aa596; letter-spacing: .06em; }
 .to-ss-picker { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
@@ -976,6 +972,12 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-touch-nade { right: 66px; bottom: 148px; width: 50px; height: 50px; font-size: 9px; }
 .to-touch-interact { left: 134px; bottom: 96px; width: 50px; height: 50px; font-size: 14px; background: rgba(255,138,90,.22); }
 .to-touch-swap { left: 22px; bottom: 136px; width: 52px; height: 52px; font-size: 14px; }
+/* Only rendered while something is actually callable, so it can sit in the
+   clear space above the swap button without crowding anything. */
+.to-touch-streak {
+  left: 22px; bottom: 198px; width: 52px; height: 52px; font-size: 8px;
+  background: rgba(127,224,102,.24); border-color: rgba(127,224,102,.5);
+}
 .to-touch-btn.is-held { background: rgba(255,255,255,.26); }
 
 @media (max-width: 760px), (pointer: coarse) {

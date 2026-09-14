@@ -87,9 +87,6 @@ const els = {
   ssPicker: document.getElementById("to-ss-picker"),
   ssCount: document.getElementById("to-ss-count"),
   streakMark: document.getElementById("to-streak-mark"),
-  pkgPrompt: document.getElementById("to-pkg-prompt"),
-  pkgPromptText: document.getElementById("to-pkg-prompt-text"),
-  pkgBarFill: document.getElementById("to-pkg-bar-fill"),
   hudWaveBox: document.querySelector(".to-hud-wave"),
   hudHostilesBox: document.querySelector(".to-hud-hostiles"),
   loMaps: document.getElementById("to-lo-maps"),
@@ -143,6 +140,7 @@ const els = {
   touchNade: document.getElementById("to-touch-nade"),
   touchInteract: document.getElementById("to-touch-interact"),
   touchSwap: document.getElementById("to-touch-swap"),
+  touchStreak: document.getElementById("to-touch-streak"),
   gearMelee: document.getElementById("to-gear-melee"),
   gearMeleeName: document.getElementById("to-gear-melee-name"),
   gearLethal: document.getElementById("to-gear-lethal"),
@@ -171,7 +169,7 @@ const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in win
 const GP_DEADZONE = 0.18;
 const gamepadState = {
   connected: false, moveX: 0, moveY: 0, lookDX: 0, lookDY: 0,
-  firing: false, ads: false, jump: false, crouch: false,
+  firing: false, ads: false, jump: false, crouch: false, pickup: false,
 };
 let gpIndex = null;
 let gpPrev = {};
@@ -217,6 +215,7 @@ window.addEventListener("gamepaddisconnected", (e) => {
   gamepadState.connected = false;
   gamepadState.moveX = gamepadState.moveY = 0;
   gamepadState.firing = gamepadState.ads = gamepadState.jump = gamepadState.crouch = false;
+  gamepadState.pickup = false;
   if (gameState === "playing") setTouchControls(true);
 });
 
@@ -354,7 +353,8 @@ function callReadyStreak() {
   // cancelling mid-mark must not eat the reward.
   if (id === "carepackage" || id === "airstrike") {
     markingStreak = id;
-    showWaveBanner(`${STREAK_DEFS[id].name.toUpperCase()} — press 4 on a spot`, 2200);
+    showWaveBanner(`${STREAK_DEFS[id].name.toUpperCase()} — ${streakKeyLabel()} on a spot`, 2200);
+    updateStreakHud();   // keeps the touch button up through the mark
     return;
   }
 
@@ -375,11 +375,18 @@ function confirmMark() {
   updateStreakHud();
 }
 
+/* What to call the streak button in prompts. A controller player told to
+   "press 4" has no 4 to press. */
+function streakKeyLabel() {
+  return gamepadState.connected && !isTouch ? "D-pad down" : "4";
+}
+
 function cancelMark() {
   if (!markingStreak) return;
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
   showWaveBanner("Cancelled", 900);
+  updateStreakHud();
 }
 
 /* Reticle + prompt while a marking streak is up. */
@@ -393,7 +400,7 @@ function updateMarking() {
   const at = groundAimPoint();
   els.streakMark.hidden = false;
   els.streakMark.textContent = at
-    ? `${STREAK_DEFS[markingStreak].name} — press 4 to confirm · Esc to cancel`
+    ? `${STREAK_DEFS[markingStreak].name} — ${streakKeyLabel()} to confirm`
     : `${STREAK_DEFS[markingStreak].name} — aim at the ground`;
   els.streakMark.classList.toggle("is-ready", !!at);
 }
@@ -664,44 +671,6 @@ function runAirstrike(s) {
   }
   if (s.owned && net.active) {
     net.publishStreak({ kind: "airstrike", action: "impact", x: round2(s.x), z: round2(s.z) });
-  }
-}
-
-/* Opening a package is a hold, like planting — a tap would mean walking over
-   one you were saving for a teammate and taking it by accident. */
-const PACKAGE_OPEN_TIME = 1.6;
-let packageOpenT = 0;
-
-function updatePackagePrompt() {
-  if (!els.pkgPrompt) return;
-
-  let near = null;
-  if (player.alive && !frozenPlayer()) {
-    for (const e of streakEntities.values()) {
-      if (e instanceof CarePackage && e.withinClaim(move.pos.x, move.pos.z)) { near = e; break; }
-    }
-  }
-
-  if (!near) {
-    packageOpenT = 0;
-    els.pkgPrompt.hidden = true;
-    return;
-  }
-
-  const held = (isTouch && touchState.interact) || keys.has("KeyE");
-  // dt isn't handed in here; the prompt runs once per frame from the same
-  // place the rest of the HUD does, so a fixed step is close enough and can't
-  // drift into a negative.
-  packageOpenT = held ? packageOpenT + 1 / 60 : 0;
-
-  els.pkgPrompt.hidden = false;
-  els.pkgPromptText.textContent = held ? "Opening…" : "Hold E to open the package";
-  els.pkgBarFill.style.width = `${Math.round(Math.min(1, packageOpenT / PACKAGE_OPEN_TIME) * 100)}%`;
-
-  if (packageOpenT >= PACKAGE_OPEN_TIME) {
-    packageOpenT = 0;
-    els.pkgPrompt.hidden = true;
-    claimPackage(near);
   }
 }
 
@@ -2247,6 +2216,11 @@ els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); swing
 bindHold(els.touchNade, () => startCook("lethal"), () => releaseCook());
 bindHold(els.touchInteract, () => touchState.interact = true, () => touchState.interact = false);
 bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = false);
+// A tap, not a hold — and it doubles as the confirm for a marked spot, the
+// same way the key and the d-pad do.
+if (els.touchStreak) {
+  els.touchStreak.addEventListener("touchstart", (e) => { e.preventDefault(); callReadyStreak(); });
+}
 
 // -------------------- gamepad --------------------
 
@@ -2332,7 +2306,14 @@ function pollGamepad(dt) {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let gp = gpIndex != null ? pads[gpIndex] : null;
   if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
-  if (!gp) { gamepadState.connected = false; renderGpDebug(null); return; }
+  if (!gp) {
+    gamepadState.connected = false;
+    // Held-button state has to clear with the pad, or unplugging mid-hold
+    // leaves `pickup` stuck on and the hold never releases.
+    gamepadState.pickup = false;
+    renderGpDebug(null);
+    return;
+  }
   gpIndex = gp.index;
   gamepadState.connected = true;
   if (gpDebugForced || gp.mapping !== "standard") renderGpDebug(gp);
@@ -2367,8 +2348,21 @@ function pollGamepad(dt) {
     if (pressedEdge(3)) setHolding(player.holding === "gun" ? "melee" : "gun"); // Y / triangle
     if (pressedEdge(5)) startCook("lethal");  // R1 -> cook nade
     if (gpPrev[5] && !btn(5)) releaseCook();
+    // Tactical goes on d-pad left, NOT L1 — L1 is already reload above, and
+    // one button doing both would reload every time you threw a flash.
+    if (pressedEdge(14)) startCook("tactical");
+    if (gpPrev[14] && !btn(14)) releaseCook();
     if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
+    // D-pad down calls the next ready scorestreak, and is also the confirm
+    // for the ones that ask you to mark a spot — same double-press shape as
+    // tapping 4 twice on a keyboard.
+    if (pressedEdge(13)) callReadyStreak();
   }
+  // D-pad right is the pad's equivalent of holding X: swap weapons, pick up
+  // a dropped one, or open a care package underfoot. Read as a level rather
+  // than an edge because all three of those are holds, and gated on the
+  // pause the same way every other action button is.
+  gamepadState.pickup = !localPauseOnly && btn(15);
   if (pressedEdge(9)) {                     // Start/Home -> same as the on-screen gear icon
     if (controls.isLocked) controls.unlock();
     else openPauseMenu();
@@ -2528,12 +2522,19 @@ function updateStreakHud() {
   if (!els.ssHud) return;
   const on = streaksAllowed(currentMode()) && streaks.selected.length > 0;
   els.ssHud.hidden = !on;
+  // On a phone the button only exists when there's something to call —
+  // an always-on dead button is just lost screen space.
+  if (els.touchStreak) {
+    els.touchStreak.hidden = !isTouch || !on
+      || (!streaks.readyIds().length && !markingStreak);
+  }
   if (!on) return;
 
   const next = streaks.nextProgress();
   els.ssMeterFill.style.width = next ? `${Math.round(next.frac * 100)}%` : "100%";
 
-  const signature = streaks.selected.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
+  const key = gamepadState.connected && !isTouch ? "↓" : "4";
+  const signature = `${key}|` + streaks.selected.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
   if (els.ssSlots.dataset.sig !== signature) {
     els.ssSlots.dataset.sig = signature;
     els.ssSlots.innerHTML = "";
@@ -2547,7 +2548,7 @@ function updateStreakHud() {
       row.appendChild(name);
       const tag = document.createElement("span");
       tag.className = ready ? "to-ss-key" : "to-ss-cost";
-      tag.textContent = ready ? "4" : String(def.cost);
+      tag.textContent = ready ? key : String(def.cost);
       row.appendChild(tag);
       els.ssSlots.appendChild(row);
     }
@@ -2963,12 +2964,24 @@ function switchWeapon(slot) {
 
 /* Hold X: standing over a dropped weapon, picks it up into the secondary
    slot — replacing the sidearm there if any, same as Call of Duty. Nothing
-   underfoot, the same hold instead instantly swaps primary/secondary. */
+   underfoot, the same hold instead instantly swaps primary/secondary.
+
+   A care package underfoot takes priority over both: it is the rarer thing
+   and you are deliberately standing on it. Same key for all three, because
+   "hold X on the thing at your feet" is one idea, not three. */
 function updatePickupPrompt(dt) {
-  const held = !frozenPlayer() && ((isTouch && touchState.swap) || keys.has("KeyX"));
+  const held = !frozenPlayer() && ((isTouch && touchState.swap) || keys.has("KeyX") || gamepadState.pickup);
+  const pkg = player.alive ? nearbyPackage() : null;
   const drop = player.alive ? pickups.nearest(move.pos.x, move.pos.z) : null;
 
-  const action = swapHold.update(dt, held, !!drop);
+  // `canPickup` keeps the instant-swap branch from firing while we're on a
+  // package — holding X there must open it, not switch guns.
+  const action = swapHold.update(dt, held, !!drop || !!pkg);
+  if (action === "pickup" && pkg) {
+    claimPackage(pkg);
+    if (els.pickupPrompt) els.pickupPrompt.hidden = true;
+    return;
+  }
   if (action === "swap") {
     switchWeapon(currentWeaponSlot === "secondary" ? "primary" : "secondary");
   } else if (action === "pickup" && drop) {
@@ -2988,15 +3001,25 @@ function updatePickupPrompt(dt) {
   }
 
   if (els.pickupPrompt) {
-    if (drop && player.alive) {
+    if ((pkg || drop) && player.alive) {
+      const label = pkg
+        ? (swapHold.active ? "Opening the package…" : "Hold X to open the package")
+        : (swapHold.active ? `Picking up ${drop.def.name}…` : `Hold X to pick up ${drop.def.name}`);
       els.pickupPrompt.hidden = false;
-      els.pickupPromptText.textContent = swapHold.active
-        ? `Picking up ${drop.def.name}…` : `Hold X to pick up ${drop.def.name}`;
+      els.pickupPromptText.textContent = label;
       els.pickupBarFill.style.width = `${Math.round(swapHold.progress * 100)}%`;
     } else {
       els.pickupPrompt.hidden = true;
     }
   }
+}
+
+/* The landed, unclaimed package we're standing on, if any. */
+function nearbyPackage() {
+  for (const e of streakEntities.values()) {
+    if (e instanceof CarePackage && e.withinClaim(move.pos.x, move.pos.z)) return e;
+  }
+  return null;
 }
 
 function frozenPlayer() { return !player.alive || isStaging(); }
@@ -3925,7 +3948,6 @@ function endMatch(title) {
 
   bots.clear();
   clearStreakEntities();
-  if (els.pkgPrompt) els.pkgPrompt.hidden = true;
   setHillMarker(null);
   setBombSiteMarkers(null);
   els.bombPrompt.hidden = true;
@@ -4448,7 +4470,6 @@ function animate() {
     impactPass.uniforms.uSuppress.value = suppressT;
     updateUavState();
     updateStreakEntities(dt);
-    updatePackagePrompt();
     drawMinimap();
 
     // fov kick based on sprint/ads
@@ -5061,7 +5082,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     markingStreak: () => markingStreak, confirmMark, cancelMark, updateMarking,
     groundAimPoint, rollPackageReward, claimPackage, clearStreakEntities,
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,
-    nearestHostileTo, runAirstrike, updatePackagePrompt,
+    nearestHostileTo, runAirstrike, nearbyPackage, updatePickupPrompt,
+    gamepadState, touchState, streakKeyLabel, keys, swapHold,
   };
 }
 
