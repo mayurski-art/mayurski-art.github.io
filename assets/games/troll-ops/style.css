@@ -876,6 +876,27 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 .to-ss-cost { font-size: 9px; color: #6f7a6a; }
 
+/* Marking mode: "look somewhere and press 4 again", for the care package and
+   the airstrike. Sits above the crosshair so it doesn't fight the pickup and
+   bomb prompts below it. */
+.to-streak-mark {
+  position: absolute; left: 50%; top: 40%; transform: translateX(-50%);
+  z-index: 14; pointer-events: none; white-space: nowrap;
+  font-family: "Oswald", sans-serif; font-size: 12px; letter-spacing: .08em;
+  text-transform: uppercase; color: #9aa596;
+  background: rgba(0,0,0,.45); border: 1px solid rgba(154,165,150,.35);
+  border-radius: 4px; padding: 3px 10px;
+}
+/* Green once there's actually a point under the crosshair to commit to. */
+.to-streak-mark.is-ready {
+  color: #eaf5e4; border-color: rgba(127,224,102,.6);
+  background: rgba(10,20,10,.6);
+}
+
+/* The package prompt shares the bomb/pickup prompt styling; it only needs to
+   sit a line clear of the weapon-pickup one, which can show at the same time. */
+.to-pkg-prompt { top: 70%; }
+
 /* Lobby picker: pick three. */
 .to-ss-count { float: right; font-size: 10px; color: #9aa596; letter-spacing: .06em; }
 .to-ss-picker { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }

@@ -19,8 +19,12 @@ const loader = new GLTFLoader();
 const cache = new Map();
 
 /* Fetches (once) and returns a clone of the named model's root object.
-   Callers get their own independent Object3D, safe to position/rotate. */
-function loadModel(name) {
+   Callers get their own independent Object3D, safe to position/rotate.
+
+   Exported because the scorestreak entities (care package, drone, gunship)
+   need the same cache-and-clone loader without the static map-placement
+   helpers below — they position themselves at runtime instead. */
+export function loadModel(name) {
   if (!cache.has(name)) {
     cache.set(name, loader.loadAsync(`${MODEL_BASE}${name}.glb`).then((gltf) => {
       const scene = gltf.scene;
