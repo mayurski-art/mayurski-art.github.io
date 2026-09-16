@@ -154,10 +154,16 @@ export class HunterDrone {
     for (const r of this.rotors) r.rotation.y += dt * 40;
 
     if (this.age > DRONE_LIFETIME) { this.done = true; return "expire"; }
+    // (-sin(yaw), 0, -cos(yaw)) is the game's forward convention everywhere
+    // else (movement.js's forwardVec, root.rotation.y = yaw on every other
+    // rig) — this used to be the mirrored (sin, cos) pairing, which spawned
+    // the drone launching backward from the yaw it was given (the player's
+    // real look.yaw) and burned through its short lifetime before turning
+    // itself back around onto the target.
     if (!targetPos) {
       // Target gone: fly on straight and burn out rather than hanging.
-      this.root.position.x += Math.sin(this.yaw) * DRONE_SPEED * dt;
-      this.root.position.z += Math.cos(this.yaw) * DRONE_SPEED * dt;
+      this.root.position.x += -Math.sin(this.yaw) * DRONE_SPEED * dt;
+      this.root.position.z += -Math.cos(this.yaw) * DRONE_SPEED * dt;
       return null;
     }
 
@@ -170,15 +176,15 @@ export class HunterDrone {
     to.normalize();
     // Turn toward the target rather than snapping, so it arcs in and reads as
     // a guided thing rather than a teleport.
-    const wantYaw = Math.atan2(to.x, to.z);
+    const wantYaw = Math.atan2(-to.x, -to.z);
     let d = wantYaw - this.yaw;
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
     this.yaw += Math.max(-DRONE_TURN * dt, Math.min(DRONE_TURN * dt, d));
 
     const step = DRONE_SPEED * dt;
-    this.root.position.x += Math.sin(this.yaw) * step;
-    this.root.position.z += Math.cos(this.yaw) * step;
+    this.root.position.x += -Math.sin(this.yaw) * step;
+    this.root.position.z += -Math.cos(this.yaw) * step;
     // Climb or dive toward the target's height.
     this.root.position.y += Math.max(-step, Math.min(step, to.y * step * 1.6));
     this.root.rotation.y = this.yaw;

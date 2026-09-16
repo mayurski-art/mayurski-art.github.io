@@ -305,9 +305,9 @@ const pendingStrikes = [];          // { x, z, t, owned, team }
 let markingStreak = null;
 
 /* Controller-only: which ready streak d-pad right will fire. Keyboard's `4`
-   doesn't use this — it always calls the cheapest ready one directly, same
-   as it has since launch. This is purely for a pad, which has a spare button
-   to dedicate to "pick" separately from "use". */
+   doesn't use this — it always calls the priciest ready one directly. This
+   is purely for a pad, which has a spare button to dedicate to "pick"
+   separately from "use". */
 let selectedStreak = null;
 
 function clearStreakEntities() {
@@ -319,9 +319,14 @@ function clearStreakEntities() {
   if (els.streakMark) els.streakMark.hidden = true;
 }
 
-/* Cheapest-first order, the same tiebreak the keyboard path already used. */
+/* Priciest-first order. A cheap streak like UAV re-banks roughly every two
+   kills, well before a pricier one like Hunter-Killer does — sorting
+   cheapest-first meant the single-button call kept re-firing UAV forever and
+   a banked Hunter-Killer charge never got used until UAV happened to be
+   spent or deselected. Most-valuable-first means whichever streak took the
+   most kills to earn is the one the button actually fires. */
 function readyStreaksOrdered() {
-  return streaks.readyIds().sort((a, b) => STREAK_DEFS[a].cost - STREAK_DEFS[b].cost);
+  return streaks.readyIds().sort((a, b) => STREAK_DEFS[b].cost - STREAK_DEFS[a].cost);
 }
 
 /* D-pad down: move the pointer to the next ready streak. Does nothing with
@@ -337,7 +342,7 @@ function cycleSelectedStreak() {
 }
 
 /* D-pad right: fire whatever is currently selected. Falls back to the
-   cheapest ready streak if the pointer is stale (its streak got spent
+   priciest ready streak if the pointer is stale (its streak got spent
    elsewhere, or this is the first press with nothing cycled yet) — the
    button should never require two presses to do something the first time. */
 function useSelectedStreak() {
@@ -373,7 +378,7 @@ function groundAimPoint(maxDist = 140) {
   return ahead;
 }
 
-/* Call the cheapest streak that's ready. Bound to a single key rather than a
+/* Call the priciest streak that's ready. Bound to a single key rather than a
    menu: in BO2 you never stop moving to pick one, and everything here is
    either instant or puts you into a marking mode. */
 function callReadyStreak() {
@@ -2427,7 +2432,14 @@ function pollGamepad(dt) {
   gamepadState.lookDX += lookX * sens * dt * 60;
   gamepadState.lookDY += lookY * sens * dt * 60 * (settings.invert ? -1 : 1);
 
-  if (player.alive && !isStaging()) applyAimAssist(dt);
+  // Merely having a gamepad connected isn't "playing with a controller" — a
+  // trackpad or certain mice enumerate as a Gamepad object too, and this
+  // function used to run (and pull aim toward enemies) every frame any pad
+  // object existed, even completely idle. Assist should only ever nudge the
+  // look that the controller itself is actively driving, so it's gated on
+  // real right-stick deflection this frame, not on pad presence.
+  const usingGamepadLook = lookX !== 0 || lookY !== 0;
+  if (usingGamepadLook && player.alive && !isStaging()) applyAimAssist(dt);
 
   const btn = (i) => !!gp.buttons[i]?.pressed;
   const pressedEdge = (i) => btn(i) && !gpPrev[i];
@@ -2445,7 +2457,7 @@ function pollGamepad(dt) {
   if (!localPauseOnly) {
     if (pressedEdge(4)) tryReload();          // L1 -> reload (kept off fire face buttons)
     if (pressedEdge(2)) swingMelee();         // X / square -> melee
-    if (pressedEdge(3)) setHolding(player.holding === "gun" ? "melee" : "gun"); // Y / triangle
+    if (pressedEdge(3)) cycleWeapon();        // Y / triangle -> cycle primary/secondary/melee
     if (pressedEdge(5)) startCook("lethal");  // R1 -> cook nade
     if (gpPrev[5] && !btn(5)) releaseCook();
     // Tactical goes on d-pad left, NOT L1 — L1 is already reload above, and
@@ -3044,7 +3056,10 @@ function meleeConnect() {
       let mult = 1;
       const root = actor.mesh || actor.group;
       if (root) {
-        const theirs = new THREE.Vector3(Math.sin(root.rotation.y), 0, Math.cos(root.rotation.y));
+        // Matches movement.js's forwardVec (-sin(yaw), 0, -cos(yaw)) — this
+        // was the mirror image of that, so backstabs registered when hitting
+        // someone in the front and not the back.
+        const theirs = new THREE.Vector3(-Math.sin(root.rotation.y), 0, -Math.cos(root.rotation.y));
         const swing = dir.clone();
         swing.y = 0;
         swing.normalize();
@@ -3086,6 +3101,20 @@ function switchWeapon(slot) {
   currentWeaponSlot = slot;
   setActiveWeaponMesh(w.def);
   setHolding("gun");
+}
+
+/* Gamepad-only: keyboard has three dedicated keys (1/2/3) for primary/
+   secondary/melee, but the pad only has one free face button for this, so it
+   cycles through whatever's actually equipped instead. Skips secondary when
+   there isn't one (Gun Game, One in the Chamber, or no sidearm picked up
+   yet) rather than landing on a dead slot. */
+function cycleWeapon() {
+  const order = ["primary", ...(player.secondaryId ? ["secondary"] : []), "melee"];
+  const current = player.holding === "melee" ? "melee" : currentWeaponSlot;
+  const at = order.indexOf(current);
+  const next = order[(at + 1) % order.length];
+  if (next === "melee") setHolding("melee");
+  else switchWeapon(next);
 }
 
 /* Hold X: standing over a dropped weapon, picks it up into the secondary

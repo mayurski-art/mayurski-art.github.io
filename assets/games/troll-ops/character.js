@@ -130,6 +130,11 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     TROLLFACE_HEAD_MAT,
   );
   head.position.y = headH * 0.5 + 0.03 * s;
+  // A PlaneGeometry's default face normal is +Z, but the game's forward
+  // convention (movement.js's forwardVec, root.rotation.y = yaw everywhere
+  // this rig is placed) is -Z at yaw 0 — without this the trollface pointed
+  // backward relative to the direction the character actually walks/aims.
+  head.rotation.y = Math.PI;
   head.castShadow = true;
   head.userData.isHead = true;
   headPivot.add(head);
