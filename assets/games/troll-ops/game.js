@@ -26,7 +26,8 @@ import { Achievements } from "./achievements.js";
 import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
-import { RemotePlayers, TEAMS } from "./remote-players.js";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js";
+import { buildHumanoid, poseHumanoid } from "./character.js";
 import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout, Hill, Bomb, pickBombSites, PLANT_TIME, DEFUSE_TIME } from "./modes.js";
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
@@ -161,6 +162,7 @@ const els = {
   rangeShot: document.getElementById("to-range-shot"),
   rangeSens: document.getElementById("to-range-sens"),
   rangeFov: document.getElementById("to-range-fov"),
+  rangeSpawnBot: document.getElementById("to-range-spawnbot"),
 };
 
 const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
@@ -869,7 +871,7 @@ let suppressT = 0;
 
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
-  volume: 50, sens: 100, fov: 78, invert: false, minimap: true, botSkill: "regular", aimAssist: true,
+  volume: 50, sens: 100, fov: 78, invert: false, minimap: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
 
@@ -907,6 +909,11 @@ function applySettings() {
   // Takes effect for bots created from here on, so a change mid-match applies
   // as they respawn rather than rewriting the ones already in the fight.
   bots.difficulty = settings.botSkill;
+}
+
+function toggleThirdPerson() {
+  settings.thirdPerson = !settings.thirdPerson;
+  saveSettings();
 }
 
 function bindRange(id, key, outId, suffix = "") {
@@ -2143,6 +2150,20 @@ let shakeT = 0, shakeMag = 0;
 
 const move = new MovementController({ colliders, arena: ARENA });
 const bullets = new BulletSystem(scene);
+
+// -------------------- local third-person body --------------------
+// The local player has never had a visible body - only the first-person
+// viewmodel (weaponScene, a separate camera/pass below). Third-person mode
+// needs one, so it reuses the exact rig every bot/remote player already
+// uses (buildHumanoid/poseHumanoid) rather than a bespoke model. It's built
+// once and left in `scene` permanently; only its visibility toggles with
+// view mode, since the FP camera sits at head height inside it and it
+// would otherwise occlude the FP view.
+const LOCAL_RIG_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
+const localRig = buildHumanoid(LOCAL_RIG_MAT, { height: 1.8, gun: false });
+localRig.root.visible = false;
+scene.add(localRig.root);
+let localPhase = Math.random() * Math.PI * 2;
 const remotes = new RemotePlayers(scene);
 const pickups = new PickupSystem(scene);
 const swapHold = new SwapHold();
@@ -2186,6 +2207,7 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "KeyR") tryReload();
     if (e.code === "KeyT" && !e.repeat) startInspect();
     if (e.code === "KeyV" && !e.repeat) swingMelee();
+    if (e.code === "KeyB" && !e.repeat) toggleThirdPerson();
     if (e.code === "Digit1") switchWeapon("primary");
     if (e.code === "Digit2") switchWeapon("secondary");
     if (e.code === "Digit3") setHolding("melee");
@@ -2465,6 +2487,7 @@ function pollGamepad(dt) {
     if (pressedEdge(14)) startCook("tactical");
     if (gpPrev[14] && !btn(14)) releaseCook();
     if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
+    if (pressedEdge(8)) toggleThirdPerson();  // Select/View/Minus -> camera toggle
     // D-pad down cycles which ready streak d-pad right will fire — a pick,
     // not a use, since the pad has a button to spare for it and keyboard's
     // single-button "4" doesn't need one.
@@ -3393,6 +3416,23 @@ function spawnForTeam(team, forId = net.id) {
 
 function teamSpawn() { return spawnForTeam(net.team); }
 
+// Capped so a player mashing the button in the range can't spawn an
+// unbounded crowd — plenty to look at, cheap enough to never matter.
+const RANGE_BOT_CAP = 6;
+
+/* "Spawn a bot" button in the Test Range HUD — the only way to get other
+   visible characters into the range, which otherwise never has anyone in
+   it. Harmless: these bots aim at the player (real steering/animation
+   variety) but never actually deal damage, since onShoot is a no-op in
+   the range's own per-frame bot update below. */
+function spawnRangeBot() {
+  if (!isRange() || !net.isBotHost()) return;
+  if (bots.count >= RANGE_BOT_CAP) { showWaveBanner("Range is full — kill one first", 1800); return; }
+  bots.fill(bots.count + 2, 1, spawnForTeam, true);
+  for (const b of bots.bots) net.publishBot(b);
+  showWaveBanner(`Bot ${bots.count} in the range`, 1800);
+}
+
 /* Everything a bot could shoot at: us, other humans, and other bots. */
 function botTargets() {
   const list = [];
@@ -4216,6 +4256,7 @@ els.retryBtn.addEventListener("click", () => {
   startGame();
 });
 els.resumeBtn.addEventListener("click", () => { if (!isTouch) controls.lock(); });
+els.rangeSpawnBot?.addEventListener("click", spawnRangeBot);
 els.quitBtn.addEventListener("click", () => {
   // Quitting mid-match used to just discard player.matchXp — every kill's
   // banked XP for the session, gone, with no result screen to explain why.
@@ -4524,6 +4565,25 @@ function animate() {
       player.gear.lethal = loadout.lethal.carried;
       player.gear.tactical = loadout.tactical.carried;
       player.hp = Math.min(player.maxHp, player.hp + dt * 12);
+      // Bots spawned via the range's "Spawn a bot" button (spawnRangeBot)
+      // keep steering/animating here — this whole block is a no-op for
+      // anyone who never clicked that button.
+      if (bots.count) {
+        bots.update(dt, {
+          colliders, arena: ARENA, ffa: true,
+          // Real targets (including the player) so they walk/strafe/chase
+          // with natural variety instead of just idling in place - onShoot
+          // is a no-op so they never actually damage you here.
+          targets: botTargets(),
+          onShoot: () => {},
+          spawnFor: spawnForTeam,
+          sightBlocked: (a, b) => grenades.blocksSight(a, b),
+        });
+        for (const b of bots.bots) net.publishBot(b);
+        net.update(dt, netSnapshot());
+        remotes.sync(net.peers);
+        remotes.update(dt, net.team, true);
+      }
     } else if (isZombies()) {
       const roundOver = zdir.update(dt, player.pos, onZombieAttack);
       if (roundOver) nextZombieRound();
@@ -4681,7 +4741,10 @@ function animate() {
 
   composer.render();
 
-  if (gameState === "playing") {
+  // The FP viewmodel (gun+arms) only makes sense in first person — the gun
+  // is already visible on the third-person rig itself, so rendering both
+  // would double up the weapon on screen.
+  if (gameState === "playing" && !settings.thirdPerson) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
@@ -4693,6 +4756,98 @@ const _euler = new THREE.Euler(0, 0, 0, "YXZ");
 const _listenFwd = new THREE.Vector3();
 const _listenUp = new THREE.Vector3();
 let stepPhase = 0;
+
+// -------------------- third-person camera (spring arm) --------------------
+// Chase camera behind the player's own rig. Distance/side offset blend
+// in from an over-the-shoulder position as ADS deepens (w.adsT), rather
+// than snapping to first-person the way most third-person shooters with
+// real iron sights do - this game keeps the model visible while aiming.
+const TP_HIP_DIST = 3.2;
+const TP_HIP_SIDE = 0.55;       // shoulder offset, hip-fire framing
+const TP_ADS_DIST = 1.5;
+const TP_ADS_SIDE = 0.4;
+const TP_HEIGHT = 0.35;
+const _tpPivot = new THREE.Vector3();
+const _tpDesired = new THREE.Vector3();
+const _tpDir = new THREE.Vector3();
+const _tpRight = new THREE.Vector3();
+const _tpForward = new THREE.Vector3();
+
+/* Places `camera` behind `pivot` along the look direction (yaw/pitch),
+   pulled in by raycastWorld so it never clips through a wall/floor. */
+function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
+  const dist = TP_HIP_DIST + (TP_ADS_DIST - TP_HIP_DIST) * adsT;
+  const side = TP_HIP_SIDE + (TP_ADS_SIDE - TP_HIP_SIDE) * adsT;
+
+  _euler.set(pitch, yaw, 0);
+  _tpForward.set(0, 0, -1).applyEuler(_euler);
+  _tpRight.set(1, 0, 0).applyEuler(_euler);
+
+  _tpPivot.copy(pivot);
+  _tpDesired.copy(_tpPivot)
+    .addScaledVector(_tpForward, -dist)
+    .addScaledVector(_tpRight, side);
+  _tpDesired.y += TP_HEIGHT;
+
+  _tpDir.copy(_tpDesired).sub(_tpPivot);
+  const wantLen = _tpDir.length();
+  _tpDir.normalize();
+  // Pull the camera in toward the pivot if the desired spot is behind a
+  // wall/floor — a small skin width keeps it from resting exactly on the
+  // surface and clipping into it.
+  const safeLen = Math.max(0.15, raycastWorld(colliders, _tpPivot, _tpDir, wantLen) - 0.1);
+
+  camera.position.copy(_tpPivot).addScaledVector(_tpDir, safeLen);
+  camera.lookAt(
+    _tpPivot.x + _tpForward.x * 10,
+    _tpPivot.y + _tpForward.y * 10,
+    _tpPivot.z + _tpForward.z * 10,
+  );
+}
+
+let localLower = 0;
+
+/* Positions and poses the local player's own humanoid rig every frame -
+   same buildHumanoid/poseHumanoid contract remote-players.js drives other
+   operators with, fed from this client's own authoritative move/look state
+   instead of reconstructed network deltas. Runs regardless of view mode
+   (cheap, and keeps the rig ready the instant third person is toggled on)
+   but only actually matters visually while localRig.root.visible is true. */
+function updateLocalRig(dt) {
+  localRig.root.position.set(move.pos.x, move.pos.y, move.pos.z);
+  localRig.root.rotation.y = look.yaw;
+
+  const wantLower = STANCE_LOWER[move.stance] ?? 0;
+  localLower += (wantLower - localLower) * Math.min(1, dt * 8);
+
+  // Signed forward/strafe relative to facing, same convention
+  // remote-players.js derives from position deltas - here it's exact,
+  // straight off the velocity vector and yaw.
+  const sin = Math.sin(look.yaw), cos = Math.cos(look.yaw);
+  const vx = move.velocity.x, vz = move.velocity.z;
+  const speed = Math.hypot(vx, vz);
+  const rightX = cos, rightZ = -sin;
+  const fwdX = -sin, fwdZ = -cos;
+  let strafe = 0, forward = 1;
+  if (speed > 0.05) {
+    strafe = Math.max(-1, Math.min(1, (vx * rightX + vz * rightZ) * 6));
+    forward = Math.max(-1, Math.min(1, (vx * fwdX + vz * fwdZ) * 6));
+  }
+  const gaitSpeed = Math.max(0, Math.min(1, speed / 4.2));
+
+  if (move.moving) localPhase += dt * 9 * Math.max(0.35, Math.min(1.6, speed / 4.2));
+
+  poseHumanoid(localRig, {
+    phase: localPhase,
+    moving: move.moving && move.grounded,
+    pitch: look.pitch,
+    lower: localLower,
+    strafe,
+    forward,
+    speed: gaitSpeed,
+    dt,
+  });
+}
 
 /* Last value written to each per-frame HUD node. The DOM write itself is
    cheap, but it was unconditional — every one of these touched layout/paint
@@ -4790,16 +4945,26 @@ function updatePlayer(dt) {
   // below so the two don't fight over the same camera in the same frame.
   if (killcam.update(dt)) return;
 
-  camera.position.copy(player.pos);
+  // The local rig always follows the player (even in first-person, when
+  // it's simply invisible) so it's never a frame stale the moment third
+  // person is toggled on, and so OTHER systems that might reasonably poke
+  // at it (screenshots, a future killcam angle) see a live pose.
+  updateLocalRig(dt);
 
-  // One place composes the camera: aim + weapon recoil.
   const shake = shakeT > 0 ? shakeMag * (shakeT / 0.45) : 0;
-  _euler.set(
-    look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake,
-    look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake,
-    (Math.random() - 0.5) * shake * 0.6,
-  );
-  camera.quaternion.setFromEuler(_euler);
+  const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake;
+  const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake;
+
+  if (settings.thirdPerson) {
+    localRig.root.visible = true;
+    updateThirdPersonCamera(player.pos, viewYaw, viewPitch, w.adsT);
+  } else {
+    localRig.root.visible = false;
+    camera.position.copy(player.pos);
+    // One place composes the camera: aim + weapon recoil.
+    _euler.set(viewPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6);
+    camera.quaternion.setFromEuler(_euler);
+  }
 
   // Panned sounds resolve against wherever the camera now is and faces.
   _listenFwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -5243,6 +5408,7 @@ animate();
 if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
+    settings, localRig, toggleThirdPerson,
     startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
     startIntermission, updateIntermission, occupants, notePointDeath,
     isStaging, beginStaging, endStaging, updateStaging,

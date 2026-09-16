@@ -12,14 +12,14 @@
 // identical here and not re-explained.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid } from "./character.js";
+import { buildHumanoid, poseDance } from "./character.js";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
 const REST_YAW = -0.45;
 
 const OPERATOR_MATERIAL = new THREE.MeshStandardMaterial({
-  color: 0xe8e6df, roughness: 0.55, metalness: 0.05,
+  color: 0x0a0a0a, roughness: 0.7, metalness: 0.1,
 });
 
 export class CharacterInspector {
@@ -62,6 +62,10 @@ export class CharacterInspector {
     this.pitch = 0.14;
     this.autoSpin = true;
     this.spinT = 0;
+    // Separate from spinT, which freezes whenever the user drags the
+    // camera (autoSpin off) - the dance should keep looping regardless
+    // of whether the player is looking the operator over.
+    this.danceT = 0;
     this.width = 0;
     this.height = 0;
 
@@ -152,21 +156,11 @@ export class CharacterInspector {
     }
     this.zoom += (this.zoomTarget - this.zoom) * Math.min(1, dt * 9);
 
-    // A relaxed idle: a slow weight-shift from foot to foot rather than a
-    // locked-still T-pose, so the operator reads as alive while waiting
-    // to deploy. Feeding a slowly oscillating `strafe` into poseHumanoid
-    // (rather than standing it still) gets the whole lean/neck-lead
-    // system doing the work for free instead of hand-rolling a separate
-    // sway here.
-    const idleShift = Math.sin(this.spinT * 0.55);
-    poseHumanoid(this.humanoid, {
-      phase: this.spinT * 0.9,
-      moving: false,
-      pitch: 0,
-      lower: 0,
-      strafe: idleShift * 0.4,
-      dt,
-    });
+    // A looping dance instead of a locked-still T-pose or a plain weight
+    // shift - the operator shows off while waiting to deploy, the same
+    // way a Fortnite locker skin performs its emote on repeat.
+    this.danceT += dt;
+    poseDance(this.humanoid, this.danceT);
 
     const dist = this.baseDist * this.zoom;
     const cp = Math.cos(this.pitch);

@@ -17,11 +17,11 @@
 import * as THREE from "three";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
-const HAND_MAT = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.6 });
-// Feet get their own darker tone (a "shoe") distinct from the pale mitten
-// hands - sharing one light color meant a hand caught mid-swing near the
-// hip, at a glance, read as a third foot next to the real two.
-const FOOT_MAT = new THREE.MeshStandardMaterial({ color: 0x2c2c2e, roughness: 0.7 });
+// Hands and feet match the rest of the limbs - black, matching the
+// classic trollface stick-figure look - rather than the old pale mitten
+// hands, which stood out as a lighter patch against the black arms/legs.
+const HAND_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.6 });
+const FOOT_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7 });
 
 // Shared by every invisible hit-proxy primitive (see buildHumanoid below).
 // Never rendered, just needs to be a real material so raycasting works.
@@ -272,14 +272,39 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
    Callers that only ever move at one speed (enemies.js, zombies.js) can
    omit it; it defaults to a full-intensity cycle whenever `moving` is true,
    matching the old fixed-amplitude behavior. */
-export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, speed = 1, dt = 0.016, zombie = false }) {
+export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, dt = 0.016, zombie = false }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
+  // Signed fore/aft component of actual travel relative to facing: 1 =
+  // running forward, -1 = full backpedal, 0 = a pure sideways strafe.
+  const fwd = Math.max(-1, Math.min(1, forward));
   const spd = moving ? Math.max(0.28, Math.min(1, speed)) : 0;
 
-  const swing = moving ? Math.sin(phase) * (0.55 + spd * 0.45) : 0;
+  // `gait` is the sign to swing the legs in: +1 running forward, -1
+  // backpedaling. `fwdAmt` is how much of the cycle is fore/aft swing at
+  // all - it fades toward 0 as travel becomes a pure sideways strafe, so
+  // a strafing character steps side-to-side instead of still swinging its
+  // legs through a full forward-jog arc with just a static lean/splay
+  // bolted on top (the tangled, criss-crossing legs the old cycle produced
+  // whenever real movement had a lateral component).
+  const gait = fwd < 0 ? -1 : 1;
+  const fwdAmt = Math.min(1, Math.abs(fwd));
+  const swing = moving ? Math.sin(phase) * (0.55 + spd * 0.45) * gait * fwdAmt : 0;
+  // The portion of the cycle that isn't fore/aft swing becomes a lateral
+  // side-step: legs alternate stepping apart sideways instead of just
+  // leaning into the strafe while standing square.
+  const sideStep = moving ? Math.sin(phase) * (0.35 + spd * 0.3) * str * (1 - fwdAmt) : 0;
   const lift = moving ? Math.abs(Math.cos(phase)) * (0.15 + spd * 0.2) : 0;
+
+  // poseDeath is the only other place that touches hips.rotation.x (it
+  // pitches the whole body forward onto the ground as a kill collapses).
+  // poseHumanoid must explicitly zero it back out on every frame, or a
+  // rig that respawns after dying keeps that ~90° forward pitch forever -
+  // walking and running upright from the waist down while the hips (and
+  // everything stacked on them) stay tipped flat, legs trailing up behind
+  // like it's still mid-collapse.
+  p.hips.rotation.x = 0;
 
   p.legL.rotation.x = swing;
   p.legR.rotation.x = -swing;
@@ -287,8 +312,8 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // Strafing splays the lead leg out to the side it's stepping toward
   // instead of just swinging fore/aft - a sideways shuffle reads very
   // differently from a forward jog even at the same leg-swing speed.
-  p.legL.rotation.z = str * 0.22;
-  p.legR.rotation.z = str * 0.22;
+  p.legL.rotation.z = str * 0.22 + sideStep;
+  p.legR.rotation.z = str * 0.22 - sideStep;
 
   if (zombie) {
     // both arms out front, with a lopsided shamble
@@ -318,7 +343,7 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // aim legibility, clamped well short of vertical, and a small
   // counter-swing tied to footfall keeps the carry from looking welded
   // in place mid-stride.
-  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd : 0;
+  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd * gait * fwdAmt : 0;
   p.armR.rotation.x = -1.35 - pitch * 0.32 + carrySwing;
   p.armR.rotation.z = -0.15;
 
@@ -328,10 +353,13 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   p.legL.rotation.x += crouch * 0.9;
   p.legR.rotation.x += crouch * 0.9;
 
-  // Body lean: forward while moving (more at a sprint than a walk),
-  // banked into the strafe direction - a real body committing sideways
-  // tips into the turn rather than sliding like a statue on rails.
-  const moveLean = moving ? 0.05 + spd * 0.13 : 0;
+  // Body lean: forward while moving ahead (more at a sprint than a walk),
+  // backward when backpedaling, banked into the strafe direction - a real
+  // body committing sideways tips into the turn rather than sliding like
+  // a statue on rails, and a body backpedaling leans away from travel
+  // rather than diving face-first into the direction it's actually moving
+  // away from.
+  const moveLean = moving ? (0.05 + spd * 0.13) * gait * fwdAmt : 0;
   p.torso.rotation.x = crouch * 0.35 + moveLean;
   p.torso.rotation.z = str * -0.16;
   p.chest.rotation.x = crouch * 0.35 + moveLean * 0.6;
@@ -339,6 +367,58 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   p.hips.rotation.z = str * 0.08;
 
   _poseNeckAndHead(rig, { pitch, sway: 0, dt, lead: str });
+}
+
+/* A looping victory/idle dance - the locker screen's answer to Fortnite's
+   emote preview. `t` is seconds elapsed, runs forever (no start/end, just
+   feed a growing clock). Built from a handful of layered sine waves at
+   different rates rather than one single beat, so the loop doesn't read
+   as a metronome: hips carry the main beat (bounce + side-to-side sway),
+   shoulders/arms pump on the same beat with a bigger swing than any real
+   footstep gait would use (a dance reads as looser and bigger than a
+   walk), the head bobs slightly out of phase with the hips (a real
+   dancer's head lags the hip snap by a beat), and the knees bend on the
+   downbeat so the bounce comes from the whole body, not just the hips
+   sliding up and down on rails. */
+export function poseDance(rig, t) {
+  const p = rig.parts;
+  const s = rig.scale;
+  const beat = t * Math.PI * 2 * 1.8; // ~1.8 bounces/second
+
+  const bounce = Math.abs(Math.sin(beat)); // 0..1, snaps down on every beat
+  const sway = Math.sin(beat * 0.5); // one full side-to-side per two bounces
+
+  p.hips.position.y = rig.hipY - bounce * 0.09 * s;
+  p.hips.rotation.z = sway * 0.16;
+  p.hips.rotation.y = Math.sin(beat * 0.5 + Math.PI / 2) * 0.12;
+
+  p.torso.rotation.z = sway * -0.12;
+  p.torso.rotation.x = 0.06 + bounce * 0.04;
+  p.chest.rotation.z = sway * -0.08;
+  p.chest.rotation.x = 0.05 + bounce * 0.03;
+
+  // Knees bend on the downbeat (both together, not alternating like a
+  // walk cycle) so the bounce visibly comes from the legs, not just the
+  // hips sliding vertically.
+  const kneeBend = bounce * 0.5;
+  p.legL.rotation.x = kneeBend;
+  p.legR.rotation.x = kneeBend;
+  p.legL.rotation.z = sway * 0.10;
+  p.legR.rotation.z = sway * 0.10;
+
+  // Arms swing big and opposite the hip sway, elbows-out disco-pump
+  // rather than the tight, low running counter-swing poseHumanoid uses.
+  const armSwing = Math.sin(beat * 0.5 + Math.PI);
+  p.armL.rotation.x = -0.9 + armSwing * 0.5;
+  p.armR.rotation.x = -0.9 - armSwing * 0.5;
+  p.armL.rotation.z = 0.35 + bounce * 0.15;
+  p.armR.rotation.z = -0.35 - bounce * 0.15;
+
+  // Head bob trails the hip beat slightly (a fixed phase offset rather
+  // than perfect lockstep) so the head reads as following the body's
+  // motion instead of everything moving as one rigid block.
+  const headBob = Math.sin(beat - 0.35);
+  _poseNeckAndHead(rig, { pitch: -headBob * 0.12, sway: sway * 0.15, dt: 0, lead: sway * 0.3 });
 }
 
 /* Collapse the rig into a fallen heap. `t` is 0 (moment of death) to 1
