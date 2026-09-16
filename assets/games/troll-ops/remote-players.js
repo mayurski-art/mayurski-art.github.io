@@ -198,15 +198,27 @@ export class RemotePlayer {
     // between the two bracketing snapshots, projected onto their own
     // left/right axis for strafe. Cheap, needs no protocol change.
     let strafe = 0;
+    let forward = 1;
     let speed = 0;
     if (b.t > a.t) {
       const dx = b.x - a.x, dz = b.z - a.z;
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
-      // Local right axis for a yaw-only rotation about Y.
+      // Local right/forward axes for a yaw-only rotation about Y (forward
+      // is -Z at yaw 0, matching movement.js/character.js's convention).
       const rightX = cos, rightZ = -sin;
+      const fwdX = -sin, fwdZ = -cos;
       const lateral = dx * rightX + dz * rightZ;
+      const along = dx * fwdX + dz * fwdZ;
       speed = Math.hypot(dx, dz) / ((b.t - a.t) / 1000 || 1);
-      strafe = speed > 0.05 ? Math.max(-1, Math.min(1, lateral * 6)) : 0;
+      if (speed > 0.05) {
+        strafe = Math.max(-1, Math.min(1, lateral * 6));
+        // Signed -1 (full backpedal) .. 1 (full forward run); a pure
+        // strafe with no fore/aft component lands at 0.
+        forward = Math.max(-1, Math.min(1, along * 6));
+      } else {
+        strafe = 0;
+        forward = 1;
+      }
     }
 
     // `moving` (from the wire) gates whether the legs animate at all; the
@@ -225,7 +237,7 @@ export class RemotePlayer {
     this.rig.root.position.copy(this.pos);
     this.rig.root.rotation.y = this.yaw;
 
-    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, speed: gaitSpeed, dt });
+    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward, speed: gaitSpeed, dt });
 
     this.tag.position.y = 2.15 - this.lower * 0.75;
   }

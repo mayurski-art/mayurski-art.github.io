@@ -17,11 +17,11 @@
 import * as THREE from "three";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
-const HAND_MAT = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.6 });
-// Feet get their own darker tone (a "shoe") distinct from the pale mitten
-// hands - sharing one light color meant a hand caught mid-swing near the
-// hip, at a glance, read as a third foot next to the real two.
-const FOOT_MAT = new THREE.MeshStandardMaterial({ color: 0x2c2c2e, roughness: 0.7 });
+// Hands and feet match the rest of the limbs - black, matching the
+// classic trollface stick-figure look - rather than the old pale mitten
+// hands, which stood out as a lighter patch against the black arms/legs.
+const HAND_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.6 });
+const FOOT_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7 });
 
 // Shared by every invisible hit-proxy primitive (see buildHumanoid below).
 // Never rendered, just needs to be a real material so raycasting works.
@@ -272,13 +272,22 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
    Callers that only ever move at one speed (enemies.js, zombies.js) can
    omit it; it defaults to a full-intensity cycle whenever `moving` is true,
    matching the old fixed-amplitude behavior. */
-export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, speed = 1, dt = 0.016, zombie = false }) {
+export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, dt = 0.016, zombie = false }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
+  // Signed fore/aft component of actual travel relative to facing: 1 =
+  // running forward, -1 = full backpedal, 0 = a pure sideways strafe.
+  // Reversing the swing sign for negative `fwd` is what makes backpedaling
+  // read as backward steps instead of the forward gait sliding backward
+  // (a moonwalk) - and blending the leg-swing amplitude down toward a
+  // pure strafe (fwd -> 0) is what keeps a sideways shuffle from still
+  // swinging the legs like a forward jog underneath the lean/splay.
+  const fwd = Math.max(-1, Math.min(1, forward));
   const spd = moving ? Math.max(0.28, Math.min(1, speed)) : 0;
 
-  const swing = moving ? Math.sin(phase) * (0.55 + spd * 0.45) : 0;
+  const gait = Math.abs(fwd) + Math.abs(str) > 0 ? Math.sign(fwd || 1) : 1;
+  const swing = moving ? Math.sin(phase) * (0.55 + spd * 0.45) * gait : 0;
   const lift = moving ? Math.abs(Math.cos(phase)) * (0.15 + spd * 0.2) : 0;
 
   p.legL.rotation.x = swing;
@@ -318,7 +327,7 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // aim legibility, clamped well short of vertical, and a small
   // counter-swing tied to footfall keeps the carry from looking welded
   // in place mid-stride.
-  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd : 0;
+  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd * gait : 0;
   p.armR.rotation.x = -1.35 - pitch * 0.32 + carrySwing;
   p.armR.rotation.z = -0.15;
 
@@ -328,10 +337,13 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   p.legL.rotation.x += crouch * 0.9;
   p.legR.rotation.x += crouch * 0.9;
 
-  // Body lean: forward while moving (more at a sprint than a walk),
-  // banked into the strafe direction - a real body committing sideways
-  // tips into the turn rather than sliding like a statue on rails.
-  const moveLean = moving ? 0.05 + spd * 0.13 : 0;
+  // Body lean: forward while moving ahead (more at a sprint than a walk),
+  // backward when backpedaling, banked into the strafe direction - a real
+  // body committing sideways tips into the turn rather than sliding like
+  // a statue on rails, and a body backpedaling leans away from travel
+  // rather than diving face-first into the direction it's actually moving
+  // away from.
+  const moveLean = moving ? (0.05 + spd * 0.13) * gait : 0;
   p.torso.rotation.x = crouch * 0.35 + moveLean;
   p.torso.rotation.z = str * -0.16;
   p.chest.rotation.x = crouch * 0.35 + moveLean * 0.6;

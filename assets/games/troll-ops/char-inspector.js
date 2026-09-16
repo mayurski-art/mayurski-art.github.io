@@ -19,7 +19,7 @@ const MAX_ZOOM = 2.2;
 const REST_YAW = -0.45;
 
 const OPERATOR_MATERIAL = new THREE.MeshStandardMaterial({
-  color: 0xe8e6df, roughness: 0.55, metalness: 0.05,
+  color: 0x0a0a0a, roughness: 0.7, metalness: 0.1,
 });
 
 export class CharacterInspector {
