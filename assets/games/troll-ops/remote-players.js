@@ -25,7 +25,7 @@ const FRIENDLY_TAG_COLOR = "#ffffff";
 const ENEMY_TAG_COLOR = "#ff4d3d";
 
 // How far the body is folded down in each stance, 0 = upright.
-const STANCE_LOWER = { stand: 0, crouch: 0.55, slide: 0.8, prone: 1, vault: 0.3 };
+export const STANCE_LOWER = { stand: 0, crouch: 0.55, slide: 0.8, prone: 1, vault: 0.3 };
 
 function makeNameTag(text, colorHex) {
   const canvas = document.createElement("canvas");
