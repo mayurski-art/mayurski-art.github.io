@@ -278,16 +278,23 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   const str = Math.max(-1, Math.min(1, strafe));
   // Signed fore/aft component of actual travel relative to facing: 1 =
   // running forward, -1 = full backpedal, 0 = a pure sideways strafe.
-  // Reversing the swing sign for negative `fwd` is what makes backpedaling
-  // read as backward steps instead of the forward gait sliding backward
-  // (a moonwalk) - and blending the leg-swing amplitude down toward a
-  // pure strafe (fwd -> 0) is what keeps a sideways shuffle from still
-  // swinging the legs like a forward jog underneath the lean/splay.
   const fwd = Math.max(-1, Math.min(1, forward));
   const spd = moving ? Math.max(0.28, Math.min(1, speed)) : 0;
 
-  const gait = Math.abs(fwd) + Math.abs(str) > 0 ? Math.sign(fwd || 1) : 1;
-  const swing = moving ? Math.sin(phase) * (0.55 + spd * 0.45) * gait : 0;
+  // `gait` is the sign to swing the legs in: +1 running forward, -1
+  // backpedaling. `fwdAmt` is how much of the cycle is fore/aft swing at
+  // all - it fades toward 0 as travel becomes a pure sideways strafe, so
+  // a strafing character steps side-to-side instead of still swinging its
+  // legs through a full forward-jog arc with just a static lean/splay
+  // bolted on top (the tangled, criss-crossing legs the old cycle produced
+  // whenever real movement had a lateral component).
+  const gait = fwd < 0 ? -1 : 1;
+  const fwdAmt = Math.min(1, Math.abs(fwd));
+  const swing = moving ? Math.sin(phase) * (0.55 + spd * 0.45) * gait * fwdAmt : 0;
+  // The portion of the cycle that isn't fore/aft swing becomes a lateral
+  // side-step: legs alternate stepping apart sideways instead of just
+  // leaning into the strafe while standing square.
+  const sideStep = moving ? Math.sin(phase) * (0.35 + spd * 0.3) * str * (1 - fwdAmt) : 0;
   const lift = moving ? Math.abs(Math.cos(phase)) * (0.15 + spd * 0.2) : 0;
 
   p.legL.rotation.x = swing;
@@ -296,8 +303,8 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // Strafing splays the lead leg out to the side it's stepping toward
   // instead of just swinging fore/aft - a sideways shuffle reads very
   // differently from a forward jog even at the same leg-swing speed.
-  p.legL.rotation.z = str * 0.22;
-  p.legR.rotation.z = str * 0.22;
+  p.legL.rotation.z = str * 0.22 + sideStep;
+  p.legR.rotation.z = str * 0.22 - sideStep;
 
   if (zombie) {
     // both arms out front, with a lopsided shamble
@@ -327,7 +334,7 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // aim legibility, clamped well short of vertical, and a small
   // counter-swing tied to footfall keeps the carry from looking welded
   // in place mid-stride.
-  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd * gait : 0;
+  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd * gait * fwdAmt : 0;
   p.armR.rotation.x = -1.35 - pitch * 0.32 + carrySwing;
   p.armR.rotation.z = -0.15;
 
@@ -343,7 +350,7 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // a statue on rails, and a body backpedaling leans away from travel
   // rather than diving face-first into the direction it's actually moving
   // away from.
-  const moveLean = moving ? (0.05 + spd * 0.13) * gait : 0;
+  const moveLean = moving ? (0.05 + spd * 0.13) * gait * fwdAmt : 0;
   p.torso.rotation.x = crouch * 0.35 + moveLean;
   p.torso.rotation.z = str * -0.16;
   p.chest.rotation.x = crouch * 0.35 + moveLean * 0.6;
