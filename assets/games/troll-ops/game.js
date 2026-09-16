@@ -162,6 +162,7 @@ const els = {
   rangeShot: document.getElementById("to-range-shot"),
   rangeSens: document.getElementById("to-range-sens"),
   rangeFov: document.getElementById("to-range-fov"),
+  rangeSpawnBot: document.getElementById("to-range-spawnbot"),
 };
 
 const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
@@ -3415,6 +3416,23 @@ function spawnForTeam(team, forId = net.id) {
 
 function teamSpawn() { return spawnForTeam(net.team); }
 
+// Capped so a player mashing the button in the range can't spawn an
+// unbounded crowd — plenty to look at, cheap enough to never matter.
+const RANGE_BOT_CAP = 6;
+
+/* "Spawn a bot" button in the Test Range HUD — the only way to get other
+   visible characters into the range, which otherwise never has anyone in
+   it. Harmless: these bots aim at the player (real steering/animation
+   variety) but never actually deal damage, since onShoot is a no-op in
+   the range's own per-frame bot update below. */
+function spawnRangeBot() {
+  if (!isRange() || !net.isBotHost()) return;
+  if (bots.count >= RANGE_BOT_CAP) { showWaveBanner("Range is full — kill one first", 1800); return; }
+  bots.fill(bots.count + 2, 1, spawnForTeam, true);
+  for (const b of bots.bots) net.publishBot(b);
+  showWaveBanner(`Bot ${bots.count} in the range`, 1800);
+}
+
 /* Everything a bot could shoot at: us, other humans, and other bots. */
 function botTargets() {
   const list = [];
@@ -3931,22 +3949,7 @@ function beginMatch(mapId = null) {
 
   // The range is a sandbox, not a match — there is nothing to count down to.
   if (isRange()) {
-    // Dev-only: ?tohooks=1&rangebots=N spawns N stationary-ish bots into
-    // the range so a third-person/animation change can be eyeballed
-    // against other visible characters without a real multiplayer room.
-    // Never runs for normal players — both the hooks gate and the param
-    // have to be present.
-    const rangeBots = /[?&]tohooks=1/.test(location.search)
-      ? parseInt(new URLSearchParams(location.search).get("rangebots") || "0", 10) : 0;
-    if (rangeBots > 0 && net.isBotHost()) {
-      // fill's first arg is a target TOTAL headcount (bots = target - humans),
-      // not a bot count directly.
-      bots.fill(rangeBots + 1, 1, spawnForTeam, true);
-      for (const b of bots.bots) net.publishBot(b);
-      showWaveBanner(`Test range — ${rangeBots} bot${rangeBots === 1 ? "" : "s"} for looking at`, 2600);
-    } else {
-      showWaveBanner("Test range — nothing here shoots back", 2600);
-    }
+    showWaveBanner("Test range — nothing here shoots back", 2600);
   } else {
     // Bots are filled here rather than on the first live frame, so the room is
     // already populated while the player watches the clock.
@@ -4253,6 +4256,7 @@ els.retryBtn.addEventListener("click", () => {
   startGame();
 });
 els.resumeBtn.addEventListener("click", () => { if (!isTouch) controls.lock(); });
+els.rangeSpawnBot?.addEventListener("click", spawnRangeBot);
 els.quitBtn.addEventListener("click", () => {
   // Quitting mid-match used to just discard player.matchXp — every kill's
   // banked XP for the session, gone, with no result screen to explain why.
@@ -4561,9 +4565,9 @@ function animate() {
       player.gear.lethal = loadout.lethal.carried;
       player.gear.tactical = loadout.tactical.carried;
       player.hp = Math.min(player.maxHp, player.hp + dt * 12);
-      // Dev-only ?rangebots=N (see startMatch) keeps them steering/animating
-      // after the staging countdown ends — normal Range never has any bots,
-      // so this whole block is a no-op for every real player.
+      // Bots spawned via the range's "Spawn a bot" button (spawnRangeBot)
+      // keep steering/animating here — this whole block is a no-op for
+      // anyone who never clicked that button.
       if (bots.count) {
         bots.update(dt, {
           colliders, arena: ARENA, ffa: true,
@@ -4737,7 +4741,10 @@ function animate() {
 
   composer.render();
 
-  if (gameState === "playing") {
+  // The FP viewmodel (gun+arms) only makes sense in first person — the gun
+  // is already visible on the third-person rig itself, so rendering both
+  // would double up the weapon on screen.
+  if (gameState === "playing" && !settings.thirdPerson) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
