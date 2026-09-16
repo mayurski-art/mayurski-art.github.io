@@ -297,6 +297,15 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   const sideStep = moving ? Math.sin(phase) * (0.35 + spd * 0.3) * str * (1 - fwdAmt) : 0;
   const lift = moving ? Math.abs(Math.cos(phase)) * (0.15 + spd * 0.2) : 0;
 
+  // poseDeath is the only other place that touches hips.rotation.x (it
+  // pitches the whole body forward onto the ground as a kill collapses).
+  // poseHumanoid must explicitly zero it back out on every frame, or a
+  // rig that respawns after dying keeps that ~90° forward pitch forever -
+  // walking and running upright from the waist down while the hips (and
+  // everything stacked on them) stay tipped flat, legs trailing up behind
+  // like it's still mid-collapse.
+  p.hips.rotation.x = 0;
+
   p.legL.rotation.x = swing;
   p.legR.rotation.x = -swing;
 
@@ -358,6 +367,58 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   p.hips.rotation.z = str * 0.08;
 
   _poseNeckAndHead(rig, { pitch, sway: 0, dt, lead: str });
+}
+
+/* A looping victory/idle dance - the locker screen's answer to Fortnite's
+   emote preview. `t` is seconds elapsed, runs forever (no start/end, just
+   feed a growing clock). Built from a handful of layered sine waves at
+   different rates rather than one single beat, so the loop doesn't read
+   as a metronome: hips carry the main beat (bounce + side-to-side sway),
+   shoulders/arms pump on the same beat with a bigger swing than any real
+   footstep gait would use (a dance reads as looser and bigger than a
+   walk), the head bobs slightly out of phase with the hips (a real
+   dancer's head lags the hip snap by a beat), and the knees bend on the
+   downbeat so the bounce comes from the whole body, not just the hips
+   sliding up and down on rails. */
+export function poseDance(rig, t) {
+  const p = rig.parts;
+  const s = rig.scale;
+  const beat = t * Math.PI * 2 * 1.8; // ~1.8 bounces/second
+
+  const bounce = Math.abs(Math.sin(beat)); // 0..1, snaps down on every beat
+  const sway = Math.sin(beat * 0.5); // one full side-to-side per two bounces
+
+  p.hips.position.y = rig.hipY - bounce * 0.09 * s;
+  p.hips.rotation.z = sway * 0.16;
+  p.hips.rotation.y = Math.sin(beat * 0.5 + Math.PI / 2) * 0.12;
+
+  p.torso.rotation.z = sway * -0.12;
+  p.torso.rotation.x = 0.06 + bounce * 0.04;
+  p.chest.rotation.z = sway * -0.08;
+  p.chest.rotation.x = 0.05 + bounce * 0.03;
+
+  // Knees bend on the downbeat (both together, not alternating like a
+  // walk cycle) so the bounce visibly comes from the legs, not just the
+  // hips sliding vertically.
+  const kneeBend = bounce * 0.5;
+  p.legL.rotation.x = kneeBend;
+  p.legR.rotation.x = kneeBend;
+  p.legL.rotation.z = sway * 0.10;
+  p.legR.rotation.z = sway * 0.10;
+
+  // Arms swing big and opposite the hip sway, elbows-out disco-pump
+  // rather than the tight, low running counter-swing poseHumanoid uses.
+  const armSwing = Math.sin(beat * 0.5 + Math.PI);
+  p.armL.rotation.x = -0.9 + armSwing * 0.5;
+  p.armR.rotation.x = -0.9 - armSwing * 0.5;
+  p.armL.rotation.z = 0.35 + bounce * 0.15;
+  p.armR.rotation.z = -0.35 - bounce * 0.15;
+
+  // Head bob trails the hip beat slightly (a fixed phase offset rather
+  // than perfect lockstep) so the head reads as following the body's
+  // motion instead of everything moving as one rigid block.
+  const headBob = Math.sin(beat - 0.35);
+  _poseNeckAndHead(rig, { pitch: -headBob * 0.12, sway: sway * 0.15, dt: 0, lead: sway * 0.3 });
 }
 
 /* Collapse the rig into a fallen heap. `t` is 0 (moment of death) to 1
