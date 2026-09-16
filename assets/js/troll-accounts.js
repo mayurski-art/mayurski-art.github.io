@@ -138,7 +138,7 @@
       access_token: session.access_token,
       refresh_token: session.refresh_token,
     }));
-    document.cookie = `${SSO_COOKIE}=${value}; Domain=${domain}; Path=/; Max-Age=2592000; SameSite=Lax; Secure`;
+    document.cookie = `${SSO_COOKIE}=${value}; Domain=${domain}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
   }
   function readSsoCookie() {
     const match = document.cookie.match(new RegExp(`(?:^|; )${SSO_COOKIE}=([^;]*)`));
