@@ -21,6 +21,7 @@ import {
   HELI_FIRE_RANGE, HELI_DAMAGE,
 } from "./streak-entities.js";
 import { KillstreakUi } from "./killstreak-ui.js";
+import { KillCam } from "./killcam.js";
 import { Achievements } from "./achievements.js";
 import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
@@ -1660,6 +1661,7 @@ scene.add(sky);
 
 const camera = new THREE.PerspectiveCamera(78, 16 / 9, 0.05, 300);
 let baseFov = 78;   // driven by the FOV setting
+const killcam = new KillCam(camera);
 
 // Lighting
 const hemi = new THREE.HemisphereLight(0xb9d4ff, 0x39432c, 1.1);
@@ -4296,6 +4298,20 @@ function killerHpFor(id) {
   return null;
 }
 
+/* Where the killer was standing, for the kill cam to orbit toward. Same
+   bots-first order as killerHpFor, but falls through to remotes.byId rather
+   than net.peers directly since RemotePlayer.pos is the interpolated render
+   position — the one that actually matches what was on screen. Null for a
+   scorestreak kill (drone/heli/airstrike) or a killer that's already gone. */
+function killerPosFor(id) {
+  if (!id) return null;
+  const b = bots.byId(id);
+  if (b) return new THREE.Vector3(b.pos.x, b.pos.y + 1.5, b.pos.z);
+  const rp = remotes.byId.get(id);
+  if (rp) return new THREE.Vector3(rp.pos.x, rp.pos.y + 1.5, rp.pos.z);
+  return null;
+}
+
 function damagePlayer(amount, fromId, weaponId, isHead = false) {
   if (!player.alive) return;
   // Nothing lands before the match is live, whoever reports it.
@@ -4344,6 +4360,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false) {
       head: isHead, victimIsMe: true, victimTeam: net.team,
     });
     showDeathCard(fromId, weaponId, isHead);
+    killcam.start(player.pos, killerPosFor(fromId));
     damageLog.clear();
     els.respawn.hidden = false;
   } else {
@@ -4383,6 +4400,7 @@ function yawTowardCentre(sp) {
 
 
 function respawnPlayer() {
+  killcam.cancel();
   const sp = teamSpawn();
   move.reset(sp.x, sp.z, sp.y || 0);
   look.yaw = yawTowardCentre(sp);
@@ -4737,6 +4755,12 @@ function updatePlayer(dt) {
   updateEnemySteps(dt);
 
   move.eyePosition(player.pos);
+
+  // While it's running, the kill cam owns camera.position/.quaternion in
+  // full — skip both the eye-position copy and the aim/recoil composition
+  // below so the two don't fight over the same camera in the same frame.
+  if (killcam.update(dt)) return;
+
   camera.position.copy(player.pos);
 
   // One place composes the camera: aim + weapon recoil.
@@ -5203,7 +5227,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     voteOptions: () => voteOptions,
     intermissionT: () => intermissionT,
     state: () => gameState,
-    grenades, audio, camera, colliders,
+    grenades, audio, camera, colliders, killcam,
     empT: () => empT,
     empPlayer, flashPlayer, explosionFx,
     startInspect, inspectT: () => inspectT, inspectPose,

@@ -43,6 +43,7 @@ and either needs a second bake variant or a switch to AO-only baking.
 import bpy
 import os
 import math
+import mathutils
 
 OUT_DIR = os.path.join(os.path.dirname(bpy.data.filepath) or r"C:\Users\mayur\AppData\Local\Temp\blender-assets", "out")
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -599,15 +600,57 @@ def build_trash_can():
     export_glb(root, "trash-can.glb")
 
 
+def add_strut(name, radius, a, b, mat, verts=8):
+    """A cylinder running from point a to point b — for angled struts where
+    working out the Euler rotation by hand (as the first cut at this A-frame
+    did) is exactly how the legs ended up floating apart from the top bar
+    instead of meeting it. Blender's `track_axis` API does the pointing."""
+    ax, ay, az = a
+    bx, by, bz = b
+    mid = ((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2)
+    length = math.sqrt((bx - ax) ** 2 + (by - ay) ** 2 + (bz - az) ** 2)
+    obj = add_cylinder(name, radius, length, mid, mat, verts=verts)
+    direction = mathutils.Vector((bx - ax, by - ay, bz - az))
+    obj.rotation_euler = direction.to_track_quat('Z', 'Y').to_euler()
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+    return obj
+
+
 def build_tire_swing():
+    """A-frame swing set with the tire hung from its own top bar, not a
+    tire-and-two-rope-stubs floating with nothing above them (the original
+    build — the ropes had no frame to run to, which is why in-game it read
+    as broken rather than as a swing)."""
     clear_scene()
     tire_mat = make_material("TireRubber", (0.05, 0.05, 0.05), roughness=0.85)
     rope_mat = make_material("SwingRope", (0.55, 0.45, 0.28), roughness=0.9)
+    frame_mat = make_material("SwingFrame", (0.35, 0.32, 0.28), roughness=0.55, metallic=0.3)
+
+    TOP_H = 2.3           # top-bar height off the ground
+    TIRE_H = 0.75         # tire hangs low enough for a running kid, not an adult
+    LEG_SPREAD = 0.9      # how far each leg's foot splays out from the apex
+    BAR_HALF = 0.65       # half-length of the top bar each A-frame apex sits at
 
     objs = []
-    objs.append(add_torus("tire", 0.32, 0.11, (0, 0, 0), tire_mat, rot=(1.5707963, 0, 0)))
+    # Two A-frames facing each other along y, each a pair of legs crossing
+    # from a foot on the ground up to its own end of the top bar — the
+    # classic swing-set silhouette, not a single pole (which would rack
+    # sideways under any real load).
+    for sy in (-1, 1):
+        apex = (0, sy * BAR_HALF, TOP_H)
+        for sx in (-1, 1):
+            foot = (sx * LEG_SPREAD, sy * BAR_HALF, 0)
+            objs.append(add_strut(f"leg_{sy}_{sx}", 0.045, foot, apex, frame_mat))
+
+    # Top bar runs along y, connecting the two A-frames at their apex.
+    objs.append(add_cylinder("top_bar", 0.05, BAR_HALF * 2, (0, 0, TOP_H), frame_mat, verts=8, rot=(1.5707963, 0, 0)))
+
+    objs.append(add_torus("tire", 0.32, 0.11, (0, 0, TIRE_H), tire_mat, rot=(1.5707963, 0, 0)))
     for sx in (-1, 1):
-        objs.append(add_cylinder(f"rope_{sx}", 0.015, 1.4, (sx * 0.2, 0, 0.7), rope_mat, verts=6))
+        objs.append(add_strut(f"rope_{sx}", 0.015, (sx * 0.2, 0, TIRE_H), (0, 0, TOP_H), rope_mat, verts=6))
 
     root = join_all(objs, "tire_swing")
     export_glb(root, "tire-swing.glb")

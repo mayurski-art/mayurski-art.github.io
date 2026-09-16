@@ -201,8 +201,12 @@ export function trashCan(api, { x, z }) {
   loadHouseModel("trash-can").then((obj) => { obj.position.set(x, 0, z); api.prop(obj); });
 }
 
+/* Full A-frame swing set (models/build_houses.blender.py's build_tire_swing) —
+   stands on its own from the ground now, so this places it the same way as
+   every other ground prop here instead of floating the whole model at the
+   tire's hang height. */
 export function tireSwing(api, { x, z, rot = 0 }) {
-  loadHouseModel("tire-swing").then((obj) => { obj.position.set(x, 1.4, z); obj.rotation.y = rot; api.prop(obj); });
+  loadHouseModel("tire-swing").then((obj) => { obj.position.set(x, 0, z); obj.rotation.y = rot; api.prop(obj); });
 }
 
 /* Real modelled streetlamp — pole, curved arm, lit head — replacing the
