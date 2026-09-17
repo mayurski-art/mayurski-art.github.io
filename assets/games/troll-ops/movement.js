@@ -89,6 +89,8 @@ export class MovementController {
     this.jumping = false;
     this.sprinting = false;
     this.moving = false;
+    this.justLanded = false;
+    this.landSpeed = 0;
 
     this.eyeHeight = EYE.stand;
 
@@ -297,8 +299,16 @@ export class MovementController {
     this.resolveHorizontal(this.pos, this.pos.y);
 
     const support = this.groundHeightAt(this.pos.x, this.pos.z, this.pos.y + STEP_UP);
+    // `justLanded`/`landSpeed` are a one-frame edge the caller reads and the
+    // caller is responsible for clearing — GRAVITY-scale falls only, so a
+    // stair-step or the tail end of a crouch doesn't also read as a landing.
+    this.justLanded = false;
     if (this.pos.y <= support) {
       const wasFalling = this.velocity.y < -6;
+      if (wasFalling && !this.grounded) {
+        this.justLanded = true;
+        this.landSpeed = -this.velocity.y;
+      }
       this.pos.y = support;
       this.velocity.y = 0;
       if (!this.grounded && this.stance === STANCE.PRONE && this.diveT > 0) {

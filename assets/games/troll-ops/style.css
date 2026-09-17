@@ -583,6 +583,16 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   transition: box-shadow .4s;
 }
 .to-lowhp.is-low { box-shadow: inset 0 0 140px 40px rgba(180,10,10,.55); animation: to-lowhp-pulse 1.2s ease-in-out infinite; }
+
+/* Death fade — a slower, longer-held cousin of .to-hitflash. That one decays
+   in ~0.25s so it reads as "you got hit"; this one holds through the whole
+   respawn countdown so dying reads as a beat, not a blink. */
+.to-deathfade {
+  position: absolute; inset: 0; z-index: 13; pointer-events: none;
+  background: #0a0705; opacity: 0;
+  transition: opacity .5s ease-in;
+}
+.to-deathfade.is-dead { opacity: .62; transition: opacity .35s ease-out; }
 @keyframes to-lowhp-pulse {
   0%, 100% { box-shadow: inset 0 0 140px 40px rgba(180,10,10,.4); }
   50% { box-shadow: inset 0 0 160px 55px rgba(180,10,10,.65); }
@@ -896,6 +906,22 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   12% { transform: scale(1); }
   78% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* Nuclear-only screen accent: a brief warm vignette, not a full flash — it
+   has to read as "everyone just heard that" without blinding the player who
+   earned it and still has a match to finish. */
+.to-screen-pulse {
+  position: absolute; inset: 0; z-index: 14; pointer-events: none;
+  box-shadow: inset 0 0 0 0 rgba(255,107,90,0);
+}
+.to-screen-pulse.is-pulsing { animation: to-screen-pulse .9s ease-out; }
+@keyframes to-screen-pulse {
+  0% { box-shadow: inset 0 0 140px 40px rgba(255,107,90,.5); }
+  100% { box-shadow: inset 0 0 140px 40px rgba(255,107,90,0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .to-screen-pulse.is-pulsing { animation: none; }
 }
 
 /* In-match scorestreak strip: progress toward the next one, then a slot per

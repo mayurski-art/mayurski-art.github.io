@@ -73,5 +73,15 @@ export class KillstreakUi {
     // Same bound-the-list-and-self-remove shape as pushKillfeed/showXpPopup.
     while (wrap.children.length > 4) wrap.firstChild.remove();
     setTimeout(() => div.remove(), 1800);
+
+    // Nuclear is the one moment the whole match hears about — the badge text
+    // alone doesn't carry that weight, so the full screen gets one brief
+    // pulse too. Every lesser tier stays text-only on purpose.
+    if (tier === "tier-nuclear" && this.els.screenPulse) {
+      const pulse = this.els.screenPulse;
+      pulse.classList.remove("is-pulsing");
+      void pulse.offsetWidth;
+      pulse.classList.add("is-pulsing");
+    }
   }
 }

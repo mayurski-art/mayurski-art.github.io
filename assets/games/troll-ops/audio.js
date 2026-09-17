@@ -242,9 +242,34 @@ export class GameAudio {
     this._noise({ duration: 0.07, gain: 0.18, type: "bandpass", freq: 700, q: 3, delay: 0.4 });
   }
 
+  /* Raising/lowering the sight. A quiet handling click, not a full reload
+     foley beat — it should register on a quiet listen, not compete with
+     gunfire. Rising pitch going up, falling pitch coming down. */
+  ads(raising) {
+    if (!this._ready()) return;
+    this._noise({
+      duration: 0.045, gain: 0.09, type: "bandpass",
+      freq: raising ? 1000 : 1300,
+      sweepTo: raising ? 1300 : 800,
+      q: 2.4,
+    });
+  }
+
   step(at = null, gain = 0.07) {
     if (!this._ready()) return;
     this._noise({ duration: 0.06, gain, type: "lowpass", freq: 520, sweepTo: 180, at });
+  }
+
+  /* Hitting the ground after a fall — a jump, a drop off a ledge, the tail
+     of a dive. `speed` is how fast (m/s) it was falling, so a short hop and
+     a roof-to-ground drop don't sound the same. */
+  land(speed = 6) {
+    if (!this._ready()) return;
+    const hard = Math.min(1, speed / 14);
+    this._noise({
+      duration: 0.09 + hard * 0.07, gain: 0.14 + hard * 0.16,
+      type: "lowpass", freq: 420, sweepTo: 140,
+    });
   }
 
   /* EMP: a rising whine that snaps into a static wash. */

@@ -85,6 +85,7 @@ const els = {
   xpPopups: document.getElementById("to-xp-pops"),
   damageNumbers: document.getElementById("to-dmg-nums"),
   ksBadges: document.getElementById("to-ks-badges"),
+  screenPulse: document.getElementById("to-screen-pulse"),
   ssHud: document.getElementById("to-ss-hud"),
   ssMeterFill: document.getElementById("to-ss-meter-fill"),
   ssSlots: document.getElementById("to-ss-slots"),
@@ -126,6 +127,7 @@ const els = {
   hitmarker: document.getElementById("to-hitmarker"),
   hitflash: document.getElementById("to-hitflash"),
   lowhp: document.getElementById("to-lowhp"),
+  deathfade: document.getElementById("to-deathfade"),
   hpFill: document.getElementById("hud-hp-fill"),
   hpText: document.getElementById("hud-hp-text"),
   ammoCur: document.getElementById("hud-ammo-cur"),
@@ -267,7 +269,7 @@ const streakPicker = new StreakPicker({ picker: els.ssPicker, count: els.ssCount
    everyone else what happened. */
 const streaks = new StreakState();
 
-const killstreakUi = new KillstreakUi({ badges: els.ksBadges });
+const killstreakUi = new KillstreakUi({ badges: els.ksBadges, screenPulse: els.screenPulse });
 
 const achievements = new Achievements((def) => {
   killstreakUi.note(def.name, "tier-note");
@@ -2150,6 +2152,10 @@ const cooking = { def: null, fuse: 0, slot: null };
 let blindT = 0;         // seconds of flashbang whiteout left
 let empT = 0;           // seconds of EMP scramble left — HUD and optics down
 let shakeT = 0, shakeMag = 0;
+// Smoothed idle-sway position, lagged behind the raw sine target by weapon
+// weight — see updateWeaponView for why this lives here instead of on
+// WeaponState (it's pure view lag, never read for gameplay).
+let swaySmoothX = 0, swaySmoothY = 0;
 
 const move = new MovementController({ colliders, arena: ARENA });
 const bullets = new BulletSystem(scene);
@@ -4459,6 +4465,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false) {
     showDeathCard(fromId, weaponId, isHead);
     killcam.start(player.pos, killerPosFor(fromId));
     els.killcamBars.classList.add("is-on");
+    els.deathfade.classList.add("is-dead");
     damageLog.clear();
     els.respawn.hidden = false;
   } else {
@@ -4500,6 +4507,7 @@ function yawTowardCentre(sp) {
 function respawnPlayer() {
   killcam.cancel();
   els.killcamBars.classList.remove("is-on");
+  els.deathfade.classList.remove("is-dead");
   const sp = teamSpawn();
   move.reset(sp.x, sp.z, sp.y || 0);
   look.yaw = yawTowardCentre(sp);
@@ -4697,7 +4705,13 @@ function animate() {
     if (w.ammoReserve !== hudCache.ammoRes) { hudCache.ammoRes = w.ammoReserve; els.ammoRes.textContent = w.ammoReserve; }
     const reloadHidden = !w.reloading;
     if (reloadHidden !== hudCache.reloadHidden) { hudCache.reloadHidden = reloadHidden; els.reloadTag.hidden = reloadHidden; }
-    if (w.ads !== hudCache.ads) { hudCache.ads = w.ads; els.crosshair.classList.toggle("is-ads", w.ads); }
+    if (w.ads !== hudCache.ads) {
+      hudCache.ads = w.ads;
+      els.crosshair.classList.toggle("is-ads", w.ads);
+      // Raising/lowering the sight was the one silent transition on the gun —
+      // every other action (fire, reload, inspect) already has a cue.
+      audio.ads(w.ads);
+    }
     const lowhp = player.hp < 25;
     if (lowhp !== hudCache.lowhp) { hudCache.lowhp = lowhp; els.lowhp.classList.toggle("is-low", lowhp); }
 
@@ -4964,6 +4978,7 @@ function updatePlayer(dt) {
   } else {
     stepPhase = 0;
   }
+  if (move.justLanded && player.alive) audio.land(move.landSpeed);
 
   updateEnemySteps(dt);
 
@@ -5382,8 +5397,16 @@ function updateWeaponView(dt) {
   const steady = 1 - w.adsT * 0.85;
   const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5 * steady;
   const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp * steady;
-  const swayX = Math.sin(clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp * steady;
-  const swayY = Math.cos(clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6 * steady;
+  const rawSwayX = Math.sin(clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp * steady;
+  const rawSwayY = Math.cos(clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6 * steady;
+  // A heavier gun (lower `inertia` — the same field move.update() already
+  // reads for how sluggish it turns) lags a beat behind its own sway target
+  // instead of just swaying a smaller amount. Same idea as a real barrel's
+  // momentum: it doesn't matter how little it moves if it moves instantly.
+  const swayLag = Math.min(1, dt * (w.def.inertia ?? 8));
+  swaySmoothX += (rawSwayX - swaySmoothX) * swayLag;
+  swaySmoothY += (rawSwayY - swaySmoothY) * swayLag;
+  const swayX = swaySmoothX, swayY = swaySmoothY;
 
   const adsOffset = w.adsT;
   const hipPos = new THREE.Vector3(0.22, -0.2, -0.55);
