@@ -40,12 +40,16 @@
   .solo-card.flash-approve { outline: 3px solid #34c759; }
   .solo-card.flash-reject { outline: 3px solid #ff453a; }
   .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #3a3a3d; color: #c7c7cc; }
-  .order-row { display: flex; gap: 4px; padding: 0 8px 8px; }
+  .order-row { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 8px; align-items: center; }
   .order-row button { flex: 1; font-size: 10.5px; padding: 4px 3px; background: #1c1c1e; border-color: rgba(255,255,255,0.15); color: #9a9a9e; }
   .order-row button.active { background: #007aff; color: #fff; border-color: transparent; }
-  .solo-order { display: flex; gap: 10px; }
+  .order-row button:disabled { opacity: 0.35; cursor: default; }
+  .solo-order { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .solo-order button { font-size: 12px; padding: 6px 14px; }
   .solo-order button.active { background: #007aff; color: #fff; border-color: transparent; }
+  .solo-order button:disabled { opacity: 0.35; cursor: default; }
+  .order-both { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: #9a9a9e; width: 100%; margin-top: 2px; cursor: pointer; }
+  .solo-order .order-both { font-size: 12px; width: auto; margin-top: 0; }
 </style>
 </head>
 <body>
@@ -336,6 +340,15 @@
       ['horns', 'smurf-hat'], ['horns', 'solami-mamis'], ['horns', 'tears'],
       ['horns', 'troll-senses'],
       ['jigsaw-hair', 'lipstick'],
+      // --- new pairs approved via pfp-pair-review.html ---
+      ['jigsaw-hair', 'make-trolling-great-again'], ['jigsaw-hair', 'make-trolling-great-again-black'], ['jigsaw-hair', 'mcdonalds-cap'],
+      ['jigsaw-hair', 'mog'], ['jigsaw-hair', 'pumpfun-general'], ['jigsaw-hair', 'smurf-hat'],
+      ['jigsaw-hair', 'solami-mamis'], ['jigsaw-hair', 'spinning-hat'], ['jigsaw-hair', 'strainer'],
+      ['jigsaw-hair', 'tears'], ['jigsaw-hair', 'troll-senses'], ['jigsaw-hair', 'trucker-hat-basic'],
+      ['khabib', 'lipstick'], ['khabib', 'make-trolling-great-again'], ['khabib', 'make-trolling-great-again-black'],
+      ['khabib', 'mcdonalds-cap'], ['khabib', 'mog'], ['khabib', 'pumpfun-general'],
+      ['khabib', 'smurf-hat'], ['khabib', 'solami-mamis'], ['khabib', 'strainer'],
+      ['khabib', 'tears'],
     ]),
   };
 
@@ -395,6 +408,24 @@
     'horns|old-man': 'horns',
     'horns|punk': 'punk',
     'horns|troll-senses': 'horns',
+    'jigsaw-hair|make-trolling-great-again': 'make-trolling-great-again',
+    'jigsaw-hair|make-trolling-great-again-black': 'make-trolling-great-again-black',
+    'jigsaw-hair|mcdonalds-cap': 'mcdonalds-cap',
+    'jigsaw-hair|mog': 'jigsaw-hair',
+    'jigsaw-hair|pumpfun-general': 'pumpfun-general',
+    'jigsaw-hair|smurf-hat': 'smurf-hat',
+    'jigsaw-hair|spinning-hat': 'spinning-hat',
+    'jigsaw-hair|strainer': 'strainer',
+    'jigsaw-hair|troll-senses': 'jigsaw-hair',
+    'jigsaw-hair|trucker-hat-basic': 'trucker-hat-basic',
+    'khabib|make-trolling-great-again': 'make-trolling-great-again',
+    'khabib|make-trolling-great-again-black': 'make-trolling-great-again-black',
+    'khabib|mcdonalds-cap': 'mcdonalds-cap',
+    'khabib|pumpfun-general': 'pumpfun-general',
+    'khabib|smurf-hat': 'smurf-hat',
+    'khabib|strainer': 'strainer',
+    // khabib|mog and khabib|tears: reviewed as "both orders OK" —
+    // deliberately no entry here, default click order is fine either way.
   };
 
   const el = {
@@ -486,7 +517,10 @@
 
     // frontId (from the paint-order picker) forces that trait to draw last
     // regardless of its normal rank vs. its pair partner — a live preview
-    // of what a RANK_OVERRIDES entry would do, without touching pfp.html.
+    // of what a PAIR_ORDER entry would do, without touching pfp.html.
+    // frontId can also be 'both' (the "both orders OK" checkbox) — that's
+    // not a real trait id, so the sort below just falls through to plain
+    // rank/click order, same as no override at all.
     const layers = [
       { layerId: 'background', id: bgId },
       { layerId: 'base', id: baseId },
@@ -595,10 +629,18 @@
   // Renders "<a> in front / default / <b> in front" buttons into `container`
   // for the given pair, wired to store the choice in orderDecisions and
   // re-draw via `onChange`. Shared between the grid cards and solo view so
-  // the picker behaves identically everywhere.
+  // the picker behaves identically everywhere. A "both orders OK" checkbox
+  // sits alongside the 3 front/back buttons as a distinct third state
+  // (stored as the literal 'both', not just "undecided") — for pairs like
+  // horns + smurf-hat where either stacking looks fine, this records that
+  // as an explicit reviewed decision instead of leaving it looking
+  // untouched, and it's excluded from the PAIR_ORDER export on purpose
+  // since neither order needs to be forced.
   function renderOrderPicker(container, layerId, a, b, onChange) {
     const key = decisionKey(layerId, a, b);
     container.innerHTML = '';
+    const isBoth = orderDecisions[key] === 'both';
+
     const options = [
       { id: b, label: `${b} in front` },
       { id: '', label: 'default (click order)' },
@@ -607,7 +649,8 @@
     for (const opt of options) {
       const btn = document.createElement('button');
       btn.textContent = opt.label;
-      btn.className = (orderDecisions[key] || '') === opt.id ? 'active' : '';
+      btn.disabled = isBoth;
+      btn.className = (!isBoth && (orderDecisions[key] || '') === opt.id) ? 'active' : '';
       btn.addEventListener('click', () => {
         if (opt.id) orderDecisions[key] = opt.id; else delete orderDecisions[key];
         saveOrder();
@@ -616,6 +659,20 @@
       });
       container.appendChild(btn);
     }
+
+    const bothLabel = document.createElement('label');
+    bothLabel.className = 'order-both';
+    const bothCheckbox = document.createElement('input');
+    bothCheckbox.type = 'checkbox';
+    bothCheckbox.checked = isBoth;
+    bothCheckbox.addEventListener('change', () => {
+      if (bothCheckbox.checked) orderDecisions[key] = 'both'; else delete orderDecisions[key];
+      saveOrder();
+      renderOrderPicker(container, layerId, a, b, onChange);
+      onChange();
+    });
+    bothLabel.append(bothCheckbox, document.createTextNode(' both orders OK'));
+    container.appendChild(bothLabel);
   }
 
   async function render() {
@@ -714,8 +771,14 @@
       // in front. A single per-trait rank can't express this since some
       // traits (e.g. horns) need to be in front of one partner and behind
       // another, so it's pair-scoped, not trait-scoped. See PAIR_ORDER in
-      // pfp.html (and its mirror near the top of this tool).
-      const withOrder = pairs.filter(([a, b]) => orderDecisions[decisionKey(layerId, a, b)]);
+      // pfp.html (and its mirror near the top of this tool). Pairs marked
+      // "both orders OK" ('both') are deliberately excluded — that's a
+      // reviewed decision that neither order needs forcing, not a pending
+      // choice, so it should never turn into a PAIR_ORDER line.
+      const withOrder = pairs.filter(([a, b]) => {
+        const v = orderDecisions[decisionKey(layerId, a, b)];
+        return v && v !== 'both';
+      });
       if (withOrder.length) {
         const orderLines = withOrder.map(([a, b]) => {
           const front = orderDecisions[decisionKey(layerId, a, b)];
@@ -723,6 +786,17 @@
         });
         out += `\n\n      // --- add to PAIR_ORDER (pfp.html) and its mirror in this file ---\n`
              + orderLines.join('\n');
+      }
+
+      // Pairs explicitly checked "both orders OK" need no PAIR_ORDER entry
+      // (default click order is fine either way), but that's still a real
+      // reviewed decision worth showing here — otherwise it looks
+      // identical to a pair nobody ever looked at.
+      const bothOk = pairs.filter(([a, b]) => orderDecisions[decisionKey(layerId, a, b)] === 'both');
+      if (bothOk.length) {
+        const bothLines = bothOk.map(([a, b]) => `        // ${a} + ${b}`);
+        out += `\n\n      // --- reviewed as "both orders OK" — no PAIR_ORDER entry needed ---\n`
+             + bothLines.join('\n');
       }
       el.outText.value = out;
     }

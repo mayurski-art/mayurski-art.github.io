@@ -877,6 +877,11 @@
     // Hand-approved trait pairs, per multi-select layer. Anything not
     // listed here is assumed to clash (two pairs of glasses, a hand full of
     // props) and is left as a straight swap rather than guessed at.
+    // Scope: every pair below applies globally — to every base except
+    // logo-face/ninja (solo bases that force headwear/accessory off
+    // entirely, not a compatibility exception) and every background (pure
+    // backdrop, never checked here). This list is never base- or
+    // background-gated; don't add either as a condition.
     const MULTI_PAIRS = {
       accessory: pairSet('accessory', [
         ['cigar', 'deal-w-it-shades'], ['cigar', 'demon-pack'], ['deal-w-it-shades', 'demon-pack'],
@@ -1092,6 +1097,15 @@
         ['horns', 'smurf-hat'], ['horns', 'solami-mamis'], ['horns', 'tears'],
         ['horns', 'troll-senses'],
         ['jigsaw-hair', 'lipstick'],
+        // --- new pairs approved via pfp-pair-review.html ---
+        ['jigsaw-hair', 'make-trolling-great-again'], ['jigsaw-hair', 'make-trolling-great-again-black'], ['jigsaw-hair', 'mcdonalds-cap'],
+        ['jigsaw-hair', 'mog'], ['jigsaw-hair', 'pumpfun-general'], ['jigsaw-hair', 'smurf-hat'],
+        ['jigsaw-hair', 'solami-mamis'], ['jigsaw-hair', 'spinning-hat'], ['jigsaw-hair', 'strainer'],
+        ['jigsaw-hair', 'tears'], ['jigsaw-hair', 'troll-senses'], ['jigsaw-hair', 'trucker-hat-basic'],
+        ['khabib', 'lipstick'], ['khabib', 'make-trolling-great-again'], ['khabib', 'make-trolling-great-again-black'],
+        ['khabib', 'mcdonalds-cap'], ['khabib', 'mog'], ['khabib', 'pumpfun-general'],
+        ['khabib', 'smurf-hat'], ['khabib', 'solami-mamis'], ['khabib', 'strainer'],
+        ['khabib', 'tears'],
       ]),
     };
     function traitsCompatible(layerId, a, b) {
@@ -1147,6 +1161,24 @@
       'horns|old-man': 'horns',
       'horns|punk': 'punk',
       'horns|troll-senses': 'horns',
+      'jigsaw-hair|make-trolling-great-again': 'make-trolling-great-again',
+      'jigsaw-hair|make-trolling-great-again-black': 'make-trolling-great-again-black',
+      'jigsaw-hair|mcdonalds-cap': 'mcdonalds-cap',
+      'jigsaw-hair|mog': 'jigsaw-hair',
+      'jigsaw-hair|pumpfun-general': 'pumpfun-general',
+      'jigsaw-hair|smurf-hat': 'smurf-hat',
+      'jigsaw-hair|spinning-hat': 'spinning-hat',
+      'jigsaw-hair|strainer': 'strainer',
+      'jigsaw-hair|troll-senses': 'jigsaw-hair',
+      'jigsaw-hair|trucker-hat-basic': 'trucker-hat-basic',
+      'khabib|make-trolling-great-again': 'make-trolling-great-again',
+      'khabib|make-trolling-great-again-black': 'make-trolling-great-again-black',
+      'khabib|mcdonalds-cap': 'mcdonalds-cap',
+      'khabib|pumpfun-general': 'pumpfun-general',
+      'khabib|smurf-hat': 'smurf-hat',
+      'khabib|strainer': 'strainer',
+      // khabib|mog and khabib|tears: reviewed as "both orders OK" —
+      // deliberately no entry here, default click order is fine either way.
     };
     /** Comparator for same-layer stack entries: a rider's own swap-order
      *  choice (orderOverride, set via the drawer's order-bar) wins first,
