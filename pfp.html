@@ -1127,6 +1127,25 @@
         ['headset', 'trump-hair'],
         ['horns', 'make-trolling-great-again'], ['horns', 'make-trolling-great-again-black'], ['horns', 'mcdonalds-cap'],
         ['horns', 'strainer'], ['horns', 'trump-hair'], ['horns', 'uncle-sam'],
+        // --- new pairs approved via pfp-pair-review.html ---
+        ['khabib', 'troll-senses'], ['khabib', 'trucker-hat-basic'],
+        ['lipstick', 'long-black'], ['lipstick', 'long-blonde'], ['lipstick', 'long-brown'],
+        ['lipstick', 'make-trolling-great-again'], ['lipstick', 'make-trolling-great-again-black'], ['lipstick', 'mcdonalds-cap'],
+        ['lipstick', 'mog'], ['lipstick', 'old-man'], ['lipstick', 'pumpfun-general'],
+        ['lipstick', 'punk'], ['lipstick', 'smurf-hat'], ['lipstick', 'solami-mamis'],
+        ['lipstick', 'spinning-hat'], ['lipstick', 'strainer'], ['lipstick', 'straw-hat'],
+        ['lipstick', 'tears'], ['lipstick', 'the-usual'], ['lipstick', 'troll-senses'],
+        ['lipstick', 'trucker-hat-basic'], ['lipstick', 'trump-hair'], ['lipstick', 'uncle-sam'],
+        ['long-black', 'long-blonde'], ['long-black', 'long-brown'], ['long-black', 'mog'],
+        ['long-black', 'pumpfun-general'], ['long-black', 'solami-mamis'], ['long-black', 'tears'],
+        ['long-black', 'troll-senses'],
+        ['long-blonde', 'long-brown'],
+        // long-blonde/long-brown: same pattern as long-black above (not
+        // aliased like cap colors — every pair is spelled out per color).
+        ['long-blonde', 'mog'], ['long-blonde', 'pumpfun-general'], ['long-blonde', 'solami-mamis'],
+        ['long-blonde', 'tears'], ['long-blonde', 'troll-senses'],
+        ['long-brown', 'mog'], ['long-brown', 'pumpfun-general'], ['long-brown', 'solami-mamis'],
+        ['long-brown', 'tears'], ['long-brown', 'troll-senses'],
       ]),
     };
     function traitsCompatible(layerId, a, b) {
@@ -1235,6 +1254,16 @@
       'headset|smurf-hat': 'headset',
       'headset|trump-hair': 'headset',
       // horns|trump-hair: reviewed as "both orders OK" — no entry needed.
+      'khabib|troll-senses': 'khabib',
+      'long-black|tears': 'long-black',
+      'long-black|troll-senses': 'long-black',
+      // long-blonde/long-brown mirror long-black's order above.
+      'long-blonde|tears': 'long-blonde',
+      'long-blonde|troll-senses': 'long-blonde',
+      'long-brown|tears': 'long-brown',
+      'long-brown|troll-senses': 'long-brown',
+      // lipstick|tears, long-black|mog, long-blonde|mog, long-brown|mog:
+      // reviewed as "both orders OK" — no entry needed.
     };
     /** Comparator for same-layer stack entries: a rider's own swap-order
      *  choice (orderOverride, set via the drawer's order-bar) wins first,
