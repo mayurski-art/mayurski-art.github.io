@@ -40,6 +40,12 @@
   .solo-card.flash-approve { outline: 3px solid #34c759; }
   .solo-card.flash-reject { outline: 3px solid #ff453a; }
   .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #3a3a3d; color: #c7c7cc; }
+  .order-row { display: flex; gap: 4px; padding: 0 8px 8px; }
+  .order-row button { flex: 1; font-size: 10.5px; padding: 4px 3px; background: #1c1c1e; border-color: rgba(255,255,255,0.15); color: #9a9a9e; }
+  .order-row button.active { background: #007aff; color: #fff; border-color: transparent; }
+  .solo-order { display: flex; gap: 10px; }
+  .solo-order button { font-size: 12px; padding: 6px 14px; }
+  .solo-order button.active { background: #007aff; color: #fff; border-color: transparent; }
 </style>
 </head>
 <body>
@@ -72,6 +78,7 @@
       <canvas id="soloCanvas"></canvas>
       <div class="solo-label" id="soloLabel"></div>
     </div>
+    <div class="solo-order" id="soloOrder"></div>
     <div class="solo-hint">← clash &nbsp;·&nbsp; → keep &nbsp;·&nbsp; backspace/↑ to go back &nbsp;·&nbsp; also works with click</div>
     <div class="solo-row">
       <button id="soloReject" class="danger big">✗ clash (←)</button>
@@ -142,7 +149,7 @@
     // aliased to it above, so one approval covers all six.
     headwear: pairSet('headwear', [
       ['diamond-teeth', 'bushes'], ['headset', 'diamond-teeth'], ['1-golden-tooth', 'black-tooth'],
-      ['jigsaw-hair', 'headset'],
+      ['jigsaw-hair', 'headset'], ['headset', 'khabib'],
       ['cap-black', 'glasses'], ['1-golden-tooth', 'beanie'], ['1-golden-tooth', 'bushes'],
       ['1-golden-tooth', 'cap-black'], ['1-golden-tooth', 'cartier'], ['1-golden-tooth', 'condom'],
       ['1-golden-tooth', 'cowboy-hat'], ['1-golden-tooth', 'crown'], ['1-golden-tooth', 'diamond-teeth'],
@@ -192,6 +199,143 @@
       ['bushes', 'strainer'], ['bushes', 'straw-hat'], ['bushes', 'tears'],
       ['bushes', 'the-usual'], ['bushes', 'troll-senses'], ['bushes', 'trucker-hat-basic'],
       ['bushes', 'trump-hair'], ['bushes', 'uncle-sam'],
+      // --- new pairs approved via pfp-pair-review.html ---
+      ['cap-black', 'cartier'], ['cap-black', 'diamond-teeth'], ['cap-black', 'glowing-eyes'],
+      ['cap-black', 'glowing-red-eyes'], ['cap-black', 'golden-teeth'], ['cap-black', 'green-thong'],
+      ['cap-black', 'high-eyes'], ['cap-black', 'lipstick'], ['cap-black', 'mog'],
+      ['cap-black', 'solami-mamis'], ['cap-black', 'tears'], ['cap-black', 'troll-senses'],
+      ['cartier', 'condom'], ['cartier', 'cowboy-hat'], ['cartier', 'crown'],
+      ['cartier', 'diamond-teeth'], ['cartier', 'durag'], ['cartier', 'french-art-hat'],
+      ['cartier', 'fresh-prince'], ['cartier', 'glowing-eyes'], ['cartier', 'glowing-red-eyes'],
+      ['cartier', 'golden-teeth'], ['cartier', 'green-thong'], ['cartier', 'halo'],
+      ['cartier', 'headset'], ['cartier', 'high-eyes'], ['cartier', 'horns'],
+      ['cartier', 'jigsaw-hair'], ['cartier', 'khabib'], ['cartier', 'lipstick'],
+      ['cartier', 'long-black'], ['cartier', 'long-blonde'], ['cartier', 'long-brown'],
+      ['cartier', 'make-trolling-great-again'], ['cartier', 'make-trolling-great-again-black'], ['cartier', 'mcdonalds-cap'],
+      ['cartier', 'old-man'], ['cartier', 'pumpfun-general'], ['cartier', 'punk'],
+      ['cartier', 'smurf-hat'], ['cartier', 'solami-mamis'], ['cartier', 'spinning-hat'],
+      ['cartier', 'strainer'], ['cartier', 'straw-hat'], ['cartier', 'tears'],
+      ['cartier', 'the-usual'], ['cartier', 'troll-senses'], ['cartier', 'trucker-hat-basic'],
+      ['cartier', 'trump-hair'], ['cartier', 'uncle-sam'],
+      ['condom', 'diamond-teeth'], ['condom', 'glasses'], ['condom', 'glowing-eyes'],
+      ['condom', 'glowing-red-eyes'], ['condom', 'golden-teeth'], ['condom', 'green-thong'],
+      ['condom', 'high-eyes'], ['condom', 'lipstick'], ['condom', 'mog'],
+      ['condom', 'old-man'], ['condom', 'solami-mamis'], ['condom', 'tears'],
+      ['condom', 'troll-senses'], ['condom', 'uncle-sam'],
+      ['cowboy-hat', 'diamond-teeth'], ['cowboy-hat', 'glasses'], ['cowboy-hat', 'glowing-eyes'],
+      ['cowboy-hat', 'glowing-red-eyes'], ['cowboy-hat', 'golden-teeth'], ['cowboy-hat', 'green-thong'],
+      ['cowboy-hat', 'halo'], ['cowboy-hat', 'high-eyes'], ['cowboy-hat', 'lipstick'],
+      ['cowboy-hat', 'mog'], ['cowboy-hat', 'solami-mamis'], ['cowboy-hat', 'tears'],
+      ['cowboy-hat', 'troll-senses'],
+      ['crown', 'diamond-teeth'], ['crown', 'glasses'], ['crown', 'glowing-eyes'],
+      ['crown', 'glowing-red-eyes'], ['crown', 'golden-teeth'], ['crown', 'high-eyes'],
+      ['crown', 'lipstick'], ['crown', 'mog'], ['crown', 'solami-mamis'],
+      ['crown', 'tears'], ['crown', 'troll-senses'],
+      ['diamond-teeth', 'durag'], ['diamond-teeth', 'french-art-hat'], ['diamond-teeth', 'fresh-prince'],
+      ['diamond-teeth', 'glasses'], ['diamond-teeth', 'glowing-eyes'], ['diamond-teeth', 'glowing-red-eyes'],
+      ['diamond-teeth', 'golden-teeth'], ['diamond-teeth', 'green-thong'], ['diamond-teeth', 'halo'],
+      ['diamond-teeth', 'high-eyes'], ['diamond-teeth', 'horns'], ['diamond-teeth', 'jigsaw-hair'],
+      ['diamond-teeth', 'khabib'], ['diamond-teeth', 'lipstick'], ['diamond-teeth', 'long-black'],
+      ['diamond-teeth', 'long-blonde'], ['diamond-teeth', 'long-brown'], ['diamond-teeth', 'make-trolling-great-again'],
+      ['diamond-teeth', 'make-trolling-great-again-black'], ['diamond-teeth', 'mcdonalds-cap'], ['diamond-teeth', 'mog'],
+      ['diamond-teeth', 'old-man'], ['diamond-teeth', 'pumpfun-general'], ['diamond-teeth', 'punk'],
+      ['diamond-teeth', 'smurf-hat'], ['diamond-teeth', 'solami-mamis'], ['diamond-teeth', 'spinning-hat'],
+      ['diamond-teeth', 'strainer'], ['diamond-teeth', 'straw-hat'], ['diamond-teeth', 'tears'],
+      ['diamond-teeth', 'the-usual'], ['diamond-teeth', 'troll-senses'], ['diamond-teeth', 'trucker-hat-basic'],
+      ['diamond-teeth', 'trump-hair'], ['diamond-teeth', 'uncle-sam'],
+      ['durag', 'fresh-prince'], ['durag', 'glasses'], ['durag', 'glowing-eyes'],
+      ['durag', 'glowing-red-eyes'], ['durag', 'golden-teeth'], ['durag', 'high-eyes'],
+      ['durag', 'lipstick'], ['durag', 'make-trolling-great-again'], ['durag', 'make-trolling-great-again-black'],
+      ['durag', 'mcdonalds-cap'], ['durag', 'mog'], ['durag', 'pumpfun-general'],
+      ['durag', 'solami-mamis'], ['durag', 'strainer'], ['durag', 'straw-hat'],
+      ['durag', 'tears'], ['durag', 'troll-senses'], ['durag', 'uncle-sam'],
+      ['french-art-hat', 'glasses'], ['french-art-hat', 'glowing-eyes'], ['french-art-hat', 'glowing-red-eyes'],
+      ['french-art-hat', 'golden-teeth'], ['french-art-hat', 'high-eyes'], ['french-art-hat', 'jigsaw-hair'],
+      ['french-art-hat', 'khabib'], ['french-art-hat', 'lipstick'], ['french-art-hat', 'mog'],
+      ['french-art-hat', 'solami-mamis'], ['french-art-hat', 'tears'], ['french-art-hat', 'troll-senses'],
+      ['fresh-prince', 'glasses'], ['fresh-prince', 'glowing-eyes'], ['fresh-prince', 'glowing-red-eyes'],
+      ['fresh-prince', 'golden-teeth'], ['fresh-prince', 'high-eyes'], ['fresh-prince', 'lipstick'],
+      ['fresh-prince', 'mog'], ['fresh-prince', 'solami-mamis'], ['fresh-prince', 'tears'],
+      ['fresh-prince', 'troll-senses'],
+      ['glasses', 'glowing-eyes'], ['glasses', 'glowing-red-eyes'], ['glasses', 'golden-teeth'],
+      ['glasses', 'green-thong'], ['glasses', 'halo'], ['glasses', 'headset'],
+      ['glasses', 'high-eyes'], ['glasses', 'horns'], ['glasses', 'jigsaw-hair'],
+      ['glasses', 'khabib'], ['glasses', 'lipstick'], ['glasses', 'long-black'],
+      ['glasses', 'long-blonde'], ['glasses', 'long-brown'], ['glasses', 'make-trolling-great-again'],
+      ['glasses', 'make-trolling-great-again-black'], ['glasses', 'mcdonalds-cap'], ['glasses', 'old-man'],
+      ['glasses', 'pumpfun-general'], ['glasses', 'punk'], ['glasses', 'smurf-hat'],
+      ['glasses', 'solami-mamis'], ['glasses', 'spinning-hat'], ['glasses', 'strainer'],
+      ['glasses', 'straw-hat'], ['glasses', 'tears'], ['glasses', 'the-usual'],
+      ['glasses', 'troll-senses'], ['glasses', 'trucker-hat-basic'], ['glasses', 'trump-hair'],
+      ['glasses', 'uncle-sam'],
+      ['glowing-eyes', 'glowing-red-eyes'], ['glowing-eyes', 'golden-teeth'], ['glowing-eyes', 'green-thong'],
+      ['glowing-eyes', 'halo'], ['glowing-eyes', 'headset'], ['glowing-eyes', 'high-eyes'],
+      ['glowing-eyes', 'horns'], ['glowing-eyes', 'jigsaw-hair'], ['glowing-eyes', 'khabib'],
+      ['glowing-eyes', 'lipstick'], ['glowing-eyes', 'long-black'], ['glowing-eyes', 'long-blonde'],
+      ['glowing-eyes', 'long-brown'], ['glowing-eyes', 'make-trolling-great-again'], ['glowing-eyes', 'make-trolling-great-again-black'],
+      ['glowing-eyes', 'mcdonalds-cap'], ['glowing-eyes', 'mog'], ['glowing-eyes', 'old-man'],
+      ['glowing-eyes', 'pumpfun-general'], ['glowing-eyes', 'punk'], ['glowing-eyes', 'smurf-hat'],
+      ['glowing-eyes', 'solami-mamis'], ['glowing-eyes', 'spinning-hat'], ['glowing-eyes', 'strainer'],
+      ['glowing-eyes', 'straw-hat'], ['glowing-eyes', 'tears'], ['glowing-eyes', 'the-usual'],
+      ['glowing-eyes', 'troll-senses'], ['glowing-eyes', 'trucker-hat-basic'], ['glowing-eyes', 'trump-hair'],
+      ['glowing-eyes', 'uncle-sam'],
+      ['glowing-red-eyes', 'golden-teeth'], ['glowing-red-eyes', 'green-thong'], ['glowing-red-eyes', 'halo'],
+      ['glowing-red-eyes', 'headset'], ['glowing-red-eyes', 'high-eyes'], ['glowing-red-eyes', 'horns'],
+      ['glowing-red-eyes', 'jigsaw-hair'], ['glowing-red-eyes', 'khabib'], ['glowing-red-eyes', 'lipstick'],
+      ['glowing-red-eyes', 'long-black'], ['glowing-red-eyes', 'long-blonde'], ['glowing-red-eyes', 'long-brown'],
+      ['glowing-red-eyes', 'make-trolling-great-again'], ['glowing-red-eyes', 'make-trolling-great-again-black'], ['glowing-red-eyes', 'mcdonalds-cap'],
+      ['glowing-red-eyes', 'mog'], ['glowing-red-eyes', 'old-man'], ['glowing-red-eyes', 'pumpfun-general'],
+      ['glowing-red-eyes', 'punk'], ['glowing-red-eyes', 'smurf-hat'], ['glowing-red-eyes', 'solami-mamis'],
+      ['glowing-red-eyes', 'spinning-hat'], ['glowing-red-eyes', 'strainer'], ['glowing-red-eyes', 'straw-hat'],
+      ['glowing-red-eyes', 'tears'], ['glowing-red-eyes', 'the-usual'], ['glowing-red-eyes', 'troll-senses'],
+      ['glowing-red-eyes', 'trucker-hat-basic'], ['glowing-red-eyes', 'trump-hair'], ['glowing-red-eyes', 'uncle-sam'],
+      ['golden-teeth', 'green-thong'], ['golden-teeth', 'halo'], ['golden-teeth', 'headset'],
+      ['golden-teeth', 'high-eyes'], ['golden-teeth', 'horns'], ['golden-teeth', 'jigsaw-hair'],
+      ['golden-teeth', 'khabib'], ['golden-teeth', 'lipstick'], ['golden-teeth', 'long-black'],
+      ['golden-teeth', 'long-blonde'], ['golden-teeth', 'long-brown'], ['golden-teeth', 'make-trolling-great-again'],
+      ['golden-teeth', 'make-trolling-great-again-black'], ['golden-teeth', 'mcdonalds-cap'], ['golden-teeth', 'mog'],
+      ['golden-teeth', 'old-man'], ['golden-teeth', 'pumpfun-general'], ['golden-teeth', 'punk'],
+      ['golden-teeth', 'smurf-hat'], ['golden-teeth', 'solami-mamis'], ['golden-teeth', 'spinning-hat'],
+      ['golden-teeth', 'strainer'], ['golden-teeth', 'straw-hat'], ['golden-teeth', 'tears'],
+      ['golden-teeth', 'the-usual'], ['golden-teeth', 'troll-senses'], ['golden-teeth', 'trucker-hat-basic'],
+      ['golden-teeth', 'trump-hair'], ['golden-teeth', 'uncle-sam'],
+      ['green-thong', 'halo'], ['green-thong', 'headset'], ['green-thong', 'high-eyes'],
+      ['green-thong', 'horns'], ['green-thong', 'jigsaw-hair'], ['green-thong', 'khabib'],
+      ['green-thong', 'lipstick'], ['green-thong', 'long-black'], ['green-thong', 'long-blonde'],
+      ['green-thong', 'long-brown'], ['green-thong', 'make-trolling-great-again'], ['green-thong', 'make-trolling-great-again-black'],
+      ['green-thong', 'mcdonalds-cap'], ['green-thong', 'mog'], ['green-thong', 'old-man'],
+      ['green-thong', 'pumpfun-general'], ['green-thong', 'punk'], ['green-thong', 'smurf-hat'],
+      ['green-thong', 'solami-mamis'], ['green-thong', 'spinning-hat'], ['green-thong', 'strainer'],
+      ['green-thong', 'straw-hat'], ['green-thong', 'tears'], ['green-thong', 'the-usual'],
+      ['green-thong', 'troll-senses'], ['green-thong', 'trucker-hat-basic'], ['green-thong', 'trump-hair'],
+      ['green-thong', 'uncle-sam'],
+      ['halo', 'headset'], ['halo', 'high-eyes'], ['halo', 'horns'],
+      ['halo', 'jigsaw-hair'], ['halo', 'khabib'], ['halo', 'lipstick'],
+      ['halo', 'long-black'], ['halo', 'long-blonde'], ['halo', 'long-brown'],
+      ['halo', 'make-trolling-great-again'], ['halo', 'make-trolling-great-again-black'], ['halo', 'mcdonalds-cap'],
+      ['halo', 'mog'], ['halo', 'old-man'], ['halo', 'punk'],
+      ['halo', 'solami-mamis'], ['halo', 'spinning-hat'], ['halo', 'strainer'],
+      ['halo', 'straw-hat'], ['halo', 'tears'], ['halo', 'the-usual'],
+      ['halo', 'troll-senses'], ['halo', 'trump-hair'],
+      ['headset', 'high-eyes'], ['headset', 'horns'], ['headset', 'lipstick'],
+      ['headset', 'long-black'], ['headset', 'long-blonde'], ['headset', 'long-brown'],
+      ['headset', 'mog'], ['headset', 'old-man'], ['headset', 'solami-mamis'],
+      ['headset', 'tears'], ['headset', 'troll-senses'],
+      ['high-eyes', 'horns'], ['high-eyes', 'jigsaw-hair'], ['high-eyes', 'khabib'],
+      ['high-eyes', 'lipstick'], ['high-eyes', 'long-black'], ['high-eyes', 'long-blonde'],
+      ['high-eyes', 'long-brown'], ['high-eyes', 'make-trolling-great-again'], ['high-eyes', 'make-trolling-great-again-black'],
+      ['high-eyes', 'mcdonalds-cap'], ['high-eyes', 'mog'], ['high-eyes', 'old-man'],
+      ['high-eyes', 'pumpfun-general'], ['high-eyes', 'punk'], ['high-eyes', 'smurf-hat'],
+      ['high-eyes', 'solami-mamis'], ['high-eyes', 'spinning-hat'], ['high-eyes', 'strainer'],
+      ['high-eyes', 'straw-hat'], ['high-eyes', 'tears'], ['high-eyes', 'the-usual'],
+      ['high-eyes', 'troll-senses'], ['high-eyes', 'trucker-hat-basic'], ['high-eyes', 'trump-hair'],
+      ['high-eyes', 'uncle-sam'],
+      ['horns', 'jigsaw-hair'], ['horns', 'khabib'], ['horns', 'lipstick'],
+      ['horns', 'long-black'], ['horns', 'long-blonde'], ['horns', 'long-brown'],
+      ['horns', 'mog'], ['horns', 'old-man'], ['horns', 'punk'],
+      ['horns', 'smurf-hat'], ['horns', 'solami-mamis'], ['horns', 'tears'],
+      ['horns', 'troll-senses'],
+      ['jigsaw-hair', 'lipstick'],
     ]),
   };
 
@@ -223,8 +367,35 @@
   };
 
   const LAYER_RANK = { background: 0, base: 10, outfit: 20, headwear: 30, accessory: 40 };
-  const RANK_OVERRIDES = { 'gold-chains': 25, 'troll-gang-chain': 26, 'jigsaw-hair': 31 };
+  const RANK_OVERRIDES = { 'gold-chains': 25, 'troll-gang-chain': 26 };
   const rankFor = (layerId, id) => RANK_OVERRIDES[id] ?? LAYER_RANK[layerId];
+  // Mirror of pfp.html's PAIR_ORDER — pairs already locked to a specific
+  // paint order on the live site. Seeds the order picker's default so
+  // previously-decided pairs show their real answer instead of resetting
+  // to "default" every time the tool reloads (localStorage's orderDecisions
+  // only remembers choices made IN the tool, not ones merged into pfp.html).
+  const PAIR_ORDER = {
+    'headset|jigsaw-hair': 'jigsaw-hair',
+    'headset|khabib': 'headset',
+    'headset|lipstick': 'headset',
+    'headset|long-black': 'headset',
+    'headset|long-blonde': 'headset',
+    'headset|long-brown': 'headset',
+    'headset|mog': 'headset',
+    'headset|old-man': 'headset',
+    'headset|tears': 'headset',
+    'headset|troll-senses': 'headset',
+    'high-eyes|long-brown': 'long-brown',
+    'horns|jigsaw-hair': 'horns',
+    'horns|khabib': 'horns',
+    'horns|long-black': 'horns',
+    'horns|long-blonde': 'horns',
+    'horns|long-brown': 'horns',
+    'horns|mog': 'mog',
+    'horns|old-man': 'horns',
+    'horns|punk': 'punk',
+    'horns|troll-senses': 'horns',
+  };
 
   const el = {
     layerSelect: document.getElementById('layerSelect'),
@@ -246,6 +417,7 @@
     soloReject: document.getElementById('soloReject'),
     soloBack: document.getElementById('soloBack'),
     soloApprove: document.getElementById('soloApprove'),
+    soloOrder: document.getElementById('soloOrder'),
   };
 
   let manifest = null;
@@ -253,6 +425,25 @@
   try { decisions = JSON.parse(localStorage.getItem(DECISIONS_KEY) || '{}'); } catch {}
   function saveDecisions() {
     try { localStorage.setItem(DECISIONS_KEY, JSON.stringify(decisions)); } catch {}
+  }
+
+  // Paint-order choice per approved pair: which trait id should render in
+  // FRONT when both land on the same layer (same rank). Undecided pairs
+  // just fall back to click order like today. Keyed the same way as
+  // `decisions` but stored separately since it's optional metadata on top
+  // of an approve/reject call, not a third outcome.
+  const ORDER_KEY = 'trollrunner_pfp_pair_order_v1';
+  let orderDecisions = {};
+  try { orderDecisions = JSON.parse(localStorage.getItem(ORDER_KEY) || '{}'); } catch {}
+  // Seed from the live-site PAIR_ORDER for anything not already decided
+  // locally, so pairs merged into pfp.html in a past session still show
+  // their real answer instead of "default".
+  for (const [pairId, frontId] of Object.entries(PAIR_ORDER)) {
+    const key = `headwear:${pairId}`;
+    if (orderDecisions[key] == null) orderDecisions[key] = frontId;
+  }
+  function saveOrder() {
+    try { localStorage.setItem(ORDER_KEY, JSON.stringify(orderDecisions)); } catch {}
   }
 
   function traitsFor(layerId) {
@@ -287,18 +478,26 @@
     });
   }
 
-  async function drawCard(canvas, layerId, a, b, baseId, bgId) {
+  async function drawCard(canvas, layerId, a, b, baseId, bgId, frontId) {
     const size = 300;
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, size, size);
 
+    // frontId (from the paint-order picker) forces that trait to draw last
+    // regardless of its normal rank vs. its pair partner — a live preview
+    // of what a RANK_OVERRIDES entry would do, without touching pfp.html.
     const layers = [
       { layerId: 'background', id: bgId },
       { layerId: 'base', id: baseId },
       { layerId, id: a },
       { layerId, id: b },
-    ].sort((x, y) => rankFor(x.layerId, x.id) - rankFor(y.layerId, y.id));
+    ].sort((x, y) => {
+      if (frontId && (x.id === frontId || y.id === frontId) && x.layerId === layerId && y.layerId === layerId) {
+        return x.id === frontId ? 1 : -1;
+      }
+      return rankFor(x.layerId, x.id) - rankFor(y.layerId, y.id);
+    });
 
     for (const l of layers) {
       if (!l.id) continue;
@@ -389,7 +588,34 @@
     const bgId = el.bgSelect.value;
     el.soloLabel.textContent = `${a} + ${b}`;
     el.soloProgress.textContent = `${soloIndex + 1} / ${pairs.length}`;
-    drawCard(el.soloCanvas, layerId, a, b, baseId, bgId);
+    renderOrderPicker(el.soloOrder, layerId, a, b, () => drawCard(el.soloCanvas, layerId, a, b, baseId, bgId, orderDecisions[decisionKey(layerId, a, b)]));
+    drawCard(el.soloCanvas, layerId, a, b, baseId, bgId, orderDecisions[decisionKey(layerId, a, b)]);
+  }
+
+  // Renders "<a> in front / default / <b> in front" buttons into `container`
+  // for the given pair, wired to store the choice in orderDecisions and
+  // re-draw via `onChange`. Shared between the grid cards and solo view so
+  // the picker behaves identically everywhere.
+  function renderOrderPicker(container, layerId, a, b, onChange) {
+    const key = decisionKey(layerId, a, b);
+    container.innerHTML = '';
+    const options = [
+      { id: b, label: `${b} in front` },
+      { id: '', label: 'default (click order)' },
+      { id: a, label: `${a} in front` },
+    ];
+    for (const opt of options) {
+      const btn = document.createElement('button');
+      btn.textContent = opt.label;
+      btn.className = (orderDecisions[key] || '') === opt.id ? 'active' : '';
+      btn.addEventListener('click', () => {
+        if (opt.id) orderDecisions[key] = opt.id; else delete orderDecisions[key];
+        saveOrder();
+        renderOrderPicker(container, layerId, a, b, onChange);
+        onChange();
+      });
+      container.appendChild(btn);
+    }
   }
 
   async function render() {
@@ -423,6 +649,11 @@
       label.textContent = `${a} + ${b}`;
       card.appendChild(label);
 
+      const orderRow = document.createElement('div');
+      orderRow.className = 'order-row';
+      card.appendChild(orderRow);
+      renderOrderPicker(orderRow, layerId, a, b, () => drawCard(canvas, layerId, a, b, baseId, bgId, orderDecisions[key]));
+
       const row = document.createElement('div');
       row.className = 'row';
       const approveBtn = document.createElement('button');
@@ -450,7 +681,7 @@
       card.appendChild(row);
 
       el.grid.appendChild(card);
-      drawCard(canvas, layerId, a, b, baseId, bgId);
+      drawCard(canvas, layerId, a, b, baseId, bgId, orderDecisions[key]);
     }
   }
 
@@ -461,7 +692,24 @@
       el.outText.value = '// No approved pairs yet for this layer.';
     } else {
       const lines = pairs.map(([a, b]) => `        ['${a}', '${b}'],`);
-      el.outText.value = `      // --- new pairs approved via pfp-pair-review.html ---\n${lines.join('\n')}`;
+      let out = `      // --- new pairs approved via pfp-pair-review.html ---\n${lines.join('\n')}`;
+
+      // Any pair with an explicit paint-order choice needs a RANK_OVERRIDES
+      // entry too — the trait picked "in front" gets bumped just above its
+      // partner's rank so it always wins regardless of click order (same
+      // trick as the existing jigsaw-hair/khabib overrides).
+      const withOrder = pairs.filter(([a, b]) => orderDecisions[decisionKey(layerId, a, b)]);
+      if (withOrder.length) {
+        const rankLines = withOrder.map(([a, b]) => {
+          const front = orderDecisions[decisionKey(layerId, a, b)];
+          const back = front === a ? b : a;
+          return `        // '${front}' painted in front of '${back}' (${a} + ${b} pair)`;
+        });
+        out += `\n\n      // --- add to RANK_OVERRIDES (pick a rank just above the trait it should\n`
+             + `      // sit in front of — see existing jigsaw-hair/khabib examples) ---\n`
+             + rankLines.join('\n');
+      }
+      el.outText.value = out;
     }
     el.outWrap.classList.remove('hidden');
     el.outWrap.scrollIntoView({ behavior: 'smooth' });

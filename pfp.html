@@ -382,6 +382,23 @@
     .search::placeholder { color: #a1a1a8; }
     .count { font-family: var(--pf-mono); font-size: 11.5px; color: var(--pf-muted); white-space: nowrap; }
 
+    /* Shown only when a multi-select layer has 2 compatible picks worn —
+       lets a rider flip which one paints in front, for pairs where both
+       stacking orders look fine and the "right" one is just taste. */
+    .order-bar {
+      display: flex; gap: 8px; align-items: center; padding: 10px 14px;
+      border-bottom: 0.5px solid var(--pf-line); background: var(--pf-panel-2);
+      font-size: 12.5px; color: var(--pf-muted); flex-wrap: wrap;
+    }
+    .order-bar .order-label { white-space: nowrap; }
+    .order-bar .order-btn {
+      border: 0.5px solid var(--pf-line); border-radius: 999px; background: #fff;
+      color: var(--pf-ink); padding: 6px 13px; font-size: 12.5px; font-weight: 500;
+      cursor: pointer;
+    }
+    .order-bar .order-btn:hover { border-color: var(--pf-accent); color: var(--pf-accent); }
+    .order-bar .order-btn.is-active { background: var(--pf-accent); border-color: transparent; color: #fff; }
+
     .grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
       gap: 8px; padding: 12px; max-height: 62vh; overflow: auto;
@@ -629,7 +646,10 @@
         backdrop-filter: blur(24px) saturate(160%);
         -webkit-backdrop-filter: blur(24px) saturate(160%);
       }
-      .picker-bar, .picker-foot { background: rgba(255,255,255,0.03); }
+      .picker-bar, .picker-foot, .order-bar { background: rgba(255,255,255,0.03); }
+      .order-bar .order-btn { background: rgba(255,255,255,0.06); color: var(--pf-ink); }
+      .order-bar .order-btn:hover { border-color: var(--pf-accent); color: var(--pf-accent); }
+      .order-bar .order-btn.is-active { background: var(--pf-accent); color: #06210f; }
       .room-panel-close:hover { background: rgba(255,255,255,0.08); }
       .search { background: rgba(255,255,255,0.06); color: var(--pf-ink); }
       .search::placeholder { color: var(--pf-muted); }
@@ -753,6 +773,7 @@
                 <input class="search" id="search" type="search" placeholder="Search traits…" aria-label="Search traits in this layer">
                 <span class="count" id="count"></span>
               </div>
+              <div class="order-bar" id="orderBar" hidden></div>
               <div class="grid" id="grid" role="region"></div>
             </div>
           </div>
@@ -884,7 +905,7 @@
       // approves all six without listing each one separately.
       headwear: pairSet('headwear', [
         ['diamond-teeth', 'bushes'], ['headset', 'diamond-teeth'], ['1-golden-tooth', 'black-tooth'],
-        ['jigsaw-hair', 'headset'],
+        ['jigsaw-hair', 'headset'], ['headset', 'khabib'],
         ['cap-black', 'glasses'], ['1-golden-tooth', 'beanie'], ['1-golden-tooth', 'bushes'],
         ['1-golden-tooth', 'cap-black'], ['1-golden-tooth', 'cartier'], ['1-golden-tooth', 'condom'],
         ['1-golden-tooth', 'cowboy-hat'], ['1-golden-tooth', 'crown'], ['1-golden-tooth', 'diamond-teeth'],
@@ -934,6 +955,143 @@
         ['bushes', 'strainer'], ['bushes', 'straw-hat'], ['bushes', 'tears'],
         ['bushes', 'the-usual'], ['bushes', 'troll-senses'], ['bushes', 'trucker-hat-basic'],
         ['bushes', 'trump-hair'], ['bushes', 'uncle-sam'],
+        // --- new pairs approved via pfp-pair-review.html ---
+        ['cap-black', 'cartier'], ['cap-black', 'diamond-teeth'], ['cap-black', 'glowing-eyes'],
+        ['cap-black', 'glowing-red-eyes'], ['cap-black', 'golden-teeth'], ['cap-black', 'green-thong'],
+        ['cap-black', 'high-eyes'], ['cap-black', 'lipstick'], ['cap-black', 'mog'],
+        ['cap-black', 'solami-mamis'], ['cap-black', 'tears'], ['cap-black', 'troll-senses'],
+        ['cartier', 'condom'], ['cartier', 'cowboy-hat'], ['cartier', 'crown'],
+        ['cartier', 'diamond-teeth'], ['cartier', 'durag'], ['cartier', 'french-art-hat'],
+        ['cartier', 'fresh-prince'], ['cartier', 'glowing-eyes'], ['cartier', 'glowing-red-eyes'],
+        ['cartier', 'golden-teeth'], ['cartier', 'green-thong'], ['cartier', 'halo'],
+        ['cartier', 'headset'], ['cartier', 'high-eyes'], ['cartier', 'horns'],
+        ['cartier', 'jigsaw-hair'], ['cartier', 'khabib'], ['cartier', 'lipstick'],
+        ['cartier', 'long-black'], ['cartier', 'long-blonde'], ['cartier', 'long-brown'],
+        ['cartier', 'make-trolling-great-again'], ['cartier', 'make-trolling-great-again-black'], ['cartier', 'mcdonalds-cap'],
+        ['cartier', 'old-man'], ['cartier', 'pumpfun-general'], ['cartier', 'punk'],
+        ['cartier', 'smurf-hat'], ['cartier', 'solami-mamis'], ['cartier', 'spinning-hat'],
+        ['cartier', 'strainer'], ['cartier', 'straw-hat'], ['cartier', 'tears'],
+        ['cartier', 'the-usual'], ['cartier', 'troll-senses'], ['cartier', 'trucker-hat-basic'],
+        ['cartier', 'trump-hair'], ['cartier', 'uncle-sam'],
+        ['condom', 'diamond-teeth'], ['condom', 'glasses'], ['condom', 'glowing-eyes'],
+        ['condom', 'glowing-red-eyes'], ['condom', 'golden-teeth'], ['condom', 'green-thong'],
+        ['condom', 'high-eyes'], ['condom', 'lipstick'], ['condom', 'mog'],
+        ['condom', 'old-man'], ['condom', 'solami-mamis'], ['condom', 'tears'],
+        ['condom', 'troll-senses'], ['condom', 'uncle-sam'],
+        ['cowboy-hat', 'diamond-teeth'], ['cowboy-hat', 'glasses'], ['cowboy-hat', 'glowing-eyes'],
+        ['cowboy-hat', 'glowing-red-eyes'], ['cowboy-hat', 'golden-teeth'], ['cowboy-hat', 'green-thong'],
+        ['cowboy-hat', 'halo'], ['cowboy-hat', 'high-eyes'], ['cowboy-hat', 'lipstick'],
+        ['cowboy-hat', 'mog'], ['cowboy-hat', 'solami-mamis'], ['cowboy-hat', 'tears'],
+        ['cowboy-hat', 'troll-senses'],
+        ['crown', 'diamond-teeth'], ['crown', 'glasses'], ['crown', 'glowing-eyes'],
+        ['crown', 'glowing-red-eyes'], ['crown', 'golden-teeth'], ['crown', 'high-eyes'],
+        ['crown', 'lipstick'], ['crown', 'mog'], ['crown', 'solami-mamis'],
+        ['crown', 'tears'], ['crown', 'troll-senses'],
+        ['diamond-teeth', 'durag'], ['diamond-teeth', 'french-art-hat'], ['diamond-teeth', 'fresh-prince'],
+        ['diamond-teeth', 'glasses'], ['diamond-teeth', 'glowing-eyes'], ['diamond-teeth', 'glowing-red-eyes'],
+        ['diamond-teeth', 'golden-teeth'], ['diamond-teeth', 'green-thong'], ['diamond-teeth', 'halo'],
+        ['diamond-teeth', 'high-eyes'], ['diamond-teeth', 'horns'], ['diamond-teeth', 'jigsaw-hair'],
+        ['diamond-teeth', 'khabib'], ['diamond-teeth', 'lipstick'], ['diamond-teeth', 'long-black'],
+        ['diamond-teeth', 'long-blonde'], ['diamond-teeth', 'long-brown'], ['diamond-teeth', 'make-trolling-great-again'],
+        ['diamond-teeth', 'make-trolling-great-again-black'], ['diamond-teeth', 'mcdonalds-cap'], ['diamond-teeth', 'mog'],
+        ['diamond-teeth', 'old-man'], ['diamond-teeth', 'pumpfun-general'], ['diamond-teeth', 'punk'],
+        ['diamond-teeth', 'smurf-hat'], ['diamond-teeth', 'solami-mamis'], ['diamond-teeth', 'spinning-hat'],
+        ['diamond-teeth', 'strainer'], ['diamond-teeth', 'straw-hat'], ['diamond-teeth', 'tears'],
+        ['diamond-teeth', 'the-usual'], ['diamond-teeth', 'troll-senses'], ['diamond-teeth', 'trucker-hat-basic'],
+        ['diamond-teeth', 'trump-hair'], ['diamond-teeth', 'uncle-sam'],
+        ['durag', 'fresh-prince'], ['durag', 'glasses'], ['durag', 'glowing-eyes'],
+        ['durag', 'glowing-red-eyes'], ['durag', 'golden-teeth'], ['durag', 'high-eyes'],
+        ['durag', 'lipstick'], ['durag', 'make-trolling-great-again'], ['durag', 'make-trolling-great-again-black'],
+        ['durag', 'mcdonalds-cap'], ['durag', 'mog'], ['durag', 'pumpfun-general'],
+        ['durag', 'solami-mamis'], ['durag', 'strainer'], ['durag', 'straw-hat'],
+        ['durag', 'tears'], ['durag', 'troll-senses'], ['durag', 'uncle-sam'],
+        ['french-art-hat', 'glasses'], ['french-art-hat', 'glowing-eyes'], ['french-art-hat', 'glowing-red-eyes'],
+        ['french-art-hat', 'golden-teeth'], ['french-art-hat', 'high-eyes'], ['french-art-hat', 'jigsaw-hair'],
+        ['french-art-hat', 'khabib'], ['french-art-hat', 'lipstick'], ['french-art-hat', 'mog'],
+        ['french-art-hat', 'solami-mamis'], ['french-art-hat', 'tears'], ['french-art-hat', 'troll-senses'],
+        ['fresh-prince', 'glasses'], ['fresh-prince', 'glowing-eyes'], ['fresh-prince', 'glowing-red-eyes'],
+        ['fresh-prince', 'golden-teeth'], ['fresh-prince', 'high-eyes'], ['fresh-prince', 'lipstick'],
+        ['fresh-prince', 'mog'], ['fresh-prince', 'solami-mamis'], ['fresh-prince', 'tears'],
+        ['fresh-prince', 'troll-senses'],
+        ['glasses', 'glowing-eyes'], ['glasses', 'glowing-red-eyes'], ['glasses', 'golden-teeth'],
+        ['glasses', 'green-thong'], ['glasses', 'halo'], ['glasses', 'headset'],
+        ['glasses', 'high-eyes'], ['glasses', 'horns'], ['glasses', 'jigsaw-hair'],
+        ['glasses', 'khabib'], ['glasses', 'lipstick'], ['glasses', 'long-black'],
+        ['glasses', 'long-blonde'], ['glasses', 'long-brown'], ['glasses', 'make-trolling-great-again'],
+        ['glasses', 'make-trolling-great-again-black'], ['glasses', 'mcdonalds-cap'], ['glasses', 'old-man'],
+        ['glasses', 'pumpfun-general'], ['glasses', 'punk'], ['glasses', 'smurf-hat'],
+        ['glasses', 'solami-mamis'], ['glasses', 'spinning-hat'], ['glasses', 'strainer'],
+        ['glasses', 'straw-hat'], ['glasses', 'tears'], ['glasses', 'the-usual'],
+        ['glasses', 'troll-senses'], ['glasses', 'trucker-hat-basic'], ['glasses', 'trump-hair'],
+        ['glasses', 'uncle-sam'],
+        ['glowing-eyes', 'glowing-red-eyes'], ['glowing-eyes', 'golden-teeth'], ['glowing-eyes', 'green-thong'],
+        ['glowing-eyes', 'halo'], ['glowing-eyes', 'headset'], ['glowing-eyes', 'high-eyes'],
+        ['glowing-eyes', 'horns'], ['glowing-eyes', 'jigsaw-hair'], ['glowing-eyes', 'khabib'],
+        ['glowing-eyes', 'lipstick'], ['glowing-eyes', 'long-black'], ['glowing-eyes', 'long-blonde'],
+        ['glowing-eyes', 'long-brown'], ['glowing-eyes', 'make-trolling-great-again'], ['glowing-eyes', 'make-trolling-great-again-black'],
+        ['glowing-eyes', 'mcdonalds-cap'], ['glowing-eyes', 'mog'], ['glowing-eyes', 'old-man'],
+        ['glowing-eyes', 'pumpfun-general'], ['glowing-eyes', 'punk'], ['glowing-eyes', 'smurf-hat'],
+        ['glowing-eyes', 'solami-mamis'], ['glowing-eyes', 'spinning-hat'], ['glowing-eyes', 'strainer'],
+        ['glowing-eyes', 'straw-hat'], ['glowing-eyes', 'tears'], ['glowing-eyes', 'the-usual'],
+        ['glowing-eyes', 'troll-senses'], ['glowing-eyes', 'trucker-hat-basic'], ['glowing-eyes', 'trump-hair'],
+        ['glowing-eyes', 'uncle-sam'],
+        ['glowing-red-eyes', 'golden-teeth'], ['glowing-red-eyes', 'green-thong'], ['glowing-red-eyes', 'halo'],
+        ['glowing-red-eyes', 'headset'], ['glowing-red-eyes', 'high-eyes'], ['glowing-red-eyes', 'horns'],
+        ['glowing-red-eyes', 'jigsaw-hair'], ['glowing-red-eyes', 'khabib'], ['glowing-red-eyes', 'lipstick'],
+        ['glowing-red-eyes', 'long-black'], ['glowing-red-eyes', 'long-blonde'], ['glowing-red-eyes', 'long-brown'],
+        ['glowing-red-eyes', 'make-trolling-great-again'], ['glowing-red-eyes', 'make-trolling-great-again-black'], ['glowing-red-eyes', 'mcdonalds-cap'],
+        ['glowing-red-eyes', 'mog'], ['glowing-red-eyes', 'old-man'], ['glowing-red-eyes', 'pumpfun-general'],
+        ['glowing-red-eyes', 'punk'], ['glowing-red-eyes', 'smurf-hat'], ['glowing-red-eyes', 'solami-mamis'],
+        ['glowing-red-eyes', 'spinning-hat'], ['glowing-red-eyes', 'strainer'], ['glowing-red-eyes', 'straw-hat'],
+        ['glowing-red-eyes', 'tears'], ['glowing-red-eyes', 'the-usual'], ['glowing-red-eyes', 'troll-senses'],
+        ['glowing-red-eyes', 'trucker-hat-basic'], ['glowing-red-eyes', 'trump-hair'], ['glowing-red-eyes', 'uncle-sam'],
+        ['golden-teeth', 'green-thong'], ['golden-teeth', 'halo'], ['golden-teeth', 'headset'],
+        ['golden-teeth', 'high-eyes'], ['golden-teeth', 'horns'], ['golden-teeth', 'jigsaw-hair'],
+        ['golden-teeth', 'khabib'], ['golden-teeth', 'lipstick'], ['golden-teeth', 'long-black'],
+        ['golden-teeth', 'long-blonde'], ['golden-teeth', 'long-brown'], ['golden-teeth', 'make-trolling-great-again'],
+        ['golden-teeth', 'make-trolling-great-again-black'], ['golden-teeth', 'mcdonalds-cap'], ['golden-teeth', 'mog'],
+        ['golden-teeth', 'old-man'], ['golden-teeth', 'pumpfun-general'], ['golden-teeth', 'punk'],
+        ['golden-teeth', 'smurf-hat'], ['golden-teeth', 'solami-mamis'], ['golden-teeth', 'spinning-hat'],
+        ['golden-teeth', 'strainer'], ['golden-teeth', 'straw-hat'], ['golden-teeth', 'tears'],
+        ['golden-teeth', 'the-usual'], ['golden-teeth', 'troll-senses'], ['golden-teeth', 'trucker-hat-basic'],
+        ['golden-teeth', 'trump-hair'], ['golden-teeth', 'uncle-sam'],
+        ['green-thong', 'halo'], ['green-thong', 'headset'], ['green-thong', 'high-eyes'],
+        ['green-thong', 'horns'], ['green-thong', 'jigsaw-hair'], ['green-thong', 'khabib'],
+        ['green-thong', 'lipstick'], ['green-thong', 'long-black'], ['green-thong', 'long-blonde'],
+        ['green-thong', 'long-brown'], ['green-thong', 'make-trolling-great-again'], ['green-thong', 'make-trolling-great-again-black'],
+        ['green-thong', 'mcdonalds-cap'], ['green-thong', 'mog'], ['green-thong', 'old-man'],
+        ['green-thong', 'pumpfun-general'], ['green-thong', 'punk'], ['green-thong', 'smurf-hat'],
+        ['green-thong', 'solami-mamis'], ['green-thong', 'spinning-hat'], ['green-thong', 'strainer'],
+        ['green-thong', 'straw-hat'], ['green-thong', 'tears'], ['green-thong', 'the-usual'],
+        ['green-thong', 'troll-senses'], ['green-thong', 'trucker-hat-basic'], ['green-thong', 'trump-hair'],
+        ['green-thong', 'uncle-sam'],
+        ['halo', 'headset'], ['halo', 'high-eyes'], ['halo', 'horns'],
+        ['halo', 'jigsaw-hair'], ['halo', 'khabib'], ['halo', 'lipstick'],
+        ['halo', 'long-black'], ['halo', 'long-blonde'], ['halo', 'long-brown'],
+        ['halo', 'make-trolling-great-again'], ['halo', 'make-trolling-great-again-black'], ['halo', 'mcdonalds-cap'],
+        ['halo', 'mog'], ['halo', 'old-man'], ['halo', 'punk'],
+        ['halo', 'solami-mamis'], ['halo', 'spinning-hat'], ['halo', 'strainer'],
+        ['halo', 'straw-hat'], ['halo', 'tears'], ['halo', 'the-usual'],
+        ['halo', 'troll-senses'], ['halo', 'trump-hair'],
+        ['headset', 'high-eyes'], ['headset', 'horns'], ['headset', 'lipstick'],
+        ['headset', 'long-black'], ['headset', 'long-blonde'], ['headset', 'long-brown'],
+        ['headset', 'mog'], ['headset', 'old-man'], ['headset', 'solami-mamis'],
+        ['headset', 'tears'], ['headset', 'troll-senses'],
+        ['high-eyes', 'horns'], ['high-eyes', 'jigsaw-hair'], ['high-eyes', 'khabib'],
+        ['high-eyes', 'lipstick'], ['high-eyes', 'long-black'], ['high-eyes', 'long-blonde'],
+        ['high-eyes', 'long-brown'], ['high-eyes', 'make-trolling-great-again'], ['high-eyes', 'make-trolling-great-again-black'],
+        ['high-eyes', 'mcdonalds-cap'], ['high-eyes', 'mog'], ['high-eyes', 'old-man'],
+        ['high-eyes', 'pumpfun-general'], ['high-eyes', 'punk'], ['high-eyes', 'smurf-hat'],
+        ['high-eyes', 'solami-mamis'], ['high-eyes', 'spinning-hat'], ['high-eyes', 'strainer'],
+        ['high-eyes', 'straw-hat'], ['high-eyes', 'tears'], ['high-eyes', 'the-usual'],
+        ['high-eyes', 'troll-senses'], ['high-eyes', 'trucker-hat-basic'], ['high-eyes', 'trump-hair'],
+        ['high-eyes', 'uncle-sam'],
+        ['horns', 'jigsaw-hair'], ['horns', 'khabib'], ['horns', 'lipstick'],
+        ['horns', 'long-black'], ['horns', 'long-blonde'], ['horns', 'long-brown'],
+        ['horns', 'mog'], ['horns', 'old-man'], ['horns', 'punk'],
+        ['horns', 'smurf-hat'], ['horns', 'solami-mamis'], ['horns', 'tears'],
+        ['horns', 'troll-senses'],
+        ['jigsaw-hair', 'lipstick'],
       ]),
     };
     function traitsCompatible(layerId, a, b) {
@@ -959,12 +1117,51 @@
     // headwear, so a chain never clips through a hat/hair/bushes. Anything
     // not listed here just uses its layer's normal rank.
     const LAYER_RANK = { background: 0, base: 10, outfit: 20, headwear: 30, accessory: 40 };
-    // jigsaw-hair only reads right in front of headset — same-layer picks
-    // otherwise paint in click order, so without this override the pairing
-    // looks fine one way and clips the other depending on which was picked
-    // first.
-    const RANK_OVERRIDES = { 'gold-chains': 25, 'troll-gang-chain': 26, 'jigsaw-hair': 31 };
+    const RANK_OVERRIDES = { 'gold-chains': 25, 'troll-gang-chain': 26 };
     const rankFor = (layerId, id) => (id && RANK_OVERRIDES[id] != null) ? RANK_OVERRIDES[id] : LAYER_RANK[layerId];
+
+    /** Which trait of a same-layer pair paints in front — a single global
+     *  rank can't express this (e.g. horns sits behind punk/mog but in
+     *  front of khabib/jigsaw-hair/old-man/troll-senses/every long-hair, so
+     *  no one scalar works for horns in every pairing). Keyed by the sorted
+     *  pair, value is the id that goes in front; a pair with no entry here
+     *  just paints in click/array order, same as before this existed. */
+    const PAIR_ORDER = {
+      'headset|jigsaw-hair': 'jigsaw-hair',
+      'headset|khabib': 'headset',
+      'headset|lipstick': 'headset',
+      'headset|long-black': 'headset',
+      'headset|long-blonde': 'headset',
+      'headset|long-brown': 'headset',
+      'headset|mog': 'headset',
+      'headset|old-man': 'headset',
+      'headset|tears': 'headset',
+      'headset|troll-senses': 'headset',
+      'high-eyes|long-brown': 'long-brown',
+      'horns|jigsaw-hair': 'horns',
+      'horns|khabib': 'horns',
+      'horns|long-black': 'horns',
+      'horns|long-blonde': 'horns',
+      'horns|long-brown': 'horns',
+      'horns|mog': 'mog',
+      'horns|old-man': 'horns',
+      'horns|punk': 'punk',
+      'horns|troll-senses': 'horns',
+    };
+    /** Comparator for same-layer stack entries: a rider's own swap-order
+     *  choice (orderOverride, set via the drawer's order-bar) wins first,
+     *  then the hardcoded PAIR_ORDER, otherwise falls back to each entry's
+     *  plain rank (ties keep their original — i.e. click/array — order,
+     *  since Array.prototype.sort is stable). */
+    function compareStackEntries(a, b) {
+      if (a.layerId === b.layerId && a.id && b.id) {
+        const overridden = orderOverride[a.layerId];
+        if (overridden === a.id || overridden === b.id) return a.id === overridden ? 1 : -1;
+        const front = PAIR_ORDER[[a.id, b.id].sort().join('|')];
+        if (front) return a.id === front ? 1 : -1;
+      }
+      return a.rank - b.rank;
+    }
     // Hand-shot photo of each hotspot's furniture, filled in as the whole
     // drawer's background. Every layer shows the full shot uncropped
     // (background-size: contain) except "base", which is allowed to crop
@@ -985,6 +1182,7 @@
     const el = {
       stack: document.getElementById('stack'),
       grid: document.getElementById('grid'),
+      orderBar: document.getElementById('orderBar'),
       search: document.getElementById('search'),
       count: document.getElementById('count'),
       note: document.getElementById('note'),
@@ -1032,6 +1230,13 @@
     /** @type {Record<string, string|string[]|null>} layer id -> trait id
      *  (null = none), except MULTI_LAYERS which hold a string[] instead. */
     let build = {};
+    /** Session-only paint-order flips: layer id -> trait id that should
+     *  paint in front, for pairs where the rider wants to override
+     *  PAIR_ORDER (or the default click order) for this session. Not
+     *  persisted — it resets with a fresh visit like a preview toggle,
+     *  same spirit as hoveredLayer/focusedLayer below. Cleared whenever
+     *  that layer's picks change so a stale flip never survives a swap. */
+    const orderOverride = {};
     /** layer id -> <img>[] in the preview stack, in z-order. One entry for
      *  ordinary layers, MULTI_LIMIT entries (extras hidden when unused) for
      *  a multi layer. */
@@ -1273,7 +1478,7 @@
         const ids = idsFor(layer.id, build[layer.id]);
         imgs.forEach((img, i) => {
           const id = ids[i];
-          stackOrder.push({ img, rank: rankFor(layer.id, id) });
+          stackOrder.push({ img, layerId: layer.id, id, rank: rankFor(layer.id, id) });
           if (!id) { img.classList.remove('is-on'); img.alt = ''; img.style.transform = ''; return; }
           const src = fullSrc(layer.id, id);
           if (!img.src.endsWith(src)) img.src = src;
@@ -1289,7 +1494,7 @@
       // in rank order (see RANK_OVERRIDES) keeps the stack in sync even
       // when a trait's visual front/back position differs from its layer's
       // normal spot.
-      stackOrder.sort((a, b) => a.rank - b.rank);
+      stackOrder.sort(compareStackEntries);
       for (const { img } of stackOrder) el.stack.appendChild(img);
 
       const worn = manifest.layers
@@ -1466,6 +1671,44 @@
         p.textContent = `No ${layer.name.toLowerCase()} matches “${el.search.value.trim()}”.`;
         el.grid.appendChild(p);
       }
+      renderOrderBar(layer);
+    }
+
+    /** Two-pick swap-order control: only shows once a multi-select layer
+     *  has exactly 2 compatible traits worn, letting the rider flip which
+     *  one paints in front for this session (see orderOverride). Pairs
+     *  with a hardcoded PAIR_ORDER still start from that answer but stay
+     *  overridable — it's a starting point, not a lock. */
+    function renderOrderBar(layer) {
+      el.orderBar.innerHTML = '';
+      if (!MULTI_LAYERS.has(layer.id)) { el.orderBar.hidden = true; return; }
+      const [a, b] = idsFor(layer.id, build[layer.id]);
+      if (!a || !b) { el.orderBar.hidden = true; return; }
+      el.orderBar.hidden = false;
+
+      const label = document.createElement('span');
+      label.className = 'order-label';
+      label.textContent = 'Order:';
+      el.orderBar.appendChild(label);
+
+      const hardcoded = PAIR_ORDER[[a, b].sort().join('|')] || null;
+      const current = orderOverride[layer.id] || hardcoded || null;
+      const options = [
+        { id: b, label: `${traitById(layer.id, b)?.name || b} in front` },
+        { id: a, label: `${traitById(layer.id, a)?.name || a} in front` },
+      ];
+      for (const opt of options) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'order-btn' + (current === opt.id ? ' is-active' : '');
+        btn.textContent = opt.label;
+        btn.addEventListener('click', () => {
+          orderOverride[layer.id] = opt.id;
+          renderStack();
+          renderOrderBar(layer);
+        });
+        el.orderBar.appendChild(btn);
+      }
     }
 
     /** Click handler for a MULTI_LAYERS cell: toggle off if already worn,
@@ -1475,16 +1718,19 @@
     function toggleMulti(layerId, id) {
       const current = idsFor(layerId, build[layerId]);
       if (current.includes(id)) {
+        delete orderOverride[layerId];
         setBuild({ ...build, [layerId]: current.filter(x => x !== id) });
         note('');
         return;
       }
       if (!current.length) {
+        delete orderOverride[layerId];
         setBuild({ ...build, [layerId]: [id] });
         note('');
         return;
       }
       if (current.length < MULTI_LIMIT && current.every(k => traitsCompatible(layerId, k, id))) {
+        delete orderOverride[layerId];
         setBuild({ ...build, [layerId]: [...current, id] });
         note('');
         return;
@@ -1492,6 +1738,7 @@
       // Doesn't pair with the current set — swap it in on its own rather
       // than silently doing nothing or stacking a clashing combo.
       const dropped = traitById(layerId, current[0])?.name || 'that';
+      delete orderOverride[layerId];
       setBuild({ ...build, [layerId]: [id] });
       note(`${dropped} and ${traitById(layerId, id)?.name} clash, so it swapped in on its own.`);
     }
@@ -1579,7 +1826,7 @@
           entries.push({ layerId: layer.id, id, transform, rank: rankFor(layer.id, id) });
         }
       }
-      entries.sort((a, b) => a.rank - b.rank);
+      entries.sort(compareStackEntries);
       for (const { layerId, id, transform } of entries) {
         const img = await loadImage(fullSrc(layerId, id));
         if (!transform) { ctx.drawImage(img, 0, 0, size, size); continue; }
