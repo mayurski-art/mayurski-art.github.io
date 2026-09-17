@@ -89,5 +89,6 @@ window.TROLL_RADIO_TRACKS = [
   { uri: 'spotify:track:3A3hHhvB7PlwyTnesoLk8d', title: 'Father\'s Day', artist: 'Gucci Mane' },
   { uri: 'spotify:track:7z1I8xzeOTYAFhTsN2kb09', title: 'Free Melly (feat. YNW Melly)', artist: 'Trippie Redd, YNW Melly' },
   { uri: 'spotify:track:5QLDWLnjXSuolYK8NC72Fx', title: 'POP MY SHIT', artist: 'NAV, Frost' },
+  { uri: 'spotify:track:5j0BjB1XkGorCC7pqRHwup', title: 'tight rope', artist: '24HRSnTOKYO, MadeinTYO, 24hrs' },
 ];
 // TROLL_RADIO_TRACKS:END
