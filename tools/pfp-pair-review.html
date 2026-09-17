@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PFP pair review (dev tool)</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, 'DM Sans', system-ui, sans-serif; background: #1c1c1e; color: #f2efe9; margin: 0; padding: 20px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.sub { color: #9a9a9e; font-size: 13px; margin: 0 0 16px; max-width: 720px; line-height: 1.5; }
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; position: sticky; top: 0; background: #1c1c1e; padding: 10px 0; z-index: 5; border-bottom: 0.5px solid rgba(255,255,255,0.15); }
+  select, button, input[type=text] { font: inherit; padding: 6px 10px; border-radius: 8px; border: 0.5px solid rgba(255,255,255,0.25); background: #2c2c2e; color: #f2efe9; }
+  button { cursor: pointer; }
+  button.primary { background: #34c759; color: #06210c; font-weight: 600; border-color: transparent; }
+  button.danger { background: #3a1d1f; }
+  .stat { font-size: 13px; color: #c7c7cc; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .card { background: #232326; border: 0.5px solid rgba(255,255,255,0.12); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .card canvas { width: 100%; aspect-ratio: 1; background: #f2efe9; display: block; }
+  .card .label { font-size: 11px; padding: 6px 8px 2px; color: #d8d8dc; line-height: 1.3; font-family: 'DM Mono', monospace; }
+  .card .row { display: flex; gap: 4px; padding: 6px 8px 8px; }
+  .card .row button { flex: 1; font-size: 12px; padding: 5px 4px; }
+  .card.decided.approve { outline: 2px solid #34c759; }
+  .card.decided.reject { outline: 2px solid #ff453a; opacity: 0.55; }
+  .card.decided.reject canvas { filter: grayscale(1); }
+  textarea { width: 100%; min-height: 160px; background: #111; color: #9cff9c; font-family: 'DM Mono', monospace; font-size: 12px; border-radius: 8px; border: 0.5px solid rgba(255,255,255,0.2); padding: 10px; box-sizing: border-box; }
+  .out { margin-top: 20px; }
+  .hidden { display: none; }
+  .solo { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 12px 0 32px; }
+  .solo-card { width: min(70vw, 420px); background: #232326; border: 0.5px solid rgba(255,255,255,0.15); border-radius: 16px; overflow: hidden; }
+  .solo-card canvas { width: 100%; aspect-ratio: 1; background: #f2efe9; display: block; }
+  .solo-label { font-size: 15px; padding: 12px 14px; color: #f2efe9; font-family: 'DM Mono', monospace; text-align: center; }
+  .solo-hint { font-size: 12px; color: #8e8e93; }
+  .solo-row { display: flex; gap: 14px; }
+  .solo-row button.big { font-size: 15px; padding: 12px 28px; border-radius: 12px; }
+  button.ghost { background: transparent; border-color: rgba(255,255,255,0.2); color: #c7c7cc; font-size: 12px; padding: 6px 14px; }
+  button.ghost:disabled { opacity: 0.35; cursor: default; }
+  .solo-progress { font-size: 12px; color: #c7c7cc; }
+  .solo-card.flash-approve { outline: 3px solid #34c759; }
+  .solo-card.flash-reject { outline: 3px solid #ff453a; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #3a3a3d; color: #c7c7cc; }
+</style>
+</head>
+<body>
+  <h1>PFP pair review</h1>
+  <p class="sub">
+    Dev-only tool, not linked from the live site. Generates every accessory/headwear pair not
+    already in MULTI_PAIRS, composites it on a fixed base so you can eyeball clipping fast, and
+    lets you approve/reject with a click. When you're done, copy the generated snippet into
+    pfp.html's MULTI_PAIRS.
+  </p>
+
+  <div class="toolbar">
+    <label>Layer
+      <select id="layerSelect">
+        <option value="accessory">Accessory</option>
+        <option value="headwear">Headwear</option>
+      </select>
+    </label>
+    <label>Base <select id="baseSelect"></select></label>
+    <label>Background <select id="bgSelect"></select></label>
+    <input type="text" id="filterBox" placeholder="filter by trait id…" size="18">
+    <label><input type="checkbox" id="hideDecided"> hide decided</label>
+    <label><input type="checkbox" id="oneAtATime"> one at a time</label>
+    <span class="stat" id="stat"></span>
+    <button id="btnExport" class="primary">Export approved</button>
+  </div>
+
+  <div id="solo" class="solo hidden">
+    <div class="solo-card">
+      <canvas id="soloCanvas"></canvas>
+      <div class="solo-label" id="soloLabel"></div>
+    </div>
+    <div class="solo-hint">← clash &nbsp;·&nbsp; → keep &nbsp;·&nbsp; backspace/↑ to go back &nbsp;·&nbsp; also works with click</div>
+    <div class="solo-row">
+      <button id="soloReject" class="danger big">✗ clash (←)</button>
+      <button id="soloApprove" class="primary big">✓ keep (→)</button>
+    </div>
+    <button id="soloBack" class="ghost">↑ go back</button>
+    <div class="solo-progress" id="soloProgress"></div>
+  </div>
+
+  <div id="grid" class="grid"></div>
+
+  <div class="out hidden" id="outWrap">
+    <h2>Paste into MULTI_PAIRS (pfp.html)</h2>
+    <p class="sub">Merge these lines into the matching layer's array in MULTI_PAIRS — they're new
+      pairs only, nothing already approved is repeated.</p>
+    <textarea id="outText" readonly></textarea>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+  const MANIFEST_URL = '../assets/data/pfp-traits.json';
+  const DECISIONS_KEY = 'trollrunner_pfp_pair_review_v1';
+  const fullSrc = (layer, trait) => `../assets/pfp/${layer}/${trait}.webp`;
+
+  // Mirror pfp.html's alias + z-order rules so composited previews match reality.
+  const CAP_IDS = ['cap-black', 'cap-blue', 'cap-green', 'cap-pink', 'cap-white', 'cap-yellow'];
+  const MULTI_ALIASES = {
+    accessory: { spliff: 'cigar', 'super-soaker': 'palm-leaf', 'troll-sign': 'princess-bat' },
+    // Every cap color is the same hat re-skinned — a pairing approved for
+    // one color is approved for all six, so the review grid only ever shows
+    // cap-black and treats the rest as already decided.
+    headwear: Object.fromEntries(CAP_IDS.slice(1).map(id => [id, CAP_IDS[0]])),
+  };
+  const canonicalTrait = (layerId, id) => MULTI_ALIASES[layerId]?.[id] || id;
+  function pairKey(layerId, a, b) {
+    return [canonicalTrait(layerId, a), canonicalTrait(layerId, b)].sort().join('|');
+  }
+  function pairSet(layerId, pairs) {
+    return new Set(pairs.map(([a, b]) => pairKey(layerId, a, b)));
+  }
+  // Keep this list in sync with pfp.html's MULTI_PAIRS so "already approved" pairs don't
+  // get re-shown. Copy the current arrays here whenever pfp.html's list grows.
+  const EXISTING_PAIRS = {
+    accessory: pairSet('accessory', [
+      ['cigar', 'deal-w-it-shades'], ['cigar', 'demon-pack'], ['deal-w-it-shades', 'demon-pack'],
+      ['cigar', 'diamond-hand'], ['deal-w-it-shades', 'diamond-hand'],
+      ['candle', 'gold-chains'], ['candle', 'demon-pack'], ['candle', 'diamond-hand'], ['candle', 'middle-fingers'],
+      ['cigar', 'gold-chains'], ['gold-chains', 'deal-w-it-shades'],
+      ['gold-chains', 'diamond-hand'], ['demon-pack', 'gold-chains'], ['gold-chains', 'middle-fingers'],
+      ['gold-chains', 'hotdog'], ['middle-fingers', 'demon-pack'], ['middle-fingers', 'deal-w-it-shades'],
+      ['middle-fingers', 'cigar'], ['deal-w-it-shades', 'monster-can'], ['cigar', 'monster-can'],
+      ['newspaper', 'gold-chains'], ['paintbrush', 'deal-w-it-shades'], ['paintbrush', 'cigar'],
+      ['paintbrush', 'boxing-gloves'], ['boxing-gloves', 'gold-chains'], ['paintbrush', 'hotdog'],
+      ['paintbrush', 'middle-fingers'], ['paintbrush', 'diamond-hand'], ['palm-leaf', 'cigar'],
+      ['palm-leaf', 'gold-chains'], ['palm-leaf', 'deal-w-it-shades'], ['princess-bat', 'paintbrush'],
+      ['princess-bat', 'gold-chains'], ['princess-bat', 'deal-w-it-shades'], ['princess-bat', 'cigar'],
+      ['shovel', 'cigar'], ['shovel', 'gold-chains'], ['shovel', 'diamond-hand'], ['shovel', 'deal-w-it-shades'],
+      // --- approved via tools/pfp-pair-review.html ---
+      ['boxing-gloves', 'candle'], ['boxing-gloves', 'cigar'], ['boxing-gloves', 'deal-w-it-shades'],
+      ['boxing-gloves', 'demon-pack'], ['candle', 'cigar'], ['candle', 'deal-w-it-shades'],
+      ['candle', 'paintbrush'], ['cigar', 'hotdog'], ['deal-w-it-shades', 'hotdog'],
+      ['deal-w-it-shades', 'newspaper'], ['demon-pack', 'paintbrush'], ['gold-chains', 'monster-can'],
+      ['gold-chains', 'paintbrush'], ['monster-can', 'paintbrush'], ['newspaper', 'paintbrush'],
+      ['paintbrush', 'palm-leaf'], ['paintbrush', 'shovel'],
+    ]),
+    // Every pair below uses cap-black only — the other 5 colors are
+    // aliased to it above, so one approval covers all six.
+    headwear: pairSet('headwear', [
+      ['diamond-teeth', 'bushes'], ['headset', 'diamond-teeth'], ['1-golden-tooth', 'black-tooth'],
+      ['jigsaw-hair', 'headset'],
+      ['cap-black', 'glasses'], ['1-golden-tooth', 'beanie'], ['1-golden-tooth', 'bushes'],
+      ['1-golden-tooth', 'cap-black'], ['1-golden-tooth', 'cartier'], ['1-golden-tooth', 'condom'],
+      ['1-golden-tooth', 'cowboy-hat'], ['1-golden-tooth', 'crown'], ['1-golden-tooth', 'diamond-teeth'],
+      ['1-golden-tooth', 'durag'], ['1-golden-tooth', 'french-art-hat'], ['1-golden-tooth', 'fresh-prince'],
+      ['1-golden-tooth', 'glasses'], ['1-golden-tooth', 'glowing-eyes'], ['1-golden-tooth', 'glowing-red-eyes'],
+      ['1-golden-tooth', 'golden-teeth'], ['1-golden-tooth', 'green-thong'], ['1-golden-tooth', 'halo'],
+      ['1-golden-tooth', 'headset'], ['1-golden-tooth', 'high-eyes'], ['1-golden-tooth', 'horns'],
+      ['1-golden-tooth', 'jigsaw-hair'], ['1-golden-tooth', 'khabib'], ['1-golden-tooth', 'lipstick'],
+      ['1-golden-tooth', 'long-black'], ['1-golden-tooth', 'long-blonde'], ['1-golden-tooth', 'long-brown'],
+      ['1-golden-tooth', 'make-trolling-great-again'], ['1-golden-tooth', 'make-trolling-great-again-black'], ['1-golden-tooth', 'mcdonalds-cap'],
+      ['1-golden-tooth', 'mog'], ['1-golden-tooth', 'old-man'], ['1-golden-tooth', 'pumpfun-general'],
+      ['1-golden-tooth', 'punk'], ['1-golden-tooth', 'smurf-hat'], ['1-golden-tooth', 'solami-mamis'],
+      ['1-golden-tooth', 'spinning-hat'], ['1-golden-tooth', 'strainer'], ['1-golden-tooth', 'straw-hat'],
+      ['1-golden-tooth', 'tears'], ['1-golden-tooth', 'the-usual'], ['1-golden-tooth', 'troll-senses'],
+      ['1-golden-tooth', 'trucker-hat-basic'], ['1-golden-tooth', 'trump-hair'], ['1-golden-tooth', 'uncle-sam'],
+      ['beanie', 'black-tooth'], ['beanie', 'bushes'], ['beanie', 'cartier'],
+      ['beanie', 'diamond-teeth'], ['beanie', 'glasses'], ['beanie', 'glowing-eyes'],
+      ['beanie', 'glowing-red-eyes'], ['beanie', 'golden-teeth'], ['beanie', 'green-thong'],
+      ['beanie', 'halo'], ['beanie', 'high-eyes'], ['beanie', 'horns'],
+      ['beanie', 'lipstick'], ['beanie', 'mog'], ['beanie', 'solami-mamis'],
+      ['beanie', 'tears'], ['beanie', 'troll-senses'], ['black-tooth', 'bushes'],
+      ['black-tooth', 'cap-black'], ['black-tooth', 'cartier'], ['black-tooth', 'condom'],
+      ['black-tooth', 'cowboy-hat'], ['black-tooth', 'crown'], ['black-tooth', 'diamond-teeth'],
+      ['black-tooth', 'durag'], ['black-tooth', 'french-art-hat'], ['black-tooth', 'fresh-prince'],
+      ['black-tooth', 'glasses'], ['black-tooth', 'glowing-eyes'], ['black-tooth', 'glowing-red-eyes'],
+      ['black-tooth', 'golden-teeth'], ['black-tooth', 'green-thong'], ['black-tooth', 'halo'],
+      ['black-tooth', 'headset'], ['black-tooth', 'high-eyes'], ['black-tooth', 'horns'],
+      ['black-tooth', 'jigsaw-hair'], ['black-tooth', 'khabib'], ['black-tooth', 'lipstick'],
+      ['black-tooth', 'long-black'], ['black-tooth', 'long-blonde'], ['black-tooth', 'long-brown'],
+      ['black-tooth', 'make-trolling-great-again'], ['black-tooth', 'make-trolling-great-again-black'], ['black-tooth', 'mcdonalds-cap'],
+      ['black-tooth', 'mog'], ['black-tooth', 'old-man'], ['black-tooth', 'pumpfun-general'],
+      ['black-tooth', 'punk'], ['black-tooth', 'smurf-hat'], ['black-tooth', 'solami-mamis'],
+      ['black-tooth', 'spinning-hat'], ['black-tooth', 'strainer'], ['black-tooth', 'straw-hat'],
+      ['black-tooth', 'tears'], ['black-tooth', 'the-usual'], ['black-tooth', 'troll-senses'],
+      ['black-tooth', 'trucker-hat-basic'], ['black-tooth', 'trump-hair'], ['black-tooth', 'uncle-sam'],
+      ['bushes', 'cap-black'], ['bushes', 'cartier'], ['bushes', 'condom'],
+      ['bushes', 'cowboy-hat'], ['bushes', 'crown'], ['bushes', 'durag'],
+      ['bushes', 'french-art-hat'], ['bushes', 'fresh-prince'], ['bushes', 'glasses'],
+      ['bushes', 'glowing-eyes'], ['bushes', 'glowing-red-eyes'], ['bushes', 'golden-teeth'],
+      ['bushes', 'green-thong'], ['bushes', 'halo'], ['bushes', 'headset'],
+      ['bushes', 'high-eyes'], ['bushes', 'horns'], ['bushes', 'jigsaw-hair'],
+      ['bushes', 'khabib'], ['bushes', 'lipstick'], ['bushes', 'long-black'],
+      ['bushes', 'long-blonde'], ['bushes', 'long-brown'], ['bushes', 'make-trolling-great-again'],
+      ['bushes', 'make-trolling-great-again-black'], ['bushes', 'mcdonalds-cap'], ['bushes', 'mog'],
+      ['bushes', 'old-man'], ['bushes', 'pumpfun-general'], ['bushes', 'punk'],
+      ['bushes', 'smurf-hat'], ['bushes', 'solami-mamis'], ['bushes', 'spinning-hat'],
+      ['bushes', 'strainer'], ['bushes', 'straw-hat'], ['bushes', 'tears'],
+      ['bushes', 'the-usual'], ['bushes', 'troll-senses'], ['bushes', 'trucker-hat-basic'],
+      ['bushes', 'trump-hair'], ['bushes', 'uncle-sam'],
+    ]),
+  };
+
+  // Pairs explicitly clicked "clash" in a past review pass. Kept here (not
+  // just in localStorage) so a cleared browser or a different machine still
+  // skips pairs someone already looked at and rejected — only genuinely
+  // untested pairs should ever reach the grid.
+  const REJECTED_PAIRS = {
+    accessory: pairSet('accessory', [
+      ['boxing-gloves', 'diamond-hand'], ['boxing-gloves', 'hotdog'], ['boxing-gloves', 'middle-fingers'],
+      ['boxing-gloves', 'monster-can'], ['boxing-gloves', 'newspaper'], ['boxing-gloves', 'palm-leaf'],
+      ['boxing-gloves', 'princess-bat'], ['boxing-gloves', 'shovel'], ['candle', 'hotdog'],
+      ['candle', 'monster-can'], ['candle', 'newspaper'], ['candle', 'palm-leaf'],
+      ['candle', 'princess-bat'], ['candle', 'shovel'], ['cigar', 'newspaper'],
+      ['demon-pack', 'diamond-hand'], ['demon-pack', 'hotdog'], ['demon-pack', 'monster-can'],
+      ['demon-pack', 'newspaper'], ['demon-pack', 'palm-leaf'], ['demon-pack', 'princess-bat'],
+      ['demon-pack', 'shovel'], ['diamond-hand', 'hotdog'], ['diamond-hand', 'middle-fingers'],
+      ['diamond-hand', 'monster-can'], ['diamond-hand', 'newspaper'], ['diamond-hand', 'palm-leaf'],
+      ['diamond-hand', 'princess-bat'], ['hotdog', 'middle-fingers'], ['hotdog', 'monster-can'],
+      ['hotdog', 'newspaper'], ['hotdog', 'palm-leaf'], ['hotdog', 'princess-bat'],
+      ['hotdog', 'shovel'], ['middle-fingers', 'monster-can'], ['middle-fingers', 'newspaper'],
+      ['middle-fingers', 'palm-leaf'], ['middle-fingers', 'princess-bat'], ['middle-fingers', 'shovel'],
+      ['monster-can', 'newspaper'], ['monster-can', 'palm-leaf'], ['monster-can', 'princess-bat'],
+      ['monster-can', 'shovel'], ['newspaper', 'palm-leaf'], ['newspaper', 'princess-bat'],
+      ['newspaper', 'shovel'], ['palm-leaf', 'princess-bat'], ['palm-leaf', 'shovel'],
+      ['princess-bat', 'shovel'],
+    ]),
+    headwear: pairSet('headwear', []),
+  };
+
+  const LAYER_RANK = { background: 0, base: 10, outfit: 20, headwear: 30, accessory: 40 };
+  const RANK_OVERRIDES = { 'gold-chains': 25, 'troll-gang-chain': 26, 'jigsaw-hair': 31 };
+  const rankFor = (layerId, id) => RANK_OVERRIDES[id] ?? LAYER_RANK[layerId];
+
+  const el = {
+    layerSelect: document.getElementById('layerSelect'),
+    baseSelect: document.getElementById('baseSelect'),
+    bgSelect: document.getElementById('bgSelect'),
+    filterBox: document.getElementById('filterBox'),
+    hideDecided: document.getElementById('hideDecided'),
+    oneAtATime: document.getElementById('oneAtATime'),
+    stat: document.getElementById('stat'),
+    grid: document.getElementById('grid'),
+    btnExport: document.getElementById('btnExport'),
+    outWrap: document.getElementById('outWrap'),
+    outText: document.getElementById('outText'),
+    solo: document.getElementById('solo'),
+    soloCard: document.querySelector('.solo-card'),
+    soloCanvas: document.getElementById('soloCanvas'),
+    soloLabel: document.getElementById('soloLabel'),
+    soloProgress: document.getElementById('soloProgress'),
+    soloReject: document.getElementById('soloReject'),
+    soloBack: document.getElementById('soloBack'),
+    soloApprove: document.getElementById('soloApprove'),
+  };
+
+  let manifest = null;
+  let decisions = {};
+  try { decisions = JSON.parse(localStorage.getItem(DECISIONS_KEY) || '{}'); } catch {}
+  function saveDecisions() {
+    try { localStorage.setItem(DECISIONS_KEY, JSON.stringify(decisions)); } catch {}
+  }
+
+  function traitsFor(layerId) {
+    return manifest.layers.find(l => l.id === layerId)?.traits || [];
+  }
+
+  function untestedPairs(layerId) {
+    const traits = traitsFor(layerId);
+    const existing = EXISTING_PAIRS[layerId] || new Set();
+    const rejected = REJECTED_PAIRS[layerId] || new Set();
+    const seen = new Set();
+    const out = [];
+    for (let i = 0; i < traits.length; i++) {
+      for (let j = i + 1; j < traits.length; j++) {
+        const a = traits[i].id, b = traits[j].id;
+        if (canonicalTrait(layerId, a) === canonicalTrait(layerId, b)) continue; // alias of itself
+        const key = pairKey(layerId, a, b);
+        if (existing.has(key) || rejected.has(key) || seen.has(key)) continue;
+        seen.add(key);
+        out.push([a, b]);
+      }
+    }
+    return out;
+  }
+
+  function loadImg(src) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null); // missing art shouldn't kill the whole grid
+      img.src = src;
+    });
+  }
+
+  async function drawCard(canvas, layerId, a, b, baseId, bgId) {
+    const size = 300;
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+
+    const layers = [
+      { layerId: 'background', id: bgId },
+      { layerId: 'base', id: baseId },
+      { layerId, id: a },
+      { layerId, id: b },
+    ].sort((x, y) => rankFor(x.layerId, x.id) - rankFor(y.layerId, y.id));
+
+    for (const l of layers) {
+      if (!l.id) continue;
+      const img = await loadImg(fullSrc(l.layerId, l.id));
+      if (img) ctx.drawImage(img, 0, 0, size, size);
+    }
+  }
+
+  function decisionKey(layerId, a, b) {
+    return `${layerId}:${pairKey(layerId, a, b)}`;
+  }
+
+  function updateStat(layerId, pairs) {
+    const decided = pairs.filter(([a, b]) => decisions[decisionKey(layerId, a, b)]).length;
+    const approved = pairs.filter(([a, b]) => decisions[decisionKey(layerId, a, b)] === 'approve').length;
+    el.stat.textContent = `${pairs.length} untested pairs · ${decided} reviewed · ${approved} approved`;
+  }
+
+  function currentPairs() {
+    const layerId = el.layerSelect.value;
+    const filter = el.filterBox.value.trim().toLowerCase();
+    let pairs = untestedPairs(layerId);
+    if (filter) pairs = pairs.filter(([a, b]) => a.includes(filter) || b.includes(filter));
+    if (el.hideDecided.checked) {
+      pairs = pairs.filter(([a, b]) => !decisions[decisionKey(layerId, a, b)]);
+    }
+    return pairs;
+  }
+
+  // Solo mode: one pair on screen at a time, decided via click or the
+  // left/right arrow keys, auto-advancing to the next undecided pair so a
+  // long backlog can be cleared without touching the mouse. soloHistory
+  // remembers each decided key (per layer) so "go back" can undo the most
+  // recent call and re-show that exact pair, even when "hide decided" has
+  // already filtered it out of the current list.
+  let soloIndex = 0;
+  let soloHistory = [];
+  function soloDecide(outcome) {
+    const layerId = el.layerSelect.value;
+    const pairsBefore = currentPairs();
+    const pair = pairsBefore[soloIndex];
+    if (!pair) return;
+    const [a, b] = pair;
+    const key = decisionKey(layerId, a, b);
+    decisions[key] = outcome;
+    saveDecisions();
+    soloHistory.push({ layerId, key, index: soloIndex });
+    el.soloCard.className = `solo-card flash-${outcome}`;
+    updateStat(layerId, untestedPairs(layerId));
+    el.soloBack.disabled = false;
+    setTimeout(() => {
+      // "hide decided" shrinks the list on its own (the decided pair drops
+      // out from under the current index); otherwise step forward manually.
+      const refreshed = currentPairs();
+      if (!el.hideDecided.checked) soloIndex++;
+      if (soloIndex >= refreshed.length) soloIndex = Math.max(0, refreshed.length - 1);
+      renderSolo(refreshed);
+    }, 120);
+  }
+
+  function soloGoBack() {
+    const layerId = el.layerSelect.value;
+    // Only undo history entries from the layer currently on screen.
+    while (soloHistory.length && soloHistory[soloHistory.length - 1].layerId !== layerId) soloHistory.pop();
+    const last = soloHistory.pop();
+    if (!last) return;
+    delete decisions[last.key];
+    saveDecisions();
+    soloIndex = last.index;
+    updateStat(layerId, untestedPairs(layerId));
+    el.soloBack.disabled = soloHistory.length === 0;
+    renderSolo(currentPairs());
+  }
+
+  function renderSolo(pairs) {
+    el.soloCard.className = 'solo-card';
+    if (!pairs.length) {
+      el.soloLabel.textContent = 'Nothing left to review here.';
+      el.soloProgress.textContent = '';
+      el.soloCanvas.getContext('2d').clearRect(0, 0, el.soloCanvas.width, el.soloCanvas.height);
+      return;
+    }
+    if (soloIndex >= pairs.length) soloIndex = pairs.length - 1;
+    if (soloIndex < 0) soloIndex = 0;
+    const [a, b] = pairs[soloIndex];
+    const layerId = el.layerSelect.value;
+    const baseId = el.baseSelect.value;
+    const bgId = el.bgSelect.value;
+    el.soloLabel.textContent = `${a} + ${b}`;
+    el.soloProgress.textContent = `${soloIndex + 1} / ${pairs.length}`;
+    drawCard(el.soloCanvas, layerId, a, b, baseId, bgId);
+  }
+
+  async function render() {
+    const layerId = el.layerSelect.value;
+    const baseId = el.baseSelect.value;
+    const bgId = el.bgSelect.value;
+    const pairs = currentPairs();
+    updateStat(layerId, untestedPairs(layerId));
+
+    const solo = el.oneAtATime.checked;
+    el.solo.classList.toggle('hidden', !solo);
+    el.grid.classList.toggle('hidden', solo);
+    if (solo) {
+      renderSolo(pairs);
+      return;
+    }
+
+    el.grid.innerHTML = '';
+    for (const [a, b] of pairs) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const key = decisionKey(layerId, a, b);
+      const decided = decisions[key];
+      if (decided) card.classList.add('decided', decided);
+
+      const canvas = document.createElement('canvas');
+      card.appendChild(canvas);
+
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = `${a} + ${b}`;
+      card.appendChild(label);
+
+      const row = document.createElement('div');
+      row.className = 'row';
+      const approveBtn = document.createElement('button');
+      approveBtn.textContent = '✓ keep';
+      approveBtn.className = 'primary';
+      approveBtn.addEventListener('click', () => {
+        decisions[key] = 'approve';
+        saveDecisions();
+        card.className = 'card decided approve';
+        if (el.hideDecided.checked) card.remove();
+        updateStat(layerId, untestedPairs(layerId));
+      });
+      const rejectBtn = document.createElement('button');
+      rejectBtn.textContent = '✗ clash';
+      rejectBtn.className = 'danger';
+      rejectBtn.addEventListener('click', () => {
+        decisions[key] = 'reject';
+        saveDecisions();
+        card.className = 'card decided reject';
+        if (el.hideDecided.checked) card.remove();
+        updateStat(layerId, untestedPairs(layerId));
+      });
+      row.appendChild(approveBtn);
+      row.appendChild(rejectBtn);
+      card.appendChild(row);
+
+      el.grid.appendChild(card);
+      drawCard(canvas, layerId, a, b, baseId, bgId);
+    }
+  }
+
+  function exportApproved() {
+    const layerId = el.layerSelect.value;
+    const pairs = untestedPairs(layerId).filter(([a, b]) => decisions[decisionKey(layerId, a, b)] === 'approve');
+    if (!pairs.length) {
+      el.outText.value = '// No approved pairs yet for this layer.';
+    } else {
+      const lines = pairs.map(([a, b]) => `        ['${a}', '${b}'],`);
+      el.outText.value = `      // --- new pairs approved via pfp-pair-review.html ---\n${lines.join('\n')}`;
+    }
+    el.outWrap.classList.remove('hidden');
+    el.outWrap.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function init() {
+    const res = await fetch(MANIFEST_URL);
+    manifest = await res.json();
+
+    // Solo bases (logo-face, ninja) are a complete troll on their own — the
+    // real app forces outfit/headwear/accessory off entirely when one is
+    // picked, so previewing pairs against them here would be misleading.
+    const bases = traitsFor('base').filter(t => !t.solo);
+    const bgs = traitsFor('background');
+    el.baseSelect.innerHTML = bases.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    el.bgSelect.innerHTML = `<option value="">(none)</option>` + bgs.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    if (bases.length) el.baseSelect.value = bases[0].id;
+
+    const resetSoloIndex = () => { soloIndex = 0; render(); };
+    el.layerSelect.addEventListener('change', resetSoloIndex);
+    el.baseSelect.addEventListener('change', render);
+    el.bgSelect.addEventListener('change', render);
+    el.filterBox.addEventListener('input', resetSoloIndex);
+    el.hideDecided.addEventListener('change', resetSoloIndex);
+    el.oneAtATime.addEventListener('change', resetSoloIndex);
+    el.btnExport.addEventListener('click', exportApproved);
+
+    el.soloApprove.addEventListener('click', () => soloDecide('approve'));
+    el.soloReject.addEventListener('click', () => soloDecide('reject'));
+    el.soloBack.disabled = true;
+    el.soloBack.addEventListener('click', soloGoBack);
+    document.addEventListener('keydown', e => {
+      if (!el.oneAtATime.checked) return;
+      if (document.activeElement === el.filterBox) return; // don't hijack typing
+      if (e.key === 'ArrowRight') { e.preventDefault(); soloDecide('approve'); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); soloDecide('reject'); }
+      else if (e.key === 'ArrowUp' || e.key === 'Backspace') { e.preventDefault(); soloGoBack(); }
+    });
+
+    render();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

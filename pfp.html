@@ -841,15 +841,18 @@
     // A few traits are re-skins of another with the exact same fit — they
     // inherit that trait's whole compatibility list instead of duplicating
     // every pair below.
+    const CAP_IDS = ['cap-black', 'cap-blue', 'cap-green', 'cap-pink', 'cap-white', 'cap-yellow'];
     const MULTI_ALIASES = {
       accessory: { spliff: 'cigar', 'super-soaker': 'palm-leaf', 'troll-sign': 'princess-bat' },
-      headwear: {},
+      // Every cap color is the same hat, just recolored — a pairing that
+      // clears clipping on one clears it on all six, so the other five are
+      // aliased to cap-black and never need separate review.
+      headwear: Object.fromEntries(CAP_IDS.slice(1).map(id => [id, CAP_IDS[0]])),
     };
     const canonicalTrait = (layerId, id) => MULTI_ALIASES[layerId]?.[id] || id;
     function pairSet(layerId, pairs) {
       return new Set(pairs.map(pair => pair.map(id => canonicalTrait(layerId, id)).sort().join('|')));
     }
-    const CAP_IDS = ['cap-black', 'cap-blue', 'cap-green', 'cap-pink', 'cap-white', 'cap-yellow'];
     // Hand-approved trait pairs, per multi-select layer. Anything not
     // listed here is assumed to clash (two pairs of glasses, a hand full of
     // props) and is left as a straight swap rather than guessed at.
@@ -868,11 +871,69 @@
         ['palm-leaf', 'gold-chains'], ['palm-leaf', 'deal-w-it-shades'], ['princess-bat', 'paintbrush'],
         ['princess-bat', 'gold-chains'], ['princess-bat', 'deal-w-it-shades'], ['princess-bat', 'cigar'],
         ['shovel', 'cigar'], ['shovel', 'gold-chains'], ['shovel', 'diamond-hand'], ['shovel', 'deal-w-it-shades'],
+        // --- approved via tools/pfp-pair-review.html ---
+        ['boxing-gloves', 'candle'], ['boxing-gloves', 'cigar'], ['boxing-gloves', 'deal-w-it-shades'],
+        ['boxing-gloves', 'demon-pack'], ['candle', 'cigar'], ['candle', 'deal-w-it-shades'],
+        ['candle', 'paintbrush'], ['cigar', 'hotdog'], ['deal-w-it-shades', 'hotdog'],
+        ['deal-w-it-shades', 'newspaper'], ['demon-pack', 'paintbrush'], ['gold-chains', 'monster-can'],
+        ['gold-chains', 'paintbrush'], ['monster-can', 'paintbrush'], ['newspaper', 'paintbrush'],
+        ['paintbrush', 'palm-leaf'], ['paintbrush', 'shovel'],
       ]),
+      // Every pair below is written using cap-black only — cap-blue/green/
+      // pink/white/yellow are aliased to it above, so approving one color
+      // approves all six without listing each one separately.
       headwear: pairSet('headwear', [
-        ['diamond-teeth', 'bushes'], ['headset', 'diamond-teeth'],
-        ['1-golden-tooth', 'black-tooth'],
-        ...CAP_IDS.map(cap => [cap, 'glasses']),
+        ['diamond-teeth', 'bushes'], ['headset', 'diamond-teeth'], ['1-golden-tooth', 'black-tooth'],
+        ['jigsaw-hair', 'headset'],
+        ['cap-black', 'glasses'], ['1-golden-tooth', 'beanie'], ['1-golden-tooth', 'bushes'],
+        ['1-golden-tooth', 'cap-black'], ['1-golden-tooth', 'cartier'], ['1-golden-tooth', 'condom'],
+        ['1-golden-tooth', 'cowboy-hat'], ['1-golden-tooth', 'crown'], ['1-golden-tooth', 'diamond-teeth'],
+        ['1-golden-tooth', 'durag'], ['1-golden-tooth', 'french-art-hat'], ['1-golden-tooth', 'fresh-prince'],
+        ['1-golden-tooth', 'glasses'], ['1-golden-tooth', 'glowing-eyes'], ['1-golden-tooth', 'glowing-red-eyes'],
+        ['1-golden-tooth', 'golden-teeth'], ['1-golden-tooth', 'green-thong'], ['1-golden-tooth', 'halo'],
+        ['1-golden-tooth', 'headset'], ['1-golden-tooth', 'high-eyes'], ['1-golden-tooth', 'horns'],
+        ['1-golden-tooth', 'jigsaw-hair'], ['1-golden-tooth', 'khabib'], ['1-golden-tooth', 'lipstick'],
+        ['1-golden-tooth', 'long-black'], ['1-golden-tooth', 'long-blonde'], ['1-golden-tooth', 'long-brown'],
+        ['1-golden-tooth', 'make-trolling-great-again'], ['1-golden-tooth', 'make-trolling-great-again-black'], ['1-golden-tooth', 'mcdonalds-cap'],
+        ['1-golden-tooth', 'mog'], ['1-golden-tooth', 'old-man'], ['1-golden-tooth', 'pumpfun-general'],
+        ['1-golden-tooth', 'punk'], ['1-golden-tooth', 'smurf-hat'], ['1-golden-tooth', 'solami-mamis'],
+        ['1-golden-tooth', 'spinning-hat'], ['1-golden-tooth', 'strainer'], ['1-golden-tooth', 'straw-hat'],
+        ['1-golden-tooth', 'tears'], ['1-golden-tooth', 'the-usual'], ['1-golden-tooth', 'troll-senses'],
+        ['1-golden-tooth', 'trucker-hat-basic'], ['1-golden-tooth', 'trump-hair'], ['1-golden-tooth', 'uncle-sam'],
+        ['beanie', 'black-tooth'], ['beanie', 'bushes'], ['beanie', 'cartier'],
+        ['beanie', 'diamond-teeth'], ['beanie', 'glasses'], ['beanie', 'glowing-eyes'],
+        ['beanie', 'glowing-red-eyes'], ['beanie', 'golden-teeth'], ['beanie', 'green-thong'],
+        ['beanie', 'halo'], ['beanie', 'high-eyes'], ['beanie', 'horns'],
+        ['beanie', 'lipstick'], ['beanie', 'mog'], ['beanie', 'solami-mamis'],
+        ['beanie', 'tears'], ['beanie', 'troll-senses'], ['black-tooth', 'bushes'],
+        ['black-tooth', 'cap-black'], ['black-tooth', 'cartier'], ['black-tooth', 'condom'],
+        ['black-tooth', 'cowboy-hat'], ['black-tooth', 'crown'], ['black-tooth', 'diamond-teeth'],
+        ['black-tooth', 'durag'], ['black-tooth', 'french-art-hat'], ['black-tooth', 'fresh-prince'],
+        ['black-tooth', 'glasses'], ['black-tooth', 'glowing-eyes'], ['black-tooth', 'glowing-red-eyes'],
+        ['black-tooth', 'golden-teeth'], ['black-tooth', 'green-thong'], ['black-tooth', 'halo'],
+        ['black-tooth', 'headset'], ['black-tooth', 'high-eyes'], ['black-tooth', 'horns'],
+        ['black-tooth', 'jigsaw-hair'], ['black-tooth', 'khabib'], ['black-tooth', 'lipstick'],
+        ['black-tooth', 'long-black'], ['black-tooth', 'long-blonde'], ['black-tooth', 'long-brown'],
+        ['black-tooth', 'make-trolling-great-again'], ['black-tooth', 'make-trolling-great-again-black'], ['black-tooth', 'mcdonalds-cap'],
+        ['black-tooth', 'mog'], ['black-tooth', 'old-man'], ['black-tooth', 'pumpfun-general'],
+        ['black-tooth', 'punk'], ['black-tooth', 'smurf-hat'], ['black-tooth', 'solami-mamis'],
+        ['black-tooth', 'spinning-hat'], ['black-tooth', 'strainer'], ['black-tooth', 'straw-hat'],
+        ['black-tooth', 'tears'], ['black-tooth', 'the-usual'], ['black-tooth', 'troll-senses'],
+        ['black-tooth', 'trucker-hat-basic'], ['black-tooth', 'trump-hair'], ['black-tooth', 'uncle-sam'],
+        ['bushes', 'cap-black'], ['bushes', 'cartier'], ['bushes', 'condom'],
+        ['bushes', 'cowboy-hat'], ['bushes', 'crown'], ['bushes', 'durag'],
+        ['bushes', 'french-art-hat'], ['bushes', 'fresh-prince'], ['bushes', 'glasses'],
+        ['bushes', 'glowing-eyes'], ['bushes', 'glowing-red-eyes'], ['bushes', 'golden-teeth'],
+        ['bushes', 'green-thong'], ['bushes', 'halo'], ['bushes', 'headset'],
+        ['bushes', 'high-eyes'], ['bushes', 'horns'], ['bushes', 'jigsaw-hair'],
+        ['bushes', 'khabib'], ['bushes', 'lipstick'], ['bushes', 'long-black'],
+        ['bushes', 'long-blonde'], ['bushes', 'long-brown'], ['bushes', 'make-trolling-great-again'],
+        ['bushes', 'make-trolling-great-again-black'], ['bushes', 'mcdonalds-cap'], ['bushes', 'mog'],
+        ['bushes', 'old-man'], ['bushes', 'pumpfun-general'], ['bushes', 'punk'],
+        ['bushes', 'smurf-hat'], ['bushes', 'solami-mamis'], ['bushes', 'spinning-hat'],
+        ['bushes', 'strainer'], ['bushes', 'straw-hat'], ['bushes', 'tears'],
+        ['bushes', 'the-usual'], ['bushes', 'troll-senses'], ['bushes', 'trucker-hat-basic'],
+        ['bushes', 'trump-hair'], ['bushes', 'uncle-sam'],
       ]),
     };
     function traitsCompatible(layerId, a, b) {
@@ -898,7 +959,11 @@
     // headwear, so a chain never clips through a hat/hair/bushes. Anything
     // not listed here just uses its layer's normal rank.
     const LAYER_RANK = { background: 0, base: 10, outfit: 20, headwear: 30, accessory: 40 };
-    const RANK_OVERRIDES = { 'gold-chains': 25, 'troll-gang-chain': 26 };
+    // jigsaw-hair only reads right in front of headset — same-layer picks
+    // otherwise paint in click order, so without this override the pairing
+    // looks fine one way and clips the other depending on which was picked
+    // first.
+    const RANK_OVERRIDES = { 'gold-chains': 25, 'troll-gang-chain': 26, 'jigsaw-hair': 31 };
     const rankFor = (layerId, id) => (id && RANK_OVERRIDES[id] != null) ? RANK_OVERRIDES[id] : LAYER_RANK[layerId];
     // Hand-shot photo of each hotspot's furniture, filled in as the whole
     // drawer's background. Every layer shows the full shot uncropped
