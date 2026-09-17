@@ -685,6 +685,21 @@
     }
   }
 
+  // A pair approved here is approved everywhere: MULTI_PAIRS compatibility
+  // is checked per-layer only (headwear-vs-headwear, accessory-vs-
+  // accessory), completely independent of which base or background is
+  // worn. Every base gets it EXCEPT logo-face/ninja — but that's not a
+  // compatibility exception, those solo bases force headwear/accessory off
+  // entirely and never reach this whitelist at all. Backgrounds are pure
+  // backdrop and never factor into pairing. Printed on every export so
+  // this scope is never mis-remembered as base/background-specific later.
+  const SCOPE_NOTE =
+    `      // Scope: every pair below applies to ALL bases except logo-face/\n` +
+    `      // ninja (solo bases — headwear/accessory are off entirely, not an\n` +
+    `      // exception to this list) and ALL backgrounds (pure backdrop, never\n` +
+    `      // part of compatibility). Nothing below is base- or background-\n` +
+    `      // specific — don't gate it on either.`;
+
   function exportApproved() {
     const layerId = el.layerSelect.value;
     const pairs = untestedPairs(layerId).filter(([a, b]) => decisions[decisionKey(layerId, a, b)] === 'approve');
@@ -692,22 +707,22 @@
       el.outText.value = '// No approved pairs yet for this layer.';
     } else {
       const lines = pairs.map(([a, b]) => `        ['${a}', '${b}'],`);
-      let out = `      // --- new pairs approved via pfp-pair-review.html ---\n${lines.join('\n')}`;
+      let out = `${SCOPE_NOTE}\n      // --- new pairs approved via pfp-pair-review.html ---\n${lines.join('\n')}`;
 
-      // Any pair with an explicit paint-order choice needs a RANK_OVERRIDES
-      // entry too — the trait picked "in front" gets bumped just above its
-      // partner's rank so it always wins regardless of click order (same
-      // trick as the existing jigsaw-hair/khabib overrides).
+      // Any pair with an explicit paint-order choice needs a PAIR_ORDER
+      // entry too — keyed by the sorted pair, value is the id that paints
+      // in front. A single per-trait rank can't express this since some
+      // traits (e.g. horns) need to be in front of one partner and behind
+      // another, so it's pair-scoped, not trait-scoped. See PAIR_ORDER in
+      // pfp.html (and its mirror near the top of this tool).
       const withOrder = pairs.filter(([a, b]) => orderDecisions[decisionKey(layerId, a, b)]);
       if (withOrder.length) {
-        const rankLines = withOrder.map(([a, b]) => {
+        const orderLines = withOrder.map(([a, b]) => {
           const front = orderDecisions[decisionKey(layerId, a, b)];
-          const back = front === a ? b : a;
-          return `        // '${front}' painted in front of '${back}' (${a} + ${b} pair)`;
+          return `        '${[a, b].sort().join('|')}': '${front}',`;
         });
-        out += `\n\n      // --- add to RANK_OVERRIDES (pick a rank just above the trait it should\n`
-             + `      // sit in front of — see existing jigsaw-hair/khabib examples) ---\n`
-             + rankLines.join('\n');
+        out += `\n\n      // --- add to PAIR_ORDER (pfp.html) and its mirror in this file ---\n`
+             + orderLines.join('\n');
       }
       el.outText.value = out;
     }
