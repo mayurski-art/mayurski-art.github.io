@@ -502,9 +502,12 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 .to-hud-wave, .to-hud-hostiles, .to-hud-score { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .to-hud-label { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: #c3cfbb; }
+/* Numbers you glance at rather than read every second sit a notch smaller and
+   dimmer than the fight-critical readouts (health/ammo, bottom-of-screen) —
+   BO2's HUD keeps exactly one visual "loudest" tier and this wasn't it. */
 .to-hud-wave strong, .to-hud-hostiles strong, .to-hud-score strong {
-  font-family: "Oswald", sans-serif; font-size: 22px; color: #f2f5ee;
-  text-shadow: 0 2px 6px rgba(0,0,0,.6);
+  font-family: "Oswald", sans-serif; font-size: 19px; color: #dfe6da;
+  text-shadow: 0 2px 6px rgba(0,0,0,.6); opacity: .82;
 }
 
 .to-hud-timer {
@@ -545,10 +548,26 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-hitmarker::before { transform: translate(-50%,-50%) rotate(45deg); }
 .to-hitmarker::after { transform: translate(-50%,-50%) rotate(-45deg); }
 .to-hitmarker.is-crit::before, .to-hitmarker.is-crit::after { background: #ffd60a; height: 16px; width: 3.5px; }
+/* Kill confirmed: same X, but it holds a beat longer and burns brighter —
+   the extra hang time is what reads as "that one ended them" rather than
+   just another hit, even at a glance. */
+.to-hitmarker.is-kill::before, .to-hitmarker.is-kill::after {
+  background: #ff3b30; width: 4px; box-shadow: 0 0 6px rgba(255,59,48,.85);
+}
+.to-hitmarker.is-kill.is-crit::before, .to-hitmarker.is-kill.is-crit::after {
+  background: #ffd60a; box-shadow: 0 0 7px rgba(255,214,10,.9);
+}
 .to-hitmarker.pop { animation: to-hitpop .18s ease-out; }
+.to-hitmarker.is-kill.pop { animation: to-hitpop-kill .32s ease-out; }
 @keyframes to-hitpop {
   0% { transform: translate(-50%,-50%) scale(.5); opacity: 1; }
   60% { transform: translate(-50%,-50%) scale(1.15); opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
+}
+@keyframes to-hitpop-kill {
+  0% { transform: translate(-50%,-50%) scale(.5); opacity: 1; }
+  35% { transform: translate(-50%,-50%) scale(1.3); opacity: 1; }
+  75% { transform: translate(-50%,-50%) scale(1.05); opacity: 1; }
   100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
 }
 
@@ -675,7 +694,9 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   padding: 3px 8px; border-radius: 7px;
   background: rgba(6,9,7,.5); border: 1px solid rgba(255,255,255,.12);
   font-family: "DM Mono", monospace; font-size: 10.5px; color: #cfd8c8;
+  opacity: .78; transition: opacity .15s;
 }
+.to-gear-chip:hover, .to-gear-chip.is-active { opacity: 1; }
 .to-gear-chip b {
   font-size: 9px; letter-spacing: .06em; color: #0d1210;
   background: #9aa596; border-radius: 3px; padding: 1px 4px;
@@ -742,6 +763,24 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   .to-emp.is-on { animation: none; }
 }
 
+/* Killcam letterbox — bars slide in from off-screen rather than appearing,
+   so the cut to the orbit shot reads as deliberate instead of a HUD glitch. */
+.to-killcam-bars {
+  position: absolute; inset: 0; z-index: 19; pointer-events: none;
+}
+.to-killcam-bar {
+  position: absolute; left: 0; right: 0; height: 9%;
+  background: #000; transform: translateY(-100%);
+  transition: transform .22s ease-out;
+}
+.to-killcam-bar-t { top: 0; }
+.to-killcam-bar-b { bottom: 0; transform: translateY(100%); }
+.to-killcam-bars.is-on .to-killcam-bar-t { transform: translateY(0); }
+.to-killcam-bars.is-on .to-killcam-bar-b { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .to-killcam-bar { transition: none; }
+}
+
 .to-killfeed {
   position: absolute; top: 60px; right: 16px;
   display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
@@ -783,6 +822,13 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
   color: #7fd1e0; border: 1px solid rgba(127,209,224,.5);
   border-radius: 3px; padding: 0 3px;
+}
+/* Every match is bot-filled, so telling a human kill/death apart from a bot
+   one at a glance is the BO2-lobby-style read this feed was missing. */
+.to-kf-bot {
+  flex: none; font-size: 8px; letter-spacing: .05em;
+  color: #7c8778; border: 1px solid rgba(154,165,150,.4);
+  border-radius: 3px; padding: 0 3px; margin-left: 3px;
 }
 
 /* XP earned mid-match, floating up near the crosshair. The per-kill feedback

@@ -122,6 +122,7 @@ const els = {
   hudKills: document.getElementById("hud-kills"),
   waveBanner: document.getElementById("hud-wave-banner"),
   crosshair: document.getElementById("to-crosshair"),
+  killcamBars: document.getElementById("to-killcam-bars"),
   hitmarker: document.getElementById("to-hitmarker"),
   hitflash: document.getElementById("to-hitflash"),
   lowhp: document.getElementById("to-lowhp"),
@@ -755,7 +756,7 @@ function dealDamageToRemote(rp, damage, weaponId) {
       net.reportDeathAs(rp.id, net.id, weaponId, false);
       registerDeath(bot.name, net.id, weaponId, {
         victimTeam: bot.team, victimPos: bot.pos, victimWeaponId: bot.weaponId,
-        victimId: bot.id,
+        victimId: bot.id, victimIsBot: true,
       });
     }
     return;
@@ -1301,7 +1302,9 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
 
   pushKillfeed({
     killer,
+    killerIsBot: !iKilled && !!bots.byId(killerId),
     victim: victimName,
+    victimIsBot: !!opts.victimIsBot,
     weapon: weaponNameFor(weaponId),
     head: !!opts.head,
     killerTeam,
@@ -1593,7 +1596,7 @@ const net = new Net({
     if (!killed) return;
     net.reportDeathAs(m.target, m.id, m.w, !!m.hd);
     registerDeath(bot.name, m.id, m.w, {
-      head: !!m.hd, victimTeam: bot.team,
+      head: !!m.hd, victimTeam: bot.team, victimIsBot: true,
       victimPos: bot.pos, victimWeaponId: bot.weaponId,
     });
     if (m.id !== net.id) creditAssistIfOwed(m.target, bot.name);
@@ -2544,16 +2547,27 @@ function pushKillfeed(entry) {
   } else {
     if (entry.mine) div.classList.add("is-mine");
 
-    const nameSpan = (text, team) => {
+    // Bots wanting their own labeled span (rather than reusing `.to-kf-tag`,
+    // which the assist/weapon slot below is also using) keeps a bot kill
+    // from ever being mistaken for a headshot or an assist at a glance.
+    const nameSpan = (text, team, isBot) => {
+      const frag = document.createDocumentFragment();
       const s = document.createElement("span");
       s.className = "to-kf-name";
       // `.ui` is the CSS string; `.color` is a hex number for three.js.
       if (team && TEAMS[team]) s.style.color = TEAMS[team].ui;
       s.textContent = text;
-      return s;
+      frag.appendChild(s);
+      if (isBot) {
+        const bot = document.createElement("span");
+        bot.className = "to-kf-bot";
+        bot.textContent = "BOT";
+        frag.appendChild(bot);
+      }
+      return frag;
     };
 
-    div.appendChild(nameSpan(entry.killer, entry.killerTeam));
+    div.appendChild(nameSpan(entry.killer, entry.killerTeam, entry.killerIsBot));
 
     if (entry.assist) {
       const tag = document.createElement("span");
@@ -2580,7 +2594,7 @@ function pushKillfeed(entry) {
     arrow.className = "to-kf-arrow";
     arrow.textContent = "→";
     div.appendChild(arrow);
-    div.appendChild(nameSpan(entry.victim, entry.victimTeam));
+    div.appendChild(nameSpan(entry.victim, entry.victimTeam, entry.victimIsBot));
   }
 
   els.killfeed.appendChild(div);
@@ -2589,10 +2603,15 @@ function pushKillfeed(entry) {
   setTimeout(() => div.remove(), 2700);
 }
 
-function showHitmarker(isCrit, damage = 0, point = null) {
+/* `killed` is only ever true when the caller already knows the shot was
+   lethal in the same synchronous step (a bot, a grunt, our own registerDeath)
+   — a peer's death confirmation comes back over the wire later and marks
+   itself there instead, so this never has to guess. */
+function showHitmarker(isCrit, damage = 0, point = null, killed = false) {
   audio.hitmarker(isCrit);
   els.hitmarker.classList.remove("pop");
   els.hitmarker.classList.toggle("is-crit", isCrit);
+  els.hitmarker.classList.toggle("is-kill", killed);
   void els.hitmarker.offsetWidth;
   els.hitmarker.classList.add("pop");
   if (damage > 0 && point) spawnDamageNumber(damage, point, isCrit);
@@ -2739,6 +2758,12 @@ function fireOnce() {
   inspectT = 0;      // shooting always wins over the flourish
   breakSpawnGuard();
   audio.shot(def);
+  // A hair of shake per shot, scaled off the weapon's own recoil kick rather
+  // than a new tuned field — a shotgun already kicks harder than a pistol in
+  // recoilKickPitch, so shake falls out of that for free. Full-auto strings
+  // add up into a proper punch without swamping the explosion-shake scale.
+  shakeMag = Math.min(0.05, shakeMag + def.recoilKickPitch * 0.22);
+  shakeT = Math.max(shakeT, 0.09);
   muzzleFlashT = 0.045;
   muzzleLight.intensity = 0.35;
   muzzleMat.uniforms.uColor.value.setHex(def.muzzleColor ?? 0xfff2c0);
@@ -2783,7 +2808,7 @@ function resolveBulletTarget(object) {
 function onBulletActorHit(actor, info) {
   if (actor.isRangeTarget) {
     const { killed } = actor.takeDamage(info.damage, info.isHead);
-    showHitmarker(info.isHead, info.damage, info.point);
+    showHitmarker(info.isHead, info.damage, info.point, killed);
     spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xbfc4b8, info.isHead ? 14 : 7);
     reportRangeShot(actor, info, killed);
     return;
@@ -2792,7 +2817,7 @@ function onBulletActorHit(actor, info) {
   if (actor.isZombie) {
     const { killed, points } = actor.takeDamage(info.damage, info.isHead);
     zdir.award(points);
-    showHitmarker(info.isHead, info.damage, info.point);
+    showHitmarker(info.isHead, info.damage, info.point, killed);
     spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0x8fd15a, info.isHead ? 16 : 8);
     if (killed) {
       zdir.kills++;
@@ -2808,13 +2833,15 @@ function onBulletActorHit(actor, info) {
     noteDealt(actor.netId, info.damage);
     // Our own bots never hear our broadcasts, so resolve those locally.
     const shotWith = info.creditAs || currentWeapon().def.id;
+    let killedNow = false;
     if (bots.byId(actor.netId)) {
       const { killed, bot } = bots.applyHit(actor.netId, info.damage);
+      killedNow = killed;
       if (killed) {
         dealtLog.delete(actor.netId);
         net.reportDeathAs(actor.netId, net.id, shotWith, info.isHead);
         registerDeath(bot.name, net.id, shotWith, {
-          head: info.isHead, victimTeam: bot.team,
+          head: info.isHead, victimTeam: bot.team, victimIsBot: true,
           victimPos: bot.pos, victimWeaponId: bot.weaponId,
           victimId: bot.id, distance: info.distance || 0,
         });
@@ -2826,7 +2853,7 @@ function onBulletActorHit(actor, info) {
       // so the kill that comes back off the wire can still be a Longshot.
       lastHitRange.set(actor.netId, info.distance || 0);
     }
-    showHitmarker(info.isHead, info.damage, info.point);
+    showHitmarker(info.isHead, info.damage, info.point, killedNow);
     spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xff8a5a, info.isHead ? 16 : 8);
     return;
   }
@@ -2836,7 +2863,7 @@ function onBulletActorHit(actor, info) {
 function onGruntBulletHit(grunt, { damage, isHead, point, dir }) {
   const knockDir = dir.clone(); knockDir.y = 0; knockDir.normalize();
   const result = grunt.takeDamage(damage, isHead, knockDir);
-  showHitmarker(isHead, damage, point);
+  showHitmarker(isHead, damage, point, result.killed);
   spawnImpactBurst(point, isHead ? 0xffe27a : 0xff8a5a, isHead ? 16 : 8);
   if (result.killed) {
     player.kills++;
@@ -3462,7 +3489,7 @@ function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = 
       bot.kills++;
       net.reportDeathAs(target.id, bot.id, wid, isHead);
       registerDeath(victim.name, bot.id, wid, {
-        head: isHead, victimTeam: victim.team,
+        head: isHead, victimTeam: victim.team, victimIsBot: true,
         victimPos: victim.pos, victimWeaponId: victim.weaponId,
       });
     }
@@ -4431,6 +4458,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false) {
     });
     showDeathCard(fromId, weaponId, isHead);
     killcam.start(player.pos, killerPosFor(fromId));
+    els.killcamBars.classList.add("is-on");
     damageLog.clear();
     els.respawn.hidden = false;
   } else {
@@ -4471,6 +4499,7 @@ function yawTowardCentre(sp) {
 
 function respawnPlayer() {
   killcam.cancel();
+  els.killcamBars.classList.remove("is-on");
   const sp = teamSpawn();
   move.reset(sp.x, sp.z, sp.y || 0);
   look.yaw = yawTowardCentre(sp);
@@ -4944,6 +4973,10 @@ function updatePlayer(dt) {
   // full — skip both the eye-position copy and the aim/recoil composition
   // below so the two don't fight over the same camera in the same frame.
   if (killcam.update(dt)) return;
+  // Catches the orbit finishing on its own (as opposed to being cut short by
+  // respawnPlayer's killcam.cancel(), which already clears this itself) —
+  // classList.remove on an absent class is a no-op, so this is safe every frame.
+  els.killcamBars.classList.remove("is-on");
 
   // The local rig always follows the player (even in first-person, when
   // it's simply invisible) so it's never a frame stale the moment third
