@@ -34,6 +34,7 @@ import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
+import { buildStreakDevice } from "./streak-device.js";
 import { ZombieDirector } from "./zombies.js";
 import { zombieWindows } from "./pentagrin.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
@@ -414,6 +415,10 @@ function callStreak(id) {
     markingStreak = id;
     showWaveBanner(`${STREAK_DEFS[id].name.toUpperCase()} — ${streakKeyLabel()} on a spot`, 2200);
     updateStreakHud();   // keeps the touch button up through the mark
+    // Airstrike is the one BO2-style "looking at the designator while lining
+    // up the strike" gesture (DESIGN-ARMS.md Phase 5) — carepackage is a
+    // thrown crate with no device to look at, so it stays HUD-only.
+    if (id === "airstrike") beginStreakHold(0);
     return;
   }
 
@@ -433,6 +438,7 @@ function confirmMark() {
   if (!streaks.spend(id)) { cancelMark(); return; }
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
+  if (id === "airstrike") endStreakHold();
   fireStreak(id, at);
   updateStreakHud();
 }
@@ -446,6 +452,7 @@ function streakKeyLabel() {
 
 function cancelMark() {
   if (!markingStreak) return;
+  if (markingStreak === "airstrike") endStreakHold();
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
   showWaveBanner("Cancelled", 900);
@@ -484,6 +491,7 @@ function fireStreak(id, at = null) {
       }
       spawnRecon(move.pos.x, move.pos.z, yaw);
       showWaveBanner("UAV OVERHEAD", 1600);
+      beginStreakHold(0.75); // brief "checked the tablet" beat, DESIGN-ARMS.md Phase 5
       break;
     }
 
@@ -2112,6 +2120,13 @@ function setActiveMeleeMesh(def) {
   weaponRig.add(activeMeleeMesh);
 }
 
+/* Streak-call device (DESIGN-ARMS.md Phase 5) — built once, unlike the
+   weapon/melee meshes, since it never changes per-loadout the way a gun's
+   attachments or a melee weapon choice do. */
+const activeStreakMesh = buildStreakDevice();
+activeStreakMesh.visible = false;
+weaponRig.add(activeStreakMesh);
+
 // muzzle flash sprite
 const muzzleMat = makeMuzzleFlashMaterial();
 const muzzleFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22), muzzleMat);
@@ -2182,7 +2197,7 @@ const player = {
   wave: 0,
   alive: true,
   melee: null,          // MeleeState, rebuilt from the loadout on every spawn
-  holding: "gun",       // "gun" | "melee"
+  holding: "gun",       // "gun" | "melee" | "streak"
   gear: { lethal: 0, tactical: 0 },
   lastHurtAt: -Infinity, // performance.now() of the last damage taken; gates regen
   spawnGuard: 0,        // seconds of spawn protection left; broken by firing
@@ -2198,6 +2213,29 @@ const player = {
 // to primary on every spawn/equip so a fresh life always starts on the
 // main gun regardless of what was held when the last one ended.
 let currentWeaponSlot = "primary";
+
+/* Streak device call window (DESIGN-ARMS.md Phase 5). `streakHoldT > 0`
+   means "stay on the device," ticked down in updatePlayer(); reaching 0
+   returns to whatever was held before (always "gun" in practice — you
+   can't call a streak while holding melee, callStreak/useSelectedStreak
+   are gated behind streaksAllowed which requires the gun slot already).
+   `streakHoldUntilMark` means "don't count down — stay up for the whole
+   marking window," cleared explicitly by confirmMark()/cancelMark(). */
+let streakHoldT = 0;
+let streakHoldUntilMark = false;
+
+function beginStreakHold(seconds = 0) {
+  if (player.holding === "melee") return; // never interrupt a mid-swing
+  setHolding("streak");
+  streakHoldT = seconds;
+  streakHoldUntilMark = seconds <= 0;
+}
+
+function endStreakHold() {
+  streakHoldT = 0;
+  streakHoldUntilMark = false;
+  if (player.holding === "streak") setHolding("gun");
+}
 
 /* One in the hand: which throwable is cooking, and how much fuse is left. */
 const cooking = { def: null, fuse: 0, slot: null };
@@ -3197,6 +3235,7 @@ function setHolding(what) {
   player.holding = what;
   if (activeWeaponMesh) activeWeaponMesh.visible = what === "gun";
   if (activeMeleeMesh) activeMeleeMesh.visible = what === "melee";
+  activeStreakMesh.visible = what === "streak";
   muzzleFlash.visible = what === "gun";
   updateGearHud();
 }
@@ -4973,6 +5012,11 @@ function regenPlayer(dt) {
 function updatePlayer(dt) {
   const w = currentWeapon();
 
+  if (streakHoldT > 0 && !streakHoldUntilMark) {
+    streakHoldT -= dt;
+    if (streakHoldT <= 0) endStreakHold();
+  }
+
   const gp = gamepadState.connected;
 
   if ((isTouch && (touchState.lookDX || touchState.lookDY)) || (gp && (gamepadState.lookDX || gamepadState.lookDY))) {
@@ -5106,6 +5150,11 @@ function updatePlayer(dt) {
     return;
   }
 
+  // Looking at the streak device (DESIGN-ARMS.md Phase 5 §5's explicit
+  // interaction-bug call-out): fire is disabled outright rather than
+  // silently shooting through a hidden gun mesh while the device is up.
+  if (player.holding === "streak") return;
+
   if (wantFire && canAct && !swinging) {
     if (w.def.fireMode === "auto") {
       if (w.canFire()) fireOnce();
@@ -5227,6 +5276,31 @@ function updateMeleeView(dt) {
 }
 const MELEE_IDLE_PERIOD = 3.2;
 const _meleeIdleEuler = new THREE.Euler();
+
+/* Streak device viewmodel (DESIGN-ARMS.md Phase 5). Simple raise/steady/
+   lower — no swing state to fight over the pose the way melee has, so this
+   is much shorter than updateMeleeView. `streakRaiseT` eases the device
+   into a steady hip-height hold pose; sprinting lowers it the same way the
+   gun/melee do. */
+let streakRaiseT = 0;
+const STREAK_HOLD_POS = new THREE.Vector3(0.16, -0.14, -0.32);
+
+function updateStreakView(dt) {
+  const mesh = activeStreakMesh;
+  const held = player.holding === "streak";
+  mesh.visible = held;
+  if (!held) { streakRaiseT = damp(streakRaiseT, 0, 10, dt); return; }
+
+  streakRaiseT = damp(streakRaiseT, 1, 8, dt);
+  const wantLower = move.sprinting ? 1 : 0;
+  const lowerT = wantLower; // no separate lag state needed — device is only up briefly
+  mesh.position.set(
+    STREAK_HOLD_POS.x,
+    STREAK_HOLD_POS.y - (1 - streakRaiseT) * 0.2 - lowerT * 0.12,
+    STREAK_HOLD_POS.z
+  );
+  mesh.rotation.set(lowerT * 0.4, 0, lowerT * 0.25);
+}
 
 let weaponLowerT = 0;
 
@@ -5562,7 +5636,13 @@ function updateWeaponView(dt) {
   const w = currentWeapon();
   updateInspect(dt);
   updateMeleeView(dt);
+  updateStreakView(dt);
   const mesh = activeWeaponMesh;
+  // Streak preempts the gun/melee mesh per DESIGN-ARMS.md §3.3's priority
+  // stack — return before any weapon-view math runs so weaponLowerT/insp/rl
+  // don't fight the device pose for ownership of activeWeaponMesh (which is
+  // simply hidden, not touched, while holding === "streak").
+  if (player.holding === "streak") return;
   if (!mesh) return;
 
   // Aiming plants the sight: bob and idle sway fall away as the weapon
@@ -5716,6 +5796,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     tryReload, currentWeapon,
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
     targetMeshes: () => targetMeshes, meleeConnect,
+    activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
+    beginStreakHold, endStreakHold,
   };
   animDebug.mount(() => {
     const w = currentWeapon();
