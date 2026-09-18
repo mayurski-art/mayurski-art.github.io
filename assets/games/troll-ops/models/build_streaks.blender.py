@@ -32,6 +32,8 @@ os.makedirs(OUT_DIR, exist_ok=True)
 MAIN_ROTOR = "MainRotor"
 TAIL_ROTOR = "TailRotor"
 DRONE_ROTOR = "DroneRotor"      # prefix; four of them get _0.._3
+RECON_PROP = "ReconProp"        # streak-entities.js ReconPlane
+JET_PROP = "JetProp"            # streak-entities.js StrikeJet
 
 
 def clear_scene():
@@ -274,6 +276,89 @@ def build_helicopter():
     export_hierarchy(hull, "helicopter.glb")
 
 
+# -------------------------------------------------------------- recon plane
+
+def build_recon_plane():
+    """UAV's spotter — a small fixed-wing prop plane, ~3.5m span. It never
+    lands or fires; it only needs to read clearly in one straight pass at
+    altitude, so it's built lighter and simpler than the gunship."""
+    clear_scene()
+    body = make_material("ReconBody", (0.24, 0.27, 0.22), roughness=0.55, metallic=0.15)
+    dark = make_material("ReconDark", (0.1, 0.11, 0.1), roughness=0.4, metallic=0.4)
+    glass = make_material("ReconGlass", (0.12, 0.18, 0.2), roughness=0.1, metallic=0.1)
+    prop_mat = make_material("ReconPropMat", (0.06, 0.07, 0.06), roughness=0.3, metallic=0.4)
+
+    parts = []
+    parts.append(add_box("fuse", (0.34, 2.1, 0.36), (0, 0, 0), body, bevel=0.06))
+    parts.append(add_sphere("nose", 0.19, (0, 1.15, 0), (1, 0.9, 1), body))
+    parts.append(add_box("canopy", (0.26, 0.55, 0.22), (0, 0.35, 0.22), glass, bevel=0.03))
+    parts.append(add_box("tail_fin", (0.06, 0.4, 0.55), (0, -1.05, 0.24), dark, bevel=0.02))
+    parts.append(add_box("tail_stab", (0.9, 0.32, 0.05), (0, -1.05, 0.02), dark, bevel=0.02))
+    for sx in (-1, 1):
+        parts.append(add_box(f"wing_{sx}", (1.55, 0.32, 0.05), (sx * 1.65, 0.05, 0.02), body, bevel=0.02))
+        parts.append(add_sphere(f"wingtip_{sx}", 0.06, (sx * 2.4, 0.05, 0.02), (0.6, 1, 1), dark))
+    parts.append(add_cylinder("hub", 0.05, 0.1, (0, 1.28, 0), dark, verts=10,
+                              rot=(math.radians(90), 0, 0)))
+
+    hull = join_all(parts, "recon_hull")
+
+    prop_pos = (0, 1.34, 0)
+    blades = []
+    for b in range(2):
+        blades.append(add_box(f"pblade_{b}", (0.05, 0.62, 0.02), prop_pos, prop_mat, bevel=0.005,
+                              rot=(0, 0, math.radians(b * 90))))
+    prop = join_all(blades, RECON_PROP)
+    set_origin(prop, prop_pos)
+    prop.parent = hull
+    prop.matrix_parent_inverse = hull.matrix_world.inverted()
+
+    export_hierarchy(hull, "recon-drone.glb")
+
+
+# ----------------------------------------------------------------- strike jet
+
+def build_strike_jet():
+    """Lightning Strike's bomber — a fast, narrow jet, ~6m nose to tail. Reads
+    as a single dark streak crossing overhead rather than something the
+    player is meant to study; the bombs it drops are the actual payoff."""
+    clear_scene()
+    body = make_material("JetBody", (0.14, 0.15, 0.16), roughness=0.35, metallic=0.6)
+    dark = make_material("JetDark", (0.05, 0.05, 0.06), roughness=0.3, metallic=0.5)
+    glass = make_material("JetGlass", (0.08, 0.13, 0.16), roughness=0.08, metallic=0.15)
+    accent = make_material("JetAccent", (0.5, 0.1, 0.08), roughness=0.5, metallic=0.2)
+    exhaust_mat = make_material("JetExhaust", (0.08, 0.08, 0.09), roughness=0.25, metallic=0.6)
+
+    parts = []
+    parts.append(add_box("fuse", (0.55, 4.4, 0.5), (0, 0, 0), body, bevel=0.1))
+    parts.append(add_cylinder("nose", 0.24, 1.0, (0, 2.55, -0.02), body, verts=12, bevel=0.02,
+                              rot=(math.radians(90), 0, 0)))
+    parts.append(add_box("canopy", (0.34, 1.0, 0.28), (0, 1.3, 0.34), glass, bevel=0.04))
+    for sx in (-1, 1):
+        parts.append(add_box(f"wing_{sx}", (1.9, 1.1, 0.07), (sx * 1.15, -0.4, -0.05), body, bevel=0.03,
+                             rot=(0, 0, math.radians(-sx * 8))))
+        parts.append(add_box(f"stab_{sx}", (0.75, 0.55, 0.05), (sx * 0.55, -1.9, 0.1), dark, bevel=0.02,
+                             rot=(0, 0, math.radians(-sx * 12))))
+    parts.append(add_box("fin", (0.07, 0.7, 0.75), (0, -1.85, 0.35), dark, bevel=0.02))
+    parts.append(add_cylinder("exhaust", 0.22, 0.4, (0, -2.15, -0.02), exhaust_mat, verts=12,
+                              rot=(math.radians(90), 0, 0)))
+    # Underslung pylon so it visibly matches what it's about to drop.
+    parts.append(add_box("pylon", (0.18, 0.9, 0.22), (0, 0.4, -0.42), accent, bevel=0.02))
+
+    hull = join_all(parts, "jet_hull")
+
+    prop_pos = (0, -2.32, -0.02)
+    blades = []
+    for b in range(3):
+        blades.append(add_box(f"jblade_{b}", (0.03, 0.32, 0.01), prop_pos, exhaust_mat, bevel=0.003,
+                              rot=(0, 0, math.radians(b * 60))))
+    prop = join_all(blades, JET_PROP)
+    set_origin(prop, prop_pos)
+    prop.parent = hull
+    prop.matrix_parent_inverse = hull.matrix_world.inverted()
+
+    export_hierarchy(hull, "strike-jet.glb")
+
+
 # ------------------------------------------------------------- care package
 
 def build_care_package():
@@ -324,5 +409,7 @@ def export_glb_single(obj, filename):
 
 build_drone()
 build_helicopter()
+build_recon_plane()
+build_strike_jet()
 build_care_package()
 print("ALL STREAK MODELS EXPORTED")

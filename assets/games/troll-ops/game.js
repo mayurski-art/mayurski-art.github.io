@@ -15,10 +15,10 @@ import { Loadout } from "./loadout.js";
 import { StreakPicker } from "./streak-picker.js";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
 import {
-  CarePackage, HunterDrone, HelicopterGunship,
+  CarePackage, HunterDrone, HelicopterGunship, ReconPlane, StrikeJet,
   PACKAGE_CLAIM_RADIUS, DRONE_DAMAGE, DRONE_KILL_RADIUS,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
-  HELI_FIRE_RANGE, HELI_DAMAGE,
+  HELI_FIRE_RANGE, HELI_DAMAGE, RECON_ALTITUDE, JET_ALTITUDE,
 } from "./streak-entities.js";
 import { KillstreakUi } from "./killstreak-ui.js";
 import { KillCam } from "./killcam.js";
@@ -304,6 +304,11 @@ function enemiesRevealed() {
 const streakEntities = new Map();   // id -> CarePackage | HunterDrone | HelicopterGunship
 const pendingStrikes = [];          // { x, z, t, owned, team }
 
+/* Pure flyover VFX for UAV/airstrike — unlike streakEntities these decide
+   nothing (uavUntil and the bomb damage timers own the real effects), so
+   they don't need ids or wire lookups, just a list to age out and drop. */
+const flyovers = [];                // ReconPlane | StrikeJet
+
 /* Marking mode: the streak that's waiting for a ground point, or null. Both
    the care package and the airstrike need "look somewhere, press again", so
    they share it. */
@@ -468,9 +473,14 @@ function fireStreak(id, at = null) {
     case "uav": {
       const team = uavBucket();
       startUav(team, STREAK_DEFS.uav.duration);
+      const yaw = Math.random() * Math.PI * 2;
       if (net.active) {
-        net.publishStreak({ kind: "uav", action: "start", team, duration: STREAK_DEFS.uav.duration });
+        net.publishStreak({
+          kind: "uav", action: "start", team, duration: STREAK_DEFS.uav.duration,
+          x: round2(move.pos.x), z: round2(move.pos.z), yaw: round2(yaw),
+        });
       }
+      spawnRecon(move.pos.x, move.pos.z, yaw);
       showWaveBanner("UAV OVERHEAD", 1600);
       break;
     }
@@ -569,6 +579,30 @@ function spawnHelicopter({ id, seed, owned, team }) {
   scene.add(heli.root);
   audio.wave();
   return heli;
+}
+
+/* UAV's only world presence: one straight pass overhead, starting from
+   wherever it was called. Purely decorative — enemiesRevealed()/uavUntil
+   already own the actual reveal, so there is nothing to keep in sync beyond
+   this position and heading. */
+function spawnRecon(x, z, yaw) {
+  const plane = new ReconPlane({ pos: new THREE.Vector3(x, RECON_ALTITUDE, z), yaw });
+  flyovers.push(plane);
+  scene.add(plane.root);
+  return plane;
+}
+
+/* The bombing run's aircraft. Flies the same line runAirstrike already drops
+   bombs along, timed to arrive as the first one lands. */
+function spawnStrikeJet(x, z) {
+  const spread = AIRSTRIKE_RADIUS * 0.55 * 2;
+  const groundY = groundHeightAt(colliders, x, z, 60) ?? 0;
+  const from = new THREE.Vector3(x - spread, groundY + JET_ALTITUDE, z - spread * 0.3);
+  const to = new THREE.Vector3(x + spread, groundY + JET_ALTITUDE, z + spread * 0.3);
+  const jet = new StrikeJet({ from, to });
+  flyovers.push(jet);
+  scene.add(jet.root);
+  return jet;
 }
 
 /* Nearest living enemy, for the drone's target pick. Bots and peers both live
@@ -701,11 +735,22 @@ function updateStreakEntities(dt) {
     pendingStrikes.splice(i, 1);
     runAirstrike(s);
   }
+
+  // Recon planes and strike jets: fly, then age out. Neither owns damage or
+  // reveals, so there's nothing to report back over the wire when they expire.
+  for (let i = flyovers.length - 1; i >= 0; i--) {
+    const f = flyovers[i];
+    if (f.update(dt) === "expire") {
+      f.dispose();
+      flyovers.splice(i, 1);
+    }
+  }
 }
 
 /* A line of blasts through the marked point, so it reads as a pass rather
    than one big grenade. Only the caller does damage. */
 function runAirstrike(s) {
+  spawnStrikeJet(s.x, s.z);
   const ground = groundHeightAt(colliders, s.x, s.z, 60) ?? 0;
   const spread = AIRSTRIKE_RADIUS * 0.55;
   for (let i = 0; i < AIRSTRIKE_BOMBS; i++) {
@@ -774,6 +819,9 @@ function applyRemoteStreak(m) {
     case "uav":
       if (m.action === "start") {
         startUav(m.team, m.duration || STREAK_DEFS.uav.duration);
+        if (typeof m.x === "number" && typeof m.z === "number") {
+          spawnRecon(m.x, m.z, m.yaw || 0);
+        }
         // Only say so when it's our side's UAV — an enemy one reveals us to
         // them, which is not something we'd be told about.
         if (m.team === uavBucket() && !currentMode().ffa) {
@@ -5495,7 +5543,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     readyStreaksOrdered,
     updateStreakHud, enemiesRevealed, uavBucket, uavUntil, drawMinimap,
     lastHitRange: () => lastHitRange,
-    streakEntities, pendingStrikes,
+    streakEntities, pendingStrikes, flyovers,
     markingStreak: () => markingStreak, confirmMark, cancelMark, updateMarking,
     groundAimPoint, rollPackageReward, claimPackage, clearStreakEntities,
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,

@@ -37,6 +37,17 @@ export const HELI_DAMAGE = 26;             // per burst round, not lethal alone
 export const HELI_MAIN_ROTOR_RPS = 5.5;    // revolutions per second
 export const HELI_TAIL_ROTOR_RPS = 11;
 
+export const RECON_ALTITUDE = 34;
+export const RECON_SPEED = 22;
+export const RECON_PROP_RPS = 14;
+// Long enough to cross any map at RECON_SPEED with margin on both ends.
+export const RECON_LIFETIME = 9;
+
+export const JET_ALTITUDE = 28;
+export const JET_SPEED = 40;
+export const JET_PROP_RPS = 20;
+export const JET_LIFETIME = 6;
+
 /* A parachute canopy, built in code — it exists for three seconds and does
    not deserve an asset. */
 function makeParachute() {
@@ -190,6 +201,92 @@ export class HunterDrone {
     this.root.rotation.y = this.yaw;
     // Bank into the turn.
     this.root.rotation.z = -d * 0.5;
+    return null;
+  }
+
+  dispose() {
+    this.dead = true;
+    this.root.parent?.remove(this.root);
+  }
+}
+
+/* ------------------------------------------------------------- recon plane
+
+   UAV had no world presence at all — calling it only started a HUD/minimap
+   reveal, so it never read as something happening. This is pure flavour: a
+   spotter plane makes one straight pass overhead. It does not decide who
+   gets revealed — startUav/uavUntil still own that — so a copy is safe to
+   render for both the owner and everyone else off the same wire message. */
+export class ReconPlane {
+  constructor({ pos, yaw }) {
+    this.age = 0;
+    this.done = false;
+    this.yaw = yaw;
+    this.root = new THREE.Group();
+    this.root.position.copy(pos);
+    this.root.rotation.y = yaw;
+    this.prop = null;
+
+    loadModel("recon-drone").then((obj) => {
+      if (this.dead) return;
+      this.root.add(obj);
+      this.prop = obj.getObjectByName("ReconProp") || null;
+    });
+  }
+
+  update(dt) {
+    this.age += dt;
+    if (this.prop) this.prop.rotation.z += dt * Math.PI * 2 * RECON_PROP_RPS;
+    const step = RECON_SPEED * dt;
+    this.root.position.x += -Math.sin(this.yaw) * step;
+    this.root.position.z += -Math.cos(this.yaw) * step;
+    if (this.age > RECON_LIFETIME) { this.done = true; return "expire"; }
+    return null;
+  }
+
+  dispose() {
+    this.dead = true;
+    this.root.parent?.remove(this.root);
+  }
+}
+
+/* ---------------------------------------------------------------- strike jet
+
+   Lightning Strike used to drop bombs that simply appeared in the air with
+   nothing carrying them. This flies the same line the bombs already fall
+   along (see runAirstrike in game.js), timed to arrive as the first bomb
+   lands, so the explosions read as a bombing run instead of a mine field. */
+export class StrikeJet {
+  constructor({ from, to }) {
+    this.age = 0;
+    this.done = false;
+    this.from = from.clone();
+    this.to = to.clone();
+    this.yaw = Math.atan2(-(to.x - from.x), -(to.z - from.z));
+    this.root = new THREE.Group();
+    this.root.position.copy(from);
+    this.root.rotation.y = this.yaw;
+    this.prop = null;
+
+    loadModel("strike-jet").then((obj) => {
+      if (this.dead) return;
+      this.root.add(obj);
+      this.prop = obj.getObjectByName("JetProp") || null;
+    });
+  }
+
+  update(dt) {
+    this.age += dt;
+    if (this.prop) this.prop.rotation.z += dt * Math.PI * 2 * JET_PROP_RPS;
+    const t = Math.min(1, this.age / (JET_LIFETIME * 0.4));
+    this.root.position.lerpVectors(this.from, this.to, t);
+    // Keep flying past the mark rather than stopping dead over the target.
+    if (t >= 1) {
+      const step = JET_SPEED * dt;
+      this.root.position.x += -Math.sin(this.yaw) * step;
+      this.root.position.z += -Math.cos(this.yaw) * step;
+    }
+    if (this.age > JET_LIFETIME) { this.done = true; return "expire"; }
     return null;
   }
 
