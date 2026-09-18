@@ -9,6 +9,7 @@
 // surfaces instead of invisible walls.
 
 import * as THREE from "three";
+import { smoothstep, damp } from "./anim-curves.js";
 
 export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE: "prone", VAULT: "vault" };
 
@@ -89,6 +90,7 @@ export class MovementController {
     this.jumping = false;
     this.sprinting = false;
     this.moving = false;
+    this.strafeInput = 0;
     this.justLanded = false;
     this.landSpeed = 0;
 
@@ -171,7 +173,7 @@ export class MovementController {
     if (this.vault) {
       this.vault.t += dt;
       const k = Math.min(1, this.vault.t / VAULT_TIME);
-      const ease = k * k * (3 - 2 * k);
+      const ease = smoothstep(k);
       this.pos.lerpVectors(this.vault.from, this.vault.to, ease);
       this.pos.y = this.vault.from.y + (this.vault.to.y - this.vault.from.y) * ease + Math.sin(k * Math.PI) * 0.18;
       if (k >= 1) {
@@ -192,6 +194,10 @@ export class MovementController {
     const ix = input.strafe, iz = input.forward;
     const inputLen = Math.hypot(ix, iz);
     this.moving = inputLen > 0.05;
+    // Exposed for the viewmodel's directional strafe sway (DESIGN-ARMS.md
+    // Phase 2) — not a new movement-detection system, just surfacing input
+    // this function already receives every frame.
+    this.strafeInput = ix;
 
     const wantSprint = input.sprint && this.moving && iz > 0.1 && !input.adsHeld;
     const jumpEdge = input.jump && !this._prevJump;
@@ -329,7 +335,7 @@ export class MovementController {
   /* Eases eye height toward the current stance's target. */
   applyEye(dt) {
     const targetEye = EYE[this.stance] ?? EYE.stand;
-    this.eyeHeight += (targetEye - this.eyeHeight) * Math.min(1, dt * 12);
+    this.eyeHeight = damp(this.eyeHeight, targetEye, 12, dt);
   }
 
   /* Where the camera goes this frame. */

@@ -32,6 +32,9 @@ import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTi
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
+import { stage, rise, damp, smoothstep } from "./anim-curves.js";
+import { AnimDebugLab } from "./anim-debug.js";
+import { buildStreakDevice } from "./streak-device.js";
 import { ZombieDirector } from "./zombies.js";
 import { zombieWindows } from "./pentagrin.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
@@ -412,6 +415,10 @@ function callStreak(id) {
     markingStreak = id;
     showWaveBanner(`${STREAK_DEFS[id].name.toUpperCase()} — ${streakKeyLabel()} on a spot`, 2200);
     updateStreakHud();   // keeps the touch button up through the mark
+    // Airstrike is the one BO2-style "looking at the designator while lining
+    // up the strike" gesture (DESIGN-ARMS.md Phase 5) — carepackage is a
+    // thrown crate with no device to look at, so it stays HUD-only.
+    if (id === "airstrike") beginStreakHold(0);
     return;
   }
 
@@ -431,6 +438,7 @@ function confirmMark() {
   if (!streaks.spend(id)) { cancelMark(); return; }
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
+  if (id === "airstrike") endStreakHold();
   fireStreak(id, at);
   updateStreakHud();
 }
@@ -444,6 +452,7 @@ function streakKeyLabel() {
 
 function cancelMark() {
   if (!markingStreak) return;
+  if (markingStreak === "airstrike") endStreakHold();
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
   showWaveBanner("Cancelled", 900);
@@ -482,6 +491,7 @@ function fireStreak(id, at = null) {
       }
       spawnRecon(move.pos.x, move.pos.z, yaw);
       showWaveBanner("UAV OVERHEAD", 1600);
+      beginStreakHold(0.75); // brief "checked the tablet" beat, DESIGN-ARMS.md Phase 5
       break;
     }
 
@@ -917,6 +927,8 @@ let sndInteractHeld = false; // physically holding E right now
 
 const audio = new GameAudio();
 let suppressT = 0;
+
+const animDebug = new AnimDebugLab();
 
 // -------------------- settings + escape menu --------------------
 
@@ -2108,6 +2120,13 @@ function setActiveMeleeMesh(def) {
   weaponRig.add(activeMeleeMesh);
 }
 
+/* Streak-call device (DESIGN-ARMS.md Phase 5) — built once, unlike the
+   weapon/melee meshes, since it never changes per-loadout the way a gun's
+   attachments or a melee weapon choice do. */
+const activeStreakMesh = buildStreakDevice();
+activeStreakMesh.visible = false;
+weaponRig.add(activeStreakMesh);
+
 // muzzle flash sprite
 const muzzleMat = makeMuzzleFlashMaterial();
 const muzzleFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22), muzzleMat);
@@ -2178,7 +2197,7 @@ const player = {
   wave: 0,
   alive: true,
   melee: null,          // MeleeState, rebuilt from the loadout on every spawn
-  holding: "gun",       // "gun" | "melee"
+  holding: "gun",       // "gun" | "melee" | "streak"
   gear: { lethal: 0, tactical: 0 },
   lastHurtAt: -Infinity, // performance.now() of the last damage taken; gates regen
   spawnGuard: 0,        // seconds of spawn protection left; broken by firing
@@ -2194,6 +2213,29 @@ const player = {
 // to primary on every spawn/equip so a fresh life always starts on the
 // main gun regardless of what was held when the last one ended.
 let currentWeaponSlot = "primary";
+
+/* Streak device call window (DESIGN-ARMS.md Phase 5). `streakHoldT > 0`
+   means "stay on the device," ticked down in updatePlayer(); reaching 0
+   returns to whatever was held before (always "gun" in practice — you
+   can't call a streak while holding melee, callStreak/useSelectedStreak
+   are gated behind streaksAllowed which requires the gun slot already).
+   `streakHoldUntilMark` means "don't count down — stay up for the whole
+   marking window," cleared explicitly by confirmMark()/cancelMark(). */
+let streakHoldT = 0;
+let streakHoldUntilMark = false;
+
+function beginStreakHold(seconds = 0) {
+  if (player.holding === "melee") return; // never interrupt a mid-swing
+  setHolding("streak");
+  streakHoldT = seconds;
+  streakHoldUntilMark = seconds <= 0;
+}
+
+function endStreakHold() {
+  streakHoldT = 0;
+  streakHoldUntilMark = false;
+  if (player.holding === "streak") setHolding("gun");
+}
 
 /* One in the hand: which throwable is cooking, and how much fuse is left. */
 const cooking = { def: null, fuse: 0, slot: null };
@@ -2798,7 +2840,10 @@ function currentWeapon() {
 
 function tryReload() {
   if (!controls.isLocked && !isTouch && !gamepadState.connected) return;
-  if (currentWeapon().startReload()) audio.reload();
+  // audio.reload() now fires from reloadPose() on the first frame w.reloading
+  // is true, so it lands in step with the visual choreography's stages
+  // rather than at the exact instant this input handler runs.
+  currentWeapon().startReload();
 }
 
 function fireOnce() {
@@ -3176,10 +3221,12 @@ function meleeConnect() {
         point: h.point,
         dir: dir.clone(),
       });
+      meleeImpactT = 1;
       return;
     }
   }
   audio.impact();
+  meleeWhiffT = 1;
 }
 
 function setHolding(what) {
@@ -3188,6 +3235,7 @@ function setHolding(what) {
   player.holding = what;
   if (activeWeaponMesh) activeWeaponMesh.visible = what === "gun";
   if (activeMeleeMesh) activeMeleeMesh.visible = what === "melee";
+  activeStreakMesh.visible = what === "streak";
   muzzleFlash.visible = what === "gun";
   updateGearHud();
 }
@@ -4822,6 +4870,8 @@ function animate() {
     const targetWeaponFov = 58 - w.adsT * 8;
     weaponCamera.fov += (targetWeaponFov - weaponCamera.fov) * Math.min(1, dt * 10);
     weaponCamera.updateProjectionMatrix();
+
+    animDebug.update();
   }
 
   if (gameState === "menu") {
@@ -4962,6 +5012,11 @@ function regenPlayer(dt) {
 function updatePlayer(dt) {
   const w = currentWeapon();
 
+  if (streakHoldT > 0 && !streakHoldUntilMark) {
+    streakHoldT -= dt;
+    if (streakHoldT <= 0) endStreakHold();
+  }
+
   const gp = gamepadState.connected;
 
   if ((isTouch && (touchState.lookDX || touchState.lookDY)) || (gp && (gamepadState.lookDX || gamepadState.lookDY))) {
@@ -5048,8 +5103,17 @@ function updatePlayer(dt) {
   updateLocalRig(dt);
 
   const shake = shakeT > 0 ? shakeMag * (shakeT / 0.45) : 0;
+  // Phase 6 (DESIGN-ARMS.md §5, camera polish): small, separately-tuned
+  // camera-only echoes of the viewmodel's own landing dip and melee impact-
+  // stop — same trigger state (landDipT/landDipMag, meleeImpactT), much
+  // smaller magnitude, so the whole screen never shakes as hard as the gun
+  // moves. Read one frame behind their viewmodel counterparts (updatePlayer
+  // runs before updateWeaponView each frame) — imperceptible on a decaying
+  // effect, not worth reordering the main loop over.
+  const landKick = landDipMag * landDipT * 0.05;
+  const meleeKick = meleeImpactT * 0.03;
   const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake;
-  const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake;
+  const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick;
 
   if (settings.thirdPerson) {
     localRig.root.visible = true;
@@ -5095,6 +5159,11 @@ function updatePlayer(dt) {
     return;
   }
 
+  // Looking at the streak device (DESIGN-ARMS.md Phase 5 §5's explicit
+  // interaction-bug call-out): fire is disabled outright rather than
+  // silently shooting through a hidden gun mesh while the device is up.
+  if (player.holding === "streak") return;
+
   if (wantFire && canAct && !swinging) {
     if (w.def.fireMode === "auto") {
       if (w.canFire()) fireOnce();
@@ -5124,6 +5193,17 @@ els.touchFire.addEventListener("touchstart", () => { fireEdgeTrigger = true; set
    it pops in for the swing and drops out again the moment it's over. */
 let meleeIdleT = 0;
 let meleeLowerT = 0;
+
+/* Phase 4 (DESIGN-ARMS.md): hit/whiff visual distinction. meleeConnect()
+   sets one of these to 1 the instant it resolves a swing's single hit
+   check; both decay here so a connect reads as a sharp stop-on-impact and
+   a whiff reads as a slightly looser overextension, without adding new
+   keyframes to SWING_TRACK/THRUST_TRACK — this only perturbs the sampled
+   pose those tracks already produce. */
+let meleeImpactT = 0;
+let meleeWhiffT = 0;
+const _meleeImpactEuler = new THREE.Euler();
+
 function updateMeleeView(dt) {
   const mesh = activeMeleeMesh;
   const melee = player.melee;
@@ -5139,6 +5219,23 @@ function updateMeleeView(dt) {
   mesh.position.copy(pos);
   mesh.quaternion.copy(quat);
 
+  if (swinging) {
+    // Impact: a brief sharp decel + tiny recoil-back, same idea as the
+    // gun's viewKick* but scoped to melee. Whiff: the tracks' own
+    // follow-through keyframe is allowed to overextend slightly further
+    // than its authored end pose while this is decaying.
+    meleeImpactT = Math.max(0, meleeImpactT - dt * 6);
+    meleeWhiffT = Math.max(0, meleeWhiffT - dt * 4);
+    if (meleeImpactT > 0) {
+      mesh.position.z += meleeImpactT * 0.05;
+      mesh.position.y -= meleeImpactT * 0.02;
+    }
+    if (meleeWhiffT > 0) {
+      _meleeImpactEuler.set(0, 0, THREE.MathUtils.degToRad(meleeWhiffT * 6));
+      mesh.quaternion.multiply(new THREE.Quaternion().setFromEuler(_meleeImpactEuler));
+    }
+  }
+
   if (!swinging) {
     const w = currentWeapon();
     // Walking/running bob, same phase source the gun view model rides
@@ -5152,7 +5249,7 @@ function updateMeleeView(dt) {
     // Sprinting drops the blade out of guard the same way a sprinting gun
     // lowers out of the sight line.
     const wantLower = move.sprinting ? 1 : 0;
-    meleeLowerT += (wantLower - meleeLowerT) * Math.min(1, dt * 9);
+    meleeLowerT = damp(meleeLowerT, wantLower, 9, dt);
     mesh.position.y -= meleeLowerT * 0.1;
     mesh.position.z += meleeLowerT * 0.08;
     mesh.rotateX(meleeLowerT * 0.5);
@@ -5189,7 +5286,65 @@ function updateMeleeView(dt) {
 const MELEE_IDLE_PERIOD = 3.2;
 const _meleeIdleEuler = new THREE.Euler();
 
+/* Streak device viewmodel (DESIGN-ARMS.md Phase 5). Simple raise/steady/
+   lower — no swing state to fight over the pose the way melee has, so this
+   is much shorter than updateMeleeView. `streakRaiseT` eases the device
+   into a steady hip-height hold pose; sprinting lowers it the same way the
+   gun/melee do. */
+let streakRaiseT = 0;
+const STREAK_HOLD_POS = new THREE.Vector3(0.16, -0.14, -0.32);
+
+function updateStreakView(dt) {
+  const mesh = activeStreakMesh;
+  const held = player.holding === "streak";
+  mesh.visible = held;
+  if (!held) { streakRaiseT = damp(streakRaiseT, 0, 10, dt); return; }
+
+  streakRaiseT = damp(streakRaiseT, 1, 8, dt);
+  const wantLower = move.sprinting ? 1 : 0;
+  const lowerT = wantLower; // no separate lag state needed — device is only up briefly
+  mesh.position.set(
+    STREAK_HOLD_POS.x,
+    STREAK_HOLD_POS.y - (1 - streakRaiseT) * 0.2 - lowerT * 0.12,
+    STREAK_HOLD_POS.z
+  );
+  mesh.rotation.set(lowerT * 0.4, 0, lowerT * 0.25);
+}
+
 let weaponLowerT = 0;
+
+/* Phase 2 (DESIGN-ARMS.md §5): landing-impact dip. `move.justLanded`/
+   `landSpeed` (movement.js) already exist and were unused before this —
+   a one-frame edge the viewmodel converts into a decaying impulse rather
+   than a fixed-length animation, so a light hop and a hard fall from a
+   vault both settle at their own natural rate. */
+let landDipT = 0;      // 0..1, decays via damp() back to 0 each frame
+let landDipMag = 0;    // captured strength of the current dip, set once on the landing frame
+const LAND_DIP_MAX_SPEED = 9;   // landSpeed at/above this reads as "full" impact
+const LAND_DIP_POS = 0.05;      // meters of downward dip at full impact
+const LAND_DIP_PITCH = 0.16;    // radians of forward tilt at full impact
+
+/* Phase 2: sprint transition polish. weaponLowerT already handles the
+   flat lower; this adds the "sling to the side" roll on the way out and
+   lets the return overshoot slightly before settling, scaled by weapon
+   weight so a heavy gun swings wider than a pistol. */
+let sprintRollT = 0;
+
+/* Phase 2: start/stop settling. bobPhase (weapons.js) freezes rather than
+   resetting when movement stops, which already avoids a snap-to-zero, but
+   the amplitude itself still cuts instantly from full to whatever the
+   frozen phase happens to be. This eases the amplitude multiplier instead,
+   so stopping reads as the weapon settling rather than the bob motion just
+   stopping mid-swing. */
+let bobSettleT = 0;
+
+/* Phase 2: ADS transition weight. `w.adsT` (weapons.js) ramps linearly at
+   a fixed rate and drives FOV/laser-threshold/etc elsewhere, so it isn't
+   safe to reshape directly. Instead this is a damped shadow of it, lagging
+   behind exactly like swaySmoothX/Y already lag behind raw sway — used
+   only for the hip<->ADS position lerp, so heavier guns settle into their
+   sight picture instead of snapping there linearly. */
+let adsSmoothT = 0;
 
 /* Weapon inspect (D-pad up / T). Admires whatever's in hand for a couple of
    seconds — pure flourish, cancelled by anything that matters (firing,
@@ -5231,23 +5386,7 @@ function updateInspect(dt) {
   inspectT = Math.max(0, inspectT - dt);
 }
 
-/* Each archetype gets its own staged motion (raise -> business -> settle)
-   rather than one continuous wave, so it reads as a deliberate action instead
-   of a wobble. `t` is 0..1 through the animation; `stage(a,b)` returns 0..1
-   eased progress between two points in that timeline, 0 outside it. */
-function stage(t, a, b) {
-  if (t <= a || t >= b) return 0;
-  const k = (t - a) / (b - a);
-  return Math.sin(k * Math.PI); // eases in and back out, peaks mid-stage
-}
-function rise(t, a, b) {
-  // Monotonic 0->1 ease across the stage, then holds at 1 (for moves that
-  // land and stay, like a twirl settling the muzzle back level).
-  if (t <= a) return 0;
-  if (t >= b) return 1;
-  const k = (t - a) / (b - a);
-  return k * k * (3 - 2 * k);
-}
+// stage()/rise() now live in anim-curves.js, imported above.
 
 const _inspectPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
 function _zeroPose(p) { p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0; return p; }
@@ -5365,31 +5504,87 @@ function inspectMeleePose() {
   return { quat: _inspectMeleeQuat, pos: _inspectMeleePos };
 }
 
-/* Reload animation: the weapon dips down and tilts away from view for the
-   middle stretch of the reload, then rises back into position — timed off
-   the same w.reloading/reloadT the ammo swap already uses, so it needs no
-   extra state and can never fall out of sync with when ammo actually lands. */
-const _reloadPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
+/* Reload animation (DESIGN-ARMS.md Phase 3): the weapon dips down and tilts
+   away from view for the middle stretch of the reload, staged into named
+   phases keyed off normalized progress `t` (0..1) rather than one flat dip
+   — timed off the same w.reloading/reloadT/reloadTime the ammo swap already
+   uses (reloadTime is the per-instance duration set by startReload(), which
+   already differs between an empty reload and a faster tac reload), so
+   staging can never fall out of sync with when ammo actually lands.
 
-function reloadPose(w) {
+   Phase boundaries (fractions of `t`):
+     0.00-0.12  raise    - weapon dips into reload pose
+     0.12-0.42  magOut   - mag mesh drops out of the well (skipped entirely
+                            on a tac reload's shorter timeline below)
+     0.42-0.72  magIn    - fresh mag rises back into the well
+     0.72-1.00  settle   - weapon returns to combat pose
+   A tac reload (round already chambered) compresses this to raise/magIn/
+   settle only — no empty mag to visibly drop, matching startReload()'s
+   `reloadWasEmpty` branch. */
+const _reloadPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
+let reloadEventsFiredFor = null; // WeaponState instance we've already fired start/complete events for
+
+function reloadPose(w, mesh) {
   const p = _reloadPose;
-  if (!w.reloading || !w.def.reloadTime) {
+  const mag = mesh?.userData.magMesh;
+
+  if (!w.reloading || !w.reloadTime) {
     p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0;
+    if (mag) {
+      mag.visible = true;
+      mag.position.copy(mesh.userData.magazinePoint);
+    }
+    if (reloadEventsFiredFor === w) {
+      audio.reloadComplete();
+      reloadEventsFiredFor = null;
+    }
     return p;
   }
-  const total = w.def.reloadTime;
-  const t = 1 - Math.max(0, w.reloadT) / total;  // 0..1 through the reload
-  // Ease down then back up: dips hardest around the middle third, where the
-  // mag actually swaps, and eases in/out so it never snaps at either end.
-  const dip = Math.sin(Math.min(1, t / 0.3) * Math.PI / 2)
-    * Math.sin(Math.min(1, (1 - t) / 0.3) * Math.PI / 2);
 
+  if (reloadEventsFiredFor !== w) {
+    audio.reload();
+    reloadEventsFiredFor = w;
+  }
+
+  const total = w.reloadTime;
+  const t = 1 - Math.max(0, w.reloadT) / total;  // 0..1 through the reload
+
+  // Overall dip/tilt envelope: eases in over the first stage, holds through
+  // the mag swap, eases back out over the last stage — same shape as the
+  // original single dip, just driven by named stage boundaries now.
+  const dip = Math.sin(Math.min(1, t / 0.12) * Math.PI / 2)
+    * Math.sin(Math.min(1, (1 - t) / 0.28) * Math.PI / 2);
   p.x = -dip * 0.06;
   p.y = -dip * 0.16;
   p.z = dip * 0.05;
   p.pitch = dip * 0.5;
   p.yaw = -dip * 0.22;
   p.roll = dip * 0.3;
+
+  if (mag && mesh) {
+    const rest = mesh.userData.magazinePoint;
+    if (w.reloadWasEmpty) {
+      // magOut 0.12-0.42: mag mesh drops straight down and out of frame.
+      const outK = smoothstep(Math.max(0, Math.min(1, (t - 0.12) / 0.30)));
+      // magIn 0.42-0.72: a (visually identical, cheap-to-fake) fresh mag
+      // rises back into the well from below.
+      const inK = smoothstep(Math.max(0, Math.min(1, (t - 0.42) / 0.30)));
+      if (t < 0.42) {
+        mag.position.set(rest.x, rest.y - outK * 0.22, rest.z);
+        mag.visible = outK < 1;
+      } else {
+        mag.position.set(rest.x, rest.y - (1 - inK) * 0.22, rest.z);
+        mag.visible = true;
+      }
+    } else {
+      // Tac reload: round's still chambered, mag never visibly leaves —
+      // just a quick partial dip-and-reseat rather than a full swap.
+      const inK = smoothstep(Math.max(0, Math.min(1, (t - 0.2) / 0.5)));
+      mag.position.set(rest.x, rest.y - (1 - inK) * 0.08, rest.z);
+      mag.visible = true;
+    }
+  }
+
   return p;
 }
 
@@ -5432,53 +5627,109 @@ function updateLaserBeam(mesh, w) {
   beam.visible = true;
 }
 
+/* Viewmodel animation layers, composed additively in this fixed order
+   (DESIGN-ARMS.md §3.1) — every new term this system gains belongs in one
+   of these, not a parallel transform:
+     1. base pose      - hip<->ADS lerp (basePos)
+     2. movement       - bob (bobX/Y), sway (swayX/Y)
+     3. inertia        - swaySmoothX/Y lag, weaponLowerT sprint/slide/busy lower
+     4. recoil         - viewKick*
+     5. reload/action  - rl (reloadPose)
+     6. melee          - handled separately in updateMeleeView; REPLACES the
+                         base pose outright during an active swing rather
+                         than adding to it
+     7. camera reaction - lives outside this function entirely; must stay a
+                         smaller, separately-tuned effect, never the same
+                         numbers as the viewmodel response above */
 function updateWeaponView(dt) {
   const w = currentWeapon();
   updateInspect(dt);
   updateMeleeView(dt);
+  updateStreakView(dt);
   const mesh = activeWeaponMesh;
+  // Streak preempts the gun/melee mesh per DESIGN-ARMS.md §3.3's priority
+  // stack — return before any weapon-view math runs so weaponLowerT/insp/rl
+  // don't fight the device pose for ownership of activeWeaponMesh (which is
+  // simply hidden, not touched, while holding === "streak").
+  if (player.holding === "streak") return;
   if (!mesh) return;
 
   // Aiming plants the sight: bob and idle sway fall away as the weapon
   // comes up, so walking while aimed no longer swims the whole gun across
   // the screen the way full-amplitude bob did.
   const steady = 1 - w.adsT * 0.85;
-  const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5 * steady;
-  const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp * steady;
+  // Settle: eases toward 1 while moving, toward 0 at rest, on top of (not
+  // instead of) bobPhase freezing — the freeze already stops the wave from
+  // continuing, this stops the amplitude from cutting off abruptly with it.
+  bobSettleT = damp(bobSettleT, move.moving ? 1 : 0, move.moving ? 10 : 5, dt);
+  const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5 * steady * bobSettleT;
+  const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp * steady * bobSettleT;
   const rawSwayX = Math.sin(clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp * steady;
   const rawSwayY = Math.cos(clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6 * steady;
+  // Directional strafe lean: a small extra lag-behind tilt keyed to strafe
+  // direction, on top of the symmetric idle sway above, so left/right reads
+  // as different rather than mirrored. move.strafeInput is -1 (left)..1
+  // (right), already computed every frame by movement.js's own update().
+  const strafeLean = (move.strafeInput ?? 0) * 0.012 * steady;
   // A heavier gun (lower `inertia` — the same field move.update() already
   // reads for how sluggish it turns) lags a beat behind its own sway target
   // instead of just swaying a smaller amount. Same idea as a real barrel's
   // momentum: it doesn't matter how little it moves if it moves instantly.
   const swayLag = Math.min(1, dt * (w.def.inertia ?? 8));
-  swaySmoothX += (rawSwayX - swaySmoothX) * swayLag;
+  swaySmoothX += (rawSwayX + strafeLean - swaySmoothX) * swayLag;
   swaySmoothY += (rawSwayY - swaySmoothY) * swayLag;
   const swayX = swaySmoothX, swayY = swaySmoothY;
 
   const adsOffset = w.adsT;
+  // Heavier weapons settle into position more slowly (lower lambda = more
+  // lag) — same `inertia`/`model.heavy` signals already used for sway lag
+  // and the sprint roll above, not new per-weapon data.
+  const adsLambda = w.def.model?.heavy ? 10 : (w.def.inertia ?? 8) * 1.6;
+  adsSmoothT = damp(adsSmoothT, adsOffset, adsLambda, dt);
   const hipPos = new THREE.Vector3(0.22, -0.2, -0.55);
   const aimPoint = mesh.userData.aimPoint || new THREE.Vector3(0, 0, -0.4);
   const adsViewDistance = -0.46; // where the sight should sit in front of the weapon camera
   const adsPos = new THREE.Vector3(-aimPoint.x, -aimPoint.y, adsViewDistance - aimPoint.z);
-  const basePos = hipPos.clone().lerp(adsPos, adsOffset);
+  const basePos = hipPos.clone().lerp(adsPos, adsSmoothT);
 
   // Gun drops out of the way while sprinting, sliding or vaulting.
   const wantLower = (move.sprinting || move.stance === STANCE.SLIDE || move.busy) ? 1 : 0;
-  weaponLowerT += (wantLower - weaponLowerT) * Math.min(1, dt * 9);
+  weaponLowerT = damp(weaponLowerT, wantLower, 9, dt);
+  // "Sling to the side" roll tracks the same sprint/lower gate, but at its
+  // own (slightly slower) rate so the roll settles in a beat after the
+  // straight lower does — that stagger is what makes the sprint-out read as
+  // two things happening (drop, then swing) rather than one linear slide.
+  sprintRollT = damp(sprintRollT, wantLower, 6, dt);
+
+  // Landing impact: capture once on the justLanded edge, then let it decay.
+  // Caller (this function) is responsible for clearing justLanded, per the
+  // contract documented at movement.js's own justLanded assignment.
+  if (move.justLanded) {
+    landDipMag = Math.min(1, move.landSpeed / LAND_DIP_MAX_SPEED);
+    landDipT = 1;
+    move.justLanded = false;
+  }
+  landDipT = damp(landDipT, 0, 7, dt);
 
   const insp = inspectPose();
-  const rl = reloadPose(w);
+  const rl = reloadPose(w, mesh);
+  const landPos = LAND_DIP_POS * landDipMag * landDipT;
+  const landPitch = LAND_DIP_PITCH * landDipMag * landDipT;
+  // Heavier weapons swing further into the sprint roll (def.heavy / a longer
+  // model.len both already exist as the "this gun is bigger" signals used
+  // elsewhere in weapon-model.js — reused here rather than adding new data).
+  const weightMult = w.def.model?.heavy ? 1.35 : 1;
+  const sprintRoll = sprintRollT * 0.22 * weightMult;
 
   mesh.position.set(
     basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + weaponLowerT * 0.05 + insp.x + rl.x,
-    basePos.y + bobY + swayY - weaponLowerT * 0.17 + insp.y + rl.y,
+    basePos.y + bobY + swayY - weaponLowerT * 0.17 - landPos + insp.y + rl.y,
     basePos.z + w.viewKickKnockback * 0.6 + weaponLowerT * 0.08 + insp.z + rl.z
   );
   mesh.rotation.set(
-    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55 + insp.pitch + rl.pitch,
+    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55 + landPitch + insp.pitch + rl.pitch,
     w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + insp.yaw + rl.yaw,
-    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + insp.roll + rl.roll
+    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + sprintRoll + insp.roll + rl.roll
   );
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
@@ -5534,6 +5785,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     setMode: (id) => { modeId = id; },
     THREE,
     activeMeleeMesh: () => activeMeleeMesh,
+    activeWeaponMesh: () => activeWeaponMesh,
     matchClockT: () => matchClockT,
     resetMatchClock, swingMelee,
     activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
@@ -5549,6 +5801,29 @@ if (/[?&]tohooks=1/.test(location.search)) {
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,
     nearestHostileTo, runAirstrike, nearbyPackage, updatePickupPrompt,
     gamepadState, touchState, streakKeyLabel, keys, swapHold,
+    animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,
+    tryReload, currentWeapon,
+    meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
+    targetMeshes: () => targetMeshes, meleeConnect,
+    activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
+    beginStreakHold, endStreakHold,
+    landDipT: () => landDipT, landDipMag: () => landDipMag,
   };
+  animDebug.mount(() => {
+    const w = currentWeapon();
+    return {
+      weapon: w.def?.name ?? w.id ?? "-",
+      holding: player.holding,
+      adsT: w.adsT.toFixed(2),
+      reloading: w.reloading, reloadT: w.reloadT?.toFixed?.(2) ?? "-",
+      sprinting: move.sprinting, stance: move.stance,
+      grounded: move.grounded, jumping: move.jumping,
+      justLanded: move.justLanded, landSpeed: move.landSpeed?.toFixed?.(2) ?? "-",
+      velocity: move.velocity ? `${move.velocity.x.toFixed(1)},${move.velocity.y.toFixed(1)},${move.velocity.z.toFixed(1)}` : "-",
+      meleeBusy: player.melee?.busy, meleeT: player.melee?.t?.toFixed?.(2) ?? "-",
+      inspectT: inspectT.toFixed(2),
+      markingStreak: markingStreak ?? "-",
+    };
+  });
 }
 

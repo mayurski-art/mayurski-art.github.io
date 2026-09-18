@@ -11,6 +11,8 @@
 // slow-moving body that comes to rest on the floor.
 
 import * as THREE from "three";
+import { buildGripHand } from "./hand-model.js";
+import { smoothstep } from "./anim-curves.js";
 
 const GRAVITY = 18;          // heavier than real so throws land where you look
 const REST_SPEED = 0.9;      // below this a grenade stops rolling
@@ -147,7 +149,7 @@ function sampleTrack(track, t) {
   const a = posKeys[i], b = posKeys[i + 1] || a;
   const span = Math.max(1e-5, b.t - a.t);
   const k = Math.max(0, Math.min(1, (t - a.t) / span));
-  const ease = k * k * (3 - 2 * k);
+  const ease = smoothstep(k);
   const pos = a.v.clone().lerp(b.v, ease);
   const quat = quatKeys[i].q.clone().slerp(quatKeys[i + 1]?.q || quatKeys[i].q, ease);
   return { pos, quat };
@@ -220,11 +222,29 @@ export function buildMeleeMesh(def) {
   const mat = (c, rough = 0.45, metal = 0.65) =>
     new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: metal });
 
-  if (m.kind === "keyboard") return buildKeyboardSword(m, mat, group);
+  const GRIP_ANCHOR = new THREE.Vector3(0, 0, 0.06);
+
+  // buildGripHand's scale=1 is tuned against a rifle grip box ~0.05 wide
+  // (weapon-model.js); melee grips are much thinner (0.036 here, and the
+  // keyboard sword has no grip box at all), so every melee hand is scaled
+  // down to match rather than dwarfing the weapon the way the untuned
+  // default did on first pass.
+  const MELEE_HAND_SCALE = 0.62;
+
+  if (m.kind === "keyboard") {
+    const sword = buildKeyboardSword(m, mat, group);
+    const kbHand = buildGripHand(MELEE_HAND_SCALE);
+    kbHand.position.copy(GRIP_ANCHOR);
+    sword.add(kbHand);
+    return sword;
+  }
 
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.036, 0.15), mat(m.grip, 0.85, 0.05));
-  grip.position.set(0, 0, 0.06);
+  grip.position.copy(GRIP_ANCHOR);
   group.add(grip);
+  const hand = buildGripHand(MELEE_HAND_SCALE);
+  hand.position.copy(GRIP_ANCHOR);
+  group.add(hand);
 
   if (m.kind === "bat") {
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(m.blade * 0.5, m.wide, m.len, 10), mat(m.color, 0.8, 0.05));

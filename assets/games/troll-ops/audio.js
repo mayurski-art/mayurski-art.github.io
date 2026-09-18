@@ -242,6 +242,14 @@ export class GameAudio {
     this._noise({ duration: 0.07, gain: 0.18, type: "bandpass", freq: 700, q: 3, delay: 0.4 });
   }
 
+  /* Quick weapon-ready click on the settle beat at the end of a reload
+     (DESIGN-ARMS.md Phase 3's reload-complete event) — distinct from the
+     mag-out/mag-in/chamber beats reload() already plays at the start. */
+  reloadComplete() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.03, gain: 0.1, type: "bandpass", freq: 1800, q: 4 });
+  }
+
   /* Raising/lowering the sight. A quiet handling click, not a full reload
      foley beat — it should register on a quiet listen, not compete with
      gunfire. Rising pitch going up, falling pitch coming down. */
