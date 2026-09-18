@@ -5197,6 +5197,39 @@ const _meleeIdleEuler = new THREE.Euler();
 
 let weaponLowerT = 0;
 
+/* Phase 2 (DESIGN-ARMS.md §5): landing-impact dip. `move.justLanded`/
+   `landSpeed` (movement.js) already exist and were unused before this —
+   a one-frame edge the viewmodel converts into a decaying impulse rather
+   than a fixed-length animation, so a light hop and a hard fall from a
+   vault both settle at their own natural rate. */
+let landDipT = 0;      // 0..1, decays via damp() back to 0 each frame
+let landDipMag = 0;    // captured strength of the current dip, set once on the landing frame
+const LAND_DIP_MAX_SPEED = 9;   // landSpeed at/above this reads as "full" impact
+const LAND_DIP_POS = 0.05;      // meters of downward dip at full impact
+const LAND_DIP_PITCH = 0.16;    // radians of forward tilt at full impact
+
+/* Phase 2: sprint transition polish. weaponLowerT already handles the
+   flat lower; this adds the "sling to the side" roll on the way out and
+   lets the return overshoot slightly before settling, scaled by weapon
+   weight so a heavy gun swings wider than a pistol. */
+let sprintRollT = 0;
+
+/* Phase 2: start/stop settling. bobPhase (weapons.js) freezes rather than
+   resetting when movement stops, which already avoids a snap-to-zero, but
+   the amplitude itself still cuts instantly from full to whatever the
+   frozen phase happens to be. This eases the amplitude multiplier instead,
+   so stopping reads as the weapon settling rather than the bob motion just
+   stopping mid-swing. */
+let bobSettleT = 0;
+
+/* Phase 2: ADS transition weight. `w.adsT` (weapons.js) ramps linearly at
+   a fixed rate and drives FOV/laser-threshold/etc elsewhere, so it isn't
+   safe to reshape directly. Instead this is a damped shadow of it, lagging
+   behind exactly like swaySmoothX/Y already lag behind raw sway — used
+   only for the hip<->ADS position lerp, so heavier guns settle into their
+   sight picture instead of snapping there linearly. */
+let adsSmoothT = 0;
+
 /* Weapon inspect (D-pad up / T). Admires whatever's in hand for a couple of
    seconds — pure flourish, cancelled by anything that matters (firing,
    aiming, reloading, sprinting, swinging) so it can never cost you a fight.
@@ -5447,42 +5480,78 @@ function updateWeaponView(dt) {
   // comes up, so walking while aimed no longer swims the whole gun across
   // the screen the way full-amplitude bob did.
   const steady = 1 - w.adsT * 0.85;
-  const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5 * steady;
-  const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp * steady;
+  // Settle: eases toward 1 while moving, toward 0 at rest, on top of (not
+  // instead of) bobPhase freezing — the freeze already stops the wave from
+  // continuing, this stops the amplitude from cutting off abruptly with it.
+  bobSettleT = damp(bobSettleT, move.moving ? 1 : 0, move.moving ? 10 : 5, dt);
+  const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5 * steady * bobSettleT;
+  const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp * steady * bobSettleT;
   const rawSwayX = Math.sin(clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp * steady;
   const rawSwayY = Math.cos(clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6 * steady;
+  // Directional strafe lean: a small extra lag-behind tilt keyed to strafe
+  // direction, on top of the symmetric idle sway above, so left/right reads
+  // as different rather than mirrored. move.strafeInput is -1 (left)..1
+  // (right), already computed every frame by movement.js's own update().
+  const strafeLean = (move.strafeInput ?? 0) * 0.012 * steady;
   // A heavier gun (lower `inertia` — the same field move.update() already
   // reads for how sluggish it turns) lags a beat behind its own sway target
   // instead of just swaying a smaller amount. Same idea as a real barrel's
   // momentum: it doesn't matter how little it moves if it moves instantly.
   const swayLag = Math.min(1, dt * (w.def.inertia ?? 8));
-  swaySmoothX += (rawSwayX - swaySmoothX) * swayLag;
+  swaySmoothX += (rawSwayX + strafeLean - swaySmoothX) * swayLag;
   swaySmoothY += (rawSwayY - swaySmoothY) * swayLag;
   const swayX = swaySmoothX, swayY = swaySmoothY;
 
   const adsOffset = w.adsT;
+  // Heavier weapons settle into position more slowly (lower lambda = more
+  // lag) — same `inertia`/`model.heavy` signals already used for sway lag
+  // and the sprint roll above, not new per-weapon data.
+  const adsLambda = w.def.model?.heavy ? 10 : (w.def.inertia ?? 8) * 1.6;
+  adsSmoothT = damp(adsSmoothT, adsOffset, adsLambda, dt);
   const hipPos = new THREE.Vector3(0.22, -0.2, -0.55);
   const aimPoint = mesh.userData.aimPoint || new THREE.Vector3(0, 0, -0.4);
   const adsViewDistance = -0.46; // where the sight should sit in front of the weapon camera
   const adsPos = new THREE.Vector3(-aimPoint.x, -aimPoint.y, adsViewDistance - aimPoint.z);
-  const basePos = hipPos.clone().lerp(adsPos, adsOffset);
+  const basePos = hipPos.clone().lerp(adsPos, adsSmoothT);
 
   // Gun drops out of the way while sprinting, sliding or vaulting.
   const wantLower = (move.sprinting || move.stance === STANCE.SLIDE || move.busy) ? 1 : 0;
   weaponLowerT = damp(weaponLowerT, wantLower, 9, dt);
+  // "Sling to the side" roll tracks the same sprint/lower gate, but at its
+  // own (slightly slower) rate so the roll settles in a beat after the
+  // straight lower does — that stagger is what makes the sprint-out read as
+  // two things happening (drop, then swing) rather than one linear slide.
+  sprintRollT = damp(sprintRollT, wantLower, 6, dt);
+
+  // Landing impact: capture once on the justLanded edge, then let it decay.
+  // Caller (this function) is responsible for clearing justLanded, per the
+  // contract documented at movement.js's own justLanded assignment.
+  if (move.justLanded) {
+    landDipMag = Math.min(1, move.landSpeed / LAND_DIP_MAX_SPEED);
+    landDipT = 1;
+    move.justLanded = false;
+  }
+  landDipT = damp(landDipT, 0, 7, dt);
 
   const insp = inspectPose();
   const rl = reloadPose(w);
+  const landPos = LAND_DIP_POS * landDipMag * landDipT;
+  const landPitch = LAND_DIP_PITCH * landDipMag * landDipT;
+  // Heavier weapons swing further into the sprint roll (def.heavy / a longer
+  // model.len both already exist as the "this gun is bigger" signals used
+  // elsewhere in weapon-model.js — reused here rather than adding new data).
+  const weightMult = w.def.model?.heavy ? 1.35 : 1;
+  const sprintRoll = sprintRollT * 0.22 * weightMult;
 
   mesh.position.set(
     basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + weaponLowerT * 0.05 + insp.x + rl.x,
-    basePos.y + bobY + swayY - weaponLowerT * 0.17 + insp.y + rl.y,
+    basePos.y + bobY + swayY - weaponLowerT * 0.17 - landPos + insp.y + rl.y,
     basePos.z + w.viewKickKnockback * 0.6 + weaponLowerT * 0.08 + insp.z + rl.z
   );
   mesh.rotation.set(
-    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55 + insp.pitch + rl.pitch,
+    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55 + landPitch + insp.pitch + rl.pitch,
     w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + insp.yaw + rl.yaw,
-    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + insp.roll + rl.roll
+    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + sprintRoll + insp.roll + rl.roll
   );
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;

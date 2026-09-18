@@ -90,6 +90,7 @@ export class MovementController {
     this.jumping = false;
     this.sprinting = false;
     this.moving = false;
+    this.strafeInput = 0;
     this.justLanded = false;
     this.landSpeed = 0;
 
@@ -193,6 +194,10 @@ export class MovementController {
     const ix = input.strafe, iz = input.forward;
     const inputLen = Math.hypot(ix, iz);
     this.moving = inputLen > 0.05;
+    // Exposed for the viewmodel's directional strafe sway (DESIGN-ARMS.md
+    // Phase 2) — not a new movement-detection system, just surfacing input
+    // this function already receives every frame.
+    this.strafeInput = ix;
 
     const wantSprint = input.sprint && this.moving && iz > 0.1 && !input.adsHeld;
     const jumpEdge = input.jump && !this._prevJump;
