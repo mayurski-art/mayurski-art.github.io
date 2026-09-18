@@ -1,9 +1,11 @@
 # Troll Ops — first-person hand/arm + BO2-grade viewmodel animation
 ### Design doc v3 — layered animation architecture, merged with external review
 
-Status: **Phases 0-4 shipped and verified on branch
-`troll-ops-viewmodel-anim`, not yet merged to main.** Phases 5-6 not
-started. This revision keeps v2's grounded "what exists today" audit
+Status: **Phases 0-5 shipped and verified on branch
+`troll-ops-viewmodel-anim`, not yet merged to main.** Phase 6 is
+explicitly conditional per its own section below — not started, and
+shouldn't be until Phases 1-5 are played and reviewed in-game first.
+This revision keeps v2's grounded "what exists today" audit
 (still accurate, re-verified below) but restructures the plan around
 an explicit **animation-ownership architecture** — layers, interaction
 points, and an event system — per a structural review this doc went
