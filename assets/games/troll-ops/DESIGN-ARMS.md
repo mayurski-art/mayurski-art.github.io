@@ -1,13 +1,14 @@
 # Troll Ops — first-person hand/arm + BO2-grade viewmodel animation
 ### Design doc v3 — layered animation architecture, merged with external review
 
-Status: **Phase 1 code written, not yet screenshot-verified.** Phases
-0/2-6 not started. This revision keeps v2's grounded "what exists
-today" audit (still accurate, re-verified below) but restructures the
-plan around an explicit **animation-ownership architecture** — layers,
-interaction points, and an event system — per a structural review this
-doc went through before any further code was written. The phase
-numbering below is final; treat it as the source of truth over v1/v2.
+Status: **Phases 0-4 shipped and verified on branch
+`troll-ops-viewmodel-anim`, not yet merged to main.** Phases 5-6 not
+started. This revision keeps v2's grounded "what exists today" audit
+(still accurate, re-verified below) but restructures the plan around
+an explicit **animation-ownership architecture** — layers, interaction
+points, and an event system — per a structural review this doc went
+through before any further code was written. The phase numbering below
+is final; treat it as the source of truth over v1/v2.
 
 ---
 
@@ -333,10 +334,13 @@ does not replace it.
    perturbs the gun) plus a target reaction if the target actor
    supports one; on whiff, let the existing follow-through keyframe run
    slightly longer/looser so the overextension reads.
-3. **Per-melee-class weight**: scale `SWING_TRACK`/`THRUST_TRACK`
-   keyframe *timing* (not new keyframes) by `m.len`/`m.wide` (already
-   on every melee `def.model`) so a bat and the keyboard sword feel
-   different.
+3. **Per-melee-class weight — SKIPPED for now.** `MELEE_DEFS` (gear.js)
+   currently has exactly one entry, `keyboard` (Keyboard Warrior) — there
+   is no second melee weapon to differentiate against, so scaling
+   `SWING_TRACK`/`THRUST_TRACK` timing by `m.len`/`m.wide` would be
+   infrastructure with no observable effect and nothing to verify it
+   against. Revisit this item the moment a second melee weapon is
+   added to `MELEE_DEFS`.
 4. **Movement-transition protection** (§3.3 priority: melee mid-swing
    owns the base pose outright, already true today) — explicitly test
    sprint→melee, melee→sprint, ADS→melee, melee→ADS, jump→melee: bob/

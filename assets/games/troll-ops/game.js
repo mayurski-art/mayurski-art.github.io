@@ -3183,10 +3183,12 @@ function meleeConnect() {
         point: h.point,
         dir: dir.clone(),
       });
+      meleeImpactT = 1;
       return;
     }
   }
   audio.impact();
+  meleeWhiffT = 1;
 }
 
 function setHolding(what) {
@@ -5133,6 +5135,17 @@ els.touchFire.addEventListener("touchstart", () => { fireEdgeTrigger = true; set
    it pops in for the swing and drops out again the moment it's over. */
 let meleeIdleT = 0;
 let meleeLowerT = 0;
+
+/* Phase 4 (DESIGN-ARMS.md): hit/whiff visual distinction. meleeConnect()
+   sets one of these to 1 the instant it resolves a swing's single hit
+   check; both decay here so a connect reads as a sharp stop-on-impact and
+   a whiff reads as a slightly looser overextension, without adding new
+   keyframes to SWING_TRACK/THRUST_TRACK — this only perturbs the sampled
+   pose those tracks already produce. */
+let meleeImpactT = 0;
+let meleeWhiffT = 0;
+const _meleeImpactEuler = new THREE.Euler();
+
 function updateMeleeView(dt) {
   const mesh = activeMeleeMesh;
   const melee = player.melee;
@@ -5147,6 +5160,23 @@ function updateMeleeView(dt) {
   const { pos, quat } = melee.pose();
   mesh.position.copy(pos);
   mesh.quaternion.copy(quat);
+
+  if (swinging) {
+    // Impact: a brief sharp decel + tiny recoil-back, same idea as the
+    // gun's viewKick* but scoped to melee. Whiff: the tracks' own
+    // follow-through keyframe is allowed to overextend slightly further
+    // than its authored end pose while this is decaying.
+    meleeImpactT = Math.max(0, meleeImpactT - dt * 6);
+    meleeWhiffT = Math.max(0, meleeWhiffT - dt * 4);
+    if (meleeImpactT > 0) {
+      mesh.position.z += meleeImpactT * 0.05;
+      mesh.position.y -= meleeImpactT * 0.02;
+    }
+    if (meleeWhiffT > 0) {
+      _meleeImpactEuler.set(0, 0, THREE.MathUtils.degToRad(meleeWhiffT * 6));
+      mesh.quaternion.multiply(new THREE.Quaternion().setFromEuler(_meleeImpactEuler));
+    }
+  }
 
   if (!swinging) {
     const w = currentWeapon();
@@ -5684,6 +5714,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     gamepadState, touchState, streakKeyLabel, keys, swapHold,
     animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,
     tryReload, currentWeapon,
+    meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
+    targetMeshes: () => targetMeshes, meleeConnect,
   };
   animDebug.mount(() => {
     const w = currentWeapon();
