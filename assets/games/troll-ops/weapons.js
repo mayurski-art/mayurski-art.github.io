@@ -322,6 +322,8 @@ export class WeaponState {
     this.fireCooldown = 0;
     this.reloading = false;
     this.reloadT = 0;
+    this.reloadTime = this.def.reloadTime;   // this reload's actual duration (empty vs tac)
+    this.reloadWasEmpty = true;
     this.ads = false;
     this.adsT = 0; // 0 = hip, 1 = full ADS
     this.recoilPitch = 0; // camera kick accumulators (recover over time)
@@ -343,7 +345,13 @@ export class WeaponState {
   startReload() {
     if (this.reloading || this.ammoReserve <= 0 || this.ammoInMag >= this.def.magSize) return false;
     this.reloading = true;
-    this.reloadT = this.def.reloadTime;
+    // Tac reload (a round still chambered) skips the empty-chamber beat and
+    // runs faster than a full empty-reload — DESIGN-ARMS.md Phase 3's
+    // single highest-impact reload item. `wasEmpty` is read by the
+    // viewmodel's reloadPose() to pick which stage timeline to play.
+    this.reloadWasEmpty = this.ammoInMag <= 0;
+    this.reloadTime = this.def.reloadTime * (this.reloadWasEmpty ? 1 : 0.72);
+    this.reloadT = this.reloadTime;
     return true;
   }
 

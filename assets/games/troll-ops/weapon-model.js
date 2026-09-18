@@ -203,6 +203,11 @@ export function buildWeaponMesh(def) {
   group.add(hand);
 
   // --- magazine
+  // Detachable types (box/curved/drum/long/topbox) store their mesh and rest
+  // transform on userData so Phase 3 reload choreography (game.js) can pull
+  // the mag out and swap in a fresh one instead of it being a permanently
+  // baked-in child — tube (shell-fed) and the "none" weapons intentionally
+  // don't expose this, since they don't reload with a mag swap at all.
   const magZ = bullpup ? len * 0.18 : -len * 0.14;
   if (spec.mag === "box" || spec.mag === "long") {
     const magLen = spec.mag === "long" ? 0.28 : 0.19;
@@ -210,16 +215,25 @@ export function buildWeaponMesh(def) {
     mag.position.set(0, -bodyH * 1.6 - (magLen - 0.19) * 0.5, isPistol ? len * 0.18 : magZ);
     mag.rotation.x = isPistol ? 0.32 : -0.12;
     group.add(mag);
+    group.userData.magMesh = mag;
+    group.userData.magazinePoint = mag.position.clone();
+    group.userData.magRestRotationX = mag.rotation.x;
   } else if (spec.mag === "curved") {
     const mag = box(0.044, 0.22, 0.062, darkMat);
     mag.position.set(0, -bodyH * 1.75, magZ);
     mag.rotation.x = -0.34;
     group.add(mag);
+    group.userData.magMesh = mag;
+    group.userData.magazinePoint = mag.position.clone();
+    group.userData.magRestRotationX = mag.rotation.x;
   } else if (spec.mag === "drum") {
     const drum = cyl(0.075, 0.075, 0.05, darkMat, 14);
     drum.rotation.z = Math.PI / 2;
     drum.position.set(0, -bodyH * 1.9, magZ);
     group.add(drum);
+    group.userData.magMesh = drum;
+    group.userData.magazinePoint = drum.position.clone();
+    group.userData.magRestRotationX = drum.rotation.z;
   } else if (spec.mag === "tube") {
     const tube = cyl(0.018, 0.018, len * 0.55, darkMat);
     tube.rotation.x = Math.PI / 2;
@@ -229,6 +243,9 @@ export function buildWeaponMesh(def) {
     const mag = box(0.05, 0.032, len * 0.42, darkMat);
     mag.position.set(0, bodyH * 0.62, -len * 0.1);
     group.add(mag);
+    group.userData.magMesh = mag;
+    group.userData.magazinePoint = mag.position.clone();
+    group.userData.magRestRotationX = mag.rotation.x;
   }
 
   // --- sight, and the aim point that ADS aligns to

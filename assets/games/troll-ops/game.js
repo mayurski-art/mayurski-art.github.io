@@ -32,7 +32,7 @@ import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTi
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
-import { stage, rise, damp } from "./anim-curves.js";
+import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { ZombieDirector } from "./zombies.js";
 import { zombieWindows } from "./pentagrin.js";
@@ -2802,7 +2802,10 @@ function currentWeapon() {
 
 function tryReload() {
   if (!controls.isLocked && !isTouch && !gamepadState.connected) return;
-  if (currentWeapon().startReload()) audio.reload();
+  // audio.reload() now fires from reloadPose() on the first frame w.reloading
+  // is true, so it lands in step with the visual choreography's stages
+  // rather than at the exact instant this input handler runs.
+  currentWeapon().startReload();
 }
 
 function fireOnce() {
@@ -5388,31 +5391,87 @@ function inspectMeleePose() {
   return { quat: _inspectMeleeQuat, pos: _inspectMeleePos };
 }
 
-/* Reload animation: the weapon dips down and tilts away from view for the
-   middle stretch of the reload, then rises back into position — timed off
-   the same w.reloading/reloadT the ammo swap already uses, so it needs no
-   extra state and can never fall out of sync with when ammo actually lands. */
-const _reloadPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
+/* Reload animation (DESIGN-ARMS.md Phase 3): the weapon dips down and tilts
+   away from view for the middle stretch of the reload, staged into named
+   phases keyed off normalized progress `t` (0..1) rather than one flat dip
+   — timed off the same w.reloading/reloadT/reloadTime the ammo swap already
+   uses (reloadTime is the per-instance duration set by startReload(), which
+   already differs between an empty reload and a faster tac reload), so
+   staging can never fall out of sync with when ammo actually lands.
 
-function reloadPose(w) {
+   Phase boundaries (fractions of `t`):
+     0.00-0.12  raise    - weapon dips into reload pose
+     0.12-0.42  magOut   - mag mesh drops out of the well (skipped entirely
+                            on a tac reload's shorter timeline below)
+     0.42-0.72  magIn    - fresh mag rises back into the well
+     0.72-1.00  settle   - weapon returns to combat pose
+   A tac reload (round already chambered) compresses this to raise/magIn/
+   settle only — no empty mag to visibly drop, matching startReload()'s
+   `reloadWasEmpty` branch. */
+const _reloadPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
+let reloadEventsFiredFor = null; // WeaponState instance we've already fired start/complete events for
+
+function reloadPose(w, mesh) {
   const p = _reloadPose;
-  if (!w.reloading || !w.def.reloadTime) {
+  const mag = mesh?.userData.magMesh;
+
+  if (!w.reloading || !w.reloadTime) {
     p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0;
+    if (mag) {
+      mag.visible = true;
+      mag.position.copy(mesh.userData.magazinePoint);
+    }
+    if (reloadEventsFiredFor === w) {
+      audio.reloadComplete();
+      reloadEventsFiredFor = null;
+    }
     return p;
   }
-  const total = w.def.reloadTime;
-  const t = 1 - Math.max(0, w.reloadT) / total;  // 0..1 through the reload
-  // Ease down then back up: dips hardest around the middle third, where the
-  // mag actually swaps, and eases in/out so it never snaps at either end.
-  const dip = Math.sin(Math.min(1, t / 0.3) * Math.PI / 2)
-    * Math.sin(Math.min(1, (1 - t) / 0.3) * Math.PI / 2);
 
+  if (reloadEventsFiredFor !== w) {
+    audio.reload();
+    reloadEventsFiredFor = w;
+  }
+
+  const total = w.reloadTime;
+  const t = 1 - Math.max(0, w.reloadT) / total;  // 0..1 through the reload
+
+  // Overall dip/tilt envelope: eases in over the first stage, holds through
+  // the mag swap, eases back out over the last stage — same shape as the
+  // original single dip, just driven by named stage boundaries now.
+  const dip = Math.sin(Math.min(1, t / 0.12) * Math.PI / 2)
+    * Math.sin(Math.min(1, (1 - t) / 0.28) * Math.PI / 2);
   p.x = -dip * 0.06;
   p.y = -dip * 0.16;
   p.z = dip * 0.05;
   p.pitch = dip * 0.5;
   p.yaw = -dip * 0.22;
   p.roll = dip * 0.3;
+
+  if (mag && mesh) {
+    const rest = mesh.userData.magazinePoint;
+    if (w.reloadWasEmpty) {
+      // magOut 0.12-0.42: mag mesh drops straight down and out of frame.
+      const outK = smoothstep(Math.max(0, Math.min(1, (t - 0.12) / 0.30)));
+      // magIn 0.42-0.72: a (visually identical, cheap-to-fake) fresh mag
+      // rises back into the well from below.
+      const inK = smoothstep(Math.max(0, Math.min(1, (t - 0.42) / 0.30)));
+      if (t < 0.42) {
+        mag.position.set(rest.x, rest.y - outK * 0.22, rest.z);
+        mag.visible = outK < 1;
+      } else {
+        mag.position.set(rest.x, rest.y - (1 - inK) * 0.22, rest.z);
+        mag.visible = true;
+      }
+    } else {
+      // Tac reload: round's still chambered, mag never visibly leaves —
+      // just a quick partial dip-and-reseat rather than a full swap.
+      const inK = smoothstep(Math.max(0, Math.min(1, (t - 0.2) / 0.5)));
+      mag.position.set(rest.x, rest.y - (1 - inK) * 0.08, rest.z);
+      mag.visible = true;
+    }
+  }
+
   return p;
 }
 
@@ -5534,7 +5593,7 @@ function updateWeaponView(dt) {
   landDipT = damp(landDipT, 0, 7, dt);
 
   const insp = inspectPose();
-  const rl = reloadPose(w);
+  const rl = reloadPose(w, mesh);
   const landPos = LAND_DIP_POS * landDipMag * landDipT;
   const landPitch = LAND_DIP_PITCH * landDipMag * landDipT;
   // Heavier weapons swing further into the sprint roll (def.heavy / a longer
@@ -5624,6 +5683,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     nearestHostileTo, runAirstrike, nearbyPackage, updatePickupPrompt,
     gamepadState, touchState, streakKeyLabel, keys, swapHold,
     animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,
+    tryReload, currentWeapon,
   };
   animDebug.mount(() => {
     const w = currentWeapon();
