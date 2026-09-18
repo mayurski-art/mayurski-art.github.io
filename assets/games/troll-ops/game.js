@@ -32,6 +32,8 @@ import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTi
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
+import { stage, rise, damp } from "./anim-curves.js";
+import { AnimDebugLab } from "./anim-debug.js";
 import { ZombieDirector } from "./zombies.js";
 import { zombieWindows } from "./pentagrin.js";
 import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
@@ -917,6 +919,8 @@ let sndInteractHeld = false; // physically holding E right now
 
 const audio = new GameAudio();
 let suppressT = 0;
+
+const animDebug = new AnimDebugLab();
 
 // -------------------- settings + escape menu --------------------
 
@@ -4822,6 +4826,8 @@ function animate() {
     const targetWeaponFov = 58 - w.adsT * 8;
     weaponCamera.fov += (targetWeaponFov - weaponCamera.fov) * Math.min(1, dt * 10);
     weaponCamera.updateProjectionMatrix();
+
+    animDebug.update();
   }
 
   if (gameState === "menu") {
@@ -5152,7 +5158,7 @@ function updateMeleeView(dt) {
     // Sprinting drops the blade out of guard the same way a sprinting gun
     // lowers out of the sight line.
     const wantLower = move.sprinting ? 1 : 0;
-    meleeLowerT += (wantLower - meleeLowerT) * Math.min(1, dt * 9);
+    meleeLowerT = damp(meleeLowerT, wantLower, 9, dt);
     mesh.position.y -= meleeLowerT * 0.1;
     mesh.position.z += meleeLowerT * 0.08;
     mesh.rotateX(meleeLowerT * 0.5);
@@ -5231,23 +5237,7 @@ function updateInspect(dt) {
   inspectT = Math.max(0, inspectT - dt);
 }
 
-/* Each archetype gets its own staged motion (raise -> business -> settle)
-   rather than one continuous wave, so it reads as a deliberate action instead
-   of a wobble. `t` is 0..1 through the animation; `stage(a,b)` returns 0..1
-   eased progress between two points in that timeline, 0 outside it. */
-function stage(t, a, b) {
-  if (t <= a || t >= b) return 0;
-  const k = (t - a) / (b - a);
-  return Math.sin(k * Math.PI); // eases in and back out, peaks mid-stage
-}
-function rise(t, a, b) {
-  // Monotonic 0->1 ease across the stage, then holds at 1 (for moves that
-  // land and stay, like a twirl settling the muzzle back level).
-  if (t <= a) return 0;
-  if (t >= b) return 1;
-  const k = (t - a) / (b - a);
-  return k * k * (3 - 2 * k);
-}
+// stage()/rise() now live in anim-curves.js, imported above.
 
 const _inspectPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
 function _zeroPose(p) { p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0; return p; }
@@ -5432,6 +5422,20 @@ function updateLaserBeam(mesh, w) {
   beam.visible = true;
 }
 
+/* Viewmodel animation layers, composed additively in this fixed order
+   (DESIGN-ARMS.md §3.1) — every new term this system gains belongs in one
+   of these, not a parallel transform:
+     1. base pose      - hip<->ADS lerp (basePos)
+     2. movement       - bob (bobX/Y), sway (swayX/Y)
+     3. inertia        - swaySmoothX/Y lag, weaponLowerT sprint/slide/busy lower
+     4. recoil         - viewKick*
+     5. reload/action  - rl (reloadPose)
+     6. melee          - handled separately in updateMeleeView; REPLACES the
+                         base pose outright during an active swing rather
+                         than adding to it
+     7. camera reaction - lives outside this function entirely; must stay a
+                         smaller, separately-tuned effect, never the same
+                         numbers as the viewmodel response above */
 function updateWeaponView(dt) {
   const w = currentWeapon();
   updateInspect(dt);
@@ -5465,7 +5469,7 @@ function updateWeaponView(dt) {
 
   // Gun drops out of the way while sprinting, sliding or vaulting.
   const wantLower = (move.sprinting || move.stance === STANCE.SLIDE || move.busy) ? 1 : 0;
-  weaponLowerT += (wantLower - weaponLowerT) * Math.min(1, dt * 9);
+  weaponLowerT = damp(weaponLowerT, wantLower, 9, dt);
 
   const insp = inspectPose();
   const rl = reloadPose(w);
@@ -5534,6 +5538,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     setMode: (id) => { modeId = id; },
     THREE,
     activeMeleeMesh: () => activeMeleeMesh,
+    activeWeaponMesh: () => activeWeaponMesh,
     matchClockT: () => matchClockT,
     resetMatchClock, swingMelee,
     activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
@@ -5549,6 +5554,23 @@ if (/[?&]tohooks=1/.test(location.search)) {
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,
     nearestHostileTo, runAirstrike, nearbyPackage, updatePickupPrompt,
     gamepadState, touchState, streakKeyLabel, keys, swapHold,
+    animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,
   };
+  animDebug.mount(() => {
+    const w = currentWeapon();
+    return {
+      weapon: w.def?.name ?? w.id ?? "-",
+      holding: player.holding,
+      adsT: w.adsT.toFixed(2),
+      reloading: w.reloading, reloadT: w.reloadT?.toFixed?.(2) ?? "-",
+      sprinting: move.sprinting, stance: move.stance,
+      grounded: move.grounded, jumping: move.jumping,
+      justLanded: move.justLanded, landSpeed: move.landSpeed?.toFixed?.(2) ?? "-",
+      velocity: move.velocity ? `${move.velocity.x.toFixed(1)},${move.velocity.y.toFixed(1)},${move.velocity.z.toFixed(1)}` : "-",
+      meleeBusy: player.melee?.busy, meleeT: player.melee?.t?.toFixed?.(2) ?? "-",
+      inspectT: inspectT.toFixed(2),
+      markingStreak: markingStreak ?? "-",
+    };
+  });
 }
 

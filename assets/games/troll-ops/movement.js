@@ -9,6 +9,7 @@
 // surfaces instead of invisible walls.
 
 import * as THREE from "three";
+import { smoothstep, damp } from "./anim-curves.js";
 
 export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE: "prone", VAULT: "vault" };
 
@@ -171,7 +172,7 @@ export class MovementController {
     if (this.vault) {
       this.vault.t += dt;
       const k = Math.min(1, this.vault.t / VAULT_TIME);
-      const ease = k * k * (3 - 2 * k);
+      const ease = smoothstep(k);
       this.pos.lerpVectors(this.vault.from, this.vault.to, ease);
       this.pos.y = this.vault.from.y + (this.vault.to.y - this.vault.from.y) * ease + Math.sin(k * Math.PI) * 0.18;
       if (k >= 1) {
@@ -329,7 +330,7 @@ export class MovementController {
   /* Eases eye height toward the current stance's target. */
   applyEye(dt) {
     const targetEye = EYE[this.stance] ?? EYE.stand;
-    this.eyeHeight += (targetEye - this.eyeHeight) * Math.min(1, dt * 12);
+    this.eyeHeight = damp(this.eyeHeight, targetEye, 12, dt);
   }
 
   /* Where the camera goes this frame. */

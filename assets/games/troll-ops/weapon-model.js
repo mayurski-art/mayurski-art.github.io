@@ -94,7 +94,7 @@ function buildTankLauncher(def, spec, len) {
   grip.position.set(0, -bodyH * 1.4, len * 0.3);
   grip.rotation.x = 0.28;
   group.add(grip);
-  const hand = buildGripHand();
+  const hand = buildGripHand(bodyH / 0.07);
   hand.position.copy(grip.position);
   hand.rotation.copy(grip.rotation);
   group.add(hand);
@@ -195,7 +195,9 @@ export function buildWeaponMesh(def) {
   grip.position.set(0, -bodyH * (isPistol ? 1.1 : 1.3), isPistol ? len * 0.18 : len * 0.02);
   grip.rotation.x = 0.32;
   group.add(grip);
-  const hand = buildGripHand();
+  // Scale=1 is tuned against the standard (non-heavy, non-pistol) bodyH of
+  // 0.07 — every other weapon's hand scales proportionally to its own grip.
+  const hand = buildGripHand(bodyH / 0.07);
   hand.position.copy(grip.position);
   hand.rotation.copy(grip.rotation);
   group.add(hand);
