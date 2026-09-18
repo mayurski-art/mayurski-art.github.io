@@ -28,9 +28,15 @@ class BroadcastTransport {
   close() { this.ch?.close(); this.ch = null; }
 }
 
+const RECONNECT_DELAY = 1500;
+
 class SupabaseTransport {
   constructor() { this.kind = "online"; }
-  connect(room, onMsg) {
+  connect(room, onMsg, onStatus) {
+    this.room = room;
+    this.onMsg = onMsg;
+    this.onStatus = onStatus;
+    this.closed = false;
     return new Promise((resolve) => {
       try {
         if (!window.supabase?.createClient) return resolve(false);
@@ -38,20 +44,39 @@ class SupabaseTransport {
           auth: { persistSession: false },
           realtime: { params: { eventsPerSecond: 30 } },
         });
-        this.chan = this.client.channel("trollops:" + room, { config: { broadcast: { self: false } } });
-        this.chan.on("broadcast", { event: "to" }, (p) => onMsg(p.payload));
-        const timeout = setTimeout(() => resolve(false), 6000);
-        this.chan.subscribe((status) => {
-          if (status === "SUBSCRIBED") { clearTimeout(timeout); resolve(true); }
-          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") { clearTimeout(timeout); resolve(false); }
-        });
+        this._subscribe(room, (ok) => resolve(ok), { initial: true });
       } catch { resolve(false); }
+    });
+  }
+  /* Wires a fresh channel and, past the initial connect, keeps retrying on
+     drop instead of leaving the game silently unable to send or receive —
+     a WiFi blip or laptop sleep mid-match used to strand every peer with no
+     recovery besides PEER_TIMEOUT quietly dropping them. */
+  _subscribe(room, onInitial, { initial } = {}) {
+    try { if (this.chan) this.client.removeChannel(this.chan); } catch { /* ignore */ }
+    this.chan = this.client.channel("trollops:" + room, { config: { broadcast: { self: false } } });
+    this.chan.on("broadcast", { event: "to" }, (p) => this.onMsg?.(p.payload));
+    const timeout = setTimeout(() => { if (initial) onInitial?.(false); }, 6000);
+    this.chan.subscribe((status) => {
+      if (this.closed) return;
+      if (status === "SUBSCRIBED") {
+        clearTimeout(timeout);
+        if (initial) onInitial?.(true);
+        else this.onStatus?.("reconnected");
+      }
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        clearTimeout(timeout);
+        if (initial) { onInitial?.(false); return; }
+        this.onStatus?.("dropped");
+        setTimeout(() => { if (!this.closed) this._subscribe(this.room, null, { initial: false }); }, RECONNECT_DELAY);
+      }
     });
   }
   send(msg) {
     try { this.chan?.send({ type: "broadcast", event: "to", payload: msg }); } catch { /* non-fatal */ }
   }
   close() {
+    this.closed = true;
     try { if (this.chan) this.client.removeChannel(this.chan); } catch { /* ignore */ }
     this.chan = null;
   }
@@ -102,8 +127,9 @@ export class Net {
     this.mapId = mapId;
 
     const onMsg = (m) => this.onMessage(m);
+    const onStatus = (s) => this.h.onNetStatus?.(s);
     let t = new SupabaseTransport();
-    let ok = await t.connect(this.room, onMsg);
+    let ok = await t.connect(this.room, onMsg, onStatus);
     if (!ok) {
       t = new BroadcastTransport();
       ok = await t.connect(this.room, onMsg);

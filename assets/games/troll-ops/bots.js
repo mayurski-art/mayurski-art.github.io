@@ -390,8 +390,12 @@ export class BotManager {
       return f;
     };
 
+    // navFor is stable for the whole frame (it only reads frameFields/fieldPool,
+    // both scoped above), so it can ride on ctx itself instead of spreading a
+    // fresh object per bot per frame.
+    ctx.navFor = navFor;
     for (const bot of this.bots) {
-      bot.update(dt, { ...ctx, navFor });
+      bot.update(dt, ctx);
       if (!bot.alive && bot.respawnT <= 0) bot.respawn(ctx.spawnFor(bot.team, bot.id));
     }
   }

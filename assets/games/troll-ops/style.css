@@ -1071,6 +1071,8 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-touch-slide { left: 134px; bottom: 30px; width: 56px; height: 56px; font-size: 10px; }
 .to-touch-melee { right: 130px; bottom: 96px; width: 50px; height: 50px; font-size: 9px; }
 .to-touch-nade { right: 66px; bottom: 148px; width: 50px; height: 50px; font-size: 9px; }
+.to-touch-tactical { right: 16px; bottom: 196px; width: 46px; height: 46px; font-size: 8px; }
+.to-touch-score { left: 84px; bottom: 198px; width: 40px; height: 40px; font-size: 8px; background: rgba(255,255,255,.07); }
 .to-touch-interact { left: 134px; bottom: 96px; width: 50px; height: 50px; font-size: 14px; background: rgba(255,138,90,.22); }
 .to-touch-swap { left: 22px; bottom: 136px; width: 52px; height: 52px; font-size: 14px; }
 /* Only rendered while something is actually callable, so it can sit in the

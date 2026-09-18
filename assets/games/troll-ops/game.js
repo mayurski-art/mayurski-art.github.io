@@ -145,9 +145,11 @@ const els = {
   touchSlide: document.getElementById("to-touch-slide"),
   touchMelee: document.getElementById("to-touch-melee"),
   touchNade: document.getElementById("to-touch-nade"),
+  touchTactical: document.getElementById("to-touch-tactical"),
   touchInteract: document.getElementById("to-touch-interact"),
   touchSwap: document.getElementById("to-touch-swap"),
   touchStreak: document.getElementById("to-touch-streak"),
+  touchScore: document.getElementById("to-touch-score"),
   gearMelee: document.getElementById("to-gear-melee"),
   gearMeleeName: document.getElementById("to-gear-melee-name"),
   gearLethal: document.getElementById("to-gear-lethal"),
@@ -1517,6 +1519,13 @@ const net = new Net({
   // Bots filling the room isn't news; only announce real people.
   onJoin: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} joined`); },
   onLeave: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} left`); },
+  // A dropped Realtime channel mid-match used to fail silently — peers just
+  // froze in place and eventually vanished via PEER_TIMEOUT with nothing
+  // telling the affected player their connection blipped and is retrying.
+  onNetStatus: (s) => {
+    if (s === "dropped") pushKillfeed("Connection lost — reconnecting…");
+    if (s === "reconnected") pushKillfeed("Reconnected");
+  },
   // `hd` has always been on the wire; we just never read it.
   onHitTaken: (m) => damagePlayer(m.dmg, m.id, m.w, !!m.hd),
   onPeerDied: (p, m) => {
@@ -2350,12 +2359,18 @@ els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); tryR
 els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); swingMelee(); });
 // Touch cooks for as long as the button is held, same as the key.
 bindHold(els.touchNade, () => startCook("lethal"), () => releaseCook());
+if (els.touchTactical) bindHold(els.touchTactical, () => startCook("tactical"), () => releaseCook());
 bindHold(els.touchInteract, () => touchState.interact = true, () => touchState.interact = false);
 bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = false);
 // A tap, not a hold — and it doubles as the confirm for a marked spot, the
 // same way the key and the d-pad do.
 if (els.touchStreak) {
   els.touchStreak.addEventListener("touchstart", (e) => { e.preventDefault(); callReadyStreak(); });
+}
+// Scoreboard has no keyup on touch, so it's hold-to-show like the Tab key
+// rather than a toggle — releasing anywhere on the button dismisses it.
+if (els.touchScore) {
+  bindHold(els.touchScore, () => { renderScoreboard(); els.scoreboard.hidden = false; }, () => { els.scoreboard.hidden = true; });
 }
 
 // -------------------- gamepad --------------------
@@ -2508,6 +2523,13 @@ function pollGamepad(dt) {
     // handled below by updatePickupPrompt reading gamepadState.pickup.
     if (pressedEdge(15) && !nearbyPackage() && !pickups.nearest(move.pos.x, move.pos.z)) {
       useSelectedStreak();
+    }
+    // Scoreboard has no natural pad equivalent to keyboard's Tab, so it rides
+    // L3 (left stick click) — unused elsewhere here and out of the way of
+    // movement since it's a click, not a stick deflection.
+    if (isPvp()) {
+      if (pressedEdge(10)) { renderScoreboard(); els.scoreboard.hidden = false; }
+      if (gpPrev[10] && !btn(10)) els.scoreboard.hidden = true;
     }
   }
   // D-pad right, held: the pad's equivalent of holding X for swap/pickup/
@@ -3965,6 +3987,7 @@ function beginMatch(mapId = null) {
   els.hudHostilesBox.hidden = (pvp && !snd) || isRange();
   els.bombStatus.hidden = !snd;
   if (els.touchInteract) els.touchInteract.hidden = !snd;
+  if (els.touchScore) els.touchScore.hidden = !pvp;
   els.rangeHud.hidden = !isRange();
   updateRangeHud();
   document.getElementById("hud-l-wave").textContent = isZombies() || snd ? "Round" : "Wave";
@@ -4126,6 +4149,10 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts
   const gained = isPvp()
     ? player.matchXp + xpForMatch({ won: !!opts.won, completed: !!opts.completed })
     : xpForRun({ kills: player.kills, wave: player.wave });
+  // Zero the banked amount now — gameState is "gameover" from here on, but the
+  // visibilitychange handler below still flushes matchXp on every alt-tab and
+  // would otherwise re-award it a second time on the result screen.
+  player.matchXp = 0;
   const { rankedUp, rank } = addXp(gained);
   els.goXp.textContent = `+${gained.toLocaleString()} XP`;
   els.goRank.textContent = rankedUp ? `Rank up — now rank ${rank}` : "";
@@ -4330,7 +4357,7 @@ document.addEventListener("visibilitychange", () => {
   // Backgrounding the tab is also the last reliable moment to flush banked
   // match XP — a closed tab never runs another frame, so this can't wait
   // for the "playing" branch above's later logic or a normal match end.
-  if (document.hidden && isPvp() && player.matchXp > 0) {
+  if (document.hidden && gameState === "playing" && isPvp() && player.matchXp > 0) {
     addXp(player.matchXp);
     player.matchXp = 0;
   }
