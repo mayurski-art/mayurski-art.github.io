@@ -1,11 +1,17 @@
 # Troll Ops — first-person hand/arm + BO2-grade viewmodel animation
 ### Design doc v3 — layered animation architecture, merged with external review
 
-Status: **Phases 0-5 shipped and verified on branch
-`troll-ops-viewmodel-anim`, not yet merged to main.** Phase 6 is
-explicitly conditional per its own section below — not started, and
-shouldn't be until Phases 1-5 are played and reviewed in-game first.
-This revision keeps v2's grounded "what exists today" audit
+Status: **Phases 0-6 shipped and verified on branch
+`troll-ops-viewmodel-anim`, not yet merged to main.** All phases
+this doc scopes are complete. Two items were explicitly skipped rather
+than force-built with no way to verify them, and are documented at
+their own section rather than silently dropped: Phase 4's per-melee-
+class weight scaling (only one melee weapon exists in `MELEE_DEFS`
+today) and Phase 6's directional hit reaction (`damagePlayer()` has no
+direction/position parameter to key off — `fromId` is an actor id
+string, not a resolvable hit vector, and adding that resolution was
+out of this phase's scope). This revision keeps v2's grounded "what
+exists today" audit
 (still accurate, re-verified below) but restructures the plan around
 an explicit **animation-ownership architecture** — layers, interaction
 points, and an event system — per a structural review this doc went
@@ -394,6 +400,24 @@ kick, recoil kick, sprint camera movement, melee impact, and — if the
 gameplay damage system supports a direction — a subtle directional hit
 reaction (left/right/front/behind camera/viewmodel nudge). All subtle;
 the target is felt motion, not visible screen shake.
+
+**Built:** landing kick and melee-impact kick, both small separate
+pitch nudges layered into the existing `viewYaw`/`viewPitch` camera
+composition in `updatePlayer()` (`game.js`), keyed off the same
+`landDipT`/`landDipMag` and `meleeImpactT` state Phases 2 and 4 already
+maintain — no new trigger logic, just a smaller-magnitude echo.
+**Recoil kick** and **sprint camera movement** were already present
+before this doc (`w.recoilPitch`/`recoilYaw` in the same composition;
+the FOV kick at `move.sprinting` in `animate()`) and needed no new
+work. **Skipped: directional hit reaction.** Checked every
+`damagePlayer(amount, fromId, weaponId, isHead)` call site
+(`game.js`) — `fromId` is an actor id string (bot id, net peer id, or
+`null`), never a position or direction vector, so there is no hit
+direction to key off without adding new lookup/resolution plumbing
+(resolve `fromId` to a live actor, get its position, handle the actor
+having already despawned) that this phase's scope doesn't call for.
+Revisit if/when the damage system is extended to carry a hit direction
+for some other reason.
 - **Completion requirement:** the full system (Phases 1-5 + this) reads
   as one cohesive feel, not stacked independent effects — re-run the
   transition test matrix in §6.3 end to end.

@@ -5103,8 +5103,17 @@ function updatePlayer(dt) {
   updateLocalRig(dt);
 
   const shake = shakeT > 0 ? shakeMag * (shakeT / 0.45) : 0;
+  // Phase 6 (DESIGN-ARMS.md §5, camera polish): small, separately-tuned
+  // camera-only echoes of the viewmodel's own landing dip and melee impact-
+  // stop — same trigger state (landDipT/landDipMag, meleeImpactT), much
+  // smaller magnitude, so the whole screen never shakes as hard as the gun
+  // moves. Read one frame behind their viewmodel counterparts (updatePlayer
+  // runs before updateWeaponView each frame) — imperceptible on a decaying
+  // effect, not worth reordering the main loop over.
+  const landKick = landDipMag * landDipT * 0.05;
+  const meleeKick = meleeImpactT * 0.03;
   const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake;
-  const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake;
+  const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick;
 
   if (settings.thirdPerson) {
     localRig.root.visible = true;
@@ -5798,6 +5807,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     targetMeshes: () => targetMeshes, meleeConnect,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
     beginStreakHold, endStreakHold,
+    landDipT: () => landDipT, landDipMag: () => landDipMag,
   };
   animDebug.mount(() => {
     const w = currentWeapon();
