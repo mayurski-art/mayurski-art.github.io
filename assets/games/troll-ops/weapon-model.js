@@ -5,6 +5,7 @@
 // the same code path looking like themselves.
 
 import * as THREE from "three";
+import { buildGripHand } from "./hand-model.js";
 
 const MATS = {
   body:   () => new THREE.MeshStandardMaterial({ color: 0x4a4f48, roughness: 0.4, metalness: 0.7 }),
@@ -93,6 +94,10 @@ function buildTankLauncher(def, spec, len) {
   grip.position.set(0, -bodyH * 1.4, len * 0.3);
   grip.rotation.x = 0.28;
   group.add(grip);
+  const hand = buildGripHand();
+  hand.position.copy(grip.position);
+  hand.rotation.copy(grip.rotation);
+  group.add(hand);
   const trigger = box(0.03, 0.05, 0.04, darkMat);
   trigger.position.set(0, -bodyH * 0.7, len * 0.2);
   group.add(trigger);
@@ -190,6 +195,10 @@ export function buildWeaponMesh(def) {
   grip.position.set(0, -bodyH * (isPistol ? 1.1 : 1.3), isPistol ? len * 0.18 : len * 0.02);
   grip.rotation.x = 0.32;
   group.add(grip);
+  const hand = buildGripHand();
+  hand.position.copy(grip.position);
+  hand.rotation.copy(grip.rotation);
+  group.add(hand);
 
   // --- magazine
   const magZ = bullpup ? len * 0.18 : -len * 0.14;
