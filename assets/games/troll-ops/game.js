@@ -16,7 +16,7 @@ import { StreakPicker } from "./streak-picker.js";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
 import {
   CarePackage, HunterDrone, HelicopterGunship, ReconPlane, StrikeJet,
-  PACKAGE_CLAIM_RADIUS, DRONE_DAMAGE, DRONE_KILL_RADIUS,
+  PACKAGE_CLAIM_RADIUS, DRONE_DAMAGE, DRONE_KILL_RADIUS, DRONE_SPLASH_RADIUS,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE, RECON_ALTITUDE, JET_ALTITUDE,
 } from "./streak-entities.js";
@@ -255,11 +255,11 @@ const loadout = new Loadout({
   gear: document.getElementById("to-lo-gear"),
   rank: els.loRank,
   rankFill: els.loRankFill,
-}, () => {
+}, (activeWeapon) => {
   refreshLobbyMap();
   if (inspectorLive) {
     const gearPanel = document.getElementById("to-pfp-gear");
-    inspector?.show(gearPanel && !gearPanel.hidden ? loadout.melee : loadout.resolved);
+    inspector?.show(gearPanel && !gearPanel.hidden ? loadout.melee : activeWeapon);
   }
 });
 
@@ -514,9 +514,13 @@ function fireStreak(id, at = null) {
     case "drone": {
       const eid = `streak-drone-${net.id}-${Math.round(performance.now())}`;
       const victim = nearestHostileTo(move.pos);
-      spawnDrone({ id: eid, targetId: victim?.id || null, owned: true });
+      // RemotePlayer keys itself by `.netId` (remote-players.js), not `.id` —
+      // reading `.id` here was always undefined, so the drone launched with
+      // no target, flew a dead-straight line off its spawn heading, and
+      // burned out without ever getting near DRONE_KILL_RADIUS.
+      spawnDrone({ id: eid, targetId: victim?.netId || null, owned: true });
       if (net.active) {
-        net.publishStreak({ kind: "drone", action: "launch", eid, target: victim?.id || null });
+        net.publishStreak({ kind: "drone", action: "launch", eid, target: victim?.netId || null });
       }
       showWaveBanner(victim ? "HUNTER-KILLER AWAY" : "HUNTER-KILLER — no target", 1600);
       break;
@@ -552,15 +556,10 @@ function fireStreak(id, at = null) {
 
 function round2(v) { return Math.round(v * 100) / 100; }
 
-/* What's in the box. Weighted so ammo is the common result and a free streak
-   is the prize; no care packages in the streak pool or they chain forever. */
+/* What's in the box. Securing a package always hands out a random free
+   scorestreak (charged, ready to call in immediately) — no care packages in
+   the streak pool or they'd chain forever. */
 function rollPackageReward() {
-  const r = Math.random();
-  if (r < 0.42) return "ammo";
-  if (r < 0.72) {
-    const pool = Object.keys(WEAPON_DEFS).filter((id) => WEAPON_DEFS[id].rank <= 30);
-    return `weapon:${pool[Math.floor(Math.random() * pool.length)]}`;
-  }
   const pick = PACKAGE_STREAK_POOL[Math.floor(Math.random() * PACKAGE_STREAK_POOL.length)];
   return `streak:${pick}`;
 }
@@ -703,6 +702,18 @@ function updateStreakEntities(dt) {
         // Damage goes through the ordinary hit path, so a drone kill credits
         // and killfeeds exactly like a bullet one.
         dealDamageToRemote(target, DRONE_DAMAGE, "drone");
+        // It's a warhead, not a bullet — anyone else standing close to the
+        // target when it hits goes down too, teammate or not. A friendly
+        // caught in it gets its own callout instead of vanishing quietly
+        // into the killfeed as a regular team-damage line.
+        const ffa = currentMode().ffa;
+        for (const rp of remotes.byId.values()) {
+          if (rp.id === target.id || !rp.alive) continue;
+          if (rp.pos.distanceTo(target.pos) > DRONE_SPLASH_RADIUS) continue;
+          const friendly = !ffa && net.team && rp.team === net.team;
+          dealDamageToRemote(rp, DRONE_DAMAGE, "drone");
+          if (friendly) killstreakUi.note("GET TROLLED", "tier-note");
+        }
         if (net.active) net.publishStreak({ kind: "drone", action: "kill", eid: id });
       } else if (out === "expire" && e.owned) {
         explosionFx({ kind: "tactical", glow: 0xffa23a, radius: 3 }, e.root.position);
@@ -1245,7 +1256,7 @@ function showLobbyPanel(name) {
 
   if (name === "loadout" || name === "customize") {
     mountGunView(name);
-    inspector?.show(loadout.resolved);
+    inspector?.show(loadout.resolvedActive);
   } else if (name === "gear") {
     mountGunView(name);
     inspector?.show(loadout.melee);
@@ -1951,6 +1962,21 @@ function drawMinimap() {
       ctx.lineWidth = 1;
       ctx.strokeRect(1.5, 1.5, size - 3, size - 3);
     }
+
+    // Care packages beacon their own position by radio the moment they
+    // land — that's independent of UAV, so it stays on screen whether or
+    // not a UAV is currently up.
+    for (const e of streakEntities.values()) {
+      if (!(e instanceof CarePackage) || e.claimed) continue;
+      const [x, z] = mapToMinimap(e.x, e.z);
+      ctx.fillStyle = "#f5c542";
+      ctx.beginPath();
+      ctx.moveTo(x, z - 5);
+      ctx.lineTo(x + 5, z + 4);
+      ctx.lineTo(x - 5, z + 4);
+      ctx.closePath();
+      ctx.fill();
+    }
   } else if (zdir) {
     for (const z of zdir.zombies) {
       if (!z.alive || z.dying) continue;
@@ -2316,8 +2342,8 @@ window.addEventListener("keydown", (e) => {
   }
   // Range-only live tuning, so a sensitivity change can be felt immediately.
   if (isRange() && gameState === "playing" && !localPauseOnly) {
-    if (e.code === "Minus") nudgeSetting("sens", -5, 20, 300);
-    if (e.code === "Equal") nudgeSetting("sens", 5, 20, 300);
+    if (e.code === "Minus") nudgeSetting("sens", -5, 0, 200);
+    if (e.code === "Equal") nudgeSetting("sens", 5, 0, 200);
     if (e.code === "BracketLeft") nudgeSetting("fov", -1, 60, 100);
     if (e.code === "BracketRight") nudgeSetting("fov", 1, 60, 100);
   }
@@ -2458,8 +2484,8 @@ function deadzone(v) { return Math.abs(v) < GP_DEADZONE ? 0 : v; }
    play never touches this; a controller reticle just moves slower and less
    precisely than a mouse cursor, so this buys back some of that gap instead
    of asking for full aim-bot lock. */
-const AIM_ASSIST_CONE = Math.cos(THREE.MathUtils.degToRad(7));   // ~14° wide search cone
-const AIM_ASSIST_SLOWDOWN_CONE = Math.cos(THREE.MathUtils.degToRad(3.5));
+const AIM_ASSIST_CONE_DEG = 7;   // ~14° wide search cone at the default (hip) FOV
+const AIM_ASSIST_SLOWDOWN_DEG = 3.5;
 const AIM_ASSIST_RANGE = 55;
 const AIM_ASSIST_PULL = 3.4;       // rad/sec at the very centre of a lock
 const AIM_ASSIST_SLOWDOWN = 0.45;  // multiplies the player's own stick turn near a target
@@ -2474,6 +2500,13 @@ function findAimAssistTarget() {
   camera.getWorldPosition(_aaOrigin);
   camera.getWorldDirection(_aaForward);
 
+  // The cone is a screen-space angle, not a world one: zoomed in (lower FOV)
+  // the same enemy silhouette covers more of the screen, so the search cone
+  // has to narrow with it or assist gets stronger while ADS/scoped and
+  // weaker at hip-fire relative to what's actually on screen.
+  const fovScale = camera.fov / baseFov;
+  const cone = Math.cos(THREE.MathUtils.degToRad(AIM_ASSIST_CONE_DEG * fovScale));
+
   let best = null, bestDot = -Infinity;
   for (const o of occupants()) {
     if (o.id === net.id) continue;
@@ -2486,10 +2519,10 @@ function findAimAssistTarget() {
     _aaToTarget.multiplyScalar(1 / dist);
 
     const dot = _aaToTarget.dot(_aaForward);
-    if (dot < AIM_ASSIST_CONE) continue;
+    if (dot < cone) continue;
     if (segmentBlocked(colliders, _aaOrigin, { x: o.pos.x, y: o.pos.y + 1.3, z: o.pos.z })) continue;
 
-    if (dot > bestDot) { bestDot = dot; best = { pos: o.pos, dot }; }
+    if (dot > bestDot) { bestDot = dot; best = { pos: o.pos, dot, cone }; }
   }
   return best;
 }
@@ -2517,12 +2550,14 @@ function applyAimAssist(dt) {
 
   // Pull strength eases out toward the edge of the cone rather than cutting
   // off sharply, so entering/leaving lock doesn't feel like a snap.
-  const edge = (target.dot - AIM_ASSIST_CONE) / (1 - AIM_ASSIST_CONE);
+  const edge = (target.dot - target.cone) / (1 - target.cone);
   const pull = AIM_ASSIST_PULL * edge * dt;
   look.yaw += THREE.MathUtils.clamp(dYaw, -pull, pull);
   look.pitch += THREE.MathUtils.clamp(dPitch, -pull, pull);
 
-  if (target.dot > AIM_ASSIST_SLOWDOWN_CONE) {
+  const fovScale = camera.fov / baseFov;
+  const slowdownCone = Math.cos(THREE.MathUtils.degToRad(AIM_ASSIST_SLOWDOWN_DEG * fovScale));
+  if (target.dot > slowdownCone) {
     gamepadState.lookDX *= AIM_ASSIST_SLOWDOWN;
     gamepadState.lookDY *= AIM_ASSIST_SLOWDOWN;
   }
@@ -2780,7 +2815,7 @@ function showWaveBanner(text, ms = 1800) {
    changes; the meter itself is just a width. */
 function updateStreakHud() {
   if (!els.ssHud) return;
-  const on = streaksAllowed(currentMode()) && streaks.selected.length > 0;
+  const on = streaksAllowed(currentMode()) && (streaks.selected.length > 0 || streaks.readyIds().length > 0);
   els.ssHud.hidden = !on;
   // On a phone the button only exists when there's something to call —
   // an always-on dead button is just lost screen space.
@@ -2798,12 +2833,16 @@ function updateStreakHud() {
   // On a pad, a ready streak also needs to show WHICH one d-pad right will
   // fire — d-pad down moved off "call directly" onto "pick", so the ready
   // key alone no longer says that.
+  // A care package can grant a streak outside the loadout's three picks
+  // (rollPackageReward/grant) — it still needs its own slot or securing the
+  // package looks like it did nothing.
+  const slotIds = streaks.selected.concat(streaks.readyIds().filter((id) => !streaks.selected.includes(id)));
   const signature = `${key}|${onPad ? selectedStreak : ""}|`
-    + streaks.selected.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
+    + slotIds.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
   if (els.ssSlots.dataset.sig !== signature) {
     els.ssSlots.dataset.sig = signature;
     els.ssSlots.innerHTML = "";
-    for (const id of streaks.selected) {
+    for (const id of slotIds) {
       const def = STREAK_DEFS[id];
       const ready = streaks.ready(id);
       const isSelected = onPad && ready && id === selectedStreak;
@@ -3309,9 +3348,13 @@ function updatePickupPrompt(dt) {
 
   if (els.pickupPrompt) {
     if ((pkg || drop) && player.alive) {
+      // Keyboard holds X; the pad's equivalent is D-pad right (see the
+      // comment above gamepadState.pickup) — the prompt has to say whichever
+      // one the player is actually using or "Hold X" reads as broken on pad.
+      const holdKey = gamepadState.connected ? "D-pad right" : "X";
       const label = pkg
-        ? (swapHold.active ? "Opening the package…" : "Hold X to open the package")
-        : (swapHold.active ? `Picking up ${drop.def.name}…` : `Hold X to pick up ${drop.def.name}`);
+        ? (swapHold.active ? "Opening the package…" : `Hold ${holdKey} to open the package`)
+        : (swapHold.active ? `Picking up ${drop.def.name}…` : `Hold ${holdKey} to pick up ${drop.def.name}`);
       els.pickupPrompt.hidden = false;
       els.pickupPromptText.textContent = label;
       els.pickupBarFill.style.width = `${Math.round(swapHold.progress * 100)}%`;
@@ -5056,7 +5099,10 @@ function updatePlayer(dt) {
 
   // Q aims as well as right mouse.
   // An EMP kills the optic, so there is nothing to aim down until it clears.
-  const wantAds = !frozen && empT <= 0
+  // Calling a streak swaps the hands to the streak device/marker, so the
+  // primary's optic has no business popping up over it (that's the "scoped
+  // weapon flash" glitch when activating a killstreak while holding ADS).
+  const wantAds = !frozen && empT <= 0 && player.holding !== "streak"
     && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
   const wantFire = !frozen && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
   if (isSnd()) sndInteractHeld = !frozen && ((isTouch && touchState.interact) || keys.has("KeyE"));

@@ -115,6 +115,10 @@ export class Loadout {
 
   get resolved() { return resolveWeapon(this.weaponId, this.attachmentsFor(this.weaponId)); }
   get resolvedSecondary() { return resolveWeapon(this.secondaryId, this.attachmentsFor(this.secondaryId)); }
+  // Whichever of the two the slot toggle currently has open — for previews
+  // (the 3D inspector), never for equipping: equipFromLoadout always wants
+  // `resolved`/`resolvedSecondary` specifically, not "whatever's on screen".
+  get resolvedActive() { return resolveWeapon(this.activeId, this.attachments); }
 
   get melee() { return MELEE_DEFS[this.meleeId]; }
   get lethal() { return THROWABLE_DEFS[this.lethalId]; }
@@ -131,7 +135,7 @@ export class Loadout {
       attachments: this.attachmentsByWeapon,
       meleeId: this.meleeId, lethalId: this.lethalId, tacticalId: this.tacticalId,
     });
-    this.onChange(this.resolved);
+    this.onChange(this.resolvedActive);
   }
 
   buildMaps() {
@@ -206,6 +210,11 @@ export class Loadout {
         this.cls = WEAPON_DEFS[this.activeId].cls;
         this.buildClasses();
         this.render();
+        // Nothing about switching slots touches weaponId/secondaryId, so
+        // persist() (the usual onChange trigger) never runs here — without
+        // this the 3D preview keeps showing whichever weapon was up before
+        // the toggle, i.e. the secondary never actually appears.
+        this.onChange(this.resolvedActive);
       });
       wrap.appendChild(b);
     }

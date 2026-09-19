@@ -22,6 +22,9 @@ export const DRONE_TURN = 2.8;             // rad/s
 export const DRONE_LIFETIME = 12;
 export const DRONE_KILL_RADIUS = 2.6;
 export const DRONE_DAMAGE = 180;           // lethal on a clean hit
+export const DRONE_SPLASH_RADIUS = 6;      // it's a warhead, not a bullet — anyone standing this
+                                            // close to the target when it hits goes down too,
+                                            // friend or foe
 
 export const AIRSTRIKE_DELAY = 5.0;        // mark → impact
 export const AIRSTRIKE_RADIUS = 11;

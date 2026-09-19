@@ -166,7 +166,10 @@ export class StreakState {
   /* Banked and ready to call. */
   ready(id) { return (this.charges[id] || 0) > 0; }
 
-  readyIds() { return this.selected.filter((id) => this.ready(id)); }
+  /* Every id actually holding a charge — not just the loadout's three,
+     since a care-package streak (grant()) can bank an id the player never
+     selected and it still has to be callable. */
+  readyIds() { return Object.keys(this.charges).filter((id) => this.ready(id)); }
 
   /* Hand out a charge directly, bypassing the meter — how a care package
      rewards a streak. */
