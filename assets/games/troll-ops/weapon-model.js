@@ -5,7 +5,7 @@
 // the same code path looking like themselves.
 
 import * as THREE from "three";
-import { buildGripHand } from "./hand-model.js";
+import { buildGripHand, buildSupportHand } from "./hand-model.js";
 
 const MATS = {
   body:   () => new THREE.MeshStandardMaterial({ color: 0x4a4f48, roughness: 0.4, metalness: 0.7 }),
@@ -16,6 +16,68 @@ const MATS = {
   glow:   () => new THREE.MeshBasicMaterial({ color: 0x6dff4a }),
   glowTube: () => new THREE.MeshStandardMaterial({ color: 0x4ee62f, emissive: 0x4ee62f, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0.92 }),
 };
+
+// Weapon skins are a single banner-art texture wrapped onto the receiver
+// (the biggest flat panel on any gun), keyed by the source image path so
+// two weapons sharing a skin reuse one decoded texture instead of loading
+// it per-mesh. Load lazily — most weapons carry no `skin` at all.
+const SKIN_TEX_CACHE = new Map();
+function loadSkinTexture(imagePath) {
+  let tex = SKIN_TEX_CACHE.get(imagePath);
+  if (tex) return tex;
+  tex = new THREE.TextureLoader().load(new URL(imagePath, import.meta.url).href);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  SKIN_TEX_CACHE.set(imagePath, tex);
+  return tex;
+}
+
+// Banners are wide (~3:1) promo art, not tileable weapon wraps. Two things
+// went wrong with a naive full-UV stretch onto the receiver's side faces:
+// 1) the receiver panel's own w:h ratio rarely matches the banner's, so a
+//    0..1 stretch squashes/stretches the art instead of preserving it, and
+// 2) BoxGeometry's +x and -x faces wind opposite ways, so writing identical
+//    UVs to both mirrors the image (backwards) on one side of the gun.
+// This fits the banner into each face by its real aspect ratio (letterboxed
+// on the short axis, centered) and mirrors the -x face's U back so the art
+// reads left-to-right correctly from both sides of the weapon.
+function fitUvRect(faceW, faceH, imgAspect) {
+  const faceAspect = faceW / faceH;
+  let u0 = 0, u1 = 1, v0 = 0, v1 = 1;
+  if (imgAspect > faceAspect) {
+    // image wider than the face -> shrink vertical coverage, full width
+    const scale = faceAspect / imgAspect;
+    v0 = (1 - scale) / 2;
+    v1 = 1 - v0;
+  } else {
+    // image taller/narrower than the face -> shrink horizontal coverage
+    const scale = imgAspect / faceAspect;
+    u0 = (1 - scale) / 2;
+    u1 = 1 - u0;
+  }
+  return { u0, u1, v0, v1 };
+}
+
+function applyReceiverSkin(mesh, imagePath, faceW, faceH, imgAspect = 3) {
+  const mat = mesh.material.clone();
+  mat.map = loadSkinTexture(imagePath);
+  mat.color.set(0xffffff);
+  mesh.material = mat;
+
+  const { u0, u1, v0, v1 } = fitUvRect(faceW, faceH, imgAspect);
+  const uv = mesh.geometry.attributes.uv;
+  // +x face (index 0): natural winding, image reads normally.
+  uv.setXY(0, u0, v0);
+  uv.setXY(1, u1, v0);
+  uv.setXY(2, u0, v1);
+  uv.setXY(3, u1, v1);
+  // -x face (index 1): U mirrored so the art isn't backwards from that side.
+  uv.setXY(4, u1, v0);
+  uv.setXY(5, u0, v0);
+  uv.setXY(6, u1, v1);
+  uv.setXY(7, u0, v1);
+  uv.needsUpdate = true;
+}
 
 function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
 function cyl(rt, rb, h, mat, seg = 10) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); }
@@ -152,6 +214,7 @@ export function buildWeaponMesh(def) {
   const body = box(bodyW, bodyH, receiverLen, bodyMat);
   body.position.z = -len * (bullpup ? 0.02 : 0.12);
   group.add(body);
+  if (def.skin?.image) applyReceiverSkin(body, def.skin.image, receiverLen, bodyH, def.skin.aspect);
 
   // --- barrel
   const barrelLen = len * 0.5 * (spec.barrel || 1);
@@ -167,6 +230,29 @@ export function buildWeaponMesh(def) {
     const hg = box(bodyW * 1.05, bodyH * 0.55, len * 0.32 * (spec.barrel || 1), spec.wood ? furnitureMat : accentMat);
     hg.position.set(0, -bodyH * 0.05, -len * 0.4);
     group.add(hg);
+
+    // Support hand claws down over the FRONT face of the handguard,
+    // centred on it in X and offset forward in Z so the fingers hang
+    // down in front of — not sunk inside — the handguard's own solid
+    // box. buildSupportHand's local origin sits above where its fingers
+    // hang (-Y), so it's placed above the handguard's top surface with
+    // enough clearance for the whole claw to read in front of it.
+    // Every non-pistol weapon is carried two-handed. Scaled the same way
+    // the trigger hand is, against the standard bodyH of 0.07.
+    // Scaled up beyond the trigger hand's own bodyH/0.07 factor — the claw
+    // is a much more minimal shape (5 boxes, no forearm bulk) and reads as
+    // a stray detail rather than a hand at that size from normal gameplay
+    // viewing distance, confirmed by an in-game screenshot at the smaller
+    // scale.
+    const hgTopY = hg.position.y + bodyH * 0.275;
+    const hgFrontZ = hg.position.z - len * 0.16 * (spec.barrel || 1);
+    const supportHand = buildSupportHand((bodyH / 0.07) * 1.5);
+    const supportHandPos = new THREE.Vector3(0, hgTopY + bodyH * 0.4, hgFrontZ + 0.04);
+    supportHand.position.copy(supportHandPos);
+    group.add(supportHand);
+    // Exposed so the third-person rig can point its own off-hand at the
+    // same spot on a peer's weapon mesh, instead of duplicating this offset.
+    group.userData.supportHandPos = supportHandPos;
   }
 
   // --- stock

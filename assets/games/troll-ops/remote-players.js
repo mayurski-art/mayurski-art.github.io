@@ -237,7 +237,11 @@ export class RemotePlayer {
     this.rig.root.position.copy(this.pos);
     this.rig.root.rotation.y = this.yaw;
 
-    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward, speed: gaitSpeed, dt });
+    // Two-handed carry (armL on the support hand instead of a free run
+    // swing) for anything but a sidearm — matches weapon-model.js's own
+    // !isPistol gate for whether a weapon actually has a support hand mesh.
+    const hasGun = WEAPON_DEFS[this.weaponId]?.cls !== "sidearm";
+    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward, speed: gaitSpeed, dt, hasGun });
 
     this.tag.position.y = 2.15 - this.lower * 0.75;
   }

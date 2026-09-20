@@ -1,10 +1,15 @@
 // Troll Ops — procedural viewmodel hand.
 //
-// One low-poly fist+forearm, built the same box()/cyl() way as
+// Two low-poly fist+forearm builders, built the same box()/cyl() way as
 // weapon-model.js, meant to be added as a CHILD of the weapon/melee mesh at
-// its existing grip anchor. It rides along for free: no new per-frame
+// an existing grip anchor. Either rides along for free: no new per-frame
 // transform code, because the parent mesh is already being animated.
 // See DESIGN-ARMS.md Phase 1.
+//
+// buildGripHand() is the trigger hand (Phase 1). buildSupportHand() is the
+// second, forward hand two-handed weapons/melee need on the foregrip or
+// guard — a flatter palm that wraps a horizontal rail from above/the side,
+// instead of curling around a vertical pistol grip.
 
 import * as THREE from "three";
 
@@ -57,6 +62,51 @@ export function buildGripHand(scale = 1, styleHint) {
   forearm.rotation.x = Math.PI / 2;
   forearm.position.set(0.018 * s, -0.006 * s, forearmLen * 0.5 + 0.03 * s);
   group.add(forearm);
+
+  group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return group;
+}
+
+/* Builds a claw wrapping DOWN over a horizontal rail directly below the
+   group's own origin — local -Y reaches down onto the rail, local Z runs
+   along the rail's length. Four long, clearly-separated finger slats hang
+   from a small knuckle bar and bend partway down (a two-segment joint) so
+   the silhouette reads as a hand gripping from above even at a distance —
+   deliberately simple (no forearm, no thumb) so nothing can balloon into
+   the frame and swallow the read the way a bulky forearm cylinder did on
+   the first two passes at this shape. `scale` follows the same convention
+   as buildGripHand: 1 = tuned against the standard rifle handguard width
+   in weapon-model.js. */
+export function buildSupportHand(scale = 1) {
+  const group = new THREE.Group();
+  const skinMat = new THREE.MeshStandardMaterial({ color: SKIN, roughness: 0.65, metalness: 0.02 });
+  const skinDarkMat = new THREE.MeshStandardMaterial({ color: SKIN_DARK, roughness: 0.65, metalness: 0.02 });
+  const s = scale;
+
+  // Knuckle bar sits at the group origin, the four fingers' shared root.
+  const knuckle = box(0.062 * s, 0.02 * s, 0.024 * s, skinMat);
+  group.add(knuckle);
+
+  // Four fingers, evenly spread across X, each a two-segment claw: a
+  // short top joint angled down from the knuckle, then a longer lower
+  // joint curling further under the rail — the bend is what reads as a
+  // gripping finger instead of a straight peg.
+  const fingerXs = [-0.021, -0.007, 0.007, 0.021];
+  for (const fx of fingerXs) {
+    const finger = new THREE.Group();
+    finger.position.set(fx * s, -0.006 * s, 0);
+    group.add(finger);
+
+    const upper = box(0.012 * s, 0.024 * s, 0.011 * s, skinDarkMat);
+    upper.position.set(0, -0.012 * s, 0);
+    upper.rotation.x = 0.45;
+    finger.add(upper);
+
+    const lower = box(0.011 * s, 0.02 * s, 0.010 * s, skinDarkMat);
+    lower.position.set(0, -0.032 * s, 0.014 * s);
+    lower.rotation.x = 1.3;
+    finger.add(lower);
+  }
 
   group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   return group;

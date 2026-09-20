@@ -79,9 +79,19 @@ export function resolveCircle(colliders, pos, radius, feetY, headroom = 2, stepU
 }
 
 export class MovementController {
-  constructor({ colliders, arena }) {
+  constructor({ colliders, arena, tuning }) {
     this.colliders = colliders;
     this.arena = arena;
+
+    // Optional per-instance overrides for the module's tuning constants —
+    // used by movement-lab.html to feel out new values without touching
+    // the constants every other caller (game.js, bots.js) still reads.
+    // Omit `tuning` (every real call site does) and behavior is unchanged.
+    this.tuning = {
+      WALK_SPEED, GRAVITY, JUMP_SPEED,
+      SLIDE_BOOST, SLIDE_TIME, SLIDE_COOLDOWN, DIVE_FORWARD,
+      ...tuning,
+    };
 
     this.pos = new THREE.Vector3(0, 0, 8);      // feet
     this.velocity = new THREE.Vector3();
@@ -214,8 +224,8 @@ export class MovementController {
       const d = new THREE.Vector3().addScaledVector(forwardVec, iz).addScaledVector(rightVec, ix);
       if (d.lengthSq() < 1e-4) d.copy(forwardVec);
       d.normalize();
-      this.velocity.x = d.x * DIVE_FORWARD;
-      this.velocity.z = d.z * DIVE_FORWARD;
+      this.velocity.x = d.x * this.tuning.DIVE_FORWARD;
+      this.velocity.z = d.z * this.tuning.DIVE_FORWARD;
       this.velocity.y = DIVE_UP;
       this.grounded = false;
       this.stance = STANCE.PRONE;
@@ -226,9 +236,9 @@ export class MovementController {
     if (crouchEdge && this.grounded && this.slideCd <= 0 && this.diveT <= 0 &&
         this.stance === STANCE.STAND && wantSprint && planarSpeed > SLIDE_MIN_SPEED) {
       this.stance = STANCE.SLIDE;
-      this.slideT = SLIDE_TIME;
+      this.slideT = this.tuning.SLIDE_TIME;
       this.slideDir.set(this.velocity.x, 0, this.velocity.z).normalize();
-      const boosted = planarSpeed * SLIDE_BOOST;
+      const boosted = planarSpeed * this.tuning.SLIDE_BOOST;
       this.velocity.x = this.slideDir.x * boosted;
       this.velocity.z = this.slideDir.z * boosted;
     } else if (crouchEdge && this.diveT <= 0) {
@@ -239,15 +249,15 @@ export class MovementController {
     // ---- slide decay
     if (this.stance === STANCE.SLIDE) {
       this.slideT -= dt;
-      const decay = Math.max(0, this.slideT / SLIDE_TIME);
-      const target = WALK_SPEED * (0.55 + decay * 1.1);
+      const decay = Math.max(0, this.slideT / this.tuning.SLIDE_TIME);
+      const target = this.tuning.WALK_SPEED * (0.55 + decay * 1.1);
       const cur = Math.hypot(this.velocity.x, this.velocity.z) || 1;
       const scale = Math.min(1, target / cur);
       this.velocity.x *= scale;
       this.velocity.z *= scale;
       if (this.slideT <= 0 || !this.grounded) {
         this.stance = this.grounded ? STANCE.CROUCH : STANCE.STAND;
-        this.slideCd = SLIDE_COOLDOWN;
+        this.slideCd = this.tuning.SLIDE_COOLDOWN;
       }
     }
 
@@ -266,10 +276,10 @@ export class MovementController {
         if (this.stance === STANCE.CROUCH || this.stance === STANCE.PRONE) {
           this.stance = STANCE.STAND;
         } else {
-          this.velocity.y = JUMP_SPEED;
+          this.velocity.y = this.tuning.JUMP_SPEED;
           this.grounded = false;
           this.jumping = true;
-          if (this.stance === STANCE.SLIDE) { this.stance = STANCE.STAND; this.slideCd = SLIDE_COOLDOWN; }
+          if (this.stance === STANCE.SLIDE) { this.stance = STANCE.STAND; this.slideCd = this.tuning.SLIDE_COOLDOWN; }
         }
       }
     }
@@ -277,7 +287,7 @@ export class MovementController {
     // ---- horizontal acceleration (no steering authority mid-slide)
     const stanceMult = STANCE_SPEED[this.stance] ?? 1;
     const sprintMult = this.sprinting ? (input.sprintMult || 1.35) : 1;
-    const target = WALK_SPEED * stanceMult * sprintMult * speedMult;
+    const target = this.tuning.WALK_SPEED * stanceMult * sprintMult * speedMult;
     const inertia = input.inertia || 9;
 
     if (this.stance !== STANCE.SLIDE) {
@@ -297,7 +307,7 @@ export class MovementController {
     }
 
     // ---- integrate
-    this.velocity.y -= GRAVITY * dt;
+    this.velocity.y -= this.tuning.GRAVITY * dt;
     this.pos.x += this.velocity.x * dt;
     this.pos.z += this.velocity.z * dt;
     this.pos.y += this.velocity.y * dt;

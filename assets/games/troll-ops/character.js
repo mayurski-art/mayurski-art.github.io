@@ -272,7 +272,7 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
    Callers that only ever move at one speed (enemies.js, zombies.js) can
    omit it; it defaults to a full-intensity cycle whenever `moving` is true,
    matching the old fixed-amplitude behavior. */
-export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, dt = 0.016, zombie = false }) {
+export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, dt = 0.016, zombie = false, gait: gaitTuning, hasGun = false }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
@@ -281,6 +281,17 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   const fwd = Math.max(-1, Math.min(1, forward));
   const spd = moving ? Math.max(0.28, Math.min(1, speed)) : 0;
 
+  // Optional live-tunable leg-gait constants (movement-lab.html only —
+  // every other caller omits `gait` and gets these exact defaults, so
+  // behavior elsewhere is unchanged).
+  const gt = {
+    swingBase: 0.55, swingSpeed: 0.45,
+    sideStepBase: 0.35, sideStepSpeed: 0.3,
+    liftBase: 0.15, liftSpeed: 0.2,
+    splay: 0.22,
+    ...gaitTuning,
+  };
+
   // `gait` is the sign to swing the legs in: +1 running forward, -1
   // backpedaling. `fwdAmt` is how much of the cycle is fore/aft swing at
   // all - it fades toward 0 as travel becomes a pure sideways strafe, so
@@ -288,14 +299,14 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // legs through a full forward-jog arc with just a static lean/splay
   // bolted on top (the tangled, criss-crossing legs the old cycle produced
   // whenever real movement had a lateral component).
-  const gait = fwd < 0 ? -1 : 1;
+  const gaitSign = fwd < 0 ? -1 : 1;
   const fwdAmt = Math.min(1, Math.abs(fwd));
-  const swing = moving ? Math.sin(phase) * (0.55 + spd * 0.45) * gait * fwdAmt : 0;
+  const swing = moving ? Math.sin(phase) * (gt.swingBase + spd * gt.swingSpeed) * gaitSign * fwdAmt : 0;
   // The portion of the cycle that isn't fore/aft swing becomes a lateral
   // side-step: legs alternate stepping apart sideways instead of just
   // leaning into the strafe while standing square.
-  const sideStep = moving ? Math.sin(phase) * (0.35 + spd * 0.3) * str * (1 - fwdAmt) : 0;
-  const lift = moving ? Math.abs(Math.cos(phase)) * (0.15 + spd * 0.2) : 0;
+  const sideStep = moving ? Math.sin(phase) * (gt.sideStepBase + spd * gt.sideStepSpeed) * str * (1 - fwdAmt) : 0;
+  const lift = moving ? Math.abs(Math.cos(phase)) * (gt.liftBase + spd * gt.liftSpeed) : 0;
 
   // poseDeath is the only other place that touches hips.rotation.x (it
   // pitches the whole body forward onto the ground as a kill collapses).
@@ -312,8 +323,8 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // Strafing splays the lead leg out to the side it's stepping toward
   // instead of just swinging fore/aft - a sideways shuffle reads very
   // differently from a forward jog even at the same leg-swing speed.
-  p.legL.rotation.z = str * 0.22 + sideStep;
-  p.legR.rotation.z = str * 0.22 - sideStep;
+  p.legL.rotation.z = str * gt.splay + sideStep;
+  p.legR.rotation.z = str * gt.splay - sideStep;
 
   if (zombie) {
     // both arms out front, with a lopsided shamble
@@ -328,14 +339,6 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
     return;
   }
 
-  // Off-hand counter-swings opposite the legs, like a real running arm
-  // pump: it's forward when the same-side leg is back, and vice versa.
-  // Amplitude grows with speed - a walk barely swings the arms, a sprint
-  // pumps them hard - and stays shy of hip height (peaks well short of
-  // the legs' reach) so it doesn't read as a third leg from a low angle.
-  p.armL.rotation.x = swing * (0.5 + spd * 0.55) - 0.15;
-  p.armL.rotation.z = 0.04 + spd * 0.05;
-
   // The gun arm holds a raised, level "ready" carry (barrel roughly
   // horizontal, across the body) instead of dangling down at the old
   // -1.02 rad angle - that read as the weapon pointing at the ground any
@@ -343,9 +346,29 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // aim legibility, clamped well short of vertical, and a small
   // counter-swing tied to footfall keeps the carry from looking welded
   // in place mid-stride.
-  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd * gait * fwdAmt : 0;
+  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd * gaitSign * fwdAmt : 0;
   p.armR.rotation.x = -1.35 - pitch * 0.32 + carrySwing;
   p.armR.rotation.z = -0.15;
+
+  if (hasGun) {
+    // Support hand: a two-handed weapon is gripped, not swung, so armL
+    // drops the run-cycle counter-pump and instead holds a fixed forward
+    // reach toward the handguard — matched to where weapon-model.js's
+    // buildSupportHand actually sits on the mesh armR carries. The same
+    // small footfall-tied sway armR gets keeps the carry from reading as
+    // welded in place mid-stride, just softer since a support grip moves
+    // less than a free-swinging arm.
+    p.armL.rotation.x = -1.28 - pitch * 0.28 + carrySwing * 0.6;
+    p.armL.rotation.z = 0.18;
+  } else {
+    // Off-hand counter-swings opposite the legs, like a real running arm
+    // pump: it's forward when the same-side leg is back, and vice versa.
+    // Amplitude grows with speed - a walk barely swings the arms, a sprint
+    // pumps them hard - and stays shy of hip height (peaks well short of
+    // the legs' reach) so it doesn't read as a third leg from a low angle.
+    p.armL.rotation.x = swing * (0.5 + spd * 0.55) - 0.15;
+    p.armL.rotation.z = 0.04 + spd * 0.05;
+  }
 
   // crouching drops the hips and folds the knees
   const crouch = Math.max(0, Math.min(1, lower));
@@ -359,12 +382,11 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   // a statue on rails, and a body backpedaling leans away from travel
   // rather than diving face-first into the direction it's actually moving
   // away from.
-  const moveLean = moving ? (0.05 + spd * 0.13) * gait * fwdAmt : 0;
+  const moveLean = moving ? (0.05 + spd * 0.13) * gaitSign * fwdAmt : 0;
   p.torso.rotation.x = crouch * 0.35 + moveLean;
   p.torso.rotation.z = str * -0.16;
   p.chest.rotation.x = crouch * 0.35 + moveLean * 0.6;
   p.chest.rotation.z = str * -0.10;
-  p.hips.rotation.z = str * 0.08;
 
   _poseNeckAndHead(rig, { pitch, sway: 0, dt, lead: str });
 }

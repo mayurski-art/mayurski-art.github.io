@@ -11,7 +11,7 @@
 // slow-moving body that comes to rest on the floor.
 
 import * as THREE from "three";
-import { buildGripHand } from "./hand-model.js";
+import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import { smoothstep } from "./anim-curves.js";
 
 const GRAVITY = 18;          // heavier than real so throws land where you look
@@ -236,6 +236,16 @@ export function buildMeleeMesh(def) {
     const kbHand = buildGripHand(MELEE_HAND_SCALE);
     kbHand.position.copy(GRIP_ANCHOR);
     sword.add(kbHand);
+    // Two-handed grip: the keyboard sword is swung with both hands, the
+    // support hand choked up behind the primary grip (+Z, toward the
+    // pommel end, away from the guard at the blade side) rather than
+    // ahead of it — there's no separate foregrip on a sword the way a
+    // rifle's handguard gives one.
+    const SUPPORT_ANCHOR = GRIP_ANCHOR.clone().add(new THREE.Vector3(0, 0, 0.11));
+    const supportHand = buildSupportHand(MELEE_HAND_SCALE * 0.85);
+    supportHand.position.copy(SUPPORT_ANCHOR);
+    supportHand.rotation.z = Math.PI / 2;
+    sword.add(supportHand);
     return sword;
   }
 

@@ -155,6 +155,7 @@ export const WEAPON_DEFS = {
     id: "problem416", name: "Problem 416", rank: 0, sight: "reddot",
     blurb: "The balanced default. No excuses left.",
     model: { len: 0.54, stock: "fixed", mag: "box", barrel: 1.0 },
+    skin: { image: "../../images/banners/banner-05.jpg", aspect: 3 },
   }),
   grinstock: mk("assault", {
     id: "grinstock", name: "Grinstock AR-12", rank: 8, sight: "iron",
