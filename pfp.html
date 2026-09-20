@@ -273,6 +273,89 @@
     .auth-or-sep { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #9b9ba1; }
     .auth-or-sep::before, .auth-or-sep::after { content: ''; flex: 1; height: 1px; background: var(--pf-line-dark); }
 
+    /* ---------- bug report ---------- */
+    /* Deliberately a sibling of .studio, not a grid cell inside it — it's
+       meta-feedback about the tool, not part of building a troll. */
+    .bug-report { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .btn-bug {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 11px; border: 0.5px solid transparent;
+      background: #ff3b30; color: #fff; font-family: var(--pf-sans);
+      font-size: 13.5px; font-weight: 600;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .btn-bug:hover { background: #ff6259; }
+    .btn-bug:active { transform: translateY(1px); }
+    .btn-bug[disabled] { opacity: 0.55; cursor: not-allowed; }
+    .bug-report-box {
+      width: min(420px, 100%); display: flex; flex-direction: column; gap: 8px;
+      background: rgba(255, 255, 255, 0.04); border: 0.5px solid var(--pf-line-dark);
+      border-radius: 14px; padding: 14px;
+    }
+    .bug-report-box[hidden] { display: none; }
+    .bug-report-box textarea {
+      width: 100%; min-height: 84px; resize: vertical;
+      padding: 10px 12px; border-radius: 10px;
+      border: 0.5px solid var(--pf-line-dark); background: rgba(255, 255, 255, 0.06);
+      color: #f5f5f7; font-family: var(--pf-sans); font-size: 13.5px; line-height: 1.4;
+    }
+    .bug-report-box textarea:focus { outline: 2px solid #ff3b30; outline-offset: 1px; }
+    .bug-report-box-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .bug-report-count { font-family: var(--pf-mono); font-size: 11px; color: #9b9ba1; }
+    .bug-report-count.is-over { color: #ff8f9a; }
+    .bug-report-box-actions { display: flex; gap: 8px; }
+    .bug-report-note { margin: 0; font-size: 12.5px; line-height: 1.4; color: #9b9ba1; min-height: 1.2em; }
+    .bug-report-note.is-ok { color: #6ee08a; }
+    .bug-report-note.is-err { color: #ff8f9a; }
+
+    /* ---------- admin bug queue ---------- */
+    .btn-admin-bugs {
+      display: none; height: 36px; padding: 0 13px; border-radius: 10px;
+      border: 0.5px solid var(--pf-line-dark); background: rgba(255, 255, 255, 0.06);
+      color: #e7e7ec; font-family: var(--pf-sans); font-size: 12.5px; font-weight: 600;
+      align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .btn-admin-bugs.is-visible { display: inline-flex; }
+    .btn-admin-bugs:hover { background: rgba(255, 255, 255, 0.1); }
+    .btn-admin-bugs .badge {
+      background: #ff3b30; color: #fff; border-radius: 999px;
+      min-width: 16px; height: 16px; padding: 0 5px;
+      font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+    }
+    .admin-bugs-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .admin-bugs-modal[hidden] { display: none; }
+    .admin-bugs-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    .admin-bugs-card {
+      position: relative; z-index: 1; width: min(520px, 100%); max-height: min(78vh, 640px);
+      background: linear-gradient(165deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 38%, rgba(0,0,0,0.3) 100%), #131316;
+      border: 0.5px solid var(--pf-line-dark); border-radius: 20px;
+      padding: 20px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .admin-bugs-close {
+      position: absolute; top: 12px; right: 12px; border: none;
+      background: rgba(255, 255, 255, 0.08); color: #f5f5f7;
+      width: 30px; height: 30px; border-radius: 50%; font-size: 13px; line-height: 1;
+    }
+    .admin-bugs-close:hover { background: rgba(255, 255, 255, 0.16); }
+    .admin-bugs-card h2 { margin: 0; padding-right: 30px; font-size: 16px; font-weight: 700; color: #f5f5f7; }
+    .admin-bugs-list { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .admin-bug-row {
+      border: 0.5px solid var(--pf-line-dark); border-radius: 12px; padding: 11px 12px;
+      display: flex; flex-direction: column; gap: 6px; font-size: 12.5px;
+    }
+    .admin-bug-row.is-resolved { opacity: 0.5; }
+    .admin-bug-row .msg { color: #f5f5f7; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .admin-bug-row .meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-family: var(--pf-mono); font-size: 10.5px; color: #9b9ba1; }
+    .admin-bug-row .resolve-btn {
+      align-self: flex-start; padding: 5px 11px; border-radius: 8px;
+      border: 0.5px solid var(--pf-line-dark); background: rgba(255, 255, 255, 0.08); color: #f5f5f7;
+      font-size: 11.5px; font-weight: 600;
+    }
+    .admin-bug-row .resolve-btn:hover { background: rgba(255, 255, 255, 0.14); }
+    .admin-bug-row .resolve-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .admin-bugs-empty { text-align: center; color: #9b9ba1; font-size: 13px; padding: 20px 0; }
+
     /* ---------- picker ---------- */
     .picker {
       background: var(--pf-panel); color: var(--pf-ink);
@@ -694,6 +777,9 @@
       </div>
       <div class="top-actions">
         <div id="presence-mount"></div>
+        <button class="btn-admin-bugs" id="btn-admin-bugs" type="button" aria-label="Bug reports (admin)" title="Bug reports (admin)">
+          🐛 Bug reports<span class="badge" id="adminBugsBadge" hidden>0</span>
+        </button>
         <button class="btn-signin" id="btn-signin" type="button">Log in</button>
         <button class="btn-home" id="btn-home" type="button" aria-label="Home" title="Home">🏠</button>
       </div>
@@ -780,6 +866,21 @@
         </div>
       </section>
     </main>
+
+    <section class="bug-report" aria-label="Report a bug">
+      <button type="button" class="btn-bug" id="btnReportBug" aria-haspopup="true" aria-expanded="false">🪲 Report a bug</button>
+      <div class="bug-report-box" id="bugReportBox" hidden>
+        <textarea id="bugReportText" maxlength="500" placeholder="What went wrong?" aria-label="Describe the bug"></textarea>
+        <div class="bug-report-box-row">
+          <span class="bug-report-count" id="bugReportCount">0 / 500</span>
+          <div class="bug-report-box-actions">
+            <button type="button" class="btn" id="bugReportCancel">Cancel</button>
+            <button type="button" class="btn btn-bug" id="bugReportSend">Send</button>
+          </div>
+        </div>
+        <p class="bug-report-note" id="bugReportNote" role="status" aria-live="polite"></p>
+      </div>
+    </section>
   </div>
 
   <div class="share-modal" id="shareModal" hidden>
@@ -835,9 +936,22 @@
     </div>
   </div>
 
+  <!-- Only ever shown to a signed-in troll_runner account (see the
+       'troll_runner' badge button in the header) — the RLS policy in
+       troll_pfp_bug_reports.sql is the real boundary, this is just the UI. -->
+  <div class="admin-bugs-modal" id="adminBugsModal" hidden>
+    <div class="admin-bugs-backdrop" id="adminBugsBackdrop"></div>
+    <div class="admin-bugs-card" role="dialog" aria-modal="true" aria-labelledby="adminBugsTitle">
+      <button type="button" class="admin-bugs-close" id="adminBugsClose" aria-label="Close">✕</button>
+      <h2 id="adminBugsTitle">Bug reports</h2>
+      <div class="admin-bugs-list" id="adminBugsList"></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="assets/js/troll-accounts.js?v=20260825a"></script>
   <script src="assets/js/troll-presence.js"></script>
+  <script src="assets/js/pfp-bug-reports.js"></script>
   <script>window.TrollPresence?.mount(document.getElementById('presence-mount'), { align: 'right' });</script>
   <script>
   (() => {
@@ -1185,17 +1299,36 @@
       const key = [canonicalTrait(layerId, a), canonicalTrait(layerId, b)].sort().join('|');
       return MULTI_PAIRS[layerId]?.has(key) ?? false;
     }
-    // Candle was only ever drawn at one angle, so pairings that need it
-    // pointed a different way get that for free via a CSS/canvas transform
-    // rather than new art: flipped for the two "in the other hand" pairs,
-    // rotated upright for the vertical one.
-    const CANDLE_FLIP_WITH = new Set(['demon-pack', 'diamond-hand']);
-    const CANDLE_UPRIGHT_WITH = new Set(['middle-fingers']);
-    function candleTransform(otherIds) {
-      if (otherIds.some(id => CANDLE_UPRIGHT_WITH.has(id))) return 'rotate(90deg)';
-      if (otherIds.some(id => CANDLE_FLIP_WITH.has(id))) return 'scaleX(-1)';
-      return '';
+    // Pairs that clash across two different layers, so MULTI_PAIRS (which
+    // only compares picks within one layer) never sees them. Accessory's
+    // deal-w-it-shades and headwear's glasses are both eyewear drawn over
+    // the same part of the face — wearing both reads as two pairs of
+    // glasses stacked, so only one may be equipped at a time. Enforced in
+    // setBuild() so it holds for manual picks, Randomize/full random, and
+    // builds loaded from storage or a shared link alike.
+    const CROSS_LAYER_EXCLUSIONS = [
+      [['accessory', 'deal-w-it-shades'], ['headwear', 'glasses']],
+    ];
+    function enforceCrossLayerExclusions(next) {
+      const clean = { ...next };
+      for (const [[layerA, idA], [layerB, idB]] of CROSS_LAYER_EXCLUSIONS) {
+        const hasA = idsFor(layerA, clean[layerA]).includes(idA);
+        const hasB = idsFor(layerB, clean[layerB]).includes(idB);
+        if (!hasA || !hasB) continue;
+        // The layer that changed most recently wins; when that isn't known
+        // (e.g. a build loaded fresh from storage) drop the second layer's
+        // pick and keep the first, so the result is always deterministic.
+        clean[layerB] = MULTI_LAYERS.has(layerB)
+          ? idsFor(layerB, clean[layerB]).filter(id => id !== idB)
+          : null;
+      }
+      return clean;
     }
+    // Candle was only ever drawn at one angle. A flip/rotate-per-pairing
+    // transform used to fake pointing it a different way for a few
+    // combos, but it read wrong often enough (e.g. rotated 90deg next to
+    // middle-fingers) that it's not worth it — candle now always renders
+    // at its default orientation regardless of what it's paired with.
     // Paint order is normally just manifest layer order (background at the
     // back, accessory at the front), but a couple of specific traits need
     // to break that rule: the troll gang chain (an outfit trait) sits in
@@ -1394,6 +1527,19 @@
       authSubmit: document.getElementById('authSubmit'),
       authSwap: document.getElementById('authSwap'),
       authForgot: document.getElementById('authForgot'),
+      btnReportBug: document.getElementById('btnReportBug'),
+      bugReportBox: document.getElementById('bugReportBox'),
+      bugReportText: document.getElementById('bugReportText'),
+      bugReportCount: document.getElementById('bugReportCount'),
+      bugReportCancel: document.getElementById('bugReportCancel'),
+      bugReportSend: document.getElementById('bugReportSend'),
+      bugReportNote: document.getElementById('bugReportNote'),
+      btnAdminBugs: document.getElementById('btn-admin-bugs'),
+      adminBugsBadge: document.getElementById('adminBugsBadge'),
+      adminBugsModal: document.getElementById('adminBugsModal'),
+      adminBugsBackdrop: document.getElementById('adminBugsBackdrop'),
+      adminBugsClose: document.getElementById('adminBugsClose'),
+      adminBugsList: document.getElementById('adminBugsList'),
     };
 
     let manifest = null;
@@ -1523,7 +1669,7 @@
         if (MULTI_LAYERS.has(layer.id)) continue;
         if (!next[layer.id] && !OPTIONAL.has(layer.id)) next[layer.id] = base[layer.id];
       }
-      return enforceSolo(next);
+      return enforceCrossLayerExclusions(enforceSolo(next));
     }
 
     function readUrlBuild() {
@@ -1606,6 +1752,7 @@
     /** The one way the build changes, so nothing can bypass the undo stack. */
     function setBuild(next, { record = true } = {}) {
       next = enforceSolo(next);
+      next = enforceCrossLayerExclusions(next);
       if (record) {
         past.push({ ...build });
         if (past.length > HISTORY_LIMIT) past.shift();
@@ -1655,9 +1802,7 @@
           if (!img.src.endsWith(src)) img.src = src;
           img.classList.add('is-on');
           img.alt = `${layer.name}: ${traitById(layer.id, id)?.name || id}`;
-          // Candle's the only trait that needs a geometry tweak depending on
-          // what it's paired with — see candleTransform().
-          img.style.transform = id === 'candle' ? candleTransform(ids.filter(x => x !== id)) : '';
+          img.style.transform = '';
         });
       }
       // Paint order is DOM order for these absolutely-positioned layers —
@@ -1882,16 +2027,39 @@
       }
     }
 
+    /** True if picking `id` in `layerId` would trip a CROSS_LAYER_EXCLUSIONS
+     *  rule against what's currently worn elsewhere, and if so, the
+     *  {layerId, id} of the other layer's pick that would get dropped. */
+    function crossLayerClash(layerId, id) {
+      for (const pair of CROSS_LAYER_EXCLUSIONS) {
+        const mine = pair.find(([l, i]) => l === layerId && i === id);
+        if (!mine) continue;
+        const [otherLayer, otherId] = pair.find(([l]) => l !== layerId);
+        if (idsFor(otherLayer, build[otherLayer]).includes(otherId)) return { layerId: otherLayer, id: otherId };
+      }
+      return null;
+    }
+
     /** Click handler for a MULTI_LAYERS cell: toggle off if already worn,
      *  otherwise add it — replacing the current set instead of stacking if
      *  it doesn't pair with what's already worn (whitelist in
-     *  MULTI_PAIRS), so a click never silently no-ops. */
+     *  MULTI_PAIRS), so a click never silently no-ops. Also checks
+     *  CROSS_LAYER_EXCLUSIONS, since those clashes live in a different
+     *  layer's selection and setBuild() would otherwise drop the other
+     *  layer's pick silently. */
     function toggleMulti(layerId, id) {
       const current = idsFor(layerId, build[layerId]);
       if (current.includes(id)) {
         delete orderOverride[layerId];
         setBuild({ ...build, [layerId]: current.filter(x => x !== id) });
         note('');
+        return;
+      }
+      const clash = crossLayerClash(layerId, id);
+      if (clash) {
+        delete orderOverride[layerId];
+        setBuild({ ...build, [layerId]: [...current, id] });
+        note(`${traitById(clash.layerId, clash.id)?.name} and ${traitById(layerId, id)?.name} clash, so it swapped in on its own.`);
         return;
       }
       if (!current.length) {
@@ -1992,21 +2160,12 @@
       const entries = [];
       for (const layer of manifest.layers) {
         const ids = idsFor(layer.id, build[layer.id]);
-        for (const id of ids) {
-          const transform = id === 'candle' ? candleTransform(ids.filter(x => x !== id)) : '';
-          entries.push({ layerId: layer.id, id, transform, rank: rankFor(layer.id, id) });
-        }
+        for (const id of ids) entries.push({ layerId: layer.id, id, rank: rankFor(layer.id, id) });
       }
       entries.sort(compareStackEntries);
-      for (const { layerId, id, transform } of entries) {
+      for (const { layerId, id } of entries) {
         const img = await loadImage(fullSrc(layerId, id));
-        if (!transform) { ctx.drawImage(img, 0, 0, size, size); continue; }
-        ctx.save();
-        ctx.translate(size / 2, size / 2);
-        if (transform === 'scaleX(-1)') ctx.scale(-1, 1);
-        else if (transform === 'rotate(90deg)') ctx.rotate(Math.PI / 2);
-        ctx.drawImage(img, -size / 2, -size / 2, size, size);
-        ctx.restore();
+        ctx.drawImage(img, 0, 0, size, size);
       }
       return new Promise((resolve, reject) => {
         canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Export failed.'))), 'image/png');
@@ -2131,6 +2290,13 @@
       } else {
         el.btnSignin.textContent = 'Log in';
       }
+      // Client-side visibility only — the actual boundary is the RLS policy
+      // in troll_pfp_bug_reports.sql (only troll_runner can SELECT), so
+      // showing this button to the wrong account would just get them an
+      // empty list, not real data.
+      const isAdmin = session?.username === 'troll_runner';
+      el.btnAdminBugs.classList.toggle('is-visible', isAdmin);
+      if (isAdmin) refreshAdminBugsBadge();
     }
 
     function authApplyMode() {
@@ -2339,6 +2505,7 @@
       document.addEventListener('keydown', e => {
         if (e.key !== 'Escape') return;
         if (!el.authModal.hidden) closeAuthModal();
+        else if (!el.adminBugsModal.hidden) closeAdminBugsModal();
         else if (!el.shareModal.hidden) closeShareModal();
         else if (!el.roomPanel.hidden) closeRoomPanel();
       });
@@ -2358,9 +2525,141 @@
       el.shareModalBackdrop.addEventListener('click', closeShareModal);
       el.btnShareX.addEventListener('click', shareOnX);
       el.btnShareDownload.addEventListener('click', downloadFromModal);
+      initBugReport();
     }
 
     init();
+
+    /* ---------- report a bug ----------
+       Red button opens a small comment box; TrollPfpBugs (pfp-bug-reports.js)
+       owns the actual submit + the 500-char / 10-minute-per-browser cooldown
+       — this just wires the DOM and shows whatever it reports back. */
+    window.TrollPfpBuild = () => ({ ...build });
+
+    function bugReportNote(msg, kind) {
+      el.bugReportNote.textContent = msg || '';
+      el.bugReportNote.className = 'bug-report-note' + (kind ? ` is-${kind}` : '');
+    }
+
+    function updateBugReportCount() {
+      const len = el.bugReportText.value.length;
+      const max = window.TrollPfpBugs?.MAX_LEN || 500;
+      el.bugReportCount.textContent = `${len} / ${max}`;
+      el.bugReportCount.classList.toggle('is-over', len > max);
+    }
+
+    function openBugReportBox() {
+      el.bugReportBox.hidden = false;
+      el.btnReportBug.setAttribute('aria-expanded', 'true');
+      const remaining = window.TrollPfpBugs?.msRemaining?.() || 0;
+      if (remaining > 0) {
+        el.bugReportText.disabled = true;
+        el.bugReportSend.disabled = true;
+        bugReportNote(`You can send another report in ${window.TrollPfpBugs.formatRemaining(remaining)}.`);
+      } else {
+        el.bugReportText.disabled = false;
+        el.bugReportSend.disabled = false;
+        el.bugReportText.focus();
+      }
+    }
+
+    function closeBugReportBox() {
+      el.bugReportBox.hidden = true;
+      el.btnReportBug.setAttribute('aria-expanded', 'false');
+      bugReportNote('');
+    }
+
+    async function sendBugReport() {
+      if (!window.TrollPfpBugs) { bugReportNote('Report service unavailable — try again in a bit.', 'err'); return; }
+      el.bugReportSend.disabled = true;
+      const result = await window.TrollPfpBugs.submit(el.bugReportText.value);
+      if (!result.ok) {
+        bugReportNote(result.message || 'Could not send that — try again.', 'err');
+        el.bugReportSend.disabled = false;
+        return;
+      }
+      bugReportNote('Thanks — sent to the troll runner.', 'ok');
+      el.bugReportText.value = '';
+      updateBugReportCount();
+      el.bugReportText.disabled = true;
+      // Send stays disabled too: the 10-minute cooldown just started.
+    }
+
+    function initBugReport() {
+      el.btnReportBug.addEventListener('click', () => {
+        if (el.bugReportBox.hidden) openBugReportBox();
+        else closeBugReportBox();
+      });
+      el.bugReportCancel.addEventListener('click', closeBugReportBox);
+      el.bugReportText.addEventListener('input', updateBugReportCount);
+      el.bugReportSend.addEventListener('click', sendBugReport);
+      updateBugReportCount();
+
+      el.btnAdminBugs.addEventListener('click', openAdminBugsModal);
+      el.adminBugsClose.addEventListener('click', closeAdminBugsModal);
+      el.adminBugsBackdrop.addEventListener('click', closeAdminBugsModal);
+    }
+
+    /* ---------- admin: view/resolve reports (troll_runner only) ----------
+       Visibility is gated in updateAuthUI(); the real gate is the RLS
+       policy, so list()/resolve() calls from anyone else just come back
+       empty rather than needing a client-side check here too. */
+    async function refreshAdminBugsBadge() {
+      const result = await window.TrollPfpBugs?.list?.();
+      const openCount = (result?.reports || []).filter(r => r.status !== 'resolved').length;
+      el.adminBugsBadge.hidden = openCount === 0;
+      el.adminBugsBadge.textContent = String(openCount);
+    }
+
+    function renderAdminBugRow(report) {
+      const row = document.createElement('div');
+      row.className = 'admin-bug-row' + (report.status === 'resolved' ? ' is-resolved' : '');
+      const msg = document.createElement('div');
+      msg.className = 'msg';
+      msg.textContent = report.message;
+      row.appendChild(msg);
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const when = document.createElement('span');
+      when.textContent = new Date(report.created_at).toLocaleString();
+      meta.appendChild(when);
+      if (report.status !== 'resolved') {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'resolve-btn';
+        btn.textContent = 'Mark resolved';
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          const result = await window.TrollPfpBugs.resolve(report.id);
+          if (result.ok) { row.classList.add('is-resolved'); btn.remove(); refreshAdminBugsBadge(); }
+          else btn.disabled = false;
+        });
+        meta.appendChild(btn);
+      } else {
+        const done = document.createElement('span');
+        done.textContent = 'resolved';
+        meta.appendChild(done);
+      }
+      row.appendChild(meta);
+      return row;
+    }
+
+    async function openAdminBugsModal() {
+      el.adminBugsModal.hidden = false;
+      el.adminBugsList.innerHTML = '<p class="admin-bugs-empty">Loading…</p>';
+      const result = await window.TrollPfpBugs?.list?.();
+      const reports = result?.reports || [];
+      el.adminBugsList.innerHTML = '';
+      if (!reports.length) {
+        el.adminBugsList.innerHTML = '<p class="admin-bugs-empty">No bug reports yet.</p>';
+        return;
+      }
+      for (const report of reports) el.adminBugsList.appendChild(renderAdminBugRow(report));
+    }
+
+    function closeAdminBugsModal() {
+      el.adminBugsModal.hidden = true;
+    }
 
     /* ================= STARFIELD =================
        Same treatment as world.html's home page — canvas rather than
