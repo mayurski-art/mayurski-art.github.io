@@ -610,6 +610,324 @@ export const MAPS = {
     },
     spawns: [[-30, -26], [30, -26], [-30, 26], [30, 26], [0, -28], [0, 28], [-31, 0], [31, 0]],
   },
+
+  grinbeach: {
+    name: "Grin Beach",
+    blurb: "Pier, sand and boardwalk. The high ground smells like fryer oil.",
+    // Laid out like the strip it's cribbed from: ocean at -Z, then wet sand,
+    // dry sand, the boardwalk, and a parking lot at +Z. The three lanes run
+    // east-west across that band — pier (long sightlines, almost no cover),
+    // sand (open, scattered low cover) and boardwalk (tight, roofed, the
+    // flanking route) — and every spawn sits a few seconds from all three.
+    bounds: { minX: -40, maxX: 40, minZ: -44, maxZ: 32 },
+    playerSpawn: { x: 0, z: 28 },
+    // Late-afternoon Pacific: the sun is low out over the water, so the pier
+    // pilings and lifeguard towers throw long shadows back up the sand.
+    //
+    // That low sun (about 25° up) is also why hemi and ambient run high here
+    // rather than at the 0.5-0.9 the inland maps use. At this elevation an
+    // up-facing deck only takes ~0.42 of the directional term and a vertical
+    // face — railings, shack walls, the shaded side of a lifeguard tower —
+    // takes almost none, so those faces are lit almost entirely by the
+    // hemisphere. Measured on the pier, the shaded railing sat at luma 26
+    // (black on screen) against 72 for the deck beside it; raising hemi to
+    // 2.6 brings it to 42 while leaving the deck at 80, so the lane keeps
+    // its contrast without any face going to mud. That is also roughly what
+    // open-beach bounce light does in reality.
+    sky: { top: 0x2f6ea8, horizon: 0xf2c68e, bottom: 0xc6dae2 },
+    fog: { color: 0xcad2cc, density: 0.0055 },
+    ground: { colorA: 0xd6c194, colorB: 0xbfa97c, grid: 0xe6d6ae },
+    sun: { color: 0xffe2b4, intensity: 2.4, pos: [-22, 26, -52] },
+    hemi: { sky: 0xcce8ff, ground: 0xc4b087, intensity: 2.6 },
+    ambient: { color: 0xfff0dd, intensity: 0.75 },
+    build(api) {
+      // The shell only closes three sides. -Z is open ocean, held by a low
+      // seawall instead of a 6m box, so the horizon reads as water rather
+      // than a wall the player happens to be standing in front of.
+      api.box(0, 31.3, 80, 1.4, 6, { color: 0x8a7d62, surface: "concrete" });
+      api.box(-39.3, -6, 1.4, 76, 6, { color: 0x8a7d62, surface: "concrete" });
+      api.box(39.3, -6, 1.4, 76, 6, { color: 0x8a7d62, surface: "concrete" });
+
+      /* --------------------------------------------------------- the ocean */
+      // buildMap's shared ground plane is centred on `bounds` and overhangs
+      // them by 12m on every side, so sand would otherwise run out past the
+      // shoreline and hang over the sea. The water is therefore laid *over*
+      // that overhang (slightly proud of it) and run out far enough to meet
+      // the fog, which hides its far edge.
+      const water = new THREE.Mesh(
+        new THREE.PlaneGeometry(260, 200),
+        new THREE.MeshStandardMaterial({ color: 0x2f7fa8, roughness: 0.16, metalness: 0.5 }),
+      );
+      water.rotation.x = -Math.PI / 2;
+      water.position.set(0, 0.05, -122);
+      api.prop(water);
+      // wet sand then a foam line at the tideline, so the sand meets the sea
+      // as a gradient rather than one hard seam
+      const wet = new THREE.Mesh(
+        new THREE.PlaneGeometry(260, 6),
+        new THREE.MeshStandardMaterial({ color: 0xa48f66, roughness: 0.5 }),
+      );
+      wet.rotation.x = -Math.PI / 2;
+      wet.position.set(0, 0.04, -25);
+      api.prop(wet);
+      const foam = new THREE.Mesh(
+        new THREE.PlaneGeometry(260, 2.4),
+        new THREE.MeshStandardMaterial({ color: 0xeef6f4, roughness: 0.6 }),
+      );
+      foam.rotation.x = -Math.PI / 2;
+      foam.position.set(0, 0.06, -22.2);
+      api.prop(foam);
+      // Knee-high seawall at the tideline. Deliberately low: it marks the
+      // edge of play and gives prone cover, but anything taller turns the
+      // ocean — the thing that makes this read as a beach at all — into a
+      // grey stripe above a wall. The real edge of the arena is `bounds`,
+      // which the movement controller clamps to regardless.
+      api.box(0, -21, 80, 0.8, 0.75, { color: 0xb4ab98, pen: 5, surface: "concrete", tile: 2.5 });
+      /* ----------------------------------------------------------- the pier */
+      // The long lane. A raised deck running out over the water, high enough
+      // to look back down the whole beach. A bait shack partway out keeps the
+      // far half from being a pure no-cover shooting gallery, and two ramps at
+      // different z let it be contested from both flanks instead of being a
+      // single-entry camp.
+      const PIER_Y = 2.6;
+      const PIER_X = -13;
+      // Sun-bleached planking. These run bright on purpose: the sun sits low
+      // out to sea behind the pier, so every deck and railing face the player
+      // sees is backlit, and surf()'s tint multiplies straight into an
+      // already-dark wood photo — a mid-brown here renders near-black.
+      const DECK = 0xd8c09a;
+      const PILING = 0xa08a6a;
+      // Deck, laid as 6m sections rather than one 42m slab. surf() derives
+      // its UV tiling from a box's width and *height* only (see makeApi) —
+      // depth is never sampled — so a single long, flat deck box gets one
+      // texture repeat smeared down its whole length. Sectioning it means
+      // each piece is close to square in the sampled axes and the planking
+      // reads at a consistent scale instead of blurring out.
+      for (let z = -6; z >= -44; z -= 6) {
+        api.box(PIER_X, z - 3, 10, 6, 0.5, { color: DECK, y: PIER_Y, pen: 2.5, surface: "wood", tile: 2 });
+      }
+      // pilings under the deck, marching out into the water
+      for (let z = -8; z >= -42; z -= 6) {
+        for (const dx of [-4.2, 4.2]) {
+          api.cylinder(PIER_X + dx, z, 0.42, PIER_Y, { color: PILING, pen: 3, surface: "wood", tile: 1.2 });
+        }
+      }
+      // Deck railings — waist-high cover along both edges of the lane,
+      // sectioned for the same UV reason as the deck itself.
+      for (const dx of [-5.2, 5.2]) {
+        for (let z = -6; z >= -44; z -= 6) {
+          api.box(PIER_X + dx, z - 3, 0.3, 6, 1.1, {
+            color: 0xe0cbaa, y: PIER_Y + 0.5, pen: 1.2, surface: "wood", tile: 1.2,
+          });
+        }
+      }
+      // ramps up from the sand, one per side at different z so the pier has
+      // two contested entrances rather than one defensible mouth
+      api.stairs(PIER_X - 6.8, -6, 3.4, 10, 0.31, 0.62, "-z", { color: DECK, surface: "wood", tile: 1.2 });
+      api.stairs(PIER_X + 6.8, -14, 3.4, 10, 0.31, 0.62, "-z", { color: DECK, surface: "wood", tile: 1.2 });
+      // bait shack out on the deck: breaks the sightline and gives the pier
+      // its own piece of hard cover
+      api.walls(PIER_X, -33, 7, 6, 3, 0.4, {
+        color: 0xc9ae86, y: PIER_Y + 0.5, gaps: { n: 2.4, s: 2.4 }, surface: "wood", tile: 1.5,
+      });
+      api.box(PIER_X, -33, 7.6, 6.6, 0.3, { color: 0x9c7f5c, y: PIER_Y + 3.5, pen: 2, surface: "wood", tile: 1.5 });
+      // The shack roofs itself over, so nothing but this lamp lights the
+      // inside — the sun is low and behind it. Bright and wide enough that
+      // someone standing in there is visible from both doorways rather than
+      // being a silhouette in a black box.
+      api.lamp(PIER_X, PIER_Y + 3, -33, 0xffe2b4, 14, 16);
+
+      /* ------------------------------------------------------------ the sand */
+      // Middle lane: open, fast, and deliberately thin on hard cover so it
+      // stays a crossing rather than a place to sit. Everything here is
+      // low — lifeguard towers are the only thing worth climbing.
+      const TOWER = 0xd8452f;
+      // Lifeguard towers, the sand lane's only vertical cover. Stilted hut
+      // with a ramp, so holding one costs you the ground floor.
+      for (const [tx, tz] of [[14, -16], [-30, -12], [26, 2]]) {
+        const TY = 2.1;
+        for (const [dx, dz] of [[-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8], [1.8, 1.8]]) {
+          api.cylinder(tx + dx, tz + dz, 0.22, TY, { color: 0x8a6a4a, pen: 2 });
+        }
+        api.box(tx, tz, 4.6, 4.6, 0.3, { color: TOWER, y: TY, pen: 2.5, surface: "wood", tile: 1.2 });
+        api.walls(tx, tz, 4.6, 4.6, 1.5, 0.25, {
+          color: TOWER, y: TY + 0.3, gaps: { n: 2.6, s: 2.6 }, surface: "wood", tile: 1.2,
+        });
+        api.box(tx, tz, 5, 5, 0.22, { color: 0xb8391f, y: TY + 1.8, pen: 2, surface: "wood", tile: 1.2 });
+        api.stairs(tx, tz + 3.2, 2.4, 7, 0.3, 0.55, "-z", { color: 0xc07a4a });
+      }
+      // beach volleyball net — soft cover mid-sand, bullets go through
+      for (const px of [-2, 8]) {
+        api.cylinder(px, -12, 0.12, 2.6, { color: 0x6d5b41, pen: 1 });
+      }
+      api.box(3, -12, 10, 0.1, 0.9, { color: 0xe8e4d8, y: 1.5, pen: 0.3 });
+      // beach umbrellas: pure decoration overhead, a thin pole at ground level
+      for (const [ux, uz, hue] of [[-24, -18, 8], [4, -20, 190], [32, -14, 45], [-6, -4, 320]]) {
+        api.cylinder(ux, uz, 0.09, 2.2, { color: 0x9a9a92, pen: 0.5 });
+        const canopy = new THREE.Mesh(
+          new THREE.ConeGeometry(2.1, 0.7, 12),
+          api.mat(`hsl(${hue}, 62%, 58%)`, 0.75),
+        );
+        canopy.position.set(ux, 2.5, uz);
+        api.prop(canopy);
+      }
+      // Concrete fire rings — squat, dark, and small enough to read as a pit
+      // rather than a table. Each gets a low ember light so the sand has
+      // something warm in it after the sun drops behind the pier.
+      for (const [x, z] of [[-20, -6], [20, -20], [10, 8]]) {
+        api.cylinder(x, z, 1.15, 0.45, { color: 0x6a6660, pen: 4, surface: "concrete", tile: 0.8 });
+        const embers = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.85, 0.85, 0.04, 14),
+          new THREE.MeshStandardMaterial({
+            color: 0x2a1a14, emissive: 0xc2481a, emissiveIntensity: 0.7, roughness: 0.9,
+          }),
+        );
+        embers.position.set(x, 0.46, z);
+        api.prop(embers);
+        api.lamp(x, 0.8, z, 0xff7a2a, 4, 7);
+      }
+      for (const [x, z] of [[-33, -20], [34, -24], [-16, 4], [18, -8]]) barrel(api, { x, z });
+      // driftwood logs, long and low — the sand lane's prone cover
+      for (const [x, z, w, d] of [[-8, -26, 7, 1], [24, -30, 1, 6], [-28, 2, 6, 1]]) {
+        api.box(x, z, w, d, 0.8, { color: 0xc2b08c, pen: 1.5, surface: "wood", tile: 1.2 });
+      }
+
+      /* ------------------------------------------------------- the boardwalk */
+      // Third lane: a raised plank walk fronting a row of shops. Tight,
+      // roofed, and parallel to the shoreline, so it is the flank route
+      // between the two sand-side spawns. Every shop is enterable and open
+      // at the back onto the parking lot, so nothing here is a dead end.
+      const WALK_Y = 0.45;
+      const PLANK = 0xd2b98c;
+      // Sectioned along x for the same reason as the pier deck: surf() tiles
+      // from width and height, so one 76m slab 0.45m tall stretches a single
+      // repeat across the whole walk.
+      for (let x = -38; x < 38; x += 8) {
+        api.box(x + 4, 12, 8, 7, WALK_Y, { color: PLANK, pen: 3, surface: "wood", tile: 2 });
+      }
+      // low rail on the sand side, with gaps at the two stair runs
+      for (const [rx, rw] of [[-27, 22], [0, 14], [27, 22]]) {
+        api.box(rx, 8.7, rw, 0.25, 1, { color: PLANK, y: WALK_Y, pen: 1, surface: "wood", tile: 1.5 });
+      }
+      api.stairs(-15, 7.6, 5, 2, 0.25, 0.6, "+z", { color: PLANK, surface: "wood", tile: 1 });
+      api.stairs(15, 7.6, 5, 2, 0.25, 0.6, "+z", { color: PLANK, surface: "wood", tile: 1 });
+
+      // Shop row. Each unit is a room with a storefront gap onto the
+      // boardwalk (s) and a back door onto the lot (n), so the whole row is
+      // a series of two-way cut-throughs rather than a wall of closets.
+      // `stucco` is the unit's own painted facade — beachfront shops are
+      // each a different pastel, and a uniform grey row read as one long
+      // office block rather than four separate storefronts.
+      const shops = [
+        { x: -28, w: 12, sign: 0xe8574a, stucco: 0xf0d8c8 },
+        { x: -12, w: 10, sign: 0x2fa8b8, stucco: 0xd8ece8 },
+        { x: 4, w: 11, sign: 0xf2b134, stucco: 0xf4e6c4 },
+        { x: 22, w: 13, sign: 0x8a5ad8, stucco: 0xe2d8ee },
+      ];
+      for (const { x, w, sign, stucco } of shops) {
+        api.walls(x, 19, w, 9, 3.4, 0.45, {
+          color: stucco, gaps: { s: 3.4, n: 2.8 }, surface: "concrete", tile: 2,
+        });
+        // flat roof — reachable from the lot-side containers, and low enough
+        // that holding it trades cover for exposure to the pier
+        api.box(x, 19, w + 1, 10, 0.3, { color: 0xc8bfae, y: 3.4, pen: 4, surface: "concrete", tile: 2 });
+        // awning over the storefront, and a lit sign board above it
+        api.box(x, 13.6, w, 2.4, 0.2, { color: sign, y: 3, pen: 1.2 });
+        const board = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 1, 0.2), api.mat(sign, 0.5, 0.2));
+        board.position.set(x, 4.2, 14.2);
+        api.prop(board);
+        api.lamp(x, 3.9, 14.6, sign, 6, 9);
+        // interior counter — cover inside each unit so a doorway trade is
+        // not automatically won by whoever peeks first
+        api.box(x, 21, w - 4, 1.2, 1.15, { color: 0x8a7358, pen: 1.8, surface: "wood", tile: 1.2 });
+        api.lamp(x, 3, 19, 0xffe8c8, 7, 11);
+      }
+
+      /* ----------------------------------------------------- the parking lot */
+      // Back lane behind the shops: asphalt, a few parked containers and
+      // dumpsters for cover, and the routes back through the shop row. It
+      // is the safest ground on the map, which is why the spawns sit here
+      // and on the far sand rather than anywhere near the pier.
+      const lotMat = new THREE.MeshStandardMaterial({
+        color: 0x8a8a8c,
+        map: SURFACES.asphalt.color.clone(),
+        normalMap: SURFACES.asphalt.normal.clone(),
+        roughnessMap: SURFACES.asphalt.rough.clone(),
+        roughness: 1,
+      });
+      for (const t of [lotMat.map, lotMat.normalMap, lotMat.roughnessMap]) {
+        t.repeat.set(16, 3);
+        t.needsUpdate = true;
+      }
+      const lot = new THREE.Mesh(new THREE.PlaneGeometry(76, 7), lotMat);
+      lot.rotation.x = -Math.PI / 2;
+      lot.position.set(0, 0.02, 27.5);
+      lot.receiveShadow = true;
+      api.prop(lot);
+      // parking stripes
+      for (let x = -34; x <= 34; x += 5) {
+        const stripe = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.18, 5),
+          new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.8 }),
+        );
+        stripe.rotation.x = -Math.PI / 2;
+        stripe.position.set(x, 0.03, 27.5);
+        api.prop(stripe);
+      }
+      // shipping containers parked along the lot — the hard cover on this side
+      shippingContainer(api, { x: -20, z: 26, rot: 0 });
+      shippingContainer(api, { x: 14, z: 26, rot: 0 });
+      for (const [x, z] of [[-33, 25], [33, 25], [0, 26]]) crateStack(api, { x, z });
+      for (const [x, z] of [[-6, 24.5], [28, 24.5]]) trashCan(api, { x, z });
+
+      // Service stairs up to the shop roofs, at the two ends of the row.
+      // A stacked container is 2.6m and the roof deck sits at 3.4m — an 0.8m
+      // lip, well over the movement controller's 0.36m step height — so
+      // roof access has to be a real stair run, not "climb the crate".
+      // Putting them at the ends means the roof is a committed flank from
+      // the lot, not a shortcut anyone falls into mid-fight.
+      // Stair runs climb northward up the back of the row and land level
+      // with the roof deck (11 x 0.32 = 3.52m, just proud of the 3.4m roof).
+      for (const sx of [-36, 36]) {
+        api.stairs(sx, 25.5, 3, 11, 0.32, 0.5, "-z", { color: 0x9a9184, surface: "concrete", tile: 1.2 });
+      }
+      // Plank bridges over the alleys between units. The roofs are deep
+      // enough in z on their own, but there's a 4-6m gap in x between each
+      // shop, so without these the "roof" is four islands you can't cross.
+      // (roof spans in x are -34.5..-21.5, -17.5..-6.5, -2..10 and 15..29,
+      // so these are centred on the three alleys plus one run out to each
+      // end stair, each overlapping both lips rather than just meeting them)
+      for (const [bx, bw] of [[-19.5, 5], [-4.25, 5.5], [12.5, 6], [-35.5, 4], [32, 7.5]]) {
+        api.box(bx, 19, bw, 3, 0.25, { color: 0xc9ae86, y: 3.4, pen: 2, surface: "wood", tile: 1.5 });
+      }
+
+      /* -------------------------------------------------------------- polish */
+      // Palms along the boardwalk's sand edge — decorative canopies on thin
+      // trunks, so they frame the lane without blocking shots through it.
+      for (const [px, pz] of [[-34, 7], [-20, 7], [-6, 7], [8, 7], [22, 7], [35, 7]]) {
+        api.cylinder(px, pz, 0.32, 5.5, { color: 0x7a6748, pen: 2, surface: "wood", tile: 1.5 });
+        for (let i = 0; i < 6; i++) {
+          const frond = new THREE.Mesh(
+            new THREE.BoxGeometry(3.2, 0.12, 0.7),
+            api.mat(0x3f7a3a, 0.8),
+          );
+          const a = (i / 6) * Math.PI * 2;
+          frond.position.set(px + Math.cos(a) * 1.5, 5.6, pz + Math.sin(a) * 1.5);
+          frond.rotation.set(0, -a, -0.35);
+          api.prop(frond);
+        }
+      }
+      // streetlamps down the lot, and floodlights at the far corners so the
+      // sand does not go flat at its edges
+      for (const [x, z] of [[-24, 23.5], [0, 23.5], [24, 23.5]]) streetlamp(api, { x, z, rot: 0 });
+      for (const [x, z] of [[-36, -20], [36, -20]]) {
+        api.floodlight(x, z, new THREE.Vector3(0, 0, -8), 0xffe2b0);
+      }
+    },
+    // Spawns hug the lot and the two far sand corners — never the pier,
+    // which is the contested lane, and never inside a shop.
+    spawns: [[-34, 28], [34, 28], [0, 29], [-36, -18], [36, -18], [-20, 24], [20, 28], [0, -14]],
+  },
 };
 
 // Zombies-only, so it's registered for buildMap but kept out of the PvP picker.
