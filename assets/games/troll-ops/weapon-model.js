@@ -6,6 +6,10 @@
 
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
+import {
+  OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS,
+  buildIronRear, buildIronFront, railSection,
+} from "./attachment-models.js";
 
 const MATS = {
   body:   () => new THREE.MeshStandardMaterial({ color: 0x4a4f48, roughness: 0.4, metalness: 0.7 }),
@@ -338,103 +342,115 @@ export function buildWeaponMesh(def) {
   const sight = new THREE.Group();
   let aimY = bodyH * 0.7;
   let aimZ = -len * 0.15;
+  let railMountedOptic = null;
   const topOfMag = spec.mag === "topbox" ? bodyH * 0.62 + 0.032 : bodyH * 0.5;
 
-  if (def.sight === "reddot") {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.004, 6, 16), darkMat);
-    const mount = box(0.02, 0.022, 0.03, darkMat);
-    mount.position.y = -0.018;
-    sight.add(ring, mount);
-    const dotMat = new THREE.MeshBasicMaterial({ color: 0xff2222, side: THREE.DoubleSide, depthTest: false });
-    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.005, 10), dotMat);
-    dot.position.z = 0.003;
-    dot.renderOrder = 10;
-    sight.add(dot);
-    aimY = topOfMag + 0.035;
-    aimZ = -len * 0.3;
-  } else if (def.sight === "scope") {
-    const tube = cyl(0.026, 0.026, len * 0.34, darkMat, 14);
-    tube.rotation.x = Math.PI / 2;
-    sight.add(tube);
-    const bell = cyl(0.034, 0.026, len * 0.08, darkMat, 14);
-    bell.rotation.x = Math.PI / 2;
-    bell.position.z = -len * 0.2;
-    sight.add(bell);
-    const glassMat = new THREE.MeshBasicMaterial({ color: 0x0e1a24, side: THREE.DoubleSide });
-    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.024, 14), glassMat);
-    glass.position.z = len * 0.168;
-    sight.add(glass);
-    for (const z of [-len * 0.1, len * 0.1]) {
-      const ring = box(0.03, 0.03, 0.016, darkMat);
-      ring.position.set(0, -0.021, z);
-      sight.add(ring);
-    }
-    aimY = topOfMag + 0.05;
-    aimZ = -len * 0.16;
+  // The chosen optic decides the shape, not the broad `def.sight` family —
+  // otherwise Reflex/Coyote and ACOG/8x each collapse into one mesh and half
+  // the Customize screen changes nothing you can see. Falls back to the
+  // family when a weapon ships with glass but carries no attachment record
+  // (bot loadouts and dropped pickups both take that path).
+  const opticKey = def.attachments?.optic
+    || (def.sight === "scope" ? "acog" : def.sight === "reddot" ? "reflex" : "iron");
+  const opticBuild = OPTIC_BUILDERS[opticKey];
+
+  if (opticBuild) {
+    const optic = opticBuild();
+    sight.add(optic);
+    // Rail surface sits just above the receiver; the optic's own
+    // `aimOffsetY` lifts the glass from there, so a tall scope rides high
+    // and a micro dot sits low without a per-sight constant here.
+    const railY = topOfMag + 0.004;
+    aimY = railY + (optic.userData.aimOffsetY ?? 0.05);
+    // Sat over the rail that carries it, straddling the receiver/handguard
+    // joint the way a real optic does. Long glass is pulled a touch further
+    // forward so the eyepiece doesn't overhang the stock, short glass a
+    // touch back so its mount still lands on the rail.
+    aimZ = -len * (optic.userData.lengthZ > 0.12 ? 0.34 : 0.3);
+    // Sub-groups measure from the glass centre, but the mount legs are
+    // drawn downward from it, so nothing else needs shifting.
+    railMountedOptic = optic;
   } else {
-    const rear = box(0.018, 0.02, 0.01, darkMat);
-    const front = box(0.006, 0.022, 0.006, darkMat);
-    rear.position.set(0, topOfMag + 0.014, -len * 0.15);
+    // Iron sights: rear aperture on the receiver, hooded post on the barrel.
+    // These sit in weapon space (the group is never offset for irons), so
+    // they're placed absolutely, exactly as before.
+    const rear = buildIronRear();
+    rear.position.set(0, topOfMag + 0.016, -len * 0.15);
+    const front = buildIronFront();
     front.position.set(0, topOfMag + 0.015, muzzleZ + 0.03);
     sight.add(rear, front);
-    aimY = topOfMag + 0.02;
+    aimY = topOfMag + 0.022;
     aimZ = -len * 0.15;
   }
 
-  if (def.sight !== "iron") sight.position.set(0, aimY, aimZ);
+  // Only a rail-mounted optic is moved as a unit — iron sights were already
+  // placed in weapon space above, and offsetting the group would double it.
+  if (railMountedOptic) sight.position.set(0, aimY, aimZ);
   group.add(sight);
+  // A mounted optic wants a rail under it, or it floats above the receiver.
+  if (railMountedOptic && !isPistol) {
+    // Long enough to run under the optic's whole footprint plus a little
+    // spare either end, and centred on the optic — a fixed-length rail at a
+    // fixed Z left the 8x's front ring hanging over bare receiver.
+    const railLen = Math.max(len * 0.3, (railMountedOptic.userData.lengthZ ?? 0.09) + 0.04);
+    const rail = railSection(railLen, bodyW * 0.62, MATS.dark());
+    rail.position.set(0, topOfMag, aimZ);
+    group.add(rail);
+  }
   group.userData.sight = sight;
   group.userData.aimPoint = new THREE.Vector3(0, aimY, aimZ);
   group.userData.muzzleZ = muzzleZ;
 
   // --- suppressor / muzzle device
   const barrelAtt = def.attachments?.barrel;
-  if (barrelAtt === "suppressor") {
-    const can = cyl(barrelR * 1.9, barrelR * 1.9, 0.14, darkMat, 12);
-    can.rotation.x = Math.PI / 2;
-    can.position.set(0, bodyH * 0.1, muzzleZ - 0.06);
-    group.add(can);
-    group.userData.muzzleZ = muzzleZ - 0.13;
-  } else if (barrelAtt === "comp" || barrelAtt === "brake") {
-    const dev = cyl(barrelR * 1.5, barrelR * 1.5, 0.05, accentMat, 10);
-    dev.rotation.x = Math.PI / 2;
-    dev.position.set(0, bodyH * 0.1, muzzleZ - 0.02);
+  const barrelBuild = BARREL_BUILDERS[barrelAtt];
+  if (barrelBuild) {
+    const dev = barrelBuild(barrelR);
+    const devLen = dev.userData.lengthZ ?? 0.05;
+    // Butted against the crown rather than a fixed offset, so a long
+    // suppressor and a stubby brake both sit flush on the muzzle.
+    dev.position.set(0, bodyH * 0.1, muzzleZ - devLen / 2);
     group.add(dev);
-    group.userData.muzzleZ = muzzleZ - 0.05;
+    // The flash now leaves the device's own muzzle, not the bare barrel's.
+    group.userData.muzzleZ = muzzleZ - devLen;
   }
 
   // --- underbarrel
   const under = def.attachments?.underbarrel;
-  if (under === "vert") {
-    const g = box(0.032, 0.075, 0.032, darkMat);
-    g.position.set(0, -bodyH * 1.3, -len * 0.42);
-    group.add(g);
-  } else if (under === "angled") {
-    const g = box(0.032, 0.055, 0.05, darkMat);
-    g.position.set(0, -bodyH * 1.2, -len * 0.42);
-    g.rotation.x = -0.5;
-    group.add(g);
-  } else if (under === "laser") {
-    const unit = box(0.026, 0.026, 0.055, darkMat);
-    unit.position.set(0, -bodyH * 0.85, -len * 0.44);
+  const underBuild = UNDER_BUILDERS[under];
+  if (underBuild) {
+    const unit = underBuild();
+    // Hung off the handguard's real underside rather than a bodyH fraction —
+    // the handguard's own height varies with `heavy`, so a constant offset
+    // left grips floating in a visible gap under light-barrelled guns.
+    // Grips clamp to the bottom rail; the laser rides the side rail a little
+    // higher, tucked against the handguard's flank.
+    const hgBottomY = -bodyH * 0.05 - bodyH * 0.275;
+    const unitY = under === "laser" ? hgBottomY + 0.012 : hgBottomY;
+    const unitZ = -len * (under === "laser" ? 0.44 : 0.42);
+    unit.position.set(0, unitY, unitZ);
     group.add(unit);
-    const lensMat = new THREE.MeshBasicMaterial({ color: 0xff3b30 });
-    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.006, 8), lensMat);
-    const lensZ = -len * 0.47;
-    lens.position.set(0, -bodyH * 0.85, lensZ);
-    group.add(lens);
 
-    // The beam itself: a thin, always-facing-forward cylinder the game code
-    // rescales to the raycast distance and shows only while aiming, so it
-    // reads as an activated sight rather than a cosmetic glued to the rail.
-    const beamMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.85, depthWrite: false });
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 1, 6), beamMat);
-    beam.rotation.x = Math.PI / 2;   // cylinder's height axis runs along +Z after this
-    beam.position.set(0, -bodyH * 0.85, lensZ);
-    beam.visible = false;
-    group.add(beam);
-    group.userData.laserBeam = beam;
-    group.userData.laserOrigin = new THREE.Vector3(0, -bodyH * 0.85, lensZ);
+    if (under === "laser") {
+      // Beam starts at the emitter bezel, converted from the unit's local
+      // space into weapon space so it leaves the lens rather than the middle
+      // of the housing.
+      const em = unit.userData.emitter || new THREE.Vector3();
+      const originZ = unitZ + em.z;
+      const origin = new THREE.Vector3(em.x, unitY + em.y, originZ);
+
+      // The beam itself: a thin, always-facing-forward cylinder the game code
+      // rescales to the raycast distance and shows only while aiming, so it
+      // reads as an activated sight rather than a cosmetic glued to the rail.
+      const beamMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.85, depthWrite: false });
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 1, 6), beamMat);
+      beam.rotation.x = Math.PI / 2;   // cylinder's height axis runs along +Z after this
+      beam.position.copy(origin);
+      beam.visible = false;
+      group.add(beam);
+      group.userData.laserBeam = beam;
+      group.userData.laserOrigin = origin.clone();
+    }
   }
 
   group.traverse((o) => { if (o.isMesh) o.castShadow = false; });

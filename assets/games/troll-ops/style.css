@@ -316,13 +316,87 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   color: #7c8778; font-family: "DM Mono", monospace;
 }
 .to-lo-slot-opts { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Attachment cards. Icon on the left, name + what-it-does stacked beside it,
+   stat deltas underneath — sized so a row of five optics still fits the
+   panel without wrapping on a normal cabinet. */
 .to-lo-att {
-  font-size: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer;
+  flex: 1 1 128px; min-width: 0; max-width: 190px;
+  display: grid; grid-template-columns: auto 1fr; gap: 1px 7px;
+  align-items: center; text-align: left;
+  padding: 5px 7px; border-radius: 7px; cursor: pointer;
   background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
-  color: #9aa596; transition: border-color .14s, color .14s, background .14s;
+  color: #9aa596;
+  transition: border-color .14s, color .14s, background .14s, transform .14s;
 }
-.to-lo-att:hover { border-color: rgba(127,224,102,.4); color: #cfe0c4; }
-.to-lo-att.is-active { background: rgba(127,224,102,.14); border-color: #7fe066; color: #eaf5e4; }
+.to-lo-att:hover {
+  border-color: rgba(127,224,102,.45); color: #cfe0c4;
+  background: rgba(127,224,102,.06); transform: translateY(-1px);
+}
+.to-lo-att:focus-visible { outline: 2px solid #7fe066; outline-offset: 1px; }
+.to-lo-att.is-active {
+  background: rgba(127,224,102,.14); border-color: #7fe066; color: #eaf5e4;
+}
+
+/* The icon sits in its own tinted well so the part reads as a part. */
+.to-att-icon {
+  grid-row: 1 / span 2;
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 21px; border-radius: 4px;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.07);
+  color: #8fa287;
+}
+.to-lo-att:hover .to-att-icon, .to-lo-att.is-active .to-att-icon { color: #9fe88a; }
+.to-lo-att.is-active .to-att-icon {
+  background: rgba(127,224,102,.12); border-color: rgba(127,224,102,.32);
+}
+/* The icons are drawn in a 40×24 box; matching that ratio here keeps the
+   muzzle devices' collars and the scope's turrets from being clipped off. */
+.to-att-icon svg { width: 30px; height: 18px; display: block; overflow: visible; }
+
+.to-att-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.to-att-text strong {
+  font-family: "Oswald", sans-serif; font-size: 11.5px; letter-spacing: .02em;
+  color: inherit; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.to-att-text small {
+  font-size: 9px; line-height: 1.25; color: #7c8778;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.to-lo-att.is-active .to-att-text small { color: #93a889; }
+
+/* Delta chips: green when the change helps, red when it costs you, neutral
+   for the optic's magnification (which is neither good nor bad, just a fact). */
+/* Reserved a fixed chip-row height so cards in the same slot stay level
+   whether they carry two deltas, one, or just the "Equipped" marker —
+   otherwise a row of parts sits at three different heights. */
+.to-att-delta {
+  grid-column: 2; display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px;
+  /* Two chip rows' worth, always reserved: a narrow optic card wraps its
+     second chip onto a new line while a wide barrel card keeps both on one,
+     and reserving the space regardless keeps every card in a row level. */
+  min-height: 29px; align-content: flex-start;
+}
+/* An unselected card with no stat change has nothing to say; the selected
+   card's row is empty by definition (it's compared against itself) but still
+   carries the "Equipped" marker below, so only the former collapses. */
+.to-lo-att:not(.is-active) .to-att-delta:empty { display: none; }
+.to-att-delta b {
+  font-family: "DM Mono", monospace; font-size: 8.5px; font-weight: 500;
+  padding: 1px 4px; border-radius: 3px; white-space: nowrap;
+}
+.to-att-delta b.is-up { background: rgba(127,224,102,.14); color: #8fdc72; }
+.to-att-delta b.is-down { background: rgba(255,92,92,.13); color: #f08a7d; }
+.to-att-delta b.is-info { background: rgba(127,178,224,.14); color: #8fbde0; }
+/* The equipped card's own deltas are all zero-change against itself, so they
+   collapse to nothing — say so rather than leaving a ragged empty card. */
+.to-lo-att.is-active .to-att-delta::after {
+  content: "Equipped";
+  font-family: "DM Mono", monospace; font-size: 8.5px;
+  padding: 1px 4px; border-radius: 3px;
+  background: rgba(127,224,102,.18); color: #b6f0a2;
+}
 
 .to-go-xp {
   margin: 0; font-family: "Oswald", sans-serif; font-size: 15px;
@@ -1424,7 +1498,20 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-pf .to-lo-classes { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 8px 0; }
 .to-pf .to-lo-body { padding: 8px; }
 .to-pf .to-lo-list { max-height: 240px; }
-.to-pf .to-lo-atts { padding: 9px; display: flex; flex-direction: column; gap: 7px; }
+.to-pf .to-lo-atts { padding: 8px 9px 9px; display: flex; flex-direction: column; gap: 7px; }
+/* Four rows of cards is a tall panel, and this one floats over the weapon
+   it's describing — so it's capped to roughly 40% of the cabinet, leaving the
+   gun visible while you compare parts against it. It scrolls past that. */
+.to-pf #to-pfp-customize { max-height: min(42cqh, 340px); }
+/* In the lobby the cards are the content, so the slot name becomes a heading
+   above its row instead of a label competing for width beside it. */
+.to-pf .to-lo-slot {
+  display: block; margin-top: 0;
+  padding-top: 7px; border-top: 1px solid rgba(255,255,255,.07);
+}
+.to-pf .to-lo-slot:first-child { padding-top: 0; border-top: none; }
+.to-pf .to-lo-slot-label { display: block; flex: none; margin-bottom: 5px; }
+.to-pf .to-lo-slot-opts { gap: 5px; align-items: stretch; }
 
 /* ---- right column ---- */
 .to-pf-right {

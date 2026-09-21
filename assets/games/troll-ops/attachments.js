@@ -57,6 +57,54 @@ export const ATTACHMENTS = {
 
 export const DEFAULT_LOADOUT = { optic: "iron", barrel: "none", underbarrel: "none", ammo: "standard" };
 
+/* Which raw weapon fields each Customize bar is driven by, and whether a
+   rise in the field is good for the player. `statDelta` below uses this to
+   turn "adsTime went up 9%" into the right-coloured arrow on the right bar,
+   so the UI never has to hardcode that lower ADS time is better. */
+const DELTA_FIELDS = [
+  { field: "damage",           label: "Damage",    better: "up" },
+  { field: "rpm",              label: "Fire rate", better: "up" },
+  { field: "falloffEnd",       label: "Range",     better: "up" },
+  { field: "recoilKickPitch",  label: "Recoil",    better: "down" },
+  { field: "recoilKickYaw",    label: "Sway",      better: "down" },
+  // `label` is the chip text and has to stay short enough not to be clipped
+  // in a card; `spoken` is what the screen reader gets where that shorthand
+  // wouldn't be clear on its own.
+  { field: "adsTime",          label: "ADS",       better: "down", spoken: "aim-down-sights speed" },
+  { field: "spreadBase",       label: "Hipfire",   better: "down" },
+  { field: "penetration",      label: "Pierce",    better: "up" },
+  { field: "muzzleVelocity",   label: "Velocity",  better: "up" },
+  { field: "magSize",          label: "Ammo",      better: "up" },
+];
+
+/* What choosing `key` in `slot` would do to the weapon you currently have,
+   as a list of {label, pct, good}. Compared against the live loadout rather
+   than the bare weapon, so the numbers answer "what changes if I click
+   this", which is the question the Customize screen is actually asking. */
+export function statDelta(weaponId, loadout, slot, key) {
+  const before = resolveWeapon(weaponId, loadout);
+  const after = resolveWeapon(weaponId, { ...loadout, [slot]: key });
+  if (!before || !after) return [];
+
+  const out = [];
+  for (const { field, label, better, spoken } of DELTA_FIELDS) {
+    const a = before[field], b = after[field];
+    if (typeof a !== "number" || typeof b !== "number" || !a) continue;
+    const pct = Math.round(((b - a) / Math.abs(a)) * 100);
+    if (!pct) continue;
+    out.push({ label, spoken: spoken || label, pct, good: better === "up" ? pct > 0 : pct < 0 });
+  }
+  // ADS field-of-view is the whole point of an optic but isn't a "stat" —
+  // report it as magnification, which is what a player reads it as. It goes
+  // first for optics because it's the thing you're actually choosing between;
+  // the UI only has room for the first couple of entries.
+  if (slot === "optic" && before.adsFovMult !== after.adsFovMult) {
+    out.unshift({ label: "Zoom", spoken: "magnification", pct: null, good: null,
+                  text: `${(1 / after.adsFovMult).toFixed(1)}×` });
+  }
+  return out;
+}
+
 export function defaultLoadoutFor(weaponId) {
   const def = WEAPON_DEFS[weaponId];
   // Weapons that ship with a dot keep it selected so the gun looks like itself.

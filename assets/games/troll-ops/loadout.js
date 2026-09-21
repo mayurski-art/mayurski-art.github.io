@@ -1,7 +1,8 @@
 // Troll Ops — loadout screen: class → weapon → attachments.
 
 import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js";
-import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars } from "./attachments.js";
+import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js";
+import { iconFor } from "./attachment-icons.js";
 import { getRank, getXp, isUnlocked, rankUnlocked, rankProgress, MAX_RANK, XP_PER_RANK } from "./progression.js";
 import { MAPS, MAP_IDS, mapSchematic } from "./maps.js";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js";
@@ -241,6 +242,11 @@ export class Loadout {
     }
   }
 
+  /* Customize: one row per slot, each a strip of illustrated cards. A card
+     carries the part's icon, name and what it does, and — filled in by
+     renderAtts once a weapon is known — the stat deltas picking it would
+     cause. The old build was a line of bare text pills, which meant the
+     screen that exists to compare parts showed nothing to compare. */
   buildSlots() {
     const wrap = this.els.atts;
     wrap.innerHTML = "";
@@ -260,19 +266,80 @@ export class Loadout {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "to-lo-att";
-        b.textContent = att.name;
+
+        const icon = document.createElement("i");
+        icon.className = "to-att-icon";
+        icon.innerHTML = iconFor(slot, key);
+        b.appendChild(icon);
+
+        const text = document.createElement("span");
+        text.className = "to-att-text";
+        const name = document.createElement("strong");
+        name.textContent = att.name;
+        const desc = document.createElement("small");
+        desc.textContent = att.desc;
+        text.append(name, desc);
+        b.appendChild(text);
+
+        // Filled per-render: the deltas depend on the weapon it's bolted to.
+        const delta = document.createElement("span");
+        delta.className = "to-att-delta";
+        b.appendChild(delta);
+
         b.title = att.desc;
-        b.setAttribute("aria-label", `${SLOT_LABELS[slot]}: ${att.name} — ${att.desc}`);
         b.addEventListener("click", () => {
           this.attachments[slot] = key;
           this.persist();
           this.render();
         });
         opts.appendChild(b);
-        this.slotButtons[slot][key] = b;
+        this.slotButtons[slot][key] = { btn: b, delta, att };
       }
       row.appendChild(opts);
       wrap.appendChild(row);
+    }
+  }
+
+  /* Selected state plus the per-card stat deltas, recomputed whenever the
+     weapon or any other slot changes — a compensator's recoil cut reads
+     differently on an LMG than on an SMG, and stacking a grip changes what
+     the next part is worth. */
+  renderAtts() {
+    for (const slot of SLOTS) {
+      for (const [key, entry] of Object.entries(this.slotButtons[slot])) {
+        const { btn, delta, att } = entry;
+        const on = this.attachments[slot] === key;
+        btn.classList.toggle("is-active", on);
+        btn.setAttribute("aria-pressed", String(on));
+
+        delta.innerHTML = "";
+        const rows = statDelta(this.activeId, this.attachments, slot, key);
+        // Two chips keeps every card one chip-row tall, so a slot's cards
+        // stay the same height and the four rows fit without scrolling.
+        // They're already ordered by how much players care (damage first,
+        // handling last), so the two that survive are the two that matter.
+        for (const d of rows.slice(0, 2)) {
+          const chip = document.createElement("b");
+          if (d.text != null) {
+            chip.className = "is-info";
+            chip.textContent = `${d.label} ${d.text}`;
+          } else {
+            chip.className = d.good ? "is-up" : "is-down";
+            chip.textContent = `${d.label} ${d.pct > 0 ? "+" : ""}${d.pct}%`;
+          }
+          delta.appendChild(chip);
+        }
+
+        // The screen-reader label has to carry the same comparison the chips
+        // show, or the deltas are sighted-only.
+        const spoken = rows.length
+          ? rows.map((d) => (d.text != null
+              ? `${d.spoken} ${d.text}`
+              : `${d.spoken} ${d.pct > 0 ? "up" : "down"} ${Math.abs(d.pct)} percent`)).join(", ")
+          : "no stat change";
+        btn.setAttribute("aria-label",
+          `${SLOT_LABELS[slot]}: ${att.name}. ${att.desc}. ${on ? "Equipped" : spoken}`);
+      }
     }
   }
 
@@ -409,13 +476,7 @@ export class Loadout {
       this.els.stats.appendChild(row);
     }
 
-    for (const slot of SLOTS) {
-      for (const [key, b] of Object.entries(this.slotButtons[slot])) {
-        const on = this.attachments[slot] === key;
-        b.classList.toggle("is-active", on);
-        b.setAttribute("aria-pressed", String(on));
-      }
-    }
+    this.renderAtts();
 
     // --- rank strip
     if (this.els.rank) {
