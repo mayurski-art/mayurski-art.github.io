@@ -443,6 +443,95 @@ export function poseDance(rig, t) {
   _poseNeckAndHead(rig, { pitch: -headBob * 0.12, sway: sway * 0.15, dt: 0, lead: sway * 0.3 });
 }
 
+/* Floss: hips swing one way, both arms swing the opposite way and cross in
+   front on the offbeat — the actual shape of the dance, just built from the
+   same single-segment arm bones as the rest of the rig instead of a real
+   elbow. Faster than the disco bounce above; almost no vertical bob, all
+   the motion is lateral. */
+export function poseDanceFloss(rig, t) {
+  const p = rig.parts;
+  const beat = t * Math.PI * 2 * 2.2;
+  const hipSway = Math.sin(beat);
+  const armSway = Math.sin(beat + Math.PI); // opposite phase to the hips
+
+  p.hips.rotation.z = hipSway * 0.22;
+  p.hips.rotation.y = Math.sin(beat * 2) * 0.05;
+  p.hips.position.y = rig.hipY - Math.abs(Math.sin(beat * 2)) * 0.02 * rig.scale;
+
+  p.torso.rotation.z = hipSway * -0.14;
+  p.chest.rotation.z = hipSway * -0.10;
+
+  // Both arms swing together, low and wide, crossing the body — the
+  // "floss" itself — rather than the opposite-arm-swing a walk cycle uses.
+  p.armL.rotation.x = -0.3;
+  p.armR.rotation.x = -0.3;
+  p.armL.rotation.z = 0.5 + armSway * 0.55;
+  p.armR.rotation.z = -0.5 + armSway * 0.55;
+
+  p.legL.rotation.z = hipSway * 0.06;
+  p.legR.rotation.z = hipSway * 0.06;
+
+  _poseNeckAndHead(rig, { pitch: 0.04, sway: hipSway * 0.22, dt: 0, lead: hipSway * 0.2 });
+}
+
+/* Headbang: almost all the motion is the head and chest, hips barely move —
+   the opposite weighting from the floss/disco moves above, so cycling
+   between them reads as different dances rather than the same skeleton
+   playing back faster or slower. */
+export function poseDanceHeadbang(rig, t) {
+  const p = rig.parts;
+  const beat = t * Math.PI * 2 * 2.6;
+  const nod = Math.max(0, Math.sin(beat)); // snaps down, eases up
+
+  p.hips.position.y = rig.hipY - nod * 0.03 * rig.scale;
+  p.torso.rotation.x = 0.1 + nod * 0.22;
+  p.chest.rotation.x = 0.08 + nod * 0.3;
+
+  const armPump = Math.sin(beat * 0.5);
+  p.armL.rotation.x = -0.6 + armPump * 0.3;
+  p.armR.rotation.x = -0.6 - armPump * 0.3;
+  p.armL.rotation.z = 0.2;
+  p.armR.rotation.z = -0.2;
+
+  p.legL.rotation.x = nod * 0.12;
+  p.legR.rotation.x = nod * 0.12;
+
+  _poseNeckAndHead(rig, { pitch: -nod * 0.5, sway: Math.sin(beat * 0.5) * 0.08, dt: 0, lead: 0 });
+}
+
+/* Arm-wave: one arm raised and circling overhead while the hips sway low
+   and slow underneath — reads as a completely different silhouette from
+   the other three (raised arm) rather than another variation on a bounce. */
+export function poseDanceWave(rig, t) {
+  const p = rig.parts;
+  const beat = t * Math.PI * 2 * 1.1;
+  const sway = Math.sin(beat * 0.6);
+  const circle = beat * 1.4;
+
+  p.hips.position.y = rig.hipY - Math.abs(Math.sin(beat * 1.2)) * 0.03 * rig.scale;
+  p.hips.rotation.z = sway * 0.1;
+  p.torso.rotation.z = sway * -0.08;
+  p.chest.rotation.z = sway * -0.06;
+
+  // Raised arm sweeps a small circle overhead — capped near straight-up
+  // (-PI/2) rather than past vertical, so the hand stays within the
+  // character's own silhouette instead of pushing the reach higher than
+  // the head and widening the frame the hero shot has to fit.
+  p.armR.rotation.x = -1.7 + Math.sin(circle) * 0.3;
+  p.armR.rotation.z = -0.3 + Math.cos(circle) * 0.3;
+  // Other arm keeps a loose, low sway so it doesn't read as frozen.
+  p.armL.rotation.x = -0.35 + sway * 0.15;
+  p.armL.rotation.z = 0.3;
+
+  p.legL.rotation.z = sway * 0.07;
+  p.legR.rotation.z = sway * 0.07;
+
+  _poseNeckAndHead(rig, { pitch: -0.05, sway: sway * 0.18, dt: 0, lead: sway * 0.15 });
+}
+
+/* Every available locker emote, in the order the inspector cycles them. */
+export const DANCES = [poseDance, poseDanceFloss, poseDanceHeadbang, poseDanceWave];
+
 /* Collapse the rig into a fallen heap. `t` is 0 (moment of death) to 1
    (fully down); callers drive it up over ~0.5-0.6s then hide the rig. Tips
    the whole body over sideways onto the ground and folds the limbs rather

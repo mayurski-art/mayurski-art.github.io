@@ -1132,13 +1132,72 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 @keyframes to-spin { to { transform: rotate(360deg); } }
 
-@keyframes to-char-bg-drift {
-  0% { background-position: 0 0, 0% 50%; }
-  100% { background-position: 0 0, 100% 50%; }
+/* ---------- Radio ---------- */
+/* Floats above every screen (title, HUD, pause, gameover) so it keeps
+   playing and stays reachable no matter what's on top of it. */
+
+.to-radio {
+  position: absolute; left: 16px; bottom: 16px; z-index: 40;
+  font-family: "DM Mono", monospace;
 }
-@keyframes to-char-bg-glow {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.18); }
+.to-radio-toggle {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: rgba(6,9,7,.6); border: 1px solid rgba(255,255,255,.16);
+  color: #dfe6da; font-size: 15px; line-height: 1;
+  cursor: pointer; pointer-events: auto;
+}
+.to-radio-toggle:hover { border-color: rgba(127,224,102,.45); }
+.to-radio-toggle[aria-expanded="true"] { border-color: #7fe066; color: #7fe066; }
+
+.to-radio-panel {
+  position: absolute; left: 0; bottom: 42px;
+  width: 220px; padding: 10px 12px;
+  background: rgba(10,14,10,.92); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px; backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.to-radio-track { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.to-radio-track strong {
+  font-size: 12px; color: #eef2ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.to-radio-track span { font-size: 10.5px; color: #9aa596; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.to-radio-controls { display: flex; align-items: center; gap: 6px; }
+.to-radio-btn {
+  flex: 1; height: 28px; border-radius: 7px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14);
+  color: #dfe6da; font-size: 12px; cursor: pointer;
+}
+.to-radio-btn:hover { border-color: rgba(127,224,102,.45); }
+.to-radio-btn:disabled { opacity: .35; cursor: default; }
+.to-radio-btn.is-active { color: #7fe066; border-color: #7fe066; background: rgba(127,224,102,.14); }
+.to-radio-play { flex: 1.3; color: #7fe066; }
+
+.to-radio-vol { display: flex; align-items: center; gap: 8px; font-size: 10.5px; color: #9aa596; }
+.to-radio-vol input[type="range"] { flex: 1; accent-color: #7fe066; }
+
+/* X/Twitter link — sits right next to the radio toggle, main menu only
+   (the radio itself stays up through the match; this doesn't need to). */
+.to-x-link {
+  position: absolute; left: 58px; bottom: 16px; z-index: 40;
+  box-sizing: border-box;
+  width: 34px; height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(6,9,7,.6); border: 1px solid rgba(255,255,255,.16);
+  color: #dfe6da;
+  pointer-events: auto;
+}
+.to-x-link:hover { border-color: rgba(127,224,102,.45); color: #7fe066; }
+#to-title[hidden] ~ .to-x-link { display: none; }
+
+@media (max-width: 760px) {
+  .to-x-link { left: 52px; bottom: 10px; }
+}
+
+@media (max-width: 760px) {
+  .to-radio { left: 10px; bottom: 10px; }
+  .to-radio-panel { width: 190px; }
 }
 
 
@@ -1401,7 +1460,12 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-pf-right .to-lo-stat { padding: 2px 9px; font-size: 10.5px; }
 .to-pf-right .to-lo-stat span { min-width: 62px; }
 
-/* ---- 3D weapon inspector ---- */
+/* ---- 3D weapon inspector ----
+   Two homes for the same canvas (see mountGunView in game.js, which moves
+   it rather than standing up a second WebGL context): boxed inside Weapon
+   Loadout's detail card by default, or — for Customize/Gear — pulled out
+   to the same free-floating hero spot the operator viewer uses below, so
+   the weapon stands in for the operator there instead of the character. */
 .to-gun-mount { display: flex; }
 .to-gun-view {
   position: relative;
@@ -1429,33 +1493,41 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   pointer-events: none;
 }
 
-/* ---- 3D operator (character locker) viewer - same rig as the gun
-   inspector above, taller since a standing figure reads better tall
-   than wide. Shown on the Match Setup panel, the first thing a player
-   sees, Fortnite-locker style. ---- */
-.to-char-mount { display: flex; }
-.to-char-view {
-  position: relative;
-  flex: 1;
-  height: clamp(180px, 40cqh, 360px);
-  border: 1px solid var(--pf-line);
-  border-radius: 3px;
-  background:
-    radial-gradient(60% 70% at 50% 38%, rgba(126,164,126,.14), rgba(8,12,10,.78)),
-    repeating-linear-gradient(115deg, rgba(255,255,255,.03) 0 1px, transparent 1px 26px);
-  background-size: auto, 300% 300%;
-  animation: to-char-bg-drift 14s linear infinite, to-char-bg-glow 6s ease-in-out infinite;
-  overflow: hidden;
+/* Hero mode — Customize/Gear: no box, no background, free-floating over
+   the arena like the operator viewer. */
+.to-pf > .to-gun-view.is-hero {
+  display: block;
+  position: absolute;
+  left: 178px; right: 232px; top: 0; bottom: 0;
+  height: auto;
+  border: none;
+  background: none;
+  pointer-events: none;
+  z-index: 0;
 }
-.to-pf > .to-char-view { display: none; }
-@media (prefers-reduced-motion: reduce) {
-  .to-char-view { animation: none; }
+.to-gun-view.is-hero canvas { pointer-events: auto; }
+.to-gun-view.is-hero .to-gun-hint { display: none; }
+
+/* ---- 3D operator (character locker) viewer - same rig as the gun
+   inspector above. No box of its own: it's a free-floating hero shot
+   standing directly over the arena background on Match Setup, Fortnite-
+   lobby style, sized to clear the side panels rather than being boxed
+   into one. Sits above the background/panels but below the pointer-events
+   layer for the rail/roster/right column, which re-enable pointer-events
+   on themselves (see ".to-pf > * { pointer-events: auto }"). */
+.to-char-view {
+  position: absolute;
+  left: 178px; right: 232px; top: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 .to-char-view canvas {
   display: block; width: 100%; height: 100%;
   touch-action: none; cursor: grab;
+  pointer-events: auto;
 }
 .to-char-view canvas:active { cursor: grabbing; }
+.to-pf-panel, .to-pf-right, .to-pf-roster, .to-pf-rail, .to-pf-top { position: relative; z-index: 1; }
 
 /* ---- hint lines, sitting where Phantom Forces puts chat ---- */
 .to-pf-chat {

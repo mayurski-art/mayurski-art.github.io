@@ -337,8 +337,11 @@ function buildKeyboardSword(m, mat, group) {
   tip.position.set(0, 0, z0 - bodyLen - TIP_LEN * 0.5);
   group.add(tip);
 
-  // Keycaps, both faces. Two draw calls: a glowing base per key and a dark
-  // cap sitting on it, each as one InstancedMesh.
+  // Keycaps on the +Y face only — a real keyboard has keys on one side and
+  // a plain plastic case on the other, so front and back should read as
+  // different sides of the same object rather than a mirrored prop. Two
+  // draw calls: a glowing base per key and a dark cap sitting on it, each
+  // as one InstancedMesh.
   //
   // The RGB goes UNDER the caps, not on them. A real backlit board has dark
   // plastic keycaps with the LED beneath, so the colour reads as light
@@ -350,8 +353,9 @@ function buildKeyboardSword(m, mat, group) {
   const fieldLen = bodyLen - margin * 2;
   const pitchY = (fieldLen + gap) / m.keyRows;
   const keyL = pitchY - gap;
-  const count = m.keyCols * m.keyRows * 2;
+  const count = m.keyCols * m.keyRows;
   const capH = 0.010;
+  const faceUp = m.blade * 0.5;
 
   const lights = new THREE.InstancedMesh(
     new THREE.BoxGeometry(keyW + gap * 1.5, capH * 0.5, keyL + gap * 1.5),
@@ -367,24 +371,21 @@ function buildKeyboardSword(m, mat, group) {
   const dummy = new THREE.Object3D();
   const colour = new THREE.Color();
   let i = 0;
-  for (const sign of [1, -1]) {
-    for (let row = 0; row < m.keyRows; row++) {
-      for (let col = 0; col < m.keyCols; col++) {
-        const x = -usable * 0.5 + (keyW + gap) * col + keyW * 0.5;
-        const z = z0 - margin - pitchY * row - keyL * 0.5;
-        const face = sign * (m.blade * 0.5);
+  for (let row = 0; row < m.keyRows; row++) {
+    for (let col = 0; col < m.keyCols; col++) {
+      const x = -usable * 0.5 + (keyW + gap) * col + keyW * 0.5;
+      const z = z0 - margin - pitchY * row - keyL * 0.5;
 
-        dummy.position.set(x, face + sign * capH * 0.26, z);
-        dummy.updateMatrix();
-        lights.setMatrixAt(i, dummy.matrix);
-        const t = (col / m.keyCols) * 0.7 + (row / m.keyRows) * 0.3;
-        lights.setColorAt(i, colour.setHSL(t % 1, 0.95, 0.55));
+      dummy.position.set(x, faceUp + capH * 0.26, z);
+      dummy.updateMatrix();
+      lights.setMatrixAt(i, dummy.matrix);
+      const t = (col / m.keyCols) * 0.7 + (row / m.keyRows) * 0.3;
+      lights.setColorAt(i, colour.setHSL(t % 1, 0.95, 0.55));
 
-        dummy.position.set(x, face + sign * capH * 0.55, z);
-        dummy.updateMatrix();
-        caps.setMatrixAt(i, dummy.matrix);
-        i++;
-      }
+      dummy.position.set(x, faceUp + capH * 0.55, z);
+      dummy.updateMatrix();
+      caps.setMatrixAt(i, dummy.matrix);
+      i++;
     }
   }
   lights.instanceMatrix.needsUpdate = true;
@@ -393,6 +394,15 @@ function buildKeyboardSword(m, mat, group) {
   group.add(lights);
   group.add(caps);
 
+  // Backplate on the -Y face: the plain plastic underside of the board,
+  // with a shallow recessed panel so it doesn't read as a bare slab next
+  // to the keyed face's detail.
+  const backPanel = new THREE.Mesh(
+    new THREE.BoxGeometry(m.wide - margin * 2, 0.006, bodyLen - margin * 2),
+    new THREE.MeshStandardMaterial({ color: 0x0b0b0d, roughness: 0.75, metalness: 0.15 }));
+  backPanel.position.set(0, -(m.blade * 0.5 + 0.004), z0 - bodyLen * 0.5);
+  group.add(backPanel);
+
   // "U MAD BRO?" crossguard, with rivets along the face.
   const guard = new THREE.Mesh(
     new THREE.BoxGeometry(m.guardWide, m.guardTall, GUARD_THICK),
@@ -400,22 +410,22 @@ function buildKeyboardSword(m, mat, group) {
   guard.position.set(0, 0, -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5));
   group.add(guard);
 
-  // "U MAD BRO?" as a canvas texture on a thin plate, laid flat on the
-  // guard's TOP face so it reads right-side up when the sword is set down
-  // flat on a display stand — not standing up facing the player. The
-  // Blender model extrudes real letters, but TextGeometry needs a font
-  // file this game does not ship - and at view-model distance a decal is
-  // indistinguishable.
+  // "U MAD BRO?" as a canvas texture on a thin plate, facing the +Z
+  // (player-facing) side of the guard next to the rivets, so it reads
+  // right-side up while the sword is held up and turned in the hero/
+  // inspector view — not lying flat on top, which only read correctly
+  // with the sword resting flat on a display stand. The Blender model
+  // extrudes real letters, but TextGeometry needs a font file this game
+  // does not ship - and at view-model distance a decal is indistinguishable.
   const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(m.guardWide * 0.86, GUARD_THICK * 0.7),
+    new THREE.PlaneGeometry(m.guardWide * 0.86, m.guardTall * 0.5),
     new THREE.MeshStandardMaterial({
       map: guardTextTexture(THREE),
       transparent: true,
       roughness: 0.35,
       metalness: 0.2,
     }));
-  plate.rotation.x = -Math.PI / 2;
-  plate.position.set(0, m.guardTall * 0.5 + 0.0015, -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5));
+  plate.position.set(0, m.guardTall * 0.12, -(GRIP_LEN * 0.5) + 0.0015);
   group.add(plate);
 
   // Rivets sit proud of the guard's PLAYER-facing side (+Z of the guard),

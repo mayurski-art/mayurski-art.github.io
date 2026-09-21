@@ -27,7 +27,6 @@
 
           <div class="to-pf-top">
             <span class="to-pf-logo">TROLL <b>OPS</b></span>
-            <span class="to-pf-tagline">Grins in, grins out. Hold the arena.</span>
           </div>
 
           <nav class="to-pf-rail" id="to-pf-rail" aria-label="Lobby menu">
@@ -51,8 +50,6 @@
           <section class="to-pf-center" id="to-pf-center">
 
             <div class="to-pf-panel" id="to-pfp-deploy">
-              <div class="to-pf-panel-bar">Operator</div>
-              <div class="to-char-mount" id="to-char-mount-deploy"></div>
               <div class="to-pf-panel-bar">Map Select</div>
               <div class="to-lo-maps" id="to-lo-maps" role="group" aria-label="Map"></div>
             </div>
@@ -80,13 +77,11 @@
 
             <div class="to-pf-panel" id="to-pfp-customize" hidden>
               <div class="to-pf-panel-bar">Customize<span id="to-pf-att-weapon"></span></div>
-              <div class="to-gun-mount" id="to-gun-mount-customize"></div>
               <div class="to-lo-atts" id="to-lo-atts"></div>
             </div>
 
             <div class="to-pf-panel" id="to-pfp-gear" hidden>
               <div class="to-pf-panel-bar">Gear</div>
-              <div class="to-gun-mount" id="to-gun-mount-gear"></div>
               <div class="to-lo-gearlist" id="to-lo-gear"></div>
               <p class="to-pf-note">In the match: <kbd>1</kbd> primary · <kbd>2</kbd> secondary · <kbd>3</kbd> melee · <kbd>V</kbd> quick melee · <kbd>G</kbd> lethal · <kbd>F</kbd> tactical. Hold <kbd>G</kbd> to cook a frag.</p>
             </div>
@@ -207,12 +202,11 @@
 
           <div class="to-gun-view" id="to-gun-view">
             <canvas id="to-gun-canvas" aria-label="Weapon preview: drag to turn, scroll to zoom" role="img"></canvas>
-            <span class="to-gun-hint">Drag to turn · scroll to zoom · double-click resets</span>
+            <span class="to-gun-hint" id="to-gun-hint">Drag to turn · scroll to zoom · double-click resets</span>
           </div>
 
           <div class="to-char-view" id="to-char-view">
-            <canvas id="to-char-canvas" aria-label="Operator preview: drag to turn, scroll to zoom" role="img"></canvas>
-            <span class="to-gun-hint">Drag to turn · scroll to zoom · double-click resets</span>
+            <canvas id="to-char-canvas" aria-label="Operator: drag to turn, scroll to zoom" role="img"></canvas>
           </div>
 
         </div>
@@ -501,6 +495,33 @@
           <p>Loading arena…</p>
         </div>
       </div>
+
+      <!-- In-game radio: separate playlist from Troll Radio, plays across the
+           lobby and the match. Visible on the title screen and in the HUD. -->
+      <div class="to-radio" id="to-radio" aria-label="Radio">
+        <button type="button" class="to-radio-toggle" id="to-radio-toggle" aria-label="Show radio controls" aria-expanded="false">♪</button>
+        <div class="to-radio-panel" id="to-radio-panel" hidden>
+          <div class="to-radio-track">
+            <strong id="to-radio-title">No tracks loaded</strong>
+            <span id="to-radio-artist"></span>
+          </div>
+          <div class="to-radio-controls">
+            <button type="button" class="to-radio-btn" id="to-radio-prev" aria-label="Previous track">⏮</button>
+            <button type="button" class="to-radio-btn to-radio-play" id="to-radio-play" aria-label="Play">▶</button>
+            <button type="button" class="to-radio-btn" id="to-radio-next" aria-label="Next track">⏭</button>
+            <button type="button" class="to-radio-btn to-radio-shuffle" id="to-radio-shuffle" aria-label="Shuffle" aria-pressed="false">⇄</button>
+          </div>
+          <label class="to-radio-vol">
+            <span>Vol</span>
+            <input type="range" id="to-radio-volume" min="0" max="100" step="1">
+          </label>
+        </div>
+      </div>
+
+      <!-- Main-menu only: link out to the Troll Runner X account. -->
+      <a class="to-x-link" id="to-x-link" href="https://x.com/troll_runner" target="_blank" rel="noopener" aria-label="Troll Runner on X">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M18.9 2H22l-7.6 8.7L23.3 22H16.7l-5.2-6.8L5.6 22H2.4l8.1-9.3L1.7 2h6.8l4.7 6.2L18.9 2Zm-1.2 18h1.7L7.4 3.9H5.6L17.7 20Z"/></svg>
+      </a>
 
     </section>
   </main>

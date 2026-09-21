@@ -12,11 +12,13 @@
 // identical here and not re-explained.
 
 import * as THREE from "three";
-import { buildHumanoid, poseDance } from "./character.js";
+import { buildHumanoid, DANCES } from "./character.js";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
 const REST_YAW = -0.45;
+// How long each emote plays before the locker cycles to the next one.
+const DANCE_SWITCH_SECONDS = 8;
 
 const OPERATOR_MATERIAL = new THREE.MeshStandardMaterial({
   color: 0x0a0a0a, roughness: 0.7, metalness: 0.1,
@@ -55,11 +57,15 @@ export class CharacterInspector {
     // orbited, same reasoning as WeaponInspector's bounding-box centring.
     this.rig.position.y = -0.9;
 
-    this.baseDist = 4.4;
+    // Close enough that the operator actually reads as a hero shot rather
+    // than a small figure lost in a big empty frame, while still leaving
+    // clearance above the head and below the raised-arm wave emote's reach
+    // so nothing clips the top/bottom edges of the free-floating layer.
+    this.baseDist = 5.4;
     this.zoom = 1;
     this.zoomTarget = 1;
     this.yaw = REST_YAW;
-    this.pitch = 0.14;
+    this.pitch = 0.1;
     this.autoSpin = true;
     this.spinT = 0;
     // Separate from spinT, which freezes whenever the user drags the
@@ -68,6 +74,12 @@ export class CharacterInspector {
     this.danceT = 0;
     this.width = 0;
     this.height = 0;
+
+    // Cycles through DANCES over time so the locker doesn't loop the same
+    // eight-count forever; picks a random start so a page reload doesn't
+    // always open on the same emote.
+    this.danceIndex = Math.floor(Math.random() * DANCES.length);
+    this.danceSwitchT = 0;
 
     this.bindInput();
   }
@@ -158,9 +170,17 @@ export class CharacterInspector {
 
     // A looping dance instead of a locked-still T-pose or a plain weight
     // shift - the operator shows off while waiting to deploy, the same
-    // way a Fortnite locker skin performs its emote on repeat.
+    // way a Fortnite locker skin performs its emote on repeat. Cycling
+    // through DANCES instead of always playing the same one keeps the
+    // locker screen from feeling static on a long lobby wait.
     this.danceT += dt;
-    poseDance(this.humanoid, this.danceT);
+    this.danceSwitchT += dt;
+    if (this.danceSwitchT >= DANCE_SWITCH_SECONDS) {
+      this.danceSwitchT = 0;
+      this.danceIndex = (this.danceIndex + 1) % DANCES.length;
+      this.danceT = 0; // fresh beat 0 so the new emote doesn't start mid-pose
+    }
+    DANCES[this.danceIndex](this.humanoid, this.danceT);
 
     const dist = this.baseDist * this.zoom;
     const cp = Math.cos(this.pitch);

@@ -32,6 +32,7 @@ import { MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTi
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
+import { GameMusic } from "./music.js";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice } from "./streak-device.js";
@@ -937,6 +938,7 @@ let sndRoundOver = false;    // freeze while the banner/HUD settles between roun
 let sndInteractHeld = false; // physically holding E right now
 
 const audio = new GameAudio();
+const music = new GameMusic();
 let suppressT = 0;
 
 const animDebug = new AnimDebugLab();
@@ -1059,6 +1061,65 @@ function initEscapeMenu() {
     if (controls.isLocked) controls.unlock();
     else openPauseMenu();
   });
+}
+
+// In-game radio widget — a separate playlist from Troll Radio, usable from
+// the lobby and carried straight through into the match (see music.js).
+function initRadioWidget() {
+  const toggle = document.getElementById("to-radio-toggle");
+  const panel = document.getElementById("to-radio-panel");
+  const titleEl = document.getElementById("to-radio-title");
+  const artistEl = document.getElementById("to-radio-artist");
+  const playBtn = document.getElementById("to-radio-play");
+  const prevBtn = document.getElementById("to-radio-prev");
+  const nextBtn = document.getElementById("to-radio-next");
+  const shuffleBtn = document.getElementById("to-radio-shuffle");
+  const volume = document.getElementById("to-radio-volume");
+  if (!toggle || !panel) return;
+
+  const repaint = () => {
+    const t = music.current;
+    titleEl.textContent = t ? t.title : (music.hasTracks ? "—" : "No tracks loaded");
+    artistEl.textContent = t ? t.artist : "";
+    playBtn.textContent = music.playing ? "⏸" : "▶";
+    playBtn.setAttribute("aria-label", music.playing ? "Pause" : "Play");
+    shuffleBtn.classList.toggle("is-active", music.shuffle);
+    shuffleBtn.setAttribute("aria-pressed", String(music.shuffle));
+  };
+  music.onchange = repaint;
+
+  toggle.addEventListener("click", () => {
+    const open = panel.hidden;
+    panel.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+  });
+  playBtn.addEventListener("click", () => music.toggle());
+  prevBtn.addEventListener("click", () => music.prev());
+  nextBtn.addEventListener("click", () => music.next());
+  shuffleBtn.addEventListener("click", () => music.setShuffle(!music.shuffle));
+  volume.value = Math.round(music.volume * 100);
+  volume.addEventListener("input", () => music.setVolume(volume.value / 100));
+
+  if (!music.hasTracks) {
+    playBtn.disabled = true;
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    shuffleBtn.disabled = true;
+  }
+
+  repaint();
+
+  // Music should be playing by default, but browsers won't autoplay audio
+  // without a user gesture first. Prime it off the very first interaction
+  // anywhere on the page, so it's already going by the time someone reaches
+  // Deploy rather than waiting on that specific click.
+  const primeOnFirstInput = () => {
+    music.primeAutoplay();
+    window.removeEventListener("pointerdown", primeOnFirstInput);
+    window.removeEventListener("keydown", primeOnFirstInput);
+  };
+  window.addEventListener("pointerdown", primeOnFirstInput, { once: true });
+  window.addEventListener("keydown", primeOnFirstInput, { once: true });
 }
 
 function renderMenuRoster() {
@@ -1208,31 +1269,33 @@ const charCanvas = document.getElementById("to-char-canvas");
 const charInspector = charCanvas ? new CharacterInspector(charCanvas) : null;
 let charInspectorLive = false;
 
-/* One inspector, two panels that want to show it: move the element rather
-   than standing up a second WebGL context for the same gun. */
+/* One inspector, three panels that want to show it. Weapon Loadout keeps it
+   boxed inside its detail card (to-gun-mount-loadout); Customize and Gear
+   pull it out to the free-floating hero spot the operator viewer uses on
+   Match Setup instead — the weapon stands in for the operator there. */
+const pfCenter = document.getElementById("to-pf-center")?.parentElement || null; // .to-pf
 function mountGunView(panel) {
-  const mount = document.getElementById(`to-gun-mount-${panel}`);
-  inspectorLive = !!(gunView && mount);
+  const boxMount = panel === "loadout" ? document.getElementById("to-gun-mount-loadout") : null;
+  const target = boxMount || pfCenter;
+  inspectorLive = !!(gunView && target);
   if (!inspectorLive) return;
-  if (gunView.parentElement !== mount) mount.appendChild(gunView);
+  gunView.classList.toggle("is-hero", !boxMount);
+  if (gunView.parentElement !== target) target.appendChild(gunView);
   gunView.style.display = "";
 }
 
-/* Same move-the-element trick as mountGunView, for the operator locker
-   viewer - it only ever lives on the Match Setup ("deploy") panel today,
-   but is written the same way so a second panel can pick it up later. */
+/* Unlike the gun view, the operator locker viewer isn't nested inside a
+   per-panel box — it's a free-floating hero shot over the whole lobby
+   (see .to-char-view), so showing it for a panel is just an on/off flag. */
 function mountCharView(panel) {
-  const mount = document.getElementById(`to-char-mount-${panel}`);
-  charInspectorLive = !!(charView && mount);
-  if (!charInspectorLive) return;
-  if (charView.parentElement !== mount) mount.appendChild(charView);
-  charView.style.display = "";
+  charInspectorLive = !!(charView && panel === "deploy");
+  if (charView) charView.style.display = charInspectorLive ? "" : "none";
 }
 
 // "deploy" (Match Setup) is the panel left un-hidden in the HTML, so it's
 // what a player sees first without any click - nothing else calls
 // showLobbyPanel("deploy") on first load, so the locker view has to be
-// mounted here or it sits empty until the player clicks away and back.
+// shown here or it stays hidden until the player clicks away and back.
 mountCharView("deploy");
 
 // Which panel is currently open, or `null` when every panel is collapsed —
@@ -3869,6 +3932,7 @@ async function joinQuickplay() {
 
 async function startGame() {
   audio.resume();   // the click that got us here is the gesture Web Audio needs
+  music.primeAutoplay();
   if (isPvp()) {
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
@@ -5799,6 +5863,7 @@ function updateWeaponView(dt) {
 resize();
 applySettings();
 initEscapeMenu();
+initRadioWidget();
 loadMap(lobbyMapId());
 els.loading.hidden = true;
 animate();
