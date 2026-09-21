@@ -216,7 +216,12 @@ export class MeleeState {
    the two stay recognisably the same weapon. Keycaps go through one
    InstancedMesh: 180 separate meshes would be 180 draw calls for a thing
    that lives in the corner of the screen. */
-export function buildMeleeMesh(def) {
+// `includeHands` defaults on for the real in-match view-model, where a
+// held weapon with no hands on it would look wrong. The standalone locker/
+// inspector preview (inspector.js) passes false: with no arm or body
+// attached to explain them, the hand meshes read as disconnected skin-
+// coloured fragments floating along the grip instead of someone holding it.
+export function buildMeleeMesh(def, includeHands = true) {
   const m = def.model;
   const group = new THREE.Group();
   const mat = (c, rough = 0.45, metal = 0.65) =>
@@ -233,28 +238,32 @@ export function buildMeleeMesh(def) {
 
   if (m.kind === "keyboard") {
     const sword = buildKeyboardSword(m, mat, group);
-    const kbHand = buildGripHand(MELEE_HAND_SCALE);
-    kbHand.position.copy(GRIP_ANCHOR);
-    sword.add(kbHand);
-    // Two-handed grip: the keyboard sword is swung with both hands, the
-    // support hand choked up behind the primary grip (+Z, toward the
-    // pommel end, away from the guard at the blade side) rather than
-    // ahead of it — there's no separate foregrip on a sword the way a
-    // rifle's handguard gives one.
-    const SUPPORT_ANCHOR = GRIP_ANCHOR.clone().add(new THREE.Vector3(0, 0, 0.11));
-    const supportHand = buildSupportHand(MELEE_HAND_SCALE * 0.85);
-    supportHand.position.copy(SUPPORT_ANCHOR);
-    supportHand.rotation.z = Math.PI / 2;
-    sword.add(supportHand);
+    if (includeHands) {
+      const kbHand = buildGripHand(MELEE_HAND_SCALE);
+      kbHand.position.copy(GRIP_ANCHOR);
+      sword.add(kbHand);
+      // Two-handed grip: the keyboard sword is swung with both hands, the
+      // support hand choked up behind the primary grip (+Z, toward the
+      // pommel end, away from the guard at the blade side) rather than
+      // ahead of it — there's no separate foregrip on a sword the way a
+      // rifle's handguard gives one.
+      const SUPPORT_ANCHOR = GRIP_ANCHOR.clone().add(new THREE.Vector3(0, 0, 0.11));
+      const supportHand = buildSupportHand(MELEE_HAND_SCALE * 0.85);
+      supportHand.position.copy(SUPPORT_ANCHOR);
+      supportHand.rotation.z = Math.PI / 2;
+      sword.add(supportHand);
+    }
     return sword;
   }
 
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.036, 0.15), mat(m.grip, 0.85, 0.05));
   grip.position.copy(GRIP_ANCHOR);
   group.add(grip);
-  const hand = buildGripHand(MELEE_HAND_SCALE);
-  hand.position.copy(GRIP_ANCHOR);
-  group.add(hand);
+  if (includeHands) {
+    const hand = buildGripHand(MELEE_HAND_SCALE);
+    hand.position.copy(GRIP_ANCHOR);
+    group.add(hand);
+  }
 
   if (m.kind === "bat") {
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(m.blade * 0.5, m.wide, m.len, 10), mat(m.color, 0.8, 0.05));
@@ -314,8 +323,13 @@ function guardTextTexture(THREE) {
    identical since the caps already sit on a strict uniform grid. A fixed
    seed (not Math.random) keeps the layout the same every time the sword is
    built rather than reshuffling on every spawn/reload.
-   Built once and shared, same reasoning as the guard decal above. */
-const KEY_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*-=+_?/";
+   Built once and shared, same reasoning as the guard decal above.
+
+   Canvas column/row here map 1:1 onto the key grid's own col/row (same
+   axes buildKeyboardSword uses: col -> X/width, row -> Z/length), with
+   each glyph pre-rotated -90° so it comes out upright once the decal
+   plane's own rotation (see its use below) is applied. */
+const KEY_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*-=+_?/~";
 let keyLegendCache = null;
 function keyLegendTexture(THREE, cols, rows) {
   if (keyLegendCache) return keyLegendCache;
@@ -330,21 +344,43 @@ function keyLegendTexture(THREE, cols, rows) {
   g.textBaseline = "middle";
   g.fillStyle = "#c9d2c4";
 
-  // A tiny xorshift-style PRNG seeded from the cell index so the "random"
-  // character soup is deterministic across rebuilds instead of reshuffling
-  // every time a match loads.
+  // A tiny xorshift-style PRNG seeded fixed (not Math.random) so the deal
+  // order is deterministic across rebuilds instead of reshuffling every
+  // time a match loads.
   let seed = 1337;
   const rand = () => {
     seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
     return ((seed >>> 0) % 10000) / 10000;
   };
 
+  // There are more keys (rows*cols) than glyphs in the charset, so true
+  // uniqueness across the whole board isn't possible with a real keyboard
+  // character set — instead, deal glyphs like a shuffled deck: every
+  // character appears once before any of them repeats, and the deck is
+  // reshuffled only once it runs out. That maximises how varied any two
+  // keys look without inventing fake symbols to pad the count.
+  let deck = [];
+  const nextGlyph = () => {
+    if (deck.length === 0) {
+      deck = KEY_GLYPHS.split("");
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+    }
+    return deck.pop();
+  };
+
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const ch = KEY_GLYPHS[Math.floor(rand() * KEY_GLYPHS.length)];
+      const ch = nextGlyph();
       const cx = col * cellPx + cellPx / 2;
       const cy = row * cellPx + cellPx / 2;
-      g.fillText(ch, cx, cy + 1);
+      g.save();
+      g.translate(cx, cy);
+      g.rotate(Math.PI / 2);
+      g.fillText(ch, 0, 1);
+      g.restore();
     }
   }
   keyLegendCache = new THREE.CanvasTexture(c);

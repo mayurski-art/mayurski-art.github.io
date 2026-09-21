@@ -138,7 +138,7 @@ export class WeaponInspector {
       });
     }
 
-    this.mesh = def.model?.kind ? buildMeleeMesh(def) : buildWeaponMesh(def);
+    this.mesh = def.model?.kind ? buildMeleeMesh(def, false) : buildWeaponMesh(def);
     const box = new THREE.Box3().setFromObject(this.mesh);
     const centre = box.getCenter(new THREE.Vector3());
     this.mesh.position.sub(centre);
