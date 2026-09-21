@@ -325,10 +325,17 @@ function guardTextTexture(THREE) {
    built rather than reshuffling on every spawn/reload.
    Built once and shared, same reasoning as the guard decal above.
 
-   Canvas column/row here map 1:1 onto the key grid's own col/row (same
-   axes buildKeyboardSword uses: col -> X/width, row -> Z/length), with
-   each glyph pre-rotated -90° so it comes out upright once the decal
-   plane's own rotation (see its use below) is applied. */
+   Axis mapping, worked through once so it stays fixed: the decal plane is
+   a PlaneGeometry rotated -PI/2 about X, so its local +X stays world +X
+   and its local +Y becomes world -Z. CanvasTexture flips Y, so the canvas
+   TOP row lands at local +Y = world -Z, i.e. the FAR end of the board
+   (the tip), while the key grid itself numbers row 0 at the guard end
+   (world +Z). Hence the row index is flipped below. Columns need no flip:
+   canvas left = world -X = col 0.
+
+   Glyphs are drawn upright (no per-glyph rotation) — the plane's rotation
+   is a pure tilt about X, which does not spin the texture in its own
+   plane, so anything rotated here comes out rotated on the board. */
 const KEY_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*-=+_?/~";
 let keyLegendCache = null;
 function keyLegendTexture(THREE, cols, rows) {
@@ -375,12 +382,8 @@ function keyLegendTexture(THREE, cols, rows) {
     for (let col = 0; col < cols; col++) {
       const ch = nextGlyph();
       const cx = col * cellPx + cellPx / 2;
-      const cy = row * cellPx + cellPx / 2;
-      g.save();
-      g.translate(cx, cy);
-      g.rotate(Math.PI / 2);
-      g.fillText(ch, 0, 1);
-      g.restore();
+      const cy = (rows - 1 - row) * cellPx + cellPx / 2;
+      g.fillText(ch, cx, cy + 1);
     }
   }
   keyLegendCache = new THREE.CanvasTexture(c);
@@ -566,18 +569,25 @@ function buildKeyboardSword(m, mat, group) {
   rivets.instanceMatrix.needsUpdate = true;
   group.add(rivets);
 
-  // Wrapped grip.
+  // Wrapped grip. 10 radial segments left visible flat facets that caught
+  // the key light as hard bright bands down the shaft; 20 reads round at
+  // inspector zoom for 10 more triangles.
   const grip = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.026, 0.026, GRIP_LEN, 10),
+    new THREE.CylinderGeometry(0.026, 0.026, GRIP_LEN, 20),
     mat(m.grip, 0.85, 0.05));
   grip.rotation.x = Math.PI / 2;
   group.add(grip);
 
-  // Chrome pommel cap.
+  // Chrome pommel cap, seated ON the end of the grip rather than floating
+  // past it. Its squashed Z radius is 0.055 * 0.8, so sitting its centre
+  // that far beyond the grip's end left a gap the grip's own flat end cap
+  // showed through — a bright tan disc reading as a loose fragment. Pull
+  // it back so the sphere swallows the cylinder's end instead.
+  const POMMEL_R = 0.055;
   const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.055, 16, 12), mat(0xd0d4da, 0.26, 0.5));
+    new THREE.SphereGeometry(POMMEL_R, 16, 12), mat(0xd0d4da, 0.26, 0.5));
   head.scale.set(1.05, 1.12, 0.8);
-  head.position.set(0, 0, GRIP_LEN * 0.5 + 0.06);
+  head.position.set(0, 0, GRIP_LEN * 0.5 + POMMEL_R * 0.8 * 0.45);
   group.add(head);
 
   group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
