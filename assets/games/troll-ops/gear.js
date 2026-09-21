@@ -308,6 +308,50 @@ function guardTextTexture(THREE) {
   return guardTexCache;
 }
 
+/* Keycap legend: one glyph baked per grid cell into a single texture sized
+   to the whole key field, then laid as one thin decal over the cap tops —
+   cheaper and simpler than per-instance UVs on an InstancedMesh, and looks
+   identical since the caps already sit on a strict uniform grid. A fixed
+   seed (not Math.random) keeps the layout the same every time the sword is
+   built rather than reshuffling on every spawn/reload.
+   Built once and shared, same reasoning as the guard decal above. */
+const KEY_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*-=+_?/";
+let keyLegendCache = null;
+function keyLegendTexture(THREE, cols, rows) {
+  if (keyLegendCache) return keyLegendCache;
+  const cellPx = 48;
+  const c = document.createElement("canvas");
+  c.width = cols * cellPx;
+  c.height = rows * cellPx;
+  const g = c.getContext("2d");
+  g.clearRect(0, 0, c.width, c.height);
+  g.font = `${Math.floor(cellPx * 0.52)}px 'DM Mono', ui-monospace, monospace`;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillStyle = "#c9d2c4";
+
+  // A tiny xorshift-style PRNG seeded from the cell index so the "random"
+  // character soup is deterministic across rebuilds instead of reshuffling
+  // every time a match loads.
+  let seed = 1337;
+  const rand = () => {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    return ((seed >>> 0) % 10000) / 10000;
+  };
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const ch = KEY_GLYPHS[Math.floor(rand() * KEY_GLYPHS.length)];
+      const cx = col * cellPx + cellPx / 2;
+      const cy = row * cellPx + cellPx / 2;
+      g.fillText(ch, cx, cy + 1);
+    }
+  }
+  keyLegendCache = new THREE.CanvasTexture(c);
+  keyLegendCache.anisotropy = 4;
+  return keyLegendCache;
+}
+
 /* Keyboard Warrior. Blade runs down -Z, grip at the origin, so it drops
    into the same view-model slot as the guns. */
 function buildKeyboardSword(m, mat, group) {
@@ -357,8 +401,18 @@ function buildKeyboardSword(m, mat, group) {
   const capH = 0.010;
   const faceUp = m.blade * 0.5;
 
+  // The light box is deliberately wider than its cap (by `overhang` per
+  // side) so the glow escapes around the edges. At the outermost row/
+  // column that same overhang used to poke past the board's own edge into
+  // open air — nothing there to hide behind — showing up as a stray
+  // sliver of colour fringing the blade's rim. Scaling each edge instance
+  // down on its outward axis (and nudging it back in by half the trim so
+  // it stays flush with its cap) keeps the inner glow but clips the part
+  // that would've hung off the board.
+  const overhang = gap * 0.75;
+  const lightGeo = new THREE.BoxGeometry(keyW + overhang * 2, capH * 0.5, keyL + overhang * 2);
   const lights = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(keyW + gap * 1.5, capH * 0.5, keyL + gap * 1.5),
+    lightGeo,
     new THREE.MeshBasicMaterial({ toneMapped: false }),
     count);
   const caps = new THREE.InstancedMesh(
@@ -368,6 +422,7 @@ function buildKeyboardSword(m, mat, group) {
     }),
     count);
 
+  const fullW = keyW + overhang * 2, fullL = keyL + overhang * 2;
   const dummy = new THREE.Object3D();
   const colour = new THREE.Color();
   let i = 0;
@@ -376,12 +431,26 @@ function buildKeyboardSword(m, mat, group) {
       const x = -usable * 0.5 + (keyW + gap) * col + keyW * 0.5;
       const z = z0 - margin - pitchY * row - keyL * 0.5;
 
-      dummy.position.set(x, faceUp + capH * 0.26, z);
+      // Trim the overhang off any side that's an outer edge of the field,
+      // by shrinking that axis toward the cap's own width/length and
+      // shifting the instance back in by half of what got trimmed.
+      const trimLeft = col === 0 ? overhang : 0;
+      const trimRight = col === m.keyCols - 1 ? overhang : 0;
+      const trimNear = row === 0 ? overhang : 0;
+      const trimFar = row === m.keyRows - 1 ? overhang : 0;
+      dummy.scale.set(
+        (fullW - trimLeft - trimRight) / fullW, 1,
+        (fullL - trimNear - trimFar) / fullL);
+      dummy.position.set(
+        x + (trimLeft - trimRight) / 2,
+        faceUp + capH * 0.26,
+        z + (trimNear - trimFar) / 2);
       dummy.updateMatrix();
       lights.setMatrixAt(i, dummy.matrix);
       const t = (col / m.keyCols) * 0.7 + (row / m.keyRows) * 0.3;
       lights.setColorAt(i, colour.setHSL(t % 1, 0.95, 0.55));
 
+      dummy.scale.set(1, 1, 1);
       dummy.position.set(x, faceUp + capH * 0.55, z);
       dummy.updateMatrix();
       caps.setMatrixAt(i, dummy.matrix);
@@ -393,6 +462,22 @@ function buildKeyboardSword(m, mat, group) {
   caps.instanceMatrix.needsUpdate = true;
   group.add(lights);
   group.add(caps);
+
+  // Letter/number legend, one glyph per cap so the board reads as an
+  // actual keyboard instead of a blank grid of boxes. A single decal over
+  // the whole field rather than 112 individual labels — the caps already
+  // sit on a strict uniform grid, so one texture sized to that grid lines
+  // up with every cap without per-instance UVs.
+  const legend = new THREE.Mesh(
+    new THREE.PlaneGeometry(usable, fieldLen),
+    new THREE.MeshBasicMaterial({
+      map: keyLegendTexture(THREE, m.keyCols, m.keyRows),
+      transparent: true,
+      depthWrite: false,
+    }));
+  legend.rotation.x = -Math.PI / 2;
+  legend.position.set(0, faceUp + capH + 0.0006, z0 - margin - fieldLen * 0.5);
+  group.add(legend);
 
   // Backplate on the -Y face: the plain plastic underside of the board,
   // with a shallow recessed panel so it doesn't read as a bare slab next
@@ -410,22 +495,22 @@ function buildKeyboardSword(m, mat, group) {
   guard.position.set(0, 0, -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5));
   group.add(guard);
 
-  // "U MAD BRO?" as a canvas texture on a thin plate, facing the +Z
-  // (player-facing) side of the guard next to the rivets, so it reads
-  // right-side up while the sword is held up and turned in the hero/
-  // inspector view — not lying flat on top, which only read correctly
-  // with the sword resting flat on a display stand. The Blender model
-  // extrudes real letters, but TextGeometry needs a font file this game
-  // does not ship - and at view-model distance a decal is indistinguishable.
+  // "U MAD BRO?" as a canvas texture on a thin plate, laid flat on the
+  // guard's TOP face so it reads right-side up when the sword is set down
+  // flat on a display stand — not standing up facing the player. The
+  // Blender model extrudes real letters, but TextGeometry needs a font
+  // file this game does not ship - and at view-model distance a decal is
+  // indistinguishable.
   const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(m.guardWide * 0.86, m.guardTall * 0.5),
+    new THREE.PlaneGeometry(m.guardWide * 0.86, GUARD_THICK * 0.7),
     new THREE.MeshStandardMaterial({
       map: guardTextTexture(THREE),
       transparent: true,
       roughness: 0.35,
       metalness: 0.2,
     }));
-  plate.position.set(0, m.guardTall * 0.12, -(GRIP_LEN * 0.5) + 0.0015);
+  plate.rotation.x = -Math.PI / 2;
+  plate.position.set(0, m.guardTall * 0.5 + 0.0015, -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5));
   group.add(plate);
 
   // Rivets sit proud of the guard's PLAYER-facing side (+Z of the guard),
