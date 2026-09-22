@@ -348,6 +348,14 @@ button:focus-visible, a:focus-visible {
 .balance-chip.is-active { border-color: var(--tc-green); color: var(--tc-text); }
 .balance-chip[data-cur="USDC"].is-active { border-color: var(--tc-blue); }
 
+.balance-chip-amounts { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
+.chain-balance {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--tc-dim);
+  opacity: 0.75;
+}
+
 .topbar-spacer { flex: 1; }
 .wallet-mount { display: flex; align-items: center; gap: 8px; }
 

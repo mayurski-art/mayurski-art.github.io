@@ -338,6 +338,8 @@
     wallet().mountWalletChip("#wallet-mount");
     renderStakes();
 
+    initChainBalances();
+
     // Idle drift so the table feels alive between spins.
     if (!REDUCED) idleDrift();
 
@@ -559,6 +561,37 @@
     dot.title = zone.label;
     strip.prepend(dot);
     while (strip.children.length > 14) strip.lastChild.remove();
+  }
+
+  /* --- connected-wallet on-chain balances (left balance chips, small print) ------
+     Distinct from the casino ledger balance above them — this is what's actually
+     sitting in the player's connected Phantom wallet, not what they've deposited.
+     Auto-syncs: re-renders on every TrollWallet change (connect/disconnect/account
+     switch, which already re-fetches on-chain) and additionally polls on-chain
+     every 20s while connected, since the balance can move from outside the page
+     (a swap, a transfer) with no wallet event to react to. */
+  let chainPollTimer = null;
+  function renderChainBalances(s) {
+    document.querySelectorAll(".chain-balance").forEach(el => {
+      const cur = el.dataset.chainCur;
+      const key = cur === "TROLL" ? "troll" : "usdc";
+      const amount = s.connected && !s.mock && s.balances ? s.balances[key] : null;
+      if (amount == null) {
+        el.hidden = true;
+        return;
+      }
+      el.hidden = false;
+      el.textContent = `wallet: ${amount.toLocaleString("en-US", { maximumFractionDigits: cur === "USDC" ? 2 : 0 })}`;
+    });
+  }
+  function initChainBalances() {
+    if (!window.TrollWallet) return;
+    window.TrollWallet.onChange(renderChainBalances);
+    clearInterval(chainPollTimer);
+    chainPollTimer = setInterval(() => {
+      const s = window.TrollWallet.getState();
+      if (s.connected && !s.mock) window.TrollWallet.refreshBalances();
+    }, 20000);
   }
 
   /* --- rendering ----------------------------------------------------------------- */

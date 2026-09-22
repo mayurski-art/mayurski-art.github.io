@@ -35,8 +35,6 @@
     </a>
     <nav class="site-nav" aria-label="Primary">
       <a href="games.html">Arcade</a>
-      <a href="meme-metro.html">Meme Metro</a>
-      <a href="troll-kombat.html">Troll Kombat</a>
     </nav>
   </header>
 
@@ -85,10 +83,18 @@
           <div class="game-topbar">
             <button type="button" class="ghost-btn" id="back-to-floor" hidden>← Casino floor</button>
             <button type="button" class="balance-chip" data-cur="TROLL" aria-label="Switch to $TROLL">
-              <span class="cur-dot"></span> $TROLL <strong>0</strong>
+              <span class="cur-dot"></span>
+              <span class="balance-chip-amounts">
+                $TROLL <strong>0</strong>
+                <small class="chain-balance" data-chain-cur="TROLL" hidden></small>
+              </span>
             </button>
             <button type="button" class="balance-chip" data-cur="USDC" aria-label="Switch to USDC">
-              <span class="cur-dot"></span> USDC <strong>0</strong>
+              <span class="cur-dot"></span>
+              <span class="balance-chip-amounts">
+                USDC <strong>0</strong>
+                <small class="chain-balance" data-chain-cur="USDC" hidden></small>
+              </span>
             </button>
             <span class="topbar-spacer"></span>
             <div class="wallet-mount" id="wallet-mount"></div>

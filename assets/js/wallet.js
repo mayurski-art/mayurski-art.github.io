@@ -204,6 +204,6 @@
 
   window.TrollWallet = {
     isAvailable, connect, disconnect, isConnected, getAddress, getState,
-    shortAddress, onChange, mountStatus, mode,
+    shortAddress, onChange, mountStatus, mode, refreshBalances,
   };
 })();
