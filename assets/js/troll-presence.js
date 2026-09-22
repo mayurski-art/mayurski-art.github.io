@@ -114,6 +114,14 @@
       .tp-wrap[data-align="right"] .tp-pop{right:0;}
       .tp-wrap[data-align="left"] .tp-pop{left:0;}
       .tp-pop.is-open{display:block;}
+      /* Small phones: the pill can end up anywhere in a wrapped header row,
+         so right:0/left:0 off a 240px-wide popover routinely pushed it past
+         the viewport edge, where html/body's overflow-x:hidden clipped it
+         to invisible. Anchor to the viewport instead of the pill below this
+         width so the whole roster is always reachable. */
+      @media (max-width: 480px){
+        .tp-pop{position:fixed;left:12px;right:12px;width:auto;}
+      }
       .tp-pop-sub{font-size:11.5px;color:rgba(255,255,255,.55);margin:2px 6px 8px;}
       .tp-row{display:flex;align-items:center;gap:8px;padding:6px;border-radius:10px;width:100%;
         text-align:left;background:none;border:none;font:inherit;color:inherit;}
@@ -224,6 +232,15 @@
     container.appendChild(wrap);
 
     const setOpen = open => {
+      if (open && window.matchMedia('(max-width: 480px)').matches) {
+        // Fixed-position popover on phones needs its top set from the
+        // pill's real location — the pill can land anywhere in a wrapped
+        // header row, so no single CSS value works for every page.
+        const r = pill.getBoundingClientRect();
+        pop.style.top = `${Math.round(r.bottom + 8)}px`;
+      } else {
+        pop.style.top = '';
+      }
       pop.classList.toggle('is-open', open);
       pill.setAttribute('aria-expanded', String(open));
     };
