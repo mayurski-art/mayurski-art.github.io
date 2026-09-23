@@ -1462,7 +1462,16 @@
      *
      *  gold-chains normally rides at rank 25, i.e. over every outfit, which
      *  is right for a tee or a hoodie. A big collared coat is the exception:
-     *  a chain draped over the fur reads as pasted on, so it tucks behind. */
+     *  a chain draped over the fur reads as pasted on, so it tucks behind.
+     *
+     *  Scope, same as MULTI_PAIRS above: every entry applies globally — to
+     *  every base except logo-face/ninja (solo bases that force outfit and
+     *  accessory off entirely, not a compatibility exception) and every
+     *  background (pure backdrop, never checked here). Paint order is a
+     *  property of the two pieces of art alone, and both of those layers
+     *  render strictly behind the pair, so neither can change the answer.
+     *  This table is never base- or background-gated; don't add either as
+     *  a condition. */
     const CROSS_PAIR_ORDER = {
       'gold-chains|white-fur-coat': 'white-fur-coat',
     };

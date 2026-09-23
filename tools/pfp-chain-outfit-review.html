@@ -18,11 +18,13 @@
 
   Decisions persist in localStorage while you work, but the durable record
   is CROSS_PAIR_ORDER in pfp.html — hit "Export decisions" and paste the
-  block in. Only "behind" outfits need an entry there; "in front" is what
-  the plain rank already does (gold-chains sits at rank 25, above outfit's
-  20), so those are exported as a comment for the record, not as code.
+  block in. Only "behind" outfits need an entry there; "in front" and
+  "either order is fine" are both already what the plain rank does
+  (gold-chains sits at rank 25, above outfit's 20), so those export as
+  comments for the record, not as code.
 
-  Keyboard: LEFT = behind, RIGHT = in front, UP/Backspace = undo.
+  Keyboard: LEFT = behind, RIGHT = in front, DOWN = either is fine,
+  UP/Backspace = undo.
 -->
 <style>
   :root { --ink: #1c1c1e; --muted: #6e6e73; --line: rgba(0,0,0,0.12); --accent: #34c759; --card: #fff; --page: #f5f5f7; }
@@ -56,6 +58,11 @@
   .stack img { position: absolute; inset: 0; width: 100%; height: 100%; }
   .opt button.choose { width: 100%; margin-top: 10px; border-color: var(--accent); color: #1a7f39; font-weight: 600; }
   .opt button.choose.is-active { background: var(--accent); color: #fff; border-color: transparent; }
+  /* "Either is fine" marks BOTH cards, so it gets its own lighter fill —
+     otherwise it reads as having picked each one outright. */
+  .opt button.choose.is-both { background: rgba(52,199,89,0.16); border-color: var(--accent); color: #1a7f39; }
+  button.bothbtn { border-color: var(--accent); color: #1a7f39; font-weight: 600; }
+  button.bothbtn.is-active { background: var(--accent); color: #fff; border-color: transparent; }
   .bar { height: 6px; border-radius: 99px; background: rgba(0,0,0,0.08); overflow: hidden; margin: 16px 0 0; }
   .bar i { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.2s; }
   .done { text-align: center; margin-top: 20px; font-size: 14px; }
@@ -68,13 +75,16 @@
     :root { --ink: #f5f5f7; --muted: #9a9aa0; --line: rgba(255,255,255,0.14); --card: #2c2c2e; --page: #1c1c1e; }
     select, button { background: #3a3a3c; }
     .bar { background: rgba(255,255,255,0.12); }
+    .opt button.choose, button.bothbtn { color: #5ee07f; }
+    .opt button.choose.is-active, button.bothbtn.is-active { background: var(--accent); color: #06210f; }
+    .opt button.choose.is-both { background: rgba(52,199,89,0.22); color: #5ee07f; }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Gold chain vs outfit</h1>
-  <p class="sub">One outfit at a time, both stacking orders. <strong>&larr;</strong> behind &middot; <strong>&rarr;</strong> in front &middot; <strong>&uarr;</strong> undo. Decisions save as you go.</p>
+  <p class="sub">One outfit at a time, both stacking orders. <strong>&larr;</strong> behind &middot; <strong>&rarr;</strong> in front &middot; <strong>&darr;</strong> either is fine &middot; <strong>&uarr;</strong> undo. Decisions save as you go.</p>
 
   <div class="row">
     <label for="jump">Jump to outfit</label>
@@ -86,6 +96,7 @@
   <div class="pair" id="pair"></div>
 
   <div class="row">
+    <button id="both" class="bothbtn">&darr; Either order is fine</button>
     <button id="undo">&uarr; Undo last</button>
     <button id="skip">Skip &rarr;</button>
     <button id="export">Export decisions</button>
@@ -101,6 +112,10 @@
 
   var CHAIN = 'gold-chains';
   var KEY = 'trollrunner_pfp_chain_outfit_v1';
+  // Third state, same convention as tools/pfp-pair-review.html: a literal
+  // 'both' means "either order reads fine" — a real reviewed answer, not an
+  // undecided one, so it counts toward progress but generates no code.
+  var BOTH = 'both';
 
   // Pinned, not pickable. Chain-vs-outfit paint order is a property of those
   // two pieces of art; base and background both render strictly behind the
@@ -122,6 +137,7 @@
 
   var el = {
     jump: document.getElementById('jump'),
+    both: document.getElementById('both'),
     pair: document.getElementById('pair'),
     now: document.getElementById('now'),
     done: document.getElementById('done'),
@@ -190,14 +206,16 @@
       card.appendChild(stackEl(outfitId, o.chainInFront));
 
       var btn = document.createElement('button');
-      btn.className = 'choose' + (decided === o.front ? ' is-active' : '');
+      var isBoth = decided === BOTH;
+      btn.className = 'choose' + (isBoth ? ' is-both' : (decided === o.front ? ' is-active' : ''));
       btn.type = 'button';
-      btn.textContent = decided === o.front ? 'Chosen' : 'Choose this';
+      btn.textContent = isBoth ? 'Either is fine' : (decided === o.front ? 'Chosen' : 'Choose this');
       btn.addEventListener('click', function () { decide(o.front); });
       card.appendChild(btn);
       el.pair.appendChild(card);
     });
 
+    el.both.classList.toggle('is-active', decided === BOTH);
     if (el.jump.value !== outfitId) el.jump.value = outfitId;
     updateBar();
   }
@@ -242,6 +260,7 @@
     render();
   }
 
+  el.both.addEventListener('click', function () { decide(BOTH); });
   document.getElementById('undo').addEventListener('click', undo);
   document.getElementById('skip').addEventListener('click', function () {
     idx = Math.min(idx + 1, outfits.length); render();
@@ -252,10 +271,11 @@
   });
 
   document.getElementById('export').addEventListener('click', function () {
-    var behind = [], front = [], undecided = [];
+    var behind = [], front = [], both = [], undecided = [];
     outfits.forEach(function (id) {
       var d = decisions[id];
       if (!d) undecided.push(id);
+      else if (d === BOTH) both.push(id);
       else if (d === id) behind.push(id);
       else front.push(id);
     });
@@ -264,6 +284,13 @@
     lines.push('// Paste the entries below into CROSS_PAIR_ORDER in pfp.html.');
     lines.push('// Only "behind" needs an entry: in front is what the plain rank');
     lines.push('// already does (gold-chains is rank 25, outfit is 20).');
+    lines.push('//');
+    lines.push('// Scope: every decision below applies globally — to EVERY base except');
+    lines.push('// logo-face/ninja (solo bases that force outfit and accessory off');
+    lines.push('// entirely) and EVERY background. Paint order is a property of the two');
+    lines.push('// pieces of art alone; base and background both render strictly behind');
+    lines.push('// the pair, so neither can change the answer. Reviewed once on og/white,');
+    lines.push('// correct everywhere. Never gate these on base or background.');
     lines.push('');
     Object.keys(PREDECIDED).forEach(function (id) {
       lines.push("      '" + [CHAIN, id].sort().join('|') + "': '" + PREDECIDED[id] + "',   // already in pfp.html");
@@ -273,6 +300,9 @@
     });
     lines.push('');
     lines.push('// In front (no entry needed, ' + front.length + '): ' + (front.join(', ') || 'none'));
+    if (both.length) {
+      lines.push('// Either order OK (reviewed, no entry needed, ' + both.length + '): ' + both.join(', '));
+    }
     if (undecided.length) lines.push('// STILL UNDECIDED (' + undecided.length + '): ' + undecided.join(', '));
     el.out.hidden = false;
     el.out.value = lines.join('\n');
@@ -285,6 +315,7 @@
     var outfitId = outfits[idx];
     if (e.key === 'ArrowLeft' && outfitId) { e.preventDefault(); decide(outfitId); }
     else if (e.key === 'ArrowRight' && outfitId) { e.preventDefault(); decide(CHAIN); }
+    else if (e.key === 'ArrowDown' && outfitId) { e.preventDefault(); decide(BOTH); }
     else if (e.key === 'ArrowUp' || e.key === 'Backspace') { e.preventDefault(); undo(); }
   });
 
