@@ -123,13 +123,35 @@
   var BASE = 'og';
   var BG = 'white';
 
-  // Already settled by hand in pfp.html's CROSS_PAIR_ORDER, so the walk
-  // skips it rather than re-asking. Keep in sync if that entry changes.
-  var PREDECIDED = { 'white-fur-coat': 'white-fur-coat' };
+  // The full chain-vs-outfit review was completed 2026-09-23 and merged into
+  // pfp.html, so nothing below is open any more. Kept here so the tool can be
+  // reopened to re-check a call without re-asking all 87: 'behind' outfits are
+  // in CROSS_PAIR_ORDER, EXCLUDED ones are in CROSS_LAYER_EXCLUSIONS (the
+  // chain can't be worn with them at all), and the rest were left to the
+  // default rank. Reset all still clears the saved answers if you want to
+  // redo the walk from scratch.
+  var PREDECIDED = {
+    'white-fur-coat': 'white-fur-coat',
+    'cape-black': 'cape-black',
+    'cape-green': 'cape-green',
+    'cape-red': 'cape-red',
+    'floral-necklace': 'floral-necklace',
+    'fur-coat': 'fur-coat',
+    'hike-vest': 'hike-vest',
+    'leather-vest': 'leather-vest',
+    'scarf': 'scarf',
+  };
+  // Reviewed and rejected outright — blocked in pfp.html's
+  // CROSS_LAYER_EXCLUSIONS, not a paint-order question, so they leave the walk.
+  var EXCLUDED = [
+    'bounty-hunter', 'gamer-hoodie', 'jester', 'nomad',
+    'sk8-hood-black', 'sk8-hood-blue', 'sk8-hood-red', 'team-blue', 'team-red',
+  ];
   // troll-gang-chain is itself a chain worn on the outfit layer (rank 26,
   // deliberately just above gold-chains) — stacking two chains isn't a
   // paint-order question, so it's not part of this review.
   var SKIP = { 'troll-gang-chain': true };
+  EXCLUDED.forEach(function (id) { SKIP[id] = true; });
 
   var manifest = null, outfits = [], idx = 0;
   var decisions = load();
@@ -303,6 +325,8 @@
     if (both.length) {
       lines.push('// Either order OK (reviewed, no entry needed, ' + both.length + '): ' + both.join(', '));
     }
+    lines.push('// Excluded — chain not wearable with these at all, blocked in');
+    lines.push('// CROSS_LAYER_EXCLUSIONS (' + EXCLUDED.length + '): ' + EXCLUDED.join(', '));
     if (undecided.length) lines.push('// STILL UNDECIDED (' + undecided.length + '): ' + undecided.join(', '));
     el.out.hidden = false;
     el.out.value = lines.join('\n');

@@ -1308,18 +1308,41 @@
     // builds loaded from storage or a shared link alike.
     const CROSS_LAYER_EXCLUSIONS = [
       [['accessory', 'deal-w-it-shades'], ['headwear', 'glasses']],
+      // Gold chain vs outfit: these nine were reviewed and rejected outright
+      // (2026-09-23) — hoods, helmets and high collars that the chain can't
+      // sit either side of without reading wrong, so the combo is blocked
+      // rather than given a paint order. Everything else the chain reviewed
+      // fine with; see CROSS_PAIR_ORDER for the ones that just needed the
+      // chain tucked behind.
+      [['accessory', 'gold-chains'], ['outfit', 'bounty-hunter']],
+      [['accessory', 'gold-chains'], ['outfit', 'gamer-hoodie']],
+      [['accessory', 'gold-chains'], ['outfit', 'jester']],
+      [['accessory', 'gold-chains'], ['outfit', 'nomad']],
+      [['accessory', 'gold-chains'], ['outfit', 'sk8-hood-black']],
+      [['accessory', 'gold-chains'], ['outfit', 'sk8-hood-blue']],
+      [['accessory', 'gold-chains'], ['outfit', 'sk8-hood-red']],
+      [['accessory', 'gold-chains'], ['outfit', 'team-blue']],
+      [['accessory', 'gold-chains'], ['outfit', 'team-red']],
     ];
-    function enforceCrossLayerExclusions(next) {
+    /** Drops whichever side of a cross-layer clash the rider did NOT just
+     *  pick. `keepLayer` names the layer they acted on, so their click always
+     *  wins — without it the loser was always the pair's second entry, which
+     *  only looked right while every rule happened to list the layer being
+     *  clicked first (picking a blocked outfit would drop the outfit itself
+     *  and keep the accessory). With no keepLayer (a build loaded from
+     *  storage or a shared link) the second entry still loses, so the result
+     *  stays deterministic. */
+    function enforceCrossLayerExclusions(next, keepLayer = null) {
       const clean = { ...next };
       for (const [[layerA, idA], [layerB, idB]] of CROSS_LAYER_EXCLUSIONS) {
         const hasA = idsFor(layerA, clean[layerA]).includes(idA);
         const hasB = idsFor(layerB, clean[layerB]).includes(idB);
         if (!hasA || !hasB) continue;
-        // The layer that changed most recently wins; when that isn't known
-        // (e.g. a build loaded fresh from storage) drop the second layer's
-        // pick and keep the first, so the result is always deterministic.
-        clean[layerB] = MULTI_LAYERS.has(layerB)
-          ? idsFor(layerB, clean[layerB]).filter(id => id !== idB)
+        const [loseLayer, loseId] = keepLayer === layerB
+          ? [layerA, idA]
+          : [layerB, idB];
+        clean[loseLayer] = MULTI_LAYERS.has(loseLayer)
+          ? idsFor(loseLayer, clean[loseLayer]).filter(id => id !== loseId)
           : null;
       }
       return clean;
@@ -1473,7 +1496,21 @@
      *  This table is never base- or background-gated; don't add either as
      *  a condition. */
     const CROSS_PAIR_ORDER = {
+      // Gold chain vs outfit, reviewed in full 2026-09-23 via
+      // tools/pfp-chain-outfit-review.html. Only the "behind" answers need an
+      // entry; the other 70 outfits either read better with the chain in
+      // front or work either way, which is what the plain rank already does.
+      // The common thread below is a raised collar or something already worn
+      // at the neck — the chain has to sit under it, not on top of it.
       'gold-chains|white-fur-coat': 'white-fur-coat',
+      'cape-black|gold-chains': 'cape-black',
+      'cape-green|gold-chains': 'cape-green',
+      'cape-red|gold-chains': 'cape-red',
+      'floral-necklace|gold-chains': 'floral-necklace',
+      'fur-coat|gold-chains': 'fur-coat',
+      'gold-chains|hike-vest': 'hike-vest',
+      'gold-chains|leather-vest': 'leather-vest',
+      'gold-chains|scarf': 'scarf',
     };
     const crossPairKey = (a, b) => [a, b].sort().join('|');
     /** Comparator for same-layer stack entries: a rider's own swap-order
@@ -1784,9 +1821,9 @@
     }
 
     /** The one way the build changes, so nothing can bypass the undo stack. */
-    function setBuild(next, { record = true } = {}) {
+    function setBuild(next, { record = true, keepLayer = null } = {}) {
       next = enforceSolo(next);
-      next = enforceCrossLayerExclusions(next);
+      next = enforceCrossLayerExclusions(next, keepLayer);
       if (record) {
         past.push({ ...build });
         if (past.length > HISTORY_LIMIT) past.shift();
@@ -2138,7 +2175,7 @@
       const clash = crossLayerClash(layerId, id);
       if (clash) {
         delete orderOverride[layerId];
-        setBuild({ ...build, [layerId]: [...current, id] });
+        setBuild({ ...build, [layerId]: [...current, id] }, { keepLayer: layerId });
         note(`${traitById(clash.layerId, clash.id)?.name} and ${traitById(layerId, id)?.name} clash, so it swapped in on its own.`);
         return;
       }
@@ -2209,8 +2246,15 @@
           else { setBuild({ ...build, [layer.id]: [] }); note(''); }
           return;
         }
-        setBuild({ ...build, [layer.id]: trait ? trait.id : null });
-        note('');
+        // A single-select pick can knock out another layer's trait via
+        // CROSS_LAYER_EXCLUSIONS (e.g. a hooded outfit and the gold chain).
+        // setBuild enforces that either way, but say so rather than letting
+        // the other layer's pick vanish with no explanation.
+        const clash = trait ? crossLayerClash(layer.id, trait.id) : null;
+        setBuild({ ...build, [layer.id]: trait ? trait.id : null }, { keepLayer: layer.id });
+        note(clash
+          ? `${traitById(clash.layerId, clash.id)?.name} and ${trait.name} clash, so it came off.`
+          : '');
       });
       return btn;
     }
