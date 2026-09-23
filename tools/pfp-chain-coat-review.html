@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chain + coat order</title>
+<!--
+  Dev-only, not linked from the live site. One question only: does the gold
+  chain go behind or in front of the white fur coat? Serve it with
+  `node tools/serve-pair-review.js` and open /tools/pfp-chain-coat-review.html.
+  Whatever you pick here is only a decision aid — the live answer lives in
+  CROSS_PAIR_ORDER in pfp.html.
+-->
+<style>
+  :root { --ink: #1c1c1e; --muted: #6e6e73; --line: rgba(0,0,0,0.12); --accent: #34c759; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px 60px;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--ink); background: #f5f5f7;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 28px; color: var(--muted); font-size: 14px; }
+  .pair { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+  .opt {
+    background: #fff; border: 0.5px solid var(--line); border-radius: 18px;
+    padding: 16px; width: 380px; max-width: 100%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .opt h2 { font-size: 15px; margin: 0 0 12px; font-weight: 600; }
+  .opt h2 span { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .stack { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: #fff; }
+  .stack img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  .row { display: flex; gap: 10px; align-items: center; margin: 22px 0 0; justify-content: center; flex-wrap: wrap; }
+  label { font-size: 13px; color: var(--muted); }
+  select, button {
+    font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 10px;
+    border: 0.5px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+  }
+  button.pickbtn { border-color: var(--accent); color: #1a7f39; font-weight: 600; }
+  button.pickbtn.is-active { background: var(--accent); color: #fff; border-color: transparent; }
+  .verdict { text-align: center; margin-top: 18px; font-size: 14px; min-height: 20px; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #f5f5f7; --muted: #9a9aa0; --line: rgba(255,255,255,0.14); }
+    body { background: #1c1c1e; }
+    .opt { background: #2c2c2e; }
+    select, button { background: #3a3a3c; color: var(--ink); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gold chain + white fur coat</h1>
+  <p class="sub">Same two traits, both stacking orders. Pick whichever reads better — the left one is what <code>pfp.html</code> ships today.</p>
+
+  <div class="row">
+    <label for="base">Base</label>
+    <select id="base"></select>
+    <label for="bg">Background</label>
+    <select id="bg"></select>
+  </div>
+
+  <div class="pair" id="pair"></div>
+
+  <div class="row">
+    <button class="pickbtn" data-pick="white-fur-coat">Behind the coat is right</button>
+    <button class="pickbtn" data-pick="gold-chains">In front of the coat is right</button>
+  </div>
+  <p class="verdict" id="verdict"></p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var CHAIN = 'gold-chains', COAT = 'white-fur-coat';
+  var KEY = 'trollrunner_pfp_chain_coat_v1';
+  var manifest = null;
+
+  var el = {
+    base: document.getElementById('base'),
+    bg: document.getElementById('bg'),
+    pair: document.getElementById('pair'),
+    verdict: document.getElementById('verdict'),
+  };
+
+  function src(layer, id) { return '../assets/pfp/' + layer + '/' + id + '.webp'; }
+  function layer(id) { return manifest.layers.filter(function (l) { return l.id === id; })[0]; }
+
+  // Two panels, identical but for which of the two paints last.
+  function render() {
+    var base = el.base.value, bg = el.bg.value;
+    var orders = [
+      { front: COAT, title: 'Chain behind the coat', note: '(current default)' },
+      { front: CHAIN, title: 'Chain in front of the coat', note: '' },
+    ];
+    el.pair.innerHTML = '';
+    orders.forEach(function (o) {
+      var card = document.createElement('div');
+      card.className = 'opt';
+      var h = document.createElement('h2');
+      h.textContent = o.title + ' ';
+      if (o.note) { var s = document.createElement('span'); s.textContent = o.note; h.appendChild(s); }
+      card.appendChild(h);
+
+      var stack = document.createElement('div');
+      stack.className = 'stack';
+      var back = o.front === COAT ? CHAIN : COAT;
+      var backLayer = back === CHAIN ? 'accessory' : 'outfit';
+      var frontLayer = o.front === CHAIN ? 'accessory' : 'outfit';
+      [[ 'background', bg ], [ 'base', base ], [ backLayer, back ], [ frontLayer, o.front ]]
+        .forEach(function (pairArr) {
+          if (!pairArr[1]) return;
+          var img = document.createElement('img');
+          img.src = src(pairArr[0], pairArr[1]);
+          img.alt = '';
+          stack.appendChild(img);
+        });
+      card.appendChild(stack);
+      el.pair.appendChild(card);
+    });
+  }
+
+  function showVerdict() {
+    var saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    Array.prototype.forEach.call(document.querySelectorAll('.pickbtn'), function (b) {
+      b.classList.toggle('is-active', b.dataset.pick === saved);
+    });
+    el.verdict.textContent = saved
+      ? (saved === COAT
+          ? 'Saved: chain behind the coat — matches what pfp.html ships.'
+          : 'Saved: chain in front — flip CROSS_PAIR_ORDER in pfp.html to match.')
+      : '';
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.pickbtn'), function (b) {
+    b.addEventListener('click', function () {
+      try { localStorage.setItem(KEY, b.dataset.pick); } catch (e) {}
+      showVerdict();
+    });
+  });
+
+  // Solo bases force every other layer off, so they can never show this pair.
+  fetch('../assets/data/pfp-traits.json')
+    .then(function (r) { return r.json(); })
+    .then(function (m) {
+      manifest = m;
+      layer('base').traits.filter(function (t) { return !t.solo; }).forEach(function (t) {
+        el.base.add(new Option(t.name, t.id));
+      });
+      layer('background').traits.forEach(function (t) {
+        el.bg.add(new Option(t.name, t.id));
+      });
+      el.base.addEventListener('change', render);
+      el.bg.addEventListener('change', render);
+      render();
+      showVerdict();
+    })
+    .catch(function (e) {
+      el.verdict.textContent = 'Could not load pfp-traits.json — run node tools/serve-pair-review.js and open this over http://localhost.';
+    });
+})();
+</script>
+</body>
+</html>

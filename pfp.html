@@ -1452,6 +1452,21 @@
       'the-usual|troll-senses': 'the-usual',
       // mog|trump-hair: reviewed as "both orders OK" — no entry needed.
     };
+
+    /** Cross-layer paint order. PAIR_ORDER only settles ties inside one
+     *  layer; this settles two picks that live in *different* layers, where
+     *  the plain rank (see RANK_OVERRIDES) gives the wrong answer for one
+     *  specific combination. Keyed by the sorted pair of trait ids, value is
+     *  the id that paints in front. The rider can still flip it live via the
+     *  order-bar (crossOrderOverride), same as a same-layer pair.
+     *
+     *  gold-chains normally rides at rank 25, i.e. over every outfit, which
+     *  is right for a tee or a hoodie. A big collared coat is the exception:
+     *  a chain draped over the fur reads as pasted on, so it tucks behind. */
+    const CROSS_PAIR_ORDER = {
+      'gold-chains|white-fur-coat': 'white-fur-coat',
+    };
+    const crossPairKey = (a, b) => [a, b].sort().join('|');
     /** Comparator for same-layer stack entries: a rider's own swap-order
      *  choice (orderOverride, set via the drawer's order-bar) wins first,
      *  then the hardcoded PAIR_ORDER, otherwise falls back to each entry's
@@ -1462,6 +1477,12 @@
         const overridden = orderOverride[a.layerId];
         if (overridden === a.id || overridden === b.id) return a.id === overridden ? 1 : -1;
         const front = PAIR_ORDER[[a.id, b.id].sort().join('|')];
+        if (front) return a.id === front ? 1 : -1;
+      } else if (a.id && b.id) {
+        // Different layers: a hand-set cross-layer answer (and the rider's
+        // own flip of it) beats the layers' plain rank difference.
+        const key = crossPairKey(a.id, b.id);
+        const front = crossOrderOverride[key] || CROSS_PAIR_ORDER[key];
         if (front) return a.id === front ? 1 : -1;
       }
       return a.rank - b.rank;
@@ -1554,6 +1575,10 @@
      *  same spirit as hoveredLayer/focusedLayer below. Cleared whenever
      *  that layer's picks change so a stale flip never survives a swap. */
     const orderOverride = {};
+    /** Session-only flips of a CROSS_PAIR_ORDER default, keyed the same way
+     *  (sorted pair of ids). Kept separate from orderOverride because that
+     *  one is keyed by layer, which can't address a pair spanning two. */
+    const crossOrderOverride = {};
     /** layer id -> <img>[] in the preview stack, in z-order. One entry for
      *  ordinary layers, MULTI_LIMIT entries (extras hidden when unused) for
      *  a multi layer. */
@@ -1990,16 +2015,19 @@
       renderOrderBar(layer);
     }
 
-    /** Two-pick swap-order control: only shows once a multi-select layer
-     *  has exactly 2 compatible traits worn, letting the rider flip which
-     *  one paints in front for this session (see orderOverride). Pairs
-     *  with a hardcoded PAIR_ORDER still start from that answer but stay
-     *  overridable — it's a starting point, not a lock. */
+    /** Two-pick swap-order control. Covers two cases:
+     *   - a multi-select layer wearing 2 compatible traits (flip stored per
+     *     layer in orderOverride), and
+     *   - a CROSS_PAIR_ORDER pair spanning two layers, e.g. gold chains over
+     *     vs under the white fur coat (flip stored per pair in
+     *     crossOrderOverride). That bar shows in EITHER of the two layers'
+     *     drawers, since the rider may be standing in either one.
+     *  A hardcoded default is a starting point, not a lock — both kinds stay
+     *  overridable for the session. */
     function renderOrderBar(layer) {
       el.orderBar.innerHTML = '';
-      if (!MULTI_LAYERS.has(layer.id)) { el.orderBar.hidden = true; return; }
-      const [a, b] = idsFor(layer.id, build[layer.id]);
-      if (!a || !b) { el.orderBar.hidden = true; return; }
+      const pair = orderBarPair(layer);
+      if (!pair) { el.orderBar.hidden = true; return; }
       el.orderBar.hidden = false;
 
       const label = document.createElement('span');
@@ -2007,24 +2035,67 @@
       label.textContent = 'Order:';
       el.orderBar.appendChild(label);
 
-      const hardcoded = PAIR_ORDER[[a, b].sort().join('|')] || null;
-      const current = orderOverride[layer.id] || hardcoded || null;
-      const options = [
-        { id: b, label: `${traitById(layer.id, b)?.name || b} in front` },
-        { id: a, label: `${traitById(layer.id, a)?.name || a} in front` },
-      ];
-      for (const opt of options) {
+      for (const opt of pair.options) {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'order-btn' + (current === opt.id ? ' is-active' : '');
+        btn.className = 'order-btn' + (pair.current === opt.id ? ' is-active' : '');
         btn.textContent = opt.label;
         btn.addEventListener('click', () => {
-          orderOverride[layer.id] = opt.id;
+          pair.apply(opt.id);
           renderStack();
           renderOrderBar(layer);
         });
         el.orderBar.appendChild(btn);
       }
+    }
+
+    /** Works out which pair, if any, the order bar should offer while
+     *  `layer`'s drawer is open — the layer's own two picks first, then any
+     *  cross-layer pair this layer takes part in. Returns the two buttons to
+     *  draw, which id is currently in front, and how to record a flip. */
+    function orderBarPair(layer) {
+      if (MULTI_LAYERS.has(layer.id)) {
+        const [a, b] = idsFor(layer.id, build[layer.id]);
+        if (a && b) {
+          const current = orderOverride[layer.id] || PAIR_ORDER[[a, b].sort().join('|')] || null;
+          return {
+            current,
+            options: [
+              { id: b, label: `${traitById(layer.id, b)?.name || b} in front` },
+              { id: a, label: `${traitById(layer.id, a)?.name || a} in front` },
+            ],
+            apply: (id) => { orderOverride[layer.id] = id; },
+          };
+        }
+      }
+      return crossOrderBarPair(layer);
+    }
+
+    /** The cross-layer half of orderBarPair: scans CROSS_PAIR_ORDER for a
+     *  pair where this layer holds one side and the other side is currently
+     *  worn on its own layer. */
+    function crossOrderBarPair(layer) {
+      const mine = idsFor(layer.id, build[layer.id]);
+      if (!mine.length) return null;
+      for (const key of Object.keys(CROSS_PAIR_ORDER)) {
+        const ids = key.split('|');
+        const myId = ids.find(id => mine.includes(id));
+        if (!myId) continue;
+        const otherId = ids.find(id => id !== myId);
+        const otherLayer = manifest.layers.find(l =>
+          l.id !== layer.id && idsFor(l.id, build[l.id]).includes(otherId));
+        if (!otherLayer) continue;
+        const nameFor = (lid, id) => traitById(lid, id)?.name || id;
+        return {
+          current: crossOrderOverride[key] || CROSS_PAIR_ORDER[key],
+          options: [
+            { id: otherId, label: `${nameFor(otherLayer.id, otherId)} in front` },
+            { id: myId, label: `${nameFor(layer.id, myId)} in front` },
+          ],
+          apply: (id) => { crossOrderOverride[key] = id; },
+        };
+      }
+      return null;
     }
 
     /** True if picking `id` in `layerId` would trip a CROSS_LAYER_EXCLUSIONS
