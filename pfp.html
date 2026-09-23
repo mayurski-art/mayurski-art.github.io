@@ -972,7 +972,12 @@
     // etc). MULTI_LAYERS is the set that gets that pairing behavior instead
     // of plain swap-on-click.
     const MULTI_LAYERS = new Set(['accessory', 'headwear']);
-    const MULTI_LIMIT = 2;
+    // Three at once, not two: combos like middle-fingers + cigar + paintbrush
+    // all read fine together. Raising this is safe because a pick must pair
+    // with EVERY id already worn (see toggleMulti/sanitizeMultiSet), so a
+    // third slot never opens up a pair that wasn't hand-approved below — it
+    // just stops capping approved ones at two.
+    const MULTI_LIMIT = 3;
     // A few traits are re-skins of another with the exact same fit — they
     // inherit that trait's whole compatibility list instead of duplicating
     // every pair below.
@@ -2101,8 +2106,12 @@
      *  draw, which id is currently in front, and how to record a flip. */
     function orderBarPair(layer) {
       if (MULTI_LAYERS.has(layer.id)) {
-        const [a, b] = idsFor(layer.id, build[layer.id]);
-        if (a && b) {
+        const worn = idsFor(layer.id, build[layer.id]);
+        const [a, b] = worn;
+        // Only offered for an exact pair. With three worn, a two-button
+        // front/back control would silently be about the first two only,
+        // which reads as broken; they keep their click order instead.
+        if (worn.length === 2 && a && b) {
           const current = orderOverride[layer.id] || PAIR_ORDER[[a, b].sort().join('|')] || null;
           return {
             current,
