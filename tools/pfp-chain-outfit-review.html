@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chain vs outfit</title>
+<!--
+  Dev-only, not linked from the live site. One question, asked once per
+  outfit: does the gold chain paint BEHIND that outfit or IN FRONT of it?
+
+  Run: node tools/serve-pair-review.js
+  Open: http://localhost:8791/tools/pfp-chain-outfit-review.html
+
+  No base/background pickers on purpose: paint order between the chain and
+  an outfit is decided by those two pieces of art alone, and both of those
+  layers always sit strictly behind the pair, so they can never change the
+  answer. They're pinned to one neutral combo so every square is comparable.
+
+  Decisions persist in localStorage while you work, but the durable record
+  is CROSS_PAIR_ORDER in pfp.html — hit "Export decisions" and paste the
+  block in. Only "behind" outfits need an entry there; "in front" is what
+  the plain rank already does (gold-chains sits at rank 25, above outfit's
+  20), so those are exported as a comment for the record, not as code.
+
+  Keyboard: LEFT = behind, RIGHT = in front, UP/Backspace = undo.
+-->
+<style>
+  :root { --ink: #1c1c1e; --muted: #6e6e73; --line: rgba(0,0,0,0.12); --accent: #34c759; --card: #fff; --page: #f5f5f7; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 20px 60px;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--ink); background: var(--page);
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; margin: 18px 0 0; }
+  label { font-size: 13px; color: var(--muted); }
+  select, button {
+    font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 10px;
+    border: 0.5px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  .now { text-align: center; font-size: 15px; font-weight: 600; margin: 18px 0 2px; }
+  .now .count { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .pair { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+  .opt {
+    background: var(--card); border: 0.5px solid var(--line); border-radius: 18px;
+    padding: 14px; width: 360px; max-width: 100%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .opt h2 { font-size: 14px; margin: 0 0 10px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .opt h2 .key { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .stack { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: #fff; }
+  .stack img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .opt button.choose { width: 100%; margin-top: 10px; border-color: var(--accent); color: #1a7f39; font-weight: 600; }
+  .opt button.choose.is-active { background: var(--accent); color: #fff; border-color: transparent; }
+  .bar { height: 6px; border-radius: 99px; background: rgba(0,0,0,0.08); overflow: hidden; margin: 16px 0 0; }
+  .bar i { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.2s; }
+  .done { text-align: center; margin-top: 20px; font-size: 14px; }
+  textarea {
+    width: 100%; min-height: 200px; margin-top: 14px; padding: 12px; border-radius: 12px;
+    border: 0.5px solid var(--line); background: var(--card); color: var(--ink);
+    font-family: 'DM Mono', ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #f5f5f7; --muted: #9a9aa0; --line: rgba(255,255,255,0.14); --card: #2c2c2e; --page: #1c1c1e; }
+    select, button { background: #3a3a3c; }
+    .bar { background: rgba(255,255,255,0.12); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gold chain vs outfit</h1>
+  <p class="sub">One outfit at a time, both stacking orders. <strong>&larr;</strong> behind &middot; <strong>&rarr;</strong> in front &middot; <strong>&uarr;</strong> undo. Decisions save as you go.</p>
+
+  <div class="row">
+    <label for="jump">Jump to outfit</label>
+    <select id="jump"></select>
+  </div>
+
+  <div class="bar"><i id="barFill"></i></div>
+  <p class="now" id="now"></p>
+  <div class="pair" id="pair"></div>
+
+  <div class="row">
+    <button id="undo">&uarr; Undo last</button>
+    <button id="skip">Skip &rarr;</button>
+    <button id="export">Export decisions</button>
+    <button id="reset">Reset all</button>
+  </div>
+  <p class="done" id="done"></p>
+  <textarea id="out" hidden readonly></textarea>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var CHAIN = 'gold-chains';
+  var KEY = 'trollrunner_pfp_chain_outfit_v1';
+
+  // Pinned, not pickable. Chain-vs-outfit paint order is a property of those
+  // two pieces of art; base and background both render strictly behind the
+  // pair, so no choice here can change the answer.
+  var BASE = 'og';
+  var BG = 'white';
+
+  // Already settled by hand in pfp.html's CROSS_PAIR_ORDER, so the walk
+  // skips it rather than re-asking. Keep in sync if that entry changes.
+  var PREDECIDED = { 'white-fur-coat': 'white-fur-coat' };
+  // troll-gang-chain is itself a chain worn on the outfit layer (rank 26,
+  // deliberately just above gold-chains) — stacking two chains isn't a
+  // paint-order question, so it's not part of this review.
+  var SKIP = { 'troll-gang-chain': true };
+
+  var manifest = null, outfits = [], idx = 0;
+  var decisions = load();
+  var history = [];
+
+  var el = {
+    jump: document.getElementById('jump'),
+    pair: document.getElementById('pair'),
+    now: document.getElementById('now'),
+    done: document.getElementById('done'),
+    out: document.getElementById('out'),
+    barFill: document.getElementById('barFill'),
+  };
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(decisions)); } catch (e) {}
+  }
+  function src(layer, id) { return '../assets/pfp/' + layer + '/' + id + '.webp'; }
+  function layerOf(id) { return manifest.layers.filter(function (l) { return l.id === id; })[0]; }
+  function nameOf(layer, id) {
+    var t = layerOf(layer).traits.filter(function (x) { return x.id === id; })[0];
+    return t ? t.name : id;
+  }
+
+  // Paint one square: background, base, then the two contested traits in
+  // the given order (last drawn = in front).
+  function stackEl(outfitId, chainInFront) {
+    var box = document.createElement('div');
+    box.className = 'stack';
+    var layers = [['background', BG], ['base', BASE]];
+    layers = layers.concat(chainInFront
+      ? [['outfit', outfitId], ['accessory', CHAIN]]
+      : [['accessory', CHAIN], ['outfit', outfitId]]);
+    layers.forEach(function (pair) {
+      if (!pair[1]) return;
+      var img = document.createElement('img');
+      img.src = src(pair[0], pair[1]);
+      img.alt = '';
+      box.appendChild(img);
+    });
+    return box;
+  }
+
+  function render() {
+    var outfitId = outfits[idx];
+    el.pair.innerHTML = '';
+    if (!outfitId) {
+      el.now.textContent = 'All done — every outfit has an answer.';
+      el.done.textContent = 'Hit "Export decisions" for the CROSS_PAIR_ORDER block.';
+      updateBar();
+      return;
+    }
+    el.done.textContent = '';
+    var decided = decisions[outfitId];
+    el.now.innerHTML = nameOf('outfit', outfitId) +
+      ' <span class="count">(' + (idx + 1) + ' of ' + outfits.length + ')</span>';
+
+    [
+      { front: outfitId, title: 'Chain behind', key: '←', chainInFront: false },
+      { front: CHAIN, title: 'Chain in front', key: '→', chainInFront: true },
+    ].forEach(function (o) {
+      var card = document.createElement('div');
+      card.className = 'opt';
+      var h = document.createElement('h2');
+      h.appendChild(document.createTextNode(o.title));
+      var k = document.createElement('span');
+      k.className = 'key'; k.textContent = o.key;
+      h.appendChild(k);
+      card.appendChild(h);
+      card.appendChild(stackEl(outfitId, o.chainInFront));
+
+      var btn = document.createElement('button');
+      btn.className = 'choose' + (decided === o.front ? ' is-active' : '');
+      btn.type = 'button';
+      btn.textContent = decided === o.front ? 'Chosen' : 'Choose this';
+      btn.addEventListener('click', function () { decide(o.front); });
+      card.appendChild(btn);
+      el.pair.appendChild(card);
+    });
+
+    if (el.jump.value !== outfitId) el.jump.value = outfitId;
+    updateBar();
+  }
+
+  function updateBar() {
+    var n = outfits.filter(function (id) { return decisions[id]; }).length;
+    el.barFill.style.width = outfits.length ? (n / outfits.length * 100) + '%' : '0%';
+  }
+
+  function decide(frontId) {
+    var outfitId = outfits[idx];
+    if (!outfitId) return;
+    history.push({ id: outfitId, prev: decisions[outfitId], idx: idx });
+    decisions[outfitId] = frontId;
+    save();
+    advance();
+  }
+
+  // Walk forward to the next outfit with no answer yet; if everything from
+  // here on is decided, wrap once, then land past the end.
+  function advance() {
+    var next = -1;
+    for (var i = idx + 1; i < outfits.length; i++) {
+      if (!decisions[outfits[i]]) { next = i; break; }
+    }
+    if (next === -1) {
+      for (var j = 0; j < outfits.length; j++) {
+        if (!decisions[outfits[j]]) { next = j; break; }
+      }
+    }
+    idx = next === -1 ? outfits.length : next;
+    render();
+  }
+
+  function undo() {
+    var last = history.pop();
+    if (!last) return;
+    if (last.prev) decisions[last.id] = last.prev;
+    else delete decisions[last.id];
+    save();
+    idx = last.idx;
+    render();
+  }
+
+  document.getElementById('undo').addEventListener('click', undo);
+  document.getElementById('skip').addEventListener('click', function () {
+    idx = Math.min(idx + 1, outfits.length); render();
+  });
+  document.getElementById('reset').addEventListener('click', function () {
+    if (!confirm('Clear every decision?')) return;
+    decisions = {}; history = []; save(); idx = 0; el.out.hidden = true; render();
+  });
+
+  document.getElementById('export').addEventListener('click', function () {
+    var behind = [], front = [], undecided = [];
+    outfits.forEach(function (id) {
+      var d = decisions[id];
+      if (!d) undecided.push(id);
+      else if (d === id) behind.push(id);
+      else front.push(id);
+    });
+    var lines = [];
+    lines.push('// Gold chain vs outfit — reviewed ' + new Date().toISOString().slice(0, 10) + '.');
+    lines.push('// Paste the entries below into CROSS_PAIR_ORDER in pfp.html.');
+    lines.push('// Only "behind" needs an entry: in front is what the plain rank');
+    lines.push('// already does (gold-chains is rank 25, outfit is 20).');
+    lines.push('');
+    Object.keys(PREDECIDED).forEach(function (id) {
+      lines.push("      '" + [CHAIN, id].sort().join('|') + "': '" + PREDECIDED[id] + "',   // already in pfp.html");
+    });
+    behind.forEach(function (id) {
+      lines.push("      '" + [CHAIN, id].sort().join('|') + "': '" + id + "',");
+    });
+    lines.push('');
+    lines.push('// In front (no entry needed, ' + front.length + '): ' + (front.join(', ') || 'none'));
+    if (undecided.length) lines.push('// STILL UNDECIDED (' + undecided.length + '): ' + undecided.join(', '));
+    el.out.hidden = false;
+    el.out.value = lines.join('\n');
+    el.out.focus();
+    el.out.select();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+    var outfitId = outfits[idx];
+    if (e.key === 'ArrowLeft' && outfitId) { e.preventDefault(); decide(outfitId); }
+    else if (e.key === 'ArrowRight' && outfitId) { e.preventDefault(); decide(CHAIN); }
+    else if (e.key === 'ArrowUp' || e.key === 'Backspace') { e.preventDefault(); undo(); }
+  });
+
+  fetch('../assets/data/pfp-traits.json')
+    .then(function (r) { return r.json(); })
+    .then(function (m) {
+      manifest = m;
+      outfits = layerOf('outfit').traits
+        .map(function (t) { return t.id; })
+        .filter(function (id) { return !PREDECIDED[id] && !SKIP[id]; });
+
+      outfits.forEach(function (id) { el.jump.add(new Option(nameOf('outfit', id), id)); });
+      el.jump.addEventListener('change', function () {
+        idx = outfits.indexOf(el.jump.value);
+        render();
+      });
+
+      // Resume where the last session stopped.
+      var firstOpen = -1;
+      for (var i = 0; i < outfits.length; i++) {
+        if (!decisions[outfits[i]]) { firstOpen = i; break; }
+      }
+      idx = firstOpen === -1 ? 0 : firstOpen;
+      render();
+    })
+    .catch(function () {
+      el.now.textContent = 'Could not load pfp-traits.json — run node tools/serve-pair-review.js and open this over http://localhost.';
+    });
+})();
+</script>
+</body>
+</html>
