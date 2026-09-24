@@ -24,6 +24,7 @@
   <label><input type="checkbox" id="gun"> Holding a gun</label>
   <label><input type="checkbox" id="crouch"> Crouch</label>
   <label><input type="checkbox" id="back"> Backpedal</label>
+  <label><input type="checkbox" id="close"> Close-up</label>
 </div>
 <script type="module">
 // Three rigs on a treadmill: the floor slides under them at their real speed,
@@ -104,7 +105,9 @@ function frame(now) {
   if (frozen != null) { dt = 0; clock = +frozen; } else clock += dt;
 
   const side = $("side").checked;
-  if (side) { camera.position.set(0, 1.0, 11); camera.lookAt(0, 0.8, 0); }
+  const close = $("close").checked;
+  if (side) { camera.position.set(0, 1.0, close ? 3.6 : 11); camera.lookAt(0, close ? 1.0 : 0.8, 0); }
+  else if (close) { camera.position.set(-2.2, 1.5, 2.4); camera.lookAt(0, 1.0, 0); }
   else { camera.position.set(-7, 2.2, 8); camera.lookAt(0, 0.8, 0); }
 
   const back = $("back").checked;

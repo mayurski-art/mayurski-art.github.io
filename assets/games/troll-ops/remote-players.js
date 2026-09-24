@@ -255,7 +255,7 @@ export class RemotePlayer {
     this.scene.remove(this.rig.root);
     this.rig.root.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
-      if (o !== this.rig.root && o.material && o.material !== this.material) o.material.dispose?.();
+      if (o !== this.rig.root && o.material && o.material !== this.material && !o.material.userData?.shared) o.material.dispose?.();
     });
     this.material.dispose();
     this.tag.material.map?.dispose();

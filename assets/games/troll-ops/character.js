@@ -15,8 +15,15 @@
 // tracked everywhere else in the game.
 
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
+
+/* The body is drawn in flat ink: no lighting, so there is no highlight or
+   shading to show where one limb's tube meets another's — the whole figure
+   reads as one line drawn without lifting the pen. Shared by every rig. */
+const INK = new THREE.MeshBasicMaterial({ color: 0x050505 });
+INK.userData.shared = true;
 
 // Shared by every invisible hit-proxy primitive (see buildHumanoid below).
 // Never rendered, just needs to be a real material so raycasting works.
@@ -150,8 +157,8 @@ class BodyStroke {
     this.mesh = new THREE.Mesh(geo, material);
     this.mesh.castShadow = true;
     this.mesh.userData.isBodyStroke = true;
-    // Rebuilt at draw time, after the scene graph has its final matrices
-    // for this frame — whichever pose function ran, this sees the result.
+    // The pose functions rebuild the line as they finish (see the wrappers
+    // by DANCES); this only catches a rig that is drawn without being posed.
     this.mesh.onBeforeRender = () => this.update();
     root.add(this.mesh);
     this._inv = new THREE.Matrix4();
@@ -222,6 +229,78 @@ class BodyStroke {
     this.nrm.needsUpdate = true;
     this.uvAttr.needsUpdate = true;
   }
+}
+
+/* ------------------------------------------------------------------- hands
+
+   Cartoon mitts in the same flat ink: a palm, four fingers and a thumb, cut
+   as flat shapes with a slight rounded edge. Each hand carries two shapes —
+   open and fist — and setHandPose() picks one, so reloads, throws and the
+   like can open and close them. Drawn with the fingers pointing down -Y
+   from the wrist at the origin, the thumb to +X (or -X, mirrored). */
+const HAND_GEO = new Map();
+function roundedRect(x, y, w, h, r) {
+  const sh = new THREE.Shape();
+  sh.moveTo(x + r, y);
+  sh.lineTo(x + w - r, y); sh.quadraticCurveTo(x + w, y, x + w, y + r);
+  sh.lineTo(x + w, y + h - r); sh.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  sh.lineTo(x + r, y + h); sh.quadraticCurveTo(x, y + h, x, y + h - r);
+  sh.lineTo(x, y + r); sh.quadraticCurveTo(x, y, x + r, y);
+  return sh;
+}
+function handGeometry(kind, thumb, s) {
+  const key = `${kind}:${thumb}:${s.toFixed(3)}`;
+  if (HAND_GEO.has(key)) return HAND_GEO.get(key);
+  const extrude = (shape, rot = 0, px = 0, py = 0) => {
+    const g = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.012 * s, bevelEnabled: true, bevelThickness: 0.005 * s, bevelSize: 0.004 * s, bevelSegments: 2, curveSegments: 5,
+    });
+    g.translate(0, 0, -0.006 * s);
+    if (rot) g.rotateZ(rot);
+    g.translate(px, py, 0);
+    return g.toNonIndexed();
+  };
+  const parts = [];
+  if (kind === "open") {
+    parts.push(extrude(roundedRect(-0.034 * s, -0.075 * s, 0.068 * s, 0.078 * s, 0.022 * s)));
+    // Four fingers, the middle two a touch longer, fanned very slightly.
+    [[-0.026, 0.045, 0.05], [-0.009, 0.055, 0.015], [0.009, 0.054, -0.015], [0.026, 0.043, -0.05]].forEach(([x, len, fan]) => {
+      parts.push(extrude(roundedRect(-0.0085 * s, -len * s, 0.017 * s, len * s + 0.01 * s, 0.0085 * s), fan, x * s * -thumb, -0.068 * s));
+    });
+    parts.push(extrude(roundedRect(-0.009 * s, -0.05 * s, 0.018 * s, 0.05 * s, 0.009 * s), thumb * 0.75, thumb * 0.03 * s, -0.022 * s));
+  } else {
+    // A fist: a rounded block with the thumb laid across it.
+    parts.push(extrude(roundedRect(-0.036 * s, -0.082 * s, 0.072 * s, 0.085 * s, 0.028 * s)));
+    parts.push(extrude(roundedRect(-0.009 * s, -0.042 * s, 0.018 * s, 0.042 * s, 0.009 * s), thumb * 1.2, thumb * 0.03 * s, -0.03 * s));
+  }
+  const geo = mergeGeometries(parts);
+  parts.forEach((g) => g.dispose());
+  HAND_GEO.set(key, geo);
+  return geo;
+}
+
+function buildHand(parent, side, s, material, armAngle) {
+  // Outer group lines the hand up with the forearm; inner turns the palm
+  // to face the thigh with the thumb forward.
+  const align = joint(parent);
+  align.rotation.z = armAngle;
+  const turn = joint(align);
+  turn.rotation.y = side * Math.PI / 2;
+  const open = new THREE.Mesh(handGeometry("open", side, s), material);
+  const fist = new THREE.Mesh(handGeometry("fist", side, s), material);
+  fist.visible = false;
+  open.castShadow = fist.castShadow = true;
+  turn.add(open, fist);
+  return { group: align, turn, open, fist, pose: "open" };
+}
+
+/* "open" or "fist". Cheap to call every frame. */
+export function setHandPose(rig, side, pose) {
+  const h = side < 0 ? rig.hands.L : rig.hands.R;
+  if (h.pose === pose) return;
+  h.pose = pose;
+  h.open.visible = pose !== "fist";
+  h.fist.visible = pose === "fist";
 }
 
 function joint(parent, x = 0, y = 0, z = 0) {
@@ -296,24 +375,36 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     head.visible = false;
   }
 
-  // --- arms: shoulder pivot on the chest, elbow halfway down. With the
-  // elbow at 0 the arm is the same straight stick it always was, so every
-  // existing pose (and the gun, mounted on armR at the hand) still lines up.
+  // --- arms: both leave the spine at the same point, the base of the neck —
+  // no shoulders, the way the stick figure is drawn. Elbow halfway down;
+  // with it at 0 the arm is a straight stick, so every existing pose (and
+  // the gun, mounted on armR at the hand) still lines up.
   const ARM = new THREE.Vector3(0.30 * s * w, -0.62 * s, 0);
   const mkArm = (side) => {
-    const pivot = joint(chest, side * 0.05 * s * w, 0, 0);
+    const pivot = joint(chest);
     const elbow = joint(pivot, side * ARM.x * 0.48, ARM.y * 0.48, 0);
     const hand = joint(elbow, side * ARM.x * 0.52, ARM.y * 0.52, 0);
     return { pivot, elbow, hand };
   };
   const L = mkArm(-1), R = mkArm(1);
+  const inkMat = material?.isShaderMaterial ? material : INK;
+  const armAngle = Math.atan2(ARM.x, -ARM.y);
+  // Big cartoon mitts, the way the figure is drawn — about a third of the
+  // head's width across.
+  const handScale = 1.55 * s;
+  const hands = { L: buildHand(L.hand, -1, handScale, inkMat, -armAngle), R: buildHand(R.hand, 1, handScale, inkMat, armAngle) };
 
-  // --- legs: hip pivot, knee halfway, ankle, and a short toe so the foot
-  // reads as a foot. Both legs leave the body at the same point.
+  // --- legs: knee halfway, ankle, and a short toe so the foot reads as a
+  // foot. Both legs split from the one point at the bottom of the spine.
   const THIGH = 0.45 * s, SHIN = 0.45 * s - limbRadius;
+  // Legs rest splayed a little, so a pose that doesn't place the feet (a
+  // dance, the death fall) still draws two legs rather than one line. The
+  // foot placement takes the splay back out.
   const mkLeg = (side) => {
-    const pivot = joint(hips, side * 0.012 * s * w, 0, 0);
-    const knee = joint(pivot, 0, -THIGH, 0);
+    const pivot = joint(hips);
+    const splay = joint(pivot);
+    splay.rotation.z = side * LEG_SPLAY;
+    const knee = joint(splay, 0, -THIGH, 0);
     const ankle = joint(knee, 0, -SHIN, 0);
     const toe = joint(ankle, 0, -0.005 * s, -0.085 * s);
     return { pivot, knee, ankle, toe };
@@ -324,9 +415,11 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     // neck → spine → hips → left leg, one stroke
     [neckTop, chest, torsoMid, hips, LL.knee, LL.ankle, LL.toe],
     [hips, LR.knee, LR.ankle, LR.toe],
-    [chest, L.pivot, L.elbow, L.hand],
-    [chest, R.pivot, R.elbow, R.hand],
-  ], [neckTop, chest, hips, LL.toe, LR.toe, L.hand, R.hand], limbRadius, material);
+    [chest, L.elbow, L.hand],
+    [chest, R.elbow, R.hand],
+  ], [neckTop, chest, hips, LL.toe, LR.toe, L.hand, R.hand], limbRadius,
+  // The enemy dissolve is a shader of its own; everything else is ink.
+  inkMat);
 
   // --- weapon, carried in the right hand
   let gunMesh = null;
@@ -389,7 +482,9 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
       legL: LL.pivot, legR: LR.pivot, kneeL: LL.knee, kneeR: LR.knee,
       ankleL: LL.ankle, ankleR: LR.ankle,
       gun: gunMesh, body: body.mesh,
+      handL: hands.L.group, handR: hands.R.group,
     },
+    hands,
     body,
     hitboxMeshes,
     scale: s,
@@ -416,6 +511,8 @@ function _resetJoints(rig) {
   p.elbowR.rotation.set(0, 0, 0);
   p.hips.rotation.y = 0;
   p.chest.rotation.y = 0;
+  setHandPose(rig, -1, "open");
+  setHandPose(rig, 1, "open");
 }
 
 /* ----------------------------------------------------------------- the gait
@@ -446,7 +543,7 @@ const _e = new THREE.Euler();
 
 /* Point a hip-knee-ankle chain at `target` (root space). Knees bend toward
    the body's front (-Z). */
-function _solveLeg(rig, pivot, knee, ankle, target, footPitch) {
+function _solveLeg(rig, side, pivot, knee, ankle, target, footPitch) {
   const p = rig.parts;
   // Hip joint in root space. Hips only yaw/roll a little while walking.
   _hipJoint.copy(pivot.position).applyEuler(p.hips.rotation).add(p.hips.position);
@@ -461,13 +558,15 @@ function _solveLeg(rig, pivot, knee, ankle, target, footPitch) {
   const atHip = Math.acos(Math.max(-1, Math.min(1, (a * a + d * d - b * b) / (2 * a * d))));
   const atKnee = Math.acos(Math.max(-1, Math.min(1, (a * a + b * b - d * d) / (2 * a * b))));
 
-  pivot.rotation.set(reach + atHip, 0, lateral);
+  // The rest splay (a child rotation about the same axis) adds to `lateral`.
+  pivot.rotation.set(reach + atHip, 0, lateral - side * LEG_SPLAY);
   knee.rotation.set(-(Math.PI - atKnee), 0, 0);
   // Keep the foot level with the ground, plus whatever pitch the step wants.
   ankle.rotation.set(-(pivot.rotation.x + knee.rotation.x) + footPitch - p.hips.rotation.x, 0, 0);
 }
 
 const _smooth = (t) => t * t * (3 - 2 * t);
+const LEG_SPLAY = 0.09;
 
 /* The gun arm's forward raise, and where a held weapon sits on that arm:
    at the hand, turned back by the same angle so it comes out level and
@@ -485,7 +584,7 @@ export function mountHeldWeapon(rig, mesh) {
    mover's local sideways velocity; `forward` is -1..1 fore/aft (negative =
    backpedal). `speed` is 0..1 of a 4.2 m/s run; `mps`, when the caller knows
    it, is the real speed and sizes the stride so the feet plant exactly. */
-export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false }) {
+function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
@@ -557,8 +656,8 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
     _foot.z += crouch * 0.12 * s;
     feet.push({ side, along, target: _foot.clone(), pitch: pitchFoot });
   }
-  _solveLeg(rig, p.legL, p.kneeL, p.ankleL, feet[0].target, feet[0].pitch);
-  _solveLeg(rig, p.legR, p.kneeR, p.ankleR, feet[1].target, feet[1].pitch);
+  _solveLeg(rig, -1, p.legL, p.kneeL, p.ankleL, feet[0].target, feet[0].pitch);
+  _solveLeg(rig, 1, p.legR, p.kneeR, p.ankleR, feet[1].target, feet[1].pitch);
   // -1 = that foot trails behind, 1 = it's out ahead: drives the arms.
   const legSwingL = (feet[0].along / Math.max(1e-3, duty * stride)) * Math.sign(-tz || 1);
 
@@ -575,6 +674,8 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
     p.armR.rotation.set(1.42 - lean + Math.cos(phase * 0.5) * 0.12, 0, -0.18);
     p.elbowL.rotation.set(0.25, 0, 0);
     p.elbowR.rotation.set(0.35, 0, 0);
+    setHandPose(rig, -1, "open");
+    setHandPose(rig, 1, "open");
     p.torso.rotation.x += 0.12;
     _poseNeckAndHead(rig, { pitch: 0.16, sway: Math.sin(phase * 0.5) * 0.09, dt, lead: 0 });
     return;
@@ -588,6 +689,8 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   const carrySwing = Math.sin(phase) * 0.04 * spd * blend;
   p.armR.rotation.set(GUN_CARRY + pitch * 0.32 + carrySwing - lean, 0, -0.15);
   p.elbowR.rotation.set(0, 0, 0);
+  setHandPose(rig, 1, "fist");
+  setHandPose(rig, -1, hasGun ? "fist" : "open");
 
   if (hasGun) {
     // Support hand on the handguard.
@@ -605,6 +708,9 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
   _poseNeckAndHead(rig, { pitch: pitch - lean * 0.6, sway: 0, dt, lead: str * blend });
 }
 
+/* Arm angles: positive x raises an arm FORWARD (see GUN_CARRY). These dances
+   were first written the other way round and reached behind the body. */
+
 /* A looping victory/idle dance - the locker screen's answer to Fortnite's
    emote preview. `t` is seconds elapsed, runs forever (no start/end, just
    feed a growing clock). Built from a handful of layered sine waves at
@@ -616,7 +722,7 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
    dancer's head lags the hip snap by a beat), and the knees bend on the
    downbeat so the bounce comes from the whole body, not just the hips
    sliding up and down on rails. */
-export function poseDance(rig, t) {
+function _poseDance(rig, t) {
   const p = rig.parts;
   _resetJoints(rig);
   const s = rig.scale;
@@ -646,8 +752,8 @@ export function poseDance(rig, t) {
   // Arms swing big and opposite the hip sway, elbows-out disco-pump
   // rather than the tight, low running counter-swing poseHumanoid uses.
   const armSwing = Math.sin(beat * 0.5 + Math.PI);
-  p.armL.rotation.x = -0.9 + armSwing * 0.5;
-  p.armR.rotation.x = -0.9 - armSwing * 0.5;
+  p.armL.rotation.x = 0.9 - armSwing * 0.5;
+  p.armR.rotation.x = 0.9 + armSwing * 0.5;
   p.armL.rotation.z = 0.35 + bounce * 0.15;
   p.armR.rotation.z = -0.35 - bounce * 0.15;
 
@@ -663,7 +769,7 @@ export function poseDance(rig, t) {
    same single-segment arm bones as the rest of the rig instead of a real
    elbow. Faster than the disco bounce above; almost no vertical bob, all
    the motion is lateral. */
-export function poseDanceFloss(rig, t) {
+function _poseDanceFloss(rig, t) {
   const p = rig.parts;
   _resetJoints(rig);
   const beat = t * Math.PI * 2 * 2.2;
@@ -679,8 +785,8 @@ export function poseDanceFloss(rig, t) {
 
   // Both arms swing together, low and wide, crossing the body — the
   // "floss" itself — rather than the opposite-arm-swing a walk cycle uses.
-  p.armL.rotation.x = -0.3;
-  p.armR.rotation.x = -0.3;
+  p.armL.rotation.x = 0.3;
+  p.armR.rotation.x = 0.3;
   p.armL.rotation.z = 0.5 + armSway * 0.55;
   p.armR.rotation.z = -0.5 + armSway * 0.55;
 
@@ -694,7 +800,7 @@ export function poseDanceFloss(rig, t) {
    the opposite weighting from the floss/disco moves above, so cycling
    between them reads as different dances rather than the same skeleton
    playing back faster or slower. */
-export function poseDanceHeadbang(rig, t) {
+function _poseDanceHeadbang(rig, t) {
   const p = rig.parts;
   _resetJoints(rig);
   const beat = t * Math.PI * 2 * 2.6;
@@ -705,8 +811,8 @@ export function poseDanceHeadbang(rig, t) {
   p.chest.rotation.x = 0.08 + nod * 0.3;
 
   const armPump = Math.sin(beat * 0.5);
-  p.armL.rotation.x = -0.6 + armPump * 0.3;
-  p.armR.rotation.x = -0.6 - armPump * 0.3;
+  p.armL.rotation.x = 0.6 - armPump * 0.3;
+  p.armR.rotation.x = 0.6 + armPump * 0.3;
   p.armL.rotation.z = 0.2;
   p.armR.rotation.z = -0.2;
 
@@ -719,7 +825,7 @@ export function poseDanceHeadbang(rig, t) {
 /* Arm-wave: one arm raised and circling overhead while the hips sway low
    and slow underneath — reads as a completely different silhouette from
    the other three (raised arm) rather than another variation on a bounce. */
-export function poseDanceWave(rig, t) {
+function _poseDanceWave(rig, t) {
   const p = rig.parts;
   _resetJoints(rig);
   const beat = t * Math.PI * 2 * 1.1;
@@ -735,10 +841,10 @@ export function poseDanceWave(rig, t) {
   // (-PI/2) rather than past vertical, so the hand stays within the
   // character's own silhouette instead of pushing the reach higher than
   // the head and widening the frame the hero shot has to fit.
-  p.armR.rotation.x = -1.7 + Math.sin(circle) * 0.3;
+  p.armR.rotation.x = 1.7 - Math.sin(circle) * 0.3;
   p.armR.rotation.z = -0.3 + Math.cos(circle) * 0.3;
   // Other arm keeps a loose, low sway so it doesn't read as frozen.
-  p.armL.rotation.x = -0.35 + sway * 0.15;
+  p.armL.rotation.x = 0.35 - sway * 0.15;
   p.armL.rotation.z = 0.3;
 
   p.legL.rotation.z = sway * 0.07;
@@ -748,6 +854,17 @@ export function poseDanceWave(rig, t) {
 }
 
 /* Every available locker emote, in the order the inspector cycles them. */
+/* Every pose rebuilds the body line straight after it lands, before the
+   frame is drawn: three.js uploads geometry before an object's render hook
+   runs, so rebuilding there would draw the line a frame behind the hands
+   and head, and it would visibly slip off them in fast motion. */
+export function poseHumanoid(rig, arg) { _poseHumanoid(rig, arg); rig.body.update(); }
+export function poseDance(rig, arg) { _poseDance(rig, arg); rig.body.update(); }
+export function poseDanceFloss(rig, arg) { _poseDanceFloss(rig, arg); rig.body.update(); }
+export function poseDanceHeadbang(rig, arg) { _poseDanceHeadbang(rig, arg); rig.body.update(); }
+export function poseDanceWave(rig, arg) { _poseDanceWave(rig, arg); rig.body.update(); }
+export function poseDeath(rig, arg) { _poseDeath(rig, arg); rig.body.update(); }
+
 export const DANCES = [poseDance, poseDanceFloss, poseDanceHeadbang, poseDanceWave];
 
 /* Collapse the rig into a fallen heap. `t` is 0 (moment of death) to 1
@@ -756,7 +873,7 @@ export const DANCES = [poseDance, poseDanceFloss, poseDanceHeadbang, poseDanceWa
    than just freezing the last standing pose or popping out of existence —
    a body that stays upright or vanishes instantly reads as a UI toggle,
    not a kill. */
-export function poseDeath(rig, t) {
+function _poseDeath(rig, t) {
   const p = rig.parts;
   _resetJoints(rig);
   const k = Math.max(0, Math.min(1, t));
@@ -774,8 +891,8 @@ export function poseDeath(rig, t) {
   p.legL.rotation.z = ease * 0.2;
   p.legR.rotation.z = -ease * 0.15;
 
-  p.armL.rotation.x = -0.2 - ease * 0.9;
-  p.armR.rotation.x = -0.2 - ease * 0.7;
+  p.armL.rotation.x = 0.2 + ease * 0.9;
+  p.armR.rotation.x = 0.2 + ease * 0.7;
   p.armL.rotation.z = ease * 0.4;
   p.armR.rotation.z = -ease * 0.3;
 
