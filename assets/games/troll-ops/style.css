@@ -179,12 +179,19 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   font-family: "DM Mono", monospace; font-size: 12px; color: #dfe6da;
 }
 .to-sb-team { margin-bottom: 10px; }
+.to-sb-head, .to-sb-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 2.4em) 3.4em;
+  column-gap: 6px; align-items: baseline;
+}
+.to-sb-head > span:not(:first-child), .to-sb-row > span:not(:first-child) { text-align: right; }
+.to-sb-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .to-sb-head {
-  display: flex; justify-content: space-between;
   font-family: "Oswald", sans-serif; font-size: 13px; letter-spacing: .08em;
   padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.12);
 }
-.to-sb-row { display: flex; justify-content: space-between; padding: 2px 0; }
+.to-sb-head > span:not(:first-child) { color: #9aa596; font-family: "DM Mono", monospace; font-size: 11px; }
+.to-sb-row { padding: 2px 0; }
+.to-sb-row b { color: #9aa596; font-weight: 400; }
 .to-sb-row.is-you { color: #7fe066; }
 .to-sb-row span:last-child { color: #9aa596; }
 
@@ -652,6 +659,28 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   transition: background .08s;
 }
 .to-hitflash.is-hit { background: rgba(255,30,20,.28); }
+
+/* Hit direction: a red arc round the crosshair per attacker, turned toward
+   where the hit came from. game.js sets the rotation and fade every frame. */
+.to-hitdir {
+  position: absolute; top: 50%; left: 50%; width: 0; height: 0;
+  pointer-events: none; z-index: 12;
+}
+.to-hitdir-mark {
+  position: absolute; left: -105px; top: -105px; width: 210px; height: 210px;
+  opacity: 0; will-change: transform, opacity;
+}
+.to-hitdir-mark::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 9px solid transparent; border-top-color: rgba(255,45,30,.9);
+  -webkit-mask-image: conic-gradient(from -28deg, #000 0 56deg, transparent 56deg);
+          mask-image: conic-gradient(from -28deg, #000 0 56deg, transparent 56deg);
+  filter: drop-shadow(0 0 6px rgba(255,30,20,.7));
+}
+@media (max-width: 640px) {
+  .to-hitdir-mark { left: -80px; top: -80px; width: 160px; height: 160px; }
+  .to-hitdir-mark::before { border-width: 7px; }
+}
 
 .to-lowhp {
   position: absolute; inset: 0;

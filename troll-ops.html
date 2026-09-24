@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-customize-detail1">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-hitdir-sb1">
 </head>
 <body>
 
@@ -128,6 +128,9 @@
                 <div><kbd>X</kbd><span>Hold — swap · pick up dropped weapon</span></div>
                 <div><kbd>G</kbd><span>Lethal — hold to cook</span></div>
                 <div><kbd>F</kbd><span>Tactical</span></div>
+                <div><kbd>E</kbd><span>Hold — plant · defuse (Search &amp; Destroy)</span></div>
+                <div><kbd>T</kbd><span>Inspect weapon</span></div>
+                <div><kbd>B</kbd><span>Third person</span></div>
                 <div><kbd>Tab</kbd><span>Scoreboard</span></div>
                 <div><kbd>Esc</kbd><span>Menu · settings</span></div>
               </div>
@@ -275,6 +278,9 @@
               <div><kbd>X</kbd><span>Hold — swap · pick up weapon · open care package</span></div>
               <div><kbd>G</kbd><span>Throw lethal — hold to cook</span></div>
               <div><kbd>F</kbd><span>Throw tactical</span></div>
+              <div><kbd>E</kbd><span>Hold on a bomb site — plant · defuse (Search &amp; Destroy)</span></div>
+              <div><kbd>T</kbd><span>Inspect weapon</span></div>
+              <div><kbd>B</kbd><span>Toggle third person</span></div>
               <div><kbd>Tab</kbd><span>Scoreboard</span></div>
               <div><kbd>Esc</kbd><span>This menu · cancel a marked streak</span></div>
             </div>
@@ -292,7 +298,7 @@
               <div><kbd>R1</kbd><span>Throw lethal — hold to cook</span></div>
               <div><kbd>D-pad ←</kbd><span>Throw tactical</span></div>
               <div><kbd>D-pad ↓</kbd><span>Cycle to the next ready scorestreak</span></div>
-              <div><kbd>D-pad →</kbd><span>Fire the selected scorestreak · confirm a marked spot — or hold to swap · pick up weapon · open care package</span></div>
+              <div><kbd>D-pad →</kbd><span>Fire the selected scorestreak · confirm a marked spot — or hold to swap · pick up weapon · open care package · plant · defuse</span></div>
               <div><kbd>D-pad ↑</kbd><span>Inspect weapon</span></div>
               <div><kbd>Start</kbd><span>This menu</span></div>
             </div>
@@ -433,6 +439,7 @@
         <div class="to-emp" id="to-emp" aria-hidden="true"></div>
         <div class="to-hitmarker" id="to-hitmarker" aria-hidden="true"></div>
         <div class="to-hitflash" id="to-hitflash" aria-hidden="true"></div>
+        <div class="to-hitdir" id="to-hitdir" aria-hidden="true"></div>
         <div class="to-lowhp" id="to-lowhp" aria-hidden="true"></div>
         <div class="to-deathfade" id="to-deathfade" aria-hidden="true"></div>
 
@@ -536,7 +543,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-inspect-anims-bot-gait3"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-hitdir-sb1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

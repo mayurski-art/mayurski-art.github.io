@@ -99,12 +99,16 @@ The PF *feel*, still against AI grunts so it stays playable throughout.
   tracers that follow the bullet
 - ✅ Wall penetration via analytic slab test — material thickness × a per-collider
   `pen` cost, with damage falling off through the material
-- ✅ Movement (`movement.js`): slide, dive-to-prone, vault/mantle, lean, crouch,
+- ✅ Movement (`movement.js`): slide, dive-to-prone, vault/mantle, crouch,
   sprint; crates are now walkable surfaces instead of invisible walls
-- ✅ ADS moved to **right mouse** (PF parity), freeing Q/E for lean
-- ✅ Replaced `PointerLockControls` with hand-composed look, so aim, recoil and
-  lean roll no longer fight over the camera quaternion
-- ✅ Slide + lean touch controls for mobile parity
+- ❌ **Lean was never built.** Earlier versions of this doc listed it as
+  shipped; there is no lean in `movement.js`, `game.js` or the touch layout.
+  It also has nowhere to go yet: Q still aims (alongside right mouse) and E is
+  plant/defuse in Search & Destroy. Adding it means a controls decision — see §8
+- ✅ ADS moved to **right mouse** (PF parity); Q kept as a second aim key
+- ✅ Replaced `PointerLockControls` with hand-composed look, so aim and recoil
+  no longer fight over the camera quaternion
+- ✅ Slide touch control for mobile parity
 
 ### Phase 2 — Weapon roster + attachments ✅ SHIPPED
 - ✅ **22 weapons across 8 classes** (table in §5), built from per-class base
@@ -146,7 +150,8 @@ The PF *feel*, still against AI grunts so it stays playable throughout.
 - ✅ Client-authoritative hit reporting — the shooter decides and reports, the
   target applies it to itself and nobody else can
 - ✅ Remote operators with team colours, name tags, stance heights and grins
-- ✅ Killfeed, Tab scoreboard, team score HUD, death and respawn cycle
+- ✅ Killfeed, Tab scoreboard (K / D / A / K/D; free-for-all modes as one
+  ranking), team score HUD, death and respawn cycle
 - Bots to fill empty rooms → phase 5, alongside game modes
 
 **Team balancing, and why it was fiddly.** Picking "the side with fewer
@@ -161,6 +166,11 @@ players" is wrong three different ways in a peer-to-peer room:
    that still looks empty. `start()` now settles for 700ms before returning, so
    the choice sees real teams. Genuine ties fall back to id ordering, which
    splits simultaneous joiners deterministically.
+4. Bots share the peer map, and they were counted too. Bots pad whichever side
+   is short, so counting them sent a second human to the first one's side
+   about half the time. Only humans count now, and bots fill each side to 4
+   around wherever the humans are (they used to split 4/3 among themselves and
+   leave a lone human 5v3).
 
 ### Phase 5 — Game modes, bots and 3D characters ✅ SHIPPED
 - ✅ **Ops** — the PvE horde mode, preserved as solo play
@@ -212,12 +222,39 @@ and the wrong one for a per-game unlock track — weapon unlocks would inherit
 unrelated cooldowns. Rank stays in localStorage; the account gets the match
 result, which is what its API is for.
 
+### Phase 7 — Match flow, sync and feedback pass
+- ✅ **Team spawns** split by position along the axis that keeps the sides
+  furthest apart (the old index split interleaved them round the perimeter —
+  9m apart on Undergrin). Opening spawns are on your side
+- ✅ **Search & Destroy with bots**: one life per round, a 2:00 plant clock
+  (defenders win on time), elimination wins, bots push, plant and defuse.
+  Controllers plant/defuse on D-pad →
+- ✅ Bomb sites and the KotH hill snap to open, reachable ground
+- ✅ Suicides and teamkills earn nothing; your blasts spare teammates;
+  flashbangs and EMPs stun bots
+- ✅ **Grenades are networked** (`nade` messages): the thrower's client owns
+  the damage; everyone sees the throw, and the thrower's `boom` puts smoke,
+  flashes and fire in the same spot on every screen
+- ✅ **Enemy fire is visible**: cosmetic tracers for other players' and bots'
+  rounds, each gun with its own report (suppressors included). Bot gunfire
+  goes to the whole room, not just the host
+- ✅ A cooked-off grenade explodes once, not twice; held smoke and firebombs
+  don't burn their fuse in your hand
+- ✅ **Hit-direction markers** — a red arc round the crosshair per attacker,
+  turned toward where the hit came from
+- ✅ Verified with `tools/troll-ops-sync-test.mjs`: two tabs in one room over
+  `BroadcastChannel`, checking grenade flight and detonation, smoke/fire
+  placement, flashes (enemy blinds, teammate doesn't), cook-off, tracers, bot
+  gunfire, scoreboard stats and hit markers across clients
+
 ---
 
 ## 10. Status
 
-All six phases are shipped and on `main`. What's deferred, and deliberately so:
+Phases 1–7 are shipped. What's deferred, and deliberately so:
 
+- **Lean** — needs a controls decision first (§8)
+- **Bots throwing grenades** — bots only shoot today
 - **Infection mode** — the grunt AI reuse is still the plan, nothing blocks it
 - **Map vote / rotation between matches** — folded into a future match-flow pass
 - **Attachment unlocks** — attachments are all available; only weapons gate by
@@ -293,8 +330,10 @@ a lot of visual variety.
 | WASD | Move | — |
 | Mouse | Look | — |
 | LMB | Fire | — |
-| **RMB** | ADS | **was Q** |
-| **Q / E** | **Lean left / right** | **new** |
+| **RMB / Q** | ADS | — |
+| E | Hold on a site: plant / defuse (S&D) | **new** |
+| T | Inspect weapon | **new** |
+| B | Third person | **new** |
 | Shift | Sprint | — |
 | **C** | Crouch → **slide** while sprinting | **new** |
 | **Ctrl** | **Dive** | **new** |
@@ -303,8 +342,8 @@ a lot of visual variety.
 | **1 / 2** | Primary / secondary | **new** |
 | **Tab** | Scoreboard | **new** |
 
-Touch controls get slide and lean buttons; the existing on-screen layout has
-room on the left rail.
+Lean (PF's Q/E) is not in this table because it isn't built — Q and E are
+taken. See §8.
 
 ---
 
@@ -322,6 +361,11 @@ room on the left rail.
    real people. The grunt AI could be re-skinned into enemy operators so a match
    is never empty. *(Recommend: yes — this is the difference between a mode that
    gets played and one that doesn't.)*
+5. **Lean — which keys?** PF uses Q/E, but here Q aims (a second ADS key next
+   to right mouse) and E is plant/defuse. Options: drop Q as an aim key and move
+   plant/defuse onto X-hold (already "interact"), then take Q/E for lean; or
+   put lean on two free keys (Z and 5, say) and leave everything else alone.
+   *(Open.)*
 
 ---
 

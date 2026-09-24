@@ -278,6 +278,20 @@ const botShots = await Promise.all([A, B].map((p) => p.evaluate(() =>
 const botOwner = await A.evaluate(() => (window.__trollOps.bots.bots || window.__trollOps.bots.list || []).length);
 check("bot gunfire is broadcast to the room", botShots[0] + botShots[1] > 0, `A heard ${botShots[0]}, B heard ${botShots[1]}, A hosts ${botOwner} bots`);
 
+// ---------- 9. scoreboard stats cross the wire
+await A.evaluate(() => { const T = window.__trollOps; T.player.kills = 5; T.player.deaths = 2; T.player.assists = 3; });
+await sleep(600);
+const seen = await B.evaluate((id) => { const p = window.__trollOps.net.peers.get(id); return { k: p.kills, d: p.deaths, a: p.assists }; }, info[0].id);
+check("kills, deaths and assists reach the other scoreboard", seen.k === 5 && seen.d === 2 && seen.a === 3, JSON.stringify(seen));
+
+// ---------- 10. a hit from A puts a direction marker on B's screen
+await place(A, mid.x, mid.z); await place(B, mid.x + 10, mid.z);
+await B.evaluate(() => { const T = window.__trollOps; T.player.spawnGuard = 0; T.player.hp = 100; });
+await A.evaluate((id) => window.__trollOps.net.reportHit(id, 1, false, "problem416"), info[1].id);
+await sleep(300);
+const marker = await B.evaluate((id) => { const h = window.__trollOps.hitDirs.get(id); return h ? h.el.style.transform : null; }, info[0].id);
+check("a hit shows a direction marker", !!marker, marker || "none");
+
 check("no page errors", errors.length === 0, errors.slice(0, 5).join(" | "));
 
 await browser.close();

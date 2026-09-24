@@ -133,6 +133,7 @@ const els = {
   killcamBars: document.getElementById("to-killcam-bars"),
   hitmarker: document.getElementById("to-hitmarker"),
   hitflash: document.getElementById("to-hitflash"),
+  hitdir: document.getElementById("to-hitdir"),
   lowhp: document.getElementById("to-lowhp"),
   deathfade: document.getElementById("to-deathfade"),
   hpFill: document.getElementById("hud-hp-fill"),
@@ -2455,22 +2456,47 @@ window.addEventListener("keyup", (e) => {
     || (e.code === "KeyF" && cooking.slot === "tactical")) releaseCook();
 });
 
+/* Kills, deaths, assists and K/D per operator. Team modes list each side
+   under its score; free-for-all modes have no sides worth showing, so it's
+   one ranking. Bots don't earn assists, so theirs read as a dash. */
 function renderScoreboard() {
-  const rows = [{ name: `${playerName()} (you)`, team: net.team, kills: player.kills, you: true }];
+  const rows = [{
+    name: `${playerName()} (you)`, team: net.team, you: true,
+    kills: player.kills | 0, deaths: player.deaths | 0, assists: player.assists | 0,
+  }];
   for (const p of net.peers.values()) {
-    rows.push({ name: p.name, team: p.team, kills: p.kills | 0, you: false });
+    if (String(p.id).startsWith("streak-")) continue;   // drones and gunships aren't players
+    rows.push({
+      name: p.name, team: p.team, you: false,
+      kills: p.kills | 0, deaths: p.deaths | 0, assists: isBotPeer(p) ? null : (p.assists | 0),
+    });
   }
+  // Most kills first; fewer deaths breaks a tie.
+  const rank = (a, b) => (b.kills - a.kills) || (a.deaths - b.deaths);
+  const cols = `<span>K</span><span>D</span><span>A</span><span>K/D</span>`;
+  const row = (r, place = null) => `<div class="to-sb-row${r.you ? " is-you" : ""}">`
+    + `<span>${place != null ? `<b>${place}.</b> ` : ""}${escapeHtml(r.name)}</span>`
+    + `<span>${r.kills}</span><span>${r.deaths}</span><span>${r.assists ?? "–"}</span>`
+    + `<span>${(r.kills / Math.max(1, r.deaths)).toFixed(2)}</span></div>`;
+
   let html = "";
-  for (const teamId of ["phantom", "ghost"]) {
-    const team = TEAMS[teamId];
-    const members = rows.filter((r) => r.team === teamId).sort((a, b) => b.kills - a.kills);
+  if (currentMode().ffa) {
+    const all = rows.sort(rank);
     html += `<div class="to-sb-team"><div class="to-sb-head">`
-      + `<span style="color:${team.ui}">${team.name}</span><span>${teamScores[teamId]}</span></div>`;
-    html += members.length
-      ? members.map((r) => `<div class="to-sb-row${r.you ? " is-you" : ""}">`
-          + `<span>${escapeHtml(r.name)}</span><span>${r.kills} kills</span></div>`).join("")
-      : `<div class="to-sb-row"><span>—</span><span></span></div>`;
+      + `<span>${escapeHtml(currentMode().name)}</span>${cols}</div>`;
+    html += all.map((r, i) => row(r, i + 1)).join("");
     html += `</div>`;
+  } else {
+    for (const teamId of ["phantom", "ghost"]) {
+      const team = TEAMS[teamId];
+      const members = rows.filter((r) => r.team === teamId).sort(rank);
+      html += `<div class="to-sb-team"><div class="to-sb-head">`
+        + `<span style="color:${team.ui}">${team.name} · ${teamScores[teamId]}</span>${cols}</div>`;
+      html += members.length
+        ? members.map((r) => row(r)).join("")
+        : `<div class="to-sb-row"><span>—</span></div>`;
+      html += `</div>`;
+    }
   }
   els.scoreboard.innerHTML = html;
 }
@@ -2905,6 +2931,61 @@ function clearDamageNumbers() {
 let hitFlashT = 0;
 function flashHit() {
   hitFlashT = 1;
+}
+
+/* Hit-direction markers: one red arc round the crosshair per attacker,
+   pointing where the hit came from. The arc holds the attacker's position
+   at the moment of the hit, not where they go after — it says "from there",
+   it isn't a wallhack — and turns as you turn. A fresh hit from the same
+   source refreshes its arc rather than stacking another. */
+const HITDIR_LIFE = 1.6;
+const HITDIR_MAX = 6;
+const hitDirs = new Map();   // source key -> { el, x, z, t }
+const _hitDirFwd = new THREE.Vector3();
+
+function noteHitDirection(fromId, fromPos = null) {
+  if (fromId && fromId === net.id) return;   // your own grenade: you know where it was
+  const pos = fromPos || (fromId ? (remotes.byId.get(fromId)?.pos || bots.byId(fromId)?.pos) : null);
+  if (!pos || !els.hitdir) return;
+  const key = fromId || `${Math.round(pos.x)},${Math.round(pos.z)}`;
+  let h = hitDirs.get(key);
+  if (!h) {
+    if (hitDirs.size >= HITDIR_MAX) {
+      const [oldKey, old] = hitDirs.entries().next().value;
+      old.el.remove();
+      hitDirs.delete(oldKey);
+    }
+    const el = document.createElement("div");
+    el.className = "to-hitdir-mark";
+    els.hitdir.appendChild(el);
+    h = { el };
+    hitDirs.set(key, h);
+  }
+  h.x = pos.x;
+  h.z = pos.z;
+  h.t = HITDIR_LIFE;
+  updateHitDirs(0);
+}
+
+function updateHitDirs(dt) {
+  if (!hitDirs.size) return;
+  camera.getWorldDirection(_hitDirFwd);
+  const fl = Math.hypot(_hitDirFwd.x, _hitDirFwd.z) || 1;
+  const fx = _hitDirFwd.x / fl, fz = _hitDirFwd.z / fl;
+  for (const [key, h] of hitDirs) {
+    h.t -= dt;
+    if (h.t <= 0) { h.el.remove(); hitDirs.delete(key); continue; }
+    const tx = h.x - move.pos.x, tz = h.z - move.pos.z;
+    // Bearing from straight ahead, clockwise: right of you is +90°.
+    const deg = Math.atan2(tx * -fz + tz * fx, tx * fx + tz * fz) * 180 / Math.PI;
+    h.el.style.transform = `rotate(${deg.toFixed(1)}deg)`;
+    h.el.style.opacity = Math.min(1, h.t / 0.5).toFixed(2);
+  }
+}
+
+function clearHitDirs() {
+  for (const h of hitDirs.values()) h.el.remove();
+  hitDirs.clear();
 }
 
 function showWaveBanner(text, ms = 1800) {
@@ -3627,6 +3708,8 @@ function netSnapshot() {
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
   _netSnapshot.weapon = (player.holding === "gun" ? currentWeapon()?.def.id : null) || player.weaponId;
   _netSnapshot.kills = player.kills;
+  _netSnapshot.deaths = player.deaths;
+  _netSnapshot.assists = player.assists;
   return _netSnapshot;
 }
 
@@ -3935,7 +4018,7 @@ function updateSnd(dt) {
     const at = new THREE.Vector3(s.x, (groundHeightAt(colliders, s.x, s.z, 1) ?? 0) + 0.5, s.z);
     explosionFx({ kind: "lethal", glow: 0xffb347, radius: 14 }, at);
     // The blast is the round-ender, not a weapon: it kills whoever stayed.
-    if (player.alive && Math.hypot(move.pos.x - s.x, move.pos.z - s.z) < 9) damagePlayer(500, null, "bomb");
+    if (player.alive && Math.hypot(move.pos.x - s.x, move.pos.z - s.z) < 9) damagePlayer(500, null, "bomb", false, at);
     sndRoundWin(sndAttackTeam, "bomb detonated");
   }
 
@@ -4268,6 +4351,7 @@ function updateStaging(dt) {
    making everyone re-handshake. */
 function beginMatch(mapId = null) {
   suppressT = 0;
+  clearHitDirs();
   player.hp = player.maxHp;
   player.kills = 0;
   player.deaths = 0;
@@ -4433,7 +4517,7 @@ function nextZombieRound() {
 }
 
 function onZombieAttack(zombie, dmg) {
-  damagePlayer(dmg, null, null);
+  damagePlayer(dmg, null, null, false, zombie.mesh?.position);
 }
 
 function nextWave() {
@@ -4971,7 +5055,9 @@ function killerPosFor(id) {
   return null;
 }
 
-function damagePlayer(amount, fromId, weaponId, isHead = false) {
+/* `fromPos` places the hit-direction marker when there's no peer or bot to
+   look up by id — a zombie, a grunt, the bomb. */
+function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) {
   if (!player.alive) return;
   // Nothing lands before the match is live, whoever reports it.
   if (isStaging()) return;
@@ -4988,6 +5074,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false) {
   player.hp = Math.max(0, player.hp - amount);
   player.lastHurtAt = performance.now();
   noteDamage(fromId, amount, weaponId, isHead);
+  noteHitDirection(fromId, fromPos);
   flashHit();
   audio.hurt();
   if (player.hp > 0) return;
@@ -5072,6 +5159,7 @@ function clearDeathVisuals() {
 
 function respawnPlayer() {
   clearDeathVisuals();
+  clearHitDirs();
   const sp = teamSpawn();
   move.reset(sp.x, sp.z, sp.y || 0);
   look.yaw = yawTowardCentre(sp);
@@ -5101,9 +5189,9 @@ function updateSpawnGuardHud() {
 function onGruntAttack(grunt, dmg, ranged) {
   if (ranged) {
     const dist = grunt.mesh.position.distanceTo(player.pos);
-    if (dist < 14) damagePlayer(dmg * 0.8);
+    if (dist < 14) damagePlayer(dmg * 0.8, null, null, false, grunt.mesh.position);
   } else {
-    damagePlayer(dmg);
+    damagePlayer(dmg, null, null, false, grunt.mesh.position);
   }
 }
 
@@ -5327,6 +5415,7 @@ function animate() {
     if (shakeT <= 0) shakeMag = 0;
 
     hitFlashT = Math.max(0, hitFlashT - dt * 4);
+    updateHitDirs(dt);
     els.hitflash.classList.toggle("is-hit", hitFlashT > 0.05);
     impactPass.uniforms.uHitFlash.value = hitFlashT;
     impactPass.uniforms.uLowHp.value = player.hp < 25 ? 1 : 0;
@@ -6269,7 +6358,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     empT: () => empT,
     empPlayer, flashPlayer, explosionFx,
     startInspect, inspectT: () => inspectT, inspectPose,
-    showHitmarker, damageNumbers: () => damageNumbers,
+    showHitmarker, damageNumbers: () => damageNumbers, noteHitDirection, hitDirs,
     setMode: (id) => { modeId = id; },
     THREE,
     activeMeleeMesh: () => activeMeleeMesh,

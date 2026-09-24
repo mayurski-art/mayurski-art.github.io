@@ -76,6 +76,7 @@ class Bot {
     this.hp = BOT_HP;
     this.alive = true;
     this.kills = 0;
+    this.deaths = 0;
     this.pos = new THREE.Vector3(spawn.x, 0, spawn.z);
     this.vel = new THREE.Vector3();
     this.yaw = Math.random() * Math.PI * 2;
@@ -476,6 +477,7 @@ export class BotManager {
     bot.onDamaged();
     if (bot.hp > 0) return { killed: false, bot };
     bot.alive = false;
+    bot.deaths++;
     bot.respawnT = RESPAWN;
     return { killed: true, bot };
   }

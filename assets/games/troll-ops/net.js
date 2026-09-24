@@ -198,6 +198,8 @@ export class Net {
         p.alive = !!m.a;
         p.weapon = m.w;
         p.kills = m.k | 0;
+        p.deaths = m.d | 0;
+        p.assists = m.as | 0;
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv });
         if (p.snaps.length > 12) p.snaps.shift();
@@ -279,6 +281,7 @@ export class Net {
         st: local.stance, mv: local.moving ? 1 : 0,
         hp: Math.round(local.hp), a: local.alive ? 1 : 0,
         w: local.weapon, tm: this.team, n: this.name, k: local.kills | 0,
+        d: local.deaths | 0, as: local.assists | 0,
       });
     }
     const now = performance.now();
@@ -322,6 +325,7 @@ export class Net {
     p.hp = bot.hp;
     p.alive = bot.alive;
     p.kills = bot.kills;
+    p.deaths = bot.deaths;
     // The wire "state" message sets this on every OTHER client (case "state"
     // above); the bot-hosting client never routes its own bots' state through
     // onMessage, so without this line the host's own view of its bots never
@@ -345,7 +349,7 @@ export class Net {
       x: round2(bot.pos.x), y: round2(bot.pos.y), z: round2(bot.pos.z),
       ry: round2(bot.yaw), rp: 0, st: "stand", mv: 1,
       hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,
-      w: p.weapon, tm: bot.team, n: bot.name, k: bot.kills | 0,
+      w: p.weapon, tm: bot.team, n: bot.name, k: bot.kills | 0, d: bot.deaths | 0,
     });
   }
 
