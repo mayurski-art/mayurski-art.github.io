@@ -6,7 +6,7 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, gaitPhaseRate, mountHeldWeapon } from "./character.js";
+import { buildHumanoid, poseHumanoid, poseDeath, gaitPhaseRate, mountHeldWeapon, aimRig } from "./character.js";
 import { buildWeaponMesh } from "./weapon-model.js";
 import { WEAPON_DEFS } from "./weapons.js";
 
@@ -69,7 +69,8 @@ export class RemotePlayer {
 
     this.weaponMesh = null;
     this.weaponId = null;
-    this.setWeaponModel(peer.weapon);
+    this.skin = null;
+    this.setWeaponModel(peer.weapon, peer.skin);
 
     // Raycasts hit the invisible, generously-sized hitbox proxies rather
     // than the true stick-figure meshes - those are too thin to reliably
@@ -99,21 +100,22 @@ export class RemotePlayer {
   /* Build and attach the real weapon model for whatever this peer is
      currently holding, replacing whatever was there before. Mirrors the
      same held pose the old placeholder gun used (right hand, arm-relative). */
-  setWeaponModel(weaponId) {
-    if (weaponId === this.weaponId) return;
+  setWeaponModel(weaponId, skin = null) {
+    if (weaponId === this.weaponId && skin === this.skin) return;
     this.weaponId = weaponId;
+    this.skin = skin;
     const arm = this.rig.parts.armR;
     if (this.weaponMesh) {
       arm.remove(this.weaponMesh);
       this.weaponMesh.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
+        if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
         if (o.material) o.material.dispose?.();
       });
       this.weaponMesh = null;
     }
     const def = WEAPON_DEFS[weaponId];
     if (!def) return;
-    const mesh = buildWeaponMesh(def);
+    const mesh = buildWeaponMesh(def, { skin });
     mountHeldWeapon(this.rig, mesh);
     this.weaponMesh = mesh;
   }
@@ -145,7 +147,7 @@ export class RemotePlayer {
     const snaps = this.peer.snaps;
     this.setTeam(this.peer.team);
     this.setLocalTeam(myTeam, ffa);
-    this.setWeaponModel(this.peer.weapon);
+    this.setWeaponModel(this.peer.weapon, this.peer.skin || null);
 
     // Just died: hold the last known pose and play a collapse instead of
     // instantly popping out of existence. Respawning (alive flips back to
@@ -235,7 +237,8 @@ export class RemotePlayer {
     if (moving) this.phase += dt * gaitPhaseRate(this.gaitMps = (this.gaitMps ?? speed) + (speed - (this.gaitMps ?? speed)) * Math.min(1, dt * 6));
 
     this.rig.root.position.copy(this.pos);
-    this.rig.root.rotation.y = this.yaw;
+    // Their head leads toward where they aim; the body turns after it.
+    aimRig(this.rig, this.yaw, dt, { moving });
 
     // Two-handed carry (armL on the support hand instead of a free run
     // swing) for anything but a sidearm — matches weapon-model.js's own
@@ -254,7 +257,7 @@ export class RemotePlayer {
   dispose() {
     this.scene.remove(this.rig.root);
     this.rig.root.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
+      if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
       if (o !== this.rig.root && o.material && o.material !== this.material && !o.material.userData?.shared) o.material.dispose?.();
     });
     this.material.dispose();

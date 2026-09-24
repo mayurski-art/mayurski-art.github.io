@@ -41,7 +41,7 @@ export class PickupSystem {
     const d = this.drops[index];
     this.scene.remove(d.mesh);
     d.mesh.traverse((o) => {
-      if (o.isMesh) { o.geometry?.dispose(); }
+      if (o.isMesh && !o.geometry?.userData.shared) { o.geometry?.dispose(); }
     });
     this.drops.splice(index, 1);
   }

@@ -10,6 +10,7 @@ import {
   OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS,
   buildIronRear, buildIronFront, railSection,
 } from "./attachment-models.js";
+import { build416 } from "./weapon-416.js";
 
 const MATS = {
   body:   () => new THREE.MeshStandardMaterial({ color: 0x4a4f48, roughness: 0.4, metalness: 0.7 }),
@@ -20,68 +21,6 @@ const MATS = {
   glow:   () => new THREE.MeshBasicMaterial({ color: 0x6dff4a }),
   glowTube: () => new THREE.MeshStandardMaterial({ color: 0x4ee62f, emissive: 0x4ee62f, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0.92 }),
 };
-
-// Weapon skins are a single banner-art texture wrapped onto the receiver
-// (the biggest flat panel on any gun), keyed by the source image path so
-// two weapons sharing a skin reuse one decoded texture instead of loading
-// it per-mesh. Load lazily — most weapons carry no `skin` at all.
-const SKIN_TEX_CACHE = new Map();
-function loadSkinTexture(imagePath) {
-  let tex = SKIN_TEX_CACHE.get(imagePath);
-  if (tex) return tex;
-  tex = new THREE.TextureLoader().load(new URL(imagePath, import.meta.url).href);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  SKIN_TEX_CACHE.set(imagePath, tex);
-  return tex;
-}
-
-// Banners are wide (~3:1) promo art, not tileable weapon wraps. Two things
-// went wrong with a naive full-UV stretch onto the receiver's side faces:
-// 1) the receiver panel's own w:h ratio rarely matches the banner's, so a
-//    0..1 stretch squashes/stretches the art instead of preserving it, and
-// 2) BoxGeometry's +x and -x faces wind opposite ways, so writing identical
-//    UVs to both mirrors the image (backwards) on one side of the gun.
-// This fits the banner into each face by its real aspect ratio (letterboxed
-// on the short axis, centered) and mirrors the -x face's U back so the art
-// reads left-to-right correctly from both sides of the weapon.
-function fitUvRect(faceW, faceH, imgAspect) {
-  const faceAspect = faceW / faceH;
-  let u0 = 0, u1 = 1, v0 = 0, v1 = 1;
-  if (imgAspect > faceAspect) {
-    // image wider than the face -> shrink vertical coverage, full width
-    const scale = faceAspect / imgAspect;
-    v0 = (1 - scale) / 2;
-    v1 = 1 - v0;
-  } else {
-    // image taller/narrower than the face -> shrink horizontal coverage
-    const scale = imgAspect / faceAspect;
-    u0 = (1 - scale) / 2;
-    u1 = 1 - u0;
-  }
-  return { u0, u1, v0, v1 };
-}
-
-function applyReceiverSkin(mesh, imagePath, faceW, faceH, imgAspect = 3) {
-  const mat = mesh.material.clone();
-  mat.map = loadSkinTexture(imagePath);
-  mat.color.set(0xffffff);
-  mesh.material = mat;
-
-  const { u0, u1, v0, v1 } = fitUvRect(faceW, faceH, imgAspect);
-  const uv = mesh.geometry.attributes.uv;
-  // +x face (index 0): natural winding, image reads normally.
-  uv.setXY(0, u0, v0);
-  uv.setXY(1, u1, v0);
-  uv.setXY(2, u0, v1);
-  uv.setXY(3, u1, v1);
-  // -x face (index 1): U mirrored so the art isn't backwards from that side.
-  uv.setXY(4, u1, v0);
-  uv.setXY(5, u0, v0);
-  uv.setXY(6, u1, v1);
-  uv.setXY(7, u0, v1);
-  uv.needsUpdate = true;
-}
 
 function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
 function cyl(rt, rb, h, mat, seg = 10) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); }
@@ -161,6 +100,7 @@ function buildTankLauncher(def, spec, len) {
   grip.rotation.x = 0.28;
   group.add(grip);
   const hand = buildGripHand(bodyH / 0.07);
+  hand.userData.hand = true;
   hand.position.copy(grip.position);
   hand.rotation.copy(grip.rotation);
   group.add(hand);
@@ -196,7 +136,11 @@ function buildTankLauncher(def, spec, len) {
   return wrap;
 }
 
-export function buildWeaponMesh(def) {
+/* `skin` defaults to the one chosen with the loadout (def.attachments.skin);
+   remote players pass theirs explicitly. Only the Problem 416 wears skins,
+   and it has its own panelled model to wear them on (weapon-416.js). */
+export function buildWeaponMesh(def, { skin } = {}) {
+  if (def.id === "problem416") return build416(def, skin ?? def.attachments?.skin ?? null);
   const spec = def.model || {};
   if (spec.stock === "tank") return buildTankLauncher(def, spec, spec.len || 0.5);
   const len = spec.len || 0.5;
@@ -218,7 +162,6 @@ export function buildWeaponMesh(def) {
   const body = box(bodyW, bodyH, receiverLen, bodyMat);
   body.position.z = -len * (bullpup ? 0.02 : 0.12);
   group.add(body);
-  if (def.skin?.image) applyReceiverSkin(body, def.skin.image, receiverLen, bodyH, def.skin.aspect);
 
   // --- barrel
   const barrelLen = len * 0.5 * (spec.barrel || 1);
@@ -251,6 +194,7 @@ export function buildWeaponMesh(def) {
     const hgTopY = hg.position.y + bodyH * 0.275;
     const hgFrontZ = hg.position.z - len * 0.16 * (spec.barrel || 1);
     const supportHand = buildSupportHand((bodyH / 0.07) * 1.5);
+    supportHand.userData.hand = true;
     const supportHandPos = new THREE.Vector3(0, hgTopY + bodyH * 0.4, hgFrontZ + 0.04);
     supportHand.position.copy(supportHandPos);
     group.add(supportHand);
@@ -288,6 +232,7 @@ export function buildWeaponMesh(def) {
   // Scale=1 is tuned against the standard (non-heavy, non-pistol) bodyH of
   // 0.07 — every other weapon's hand scales proportionally to its own grip.
   const hand = buildGripHand(bodyH / 0.07);
+  hand.userData.hand = true;
   hand.position.copy(grip.position);
   hand.rotation.copy(grip.rotation);
   group.add(hand);

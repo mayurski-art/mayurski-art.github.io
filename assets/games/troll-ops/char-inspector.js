@@ -12,13 +12,19 @@
 // identical here and not re-explained.
 
 import * as THREE from "three";
-import { buildHumanoid, DANCES } from "./character.js";
+import { buildHumanoid, DANCES, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js";
+import { buildWeaponMesh } from "./weapon-model.js";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
 const REST_YAW = -0.45;
-// How long each emote plays before the locker cycles to the next one.
-const DANCE_SWITCH_SECONDS = 8;
+// The operator stands ready with your gun for a while, then slings it and
+// plays an emote, then takes it back up.
+const READY_SECONDS = 10;
+const EMOTE_SECONDS = 6.5;
+// Facing the camera, turned a little so the rifle points off past it
+// rather than straight down the lens.
+const FACING = Math.PI + 0.62;
 
 const OPERATOR_MATERIAL = new THREE.MeshStandardMaterial({
   color: 0x0a0a0a, roughness: 0.7, metalness: 0.1,
@@ -52,6 +58,10 @@ export class CharacterInspector {
 
     this.humanoid = buildHumanoid(OPERATOR_MATERIAL, { height: 1.8, gun: false });
     this.rig.add(this.humanoid.root);
+    this.held = null;
+    this.heldKey = null;
+    this.hasGun = true;
+    aimRig(this.humanoid, FACING, 0, { snap: true });
     // The rig's root sits at the feet (y=0) with the crown at `height` -
     // recentre it on its own midpoint so it doesn't swing off-screen when
     // orbited, same reasoning as WeaponInspector's bounding-box centring.
@@ -79,7 +89,8 @@ export class CharacterInspector {
     // eight-count forever; picks a random start so a page reload doesn't
     // always open on the same emote.
     this.danceIndex = Math.floor(Math.random() * DANCES.length);
-    this.danceSwitchT = 0;
+    this.phaseT = 0;
+    this.emoting = false;
 
     this.bindInput();
   }
@@ -141,6 +152,27 @@ export class CharacterInspector {
     });
   }
 
+  /* The weapon the operator carries: your equipped primary, attachments
+     and skin included. Rebuilt only when any of those change. */
+  setWeapon(def) {
+    const key = def ? `${def.id}:${JSON.stringify(def.attachments || {})}` : null;
+    if (key === this.heldKey) return;
+    this.heldKey = key;
+    if (this.held) {
+      this.held.parent?.remove(this.held);
+      this.held.traverse((o) => {
+        if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+        if (o.material) o.material.dispose?.();
+      });
+      this.held = null;
+    }
+    if (!def) return;
+    this.held = buildWeaponMesh(def);
+    mountHeldWeapon(this.humanoid, this.held);
+    this.hasGun = def.cls !== "sidearm";
+    this.held.visible = !this.emoting;
+  }
+
   pinchDistance(pointers) {
     const [a, b] = [...pointers.values()];
     return Math.hypot(a.x - b.x, a.y - b.y);
@@ -168,19 +200,33 @@ export class CharacterInspector {
     }
     this.zoom += (this.zoomTarget - this.zoom) * Math.min(1, dt * 9);
 
-    // A looping dance instead of a locked-still T-pose or a plain weight
-    // shift - the operator shows off while waiting to deploy, the same
-    // way a Fortnite locker skin performs its emote on repeat. Cycling
-    // through DANCES instead of always playing the same one keeps the
-    // locker screen from feeling static on a long lobby wait.
-    this.danceT += dt;
-    this.danceSwitchT += dt;
-    if (this.danceSwitchT >= DANCE_SWITCH_SECONDS) {
-      this.danceSwitchT = 0;
-      this.danceIndex = (this.danceIndex + 1) % DANCES.length;
-      this.danceT = 0; // fresh beat 0 so the new emote doesn't start mid-pose
+    // Mostly the operator stands ready with the loadout's gun — the same
+    // pose, hands and head the match draws, glancing about while it waits.
+    // Every so often the gun goes on the sling for an emote, the way a
+    // Fortnite locker skin shows off, then comes back up.
+    this.phaseT += dt;
+    if (this.phaseT >= (this.emoting ? EMOTE_SECONDS : READY_SECONDS)) {
+      this.phaseT = 0;
+      this.emoting = !this.emoting;
+      if (this.emoting) {
+        this.danceIndex = (this.danceIndex + 1) % DANCES.length;
+        this.danceT = 0; // fresh beat 0 so the new emote doesn't start mid-pose
+      }
+      if (this.held) this.held.visible = !this.emoting;
     }
-    DANCES[this.danceIndex](this.humanoid, this.danceT);
+    if (this.emoting) {
+      this.danceT += dt;
+      DANCES[this.danceIndex](this.humanoid, this.danceT);
+    } else {
+      aimRig(this.humanoid, FACING, dt);
+      // A slow breath in the aim keeps the ready stance from reading as a
+      // frozen frame.
+      const breath = Math.sin(this.spinT * 1.7 + this.phaseT * 0.9) * 0.025;
+      poseHumanoid(this.humanoid, {
+        moving: false, pitch: -0.06 + breath, dt,
+        hold: this.held ? "gun" : "none", hasGun: !!this.held && this.hasGun,
+      });
+    }
 
     const dist = this.baseDist * this.zoom;
     const cp = Math.cos(this.pitch);

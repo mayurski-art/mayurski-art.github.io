@@ -407,6 +407,34 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   background: rgba(127,224,102,.18); color: #b6f0a2;
 }
 
+/* Skin picker: a strip of preview cards, scrolled sideways so sixteen skins
+   don't turn Customize into a wall. The preview is the baked side view of
+   the gun wearing it. */
+.to-lo-skinrow[hidden] { display: none !important; }
+.to-lo-skins {
+  flex-wrap: nowrap !important; overflow-x: auto; overscroll-behavior-x: contain;
+  padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(127,224,102,.35) transparent;
+}
+.to-lo-skin {
+  flex: 0 0 104px; display: flex; flex-direction: column; gap: 3px; align-items: stretch;
+  padding: 4px; border-radius: 7px; cursor: pointer; text-align: left;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  color: #9aa596;
+  transition: border-color .14s, color .14s, background .14s, transform .14s;
+}
+.to-lo-skin img {
+  display: block; width: 100%; aspect-ratio: 360 / 128; object-fit: cover;
+  border-radius: 4px; background: #0e1216;
+}
+.to-lo-skin strong {
+  font-family: "Oswald", sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.to-lo-skin:hover { border-color: rgba(127,224,102,.45); color: #cfe0c4; background: rgba(127,224,102,.06); transform: translateY(-1px); }
+.to-lo-skin:focus-visible { outline: 2px solid #7fe066; outline-offset: 1px; }
+.to-lo-skin.is-active { background: rgba(127,224,102,.14); border-color: #7fe066; color: #eaf5e4; }
+.to-lo-skin.is-active strong::before { content: "\2713  "; color: #9fe88a; }
+
 .to-go-xp {
   margin: 0; font-family: "Oswald", sans-serif; font-size: 15px;
   letter-spacing: .05em; color: #7fe066;
@@ -1296,8 +1324,24 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-x-link:hover { border-color: rgba(127,224,102,.45); color: #7fe066; }
 #to-title[hidden] ~ .to-x-link { display: none; }
 
+/* Buy $TRUTHS: the terminal's bracketed CTA, in the terminal's green, sat
+   beside the X link. */
+.to-truths-link {
+  position: absolute; left: 100px; bottom: 16px; z-index: 40;
+  box-sizing: border-box; height: 34px; padding: 0 11px;
+  display: flex; align-items: center;
+  border-radius: 9px; background: rgba(6,9,7,.6); border: 1px solid rgba(127,224,102,.5);
+  color: #7fe066; font: 600 12px/1 "DM Mono", ui-monospace, monospace; letter-spacing: .02em;
+  text-decoration: none; white-space: nowrap; pointer-events: auto;
+  transition: background .14s, color .14s;
+}
+.to-truths-link:hover, .to-truths-link:focus-visible { background: #7fe066; color: #0b1009; }
+.to-truths-link:focus-visible { outline: 2px solid #7fe066; outline-offset: 2px; }
+#to-title[hidden] ~ .to-truths-link { display: none; }
+
 @media (max-width: 760px) {
   .to-x-link { left: 52px; bottom: 10px; }
+  .to-truths-link { left: 92px; bottom: 10px; height: 30px; padding: 0 9px; font-size: 11px; }
 }
 
 @media (max-width: 760px) {

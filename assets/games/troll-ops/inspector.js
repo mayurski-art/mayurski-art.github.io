@@ -133,7 +133,7 @@ export class WeaponInspector {
     if (this.mesh) {
       this.rig.remove(this.mesh);
       this.mesh.traverse((o) => {
-        o.geometry?.dispose?.();
+        if (!o.geometry?.userData.shared) o.geometry?.dispose?.();
         if (o.material) for (const m of [].concat(o.material)) m.dispose?.();
       });
     }

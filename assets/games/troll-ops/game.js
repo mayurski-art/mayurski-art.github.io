@@ -27,7 +27,7 @@ import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js";
-import { buildHumanoid, poseHumanoid, gaitPhaseRate, mountHeldWeapon } from "./character.js";
+import { buildHumanoid, poseHumanoid, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom } from "./character.js";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME,
@@ -41,7 +41,9 @@ import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice } from "./streak-device.js";
 import { ZombieDirector } from "./zombies.js";
 import { zombieWindows } from "./pentagrin.js";
-import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "./shaders.js";
+import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
+import { ImpactFx } from "./impact-fx.js";
+import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js";
@@ -262,6 +264,7 @@ const loadout = new Loadout({
   rankFill: els.loRankFill,
 }, (activeWeapon) => {
   refreshLobbyMap();
+  charInspector?.setWeapon(loadout.resolved);
   if (inspectorLive) {
     const gearPanel = document.getElementById("to-pfp-gear");
     inspector?.show(gearPanel && !gearPanel.hidden ? loadout.melee : activeWeapon);
@@ -1289,6 +1292,8 @@ const charView = document.getElementById("to-char-view");
 const charCanvas = document.getElementById("to-char-canvas");
 const charInspector = charCanvas ? new CharacterInspector(charCanvas) : null;
 let charInspectorLive = false;
+// The operator on the main menu carries your equipped primary.
+charInspector?.setWeapon(loadout.resolved);
 
 /* One inspector, three panels that want to show it. Weapon Loadout keeps it
    boxed inside its detail card (to-gun-mount-loadout); Customize and Gear
@@ -1681,6 +1686,8 @@ const net = new Net({
   onLeave: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} left`); },
   // `hd` has always been on the wire; we just never read it.
   onHitTaken: (m) => damagePlayer(m.dmg, m.id, m.w, !!m.hd),
+  // Someone else hit someone else: show the victim flinch here too.
+  onHitSeen: (m) => { if (m.id !== net.id && m.target !== net.id) flinchPeer(m.target, m.id, !!m.hd); },
   onPeerDied: (p, m) => {
     const snap = p.snaps?.[p.snaps.length - 1];
     registerDeath(p.name, m.by, m.w, {
@@ -2218,7 +2225,7 @@ function setActiveWeaponMesh(def) {
   if (activeWeaponMesh) {
     weaponRig.remove(activeWeaponMesh);
     activeWeaponMesh.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
+      if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
       if (o.material) o.material.dispose?.();
     });
   }
@@ -2262,47 +2269,12 @@ let muzzleFlashT = 0;
 const muzzleLight = new THREE.PointLight(0xffcf8a, 0, 1.2, 2);
 weaponRig.add(muzzleLight);
 
-// -------------------- tracers / impact sparks pools --------------------
+// -------------------- impact effects --------------------
 
-const sparkGeo = new THREE.BufferGeometry();
-const SPARK_MAX = 400;
-const sparkPositions = new Float32Array(SPARK_MAX * 3);
-const sparkLife = new Float32Array(SPARK_MAX);
-sparkGeo.setAttribute("position", new THREE.BufferAttribute(sparkPositions, 3));
-sparkGeo.setAttribute("aLife", new THREE.BufferAttribute(sparkLife, 1));
-const sparkMat = makeImpactSparkMaterial();
-const sparkPoints = new THREE.Points(sparkGeo, sparkMat);
-sparkPoints.frustumCulled = false;
-scene.add(sparkPoints);
-
-const sparks = []; // {idx, vel, life, maxLife}
-let sparkCursor = 0;
-function spawnImpactBurst(pos, color, count = 10) {
-  sparkMat.uniforms.uColor.value.set(color);
-  for (let i = 0; i < count; i++) {
-    const idx = sparkCursor % SPARK_MAX;
-    sparkCursor++;
-    const vel = new THREE.Vector3((Math.random() - 0.5) * 4, Math.random() * 3 + 1, (Math.random() - 0.5) * 4);
-    sparks[idx] = { pos: pos.clone(), vel, life: 0.4, maxLife: 0.4 };
-  }
-}
-
-function updateSparks(dt) {
-  for (let i = 0; i < SPARK_MAX; i++) {
-    const s = sparks[i];
-    if (!s) { sparkPositions[i * 3 + 1] = -1000; sparkLife[i] = 0; continue; }
-    s.life -= dt;
-    if (s.life <= 0) { sparks[i] = null; sparkPositions[i * 3 + 1] = -1000; sparkLife[i] = 0; continue; }
-    s.vel.y -= 9.8 * dt;
-    s.pos.addScaledVector(s.vel, dt);
-    sparkPositions[i * 3] = s.pos.x;
-    sparkPositions[i * 3 + 1] = s.pos.y;
-    sparkPositions[i * 3 + 2] = s.pos.z;
-    sparkLife[i] = s.life / s.maxLife;
-  }
-  sparkGeo.attributes.position.needsUpdate = true;
-  sparkGeo.attributes.aLife.needsUpdate = true;
-}
+// Debris and dust where rounds land (see impact-fx.js); the additive sparks
+// are kept for blasts and the gunship's gun only.
+const impactFx = new ImpactFx(scene);
+function spawnImpactBurst(pos, color, count = 10) { impactFx.sparksAt(pos, color, count); }
 
 // -------------------- player state --------------------
 
@@ -2362,7 +2334,42 @@ function endStreakHold() {
 const cooking = { def: null, fuse: 0, slot: null };
 let blindT = 0;         // seconds of flashbang whiteout left
 let empT = 0;           // seconds of EMP scramble left — HUD and optics down
-let shakeT = 0, shakeMag = 0;
+let shakeT = 0, shakeMag = 0;   // blasts and near misses
+
+/* Firing shake. Each shot kicks a damped spring on each camera axis (pitch,
+   yaw, roll) plus a short high-frequency buzz; the weapon's shake stats
+   (weapons.js, trimmed by attachments.js) decide how hard each axis is
+   kicked and how fast it settles. White noise per frame, which this
+   replaced, couldn't express "this grip keeps the sight from bouncing". */
+const fireShake = { p: 0, y: 0, r: 0, vp: 0, vy: 0, vr: 0, buzz: 0, rec: 1 };
+function kickFireShake(def, steady) {
+  // Grows slower than the kick itself, so a light rifle still visibly moves
+  // and a sniper doesn't throw the whole screen.
+  const k = kickCurve(def.recoilKickPitch) * 1.6 * (def.shakeScale ?? 1) * steady;
+  const jolt = def.shakeJolt ?? 1;
+  fireShake.vp += k * 11 * (def.shakeVert ?? 1) * (0.85 + Math.random() * 0.3);
+  fireShake.vy += k * 9 * (def.shakeSide ?? 1) * (Math.random() * 2 - 1);
+  fireShake.vr += k * 9 * jolt * (Math.random() < 0.5 ? -1 : 1);
+  fireShake.buzz = Math.min(0.012, fireShake.buzz + k * 0.12 * jolt);
+  fireShake.rec = def.shakeRecover ?? 1;
+}
+function updateFireShake(dt) {
+  // Stiffer and better damped the faster the weapon recovers. Stepped in
+  // small slices: at 20fps a stiff spring would blow up in one big step.
+  const w = 30 * fireShake.rec, z = 0.5 + 0.18 * fireShake.rec;
+  const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
+  const h = dt / steps;
+  for (let i = 0; i < steps; i++) {
+    for (const [x, v] of [["p", "vp"], ["y", "vy"], ["r", "vr"]]) {
+      fireShake[v] += (-w * w * fireShake[x] - 2 * z * w * fireShake[v]) * h;
+      fireShake[x] += fireShake[v] * h;
+    }
+  }
+  fireShake.buzz *= Math.exp(-dt * 16 * fireShake.rec);
+}
+function resetFireShake() {
+  fireShake.p = fireShake.y = fireShake.r = fireShake.vp = fireShake.vy = fireShake.vr = fireShake.buzz = 0;
+}
 // Smoothed idle-sway position, lagged behind the raw sine target by weapon
 // weight — see updateWeaponView for why this lives here instead of on
 // WeaponState (it's pure view lag, never read for gameplay).
@@ -2943,6 +2950,20 @@ const HITDIR_MAX = 6;
 const hitDirs = new Map();   // source key -> { el, x, z, t }
 const _hitDirFwd = new THREE.Vector3();
 
+/* Flinch whoever was hit, away from whoever hit them — the local player's
+   own body included. Cosmetic: a peer may never know its rig flinched here. */
+const _flinchDir = new THREE.Vector3();
+function flinchPeer(targetId, fromId, isHead, fromPos = null) {
+  const rig = targetId === net.id ? localRig : remotes.byId.get(targetId)?.rig;
+  if (!rig) return;
+  const from = fromPos || (fromId === net.id ? move.pos : (remotes.byId.get(fromId)?.pos || bots.byId(fromId)?.pos));
+  if (!from) { flinchRigFrom(rig, _flinchDir.set(0, 0, 0), isHead ? 1 : 0.5); return; }
+  _flinchDir.subVectors(rig.root.position, from);
+  _flinchDir.y = 0;
+  if (_flinchDir.lengthSq() < 1e-6) _flinchDir.set(0, 0, 1);
+  flinchRigFrom(rig, _flinchDir.normalize(), isHead ? 1 : 0.5);
+}
+
 function noteHitDirection(fromId, fromPos = null) {
   if (fromId && fromId === net.id) return;   // your own grenade: you know where it was
   const pos = fromPos || (fromId ? (remotes.byId.get(fromId)?.pos || bots.byId(fromId)?.pos) : null);
@@ -3081,12 +3102,9 @@ function fireOnce() {
   inspectT = 0;      // shooting always wins over the flourish
   breakSpawnGuard();
   audio.shot(def);
-  // A hair of shake per shot, scaled off the weapon's own recoil kick rather
-  // than a new tuned field — a shotgun already kicks harder than a pistol in
-  // recoilKickPitch, so shake falls out of that for free. Full-auto strings
-  // add up into a proper punch without swamping the explosion-shake scale.
-  shakeMag = Math.min(0.05, shakeMag + def.recoilKickPitch * 0.22);
-  shakeT = Math.max(shakeT, 0.09);
+  // Camera shake per shot, shaped by the weapon's shake stats and its
+  // attachments. Shouldering the gun steadies it, as with the recoil.
+  kickFireShake(def, 1 - w.adsT * 0.35);
   muzzleFlashT = 0.045;
   muzzleLight.intensity = 0.35;
   muzzleMat.uniforms.uColor.value.setHex(def.muzzleColor ?? 0xfff2c0);
@@ -3132,7 +3150,7 @@ function onBulletActorHit(actor, info) {
   if (actor.isRangeTarget) {
     const { killed } = actor.takeDamage(info.damage, info.isHead);
     showHitmarker(info.isHead, info.damage, info.point, killed);
-    spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xbfc4b8, info.isHead ? 14 : 7);
+    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "wood", scale: info.isHead ? 1.4 : 1 });
     reportRangeShot(actor, info, killed);
     return;
   }
@@ -3141,7 +3159,8 @@ function onBulletActorHit(actor, info) {
     const { killed, points } = actor.takeDamage(info.damage, info.isHead);
     zdir.award(points);
     showHitmarker(info.isHead, info.damage, info.point, killed);
-    spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0x8fd15a, info.isHead ? 16 : 8);
+    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "zombie", scale: info.isHead ? 1.5 : 1.1 });
+    if (actor.rig) flinchRigFrom(actor.rig, info.dir, info.isHead ? 1 : 0.5);
     if (killed) {
       zdir.kills++;
       player.kills++;
@@ -3177,7 +3196,8 @@ function onBulletActorHit(actor, info) {
       lastHitRange.set(actor.netId, info.distance || 0);
     }
     showHitmarker(info.isHead, info.damage, info.point, killedNow);
-    spawnImpactBurst(info.point, info.isHead ? 0xffe27a : 0xff8a5a, info.isHead ? 16 : 8);
+    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "ink", scale: info.isHead ? 1.5 : 1.1 });
+    if (actor.rig) flinchRigFrom(actor.rig, info.dir, info.isHead ? 1 : 0.5);
     return;
   }
   onGruntBulletHit(actor, info);
@@ -3187,7 +3207,8 @@ function onGruntBulletHit(grunt, { damage, isHead, point, dir }) {
   const knockDir = dir.clone(); knockDir.y = 0; knockDir.normalize();
   const result = grunt.takeDamage(damage, isHead, knockDir);
   showHitmarker(isHead, damage, point, result.killed);
-  spawnImpactBurst(point, isHead ? 0xffe27a : 0xff8a5a, isHead ? 16 : 8);
+  impactFx.hit(point, { normal: dir.clone().negate(), dir, surface: "grunt", scale: isHead ? 1.5 : 1.1 });
+  if (grunt.rig) flinchRigFrom(grunt.rig, dir, isHead ? 1 : 0.5);
   if (result.killed) {
     player.kills++;
     els.hudKills.textContent = String(player.kills);
@@ -3700,13 +3721,15 @@ function closePauseMenu() {
 // net.update() only actually sends this at 15Hz, but it used to get a fresh
 // object every animate() frame at 60Hz regardless — three throwaway objects
 // for every one that ships. One reused object costs nothing to overwrite.
-const _netSnapshot = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, stance: null, moving: false, hp: 0, alive: true, weapon: null, kills: 0 };
+const _netSnapshot = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, stance: null, moving: false, hp: 0, alive: true, weapon: null, skin: null, kills: 0 };
 function netSnapshot() {
   _netSnapshot.x = move.pos.x; _netSnapshot.y = move.pos.y; _netSnapshot.z = move.pos.z;
   _netSnapshot.yaw = look.yaw; _netSnapshot.pitch = look.pitch;
   _netSnapshot.stance = move.stance; _netSnapshot.moving = move.moving;
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
   _netSnapshot.weapon = (player.holding === "gun" ? currentWeapon()?.def.id : null) || player.weaponId;
+  // The skin of whatever that is, so everyone else sees the same gun.
+  _netSnapshot.skin = (player.holding === "gun" ? currentWeapon()?.def.attachments?.skin : null) || null;
   _netSnapshot.kills = player.kills;
   _netSnapshot.deaths = player.deaths;
   _netSnapshot.assists = player.assists;
@@ -3893,7 +3916,7 @@ function botTargets() {
 function remoteShotFx(origin, dir, weaponId, quiet = false) {
   const base = WEAPON_DEFS[weaponId] || WEAPON_DEFS.problem416;
   audio.shot(quiet ? { ...base, quiet: true } : base, 0.8, origin);
-  if (!quiet) spawnImpactBurst(origin, 0xffcf8a, 3);
+  if (!quiet) impactFx.puff(origin, dir.lengthSq() > 0.001 ? dir.clone().normalize() : null);
   if (dir.lengthSq() < 0.001) return;
   const pellets = Math.min(base.pellets || 1, 4);   // a few pellets read as buckshot
   for (let i = 0; i < pellets; i++) {
@@ -3934,6 +3957,7 @@ function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = 
     return;
   }
   if (target.id === net.id) { damagePlayer(dmg, bot.id, wid, isHead); return; }
+  flinchPeer(target.id, bot.id, isHead);
 
   if (bots.byId(target.id)) {
     const { killed, bot: victim } = bots.applyHit(target.id, dmg);
@@ -4414,6 +4438,7 @@ function beginMatch(mapId = null) {
   els.smoke.style.opacity = "0";
   shakeT = 0;
   shakeMag = 0;
+  resetFireShake();
   remotes.clear();
   bots.clear();
 
@@ -5075,6 +5100,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
   player.lastHurtAt = performance.now();
   noteDamage(fromId, amount, weaponId, isHead);
   noteHitDirection(fromId, fromPos);
+  flinchPeer(net.id, fromId, isHead, fromPos);
   flashHit();
   audio.hurt();
   if (player.hp > 0) return;
@@ -5346,13 +5372,13 @@ function animate() {
       onActorHit: onBulletActorHit,
       // Someone else's round striking a wall throws the same dust, a touch
       // lighter — it's the "they're shooting at that corner" cue.
-      onWorldHit: (point, cosmetic) => {
-        spawnImpactBurst(point, 0xbfc4b8, cosmetic ? 3 : 5);
+      onWorldHit: (point, cosmetic, hit = {}) => {
+        impactFx.hit(point, { normal: hit.normal, dir: hit.dir, surface: hit.ground ? "ground" : "concrete", scale: cosmetic ? 0.6 : 1 });
         audio.impact(point);
       },
       bounds: ARENA,
     });
-    updateSparks(dt);
+    impactFx.update(dt, camera, renderer);
 
     // HUD updates — each only touches the DOM when its value actually changed.
     const w = currentWeapon();
@@ -5525,7 +5551,8 @@ let localLower = 0;
    but only actually matters visually while localRig.root.visible is true. */
 function updateLocalRig(dt) {
   localRig.root.position.set(move.pos.x, move.pos.y, move.pos.z);
-  localRig.root.rotation.y = look.yaw;
+  // The body follows the aim a beat behind; the head leads the turn.
+  aimRig(localRig, look.yaw, dt, { moving: move.moving });
 
   const wantLower = STANCE_LOWER[move.stance] ?? 0;
   localLower += (wantLower - localLower) * Math.min(1, dt * 8);
@@ -5579,12 +5606,12 @@ function updateLocalRig(dt) {
    person view shows. Rebuilt only when what's held changes. */
 const localHeld = { key: null, mesh: null };
 function syncLocalRigHeld(hold, def) {
-  const key = hold === "gun" ? `gun:${def?.id}` : hold === "melee" ? `melee:${player.melee?.def?.id}` : "none";
+  const key = hold === "gun" ? `gun:${def?.id}:${def?.attachments?.skin || ""}` : hold === "melee" ? `melee:${player.melee?.def?.id}` : "none";
   if (key === localHeld.key) return;
   localHeld.key = key;
   if (localHeld.mesh) {
     localHeld.mesh.parent?.remove(localHeld.mesh);
-    localHeld.mesh.traverse((o) => { o.geometry?.dispose?.(); });
+    localHeld.mesh.traverse((o) => { if (!o.geometry?.userData.shared) o.geometry?.dispose?.(); });
     localHeld.mesh = null;
   }
   if (hold === "gun" && def) {
@@ -5727,8 +5754,11 @@ function updatePlayer(dt) {
   // effect, not worth reordering the main loop over.
   const landKick = landDipMag * landDipT * 0.05;
   const meleeKick = meleeImpactT * 0.03;
-  const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake;
-  const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick;
+  updateFireShake(dt);
+  const buzz = fireShake.buzz;
+  const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake + fireShake.y + (Math.random() - 0.5) * buzz;
+  const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
+    + fireShake.p + (Math.random() - 0.5) * buzz;
 
   if (settings.thirdPerson) {
     localRig.root.visible = true;
@@ -5737,7 +5767,7 @@ function updatePlayer(dt) {
     localRig.root.visible = false;
     camera.position.copy(player.pos);
     // One place composes the camera: aim + weapon recoil.
-    _euler.set(viewPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6);
+    _euler.set(viewPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r);
     camera.quaternion.setFromEuler(_euler);
   }
 
@@ -6344,7 +6374,7 @@ function updateWeaponView(dt) {
   mesh.rotation.set(
     -w.viewKickPitch * 0.8 + weaponLowerT * 0.55 + landPitch + insp.pitch + rl.pitch,
     w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + insp.yaw + rl.yaw,
-    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + sprintRoll + insp.roll + rl.roll
+    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + sprintRoll + insp.roll + rl.roll + w.viewKickRoll
   );
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
@@ -6396,7 +6426,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     grenades, audio, camera, colliders, killcam, bullets,
     startCook, releaseCook, applyRemoteNade, blindT: () => blindT, cooking,
     empT: () => empT,
-    empPlayer, flashPlayer, explosionFx,
+    empPlayer, flashPlayer, explosionFx, fireShake,
     startInspect, inspectT: () => inspectT, inspectPose,
     showHitmarker, damageNumbers: () => damageNumbers, noteHitDirection, hitDirs,
     setMode: (id) => { modeId = id; },

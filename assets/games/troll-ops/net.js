@@ -197,6 +197,7 @@ export class Net {
         p.hp = m.hp;
         p.alive = !!m.a;
         p.weapon = m.w;
+        p.skin = m.sk || null;
         p.kills = m.k | 0;
         p.deaths = m.d | 0;
         p.assists = m.as | 0;
@@ -218,7 +219,9 @@ export class Net {
         break;
       }
       case "hit": {
-        // Only the target applies it — to itself, or to a bot it owns.
+        // Everyone sees the victim flinch; only the target applies the
+        // damage — to itself, or to a bot it owns.
+        this.h.onHitSeen?.(m);
         if (m.target === this.id) { this.h.onHitTaken?.(m); break; }
         if (this.h.ownsBot?.(m.target)) this.h.onBotHit?.(m);
         break;
@@ -280,7 +283,7 @@ export class Net {
         ry: round2(local.yaw), rp: round2(local.pitch),
         st: local.stance, mv: local.moving ? 1 : 0,
         hp: Math.round(local.hp), a: local.alive ? 1 : 0,
-        w: local.weapon, tm: this.team, n: this.name, k: local.kills | 0,
+        w: local.weapon, sk: local.skin || undefined, tm: this.team, n: this.name, k: local.kills | 0,
         d: local.deaths | 0, as: local.assists | 0,
       });
     }

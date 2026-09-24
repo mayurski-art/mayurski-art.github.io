@@ -3,6 +3,7 @@
 import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js";
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js";
 import { iconFor } from "./attachment-icons.js";
+import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js";
 import { getRank, getXp, isUnlocked, rankUnlocked, rankProgress, MAX_RANK, XP_PER_RANK } from "./progression.js";
 import { MAPS, MAP_IDS, mapSchematic } from "./maps.js";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js";
@@ -298,6 +299,68 @@ export class Loadout {
       row.appendChild(opts);
       wrap.appendChild(row);
     }
+    this.buildSkins(wrap);
+  }
+
+  /* Skin row: a card per skin with its baked preview, plus the factory
+     finish. Only shown for weapons that can wear skins; the choice is kept
+     with that weapon's attachments, so it saves with the loadout. */
+  buildSkins(wrap) {
+    const row = document.createElement("div");
+    row.className = "to-lo-slot to-lo-skinrow";
+    const label = document.createElement("span");
+    label.className = "to-lo-slot-label";
+    label.textContent = "Skin";
+    row.appendChild(label);
+    const opts = document.createElement("div");
+    opts.className = "to-lo-slot-opts to-lo-skins";
+    row.appendChild(opts);
+    wrap.appendChild(row);
+    this.skinRow = row;
+    this.skinOpts = opts;
+    this.skinButtons = new Map();
+    this.skinWeapon = null;
+  }
+
+  renderSkins() {
+    if (!this.skinRow) return;
+    const skins = skinsFor(this.activeId);
+    this.skinRow.hidden = skins.length === 0;
+    if (!skins.length) return;
+    // Cards are built once per weapon, then only their state changes.
+    if (this.skinWeapon !== this.activeId) {
+      this.skinWeapon = this.activeId;
+      this.skinOpts.innerHTML = "";
+      this.skinButtons.clear();
+      for (const skin of [{ id: null, name: "Factory", blurb: "Grey steel, black furniture." }, ...skins]) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "to-lo-skin";
+        const img = document.createElement("img");
+        img.src = skinThumbUrl(skin.id || "factory");
+        img.alt = "";
+        img.loading = "lazy";
+        img.decoding = "async";
+        const name = document.createElement("strong");
+        name.textContent = skin.name;
+        b.append(img, name);
+        b.title = skin.blurb;
+        b.addEventListener("click", () => {
+          this.attachments.skin = skin.id;
+          this.persist();
+          this.render();
+        });
+        this.skinOpts.appendChild(b);
+        this.skinButtons.set(skin.id, { b, skin });
+      }
+    }
+    const current = this.attachments.skin || null;
+    for (const [id, { b, skin }] of this.skinButtons) {
+      const on = id === current;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-pressed", String(on));
+      b.setAttribute("aria-label", `Skin: ${skin.name}. ${skin.blurb}${on ? " Equipped" : ""}`);
+    }
   }
 
   /* Selected state plus the per-card stat deltas, recomputed whenever the
@@ -477,6 +540,7 @@ export class Loadout {
     }
 
     this.renderAtts();
+    this.renderSkins();
 
     // --- rank strip
     if (this.els.rank) {
@@ -512,6 +576,16 @@ export class Loadout {
         label.textContent = SLOT_LABELS[slot];
         const value = document.createElement("b");
         value.textContent = att ? att.name : "—";
+        row.append(label, value);
+        sum.atts.appendChild(row);
+      }
+      if (skinsFor(this.activeId).length) {
+        const row = document.createElement("div");
+        row.className = "to-pf-row";
+        const label = document.createElement("span");
+        label.textContent = "Skin";
+        const value = document.createElement("b");
+        value.textContent = SKIN_BY_ID[this.attachments.skin]?.name || "Factory";
         row.append(label, value);
         sum.atts.appendChild(row);
       }

@@ -17,6 +17,16 @@ const COMMON = {
   tracerColor: 0xfff2c0,
   muzzleColor: 0xfff2c0,
   penetration: 1,
+  // Firing shake — how the camera and the gun in your hands move on each
+  // shot, separate from the recoil you have to pull down. Per class below,
+  // then trimmed by attachments (attachments.js):
+  //   shakeScale   overall size of the shake
+  //   shakeVert    share that goes up and down (a vertical grip damps it)
+  //   shakeSide    share that wanders left and right (a brake cuts it)
+  //   shakeRecover how fast it settles, higher is faster (an angled grip)
+  //   shakeJolt    how sharp each shot's punch is: the roll, the buzz and
+  //                the gun's knock back into the shoulder (a suppressor)
+  shakeScale: 1, shakeVert: 1, shakeSide: 1, shakeRecover: 1, shakeJolt: 1,
 };
 
 const CLASS_BASE = {
@@ -31,6 +41,7 @@ const CLASS_BASE = {
     hipMoveMult: 0.95, sprintMult: 1.3,
     bobAmp: 0.026, swayAmp: 0.011, inertia: 8,
     muzzleFlashScale: 1.0, muzzleVelocity: 780, penetration: 1.2,
+    shakeScale: 1.0, shakeVert: 1.0, shakeSide: 1.0, shakeRecover: 1.0, shakeJolt: 1.0,
     weight: "medium",
   },
   carbine: {
@@ -44,6 +55,7 @@ const CLASS_BASE = {
     hipMoveMult: 1.0, sprintMult: 1.32,
     bobAmp: 0.026, swayAmp: 0.010, inertia: 9,
     muzzleFlashScale: 0.95, muzzleVelocity: 720, penetration: 1.0,
+    shakeScale: 0.92, shakeVert: 1.0, shakeSide: 0.95, shakeRecover: 1.12, shakeJolt: 0.9,
     weight: "medium",
   },
   pdw: {
@@ -57,6 +69,7 @@ const CLASS_BASE = {
     hipMoveMult: 1.05, sprintMult: 1.38,
     bobAmp: 0.028, swayAmp: 0.010, inertia: 9.5,
     muzzleFlashScale: 0.85, muzzleVelocity: 420, penetration: 0.8,
+    shakeScale: 0.85, shakeVert: 0.8, shakeSide: 1.3, shakeRecover: 1.35, shakeJolt: 0.75,
     weight: "light",
   },
   battle: {
@@ -70,6 +83,7 @@ const CLASS_BASE = {
     hipMoveMult: 0.9, sprintMult: 1.22,
     bobAmp: 0.024, swayAmp: 0.014, inertia: 6,
     muzzleFlashScale: 1.3, muzzleVelocity: 820, penetration: 1.8,
+    shakeScale: 1.1, shakeVert: 1.2, shakeSide: 0.8, shakeRecover: 0.82, shakeJolt: 1.3,
     weight: "heavy",
   },
   sniper: {
@@ -84,6 +98,7 @@ const CLASS_BASE = {
     bobAmp: 0.02, swayAmp: 0.02, inertia: 4,
     muzzleFlashScale: 1.8, muzzleVelocity: 900, penetration: 2.6,
     headshotMult: 2.4,
+    shakeScale: 1.2, shakeVert: 1.35, shakeSide: 0.6, shakeRecover: 0.62, shakeJolt: 1.6,
     weight: "heavy",
   },
   lmg: {
@@ -97,6 +112,7 @@ const CLASS_BASE = {
     hipMoveMult: 0.78, sprintMult: 1.12,
     bobAmp: 0.032, swayAmp: 0.016, inertia: 4.5,
     muzzleFlashScale: 1.4, muzzleVelocity: 800, penetration: 2.0,
+    shakeScale: 1.05, shakeVert: 0.9, shakeSide: 1.3, shakeRecover: 0.85, shakeJolt: 1.05,
     weight: "heavy",
   },
   shotgun: {
@@ -114,6 +130,7 @@ const CLASS_BASE = {
     muzzleFlashScale: 1.5, tracerWidth: 0.015, tracerLength: 4,
     muzzleVelocity: 380, penetration: 0.35,
     headshotMult: 1.6,
+    shakeScale: 1.2, shakeVert: 1.15, shakeSide: 1.1, shakeRecover: 0.72, shakeJolt: 1.7,
     weight: "heavy",
   },
   sidearm: {
@@ -128,6 +145,7 @@ const CLASS_BASE = {
     bobAmp: 0.022, swayAmp: 0.009, inertia: 11,
     muzzleFlashScale: 0.8, muzzleVelocity: 380, penetration: 0.6,
     tracerLength: 5,
+    shakeScale: 0.9, shakeVert: 1.1, shakeSide: 0.9, shakeRecover: 1.3, shakeJolt: 0.9,
     weight: "light",
   },
 };
@@ -155,7 +173,6 @@ export const WEAPON_DEFS = {
     id: "problem416", name: "Problem 416", rank: 0, sight: "reddot",
     blurb: "The balanced default. No excuses left.",
     model: { len: 0.54, stock: "fixed", mag: "box", barrel: 1.0 },
-    skin: { image: "../../images/banners/banner-05.jpg", aspect: 3 },
   }),
   grinstock: mk("assault", {
     id: "grinstock", name: "Grinstock AR-12", rank: 8, sight: "iron",
@@ -335,6 +352,7 @@ export class WeaponState {
     this.viewKickPitch = 0; // instantaneous kick applied to weapon model (visual only, decays)
     this.viewKickYaw = 0;
     this.viewKickKnockback = 0;
+    this.viewKickRoll = 0;
   }
 
   get fireInterval() { return 60 / this.def.rpm; }
@@ -379,9 +397,14 @@ export class WeaponState {
     const yawKick = ((Math.random() * 2 - 1) * this.def.recoilKickYawRand + this.def.recoilKickYaw) * steady;
     this.recoilPitch += this.def.recoilKickPitch * steady;
     this.recoilYaw += yawKick;
-    this.viewKickPitch += this.def.recoilKickPitch * 1.8 * steady;
-    this.viewKickYaw += yawKick * 1.6;
-    this.viewKickKnockback += this.def.recoilKickKnockback * steady;
+    // The gun in your hands takes the same shake profile as the camera: a
+    // vertical grip holds the muzzle down, a brake stops it wandering, a
+    // suppressor softens the knock back into the shoulder.
+    const d = this.def;
+    this.viewKickPitch += d.recoilKickPitch * 1.8 * steady * d.shakeVert;
+    this.viewKickYaw += yawKick * 1.6 * d.shakeSide;
+    this.viewKickKnockback += d.recoilKickKnockback * steady * d.shakeJolt;
+    this.viewKickRoll += d.recoilKickPitch * 1.4 * steady * d.shakeJolt * (Math.random() < 0.5 ? -1 : 1);
     this.spread = Math.min(this.def.spreadMax, this.spread + this.def.spreadPerShot);
   }
 
@@ -419,9 +442,11 @@ export class WeaponState {
     const rec = def.recoilRecover;
     this.recoilPitch *= Math.max(0, 1 - rec * dt);
     this.recoilYaw *= Math.max(0, 1 - rec * dt);
-    this.viewKickPitch *= Math.max(0, 1 - rec * 2.2 * dt);
-    this.viewKickYaw *= Math.max(0, 1 - rec * 2.2 * dt);
-    this.viewKickKnockback *= Math.max(0, 1 - rec * 3 * dt);
+    const vrec = rec * def.shakeRecover;
+    this.viewKickPitch *= Math.max(0, 1 - vrec * 2.2 * dt);
+    this.viewKickYaw *= Math.max(0, 1 - vrec * 2.2 * dt);
+    this.viewKickKnockback *= Math.max(0, 1 - vrec * 3 * dt);
+    this.viewKickRoll *= Math.max(0, 1 - vrec * 3 * dt);
 
     // Bob phase advances with movement
     if (moving && grounded) {

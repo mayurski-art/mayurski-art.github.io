@@ -31,18 +31,20 @@ export const ATTACHMENTS = {
   barrel: {
     none:       { name: "Standard", desc: "Factory barrel", mods: {} },
     suppressor: { name: "Suppressor", desc: "Quiet, hidden from the killfeed, softer hits", quiet: true,
-                  mods: { damage: { mul: 0.92 }, muzzleVelocity: { mul: 0.9 }, recoilKickPitch: { mul: 0.95 }, muzzleFlashScale: { mul: 0.35 } } },
+                  mods: { damage: { mul: 0.92 }, muzzleVelocity: { mul: 0.9 }, recoilKickPitch: { mul: 0.95 }, muzzleFlashScale: { mul: 0.35 },
+                          shakeJolt: { mul: 0.55 }, shakeScale: { mul: 0.88 } } },
     comp:       { name: "Compensator", desc: "Cuts vertical climb",
-                  mods: { recoilKickPitch: { mul: 0.76 }, adsTime: { mul: 1.05 } } },
+                  mods: { recoilKickPitch: { mul: 0.76 }, adsTime: { mul: 1.05 }, shakeVert: { mul: 0.8 } } },
     brake:      { name: "Muzzle brake", desc: "Cuts sideways wander, louder spread",
-                  mods: { recoilKickYaw: { mul: 0.58 }, recoilKickYawRand: { mul: 0.58 }, spreadPerShot: { mul: 1.12 } } },
+                  mods: { recoilKickYaw: { mul: 0.58 }, recoilKickYawRand: { mul: 0.58 }, spreadPerShot: { mul: 1.12 },
+                          shakeSide: { mul: 0.45 }, shakeJolt: { mul: 1.1 } } },
   },
   underbarrel: {
     none:    { name: "None", desc: "Nothing under the rail", mods: {} },
     vert:    { name: "Vertical grip", desc: "Steadier under fire",
-               mods: { recoilKickPitch: { mul: 0.84 }, adsMoveMult: { mul: 0.95 } } },
+               mods: { recoilKickPitch: { mul: 0.84 }, adsMoveMult: { mul: 0.95 }, shakeVert: { mul: 0.55 } } },
     angled:  { name: "Angled grip", desc: "Faster to aim, quicker recovery",
-               mods: { adsTime: { mul: 0.84 }, recoilRecover: { mul: 1.12 } } },
+               mods: { adsTime: { mul: 0.84 }, recoilRecover: { mul: 1.12 }, shakeRecover: { mul: 1.6 } } },
     laser:   { name: "Laser", desc: "Tighter hipfire, visible beam",
                mods: { spreadBase: { mul: 0.72 }, spreadMoving: { mul: 0.78 } } },
   },
@@ -55,7 +57,9 @@ export const ATTACHMENTS = {
   },
 };
 
-export const DEFAULT_LOADOUT = { optic: "iron", barrel: "none", underbarrel: "none", ammo: "standard" };
+// `skin` rides along with the attachments so it's saved per weapon and
+// carried by the resolved def; null is the factory finish.
+export const DEFAULT_LOADOUT = { optic: "iron", barrel: "none", underbarrel: "none", ammo: "standard", skin: null };
 
 /* Which raw weapon fields each Customize bar is driven by, and whether a
    rise in the field is good for the player. `statDelta` below uses this to
@@ -67,6 +71,7 @@ const DELTA_FIELDS = [
   { field: "falloffEnd",       label: "Range",     better: "up" },
   { field: "recoilKickPitch",  label: "Recoil",    better: "down" },
   { field: "recoilKickYaw",    label: "Sway",      better: "down" },
+  { field: "shake",            label: "Shake",     better: "down", spoken: "firing shake" },
   // `label` is the chip text and has to stay short enough not to be clipped
   // in a card; `spoken` is what the screen reader gets where that shorthand
   // wouldn't be clear on its own.
@@ -132,7 +137,23 @@ export function resolveWeapon(weaponId, loadout = DEFAULT_LOADOUT) {
       else if (op.add != null) def[field] = cur + op.add;
     }
   }
+  def.shake = shakeAmount(def);
   return def;
+}
+
+/* How hard a shot's kick shakes the camera: sub-linear in the recoil, pinned
+   so the default assault rifle (0.021) maps to itself. */
+export function kickCurve(recoilKickPitch) {
+  return 0.021 * Math.pow(Math.max(0, recoilKickPitch) / 0.021, 0.6);
+}
+
+/* One number for how much a weapon shakes you when it fires: the kick, the
+   up/down and sideways shares of it, how long it rings on, and how sharp
+   each shot is. Feeds the Stability bar and the "Shake" delta chip. */
+export function shakeAmount(def) {
+  const axes = 0.6 * (def.shakeVert ?? 1) + 0.4 * (def.shakeSide ?? 1);
+  return kickCurve(def.recoilKickPitch) * (def.shakeScale ?? 1) * axes
+    / Math.sqrt(def.shakeRecover ?? 1) * (0.5 + 0.5 * (def.shakeJolt ?? 1));
 }
 
 /* Normalised 0..1 bars for the loadout screen. The divisors are the rough
@@ -144,6 +165,7 @@ export function statBars(def) {
     "Fire rate": clamp01(def.rpm / 1200),
     Range: clamp01(def.falloffEnd / 150),
     Control: clamp01(1 - def.recoilKickPitch / 0.1),
+    Stability: clamp01(1 - (def.shake ?? shakeAmount(def)) / 0.1),
     Mobility: clamp01((def.hipMoveMult * def.sprintMult) / 1.6),
     "Ammo": clamp01(def.magSize / 100),
     _dps: dps,

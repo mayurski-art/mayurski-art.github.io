@@ -303,6 +303,21 @@ await sleep(300);
 const marker = await B.evaluate((id) => { const h = window.__trollOps.hitDirs.get(id); return h ? h.el.style.transform : null; }, info[0].id);
 check("a hit shows a direction marker", !!marker, marker || "none");
 
+// ---------- 11. a weapon skin reaches the other client's view of you
+await A.evaluate(() => {
+  const T = window.__trollOps;
+  T.loadout.weaponId = "problem416";
+  T.loadout.attachmentsFor("problem416").skin = "green";
+  T.respawnPlayer();
+  T.setHolding?.("gun");
+});
+await B.waitForFunction((id) => window.__trollOps.remotes.byId.get(id)?.skin === "green", info[0].id, { timeout: 5000 }).catch(() => {});
+const skinSeen = await B.evaluate((id) => {
+  const r = window.__trollOps.remotes.byId.get(id);
+  return { weapon: r?.weaponId, skin: r?.skin, mesh: r?.weaponMesh?.userData.skin };
+}, info[0].id);
+check("a weapon skin shows on the other client", skinSeen.skin === "green" && skinSeen.mesh === "green", JSON.stringify(skinSeen));
+
 check("no page errors", errors.length === 0, errors.slice(0, 5).join(" | "));
 
 await browser.close();

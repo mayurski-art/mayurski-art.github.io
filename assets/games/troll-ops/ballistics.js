@@ -139,7 +139,8 @@ export class BulletSystem {
        targetMeshes  — meshes to raycast for actor hits
        resolveTarget — (object3D) => actor | null
        onActorHit    — (actor, { damage, isHead, point, dir, distance })
-       onWorldHit    — (point, normalish)
+       onWorldHit    — (point, cosmetic, { normal, dir, ground }), normal
+                       being the face the round struck
        bounds        — the arena; a round that leaves it can't hit anything  */
   update(dt, ctx) {
     const { colliders = [], targetMeshes = [], resolveTarget, onActorHit, onWorldHit, bounds } = ctx;
@@ -190,12 +191,12 @@ export class BulletSystem {
         }
 
         // --- nearest world hit along this step
-        let wallT = Infinity, wallExit = 0, wallPen = 1;
+        let wallT = Infinity, wallExit = 0, wallPen = 1, wallBox = null;
         for (const c of colliders) {
           const r = segmentAABB(from, dir, len, c.min, c.max);
           if (!r || r.t0 >= wallT) continue;
           if (r.t1 <= 0) continue;
-          wallT = Math.max(0, r.t0); wallExit = r.t1; wallPen = c.pen != null ? c.pen : 1;
+          wallT = Math.max(0, r.t0); wallExit = r.t1; wallPen = c.pen != null ? c.pen : 1; wallBox = c;
         }
 
         // --- ground plane
@@ -217,14 +218,14 @@ export class BulletSystem {
 
         if (groundT === first) {
           const point = from.clone().addScaledVector(dir, groundT);
-          onWorldHit?.(point, b.cosmetic);
+          onWorldHit?.(point, b.cosmetic, { normal: new THREE.Vector3(0, 1, 0), dir: dir.clone(), ground: true });
           dead = true;
           break;
         }
 
         // --- wall: try to punch through
         const point = from.clone().addScaledVector(dir, wallT);
-        onWorldHit?.(point, b.cosmetic);
+        onWorldHit?.(point, b.cosmetic, { normal: boxFaceNormal(point, wallBox), dir: dir.clone(), ground: false });
         if (b.cosmetic) { dead = true; break; }
         const thickness = Math.max(0.05, wallExit - wallT);
         const cost = thickness * wallPen;
@@ -251,4 +252,18 @@ export class BulletSystem {
       this.tracers[i].place(b.pos, dir, len, b.def.tracerWidth || 0.02, 0.9, b.def.tracerColor);
     }
   }
+}
+
+/* The face of an AABB nearest a point on (or just inside) its surface. */
+function boxFaceNormal(p, box) {
+  const n = new THREE.Vector3(0, 1, 0);
+  if (!box) return n;
+  const faces = [
+    [p.x - box.min.x, -1, 0, 0], [box.max.x - p.x, 1, 0, 0],
+    [p.y - box.min.y, 0, -1, 0], [box.max.y - p.y, 0, 1, 0],
+    [p.z - box.min.z, 0, 0, -1], [box.max.z - p.z, 0, 0, 1],
+  ];
+  let best = faces[0];
+  for (const f of faces) if (Math.abs(f[0]) < Math.abs(best[0])) best = f;
+  return n.set(best[1], best[2], best[3]);
 }

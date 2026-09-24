@@ -609,6 +609,9 @@ export function mountHeldWeapon(rig, mesh) {
   const s = rig.scale;
   mesh.position.set(0.30 * s * rig.build, -0.62 * s, 0).addScaledVector(new THREE.Vector3(0, Math.sin(GUN_CARRY), Math.cos(GUN_CARRY)), 0.05 * s);
   mesh.rotation.set(-GUN_CARRY, 0, 0.15);
+  // The first-person hands built onto the gun are for the viewmodel; a body
+  // holds it in its own mitts.
+  mesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
   rig.parts.armR.add(mesh);
 }
 
@@ -713,7 +716,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     setHandPose(rig, -1, "open");
     setHandPose(rig, 1, "open");
     p.torso.rotation.x += 0.12;
-    _poseNeckAndHead(rig, { pitch: 0.16, sway: Math.sin(phase * 0.5) * 0.09, dt, lead: 0 });
+    _poseNeckAndHead(rig, { pitch: 0.16, sway: Math.sin(phase * 0.5) * 0.09, dt, lead: 0, lean, bob, run, phase, moving: blend > 0.5 });
     return;
   }
 
@@ -755,7 +758,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     p.elbowL.rotation.set(0.2 + (run * 1.1 + Math.max(0, legSwingL) * 0.25) * blend, 0, 0);
   }
 
-  _poseNeckAndHead(rig, { pitch: pitch - lean * 0.6, sway: 0, dt, lead: str * blend });
+  _poseNeckAndHead(rig, { pitch, sway: 0, dt, lead: str * blend, lean, bob, run, phase, moving: blend > 0.3, busy: kick > 0.02 || !!swing });
 }
 
 /* Arm angles: positive x raises an arm FORWARD (see GUN_CARRY). These dances
@@ -951,16 +954,156 @@ function _poseDeath(rig, t) {
   p.headPivot.rotation.z = ease * 0.5;
 }
 
-/* Neck + head sub-pose, shared by the zombie and normal paths. The neck
-   leans a little further into the strafe/idle sway than the head does
-   ("lead") so a turn or idle shift visibly starts at the neck before the
-   head settles into its final look angle a frame or two later - a head
-   that moves in perfect lockstep with the neck/torso reads as one rigid
-   piece instead of a jointed figure. */
-function _poseNeckAndHead(rig, { pitch, sway, dt, lead }) {
+/* ------------------------------------------------------------ head and neck
+
+   The head is the part people read a figure by, so it gets the most care:
+   - it LEADS a turn. aimRig() lets the body follow the aim a beat late while
+     the chest, neck and head take up the difference between them — the
+     neck first and fastest, the head a moment after — so a turn starts in
+     the neck, the eyes get there first, and the shoulders come round after;
+   - it looks where the aim is: pitch is shared between neck and head, and a
+     remote player's head follows their sent aim, so you can see where
+     they're looking;
+   - it stays level while the body works under it: the run's forward lean,
+     the hip roll and a little of the pelvis bob are taken back out, the way
+     a runner's head holds steady over a bouncing body;
+   - standing still with nothing to do, it glances around a little and
+     settles, instead of staring like a mannequin;
+   - hit, it flinches away from the round and springs back (flinchRig).
+
+   All of it is kept subtle, and the idle glances vanish the moment the
+   player moves or aims. */
+
+const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+function headState(rig) {
+  return rig.headState || (rig.headState = {
+    bodyYaw: null, aimYaw: null,
+    neckYaw: 0, headYaw: 0, chestYaw: 0,
+    still: 0,                 // seconds the aim has held still
+    idle: { yaw: 0, pitch: 0, vy: 0, vp: 0, ty: 0, tp: 0, next: 1 + Math.random() * 2, w: 0 },
+    flinch: { yaw: 0, roll: 0, pitch: 0, vy: 0, vr: 0, vp: 0 },
+  });
+}
+
+/* Face the rig toward `aimYaw` (world radians, the game's yaw convention),
+   with the body following a little behind the head. Call before
+   poseHumanoid in place of setting root.rotation.y. `snap` jumps straight
+   there (spawns, teleports). */
+const BODY_LAG_MAX = 0.55;    // radians the aim may run ahead of the body
+export function aimRig(rig, aimYaw, dt = 0.016, { snap = false, moving = false } = {}) {
+  const h = headState(rig);
+  if (!Number.isFinite(aimYaw)) return;
+  dt = Math.max(0, dt);
+  if (h.bodyYaw == null || snap || Math.abs(wrapAngle(aimYaw - (h.aimYaw ?? aimYaw))) > 1.6) {
+    h.bodyYaw = aimYaw;
+    h.aimYaw = aimYaw;
+    h.neckYaw = h.headYaw = h.chestYaw = 0;
+  }
+  // How long the aim has held still, for the idle glances.
+  const turned = Math.abs(wrapAngle(aimYaw - h.aimYaw));
+  h.still = turned > 0.002 ? 0 : h.still + dt;
+  h.aimYaw = aimYaw;
+  // The body swings round after the head; faster on the move, when the hips
+  // are already turning with the stride.
+  let off = wrapAngle(aimYaw - h.bodyYaw);
+  h.bodyYaw += off * Math.min(1, dt * (moving ? 13 : 8));
+  off = wrapAngle(aimYaw - h.bodyYaw);
+  if (Math.abs(off) > BODY_LAG_MAX) h.bodyYaw = aimYaw - Math.sign(off) * BODY_LAG_MAX;
+  rig.root.rotation.y = h.bodyYaw;
+}
+
+/* Kick the head (and a little of the chest) away from a round. `dirX`/`dirZ`
+   are the round's travel in the rig's own frame (+x its right, -z ahead);
+   `strength` 0..1, about 0.5 for a body shot and 1 for a headshot. */
+export function flinchRig(rig, dirX, dirZ, strength = 0.6) {
+  const f = headState(rig).flinch;
+  const k = Math.max(0, Math.min(1.2, strength));
+  // Pushed right, the head turns and tips to its right (negative y and z);
+  // struck from the front it snaps back, and every hit nods it a little.
+  f.vy += -dirX * 7 * k;
+  f.vr += -dirX * 5 * k;
+  f.vp += (dirZ * 6 - 2.5) * k;
+}
+
+/* The same, from a round's world-space travel direction. */
+export function flinchRigFrom(rig, dir, strength = 0.6) {
+  const yaw = rig.root.rotation.y;
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  // Rig right is (cos, 0, -sin), rig back (+z) is (sin, 0, cos).
+  flinchRig(rig, dir.x * c - dir.z * s, dir.x * s + dir.z * c, strength);
+}
+
+function _poseNeckAndHead(rig, { pitch, sway, dt, lead, lean = 0, bob = 0, run = 0, phase = 0, moving = false, busy = false }) {
   const p = rig.parts;
-  p.neckPivot.rotation.x = -pitch * 0.15 + sway * 0.4;
-  p.neckPivot.rotation.z = lead * 0.10;
-  p.headPivot.rotation.x = -pitch * 0.55 + sway;
-  p.headPivot.rotation.z = lead * 0.05;
+  const h = headState(rig);
+  const step = Math.max(0, Math.min(0.05, dt || 0));
+
+  // --- yaw: the part of the aim the body hasn't caught up to yet, shared
+  // down the chain. The neck takes its share fastest, the head slightly
+  // after, the chest (which carries the gun) last.
+  const off = h.aimYaw == null ? 0 : wrapAngle(h.aimYaw - h.bodyYaw);
+  if (step > 0) {
+    h.neckYaw += (off * 0.25 - h.neckYaw) * Math.min(1, step * 24);
+    h.headYaw += (off * 0.35 - h.headYaw) * Math.min(1, step * 15);
+    h.chestYaw += (off * 0.40 - h.chestYaw) * Math.min(1, step * 11);
+  }
+  // Dances and the like pose without time or aim: no state for them.
+  const useState = step > 0;
+
+  // --- idle glances: only once the rig has stood still with its aim held
+  // for a moment, and gone the instant either changes.
+  const I = h.idle;
+  const idleOk = !moving && !busy && h.still > 1.2 && useState;
+  if (useState) {
+    I.w += ((idleOk ? 1 : 0) - I.w) * Math.min(1, step * (idleOk ? 1.5 : 10));
+    I.next -= step;
+    if (I.next <= 0) {
+      // Mostly small looks either side, sometimes back to centre; a longer
+      // hold after a bigger look, like someone actually checking a corner.
+      const back = Math.random() < 0.3;
+      I.ty = back ? 0 : (Math.random() * 2 - 1) * 0.38;
+      I.tp = back ? 0 : (Math.random() * 2 - 1) * 0.1 + 0.02;
+      I.next = 1.6 + Math.random() * 2.8 + Math.abs(I.ty) * 3;
+    }
+    // Slightly under-damped, so each look lands and settles.
+    const w = 7, z = 0.62;
+    I.vy += (-w * w * (I.yaw - I.ty) - 2 * z * w * I.vy) * step;
+    I.vp += (-w * w * (I.pitch - I.tp) - 2 * z * w * I.vp) * step;
+    I.yaw += I.vy * step;
+    I.pitch += I.vp * step;
+  }
+  const idleYaw = useState ? I.yaw * I.w : 0, idlePitch = useState ? I.pitch * I.w : 0;
+
+  // --- flinch spring
+  const F = h.flinch;
+  if (useState) {
+    const w = 17, z = 0.42;
+    F.vy += (-w * w * F.yaw - 2 * z * w * F.vy) * step;
+    F.vr += (-w * w * F.roll - 2 * z * w * F.vr) * step;
+    F.vp += (-w * w * F.pitch - 2 * z * w * F.vp) * step;
+    F.yaw += F.vy * step; F.roll += F.vr * step; F.pitch += F.vp * step;
+  }
+  const fy = useState ? F.yaw : 0, fr = useState ? F.roll : 0, fp = useState ? F.pitch : 0;
+  const ny = useState ? h.neckYaw : 0, hy = useState ? h.headYaw : 0, cy = useState ? h.chestYaw : 0;
+
+  // --- level head: take back most of the lean, hip roll and bob beneath it.
+  const stab = 0.55 + run * 0.3;
+  const rollBelow = p.hips.rotation.z + p.torso.rotation.z + p.chest.rotation.z;
+  // A small nod against the stride, a quarter-cycle behind the bob, reads
+  // as the neck absorbing each footfall.
+  const nod = moving ? Math.sin(2 * phase - 0.9) * (0.012 + run * 0.02) : 0;
+
+  p.chest.rotation.y += cy + fy * 0.15;
+  p.neckPivot.position.y = -bob * 0.45;
+  p.neckPivot.rotation.set(
+    -pitch * 0.25 + sway * 0.4 - lean * stab * 0.4 + nod * 0.4 + fp * 0.4 + idlePitch * 0.4,
+    ny + idleYaw * 0.4 + fy * 0.4,
+    lead * 0.10 - rollBelow * 0.35 + fr * 0.4,
+  );
+  p.headPivot.rotation.set(
+    -pitch * 0.6 + sway - lean * stab * 0.6 + nod * 0.6 + fp * 0.6 + idlePitch * 0.6,
+    hy + idleYaw * 0.6 + fy * 0.6,
+    lead * 0.05 - rollBelow * 0.45 + fr * 0.6,
+  );
 }
