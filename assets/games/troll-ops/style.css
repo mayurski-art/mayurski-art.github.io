@@ -135,10 +135,12 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   font-family: "Oswald", sans-serif; font-size: 11.5px; letter-spacing: .08em;
   text-transform: uppercase; color: #cfd8c8;
 }
+/* The round clock is calm; only a live bomb turns red and pulses. */
 .to-bomb-timer {
   font-family: "DM Mono", monospace; font-weight: 700; font-size: 14px;
-  color: #ff5a3d; animation: to-bomb-pulse .6s ease-in-out infinite;
+  color: #eef2ea;
 }
+.to-bomb-timer.is-planted { color: #ff5a3d; animation: to-bomb-pulse .6s ease-in-out infinite; }
 @keyframes to-bomb-pulse { 50% { opacity: .55; } }
 
 /* Hold-E plant/defuse prompt, dead centre-low like the cook meter. */

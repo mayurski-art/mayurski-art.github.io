@@ -5,6 +5,8 @@
 // keep Gun Game and One in the Chamber from leaking special cases into the
 // main loop.
 
+import { FlowField } from "./nav.js";
+
 export const MODES = {
   ops: {
     id: "ops",
@@ -154,8 +156,10 @@ export function matchWinnerOnTimeout(mode, { teamScores, selfScore, selfName, pe
 
 /* King of the Hill: a capture ring that relocates on a timer. */
 export class Hill {
-  constructor(spawnPoints, period = 45) {
-    this.points = spawnPoints.map((p) => ({ x: p.x, z: p.z }));
+  /* `points` from pickHillPoints — the stride below walks all of them when
+     their count isn't a multiple of 3 (it's 7 on an unobstructed map). */
+  constructor(points, period = 45) {
+    this.points = points.map((p) => ({ x: p.x, z: p.z }));
     this.period = period;
     this.radius = 6;
     this.index = 0;
@@ -184,26 +188,141 @@ export class Hill {
   get secondsLeft() { return Math.max(0, Math.ceil(this.period - this.t)); }
 }
 
-/* Two bomb sites, picked from a map's bounds rather than hand-authored — no
-   map currently ships site geometry, and placing it well on all five is its
-   own project. Every map here is built roughly symmetric around its centre
-   (spawns ring the perimeter — see the `spawns` arrays in maps.js), which
-   means splitting the spawn list in half like spawnForTeam does averages out
-   to the same point both halves: not a usable axis. So this uses the bounds'
-   own longer side instead — reliable on every map regardless of spawn
-   layout — and offsets each site off-centre along the *shorter* side too, so
-   A and B land in different corners rather than both sitting on one line
-   through the middle. */
-export function pickBombSites(bounds, spawnPoints) {
+/* Which spawn points belong to which side of the map.
+
+   Every map lists its spawns as a ring (corners, then edge midpoints), so
+   splitting the *list* in half — what spawnForTeam used to do — handed one
+   team all four corners and the other all four midpoints: interleaved round
+   the perimeter, enemies spawning 9m apart on Undergrin. Sides are split by
+   position instead, along whichever axis leaves the two halves furthest
+   apart. Deterministic (ties fall back to the other axis, then list order),
+   so every client derives the same sides with no messages. */
+export function splitSpawnSides(points) {
+  const n = points.length;
+  const cut = Math.floor(n / 2);
+  let best = null;
+  for (const axis of ["x", "z"]) {
+    const other = axis === "x" ? "z" : "x";
+    const order = points.map((_, i) => i).sort((a, b) =>
+      (points[a][axis] - points[b][axis]) || (points[a][other] - points[b][other]) || (a - b));
+    const lo = order.slice(0, cut), hi = order.slice(cut);
+    let gap = Infinity;
+    for (const a of lo) for (const b of hi) {
+      gap = Math.min(gap, Math.hypot(points[a].x - points[b].x, points[a].z - points[b].z));
+    }
+    if (!best || gap > best.gap + 1e-6) best = { axis, lo, hi, gap };
+  }
+  return best;
+}
+
+/* Is there room to stand here? Nothing between knee and head height inside
+   `r`, and inside the map. Knee-high decking passes — it's walked over. */
+function openAt(colliders, bounds, x, z, r) {
+  if (x < bounds.minX + r + 1 || x > bounds.maxX - r - 1) return false;
+  if (z < bounds.minZ + r + 1 || z > bounds.maxZ - r - 1) return false;
+  for (const c of colliders) {
+    if (c.max.y <= 0.45 || c.min.y >= 2.4) continue;
+    const cx = Math.max(c.min.x, Math.min(x, c.max.x));
+    const cz = Math.max(c.min.z, Math.min(z, c.max.z));
+    if ((x - cx) ** 2 + (z - cz) ** 2 < r * r) return false;
+  }
+  return true;
+}
+
+/* Nearest open, ground-level spot to (x, z), searched outward in rings. The
+   raw point is usually fine; when it lands inside a house or under a
+   catwalk this walks it out to the nearest street. `reachable` optionally
+   rejects spots nobody can walk to. Falls back to the raw point. */
+export function findOpenGround(colliders, bounds, x, z, r = 2, reachable = null) {
+  const STEP = 0.75, MAX = 16;
+  for (let ring = 0; ring * STEP <= MAX; ring++) {
+    const rad = ring * STEP;
+    const count = ring === 0 ? 1 : Math.max(8, Math.round(rad * 2 * Math.PI / STEP));
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const px = x + Math.cos(a) * rad, pz = z + Math.sin(a) * rad;
+      if (!openAt(colliders, bounds, px, pz, r)) continue;
+      if (reachable && !reachable(px, pz)) continue;
+      return { x: Math.round(px * 100) / 100, z: Math.round(pz * 100) / 100 };
+    }
+  }
+  return { x, z };
+}
+
+/* A predicate: can someone walking from the spawns get to (x, z)? One flow
+   field swept out from the first spawn; everything else just asks it. */
+function reachableFrom(colliders, bounds, spawnPoints) {
+  if (!spawnPoints?.length) return null;
+  const field = new FlowField(colliders, bounds, 0);
+  const s = spawnPoints[0];
+  if (!field.compute(s.x, s.z)) return null;
+  return (x, z) => {
+    const i = field.index(x, z);
+    return i >= 0 && !field.blocked[i] && field.dist[i] > 0;
+  };
+}
+
+/* Two bomb sites on the defenders' half of the map.
+
+   The first version placed sites off the bounds alone, which put Depot's on
+   top of a catwalk (4.8m up) and Cul-de-Grin's on a roof — the ring floated
+   where nobody could stand, while planting was only checked in 2D. Sites now
+   sit between the middle and the defending spawns (`hi` side from
+   splitSpawnSides — S&D spawns attackers on `lo`), spread across the map,
+   then snap to the nearest open ground someone can actually walk to. */
+export function pickBombSites(bounds, spawnPoints, colliders = []) {
+  const sides = splitSpawnSides(spawnPoints);
+  const axis = sides.axis;
+  const mean = (idx) => idx.reduce((s, i) => s + spawnPoints[i][axis], 0) / idx.length;
+  const loC = mean(sides.lo), hiC = mean(sides.hi);
+  const mid = (loC + hiC) / 2;
+  const min = axis === "x" ? "minZ" : "minX", max = axis === "x" ? "maxZ" : "maxX";
+  const acrossC = (bounds[min] + bounds[max]) / 2;
+  const acrossSpan = bounds[max] - bounds[min];
+
+  let across = acrossSpan * 0.27;
+  let alongA = mid + (hiC - mid) * 0.5, alongB = alongA;
+  // A narrow map (Undergrin's platform) can't spread sites sideways far
+  // enough to be two places — stagger them along the long axis instead.
+  if (across * 2 < 14) {
+    across = acrossSpan * 0.18;
+    alongA = mid + (hiC - mid) * 0.25;
+    alongB = mid + (hiC - mid) * 0.72;
+  }
+  const at = (along, off) => axis === "x"
+    ? { x: along, z: acrossC + off }
+    : { x: acrossC + off, z: along };
+  const reach = reachableFrom(colliders, bounds, spawnPoints);
+  const pa = at(alongA, -across), pb = at(alongB, across);
+  const a = findOpenGround(colliders, bounds, pa.x, pa.z, 2.2, reach);
+  // Snapping can walk both sites onto the same open patch (Undergrin's
+  // pillars leave one clear stretch), so B has to keep its distance from A.
+  const apart = (x, z) => Math.hypot(x - a.x, z - a.z) >= 14 && (!reach || reach(x, z));
+  const b = findOpenGround(colliders, bounds, pb.x, pb.z, 2.2, apart);
+  return [{ id: "A", ...a }, { id: "B", ...b }];
+}
+
+/* Where King of the Hill's ring goes. It used to cycle through the spawn
+   points, which put the objective on the map edge and let a team respawn
+   straight into it. Now: the middle, then a ring through the contested band
+   between the sides, each snapped to open reachable ground. */
+export function pickHillPoints(bounds, spawnPoints, colliders = []) {
   const cx = (bounds.minX + bounds.maxX) / 2;
   const cz = (bounds.minZ + bounds.maxZ) / 2;
-  const spanX = bounds.maxX - bounds.minX, spanZ = bounds.maxZ - bounds.minZ;
-  const longAxisIsX = spanX >= spanZ;
-  const along = (longAxisIsX ? spanX : spanZ) * 0.28;   // how far apart, along the long side
-  const across = (longAxisIsX ? spanZ : spanX) * 0.22;  // how far off-centre, along the short side
-  return longAxisIsX
-    ? [{ id: "A", x: cx - along, z: cz - across }, { id: "B", x: cx + along, z: cz + across }]
-    : [{ id: "A", x: cx - across, z: cz - along }, { id: "B", x: cx + across, z: cz + along }];
+  const rx = (bounds.maxX - bounds.minX) * 0.26;
+  const rz = (bounds.maxZ - bounds.minZ) * 0.26;
+  const reach = reachableFrom(colliders, bounds, spawnPoints);
+  const raw = [{ x: cx, z: cz }];
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    raw.push({ x: cx + Math.cos(a) * rx, z: cz + Math.sin(a) * rz });
+  }
+  const out = [];
+  for (const p of raw) {
+    const q = findOpenGround(colliders, bounds, p.x, p.z, 1.4, reach);
+    if (out.every((o) => Math.hypot(o.x - q.x, o.z - q.z) > 6)) out.push(q);
+  }
+  return out;
 }
 
 /* Search & Destroy round/bomb state. One life a side, no economy — carry

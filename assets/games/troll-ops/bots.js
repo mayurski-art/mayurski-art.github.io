@@ -113,6 +113,7 @@ class Bot {
     this.lastTargetId = null;
     this.roam = null;
     this.flinchT = 0;
+    this.stunT = 0;
     this.prevTargetPos = null;
   }
 
@@ -122,6 +123,16 @@ class Bot {
   onDamaged() {
     this.flinchT = 0.35 + Math.random() * 0.25;
     this.strafeDir = -this.strafeDir;
+  }
+
+  /* Flashbanged or scrambled. Bots were handed to flashPlayer/empPlayer as
+     their RemotePlayer render proxy, which has no stun(), so a flash at a
+     bot's feet did nothing at all. Blinded bots lose their target, can't
+     fire, and stumble instead of strafing. */
+  stun(seconds) {
+    this.stunT = Math.max(this.stunT || 0, seconds);
+    this.acquireT = 0;
+    this.lastTargetId = null;
   }
 
   /* Chance to land a shot right now: better the closer they are and the
@@ -148,6 +159,13 @@ class Bot {
       return;
     }
 
+    // Mode objective (a hill, a bomb site) and whether the mode has this bot
+    // pinned in place mid-plant/defuse. Both optional — TDM passes neither.
+    const objective = ctx.objectiveFor?.(this) || null;
+    const busy = !!ctx.isBusy?.(this);
+    const stunned = this.stunT > 0;
+    if (stunned) this.stunT -= dt;
+
     if (this.reloadT > 0) {
       this.reloadT -= dt;
       if (this.reloadT <= 0) this.ammo = MAG_SIZE;
@@ -163,6 +181,7 @@ class Bot {
       if (!ffa && t.team === this.team) continue;
       const d = Math.hypot(t.pos.x - this.pos.x, t.pos.z - this.pos.z);
       if (d < leadD) { lead = t; leadD = d; }
+      if (stunned) continue;     // blind: knows roughly where people are, sees nobody
       if (d > SIGHT_RANGE || d >= bestD) continue;
       const theirEye = new THREE.Vector3(t.pos.x, (t.groundY ?? t.pos.y ?? 0) + 1.4, t.pos.z);
       if (segmentBlocked(colliders, eye, theirEye)) continue;
@@ -197,7 +216,15 @@ class Bot {
 
     // --- steer
     let desired;
-    if (best) {
+    const objD = objective ? Math.hypot(objective.x - this.pos.x, objective.z - this.pos.z) : Infinity;
+    if (busy) {
+      // Planting or defusing: rooted to the spot, eyes on whoever's coming.
+      desired = new THREE.Vector3();
+      if (best) this.yaw = Math.atan2(-(best.pos.x - this.pos.x), -(best.pos.z - this.pos.z));
+    } else if (stunned) {
+      // Staggering: a slow drift, no juke — the window a flash is meant to buy.
+      desired = this.wanderStep(dt).multiplyScalar(0.3);
+    } else if (best) {
       this.yaw = Math.atan2(-(best.pos.x - this.pos.x), -(best.pos.z - this.pos.z));
       // Close to a comfortable range rather than walking into their face,
       // and strafe laterally the whole time — a bot that holds still while
@@ -219,6 +246,24 @@ class Bot {
       if (this.flinchT > 0.15) {
         desired = lateral.clone().normalize();
       }
+    } else if (objective && objD > objective.radius) {
+      // Nobody in sight and the mode wants us somewhere — go there before
+      // hunting. Without this KotH bots never stood on the hill and S&D
+      // bots never went near a site.
+      const field = navFor?.({ id: objective.id, pos: objective });
+      const step = field?.steer(this.pos.x, this.pos.z);
+      if (step) {
+        desired = step;
+        this.yaw = Math.atan2(-desired.x, -desired.z);
+      } else {
+        desired = new THREE.Vector3(objective.x - this.pos.x, 0, objective.z - this.pos.z).normalize();
+        this.yaw = Math.atan2(-desired.x, -desired.z);
+      }
+    } else if (objective) {
+      // On the objective: hold it, shuffling a little and scanning the
+      // approaches rather than staring at one wall.
+      desired = this.wanderStep(dt).multiplyScalar(objective.radius > 2 ? 0.35 : 0);
+      this.yaw += dt * 0.9 * this.strafeDir;
     } else if (lead) {
       // Nobody in sight: walk the flow field toward the nearest enemy rather
       // than straight at them. Straight-line steering is fine on an open
@@ -261,7 +306,8 @@ class Bot {
       this.sidearmReloadT -= dt;
       if (this.sidearmReloadT <= 0) this.sidearmAmmo = SIDEARM_MAG_SIZE;
     }
-    const canSee = best && bestD < FIRE_RANGE;
+    // Hands full with the bomb means no trigger, same as for a player.
+    const canSee = !busy && best && bestD < FIRE_RANGE;
     // A short reaction delay before the first shot, so they don't snap onto
     // someone the instant they round a corner.
     const reacted = this.acquireT >= this.diff.reaction;
@@ -392,8 +438,16 @@ export class BotManager {
 
     for (const bot of this.bots) {
       bot.update(dt, { ...ctx, navFor });
-      if (!bot.alive && bot.respawnT <= 0) bot.respawn(ctx.spawnFor(bot.team, bot.id));
+      // One-life modes (Search & Destroy) bring bots back at the round
+      // boundary via reviveAll, never on the respawn clock — respawning here
+      // meant the attacking side could never be eliminated.
+      if (!bot.alive && bot.respawnT <= 0 && !ctx.noRespawn) bot.respawn(ctx.spawnFor(bot.team, bot.id));
     }
+  }
+
+  /* Everyone back on their feet at a fresh spawn — a new S&D round. */
+  reviveAll(spawnFor) {
+    for (const bot of this.bots) bot.respawn(spawnFor(bot.team, bot.id));
   }
 
   /* Returns { killed, bot } so the caller can award the kill. */
