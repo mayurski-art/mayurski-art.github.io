@@ -61,9 +61,34 @@ Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
 
 ## Still to do (asked for, not started)
 
-1. **Main menu redesign** — user: "looks vibe coded". Specifically hates the
-   giant Map Select box. Propose a direction with a mockup first (per the
-   design-doc-first rule), then build.
+1. **Main menu redesign — design APPROVED, build not started.** The design
+   lives in an editable Design canvas the user keeps tweaking:
+   https://claude.ai/artifact/XXhnWGcoA1BfCYvUC49LKa
+   - `Main.dc.html` = the approved desktop Play screen (user picked it).
+     `MapPicker.dc.html` = the slide-out map panel "Change" opens.
+     `Mobile.dc.html` = phone layout. `Current.dc.html` = old menu screenshot.
+   - ALWAYS re-read the canvas files (Artifact read, path project/<name>)
+     before building; the user edits them. Their first edit: removed the
+     small note above DEPLOY.
+   - The design: top tab bar (Play / Loadout / Gear / Scorestreaks / Servers /
+     Settings) with rank + XP bar top right; mode list on the left grouped
+     Versus / Solo with the selected mode's blurb under it; compact loadout
+     card top right (guns, attachment chips, 3 gear cells; ballistics bars
+     move into Customize); small map card bottom left with Change -> right
+     drawer of all 6 maps; big green DEPLOY bottom right; footer with Back
+     to arcade, music, X, Buy $TRUTHS. Fonts/colours: Oswald + DM Sans + DM
+     Mono, ink #0b0f0d, panels rgba(8,11,9,.8), text #eef3ea, dim #a9b6a3,
+     accent #7fe066, XP amber #ffb020.
+   - Build plan: rework the `.to-pf` lobby in troll-ops.html + style.css.
+     Keep every existing element id (loadout.js / game.js bind to them:
+     to-start-btn, to-lo-maps, to-lo-mode, to-lo-modeblurb, to-pf-sum-*,
+     to-lo-rank-*, to-set-*-lobby, data-panel buttons, etc.) and move them
+     into the new layout rather than rewriting the JS. The Game Mode panel
+     becomes the always-visible left list; Map Select becomes the drawer.
+   - Bug found: on phones the menu operator is off-screen (the camera
+     frames the empty site). Fix the menu camera for narrow viewports.
+   - Open questions left with the user: bolder hero variant? ballistics in
+     Customize only? add a "Random map" option?
 2. **All maps rework** — object placement and construction should make sense
    and feel complete. Big: plan/design doc first, one map at a time.
 
