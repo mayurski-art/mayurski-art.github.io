@@ -41,8 +41,10 @@ Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
 1. **Aim assist** now runs for touch (thumb down on the look pad) as well as
    the gamepad stick, and locks onto zombies, wave grunts and range plates,
    not just players/bots (`aimAssistPoints()` in game.js). Mouse still never
-   gets it (deliberate; say if you want it). Verified headless: a touch look
-   0.07 rad off a range plate pulls to 0; mouse stays put.
+   and mouse/trackpad too (user asked for every device): mouse counts as
+   steering for 200ms after it moves, gets half the pull and a gentler
+   0.72 sticky slowdown. Verified headless: touch and a moving mouse both pull
+   a 0.07 rad miss onto a range plate; a still mouse is not dragged.
 2. **ADS during the pre-match countdown**: `wantAds` no longer inherits the
    staging freeze (only death / local pause). Verified: adsT reaches 1 while
    staging.
@@ -55,7 +57,7 @@ Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
    relief) and `adsWeaponFov`, so the eyepiece comes up to the eye instead of
    a pinhole. Checked all 5 optics on problem416, grinstock, smg, deadpan and
    bellow: reticle on the true centre, nothing blocks the view. Hip view
-   unchanged. Cache-bust now `?v=to-optics1`.
+   unchanged. Cache-bust now `?v=to-aa2`.
 
 ## Still to do (asked for, not started)
 

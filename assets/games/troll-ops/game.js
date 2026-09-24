@@ -2416,7 +2416,11 @@ document.addEventListener("pointerlockchange", () => {
 });
 document.addEventListener("mousemove", (e) => {
   if (!controls.isLocked) return;
-  const sens = BASE_MOUSE_SENS * (settings.sens / 100);
+  mouseLookAt = performance.now();
+  // Near a target, aim assist makes the mouse a little "sticky" (see
+  // applyAimAssist) — the same slowdown the stick gets, just gentler.
+  const sticky = aimAssistSticky ? AIM_ASSIST_MOUSE_SLOWDOWN : 1;
+  const sens = BASE_MOUSE_SENS * (settings.sens / 100) * sticky;
   look.yaw -= e.movementX * sens;
   look.pitch += (settings.invert ? 1 : -1) * e.movementY * sens;
   look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
@@ -2610,16 +2614,22 @@ function deadzone(v) { return Math.abs(v) < GP_DEADZONE ? 0 : v; }
 
 /* Aim assist — a soft rotational pull toward whatever is already near the
    crosshair, the way GTA5's "assisted aim" (not the full auto-lock option)
-   nudges a stick-and-trigger aim rather than replacing it. It runs while a
-   controller's right stick or a finger on the touch look pad is steering.
-   Mouse play never touches this; a stick or thumb moves slower and less
-   precisely than a mouse cursor, so this buys back some of that gap instead
-   of asking for full aim-bot lock. */
+   nudges an aim rather than replacing it. It runs on every input, but only
+   while that input is actually steering: the right stick deflected, a thumb
+   on the touch look pad, or the mouse/trackpad moved in the last moment —
+   so it never drags an aim that's being held still. Mouse gets a softer
+   pull and slowdown, since a cursor is already far more precise than a
+   stick or thumb. */
 const AIM_ASSIST_CONE_DEG = 7;   // ~14° wide search cone at the default (hip) FOV
 const AIM_ASSIST_SLOWDOWN_DEG = 3.5;
 const AIM_ASSIST_RANGE = 55;
 const AIM_ASSIST_PULL = 3.4;       // rad/sec at the very centre of a lock
 const AIM_ASSIST_SLOWDOWN = 0.45;  // multiplies the player's own look turn near a target
+const AIM_ASSIST_MOUSE_PULL = 0.5;       // share of the full pull a mouse gets
+const AIM_ASSIST_MOUSE_SLOWDOWN = 0.72;  // gentler "sticky" for mouse turns
+const MOUSE_ACTIVE_MS = 200;             // mouse counts as steering this long after it moves
+let mouseLookAt = -Infinity;
+let aimAssistSticky = false;   // crosshair is on a target this frame (read by the mouse handler)
 const _aaOrigin = new THREE.Vector3();
 const _aaForward = new THREE.Vector3();
 const _aaToTarget = new THREE.Vector3();
@@ -2684,7 +2694,7 @@ function findAimAssistTarget() {
    player's own stick/thumb turn when it's already close — the "sticky" half
    GTA5 pairs with the pull. Both effects fall off with angle so the assist
    never overrides a deliberate flick past the target. */
-function applyAimAssist(dt) {
+function applyAimAssist(dt, strength = 1) {
   if (!settings.aimAssist) return;
   const target = findAimAssistTarget();
   if (!target) return;
@@ -2705,13 +2715,14 @@ function applyAimAssist(dt) {
   // Pull strength eases out toward the edge of the cone rather than cutting
   // off sharply, so entering/leaving lock doesn't feel like a snap.
   const edge = (target.dot - target.cone) / (1 - target.cone);
-  const pull = AIM_ASSIST_PULL * edge * dt;
+  const pull = AIM_ASSIST_PULL * strength * edge * dt;
   look.yaw += THREE.MathUtils.clamp(dYaw, -pull, pull);
   look.pitch += THREE.MathUtils.clamp(dPitch, -pull, pull);
 
   const fovScale = camera.fov / baseFov;
   const slowdownCone = Math.cos(THREE.MathUtils.degToRad(AIM_ASSIST_SLOWDOWN_DEG * fovScale));
   if (target.dot > slowdownCone) {
+    aimAssistSticky = true;
     gamepadState.lookDX *= AIM_ASSIST_SLOWDOWN;
     gamepadState.lookDY *= AIM_ASSIST_SLOWDOWN;
     touchState.lookDX *= AIM_ASSIST_SLOWDOWN;
@@ -5286,6 +5297,7 @@ function animate() {
     else { elapsedRun += dt; updateMatchClock(dt); }
     const staging = isStaging();
 
+    aimAssistSticky = false;   // re-earned each frame by applyAimAssist
     pollGamepad(dt);
     updatePlayer(dt);
     if (!isRange()) regenPlayer(dt);
@@ -5689,8 +5701,13 @@ function updatePlayer(dt) {
   const gp = gamepadState.connected;
 
   // The pad's own assist runs in pollGamepad off stick deflection; touch
-  // gets the same while a thumb is down on the look pad.
-  if (touchState.looking && player.alive && !isStaging()) applyAimAssist(dt);
+  // gets the same while a thumb is down on the look pad, and mouse or
+  // trackpad while it's being moved. aimAssistSticky is left set from the
+  // pad's pass this frame, so only clear it when nothing is steering.
+  const mouseSteering = controls.isLocked && performance.now() - mouseLookAt < MOUSE_ACTIVE_MS;
+  const canAssist = player.alive && !isStaging();
+  if (canAssist && touchState.looking) applyAimAssist(dt);
+  if (canAssist && mouseSteering) applyAimAssist(dt, AIM_ASSIST_MOUSE_PULL);
 
   if ((isTouch &&(touchState.lookDX || touchState.lookDY)) || (gp && (gamepadState.lookDX || gamepadState.lookDY))) {
     look.yaw -= touchState.lookDX + gamepadState.lookDX;
@@ -6510,7 +6527,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
     beginStreakHold, endStreakHold,
     landDipT: () => landDipT, landDipMag: () => landDipMag,
-    aimAssistPoints, findAimAssistTarget, applyAimAssist,
+    aimAssistPoints, findAimAssistTarget, applyAimAssist, controls,
   };
   animDebug.mount(() => {
     const w = currentWeapon();
