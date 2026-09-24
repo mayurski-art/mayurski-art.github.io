@@ -213,6 +213,16 @@ check("teammate's flash does not blind", blindFriend <= 0.01, `blindT ${blindFri
 await B.evaluate((t) => { window.__trollOps.net.team = t; }, info[1].team);
 
 // ---------- 5. cook-off in hand: one explosion on thrower, one boom remotely
+// Throwing breaks spawn protection, so by now bots may have killed A — and a
+// dead player can't cook. Stand A back up, too tough to die mid-check.
+async function revive(page) {
+  await page.evaluate(() => {
+    const T = window.__trollOps;
+    if (!T.player.alive) T.respawnPlayer();
+    T.player.maxHp = 100000; T.player.hp = 100000;
+  });
+}
+await revive(A);
 const spentOnB = () => B.evaluate((id) => [...window.__trollOps.grenades.spent].filter((g) => g.startsWith(id)).length, info[0].id);
 const bSpentBefore = await spentOnB();
 const cook = await A.evaluate(async () => {
@@ -232,6 +242,7 @@ check("cooked-off frag still goes off on the other client", (await spentOnB()) =
 check("cooked-off frag leaves the hand spent, not thrown", !cook.stillCooking && cook.gearLeft === 1 && cook.liveAfter === cook.liveBefore, JSON.stringify(cook));
 
 // ---------- 6. held smoke doesn't burn down
+await revive(A);
 const held = await A.evaluate(async () => {
   const T = window.__trollOps;
   T.loadout.tacticalId = "smoke";
