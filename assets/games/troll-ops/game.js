@@ -45,7 +45,7 @@ import { ImpactShader, makeMuzzleFlashMaterial, makeImpactSparkMaterial } from "
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js";
-import { MeleeState, buildMeleeMesh, GrenadeSystem, blastDamage } from "./gear.js";
+import { MeleeState, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS } from "./gear.js";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js";
 
@@ -1682,6 +1682,7 @@ const net = new Net({
     if (m.by !== net.id) creditAssistIfOwed(p.id, p.name);
   },
   onStreak: (m) => applyRemoteStreak(m),
+  onNade: (m) => applyRemoteNade(m),
   onVote: () => { if (intermissionT > 0) renderVote(); },
   /* Adopt the owner's countdown rather than running our own, so two clients
      that started a fraction of a second apart still hit zero together. We
@@ -1754,12 +1755,10 @@ const net = new Net({
   },
   onRemoteShot: (p, m) => {
     const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
-    spawnImpactBurst(origin, 0xffcf8a, 3);
-
-    audio.shot({ damage: 26, pellets: 1 }, 0.8, origin);
+    const dir = new THREE.Vector3(m.dx, m.dy, m.dz);
+    remoteShotFx(origin, dir, m.w, !!m.q);
 
     // Was it aimed near our head? If so, suppress.
-    const dir = new THREE.Vector3(m.dx, m.dy, m.dz);
     if (dir.lengthSq() > 0.001 && player.alive) {
       const miss = rayDistanceTo(origin, dir.normalize(), player.pos);
       if (miss < 3) {
@@ -3012,7 +3011,7 @@ function fireOnce() {
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
   const up = new THREE.Vector3().crossVectors(right, forward).normalize();
   const muzzle = origin.clone().addScaledVector(forward, 0.35);
-  if (isPvp()) net.reportShot(muzzle, forward, def.id);
+  if (isPvp()) net.reportShot(muzzle, forward, def.id, !!def.quiet);
 
   for (let i = 0; i < pellets; i++) {
     const spread = def.pelletSpread != null ? def.pelletSpread : w.spread;
@@ -3125,7 +3124,7 @@ let targetMeshes = [];
 /* Everything alive that a blast could reach, as { actor, pos } pairs. The
    three enemy systems keep their own arrays, so this is the one place that
    has to know about all of them. */
-function blastCandidates() {
+function blastCandidates(sparedTeam = net.team) {
   const out = [];
   if (zdir) {
     for (const z of zdir.zombies) {
@@ -3139,11 +3138,12 @@ function blastCandidates() {
   }
   // Teammates are out: bullets already spare them (hitMeshes skips your own
   // side), and a frag or an airstrike that didn't was a free teamkill that
-  // also scored for your side.
+  // also scored for your side. `sparedTeam` is the thrower's side — ours,
+  // unless this is someone else's flash going off on our screen.
   const ffa = !!currentMode().ffa;
   for (const rp of remotes.byId.values()) {
     if (!rp.alive) continue;
-    if (!ffa && net.team && rp.team === net.team) continue;
+    if (!ffa && sparedTeam && rp.team === sparedTeam) continue;
     out.push({ actor: rp, pos: rp.pos });
   }
   if (rangeSet) {
@@ -3211,10 +3211,16 @@ function updateBlastLights(dt) {
 
 /* Flashbangs only blind what can see them, so a wall is real cover and
    turning away actually helps. */
-function flashPlayer(pos, def) {
+/* Whether a grenade is a teammate's — which spares us, same as their frags
+   do. Our own still gets us: that's the price of a bad throw. */
+function friendlyNade(g) {
+  return !!g?.remote && !currentMode().ffa && !!net.team && g.team === net.team;
+}
+
+function flashPlayer(pos, def, g = null) {
   const dist = pos.distanceTo(player.pos);
   // Smoke eats a flash the same way a wall does.
-  if (dist <= def.radius && !segmentBlocked(colliders, player.pos, pos)
+  if (!friendlyNade(g) && dist <= def.radius && !segmentBlocked(colliders, player.pos, pos)
       && !grenades.blocksSight(player.pos, pos)) {
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
@@ -3225,7 +3231,7 @@ function flashPlayer(pos, def) {
     audio.flashbang(strength, pos);
   }
 
-  for (const { actor, pos: apos } of blastCandidates()) {
+  for (const { actor, pos: apos } of blastCandidates(g?.remote ? g.team : net.team)) {
     if (pos.distanceTo(apos) > def.radius) continue;
     if (segmentBlocked(colliders, apos, pos)) continue;
     if (grenades.blocksSight(apos, pos)) continue;
@@ -3249,14 +3255,17 @@ function applyEmpState(on) {
 /* EMP: no damage, no blindness — it takes your gear away. Optics go dark,
    the HUD scrambles, and the radar stops updating, so you have to fight the
    room on what you can actually see. Walls stop it; smoke doesn't. */
-function empPlayer(pos, def) {
+function empPlayer(pos, def, g = null) {
   const dist = pos.distanceTo(player.pos);
-  if (dist > def.radius || segmentBlocked(colliders, player.pos, pos)) return;
-  const strength = 1 - dist / def.radius;
-  empT = Math.max(empT, def.emp.scramble * (0.4 + strength * 0.6));
-  audio.empHit();
+  if (!friendlyNade(g) && dist <= def.radius && !segmentBlocked(colliders, player.pos, pos)) {
+    const strength = 1 - dist / def.radius;
+    empT = Math.max(empT, def.emp.scramble * (0.4 + strength * 0.6));
+    audio.empHit();
+  }
 
-  for (const { actor, pos: apos } of blastCandidates()) {
+  // Bots are scrambled even when we weren't — this used to return early the
+  // moment we were out of range, so an EMP thrown at a bot never reached it.
+  for (const { actor, pos: apos } of blastCandidates(g?.remote ? g.team : net.team)) {
     if (pos.distanceTo(apos) > def.radius) continue;
     if (segmentBlocked(colliders, apos, pos)) continue;
     // Bots run on sight, so scrambling them reads as a short stun.
@@ -3272,7 +3281,33 @@ function grenadeCtx() {
     onAreaDamage: areaDamage,
     onFlash: flashPlayer,
     onEmp: empPlayer,
+    onDetonate: (g, pos) => publishBoom(g.gid, g.def, pos),
   };
+}
+
+/* Tell the room where our grenade actually went off. */
+function publishBoom(gid, def, pos) {
+  if (!gid || !isPvp() || !net.active) return;
+  net.publishNade({ action: "boom", gid, def: def.id, x: round2(pos.x), y: round2(pos.y), z: round2(pos.z) });
+}
+
+let nadeSeq = 0;
+function nextNadeId() { return `${net.id}-${++nadeSeq}`; }
+
+/* Someone else's throwable, from their `throw`/`boom` messages. */
+function applyRemoteNade(m) {
+  if (gameState !== "playing") return;
+  const def = THROWABLE_DEFS[m.def];
+  if (!def) return;
+  if (m.action === "throw") {
+    const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
+    const dir = new THREE.Vector3(m.dx, m.dy, m.dz).normalize();
+    grenades.throwGrenade(def, origin, dir, m.id, {
+      fuseLeft: Number.isFinite(m.fuse) ? m.fuse : def.fuse, remote: true, gid: m.gid, team: m.team,
+    });
+  } else if (m.action === "boom") {
+    grenades.remoteBoom(m.gid, def, new THREE.Vector3(m.x, m.y, m.z), m.id, m.team, grenadeCtx());
+  }
 }
 
 function refillGear() {
@@ -3291,7 +3326,10 @@ function startCook(slot) {
   cooking.fuse = def.fuse;
 }
 
-function releaseCook() {
+/* `cookedOff`: the fuse ran out in the hand. The grenade is spent but never
+   thrown — this used to throw it anyway with a zero fuse, so it went off a
+   second time a frame after the in-hand blast: two explosions, double damage. */
+function releaseCook({ cookedOff = false } = {}) {
   if (!cooking.def) return;
   const def = cooking.def;
   const slot = cooking.slot;
@@ -3300,6 +3338,8 @@ function releaseCook() {
   els.cook.hidden = true;
   if (player.gear[slot] <= 0) return;
   player.gear[slot]--;
+  updateGearHud();
+  if (cookedOff) return;
 
   const origin = new THREE.Vector3();
   camera.getWorldPosition(origin);
@@ -3310,10 +3350,17 @@ function releaseCook() {
   dir.normalize();
   origin.addScaledVector(dir, 0.6);
 
-  grenades.throwGrenade(def, origin, dir, "player", { fuseLeft: cooking.fuse });
+  const gid = nextNadeId();
+  grenades.throwGrenade(def, origin, dir, "player", { fuseLeft: cooking.fuse, gid });
+  if (isPvp() && net.active) {
+    net.publishNade({
+      action: "throw", gid, def: def.id, fuse: round2(cooking.fuse),
+      ox: round2(origin.x), oy: round2(origin.y), oz: round2(origin.z),
+      dx: round2(dir.x), dy: round2(dir.y), dz: round2(dir.z),
+    });
+  }
   breakSpawnGuard();
   audio.throwGear();
-  updateGearHud();
 }
 
 /* Quick melee swings without putting the gun away; pressing 3 makes the
@@ -3742,10 +3789,49 @@ function botTargets() {
   return list;
 }
 
+/* Someone else's shot, as seen and heard from here: their real gun's report
+   (it used to be one generic rifle for every weapon in the room), a muzzle
+   flash, and a tracer that follows the round's actual path so you can tell
+   where fire is coming from. The tracer is cosmetic — hits are decided by
+   whoever fired. */
+function remoteShotFx(origin, dir, weaponId, quiet = false) {
+  const base = WEAPON_DEFS[weaponId] || WEAPON_DEFS.problem416;
+  audio.shot(quiet ? { ...base, quiet: true } : base, 0.8, origin);
+  if (!quiet) spawnImpactBurst(origin, 0xffcf8a, 3);
+  if (dir.lengthSq() < 0.001) return;
+  const pellets = Math.min(base.pellets || 1, 4);   // a few pellets read as buckshot
+  for (let i = 0; i < pellets; i++) {
+    const d = dir.clone().normalize();
+    if (pellets > 1) {
+      d.x += (Math.random() - 0.5) * (base.pelletSpread || 0.1);
+      d.y += (Math.random() - 0.5) * (base.pelletSpread || 0.1);
+      d.normalize();
+    }
+    bullets.spawn({ origin: origin.clone().addScaledVector(d, 0.6), dir: d, def: base, ownerId: "remote", cosmetic: true });
+  }
+}
+
+const _botMuzzle = new THREE.Vector3();
+const _botAim = new THREE.Vector3();
+
 function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = false) {
   const wid = (usingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
-  const def = WEAPON_DEFS[wid];
-  audio.shot(def || { damage: 24, pellets: 1 }, 0.7, bot.pos);
+
+  // The round's visible path: at the target's chest on a hit, off to one
+  // side on a miss. Played here (we host the bot) and sent to the room,
+  // which previously neither saw nor heard bots fire at all.
+  const fwdX = -Math.sin(bot.yaw), fwdZ = -Math.cos(bot.yaw);
+  _botMuzzle.set(bot.pos.x + fwdX * 0.5, bot.pos.y + 1.45, bot.pos.z + fwdZ * 0.5);
+  _botAim.set(target.pos.x, (target.groundY ?? target.pos.y ?? 0) + (isHead ? 1.6 : 1.2), target.pos.z);
+  if (!hit) {
+    const side = (0.5 + Math.random() * 1.2) * (Math.random() < 0.5 ? -1 : 1);
+    _botAim.x += fwdZ * side;
+    _botAim.z -= fwdX * side;
+    _botAim.y += (Math.random() - 0.3) * 0.8;
+  }
+  const dir = _botAim.clone().sub(_botMuzzle).normalize();
+  remoteShotFx(_botMuzzle, dir, wid);
+  if (net.active) net.reportShotAs(bot.id, _botMuzzle, dir, wid);
 
   if (!hit) {
     if (target.id === net.id) nearMiss(0.45, bot.pos);
@@ -5157,7 +5243,13 @@ function animate() {
       targetMeshes,
       resolveTarget: resolveBulletTarget,
       onActorHit: onBulletActorHit,
-      onWorldHit: (point) => { spawnImpactBurst(point, 0xbfc4b8, 5); audio.impact(point); },
+      // Someone else's round striking a wall throws the same dust, a touch
+      // lighter — it's the "they're shooting at that corner" cue.
+      onWorldHit: (point, cosmetic) => {
+        spawnImpactBurst(point, 0xbfc4b8, cosmetic ? 3 : 5);
+        audio.impact(point);
+      },
+      bounds: ARENA,
     });
     updateSparks(dt);
 
@@ -5184,15 +5276,18 @@ function animate() {
     if (lowhp !== hudCache.lowhp) { hudCache.lowhp = lowhp; els.lowhp.classList.toggle("is-low", lowhp); }
 
     // A cooked grenade keeps ticking in your hand, and can go off in it.
-    if (cooking.def) {
+    // Only cookable ones: a firebomb or smoke held down used to burn its fuse
+    // in your hand too, with no cook bar to warn you.
+    if (cooking.def && cooking.def.cookable) {
       cooking.fuse -= dt;
-      els.cook.hidden = !cooking.def.cookable;
+      els.cook.hidden = false;
       els.cookFill.style.width = `${Math.max(0, (cooking.fuse / cooking.def.fuse) * 100)}%`;
       if (cooking.fuse <= 0) {
         const held = cooking.def;
         cooking.fuse = 0;
-        releaseCook();               // it leaves the hand at zero fuse…
+        releaseCook({ cookedOff: true });   // spent in the hand…
         const at = player.pos.clone();
+        publishBoom(nextNadeId(), held, at);
         explosionFx(held, at);       // …and detonates right there
         if (held.damage > 0) areaDamage(at, held.radius, held.damage, held, {});
         if (held.blind) flashPlayer(at, held);
@@ -6156,7 +6251,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     voteOptions: () => voteOptions,
     intermissionT: () => intermissionT,
     state: () => gameState,
-    grenades, audio, camera, colliders, killcam,
+    grenades, audio, camera, colliders, killcam, bullets,
+    startCook, releaseCook, applyRemoteNade, blindT: () => blindT, cooking,
     empT: () => empT,
     empPlayer, flashPlayer, explosionFx,
     startInspect, inspectT: () => inspectT, inspectPose,

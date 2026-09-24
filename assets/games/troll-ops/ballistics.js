@@ -103,9 +103,17 @@ export class BulletSystem {
     for (let i = 0; i < maxBullets; i++) this.tracers.push(new Tracer(scene, geo));
   }
 
-  // opts: { origin, dir, def, ownerId, damageScale }
-  spawn({ origin, dir, def, ownerId = "player", damageScale = 1 }) {
-    if (this.bullets.length >= this.max) this.bullets.shift();
+  /* opts: { origin, dir, def, ownerId, damageScale, cosmetic }
+     `cosmetic` is someone else's round, drawn so you can see where the fire
+     is coming from. It never hits an actor (the shooter's client decides
+     hits) and stops at the first wall. It also never evicts a real round:
+     when the pool is full, a cosmetic one is simply not drawn. */
+  spawn({ origin, dir, def, ownerId = "player", damageScale = 1, cosmetic = false }) {
+    if (this.bullets.length >= this.max) {
+      if (cosmetic) return;
+      const i = this.bullets.findIndex((b) => b.cosmetic);
+      this.bullets.splice(i >= 0 ? i : 0, 1);
+    }
     const speed = def.muzzleVelocity || 700;
     this.bullets.push({
       pos: origin.clone(),
@@ -113,10 +121,11 @@ export class BulletSystem {
       def,
       ownerId,
       damageScale,
-      pen: def.penetration != null ? def.penetration : 1,
+      pen: cosmetic ? 0 : (def.penetration != null ? def.penetration : 1),
       dist: 0,
       life: MAX_LIFE,
       acc: 0,
+      cosmetic,
     });
   }
 
@@ -130,10 +139,14 @@ export class BulletSystem {
        targetMeshes  — meshes to raycast for actor hits
        resolveTarget — (object3D) => actor | null
        onActorHit    — (actor, { damage, isHead, point, dir, distance })
-       onWorldHit    — (point, normalish)                                  */
+       onWorldHit    — (point, normalish)
+       bounds        — the arena; a round that leaves it can't hit anything  */
   update(dt, ctx) {
-    const { colliders = [], targetMeshes = [], resolveTarget, onActorHit, onWorldHit } = ctx;
-    const ray = new THREE.Raycaster();
+    const { colliders = [], targetMeshes = [], resolveTarget, onActorHit, onWorldHit, bounds } = ctx;
+    const ray = this._ray || (this._ray = new THREE.Raycaster());
+    const from = this._from || (this._from = new THREE.Vector3());
+    const to = this._to || (this._to = new THREE.Vector3());
+    const dir = this._dir || (this._dir = new THREE.Vector3());
 
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
@@ -146,17 +159,24 @@ export class BulletSystem {
         b.life -= STEP;
         if (b.life <= 0) { dead = true; break; }
 
-        const from = b.pos.clone();
+        // A miss into the sky used to integrate for its full 3s life — 360
+        // steps, each tested against every collider — long after it left the
+        // map. Nothing out there can be hit; retire it.
+        if (bounds && (b.pos.x < bounds.minX - 6 || b.pos.x > bounds.maxX + 6
+            || b.pos.z < bounds.minZ - 6 || b.pos.z > bounds.maxZ + 6
+            || (b.pos.y > 60 && b.vel.y > 0))) { dead = true; break; }
+
+        from.copy(b.pos);
         b.vel.y -= DROP * STEP;
-        const to = b.pos.clone().addScaledVector(b.vel, STEP);
-        const seg = new THREE.Vector3().subVectors(to, from);
-        const len = seg.length();
+        to.copy(b.pos).addScaledVector(b.vel, STEP);
+        dir.subVectors(to, from);
+        const len = dir.length();
         if (len < 1e-6) { b.pos.copy(to); continue; }
-        const dir = seg.clone().divideScalar(len);
+        dir.divideScalar(len);
 
         // --- nearest actor hit along this step
         let actorT = Infinity, actorHit = null, actorObj = null;
-        if (targetMeshes.length) {
+        if (targetMeshes.length && !b.cosmetic) {
           ray.set(from, dir);
           ray.near = 0;
           ray.far = len;
@@ -197,14 +217,15 @@ export class BulletSystem {
 
         if (groundT === first) {
           const point = from.clone().addScaledVector(dir, groundT);
-          onWorldHit?.(point);
+          onWorldHit?.(point, b.cosmetic);
           dead = true;
           break;
         }
 
         // --- wall: try to punch through
         const point = from.clone().addScaledVector(dir, wallT);
-        onWorldHit?.(point);
+        onWorldHit?.(point, b.cosmetic);
+        if (b.cosmetic) { dead = true; break; }
         const thickness = Math.max(0.05, wallExit - wallT);
         const cost = thickness * wallPen;
         if (cost > b.pen) { dead = true; break; }
@@ -224,7 +245,7 @@ export class BulletSystem {
       if (!b) { this.tracers[i].hide(); continue; }
       const speed = b.vel.length();
       if (speed < 1e-3) { this.tracers[i].hide(); continue; }
-      const dir = b.vel.clone().divideScalar(speed);
+      dir.copy(b.vel).divideScalar(speed);
       const len = Math.min(b.dist, b.def.tracerLength || 9);
       if (len < 0.4) { this.tracers[i].hide(); continue; }
       this.tracers[i].place(b.pos, dir, len, b.def.tracerWidth || 0.02, 0.9, b.def.tracerColor);

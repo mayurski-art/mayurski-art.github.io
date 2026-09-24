@@ -202,6 +202,14 @@ export class Net {
         this.h.onRemoteShot?.(this.peer(m.id), m);
         break;
       }
+      /* Throwables. The thrower's client owns the grenade — it resolves the
+         damage and reports hits like any gunfire — and sends `throw` so
+         everyone sees it fly and `boom` with where it actually went off, so
+         smoke, flashes and fire land in the same spot for the whole room. */
+      case "nade": {
+        this.h.onNade?.(m);
+        break;
+      }
       case "hit": {
         // Only the target applies it — to itself, or to a bot it owns.
         if (m.target === this.id) { this.h.onHitTaken?.(m); break; }
@@ -411,13 +419,26 @@ export class Net {
     this.send({ t: "died", id: whoId, by: byId, w: weaponId, hd: isHead ? 1 : 0, sk: streak | 0 });
   }
 
-  reportShot(origin, dir, weaponId) {
+  /* `quiet` is the suppressor: the base weapon id alone can't say whether
+     this copy of the gun has one fitted. */
+  reportShot(origin, dir, weaponId, quiet = false) {
+    this.reportShotAs(this.id, origin, dir, weaponId, quiet);
+  }
+
+  /* A bot's shot goes out under the bot's id, so every other client hears
+     and sees it — bots used to fire only on the host's screen. */
+  reportShotAs(fromId, origin, dir, weaponId, quiet = false) {
     this.send({
-      t: "shot", id: this.id,
+      t: "shot", id: fromId,
       ox: round2(origin.x), oy: round2(origin.y), oz: round2(origin.z),
       dx: round2(dir.x), dy: round2(dir.y), dz: round2(dir.z),
-      w: weaponId,
+      w: weaponId, q: quiet ? 1 : 0,
     });
+  }
+
+  /* action "throw": { gid, def, ox..dz, fuse } · action "boom": { gid, def, x, y, z } */
+  publishNade(payload) {
+    this.send({ t: "nade", id: this.id, team: this.team, ...payload });
   }
 
   reportHit(targetId, dmg, isHead, weaponId) {

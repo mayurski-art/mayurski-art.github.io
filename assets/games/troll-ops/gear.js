@@ -772,6 +772,7 @@ export class GrenadeSystem {
     this.live = [];
     this.pools = [];
     this.clouds = [];
+    this.spent = new Set();   // grenade ids already detonated, so a late `boom` can't double up
     this.root = new THREE.Group();
     scene.add(this.root);
     this.geo = new THREE.IcosahedronGeometry(RADIUS, 0);
@@ -792,8 +793,17 @@ export class GrenadeSystem {
   }
 
   /* `fuseLeft` lets a cooked grenade leave the hand already ticking. */
-  throwGrenade(def, origin, dir, ownerId = "player", { power = 1, fuseLeft = null } = {}) {
+  /* `remote` marks someone else's grenade, rendered here from their `throw`
+     message: it flies and goes off on screen, but never deals damage — the
+     thrower's client already resolved that and reported the hits. Its fuse
+     runs a little long so the thrower's `boom` (with the real position)
+     normally arrives first; if it never does, it goes off where it lies. */
+  throwGrenade(def, origin, dir, ownerId = "player", { power = 1, fuseLeft = null, remote = false, gid = null, team = null } = {}) {
     const g = new Grenade(def, origin, dir, def.throwSpeed * power, ownerId, fuseLeft ?? def.fuse);
+    g.remote = remote;
+    g.gid = gid;
+    g.team = team;
+    if (remote) g.fuse += 0.8;
     g.mesh = new THREE.Mesh(this.geo, this.matFor(def));
     g.mesh.position.copy(g.pos);
     this.root.add(g.mesh);
@@ -801,6 +811,20 @@ export class GrenadeSystem {
     this.root.add(g.light);
     this.live.push(g);
     return g;
+  }
+
+  /* The thrower says it went off at `pos`. Detonate our copy there — or, for
+     a grenade we never saw thrown (cooked off in their hand, or the `throw`
+     was lost), a fresh one on the spot. */
+  remoteBoom(gid, def, pos, ownerId, team, ctx) {
+    if (this.spent.has(gid)) return;   // our fallback fuse already set it off
+    let i = this.live.findIndex((g) => g.remote && g.gid === gid);
+    if (i < 0) {
+      this.throwGrenade(def, pos, new THREE.Vector3(0, -1, 0), ownerId, { power: 0, remote: true, gid, team });
+      i = this.live.length - 1;
+    }
+    this.live[i].pos.copy(pos);
+    this.detonate(i, ctx);
   }
 
   clear() {
@@ -830,7 +854,7 @@ export class GrenadeSystem {
         // ground
         if (g.pos.y - RADIUS <= 0) {
           g.pos.y = RADIUS;
-          if (def.impact) { this.detonate(i, ctx); continue; }
+          if (def.impact && !g.remote) { this.detonate(i, ctx); continue; }
           g.vel.y = Math.abs(g.vel.y) * def.bounce;
           g.vel.x *= def.roll;
           g.vel.z *= def.roll;
@@ -838,7 +862,10 @@ export class GrenadeSystem {
 
         const hit = resolveSphere(g.pos, colliders);
         if (hit) {
-          if (def.impact) { this.detonate(i, ctx); continue; }
+          if (def.impact && !g.remote) { this.detonate(i, ctx); continue; }
+          // A remote impact grenade waits for the thrower's `boom` instead of
+          // guessing — it would otherwise go off twice.
+          if (def.impact) { g.vel.set(0, 0, 0); g.resting = true; }
           g.vel[hit.axis] = -g.vel[hit.axis] * def.bounce;
           const other = hit.axis === "y" ? ["x", "z"] : ["x", "y", "z"].filter((a) => a !== hit.axis);
           for (const a of other) g.vel[a] *= def.roll;
@@ -882,7 +909,8 @@ export class GrenadeSystem {
       // machine doesn't burn people faster than a slow one.
       while (p.tick >= 0.25 && p.life > 0) {
         p.tick -= 0.25;
-        onAreaDamage?.(p.pos, p.def.pool.radius, p.def.pool.dps * 0.25, p.def, { fire: true });
+        // Someone else's fire is theirs to score; ours only shows it.
+        if (!p.remote) onAreaDamage?.(p.pos, p.def.pool.radius, p.def.pool.dps * 0.25, p.def, { fire: true });
       }
       if (p.life <= 0) {
         this.root.remove(p.mesh, p.light);
@@ -898,16 +926,23 @@ export class GrenadeSystem {
     this.live.splice(index, 1);
     this.root.remove(g.mesh, g.light);
     const def = g.def;
+    if (g.gid) {
+      this.spent.add(g.gid);
+      if (this.spent.size > 64) this.spent.delete(this.spent.values().next().value);
+    }
 
     ctx.onExplode?.(def, g.pos.clone());
-    if (def.damage > 0) ctx.onAreaDamage?.(g.pos.clone(), def.radius, def.damage, def, {});
-    if (def.blind) ctx.onFlash?.(g.pos.clone(), def);
-    if (def.emp) ctx.onEmp?.(g.pos.clone(), def);
+    if (def.damage > 0 && !g.remote) ctx.onAreaDamage?.(g.pos.clone(), def.radius, def.damage, def, {});
+    // Flash/EMP get the grenade too: whose it was decides who it affects.
+    if (def.blind) ctx.onFlash?.(g.pos.clone(), def, g);
+    if (def.emp) ctx.onEmp?.(g.pos.clone(), def, g);
+    if (!g.remote) ctx.onDetonate?.(g, g.pos.clone());
 
     if (def.smoke) this.spawnSmoke(def, g.pos);
 
     if (def.pool) {
       const p = new FirePool(def, g.pos);
+      p.remote = !!g.remote;
       p.mesh = new THREE.Mesh(this.fireGeo, new THREE.MeshBasicMaterial({
         color: def.glow, transparent: true, opacity: 0.5, depthWrite: false,
         blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
