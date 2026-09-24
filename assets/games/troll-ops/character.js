@@ -393,6 +393,9 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   // head's width across.
   const handScale = 1.55 * s;
   const hands = { L: buildHand(L.hand, -1, handScale, inkMat, -armAngle), R: buildHand(R.hand, 1, handScale, inkMat, armAngle) };
+  // What the right fist holds that isn't a gun (a melee weapon): a mount at
+  // the hand whose x rotation is the wrist.
+  const gripR = joint(R.hand);
 
   // --- legs: knee halfway, ankle, and a short toe so the foot reads as a
   // foot. Both legs split from the one point at the bottom of the spine.
@@ -482,7 +485,7 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
       legL: LL.pivot, legR: LR.pivot, kneeL: LL.knee, kneeR: LR.knee,
       ankleL: LL.ankle, ankleR: LR.ankle,
       gun: gunMesh, body: body.mesh,
-      handL: hands.L.group, handR: hands.R.group,
+      handL: hands.L.group, handR: hands.R.group, gripR,
     },
     hands,
     body,
@@ -568,6 +571,36 @@ function _solveLeg(rig, side, pivot, knee, ankle, target, footPitch) {
 const _smooth = (t) => t * t * (3 - 2 * t);
 const LEG_SPLAY = 0.09;
 
+/* Melee arm, as keyframes of [t, arm raise (x), arm out/across (z), elbow,
+   wrist, chest twist]. The blade leaves the fist square to the forearm, so
+   a bent elbow holds it upright and a turned wrist lays it along the arm
+   for the thrust. MeleeState alternates the two, like the first-person one. */
+const MELEE_CARRY = [0.45, -0.25, 1.25, 0, 0];
+const MELEE_KEYS = {
+  swing: [
+    [0, ...MELEE_CARRY],
+    [0.28, 2.7, -0.45, 1.5, 0, 0.35],     // wind up overhead, blade back
+    [0.5, 0.9, 0.35, 0.2, 0, -0.45],      // cut down and across
+    [0.7, 0.5, 0.45, 0.4, 0, -0.35],      // follow through
+    [1, ...MELEE_CARRY],
+  ],
+  thrust: [
+    [0, ...MELEE_CARRY],
+    [0.3, 0.9, -0.2, 2.2, -1.2, 0.25],    // draw the fist back to the chest
+    [0.55, 1.55, -0.05, 0.05, -1.45, -0.2], // punch the blade straight out
+    [0.75, 1.5, -0.05, 0.1, -1.4, -0.15],
+    [1, ...MELEE_CARRY],
+  ],
+};
+function meleeArm(kind, t) {
+  const keys = MELEE_KEYS[kind] || MELEE_KEYS.swing;
+  let i = 0;
+  while (i < keys.length - 2 && t > keys[i + 1][0]) i++;
+  const a = keys[i], b = keys[i + 1];
+  const k = _smooth(Math.max(0, Math.min(1, (t - a[0]) / Math.max(1e-4, b[0] - a[0]))));
+  return a.slice(1).map((v, j) => v + (b[j + 1] - v) * k);
+}
+
 /* The gun arm's forward raise, and where a held weapon sits on that arm:
    at the hand, turned back by the same angle so it comes out level and
    pointing ahead when the arm is at the carry. */
@@ -584,7 +617,10 @@ export function mountHeldWeapon(rig, mesh) {
    mover's local sideways velocity; `forward` is -1..1 fore/aft (negative =
    backpedal). `speed` is 0..1 of a 4.2 m/s run; `mps`, when the caller knows
    it, is the real speed and sizes the stride so the feet plant exactly. */
-function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false }) {
+/* `hold`: "gun" (default), "melee" or "none". `swing`: { t: 0..1, kind:
+   "swing" | "thrust" } while a melee attack plays. `recoil`: 0..1, the gun's
+   current kick. */
+function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0 }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
@@ -687,14 +723,28 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   // gun behind the body with the barrel at the ground. The elbow stays
   // straight — GUN_MOUNT sits at the straight arm's hand.
   const carrySwing = Math.sin(phase) * 0.04 * spd * blend;
-  p.armR.rotation.set(GUN_CARRY + pitch * 0.32 + carrySwing - lean, 0, -0.15);
-  p.elbowR.rotation.set(0, 0, 0);
-  setHandPose(rig, 1, "fist");
-  setHandPose(rig, -1, hasGun ? "fist" : "open");
+  const kick = Math.max(0, Math.min(1, recoil));
+  const gunInHands = hold === "gun";
+  if (gunInHands) {
+    p.armR.rotation.set(GUN_CARRY + pitch * 0.32 + carrySwing + kick * 0.18 - lean, 0, -0.15);
+    p.elbowR.rotation.set(0, 0, 0);
+    p.torso.rotation.x -= kick * 0.05;
+  } else if (hold === "melee") {
+    const [ax, az, el, wr, twist] = swing ? meleeArm(swing.kind, swing.t) : MELEE_CARRY;
+    p.armR.rotation.set(ax + carrySwing - lean, 0, az);
+    p.elbowR.rotation.set(el, 0, 0);
+    p.gripR.rotation.set(wr, 0, 0);
+    p.chest.rotation.y += twist ?? 0;
+  } else {
+    p.armR.rotation.set(0, 0, -0.06);
+    p.elbowR.rotation.set(0.2, 0, 0);
+  }
+  setHandPose(rig, 1, hold === "none" ? "open" : "fist");
+  setHandPose(rig, -1, gunInHands && hasGun ? "fist" : "open");
 
-  if (hasGun) {
+  if (gunInHands && hasGun) {
     // Support hand on the handguard.
-    p.armL.rotation.set(GUN_CARRY - 0.07 + pitch * 0.28 + carrySwing * 0.6 - lean, 0, 0.18);
+    p.armL.rotation.set(GUN_CARRY - 0.07 + pitch * 0.28 + carrySwing * 0.6 + kick * 0.15 - lean, 0, 0.18);
     p.elbowL.rotation.set(0, 0, 0);
   } else {
     // Free arm: swings against its own leg, from the shoulder, with an elbow

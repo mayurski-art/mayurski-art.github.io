@@ -27,7 +27,7 @@ import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js";
-import { buildHumanoid, poseHumanoid, gaitPhaseRate } from "./character.js";
+import { buildHumanoid, poseHumanoid, gaitPhaseRate, mountHeldWeapon } from "./character.js";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME,
@@ -5547,6 +5547,14 @@ function updateLocalRig(dt) {
 
   if (move.moving) localPhase += dt * gaitPhaseRate(speed);
 
+  // What's in the hands: the melee weapon while it's held or mid-swing
+  // (a quick melee swings it without putting the gun away), else the gun.
+  const swinging = !!player.melee?.busy;
+  const hold = player.holding === "melee" || swinging ? "melee"
+    : player.holding === "gun" ? "gun" : "none";
+  const def = currentWeapon()?.def;
+  syncLocalRigHeld(hold, def);
+
   poseHumanoid(localRig, {
     phase: localPhase,
     moving: move.moving && move.grounded,
@@ -5557,7 +5565,38 @@ function updateLocalRig(dt) {
     speed: gaitSpeed,
     mps: speed,
     dt,
+    hold,
+    hasGun: hold === "gun" && def?.cls !== "sidearm",
+    swing: swinging ? {
+      t: Math.min(1, player.melee.t / player.melee.total),
+      kind: player.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
+    } : null,
+    recoil: hold === "gun" ? Math.min(1, (currentWeapon()?.viewKickKnockback || 0) * 7) : 0,
   });
+}
+
+/* The third-person body carries the same gun or melee weapon the first-
+   person view shows. Rebuilt only when what's held changes. */
+const localHeld = { key: null, mesh: null };
+function syncLocalRigHeld(hold, def) {
+  const key = hold === "gun" ? `gun:${def?.id}` : hold === "melee" ? `melee:${player.melee?.def?.id}` : "none";
+  if (key === localHeld.key) return;
+  localHeld.key = key;
+  if (localHeld.mesh) {
+    localHeld.mesh.parent?.remove(localHeld.mesh);
+    localHeld.mesh.traverse((o) => { o.geometry?.dispose?.(); });
+    localHeld.mesh = null;
+  }
+  if (hold === "gun" && def) {
+    localHeld.mesh = buildWeaponMesh(def);
+    mountHeldWeapon(localRig, localHeld.mesh);
+  } else if (hold === "melee" && player.melee?.def) {
+    // No first-person hands on it: the body's own mitt holds it.
+    localHeld.mesh = buildMeleeMesh(player.melee.def, false);
+    localHeld.mesh.scale.setScalar(1.1);
+    localRig.parts.gripR.add(localHeld.mesh);
+  }
+  localHeld.mesh?.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 }
 
 /* Last value written to each per-frame HUD node. The DOM write itself is
@@ -6380,7 +6419,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     nearestHostileTo, runAirstrike, nearbyPackage, updatePickupPrompt,
     gamepadState, touchState, streakKeyLabel, keys, swapHold,
     animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,
-    tryReload, currentWeapon, fireOnce, composer,
+    tryReload, currentWeapon, fireOnce, composer, setHolding,
+    setTrigger: (v) => { mouseDown = !!v; },
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
     targetMeshes: () => targetMeshes, meleeConnect,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
