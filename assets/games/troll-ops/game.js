@@ -1207,6 +1207,19 @@ let zdir = null;
 let rangeSet = null;
 function isBotPeer(p) { return p.isBot || isSyntheticId(p.id); }
 
+/* Real people in the room, and how they're split — what the bots pad out. */
+function humanHeadcount() {
+  const teams = { phantom: 0, ghost: 0 };
+  let humans = 1;
+  if (net.team in teams) teams[net.team]++;
+  for (const p of net.peers.values()) {
+    if (isBotPeer(p)) continue;
+    humans++;
+    if (p.team in teams) teams[p.team]++;
+  }
+  return { humans, teams };
+}
+
 /* Any OTHER real (non-bot) person currently connected to this match. When
    true, pausing must stay local-only — this client's own net feed, bots
    (this client may be the bot host, publishing them for the whole room)
@@ -4387,8 +4400,8 @@ function beginMatch(mapId = null) {
     // Bots are filled here rather than on the first live frame, so the room is
     // already populated while the player watches the clock.
     if (isPvp() && net.isBotHost()) {
-      const humans = 1 + [...net.peers.values()].filter((p) => !isBotPeer(p)).length;
-      bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, !!currentMode().ffa);
+      const { humans, teams } = humanHeadcount();
+      bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, !!currentMode().ffa, teams);
       for (const b of bots.bots) net.publishBot(b);
     }
     // S&D's round 1 is set up like every later round, under this countdown.
@@ -5189,8 +5202,8 @@ function animate() {
       // Exactly one client simulates the bots and publishes them as peers, so
       // everyone else needs no bot-specific code at all.
       if (net.isBotHost()) {
-        const humans = 1 + [...net.peers.values()].filter((p) => !isBotPeer(p)).length;
-        bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, ffa);
+        const { humans, teams } = humanHeadcount();
+        bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, ffa, teams);
         bots.update(dt, {
           colliders, arena: ARENA, ffa,
           targets: botTargets(),
@@ -6277,7 +6290,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     nearestHostileTo, runAirstrike, nearbyPackage, updatePickupPrompt,
     gamepadState, touchState, streakKeyLabel, keys, swapHold,
     animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,
-    tryReload, currentWeapon,
+    tryReload, currentWeapon, fireOnce, composer,
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
     targetMeshes: () => targetMeshes, meleeConnect,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,

@@ -133,20 +133,25 @@ export class Net {
 
   send(msg) { this.transport?.send(msg); }
 
-  /* Join the smaller side. Only peers whose team we actually know are counted —
-     counting undecided peers as phantoms made two simultaneous joiners both
-     "balance" onto ghost. On a genuine tie (usually because nobody has chosen
-     yet) id order decides, so simultaneous joiners split. */
+  /* Join the side with fewer people. Only peers whose team we actually know
+     are counted — counting undecided peers as phantoms made two simultaneous
+     joiners both "balance" onto ghost. Bots aren't counted either: they pad
+     whichever side is short, so counting them put a second human on the
+     first one's side about half the time. On a genuine tie (usually because
+     nobody has chosen yet) id order decides, so simultaneous joiners split. */
   chooseTeam() {
     let phantom = 0, ghost = 0;
+    const humans = [];
     for (const p of this.peers.values()) {
+      if (p.isBot || isSyntheticId(p.id)) continue;
+      humans.push(p.id);
       if (p.team === "phantom") phantom++;
       else if (p.team === "ghost") ghost++;
     }
     if (phantom !== ghost) {
       this.team = phantom < ghost ? "phantom" : "ghost";
     } else {
-      const ids = [this.id, ...this.peers.keys()].sort();
+      const ids = [this.id, ...humans].sort();
       this.team = ids.indexOf(this.id) % 2 === 0 ? "phantom" : "ghost";
     }
     // Announce it so peers stop seeing us as undecided.

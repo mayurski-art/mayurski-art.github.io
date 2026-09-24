@@ -394,7 +394,25 @@ export class BotManager {
   }
 
   /* Fill the room up to `target` participants, splitting bots across sides. */
-  fill(target, humanCount, spawnFor, ffa) {
+  /* `humanTeams` ({ phantom, ghost }) pads each side rather than the room:
+     bots go where the humans aren't. Without it a lone human always stood
+     with four bots against three — the bots split evenly among themselves
+     and the human made it 5v3. */
+  fill(target, humanCount, spawnFor, ffa, humanTeams = null) {
+    if (!ffa && humanTeams && target > 0) {
+      const want = {
+        phantom: Math.max(0, Math.floor(target / 2) - (humanTeams.phantom | 0)),
+        ghost: Math.max(0, Math.ceil(target / 2) - (humanTeams.ghost | 0)),
+      };
+      for (const team of ["phantom", "ghost"]) {
+        let have = this.bots.filter((b) => b.team === team).length;
+        for (let i = this.bots.length - 1; i >= 0 && have > want[team]; i--) {
+          if (this.bots[i].team === team) { this.bots.splice(i, 1); have--; }
+        }
+        for (; have < want[team]; have++) this.bots.push(new Bot(team, spawnFor(team), this.difficulty));
+      }
+      return;
+    }
     const want = Math.max(0, target - humanCount);
     while (this.bots.length > want) this.bots.pop();
     while (this.bots.length < want) {
