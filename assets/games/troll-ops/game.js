@@ -2529,7 +2529,7 @@ renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 // -------------------- touch controls --------------------
 
 const touchState = {
-  moveX: 0, moveY: 0, lookDX: 0, lookDY: 0,
+  moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, looking: false,
   firing: false, ads: false, jump: false,
   crouch: false, dive: false, interact: false, swap: false,
 };
@@ -2566,6 +2566,7 @@ bindStick(els.touchMove, els.touchMoveNub);
   els.touchLook.addEventListener("touchstart", (e) => {
     const t = e.changedTouches[0];
     id = t.identifier; lastX = t.clientX; lastY = t.clientY;
+    touchState.looking = true;
   }, { passive: true });
   els.touchLook.addEventListener("touchmove", (e) => {
     for (const t of e.changedTouches) {
@@ -2575,7 +2576,9 @@ bindStick(els.touchMove, els.touchMoveNub);
       lastX = t.clientX; lastY = t.clientY;
     }
   }, { passive: true });
-  const end = (e) => { for (const t of e.changedTouches) if (t.identifier === id) id = null; };
+  const end = (e) => {
+    for (const t of e.changedTouches) if (t.identifier === id) { id = null; touchState.looking = false; }
+  };
   els.touchLook.addEventListener("touchend", end);
   els.touchLook.addEventListener("touchcancel", end);
 })();
@@ -2605,24 +2608,52 @@ if (els.touchStreak) {
 
 function deadzone(v) { return Math.abs(v) < GP_DEADZONE ? 0 : v; }
 
-/* Controller aim assist — a soft rotational pull toward whoever is already
-   near the crosshair, the way GTA5's "assisted aim" (not the full auto-lock
-   option) nudges a stick-and-trigger aim rather than replacing it. Mouse
-   play never touches this; a controller reticle just moves slower and less
+/* Aim assist — a soft rotational pull toward whatever is already near the
+   crosshair, the way GTA5's "assisted aim" (not the full auto-lock option)
+   nudges a stick-and-trigger aim rather than replacing it. It runs while a
+   controller's right stick or a finger on the touch look pad is steering.
+   Mouse play never touches this; a stick or thumb moves slower and less
    precisely than a mouse cursor, so this buys back some of that gap instead
    of asking for full aim-bot lock. */
 const AIM_ASSIST_CONE_DEG = 7;   // ~14° wide search cone at the default (hip) FOV
 const AIM_ASSIST_SLOWDOWN_DEG = 3.5;
 const AIM_ASSIST_RANGE = 55;
 const AIM_ASSIST_PULL = 3.4;       // rad/sec at the very centre of a lock
-const AIM_ASSIST_SLOWDOWN = 0.45;  // multiplies the player's own stick turn near a target
+const AIM_ASSIST_SLOWDOWN = 0.45;  // multiplies the player's own look turn near a target
 const _aaOrigin = new THREE.Vector3();
 const _aaForward = new THREE.Vector3();
 const _aaToTarget = new THREE.Vector3();
 
-/* Best enemy to assist toward right now, or null. Picks whoever is closest
-   to the crosshair (not just closest in space) among enemies inside the
-   search cone, alive, and with actual line of sight. */
+/* Every point assist could lock onto this frame, as chest-height world
+   positions. Players and bots come from occupants(); the zombies, wave
+   grunts and range plates each keep their own lists, and used to be left
+   out entirely, which is why assist seemed dead outside PvP. */
+function aimAssistPoints() {
+  const pts = [];
+  const ffa = currentMode().ffa;
+  for (const o of occupants()) {
+    if (o.id === net.id) continue;
+    if (!ffa && o.team === net.team) continue;
+    pts.push({ x: o.pos.x, y: o.pos.y + 1.3, z: o.pos.z });
+  }
+  const bodies = [...(zdir?.zombies || []), ...(spawner?.grunts || [])];
+  for (const e of bodies) {
+    if (!e.alive || e.dying) continue;
+    const p = e.mesh.position;
+    pts.push({ x: p.x, y: p.y + e.type.height * 0.72, z: p.z });
+  }
+  for (const t of rangeSet?.targets || []) {
+    if (t.down > 0) continue;
+    const p = t.mesh.position;
+    // the painted ring: pivot (0.9) + 34% of the 1.7 plate
+    pts.push({ x: p.x, y: p.y + 0.9 + 1.7 * 0.34, z: p.z });
+  }
+  return pts;
+}
+
+/* Best point to assist toward right now, or null. Picks whatever is closest
+   to the crosshair (not just closest in space) inside the search cone, with
+   actual line of sight. */
 function findAimAssistTarget() {
   camera.getWorldPosition(_aaOrigin);
   camera.getWorldDirection(_aaForward);
@@ -2635,36 +2666,32 @@ function findAimAssistTarget() {
   const cone = Math.cos(THREE.MathUtils.degToRad(AIM_ASSIST_CONE_DEG * fovScale));
 
   let best = null, bestDot = -Infinity;
-  for (const o of occupants()) {
-    if (o.id === net.id) continue;
-    const enemy = currentMode().ffa || o.team !== net.team;
-    if (!enemy) continue;
-
-    _aaToTarget.set(o.pos.x - _aaOrigin.x, o.pos.y + 1.3 - _aaOrigin.y, o.pos.z - _aaOrigin.z);
+  for (const pt of aimAssistPoints()) {
+    _aaToTarget.set(pt.x - _aaOrigin.x, pt.y - _aaOrigin.y, pt.z - _aaOrigin.z);
     const dist = _aaToTarget.length();
     if (dist < 0.01 || dist > AIM_ASSIST_RANGE) continue;
     _aaToTarget.multiplyScalar(1 / dist);
 
     const dot = _aaToTarget.dot(_aaForward);
-    if (dot < cone) continue;
-    if (segmentBlocked(colliders, _aaOrigin, { x: o.pos.x, y: o.pos.y + 1.3, z: o.pos.z })) continue;
-
-    if (dot > bestDot) { bestDot = dot; best = { pos: o.pos, dot, cone }; }
+    if (dot < cone || dot <= bestDot) continue;
+    if (segmentBlocked(colliders, _aaOrigin, pt)) continue;
+    bestDot = dot; best = { aim: pt, dot, cone };
   }
   return best;
 }
 
-/* Blends a rotational pull toward `target` into the pending look delta, and
-   damps the player's own stick turn when it's already close — the "sticky"
-   half GTA5 pairs with the pull. Both effects fall off with angle so the
-   assist never overrides a deliberate flick past the target. */
+/* Blends a rotational pull toward `target` into the look, and damps the
+   player's own stick/thumb turn when it's already close — the "sticky" half
+   GTA5 pairs with the pull. Both effects fall off with angle so the assist
+   never overrides a deliberate flick past the target. */
 function applyAimAssist(dt) {
   if (!settings.aimAssist) return;
   const target = findAimAssistTarget();
   if (!target) return;
 
   camera.getWorldPosition(_aaOrigin);
-  _aaToTarget.set(target.pos.x - _aaOrigin.x, target.pos.y + 1.3 - _aaOrigin.y, target.pos.z - _aaOrigin.z).normalize();
+  const a = target.aim;
+  _aaToTarget.set(a.x - _aaOrigin.x, a.y - _aaOrigin.y, a.z - _aaOrigin.z).normalize();
 
   // Desired yaw/pitch to look straight at the target, minus what we're
   // already facing — small angular deltas pulled toward zero.
@@ -2687,6 +2714,8 @@ function applyAimAssist(dt) {
   if (target.dot > slowdownCone) {
     gamepadState.lookDX *= AIM_ASSIST_SLOWDOWN;
     gamepadState.lookDY *= AIM_ASSIST_SLOWDOWN;
+    touchState.lookDX *= AIM_ASSIST_SLOWDOWN;
+    touchState.lookDY *= AIM_ASSIST_SLOWDOWN;
   }
 }
 
@@ -5462,7 +5491,11 @@ function animate() {
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
     camera.updateProjectionMatrix();
 
-    const targetWeaponFov = 58 - w.adsT * 8;
+    // Tube optics narrow the viewmodel lens as well, so the eyepiece fills
+    // a useful part of the screen instead of a coin in the middle.
+    const vm = activeWeaponMesh?.userData;
+    const adsWeaponFov = player.holding !== "melee" && player.holding !== "streak" && vm?.adsWeaponFov ? vm.adsWeaponFov : 50;
+    const targetWeaponFov = 58 + (adsWeaponFov - 58) * w.adsT;
     weaponCamera.fov += (targetWeaponFov - weaponCamera.fov) * Math.min(1, dt * 10);
     weaponCamera.updateProjectionMatrix();
 
@@ -5655,7 +5688,11 @@ function updatePlayer(dt) {
 
   const gp = gamepadState.connected;
 
-  if ((isTouch && (touchState.lookDX || touchState.lookDY)) || (gp && (gamepadState.lookDX || gamepadState.lookDY))) {
+  // The pad's own assist runs in pollGamepad off stick deflection; touch
+  // gets the same while a thumb is down on the look pad.
+  if (touchState.looking && player.alive && !isStaging()) applyAimAssist(dt);
+
+  if ((isTouch &&(touchState.lookDX || touchState.lookDY)) || (gp && (gamepadState.lookDX || gamepadState.lookDY))) {
     look.yaw -= touchState.lookDX + gamepadState.lookDX;
     look.pitch -= touchState.lookDY + gamepadState.lookDY;
     look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
@@ -5695,7 +5732,8 @@ function updatePlayer(dt) {
   // Calling a streak swaps the hands to the streak device/marker, so the
   // primary's optic has no business popping up over it (that's the "scoped
   // weapon flash" glitch when activating a killstreak while holding ADS).
-  const wantAds = !frozen && empT <= 0 && player.holding !== "streak"
+  // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
+  const wantAds = player.alive && !localPauseOnly && empT <= 0 && player.holding !== "streak"
     && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
   const wantFire = !frozen && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
   if (isSnd()) {
@@ -6286,6 +6324,19 @@ function updateLaserBeam(mesh, w) {
      7. camera reaction - lives outside this function entirely; must stay a
                          smaller, separately-tuned effect, never the same
                          numbers as the viewmodel response above */
+/* Optic glass is tinted so the lens reads as glass from the hip, but that
+   tint sat between the eye and the target once aimed. Clear it as the gun
+   comes up; the reticle draws on its own material and stays lit. */
+function fadeOpticGlass(mesh, adsT) {
+  let mats = mesh.userData.glassMats;
+  if (!mats) {
+    mats = [];
+    mesh.traverse((o) => { if (o.material?.userData?.isGlass) mats.push(o.material); });
+    mesh.userData.glassMats = mats;
+  }
+  for (const m of mats) m.opacity = m.userData.baseOpacity * (1 - 0.9 * adsT);
+}
+
 function updateWeaponView(dt) {
   const w = currentWeapon();
   updateInspect(dt);
@@ -6333,7 +6384,9 @@ function updateWeaponView(dt) {
   adsSmoothT = damp(adsSmoothT, adsOffset, adsLambda, dt);
   const hipPos = new THREE.Vector3(0.22, -0.2, -0.55);
   const aimPoint = mesh.userData.aimPoint || new THREE.Vector3(0, 0, -0.4);
-  const adsViewDistance = -0.46; // where the sight should sit in front of the weapon camera
+  // Where the sight sits in front of the weapon camera. Tube optics ask to
+  // come closer so the eyepiece frames the view rather than a pinhole.
+  const adsViewDistance = -(mesh.userData.adsDistance ?? 0.46);
   const adsPos = new THREE.Vector3(-aimPoint.x, -aimPoint.y, adsViewDistance - aimPoint.z);
   const basePos = hipPos.clone().lerp(adsPos, adsSmoothT);
 
@@ -6378,6 +6431,7 @@ function updateWeaponView(dt) {
   );
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
+  fadeOpticGlass(mesh, adsSmoothT);
   updateLaserBeam(mesh, w);
 
   if (muzzleFlashT > 0) {
@@ -6456,6 +6510,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
     beginStreakHold, endStreakHold,
     landDipT: () => landDipT, landDipMag: () => landDipMag,
+    aimAssistPoints, findAimAssistTarget, applyAimAssist,
   };
   animDebug.mount(() => {
     const w = currentWeapon();

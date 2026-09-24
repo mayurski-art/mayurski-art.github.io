@@ -36,26 +36,33 @@ Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
 6. **Buy $TRUTHS** link beside the X link on the main menu (pump.fun mint
    HsryXB2BdWJuRXAY29hDcw2g4BPH57Q5nL1qu8kQpump, same as the terminal).
 
+## Done (session 2, 2026-09-24)
+
+1. **Aim assist** now runs for touch (thumb down on the look pad) as well as
+   the gamepad stick, and locks onto zombies, wave grunts and range plates,
+   not just players/bots (`aimAssistPoints()` in game.js). Mouse still never
+   gets it (deliberate; say if you want it). Verified headless: a touch look
+   0.07 rad off a range plate pulls to 0; mouse stays put.
+2. **ADS during the pre-match countdown**: `wantAds` no longer inherits the
+   staging freeze (only death / local pause). Verified: adsT reaches 1 while
+   staging.
+3. **Optics clear view**: Coyote, ACOG and 8x were solid black discs when
+   aimed: capped tube cylinders, 55%-opaque tinted glass, and mount legs
+   drawn up to the glass centre (inside the tube, on the sight line). Now
+   open-ended `sleeve()` tubes with an unlit black lining, glass fades clear
+   with adsT (`fadeOpticGlass`), legs start under the housing, the Coyote
+   turret sits on top of the tube. Tube optics carry `adsDistance` (eye
+   relief) and `adsWeaponFov`, so the eyepiece comes up to the eye instead of
+   a pinhole. Checked all 5 optics on problem416, grinstock, smg, deadpan and
+   bellow: reticle on the true centre, nothing blocks the view. Hip view
+   unchanged. Cache-bust now `?v=to-optics1`.
+
 ## Still to do (asked for, not started)
 
-1. **Aim assist doesn't work** — diagnosed, not fixed. `applyAimAssist()` only
-   runs when the gamepad right stick is deflected (`usingGamepadLook` in the
-   gamepad poll, game.js ~2724). Mouse and touch never get it, and targets come
-   only from `occupants()` (players/bots), so range targets, zombies and
-   grunts are never assisted. Fix: also run it for touch look (and decide
-   with the user whether mouse gets it), and add non-player targets.
-2. **ADS during the pre-match countdown** — let players scope in/out while
-   staging (look at the `frozen`/staging gates in updatePlayer / WeaponState
-   update; ADS is blocked there).
-3. **Optics: clear view through every sight when aimed.** User named the
-   ACOG 4x and Coyote; go through all optics (iron, reflex, coyote, acog,
-   scope8) on several guns incl. the new Problem 416 model and check the
-   aim point lines up and nothing (housing, rail, reticle plane) blocks the
-   centre. Note the 416 uses its own aimY/aimZ in weapon-416.js.
-4. **Main menu redesign** — user: "looks vibe coded". Specifically hates the
+1. **Main menu redesign** — user: "looks vibe coded". Specifically hates the
    giant Map Select box. Propose a direction with a mockup first (per the
    design-doc-first rule), then build.
-5. **All maps rework** — object placement and construction should make sense
+2. **All maps rework** — object placement and construction should make sense
    and feel complete. Big: plan/design doc first, one map at a time.
 
 ## Backlog (not for now)

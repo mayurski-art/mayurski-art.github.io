@@ -344,6 +344,10 @@ export function buildWeaponMesh(def, { skin } = {}) {
   }
   group.userData.sight = sight;
   group.userData.aimPoint = new THREE.Vector3(0, aimY, aimZ);
+  // Tube optics bring the eyepiece up to the eye when aimed (see
+  // attachment-models.js adsDistance); open sights keep the default.
+  group.userData.adsDistance = railMountedOptic?.userData.adsDistance ?? null;
+  group.userData.adsWeaponFov = railMountedOptic?.userData.adsWeaponFov ?? null;
   group.userData.muzzleZ = muzzleZ;
 
   // --- suppressor / muzzle device

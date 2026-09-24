@@ -250,9 +250,9 @@ export function build416(def, skinId, { texture = null } = {}) {
   const sight = new THREE.Group();
   const opticKey = def.attachments?.optic || (def.sight === "scope" ? "acog" : def.sight === "reddot" ? "reflex" : "iron");
   const opticBuild = OPTIC_BUILDERS[opticKey];
-  let aimY, aimZ;
+  let aimY, aimZ, optic = null;
   if (opticBuild) {
-    const optic = opticBuild();
+    optic = opticBuild();
     sight.add(optic);
     aimY = topY + 0.004 + (optic.userData.aimOffsetY ?? 0.05);
     aimZ = optic.userData.lengthZ > 0.12 ? -0.19 : -0.15;
@@ -269,6 +269,8 @@ export function build416(def, skinId, { texture = null } = {}) {
   group.add(sight);
   group.userData.sight = sight;
   group.userData.aimPoint = new THREE.Vector3(0, aimY, aimZ);
+  group.userData.adsDistance = optic?.userData.adsDistance ?? null;
+  group.userData.adsWeaponFov = optic?.userData.adsWeaponFov ?? null;
 
   // --- muzzle device
   const barrelBuild = BARREL_BUILDERS[def.attachments?.barrel];

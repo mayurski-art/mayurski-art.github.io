@@ -29,11 +29,16 @@ const M = {
 // Optic glass: a faint blue-green coated lens. Double-sided and lightly
 // transparent so you can see the tube wall behind it from an angle, which is
 // what sells it as glass rather than a painted disc.
+// The viewmodel fades it toward clear as the gun comes up (userData.isGlass),
+// so aimed in you look through the lens instead of at it.
 function glassMat(tint = 0x2a5c6e) {
-  return new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({
     color: tint, roughness: 0.08, metalness: 0.2,
-    transparent: true, opacity: 0.55, side: THREE.DoubleSide,
+    transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false,
   });
+  m.userData.isGlass = true;
+  m.userData.baseOpacity = 0.55;
+  return m;
 }
 
 // The illuminated element. Basic + depthTest:false so the dot/chevron stays
@@ -44,6 +49,19 @@ function reticleMat(color) {
 
 function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
 function tube(rt, rb, h, mat, seg = 16) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); }
+
+/* An open-ended tube for anything the eye looks down: body, bell, eyecup.
+   A capped cylinder is a solid plug from behind, which is what turned every
+   tube optic into a black disc when aimed. The inside gets an unlit matte
+   black lining, like a real blackened bore, so it frames the view as a dark
+   ring instead of catching the viewmodel rim light. */
+const LINING = new THREE.MeshBasicMaterial({ color: 0x070808, side: THREE.BackSide });
+function sleeve(rt, rb, h, mat, seg = 18) {
+  const geo = new THREE.CylinderGeometry(rt, rb, h, seg, 1, true);
+  const m = new THREE.Mesh(geo, mat);
+  m.add(new THREE.Mesh(geo, LINING));
+  return m;
+}
 
 /* A length of picatinny rail: the repeated cross-slots are what read as
    "rail" at a glance, so they're modelled rather than textured. */
@@ -80,12 +98,14 @@ function turret(radius, height, mat) {
 }
 
 /* Mount legs + thumbscrews clamping an optic down onto the receiver rail.
-   `drop` is how far below the glass centre the rail sits. */
-function opticMount(drop, width, spread, mat) {
+   `drop` is how far below the glass centre the rail sits; `top` is where
+   the housing's underside is, and the legs start there. Legs drawn up to
+   the glass centre stood inside the tube, right across the sight line. */
+function opticMount(drop, width, spread, mat, top = 0) {
   const g = new THREE.Group();
   for (const z of spread) {
-    const leg = box(width, drop, 0.014, mat);
-    leg.position.set(0, -drop / 2, z);
+    const leg = box(width, drop - top, 0.014, mat);
+    leg.position.set(0, -(drop + top) / 2, z);
     g.add(leg);
     const shoe = box(width * 1.5, 0.008, 0.02, mat);
     shoe.position.set(0, -drop, z);
@@ -136,7 +156,7 @@ function buildReflex() {
   battery.position.set(0.024, -wallH / 2 - 0.006, 0);
   g.add(battery);
 
-  g.add(opticMount(0.03, 0.03, [-0.012, 0.012], M.rail()));
+  g.add(opticMount(0.03, 0.03, [-0.012, 0.012], M.rail(), 0.016));
   g.userData.aimOffsetY = 0.048;   // glass centre above the rail surface
   g.userData.lengthZ = 0.05;
   return g;
@@ -149,13 +169,13 @@ function buildCoyote() {
   const shell = M.shell();
   const len = 0.062, r = 0.021;
 
-  const body = tube(r, r, len, shell, 18);
+  const body = sleeve(r, r, len, shell, 18);
   body.rotation.x = Math.PI / 2;
   g.add(body);
 
   // Flared objective + eyepiece rings so the tube has ends, not flat cuts.
   for (const [z, rr] of [[-len / 2, r * 1.14], [len / 2, r * 1.1]]) {
-    const ring = tube(rr, rr, 0.007, shell, 18);
+    const ring = sleeve(rr, rr, 0.007, shell, 18);
     ring.rotation.x = Math.PI / 2;
     ring.position.z = z;
     g.add(ring);
@@ -172,16 +192,20 @@ function buildCoyote() {
 
   // Brightness turret on top, killflash-style shade on the objective.
   const t = turret(0.009, 0.016, M.knob());
-  t.position.set(0, r * 0.85, 0.006);
+  t.position.set(0, r + 0.007, 0.006);   // sits ON the tube, clear of the view
   g.add(t);
-  const shade = tube(r * 1.16, r * 1.16, 0.014, shell, 18);
+  const shade = sleeve(r * 1.16, r * 1.16, 0.014, shell, 18);
   shade.rotation.x = Math.PI / 2;
   shade.position.z = -len / 2 - 0.007;
   g.add(shade);
 
-  g.add(opticMount(0.032, 0.026, [-0.016, 0.016], M.rail()));
+  g.add(opticMount(0.032, 0.026, [-0.016, 0.016], M.rail(), r * 0.95));
   g.userData.aimOffsetY = 0.053;
   g.userData.lengthZ = 0.09;
+  // Aimed, the glass sits this far in front of the eye (the default is 0.46,
+  // which left the tube a pinhole) with the viewmodel lens narrowed to match.
+  g.userData.adsDistance = 0.2;
+  g.userData.adsWeaponFov = 44;
   return g;
 }
 
@@ -194,11 +218,11 @@ function buildAcog() {
   const len = 0.105;
 
   // Tapered body — wide objective, narrow eyepiece.
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.028, len, 18), shell);
+  const body = sleeve(0.019, 0.028, len, shell, 18);
   body.rotation.x = -Math.PI / 2;   // wide end forward (-Z)
   g.add(body);
 
-  const bell = tube(0.031, 0.031, 0.012, shell, 18);
+  const bell = sleeve(0.031, 0.031, 0.012, shell, 18);
   bell.rotation.x = Math.PI / 2;
   bell.position.z = -len / 2 - 0.005;
   g.add(bell);
@@ -208,7 +232,8 @@ function buildAcog() {
   g.add(glass);
 
   // Rubber eyecup at the rear — an ACOG tell.
-  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.017, 0.018, 16), M.rubber());
+  const rubber = M.rubber();
+  const cup = sleeve(0.022, 0.017, 0.018, rubber, 16);
   cup.rotation.x = Math.PI / 2;
   cup.position.z = len / 2 + 0.008;
   g.add(cup);
@@ -233,9 +258,12 @@ function buildAcog() {
   t.rotation.z = -Math.PI / 2;
   g.add(t);
 
-  g.add(opticMount(0.034, 0.03, [-0.02, 0.022], M.rail()));
+  g.add(opticMount(0.034, 0.03, [-0.02, 0.022], M.rail(), 0.021));
   g.userData.aimOffsetY = 0.056;
   g.userData.lengthZ = 0.14;
+  // Real ACOG eye relief is short; up close the objective fills the view.
+  g.userData.adsDistance = 0.14;
+  g.userData.adsWeaponFov = 30;
   return g;
 }
 
@@ -246,17 +274,17 @@ function buildScope8() {
   const shell = M.shell();
   const len = 0.19, r = 0.018;
 
-  const body = tube(r, r, len, shell, 20);
+  const body = sleeve(r, r, len, shell, 20);
   body.rotation.x = Math.PI / 2;
   g.add(body);
 
   // Objective bell at the front, eyepiece swell at the back.
   const bellLen = 0.044;
-  const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.03, r, bellLen, 20), shell);
+  const bell = sleeve(0.03, r, bellLen, shell, 20);
   bell.rotation.x = -Math.PI / 2;
   bell.position.z = -len / 2 - bellLen / 2 + 0.002;
   g.add(bell);
-  const hood = tube(0.031, 0.031, 0.012, shell, 20);
+  const hood = sleeve(0.031, 0.031, 0.012, shell, 20);
   hood.rotation.x = Math.PI / 2;
   hood.position.z = -len / 2 - bellLen;
   g.add(hood);
@@ -265,11 +293,12 @@ function buildScope8() {
   glass.position.z = -len / 2 - bellLen - 0.005;
   g.add(glass);
 
-  const eye = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.02, 0.026, 18), shell);
+  const eye = sleeve(0.024, 0.02, 0.026, shell, 18);
   eye.rotation.x = Math.PI / 2;
   eye.position.z = len / 2 + 0.012;
   g.add(eye);
-  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.022, 0.01, 18), M.rubber());
+  const rubber = M.rubber();
+  const cup = sleeve(0.025, 0.022, 0.01, rubber, 18);
   cup.rotation.x = Math.PI / 2;
   cup.position.z = len / 2 + 0.03;
   g.add(cup);
@@ -285,7 +314,7 @@ function buildScope8() {
   g.add(cross);
 
   // Magnification ring + both turrets — the details that say "8x".
-  const magRing = tube(r * 1.25, r * 1.25, 0.016, M.knob(), 20);
+  const magRing = sleeve(r * 1.25, r * 1.25, 0.016, M.knob(), 20);
   magRing.rotation.x = Math.PI / 2;
   magRing.position.z = len * 0.3;
   g.add(magRing);
@@ -311,10 +340,12 @@ function buildScope8() {
     ring.position.z = z;
     g.add(ring);
   }
-  g.add(opticMount(drop, 0.026, [-len * 0.26, len * 0.26], M.rail()));
+  g.add(opticMount(drop, 0.026, [-len * 0.26, len * 0.26], M.rail(), r));
 
   g.userData.aimOffsetY = 0.058;
   g.userData.lengthZ = len + bellLen + 0.05;
+  g.userData.adsDistance = 0.19;
+  g.userData.adsWeaponFov = 13;
   return g;
 }
 
