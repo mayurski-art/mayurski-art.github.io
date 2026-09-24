@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troll Gait Preview</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #1d2a1f; color: #dfe6da; font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #bar { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; padding: 8px 12px; background: rgba(0,0,0,.45); z-index: 2; }
+  #bar label { display: flex; gap: 6px; align-items: center; }
+  canvas { display: block; }
+  .tag { position: fixed; bottom: 12px; transform: translateX(-50%); font-weight: 600; letter-spacing: .04em; text-shadow: 0 1px 2px #000; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "../assets/vendor/three.module.min.js", "three/addons/": "../assets/vendor/addons/" } }
+</script>
+</head>
+<body>
+<div id="bar">
+  <strong>Troll gait</strong>
+  <label><input type="checkbox" id="side" checked> Side view</label>
+  <label>Speed ×<input type="range" id="slow" min="0.1" max="1" step="0.05" value="1"></label>
+  <label><input type="checkbox" id="gun"> Holding a gun</label>
+  <label><input type="checkbox" id="crouch"> Crouch</label>
+  <label><input type="checkbox" id="back"> Backpedal</label>
+</div>
+<script type="module">
+// Three rigs on a treadmill: the floor slides under them at their real speed,
+// so a foot that slides against the grid is a foot that isn't planted.
+// ?t=1.23 freezes the clock at that time (for screenshots).
+import * as THREE from "three";
+import { buildHumanoid, poseHumanoid, gaitPhaseRate } from "../assets/games/troll-ops/character.js";
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+document.body.appendChild(renderer.domElement);
+renderer.shadowMap.enabled = true;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1d2a1f);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x223322, 1.1));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(4, 8, 5);
+sun.castShadow = true;
+scene.add(sun);
+
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+
+const floor = new THREE.Group();
+const grass = new THREE.Mesh(new THREE.PlaneGeometry(80, 12), new THREE.MeshStandardMaterial({ color: 0x2f6b34, roughness: 1 }));
+grass.rotation.x = -Math.PI / 2;
+grass.receiveShadow = true;
+floor.add(grass);
+const grid = new THREE.GridHelper(80, 160, 0x9fd49f, 0x4c8a50);
+grid.position.y = 0.002;
+floor.add(grid);
+scene.add(floor);
+
+const GAITS = [
+  { name: "Walk 1.6 m/s", mps: 1.6 },
+  { name: "Run 4.2 m/s", mps: 4.2 },
+  { name: "Sprint 5.7 m/s", mps: 5.7 },
+];
+const mat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
+// Lanes sit in a row along X, everyone facing -X, so a camera off to the
+// side (+Z) sees all three in profile.
+const TICK = 0.25, TICKS = 11;
+const lineMat = new THREE.LineBasicMaterial({ color: 0xe8ffe8 });
+const tickGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.004, -0.45), new THREE.Vector3(0, 0.004, 0.45)]);
+const lanes = GAITS.map((g, i) => {
+  const rig = buildHumanoid(mat, { height: 1.8, gun: true });
+  const x = (i - 1) * 3;
+  rig.root.position.x = x;
+  rig.root.rotation.y = Math.PI / 2;
+  scene.add(rig.root);
+  const tag = document.createElement("div");
+  tag.className = "tag";
+  tag.textContent = g.name;
+  document.body.appendChild(tag);
+  const ticks = [];
+  for (let k = 0; k < TICKS; k++) { const t = new THREE.Line(tickGeo, lineMat); scene.add(t); ticks.push(t); }
+  return { ...g, rig, tag, ticks, x, phase: 0, travel: 0 };
+});
+grid.visible = false;
+
+const $ = (id) => document.getElementById(id);
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+resize();
+
+let frozen = new URLSearchParams(location.search).get("t");
+// For recording: step the frozen clock from outside.
+window.__setT = (t) => { frozen = t; };
+let clock = 0, last = performance.now();
+function frame(now) {
+  const slow = +$("slow").value;
+  let dt = Math.min(0.05, (now - last) / 1000) * slow;
+  last = now;
+  if (frozen != null) { dt = 0; clock = +frozen; } else clock += dt;
+
+  const side = $("side").checked;
+  if (side) { camera.position.set(0, 1.0, 11); camera.lookAt(0, 0.8, 0); }
+  else { camera.position.set(-7, 2.2, 8); camera.lookAt(0, 0.8, 0); }
+
+  const back = $("back").checked;
+  for (const l of lanes) {
+    // Frozen: derive the phase from the clock so a screenshot is reproducible.
+    const rate = gaitPhaseRate(l.mps);
+    l.phase = frozen != null ? clock * rate : l.phase + dt * rate;
+    // The floor slides +X under a walker facing -X, at the walker's speed.
+    l.travel = frozen != null ? clock * l.mps : l.travel + dt * l.mps;
+    const shift = ((back ? -l.travel : l.travel) % TICK + TICK) % TICK;
+    const span = TICK * TICKS;
+    l.ticks.forEach((t, k) => { t.position.x = l.x - span / 2 + ((k * TICK + shift) % span); });
+    l.rig.parts.gun.visible = $("gun").checked;
+    poseHumanoid(l.rig, {
+      phase: l.phase, moving: true, pitch: 0, lower: $("crouch").checked ? 0.45 : 0,
+      strafe: 0, forward: back ? -1 : 1, speed: Math.min(1, l.mps / 4.2), mps: l.mps,
+      dt: frozen != null ? 1 : dt, hasGun: $("gun").checked,
+    });
+    const p = l.rig.root.position.clone().project(camera);
+    l.tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`;
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -27,7 +27,7 @@ import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js";
-import { buildHumanoid, poseHumanoid } from "./character.js";
+import { buildHumanoid, poseHumanoid, gaitPhaseRate } from "./character.js";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME,
@@ -5545,7 +5545,7 @@ function updateLocalRig(dt) {
   }
   const gaitSpeed = Math.max(0, Math.min(1, speed / 4.2));
 
-  if (move.moving) localPhase += dt * 9 * Math.max(0.35, Math.min(1.6, speed / 4.2));
+  if (move.moving) localPhase += dt * gaitPhaseRate(speed);
 
   poseHumanoid(localRig, {
     phase: localPhase,
@@ -5555,6 +5555,7 @@ function updateLocalRig(dt) {
     strafe,
     forward,
     speed: gaitSpeed,
+    mps: speed,
     dt,
   });
 }

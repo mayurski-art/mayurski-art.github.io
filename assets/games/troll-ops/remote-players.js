@@ -6,7 +6,7 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath } from "./character.js";
+import { buildHumanoid, poseHumanoid, poseDeath, gaitPhaseRate, mountHeldWeapon } from "./character.js";
 import { buildWeaponMesh } from "./weapon-model.js";
 import { WEAPON_DEFS } from "./weapons.js";
 
@@ -113,10 +113,8 @@ export class RemotePlayer {
     }
     const def = WEAPON_DEFS[weaponId];
     if (!def) return;
-    const s = this.rig.scale;
     const mesh = buildWeaponMesh(def);
-    mesh.position.set(0.30 * s, -0.62 * s - 0.12 * s, -0.12 * s);
-    arm.add(mesh);
+    mountHeldWeapon(this.rig, mesh);
     this.weaponMesh = mesh;
   }
 
@@ -232,7 +230,9 @@ export class RemotePlayer {
     // so a jog and a sprint are visibly different gaits, not just the same
     // cycle replayed faster.
     const gaitSpeed = Math.max(0, Math.min(1, speed / 4.2));
-    if (moving) this.phase += dt * 9 * Math.max(0.35, Math.min(1.6, speed / 4.2));
+    // Cadence from the real speed, so the planted foot moves exactly as fast
+    // as the ground under it.
+    if (moving) this.phase += dt * gaitPhaseRate(this.gaitMps = (this.gaitMps ?? speed) + (speed - (this.gaitMps ?? speed)) * Math.min(1, dt * 6));
 
     this.rig.root.position.copy(this.pos);
     this.rig.root.rotation.y = this.yaw;
@@ -241,7 +241,7 @@ export class RemotePlayer {
     // swing) for anything but a sidearm — matches weapon-model.js's own
     // !isPistol gate for whether a weapon actually has a support hand mesh.
     const hasGun = WEAPON_DEFS[this.weaponId]?.cls !== "sidearm";
-    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward, speed: gaitSpeed, dt, hasGun });
+    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward, speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun });
 
     this.tag.position.y = 2.15 - this.lower * 0.75;
   }

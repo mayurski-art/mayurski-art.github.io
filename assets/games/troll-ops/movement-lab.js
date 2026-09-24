@@ -9,7 +9,7 @@
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { MovementController } from "./movement.js";
-import { buildHumanoid, poseHumanoid } from "./character.js";
+import { buildHumanoid, poseHumanoid, gaitPhaseRate } from "./character.js";
 
 // ---------- renderer / scene ----------
 const stage = document.getElementById("stage");
@@ -245,7 +245,7 @@ function frame() {
 
   const planarSpeed = Math.hypot(mover.velocity.x, mover.velocity.z);
   const moving = mover.moving;
-  if (moving) gaitPhase += dt * (6 + planarSpeed * 0.9);
+  if (moving) gaitPhase += dt * gaitPhaseRate(planarSpeed);
 
   const localForward = -( -Math.sin(yaw) * (mover.velocity.x) + -Math.cos(yaw) * (mover.velocity.z) ) / (planarSpeed || 1);
   const localStrafe = ( Math.cos(yaw) * mover.velocity.x + -Math.sin(yaw) * mover.velocity.z ) / (planarSpeed || 1);
@@ -258,6 +258,7 @@ function frame() {
     strafe: moving ? localStrafe : 0,
     forward: moving ? localForward : 1,
     speed: Math.min(1, planarSpeed / (params.walk * params.sprintMult)),
+    mps: planarSpeed,
     dt,
   });
 

@@ -17,11 +17,6 @@
 import * as THREE from "three";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
-// Hands and feet match the rest of the limbs - black, matching the
-// classic trollface stick-figure look - rather than the old pale mitten
-// hands, which stood out as a lighter patch against the black arms/legs.
-const HAND_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.6 });
-const FOOT_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7 });
 
 // Shared by every invisible hit-proxy primitive (see buildHumanoid below).
 // Never rendered, just needs to be a real material so raycasting works.
@@ -42,45 +37,212 @@ const TROLLFACE_HEAD_MAT = new THREE.MeshStandardMaterial({
   roughness: 0.7,
 });
 
-/* A thin stick limb from `from` to `to`, capped with spheres so the joint
-   where it meets another limb doesn't show a hard seam. */
-function stick(from, to, radius, mat) {
-  const start = new THREE.Vector3(...from);
-  const end = new THREE.Vector3(...to);
-  const mid = start.clone().add(end).multiplyScalar(0.5);
-  const length = start.distanceTo(end);
+/* ------------------------------------------------------------ the body line
 
-  const group = new THREE.Group();
-  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 8), mat);
-  const capTop = new THREE.Mesh(new THREE.SphereGeometry(radius, 8, 6), mat);
-  const capBottom = new THREE.Mesh(new THREE.SphereGeometry(radius, 8, 6), mat);
-  capTop.position.y = length / 2;
-  capBottom.position.y = -length / 2;
-  cyl.add(capTop, capBottom);
-  cyl.castShadow = true;
-  group.add(cyl);
+   The body is ONE mesh: a round tube swept through the joints, like a line
+   drawn with a marker. Neck, spine, hips and left leg are a single unbroken
+   stroke; the right leg and both arms start inside it, where a sphere closes
+   the join. The old rig built every limb as its own capped cylinder on its
+   own pivot, so any lean opened a visible break where the torso met the legs.
 
-  group.position.copy(mid);
-  group.quaternion.setFromUnitVectors(
-    new THREE.Vector3(0, 1, 0),
-    end.clone().sub(start).normalize(),
-  );
-  return group;
+   The pivots (hips, torso, chest, legs, knees...) still exist and are still
+   what every pose rotates. They're invisible now: each frame the stroke reads
+   where the joints ended up and rebuilds the tube through them. */
+
+const RADIAL = 8;         // sides per tube ring
+const FILLET = 5;         // samples round each bend
+const CAP_W = 8, CAP_H = 6;
+
+/* Straight limbs, rounded corners: each segment is a straight run, and each
+   joint is turned with a short quadratic curve, like a marker line bending
+   at the knee. A spline through every joint made the limbs read as rubber
+   hoses; this keeps them sticks. `r` is how far the rounding reaches. */
+function chainSamples(n) { return 2 + (n - 2) * FILLET; }
+const _fa = new THREE.Vector3(), _fb = new THREE.Vector3();
+function sampleChain(pts, out, r) {
+  let o = 0;
+  const n = pts.length;
+  out[o++].copy(pts[0]);
+  for (let i = 1; i < n - 1; i++) {
+    const J = pts[i];
+    const la = J.distanceTo(pts[i - 1]), lb = J.distanceTo(pts[i + 1]);
+    const f = Math.min(r, la * 0.45, lb * 0.45);
+    _fa.subVectors(pts[i - 1], J).setLength(Math.max(1e-5, f)).add(J);   // start of the bend
+    _fb.subVectors(pts[i + 1], J).setLength(Math.max(1e-5, f)).add(J);   // end of it
+    for (let k = 0; k < FILLET; k++) {
+      const t = k / (FILLET - 1), u = 1 - t;
+      out[o++].set(
+        u * u * _fa.x + 2 * u * t * J.x + t * t * _fb.x,
+        u * u * _fa.y + 2 * u * t * J.y + t * t * _fb.y,
+        u * u * _fa.z + 2 * u * t * J.z + t * t * _fb.z,
+      );
+    }
+  }
+  out[o++].copy(pts[n - 1]);
+  return o;
+}
+
+class BodyStroke {
+  /* `chains`: arrays of joint Object3Ds, each drawn as one tube.
+     `caps`: joints that get a sphere (chain ends, and where a chain starts
+     inside another). */
+  constructor(root, chains, caps, radius, material) {
+    this.root = root;
+    this.chains = chains;
+    this.caps = caps;
+    this.radius = radius;
+    this.joints = [...new Set([...chains.flat(), ...caps])];
+    this.local = new Map(this.joints.map((j) => [j, new THREE.Vector3()]));
+    this.last = new Float32Array(this.joints.length * 3).fill(NaN);
+
+    this.samples = chains.map((c) => Array.from({ length: chainSamples(c.length) }, () => new THREE.Vector3()));
+    const tubeVerts = this.samples.reduce((n, s) => n + s.length * (RADIAL + 1), 0);
+    const capVerts = caps.length * (CAP_W + 1) * (CAP_H + 1);
+    const total = tubeVerts + capVerts;
+
+    const index = [];
+    let base = 0;
+    for (const s of this.samples) {
+      for (let i = 0; i < s.length - 1; i++) {
+        for (let r = 0; r < RADIAL; r++) {
+          const a = base + i * (RADIAL + 1) + r, b = a + RADIAL + 1;
+          index.push(a, b, a + 1, b, b + 1, a + 1);
+        }
+      }
+      base += s.length * (RADIAL + 1);
+    }
+    // A unit sphere template for the caps.
+    this.capBase = base;
+    this.capUnit = [];
+    const uv = new Float32Array(total * 2);
+    for (let c = 0; c < caps.length; c++) {
+      for (let y = 0; y <= CAP_H; y++) {
+        const th = (y / CAP_H) * Math.PI;
+        for (let x = 0; x <= CAP_W; x++) {
+          const ph = (x / CAP_W) * Math.PI * 2;
+          if (c === 0) this.capUnit.push(new THREE.Vector3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)));
+          const v = base + y * (CAP_W + 1) + x;
+          uv[v * 2] = x / CAP_W; uv[v * 2 + 1] = y / CAP_H;
+          if (y < CAP_H && x < CAP_W) {
+            const a = v, b = v + CAP_W + 1;
+            index.push(a, a + 1, b, b, a + 1, b + 1);
+          }
+        }
+      }
+      base += (CAP_W + 1) * (CAP_H + 1);
+    }
+
+    const geo = new THREE.BufferGeometry();
+    this.pos = new THREE.BufferAttribute(new Float32Array(total * 3), 3);
+    this.nrm = new THREE.BufferAttribute(new Float32Array(total * 3), 3);
+    this.pos.setUsage(THREE.DynamicDrawUsage);
+    this.nrm.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute("position", this.pos);
+    geo.setAttribute("normal", this.nrm);
+    geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+    geo.setIndex(index);
+    // Fixed bounds round the feet-rooted rig: covers standing, crouched and
+    // lying flat in the death pose, so culling never needs recomputing.
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 2.4);
+    geo.boundingBox = new THREE.Box3(new THREE.Vector3(-2.4, -1.5, -2.4), new THREE.Vector3(2.4, 3.3, 2.4));
+    this.uvAttr = geo.getAttribute("uv");
+
+    this.mesh = new THREE.Mesh(geo, material);
+    this.mesh.castShadow = true;
+    this.mesh.userData.isBodyStroke = true;
+    // Rebuilt at draw time, after the scene graph has its final matrices
+    // for this frame — whichever pose function ran, this sees the result.
+    this.mesh.onBeforeRender = () => this.update();
+    root.add(this.mesh);
+    this._inv = new THREE.Matrix4();
+    this._t = new THREE.Vector3(); this._n = new THREE.Vector3(); this._b = new THREE.Vector3();
+    this._tmp = new THREE.Vector3();
+  }
+
+  update() {
+    this.root.updateWorldMatrix(true, true);
+    this._inv.copy(this.root.matrixWorld).invert();
+    let changed = false;
+    this.joints.forEach((j, i) => {
+      const v = this.local.get(j).setFromMatrixPosition(j.matrixWorld).applyMatrix4(this._inv);
+      if (v.x !== this.last[i * 3] || v.y !== this.last[i * 3 + 1] || v.z !== this.last[i * 3 + 2]) {
+        changed = true;
+        this.last[i * 3] = v.x; this.last[i * 3 + 1] = v.y; this.last[i * 3 + 2] = v.z;
+      }
+    });
+    // Several passes (shadow, SSAO, the frame itself) can draw a rig in one
+    // frame. Only the first one after a pose change does any work.
+    if (!changed) return;
+
+    const P = this.pos.array, N = this.nrm.array, UV = this.uvAttr.array;
+    const r = this.radius;
+    const T = this._t, Nn = this._n, B = this._b;
+    let v = 0;
+    this.chains.forEach((chain, ci) => {
+      const pts = chain.map((j) => this.local.get(j));
+      const s = this.samples[ci];
+      const count = sampleChain(pts, s, this.radius * 2.2);
+      let along = 0;
+      // Rotation-minimising frames: carry the previous ring's normal along,
+      // so the tube never twists into a pinch at a bend.
+      Nn.set(0, 0, 0);
+      for (let i = 0; i < count; i++) {
+        const a = s[Math.max(0, i - 1)], b = s[Math.min(count - 1, i + 1)];
+        T.subVectors(b, a);
+        if (T.lengthSq() < 1e-12) T.set(0, 1, 0);
+        T.normalize();
+        if (i === 0) {
+          Nn.set(Math.abs(T.y) < 0.9 ? 0 : 1, Math.abs(T.y) < 0.9 ? 1 : 0, 0);
+        }
+        Nn.addScaledVector(T, -Nn.dot(T));
+        if (Nn.lengthSq() < 1e-8) Nn.set(1, 0, 0).addScaledVector(T, -T.x);
+        Nn.normalize();
+        B.crossVectors(T, Nn);
+        if (i > 0) along += s[i].distanceTo(s[i - 1]);
+        for (let k = 0; k <= RADIAL; k++) {
+          const ang = (k / RADIAL) * Math.PI * 2;
+          const c = Math.cos(ang), sn = Math.sin(ang);
+          const nx = Nn.x * c + B.x * sn, ny = Nn.y * c + B.y * sn, nz = Nn.z * c + B.z * sn;
+          P[v * 3] = s[i].x + nx * r; P[v * 3 + 1] = s[i].y + ny * r; P[v * 3 + 2] = s[i].z + nz * r;
+          N[v * 3] = nx; N[v * 3 + 1] = ny; N[v * 3 + 2] = nz;
+          UV[v * 2] = along * 2; UV[v * 2 + 1] = k / RADIAL;
+          v++;
+        }
+      }
+    });
+    for (const j of this.caps) {
+      const c = this.local.get(j);
+      for (const u of this.capUnit) {
+        P[v * 3] = c.x + u.x * r; P[v * 3 + 1] = c.y + u.y * r; P[v * 3 + 2] = c.z + u.z * r;
+        N[v * 3] = u.x; N[v * 3 + 1] = u.y; N[v * 3 + 2] = u.z;
+        v++;
+      }
+    }
+    this.pos.needsUpdate = true;
+    this.nrm.needsUpdate = true;
+    this.uvAttr.needsUpdate = true;
+  }
+}
+
+function joint(parent, x = 0, y = 0, z = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  parent.add(g);
+  return g;
 }
 
 /* Build a humanoid `height` metres tall. Returns the root plus every part the
-   animator needs to pose. Contract kept identical to the previous blocky rig
-   (same `parts` keys, same pose semantics) so remote-players.js, enemies.js,
-   zombies.js and char-inspector.js need no changes - only the geometry
-   underneath is now the stick-figure trollface look. */
+   animator needs to pose. The `parts` keys the old rig had are all still
+   here with the same meaning, so remote-players.js, enemies.js, zombies.js
+   and char-inspector.js need no changes; knees, ankles and elbows are new. */
 export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, face = "grin" } = {}) {
   const s = height / 1.8;
   const w = build;
 
   const root = new THREE.Group();
 
-  // Hip height is exactly the leg chain's reach, so the feet land on y = 0 and
-  // the head crown sits at `height`.
+  // Hip height is exactly the leg chain's reach, so straight legs put the
+  // feet on y = 0 and the head crown sits at `height`.
   const hipY = 0.9 * s;
   const hips = new THREE.Group();
   hips.position.y = hipY;
@@ -88,61 +250,31 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
 
   const limbRadius = 0.032 * s * w;
 
-  // --- torso: a single thin spine stick, hip to shoulder. Kept as its own
-  // pivot (poseHumanoid rotates it for lean/crouch) even though visually
-  // it is now just another stick, not a capsule + box.
-  const torso = stick([0, 0, 0], [0, 0.48 * s, 0], limbRadius * 1.15, material);
-  torso.castShadow = true;
-  hips.add(torso);
+  // --- spine. The torso pivots at the hips and CARRIES the chest, so a lean
+  // bends the whole upper body as one; the chest used to hang off the hips
+  // on its own, and any lean tore the line apart.
+  const torso = joint(hips);
+  const torsoMid = joint(torso, 0, 0.24 * s, 0);
+  const chest = joint(torso, 0, 0.48 * s, 0);
 
-  // `chest` no longer needs its own mesh - the stick-figure look has no
-  // torso mass distinct from the spine - but poseHumanoid still rotates
-  // it for the crouch lean, so it stays as an empty pivot group at the
-  // same height so that rotation still visibly bends the upper spine.
-  const chest = new THREE.Group();
-  chest.position.y = 0.48 * s;
-  hips.add(chest);
-
-  // --- neck: a short visible stick between chest and head, matching the
-  // Blender/Godot rig's Neck bone (trollface-characters/tools/
-  // build_trollface_character.py). Its own pivot so poseHumanoid can lead
-  // a head-turn/idle sway with the neck slightly ahead of the full head
-  // pitch, instead of the head just floating on the chest with no joint.
   const neckLen = 0.09 * s;
-  const neckPivot = new THREE.Group();
-  chest.add(neckPivot);
-  const neck = stick([0, 0, 0], [0, neckLen, 0], limbRadius * 0.9, material);
-  neck.castShadow = true;
-  neckPivot.add(neck);
+  const neckPivot = joint(chest);
+  const headPivot = joint(neckPivot, 0, neckLen, 0);
+  const neckTop = joint(headPivot, 0, 0.035 * s, 0);
 
-  // --- head, on its own group so it can look up and down. The head
-  // itself is the flat trollface board (see build_trollface_character.py
-  // for the Blender/Godot equivalent) - a thin plane carrying the real
-  // artwork, not a modeled face.
-  const headPivot = new THREE.Group();
-  headPivot.position.y = neckLen;
-  neckPivot.add(headPivot);
-
+  // --- head: the flat trollface board carrying the real artwork.
   const headW = 0.34 * s;
   const headH = 0.32 * s;
-  const head = new THREE.Mesh(
-    new THREE.PlaneGeometry(headW, headH),
-    TROLLFACE_HEAD_MAT,
-  );
+  const head = new THREE.Mesh(new THREE.PlaneGeometry(headW, headH), TROLLFACE_HEAD_MAT);
   head.position.y = headH * 0.5 + 0.03 * s;
-  // A PlaneGeometry's default face normal is +Z, but the game's forward
-  // convention (movement.js's forwardVec, root.rotation.y = yaw everywhere
-  // this rig is placed) is -Z at yaw 0 — without this the trollface pointed
-  // backward relative to the direction the character actually walks/aims.
+  // A PlaneGeometry faces +Z; the game's forward is -Z at yaw 0.
   head.rotation.y = Math.PI;
   head.castShadow = true;
   head.userData.isHead = true;
   headPivot.add(head);
 
   if (face === "pepe") {
-    // Bulging eyes set high and wide, with a broad flat frog mouth -
-    // this face variant predates the trollface-board head and still
-    // draws its own procedural features rather than a texture.
+    // Bulging eyes set high and wide, with a broad flat frog mouth.
     const white = new THREE.MeshBasicMaterial({ color: 0xf2f4ee });
     const eyeGeo = new THREE.SphereGeometry(0.062 * s, 10, 10);
     const pupilGeo = new THREE.SphereGeometry(0.026 * s, 8, 8);
@@ -164,38 +296,37 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     head.visible = false;
   }
 
-  // --- arms, pivoting at the shoulders. Thin sticks meeting near the
-  // spine top, flat mitten hands - the "Trollge" silhouette.
+  // --- arms: shoulder pivot on the chest, elbow halfway down. With the
+  // elbow at 0 the arm is the same straight stick it always was, so every
+  // existing pose (and the gun, mounted on armR at the hand) still lines up.
+  const ARM = new THREE.Vector3(0.30 * s * w, -0.62 * s, 0);
   const mkArm = (side) => {
-    const pivot = new THREE.Group();
-    pivot.position.set(side * 0.05 * s * w, 0.48 * s, 0);
-    const arm = stick([0, 0, 0], [side * 0.30 * s * w, -0.62 * s, 0], limbRadius, material);
-    arm.castShadow = true;
-    const hand = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * s, 0.06 * s, 0.03 * s, 10), HAND_MAT);
-    hand.position.set(side * 0.30 * s * w, -0.62 * s, 0);
-    hand.rotation.x = Math.PI / 2;
-    pivot.add(arm, hand);
-    hips.add(pivot);
-    return pivot;
+    const pivot = joint(chest, side * 0.05 * s * w, 0, 0);
+    const elbow = joint(pivot, side * ARM.x * 0.48, ARM.y * 0.48, 0);
+    const hand = joint(elbow, side * ARM.x * 0.52, ARM.y * 0.52, 0);
+    return { pivot, elbow, hand };
   };
-  const armL = mkArm(-1);
-  const armR = mkArm(1);
+  const L = mkArm(-1), R = mkArm(1);
 
-  // --- legs, pivoting at the hips. Same thin-stick treatment as the
-  // arms, with a small flat foot stub.
+  // --- legs: hip pivot, knee halfway, ankle, and a short toe so the foot
+  // reads as a foot. Both legs leave the body at the same point.
+  const THIGH = 0.45 * s, SHIN = 0.45 * s - limbRadius;
   const mkLeg = (side) => {
-    const pivot = new THREE.Group();
-    pivot.position.set(side * 0.02 * s * w, 0, 0);
-    const leg = stick([0, 0, 0], [side * 0.16 * s * w, -0.86 * s, 0], limbRadius, material);
-    leg.castShadow = true;
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.07 * s * w, 0.05 * s, 0.16 * s), FOOT_MAT);
-    foot.position.set(side * 0.16 * s * w, -0.86 * s, 0.03 * s);
-    pivot.add(leg, foot);
-    hips.add(pivot);
-    return pivot;
+    const pivot = joint(hips, side * 0.012 * s * w, 0, 0);
+    const knee = joint(pivot, 0, -THIGH, 0);
+    const ankle = joint(knee, 0, -SHIN, 0);
+    const toe = joint(ankle, 0, -0.005 * s, -0.085 * s);
+    return { pivot, knee, ankle, toe };
   };
-  const legL = mkLeg(-1);
-  const legR = mkLeg(1);
+  const LL = mkLeg(-1), LR = mkLeg(1);
+
+  const body = new BodyStroke(root, [
+    // neck → spine → hips → left leg, one stroke
+    [neckTop, chest, torsoMid, hips, LL.knee, LL.ankle, LL.toe],
+    [hips, LR.knee, LR.ankle, LR.toe],
+    [chest, L.pivot, L.elbow, L.hand],
+    [chest, R.pivot, R.elbow, R.hand],
+  ], [neckTop, chest, hips, LL.toe, LR.toe, L.hand, R.hand], limbRadius, material);
 
   // --- weapon, carried in the right hand
   let gunMesh = null;
@@ -209,17 +340,12 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     const mag = new THREE.Mesh(new THREE.BoxGeometry(0.04 * s, 0.15 * s, 0.06 * s), bodyMat);
     mag.position.set(0, -0.11 * s, -0.02 * s);
     gunMesh.add(receiver, barrel, mag);
-    gunMesh.position.set(0.30 * s * w, -0.62 * s - 0.12 * s, -0.12 * s);
-    armR.add(gunMesh);
   }
 
   // --- hit proxies: invisible, generously-sized primitives used ONLY for
-  // bullet raycasts. The visible rig above is a deliberately thin stick
-  // figure (limbs a few cm across, head a flat plane) - true to the look,
-  // but a needle-thin true hitbox makes the rig nearly unhittable at range
-  // or with imprecise (controller) aim. These proxies are never rendered
-  // (visible=false, no shadows) and follow the same bones the real limbs
-  // do, so they track poseHumanoid for free.
+  // bullet raycasts. The visible line is a few cm across — true to the look,
+  // but a needle-thin hitbox would be nearly unhittable at range or with a
+  // controller. They ride the same pivots, so they follow every pose.
   const makeHitProxy = (geo, parent, isHead) => {
     const m = new THREE.Mesh(geo, HIT_PROXY_MAT);
     m.visible = false;
@@ -232,163 +358,251 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   const hitHead = makeHitProxy(new THREE.SphereGeometry(0.19 * s, 8, 6), headPivot, true);
   hitHead.position.y = headH * 0.5 + 0.03 * s;
 
-  const hitTorso = makeHitProxy(new THREE.CapsuleGeometry(0.16 * s * w, 0.42 * s, 4, 8), chest, false);
+  const hitTorso = makeHitProxy(new THREE.CapsuleGeometry(0.16 * s * w, 0.42 * s, 4, 8), torso, false);
   hitTorso.position.y = 0.24 * s;
 
   const hitHips = makeHitProxy(new THREE.SphereGeometry(0.15 * s * w, 8, 6), hips, false);
 
-  // Arm/leg sticks run from the pivot origin to [side*reach*s*w, -drop*s, 0];
-  // the proxy capsule is centered on that stick's midpoint, matching mkArm/mkLeg above.
-  const hitArmL = makeHitProxy(new THREE.CapsuleGeometry(0.075 * s * w, 0.5 * s, 4, 6), armL, false);
+  const hitArmL = makeHitProxy(new THREE.CapsuleGeometry(0.075 * s * w, 0.5 * s, 4, 6), L.pivot, false);
   hitArmL.position.set(-0.15 * s * w, -0.31 * s, 0);
-  const hitArmR = makeHitProxy(new THREE.CapsuleGeometry(0.075 * s * w, 0.5 * s, 4, 6), armR, false);
+  const hitArmR = makeHitProxy(new THREE.CapsuleGeometry(0.075 * s * w, 0.5 * s, 4, 6), R.pivot, false);
   hitArmR.position.set(0.15 * s * w, -0.31 * s, 0);
 
-  const hitLegL = makeHitProxy(new THREE.CapsuleGeometry(0.08 * s * w, 0.7 * s, 4, 6), legL, false);
-  hitLegL.position.set(-0.08 * s * w, -0.43 * s, 0);
-  const hitLegR = makeHitProxy(new THREE.CapsuleGeometry(0.08 * s * w, 0.7 * s, 4, 6), legR, false);
-  hitLegR.position.set(0.08 * s * w, -0.43 * s, 0);
+  // Thigh proxies on the hip pivot, shin proxies on the knee, so a bent leg
+  // is still covered where it actually is.
+  const hitLegs = [];
+  for (const leg of [LL, LR]) {
+    const thigh = makeHitProxy(new THREE.CapsuleGeometry(0.08 * s * w, THIGH * 0.8, 4, 6), leg.pivot, false);
+    thigh.position.y = -THIGH / 2;
+    const shin = makeHitProxy(new THREE.CapsuleGeometry(0.07 * s * w, SHIN * 0.8, 4, 6), leg.knee, false);
+    shin.position.y = -SHIN / 2;
+    hitLegs.push(thigh, shin);
+  }
 
-  const hitboxMeshes = [hitHead, hitTorso, hitHips, hitArmL, hitArmR, hitLegL, hitLegR];
+  const hitboxMeshes = [hitHead, hitTorso, hitHips, hitArmL, hitArmR, ...hitLegs];
 
-  return {
+  const rig = {
     root,
-    parts: { hips, torso, chest, neckPivot, headPivot, head, armL, armR, legL, legR, gun: gunMesh },
+    parts: {
+      hips, torso, chest, neckPivot, headPivot, head,
+      armL: L.pivot, armR: R.pivot, elbowL: L.elbow, elbowR: R.elbow,
+      legL: LL.pivot, legR: LR.pivot, kneeL: LL.knee, kneeR: LR.knee,
+      ankleL: LL.ankle, ankleR: LR.ankle,
+      gun: gunMesh, body: body.mesh,
+    },
+    body,
     hitboxMeshes,
     scale: s,
     hipY,
+    thigh: THIGH,
+    shin: SHIN,
+    limbRadius,
+    gait: { blend: 0 },
+    build: w,
   };
+  if (gunMesh) mountHeldWeapon(rig, gunMesh);
+  return rig;
 }
 
-/* Pose the rig. `phase` advances with movement; `lower` is 0..1 how far the
-   body is crouched (1 = prone). `strafe` is -1..1, the mover's LOCAL
-   sideways velocity component (negative = moving left, positive = right,
-   0 = pure forward/back or standing still) - it drives the lean/splay that
-   makes strafing read differently from walking straight ahead. `speed` is
-   0..1, how fast the mover is going relative to a full sprint (1 = sprint,
-   ~0.35-0.5 = a jog/walk) - it scales the whole cycle (stride length, arm
-   swing, forward lean, vertical bob) so a walk and a sprint are visibly
-   different gaits rather than the same animation just replayed faster.
-   Callers that only ever move at one speed (enemies.js, zombies.js) can
-   omit it; it defaults to a full-intensity cycle whenever `moving` is true,
-   matching the old fixed-amplitude behavior. */
-export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, dt = 0.016, zombie = false, gait: gaitTuning, hasGun = false }) {
+/* Straight knees and elbows, level feet, square hips — the neutral the
+   dances and the death pose were written against. Walking leaves them bent. */
+function _resetJoints(rig) {
+  const p = rig.parts;
+  p.kneeL.rotation.set(0, 0, 0);
+  p.kneeR.rotation.set(0, 0, 0);
+  p.ankleL.rotation.set(0, 0, 0);
+  p.ankleR.rotation.set(0, 0, 0);
+  p.elbowL.rotation.set(0, 0, 0);
+  p.elbowR.rotation.set(0, 0, 0);
+  p.hips.rotation.y = 0;
+  p.chest.rotation.y = 0;
+}
+
+/* ----------------------------------------------------------------- the gait
+
+   Legs are placed, not swung. Each foot follows a path relative to the hips:
+   planted on the ground and sliding back at exactly the body's speed while
+   it bears weight (so it doesn't skate), then lifted and carried forward to
+   the next footfall. Two-bone IK finds the knee. The stride and cadence
+   both come from the real speed, so a walk and a sprint are different gaits
+   and the feet stay put under both.
+
+   Step length grows with speed and is capped by what the legs can reach;
+   the rest of the speed comes from cadence, as it does for people. */
+export function gaitStepLength(mps) {
+  return Math.max(0.34, Math.min(1.45, 0.34 + 0.16 * mps));
+}
+
+/* Radians of `phase` per second at `mps`: one full cycle is two steps. */
+export function gaitPhaseRate(mps) {
+  if (!(mps > 0.05)) return 0;
+  return Math.PI * mps / gaitStepLength(mps);
+}
+
+const _hipJoint = new THREE.Vector3();
+const _foot = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+const _e = new THREE.Euler();
+
+/* Point a hip-knee-ankle chain at `target` (root space). Knees bend toward
+   the body's front (-Z). */
+function _solveLeg(rig, pivot, knee, ankle, target, footPitch) {
+  const p = rig.parts;
+  // Hip joint in root space. Hips only yaw/roll a little while walking.
+  _hipJoint.copy(pivot.position).applyEuler(p.hips.rotation).add(p.hips.position);
+  _foot.subVectors(target, _hipJoint);
+  _q.setFromEuler(p.hips.rotation).invert();
+  _foot.applyQuaternion(_q);
+
+  const a = rig.thigh, b = rig.shin;
+  const d = Math.min(a + b - 1e-4, Math.max(0.05, _foot.length()));
+  const lateral = Math.asin(Math.max(-1, Math.min(1, _foot.x / Math.max(1e-4, _foot.length()))));
+  const reach = Math.atan2(-_foot.z, -_foot.y);            // + swings the foot forward
+  const atHip = Math.acos(Math.max(-1, Math.min(1, (a * a + d * d - b * b) / (2 * a * d))));
+  const atKnee = Math.acos(Math.max(-1, Math.min(1, (a * a + b * b - d * d) / (2 * a * b))));
+
+  pivot.rotation.set(reach + atHip, 0, lateral);
+  knee.rotation.set(-(Math.PI - atKnee), 0, 0);
+  // Keep the foot level with the ground, plus whatever pitch the step wants.
+  ankle.rotation.set(-(pivot.rotation.x + knee.rotation.x) + footPitch - p.hips.rotation.x, 0, 0);
+}
+
+const _smooth = (t) => t * t * (3 - 2 * t);
+
+/* The gun arm's forward raise, and where a held weapon sits on that arm:
+   at the hand, turned back by the same angle so it comes out level and
+   pointing ahead when the arm is at the carry. */
+export const GUN_CARRY = 1.35;
+export function mountHeldWeapon(rig, mesh) {
+  const s = rig.scale;
+  mesh.position.set(0.30 * s * rig.build, -0.62 * s, 0).addScaledVector(new THREE.Vector3(0, Math.sin(GUN_CARRY), Math.cos(GUN_CARRY)), 0.05 * s);
+  mesh.rotation.set(-GUN_CARRY, 0, 0.15);
+  rig.parts.armR.add(mesh);
+}
+
+/* Pose the rig. `phase` advances with movement (use gaitPhaseRate); `lower`
+   is 0..1 how far the body is crouched (1 = prone). `strafe` is -1..1, the
+   mover's local sideways velocity; `forward` is -1..1 fore/aft (negative =
+   backpedal). `speed` is 0..1 of a 4.2 m/s run; `mps`, when the caller knows
+   it, is the real speed and sizes the stride so the feet plant exactly. */
+export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
-  // Signed fore/aft component of actual travel relative to facing: 1 =
-  // running forward, -1 = full backpedal, 0 = a pure sideways strafe.
   const fwd = Math.max(-1, Math.min(1, forward));
   const spd = moving ? Math.max(0.28, Math.min(1, speed)) : 0;
+  const v = moving ? (mps ?? (zombie ? 1.3 : spd * 4.2)) : 0;
 
-  // Optional live-tunable leg-gait constants (movement-lab.html only —
-  // every other caller omits `gait` and gets these exact defaults, so
-  // behavior elsewhere is unchanged).
-  const gt = {
-    swingBase: 0.55, swingSpeed: 0.45,
-    sideStepBase: 0.35, sideStepSpeed: 0.3,
-    liftBase: 0.15, liftSpeed: 0.2,
-    splay: 0.22,
-    ...gaitTuning,
-  };
+  // 0 = walk, 1 = run: duty factor, bob, knee lift and lean all follow it.
+  const run = Math.max(0, Math.min(1, (v - 1.8) / 2.8));
 
-  // `gait` is the sign to swing the legs in: +1 running forward, -1
-  // backpedaling. `fwdAmt` is how much of the cycle is fore/aft swing at
-  // all - it fades toward 0 as travel becomes a pure sideways strafe, so
-  // a strafing character steps side-to-side instead of still swinging its
-  // legs through a full forward-jog arc with just a static lean/splay
-  // bolted on top (the tangled, criss-crossing legs the old cycle produced
-  // whenever real movement had a lateral component).
-  const gaitSign = fwd < 0 ? -1 : 1;
-  const fwdAmt = Math.min(1, Math.abs(fwd));
-  const swing = moving ? Math.sin(phase) * (gt.swingBase + spd * gt.swingSpeed) * gaitSign * fwdAmt : 0;
-  // The portion of the cycle that isn't fore/aft swing becomes a lateral
-  // side-step: legs alternate stepping apart sideways instead of just
-  // leaning into the strafe while standing square.
-  const sideStep = moving ? Math.sin(phase) * (gt.sideStepBase + spd * gt.sideStepSpeed) * str * (1 - fwdAmt) : 0;
-  const lift = moving ? Math.abs(Math.cos(phase)) * (gt.liftBase + spd * gt.liftSpeed) : 0;
+  // Ease in and out of the cycle, so starting and stopping blend rather
+  // than snapping the legs between the gait and the stand.
+  const g = rig.gait;
+  g.blend += ((moving ? 1 : 0) - g.blend) * Math.min(1, dt * 9);
+  const blend = g.blend;
 
-  // poseDeath is the only other place that touches hips.rotation.x (it
-  // pitches the whole body forward onto the ground as a kill collapses).
-  // poseHumanoid must explicitly zero it back out on every frame, or a
-  // rig that respawns after dying keeps that ~90° forward pitch forever -
-  // walking and running upright from the waist down while the hips (and
-  // everything stacked on them) stay tipped flat, legs trailing up behind
-  // like it's still mid-collapse.
-  p.hips.rotation.x = 0;
+  p.hips.rotation.set(0, 0, 0);
+  p.hips.position.x = 0;
+  p.hips.position.z = 0;
 
-  p.legL.rotation.x = swing;
-  p.legR.rotation.x = -swing;
+  const crouch = Math.max(0, Math.min(1, lower));
+  const stepLen = gaitStepLength(v || 1) * (zombie ? 0.55 : 1);
+  const duty = zombie ? 0.66 : 0.62 - run * 0.28;   // share of the cycle a foot is down
+  const lift = (zombie ? 0.05 : 0.09 + run * 0.13) * s;
 
-  // Strafing splays the lead leg out to the side it's stepping toward
-  // instead of just swinging fore/aft - a sideways shuffle reads very
-  // differently from a forward jog even at the same leg-swing speed.
-  p.legL.rotation.z = str * gt.splay + sideStep;
-  p.legR.rotation.z = str * gt.splay - sideStep;
+  // Direction of travel in the rig's local ground plane (+x right, -z ahead).
+  let tx = str, tz = -fwd;
+  const tl = Math.hypot(tx, tz) || 1;
+  tx /= tl; tz /= tl;
+  // Side-steps are shorter: legs can't scissor past each other sideways.
+  const sideways = Math.abs(tx);
+  const stride = stepLen * (1 - sideways * 0.45);
+
+  // Pelvis: sits a little lower the faster you go (bent, springy knees),
+  // bobs twice per cycle — low as a foot lands, high over the planted one.
+  const cyc = phase;
+  const bob = (0.012 + run * 0.02) * s * -Math.cos(2 * cyc) * blend;
+  const standY = rig.hipY * (0.985 - crouch * 0.52);
+  p.hips.position.y = standY - (run * 0.085 * s + (zombie ? 0.06 * s : 0)) * blend + bob;
+  // Hips twist with the stride and roll over the standing leg.
+  p.hips.rotation.y = Math.sin(cyc) * (0.07 + run * 0.08) * blend * -tz * (1 - sideways);
+  p.hips.rotation.z = Math.cos(cyc) * 0.035 * blend;
+
+  const feet = [];
+  for (const [side, legPhase] of [[-1, cyc], [1, cyc + Math.PI]]) {
+    let u = (legPhase / (Math.PI * 2)) % 1;
+    if (u < 0) u += 1;
+    let along, up, pitchFoot;
+    if (u < duty) {
+      // Planted: slides from ahead to behind at the body's own speed.
+      const t = u / duty;
+      along = (0.5 - t) * duty * 2 * stride;
+      up = 0;
+      pitchFoot = 0;
+    } else {
+      // Swing: peel off behind, arc forward, reach for the next footfall.
+      const t = (u - duty) / (1 - duty);
+      along = (-0.5 + _smooth(t)) * duty * 2 * stride;
+      up = Math.sin(Math.PI * Math.pow(t, 0.8)) * lift;
+      pitchFoot = -Math.sin(Math.PI * t) * 0.22 + (t > 0.8 ? (t - 0.8) * 1.2 : 0);
+    }
+    along *= blend;
+    up *= blend;
+    pitchFoot *= blend;
+    // Feet sit a hand's width apart; a crouch spreads them a little.
+    const baseX = side * (0.085 + crouch * 0.06) * s;
+    _foot.set(baseX + tx * along, rig.limbRadius + up, tz * along);
+    // Crouched feet land a touch behind the hips, prone ones further.
+    _foot.z += crouch * 0.12 * s;
+    feet.push({ side, along, target: _foot.clone(), pitch: pitchFoot });
+  }
+  _solveLeg(rig, p.legL, p.kneeL, p.ankleL, feet[0].target, feet[0].pitch);
+  _solveLeg(rig, p.legR, p.kneeR, p.ankleR, feet[1].target, feet[1].pitch);
+  // -1 = that foot trails behind, 1 = it's out ahead: drives the arms.
+  const legSwingL = (feet[0].along / Math.max(1e-3, duty * stride)) * Math.sign(-tz || 1);
+
+  // Lean: into a run, back when backpedalling, banked into a strafe. The
+  // chest rides the torso now, so its share adds on top.
+  const moveLean = (0.04 + run * 0.16) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7);
+  p.torso.rotation.set(crouch * 0.25 + moveLean * 0.7, 0, str * -0.1 * blend);
+  p.chest.rotation.set(crouch * 0.12 + moveLean * 0.3, -p.hips.rotation.y * 1.4, str * -0.06 * blend);
+  const lean = p.torso.rotation.x + p.chest.rotation.x;
 
   if (zombie) {
-    // both arms out front, with a lopsided shamble
-    p.armL.rotation.x = -1.5 + Math.sin(phase * 0.5) * 0.12;
-    p.armR.rotation.x = -1.42 + Math.cos(phase * 0.5) * 0.12;
-    p.armL.rotation.z = 0.12;
-    p.armR.rotation.z = -0.18;
-    p.torso.rotation.x = 0.14;
-    p.chest.rotation.x = 0.14;
-    p.hips.position.y = rig.hipY - Math.abs(Math.sin(phase)) * 0.045 * s;
+    // Both arms out front, with a lopsided shamble.
+    p.armL.rotation.set(1.5 - lean + Math.sin(phase * 0.5) * 0.12, 0, 0.12);
+    p.armR.rotation.set(1.42 - lean + Math.cos(phase * 0.5) * 0.12, 0, -0.18);
+    p.elbowL.rotation.set(0.25, 0, 0);
+    p.elbowR.rotation.set(0.35, 0, 0);
+    p.torso.rotation.x += 0.12;
     _poseNeckAndHead(rig, { pitch: 0.16, sway: Math.sin(phase * 0.5) * 0.09, dt, lead: 0 });
     return;
   }
 
-  // The gun arm holds a raised, level "ready" carry (barrel roughly
-  // horizontal, across the body) instead of dangling down at the old
-  // -1.02 rad angle - that read as the weapon pointing at the ground any
-  // time the body leaned forward into a run. Pitch still nudges it for
-  // aim legibility, clamped well short of vertical, and a small
-  // counter-swing tied to footfall keeps the carry from looking welded
-  // in place mid-stride.
-  const carrySwing = moving ? Math.sin(phase) * 0.04 * spd * gaitSign * fwdAmt : 0;
-  p.armR.rotation.x = -1.35 - pitch * 0.32 + carrySwing;
-  p.armR.rotation.z = -0.15;
+  // Gun arm: raised forward in a level ready carry, independent of the
+  // body's lean (the chest carries the shoulder, so the lean is taken back
+  // out). Positive x is forward: the old carry used -1.35, which held the
+  // gun behind the body with the barrel at the ground. The elbow stays
+  // straight — GUN_MOUNT sits at the straight arm's hand.
+  const carrySwing = Math.sin(phase) * 0.04 * spd * blend;
+  p.armR.rotation.set(GUN_CARRY + pitch * 0.32 + carrySwing - lean, 0, -0.15);
+  p.elbowR.rotation.set(0, 0, 0);
 
   if (hasGun) {
-    // Support hand: a two-handed weapon is gripped, not swung, so armL
-    // drops the run-cycle counter-pump and instead holds a fixed forward
-    // reach toward the handguard — matched to where weapon-model.js's
-    // buildSupportHand actually sits on the mesh armR carries. The same
-    // small footfall-tied sway armR gets keeps the carry from reading as
-    // welded in place mid-stride, just softer since a support grip moves
-    // less than a free-swinging arm.
-    p.armL.rotation.x = -1.28 - pitch * 0.28 + carrySwing * 0.6;
-    p.armL.rotation.z = 0.18;
+    // Support hand on the handguard.
+    p.armL.rotation.set(GUN_CARRY - 0.07 + pitch * 0.28 + carrySwing * 0.6 - lean, 0, 0.18);
+    p.elbowL.rotation.set(0, 0, 0);
   } else {
-    // Off-hand counter-swings opposite the legs, like a real running arm
-    // pump: it's forward when the same-side leg is back, and vice versa.
-    // Amplitude grows with speed - a walk barely swings the arms, a sprint
-    // pumps them hard - and stays shy of hip height (peaks well short of
-    // the legs' reach) so it doesn't read as a third leg from a low angle.
-    p.armL.rotation.x = swing * (0.5 + spd * 0.55) - 0.15;
-    p.armL.rotation.z = 0.04 + spd * 0.05;
+    // Free arm: swings against its own leg, from the shoulder, with an elbow
+    // that bends more the faster you go — hanging loose at a walk, pumping
+    // at ninety degrees in a sprint.
+    const swingAmp = (0.35 + run * 0.55) * blend;
+    p.armL.rotation.set(-legSwingL * swingAmp - lean * 0.8 - 0.05 - run * 0.25 * blend, 0, 0.06 + run * 0.04);
+    p.elbowL.rotation.set(0.2 + (run * 1.1 + Math.max(0, legSwingL) * 0.25) * blend, 0, 0);
   }
 
-  // crouching drops the hips and folds the knees
-  const crouch = Math.max(0, Math.min(1, lower));
-  p.hips.position.y = rig.hipY * (1 - crouch * 0.55) + lift * 0.02 * s;
-  p.legL.rotation.x += crouch * 0.9;
-  p.legR.rotation.x += crouch * 0.9;
-
-  // Body lean: forward while moving ahead (more at a sprint than a walk),
-  // backward when backpedaling, banked into the strafe direction - a real
-  // body committing sideways tips into the turn rather than sliding like
-  // a statue on rails, and a body backpedaling leans away from travel
-  // rather than diving face-first into the direction it's actually moving
-  // away from.
-  const moveLean = moving ? (0.05 + spd * 0.13) * gaitSign * fwdAmt : 0;
-  p.torso.rotation.x = crouch * 0.35 + moveLean;
-  p.torso.rotation.z = str * -0.16;
-  p.chest.rotation.x = crouch * 0.35 + moveLean * 0.6;
-  p.chest.rotation.z = str * -0.10;
-
-  _poseNeckAndHead(rig, { pitch, sway: 0, dt, lead: str });
+  _poseNeckAndHead(rig, { pitch: pitch - lean * 0.6, sway: 0, dt, lead: str * blend });
 }
 
 /* A looping victory/idle dance - the locker screen's answer to Fortnite's
@@ -404,6 +618,7 @@ export function poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower 
    sliding up and down on rails. */
 export function poseDance(rig, t) {
   const p = rig.parts;
+  _resetJoints(rig);
   const s = rig.scale;
   const beat = t * Math.PI * 2 * 1.8; // ~1.8 bounces/second
 
@@ -450,6 +665,7 @@ export function poseDance(rig, t) {
    the motion is lateral. */
 export function poseDanceFloss(rig, t) {
   const p = rig.parts;
+  _resetJoints(rig);
   const beat = t * Math.PI * 2 * 2.2;
   const hipSway = Math.sin(beat);
   const armSway = Math.sin(beat + Math.PI); // opposite phase to the hips
@@ -480,6 +696,7 @@ export function poseDanceFloss(rig, t) {
    playing back faster or slower. */
 export function poseDanceHeadbang(rig, t) {
   const p = rig.parts;
+  _resetJoints(rig);
   const beat = t * Math.PI * 2 * 2.6;
   const nod = Math.max(0, Math.sin(beat)); // snaps down, eases up
 
@@ -504,6 +721,7 @@ export function poseDanceHeadbang(rig, t) {
    the other three (raised arm) rather than another variation on a bounce. */
 export function poseDanceWave(rig, t) {
   const p = rig.parts;
+  _resetJoints(rig);
   const beat = t * Math.PI * 2 * 1.1;
   const sway = Math.sin(beat * 0.6);
   const circle = beat * 1.4;
@@ -540,6 +758,7 @@ export const DANCES = [poseDance, poseDanceFloss, poseDanceHeadbang, poseDanceWa
    not a kill. */
 export function poseDeath(rig, t) {
   const p = rig.parts;
+  _resetJoints(rig);
   const k = Math.max(0, Math.min(1, t));
   const ease = 1 - Math.pow(1 - k, 3);
 
