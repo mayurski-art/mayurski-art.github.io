@@ -55,8 +55,11 @@ const PROP_RETEXTURE = {
 
    Exported because the scorestreak entities (care package, drone, gunship)
    need the same cache-and-clone loader without the static map-placement
-   helpers below — they position themselves at runtime instead. */
-export function loadModel(name) {
+   helpers below — they position themselves at runtime instead.
+
+   `mapping` is the material-name -> [surface, repeat] table handed to
+   retexture(); map-specific model sets (grinsite-props.js) pass their own. */
+export function loadModel(name, mapping = PROP_RETEXTURE) {
   if (!cache.has(name)) {
     cache.set(name, loader.loadAsync(`${MODEL_BASE}${name}.glb`).then((gltf) => {
       const scene = gltf.scene;
@@ -70,10 +73,11 @@ export function loadModel(name) {
       if (n.isMesh) {
         n.material = n.material.clone();
         n.castShadow = true;
+        n.receiveShadow = true;
         if (bake) applyBakedLightMap(n, bake);
       }
     });
-    retexture(clone, PROP_RETEXTURE);
+    retexture(clone, mapping);
     return clone;
   });
 }
@@ -81,8 +85,8 @@ export function loadModel(name) {
 /* Drops a loaded clone into the scene once it resolves. Placement happens
    the instant the promise settles, so the collider (added synchronously,
    below) is live well before the visible mesh streams in. */
-function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1 }) {
-  loadModel(name).then((obj) => {
+export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping }) {
+  loadModel(name, mapping).then((obj) => {
     obj.position.set(x, y, z);
     obj.rotation.y = rot;
     if (scale !== 1) obj.scale.setScalar(scale);

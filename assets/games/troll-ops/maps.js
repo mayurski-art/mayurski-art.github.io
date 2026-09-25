@@ -15,6 +15,7 @@ import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js";
+import { gsModel } from "./grinsite-props.js";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,
@@ -77,8 +78,11 @@ function makeApi(root, colliders) {
     /* Solid box sitting on `y`, centred on (x,z). Collides and blocks bullets.
        `surface` picks a PBR material from SURFACES (tinted by `color`)
        instead of the flat-color fallback; `tile` overrides the metres-per-
-       repeat used to compute that surface's UV tiling for this box. */
-    box(x, z, w, d, h, { color = 0x5c6b4a, y = 0, pen = 0.9, rough = 0.85, metal = 0.05, surface = null, tile = 2 } = {}) {
+       repeat used to compute that surface's UV tiling for this box.
+       `ghost` keeps the collider and drops the mesh, for boxes a modelled
+       prop draws instead (stairs pass it straight through). */
+    box(x, z, w, d, h, { color = 0x5c6b4a, y = 0, pen = 0.9, rough = 0.85, metal = 0.05, surface = null, tile = 2, ghost = false } = {}) {
+      if (ghost) return api.ghostBox(x, z, w, d, h, { y, pen });
       const material = surface ? surf(surface, color, w, h, tile) : mat(color, rough, metal);
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
       mesh.position.set(x, y + h / 2, z);
@@ -200,14 +204,17 @@ function makeApi(root, colliders) {
     },
 
     /* Floodlight mast — decorative pole plus a real spot light. */
-    floodlight(x, z, aimAt = new THREE.Vector3(0, 0, 0), color = 0xfff0c0) {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 9, 8), mat(0x2a2e26, 0.6, 0.4));
-      pole.position.set(x, 4.5, z);
-      root.add(pole);
-      const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.6), mat(0x15170f, 0.5, 0.5));
-      head.position.set(x, 9, z);
-      head.lookAt(aimAt);
-      root.add(head);
+    floodlight(x, z, aimAt = new THREE.Vector3(0, 0, 0), color = 0xfff0c0, { bare = false } = {}) {
+      // bare: light only, for a map that draws its own modelled mast
+      if (!bare) {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 9, 8), mat(0x2a2e26, 0.6, 0.4));
+        pole.position.set(x, 4.5, z);
+        root.add(pole);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.6), mat(0x15170f, 0.5, 0.5));
+        head.position.set(x, 9, z);
+        head.lookAt(aimAt);
+        root.add(head);
+      }
       const spot = new THREE.SpotLight(color, 55, 60, Math.PI / 5, 0.5, 1.2);
       spot.position.set(x, 9, z);
       spot.target.position.copy(aimAt);
@@ -238,56 +245,150 @@ export const MAPS = {
     playerSpawn: { x: 0, z: 26 },
     sky: { top: 0x1a2e4a, horizon: 0x6b8a5e, bottom: 0x2a3324 },
     fog: { color: 0x3a4a38, density: 0.009 },
-    ground: { colorA: 0x4a5240, colorB: 0x363f2e, grid: 0x8fae6e },
+    ground: { colorA: 0x9a8a70, colorB: 0x7a6a52, grid: 0x8fae6e, surface: "dirt", tile: 3 },
     sun: { color: 0xfff2d8, intensity: 2.2, pos: [30, 45, -20] },
     hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.1 },
     ambient: { color: 0xffffff, intensity: 0.55 },
     build(api) {
-      api.walls(0, 0, 68, 68, 6, 1.4, { surface: "concrete" });
-      // central half-finished tower with stairs up two storeys
-      api.box(0, 0, 12, 12, 0.4, { color: 0x6a6a60, pen: 6, surface: "concrete" });
-      api.box(-4, -4, 4, 4, 3.2, { color: 0x59614a, surface: "concrete" });
-      api.box(4, 4, 4, 4, 3.2, { color: 0x59614a, surface: "concrete" });
-      // lands on the block's south edge (z 1.5) rather than running into it
-      api.stairs(-2, 8.5, 5, 10, 0.32, 0.7, "-z", { color: 0x6a6a60, surface: "concrete", tile: 1 });
-      api.box(0, -1, 12, 5, 3.4, { color: 0x6a6a60, pen: 6, surface: "concrete" });
-      // stacked container blocks
-      const containers = [
-        [-16, -12, 6, 2.6, 2.6, 0x8a5a3a],
-        [15, -14, 6, 2.6, 2.6, 0x3a6a7a], [-20, 12, 6, 2.6, 2.6, 0x7a6a3a],
-        [18, 13, 6, 2.6, 2.6, 0x6a3a4a],
-      ];
-      for (const [x, z, w, d, h, c] of containers) {
-        api.box(x, z, w, d, h, { color: c, pen: 3, surface: "metal", tile: 1.3 });
-        api.box(x + 1.4, z, w * 0.8, d, h, { color: c, y: h, pen: 3, surface: "metal", tile: 1.3 });
+      // Every collider below is the approved blockout's, unchanged; the
+      // visible geometry is the gs-*.glb models (grinsite-props.js).
+      const G = { ghost: true };
+      api.ghostWalls(0, 0, 68, 68, 6, 1.4);
+      gsModel(api, "perimeter", { x: 0, z: 0 });
+      for (const [x, z, rot] of [[0, -32.6, 0], [0, 32.6, Math.PI], [-32.6, 0, Math.PI / 2], [32.6, 0, -Math.PI / 2]]) {
+        gsModel(api, "hoarding", { x, z, rot });
       }
-      // scaffold towers
+
+      /* ---- centre: two-storey concrete frame (x -8.3..8.3, z -6.3..6.3) */
+      const L1 = 3.5, L2 = 6.7;
+      gsModel(api, "tower", { x: 0, z: 0 });
+      api.box(0, 0, 17, 13, 0.2, { ...G, pen: 6 });                                // foundation
+      const colX = [-7.7, -2.6, 2.6, 7.7], colZ = [-5.7, 0, 5.7];
+      for (const cx of colX) for (const cz of colZ) {
+        api.box(cx, cz, 0.6, 0.6, 3.0, { ...G, y: 0.2, pen: 8 });                   // ground-floor columns
+        // above L1: full columns under L2 (west half), rebar stubs east
+        api.box(cx, cz, 0.6, 0.6, cx < 0 ? 2.9 : 3.8, { ...G, y: L1, pen: 8 });
+      }
+      api.box(0, 0, 16.6, 12.6, 0.3, { ...G, y: 3.2, pen: 10 });                   // level 1
+      api.box(-3, 0, 10.6, 12.6, 0.3, { ...G, y: 6.4, pen: 10 });                  // level 2 (west half)
+      // ground-floor brick infill, half built
+      api.box(-5.5, -2.2, 5, 0.3, 2.4, { ...G, y: 0.2, pen: 4 });
+      api.box(3.5, -3.5, 0.3, 5, 2.4, { ...G, y: 0.2, pen: 4 });
+      api.box(-3.5, 4, 0.3, 4, 2.4, { ...G, y: 0.2, pen: 4 });
+      // flight A: ground -> level 1, lands on the south edge
+      api.stairs(0, 6.3 + 11 * 0.64, 3, 11, 0.318, 0.64, "-z", G);
+      // flight B: level 1 -> level 2, on the level 1 deck, lands on L2's east edge
+      api.stairs(7.8, -4, 2.5, 10, 0.32, 0.55, "-x", { ...G, y: L1 });
+      // level 1 edges: parapet north + west, rails east + south (gap for flight A)
+      api.box(0, -6.15, 16.6, 0.3, 1.0, { ...G, y: L1, pen: 4 });
+      api.box(-8.15, 0, 0.3, 12.6, 1.0, { ...G, y: L1, pen: 4 });
+      api.box(8.25, 0, 0.1, 12.6, 1.0, { ...G, y: L1, pen: 0.3 });
+      api.box(-4.9, 6.25, 6.8, 0.1, 1.0, { ...G, y: L1, pen: 0.3 });
+      api.box(4.9, 6.25, 6.8, 0.1, 1.0, { ...G, y: L1, pen: 0.3 });
+      // level 2 edges: low parapet north + west, rails south + east (gap for flight B)
+      api.box(-3, -6.15, 10.6, 0.3, 0.6, { ...G, y: L2, pen: 4 });
+      api.box(-8.15, 0, 0.3, 12.6, 0.6, { ...G, y: L2, pen: 4 });
+      api.box(-3, 6.25, 10.6, 0.1, 1.0, { ...G, y: L2, pen: 0.3 });
+      api.box(2.25, -5.8, 0.1, 1.0, 1.0, { ...G, y: L2, pen: 0.3 });
+      api.box(2.25, 1.75, 0.1, 9.1, 1.0, { ...G, y: L2, pen: 0.3 });
+
+      /* ---- east: container yard */
+      // same footprints as shippingContainer(): 6 x 2.5 x 2.6, turned by rot
+      for (const [x, z, rot, y, paint] of [
+        [18, -15, 0, 0, "red"], [18, -15, Math.PI, 2.6, "blue"], [26, -9, 0, 0, "green"],
+        [17, -3, Math.PI / 2, 0, "grey"], [26, 9, Math.PI, 0, "blue"], [26, 9, 0, 2.6, "red"],
+        [17, 12, -Math.PI / 2, 0, "green"],
+      ]) {
+        const along = Math.abs(Math.sin(rot)) < 0.5;
+        api.ghostBox(x, z, along ? 6 : 2.5, along ? 2.5 : 6, 2.6, { y, pen: 8 });
+        gsModel(api, `container-${paint}`, { x, z, y, rot });
+      }
+      // walk-through container: open both ends
+      api.ghostWalls(24.5, 1, 6, 2.5, 2.5, 0.12, { gaps: { w: 2.26, e: 2.26 }, pen: 3 });
+      api.box(24.5, 1, 6, 2.5, 0.12, { ...G, y: 2.5, pen: 3 });
+      gsModel(api, "container-open", { x: 24.5, z: 1 });
+      // steps up onto the single container at (26,-9)
+      api.stairs(28, -7.75 + 8 * 0.6, 2, 8, 0.325, 0.6, "-z", G);
+      gsModel(api, "container-stair", { x: 28, z: -7.75 + 8 * 0.6 });
+      api.box(19.5, 19, 1.4, 2.6, 2.2, { ...G, pen: 4 });                          // forklift
+      gsModel(api, "forklift", { x: 19.5, z: 19, rot: Math.PI });
+      for (const [x, z, rot] of [[29, 15, 0.2], [13.5, -8, -0.1], [30, -18, 0.05]]) {
+        api.box(x, z, 1.2, 1.2, 1.0, { ...G, pen: 2 });                              // brick pallets
+        gsModel(api, "brick-pallet", { x, z, rot });
+      }
+
+      /* ---- west: raised foundation slab with formwork */
+      api.box(-23, 0, 14, 24, 1.2, { ...G, pen: 10 });
+      for (const z of [-8, 8]) api.stairs(-16 + 4 * 0.6, z, 3, 4, 0.3, 0.6, "-x", G);
+      api.stairs(-27, -12 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", G);
+      gsModel(api, "foundation", { x: -23, z: 0 });
+      api.box(-26, -4, 0.3, 6, 1.4, { ...G, y: 1.2, pen: 1.5 });                   // formwork
+      gsModel(api, "formwork", { x: -26, z: -4, y: 1.2, rot: Math.PI / 2 });
+      api.box(-20, 4, 6, 0.3, 1.4, { ...G, y: 1.2, pen: 1.5 });
+      gsModel(api, "formwork", { x: -20, z: 4, y: 1.2 });
+      api.box(-27, 7, 1.2, 1.2, 2.2, { ...G, y: 1.2, pen: 0.4 });                  // rebar cage
+      gsModel(api, "rebar-cage", { x: -27, z: 7, y: 1.2 });
+      api.box(-19, -9, 1.6, 1.6, 1.8, { ...G, y: 1.2, pen: 3 });                   // cement mixer
+      gsModel(api, "mixer", { x: -19, z: -9, y: 1.2, rot: 0.6 });
+
+      /* ---- north: site office, toilets, crane */
+      api.ghostWalls(-4, -22, 8, 3.2, 2.6, 0.15, { gaps: { s: 1.4 }, pen: 3 });
+      api.box(-4, -22, 8.2, 3.4, 0.2, { ...G, y: 2.6, pen: 3 });
+      api.box(-5.8, -23, 2.2, 0.8, 0.77, { ...G, pen: 1 });                        // desk
+      api.box(-0.55, -23.15, 0.5, 0.6, 1.44, { ...G, pen: 2 });                    // filing cabinet
+      gsModel(api, "cabin", { x: -4, z: -22 });
+      for (const x of [5, 6.4]) {
+        api.box(x, -26, 1.2, 1.2, 2.3, { ...G, pen: 2 });
+        gsModel(api, "toilet", { x, z: -26 });
+      }
+      api.box(-28, -28, 3, 3, 1.5, { ...G, pen: 10 });                             // crane base
+      // jib swung toward the middle, so the hook and its load hang over the site
+      gsModel(api, "crane", { x: -28, z: -28, rot: -Math.PI / 4 });
+
+      /* ---- corner scaffolds (as fixed on the live map) */
       for (const [x, z] of [[-24, -24], [24, -24], [-24, 24], [24, 24]]) {
-        api.box(x, z, 5, 5, 0.35, { color: 0x6a6a60, pen: 6 });
-        api.box(x, z, 5, 5, 0.35, { color: 0x6a6a60, y: 3.2, pen: 6 });
-        // Posts hold the deck up, and the stair climbs from the map side and
-        // lands on the deck's edge. It used to run underneath the deck, so the
-        // top of the flight was a dead end under a 0.3m ceiling.
+        api.box(x, z, 5, 5, 0.35, { ...G, pen: 6 });
+        api.box(x, z, 5, 5, 0.35, { ...G, y: 3.2, pen: 6 });
         for (const [px, pz] of [[-2.3, -2.3], [2.3, -2.3], [-2.3, 2.3], [2.3, 2.3]]) {
-          api.cylinder(x + px, z + pz, 0.14, 2.85, { color: 0x555b48, y: 0.35, pen: 3 });
+          api.box(x + px, z + pz, 0.28, 0.28, 2.85, { ...G, y: 0.35, pen: 3 });
         }
-        const inward = z > 0 ? -1 : 1;             // toward the middle of the map
-        const edge = z + inward * 2.5;             // the deck edge facing the middle
-        api.stairs(x, edge + inward * 11 * 0.62, 3.5, 11, 0.323, 0.62, inward > 0 ? "-z" : "+z", { color: 0x555b48 });
+        const inward = z > 0 ? -1 : 1;
+        const edge = z + inward * 2.5;
+        api.stairs(x, edge + inward * 11 * 0.62, 3.5, 11, 0.323, 0.62, inward > 0 ? "-z" : "+z", G);
+        // guardrails round the top deck: back, both sides, and beside the stair
+        const rail = { y: 3.55, pen: 0.3 };
+        api.ghostBox(x - 2.475, z, 0.05, 5, 1.05, rail);
+        api.ghostBox(x + 2.475, z, 0.05, 5, 1.05, rail);
+        api.ghostBox(x, z - inward * 2.475, 5, 0.05, 1.05, rail);
+        for (const s of [-1, 1]) api.ghostBox(x + s * 2.125, edge, 0.75, 0.05, 1.05, rail);
+        gsModel(api, "scaffold", { x, z, rot: inward > 0 ? 0 : Math.PI });
       }
-      // loose cover
-      for (const [x, z, w, d, h] of [[8, -18, 3, 3, 1.4], [-9, 18, 4, 2.5, 1.5],
-        [-11, -2, 2.6, 2.6, 1.2], [12, 6, 3, 3, 1.6], [0, 20, 5, 2, 1.3], [0, -22, 5, 2, 1.3]]) {
-        api.box(x, z, w, d, h, { color: 0x5c6b4a });
+
+      /* ---- south + loose cover */
+      api.box(8, 22, 4, 2, 1.6, { ...G, pen: 4 });                                 // skip
+      gsModel(api, "skip", { x: 8, z: 22 });
+      // south lane: a parked van breaks the spawn-to-stairs line, jersey
+      // barriers and a pallet row give the approach something to hop between
+      api.box(3, 19, 5, 2.2, 2.4, { ...G, pen: 3 });                               // van
+      gsModel(api, "van", { x: 3, z: 19, rot: Math.PI });
+      for (const [x, z] of [[-7, 14], [9, 13]]) {
+        api.box(x, z, 3, 0.6, 0.9, { ...G, pen: 6 });                                // jersey barriers
+        gsModel(api, "jersey", { x, z });
       }
-      // crane mast, decorative
-      const crane = new THREE.Mesh(new THREE.BoxGeometry(1, 26, 1), api.mat(0xd8a03a, 0.6, 0.4));
-      crane.position.set(-28, 13, -28);
-      api.prop(crane);
-      const jib = new THREE.Mesh(new THREE.BoxGeometry(30, 0.8, 0.8), api.mat(0xd8a03a, 0.6, 0.4));
-      jib.position.set(-14, 25, -28);
-      api.prop(jib);
-      for (const [x, z] of [[-30, -30], [30, -30], [-30, 30], [30, 30]]) api.floodlight(x, z);
+      for (const [i, x] of [-15, -16.5, -18].entries()) {
+        api.box(x, 23, 1.2, 1.2, 1.0, { ...G, pen: 2 });
+        gsModel(api, "brick-pallet", { x, z: 23, rot: [0.08, -0.12, 0.03][i] });
+      }
+      api.box(8, -18, 3, 3, 1.4, { ...G, pen: 0.9 });
+      gsModel(api, "block-stack", { x: 8, z: -18 });
+      api.box(-9, 18, 4, 2.5, 1.5, { ...G, pen: 0.9 });
+      gsModel(api, "timber-stack", { x: -9, z: 18 });
+      api.box(12, 6, 3, 3, 1.6, { ...G, pen: 0.9 });
+      gsModel(api, "pipe-stack", { x: 12, z: 6 });
+      for (const [x, z] of [[-30, -30], [30, -30], [-30, 30], [30, 30]]) {
+        api.floodlight(x, z, undefined, undefined, { bare: true });
+        gsModel(api, "light-tower", { x, z, rot: Math.atan2(x, z) });
+      }
     },
     spawns: [[-30, -30], [30, -30], [-30, 30], [30, 30], [0, -31], [0, 31], [-31, 0], [31, 0]],
   },
@@ -976,117 +1077,6 @@ export const MAPS = {
     // which is the contested lane, and never inside a shop.
     spawns: [[-34, 28], [34, 28], [0, 29], [-36, -18], [36, -18], [-20, 24], [20, 28], [0, -14]],
   },
-  grinsite_wip: {
-    name: "Grin Site (blockout)",
-    blurb: "Work-in-progress blockout of the Grin Site rebuild.",
-    bounds: { minX: -34, maxX: 34, minZ: -34, maxZ: 34 },
-    playerSpawn: { x: 0, z: 26 },
-    sky: { top: 0x1a2e4a, horizon: 0x6b8a5e, bottom: 0x2a3324 },
-    fog: { color: 0x3a4a38, density: 0.009 },
-    ground: { colorA: 0x4a5240, colorB: 0x363f2e, grid: 0x8fae6e },
-    sun: { color: 0xfff2d8, intensity: 2.2, pos: [30, 45, -20] },
-    hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.1 },
-    ambient: { color: 0xffffff, intensity: 0.55 },
-    build(api) {
-      const CONC = 0x9a9a92, SLAB = 0x86867e, BLOCK = 0x7d7a70, RAIL = 0xd8a03a;
-      api.walls(0, 0, 68, 68, 6, 1.4, { surface: "concrete" });
-
-      /* ---- centre: two-storey concrete frame (x -8.3..8.3, z -6.3..6.3) */
-      const L1 = 3.5, L2 = 6.7;
-      api.box(0, 0, 17, 13, 0.2, { color: SLAB, pen: 6 });                       // foundation
-      const colX = [-7.7, -2.6, 2.6, 7.7], colZ = [-5.7, 0, 5.7];
-      for (const cx of colX) for (const cz of colZ) {
-        api.box(cx, cz, 0.6, 0.6, 3.0, { color: CONC, y: 0.2, pen: 8 });           // ground-floor columns
-        // above L1: full columns under L2 (west half), rebar stubs east
-        api.box(cx, cz, 0.6, 0.6, cx < 0 ? 2.9 : 3.8, { color: CONC, y: L1, pen: 8 });
-      }
-      api.box(0, 0, 16.6, 12.6, 0.3, { color: SLAB, y: 3.2, pen: 10 });           // level 1
-      api.box(-3, 0, 10.6, 12.6, 0.3, { color: SLAB, y: 6.4, pen: 10 });          // level 2 (west half)
-      // ground-floor block walls, half built
-      api.box(-5.5, -2.2, 5, 0.3, 2.4, { color: BLOCK, y: 0.2, pen: 4 });
-      api.box(3.5, -3.5, 0.3, 5, 2.4, { color: BLOCK, y: 0.2, pen: 4 });
-      api.box(-3.5, 4, 0.3, 4, 2.4, { color: BLOCK, y: 0.2, pen: 4 });
-      // flight A: ground -> level 1, lands on the south edge
-      api.stairs(0, 6.3 + 11 * 0.64, 3, 11, 0.318, 0.64, "-z", { color: CONC });
-      // flight B: level 1 -> level 2, on the level 1 deck, lands on L2's east edge
-      api.stairs(7.8, -4, 2.5, 10, 0.32, 0.55, "-x", { color: CONC, y: L1 });
-      // level 1 edges: block parapet north + west, rails east + south (gap for flight A)
-      api.box(0, -6.15, 16.6, 0.3, 1.0, { color: BLOCK, y: L1, pen: 4 });
-      api.box(-8.15, 0, 0.3, 12.6, 1.0, { color: BLOCK, y: L1, pen: 4 });
-      api.box(8.25, 0, 0.1, 12.6, 1.0, { color: RAIL, y: L1, pen: 0.3 });
-      api.box(-4.9, 6.25, 6.8, 0.1, 1.0, { color: RAIL, y: L1, pen: 0.3 });
-      api.box(4.9, 6.25, 6.8, 0.1, 1.0, { color: RAIL, y: L1, pen: 0.3 });
-      // level 2 edges: low parapet north + west, rails south + east (gap for flight B)
-      api.box(-3, -6.15, 10.6, 0.3, 0.6, { color: BLOCK, y: L2, pen: 4 });
-      api.box(-8.15, 0, 0.3, 12.6, 0.6, { color: BLOCK, y: L2, pen: 4 });
-      api.box(-3, 6.25, 10.6, 0.1, 1.0, { color: RAIL, y: L2, pen: 0.3 });
-      api.box(2.25, -5.8, 0.1, 1.0, 1.0, { color: RAIL, y: L2, pen: 0.3 });
-      api.box(2.25, 1.75, 0.1, 9.1, 1.0, { color: RAIL, y: L2, pen: 0.3 });
-
-      /* ---- east: container yard */
-      shippingContainer(api, { x: 18, z: -15, rot: 0 });
-      shippingContainer(api, { x: 18, z: -15, rot: 0, y: 2.6 });
-      shippingContainer(api, { x: 26, z: -9, rot: 0 });
-      shippingContainer(api, { x: 17, z: -3, rot: Math.PI / 2 });
-      shippingContainer(api, { x: 26, z: 9, rot: 0 });
-      shippingContainer(api, { x: 26, z: 9, rot: 0, y: 2.6 });
-      shippingContainer(api, { x: 17, z: 12, rot: Math.PI / 2 });
-      // walk-through container: open both ends
-      api.walls(24.5, 1, 6, 2.5, 2.5, 0.12, { color: 0x3a6a7a, gaps: { w: 2.26, e: 2.26 }, pen: 3 });
-      api.box(24.5, 1, 6, 2.5, 0.12, { color: 0x3a6a7a, y: 2.5, pen: 3 });
-      // steps up onto the single container at (26,-9)
-      api.stairs(28, -7.75 + 8 * 0.6, 2, 8, 0.325, 0.6, "-z", { color: RAIL });
-      api.box(19.5, 19, 1.4, 2.6, 2.2, { color: 0xd8a03a, pen: 4 });               // forklift
-      for (const [x, z] of [[29, 15], [13.5, -8], [30, -18]]) api.box(x, z, 1.2, 1.2, 1.0, { color: 0xa0523a, pen: 2 }); // brick pallets
-
-      /* ---- west: raised foundation slab with formwork */
-      api.box(-23, 0, 14, 24, 1.2, { color: SLAB, pen: 10 });
-      for (const z of [-8, 8]) api.stairs(-16 + 4 * 0.6, z, 3, 4, 0.3, 0.6, "-x", { color: CONC });
-      api.stairs(-27, -12 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { color: CONC });
-      api.box(-26, -4, 0.3, 6, 1.4, { color: 0x8a6a44, y: 1.2, pen: 1.5 });          // formwork
-      api.box(-20, 4, 6, 0.3, 1.4, { color: 0x8a6a44, y: 1.2, pen: 1.5 });
-      api.box(-27, 7, 1.2, 1.2, 2.2, { color: 0x6a4a3a, y: 1.2, pen: 0.4 });         // rebar cage
-      api.box(-19, -9, 1.6, 1.6, 1.8, { color: 0xc8b048, y: 1.2, pen: 3 });          // cement mixer
-
-      /* ---- north: site office, toilets, crane base */
-      api.walls(-4, -22, 8, 3.2, 2.6, 0.15, { color: 0xd8d0b0, gaps: { s: 1.4 }, pen: 3 });
-      api.box(-4, -22, 8.2, 3.4, 0.2, { color: 0xc8c0a0, y: 2.6, pen: 3 });
-      for (const x of [5, 6.4]) api.box(x, -26, 1.2, 1.2, 2.3, { color: 0x3a7ad8, pen: 2 });
-      api.box(-28, -28, 3, 3, 1.5, { color: CONC, pen: 10 });                          // crane counterweight base
-      const crane = new THREE.Mesh(new THREE.BoxGeometry(1, 26, 1), api.mat(0xd8a03a, 0.6, 0.4));
-      crane.position.set(-28, 14.5, -28);
-      api.prop(crane);
-      const jib = new THREE.Mesh(new THREE.BoxGeometry(30, 0.8, 0.8), api.mat(0xd8a03a, 0.6, 0.4));
-      jib.position.set(-14, 26.5, -28);
-      api.prop(jib);
-
-      /* ---- corner scaffolds (as fixed on the live map) */
-      for (const [x, z] of [[-24, -24], [24, -24], [-24, 24], [24, 24]]) {
-        api.box(x, z, 5, 5, 0.35, { color: 0x6a6a60, pen: 6 });
-        api.box(x, z, 5, 5, 0.35, { color: 0x6a6a60, y: 3.2, pen: 6 });
-        for (const [px, pz] of [[-2.3, -2.3], [2.3, -2.3], [-2.3, 2.3], [2.3, 2.3]]) {
-          api.cylinder(x + px, z + pz, 0.14, 2.85, { color: 0x555b48, y: 0.35, pen: 3 });
-        }
-        const inward = z > 0 ? -1 : 1;
-        const edge = z + inward * 2.5;
-        api.stairs(x, edge + inward * 11 * 0.62, 3.5, 11, 0.323, 0.62, inward > 0 ? "-z" : "+z", { color: 0x555b48 });
-      }
-
-      /* ---- south + loose cover */
-      api.box(8, 22, 4, 2, 1.6, { color: 0x8a5a2a, pen: 4 });                       // skip
-      // south lane: a parked van breaks the spawn-to-stairs line, jersey
-      // barriers and a pallet row give the approach something to hop between
-      api.box(3, 19, 5, 2.2, 2.4, { color: 0xe8e4d8, pen: 3 });                   // van
-      api.box(-7, 14, 3, 0.6, 0.9, { color: CONC, pen: 6 });                        // jersey barriers
-      api.box(9, 13, 3, 0.6, 0.9, { color: CONC, pen: 6 });
-      for (const x of [-15, -16.5, -18]) api.box(x, 23, 1.2, 1.2, 1.0, { color: 0xa0523a, pen: 2 });
-      for (const [x, z, w, d, h] of [[8, -18, 3, 3, 1.4], [-9, 18, 4, 2.5, 1.5], [12, 6, 3, 3, 1.6]]) {
-        api.box(x, z, w, d, h, { color: 0x5c6b4a });
-      }
-      for (const [x, z] of [[-30, -30], [30, -30], [-30, 30], [30, 30]]) api.floodlight(x, z);
-    },
-    spawns: [[-30, -30], [30, -30], [-30, 30], [30, 30], [0, -31], [0, 31], [-31, 0], [31, 0]],
-  },
   dustbowl_wip: {
     name: "Dust Bowl (blockout)",
     blurb: "Work-in-progress blockout of the Dust Bowl rebuild.",
@@ -1350,6 +1340,26 @@ export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id
 
 /* ------------------------------------------------------------------ builder */
 
+/* Lit, textured ground for maps that set ground.surface: unlike the grid
+   shader it takes shadows, so modelled props sit on it instead of floating.
+   `tile` is metres per texture repeat; colorA tints it. */
+function groundSurface(g, w, d) {
+  const s = SURFACES[g.surface];
+  const tile = g.tile || 4;
+  const m = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(g.colorA).lerp(new THREE.Color(0xffffff), 0.35),
+    map: s.color.clone(), normalMap: s.normal.clone(), roughnessMap: s.rough.clone(), roughness: 1, metalness: 0,
+  });
+  if (s.ao) m.aoMap = s.ao.clone();
+  for (const t of [m.map, m.normalMap, m.roughnessMap, m.aoMap]) {
+    if (!t) continue;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(w / tile, d / tile);
+    t.needsUpdate = true;
+  }
+  return m;
+}
+
 /* Fills `colliders` and `arena` in place — the movement controller holds
    references to both, so they must be mutated rather than replaced. */
 export function buildMap(id, { colliders, arena }) {
@@ -1362,7 +1372,7 @@ export function buildMap(id, { colliders, arena }) {
   const g = map.ground;
   const w = map.bounds.maxX - map.bounds.minX + 24;
   const d = map.bounds.maxZ - map.bounds.minZ + 24;
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(w, d, 1, 1), makeGroundMaterial(g));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(w, d, 1, 1), g.surface ? groundSurface(g, w, d) : makeGroundMaterial(g));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   root.add(ground);

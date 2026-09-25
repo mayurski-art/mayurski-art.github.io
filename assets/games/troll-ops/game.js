@@ -6563,6 +6563,7 @@ animate();
    is. Behind ?tohooks=1 so normal play never exposes it. */
 if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
+    renderer, scene,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
     settings, localRig, toggleThirdPerson,
     startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,

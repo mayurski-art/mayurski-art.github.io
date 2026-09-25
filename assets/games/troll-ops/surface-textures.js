@@ -21,6 +21,10 @@ export const SURFACES = {
   wood: { color: loadTex("wood_color.jpg", true), normal: loadTex("wood_normal.jpg"), rough: loadTex("wood_rough.jpg") },
   asphalt: { color: loadTex("asphalt_color.jpg", true), normal: loadTex("asphalt_normal.jpg"), rough: loadTex("asphalt_rough.jpg") },
   rock: { color: loadTex("rock_color.jpg", true), normal: loadTex("rock_normal.jpg"), rough: loadTex("rock_rough.jpg"), ao: loadTex("rock_ao.jpg") },
+  // these two are baked in Blender (models/bake_surfaces.blender.py), not ambientCG;
+  // "concrete" above is actually split-face block, "cast" is poured concrete
+  dirt: { color: loadTex("dirt_color.jpg", true), normal: loadTex("dirt_normal.jpg"), rough: loadTex("dirt_rough.jpg") },
+  cast: { color: loadTex("cast_color.jpg", true), normal: loadTex("cast_normal.jpg"), rough: loadTex("cast_rough.jpg") },
 };
 
 /* Builds one tinted, textured MeshStandardMaterial from a SURFACES entry,
