@@ -2528,7 +2528,9 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "Digit3") setHolding("melee");
     if (e.code === "Digit4" && !e.repeat) callReadyStreak();
     if (e.code === "KeyG" && !e.repeat) startCook("lethal");
-    if (e.code === "KeyF" && !e.repeat) startCook("tactical");
+    // F is plant/defuse while you're somewhere you can do either (S&D);
+    // everywhere else it's the tactical.
+    if (e.code === "KeyF" && !e.repeat && !(isSnd() && sndCanInteract)) startCook("tactical");
   }
   // Range-only live tuning, so a sensitivity change can be felt immediately.
   if (isRange() && gameState === "playing" && !localPauseOnly) {
@@ -4386,7 +4388,7 @@ function updateSnd(dt) {
     els.bombPrompt.hidden = true;
     if (isPvp() && net.active) net.publishBomb({ kind: "event", action: "cancel" });
   } else if (!bomb.action) {
-    const key = isTouch ? "E" : (gamepadState.connected ? "D-pad →" : "E");
+    const key = isTouch ? "F" : (gamepadState.connected ? "D-pad →" : "F");
     if (onSite) { els.bombPrompt.hidden = false; els.bombPromptText.textContent = `Hold ${key} to plant (site ${onSite.id})`; els.bombBarFill.style.width = "0%"; }
     else if (canDefuse) { els.bombPrompt.hidden = false; els.bombPromptText.textContent = `Hold ${key} to defuse`; els.bombBarFill.style.width = "0%"; }
     else els.bombPrompt.hidden = true;
@@ -5939,7 +5941,7 @@ function updatePlayer(dt) {
     && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
   const wantFire = !frozen && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
   if (isSnd()) {
-    sndInteractHeld = !frozen && ((isTouch && touchState.interact) || keys.has("KeyE")
+    sndInteractHeld = !frozen && ((isTouch && touchState.interact) || (keys.has("KeyF") && cooking.slot !== "tactical")
       || (gp && gamepadState.pickup && sndCanInteract));
   }
 
