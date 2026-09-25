@@ -11,7 +11,7 @@ node tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 ## Start here (next session): weapon skins
 
 The user is starting the **weapon skins revision** next. The maps work is
-paused where the user's input is needed (see "Maps: where it stands").
+paused, not blocked: all layouts are approved (see "Maps: where it stands").
 
 What exists today (session 1, commit 667366a):
 - Only the **Problem 416** (`problem416`, the default rifle) is skinnable:
@@ -64,11 +64,12 @@ rebuild in -> Cul-de-Grin + Grin Beach polish -> shared fixes last.
    scaffold top deck, office desk + cabinet. Walk test 12/12, sync test pass.
    Headless fps about 10% below the old map (22-24 vs 25-28). Doc updated with
    a "live with real props" section and screenshots.
-2. **Dust Bowl, The Depot, Undergrin: blocked on the user.** Blockouts are
-   hidden maps `dustbowl_wip`, `depot_wip`, `undergrin_wip` (ids ending `_wip`
-   are filtered out of MAP_IDS). Their "Layout OK, or move anything?" boxes in
-   the doc are still unticked. Once OK'd, do each like Grin Site: a
-   `build_<map>.blender.py` using the same Builder, ghost colliders, swap in.
+2. **Dust Bowl, The Depot, Undergrin: layouts APPROVED (user ticked all three
+   on Sep 24, no comments), ready for real props.** Blockouts are hidden maps
+   `dustbowl_wip`, `depot_wip`, `undergrin_wip` (ids ending `_wip` are
+   filtered out of MAP_IDS). Do each like Grin Site: a `build_<map>.blender.py`
+   using the same Builder, ghost colliders, walk test, swap in for the live id
+   (keep the map-list order). Map order is still "decide later".
 3. Then Cul-de-Grin + Grin Beach polish (see the doc).
 4. Shared fixes last: per-face metre UVs for `api.box` (procedural boxes still
    smear on N-S faces; the modelled maps don't), and a map check tool.
