@@ -1,5 +1,5 @@
 // Troll Ops skin editor: serves tools/troll-skin-editor.html and saves what
-// you set there. Save writes that skin's crops, emblem and rollmark back into
+// you set there. Save writes that skin's crops back into
 // assets/games/troll-ops/skins.js and writes its freshly baked atlas and
 // picker thumbnail to assets/games/troll-ops/skins/ — no separate bake step.
 //
@@ -29,9 +29,9 @@ function cropSrc(c) {
   return `[${out.join(", ")}]`;
 }
 
-/* Rewrite one skin's crops/emblem/rollmark lines in skins.js, leaving every
+/* Rewrite one skin's crops in skins.js, leaving every
    other line (and every other skin) exactly as it was. */
-function writeSkin({ id, crops, emblem, rollmark }) {
+function writeSkin({ id, crops }) {
   const raw = fs.readFileSync(SKINS_JS, "utf8");
   const crlf = raw.includes("\r\n");
   let s = raw.replace(/\r\n/g, "\n");
@@ -44,13 +44,8 @@ function writeSkin({ id, crops, emblem, rollmark }) {
   const cropLines = PARTS.map((k) => `      ${k}: ${cropSrc(crops[k])},`).join("\n");
   block = block.replace(/    crops: \{[\s\S]*?\n    \},/, `    crops: {\n${cropLines}\n    },`);
 
-  const [ek, es, et, esize] = emblem.at;
-  const emb = `    emblem: { at: [${str(ek)}, ${num(es)}, ${num(et)}, ${num(esize)}], style: ${str(emblem.style)}${emblem.color ? `, color: ${str(emblem.color)}` : ""} },`;
-  block = /\n    emblem: .*/.test(block) ? block.replace(/    emblem: .*/, emb) : `${block}\n${emb}`;
-
-  const roll = rollmark ? `    rollmark: [${num(rollmark[0])}, ${num(rollmark[1])}, ${str(rollmark[2] || "right")}],` : null;
-  if (/\n    rollmark: .*/.test(block)) block = roll ? block.replace(/    rollmark: .*/, roll) : block.replace(/\n    rollmark: .*/, "");
-  else if (roll) block = block.replace(emb, `${emb}\n${roll}`);
+  // Skins are the banner alone now: no emblem, no rollmark.
+  block = block.replace(/\n    emblem: .*/, "").replace(/\n    rollmark: .*/, "");
 
   s = s.slice(0, start) + block + s.slice(end);
   fs.writeFileSync(SKINS_JS, crlf ? s.replace(/\n/g, "\r\n") : s);

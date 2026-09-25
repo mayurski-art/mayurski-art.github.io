@@ -5,7 +5,7 @@
 // Each is designed per part: which crop of the banner suits the long thin
 // upper receiver, which the squarer lower, the handguard, the stock, the
 // grip, the magazine; trim and metal colours taken from the banner's own
-// palette; and a trollface emblem stuck, stamped or engraved where it fits.
+// palette. The parts show the banner and nothing else.
 //
 // tools/troll-skin-bake.html turns each recipe into one small atlas
 // (skins/<id>.jpg, 1024x512) plus a picker thumbnail (skins/<id>-thumb.jpg).
@@ -42,9 +42,7 @@ export const SKINNABLE = new Set(["problem416"]);
    spans. The crop's height follows from the panel's shape, so nothing is
    ever stretched. Colours: `trim` edges and inlay lines, `ink` for
    engraving and small print, `metal`/`accent` the barrel, rail and small
-   hardware. Emblems: [panel, s, t, size] with s/t the centre across and up
-   the panel (0..1) and size as a fraction of the panel's height.
-   `rollmark` moves the engraved "PROBLEM 416" off busy art: [s, t, align]. */
+   hardware. */
 export const SKINS = [
   {
     id: "problem", name: "You Have a Problem", banner: "banner-16.jpg",
@@ -58,8 +56,6 @@ export const SKINS = [
       grip: [0.505, 0.8, 0.118, 90],
       mag: [0.81, 0.72, 0.17, -90],
     },
-    emblem: { at: ["grip", 0.5, 0.42, 0.34], style: "engrave" },
-    rollmark: [0.64, 0.5, "right"],
   },
   {
     id: "green", name: "Green Room", banner: "banner-03.jpg",
@@ -73,7 +69,6 @@ export const SKINS = [
       grip: [0.52, 0.85, 0.05],
       mag: [0.63, 0.8, 0.08],
     },
-    emblem: { at: ["handguard", 0.84, 0.5, 0.62], style: "sticker" },
   },
   {
     id: "hitman", name: "Hitman Red", banner: "banner-04.jpg",
@@ -87,7 +82,6 @@ export const SKINS = [
       grip: [0.91, 0.68, 0.06],
       mag: [0.74, 0.62, 0.08],
     },
-    emblem: { at: ["mag", 0.5, 0.62, 0.22], style: "stamp", color: "#101216" },
   },
   {
     id: "livewire", name: "Live Wire", banner: "banner-07.jpg",
@@ -101,7 +95,6 @@ export const SKINS = [
       grip: [0.1, 0.9, 0.06],
       mag: [0.15, 0.5, 0.1],
     },
-    emblem: { at: ["lower", 0.82, 0.62, 0.36], style: "sticker" },
   },
   {
     id: "buytroll", name: "Buy $TROLL", banner: "banner-10.jpg",
@@ -115,7 +108,6 @@ export const SKINS = [
       grip: [0.93, 0.8, 0.06],
       mag: [0.1, 0.38, 0.155],
     },
-    emblem: { at: ["grip", 0.5, 0.45, 0.34], style: "stamp", color: "#111111" },
   },
   {
     id: "jungle", name: "Deep Cover", banner: "banner-11.jpg",
@@ -129,7 +121,6 @@ export const SKINS = [
       grip: [0.45, 0.75, 0.06],
       mag: [0.85, 0.5, 0.1],
     },
-    emblem: { at: ["handguard", 0.8, 0.5, 0.6], style: "engrave" },
   },
   {
     id: "gladiator", name: "Gladiator", banner: "banner-01.jpg",
@@ -143,7 +134,6 @@ export const SKINS = [
       grip: [0.2, 0.2, 0.06],
       mag: [0.4, 0.7, 0.1],
     },
-    emblem: { at: ["handguard", 0.5, 0.5, 0.62], style: "engrave", color: "#b8892e" },
   },
   {
     id: "tie", name: "Loose Tie", banner: "banner-02.jpg",
@@ -157,7 +147,6 @@ export const SKINS = [
       grip: [0.95, 0.8, 0.05],
       mag: [0.95, 0.75, 0.08],
     },
-    emblem: { at: ["grip", 0.5, 0.45, 0.34], style: "sticker" },
   },
   {
     id: "knight", name: "Knight Watch", banner: "banner-05.jpg",
@@ -171,7 +160,6 @@ export const SKINS = [
       grip: [0.3, 0.15, 0.06],
       mag: [0.9, 0.45, 0.08],
     },
-    emblem: { at: ["handguard", 0.3, 0.5, 0.6], style: "engrave", color: "#c9ced6" },
   },
   {
     id: "frog", name: "Frog Swap", banner: "banner-06.jpg",
@@ -185,7 +173,6 @@ export const SKINS = [
       grip: [0.6, 0.9, 0.06],
       mag: [0.245, 0.85, 0.1],
     },
-    emblem: { at: ["upper", 0.12, 0.5, 0.8], style: "sticker" },
   },
   {
     id: "diamond", name: "Diamond Fist", banner: "banner-08.jpg",
@@ -199,7 +186,6 @@ export const SKINS = [
       grip: [0.1, 0.15, 0.06],
       mag: [0.6, 0.8, 0.1],
     },
-    emblem: { at: ["handguard", 0.2, 0.5, 0.6], style: "stamp", color: "#b7ff2e" },
   },
   {
     id: "keyboard", name: "U Mad Bro", banner: "banner-09.jpg",
@@ -213,7 +199,6 @@ export const SKINS = [
       grip: [0.7, 0.75, 0.05],
       mag: [0.1, 0.65, 0.08],
     },
-    emblem: { at: ["mag", 0.5, 0.35, 0.22], style: "stamp", color: "#7bff66" },
   },
   {
     id: "brute", name: "Brute Force", banner: "banner-12.jpg",
@@ -227,7 +212,6 @@ export const SKINS = [
       grip: [0.1, 0.3, 0.06],
       mag: [0.2, 0.75, 0.1],
     },
-    emblem: { at: ["grip", 0.5, 0.45, 0.34], style: "engrave" },
   },
   {
     id: "lightspeed", name: "Speed of Light", banner: "banner-13.jpg",
@@ -241,7 +225,6 @@ export const SKINS = [
       grip: [0.9, 0.5, 0.06],
       mag: [0.3, 0.5, 0.1],
     },
-    emblem: { at: ["handguard", 0.8, 0.5, 0.6], style: "sticker" },
   },
   {
     id: "office", name: "Office Hours", banner: "banner-14.jpg",
@@ -255,7 +238,6 @@ export const SKINS = [
       grip: [0.5, 0.75, 0.05],
       mag: [0.8, 0.8, 0.1],
     },
-    emblem: { at: ["grip", 0.5, 0.45, 0.34], style: "stamp", color: "#dddddd" },
   },
   {
     id: "order", name: "The Order", banner: "banner-15.jpg",
@@ -269,7 +251,6 @@ export const SKINS = [
       grip: [0.5, 0.85, 0.05],
       mag: [0.5, 0.82, 0.11],
     },
-    emblem: { at: ["handguard", 0.5, 0.5, 0.6], style: "engrave", color: "#9fb8c8" },
   },
 ];
 

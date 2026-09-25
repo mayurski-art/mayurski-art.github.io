@@ -37,13 +37,16 @@
   kbd { background: #22303a; border: 1px solid #33424e; border-radius: 4px; padding: 0 4px; font: 11px ui-monospace, monospace; }
   #banner { width: 100%; display: block; border-radius: 6px; cursor: crosshair; touch-action: none; }
   #view { width: 100%; aspect-ratio: 12 / 5; display: block; border-radius: 6px; cursor: grab; touch-action: none; }
-  #atlas { width: 100%; display: block; border-radius: 6px; cursor: copy; touch-action: none; }
+  #atlas { width: 100%; display: block; border-radius: 6px; }
   .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
   table { width: 100%; border-collapse: collapse; margin-top: 10px; }
   th { text-align: left; font-weight: 600; color: var(--dim); font-size: 11px; padding: 3px 4px; }
   td { padding: 3px 4px; }
   tr.part { cursor: pointer; }
   tr.part.sel td { background: #1d2731; }
+  tr.part.locked td { opacity: .55; }
+  tr.part.locked td:nth-last-child(2) { opacity: 1; }
+  td input:disabled, td button:disabled { cursor: not-allowed; }
   tr.part td:first-child { border-radius: 6px 0 0 6px; }
   tr.part td:last-child { border-radius: 0 6px 6px 0; }
   .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
@@ -73,12 +76,12 @@
       <h2>Banner — drag the boxes</h2>
       <canvas id="banner"></canvas>
       <p class="hint">
-        Drag inside a box to move it · corner dot to zoom · top dot to rotate (<kbd>Shift</kbd> snaps 15°) ·
+        Drag inside a box to move it (<kbd>Shift</kbd> locks to X or Y) · corner dot to zoom · top dot to rotate (<kbd>Shift</kbd> snaps 15°) ·
         wheel zooms, <kbd>Alt</kbd>+wheel rotates · <kbd>1</kbd>–<kbd>6</kbd> pick a part · arrows nudge ·
-        <kbd>[</kbd> <kbd>]</kbd> rotate 1° · <kbd>F</kbd> flip. The ▶ marks the muzzle end of each part.
+        <kbd>[</kbd> <kbd>]</kbd> rotate 1° · <kbd>F</kbd> flip · 🔒 in the table locks a part so nothing moves it. The ▶ marks the muzzle end of each part.
       </p>
       <table>
-        <thead><tr><th>Part</th><th>X</th><th>Y</th><th>Zoom</th><th>Rotate°</th><th>Flip</th><th></th></tr></thead>
+        <thead><tr><th>Part</th><th>X</th><th>Y</th><th>Zoom</th><th>Rotate°</th><th>Flip</th><th>Lock</th><th></th></tr></thead>
         <tbody id="parts"></tbody>
       </table>
     </section>
@@ -96,20 +99,8 @@
       </div>
     </section>
     <section>
-      <h2>Atlas — drag to place the emblem</h2>
+      <h2>Atlas — the texture that goes on the gun</h2>
       <canvas id="atlas" width="1024" height="512"></canvas>
-      <p class="hint">Drag on any part to put the trollface there. <kbd>Shift</kbd>+drag on the lower receiver moves the rollmark.</p>
-      <div class="grid2">
-        <label for="e-style">Emblem</label>
-        <select id="e-style"><option value="sticker">Sticker</option><option value="engrave">Engraved</option><option value="stamp">Stamp</option></select>
-        <span></span>
-        <label for="e-size">Size</label>
-        <input id="e-size" type="range" min="0.1" max="1" step="0.01">
-        <output id="e-size-out"></output>
-        <label for="e-color">Colour</label>
-        <span class="row" style="margin:0"><input id="e-color" type="color"><label><input id="e-ink" type="checkbox"> use the skin's ink</label></span>
-        <span></span>
-      </div>
     </section>
   </div>
 </main>
@@ -134,10 +125,14 @@ const work = Object.fromEntries(SKINS.map((s) => [s.id, clone(s)]));
 let skinId = SKINS[0].id;
 let part = "upper";
 let img = null;
+/* Parts you've locked: they can't be picked, dragged, nudged or zoomed from
+   the banner, so working on one part can't knock another. Kept per browser,
+   across reloads. */
+const locked = new Set((() => { try { return JSON.parse(localStorage.getItem("skinEditor.locked") || "[]"); } catch { return []; } })());
+function saveLocks() { try { localStorage.setItem("skinEditor.locked", JSON.stringify([...locked])); } catch { /* private mode */ } }
 const skin = () => work[skinId];
 const full = (c) => [c[0], c[1], c[2], c[3] || 0, c[4] ? 1 : 0];
-const isDirty = (id) => JSON.stringify({ c: work[id].crops, e: work[id].emblem, r: work[id].rollmark ?? null })
-  !== JSON.stringify({ c: saved[id].crops, e: saved[id].emblem, r: saved[id].rollmark ?? null });
+const isDirty = (id) => JSON.stringify(work[id].crops) !== JSON.stringify(saved[id].crops);
 
 function setStatus(text, cls = "") { const s = $("status"); s.textContent = text; s.className = cls; }
 function refreshStatus() {
@@ -199,7 +194,7 @@ function drawBanner() {
   }
   const dpr = devicePixelRatio;
   for (const key of order) {
-    const b = boxOf(key), sel = key === part;
+    const b = boxOf(key), sel = key === part, isLocked = locked.has(key);
     bx.lineWidth = (sel ? 3 : 1.6) * dpr;
     bx.strokeStyle = COLORS[key];
     bx.setLineDash(sel ? [] : [6 * dpr, 4 * dpr]);
@@ -216,13 +211,13 @@ function drawBanner() {
     // Label at the top-left corner.
     const [lx, ly] = fromBox(b, -b.hw, -b.hh);
     bx.font = `600 ${11 * dpr}px system-ui, sans-serif`;
-    const text = NAMES[key];
+    const text = (isLocked ? "🔒 " : "") + NAMES[key];
     const tw = bx.measureText(text).width;
     bx.fillStyle = COLORS[key];
     bx.fillRect(lx, ly - 15 * dpr, tw + 8 * dpr, 15 * dpr);
     bx.fillStyle = "#0e1216";
     bx.fillText(text, lx + 4 * dpr, ly - 4 * dpr);
-    if (sel) {
+    if (sel && !isLocked) {
       bx.fillStyle = "#fff";
       for (const [cx, cy] of [[-b.hw, -b.hh], [b.hw, -b.hh], [b.hw, b.hh], [-b.hw, b.hh]]) {
         const [x, y] = fromBox(b, cx, cy);
@@ -249,21 +244,23 @@ bc.addEventListener("pointerdown", (e) => {
   const near = (x, y) => Math.hypot(px - x, py - y) <= HANDLE() * 1.6;
   const crop = full(skin().crops[part]);
   const [rx, ry] = rotHandle(b);
-  if (near(rx, ry)) {
+  const partLocked = locked.has(part);
+  if (!partLocked && near(rx, ry)) {
     drag = { mode: "rot", key: part, side: rotSide(b) };
-  } else if ([[-1, -1], [1, -1], [1, 1], [-1, 1]].some(([sx, sy]) => near(...fromBox(b, sx * b.hw, sy * b.hh)))) {
+  } else if (!partLocked && [[-1, -1], [1, -1], [1, 1], [-1, 1]].some(([sx, sy]) => near(...fromBox(b, sx * b.hw, sy * b.hh)))) {
     drag = { mode: "zoom", key: part, zoom0: crop[2], d0: Math.hypot(px - b.x, py - b.y) };
   } else {
     // Topmost box under the pointer: the selected one wins, then the rest
     // in reverse draw order.
-    const hit = [part, ...PARTS.filter((p) => p !== part).reverse()].find((key) => {
+    const hit = [part, ...PARTS.filter((p) => p !== part).reverse()].filter((key) => !locked.has(key)).find((key) => {
       const bb = boxOf(key); const [lx, ly] = toBox(bb, px, py);
       return Math.abs(lx) <= bb.hw && Math.abs(ly) <= bb.hh;
     });
     if (!hit) return;
     select(hit);
     const bb = boxOf(hit);
-    drag = { mode: "move", key: hit, ox: px - bb.x, oy: py - bb.y };
+    if (locked.has(hit)) return;
+    drag = { mode: "move", key: hit, ox: px - bb.x, oy: py - bb.y, sx: px, sy: py, cx0: bb.x, cy0: bb.y, axis: null };
   }
   bc.setPointerCapture(e.pointerId);
   e.preventDefault();
@@ -278,8 +275,18 @@ bc.addEventListener("pointermove", (e) => {
   }
   const c = full(skin().crops[drag.key]);
   if (drag.mode === "move") {
-    c[0] = (px - drag.ox) / k / img.width;
-    c[1] = (py - drag.oy) / k / img.height;
+    // Shift locks the move to X or Y, whichever way the pointer went first.
+    let nx = px - drag.ox, ny = py - drag.oy;
+    if (e.shiftKey) {
+      const dx = px - drag.sx, dy = py - drag.sy;
+      if (!drag.axis && Math.hypot(dx, dy) > 4 * devicePixelRatio) drag.axis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+      if (drag.axis !== "x") nx = drag.cx0;
+      if (drag.axis !== "y") ny = drag.cy0;
+    } else {
+      drag.axis = null;
+    }
+    c[0] = nx / k / img.width;
+    c[1] = ny / k / img.height;
   } else if (drag.mode === "zoom") {
     const b = boxOf(drag.key);
     c[2] = Math.max(0.01, Math.min(2, drag.zoom0 * Math.hypot(px - b.x, py - b.y) / Math.max(1, drag.d0)));
@@ -297,6 +304,7 @@ bc.addEventListener("pointerup", endDrag);
 bc.addEventListener("pointercancel", endDrag);
 bc.addEventListener("wheel", (e) => {
   e.preventDefault();
+  if (locked.has(part)) return;
   const c = full(skin().crops[part]);
   if (e.altKey) c[3] = ((c[3] + Math.sign(e.deltaY) * 2 + 540) % 360) - 180;
   else c[2] = Math.max(0.01, Math.min(2, c[2] * (e.deltaY > 0 ? 1.05 : 1 / 1.05)));
@@ -327,6 +335,7 @@ function buildTable() {
     tr.innerHTML = `<td><span class="sw" style="background:${COLORS[key]}"></span>${i + 1} ${NAMES[key]}</td>`
       + ["cx", "cy", "zoom", "rot"].map((f) => `<td><input type="number" data-f="${f}" step="${f === "rot" ? 1 : 0.005}" aria-label="${NAMES[key]} ${f}"></td>`).join("")
       + `<td><input type="checkbox" data-f="flip" aria-label="Flip ${NAMES[key]}"></td>`
+      + `<td><button data-lock aria-pressed="false" aria-label="Lock ${NAMES[key]}" title="Lock ${NAMES[key]}">🔓</button></td>`
       + `<td><button data-reset aria-label="Reset ${NAMES[key]}">Reset</button></td>`;
     tr.addEventListener("pointerdown", () => select(key));
     tr.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", () => {
@@ -335,7 +344,12 @@ function buildTable() {
       c[idx] = inp.type === "checkbox" ? (inp.checked ? 1 : 0) : Number(inp.value) || 0;
       setCrop(key, c, { fromTable: true });
     }));
-    tr.querySelector("[data-reset]").addEventListener("click", () => setCrop(key, full(saved[skinId].crops[key])));
+    tr.querySelector("[data-reset]").addEventListener("click", () => { if (!locked.has(key)) setCrop(key, full(saved[skinId].crops[key])); });
+    tr.querySelector("[data-lock]").addEventListener("click", () => {
+      if (locked.has(key)) locked.delete(key); else locked.add(key);
+      saveLocks();
+      drawBanner(); paintTable();
+    });
     tb.appendChild(tr);
   });
 }
@@ -343,60 +357,24 @@ function paintTable(skipKey = null) {
   for (const tr of $("parts").children) {
     const key = tr.dataset.key;
     tr.classList.toggle("sel", key === part);
-    if (key === skipKey) continue;
+    if (key === skipKey) { tr.classList.toggle("locked", locked.has(key)); continue; }
     const c = full(skin().crops[key]);
     const vals = { cx: c[0].toFixed(3), cy: c[1].toFixed(3), zoom: c[2].toFixed(3), rot: String(Math.round(c[3])) };
     tr.querySelectorAll("input[type=number]").forEach((inp) => { inp.value = vals[inp.dataset.f]; });
     tr.querySelector("input[type=checkbox]").checked = !!c[4];
+    const isLocked = locked.has(key);
+    const lb = tr.querySelector("[data-lock]");
+    lb.textContent = isLocked ? "🔒" : "🔓";
+    lb.setAttribute("aria-pressed", String(isLocked));
+    lb.classList.toggle("on", isLocked);
+    tr.querySelectorAll("input, [data-reset]").forEach((el) => { el.disabled = isLocked; });
+    tr.classList.toggle("locked", isLocked);
   }
 }
-
-/* ------------------------------------------------------------ emblem UI */
-
-function paintEmblemUi() {
-  const e = skin().emblem;
-  $("e-style").value = e.style;
-  $("e-size").value = e.at[3];
-  $("e-size-out").textContent = Number(e.at[3]).toFixed(2);
-  $("e-ink").checked = !e.color;
-  $("e-color").value = e.color || skin().palette.ink;
-  $("e-color").disabled = !e.color;
-}
-$("e-style").addEventListener("input", () => { skin().emblem.style = $("e-style").value; changed(); });
-$("e-size").addEventListener("input", () => { skin().emblem.at[3] = Number($("e-size").value); changed(); });
-$("e-ink").addEventListener("input", () => {
-  if ($("e-ink").checked) delete skin().emblem.color; else skin().emblem.color = $("e-color").value;
-  changed();
-});
-$("e-color").addEventListener("input", () => { skin().emblem.color = $("e-color").value; changed(); });
-
-const atlas = $("atlas");
-function atlasPoint(e) {
-  const r = atlas.getBoundingClientRect();
-  return [(e.clientX - r.left) * atlas.width / r.width, (e.clientY - r.top) * atlas.height / r.height];
-}
-let atlasDrag = null;
-function placeFromAtlas(e) {
-  const [x, y] = atlasPoint(e);
-  const hit = PARTS.find((key) => { const r = SKIN_ATLAS.regions[key]; return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; });
-  if (!hit) return;
-  const r = SKIN_ATLAS.regions[hit];
-  const s = Math.max(0, Math.min(1, (x - r.x) / r.w)), t = Math.max(0, Math.min(1, 1 - (y - r.y) / r.h));
-  if (atlasDrag === "roll") {
-    if (hit !== "lower") return;
-    const align = skin().rollmark?.[2] || "right";
-    skin().rollmark = [s, t, align];
-  } else {
-    const e0 = skin().emblem;
-    e0.at = [hit, s, t, e0.at[3]];
-  }
-  changed();
-}
-atlas.addEventListener("pointerdown", (e) => { atlasDrag = e.shiftKey ? "roll" : "emblem"; atlas.setPointerCapture(e.pointerId); placeFromAtlas(e); });
-atlas.addEventListener("pointermove", (e) => { if (atlasDrag) placeFromAtlas(e); });
-atlas.addEventListener("pointerup", () => { atlasDrag = null; });
 
 /* --------------------------------------------------------------- 3D view */
+
+const atlas = $("atlas");
 
 const view = $("view");
 const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, preserveDrawingBuffer: true });
@@ -484,7 +462,6 @@ async function rebake() {
 function changed(skipTableKey = null) {
   drawBanner();
   paintTable(skipTableKey);
-  paintEmblemUi();
   refreshStatus();
   rebake();
 }
@@ -515,7 +492,7 @@ async function save() {
   const thumb = renderThumb();
   const res = await fetch("/save", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id: s.id, crops: s.crops, emblem: s.emblem, rollmark: s.rollmark || null, jpg, thumb }),
+    body: JSON.stringify({ id: s.id, crops: s.crops, jpg, thumb }),
   }).then((r) => r.json()).catch((e) => ({ ok: false, error: e.message }));
   if (!res.ok) { setStatus(`Save failed: ${res.error}. Is tools/troll-skin-editor.mjs running?`, "dirty"); return false; }
   saved[s.id] = clone(s);
@@ -543,6 +520,7 @@ window.addEventListener("keydown", (e) => {
   if (e.target.closest("input, select")) return;
   const n = Number(e.key);
   if (n >= 1 && n <= 6) { select(PARTS[n - 1]); return; }
+  if (locked.has(part) && /^(Arrow|\[|\]|f|F)/.test(e.key)) return;
   const c = full(skin().crops[part]);
   const px = (e.shiftKey ? 10 : 1) / (img.width * k / devicePixelRatio);
   if (e.key === "ArrowLeft") c[0] -= px;
@@ -569,8 +547,6 @@ await openSkin(skinId);
 window.__editor = {
   open: openSkin,
   setCrop: (id, key, c) => { work[id].crops[key] = c; if (id === skinId) changed(); },
-  setEmblem: (id, e) => { work[id].emblem = e; if (id === skinId) changed(); },
-  setRollmark: (id, r) => { work[id].rollmark = r; if (id === skinId) changed(); },
   save: async (id) => { await openSkin(id); return save(); },
   get: (id) => clone(work[id]),
 };

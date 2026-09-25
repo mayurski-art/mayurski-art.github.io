@@ -14,9 +14,10 @@
 
 ## Weapon skins: editor shipped (session 7)
 - tools/troll-skin-editor.mjs + .html: drag/zoom/rotate/flip each part's crop on
-  the banner, place emblem/rollmark on the atlas, live 3D gun. Save writes
+  the banner (Shift = one axis), lock parts, live 3D gun. Save writes
   skins.js + skins/<id>.jpg + thumb. Run: node tools/troll-skin-editor.mjs
-- Crops are now [cx, cy, zoom, rot, flip]; drawing shared in tools/troll-skin-draw.js
+- Skins are the banner ONLY (user 2026-09-25): no emblem, rollmark, vents,
+  stipple, ribs, border or wear. Crops are now [cx, cy, zoom, rot, flip]; drawing shared in tools/troll-skin-draw.js
   (bake page imports it). rot=0/flip=0 draws exactly as before.
 - Claude did a first re-crop pass (problem, green, hitman, jungle, knight,
   lightspeed, office, order). The USER fine-tunes the rest in the editor.
