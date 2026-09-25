@@ -17,8 +17,13 @@ import * as THREE from "three";
 
 export const SKIN_ATLAS = {
   width: 1024,
-  height: 512,
-  // Pixel rectangles. Each panel's w:h matches that part's side profile.
+  height: 1024,
+  // Two copies of the same layout: the top half is the gun's left side, the
+  // bottom half (`rightY` lower) its right side. The right is the left's
+  // mirror, placed the same along the gun, with every text area flipped back
+  // in place so writing reads correctly on both sides.
+  rightY: 512,
+  // Pixel rectangles (left side). Each panel's w:h matches that part's side profile.
   regions: {
     upper:     { x: 0,   y: 0,   w: 776, h: 88 },
     trim:      { x: 780, y: 0,   w: 244, h: 88 },
@@ -53,14 +58,15 @@ export const SKINS = [
     palette: { trim: "#1f4fd1", ink: "#10131c", metal: 0xb9bcc2, accent: 0xd9492b },
     crops: {
       upper: [0.185, 0.13, 0.47],
-      lower: [0.24, 0.466, 0.378, 0, 1],
-      handguard: [0.685, 0.77, 0.57],
-      stock: [0.925, 0.13, 0.15],
+      lower: [0.31, 0.46, 0.34, 0, 1],
+      handguard: [0.685, 0.81, 0.57],
+      stock: [0.786, 0.135, -0.01],
       grip: [0.505, 0.8, 0.118, 90],
       mag: [0.81, 0.72, 0.17, -90],
     },
-    lines: [{ box: [0.169, 0.325, 0.58, 0.454], text: "you are disgusting" }],
-    cutouts: [{ name: "trollface", box: [0.03, 0.3, 0.147, 0.62] }],
+    lines: [{ box: [0.169, 0.325, 0.58, 0.454], text: "^ disgusting", dx: 0.005, dy: 0.005, size: 0.9, rot: -6, flip: 1 }],
+    cutouts: [{ name: "trollface", box: [0.03, 0.3, 0.147, 0.62], dx: 0.287, dy: 0.005, size: 0.85 }],
+    textAreas: [[0.02, 0.05, 0.465, 0.2], [0.47, 0.72, 0.54, 0.83], [0.7, 0.72, 0.91, 0.83]],
   },
   {
     id: "green", name: "Green Room", banner: "banner-03.jpg",
@@ -113,6 +119,7 @@ export const SKINS = [
       grip: [0.93, 0.8, 0.06],
       mag: [0.1, 0.38, 0.155],
     },
+    textAreas: [[0.02, 0.1, 0.18, 0.37], [0.085, 0.36, 0.56, 0.69], [0.41, 0.875, 0.59, 0.945]],
   },
   {
     id: "jungle", name: "Deep Cover", banner: "banner-11.jpg",
@@ -230,6 +237,7 @@ export const SKINS = [
       grip: [0.9, 0.5, 0.06],
       mag: [0.3, 0.5, 0.1],
     },
+    textAreas: [[0.75, 0.1, 0.905, 0.16]],
   },
   {
     id: "office", name: "Office Hours", banner: "banner-14.jpg",

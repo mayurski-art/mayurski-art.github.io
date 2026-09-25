@@ -61,7 +61,7 @@ function writePieces(block, field, list, kind) {
 
 /* Rewrite one skin's crops and banner pieces in skins.js, leaving every
    other line (and every other skin) exactly as it was. */
-function writeSkin({ id, crops, lines, cutouts }) {
+function writeSkin({ id, crops, lines, cutouts, textAreas }) {
   const raw = fs.readFileSync(SKINS_JS, "utf8");
   const crlf = raw.includes("\r\n");
   let s = raw.replace(/\r\n/g, "\n");
@@ -76,6 +76,16 @@ function writeSkin({ id, crops, lines, cutouts }) {
 
   block = writePieces(block, "lines", lines, "line");
   block = writePieces(block, "cutouts", cutouts, "cut");
+  // Text areas: boxes round writing in the banner art, flipped back on the
+  // gun's right side. One line after the pieces (or the crops), or none.
+  if (textAreas !== undefined) {
+    block = block.replace(/\n    textAreas: .*/, "");
+    if (textAreas.length) {
+      const src = textAreas.map((a) => `[${a.map(num).join(", ")}]`).join(", ");
+      const anchor = /\n    cutouts: .*/.test(block) ? /(\n    cutouts: .*)/ : /\n    lines: .*/.test(block) ? /(\n    lines: .*)/ : /(    crops: \{[\s\S]*?\n    \},)/;
+      block = block.replace(anchor, `$1\n    textAreas: [${src}],`);
+    }
+  }
   // Skins are the banner alone now: no emblem, no rollmark.
   block = block.replace(/\n    emblem: .*/, "").replace(/\n    rollmark: .*/, "");
 

@@ -89,12 +89,15 @@
         <tbody id="parts"></tbody>
       </table>
       <div id="pieces-box" hidden>
-        <h2 style="margin-top:14px">Banner pieces — text and trollface</h2>
+        <h2 style="margin-top:14px">Banner pieces and text areas</h2>
         <div class="row" id="drag-target" role="group" aria-label="What dragging on the banner moves"></div>
         <div id="pieces"></div>
         <p class="hint">Pick a piece above, then drag it on the banner (<kbd>Shift</kbd> keeps it on X or Y), wheel to resize,
           arrows nudge, <kbd>[</kbd> <kbd>]</kbd> rotate, <kbd>F</kbd> flip, <kbd>Esc</kbd> back to the part boxes.
-          Its old spot is painted over, so it can go anywhere. Empty the text to leave it blank.</p>
+          Its old spot is painted over, so it can go anywhere. Empty the text to leave it blank.
+          <b>Text areas</b>: drag a box round any writing in the banner art. On the gun's right side
+          (a mirror of the left) that writing is flipped back so it reads correctly. Banner text lines count on their own.</p>
+        <div id="areas"></div>
       </div>
     </section>
   </div>
@@ -120,7 +123,7 @@
     </section>
     <section>
       <h2>Atlas — the texture that goes on the gun</h2>
-      <canvas id="atlas" width="1024" height="512"></canvas>
+      <canvas id="atlas" width="1024" height="1024"></canvas>
     </section>
   </div>
 </main>
@@ -153,7 +156,7 @@ const locked = new Set((() => { try { return JSON.parse(localStorage.getItem("sk
 function saveLocks() { try { localStorage.setItem("skinEditor.locked", JSON.stringify([...locked])); } catch { /* private mode */ } }
 const skin = () => work[skinId];
 const full = (c) => [c[0], c[1], c[2], c[3] || 0, c[4] ? 1 : 0];
-const recipe = (s) => JSON.stringify({ c: s.crops, l: s.lines || [], u: s.cutouts || [] });
+const recipe = (s) => JSON.stringify({ c: s.crops, l: s.lines || [], u: s.cutouts || [], t: s.textAreas || [] });
 const isDirty = (id) => recipe(work[id]) !== recipe(saved[id]);
 
 /* Unsaved edits are kept in this browser as you go, so a refresh (or a new
@@ -163,7 +166,7 @@ const DRAFTS = "skinEditor.drafts";
 function readDrafts() { try { return JSON.parse(localStorage.getItem(DRAFTS) || "{}"); } catch { return {}; } }
 function writeDraft(id) {
   const d = readDrafts();
-  if (isDirty(id)) d[id] = { crops: work[id].crops, lines: work[id].lines || [], cutouts: work[id].cutouts || [] };
+  if (isDirty(id)) d[id] = { crops: work[id].crops, lines: work[id].lines || [], cutouts: work[id].cutouts || [], textAreas: work[id].textAreas || [] };
   else delete d[id];
   try { localStorage.setItem(DRAFTS, JSON.stringify(d)); } catch { /* private mode */ }
 }
@@ -172,6 +175,7 @@ for (const [id, d] of Object.entries(readDrafts())) {
   work[id].crops = d.crops;
   if (d.lines?.length || work[id].lines) work[id].lines = d.lines;
   if (d.cutouts?.length || work[id].cutouts) work[id].cutouts = d.cutouts || [];
+  if (d.textAreas?.length || work[id].textAreas) work[id].textAreas = d.textAreas || [];
 }
 
 function setStatus(text, cls = "") { const s = $("status"); s.textContent = text; s.className = cls; }
@@ -229,8 +233,34 @@ function pieceRect(kind, i) {
   const a = r.rot * Math.PI / 180;
   return { x: r.cx * k, y: r.cy * k, hw: r.w * k / 2, hh: r.h * k / 2, a, ux: Math.cos(a), uy: Math.sin(a) };
 }
+const areasMode = () => dragTarget?.kind === "areas";
+function drawAreas() {
+  const dpr = devicePixelRatio;
+  const on = areasMode();
+  (skin().textAreas || []).forEach(([x0, y0, x1, y1], i) => {
+    const X = x0 * img.width * k, Y = y0 * img.height * k, W = (x1 - x0) * img.width * k, Hh = (y1 - y0) * img.height * k;
+    bx.lineWidth = (on ? 2 : 1) * dpr;
+    bx.strokeStyle = on ? "#4fd6ff" : "rgba(79,214,255,.5)";
+    bx.setLineDash(on ? [] : [4 * dpr, 3 * dpr]);
+    bx.strokeRect(X, Y, W, Hh);
+    bx.setLineDash([]);
+    if (on) {
+      bx.font = `600 ${11 * dpr}px system-ui, sans-serif`;
+      bx.fillStyle = "#4fd6ff";
+      bx.fillRect(X, Y, 18 * dpr, 14 * dpr);
+      bx.fillStyle = "#0e1216";
+      bx.fillText(String(i + 1), X + 5 * dpr, Y + 11 * dpr);
+    }
+  });
+  if (drag?.mode === "area") {
+    bx.strokeStyle = "#4fd6ff"; bx.lineWidth = 2 * dpr;
+    bx.strokeRect(Math.min(drag.sx, drag.x), Math.min(drag.sy, drag.y), Math.abs(drag.x - drag.sx), Math.abs(drag.y - drag.sy));
+  }
+}
 function drawPieces() {
   const dpr = devicePixelRatio;
+  drawAreas();
+  if (areasMode()) return;
   for (const p of img.pieces || []) {
     const b = pieceRect(p.kind, p.i);
     const on = dragTarget && dragTarget.kind === p.kind && dragTarget.i === p.i;
@@ -305,6 +335,12 @@ let drag = null;
 let dragTarget = null;   // null: the part boxes · { kind: "line"|"cut", i }: a piece
 bc.addEventListener("pointerdown", (e) => {
   const [px, py] = canvasPoint(e);
+  if (areasMode()) {
+    drag = { mode: "area", sx: px, sy: py, x: px, y: py };
+    bc.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    return;
+  }
   if (dragTarget) {
     const p = pieceOf(dragTarget.kind, dragTarget.i);
     drag = { mode: "piece", sx: px, sy: py, dx0: p.dx || 0, dy0: p.dy || 0, axis: null };
@@ -345,6 +381,11 @@ bc.addEventListener("pointermove", (e) => {
     bc.style.cursor = Math.hypot(px - rx, py - ry) <= HANDLE() * 1.6 ? "grab" : "crosshair";
     return;
   }
+  if (drag.mode === "area") {
+    drag.x = px; drag.y = py;
+    drawBanner();
+    return;
+  }
   if (drag.mode === "piece") {
     let mx = px - drag.sx, my = py - drag.sy;
     if (e.shiftKey) {
@@ -383,11 +424,28 @@ bc.addEventListener("pointermove", (e) => {
   }
   setCrop(drag.key, c);
 });
-const endDrag = () => { if (drag) { if (drag.mode !== "piece") settle(drag.key); drag = null; } };
+const endDrag = () => {
+  if (!drag) return;
+  if (drag.mode === "area") {
+    const x0 = Math.min(drag.sx, drag.x) / k / img.width, x1 = Math.max(drag.sx, drag.x) / k / img.width;
+    const y0 = Math.min(drag.sy, drag.y) / k / img.height, y1 = Math.max(drag.sy, drag.y) / k / img.height;
+    drag = null;
+    const r3 = (v) => Math.round(Math.max(0, Math.min(1, v)) * 1000) / 1000;
+    if (x1 - x0 > 0.005 && y1 - y0 > 0.01) {
+      (skin().textAreas ||= []).push([r3(x0), r3(y0), r3(x1), r3(y1)]);
+      buildAreas();
+      changed();
+    } else drawBanner();
+    return;
+  }
+  if (drag.mode !== "piece") settle(drag.key);
+  drag = null;
+};
 bc.addEventListener("pointerup", endDrag);
 bc.addEventListener("pointercancel", endDrag);
 bc.addEventListener("wheel", (e) => {
   e.preventDefault();
+  if (areasMode()) return;
   if (dragTarget) {
     const p = pieceOf(dragTarget.kind, dragTarget.i);
     if (e.altKey) setPiece({ rot: (p.rot || 0) + Math.sign(e.deltaY) * 2 });
@@ -605,6 +663,24 @@ async function openSkin(id) {
   changed();
 }
 
+/* ----------------------------------------------------------- text areas */
+
+function buildAreas() {
+  const box = $("areas");
+  const list = skin().textAreas || [];
+  box.innerHTML = list.length ? "" : '<p class="hint">No text areas marked on this banner.</p>';
+  const row = document.createElement("div");
+  row.className = "row";
+  list.forEach((_, i) => {
+    const b = document.createElement("button");
+    b.textContent = `Text area ${i + 1} ×`;
+    b.setAttribute("aria-label", `Remove text area ${i + 1}`);
+    b.addEventListener("click", () => { skin().textAreas.splice(i, 1); buildAreas(); changed(); });
+    row.appendChild(b);
+  });
+  if (list.length) box.appendChild(row);
+}
+
 /* -------------------------------------------------------- banner pieces */
 
 const PIECE_DEFAULTS = { dx: 0, dy: 0, size: 1, rot: 0, flip: 0 };
@@ -632,7 +708,7 @@ function buildPieces() {
     ...(skin().lines || []).map((_, i) => ({ kind: "line", i })),
     ...(skin().cutouts || []).map((_, i) => ({ kind: "cut", i })),
   ];
-  $("pieces-box").hidden = !all.length;
+  $("pieces-box").hidden = false;
   // What a drag on the banner moves.
   const tg = $("drag-target");
   tg.innerHTML = '<span class="hint" style="margin:0">Drag on the banner moves:</span>';
@@ -647,6 +723,8 @@ function buildPieces() {
   };
   mk("Part boxes", null);
   for (const t of all) mk(pieceName(t.kind, t.i), t);
+  mk("Text areas", { kind: "areas" });
+  buildAreas();
 
   const box = $("pieces");
   box.innerHTML = "";
@@ -718,7 +796,7 @@ async function save() {
   const thumb = renderThumb();
   const res = await fetch("/save", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id: s.id, crops: s.crops, lines: s.lines || [], cutouts: s.cutouts || [], jpg, thumb }),
+    body: JSON.stringify({ id: s.id, crops: s.crops, lines: s.lines || [], cutouts: s.cutouts || [], textAreas: s.textAreas || [], jpg, thumb }),
   }).then((r) => r.json()).catch((e) => ({ ok: false, error: e.message }));
   if (!res.ok) { setStatus(`Save failed: ${res.error}. Is tools/troll-skin-editor.mjs running?`, "dirty"); return false; }
   saved[s.id] = clone(s);
@@ -747,6 +825,7 @@ window.addEventListener("keydown", (e) => {
   if (e.target.closest("input, select")) return;
   if (dragTarget) {
     if (e.key === "Escape") { dragTarget = null; buildPieces(); drawBanner(); return; }
+    if (areasMode()) return;
     const p = pieceOf(dragTarget.kind, dragTarget.i);
     const step = (e.shiftKey ? 10 : 1) / (img.width * k / devicePixelRatio);
     const patch =

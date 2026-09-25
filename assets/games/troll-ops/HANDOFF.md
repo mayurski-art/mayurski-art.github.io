@@ -21,6 +21,11 @@
   (bake page imports it). rot=0/flip=0 draws exactly as before.
 - Claude did a first re-crop pass (problem, green, hitman, jungle, knight,
   lightspeed, office, order). The USER fine-tunes the rest in the editor.
+- SIDES FORMULA (user rule): the right side MIRRORS the left (same art at the same
+  spot along the gun) and text still reads right on both. The atlas is 1024x1024:
+  top = left side, bottom (SKIN_ATLAS.rightY) = right side, baked from the banner
+  with every text area flipped in place along each crop's direction. Text areas =
+  skin.textAreas (drawn in the editor, "Text areas" mode) + banner text lines.
 - Next if asked: more weapons skinnable (needs panelled models like weapon-416.js).
 
 ## Infection notes

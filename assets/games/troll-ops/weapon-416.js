@@ -96,9 +96,9 @@ function panelGeometry(key) {
   const trim = SKIN_ATLAS.regions.trim;
   const pos = geo.attributes.position, nrm = geo.attributes.normal, uv = geo.attributes.uv;
   const W = SKIN_ATLAS.width, H = SKIN_ATLAS.height;
-  const toUv = (r, s, t) => [
+  const toUv = (r, s, t, dy = 0) => [
     (r.x + Math.max(0, Math.min(1, s)) * r.w) / W,
-    1 - (r.y + (1 - Math.max(0, Math.min(1, t))) * r.h) / H,
+    1 - (dy + r.y + (1 - Math.max(0, Math.min(1, t))) * r.h) / H,
   ];
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), nx = nrm.getX(i);
@@ -108,8 +108,9 @@ function panelGeometry(key) {
     if (Math.abs(nx) > 0.85) {
       // Art side. Both sides map by position along the gun, so the right is
       // the left's mirror: art by the muzzle on one side is by the muzzle
-      // on the other (text on the right reads mirrored, as through glass).
-      u = toUv(side, s, t);
+      // on the other. The right side reads its own copy of the atlas
+      // (rightY lower), where text is flipped back to read correctly.
+      u = toUv(side, s, t, nx > 0 ? SKIN_ATLAS.rightY : 0);
     } else {
       // Edge: a strip of trim, laid along the part.
       u = toUv(trim, s, (x / width) + 0.5);

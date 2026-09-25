@@ -235,20 +235,95 @@ export async function bakeAtlas(skin, canvas) {
   ctx.fillStyle = skin.palette.trim;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // --- left side (top half)
   for (const key of PARTS) {
     const r = R[key];
     ctx.save();
     ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
     drawCrop(ctx, img, key, skin.crops[key]);
     ctx.restore();
-    // Outside the part's real outline: trim.
+  }
+  trimOutlines(ctx, skin, 0);
+
+  // --- right side (bottom half): the same art, placed the same along the
+  // gun (the model mirrors it), with every text area flipped back in place
+  // so the writing reads correctly from the right too.
+  const dy = SKIN_ATLAS.rightY;
+  const areas = textAreas(skin, img);
+  const flipped = new Map();   // one right-side banner per crop angle
+  for (const key of PARTS) {
+    const r = R[key];
+    const crop = skin.crops[key];
+    const rot = crop[3] || 0;
+    if (!flipped.has(rot)) flipped.set(rot, rightBanner(img, areas, rot));
     ctx.save();
-    ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h);
-    panelPath(key).forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.beginPath(); ctx.rect(r.x, r.y + dy, r.w, r.h); ctx.clip();
+    ctx.translate(0, dy);
+    drawCrop(ctx, flipped.get(rot), key, crop);
+    ctx.restore();
+  }
+  trimOutlines(ctx, skin, dy);
+  return canvas;
+}
+
+/* The banner as the gun's right side needs it: every text area mirrored in
+   place along the direction a part's crop runs (its `rot` degrees), so that
+   once the model mirrors the whole side, the writing reads correctly again.
+   Done on the banner, before cropping, so a word split across two parts
+   still comes out whole and in order on each. */
+function rightBanner(img, areas, rot) {
+  if (!areas.length) return img;
+  const c = document.createElement("canvas");
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext("2d");
+  g.drawImage(img, 0, 0);
+  const a = rot * Math.PI / 180;
+  for (const quad of areas) {
+    const cx = quad.reduce((s, p) => s + p[0], 0) / 4, cy = quad.reduce((s, p) => s + p[1], 0) / 4;
+    g.save();
+    g.beginPath();
+    quad.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+    g.closePath();
+    g.clip();
+    // Reflect across the line through the area's centre, square to the crop.
+    g.translate(cx, cy);
+    g.rotate(a);
+    g.scale(-1, 1);
+    g.rotate(-a);
+    g.translate(-cx, -cy);
+    g.drawImage(img, 0, 0);
+    g.restore();
+  }
+  return c;
+}
+
+/* Outside each part's real outline: trim. `dy` picks the half. */
+function trimOutlines(ctx, skin, dy) {
+  for (const key of PARTS) {
+    const r = SKIN_ATLAS.regions[key];
+    ctx.save();
+    ctx.beginPath(); ctx.rect(r.x, r.y + dy, r.w, r.h);
+    panelPath(key).forEach(([x, y], i) => (i ? ctx.lineTo(x, y + dy) : ctx.moveTo(x, y + dy)));
     ctx.closePath();
     ctx.fillStyle = skin.palette.trim;
     ctx.fill("evenodd");
     ctx.restore();
   }
-  return canvas;
+}
+
+/* Every text area on the banner, as four corners in banner pixels: the
+   skin's marked `textAreas` ([x0, y0, x1, y1] fractions) and wherever its
+   banner text lines ended up. */
+export function textAreas(skin, img) {
+  const W = img.width, H = img.height;
+  const out = (skin.textAreas || []).map(([x0, y0, x1, y1]) => [[x0 * W, y0 * H], [x1 * W, y0 * H], [x1 * W, y1 * H], [x0 * W, y1 * H]]);
+  for (const p of img.pieces || []) {
+    if (p.kind !== "line") continue;
+    const a = p.rot * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+    out.push([[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => {
+      const x = u * p.w / 2, y = v * p.h / 2;
+      return [p.cx + x * c - y * s, p.cy + x * s + y * c];
+    }));
+  }
+  return out;
 }
