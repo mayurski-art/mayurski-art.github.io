@@ -396,42 +396,91 @@ export const MAPS = {
 
   undergrin: {
     name: "Undergrin",
-    blurb: "Two platforms, one tunnel. Nowhere to be far away.",
+    blurb: "Two platforms, one stopped train. Nowhere to be far away.",
     bounds: { minX: -13, maxX: 13, minZ: -32, maxZ: 32 },
     playerSpawn: { x: 0, z: 26 },
     sky: { top: 0x05070a, horizon: 0x0d1015, bottom: 0x05070a },
-    fog: { color: 0x0c1014, density: 0.035 },
-    ground: { colorA: 0x2e3038, colorB: 0x24262c, grid: 0x4a5566 },
+    fog: { color: 0x0c1014, density: 0.025 },
+    ground: { colorA: 0x77726c, colorB: 0x5a5650, grid: 0x4a5566, surface: "dirt", tile: 2.5 },
     sun: { color: 0x6a7a99, intensity: 0.25, pos: [10, 30, 10] },
-    hemi: { sky: 0x3a4658, ground: 0x14161a, intensity: 0.5 },
-    ambient: { color: 0x8899bb, intensity: 0.35 },
+    hemi: { sky: 0x8a98b0, ground: 0x2a2c30, intensity: 0.9 },
+    ambient: { color: 0xc8d4e6, intensity: 0.6 },
     build(api) {
-      api.walls(0, 0, 26, 64, 7, 1.5, { color: 0x2b2f36, surface: "concrete" });
-      // ceiling so it reads as underground
-      const ceil = new THREE.Mesh(new THREE.BoxGeometry(26, 0.6, 64), api.mat(0x1e2127, 0.9));
-      ceil.position.set(0, 7, 0);
-      api.prop(ceil);
-      // raised platforms either side of a sunken track
-      api.box(-8.5, 0, 9, 62, 1.1, { color: 0x3a3f47, pen: 8, surface: "concrete", tile: 3 });
-      api.box(8.5, 0, 9, 62, 1.1, { color: 0x3a3f47, pen: 8, surface: "concrete", tile: 3 });
-      // support pillars
+      const TILE = 0xd8dcd4, PLAT = 0x6a6e72, TRAIN = 0xc8ccd0;
+      api.ghostWalls(0, 0, 26, 64, 7, 1.5, { ghost: true, color: TILE, surface: "concrete" });
+
+      /* ---- platforms, and the edge that closes up to the train mid-station */
+      const P = 1.1;
+      api.box(-8.5, 0, 9, 62, P, { ghost: true, color: PLAT, pen: 8, surface: "concrete", tile: 3 });
+      api.box(8.5, 0, 9, 62, P, { ghost: true, color: PLAT, pen: 8, surface: "concrete", tile: 3 });
+      for (const s of [-1, 1]) {
+        api.box(s * 2.85, 0, 2.3, 32, P, { ghost: true, color: PLAT, pen: 8 });                  // platform extension alongside the train
+      }
       for (let z = -26; z <= 26; z += 6.5) {
-        api.cylinder(-4.2, z, 0.55, 6, { color: 0x33373e });
-        api.cylinder(4.2, z, 0.55, 6, { color: 0x33373e });
+        api.cylinder(-4.6, z, 0.5, 6, { ghost: true, color: TILE, y: P });
+        api.cylinder(4.6, z, 0.5, 6, { ghost: true, color: TILE, y: P });
       }
-      // benches and kiosks as cover on the platforms
-      for (const [x, z, w, d, h] of [[-10, -14, 2.2, 4, 1.0], [10, 8, 2.2, 4, 1.0],
-        [-10, 12, 2.4, 3, 1.8], [10, -10, 2.4, 3, 1.8], [-9, 22, 3, 3, 1.5], [9, -22, 3, 3, 1.5]]) {
-        api.box(x, z, w, d, h, { color: 0x454b55, y: 1.1 });
+
+      /* ---- the train: two carriages, doors both sides, the only covered crossing */
+      api.box(0, 0, 3.4, 32, P, { ghost: true, color: 0x2a2c30, pen: 10 });                      // undercarriage / floor base
+      for (const cz of [-8, 8]) {
+        const doors = [-4.5, 0, 4.5];
+        // side walls broken by three doors each side
+        for (const s of [-1, 1]) {
+          let from = cz - 7.5;
+          for (const dz of [...doors.map((d) => cz + d), cz + 7.5]) {
+            const g0 = dz === cz + 7.5 ? dz : dz - 0.7;
+            if (g0 - from > 0.05) api.box(s * 1.65, (from + g0) / 2, 0.1, g0 - from, 2.3, { ghost: true, color: TRAIN, y: P, pen: 2 });
+            from = dz + 0.7;
+          }
+        }
+        for (const ez of [cz - 7.45, cz + 7.45]) {                                   // end walls with a gangway door
+          for (const sx of [-1.1, 1.1]) api.box(sx, ez, 1.2, 0.1, 2.3, { ghost: true, color: TRAIN, y: P, pen: 2 });
+        }
+        api.box(0, cz, 3.4, 15, 0.2, { ghost: true, color: TRAIN, y: P + 2.3, pen: 3 });            // roof
+        for (const sz of [-6, -2.2, 2.2, 6]) api.box(sz > 0 ? 1.2 : -1.2, cz + sz, 0.5, 1.6, 0.5, { ghost: true, color: 0x3a5a8a, y: P, pen: 1 });   // seats
       }
-      // Steps from the track up to each platform, twice per side. They sit in
-      // the track and land on the platform edge: the old pair was buried
-      // inside the platforms, so a player who dropped onto the track was stuck.
-      for (const z of [3.25, -22.75]) api.stairs(-1.6, z, 5, 4, 0.275, 0.6, "-x", { color: 0x3f444c });
-      for (const z of [-3.25, 22.75]) api.stairs(1.6, z, 5, 4, 0.275, 0.6, "+x", { color: 0x3f444c });
-      for (let z = -28; z <= 28; z += 7) api.lamp(0, 6.2, z, 0xbcd8ff, 9, 16);
+
+      /* ---- open track at both ends: rails, and steps up on both sides */
+      for (const zs of [-1, 1]) {
+        for (const rx of [-0.75, 0.75]) api.box(rx, zs * 23.5, 0.12, 14, 0.12, { ghost: true, color: 0x8a8a8e, pen: 6 });
+        for (const s of [-1, 1]) api.stairs(s * 1.6, zs * 22.75, 3, 4, 0.275, 0.6, s < 0 ? "-x" : "+x", { ghost: true, color: PLAT });
+      }
+
+      /* ---- mezzanines over both ends, stairs up from the platforms */
+      const MEZ = 3.5;
+      for (const zs of [-1, 1]) {
+        api.box(0, zs * 29.1, 26, 4.3, 0.3, { ghost: true, color: PLAT, y: MEZ, pen: 8 });
+        const sx = zs < 0 ? -8.5 : 8.5;                                                // one stair per end, opposite platforms
+        // mezzanine rail, open where the stair arrives (x sx-1.5 .. sx+1.5)
+        for (const [x0, x1] of [[-13, sx - 1.5], [sx + 1.5, 13]]) {
+          api.box((x0 + x1) / 2, zs * 26.95, x1 - x0, 0.1, 1.0, { ghost: true, color: 0x8a8e92, y: MEZ + 0.3, pen: 0.3 });
+        }
+        api.stairs(sx, zs * (26.95 - 9 * 0.6), 3, 9, 0.3, 0.6, zs < 0 ? "-z" : "+z", { ghost: true, color: PLAT, y: P });
+        // tunnel mouth under the mezzanine: drawn by ug-station, lit red here
+        api.lamp(0, 2.9, zs * 29.9, 0xff3a24, 6, 10);
+      }
+
+      /* ---- platform furniture */
+      for (const s of [-1, 1]) {
+        for (const z of [-14, 14]) api.box(s * 10.5, z, 0.6, 2.2, 0.5, { ghost: true, color: 0x6a5a48, y: P, pen: 1.5 });   // benches
+        for (const z of [-20, 10]) api.box(s * 11, z * s, 0.8, 1.0, 2.0, { ghost: true, color: 0xc03a2a, y: P, pen: 3 });  // vending machines
+        api.box(s * 9, s * -6, 2.4, 2.4, 2.2, { ghost: true, color: 0x3a6a4a, y: P, pen: 3 });                              // newsstand
+        for (const z of [-19, 19]) {                                                                          // ticket barriers
+          for (const x of [7, 9, 11]) api.box(s * x, z, 0.3, 1.2, 1.0, { ghost: true, color: 0x9a9ea2, y: P, pen: 2 });
+        }
+      }
+      for (let z = -28; z <= 28; z += 4) {
+        api.lamp(-8.5, 6.4, z, 0xe8f0ff, 7, 12);
+        api.lamp(8.5, 6.4, z, 0xe8f0ff, 7, 12);
+      }
+      for (const z of [-8, 8]) api.lamp(0, P + 2.0, z, 0xfff0d0, 6, 9);
+
+      // Every collider above is the approved blockout's, now invisible; the
+      // station is drawn by ug-*.glb (models/build_undergrin.blender.py).
+      for (const part of ["station", "platforms", "train", "fittings"]) mapModel(api, `ug-${part}`, { x: 0, z: 0 });
     },
-    spawns: [[0, -30], [0, 30], [-9, -28], [9, -28], [-9, 28], [9, 28], [0, -20], [0, 20]],
+    spawns: [[0, -30], [0, 30], [-9, -29], [9, -29], [-9, 29], [9, 29], [-9, -18], [9, 18]],
   },
 
   dustbowl: {
@@ -1143,101 +1192,6 @@ export const MAPS = {
     spawns: [[-34, 28], [34, 28], [0, 29], [-36, -18], [36, -18], [-20, 24], [20, 28], [0, -14]],
   },
 
-  undergrin_wip: {
-    name: "Undergrin (blockout)",
-    blurb: "Work-in-progress blockout of the Undergrin rebuild.",
-    bounds: { minX: -13, maxX: 13, minZ: -32, maxZ: 32 },
-    playerSpawn: { x: 0, z: 26 },
-    sky: { top: 0x05070a, horizon: 0x0d1015, bottom: 0x05070a },
-    fog: { color: 0x0c1014, density: 0.025 },
-    ground: { colorA: 0x2e3038, colorB: 0x24262c, grid: 0x4a5566 },
-    sun: { color: 0x6a7a99, intensity: 0.25, pos: [10, 30, 10] },
-    hemi: { sky: 0x8a98b0, ground: 0x2a2c30, intensity: 0.9 },
-    ambient: { color: 0xc8d4e6, intensity: 0.6 },
-    build(api) {
-      const TILE = 0xd8dcd4, PLAT = 0x6a6e72, EDGE = 0xe8c830, TRAIN = 0xc8ccd0, STRIPE = 0xc03a2a;
-      api.walls(0, 0, 26, 64, 7, 1.5, { color: TILE, surface: "concrete" });
-      const ceil = new THREE.Mesh(new THREE.BoxGeometry(26, 0.6, 64), api.mat(0x3a3e44, 0.9));
-      ceil.position.set(0, 7, 0);
-      api.prop(ceil);
-
-      /* ---- platforms, and the edge that closes up to the train mid-station */
-      const P = 1.1;
-      api.box(-8.5, 0, 9, 62, P, { color: PLAT, pen: 8, surface: "concrete", tile: 3 });
-      api.box(8.5, 0, 9, 62, P, { color: PLAT, pen: 8, surface: "concrete", tile: 3 });
-      for (const s of [-1, 1]) {
-        api.box(s * 2.85, 0, 2.3, 32, P, { color: PLAT, pen: 8 });                  // platform extension alongside the train
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 62), api.mat(EDGE, 0.6));
-        strip.position.set(s * 4.3, P + 0.01, 0);
-        api.prop(strip);
-      }
-      for (let z = -26; z <= 26; z += 6.5) {
-        api.cylinder(-4.6, z, 0.5, 6, { color: TILE, y: P });
-        api.cylinder(4.6, z, 0.5, 6, { color: TILE, y: P });
-      }
-
-      /* ---- the train: two carriages, doors both sides, the only covered crossing */
-      api.box(0, 0, 3.4, 32, P, { color: 0x2a2c30, pen: 10 });                      // undercarriage / floor base
-      for (const cz of [-8, 8]) {
-        const doors = [-4.5, 0, 4.5];
-        // side walls broken by three doors each side
-        for (const s of [-1, 1]) {
-          let from = cz - 7.5;
-          for (const dz of [...doors.map((d) => cz + d), cz + 7.5]) {
-            const g0 = dz === cz + 7.5 ? dz : dz - 0.7;
-            if (g0 - from > 0.05) api.box(s * 1.65, (from + g0) / 2, 0.1, g0 - from, 2.3, { color: TRAIN, y: P, pen: 2 });
-            from = dz + 0.7;
-          }
-          const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.25, 15), api.mat(STRIPE, 0.5));
-          stripe.position.set(s * 1.71, P + 0.9, cz);
-          api.prop(stripe);
-        }
-        for (const ez of [cz - 7.45, cz + 7.45]) {                                   // end walls with a gangway door
-          for (const sx of [-1.1, 1.1]) api.box(sx, ez, 1.2, 0.1, 2.3, { color: TRAIN, y: P, pen: 2 });
-        }
-        api.box(0, cz, 3.4, 15, 0.2, { color: TRAIN, y: P + 2.3, pen: 3 });            // roof
-        for (const sz of [-6, -2.2, 2.2, 6]) api.box(sz > 0 ? 1.2 : -1.2, cz + sz, 0.5, 1.6, 0.5, { color: 0x3a5a8a, y: P, pen: 1 });   // seats
-      }
-
-      /* ---- open track at both ends: rails, and steps up on both sides */
-      for (const zs of [-1, 1]) {
-        for (const rx of [-0.75, 0.75]) api.box(rx, zs * 23.5, 0.12, 14, 0.12, { color: 0x8a8a8e, pen: 6 });
-        for (const s of [-1, 1]) api.stairs(s * 1.6, zs * 22.75, 3, 4, 0.275, 0.6, s < 0 ? "-x" : "+x", { color: PLAT });
-      }
-
-      /* ---- mezzanines over both ends, stairs up from the platforms */
-      const MEZ = 3.5;
-      for (const zs of [-1, 1]) {
-        api.box(0, zs * 29.1, 26, 4.3, 0.3, { color: PLAT, y: MEZ, pen: 8 });
-        const sx = zs < 0 ? -8.5 : 8.5;                                                // one stair per end, opposite platforms
-        // mezzanine rail, open where the stair arrives (x sx-1.5 .. sx+1.5)
-        for (const [x0, x1] of [[-13, sx - 1.5], [sx + 1.5, 13]]) {
-          api.box((x0 + x1) / 2, zs * 26.95, x1 - x0, 0.1, 1.0, { color: 0x8a8e92, y: MEZ + 0.3, pen: 0.3 });
-        }
-        api.stairs(sx, zs * (26.95 - 9 * 0.6), 3, 9, 0.3, 0.6, zs < 0 ? "-z" : "+z", { color: PLAT, y: P });
-        // tunnel mouths under the mezzanine (paint only)
-        const mouth = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 0.1), api.mat(0x0a0b0d, 0.9));
-        mouth.position.set(0, 2, zs * 31.2);
-        api.prop(mouth);
-      }
-
-      /* ---- platform furniture */
-      for (const s of [-1, 1]) {
-        for (const z of [-14, 14]) api.box(s * 10.5, z, 0.6, 2.2, 0.5, { color: 0x6a5a48, y: P, pen: 1.5 });   // benches
-        for (const z of [-20, 10]) api.box(s * 11, z * s, 0.8, 1.0, 2.0, { color: 0xc03a2a, y: P, pen: 3 });  // vending machines
-        api.box(s * 9, s * -6, 2.4, 2.4, 2.2, { color: 0x3a6a4a, y: P, pen: 3 });                              // newsstand
-        for (const z of [-19, 19]) {                                                                          // ticket barriers
-          for (const x of [7, 9, 11]) api.box(s * x, z, 0.3, 1.2, 1.0, { color: 0x9a9ea2, y: P, pen: 2 });
-        }
-      }
-      for (let z = -28; z <= 28; z += 4) {
-        api.lamp(-8.5, 6.4, z, 0xe8f0ff, 7, 12);
-        api.lamp(8.5, 6.4, z, 0xe8f0ff, 7, 12);
-      }
-      for (const z of [-8, 8]) api.lamp(0, P + 2.0, z, 0xfff0d0, 6, 9);
-    },
-    spawns: [[0, -30], [0, 30], [-9, -29], [9, -29], [-9, 29], [9, 29], [-9, -18], [9, 18]],
-  },
 };
 
 // Zombies-only, so it's registered for buildMap but kept out of the PvP picker.

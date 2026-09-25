@@ -37,7 +37,7 @@ def hexlin(h):
 # materials grinsite-props.js swaps for a tiled photo texture
 TEXTURED = {"GS_Concrete", "GS_Slab", "GS_Block", "GS_Plank", "GS_Timber", "GS_Ply",
             "GS_Brick", "GS_Rubble", "GS_Precast", "GS_Plaster", "GS_PlasterDark", "GS_Rock",
-            "GS_Stone", "GS_Tile", "GS_FloorConc", "GS_PlasterLight"}
+            "GS_Stone", "GS_Tile", "GS_FloorConc", "GS_PlasterLight", "GS_Ballast"}
 
 
 def paint_material():
@@ -134,6 +134,14 @@ def palette():
         "trailer": mat("GS_TrailerWhite", 0xe6e6e0, 0.45, 0.1),
         "drum_blue": mat("GS_DrumBlue", 0x2a5fa0, 0.5, 0.1),
         "rubber": mat("GS_Rubber", 0x1a1a1a, 0.9),
+        "train": mat("GS_TrainSilver", 0xc4c9ce, 0.35, 0.2),
+        "train_dk": mat("GS_TrainDark", 0x2c2f33, 0.5, 0.2),
+        "train_red": mat("GS_TrainRed", 0xc0302a, 0.45, 0.1),
+        "seat_blue": mat("GS_SeatBlue", 0x2c4f8a, 0.8),
+        "tile_green": mat("GS_TileGreen", 0x2f6b4f, 0.35),
+        "ballast": mat("GS_Ballast", 0x6f6a64, 0.95),
+        "sleeper": mat("GS_Sleeper", 0x5a524a, 0.9),
+        "rail_steel": mat("GS_RailSteel", 0x9a9ea4, 0.35, 0.3),
         "tile": mat("GS_Tile", 0xffffff, 0.4),
         "floorconc": mat("GS_FloorConc", 0x9a9a94, 0.7),
         "cloth_red": mat("GS_ClothRed", 0xb8322a, 0.9),
@@ -146,7 +154,7 @@ def palette():
         "rust": mat("GS_Rust", 0x7a4028, 0.85, 0.1),
         "red_lamp": mat("GS_RedLamp", 0xff3020, 0.3, 0.0, 0xff2a1a, 2.5),
         "screen": mat("GS_Screen", 0x9fe6ff, 0.3, 0.0, 0x7fd8ff, 1.2),
-        "sign_lit": mat("GS_SignLit", 0xf2f2ea, 0.4, 0.0, 0xf2f2ea, 0.6),
+        "sign_lit": mat("GS_SignLit", 0xf2f2ea, 0.4, 0.0, 0xf2f2ea, 0.3),
     }
 
 

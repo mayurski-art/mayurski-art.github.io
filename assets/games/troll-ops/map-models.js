@@ -31,6 +31,7 @@ export const RETEXTURE = {
   GS_Stone: ["rock", 0.9],
   GS_Tile: ["tile", 1],
   GS_FloorConc: ["cast", 0.25],
+  GS_Ballast: ["rock", 1.6],
 };
 
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.
