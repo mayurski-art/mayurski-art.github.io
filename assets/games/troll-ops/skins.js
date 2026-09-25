@@ -67,6 +67,7 @@ export const SKINS = [
     lines: [{ box: [0.169, 0.325, 0.58, 0.454], text: "^ disgusting", dx: 0.005, dy: 0.005, size: 0.9, rot: -6, flip: 1 }],
     cutouts: [{ name: "trollface", box: [0.03, 0.3, 0.147, 0.62], dx: 0.287, dy: 0.005, size: 0.85 }],
     textAreas: [[0.02, 0.05, 0.465, 0.2], [0.47, 0.72, 0.54, 0.83], [0.7, 0.72, 0.91, 0.83]],
+    right: {"lines":[{"text":""}],"newLines":[{"box":[0.02,0.04,0.47,0.228],"text":"I Forgive You","scale":0.66,"smooth":1,"bg":"rows","color":"#ffffff","shadow":"#0a1f7a"}],"flipV":["handguard"]},
   },
   {
     id: "green", name: "Green Room", banner: "banner-03.jpg",

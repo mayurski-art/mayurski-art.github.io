@@ -55,6 +55,10 @@
   .grid2 input[type=range] { width: 100%; }
   .grid2 output { font: 12px ui-monospace, monospace; color: var(--dim); min-width: 40px; text-align: right; }
   .stack { display: grid; gap: 14px; align-content: start; }
+  #final-card { margin: 14px 14px 0; }
+  #final-card p { margin: 0 0 8px; }
+  body.is-final main .editing, body.is-final #atlas-section, body.is-final #save, body.is-final #revert, body.is-final #final { display: none; }
+  body.is-final main { grid-template-columns: minmax(0, 1fr); }
   .piece { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
   .piece h3 { margin: 0 0 6px; font-size: 13px; }
   .piece .num { width: 70px; background: #0f151a; border: 1px solid #2b3842; border-radius: 5px; padding: 3px 5px; }
@@ -72,12 +76,25 @@
   <button id="next" aria-label="Next skin">›</button>
   <button id="revert">Revert skin</button>
   <button id="save" class="primary">Save <kbd>Ctrl S</kbd></button>
+  <button id="final" title="Mark this skin's design final: saves it and folds the editor away">🔒 Final lock</button>
   <span id="status" role="status">Loading…</span>
 </header>
+<section id="final-card" hidden>
+  <h2>🔒 Final design</h2>
+  <p>This skin is locked in. Its editor is folded away so nothing gets knocked by accident.</p>
+  <div class="row"><button id="unlock" class="primary">Unlock to edit</button>
+    <span class="hint" style="margin:0">Unlocking opens the full editor for this skin again; Save keeps it unlocked.</span></div>
+</section>
 <main>
-  <div class="stack">
+  <div class="stack editing">
     <section>
       <h2>Banner — drag the boxes</h2>
+      <div class="row" role="group" aria-label="Which side of the gun you're editing" style="margin:0 0 8px">
+        <span class="hint" style="margin:0">Editing:</span>
+        <button id="side-left" class="on" aria-pressed="true">Left side</button>
+        <button id="side-right" aria-pressed="false">Right side</button>
+        <span class="hint" style="margin:0" id="side-note"></span>
+      </div>
       <canvas id="banner"></canvas>
       <p class="hint">
         Drag inside a box to move it (<kbd>Shift</kbd> locks to X or Y) · corner dot to zoom · top dot to rotate (<kbd>Shift</kbd> snaps 15°) ·
@@ -85,7 +102,7 @@
         <kbd>[</kbd> <kbd>]</kbd> rotate 1° · <kbd>F</kbd> flip · 🔒 in the table locks a part so nothing moves it. The ▶ marks the muzzle end of each part.
       </p>
       <table>
-        <thead><tr><th>Part</th><th>X</th><th>Y</th><th>Zoom</th><th>Rotate°</th><th>Flip</th><th>Lock</th><th></th></tr></thead>
+        <thead><tr><th>Part</th><th>X</th><th>Y</th><th>Zoom</th><th>Rotate°</th><th>Flip</th><th title="Upside down on the gun's right side only">Right ↕</th><th>Lock</th><th></th></tr></thead>
         <tbody id="parts"></tbody>
       </table>
       <div id="pieces-box" hidden>
@@ -121,7 +138,7 @@
         <span class="hint" style="margin:0">Drag to orbit · right-drag or <kbd>Shift</kbd>+drag to shift left/right/up/down · wheel to zoom.</span>
       </div>
     </section>
-    <section>
+    <section id="atlas-section">
       <h2>Atlas — the texture that goes on the gun</h2>
       <canvas id="atlas" width="1024" height="1024"></canvas>
     </section>
@@ -133,7 +150,7 @@ import * as THREE from "three";
 import { SKINS, SKIN_BY_ID, SKIN_ATLAS } from "../assets/games/troll-ops/skins.js";
 import { build416 } from "../assets/games/troll-ops/weapon-416.js";
 import { resolveWeapon } from "../assets/games/troll-ops/attachments.js";
-import { PARTS, bannerImage, bakeAtlas, cropFrame, editedBanner } from "./troll-skin-draw.js";
+import { PARTS, bannerImage, bakeAtlas, cropFrame, editedBanner, rightPieces } from "./troll-skin-draw.js";
 
 const COLORS = { upper: "#ff5a5a", lower: "#ffb020", handguard: "#3ddc84", stock: "#4aa8ff", grip: "#c77dff", mag: "#ff6ec7" };
 const NAMES = { upper: "Upper", lower: "Lower", handguard: "Handguard", stock: "Stock", grip: "Grip", mag: "Mag" };
@@ -156,7 +173,7 @@ const locked = new Set((() => { try { return JSON.parse(localStorage.getItem("sk
 function saveLocks() { try { localStorage.setItem("skinEditor.locked", JSON.stringify([...locked])); } catch { /* private mode */ } }
 const skin = () => work[skinId];
 const full = (c) => [c[0], c[1], c[2], c[3] || 0, c[4] ? 1 : 0];
-const recipe = (s) => JSON.stringify({ c: s.crops, l: s.lines || [], u: s.cutouts || [], t: s.textAreas || [] });
+const recipe = (s) => JSON.stringify({ c: s.crops, l: s.lines || [], u: s.cutouts || [], t: s.textAreas || [], r: s.right || null, f: !!s.final });
 const isDirty = (id) => recipe(work[id]) !== recipe(saved[id]);
 
 /* Unsaved edits are kept in this browser as you go, so a refresh (or a new
@@ -166,7 +183,7 @@ const DRAFTS = "skinEditor.drafts";
 function readDrafts() { try { return JSON.parse(localStorage.getItem(DRAFTS) || "{}"); } catch { return {}; } }
 function writeDraft(id) {
   const d = readDrafts();
-  if (isDirty(id)) d[id] = { crops: work[id].crops, lines: work[id].lines || [], cutouts: work[id].cutouts || [], textAreas: work[id].textAreas || [] };
+  if (isDirty(id)) d[id] = { crops: work[id].crops, lines: work[id].lines || [], cutouts: work[id].cutouts || [], textAreas: work[id].textAreas || [], right: work[id].right || null, final: !!work[id].final };
   else delete d[id];
   try { localStorage.setItem(DRAFTS, JSON.stringify(d)); } catch { /* private mode */ }
 }
@@ -176,6 +193,8 @@ for (const [id, d] of Object.entries(readDrafts())) {
   if (d.lines?.length || work[id].lines) work[id].lines = d.lines;
   if (d.cutouts?.length || work[id].cutouts) work[id].cutouts = d.cutouts || [];
   if (d.textAreas?.length || work[id].textAreas) work[id].textAreas = d.textAreas || [];
+  if ("right" in d) { if (d.right) work[id].right = d.right; else delete work[id].right; }
+  if ("final" in d) { if (d.final) work[id].final = true; else delete work[id].final; }
 }
 
 function setStatus(text, cls = "") { const s = $("status"); s.textContent = text; s.className = cls; }
@@ -184,7 +203,7 @@ function refreshStatus() {
   if (isDirty(skinId)) setStatus("Unsaved changes", "dirty");
   else if (dirty.length) setStatus(`Saved. ${dirty.length} other skin${dirty.length > 1 ? "s" : ""} unsaved`, "dirty");
   else setStatus("All saved");
-  for (const o of $("skin").options) o.textContent = (isDirty(o.value) ? "• " : "") + SKIN_BY_ID[o.value].name;
+  for (const o of $("skin").options) o.textContent = (isDirty(o.value) ? "• " : "") + (work[o.value].final ? "🔒 " : "") + SKIN_BY_ID[o.value].name;
 }
 
 /* ----------------------------------------------------------------- banner */
@@ -226,8 +245,44 @@ function boxPath(ctx, b) {
 }
 
 /* A piece (text line or cutout) and where it sits now, in canvas pixels. */
-function pieceOf(kind, i) { return (kind === "cut" ? skin().cutouts : skin().lines)[i]; }
+/* Left or right side of the gun. The right side has its own text and piece
+   positions (skin.right); crops and text areas are shared by both. */
+let side = "left";
+function viewBanner() {
+  if (side !== "right") return editedBanner(rawImg, skin().lines, skin().cutouts);
+  const R = rightPieces(skin());
+  return editedBanner(rawImg, [...R.lines, ...R.newLines], R.cutouts);
+}
+const baseLineCount = () => (skin().lines || []).length;
+
+/* A piece's current values, for reading. On the right side that's the left
+   side's piece with the right's override merged over it. */
+function pieceOf(kind, i) {
+  if (side === "right") {
+    const R = rightPieces(skin());
+    if (kind === "rline") return R.newLines[i];
+    return (kind === "cut" ? R.cutouts : R.lines)[i];
+  }
+  return (kind === "cut" ? skin().cutouts : skin().lines)[i];
+}
+/* The object to write to. On the right side, the override, started from
+   the left side's values so nothing jumps. */
+function pieceTarget(kind, i) {
+  if (side !== "right") return pieceOf(kind, i);
+  const r = (skin().right ||= {});
+  if (kind === "rline") return r.newLines[i];
+  const field = kind === "cut" ? "cutouts" : "lines";
+  const list = (r[field] ||= []);
+  while (list.length <= i) list.push({});
+  list[i] ||= {};
+  const base = (kind === "cut" ? skin().cutouts : skin().lines)[i];
+  for (const k of ["dx", "dy", "size", "rot", "flip", ...(kind === "line" ? ["text"] : [])]) {
+    if (!(k in list[i])) list[i][k] = base[k] ?? (k === "size" ? 1 : k === "text" ? "" : 0);
+  }
+  return list[i];
+}
 function pieceRect(kind, i) {
+  if (kind === "rline") { kind = "line"; i += baseLineCount(); }
   const r = (img.pieces || []).find((p) => p.kind === kind && p.i === i);
   if (!r) return null;
   const a = r.rot * Math.PI / 180;
@@ -261,7 +316,8 @@ function drawPieces() {
   const dpr = devicePixelRatio;
   drawAreas();
   if (areasMode()) return;
-  for (const p of img.pieces || []) {
+  for (const raw of img.pieces || []) {
+    const p = side === "right" && raw.kind === "line" && raw.i >= baseLineCount() ? { kind: "rline", i: raw.i - baseLineCount() } : raw;
     const b = pieceRect(p.kind, p.i);
     const on = dragTarget && dragTarget.kind === p.kind && dragTarget.i === p.i;
     if (!on && dragTarget) continue;
@@ -483,10 +539,19 @@ function buildTable() {
     tr.innerHTML = `<td><span class="sw" style="background:${COLORS[key]}"></span>${i + 1} ${NAMES[key]}</td>`
       + ["cx", "cy", "zoom", "rot"].map((f) => `<td><input type="number" data-f="${f}" step="${f === "rot" ? 1 : 0.005}" aria-label="${NAMES[key]} ${f}"></td>`).join("")
       + `<td><input type="checkbox" data-f="flip" aria-label="Flip ${NAMES[key]}"></td>`
+      + `<td><input type="checkbox" data-flipv aria-label="${NAMES[key]} upside down on the right side" title="Upside down on the gun's right side only"></td>`
       + `<td><button data-lock aria-pressed="false" aria-label="Lock ${NAMES[key]}" title="Lock ${NAMES[key]}">🔓</button></td>`
       + `<td><button data-reset aria-label="Reset ${NAMES[key]}">Reset</button></td>`;
     tr.addEventListener("pointerdown", () => select(key));
-    tr.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", () => {
+    // Upside down on the right side only.
+    tr.querySelector("[data-flipv]").addEventListener("input", (e) => {
+      const r = (skin().right ||= {});
+      const set = new Set(r.flipV || []);
+      if (e.target.checked) set.add(key); else set.delete(key);
+      r.flipV = PARTS.filter((p) => set.has(p));
+      changed();
+    });
+    tr.querySelectorAll("input:not([data-flipv])").forEach((inp) => inp.addEventListener("input", () => {
       const c = full(skin().crops[key]);
       const idx = { cx: 0, cy: 1, zoom: 2, rot: 3, flip: 4 }[inp.dataset.f];
       c[idx] = inp.type === "checkbox" ? (inp.checked ? 1 : 0) : Number(inp.value) || 0;
@@ -509,7 +574,8 @@ function paintTable(skipKey = null) {
     const c = full(skin().crops[key]);
     const vals = { cx: c[0].toFixed(3), cy: c[1].toFixed(3), zoom: c[2].toFixed(3), rot: String(Math.round(c[3])) };
     tr.querySelectorAll("input[type=number]").forEach((inp) => { inp.value = vals[inp.dataset.f]; });
-    tr.querySelector("input[type=checkbox]").checked = !!c[4];
+    tr.querySelector('[data-f="flip"]').checked = !!c[4];
+    tr.querySelector("[data-flipv]").checked = (skin().right?.flipV || []).includes(key);
     const isLocked = locked.has(key);
     const lb = tr.querySelector("[data-lock]");
     lb.textContent = isLocked ? "🔒" : "🔓";
@@ -637,7 +703,7 @@ async function rebake() {
 }
 
 function changed(skipTableKey = null) {
-  img = editedBanner(rawImg, skin().lines, skin().cutouts);
+  img = viewBanner();
   writeDraft(skinId);
   drawBanner();
   paintTable(skipTableKey);
@@ -655,12 +721,13 @@ async function openSkin(id) {
   skinId = id;
   $("skin").value = id;
   rawImg = await bannerImage(skin().banner);
-  img = editedBanner(rawImg, skin().lines, skin().cutouts);
+  img = viewBanner();
   fitBanner();
   buildGun();
   dragTarget = null;
   buildPieces();
   changed();
+  paintFinal();
 }
 
 /* ----------------------------------------------------------- text areas */
@@ -688,16 +755,21 @@ const PIECE_DEFAULTS = { dx: 0, dy: 0, size: 1, rot: 0, flip: 0 };
 /* Change the piece being dragged (or the one named), keep only what differs
    from the defaults, and redraw. */
 function setPiece(patch, which = dragTarget) {
-  const p = pieceOf(which.kind, which.i);
+  const p = pieceTarget(which.kind, which.i);
   Object.assign(p, patch);
   p.rot = (((p.rot || 0) + 540) % 360) - 180;
   if (p.size) p.size = Math.max(0.1, Math.min(8, p.size));
-  for (const [key, def] of Object.entries(PIECE_DEFAULTS)) if (!p[key] || p[key] === def) delete p[key];
+  // Right-side overrides keep every value: dropping a 0 would fall back to
+  // the left side's instead.
+  if (side !== "right" || which.kind === "rline") {
+    for (const [key, def] of Object.entries(PIECE_DEFAULTS)) if (!p[key] || p[key] === def) delete p[key];
+  }
   paintPieces();
   changed();
 }
 
 function pieceName(kind, i) {
+  if (kind === "rline") return `Right text ${i + 1}`;
   if (kind === "cut") { const n = skin().cutouts[i].name || "art"; return n[0].toUpperCase() + n.slice(1); }
   return skin().lines.length > 1 ? `Text ${i + 1}` : "Text";
 }
@@ -706,6 +778,7 @@ let paintPieces = () => {};
 function buildPieces() {
   const all = [
     ...(skin().lines || []).map((_, i) => ({ kind: "line", i })),
+    ...(side === "right" ? (skin().right?.newLines || []).map((_, i) => ({ kind: "rline", i })) : []),
     ...(skin().cutouts || []).map((_, i) => ({ kind: "cut", i })),
   ];
   $("pieces-box").hidden = false;
@@ -724,6 +797,17 @@ function buildPieces() {
   mk("Part boxes", null);
   for (const t of all) mk(pieceName(t.kind, t.i), t);
   mk("Text areas", { kind: "areas" });
+  if (side === "right") {
+    const add = document.createElement("button");
+    add.textContent = "+ Add right-side text";
+    add.addEventListener("click", () => {
+      const r = (skin().right ||= {});
+      (r.newLines ||= []).push({ box: [0.3, 0.4, 0.6, 0.52], text: "New text" });
+      dragTarget = { kind: "rline", i: r.newLines.length - 1 };
+      buildPieces(); changed();
+    });
+    tg.appendChild(add);
+  }
   buildAreas();
 
   const box = $("pieces");
@@ -735,7 +819,8 @@ function buildPieces() {
     const which = { kind: t.kind, i: t.i };
     const p = () => pieceOf(t.kind, t.i);
     card.innerHTML = `<h3>${pieceName(t.kind, t.i)}</h3>`
-      + (t.kind === "line" ? `<input class="txt" type="text" aria-label="${pieceName(t.kind, t.i)} wording">` : "")
+      + (t.kind === "line" || t.kind === "rline" ? `<input class="txt" type="text" aria-label="${pieceName(t.kind, t.i)} wording">` : "")
+      + (t.kind === "rline" ? `<div class="row"><button data-a="del">Remove this right-side text</button></div>` : "")
       + `<div class="row">
         <label>X <input class="num" type="number" step="0.005" data-k="dx"></label>
         <label>Y <input class="num" type="number" step="0.005" data-k="dy"></label>
@@ -755,7 +840,7 @@ function buildPieces() {
     const txt = card.querySelector(".txt");
     if (txt) {
       txt.value = p().text;
-      txt.addEventListener("input", () => { p().text = txt.value; changed(); });
+      txt.addEventListener("input", () => { pieceTarget(t.kind, t.i).text = txt.value; changed(); });
     }
     const q = (k) => card.querySelector(`[data-k="${k}"]`);
     q("dx").addEventListener("input", () => setPiece({ dx: Number(q("dx").value) || 0 }, which));
@@ -770,6 +855,7 @@ function buildPieces() {
     act("cw", () => setPiece({ rot: (p().rot || 0) + 90 }, which));
     act("r180", () => setPiece({ rot: (p().rot || 0) + 180 }, which));
     act("zero", () => setPiece({ rot: 0 }, which));
+    if (t.kind === "rline") act("del", () => { skin().right.newLines.splice(t.i, 1); dragTarget = null; buildPieces(); changed(); });
     painters.push(() => {
       const v = p();
       const set = (el, val) => { if (document.activeElement !== el) el.value = val; };
@@ -796,7 +882,7 @@ async function save() {
   const thumb = renderThumb();
   const res = await fetch("/save", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id: s.id, crops: s.crops, lines: s.lines || [], cutouts: s.cutouts || [], textAreas: s.textAreas || [], jpg, thumb }),
+    body: JSON.stringify({ id: s.id, crops: s.crops, lines: s.lines || [], cutouts: s.cutouts || [], textAreas: s.textAreas || [], right: s.right || null, final: !!s.final, jpg, thumb }),
   }).then((r) => r.json()).catch((e) => ({ ok: false, error: e.message }));
   if (!res.ok) { setStatus(`Save failed: ${res.error}. Is tools/troll-skin-editor.mjs running?`, "dirty"); return false; }
   saved[s.id] = clone(s);
@@ -865,11 +951,54 @@ buildTable();
 await document.fonts.ready;
 await openSkin(skinId);
 
+/* ----------------------------------------------------- side and final */
+
+function setSide(s) {
+  side = s;
+  dragTarget = null;
+  for (const [id, v] of [["side-left", "left"], ["side-right", "right"]]) {
+    $(id).classList.toggle("on", side === v);
+    $(id).setAttribute("aria-pressed", String(side === v));
+  }
+  $("side-note").textContent = side === "right"
+    ? "Text and piece positions here are the right side's own. Part boxes and text areas are shared."
+    : "";
+  // Look at the side being edited.
+  [orbit.yaw, orbit.pitch, orbit.dist] = CAMS[side === "right" ? "right" : "left"];
+  target.copy(HOME);
+  buildPieces();
+  changed();
+}
+$("side-left").addEventListener("click", () => setSide("left"));
+$("side-right").addEventListener("click", () => setSide("right"));
+
+/* Final lock: the design is done. It's saved as final and the editor folds
+   away to the gun alone; Unlock opens everything again for finer edits. */
+function paintFinal() {
+  const fin = !!skin().final;
+  document.body.classList.toggle("is-final", fin);
+  $("final-card").hidden = !fin;
+  renderView();
+}
+$("final").addEventListener("click", async () => {
+  skin().final = true;
+  refreshStatus();
+  paintFinal();
+  await save();
+});
+$("unlock").addEventListener("click", () => {
+  delete skin().final;
+  paintFinal();
+  refreshStatus();
+  requestAnimationFrame(() => { fitBanner(); drawBanner(); renderView(); });
+});
+
 /* Hooks for scripted edits (a headless re-crop pass, tests). */
 window.__editor = {
   open: openSkin,
   setCrop: (id, key, c) => { work[id].crops[key] = c; if (id === skinId) changed(); },
   setLine: (id, i, text) => { work[id].lines[i].text = text; if (id === skinId) { buildPieces(); changed(); } },
+  side: setSide,
   setPiece: (id, kind, i, patch) => { Object.assign((kind === "cut" ? work[id].cutouts : work[id].lines)[i], patch); if (id === skinId) { buildPieces(); changed(); } },
   target: (kind, i) => { dragTarget = kind ? { kind, i } : null; buildPieces(); drawBanner(); },
   save: async (id) => { await openSkin(id); return save(); },

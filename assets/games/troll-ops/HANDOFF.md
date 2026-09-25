@@ -26,6 +26,10 @@
   top = left side, bottom (SKIN_ATLAS.rightY) = right side, baked from the banner
   with every text area flipped in place along each crop's direction. Text areas =
   skin.textAreas (drawn in the editor, "Text areas" mode) + banner text lines.
+- skin.right = right side only: per-index overrides of lines/cutouts, newLines
+  (right-only text, smooth title style + bg "rows"), flipV (parts upside down).
+  Editor: Left side / Right side switch. skin.final = Final lock (editor folds away;
+  Unlock to edit reopens it). You Have a Problem: right says I Forgive You.
 - Next if asked: more weapons skinnable (needs panelled models like weapon-416.js).
 
 ## Infection notes

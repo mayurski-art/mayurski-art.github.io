@@ -61,7 +61,7 @@ function writePieces(block, field, list, kind) {
 
 /* Rewrite one skin's crops and banner pieces in skins.js, leaving every
    other line (and every other skin) exactly as it was. */
-function writeSkin({ id, crops, lines, cutouts, textAreas }) {
+function writeSkin({ id, crops, lines, cutouts, textAreas, right, final }) {
   const raw = fs.readFileSync(SKINS_JS, "utf8");
   const crlf = raw.includes("\r\n");
   let s = raw.replace(/\r\n/g, "\n");
@@ -85,6 +85,24 @@ function writeSkin({ id, crops, lines, cutouts, textAreas }) {
       const anchor = /\n    cutouts: .*/.test(block) ? /(\n    cutouts: .*)/ : /\n    lines: .*/.test(block) ? /(\n    lines: .*)/ : /(    crops: \{[\s\S]*?\n    \},)/;
       block = block.replace(anchor, `$1\n    textAreas: [${src}],`);
     }
+  }
+  // The right side's own pieces and upside-down parts: one line of JSON, or
+  // none when the right side just mirrors the left.
+  if (right !== undefined) {
+    block = block.replace(/\n    right: .*/, "");
+    const r = right || {};
+    const empty = !(r.lines?.length || r.cutouts?.length || r.newLines?.length || r.flipV?.length);
+    if (!empty) {
+      const src = JSON.stringify(r, (k, v) => (typeof v === "number" ? Math.round(v * 1000) / 1000 : v));
+      const last = [/\n    textAreas: .*/, /\n    cutouts: .*/, /\n    lines: .*/].find((re) => re.test(block));
+      const anchor = last ? new RegExp(`(${last.source})`) : /(    crops: \{[\s\S]*?\n    \},)/;
+      block = block.replace(anchor, `$1\n    right: ${src},`);
+    }
+  }
+  // Final lock: the design is done (the editor folds it away).
+  if (final !== undefined) {
+    block = block.replace(/\n    final: .*/, "");
+    if (final) block = block.replace(/(\n    blurb: .*)/, "$1\n    final: true,");
   }
   // Skins are the banner alone now: no emblem, no rollmark.
   block = block.replace(/\n    emblem: .*/, "").replace(/\n    rollmark: .*/, "");

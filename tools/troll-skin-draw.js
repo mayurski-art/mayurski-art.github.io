@@ -47,8 +47,9 @@ export const bannerImage = async (file) => (banners[file] ||= await loadImage(ne
 const edited = new Map();
 export function editedBanner(img, lines, cutouts) {
   if (!lines?.length && !cutouts?.length) return img;
-  const key = img.src + JSON.stringify([lines, cutouts]);
-  if (edited.has(key)) return edited.get(key);
+  // Only a banner file is cached; a canvas passed in (already edited) isn't.
+  const key = img.src ? img.src + JSON.stringify([lines, cutouts]) : null;
+  if (key && edited.has(key)) return edited.get(key);
   const W = img.width, H = img.height;
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
@@ -67,8 +68,8 @@ export function editedBanner(img, lines, cutouts) {
   const all = [...(cutouts || []).map((p) => ({ p, kind: "cut" })), ...(lines || []).map((p) => ({ p, kind: "line" }))];
   for (const { p } of all) {
     const r = rect(p.box);
-    g.fillStyle = p.bg || paperAround(og, r);
-    g.fillRect(r.x, r.y, r.w, r.h);
+    if (p.bg === "rows") fillRows(og, g, r);
+    else { g.fillStyle = p.bg || paperAround(og, r); g.fillRect(r.x, r.y, r.w, r.h); }
   }
 
   // 2. Put each back where it's been moved to.
@@ -94,12 +95,47 @@ export function editedBanner(img, lines, cutouts) {
   (lines || []).forEach((l, i) => {
     const r = rect(l.box);
     if (!l.text) { placed.push({ kind: "line", i, cx: r.x + r.w / 2, cy: r.y + r.h / 2, w: r.w, h: r.h, rot: 0 }); return; }
-    const small = pixelText(l);
+    const small = l.smooth ? smoothText(l, r.h) : pixelText(l);
     const scale = r.h / small.height;
     put(l, small, small.width * scale, small.height * scale, "line", i);
   });
   c.pieces = placed;
-  edited.set(key, c);
+  if (key) edited.set(key, c);
+  return c;
+}
+
+/* Paint a box out row by row, each row the average of the pixels just
+   outside its left and right edges: follows a gradient (the XP title bar)
+   where one flat colour would leave a patch. */
+function fillRows(og, g, r) {
+  const W = og.canvas.width;
+  const xl = Math.max(0, r.x - 3), xr = Math.min(W - 1, r.x + r.w + 2);
+  const left = og.getImageData(xl, r.y, 1, r.h).data, right = og.getImageData(xr, r.y, 1, r.h).data;
+  for (let y = 0; y < r.h; y++) {
+    const i = y * 4;
+    g.fillStyle = `rgb(${(left[i] + right[i]) >> 1}, ${(left[i + 1] + right[i + 1]) >> 1}, ${(left[i + 2] + right[i + 2]) >> 1})`;
+    g.fillRect(r.x, r.y + y, r.w, 1);
+  }
+}
+
+/* A line in a smooth display face at full size (for titles, not the pixel
+   lettering): `font` family, `weight`, `color`, and a `shadow` colour
+   dropped down-right the way XP draws window titles. The canvas is exactly
+   `h` tall, so it maps 1:1 onto the box. */
+function smoothText(l, h) {
+  const px = Math.round(h * (l.scale || 0.78));
+  const font = `${l.weight || "bold"} ${px}px ${l.font || '"Trebuchet MS", "Segoe UI", sans-serif'}`;
+  const c = document.createElement("canvas");
+  const g = c.getContext("2d");
+  g.font = font;
+  const off = Math.max(1, Math.round(px * 0.06));
+  c.width = Math.ceil(g.measureText(l.text).width) + off * 2 + 4;
+  c.height = Math.round(h);
+  g.font = font;
+  g.textBaseline = "middle";
+  if (l.shadow) { g.fillStyle = l.shadow; g.fillText(l.text, 2 + off, h / 2 + off); }
+  g.fillStyle = l.color || "#ffffff";
+  g.fillText(l.text, 2, h / 2);
   return c;
 }
 
@@ -259,6 +295,11 @@ export async function bakeAtlas(skin, canvas) {
     ctx.save();
     ctx.beginPath(); ctx.rect(r.x, r.y + dy, r.w, r.h); ctx.clip();
     ctx.translate(0, dy);
+    if ((skin.right?.flipV || []).includes(key)) {
+      // Upside down on the right side only: mirror about the region's middle.
+      ctx.translate(0, 2 * r.y + r.h);
+      ctx.scale(1, -1);
+    }
     drawCrop(ctx, flipped.get(rot), key, crop);
     ctx.restore();
   }
@@ -277,12 +318,14 @@ export async function bakeAtlas(skin, canvas) {
    still comes out whole and in order on each. */
 function rightBanner(raw, skin, rot) {
   const areas = textAreas(skin, raw);
-  if (!areas.length && !skin.lines?.length) return editedBanner(raw, skin.lines, skin.cutouts);
+  const R = rightPieces(skin);
   // Reflecting across the line square to the crop (angle a) turns a piece at
   // rot θ, flip f into one at rot 2a - θ with the flip toggled.
-  const lines = (skin.lines || []).map((l) => ({ ...l, rot: 2 * rot - (l.rot || 0), flip: l.flip ? 0 : 1 }));
-  const base = editedBanner(raw, lines, skin.cutouts);
-  if (!areas.length) return base;
+  const mirror = (list) => list.map((l) => ({ ...l, rot: 2 * rot - (l.rot || 0), flip: l.flip ? 0 : 1 }));
+  const base = editedBanner(raw, mirror(R.lines), R.cutouts);
+  // Right-only text goes on last, over any text area it replaces.
+  const finish = (c) => (R.newLines.length ? editedBanner(c, mirror(R.newLines), []) : c);
+  if (!areas.length) return finish(base);
   const c = document.createElement("canvas");
   c.width = base.width; c.height = base.height;
   const g = c.getContext("2d");
@@ -304,7 +347,22 @@ function rightBanner(raw, skin, rot) {
     g.drawImage(base, 0, 0);
     g.restore();
   }
-  return c;
+  return finish(c);
+}
+
+/* The right side's own pieces. `skin.right` can override each banner text
+   line and cutout by index (`lines`, `cutouts`: objects merged over the
+   left side's), add text only the right side has (`newLines`), and flip
+   parts upside down (`flipV`: part names). An override with text "" leaves
+   that line off the right side. */
+export function rightPieces(skin) {
+  const r = skin.right || {};
+  return {
+    lines: (skin.lines || []).map((l, i) => ({ ...l, ...(r.lines?.[i] || {}) })),
+    cutouts: (skin.cutouts || []).map((c, i) => ({ ...c, ...(r.cutouts?.[i] || {}) })),
+    newLines: r.newLines || [],
+    flipV: r.flipV || [],
+  };
 }
 
 /* Outside each part's real outline: trim. `dy` picks the half. */
