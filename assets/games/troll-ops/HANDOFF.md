@@ -1,4 +1,4 @@
-# Troll Ops hand-off — 2026-09-25 (end of session 8)
+# Troll Ops hand-off — 2026-09-25 (end of session 9)
 
 Work happens on branch `game-improvements` in the worktree `GitHub/to-opus-wt`,
 and each finished piece is fast-forwarded onto `main` (`git push origin
@@ -28,7 +28,7 @@ tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 6. (Added mid-session) **Keyboard Warrior RGB wave**: glow between the keys
    sweeping along the board like a gaming keyboard.
 
-### Session 9 status: ALL SIX DONE and on main
+### Session 9 status: ALL DONE and on main (last commit bd93ae0)
 1. Lag: the cause was runtime lights. Every grenade/blast/fire pool/gunship
    searchlight added a light, and each new light COUNT recompiles every lit
    shader (2-2.6 s freezes, smooth once each count had been seen). Now
@@ -52,6 +52,19 @@ tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
    fullscreen + orientation lock where supported (Android).
 6. Keyboard RGB: underglow sheet + rim strips + legends share one shader
    clock (`KB_RGB_TIME`, stamped in onBeforeRender).
+7. (Late asks) The in-game 416 now matches the skin editor: **no
+   first-person hands on guns** (user picked "hide the hands"; meshes stay,
+   tagged `userData.hand`, just invisible; melee + streak device keep
+   theirs). The Problem 416's **butt pad and charging handle wear the skin's
+   accent** (red-orange), the "two pops of colour on the stock" the user
+   liked from an older build.
+
+### Open / offered, not done
+- In-game lighting makes the gun paler than the editor (whites read blue:
+  weaponScene's AmbientLight 0xaab8ff + rim light). Offered "match editor
+  colours"; the user chose only hiding the hands. Ask before changing.
+- Not verified on real hardware: the user's HP laptop, a real phone/iPad
+  (headless + emulation only). Ask how it felt.
 
 ## Where we are
 
@@ -60,8 +73,8 @@ themselves. Session 8 finished **"You Have a Problem"**: it is **Final
 locked** and on main. Its stock wears its own picture (the trollface stick
 figure on the trim blue: see `art` below), the first part to use one.
 
-**Next session: the other fifteen skins.** The user is testing the Problem
-416 in the game first, then comes back to design the rest in the editor, one
+**Next session: likely the other fifteen skins** (on hold at the user's
+word; ask first). The user is testing the Problem 416 in the game, then comes back to design the rest in the editor, one
 at a time, the same way. None of them is locked; their crops are rough first
 passes. Ask which skin they want to start on. Expect requests like: a part
 wearing its own picture (drop the file in assets/images/skin-art, add `art`),
