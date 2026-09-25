@@ -29,9 +29,9 @@ function cropSrc(c) {
   return `[${out.join(", ")}]`;
 }
 
-/* Rewrite one skin's crops in skins.js, leaving every
+/* Rewrite one skin's crops and banner text in skins.js, leaving every
    other line (and every other skin) exactly as it was. */
-function writeSkin({ id, crops }) {
+function writeSkin({ id, crops, lines }) {
   const raw = fs.readFileSync(SKINS_JS, "utf8");
   const crlf = raw.includes("\r\n");
   let s = raw.replace(/\r\n/g, "\n");
@@ -44,6 +44,15 @@ function writeSkin({ id, crops }) {
   const cropLines = PARTS.map((k) => `      ${k}: ${cropSrc(crops[k])},`).join("\n");
   block = block.replace(/    crops: \{[\s\S]*?\n    \},/, `    crops: {\n${cropLines}\n    },`);
 
+  // Banner text lines: one line of source right after the crops, or none.
+  // A page that doesn't send `lines` at all (an older editor tab) leaves
+  // them exactly as they are.
+  if (lines !== undefined) block = block.replace(/\n    lines: .*/, "");
+  const clean = (lines || []).map((l) => ({ box: l.box.map(num), text: String(l.text ?? "") }));
+  if (clean.length) {
+    const src = clean.map((l) => `{ box: [${l.box.join(", ")}], text: ${str(l.text)} }`).join(", ");
+    block = block.replace(/(    crops: \{[\s\S]*?\n    \},)/, `$1\n    lines: [${src}],`);
+  }
   // Skins are the banner alone now: no emblem, no rollmark.
   block = block.replace(/\n    emblem: .*/, "").replace(/\n    rollmark: .*/, "");
 

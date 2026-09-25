@@ -42,7 +42,9 @@ export const SKINNABLE = new Set(["problem416"]);
    spans. The crop's height follows from the panel's shape, so nothing is
    ever stretched. Colours: `trim` edges and inlay lines, `ink` for
    engraving and small print, `metal`/`accent` the barrel, rail and small
-   hardware. */
+   hardware. `lines` rewrite text on the banner: the box (fractions of the
+   banner) is painted over and `text` written back in the banner's pixel
+   style — edit it in the skin editor. */
 export const SKINS = [
   {
     id: "problem", name: "You Have a Problem", banner: "banner-16.jpg",
@@ -56,6 +58,7 @@ export const SKINS = [
       grip: [0.505, 0.8, 0.118, 90],
       mag: [0.81, 0.72, 0.17, -90],
     },
+    lines: [{ box: [0.169, 0.325, 0.58, 0.454], text: "you are" }],
   },
   {
     id: "green", name: "Green Room", banner: "banner-03.jpg",

@@ -24,6 +24,59 @@ export const loadImage = (src) => new Promise((ok, bad) => {
 const banners = {};
 export const bannerImage = async (file) => (banners[file] ||= await loadImage(new URL(`../assets/images/banners/${file}`, import.meta.url).href));
 
+/* Banner text a skin rewrites: `lines: [{ box: [x0, y0, x1, y1], text, px,
+   color, bg }]`, box as fractions of the banner. The box is painted over in
+   `bg` and `text` written back in the banner's own pixel style: Tahoma at
+   `px` (its real, tiny size), hard-edged, then blown up with square pixels
+   to the box's height — the way the XP dialog art was made. Returns the
+   banner itself when a skin has no lines. */
+const edited = new Map();
+export function editedBanner(img, lines) {
+  if (!lines?.length) return img;
+  const key = img.src + JSON.stringify(lines);
+  if (edited.has(key)) return edited.get(key);
+  const c = document.createElement("canvas");
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext("2d");
+  g.drawImage(img, 0, 0);
+  for (const l of lines) {
+    const [x0, y0, x1, y1] = l.box;
+    const bx = x0 * img.width, by = y0 * img.height, bw = (x1 - x0) * img.width, bh = (y1 - y0) * img.height;
+    g.fillStyle = l.bg || "#ece9d8";
+    g.fillRect(bx, by, bw, bh);
+    if (!l.text) continue;
+    // Draw small, snap every pixel to ink or paper, then scale up square.
+    const px = l.px || 11;
+    const small = document.createElement("canvas");
+    const sg = small.getContext("2d");
+    const font = `${px}px Tahoma, Verdana, "Segoe UI", sans-serif`;
+    sg.font = font;
+    const w = Math.ceil(sg.measureText(l.text).width) + 2, h = Math.ceil(px * 1.4);
+    small.width = w; small.height = h;
+    sg.font = font;
+    sg.textBaseline = "alphabetic";
+    sg.fillStyle = "#000";
+    sg.fillText(l.text, 1, Math.round(px * 1.05));
+    const d = sg.getImageData(0, 0, w, h);
+    const [r, gg, b] = rgb(l.color || "#000000");
+    for (let i = 0; i < d.data.length; i += 4) {
+      const on = d.data[i + 3] > 160;
+      d.data[i] = r; d.data[i + 1] = gg; d.data[i + 2] = b; d.data[i + 3] = on ? 255 : 0;
+    }
+    sg.putImageData(d, 0, 0);
+    const scale = bh / h;
+    g.imageSmoothingEnabled = false;
+    g.drawImage(small, 0, 0, w, h, bx, by, w * scale, h * scale);
+    g.imageSmoothingEnabled = true;
+  }
+  edited.set(key, c);
+  return c;
+}
+function rgb(hex) {
+  const n = parseInt(String(hex).replace("#", ""), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
 /* Panel outline in atlas pixels. Drawn as seen from the gun's left side:
    muzzle to the left, stock to the right. */
 export function panelPath(key) {
@@ -75,7 +128,7 @@ function drawCrop(ctx, img, key, crop) {
 /* The whole 1024x512 atlas for a skin recipe. */
 export async function bakeAtlas(skin, canvas) {
   const ctx = canvas.getContext("2d");
-  const img = await bannerImage(skin.banner);
+  const img = editedBanner(await bannerImage(skin.banner), skin.lines);
   const R = SKIN_ATLAS.regions;
   // Everything outside a part is trim, including the trim swatch the bevels
   // use, so mip bleed at a part's edge is the trim colour, not a neighbour.

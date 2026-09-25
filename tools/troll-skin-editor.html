@@ -55,6 +55,7 @@
   .grid2 input[type=range] { width: 100%; }
   .grid2 output { font: 12px ui-monospace, monospace; color: var(--dim); min-width: 40px; text-align: right; }
   .stack { display: grid; gap: 14px; align-content: start; }
+  #lines input { width: 100%; background: #0f151a; border: 1px solid #2b3842; border-radius: 6px; padding: 6px 8px; font-size: 14px; }
 </style>
 <script type="importmap">
   { "imports": { "three": "../assets/vendor/three.module.min.js", "three/addons/": "../assets/vendor/addons/" } }
@@ -84,6 +85,11 @@
         <thead><tr><th>Part</th><th>X</th><th>Y</th><th>Zoom</th><th>Rotate°</th><th>Flip</th><th>Lock</th><th></th></tr></thead>
         <tbody id="parts"></tbody>
       </table>
+      <div id="lines-box" hidden>
+        <h2 style="margin-top:14px">Banner text</h2>
+        <div id="lines"></div>
+        <p class="hint">Rewrites that line of the banner in its own pixel lettering. Empty it to leave the line blank.</p>
+      </div>
     </section>
   </div>
   <div class="stack">
@@ -95,7 +101,15 @@
         <button data-cam="right">Right</button>
         <button data-cam="three">¾</button>
         <button data-cam="top">Top</button>
-        <span class="hint" style="margin:0">Drag to orbit, wheel to zoom.</span>
+        <span style="width:8px"></span>
+        <button data-pan="left" aria-label="Shift view left">←</button>
+        <button data-pan="right" aria-label="Shift view right">→</button>
+        <button data-pan="up" aria-label="Shift view up">↑</button>
+        <button data-pan="down" aria-label="Shift view down">↓</button>
+        <button data-pan="reset">Reset view</button>
+      </div>
+      <div class="row">
+        <span class="hint" style="margin:0">Drag to orbit · right-drag or <kbd>Shift</kbd>+drag to shift left/right/up/down · wheel to zoom.</span>
       </div>
     </section>
     <section>
@@ -110,7 +124,7 @@ import * as THREE from "three";
 import { SKINS, SKIN_BY_ID, SKIN_ATLAS } from "../assets/games/troll-ops/skins.js";
 import { build416 } from "../assets/games/troll-ops/weapon-416.js";
 import { resolveWeapon } from "../assets/games/troll-ops/attachments.js";
-import { PARTS, bannerImage, bakeAtlas, cropFrame } from "./troll-skin-draw.js";
+import { PARTS, bannerImage, bakeAtlas, cropFrame, editedBanner } from "./troll-skin-draw.js";
 
 const COLORS = { upper: "#ff5a5a", lower: "#ffb020", handguard: "#3ddc84", stock: "#4aa8ff", grip: "#c77dff", mag: "#ff6ec7" };
 const NAMES = { upper: "Upper", lower: "Lower", handguard: "Handguard", stock: "Stock", grip: "Grip", mag: "Mag" };
@@ -124,7 +138,8 @@ const saved = Object.fromEntries(SKINS.map((s) => [s.id, clone(s)]));
 const work = Object.fromEntries(SKINS.map((s) => [s.id, clone(s)]));
 let skinId = SKINS[0].id;
 let part = "upper";
-let img = null;
+let img = null;      // the banner as the skin sees it (text lines applied)
+let rawImg = null;   // the banner file itself
 /* Parts you've locked: they can't be picked, dragged, nudged or zoomed from
    the banner, so working on one part can't knock another. Kept per browser,
    across reloads. */
@@ -132,7 +147,25 @@ const locked = new Set((() => { try { return JSON.parse(localStorage.getItem("sk
 function saveLocks() { try { localStorage.setItem("skinEditor.locked", JSON.stringify([...locked])); } catch { /* private mode */ } }
 const skin = () => work[skinId];
 const full = (c) => [c[0], c[1], c[2], c[3] || 0, c[4] ? 1 : 0];
-const isDirty = (id) => JSON.stringify(work[id].crops) !== JSON.stringify(saved[id].crops);
+const recipe = (s) => JSON.stringify({ c: s.crops, l: s.lines || [] });
+const isDirty = (id) => recipe(work[id]) !== recipe(saved[id]);
+
+/* Unsaved edits are kept in this browser as you go, so a refresh (or a new
+   version of this page) picks up exactly where you were. Cleared per skin
+   on Save or Revert. */
+const DRAFTS = "skinEditor.drafts";
+function readDrafts() { try { return JSON.parse(localStorage.getItem(DRAFTS) || "{}"); } catch { return {}; } }
+function writeDraft(id) {
+  const d = readDrafts();
+  if (isDirty(id)) d[id] = { crops: work[id].crops, lines: work[id].lines || [] };
+  else delete d[id];
+  try { localStorage.setItem(DRAFTS, JSON.stringify(d)); } catch { /* private mode */ }
+}
+for (const [id, d] of Object.entries(readDrafts())) {
+  if (!work[id]) continue;
+  work[id].crops = d.crops;
+  if (d.lines?.length || work[id].lines) work[id].lines = d.lines;
+}
 
 function setStatus(text, cls = "") { const s = $("status"); s.textContent = text; s.className = cls; }
 function refreshStatus() {
@@ -387,7 +420,8 @@ scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x1a1d20, 1.5));
 const keyLight = new THREE.DirectionalLight(0xffffff, 2.4); keyLight.position.set(-2, 3, 2); scene.add(keyLight);
 const rim = new THREE.DirectionalLight(0x9fc4ff, 1.2); rim.position.set(2, 1, -3); scene.add(rim);
 const cam = new THREE.PerspectiveCamera(24, 12 / 5, 0.01, 10);
-const target = new THREE.Vector3(0, -0.04, -0.14);
+const HOME = new THREE.Vector3(0, -0.04, -0.14);
+const target = HOME.clone();
 const orbit = { yaw: -1.25, pitch: 0.28, dist: 1.1 };
 const def416 = resolveWeapon("problem416", { optic: "reflex" });
 const tex = new THREE.CanvasTexture(atlas);
@@ -417,13 +451,41 @@ const CAMS = { left: [-Math.PI / 2, 0.1, 1.05], right: [Math.PI / 2, 0.1, 1.05],
 for (const b of document.querySelectorAll("[data-cam]")) {
   b.addEventListener("click", () => { [orbit.yaw, orbit.pitch, orbit.dist] = CAMS[b.dataset.cam]; renderView(); });
 }
+/* Shift the view: moves the point the camera circles, along the screen's
+   own left/right and up/down, so "left" is always left however it's turned.
+   `dx`/`dy` are in screen pixels. */
+const _right = new THREE.Vector3(), _up = new THREE.Vector3();
+function pan(dx, dy) {
+  placeCam();
+  _right.setFromMatrixColumn(cam.matrixWorld, 0);
+  _up.setFromMatrixColumn(cam.matrixWorld, 1);
+  const perPx = 2 * orbit.dist * Math.tan(cam.fov * Math.PI / 360) / Math.max(1, view.clientHeight);
+  target.addScaledVector(_right, -dx * perPx).addScaledVector(_up, dy * perPx);
+  renderView();
+}
+const PAN_STEP = 30;
+for (const b of document.querySelectorAll("[data-pan]")) {
+  b.addEventListener("click", () => {
+    const d = b.dataset.pan;
+    if (d === "reset") { target.copy(HOME); [orbit.yaw, orbit.pitch, orbit.dist] = [-1.25, 0.28, 1.1]; renderView(); return; }
+    // The button says which way the gun goes on screen.
+    pan(d === "left" ? PAN_STEP : d === "right" ? -PAN_STEP : 0, d === "up" ? PAN_STEP : d === "down" ? -PAN_STEP : 0);
+  });
+}
 let orbiting = null;
-view.addEventListener("pointerdown", (e) => { orbiting = [e.clientX, e.clientY]; view.setPointerCapture(e.pointerId); view.style.cursor = "grabbing"; });
+view.addEventListener("contextmenu", (e) => e.preventDefault());
+view.addEventListener("pointerdown", (e) => {
+  orbiting = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.button === 1 || e.shiftKey };
+  view.setPointerCapture(e.pointerId);
+  view.style.cursor = orbiting.pan ? "move" : "grabbing";
+});
 view.addEventListener("pointermove", (e) => {
   if (!orbiting) return;
-  orbit.yaw -= (e.clientX - orbiting[0]) * 0.008;
-  orbit.pitch = Math.max(-1.4, Math.min(1.4, orbit.pitch + (e.clientY - orbiting[1]) * 0.008));
-  orbiting = [e.clientX, e.clientY];
+  const dx = e.clientX - orbiting.x, dy = e.clientY - orbiting.y;
+  orbiting.x = e.clientX; orbiting.y = e.clientY;
+  if (orbiting.pan) { pan(-dx, -dy); return; }
+  orbit.yaw -= dx * 0.008;
+  orbit.pitch = Math.max(-1.4, Math.min(1.4, orbit.pitch + dy * 0.008));
   renderView();
 });
 view.addEventListener("pointerup", () => { orbiting = null; view.style.cursor = "grab"; });
@@ -460,6 +522,8 @@ async function rebake() {
 }
 
 function changed(skipTableKey = null) {
+  img = editedBanner(rawImg, skin().lines);
+  writeDraft(skinId);
   drawBanner();
   paintTable(skipTableKey);
   refreshStatus();
@@ -475,10 +539,29 @@ function select(key) { part = key; drawBanner(); paintTable(); }
 async function openSkin(id) {
   skinId = id;
   $("skin").value = id;
-  img = await bannerImage(skin().banner);
+  rawImg = await bannerImage(skin().banner);
+  img = editedBanner(rawImg, skin().lines);
   fitBanner();
   buildGun();
+  buildLines();
   changed();
+}
+
+/* ----------------------------------------------------------- banner text */
+
+function buildLines() {
+  const lines = skin().lines || [];
+  $("lines-box").hidden = !lines.length;
+  const box = $("lines");
+  box.innerHTML = "";
+  lines.forEach((l, i) => {
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.value = l.text;
+    inp.setAttribute("aria-label", `Banner text line ${i + 1}`);
+    inp.addEventListener("input", () => { skin().lines[i].text = inp.value; changed(); });
+    box.appendChild(inp);
+  });
 }
 
 /* ------------------------------------------------------------------ save */
@@ -492,10 +575,11 @@ async function save() {
   const thumb = renderThumb();
   const res = await fetch("/save", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id: s.id, crops: s.crops, jpg, thumb }),
+    body: JSON.stringify({ id: s.id, crops: s.crops, lines: s.lines || [], jpg, thumb }),
   }).then((r) => r.json()).catch((e) => ({ ok: false, error: e.message }));
   if (!res.ok) { setStatus(`Save failed: ${res.error}. Is tools/troll-skin-editor.mjs running?`, "dirty"); return false; }
   saved[s.id] = clone(s);
+  writeDraft(s.id);
   refreshStatus();
   if (!isDirty(s.id)) setStatus(`Saved ${s.name} — skins.js and skins/${s.id}.jpg`, "ok");
   return true;
@@ -512,7 +596,7 @@ const step = (d) => openSkin(SKINS[(SKINS.findIndex((s) => s.id === skinId) + d 
 $("skin").addEventListener("change", () => openSkin($("skin").value));
 $("prev").addEventListener("click", () => step(-1));
 $("next").addEventListener("click", () => step(1));
-$("revert").addEventListener("click", () => { work[skinId] = clone(saved[skinId]); openSkin(skinId); });
+$("revert").addEventListener("click", () => { work[skinId] = clone(saved[skinId]); writeDraft(skinId); openSkin(skinId); });
 $("save").addEventListener("click", save);
 
 window.addEventListener("keydown", (e) => {
@@ -547,6 +631,7 @@ await openSkin(skinId);
 window.__editor = {
   open: openSkin,
   setCrop: (id, key, c) => { work[id].crops[key] = c; if (id === skinId) changed(); },
+  setLine: (id, i, text) => { work[id].lines[i].text = text; if (id === skinId) { buildLines(); changed(); } },
   save: async (id) => { await openSkin(id); return save(); },
   get: (id) => clone(work[id]),
 };
