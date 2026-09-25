@@ -1,4 +1,85 @@
-# Troll Ops hand-off — 2026-09-25 (end of session 6)
+# Troll Ops hand-off — 2026-09-25 (end of session 7)
+
+Work happens on branch `game-improvements` in the worktree `GitHub/to-opus-wt`,
+and each finished piece is fast-forwarded onto `main` (`git push origin
+game-improvements:main`): "push" means land it on main. After pushing, also
+`git pull --ff-only` in the user's own checkout (`GitHub/mayurski-art.github.io`),
+or they see stale files there. github.com DNS drops out now and then; retry the
+push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
+tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
+`?v=to-skins13` (game.js + style.css); bump it on any change to either.
+
+## Where we are
+
+Every task from the session-5 list is done (session 6, below). Session 7 was
+the **weapon skin editor**, and the user is now designing skins in it
+themselves. "You Have a Problem" is the skin being worked on; it is close to
+done and will get the **Final lock** when the user is happy. Nothing else is
+waiting. Ask before starting anything new.
+
+## Weapon skins (session 7)
+
+### The editor: how the user works
+- Run `node tools/troll-skin-editor.mjs` in the user's checkout, open
+  http://127.0.0.1:5174/tools/troll-skin-editor.html (takes 5175, 5176... if
+  5174 is busy). It serves that checkout and Save writes into it: skins.js plus
+  `skins/<id>.jpg` and `<id>-thumb.jpg`, re-baked on the spot.
+- **The user edits in their own checkout, not the worktree.** Before changing
+  skins.js or the skin tools: copy their skins.js into the worktree first
+  (their saves are uncommitted), make the change there, commit, push, then
+  `git checkout -- assets/games/troll-ops/skins.js assets/games/troll-ops/skins/`
+  in their checkout and pull. After any change to the editor server
+  (tools/troll-skin-editor.mjs), restart the 5174 server from their checkout.
+- **An open editor tab keeps its own copy of the skin.** If it was opened
+  before a change, its next Save overwrites the change (this dropped the text
+  areas once). Always tell the user to refresh (Ctrl+Shift+R) before saving;
+  if the skin then shows unsaved, that's an old draft: Revert skin.
+- Unsaved edits live in localStorage (per skin) and survive a refresh.
+
+### What a skin is (skins.js)
+- **The banner only**, per part: no emblem, rollmark, vents, stipple, ribs,
+  border or wear (user rule). Only the Problem 416 (`weapon-416.js`) wears skins.
+- `crops`: per part `[cx, cy, zoom, rot, flip]` (fractions of the banner; zoom
+  = share of the banner's width). Unturned crops are kept inside the banner.
+- `lines`: text rewritten on the banner in its own pixel lettering (Tahoma at
+  its real size, hard-edged, scaled up square). `cutouts`: art lifted off the
+  banner (the trollface), paper keyed out from the box edges. Both are movable
+  pieces (dx, dy, size, rot, flip).
+- `textAreas`: boxes round writing baked into the banner art.
+- `right`: the right side's own: `crops` per part, `lines`/`cutouts` overrides
+  by index (text "" leaves a line off), `newLines` (right-only text; `smooth`
+  title style, `bg: "rows"` paints out a gradient bar), `flipV` (parts upside
+  down on the right).
+- `final: true`: the Final lock; the editor folds down to the gun.
+
+### The sides formula (user rule, in memory too)
+The right side **mirrors** the left: the same art at the same spot along the
+gun (weapon-416.js maps both faces by z). **Writing still reads correctly on
+both sides.** The atlas is 1024x1024: top half = left side, bottom half
+(`SKIN_ATLAS.rightY`) = right side, baked from the banner with each text line
+redrawn mirrored and each text area flipped in place along the part's crop
+direction, before cropping (so a word split across parts stays whole).
+
+### Editor features
+Drag/zoom/rotate/flip part boxes (Shift = one axis); per-part locks, **per
+side**; Left side / Right side switch (a part not edited on the right follows
+the left, shown as "same as left"); Banner pieces (text, trollface; right-only
+text); Text areas mode (draw/remove boxes); Right ↕ tick; 3D view with pan
+(right-drag or arrows) and zoom; atlas preview (both halves); Final lock /
+Unlock to edit. Code: tools/troll-skin-editor.html, tools/troll-skin-editor.mjs,
+drawing shared with the baker in tools/troll-skin-draw.js.
+
+### Skin gotchas
+- Text areas must hug the letters: a box that also covers neighbouring art
+  flips that art too. Text *lines* are safe (redrawn, not pixel-flipped).
+- Thin strokes vanish in pixel lettering at the normal ink cut-off; "$" and
+  "|" columns use a lower one.
+- Text areas marked so far: You Have a Problem, Buy $TROLL, Speed of Light.
+  Other banners with writing (Green Room's TROLL) need them marked in the editor.
+- Removed from the gun model because they sat on the art: fire selector,
+  ejection-port cover, forward assist.
+- Batch re-bake: `NODE_PATH=<checkout>/node_modules node tools/troll-skin-bake.mjs [ids]`
+  (it also rewrites factory-thumb.jpg; revert that if nothing changed).
 
 ## Session 6: done and on main
 - Bots throw grenades (1 frag + 1 flash a life; clusters, objectives, lob over cover; skill scales) — 089c3d8
@@ -10,73 +91,17 @@
 - Infection mode (modes.js INFECTION, game.js 'Infection' block, bots meleeOnly, net 'infect') — fd731f6
 - Keyboard Warrior rebuilt from the user's reference render (real 16x6 layout, silver guard, leather grip, trollface pommel) — a5e28f2
 - Undergrin fps: now on par with Grin Site headless (18-22), left alone.
-- Sync test passes (grenades, bot frag, melee, infection x6). Cache-bust is now ?v=to-sword1.
-
-## Weapon skins: editor shipped (session 7)
-- tools/troll-skin-editor.mjs + .html: drag/zoom/rotate/flip each part's crop on
-  the banner (Shift = one axis), lock parts, live 3D gun. Save writes
-  skins.js + skins/<id>.jpg + thumb. Run: node tools/troll-skin-editor.mjs
-- Skins are the banner ONLY (user 2026-09-25): no emblem, rollmark, vents,
-  stipple, ribs, border or wear. Crops are now [cx, cy, zoom, rot, flip]; drawing shared in tools/troll-skin-draw.js
-  (bake page imports it). rot=0/flip=0 draws exactly as before.
-- Claude did a first re-crop pass (problem, green, hitman, jungle, knight,
-  lightspeed, office, order). The USER fine-tunes the rest in the editor.
-- SIDES FORMULA (user rule): the right side MIRRORS the left (same art at the same
-  spot along the gun) and text still reads right on both. The atlas is 1024x1024:
-  top = left side, bottom (SKIN_ATLAS.rightY) = right side, baked from the banner
-  with every text area flipped in place along each crop's direction. Text areas =
-  skin.textAreas (drawn in the editor, "Text areas" mode) + banner text lines.
-- skin.right = right side only: per-index overrides of lines/cutouts, newLines
-  (right-only text, smooth title style + bg "rows"), flipV (parts upside down).
-  Editor: Left side / Right side switch. skin.final = Final lock (editor folds away;
-  Unlock to edit reopens it). You Have a Problem: right says I Forgive You.
-- Next if asked: more weapons skinnable (needs panelled models like weapon-416.js).
 
 ## Infection notes
 - Survivors = phantom slot, Infected = ghost slot, relabelled via teamName().
 - Bot host picks first infected 8s after GO (2 if 8+), clock starts then.
 - Bots-only matches end in ~40s (infected snowball); survivor bots kite swords.
 
----
-
-
-Work happens on branch `game-improvements` in the worktree `GitHub/to-opus-wt`,
-and each finished piece is fast-forwarded onto `main` (`git push origin
-game-improvements:main`): "push" means land it on main. After pushing, also
-`git pull --ff-only` in the user's own checkout (`GitHub/mayurski-art.github.io`),
-or they see stale files there. github.com DNS dropped out a few times this
-session; retry the push in a loop rather than giving up. Sync test:
-`NODE_PATH=<main checkout>/node_modules node tools/troll-ops-sync-test.mjs`
-(passes). Cache-bust in troll-ops.html is `?v=to-perf1` (game.js + style.css);
-bump it on any change to either.
-
-## Start here (next session): weapon skins
-
-The user is starting the **weapon skins revision** next. **The maps rework is
-finished** (see "Maps: done"), so nothing map-side is waiting.
-
-What exists today (session 1, commit 667366a):
-- Only the **Problem 416** (`problem416`, the default rifle) is skinnable:
-  `SKINNABLE` in skins.js. It has its own panelled, UV'd model,
-  `weapon-416.js` (extruded parts, every panel type).
-- **16 skins** in `skins.js` (`SKINS`, ids: problem, green, hitman, livewire,
-  buytroll, jungle, gladiator, tie, knight, frog, diamond, keyboard, brute,
-  lightspeed, office, order), each tied to a banner image.
-- Baked by `node tools/troll-skin-bake.mjs [id,...]` (runs
-  tools/troll-skin-bake.html headless) to `skins/<id>.jpg` (1024x512 atlas,
-  60-110 KB) plus `skins/<id>-thumb.jpg` for the picker.
-- Customize screen has a Skin strip; the choice is saved per weapon with the
-  attachments, sent over the net as `sk`, and the sync test checks that a skin
-  shows on the other client.
-- The main-menu operator holds the equipped, skinned primary.
-
-The user's idea (not started): **skins via Blender**. Blender 5.2.1 LTS is at
-`C:/Program Files/Blender Foundation/Blender 5.2/blender.exe` and runs headless
-(`--background --python`). Two directions: bake real PBR maps (colour,
-roughness, normal) for the 416 skins, and model proper .glb guns with UVs so
-every weapon can wear skins (today other weapons would each need a panelled
-model like weapon-416.js). **Ask what "revisions" they mean, then propose a
-plan and get their OK before building.**
+## Blender (for later, if skins move to real models)
+Not started, and not what the user meant by the skins revision. Blender 5.2.1
+LTS is at `C:/Program Files/Blender Foundation/Blender 5.2/blender.exe` and runs
+headless (`--background --python`); it could model UV'd .glb guns so every
+weapon can wear skins (today only weapon-416.js is panelled).
 
 Blender know-how from the maps that carries straight over:
 - `models/map_kit.py` is the shared kit every `build_<map>.blender.py`
@@ -142,54 +167,9 @@ view or fewer point lights; don't expect shadows to help (already off).
 - `tools/troll-ops-map-fps.mjs [ids]`: fps + draws/frame; `ROOT_DIR=<checkout>`
   measures another build (e.g. a `git worktree add --detach` of an old commit).
 
-## Tasks to pick from (user: "we will pick things up tomorrow")
+## Session-5 task list
 
-The user will choose which of these to do; don't start one unasked. Weapon
-skins (above) are a separate track. Pointers were checked on Sep 25.
-
-1. **Bots throw grenades.** Bots never throw today (no grenade code in
-   bots.js). Reuse the player's throw path (`startCook(slot)` ~game.js:3559,
-   `grenadeCtx()` ~3515) so bot grenades hit the same damage, killfeed and net
-   code. Decide when a bot throws: target behind cover it can't shoot, 2+
-   enemies clustered, or holding an objective (KOTH hill, S&D site); cap it
-   (one per life, cooldown) so it isn't spam. Scale with `settings.botSkill`.
-   Done when bots visibly throw in a match, damage lands, and remote clients
-   see it (the sync test covers grenades from players; add a bot case).
-2. **Send melee swings to other players.** `swingMelee()` (~game.js:3607) is
-   local only: other players see the damage but not the swing. Add a message
-   through `net.send()` (net.js ~134; follow how `onHitSeen` is sent and
-   handled ~net.js:224) and play the swing on the remote rig
-   (remote-players.js). Extend tools/troll-ops-sync-test.mjs with a check.
-3. **Third-person fixes** (toggle with B, `toggleThirdPerson()` ~game.js:1007;
-   local body ~game.js:2465):
-   - the aim camera is blocked by the player's own head: offset the camera
-     over the shoulder and/or hide the head board when it's between camera
-     and crosshair;
-   - one-handed sword grip: the keyboard sword (gear.js ~44-214, Godot
-     reference in troll-melee-1/weapons/keyboard_sword) should sit in one hand
-     in third person, not a two-handed rifle pose;
-   - the trollface head reads small and grey next to the reference art: the
-     head board is 0.34 x 0.32 x scale (character.js ~345) with
-     `TROLLFACE_HEAD_MAT` (~39). Try a bigger board and brighter material
-     (likely emissive/unlit-ish like the art), and compare screenshots
-     against assets/games/troll-ops/trollface-characters.
-4. **Infection mode.** New entry in modes.js (next to tdm/koth/oitc/snd/
-   gungame): one or two players start infected, killed survivors join the
-   infected, survivors win if anyone lasts the timer. Needs: team swap on
-   death, infected loadout (melee only, faster?), HUD survivor count, bots
-   that play both sides, net sync of team changes. Draft rules with the user
-   first (see the "design doc before big builds" habit).
-5. **Lean.** Needs a controls decision from the user first (Q/E? hold or
-   toggle? gamepad binding?). Then: camera roll + sideways offset, a matching
-   upper-body tilt on the rig, peeking reduces the exposed hitbox, sent over
-   the net so others see it.
-6. **Small visual leftovers:** the shared `shipping-container.glb` (still used
-   by Pentagrin and battlefield props) is metal-textured and renders
-   near-black (no env map): repaint it like Grin Site's gs-container-*. Grin
-   Beach's lifeguard towers are meant to be red but render dark brown (red
-   tint x dark wood photo): flat red paint or a model.
-7. **Undergrin frame rate** (optional): ~19 fps headless vs ~23 before the
-   rework; see "Maps: done".
+All done in session 6 (see above); lean was dropped by the user.
 
 ## Gotchas
 
