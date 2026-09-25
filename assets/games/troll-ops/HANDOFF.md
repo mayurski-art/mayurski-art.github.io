@@ -1,4 +1,33 @@
-# Troll Ops hand-off — 2026-09-25 (end of session 5)
+# Troll Ops hand-off — 2026-09-25 (end of session 6)
+
+## Session 6: done and on main
+- Bots throw grenades (1 frag + 1 flash a life; clusters, objectives, lob over cover; skill scales) — 089c3d8
+- Melee swings sent over the net + overhand throw arm on remote/3rd-person rigs — 089c3d8
+- S&D plant/defuse moved E -> hold F (F still throws tactical off-site) — c528a4d
+- LEAN: DROPPED by the user. Q stays aim. Don't build it.
+- Third person: parallel over-shoulder camera, own head ghosts on ADS; every head 1.4x + half-emissive (hitbox 0.24) — d04ddf2
+- Painted shipping containers (gs-container-*), no metal texture on props, red lifeguard towers — 271bc55
+- Infection mode (modes.js INFECTION, game.js 'Infection' block, bots meleeOnly, net 'infect') — fd731f6
+- Keyboard Warrior rebuilt from the user's reference render (real 16x6 layout, silver guard, leather grip, trollface pommel) — a5e28f2
+- Undergrin fps: now on par with Grin Site headless (18-22), left alone.
+- Sync test passes (grenades, bot frag, melee, infection x6). Cache-bust is now ?v=to-sword1.
+
+## NEXT: weapon skins (the only task left)
+User's meaning of 'revision': reposition / cut / crop different parts of each
+banner onto different parts of the weapon (per-part crop placement). Today that
+is skins.js SKINS[].crops {part: [cx, cy, zoom]} baked by tools/troll-skin-bake.mjs.
+Plan to propose first (not started): an interactive crop editor page
+(tools/troll-skin-editor.html) showing the banner with a draggable/resizable
+box per part + live 3D preview of weapon-416, exporting the crops table; then
+re-bake. Get the user's OK on that plan before building.
+
+## Infection notes
+- Survivors = phantom slot, Infected = ghost slot, relabelled via teamName().
+- Bot host picks first infected 8s after GO (2 if 8+), clock starts then.
+- Bots-only matches end in ~40s (infected snowball); survivor bots kite swords.
+
+---
+
 
 Work happens on branch `game-improvements` in the worktree `GitHub/to-opus-wt`,
 and each finished piece is fast-forwarded onto `main` (`git push origin
