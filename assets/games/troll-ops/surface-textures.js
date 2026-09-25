@@ -1,7 +1,7 @@
-// Troll Ops — shared CC0 tileable PBR texture sets (ambientCG), one
-// diffuse/normal/roughness(/ao/metal) triplet per surface family. Loaded
-// once at module scope so maps.js, house-props.js and battlefield-props.js
-// all reuse the same decoded images instead of fetching them three times.
+// Troll Ops — shared tileable PBR texture sets, one colour/normal/roughness
+// (/ao/metal) set per surface family. Each image loads the first time
+// anything asks for it and is shared from then on, so a map only downloads
+// the sets it uses.
 
 import * as THREE from "three";
 
@@ -14,17 +14,34 @@ function loadTex(name, srgb) {
   return t;
 }
 
+/* A surface set whose textures load on first access. `extra` lists the
+   optional maps it has ("ao", "metal"); the rest read as undefined. */
+function lazySet(name, extra = []) {
+  const cache = {};
+  const set = {};
+  for (const [key, srgb] of [["color", true], ["normal", false], ["rough", false], ...extra.map((k) => [k, false])]) {
+    Object.defineProperty(set, key, {
+      enumerable: true,
+      get: () => (cache[key] ??= loadTex(`${name}_${key}.jpg`, srgb)),
+    });
+  }
+  return set;
+}
+
 export const SURFACES = {
-  concrete: { color: loadTex("concrete_color.jpg", true), normal: loadTex("concrete_normal.jpg"), rough: loadTex("concrete_rough.jpg") },
-  brick: { color: loadTex("brick_color.jpg", true), normal: loadTex("brick_normal.jpg"), rough: loadTex("brick_rough.jpg"), ao: loadTex("brick_ao.jpg") },
-  metal: { color: loadTex("metal_color.jpg", true), normal: loadTex("metal_normal.jpg"), rough: loadTex("metal_rough.jpg"), metal: loadTex("metal_metal.jpg") },
-  wood: { color: loadTex("wood_color.jpg", true), normal: loadTex("wood_normal.jpg"), rough: loadTex("wood_rough.jpg") },
-  asphalt: { color: loadTex("asphalt_color.jpg", true), normal: loadTex("asphalt_normal.jpg"), rough: loadTex("asphalt_rough.jpg") },
-  rock: { color: loadTex("rock_color.jpg", true), normal: loadTex("rock_normal.jpg"), rough: loadTex("rock_rough.jpg"), ao: loadTex("rock_ao.jpg") },
-  // these two are baked in Blender (models/bake_surfaces.blender.py), not ambientCG;
-  // "concrete" above is actually split-face block, "cast" is poured concrete
-  dirt: { color: loadTex("dirt_color.jpg", true), normal: loadTex("dirt_normal.jpg"), rough: loadTex("dirt_rough.jpg") },
-  cast: { color: loadTex("cast_color.jpg", true), normal: loadTex("cast_normal.jpg"), rough: loadTex("cast_rough.jpg") },
+  // ambientCG (CC0). "concrete" is actually a split-face block wall.
+  concrete: lazySet("concrete"),
+  brick: lazySet("brick", ["ao"]),
+  metal: lazySet("metal", ["metal"]),
+  wood: lazySet("wood"),
+  asphalt: lazySet("asphalt"),
+  rock: lazySet("rock", ["ao"]),
+  // baked in Blender from procedural noise (models/bake_surfaces.blender.py)
+  dirt: lazySet("dirt"),
+  cast: lazySet("cast"),
+  sand: lazySet("sand"),
+  plaster: lazySet("plaster"),
+  tile: lazySet("tile"),
 };
 
 /* Builds one tinted, textured MeshStandardMaterial from a SURFACES entry,

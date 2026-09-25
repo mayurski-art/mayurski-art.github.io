@@ -4,3 +4,5 @@
 assets/images/wallpaper-src/*
 !assets/images/wallpaper-src/*.js
 assets/images/trollrunner-appicons-*.jpg
+
+__pycache__/

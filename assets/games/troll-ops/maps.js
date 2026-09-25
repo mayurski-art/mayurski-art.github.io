@@ -15,7 +15,7 @@ import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js";
-import { gsModel } from "./grinsite-props.js";
+import { gsModel, mapModel } from "./map-models.js";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,
@@ -110,7 +110,8 @@ function makeApi(root, colliders) {
       });
     },
 
-    cylinder(x, z, r, h, { color = 0x3a4530, y = 0, solid = true, pen = 4, surface = null, tile = 1.5 } = {}) {
+    cylinder(x, z, r, h, { color = 0x3a4530, y = 0, solid = true, pen = 4, surface = null, tile = 1.5, ghost = false } = {}) {
+      if (ghost) return solid ? api.ghostBox(x, z, r * 2, r * 2, h, { y, pen }) : undefined;
       const material = surface ? surf(surface, color, r * 2, h, tile) : mat(color, 0.7, 0.3);
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 12), material);
       mesh.position.set(x, y + h / 2, z);
@@ -251,7 +252,7 @@ export const MAPS = {
     ambient: { color: 0xffffff, intensity: 0.55 },
     build(api) {
       // Every collider below is the approved blockout's, unchanged; the
-      // visible geometry is the gs-*.glb models (grinsite-props.js).
+      // visible geometry is the gs-*.glb models (map-models.js).
       const G = { ghost: true };
       api.ghostWalls(0, 0, 68, 68, 6, 1.4);
       gsModel(api, "perimeter", { x: 0, z: 0 });
@@ -435,47 +436,86 @@ export const MAPS = {
 
   dustbowl: {
     name: "Dust Bowl",
-    blurb: "Long sightlines and thin cover. Bring glass.",
-    bounds: { minX: -45, maxX: 45, minZ: -45, maxZ: 45 },
-    playerSpawn: { x: 0, z: 36 },
+    blurb: "Mud-brick lanes and a dry riverbed. The minaret sees everything.",
+    bounds: { minX: -36, maxX: 36, minZ: -36, maxZ: 36 },
+    playerSpawn: { x: 0, z: -30 },
     sky: { top: 0x3b6ea5, horizon: 0xd9b271, bottom: 0x94764a },
-    // Ambient and hemi stay low here: the first pass lit everything so evenly
-    // that the sand geometry had no shading and the map read as a flat wash.
     fog: { color: 0xc0a473, density: 0.0032 },
-    ground: { colorA: 0x9c8555, colorB: 0x836e42, grid: 0xb8a271 },
+    ground: { colorA: 0xd8c29a, colorB: 0xc0a676, grid: 0xb8a271, surface: "sand", tile: 4 },
     sun: { color: 0xfff0cf, intensity: 2.6, pos: [40, 55, 25] },
     hemi: { sky: 0xffe6bb, ground: 0x6a5730, intensity: 0.62 },
     ambient: { color: 0xfff2dd, intensity: 0.26 },
     build(api) {
-      api.walls(0, 0, 90, 90, 5, 1.6, { color: 0x8a7346, surface: "brick", tile: 2.5 });
-      // ruined compound in the middle
-      api.walls(0, 0, 22, 18, 4, 1, { color: 0xad8d5c, gaps: { n: 5, s: 5, w: 4, e: 4 }, surface: "brick", tile: 2.5 });
-      api.box(0, 0, 7, 6, 3.2, { color: 0x94794e, surface: "brick", tile: 2.5 });
-      // climbs from the south doorway and lands on the block's roof edge (z 3)
-      api.stairs(0, 9.2, 5, 10, 0.32, 0.62, "-z", { color: 0x94794e });
-      // outlying ruins
-      for (const [cx, cz] of [[-26, -20], [24, -22], [-24, 24], [26, 22]]) {
-        api.walls(cx, cz, 12, 10, 3.4, 0.9, { color: 0xad8d5c, gaps: { n: 3.5, e: 3 }, surface: "brick", tile: 2.5 });
-        api.box(cx, cz, 3, 3, 1.6, { color: 0x7f6a44, surface: "brick", tile: 2.5 });
+      const MUD = 0xb89a68, MUD_DK = 0x9c7f52, ROCK = 0x7a6848, STONE = 0x9a8a6a, WOOD = 0x7a5a36;
+      api.ghostWalls(0, 0, 72, 72, 5, 1.6, { ghost: true, color: 0x8a7346, surface: "brick", tile: 2.5 });
+
+      /* ---- north (long lane): rock ridge + wrecked truck */
+      for (const [x, z, w, d, h] of [[-24, -19, 5, 3, 2.2], [-16, -25, 4, 3, 1.6], [-6, -21, 3, 4, 2.4],
+        [6, -23, 5, 3, 1.8], [14, -22, 3, 3, 2.6], [18, -27, 4, 3, 2.0], [31, -19, 3, 3, 1.4], [-31, -19, 3, 3, 1.8]]) {
+        api.box(x, z, w, d, h, { ghost: true, color: ROCK, pen: 6 });
       }
-      // rock cover scattered along the open lanes
-      for (const [x, z, r, h] of [[-12, -34, 2.2, 2.0], [14, -32, 2.6, 2.4], [-16, 8, 2.0, 1.8],
-        [18, 10, 2.4, 2.2], [-34, 2, 2.8, 2.6], [34, -4, 2.4, 2.2], [6, 30, 2.2, 1.9], [-8, 32, 2.6, 2.3]]) {
-        api.cylinder(x, z, r, h, { color: 0x6f5d3c, pen: 3, surface: "rock", tile: 2 });
+      for (const [x, z, r, h] of [[-10, -30, 1.2, 1.2], [9, -17, 1.4, 1.3]]) api.cylinder(x, z, r, h, { ghost: true, color: ROCK, pen: 6 });
+      api.box(-1, -28, 6, 2.4, 2.2, { ghost: true, color: 0x6a4a3a, pen: 4 });                // wrecked truck bed
+      api.box(3.5, -28, 2, 2.4, 2.8, { ghost: true, color: 0x5a3a2a, pen: 4 });               // cab
+      // walled courtyards in the two north corners, gates to the east/west and south
+      for (const cx of [-27, 27]) {
+        api.ghostWalls(cx, -28, 10, 10, 2.5, 0.6, { ghost: true, color: MUD, gaps: { [cx < 0 ? "e" : "w"]: 3, s: 3 }, pen: 6 });
       }
-      // low walls giving sniper lanes something to break up
-      // (the other two lanes get sandbag walls below, on the same lines)
-      for (const [x, z, w, d] of [[20, 6, 14, 1], [-6, 18, 1, 12]]) {
-        api.box(x, z, w, d, 1.2, { color: 0x94794e, pen: 4 });
+
+      /* ---- centre: two-storey mud-brick house + minaret (landmark) */
+      api.ghostWalls(0, -4, 10, 8, 3.2, 0.5, { ghost: true, color: MUD, gaps: { n: 1.6, s: 1.6, e: 1.6 }, pen: 8, surface: "brick", tile: 2.5 });
+      // interior stair up the west wall to the roof, through a stairwell
+      api.stairs(-3.5, -0.9, 1.6, 11, 0.318, 0.55, "-z", { ghost: true, color: MUD_DK });
+      const roof = (x0, x1, z0, z1) => api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.3, { ghost: true, color: MUD_DK, y: 3.2, pen: 8 });
+      roof(-5, -4.3, -8, 0); roof(-2.7, 5, -8, 0); roof(-4.3, -2.7, -8, -6.95); roof(-4.3, -2.7, -0.9, 0);
+      for (const [x, z, w, d] of [[0, -7.85, 10, 0.3], [0, -0.15, 10, 0.3], [-4.85, -4, 0.3, 8], [4.85, -4, 0.3, 8]]) {
+        api.box(x, z, w, d, 0.9, { ghost: true, color: MUD, y: 3.5, pen: 6 });                  // roof parapet
       }
-      // sandbag emplacements and dropped supply barrels along the lanes
-      sandbagWall(api, { x: -20, z: -6, w: 14, rot: 0 });
-      sandbagWall(api, { x: 6, z: -18, w: 12, rot: Math.PI / 2 });
-      for (const [x, z] of [[-30, -10], [30, 12], [-4, 26], [4, -26]]) {
-        barrel(api, { x, z });
+      api.cylinder(6.5, -10.5, 1.5, 12, { ghost: true, color: 0xd8c8a0, pen: 10 });            // minaret
+
+      /* ---- middle (close): market street along z 8 */
+      for (const cx of [-16, 16]) {                                                 // houses north of the street
+        api.ghostWalls(cx, 0, 8, 6, 3, 0.5, { ghost: true, color: MUD, gaps: { n: 2, s: 2 }, pen: 8, surface: "brick", tile: 2.5 });
+        api.box(cx, 0, 8.4, 6.4, 0.3, { ghost: true, color: MUD_DK, y: 3, pen: 8 });
+      }
+      for (const cx of [-22, -7, 8, 22]) {                                          // cut-through houses south of it
+        api.ghostWalls(cx, 14, 8, 4, 3, 0.5, { ghost: true, color: MUD, gaps: { n: 2, s: 2 }, pen: 8, surface: "brick", tile: 2.5 });
+        api.box(cx, 14, 8.4, 4.4, 0.3, { ghost: true, color: MUD_DK, y: 3, pen: 8 });
+      }
+      for (const x of [-22, -9, 9, 22]) api.box(x, 8, 2.6, 1.4, 1.1, { ghost: true, color: WOOD, pen: 2 });   // stalls
+      api.cylinder(0, 5.5, 1, 0.9, { ghost: true, color: STONE, pen: 6 });                                    // well
+      // stone field walls, uneven, in the open flanks
+      for (const [x, z, w, d] of [[-26, -8, 6, 0.6], [26, -6, 0.6, 6], [-10, -12, 0.6, 5], [12, -13, 5, 0.6]]) {
+        api.box(x, z, w, d, 1.1, { ghost: true, color: STONE, pen: 5 });
+      }
+
+      /* ---- south (mid-range): dry riverbed between raised banks */
+      const BANK = 1.2;
+      // north bank, broken where the cut-through houses let out
+      const gaps = [[-23.5, -20.5], [-8.5, -5.5], [6.5, 9.5], [20.5, 23.5]];
+      let from = -34.4;
+      for (const [g0, g1] of [...gaps, [34.4, 34.4]]) {
+        if (g0 - from > 0.1) api.box((from + g0) / 2, 18.5, g0 - from, 3, BANK, { ghost: true, color: MUD_DK, pen: 10 });
+        from = g1;
+      }
+      api.box(0, 32.2, 68.8, 4.4, BANK, { ghost: true, color: MUD_DK, pen: 10 });                            // south bank
+      // footbridge from bank to bank, on posts
+      api.box(0, 25, 3, 10, 0.3, { ghost: true, color: WOOD, y: BANK, pen: 3 });
+      for (const z of [22, 25, 28]) for (const x of [-1.3, 1.3]) api.cylinder(x, z, 0.15, BANK, { ghost: true, color: WOOD, pen: 2 });
+      api.stairs(-30, 20 + 4 * 0.6, 3, 4, 0.3, 0.6, "-z", { ghost: true, color: MUD_DK });                  // channel -> north bank
+      api.stairs(30, 17 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { ghost: true, color: MUD_DK });                   // street -> north bank
+      for (const x of [-10, 12]) api.stairs(x, 30 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { ghost: true, color: MUD_DK }); // channel -> south bank
+      for (const [x, z] of [[-15, 25], [18, 26]]) api.cylinder(x, z, 1.2, 1.1, { ghost: true, color: ROCK, pen: 6 });
+
+      // Every collider above is the approved blockout's, now invisible; the
+      // village is drawn by the db-*.glb zone models (models/build_dustbowl.blender.py).
+      for (const zone of ["perimeter", "north", "centre", "market", "south"]) mapModel(api, `db-${zone}`, { x: 0, z: 0 });
+      // palm trunks (the models' PALMS list, plus one in each courtyard)
+      for (const [x, z] of [[-14.5, 11.3], [15, 11.3], [-6.8, -10.4], [24, -2.5], [-24, -2.5], [-30.5, -25], [30.5, -25]]) {
+        api.ghostBox(x, z, 0.4, 0.4, 4, { pen: 3 });
       }
     },
-    spawns: [[-40, -40], [40, -40], [-40, 40], [40, 40], [0, -42], [0, 42], [-42, 0], [42, 0]],
+    spawns: [[-30, -31], [30, -31], [0, -33], [-33, 0], [33, 0], [-28, 25], [28, 25], [12, 25]],
   },
 
   depot: {
@@ -1076,81 +1116,6 @@ export const MAPS = {
     // Spawns hug the lot and the two far sand corners — never the pier,
     // which is the contested lane, and never inside a shop.
     spawns: [[-34, 28], [34, 28], [0, 29], [-36, -18], [36, -18], [-20, 24], [20, 28], [0, -14]],
-  },
-  dustbowl_wip: {
-    name: "Dust Bowl (blockout)",
-    blurb: "Work-in-progress blockout of the Dust Bowl rebuild.",
-    bounds: { minX: -36, maxX: 36, minZ: -36, maxZ: 36 },
-    playerSpawn: { x: 0, z: -30 },
-    sky: { top: 0x3b6ea5, horizon: 0xd9b271, bottom: 0x94764a },
-    fog: { color: 0xc0a473, density: 0.0032 },
-    ground: { colorA: 0x9c8555, colorB: 0x836e42, grid: 0xb8a271 },
-    sun: { color: 0xfff0cf, intensity: 2.6, pos: [40, 55, 25] },
-    hemi: { sky: 0xffe6bb, ground: 0x6a5730, intensity: 0.62 },
-    ambient: { color: 0xfff2dd, intensity: 0.26 },
-    build(api) {
-      const MUD = 0xb89a68, MUD_DK = 0x9c7f52, ROCK = 0x7a6848, STONE = 0x9a8a6a, WOOD = 0x7a5a36;
-      api.walls(0, 0, 72, 72, 5, 1.6, { color: 0x8a7346, surface: "brick", tile: 2.5 });
-
-      /* ---- north (long lane): rock ridge + wrecked truck */
-      for (const [x, z, w, d, h] of [[-24, -19, 5, 3, 2.2], [-16, -25, 4, 3, 1.6], [-6, -21, 3, 4, 2.4],
-        [6, -23, 5, 3, 1.8], [14, -22, 3, 3, 2.6], [18, -27, 4, 3, 2.0], [31, -19, 3, 3, 1.4], [-31, -19, 3, 3, 1.8]]) {
-        api.box(x, z, w, d, h, { color: ROCK, pen: 6 });
-      }
-      for (const [x, z, r, h] of [[-10, -30, 1.2, 1.2], [9, -17, 1.4, 1.3]]) api.cylinder(x, z, r, h, { color: ROCK, pen: 6 });
-      api.box(-1, -28, 6, 2.4, 2.2, { color: 0x6a4a3a, pen: 4 });                // wrecked truck bed
-      api.box(3.5, -28, 2, 2.4, 2.8, { color: 0x5a3a2a, pen: 4 });               // cab
-      // walled courtyards in the two north corners, gates to the east/west and south
-      for (const cx of [-27, 27]) {
-        api.walls(cx, -28, 10, 10, 2.5, 0.6, { color: MUD, gaps: { [cx < 0 ? "e" : "w"]: 3, s: 3 }, pen: 6 });
-      }
-
-      /* ---- centre: two-storey mud-brick house + minaret (landmark) */
-      api.walls(0, -4, 10, 8, 3.2, 0.5, { color: MUD, gaps: { n: 1.6, s: 1.6, e: 1.6 }, pen: 8, surface: "brick", tile: 2.5 });
-      // interior stair up the west wall to the roof, through a stairwell
-      api.stairs(-3.5, -0.9, 1.6, 11, 0.318, 0.55, "-z", { color: MUD_DK });
-      const roof = (x0, x1, z0, z1) => api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.3, { color: MUD_DK, y: 3.2, pen: 8 });
-      roof(-5, -4.3, -8, 0); roof(-2.7, 5, -8, 0); roof(-4.3, -2.7, -8, -6.95); roof(-4.3, -2.7, -0.9, 0);
-      for (const [x, z, w, d] of [[0, -7.85, 10, 0.3], [0, -0.15, 10, 0.3], [-4.85, -4, 0.3, 8], [4.85, -4, 0.3, 8]]) {
-        api.box(x, z, w, d, 0.9, { color: MUD, y: 3.5, pen: 6 });                  // roof parapet
-      }
-      api.cylinder(6.5, -10.5, 1.5, 12, { color: 0xd8c8a0, pen: 10 });            // minaret
-
-      /* ---- middle (close): market street along z 8 */
-      for (const cx of [-16, 16]) {                                                 // houses north of the street
-        api.walls(cx, 0, 8, 6, 3, 0.5, { color: MUD, gaps: { n: 2, s: 2 }, pen: 8, surface: "brick", tile: 2.5 });
-        api.box(cx, 0, 8.4, 6.4, 0.3, { color: MUD_DK, y: 3, pen: 8 });
-      }
-      for (const cx of [-22, -7, 8, 22]) {                                          // cut-through houses south of it
-        api.walls(cx, 14, 8, 4, 3, 0.5, { color: MUD, gaps: { n: 2, s: 2 }, pen: 8, surface: "brick", tile: 2.5 });
-        api.box(cx, 14, 8.4, 4.4, 0.3, { color: MUD_DK, y: 3, pen: 8 });
-      }
-      for (const x of [-22, -9, 9, 22]) api.box(x, 8, 2.6, 1.4, 1.1, { color: WOOD, pen: 2 });   // stalls
-      api.cylinder(0, 5.5, 1, 0.9, { color: STONE, pen: 6 });                                    // well
-      // stone field walls, uneven, in the open flanks
-      for (const [x, z, w, d] of [[-26, -8, 6, 0.6], [26, -6, 0.6, 6], [-10, -12, 0.6, 5], [12, -13, 5, 0.6]]) {
-        api.box(x, z, w, d, 1.1, { color: STONE, pen: 5 });
-      }
-
-      /* ---- south (mid-range): dry riverbed between raised banks */
-      const BANK = 1.2;
-      // north bank, broken where the cut-through houses let out
-      const gaps = [[-23.5, -20.5], [-8.5, -5.5], [6.5, 9.5], [20.5, 23.5]];
-      let from = -34.4;
-      for (const [g0, g1] of [...gaps, [34.4, 34.4]]) {
-        if (g0 - from > 0.1) api.box((from + g0) / 2, 18.5, g0 - from, 3, BANK, { color: MUD_DK, pen: 10 });
-        from = g1;
-      }
-      api.box(0, 32.2, 68.8, 4.4, BANK, { color: MUD_DK, pen: 10 });                            // south bank
-      // footbridge from bank to bank, on posts
-      api.box(0, 25, 3, 10, 0.3, { color: WOOD, y: BANK, pen: 3 });
-      for (const z of [22, 25, 28]) for (const x of [-1.3, 1.3]) api.cylinder(x, z, 0.15, BANK, { color: WOOD, pen: 2 });
-      api.stairs(-30, 20 + 4 * 0.6, 3, 4, 0.3, 0.6, "-z", { color: MUD_DK });                  // channel -> north bank
-      api.stairs(30, 17 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { color: MUD_DK });                   // street -> north bank
-      for (const x of [-10, 12]) api.stairs(x, 30 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { color: MUD_DK }); // channel -> south bank
-      for (const [x, z] of [[-15, 25], [18, 26]]) api.cylinder(x, z, 1.2, 1.1, { color: ROCK, pen: 6 });
-    },
-    spawns: [[-30, -31], [30, -31], [0, -33], [-33, 0], [33, 0], [-28, 25], [28, 25], [12, 25]],
   },
   depot_wip: {
     name: "The Depot (blockout)",

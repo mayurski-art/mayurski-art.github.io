@@ -19,7 +19,8 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } })
 await ctx.route(/supabase/, (r) => r.abort());
 // [x, y(eye feet), z, yawDeg (0 = looking -z), pitchDeg, tag]
 // [x, feetY, z, lookX, lookY, lookZ, tag]
-const VIEWS = {
+// views: a JSON file { mapId: [[x, feetY, z, lookX, lookY, lookZ, tag], ...] } as argv[2], else these
+const VIEWS = process.argv[2] ? JSON.parse(fs.readFileSync(process.argv[2], "utf8")) : {
   grinsite_wip: [
     [26, 26, 44, 0, 0, -2, "aerial"],
     [0, 0, 24, 0, 3, 0, "tower-from-south"],

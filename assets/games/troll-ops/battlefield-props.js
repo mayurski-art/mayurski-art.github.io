@@ -58,7 +58,7 @@ const PROP_RETEXTURE = {
    helpers below — they position themselves at runtime instead.
 
    `mapping` is the material-name -> [surface, repeat] table handed to
-   retexture(); map-specific model sets (grinsite-props.js) pass their own. */
+   retexture(); map-specific model sets (map-models.js) pass their own. */
 export function loadModel(name, mapping = PROP_RETEXTURE) {
   if (!cache.has(name)) {
     cache.set(name, loader.loadAsync(`${MODEL_BASE}${name}.glb`).then((gltf) => {
@@ -89,7 +89,8 @@ export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping
   loadModel(name, mapping).then((obj) => {
     obj.position.set(x, y, z);
     obj.rotation.y = rot;
-    if (scale !== 1) obj.scale.setScalar(scale);
+    if (Array.isArray(scale)) obj.scale.set(...scale);
+    else if (scale !== 1) obj.scale.setScalar(scale);
     api.prop(obj);
   });
 }

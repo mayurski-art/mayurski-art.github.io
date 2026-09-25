@@ -3,6 +3,9 @@ Bakes seamless procedural surface sets into textures/<name>_{color,normal,
 rough}.jpg for surface-textures.js:
   dirt  packed construction-site ground with gravel
   cast  poured concrete: mottled grey, pores, fine grain
+  sand  desert sand with wind ripples and pebbles
+  plaster  mud plaster: trowel blotches, hairline cracks, straw flecks
+  tile  white subway tile (8 x 16 per tile, offset rows) with grout + grime
 
 Run once per set:
   blender --background --python bake_surfaces.blender.py -- dirt
@@ -197,7 +200,100 @@ def cast_graph():
     return c, rough, height, 0.5
 
 
-color_out, rough_d, height, bump_strength = {"dirt": dirt_graph, "cast": cast_graph}[SURFACE]()
+def uv_axis(i):
+    return sep.outputs[i]
+
+
+def sand_graph():
+    base_n = noise(1.0, 1.8, 6, 0.55)
+    base = ramp(base_n.outputs["Fac"], [(0.3, lin(0xc3a172)), (0.55, lin(0xd3b584)), (0.75, lin(0xdcc295))])
+    # ripples: sin of 2*pi*(9u + wobble); integer 9 keeps it periodic
+    wob = noise(1.0, 2.5, 3, 0.5)
+    ph = math_node("ADD", math_node("MULTIPLY", uv_axis(0), vb=9.0), math_node("MULTIPLY", wob.outputs["Fac"], vb=1.4))
+    rip = math_node("SINE", math_node("MULTIPLY", ph, vb=2 * math.pi))
+    rip01 = math_node("ADD", math_node("MULTIPLY", rip, vb=0.5), vb=0.5)
+    rip_c = ramp(rip01, [(0.0, (0.8, 0.78, 0.76, 1)), (0.7, (1.0, 1.0, 1.0, 1)), (1.0, (1.08, 1.07, 1.05, 1))])
+    c = mix("MULTIPLY", base, rip_c)
+    pv = voronoi(1.0, 30.0)
+    peb = ramp(pv.outputs["Distance"], [(0.2, (1, 1, 1, 1)), (0.26, (0, 0, 0, 1))])
+    sp = noise(0.8, 3.0, 2, 0.5)
+    spm = ramp(sp.outputs["Fac"], [(0.42, (0.15, 0.15, 0.15, 1)), (0.58, (1, 1, 1, 1))])
+    pm = mix("MULTIPLY", peb, spm)
+    peb_c = ramp(pv.outputs["Color"], [(0.0, lin(0x8f7a5c)), (1.0, lin(0xb09a78))])
+    col = node("ShaderNodeMix", data_type="RGBA")
+    Lk.new(pm, col.inputs["Factor"])
+    Lk.new(c, col.inputs[6])
+    Lk.new(peb_c, col.inputs[7])
+    grit = noise(1.0, 120.0, 2, 0.5)
+    grit_c = ramp(grit.outputs["Fac"], [(0.35, (0.92, 0.92, 0.92, 1)), (0.65, (1.05, 1.05, 1.05, 1))])
+    c = mix("MULTIPLY", col.outputs[2], grit_c)
+    sep_p = node("ShaderNodeSeparateColor")
+    Lk.new(pm, sep_p.inputs[0])
+    height = math_node("ADD", math_node("MULTIPLY", rip01, vb=0.35), math_node("MULTIPLY", sep_p.outputs[0], vb=0.6))
+    rough = math_node("ADD", va=0.92, b=math_node("MULTIPLY", rip01, vb=0.05))
+    return c, rough, height, 0.6
+
+
+def plaster_graph():
+    base_n = noise(1.0, 2.0, 6, 0.55)
+    base = ramp(base_n.outputs["Fac"], [(0.3, lin(0xb3946a)), (0.55, lin(0xc4a67a)), (0.75, lin(0xd0b388))])
+    tr = noise(1.0, 4.5, 3, 0.45)
+    tr_c = ramp(tr.outputs["Fac"], [(0.35, (0.9, 0.89, 0.88, 1)), (0.65, (1.06, 1.05, 1.04, 1))])
+    c = mix("MULTIPLY", base, tr_c)
+    vc = voronoi(1.0, 5.0)
+    vc.feature = "DISTANCE_TO_EDGE"
+    crack = ramp(vc.outputs["Distance"], [(0.0, (0.55, 0.52, 0.5, 1)), (0.018, (1, 1, 1, 1))])
+    cm_n = noise(1.0, 3.0, 2, 0.5)
+    cm = ramp(cm_n.outputs["Fac"], [(0.36, (0, 0, 0, 1)), (0.46, (1, 1, 1, 1))])
+    crack_m = mix("LIGHTEN", crack, cm)
+    c = mix("MULTIPLY", c, crack_m)
+    straw = noise(1.0, 160.0, 2, 0.5)
+    straw_c = ramp(straw.outputs["Fac"], [(0.7, (1, 1, 1, 1)), (0.76, (1.18, 1.1, 0.9, 1))])
+    c = mix("MULTIPLY", c, straw_c)
+    sep_c = node("ShaderNodeSeparateColor")
+    Lk.new(crack_m, sep_c.inputs[0])
+    height = math_node("ADD", math_node("MULTIPLY", tr.outputs["Fac"], vb=0.5), math_node("MULTIPLY", sep_c.outputs[0], vb=0.4))
+    rough = math_node("ADD", va=0.88, b=math_node("MULTIPLY", tr.outputs["Fac"], vb=0.08))
+    return c, rough, height, 0.7
+
+
+def tile_graph():
+    rows = 16.0
+    cols = 8.0
+    v = math_node("MULTIPLY", uv_axis(1), vb=rows)
+    row = math_node("FLOOR", v)
+    odd = math_node("MODULO", row, vb=2.0)
+    uu = math_node("ADD", math_node("MULTIPLY", uv_axis(0), vb=cols), math_node("MULTIPLY", odd, vb=0.5))
+    fu = math_node("FRACT", uu)
+    fv = math_node("FRACT", v)
+    gw = 0.035
+    # grout mask: 1 inside a tile, 0 on the grout lines
+    eu = math_node("MINIMUM", fu, math_node("SUBTRACT", va=1.0, b=fu))
+    ev = math_node("MINIMUM", fv, math_node("SUBTRACT", va=1.0, b=fv))
+    inside = math_node("MULTIPLY", math_node("GREATER_THAN", eu, vb=gw * 0.5), math_node("GREATER_THAN", ev, vb=gw))
+    # per-tile tint from a hash of the tile's cell
+    cell = node("ShaderNodeCombineXYZ")
+    Lk.new(math_node("FLOOR", uu), cell.inputs[0])
+    Lk.new(row, cell.inputs[1])
+    wn = node("ShaderNodeTexWhiteNoise", noise_dimensions="2D")
+    Lk.new(cell.outputs[0], wn.inputs["Vector"])
+    tile_c = ramp(wn.outputs["Value"], [(0.0, lin(0xdcd9cf)), (1.0, lin(0xefede6))])
+    grout = lin(0x7f7c74)
+    col = node("ShaderNodeMix", data_type="RGBA")
+    Lk.new(inside, col.inputs["Factor"])
+    col.inputs[6].default_value = grout
+    Lk.new(tile_c, col.inputs[7])
+    grime_n = noise(1.0, 2.5, 6, 0.6)
+    grime = ramp(grime_n.outputs["Fac"], [(0.35, (0.78, 0.76, 0.72, 1)), (0.6, (1, 1, 1, 1))])
+    c = mix("MULTIPLY", col.outputs[2], grime)
+    height = math_node("MULTIPLY", inside, vb=1.0)
+    rough = math_node("SUBTRACT", va=0.9, b=math_node("MULTIPLY", inside, vb=0.62))
+    return c, rough, height, 0.6
+
+
+color_out, rough_d, height, bump_strength = {
+    "dirt": dirt_graph, "cast": cast_graph, "sand": sand_graph, "plaster": plaster_graph, "tile": tile_graph,
+}[SURFACE]()
 
 emit = node("ShaderNodeEmission")
 out = node("ShaderNodeOutputMaterial")
