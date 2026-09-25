@@ -19,21 +19,12 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } })
 await ctx.route(/supabase/, (r) => r.abort());
 // [x, y(eye feet), z, yawDeg (0 = looking -z), pitchDeg, tag]
 // [x, feetY, z, lookX, lookY, lookZ, tag]
-// views: a JSON file { mapId: [[x, feetY, z, lookX, lookY, lookZ, tag], ...] } as argv[2], else these
-const VIEWS = process.argv[2] ? JSON.parse(fs.readFileSync(process.argv[2], "utf8")) : {
-  grinsite_wip: [
-    [26, 26, 44, 0, 0, -2, "aerial"],
-    [0, 0, 24, 0, 3, 0, "tower-from-south"],
-    [-6, 6.7, -3, 26, 1, 10, "from-level2"],
-    [10, 0, -10, 26, 1.5, 4, "container-yard"],
-    [-12, 0, 14, -24, 1.5, -2, "foundation"],
-    [-4, 0, -14, -4, 1.5, -22, "site-office"],
-    [24, 3.55, 24, 0, 2, 0, "from-scaffold"],
-    [-8, 0, -8, -16, 11, -16, "crane-load"],
-    [14, 0, 27, 19, 0.5, 19, "forklift"],
-    [-20, 0, 26, -24, 2, 22, "scaffold-close"],
-  ],
-};
+// views: { mapId: [[x, feetY, z, lookX, lookY, lookZ, tag], ...] } from the JSON
+// file given as argv[2], else tools/troll-ops-map-views.json (every map). Pass
+// map ids after the file to shoot only those.
+const VIEWS_ALL = JSON.parse(fs.readFileSync(process.argv[2] || path.join(ROOT, "tools/troll-ops-map-views.json"), "utf8"));
+const only = process.argv.slice(3);
+const VIEWS = only.length ? Object.fromEntries(only.map((id) => [id, VIEWS_ALL[id]])) : VIEWS_ALL;
 for (const [id, views] of Object.entries(VIEWS)) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => console.log("ERR", id, e.message));
