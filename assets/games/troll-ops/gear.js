@@ -387,6 +387,61 @@ function keyLegendTexture(THREE) {
   return keyLegendCache;
 }
 
+/* RGB backlight, like a gaming board's wave effect: a rainbow sweeping from
+   esc to the arrows, glowing up through the gaps between the caps and
+   lighting the legends. One shared clock for every copy of the sword; it's
+   read off performance.now() when the mesh draws, so nothing has to tick it.
+   Brighter than 1 and not tone mapped, so the bloom pass haloes it. */
+const KB_RGB_TIME = { value: 0 };
+const KB_RGB_GLSL = /* glsl */`
+  uniform float uTime;
+  vec3 hue2rgb(float h) {
+    vec3 k = clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    return k * k * (3.0 - 2.0 * k);
+  }
+  // u: 0 at esc, 1 at the arrows. The hue scrolls toward the tip and a
+  // brighter crest rides along with it.
+  vec3 rgbWave(float u) {
+    float phase = u * 1.1 - uTime * 0.45;
+    vec3 c = hue2rgb(fract(phase));
+    float crest = 0.65 + 0.35 * pow(0.5 + 0.5 * sin((u * 2.4 - uTime * 1.3) * 6.2832), 3.0);
+    return c * crest;
+  }
+`;
+function stampRgbTime() { KB_RGB_TIME.value = performance.now() / 1000; }
+
+function keyUnderglowMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime: KB_RGB_TIME },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: KB_RGB_GLSL + `
+      varying vec2 vUv;
+      void main() { gl_FragColor = vec4(rgbWave(vUv.x) * 2.2, 1.0); }`,
+    toneMapped: false,
+  });
+}
+
+function keyLegendRgbMaterial(map) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime: KB_RGB_TIME, map: { value: map } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: KB_RGB_GLSL + `
+      uniform sampler2D map;
+      varying vec2 vUv;
+      void main() {
+        vec4 t = texture2D(map, vUv);
+        if (t.a < 0.02) discard;
+        // Legends take the wave's colour, lifted toward white so they stay
+        // readable, like backlit caps.
+        vec3 c = mix(rgbWave(vUv.x), vec3(1.0), 0.28) * 1.6;
+        gl_FragColor = vec4(c, t.a);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+  });
+}
+
 /* Leather wrap for the grip: dark diagonal seams over brown, repeating. */
 let wrapTexCache = null;
 function gripWrapTexture(THREE) {
@@ -486,13 +541,40 @@ function buildKeyboardSword(m, mat, group) {
   caps.instanceMatrix.needsUpdate = true;
   group.add(caps);
 
+  // RGB underglow: a lit sheet on the case floor under the caps. The caps
+  // hide it except in the gaps between them, which is exactly where a
+  // backlit board glows. Same basis as the legends, so its uv.x runs
+  // esc -> home.
+  const glowBasis = new THREE.Matrix4().makeBasis(
+    new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0));
+  const underglow = new THREE.Mesh(new THREE.PlaneGeometry(fieldL, fieldW), keyUnderglowMaterial());
+  underglow.quaternion.setFromRotationMatrix(glowBasis);
+  underglow.position.set(xStart + fieldW / 2, faceUp + 0.0012, zStart - fieldL / 2);
+  underglow.onBeforeRender = stampRgbTime;
+  underglow.castShadow = false;
+  group.add(underglow);
+  // The inside of the rim catches the light too, so the glow reads from a
+  // low angle where the gaps close up.
+  for (const [l, x, z] of [
+    [fieldL, xStart - RIM * 0.2, zStart - fieldL / 2],
+    [fieldL, xStart + fieldW + RIM * 0.2, zStart - fieldL / 2],
+  ]) {
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(l, LIP * 0.9), keyUnderglowMaterial());
+    // Standing strip along the blade; its uv.x runs esc -> tip like the sheet.
+    strip.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+      new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)));   // right-handed; DoubleSide covers the far strip
+    strip.material.side = THREE.DoubleSide;
+    strip.position.set(x, faceUp + LIP * 0.5, z);
+    strip.onBeforeRender = stampRgbTime;
+    group.add(strip);
+  }
+
   // Legends: canvas x (esc -> home) must run down the blade (-Z) and the
   // canvas top (the F-row) must sit on the -X edge, facing up. A plane's
   // local +X/+Y carry the canvas right/up, so those two axes are set to
   // world -Z and -X directly; their cross product is +Y, the face normal.
-  const legend = new THREE.Mesh(
-    new THREE.PlaneGeometry(fieldL, fieldW),
-    new THREE.MeshBasicMaterial({ map: keyLegendTexture(THREE), transparent: true, depthWrite: false, toneMapped: false }));
+  const legend = new THREE.Mesh(new THREE.PlaneGeometry(fieldL, fieldW), keyLegendRgbMaterial(keyLegendTexture(THREE)));
+  legend.onBeforeRender = stampRgbTime;
   legend.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
     new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)));
   legend.position.set(xStart + fieldW / 2, faceUp + capH + 0.0026, zStart - fieldL / 2);
