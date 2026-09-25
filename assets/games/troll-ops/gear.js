@@ -34,7 +34,6 @@ export const MELEE_DEFS = {
       len: 0.78, wide: 0.30, blade: 0.038,
       color: 0x111114, grip: 0x30170d,
       guardWide: 0.42, guardTall: 0.052,
-      keyCols: 8, keyRows: 14,
     },
   },
 };
@@ -298,298 +297,302 @@ export function buildMeleeMesh(def, includeHands = true) {
   return group;
 }
 
-/* "U MAD BRO?" decal for the crossguard. Built once and shared - every
-   player carries this weapon, so rebuilding the canvas per spawn would
-   leak a texture each time. */
+/* "U MAD BRO?" for the crossguard: raised silver letters, drawn with a dark
+   drop edge below-right and a highlight above-left so they read as cast
+   into the guard rather than printed on it. Built once and shared - every
+   player carries this weapon, so rebuilding the canvas per spawn would leak
+   a texture each time. */
 let guardTexCache = null;
 function guardTextTexture(THREE) {
   if (guardTexCache) return guardTexCache;
   const c = document.createElement("canvas");
-  c.width = 512; c.height = 128;
+  c.width = 1024; c.height = 160;
   const g = c.getContext("2d");
-  g.clearRect(0, 0, c.width, c.height);
-  g.font = "bold 74px 'DM Mono', ui-monospace, monospace";
+  g.fillStyle = "#c3c7cd";
+  g.fillRect(0, 0, c.width, c.height);
+  g.font = "600 112px 'DM Sans', system-ui, sans-serif";
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.fillStyle = "#0a0a0c";
-  g.fillText("U MAD BRO?", c.width / 2, c.height / 2 + 4);
+  const x = c.width / 2, y = c.height / 2 + 6;
+  const text = "U MAD BRO?";
+  g.fillStyle = "#4a4e55"; g.fillText(text, x + 5, y + 6);   // shadow side
+  g.fillStyle = "#ffffff"; g.fillText(text, x - 2, y - 2);   // lit edge
+  g.fillStyle = "#b9bdc4"; g.fillText(text, x, y);           // the face
   guardTexCache = new THREE.CanvasTexture(c);
+  guardTexCache.colorSpace = THREE.SRGBColorSpace;
   guardTexCache.anisotropy = 4;
   return guardTexCache;
 }
 
-/* Keycap legend: one glyph baked per grid cell into a single texture sized
-   to the whole key field, then laid as one thin decal over the cap tops —
-   cheaper and simpler than per-instance UVs on an InstancedMesh, and looks
-   identical since the caps already sit on a strict uniform grid. A fixed
-   seed (not Math.random) keeps the layout the same every time the sword is
-   built rather than reshuffling on every spawn/reload.
-   Built once and shared, same reasoning as the guard decal above.
+/* The keyboard on the blade: a real 75% board, in order, 16 keys long and
+   six rows deep. Widths are in key units (u). Every row adds up to 16u, so
+   the board is a clean rectangle. `null` legends are blank caps. */
+const KB_ROWS = [
+  [["esc", 1], ["F1", 1], ["F2", 1], ["F3", 1], ["F4", 1], ["F5", 1], ["F6", 1], ["F7", 1],
+    ["F8", 1], ["F9", 1], ["F10", 1], ["F11", 1], ["F12", 1], ["prt sc", 1], ["del", 1], ["home", 1]],
+  [["~|`", 1], ["!|1", 1], ["@|2", 1], ["#|3", 1], ["$|4", 1], ["%|5", 1], ["^|6", 1], ["&|7", 1],
+    ["*|8", 1], ["(|9", 1], [")|0", 1], ["_|-", 1], ["+|=", 1], ["backspace", 2], ["pg up", 1]],
+  [["tab", 1.5], ["Q", 1], ["W", 1], ["E", 1], ["R", 1], ["T", 1], ["Y", 1], ["U", 1], ["I", 1],
+    ["O", 1], ["P", 1], ["{|[", 1], ["}|]", 1], ["\\", 1.5], ["pg dn", 1]],
+  [["caps lock", 1.75], ["A", 1], ["S", 1], ["D", 1], ["F", 1], ["G", 1], ["H", 1], ["J", 1],
+    ["K", 1], ["L", 1], [":|;", 1], ["\"|'", 1], ["return", 2.25], ["end", 1]],
+  [["⇧ shift", 2.25], ["Z", 1], ["X", 1], ["C", 1], ["V", 1], ["B", 1], ["N", 1], ["M", 1],
+    ["<|,", 1], [">|.", 1], ["?|/", 1], ["⇧ shift", 1.75], ["↑", 1], ["fn", 1]],
+  [["control", 1.25], ["option", 1.25], ["⌘", 1.25], [null, 7.25], ["⌘", 1], ["option", 1],
+    ["←", 1], ["↓", 1], ["→", 1]],
+];
+const KB_LEN_U = 16;
 
-   Axis mapping, worked through once so it stays fixed: the decal plane is
-   a PlaneGeometry rotated -PI/2 about X, so its local +X stays world +X
-   and its local +Y becomes world -Z. CanvasTexture flips Y, so the canvas
-   TOP row lands at local +Y = world -Z, i.e. the FAR end of the board
-   (the tip), while the key grid itself numbers row 0 at the guard end
-   (world +Z). Hence the row index is flipped below. Columns need no flip:
-   canvas left = world -X = col 0.
-
-   Glyphs are drawn upright (no per-glyph rotation) — the plane's rotation
-   is a pure tilt about X, which does not spin the texture in its own
-   plane, so anything rotated here comes out rotated on the board. */
-const KEY_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*-=+_?/~";
+/* Legends as one texture laid over the whole key field, drawn as an
+   ordinary keyboard seen from above: canvas x runs esc -> home, canvas top
+   is the F-row. The plane that carries it is turned onto the blade in
+   buildKeyboardSword. Pastel RGB, dim like the reference board's backlit
+   legends: pink at the guard, through violet, to teal at the tip. */
 let keyLegendCache = null;
-function keyLegendTexture(THREE, cols, rows) {
+function keyLegendTexture(THREE) {
   if (keyLegendCache) return keyLegendCache;
-  const cellPx = 48;
+  const U = 64;
   const c = document.createElement("canvas");
-  c.width = cols * cellPx;
-  c.height = rows * cellPx;
+  c.width = KB_LEN_U * U;
+  c.height = KB_ROWS.length * U;
   const g = c.getContext("2d");
   g.clearRect(0, 0, c.width, c.height);
-  g.font = `${Math.floor(cellPx * 0.52)}px 'DM Mono', ui-monospace, monospace`;
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.fillStyle = "#c9d2c4";
-
-  // A tiny xorshift-style PRNG seeded fixed (not Math.random) so the deal
-  // order is deterministic across rebuilds instead of reshuffling every
-  // time a match loads.
-  let seed = 1337;
-  const rand = () => {
-    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
-    return ((seed >>> 0) % 10000) / 10000;
-  };
-
-  // There are more keys (rows*cols) than glyphs in the charset, so true
-  // uniqueness across the whole board isn't possible with a real keyboard
-  // character set — instead, deal glyphs like a shuffled deck: every
-  // character appears once before any of them repeats, and the deck is
-  // reshuffled only once it runs out. That maximises how varied any two
-  // keys look without inventing fake symbols to pad the count.
-  let deck = [];
-  const nextGlyph = () => {
-    if (deck.length === 0) {
-      deck = KEY_GLYPHS.split("");
-      for (let i = deck.length - 1; i > 0; i--) {
-        const j = Math.floor(rand() * (i + 1));
-        [deck[i], deck[j]] = [deck[j], deck[i]];
+  KB_ROWS.forEach((row, r) => {
+    let x = 0;
+    for (const [label, w] of row) {
+      if (label) {
+        const cx = (x + w / 2) * U, cy = (r + 0.5) * U;
+        const hue = 320 - (cx / c.width) * 150;
+        g.fillStyle = `hsl(${hue}, 70%, 74%)`;
+        const [top, bottom] = label.includes("|") && label.length > 1 ? label.split("|") : [null, label];
+        if (top) {
+          g.font = "500 17px 'DM Sans', system-ui, sans-serif";
+          g.fillText(top, cx, cy - 11);
+          g.font = "500 20px 'DM Sans', system-ui, sans-serif";
+          g.fillText(bottom, cx, cy + 11);
+        } else {
+          const size = bottom.length === 1 ? 26 : bottom.length <= 3 ? 17 : 13;
+          g.font = `500 ${size}px 'DM Sans', system-ui, sans-serif`;
+          g.fillText(bottom, cx, cy + 1);
+        }
       }
+      x += w;
     }
-    return deck.pop();
-  };
-
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const ch = nextGlyph();
-      const cx = col * cellPx + cellPx / 2;
-      const cy = (rows - 1 - row) * cellPx + cellPx / 2;
-      g.fillText(ch, cx, cy + 1);
-    }
-  }
+  });
   keyLegendCache = new THREE.CanvasTexture(c);
-  keyLegendCache.anisotropy = 4;
+  keyLegendCache.colorSpace = THREE.SRGBColorSpace;
+  keyLegendCache.anisotropy = 8;
   return keyLegendCache;
 }
 
-/* Keyboard Warrior. Blade runs down -Z, grip at the origin, so it drops
-   into the same view-model slot as the guns. */
+/* Leather wrap for the grip: dark diagonal seams over brown, repeating. */
+let wrapTexCache = null;
+function gripWrapTexture(THREE) {
+  if (wrapTexCache) return wrapTexCache;
+  const c = document.createElement("canvas");
+  c.width = 64; c.height = 64;
+  const g = c.getContext("2d");
+  g.fillStyle = "#4a2e22";
+  g.fillRect(0, 0, 64, 64);
+  const grad = g.createLinearGradient(0, 0, 0, 64);
+  grad.addColorStop(0, "rgba(255,255,255,0.08)");
+  grad.addColorStop(0.7, "rgba(0,0,0,0)");
+  grad.addColorStop(1, "rgba(0,0,0,0.35)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  g.fillStyle = "#1e120d";
+  g.fillRect(0, 60, 64, 4);
+  wrapTexCache = new THREE.CanvasTexture(c);
+  wrapTexCache.colorSpace = THREE.SRGBColorSpace;
+  wrapTexCache.wrapS = wrapTexCache.wrapT = THREE.RepeatWrapping;
+  wrapTexCache.repeat.set(1, 9);
+  return wrapTexCache;
+}
+
+/* The trollface art, for the sticker on the board and the pommel. */
+let faceTexCache = null;
+function trollfaceTexture(THREE) {
+  if (faceTexCache) return faceTexCache;
+  faceTexCache = new THREE.TextureLoader().load(
+    new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
+  faceTexCache.colorSpace = THREE.SRGBColorSpace;
+  return faceTexCache;
+}
+
+/* Keyboard Warrior, after the reference render: a real keyboard for a
+   blade, a silver "U MAD BRO?" guard, leather grip, trollface pommel.
+   Blade runs down -Z, grip at the origin, so it drops into the same
+   view-model slot as the guns. Keys face +Y.
+
+   The board lies lengthwise: the keyboard's left end (esc, tab, caps,
+   shift, control) sits at the guard and the arrows at the tip, with the
+   F-row along the -X edge. */
 function buildKeyboardSword(m, mat, group) {
   const GRIP_LEN = 0.34;
   const GUARD_THICK = 0.075;
-  const TIP_LEN = 0.15;
-  const bodyLen = m.len - TIP_LEN;
   const z0 = -(GRIP_LEN * 0.5 + GUARD_THICK);   // where the blade starts
+  const len = m.len, wide = m.wide, thick = m.blade;
+  const zMid = z0 - len * 0.5;
+  const faceUp = thick * 0.5;
 
-  // Chassis.
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(m.wide, m.blade, bodyLen), mat(m.color, 0.42, 0.65));
-  body.position.set(0, 0, z0 - bodyLen * 0.5);
-  group.add(body);
-
-  // Chisel tip: a box tapered to an edge at the far end.
-  const tipGeo = new THREE.BoxGeometry(m.wide, m.blade, TIP_LEN);
-  const pos = tipGeo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    if (pos.getZ(i) < 0) {                       // far face
-      pos.setX(i, pos.getX(i) * 0.12);
-      pos.setY(i, pos.getY(i) * 0.35);
-    }
+  // Case: a black slab with a raised lip round the key well.
+  const caseMat = new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.55, metalness: 0.2 });
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(wide, thick, len), caseMat);
+  slab.position.set(0, 0, zMid);
+  group.add(slab);
+  const RIM = 0.011, LIP = 0.012;
+  for (const [w, l, x, z] of [
+    [wide, RIM, 0, z0 - RIM / 2], [wide, RIM, 0, z0 - len + RIM / 2],
+    [RIM, len, -wide / 2 + RIM / 2, zMid], [RIM, len, wide / 2 - RIM / 2, zMid],
+  ]) {
+    const lip = new THREE.Mesh(new THREE.BoxGeometry(w, LIP, l), caseMat);
+    lip.position.set(x, faceUp + LIP / 2, z);
+    group.add(lip);
   }
-  tipGeo.computeVertexNormals();
-  const tip = new THREE.Mesh(tipGeo, mat(m.color, 0.42, 0.65));
-  tip.position.set(0, 0, z0 - bodyLen - TIP_LEN * 0.5);
-  group.add(tip);
 
-  // Keycaps on the +Y face only — a real keyboard has keys on one side and
-  // a plain plastic case on the other, so front and back should read as
-  // different sides of the same object rather than a mirrored prop. Two
-  // draw calls: a glowing base per key and a dark cap sitting on it, each
-  // as one InstancedMesh.
-  //
-  // The RGB goes UNDER the caps, not on them. A real backlit board has dark
-  // plastic keycaps with the LED beneath, so the colour reads as light
-  // escaping around each cap. Colouring the cap tops directly turns the
-  // whole blade into a pastel candy grid.
-  const margin = 0.016, gap = 0.0065;
-  const usable = m.wide - margin * 2;
-  const keyW = (usable - gap * (m.keyCols - 1)) / m.keyCols;
-  const fieldLen = bodyLen - margin * 2;
-  const pitchY = (fieldLen + gap) / m.keyRows;
-  const keyL = pitchY - gap;
-  const count = m.keyCols * m.keyRows;
-  const capH = 0.010;
-  const faceUp = m.blade * 0.5;
+  // Key field inside the rim. u along the blade (keyboard x) and across it
+  // (keyboard rows) come out nearly square at these proportions.
+  const fieldL = len - RIM * 2 - 0.006, fieldW = wide - RIM * 2 - 0.006;
+  const uL = fieldL / KB_LEN_U, uW = fieldW / KB_ROWS.length;
+  const gap = 0.0045;
+  const capH = 0.012;
+  const zStart = z0 - RIM - 0.003;              // keyboard x = 0 (esc end)
+  const xStart = -wide / 2 + RIM + 0.003;       // keyboard row 0 (F-row) edge
 
-  // The light box is deliberately wider than its cap (by `overhang` per
-  // side) so the glow escapes around the edges. At the outermost row/
-  // column that same overhang used to poke past the board's own edge into
-  // open air — nothing there to hide behind — showing up as a stray
-  // sliver of colour fringing the blade's rim. Scaling each edge instance
-  // down on its outward axis (and nudging it back in by half the trim so
-  // it stays flush with its cap) keeps the inner glow but clips the part
-  // that would've hung off the board.
-  const overhang = gap * 0.75;
-  const lightGeo = new THREE.BoxGeometry(keyW + overhang * 2, capH * 0.5, keyL + overhang * 2);
-  const lights = new THREE.InstancedMesh(
-    lightGeo,
-    new THREE.MeshBasicMaterial({ toneMapped: false }),
-    count);
-  const caps = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(keyW, capH, keyL),
-    new THREE.MeshStandardMaterial({
-      color: 0x050507, roughness: 0.6, metalness: 0.1,
-    }),
-    count);
-
-  const fullW = keyW + overhang * 2, fullL = keyL + overhang * 2;
+  // Caps taper: the top is inset from the base, like sculpted keycaps.
+  const capGeo = new THREE.BoxGeometry(1, capH, 1);
+  const cp = capGeo.attributes.position;
+  for (let i = 0; i < cp.count; i++) {
+    if (cp.getY(i) > 0) { cp.setX(i, cp.getX(i) * 0.86); cp.setZ(i, cp.getZ(i) * 0.9); }
+  }
+  capGeo.computeVertexNormals();
+  const keyCount = KB_ROWS.reduce((n, r) => n + r.length, 0);
+  const caps = new THREE.InstancedMesh(capGeo,
+    new THREE.MeshStandardMaterial({ color: 0x151518, roughness: 0.62, metalness: 0.05 }), keyCount);
   const dummy = new THREE.Object3D();
-  const colour = new THREE.Color();
   let i = 0;
-  for (let row = 0; row < m.keyRows; row++) {
-    for (let col = 0; col < m.keyCols; col++) {
-      const x = -usable * 0.5 + (keyW + gap) * col + keyW * 0.5;
-      const z = z0 - margin - pitchY * row - keyL * 0.5;
-
-      // Trim the overhang off any side that's an outer edge of the field,
-      // by shrinking that axis toward the cap's own width/length and
-      // shifting the instance back in by half of what got trimmed.
-      const trimLeft = col === 0 ? overhang : 0;
-      const trimRight = col === m.keyCols - 1 ? overhang : 0;
-      const trimNear = row === 0 ? overhang : 0;
-      const trimFar = row === m.keyRows - 1 ? overhang : 0;
-      dummy.scale.set(
-        (fullW - trimLeft - trimRight) / fullW, 1,
-        (fullL - trimNear - trimFar) / fullL);
-      dummy.position.set(
-        x + (trimLeft - trimRight) / 2,
-        faceUp + capH * 0.26,
-        z + (trimNear - trimFar) / 2);
+  KB_ROWS.forEach((row, r) => {
+    let kx = 0;
+    for (const [, w] of row) {
+      dummy.position.set(xStart + (r + 0.5) * uW, faceUp + capH / 2 + 0.002, zStart - (kx + w / 2) * uL);
+      dummy.scale.set(uW - gap, 1, w * uL - gap);
       dummy.updateMatrix();
-      lights.setMatrixAt(i, dummy.matrix);
-      const t = (col / m.keyCols) * 0.7 + (row / m.keyRows) * 0.3;
-      lights.setColorAt(i, colour.setHSL(t % 1, 0.95, 0.55));
-
-      dummy.scale.set(1, 1, 1);
-      dummy.position.set(x, faceUp + capH * 0.55, z);
-      dummy.updateMatrix();
-      caps.setMatrixAt(i, dummy.matrix);
-      i++;
+      caps.setMatrixAt(i++, dummy.matrix);
+      kx += w;
     }
-  }
-  lights.instanceMatrix.needsUpdate = true;
-  if (lights.instanceColor) lights.instanceColor.needsUpdate = true;
+  });
   caps.instanceMatrix.needsUpdate = true;
-  group.add(lights);
   group.add(caps);
 
-  // Letter/number legend, one glyph per cap so the board reads as an
-  // actual keyboard instead of a blank grid of boxes. A single decal over
-  // the whole field rather than 112 individual labels — the caps already
-  // sit on a strict uniform grid, so one texture sized to that grid lines
-  // up with every cap without per-instance UVs.
+  // Legends: canvas x (esc -> home) must run down the blade (-Z) and the
+  // canvas top (the F-row) must sit on the -X edge, facing up. A plane's
+  // local +X/+Y carry the canvas right/up, so those two axes are set to
+  // world -Z and -X directly; their cross product is +Y, the face normal.
   const legend = new THREE.Mesh(
-    new THREE.PlaneGeometry(usable, fieldLen),
-    new THREE.MeshBasicMaterial({
-      map: keyLegendTexture(THREE, m.keyCols, m.keyRows),
-      transparent: true,
-      depthWrite: false,
-    }));
-  legend.rotation.x = -Math.PI / 2;
-  legend.position.set(0, faceUp + capH + 0.0006, z0 - margin - fieldLen * 0.5);
+    new THREE.PlaneGeometry(fieldL, fieldW),
+    new THREE.MeshBasicMaterial({ map: keyLegendTexture(THREE), transparent: true, depthWrite: false, toneMapped: false }));
+  legend.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+    new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)));
+  legend.position.set(xStart + fieldW / 2, faceUp + capH + 0.0026, zStart - fieldL / 2);
   group.add(legend);
 
-  // Backplate on the -Y face: the plain plastic underside of the board,
-  // with a shallow recessed panel so it doesn't read as a bare slab next
-  // to the keyed face's detail.
+  // Status LEDs and a trollface sticker on the case lip at the tip end,
+  // where the reference board has its indicators.
+  const ledMat = new THREE.MeshBasicMaterial({ color: 0x5dff7a, toneMapped: false });
+  for (let k = 0; k < 3; k++) {
+    const led = new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.003, 0.004), ledMat);
+    led.position.set(-wide / 2 + 0.05 + k * 0.016, faceUp + LIP + 0.0015, z0 - len + RIM / 2);
+    group.add(led);
+  }
+  const sticker = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.05, 0.047),
+    new THREE.MeshStandardMaterial({ map: trollfaceTexture(THREE), transparent: true, alphaTest: 0.3, roughness: 0.5 }));
+  sticker.rotation.x = -Math.PI / 2;
+  sticker.position.set(wide / 2 - 0.045, faceUp + 0.0012, z0 - len + RIM + 0.012);
+  // Sticker sits on the case, just past the last key column.
+  sticker.position.z = zStart - fieldL - 0.0005;
+  sticker.scale.setScalar(0.28);
+  group.add(sticker);
+
+  // Plain plastic underside, with a shallow recessed panel.
   const backPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(m.wide - margin * 2, 0.006, bodyLen - margin * 2),
-    new THREE.MeshStandardMaterial({ color: 0x0b0b0d, roughness: 0.75, metalness: 0.15 }));
-  backPanel.position.set(0, -(m.blade * 0.5 + 0.004), z0 - bodyLen * 0.5);
+    new THREE.BoxGeometry(wide - 0.03, 0.004, len - 0.03),
+    new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 0.75, metalness: 0.15 }));
+  backPanel.position.set(0, -(faceUp + 0.002), zMid);
   group.add(backPanel);
 
-  // "U MAD BRO?" crossguard, with rivets along the face.
-  const guard = new THREE.Mesh(
-    new THREE.BoxGeometry(m.guardWide, m.guardTall, GUARD_THICK),
-    mat(0xc2c6cd, 0.3, 0.55));
-  guard.position.set(0, 0, -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5));
+  // Crossguard: a silver bar wider than the blade, "U MAD BRO?" raised on
+  // its top face, a row of rivets down each long edge.
+  const silver = () => mat(0xc4c8ce, 0.32, 0.35);
+  const guardZ = -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5);
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(m.guardWide, m.guardTall, GUARD_THICK), silver());
+  guard.position.set(0, 0, guardZ);
   group.add(guard);
-
-  // "U MAD BRO?" as a canvas texture on a thin plate, laid flat on the
-  // guard's TOP face so it reads right-side up when the sword is set down
-  // flat on a display stand — not standing up facing the player. The
-  // Blender model extrudes real letters, but TextGeometry needs a font
-  // file this game does not ship - and at view-model distance a decal is
-  // indistinguishable.
+  // Flanges at each end, standing proud like the reference's end caps.
+  for (const s of [-1, 1]) {
+    const flange = new THREE.Mesh(new THREE.BoxGeometry(0.018, m.guardTall * 1.9, GUARD_THICK * 1.06), silver());
+    flange.position.set(s * (m.guardWide / 2 - 0.009), 0, guardZ);
+    group.add(flange);
+  }
   const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(m.guardWide * 0.86, GUARD_THICK * 0.7),
-    new THREE.MeshStandardMaterial({
-      map: guardTextTexture(THREE),
-      transparent: true,
-      roughness: 0.35,
-      metalness: 0.2,
-    }));
+    new THREE.PlaneGeometry(m.guardWide * 0.84, GUARD_THICK * 0.56),
+    new THREE.MeshStandardMaterial({ map: guardTextTexture(THREE), roughness: 0.3, metalness: 0.3 }));
   plate.rotation.x = -Math.PI / 2;
-  plate.position.set(0, m.guardTall * 0.5 + 0.0015, -(GRIP_LEN * 0.5 + GUARD_THICK * 0.5));
+  plate.position.set(0, m.guardTall * 0.5 + 0.0012, guardZ);
   group.add(plate);
-
-  // Rivets sit proud of the guard's PLAYER-facing side (+Z of the guard),
-  // half-sunk so they read as studs. On the blade side they would be
-  // hidden behind the guard itself. Kept below the lettering so the two
-  // do not collide.
-  const rivetGeo = new THREE.SphereGeometry(0.0085, 6, 5);
-  const rivets = new THREE.InstancedMesh(rivetGeo, mat(0xe2e5ea, 0.28, 0.5), 11);
-  for (let r = 0; r < 11; r++) {
-    dummy.position.set(
-      -m.guardWide * 0.41 + (m.guardWide * 0.82) * (r / 10),
-      -m.guardTall * 0.28,
-      -(GRIP_LEN * 0.5) + 0.004);
-    dummy.updateMatrix();
-    rivets.setMatrixAt(r, dummy.matrix);
+  const RIVETS = 18;
+  const rivets = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0055, 8, 5), mat(0xe6e9ee, 0.25, 0.4), RIVETS * 2);
+  for (let r = 0; r < RIVETS; r++) {
+    for (const [e, side] of [[0, -1], [1, 1]]) {
+      dummy.scale.set(1, 0.6, 1);
+      dummy.position.set(
+        -m.guardWide * 0.42 + m.guardWide * 0.84 * (r / (RIVETS - 1)),
+        m.guardTall * 0.5,
+        guardZ + side * GUARD_THICK * 0.4);
+      dummy.updateMatrix();
+      rivets.setMatrixAt(r * 2 + e, dummy.matrix);
+    }
   }
   rivets.instanceMatrix.needsUpdate = true;
   group.add(rivets);
 
-  // Wrapped grip. 10 radial segments left visible flat facets that caught
-  // the key light as hard bright bands down the shaft; 20 reads round at
-  // inspector zoom for 10 more triangles.
+  // Silver collar where the grip meets the guard.
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.034, 0.03, 20), silver());
+  collar.rotation.x = Math.PI / 2;
+  collar.position.set(0, 0, -GRIP_LEN * 0.5 + 0.012);
+  group.add(collar);
+
+  // Leather-wrapped grip.
   const grip = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.026, 0.026, GRIP_LEN, 20),
-    mat(m.grip, 0.85, 0.05));
+    new THREE.CylinderGeometry(0.025, 0.027, GRIP_LEN - 0.02, 20),
+    new THREE.MeshStandardMaterial({ map: gripWrapTexture(THREE), roughness: 0.8, metalness: 0.02 }));
   grip.rotation.x = Math.PI / 2;
+  grip.position.z = 0.01;
   group.add(grip);
 
-  // Chrome pommel cap, seated ON the end of the grip rather than floating
-  // past it. Its squashed Z radius is 0.055 * 0.8, so sitting its centre
-  // that far beyond the grip's end left a gap the grip's own flat end cap
-  // showed through — a bright tan disc reading as a loose fragment. Pull
-  // it back so the sphere swallows the cylinder's end instead.
-  const POMMEL_R = 0.055;
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(POMMEL_R, 16, 12), mat(0xd0d4da, 0.26, 0.5));
-  head.scale.set(1.05, 1.12, 0.8);
-  head.position.set(0, 0, GRIP_LEN * 0.5 + POMMEL_R * 0.8 * 0.45);
+  // Pommel: a silver trollface. A squashed ball for the head, with the art
+  // pressed into its top (the key side) as colour and bump, so the grin reads
+  // as cast metal rather than a sticker.
+  const POMMEL_R = 0.05;
+  const pommelZ = GRIP_LEN * 0.5 + POMMEL_R * 0.55;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(POMMEL_R, 20, 14), silver());
+  head.scale.set(1.1, 0.62, 1.05);
+  head.position.set(0, 0, pommelZ);
   group.add(head);
+  const faceTex = trollfaceTexture(THREE);
+  const face = new THREE.Mesh(
+    new THREE.CircleGeometry(POMMEL_R * 1.02, 24),
+    new THREE.MeshStandardMaterial({
+      color: 0xd6d9de, map: faceTex, bumpMap: faceTex, bumpScale: 0.6,
+      transparent: true, alphaTest: 0.3, roughness: 0.3, metalness: 0.35,
+    }));
+  face.rotation.x = -Math.PI / 2;
+  // Face turned so the chin points down the blade, as in the render.
+  face.rotation.z = Math.PI;
+  face.position.set(0, POMMEL_R * 0.62 + 0.001, pommelZ);
+  group.add(face);
 
   group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   return group;
