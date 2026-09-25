@@ -976,13 +976,118 @@ export const MAPS = {
     // which is the contested lane, and never inside a shop.
     spawns: [[-34, 28], [34, 28], [0, 29], [-36, -18], [36, -18], [-20, 24], [20, 28], [0, -14]],
   },
+  grinsite_wip: {
+    name: "Grin Site (blockout)",
+    blurb: "Work-in-progress blockout of the Grin Site rebuild.",
+    bounds: { minX: -34, maxX: 34, minZ: -34, maxZ: 34 },
+    playerSpawn: { x: 0, z: 26 },
+    sky: { top: 0x1a2e4a, horizon: 0x6b8a5e, bottom: 0x2a3324 },
+    fog: { color: 0x3a4a38, density: 0.009 },
+    ground: { colorA: 0x4a5240, colorB: 0x363f2e, grid: 0x8fae6e },
+    sun: { color: 0xfff2d8, intensity: 2.2, pos: [30, 45, -20] },
+    hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.1 },
+    ambient: { color: 0xffffff, intensity: 0.55 },
+    build(api) {
+      const CONC = 0x9a9a92, SLAB = 0x86867e, BLOCK = 0x7d7a70, RAIL = 0xd8a03a;
+      api.walls(0, 0, 68, 68, 6, 1.4, { surface: "concrete" });
+
+      /* ---- centre: two-storey concrete frame (x -8.3..8.3, z -6.3..6.3) */
+      const L1 = 3.5, L2 = 6.7;
+      api.box(0, 0, 17, 13, 0.2, { color: SLAB, pen: 6 });                       // foundation
+      const colX = [-7.7, -2.6, 2.6, 7.7], colZ = [-5.7, 0, 5.7];
+      for (const cx of colX) for (const cz of colZ) {
+        api.box(cx, cz, 0.6, 0.6, 3.0, { color: CONC, y: 0.2, pen: 8 });           // ground-floor columns
+        // above L1: full columns under L2 (west half), rebar stubs east
+        api.box(cx, cz, 0.6, 0.6, cx < 0 ? 2.9 : 3.8, { color: CONC, y: L1, pen: 8 });
+      }
+      api.box(0, 0, 16.6, 12.6, 0.3, { color: SLAB, y: 3.2, pen: 10 });           // level 1
+      api.box(-3, 0, 10.6, 12.6, 0.3, { color: SLAB, y: 6.4, pen: 10 });          // level 2 (west half)
+      // ground-floor block walls, half built
+      api.box(-5.5, -2.2, 5, 0.3, 2.4, { color: BLOCK, y: 0.2, pen: 4 });
+      api.box(3.5, -3.5, 0.3, 5, 2.4, { color: BLOCK, y: 0.2, pen: 4 });
+      api.box(-3.5, 4, 0.3, 4, 2.4, { color: BLOCK, y: 0.2, pen: 4 });
+      // flight A: ground -> level 1, lands on the south edge
+      api.stairs(0, 6.3 + 11 * 0.64, 3, 11, 0.318, 0.64, "-z", { color: CONC });
+      // flight B: level 1 -> level 2, on the level 1 deck, lands on L2's east edge
+      api.stairs(7.8, -4, 2.5, 10, 0.32, 0.55, "-x", { color: CONC, y: L1 });
+      // level 1 edges: block parapet north + west, rails east + south (gap for flight A)
+      api.box(0, -6.15, 16.6, 0.3, 1.0, { color: BLOCK, y: L1, pen: 4 });
+      api.box(-8.15, 0, 0.3, 12.6, 1.0, { color: BLOCK, y: L1, pen: 4 });
+      api.box(8.25, 0, 0.1, 12.6, 1.0, { color: RAIL, y: L1, pen: 0.3 });
+      api.box(-4.9, 6.25, 6.8, 0.1, 1.0, { color: RAIL, y: L1, pen: 0.3 });
+      api.box(4.9, 6.25, 6.8, 0.1, 1.0, { color: RAIL, y: L1, pen: 0.3 });
+      // level 2 edges: low parapet north + west, rails south + east (gap for flight B)
+      api.box(-3, -6.15, 10.6, 0.3, 0.6, { color: BLOCK, y: L2, pen: 4 });
+      api.box(-8.15, 0, 0.3, 12.6, 0.6, { color: BLOCK, y: L2, pen: 4 });
+      api.box(-3, 6.25, 10.6, 0.1, 1.0, { color: RAIL, y: L2, pen: 0.3 });
+      api.box(2.25, -5.8, 0.1, 1.0, 1.0, { color: RAIL, y: L2, pen: 0.3 });
+      api.box(2.25, 1.75, 0.1, 9.1, 1.0, { color: RAIL, y: L2, pen: 0.3 });
+
+      /* ---- east: container yard */
+      shippingContainer(api, { x: 18, z: -15, rot: 0 });
+      shippingContainer(api, { x: 18, z: -15, rot: 0, y: 2.6 });
+      shippingContainer(api, { x: 26, z: -9, rot: 0 });
+      shippingContainer(api, { x: 17, z: -3, rot: Math.PI / 2 });
+      shippingContainer(api, { x: 26, z: 9, rot: 0 });
+      shippingContainer(api, { x: 26, z: 9, rot: 0, y: 2.6 });
+      shippingContainer(api, { x: 17, z: 12, rot: Math.PI / 2 });
+      // walk-through container: open both ends
+      api.walls(24.5, 1, 6, 2.5, 2.5, 0.12, { color: 0x3a6a7a, gaps: { w: 2.26, e: 2.26 }, pen: 3 });
+      api.box(24.5, 1, 6, 2.5, 0.12, { color: 0x3a6a7a, y: 2.5, pen: 3 });
+      // steps up onto the single container at (26,-9)
+      api.stairs(28, -7.75 + 8 * 0.6, 2, 8, 0.325, 0.6, "-z", { color: RAIL });
+      api.box(19.5, 19, 1.4, 2.6, 2.2, { color: 0xd8a03a, pen: 4 });               // forklift
+      for (const [x, z] of [[29, 15], [13.5, -8], [30, -18]]) api.box(x, z, 1.2, 1.2, 1.0, { color: 0xa0523a, pen: 2 }); // brick pallets
+
+      /* ---- west: raised foundation slab with formwork */
+      api.box(-23, 0, 14, 24, 1.2, { color: SLAB, pen: 10 });
+      for (const z of [-8, 8]) api.stairs(-16 + 4 * 0.6, z, 3, 4, 0.3, 0.6, "-x", { color: CONC });
+      api.stairs(-27, -12 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { color: CONC });
+      api.box(-26, -4, 0.3, 6, 1.4, { color: 0x8a6a44, y: 1.2, pen: 1.5 });          // formwork
+      api.box(-20, 4, 6, 0.3, 1.4, { color: 0x8a6a44, y: 1.2, pen: 1.5 });
+      api.box(-27, 7, 1.2, 1.2, 2.2, { color: 0x6a4a3a, y: 1.2, pen: 0.4 });         // rebar cage
+      api.box(-19, -9, 1.6, 1.6, 1.8, { color: 0xc8b048, y: 1.2, pen: 3 });          // cement mixer
+
+      /* ---- north: site office, toilets, crane base */
+      api.walls(-4, -22, 8, 3.2, 2.6, 0.15, { color: 0xd8d0b0, gaps: { s: 1.4 }, pen: 3 });
+      api.box(-4, -22, 8.2, 3.4, 0.2, { color: 0xc8c0a0, y: 2.6, pen: 3 });
+      for (const x of [5, 6.4]) api.box(x, -26, 1.2, 1.2, 2.3, { color: 0x3a7ad8, pen: 2 });
+      api.box(-28, -28, 3, 3, 1.5, { color: CONC, pen: 10 });                          // crane counterweight base
+      const crane = new THREE.Mesh(new THREE.BoxGeometry(1, 26, 1), api.mat(0xd8a03a, 0.6, 0.4));
+      crane.position.set(-28, 14.5, -28);
+      api.prop(crane);
+      const jib = new THREE.Mesh(new THREE.BoxGeometry(30, 0.8, 0.8), api.mat(0xd8a03a, 0.6, 0.4));
+      jib.position.set(-14, 26.5, -28);
+      api.prop(jib);
+
+      /* ---- corner scaffolds (as fixed on the live map) */
+      for (const [x, z] of [[-24, -24], [24, -24], [-24, 24], [24, 24]]) {
+        api.box(x, z, 5, 5, 0.35, { color: 0x6a6a60, pen: 6 });
+        api.box(x, z, 5, 5, 0.35, { color: 0x6a6a60, y: 3.2, pen: 6 });
+        for (const [px, pz] of [[-2.3, -2.3], [2.3, -2.3], [-2.3, 2.3], [2.3, 2.3]]) {
+          api.cylinder(x + px, z + pz, 0.14, 2.85, { color: 0x555b48, y: 0.35, pen: 3 });
+        }
+        const inward = z > 0 ? -1 : 1;
+        const edge = z + inward * 2.5;
+        api.stairs(x, edge + inward * 11 * 0.62, 3.5, 11, 0.323, 0.62, inward > 0 ? "-z" : "+z", { color: 0x555b48 });
+      }
+
+      /* ---- south + loose cover */
+      api.box(8, 22, 4, 2, 1.6, { color: 0x8a5a2a, pen: 4 });                       // skip
+      for (const [x, z, w, d, h] of [[8, -18, 3, 3, 1.4], [-9, 18, 4, 2.5, 1.5], [12, 6, 3, 3, 1.6]]) {
+        api.box(x, z, w, d, h, { color: 0x5c6b4a });
+      }
+      for (const [x, z] of [[-30, -30], [30, -30], [-30, 30], [30, 30]]) api.floodlight(x, z);
+    },
+    spawns: [[-30, -30], [30, -30], [-30, 30], [30, 30], [0, -31], [0, 31], [-31, 0], [31, 0]],
+  },
 };
 
 // Zombies-only, so it's registered for buildMap but kept out of the PvP picker.
 MAPS.pentagrin = PENTAGRIN;
 
 // Neither the zombies map nor the range is a place you pick to fight in.
-export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id !== "range");
+export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id !== "range" && !id.endsWith("_wip"));
 
 /* ------------------------------------------------------------------ builder */
 
