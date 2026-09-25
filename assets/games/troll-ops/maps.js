@@ -34,23 +34,23 @@ function makeApi(root, colliders) {
     return matCache.get(key);
   };
 
-  // Tinted, textured material for a box of world-space size (w,h,d): tiles
-  // the surface's maps at roughly 1 repeat per `tileSize` metres so bricks
-  // and boards read at a consistent real-world scale across every box that
-  // uses them, then multiplies in `color` so each map keeps its palette.
-  // `color` here still carries the old flat-color values (often quite dark,
-  // tuned for a solid fill), and MeshStandardMaterial's color multiplies
-  // straight into the texture — applied at full strength it crushes the
-  // photo texture down to near-black. Blending 55% toward white keeps the
-  // hue and the map's mood while leaving the texture's own contrast visible.
+  // Tinted, textured material, one per (surface, colour): the geometry's
+  // UVs are rewritten in world metres (metreUVs below), so the same material
+  // tiles at the same real-world scale on every face of every box, whatever
+  // its size or orientation. (It used to derive a repeat from each box's
+  // width and height only, so any face along the box's depth smeared one
+  // texture repeat across its whole length — every north-south wall.)
+  // `color` still carries the old flat-colour values (often quite dark, tuned
+  // for a solid fill), and MeshStandardMaterial's colour multiplies straight
+  // into the texture — at full strength it crushes the photo to near-black.
+  // Blending 55% toward white keeps the hue and the map's mood while leaving
+  // the texture's own contrast visible.
   const surfMatCache = new Map();
   const tint = new THREE.Color();
-  const surf = (surface, color, w, h, tileSize = 2) => {
+  const surf = (surface, color) => {
     const s = SURFACES[surface];
     if (!s) return mat(color);
-    const rx = Math.max(1, Math.round(w / tileSize));
-    const ry = Math.max(1, Math.round(h / tileSize));
-    const key = `${surface}|${color}|${rx}|${ry}`;
+    const key = `${surface}|${color}`;
     if (surfMatCache.has(key)) return surfMatCache.get(key);
     tint.set(color).lerp(new THREE.Color(0xffffff), 0.55);
     const opts = {
@@ -67,24 +67,44 @@ function makeApi(root, colliders) {
     for (const map of [m.map, m.normalMap, m.roughnessMap, m.aoMap, m.metalnessMap]) {
       if (!map) continue;
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
-      map.repeat.set(rx, ry);
       map.needsUpdate = true;
     }
     surfMatCache.set(key, m);
     return m;
   };
 
+  // World-metre UVs: each face samples the texture along its own two axes at
+  // `tile` metres per repeat, offset by the mesh's world position so
+  // neighbouring boxes (a wall split round a doorway) line up. Cylinder
+  // sides wrap by arc length; caps and other up-facing faces use x/z.
+  const metreUVs = (geo, ox, oy, oz, tile, radius = 0) => {
+    const pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      const px = pos.getX(i) + ox, py = pos.getY(i) + oy, pz = pos.getZ(i) + oz;
+      const ax = Math.abs(nor.getX(i)), ay = Math.abs(nor.getY(i)), az = Math.abs(nor.getZ(i));
+      let u, v;
+      if (ay >= ax && ay >= az) { u = px; v = pz; }
+      else if (radius) { u = uv.getX(i) * 2 * Math.PI * radius; v = py; }
+      else if (ax >= az) { u = pz; v = py; }
+      else { u = px; v = py; }
+      uv.setXY(i, u / tile, v / tile);
+    }
+    uv.needsUpdate = true;
+  };
+
   const api = {
     /* Solid box sitting on `y`, centred on (x,z). Collides and blocks bullets.
        `surface` picks a PBR material from SURFACES (tinted by `color`)
-       instead of the flat-color fallback; `tile` overrides the metres-per-
-       repeat used to compute that surface's UV tiling for this box.
+       instead of the flat-color fallback; `tile` is metres per texture
+       repeat (UVs are in world metres, see metreUVs).
        `ghost` keeps the collider and drops the mesh, for boxes a modelled
        prop draws instead (stairs pass it straight through). */
     box(x, z, w, d, h, { color = 0x5c6b4a, y = 0, pen = 0.9, rough = 0.85, metal = 0.05, surface = null, tile = 2, ghost = false } = {}) {
       if (ghost) return api.ghostBox(x, z, w, d, h, { y, pen });
-      const material = surface ? surf(surface, color, w, h, tile) : mat(color, rough, metal);
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+      const material = surface ? surf(surface, color) : mat(color, rough, metal);
+      const geo = new THREE.BoxGeometry(w, h, d);
+      if (surface) metreUVs(geo, x, y + h / 2, z, tile);
+      const mesh = new THREE.Mesh(geo, material);
       mesh.position.set(x, y + h / 2, z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -112,8 +132,10 @@ function makeApi(root, colliders) {
 
     cylinder(x, z, r, h, { color = 0x3a4530, y = 0, solid = true, pen = 4, surface = null, tile = 1.5, ghost = false } = {}) {
       if (ghost) return solid ? api.ghostBox(x, z, r * 2, r * 2, h, { y, pen }) : undefined;
-      const material = surface ? surf(surface, color, r * 2, h, tile) : mat(color, 0.7, 0.3);
-      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 12), material);
+      const material = surface ? surf(surface, color) : mat(color, 0.7, 0.3);
+      const geo = new THREE.CylinderGeometry(r, r, h, 12);
+      if (surface) metreUVs(geo, x, y + h / 2, z, tile, r);
+      const mesh = new THREE.Mesh(geo, material);
       mesh.position.set(x, y + h / 2, z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -1082,9 +1104,7 @@ export const MAPS = {
       // at the back onto the parking lot, so nothing here is a dead end.
       const WALK_Y = 0.45;
       const PLANK = 0xd2b98c;
-      // Sectioned along x for the same reason as the pier deck: surf() tiles
-      // from width and height, so one 76m slab 0.45m tall stretches a single
-      // repeat across the whole walk.
+      // (8 m sections; with world-metre UVs one long slab would tile fine too)
       for (let x = -38; x < 38; x += 8) {
         api.box(x + 4, 12, 8, 7, WALK_Y, { color: PLANK, pen: 3, surface: "wood", tile: 2 });
       }
