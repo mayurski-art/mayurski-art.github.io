@@ -57,13 +57,14 @@ export const SKINS = [
   {
     id: "problem", name: "You Have a Problem", banner: "banner-16.jpg",
     blurb: "An error dialog that shoots back.",
+    final: true,
     palette: { trim: "#1f4fd1", ink: "#10131c", metal: 0xb9bcc2, accent: 0xd9492b },
     art: { stock: { file: "problem-stock.jpg", bg: "#1f4fd1", paper: [[0.47, 0.554], [0.247, 0.573], [0.605, 0.708], [0.697, 0.726]] } },
     crops: {
       upper: [0.235, 0.12, 0.47],
       lower: [0.31, 0.46, 0.34, 0, 1],
       handguard: [0.685, 0.81, 0.57],
-      stock: [0.525, 0.674, 0.935, 19],
+      stock: [0.515, 0.665, 0.965, 20],
       grip: [0.567, 0.605, 0.029, 90],
       mag: [0.81, 0.618, 0.032, -90],
     },

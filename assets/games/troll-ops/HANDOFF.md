@@ -1,4 +1,4 @@
-# Troll Ops hand-off — 2026-09-25 (end of session 7)
+# Troll Ops hand-off — 2026-09-25 (end of session 8)
 
 Work happens on branch `game-improvements` in the worktree `GitHub/to-opus-wt`,
 and each finished piece is fast-forwarded onto `main` (`git push origin
@@ -11,11 +11,18 @@ tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 
 ## Where we are
 
-Every task from the session-5 list is done (session 6, below). Session 7 was
-the **weapon skin editor**, and the user is now designing skins in it
-themselves. "You Have a Problem" is the skin being worked on; it is close to
-done and will get the **Final lock** when the user is happy. Nothing else is
-waiting. Ask before starting anything new.
+Session 7 built the **weapon skin editor**; the user designs skins in it
+themselves. Session 8 finished **"You Have a Problem"**: it is **Final
+locked** and on main. Its stock wears its own picture (the trollface stick
+figure on the trim blue: see `art` below), the first part to use one.
+
+**Next session: the other fifteen skins.** The user is testing the Problem
+416 in the game first, then comes back to design the rest in the editor, one
+at a time, the same way. None of them is locked; their crops are rough first
+passes. Ask which skin they want to start on. Expect requests like: a part
+wearing its own picture (drop the file in assets/images/skin-art, add `art`),
+text rewritten or added, text areas marked (Green Room's TROLL still needs
+them), right-side tweaks.
 
 ## Weapon skins (session 7)
 
@@ -25,11 +32,21 @@ waiting. Ask before starting anything new.
   5174 is busy). It serves that checkout and Save writes into it: skins.js plus
   `skins/<id>.jpg` and `<id>-thumb.jpg`, re-baked on the spot.
 - **The user edits in their own checkout, not the worktree.** Before changing
-  skins.js or the skin tools: copy their skins.js into the worktree first
-  (their saves are uncommitted), make the change there, commit, push, then
-  `git checkout -- assets/games/troll-ops/skins.js assets/games/troll-ops/skins/`
-  in their checkout and pull. After any change to the editor server
-  (tools/troll-skin-editor.mjs), restart the 5174 server from their checkout.
+  skins.js or the skin tools: `git diff` their skins.js (they may have saved
+  since you last looked) and copy it, plus any re-baked `skins/<id>.jpg` and
+  `-thumb.jpg`, into the worktree; make the change there, commit, push.
+  Then sync their checkout with `git stash push -m "<what>" -- <those files>`
+  and `git pull --ff-only`. (`git checkout --` on their files is refused by
+  the permission guard: it discards work. Stash keeps it recoverable.) After
+  any change to the editor server (tools/troll-skin-editor.mjs), restart the
+  5174 server from their checkout.
+- To try a change before the user sees it, run a second editor from the
+  worktree (`node tools/troll-skin-editor.mjs 5180`) and drive it with
+  headless Playwright (`NODE_PATH=<checkout>/node_modules`,
+  `--use-angle=d3d11`): `window.__editor.save(id)` re-bakes and saves into
+  the worktree; the `#view` canvas with the `[data-cam]`/`[data-pan]`
+  buttons gives close-ups of the gun. Stop it afterwards; the user's editor
+  is 5174, never 5180.
 - **An open editor tab keeps its own copy of the skin.** If it was opened
   before a change, its next Save overwrites the change (this dropped the text
   areas once). Always tell the user to refresh (Ctrl+Shift+R) before saving;
@@ -77,6 +94,15 @@ Unlock to edit. Code: tools/troll-skin-editor.html, tools/troll-skin-editor.mjs,
 drawing shared with the baker in tools/troll-skin-draw.js.
 
 ### Skin gotchas
+- The 3D view (editor and game) lights the gun's left side harder than the
+  right, so the same colour reads darker on the right. The atlas is right;
+  check pixel values before "fixing" a colour.
+- Keyed pictures (`art` with `bg`): white shut in by lines survives the
+  edge flood. List those pockets (connected light regions not touching the
+  picture's edge, with size and a seed pixel) in a headless page, keep the
+  ones that belong to the art (the trollface and its eyes/teeth), and add the
+  rest to `paper`. Seeds flood at a lower cut-off (lum > 120) than the open
+  paper (> 200), so small greyish gaps go too.
 - Text areas must hug the letters: a box that also covers neighbouring art
   flips that art too. Text *lines* are safe (redrawn, not pixel-flipped).
 - Thin strokes vanish in pixel lettering at the normal ink cut-off; "$" and
@@ -87,6 +113,11 @@ drawing shared with the baker in tools/troll-skin-draw.js.
   ejection-port cover, forward assist.
 - Batch re-bake: `NODE_PATH=<checkout>/node_modules node tools/troll-skin-bake.mjs [ids]`
   (it also rewrites factory-thumb.jpg; revert that if nothing changed).
+
+## Session 8: done and on main
+- Per-part pictures (`art`) in skins.js, the baker and the editor — 67d3368
+- Paper keyed out onto a colour, with `paper` seeds — 269abe9, c5c935c
+- You Have a Problem: stock figure turned by the user, then Final locked — this commit
 
 ## Session 6: done and on main
 - Bots throw grenades (1 frag + 1 flash a life; clusters, objectives, lob over cover; skill scales) — 089c3d8
