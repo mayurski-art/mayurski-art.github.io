@@ -1162,6 +1162,184 @@ export const MAPS = {
     },
     spawns: [[-30, -31], [30, -31], [0, -33], [-33, 0], [33, 0], [-28, 25], [28, 25], [12, 25]],
   },
+  depot_wip: {
+    name: "The Depot (blockout)",
+    blurb: "Work-in-progress blockout of the Depot rebuild.",
+    bounds: { minX: -28, maxX: 28, minZ: -22, maxZ: 22 },
+    playerSpawn: { x: 0, z: 17 },
+    sky: { top: 0x0a0d12, horizon: 0x161b22, bottom: 0x0a0d12 },
+    fog: { color: 0x161b1e, density: 0.02 },
+    ground: { colorA: 0x4a4e56, colorB: 0x3d4147, grid: 0x76828a },
+    sun: { color: 0xbfd0e0, intensity: 0.5, pos: [10, 40, -10] },
+    hemi: { sky: 0x7c8ea8, ground: 0x2a2f36, intensity: 0.85 },
+    ambient: { color: 0xccd8e6, intensity: 0.8 },
+    build(api) {
+      const STEEL = 0x3f6fa8, BEAM = 0xd8702a, LOAD = 0xb89a6a, WRAP = 0xc8d0d8, CAT = 0x4b5158, RAIL = 0xd8b030;
+      api.walls(0, 0, 56, 44, 9, 1.5, { color: 0x2f343a, surface: "concrete" });
+      const ceil = new THREE.Mesh(new THREE.BoxGeometry(56, 0.6, 44), api.mat(0x22262b, 0.9));
+      ceil.position.set(0, 9, 0);
+      api.prop(ceil);
+
+      /* ---- pallet racking: open frames, loads on three levels. Every other
+         bay leaves the middle level empty, a window at head height. */
+      let bayIndex = 0;
+      for (const rowZ of [-11, 0, 11]) {
+        for (const bx of [-18, -6, 6, 18]) {
+          for (const px of [-3.9, 3.9]) for (const pz of [-1.4, 1.4]) {
+            api.box(bx + px, rowZ + pz, 0.15, 0.15, 4.5, { color: STEEL, pen: 4 });
+          }
+          for (const y of [1.5, 3.1]) api.box(bx, rowZ, 7.8, 2.8, 0.1, { color: BEAM, y, pen: 3 });
+          api.box(bx, rowZ, 7.4, 2.4, 1.2, { color: LOAD, pen: 2 });                        // floor loads
+          if (bayIndex % 2 === 0) api.box(bx, rowZ, 7.4, 2.4, 1.2, { color: LOAD, y: 1.6, pen: 2 });
+          api.box(bx, rowZ, 7.4, 2.4, 1.1, { color: LOAD, y: 3.2, pen: 2 });                // top loads
+          bayIndex++;
+        }
+        bayIndex++;   // stagger the windows row to row
+      }
+
+      /* ---- catwalk ring on columns, railed, stairs in the side gaps */
+      const CAT_Y = 4.6, TOP = 5.0;
+      for (const [x, z, w, d] of [[0, -19, 54, 3], [0, 19, 54, 3], [-25.5, 0, 3, 38], [25.5, 0, 3, 38]]) {
+        api.box(x, z, w, d, 0.4, { color: CAT, y: CAT_Y, pen: 6, surface: "metal", tile: 2 });
+      }
+      for (const x of [-22, -11, 0, 11]) for (const z of [-17.8, 17.8]) api.cylinder(x, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
+      for (const z of [-11, 11]) for (const x of [-24.3, 24.3]) api.cylinder(x, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
+      api.cylinder(-24.3, 0, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
+      api.stairs(-23, 17.5 - 15 * 0.62, 2, 15, 0.334, 0.62, "+z", { color: CAT });            // -> south catwalk
+      api.stairs(23, -17.5 + 15 * 0.62, 2, 15, 0.334, 0.62, "-z", { color: CAT });            // -> north catwalk
+      const rail = (x, z, w, d) => api.box(x, z, w, d, 1.0, { color: RAIL, y: TOP, pen: 0.3 });
+      rail(-1, -17.55, 46, 0.1);         // north inner edge, x -24..22 (gap where the east stair lands)
+      rail(1, 17.55, 46, 0.1);           // south inner edge, x -22..24 (gap where the west stair lands)
+      rail(-23.95, 0, 0.1, 35);          // west inner edge
+      rail(23.95, -11.75, 0.1, 11.5);    // east inner edge, broken by the office
+      rail(23.95, 11.75, 0.1, 11.5);
+
+      /* ---- shift office on a mezzanine over the east end: the power position */
+      api.box(20, 0, 8, 12, 0.4, { color: CAT, y: CAT_Y, pen: 8 });
+      for (const z of [-5.8, 5.8]) api.cylinder(16.2, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
+      api.box(16.05, 0, 0.1, 12, 1.0, { color: 0x5a6068, y: TOP, pen: 3 });                  // sill
+      const glass = api.box(16.05, 0, 0.05, 12, 1.5, { color: 0x9ad0e8, y: TOP + 1.0, pen: 0.2 });   // glass
+      glass.material = new THREE.MeshStandardMaterial({ color: 0x9ad0e8, transparent: true, opacity: 0.18, roughness: 0.1, depthWrite: false });
+      glass.castShadow = false;
+      api.box(20, -5.95, 8, 0.1, 2.6, { color: 0x5a6068, y: TOP, pen: 4 });
+      api.box(20, 5.95, 8, 0.1, 2.6, { color: 0x5a6068, y: TOP, pen: 4 });
+      api.box(20, 0, 8, 12, 0.2, { color: 0x3a3f46, y: TOP + 2.6, pen: 4 });                  // office roof
+      api.box(20, -3, 3, 1.4, 0.8, { color: 0x6a5a48, y: TOP, pen: 1.5 });                     // desk
+
+      /* ---- loading bay along the south wall */
+      api.box(-14, 16.8, 2.6, 7.4, 3.6, { color: 0xe8e8e0, pen: 6 });                          // trailer backed in
+      for (const x of [-14, 0, 12]) {                                                            // dock doors (paint only)
+        const door = new THREE.Mesh(new THREE.BoxGeometry(3.6, 4.2, 0.1), api.mat(0x55595e, 0.6, 0.4));
+        door.position.set(x, 2.1, 20.45);
+        api.prop(door);
+      }
+      api.box(4, 15.5, 1.4, 2.6, 2.2, { color: 0xd8a03a, pen: 4 });                            // forklift
+      for (const [x, z] of [[10, 15], [-4, 16], [8, -15]]) api.box(x, z, 1.2, 1.2, 1.4, { color: WRAP, pen: 1.5 });
+      shippingContainer(api, { x: 0, z: -5.5, rot: 0, len: 5 });
+      for (const [x, z, size] of [[-12, -15, 2.0], [-2, 6, 1.4], [4.2, -6, 1.4], [-20, 6, 2.2], [20, -6.5, 2.2]]) {
+        crateStack(api, { x, z, size });
+      }
+      for (const [x, z] of [[-18, -14], [0, -14], [18, -14], [-18, 0], [0, 0], [18, 0],
+        [-18, 14], [0, 14], [18, 14]]) api.lamp(x, 8.2, z, 0xffe0b0, 28, 30);
+    },
+    spawns: [[-25, -19], [25, -19], [-25, 19], [25, 19], [0, -20], [0, 20], [-26, 0], [26, 0]],
+  },
+
+  undergrin_wip: {
+    name: "Undergrin (blockout)",
+    blurb: "Work-in-progress blockout of the Undergrin rebuild.",
+    bounds: { minX: -13, maxX: 13, minZ: -32, maxZ: 32 },
+    playerSpawn: { x: 0, z: 26 },
+    sky: { top: 0x05070a, horizon: 0x0d1015, bottom: 0x05070a },
+    fog: { color: 0x0c1014, density: 0.025 },
+    ground: { colorA: 0x2e3038, colorB: 0x24262c, grid: 0x4a5566 },
+    sun: { color: 0x6a7a99, intensity: 0.25, pos: [10, 30, 10] },
+    hemi: { sky: 0x8a98b0, ground: 0x2a2c30, intensity: 0.9 },
+    ambient: { color: 0xc8d4e6, intensity: 0.6 },
+    build(api) {
+      const TILE = 0xd8dcd4, PLAT = 0x6a6e72, EDGE = 0xe8c830, TRAIN = 0xc8ccd0, STRIPE = 0xc03a2a;
+      api.walls(0, 0, 26, 64, 7, 1.5, { color: TILE, surface: "concrete" });
+      const ceil = new THREE.Mesh(new THREE.BoxGeometry(26, 0.6, 64), api.mat(0x3a3e44, 0.9));
+      ceil.position.set(0, 7, 0);
+      api.prop(ceil);
+
+      /* ---- platforms, and the edge that closes up to the train mid-station */
+      const P = 1.1;
+      api.box(-8.5, 0, 9, 62, P, { color: PLAT, pen: 8, surface: "concrete", tile: 3 });
+      api.box(8.5, 0, 9, 62, P, { color: PLAT, pen: 8, surface: "concrete", tile: 3 });
+      for (const s of [-1, 1]) {
+        api.box(s * 2.85, 0, 2.3, 32, P, { color: PLAT, pen: 8 });                  // platform extension alongside the train
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 62), api.mat(EDGE, 0.6));
+        strip.position.set(s * 4.3, P + 0.01, 0);
+        api.prop(strip);
+      }
+      for (let z = -26; z <= 26; z += 6.5) {
+        api.cylinder(-4.6, z, 0.5, 6, { color: TILE, y: P });
+        api.cylinder(4.6, z, 0.5, 6, { color: TILE, y: P });
+      }
+
+      /* ---- the train: two carriages, doors both sides, the only covered crossing */
+      api.box(0, 0, 3.4, 32, P, { color: 0x2a2c30, pen: 10 });                      // undercarriage / floor base
+      for (const cz of [-8, 8]) {
+        const doors = [-4.5, 0, 4.5];
+        // side walls broken by three doors each side
+        for (const s of [-1, 1]) {
+          let from = cz - 7.5;
+          for (const dz of [...doors.map((d) => cz + d), cz + 7.5]) {
+            const g0 = dz === cz + 7.5 ? dz : dz - 0.7;
+            if (g0 - from > 0.05) api.box(s * 1.65, (from + g0) / 2, 0.1, g0 - from, 2.3, { color: TRAIN, y: P, pen: 2 });
+            from = dz + 0.7;
+          }
+          const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.25, 15), api.mat(STRIPE, 0.5));
+          stripe.position.set(s * 1.71, P + 0.9, cz);
+          api.prop(stripe);
+        }
+        for (const ez of [cz - 7.45, cz + 7.45]) {                                   // end walls with a gangway door
+          for (const sx of [-1.1, 1.1]) api.box(sx, ez, 1.2, 0.1, 2.3, { color: TRAIN, y: P, pen: 2 });
+        }
+        api.box(0, cz, 3.4, 15, 0.2, { color: TRAIN, y: P + 2.3, pen: 3 });            // roof
+        for (const sz of [-6, -2.2, 2.2, 6]) api.box(sz > 0 ? 1.2 : -1.2, cz + sz, 0.5, 1.6, 0.5, { color: 0x3a5a8a, y: P, pen: 1 });   // seats
+      }
+
+      /* ---- open track at both ends: rails, and steps up on both sides */
+      for (const zs of [-1, 1]) {
+        for (const rx of [-0.75, 0.75]) api.box(rx, zs * 23.5, 0.12, 14, 0.12, { color: 0x8a8a8e, pen: 6 });
+        for (const s of [-1, 1]) api.stairs(s * 1.6, zs * 22.75, 3, 4, 0.275, 0.6, s < 0 ? "-x" : "+x", { color: PLAT });
+      }
+
+      /* ---- mezzanines over both ends, stairs up from the platforms */
+      const MEZ = 3.5;
+      for (const zs of [-1, 1]) {
+        api.box(0, zs * 29.1, 26, 4.3, 0.3, { color: PLAT, y: MEZ, pen: 8 });
+        const sx = zs < 0 ? -8.5 : 8.5;                                                // one stair per end, opposite platforms
+        // mezzanine rail, open where the stair arrives (x sx-1.5 .. sx+1.5)
+        for (const [x0, x1] of [[-13, sx - 1.5], [sx + 1.5, 13]]) {
+          api.box((x0 + x1) / 2, zs * 26.95, x1 - x0, 0.1, 1.0, { color: 0x8a8e92, y: MEZ + 0.3, pen: 0.3 });
+        }
+        api.stairs(sx, zs * (26.95 - 9 * 0.6), 3, 9, 0.3, 0.6, zs < 0 ? "-z" : "+z", { color: PLAT, y: P });
+        // tunnel mouths under the mezzanine (paint only)
+        const mouth = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 0.1), api.mat(0x0a0b0d, 0.9));
+        mouth.position.set(0, 2, zs * 31.2);
+        api.prop(mouth);
+      }
+
+      /* ---- platform furniture */
+      for (const s of [-1, 1]) {
+        for (const z of [-14, 14]) api.box(s * 10.5, z, 0.6, 2.2, 0.5, { color: 0x6a5a48, y: P, pen: 1.5 });   // benches
+        for (const z of [-20, 10]) api.box(s * 11, z * s, 0.8, 1.0, 2.0, { color: 0xc03a2a, y: P, pen: 3 });  // vending machines
+        api.box(s * 9, s * -6, 2.4, 2.4, 2.2, { color: 0x3a6a4a, y: P, pen: 3 });                              // newsstand
+        for (const z of [-19, 19]) {                                                                          // ticket barriers
+          for (const x of [7, 9, 11]) api.box(s * x, z, 0.3, 1.2, 1.0, { color: 0x9a9ea2, y: P, pen: 2 });
+        }
+      }
+      for (let z = -28; z <= 28; z += 4) {
+        api.lamp(-8.5, 6.4, z, 0xe8f0ff, 7, 12);
+        api.lamp(8.5, 6.4, z, 0xe8f0ff, 7, 12);
+      }
+      for (const z of [-8, 8]) api.lamp(0, P + 2.0, z, 0xfff0d0, 6, 9);
+    },
+    spawns: [[0, -30], [0, 30], [-9, -29], [9, -29], [-9, 29], [9, 29], [-9, -18], [9, 18]],
+  },
 };
 
 // Zombies-only, so it's registered for buildMap but kept out of the PvP picker.

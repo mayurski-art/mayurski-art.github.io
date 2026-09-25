@@ -95,6 +95,18 @@ Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
      scaffolds, Depot catwalk + columns, Cul-de-Grin attic stairwells, Grin
      Beach towers), Undergrin track exits, Dust Bowl centre stairs, doubled
      cover removed. Cache-bust `?v=to-maps1`.
+   - BLOCKOUTS DONE for all four rebuilds, hidden map ids grinsite_wip,
+     dustbowl_wip, depot_wip, undergrin_wip (ids ending _wip are filtered out
+     of MAP_IDS; on the feature branch, NOT on main). Each is walk-tested and
+     in the doc with a top-down plan + views. Grin Site layout approved (plus
+     south-lane cover); the other three await the user's OK in the doc.
+   - AGREED ORDER from here: finish layouts -> real props (Blender, replace
+     the plain boxes, then swap each _wip map in for the live one) -> weapon
+     skins (Blender PBR, see item 2) -> shared fixes (UV scale, map check) last.
+   - Helper scripts used (scratchpad, not in repo): a plan renderer (colliders
+     -> labelled top-down PNG), a walk-up test (hold W from a stair bottom,
+     assert max y) and a headroom scan. Worth moving into tools/ with the
+     map check at the end.
    - Audit gotcha: "has a stair next to it" is not "reachable". Check
      HEADROOM too (ceiling < 1.8m above a walkable top = dead end), and prove
      stairs with a walk-up test (hold W from the bottom, assert max y). The
