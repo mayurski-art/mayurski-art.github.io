@@ -48,9 +48,14 @@ function writeSkin({ id, crops, lines }) {
   // A page that doesn't send `lines` at all (an older editor tab) leaves
   // them exactly as they are.
   if (lines !== undefined) block = block.replace(/\n    lines: .*/, "");
-  const clean = (lines || []).map((l) => ({ box: l.box.map(num), text: String(l.text ?? "") }));
+  const clean = (lines || []).map((l) => ({
+    box: l.box.map(num), text: String(l.text ?? ""),
+    rot: Number(l.rot) || 0, flip: l.flip ? 1 : 0,
+  }));
   if (clean.length) {
-    const src = clean.map((l) => `{ box: [${l.box.join(", ")}], text: ${str(l.text)} }`).join(", ");
+    // rot/flip turn the text alone; written only when set.
+    const src = clean.map((l) => `{ box: [${l.box.join(", ")}], text: ${str(l.text)}`
+      + (l.rot ? `, rot: ${num(l.rot)}` : "") + (l.flip ? ", flip: 1" : "") + " }").join(", ");
     block = block.replace(/(    crops: \{[\s\S]*?\n    \},)/, `$1\n    lines: [${src}],`);
   }
   // Skins are the banner alone now: no emblem, no rollmark.

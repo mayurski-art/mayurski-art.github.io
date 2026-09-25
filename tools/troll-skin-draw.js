@@ -64,10 +64,18 @@ export function editedBanner(img, lines) {
       d.data[i] = r; d.data[i + 1] = gg; d.data[i + 2] = b; d.data[i + 3] = on ? 255 : 0;
     }
     sg.putImageData(d, 0, 0);
+    // The text alone can be turned (`rot`, degrees) and mirrored (`flip`)
+    // about its own middle, independent of how any part crops the banner:
+    // on a flipped part, flipping the text too makes it read right again.
     const scale = bh / h;
+    const tw = w * scale, th = h * scale;
+    g.save();
+    g.translate(bx + tw / 2, by + th / 2);
+    if (l.rot) g.rotate(l.rot * Math.PI / 180);
+    if (l.flip) g.scale(-1, 1);
     g.imageSmoothingEnabled = false;
-    g.drawImage(small, 0, 0, w, h, bx, by, w * scale, h * scale);
-    g.imageSmoothingEnabled = true;
+    g.drawImage(small, 0, 0, w, h, -tw / 2, -th / 2, tw, th);
+    g.restore();
   }
   edited.set(key, c);
   return c;

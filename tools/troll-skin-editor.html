@@ -55,7 +55,7 @@
   .grid2 input[type=range] { width: 100%; }
   .grid2 output { font: 12px ui-monospace, monospace; color: var(--dim); min-width: 40px; text-align: right; }
   .stack { display: grid; gap: 14px; align-content: start; }
-  #lines input { width: 100%; background: #0f151a; border: 1px solid #2b3842; border-radius: 6px; padding: 6px 8px; font-size: 14px; }
+  #lines > input { width: 100%; background: #0f151a; border: 1px solid #2b3842; border-radius: 6px; padding: 6px 8px; font-size: 14px; }
 </style>
 <script type="importmap">
   { "imports": { "three": "../assets/vendor/three.module.min.js", "three/addons/": "../assets/vendor/addons/" } }
@@ -561,6 +561,37 @@ function buildLines() {
     inp.setAttribute("aria-label", `Banner text line ${i + 1}`);
     inp.addEventListener("input", () => { skin().lines[i].text = inp.value; changed(); });
     box.appendChild(inp);
+
+    // Flip and turn the text itself, separately from the part crops.
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<label><input type="checkbox" data-t="flip"> Flip text</label>
+      <span style="width:10px"></span>
+      <label>Rotate text <input type="number" data-t="rot" step="1" style="width:64px;background:#0f151a;border:1px solid #2b3842;border-radius:5px;padding:3px 5px"> °</label>
+      <button data-t="ccw" aria-label="Rotate text 90° left">↺ 90°</button>
+      <button data-t="cw" aria-label="Rotate text 90° right">↻ 90°</button>
+      <button data-t="r180" aria-label="Rotate text 180°">180°</button>
+      <button data-t="zero">Straighten</button>`;
+    const flip = row.querySelector('[data-t="flip"]'), rot = row.querySelector('[data-t="rot"]');
+    const line = () => skin().lines[i];
+    const paint = () => { flip.checked = !!line().flip; rot.value = String(Math.round(line().rot || 0)); };
+    const set = (patch) => {
+      const ln = line();
+      Object.assign(ln, patch);
+      ln.rot = (((ln.rot || 0) + 540) % 360) - 180;
+      if (!ln.rot) delete ln.rot;
+      if (!ln.flip) delete ln.flip;
+      paint();
+      changed();
+    };
+    flip.addEventListener("input", () => set({ flip: flip.checked ? 1 : 0 }));
+    rot.addEventListener("input", () => set({ rot: Number(rot.value) || 0 }));
+    row.querySelector('[data-t="ccw"]').addEventListener("click", () => set({ rot: (line().rot || 0) - 90 }));
+    row.querySelector('[data-t="cw"]').addEventListener("click", () => set({ rot: (line().rot || 0) + 90 }));
+    row.querySelector('[data-t="r180"]').addEventListener("click", () => set({ rot: (line().rot || 0) + 180 }));
+    row.querySelector('[data-t="zero"]').addEventListener("click", () => set({ rot: 0 }));
+    paint();
+    box.appendChild(row);
   });
 }
 

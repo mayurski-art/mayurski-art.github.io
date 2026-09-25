@@ -51,14 +51,14 @@ export const SKINS = [
     blurb: "An error dialog that shoots back.",
     palette: { trim: "#1f4fd1", ink: "#10131c", metal: 0xb9bcc2, accent: 0xd9492b },
     crops: {
-      upper: [0.25, 0.135, 0.5],
-      lower: [0.2, 0.45, 0.4],
+      upper: [0.185, 0.13, 0.47],
+      lower: [0.24, 0.466, 0.378, 0, 1],
       handguard: [0.685, 0.77, 0.57],
       stock: [0.925, 0.13, 0.15],
       grip: [0.505, 0.8, 0.118, 90],
       mag: [0.81, 0.72, 0.17, -90],
     },
-    lines: [{ box: [0.169, 0.325, 0.58, 0.454], text: "you are" }],
+    lines: [{ box: [0.169, 0.325, 0.58, 0.454], text: "you are disgusting" }],
   },
   {
     id: "green", name: "Green Room", banner: "banner-03.jpg",

@@ -207,10 +207,8 @@ export function build416(def, skinId, { texture = null } = {}) {
   trigger.position.set(0, -0.044, -0.014);
   trigger.rotation.x = -0.25;
   group.add(trigger);
-  const selector = cyl(0.005, 0.005, 0.004, M.accent, 8);
-  selector.rotation.set(0, 0, Math.PI / 2);
-  selector.position.set(-0.0245, -0.012, 0.03);
-  group.add(selector);
+  // No fire-selector stud: it sat on the lower receiver as a coloured dot
+  // on top of the skin art.
   // Rubber butt pad.
   const butt = box(0.047, 0.09, 0.008, new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9, metalness: 0 }));
   butt.position.set(0, -0.015, 0.262);
