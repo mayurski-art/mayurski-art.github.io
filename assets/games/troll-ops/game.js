@@ -2407,6 +2407,12 @@ function setActiveWeaponMesh(def) {
     });
   }
   activeWeaponMesh = buildWeaponMesh(def);
+  // No first-person hands on guns (user call, 2026-09-25): the gun on
+  // screen should look exactly like it does in the skin editor, and the
+  // block hands sat right on the skin art. Melee and the streak device keep
+  // theirs. The meshes stay (tagged userData.hand) for anything that reads
+  // their positions; they just don't draw.
+  activeWeaponMesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
   weaponRig.add(activeWeaponMesh);
 }
 

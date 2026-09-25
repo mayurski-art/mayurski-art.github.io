@@ -190,7 +190,9 @@ export function build416(def, skinId, { texture = null } = {}) {
   let muzzleZ = -0.538;
 
   // --- small hardware in the accent colour
-  const charging = box(0.026, 0.007, 0.014, M.metal);
+  // Charging handle and butt pad wear the accent too (user's pick): the two
+  // pops of colour at the front and back of the stock.
+  const charging = box(0.026, 0.007, 0.014, M.accent);
   charging.position.set(0, 0.033, 0.074);
   group.add(charging);
   // No ejection-port cover or forward assist: on the right side they sat
@@ -204,8 +206,8 @@ export function build416(def, skinId, { texture = null } = {}) {
   group.add(trigger);
   // No fire-selector stud: it sat on the lower receiver as a coloured dot
   // on top of the skin art.
-  // Rubber butt pad.
-  const butt = box(0.047, 0.09, 0.008, new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9, metalness: 0 }));
+  // Butt pad, in the accent colour.
+  const butt = box(0.047, 0.09, 0.008, M.accent);
   butt.position.set(0, -0.015, 0.262);
   group.add(butt);
 
