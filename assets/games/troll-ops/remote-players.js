@@ -6,9 +6,10 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, gaitPhaseRate, mountHeldWeapon, aimRig } from "./character.js";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME } from "./character.js";
 import { buildWeaponMesh } from "./weapon-model.js";
 import { WEAPON_DEFS } from "./weapons.js";
+import { MeleeState, buildMeleeMesh } from "./gear.js";
 
 const RENDER_DELAY = 110; // ms
 const DEATH_FALL_TIME = 0.55; // seconds to collapse before the rig is hidden
@@ -95,7 +96,33 @@ export class RemotePlayer {
     this.wasAlive = true;
     this.dying = false;
     this.deathT = 0;
+
+    // Melee swings they tell us about (net "melee"). The same MeleeState the
+    // swinger runs, so the arm takes exactly as long as theirs did.
+    this.melee = null;
+    this.meleeMesh = null;
+    this.meleeSeen = peer.meleeSeq | 0;
+    this.throwSeen = peer.throwSeq | 0;
+    this.throwT = 0;
   }
+
+  /* Start playing a swing the peer announced, with the sword in the fist and
+     the gun put away until it's done - the same swap the local body makes. */
+  startMelee(kind, defId) {
+    if (!this.melee || this.melee.def.id !== defId) this.melee = new MeleeState(defId);
+    if (!this.melee.def) { this.melee = null; return; }
+    this.melee.t = 0;
+    this.melee.swingIndex = kind & 1;
+    this.melee.start();
+    if (!this.meleeMesh) {
+      this.meleeMesh = buildMeleeMesh(this.melee.def, false);
+      this.meleeMesh.scale.setScalar(1.1);
+      this.meleeMesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      this.rig.parts.gripR.add(this.meleeMesh);
+    }
+  }
+
+  get swinging() { return !!this.melee?.busy; }
 
   /* Build and attach the real weapon model for whatever this peer is
      currently holding, replacing whatever was there before. Mirrors the
@@ -148,6 +175,21 @@ export class RemotePlayer {
     this.setTeam(this.peer.team);
     this.setLocalTeam(myTeam, ffa);
     this.setWeaponModel(this.peer.weapon, this.peer.skin || null);
+
+    if ((this.peer.meleeSeq | 0) !== this.meleeSeen) {
+      this.meleeSeen = this.peer.meleeSeq | 0;
+      if (this.alive) this.startMelee(this.peer.meleeKind, this.peer.meleeDef);
+    }
+    if (this.melee) this.melee.update(dt);
+    if ((this.peer.throwSeq | 0) !== this.throwSeen) {
+      this.throwSeen = this.peer.throwSeq | 0;
+      this.throwT = THROW_TIME;
+    }
+    if (this.throwT > 0) this.throwT = Math.max(0, this.throwT - dt);
+    if (!this.alive && this.melee) this.melee.t = 0;
+    const swinging = this.swinging;
+    if (this.meleeMesh) this.meleeMesh.visible = swinging;
+    if (this.weaponMesh) this.weaponMesh.visible = !swinging;
 
     // Just died: hold the last known pose and play a collapse instead of
     // instantly popping out of existence. Respawning (alive flips back to
@@ -243,8 +285,18 @@ export class RemotePlayer {
     // Two-handed carry (armL on the support hand instead of a free run
     // swing) for anything but a sidearm — matches weapon-model.js's own
     // !isPistol gate for whether a weapon actually has a support hand mesh.
-    const hasGun = WEAPON_DEFS[this.weaponId]?.cls !== "sidearm";
-    poseHumanoid(this.rig, { phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward, speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun });
+    const hasGun = !swinging && WEAPON_DEFS[this.weaponId]?.cls !== "sidearm";
+    const swing = swinging ? {
+      t: Math.min(1, this.melee.t / this.melee.total),
+      kind: this.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
+    } : null;
+    poseHumanoid(this.rig, {
+      phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
+      speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
+      hold: swinging ? "melee" : "gun", swing,
+    });
+
+    if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);
 
     this.tag.position.y = 2.15 - this.lower * 0.75;
   }

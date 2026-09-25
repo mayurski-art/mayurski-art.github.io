@@ -14,7 +14,8 @@ import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import { smoothstep } from "./anim-curves.js";
 
-const GRAVITY = 18;          // heavier than real so throws land where you look
+export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where you look
+const GRAVITY = GRENADE_GRAVITY;
 const REST_SPEED = 0.9;      // below this a grenade stops rolling
 const RADIUS = 0.11;
 
@@ -910,7 +911,7 @@ export class GrenadeSystem {
       while (p.tick >= 0.25 && p.life > 0) {
         p.tick -= 0.25;
         // Someone else's fire is theirs to score; ours only shows it.
-        if (!p.remote) onAreaDamage?.(p.pos, p.def.pool.radius, p.def.pool.dps * 0.25, p.def, { fire: true });
+        if (!p.remote) onAreaDamage?.(p.pos, p.def.pool.radius, p.def.pool.dps * 0.25, p.def, { fire: true, botId: p.botId });
       }
       if (p.life <= 0) {
         this.root.remove(p.mesh, p.light);
@@ -932,7 +933,8 @@ export class GrenadeSystem {
     }
 
     ctx.onExplode?.(def, g.pos.clone());
-    if (def.damage > 0 && !g.remote) ctx.onAreaDamage?.(g.pos.clone(), def.radius, def.damage, def, {});
+    // `botId`: a bot we simulate threw it, so the blast is the bot's to score.
+    if (def.damage > 0 && !g.remote) ctx.onAreaDamage?.(g.pos.clone(), def.radius, def.damage, def, { botId: g.botId });
     // Flash/EMP get the grenade too: whose it was decides who it affects.
     if (def.blind) ctx.onFlash?.(g.pos.clone(), def, g);
     if (def.emp) ctx.onEmp?.(g.pos.clone(), def, g);
@@ -943,6 +945,7 @@ export class GrenadeSystem {
     if (def.pool) {
       const p = new FirePool(def, g.pos);
       p.remote = !!g.remote;
+      p.botId = g.botId || null;
       p.mesh = new THREE.Mesh(this.fireGeo, new THREE.MeshBasicMaterial({
         color: def.glow, transparent: true, opacity: 0.5, depthWrite: false,
         blending: THREE.AdditiveBlending, side: THREE.DoubleSide,

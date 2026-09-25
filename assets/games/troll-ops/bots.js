@@ -41,11 +41,29 @@ const HEADSHOT_CHANCE = 0.12;
 const MAG_SIZE = 26;
 const RELOAD_TIME = 2.3;
 
+/* `nade`: how keen a bot is to throw when it has a reason (chance per
+   chance it gets), how far off its throws land (metres of scatter at 20 m),
+   and whether it cooks frags so they go off on landing. */
 const DIFFICULTY = {
-  recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.15, reaction: 0.45, strafe: 0.55, lead: 0.15 },
-  regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.85, reaction: 0.28, strafe: 0.75, lead: 0.4 },
-  veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.62, reaction: 0.16, strafe: 1.0, lead: 0.75 },
+  recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.15, reaction: 0.45, strafe: 0.55, lead: 0.15,
+    nade: { chance: 0.3, scatter: 3.2, cook: false } },
+  regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.85, reaction: 0.28, strafe: 0.75, lead: 0.4,
+    nade: { chance: 0.55, scatter: 1.9, cook: false } },
+  veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.62, reaction: 0.16, strafe: 1.0, lead: 0.75,
+    nade: { chance: 0.85, scatter: 1.0, cook: true } },
 };
+
+/* Grenades. One frag and one flash a life, the same as a player's default
+   kit, and a cooldown between throws so a bot that keeps its reason (a
+   camper behind the same wall) doesn't empty its pockets at it at once. */
+const NADE_FIRST = [5, 10];       // seconds after spawning before the first throw
+const NADE_COOLDOWN = [9, 15];
+const NADE_RECHECK = 0.6;         // how often a bot looks for a reason
+const NADE_MIN = 7;               // no closer: it would be standing in the blast
+const NADE_MAX = 26;
+const CLUSTER = 4.5;              // enemies this close together count as a group
+const SEEN_MEMORY = 4;            // seconds a hidden target's last position stays useful
+const between = ([a, b]) => a + Math.random() * (b - a);
 export const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
 
 /* Bots carry real guns from the roster rather than all reporting problem416,
@@ -97,6 +115,14 @@ class Bot {
     this.flinchT = 0;         // briefly turns/steps off-line after taking a hit
     this.prevTargetPos = null;    // for velocity-based lead
     this.targetVel = new THREE.Vector3();
+    this.resetNades();
+  }
+
+  resetNades() {
+    this.frags = 1;
+    this.flashes = 1;
+    this.nadeT = between(NADE_FIRST);
+    this.lastSeen = null;     // { id, x, y, z, age } of the last enemy in sight
   }
 
   respawn(spawn) {
@@ -116,6 +142,7 @@ class Bot {
     this.flinchT = 0;
     this.stunT = 0;
     this.prevTargetPos = null;
+    this.resetNades();
   }
 
   /* Called when a shot connects on this bot. Real players flinch off-line
@@ -214,6 +241,32 @@ class Bot {
       this.targetVel.set(0, 0, 0);
     }
     if (this.flinchT > 0) this.flinchT -= dt;
+
+    if (best) this.lastSeen = { id: best.id, x: best.pos.x, y: best.groundY ?? best.pos.y ?? 0, z: best.pos.z, age: 0 };
+    else if (this.lastSeen) this.lastSeen.age += dt;
+
+    // --- grenades
+    if (ctx.onThrow && !busy && !stunned && (this.frags > 0 || this.flashes > 0)) {
+      this.nadeT -= dt;
+      if (this.nadeT <= 0) {
+        const plan = this.planThrow(targets, ffa, colliders, eye, best, objective);
+        if (!plan) this.nadeT = NADE_RECHECK;
+        else if (Math.random() > this.diff.nade.chance) this.nadeT = 2 + Math.random() * 2;   // let it go this time
+        else {
+          const s = this.diff.nade.scatter * Math.min(1.5, plan.dist / 20);
+          const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * s;
+          const at = { x: plan.x + Math.cos(a) * r, y: plan.y, z: plan.z + Math.sin(a) * r };
+          if (ctx.onThrow(this, plan.kind, at, plan.lob)) {
+            if (plan.kind === "frag") this.frags--; else this.flashes--;
+            this.nadeT = between(NADE_COOLDOWN);
+            // A beat with the hand busy: no shot goes off mid-throw.
+            this.fireT = Math.max(this.fireT, 0.45);
+          } else {
+            this.nadeT = NADE_RECHECK;
+          }
+        }
+      }
+    }
 
     // --- steer
     let desired;
@@ -351,6 +404,64 @@ class Bot {
       // Top up while out of contact rather than mid-firefight.
       this.reloadT = RELOAD_TIME;
     }
+  }
+
+  /* A reason to throw, or null. In order of how good a reason it is:
+       - enemies bunched up (2+ within CLUSTER of each other): a frag;
+       - enemies holding the objective we want (hill, bomb site): frag, or a
+         flash if the frag is gone;
+       - someone we just lost behind cover, still near where we saw them:
+         lob it over — a flash when it's close enough to push, else a frag.
+     A target we can see and shoot on its own isn't a reason: the gun is. */
+  planThrow(targets, ffa, colliders, eye, best, objective) {
+    const enemies = [];
+    for (const t of targets) {
+      if (!t.alive || t.id === this.id || (!ffa && t.team === this.team)) continue;
+      enemies.push(t);
+    }
+    if (!enemies.length) return null;
+    const distTo = (x, z) => Math.hypot(x - this.pos.x, z - this.pos.z);
+    const inRange = (d) => d >= NADE_MIN && d <= NADE_MAX;
+    const hidden = (x, y, z) => segmentBlocked(colliders, eye, new THREE.Vector3(x, y + 1, z));
+
+    if (this.frags > 0) {
+      let bestGroup = null;
+      for (const e of enemies) {
+        const d = distTo(e.pos.x, e.pos.z);
+        if (!inRange(d)) continue;
+        let n = 0, cx = 0, cz = 0;
+        for (const o of enemies) {
+          if (Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) > CLUSTER) continue;
+          n++; cx += o.pos.x; cz += o.pos.z;
+        }
+        if (n >= 2 && (!bestGroup || n > bestGroup.n)) bestGroup = { n, x: cx / n, z: cz / n, y: e.groundY ?? e.pos.y ?? 0 };
+      }
+      if (bestGroup) {
+        return { kind: "frag", x: bestGroup.x, y: bestGroup.y, z: bestGroup.z,
+          dist: distTo(bestGroup.x, bestGroup.z), lob: hidden(bestGroup.x, bestGroup.y, bestGroup.z) };
+      }
+    }
+
+    if (objective) {
+      const d = distTo(objective.x, objective.z);
+      const held = enemies.some((e) => Math.hypot(e.pos.x - objective.x, e.pos.z - objective.z) <= (objective.radius || 4) + 2);
+      if (held && inRange(d)) {
+        const kind = this.frags > 0 ? "frag" : "flash";
+        const y = objective.y ?? this.groundY;
+        return { kind, x: objective.x, y, z: objective.z, dist: d, lob: hidden(objective.x, y, objective.z) };
+      }
+    }
+
+    const seen = this.lastSeen;
+    if (!best && seen && seen.age < SEEN_MEMORY) {
+      const still = enemies.find((e) => e.id === seen.id && Math.hypot(e.pos.x - seen.x, e.pos.z - seen.z) < 5);
+      const d = distTo(seen.x, seen.z);
+      if (still && inRange(d)) {
+        const kind = d < 15 && this.flashes > 0 ? "flash" : this.frags > 0 ? "frag" : this.flashes > 0 ? "flash" : null;
+        if (kind) return { kind, x: seen.x, y: seen.y, z: seen.z, dist: d, lob: true };
+      }
+    }
+    return null;
   }
 
   /* No target and no route: drift, so they don't stand still looking broken. */

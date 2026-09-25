@@ -27,7 +27,7 @@ import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js";
-import { buildHumanoid, poseHumanoid, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom } from "./character.js";
+import { buildHumanoid, poseHumanoid, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom } from "./character.js";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME,
@@ -47,7 +47,7 @@ import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js";
-import { MeleeState, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS } from "./gear.js";
+import { MeleeState, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY } from "./gear.js";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js";
 
@@ -3395,8 +3395,9 @@ function blastCandidates(sparedTeam = net.team) {
 
 /* Radial damage. Torso height is added to each target so a grenade resting
    on the floor still measures to a standing chest, not a pair of boots. */
-function areaDamage(centre, radius, damage, def, { fire = false, creditAs = null } = {}) {
+function areaDamage(centre, radius, damage, def, { fire = false, creditAs = null, botId = null } = {}) {
   const scaled = { ...def, radius, damage, minDamage: fire ? damage * 0.5 : def.minDamage };
+  if (botId) { botAreaDamage(botId, centre, scaled, def); return; }
   for (const { actor, pos } of blastCandidates()) {
     const torso = pos.clone();
     torso.y += 0.9;
@@ -3416,6 +3417,72 @@ function areaDamage(centre, radius, damage, def, { fire = false, creditAs = null
     const selfDmg = blastDamage(scaled, centre.distanceTo(player.pos)) * (def.selfMult ?? 1);
     if (selfDmg > 0) damagePlayer(selfDmg, net.id, def.id);
   }
+}
+
+/* A bot's grenade (we host the bot). Same falloff as ours, but it's the
+   bot's blast: it spares the bot's own side, not ours, and every hit is
+   reported under the bot's id so the killfeed and scores credit it. */
+function botAreaDamage(botId, centre, scaled, def) {
+  const bot = bots.byId(botId);
+  if (!bot) return;   // the bot left with its grenade in the air
+  const ffa = !!currentMode().ffa;
+  if (player.alive && (ffa || bot.team !== net.team)) {
+    const dmg = blastDamage(scaled, centre.distanceTo(player.pos));
+    if (dmg > 0) botDealDamage(bot, net.id, dmg, false, def.id);
+  }
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive || rp.netId === bot.id) continue;
+    if (!ffa && rp.team === bot.team) continue;
+    const dmg = blastDamage(scaled, centre.distanceTo(_blastTorso.copy(rp.pos).setY(rp.pos.y + 0.9)));
+    if (dmg > 0) botDealDamage(bot, rp.netId, dmg, false, def.id);
+  }
+}
+const _blastTorso = new THREE.Vector3();
+
+let botNadesThrown = 0;
+
+/* A bot throws. bots.js decided that it should and where it wants the
+   grenade to land; this works out the arc, puts the grenade in the world
+   and tells the room, exactly as releaseCook does for the player. `lob`
+   takes the high arc, for dropping one over cover rather than into it. */
+function botThrow(bot, kind, at, lob = false) {
+  const def = THROWABLE_DEFS[kind];
+  if (!def || !bot.alive) return false;
+  const origin = new THREE.Vector3(bot.pos.x, bot.pos.y + 1.6, bot.pos.z);
+  const dx = at.x - origin.x, dz = at.z - origin.z;
+  const flat = Math.hypot(dx, dz);
+  if (flat < 1) return false;
+  bot.yaw = Math.atan2(-dx, -dz);
+  // Frags skip and roll on after they land: aim a little short.
+  const d = flat * (def.roll > 0.3 ? 0.84 : 0.95);
+  const dy = (at.y ?? bot.pos.y) - origin.y;
+  const v = def.throwSpeed, g = GRENADE_GRAVITY;
+  const disc = v ** 4 - g * (g * d * d + 2 * dy * v * v);
+  const angle = disc < 0 ? Math.PI / 4
+    : Math.atan((v * v + (lob ? 1 : -1) * Math.sqrt(disc)) / (g * d));
+  const dir = new THREE.Vector3(dx / flat * Math.cos(angle), Math.sin(angle), dz / flat * Math.cos(angle));
+  origin.addScaledVector(dir, 0.5);
+
+  // Flight time sets the fuse: a skilled bot cooks a frag so it goes off
+  // about when it lands, with no time to run. A flash always gets to land.
+  const flight = d / Math.max(0.1, v * Math.cos(angle));
+  let fuse = def.fuse;
+  if (def.cookable && def.damage > 0 && bot.diff.nade.cook) fuse = Math.max(flight + 0.35, def.fuse - 1.2);
+  if (def.blind) fuse = Math.max(fuse, flight + 0.1);
+
+  const gid = nextNadeId(bot.id);
+  const gr = grenades.throwGrenade(def, origin, dir, bot.id, { fuseLeft: fuse, gid, team: bot.team });
+  gr.botId = bot.id;
+  noteThrow(bot.id);   // the host never hears its own bots' `nade` messages
+  if (isPvp() && net.active) {
+    net.publishNadeAs(bot.id, bot.team, {
+      action: "throw", gid, def: def.id, fuse: round2(fuse),
+      ox: round2(origin.x), oy: round2(origin.y), oz: round2(origin.z),
+      dx: round2(dir.x), dy: round2(dir.y), dz: round2(dir.z),
+    });
+  }
+  botNadesThrown++;
+  return true;
 }
 
 /* Everything about a blast that isn't damage: light, sparks, sound, shove. */
@@ -3453,7 +3520,13 @@ function updateBlastLights(dt) {
 /* Whether a grenade is a teammate's — which spares us, same as their frags
    do. Our own still gets us: that's the price of a bad throw. */
 function friendlyNade(g) {
-  return !!g?.remote && !currentMode().ffa && !!net.team && g.team === net.team;
+  return !!(g?.remote || g?.botId) && !currentMode().ffa && !!net.team && g.team === net.team;
+}
+
+/* The side a grenade belongs to: ours, unless someone else threw it (a remote
+   player, or a bot we simulate). */
+function nadeTeam(g) {
+  return g?.remote || g?.botId ? g.team : net.team;
 }
 
 function flashPlayer(pos, def, g = null) {
@@ -3470,10 +3543,11 @@ function flashPlayer(pos, def, g = null) {
     audio.flashbang(strength, pos);
   }
 
-  for (const { actor, pos: apos } of blastCandidates(g?.remote ? g.team : net.team)) {
+  for (const { actor, pos: apos } of blastCandidates(nadeTeam(g))) {
     if (pos.distanceTo(apos) > def.radius) continue;
     if (segmentBlocked(colliders, apos, pos)) continue;
     if (grenades.blocksSight(apos, pos)) continue;
+    if (g?.botId && actor.netId === g.botId) continue;
     stunActor(actor, def.stun);
   }
 }
@@ -3504,7 +3578,7 @@ function empPlayer(pos, def, g = null) {
 
   // Bots are scrambled even when we weren't — this used to return early the
   // moment we were out of range, so an EMP thrown at a bot never reached it.
-  for (const { actor, pos: apos } of blastCandidates(g?.remote ? g.team : net.team)) {
+  for (const { actor, pos: apos } of blastCandidates(nadeTeam(g))) {
     if (pos.distanceTo(apos) > def.radius) continue;
     if (segmentBlocked(colliders, apos, pos)) continue;
     // Bots run on sight, so scrambling them reads as a short stun.
@@ -3520,18 +3594,22 @@ function grenadeCtx() {
     onAreaDamage: areaDamage,
     onFlash: flashPlayer,
     onEmp: empPlayer,
-    onDetonate: (g, pos) => publishBoom(g.gid, g.def, pos),
+    onDetonate: (g, pos) => publishBoom(g.gid, g.def, pos, g.botId ? bots.byId(g.botId) : null),
   };
 }
 
 /* Tell the room where our grenade actually went off. */
-function publishBoom(gid, def, pos) {
+function publishBoom(gid, def, pos, bot = null) {
   if (!gid || !isPvp() || !net.active) return;
-  net.publishNade({ action: "boom", gid, def: def.id, x: round2(pos.x), y: round2(pos.y), z: round2(pos.z) });
+  const payload = { action: "boom", gid, def: def.id, x: round2(pos.x), y: round2(pos.y), z: round2(pos.z) };
+  if (bot) net.publishNadeAs(bot.id, bot.team, payload);
+  else net.publishNade(payload);
 }
 
 let nadeSeq = 0;
-function nextNadeId() { return `${net.id}-${++nadeSeq}`; }
+/* A bot's grenades carry the bot's id, so nobody counting "grenades that
+   client threw" by prefix mistakes the host's bots for the host. */
+function nextNadeId(ownerId = net.id) { return `${ownerId}-${++nadeSeq}`; }
 
 /* Someone else's throwable, from their `throw`/`boom` messages. */
 function applyRemoteNade(m) {
@@ -3539,6 +3617,7 @@ function applyRemoteNade(m) {
   const def = THROWABLE_DEFS[m.def];
   if (!def) return;
   if (m.action === "throw") {
+    noteThrow(m.id);
     const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
     const dir = new THREE.Vector3(m.dx, m.dy, m.dz).normalize();
     grenades.throwGrenade(def, origin, dir, m.id, {
@@ -3547,6 +3626,12 @@ function applyRemoteNade(m) {
   } else if (m.action === "boom") {
     grenades.remoteBoom(m.gid, def, new THREE.Vector3(m.x, m.y, m.z), m.id, m.team, grenadeCtx());
   }
+}
+
+/* Someone we can see threw something: their rig plays the overhand arm. */
+function noteThrow(id) {
+  const p = net.peers.get(id);
+  if (p) p.throwSeq = (p.throwSeq | 0) + 1;
 }
 
 function refillGear() {
@@ -3600,6 +3685,7 @@ function releaseCook({ cookedOff = false } = {}) {
   }
   breakSpawnGuard();
   audio.throwGear();
+  localThrowT = THROW_TIME;
 }
 
 /* Quick melee swings without putting the gun away; pressing 3 makes the
@@ -3607,6 +3693,8 @@ function releaseCook({ cookedOff = false } = {}) {
 function swingMelee() {
   if (!player.alive || move.busy || gameState !== "playing" || isStaging()) return;
   if (!player.melee || !player.melee.start()) return;
+  // Everyone else sees the swing; the damage still travels as a normal hit.
+  if (isPvp() && net.active) net.publishMelee(player.melee.swingIndex % 2, player.melee.def.id);
   breakSpawnGuard();
   audio.swing();
 }
@@ -4080,14 +4168,20 @@ function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = 
     if (target.id === net.id) nearMiss(0.45, bot.pos);
     return;
   }
-  if (target.id === net.id) { damagePlayer(dmg, bot.id, wid, isHead); return; }
-  flinchPeer(target.id, bot.id, isHead);
+  botDealDamage(bot, target.id, dmg, isHead, wid);
+}
 
-  if (bots.byId(target.id)) {
-    const { killed, bot: victim } = bots.applyHit(target.id, dmg);
+/* Damage a bot we host deals to anyone: us, another of our bots, or a remote
+   player (who applies it to themselves when the hit arrives). */
+function botDealDamage(bot, targetId, dmg, isHead, wid) {
+  if (targetId === net.id) { damagePlayer(dmg, bot.id, wid, isHead); return; }
+  flinchPeer(targetId, bot.id, isHead);
+
+  if (bots.byId(targetId)) {
+    const { killed, bot: victim } = bots.applyHit(targetId, dmg);
     if (killed) {
       bot.kills++;
-      net.reportDeathAs(target.id, bot.id, wid, isHead);
+      net.reportDeathAs(targetId, bot.id, wid, isHead);
       registerDeath(victim.name, bot.id, wid, {
         head: isHead, victimTeam: victim.team, victimIsBot: true,
         victimPos: victim.pos, victimWeaponId: victim.weaponId,
@@ -4095,7 +4189,7 @@ function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = 
     }
     return;
   }
-  net.reportHitAs(bot.id, target.id, dmg, isHead, wid);
+  net.reportHitAs(bot.id, targetId, dmg, isHead, wid);
 }
 
 let hillHeldT = 0;   // seconds we've personally stood on the hill
@@ -5447,6 +5541,8 @@ function animate() {
           colliders, arena: ARENA, ffa,
           targets: botTargets(),
           onShoot: onBotShoot,
+          // Weapon-decided modes (One in the Chamber, Gun Game) stay gun-only.
+          onThrow: currentMode().noStreaks ? null : botThrow,
           spawnFor: spawnForTeam,
           sightBlocked: (a, b) => grenades.blocksSight(a, b),
           objectiveFor: botObjective,
@@ -5671,6 +5767,7 @@ function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
 }
 
 let localLower = 0;
+let localThrowT = 0;   // the third-person body's overhand throw, counting down
 
 /* Positions and poses the local player's own humanoid rig every frame -
    same buildHumanoid/poseHumanoid contract remote-players.js drives other
@@ -5729,6 +5826,10 @@ function updateLocalRig(dt) {
     } : null,
     recoil: hold === "gun" ? Math.min(1, (currentWeapon()?.viewKickKnockback || 0) * 7) : 0,
   });
+  if (localThrowT > 0) {
+    localThrowT = Math.max(0, localThrowT - dt);
+    poseThrowArm(localRig, 1 - localThrowT / THROW_TIME);
+  }
 }
 
 /* The third-person body carries the same gun or melee weapon the first-
@@ -6590,7 +6691,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     activeMeleeMesh: () => activeMeleeMesh,
     activeWeaponMesh: () => activeWeaponMesh,
     matchClockT: () => matchClockT,
-    resetMatchClock, swingMelee,
+    resetMatchClock, swingMelee, botThrow, botNadesThrown: () => botNadesThrown,
     activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
     streaks, streakPicker, killstreakUi, achievements,
     awardScore, callReadyStreak, callStreak, fireStreak, startUav, applyRemoteStreak,

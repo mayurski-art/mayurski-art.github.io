@@ -912,6 +912,20 @@ function _poseDanceWave(rig, t) {
    runs, so rebuilding there would draw the line a frame behind the hands
    and head, and it would visibly slip off them in fast motion. */
 export function poseHumanoid(rig, arg) { _poseHumanoid(rig, arg); rig.body.update(); }
+
+/* Throwing a grenade, laid over whatever pose the rig already has: the free
+   (left) arm comes up behind the head and whips over and forward. `t` runs
+   0..1 across THROW_TIME seconds. */
+export const THROW_TIME = 0.5;
+export function poseThrowArm(rig, t) {
+  const p = rig.parts;
+  const wind = Math.min(1, t / 0.35), whip = Math.max(0, (t - 0.35) / 0.65);
+  const raise = 2.9 * wind - 1.9 * whip * (2 - whip);
+  const fade = t > 0.8 ? (1 - t) / 0.2 : 1;
+  p.armL.rotation.set(p.armL.rotation.x + (raise - p.armL.rotation.x) * fade, 0, 0.25 * fade);
+  p.elbowL.rotation.set(0.9 * wind * (1 - whip) * fade, 0, 0);
+  rig.body.update();
+}
 export function poseDance(rig, arg) { _poseDance(rig, arg); rig.body.update(); }
 export function poseDanceFloss(rig, arg) { _poseDanceFloss(rig, arg); rig.body.update(); }
 export function poseDanceHeadbang(rig, arg) { _poseDanceHeadbang(rig, arg); rig.body.update(); }

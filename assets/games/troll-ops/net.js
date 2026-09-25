@@ -218,6 +218,16 @@ export class Net {
         this.h.onNade?.(m);
         break;
       }
+      /* A melee swing. Damage already travels as a normal "hit"; this is only
+         so everyone else sees the arm come round. Stamped on the peer and
+         picked up by its RemotePlayer on the next frame. */
+      case "melee": {
+        const p = this.peer(m.id);
+        p.meleeSeq = (p.meleeSeq | 0) + 1;
+        p.meleeKind = m.k | 0;
+        p.meleeDef = m.md || "keyboard";
+        break;
+      }
       case "hit": {
         // Everyone sees the victim flinch; only the target applies the
         // damage — to itself, or to a bot it owns.
@@ -448,9 +458,25 @@ export class Net {
     });
   }
 
+  /* `kind` is the swing's index parity: 0 = overhead swing, 1 = thrust,
+     so the remote arm plays the same attack the swinger sees. */
+  publishMelee(kind, meleeId) {
+    this.publishMeleeAs(this.id, kind, meleeId);
+  }
+
+  publishMeleeAs(fromId, kind, meleeId) {
+    this.send({ t: "melee", id: fromId, k: kind & 1, md: meleeId });
+  }
+
   /* action "throw": { gid, def, ox..dz, fuse } · action "boom": { gid, def, x, y, z } */
   publishNade(payload) {
-    this.send({ t: "nade", id: this.id, team: this.team, ...payload });
+    this.publishNadeAs(this.id, this.team, payload);
+  }
+
+  /* A bot's grenade goes out under the bot's id and side, so a bot's flash
+     spares the bot's team on every screen, not the host's. */
+  publishNadeAs(fromId, team, payload) {
+    this.send({ t: "nade", id: fromId, team, ...payload });
   }
 
   reportHit(targetId, dmg, isHead, weaponId) {

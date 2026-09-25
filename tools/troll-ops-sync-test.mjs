@@ -123,7 +123,19 @@ const mid = await A.evaluate(() => {
   return a ? { x: (a.minX + a.maxX) / 2, z: (a.minZ + a.maxZ) / 2 } : { x: 0, z: 0 };
 });
 
-// Throw from A with a fixed loadout slot, return what A saw.
+// Stand a player back up, too tough to die mid-check: bots shoot and throw
+// frags at the test players the whole time, and a dead player can't throw.
+async function revive(page) {
+  await page.evaluate(() => {
+    const T = window.__trollOps;
+    if (!T.player.alive) T.respawnPlayer();
+    T.player.maxHp = 100000; T.player.hp = 100000;
+  });
+}
+
+// Throw from A with a fixed loadout slot, return what A saw. Only A's own
+// grenades count: bots throw theirs into the same list.
+
 async function throwFrom(page, slot, defId) {
   return page.evaluate(({ slot, defId }) => {
     const T = window.__trollOps;
@@ -131,7 +143,7 @@ async function throwFrom(page, slot, defId) {
     T.player.gear[slot] = 3;
     T.startCook(slot);
     T.releaseCook();
-    const g = T.grenades.live[T.grenades.live.length - 1];
+    const g = T.grenades.live.filter((x) => x.ownerId === "player").at(-1);
     return { gid: g?.gid, remote: g?.remote };
   }, { slot, defId });
 }
@@ -143,6 +155,7 @@ const spent = (page, gid) => page.evaluate((gid) => window.__trollOps.grenades.s
 
 // ---------- 1. frag: flies on B, goes off once on B
 await place(A, mid.x, mid.z); await place(B, mid.x + 30, mid.z + 30);
+await revive(A); await revive(B);
 const frag = await throwFrom(A, "lethal", "frag");
 check("frag gets a network id on the thrower", !!frag.gid && !frag.remote, JSON.stringify(frag));
 await sleep(400);
@@ -171,6 +184,7 @@ check("smoke blocks sight on the other client", blocks === true);
 check("smoke grenade spent on both", (await spent(A, smoke.gid)) && (await spent(B, smoke.gid)));
 
 // ---------- 3. firebomb: pool on both, same spot, B's copy does no damage
+await revive(A);
 const fire = await throwFrom(A, "lethal", "firebomb");
 await sleep(2500);
 const pools = await Promise.all([A, B].map((p) => p.evaluate(() =>
@@ -215,13 +229,6 @@ await B.evaluate((t) => { window.__trollOps.net.team = t; }, info[1].team);
 // ---------- 5. cook-off in hand: one explosion on thrower, one boom remotely
 // Throwing breaks spawn protection, so by now bots may have killed A — and a
 // dead player can't cook. Stand A back up, too tough to die mid-check.
-async function revive(page) {
-  await page.evaluate(() => {
-    const T = window.__trollOps;
-    if (!T.player.alive) T.respawnPlayer();
-    T.player.maxHp = 100000; T.player.hp = 100000;
-  });
-}
 await revive(A);
 const spentOnB = () => B.evaluate((id) => [...window.__trollOps.grenades.spent].filter((g) => g.startsWith(id)).length, info[0].id);
 const bSpentBefore = await spentOnB();
@@ -231,12 +238,13 @@ const cook = await A.evaluate(async () => {
   T.player.gear.lethal = 2;
   T.player.hp = 100000; T.player.maxHp = 100000;
   let fx = 0;
-  const liveBefore = T.grenades.live.length;
+  const mine = () => T.grenades.live.filter((g) => g.ownerId === "player").length;
+  const liveBefore = mine();
   T.startCook("lethal");
   const start = performance.now();
   while (T.cooking.def && performance.now() - start < 6000) await new Promise((r) => setTimeout(r, 50));
   await new Promise((r) => setTimeout(r, 500));
-  return { stillCooking: !!T.cooking.def, gearLeft: T.player.gear.lethal, liveAfter: T.grenades.live.length, liveBefore };
+  return { stillCooking: !!T.cooking.def, gearLeft: T.player.gear.lethal, liveAfter: mine(), liveBefore };
 });
 check("cooked-off frag still goes off on the other client", (await spentOnB()) === bSpentBefore + 1);
 check("cooked-off frag leaves the hand spent, not thrown", !cook.stillCooking && cook.gearLeft === 1 && cook.liveAfter === cook.liveBefore, JSON.stringify(cook));
@@ -317,6 +325,58 @@ const skinSeen = await B.evaluate((id) => {
   return { weapon: r?.weaponId, skin: r?.skin, mesh: r?.weaponMesh?.userData.skin };
 }, info[0].id);
 check("a weapon skin shows on the other client", skinSeen.skin === "green" && skinSeen.mesh === "green", JSON.stringify(skinSeen));
+
+// ---------- 12. a melee swing plays on the other client's view of you
+await A.evaluate(() => { const T = window.__trollOps; T.player.spawnGuard = 999; T.swingMelee(); });
+const swingSeen = await B.waitForFunction((id) => {
+  const r = window.__trollOps.remotes.byId.get(id);
+  return r?.swinging ? { sword: !!r.meleeMesh?.visible, gunHidden: r.weaponMesh ? !r.weaponMesh.visible : true } : null;
+}, info[0].id, { timeout: 5000 }).then((h) => h.jsonValue()).catch(() => null);
+check("a melee swing plays on the other client", !!swingSeen && swingSeen.sword && swingSeen.gunHidden, JSON.stringify(swingSeen));
+const swingDone = await B.waitForFunction((id) => {
+  const r = window.__trollOps.remotes.byId.get(id);
+  return r && !r.swinging && !r.meleeMesh?.visible && r.weaponMesh?.visible;
+}, info[0].id, { timeout: 10000 }).then(() => true).catch(() => false);
+check("the gun comes back after the remote swing", swingDone);
+
+// ---------- 13. a bot's frag flies on the other client and hurts them
+const hostIsA = await A.evaluate(() => window.__trollOps.net.isBotHost());
+const [H, V] = hostIsA ? [A, B] : [B, A];
+const victimId = info[hostIsA ? 1 : 0].id, victimTeam = info[hostIsA ? 1 : 0].team;
+await revive(V);
+await place(V, mid.x, mid.z);
+await sleep(500);   // let the host's view of V catch up to the move
+await V.evaluate(() => {
+  const T = window.__trollOps;
+  T.player.spawnGuard = 0;
+  window.__nadeHits = [];
+  const orig = T.net.h.onHitTaken;
+  T.net.h.onHitTaken = (m) => { window.__nadeHits.push(m.w + ":" + m.id); return orig(m); };
+});
+const botNade = await H.evaluate(({ vid, vteam }) => {
+  const T = window.__trollOps;
+  const bot = T.bots.bots.find((b) => b.team !== vteam && b.alive);
+  if (!bot) return null;
+  const v = T.net.peers.get(vid);
+  const s = v.snaps[v.snaps.length - 1];
+  bot.pos.set(s.x + 4, s.y, s.z);
+  bot.groundY = s.y;
+  const ok = T.botThrow(bot, "frag", { x: s.x, y: s.y, z: s.z });
+  const g = T.grenades.live[T.grenades.live.length - 1];
+  return { ok, bot: bot.id, gid: g?.gid, owner: g?.botId, rpAlive: T.remotes.byId.get(vid)?.alive };
+}, { vid: victimId, vteam: victimTeam });
+check("host bot throws a frag", !!botNade?.ok && botNade.owner === botNade.bot, JSON.stringify(botNade));
+await sleep(400);
+const botNadeOnV = botNade && await V.evaluate((gid) => {
+  const g = window.__trollOps.grenades.live.find((x) => x.gid === gid);
+  return g ? { remote: g.remote, owner: g.ownerId } : null;
+}, botNade.gid);
+check("the bot's frag flies on the other client", !!botNadeOnV && botNadeOnV.remote && botNadeOnV.owner === botNade.bot, JSON.stringify(botNadeOnV));
+await sleep(4500);
+const nadeHits = await V.evaluate(() => window.__nadeHits);
+check("the bot's frag damages the other client, credited to the bot",
+  !!botNade && nadeHits.includes(`frag:${botNade.bot}`), JSON.stringify(nadeHits));
+check("the bot's frag goes off on both clients", !!botNade && (await spent(H, botNade.gid)) && (await spent(V, botNade.gid)));
 
 check("no page errors", errors.length === 0, errors.slice(0, 5).join(" | "));
 
