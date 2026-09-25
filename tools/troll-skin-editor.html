@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troll Skin Editor</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0e1216; --panel: #151b21; --line: #26313a; --text: #dfe6da; --dim: #8b978f;
+    --accent: #7bff66; --warn: #ffb020;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 system-ui, sans-serif; }
+  header {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 5;
+  }
+  header strong { font-size: 14px; margin-right: 6px; }
+  button, select, input { font: inherit; color: inherit; }
+  button, select {
+    background: #22303a; border: 1px solid #33424e; border-radius: 6px; padding: 5px 10px; cursor: pointer;
+  }
+  button:hover { border-color: #4b5d6b; }
+  button.primary { background: #2f6b34; border-color: #4f9a55; font-weight: 600; }
+  button.on { background: #2b4a63; border-color: #4a7ea8; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #status { color: var(--dim); margin-left: auto; }
+  #status.dirty { color: var(--warn); }
+  #status.ok { color: var(--accent); }
+  main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; padding: 14px; }
+  @media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; min-width: 0; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 0 0 8px; font-weight: 600; }
+  .hint { color: var(--dim); font-size: 12px; margin: 6px 0 0; }
+  kbd { background: #22303a; border: 1px solid #33424e; border-radius: 4px; padding: 0 4px; font: 11px ui-monospace, monospace; }
+  #banner { width: 100%; display: block; border-radius: 6px; cursor: crosshair; touch-action: none; }
+  #view { width: 100%; aspect-ratio: 12 / 5; display: block; border-radius: 6px; cursor: grab; touch-action: none; }
+  #atlas { width: 100%; display: block; border-radius: 6px; cursor: copy; touch-action: none; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th { text-align: left; font-weight: 600; color: var(--dim); font-size: 11px; padding: 3px 4px; }
+  td { padding: 3px 4px; }
+  tr.part { cursor: pointer; }
+  tr.part.sel td { background: #1d2731; }
+  tr.part td:first-child { border-radius: 6px 0 0 6px; }
+  tr.part td:last-child { border-radius: 0 6px 6px 0; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  td input[type=number] { width: 64px; background: #0f151a; border: 1px solid #2b3842; border-radius: 5px; padding: 3px 5px; }
+  .grid2 { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 8px; align-items: center; margin-top: 8px; }
+  .grid2 input[type=range] { width: 100%; }
+  .grid2 output { font: 12px ui-monospace, monospace; color: var(--dim); min-width: 40px; text-align: right; }
+  .stack { display: grid; gap: 14px; align-content: start; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "../assets/vendor/three.module.min.js", "three/addons/": "../assets/vendor/addons/" } }
+</script>
+</head>
+<body>
+<header>
+  <strong>Skin editor</strong>
+  <button id="prev" aria-label="Previous skin">‹</button>
+  <select id="skin" aria-label="Skin"></select>
+  <button id="next" aria-label="Next skin">›</button>
+  <button id="revert">Revert skin</button>
+  <button id="save" class="primary">Save <kbd>Ctrl S</kbd></button>
+  <span id="status" role="status">Loading…</span>
+</header>
+<main>
+  <div class="stack">
+    <section>
+      <h2>Banner — drag the boxes</h2>
+      <canvas id="banner"></canvas>
+      <p class="hint">
+        Drag inside a box to move it · corner dot to zoom · top dot to rotate (<kbd>Shift</kbd> snaps 15°) ·
+        wheel zooms, <kbd>Alt</kbd>+wheel rotates · <kbd>1</kbd>–<kbd>6</kbd> pick a part · arrows nudge ·
+        <kbd>[</kbd> <kbd>]</kbd> rotate 1° · <kbd>F</kbd> flip. The ▶ marks the muzzle end of each part.
+      </p>
+      <table>
+        <thead><tr><th>Part</th><th>X</th><th>Y</th><th>Zoom</th><th>Rotate°</th><th>Flip</th><th></th></tr></thead>
+        <tbody id="parts"></tbody>
+      </table>
+    </section>
+  </div>
+  <div class="stack">
+    <section>
+      <h2>On the gun</h2>
+      <canvas id="view"></canvas>
+      <div class="row">
+        <button data-cam="left">Left</button>
+        <button data-cam="right">Right</button>
+        <button data-cam="three">¾</button>
+        <button data-cam="top">Top</button>
+        <span class="hint" style="margin:0">Drag to orbit, wheel to zoom.</span>
+      </div>
+    </section>
+    <section>
+      <h2>Atlas — drag to place the emblem</h2>
+      <canvas id="atlas" width="1024" height="512"></canvas>
+      <p class="hint">Drag on any part to put the trollface there. <kbd>Shift</kbd>+drag on the lower receiver moves the rollmark.</p>
+      <div class="grid2">
+        <label for="e-style">Emblem</label>
+        <select id="e-style"><option value="sticker">Sticker</option><option value="engrave">Engraved</option><option value="stamp">Stamp</option></select>
+        <span></span>
+        <label for="e-size">Size</label>
+        <input id="e-size" type="range" min="0.1" max="1" step="0.01">
+        <output id="e-size-out"></output>
+        <label for="e-color">Colour</label>
+        <span class="row" style="margin:0"><input id="e-color" type="color"><label><input id="e-ink" type="checkbox"> use the skin's ink</label></span>
+        <span></span>
+      </div>
+    </section>
+  </div>
+</main>
+<canvas id="bake-view" width="360" height="128" hidden></canvas>
+<script type="module">
+import * as THREE from "three";
+import { SKINS, SKIN_BY_ID, SKIN_ATLAS } from "../assets/games/troll-ops/skins.js";
+import { build416 } from "../assets/games/troll-ops/weapon-416.js";
+import { resolveWeapon } from "../assets/games/troll-ops/attachments.js";
+import { PARTS, bannerImage, bakeAtlas, cropFrame } from "./troll-skin-draw.js";
+
+const COLORS = { upper: "#ff5a5a", lower: "#ffb020", handguard: "#3ddc84", stock: "#4aa8ff", grip: "#c77dff", mag: "#ff6ec7" };
+const NAMES = { upper: "Upper", lower: "Lower", handguard: "Handguard", stock: "Stock", grip: "Grip", mag: "Mag" };
+const $ = (id) => document.getElementById(id);
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+/* ------------------------------------------------------------------ state */
+
+// Working copies, one per skin, so switching skins keeps unsaved edits.
+const saved = Object.fromEntries(SKINS.map((s) => [s.id, clone(s)]));
+const work = Object.fromEntries(SKINS.map((s) => [s.id, clone(s)]));
+let skinId = SKINS[0].id;
+let part = "upper";
+let img = null;
+const skin = () => work[skinId];
+const full = (c) => [c[0], c[1], c[2], c[3] || 0, c[4] ? 1 : 0];
+const isDirty = (id) => JSON.stringify({ c: work[id].crops, e: work[id].emblem, r: work[id].rollmark ?? null })
+  !== JSON.stringify({ c: saved[id].crops, e: saved[id].emblem, r: saved[id].rollmark ?? null });
+
+function setStatus(text, cls = "") { const s = $("status"); s.textContent = text; s.className = cls; }
+function refreshStatus() {
+  const dirty = SKINS.filter((s) => isDirty(s.id));
+  if (isDirty(skinId)) setStatus("Unsaved changes", "dirty");
+  else if (dirty.length) setStatus(`Saved. ${dirty.length} other skin${dirty.length > 1 ? "s" : ""} unsaved`, "dirty");
+  else setStatus("All saved");
+  for (const o of $("skin").options) o.textContent = (isDirty(o.value) ? "• " : "") + SKIN_BY_ID[o.value].name;
+}
+
+/* ----------------------------------------------------------------- banner */
+
+const bc = $("banner");
+const bx = bc.getContext("2d");
+let k = 1;   // canvas px per banner px
+
+function fitBanner() {
+  const w = bc.clientWidth * devicePixelRatio;
+  k = w / img.width;
+  bc.width = Math.round(w);
+  bc.height = Math.round(img.height * k);
+}
+
+/* A part's crop as a turned box on the banner canvas. */
+function boxOf(key) {
+  const f = cropFrame(img, key, skin().crops[key]);
+  const a = f.rot * Math.PI / 180;
+  return { x: f.x * k, y: f.y * k, hw: f.sw * k / 2, hh: f.sh * k / 2, a, ux: Math.cos(a), uy: Math.sin(a), flip: f.flip };
+}
+const toBox = (b, px, py) => {
+  const dx = px - b.x, dy = py - b.y;
+  return [dx * b.ux + dy * b.uy, -dx * b.uy + dy * b.ux];
+};
+const fromBox = (b, lx, ly) => [b.x + lx * b.ux - ly * b.uy, b.y + lx * b.uy + ly * b.ux];
+const HANDLE = () => 7 * devicePixelRatio;
+/* The rotate dot sits off the box's top edge, or its bottom edge when the
+   top one would land outside the canvas (a crop along the banner's top). */
+function rotSide(b) {
+  const [x, y] = fromBox(b, 0, -b.hh - 22 * devicePixelRatio);
+  return x < 0 || y < 0 || x > bc.width || y > bc.height ? 1 : -1;
+}
+const rotHandle = (b) => fromBox(b, 0, rotSide(b) * (b.hh + 22 * devicePixelRatio));
+
+function boxPath(ctx, b) {
+  const c = [[-b.hw, -b.hh], [b.hw, -b.hh], [b.hw, b.hh], [-b.hw, b.hh]].map(([x, y]) => fromBox(b, x, y));
+  ctx.beginPath(); c.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+}
+
+function drawBanner() {
+  bx.clearRect(0, 0, bc.width, bc.height);
+  bx.globalAlpha = 0.45;
+  bx.drawImage(img, 0, 0, bc.width, bc.height);
+  bx.globalAlpha = 1;
+  const order = [...PARTS.filter((p) => p !== part), part];
+  // Art inside every box at full strength, so the crops read at a glance.
+  for (const key of order) {
+    const b = boxOf(key);
+    bx.save(); boxPath(bx, b); bx.clip(); bx.drawImage(img, 0, 0, bc.width, bc.height); bx.restore();
+  }
+  const dpr = devicePixelRatio;
+  for (const key of order) {
+    const b = boxOf(key), sel = key === part;
+    bx.lineWidth = (sel ? 3 : 1.6) * dpr;
+    bx.strokeStyle = COLORS[key];
+    bx.setLineDash(sel ? [] : [6 * dpr, 4 * dpr]);
+    boxPath(bx, b); bx.stroke();
+    bx.setLineDash([]);
+    // Muzzle marker: the atlas is drawn muzzle-left, so it's the box's -x
+    // end, or +x once flipped.
+    const end = b.flip ? 1 : -1;
+    const [mx, my] = fromBox(b, end * (b.hw - 10 * dpr), 0);
+    bx.save(); bx.translate(mx, my); bx.rotate(b.a + (end > 0 ? 0 : Math.PI));
+    bx.fillStyle = COLORS[key];
+    bx.beginPath(); bx.moveTo(6 * dpr, 0); bx.lineTo(-4 * dpr, -5 * dpr); bx.lineTo(-4 * dpr, 5 * dpr); bx.closePath(); bx.fill();
+    bx.restore();
+    // Label at the top-left corner.
+    const [lx, ly] = fromBox(b, -b.hw, -b.hh);
+    bx.font = `600 ${11 * dpr}px system-ui, sans-serif`;
+    const text = NAMES[key];
+    const tw = bx.measureText(text).width;
+    bx.fillStyle = COLORS[key];
+    bx.fillRect(lx, ly - 15 * dpr, tw + 8 * dpr, 15 * dpr);
+    bx.fillStyle = "#0e1216";
+    bx.fillText(text, lx + 4 * dpr, ly - 4 * dpr);
+    if (sel) {
+      bx.fillStyle = "#fff";
+      for (const [cx, cy] of [[-b.hw, -b.hh], [b.hw, -b.hh], [b.hw, b.hh], [-b.hw, b.hh]]) {
+        const [x, y] = fromBox(b, cx, cy);
+        bx.beginPath(); bx.arc(x, y, HANDLE() * 0.8, 0, Math.PI * 2); bx.fill();
+      }
+      const [tx, ty] = fromBox(b, 0, rotSide(b) * b.hh);
+      const [rx, ry] = rotHandle(b);
+      bx.strokeStyle = "#fff"; bx.lineWidth = 1.5 * dpr;
+      bx.beginPath(); bx.moveTo(tx, ty); bx.lineTo(rx, ry); bx.stroke();
+      bx.beginPath(); bx.arc(rx, ry, HANDLE(), 0, Math.PI * 2); bx.fill();
+    }
+  }
+}
+
+function canvasPoint(e) {
+  const r = bc.getBoundingClientRect();
+  return [(e.clientX - r.left) * bc.width / r.width, (e.clientY - r.top) * bc.height / r.height];
+}
+
+let drag = null;
+bc.addEventListener("pointerdown", (e) => {
+  const [px, py] = canvasPoint(e);
+  const b = boxOf(part);
+  const near = (x, y) => Math.hypot(px - x, py - y) <= HANDLE() * 1.6;
+  const crop = full(skin().crops[part]);
+  const [rx, ry] = rotHandle(b);
+  if (near(rx, ry)) {
+    drag = { mode: "rot", key: part, side: rotSide(b) };
+  } else if ([[-1, -1], [1, -1], [1, 1], [-1, 1]].some(([sx, sy]) => near(...fromBox(b, sx * b.hw, sy * b.hh)))) {
+    drag = { mode: "zoom", key: part, zoom0: crop[2], d0: Math.hypot(px - b.x, py - b.y) };
+  } else {
+    // Topmost box under the pointer: the selected one wins, then the rest
+    // in reverse draw order.
+    const hit = [part, ...PARTS.filter((p) => p !== part).reverse()].find((key) => {
+      const bb = boxOf(key); const [lx, ly] = toBox(bb, px, py);
+      return Math.abs(lx) <= bb.hw && Math.abs(ly) <= bb.hh;
+    });
+    if (!hit) return;
+    select(hit);
+    const bb = boxOf(hit);
+    drag = { mode: "move", key: hit, ox: px - bb.x, oy: py - bb.y };
+  }
+  bc.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+bc.addEventListener("pointermove", (e) => {
+  const [px, py] = canvasPoint(e);
+  if (!drag) {
+    const b = boxOf(part);
+    const [rx, ry] = rotHandle(b);
+    bc.style.cursor = Math.hypot(px - rx, py - ry) <= HANDLE() * 1.6 ? "grab" : "crosshair";
+    return;
+  }
+  const c = full(skin().crops[drag.key]);
+  if (drag.mode === "move") {
+    c[0] = (px - drag.ox) / k / img.width;
+    c[1] = (py - drag.oy) / k / img.height;
+  } else if (drag.mode === "zoom") {
+    const b = boxOf(drag.key);
+    c[2] = Math.max(0.01, Math.min(2, drag.zoom0 * Math.hypot(px - b.x, py - b.y) / Math.max(1, drag.d0)));
+  } else {
+    const b = boxOf(drag.key);
+    let deg = Math.atan2(py - b.y, px - b.x) * 180 / Math.PI - drag.side * 90;
+    if (e.shiftKey) deg = Math.round(deg / 15) * 15;
+    else for (const s of [-180, -90, 0, 90, 180]) if (Math.abs(deg - s) < 3) deg = s;
+    c[3] = ((deg + 540) % 360) - 180;
+  }
+  setCrop(drag.key, c);
+});
+const endDrag = () => { if (drag) { settle(drag.key); drag = null; } };
+bc.addEventListener("pointerup", endDrag);
+bc.addEventListener("pointercancel", endDrag);
+bc.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const c = full(skin().crops[part]);
+  if (e.altKey) c[3] = ((c[3] + Math.sign(e.deltaY) * 2 + 540) % 360) - 180;
+  else c[2] = Math.max(0.01, Math.min(2, c[2] * (e.deltaY > 0 ? 1.05 : 1 / 1.05)));
+  setCrop(part, c);
+  settle(part);
+}, { passive: false });
+
+/* An unturned crop is kept inside the banner when it's drawn; store where
+   it actually ended up, so the numbers match the box you see. */
+function settle(key) {
+  const c = full(skin().crops[key]);
+  if (!c[3] && !c[4]) {
+    const f = cropFrame(img, key, c);
+    c[0] = f.x / img.width; c[1] = f.y / img.height;
+    c[2] = f.sw / img.width;
+    setCrop(key, c);
+  }
+}
+
+/* ------------------------------------------------------------ part table */
+
+function buildTable() {
+  const tb = $("parts");
+  tb.innerHTML = "";
+  PARTS.forEach((key, i) => {
+    const tr = document.createElement("tr");
+    tr.className = "part"; tr.dataset.key = key;
+    tr.innerHTML = `<td><span class="sw" style="background:${COLORS[key]}"></span>${i + 1} ${NAMES[key]}</td>`
+      + ["cx", "cy", "zoom", "rot"].map((f) => `<td><input type="number" data-f="${f}" step="${f === "rot" ? 1 : 0.005}" aria-label="${NAMES[key]} ${f}"></td>`).join("")
+      + `<td><input type="checkbox" data-f="flip" aria-label="Flip ${NAMES[key]}"></td>`
+      + `<td><button data-reset aria-label="Reset ${NAMES[key]}">Reset</button></td>`;
+    tr.addEventListener("pointerdown", () => select(key));
+    tr.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", () => {
+      const c = full(skin().crops[key]);
+      const idx = { cx: 0, cy: 1, zoom: 2, rot: 3, flip: 4 }[inp.dataset.f];
+      c[idx] = inp.type === "checkbox" ? (inp.checked ? 1 : 0) : Number(inp.value) || 0;
+      setCrop(key, c, { fromTable: true });
+    }));
+    tr.querySelector("[data-reset]").addEventListener("click", () => setCrop(key, full(saved[skinId].crops[key])));
+    tb.appendChild(tr);
+  });
+}
+function paintTable(skipKey = null) {
+  for (const tr of $("parts").children) {
+    const key = tr.dataset.key;
+    tr.classList.toggle("sel", key === part);
+    if (key === skipKey) continue;
+    const c = full(skin().crops[key]);
+    const vals = { cx: c[0].toFixed(3), cy: c[1].toFixed(3), zoom: c[2].toFixed(3), rot: String(Math.round(c[3])) };
+    tr.querySelectorAll("input[type=number]").forEach((inp) => { inp.value = vals[inp.dataset.f]; });
+    tr.querySelector("input[type=checkbox]").checked = !!c[4];
+  }
+}
+
+/* ------------------------------------------------------------ emblem UI */
+
+function paintEmblemUi() {
+  const e = skin().emblem;
+  $("e-style").value = e.style;
+  $("e-size").value = e.at[3];
+  $("e-size-out").textContent = Number(e.at[3]).toFixed(2);
+  $("e-ink").checked = !e.color;
+  $("e-color").value = e.color || skin().palette.ink;
+  $("e-color").disabled = !e.color;
+}
+$("e-style").addEventListener("input", () => { skin().emblem.style = $("e-style").value; changed(); });
+$("e-size").addEventListener("input", () => { skin().emblem.at[3] = Number($("e-size").value); changed(); });
+$("e-ink").addEventListener("input", () => {
+  if ($("e-ink").checked) delete skin().emblem.color; else skin().emblem.color = $("e-color").value;
+  changed();
+});
+$("e-color").addEventListener("input", () => { skin().emblem.color = $("e-color").value; changed(); });
+
+const atlas = $("atlas");
+function atlasPoint(e) {
+  const r = atlas.getBoundingClientRect();
+  return [(e.clientX - r.left) * atlas.width / r.width, (e.clientY - r.top) * atlas.height / r.height];
+}
+let atlasDrag = null;
+function placeFromAtlas(e) {
+  const [x, y] = atlasPoint(e);
+  const hit = PARTS.find((key) => { const r = SKIN_ATLAS.regions[key]; return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; });
+  if (!hit) return;
+  const r = SKIN_ATLAS.regions[hit];
+  const s = Math.max(0, Math.min(1, (x - r.x) / r.w)), t = Math.max(0, Math.min(1, 1 - (y - r.y) / r.h));
+  if (atlasDrag === "roll") {
+    if (hit !== "lower") return;
+    const align = skin().rollmark?.[2] || "right";
+    skin().rollmark = [s, t, align];
+  } else {
+    const e0 = skin().emblem;
+    e0.at = [hit, s, t, e0.at[3]];
+  }
+  changed();
+}
+atlas.addEventListener("pointerdown", (e) => { atlasDrag = e.shiftKey ? "roll" : "emblem"; atlas.setPointerCapture(e.pointerId); placeFromAtlas(e); });
+atlas.addEventListener("pointermove", (e) => { if (atlasDrag) placeFromAtlas(e); });
+atlas.addEventListener("pointerup", () => { atlasDrag = null; });
+
+/* --------------------------------------------------------------- 3D view */
+
+const view = $("view");
+const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, preserveDrawingBuffer: true });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e1216);
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x1a1d20, 1.5));
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.4); keyLight.position.set(-2, 3, 2); scene.add(keyLight);
+const rim = new THREE.DirectionalLight(0x9fc4ff, 1.2); rim.position.set(2, 1, -3); scene.add(rim);
+const cam = new THREE.PerspectiveCamera(24, 12 / 5, 0.01, 10);
+const target = new THREE.Vector3(0, -0.04, -0.14);
+const orbit = { yaw: -1.25, pitch: 0.28, dist: 1.1 };
+const def416 = resolveWeapon("problem416", { optic: "reflex" });
+const tex = new THREE.CanvasTexture(atlas);
+tex.colorSpace = THREE.SRGBColorSpace;
+tex.anisotropy = 8;
+let gun = null;
+function buildGun() {
+  if (gun) scene.remove(gun);
+  gun = build416(def416, skinId, { texture: tex });
+  gun.traverse((o) => { if (o.userData.hand) o.visible = false; });
+  scene.add(gun);
+}
+function placeCam() {
+  cam.position.set(
+    target.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist,
+    target.y + Math.sin(orbit.pitch) * orbit.dist,
+    target.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);
+  cam.lookAt(target);
+}
+function renderView() {
+  const w = Math.round(view.clientWidth * devicePixelRatio), h = Math.round(view.clientHeight * devicePixelRatio);
+  if (view.width !== w || view.height !== h) { renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+  placeCam();
+  renderer.render(scene, cam);
+}
+const CAMS = { left: [-Math.PI / 2, 0.1, 1.05], right: [Math.PI / 2, 0.1, 1.05], three: [-0.9, 0.5, 1.1], top: [-Math.PI / 2, 1.3, 1.1] };
+for (const b of document.querySelectorAll("[data-cam]")) {
+  b.addEventListener("click", () => { [orbit.yaw, orbit.pitch, orbit.dist] = CAMS[b.dataset.cam]; renderView(); });
+}
+let orbiting = null;
+view.addEventListener("pointerdown", (e) => { orbiting = [e.clientX, e.clientY]; view.setPointerCapture(e.pointerId); view.style.cursor = "grabbing"; });
+view.addEventListener("pointermove", (e) => {
+  if (!orbiting) return;
+  orbit.yaw -= (e.clientX - orbiting[0]) * 0.008;
+  orbit.pitch = Math.max(-1.4, Math.min(1.4, orbit.pitch + (e.clientY - orbiting[1]) * 0.008));
+  orbiting = [e.clientX, e.clientY];
+  renderView();
+});
+view.addEventListener("pointerup", () => { orbiting = null; view.style.cursor = "grab"; });
+view.addEventListener("wheel", (e) => { e.preventDefault(); orbit.dist = Math.max(0.35, Math.min(2.5, orbit.dist * (e.deltaY > 0 ? 1.08 : 1 / 1.08))); renderView(); }, { passive: false });
+
+/* The picker thumbnail, framed exactly as troll-skin-bake.html frames it. */
+function renderThumb() {
+  const size = [view.width, view.height];
+  renderer.setSize(360, 128, false);
+  cam.aspect = 360 / 128; cam.updateProjectionMatrix();
+  cam.position.set(-0.84, 0.03, -0.14);
+  cam.lookAt(new THREE.Vector3(0, -0.055, -0.14));
+  renderer.render(scene, cam);
+  const url = view.toDataURL("image/jpeg", 0.84);
+  renderer.setSize(size[0], size[1], false);
+  cam.aspect = size[0] / size[1]; cam.updateProjectionMatrix();
+  renderView();
+  return url;
+}
+
+/* ---------------------------------------------------------------- redraw */
+
+let baking = false, again = false;
+async function rebake() {
+  if (baking) { again = true; return; }
+  baking = true;
+  do {
+    again = false;
+    await bakeAtlas(skin(), atlas);
+    tex.needsUpdate = true;
+    renderView();
+  } while (again);
+  baking = false;
+}
+
+function changed(skipTableKey = null) {
+  drawBanner();
+  paintTable(skipTableKey);
+  paintEmblemUi();
+  refreshStatus();
+  rebake();
+}
+function setCrop(key, c, { fromTable = false } = {}) {
+  const [cx, cy, zoom, rot, flip] = c;
+  skin().crops[key] = rot || flip ? [cx, cy, zoom, rot, flip ? 1 : 0] : [cx, cy, zoom];
+  changed(fromTable ? key : null);
+}
+function select(key) { part = key; drawBanner(); paintTable(); }
+
+async function openSkin(id) {
+  skinId = id;
+  $("skin").value = id;
+  img = await bannerImage(skin().banner);
+  fitBanner();
+  buildGun();
+  changed();
+}
+
+/* ------------------------------------------------------------------ save */
+
+async function save() {
+  const s = skin();
+  setStatus("Saving…");
+  await bakeAtlas(s, atlas);
+  tex.needsUpdate = true;
+  const jpg = atlas.toDataURL("image/jpeg", 0.86);
+  const thumb = renderThumb();
+  const res = await fetch("/save", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id: s.id, crops: s.crops, emblem: s.emblem, rollmark: s.rollmark || null, jpg, thumb }),
+  }).then((r) => r.json()).catch((e) => ({ ok: false, error: e.message }));
+  if (!res.ok) { setStatus(`Save failed: ${res.error}. Is tools/troll-skin-editor.mjs running?`, "dirty"); return false; }
+  saved[s.id] = clone(s);
+  refreshStatus();
+  if (!isDirty(s.id)) setStatus(`Saved ${s.name} — skins.js and skins/${s.id}.jpg`, "ok");
+  return true;
+}
+
+/* -------------------------------------------------------------------- UI */
+
+for (const s of SKINS) {
+  const o = document.createElement("option");
+  o.value = s.id; o.textContent = s.name;
+  $("skin").appendChild(o);
+}
+const step = (d) => openSkin(SKINS[(SKINS.findIndex((s) => s.id === skinId) + d + SKINS.length) % SKINS.length].id);
+$("skin").addEventListener("change", () => openSkin($("skin").value));
+$("prev").addEventListener("click", () => step(-1));
+$("next").addEventListener("click", () => step(1));
+$("revert").addEventListener("click", () => { work[skinId] = clone(saved[skinId]); openSkin(skinId); });
+$("save").addEventListener("click", save);
+
+window.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
+  if (e.target.closest("input, select")) return;
+  const n = Number(e.key);
+  if (n >= 1 && n <= 6) { select(PARTS[n - 1]); return; }
+  const c = full(skin().crops[part]);
+  const px = (e.shiftKey ? 10 : 1) / (img.width * k / devicePixelRatio);
+  if (e.key === "ArrowLeft") c[0] -= px;
+  else if (e.key === "ArrowRight") c[0] += px;
+  else if (e.key === "ArrowUp") c[1] -= px * img.width / img.height;
+  else if (e.key === "ArrowDown") c[1] += px * img.width / img.height;
+  else if (e.key === "[") c[3] -= e.shiftKey ? 15 : 1;
+  else if (e.key === "]") c[3] += e.shiftKey ? 15 : 1;
+  else if (e.key.toLowerCase() === "f") c[4] = c[4] ? 0 : 1;
+  else return;
+  e.preventDefault();
+  c[3] = ((c[3] + 540) % 360) - 180;
+  setCrop(part, c);
+  settle(part);
+});
+window.addEventListener("resize", () => { fitBanner(); drawBanner(); renderView(); });
+window.addEventListener("beforeunload", (e) => { if (SKINS.some((s) => isDirty(s.id))) { e.preventDefault(); e.returnValue = ""; } });
+
+buildTable();
+await document.fonts.ready;
+await openSkin(skinId);
+
+/* Hooks for scripted edits (a headless re-crop pass, tests). */
+window.__editor = {
+  open: openSkin,
+  setCrop: (id, key, c) => { work[id].crops[key] = c; if (id === skinId) changed(); },
+  setEmblem: (id, e) => { work[id].emblem = e; if (id === skinId) changed(); },
+  setRollmark: (id, r) => { work[id].rollmark = r; if (id === skinId) changed(); },
+  save: async (id) => { await openSkin(id); return save(); },
+  get: (id) => clone(work[id]),
+};
+window.__ready = true;
+</script>
+</body>
+</html>

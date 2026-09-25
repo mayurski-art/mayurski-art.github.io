@@ -12,14 +12,15 @@
 - Undergrin fps: now on par with Grin Site headless (18-22), left alone.
 - Sync test passes (grenades, bot frag, melee, infection x6). Cache-bust is now ?v=to-sword1.
 
-## NEXT: weapon skins (the only task left)
-User's meaning of 'revision': reposition / cut / crop different parts of each
-banner onto different parts of the weapon (per-part crop placement). Today that
-is skins.js SKINS[].crops {part: [cx, cy, zoom]} baked by tools/troll-skin-bake.mjs.
-Plan to propose first (not started): an interactive crop editor page
-(tools/troll-skin-editor.html) showing the banner with a draggable/resizable
-box per part + live 3D preview of weapon-416, exporting the crops table; then
-re-bake. Get the user's OK on that plan before building.
+## Weapon skins: editor shipped (session 7)
+- tools/troll-skin-editor.mjs + .html: drag/zoom/rotate/flip each part's crop on
+  the banner, place emblem/rollmark on the atlas, live 3D gun. Save writes
+  skins.js + skins/<id>.jpg + thumb. Run: node tools/troll-skin-editor.mjs
+- Crops are now [cx, cy, zoom, rot, flip]; drawing shared in tools/troll-skin-draw.js
+  (bake page imports it). rot=0/flip=0 draws exactly as before.
+- Claude did a first re-crop pass (problem, green, hitman, jungle, knight,
+  lightspeed, office, order). The USER fine-tunes the rest in the editor.
+- Next if asked: more weapons skinnable (needs panelled models like weapon-416.js).
 
 ## Infection notes
 - Survivors = phantom slot, Infected = ghost slot, relabelled via teamName().
