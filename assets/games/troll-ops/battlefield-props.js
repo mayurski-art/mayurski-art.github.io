@@ -85,13 +85,14 @@ export function loadModel(name, mapping = PROP_RETEXTURE) {
 /* Drops a loaded clone into the scene once it resolves. Placement happens
    the instant the promise settles, so the collider (added synchronously,
    below) is live well before the visible mesh streams in. */
-export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping }) {
+export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping, castShadow = true }) {
   loadModel(name, mapping).then((obj) => {
     obj.position.set(x, y, z);
     obj.rotation.y = rot;
     if (Array.isArray(scale)) obj.scale.set(...scale);
     else if (scale !== 1) obj.scale.setScalar(scale);
     api.prop(obj);
+    if (!castShadow) obj.traverse((n) => { n.castShadow = false; });
   });
 }
 

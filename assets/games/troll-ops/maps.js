@@ -492,15 +492,18 @@ export const MAPS = {
           for (const x of [7, 9, 11]) api.box(s * x, z, 0.3, 1.2, 1.0, { ghost: true, color: 0x9a9ea2, y: P, pen: 2 });
         }
       }
-      for (let z = -28; z <= 28; z += 4) {
-        api.lamp(-8.5, 6.4, z, 0xe8f0ff, 7, 12);
-        api.lamp(8.5, 6.4, z, 0xe8f0ff, 7, 12);
+      // A real light every 8 m (the strip fittings between are emissive
+      // only). Every lit pixel loops over every point light, and at one per
+      // 4 m the modelled station ran ~30% slower than the blockout.
+      for (let z = -28; z <= 28; z += 8) {
+        api.lamp(-8.5, 6.4, z, 0xe8f0ff, 10, 15);
+        api.lamp(8.5, 6.4, z, 0xe8f0ff, 10, 15);
       }
       for (const z of [-8, 8]) api.lamp(0, P + 2.0, z, 0xfff0d0, 6, 9);
 
       // Every collider above is the approved blockout's, now invisible; the
       // station is drawn by ug-*.glb (models/build_undergrin.blender.py).
-      for (const part of ["station", "platforms", "train", "fittings"]) mapModel(api, `ug-${part}`, { x: 0, z: 0 });
+      for (const part of ["station", "platforms", "train", "fittings"]) mapModel(api, `ug-${part}`, { x: 0, z: 0, castShadow: false });
     },
     spawns: [[0, -30], [0, 30], [-9, -29], [9, -29], [-9, 29], [9, 29], [-9, -18], [9, 18]],
   },
