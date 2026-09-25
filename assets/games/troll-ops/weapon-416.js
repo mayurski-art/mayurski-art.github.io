@@ -193,13 +193,8 @@ export function build416(def, skinId, { texture = null } = {}) {
   const charging = box(0.026, 0.007, 0.014, M.metal);
   charging.position.set(0, 0.033, 0.074);
   group.add(charging);
-  const port = box(0.002, 0.014, 0.058, M.accent);
-  port.position.set(0.0262, 0.019, -0.09);
-  group.add(port);
-  const assist = cyl(0.006, 0.006, 0.014, M.accent, 8);
-  assist.rotation.set(0, 0, Math.PI / 2);
-  assist.position.set(0.027, 0.024, 0.03);
-  group.add(assist);
+  // No ejection-port cover or forward assist: on the right side they sat
+  // on top of the skin art as a coloured bar and dot.
   const guard = box(0.012, 0.004, 0.076, M.accent);
   guard.position.set(0, -0.055, -0.004);
   group.add(guard);
