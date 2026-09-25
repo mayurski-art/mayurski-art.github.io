@@ -59,38 +59,36 @@ Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
    bellow: reticle on the true centre, nothing blocks the view. Hip view
    unchanged. Cache-bust now `?v=to-aa2`.
 
+## Done (session 3, 2026-09-24)
+
+1. **Main menu v2 BUILT** from the approved canvas
+   (https://claude.ai/artifact/XXhnWGcoA1BfCYvUC49LKa, board Main.dc.html).
+   Top tab bar (Play / Loadout / Gear / Scorestreaks / Servers / Settings),
+   grouped Versus/Solo mode list, loadout card with attachment chips, map card
+   -> right-hand map drawer, big DEPLOY, footer (Back to arcade, radio, X,
+   Buy $TRUTHS). Loadout + Customize share the Loadout tab via a
+   Weapons/Customize switch. The room roster moved into Servers. Ballistics
+   bars are gone from the Play screen (still in the Weapons view).
+   - Every old element id survived; "deploy" is still the Play/home panel.
+   - Phone (<760px cabinet): bottom tab bar, bottom sheet with scrolling mode
+     chips, map row, full-width Deploy. The operator is visible on phones
+     again (the old char view had negative width). Landscape phones
+     (<=520px tall) get a compact desktop layout.
+   - Checked at 1440x900, 1280x720, 390x844, 844x390; smoke test (modes,
+     forced maps, drawer + Esc + focus return, Deploy) and sync test pass.
+   - The user edits the canvas; re-read it before any menu change and port
+     only the diff. Cache-bust is `?v=to-menu2`.
+
 ## Still to do (asked for, not started)
 
-1. **Main menu redesign — design APPROVED, build not started.** The design
-   lives in an editable Design canvas the user keeps tweaking:
-   https://claude.ai/artifact/XXhnWGcoA1BfCYvUC49LKa
-   - `Main.dc.html` = the approved desktop Play screen (user picked it).
-     `MapPicker.dc.html` = the slide-out map panel "Change" opens.
-     `Mobile.dc.html` = phone layout. `Current.dc.html` = old menu screenshot.
-   - ALWAYS re-read the canvas files (Artifact read, path project/<name>)
-     before building; the user edits them. Their first edit: removed the
-     small note above DEPLOY.
-   - The design: top tab bar (Play / Loadout / Gear / Scorestreaks / Servers /
-     Settings) with rank + XP bar top right; mode list on the left grouped
-     Versus / Solo with the selected mode's blurb under it; compact loadout
-     card top right (guns, attachment chips, 3 gear cells; ballistics bars
-     move into Customize); small map card bottom left with Change -> right
-     drawer of all 6 maps; big green DEPLOY bottom right; footer with Back
-     to arcade, music, X, Buy $TRUTHS. Fonts/colours: Oswald + DM Sans + DM
-     Mono, ink #0b0f0d, panels rgba(8,11,9,.8), text #eef3ea, dim #a9b6a3,
-     accent #7fe066, XP amber #ffb020.
-   - Build plan: rework the `.to-pf` lobby in troll-ops.html + style.css.
-     Keep every existing element id (loadout.js / game.js bind to them:
-     to-start-btn, to-lo-maps, to-lo-mode, to-lo-modeblurb, to-pf-sum-*,
-     to-lo-rank-*, to-set-*-lobby, data-panel buttons, etc.) and move them
-     into the new layout rather than rewriting the JS. The Game Mode panel
-     becomes the always-visible left list; Map Select becomes the drawer.
-   - Bug found: on phones the menu operator is off-screen (the camera
-     frames the empty site). Fix the menu camera for narrow viewports.
-   - Open questions left with the user: bolder hero variant? ballistics in
-     Customize only? add a "Random map" option?
-2. **All maps rework** — object placement and construction should make sense
+1. **All maps rework** — object placement and construction should make sense
    and feel complete. Big: plan/design doc first, one map at a time.
+
+2. **Weapon skins via Blender** (user idea, not started). Blender 5.2.1 LTS is
+   installed at C:/Program Files/Blender Foundation/Blender 5.2/blender.exe and
+   runs headless (`--background --python`). Could bake real PBR maps (colour,
+   roughness, normal) for the 416 skins, and model proper .glb guns with UVs
+   so every weapon can wear skins. Propose a plan before building.
 
 ## Backlog (not for now)
 

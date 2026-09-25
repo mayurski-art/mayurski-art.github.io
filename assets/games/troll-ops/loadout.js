@@ -160,6 +160,7 @@ export class Loadout {
       b.appendChild(name);
       const tag = document.createElement("span");
       tag.className = "to-map-tag";
+      tag.textContent = MAPS[id].blurb;
       b.appendChild(tag);
       b.setAttribute("aria-label", `Map: ${MAPS[id].name} — ${MAPS[id].blurb}`);
       b.addEventListener("click", () => {
@@ -169,9 +170,6 @@ export class Loadout {
       });
       wrap.appendChild(b);
     }
-    this.mapBlurb = document.createElement("span");
-    this.mapBlurb.className = "to-lo-map-blurb";
-    wrap.appendChild(this.mapBlurb);
     this.thumbsDrawn = false;
     requestAnimationFrame(() => this.drawMapThumbs());
   }
@@ -191,6 +189,36 @@ export class Loadout {
       requestAnimationFrame(step);
     };
     step();
+  }
+
+  /* The Play tab's map card: the map you'll deploy into, or the one a mode
+     forces (Zombies, the range), which also hides Change. */
+  setForcedMap(id) {
+    this.forcedMapId = id;
+    this.renderMapCard();
+  }
+
+  renderMapCard() {
+    const card = this.els.mapCard;
+    if (!card) return;
+    const id = this.forcedMapId || this.mapId;
+    const map = MAPS[id];
+    const name = map?.name || (id === "pentagrin" ? "The Pentagrin" : id);
+    if (card.name) card.name.textContent = name;
+    if (card.blurb) card.blurb.textContent = map?.blurb || "This mode brings its own map.";
+    if (card.change) card.change.hidden = !!this.forcedMapId;
+    if (card.thumb) card.thumb.setAttribute("aria-label", `${name} layout`);
+    this.mapCardDrawn = null;
+    this.drawMapCard();
+  }
+
+  drawMapCard() {
+    const thumb = this.els.mapCard?.thumb;
+    const id = this.forcedMapId || this.mapId;
+    if (!thumb || this.mapCardDrawn === id) return;
+    try {
+      if (drawMapThumb(thumb, id)) this.mapCardDrawn = id;
+    } catch { /* a map without a schematic just keeps the blank tile */ }
   }
 
   /* Primary/Secondary toggle above the class tabs. Secondary only ever
@@ -491,11 +519,9 @@ export class Loadout {
         const on = b.dataset.map === this.mapId;
         b.classList.toggle("is-active", on);
         b.setAttribute("aria-pressed", String(on));
-        const tag = b.querySelector(".to-map-tag");
-        if (tag) tag.textContent = on ? "Deploying here" : "Select";
       }
-      if (this.mapBlurb) this.mapBlurb.textContent = MAPS[this.mapId].blurb;
     }
+    this.renderMapCard();
 
     for (const b of this.els.classes.children) {
       b.classList.toggle("is-active", b.dataset.cls === this.cls);
@@ -566,28 +592,26 @@ export class Loadout {
     if (sum.lethal) sum.lethal.textContent = `${this.lethal.name} ×${this.lethal.carried}`;
     if (sum.tactical) sum.tactical.textContent = `${this.tactical.name} ×${this.tactical.carried}`;
 
+    // The primary's fitted parts as chips; stock parts (iron sights, Standard
+    // barrel, no underbarrel...) are left out so the card only shows what you chose.
     if (sum.atts) {
       sum.atts.innerHTML = "";
+      const atts = this.attachmentsFor(this.weaponId);
+      const chip = (text, title) => {
+        const c = document.createElement("span");
+        c.className = "to-pf-chip";
+        c.textContent = text;
+        if (title) c.title = title;
+        sum.atts.appendChild(c);
+      };
       for (const slot of SLOTS) {
-        const att = ATTACHMENTS[slot][this.attachments[slot]];
-        const row = document.createElement("div");
-        row.className = "to-pf-row";
-        const label = document.createElement("span");
-        label.textContent = SLOT_LABELS[slot];
-        const value = document.createElement("b");
-        value.textContent = att ? att.name : "—";
-        row.append(label, value);
-        sum.atts.appendChild(row);
+        const key = atts[slot];
+        const att = ATTACHMENTS[slot][key];
+        if (!att || key === "none" || key === "standard" || key === "iron") continue;
+        chip(att.name, SLOT_LABELS[slot]);
       }
-      if (skinsFor(this.activeId).length) {
-        const row = document.createElement("div");
-        row.className = "to-pf-row";
-        const label = document.createElement("span");
-        label.textContent = "Skin";
-        const value = document.createElement("b");
-        value.textContent = SKIN_BY_ID[this.attachments.skin]?.name || "Factory";
-        row.append(label, value);
-        sum.atts.appendChild(row);
+      if (skinsFor(this.weaponId).length) {
+        chip(`${SKIN_BY_ID[atts.skin]?.name || "Factory"} skin`, "Skin");
       }
     }
 

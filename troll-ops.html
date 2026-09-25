@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-aa2">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-menu2">
 </head>
 <body>
 
@@ -23,45 +23,60 @@
       <div class="to-screen to-title" id="to-title">
         <div class="to-title-bg" aria-hidden="true"></div>
 
-        <div class="to-pf">
+        <div class="to-pf" id="to-pf">
 
-          <div class="to-pf-top">
+          <!-- Main menu v2. Designed in the Troll Ops main menu canvas (see
+               HANDOFF.md): tab bar on top, mode list left, loadout card
+               right, map card and Deploy along the bottom. -->
+          <header class="to-pf-top">
             <span class="to-pf-logo">TROLL <b>OPS</b></span>
+            <nav class="to-pf-tabs" id="to-pf-rail" aria-label="Lobby menu">
+              <button type="button" class="to-pf-tab is-active" data-panel="deploy" aria-pressed="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span>Play</span></button>
+              <button type="button" class="to-pf-tab" data-panel="loadout" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h14l3 3v2H3z"/><path d="M7 15v4"/><path d="M12 10V7h4"/></svg><span>Loadout</span></button>
+              <button type="button" class="to-pf-tab" data-panel="gear" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="14" r="6"/><path d="M12 8V4"/><path d="M10 4h4"/></svg><span>Gear</span></button>
+              <button type="button" class="to-pf-tab" data-panel="streaks" aria-pressed="false" id="to-pf-btn-streaks"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><span><span class="to-pf-tab-long">Scorestreaks</span><span class="to-pf-tab-short">Streaks</span></span></button>
+              <button type="button" class="to-pf-tab" data-panel="server" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/><path d="M8 7h.01M8 17h.01"/></svg><span>Servers</span></button>
+              <button type="button" class="to-pf-tab" data-panel="controls" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Settings</span></button>
+            </nav>
+            <div class="to-pf-rank">
+              <div class="to-pf-rank-line"><span id="to-lo-rank-label">Rank 0</span><b id="to-pf-xp">0 XP</b></div>
+              <i class="to-lo-rank-bar"><b id="to-lo-rank-fill"></b></i>
+              <span class="to-pf-next">Next unlock: <b id="to-pf-next">—</b></span>
+            </div>
+          </header>
+
+          <!-- Play: mode list, map card and Deploy. It is still the "deploy"
+               lobby panel, so showLobbyPanel("deploy") means home. -->
+          <div class="to-pf-play" id="to-pfp-deploy">
+            <section class="to-pf-modes" aria-label="Game mode">
+              <div class="to-lo-mode" id="to-lo-mode" role="group" aria-label="Game mode"></div>
+              <p class="to-lo-modeblurb" id="to-lo-modeblurb"></p>
+            </section>
+
+            <section class="to-pf-mapcard" aria-label="Map">
+              <canvas class="to-pf-mapcard-thumb" id="to-pf-mapcard-thumb" aria-hidden="true"></canvas>
+              <div class="to-pf-mapcard-text">
+                <span class="to-pf-label">Map</span>
+                <b class="to-pf-mapcard-name" id="to-pf-mapcard-name">—</b>
+                <span class="to-pf-mapcard-blurb" id="to-pf-mapcard-blurb"></span>
+              </div>
+              <button type="button" class="to-pf-ghost" id="to-pf-mapcard-change" aria-haspopup="dialog" aria-controls="to-map-drawer">Change</button>
+            </section>
+
+            <button type="button" class="to-pf-deploy" id="to-start-btn">
+              <span>Deploy</span>
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+            </button>
           </div>
-
-          <nav class="to-pf-rail" id="to-pf-rail" aria-label="Lobby menu">
-            <button type="button" class="to-pf-btn to-pf-btn-go" id="to-start-btn">Deploy</button>
-            <button type="button" class="to-pf-btn is-active" data-panel="deploy" aria-pressed="true">Match Setup</button>
-            <button type="button" class="to-pf-btn" data-panel="mode" aria-pressed="false">Game Mode</button>
-            <button type="button" class="to-pf-btn" data-panel="loadout" aria-pressed="false">Weapon Loadout</button>
-            <button type="button" class="to-pf-btn" data-panel="customize" aria-pressed="false">Customize</button>
-            <button type="button" class="to-pf-btn" data-panel="gear" aria-pressed="false">Gear</button>
-            <button type="button" class="to-pf-btn" data-panel="streaks" aria-pressed="false" id="to-pf-btn-streaks">Scorestreaks</button>
-            <button type="button" class="to-pf-btn" data-panel="server" aria-pressed="false">Server Browser</button>
-            <button type="button" class="to-pf-btn" data-panel="controls" aria-pressed="false">Controls</button>
-            <a class="to-pf-btn to-pf-btn-exit" href="games.html">Back to arcade</a>
-          </nav>
-
-          <section class="to-pf-roster" aria-label="Operators in the room">
-            <div class="to-pf-roster-head">Operators</div>
-            <div class="to-pf-roster-list" id="to-pf-roster"></div>
-          </section>
 
           <section class="to-pf-center" id="to-pf-center">
 
-            <div class="to-pf-panel" id="to-pfp-deploy">
-              <div class="to-pf-panel-bar">Map Select</div>
-              <div class="to-lo-maps" id="to-lo-maps" role="group" aria-label="Map"></div>
-            </div>
-
-            <div class="to-pf-panel" id="to-pfp-mode" hidden>
-              <div class="to-pf-panel-bar">Game Mode</div>
-              <div class="to-lo-mode" id="to-lo-mode" role="group" aria-label="Game mode"></div>
-              <p class="to-lo-modeblurb" id="to-lo-modeblurb"></p>
-            </div>
-
             <div class="to-pf-panel" id="to-pfp-loadout" hidden>
               <div class="to-pf-panel-bar">Weapon Loadout</div>
+              <div class="to-pf-seg" role="group" aria-label="Loadout view">
+                <button type="button" data-panel="loadout" aria-pressed="true">Weapons</button>
+                <button type="button" data-panel="customize" aria-pressed="false">Customize</button>
+              </div>
               <div class="to-lo-slot-toggle" id="to-lo-slot-toggle" role="group" aria-label="Weapon slot"></div>
               <div class="to-lo-classes" id="to-lo-classes" role="group" aria-label="Weapon class"></div>
               <div class="to-lo-body">
@@ -77,6 +92,10 @@
 
             <div class="to-pf-panel" id="to-pfp-customize" hidden>
               <div class="to-pf-panel-bar">Customize<span id="to-pf-att-weapon"></span></div>
+              <div class="to-pf-seg" role="group" aria-label="Loadout view">
+                <button type="button" data-panel="loadout" aria-pressed="false">Weapons</button>
+                <button type="button" data-panel="customize" aria-pressed="true">Customize</button>
+              </div>
               <div class="to-lo-atts" id="to-lo-atts"></div>
             </div>
 
@@ -94,7 +113,7 @@
             </div>
 
             <div class="to-pf-panel" id="to-pfp-server" hidden>
-              <div class="to-pf-panel-bar">Server Browser</div>
+              <div class="to-pf-panel-bar">Servers</div>
               <div class="to-lo-pvp" id="to-lo-pvp" hidden>
                 <label for="to-room">Room code (optional)</label>
                 <input id="to-room" class="to-room-input" maxlength="5" placeholder="AUTO" autocomplete="off" spellcheck="false">
@@ -105,11 +124,16 @@
                 </label>
                 <span class="to-net-status" id="to-net-status">Leave blank to auto-match into the public server for this mode. Enter a code for a private room instead.</span>
               </div>
+              <div class="to-pf-roster" aria-label="Operators in the room">
+                <div class="to-pf-sublabel">In the room</div>
+                <div class="to-pf-roster-list" id="to-pf-roster"></div>
+              </div>
               <p class="to-pf-note" id="to-pf-solo-note">This mode runs solo — pick a versus mode under Match Setup to open a room.</p>
             </div>
 
             <div class="to-pf-panel" id="to-pfp-controls" hidden>
-              <div class="to-pf-panel-bar">Controls</div>
+              <div class="to-pf-panel-bar">Settings</div>
+              <div class="to-pf-sublabel">Controls</div>
               <div class="to-key-list to-key-list-lobby">
                 <div><kbd>W A S D</kbd><span>Move</span></div>
                 <div><kbd>Mouse</kbd><span>Look</span></div>
@@ -134,7 +158,7 @@
                 <div><kbd>Tab</kbd><span>Scoreboard</span></div>
                 <div><kbd>Esc</kbd><span>Menu · settings</span></div>
               </div>
-              <div class="to-pf-panel-bar is-sub">Settings</div>
+              <div class="to-pf-sublabel">Options</div>
               <label class="to-set-row">
                 <span>Master volume</span>
                 <input type="range" id="to-set-volume-lobby" min="0" max="100" step="1">
@@ -170,37 +194,52 @@
                   <option value="veteran">Veteran</option>
                 </select>
               </label>
+              <a class="to-pf-back to-pf-back-inline" href="games.html">Back to arcade</a>
             </div>
 
           </section>
 
-          <aside class="to-pf-right">
-            <div class="to-pf-card">
-              <div class="to-pf-card-bar" id="to-pf-sum-class">Loadout</div>
-              <div class="to-pf-rows">
-                <div class="to-pf-row is-primary"><span>Primary</span><b id="to-pf-sum-name">—</b></div>
-                <div id="to-pf-sum-atts"></div>
-                <div class="to-pf-row is-primary"><span>Secondary</span><b id="to-pf-sum-secondary">—</b></div>
-              </div>
-              <div class="to-pf-card-bar is-sub">Gear</div>
-              <div class="to-pf-rows">
-                <div class="to-pf-row"><span>Melee</span><b id="to-pf-sum-melee">—</b></div>
-                <div class="to-pf-row"><span>Lethal</span><b id="to-pf-sum-lethal">—</b></div>
-                <div class="to-pf-row"><span>Tactical</span><b id="to-pf-sum-tactical">—</b></div>
-              </div>
-              <div class="to-pf-card-bar is-sub">Ballistics</div>
-              <div class="to-pf-rows" id="to-pf-sum-stats"></div>
+          <aside class="to-pf-right" aria-label="Loadout">
+            <div class="to-pf-card-head">
+              <span class="to-pf-label">Loadout</span>
+              <button type="button" class="to-pf-link" data-panel="loadout">Edit</button>
             </div>
+            <div class="to-pf-primary">
+              <span class="to-pf-dim">Primary</span>
+              <b id="to-pf-sum-name">—</b>
+              <div class="to-pf-chips" id="to-pf-sum-atts"></div>
+            </div>
+            <div class="to-pf-secondary">
+              <span class="to-pf-dim">Secondary</span>
+              <b id="to-pf-sum-secondary">—</b>
+            </div>
+            <div class="to-pf-gearcells">
+              <div><span class="to-pf-dim">Melee</span><b id="to-pf-sum-melee">—</b></div>
+              <div><span class="to-pf-dim">Lethal</span><b id="to-pf-sum-lethal">—</b></div>
+              <div><span class="to-pf-dim">Tactical</span><b id="to-pf-sum-tactical">—</b></div>
+            </div>
+          </aside>
 
-            <div class="to-pf-card to-pf-card-xp">
-              <div class="to-pf-rows">
-                <div class="to-pf-row"><span id="to-lo-rank-label">Rank 0</span><b id="to-pf-xp">0 XP</b></div>
+          <a class="to-pf-back" href="games.html">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            Back to arcade
+          </a>
+
+          <!-- "Change" on the map card opens this. The map buttons are the
+               same ones loadout.js always built; only their home moved. -->
+          <div class="to-pf-scrim" id="to-map-scrim" hidden></div>
+          <aside class="to-pf-drawer" id="to-map-drawer" role="dialog" aria-modal="true" aria-labelledby="to-map-drawer-title" hidden>
+            <div class="to-pf-drawer-head">
+              <div>
+                <span class="to-pf-label">Map</span>
+                <h2 id="to-map-drawer-title">Pick a map</h2>
               </div>
-              <i class="to-lo-rank-bar"><b id="to-lo-rank-fill"></b></i>
-              <div class="to-pf-rows">
-                <div class="to-pf-row"><span>Next unlock</span><b id="to-pf-next">—</b></div>
-              </div>
+              <button type="button" class="to-pf-icon-btn" id="to-map-close" aria-label="Close">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+              </button>
             </div>
+            <div class="to-lo-maps" id="to-lo-maps" role="group" aria-label="Map"></div>
+            <button type="button" class="to-pf-drawer-done" id="to-map-done">Done</button>
           </aside>
 
           <div class="to-gun-view" id="to-gun-view">
@@ -532,7 +571,7 @@
       <!-- Main-menu only: $TRUTHS, the Trollface Terminal's own coin, on
            pump.fun. Same mint and label as the terminal's front-page CTA. -->
       <a class="to-truths-link" id="to-truths-link" href="https://pump.fun/coin/HsryXB2BdWJuRXAY29hDcw2g4BPH57Q5nL1qu8kQpump"
-         target="_blank" rel="noopener" aria-label="Buy $TRUTHS on pump.fun (opens in a new tab)">[ buy $TRUTHS ]</a>
+         target="_blank" rel="noopener" aria-label="Buy $TRUTHS on pump.fun (opens in a new tab)">Buy $TRUTHS</a>
 
     </section>
   </main>
@@ -547,7 +586,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-aa2"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-menu2"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

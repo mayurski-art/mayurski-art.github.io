@@ -252,6 +252,12 @@ const loadout = new Loadout({
     next: document.getElementById("to-pf-next"),
   },
   maps: els.loMaps,
+  mapCard: {
+    thumb: document.getElementById("to-pf-mapcard-thumb"),
+    name: document.getElementById("to-pf-mapcard-name"),
+    blurb: document.getElementById("to-pf-mapcard-blurb"),
+    change: document.getElementById("to-pf-mapcard-change"),
+  },
   slotToggle: document.getElementById("to-lo-slot-toggle"),
   classes: els.loClasses,
   list: els.loList,
@@ -1235,29 +1241,63 @@ function otherHumansInMatch() {
   return false;
 }
 
+/* The Play tab's mode list: versus modes first, then the solo ones, each a
+   full-width row with a tick on the one you're deploying into. */
+const MODE_GROUPS = [
+  { label: "Versus", ids: ["tdm", "koth", "snd", "oitc", "gungame"] },
+  { label: "Solo", ids: ["ops", "zombies", "range"] },
+];
+const TICK_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
 function buildModeButtons() {
   els.loMode.innerHTML = "";
+  // Anything added to modes.js later still shows up, under Versus or Solo.
+  const placed = new Set(MODE_GROUPS.flatMap((g) => g.ids));
+  const groups = MODE_GROUPS.map((g) => ({ ...g, ids: g.ids.filter((id) => MODES[id]) }));
   for (const id of MODE_IDS) {
-    const m = MODES[id];
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "to-lo-modebtn";
-    b.dataset.mode = id;
-    b.textContent = m.short;
-    b.title = m.blurb;
-    b.addEventListener("click", () => { modeId = id; renderModes(); });
-    els.loMode.appendChild(b);
+    if (!placed.has(id)) groups[MODES[id].pvp ? 0 : 1].ids.push(id);
+  }
+  for (const g of groups) {
+    const head = document.createElement("div");
+    head.className = "to-lo-modegroup";
+    head.textContent = g.label;
+    els.loMode.appendChild(head);
+    for (const id of g.ids) {
+      const m = MODES[id];
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "to-lo-modebtn";
+      b.dataset.mode = id;
+      b.title = m.blurb;
+      const name = document.createElement("span");
+      name.textContent = m.name;
+      b.appendChild(name);
+      b.insertAdjacentHTML("beforeend", TICK_SVG);
+      b.addEventListener("click", () => { modeId = id; renderModes(); });
+      els.loMode.appendChild(b);
+    }
   }
   renderModes();
 }
 
 function renderModes() {
   for (const b of els.loMode.children) {
+    if (!b.dataset.mode) continue;
     const on = b.dataset.mode === modeId;
     b.classList.toggle("is-active", on);
     b.setAttribute("aria-pressed", String(on));
   }
   els.loModeBlurb.textContent = currentMode().blurb;
+  // On phones the list is one sideways-scrolling row of chips; keep the
+  // picked one in view.
+  const act = els.loMode.querySelector(".to-lo-modebtn.is-active");
+  if (act && els.loMode.scrollWidth > els.loMode.clientWidth) {
+    const box = els.loMode.getBoundingClientRect();
+    const r = act.getBoundingClientRect();
+    if (r.left < box.left || r.right > box.right) {
+      els.loMode.scrollLeft += r.left - box.left - 16;
+    }
+  }
   els.loPvp.hidden = !isPvp();
   const soloNote = document.getElementById("to-pf-solo-note");
   if (soloNote) soloNote.hidden = isPvp();
@@ -1271,17 +1311,22 @@ function renderModes() {
   if (ssPanelNote) ssPanelNote.hidden = !allowed;
   if (ssSoloNote) ssSoloNote.hidden = allowed;
   if (els.ssPicker) els.ssPicker.hidden = !allowed;
-  els.loMaps.hidden = !!currentMode().forceMap;   // Zombies has its own map
+  // Zombies and the range bring their own map, so the card just names it.
+  loadout.setForcedMap(currentMode().forceMap || null);
   renderLobbyRoster();   // no-ops until the lobby is ready
   if (lobbyReady) refreshLobbyMap();
 }
 
 // -------------------- lobby chrome --------------------
-// The rail on the left swaps one centre panel, Phantom Forces style, rather
-// than scrolling one long column of controls.
+// The tab bar across the top swaps what's under it. "deploy" is the Play
+// tab (mode list, map card, Deploy); the rest open one panel each.
+// Loadout and Customize share the Loadout tab.
 
-const LOBBY_PANELS = ["deploy", "mode", "loadout", "customize", "gear", "streaks", "server", "controls"];
-const railButtons = [...document.querySelectorAll("#to-pf-rail [data-panel]")];
+const LOBBY_PANELS = ["deploy", "loadout", "customize", "gear", "streaks", "server", "controls"];
+const TAB_FOR_PANEL = { customize: "loadout" };
+const pfRoot = document.getElementById("to-pf");
+// Tabs, the Loadout/Customize switch and the loadout card's Edit link.
+const railButtons = [...document.querySelectorAll("#to-pf [data-panel]")];
 
 const gunView = document.getElementById("to-gun-view");
 const gunCanvas = document.getElementById("to-gun-canvas");
@@ -1331,17 +1376,23 @@ let activeLobbyPanel = "deploy";
 
 function showLobbyPanel(name) {
   activeLobbyPanel = name;
+  if (pfRoot) pfRoot.dataset.panel = name || "";
+  if (els.title) els.title.dataset.panel = name || "";
   for (const id of LOBBY_PANELS) {
     const panel = document.getElementById(`to-pfp-${id}`);
     if (panel) panel.hidden = id !== name;
   }
+  const tabName = TAB_FOR_PANEL[name] || name;
   for (const b of railButtons) {
-    const on = b.dataset.panel === name;
+    // Top tabs light up for their whole group; the switch and Edit link
+    // only for their exact panel.
+    const on = b.classList.contains("to-pf-tab") ? b.dataset.panel === tabName : b.dataset.panel === name;
     b.classList.toggle("is-active", on);
     b.setAttribute("aria-pressed", String(on));
   }
-  // Card thumbnails can only measure themselves once the panel is on screen.
-  if (name === "deploy") loadout.drawMapThumbs();
+  if (name !== "deploy") closeMapDrawer(false);
+  // The map card's thumbnail can only measure itself once it is on screen.
+  if (name === "deploy") loadout.drawMapCard();
 
   if (name === "loadout" || name === "customize") {
     mountGunView(name);
@@ -1363,10 +1414,43 @@ function showLobbyPanel(name) {
 }
 
 for (const b of railButtons) {
-  b.addEventListener("click", () => {
-    showLobbyPanel(activeLobbyPanel === b.dataset.panel ? null : b.dataset.panel);
-  });
+  b.addEventListener("click", () => showLobbyPanel(b.dataset.panel));
 }
+if (pfRoot) pfRoot.dataset.panel = activeLobbyPanel;
+if (els.title) els.title.dataset.panel = activeLobbyPanel;
+
+/* Map picker: "Change" on the map card slides it in from the right. Picking
+   a map applies straight away (loadout.js), Done or Esc just closes it. */
+const mapDrawer = document.getElementById("to-map-drawer");
+const mapScrim = document.getElementById("to-map-scrim");
+const mapChange = document.getElementById("to-pf-mapcard-change");
+
+function openMapDrawer() {
+  if (!mapDrawer) return;
+  mapDrawer.hidden = false;
+  if (mapScrim) mapScrim.hidden = false;
+  els.title?.classList.add("has-drawer");
+  mapChange?.setAttribute("aria-expanded", "true");
+  loadout.drawMapThumbs();
+  (mapDrawer.querySelector(".to-lo-map.is-active") || mapDrawer.querySelector("button"))?.focus();
+}
+
+function closeMapDrawer(returnFocus = true) {
+  if (!mapDrawer || mapDrawer.hidden) return;
+  mapDrawer.hidden = true;
+  if (mapScrim) mapScrim.hidden = true;
+  els.title?.classList.remove("has-drawer");
+  mapChange?.setAttribute("aria-expanded", "false");
+  if (returnFocus) mapChange?.focus();
+}
+
+mapChange?.addEventListener("click", openMapDrawer);
+mapScrim?.addEventListener("click", () => closeMapDrawer());
+document.getElementById("to-map-close")?.addEventListener("click", () => closeMapDrawer());
+document.getElementById("to-map-done")?.addEventListener("click", () => closeMapDrawer());
+mapDrawer?.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { e.stopPropagation(); closeMapDrawer(); }
+});
 
 // `net` is constructed further down this module, so nothing may paint the
 // roster until initLobbyChrome() runs at the end of setup.
