@@ -24,61 +24,153 @@ export const loadImage = (src) => new Promise((ok, bad) => {
 const banners = {};
 export const bannerImage = async (file) => (banners[file] ||= await loadImage(new URL(`../assets/images/banners/${file}`, import.meta.url).href));
 
-/* Banner text a skin rewrites: `lines: [{ box: [x0, y0, x1, y1], text, px,
-   color, bg }]`, box as fractions of the banner. The box is painted over in
-   `bg` and `text` written back in the banner's own pixel style: Tahoma at
-   `px` (its real, tiny size), hard-edged, then blown up with square pixels
-   to the box's height — the way the XP dialog art was made. Returns the
-   banner itself when a skin has no lines. */
+/* Banner pieces a skin moves around: text it rewrites, and bits of art it
+   lifts off the banner (the trollface), each placed as you like.
+
+     lines:   [{ box, text, px, color, dx, dy, size, rot, flip }]
+     cutouts: [{ name, box, dx, dy, size, rot, flip }]
+
+   `box` is [x0, y0, x1, y1] as fractions of the banner: where the piece
+   starts. That spot is painted over in the paper colour round it, and the
+   piece drawn back moved by dx/dy (fractions of the banner's width/height),
+   scaled by `size`, turned `rot` degrees and mirrored by `flip` — all about
+   its own middle, and independent of how any part crops the banner.
+
+   Text is written in the banner's own pixel style: Tahoma at `px` (its real,
+   tiny size), hard-edged, blown up with square pixels to the box's height.
+   A cutout keeps only the art: the paper round it is keyed out, starting
+   from the box's edges, so the face's white inside survives.
+
+   The returned canvas carries `pieces`: where each piece ended up, in banner
+   pixels, for the editor to outline. Returns the banner itself when a skin
+   moves nothing. */
 const edited = new Map();
-export function editedBanner(img, lines) {
-  if (!lines?.length) return img;
-  const key = img.src + JSON.stringify(lines);
+export function editedBanner(img, lines, cutouts) {
+  if (!lines?.length && !cutouts?.length) return img;
+  const key = img.src + JSON.stringify([lines, cutouts]);
   if (edited.has(key)) return edited.get(key);
+  const W = img.width, H = img.height;
   const c = document.createElement("canvas");
-  c.width = img.width; c.height = img.height;
+  c.width = W; c.height = H;
   const g = c.getContext("2d");
   g.drawImage(img, 0, 0);
-  for (const l of lines) {
-    const [x0, y0, x1, y1] = l.box;
-    const bx = x0 * img.width, by = y0 * img.height, bw = (x1 - x0) * img.width, bh = (y1 - y0) * img.height;
-    g.fillStyle = l.bg || "#ece9d8";
-    g.fillRect(bx, by, bw, bh);
-    if (!l.text) continue;
-    // Draw small, snap every pixel to ink or paper, then scale up square.
-    const px = l.px || 11;
-    const small = document.createElement("canvas");
-    const sg = small.getContext("2d");
-    const font = `${px}px Tahoma, Verdana, "Segoe UI", sans-serif`;
-    sg.font = font;
-    const w = Math.ceil(sg.measureText(l.text).width) + 2, h = Math.ceil(px * 1.4);
-    small.width = w; small.height = h;
-    sg.font = font;
-    sg.textBaseline = "alphabetic";
-    sg.fillStyle = "#000";
-    sg.fillText(l.text, 1, Math.round(px * 1.05));
-    const d = sg.getImageData(0, 0, w, h);
-    const [r, gg, b] = rgb(l.color || "#000000");
-    for (let i = 0; i < d.data.length; i += 4) {
-      const on = d.data[i + 3] > 160;
-      d.data[i] = r; d.data[i + 1] = gg; d.data[i + 2] = b; d.data[i + 3] = on ? 255 : 0;
-    }
-    sg.putImageData(d, 0, 0);
-    // The text alone can be turned (`rot`, degrees) and mirrored (`flip`)
-    // about its own middle, independent of how any part crops the banner:
-    // on a flipped part, flipping the text too makes it read right again.
-    const scale = bh / h;
-    const tw = w * scale, th = h * scale;
-    g.save();
-    g.translate(bx + tw / 2, by + th / 2);
-    if (l.rot) g.rotate(l.rot * Math.PI / 180);
-    if (l.flip) g.scale(-1, 1);
-    g.imageSmoothingEnabled = false;
-    g.drawImage(small, 0, 0, w, h, -tw / 2, -th / 2, tw, th);
-    g.restore();
+  const orig = document.createElement("canvas");
+  orig.width = W; orig.height = H;
+  orig.getContext("2d").drawImage(img, 0, 0);   // the untouched pixels, read before any painting
+  const og = orig.getContext("2d", { willReadFrequently: true });
+  const rect = (b) => {
+    const x = Math.round(b[0] * W), y = Math.round(b[1] * H);
+    return { x, y, w: Math.round((b[2] - b[0]) * W), h: Math.round((b[3] - b[1]) * H) };
+  };
+
+  // 1. Lift every piece off: paint its box in the paper colour round it.
+  const all = [...(cutouts || []).map((p) => ({ p, kind: "cut" })), ...(lines || []).map((p) => ({ p, kind: "line" }))];
+  for (const { p } of all) {
+    const r = rect(p.box);
+    g.fillStyle = p.bg || paperAround(og, r);
+    g.fillRect(r.x, r.y, r.w, r.h);
   }
+
+  // 2. Put each back where it's been moved to.
+  const placed = [];
+  const put = (p, art, w, h, kind, i) => {
+    const r = rect(p.box);
+    const size = p.size || 1;
+    const cx = r.x + w / 2 + (p.dx || 0) * W, cy = r.y + h / 2 + (p.dy || 0) * H;
+    g.save();
+    g.translate(cx, cy);
+    if (p.rot) g.rotate(p.rot * Math.PI / 180);
+    if (p.flip) g.scale(-1, 1);
+    g.scale(size, size);
+    g.imageSmoothingEnabled = kind === "cut";
+    g.drawImage(art, -w / 2, -h / 2, w, h);
+    g.restore();
+    placed.push({ kind, i, cx, cy, w: w * size, h: h * size, rot: p.rot || 0 });
+  };
+  (cutouts || []).forEach((p, i) => {
+    const r = rect(p.box);
+    put(p, keyedCutout(og, r), r.w, r.h, "cut", i);
+  });
+  (lines || []).forEach((l, i) => {
+    const r = rect(l.box);
+    if (!l.text) { placed.push({ kind: "line", i, cx: r.x + r.w / 2, cy: r.y + r.h / 2, w: r.w, h: r.h, rot: 0 }); return; }
+    const small = pixelText(l);
+    const scale = r.h / small.height;
+    put(l, small, small.width * scale, small.height * scale, "line", i);
+  });
+  c.pieces = placed;
   edited.set(key, c);
   return c;
+}
+
+/* The paper colour: the average of the pixels just round a box's edge. */
+function paperAround(og, r) {
+  const d = og.getImageData(r.x, r.y, r.w, r.h).data;
+  let n = 0, R = 0, G = 0, B = 0;
+  const at = (x, y) => { const i = (y * r.w + x) * 4; R += d[i]; G += d[i + 1]; B += d[i + 2]; n++; };
+  for (let x = 0; x < r.w; x += 3) { at(x, 0); at(x, r.h - 1); }
+  for (let y = 0; y < r.h; y += 3) { at(0, y); at(r.w - 1, y); }
+  return `rgb(${Math.round(R / n)}, ${Math.round(G / n)}, ${Math.round(B / n)})`;
+}
+
+/* A box of art with the paper round it made clear: flood from the box's
+   edges through anything close to the paper colour, so light areas inside
+   an outline (the trollface's white face) stay. Edges are softened a pixel. */
+function keyedCutout(og, r) {
+  const img = og.getImageData(r.x, r.y, r.w, r.h);
+  const d = img.data, w = r.w, h = r.h;
+  let n = 0, R = 0, G = 0, B = 0;
+  const sample = (x, y) => { const i = (y * w + x) * 4; R += d[i]; G += d[i + 1]; B += d[i + 2]; n++; };
+  for (let x = 0; x < w; x += 2) { sample(x, 0); sample(x, h - 1); }
+  for (let y = 0; y < h; y += 2) { sample(0, y); sample(w - 1, y); }
+  R /= n; G /= n; B /= n;
+  const TOL = 40;
+  const near = (p) => Math.abs(d[p] - R) + Math.abs(d[p + 1] - G) + Math.abs(d[p + 2] - B) < TOL;
+  const clear = new Uint8Array(w * h);
+  const stack = [];
+  const push = (x, y) => { const k = y * w + x; if (!clear[k] && near(k * 4)) { clear[k] = 1; stack.push(k); } };
+  for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+  for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+  while (stack.length) {
+    const k = stack.pop(), x = k % w, y = (k - x) / w;
+    if (x > 0) push(x - 1, y);
+    if (x < w - 1) push(x + 1, y);
+    if (y > 0) push(x, y - 1);
+    if (y < h - 1) push(x, y + 1);
+  }
+  for (let k = 0; k < w * h; k++) {
+    if (clear[k]) { d[k * 4 + 3] = 0; continue; }
+    // Half-clear any kept pixel touching the cleared paper: a soft edge.
+    const x = k % w, y = (k - x) / w;
+    if ((x > 0 && clear[k - 1]) || (x < w - 1 && clear[k + 1]) || (y > 0 && clear[k - w]) || (y < h - 1 && clear[k + w])) d[k * 4 + 3] = 150;
+  }
+  const out = document.createElement("canvas");
+  out.width = w; out.height = h;
+  out.getContext("2d").putImageData(img, 0, 0);
+  return out;
+}
+
+/* One line of text at its real pixel size, every pixel ink or clear. */
+function pixelText(l) {
+  const px = l.px || 11;
+  const small = document.createElement("canvas");
+  const sg = small.getContext("2d");
+  const font = `${px}px Tahoma, Verdana, "Segoe UI", sans-serif`;
+  sg.font = font;
+  const w = Math.ceil(sg.measureText(l.text).width) + 2, h = Math.ceil(px * 1.4);
+  small.width = w; small.height = h;
+  sg.font = font;
+  sg.textBaseline = "alphabetic";
+  sg.fillStyle = "#000";
+  sg.fillText(l.text, 1, Math.round(px * 1.05));
+  const d = sg.getImageData(0, 0, w, h);
+  const [r, gg, b] = rgb(l.color || "#000000");
+  for (let i = 0; i < d.data.length; i += 4) {
+    const on = d.data[i + 3] > 160;
+    d.data[i] = r; d.data[i + 1] = gg; d.data[i + 2] = b; d.data[i + 3] = on ? 255 : 0;
+  }
+  sg.putImageData(d, 0, 0);
+  return small;
 }
 function rgb(hex) {
   const n = parseInt(String(hex).replace("#", ""), 16);
@@ -136,7 +228,7 @@ function drawCrop(ctx, img, key, crop) {
 /* The whole 1024x512 atlas for a skin recipe. */
 export async function bakeAtlas(skin, canvas) {
   const ctx = canvas.getContext("2d");
-  const img = editedBanner(await bannerImage(skin.banner), skin.lines);
+  const img = editedBanner(await bannerImage(skin.banner), skin.lines, skin.cutouts);
   const R = SKIN_ATLAS.regions;
   // Everything outside a part is trim, including the trim swatch the bevels
   // use, so mip bleed at a part's edge is the trim colour, not a neighbour.

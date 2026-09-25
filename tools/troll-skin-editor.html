@@ -55,7 +55,10 @@
   .grid2 input[type=range] { width: 100%; }
   .grid2 output { font: 12px ui-monospace, monospace; color: var(--dim); min-width: 40px; text-align: right; }
   .stack { display: grid; gap: 14px; align-content: start; }
-  #lines > input { width: 100%; background: #0f151a; border: 1px solid #2b3842; border-radius: 6px; padding: 6px 8px; font-size: 14px; }
+  .piece { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+  .piece h3 { margin: 0 0 6px; font-size: 13px; }
+  .piece .num { width: 70px; background: #0f151a; border: 1px solid #2b3842; border-radius: 5px; padding: 3px 5px; }
+  #pieces .txt { width: 100%; background: #0f151a; border: 1px solid #2b3842; border-radius: 6px; padding: 6px 8px; font-size: 14px; }
 </style>
 <script type="importmap">
   { "imports": { "three": "../assets/vendor/three.module.min.js", "three/addons/": "../assets/vendor/addons/" } }
@@ -85,10 +88,13 @@
         <thead><tr><th>Part</th><th>X</th><th>Y</th><th>Zoom</th><th>Rotate°</th><th>Flip</th><th>Lock</th><th></th></tr></thead>
         <tbody id="parts"></tbody>
       </table>
-      <div id="lines-box" hidden>
-        <h2 style="margin-top:14px">Banner text</h2>
-        <div id="lines"></div>
-        <p class="hint">Rewrites that line of the banner in its own pixel lettering. Empty it to leave the line blank.</p>
+      <div id="pieces-box" hidden>
+        <h2 style="margin-top:14px">Banner pieces — text and trollface</h2>
+        <div class="row" id="drag-target" role="group" aria-label="What dragging on the banner moves"></div>
+        <div id="pieces"></div>
+        <p class="hint">Pick a piece above, then drag it on the banner (<kbd>Shift</kbd> keeps it on X or Y), wheel to resize,
+          arrows nudge, <kbd>[</kbd> <kbd>]</kbd> rotate, <kbd>F</kbd> flip, <kbd>Esc</kbd> back to the part boxes.
+          Its old spot is painted over, so it can go anywhere. Empty the text to leave it blank.</p>
       </div>
     </section>
   </div>
@@ -147,7 +153,7 @@ const locked = new Set((() => { try { return JSON.parse(localStorage.getItem("sk
 function saveLocks() { try { localStorage.setItem("skinEditor.locked", JSON.stringify([...locked])); } catch { /* private mode */ } }
 const skin = () => work[skinId];
 const full = (c) => [c[0], c[1], c[2], c[3] || 0, c[4] ? 1 : 0];
-const recipe = (s) => JSON.stringify({ c: s.crops, l: s.lines || [] });
+const recipe = (s) => JSON.stringify({ c: s.crops, l: s.lines || [], u: s.cutouts || [] });
 const isDirty = (id) => recipe(work[id]) !== recipe(saved[id]);
 
 /* Unsaved edits are kept in this browser as you go, so a refresh (or a new
@@ -157,7 +163,7 @@ const DRAFTS = "skinEditor.drafts";
 function readDrafts() { try { return JSON.parse(localStorage.getItem(DRAFTS) || "{}"); } catch { return {}; } }
 function writeDraft(id) {
   const d = readDrafts();
-  if (isDirty(id)) d[id] = { crops: work[id].crops, lines: work[id].lines || [] };
+  if (isDirty(id)) d[id] = { crops: work[id].crops, lines: work[id].lines || [], cutouts: work[id].cutouts || [] };
   else delete d[id];
   try { localStorage.setItem(DRAFTS, JSON.stringify(d)); } catch { /* private mode */ }
 }
@@ -165,6 +171,7 @@ for (const [id, d] of Object.entries(readDrafts())) {
   if (!work[id]) continue;
   work[id].crops = d.crops;
   if (d.lines?.length || work[id].lines) work[id].lines = d.lines;
+  if (d.cutouts?.length || work[id].cutouts) work[id].cutouts = d.cutouts || [];
 }
 
 function setStatus(text, cls = "") { const s = $("status"); s.textContent = text; s.className = cls; }
@@ -214,12 +221,35 @@ function boxPath(ctx, b) {
   ctx.beginPath(); c.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
 }
 
+/* A piece (text line or cutout) and where it sits now, in canvas pixels. */
+function pieceOf(kind, i) { return (kind === "cut" ? skin().cutouts : skin().lines)[i]; }
+function pieceRect(kind, i) {
+  const r = (img.pieces || []).find((p) => p.kind === kind && p.i === i);
+  if (!r) return null;
+  const a = r.rot * Math.PI / 180;
+  return { x: r.cx * k, y: r.cy * k, hw: r.w * k / 2, hh: r.h * k / 2, a, ux: Math.cos(a), uy: Math.sin(a) };
+}
+function drawPieces() {
+  const dpr = devicePixelRatio;
+  for (const p of img.pieces || []) {
+    const b = pieceRect(p.kind, p.i);
+    const on = dragTarget && dragTarget.kind === p.kind && dragTarget.i === p.i;
+    if (!on && dragTarget) continue;
+    bx.lineWidth = (on ? 2.5 : 1) * dpr;
+    bx.strokeStyle = on ? "#7bff66" : "rgba(123,255,102,.45)";
+    bx.setLineDash(on ? [] : [3 * dpr, 3 * dpr]);
+    boxPath(bx, b); bx.stroke();
+    bx.setLineDash([]);
+  }
+}
+
 function drawBanner() {
   bx.clearRect(0, 0, bc.width, bc.height);
   bx.globalAlpha = 0.45;
   bx.drawImage(img, 0, 0, bc.width, bc.height);
   bx.globalAlpha = 1;
-  const order = [...PARTS.filter((p) => p !== part), part];
+  const order = dragTarget ? [] : [...PARTS.filter((p) => p !== part), part];
+  if (dragTarget) { bx.globalAlpha = 1; bx.drawImage(img, 0, 0, bc.width, bc.height); }
   // Art inside every box at full strength, so the crops read at a glance.
   for (const key of order) {
     const b = boxOf(key);
@@ -263,6 +293,7 @@ function drawBanner() {
       bx.beginPath(); bx.arc(rx, ry, HANDLE(), 0, Math.PI * 2); bx.fill();
     }
   }
+  drawPieces();
 }
 
 function canvasPoint(e) {
@@ -271,8 +302,16 @@ function canvasPoint(e) {
 }
 
 let drag = null;
+let dragTarget = null;   // null: the part boxes · { kind: "line"|"cut", i }: a piece
 bc.addEventListener("pointerdown", (e) => {
   const [px, py] = canvasPoint(e);
+  if (dragTarget) {
+    const p = pieceOf(dragTarget.kind, dragTarget.i);
+    drag = { mode: "piece", sx: px, sy: py, dx0: p.dx || 0, dy0: p.dy || 0, axis: null };
+    bc.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    return;
+  }
   const b = boxOf(part);
   const near = (x, y) => Math.hypot(px - x, py - y) <= HANDLE() * 1.6;
   const crop = full(skin().crops[part]);
@@ -306,6 +345,18 @@ bc.addEventListener("pointermove", (e) => {
     bc.style.cursor = Math.hypot(px - rx, py - ry) <= HANDLE() * 1.6 ? "grab" : "crosshair";
     return;
   }
+  if (drag.mode === "piece") {
+    let mx = px - drag.sx, my = py - drag.sy;
+    if (e.shiftKey) {
+      if (!drag.axis && Math.hypot(mx, my) > 4 * devicePixelRatio) drag.axis = Math.abs(mx) >= Math.abs(my) ? "x" : "y";
+      if (drag.axis !== "x") mx = 0;
+      if (drag.axis !== "y") my = 0;
+    } else {
+      drag.axis = null;
+    }
+    setPiece({ dx: drag.dx0 + mx / k / img.width, dy: drag.dy0 + my / k / img.height });
+    return;
+  }
   const c = full(skin().crops[drag.key]);
   if (drag.mode === "move") {
     // Shift locks the move to X or Y, whichever way the pointer went first.
@@ -332,11 +383,17 @@ bc.addEventListener("pointermove", (e) => {
   }
   setCrop(drag.key, c);
 });
-const endDrag = () => { if (drag) { settle(drag.key); drag = null; } };
+const endDrag = () => { if (drag) { if (drag.mode !== "piece") settle(drag.key); drag = null; } };
 bc.addEventListener("pointerup", endDrag);
 bc.addEventListener("pointercancel", endDrag);
 bc.addEventListener("wheel", (e) => {
   e.preventDefault();
+  if (dragTarget) {
+    const p = pieceOf(dragTarget.kind, dragTarget.i);
+    if (e.altKey) setPiece({ rot: (p.rot || 0) + Math.sign(e.deltaY) * 2 });
+    else setPiece({ size: (p.size || 1) * (e.deltaY > 0 ? 1 / 1.05 : 1.05) });
+    return;
+  }
   if (locked.has(part)) return;
   const c = full(skin().crops[part]);
   if (e.altKey) c[3] = ((c[3] + Math.sign(e.deltaY) * 2 + 540) % 360) - 180;
@@ -522,7 +579,7 @@ async function rebake() {
 }
 
 function changed(skipTableKey = null) {
-  img = editedBanner(rawImg, skin().lines);
+  img = editedBanner(rawImg, skin().lines, skin().cutouts);
   writeDraft(skinId);
   drawBanner();
   paintTable(skipTableKey);
@@ -540,59 +597,114 @@ async function openSkin(id) {
   skinId = id;
   $("skin").value = id;
   rawImg = await bannerImage(skin().banner);
-  img = editedBanner(rawImg, skin().lines);
+  img = editedBanner(rawImg, skin().lines, skin().cutouts);
   fitBanner();
   buildGun();
-  buildLines();
+  dragTarget = null;
+  buildPieces();
   changed();
 }
 
-/* ----------------------------------------------------------- banner text */
+/* -------------------------------------------------------- banner pieces */
 
-function buildLines() {
-  const lines = skin().lines || [];
-  $("lines-box").hidden = !lines.length;
-  const box = $("lines");
+const PIECE_DEFAULTS = { dx: 0, dy: 0, size: 1, rot: 0, flip: 0 };
+
+/* Change the piece being dragged (or the one named), keep only what differs
+   from the defaults, and redraw. */
+function setPiece(patch, which = dragTarget) {
+  const p = pieceOf(which.kind, which.i);
+  Object.assign(p, patch);
+  p.rot = (((p.rot || 0) + 540) % 360) - 180;
+  if (p.size) p.size = Math.max(0.1, Math.min(8, p.size));
+  for (const [key, def] of Object.entries(PIECE_DEFAULTS)) if (!p[key] || p[key] === def) delete p[key];
+  paintPieces();
+  changed();
+}
+
+function pieceName(kind, i) {
+  if (kind === "cut") { const n = skin().cutouts[i].name || "art"; return n[0].toUpperCase() + n.slice(1); }
+  return skin().lines.length > 1 ? `Text ${i + 1}` : "Text";
+}
+
+let paintPieces = () => {};
+function buildPieces() {
+  const all = [
+    ...(skin().lines || []).map((_, i) => ({ kind: "line", i })),
+    ...(skin().cutouts || []).map((_, i) => ({ kind: "cut", i })),
+  ];
+  $("pieces-box").hidden = !all.length;
+  // What a drag on the banner moves.
+  const tg = $("drag-target");
+  tg.innerHTML = '<span class="hint" style="margin:0">Drag on the banner moves:</span>';
+  const mk = (label, target) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    const on = target ? dragTarget && dragTarget.kind === target.kind && dragTarget.i === target.i : !dragTarget;
+    b.classList.toggle("on", !!on);
+    b.setAttribute("aria-pressed", String(!!on));
+    b.addEventListener("click", () => { dragTarget = target; buildPieces(); drawBanner(); });
+    tg.appendChild(b);
+  };
+  mk("Part boxes", null);
+  for (const t of all) mk(pieceName(t.kind, t.i), t);
+
+  const box = $("pieces");
   box.innerHTML = "";
-  lines.forEach((l, i) => {
-    const inp = document.createElement("input");
-    inp.type = "text";
-    inp.value = l.text;
-    inp.setAttribute("aria-label", `Banner text line ${i + 1}`);
-    inp.addEventListener("input", () => { skin().lines[i].text = inp.value; changed(); });
-    box.appendChild(inp);
-
-    // Flip and turn the text itself, separately from the part crops.
-    const row = document.createElement("div");
-    row.className = "row";
-    row.innerHTML = `<label><input type="checkbox" data-t="flip"> Flip text</label>
-      <span style="width:10px"></span>
-      <label>Rotate text <input type="number" data-t="rot" step="1" style="width:64px;background:#0f151a;border:1px solid #2b3842;border-radius:5px;padding:3px 5px"> °</label>
-      <button data-t="ccw" aria-label="Rotate text 90° left">↺ 90°</button>
-      <button data-t="cw" aria-label="Rotate text 90° right">↻ 90°</button>
-      <button data-t="r180" aria-label="Rotate text 180°">180°</button>
-      <button data-t="zero">Straighten</button>`;
-    const flip = row.querySelector('[data-t="flip"]'), rot = row.querySelector('[data-t="rot"]');
-    const line = () => skin().lines[i];
-    const paint = () => { flip.checked = !!line().flip; rot.value = String(Math.round(line().rot || 0)); };
-    const set = (patch) => {
-      const ln = line();
-      Object.assign(ln, patch);
-      ln.rot = (((ln.rot || 0) + 540) % 360) - 180;
-      if (!ln.rot) delete ln.rot;
-      if (!ln.flip) delete ln.flip;
-      paint();
-      changed();
-    };
-    flip.addEventListener("input", () => set({ flip: flip.checked ? 1 : 0 }));
-    rot.addEventListener("input", () => set({ rot: Number(rot.value) || 0 }));
-    row.querySelector('[data-t="ccw"]').addEventListener("click", () => set({ rot: (line().rot || 0) - 90 }));
-    row.querySelector('[data-t="cw"]').addEventListener("click", () => set({ rot: (line().rot || 0) + 90 }));
-    row.querySelector('[data-t="r180"]').addEventListener("click", () => set({ rot: (line().rot || 0) + 180 }));
-    row.querySelector('[data-t="zero"]').addEventListener("click", () => set({ rot: 0 }));
-    paint();
-    box.appendChild(row);
-  });
+  const painters = [];
+  for (const t of all) {
+    const card = document.createElement("div");
+    card.className = "piece";
+    const which = { kind: t.kind, i: t.i };
+    const p = () => pieceOf(t.kind, t.i);
+    card.innerHTML = `<h3>${pieceName(t.kind, t.i)}</h3>`
+      + (t.kind === "line" ? `<input class="txt" type="text" aria-label="${pieceName(t.kind, t.i)} wording">` : "")
+      + `<div class="row">
+        <label>X <input class="num" type="number" step="0.005" data-k="dx"></label>
+        <label>Y <input class="num" type="number" step="0.005" data-k="dy"></label>
+        <label>Size <input class="num" type="number" step="5" min="10" data-k="size"> %</label>
+        <button data-a="move">Move on banner</button>
+        <button data-a="reset">Reset position</button>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" data-k="flip"> Flip</label>
+        <span style="width:6px"></span>
+        <label>Rotate <input class="num" type="number" step="1" data-k="rot"> °</label>
+        <button data-a="ccw" aria-label="Rotate 90° left">↺ 90°</button>
+        <button data-a="cw" aria-label="Rotate 90° right">↻ 90°</button>
+        <button data-a="r180" aria-label="Rotate 180°">180°</button>
+        <button data-a="zero">Straighten</button>
+      </div>`;
+    const txt = card.querySelector(".txt");
+    if (txt) {
+      txt.value = p().text;
+      txt.addEventListener("input", () => { p().text = txt.value; changed(); });
+    }
+    const q = (k) => card.querySelector(`[data-k="${k}"]`);
+    q("dx").addEventListener("input", () => setPiece({ dx: Number(q("dx").value) || 0 }, which));
+    q("dy").addEventListener("input", () => setPiece({ dy: Number(q("dy").value) || 0 }, which));
+    q("size").addEventListener("input", () => setPiece({ size: (Number(q("size").value) || 100) / 100 }, which));
+    q("rot").addEventListener("input", () => setPiece({ rot: Number(q("rot").value) || 0 }, which));
+    q("flip").addEventListener("input", () => setPiece({ flip: q("flip").checked ? 1 : 0 }, which));
+    const act = (a, fn) => card.querySelector(`[data-a="${a}"]`).addEventListener("click", fn);
+    act("move", () => { dragTarget = which; buildPieces(); drawBanner(); });
+    act("reset", () => setPiece({ dx: 0, dy: 0, size: 1 }, which));
+    act("ccw", () => setPiece({ rot: (p().rot || 0) - 90 }, which));
+    act("cw", () => setPiece({ rot: (p().rot || 0) + 90 }, which));
+    act("r180", () => setPiece({ rot: (p().rot || 0) + 180 }, which));
+    act("zero", () => setPiece({ rot: 0 }, which));
+    painters.push(() => {
+      const v = p();
+      const set = (el, val) => { if (document.activeElement !== el) el.value = val; };
+      set(q("dx"), (v.dx || 0).toFixed(3));
+      set(q("dy"), (v.dy || 0).toFixed(3));
+      set(q("size"), String(Math.round((v.size || 1) * 100)));
+      set(q("rot"), String(Math.round(v.rot || 0)));
+      q("flip").checked = !!v.flip;
+    });
+    box.appendChild(card);
+  }
+  paintPieces = () => painters.forEach((fn) => fn());
+  paintPieces();
 }
 
 /* ------------------------------------------------------------------ save */
@@ -606,7 +718,7 @@ async function save() {
   const thumb = renderThumb();
   const res = await fetch("/save", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id: s.id, crops: s.crops, lines: s.lines || [], jpg, thumb }),
+    body: JSON.stringify({ id: s.id, crops: s.crops, lines: s.lines || [], cutouts: s.cutouts || [], jpg, thumb }),
   }).then((r) => r.json()).catch((e) => ({ ok: false, error: e.message }));
   if (!res.ok) { setStatus(`Save failed: ${res.error}. Is tools/troll-skin-editor.mjs running?`, "dirty"); return false; }
   saved[s.id] = clone(s);
@@ -633,6 +745,22 @@ $("save").addEventListener("click", save);
 window.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
   if (e.target.closest("input, select")) return;
+  if (dragTarget) {
+    if (e.key === "Escape") { dragTarget = null; buildPieces(); drawBanner(); return; }
+    const p = pieceOf(dragTarget.kind, dragTarget.i);
+    const step = (e.shiftKey ? 10 : 1) / (img.width * k / devicePixelRatio);
+    const patch =
+      e.key === "ArrowLeft" ? { dx: (p.dx || 0) - step }
+      : e.key === "ArrowRight" ? { dx: (p.dx || 0) + step }
+      : e.key === "ArrowUp" ? { dy: (p.dy || 0) - step * img.width / img.height }
+      : e.key === "ArrowDown" ? { dy: (p.dy || 0) + step * img.width / img.height }
+      : e.key === "[" ? { rot: (p.rot || 0) - (e.shiftKey ? 15 : 1) }
+      : e.key === "]" ? { rot: (p.rot || 0) + (e.shiftKey ? 15 : 1) }
+      : e.key.toLowerCase() === "f" ? { flip: p.flip ? 0 : 1 }
+      : null;
+    if (patch) { e.preventDefault(); setPiece(patch); }
+    return;
+  }
   const n = Number(e.key);
   if (n >= 1 && n <= 6) { select(PARTS[n - 1]); return; }
   if (locked.has(part) && /^(Arrow|\[|\]|f|F)/.test(e.key)) return;
@@ -662,7 +790,9 @@ await openSkin(skinId);
 window.__editor = {
   open: openSkin,
   setCrop: (id, key, c) => { work[id].crops[key] = c; if (id === skinId) changed(); },
-  setLine: (id, i, text) => { work[id].lines[i].text = text; if (id === skinId) { buildLines(); changed(); } },
+  setLine: (id, i, text) => { work[id].lines[i].text = text; if (id === skinId) { buildPieces(); changed(); } },
+  setPiece: (id, kind, i, patch) => { Object.assign((kind === "cut" ? work[id].cutouts : work[id].lines)[i], patch); if (id === skinId) { buildPieces(); changed(); } },
+  target: (kind, i) => { dragTarget = kind ? { kind, i } : null; buildPieces(); drawBanner(); },
   save: async (id) => { await openSkin(id); return save(); },
   get: (id) => clone(work[id]),
 };

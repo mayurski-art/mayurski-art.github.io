@@ -29,9 +29,39 @@ function cropSrc(c) {
   return `[${out.join(", ")}]`;
 }
 
-/* Rewrite one skin's crops and banner text in skins.js, leaving every
+/* A banner piece (text line or cutout) as one line of source: its fixed
+   fields first, then any of dx/dy/size/rot/flip that differ from default. */
+function pieceSrc(p, kind) {
+  const parts = [];
+  if (kind === "cut") parts.push(`name: ${str(p.name || "art")}`);
+  parts.push(`box: [${p.box.map(num).join(", ")}]`);
+  if (kind === "line") parts.push(`text: ${str(p.text ?? "")}`);
+  if (p.px) parts.push(`px: ${num(p.px)}`);
+  if (p.color) parts.push(`color: ${str(p.color)}`);
+  if (p.bg) parts.push(`bg: ${str(p.bg)}`);
+  if (Number(p.dx)) parts.push(`dx: ${num(p.dx)}`);
+  if (Number(p.dy)) parts.push(`dy: ${num(p.dy)}`);
+  if (p.size && Number(p.size) !== 1) parts.push(`size: ${num(p.size)}`);
+  if (Number(p.rot)) parts.push(`rot: ${num(p.rot)}`);
+  if (p.flip) parts.push("flip: 1");
+  return `{ ${parts.join(", ")} }`;
+}
+
+/* One `name: [ ... ],` line after the crops (lines first, then cutouts), or
+   none when empty. A page that doesn't send a field at all (an older editor
+   tab) leaves that line exactly as it was. */
+function writePieces(block, field, list, kind) {
+  if (list === undefined) return block;
+  block = block.replace(new RegExp(`\\n    ${field}: .*`), "");
+  if (!list.length) return block;
+  const src = list.map((p) => pieceSrc(p, kind)).join(", ");
+  const anchor = field === "cutouts" && /\n    lines: .*/.test(block) ? /(\n    lines: .*)/ : /(    crops: \{[\s\S]*?\n    \},)/;
+  return block.replace(anchor, `$1\n    ${field}: [${src}],`);
+}
+
+/* Rewrite one skin's crops and banner pieces in skins.js, leaving every
    other line (and every other skin) exactly as it was. */
-function writeSkin({ id, crops, lines }) {
+function writeSkin({ id, crops, lines, cutouts }) {
   const raw = fs.readFileSync(SKINS_JS, "utf8");
   const crlf = raw.includes("\r\n");
   let s = raw.replace(/\r\n/g, "\n");
@@ -44,20 +74,8 @@ function writeSkin({ id, crops, lines }) {
   const cropLines = PARTS.map((k) => `      ${k}: ${cropSrc(crops[k])},`).join("\n");
   block = block.replace(/    crops: \{[\s\S]*?\n    \},/, `    crops: {\n${cropLines}\n    },`);
 
-  // Banner text lines: one line of source right after the crops, or none.
-  // A page that doesn't send `lines` at all (an older editor tab) leaves
-  // them exactly as they are.
-  if (lines !== undefined) block = block.replace(/\n    lines: .*/, "");
-  const clean = (lines || []).map((l) => ({
-    box: l.box.map(num), text: String(l.text ?? ""),
-    rot: Number(l.rot) || 0, flip: l.flip ? 1 : 0,
-  }));
-  if (clean.length) {
-    // rot/flip turn the text alone; written only when set.
-    const src = clean.map((l) => `{ box: [${l.box.join(", ")}], text: ${str(l.text)}`
-      + (l.rot ? `, rot: ${num(l.rot)}` : "") + (l.flip ? ", flip: 1" : "") + " }").join(", ");
-    block = block.replace(/(    crops: \{[\s\S]*?\n    \},)/, `$1\n    lines: [${src}],`);
-  }
+  block = writePieces(block, "lines", lines, "line");
+  block = writePieces(block, "cutouts", cutouts, "cut");
   // Skins are the banner alone now: no emblem, no rollmark.
   block = block.replace(/\n    emblem: .*/, "").replace(/\n    rollmark: .*/, "");
 
