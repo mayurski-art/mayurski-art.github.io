@@ -102,14 +102,13 @@ function panelGeometry(key) {
   ];
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), nx = nrm.getX(i);
-    let s = (z - b.z0) / (b.z1 - b.z0);
+    const s = (z - b.z0) / (b.z1 - b.z0);
     const t = (y - b.y0) / (b.y1 - b.y0);
     let u;
     if (Math.abs(nx) > 0.85) {
-      // Art side. Seen from the left (-x, the side the first-person view
-      // shows) the stock is to the right; seen from the right it's to the
-      // left — flip so the art reads unmirrored from both.
-      if (nx > 0) s = 1 - s;
+      // Art side. Both sides map by position along the gun, so the right is
+      // the left's mirror: art by the muzzle on one side is by the muzzle
+      // on the other (text on the right reads mirrored, as through glass).
       u = toUv(side, s, t);
     } else {
       // Edge: a strip of trim, laid along the part.
