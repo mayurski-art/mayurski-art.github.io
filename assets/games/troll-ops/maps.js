@@ -520,56 +520,81 @@ export const MAPS = {
 
   depot: {
     name: "The Depot",
-    blurb: "Crates, catwalks, and someone always behind you.",
+    blurb: "Racking aisles, a catwalk ring, and a glass office watching all of it.",
     bounds: { minX: -28, maxX: 28, minZ: -22, maxZ: 22 },
     playerSpawn: { x: 0, z: 17 },
     sky: { top: 0x0a0d12, horizon: 0x161b22, bottom: 0x0a0d12 },
     fog: { color: 0x161b1e, density: 0.02 },
-    ground: { colorA: 0x4a4e56, colorB: 0x3d4147, grid: 0x76828a },
-    // The ceiling seals the sun out entirely, so the interior lives on
-    // ambient plus the lamp grid — both have to carry more than usual.
+    ground: { colorA: 0x8c8e90, colorB: 0x6a6c6e, grid: 0x76828a, surface: "cast", tile: 3 },
     sun: { color: 0xbfd0e0, intensity: 0.5, pos: [10, 40, -10] },
     hemi: { sky: 0x7c8ea8, ground: 0x2a2f36, intensity: 0.85 },
     ambient: { color: 0xccd8e6, intensity: 0.8 },
     build(api) {
-      api.walls(0, 0, 56, 44, 9, 1.5, { color: 0x2f343a, surface: "concrete" });
-      const ceil = new THREE.Mesh(new THREE.BoxGeometry(56, 0.6, 44), api.mat(0x22262b, 0.9));
-      ceil.position.set(0, 9, 0);
-      api.prop(ceil);
+      const STEEL = 0x3f6fa8, BEAM = 0xd8702a, LOAD = 0xb89a6a, WRAP = 0xc8d0d8, CAT = 0x4b5158, RAIL = 0xd8b030;
+      api.ghostWalls(0, 0, 56, 44, 9, 1.5, { ghost: true, color: 0x2f343a, surface: "concrete" });
 
-      // shelving rows — the main sightline breakers
+      /* ---- pallet racking: open frames, loads on three levels. Every other
+         bay leaves the middle level empty, a window at head height. */
+      let bayIndex = 0;
       for (const rowZ of [-11, 0, 11]) {
-        for (const x of [-18, -6, 6, 18]) {
-          api.box(x, rowZ, 8, 3, 2.6, { color: 0x93794a, pen: 2.2, surface: "wood", tile: 1.5 });
-          api.box(x, rowZ, 8, 3, 2.2, { color: 0xa88b56, y: 2.6, pen: 2.2, surface: "wood", tile: 1.5 });
+        for (const bx of [-18, -6, 6, 18]) {
+          for (const px of [-3.9, 3.9]) for (const pz of [-1.4, 1.4]) {
+            api.box(bx + px, rowZ + pz, 0.15, 0.15, 4.5, { ghost: true, color: STEEL, pen: 4 });
+          }
+          for (const y of [1.5, 3.1]) api.box(bx, rowZ, 7.8, 2.8, 0.1, { ghost: true, color: BEAM, y, pen: 3 });
+          api.box(bx, rowZ, 7.4, 2.4, 1.2, { ghost: true, color: LOAD, pen: 2 });                        // floor loads
+          if (bayIndex % 2 === 0) api.box(bx, rowZ, 7.4, 2.4, 1.2, { ghost: true, color: LOAD, y: 1.6, pen: 2 });
+          api.box(bx, rowZ, 7.4, 2.4, 1.1, { ghost: true, color: LOAD, y: 3.2, pen: 2 });                // top loads
+          bayIndex++;
         }
+        bayIndex++;   // stagger the windows row to row
       }
-      // catwalk ring at height, reached by stairs in two corners
-      const CAT_Y = 4.6;
+
+      /* ---- catwalk ring on columns, railed, stairs in the side gaps */
+      const CAT_Y = 4.6, TOP = 5.0;
       for (const [x, z, w, d] of [[0, -19, 54, 3], [0, 19, 54, 3], [-25.5, 0, 3, 38], [25.5, 0, 3, 38]]) {
-        api.box(x, z, w, d, 0.4, { color: 0x4b5158, y: CAT_Y, pen: 6, surface: "metal", tile: 2 });
+        api.box(x, z, w, d, 0.4, { ghost: true, color: CAT, y: CAT_Y, pen: 6, surface: "metal", tile: 2 });
       }
-      // Stair runs in the 2m gap between the wall catwalks and the racking,
-      // landing on the north and south catwalks. The old runs climbed up
-      // under the top shelf and stopped there.
-      api.stairs(-23, 17.5 - 15 * 0.62, 2, 15, 0.334, 0.62, "+z", { color: 0x4b5158 });
-      api.stairs(23, -17.5 + 15 * 0.62, 2, 15, 0.334, 0.62, "-z", { color: 0x4b5158 });
-      // Columns under the catwalk's inner edge, so the ring isn't floating.
-      for (const x of [-22, -11, 0, 11, 22]) {
-        for (const z of [-17.8, 17.8]) api.cylinder(x, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
-      }
-      for (const z of [-11, 0, 11]) {
-        for (const x of [-24.3, 24.3]) api.cylinder(x, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
-      }
-      // loose crate stacks on the floor
-      for (const [x, z, size] of [[-12, -15, 2.0], [11, 16, 2.2], [-2, 6, 1.4],
-        [4.2, -6, 1.4], [-20, 6, 2.2], [20, -6, 2.2]]) {
+      for (const x of [-22, -11, 0, 11]) for (const z of [-17.8, 17.8]) api.cylinder(x, z, 0.2, CAT_Y, { ghost: true, color: 0x3d4248, pen: 6 });
+      for (const z of [-11, 11]) for (const x of [-24.3, 24.3]) api.cylinder(x, z, 0.2, CAT_Y, { ghost: true, color: 0x3d4248, pen: 6 });
+      api.cylinder(-24.3, 0, 0.2, CAT_Y, { ghost: true, color: 0x3d4248, pen: 6 });
+      api.stairs(-23, 17.5 - 15 * 0.62, 2, 15, 0.334, 0.62, "+z", { ghost: true, color: CAT });            // -> south catwalk
+      api.stairs(23, -17.5 + 15 * 0.62, 2, 15, 0.334, 0.62, "-z", { ghost: true, color: CAT });            // -> north catwalk
+      const rail = (x, z, w, d) => api.box(x, z, w, d, 1.0, { ghost: true, color: RAIL, y: TOP, pen: 0.3 });
+      rail(-1, -17.55, 46, 0.1);         // north inner edge, x -24..22 (gap where the east stair lands)
+      rail(1, 17.55, 46, 0.1);           // south inner edge, x -22..24 (gap where the west stair lands)
+      rail(-23.95, 0, 0.1, 35);          // west inner edge
+      rail(23.95, -11.75, 0.1, 11.5);    // east inner edge, broken by the office
+      rail(23.95, 11.75, 0.1, 11.5);
+
+      /* ---- shift office on a mezzanine over the east end: the power position */
+      api.box(20, 0, 8, 12, 0.4, { ghost: true, color: CAT, y: CAT_Y, pen: 8 });
+      for (const z of [-5.8, 5.8]) api.cylinder(16.2, z, 0.2, CAT_Y, { ghost: true, color: 0x3d4248, pen: 6 });
+      api.box(16.05, 0, 0.1, 12, 1.0, { ghost: true, color: 0x5a6068, y: TOP, pen: 3 });                  // sill
+      const glass = api.box(16.05, 0, 0.05, 12, 1.5, { color: 0x9ad0e8, y: TOP + 1.0, pen: 0.2 });   // glass
+      glass.material = new THREE.MeshStandardMaterial({ ghost: true, color: 0x9ad0e8, transparent: true, opacity: 0.18, roughness: 0.1, depthWrite: false });
+      glass.castShadow = false;
+      api.box(20, -5.95, 8, 0.1, 2.6, { ghost: true, color: 0x5a6068, y: TOP, pen: 4 });
+      api.box(20, 5.95, 8, 0.1, 2.6, { ghost: true, color: 0x5a6068, y: TOP, pen: 4 });
+      api.box(20, 0, 8, 12, 0.2, { ghost: true, color: 0x3a3f46, y: TOP + 2.6, pen: 4 });                  // office roof
+      api.box(20, -3, 3, 1.4, 0.8, { ghost: true, color: 0x6a5a48, y: TOP, pen: 1.5 });                     // desk
+
+      /* ---- loading bay along the south wall */
+      api.box(-14, 16.8, 2.6, 7.4, 3.6, { ghost: true, color: 0xe8e8e0, pen: 6 });                          // trailer backed in
+      api.box(4, 15.5, 1.4, 2.6, 2.2, { ghost: true, color: 0xd8a03a, pen: 4 });                            // forklift
+      for (const [x, z] of [[10, 15], [-4, 16], [8, -15]]) api.box(x, z, 1.2, 1.2, 1.4, { ghost: true, color: WRAP, pen: 1.5 });
+      api.ghostBox(0, -5.5, 5, 2.5, 2.6, { pen: 8 });                                           // container
+      mapModel(api, "gs-container-blue", { x: 0, z: -5.5, scale: [5 / 6, 1, 1] });
+      for (const [x, z, size] of [[-12, -15, 2.0], [-2, 6, 1.4], [4.2, -6, 1.4], [-20, 6, 2.2], [20, -6.5, 2.2]]) {
         crateStack(api, { x, z, size });
       }
-      // a shipping container athwart the aisle between shelving rows
-      shippingContainer(api, { x: 0, z: -5.5, rot: 0, len: 5 });
       for (const [x, z] of [[-18, -14], [0, -14], [18, -14], [-18, 0], [0, 0], [18, 0],
         [-18, 14], [0, 14], [18, 14]]) api.lamp(x, 8.2, z, 0xffe0b0, 28, 30);
+
+      // Every collider above is the approved blockout's, now invisible (except the
+      // office glass); dp-*.glb (models/build_depot.blender.py) draw the warehouse.
+      for (const part of ["shell", "racks", "catwalk", "office", "bay"]) mapModel(api, `dp-${part}`, { x: 0, z: 0 });
+      mapModel(api, "gs-forklift", { x: 4, z: 15.5, rot: Math.PI });
     },
     spawns: [[-25, -19], [25, -19], [-25, 19], [25, 19], [0, -20], [0, 20], [-26, 0], [26, 0]],
   },
@@ -1116,88 +1141,6 @@ export const MAPS = {
     // Spawns hug the lot and the two far sand corners — never the pier,
     // which is the contested lane, and never inside a shop.
     spawns: [[-34, 28], [34, 28], [0, 29], [-36, -18], [36, -18], [-20, 24], [20, 28], [0, -14]],
-  },
-  depot_wip: {
-    name: "The Depot (blockout)",
-    blurb: "Work-in-progress blockout of the Depot rebuild.",
-    bounds: { minX: -28, maxX: 28, minZ: -22, maxZ: 22 },
-    playerSpawn: { x: 0, z: 17 },
-    sky: { top: 0x0a0d12, horizon: 0x161b22, bottom: 0x0a0d12 },
-    fog: { color: 0x161b1e, density: 0.02 },
-    ground: { colorA: 0x4a4e56, colorB: 0x3d4147, grid: 0x76828a },
-    sun: { color: 0xbfd0e0, intensity: 0.5, pos: [10, 40, -10] },
-    hemi: { sky: 0x7c8ea8, ground: 0x2a2f36, intensity: 0.85 },
-    ambient: { color: 0xccd8e6, intensity: 0.8 },
-    build(api) {
-      const STEEL = 0x3f6fa8, BEAM = 0xd8702a, LOAD = 0xb89a6a, WRAP = 0xc8d0d8, CAT = 0x4b5158, RAIL = 0xd8b030;
-      api.walls(0, 0, 56, 44, 9, 1.5, { color: 0x2f343a, surface: "concrete" });
-      const ceil = new THREE.Mesh(new THREE.BoxGeometry(56, 0.6, 44), api.mat(0x22262b, 0.9));
-      ceil.position.set(0, 9, 0);
-      api.prop(ceil);
-
-      /* ---- pallet racking: open frames, loads on three levels. Every other
-         bay leaves the middle level empty, a window at head height. */
-      let bayIndex = 0;
-      for (const rowZ of [-11, 0, 11]) {
-        for (const bx of [-18, -6, 6, 18]) {
-          for (const px of [-3.9, 3.9]) for (const pz of [-1.4, 1.4]) {
-            api.box(bx + px, rowZ + pz, 0.15, 0.15, 4.5, { color: STEEL, pen: 4 });
-          }
-          for (const y of [1.5, 3.1]) api.box(bx, rowZ, 7.8, 2.8, 0.1, { color: BEAM, y, pen: 3 });
-          api.box(bx, rowZ, 7.4, 2.4, 1.2, { color: LOAD, pen: 2 });                        // floor loads
-          if (bayIndex % 2 === 0) api.box(bx, rowZ, 7.4, 2.4, 1.2, { color: LOAD, y: 1.6, pen: 2 });
-          api.box(bx, rowZ, 7.4, 2.4, 1.1, { color: LOAD, y: 3.2, pen: 2 });                // top loads
-          bayIndex++;
-        }
-        bayIndex++;   // stagger the windows row to row
-      }
-
-      /* ---- catwalk ring on columns, railed, stairs in the side gaps */
-      const CAT_Y = 4.6, TOP = 5.0;
-      for (const [x, z, w, d] of [[0, -19, 54, 3], [0, 19, 54, 3], [-25.5, 0, 3, 38], [25.5, 0, 3, 38]]) {
-        api.box(x, z, w, d, 0.4, { color: CAT, y: CAT_Y, pen: 6, surface: "metal", tile: 2 });
-      }
-      for (const x of [-22, -11, 0, 11]) for (const z of [-17.8, 17.8]) api.cylinder(x, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
-      for (const z of [-11, 11]) for (const x of [-24.3, 24.3]) api.cylinder(x, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
-      api.cylinder(-24.3, 0, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
-      api.stairs(-23, 17.5 - 15 * 0.62, 2, 15, 0.334, 0.62, "+z", { color: CAT });            // -> south catwalk
-      api.stairs(23, -17.5 + 15 * 0.62, 2, 15, 0.334, 0.62, "-z", { color: CAT });            // -> north catwalk
-      const rail = (x, z, w, d) => api.box(x, z, w, d, 1.0, { color: RAIL, y: TOP, pen: 0.3 });
-      rail(-1, -17.55, 46, 0.1);         // north inner edge, x -24..22 (gap where the east stair lands)
-      rail(1, 17.55, 46, 0.1);           // south inner edge, x -22..24 (gap where the west stair lands)
-      rail(-23.95, 0, 0.1, 35);          // west inner edge
-      rail(23.95, -11.75, 0.1, 11.5);    // east inner edge, broken by the office
-      rail(23.95, 11.75, 0.1, 11.5);
-
-      /* ---- shift office on a mezzanine over the east end: the power position */
-      api.box(20, 0, 8, 12, 0.4, { color: CAT, y: CAT_Y, pen: 8 });
-      for (const z of [-5.8, 5.8]) api.cylinder(16.2, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
-      api.box(16.05, 0, 0.1, 12, 1.0, { color: 0x5a6068, y: TOP, pen: 3 });                  // sill
-      const glass = api.box(16.05, 0, 0.05, 12, 1.5, { color: 0x9ad0e8, y: TOP + 1.0, pen: 0.2 });   // glass
-      glass.material = new THREE.MeshStandardMaterial({ color: 0x9ad0e8, transparent: true, opacity: 0.18, roughness: 0.1, depthWrite: false });
-      glass.castShadow = false;
-      api.box(20, -5.95, 8, 0.1, 2.6, { color: 0x5a6068, y: TOP, pen: 4 });
-      api.box(20, 5.95, 8, 0.1, 2.6, { color: 0x5a6068, y: TOP, pen: 4 });
-      api.box(20, 0, 8, 12, 0.2, { color: 0x3a3f46, y: TOP + 2.6, pen: 4 });                  // office roof
-      api.box(20, -3, 3, 1.4, 0.8, { color: 0x6a5a48, y: TOP, pen: 1.5 });                     // desk
-
-      /* ---- loading bay along the south wall */
-      api.box(-14, 16.8, 2.6, 7.4, 3.6, { color: 0xe8e8e0, pen: 6 });                          // trailer backed in
-      for (const x of [-14, 0, 12]) {                                                            // dock doors (paint only)
-        const door = new THREE.Mesh(new THREE.BoxGeometry(3.6, 4.2, 0.1), api.mat(0x55595e, 0.6, 0.4));
-        door.position.set(x, 2.1, 20.45);
-        api.prop(door);
-      }
-      api.box(4, 15.5, 1.4, 2.6, 2.2, { color: 0xd8a03a, pen: 4 });                            // forklift
-      for (const [x, z] of [[10, 15], [-4, 16], [8, -15]]) api.box(x, z, 1.2, 1.2, 1.4, { color: WRAP, pen: 1.5 });
-      shippingContainer(api, { x: 0, z: -5.5, rot: 0, len: 5 });
-      for (const [x, z, size] of [[-12, -15, 2.0], [-2, 6, 1.4], [4.2, -6, 1.4], [-20, 6, 2.2], [20, -6.5, 2.2]]) {
-        crateStack(api, { x, z, size });
-      }
-      for (const [x, z] of [[-18, -14], [0, -14], [18, -14], [-18, 0], [0, 0], [18, 0],
-        [-18, 14], [0, 14], [18, 14]]) api.lamp(x, 8.2, z, 0xffe0b0, 28, 30);
-    },
-    spawns: [[-25, -19], [25, -19], [-25, 19], [25, 19], [0, -20], [0, 20], [-26, 0], [26, 0]],
   },
 
   undergrin_wip: {
