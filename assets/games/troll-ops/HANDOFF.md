@@ -9,6 +9,23 @@ push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 `?v=to-skins16` (game.js + style.css); bump it on any change to either.
 
+## Session 9 task list (2026-09-25)
+
+**Skins are ON HOLD** (user: no more skins for now). Work these instead:
+
+1. **Startup lag.** On the user's HP laptop the game lags for ~30 s after
+   loading, then runs smooth. Likely shader compiles / texture uploads / model
+   streaming happening mid-play: warm them up behind the loading screen.
+2. **Care package animation.** Needs work; sometimes when deployed it looks
+   like the hunter-killer drone deploy animation plays instead (glitch).
+3. **Grenade deploy glitch.** Believed fixed; re-check and harden anyway.
+   **Smoke grenade**: add one if it doesn't exist.
+4. **Team Deathmatch = first to 50 kills.**
+5. **Every device**: iPad, desktop, laptop, phones. Phones play in
+   **landscape** with a CoD Mobile-style touch HUD (left move stick, right
+   look area, fire/ADS/jump/crouch/reload/grenade buttons; rotate prompt in
+   portrait).
+
 ## Where we are
 
 Session 7 built the **weapon skin editor**; the user designs skins in it
