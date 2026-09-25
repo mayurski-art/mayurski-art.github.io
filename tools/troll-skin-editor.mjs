@@ -91,7 +91,7 @@ function writeSkin({ id, crops, lines, cutouts, textAreas, right, final }) {
   if (right !== undefined) {
     block = block.replace(/\n    right: .*/, "");
     const r = right || {};
-    const empty = !(r.lines?.length || r.cutouts?.length || r.newLines?.length || r.flipV?.length);
+    const empty = !(r.lines?.length || r.cutouts?.length || r.newLines?.length || r.flipV?.length || Object.keys(r.crops || {}).length);
     if (!empty) {
       const src = JSON.stringify(r, (k, v) => (typeof v === "number" ? Math.round(v * 1000) / 1000 : v));
       const last = [/\n    textAreas: .*/, /\n    cutouts: .*/, /\n    lines: .*/].find((re) => re.test(block));

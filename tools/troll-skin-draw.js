@@ -289,7 +289,8 @@ export async function bakeAtlas(skin, canvas) {
   const flipped = new Map();   // one right-side banner per crop angle
   for (const key of PARTS) {
     const r = R[key];
-    const crop = skin.crops[key];
+    // The right side's own crop for this part, if it has one.
+    const crop = skin.right?.crops?.[key] || skin.crops[key];
     const rot = crop[3] || 0;
     if (!flipped.has(rot)) flipped.set(rot, rightBanner(raw, skin, rot));
     ctx.save();
