@@ -248,11 +248,12 @@ export const MAPS = {
       api.box(0, 0, 12, 12, 0.4, { color: 0x6a6a60, pen: 6, surface: "concrete" });
       api.box(-4, -4, 4, 4, 3.2, { color: 0x59614a, surface: "concrete" });
       api.box(4, 4, 4, 4, 3.2, { color: 0x59614a, surface: "concrete" });
-      api.stairs(-2, 8, 5, 10, 0.32, 0.7, "-z", { color: 0x6a6a60, surface: "concrete", tile: 1 });
+      // lands on the block's south edge (z 1.5) rather than running into it
+      api.stairs(-2, 8.5, 5, 10, 0.32, 0.7, "-z", { color: 0x6a6a60, surface: "concrete", tile: 1 });
       api.box(0, -1, 12, 5, 3.4, { color: 0x6a6a60, pen: 6, surface: "concrete" });
       // stacked container blocks
       const containers = [
-        [-16, -12, 6, 2.6, 2.6, 0x8a5a3a], [-16, -12, 6, 2.6, 2.6, 0x8a5a3a],
+        [-16, -12, 6, 2.6, 2.6, 0x8a5a3a],
         [15, -14, 6, 2.6, 2.6, 0x3a6a7a], [-20, 12, 6, 2.6, 2.6, 0x7a6a3a],
         [18, 13, 6, 2.6, 2.6, 0x6a3a4a],
       ];
@@ -264,7 +265,15 @@ export const MAPS = {
       for (const [x, z] of [[-24, -24], [24, -24], [-24, 24], [24, 24]]) {
         api.box(x, z, 5, 5, 0.35, { color: 0x6a6a60, pen: 6 });
         api.box(x, z, 5, 5, 0.35, { color: 0x6a6a60, y: 3.2, pen: 6 });
-        api.stairs(x, z + 3.4, 3.5, 10, 0.32, 0.62, "-z", { color: 0x555b48 });
+        // Posts hold the deck up, and the stair climbs from the map side and
+        // lands on the deck's edge. It used to run underneath the deck, so the
+        // top of the flight was a dead end under a 0.3m ceiling.
+        for (const [px, pz] of [[-2.3, -2.3], [2.3, -2.3], [-2.3, 2.3], [2.3, 2.3]]) {
+          api.cylinder(x + px, z + pz, 0.14, 2.85, { color: 0x555b48, y: 0.35, pen: 3 });
+        }
+        const inward = z > 0 ? -1 : 1;             // toward the middle of the map
+        const edge = z + inward * 2.5;             // the deck edge facing the middle
+        api.stairs(x, edge + inward * 11 * 0.62, 3.5, 11, 0.323, 0.62, inward > 0 ? "-z" : "+z", { color: 0x555b48 });
       }
       // loose cover
       for (const [x, z, w, d, h] of [[8, -18, 3, 3, 1.4], [-9, 18, 4, 2.5, 1.5],
@@ -313,9 +322,11 @@ export const MAPS = {
         [-10, 12, 2.4, 3, 1.8], [10, -10, 2.4, 3, 1.8], [-9, 22, 3, 3, 1.5], [9, -22, 3, 3, 1.5]]) {
         api.box(x, z, w, d, h, { color: 0x454b55, y: 1.1 });
       }
-      // stairs from the track up to each platform, mid-map
-      api.stairs(-4.6, 2, 5, 4, 0.3, 0.6, "-x", { color: 0x3f444c });
-      api.stairs(4.6, -2, 5, 4, 0.3, 0.6, "+x", { color: 0x3f444c });
+      // Steps from the track up to each platform, twice per side. They sit in
+      // the track and land on the platform edge: the old pair was buried
+      // inside the platforms, so a player who dropped onto the track was stuck.
+      for (const z of [3.25, -22.75]) api.stairs(-1.6, z, 5, 4, 0.275, 0.6, "-x", { color: 0x3f444c });
+      for (const z of [-3.25, 22.75]) api.stairs(1.6, z, 5, 4, 0.275, 0.6, "+x", { color: 0x3f444c });
       for (let z = -28; z <= 28; z += 7) api.lamp(0, 6.2, z, 0xbcd8ff, 9, 16);
     },
     spawns: [[0, -30], [0, 30], [-9, -28], [9, -28], [-9, 28], [9, 28], [0, -20], [0, 20]],
@@ -339,7 +350,8 @@ export const MAPS = {
       // ruined compound in the middle
       api.walls(0, 0, 22, 18, 4, 1, { color: 0xad8d5c, gaps: { n: 5, s: 5, w: 4, e: 4 }, surface: "brick", tile: 2.5 });
       api.box(0, 0, 7, 6, 3.2, { color: 0x94794e, surface: "brick", tile: 2.5 });
-      api.stairs(0, 5, 5, 9, 0.34, 0.62, "-z", { color: 0x94794e });
+      // climbs from the south doorway and lands on the block's roof edge (z 3)
+      api.stairs(0, 9.2, 5, 10, 0.32, 0.62, "-z", { color: 0x94794e });
       // outlying ruins
       for (const [cx, cz] of [[-26, -20], [24, -22], [-24, 24], [26, 22]]) {
         api.walls(cx, cz, 12, 10, 3.4, 0.9, { color: 0xad8d5c, gaps: { n: 3.5, e: 3 }, surface: "brick", tile: 2.5 });
@@ -351,7 +363,8 @@ export const MAPS = {
         api.cylinder(x, z, r, h, { color: 0x6f5d3c, pen: 3, surface: "rock", tile: 2 });
       }
       // low walls giving sniper lanes something to break up
-      for (const [x, z, w, d] of [[-20, -6, 14, 1], [20, 6, 14, 1], [-6, 18, 1, 12], [6, -18, 1, 12]]) {
+      // (the other two lanes get sandbag walls below, on the same lines)
+      for (const [x, z, w, d] of [[20, 6, 14, 1], [-6, 18, 1, 12]]) {
         api.box(x, z, w, d, 1.2, { color: 0x94794e, pen: 4 });
       }
       // sandbag emplacements and dropped supply barrels along the lanes
@@ -395,11 +408,21 @@ export const MAPS = {
       for (const [x, z, w, d] of [[0, -19, 54, 3], [0, 19, 54, 3], [-25.5, 0, 3, 38], [25.5, 0, 3, 38]]) {
         api.box(x, z, w, d, 0.4, { color: 0x4b5158, y: CAT_Y, pen: 6, surface: "metal", tile: 2 });
       }
-      api.stairs(-21, 14, 4, 14, 0.33, 0.62, "-z", { color: 0x4b5158 });
-      api.stairs(21, -14, 4, 14, 0.33, 0.62, "+z", { color: 0x4b5158 });
+      // Stair runs in the 2m gap between the wall catwalks and the racking,
+      // landing on the north and south catwalks. The old runs climbed up
+      // under the top shelf and stopped there.
+      api.stairs(-23, 17.5 - 15 * 0.62, 2, 15, 0.334, 0.62, "+z", { color: 0x4b5158 });
+      api.stairs(23, -17.5 + 15 * 0.62, 2, 15, 0.334, 0.62, "-z", { color: 0x4b5158 });
+      // Columns under the catwalk's inner edge, so the ring isn't floating.
+      for (const x of [-22, -11, 0, 11, 22]) {
+        for (const z of [-17.8, 17.8]) api.cylinder(x, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
+      }
+      for (const z of [-11, 0, 11]) {
+        for (const x of [-24.3, 24.3]) api.cylinder(x, z, 0.2, CAT_Y, { color: 0x3d4248, pen: 6 });
+      }
       // loose crate stacks on the floor
-      for (const [x, z, size] of [[-12, -17, 2.0], [11, 16, 2.2], [-2, 6, 1.4],
-        [2, -6, 1.4], [-20, 6, 2.2], [20, -6, 2.2]]) {
+      for (const [x, z, size] of [[-12, -15, 2.0], [11, 16, 2.2], [-2, 6, 1.4],
+        [4.2, -6, 1.4], [-20, 6, 2.2], [20, -6, 2.2]]) {
         crateStack(api, { x, z, size });
       }
       // a shipping container athwart the aisle between shelving rows
@@ -566,11 +589,29 @@ export const MAPS = {
           const ATTIC_Y = 3.2;
           // stair run hugs the back (non-door) wall, well clear of the
           // ground-floor cover box which sits closer to the door side
-          const stairX = x + (door === "e" ? -(w / 2 - 1.3) : (w / 2 - 1.3));
-          api.stairs(stairX, z - 2.8, 2, 12, 0.27, 0.48, "+z", { color: 0x8a7358 });
-          // attic floor: solid so the player can stand on it, sized to the
-          // model's inset attic room (w-2 by d-2, per build_houses.blender.py)
-          api.box(x, z, w - 2, d - 2, 0.15, { color: 0x9a8a72, y: ATTIC_Y, pen: 6 });
+          // The stair sits just inside the attic's own wall (inset 1m + 0.28m)
+          // and the attic floor has a stairwell cut over it. It used to climb
+          // into the underside of a solid floor, so the perch was unreachable.
+          const sgn = door === "e" ? -1 : 1;          // back wall side
+          const sOuter = x + sgn * (w / 2 - 1.3);     // stair edge by the wall
+          const sInner = sOuter - sgn * 2;
+          const stairX = (sOuter + sInner) / 2;
+          const HOLE_Z0 = z - 3.6, HOLE_Z1 = z - 3.6 + 12 * 0.45;
+          api.stairs(stairX, HOLE_Z0, 2, 12, 0.27, 0.45, "+z", { color: 0x8a7358 });
+          // attic floor, in pieces around the stairwell: solid so the player
+          // can stand on it, sized to the model's inset attic room (w-2 by d-2,
+          // per build_houses.blender.py)
+          const ax0 = x - (w - 2) / 2, ax1 = x + (w - 2) / 2;
+          const az0 = z - (d - 2) / 2, az1 = z + (d - 2) / 2;
+          const hx0 = Math.min(sOuter, sInner), hx1 = Math.max(sOuter, sInner);
+          const floorPiece = (x0, x1, z0, z1) => {
+            if (x1 - x0 < 0.05 || z1 - z0 < 0.05) return;
+            api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.15, { color: 0x9a8a72, y: ATTIC_Y, pen: 6 });
+          };
+          floorPiece(ax0, hx0, az0, az1);
+          floorPiece(hx1, ax1, az0, az1);
+          floorPiece(hx0, hx1, az0, Math.max(az0, HOLE_Z0));
+          floorPiece(hx0, hx1, Math.min(az1, HOLE_Z1), az1);
           api.lamp(x, ATTIC_Y + 1.6, z, 0xffe6b8, 7, 11);
           // attic walls had no collider at all — the perch's own room shell
           // (build_house_attic: inset w-2 by d-2, ATTIC_WALL_T=0.28, one
@@ -750,11 +791,18 @@ export const MAPS = {
           api.cylinder(tx + dx, tz + dz, 0.22, TY, { color: 0x8a6a4a, pen: 2 });
         }
         api.box(tx, tz, 4.6, 4.6, 0.3, { color: TOWER, y: TY, pen: 2.5, surface: "wood", tile: 1.2 });
-        api.walls(tx, tz, 4.6, 4.6, 1.5, 0.25, {
+        // Waist-high sides and a roof on corner posts, 2.3m up: the old roof
+        // sat 1.5m over the floor, too low to stand under.
+        api.walls(tx, tz, 4.6, 4.6, 1.1, 0.25, {
           color: TOWER, y: TY + 0.3, gaps: { n: 2.6, s: 2.6 }, surface: "wood", tile: 1.2,
         });
-        api.box(tx, tz, 5, 5, 0.22, { color: 0xb8391f, y: TY + 1.8, pen: 2, surface: "wood", tile: 1.2 });
-        api.stairs(tx, tz + 3.2, 2.4, 7, 0.3, 0.55, "-z", { color: 0xc07a4a });
+        for (const [dx, dz] of [[-2.15, -2.15], [2.15, -2.15], [-2.15, 2.15], [2.15, 2.15]]) {
+          api.cylinder(tx + dx, tz + dz, 0.1, 2.3, { color: 0x8a6a4a, y: TY + 0.3, pen: 2 });
+        }
+        api.box(tx, tz, 5, 5, 0.22, { color: 0xb8391f, y: TY + 2.6, pen: 2, surface: "wood", tile: 1.2 });
+        // The stair lands on the deck at the south doorway; it used to run
+        // underneath the deck and stop against it.
+        api.stairs(tx, tz + 2.3 + 8 * 0.5, 2.4, 8, 0.3, 0.5, "-z", { color: 0xc07a4a });
       }
       // beach volleyball net — soft cover mid-sand, bullets go through
       for (const px of [-2, 8]) {
