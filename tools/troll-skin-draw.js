@@ -60,18 +60,25 @@ function paperKeyed(img, bg, paper) {
   const id = g.getImageData(0, 0, w, h), d = id.data;
   const lum = (k) => (d[k * 4] + d[k * 4 + 1] + d[k * 4 + 2]) / 3;
   const out = new Uint8Array(w * h);
-  const stack = [];
-  const push = (x, y) => { const k = y * w + x; if (!out[k] && lum(k) > 200) { out[k] = 1; stack.push(k); } };
-  for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
-  for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
-  for (const [px, py] of paper) push(Math.round(px * (w - 1)), Math.round(py * (h - 1)));
-  while (stack.length) {
-    const k = stack.pop(), x = k % w, y = (k - x) / w;
-    if (x > 0) push(x - 1, y);
-    if (x < w - 1) push(x + 1, y);
-    if (y > 0) push(x, y - 1);
-    if (y < h - 1) push(x, y + 1);
-  }
+  // Paper shut in by lines is often a little grey (small gaps, jpeg), so
+  // the `paper` seeds flood with a lower cut-off than the open paper.
+  const flood = (starts, min) => {
+    const stack = [];
+    const push = (x, y) => { const k = y * w + x; if (!out[k] && lum(k) > min) { out[k] = 1; stack.push(k); } };
+    for (const [x, y] of starts) push(x, y);
+    while (stack.length) {
+      const k = stack.pop(), x = k % w, y = (k - x) / w;
+      if (x > 0) push(x - 1, y);
+      if (x < w - 1) push(x + 1, y);
+      if (y > 0) push(x, y - 1);
+      if (y < h - 1) push(x, y + 1);
+    }
+  };
+  const rim = [];
+  for (let x = 0; x < w; x++) rim.push([x, 0], [x, h - 1]);
+  for (let y = 0; y < h; y++) rim.push([0, y], [w - 1, y]);
+  flood(rim, 200);
+  flood(paper.map(([px, py]) => [Math.round(px * (w - 1)), Math.round(py * (h - 1))]), 120);
   // Pixels within 2 of the paper are line edges.
   let edge = out;
   for (let pass = 0; pass < 2; pass++) {

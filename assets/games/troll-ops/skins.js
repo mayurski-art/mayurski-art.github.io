@@ -59,7 +59,7 @@ export const SKINS = [
     blurb: "An error dialog that shoots back.",
     final: true,
     palette: { trim: "#1f4fd1", ink: "#10131c", metal: 0xb9bcc2, accent: 0xd9492b },
-    art: { stock: { file: "problem-stock.jpg", bg: "#1f4fd1", paper: [[0.47, 0.554], [0.247, 0.573], [0.605, 0.708]] } },
+    art: { stock: { file: "problem-stock.jpg", bg: "#1f4fd1", paper: [[0.47, 0.554], [0.247, 0.573], [0.605, 0.708], [0.697, 0.726]] } },
     crops: {
       upper: [0.235, 0.12, 0.47],
       lower: [0.31, 0.46, 0.34, 0, 1],
