@@ -12,6 +12,10 @@
 //   rot     degrees the crop box is turned on the banner (optional, 0)
 //   flip    1 mirrors the art along the part (optional, 0)
 // The crop's height follows from the part's shape, so art is never stretched.
+//
+// A part can take its art from its own picture instead of the banner:
+// skin.art = { stock: "problem-stock.jpg" } (files in assets/images/skin-art).
+// That part's crop is then a crop of the picture, on both sides.
 
 import { SKIN_ATLAS } from "../assets/games/troll-ops/skins.js";
 import { PANELS_416, panelBounds } from "../assets/games/troll-ops/weapon-416.js";
@@ -23,6 +27,14 @@ export const loadImage = (src) => new Promise((ok, bad) => {
 });
 const banners = {};
 export const bannerImage = async (file) => (banners[file] ||= await loadImage(new URL(`../assets/images/banners/${file}`, import.meta.url).href));
+const arts = {};
+export const artImage = async (file) => (arts[file] ||= await loadImage(new URL(`../assets/images/skin-art/${file}`, import.meta.url).href));
+/* The parts that have their own picture, loaded: { part: image }. */
+export async function partArt(skin) {
+  const out = {};
+  for (const [key, file] of Object.entries(skin.art || {})) out[key] = await artImage(file);
+  return out;
+}
 
 /* Banner pieces a skin moves around: text it rewrites, and bits of art it
    lifts off the banner (the trollface), each placed as you like.
@@ -273,6 +285,7 @@ function drawCrop(ctx, img, key, crop) {
 export async function bakeAtlas(skin, canvas) {
   const ctx = canvas.getContext("2d");
   const img = editedBanner(await bannerImage(skin.banner), skin.lines, skin.cutouts);
+  const art = await partArt(skin);
   const R = SKIN_ATLAS.regions;
   // Everything outside a part is trim, including the trim swatch the bevels
   // use, so mip bleed at a part's edge is the trim colour, not a neighbour.
@@ -284,7 +297,7 @@ export async function bakeAtlas(skin, canvas) {
     const r = R[key];
     ctx.save();
     ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
-    drawCrop(ctx, img, key, skin.crops[key]);
+    drawCrop(ctx, art[key] || img, key, skin.crops[key]);
     ctx.restore();
   }
   trimOutlines(ctx, skin, 0);
@@ -300,7 +313,9 @@ export async function bakeAtlas(skin, canvas) {
     // The right side's own crop for this part, if it has one.
     const crop = skin.right?.crops?.[key] || skin.crops[key];
     const rot = crop[3] || 0;
-    if (!flipped.has(rot)) flipped.set(rot, rightBanner(raw, skin, rot));
+    // A part with its own picture has no writing to turn back: the model
+    // mirrors it, like the rest of the side.
+    if (!art[key] && !flipped.has(rot)) flipped.set(rot, rightBanner(raw, skin, rot));
     ctx.save();
     ctx.beginPath(); ctx.rect(r.x, r.y + dy, r.w, r.h); ctx.clip();
     ctx.translate(0, dy);
@@ -309,7 +324,7 @@ export async function bakeAtlas(skin, canvas) {
       ctx.translate(0, 2 * r.y + r.h);
       ctx.scale(1, -1);
     }
-    drawCrop(ctx, flipped.get(rot), key, crop);
+    drawCrop(ctx, art[key] || flipped.get(rot), key, crop);
     ctx.restore();
   }
   trimOutlines(ctx, skin, dy);

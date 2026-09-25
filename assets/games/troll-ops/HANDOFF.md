@@ -7,7 +7,7 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-skins13` (game.js + style.css); bump it on any change to either.
+`?v=to-skins14` (game.js + style.css); bump it on any change to either.
 
 ## Where we are
 
@@ -51,6 +51,11 @@ waiting. Ask before starting anything new.
   title style, `bg: "rows"` paints out a gradient bar), `flipV` (parts upside
   down on the right).
 - `final: true`: the Final lock; the editor folds down to the gun.
+- `art`: a part's own picture in place of the banner, e.g.
+  `art: { stock: "problem-stock.jpg" }` (files in assets/images/skin-art). That
+  part's crop is a crop of the picture, on both sides (the right just mirrors
+  it: no text flipping). The editor shows the picture when the part is
+  selected. You Have a Problem's stock uses the trollface stick figure.
 
 ### The sides formula (user rule, in memory too)
 The right side **mirrors** the left: the same art at the same spot along the

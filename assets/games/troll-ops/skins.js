@@ -50,24 +50,28 @@ export const SKINNABLE = new Set(["problem416"]);
    hardware. `lines` rewrite text on the banner and `cutouts` lift art off it
    (both movable pieces, see editedBanner in tools/troll-skin-draw.js): the box (fractions of the
    banner) is painted over and `text` written back in the banner's pixel
-   style — edit it in the skin editor. */
+   style — edit it in the skin editor. `art` gives a part its own picture
+   (assets/images/skin-art) in place of the banner: that part's crop is then
+   a crop of the picture. */
 export const SKINS = [
   {
     id: "problem", name: "You Have a Problem", banner: "banner-16.jpg",
     blurb: "An error dialog that shoots back.",
+    final: true,
     palette: { trim: "#1f4fd1", ink: "#10131c", metal: 0xb9bcc2, accent: 0xd9492b },
+    art: { stock: "problem-stock.jpg" },
     crops: {
       upper: [0.235, 0.12, 0.47],
       lower: [0.31, 0.46, 0.34, 0, 1],
       handguard: [0.685, 0.81, 0.57],
-      stock: [0.786, 0.135, -0.01],
+      stock: [0.5, 0.684, 1],
       grip: [0.567, 0.605, 0.029, 90],
       mag: [0.81, 0.618, 0.032, -90],
     },
     lines: [{ box: [0.169, 0.325, 0.58, 0.454], text: "^ disgusting", dx: 0.005, dy: 0.005, size: 0.9, rot: -6, flip: 1 }],
     cutouts: [{ name: "trollface", box: [0.03, 0.3, 0.147, 0.62], dx: 0.287, dy: 0.005, size: 0.85 }],
     textAreas: [[0.02, 0.05, 0.465, 0.2], [0.472, 0.722, 0.537, 0.828], [0.702, 0.722, 0.91, 0.828]],
-    right: {"lines":[{"text":"$TROLL","dx":0.005,"dy":0.005,"size":0.9,"rot":-6,"flip":1}],"newLines":[{"box":[0.02,0.04,0.47,0.228],"text":"Don't even joke with me lad","scale":0.66,"smooth":1,"bg":"rows","color":"#ffffff","shadow":"#0a1f7a","size":0.6,"dx":-0.115}],"crops":{"upper":[0.176,0.13,0.352]},"cutouts":[{"dx":0.287,"dy":0.005,"size":0.9,"rot":0,"flip":0}]},
+    right: {"lines":[{"text":"$TROLL","dx":0.015,"dy":0.005,"size":1.1,"rot":-6,"flip":1}],"newLines":[{"box":[0.02,0.04,0.47,0.228],"text":"Don't even joke with me lad","scale":0.66,"smooth":1,"bg":"rows","color":"#ffffff","shadow":"#0a1f7a","size":0.6,"dx":-0.115}],"crops":{"upper":[0.176,0.13,0.352],"mag":[0.81,0.618,0.026,-90,0],"lower":[0.323,0.46,0.34,0,1]},"cutouts":[{"dx":0.287,"dy":0.005,"size":0.9,"rot":0,"flip":0}]},
   },
   {
     id: "green", name: "Green Room", banner: "banner-03.jpg",

@@ -151,7 +151,7 @@ import * as THREE from "three";
 import { SKINS, SKIN_BY_ID, SKIN_ATLAS } from "../assets/games/troll-ops/skins.js";
 import { build416 } from "../assets/games/troll-ops/weapon-416.js";
 import { resolveWeapon } from "../assets/games/troll-ops/attachments.js";
-import { PARTS, bannerImage, bakeAtlas, cropFrame, editedBanner, rightPieces } from "./troll-skin-draw.js";
+import { PARTS, bannerImage, bakeAtlas, cropFrame, editedBanner, partArt, rightPieces } from "./troll-skin-draw.js";
 
 const COLORS = { upper: "#ff5a5a", lower: "#ffb020", handguard: "#3ddc84", stock: "#4aa8ff", grip: "#c77dff", mag: "#ff6ec7" };
 const NAMES = { upper: "Upper", lower: "Lower", handguard: "Handguard", stock: "Stock", grip: "Grip", mag: "Mag" };
@@ -165,8 +165,9 @@ const saved = Object.fromEntries(SKINS.map((s) => [s.id, clone(s)]));
 const work = Object.fromEntries(SKINS.map((s) => [s.id, clone(s)]));
 let skinId = SKINS[0].id;
 let part = "upper";
-let img = null;      // the banner as the skin sees it (text lines applied)
+let img = null;      // what the canvas shows: the banner as the skin sees it (text lines applied), or the selected part's own picture
 let rawImg = null;   // the banner file itself
+let arts = {};       // parts with their own picture (skin.art), loaded
 /* Parts you've locked: they can't be picked, dragged, nudged or zoomed from
    the banner, so working on one part can't knock another. Kept per browser,
    across reloads. */
@@ -222,6 +223,8 @@ const bx = bc.getContext("2d");
 let k = 1;   // canvas px per banner px
 
 function fitBanner() {
+  // A tall picture (a part's own art) would fill the screen at full width.
+  bc.style.width = img.height > img.width * 0.6 ? "min(100%, 56vh)" : "";
   const w = bc.clientWidth * devicePixelRatio;
   k = w / img.width;
   bc.width = Math.round(w);
@@ -263,6 +266,10 @@ function viewBanner() {
   return editedBanner(rawImg, [...R.lines, ...R.newLines], R.cutouts);
 }
 const baseLineCount = () => (skin().lines || []).length;
+/* A part with its own picture is edited on that picture, alone; every
+   other part on the banner. */
+const onArt = () => (!dragTarget && arts[part]) || null;
+const shown = (key) => (onArt() ? key === part : !arts[key]);
 
 /* A piece's current values, for reading. On the right side that's the left
    side's piece with the right's override merged over it. */
@@ -323,6 +330,7 @@ function drawAreas() {
 }
 function drawPieces() {
   const dpr = devicePixelRatio;
+  if (onArt()) return;   // text areas and pieces live on the banner
   drawAreas();
   if (areasMode()) return;
   for (const raw of img.pieces || []) {
@@ -339,11 +347,13 @@ function drawPieces() {
 }
 
 function drawBanner() {
+  const want = onArt() || viewBanner();
+  if (want !== img) { img = want; fitBanner(); }
   bx.clearRect(0, 0, bc.width, bc.height);
   bx.globalAlpha = 0.45;
   bx.drawImage(img, 0, 0, bc.width, bc.height);
   bx.globalAlpha = 1;
-  const order = dragTarget ? [] : [...PARTS.filter((p) => p !== part), part];
+  const order = dragTarget ? [] : [...PARTS.filter((p) => p !== part && shown(p)), part];
   if (dragTarget) { bx.globalAlpha = 1; bx.drawImage(img, 0, 0, bc.width, bc.height); }
   // Art inside every box at full strength, so the crops read at a glance.
   for (const key of order) {
@@ -369,7 +379,7 @@ function drawBanner() {
     // Label at the top-left corner.
     const [lx, ly] = fromBox(b, -b.hw, -b.hh);
     bx.font = `600 ${11 * dpr}px system-ui, sans-serif`;
-    const text = (partIsLocked ? "🔒 " : "") + NAMES[key];
+    const text = (partIsLocked ? "🔒 " : "") + NAMES[key] + (arts[key] ? " · own picture" : "");
     const tw = bx.measureText(text).width;
     bx.fillStyle = COLORS[key];
     bx.fillRect(lx, ly - 15 * dpr, tw + 8 * dpr, 15 * dpr);
@@ -425,7 +435,7 @@ bc.addEventListener("pointerdown", (e) => {
   } else {
     // Topmost box under the pointer: the selected one wins, then the rest
     // in reverse draw order.
-    const hit = [part, ...PARTS.filter((p) => p !== part).reverse()].filter((key) => !isLocked(key)).find((key) => {
+    const hit = [part, ...PARTS.filter((p) => p !== part).reverse()].filter((key) => shown(key) && !isLocked(key)).find((key) => {
       const bb = boxOf(key); const [lx, ly] = toBox(bb, px, py);
       return Math.abs(lx) <= bb.hw && Math.abs(ly) <= bb.hh;
     });
@@ -721,7 +731,6 @@ async function rebake() {
 }
 
 function changed(skipTableKey = null) {
-  img = viewBanner();
   writeDraft(skinId);
   drawBanner();
   paintTable(skipTableKey);
@@ -742,8 +751,8 @@ async function openSkin(id) {
   skinId = id;
   $("skin").value = id;
   rawImg = await bannerImage(skin().banner);
-  img = viewBanner();
-  fitBanner();
+  arts = await partArt(skin());
+  img = null;
   buildGun();
   dragTarget = null;
   buildPieces();
