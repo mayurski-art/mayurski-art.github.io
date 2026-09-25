@@ -153,6 +153,9 @@ const els = {
   touchMoveNub: document.querySelector(".to-touch-stick-nub"),
   touchLook: document.getElementById("to-touch-look"),
   touchFire: document.getElementById("to-touch-fire"),
+  touchFireL: document.getElementById("to-touch-fire-l"),
+  touchTac: document.getElementById("to-touch-tac"),
+  touchMoveZone: document.getElementById("to-touch-movezone"),
   touchAds: document.getElementById("to-touch-ads"),
   touchJump: document.getElementById("to-touch-jump"),
   touchReload: document.getElementById("to-touch-reload"),
@@ -224,7 +227,26 @@ function renderGpDebug(gp) {
 // the menu, bleeding FIRE and RELOAD through the translucent panels.
 // A paired controller (common on iPad) replaces the on-screen sticks, so the
 // overlay hides itself the moment one is detected rather than stacking both.
-function setTouchControls(on) { els.touch.hidden = !(isTouch && on) || gamepadState.connected; }
+function setTouchControls(on) {
+  els.touch.hidden = !(isTouch && on) || gamepadState.connected;
+  // The whole touch HUD layout (and the portrait "turn it sideways" card)
+  // hangs off this class, so a phone menu keeps its own layout.
+  document.body.classList.toggle("to-touch-play", !els.touch.hidden);
+  if (!els.touch.hidden) lockLandscape();
+}
+
+/* Android Chrome can hold landscape once fullscreen; iOS can do neither and
+   gets the rotate card instead. Both calls fail quietly where unsupported. */
+let triedLandscape = false;
+function lockLandscape() {
+  if (triedLandscape || !isTouch) return;
+  triedLandscape = true;
+  const el = document.documentElement;
+  const go = () => screen.orientation?.lock?.("landscape").catch(() => {});
+  if (el.requestFullscreen && !document.fullscreenElement) {
+    el.requestFullscreen({ navigationUI: "hide" }).then(go).catch(() => {});
+  } else go();
+}
 setTouchControls(false);
 window.addEventListener("gamepadconnected", (e) => {
   gpIndex = e.gamepad.index;
@@ -2702,13 +2724,26 @@ const touchState = {
   crouch: false, dive: false, interact: false, swap: false,
 };
 
-function bindStick(el, nub) {
+/* `zone`: a touch anywhere in it moves the stick under the thumb first
+   (a floating stick), and it springs back to its rest spot on release. */
+function bindStick(el, nub, zone = null) {
   let active = false, startX = 0, startY = 0, id = null;
-  el.addEventListener("touchstart", (e) => {
+  const begin = (e) => {
+    if (active) return;
     const t = e.changedTouches[0];
     active = true; id = t.identifier; startX = t.clientX; startY = t.clientY;
-  }, { passive: true });
-  el.addEventListener("touchmove", (e) => {
+    if (zone && e.currentTarget === zone) {
+      const box = el.offsetParent.getBoundingClientRect();
+      el.style.left = `${t.clientX - box.left - el.offsetWidth / 2}px`;
+      el.style.top = `${t.clientY - box.top - el.offsetHeight / 2}px`;
+      el.style.bottom = "auto";
+      el.classList.add("is-floating");
+    }
+    el.classList.add("is-active");
+  };
+  el.addEventListener("touchstart", begin, { passive: true });
+  zone?.addEventListener("touchstart", begin, { passive: true });
+  const move = (e) => {
     if (!active) return;
     for (const t of e.changedTouches) {
       if (t.identifier !== id) continue;
@@ -2720,14 +2755,23 @@ function bindStick(el, nub) {
       touchState.moveY = dy / max;
       if (nub) nub.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     }
-  }, { passive: true });
-  const end = (e) => {
-    for (const t of e.changedTouches) if (t.identifier === id) { active = false; touchState.moveX = 0; touchState.moveY = 0; if (nub) nub.style.transform = "translate(-50%,-50%)"; }
   };
-  el.addEventListener("touchend", end);
-  el.addEventListener("touchcancel", end);
+  const end = (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== id) continue;
+      active = false; touchState.moveX = 0; touchState.moveY = 0;
+      if (nub) nub.style.transform = "translate(-50%,-50%)";
+      el.style.left = el.style.top = el.style.bottom = "";
+      el.classList.remove("is-floating", "is-active");
+    }
+  };
+  for (const target of zone ? [el, zone] : [el]) {
+    target.addEventListener("touchmove", move, { passive: true });
+    target.addEventListener("touchend", end);
+    target.addEventListener("touchcancel", end);
+  }
 }
-bindStick(els.touchMove, els.touchMoveNub);
+bindStick(els.touchMove, els.touchMoveNub, els.touchMoveZone);
 
 (function bindLook() {
   let id = null, lastX = 0, lastY = 0;
@@ -2756,7 +2800,35 @@ function bindHold(el, onDown, onUp) {
   el.addEventListener("touchend", (e) => { e.preventDefault(); el.classList.remove("is-held"); onUp(); });
   el.addEventListener("touchcancel", () => { el.classList.remove("is-held"); onUp(); });
 }
-bindHold(els.touchFire, () => touchState.firing = true, () => touchState.firing = false);
+/* Two fire buttons (right thumb, and a left one for firing while you
+   steer), so firing is a count of thumbs down, not a flag either can clear
+   for the other. The right one also aims while held: drag it like the look
+   pad, the way CoD Mobile's fire button works. */
+let firingThumbs = 0;
+const fireDown = () => { firingThumbs++; touchState.firing = true; };
+const fireUp = () => { firingThumbs = Math.max(0, firingThumbs - 1); touchState.firing = firingThumbs > 0; };
+bindHold(els.touchFire, fireDown, fireUp);
+if (els.touchFireL) bindHold(els.touchFireL, fireDown, fireUp);
+(function fireDragAims() {
+  let id = null, lastX = 0, lastY = 0;
+  els.touchFire.addEventListener("touchstart", (e) => {
+    const t = e.changedTouches[0];
+    id = t.identifier; lastX = t.clientX; lastY = t.clientY;
+  }, { passive: true });
+  els.touchFire.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== id) continue;
+      touchState.lookDX += (t.clientX - lastX) * 0.0028;
+      touchState.lookDY += (t.clientY - lastY) * 0.0028;
+      touchState.looking = true;
+      lastX = t.clientX; lastY = t.clientY;
+    }
+  }, { passive: false });
+  const end = (e) => { for (const t of e.changedTouches) if (t.identifier === id) { id = null; touchState.looking = false; } };
+  els.touchFire.addEventListener("touchend", end);
+  els.touchFire.addEventListener("touchcancel", end);
+})();
 bindHold(els.touchAds, () => touchState.ads = true, () => touchState.ads = false);
 bindHold(els.touchJump, () => touchState.jump = true, () => touchState.jump = false);
 bindHold(els.touchSlide, () => touchState.crouch = true, () => touchState.crouch = false);
@@ -2764,6 +2836,7 @@ els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); tryR
 els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); swingMelee(); });
 // Touch cooks for as long as the button is held, same as the key.
 bindHold(els.touchNade, () => startCook("lethal"), () => releaseCook());
+if (els.touchTac) bindHold(els.touchTac, () => startCook("tactical"), () => releaseCook());
 bindHold(els.touchInteract, () => touchState.interact = true, () => touchState.interact = false);
 bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = false);
 // A tap, not a hold — and it doubles as the confirm for a marked spot, the
@@ -3230,8 +3303,10 @@ function updateStreakHud() {
   // On a phone the button only exists when there's something to call —
   // an always-on dead button is just lost screen space.
   if (els.touchStreak) {
-    els.touchStreak.hidden = !isTouch || !on
-      || (!streaks.readyIds().length && !markingStreak);
+    // Touch calls a streak by tapping its row; this button is only the
+    // big "drop it here" confirm while one is being marked.
+    els.touchStreak.hidden = !isTouch || !on || !markingStreak;
+    els.touchStreak.textContent = "CONFIRM";
   }
   if (!on) return;
 
@@ -3974,6 +4049,22 @@ function updateGearHud() {
   els.gearTacticalName.textContent = loadout.tactical.name;
   els.gearTacticalN.textContent = String(player.gear.tactical);
   els.gearTactical.classList.toggle("is-empty", player.gear.tactical <= 0);
+  // Touch: the buttons carry the name and count (the chips are hidden there).
+  if (els.touchNade) {
+    els.touchNade.textContent = shortGearName(loadout.lethal.name);
+    els.touchNade.dataset.n = String(player.gear.lethal);
+    els.touchNade.classList.toggle("is-empty", player.gear.lethal <= 0);
+  }
+  if (els.touchTac) {
+    els.touchTac.textContent = shortGearName(loadout.tactical.name);
+    els.touchTac.dataset.n = String(player.gear.tactical);
+    els.touchTac.classList.toggle("is-empty", player.gear.tactical <= 0);
+  }
+}
+
+function shortGearName(name) {
+  const n = String(name || "").split(/\s+/)[0].toUpperCase();
+  return n.length > 6 ? n.slice(0, 5) : n;
 }
 
 // -------------------- the test range --------------------

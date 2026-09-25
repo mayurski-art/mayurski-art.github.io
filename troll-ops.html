@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-s9b">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-s9c">
 </head>
 <body>
 
@@ -519,12 +519,16 @@
 
       <!-- Touch controls -->
       <div class="to-touch" id="to-touch" hidden>
+        <!-- Thumb anywhere on the left drops the stick there (CoD Mobile). -->
+        <div class="to-touch-movezone" id="to-touch-movezone"></div>
         <div class="to-touch-stick" id="to-touch-move">
           <div class="to-touch-stick-nub"></div>
         </div>
         <button type="button" class="to-touch-btn to-touch-jump" id="to-touch-jump">↑</button>
         <button type="button" class="to-touch-btn to-touch-ads" id="to-touch-ads">ADS</button>
-        <button type="button" class="to-touch-btn to-touch-fire" id="to-touch-fire">FIRE</button>
+        <button type="button" class="to-touch-btn to-touch-fire" id="to-touch-fire" aria-label="Fire (drag to aim)">FIRE</button>
+        <button type="button" class="to-touch-btn to-touch-fire-l" id="to-touch-fire-l" aria-label="Fire, left hand">FIRE</button>
+        <button type="button" class="to-touch-btn to-touch-tac" id="to-touch-tac" aria-label="Throw tactical">TAC</button>
         <button type="button" class="to-touch-btn to-touch-reload" id="to-touch-reload">R</button>
         <button type="button" class="to-touch-btn to-touch-slide" id="to-touch-slide">SLIDE</button>
         <button type="button" class="to-touch-btn to-touch-melee" id="to-touch-melee" aria-label="Melee">MELEE</button>
@@ -533,6 +537,13 @@
         <button type="button" class="to-touch-btn to-touch-swap" id="to-touch-swap" aria-label="Hold to swap weapons, pick up a dropped weapon, or open a care package">X</button>
         <button type="button" class="to-touch-btn to-touch-streak" id="to-touch-streak" hidden aria-label="Call the next ready scorestreak">STREAK</button>
         <div class="to-touch-look" id="to-touch-look"></div>
+      </div>
+
+      <!-- Phones play sideways. Shown only in a match, only upright. -->
+      <div class="to-rotate" id="to-rotate" aria-live="polite">
+        <div class="to-rotate-phone" aria-hidden="true"></div>
+        <strong>Turn your phone sideways</strong>
+        <span>Troll Ops plays in landscape.</span>
       </div>
 
       <div class="to-loading" id="to-loading">
@@ -586,7 +597,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-s9b"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-s9c"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

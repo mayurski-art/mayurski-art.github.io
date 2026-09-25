@@ -7,7 +7,7 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-skins16` (game.js + style.css); bump it on any change to either.
+`?v=to-s9c` (game.js + style.css); bump it on any change to either.
 
 ## Session 9 task list (2026-09-25)
 
@@ -25,6 +25,33 @@ tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
    **landscape** with a CoD Mobile-style touch HUD (left move stick, right
    look area, fire/ADS/jump/crouch/reload/grenade buttons; rotate prompt in
    portrait).
+6. (Added mid-session) **Keyboard Warrior RGB wave**: glow between the keys
+   sweeping along the board like a gaming keyboard.
+
+### Session 9 status: ALL SIX DONE and on main
+1. Lag: the cause was runtime lights. Every grenade/blast/fire pool/gunship
+   searchlight added a light, and each new light COUNT recompiles every lit
+   shader (2-2.6 s freezes, smooth once each count had been seen). Now
+   `light-pool.js` (3 point + 1 spot, parked at 0) is borrowed from; grenade
+   glow is emissive; third-person guns `stripLights()`. `warmShaders()`
+   compiles during staging. `adaptResolution()` scales pixel ratio from fps.
+   **Rule: never `new THREE.*Light` at runtime in the world scene.**
+2. Care package: the "hunter-killer glitch" was key 4 firing the PRICIEST
+   ready streak (HK 350 > package 300). Keys 4/5/6 now call their own row;
+   touch taps the row. The drop itself: heli pass, freefall, chute, sway,
+   thump, fold, green smoke (all from `age` + id hash, so clients agree).
+   Also `groundAimPoint` had never used the crosshair: `raycastWorld`
+   returns a DISTANCE, not an object.
+3. Grenades: `cancelCook()` on death/pause/blur/unlock (releasing G on the
+   death cam used to throw one); throw origin can't pass through a wall.
+   Smoke already existed (tactical, rank 4).
+4. TDM `scoreLimit: 50`.
+5. Touch (body.to-touch-play, --k scale by height): floating stick, left
+   FIRE, drag-to-aim right FIRE, TAC button, counts on grenade buttons,
+   streak rows tappable + CONFIRM while marking, rotate card in portrait,
+   fullscreen + orientation lock where supported (Android).
+6. Keyboard RGB: underglow sheet + rim strips + legends share one shader
+   clock (`KB_RGB_TIME`, stamped in onBeforeRender).
 
 ## Where we are
 

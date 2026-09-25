@@ -1963,3 +1963,167 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   #to-title:not([hidden]) ~ .to-x-link { left: 68px; right: auto; bottom: 12px; }
   #to-title:not([hidden]) ~ .to-truths-link { left: 116px; right: auto; bottom: 12px; }
 }
+
+/* ================= Touch play: CoD Mobile-style landscape HUD =================
+
+   Only while a match is live on a touch screen (body.to-touch-play, set by
+   setTouchControls). Left: a floating move stick anywhere in the lower-left,
+   a spare FIRE for the left thumb, minimap and streaks up top. Right: the
+   look pad everywhere, with the action cluster fanned round a big FIRE in the
+   corner, thumb-reachable without crossing the aim. Everything scales with
+   --k from the screen's height (a 375px phone to a 1024px iPad), and keeps
+   clear of the notch through the safe-area insets. */
+body.to-touch-play {
+  --k: 1;
+  --sl: env(safe-area-inset-left, 0px);
+  --sr: env(safe-area-inset-right, 0px);
+  --sb: env(safe-area-inset-bottom, 0px);
+}
+@media (max-height: 340px) { body.to-touch-play { --k: .84; } }
+@media (min-height: 481px) { body.to-touch-play { --k: 1.18; } }
+@media (min-height: 700px) { body.to-touch-play { --k: 1.36; } }
+
+/* Zones under the buttons; buttons on top. The look pad used to stop 120px
+   short of the bottom so it wouldn't swallow the buttons painted under it. */
+body.to-touch-play .to-touch-look { left: 42%; right: 0; top: 0; bottom: 0; width: auto; z-index: 1; }
+body.to-touch-play .to-touch-movezone {
+  position: absolute; left: 0; bottom: 0; width: 42%; height: 72%;
+  pointer-events: auto; touch-action: none; z-index: 1;
+}
+body.to-touch-play .to-touch-btn,
+body.to-touch-play .to-touch-stick { z-index: 2; }
+
+body.to-touch-play .to-touch-stick {
+  left: calc(var(--sl) + 34px * var(--k)); bottom: calc(var(--sb) + 26px * var(--k));
+  width: calc(112px * var(--k)); height: calc(112px * var(--k));
+  background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.2);
+  transition: opacity .15s;
+  opacity: .75;
+}
+body.to-touch-play .to-touch-stick.is-active { opacity: 1; }
+body.to-touch-play .to-touch-stick-nub { width: calc(48px * var(--k)); height: calc(48px * var(--k)); }
+
+body.to-touch-play .to-touch-btn {
+  width: calc(50px * var(--k)); height: calc(50px * var(--k));
+  font-size: calc(10px * var(--k)); letter-spacing: .04em;
+  background: rgba(10,14,11,.34); border-color: rgba(255,255,255,.26);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; line-height: 1; text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+body.to-touch-play .to-touch-btn.is-held { background: rgba(255,255,255,.3); transform: scale(.94); }
+body.to-touch-play .to-touch-btn.is-empty { opacity: .4; }
+
+/* The right-hand cluster, measured from the corner. */
+body.to-touch-play .to-touch-fire {
+  right: calc(var(--sr) + 28px * var(--k)); bottom: calc(var(--sb) + 30px * var(--k));
+  width: calc(84px * var(--k)); height: calc(84px * var(--k));
+  font-size: calc(14px * var(--k));
+  background: rgba(255,60,50,.3); border: 2px solid rgba(255,120,110,.55);
+}
+body.to-touch-play .to-touch-ads {
+  right: calc(var(--sr) + 122px * var(--k)); bottom: calc(var(--sb) + 78px * var(--k));
+  width: calc(58px * var(--k)); height: calc(58px * var(--k));
+}
+body.to-touch-play .to-touch-jump {
+  right: calc(var(--sr) + 24px * var(--k)); bottom: calc(var(--sb) + 128px * var(--k));
+  font-size: calc(18px * var(--k));
+}
+body.to-touch-play .to-touch-slide {
+  left: auto; right: calc(var(--sr) + 126px * var(--k)); bottom: calc(var(--sb) + 14px * var(--k));
+}
+body.to-touch-play .to-touch-reload {
+  right: calc(var(--sr) + 192px * var(--k)); bottom: calc(var(--sb) + 40px * var(--k));
+  width: calc(44px * var(--k)); height: calc(44px * var(--k)); font-size: calc(13px * var(--k));
+}
+body.to-touch-play .to-touch-swap {
+  left: auto; right: calc(var(--sr) + 196px * var(--k)); bottom: calc(var(--sb) + 96px * var(--k));
+  width: calc(44px * var(--k)); height: calc(44px * var(--k)); font-size: calc(14px * var(--k));
+}
+body.to-touch-play .to-touch-melee {
+  right: calc(var(--sr) + 24px * var(--k)); bottom: calc(var(--sb) + 190px * var(--k));
+  font-size: calc(9px * var(--k));
+}
+body.to-touch-play .to-touch-nade {
+  right: calc(var(--sr) + 88px * var(--k)); bottom: calc(var(--sb) + 196px * var(--k));
+  width: calc(46px * var(--k)); height: calc(46px * var(--k));
+}
+body.to-touch-play .to-touch-tac {
+  right: calc(var(--sr) + 146px * var(--k)); bottom: calc(var(--sb) + 168px * var(--k));
+  width: calc(46px * var(--k)); height: calc(46px * var(--k));
+}
+/* Grenade counts ride on their buttons, since the chips are hidden. */
+body.to-touch-play .to-touch-nade::after,
+body.to-touch-play .to-touch-tac::after {
+  content: attr(data-n);
+  position: absolute; right: -2px; top: -2px;
+  min-width: calc(15px * var(--k)); height: calc(15px * var(--k)); border-radius: 99px;
+  background: #7fe066; color: #0d1410;
+  font: 700 calc(9px * var(--k))/calc(15px * var(--k)) "DM Mono", monospace;
+}
+body.to-touch-play .to-touch-interact {
+  left: auto; right: calc(var(--sr) + 204px * var(--k)); bottom: calc(var(--sb) + 152px * var(--k));
+}
+body.to-touch-play .to-touch-streak {
+  left: auto; right: calc(var(--sr) + 262px * var(--k)); bottom: calc(var(--sb) + 150px * var(--k));
+  width: calc(66px * var(--k)); height: calc(66px * var(--k)); font-size: calc(10px * var(--k));
+  background: rgba(127,224,102,.3); border: 2px solid rgba(127,224,102,.65);
+}
+/* The left thumb's own trigger, up and right of the stick's rest spot. */
+body.to-touch-play .to-touch-fire-l {
+  left: calc(var(--sl) + 158px * var(--k)); bottom: calc(var(--sb) + 112px * var(--k));
+  width: calc(56px * var(--k)); height: calc(56px * var(--k));
+  font-size: calc(10px * var(--k));
+  background: rgba(255,60,50,.24); border-color: rgba(255,120,110,.45);
+}
+.to-touch-fire-l, .to-touch-tac { display: none; }
+body.to-touch-play .to-touch-fire-l, body.to-touch-play .to-touch-tac { display: flex; }
+.to-touch-fire-l[hidden], .to-touch-tac[hidden] { display: none !important; }
+
+/* HUD rearranged round the controls. */
+body.to-touch-play .to-cabinet canvas.to-minimap {
+  left: calc(var(--sl) + 10px); top: 8px;
+  width: calc(96px * var(--k)); height: calc(96px * var(--k));
+}
+body.to-touch-play .to-ss-hud {
+  left: calc(var(--sl) + 10px); top: calc(14px + 96px * var(--k)); bottom: auto;
+  width: calc(124px * var(--k)); z-index: 16;
+}
+body.to-touch-play .to-ss-slot { font-size: calc(10px * var(--k)); }
+body.to-touch-play .to-ss-slot[role="button"] { min-height: calc(28px * var(--k)); }
+body.to-touch-play .to-hud-top { padding-left: calc(var(--sl) + 20px + 96px * var(--k)); padding-right: calc(var(--sr) + 64px); top: 8px; }
+body.to-touch-play .to-hud-teams { top: 10px; }
+body.to-touch-play .to-gear { top: 8px; right: calc(var(--sr) + 10px); width: 40px; height: 40px; }
+body.to-touch-play .to-killfeed { top: 56px; right: calc(var(--sr) + 12px); max-width: min(230px, 34vw); }
+body.to-touch-play .to-hud-gear { display: none; }
+body.to-touch-play .to-radio { display: none; }
+body.to-touch-play .to-hud-bottom {
+  left: 50%; right: auto; transform: translateX(-50%);
+  bottom: calc(var(--sb) + 6px); padding: 0; gap: 14px; align-items: center;
+}
+body.to-touch-play .to-hp-bar { width: calc(110px * var(--k)); }
+body.to-touch-play #hud-ammo-cur { font-size: calc(24px * var(--k)); }
+body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
+
+/* ---- upright phone or tablet mid-match: ask for landscape ---- */
+.to-rotate { display: none; }
+@media (orientation: portrait) {
+  body.to-touch-play .to-rotate {
+    position: absolute; inset: 0; z-index: 60;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    background: rgba(5,7,10,.92); color: #eef2ea; text-align: center; padding: 24px;
+    font-family: "DM Sans", sans-serif;
+  }
+  body.to-touch-play .to-rotate strong { font-family: "Oswald", sans-serif; font-size: 22px; letter-spacing: .04em; }
+  body.to-touch-play .to-rotate span { font-size: 14px; color: #9aa596; }
+}
+.to-rotate-phone {
+  width: 46px; height: 78px; border: 3px solid #7fe066; border-radius: 9px; margin-bottom: 8px;
+  animation: to-rotate-turn 1.8s ease-in-out infinite;
+}
+@keyframes to-rotate-turn {
+  0%, 25% { transform: rotate(0deg); }
+  55%, 100% { transform: rotate(-90deg); }
+}
+@media (prefers-reduced-motion: reduce) { .to-rotate-phone { animation: none; transform: rotate(-90deg); } }
