@@ -88,8 +88,22 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(p).pipe(res);
 });
 
-const port = Number(process.argv[2]) || 5174;
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Skin editor: http://127.0.0.1:${port}/tools/troll-skin-editor.html`);
+/* Start on the asked-for port (5174 by default); if something already has
+   it — usually an editor left running in another terminal — say so and take
+   the next free one rather than dying with EADDRINUSE. */
+const wanted = Number(process.argv[2]) || 5174;
+let tryPort = wanted;
+server.on("error", (e) => {
+  if (e.code === "EADDRINUSE" && tryPort < wanted + 20) {
+    console.log(`Port ${tryPort} is busy (another editor still running?), trying ${tryPort + 1}.`);
+    server.listen(++tryPort, "127.0.0.1");
+  } else {
+    console.error(e.message);
+    process.exit(1);
+  }
+});
+server.on("listening", () => {
+  console.log(`Skin editor: http://127.0.0.1:${server.address().port}/tools/troll-skin-editor.html`);
   console.log("Save writes skins.js and the skin's atlas + thumbnail. Ctrl+C to stop.");
 });
+server.listen(tryPort, "127.0.0.1");
