@@ -201,8 +201,16 @@ function pixelText(l) {
   sg.fillText(l.text, 1, Math.round(px * 1.05));
   const d = sg.getImageData(0, 0, w, h);
   const [r, gg, b] = rgb(l.color || "#000000");
+  // Thin strokes that are only faint grey at this size (the bar through a
+  // $) would vanish at the usual cut-off, so their columns use a lower one.
+  const faint = new Uint8Array(w);
+  for (let k = 0; k < l.text.length; k++) {
+    if (!"$|".includes(l.text[k])) continue;
+    const x0 = 1 + sg.measureText(l.text.slice(0, k)).width, x1 = 1 + sg.measureText(l.text.slice(0, k + 1)).width;
+    for (let x = Math.floor(x0); x < Math.ceil(x1) && x < w; x++) faint[x] = 1;
+  }
   for (let i = 0; i < d.data.length; i += 4) {
-    const on = d.data[i + 3] > 160;
+    const on = d.data[i + 3] > (faint[(i / 4) % w] ? 60 : 160);
     d.data[i] = r; d.data[i + 1] = gg; d.data[i + 2] = b; d.data[i + 3] = on ? 255 : 0;
   }
   sg.putImageData(d, 0, 0);
