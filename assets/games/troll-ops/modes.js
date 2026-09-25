@@ -41,9 +41,9 @@ export const MODES = {
     name: "Team Deathmatch",
     short: "Team Deathmatch",
     pvp: true, ffa: false,
-    scoreLimit: 69,
-    timeLimit: 600,   // 10 minutes — highest score wins if nobody hits 69 first
-    blurb: "Phantoms against Ghosts. First side to 69, or most kills at the buzzer.",
+    scoreLimit: 50,
+    timeLimit: 600,   // 10 minutes — highest score wins if nobody hits 50 first
+    blurb: "Phantoms against Ghosts. First side to 50 kills, or most at the buzzer.",
   },
 
   koth: {

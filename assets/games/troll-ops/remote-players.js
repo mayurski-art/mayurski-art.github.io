@@ -7,7 +7,7 @@
 
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME } from "./character.js";
-import { buildWeaponMesh } from "./weapon-model.js";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js";
 import { WEAPON_DEFS } from "./weapons.js";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js";
 
@@ -149,7 +149,7 @@ export class RemotePlayer {
     }
     const def = WEAPON_DEFS[weaponId];
     if (!def) return;
-    const mesh = buildWeaponMesh(def, { skin });
+    const mesh = stripLights(buildWeaponMesh(def, { skin }));
     mountHeldWeapon(this.rig, mesh);
     this.weaponMesh = mesh;
   }

@@ -139,6 +139,17 @@ function buildTankLauncher(def, spec, len) {
 /* `skin` defaults to the one chosen with the loadout (def.attachments.skin);
    remote players pass theirs explicitly. Only the Problem 416 wears skins,
    and it has its own panelled model to wear them on (weapon-416.js). */
+/* Drop any lights a model carries (the Green Candles cell glow). Only the
+   first-person viewmodel keeps them: it renders in its own weaponScene. A
+   light on a third-person gun in the world scene changes the light count
+   and recompiles every lit shader (light-pool.js). */
+export function stripLights(obj) {
+  const lights = [];
+  obj.traverse((n) => { if (n.isLight) lights.push(n); });
+  for (const l of lights) l.parent.remove(l);
+  return obj;
+}
+
 export function buildWeaponMesh(def, { skin } = {}) {
   if (def.id === "problem416") return build416(def, skin ?? def.attachments?.skin ?? null);
   const spec = def.model || {};

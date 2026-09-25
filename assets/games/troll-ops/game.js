@@ -8,7 +8,7 @@ import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS } from "./weapons.js";
-import { buildWeaponMesh } from "./weapon-model.js";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js";
 import { WeaponInspector } from "./inspector.js";
 import { CharacterInspector } from "./char-inspector.js";
 import { Loadout } from "./loadout.js";
@@ -43,6 +43,8 @@ import { ZombieDirector } from "./zombies.js";
 import { zombieWindows } from "./pentagrin.js";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
+import { LightPool } from "./light-pool.js";
+import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js";
@@ -387,8 +389,16 @@ function useSelectedStreak() {
 function groundAimPoint(maxDist = 140) {
   const dir = new THREE.Vector3();
   camera.getWorldDirection(dir);
-  const hit = raycastWorld(colliders, camera.position, dir, maxDist);
-  if (hit && hit.point) return hit.point.clone();
+  // raycastWorld returns the distance to the first solid (maxDist if none).
+  // This used to read it as a hit object, so the crosshair was never used
+  // and every mark fell through to the flat-ground guess below.
+  const d = raycastWorld(colliders, camera.position, dir, maxDist);
+  if (d < maxDist) {
+    const p = camera.position.clone().addScaledVector(dir, Math.max(0, d - 0.3));
+    const top = groundHeightAt(colliders, p.x, p.z, p.y + 0.5);
+    p.y = top ?? p.y;
+    return p;
+  }
 
   // Nothing solid under the crosshair. Aiming down, intersect the ground
   // plane. Aiming level or up, there is no such intersection, so drop a point
@@ -407,17 +417,44 @@ function groundAimPoint(maxDist = 140) {
   return ahead;
 }
 
-/* Call the priciest streak that's ready. Bound to a single key rather than a
-   menu: in BO2 you never stop moving to pick one, and everything here is
-   either instant or puts you into a marking mode. */
+/* The HUD's streak rows, in order: the loadout's picks, then anything a care
+   package granted outside them. Keyboard slot i is key 4 + i. */
+function streakSlotIds() {
+  return streaks.selected.concat(streaks.readyIds().filter((id) => !streaks.selected.includes(id)));
+}
+
+/* The touch STREAK button (and nothing else now): the selected streak, which
+   is the newest one earned. It used to be the priciest ready one, and that
+   was the "care package deploys a hunter-killer" bug: the two are earned
+   back to back (300 / 350), so with both banked, calling the package fired
+   the drone. */
 function callReadyStreak() {
   if (!streaksAllowed(currentMode()) || !player.alive) return;
 
   // Already lining one up: this press is the confirm, not a new call.
   if (markingStreak) { confirmMark(); return; }
 
-  const id = readyStreaksOrdered()[0];
+  const id = streaks.ready(selectedStreak) ? selectedStreak : readyStreaksOrdered()[0];
   if (!id) return;
+  callStreak(id);
+}
+
+/* Keyboard 4/5/6/7 and a tap on a HUD row: that exact streak, never a guess.
+   Its own key again confirms a mark; another ready streak's key drops the
+   mark and calls that one instead. */
+function callStreakSlot(i) {
+  if (!streaksAllowed(currentMode()) || !player.alive) return;
+  const id = streakSlotIds()[i];
+  if (!id) return;
+  if (markingStreak) {
+    if (id === markingStreak) { confirmMark(); return; }
+    if (!streaks.ready(id)) return;
+    dropMarkQuietly();
+  }
+  if (!streaks.ready(id)) {
+    showWaveBanner(`${STREAK_DEFS[id].name} not ready`, 900);
+    return;
+  }
   callStreak(id);
 }
 
@@ -429,7 +466,7 @@ function callStreak(id) {
   // cancelling mid-mark must not eat the reward.
   if (id === "carepackage" || id === "airstrike") {
     markingStreak = id;
-    showWaveBanner(`${STREAK_DEFS[id].name.toUpperCase()} — ${streakKeyLabel()} on a spot`, 2200);
+    showWaveBanner(`${STREAK_DEFS[id].name.toUpperCase()} — ${streakKeyLabel(id)} on a spot`, 2200);
     updateStreakHud();   // keeps the touch button up through the mark
     // Airstrike is the one BO2-style "looking at the designator while lining
     // up the strike" gesture (DESIGN-ARMS.md Phase 5) — carepackage is a
@@ -462,8 +499,19 @@ function confirmMark() {
 /* What to call the FIRE/confirm action in prompts. A controller player told
    to "press 4" has no 4 to press — and on a pad, firing/confirming is d-pad
    right, not the d-pad down that only cycles the selection. */
-function streakKeyLabel() {
-  return gamepadState.connected && !isTouch ? "D-pad right" : "4";
+function streakKeyLabel(id = markingStreak) {
+  if (isTouch) return "STREAK";
+  if (gamepadState.connected) return "D-pad right";
+  const i = streakSlotIds().indexOf(id);
+  return String(4 + Math.max(0, i));
+}
+
+/* Leave marking without the "Cancelled" banner: switching straight to
+   another streak says enough on its own. */
+function dropMarkQuietly() {
+  if (markingStreak === "airstrike") endStreakHold();
+  markingStreak = null;
+  if (els.streakMark) els.streakMark.hidden = true;
 }
 
 function cancelMark() {
@@ -584,7 +632,8 @@ function spawnCarePackage({ id, x, z, reward, owned, ownerTeam }) {
   const groundY = groundHeightAt(colliders, x, z, 60) ?? 0;
   const pkg = new CarePackage({ id, x, z, groundY, reward, owned, ownerTeam });
   streakEntities.set(id, pkg);
-  scene.add(pkg.root);
+  pkg.addTo(scene);
+  audio.wave();   // the heli's on its way
   return pkg;
 }
 
@@ -599,7 +648,7 @@ function spawnDrone({ id, targetId, owned }) {
 
 function spawnHelicopter({ id, seed, owned, team }) {
   const bounds = builtMap?.map?.bounds || { minX: ARENA.minX, maxX: ARENA.maxX, minZ: ARENA.minZ, maxZ: ARENA.maxZ };
-  const heli = new HelicopterGunship({ id, owned, bounds, seed, team });
+  const heli = new HelicopterGunship({ id, owned, bounds, seed, team, lights: lightPool });
   streakEntities.set(id, heli);
   scene.add(heli.root);
   audio.wave();
@@ -669,6 +718,7 @@ function claimPackage(pkg) {
     }
   } else if (kind === "streak") {
     streaks.grant(arg);
+    selectedStreak = arg;
     updateStreakHud();
     showWaveBanner(`PACKAGE — ${STREAK_DEFS[arg]?.name.toUpperCase() || "STREAK"}`, 1600);
   }
@@ -703,7 +753,14 @@ function updateStreakEntities(dt) {
 
   for (const [id, e] of [...streakEntities]) {
     if (e instanceof CarePackage) {
-      e.update(dt);
+      if (e.update(dt) === "landed") {
+        // Thump into the dirt: a dust ring and a short shake up close.
+        const at = new THREE.Vector3(e.x, e.groundY + 0.05, e.z);
+        impactFx.hit(at, { normal: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, -1, 0), surface: "ground", scale: 3 });
+        audio.explosion(0.25, at);
+        const near = Math.max(0, 1 - at.distanceTo(player.pos) / 10);
+        if (near > 0) { shakeMag = Math.max(shakeMag, near * 0.03); shakeT = 0.25; }
+      }
       if (e.expired) { e.dispose(); streakEntities.delete(id); }
       continue;
     }
@@ -1659,6 +1716,7 @@ function awardKillXp(isHead) {
 function awardScore(amount) {
   if (!streaksAllowed(currentMode())) return;
   for (const id of streaks.addScore(amount)) {
+    selectedStreak = id;   // newest earned, like BO2's default pick
     killstreakUi.note(`${STREAK_DEFS[id].name} ready`, "tier-streak");
     audio.wave();
   }
@@ -1906,6 +1964,7 @@ renderer.domElement.style.inset = "0";
 renderer.domElement.style.zIndex = "1";
 
 const scene = new THREE.Scene();
+const lightPool = new LightPool(scene);
 scene.fog = new THREE.FogExp2(0x3a4a38, 0.01);
 
 const skyMat = new THREE.ShaderMaterial({
@@ -2542,7 +2601,9 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "Digit1") switchWeapon("primary");
     if (e.code === "Digit2") switchWeapon("secondary");
     if (e.code === "Digit3") setHolding("melee");
-    if (e.code === "Digit4" && !e.repeat) callReadyStreak();
+    // One key per streak row (4 = top). A single "call the priciest" key
+    // fired the hunter-killer whenever you meant the care package.
+    if (/^Digit[4-7]$/.test(e.code) && !e.repeat) callStreakSlot(+e.code.slice(5) - 4);
     if (e.code === "KeyG" && !e.repeat) startCook("lethal");
     // F is plant/defuse while you're somewhere you can do either (S&D);
     // everywhere else it's the tactical.
@@ -2562,6 +2623,7 @@ window.addEventListener("keydown", (e) => {
     els.scoreboard.hidden = false;
   }
 });
+window.addEventListener("blur", () => cancelCook());
 window.addEventListener("keyup", (e) => {
   keys.delete(e.code);
   if (e.code === "Tab") els.scoreboard.hidden = true;
@@ -3178,24 +3240,31 @@ function updateStreakHud() {
 
   const onPad = gamepadState.connected && !isTouch;
   const key = onPad ? "→" : "4";
+  const selId = streaks.ready(selectedStreak) ? selectedStreak : readyStreaksOrdered()[0];
   // On a pad, a ready streak also needs to show WHICH one d-pad right will
   // fire — d-pad down moved off "call directly" onto "pick", so the ready
   // key alone no longer says that.
   // A care package can grant a streak outside the loadout's three picks
   // (rollPackageReward/grant) — it still needs its own slot or securing the
   // package looks like it did nothing.
-  const slotIds = streaks.selected.concat(streaks.readyIds().filter((id) => !streaks.selected.includes(id)));
-  const signature = `${key}|${onPad ? selectedStreak : ""}|`
+  const slotIds = streakSlotIds();
+  const signature = `${key}|${onPad || isTouch ? selId : ""}|${markingStreak || ""}|`
     + slotIds.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
   if (els.ssSlots.dataset.sig !== signature) {
     els.ssSlots.dataset.sig = signature;
     els.ssSlots.innerHTML = "";
-    for (const id of slotIds) {
+    slotIds.forEach((id, slot) => {
       const def = STREAK_DEFS[id];
       const ready = streaks.ready(id);
-      const isSelected = onPad && ready && id === selectedStreak;
+      const isSelected = (onPad || isTouch) && ready && id === selId;
       const row = document.createElement("div");
-      row.className = `to-ss-slot${ready ? " is-ready" : ""}${isSelected ? " is-selected" : ""}`;
+      row.className = `to-ss-slot${ready ? " is-ready" : ""}${isSelected ? " is-selected" : ""}${id === markingStreak ? " is-marking" : ""}`;
+      // Touch: tap a row to call that streak (the pad and keyboard have keys).
+      if (isTouch && ready) {
+        row.setAttribute("role", "button");
+        row.setAttribute("aria-label", `Call ${def.name}`);
+        row.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); callStreakSlot(slot); }, { passive: false });
+      }
       const label = document.createElement("span");
       label.className = "to-ss-label";
       const icon = document.createElement("i");
@@ -3211,10 +3280,12 @@ function updateStreakHud() {
       // On a pad, only the actually-selected slot shows the fire glyph —
       // the other ready ones are one d-pad-down press away, not a button
       // press away.
-      tag.textContent = ready ? (onPad ? (isSelected ? key : "↓") : key) : String(def.cost);
+      tag.textContent = ready
+        ? (onPad ? (isSelected ? key : "↓") : isTouch ? "TAP" : String(4 + slot))
+        : String(def.cost);
       row.appendChild(tag);
       els.ssSlots.appendChild(row);
-    }
+    });
   }
 }
 
@@ -3372,7 +3443,7 @@ function findGruntFromObject(obj) {
 
 // -------------------- melee + throwables --------------------
 
-const grenades = new GrenadeSystem(scene);
+const grenades = new GrenadeSystem(scene, lightPool);
 
 /* Whatever the bullets are allowed to hit this frame. Hoisted out of the
    frame loop because melee and blasts need the same list. */
@@ -3508,10 +3579,11 @@ function explosionFx(def, pos) {
   const big = def.kind === "tactical" ? 0.5 : 1;
   spawnImpactBurst(pos, def.glow, def.kind === "tactical" ? 14 : 26);
 
-  const flash = new THREE.PointLight(def.glow, 260 * big, def.radius * 2.6, 2);
-  flash.position.copy(pos);
-  scene.add(flash);
-  blastLights.push({ light: flash, life: 0.3, max: 0.3, peak: 260 * big });
+  const flash = lightPool.acquire("point", scene, { color: def.glow, intensity: 260 * big, distance: def.radius * 2.6 });
+  if (flash) {
+    flash.position.copy(pos);
+    blastLights.push({ light: flash, life: 0.3, max: 0.3, peak: 260 * big });
+  }
 
   if (def.smoke) audio.smoke(pos);
   else if (def.emp) audio.emp(pos);
@@ -3529,7 +3601,7 @@ function updateBlastLights(dt) {
     const b = blastLights[i];
     b.life -= dt;
     b.light.intensity = Math.max(0, (b.life / b.max) * b.peak);
-    if (b.life <= 0) { scene.remove(b.light); blastLights.splice(i, 1); }
+    if (b.life <= 0) { lightPool.release(b.light); blastLights.splice(i, 1); }
   }
 }
 
@@ -3668,11 +3740,25 @@ function startCook(slot) {
   cooking.fuse = def.fuse;
 }
 
+/* Put a cooking throwable back unthrown and unspent. Dying, pausing, a lost
+   pointer lock and a hidden tab all end a cook: the key-up that would have
+   thrown it never arrives (or arrives on the death cam, which used to throw
+   a grenade from wherever the killcam happened to be looking), and a cook
+   left set blocked every later throw until the next match. */
+function cancelCook() {
+  if (!cooking.def) return;
+  cooking.def = null;
+  cooking.slot = null;
+  cooking.fuse = 0;
+  els.cook.hidden = true;
+}
+
 /* `cookedOff`: the fuse ran out in the hand. The grenade is spent but never
    thrown — this used to throw it anyway with a zero fuse, so it went off a
    second time a frame after the in-hand blast: two explosions, double damage. */
 function releaseCook({ cookedOff = false } = {}) {
   if (!cooking.def) return;
+  if (!player.alive || gameState !== "playing") { cancelCook(); return; }
   const def = cooking.def;
   const slot = cooking.slot;
   cooking.def = null;
@@ -3690,7 +3776,10 @@ function releaseCook({ cookedOff = false } = {}) {
   // Throws arc up a little, so aiming flat still lobs it somewhere useful.
   dir.y += 0.18;
   dir.normalize();
-  origin.addScaledVector(dir, 0.6);
+  // Out in front of the face, but never through a wall you're pressed up
+  // against: a grenade spawned on the far side of it goes off over there.
+  const clear = raycastWorld(colliders, origin, dir, 0.85);   // distance to the first solid
+  origin.addScaledVector(dir, Math.max(0, Math.min(0.6, clear - 0.25)));
 
   const gid = nextNadeId();
   grenades.throwGrenade(def, origin, dir, "player", { fuseLeft: cooking.fuse, gid });
@@ -4735,6 +4824,38 @@ let stagePub = 0;                // throttle on republishing it
 
 function isStaging() { return stageT > 0; }
 
+/* Compile every shader the match will need while the countdown runs, so the
+   first grenade, the first streak and the first bot in view don't each
+   freeze the frame they appear (a shader compiles on first draw, and on a
+   laptop GPU that is hundreds of ms apiece). The map and the bots are already
+   in the scene; the rest gets one throwaway stand-in each, parked out of
+   sight, compiled, and removed. compileAsync lets the driver compile in
+   parallel where it can, so the countdown keeps ticking meanwhile. */
+const WARM_MODELS = ["care-package", "helicopter", "hunter-drone", "recon-drone", "strike-jet"];
+let warmedOnce = false;
+async function warmShaders() {
+  if (!renderer.compileAsync) return;
+  const stand = new THREE.Group();
+  stand.position.set(0, -200, 0);
+  for (const def of Object.values(THROWABLE_DEFS)) {
+    stand.add(new THREE.Mesh(grenades.geo, grenades.matFor(def)));
+  }
+  scene.add(stand);
+  try {
+    if (!warmedOnce) {
+      const models = await Promise.all(WARM_MODELS.map((m) => loadModel(m).catch(() => null)));
+      for (const m of models) if (m) stand.add(m);
+    }
+    await renderer.compileAsync(scene, camera);
+    await renderer.compileAsync(weaponScene, weaponCamera);
+    warmedOnce = true;
+  } catch (e) {
+    // Only ever a head start; the frame will compile whatever this missed.
+  } finally {
+    scene.remove(stand);
+  }
+}
+
 /* Frozen: input is ignored and damage is refused. The camera still moves so
    the player can look around the room while they wait. */
 function beginStaging(seconds = STAGE_SECONDS) {
@@ -4746,6 +4867,8 @@ function beginStaging(seconds = STAGE_SECONDS) {
   // here — a peer's `hello` can land a beat after this runs, and a stale
   // "I'm alone" snapshot would leave two clients both convinced they own it.
   stageOwner = !isPvp() || !net.active;
+  // A beat in, once the bots that fill the room have streamed in.
+  setTimeout(() => { if (isStaging()) warmShaders(); }, 900);
   els.staging.hidden = false;
   document.body.classList.add("to-staging-on");
   els.stagingMode.textContent = isPvp()
@@ -5226,6 +5349,7 @@ function sndRoundWin(winningTeam, reason) {
 function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts = {}) {
   gameState = "gameover";
   player.alive = false;
+  cancelCook();
   if (controls.isLocked) controls.unlock();
   els.hud.hidden = true;
   setTouchControls(false);
@@ -5440,10 +5564,12 @@ els.quitBtn.addEventListener("click", () => {
 
 controls.addEventListener("lock", () => closePauseMenu());
 controls.addEventListener("unlock", () => {
+  cancelCook();
   if (gameState === "playing") openPauseMenu();
 });
 
 document.addEventListener("visibilitychange", () => {
+  if (document.hidden) cancelCook();
   if (document.hidden && gameState === "playing") openPauseMenu();
   // Backgrounding the tab is also the last reliable moment to flush banked
   // match XP — a closed tab never runs another frame, so this can't wait
@@ -5563,6 +5689,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
   if (isPvp()) {
     // In PvP dying is a respawn, not the end of the run.
     player.alive = false;
+    cancelCook();
     player.deaths++;
     // Report the streak we were on before clearing it — it's what lets our
     // killer know they ended a run (Shutdown).
@@ -5701,9 +5828,40 @@ function resize() {
 }
 window.addEventListener("resize", resize);
 
+/* Dynamic resolution. A laptop iGPU or a phone can't hold SSAO + bloom +
+   soft shadows at a 1.5-2x pixel ratio, so the render resolution follows the
+   frame rate: down a step when a 2-second window averages under 40 fps, back
+   up when it's over 57. The HUD is DOM and stays sharp either way. */
+const MAX_PIXEL_RATIO = Math.min(2, window.devicePixelRatio || 1);
+const MIN_PIXEL_RATIO = isTouch ? 0.6 : 0.75;
+let pixelRatio = renderer.getPixelRatio();
+const perfWin = { t: 0, n: 0, cool: 0 };
+function adaptResolution(rawDt) {
+  if (gameState !== "playing" || isStaging() || document.hidden || rawDt > 0.5) return;
+  perfWin.t += rawDt;
+  perfWin.n++;
+  perfWin.cool -= rawDt;
+  if (perfWin.t < 2) return;
+  const fps = perfWin.n / perfWin.t;
+  perfWin.t = 0;
+  perfWin.n = 0;
+  if (perfWin.cool > 0) return;
+  let next = pixelRatio;
+  if (fps < 40) next = Math.max(MIN_PIXEL_RATIO, pixelRatio - 0.25);
+  else if (fps > 57) next = Math.min(MAX_PIXEL_RATIO, pixelRatio + 0.125);
+  if (Math.abs(next - pixelRatio) < 1e-3) return;
+  pixelRatio = next;
+  renderer.setPixelRatio(next);
+  composer.setPixelRatio?.(next);
+  resize();
+  perfWin.cool = 3;   // let it settle before judging again
+}
+
 function animate() {
   requestAnimationFrame(animate);
-  const dt = Math.min(0.05, clock.getDelta());
+  const rawDt = clock.getDelta();
+  const dt = Math.min(0.05, rawDt);
+  adaptResolution(rawDt);
   const t = clock.elapsedTime;
 
   if (gameState === "paused" || localPauseOnly) pollGamepadMenu();
@@ -6105,7 +6263,7 @@ function syncLocalRigHeld(hold, def) {
     localHeld.mesh = null;
   }
   if (hold === "gun" && def) {
-    localHeld.mesh = buildWeaponMesh(def);
+    localHeld.mesh = stripLights(buildWeaponMesh(def));
     mountHeldWeapon(localRig, localHeld.mesh);
   } else if (hold === "melee" && player.melee?.def) {
     // No first-person hands on it: the body's own mitt holds it.
@@ -6942,7 +7100,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     intermissionT: () => intermissionT,
     state: () => gameState,
     grenades, audio, camera, colliders, killcam, bullets,
-    startCook, releaseCook, applyRemoteNade, blindT: () => blindT, cooking,
+    startCook, releaseCook, cancelCook, applyRemoteNade, blindT: () => blindT, cooking,
     empT: () => empT,
     empPlayer, flashPlayer, explosionFx, fireShake,
     startInspect, inspectT: () => inspectT, inspectPose,
@@ -6958,7 +7116,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     streaks, streakPicker, killstreakUi, achievements,
     awardScore, callReadyStreak, callStreak, fireStreak, startUav, applyRemoteStreak,
     cycleSelectedStreak, useSelectedStreak, selectedStreak: () => selectedStreak,
-    readyStreaksOrdered,
+    readyStreaksOrdered, streakSlotIds, callStreakSlot, warmShaders, lightPool, pixelRatio: () => pixelRatio,
     updateStreakHud, enemiesRevealed, uavBucket, uavUntil, drawMinimap,
     lastHitRange: () => lastHitRange,
     streakEntities, pendingStrikes, flyovers,

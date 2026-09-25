@@ -771,8 +771,11 @@ function makePuffTexture() {
 }
 
 export class GrenadeSystem {
-  constructor(scene) {
+  /* `lights`: the shared LightPool (light-pool.js). Grenades never add
+     lights of their own; see that file for why. */
+  constructor(scene, lights = null) {
     this.scene = scene;
+    this.lights = lights;
     this.live = [];
     this.pools = [];
     this.clouds = [];
@@ -808,11 +811,11 @@ export class GrenadeSystem {
     g.gid = gid;
     g.team = team;
     if (remote) g.fuse += 0.8;
-    g.mesh = new THREE.Mesh(this.geo, this.matFor(def));
+    // Its own copy of the material (same shader, no compile) so the fuse
+    // blink can drive its glow. This used to be a PointLight per grenade.
+    g.mesh = new THREE.Mesh(this.geo, this.matFor(def).clone());
     g.mesh.position.copy(g.pos);
     this.root.add(g.mesh);
-    g.light = new THREE.PointLight(def.glow, 0, 4, 2);
-    this.root.add(g.light);
     this.live.push(g);
     return g;
   }
@@ -832,8 +835,8 @@ export class GrenadeSystem {
   }
 
   clear() {
-    for (const g of this.live) { this.root.remove(g.mesh, g.light); }
-    for (const p of this.pools) { this.root.remove(p.mesh, p.light); }
+    for (const g of this.live) { this.root.remove(g.mesh); g.mesh.material.dispose(); }
+    for (const p of this.pools) { this.root.remove(p.mesh); this.lights?.release(p.light); }
     for (const c of this.clouds) {
       for (const puff of c.puffs) puff.mesh.material.dispose();
       this.root.remove(c.group);
@@ -889,12 +892,11 @@ export class GrenadeSystem {
       g.mesh.position.copy(g.pos);
       g.mesh.rotation.x += g.spin.x * dt;
       g.mesh.rotation.y += g.spin.y * dt;
-      g.light.position.copy(g.pos);
 
       g.fuse -= dt;
       // Blink faster as the fuse runs out — the only warning anyone gets.
       const blink = Math.max(0.08, g.fuse * 0.25);
-      g.light.intensity = (Math.sin(g.fuse / blink * Math.PI * 2) > 0 ? 1.6 : 0.2) * (def.kind === "tactical" ? 0.6 : 1);
+      g.mesh.material.emissiveIntensity = (Math.sin(g.fuse / blink * Math.PI * 2) > 0 ? 1.6 : 0.15) * (def.kind === "tactical" ? 0.7 : 1);
       if (g.fuse <= 0) { this.detonate(i, ctx); continue; }
     }
 
@@ -917,7 +919,9 @@ export class GrenadeSystem {
         if (!p.remote) onAreaDamage?.(p.pos, p.def.pool.radius, p.def.pool.dps * 0.25, p.def, { fire: true, botId: p.botId });
       }
       if (p.life <= 0) {
-        this.root.remove(p.mesh, p.light);
+        this.root.remove(p.mesh);
+        this.lights?.release(p.light);
+        p.light = null;
         // the disc geometry is shared, so only the per-pool material is freed
         p.mesh?.material?.dispose?.();
         this.pools.splice(i, 1);
@@ -928,7 +932,8 @@ export class GrenadeSystem {
   detonate(index, ctx) {
     const g = this.live[index];
     this.live.splice(index, 1);
-    this.root.remove(g.mesh, g.light);
+    this.root.remove(g.mesh);
+    g.mesh.material.dispose();
     const def = g.def;
     if (g.gid) {
       this.spent.add(g.gid);
@@ -956,9 +961,9 @@ export class GrenadeSystem {
       p.mesh.rotation.x = -Math.PI / 2;
       p.mesh.position.set(g.pos.x, g.pos.y - RADIUS + 0.05, g.pos.z);
       p.mesh.scale.setScalar(def.pool.radius);
-      p.light = new THREE.PointLight(def.glow, 10, def.pool.radius * 2.4, 2);
-      p.light.position.set(g.pos.x, g.pos.y + 0.8, g.pos.z);
-      this.root.add(p.mesh, p.light);
+      p.light = this.lights?.acquire("point", this.root, { color: def.glow, intensity: 10, distance: def.pool.radius * 2.4 }) || null;
+      p.light?.position.set(g.pos.x, g.pos.y + 0.8, g.pos.z);
+      this.root.add(p.mesh);
       this.pools.push(p);
     }
   }

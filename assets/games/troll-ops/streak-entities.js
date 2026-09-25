@@ -54,21 +54,22 @@ export const JET_LIFETIME = 6;
 /* A parachute canopy, built in code — it exists for three seconds and does
    not deserve an asset. */
 function makeParachute() {
-  const g = new THREE.SphereGeometry(1.5, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  const g = new THREE.SphereGeometry(2.1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
   const m = new THREE.MeshLambertMaterial({
     color: 0xd8d2b4, side: THREE.DoubleSide, transparent: true, opacity: 0.95,
   });
   const canopy = new THREE.Mesh(g, m);
-  canopy.position.y = 2.1;
+  canopy.position.y = 2.7;
+  canopy.scale.y = 0.7;   // a flatter dome reads as cloth, not a bubble
   const group = new THREE.Group();
   group.add(canopy);
-  // Four rigging lines.
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x2a2a22 });
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2;
+  // Six rigging lines down to the lid.
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x2a2a22, transparent: true, opacity: 0.95 });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
     const geo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(Math.cos(a) * 1.35, 2.0, Math.sin(a) * 1.35),
-      new THREE.Vector3(0, 0.5, 0),
+      new THREE.Vector3(Math.cos(a) * 2.0, 2.7, Math.sin(a) * 2.0),
+      new THREE.Vector3(0, 0.9, 0),
     ]);
     group.add(new THREE.Line(geo, lineMat));
   }
@@ -77,9 +78,29 @@ function makeParachute() {
 
 /* -------------------------------------------------------- care package
 
-   Falls from above the marked point, lands, then waits to be opened. The
-   reward is decided by the caller at call time and travels on the wire, so
-   two clients can never disagree about what was inside. */
+   BO2's delivery, beat by beat: a helicopter comes in low over the marked
+   spot, lets the crate go, and leaves. The crate drops a moment, the chute
+   snaps open, it sways down, thumps into the dirt and the canopy folds over
+   and sinks away. It used to appear 60 m up already under a dome that spun
+   all the way down and vanished the frame it touched.
+
+   Everything is a function of `age` and the id, so every client plays the
+   same drop from the same one wire message. The reward is decided by the
+   caller at call time and travels on the wire, so two clients can never
+   disagree about what was inside. */
+export const PACKAGE_DROP_ALT = 34;        // metres above the ground the heli lets go
+const PKG_HELI_SPEED = 26;                 // m/s on the delivery pass
+export const PKG_RELEASE_AT = 2.2;         // seconds from the call to the release
+const PKG_FREEFALL = 0.55;                 // seconds before the chute opens
+const PKG_CHUTE_OPEN = 0.4;                // canopy snap-open time
+const PKG_FOLD = 1.3;                      // canopy fold-and-sink after touchdown
+
+function hashId(id) {
+  let h = 2166136261;
+  for (const c of String(id)) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return (h >>> 0) / 4294967296;
+}
+
 export class CarePackage {
   constructor({ id, x, z, groundY, reward, owned, ownerTeam }) {
     this.id = id;
@@ -89,39 +110,177 @@ export class CarePackage {
     this.reward = reward;
     this.owned = !!owned;
     this.ownerTeam = ownerTeam;
-    this.y = groundY + 60;
     this.landed = false;
     this.claimed = false;
     this.age = 0;
+    this.phase = "inbound";
+    this.y = groundY + PACKAGE_DROP_ALT;
+    this.vy = 0;
+    this.landT = 0;
+    this.seed = hashId(id);
+
     this.root = new THREE.Group();
     this.root.position.set(x, this.y, z);
+    this.root.visible = false;             // nothing to see until release
+    this.crateHolder = new THREE.Group();  // the landing squash lives here
+    this.root.add(this.crateHolder);
     this.chute = makeParachute();
+    this.chute.scale.setScalar(0.01);
+    this.chute.visible = false;
     this.root.add(this.chute);
+
+    // Signal smoke on the marked spot from the moment it's called, so
+    // everyone can see where it's coming down (and fight over it).
+    this.flare = makeDropFlare();
+    this.flare.position.set(x, groundY, z);
+
+    // The delivery helicopter: one straight pass, over the spot at release.
+    const yaw = this.seed * Math.PI * 2;
+    this.heliDir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    this.heli = new THREE.Group();
+    this.heli.rotation.order = "YXZ";
+    this.heli.rotation.y = yaw;
+    this.heli.rotation.x = -0.12;          // nose down, it's in a hurry
+    this.heliRotors = [];
+    loadModel("helicopter").then((obj) => {
+      if (this.dead) return;
+      this.heli.add(obj);
+      obj.traverse((n) => {
+        if (n.name === "MainRotor") this.heliRotors.push([n, "y", 5.5]);
+        else if (n.name === "TailRotor") this.heliRotors.push([n, "x", 11]);
+      });
+    });
 
     loadModel("care-package").then((obj) => {
       if (this.dead) return;
       this.crate = obj;
-      this.root.add(obj);
+      this.crateHolder.add(obj);
     });
+  }
+
+  /* Adds everything this drop draws: the crate (root), the heli and the
+     smoke, which live in world space rather than swaying with the crate. */
+  addTo(scene) {
+    scene.add(this.root);
+    scene.add(this.heli);
+    scene.add(this.flare);
+    this.placeHeli();
+  }
+
+  placeHeli() {
+    const t = this.age - PKG_RELEASE_AT;   // negative on the way in
+    this.heli.position.set(
+      this.x + this.heliDir.x * PKG_HELI_SPEED * t,
+      this.groundY + PACKAGE_DROP_ALT + 1.6 + Math.max(0, t) * t * 1.2,   // climbs out after the drop
+      this.z + this.heliDir.z * PKG_HELI_SPEED * t,
+    );
+    // Flares nose-up to slow over the spot, then dips to leave.
+    this.heli.rotation.x = t < 0 ? -0.12 + 0.2 * Math.exp(-t * t * 1.5) : -0.18;
+    this.heli.visible = t > -4 && t < 4.5;
   }
 
   /* Returns "landed" the frame it touches down, else null. */
   update(dt) {
     this.age += dt;
-    if (this.landed) return null;
-    this.y -= PARACHUTE_FALL_SPEED * dt;
-    if (this.y <= this.groundY) {
-      this.y = this.groundY;
-      this.landed = true;
-      this.root.remove(this.chute);
-      this.chute = null;
-      this.root.position.y = this.y;
-      return "landed";
+    for (const [n, axis, rps] of this.heliRotors) n.rotation[axis] += dt * Math.PI * 2 * rps;
+    if (this.heli.parent) {
+      this.placeHeli();
+      if (this.age > PKG_RELEASE_AT + 4.5) this.heli.parent.remove(this.heli);
     }
-    this.root.position.y = this.y;
-    // A slow drift so it doesn't read as a lift descending.
-    this.root.rotation.y += dt * 0.35;
+    this.updateFlare(dt);
+
+    if (this.phase === "inbound") {
+      if (this.age < PKG_RELEASE_AT) return null;
+      this.phase = "fall";
+      this.root.visible = true;
+      this.fallT = 0;
+    }
+
+    if (this.phase === "fall") {
+      this.fallT += dt;
+      const open = this.fallT - PKG_FREEFALL;
+      if (open < 0) {
+        this.vy = Math.min(this.vy + 9.8 * dt, 14);
+        // A little tumble off the skid.
+        this.crateHolder.rotation.x = Math.sin(this.fallT * 5 + this.seed * 9) * 0.18;
+      } else {
+        this.chute.visible = true;
+        // Snap open with a small overshoot, then the canopy breathes.
+        const k = Math.min(1, open / PKG_CHUTE_OPEN);
+        const pop = k < 1
+          ? (1 - Math.pow(1 - k, 3)) * (1 + 0.18 * Math.sin(k * Math.PI))
+          : 1 + Math.sin(open * 2.4) * 0.03;
+        this.chute.scale.set(pop, k < 1 ? pop * (0.6 + 0.4 * k) : 1, pop);
+        // The opening shock bleeds speed down to the canopy's terminal rate.
+        this.vy += (PARACHUTE_FALL_SPEED - this.vy) * Math.min(1, dt * 3.2);
+        this.crateHolder.rotation.x *= Math.max(0, 1 - dt * 3);
+        // Pendulum sway under the canopy, not a spin.
+        const sw = Math.min(1, open / 1.2);
+        this.root.rotation.x = Math.sin(open * 1.7 + this.seed * 6) * 0.13 * sw;
+        this.root.rotation.z = Math.sin(open * 1.3 + this.seed * 3) * 0.1 * sw;
+        this.root.rotation.y = this.seed * 6 + Math.sin(open * 0.4) * 0.35;
+      }
+      this.y -= this.vy * dt;
+      if (this.y <= this.groundY) {
+        this.y = this.groundY;
+        this.root.position.y = this.y;
+        this.phase = "fold";
+        this.landed = true;
+        this.landT = 0;
+        this.root.rotation.x = this.root.rotation.z = 0;
+        this.crateHolder.rotation.x = 0;
+        this.chuteTilt = this.seed > 0.5 ? 1 : -1;
+        return "landed";
+      }
+      this.root.position.y = this.y;
+      return null;
+    }
+
+    if (this.phase === "fold") {
+      this.landT += dt;
+      // Thump: squash and settle.
+      const q = this.landT / 0.35;
+      const squash = q < 1 ? Math.sin(q * Math.PI) * 0.16 * (1 - q * 0.5) : 0;
+      this.crateHolder.scale.set(1 + squash * 0.5, 1 - squash, 1 + squash * 0.5);
+      // The canopy tips off the crate, collapses and sinks away.
+      const f = Math.min(1, this.landT / PKG_FOLD);
+      const e = f * f * (3 - 2 * f);
+      this.chute.rotation.z = -this.chuteTilt * e * 1.35;
+      this.chute.position.x = this.chuteTilt * e * 1.6;
+      this.chute.position.y = -e * 1.2;
+      this.chute.scale.set(1 + e * 0.25, Math.max(0.05, 1 - e * 0.9), 1 + e * 0.25);
+      for (const n of this.chute.children) if (n.material) n.material.opacity = 0.95 * (1 - Math.max(0, e - 0.6) / 0.4);
+      if (f >= 1) {
+        this.root.remove(this.chute);
+        this.chute = null;
+        this.crateHolder.scale.set(1, 1, 1);
+        this.phase = "landed";
+      }
+    } else if (this.phase === "landed") {
+      this.landT += dt;
+    }
     return null;
+  }
+
+  updateFlare(dt) {
+    if (!this.flare) return;
+    const f = this.flare.userData;
+    // Burns until a few seconds after touchdown, then gutters out.
+    const fade = this.landed ? Math.max(0, 1 - (this.landT - 3) / 2) : 1;
+    for (const p of f.puffs) {
+      p.t += dt / p.life;
+      if (p.t >= 1) { p.t -= 1; p.ox = (Math.random() - 0.5) * 0.3; p.oz = (Math.random() - 0.5) * 0.3; }
+      const t = p.t;
+      p.mesh.position.set(p.ox + t * t * f.drift.x * 3, 0.3 + t * 5.5, p.oz + t * t * f.drift.z * 3);
+      p.mesh.scale.setScalar(0.4 + t * 2.2);
+      p.mesh.material.opacity = Math.sin(t * Math.PI) * 0.55 * fade;
+    }
+    f.core.material.opacity = fade * (0.7 + 0.3 * Math.sin(this.age * 23));
+    if (fade <= 0) {
+      this.flare.parent?.remove(this.flare);
+      disposeFlare(this.flare);
+      this.flare = null;
+    }
   }
 
   withinClaim(px, pz) {
@@ -134,7 +293,56 @@ export class CarePackage {
   dispose() {
     this.dead = true;
     this.root.parent?.remove(this.root);
+    this.heli.parent?.remove(this.heli);
+    if (this.flare) {
+      this.flare.parent?.remove(this.flare);
+      disposeFlare(this.flare);
+      this.flare = null;
+    }
   }
+}
+
+/* Green signal smoke on the drop point: a burning core and a handful of
+   camera-facing puffs. Sprites are cheap and need no light. */
+let puffTex = null;
+function puffTexture() {
+  if (puffTex) return puffTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.5, "rgba(255,255,255,.55)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  puffTex = new THREE.CanvasTexture(c);
+  return puffTex;
+}
+
+function makeDropFlare() {
+  const group = new THREE.Group();
+  const core = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: puffTexture(), color: 0xb6ff9a, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  }));
+  core.scale.setScalar(0.9);
+  core.position.y = 0.2;
+  group.add(core);
+  const puffs = [];
+  for (let i = 0; i < 10; i++) {
+    const mesh = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: puffTexture(), color: 0x52d65a, transparent: true, depthWrite: false, opacity: 0,
+    }));
+    group.add(mesh);
+    puffs.push({ mesh, t: i / 10, life: 2.6 + (i % 3) * 0.4, ox: 0, oz: 0 });
+  }
+  group.userData = { core, puffs, drift: new THREE.Vector3(0.6, 0, 0.35) };
+  return group;
+}
+
+function disposeFlare(g) {
+  g.traverse((n) => { if (n.material) n.material.dispose(); });
 }
 
 /* ------------------------------------------------------ hunter-killer drone
@@ -310,10 +518,11 @@ export class StrikeJet {
    observation), so a ring derived from the bounds covers all of them without
    per-map authoring. */
 export class HelicopterGunship {
-  constructor({ id, owned, bounds, seed = 0, team }) {
+  constructor({ id, owned, bounds, seed = 0, team, lights = null }) {
     this.id = id;
     this.owned = !!owned;
     this.team = team;
+    this.lights = lights;
     this.age = 0;
     this.fireT = 0;
     this.done = false;
@@ -345,10 +554,14 @@ export class HelicopterGunship {
       // The light is added in code, not modelled: a dynamic spotlight that
       // tracks what the gunship is looking at is more use than a glowing
       // lump on the hull.
-      const light = new THREE.SpotLight(0xfff2d0, 3.2, 90, 0.34, 0.45, 1.4);
+      // Borrowed from the pool, never created: a new light recompiles every
+      // lit shader in view (light-pool.js).
+      const light = this.lights?.acquire("spot", this.root, {
+        color: 0xfff2d0, intensity: 3.2, distance: 90, decay: 1.4, angle: 0.34, penumbra: 0.45,
+      });
+      if (!light) return;
       light.position.set(0, -0.8, 1.6);
       this.searchlight = light;
-      this.root.add(light);
       this.lightTarget = new THREE.Object3D();
       this.root.add(this.lightTarget);
       light.target = this.lightTarget;
@@ -411,6 +624,8 @@ export class HelicopterGunship {
 
   dispose() {
     this.dead = true;
+    this.lights?.release(this.searchlight);
+    this.searchlight = null;
     this.root.parent?.remove(this.root);
   }
 }

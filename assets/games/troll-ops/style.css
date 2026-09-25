@@ -1097,6 +1097,10 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-ss-slot.is-selected {
   border-left-color: #ffd166; background: rgba(40,32,10,.6);
 }
+/* The streak you're lining up right now. */
+.to-ss-slot.is-marking { border-left-color: #ffd166; color: #ffe7a3; }
+/* Touch: ready rows are tap targets (the strip itself stays click-through). */
+.to-ss-slot[role="button"] { pointer-events: auto; min-height: 26px; }
 .to-ss-key {
   opacity: 0; font-size: 9px; letter-spacing: .06em;
   color: #0d1410; background: #7fe066; border-radius: 2px; padding: 0 3px;
