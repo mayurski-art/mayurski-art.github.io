@@ -36,8 +36,14 @@ const TROLLFACE_TEXTURE = TEXTURE_LOADER.load(
   new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href,
 );
 TROLLFACE_TEXTURE.colorSpace = THREE.SRGBColorSpace;
+// The artwork glows at about half strength on top of the lighting, so the
+// face reads white with black ink like the drawing instead of a grey board
+// that goes muddy in shade, while still darkening a touch in the shadows.
 const TROLLFACE_HEAD_MAT = new THREE.MeshStandardMaterial({
   map: TROLLFACE_TEXTURE,
+  emissive: 0xffffff,
+  emissiveMap: TROLLFACE_TEXTURE,
+  emissiveIntensity: 0.55,
   transparent: true,
   alphaTest: 0.3,
   side: THREE.DoubleSide,
@@ -342,8 +348,9 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   const neckTop = joint(headPivot, 0, 0.035 * s, 0);
 
   // --- head: the flat trollface board carrying the real artwork.
-  const headW = 0.34 * s;
-  const headH = 0.32 * s;
+  // Big, like the drawing: the face is about as wide as the arms' span.
+  const headW = 0.48 * s;
+  const headH = 0.45 * s;
   const head = new THREE.Mesh(new THREE.PlaneGeometry(headW, headH), TROLLFACE_HEAD_MAT);
   head.position.y = headH * 0.5 + 0.03 * s;
   // A PlaneGeometry faces +Z; the game's forward is -Z at yaw 0.
@@ -451,7 +458,8 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     return m;
   };
 
-  const hitHead = makeHitProxy(new THREE.SphereGeometry(0.19 * s, 8, 6), headPivot, true);
+  // Sized to the board, so a shot that visibly lands on the face is a headshot.
+  const hitHead = makeHitProxy(new THREE.SphereGeometry(0.24 * s, 8, 6), headPivot, true);
   hitHead.position.y = headH * 0.5 + 0.03 * s;
 
   const hitTorso = makeHitProxy(new THREE.CapsuleGeometry(0.16 * s * w, 0.42 * s, 4, 8), torso, false);

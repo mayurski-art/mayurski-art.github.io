@@ -2474,6 +2474,10 @@ const LOCAL_RIG_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughnes
 const localRig = buildHumanoid(LOCAL_RIG_MAT, { height: 1.8, gun: false });
 localRig.root.visible = false;
 scene.add(localRig.root);
+// Our own head gets its own copy of the face material, so it can fade out of
+// the way as we aim in third person without touching anyone else's.
+localRig.parts.head.material = localRig.parts.head.material.clone();
+localRig.parts.head.material.alphaTest = 0.02;
 let localPhase = Math.random() * Math.PI * 2;
 const remotes = new RemotePlayers(scene);
 const pickups = new PickupSystem(scene);
@@ -5728,7 +5732,7 @@ let stepPhase = 0;
 const TP_HIP_DIST = 3.2;
 const TP_HIP_SIDE = 0.55;       // shoulder offset, hip-fire framing
 const TP_ADS_DIST = 1.5;
-const TP_ADS_SIDE = 0.4;
+const TP_ADS_SIDE = 0.5;
 const TP_HEIGHT = 0.35;
 const _tpPivot = new THREE.Vector3();
 const _tpDesired = new THREE.Vector3();
@@ -5761,11 +5765,20 @@ function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
   const safeLen = Math.max(0.15, raycastWorld(colliders, _tpPivot, _tpDir, wantLen) - 0.1);
 
   camera.position.copy(_tpPivot).addScaledVector(_tpDir, safeLen);
+  // Look along the aim from over the shoulder, parallel to it, rather than
+  // back across at the pivot: converging on the pivot ran the line of sight
+  // through our own head, which filled the middle of the screen in ADS.
   camera.lookAt(
-    _tpPivot.x + _tpForward.x * 10,
-    _tpPivot.y + _tpForward.y * 10,
-    _tpPivot.z + _tpForward.z * 10,
+    camera.position.x + _tpForward.x * 10,
+    camera.position.y + _tpForward.y * 10,
+    camera.position.z + _tpForward.z * 10,
   );
+  // Aiming in, our own face ghosts out so the left of the sight picture is
+  // clear; pulled in tight against a wall it would be in the way outright.
+  const head = localRig.parts.head;
+  head.visible = safeLen > 0.9;
+  head.material.opacity = 1 - 0.7 * adsT;
+  head.material.depthWrite = adsT < 0.1;
 }
 
 let localLower = 0;
@@ -6007,6 +6020,7 @@ function updatePlayer(dt) {
     updateThirdPersonCamera(player.pos, viewYaw, viewPitch, w.adsT);
   } else {
     localRig.root.visible = false;
+    localRig.parts.head.visible = true;
     camera.position.copy(player.pos);
     // One place composes the camera: aim + weapon recoil.
     _euler.set(viewPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r);
