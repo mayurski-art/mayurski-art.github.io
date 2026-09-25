@@ -102,14 +102,54 @@ view or fewer point lights; don't expect shadows to help (already off).
 - `tools/troll-ops-map-fps.mjs [ids]`: fps + draws/frame; `ROOT_DIR=<checkout>`
   measures another build (e.g. a `git worktree add --detach` of an old commit).
 
-## Backlog (not for now)
+## Tasks to pick from (user: "we will pick things up tomorrow")
 
-Lean (controls decision), bots throwing grenades, Infection mode, sending
-melee swings to other players, third-person aim camera blocked by the head,
-one-handed third-person sword grip, trollface head small/grey vs references.
-The shared `shipping-container.glb` (still used by Pentagrin/other props) is
-metal-textured and renders near-black (no env map). Grin Beach's lifeguard
-towers are red wood that renders dark brown (dark wood photo x red tint).
+The user will choose which of these to do; don't start one unasked. Weapon
+skins (above) are a separate track. Pointers were checked on Sep 25.
+
+1. **Bots throw grenades.** Bots never throw today (no grenade code in
+   bots.js). Reuse the player's throw path (`startCook(slot)` ~game.js:3559,
+   `grenadeCtx()` ~3515) so bot grenades hit the same damage, killfeed and net
+   code. Decide when a bot throws: target behind cover it can't shoot, 2+
+   enemies clustered, or holding an objective (KOTH hill, S&D site); cap it
+   (one per life, cooldown) so it isn't spam. Scale with `settings.botSkill`.
+   Done when bots visibly throw in a match, damage lands, and remote clients
+   see it (the sync test covers grenades from players; add a bot case).
+2. **Send melee swings to other players.** `swingMelee()` (~game.js:3607) is
+   local only: other players see the damage but not the swing. Add a message
+   through `net.send()` (net.js ~134; follow how `onHitSeen` is sent and
+   handled ~net.js:224) and play the swing on the remote rig
+   (remote-players.js). Extend tools/troll-ops-sync-test.mjs with a check.
+3. **Third-person fixes** (toggle with B, `toggleThirdPerson()` ~game.js:1007;
+   local body ~game.js:2465):
+   - the aim camera is blocked by the player's own head: offset the camera
+     over the shoulder and/or hide the head board when it's between camera
+     and crosshair;
+   - one-handed sword grip: the keyboard sword (gear.js ~44-214, Godot
+     reference in troll-melee-1/weapons/keyboard_sword) should sit in one hand
+     in third person, not a two-handed rifle pose;
+   - the trollface head reads small and grey next to the reference art: the
+     head board is 0.34 x 0.32 x scale (character.js ~345) with
+     `TROLLFACE_HEAD_MAT` (~39). Try a bigger board and brighter material
+     (likely emissive/unlit-ish like the art), and compare screenshots
+     against assets/games/troll-ops/trollface-characters.
+4. **Infection mode.** New entry in modes.js (next to tdm/koth/oitc/snd/
+   gungame): one or two players start infected, killed survivors join the
+   infected, survivors win if anyone lasts the timer. Needs: team swap on
+   death, infected loadout (melee only, faster?), HUD survivor count, bots
+   that play both sides, net sync of team changes. Draft rules with the user
+   first (see the "design doc before big builds" habit).
+5. **Lean.** Needs a controls decision from the user first (Q/E? hold or
+   toggle? gamepad binding?). Then: camera roll + sideways offset, a matching
+   upper-body tilt on the rig, peeking reduces the exposed hitbox, sent over
+   the net so others see it.
+6. **Small visual leftovers:** the shared `shipping-container.glb` (still used
+   by Pentagrin and battlefield props) is metal-textured and renders
+   near-black (no env map): repaint it like Grin Site's gs-container-*. Grin
+   Beach's lifeguard towers are meant to be red but render dark brown (red
+   tint x dark wood photo): flat red paint or a model.
+7. **Undergrin frame rate** (optional): ~19 fps headless vs ~23 before the
+   rework; see "Maps: done".
 
 ## Gotchas
 
