@@ -5,6 +5,7 @@ rough}.jpg for surface-textures.js:
   cast  poured concrete: mottled grey, pores, fine grain
   sand  desert sand with wind ripples and pebbles
   plaster  mud plaster: trowel blotches, hairline cracks, straw flecks
+  grass  mown lawn: blade grain, clumps, a few worn and clover patches
   tile  white subway tile (8 x 16 per tile, offset rows) with grout + grime
 
 Run once per set:
@@ -291,7 +292,37 @@ def tile_graph():
     return c, rough, height, 0.6
 
 
+def grass_graph():
+    base_n = noise(1.0, 2.0, 6, 0.6)
+    base = ramp(base_n.outputs["Fac"], [(0.3, lin(0x3d6428)), (0.5, lin(0x4f7a32)), (0.72, lin(0x62883a))])
+    clump = noise(1.0, 9.0, 4, 0.55)
+    clump_c = ramp(clump.outputs["Fac"], [(0.35, (0.78, 0.8, 0.72, 1)), (0.65, (1.1, 1.1, 1.0, 1))])
+    c = mix("MULTIPLY", base, clump_c)
+    blades = noise(1.0, 180.0, 2, 0.6)
+    blades_c = ramp(blades.outputs["Fac"], [(0.3, (0.7, 0.75, 0.62, 1)), (0.7, (1.2, 1.2, 1.05, 1))])
+    c = mix("MULTIPLY", c, blades_c)
+    worn_n = noise(0.7, 1.5, 3, 0.5)
+    worn = ramp(worn_n.outputs["Fac"], [(0.64, (0, 0, 0, 1)), (0.72, (1, 1, 1, 1))])
+    col = node("ShaderNodeMix", data_type="RGBA")
+    Lk.new(worn, col.inputs["Factor"])
+    Lk.new(c, col.inputs[6])
+    col.inputs[7].default_value = lin(0x7a7048)
+    cv = voronoi(1.0, 40.0)
+    clover = ramp(cv.outputs["Distance"], [(0.1, (1, 1, 1, 1)), (0.16, (0, 0, 0, 1))])
+    cm = noise(0.9, 3.0, 2, 0.5)
+    cmm = ramp(cm.outputs["Fac"], [(0.55, (0, 0, 0, 1)), (0.62, (0.6, 0.6, 0.6, 1))])
+    cl = mix("MULTIPLY", clover, cmm)
+    col2 = node("ShaderNodeMix", data_type="RGBA")
+    Lk.new(cl, col2.inputs["Factor"])
+    Lk.new(col.outputs[2], col2.inputs[6])
+    col2.inputs[7].default_value = lin(0x6f9a44)
+    height = math_node("ADD", math_node("MULTIPLY", blades.outputs["Fac"], vb=0.6), math_node("MULTIPLY", clump.outputs["Fac"], vb=0.4))
+    rough = math_node("ADD", va=0.85, b=math_node("MULTIPLY", blades.outputs["Fac"], vb=0.1))
+    return col2.outputs[2], rough, height, 0.8
+
+
 color_out, rough_d, height, bump_strength = {
+    "grass": grass_graph,
     "dirt": dirt_graph, "cast": cast_graph, "sand": sand_graph, "plaster": plaster_graph, "tile": tile_graph,
 }[SURFACE]()
 

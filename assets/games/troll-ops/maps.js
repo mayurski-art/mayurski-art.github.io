@@ -715,12 +715,24 @@ export const MAPS = {
     playerSpawn: { x: 0, z: 24 },
     sky: { top: 0x24406b, horizon: 0xd88a5a, bottom: 0x3a3040 },
     fog: { color: 0x6a5a55, density: 0.012 },
-    ground: { colorA: 0x4e5442, colorB: 0x3e4436, grid: 0x7d8a63 },
+    ground: { colorA: 0x8faa70, colorB: 0x6f8a55, grid: 0x7d8a63, surface: "grass", tile: 4 },
     sun: { color: 0xffc898, intensity: 1.6, pos: [-35, 22, 30] },
     hemi: { sky: 0x8aa2cc, ground: 0x2e3326, intensity: 0.9 },
     ambient: { color: 0xffe0cc, intensity: 0.5 },
     build(api) {
-      api.walls(0, 0, 68, 60, 6, 1.4, { color: 0x3c4436, surface: "concrete" });
+      // The boundary is invisible now: back fences, hedges and trees mark it
+      // (cg-surround), with more houses outside so the street reads as part
+      // of a neighbourhood. Sidewalks, curbs, driveways and paths: cg-street.
+      api.ghostWalls(0, 0, 68, 60, 6, 1.4);
+      mapModel(api, "cg-surround", { x: 0, z: 0 });
+      mapModel(api, "cg-street", { x: 0, z: 0 });
+      for (const [x, z, door, variant] of [
+        [-24, -40, "e", "sage"], [0, -41, "w", "terracotta"], [24, -40, "e", "violet"],
+        [-24, 40, "w", "violet"], [0, 41, "e", "sage"], [24, 40, "w", "terracotta"],
+        [-44, -14, "e", "terracotta"], [-44, 14, "e", "sage"], [44, -14, "w", "sage"], [44, 14, "w", "violet"],
+      ]) houseExterior(api, { x, z, door, variant });
+      // backyard tree trunks (the trees are in cg-surround)
+      for (const [x, z] of [[-29, -9], [29, 9], [-29, -21], [29, 21]]) api.ghostBox(x, z, 0.5, 0.5, 4, { pen: 4 });
       // road down the middle
       const roadMat = new THREE.MeshStandardMaterial({
         color: 0x8a8a8c,
@@ -763,9 +775,16 @@ export const MAPS = {
         // modelled wall instead of the old guessed 0.7 slab
         api.ghostWalls(x, z, w, d, 3.2, 0.35, { gaps });
         houseExterior(api, { x, z, door, variant });
-        // interior cover
+        // interior cover: a sofa and coffee table in the old cover box's footprint
         const inX = door === "e" ? -1 : 1;
-        api.box(x + inX * (w / 2 - 4), z + 3, 3, 2, 1.2, { color: 0x8a7358, pen: 1.5 });
+        api.box(x + inX * (w / 2 - 4), z + 3, 3, 2, 1.2, { ghost: true, pen: 1.5 });
+        mapModel(api, "cg-lounge", { x: x + inX * (w / 2 - 4), z: z + 3 });
+        // kitchenette in the front corner by the door: counter + fridge
+        const fw = door === "e" ? 1 : -1;           // toward the front wall
+        const kx = x + fw * (w / 2 - 0.35 - 1.25), kz = z - d / 2 + 0.35 + 0.33;
+        api.box(kx - fw * 0.4, kz, 1.7, 0.62, 0.92, { ghost: true, pen: 1.5 });
+        api.box(kx + fw * 0.85, kz, 0.8, 0.7, 1.85, { ghost: true, pen: 2 });
+        mapModel(api, "cg-kitchen", { x: kx, z: kz, scale: [fw, 1, 1] });
         api.lamp(x, 3.2, z, 0xffcf9a, 8, 12);
         // a portrait on the back interior wall, facing the doorway, plus a
         // second on a side wall so there's something to see from most angles
@@ -844,9 +863,19 @@ export const MAPS = {
       // checkpoint barricade), giving the flank route a hazard to duck behind
       kiddiePool(api, { x: -27, z: 5.5, r: 1.8 });
       // street furniture
+      // parked cars at the kerb and dumpsters (same boxes as before), plus
+      // a car in two driveways
       for (const [x, z, w, d, h] of [[-7, -10, 2, 4, 1.4], [7, 10, 2, 4, 1.4],
         [-7, 14, 2.4, 2.4, 1.6], [7, -14, 2.4, 2.4, 1.6]]) {
-        api.box(x, z, w, d, h, { color: 0x54604a, pen: 2 });
+        api.box(x, z, w, d, h, { ghost: true, pen: 2 });
+      }
+      mapModel(api, "cg-car-red", { x: -7, z: -10, rot: Math.PI / 2 });
+      mapModel(api, "cg-car-blue", { x: 7, z: 10, rot: -Math.PI / 2 });
+      mapModel(api, "cg-dumpster", { x: -7, z: 14, rot: Math.PI / 2 });
+      mapModel(api, "cg-dumpster", { x: 7, z: -14, rot: -Math.PI / 2 });
+      for (const [x, z, paint] of [[-10, 9.3, "silver"], [10, -9.3, "red"]]) {
+        api.ghostBox(x, z, 4, 2, 1.4, { pen: 2 });
+        mapModel(api, `cg-car-${paint}`, { x, z, rot: x < 0 ? 0 : Math.PI });
       }
       // a checkpoint barricade thrown across the road, mid-street
       chainBarricade(api, { x: 0, z: 0, w: 5, rot: Math.PI / 2 });
@@ -854,7 +883,7 @@ export const MAPS = {
       barrel(api, { x: 2.8, z: -1 });
       // hedges — soft cover, bullets punch through
       for (const [x, z, w, d] of [[-10, 24, 14, 1.2], [10, -24, 14, 1.2], [-10, -24, 14, 1.2], [10, 24, 14, 1.2]]) {
-        api.box(x, z, w, d, 1.5, { color: 0x3f6b3a, pen: 0.5 });
+        api.box(x, z, w, d, 1.5, { ghost: true, pen: 0.5 });          // drawn in cg-surround
       }
       for (const [x, z] of [[-6, -26], [6, 26]]) api.floodlight(x, z, new THREE.Vector3(0, 0, 0), 0xffe2b0);
       // real streetlamps down the road, alternating sides like an actual

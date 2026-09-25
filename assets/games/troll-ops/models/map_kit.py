@@ -37,7 +37,7 @@ def hexlin(h):
 # materials grinsite-props.js swaps for a tiled photo texture
 TEXTURED = {"GS_Concrete", "GS_Slab", "GS_Block", "GS_Plank", "GS_Timber", "GS_Ply",
             "GS_Brick", "GS_Rubble", "GS_Precast", "GS_Plaster", "GS_PlasterDark", "GS_Rock",
-            "GS_Stone", "GS_Tile", "GS_FloorConc", "GS_PlasterLight", "GS_Ballast"}
+            "GS_Stone", "GS_Tile", "GS_FloorConc", "GS_PlasterLight", "GS_Ballast", "GS_Grass", "GS_Pavement"}
 
 
 def paint_material():
@@ -142,6 +142,24 @@ def palette():
         "ballast": mat("GS_Ballast", 0x6f6a64, 0.95),
         "sleeper": mat("GS_Sleeper", 0x5a524a, 0.9),
         "rail_steel": mat("GS_RailSteel", 0x9a9ea4, 0.35, 0.3),
+        "grass": mat("GS_Grass", 0x9fbf7a, 0.9),
+        "pavement": mat("GS_Pavement", 0xc2bfb6, 0.85),
+        "leaf": mat("GS_Leaf", 0x4f7a34, 0.85),
+        "leaf_dk": mat("GS_LeafDark", 0x3b6128, 0.85),
+        "bark": mat("GS_Bark", 0x5a4632, 0.9),
+        "fence": mat("GS_Fence", 0xb99a72, 0.8),
+        "car_red": mat("GS_CarRed", 0xb02a24, 0.3, 0.2),
+        "car_blue": mat("GS_CarBlue", 0x2a5a9a, 0.3, 0.2),
+        "car_silver": mat("GS_CarSilver", 0xb8bcc0, 0.3, 0.25),
+        "sofa": mat("GS_Sofa", 0x7a4a5a, 0.9),
+        "cushion": mat("GS_Cushion", 0xd8c09a, 0.9),
+        "fridge": mat("GS_Fridge", 0xe8e8e4, 0.35, 0.1),
+        "dumpster": mat("GS_Dumpster", 0x2f6a3e, 0.6, 0.15),
+        "truck_teal": mat("GS_TruckTeal", 0x2fa0a0, 0.35, 0.15),
+        "plank_a": mat("GS_PlankA", 0xe2cda8, 0.8),
+        "plank_b": mat("GS_PlankB", 0xd4bd96, 0.8),
+        "plank_c": mat("GS_PlankC", 0xeadbbd, 0.8),
+        "piling": mat("GS_Piling", 0x8a7456, 0.9),
         "tile": mat("GS_Tile", 0xffffff, 0.4),
         "floorconc": mat("GS_FloorConc", 0x9a9a94, 0.7),
         "cloth_red": mat("GS_ClothRed", 0xb8322a, 0.9),
@@ -393,6 +411,51 @@ class Builder:
 
 
 # -------------------------------------------------------------- shared bits
+
+def sedan(b, P, paint, x=0.0, z=0.0, ry=0.0):
+    """Parked car filling a 4 (x) x 2 (z) x 1.4 collider, nose on +x (before ry)."""
+    import mathutils
+    R = mathutils.Matrix.Rotation(ry, 3, "Y")
+
+    def at(px, pz):
+        v = R @ mathutils.Vector((px, 0, pz))
+        return x + v.x, z + v.z
+
+    # body as a side-profile prism, then glass and details
+    prof = [(-2.0, 0.28), (2.0, 0.28), (2.02, 0.72), (1.2, 0.82), (0.55, 1.36), (-0.95, 1.38), (-1.6, 0.88), (-2.02, 0.8)]
+    pts = []
+    faces = [list(range(8)), list(range(15, 7, -1))]
+    for zz in (-0.93, 0.93):
+        for (px, py) in prof:
+            wx, wz = at(px, zz)
+            pts.append((wx, py, wz))
+    for i in range(8):
+        j = (i + 1) % 8
+        faces.append([i, j, 8 + j, 8 + i])
+    b.poly(paint, pts, faces)
+    for (x0, x1) in ((0.6, 1.15), (-0.9, 0.5), (-1.55, -1.0)):
+        cx, cz = at((x0 + x1) / 2, 0)
+        b.box(P["glass"], x1 - x0, 0.42, 1.88, cx, 0.9, cz, ry=ry)
+    cx, cz = at(0.87, 0)
+    b.box(P["glass"], 0.86, 0.02, 1.7, cx, 1.1, cz, ry=ry, rz=-0.69)
+    for (px, pz) in ((1.3, -0.82), (1.3, 0.82), (-1.3, -0.82), (-1.3, 0.82)):
+        wx, wz = at(px, pz + (0.1 if pz > 0 else -0.1))
+        wx2, wz2 = at(px, pz + (-0.08 if pz > 0 else 0.08))
+        b.cyl(P["tyre"], 0.33, (wx, 0.33, wz), (wx2, 0.33, wz2), seg=14)
+        wx3, wz3 = at(px, pz + (0.11 if pz > 0 else -0.11))
+        b.cyl(P["steel"], 0.18, (wx, 0.33, wz), (wx3, 0.33, wz3), seg=10)
+    for sz in (-0.6, 0.6):
+        cx, cz = at(2.03, sz)
+        b.box(P["headlight"], 0.04, 0.12, 0.35, cx, 0.6, cz, ry=ry)
+        cx, cz = at(-2.03, sz)
+        b.box(P["taillight"], 0.04, 0.12, 0.3, cx, 0.62, cz, ry=ry)
+    for px in (2.05, -2.05):
+        cx, cz = at(px, 0)
+        b.box(P["dark"], 0.1, 0.18, 1.9, cx, 0.3, cz, ry=ry)
+    for sz in (-0.98, 0.98):
+        cx, cz = at(0.55, sz)
+        b.box(paint, 0.12, 0.08, 0.14, cx, 0.95, cz, ry=ry)
+
 
 def walls_geo(b, m, cx, cz, w, d, h, t, gaps=None, y=0.0, fill_above=None, lintel=None):
     """Same four walls as maps.js api.walls() (gap = centred opening per side
