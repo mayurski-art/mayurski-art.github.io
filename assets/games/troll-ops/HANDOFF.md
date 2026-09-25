@@ -1,10 +1,25 @@
-# Troll Ops hand-off — 2026-09-24
+# Troll Ops hand-off — 2026-09-24 (end of session 3)
 
-Branch: `game-improvements` (worktree `GitHub/to-opus-wt`). `main` has NOT been
-fast-forwarded — the user decides when. Sync test (`tools/troll-ops-sync-test.mjs`)
-passes on the pushed commit. Run it with Playwright on the path, e.g.
-`NODE_PATH=<main checkout>/node_modules node tools/troll-ops-sync-test.mjs`.
-Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
+Work happens on branch `game-improvements` in the worktree `GitHub/to-opus-wt`,
+and each finished piece is fast-forwarded onto `main` (`git push origin
+game-improvements:main`) — "push" means land it on main. After pushing, also
+`git pull --ff-only` in the user's own checkout (`GitHub/mayurski-art.github.io`),
+or they see stale files there (they asked "is the menu not pushed?" because of
+this). Sync test: `NODE_PATH=<main checkout>/node_modules node
+tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
+`?v=to-maps1` (game.js + style.css); bump it on any change to either.
+
+## Start here (next session)
+
+1. **Maps rework, phase "real props"** — the four rebuild layouts are done as
+   hidden plain-box blockouts (see Still to do #1). Grin Site's layout is
+   APPROVED: start modelling its props in Blender, then swap `grinsite_wip`
+   in for the live `grinsite`. Re-read the doc first
+   (https://claude.ai/artifact/DuitoHJf53Uu6PYopkh2Jc) — the user may have
+   ticked or commented on the Dust Bowl / Depot / Undergrin layouts.
+2. Then the other three maps the same way, then Cul-de-Grin + Grin Beach polish.
+3. Then **weapon skins via Blender** (Still to do #2).
+4. Shared fixes (UV scale on every box, the map check tool) come LAST.
 
 ## Done (commit 667366a)
 
@@ -40,8 +55,8 @@ Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
 
 1. **Aim assist** now runs for touch (thumb down on the look pad) as well as
    the gamepad stick, and locks onto zombies, wave grunts and range plates,
-   not just players/bots (`aimAssistPoints()` in game.js). Mouse still never
-   and mouse/trackpad too (user asked for every device): mouse counts as
+   not just players/bots (`aimAssistPoints()` in game.js). Runs for
+   mouse/trackpad too (user asked for every device): mouse counts as
    steering for 200ms after it moves, gets half the pull and a gentler
    0.72 sticky slowdown. Verified headless: touch and a moving mouse both pull
    a 0.07 rad miss onto a range plate; a still mouse is not dragged.
@@ -81,12 +96,12 @@ Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
 
 ## Still to do (asked for, not started)
 
-1. **All maps rework — plan APPROVED, building not started.** The plan is the
+1. **All maps rework — plan approved, blockouts DONE, props next.** The plan is the
    doc "Troll Ops maps rework": https://claude.ai/artifact/DuitoHJf53Uu6PYopkh2Jc
    (re-read it first; the user edits it). Decisions: keep the four themes
    (construction site, desert village, warehouse, subway); shrink Dust Bowl
    90x90 -> 72x72; model hero props in Blender (models/build_props.blender.py
-   pipeline); map ORDER still to be picked by the user (Grin Site proposed);
+   pipeline); map order: user said it doesn't matter, Grin Site first;
    the shared fixes (per-face metre UVs for every box so N-S walls stop
    smearing, and tools/troll-ops-map-audit.mjs) ship LAST, after the maps.
    Each map: top-down blockout in the doc for review -> build -> walk-up test
@@ -126,6 +141,15 @@ one-handed third-person sword grip, trollface head small/grey vs references.
 Skins for other weapons would need their own panelled models like weapon-416.
 
 ## Gotchas found this session
+
+- Blockout WIP maps are real `MAPS` entries (`grinsite_wip` etc.) filtered
+  out of `MAP_IDS`; view one headlessly by setting `T.loadout.mapId` with
+  mode "ops" behind `?tohooks=1`. They are on the branch (and harmless on
+  main, since nothing lists them).
+- Inline `node -e '...'` scripts break on apostrophes in the text; write a
+  .cjs file in the scratchpad and run that instead.
+- The docs connector (the maps doc) takes images as: Artifact asset upload
+  to the doc's URL -> connector `create` blob from the asset id -> `![alt](blob/<id>)`.
 
 - Files are CRLF on disk (autocrlf) — Git Bash grep hides the `\r`, so
   multi-line string replacements fail unless you normalise line endings.
