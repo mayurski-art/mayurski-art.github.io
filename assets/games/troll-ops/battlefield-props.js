@@ -40,14 +40,11 @@ function loadBakeTexture(name) {
 /* Blender material name -> [surface, repeat] (models/build_props.blender.py's
    make_material calls). Rims/bands/trim/mesh/sandbag cloth are left flat —
    thin metal edges and fabric don't have a matching texture set here and
-   read worse tiled than solid. */
+   read worse tiled than solid. The "metal" set is left out on purpose, as
+   in map-models.js: with no environment map it renders near-black, so
+   barrels and barricade frames keep their flat Blender paint. */
 const PROP_RETEXTURE = {
   CrateWood: ["wood", 1.5],
-  BarrelBody: ["metal", 1],
-  BarricadeFrame: ["metal", 1],
-  ContainerBody: ["metal", 3],
-  ContainerRib: ["metal", 1],
-  ContainerDoor: ["metal", 1.5],
 };
 
 /* Fetches (once) and returns a clone of the named model's root object.
@@ -130,6 +127,8 @@ export function chainBarricade(api, { x, z, w = 2.4, h = 1.8, rot = 0, y = 0 }) 
   return h;
 }
 
+const CONTAINER_PAINTS = ["red", "blue", "green", "grey"];
+
 /* Shipping container — long-sightline cover. `rot=0` runs along x. */
 export function shippingContainer(api, { x, z, rot = 0, y = 0, len = 6 }) {
   const w = 2.5, h = 2.6;
@@ -137,6 +136,11 @@ export function shippingContainer(api, { x, z, rot = 0, y = 0, len = 6 }) {
   const dx = along === "x" ? len : w;
   const dz = along === "x" ? w : len;
   api.ghostBox(x, z, dx, dz, h, { y, pen: 8 });
-  placeModel(api, "shipping-container", { x, z, y, rot, scale: len / 6 });
+  // Grin Site's painted containers (same 6 x 2.5 x 2.6 box). The old
+  // shipping-container.glb was retextured with the metal set, which renders
+  // near-black with no environment map. Colour follows the spot, so a map
+  // looks the same every load.
+  const paint = CONTAINER_PAINTS[Math.abs(Math.round(x * 7 + z * 13)) % CONTAINER_PAINTS.length];
+  placeModel(api, `gs-container-${paint}`, { x, z, y, rot, scale: [len / 6, 1, 1] });
   return h;
 }

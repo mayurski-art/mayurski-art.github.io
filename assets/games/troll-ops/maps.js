@@ -1050,16 +1050,18 @@ export const MAPS = {
         for (const [dx, dz] of [[-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8], [1.8, 1.8]]) {
           api.cylinder(tx + dx, tz + dz, 0.22, TY, { color: 0x8a6a4a, pen: 2 });
         }
-        api.box(tx, tz, 4.6, 4.6, 0.3, { color: TOWER, y: TY, pen: 2.5, surface: "wood", tile: 1.2 });
+        // Flat paint, not wood: the wood photo is dark, and tinting it red
+        // came out a muddy brown.
+        api.box(tx, tz, 4.6, 4.6, 0.3, { color: TOWER, y: TY, pen: 2.5 });
         // Waist-high sides and a roof on corner posts, 2.3m up: the old roof
         // sat 1.5m over the floor, too low to stand under.
         api.walls(tx, tz, 4.6, 4.6, 1.1, 0.25, {
-          color: TOWER, y: TY + 0.3, gaps: { n: 2.6, s: 2.6 }, surface: "wood", tile: 1.2,
+          color: TOWER, y: TY + 0.3, gaps: { n: 2.6, s: 2.6 },
         });
         for (const [dx, dz] of [[-2.15, -2.15], [2.15, -2.15], [-2.15, 2.15], [2.15, 2.15]]) {
           api.cylinder(tx + dx, tz + dz, 0.1, 2.3, { color: 0x8a6a4a, y: TY + 0.3, pen: 2 });
         }
-        api.box(tx, tz, 5, 5, 0.22, { color: 0xb8391f, y: TY + 2.6, pen: 2, surface: "wood", tile: 1.2 });
+        api.box(tx, tz, 5, 5, 0.22, { color: 0xb8391f, y: TY + 2.6, pen: 2 });
         // The stair lands on the deck at the south doorway; it used to run
         // underneath the deck and stop against it.
         api.stairs(tx, tz + 2.3 + 8 * 0.5, 2.4, 8, 0.3, 0.5, "-z", { color: 0xc07a4a });
