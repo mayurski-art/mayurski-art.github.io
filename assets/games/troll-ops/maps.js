@@ -976,46 +976,37 @@ export const MAPS = {
       // single-entry camp.
       const PIER_Y = 2.6;
       const PIER_X = -13;
-      // Sun-bleached planking. These run bright on purpose: the sun sits low
-      // out to sea behind the pier, so every deck and railing face the player
-      // sees is backlit, and surf()'s tint multiplies straight into an
-      // already-dark wood photo — a mid-brown here renders near-black.
-      const DECK = 0xd8c09a;
-      const PILING = 0xa08a6a;
-      // Deck, laid as 6m sections rather than one 42m slab. surf() derives
-      // its UV tiling from a box's width and *height* only (see makeApi) —
-      // depth is never sampled — so a single long, flat deck box gets one
-      // texture repeat smeared down its whole length. Sectioning it means
-      // each piece is close to square in the sampled axes and the planking
-      // reads at a consistent scale instead of blurring out.
-      for (let z = -6; z >= -44; z -= 6) {
-        api.box(PIER_X, z - 3, 10, 6, 0.5, { color: DECK, y: PIER_Y, pen: 2.5, surface: "wood", tile: 2 });
+      // The deck, pilings, railings, ramps and bait shack are modelled (gb-pier,
+      // models/build_grinbeach.blender.py); these boxes are their colliders.
+      // Deck sections are 6 m plus a last 2 m, stopping at the map edge (z -44).
+      for (let z = -6; z >= -38; z -= 6) {
+        api.box(PIER_X, z - 3, 10, 6, 0.5, { ghost: true, y: PIER_Y, pen: 2.5 });
       }
+      api.box(PIER_X, -43, 10, 2, 0.5, { ghost: true, y: PIER_Y, pen: 2.5 });       // last 2 m, to the edge
       // pilings under the deck, marching out into the water
       for (let z = -8; z >= -42; z -= 6) {
         for (const dx of [-4.2, 4.2]) {
-          api.cylinder(PIER_X + dx, z, 0.42, PIER_Y, { color: PILING, pen: 3, surface: "wood", tile: 1.2 });
+          api.cylinder(PIER_X + dx, z, 0.42, PIER_Y, { ghost: true, pen: 3 });
         }
       }
       // Deck railings — waist-high cover along both edges of the lane,
       // sectioned for the same UV reason as the deck itself.
-      for (const dx of [-5.2, 5.2]) {
-        for (let z = -6; z >= -44; z -= 6) {
-          api.box(PIER_X + dx, z - 3, 0.3, 6, 1.1, {
-            color: 0xe0cbaa, y: PIER_Y + 0.5, pen: 1.2, surface: "wood", tile: 1.2,
-          });
+      // They sit on the deck now (they overhung its edge), with a gap on each
+      // side where a ramp arrives: the ramps used to top out against the rail.
+      for (const [dx, runs] of [[-4.85, [[-6, -10], [-12.4, -44]]], [4.85, [[-6, -18], [-20.4, -44]]]]) {
+        for (const [za, zb] of runs) {
+          api.box(PIER_X + dx, (za + zb) / 2, 0.3, za - zb, 1.1, { ghost: true, y: PIER_Y + 0.5, pen: 1.2 });
         }
       }
       // ramps up from the sand, one per side at different z so the pier has
       // two contested entrances rather than one defensible mouth
-      api.stairs(PIER_X - 6.8, -6, 3.4, 10, 0.31, 0.62, "-z", { color: DECK, surface: "wood", tile: 1.2 });
-      api.stairs(PIER_X + 6.8, -14, 3.4, 10, 0.31, 0.62, "-z", { color: DECK, surface: "wood", tile: 1.2 });
+      api.stairs(PIER_X - 6.8, -6, 3.4, 10, 0.31, 0.62, "-z", { ghost: true });
+      api.stairs(PIER_X + 6.8, -14, 3.4, 10, 0.31, 0.62, "-z", { ghost: true });
       // bait shack out on the deck: breaks the sightline and gives the pier
       // its own piece of hard cover
-      api.walls(PIER_X, -33, 7, 6, 3, 0.4, {
-        color: 0xc9ae86, y: PIER_Y + 0.5, gaps: { n: 2.4, s: 2.4 }, surface: "wood", tile: 1.5,
-      });
-      api.box(PIER_X, -33, 7.6, 6.6, 0.3, { color: 0x9c7f5c, y: PIER_Y + 3.5, pen: 2, surface: "wood", tile: 1.5 });
+      api.ghostWalls(PIER_X, -33, 7, 6, 3, 0.4, { y: PIER_Y + 0.5, gaps: { n: 2.4, s: 2.4 } });
+      api.box(PIER_X, -33, 7.6, 6.6, 0.3, { ghost: true, y: PIER_Y + 3.5, pen: 2 });
+      mapModel(api, "gb-pier", { x: 0, z: 0 });
       // The shack roofs itself over, so nothing but this lamp lights the
       // inside — the sun is low and behind it. Bright and wide enough that
       // someone standing in there is visible from both doorways rather than
@@ -1066,7 +1057,7 @@ export const MAPS = {
       // Concrete fire rings — squat, dark, and small enough to read as a pit
       // rather than a table. Each gets a low ember light so the sand has
       // something warm in it after the sun drops behind the pier.
-      for (const [x, z] of [[-20, -6], [20, -20], [10, 8]]) {
+      for (const [x, z] of [[-23, -1.5], [20, -20], [10, 8]]) {        // (-20,-6) blocked the pier ramp
         api.cylinder(x, z, 1.15, 0.45, { color: 0x6a6660, pen: 4, surface: "concrete", tile: 0.8 });
         const embers = new THREE.Mesh(
           new THREE.CylinderGeometry(0.85, 0.85, 0.04, 14),
@@ -1169,7 +1160,13 @@ export const MAPS = {
       // shipping containers parked along the lot — the hard cover on this side
       shippingContainer(api, { x: -20, z: 26, rot: 0 });
       shippingContainer(api, { x: 14, z: 26, rot: 0 });
-      for (const [x, z] of [[-33, 25], [33, 25], [0, 26]]) crateStack(api, { x, z });
+      // two parked cars and a food truck where the crate stacks were
+      for (const [x, paint] of [[-31, "red"], [31, "blue"]]) {
+        api.ghostBox(x, 26, 4, 2, 1.4, { pen: 2 });
+        mapModel(api, `cg-car-${paint}`, { x, z: 26, rot: x < 0 ? 0 : Math.PI });
+      }
+      api.ghostBox(0, 26.3, 6, 2.4, 3, { pen: 4 });
+      mapModel(api, "gb-foodtruck", { x: 0, z: 26.3, rot: Math.PI });
       for (const [x, z] of [[-6, 24.5], [28, 24.5]]) trashCan(api, { x, z });
 
       // Service stairs up to the shop roofs, at the two ends of the row.
