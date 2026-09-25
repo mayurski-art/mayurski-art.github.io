@@ -81,8 +81,24 @@ Cache-bust: game.js / style.css are at `?v=to-skins1` in troll-ops.html.
 
 ## Still to do (asked for, not started)
 
-1. **All maps rework** — object placement and construction should make sense
-   and feel complete. Big: plan/design doc first, one map at a time.
+1. **All maps rework — plan APPROVED, building not started.** The plan is the
+   doc "Troll Ops maps rework": https://claude.ai/artifact/DuitoHJf53Uu6PYopkh2Jc
+   (re-read it first; the user edits it). Decisions: keep the four themes
+   (construction site, desert village, warehouse, subway); shrink Dust Bowl
+   90x90 -> 72x72; model hero props in Blender (models/build_props.blender.py
+   pipeline); map ORDER still to be picked by the user (Grin Site proposed);
+   the shared fixes (per-face metre UVs for every box so N-S walls stop
+   smearing, and tools/troll-ops-map-audit.mjs) ship LAST, after the maps.
+   Each map: top-down blockout in the doc for review -> build -> walk-up test
+   -> screenshots + sync test -> merge.
+   - Already shipped (commit 228c3dc): every dead-end stair fixed (Grin Site
+     scaffolds, Depot catwalk + columns, Cul-de-Grin attic stairwells, Grin
+     Beach towers), Undergrin track exits, Dust Bowl centre stairs, doubled
+     cover removed. Cache-bust `?v=to-maps1`.
+   - Audit gotcha: "has a stair next to it" is not "reachable". Check
+     HEADROOM too (ceiling < 1.8m above a walkable top = dead end), and prove
+     stairs with a walk-up test (hold W from the bottom, assert max y). The
+     api.stairs(x, z, ...) origin is the BOTTOM step; it runs toward dir.
 
 2. **Weapon skins via Blender** (user idea, not started). Blender 5.2.1 LTS is
    installed at C:/Program Files/Blender Foundation/Blender 5.2/blender.exe and
