@@ -1074,12 +1074,93 @@ export const MAPS = {
 
       /* ---- south + loose cover */
       api.box(8, 22, 4, 2, 1.6, { color: 0x8a5a2a, pen: 4 });                       // skip
+      // south lane: a parked van breaks the spawn-to-stairs line, jersey
+      // barriers and a pallet row give the approach something to hop between
+      api.box(3, 19, 5, 2.2, 2.4, { color: 0xe8e4d8, pen: 3 });                   // van
+      api.box(-7, 14, 3, 0.6, 0.9, { color: CONC, pen: 6 });                        // jersey barriers
+      api.box(9, 13, 3, 0.6, 0.9, { color: CONC, pen: 6 });
+      for (const x of [-15, -16.5, -18]) api.box(x, 23, 1.2, 1.2, 1.0, { color: 0xa0523a, pen: 2 });
       for (const [x, z, w, d, h] of [[8, -18, 3, 3, 1.4], [-9, 18, 4, 2.5, 1.5], [12, 6, 3, 3, 1.6]]) {
         api.box(x, z, w, d, h, { color: 0x5c6b4a });
       }
       for (const [x, z] of [[-30, -30], [30, -30], [-30, 30], [30, 30]]) api.floodlight(x, z);
     },
     spawns: [[-30, -30], [30, -30], [-30, 30], [30, 30], [0, -31], [0, 31], [-31, 0], [31, 0]],
+  },
+  dustbowl_wip: {
+    name: "Dust Bowl (blockout)",
+    blurb: "Work-in-progress blockout of the Dust Bowl rebuild.",
+    bounds: { minX: -36, maxX: 36, minZ: -36, maxZ: 36 },
+    playerSpawn: { x: 0, z: -30 },
+    sky: { top: 0x3b6ea5, horizon: 0xd9b271, bottom: 0x94764a },
+    fog: { color: 0xc0a473, density: 0.0032 },
+    ground: { colorA: 0x9c8555, colorB: 0x836e42, grid: 0xb8a271 },
+    sun: { color: 0xfff0cf, intensity: 2.6, pos: [40, 55, 25] },
+    hemi: { sky: 0xffe6bb, ground: 0x6a5730, intensity: 0.62 },
+    ambient: { color: 0xfff2dd, intensity: 0.26 },
+    build(api) {
+      const MUD = 0xb89a68, MUD_DK = 0x9c7f52, ROCK = 0x7a6848, STONE = 0x9a8a6a, WOOD = 0x7a5a36;
+      api.walls(0, 0, 72, 72, 5, 1.6, { color: 0x8a7346, surface: "brick", tile: 2.5 });
+
+      /* ---- north (long lane): rock ridge + wrecked truck */
+      for (const [x, z, w, d, h] of [[-24, -19, 5, 3, 2.2], [-16, -25, 4, 3, 1.6], [-6, -21, 3, 4, 2.4],
+        [6, -23, 5, 3, 1.8], [14, -22, 3, 3, 2.6], [18, -27, 4, 3, 2.0], [31, -19, 3, 3, 1.4], [-31, -19, 3, 3, 1.8]]) {
+        api.box(x, z, w, d, h, { color: ROCK, pen: 6 });
+      }
+      for (const [x, z, r, h] of [[-10, -30, 1.2, 1.2], [9, -17, 1.4, 1.3]]) api.cylinder(x, z, r, h, { color: ROCK, pen: 6 });
+      api.box(-1, -28, 6, 2.4, 2.2, { color: 0x6a4a3a, pen: 4 });                // wrecked truck bed
+      api.box(3.5, -28, 2, 2.4, 2.8, { color: 0x5a3a2a, pen: 4 });               // cab
+      // walled courtyards in the two north corners, gates to the east/west and south
+      for (const cx of [-27, 27]) {
+        api.walls(cx, -28, 10, 10, 2.5, 0.6, { color: MUD, gaps: { [cx < 0 ? "e" : "w"]: 3, s: 3 }, pen: 6 });
+      }
+
+      /* ---- centre: two-storey mud-brick house + minaret (landmark) */
+      api.walls(0, -4, 10, 8, 3.2, 0.5, { color: MUD, gaps: { n: 1.6, s: 1.6, e: 1.6 }, pen: 8, surface: "brick", tile: 2.5 });
+      // interior stair up the west wall to the roof, through a stairwell
+      api.stairs(-3.5, -0.9, 1.6, 11, 0.318, 0.55, "-z", { color: MUD_DK });
+      const roof = (x0, x1, z0, z1) => api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.3, { color: MUD_DK, y: 3.2, pen: 8 });
+      roof(-5, -4.3, -8, 0); roof(-2.7, 5, -8, 0); roof(-4.3, -2.7, -8, -6.95); roof(-4.3, -2.7, -0.9, 0);
+      for (const [x, z, w, d] of [[0, -7.85, 10, 0.3], [0, -0.15, 10, 0.3], [-4.85, -4, 0.3, 8], [4.85, -4, 0.3, 8]]) {
+        api.box(x, z, w, d, 0.9, { color: MUD, y: 3.5, pen: 6 });                  // roof parapet
+      }
+      api.cylinder(6.5, -10.5, 1.5, 12, { color: 0xd8c8a0, pen: 10 });            // minaret
+
+      /* ---- middle (close): market street along z 8 */
+      for (const cx of [-16, 16]) {                                                 // houses north of the street
+        api.walls(cx, 0, 8, 6, 3, 0.5, { color: MUD, gaps: { n: 2, s: 2 }, pen: 8, surface: "brick", tile: 2.5 });
+        api.box(cx, 0, 8.4, 6.4, 0.3, { color: MUD_DK, y: 3, pen: 8 });
+      }
+      for (const cx of [-22, -7, 8, 22]) {                                          // cut-through houses south of it
+        api.walls(cx, 14, 8, 4, 3, 0.5, { color: MUD, gaps: { n: 2, s: 2 }, pen: 8, surface: "brick", tile: 2.5 });
+        api.box(cx, 14, 8.4, 4.4, 0.3, { color: MUD_DK, y: 3, pen: 8 });
+      }
+      for (const x of [-22, -9, 9, 22]) api.box(x, 8, 2.6, 1.4, 1.1, { color: WOOD, pen: 2 });   // stalls
+      api.cylinder(0, 5.5, 1, 0.9, { color: STONE, pen: 6 });                                    // well
+      // stone field walls, uneven, in the open flanks
+      for (const [x, z, w, d] of [[-26, -8, 6, 0.6], [26, -6, 0.6, 6], [-10, -12, 0.6, 5], [12, -13, 5, 0.6]]) {
+        api.box(x, z, w, d, 1.1, { color: STONE, pen: 5 });
+      }
+
+      /* ---- south (mid-range): dry riverbed between raised banks */
+      const BANK = 1.2;
+      // north bank, broken where the cut-through houses let out
+      const gaps = [[-23.5, -20.5], [-8.5, -5.5], [6.5, 9.5], [20.5, 23.5]];
+      let from = -34.4;
+      for (const [g0, g1] of [...gaps, [34.4, 34.4]]) {
+        if (g0 - from > 0.1) api.box((from + g0) / 2, 18.5, g0 - from, 3, BANK, { color: MUD_DK, pen: 10 });
+        from = g1;
+      }
+      api.box(0, 32.2, 68.8, 4.4, BANK, { color: MUD_DK, pen: 10 });                            // south bank
+      // footbridge from bank to bank, on posts
+      api.box(0, 25, 3, 10, 0.3, { color: WOOD, y: BANK, pen: 3 });
+      for (const z of [22, 25, 28]) for (const x of [-1.3, 1.3]) api.cylinder(x, z, 0.15, BANK, { color: WOOD, pen: 2 });
+      api.stairs(-30, 20 + 4 * 0.6, 3, 4, 0.3, 0.6, "-z", { color: MUD_DK });                  // channel -> north bank
+      api.stairs(30, 17 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { color: MUD_DK });                   // street -> north bank
+      for (const x of [-10, 12]) api.stairs(x, 30 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { color: MUD_DK }); // channel -> south bank
+      for (const [x, z] of [[-15, 25], [18, 26]]) api.cylinder(x, z, 1.2, 1.1, { color: ROCK, pen: 6 });
+    },
+    spawns: [[-30, -31], [30, -31], [0, -33], [-33, 0], [33, 0], [-28, 25], [28, 25], [12, 25]],
   },
 };
 
