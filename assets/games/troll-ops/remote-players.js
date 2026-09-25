@@ -9,7 +9,7 @@ import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME } from "./character.js";
 import { buildWeaponMesh } from "./weapon-model.js";
 import { WEAPON_DEFS } from "./weapons.js";
-import { MeleeState, buildMeleeMesh } from "./gear.js";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js";
 
 const RENDER_DELAY = 110; // ms
 const DEATH_FALL_TIME = 0.55; // seconds to collapse before the rig is hidden
@@ -109,17 +109,24 @@ export class RemotePlayer {
   /* Start playing a swing the peer announced, with the sword in the fist and
      the gun put away until it's done - the same swap the local body makes. */
   startMelee(kind, defId) {
-    if (!this.melee || this.melee.def.id !== defId) this.melee = new MeleeState(defId);
-    if (!this.melee.def) { this.melee = null; return; }
+    if (!this.ensureMelee(defId)) return;
     this.melee.t = 0;
     this.melee.swingIndex = kind & 1;
     this.melee.start();
+  }
+
+  /* The melee state and the sword in the fist, built the first time either
+     a swing or a peer holding their melee weapon needs them. */
+  ensureMelee(defId) {
+    if (!MELEE_DEFS[defId]) return false;
+    if (!this.melee || this.melee.def.id !== defId) this.melee = new MeleeState(defId);
     if (!this.meleeMesh) {
       this.meleeMesh = buildMeleeMesh(this.melee.def, false);
       this.meleeMesh.scale.setScalar(1.1);
       this.meleeMesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
       this.rig.parts.gripR.add(this.meleeMesh);
     }
+    return true;
   }
 
   get swinging() { return !!this.melee?.busy; }
@@ -188,8 +195,12 @@ export class RemotePlayer {
     if (this.throwT > 0) this.throwT = Math.max(0, this.throwT - dt);
     if (!this.alive && this.melee) this.melee.t = 0;
     const swinging = this.swinging;
-    if (this.meleeMesh) this.meleeMesh.visible = swinging;
-    if (this.weaponMesh) this.weaponMesh.visible = !swinging;
+    // Holding the melee weapon outright (switched to it, or infected): the
+    // wire sends its id as the weapon.
+    const meleeHeld = !!MELEE_DEFS[this.peer.weapon] && this.ensureMelee(this.peer.weapon);
+    const sword = swinging || meleeHeld;
+    if (this.meleeMesh) this.meleeMesh.visible = sword;
+    if (this.weaponMesh) this.weaponMesh.visible = !sword;
 
     // Just died: hold the last known pose and play a collapse instead of
     // instantly popping out of existence. Respawning (alive flips back to
@@ -285,7 +296,7 @@ export class RemotePlayer {
     // Two-handed carry (armL on the support hand instead of a free run
     // swing) for anything but a sidearm — matches weapon-model.js's own
     // !isPistol gate for whether a weapon actually has a support hand mesh.
-    const hasGun = !swinging && WEAPON_DEFS[this.weaponId]?.cls !== "sidearm";
+    const hasGun = !sword && WEAPON_DEFS[this.weaponId]?.cls !== "sidearm";
     const swing = swinging ? {
       t: Math.min(1, this.melee.t / this.melee.total),
       kind: this.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
@@ -293,7 +304,7 @@ export class RemotePlayer {
     poseHumanoid(this.rig, {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
-      hold: swinging ? "melee" : "gun", swing,
+      hold: sword ? "melee" : "gun", swing,
     });
 
     if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);

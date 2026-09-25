@@ -30,7 +30,7 @@ import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js";
 import { buildHumanoid, poseHumanoid, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom } from "./character.js";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
-  Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME,
+  Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js";
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
@@ -47,7 +47,7 @@ import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js";
-import { MeleeState, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY } from "./gear.js";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY } from "./gear.js";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js";
 
@@ -69,6 +69,8 @@ const els = {
   hudTeams: document.getElementById("to-hud-teams"),
   hudMatchClock: document.getElementById("to-hud-matchclock"),
   scorePhantom: document.getElementById("hud-score-phantom"),
+  namePhantom: document.getElementById("hud-name-phantom"),
+  nameGhost: document.getElementById("hud-name-ghost"),
   scoreGhost: document.getElementById("hud-score-ghost"),
   scoreboard: document.getElementById("to-scoreboard"),
   respawn: document.getElementById("to-respawn"),
@@ -934,7 +936,7 @@ const BOT_TARGET = 8;      // participants a PvP room is padded up to
 // public server for their mode, instead of each getting their own random
 // room. Only overflow into a numbered shard (QTDM2, QTDM3, ...) once the
 // base room is genuinely full of real people — see joinQuickplay().
-const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND" };
+const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
 let gunGameProgress = 0;
@@ -1213,6 +1215,14 @@ function isPvp() { return currentMode().pvp; }
 function isZombies() { return !!currentMode().zombies; }
 function isRange() { return !!currentMode().range; }
 function isSnd() { return !!currentMode().rounds; }
+function isInfection() { return !!currentMode().infection; }
+/* Infection plays on the two ordinary sides: Phantoms are the survivors,
+   Ghosts the infected. */
+function isInfected() { return isInfection() && net.team === "ghost"; }
+function teamName(team) {
+  if (isInfection()) return team === "ghost" ? "Infected" : "Survivors";
+  return TEAMS[team]?.name;
+}
 let zdir = null;
 let rangeSet = null;
 function isBotPeer(p) { return p.isBot || isSyntheticId(p.id); }
@@ -1244,7 +1254,7 @@ function otherHumansInMatch() {
 /* The Play tab's mode list: versus modes first, then the solo ones, each a
    full-width row with a tick on the one you're deploying into. */
 const MODE_GROUPS = [
-  { label: "Versus", ids: ["tdm", "koth", "snd", "oitc", "gungame"] },
+  { label: "Versus", ids: ["tdm", "koth", "snd", "infection", "oitc", "gungame"] },
   { label: "Solo", ids: ["ops", "zombies", "range"] },
 ];
 const TICK_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -1759,6 +1769,7 @@ function paintMatchClock() {
 
 function updateMatchClock(dt) {
   if (matchClockT === null) return;
+  if (isInfection() && !infectionStarted) return;   // the clock starts with the first infection
   matchClockT = Math.max(0, matchClockT - dt);
   paintMatchClock();
   if (matchClockT <= 0) checkMatchEnd();
@@ -1787,6 +1798,7 @@ const net = new Net({
     if (m.by !== net.id) creditAssistIfOwed(p.id, p.name);
   },
   onStreak: (m) => applyRemoteStreak(m),
+  onInfect: (m) => applyInfect(m.ids || []),
   onNade: (m) => applyRemoteNade(m),
   onVote: () => { if (intermissionT > 0) renderVote(); },
   /* Adopt the owner's countdown rather than running our own, so two clients
@@ -2592,7 +2604,7 @@ function renderScoreboard() {
       const team = TEAMS[teamId];
       const members = rows.filter((r) => r.team === teamId).sort(rank);
       html += `<div class="to-sb-team"><div class="to-sb-head">`
-        + `<span style="color:${team.ui}">${team.name} · ${teamScores[teamId]}</span>${cols}</div>`;
+        + `<span style="color:${team.ui}">${teamName(teamId)} · ${teamScores[teamId]}</span>${cols}</div>`;
       html += members.length
         ? members.map((r) => row(r)).join("")
         : `<div class="to-sb-row"><span>—</span></div>`;
@@ -3648,7 +3660,7 @@ function refillGear() {
 /* Cooking: holding the key starts the fuse while the grenade is still in
    your hand. Impact throwables ignore it — they go off where they land. */
 function startCook(slot) {
-  if (cooking.def || !player.alive || gameState !== "playing" || isStaging()) return;
+  if (cooking.def || !player.alive || gameState !== "playing" || isStaging() || isInfected()) return;
   if (player.gear[slot] <= 0) return;
   const def = slot === "lethal" ? loadout.lethal : loadout.tactical;
   cooking.def = def;
@@ -3756,6 +3768,7 @@ function meleeConnect() {
 
 function setHolding(what) {
   if (player.holding === what) return;
+  if (isInfected() && what !== "melee") return;   // the sword is all they have
   if (what === "melee" && !player.melee) return;
   player.holding = what;
   if (activeWeaponMesh) activeWeaponMesh.visible = what === "gun";
@@ -3771,6 +3784,7 @@ function setHolding(what) {
    player.secondaryId null there - Gun Game, One in the Chamber) or when
    already holding that slot's gun. */
 function switchWeapon(slot) {
+  if (isInfected()) return;
   const id = slot === "secondary" ? player.secondaryId : player.weaponId;
   if (!id || !player.weapons[id]) return;
   const w = player.weapons[id];
@@ -3945,7 +3959,9 @@ function netSnapshot() {
   _netSnapshot.yaw = look.yaw; _netSnapshot.pitch = look.pitch;
   _netSnapshot.stance = move.stance; _netSnapshot.moving = move.moving;
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
-  _netSnapshot.weapon = (player.holding === "gun" ? currentWeapon()?.def.id : null) || player.weaponId;
+  _netSnapshot.weapon = player.holding === "melee" && player.melee
+    ? player.melee.def.id
+    : (player.holding === "gun" ? currentWeapon()?.def.id : null) || player.weaponId;
   // The skin of whatever that is, so everyone else sees the same gun.
   _netSnapshot.skin = (player.holding === "gun" ? currentWeapon()?.def.attachments?.skin : null) || null;
   _netSnapshot.kills = player.kills;
@@ -4121,7 +4137,9 @@ function botTargets() {
     // No point emptying a magazine into someone spawn protection is going to
     // shrug off — and it would look like the bot is broken.
     if (o.id === net.id && player.spawnGuard > 0) continue;
-    list.push({ id: o.id, team: o.team, alive: true, pos: o.pos, groundY: o.pos.y });
+    // `melee`: only carrying a sword (Infection's infected), so worth
+    // backing away from rather than holding ground against.
+    list.push({ id: o.id, team: o.team, alive: true, pos: o.pos, groundY: o.pos.y, melee: isInfection() && o.team === "ghost" });
   }
   return list;
 }
@@ -4196,6 +4214,214 @@ function botDealDamage(bot, targetId, dmg, isHead, wid) {
     return;
   }
   net.reportHitAs(bot.id, targetId, dmg, isHead, wid);
+}
+
+// -------------------- Infection --------------------
+//
+// Nobody hosts the match: every client turns itself when it dies, and its
+// team rides out on the next state message. The one decision that has to be
+// made once is who starts infected, so the bot host (lowest id, same as for
+// bots) makes it and broadcasts an `infect` message. Every client counts
+// the sides from what it sees and ends the match itself when no survivor is
+// left, the same way score limits already work.
+
+let infectionStarted = false;
+let infectionT = 0;          // countdown to the first infection
+let infectionCalled = false; // the "first infection in..." banner
+let lastSurvivorCalled = false;
+let reinfectT = 0;           // host: grace before replacing infected who all left
+let noSurvivorsT = 0;        // how long the count has read zero survivors
+let infectionShown = "";     // last counts painted into the HUD
+
+function resetInfection() {
+  infectionStarted = false;
+  infectionT = INFECTION.firstDelay;
+  infectionCalled = false;
+  lastSurvivorCalled = false;
+  reinfectT = 0;
+  noSurvivorsT = 0;
+  infectionShown = "";
+  const inf = isInfection();
+  // The last match's bots would otherwise sit in the peer map, still on the
+  // sides they ended on, until they time out — long enough to be counted as
+  // infected in a match nobody's been infected in yet.
+  if (inf) for (const [id, p] of net.peers) if (isBotPeer(p)) { remotes.byId.get(id)?.dispose(); remotes.byId.delete(id); net.peers.delete(id); }
+  els.namePhantom.textContent = inf ? "Survivors" : TEAMS.phantom.name;
+  els.nameGhost.textContent = inf ? "Infected" : TEAMS.ghost.name;
+  if (player.maxHp === INFECTION.hp) player.maxHp = 100;
+  if (inf) net.setTeam("phantom");
+}
+
+/* Sword only, faster (see move.update), tougher. Survivors keep their kit. */
+function applyInfectionLoadout() {
+  if (!isInfection()) return;
+  player.maxHp = isInfected() ? INFECTION.hp : 100;
+  player.hp = Math.min(player.hp, player.maxHp);
+  if (!isInfected()) return;
+  cooking.def = null;
+  cooking.slot = null;
+  els.cook.hidden = true;
+  player.gear.lethal = 0;
+  player.gear.tactical = 0;
+  setHolding("melee");
+  updateGearHud();
+}
+
+function markInfectionStarted() {
+  if (infectionStarted) return;
+  infectionStarted = true;
+  // The three minutes are for surviving, so they start now.
+  matchClockT = currentMode().timeLimit;
+  matchClockShown = -1;
+  paintMatchClock();
+}
+
+/* Everyone in the match by side, from what this client can see. Survivors
+   who are down still count: they're about to get up infected, and until
+   their team flips they haven't. */
+function infectionCounts() {
+  let survivors = 0, infected = 0, lastName = null;
+  const tally = (team, name) => {
+    if (team === "ghost") infected++;
+    else if (team === "phantom") { survivors++; lastName = name; }
+  };
+  tally(net.team, "You");
+  for (const p of net.peers.values()) {
+    if (String(p.id).startsWith("streak-")) continue;
+    tally(p.team, p.name);
+  }
+  return { survivors, infected, lastName };
+}
+
+/* Host only: pick who starts infected and tell everyone. */
+function pickFirstInfected() {
+  const ids = [net.id];
+  for (const p of net.peers.values()) {
+    if (String(p.id).startsWith("streak-") || p.team === "ghost") continue;
+    ids.push(p.id);
+  }
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  const chosen = ids.slice(0, ids.length >= INFECTION.twoFirstAt ? 2 : 1);
+  if (net.active) net.send({ t: "infect", id: net.id, ids: chosen });
+  applyInfect(chosen);
+}
+
+function applyInfect(ids) {
+  if (!isInfection() || gameState !== "playing") return;
+  markInfectionStarted();
+  const others = [];
+  for (const id of ids) {
+    if (id === net.id) {
+      if (net.team !== "ghost") {
+        net.setTeam("ghost");
+        applyInfectionLoadout();
+        player.hp = player.maxHp;
+      }
+      showWaveBanner("YOU'RE INFECTED — cut them down", 2000);
+      continue;
+    }
+    const b = bots.byId(id);
+    if (b) infectBot(b);
+    others.push(nameFor(id) || "someone");
+  }
+  if (others.length && !ids.includes(net.id)) {
+    showWaveBanner(`${others.join(" & ")} ${others.length > 1 ? "are" : "is"} infected — run`, 2000);
+  }
+  audio.wave();
+}
+
+/* Bot host: turn one of our bots. */
+function infectBot(b) {
+  b.team = "ghost";
+  b.meleeOnly = true;
+  b.speedMult = INFECTION.speed;
+  b.maxHp = INFECTION.hp;
+  b.holdingSecondary = false;
+  if (b.alive) b.hp = b.maxHp;
+}
+
+/* Bot host, every tick: new bots join the side the match is on (survivors
+   before the first infection, infected after), and a survivor bot that's
+   down gets up infected. */
+function sortInfectionBots() {
+  for (const b of bots.bots) {
+    if (!b.infectionSorted) {
+      b.infectionSorted = true;
+      if (infectionStarted) infectBot(b);
+      else { b.team = "phantom"; b.meleeOnly = false; }
+    } else if (infectionStarted && !b.alive && b.team === "phantom") {
+      infectBot(b);
+    }
+  }
+}
+
+/* A bot we host swings its sword at `target`. Whether it's in reach is
+   bots.js's call; this plays the swing everywhere and lands the hit. */
+function botMelee(bot, target) {
+  const def = MELEE_DEFS.keyboard;
+  bot.meleeSwing = ((bot.meleeSwing | 0) + 1) & 1;
+  const p = net.peers.get(bot.id);
+  if (p) { p.meleeSeq = (p.meleeSeq | 0) + 1; p.meleeKind = bot.meleeSwing; p.meleeDef = def.id; }
+  if (net.active) net.publishMeleeAs(bot.id, bot.meleeSwing, def.id);
+  botDealDamage(bot, target.id, def.damage, false, def.id);
+}
+
+function paintInfectionCounts(c) {
+  const shown = `${c.survivors}:${c.infected}`;
+  if (shown === infectionShown) return;
+  infectionShown = shown;
+  teamScores.phantom = c.survivors;
+  teamScores.ghost = c.infected;
+  updateTeamHud();
+}
+
+function updateInfection(dt) {
+  if (!infectionStarted) {
+    paintInfectionCounts(infectionCounts());
+    if (isStaging()) return;
+    // Someone's already turned. On our first live tick that means we joined
+    // a match under way, and a latecomer comes in infected; after that it's
+    // just the host's message still on its way.
+    if (infectionCounts().infected > 0) {
+      if (!infectionCalled) { net.setTeam("ghost"); applyInfectionLoadout(); }
+      infectionCalled = true;
+      markInfectionStarted();
+      return;
+    }
+    if (!infectionCalled) {
+      infectionCalled = true;
+      showWaveBanner(`First infection in ${INFECTION.firstDelay}s — spread out`, 1800);
+    }
+    infectionT -= dt;
+    if (infectionT <= 0 && (net.isBotHost() || !net.active)) pickFirstInfected();
+    return;
+  }
+
+  const c = infectionCounts();
+  paintInfectionCounts(c);
+
+  // Held for a moment before it counts: a peer's team can read wrong for a
+  // message or two (they flipped, their next state is in flight).
+  noSurvivorsT = c.survivors === 0 && c.infected > 0 ? noSurvivorsT + dt : 0;
+  if (noSurvivorsT > 0.5) { endMatch("Infected win"); return; }
+
+  if (c.survivors === 1 && !lastSurvivorCalled) {
+    lastSurvivorCalled = true;
+    showWaveBanner(net.team === "phantom" ? "LAST SURVIVOR — it's all on you" : `LAST SURVIVOR — ${c.lastName}`, 2200);
+    audio.wave();
+  }
+
+  // Every infected left the room: the host starts it again rather than
+  // handing the survivors a match with nobody to run from.
+  if (c.infected === 0 && (net.isBotHost() || !net.active)) {
+    reinfectT += dt;
+    if (reinfectT > 3) { reinfectT = 0; pickFirstInfected(); }
+  } else {
+    reinfectT = 0;
+  }
 }
 
 let hillHeldT = 0;   // seconds we've personally stood on the hill
@@ -4406,7 +4632,8 @@ function updateSnd(dt) {
    isn't worth dropping — the ladder or the one-shot pistol already decides
    the next gun for everyone. */
 function scavengeAllowed() {
-  return !weaponForMode(currentMode(), gunGameProgress);
+  // Infection: the infected can't carry a gun, so nothing is worth dropping.
+  return !weaponForMode(currentMode(), gunGameProgress) && !isInfection();
 }
 
 /* Drop whatever gun the player was holding right where they died, so
@@ -4479,7 +4706,7 @@ async function startGame() {
     if (!result.kind) { setNetStatus("Couldn't reach the room. Try another code.", "bad"); return; }
     els.room.value = result.code;
     net.chooseTeam();
-    setNetStatus(`Live · ${result.kind} · room ${result.code} · ${TEAMS[net.team].name}`, "live");
+    setNetStatus(`Live · ${result.kind} · room ${result.code} · ${teamName(net.team)}`, "live");
   } else {
     net.stop();
   }
@@ -4524,7 +4751,9 @@ function beginStaging(seconds = STAGE_SECONDS) {
   els.stagingMode.textContent = isPvp()
     ? `${currentMode().name} — ${builtMap.map.name}`
     : builtMap.map.name;
-  els.stagingSub.textContent = isPvp() && net.team
+  els.stagingSub.textContent = isInfection()
+    ? "Everyone starts clean. Someone won't stay that way."
+    : isPvp() && net.team
     ? `You are ${TEAMS[net.team].name}`
     : "Get ready";
   updateStagingRoster();
@@ -4634,6 +4863,7 @@ function beginMatch(mapId = null) {
 
   gunGameProgress = 0;
   hillAcc = 0;
+  resetInfection();
 
   spawnDeaths.clear();
   // Spawn protection starts when the countdown ends, not when the map loads —
@@ -5050,7 +5280,7 @@ function endMatch(title) {
   const headline = mode.ffa ? String(player.kills) : String(teamScores[net.team] ?? 0);
   const won = mode.ffa
     ? title.startsWith("You")
-    : title === `${TEAMS[net.team]?.name} win`;
+    : title === `${teamName(net.team)} win`;
   finishRun(title, headline, mode.ffa ? "Your score" : "Your side", "Your kills", "Match length", { won, completed: true });
 
   achievements.onMatchEnd({
@@ -5273,7 +5503,7 @@ const STREAK_KILL_NAMES = {
 };
 
 function weaponNameFor(id) {
-  return WEAPON_DEFS[id]?.name || STREAK_KILL_NAMES[id] || null;
+  return WEAPON_DEFS[id]?.name || MELEE_DEFS[id]?.name || THROWABLE_DEFS[id]?.name || STREAK_KILL_NAMES[id] || null;
 }
 
 /* How much health the player who killed us had left — the single most useful
@@ -5355,6 +5585,14 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
     registerDeath("You", fromId, weaponId, {
       head: isHead, victimIsMe: true, victimTeam: net.team,
     });
+    // Infection: a survivor who goes down gets up on the other side.
+    if (isInfection() && infectionStarted) {
+      if (net.team === "phantom") {
+        net.setTeam("ghost");
+        showWaveBanner("INFECTED — go get them", 1800);
+      }
+      respawnT = INFECTION.respawn;
+    }
     showDeathCard(fromId, weaponId, isHead);
     killcam.start(player.pos, killerPosFor(fromId));
     els.killcamBars.classList.add("is-on");
@@ -5418,6 +5656,7 @@ function respawnPlayer() {
   player.alive = true;
   player.spawnGuard = SPAWN_GUARD;
   setActiveWeaponMesh(equipFromLoadout());
+  applyInfectionLoadout();
   els.respawn.hidden = true;
 }
 
@@ -5542,13 +5781,17 @@ function animate() {
       // everyone else needs no bot-specific code at all.
       if (net.isBotHost()) {
         const { humans, teams } = humanHeadcount();
-        bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, ffa, teams);
+        // Infection's sides change all match long; padding them back to even
+        // would undo every infection, so it just fills the room.
+        bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, ffa || isInfection(), isInfection() ? null : teams);
+        if (isInfection()) sortInfectionBots();
         bots.update(dt, {
           colliders, arena: ARENA, ffa,
           targets: botTargets(),
           onShoot: onBotShoot,
           // Weapon-decided modes (One in the Chamber, Gun Game) stay gun-only.
-          onThrow: currentMode().noStreaks ? null : botThrow,
+          onThrow: currentMode().noBotNades ? null : botThrow,
+          onMelee: botMelee,
           spawnFor: spawnForTeam,
           sightBlocked: (a, b) => grenades.blocksSight(a, b),
           objectiveFor: botObjective,
@@ -5568,6 +5811,8 @@ function animate() {
 
       if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
       else if (pickups.drops.length) pickups.clear();
+
+      if (isInfection()) updateInfection(dt);
 
       if (hill) {
         if (hill.update(dt)) { setHillMarker(hill); showWaveBanner("Hill moved", 1300); }
@@ -5967,7 +6212,7 @@ function updatePlayer(dt) {
     dive: !frozen && ((isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight")),
     yaw: look.yaw,
     adsHeld: wantAds,
-    speedMult: w.moveSpeedMult,
+    speedMult: w.moveSpeedMult * (isInfected() ? INFECTION.speed : 1),
     sprintMult: w.def.sprintMult,
     inertia: w.def.inertia,
   });
@@ -6707,7 +6952,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     activeMeleeMesh: () => activeMeleeMesh,
     activeWeaponMesh: () => activeWeaponMesh,
     matchClockT: () => matchClockT,
-    resetMatchClock, swingMelee, botThrow, botNadesThrown: () => botNadesThrown,
+    resetMatchClock, swingMelee, botThrow, botMelee, isInfected, infectionCounts, applyInfect,
+    infectionStarted: () => infectionStarted, pickFirstInfected, setInfectionT: (v) => { infectionT = v; }, botNadesThrown: () => botNadesThrown,
     activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
     streaks, streakPicker, killstreakUi, achievements,
     awardScore, callReadyStreak, callStreak, fireStreak, startUav, applyRemoteStreak,

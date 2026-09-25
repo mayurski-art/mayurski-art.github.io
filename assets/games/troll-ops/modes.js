@@ -67,6 +67,7 @@ export const MODES = {
     // Both this and Gun Game are decided entirely by the weapon in your
     // hands, so a gunship overhead reads as broken rather than earned.
     noStreaks: true,
+    noBotNades: true,
     blurb: "One bullet, one kill. Land it and you get the round back; miss and you're empty.",
     // Everyone is lethal and nearly out of ammo.
     tuneWeapon(def) {
@@ -94,8 +95,34 @@ export const MODES = {
       "sneer", "shotgun", "bellow", "cackle", "deadpan", "widedeagle",
     ],
     noStreaks: true,   // see oitc
+    noBotNades: true,
     blurb: "Every kill moves you up the rack. Clear the rack to win.",
   },
+
+  /* Everyone starts a survivor (the Phantoms slot, relabelled); a few
+     seconds in, one or two are picked to be infected (the Ghosts slot).
+     Infected carry only the sword, move faster and take more to put down;
+     a survivor who dies gets up infected. Survivors win if anyone is left
+     when the clock runs out. game.js owns the flow (updateInfection). */
+  infection: {
+    id: "infection",
+    name: "Infection",
+    short: "Infection",
+    pvp: true, ffa: false,
+    infection: true,
+    timeLimit: 180,     // counts from the first infection, not from GO
+    noStreaks: true,    // a gunship over a knife fight isn't a fight
+    blurb: "One of you starts infected. Every survivor they cut down joins them. Last three minutes to win.",
+  },
+};
+
+/* Infection tuning. */
+export const INFECTION = {
+  firstDelay: 8,          // seconds after GO before anyone is infected
+  twoFirstAt: 8,          // with this many in the match, two start infected
+  speed: 1.2,             // infected move this much faster
+  hp: 150,
+  respawn: 3,             // infected are back up quicker than the usual 4s
 };
 
 export const MODE_IDS = Object.keys(MODES);
@@ -140,6 +167,9 @@ export function matchWinner(mode, { teamScores, selfScore, selfName, peers }) {
 /* The clock ran out before anyone hit the score limit: highest score takes
    it, a tie splits the difference rather than picking a side arbitrarily. */
 export function matchWinnerOnTimeout(mode, { teamScores, selfScore, selfName, peers }) {
+  // Anyone still standing as a survivor when the clock runs out wins it for
+  // them; the moment the last one falls, game.js ends it for the infected.
+  if (mode.infection) return "Survivors win";
   if (mode.ffa) {
     let bestName = selfName, bestScore = selfScore, tie = false;
     for (const p of peers) {

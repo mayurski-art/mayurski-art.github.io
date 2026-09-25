@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-paint1">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-infect1">
 </head>
 <body>
 
@@ -400,10 +400,10 @@
         </div>
 
         <div class="to-hud-teams" id="to-hud-teams" hidden>
-          <span class="to-team to-team-phantom"><b id="hud-score-phantom">0</b> Phantoms</span>
+          <span class="to-team to-team-phantom"><b id="hud-score-phantom">0</b> <span id="hud-name-phantom">Phantoms</span></span>
           <strong class="to-hud-matchclock" id="to-hud-matchclock" hidden aria-label="Time remaining">10:00</strong>
           <span class="to-team-sep">·</span>
-          <span class="to-team to-team-ghost">Ghosts <b id="hud-score-ghost">0</b></span>
+          <span class="to-team to-team-ghost"><span id="hud-name-ghost">Ghosts</span> <b id="hud-score-ghost">0</b></span>
         </div>
 
         <canvas class="to-minimap" id="to-minimap" width="170" height="170" aria-hidden="true"></canvas>
@@ -586,7 +586,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-paint1"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-infect1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

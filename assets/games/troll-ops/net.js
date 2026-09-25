@@ -159,6 +159,13 @@ export class Net {
     return this.team;
   }
 
+  /* Switch sides mid-match (Infection) and tell the room right away rather
+     than waiting for the next state message. */
+  setTeam(team) {
+    this.team = team;
+    if (this.connected) this.send({ t: "here", id: this.id, name: this.name, team });
+  }
+
   peer(id) {
     let p = this.peers.get(id);
     if (!p) {
@@ -267,6 +274,12 @@ export class Net {
         this.h.onStreak?.(m);
         break;
       }
+      /* Infection: the bot host picks who starts infected and says so. Each
+         named player turns itself; bots turn on the host. */
+      case "infect": {
+        this.h.onInfect?.(m);
+        break;
+      }
       case "vote": {
         const p = this.peer(m.id);
         p.vote = m.map;
@@ -343,7 +356,8 @@ export class Net {
     // above); the bot-hosting client never routes its own bots' state through
     // onMessage, so without this line the host's own view of its bots never
     // learns their weapon and always falls back to the rig's generic gun.
-    p.weapon = (bot.holdingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
+    // An infected bot carries only its sword.
+    p.weapon = bot.meleeOnly ? "keyboard" : (bot.holdingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
     p.last = performance.now();
     p.snaps.push(snap);
     if (p.snaps.length > 12) p.snaps.shift();

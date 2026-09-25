@@ -48,17 +48,17 @@ await ctx.route(/supabase/, (r) => r.abort());   // force the BroadcastChannel t
 const ROOM = "SYNC" + Math.floor(Math.random() * 9);
 const errors = [];
 
-async function open(label, noBots) {
+async function open(label, noBots, mode = "tdm", room = ROOM) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`);
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
-  await page.evaluate(async ({ room, noBots }) => {
+  await page.evaluate(async ({ room, noBots, mode }) => {
     const T = window.__trollOps;
     // Software GL manages ~3fps, and the sim caps each frame at 50ms, so
     // game time would crawl. Nothing here checks pixels: skip drawing.
     T.composer.render = () => {};
-    T.setMode("tdm");
+    T.setMode(mode);
     T.loadout.lethalId = "frag";
     T.loadout.tacticalId = "flash";
     if (T.els.noBots) T.els.noBots.checked = noBots;
@@ -78,7 +78,7 @@ async function open(label, noBots) {
       return r;
     };
     await T.startGame();
-  }, { room: ROOM, noBots });
+  }, { room, noBots, mode });
   return page;
 }
 
@@ -377,6 +377,43 @@ const nadeHits = await V.evaluate(() => window.__nadeHits);
 check("the bot's frag damages the other client, credited to the bot",
   !!botNade && nadeHits.includes(`frag:${botNade.bot}`), JSON.stringify(nadeHits));
 check("the bot's frag goes off on both clients", !!botNade && (await spent(H, botNade.gid)) && (await spent(V, botNade.gid)));
+
+// ---------- 14. Infection: the pick, the sword, and turning on death
+const IROOM = "INF" + Math.floor(Math.random() * 90 + 10);
+const C = await open("C", true, "infection", IROOM);
+const D = await open("D", true, "infection", IROOM);
+await Promise.all([C, D].map((p) => p.waitForFunction(() => {
+  const T = window.__trollOps; return T.state() === "playing" && T.stageT() <= 0;
+}, null, { timeout: 30000 })));
+const iIds = await Promise.all([C, D].map((p) => p.evaluate(() => window.__trollOps.net.id)));
+const bothSurvivors = await Promise.all([C, D].map((p) => p.evaluate(() => window.__trollOps.net.team)));
+check("infection: everyone starts a survivor", bothSurvivors.every((t) => t === "phantom"), JSON.stringify(bothSurvivors));
+// Don't wait out the 8s: run the host's clock down.
+await Promise.all([C, D].map((p) => p.evaluate(() => window.__trollOps.setInfectionT(0.1))));
+await Promise.all([C, D].map((p) => p.waitForFunction(() => window.__trollOps.infectionStarted(), null, { timeout: 15000 }).catch(() => {})));
+await sleep(800);
+const iState = await Promise.all([C, D].map((p, i) => p.evaluate((other) => {
+  const T = window.__trollOps; const r = T.remotes.byId.get(other);
+  return { team: T.net.team, hold: T.player.holding, max: T.player.maxHp, otherTeam: T.net.peers.get(other)?.team,
+    otherSword: !!r?.meleeMesh?.visible, counts: T.infectionCounts() };
+}, iIds[1 - i])));
+const zi = iState.findIndex((s) => s.team === "ghost");
+check("infection: exactly one of two starts infected, and both agree who",
+  zi >= 0 && iState[1 - zi].team === "phantom" && iState[1 - zi].otherTeam === "ghost" && iState[zi].otherTeam === "phantom", JSON.stringify(iState));
+if (zi >= 0) {
+  check("infection: the infected holds only the sword, with more health", iState[zi].hold === "melee" && iState[zi].max === 150, JSON.stringify(iState[zi]));
+  check("infection: the survivor sees the infected carrying the sword", iState[1 - zi].otherSword, JSON.stringify(iState[1 - zi]));
+  // The infected cuts the survivor down: the survivor turns, and with no
+  // survivors left both clients end the match for the infected.
+  const [Z, Sv] = zi === 0 ? [C, D] : [D, C];
+  await Sv.evaluate((zid) => { const T = window.__trollOps; T.player.spawnGuard = 0; T.damagePlayer(500, zid, "keyboard"); }, iIds[zi]);
+  const ends = await Promise.all([Z, Sv].map((p) => p.waitForFunction(() => window.__trollOps.state() !== "playing", null, { timeout: 10000 })
+    .then(() => p.evaluate(() => ({ st: window.__trollOps.state(), team: window.__trollOps.net.team, title: document.getElementById("to-gameover")?.innerText.split(String.fromCharCode(10))[0] })))
+    .catch(() => p.evaluate(() => ({ st: window.__trollOps.state(), team: window.__trollOps.net.team, c: window.__trollOps.infectionCounts() })))));
+  check("infection: a survivor who dies turns infected", ends[1].team === "ghost", JSON.stringify(ends[1]));
+  check("infection: no survivors left ends it for the infected, on both clients",
+    ends.every((e) => e.st !== "playing" && /Infected win/.test(e.title || "")), JSON.stringify(ends));
+}
 
 check("no page errors", errors.length === 0, errors.slice(0, 5).join(" | "));
 

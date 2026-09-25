@@ -64,6 +64,11 @@ const NADE_MAX = 26;
 const CLUSTER = 4.5;              // enemies this close together count as a group
 const SEEN_MEMORY = 4;            // seconds a hidden target's last position stays useful
 const between = ([a, b]) => a + Math.random() * (b - a);
+
+/* Melee-only bots (Infection's infected): they run the target down and
+   swing when they're in reach. */
+const MELEE_REACH = 2.3;
+const MELEE_INTERVAL = 0.95;      // seconds between swings, scaled by skill below
 export const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
 
 /* Bots carry real guns from the roster rather than all reporting problem416,
@@ -116,6 +121,12 @@ class Bot {
     this.prevTargetPos = null;    // for velocity-based lead
     this.targetVel = new THREE.Vector3();
     this.resetNades();
+    // Infection: set by game.js when the bot turns. Speed and health scale
+    // with it; the sword is all it has.
+    this.meleeOnly = false;
+    this.speedMult = 1;
+    this.maxHp = BOT_HP;
+    this.meleeT = 0;
   }
 
   resetNades() {
@@ -128,7 +139,7 @@ class Bot {
   respawn(spawn) {
     this.pos.set(spawn.x, 0, spawn.z);
     this.vel.set(0, 0, 0);
-    this.hp = BOT_HP;
+    this.hp = this.maxHp || BOT_HP;
     this.alive = true;
     this.groundY = 0;
     this.ammo = MAG_SIZE;
@@ -246,7 +257,7 @@ class Bot {
     else if (this.lastSeen) this.lastSeen.age += dt;
 
     // --- grenades
-    if (ctx.onThrow && !busy && !stunned && (this.frags > 0 || this.flashes > 0)) {
+    if (ctx.onThrow && !this.meleeOnly && !busy && !stunned && (this.frags > 0 || this.flashes > 0)) {
       this.nadeT -= dt;
       if (this.nadeT <= 0) {
         const plan = this.planThrow(targets, ffa, colliders, eye, best, objective);
@@ -278,6 +289,15 @@ class Bot {
     } else if (stunned) {
       // Staggering: a slow drift, no juke — the window a flash is meant to buy.
       desired = this.wanderStep(dt).multiplyScalar(0.3);
+    } else if (best && this.meleeOnly) {
+      // Straight at them with a slight weave, all the way in: a sword has
+      // no comfortable range to hold.
+      this.yaw = Math.atan2(-(best.pos.x - this.pos.x), -(best.pos.z - this.pos.z));
+      const toTarget = new THREE.Vector3(best.pos.x - this.pos.x, 0, best.pos.z - this.pos.z).normalize();
+      const weave = Math.sin(performance.now() * 0.004 + this.strafeDir) * 0.35;
+      desired = bestD < MELEE_REACH * 0.7
+        ? new THREE.Vector3()
+        : toTarget.addScaledVector(new THREE.Vector3(-toTarget.z, 0, toTarget.x), weave).normalize();
     } else if (best) {
       this.yaw = Math.atan2(-(best.pos.x - this.pos.x), -(best.pos.z - this.pos.z));
       // Close to a comfortable range rather than walking into their face,
@@ -291,7 +311,9 @@ class Bot {
       }
       const toTarget = new THREE.Vector3(best.pos.x - this.pos.x, 0, best.pos.z - this.pos.z).normalize();
       const lateral = new THREE.Vector3(-toTarget.z, 0, toTarget.x).multiplyScalar(this.strafeDir);
-      const closeSign = bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
+      // Someone coming in with a sword gets kited: back off while shooting,
+      // since standing to trade is exactly what they want.
+      const closeSign = best.melee ? (bestD < 14 ? -1 : 0) : bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
       desired = toTarget.multiplyScalar(closeSign * 0.6)
         .addScaledVector(lateral, this.diff.strafe)
         .normalize();
@@ -335,8 +357,9 @@ class Bot {
       desired = this.wanderStep(dt);
     }
 
-    this.vel.x += (desired.x * BOT_SPEED - this.vel.x) * Math.min(1, dt * 5);
-    this.vel.z += (desired.z * BOT_SPEED - this.vel.z) * Math.min(1, dt * 5);
+    const speed = BOT_SPEED * (this.speedMult || 1);
+    this.vel.x += (desired.x * speed - this.vel.x) * Math.min(1, dt * 5);
+    this.vel.z += (desired.z * speed - this.vel.z) * Math.min(1, dt * 5);
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
 
@@ -353,6 +376,16 @@ class Bot {
     // old hardcoded flag this replaced in net.js's publishBot), so remote
     // viewers saw it play a full forward jog while it barely drifted.
     this.moving = Math.hypot(this.vel.x, this.vel.z) > 0.4;
+
+    // --- melee (infected): swing once they've been in reach a beat
+    if (this.meleeOnly) {
+      this.meleeT -= dt;
+      if (best && !stunned && bestD <= MELEE_REACH && this.acquireT >= this.diff.reaction && this.meleeT <= 0) {
+        this.meleeT = MELEE_INTERVAL * (0.7 + this.diff.interval * 0.35) * (0.9 + Math.random() * 0.2);
+        ctx.onMelee?.(this, best);
+      }
+      return;
+    }
 
     // --- shoot
     this.fireT -= dt;
