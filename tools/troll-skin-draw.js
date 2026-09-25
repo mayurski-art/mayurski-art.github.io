@@ -15,7 +15,10 @@
 //
 // A part can take its art from its own picture instead of the banner:
 // skin.art = { stock: "problem-stock.jpg" } (files in assets/images/skin-art).
-// That part's crop is then a crop of the picture, on both sides.
+// That part's crop is then a crop of the picture, on both sides. Written
+// { file, bg }, the picture's white paper is keyed out and `bg` shows
+// through instead; `paper` adds [x, y] points (fractions of the picture) in
+// white shut in by lines that is paper too.
 
 import { SKIN_ATLAS } from "../assets/games/troll-ops/skins.js";
 import { PANELS_416, panelBounds } from "../assets/games/troll-ops/weapon-416.js";
@@ -30,10 +33,70 @@ export const bannerImage = async (file) => (banners[file] ||= await loadImage(ne
 const arts = {};
 export const artImage = async (file) => (arts[file] ||= await loadImage(new URL(`../assets/images/skin-art/${file}`, import.meta.url).href));
 /* The parts that have their own picture, loaded: { part: image }. */
+const keyed = new Map();
 export async function partArt(skin) {
   const out = {};
-  for (const [key, file] of Object.entries(skin.art || {})) out[key] = await artImage(file);
+  for (const [key, v] of Object.entries(skin.art || {})) {
+    const { file, bg, paper = [] } = typeof v === "string" ? { file: v } : v;
+    const img = await artImage(file);
+    if (!bg) { out[key] = img; continue; }
+    const id = file + bg + JSON.stringify(paper);
+    if (!keyed.has(id)) keyed.set(id, paperKeyed(img, bg, paper));
+    out[key] = keyed.get(id);
+  }
   return out;
+}
+
+/* Line art on white, put on a colour: the paper is flooded out from the
+   picture's edges (so white inside an outline, like the trollface, stays),
+   and the grey at the edge of each line keeps only its darkness, so no
+   white fringe is left round the lines. */
+function paperKeyed(img, bg, paper) {
+  const w = img.width, h = img.height;
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(img, 0, 0);
+  const id = g.getImageData(0, 0, w, h), d = id.data;
+  const lum = (k) => (d[k * 4] + d[k * 4 + 1] + d[k * 4 + 2]) / 3;
+  const out = new Uint8Array(w * h);
+  const stack = [];
+  const push = (x, y) => { const k = y * w + x; if (!out[k] && lum(k) > 200) { out[k] = 1; stack.push(k); } };
+  for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+  for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+  for (const [px, py] of paper) push(Math.round(px * (w - 1)), Math.round(py * (h - 1)));
+  while (stack.length) {
+    const k = stack.pop(), x = k % w, y = (k - x) / w;
+    if (x > 0) push(x - 1, y);
+    if (x < w - 1) push(x + 1, y);
+    if (y > 0) push(x, y - 1);
+    if (y < h - 1) push(x, y + 1);
+  }
+  // Pixels within 2 of the paper are line edges.
+  let edge = out;
+  for (let pass = 0; pass < 2; pass++) {
+    const next = edge.slice();
+    for (let k = 0; k < w * h; k++) {
+      if (edge[k]) continue;
+      const x = k % w;
+      if ((x > 0 && edge[k - 1]) || (x < w - 1 && edge[k + 1]) || edge[k - w] || edge[k + w]) next[k] = 1;
+    }
+    edge = next;
+  }
+  for (let k = 0; k < w * h; k++) {
+    if (out[k]) { d[k * 4 + 3] = 0; continue; }
+    if (!edge[k]) continue;
+    d[k * 4] = d[k * 4 + 1] = d[k * 4 + 2] = 0;
+    d[k * 4 + 3] = Math.min(255, (255 - lum(k)) * 1.5);
+  }
+  g.putImageData(id, 0, 0);
+  const o = document.createElement("canvas");
+  o.width = w; o.height = h;
+  const og = o.getContext("2d");
+  og.fillStyle = bg;
+  og.fillRect(0, 0, w, h);
+  og.drawImage(c, 0, 0);
+  return o;
 }
 
 /* Banner pieces a skin moves around: text it rewrites, and bits of art it

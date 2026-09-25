@@ -7,7 +7,7 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-skins14` (game.js + style.css); bump it on any change to either.
+`?v=to-skins15` (game.js + style.css); bump it on any change to either.
 
 ## Where we are
 
@@ -55,7 +55,9 @@ waiting. Ask before starting anything new.
   `art: { stock: "problem-stock.jpg" }` (files in assets/images/skin-art). That
   part's crop is a crop of the picture, on both sides (the right just mirrors
   it: no text flipping). The editor shows the picture when the part is
-  selected. You Have a Problem's stock uses the trollface stick figure.
+  selected. `{ file, bg, paper }` keys the picture's white paper out onto
+  `bg` (paper: extra [x, y] seeds for white shut in by lines). You Have a
+  Problem's stock: the trollface stick figure on the trim blue.
 
 ### The sides formula (user rule, in memory too)
 The right side **mirrors** the left: the same art at the same spot along the

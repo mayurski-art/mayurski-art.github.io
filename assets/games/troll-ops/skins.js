@@ -52,14 +52,14 @@ export const SKINNABLE = new Set(["problem416"]);
    banner) is painted over and `text` written back in the banner's pixel
    style — edit it in the skin editor. `art` gives a part its own picture
    (assets/images/skin-art) in place of the banner: that part's crop is then
-   a crop of the picture. */
+   a crop of the picture; { file, bg } keys out its white paper onto `bg`. */
 export const SKINS = [
   {
     id: "problem", name: "You Have a Problem", banner: "banner-16.jpg",
     blurb: "An error dialog that shoots back.",
     final: true,
     palette: { trim: "#1f4fd1", ink: "#10131c", metal: 0xb9bcc2, accent: 0xd9492b },
-    art: { stock: "problem-stock.jpg" },
+    art: { stock: { file: "problem-stock.jpg", bg: "#1f4fd1", paper: [[0.47, 0.554], [0.247, 0.573], [0.605, 0.708]] } },
     crops: {
       upper: [0.235, 0.12, 0.47],
       lower: [0.31, 0.46, 0.34, 0, 1],
