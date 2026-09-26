@@ -35,7 +35,7 @@ import {
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
-import { GameMusic } from "./music.js?v=to-s9e";
+import { GameMusic } from "./music.js?v=to-s9f";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice } from "./streak-device.js";
@@ -1046,6 +1046,7 @@ const animDebug = new AnimDebugLab();
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
   volume: 50, sens: 100, fov: 78, invert: false, minimap: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
+  gfx: "auto",
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
 
@@ -1080,6 +1081,9 @@ function applySettings() {
   set("to-set-minimap-lobby", settings.minimap);
   set("to-set-aimassist-lobby", settings.aimAssist);
   set("to-set-botskill", settings.botSkill);
+  set("to-set-gfx", settings.gfx);
+  set("to-set-gfx-lobby", settings.gfx);
+  applyGraphics();
   // Takes effect for bots created from here on, so a change mid-match applies
   // as they respawn rather than rewriting the ones already in the fight.
   bots.difficulty = settings.botSkill;
@@ -1136,6 +1140,8 @@ function initEscapeMenu() {
   bindCheck("to-set-minimap-lobby", "minimap");
   bindCheck("to-set-aimassist-lobby", "aimAssist");
   bindSelect("to-set-botskill", "botSkill");
+  bindSelect("to-set-gfx", "gfx");
+  bindSelect("to-set-gfx-lobby", "gfx");
 
   const tabs = document.getElementById("to-menu-tabs");
   tabs?.addEventListener("click", (e) => {
@@ -5925,14 +5931,77 @@ function resize() {
 }
 window.addEventListener("resize", resize);
 
-/* Dynamic resolution. A laptop iGPU or a phone can't hold SSAO + bloom +
-   soft shadows at a 1.5-2x pixel ratio, so the render resolution follows the
-   frame rate: down a step when a 2-second window averages under 40 fps, back
-   up when it's over 57. The HUD is DOM and stays sharp either way. */
+/* Graphics tiers. SSAO is the big one: it re-renders the whole scene with a
+   normal material every frame, then samples and blurs it, which roughly
+   doubles the cost of a frame on a laptop iGPU. Every tier keeps the same
+   shadow TYPE and light count on purpose: changing either recompiles every
+   lit shader (the 2 s freezes light-pool.js exists to stop), whereas
+   toggling a pass or resizing the shadow map is free to do mid-match.
+   Purely local: nothing here is sent over the wire. */
+const GFX_TIERS = ["high", "medium", "low"];
+const GFX = {
+  high:   { ssao: true,  bloom: true,  shadowSize: 2048 },
+  medium: { ssao: false, bloom: true,  shadowSize: 2048 },
+  low:    { ssao: false, bloom: false, shadowSize: 1024 },
+};
+const GFX_AUTO_KEY = "trollops:gfx-auto";
+// Auto starts wherever it settled last time on this device, so a laptop that
+// always ends up on Low doesn't spend the first minute of every match lagging.
+let gfxAutoTier = (() => {
+  try { const t = localStorage.getItem(GFX_AUTO_KEY); return GFX[t] ? t : "high"; } catch { return "high"; }
+})();
+let gfxCeiling = 0;       // best tier index Auto may climb back to this session
+let gfxApplied = null;
+
+function gfxTier() {
+  return settings.gfx === "auto" || !GFX[settings.gfx] ? gfxAutoTier : settings.gfx;
+}
+
+function applyGraphics() {
+  const tier = gfxTier();
+  const out = settings.gfx === "auto" ? tier.toUpperCase() : "";
+  for (const id of ["to-set-gfx-out", "to-set-gfx-lobby-out"]) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = out;
+  }
+  if (tier === gfxApplied) return;
+  gfxApplied = tier;
+  const cfg = GFX[tier];
+  ssao.enabled = cfg.ssao;
+  bloom.enabled = cfg.bloom;
+  if (sun.shadow.mapSize.x !== cfg.shadowSize) {
+    sun.shadow.mapSize.set(cfg.shadowSize, cfg.shadowSize);
+    sun.shadow.map?.dispose();
+    sun.shadow.map = null;   // three rebuilds it at the new size next frame
+  }
+}
+
+function setAutoTier(tier) {
+  gfxAutoTier = tier;
+  try { localStorage.setItem(GFX_AUTO_KEY, tier); } catch { /* private mode */ }
+  applyGraphics();
+}
+
+/* Dynamic quality. Judged over 2-second windows: under 40 fps steps down,
+   over 57 steps up. On Auto it sheds effects BEFORE resolution, so a slow
+   device loses SSAO rather than going blurry, and a fast one never leaves
+   High. Climbing back up is deliberately slower (3 good windows in a row),
+   and a tier that drops straight back under 40 isn't retried this session,
+   so it can't flicker between two tiers. The HUD is DOM and stays sharp. */
 const MAX_PIXEL_RATIO = Math.min(2, window.devicePixelRatio || 1);
 const MIN_PIXEL_RATIO = isTouch ? 0.6 : 0.75;
 let pixelRatio = renderer.getPixelRatio();
-const perfWin = { t: 0, n: 0, cool: 0 };
+const perfWin = { t: 0, n: 0, cool: 0, good: 0, raised: false };
+
+function setPixelRatioStep(next) {
+  if (Math.abs(next - pixelRatio) < 1e-3) return false;
+  pixelRatio = next;
+  renderer.setPixelRatio(next);
+  composer.setPixelRatio?.(next);
+  resize();
+  return true;
+}
+
 function adaptResolution(rawDt) {
   if (gameState !== "playing" || isStaging() || document.hidden || rawDt > 0.5) return;
   perfWin.t += rawDt;
@@ -5943,15 +6012,32 @@ function adaptResolution(rawDt) {
   perfWin.t = 0;
   perfWin.n = 0;
   if (perfWin.cool > 0) return;
-  let next = pixelRatio;
-  if (fps < 40) next = Math.max(MIN_PIXEL_RATIO, pixelRatio - 0.25);
-  else if (fps > 57) next = Math.min(MAX_PIXEL_RATIO, pixelRatio + 0.125);
-  if (Math.abs(next - pixelRatio) < 1e-3) return;
-  pixelRatio = next;
-  renderer.setPixelRatio(next);
-  composer.setPixelRatio?.(next);
-  resize();
-  perfWin.cool = 3;   // let it settle before judging again
+
+  const auto = settings.gfx === "auto";
+  const tierIdx = GFX_TIERS.indexOf(gfxAutoTier);
+  const raised = perfWin.raised;
+  perfWin.raised = false;
+  perfWin.good = fps > 57 ? perfWin.good + 1 : 0;
+
+  if (fps < 40) {
+    if (auto && tierIdx < GFX_TIERS.length - 1) {
+      // The tier we just climbed to couldn't hold: stay below it for good.
+      if (raised) gfxCeiling = tierIdx + 1;
+      setAutoTier(GFX_TIERS[tierIdx + 1]);
+      perfWin.cool = 3;
+    } else if (setPixelRatioStep(Math.max(MIN_PIXEL_RATIO, pixelRatio - 0.25))) {
+      perfWin.cool = 3;
+    }
+  } else if (fps > 57) {
+    if (setPixelRatioStep(Math.min(MAX_PIXEL_RATIO, pixelRatio + 0.125))) {
+      perfWin.cool = 3;
+    } else if (auto && tierIdx > gfxCeiling && perfWin.good >= 3) {
+      setAutoTier(GFX_TIERS[tierIdx - 1]);
+      perfWin.good = 0;
+      perfWin.raised = true;
+      perfWin.cool = 4;
+    }
+  }
 }
 
 function animate() {
@@ -7183,6 +7269,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     renderer, scene,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
     settings, localRig, toggleThirdPerson,
+    closePauseMenu,
+    gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
     startIntermission, updateIntermission, occupants, notePointDeath,
     isStaging, beginStaging, endStaging, updateStaging,

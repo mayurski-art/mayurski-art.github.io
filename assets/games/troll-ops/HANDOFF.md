@@ -7,7 +7,7 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-s9e` (game.js + style.css); bump it on any change to either.
+`?v=to-s9f` (game.js + style.css); bump it on any change to either.
 
 ## Session 9 task list (2026-09-25)
 
@@ -65,6 +65,17 @@ tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
   colours"; the user chose only hiding the hands. Ask before changing.
 - Not verified on real hardware: the user's HP laptop, a real phone/iPad
   (headless + emulation only). Ask how it felt.
+
+## Graphics setting (session 10, on main)
+Settings → Graphics: Auto / High / Medium / Low, in both the lobby and Esc
+panels (`settings.gfx`). High = SSAO + bloom + 2048 shadows, Medium drops
+SSAO (the big one: it re-renders the scene every frame; measured 21 → 31
+fps), Low also drops bloom and uses 1024 shadows. Auto sheds tiers BEFORE
+resolution when a 2 s window is under 40 fps, climbs back after 3 windows
+over 57, won't retry a tier that just failed, and remembers where it
+settled per device (`trollops:gfx-auto`). Tiers never change shadow type
+or light count (that would recompile every shader mid-match). Purely local.
+Hook: `__trollOps.gfx()`.
 
 ## Bugs to fix next (reported by the user 2026-09-25, not started)
 
