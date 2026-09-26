@@ -1,4 +1,4 @@
-// Troll Ops — Phantom Forces movement.
+// Troll Forces — Phantom Forces movement.
 //
 // PF players describe that game by how it moves before how it shoots, so this
 // module owns the whole stance machine: sprint, slide, dive-to-prone, and

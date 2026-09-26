@@ -1,4 +1,4 @@
-// Troll Ops — custom GLSL: impact screen shader (chromatic aberration + vignette + damage flash),
+// Troll Forces — custom GLSL: impact screen shader (chromatic aberration + vignette + damage flash),
 // muzzle flash sprite material, tracer material, ground/skybox shaders.
 import * as THREE from "three";
 

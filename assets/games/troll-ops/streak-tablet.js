@@ -1,4 +1,4 @@
-// Troll Ops — the Lightning Strike targeting tablet, Black Ops 2 style.
+// Troll Forces — the Lightning Strike targeting tablet, Black Ops 2 style.
 //
 // Calling the strike raises a rugged tablet into your hands showing the map
 // from straight overhead (a real render of this map, taken the moment it

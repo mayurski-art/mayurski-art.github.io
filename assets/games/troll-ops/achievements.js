@@ -1,4 +1,4 @@
-// Troll Ops — one-off accomplishments.
+// Troll Forces — one-off accomplishments.
 //
 // Everything here reads data the game already tracks: hit distance rides along
 // with every bullet (ballistics.js), assists and headshots are already counted

@@ -1,4 +1,4 @@
-// Troll Ops — attachments.
+// Troll Forces — attachments.
 //
 // Four slots, each option carrying real stat deltas rather than cosmetics.
 // `mul` scales a field, `add` offsets it, `set` replaces it outright — optics

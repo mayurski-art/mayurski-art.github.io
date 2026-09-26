@@ -1,4 +1,4 @@
-// Troll Ops — the lobby's scorestreak picker: choose three.
+// Troll Forces — the lobby's scorestreak picker: choose three.
 //
 // A sibling to loadout.js's Loadout rather than part of it. This is a flat
 // pick-three list with no sub-slots, no attachments and no detail panel, and

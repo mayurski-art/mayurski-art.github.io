@@ -1,4 +1,4 @@
-// Troll Ops — the things a scorestreak puts into the world.
+// Troll Forces — the things a scorestreak puts into the world.
 //
 // scorestreaks.js owns the meter and the ladder; this file owns the objects:
 // a care package that falls and can be opened, a drone that hunts one target,

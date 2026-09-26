@@ -1,4 +1,4 @@
-// Troll Ops — weapon skins.
+// Troll Forces — weapon skins.
 //
 // Every skin is cut from one of the sixteen troll banners
 // (assets/images/banners), but not by wrapping the banner round the gun.

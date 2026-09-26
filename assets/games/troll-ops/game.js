@@ -1,4 +1,4 @@
-// Troll Ops — main game module.
+// Troll Forces — main game module.
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";

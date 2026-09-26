@@ -1,4 +1,4 @@
-// Troll Ops — remote player rendering.
+// Troll Forces — remote player rendering.
 //
 // Peers are drawn slightly in the past (RENDER_DELAY) and interpolated between
 // the two snapshots that bracket that moment. Rendering at "now" would mean

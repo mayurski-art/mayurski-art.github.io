@@ -1,4 +1,4 @@
-// Troll Ops — level + XP.
+// Troll Forces — level + XP.
 //
 // One level shared with the trollrunner.net account. Signed in, your Troll
 // Ops level IS your account level (troll_profiles.level), weapon unlocks
@@ -66,17 +66,23 @@ export function getRank() {
 }
 
 let syncing = null;
+let retryTimer = 0;
 
-/* Push queued XP to the account. No-op for guests; safe to call often. */
+/* Push queued XP to the account. No-op for guests; safe to call often. A
+   failed send (network, or the server rejecting the event) retries every
+   30s while the page is open, so the queue can't sit stuck until the next
+   match ends. */
 export function syncXp() {
   const accounts = window.TrollrunnerAccounts;
   if (syncing || !accounts?.awardXp || accountXp() === null) return syncing;
   const amount = readNum(PENDING_KEY);
   if (amount <= 0) return null;
+  clearTimeout(retryTimer);
   syncing = accounts.awardXp("troll_ops_xp", "troll-ops", { xp: amount })
     .then((res) => {
       // Only clear what landed; anything earned mid-request stays queued.
       if (res?.awarded > 0) writeNum(PENDING_KEY, readNum(PENDING_KEY) - res.awarded);
+      else retryTimer = setTimeout(() => void syncXp(), 30000);
       return res;
     })
     .finally(() => { syncing = null; });

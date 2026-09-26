@@ -1,4 +1,4 @@
-// Troll Ops — suburban set-dressing for Cul-de-Grin (and any future
+// Troll Forces — suburban set-dressing for Cul-de-Grin (and any future
 // house-based map). Portraits are drawn to a canvas texture rather than
 // loaded from a file, so there's no new art-pipeline dependency and no
 // risk of the mascot mark drifting into the banned emoji — the grin here

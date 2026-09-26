@@ -1,4 +1,4 @@
-// Troll Ops — PvP networking.
+// Troll Forces — PvP networking.
 //
 // Client-authoritative, like Phantom Forces itself: each browser simulates its
 // own player, broadcasts state ~15×/sec, and the shooter decides whether it

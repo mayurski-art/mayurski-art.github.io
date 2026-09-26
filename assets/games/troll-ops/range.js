@@ -1,4 +1,4 @@
-// Troll Ops — the test range.
+// Troll Forces — the test range.
 //
 // A place to set sensitivity, field of view and a loadout before dropping
 // into anything that shoots back. Everything here is deliberately static and

@@ -1,4 +1,4 @@
-// Troll Ops — flow-field navigation for the interior maps.
+// Troll Forces — flow-field navigation for the interior maps.
 //
 // Straight-line steering is fine on an open arena: there is nothing to get
 // stuck on. The Pentagrin is rooms off corridors, and a zombie that walks at

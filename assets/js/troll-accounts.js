@@ -1064,7 +1064,10 @@
         p_source: source || null,
         p_meta: meta || {},
       });
-      if (error) return null;
+      if (error) {
+        console.warn(`[accounts] ${eventType} XP rejected:`, error.message);
+        return null;
+      }
       if (data?.awarded > 0) {
         await refreshProfile();
         showXpToast(data.awarded, eventType);
@@ -2036,7 +2039,7 @@
     game_first_daily: 'First game of the day',
     boss_kill: 'Boss defeated',
     versus_match: 'Versus match played',
-    troll_ops_xp: 'Troll Ops match',
+    troll_ops_xp: 'Troll Forces match',
   };
 
   function xpEventLabel(eventType, source) {

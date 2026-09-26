@@ -1,4 +1,4 @@
-// Troll Ops — shared tileable PBR texture sets, one colour/normal/roughness
+// Troll Forces — shared tileable PBR texture sets, one colour/normal/roughness
 // (/ao/metal) set per surface family. Each image loads the first time
 // anything asks for it and is shared from then on, so a map only downloads
 // the sets it uses.

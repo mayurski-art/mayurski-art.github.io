@@ -1,4 +1,4 @@
-// Troll Ops — what a bullet leaves behind where it lands.
+// Troll Forces — what a bullet leaves behind where it lands.
 //
 // Hits used to throw additive round point sprites: on a wall at any range
 // they stacked into a glowing white disc that read as a projection, not a

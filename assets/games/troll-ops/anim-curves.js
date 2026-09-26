@@ -1,4 +1,4 @@
-// Troll Ops — shared easing/curve helpers for viewmodel + movement animation.
+// Troll Forces — shared easing/curve helpers for viewmodel + movement animation.
 //
 // Extracted from three independent copies of the same cubic smoothstep
 // (game.js inspect poses, gear.js melee track sampling, movement.js vault)

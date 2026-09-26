@@ -1,4 +1,4 @@
-// Troll Ops — weapon roster + per-frame gunplay state machine.
+// Troll Forces — weapon roster + per-frame gunplay state machine.
 //
 // Weapons are built from a per-class base so a definition only states what
 // makes that gun different. Every entry carries a `model` spec that

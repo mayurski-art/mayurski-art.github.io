@@ -1,4 +1,4 @@
-// Troll Ops — modelled map props (every map rebuilt in Blender).
+// Troll Forces — modelled map props (every map rebuilt in Blender).
 //
 // Models come from models/build_<map>.blender.py (shared kit: map_kit.py):
 // gs-* Grin Site, db-* Dust Bowl, dp-* The Depot, ug-* Undergrin. Their UVs

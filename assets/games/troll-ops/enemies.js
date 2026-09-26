@@ -1,4 +1,4 @@
-// Troll Ops — grunt (horde enemy) definitions, spawning, and simple steering AI.
+// Troll Forces — grunt (horde enemy) definitions, spawning, and simple steering AI.
 import * as THREE from "three";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { groundHeightAt, resolveCircle } from "./movement.js";

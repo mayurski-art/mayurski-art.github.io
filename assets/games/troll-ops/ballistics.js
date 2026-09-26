@@ -1,4 +1,4 @@
-// Troll Ops — projectile ballistics.
+// Troll Forces — projectile ballistics.
 //
 // Bullets are real projectiles, not hitscan: they carry a muzzle velocity,
 // drop under gravity, and take time to reach the target, so you lead moving

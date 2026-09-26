@@ -1,4 +1,4 @@
-// Troll Ops — data-driven maps.
+// Troll Forces — data-driven maps.
 //
 // Each map states its bounds, palette and layout; `buildMap` turns that into
 // geometry, colliders and spawn points. Verticality is built from stepped

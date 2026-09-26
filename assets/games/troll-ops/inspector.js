@@ -1,4 +1,4 @@
-// Troll Ops — lobby weapon inspector.
+// Troll Forces — lobby weapon inspector.
 //
 // Phantom Forces lets you turn the gun over in the loadout screen, so this
 // renders the same procedural view model the match uses into its own little

@@ -1,4 +1,4 @@
-// Troll Ops — articulated humanoid characters.
+// Troll Forces — articulated humanoid characters.
 //
 // One rig serves every operator/enemy on screen (PvP operators, horde
 // grunts, zombies, and the lobby locker viewer): a hub where thin stick

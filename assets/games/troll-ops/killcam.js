@@ -1,4 +1,4 @@
-// Troll Ops — end-of-life kill cam.
+// Troll Forces — end-of-life kill cam.
 //
 // PvP dying already freezes the player's own camera (updatePlayer's `frozen`
 // branch) for the few seconds before respawn. This borrows exactly that

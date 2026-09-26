@@ -1,4 +1,4 @@
-// Troll Ops — 3D props for The Pentagrin.
+// Troll Forces — 3D props for The Pentagrin.
 //
 // Modelled on what's actually in "Five": the boardroom conference table with
 // its red telephones and flags, the war room's DEFCON panels and wall

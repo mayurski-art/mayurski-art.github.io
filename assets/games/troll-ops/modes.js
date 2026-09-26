@@ -1,4 +1,4 @@
-// Troll Ops — game modes.
+// Troll Forces — game modes.
 //
 // A mode is mostly data: what wins, whether sides matter, and whether it
 // overrides your loadout. The few behavioural hooks (`onKill`, `equipFor`)

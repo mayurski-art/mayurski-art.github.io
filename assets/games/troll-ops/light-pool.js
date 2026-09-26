@@ -1,4 +1,4 @@
-// Troll Ops — a fixed set of dynamic lights, borrowed and handed back.
+// Troll Forces — a fixed set of dynamic lights, borrowed and handed back.
 //
 // three.js builds every lit shader for an exact light count. Adding a light to
 // the scene (a grenade's glow, a blast flash, a fire pool) and removing it
