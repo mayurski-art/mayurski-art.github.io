@@ -14,7 +14,10 @@ const TRACKS = [
   { title: "RHYNO", artist: "Travis Scott", src: "assets/games/troll-ops/music/rhyno.mp3" },
 ];
 
-const STATE_KEY = "trollops:radio";
+// v2 made shuffle the default. The old key saved `shuffle: false` for everyone
+// (it wrote the flag on any volume change), so only its volume carries over.
+const STATE_KEY = "trollops:radio-v2";
+const LEGACY_KEY = "trollops:radio";
 
 export class GameMusic {
   constructor() {
@@ -29,10 +32,11 @@ export class GameMusic {
     this.el.volume = this.volume;
 
     const saved = this._load();
-    this.shuffle = saved.shuffle ?? false;
+    this.shuffle = saved.shuffle ?? true;
     this.volume = saved.volume ?? 0.5;
     this.el.volume = this.volume;
-    if (this.shuffle) this._reshuffle(saved.trackIndex);
+    // A fresh shuffle each visit, so it doesn't always open on the first track.
+    if (this.shuffle) this._reshuffle(null);
     else if (saved.trackIndex != null) this.pos = this.order.indexOf(saved.trackIndex);
     if (this.pos < 0) this.pos = 0;
 
@@ -42,8 +46,12 @@ export class GameMusic {
   }
 
   _load() {
-    try { return JSON.parse(localStorage.getItem(STATE_KEY)) || {}; }
-    catch { return {}; }
+    try {
+      const saved = JSON.parse(localStorage.getItem(STATE_KEY));
+      if (saved) return saved;
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY));
+      return legacy?.volume != null ? { volume: legacy.volume } : {};
+    } catch { return {}; }
   }
 
   _save() {
@@ -126,8 +134,9 @@ export class GameMusic {
     this._loadCurrent(this.playing);
   }
 
-  _reshuffle(keepIndex) {
-    const cur = keepIndex ?? this.order[this.pos] ?? 0;
+  /* `keepIndex` pins that track to the front; null shuffles everything. */
+  _reshuffle(keepIndex = this.order[this.pos] ?? 0) {
+    const cur = keepIndex;
     this.order = this.tracks.map((_, i) => i);
     for (let i = this.order.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -135,7 +144,7 @@ export class GameMusic {
     }
     // Keep the currently-playing track in front so toggling shuffle mid-song
     // doesn't jump you elsewhere.
-    const at = this.order.indexOf(cur);
+    const at = cur == null ? -1 : this.order.indexOf(cur);
     if (at > 0) { this.order.splice(at, 1); this.order.unshift(cur); }
     this.pos = 0;
   }

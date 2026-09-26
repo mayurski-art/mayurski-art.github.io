@@ -1541,6 +1541,10 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-pf-modes {
   position: absolute; left: var(--pf-pad); top: 112px; width: 380px; z-index: 1;
   display: flex; flex-direction: column;
+  /* Stops above the map card (its bottom + height + a gap) so a long mode
+     list can never slide underneath it; scrolls if it still does not fit. */
+  bottom: var(--pf-modes-bottom, 208px); overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: rgba(234,243,228,.25) transparent;
 }
 .to-pf .to-lo-mode { display: flex; flex-direction: column; gap: 6px; }
 .to-lo-modegroup {
@@ -1665,7 +1669,9 @@ html, body { margin: 0; padding: 0; background: #05070a; }
    bottom left in a match, where the HUD expects it). */
 #to-title:not([hidden]) ~ .to-radio { left: auto; right: 234px; bottom: 16px; }
 #to-title:not([hidden]) ~ .to-radio .to-radio-toggle { width: 40px; height: 40px; border-radius: 10px; }
-#to-title:not([hidden]) ~ .to-radio .to-radio-panel { left: auto; right: 0; bottom: 48px; }
+#to-title:not([hidden]) ~ .to-radio .to-radio-panel { left: auto; right: 0; bottom: 142px; }
+/* ^ Opens above the Deploy button (its bottom + height + a gap, minus the
+   radio's own 16px inset) rather than on top of it. */
 #to-title:not([hidden]) ~ .to-x-link { left: auto; right: 186px; bottom: 16px; width: 40px; height: 40px; border-radius: 10px; }
 #to-title:not([hidden]) ~ .to-truths-link {
   left: auto; right: var(--pf-pad, 48px); bottom: 16px;
@@ -1913,6 +1919,8 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 /* ---- shorter desktops (laptops) ---- */
 @container cab (max-height: 860px) {
   .to-pf-modes, .to-pf-right { top: 96px; }
+  .to-pf { --pf-modes-bottom: 178px; }
+  #to-title:not([hidden]) ~ .to-radio .to-radio-panel { bottom: 126px; }
   .to-pf .to-lo-modebtn { height: 42px; font-size: 17px; }
   .to-pf .to-lo-mode { gap: 5px; }
   .to-lo-modegroup:not(:first-child) { padding-top: 10px; }
@@ -1923,7 +1931,10 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   .to-pf-right { gap: 12px; padding: 16px; }
 }
 @container cab (max-height: 740px) {
-  .to-pf .to-lo-modebtn { height: 36px; font-size: 15px; }
+  .to-pf .to-lo-modebtn { height: 33px; font-size: 15px; }
+  .to-pf .to-lo-mode { gap: 3px; }
+  .to-lo-modegroup:not(:first-child) { padding-top: 5px; }
+  .to-pf { --pf-modes-bottom: 164px; }
   .to-pf .to-lo-modeblurb, .to-pf-mapcard-blurb, .to-pf-gearcells { display: none; }
   .to-pf-center { top: 84px; bottom: 64px; }
 }
@@ -2029,7 +2040,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   .to-pf-tab { padding: 0 10px; font-size: 13px; letter-spacing: .08em; }
   .to-pf-rank-line { font-size: 11px; }
   .to-pf-rank .to-lo-rank-bar { width: 110px; }
-  .to-pf-modes { top: 58px; width: 250px; }
+  .to-pf-modes { top: 58px; bottom: 12px; width: 250px; }
   .to-lo-modegroup { display: none; }
   .to-pf .to-lo-mode { gap: 3px; }
   .to-pf .to-lo-modebtn { height: 30px; font-size: 14px; border-radius: 8px; padding: 0 12px; }
@@ -2048,7 +2059,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   .to-pf .to-map-thumb { width: 52px; height: 52px; }
   .to-pf-drawer-done { height: 44px; font-size: 16px; }
   #to-title:not([hidden]) ~ .to-radio { left: 20px; right: auto; bottom: 12px; }
-  #to-title:not([hidden]) ~ .to-radio .to-radio-panel { left: 0; right: auto; }
+  #to-title:not([hidden]) ~ .to-radio .to-radio-panel { left: 0; right: auto; bottom: 48px; }
   #to-title:not([hidden]) ~ .to-x-link { left: 68px; right: auto; bottom: 12px; }
   #to-title:not([hidden]) ~ .to-truths-link { left: 116px; right: auto; bottom: 12px; }
 }
