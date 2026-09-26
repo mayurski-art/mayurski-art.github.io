@@ -15,10 +15,11 @@ import { Loadout } from "./loadout.js";
 import { StreakPicker } from "./streak-picker.js";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
 import {
-  CarePackage, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
+  CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
+  PKG_CRUSH_RADIUS,
   DRONE_DAMAGE, DRONE_SPLASH_RADIUS,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
-  HELI_FIRE_RANGE, HELI_DAMAGE, RECON_ALTITUDE,
+  HELI_FIRE_RANGE, HELI_DAMAGE,
 } from "./streak-entities.js";
 import { KillstreakUi } from "./killstreak-ui.js";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
@@ -39,7 +40,8 @@ import { GameAudio } from "./audio.js";
 import { GameMusic } from "./music.js?v=to-s9h";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
-import { buildStreakDevice } from "./streak-device.js";
+import { buildStreakDevice, buildMarkerDevice } from "./streak-device.js";
+import { FlowField } from "./nav.js";
 import { ZombieDirector } from "./zombies.js";
 import { zombieWindows } from "./pentagrin.js";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
@@ -361,36 +363,6 @@ function streakBlast(pos, scale = 1) {
   blastFx.spawn(pos, scale);
 }
 
-/* The ground ring shown while marking a care package / airstrike, so you
-   can see where it'll land instead of trusting a line of text. */
-let markRing = null;
-function markRingMesh() {
-  if (markRing) return markRing;
-  const g = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0xffd166, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    blending: THREE.AdditiveBlending,
-  });
-  const outer = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), mat);
-  const inner = new THREE.Mesh(new THREE.RingGeometry(0.12, 0.2, 24), mat);
-  for (const m of [outer, inner]) { m.rotation.x = -Math.PI / 2; g.add(m); }
-  // Four ticks, so it reads as a target and not a puddle.
-  for (let i = 0; i < 4; i++) {
-    const tick = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.35), mat);
-    const a = i * Math.PI / 2;
-    tick.rotation.x = -Math.PI / 2;
-    tick.rotation.z = a;
-    tick.position.set(Math.sin(a) * 0.72, 0, Math.cos(a) * 0.72);
-    g.add(tick);
-  }
-  g.userData.mat = mat;
-  g.userData.outer = outer;
-  g.visible = false;
-  scene.add(g);
-  markRing = g;
-  return g;
-}
-
 /* Marking mode: the streak that's waiting for a ground point, or null. Both
    the care package and the airstrike need "look somewhere, press again", so
    they share it. */
@@ -412,11 +384,12 @@ function clearStreakEntities() {
   for (const f of flyovers) f.dispose();
   flyovers.length = 0;
   blastFx?.clear();
-  if (markRing) markRing.visible = false;
   if (lockEl) lockEl.hidden = true;
   strikeTablet?.lower();
   markingStreak = null;
   selectedStreak = null;
+  pendingDroneLaunch = null;
+  droneFields.clear();   // built against this map's colliders
   if (streakHoldActive()) endStreakHold(true);
   if (els.streakMark) els.streakMark.hidden = true;
 }
@@ -545,12 +518,12 @@ function callStreak(id) {
     return;
   }
   if (id === "carepackage") {
+    // BO2: out comes the smoke marker; throwing it is what calls the drop.
+    // Nothing is spent until it leaves your hand.
     markingStreak = id;
-    showWaveBanner(`${STREAK_DEFS[id].name.toUpperCase()} — ${streakKeyLabel(id)} on a spot`, 2200);
+    showWaveBanner("CARE PACKAGE — THROW THE MARKER", 2000);
     updateStreakHud();   // keeps the touch button up through the mark
-    // Both marking streaks are lined up on the designator (DESIGN-ARMS.md
-    // Phase 5): the tablet stays up until the mark is confirmed or dropped.
-    beginStreakHold(0);
+    beginStreakHold(0, "marker");
     return;
   }
 
@@ -567,12 +540,12 @@ function confirmMark() {
   const id = markingStreak;
   // On the tablet, the streak's own key marks the spot under the reticle.
   if (id === "airstrike") { strikeTablet?.place(); return; }
+  if (id === "carepackage") { throwMarker(); return; }
   const at = groundAimPoint();
   if (!at) { showWaveBanner("No ground in sight", 1200); return; }
   if (!streaks.spend(id)) { cancelMark(); return; }
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
-  if (markRing) markRing.visible = false;
   // A beat on the tablet to "send" it, then it lowers and the gun comes up.
   beginStreakHold(0.35);
   fireStreak(id, at);
@@ -596,7 +569,6 @@ function dropMarkQuietly() {
   endStreakHold();
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
-  if (markRing) markRing.visible = false;
 }
 
 function cancelMark() {
@@ -605,7 +577,6 @@ function cancelMark() {
   endStreakHold(!player.alive);
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
-  if (markRing) markRing.visible = false;
   showWaveBanner("Cancelled", 900);
   updateStreakHud();
 }
@@ -616,33 +587,59 @@ function updateMarking() {
   if (!markingStreak || !player.alive) {
     if (markingStreak && !player.alive) cancelMark();
     els.streakMark.hidden = true;
-    if (markRing) markRing.visible = false;
     return;
   }
   if (markingStreak === "airstrike") {
     // The tablet is the whole interface; no ground ring or prompt.
     els.streakMark.hidden = true;
-    if (markRing) markRing.visible = false;
     return;
   }
-  const at = groundAimPoint();
-  // The landing zone on the ground: the claim circle. Pulses so it reads
-  // as live.
-  const ring = markRingMesh();
-  ring.visible = !!at;
-  if (at) {
-    const air = markingStreak === "airstrike";
-    const pulse = 1 + Math.sin(performance.now() / 160) * 0.06;
-    ring.position.set(at.x, at.y + 0.06, at.z);
-    ring.scale.setScalar((air ? AIRSTRIKE_RADIUS * 0.75 : 2.2) * pulse);
-    ring.userData.mat.color.setHex(air ? 0xff5a3c : 0x7fe066);
-    ring.userData.mat.opacity = 0.75;
-  }
+  // Care package: the marker is in your hand; the prompt says how to throw.
+  const fire = isTouch ? "FIRE" : gamepadState.connected ? "R2" : "Click";
   els.streakMark.hidden = false;
-  els.streakMark.textContent = at
-    ? `${STREAK_DEFS[markingStreak].name} — ${streakKeyLabel()} to confirm`
-    : `${STREAK_DEFS[markingStreak].name} — aim at the ground`;
-  els.streakMark.classList.toggle("is-ready", !!at);
+  els.streakMark.textContent = `${STREAK_DEFS[markingStreak].name} — ${fire} to throw the marker`;
+  els.streakMark.classList.add("is-ready");
+}
+
+/* Throw the care package marker we're holding. It spends the streak, lobs
+   a canister that bounces and settles, and the drop is called where it
+   stops (see updateStreakEntities / MarkerCanister). */
+function throwMarker() {
+  if (markingStreak !== "carepackage" || !player.alive || markerThrowT > 0) return;
+  if (!streaks.spend("carepackage")) { cancelMark(); return; }
+  markingStreak = null;
+  if (els.streakMark) els.streakMark.hidden = true;
+
+  const origin = new THREE.Vector3();
+  camera.getWorldPosition(origin);
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  dir.y += 0.2;
+  dir.normalize();
+  const clear = raycastWorld(colliders, origin, dir, 0.85);
+  origin.addScaledVector(dir, Math.max(0, Math.min(0.5, clear - 0.25)));
+
+  const eid = `pkg-${net.id}-${Math.round(performance.now())}`;
+  // The reward is rolled HERE, once, and travels on the wire — rolling it on
+  // open would let two clients disagree about the same crate.
+  const marker = new MarkerCanister({ id: eid, origin, dir, world: droneWorld, owned: true });
+  marker.reward = rollPackageReward();
+  streakEntities.set(eid, marker);
+  scene.add(marker.root);
+  if (net.active) {
+    net.publishStreak({
+      kind: "carepackage", action: "marker", eid,
+      ox: round2(origin.x), oy: round2(origin.y), oz: round2(origin.z),
+      dx: round2(dir.x), dy: round2(dir.y), dz: round2(dir.z),
+    });
+  }
+  audio.throwGear();
+  localThrowT = THROW_TIME;
+  // The overhand throw on the viewmodel, then the gun comes back.
+  markerThrowT = MARKER_THROW_TIME;
+  beginStreakHold(MARKER_THROW_TIME, "marker");
+  selectedStreak = readyStreaksOrdered()[0] || null;
+  updateStreakHud();
 }
 
 /* Run a streak we just called. Each one decides everything locally and then
@@ -660,42 +657,20 @@ function fireStreak(id, at = null) {
         });
       }
       spawnRecon(move.pos.x, move.pos.z, yaw);
-      showWaveBanner("UAV OVERHEAD", 1600);
-      beginStreakHold(0.75); // brief "checked the tablet" beat, DESIGN-ARMS.md Phase 5
+      showWaveBanner("UAV ONLINE", 1600);
+      beginStreakHold(1.0); // up, thumb the button, down (DESIGN-ARMS.md Phase 5)
       break;
     }
 
-    case "carepackage": {
-      // The reward is rolled HERE, once, and travels on the wire — rolling it
-      // on open would let two clients disagree about the same crate.
-      const reward = rollPackageReward();
-      const eid = `pkg-${net.id}-${Math.round(performance.now())}`;
-      spawnCarePackage({ id: eid, x: at.x, z: at.z, reward, owned: true, ownerTeam: net.team });
-      if (net.active) {
-        net.publishStreak({
-          kind: "carepackage", action: "drop",
-          eid, x: round2(at.x), z: round2(at.z), reward, team: net.team,
-        });
-      }
-      showWaveBanner("CARE PACKAGE INBOUND", 1800);
+    case "carepackage":
+      // Called by throwing the marker (throwMarker), never directly.
       break;
-    }
 
     case "drone": {
-      const eid = `streak-drone-${net.id}-${Math.round(performance.now())}`;
-      // RemotePlayer keys itself by `.netId` (remote-players.js), not `.id`.
-      const victim = pickDroneTarget(move.pos);
-      // Launched off the tablet in your hand, not out of your chest.
-      const from = handLaunchPoint();
-      const drone = spawnDrone({ id: eid, targetId: victim?.netId || null, owned: true, pos: from, yaw: look.yaw });
-      if (net.active) {
-        net.publishStreak({
-          kind: "drone", action: "launch", eid, target: victim?.netId || null,
-          x: round2(from.x), y: round2(from.y), z: round2(from.z), yaw: round2(look.yaw),
-        });
-      }
-      showWaveBanner(victim ? `HUNTER-KILLER — LOCKED ON ${String(victim.name || "TARGET").toUpperCase()}` : "HUNTER-KILLER — SEARCHING", 1800);
-      beginStreakHold(0.9);
+      // BO2: the drone comes out in your hands, spins up, and you toss it.
+      // It leaves the hand DRONE_TOSS_AT into the hold (launchPendingDrone).
+      pendingDroneLaunch = { eid: `streak-drone-${net.id}-${Math.round(performance.now())}` };
+      beginStreakHold(DRONE_TOSS_AT + 0.35, "drone");
       break;
     }
 
@@ -724,7 +699,7 @@ function fireStreak(id, at = null) {
         net.publishStreak({ kind: "callout", label: "GUNSHIP INBOUND", who: net.name });
       }
       showWaveBanner("GUNSHIP INBOUND", 2000);
-      beginStreakHold(0.75);
+      beginStreakHold(1.0);
       achievements.award("gunship");
       break;
     }
@@ -741,13 +716,76 @@ function rollPackageReward() {
   return `streak:${pick}`;
 }
 
-function spawnCarePackage({ id, x, z, reward, owned, ownerTeam }) {
-  const groundY = groundHeightAt(colliders, x, z, 60) ?? 0;
-  const pkg = new CarePackage({ id, x, z, groundY, reward, owned, ownerTeam });
+function spawnCarePackage({ id, x, z, reward, owned, ownerTeam, groundY = null }) {
+  // A marker copy with the same id (someone else's throw, as seen here) is
+  // replaced by the drop.
+  const prev = streakEntities.get(id);
+  if (prev) { prev.dispose(); streakEntities.delete(id); }
+  const gy = groundY ?? groundHeightAt(colliders, x, z, 60) ?? 0;
+  const pkg = new CarePackage({ id, x, z, groundY: gy, reward, owned, ownerTeam });
   streakEntities.set(id, pkg);
   pkg.addTo(scene);
+  streakIconTexture(String(reward).split(":")[1]).then((tex) => tex && pkg.setIcon(tex));
   audio.wave();   // the heli's on its way
   return pkg;
+}
+
+/* A streak's line-art icon as a sprite texture, for the crate's floating
+   "what's inside". Cached per streak. */
+const iconTextures = new Map();
+function streakIconTexture(id) {
+  if (!STREAK_DEFS[id]) return Promise.resolve(null);
+  if (!iconTextures.has(id)) {
+    iconTextures.set(id, new Promise((resolve) => {
+      const svg = streakIconSvg(id)
+        .replace('fill="currentColor"', 'fill="#9dff7a"')
+        .replace('stroke="currentColor"', 'stroke="#9dff7a"')
+        .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" ');
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        c.width = c.height = 128;
+        const g = c.getContext("2d");
+        g.fillStyle = "rgba(10,24,12,.72)";
+        g.beginPath(); g.arc(64, 64, 60, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = "#9dff7a"; g.lineWidth = 4; g.stroke();
+        g.drawImage(img, 22, 22, 84, 84);
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        resolve(tex);
+      };
+      img.onerror = () => resolve(null);
+      img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }));
+  }
+  return iconTextures.get(id);
+}
+
+/* How long a package takes to capture: its owner grabs it quickly, a
+   teammate a little slower, and an enemy has to stand there and steal it. */
+function packageCaptureTime(pkg) {
+  if (pkg.owned) return 0.8;
+  if (!currentMode().ffa && net.team && pkg.ownerTeam === net.team) return 1.6;
+  return 3.5;
+}
+
+/* The drone leaves the hand: pick its target now (not at the call, the
+   room may have moved) and send it. */
+function launchPendingDrone() {
+  const p = pendingDroneLaunch;
+  pendingDroneLaunch = null;
+  if (!p || !player.alive) return;
+  const victim = pickDroneTarget(move.pos);
+  const from = handLaunchPoint();
+  spawnDrone({ id: p.eid, targetId: victim?.netId || null, owned: true, pos: from, yaw: look.yaw });
+  if (net.active) {
+    net.publishStreak({
+      kind: "drone", action: "launch", eid: p.eid, target: victim?.netId || null,
+      x: round2(from.x), y: round2(from.y), z: round2(from.z), yaw: round2(look.yaw),
+    });
+  }
+  showWaveBanner(victim ? `HUNTER-KILLER — LOCKED ON ${String(victim.peer?.name || "TARGET").toUpperCase()}` : "HUNTER-KILLER — SEARCHING", 1800);
+  audio.throwGear();
 }
 
 function spawnDrone({ id, targetId, owned, pos, yaw = 0 }) {
@@ -779,8 +817,77 @@ function handLaunchPoint() {
 const droneWorld = {
   target: null,
   probe: (from, dir, len) => raycastWorld(colliders, from, dir, len),
+  sweep: (from, dir, len) => sweepWorld(from, dir, len),
   groundAt: (x, z, fromY) => groundHeightAt(colliders, x, z, fromY),
+  route: (p, target, out) => droneRoute(p, target, out),
 };
+
+/* Ray against the colliders (all axis-aligned boxes) that also says which
+   face it met, so a flier can slide along it. `inside` = the ray starts
+   within a box; its normal is then the nearest way out. */
+const _sweepHit = { t: 0, normal: new THREE.Vector3(), inside: false };
+function sweepWorld(from, dir, len) {
+  let bestT = Infinity, bestAxis = -1, bestSign = 0, inside = false;
+  const o = [from.x, from.y, from.z], d = [dir.x, dir.y, dir.z];
+  for (const c of colliders) {
+    const lo = [c.min.x, c.min.y, c.min.z], hi = [c.max.x, c.max.y, c.max.z];
+    let tmin = -Infinity, tmax = Infinity, axis = -1, sign = 0, miss = false;
+    for (let a = 0; a < 3; a++) {
+      if (Math.abs(d[a]) < 1e-9) {
+        if (o[a] < lo[a] || o[a] > hi[a]) { miss = true; break; }
+        continue;
+      }
+      let t1 = (lo[a] - o[a]) / d[a], t2 = (hi[a] - o[a]) / d[a], s = -1;
+      if (t1 > t2) { const tt = t1; t1 = t2; t2 = tt; s = 1; }
+      if (t1 > tmin) { tmin = t1; axis = a; sign = s; }
+      if (t2 < tmax) tmax = t2;
+      if (tmin > tmax) { miss = true; break; }
+    }
+    if (miss || tmax < 0 || tmin > len) continue;
+    if (tmin < 0) {
+      // Starting inside: the way out is the nearest face.
+      let pen = Infinity;
+      for (let a = 0; a < 3; a++) {
+        if (o[a] - lo[a] < pen) { pen = o[a] - lo[a]; axis = a; sign = -1; }
+        if (hi[a] - o[a] < pen) { pen = hi[a] - o[a]; axis = a; sign = 1; }
+      }
+      bestT = 0; bestAxis = axis; bestSign = sign; inside = true;
+      break;
+    }
+    if (tmin < bestT) { bestT = tmin; bestAxis = axis; bestSign = sign; }
+  }
+  if (bestAxis < 0) return null;
+  _sweepHit.t = bestT;
+  _sweepHit.inside = inside;
+  _sweepHit.normal.set(0, 0, 0).setComponent(bestAxis, bestSign);
+  return _sweepHit;
+}
+
+/* A drone that can't see its target flies the way round, at chest height,
+   using the same flow field the bots walk (nav.js), one per floor height
+   and rebuilt per map. Returns null when it can see it (go straight in) or
+   there's no route (fall back to climbing over). */
+const droneFields = new Map();
+const _routeChest = new THREE.Vector3();
+const _routeDir = new THREE.Vector3();
+function droneRoute(p, target, out) {
+  _routeChest.set(target.x, target.y + 1.1, target.z);
+  const d = _routeChest.distanceTo(p);
+  if (d < 0.01) return null;
+  _routeDir.copy(_routeChest).sub(p).divideScalar(d);
+  if (raycastWorld(colliders, p, _routeDir, d) >= d - 0.3) return null;
+  const floorY = Math.round(target.y * 2) / 2;
+  let field = droneFields.get(floorY);
+  if (!field) {
+    field = new FlowField(colliders, builtMap?.map?.bounds || ARENA, floorY);
+    droneFields.set(floorY, field);
+  }
+  if (!field.compute(target.x, target.z)) return null;
+  const s = field.steer(p.x, p.z, out);
+  if (!s) return null;
+  s.y = Math.max(-0.8, Math.min(0.8, (floorY + 1.6 - p.y) * 0.5));
+  return s.normalize();
+}
 
 /* Where a drone's target is standing (feet), on this client. The target can
    be us: on the victim's screen the drone is coming for the local player,
@@ -878,12 +985,12 @@ function spawnHelicopter({ id, seed, owned, team }) {
   return heli;
 }
 
-/* UAV's only world presence: one straight pass over wherever it was called,
-   in from off the map and out the other side. Purely decorative — enemiesRevealed()/uavUntil
-   already own the actual reveal, so there is nothing to keep in sync beyond
-   this position and heading. */
-function spawnRecon(x, z, yaw) {
-  const plane = new ReconPlane({ pos: new THREE.Vector3(x, RECON_ALTITUDE, z), yaw });
+/* UAV's world presence: a spotter plane circling the map for the UAV's
+   duration (ReconPlane). Purely decorative — enemiesRevealed()/uavUntil own
+   the reveal; the heading just seeds where on the orbit it comes in. */
+function spawnRecon(x, z, yaw, duration = STREAK_DEFS.uav.duration) {
+  const bounds = builtMap?.map?.bounds || ARENA;
+  const plane = new ReconPlane({ bounds, yaw, duration });
   flyovers.push(plane);
   scene.add(plane.root);
   return plane;
@@ -963,15 +1070,33 @@ function updateStreakEntities(dt) {
   updateMarking();
 
   for (const [id, e] of [...streakEntities]) {
+    if (e instanceof MarkerCanister) {
+      if (e.update(dt) === "rest" && e.owned) {
+        // Settled: call the drop right here, for everyone.
+        const p = e.pos;
+        spawnCarePackage({ id, x: p.x, z: p.z, groundY: e.floor, reward: e.reward, owned: true, ownerTeam: net.team });
+        if (net.active) {
+          net.publishStreak({
+            kind: "carepackage", action: "drop",
+            eid: id, x: round2(p.x), z: round2(p.z), y: round2(e.floor), reward: e.reward, team: net.team,
+          });
+        }
+        showWaveBanner("CARE PACKAGE INBOUND", 1800);
+      } else if (!e.owned && e.age > 12) { e.dispose(); streakEntities.delete(id); }
+      continue;
+    }
+
     if (e instanceof CarePackage) {
       const out = e.update(dt);
       if (out === "landed") {
-        // Thump into the dirt: a dust ring and a short shake up close.
+        // Slams into the dirt: dust, a thud, a shake up close — and anyone
+        // under it is flattened (the caller decides; BO2 crates kill).
         const at = new THREE.Vector3(e.x, e.groundY + 0.05, e.z);
-        impactFx.hit(at, { normal: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, -1, 0), surface: "ground", scale: 3 });
-        audio.explosion(0.25, at);
-        const near = Math.max(0, 1 - at.distanceTo(player.pos) / 10);
-        if (near > 0) { shakeMag = Math.max(shakeMag, near * 0.03); shakeT = 0.25; }
+        impactFx.hit(at, { normal: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, -1, 0), surface: "ground", scale: 5 });
+        audio.explosion(0.4, at);
+        const near = Math.max(0, 1 - at.distanceTo(player.pos) / 14);
+        if (near > 0) { shakeMag = Math.max(shakeMag, near * 0.05); shakeT = 0.3; }
+        if (e.owned) crushUnderPackage(e);
       }
       if (out === "gone" || e.expired) { e.dispose(); streakEntities.delete(id); }
       continue;
@@ -1029,6 +1154,21 @@ function updateStreakEntities(dt) {
   blastFx?.update(dt);
 }
 
+/* A crate landing on someone. Only the caller's copy runs this. */
+function crushUnderPackage(pkg) {
+  const at = new THREE.Vector3(pkg.x, pkg.groundY, pkg.z);
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive) continue;
+    if (Math.hypot(rp.pos.x - pkg.x, rp.pos.z - pkg.z) > PKG_CRUSH_RADIUS) continue;
+    if (Math.abs(rp.pos.y - pkg.groundY) > 2.5) continue;
+    dealDamageToRemote(rp, 400, "carepackage");
+  }
+  if (player.alive && Math.hypot(move.pos.x - pkg.x, move.pos.z - pkg.z) <= PKG_CRUSH_RADIUS
+    && Math.abs(move.pos.y - at.y) < 2.5) {
+    damagePlayer(400, net.id, "carepackage");
+  }
+}
+
 /* One bomb of a Lightning Strike landing. Only the caller does damage. */
 function strikeImpact(s, at) {
   explosionFx({ kind: "lethal", glow: 0xffb347, radius: AIRSTRIKE_RADIUS }, at);
@@ -1051,7 +1191,7 @@ function updateDrone(id, e, dt) {
     const nextId = next?.netId || null;
     if (nextId !== e.targetId) {
       e.targetId = nextId;
-      if (next) showWaveBanner(`HUNTER-KILLER — RETARGETED ${String(next.name || "").toUpperCase()}`, 1400);
+      if (next) showWaveBanner(`HUNTER-KILLER — RETARGETED ${String(next.peer?.name || "").toUpperCase()}`, 1400);
       if (net.active) net.publishStreak({ kind: "drone", action: "retarget", eid: id, target: nextId });
     }
   }
@@ -1215,7 +1355,7 @@ function applyRemoteStreak(m) {
       if (m.action === "start") {
         startUav(m.team, m.duration || STREAK_DEFS.uav.duration);
         if (typeof m.x === "number" && typeof m.z === "number") {
-          spawnRecon(m.x, m.z, m.yaw || 0);
+          spawnRecon(m.x, m.z, m.yaw || 0, m.duration || STREAK_DEFS.uav.duration);
         }
         // Only say so when it's our side's UAV — an enemy one reveals us to
         // them, which is not something we'd be told about.
@@ -1226,10 +1366,19 @@ function applyRemoteStreak(m) {
       break;
 
     case "carepackage":
-      if (m.action === "drop" && !streakEntities.has(m.eid)) {
+      if (m.action === "marker" && !streakEntities.has(m.eid)) {
+        // Their marker in flight, for show; the drop replaces it.
+        const marker = new MarkerCanister({
+          id: m.eid, world: droneWorld,
+          origin: new THREE.Vector3(m.ox, m.oy, m.oz), dir: new THREE.Vector3(m.dx, m.dy, m.dz),
+        });
+        streakEntities.set(m.eid, marker);
+        scene.add(marker.root);
+      } else if (m.action === "drop" && !(streakEntities.get(m.eid) instanceof CarePackage)) {
         // Render their crate with the reward THEY rolled; never re-roll.
         spawnCarePackage({
-          id: m.eid, x: m.x, z: m.z, reward: m.reward, owned: false, ownerTeam: m.team,
+          id: m.eid, x: m.x, z: m.z, groundY: typeof m.y === "number" ? m.y : null,
+          reward: m.reward, owned: false, ownerTeam: m.team,
         });
       } else if (m.action === "claimed") {
         // Plays the same pop the opener saw; removed on "gone".
@@ -2747,6 +2896,21 @@ function setActiveMeleeMesh(def) {
 const activeStreakMesh = buildStreakDevice();
 activeStreakMesh.visible = false;
 weaponRig.add(activeStreakMesh);
+// The care package marker, held up ready to throw.
+const activeMarkerMesh = buildMarkerDevice();
+activeMarkerMesh.visible = false;
+weaponRig.add(activeMarkerMesh);
+// The hunter-killer itself, held before it's tossed (the model streams in).
+const activeDroneMesh = new THREE.Group();
+activeDroneMesh.visible = false;
+weaponRig.add(activeDroneMesh);
+loadModel("hunter-drone").then((obj) => {
+  obj.scale.setScalar(0.32);
+  obj.traverse((n) => { if (n.isMesh) n.castShadow = false; });
+  activeDroneMesh.add(obj);
+  activeDroneMesh.userData.rotors = [];
+  obj.traverse((n) => { if (n.name?.startsWith("DroneRotor")) activeDroneMesh.userData.rotors.push(n); });
+}).catch(() => {});
 
 // muzzle flash sprite
 const muzzleMat = makeMuzzleFlashMaterial();
@@ -2815,8 +2979,23 @@ let streakHoldUntilMark = false;
    back once it's down, rising from the sprint-lowered pose. */
 let streakLowering = false;
 
-function beginStreakHold(seconds = 0) {
+/* What's in the hand while holding === "streak": the tablet/remote (UAV,
+   gunship, the strike's targeting), the care package marker, or the
+   hunter-killer itself before it's tossed. */
+let streakDeviceKind = "tablet";
+let streakHoldElapsed = 0;
+const MARKER_THROW_TIME = 0.5;
+let markerThrowT = 0;
+const DRONE_TOSS_AT = 0.6;          // seconds into the hold that the drone leaves the hand
+let pendingDroneLaunch = null;
+
+function beginStreakHold(seconds = 0, kind = "tablet") {
   if (player.holding === "melee") return; // never interrupt a mid-swing
+  if (player.holding !== "streak" || streakDeviceKind !== kind) {
+    streakHoldElapsed = 0;
+    streakRaiseT = 0;
+  }
+  streakDeviceKind = kind;
   streakLowering = false;
   setHolding("streak");
   streakHoldT = seconds;
@@ -2834,8 +3013,10 @@ function endStreakHold(immediate = false) {
 function finishStreakHold() {
   streakLowering = false;
   streakRaiseT = 0;
+  markerThrowT = 0;
   if (player.holding === "streak") setHolding("gun");
   weaponLowerT = 1;
+  if (pendingDroneLaunch) launchPendingDrone();
 }
 
 function streakHoldActive() { return player.holding === "streak"; }
@@ -4291,7 +4472,8 @@ function setHolding(what) {
   player.holding = what;
   if (activeWeaponMesh) activeWeaponMesh.visible = what === "gun";
   if (activeMeleeMesh) activeMeleeMesh.visible = what === "melee";
-  activeStreakMesh.visible = what === "streak";
+  activeStreakMesh.visible = what === "streak" && streakDeviceKind === "tablet";
+  if (what !== "streak") activeMarkerMesh.visible = activeDroneMesh.visible = false;
   muzzleFlash.visible = what === "gun";
   updateGearHud();
 }
@@ -4333,20 +4515,27 @@ function cycleWeapon() {
    A care package underfoot takes priority over both: it is the rarer thing
    and you are deliberately standing on it. Same key for all three, because
    "hold X on the thing at your feet" is one idea, not three. */
+let pkgHoldT = 0;
 function updatePickupPrompt(dt) {
   const padHold = gamepadState.pickup && !(isSnd() && sndCanInteract);
   const held = !frozenPlayer() && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
   const pkg = player.alive ? nearbyPackage() : null;
   const drop = player.alive ? pickups.nearest(move.pos.x, move.pos.z) : null;
 
-  // `canPickup` keeps the instant-swap branch from firing while we're on a
-  // package — holding X there must open it, not switch guns.
-  const action = swapHold.update(dt, held, !!drop || !!pkg);
-  if (action === "pickup" && pkg) {
-    claimPackage(pkg);
-    if (els.pickupPrompt) els.pickupPrompt.hidden = true;
-    return;
-  }
+  // A package has its own capture clock (BO2: the owner grabs it fast, an
+  // enemy stands there stealing it). `canPickup` keeps the instant-swap
+  // branch from firing while we're on one — holding X must capture it, not
+  // switch guns.
+  if (pkg && held) {
+    pkgHoldT += dt;
+    if (pkgHoldT >= packageCaptureTime(pkg)) {
+      pkgHoldT = 0;
+      claimPackage(pkg);
+      if (els.pickupPrompt) els.pickupPrompt.hidden = true;
+      return;
+    }
+  } else pkgHoldT = 0;
+  const action = swapHold.update(dt, held && !pkg, !!drop || !!pkg);
   if (action === "swap") {
     switchWeapon(currentWeaponSlot === "secondary" ? "primary" : "secondary");
   } else if (action === "pickup" && drop) {
@@ -4371,12 +4560,14 @@ function updatePickupPrompt(dt) {
       // comment above gamepadState.pickup) — the prompt has to say whichever
       // one the player is actually using or "Hold X" reads as broken on pad.
       const holdKey = gamepadState.connected ? "D-pad right" : "X";
+      const steal = pkg && !pkg.owned && (currentMode().ffa || !net.team || pkg.ownerTeam !== net.team);
       const label = pkg
-        ? (swapHold.active ? "Opening the package…" : `Hold ${holdKey} to open the package`)
+        ? (pkgHoldT > 0 ? (steal ? "Stealing the care package…" : "Capturing…") : `Hold ${holdKey} to ${steal ? "steal" : "capture"} the care package`)
         : (swapHold.active ? `Picking up ${drop.def.name}…` : `Hold ${holdKey} to pick up ${drop.def.name}`);
       els.pickupPrompt.hidden = false;
       els.pickupPromptText.textContent = label;
-      els.pickupBarFill.style.width = `${Math.round(swapHold.progress * 100)}%`;
+      const progress = pkg ? pkgHoldT / packageCaptureTime(pkg) : swapHold.progress;
+      els.pickupBarFill.style.width = `${Math.round(progress * 100)}%`;
     } else {
       els.pickupPrompt.hidden = true;
     }
@@ -6070,6 +6261,7 @@ const STREAK_KILL_NAMES = {
   drone: "Hunter-Killer",
   heli: "Gunship",
   airstrike: "Lightning Strike",
+  carepackage: "Care Package",
   bomb: "Bomb",
 };
 
@@ -6989,6 +7181,9 @@ function updatePlayer(dt) {
     return;
   }
 
+  // Holding the care package marker: fire throws it.
+  if (player.holding === "streak" && markingStreak === "carepackage" && wantFire && fireEdgeTrigger) throwMarker();
+
   // Looking at the streak device (DESIGN-ARMS.md Phase 5 §5's explicit
   // interaction-bug call-out): fire is disabled outright rather than
   // silently shooting through a hidden gun mesh while the device is up.
@@ -7045,7 +7240,9 @@ function updateMeleeView(dt) {
   // Tossed hands go back on the sword the moment the toss isn't playing.
   if (!(inspectT > 0 && held && !swinging)) restoreMeleeHands(mesh);
   mesh.visible = held || swinging;
-  if (activeWeaponMesh) activeWeaponMesh.visible = !held && !swinging;
+  // Only while the gun is what we hold: this used to re-show it every frame,
+  // so it stayed on screen beside the streak tablet and marker.
+  if (activeWeaponMesh) activeWeaponMesh.visible = player.holding === "gun" && !swinging;
   if (!mesh.visible) { meleeIdleT = 0; return; }
 
   const { pos, quat } = melee.pose();
@@ -7125,27 +7322,63 @@ let streakSprintT = 0;
 const STREAK_HOLD_POS = new THREE.Vector3(0.16, -0.14, -0.32);
 
 function updateStreakView(dt) {
-  const mesh = activeStreakMesh;
   const held = player.holding === "streak";
-  mesh.visible = held;
+  const mesh = streakDeviceKind === "marker" ? activeMarkerMesh
+    : streakDeviceKind === "drone" ? activeDroneMesh : activeStreakMesh;
+  for (const m of [activeStreakMesh, activeMarkerMesh, activeDroneMesh]) m.visible = held && m === mesh;
   if (!held) { streakRaiseT = 0; streakSprintT = 0; return; }
   inspectArms.visible = false;
   if (!player.alive) { finishStreakHold(); mesh.visible = false; return; }
+  streakHoldElapsed += dt;
 
   // Up quickly, down a touch quicker; once it's down, the gun comes back.
-  streakRaiseT = damp(streakRaiseT, streakLowering ? 0 : 1, streakLowering ? 13 : 9, dt);
+  streakRaiseT = damp(streakRaiseT, streakLowering ? 0 : 1, streakLowering ? 11 : 8, dt);
   if (streakLowering && streakRaiseT < 0.05) { finishStreakHold(); mesh.visible = false; return; }
   streakSprintT = damp(streakSprintT, move.sprinting ? 1 : 0, 8, dt);
   const e = streakRaiseT, off = 1 - e, s = streakSprintT;
-  // Rises from low right with the wrist turning the screen up to the eye,
-  // then settles with a slight idle drift.
   const t = performance.now() / 1000;
+  const idleX = Math.sin(t * 1.3) * 0.003, idleY = Math.sin(t * 1.9) * 0.003;
+
+  if (streakDeviceKind === "marker") {
+    // Held up by the shoulder, strobe blinking; the throw is a wind-back and
+    // an overhand flick, then the hand is empty.
+    activeMarkerMesh.userData.strobe.visible = (t * 2.5) % 1 < 0.2;
+    let fx = 0, fy = 0, fz = 0, pitch = 0;
+    if (markerThrowT > 0) {
+      markerThrowT = Math.max(0, markerThrowT - dt);
+      const k = 1 - markerThrowT / MARKER_THROW_TIME;
+      if (k < 0.3) { const w = k / 0.3; fy = 0.05 * w; fz = 0.06 * w; pitch = -0.6 * w; }
+      else if (k < 0.5) { const w = (k - 0.3) / 0.2; fy = 0.05 + 0.06 * w; fz = 0.06 - 0.32 * w; pitch = -0.6 + 1.6 * w; }
+      else mesh.visible = false;   // it's gone; the empty hand drops away
+    }
+    mesh.scale.setScalar(0.6);
+    mesh.position.set(0.2 + off * 0.08 + idleX, -0.2 - off * 0.3 - s * 0.12 + idleY + fy, -0.36 + off * 0.05 + fz);
+    mesh.rotation.set(s * 0.4 + off * 0.8 + pitch, -0.3 - off * 0.3, s * 0.25 + off * 0.4 + 0.15);
+    return;
+  }
+
+  if (streakDeviceKind === "drone") {
+    // Cradled out in front, rotors spinning up, then tossed up and away.
+    const toss = Math.max(0, (streakHoldElapsed - DRONE_TOSS_AT + 0.15) / 0.3);
+    for (const r of activeDroneMesh.userData.rotors || []) r.rotation.y += dt * 60 * Math.min(1, streakHoldElapsed / 0.5);
+    mesh.position.set(0.06 + off * 0.1 + idleX, -0.15 - off * 0.3 + idleY + toss * toss * 0.5, -0.42 + off * 0.05 - toss * 0.3);
+    mesh.rotation.set(-0.15 + off * 0.6 + toss * 0.4, 0.3 - off * 0.3, off * 0.3);
+    if (toss >= 1) mesh.visible = false;
+    if (pendingDroneLaunch && streakHoldElapsed >= DRONE_TOSS_AT) launchPendingDrone();
+    return;
+  }
+
+  // Tablet / remote: rises from low right with the wrist turning the screen
+  // up to the eye, then settles with a slight idle drift. A remote call
+  // (UAV, gunship) gets a thumb-press dip on the screen.
+  const press = streakHoldUntilMark ? 0
+    : Math.max(0, Math.sin(Math.min(1, Math.max(0, (streakHoldElapsed - 0.35) / 0.22)) * Math.PI));
   mesh.position.set(
-    STREAK_HOLD_POS.x + off * 0.1 + Math.sin(t * 1.3) * 0.003,
-    STREAK_HOLD_POS.y - off * 0.32 - s * 0.12 + Math.sin(t * 1.9) * 0.003,
-    STREAK_HOLD_POS.z + off * 0.06
+    STREAK_HOLD_POS.x + off * 0.1 + idleX,
+    STREAK_HOLD_POS.y - off * 0.32 - s * 0.12 + idleY - press * 0.012,
+    STREAK_HOLD_POS.z + off * 0.06 + press * 0.01
   );
-  mesh.rotation.set(s * 0.4 + off * 0.9, -off * 0.5, s * 0.25 + off * 0.45);
+  mesh.rotation.set(s * 0.4 + off * 0.9 + press * 0.08, -off * 0.5, s * 0.25 + off * 0.45);
 }
 
 let weaponLowerT = 0;
@@ -7926,7 +8159,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     readyStreaksOrdered, streakSlotIds, callStreakSlot, warmShaders, lightPool, pixelRatio: () => pixelRatio,
     updateStreakHud, enemiesRevealed, uavBucket, uavUntil, drawMinimap,
     lastHitRange: () => lastHitRange,
-    streakEntities, pendingStrikes, flyovers, strikeTablet: () => strikeTablet, openStrikeTablet,
+    streakEntities, pendingStrikes, flyovers, strikeTablet: () => strikeTablet, openStrikeTablet, throwMarker, HunterDroneClass: HunterDrone, droneWorld, raycastWorld, groundHeightAt,
     markingStreak: () => markingStreak, confirmMark, cancelMark, updateMarking,
     groundAimPoint, rollPackageReward, claimPackage, clearStreakEntities,
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,

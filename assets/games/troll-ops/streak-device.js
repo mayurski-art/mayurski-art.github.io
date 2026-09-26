@@ -45,3 +45,36 @@ export function buildStreakDevice() {
   group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   return group;
 }
+
+/* The care package's smoke marker, held up ready to throw (BO2 calls a care
+   package by throwing one). A stubby olive canister with a red cap and a
+   strobe that blinks while it's in the hand. Same +Z grip convention. */
+export function buildMarkerDevice() {
+  const group = new THREE.Group();
+  const can = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.03, 0.13, 12),
+    new THREE.MeshStandardMaterial({ color: 0x3b4034, roughness: 0.6, metalness: 0.2 }),
+  );
+  can.position.set(0, 0.03, -0.02);
+  group.add(can);
+  const cap = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.033, 0.033, 0.03, 12),
+    new THREE.MeshStandardMaterial({ color: 0xc8321f, roughness: 0.5, emissive: 0x3a0804 }),
+  );
+  cap.position.set(0, 0.11, -0.02);
+  group.add(cap);
+  const strobe = new THREE.Mesh(
+    new THREE.SphereGeometry(0.012, 8, 6),
+    new THREE.MeshBasicMaterial({ color: 0xff3322 }),
+  );
+  strobe.position.set(0, 0.13, -0.02);
+  group.add(strobe);
+  group.userData.strobe = strobe;
+
+  const hand = buildGripHand(0.85);
+  hand.position.set(0, -0.02, 0.03);
+  hand.rotation.x = 0.2;
+  group.add(hand);
+  group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return group;
+}

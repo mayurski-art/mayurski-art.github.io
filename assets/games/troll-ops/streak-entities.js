@@ -19,7 +19,6 @@
 import * as THREE from "three";
 import { loadModel } from "./battlefield-props.js";
 
-export const PARACHUTE_FALL_SPEED = 5.5;   // m/s under canopy
 export const PACKAGE_CLAIM_RADIUS = 2.2;
 export const PACKAGE_LIFETIME = 75;        // seconds before it's abandoned
 
@@ -30,6 +29,7 @@ export const DRONE_LAUNCH = 0.8;           // seconds of straight climb off the 
 export const DRONE_KILL_RADIUS = 1.8;
 export const DRONE_DAMAGE = 180;           // lethal on a clean hit
 export const DRONE_SPLASH_RADIUS = 6;      // the warhead's blast radius
+const DRONE_CLEAR = 0.35;                  // how close it lets itself get to a surface
 
 export const AIRSTRIKE_DELAY = 5.0;        // mark → first impact
 export const AIRSTRIKE_RADIUS = 11;
@@ -48,10 +48,9 @@ export const HELI_TAIL_ROTOR_RPS = 11;
 export const HELI_ENTER = 5;               // seconds flying in from off the map
 export const HELI_EXIT = 5;                // and back out again
 
-export const RECON_ALTITUDE = 34;
-export const RECON_SPEED = 26;
+export const RECON_ALTITUDE = 42;
+export const RECON_SPEED = 20;
 export const RECON_PROP_RPS = 14;
-export const RECON_SPAN = 120;             // starts and ends this far from the pass point
 
 export const JET_ALTITUDE = 28;
 export const JET_SPEED = 42;
@@ -59,6 +58,7 @@ export const JET_PROP_RPS = 20;
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
+const _u = new THREE.Vector3();
 
 function hashId(id) {
   let h = 2166136261;
@@ -107,31 +107,6 @@ function disposeTree(g) {
   g.traverse((n) => {
     if (n.material && !n.material.userData?.shared) n.material.dispose();
   });
-}
-
-/* A parachute canopy, built in code — it exists for three seconds and does
-   not deserve an asset. */
-function makeParachute() {
-  const g = new THREE.SphereGeometry(2.1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-  const m = new THREE.MeshLambertMaterial({
-    color: 0xd8d2b4, side: THREE.DoubleSide, transparent: true, opacity: 0.95,
-  });
-  const canopy = new THREE.Mesh(g, m);
-  canopy.position.y = 2.7;
-  canopy.scale.y = 0.7;   // a flatter dome reads as cloth, not a bubble
-  const group = new THREE.Group();
-  group.add(canopy);
-  // Six rigging lines down to the lid.
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x2a2a22, transparent: true, opacity: 0.95 });
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const geo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(Math.cos(a) * 2.0, 2.7, Math.sin(a) * 2.0),
-      new THREE.Vector3(0, 0.9, 0),
-    ]);
-    group.add(new THREE.Line(geo, lineMat));
-  }
-  return group;
 }
 
 /* Signal smoke on a marked point: a burning core and a handful of
@@ -286,25 +261,130 @@ export class BlastFx {
 
 /* -------------------------------------------------------- care package
 
-   BO2's delivery, beat by beat: a helicopter comes in low over the marked
-   spot, lets the crate go, and leaves. The crate drops a moment, the chute
-   snaps open, it sways down, thumps into the dirt and the canopy folds over
-   and sinks away. Opening it pops the crate rather than blinking it out.
+   Black Ops 2's delivery, beat by beat:
 
-   Everything is a function of `age` and the id, so every client plays the
-   same drop from the same one wire message. The reward is decided by the
-   caller at call time and travels on the wire, so two clients can never
+     1. You throw a marker. It bounces, settles, and pours red smoke.
+     2. A helicopter comes in low with the crate slung under it on a cable,
+        slows to a hover over the smoke, and cuts it loose.
+     3. The crate free-falls (no parachute in BO2) and slams into the dirt —
+        hard enough to crush whoever is standing under it.
+     4. A floating icon over the crate shows what's inside. Its owner
+        captures it quickly; anyone else can steal it, slowly.
+
+   Everything after the marker lands is a function of `age` and the id, so
+   every client plays the same drop from the one "drop" message. The reward
+   is rolled by the caller and travels on the wire, so two clients can never
    disagree about what was inside. */
-export const PACKAGE_DROP_ALT = 34;        // metres above the ground the heli lets go
-const PKG_HELI_SPEED = 26;                 // m/s on the delivery pass
-export const PKG_RELEASE_AT = 3.2;         // seconds from the call to the release
-const PKG_FREEFALL = 0.55;                 // seconds before the chute opens
-const PKG_CHUTE_OPEN = 0.4;                // canopy snap-open time
-const PKG_FOLD = 1.3;                      // canopy fold-and-sink after touchdown
+export const PKG_MARKER_SPEED = 15;        // m/s off the hand
+const MARKER_GRAVITY = 14;
+export const PKG_RELEASE_AT = 6.5;         // seconds from the marker settling to the cut
+const PKG_HELI_SPEED = 24;                 // m/s cruising in and out
+const PKG_HOVER_ALT = 15;                  // metres above the smoke when it lets go
+const PKG_HOVER_SOFT = 1.8;                // how gradually it slows into the hover
+const PKG_FALL_G = 16;                     // a heavy crate: quicker than 9.8 reads right
 const PKG_OPEN = 0.42;                     // crate pop when it's opened
+export const PKG_CRUSH_RADIUS = 1.5;
+
+/* The smoke marker: a stubby canister with a red cap and a blinking strobe.
+   Shared by the hand-held viewmodel's look (streak-device.js builds its own)
+   and the thrown/landed copy here. */
+let markerGeo = null;
+let markerMats = null;
+function makeMarkerMesh() {
+  if (!markerGeo) {
+    markerGeo = {
+      body: new THREE.CylinderGeometry(0.045, 0.045, 0.2, 10),
+      cap: new THREE.CylinderGeometry(0.05, 0.05, 0.045, 10),
+    };
+    markerMats = {
+      body: new THREE.MeshLambertMaterial({ color: 0x3b4034 }),
+      cap: new THREE.MeshLambertMaterial({ color: 0xc8321f, emissive: 0x3a0804 }),
+    };
+    markerMats.body.userData.shared = markerMats.cap.userData.shared = true;
+  }
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(markerGeo.body, markerMats.body));
+  const cap = new THREE.Mesh(markerGeo.cap, markerMats.cap);
+  cap.position.y = 0.12;
+  g.add(cap);
+  const strobe = glowSprite(0xff3322, 0.35);
+  strobe.position.y = 0.16;
+  g.add(strobe);
+  g.userData.strobe = strobe;
+  return g;
+}
+
+function blinkStrobe(g, age) {
+  const s = g.userData.strobe;
+  if (s) s.material.opacity = (age * 2.5) % 1 < 0.18 ? 1 : 0.08;
+}
+
+/* The thrown marker. The caller simulates the real one (with the world
+   hooks) and publishes where it settled; a copy flies the same throw for
+   show and is replaced by the crate drop when the caller's "drop" arrives. */
+export class MarkerCanister {
+  /* world: { probe(from, dir, len), groundAt(x, z, fromY) } */
+  constructor({ id, origin, dir, world, owned = false }) {
+    this.id = id;
+    this.owned = !!owned;
+    this.world = world;
+    this.age = 0;
+    this.resting = false;
+    this.pos = origin.clone();
+    this.vel = dir.clone().normalize().multiplyScalar(PKG_MARKER_SPEED);
+    this.spin = new THREE.Vector3(9 + Math.random() * 4, 0, 5);
+    this.root = makeMarkerMesh();
+    this.root.position.copy(this.pos);
+  }
+
+  /* Returns "rest" the frame it settles. */
+  update(dt) {
+    this.age += dt;
+    blinkStrobe(this.root, this.age);
+    if (this.resting) return null;
+    this.vel.y -= MARKER_GRAVITY * dt;
+    const speed = this.vel.length();
+    const step = speed * dt;
+    if (step > 1e-5) {
+      const dir = _v.copy(this.vel).divideScalar(speed);
+      const hit = this.world.probe(this.pos, dir, step + 0.06);
+      if (hit < step + 0.06 && dir.y > -0.7) {
+        // Off a wall: lose most of it and come back.
+        this.pos.addScaledVector(dir, Math.max(0, hit - 0.06));
+        this.vel.x *= -0.35; this.vel.z *= -0.35;
+      } else {
+        this.pos.addScaledVector(this.vel, dt);
+      }
+    }
+    const floor = this.world.groundAt(this.pos.x, this.pos.z, this.pos.y + 0.3) ?? 0;
+    if (this.pos.y <= floor + 0.05) {
+      this.pos.y = floor + 0.05;
+      if (Math.abs(this.vel.y) < 1.4 && Math.hypot(this.vel.x, this.vel.z) < 1.2 || this.age > 6) {
+        this.resting = true;
+        this.floor = floor;
+        // Lies on its side, cap up the slope a touch, smoking.
+        this.root.position.copy(this.pos);
+        this.root.rotation.set(0, Math.random() * Math.PI * 2, Math.PI / 2 - 0.2);
+        return "rest";
+      }
+      this.vel.y = -this.vel.y * 0.3;
+      this.vel.x *= 0.55; this.vel.z *= 0.55;
+    }
+    this.root.position.copy(this.pos);
+    this.root.rotation.x += this.spin.x * dt;
+    this.root.rotation.z += this.spin.z * dt;
+    return null;
+  }
+
+  dispose() {
+    this.dead = true;
+    this.root.parent?.remove(this.root);
+    this.root.userData.strobe?.material.dispose();
+  }
+}
 
 export class CarePackage {
-  constructor({ id, x, z, groundY, reward, owned, ownerTeam }) {
+  constructor({ id, x, z, groundY, reward, owned, ownerTeam, ownerId = null }) {
     this.id = id;
     this.x = x;
     this.z = z;
@@ -312,38 +392,32 @@ export class CarePackage {
     this.reward = reward;
     this.owned = !!owned;
     this.ownerTeam = ownerTeam;
+    this.ownerId = ownerId;
     this.landed = false;
     this.claimed = false;
     this.age = 0;
     this.phase = "inbound";
-    this.y = groundY + PACKAGE_DROP_ALT;
     this.vy = 0;
     this.landT = 0;
     this.seed = hashId(id);
 
     this.root = new THREE.Group();
-    this.root.position.set(x, this.y, z);
     this.crateHolder = new THREE.Group();  // the landing squash lives here
     this.root.add(this.crateHolder);
-    this.chute = makeParachute();
-    this.chute.scale.setScalar(0.01);
-    this.chute.visible = false;
-    this.root.add(this.chute);
 
-    // Signal smoke on the marked spot from the moment it's called, so
-    // everyone can see where it's coming down (and fight over it).
-    this.flare = makeSignalSmoke();
+    // The marker lying on the spot, still smoking and blinking.
+    this.marker = makeMarkerMesh();
+    this.marker.position.set(x, groundY + 0.05, z);
+    this.marker.rotation.set(0, this.seed * 6, Math.PI / 2 - 0.2);
+    this.flare = makeSignalSmoke(0xd8452f, 0xff8a6a);
     this.flare.position.set(x, groundY, z);
 
-    // The delivery helicopter: one straight pass, over the spot at release.
-    // The crate rides slung under it until then (it used to be invisible
-    // until the release frame and appear out of nowhere under the skids).
+    // The delivery helicopter, flying one line through the hover point.
     const yaw = this.seed * Math.PI * 2;
     this.heliDir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
     this.heli = new THREE.Group();
     this.heli.rotation.order = "YXZ";
     this.heli.rotation.y = yaw;
-    this.heli.rotation.x = -0.12;          // nose down, it's in a hurry
     this.heliRotors = [];
     loadModel("helicopter").then((obj) => {
       if (this.dead) return;
@@ -354,6 +428,12 @@ export class CarePackage {
       });
     });
 
+    // The sling: one cable from the belly to the lid until the cut.
+    this.cable = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineBasicMaterial({ color: 0x1c1c18 }),
+    );
+
     loadModel("care-package").then((obj) => {
       if (this.dead) return;
       this.crate = obj;
@@ -361,127 +441,127 @@ export class CarePackage {
     });
   }
 
-  /* Adds everything this drop draws: the crate (root), the heli and the
-     smoke, which live in world space rather than swaying with the crate. */
   addTo(scene) {
-    scene.add(this.root);
-    scene.add(this.heli);
-    scene.add(this.flare);
+    scene.add(this.root, this.heli, this.flare, this.marker, this.cable);
     this.placeHeli();
     this.placeSlung();
   }
 
   heliT() { return this.age - PKG_RELEASE_AT; }   // negative on the way in
 
+  /* Slows into a hover over the smoke and speeds away again:
+     s(t) = v (t - h tanh(t/h)) has speed v far out and zero at t = 0. */
   placeHeli() {
-    const t = this.heliT();
-    // Slows to about a third of its speed over the drop and speeds up again
-    // either side, instead of crossing the spot at a constant 26 m/s.
-    const s = PKG_HELI_SPEED * t * (0.35 + 0.65 * Math.min(1, Math.abs(t) / 3));
+    const t = this.heliT() - 0.35;       // settled a beat before the cut
+    const h = PKG_HOVER_SOFT;
+    const s = PKG_HELI_SPEED * (t - h * Math.tanh(t / h));
+    const far = 1 - Math.exp(-(t * t) / 9);
+    const climb = t > 0 ? t * t * 0.9 : 0;
     this.heli.position.set(
       this.x + this.heliDir.x * s,
-      this.groundY + PACKAGE_DROP_ALT + 2.2 + Math.max(0, t) * t * 1.2,   // climbs out after the drop
+      this.groundY + PKG_HOVER_ALT + 2.2 + far * 9 + climb,
       this.z + this.heliDir.z * s,
     );
-    // Flares nose-up to slow over the spot, then dips to leave.
-    this.heli.rotation.x = t < 0 ? -0.14 + 0.26 * Math.exp(-t * t * 0.9) : -0.2 * Math.min(1, t);
-    this.heli.rotation.z = Math.sin(this.age * 0.9 + this.seed * 5) * 0.03;
-    this.heli.visible = t > -5.5 && t < 5;
+    // Nose down cruising in, flared nose-up while braking into the hover,
+    // level over the drop, nose down again to leave.
+    const speed = 1 - 1 / Math.cosh(t / h) ** 2;       // 0 at the hover, 1 cruising
+    const braking = t < 0 ? Math.exp(-((t + 1.2) ** 2) / 0.6) : 0;
+    this.heli.rotation.x = -0.16 * speed + 0.2 * braking;
+    this.heli.rotation.z = Math.sin(this.age * 0.8 + this.seed * 5) * 0.03 * (1 - speed * 0.5);
+    this.heli.visible = t > -8 && t < 8;
   }
 
-  /* Before release the crate hangs under the heli, swinging a little. */
+  /* Until the cut, the crate hangs on its cable, swinging a little. */
   placeSlung() {
-    this.root.position.set(this.heli.position.x, this.heli.position.y - 2.2, this.heli.position.z);
-    this.root.rotation.set(0, this.heli.rotation.y, Math.sin(this.age * 2.1) * 0.05);
+    const hp = this.heli.position;
+    this.root.position.set(
+      hp.x + Math.sin(this.age * 1.7) * 0.25,
+      hp.y - 5.2,
+      hp.z + Math.cos(this.age * 1.3) * 0.25,
+    );
+    this.root.rotation.set(Math.sin(this.age * 1.3) * 0.05, this.heli.rotation.y, Math.sin(this.age * 1.7) * 0.05);
     this.root.visible = this.heli.visible;
+    this.setCable(true);
   }
 
-  /* Returns "landed" the frame it touches down, "gone" when an opened crate
-     has finished popping, else null. */
+  setCable(on) {
+    this.cable.visible = on && this.heli.visible;
+    if (!this.cable.visible) return;
+    const a = this.cable.geometry.attributes.position;
+    const hp = this.heli.position, cp = this.root.position;
+    a.setXYZ(0, hp.x, hp.y - 1.3, hp.z);
+    a.setXYZ(1, cp.x, cp.y + 0.9, cp.z);
+    a.needsUpdate = true;
+    this.cable.geometry.computeBoundingSphere();
+  }
+
+  /* Returns "landed" the frame it slams down, "gone" when an opened crate has
+     finished popping, else null. */
   update(dt) {
     this.age += dt;
     for (const [n, axis, rps] of this.heliRotors) n.rotation[axis] += dt * Math.PI * 2 * rps;
     if (this.heli.parent) {
       this.placeHeli();
-      if (this.heliT() > 5) this.heli.parent.remove(this.heli);
+      if (this.heliT() > 8.5) { this.heli.parent.remove(this.heli); this.heli.visible = false; }
     }
+    if (this.marker) blinkStrobe(this.marker, this.age);
     this.updateFlare(dt);
 
     if (this.phase === "inbound") {
       this.placeSlung();
       if (this.age < PKG_RELEASE_AT) return null;
       this.phase = "fall";
+      this.setCable(false);
       this.root.visible = true;
-      this.y = this.root.position.y;
+      this.fallFrom = this.root.position.clone();
+      this.vy = 0;
+      this.y = this.fallFrom.y;
       this.fallT = 0;
-      // Carries the heli's (slow) forward speed off the hook.
-      this.driftV = PKG_HELI_SPEED * 0.35;
     }
 
     if (this.phase === "fall") {
       this.fallT += dt;
-      // Glide from wherever the hook let go onto the marked spot, so the
-      // crate lands exactly where the smoke is on every client.
-      const hx = this.root.position.x - this.x, hz = this.root.position.z - this.z;
-      const pull = Math.min(1, dt * 1.6);
-      this.root.position.x = this.x + hx * (1 - pull) + this.heliDir.x * this.driftV * dt * (1 - pull);
-      this.root.position.z = this.z + hz * (1 - pull) + this.heliDir.z * this.driftV * dt * (1 - pull);
-      this.driftV *= Math.max(0, 1 - dt * 2);
-      const open = this.fallT - PKG_FREEFALL;
-      if (open < 0) {
-        this.vy = Math.min(this.vy + 9.8 * dt, 14);
-        // A little tumble off the hook.
-        this.crateHolder.rotation.x = Math.sin(this.fallT * 5 + this.seed * 9) * 0.18;
-      } else {
-        this.chute.visible = true;
-        // Snap open with a small overshoot, then the canopy breathes.
-        const k = Math.min(1, open / PKG_CHUTE_OPEN);
-        const pop = k < 1
-          ? (1 - Math.pow(1 - k, 3)) * (1 + 0.18 * Math.sin(k * Math.PI))
-          : 1 + Math.sin(open * 2.4) * 0.03;
-        this.chute.scale.set(pop, k < 1 ? pop * (0.6 + 0.4 * k) : 1, pop);
-        // The opening shock bleeds speed down to the canopy's terminal rate.
-        this.vy += (PARACHUTE_FALL_SPEED - this.vy) * Math.min(1, dt * 3.2);
-        this.crateHolder.rotation.x *= Math.max(0, 1 - dt * 3);
-        // Pendulum sway under the canopy, not a spin.
-        const sw = Math.min(1, open / 1.2);
-        this.root.rotation.x = Math.sin(open * 1.7 + this.seed * 6) * 0.13 * sw;
-        this.root.rotation.z = Math.sin(open * 1.3 + this.seed * 3) * 0.1 * sw;
-        this.root.rotation.y += wrapAngle(this.seed * 6 + Math.sin(open * 0.4) * 0.35 - this.root.rotation.y) * Math.min(1, dt * 2);
-      }
+      // Straight down onto the smoke (it was hovering over it), a slow
+      // tumble from the cut, no chute.
+      const k = Math.min(1, this.fallT / 0.6);
+      this.root.position.x = this.fallFrom.x + (this.x - this.fallFrom.x) * k;
+      this.root.position.z = this.fallFrom.z + (this.z - this.fallFrom.z) * k;
+      this.vy += PKG_FALL_G * dt;
       this.y -= this.vy * dt;
+      this.root.rotation.x += (Math.sin(this.seed * 11) * 0.12 - this.root.rotation.x) * Math.min(1, dt * 2);
+      this.root.rotation.z += (Math.cos(this.seed * 7) * 0.1 - this.root.rotation.z) * Math.min(1, dt * 2);
       if (this.y <= this.groundY) {
         this.y = this.groundY;
         this.root.position.set(this.x, this.y, this.z);
-        this.phase = "fold";
+        this.phase = "thud";
         this.landed = true;
         this.landT = 0;
-        // The sway is eased out over the thump (see "fold"), not zeroed here:
-        // snapping a 7-degree lean flat in one frame read as a glitch.
-        this.landTilt = [this.root.rotation.x, this.root.rotation.z, this.crateHolder.rotation.x];
-        this.chuteTilt = this.seed > 0.5 ? 1 : -1;
+        this.landTilt = [this.root.rotation.x, this.root.rotation.z];
+        this.impactSpeed = this.vy;
+        // The marker is under the crate now.
+        if (this.marker) { this.marker.parent?.remove(this.marker); this.marker = null; }
         return "landed";
       }
       this.root.position.y = this.y;
       return null;
     }
 
-    if (this.phase === "fold") {
+    if (this.phase === "thud") {
       this.landT += dt;
-      this.settle();
-      // The canopy tips off the crate, collapses and sinks away.
-      const f = Math.min(1, this.landT / PKG_FOLD);
-      const e = f * f * (3 - 2 * f);
-      this.chute.rotation.z = -this.chuteTilt * e * 1.35;
-      this.chute.position.x = this.chuteTilt * e * 1.6;
-      this.chute.position.y = -e * 1.2;
-      this.chute.scale.set(1 + e * 0.25, Math.max(0.05, 1 - e * 0.9), 1 + e * 0.25);
-      for (const n of this.chute.children) if (n.material) n.material.opacity = 0.95 * (1 - Math.max(0, e - 0.6) / 0.4);
-      if (f >= 1) {
-        this.root.remove(this.chute);
-        disposeTree(this.chute);
-        this.chute = null;
+      // A hard landing: a deep squash, a small bounce, settles flat.
+      const q = this.landT / 0.45;
+      const squash = q < 1 ? Math.sin(q * Math.PI) * 0.22 * (1 - q * 0.6) : 0;
+      this.crateHolder.scale.set(1 + squash * 0.5, 1 - squash, 1 + squash * 0.5);
+      const hop = this.landT < 0.4 ? Math.max(0, Math.sin((this.landT - 0.08) / 0.32 * Math.PI)) * 0.18 : 0;
+      this.root.position.y = this.groundY + hop;
+      const s = Math.min(1, this.landT / 0.4);
+      const k = (1 - s) * Math.cos(s * Math.PI * 1.5);
+      this.root.rotation.x = this.landTilt[0] * k;
+      this.root.rotation.z = this.landTilt[1] * k;
+      if (this.landT >= 0.5) {
         this.crateHolder.scale.set(1, 1, 1);
+        this.root.position.y = this.groundY;
+        this.root.rotation.x = this.root.rotation.z = 0;
         this.phase = "landed";
       }
     } else if (this.phase === "landed") {
@@ -495,42 +575,51 @@ export class CarePackage {
       this.crateHolder.position.y = up;
       this.crateHolder.scale.set(s, s, s);
       this.crateHolder.rotation.y = k * k * 2.2;
+      if (this.holo) this.holo.material.opacity = 1 - k;
       if (k >= 1) return "gone";
     }
+    this.updateHolo();
     return null;
   }
 
-  /* Thump into the dirt: squash, and rock flat with a small overshoot. */
-  settle() {
-    const q = this.landT / 0.35;
-    const squash = q < 1 ? Math.sin(q * Math.PI) * 0.16 * (1 - q * 0.5) : 0;
-    this.crateHolder.scale.set(1 + squash * 0.5, 1 - squash, 1 + squash * 0.5);
-    if (this.landTilt) {
-      const s = Math.min(1, this.landT / 0.32);
-      const k = (1 - s) * Math.cos(s * Math.PI * 1.5);
-      this.root.rotation.x = this.landTilt[0] * k;
-      this.root.rotation.z = this.landTilt[1] * k;
-      this.crateHolder.rotation.x = this.landTilt[2] * k;
-      if (s >= 1) this.landTilt = null;
-    }
+  /* What's inside, floating over the landed crate (BO2 shows the reward's
+     icon). The caller builds the texture; it can arrive late. */
+  setIcon(texture) {
+    if (this.holo || this.dead) return;
+    this.holo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: texture, transparent: true, depthWrite: false, opacity: 0,
+    }));
+    this.holo.scale.setScalar(0.9);
+    this.holo.renderOrder = 3;
+    this.root.add(this.holo);
+  }
+
+  updateHolo() {
+    if (!this.holo) return;
+    const show = this.landed && this.phase !== "opening";
+    this.holo.visible = this.landed;
+    if (!show) return;
+    const fadeIn = Math.min(1, Math.max(0, (this.landT - 0.4) / 0.5));
+    this.holo.material.opacity = fadeIn * (0.85 + Math.sin(this.age * 3) * 0.08);
+    this.holo.position.y = 1.9 + Math.sin(this.age * 1.8) * 0.08;
   }
 
   /* Someone opened it: play the pop. The caller removes it on "gone". */
   open() {
     this.claimed = true;
     if (this.phase === "opening") return;
-    if (this.chute) { this.root.remove(this.chute); disposeTree(this.chute); this.chute = null; }
     this.root.rotation.set(0, this.root.rotation.y, 0);
+    this.crateHolder.scale.set(1, 1, 1);
     this.phase = "opening";
     this.openT = 0;
   }
 
   updateFlare(dt) {
     if (!this.flare) return;
-    // Burns until a few seconds after touchdown, then gutters out.
-    const fade = this.landed ? Math.max(0, 1 - (this.landT - 3) / 2) : 1;
+    // Pours until a few seconds after the crate is down, then gutters out.
+    const fade = this.landed ? Math.max(0, 1 - (this.landT - 3) / 2) : Math.min(1, this.age * 2);
     tickSignalSmoke(this.flare, dt, this.age, fade);
-    if (fade <= 0) {
+    if (fade <= 0 && this.landed) {
       this.flare.parent?.remove(this.flare);
       disposeTree(this.flare);
       this.flare = null;
@@ -538,16 +627,21 @@ export class CarePackage {
   }
 
   withinClaim(px, pz) {
-    return this.landed && !this.claimed
+    return this.landed && !this.claimed && this.phase !== "thud"
       && Math.hypot(px - this.x, pz - this.z) <= PACKAGE_CLAIM_RADIUS;
   }
 
-  get expired() { return this.age > PACKAGE_LIFETIME; }
+  get expired() { return this.age > PKG_RELEASE_AT + PACKAGE_LIFETIME; }
 
   dispose() {
     this.dead = true;
     this.root.parent?.remove(this.root);
     this.heli.parent?.remove(this.heli);
+    this.cable.parent?.remove(this.cable);
+    this.cable.geometry.dispose();
+    this.cable.material.dispose();
+    this.marker?.parent?.remove(this.marker);
+    this.holo?.material.dispose();
     if (this.flare) {
       this.flare.parent?.remove(this.flare);
       disposeTree(this.flare);
@@ -566,7 +660,9 @@ export class CarePackage {
    ctx = {
      target:  Vector3 | null   the target's FEET, re-resolved every frame
      probe(from, dir, len)     distance to the first solid (len if none)
+     sweep(from, dir, len)     { t, normal, inside } of the first solid, or null
      groundAt(x, z, fromY)     floor height under a point
+     route(p, target, out)     heading round the walls when it can't see it
    }
 
    Steering is a velocity vector turned toward the target at a capped rate,
@@ -593,7 +689,7 @@ export class HunterDrone {
     this.rotors = [];
 
     // A blinking red beacon, so it can be tracked across the sky.
-    this.beacon = glowSprite(0xff3b2f, 0.7);
+    this.beacon = glowSprite(0xff3b2f, 0.28);
     this.beacon.position.y = 0.25;
     this.root.add(this.beacon);
 
@@ -624,15 +720,24 @@ export class HunterDrone {
     //    in place, clipping whatever the caller stood next to.
     let want;
     let dist = Infinity;
+    let routed = false;
+    // Under a roof, the climb is cut short rather than punching through it.
+    if (this.age < DRONE_LAUNCH && ctx.probe(p, THREE.Object3D.DEFAULT_UP, 1.4) < 1.4) {
+      this.age = DRONE_LAUNCH;
+      this.vel.set(this.fwd.x, 0, this.fwd.z).multiplyScalar(Math.max(4, this.speed));
+    }
     if (this.age < DRONE_LAUNCH) {
       want = _w.set(this.fwd.x * 0.2, 1, this.fwd.z * 0.2).normalize();
       this.speed += (7 - this.speed) * Math.min(1, dt * 4);
     } else if (ctx.target) {
-      // 2. Hunt: aim at the chest.
+      // 2. Hunt: straight at the chest when it can see it; otherwise follow
+      //    the route round the walls (ctx.route, the bots' flow field).
       want = _w.set(ctx.target.x - p.x, ctx.target.y + 1.0 - p.y, ctx.target.z - p.z);
       dist = want.length();
       if (dist <= DRONE_KILL_RADIUS) { this.done = true; return "hit"; }
       want.divideScalar(dist);
+      const r = ctx.route?.(p, ctx.target, _u);
+      if (r) { want.copy(r); routed = true; }
     } else {
       // No target (none alive, or the owner hasn't re-acquired yet): loiter
       // in a wide, slow climbing circle rather than flying off the map.
@@ -648,7 +753,7 @@ export class HunterDrone {
       // Obstacle ahead and the target isn't in front of it: climb over.
       const look = 3 + this.speed * 0.5;
       const ahead = ctx.probe(p, dir, look);
-      if (ahead < look && dist > ahead + 1.5) {
+      if (!routed && ahead < look && dist > ahead + 1.5) {
         want.y = Math.max(want.y, 0.85);
         want.normalize();
       }
@@ -676,17 +781,34 @@ export class HunterDrone {
     this.speed += (wantSpeed - this.speed) * Math.min(1, dt * 3);
     this.vel.copy(dir).multiplyScalar(this.speed);
 
-    // Move, stopping at the first solid in the way.
-    const step = this.speed * dt;
-    if (this.age >= DRONE_LAUNCH) {
-      const hit = ctx.probe(p, dir, step + 0.35);
-      if (hit < step + 0.35) {
-        p.addScaledVector(dir, Math.max(0, hit - 0.2));
+    // Move with a swept collision (ctx.sweep gives the face it would hit).
+    // Near the target, meeting cover is a hit on cover: it goes off there.
+    // Anywhere else it slides along the surface, keeping DRONE_CLEAR off it,
+    // instead of the old habit of flying into the first wall it met.
+    let remaining = this.speed * dt;
+    for (let iter = 0; iter < 3 && remaining > 1e-4; iter++) {
+      const h = ctx.sweep(p, dir, remaining + DRONE_CLEAR);
+      if (!h) { p.addScaledVector(dir, remaining); break; }
+      if (h.t <= 1e-4 && h.inside) {
+        // Started inside something (a spawn against geometry): step out.
+        p.addScaledVector(h.normal, 0.08);
+        break;
+      }
+      if (dist < 6 && this.age >= DRONE_LAUNCH) {
+        p.addScaledVector(dir, Math.max(0, h.t - 0.2));
         this.done = true;
         return "wall";
       }
+      const adv = Math.max(0, h.t - DRONE_CLEAR);
+      p.addScaledVector(dir, adv);
+      remaining -= adv;
+      // Slide: drop the part of the heading that goes into the face.
+      const into = dir.dot(h.normal);
+      dir.addScaledVector(h.normal, -into);
+      if (dir.lengthSq() < 1e-4) dir.copy(THREE.Object3D.DEFAULT_UP);
+      dir.normalize();
+      this.vel.copy(dir).multiplyScalar(this.speed);
     }
-    p.addScaledVector(dir, step);
 
     // Nose along the flight path, banked into the turn.
     const yaw = Math.atan2(-dir.x, -dir.z);
@@ -708,22 +830,27 @@ export class HunterDrone {
 
 /* ------------------------------------------------------------- recon plane
 
-   UAV's world presence: a spotter plane makes one straight pass over the
-   point it was called from. It used to materialise 34 m above the caller and
-   fly off; it now comes in from RECON_SPAN metres out and leaves just as far
-   the other side, so it never pops in or out in view. Pure flavour — it
-   decides nothing (startUav/uavUntil own the reveal). */
+   UAV's world presence, as in Black Ops 2: a spotter plane flies in from off
+   the map, circles high over it for as long as the UAV is up, then peels
+   off and leaves. It used to materialise 34 m above the caller and make one
+   straight pass. Pure flavour — it decides nothing (startUav/uavUntil own
+   the reveal). The path is a function of age and the wire's seed, so every
+   client flies the same one. */
+const RECON_ENTER = 5;
+const RECON_EXIT = 5;
 export class ReconPlane {
-  constructor({ pos, yaw }) {
+  constructor({ bounds, yaw = 0, duration = 25 }) {
     this.age = 0;
     this.done = false;
-    this.yaw = yaw;
-    this.over = pos.clone();
-    this.fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-    this.lifetime = (RECON_SPAN * 2) / RECON_SPEED;
+    this.duration = duration;
+    const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
+    this.centre = { x: cx, z: cz };
+    this.radius = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) * 0.45 + 12;
+    this.angle0 = yaw;
+    this.dir = Math.sin(yaw * 7) > 0 ? 1 : -1;
+    this.omega = this.dir * RECON_SPEED / this.radius;
     this.root = new THREE.Group();
     this.root.rotation.order = "YXZ";
-    this.root.rotation.y = yaw;
     this.prop = null;
     this.place();
 
@@ -734,18 +861,40 @@ export class ReconPlane {
     });
   }
 
+  pathAt(t, out) {
+    const T = Math.min(t, this.duration);
+    const a = this.angle0 + this.omega * T;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const tx = -sa * this.dir, tz = ca * this.dir;
+    out.set(this.centre.x + ca * this.radius, RECON_ALTITUDE, this.centre.z + sa * this.radius);
+    if (t < RECON_ENTER) {
+      const k = 1 - smooth01(t / RECON_ENTER);
+      const back = k * k * 130;
+      out.x -= tx * back; out.z -= tz * back;
+    } else if (t > this.duration) {
+      const e = t - this.duration;
+      const run = RECON_SPEED * e + 3 * e * e;
+      out.x += tx * run; out.z += tz * run;
+      out.y += e * e * 1.2;
+    }
+    return out;
+  }
+
   place() {
-    const s = -RECON_SPAN + RECON_SPEED * this.age;
-    this.root.position.copy(this.over).addScaledVector(this.fwd, s);
-    // A lazy wing-waggle as it passes.
-    this.root.rotation.z = Math.sin(this.age * 0.9) * 0.08;
+    this.pathAt(this.age, this.root.position);
+    const b = this.pathAt(this.age + 0.1, _w);
+    const p = this.root.position;
+    this.root.rotation.y = Math.atan2(-(b.x - p.x), -(b.z - p.z));
+    // Banked into the orbit, levelling out to leave.
+    const onOrbit = this.age > RECON_ENTER * 0.6 && this.age < this.duration;
+    this.root.rotation.z += ((onOrbit ? this.dir * 0.28 : 0) - this.root.rotation.z) * 0.05;
   }
 
   update(dt) {
     this.age += dt;
     if (this.prop) this.prop.rotation.z += dt * Math.PI * 2 * RECON_PROP_RPS;
     this.place();
-    if (this.age > this.lifetime) { this.done = true; return "expire"; }
+    if (this.age > this.duration + RECON_EXIT) { this.done = true; return "expire"; }
     return null;
   }
 
