@@ -1129,6 +1129,90 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   background: rgba(10,20,10,.6);
 }
 
+/* Hunter-killer lock: a red bracket riding the target, so the homing is
+   something you can see. Tightens and pulses in the last few metres. */
+.to-hk-lock {
+  position: absolute; z-index: 13; pointer-events: none;
+  width: 44px; height: 44px; transform: translate(-50%, -50%);
+  transition: width .25s ease, height .25s ease;
+}
+.to-hk-lock[hidden] { display: none; }
+.to-hk-lock > i {
+  position: absolute; inset: 0; border: 2px solid #ff4a3a; border-radius: 3px;
+  clip-path: polygon(0 0, 30% 0, 30% 8%, 8% 8%, 8% 30%, 0 30%, 0 70%, 8% 70%, 8% 92%, 30% 92%, 30% 100%,
+    70% 100%, 70% 92%, 92% 92%, 92% 70%, 100% 70%, 100% 30%, 92% 30%, 92% 8%, 70% 8%, 70% 0);
+  animation: to-hk-spin 2.4s linear infinite;
+}
+.to-hk-lock > span {
+  position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 3px;
+  font-family: "Oswald", sans-serif; font-size: 10px; letter-spacing: .14em;
+  color: #ff6a5a; text-shadow: 0 1px 3px rgba(0,0,0,.9);
+}
+.to-hk-lock.is-close { width: 30px; height: 30px; }
+.to-hk-lock.is-close > i { animation: to-hk-pulse .3s ease-in-out infinite alternate; }
+@keyframes to-hk-spin { to { transform: rotate(90deg); } }
+@keyframes to-hk-pulse { from { opacity: 1; } to { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  .to-hk-lock > i { animation: none; }
+}
+
+/* Lightning Strike tablet (streak-tablet.js): a rugged tablet raised into
+   the hands, overhead map on the screen. Slides up tilted and settles flat;
+   lowers the same way. */
+.to-tablet {
+  position: absolute; inset: 0; z-index: 16; pointer-events: none;
+  display: flex; align-items: flex-end; justify-content: center;
+  perspective: 900px;
+}
+.to-tablet[hidden] { display: none; }
+.to-tablet-body {
+  pointer-events: auto;
+  width: min(88vh, 92vw); margin-bottom: 2vh;
+  padding: 14px 18px 12px; border-radius: 22px;
+  background: linear-gradient(160deg, #3b3f37, #22251f 55%, #1a1c18);
+  border: 2px solid #11130f;
+  box-shadow: 0 30px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08), inset 0 0 0 6px #262922;
+  transform: translateY(105%) rotateX(38deg); transform-origin: 50% 100%;
+  transition: transform .42s cubic-bezier(.2,.8,.25,1);
+}
+.to-tablet.is-up .to-tablet-body { transform: translateY(0) rotateX(6deg); }
+.to-tablet.is-down .to-tablet-body { transform: translateY(105%) rotateX(38deg); transition-duration: .34s; transition-timing-function: cubic-bezier(.5,0,.8,.4); }
+.to-tablet-head, .to-tablet-foot {
+  display: flex; align-items: center; gap: 10px;
+  font-family: "Oswald", sans-serif; letter-spacing: .14em; color: #c9d4c2;
+}
+.to-tablet-head { padding: 0 4px 8px; font-size: 15px; }
+.to-tablet-title { color: #ff6a50; }
+.to-tablet-slots { margin-left: auto; display: flex; gap: 6px; }
+.to-tablet-slots > i {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  font-style: normal; font-size: 12px; color: #7d8676; border: 1.5px solid #59614f;
+}
+.to-tablet-slots > i.is-set { color: #fff; background: #d8412e; border-color: #ff6a50; }
+.to-tablet-screen {
+  position: relative; border-radius: 6px; overflow: hidden;
+  border: 3px solid #0c0e0b; background: #0c120d;
+  aspect-ratio: 1 / 1; max-height: 66vh; margin: 0 auto;
+}
+.to-tablet-screen canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+.to-tablet-scan {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.45));
+  mix-blend-mode: multiply;
+}
+.to-tablet-foot { padding: 8px 4px 0; font-size: 11px; color: #8f9a88; }
+.to-tablet-hint { margin-right: auto; }
+.to-tablet-foot button {
+  font: inherit; letter-spacing: .12em; color: #c9d4c2; cursor: pointer;
+  background: #2c3028; border: 1px solid #4a5143; border-radius: 6px; padding: 5px 12px;
+}
+.to-tablet-foot button:focus-visible { outline: 2px solid #ff6a50; outline-offset: 2px; }
+.to-tablet.is-confirmed .to-tablet-title { color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .to-tablet-body, .to-tablet.is-down .to-tablet-body { transition: none; }
+}
+
 /* Lobby picker: pick three. */
 .to-ss-count { float: right; font-size: 10px; color: #9aa596; letter-spacing: .06em; }
 .to-ss-picker { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }

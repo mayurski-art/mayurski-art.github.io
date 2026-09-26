@@ -66,6 +66,29 @@ tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 - Not verified on real hardware: the user's HP laptop, a real phone/iPad
   (headless + emulation only). Ask how it felt.
 
+## Session 11: scorestreak + streak animation overhaul (2026-09-25, IN PROGRESS)
+
+User: "really fix the scorestreaks and scorestreak animations, they are quite
+buggy, the biggest issue for now". Filmed every streak headless (scratchpad
+harness: grant a streak, call it, screenshot a sequence with a chase camera
+rendered from a second PerspectiveCamera over the game scene).
+
+Bugs found:
+- Gunship flies TAIL-FIRST its whole orbit: wantYaw = -tangent + PI/2 is the
+  mirror of the model forward (-sin yaw, -cos yaw). Its muzzle and
+  searchlight sat at +z = the TAIL. It also popped into existence mid-orbit,
+  started at yaw 0 and blinked out at the end. No tracers.
+- Lightning Strike jet: lerped 24 m in 2.4 s (crawling), then jumped to
+  40 m/s; spawned 12 m from the mark in plain sight; bombs were setTimeout
+  (ignored pause, not tied to the jet) and exploded with no bomb visible.
+  Explosions were sparks + a light only.
+- UAV recon plane popped into existence 34 m above the caller.
+- Hunter-Killer: remote copies were updated with a null target, so on
+  everyone else's screen it flew straight north and blew up wherever it got.
+  Plus every item in "Bugs to fix next #2" below.
+- Streak device: gun/device swap was an instant pop both ways.
+- Care package: sway snapped to 0 on touchdown; crate blinked out when opened.
+
 ## Graphics setting (session 10, on main)
 Settings → Graphics: Auto / High / Medium / Low, in both the lobby and Esc
 panels (`settings.gfx`). High = SSAO + bloom + 2048 shadows, Medium drops

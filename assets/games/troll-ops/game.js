@@ -15,12 +15,13 @@ import { Loadout } from "./loadout.js";
 import { StreakPicker } from "./streak-picker.js";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
 import {
-  CarePackage, HunterDrone, HelicopterGunship, ReconPlane, StrikeJet,
-  PACKAGE_CLAIM_RADIUS, DRONE_DAMAGE, DRONE_KILL_RADIUS, DRONE_SPLASH_RADIUS,
+  CarePackage, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
+  DRONE_DAMAGE, DRONE_SPLASH_RADIUS,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
-  HELI_FIRE_RANGE, HELI_DAMAGE, RECON_ALTITUDE, JET_ALTITUDE,
+  HELI_FIRE_RANGE, HELI_DAMAGE, RECON_ALTITUDE,
 } from "./streak-entities.js";
 import { KillstreakUi } from "./killstreak-ui.js";
+import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js";
 import { Achievements } from "./achievements.js";
 import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
@@ -345,12 +346,50 @@ function enemiesRevealed() {
    talking about; the local player's own are flagged `owned` and are the only
    ones that decide anything. */
 const streakEntities = new Map();   // id -> CarePackage | HunterDrone | HelicopterGunship
-const pendingStrikes = [];          // { x, z, t, owned, team }
+const pendingStrikes = [];          // AirstrikeRun: mark → jet → bombs, in game time
 
-/* Pure flyover VFX for UAV/airstrike — unlike streakEntities these decide
-   nothing (uavUntil and the bomb damage timers own the real effects), so
-   they don't need ids or wire lookups, just a list to age out and drop. */
-const flyovers = [];                // ReconPlane | StrikeJet
+/* Pure flyover VFX for UAV — unlike streakEntities these decide nothing
+   (uavUntil owns the reveal), so they don't need ids or wire lookups, just a
+   list to age out and drop. */
+const flyovers = [];                // ReconPlane
+
+/* Fireball + smoke column + shock ring for streak blasts (made on first use:
+   the scene doesn't exist yet up here). */
+let blastFx = null;
+function streakBlast(pos, scale = 1) {
+  if (!blastFx) blastFx = new BlastFx(scene);
+  blastFx.spawn(pos, scale);
+}
+
+/* The ground ring shown while marking a care package / airstrike, so you
+   can see where it'll land instead of trusting a line of text. */
+let markRing = null;
+function markRingMesh() {
+  if (markRing) return markRing;
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xffd166, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+  });
+  const outer = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), mat);
+  const inner = new THREE.Mesh(new THREE.RingGeometry(0.12, 0.2, 24), mat);
+  for (const m of [outer, inner]) { m.rotation.x = -Math.PI / 2; g.add(m); }
+  // Four ticks, so it reads as a target and not a puddle.
+  for (let i = 0; i < 4; i++) {
+    const tick = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.35), mat);
+    const a = i * Math.PI / 2;
+    tick.rotation.x = -Math.PI / 2;
+    tick.rotation.z = a;
+    tick.position.set(Math.sin(a) * 0.72, 0, Math.cos(a) * 0.72);
+    g.add(tick);
+  }
+  g.userData.mat = mat;
+  g.userData.outer = outer;
+  g.visible = false;
+  scene.add(g);
+  markRing = g;
+  return g;
+}
 
 /* Marking mode: the streak that's waiting for a ground point, or null. Both
    the care package and the airstrike need "look somewhere, press again", so
@@ -366,9 +405,19 @@ let selectedStreak = null;
 function clearStreakEntities() {
   for (const e of streakEntities.values()) e.dispose();
   streakEntities.clear();
+  for (const s of pendingStrikes) s.dispose();
   pendingStrikes.length = 0;
+  // Flyovers used to survive the round/match reset and finish their pass
+  // over the next one.
+  for (const f of flyovers) f.dispose();
+  flyovers.length = 0;
+  blastFx?.clear();
+  if (markRing) markRing.visible = false;
+  if (lockEl) lockEl.hidden = true;
+  strikeTablet?.lower();
   markingStreak = null;
   selectedStreak = null;
+  if (streakHoldActive()) endStreakHold(true);
   if (els.streakMark) els.streakMark.hidden = true;
 }
 
@@ -486,14 +535,22 @@ function callStreakSlot(i) {
 function callStreak(id) {
   // The marking streaks don't spend until the point is confirmed — dying or
   // cancelling mid-mark must not eat the reward.
-  if (id === "carepackage" || id === "airstrike") {
+  if (id === "airstrike") {
+    // BO2's Lightning Strike: up comes the tablet, you mark three spots on
+    // the overhead map. Nothing is spent until the third is marked.
+    markingStreak = id;
+    updateStreakHud();
+    beginStreakHold(0);
+    openStrikeTablet();
+    return;
+  }
+  if (id === "carepackage") {
     markingStreak = id;
     showWaveBanner(`${STREAK_DEFS[id].name.toUpperCase()} — ${streakKeyLabel(id)} on a spot`, 2200);
     updateStreakHud();   // keeps the touch button up through the mark
-    // Airstrike is the one BO2-style "looking at the designator while lining
-    // up the strike" gesture (DESIGN-ARMS.md Phase 5) — carepackage is a
-    // thrown crate with no device to look at, so it stays HUD-only.
-    if (id === "airstrike") beginStreakHold(0);
+    // Both marking streaks are lined up on the designator (DESIGN-ARMS.md
+    // Phase 5): the tablet stays up until the mark is confirmed or dropped.
+    beginStreakHold(0);
     return;
   }
 
@@ -508,12 +565,16 @@ function callStreak(id) {
 /* Second press of the marking flow: commit to where we're looking. */
 function confirmMark() {
   const id = markingStreak;
+  // On the tablet, the streak's own key marks the spot under the reticle.
+  if (id === "airstrike") { strikeTablet?.place(); return; }
   const at = groundAimPoint();
   if (!at) { showWaveBanner("No ground in sight", 1200); return; }
   if (!streaks.spend(id)) { cancelMark(); return; }
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
-  if (id === "airstrike") endStreakHold();
+  if (markRing) markRing.visible = false;
+  // A beat on the tablet to "send" it, then it lowers and the gun comes up.
+  beginStreakHold(0.35);
   fireStreak(id, at);
   updateStreakHud();
 }
@@ -531,16 +592,20 @@ function streakKeyLabel(id = markingStreak) {
 /* Leave marking without the "Cancelled" banner: switching straight to
    another streak says enough on its own. */
 function dropMarkQuietly() {
-  if (markingStreak === "airstrike") endStreakHold();
+  strikeTablet?.lower();
+  endStreakHold();
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
+  if (markRing) markRing.visible = false;
 }
 
 function cancelMark() {
   if (!markingStreak) return;
-  if (markingStreak === "airstrike") endStreakHold();
+  strikeTablet?.lower();
+  endStreakHold(!player.alive);
   markingStreak = null;
   if (els.streakMark) els.streakMark.hidden = true;
+  if (markRing) markRing.visible = false;
   showWaveBanner("Cancelled", 900);
   updateStreakHud();
 }
@@ -551,9 +616,28 @@ function updateMarking() {
   if (!markingStreak || !player.alive) {
     if (markingStreak && !player.alive) cancelMark();
     els.streakMark.hidden = true;
+    if (markRing) markRing.visible = false;
+    return;
+  }
+  if (markingStreak === "airstrike") {
+    // The tablet is the whole interface; no ground ring or prompt.
+    els.streakMark.hidden = true;
+    if (markRing) markRing.visible = false;
     return;
   }
   const at = groundAimPoint();
+  // The landing zone on the ground: the claim circle. Pulses so it reads
+  // as live.
+  const ring = markRingMesh();
+  ring.visible = !!at;
+  if (at) {
+    const air = markingStreak === "airstrike";
+    const pulse = 1 + Math.sin(performance.now() / 160) * 0.06;
+    ring.position.set(at.x, at.y + 0.06, at.z);
+    ring.scale.setScalar((air ? AIRSTRIKE_RADIUS * 0.75 : 2.2) * pulse);
+    ring.userData.mat.color.setHex(air ? 0xff5a3c : 0x7fe066);
+    ring.userData.mat.opacity = 0.75;
+  }
   els.streakMark.hidden = false;
   els.streakMark.textContent = at
     ? `${STREAK_DEFS[markingStreak].name} — ${streakKeyLabel()} to confirm`
@@ -599,28 +683,34 @@ function fireStreak(id, at = null) {
 
     case "drone": {
       const eid = `streak-drone-${net.id}-${Math.round(performance.now())}`;
-      const victim = nearestHostileTo(move.pos);
-      // RemotePlayer keys itself by `.netId` (remote-players.js), not `.id` —
-      // reading `.id` here was always undefined, so the drone launched with
-      // no target, flew a dead-straight line off its spawn heading, and
-      // burned out without ever getting near DRONE_KILL_RADIUS.
-      spawnDrone({ id: eid, targetId: victim?.netId || null, owned: true });
+      // RemotePlayer keys itself by `.netId` (remote-players.js), not `.id`.
+      const victim = pickDroneTarget(move.pos);
+      // Launched off the tablet in your hand, not out of your chest.
+      const from = handLaunchPoint();
+      const drone = spawnDrone({ id: eid, targetId: victim?.netId || null, owned: true, pos: from, yaw: look.yaw });
       if (net.active) {
-        net.publishStreak({ kind: "drone", action: "launch", eid, target: victim?.netId || null });
+        net.publishStreak({
+          kind: "drone", action: "launch", eid, target: victim?.netId || null,
+          x: round2(from.x), y: round2(from.y), z: round2(from.z), yaw: round2(look.yaw),
+        });
       }
-      showWaveBanner(victim ? "HUNTER-KILLER AWAY" : "HUNTER-KILLER — no target", 1600);
+      showWaveBanner(victim ? `HUNTER-KILLER — LOCKED ON ${String(victim.name || "TARGET").toUpperCase()}` : "HUNTER-KILLER — SEARCHING", 1800);
+      beginStreakHold(0.9);
       break;
     }
 
     case "airstrike": {
-      pendingStrikes.push({ x: at.x, z: at.z, t: AIRSTRIKE_DELAY, owned: true, team: net.team });
+      // `at` is the tablet's three marks. One bombing pass per mark, in the
+      // order they were marked, a beat apart — BO2's three strikes. The jets
+      // fly the way you were facing, so they come in over your shoulder.
+      const pts = Array.isArray(at) ? at : [at];
+      const yaw = look.yaw;
+      const runs = pts.map((p, i) => ({ x: round2(p.x), z: round2(p.z), delay: round2(strikeDelay(i)) }));
+      for (const r of runs) spawnAirstrike({ ...r, yaw, owned: true, team: net.team });
       if (net.active) {
-        net.publishStreak({
-          kind: "airstrike", action: "mark",
-          x: round2(at.x), z: round2(at.z), delay: AIRSTRIKE_DELAY,
-        });
+        net.publishStreak({ kind: "airstrike", action: "mark", runs, yaw: round2(yaw), team: net.team });
       }
-      showWaveBanner("LIGHTNING STRIKE — MARKED", 1800);
+      showWaveBanner("LIGHTNING STRIKE INBOUND", 2000);
       break;
     }
 
@@ -633,7 +723,8 @@ function fireStreak(id, at = null) {
         // The gunship arriving is a match-wide moment, same as a nuke.
         net.publishStreak({ kind: "callout", label: "GUNSHIP INBOUND", who: net.name });
       }
-      showWaveBanner("GUNSHIP ON STATION", 2000);
+      showWaveBanner("GUNSHIP INBOUND", 2000);
+      beginStreakHold(0.75);
       achievements.award("gunship");
       break;
     }
@@ -659,26 +750,136 @@ function spawnCarePackage({ id, x, z, reward, owned, ownerTeam }) {
   return pkg;
 }
 
-function spawnDrone({ id, targetId, owned }) {
-  const from = move.pos.clone();
-  from.y += 1.6;
-  const drone = new HunterDrone({ id, owned, target: { id: targetId }, pos: from, yaw: look.yaw });
+function spawnDrone({ id, targetId, owned, pos, yaw = 0 }) {
+  const drone = new HunterDrone({ id, owned, targetId, pos, yaw });
   streakEntities.set(id, drone);
   scene.add(drone.root);
+  audio.wave();
   return drone;
+}
+
+/* Just in front of the streak tablet, in world space. */
+function handLaunchPoint() {
+  const fwd = new THREE.Vector3();
+  camera.getWorldDirection(fwd);
+  const right = new THREE.Vector3().crossVectors(fwd, camera.up).normalize();
+  const p = camera.position.clone().addScaledVector(fwd, 0.7).addScaledVector(right, 0.25);
+  p.y -= 0.3;
+  // Never inside a wall you're hugging.
+  const toP = p.clone().sub(camera.position);
+  const len = toP.length();
+  if (raycastWorld(colliders, camera.position, toP.divideScalar(len), len) < len) {
+    p.copy(camera.position);
+    p.y -= 0.2;
+  }
+  return p;
+}
+
+/* The world-probing hooks a drone steers by (see HunterDrone.update). */
+const droneWorld = {
+  target: null,
+  probe: (from, dir, len) => raycastWorld(colliders, from, dir, len),
+  groundAt: (x, z, fromY) => groundHeightAt(colliders, x, z, fromY),
+};
+
+/* Where a drone's target is standing (feet), on this client. The target can
+   be us: on the victim's screen the drone is coming for the local player,
+   who isn't in remotes. */
+function droneTargetPos(targetId) {
+  if (!targetId) return null;
+  if (targetId === net.id) return player.alive ? move.pos : null;
+  const rp = remotes.byId.get(targetId);
+  return rp && rp.alive ? rp.pos : null;
+}
+
+/* Hunter-killer target pick: nearest enemy, but one it can actually see
+   beats a closer one behind a wall (scored as if 25 m further away). */
+function pickDroneTarget(from, eyeUp = 1.6) {
+  let best = null, bestScore = Infinity;
+  const ffa = currentMode().ffa;
+  const eye = new THREE.Vector3(from.x, from.y + eyeUp, from.z);
+  const dir = new THREE.Vector3();
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive) continue;
+    if (!ffa && net.team && rp.team === net.team) continue;
+    const d = from.distanceTo(rp.pos);
+    dir.set(rp.pos.x - eye.x, rp.pos.y + 1.2 - eye.y, rp.pos.z - eye.z);
+    const len = dir.length() || 1;
+    dir.divideScalar(len);
+    const seen = raycastWorld(colliders, eye, dir, len) >= len - 0.3;
+    const score = d + (seen ? 0 : 25);
+    if (score < bestScore) { bestScore = score; best = rp; }
+  }
+  return best;
+}
+
+/* Mark order -> seconds to that pass's first impact. */
+function strikeDelay(i) { return AIRSTRIKE_DELAY - 1 + i * 1.7; }
+
+/* The Lightning Strike tablet (streak-tablet.js), made on first use. */
+let strikeTablet = null;
+function openStrikeTablet() {
+  if (!strikeTablet) {
+    strikeTablet = new StrikeTablet({ host: els.streakMark?.parentElement || document.body, renderer, scene });
+  }
+  const bounds = builtMap?.map?.bounds || ARENA;
+  const keyHint = isTouch ? "Tap the map to mark" : gamepadState.connected
+    ? "Stick aims · A marks · B undoes" : "Mouse aims · Click marks · Right-click undoes · Esc cancels";
+  strikeTablet.open({
+    bounds,
+    radius: AIRSTRIKE_RADIUS * 0.75,
+    me: { x: move.pos.x, z: move.pos.z, yaw: look.yaw },
+    hint: keyHint,
+    blips: () => {
+      const out = [];
+      const ffa = currentMode().ffa;
+      for (const rp of remotes.byId.values()) {
+        if (!rp.alive) continue;
+        const friendly = !ffa && !!net.team && rp.team === net.team;
+        if (friendly || enemiesRevealed()) out.push({ x: rp.pos.x, z: rp.pos.z, friendly });
+      }
+      return out;
+    },
+    onPlace: (n) => {
+      audio.reload();
+      if (n >= STRIKE_TARGETS) showWaveBanner("STRIKE CONFIRMED", 1200);
+    },
+    onConfirm: (pts) => {
+      if (markingStreak !== "airstrike" || !player.alive) return;
+      if (!streaks.spend("airstrike")) { cancelMark(); return; }
+      markingStreak = null;
+      beginStreakHold(0.2);
+      fireStreak("airstrike", pts);
+      selectedStreak = readyStreaksOrdered()[0] || null;
+      updateStreakHud();
+    },
+    onCancel: () => { if (markingStreak === "airstrike") cancelMark(); },
+  });
+}
+
+function spawnAirstrike({ x, z, yaw, owned, team, delay = AIRSTRIKE_DELAY }) {
+  const run = new AirstrikeRun({
+    x, z, yaw, delay, owned, team,
+    groundAt: (px, pz) => groundHeightAt(colliders, px, pz, 60) ?? 0,
+  });
+  run.addTo(scene);
+  pendingStrikes.push(run);
+  return run;
 }
 
 function spawnHelicopter({ id, seed, owned, team }) {
   const bounds = builtMap?.map?.bounds || { minX: ARENA.minX, maxX: ARENA.maxX, minZ: ARENA.minZ, maxZ: ARENA.maxZ };
-  const heli = new HelicopterGunship({ id, owned, bounds, seed, team, lights: lightPool });
+  const heli = new HelicopterGunship({
+    id, owned, bounds, seed, team, lights: lightPool, duration: STREAK_DEFS.helicopter.duration,
+  });
   streakEntities.set(id, heli);
   scene.add(heli.root);
   audio.wave();
   return heli;
 }
 
-/* UAV's only world presence: one straight pass overhead, starting from
-   wherever it was called. Purely decorative — enemiesRevealed()/uavUntil
+/* UAV's only world presence: one straight pass over wherever it was called,
+   in from off the map and out the other side. Purely decorative — enemiesRevealed()/uavUntil
    already own the actual reveal, so there is nothing to keep in sync beyond
    this position and heading. */
 function spawnRecon(x, z, yaw) {
@@ -686,19 +887,6 @@ function spawnRecon(x, z, yaw) {
   flyovers.push(plane);
   scene.add(plane.root);
   return plane;
-}
-
-/* The bombing run's aircraft. Flies the same line runAirstrike already drops
-   bombs along, timed to arrive as the first one lands. */
-function spawnStrikeJet(x, z) {
-  const spread = AIRSTRIKE_RADIUS * 0.55 * 2;
-  const groundY = groundHeightAt(colliders, x, z, 60) ?? 0;
-  const from = new THREE.Vector3(x - spread, groundY + JET_ALTITUDE, z - spread * 0.3);
-  const to = new THREE.Vector3(x + spread, groundY + JET_ALTITUDE, z + spread * 0.3);
-  const jet = new StrikeJet({ from, to });
-  flyovers.push(jet);
-  scene.add(jet.root);
-  return jet;
 }
 
 /* Nearest living enemy, for the drone's target pick. Bots and peers both live
@@ -747,8 +935,9 @@ function claimPackage(pkg) {
 
   audio.reload();
   if (net.active) net.publishStreak({ kind: "carepackage", action: "claimed", eid: pkg.id });
-  pkg.dispose();
-  streakEntities.delete(pkg.id);
+  // Pops open, then updateStreakEntities drops it on "gone".
+  pkg.open();
+  spawnImpactBurst(new THREE.Vector3(pkg.x, pkg.groundY + 0.8, pkg.z), 0x9dff7a, 16);
 }
 
 function startUav(team, duration) {
@@ -775,7 +964,8 @@ function updateStreakEntities(dt) {
 
   for (const [id, e] of [...streakEntities]) {
     if (e instanceof CarePackage) {
-      if (e.update(dt) === "landed") {
+      const out = e.update(dt);
+      if (out === "landed") {
         // Thump into the dirt: a dust ring and a short shake up close.
         const at = new THREE.Vector3(e.x, e.groundY + 0.05, e.z);
         impactFx.hit(at, { normal: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, -1, 0), surface: "ground", scale: 3 });
@@ -783,57 +973,30 @@ function updateStreakEntities(dt) {
         const near = Math.max(0, 1 - at.distanceTo(player.pos) / 10);
         if (near > 0) { shakeMag = Math.max(shakeMag, near * 0.03); shakeT = 0.25; }
       }
-      if (e.expired) { e.dispose(); streakEntities.delete(id); }
+      if (out === "gone" || e.expired) { e.dispose(); streakEntities.delete(id); }
       continue;
     }
 
     if (e instanceof HunterDrone) {
-      // Re-resolve the target each frame: it can die or disconnect mid-flight.
-      const target = e.target?.id ? remotes.byId.get(e.target.id) : null;
-      const pos = target && target.alive ? target.pos : null;
-      const out = e.update(dt, e.owned ? pos : null);
-      if (out === "hit" && e.owned && target) {
-        explosionFx({ kind: "lethal", glow: 0xffa23a, radius: DRONE_KILL_RADIUS * 2 }, e.root.position);
-        // Damage goes through the ordinary hit path, so a drone kill credits
-        // and killfeeds exactly like a bullet one.
-        dealDamageToRemote(target, DRONE_DAMAGE, "drone");
-        // It's a warhead, not a bullet — anyone else standing close to the
-        // target when it hits goes down too, teammate or not. A friendly
-        // caught in it gets its own callout instead of vanishing quietly
-        // into the killfeed as a regular team-damage line.
-        const ffa = currentMode().ffa;
-        for (const rp of remotes.byId.values()) {
-          if (rp.id === target.id || !rp.alive) continue;
-          if (rp.pos.distanceTo(target.pos) > DRONE_SPLASH_RADIUS) continue;
-          const friendly = !ffa && net.team && rp.team === net.team;
-          dealDamageToRemote(rp, DRONE_DAMAGE, "drone");
-          if (friendly) killstreakUi.note("GET TROLLED", "tier-note");
-        }
-        if (net.active) net.publishStreak({ kind: "drone", action: "kill", eid: id });
-      } else if (out === "expire" && e.owned) {
-        explosionFx({ kind: "tactical", glow: 0xffa23a, radius: 3 }, e.root.position);
-        if (net.active) net.publishStreak({ kind: "drone", action: "expire", eid: id });
-      }
-      if (e.done) { e.dispose(); streakEntities.delete(id); }
+      updateDrone(id, e, dt);
       continue;
     }
 
     if (e instanceof HelicopterGunship) {
       let aim = null;
-      if (e.owned) {
-        const victim = nearestHostileToTeam(e.root.position, e.team, HELI_FIRE_RANGE);
+      if (e.onStation) {
+        const victim = gunshipTarget(e);
         if (victim) {
-          aim = victim.pos.clone();
+          aim = victim.chest;
           if (e.tryFire()) {
-            spawnImpactBurst(e.muzzle, 0xffd166, 4);
-            // A real weapon def, since audio.shot reads its fields to build
-            // the report — the chin gun sounds like the heaviest thing here.
-            audio.shot(WEAPON_DEFS.bellow || currentWeapon().def, 0.45, e.root.position);
-            dealDamageToRemote(victim, HELI_DAMAGE, "heli");
+            gunshipShotFx(e, victim.chest);
+            // Only the caller's copy deals damage; the hit reaches everyone
+            // else as an ordinary hit message.
+            if (e.owned && victim.rp) dealDamageToRemote(victim.rp, HELI_DAMAGE, "heli");
           }
         }
       }
-      const out = e.update(dt, STREAK_DEFS.helicopter.duration, aim);
+      const out = e.update(dt, aim);
       if (out === "expire") {
         if (e.owned && net.active) net.publishStreak({ kind: "heli", action: "despawn", eid: id });
         e.dispose();
@@ -842,18 +1005,19 @@ function updateStreakEntities(dt) {
       continue;
     }
   }
+  updateDroneLock();
+  strikeTablet?.update(dt);
 
-  // Airstrikes: count down, then drop a line of bombs through the mark.
+  // Lightning strikes: each run plays its own timeline (smoke, jet, bombs)
+  // and reports every bomb the frame it lands.
   for (let i = pendingStrikes.length - 1; i >= 0; i--) {
     const s = pendingStrikes[i];
-    s.t -= dt;
-    if (s.t > 0) continue;
-    pendingStrikes.splice(i, 1);
-    runAirstrike(s);
+    for (const bi of s.update(dt)) strikeImpact(s, s.bombs[bi].at);
+    if (s.done) { s.dispose(); pendingStrikes.splice(i, 1); }
   }
 
-  // Recon planes and strike jets: fly, then age out. Neither owns damage or
-  // reveals, so there's nothing to report back over the wire when they expire.
+  // Recon planes: fly, then age out. They own no reveal, so there's nothing
+  // to report back over the wire when they expire.
   for (let i = flyovers.length - 1; i >= 0; i--) {
     const f = flyovers[i];
     if (f.update(dt) === "expire") {
@@ -861,34 +1025,149 @@ function updateStreakEntities(dt) {
       flyovers.splice(i, 1);
     }
   }
+
+  blastFx?.update(dt);
 }
 
-/* A line of blasts through the marked point, so it reads as a pass rather
-   than one big grenade. Only the caller does damage. */
-function runAirstrike(s) {
-  spawnStrikeJet(s.x, s.z);
-  const ground = groundHeightAt(colliders, s.x, s.z, 60) ?? 0;
-  const spread = AIRSTRIKE_RADIUS * 0.55;
-  for (let i = 0; i < AIRSTRIKE_BOMBS; i++) {
-    const f = (i - (AIRSTRIKE_BOMBS - 1) / 2) / Math.max(1, AIRSTRIKE_BOMBS - 1);
-    const px = s.x + f * spread * 2;
-    const pz = s.z + f * spread * 0.6;
-    const at = new THREE.Vector3(px, (groundHeightAt(colliders, px, pz, 60) ?? ground) + 0.4, pz);
-    // Staggered so it sounds and looks like a run of hits.
-    setTimeout(() => {
-      if (gameState !== "playing") return;
-      explosionFx({ kind: "lethal", glow: 0xffb347, radius: AIRSTRIKE_RADIUS }, at);
-      if (s.owned) {
-        areaDamage(at, AIRSTRIKE_RADIUS * 0.6,
-          AIRSTRIKE_DAMAGE / AIRSTRIKE_BOMBS * 2,
-          { id: "airstrike", radius: AIRSTRIKE_RADIUS * 0.6, minDamage: 20, selfMult: 1 },
-          { creditAs: "airstrike" });
-      }
-    }, i * 180);
+/* One bomb of a Lightning Strike landing. Only the caller does damage. */
+function strikeImpact(s, at) {
+  explosionFx({ kind: "lethal", glow: 0xffb347, radius: AIRSTRIKE_RADIUS }, at);
+  streakBlast(at, 1.3);
+  impactFx.hit(at, { normal: new THREE.Vector3(0, 1, 0), surface: "ground", scale: 4 });
+  if (s.owned) {
+    areaDamage(at, AIRSTRIKE_RADIUS * 0.6,
+      AIRSTRIKE_DAMAGE / AIRSTRIKE_BOMBS * 2,
+      { id: "airstrike", radius: AIRSTRIKE_RADIUS * 0.6, minDamage: 20, selfMult: 1 },
+      { creditAs: "airstrike" });
   }
-  if (s.owned && net.active) {
-    net.publishStreak({ kind: "airstrike", action: "impact", x: round2(s.x), z: round2(s.z) });
+}
+
+/* One hunter-killer's frame. The caller's copy re-acquires a target when
+   its one dies and decides the detonation; everyone else's copy flies the
+   same steering at the same target and waits for the caller's word. */
+function updateDrone(id, e, dt) {
+  if (e.owned && e.age > 0.3 && !droneTargetPos(e.targetId)) {
+    const next = pickDroneTarget(e.root.position, 0);
+    const nextId = next?.netId || null;
+    if (nextId !== e.targetId) {
+      e.targetId = nextId;
+      if (next) showWaveBanner(`HUNTER-KILLER — RETARGETED ${String(next.name || "").toUpperCase()}`, 1400);
+      if (net.active) net.publishStreak({ kind: "drone", action: "retarget", eid: id, target: nextId });
+    }
   }
+  droneWorld.target = droneTargetPos(e.targetId);
+  const out = e.update(dt, droneWorld);
+  if (!out) {
+    // A copy that thought it arrived gives up if the owner never says so.
+    if (e.frozen && e.age - e.frozenAt > 2) { e.dispose(); streakEntities.delete(id); }
+    return;
+  }
+  if (!e.owned) {
+    e.done = false;
+    e.frozen = true;
+    e.frozenAt = e.age;
+    return;
+  }
+  detonateDrone(e, out);
+  if (net.active) {
+    const p = e.root.position;
+    net.publishStreak({
+      kind: "drone", action: out === "expire" ? "expire" : "kill", eid: id,
+      x: round2(p.x), y: round2(p.y), z: round2(p.z),
+    });
+  }
+  e.dispose();
+  streakEntities.delete(id);
+}
+
+/* The warhead going off, on the caller's copy: a direct hit on the target it
+   reached, then the blast for everyone else in range — the caller included,
+   if they flew it into their own feet (the user asked for that). */
+function detonateDrone(e, out) {
+  const at = e.root.position.clone();
+  explosionFx({ kind: "lethal", glow: 0xffa23a, radius: DRONE_SPLASH_RADIUS }, at);
+  streakBlast(at, out === "expire" ? 0.6 : 0.9);
+  if (out === "hit" && e.targetId && e.targetId !== net.id) {
+    const rp = remotes.byId.get(e.targetId);
+    // Damage goes through the ordinary hit path, so a drone kill credits
+    // and killfeeds exactly like a bullet one.
+    if (rp && rp.alive) dealDamageToRemote(rp, DRONE_DAMAGE, "drone");
+  }
+  areaDamage(at, DRONE_SPLASH_RADIUS, out === "expire" ? DRONE_DAMAGE * 0.5 : DRONE_DAMAGE * 0.8,
+    { id: "drone", radius: DRONE_SPLASH_RADIUS, minDamage: 20, selfMult: 1 },
+    { creditAs: "drone" });
+}
+
+/* A red lock bracket over whatever our hunter-killer is chasing, so you can
+   see the homing work. One at a time: the newest drone wins. */
+let lockEl = null;
+function updateDroneLock() {
+  let drone = null;
+  for (const e of streakEntities.values()) {
+    if (e instanceof HunterDrone && e.owned && !e.frozen) drone = e;
+  }
+  const target = drone ? droneTargetPos(drone.targetId) : null;
+  if (!target) { if (lockEl) lockEl.hidden = true; return; }
+  if (!lockEl) {
+    lockEl = document.createElement("div");
+    lockEl.className = "to-hk-lock";
+    lockEl.setAttribute("aria-hidden", "true");
+    lockEl.innerHTML = "<i></i><span>LOCKED</span>";
+    (els.streakMark?.parentElement || document.body).appendChild(lockEl);
+  }
+  const p = new THREE.Vector3(target.x, target.y + 1.1, target.z).project(camera);
+  const onScreen = p.z < 1 && Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1;
+  lockEl.hidden = !onScreen;
+  if (!onScreen) return;
+  const host = lockEl.parentElement.getBoundingClientRect();
+  lockEl.style.left = `${((p.x + 1) / 2) * host.width}px`;
+  lockEl.style.top = `${((1 - p.y) / 2) * host.height}px`;
+  const dist = drone.root.position.distanceTo(target);
+  lockEl.classList.toggle("is-close", dist < 12);
+}
+
+/* What a gunship shoots at: the nearest hostile it has a clear line to. On
+   copies it can be us (hostile side), so we see it coming even though the
+   damage arrives from the caller. */
+const _heliDir = new THREE.Vector3();
+function gunshipTarget(e) {
+  const muzzle = e.muzzle;
+  const ffa = currentMode().ffa;
+  let best = null, bestD = HELI_FIRE_RANGE;
+  const consider = (pos, rp) => {
+    const chest = new THREE.Vector3(pos.x, pos.y + 1.1, pos.z);
+    const d = muzzle.distanceTo(chest);
+    if (d >= bestD) return;
+    _heliDir.copy(chest).sub(muzzle).divideScalar(d);
+    if (raycastWorld(colliders, muzzle, _heliDir, d) < d - 0.4) return;   // roof or wall in the way
+    bestD = d;
+    best = { chest, rp };
+  };
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive) continue;
+    if (!ffa && e.team && rp.team === e.team) continue;
+    consider(rp.pos, rp);
+  }
+  if (!e.owned && player.alive && (ffa || !e.team || e.team !== net.team)) consider(move.pos, null);
+  return best;
+}
+
+/* The chin gun firing: tracers you can follow from the nose to the target,
+   a muzzle puff, and the heaviest gun report in the game. */
+function gunshipShotFx(e, aimAt) {
+  const muzzle = e.muzzle;
+  const def = WEAPON_DEFS.bellow || WEAPON_DEFS.problem416;
+  for (let i = 0; i < 2; i++) {
+    const d = aimAt.clone().sub(muzzle).normalize();
+    d.x += (Math.random() - 0.5) * 0.035;
+    d.y += (Math.random() - 0.5) * 0.035;
+    d.z += (Math.random() - 0.5) * 0.035;
+    d.normalize();
+    bullets.spawn({ origin: muzzle.clone().addScaledVector(d, 0.4), dir: d, def, ownerId: "remote", cosmetic: true });
+  }
+  spawnImpactBurst(muzzle, 0xffd166, 5);
+  impactFx.puff(muzzle, aimAt.clone().sub(muzzle).normalize(), 1.5);
+  audio.shot(def, 0.45, e.root.position);
 }
 
 /* Nearest living enemy of a given team, within range. The gunship is not a
@@ -953,25 +1232,39 @@ function applyRemoteStreak(m) {
           id: m.eid, x: m.x, z: m.z, reward: m.reward, owned: false, ownerTeam: m.team,
         });
       } else if (m.action === "claimed") {
-        const pkg = streakEntities.get(m.eid);
-        if (pkg) { pkg.dispose(); streakEntities.delete(m.eid); }
+        // Plays the same pop the opener saw; removed on "gone".
+        streakEntities.get(m.eid)?.open();
       }
       break;
 
     case "drone":
       if (m.action === "launch" && !streakEntities.has(m.eid)) {
-        // A copy for the visual only — it chases nothing and hurts nobody
-        // here, the owner reports the kill.
-        const from = net.peers.get(m.id);
-        const snap = from?.snaps?.[from.snaps.length - 1];
-        const pos = snap ? new THREE.Vector3(snap.x, snap.y + 1.6, snap.z) : move.pos.clone();
-        const d = new HunterDrone({ id: m.eid, owned: false, target: { id: m.target }, pos });
-        streakEntities.set(m.eid, d);
-        scene.add(d.root);
+        // A copy that flies the same steering at the same target, launched
+        // from where the caller's hand was. It hurts nobody here: the owner
+        // reports the detonation and every hit.
+        let pos;
+        if (typeof m.x === "number") pos = new THREE.Vector3(m.x, m.y, m.z);
+        else {
+          const from = net.peers.get(m.id);
+          const snap = from?.snaps?.[from.snaps.length - 1];
+          pos = snap ? new THREE.Vector3(snap.x, snap.y + 1.4, snap.z) : move.pos.clone();
+        }
+        spawnDrone({ id: m.eid, targetId: m.target || null, owned: false, pos, yaw: m.yaw || 0 });
+        if (m.target && m.target === net.id) showWaveBanner("HUNTER-KILLER INBOUND — MOVE", 1800);
+      } else if (m.action === "retarget") {
+        const d = streakEntities.get(m.eid);
+        if (d) {
+          d.targetId = m.target || null;
+          d.frozen = false;
+          if (m.target && m.target === net.id) showWaveBanner("HUNTER-KILLER INBOUND — MOVE", 1800);
+        }
       } else if (m.action === "kill" || m.action === "expire") {
         const d = streakEntities.get(m.eid);
         if (d) {
-          explosionFx({ kind: "lethal", glow: 0xffa23a, radius: 4 }, d.root.position);
+          // Blow up where the caller's drone did, not wherever our copy got to.
+          if (typeof m.x === "number") d.root.position.set(m.x, m.y, m.z);
+          explosionFx({ kind: "lethal", glow: 0xffa23a, radius: DRONE_SPLASH_RADIUS }, d.root.position);
+          streakBlast(d.root.position, m.action === "expire" ? 0.6 : 0.9);
           d.dispose();
           streakEntities.delete(m.eid);
         }
@@ -979,10 +1272,15 @@ function applyRemoteStreak(m) {
       break;
 
     case "airstrike":
-      // Only the VFX: the caller already resolved the damage and every hit
-      // arrives as an ordinary `hit` message.
+      // Only the show: the caller resolves the damage and every hit arrives
+      // as an ordinary `hit` message. The run is a pure function of the
+      // mark, so every client flies the same jet and drops the same bombs.
       if (m.action === "mark") {
-        pendingStrikes.push({ x: m.x, z: m.z, t: m.delay || AIRSTRIKE_DELAY, owned: false });
+        const runs = Array.isArray(m.runs) ? m.runs : [{ x: m.x, z: m.z, delay: m.delay }];
+        for (const r of runs) {
+          if (typeof r?.x !== "number" || typeof r?.z !== "number") continue;
+          spawnAirstrike({ x: r.x, z: r.z, yaw: m.yaw || 0, owned: false, team: m.team, delay: r.delay || AIRSTRIKE_DELAY });
+        }
       }
       break;
 
@@ -2512,18 +2810,35 @@ let currentWeaponSlot = "primary";
 let streakHoldT = 0;
 let streakHoldUntilMark = false;
 
+/* The tablet used to swap with the gun in one frame both ways. Now ending a
+   hold only starts the tablet lowering (updateStreakView); the gun comes
+   back once it's down, rising from the sprint-lowered pose. */
+let streakLowering = false;
+
 function beginStreakHold(seconds = 0) {
   if (player.holding === "melee") return; // never interrupt a mid-swing
+  streakLowering = false;
   setHolding("streak");
   streakHoldT = seconds;
   streakHoldUntilMark = seconds <= 0;
 }
 
-function endStreakHold() {
+function endStreakHold(immediate = false) {
   streakHoldT = 0;
   streakHoldUntilMark = false;
-  if (player.holding === "streak") setHolding("gun");
+  if (player.holding !== "streak") { streakLowering = false; return; }
+  if (immediate || !player.alive) { finishStreakHold(); return; }
+  streakLowering = true;
 }
+
+function finishStreakHold() {
+  streakLowering = false;
+  streakRaiseT = 0;
+  if (player.holding === "streak") setHolding("gun");
+  weaponLowerT = 1;
+}
+
+function streakHoldActive() { return player.holding === "streak"; }
 
 /* One in the hand: which throwable is cooking, and how much fuse is left. */
 const cooking = { def: null, fuse: 0, slot: null };
@@ -2615,6 +2930,8 @@ document.addEventListener("pointerlockchange", () => {
 });
 document.addEventListener("mousemove", (e) => {
   if (!controls.isLocked) return;
+  // The strike tablet has the mouse: it steers the reticle, not the view.
+  if (strikeTablet?.isOpen) { strikeTablet.moveCursor(e.movementX, e.movementY); return; }
   mouseLookAt = performance.now();
   // Near a target, aim assist makes the mouse a little "sticky" (see
   // applyAimAssist) — the same slowdown the stick gets, just gentler.
@@ -2725,6 +3042,11 @@ function escapeHtml(s) {
 let mouseDown = false, adsHeld = false;
 renderer.domElement.addEventListener("mousedown", (e) => {
   if (!controls.isLocked) return;
+  if (strikeTablet?.isOpen) {
+    if (e.button === 0) strikeTablet.place();
+    else if (e.button === 2) strikeTablet.undo();
+    return;
+  }
   if (e.button === 0) mouseDown = true;
   if (e.button === 2) adsHeld = true;   // PF parity: right mouse aims
 });
@@ -3021,6 +3343,20 @@ function pollGamepad(dt) {
 
   const btn = (i) => !!gp.buttons[i]?.pressed;
   const pressedEdge = (i) => btn(i) && !gpPrev[i];
+
+  // The strike tablet takes the pad: either stick aims, A / R2 marks,
+  // B undoes (and cancels with nothing marked). Nothing else fires.
+  if (strikeTablet?.isOpen) {
+    strikeTablet.stick(gamepadState.moveX + lookX, gamepadState.moveY + lookY, dt);
+    gamepadState.lookDX = 0; gamepadState.lookDY = 0;
+    gamepadState.moveX = 0; gamepadState.moveY = 0;
+    if (pressedEdge(0) || pressedEdge(7)) strikeTablet.place();
+    if (pressedEdge(1)) strikeTablet.undo();
+    gamepadState.firing = false; gamepadState.jump = false; gamepadState.ads = false;
+    gpPrev = {};
+    for (let i = 0; i < gp.buttons.length; i++) gpPrev[i] = btn(i);
+    return;
+  }
 
   const firingNow = gp.buttons[7]?.value > 0.15 || btn(7);   // R2
   if (firingNow && !gamepadState.firing) { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); }
@@ -6533,7 +6869,8 @@ function updatePlayer(dt) {
   // The pause menu being open in a live-with-others match freezes this
   // client's own avatar the same way death or staging does, while net
   // updates, bots and remote players keep simulating around it.
-  const frozen = !player.alive || isStaging() || localPauseOnly;
+  // Heads-down on the strike tablet: you stand still, as in BO2.
+  const frozen = !player.alive || isStaging() || localPauseOnly || !!strikeTablet?.isOpen;
   if (frozen) { ix = 0; iz = 0; }
 
   // Q aims as well as right mouse.
@@ -6784,24 +7121,31 @@ const _meleeIdleEuler = new THREE.Euler();
    into a steady hip-height hold pose; sprinting lowers it the same way the
    gun/melee do. */
 let streakRaiseT = 0;
+let streakSprintT = 0;
 const STREAK_HOLD_POS = new THREE.Vector3(0.16, -0.14, -0.32);
 
 function updateStreakView(dt) {
   const mesh = activeStreakMesh;
   const held = player.holding === "streak";
   mesh.visible = held;
-  if (held) inspectArms.visible = false;
-  if (!held) { streakRaiseT = damp(streakRaiseT, 0, 10, dt); return; }
+  if (!held) { streakRaiseT = 0; streakSprintT = 0; return; }
+  inspectArms.visible = false;
+  if (!player.alive) { finishStreakHold(); mesh.visible = false; return; }
 
-  streakRaiseT = damp(streakRaiseT, 1, 8, dt);
-  const wantLower = move.sprinting ? 1 : 0;
-  const lowerT = wantLower; // no separate lag state needed — device is only up briefly
+  // Up quickly, down a touch quicker; once it's down, the gun comes back.
+  streakRaiseT = damp(streakRaiseT, streakLowering ? 0 : 1, streakLowering ? 13 : 9, dt);
+  if (streakLowering && streakRaiseT < 0.05) { finishStreakHold(); mesh.visible = false; return; }
+  streakSprintT = damp(streakSprintT, move.sprinting ? 1 : 0, 8, dt);
+  const e = streakRaiseT, off = 1 - e, s = streakSprintT;
+  // Rises from low right with the wrist turning the screen up to the eye,
+  // then settles with a slight idle drift.
+  const t = performance.now() / 1000;
   mesh.position.set(
-    STREAK_HOLD_POS.x,
-    STREAK_HOLD_POS.y - (1 - streakRaiseT) * 0.2 - lowerT * 0.12,
-    STREAK_HOLD_POS.z
+    STREAK_HOLD_POS.x + off * 0.1 + Math.sin(t * 1.3) * 0.003,
+    STREAK_HOLD_POS.y - off * 0.32 - s * 0.12 + Math.sin(t * 1.9) * 0.003,
+    STREAK_HOLD_POS.z + off * 0.06
   );
-  mesh.rotation.set(lowerT * 0.4, 0, lowerT * 0.25);
+  mesh.rotation.set(s * 0.4 + off * 0.9, -off * 0.5, s * 0.25 + off * 0.45);
 }
 
 let weaponLowerT = 0;
@@ -7582,11 +7926,11 @@ if (/[?&]tohooks=1/.test(location.search)) {
     readyStreaksOrdered, streakSlotIds, callStreakSlot, warmShaders, lightPool, pixelRatio: () => pixelRatio,
     updateStreakHud, enemiesRevealed, uavBucket, uavUntil, drawMinimap,
     lastHitRange: () => lastHitRange,
-    streakEntities, pendingStrikes, flyovers,
+    streakEntities, pendingStrikes, flyovers, strikeTablet: () => strikeTablet, openStrikeTablet,
     markingStreak: () => markingStreak, confirmMark, cancelMark, updateMarking,
     groundAimPoint, rollPackageReward, claimPackage, clearStreakEntities,
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,
-    nearestHostileTo, runAirstrike, nearbyPackage, updatePickupPrompt,
+    nearestHostileTo, strikeImpact, spawnAirstrike, pickDroneTarget, nearbyPackage, updatePickupPrompt,
     gamepadState, touchState, streakKeyLabel, keys, swapHold,
     animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,
     tryReload, currentWeapon, fireOnce, composer, setHolding,
