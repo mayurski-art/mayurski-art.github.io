@@ -26,8 +26,11 @@ const MAX_ZOOM = 2.4;
 const REST_YAW = -0.75;      // three-quarter view, muzzle to the left
 
 export class WeaponInspector {
-  constructor(canvas) {
+  /* `thumb`: a fixed-angle thumbnail (no drag/zoom) that frames the gun's
+     resting silhouette tightly instead of its whole bounding sphere. */
+  constructor(canvas, { thumb = false } = {}) {
     this.canvas = canvas;
+    this.thumb = thumb;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -65,7 +68,7 @@ export class WeaponInspector {
     this.width = 0;
     this.height = 0;
 
-    this.bindInput();
+    if (!thumb) this.bindInput();
   }
 
   bindInput() {
@@ -192,6 +195,10 @@ export class WeaponInspector {
     // and only the sphere is the same size from every angle.
     const half = Math.min(vHalf, hHalf);
     this.baseDist = (this.radius / Math.sin(half)) * 1.04;
+    if (this.thumb) {
+      // Only ever seen near the rest angle: fit height and length directly.
+      this.baseDist = Math.max(this.halfHeight / Math.tan(vHalf), this.halfWidth / Math.tan(hHalf)) * 1.15 + this.halfWidth * 0.8;
+    }
   }
 
   tick(dt) {

@@ -300,6 +300,7 @@ const loadout = new Loadout({
 }, (activeWeapon) => {
   refreshLobbyMap();
   charInspector?.setWeapon(loadout.resolved);
+  showSumGun();
   if (inspectorLive) {
     const gearPanel = document.getElementById("to-pfp-gear");
     inspector?.show(gearPanel && !gearPanel.hidden ? loadout.melee : activeWeapon);
@@ -1891,6 +1892,20 @@ const railButtons = [...document.querySelectorAll("#to-pf [data-panel]")];
 const gunView = document.getElementById("to-gun-view");
 const gunCanvas = document.getElementById("to-gun-canvas");
 const inspector = gunCanvas ? new WeaponInspector(gunCanvas) : null;
+
+// The Play tab's loadout card previews the primary too, rebuilt only when
+// the weapon, its attachments or its skin change.
+const sumCanvas = document.getElementById("to-pf-sum-canvas");
+const sumInspector = sumCanvas ? new WeaponInspector(sumCanvas, { thumb: true }) : null;
+let sumGunKey = null;
+function showSumGun() {
+  const def = loadout.resolved;
+  const key = def ? `${def.id}:${JSON.stringify(def.attachments || {})}` : null;
+  if (!sumInspector || !def || key === sumGunKey) return;
+  sumGunKey = key;
+  sumInspector.show(def);
+}
+showSumGun();
 let inspectorLive = false;
 
 const charView = document.getElementById("to-char-view");
@@ -6847,6 +6862,7 @@ function animate() {
     updateLobbyCamera(dt);
     if (inspectorLive && !els.title.hidden) inspector?.tick(dt);
     if (charInspectorLive && !els.title.hidden) charInspector?.tick(dt);
+    if (charInspectorLive && !els.title.hidden) sumInspector?.tick(dt);
   }
 
   composer.render();

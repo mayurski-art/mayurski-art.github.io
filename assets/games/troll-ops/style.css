@@ -1630,6 +1630,12 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   border: 1px solid var(--pf-line); border-radius: 14px;
 }
 .to-pf[data-panel="deploy"] .to-pf-right { display: flex; }
+.to-pf-sumgun {
+  height: clamp(80px, 17cqh, 150px); margin: -4px 0 -6px;
+  border-radius: 10px; overflow: hidden;
+  background: radial-gradient(70% 70% at 50% 50%, rgba(126,164,126,.16), rgba(8,12,10,.5));
+}
+.to-pf-sumgun canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
 .to-pf-card-head { display: flex; align-items: center; justify-content: space-between; }
 .to-pf-link {
   background: none; border: none; padding: 4px 0;
@@ -1950,6 +1956,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   .to-pf .to-lo-mode { gap: 3px; }
   .to-lo-modegroup:not(:first-child) { padding-top: 5px; }
   .to-pf { --pf-modes-bottom: 164px; }
+  .to-pf-sumgun { height: 70px; }
   .to-pf .to-lo-modeblurb, .to-pf-mapcard-blurb, .to-pf-gearcells { display: none; }
   .to-pf-center { top: 84px; bottom: 64px; }
   .to-pf { --pf-stage-top: 84px; --pf-stage-bottom: 64px; }
