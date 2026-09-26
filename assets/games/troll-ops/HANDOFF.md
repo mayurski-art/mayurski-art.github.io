@@ -7,7 +7,7 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-s9f` (game.js + style.css); bump it on any change to either.
+`?v=to-s9g` (game.js + style.css); bump it on any change to either.
 
 ## Session 9 task list (2026-09-25)
 
@@ -76,6 +76,25 @@ over 57, won't retry a tier that just failed, and remembers where it
 settled per device (`trollops:gfx-auto`). Tiers never change shadow type
 or light count (that would recompile every shader mid-match). Purely local.
 Hook: `__trollOps.gfx()`.
+
+## Inspect animations (session 10, on main)
+- **Long guns (4.2 s):** raised to screen centre side-on (left side, muzzle
+  left, whole gun fills ~72% of the width, aspect-aware), slow drift, a
+  wrist twist through muzzle-away to the right side, drift, back to the
+  hip. Keyframed in `GUN_INSPECT_KEYS` (Catmull-Rom via `sampleKeys`),
+  blended from the live hip pose by `applyGunInspect`. Sidearms keep the
+  old 2.2 s twirl.
+- **Showcase arms:** the block hands stay hidden (the user's rule); during
+  the gun inspect only, `inspectArms` draws sleeves from off-screen
+  shoulders to fists at the built hand anchors (support fist dropped under
+  the handguard so it doesn't cover the skin). Shoulders swap with
+  sin(yaw) so the arms never cross.
+- **Keyboard Warrior (3.6 s):** wind-up, toss with an end-over-end flip,
+  floats centre screen keys-out (esc left, RGB running), barrel-rolls down
+  into a catch. The hands are moved into the rig and sink off screen while
+  it's airborne; `restoreMeleeHands` puts them back whenever the toss
+  isn't playing (cancel, death, weapon swap, mesh rebuild).
+- Test hook: `__trollOps.setInspectFreeze(t)` pins the animation at t.
 
 ## Bugs to fix next (reported by the user 2026-09-25, not started)
 

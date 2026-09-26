@@ -35,7 +35,7 @@ import {
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
-import { GameMusic } from "./music.js?v=to-s9f";
+import { GameMusic } from "./music.js?v=to-s9g";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice } from "./streak-device.js";
@@ -2426,6 +2426,7 @@ let activeMeleeMesh = null;
 
 function setActiveMeleeMesh(def) {
   if (activeMeleeMesh) {
+    restoreMeleeHands(activeMeleeMesh);
     weaponRig.remove(activeMeleeMesh);
     activeMeleeMesh.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
@@ -6698,6 +6699,9 @@ function updateMeleeView(dt) {
 
   const held = player.holding === "melee";
   const swinging = melee.busy;
+  if (held || swinging) inspectArms.visible = false;   // the gun's showcase arms
+  // Tossed hands go back on the sword the moment the toss isn't playing.
+  if (!(inspectT > 0 && held && !swinging)) restoreMeleeHands(mesh);
   mesh.visible = held || swinging;
   if (activeWeaponMesh) activeWeaponMesh.visible = !held && !swinging;
   if (!mesh.visible) { meleeIdleT = 0; return; }
@@ -6761,13 +6765,9 @@ function updateMeleeView(dt) {
       meleeIdleT = 0;
     }
 
-    // Blade-showoff flourish (D-pad up / T while holding the sword) — see
-    // inspectMeleePose for the raise/turn/lower shape.
-    if (inspectT > 0) {
-      const { quat, pos } = inspectMeleePose();
-      mesh.position.add(pos);
-      mesh.quaternion.multiply(quat);
-    }
+    // Toss-and-float flourish (D-pad up / T while holding the sword), see
+    // applyMeleeInspect. Also lets tossed hands back onto the sword.
+    applyMeleeInspect(mesh);
   }
 }
 const MELEE_IDLE_PERIOD = 3.2;
@@ -6785,6 +6785,7 @@ function updateStreakView(dt) {
   const mesh = activeStreakMesh;
   const held = player.holding === "streak";
   mesh.visible = held;
+  if (held) inspectArms.visible = false;
   if (!held) { streakRaiseT = damp(streakRaiseT, 0, 10, dt); return; }
 
   streakRaiseT = damp(streakRaiseT, 1, 8, dt);
@@ -6833,32 +6834,46 @@ let bobSettleT = 0;
    sight picture instead of snapping there linearly. */
 let adsSmoothT = 0;
 
-/* Weapon inspect (D-pad up / T). Admires whatever's in hand for a couple of
-   seconds — pure flourish, cancelled by anything that matters (firing,
-   aiming, reloading, sprinting, swinging) so it can never cost you a fight.
-   Works for guns and melee alike; which flourish plays is picked by weapon
-   class (see INSPECT_ARCHETYPES) or, for melee, by inspectMeleePose below —
-   a rifle mag-check and a pistol twirl are different enough motions that one
-   shared sine-wave turn-over read as generic no matter which gun played it. */
-const INSPECT_TIME = 2.2;
+/* Weapon inspect (D-pad up / T). Admires whatever's in hand — pure
+   flourish, cancelled by anything that matters (firing, aiming, reloading,
+   sprinting, swinging) so it can never cost you a fight.
+
+   Long guns get a proper showcase: both hands bring the gun up to the
+   middle of the screen side-on (left side, muzzle left, the whole gun
+   visible edge to edge), a wrist twist turns it round to the right side,
+   then it goes back to the hip. Skins are authored so the right side reads
+   correctly too (see the sides formula in HANDOFF.md), so this is the
+   moment a skin gets seen in full. Sidearms keep their quick twirl. The
+   Keyboard Warrior gets tossed: it flips up out of the hands, floats in
+   front of the camera keys-out with the RGB running, then drops back into
+   the catch. */
+const GUN_INSPECT_TIME = 4.2;
+const SIDEARM_INSPECT_TIME = 2.2;
+const MELEE_INSPECT_TIME = 3.6;
 let inspectT = 0;
+let inspectDur = GUN_INSPECT_TIME;
+let inspectFreeze = null;   // test hook: pin the animation at one t
+
+function isLongGunInspect(w) { return w.def.cls !== "sidearm"; }
 
 function startInspect() {
   if (inspectT > 0 || !player.alive || gameState !== "playing" || move.busy) return;
   if (player.holding === "gun") {
     const w = currentWeapon();
     if (w.reloading || w.adsT > 0.05) return;
+    inspectDur = isLongGunInspect(w) ? GUN_INSPECT_TIME : SIDEARM_INSPECT_TIME;
   } else if (player.holding === "melee") {
     if (!player.melee || player.melee.busy) return;
+    inspectDur = MELEE_INSPECT_TIME;
   } else {
     return;
   }
-  inspectT = INSPECT_TIME;
+  inspectT = inspectDur;
   audio.reload();     // the same handling clicks, which is what an inspect is
 }
 
 function updateInspect(dt) {
-  if (inspectT <= 0) return;
+  if (inspectT <= 0) { inspectArms.visible = false; return; }
   // Anything that matters takes the weapon back immediately.
   if (!player.alive || move.sprinting || move.busy) { inspectT = 0; return; }
   if (player.holding === "gun") {
@@ -6870,17 +6885,72 @@ function updateInspect(dt) {
     inspectT = 0;
     return;
   }
+  if (inspectFreeze != null) { inspectT = Math.max(1e-4, (1 - inspectFreeze) * inspectDur); return; }
   inspectT = Math.max(0, inspectT - dt);
 }
 
+function inspectProgress() { return inspectT > 0 ? 1 - inspectT / inspectDur : 0; }
+
 // stage()/rise() now live in anim-curves.js, imported above.
 
+/* Keyframe track: rows of [t, v1, v2, ...] with t rising 0..1. Sampled as a
+   cubic Hermite with Catmull-Rom tangents, so the motion flows through the
+   keys instead of stopping on each one, and eases in/out at the two ends. */
+function sampleKeys(keys, t, out) {
+  let i = 0;
+  while (i < keys.length - 2 && t > keys[i + 1][0]) i++;
+  const k1 = keys[i], k2 = keys[i + 1];
+  const k0 = keys[i - 1], k3 = keys[i + 2];
+  const span = k2[0] - k1[0];
+  const u = Math.max(0, Math.min(1, (t - k1[0]) / span));
+  const u2 = u * u, u3 = u2 * u;
+  const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
+  for (let j = 1; j < k1.length; j++) {
+    const m1 = k0 ? (k2[j] - k0[j]) / (k2[0] - k0[0]) * span : 0;
+    const m2 = k3 ? (k3[j] - k1[j]) / (k3[0] - k1[0]) * span : 0;
+    out[j - 1] = h00 * k1[j] + h10 * m1 + h01 * k2[j] + h11 * m2;
+  }
+  return out;
+}
+
+/* Where the model's middle is and how long it is, in its own space, hands
+   left out. Measured once per built mesh: the pivot of every view model is
+   its grip, and a side-on gun spun about its grip swings half off screen. */
+function inspectBounds(mesh) {
+  if (mesh.userData.inspectBounds) return mesh.userData.inspectBounds;
+  const box = new THREE.Box3();
+  const tmp = new THREE.Box3();
+  const m = new THREE.Matrix4();
+  const inv = new THREE.Matrix4();
+  mesh.updateWorldMatrix(true, true);
+  inv.copy(mesh.matrixWorld).invert();
+  mesh.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    for (let p = o; p && p !== mesh; p = p.parent) if (p.userData.hand) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    m.multiplyMatrices(inv, o.matrixWorld);
+    tmp.copy(o.geometry.boundingBox).applyMatrix4(m);
+    box.union(tmp);
+  });
+  const size = box.getSize(new THREE.Vector3());
+  const bounds = { center: box.getCenter(new THREE.Vector3()), len: Math.max(size.x, size.y, size.z) };
+  mesh.userData.inspectBounds = bounds;
+  return bounds;
+}
+
+/* How far in front of the camera a model of this length has to sit to fill
+   `frac` of the screen width. Aspect-aware, so a 4:3 iPad and a 21:9
+   monitor both see the whole gun. */
+function inspectDistance(len, frac) {
+  const halfH = Math.tan(THREE.MathUtils.degToRad(weaponCamera.fov / 2));
+  const halfW = halfH * Math.max(0.5, weaponCamera.aspect);
+  return THREE.MathUtils.clamp((len / 2) / (frac * halfW), 0.42, 1.4);
+}
+
+/* Pistol: a one-handed showman's twirl around the trigger guard. Additive,
+   on top of the normal hip pose. */
 const _inspectPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
 function _zeroPose(p) { p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0; return p; }
-
-/* Pistol/sidearm: a one-handed showman's twirl around the trigger guard —
-   spins fast, flat roll, no up/down business since there's no mag well or
-   pump to look at. */
 function inspectTwirl(t, p) {
   const overallEase = Math.sin(Math.min(1, t / 0.1) * Math.PI / 2)
     * Math.sin(Math.min(1, (1 - t) / 0.15) * Math.PI / 2);
@@ -6893,102 +6963,304 @@ function inspectTwirl(t, p) {
   p.z = overallEase * 0.06;
 }
 
-/* Assault/carbine/pdw: quick tilt-and-flip mag glance, tightened from the
-   original one-size wobble — still brisk since these are the fast, light
-   guns. */
-function inspectMagGlance(t, p) {
-  const ease = Math.sin(Math.min(1, t / 0.16) * Math.PI / 2)
-    * Math.sin(Math.min(1, (1 - t) / 0.2) * Math.PI / 2);
-  const turn = Math.sin(t * Math.PI * 2);
-  p.x = ease * (-0.03 + turn * 0.02);
-  p.y = ease * 0.02;
-  p.z = ease * 0.05;
-  p.pitch = ease * (0.12 + Math.sin(t * Math.PI) * 0.07);
-  p.yaw = ease * turn * 0.34;
-  p.roll = ease * (0.26 + Math.sin(t * Math.PI * 2 + 1) * 0.2);
-}
-
-/* Battle rifle/sniper/LMG: heavier, slower guns get a deliberate bolt/feed
-   check — tilted hard to peer down at the action, a beat held there, then
-   levelled back out. One clean gesture instead of a spin; these are not
-   guns you flip. */
-function inspectHeavyCheck(t, p) {
-  const holdIn = rise(t, 0.08, 0.3) * (1 - rise(t, 0.68, 0.94));
-  const settle = Math.sin(Math.min(1, t / 0.12) * Math.PI / 2)
-    * Math.sin(Math.min(1, (1 - t) / 0.16) * Math.PI / 2);
-  p.pitch = holdIn * 0.5 + settle * 0.05;
-  p.yaw = holdIn * -0.16;
-  p.roll = holdIn * 0.12;
-  p.x = holdIn * -0.02;
-  p.y = holdIn * -0.05 + settle * 0.01;
-  p.z = holdIn * 0.03;
-}
-
-/* Shotgun: rack the pump mid-inspect — a short forward-back slide on the
-   fore-end timed to a beat in the middle of the flourish, themed to the one
-   thing a pump gun actually does that no other class here can. */
-function inspectPumpRack(t, p) {
-  const settle = Math.sin(Math.min(1, t / 0.14) * Math.PI / 2)
-    * Math.sin(Math.min(1, (1 - t) / 0.18) * Math.PI / 2);
-  const rackWindow = stage(t, 0.30, 0.62); // one pump-back-and-forward, mid-flourish
-  p.pitch = settle * 0.14 + rackWindow * -0.05;
-  p.yaw = settle * -0.12;
-  p.roll = settle * 0.1;
-  p.x = settle * -0.015;
-  p.y = settle * 0.02;
-  p.z = settle * 0.05 - rackWindow * 0.09; // fore-end slides toward the shoulder and back
-}
-
-const INSPECT_ARCHETYPES = {
-  sidearm: inspectTwirl,
-  assault: inspectMagGlance,
-  carbine: inspectMagGlance,
-  pdw: inspectMagGlance,
-  battle: inspectHeavyCheck,
-  sniper: inspectHeavyCheck,
-  lmg: inspectHeavyCheck,
-  shotgun: inspectPumpRack,
-};
-
 function inspectPose() {
   const p = _inspectPose;
   if (inspectT <= 0 || player.holding !== "gun") return _zeroPose(p);
-  const t = 1 - inspectT / INSPECT_TIME; // 0..1 through the animation
   const w = currentWeapon();
-  const fn = INSPECT_ARCHETYPES[w.def.cls] || inspectMagGlance;
-  fn(t, p);
+  if (isLongGunInspect(w)) return _zeroPose(p);   // applyGunInspect owns it
+  inspectTwirl(inspectProgress(), p);
   return p;
 }
 
-/* Melee inspect: the Keyboard Warrior gets raised to eye height, turned to
-   show off the "U MAD BRO?" crossguard decal and let the keycap blade catch
-   the light, then lowered back to guard — a blade-showoff spin themed to it
-   being a sword, not the gun turn-over reused verbatim. Returns a quaternion
-   offset (multiplied onto the rest pose) plus a small position lift, since
-   the melee view model is driven by quaternion, not the gun's Euler angles. */
-const _inspectMeleeQuat = new THREE.Quaternion();
-const _inspectMeleeEuler = new THREE.Euler();
-const _inspectMeleePos = new THREE.Vector3();
-function inspectMeleePose() {
-  if (inspectT <= 0 || player.holding !== "melee") {
-    _inspectMeleeQuat.identity();
-    _inspectMeleePos.set(0, 0, 0);
-    return { quat: _inspectMeleeQuat, pos: _inspectMeleePos };
-  }
-  const t = 1 - inspectT / INSPECT_TIME;
-  // Raise (0-0.22), hold up while it turns to show the decal (0.22-0.72),
-  // lower back to guard (0.72-1) — one clean showoff arc, not a loop.
-  const raise = rise(t, 0.0, 0.22) * (1 - rise(t, 0.78, 1.0));
-  const turn = Math.sin(Math.max(0, Math.min(1, (t - 0.22) / 0.5)) * Math.PI * 2) * rise(t, 0.22, 0.3) * (1 - rise(t, 0.7, 0.78));
+/* Long-gun showcase keys: [t, yaw°, twist°, tilt°, x, y, dz].
+   yaw   +90 = muzzle left, left side to camera; -90 = muzzle right.
+   twist roll about the barrel; toward the camera shows the top of the gun.
+   tilt  muzzle up, in the screen plane.
+   x/y   where the middle of the gun sits (camera space); dz pushes it back.
+   Beats: bring up (0-.16), admire the left side with a slow drift (.16-.44),
+   wrist twist through muzzle-away (.44-.62), admire the right side
+   (.62-.86), back to the hip (.86-1). */
+const GUN_INSPECT_KEYS = [
+  [0.00,  58,  26, -10,  0.07, -0.13, 0.08],
+  [0.16,  84,  15,   4,  0.00, -0.035, 0],
+  [0.30,  79,   9,   6, -0.012, -0.028, 0],
+  [0.44,  87,  17,   2,  0.004, -0.04, 0],
+  [0.53,  28, -30,  -2,  0.00, -0.015, 0.07],
+  [0.62, -84, -15,   4,  0.00, -0.035, 0],
+  [0.74, -79,  -9,   6,  0.012, -0.028, 0],
+  [0.86, -87, -17,   2, -0.004, -0.04, 0],
+  [1.00, -48, -26, -10,  0.09, -0.14, 0.08],
+];
+const _gunKey = new Array(6).fill(0);
+const _qTilt = new THREE.Quaternion();
+const _qYaw = new THREE.Quaternion();
+const _qTwist = new THREE.Quaternion();
+const _qInspect = new THREE.Quaternion();
+const _vInspect = new THREE.Vector3();
+const _vCenter = new THREE.Vector3();
+const AXIS_X = new THREE.Vector3(1, 0, 0);
+const AXIS_Y = new THREE.Vector3(0, 1, 0);
+const AXIS_Z = new THREE.Vector3(0, 0, 1);
 
-  _inspectMeleeEuler.set(
-    raise * -0.55,                 // tip up toward eye level
-    turn * 0.85,                   // slow turn to show both faces
-    raise * 0.18 + turn * -0.12,   // slight roll so the flat catches light as it turns
-  );
-  _inspectMeleeQuat.setFromEuler(_inspectMeleeEuler);
-  _inspectMeleePos.set(-0.06 * raise, 0.14 * raise, 0.1 * raise);
-  return { quat: _inspectMeleeQuat, pos: _inspectMeleePos };
+/* Runs after the normal gun pose is set, and blends from it to the
+   showcase pose, so sway/bob hand over smoothly at both ends. */
+function applyGunInspect(mesh, w) {
+  const long = inspectT > 0 && player.holding === "gun" && isLongGunInspect(w);
+  const t = long ? inspectProgress() : 0;
+  const blend = long ? rise(t, 0, 0.14) * (1 - rise(t, 0.86, 1)) : 0;
+  inspectArms.visible = blend > 0.12;
+  if (blend <= 0) return;
+
+  const [yaw, twist, tilt, x, y, dz] = sampleKeys(GUN_INSPECT_KEYS, t, _gunKey);
+  const yawR = THREE.MathUtils.degToRad(yaw);
+  // Muzzle-up is a different screen rotation depending on which way the
+  // muzzle points; sin(yaw) carries it smoothly through the turn.
+  _qTilt.setFromAxisAngle(AXIS_Z, -THREE.MathUtils.degToRad(tilt) * Math.sin(yawR));
+  _qYaw.setFromAxisAngle(AXIS_Y, yawR);
+  _qTwist.setFromAxisAngle(AXIS_Z, THREE.MathUtils.degToRad(twist));
+  _qInspect.copy(_qTilt).multiply(_qYaw).multiply(_qTwist);
+
+  const { center, len } = inspectBounds(mesh);
+  const d = inspectDistance(len, 0.72) + dz;
+  _vCenter.copy(center).applyQuaternion(_qInspect);
+  _vInspect.set(x, y, -d).sub(_vCenter);
+
+  mesh.position.lerp(_vInspect, blend);
+  mesh.quaternion.slerp(_qInspect, blend);
+  if (inspectArms.visible) poseInspectArms(mesh, Math.sin(yawR));
+}
+
+/* Both hands on the gun for the showcase. The block hands built onto every
+   gun stay hidden (user call: the gun reads clean day to day, and they sat
+   on the skin art); these are real arms instead, a sleeve from a shoulder
+   below the screen to a fist on the grip and one under the handguard, so
+   whichever side of the gun is showing, the arms come from the player. The
+   built hands are still used, invisibly, as the anchors for where the
+   fists go. */
+/* Shoulders sit below the screen. Which one feeds which fist follows the
+   gun: muzzle left, the trigger hand is on the right of the screen and gets
+   the right arm; muzzle right, it swaps, so the arms never cross into an X.
+   `side` is sin(yaw), so the swap sweeps smoothly through the twist. */
+const INSPECT_SHOULDER_X = 0.28;
+const _shoulder = new THREE.Vector3();
+const INSPECT_SUPPORT_DROP = 0.095;  // under the handguard, not on top of the art
+const inspectArms = (() => {
+  const root = new THREE.Group();
+  root.visible = false;
+  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x31372b, roughness: 0.92, metalness: 0 });
+  const cuffMat = new THREE.MeshStandardMaterial({ color: 0x23271f, roughness: 0.9, metalness: 0 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd98a5f, roughness: 0.65, metalness: 0.02 });
+  const knuckleMat = new THREE.MeshStandardMaterial({ color: 0xb56e49, roughness: 0.65, metalness: 0.02 });
+  // Unit cylinders standing on y=0, stretched between two points per frame.
+  const unitCyl = (rTop, rBottom, mat) => {
+    const g = new THREE.CylinderGeometry(rTop, rBottom, 1, 10);
+    g.translate(0, 0.5, 0);
+    return new THREE.Mesh(g, mat);
+  };
+  const box = (w, h, d, mat, x = 0, y = 0, z = 0) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    return m;
+  };
+  const arms = [];
+  for (let i = 0; i < 2; i++) {
+    const fist = new THREE.Group();
+    if (i === 0) {
+      // Trigger hand: wraps a near-vertical pistol grip (grip runs along
+      // the fist's Y), knuckles forward toward the muzzle (-Z).
+      fist.add(box(0.064, 0.078, 0.056, skinMat, 0, -0.004, 0.006));
+      for (let k = 0; k < 4; k++) fist.add(box(0.068, 0.017, 0.02, knuckleMat, 0, 0.026 - k * 0.02, -0.026));
+      fist.add(box(0.02, 0.05, 0.03, skinMat, 0.03, 0.03, -0.012));   // thumb over the top
+    } else {
+      // Support hand: cups the handguard from underneath, fingers curling
+      // up both sides so a finger row shows whichever side faces camera.
+      fist.add(box(0.062, 0.03, 0.1, skinMat, 0, -0.012, 0));
+      for (const sx of [-1, 1]) {
+        for (let k = 0; k < 4; k++) fist.add(box(0.012, 0.034, 0.02, knuckleMat, sx * 0.035, 0.012, -0.036 + k * 0.024));
+      }
+    }
+    const wrist = unitCyl(0.022, 0.026, skinMat);
+    const cuff = unitCyl(0.037, 0.035, cuffMat);
+    const sleeve = unitCyl(0.044, 0.032, sleeveMat);
+    root.add(fist, wrist, cuff, sleeve);
+    arms.push({ fist, wrist, cuff, sleeve });
+  }
+  root.userData.arms = arms;
+  return root;
+})();
+weaponRig.add(inspectArms);
+
+const _armFrom = new THREE.Vector3();
+const _armTo = new THREE.Vector3();
+const _armDir = new THREE.Vector3();
+const _armUp = new THREE.Vector3(0, 1, 0);
+function stretchBetween(obj, from, to) {
+  _armDir.subVectors(to, from);
+  const len = _armDir.length();
+  obj.position.copy(from);
+  obj.quaternion.setFromUnitVectors(_armUp, _armDir.multiplyScalar(1 / Math.max(1e-5, len)));
+  obj.scale.set(1, len, 1);
+}
+
+function poseInspectArms(mesh, side) {
+  mesh.updateMatrixWorld(true);
+  const anchors = mesh.children.filter((o) => o.userData.hand);
+  const arms = inspectArms.userData.arms;
+  for (let i = 0; i < arms.length; i++) {
+    const arm = arms[i];
+    const anchor = anchors[i];
+    arm.fist.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = !!anchor;
+    if (!anchor) continue;
+    anchor.getWorldPosition(arm.fist.position);
+    anchor.getWorldQuaternion(arm.fist.quaternion);
+    if (i === 1) {
+      // Down from the rail-top anchor to underneath, in the gun's own up.
+      _armDir.set(0, -INSPECT_SUPPORT_DROP, 0).applyQuaternion(mesh.quaternion);
+      arm.fist.position.add(_armDir);
+    }
+    const shoulder = _shoulder.set((i === 0 ? 1 : -1) * INSPECT_SHOULDER_X * side, -0.51, 0.11);
+    // fist -> wrist -> cuff -> sleeve, all along the line to the shoulder.
+    _armDir.subVectors(shoulder, arm.fist.position).normalize();
+    _armFrom.copy(arm.fist.position).addScaledVector(_armDir, 0.03);
+    _armTo.copy(arm.fist.position).addScaledVector(_armDir, 0.075);
+    stretchBetween(arm.wrist, _armFrom, _armTo);
+    _armFrom.copy(_armTo);
+    _armTo.copy(arm.fist.position).addScaledVector(_armDir, 0.1);
+    stretchBetween(arm.cuff, _armFrom, _armTo);
+    stretchBetween(arm.sleeve, _armTo, shoulder);
+  }
+}
+
+/* Keyboard Warrior toss. Beats (t):
+     0.00-0.10  wind-up dip
+     0.10-0.34  toss: leaves the hands with one end-over-end flip, rising
+                a touch past the hover point
+     0.34-0.70  float: hangs in front of the camera keys-out, esc end on
+                the left like a real keyboard, slow sway and bob
+     0.70-0.86  drop: a barrel roll on the way down into the hands
+     0.86-1.00  catch: weight lands, a dip that settles
+   The hands stay behind: they're lifted off the sword into the rig while
+   it's airborne, sink out of view, and come back up for the catch. */
+const MELEE_T_TOSS = 0.10, MELEE_T_FLOAT = 0.34, MELEE_T_DROP = 0.70, MELEE_T_CATCH = 0.86;
+// Keys face local +Y, blade runs down local -Z, the F-row is the -X edge.
+// Presented: blade to the right, keys at the camera, F-row on top.
+const MELEE_FLOAT_QUAT = new THREE.Quaternion().setFromRotationMatrix(
+  new THREE.Matrix4().makeBasis(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(-1, 0, 0)));
+const _qRest = new THREE.Quaternion();
+const _vRest = new THREE.Vector3();
+const _vRestCenter = new THREE.Vector3();
+const _vFloatCenter = new THREE.Vector3();
+const _qFloat = new THREE.Quaternion();
+const _qSpin = new THREE.Quaternion();
+const _qWobble = new THREE.Quaternion();
+
+function meleeHands(mesh) {
+  if (!mesh.userData.inspectHandList) {
+    mesh.userData.inspectHandList = mesh.children.filter((o) => o.userData.hand).map((o) => ({
+      obj: o, pos: o.position.clone(), quat: o.quaternion.clone(), rigPos: new THREE.Vector3(),
+    }));
+  }
+  return mesh.userData.inspectHandList;
+}
+
+/* Put tossed-off hands back on the sword exactly where they were built. */
+function restoreMeleeHands(mesh) {
+  if (!mesh?.userData.handsTossed) return;
+  for (const h of meleeHands(mesh)) {
+    mesh.add(h.obj);
+    h.obj.position.copy(h.pos);
+    h.obj.quaternion.copy(h.quat);
+  }
+  mesh.userData.handsTossed = false;
+}
+
+function applyMeleeInspect(mesh) {
+  const t = inspectProgress();
+  const airborne = inspectT > 0 && t >= MELEE_T_TOSS + 0.02 && t < MELEE_T_CATCH;
+  if (!airborne) restoreMeleeHands(mesh);
+  if (inspectT <= 0) return;
+
+  // The rest pose this frame (idle pose + walk bob), and its middle.
+  _vRest.copy(mesh.position);
+  _qRest.copy(mesh.quaternion);
+  const { center, len } = inspectBounds(mesh);
+  _vRestCenter.copy(center).applyQuaternion(_qRest).add(_vRest);
+
+  const d = inspectDistance(len, 0.66);
+  const floatT = Math.max(0, t - MELEE_T_FLOAT) * inspectDur;
+  _qWobble.setFromEuler(new THREE.Euler(
+    Math.sin(floatT * 1.9) * 0.07 - 0.12,     // lean the keys up toward the light a touch
+    Math.sin(floatT * 1.3) * 0.26,
+    Math.sin(floatT * 1.7 + 0.8) * 0.05));
+  _qFloat.copy(_qWobble).multiply(MELEE_FLOAT_QUAT);
+  _vFloatCenter.set(0, 0.015 + Math.sin(floatT * 2.2) * 0.012, -d);
+
+  if (t < MELEE_T_TOSS) {
+    // Wind-up: dip and cock back before the throw.
+    const k = Math.sin((t / MELEE_T_TOSS) * Math.PI * 0.5);
+    mesh.position.y -= 0.045 * k;
+    mesh.position.z += 0.03 * k;
+    _qSpin.setFromAxisAngle(AXIS_X, 0.25 * k);
+    mesh.quaternion.multiply(_qSpin);
+  } else if (t < MELEE_T_FLOAT) {
+    const s = (t - MELEE_T_TOSS) / (MELEE_T_FLOAT - MELEE_T_TOSS);
+    const e = 1 - Math.pow(1 - s, 3);   // thrown: fast off the hands, slowing at the top
+    _qInspect.copy(_qRest).slerp(_qFloat, smoothstep(s));
+    _qSpin.setFromAxisAngle(AXIS_X, -Math.PI * 2 * (1 - e));
+    _qInspect.multiply(_qSpin);
+    _vInspect.copy(_vRestCenter).lerp(_vFloatCenter, e);
+    _vInspect.y += Math.sin(s * Math.PI) * 0.09;   // rises past the hover point, settles back
+    placeByCenter(mesh, _qInspect, _vInspect, center);
+  } else if (t < MELEE_T_DROP) {
+    placeByCenter(mesh, _qFloat, _vFloatCenter, center);
+  } else if (t < MELEE_T_CATCH) {
+    const s = (t - MELEE_T_DROP) / (MELEE_T_CATCH - MELEE_T_DROP);
+    const e = s * s * (1.6 - 0.6 * s);   // falls: slow off the hover, fast into the hands
+    _qInspect.copy(_qFloat).slerp(_qRest, smoothstep(s));
+    _qSpin.setFromAxisAngle(AXIS_Z, Math.PI * 2 * e);
+    _qInspect.multiply(_qSpin);
+    _vInspect.copy(_vFloatCenter).lerp(_vRestCenter, e);
+    placeByCenter(mesh, _qInspect, _vInspect, center);
+  } else {
+    // Catch: the weight lands in the hands and settles.
+    const s = (t - MELEE_T_CATCH) / (1 - MELEE_T_CATCH);
+    const hit = Math.sin(Math.min(1, s * 2.2) * Math.PI) * (1 - s * 0.6);
+    mesh.position.y -= 0.05 * hit;
+    mesh.position.z += 0.02 * hit;
+    _qSpin.setFromAxisAngle(AXIS_X, -0.18 * hit);
+    mesh.quaternion.multiply(_qSpin);
+  }
+
+  if (airborne) {
+    const hands = meleeHands(mesh);
+    if (!mesh.userData.handsTossed) {
+      // Leave the hands where they were at the throw, in rig space.
+      for (const h of hands) {
+        mesh.add(h.obj);
+        h.obj.position.copy(h.pos);
+        h.obj.quaternion.copy(h.quat);
+        h.obj.position.applyQuaternion(_qRest).add(_vRest);
+        h.obj.quaternion.premultiply(_qRest);
+        h.rigPos.copy(h.obj.position);
+        weaponRig.add(h.obj);
+      }
+      mesh.userData.handsTossed = true;
+    }
+    // Sink out of view while it's up, rise back for the catch.
+    const down = rise(t, MELEE_T_TOSS, MELEE_T_FLOAT) * (1 - rise(t, MELEE_T_DROP - 0.04, MELEE_T_CATCH));
+    for (const h of hands) {
+      h.obj.visible = mesh.visible;
+      h.obj.position.copy(h.rigPos);
+      h.obj.position.y -= 0.24 * down;
+      h.obj.position.z += 0.05 * down;
+    }
+  }
+}
+
+function placeByCenter(mesh, quat, centerPos, localCenter) {
+  mesh.quaternion.copy(quat);
+  _vCenter.copy(localCenter).applyQuaternion(quat);
+  mesh.position.copy(centerPos).sub(_vCenter);
 }
 
 /* Reload animation (DESIGN-ARMS.md Phase 3): the weapon dips down and tilts
@@ -7233,6 +7505,7 @@ function updateWeaponView(dt) {
     w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + insp.yaw + rl.yaw,
     (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + sprintRoll + insp.roll + rl.roll + w.viewKickRoll
   );
+  applyGunInspect(mesh, w);
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
   fadeOpticGlass(mesh, adsSmoothT);
@@ -7288,7 +7561,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     startCook, releaseCook, cancelCook, applyRemoteNade, blindT: () => blindT, cooking,
     empT: () => empT,
     empPlayer, flashPlayer, explosionFx, fireShake,
-    startInspect, inspectT: () => inspectT, inspectPose,
+    startInspect, inspectT: () => inspectT, inspectPose, setInspectFreeze: (v) => { inspectFreeze = v; },
     showHitmarker, damageNumbers: () => damageNumbers, noteHitDirection, hitDirs,
     setMode: (id) => { modeId = id; },
     THREE,

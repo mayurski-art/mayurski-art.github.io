@@ -240,6 +240,7 @@ export function buildMeleeMesh(def, includeHands = true) {
     const sword = buildKeyboardSword(m, mat, group);
     if (includeHands) {
       const kbHand = buildGripHand(MELEE_HAND_SCALE);
+      kbHand.userData.hand = true;   // tossed off and caught back by the inspect
       kbHand.position.copy(GRIP_ANCHOR);
       sword.add(kbHand);
       // Two-handed grip: the keyboard sword is swung with both hands, the
@@ -249,6 +250,7 @@ export function buildMeleeMesh(def, includeHands = true) {
       // rifle's handguard gives one.
       const SUPPORT_ANCHOR = GRIP_ANCHOR.clone().add(new THREE.Vector3(0, 0, 0.11));
       const supportHand = buildSupportHand(MELEE_HAND_SCALE * 0.85);
+      supportHand.userData.hand = true;
       supportHand.position.copy(SUPPORT_ANCHOR);
       supportHand.rotation.z = Math.PI / 2;
       sword.add(supportHand);
