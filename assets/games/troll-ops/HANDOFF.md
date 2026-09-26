@@ -66,7 +66,98 @@ tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 - Not verified on real hardware: the user's HP laptop, a real phone/iPad
   (headless + emulation only). Ask how it felt.
 
-## Session 11: scorestreak + streak animation overhaul (2026-09-25, IN PROGRESS)
+## NEXT: Green Candles redesign (user asked 2026-09-25, NOT started)
+
+User: "take your time in redesigning the green candles weapon. I believe we
+already have this weapon but it's a very terrible version. And also make sure
+that the mechanism of the weapon is pristine as well." Asked to park it here
+until the streak work is done. Ask before starting; do a design pass first
+(see the design-doc-before-big-builds rule).
+
+Existing version: `weapons.js` id `greencandle` (rank 28, sight none),
+model in `weapon-model.js` (~line 78: "side tank ('Green Candles'), fed by a
+hose forward into the horn"); its cell glow used to be a PointLight, now
+stripped (`stripLights`, never add runtime lights: light-pool.js).
+
+Reference art the user sent (two images, in chat only, not on disk: ask
+them to drop copies into assets/images if you need the files):
+1. The trollface character in a black "problem?" tee with a brown backpack,
+   holding the gun up two-handed like a Ghostbusters thrower, blue sky.
+2. A clean product render of the same gun standing upright, grey background.
+The gun, from the render:
+- Main body: a tall cone/bottle shape, matte dark grey, widening to a
+  rounded, domed base (a separate base ring with a round button/port on
+  its side).
+- A brass/gold banded mid-section (vertical panel seams) between the grey
+  base and a dark grey collar near the top.
+- Muzzle: a glowing lime-green translucent cylinder (a "candle") sitting in
+  the collar, with a thinner green nub/wick on top. This is the emitter.
+- Side tank: a smaller grey cylinder clamped to the body's left side on a
+  bracket, "GREEN CANDLES" printed vertically on it, a glowing green
+  vertical window slot (fill gauge) down its length, metal end caps.
+- A glowing green ribbed hose arcs from the tank's top into the body just
+  under the gold section.
+- Red and blue wires loop from the tank's bottom cap into the base.
+- Details: a small screw, a round dial/indicator with a green light on the
+  lower body, a panel seam/latch on the right side.
+"Mechanism pristine": the firing behaviour, recoil, reload (tank swap?),
+glow feedback (gauge drains with ammo, candle pulses on fire) all need to
+be clean, not just the model. Check how it fires today before proposing.
+
+## Session 11: scorestreak + streak animation overhaul (2026-09-25)
+
+### Status: done, verified headless, pushed to main (see git log)
+BO2-accurate rework of every streak, on the user's ask ("all scorestreaks
+need to be very accurate to call of duty black ops 2, including care
+packages", "not so rushed", "lightning strike: I want to see the tablet and
+choosing target spots, then the explosions"):
+- **Lightning Strike** (`streak-tablet.js`, new): a rugged tablet slides up
+  with an orthographic overhead render of the live map (render target ->
+  canvas, gamma by hand, fog off for the shot), blips, you-arrow. Mark 3
+  spots (mouse moves a reticle while pointer-locked, click marks, right
+  click undoes, Esc cancels; pad sticks/A/B; touch taps). Player frozen
+  while it's up. Nothing spent until the 3rd mark. Then `AirstrikeRun`
+  per mark (strikeDelay(i) = 4 + 1.7 i s): red smoke, a jet on one
+  constant-speed line, 5 bombs released and falling on real arcs, blasts in
+  game time. Wire: `mark` with `runs: [{x,z,delay}]` + yaw/team (old single
+  x/z still accepted).
+- **Care package**: hold a smoke marker (viewmodel `buildMarkerDevice`),
+  fire/its key throws it (`MarkerCanister`, bounces, settles, red smoke).
+  Wire `marker` (throw origin/dir, copies fly it for show) then `drop` at
+  the rest point (replaces the copy). Heli brakes into a hover over the
+  smoke (s = v(t - h tanh(t/h))), crate slung on a cable, cut at 6.5 s,
+  free-falls (no chute in BO2), slams down, crushes anyone under it
+  (owner decides, 400 dmg, killfeed "Care Package"). Floating icon of the
+  contents (`streakIconTexture`). Capture: owner 0.8 s, teammate 1.6 s,
+  enemy steal 3.5 s ("Stealing the care package…").
+- **Hunter-Killer**: comes out in the hand (viewmodel = the real drone
+  model), spins up, tossed at 0.6 s (`launchPendingDrone`; target picked
+  at the toss, LOS-preferred). Climbs (cut short under a roof), then
+  hunts: straight at the chest when visible, else follows the bots' flow
+  field (`droneRoute`, nav.js, per floor height). Swept AABB collision
+  (`sweepWorld` gives the face normal) so it slides along walls with 0.35
+  m clearance; hitting cover within 6 m of the target detonates. Retargets
+  when the target dies (`retarget` msg). Splash via areaDamage (spares
+  teammates, hurts the caller). Red LOCKED bracket on the target
+  (`.to-hk-lock`). Copies fly the same steering; target can be the local
+  player ("HUNTER-KILLER INBOUND — MOVE"). Test over 6 maps, 73 launches:
+  0 clips, 67 hits, 4 cover blasts near the target, 2 expired (Depot).
+- **Gunship**: heading from the path derivative (was tail-first), muzzle
+  and searchlight on the nose (-z), flies in and out from off the map
+  (HELI_ENTER/EXIT), fires only with line of sight, cosmetic tracers on
+  every client (copies can target the local player).
+- **UAV**: remote-press beat, plane circles high for the whole duration.
+- **Blasts** (`BlastFx`): fireball (additive core + opaque body), smoke
+  column, shock ring; no lights.
+- **Tablet/device**: raise and lower animate both ways; the gun comes back
+  from the lowered pose. Pre-existing bug fixed: updateMeleeView re-showed
+  the gun every frame, so it sat beside any streak device.
+
+Test scripts live in the session scratchpad (not the repo): streak-shots,
+strike, cp, hk, hklogic (drone pathing over maps), remote (every streak
+wire message against one client). Worth moving into tools/ if reused.
+
+### Original bug list (all fixed above)
 
 User: "really fix the scorestreaks and scorestreak animations, they are quite
 buggy, the biggest issue for now". Filmed every streak headless (scratchpad
