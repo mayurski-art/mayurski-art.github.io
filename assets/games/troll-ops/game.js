@@ -308,7 +308,8 @@ const loadout = new Loadout({
 
 // -------------------- scorestreaks --------------------
 
-const streakPicker = new StreakPicker({ picker: els.ssPicker, count: els.ssCount });
+const streakPicker = new StreakPicker({ picker: els.ssPicker, count: els.ssCount }, null,
+  (id) => { if (activeLobbyPanel === "streaks") inspector?.showStreak(id); });
 
 /* The local player's score meter and banked calls. Peers' meters aren't
    modelled: only the client that earned a streak calls it, and it tells
@@ -1962,6 +1963,9 @@ function showLobbyPanel(name) {
   } else if (name === "gear") {
     mountGunView(name);
     inspector?.show(loadout.melee);
+  } else if (name === "streaks") {
+    mountGunView(name);
+    inspector?.showStreak(streakPicker.selected.at(-1) || "uav");
   } else {
     inspectorLive = false;
     if (gunView) gunView.style.display = "none";

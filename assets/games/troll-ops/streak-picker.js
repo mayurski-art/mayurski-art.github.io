@@ -17,9 +17,11 @@ function save(state) {
 }
 
 export class StreakPicker {
-  constructor(els, onChange) {
+  constructor(els, onChange, onFocus) {
     this.els = els;
     this.onChange = onChange || (() => {});
+    // Hover/focus/click on a card: the lobby shows that streak's model.
+    this.onFocus = onFocus || (() => {});
 
     const saved = load();
     const wanted = Array.isArray(saved.selected) ? saved.selected : [];
@@ -27,6 +29,7 @@ export class StreakPicker {
     // reset — so filter before falling back to the cheapest unlocked ones.
     this.selected = wanted.filter((id) => STREAK_DEFS[id] && streakUnlocked(id)).slice(0, LOADOUT_SIZE);
     if (!this.selected.length) this.selected = this.defaults();
+    this.sortSelected();
 
     this.build();
     this.render();
@@ -36,7 +39,14 @@ export class StreakPicker {
     return STREAK_IDS.filter((id) => streakUnlocked(id)).slice(0, LOADOUT_SIZE);
   }
 
+  /* Cheapest first, whatever order they were picked in: that's the order
+     the slots are numbered and the match earns them. */
+  sortSelected() {
+    this.selected.sort((a, b) => STREAK_DEFS[a].cost - STREAK_DEFS[b].cost);
+  }
+
   persist() {
+    this.sortSelected();
     save({ selected: this.selected });
     this.onChange(this.selected);
   }
@@ -67,7 +77,9 @@ export class StreakPicker {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "to-ss-card";
-      b.disabled = !unlocked;
+      // Locked cards stay hoverable (a disabled button swallows pointer
+      // events), so you can still preview what you're working toward.
+      if (!unlocked) b.setAttribute("aria-disabled", "true");
       b.classList.toggle("is-locked", !unlocked);
       b.innerHTML = `<i class="to-ss-icon">${streakIconSvg(id)}</i><strong></strong><span></span><em></em>`;
       b.querySelector("strong").textContent = def.name;
@@ -75,7 +87,12 @@ export class StreakPicker {
       b.querySelector("em").textContent = def.blurb;
       b.setAttribute("aria-label",
         `${def.name} — ${unlocked ? `${def.cost} score. ${def.blurb}` : `locked until level ${def.rank}`}`);
-      b.addEventListener("click", () => this.toggle(id));
+      b.addEventListener("click", () => {
+        this.onFocus(id);
+        if (unlocked) this.toggle(id);
+      });
+      b.addEventListener("pointerenter", () => this.onFocus(id));
+      b.addEventListener("focus", () => this.onFocus(id));
       wrap.appendChild(b);
       this.buttons[id] = b;
     }

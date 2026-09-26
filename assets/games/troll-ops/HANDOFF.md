@@ -9,6 +9,19 @@ push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 `?v=to-s9h` (game.js + style.css); bump it on any change to either.
 
+## Reminders from the user (2026-09-26)
+
+- **More songs to add.** The user has more tracks for the in-game radio.
+  Ask them for the files, drop the mp3s in `music/` and add each to
+  `TRACKS` in `music.js` (title, artist, src). Radio shuffles by default now
+  (storage key `trollops:radio-v2`).
+- The game is now called **Troll Forces** (display name only; the URL,
+  folder, storage keys and ids still say troll-ops on purpose).
+- Still open from this session: an in-match **emote wheel** (radial menu;
+  the lobby dance loop was removed in its favour, `DANCES` in character.js
+  are the emotes to reuse, needs a net field so others see it), and a
+  **weapon preview in the main-menu loadout card** on the Play tab.
+
 ## Session 9 task list (2026-09-25)
 
 **Skins are ON HOLD** (user: no more skins for now). Work these instead:

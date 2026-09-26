@@ -13,6 +13,13 @@
 import * as THREE from "three";
 import { buildWeaponMesh } from "./weapon-model.js";
 import { buildMeleeMesh } from "./gear.js";
+import { loadModel } from "./battlefield-props.js";
+
+/* The glb each scorestreak flies in the match (see streak-entities.js). */
+const STREAK_MODELS = {
+  uav: "recon-drone", carepackage: "care-package", drone: "hunter-drone",
+  airstrike: "strike-jet", helicopter: "helicopter",
+};
 
 const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 2.4;
@@ -127,9 +134,34 @@ export class WeaponInspector {
     this.zoomTarget = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
   }
 
-  /* Swap in a weapon and frame it: the model is centred on its own bounding
-     box so a pistol and an LMG both sit dead centre and fill the canvas. */
+  /* Swap in a weapon and frame it. */
   show(def) {
+    this.pending = null;
+    const mesh = def.model?.kind ? buildMeleeMesh(def, false) : buildWeaponMesh(def);
+    // The first-person hands built onto a gun belong to the viewmodel.
+    mesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
+    this.setMesh(mesh);
+  }
+
+  /* A scorestreak's model. Loaded async (and cached by loadModel); a newer
+     show()/showStreak() while it loads wins. */
+  showStreak(id) {
+    const name = STREAK_MODELS[id];
+    if (!name || this.streakId === id) return;
+    const token = this.pending = {};
+    loadModel(name).then((obj) => {
+      if (this.pending !== token) return;
+      // Clones share the cached geometry: never dispose it on swap.
+      obj.traverse((o) => { if (o.geometry) o.geometry.userData.shared = true; });
+      this.setMesh(obj);
+      this.streakId = id;
+    }).catch(() => {});
+  }
+
+  /* Centre a mesh on its own bounding box and frame it, so a pistol, an LMG
+     and a helicopter all sit dead centre and fill the stage. */
+  setMesh(mesh) {
+    this.streakId = null;
     if (this.mesh) {
       this.rig.remove(this.mesh);
       this.mesh.traverse((o) => {
@@ -138,19 +170,13 @@ export class WeaponInspector {
       });
     }
 
-    this.mesh = def.model?.kind ? buildMeleeMesh(def, false) : buildWeaponMesh(def);
-    // The first-person hands built onto a gun belong to the viewmodel.
-    this.mesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
+    this.mesh = mesh;
+    this.mesh.position.set(0, 0, 0);
     const box = new THREE.Box3().setFromObject(this.mesh);
     const centre = box.getCenter(new THREE.Vector3());
     this.mesh.position.sub(centre);
     this.rig.add(this.mesh);
 
-    // A weapon is long and thin, so fitting its bounding SPHERE to the
-    // vertical field pushed the camera miles back and left the gun a speck.
-    // Fit the silhouette instead: height against the vertical field, and the
-    // longest horizontal axis (whichever faces us as it turns) against the
-    // horizontal one.
     const size = box.getSize(new THREE.Vector3());
     this.halfHeight = Math.max(0.02, size.y / 2);
     this.halfWidth = Math.max(0.02, Math.max(size.x, size.z) / 2);

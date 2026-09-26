@@ -1238,7 +1238,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 .to-ss-icon svg { width: 100%; height: 100%; }
 .to-ss-card.is-locked .to-ss-icon { color: #9aa596; }
-.to-ss-card:hover:not(:disabled) { border-color: rgba(127,224,102,.4); }
+.to-ss-card:hover:not(.is-locked) { border-color: rgba(127,224,102,.4); }
 .to-ss-card.is-active {
   border-color: #7fe066; background: rgba(127,224,102,.09);
 }
