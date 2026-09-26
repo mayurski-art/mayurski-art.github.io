@@ -4,7 +4,7 @@ import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapon
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js";
 import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js";
-import { getRank, getXp, isUnlocked, rankUnlocked, rankProgress, MAX_RANK, XP_PER_RANK } from "./progression.js";
+import { getRank, isUnlocked, rankUnlocked, rankProgress, rankXpText } from "./progression.js";
 import { MAPS, MAP_IDS, mapSchematic } from "./maps.js";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js";
 
@@ -472,10 +472,10 @@ export class Loadout {
         b.querySelector("strong").textContent = def.name;
         b.querySelector("span").textContent = unlocked
           ? (slot === "melee" ? `${def.damage} dmg` : `Carry ${def.carried}`)
-          : `Rank ${def.rank}`;
+          : `LV ${def.rank}`;
         b.title = def.blurb;
         b.setAttribute("aria-label",
-          `${label}: ${def.name} — ${unlocked ? def.blurb : `locked until rank ${def.rank}`}`);
+          `${label}: ${def.name} — ${unlocked ? def.blurb : `locked until level ${def.rank}`}`);
         b.addEventListener("click", () => {
           this[prop] = id;
           this.persist();
@@ -541,8 +541,8 @@ export class Loadout {
       b.classList.toggle("is-locked", !unlocked);
       b.disabled = !unlocked;
       b.setAttribute("aria-pressed", String(id === this.activeId));
-      b.innerHTML = `<strong>${w.name}</strong><span>${unlocked ? `${w.damage} dmg · ${w.rpm} rpm` : `Unlocks at rank ${w.rank}`}</span>`;
-      if (!unlocked) b.setAttribute("aria-label", `${w.name}, locked, unlocks at rank ${w.rank}`);
+      b.innerHTML = `<strong>${w.name}</strong><span>${unlocked ? `${w.damage} dmg · ${w.rpm} rpm` : `Unlocks at level ${w.rank}`}</span>`;
+      if (!unlocked) b.setAttribute("aria-label", `${w.name}, locked, unlocks at level ${w.rank}`);
       b.addEventListener("click", () => {
         this.activeId = id;
         this.persist();
@@ -570,7 +570,7 @@ export class Loadout {
 
     // --- rank strip
     if (this.els.rank) {
-      this.els.rank.textContent = rank >= MAX_RANK ? `Rank ${MAX_RANK} · maxed` : `Rank ${rank}`;
+      this.els.rank.textContent = `Level ${rank}`;
       this.els.rankFill.style.width = `${Math.round(rankProgress() * 100)}%`;
     }
 
@@ -628,16 +628,14 @@ export class Loadout {
     }
 
     if (sum.xp) {
-      sum.xp.textContent = rank >= MAX_RANK
-        ? `${getXp()} XP`
-        : `${getXp() % XP_PER_RANK} / ${XP_PER_RANK} XP`;
+      sum.xp.textContent = rankXpText();
     }
 
     if (sum.next) {
       const next = Object.entries(WEAPON_DEFS)
         .filter(([id]) => !isUnlocked(id))
         .sort((a, b) => a[1].rank - b[1].rank)[0];
-      sum.next.textContent = next ? `${next[1].name} · rank ${next[1].rank}` : "Everything unlocked";
+      sum.next.textContent = next ? `${next[1].name} · LV ${next[1].rank}` : "Everything unlocked";
     }
   }
 }

@@ -25,7 +25,7 @@ import { KillstreakUi } from "./killstreak-ui.js";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js";
 import { Achievements } from "./achievements.js";
-import { addXp, xpForRun, xpForMatch, XP } from "./progression.js";
+import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js";
@@ -2046,10 +2046,14 @@ function renderCallsign() {
   if (el) el.textContent = `Signed in as ${playerName()}`;
 }
 
-// The profile arrives after the accounts script signs in, so redraw then.
+// The profile arrives after the accounts script signs in, so redraw then --
+// the level shown is the account level, and any XP queued while signed out
+// gets credited now.
 window.addEventListener("trollrunner:auth-changed", () => {
   renderCallsign();
   renderLobbyRoster();
+  loadout.render();
+  void syncXp()?.then(() => loadout.render());
 });
 
 function playerName() {
@@ -6006,13 +6010,13 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts
     : xpForRun({ kills: player.kills, wave: player.wave });
   const { rankedUp, rank } = addXp(gained);
   els.goXp.textContent = `+${gained.toLocaleString()} XP`;
-  els.goRank.textContent = rankedUp ? `Rank up — now rank ${rank}` : "";
+  els.goRank.textContent = rankedUp ? `Level up — now LV ${rank}` : "";
   els.goRank.hidden = !rankedUp;
   loadout.render();
 
-  // Weapon rank stays local — it's a per-game unlock track, and the account's
-  // XP is server-guarded with its own cooldowns and caps. Filing the run is
-  // what the account API is actually for; it no-ops for guests.
+  // addXp above already queued this XP for the account (troll_ops_xp).
+  // Filing the run is separate: it feeds the leaderboard and the flat
+  // game_run/high_score awards, and it no-ops for guests.
   window.TrollrunnerAccounts?.reportGameResult?.("troll-ops", player.wave * 10000 + player.kills * 10, {
     mode: modeId,
     kills: player.kills,
