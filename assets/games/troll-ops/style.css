@@ -1346,6 +1346,8 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 .to-truths-link:hover, .to-truths-link:focus-visible { background: #7fe066; color: #0b1009; }
 .to-truths-link:focus-visible { outline: 2px solid #7fe066; outline-offset: 2px; }
+/* Pre-launch placeholder: not a link yet, so no hover fill. */
+.to-ca-soon, .to-ca-soon:hover { cursor: default; background: rgba(6,9,7,.6); color: #7fe066; }
 #to-title[hidden] ~ .to-truths-link { display: none; }
 
 @media (max-width: 760px) {
