@@ -29,7 +29,8 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js";
-import { buildHumanoid, poseHumanoid, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom } from "./character.js";
+import { buildHumanoid, poseHumanoid, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
@@ -1546,6 +1547,17 @@ function toggleThirdPerson() {
   settings.thirdPerson = !settings.thirdPerson;
   saveSettings();
 }
+
+/* Emotes: hold H for the wheel (emote-wheel.js), release on one to play
+   it. The camera pulls out to third person for it, like any locker-room
+   emote; moving, firing, dying or the clock running out ends it. The index
+   rides the state packet (`em`) so everyone else sees it too. */
+const EMOTE_SECONDS = 8;
+let emote = null;   // { idx, t } while the local player is emoting
+const emoteWheel = new EmoteWheel(els.hud, (i) => {
+  if (gameState === "playing" && player.alive) emote = { idx: i, t: 0 };
+});
+function stopEmote() { emote = null; }
 
 function bindRange(id, key, outId, suffix = "") {
   const el = document.getElementById(id);
@@ -3151,6 +3163,8 @@ document.addEventListener("mousemove", (e) => {
   if (!controls.isLocked) return;
   // The strike tablet has the mouse: it steers the reticle, not the view.
   if (strikeTablet?.isOpen) { strikeTablet.moveCursor(e.movementX, e.movementY); return; }
+  // The emote wheel has the mouse while it's open: the view holds still.
+  if (emoteWheel.isOpen) { emoteWheel.move(e.movementX, e.movementY); return; }
   mouseLookAt = performance.now();
   // Near a target, aim assist makes the mouse a little "sticky" (see
   // applyAimAssist) — the same slowdown the stick gets, just gentler.
@@ -3174,6 +3188,7 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "KeyT" && !e.repeat) startInspect();
     if (e.code === "KeyV" && !e.repeat) swingMelee();
     if (e.code === "KeyB" && !e.repeat) toggleThirdPerson();
+    if (e.code === "KeyH" && !e.repeat && gameState === "playing" && player.alive) emoteWheel.open();
     if (e.code === "Digit1") switchWeapon("primary");
     if (e.code === "Digit2") switchWeapon("secondary");
     if (e.code === "Digit3") setHolding("melee");
@@ -3199,10 +3214,11 @@ window.addEventListener("keydown", (e) => {
     els.scoreboard.hidden = false;
   }
 });
-window.addEventListener("blur", () => cancelCook());
+window.addEventListener("blur", () => { cancelCook(); emoteWheel.close(true); });
 window.addEventListener("keyup", (e) => {
   keys.delete(e.code);
   if (e.code === "Tab") els.scoreboard.hidden = true;
+  if (e.code === "KeyH") emoteWheel.close();
   if ((e.code === "KeyG" && cooking.slot === "lethal")
     || (e.code === "KeyF" && cooking.slot === "tactical")) releaseCook();
 });
@@ -4730,6 +4746,7 @@ function netSnapshot() {
   _netSnapshot.kills = player.kills;
   _netSnapshot.deaths = player.deaths;
   _netSnapshot.assists = player.assists;
+  _netSnapshot.emote = emote ? emote.idx + 1 : 0;
   return _netSnapshot;
 }
 
@@ -6870,7 +6887,7 @@ function animate() {
   // The FP viewmodel (gun+arms) only makes sense in first person — the gun
   // is already visible on the third-person rig itself, so rendering both
   // would double up the weapon on screen.
-  if (gameState === "playing" && !settings.thirdPerson) {
+  if (gameState === "playing" && !settings.thirdPerson && !emote) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
@@ -6901,6 +6918,23 @@ const _tpForward = new THREE.Vector3();
 
 /* Places `camera` behind `pivot` along the look direction (yaw/pitch),
    pulled in by raycastWorld so it never clips through a wall/floor. */
+/* While emoting the camera swings round in front, a little above, and
+   looks back at the operator's chest — the locker-room angle — pulled in
+   if a wall is in the way. `pivot` is the eye position. */
+function updateEmoteCamera(pivot, yaw) {
+  _euler.set(0, yaw, 0);
+  _tpForward.set(0, 0, -1).applyEuler(_euler);
+  _tpPivot.copy(pivot);
+  _tpPivot.y -= 0.45;
+  _tpDir.copy(_tpForward).multiplyScalar(2.7);
+  _tpDir.y += 0.5;
+  const wantLen = _tpDir.length();
+  _tpDir.normalize();
+  const safeLen = Math.max(0.6, raycastWorld(colliders, _tpPivot, _tpDir, wantLen) - 0.15);
+  camera.position.copy(_tpPivot).addScaledVector(_tpDir, safeLen);
+  camera.lookAt(_tpPivot);
+}
+
 function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
   const dist = TP_HIP_DIST + (TP_ADS_DIST - TP_HIP_DIST) * adsT;
   const side = TP_HIP_SIDE + (TP_ADS_SIDE - TP_HIP_SIDE) * adsT;
@@ -6981,6 +7015,18 @@ function updateLocalRig(dt) {
     : player.holding === "gun" ? "gun" : "none";
   const def = currentWeapon()?.def;
   syncLocalRigHeld(hold, def);
+
+  if (emoteWheel.isOpen && (!player.alive || gameState !== "playing")) emoteWheel.close(true);
+  if (emote) {
+    emote.t += dt;
+    if (move.moving || !player.alive || gameState !== "playing" || emote.t > EMOTE_SECONDS) stopEmote();
+  }
+  if (localHeld.mesh) localHeld.mesh.visible = !emote;
+  els.hud.classList.toggle("is-emoting", !!emote);
+  if (emote) {
+    DANCES[EMOTES[emote.idx].dance](localRig, emote.t);
+    return;
+  }
 
   poseHumanoid(localRig, {
     phase: localPhase,
@@ -7175,9 +7221,10 @@ function updatePlayer(dt) {
   const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
     + fireShake.p + (Math.random() - 0.5) * buzz;
 
-  if (settings.thirdPerson) {
+  if (settings.thirdPerson || emote) {
     localRig.root.visible = true;
-    updateThirdPersonCamera(player.pos, viewYaw, viewPitch, w.adsT);
+    if (emote) updateEmoteCamera(player.pos, look.yaw);
+    else updateThirdPersonCamera(player.pos, viewYaw, viewPitch, w.adsT);
   } else {
     localRig.root.visible = false;
     localRig.parts.head.visible = true;
@@ -7247,6 +7294,7 @@ function updatePlayer(dt) {
 
 let fireEdgeTrigger = false;
 window.addEventListener("mousedown", (e) => {
+  if (emote && (e.button === 0 || e.button === 2)) stopEmote();
   if (e.button === 0) { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); }
 });
 els.touchFire.addEventListener("touchstart", () => { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); });
@@ -8162,7 +8210,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
     renderer, scene,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
-    settings, localRig, toggleThirdPerson, charInspector, inspector,
+    settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, emote: () => emote,
     closePauseMenu,
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,

@@ -2250,3 +2250,38 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
   55%, 100% { transform: rotate(-90deg); }
 }
 @media (prefers-reduced-motion: reduce) { .to-rotate-phone { animation: none; transform: rotate(-90deg); } }
+
+/* ---- Emote wheel (hold H in a match, see emote-wheel.js) ---- */
+.to-emote-wheel {
+  position: absolute; left: 50%; top: 50%; z-index: 30;
+  width: 300px; height: 300px; margin: -150px 0 0 -150px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(10,14,12,.55) 0 34%, rgba(10,14,12,.8) 35% 100%);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  pointer-events: auto;
+}
+.to-emote-wheel[hidden] { display: none; }
+.is-emoting .to-crosshair { display: none; }
+.to-emote-slice {
+  position: absolute; width: 96px; height: 40px; margin: -20px 0 0 -48px;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06); color: #dfe6da;
+  font-family: "Oswald", sans-serif; font-weight: 600; font-size: 16px; letter-spacing: .04em;
+  cursor: pointer; transition: background .1s, border-color .1s, transform .1s;
+}
+.to-emote-slice[data-slot="0"] { left: 50%; top: 17%; }
+.to-emote-slice[data-slot="1"] { left: 83%; top: 50%; }
+.to-emote-slice[data-slot="2"] { left: 50%; top: 83%; }
+.to-emote-slice[data-slot="3"] { left: 17%; top: 50%; }
+.to-emote-slice:hover, .to-emote-slice.is-picked {
+  background: rgba(127,224,102,.22); border-color: #7fe066; color: #fff; transform: scale(1.06);
+}
+.to-emote-hub {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  pointer-events: none; text-align: center;
+}
+.to-emote-hub b { font-family: "Oswald", sans-serif; font-size: 18px; color: #eaf5e4; letter-spacing: .06em; text-transform: uppercase; }
+.to-emote-hub span { font-family: "DM Mono", monospace; font-size: 10px; color: #9aa596; }
+@media (prefers-reduced-motion: reduce) { .to-emote-slice { transition: none; } }

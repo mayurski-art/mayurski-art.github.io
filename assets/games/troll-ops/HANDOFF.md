@@ -17,10 +17,13 @@ tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
   (storage key `trollops:radio-v2`).
 - The game is now called **Troll Forces** (display name only; the URL,
   folder, storage keys and ids still say troll-ops on purpose).
-- Still open from this session: an in-match **emote wheel** (radial menu;
-  the lobby dance loop was removed in its favour, `DANCES` in character.js
-  are the emotes to reuse, needs a net field so others see it), and a
-  **weapon preview in the main-menu loadout card** on the Play tab.
+- Done 2026-09-26: **emote wheel** (hold H, emote-wheel.js; emotes are
+  `DANCES` from character.js, index rides the state packet as `em`,
+  front-facing emote camera; moving/firing/8 s ends it). Not yet on the
+  touch HUD, and remote emotes aren't covered by the sync test. Also done:
+  two-handed gun hold (chest `gunMount` + arm IK, needs `gripPos` and
+  `supportHandPos` on a weapon mesh), weapon preview stage right of
+  Loadout/Customize/Gear/Scorestreaks, primary thumbnail in the Play card.
 
 ## Session 9 task list (2026-09-25)
 

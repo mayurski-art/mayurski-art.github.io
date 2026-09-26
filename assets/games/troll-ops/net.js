@@ -208,6 +208,7 @@ export class Net {
         p.kills = m.k | 0;
         p.deaths = m.d | 0;
         p.assists = m.as | 0;
+        p.emote = m.em | 0;   // 1-based emote index, 0 = none
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv });
         if (p.snaps.length > 12) p.snaps.shift();
@@ -308,6 +309,7 @@ export class Net {
         hp: Math.round(local.hp), a: local.alive ? 1 : 0,
         w: local.weapon, sk: local.skin || undefined, tm: this.team, n: this.name, k: local.kills | 0,
         d: local.deaths | 0, as: local.assists | 0,
+        em: local.emote || undefined,
       });
     }
     const now = performance.now();

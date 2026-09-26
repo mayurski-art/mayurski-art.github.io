@@ -6,7 +6,8 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME } from "./character.js";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES } from "./character.js";
+import { EMOTES } from "./emote-wheel.js";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js";
 import { WEAPON_DEFS } from "./weapons.js";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js";
@@ -199,8 +200,11 @@ export class RemotePlayer {
     // wire sends its id as the weapon.
     const meleeHeld = !!MELEE_DEFS[this.peer.weapon] && this.ensureMelee(this.peer.weapon);
     const sword = swinging || meleeHeld;
-    if (this.meleeMesh) this.meleeMesh.visible = sword;
-    if (this.weaponMesh) this.weaponMesh.visible = !sword;
+    // Emoting (the peer's `em`, see emote-wheel.js): weapons away.
+    const em = this.alive ? (this.peer.emote | 0) : 0;
+    this.emoteT = em ? (this.emoteT || 0) + dt : 0;
+    if (this.meleeMesh) this.meleeMesh.visible = sword && !em;
+    if (this.weaponMesh) this.weaponMesh.visible = !sword && !em;
 
     // Just died: hold the last known pose and play a collapse instead of
     // instantly popping out of existence. Respawning (alive flips back to
@@ -301,7 +305,9 @@ export class RemotePlayer {
       t: Math.min(1, this.melee.t / this.melee.total),
       kind: this.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
     } : null;
-    poseHumanoid(this.rig, {
+    if (em && EMOTES[em - 1]) {
+      DANCES[EMOTES[em - 1].dance](this.rig, this.emoteT);
+    } else poseHumanoid(this.rig, {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
       hold: sword ? "melee" : "gun", swing,
