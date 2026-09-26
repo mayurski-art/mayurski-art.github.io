@@ -1,4 +1,4 @@
-// Troll Ops — viewmodel animation debug lab (DESIGN-ARMS.md Phase 0).
+// Troll Forces — viewmodel animation debug lab (DESIGN-ARMS.md Phase 0).
 //
 // Dev-only readout + manual triggers for tuning the layered viewmodel
 // animation system without playing a full match to reach each state. Gated

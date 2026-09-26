@@ -1,4 +1,4 @@
-// Troll Ops — generic battlefield cover objects for the PvP maps.
+// Troll Forces — generic battlefield cover objects for the PvP maps.
 //
 // These five are map-agnostic: any PvP map can drop them in for detailed
 // cover instead of a plain api.box() crate. Geometry is authored in Blender

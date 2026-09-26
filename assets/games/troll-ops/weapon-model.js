@@ -1,4 +1,4 @@
-// Troll Ops — procedural weapon view models.
+// Troll Forces — procedural weapon view models.
 //
 // One builder reads each weapon's `model` spec instead of the old hardcoded
 // if-chain, so a bullpup PDW, a drum-fed LMG and a snub pistol all come out of

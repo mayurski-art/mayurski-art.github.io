@@ -1,4 +1,4 @@
-// Troll Ops — the Problem 416, modelled to wear a skin.
+// Troll Forces — the Problem 416, modelled to wear a skin.
 //
 // The generic builder in weapon-model.js makes every gun from boxes. A box
 // can hold a flat colour, but banner art wrapped round one stretches across

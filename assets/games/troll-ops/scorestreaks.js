@@ -1,4 +1,4 @@
-// Troll Ops — scorestreaks, Black Ops 2 style.
+// Troll Forces — scorestreaks, Black Ops 2 style.
 //
 // Two things live here and they are easy to confuse, so: `progression.js`
 // owns XP, which is permanent and unlocks weapons across sessions. This file

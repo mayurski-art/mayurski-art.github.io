@@ -1,4 +1,4 @@
-// Troll Ops — Zombies: the round director, the horde AI and the points economy.
+// Troll Forces — Zombies: the round director, the horde AI and the points economy.
 //
 // Rounds scale the way the genre expects: health climbs flat early then
 // compounds, counts grow to a cap, and a round only ends when the last one

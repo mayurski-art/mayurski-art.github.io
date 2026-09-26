@@ -1,4 +1,4 @@
-// Troll Ops — lobby operator (character locker) inspector.
+// Troll Forces — lobby operator (character locker) inspector.
 //
 // Fortnite's locker shows your equipped skin turning in 3D before you
 // drop in; this is the same idea for the trollface operator. It reuses

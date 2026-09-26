@@ -1,4 +1,4 @@
-// Troll Ops — killstreak badges and multikill callouts.
+// Troll Forces — killstreak badges and multikill callouts.
 //
 // This is presentation, not scoring: game.js already counts kills and owns
 // `player.streak`. What's new here is the *time-window* counter, which is a

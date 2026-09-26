@@ -1,4 +1,4 @@
-// Troll Ops — Customize card icons.
+// Troll Forces — Customize card icons.
 //
 // Small side-on line drawings of each attachment, so a card reads as a part
 // before you read its name. Inline SVG rather than image files: they're a few

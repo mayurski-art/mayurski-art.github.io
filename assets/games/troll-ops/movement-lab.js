@@ -1,4 +1,4 @@
-// Troll Ops — Movement Lab.
+// Troll Forces — Movement Lab.
 //
 // An empty test arena for tuning the real player movement/animation rig
 // (movement.js + character.js, unmodified) outside the full game. Live

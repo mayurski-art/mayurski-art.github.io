@@ -1,4 +1,4 @@
-// Troll Ops — in-game radio.
+// Troll Forces — in-game radio.
 //
 // A separate playlist from Troll Radio (assets/js/troll-radio-tracks.js):
 // this one is local mp3s, not Spotify embeds, so it can autoplay under the

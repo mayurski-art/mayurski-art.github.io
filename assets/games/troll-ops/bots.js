@@ -1,4 +1,4 @@
-// Troll Ops — PvP bots.
+// Troll Forces — PvP bots.
 //
 // Lobbies will often have one or two real people, and an empty match is a
 // mode nobody plays. Bots fill the room out.

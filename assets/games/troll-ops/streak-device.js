@@ -1,4 +1,4 @@
-// Troll Ops — first-person streak-call device (DESIGN-ARMS.md Phase 5).
+// Troll Forces — first-person streak-call device (DESIGN-ARMS.md Phase 5).
 //
 // A small wrist/tablet unit the player raises when calling in a UAV or
 // lining up an airstrike marker, built the same box()/cyl() way as

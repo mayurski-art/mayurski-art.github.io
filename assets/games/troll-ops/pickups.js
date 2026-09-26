@@ -1,4 +1,4 @@
-// Troll Ops — dropped-weapon pickups.
+// Troll Forces — dropped-weapon pickups.
 //
 // Every PvP mode except Gun Game and One in the Chamber lets you scavenge:
 // die holding a gun and it falls where you stood, sits for a few seconds,

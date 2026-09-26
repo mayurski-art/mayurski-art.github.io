@@ -1,4 +1,4 @@
-// Troll Ops — melee weapons and throwables.
+// Troll Forces — melee weapons and throwables.
 //
 // Two systems that share a file because they share a slot in the player's
 // head: the thing you swing when someone is already inside your barrel, and

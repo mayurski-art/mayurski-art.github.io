@@ -1,4 +1,4 @@
-// Troll Ops — "The Pentagrin", the zombies map.
+// Troll Forces — "The Pentagrin", the zombies map.
 //
 // A three-floor tribute to "Five": the boardroom you start in at the top, the
 // war room with its DEFCON boards and sunken situation pit in the middle, the

@@ -1,4 +1,4 @@
-// Troll Ops — procedural viewmodel hand.
+// Troll Forces — procedural viewmodel hand.
 //
 // Two low-poly fist+forearm builders, built the same box()/cyl() way as
 // weapon-model.js, meant to be added as a CHILD of the weapon/melee mesh at

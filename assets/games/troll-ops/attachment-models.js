@@ -1,4 +1,4 @@
-// Troll Ops — attachment geometry.
+// Troll Forces — attachment geometry.
 //
 // Every optic, muzzle device and underbarrel gets its own build function here
 // rather than the three generic shapes weapon-model.js used to draw from

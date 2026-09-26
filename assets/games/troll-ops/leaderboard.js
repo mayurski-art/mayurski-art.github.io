@@ -1,4 +1,4 @@
-/* Troll Ops — weekly leaderboard config.
+/* Troll Forces — weekly leaderboard config.
    Uses the shared arcade engine (assets/js/troll-leaderboard.js); see
    assets/games/LEADERBOARD.md. Prizes are display-only mock — the engine
    enforces live:false. game.js reports one event per run: solo Ops runs carry
@@ -9,7 +9,7 @@
 
   LB.register({
     gameId: "troll-ops",
-    gameName: "Troll Ops",
+    gameName: "Troll Forces",
 
     blank: () => ({
       score: 0, bestWave: 0, bestKills: 0, runs: 0,
@@ -67,6 +67,6 @@
       };
     },
 
-    prizes: { poolLabel: "Mock prize pool · Troll Ops", pool: "100 USDC + 1M $TROLL" },
+    prizes: { poolLabel: "Mock prize pool · Troll Forces", pool: "100 USDC + 1M $TROLL" },
   });
 })();

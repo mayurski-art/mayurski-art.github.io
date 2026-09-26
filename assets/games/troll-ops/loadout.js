@@ -1,4 +1,4 @@
-// Troll Ops — loadout screen: class → weapon → attachments.
+// Troll Forces — loadout screen: class → weapon → attachments.
 
 import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js";
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js";

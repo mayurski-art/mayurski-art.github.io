@@ -1,4 +1,4 @@
-// Troll Ops — synthesized audio.
+// Troll Forces — synthesized audio.
 //
 // Everything is generated with Web Audio rather than loaded as files: no
 // assets to ship, nothing new for the CSP to allow, and per-weapon variation
