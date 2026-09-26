@@ -7,7 +7,7 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-s9d` (game.js + style.css); bump it on any change to either.
+`?v=to-s9e` (game.js + style.css); bump it on any change to either.
 
 ## Session 9 task list (2026-09-25)
 

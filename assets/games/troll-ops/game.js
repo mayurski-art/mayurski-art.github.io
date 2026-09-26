@@ -35,7 +35,7 @@ import {
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
-import { GameMusic } from "./music.js";
+import { GameMusic } from "./music.js?v=to-s9e";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice } from "./streak-device.js";

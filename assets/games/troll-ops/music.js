@@ -11,6 +11,7 @@ const TRACKS = [
   { title: "Holy Water", artist: "Yeat", src: "assets/games/troll-ops/music/holy-water.mp3" },
   { title: "Sexy Magic", artist: "CA7RIEL & Paco Amoroso, PinkPantheress, Fred again..", src: "assets/games/troll-ops/music/sexy-magic.mp3" },
   { title: "Mermaid", artist: "Train", src: "assets/games/troll-ops/music/mermaid.mp3" },
+  { title: "RHYNO", artist: "Travis Scott", src: "assets/games/troll-ops/music/rhyno.mp3" },
 ];
 
 const STATE_KEY = "trollops:radio";
