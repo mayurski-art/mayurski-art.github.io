@@ -35,7 +35,7 @@ import {
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
-import { GameMusic } from "./music.js?v=to-s9g";
+import { GameMusic } from "./music.js?v=to-s9h";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice } from "./streak-device.js";
@@ -1006,6 +1006,10 @@ function applyRemoteStreak(m) {
 // -------------------- mode + networking --------------------
 
 let modeId = "ops";
+// Nothing is ticked on the Play tab until the player picks a mode (user
+// call): Deploy waits for that choice. modeId keeps a real value underneath
+// so everything that reads currentMode() before then still works.
+let modePicked = false;
 let matchesPlayed = 0;   // seeds the map-vote shortlist, so it changes each round
 const teamScores = { phantom: 0, ghost: 0 };
 const bots = new BotManager();
@@ -1368,7 +1372,7 @@ function buildModeButtons() {
       name.textContent = m.name;
       b.appendChild(name);
       b.insertAdjacentHTML("beforeend", TICK_SVG);
-      b.addEventListener("click", () => { modeId = id; renderModes(); });
+      b.addEventListener("click", () => { modeId = id; modePicked = true; renderModes(); });
       els.loMode.appendChild(b);
     }
   }
@@ -1378,11 +1382,12 @@ function buildModeButtons() {
 function renderModes() {
   for (const b of els.loMode.children) {
     if (!b.dataset.mode) continue;
-    const on = b.dataset.mode === modeId;
+    const on = modePicked && b.dataset.mode === modeId;
     b.classList.toggle("is-active", on);
     b.setAttribute("aria-pressed", String(on));
   }
-  els.loModeBlurb.textContent = currentMode().blurb;
+  els.loModeBlurb.textContent = modePicked ? currentMode().blurb : "Pick a mode to deploy.";
+  els.startBtn.disabled = !modePicked;
   // On phones the list is one sideways-scrolling row of chips; keep the
   // picked one in view.
   const act = els.loMode.querySelector(".to-lo-modebtn.is-active");
@@ -1393,9 +1398,9 @@ function renderModes() {
       els.loMode.scrollLeft += r.left - box.left - 16;
     }
   }
-  els.loPvp.hidden = !isPvp();
+  els.loPvp.hidden = !modePicked || !isPvp();
   const soloNote = document.getElementById("to-pf-solo-note");
-  if (soloNote) soloNote.hidden = isPvp();
+  if (soloNote) soloNote.hidden = !modePicked || isPvp();
 
   // Scorestreaks are versus-only, and Gun Game / One in the Chamber opt out
   // (see modes.js noStreaks). The picker stays reachable either way so the
@@ -7563,7 +7568,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     empPlayer, flashPlayer, explosionFx, fireShake,
     startInspect, inspectT: () => inspectT, inspectPose, setInspectFreeze: (v) => { inspectFreeze = v; },
     showHitmarker, damageNumbers: () => damageNumbers, noteHitDirection, hitDirs,
-    setMode: (id) => { modeId = id; },
+    setMode: (id) => { modeId = id; modePicked = true; },
     THREE,
     activeMeleeMesh: () => activeMeleeMesh,
     activeWeaponMesh: () => activeWeaponMesh,
