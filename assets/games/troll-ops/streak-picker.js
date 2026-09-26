@@ -71,10 +71,10 @@ export class StreakPicker {
       b.classList.toggle("is-locked", !unlocked);
       b.innerHTML = `<i class="to-ss-icon">${streakIconSvg(id)}</i><strong></strong><span></span><em></em>`;
       b.querySelector("strong").textContent = def.name;
-      b.querySelector("span").textContent = unlocked ? `${def.cost} score` : `Rank ${def.rank}`;
+      b.querySelector("span").textContent = unlocked ? `${def.cost} score` : `LV ${def.rank}`;
       b.querySelector("em").textContent = def.blurb;
       b.setAttribute("aria-label",
-        `${def.name} — ${unlocked ? `${def.cost} score. ${def.blurb}` : `locked until rank ${def.rank}`}`);
+        `${def.name} — ${unlocked ? `${def.cost} score. ${def.blurb}` : `locked until level ${def.rank}`}`);
       b.addEventListener("click", () => this.toggle(id));
       wrap.appendChild(b);
       this.buttons[id] = b;
