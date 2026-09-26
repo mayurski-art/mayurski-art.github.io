@@ -104,6 +104,8 @@ function buildTankLauncher(def, spec, len) {
   hand.position.copy(grip.position);
   hand.rotation.copy(grip.rotation);
   group.add(hand);
+  // Where the third-person rig puts its trigger hand (see _gripSupport).
+  group.userData.gripPos = grip.position.clone();
   const trigger = box(0.03, 0.05, 0.04, darkMat);
   trigger.position.set(0, -bodyH * 0.7, len * 0.2);
   group.add(trigger);

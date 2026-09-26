@@ -12,16 +12,12 @@
 // identical here and not re-explained.
 
 import * as THREE from "three";
-import { buildHumanoid, DANCES, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js";
+import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js";
 import { buildWeaponMesh } from "./weapon-model.js";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
 const REST_YAW = -0.45;
-// The operator stands ready with your gun for a while, then slings it and
-// plays an emote, then takes it back up.
-const READY_SECONDS = 10;
-const EMOTE_SECONDS = 6.5;
 // Facing the camera, turned a little so the rifle points off past it
 // rather than straight down the lens.
 const FACING = Math.PI + 0.62;
@@ -69,8 +65,7 @@ export class CharacterInspector {
 
     // Close enough that the operator actually reads as a hero shot rather
     // than a small figure lost in a big empty frame, while still leaving
-    // clearance above the head and below the raised-arm wave emote's reach
-    // so nothing clips the top/bottom edges of the free-floating layer.
+    // clearance above the head and below the feet so nothing clips the top/bottom edges of the free-floating layer.
     this.baseDist = 5.4;
     this.zoom = 1;
     this.zoomTarget = 1;
@@ -78,19 +73,9 @@ export class CharacterInspector {
     this.pitch = 0.1;
     this.autoSpin = true;
     this.spinT = 0;
-    // Separate from spinT, which freezes whenever the user drags the
-    // camera (autoSpin off) - the dance should keep looping regardless
-    // of whether the player is looking the operator over.
-    this.danceT = 0;
+    this.breathT = 0;
     this.width = 0;
     this.height = 0;
-
-    // Cycles through DANCES over time so the locker doesn't loop the same
-    // eight-count forever; picks a random start so a page reload doesn't
-    // always open on the same emote.
-    this.danceIndex = Math.floor(Math.random() * DANCES.length);
-    this.phaseT = 0;
-    this.emoting = false;
 
     this.bindInput();
   }
@@ -170,7 +155,6 @@ export class CharacterInspector {
     this.held = buildWeaponMesh(def);
     mountHeldWeapon(this.humanoid, this.held);
     this.hasGun = def.cls !== "sidearm";
-    this.held.visible = !this.emoting;
   }
 
   pinchDistance(pointers) {
@@ -200,33 +184,18 @@ export class CharacterInspector {
     }
     this.zoom += (this.zoomTarget - this.zoom) * Math.min(1, dt * 9);
 
-    // Mostly the operator stands ready with the loadout's gun — the same
-    // pose, hands and head the match draws, glancing about while it waits.
-    // Every so often the gun goes on the sling for an emote, the way a
-    // Fortnite locker skin shows off, then comes back up.
-    this.phaseT += dt;
-    if (this.phaseT >= (this.emoting ? EMOTE_SECONDS : READY_SECONDS)) {
-      this.phaseT = 0;
-      this.emoting = !this.emoting;
-      if (this.emoting) {
-        this.danceIndex = (this.danceIndex + 1) % DANCES.length;
-        this.danceT = 0; // fresh beat 0 so the new emote doesn't start mid-pose
-      }
-      if (this.held) this.held.visible = !this.emoting;
-    }
-    if (this.emoting) {
-      this.danceT += dt;
-      DANCES[this.danceIndex](this.humanoid, this.danceT);
-    } else {
-      aimRig(this.humanoid, FACING, dt);
-      // A slow breath in the aim keeps the ready stance from reading as a
-      // frozen frame.
-      const breath = Math.sin(this.spinT * 1.7 + this.phaseT * 0.9) * 0.025;
-      poseHumanoid(this.humanoid, {
-        moving: false, pitch: -0.06 + breath, dt,
-        hold: this.held ? "gun" : "none", hasGun: !!this.held && this.hasGun,
-      });
-    }
+    // The operator stands ready with the loadout's gun, both hands on it —
+    // the same pose, hands and head the match draws. (Emotes live on the
+    // in-match emote wheel now, not on a loop here.)
+    this.breathT += dt;
+    aimRig(this.humanoid, FACING, dt);
+    // A slow breath in the aim keeps the ready stance from reading as a
+    // frozen frame.
+    const breath = Math.sin(this.breathT * 1.3) * 0.025;
+    poseHumanoid(this.humanoid, {
+      moving: false, pitch: -0.06 + breath, dt,
+      hold: this.held ? "gun" : "none", hasGun: !!this.held && this.hasGun,
+    });
 
     const dist = this.baseDist * this.zoom;
     const cp = Math.cos(this.pitch);

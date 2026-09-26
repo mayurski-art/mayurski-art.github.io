@@ -1542,10 +1542,13 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   position: absolute; left: var(--pf-pad); top: 112px; width: 380px; z-index: 1;
   display: flex; flex-direction: column;
   /* Stops above the map card (its bottom + height + a gap) so a long mode
-     list can never slide underneath it; scrolls if it still does not fit. */
+     list can never slide underneath it. Sized to fit without scrolling; the
+     hidden overflow is only a last-resort guard, never a visible scrollbar. */
   bottom: var(--pf-modes-bottom, 208px); overflow-y: auto; overscroll-behavior: contain;
-  scrollbar-width: thin; scrollbar-color: rgba(234,243,228,.25) transparent;
+  scrollbar-width: none;
 }
+.to-pf-modes::-webkit-scrollbar { display: none; }
+.to-pf .to-lo-modeblurb[hidden] { display: none; }
 .to-pf .to-lo-mode { display: flex; flex-direction: column; gap: 6px; }
 .to-lo-modegroup {
   padding: 0 4px 0;
@@ -1921,7 +1924,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   .to-pf-modes, .to-pf-right { top: 96px; }
   .to-pf { --pf-modes-bottom: 178px; }
   #to-title:not([hidden]) ~ .to-radio .to-radio-panel { bottom: 126px; }
-  .to-pf .to-lo-modebtn { height: 42px; font-size: 17px; }
+  .to-pf .to-lo-modebtn { height: 40px; font-size: 17px; }
   .to-pf .to-lo-mode { gap: 5px; }
   .to-lo-modegroup:not(:first-child) { padding-top: 10px; }
   .to-pf .to-lo-modeblurb { margin-top: 10px; padding: 10px 12px; font-size: 13px; }

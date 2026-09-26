@@ -1826,6 +1826,17 @@ function buildModeButtons() {
   renderModes();
 }
 
+/* The mode description is the one optional thing in the mode column: drop
+   it when the column is too short for it, so the mode buttons always fit
+   with no scrollbar (the column stops above the map card). */
+const modeColumn = els.loMode.closest(".to-pf-modes");
+function fitModeBlurb() {
+  if (!modeColumn) return;
+  els.loModeBlurb.hidden = false;
+  if (modeColumn.scrollHeight > modeColumn.clientHeight + 1) els.loModeBlurb.hidden = true;
+}
+if (modeColumn && "ResizeObserver" in window) new ResizeObserver(fitModeBlurb).observe(modeColumn);
+
 function renderModes() {
   for (const b of els.loMode.children) {
     if (!b.dataset.mode) continue;
@@ -1835,6 +1846,7 @@ function renderModes() {
   }
   els.loModeBlurb.textContent = modePicked ? currentMode().blurb : "Pick a mode to deploy.";
   els.startBtn.disabled = !modePicked;
+  fitModeBlurb();
   // On phones the list is one sideways-scrolling row of chips; keep the
   // picked one in view.
   const act = els.loMode.querySelector(".to-lo-modebtn.is-active");
@@ -8127,7 +8139,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
     renderer, scene,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
-    settings, localRig, toggleThirdPerson,
+    settings, localRig, toggleThirdPerson, charInspector,
     closePauseMenu,
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,

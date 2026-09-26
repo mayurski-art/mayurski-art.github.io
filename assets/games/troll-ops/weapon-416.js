@@ -228,6 +228,7 @@ export function build416(def, skinId, { texture = null } = {}) {
   hand.userData.hand = true;
   hand.position.set(0, -0.086, 0.02);
   hand.rotation.x = 0.32;
+  group.userData.gripPos = hand.position.clone();
   group.add(hand);
   const supportHandPos = new THREE.Vector3(0, 0.058, -0.3);
   const supportHand = buildSupportHand(1.5);

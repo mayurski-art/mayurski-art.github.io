@@ -140,7 +140,7 @@ export class RemotePlayer {
     this.skin = skin;
     const arm = this.rig.parts.armR;
     if (this.weaponMesh) {
-      arm.remove(this.weaponMesh);
+      this.weaponMesh.parent?.remove(this.weaponMesh);
       this.weaponMesh.traverse((o) => {
         if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
         if (o.material) o.material.dispose?.();

@@ -403,6 +403,9 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   // What the right fist holds that isn't a gun (a melee weapon): a mount at
   // the hand whose x rotation is the wrist.
   const gripR = joint(R.hand);
+  // Two-handed guns ride the chest, not an arm: both hands reach to them
+  // (see _gripSupport). One-handed ones (pistols) stay on the right arm.
+  const gunMount = joint(chest);
 
   // --- legs: knee halfway, ankle, and a short toe so the foot reads as a
   // foot. Both legs split from the one point at the bottom of the spine.
@@ -493,7 +496,7 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
       legL: LL.pivot, legR: LR.pivot, kneeL: LL.knee, kneeR: LR.knee,
       ankleL: LL.ankle, ankleR: LR.ankle,
       gun: gunMesh, body: body.mesh,
-      handL: hands.L.group, handR: hands.R.group, gripR,
+      handL: hands.L.group, handR: hands.R.group, gripR, gunMount,
     },
     hands,
     body,
@@ -505,6 +508,12 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     limbRadius,
     gait: { blend: 0 },
     build: w,
+    // Left arm segment lengths and its rest direction (chest space), for
+    // the support-hand reach in _gripSupport.
+    upperArm: ARM.length() * 0.48,
+    foreArm: ARM.length() * 0.52,
+    armRestL: new THREE.Vector3(-ARM.x, ARM.y, 0).normalize(),
+    armRestR: new THREE.Vector3(ARM.x, ARM.y, 0).normalize(),
   };
   if (gunMesh) mountHeldWeapon(rig, gunMesh);
   return rig;
@@ -615,11 +624,19 @@ function meleeArm(kind, t) {
 export const GUN_CARRY = 1.35;
 export function mountHeldWeapon(rig, mesh) {
   const s = rig.scale;
-  mesh.position.set(0.30 * s * rig.build, -0.62 * s, 0).addScaledVector(new THREE.Vector3(0, Math.sin(GUN_CARRY), Math.cos(GUN_CARRY)), 0.05 * s);
-  mesh.rotation.set(-GUN_CARRY, 0, 0.15);
   // The first-person hands built onto the gun are for the viewmodel; a body
   // holds it in its own mitts.
   mesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
+  rig.held = mesh;
+  if (mesh.userData.supportHandPos && mesh.userData.gripPos) {
+    // Two-handed: placed every frame by _gripSupport.
+    mesh.position.set(0, 0, 0);
+    mesh.rotation.set(0, 0, 0);
+    rig.parts.gunMount.add(mesh);
+    return;
+  }
+  mesh.position.set(0.30 * s * rig.build, -0.62 * s, 0).addScaledVector(new THREE.Vector3(0, Math.sin(GUN_CARRY), Math.cos(GUN_CARRY)), 0.05 * s);
+  mesh.rotation.set(-GUN_CARRY, 0, 0.15);
   rig.parts.armR.add(mesh);
 }
 
@@ -919,7 +936,68 @@ function _poseDanceWave(rig, t) {
    frame is drawn: three.js uploads geometry before an object's render hook
    runs, so rebuilding there would draw the line a frame behind the hands
    and head, and it would visibly slip off them in fast motion. */
-export function poseHumanoid(rig, arg) { _poseHumanoid(rig, arg); rig.body.update(); }
+export function poseHumanoid(rig, arg) {
+  _poseHumanoid(rig, arg);
+  if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);
+  rig.body.update();
+}
+
+/* Two hands on the gun. A two-handed gun rides a mount on the chest, held
+   level at the aim a little below and in front of the neck (where a stock
+   meets the shoulder), and both arms reach to it: the right hand to the
+   pistol grip, the left forward along the gun toward the handguard point
+   the model marks for its first-person support hand. The arms are short
+   and share one shoulder point, so the left hand takes the farthest point
+   on that line it can actually reach. Two-bone IK in chest space, elbows
+   bending down and out. One-handed guns keep the fixed arm pose. */
+const _gT = new THREE.Vector3(), _gDir = new THREE.Vector3(), _gPole = new THREE.Vector3();
+const _gO = new THREE.Vector3(), _gP = new THREE.Vector3(), _gE = new THREE.Vector3();
+const _gF = new THREE.Vector3(), _gQ = new THREE.Quaternion(), _gGrip = new THREE.Vector3();
+const _gPoleL = new THREE.Vector3(-1, -1, 0.2), _gPoleR = new THREE.Vector3(1, -1, 0.2);
+function _reachArm(rig, pivot, elbow, rest, target, pole) {
+  const a = rig.upperArm, b = rig.foreArm;
+  const d = Math.min(a + b - 1e-4, Math.max(0.05, target.length()));
+  _gDir.copy(target).normalize();
+  const cosA = Math.max(-1, Math.min(1, (a * a + d * d - b * b) / (2 * a * d)));
+  _gPole.copy(pole).addScaledVector(_gDir, -pole.dot(_gDir)).normalize();
+  _gE.copy(_gDir).multiplyScalar(a * cosA).addScaledVector(_gPole, a * Math.sqrt(1 - cosA * cosA));
+  _gF.copy(_gDir).multiplyScalar(d).sub(_gE).normalize();
+  pivot.quaternion.setFromUnitVectors(rest, _gE.normalize());
+  _gQ.copy(pivot.quaternion).invert();
+  elbow.quaternion.setFromUnitVectors(rest, _gF.applyQuaternion(_gQ));
+}
+function _gripSupport(rig, { pitch = 0, recoil = 0 } = {}) {
+  const mesh = rig.held;
+  const p = rig.parts;
+  if (!mesh || !mesh.visible || mesh.parent !== p.gunMount) return;
+  const s = rig.scale, w = rig.build;
+  const kick = Math.max(0, Math.min(1, recoil));
+  // Level at the aim, independent of the body's lean (the chest carries it).
+  const lean = p.torso.rotation.x + p.chest.rotation.x;
+  p.gunMount.rotation.set(pitch * 0.32 + kick * 0.18 - lean, 0, 0);
+  // Trigger hand: right of centre, below the neck, forward of the chest.
+  _gGrip.set(0.12 * s * w, -0.24 * s, (-0.30 + kick * 0.03) * s);
+  _gP.copy(mesh.userData.gripPos).applyEuler(p.gunMount.rotation);
+  p.gunMount.position.copy(_gGrip).sub(_gP);
+
+  _gT.copy(_gGrip).sub(p.armR.position);
+  _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT, _gPoleR);
+
+  // Support hand: along grip → handguard, as far as the left arm reaches.
+  _gO.copy(_gGrip).sub(p.armL.position);
+  _gT.copy(mesh.userData.supportHandPos).applyEuler(p.gunMount.rotation).add(p.gunMount.position).sub(p.armL.position);
+  const reach = (rig.upperArm + rig.foreArm) * 0.97;
+  if (_gT.length() > reach) {
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      if (_gP.lerpVectors(_gO, _gT, mid).length() <= reach) lo = mid; else hi = mid;
+    }
+    _gT.lerpVectors(_gO, _gT, lo);
+  }
+  _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT, _gPoleL);
+  setHandPose(rig, -1, "fist");
+}
 
 /* Throwing a grenade, laid over whatever pose the rig already has: the free
    (left) arm comes up behind the head and whips over and forward. `t` runs
