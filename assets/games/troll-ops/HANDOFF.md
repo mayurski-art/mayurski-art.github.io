@@ -66,6 +66,51 @@ tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 - Not verified on real hardware: the user's HP laptop, a real phone/iPad
   (headless + emulation only). Ask how it felt.
 
+## Bugs to fix next (reported by the user 2026-09-25, not started)
+
+1. **Logged out, but Troll Ops still says `troll_runner`.** After logging
+   out, opening Troll Ops should make you a guest; instead the callsign is
+   still the account. Name comes from `playerName()` in game.js (~1597), which
+   reads `TrollrunnerAccounts.getCachedProfile()`. Suspects, check in order:
+   - `assets/js/troll-accounts.js` `adoptSsoCookie()`: if the logout ran on
+     another origin/subdomain, the shared SSO cookie may not have been
+     cleared (`writeSsoCookie(null)` has to run on sign-out, on the same
+     cookie domain), so Troll Ops adopts the old session again.
+   - This origin's own Supabase session in localStorage survives a logout
+     done elsewhere (`adoptSsoCookie` returns early when a local session
+     exists, so a stale local session wins over a missing cookie).
+   - game.js only redraws on `trollrunner:auth-changed`; make sure a
+     sign-out fires it and that a stale callsign/net name isn't kept.
+   Repro: log in, log out from the main site, open /troll-ops. Expect
+   "operator"/guest.
+
+2. **Hunter-Killer drone is dumb and just crashes.** User isn't sure the
+   homing works at all. Code: `case "drone"` + `spawnDrone()` in game.js
+   (~600-670), the detonation block in the streak loop (~790), and
+   `HunterDrone.update()` in streak-entities.js (~352). What I saw:
+   - Target is `nearestHostileTo(move.pos)`, picked ONCE at launch, only
+     from `remotes.byId`, ignoring line of sight. No target (or the target
+     dies) = it flies straight and burns out after `DRONE_LIFETIME` 12 s.
+     Should re-acquire a new nearest target when the current one dies, and
+     prefer visible targets. Check bots really are in `remotes.byId`.
+   - No world collision or ground clearance at all: it flies through walls
+     and can dive into the floor. Needs obstacle avoidance (climb over,
+     then dive) or at least a raycast; hitting a wall should detonate there.
+   - Turning: `DRONE_TURN` 2.8 rad/s at `DRONE_SPEED` 17 gives a ~6 m turn
+     circle, so a target behind or close to you makes it orbit. Launch
+     upward first, then turn toward the target.
+   - Splash loop skips the target with `rp.id === target.id`, but
+     RemotePlayer keys by `.netId` (see the comment at the `case "drone"`),
+     so the target is probably hit twice. Use `netId`.
+   - Add a lock-on cue so the user can tell homing works: target name in
+     the banner, a marker on the locked enemy, maybe a drone-cam.
+   - **Self-damage:** the user wants the blast to be able to kill the
+     caller if they set it off right next to themselves. Today splash only
+     checks remotes, never the local player; add a distance check against
+     `move.pos` within `DRONE_SPLASH_RADIUS` (and on "expire" blasts).
+   Test in a bot match: launch with a bot behind you, behind a wall, and
+   with no bots, and screenshot the flight.
+
 ## Where we are
 
 Session 7 built the **weapon skin editor**; the user designs skins in it
