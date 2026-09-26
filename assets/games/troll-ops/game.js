@@ -1905,7 +1905,10 @@ charInspector?.setWeapon(loadout.resolved);
    Match Setup instead — the weapon stands in for the operator there. */
 const pfCenter = document.getElementById("to-pf-center")?.parentElement || null; // .to-pf
 function mountGunView(panel) {
-  const boxMount = panel === "loadout" ? document.getElementById("to-gun-mount-loadout") : null;
+  // Beside the panel on desktop; phones have no room beside it, so there the
+  // Weapons view keeps it boxed in its detail card.
+  const narrow = (pfCenter?.clientWidth || 0) <= 760;
+  const boxMount = panel === "loadout" && narrow ? document.getElementById("to-gun-mount-loadout") : null;
   const target = boxMount || pfCenter;
   inspectorLive = !!(gunView && target);
   if (!inspectorLive) return;
@@ -8139,7 +8142,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
     renderer, scene,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
-    settings, localRig, toggleThirdPerson, charInspector,
+    settings, localRig, toggleThirdPerson, charInspector, inspector,
     closePauseMenu,
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,

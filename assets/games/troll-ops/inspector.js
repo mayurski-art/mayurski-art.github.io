@@ -139,6 +139,8 @@ export class WeaponInspector {
     }
 
     this.mesh = def.model?.kind ? buildMeleeMesh(def, false) : buildWeaponMesh(def);
+    // The first-person hands built onto a gun belong to the viewmodel.
+    this.mesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
     const box = new THREE.Box3().setFromObject(this.mesh);
     const centre = box.getCenter(new THREE.Vector3());
     this.mesh.position.sub(centre);
@@ -159,13 +161,11 @@ export class WeaponInspector {
   frame() {
     const vHalf = (this.camera.fov * Math.PI) / 360;
     const hHalf = Math.atan(Math.tan(vHalf) * this.camera.aspect);
-    // The fit distance is measured to the middle of the weapon, so the camera
-    // has to stand off by its own radius as well — otherwise the muzzle swings
-    // through the lens as it turns and the barrel balloons.
-    this.baseDist = Math.max(
-      this.halfHeight / Math.tan(vHalf),
-      this.halfWidth / Math.tan(hHalf)
-    ) * 0.9 + this.radius * 0.55;
+    // Fit the weapon's bounding sphere, not its resting box: dragged to any
+    // yaw or pitch, a long gun's length can point at any edge of the frame,
+    // and only the sphere is the same size from every angle.
+    const half = Math.min(vHalf, hHalf);
+    this.baseDist = (this.radius / Math.sin(half)) * 1.04;
   }
 
   tick(dt) {

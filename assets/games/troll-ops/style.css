@@ -829,7 +829,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-lo-gear strong { font-size: 12.5px; font-weight: 700; color: #eef2ea; }
 .to-lo-gear span { font-size: 10px; font-family: "DM Mono", monospace; }
 .to-lo-gear.is-active { background: rgba(127,224,102,.12); border-color: #7fe066; }
-.to-lo-gear.is-locked { opacity: .45; cursor: not-allowed; }
+.to-lo-gear.is-locked { opacity: .55; cursor: not-allowed; }
 .to-lo-gear.is-locked strong { color: #9aa596; }
 
 /* Sits above the health bar in the bottom-left corner, out of the ammo's way. */
@@ -1762,7 +1762,14 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-pf .to-lo-slot:first-child { padding-top: 0; border-top: none; }
 .to-pf .to-lo-slot-label { display: block; flex: none; margin-bottom: 6px; }
 .to-pf .to-lo-slot-opts { gap: 6px; align-items: stretch; }
-.to-pf .to-lo-gearlist { padding: 6px 20px; }
+.to-pf .to-lo-gearlist { padding: 6px 20px; gap: 12px; }
+/* One label column so every row's tiles start on the same line, and
+   equal-width tiles so the rows read as a grid. */
+.to-pf .to-lo-gearrow { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 12px; }
+.to-pf .to-lo-gearrow .to-lo-slot-label { margin: 0; }
+.to-pf .to-lo-gearopts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.to-pf .to-lo-gear { min-width: 0; padding: 10px 12px; border-radius: 10px; }
+.to-pf .to-lo-gear strong { font-size: 13.5px; }
 .to-pf .to-ss-picker { padding: 6px 20px; }
 .to-pf .to-lo-pvp { padding: 6px 20px; }
 .to-pf .to-key-list-lobby { padding: 6px 20px; }
@@ -1872,18 +1879,23 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   text-shadow: 0 1px 4px rgba(0,0,0,.9);
   pointer-events: none;
 }
+/* The preview stage to the right of the Loadout / Customize / Gear panel:
+   the same card chrome as the panel beside it, lined up with its top and
+   bottom, with the weapon turning in it. */
 .to-pf > .to-gun-view.is-hero {
   display: block;
   position: absolute;
-  left: calc(var(--pf-pad) + min(620px, 100% - var(--pf-pad) * 2) + 24px);
-  right: var(--pf-pad); top: 72px; bottom: 72px;
+  left: calc(var(--pf-pad) + min(620px, 100% - var(--pf-pad) * 2) + 20px);
+  right: var(--pf-pad); top: var(--pf-stage-top, 96px); bottom: var(--pf-stage-bottom, 72px);
   height: auto;
-  border: none; background: none;
-  pointer-events: none;
-  z-index: 0;
+  border: 1px solid var(--pf-line); border-radius: 14px;
+  background:
+    radial-gradient(60% 60% at 50% 45%, rgba(40,52,42,.94), rgba(10,14,12,.96)),
+    repeating-linear-gradient(115deg, rgba(255,255,255,.03) 0 1px, transparent 1px 26px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  z-index: 1;
 }
-.to-gun-view.is-hero canvas { pointer-events: auto; }
-.to-gun-view.is-hero .to-gun-hint { display: none; }
+.to-gun-view.is-hero .to-gun-hint { right: 14px; bottom: 12px; font-size: 11px; }
 
 /* ---- 3D operator, standing in the middle of the Play tab ---- */
 .to-char-view {
@@ -1940,6 +1952,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   .to-pf { --pf-modes-bottom: 164px; }
   .to-pf .to-lo-modeblurb, .to-pf-mapcard-blurb, .to-pf-gearcells { display: none; }
   .to-pf-center { top: 84px; bottom: 64px; }
+  .to-pf { --pf-stage-top: 84px; --pf-stage-bottom: 64px; }
 }
 
 /* ---- phones and narrow windows: top bar, bottom sheet, bottom tab bar ---- */

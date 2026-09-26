@@ -299,9 +299,9 @@ export function buildMeleeMesh(def, includeHands = true) {
   return group;
 }
 
-/* "U MAD BRO?" for the crossguard: raised silver letters, drawn with a dark
-   drop edge below-right and a highlight above-left so they read as cast
-   into the guard rather than printed on it. Built once and shared - every
+/* "U MAD BRO?" for the crossguard: black letters inlaid in the silver,
+   with a thin bright edge below-right so they read as cut into the guard
+   rather than printed on it. Built once and shared - every
    player carries this weapon, so rebuilding the canvas per spawn would leak
    a texture each time. */
 let guardTexCache = null;
@@ -317,9 +317,8 @@ function guardTextTexture(THREE) {
   g.textBaseline = "middle";
   const x = c.width / 2, y = c.height / 2 + 6;
   const text = "U MAD BRO?";
-  g.fillStyle = "#4a4e55"; g.fillText(text, x + 5, y + 6);   // shadow side
-  g.fillStyle = "#ffffff"; g.fillText(text, x - 2, y - 2);   // lit edge
-  g.fillStyle = "#b9bdc4"; g.fillText(text, x, y);           // the face
+  g.fillStyle = "#eef0f3"; g.fillText(text, x + 3, y + 3);   // cut edge catching light
+  g.fillStyle = "#0b0c0e"; g.fillText(text, x, y);           // the black inlay
   guardTexCache = new THREE.CanvasTexture(c);
   guardTexCache.colorSpace = THREE.SRGBColorSpace;
   guardTexCache.anisotropy = 4;
@@ -673,8 +672,8 @@ function buildKeyboardSword(m, mat, group) {
       transparent: true, alphaTest: 0.3, roughness: 0.3, metalness: 0.35,
     }));
   face.rotation.x = -Math.PI / 2;
-  // Face turned so the chin points down the blade, as in the render.
-  face.rotation.z = Math.PI;
+  // Chin toward the grip end, so the grin reads upright held point-down.
+  face.rotation.z = 0;
   face.position.set(0, POMMEL_R * 0.62 + 0.001, pommelZ);
   group.add(face);
 
