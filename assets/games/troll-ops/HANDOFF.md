@@ -130,6 +130,26 @@ Ideas not done: zombie economy (doors, wall-buys, box) is still Pentagrin Z2
 backlog for both maps; co-op zombies; remote players on the upper floor for
 bots (bots nav is ground-floor only, like every other map).
 
+## Reminders from the user (2026-09-27, not started)
+
+- **Change the usernames.** The names shown in-match (bots, killfeed,
+  scoreboard, nametags) need a pass. Ask the user what they want them
+  changed to before touching anything.
+- **Change the weapon names.** Rename weapons across the loadout, killfeed
+  and HUD. Get the new list from the user; weapon ids/storage keys should
+  stay put so saved loadouts and XP don't break (display names only).
+- **Restyle the killstreak and medal callouts.** The font and display of
+  the on-screen titles: HEADSHOT, REVENGE, AVENGER, SUICIDE, double/triple
+  kill, the streak "ready" notes, etc. (killstreak-ui.js badges). Target
+  look: **Call of Duty: Black Ops 2** — its medal/splash style (the medal
+  icon with the title and "+score" underneath, stacking centre-screen,
+  BO2's condensed uppercase font). This includes the medal badges
+  themselves (the icon art), not just the text. Confirm the look with the
+  user (mockup first).
+- **Show earned medals at the end of the match.** Like BO2's after-action
+  screen: the post-match summary should list every medal/badge earned that
+  match (with counts, e.g. HEADSHOT x4), not just flash them mid-game.
+
 ## Reminders from the user (2026-09-26)
 
 - **More songs to add.** The user has more tracks for the in-game radio.

@@ -42,6 +42,7 @@ import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-s12d-arms";
+import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline } from "./hand-model.js?v=to-s12e-hands";
 import { FlowField } from "./nav.js";
 import { ZombieDirector } from "./zombies.js";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
@@ -7542,69 +7543,34 @@ function updateStreakView(dt) {
   );
   mesh.rotation.set(TABLET_TILT + s * 0.35 - off * 0.6 + press * 0.05, off * 0.2, s * 0.2 + off * 0.25);
   drawTabletScreen(activeStreakMesh, streakScreen, streakHoldElapsed, confirmed);
-  poseStreakArms(mesh, "side", dt, press);
+  poseStreakArms(mesh, "side", dt, pk > 0 && pk < 1 ? pk : 0);
 }
 
-/* The arms that hold streak devices: the same sleeve/cuff/wrist build as
-   inspectArms (a shoulder below the screen to a fist on the device), with
-   a fist per grip — "side" wraps a tablet edge with the thumb on the bezel,
-   "cup" palms the drone from underneath, "wrap" closes round the marker.
-   Arm 0 is the right arm, arm 1 the left. */
-const STREAK_SHOULDER = [new THREE.Vector3(0.26, -0.5, 0.1), new THREE.Vector3(-0.26, -0.5, 0.1)];
+/* The arms that hold streak devices: real hands (hand-model.js — white,
+   ink-outlined, jointed fingers) on a wrist/cuff/sleeve run to a shoulder
+   below the screen. The hand is placed on the device's grip anchor per
+   style — "side" hooks the fingers over a tablet edge, "cup" palms the
+   drone from underneath, "wrap" closes a fist round the marker. Arm 0 is
+   the right arm, arm 1 the left. */
+const STREAK_SHOULDER = [new THREE.Vector3(0.27, -0.54, 0.1), new THREE.Vector3(-0.27, -0.54, 0.1)];
 const streakArms = (() => {
   const root = new THREE.Group();
   root.visible = false;
-  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x31372b, roughness: 0.92, metalness: 0 });
-  const cuffMat = new THREE.MeshStandardMaterial({ color: 0x23271f, roughness: 0.9, metalness: 0 });
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd98a5f, roughness: 0.65, metalness: 0.02 });
-  const knuckleMat = new THREE.MeshStandardMaterial({ color: 0xb56e49, roughness: 0.65, metalness: 0.02 });
+  const mats = handMaterials();
   const unitCyl = (rTop, rBottom, mat) => {
-    const g = new THREE.CylinderGeometry(rTop, rBottom, 1, 10);
+    const g = new THREE.CylinderGeometry(rTop, rBottom, 1, 12);
     g.translate(0, 0.5, 0);
     return new THREE.Mesh(g, mat);
   };
-  const box = (w, h, d, mat, x = 0, y = 0, z = 0) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    m.position.set(x, y, z);
-    return m;
-  };
   const arms = [];
   for (let i = 0; i < 2; i++) {
-    const side = i === 0 ? 1 : -1;       // +x for the right hand
-    const inward = -side;                // toward the tablet's middle
-    const fists = {};
-
-    // Tablet edge: palm round the outside of the edge, fingers behind the
-    // tablet, thumb across the front bezel.
-    const edge = new THREE.Group();
-    edge.add(box(0.03, 0.088, 0.034, skinMat, side * 0.011, -0.004, -0.008));
-    for (let k = 0; k < 4; k++) edge.add(box(0.05, 0.017, 0.014, knuckleMat, inward * 0.012, 0.03 - k * 0.02, -0.018));
-    const thumb = box(0.046, 0.019, 0.013, skinMat, inward * 0.012, 0.016, 0.017);
-    edge.add(thumb);
-    edge.userData.thumb = thumb;
-    fists.side = edge;
-
-    // Drone: flat palm under the body, fingers curling up the outside.
-    const cup = new THREE.Group();
-    cup.add(box(0.062, 0.02, 0.078, skinMat, 0, -0.012, 0));
-    for (let k = 0; k < 4; k++) cup.add(box(0.014, 0.032, 0.018, knuckleMat, side * 0.034, 0.002, -0.03 + k * 0.02));
-    cup.add(box(0.016, 0.026, 0.03, skinMat, -side * 0.03, 0.002, -0.028));
-    fists.cup = cup;
-
-    // Marker: a closed fist round the upright can, knuckles forward.
-    const wrap = new THREE.Group();
-    wrap.add(box(0.064, 0.078, 0.056, skinMat, 0, -0.004, 0.012));
-    for (let k = 0; k < 4; k++) wrap.add(box(0.068, 0.017, 0.02, knuckleMat, 0, 0.026 - k * 0.02, -0.03));
-    wrap.add(box(0.02, 0.05, 0.03, skinMat, -0.03, 0.03, -0.012));
-    fists.wrap = wrap;
-
-    const fist = new THREE.Group();
-    for (const f of Object.values(fists)) fist.add(f);
-    const wrist = unitCyl(0.022, 0.026, skinMat);
-    const cuff = unitCyl(0.037, 0.035, cuffMat);
-    const sleeve = unitCyl(0.044, 0.032, sleeveMat);
-    root.add(fist, wrist, cuff, sleeve);
-    arms.push({ fist, fists, wrist, cuff, sleeve, free: false, vel: new THREE.Vector3() });
+    const hand = buildHumanHand(i === 0 ? 1 : -1, mats);
+    const wrist = unitCyl(0.02, 0.023, mats.skin);
+    const cuff = unitCyl(0.033, 0.032, mats.cuff);
+    const sleeve = unitCyl(0.042, 0.032, mats.sleeve);
+    inkOutline(cuff);
+    root.add(hand, wrist, cuff, sleeve);
+    arms.push({ hand, wrist, cuff, sleeve, free: false, attached: false, vel: new THREE.Vector3() });
   }
   root.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
   root.userData.arms = arms;
@@ -7619,12 +7585,14 @@ function resetStreakArms() {
   for (const arm of streakArms.userData.arms) { arm.free = false; arm.attached = false; arm.vel.set(0, 0, 0); }
 }
 
-/* Put the fists on `mesh`'s anchors and run each arm down to its shoulder.
-   `mesh` null means the hands have let go (a toss/throw): each fist keeps
-   the momentum it had and falls away below the screen. A one-handed device
-   (the marker) has no left anchor, so the left arm stays down. */
+/* Put the hands on `mesh`'s grip anchors and run each arm down to its
+   shoulder. `mesh` null means the hands have let go (a toss/throw): each
+   keeps the momentum it had and falls away below the screen. A one-handed
+   device (the marker) has no left anchor, so that arm stays down. `tap` is
+   0..1 through the CONFIRM press (the right index taps the bezel). */
 const _armPrev = new THREE.Vector3();
-function poseStreakArms(mesh, style, dt, press) {
+const _wristAt = new THREE.Vector3();
+function poseStreakArms(mesh, style, dt, tap) {
   streakArms.visible = true;
   const anchors = mesh?.userData.anchors || null;
   if (mesh) mesh.updateMatrixWorld(true);
@@ -7632,42 +7600,37 @@ function poseStreakArms(mesh, style, dt, press) {
   for (let i = 0; i < arms.length; i++) {
     const arm = arms[i];
     const anchor = anchors ? (i === 0 ? anchors.right : anchors.left) : null;
-    for (const [k, f] of Object.entries(arm.fists)) f.visible = k === style;
-    // The marker is carried at 0.6 scale; a full-size fist swallowed it.
-    arm.fist.scale.setScalar(style === "wrap" ? 0.72 : 1);
     let show;
     if (anchor && !arm.free) {
-      _armPrev.copy(arm.fist.position);
-      anchor.getWorldPosition(arm.fist.position);
-      anchor.getWorldQuaternion(arm.fist.quaternion);
+      _armPrev.copy(arm.hand.position);
+      placeHand(arm.hand, anchor, style, i === 0 ? 1 : -1, i === 0 ? tap : 0);
       // Remember how the hand was moving, for the follow-through if it lets go.
-      if (dt > 0 && arm.attached) arm.vel.subVectors(arm.fist.position, _armPrev).divideScalar(dt);
+      if (dt > 0 && arm.attached) arm.vel.subVectors(arm.hand.position, _armPrev).divideScalar(dt);
       if (arm.vel.lengthSq() > 9) arm.vel.setLength(3);
       arm.attached = true;
       show = true;
     } else if (arm.attached) {
-      // Let go: coast on, then drop out of view.
+      // Let go: fingers open, coast on, then drop out of view.
       arm.free = true;
+      poseHumanHand(arm.hand, "relaxed");
       arm.vel.multiplyScalar(Math.max(0, 1 - dt * 6));
       arm.vel.y -= dt * 3.2;
-      arm.fist.position.addScaledVector(arm.vel, dt);
-      show = arm.fist.position.y > -0.48;
+      arm.hand.position.addScaledVector(arm.vel, dt);
+      show = arm.hand.position.y > -0.5;
     } else {
       show = false;
     }
-    if (i === 0 && style === "side") {
-      // Right thumb presses CONFIRM: in toward the screen centre and down.
-      arm.fists.side.userData.thumb.position.set(-0.012 - press * 0.014, 0.016 - press * 0.004, 0.017 - press * 0.007);
-    }
-    arm.fist.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = show;
+    arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = show;
     if (!show) continue;
+    // hand -> wrist -> cuff -> sleeve, all along the line to the shoulder.
     const shoulder = STREAK_SHOULDER[i];
-    _armDir.subVectors(shoulder, arm.fist.position).normalize();
-    _armFrom.copy(arm.fist.position).addScaledVector(_armDir, 0.03);
-    _armTo.copy(arm.fist.position).addScaledVector(_armDir, 0.075);
+    handWrist(arm.hand, _wristAt);
+    _armDir.subVectors(shoulder, _wristAt).normalize();
+    _armFrom.copy(_wristAt).addScaledVector(_armDir, -0.012);
+    _armTo.copy(_wristAt).addScaledVector(_armDir, 0.04);
     stretchBetween(arm.wrist, _armFrom, _armTo);
     _armFrom.copy(_armTo);
-    _armTo.copy(arm.fist.position).addScaledVector(_armDir, 0.1);
+    _armTo.copy(_wristAt).addScaledVector(_armDir, 0.065);
     stretchBetween(arm.cuff, _armFrom, _armTo);
     stretchBetween(arm.sleeve, _armTo, shoulder);
   }
@@ -7921,10 +7884,8 @@ const INSPECT_SUPPORT_DROP = 0.095;  // under the handguard, not on top of the a
 const inspectArms = (() => {
   const root = new THREE.Group();
   root.visible = false;
-  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x31372b, roughness: 0.92, metalness: 0 });
-  const cuffMat = new THREE.MeshStandardMaterial({ color: 0x23271f, roughness: 0.9, metalness: 0 });
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd98a5f, roughness: 0.65, metalness: 0.02 });
-  const knuckleMat = new THREE.MeshStandardMaterial({ color: 0xb56e49, roughness: 0.65, metalness: 0.02 });
+  // White hands, black sleeves, ink outlines — the trollface look (hand-model.js).
+  const { sleeve: sleeveMat, cuff: cuffMat, skin: skinMat, shade: knuckleMat } = handMaterials();
   // Unit cylinders standing on y=0, stretched between two points per frame.
   const unitCyl = (rTop, rBottom, mat) => {
     const g = new THREE.CylinderGeometry(rTop, rBottom, 1, 10);
@@ -7956,6 +7917,8 @@ const inspectArms = (() => {
     const wrist = unitCyl(0.022, 0.026, skinMat);
     const cuff = unitCyl(0.037, 0.035, cuffMat);
     const sleeve = unitCyl(0.044, 0.032, sleeveMat);
+    inkOutline(fist);
+    inkOutline(cuff);
     root.add(fist, wrist, cuff, sleeve);
     arms.push({ fist, wrist, cuff, sleeve });
   }
