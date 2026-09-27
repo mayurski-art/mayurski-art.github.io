@@ -9,6 +9,7 @@
 import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
+import { HOLLOWGRIN } from "./hollowgrin.js";
 import { SURFACES } from "./surface-textures.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
@@ -1247,6 +1248,8 @@ export const MAPS = {
 
 // Zombies-only, so it's registered for buildMap but kept out of the PvP picker.
 MAPS.pentagrin = PENTAGRIN;
+// The Halloween map plays both ways: in the PvP picker, and in Zombies' list.
+MAPS.hollowgrin = HOLLOWGRIN;
 
 // Neither the zombies map nor the range is a place you pick to fight in.
 export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id !== "range" && !id.endsWith("_wip"));

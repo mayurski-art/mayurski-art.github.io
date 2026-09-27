@@ -7,7 +7,74 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-s9h` (game.js + style.css); bump it on any change to either.
+`?v=to-s12a` (game.js + style.css); bump it on any change to either.
+
+## Session 12 (2026-09-26): Halloween map "Hollowgrin"
+
+Worktree `GitHub/to-halloween-wt`, branch `halloween-map` (from main cdc07c9).
+User ask: "create a halloween themed map. take your time... think deeply.
+this map should be able to be played in multiplayer and zombies mode."
+Decided with the user: Zombies stays ONE mode; its map card gets a **Change**
+button that picks between The Pentagrin and the Halloween map (not a second
+mode row).
+
+**Also noted, NOT started: GTA 6 themed skin for the Problem 416.** The user
+will SEND the image (GTA-style troll art). When it arrives: put it in
+assets/images/banners (or skin-art), add a SKINS entry in skins.js, bake,
+then the user fine-tunes the crops in the skin editor. Follow the sides
+formula (mirrored placement, text readable on both sides).
+
+### Plan
+Map id `hollowgrin`, its own module `hollowgrin.js` (like pentagrin.js),
+procedural three.js geometry (no GLBs), registered in MAPS so it's in the
+PvP picker too. Night, full moon behind the manor, purple fog, jack-o'-lanterns
+(emissive, flicker via onBeforeRender). Only a handful of real lights, all
+built at load: NEVER add lights at runtime (see light-pool.js).
+- North: **Grinmoor Manor**, 2 floors (ground y 0, upper y 3.6), grand stair
+  in the foyer, balcony over the front porch, doors on every side.
+- Centre: town square round a dead oak: pumpkin stalls, hay bales, well, cart.
+- West: **graveyard** (tombstone rows as low cover, iron fence with gates, a
+  mausoleum you can enter). Zombies claw up out of the graves.
+- East: **pumpkin patch + corn rows** (tall soft cover, bullets pass), scarecrow.
+- South: candy shop + barn. Team spawns split north/south.
+Engine work so zombies runs on a map other than the Pentagrin:
+1. ZombieDirector takes a per-map zombie layout (windows, floorOf, floors,
+   stair links) instead of importing pentagrin.js directly.
+2. Zombies on another floor walk to the stair link, climb it, then chase.
+   FlowField gets a `needSupport` option so upper-floor fields don't route
+   through thin air.
+3. Grave spawns rise out of the ground.
+4. Max Ammo drop (once a round), so zombie runs don't run dry (both maps).
+5. Lobby: zombies map pool + Change button, with its own saved zombies map id.
+Verify with tools/troll-ops-map-audit.mjs, -walk, -shots and -fps (NODE_PATH =
+main checkout node_modules), plus a zombies logic check, then screenshots.
+
+### Status: v1 SHIPPED to main (cache-bust `?v=to-s12a`)
+All of the plan above is built and checked headless:
+- Map audit PASS (no traps/floating/blocked spawns; upstairs, balcony and
+  mausoleum reachable). fps from the aerial view: 34.8 (Cul-de-Grin 38,
+  Grin Site 44), 278 draws/frame (fewer than either).
+- Zombie routing sim: 24/24 zombies reach the player across 9 cases (ground to
+  upstairs, upstairs to ground, into the mausoleum/corn/shop/barn).
+- Live zombies match: grave rises, Max Ammo drop + pickup refills reserve.
+- TDM with bots: spawns split N/S, bots cross all three lanes, kills land.
+- Lobby: Zombies map card shows Change (Pentagrin / Hollowgrin); picking one
+  is saved as `poolMapId`, separate from the versus `mapId`.
+Things learned:
+- Zombies step ~0.5 m but FlowField treated anything under 1 m as walkable,
+  so zombies jammed on hay bales, wells and tables. New `navStep` layout
+  option (0.45). Also applied to the Pentagrin, which FIXES a pre-existing
+  main bug: zombies stuck at the boardroom table at (0.3, -11.4).
+- Interiors at night go black on hemisphere light alone: interior materials
+  use `bounce` (emissive = the texture, x0.2) instead of more real lights.
+- metreUVs must pick the projection per triangle, not per vertex, or low-poly
+  cylinders (the obelisk) smear.
+- `matchMapId()` in game.js decides a match's map from the mode itself
+  (forceMap / mapPool / room map), not from lobby UI state.
+- Test hooks added: `__trollOps.zdir()`, `__trollOps.loadedMapId()`.
+Ideas not done: zombie economy (doors, wall-buys, box) is still Pentagrin Z2
+backlog for both maps; co-op zombies; remote players on the upper floor for
+bots (bots nav is ground-floor only, like every other map).
 
 ## Reminders from the user (2026-09-26)
 

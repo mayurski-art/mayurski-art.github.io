@@ -17,31 +17,56 @@ const CELL = 1.1;
    decking, desks and the pit tiers are stepped over by both the movement
    controller and the enemies, so treating them as walls would seal off rooms
    that are perfectly walkable. */
-function blocks(c, floorY) {
-  return c.max.y > floorY + 1.0 && c.min.y < floorY + 2.2;
+function blocks(c, floorY, step = 1.0) {
+  return c.max.y > floorY + step && c.min.y < floorY + 2.2;
 }
 
 export class FlowField {
-  constructor(colliders, bounds, floorY) {
+  /* `needSupport`: only cells with a floor under them at floorY are open.
+     The ground floor never needs it (the world plane is everywhere), but an
+     upper storey does, or the field routes walkers out of a window and
+     across thin air. */
+  /* `step`: the tallest thing a walker gets over. 1 m by default (bots
+     vault); a zombie only steps about half that, so a hay bale is a wall. */
+  constructor(colliders, bounds, floorY, { needSupport = false, cell = CELL, pad = 0.35, step = 1.0 } = {}) {
+    this.cell = cell;
     this.floorY = floorY;
     this.minX = bounds.minX;
     this.minZ = bounds.minZ;
-    this.w = Math.max(1, Math.ceil((bounds.maxX - bounds.minX) / CELL));
-    this.h = Math.max(1, Math.ceil((bounds.maxZ - bounds.minZ) / CELL));
+    this.w = Math.max(1, Math.ceil((bounds.maxX - bounds.minX) / this.cell));
+    this.h = Math.max(1, Math.ceil((bounds.maxZ - bounds.minZ) / this.cell));
     this.blocked = new Uint8Array(this.w * this.h);
     this.dist = new Int32Array(this.w * this.h);
     this.queue = new Int32Array(this.w * this.h);
     this.targetIdx = -1;
 
+    if (needSupport) {
+      // Start everything blocked, then open the cells a floor top covers.
+      // Cells are opened by their centre, so a slab's ragged edge stays shut.
+      this.blocked.fill(1);
+      for (const c of colliders) {
+        if (Math.abs(c.max.y - floorY) > 0.45) continue;
+        const x0 = Math.ceil((c.min.x - this.minX) / this.cell - 0.5);
+        const x1 = Math.floor((c.max.x - this.minX) / this.cell - 0.5);
+        const z0 = Math.ceil((c.min.z - this.minZ) / this.cell - 0.5);
+        const z1 = Math.floor((c.max.z - this.minZ) / this.cell - 0.5);
+        for (let iz = Math.max(0, z0); iz <= Math.min(this.h - 1, z1); iz++) {
+          for (let ix = Math.max(0, x0); ix <= Math.min(this.w - 1, x1); ix++) {
+            this.blocked[iz * this.w + ix] = 0;
+          }
+        }
+      }
+    }
+
     // A cell is blocked if any tall collider overlaps it. The half-cell
     // margin keeps walkers from clipping corners they can't actually fit.
-    const pad = 0.35;
+    // (`pad` is that margin, 0.35 m unless a map asks for a finer grid.)
     for (const c of colliders) {
-      if (!blocks(c, floorY)) continue;
-      const x0 = Math.floor((c.min.x - pad - this.minX) / CELL);
-      const x1 = Math.ceil((c.max.x + pad - this.minX) / CELL);
-      const z0 = Math.floor((c.min.z - pad - this.minZ) / CELL);
-      const z1 = Math.ceil((c.max.z + pad - this.minZ) / CELL);
+      if (!blocks(c, floorY, step)) continue;
+      const x0 = Math.floor((c.min.x - pad - this.minX) / this.cell);
+      const x1 = Math.ceil((c.max.x + pad - this.minX) / this.cell);
+      const z0 = Math.floor((c.min.z - pad - this.minZ) / this.cell);
+      const z1 = Math.ceil((c.max.z + pad - this.minZ) / this.cell);
       for (let iz = Math.max(0, z0); iz < Math.min(this.h, z1); iz++) {
         for (let ix = Math.max(0, x0); ix < Math.min(this.w, x1); ix++) {
           this.blocked[iz * this.w + ix] = 1;
@@ -51,8 +76,8 @@ export class FlowField {
   }
 
   index(x, z) {
-    const ix = Math.floor((x - this.minX) / CELL);
-    const iz = Math.floor((z - this.minZ) / CELL);
+    const ix = Math.floor((x - this.minX) / this.cell);
+    const iz = Math.floor((z - this.minZ) / this.cell);
     if (ix < 0 || iz < 0 || ix >= this.w || iz >= this.h) return -1;
     return iz * this.w + ix;
   }
@@ -130,8 +155,8 @@ export class FlowField {
     if (!bx && !bz) return null;
     // Aim at the middle of the chosen cell rather than along the axis, so a
     // walker follows a smooth line instead of stair-stepping.
-    const cx = this.minX + (ix + bx + 0.5) * CELL;
-    const cz = this.minZ + (iz + bz + 0.5) * CELL;
+    const cx = this.minX + (ix + bx + 0.5) * this.cell;
+    const cz = this.minZ + (iz + bz + 0.5) * this.cell;
     return out.set(cx - x, 0, cz - z).normalize();
   }
 }

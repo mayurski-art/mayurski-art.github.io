@@ -80,6 +80,10 @@ export class Loadout {
     this.slot = "primary";   // which slot the class/weapon list below is editing
     this.cls = WEAPON_DEFS[this.weaponId].cls;
     this.mapId = MAPS[saved.mapId] ? saved.mapId : MAP_IDS[0];
+    // A mode with its own short list of maps (Zombies) remembers its pick
+    // separately, so choosing a zombies map never changes your versus map.
+    this.poolMapId = MAPS[saved.poolMapId] ? saved.poolMapId : null;
+    this.mapPool = null;
 
     // Gear falls back to the rank-0 option whenever a saved pick is unknown
     // or has been locked again (the rank track is local and can be reset).
@@ -134,6 +138,7 @@ export class Loadout {
   persist() {
     save({
       weaponId: this.weaponId, secondaryId: this.secondaryId, mapId: this.mapId,
+      poolMapId: this.poolMapId,
       attachments: this.attachmentsByWeapon,
       meleeId: this.meleeId, lethalId: this.lethalId, tacticalId: this.tacticalId,
     });
@@ -144,7 +149,7 @@ export class Loadout {
     const wrap = this.els.maps;
     if (!wrap) return;
     wrap.innerHTML = "";
-    for (const id of MAP_IDS) {
+    for (const id of this.mapPool || MAP_IDS) {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "to-lo-map";
@@ -164,7 +169,8 @@ export class Loadout {
       b.appendChild(tag);
       b.setAttribute("aria-label", `Map: ${MAPS[id].name} — ${MAPS[id].blurb}`);
       b.addEventListener("click", () => {
-        this.mapId = id;
+        if (this.mapPool) this.poolMapId = id;
+        else this.mapId = id;
         this.persist();
         this.render();
       });
@@ -198,10 +204,28 @@ export class Loadout {
     this.renderMapCard();
   }
 
+  /* A mode that picks from its own list (Zombies): the drawer shows only
+     those maps, and the pick is kept apart from the versus map. */
+  setMapPool(pool) {
+    const same = (pool || null) === this.mapPool
+      || (pool && this.mapPool && pool.join() === this.mapPool.join());
+    if (same) return;
+    this.mapPool = pool ? [...pool] : null;
+    this.buildMaps();
+    this.render();
+  }
+
+  /* The map the Play tab will deploy into. */
+  get activeMapId() {
+    if (this.forcedMapId) return this.forcedMapId;
+    if (this.mapPool) return this.mapPool.includes(this.poolMapId) ? this.poolMapId : this.mapPool[0];
+    return this.mapId;
+  }
+
   renderMapCard() {
     const card = this.els.mapCard;
     if (!card) return;
-    const id = this.forcedMapId || this.mapId;
+    const id = this.activeMapId;
     const map = MAPS[id];
     const name = map?.name || (id === "pentagrin" ? "The Pentagrin" : id);
     if (card.name) card.name.textContent = name;
@@ -214,7 +238,7 @@ export class Loadout {
 
   drawMapCard() {
     const thumb = this.els.mapCard?.thumb;
-    const id = this.forcedMapId || this.mapId;
+    const id = this.activeMapId;
     if (!thumb || this.mapCardDrawn === id) return;
     try {
       if (drawMapThumb(thumb, id)) this.mapCardDrawn = id;
@@ -516,7 +540,7 @@ export class Loadout {
     if (this.els.maps) {
       for (const b of this.els.maps.children) {
         if (!b.dataset.map) continue;
-        const on = b.dataset.map === this.mapId;
+        const on = b.dataset.map === this.activeMapId;
         b.classList.toggle("is-active", on);
         b.setAttribute("aria-pressed", String(on));
       }

@@ -44,7 +44,6 @@ import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice } from "./streak-device.js";
 import { FlowField } from "./nav.js";
 import { ZombieDirector } from "./zombies.js";
-import { zombieWindows } from "./pentagrin.js";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
@@ -1886,6 +1885,7 @@ function renderModes() {
   if (els.ssPicker) els.ssPicker.hidden = !allowed;
   // Zombies and the range bring their own map, so the card just names it.
   loadout.setForcedMap(currentMode().forceMap || null);
+  loadout.setMapPool(currentMode().mapPool || null);
   renderLobbyRoster();   // no-ops until the lobby is ready
   if (lobbyReady) refreshLobbyMap();
 }
@@ -2643,7 +2643,18 @@ function loadMap(id) {
 
 let lobbyAngle = 0.6;
 
-function lobbyMapId() { return currentMode().forceMap || loadout.mapId; }
+/* The map a match on this mode is played on: a forced one (the range), the
+   mode's own list (Zombies: its saved pick, else the first), or the versus
+   map — the room's, when one is passed. Read from the mode itself, not the
+   lobby's state, so it holds however the match was started. */
+function matchMapId(roomMapId = null) {
+  const m = currentMode();
+  if (m.forceMap) return m.forceMap;
+  if (m.mapPool) return m.mapPool.includes(loadout.poolMapId) ? loadout.poolMapId : m.mapPool[0];
+  return roomMapId || loadout.mapId;
+}
+
+function lobbyMapId() { return matchMapId(); }
 
 function refreshLobbyMap() {
   if (gameState !== "menu") return;
@@ -5685,7 +5696,7 @@ function beginMatch(mapId = null) {
   player.spawnGuard = 0;
   updateSpawnGuardHud();
 
-  loadMap(currentMode().forceMap || mapId || loadout.mapId);
+  loadMap(matchMapId(mapId));
   spawnOpening = true;   // cleared by endStaging — everyone opens on their own side
   clearDeathVisuals();   // dying as the last match ended left the screen dark
   const sp = isPvp() ? teamSpawn() : builtMap.playerSpawn;
@@ -5741,7 +5752,7 @@ function beginMatch(mapId = null) {
   if (isRange()) {
     rangeSet = new RangeSet(scene);
   } else if (isZombies()) {
-    zdir = new ZombieDirector(scene, ARENA, colliders, zombieWindows());
+    zdir = new ZombieDirector(scene, ARENA, colliders, builtMap.map.zombieLayout());
   } else if (!isPvp()) {
     spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
   }
@@ -5806,6 +5817,16 @@ function nextZombieRound() {
   zdir.startRound(player.wave);
   els.hudWave.textContent = String(player.wave);
   showWaveBanner(`ROUND ${player.wave}`);
+  audio.wave();
+}
+
+/* The Max Ammo drop: every gun's reserve full again, plus your grenades.
+   The mag you're holding stays as it is, the way the genre does it. */
+function zombieMaxAmmo() {
+  for (const w of Object.values(player.weapons)) w.ammoReserve = w.def.reserveMax - w.def.magSize;
+  player.gear.lethal = loadout.lethal.carried;
+  player.gear.tactical = loadout.tactical.carried;
+  showWaveBanner("MAX AMMO", 1600);
   audio.wave();
 }
 
@@ -6073,7 +6094,7 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts
     kills: player.kills,
     deaths: player.deaths,
     wave: player.wave,
-    map: loadout.mapId,
+    map: loadedMapId || loadout.mapId,
   });
 }
 
@@ -6694,8 +6715,11 @@ function animate() {
         remotes.update(dt, net.team, true);
       }
     } else if (isZombies()) {
-      const roundOver = zdir.update(dt, player.pos, onZombieAttack);
+      const roundOver = zdir.update(dt, player.pos, onZombieAttack, move.pos.y);
       if (roundOver) nextZombieRound();
+      for (const ev of zdir.events.splice(0)) {
+        if (ev.type === "maxammo") zombieMaxAmmo();
+      }
       els.hudHostiles.textContent = String(zdir.remaining);
       els.hudKills.textContent = zdir.points.toLocaleString();
       targetMeshes = zdir.hitMeshes();
@@ -8233,6 +8257,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     startInspect, inspectT: () => inspectT, inspectPose, setInspectFreeze: (v) => { inspectFreeze = v; },
     showHitmarker, damageNumbers: () => damageNumbers, noteHitDirection, hitDirs,
     setMode: (id) => { modeId = id; modePicked = true; },
+    zdir: () => zdir,
+    loadedMapId: () => loadedMapId,
     THREE,
     activeMeleeMesh: () => activeMeleeMesh,
     activeWeaponMesh: () => activeWeaponMesh,

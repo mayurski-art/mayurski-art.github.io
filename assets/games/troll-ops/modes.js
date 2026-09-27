@@ -29,11 +29,12 @@ export const MODES = {
   zombies: {
     id: "zombies",
     name: "Zombies",
-    short: "Zombies · The Pentagrin",
+    short: "Zombies",
     pvp: false,
     zombies: true,
-    forceMap: "pentagrin",
-    blurb: "Three floors of Pentagon. Pepe and trollface, and they do not stop coming.",
+    // Maps with a zombieLayout(); the map card's Change picks between them.
+    mapPool: ["pentagrin", "hollowgrin"],
+    blurb: "Pepe and trollface, round after round, and they do not stop coming.",
   },
 
   tdm: {

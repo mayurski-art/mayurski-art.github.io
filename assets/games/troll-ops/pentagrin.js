@@ -326,6 +326,12 @@ export const PENTAGRIN = {
 
   // used by the shared arena code; zombies.js uses the window list instead
   spawns: [[0, -22], [0, 22], [-26, 0], [26, 0], [-20, -20], [20, -20], [-20, 20], [20, 20]],
+
+  // What the zombie director needs (zombies.js). No stair links: zombies
+  // come in on the player's floor and follow that floor's field.
+  // navStep: a zombie steps ~0.5 m, so the field must treat desks and the
+  // conference table as walls (at the 1 m default they stood stuck at them).
+  zombieLayout: () => ({ windows: zombieWindows(), floorOf, floors: FLOOR, navStep: 0.45 }),
 };
 
 /* Where zombies climb in, resolved after the map is built. */
