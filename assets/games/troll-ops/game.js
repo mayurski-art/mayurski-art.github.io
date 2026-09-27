@@ -3359,20 +3359,39 @@ function bindStick(el, nub, zone = null) {
 }
 bindStick(els.touchMove, els.touchMoveNub, els.touchMoveZone);
 
+/* Touch look, tuned toward CoD Mobile's default feel: a much livelier base
+   rate than the old flat 0.0028 rad/px (which also ignored the Sensitivity
+   slider entirely), a little acceleration so a fast flick covers a turn
+   without a second swipe while slow drags stay precise, and a lower rate
+   while aiming down sights so the scope doesn't feel twitchy. */
+const TOUCH_BASE_SENS = 0.0065;   // rad per CSS px at 100% sensitivity, hip-fire
+const TOUCH_ACCEL_START = 0.6;    // px/ms before acceleration kicks in
+const TOUCH_ACCEL_MAX = 1.6;      // cap on the flick multiplier
+function touchLookGain(dx, dy, dtMs) {
+  const speed = Math.hypot(dx, dy) / Math.max(dtMs, 4);
+  const accel = Math.min(TOUCH_ACCEL_MAX, 1 + Math.max(0, speed - TOUCH_ACCEL_START) * 0.5);
+  const adsScale = 1 - (currentWeapon()?.adsT || 0) * 0.4;
+  return TOUCH_BASE_SENS * (settings.sens / 100) * accel * adsScale;
+}
+function addTouchLook(t, last) {
+  const now = performance.now();
+  const dx = t.clientX - last.x, dy = t.clientY - last.y;
+  const g = touchLookGain(dx, dy, now - last.t);
+  touchState.lookDX += dx * g;
+  touchState.lookDY += (settings.invert ? -1 : 1) * dy * g;
+  last.x = t.clientX; last.y = t.clientY; last.t = now;
+}
+
 (function bindLook() {
-  let id = null, lastX = 0, lastY = 0;
+  let id = null;
+  const last = { x: 0, y: 0, t: 0 };
   els.touchLook.addEventListener("touchstart", (e) => {
     const t = e.changedTouches[0];
-    id = t.identifier; lastX = t.clientX; lastY = t.clientY;
+    id = t.identifier; last.x = t.clientX; last.y = t.clientY; last.t = performance.now();
     touchState.looking = true;
   }, { passive: true });
   els.touchLook.addEventListener("touchmove", (e) => {
-    for (const t of e.changedTouches) {
-      if (t.identifier !== id) continue;
-      touchState.lookDX += (t.clientX - lastX) * 0.0028;
-      touchState.lookDY += (t.clientY - lastY) * 0.0028;
-      lastX = t.clientX; lastY = t.clientY;
-    }
+    for (const t of e.changedTouches) if (t.identifier === id) addTouchLook(t, last);
   }, { passive: true });
   const end = (e) => {
     for (const t of e.changedTouches) if (t.identifier === id) { id = null; touchState.looking = false; }
@@ -3396,26 +3415,32 @@ const fireUp = () => { firingThumbs = Math.max(0, firingThumbs - 1); touchState.
 bindHold(els.touchFire, fireDown, fireUp);
 if (els.touchFireL) bindHold(els.touchFireL, fireDown, fireUp);
 (function fireDragAims() {
-  let id = null, lastX = 0, lastY = 0;
+  let id = null;
+  const last = { x: 0, y: 0, t: 0 };
   els.touchFire.addEventListener("touchstart", (e) => {
     const t = e.changedTouches[0];
-    id = t.identifier; lastX = t.clientX; lastY = t.clientY;
+    id = t.identifier; last.x = t.clientX; last.y = t.clientY; last.t = performance.now();
   }, { passive: true });
   els.touchFire.addEventListener("touchmove", (e) => {
     e.preventDefault();
     for (const t of e.changedTouches) {
       if (t.identifier !== id) continue;
-      touchState.lookDX += (t.clientX - lastX) * 0.0028;
-      touchState.lookDY += (t.clientY - lastY) * 0.0028;
+      addTouchLook(t, last);
       touchState.looking = true;
-      lastX = t.clientX; lastY = t.clientY;
     }
   }, { passive: false });
   const end = (e) => { for (const t of e.changedTouches) if (t.identifier === id) { id = null; touchState.looking = false; } };
   els.touchFire.addEventListener("touchend", end);
   els.touchFire.addEventListener("touchcancel", end);
 })();
-bindHold(els.touchAds, () => touchState.ads = true, () => touchState.ads = false);
+/* AIM is a tap toggle, like CoD Mobile's default: tap to scope in, tap
+   again to come out, so the right thumb stays free to aim and shoot. */
+function setTouchAds(on) {
+  touchState.ads = on;
+  els.touchAds.classList.toggle("is-on", on);
+  els.touchAds.setAttribute("aria-pressed", String(on));
+}
+els.touchAds.addEventListener("touchstart", (e) => { e.preventDefault(); setTouchAds(!touchState.ads); }, { passive: false });
 bindHold(els.touchJump, () => touchState.jump = true, () => touchState.jump = false);
 bindHold(els.touchSlide, () => touchState.crouch = true, () => touchState.crouch = false);
 els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); tryReload(); });
@@ -3448,6 +3473,9 @@ const AIM_ASSIST_SLOWDOWN_DEG = 3.5;
 const AIM_ASSIST_RANGE = 55;
 const AIM_ASSIST_PULL = 3.4;       // rad/sec at the very centre of a lock
 const AIM_ASSIST_SLOWDOWN = 0.45;  // multiplies the player's own look turn near a target
+// Thumbs get less friction than a stick: at 0.45 tracking a strafing
+// target on the look pad felt like dragging through mud.
+const AIM_ASSIST_TOUCH_SLOWDOWN = 0.75;
 const AIM_ASSIST_MOUSE_PULL = 0.5;       // share of the full pull a mouse gets
 const AIM_ASSIST_MOUSE_SLOWDOWN = 0.72;  // gentler "sticky" for mouse turns
 const MOUSE_ACTIVE_MS = 200;             // mouse counts as steering this long after it moves
@@ -3548,8 +3576,8 @@ function applyAimAssist(dt, strength = 1) {
     aimAssistSticky = true;
     gamepadState.lookDX *= AIM_ASSIST_SLOWDOWN;
     gamepadState.lookDY *= AIM_ASSIST_SLOWDOWN;
-    touchState.lookDX *= AIM_ASSIST_SLOWDOWN;
-    touchState.lookDY *= AIM_ASSIST_SLOWDOWN;
+    touchState.lookDX *= AIM_ASSIST_TOUCH_SLOWDOWN;
+    touchState.lookDY *= AIM_ASSIST_TOUCH_SLOWDOWN;
   }
 }
 
@@ -6242,7 +6270,9 @@ els.retryBtn.addEventListener("click", () => {
   if (intermissionT > 0) { intermissionT = 0.0001; return; }
   startGame();
 });
-els.resumeBtn.addEventListener("click", () => { if (!isTouch) controls.lock(); });
+// Touch has no pointer lock to re-take, so Resume just closes the menu —
+// it used to do nothing there, stranding the player in the pause menu.
+els.resumeBtn.addEventListener("click", () => { if (isTouch) closePauseMenu(); else controls.lock(); });
 els.rangeSpawnBot?.addEventListener("click", spawnRangeBot);
 els.quitBtn.addEventListener("click", () => {
   // Quitting mid-match used to just discard player.matchXp — every kill's
@@ -6267,6 +6297,7 @@ els.quitBtn.addEventListener("click", () => {
   setNetStatus("Share the code with whoever you want in the match.");
   els.pause.hidden = true;
   els.hud.hidden = true;
+  setTouchAds(false);
   setTouchControls(false);
   els.title.hidden = false;
   loadout.render();
@@ -7173,6 +7204,8 @@ function updatePlayer(dt) {
   // Heads-down on the strike tablet: you stand still, as in BO2.
   const frozen = !player.alive || isStaging() || localPauseOnly || !!strikeTablet?.isOpen;
   if (frozen) { ix = 0; iz = 0; }
+  // A toggled AIM shouldn't survive a death or a streak call.
+  if (touchState.ads && (!player.alive || player.holding === "streak")) setTouchAds(false);
 
   // Q aims as well as right mouse.
   // An EMP kills the optic, so there is nothing to aim down until it clears.

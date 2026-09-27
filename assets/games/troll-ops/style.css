@@ -2137,6 +2137,17 @@ body.to-touch-play .to-touch-btn {
 }
 body.to-touch-play .to-touch-btn.is-held { background: rgba(255,255,255,.3); transform: scale(.94); }
 body.to-touch-play .to-touch-btn.is-empty { opacity: .4; }
+/* AIM: a scope ring behind the label, lit green while toggled on. */
+.to-touch-ads { position: absolute; }
+.to-touch-ads-ring {
+  position: absolute; inset: 12%; border-radius: 50%;
+  border: 1.5px dashed rgba(255,255,255,.3); pointer-events: none;
+}
+body.to-touch-play .to-touch-ads.is-on {
+  background: rgba(127,224,102,.34); border: 2px solid #7fe066; color: #fff;
+}
+.to-touch-ads.is-on .to-touch-ads-ring { border: 1.5px solid #7fe066; }
+body.to-touch-play .to-menu-esc { display: none; }
 
 /* The right-hand cluster, measured from the corner. */
 body.to-touch-play .to-touch-fire {
@@ -2215,9 +2226,17 @@ body.to-touch-play .to-ss-hud {
 }
 body.to-touch-play .to-ss-slot { font-size: calc(10px * var(--k)); }
 body.to-touch-play .to-ss-slot[role="button"] { min-height: calc(28px * var(--k)); }
-body.to-touch-play .to-hud-top { padding-left: calc(var(--sl) + 20px + 96px * var(--k)); padding-right: calc(var(--sr) + 64px); top: 8px; }
+body.to-touch-play .to-hud-top { padding-left: calc(var(--sl) + 20px + 96px * var(--k)); padding-right: calc(var(--sr) + 76px); top: 8px; }
 body.to-touch-play .to-hud-teams { top: 10px; }
-body.to-touch-play .to-gear { top: 8px; right: calc(var(--sr) + 10px); width: 40px; height: 40px; }
+/* The HUD's own tappables (menu button, streak rows, strike tablet) sat
+   UNDER the touch layer, so the look pad and move zone swallowed every tap
+   meant for them. Lift the HUD over it; it's pointer-events: none, so only
+   those controls catch touches and everything else still reaches the pads. */
+body.to-touch-play .to-hud { z-index: 16; }
+body.to-touch-play .to-gear {
+  top: 8px; right: calc(var(--sr) + 10px); width: 44px; height: 44px;
+  font-size: 20px; touch-action: manipulation;
+}
 body.to-touch-play .to-killfeed { top: 56px; right: calc(var(--sr) + 12px); max-width: min(230px, 34vw); }
 body.to-touch-play .to-hud-gear { display: none; }
 body.to-touch-play .to-radio { display: none; }
