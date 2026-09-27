@@ -1,10 +1,9 @@
 // Troll Forces — in-game radio.
 //
 // A separate playlist from Troll Radio (assets/js/troll-radio-tracks.js):
-// this one is local mp3s, not Spotify embeds, so it can autoplay under the
-// Deploy click (the same gesture that unlocks GameAudio) and keep running
-// seamlessly from the lobby straight into a match — Spotify's iframe can't
-// do that without reloading. One <audio> element, one widget, mounted once
+// this one is local mp3s, not Spotify embeds, so it keeps running seamlessly
+// from the lobby straight into a match — Spotify's iframe can't do that
+// without reloading. It never autoplays: the player has to hit Play. One <audio> element, one widget, mounted once
 // and shown in both the title screen and the HUD via CSS (see .to-radio).
 
 const TRACKS = [
@@ -89,13 +88,6 @@ export class GameMusic {
       this.playing = false;
       this._notify();
     });
-  }
-
-  /* Call from the same click that resumes GameAudio (Deploy), so the browser
-     sees one user gesture unlocking both. Safe to call repeatedly. */
-  primeAutoplay() {
-    if (!this.hasTracks || this.playing) return;
-    this._playEl();
   }
 
   play() {

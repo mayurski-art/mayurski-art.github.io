@@ -38,7 +38,7 @@ import {
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js";
-import { GameMusic } from "./music.js?v=to-s9h";
+import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice } from "./streak-device.js";
@@ -1677,17 +1677,8 @@ function initRadioWidget() {
 
   repaint();
 
-  // Music should be playing by default, but browsers won't autoplay audio
-  // without a user gesture first. Prime it off the very first interaction
-  // anywhere on the page, so it's already going by the time someone reaches
-  // Deploy rather than waiting on that specific click.
-  const primeOnFirstInput = () => {
-    music.primeAutoplay();
-    window.removeEventListener("pointerdown", primeOnFirstInput);
-    window.removeEventListener("keydown", primeOnFirstInput);
-  };
-  window.addEventListener("pointerdown", primeOnFirstInput, { once: true });
-  window.addEventListener("keydown", primeOnFirstInput, { once: true });
+  // Music is opt-in: nothing plays until the player hits Play. Whatever state
+  // they leave it in on the menu (playing or paused) carries into the match.
 }
 
 function renderMenuRoster() {
@@ -5514,7 +5505,6 @@ async function joinQuickplay() {
 
 async function startGame() {
   audio.resume();   // the click that got us here is the gesture Web Audio needs
-  music.primeAutoplay();
   if (isPvp()) {
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
