@@ -83,6 +83,7 @@
     { key: 'banner-14', label: 'The Trading Floor' },
     { key: 'banner-15', label: 'The Coven' },
     { key: 'banner-16', label: 'You Have A Problem' },
+    { key: 'banner-18', label: 'Genesis Block' },
   ].map(b => ({ ...b, img: `${BANNER_BASE}${b.key}.jpg` }));
   function bannerUrl(key) {
     return BANNER_DEFS.find(b => b.key === key)?.img || null;
