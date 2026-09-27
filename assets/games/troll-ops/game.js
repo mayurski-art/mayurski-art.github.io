@@ -23,13 +23,13 @@ import {
 } from "./streak-entities.js";
 import { KillstreakUi } from "./killstreak-ui.js";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
-import { KillCam } from "./killcam.js";
+import { KillCam } from "./killcam.js?v=to-s12f-killcam";
 import { Achievements } from "./achievements.js";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js";
-import { buildHumanoid, poseHumanoid, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-s12f-killcam";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
@@ -2460,6 +2460,7 @@ const net = new Net({
     const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
     const dir = new THREE.Vector3(m.dx, m.dy, m.dz);
     remoteShotFx(origin, dir, m.w, !!m.q);
+    killcam.noteShot(kcClock, m.id || p?.id, origin, dir, m.w, !!m.q);
 
     // Was it aimed near our head? If so, suppress.
     if (dir.lengthSq() > 0.001 && player.alive) {
@@ -2531,6 +2532,9 @@ scene.add(sky);
 const camera = new THREE.PerspectiveCamera(78, 16 / 9, 0.05, 300);
 let baseFov = 78;   // driven by the FOV setting
 const killcam = new KillCam(camera);
+/* The killcam history's clock: sim seconds, not wall time, so a replay
+   plays back at the speed the match actually ran. */
+let kcClock = 0;
 
 // Lighting
 const hemi = new THREE.HemisphereLight(0xb9d4ff, 0x39432c, 1.1);
@@ -3200,6 +3204,7 @@ let spawner = null;
 const keys = new Set();
 window.addEventListener("keydown", (e) => {
   keys.add(e.code);
+  if (e.code === "Space" && !e.repeat && killcam.active && !player.alive) skipKillcam();
   // Pause with other people still live in the match keeps gameState at
   // "playing" (see openPauseMenu) so their match doesn't stall, so these
   // action keys need their own guard now instead of relying on gameState.
@@ -3626,6 +3631,7 @@ function pollGamepad(dt) {
 
   const btn = (i) => !!gp.buttons[i]?.pressed;
   const pressedEdge = (i) => btn(i) && !gpPrev[i];
+  if (killcam.active && !player.alive && pressedEdge(0)) skipKillcam();
 
   // The strike tablet takes the pad: either stick aims, A / R2 marks,
   // B undoes (and cancels with nothing marked). Nothing else fires.
@@ -5014,6 +5020,7 @@ function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = 
   }
   const dir = _botAim.clone().sub(_botMuzzle).normalize();
   remoteShotFx(_botMuzzle, dir, wid);
+  killcam.noteShot(kcClock, bot.id, _botMuzzle, dir, wid);
   if (net.active) net.reportShotAs(bot.id, _botMuzzle, dir, wid);
 
   if (!hit) {
@@ -5688,6 +5695,7 @@ function updateStaging(dt) {
    reuse the room the lobby already joined instead of tearing it down and
    making everyone re-handshake. */
 function beginMatch(mapId = null) {
+  killcam.clear();
   suppressT = 0;
   clearHitDirs();
   player.hp = player.maxHp;
@@ -6473,11 +6481,16 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
       respawnT = INFECTION.respawn;
     }
     showDeathCard(fromId, weaponId, isHead);
-    killcam.start(player.pos, killerPosFor(fromId));
-    els.killcamBars.classList.add("is-on");
     els.deathfade.classList.add("is-dead");
     damageLog.clear();
     els.respawn.hidden = false;
+    // BO2 killcam: the last few seconds again, from the killer's eyes. The
+    // respawn waits for it (skippable back down to the usual timer).
+    killcamBaseRespawn = respawnT;
+    killcam.start({ deathPos: player.pos, killerId: fromId, killerPos: killerPosFor(fromId), now: kcClock, selfId: killcamSelfId() });
+    if (killcam.replaying && !isSnd()) respawnT = Math.max(respawnT, killcam.duration + 0.35);
+    els.killcamBars.classList.add("is-on");
+    startKillcamPresentation(fromId, weaponId, isHead);
   } else {
     endGame("dead");
   }
@@ -6517,8 +6530,177 @@ function yawTowardCentre(sp) {
 /* Everything death puts on screen, taken back off. Shared by a respawn, a
    new S&D round and a new match — the last two used to skip it, so dying in
    S&D left the 62% death fade over every round after. */
+
+/* ---------------- killcam (killcam.js) ----------------
+   Recording runs every PvP frame while nothing is replaying: every remote
+   actor's rendered pose, and ours. On death, the replay drives the camera
+   (killcam.update in updatePlayer) and this poses the world to match. */
+const killcamSelfId = () => net.id || "self";
+const _kcSample = {};
+const _kcShots = [];
+let kcLocalPhase = 0;
+let killcamGun = null;       // the killer's gun as the viewmodel during a replay
+let killcamKick = 0;
+let killcamHud = null;
+let killcamWasActive = false;
+let killcamBaseRespawn = 4;
+
+function updateKillcam(dt) {
+  kcClock += dt;
+  if (killcamWasActive && !killcam.active) endKillcamPresentation();
+  killcamWasActive = killcam.active;
+  if (!killcam.replaying) {
+    for (const rp of remotes.byId.values()) {
+      if (rp.alive && !rp.rig.root.visible) continue;   // no snapshots yet
+      const snaps = rp.peer.snaps;
+      killcam.record(kcClock, rp.netId, {
+        x: rp.pos.x, y: rp.pos.y, z: rp.pos.z, yaw: rp.yaw, pitch: rp.pitch, lower: rp.lower,
+        alive: rp.alive, wid: rp.weaponId, moving: !!snaps?.[snaps.length - 1]?.moving, bot: !!rp.peer.isBot,
+      });
+    }
+    if (player.alive) {
+      killcam.record(kcClock, killcamSelfId(), {
+        x: move.pos.x, y: move.pos.y, z: move.pos.z, yaw: look.yaw, pitch: look.pitch,
+        lower: localLower, alive: true, wid: currentWeapon()?.def?.id, moving: move.moving,
+      });
+    }
+    return;
+  }
+  poseKillcamWorld(dt);
+}
+
+/* The world at replay time: everyone where they were, the killer hidden
+   (we're in their eyes), us walking into it and dropping, their shots
+   re-fired. */
+function poseKillcamWorld(dt) {
+  const rt = killcam.rt;
+  for (const rp of remotes.byId.values()) {
+    const s = killcam.sampleAt(rp.netId, rt, _kcSample);
+    rp.replayPose(s, dt, rp.netId === killcam.killerId);
+  }
+  const me = killcam.sampleAt(killcamSelfId(), Math.min(rt, killcam.deathT), _kcSample);
+  if (me) {
+    localRig.root.visible = true;
+    localRig.parts.head.visible = true;
+    localRig.root.position.set(me.x, me.y, me.z);
+    if (rt >= killcam.deathT) {
+      poseDeath(localRig, Math.min(1, (rt - killcam.deathT) / 0.55));
+    } else {
+      aimRig(localRig, me.yaw, dt, { moving: me.moving });
+      if (me.moving) kcLocalPhase += dt * gaitPhaseRate(3.6);
+      poseHumanoid(localRig, {
+        phase: kcLocalPhase, moving: me.moving, pitch: me.pitch, lower: me.lower, strafe: 0, forward: 1,
+        speed: me.moving ? 0.85 : 0, mps: me.moving ? 3.6 : 0, dt, hasGun: true, hold: "gun", swing: null,
+      });
+    }
+  }
+  for (const s of killcam.shotsSince(_kcShots)) {
+    remoteShotFx(new THREE.Vector3(s.ox, s.oy, s.oz), new THREE.Vector3(s.dx, s.dy, s.dz), s.wid, s.quiet);
+    if (s.id === killcam.killerId) killcamKick = 1;
+  }
+  updateKillcamGun(dt);
+  if (killcamHud) killcamHud.classList.toggle("is-kill", killcam.atKill);
+}
+
+/* The killer's gun at the hip, bobbing with their walk and kicking on each
+   of their shots. Built from their weapon id; hands stay hidden like ours. */
+function buildKillcamGun(wid) {
+  disposeKillcamGun();
+  const def = WEAPON_DEFS[wid];
+  if (!def) return;
+  killcamGun = stripLights(buildWeaponMesh(def));
+  killcamGun.traverse((o) => { if (o.userData.hand) o.visible = false; });
+  weaponScene.add(killcamGun);
+}
+
+function disposeKillcamGun() {
+  if (!killcamGun) return;
+  weaponScene.remove(killcamGun);
+  killcamGun.traverse((o) => {
+    if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+    if (o.material) o.material.dispose?.();
+  });
+  killcamGun = null;
+}
+
+function updateKillcamGun(dt) {
+  if (!killcamGun) return;
+  killcamKick = Math.max(0, killcamKick - dt * 10);
+  const s = killcam.sampleAt(killcam.killerId, killcam.rt, _kcSample);
+  const walk = s?.moving ? killcam.rt * 9 : 0;
+  const k = killcamKick;
+  killcamGun.position.set(
+    0.22 + Math.sin(walk) * 0.006,
+    -0.2 - Math.abs(Math.cos(walk)) * 0.006 - (s?.lower || 0) * 0.02,
+    -0.55 + k * 0.045,
+  );
+  killcamGun.rotation.set(k * 0.07, 0, Math.sin(walk) * 0.01);
+}
+
+/* Title, killer plate and the skip hint. BO2's layout: KILLCAM across the
+   top, who and with what bottom-left, skip bottom-right. */
+function startKillcamPresentation(killerId, weaponId, isHead) {
+  if (!killcamHud) {
+    killcamHud = document.createElement("div");
+    killcamHud.className = "to-kc";
+    killcamHud.innerHTML = `
+      <div class="to-kc-top"><span class="to-kc-title">Killcam</span></div>
+      <div class="to-kc-plate">
+        <span class="to-kc-by">Killed by</span>
+        <span class="to-kc-name"></span>
+        <span class="to-kc-weapon"></span>
+      </div>
+      <button type="button" class="to-kc-skip"></button>`;
+    killcamHud.querySelector(".to-kc-skip").addEventListener("pointerdown", (e) => { e.preventDefault(); skipKillcam(); });
+    els.killcamBars.parentElement.appendChild(killcamHud);
+  }
+  const name = killerId ? nameFor(killerId) : null;
+  const team = killerId && (net.peers.get(killerId)?.team || bots.byId(killerId)?.team);
+  const nameEl = killcamHud.querySelector(".to-kc-name");
+  nameEl.textContent = name && name !== "You" ? name : "Unknown";
+  nameEl.style.color = team && TEAMS[team] ? TEAMS[team].ui : "";
+  const bits = [weaponNameFor(weaponId)].filter(Boolean);
+  if (isHead) bits.push("Headshot");
+  killcamHud.querySelector(".to-kc-weapon").textContent = bits.join(" · ");
+  killcamHud.querySelector(".to-kc-skip").innerHTML = isTouch ? "Tap to skip"
+    : gamepadState.connected ? "<b>A</b> to skip" : "<b>Space</b> to skip";
+  killcamHud.classList.remove("is-kill");
+  killcamHud.hidden = false;
+  if (killcam.replaying) {
+    buildKillcamGun(weaponId && WEAPON_DEFS[weaponId] ? weaponId : killcam.killerWeapon);
+    weaponRig.visible = false;
+  }
+  // The replay is the death screen now: no 62% fade or centre countdown
+  // over it, and none of the live HUD.
+  els.killcamBars.parentElement.classList.add("to-kc-on");
+  els.deathfade.classList.remove("is-dead");
+  els.respawn.style.visibility = "hidden";
+}
+
+function endKillcamPresentation() {
+  if (killcamHud) killcamHud.hidden = true;
+  els.killcamBars.parentElement.classList.remove("to-kc-on");
+  disposeKillcamGun();
+  weaponRig.visible = true;
+  els.respawn.style.visibility = "";
+  els.killcamBars.classList.remove("is-on");
+  if (!player.alive) els.deathfade.classList.add("is-dead");
+}
+
+/* Space / A / a tap: straight back to the ordinary respawn timer (BO2's
+   skip) — never faster than dying without a killcam would have been. */
+function skipKillcam() {
+  if (!killcam.active || player.alive) return;
+  const elapsed = killcam.t;
+  killcam.cancel();
+  endKillcamPresentation();
+  if (!isSnd()) respawnT = Math.min(respawnT, Math.max(0.25, killcamBaseRespawn - elapsed));
+}
+
 function clearDeathVisuals() {
   killcam.cancel();
+  endKillcamPresentation();
+  killcamWasActive = false;
   els.killcamBars.classList.remove("is-on");
   els.deathfade.classList.remove("is-dead");
   if (els.deathBy) els.deathBy.hidden = true;
@@ -6800,6 +6982,7 @@ function animate() {
       net.update(dt, netSnapshot());
       remotes.sync(net.peers);
       remotes.update(dt, net.team, ffa);
+      updateKillcam(dt);
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
 
       if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
@@ -6950,7 +7133,7 @@ function animate() {
   // The FP viewmodel (gun+arms) only makes sense in first person — the gun
   // is already visible on the third-person rig itself, so rendering both
   // would double up the weapon on screen.
-  if (gameState === "playing" && !settings.thirdPerson && !emote) {
+  if (gameState === "playing" && ((!settings.thirdPerson && !emote) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);

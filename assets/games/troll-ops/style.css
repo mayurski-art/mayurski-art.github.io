@@ -2304,3 +2304,58 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 .to-emote-hub b { font-family: "Oswald", sans-serif; font-size: 18px; color: #eaf5e4; letter-spacing: .06em; text-transform: uppercase; }
 .to-emote-hub span { font-family: "DM Mono", monospace; font-size: 10px; color: #9aa596; }
 @media (prefers-reduced-motion: reduce) { .to-emote-slice { transition: none; } }
+
+/* BO2-style killcam overlay (game.js startKillcamPresentation). KILLCAM
+   across the top between the letterbox bars, the killer plate bottom-left,
+   the skip hint bottom-right. Sits above the bars (z 19). */
+.to-kc {
+  position: absolute; inset: 0; z-index: 20; pointer-events: none;
+  font-family: "Oswald", sans-serif; text-transform: uppercase; color: #fff;
+}
+.to-kc[hidden] { display: none; }
+.to-kc-top {
+  position: absolute; top: 1.2%; left: 0; right: 0; text-align: center;
+}
+.to-kc-title {
+  display: inline-block; font-size: clamp(22px, 3.6vw, 40px); font-weight: 700;
+  letter-spacing: .3em; padding-left: .3em;
+  text-shadow: 0 0 18px rgba(255,255,255,.25), 0 2px 0 rgba(0,0,0,.6);
+  animation: to-kc-in .35s ease-out both;
+}
+.to-kc-top::after {
+  content: ""; display: block; width: 120px; height: 2px; margin: 4px auto 0;
+  background: linear-gradient(90deg, transparent, #ff9a2e, transparent);
+}
+.to-kc-plate {
+  position: absolute; left: 3%; bottom: calc(9% + 18px);
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 22px 10px 14px; border-left: 3px solid #ff9a2e;
+  background: linear-gradient(90deg, rgba(0,0,0,.72), rgba(0,0,0,.35) 75%, transparent);
+  animation: to-kc-slide .4s ease-out both;
+}
+.to-kc-by { font-size: 12px; letter-spacing: .24em; color: #ff9a2e; font-weight: 600; }
+.to-kc-name { font-size: clamp(20px, 2.6vw, 30px); font-weight: 700; letter-spacing: .06em; line-height: 1.1; }
+.to-kc-weapon { font-size: 13px; letter-spacing: .14em; color: #cfd6cc; font-weight: 500; }
+.to-kc-skip {
+  position: absolute; right: 3%; bottom: calc(9% + 22px); pointer-events: auto;
+  font: 500 13px/1 "Oswald", sans-serif; letter-spacing: .16em; text-transform: uppercase;
+  color: #e8ece6; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.18);
+  border-radius: 4px; padding: 8px 12px; cursor: pointer;
+}
+.to-kc-skip b { color: #ff9a2e; font-weight: 700; }
+.to-kc-skip:focus-visible { outline: 2px solid #ff9a2e; outline-offset: 2px; }
+/* The kill itself: a brief white flare while the replay slows. */
+.to-kc.is-kill::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,.14), transparent 65%);
+  animation: to-kc-flare .5s ease-out both;
+}
+@keyframes to-kc-in { from { opacity: 0; letter-spacing: .6em; } to { opacity: 1; } }
+@keyframes to-kc-slide { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@keyframes to-kc-flare { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .to-kc-title, .to-kc-plate, .to-kc.is-kill::before { animation: none; }
+}
+/* While the killcam plays, it's the whole screen: the live HUD (crosshair,
+   minimap, gear, ammo, hit arcs) goes; the killfeed and scoreboard stay. */
+.to-kc-on > *:not(.to-kc):not(.to-killcam-bars):not(.to-killfeed):not(.to-scoreboard):not(.to-respawn) { visibility: hidden !important; }

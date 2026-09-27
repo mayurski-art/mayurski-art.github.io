@@ -318,6 +318,28 @@ export class RemotePlayer {
     this.tag.position.y = 2.15 - this.lower * 0.75;
   }
 
+  /* Killcam playback (killcam.js): pose from a recorded sample instead of
+     the live snapshots. Runs after update() in the same frame, so it simply
+     wins; the next ordinary update() puts everything back. `hidden` is the
+     killer, whose eyes the camera is in. */
+  replayPose(s, dt, hidden = false) {
+    const root = this.rig.root;
+    this.tag.visible = false;
+    if (hidden || !s || !s.alive) { root.visible = false; return; }
+    root.visible = true;
+    if (s.wid && WEAPON_DEFS[s.wid]) this.setWeaponModel(s.wid, this.skin);
+    if (this.weaponMesh) this.weaponMesh.visible = true;
+    if (this.meleeMesh) this.meleeMesh.visible = false;
+    root.position.set(s.x, s.y, s.z);
+    if (s.moving) this.replayPhase = (this.replayPhase || 0) + dt * gaitPhaseRate(3.6);
+    aimRig(this.rig, s.yaw, dt, { moving: s.moving });
+    poseHumanoid(this.rig, {
+      phase: this.replayPhase || 0, moving: s.moving, pitch: s.pitch, lower: s.lower, strafe: 0, forward: 1,
+      speed: s.moving ? 0.85 : 0, mps: s.moving ? 3.6 : 0, dt,
+      hasGun: WEAPON_DEFS[this.weaponId]?.cls !== "sidearm", hold: "gun", swing: null,
+    });
+  }
+
   /* Where a shot at this player should be reported from. */
   centre(out = new THREE.Vector3()) {
     return out.set(this.pos.x, this.pos.y + 1.1 - this.lower * 0.5, this.pos.z);
