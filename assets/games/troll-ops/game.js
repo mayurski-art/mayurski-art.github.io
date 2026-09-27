@@ -3175,12 +3175,23 @@ const controls = new EventTarget();
 controls.isLocked = false;
 // requestPointerLock rejects (not throws) when the document isn't focused,
 // so swallow it rather than surfacing an unhandled rejection.
-controls.lock = () => { try { renderer.domElement.requestPointerLock?.()?.catch?.(() => {}); } catch { /* unsupported */ } };
+controls.lock = () => {
+  try {
+    const p = renderer.domElement.requestPointerLock?.();
+    p?.catch?.(() => {});
+    return p || Promise.resolve();
+  } catch (err) { return Promise.reject(err); }
+};
 controls.unlock = () => { try { document.exitPointerLock?.(); } catch { /* not locked */ } };
 
+/* When the lock last changed. Chrome refuses a re-lock for ~1s after an
+   unlock (resumePlay waits it out), and the first mousemove after a fresh
+   lock can carry a huge bogus delta (dropped below). */
+let lockChangedAt = 0;
 document.addEventListener("pointerlockchange", () => {
   const locked = document.pointerLockElement === renderer.domElement;
   controls.isLocked = locked;
+  lockChangedAt = performance.now();
   controls.dispatchEvent(new Event(locked ? "lock" : "unlock"));
 });
 document.addEventListener("mousemove", (e) => {
@@ -3189,13 +3200,19 @@ document.addEventListener("mousemove", (e) => {
   if (strikeTablet?.isOpen) { strikeTablet.moveCursor(e.movementX, e.movementY); return; }
   // The emote wheel has the mouse while it's open: the view holds still.
   if (emoteWheel.isOpen) { emoteWheel.move(e.movementX, e.movementY); return; }
+  // Right after a re-lock the browser can report one enormous jump (the
+  // cursor's travel while unlocked): swallow the first moments and cap any
+  // single event, so resuming never snaps the view somewhere else.
+  if (performance.now() - lockChangedAt < 60) return;
+  const mx = Math.max(-300, Math.min(300, e.movementX));
+  const my = Math.max(-300, Math.min(300, e.movementY));
   mouseLookAt = performance.now();
   // Near a target, aim assist makes the mouse a little "sticky" (see
   // applyAimAssist) — the same slowdown the stick gets, just gentler.
   const sticky = aimAssistSticky ? AIM_ASSIST_MOUSE_SLOWDOWN : 1;
   const sens = BASE_MOUSE_SENS * (settings.sens / 100) * sticky;
-  look.yaw -= e.movementX * sens;
-  look.pitch += (settings.invert ? 1 : -1) * e.movementY * sens;
+  look.yaw -= mx * sens;
+  look.pitch += (settings.invert ? 1 : -1) * my * sens;
   look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
 });
 
@@ -3301,7 +3318,12 @@ function escapeHtml(s) {
 
 let mouseDown = false, adsHeld = false;
 renderer.domElement.addEventListener("mousedown", (e) => {
-  if (!controls.isLocked) return;
+  if (!controls.isLocked) {
+    // In play without the mouse (a refused re-lock, or resumed on a pad):
+    // a click on the game takes it back instead of doing nothing.
+    if (!isTouch && gameState === "playing" && els.pause.hidden) controls.lock();
+    return;
+  }
   if (strikeTablet?.isOpen) {
     if (e.button === 0) strikeTablet.place();
     else if (e.button === 2) strikeTablet.undo();
@@ -3707,7 +3729,13 @@ function pollGamepadMenu() {
   const gp = (gpIndex != null ? pads[gpIndex] : null) || Array.from(pads).find((p) => p && p.connected) || null;
   if (!gp) { gpMenuPrev = {}; return; }
   const pressed = !!gp.buttons[9]?.pressed;
-  if (pressed && !gpMenuPrev[9]) { if (!isTouch) controls.lock(); else closePauseMenu(); }
+  if (pressed && !gpMenuPrev[9] && !els.pause.hidden) {
+    // A pad press isn't a gesture the browser accepts for pointer lock, so
+    // asking for one here always failed and Start never resumed. The pad
+    // doesn't need the mouse: close the menu and play.
+    closePauseMenu();
+    controls.lock();
+  }
   gpMenuPrev = { 9: pressed };
 }
 
@@ -4766,6 +4794,7 @@ function openPauseMenu() {
   // Esc out of a half-placed streak instead of opening the menu — the point
   // isn't committed yet and the charge hasn't been spent.
   if (markingStreak) { cancelMark(); return; }
+  releaseHeldInputs();
   if (otherHumansInMatch()) {
     localPauseOnly = true;
     els.pause.hidden = false;
@@ -4778,6 +4807,54 @@ function closePauseMenu() {
   localPauseOnly = false;
   if (gameState === "paused") gameState = "playing";
   els.pause.hidden = true;
+  clearTimeout(resumeTimer);
+  setResumeLabel(null);
+  // Whatever was held when the menu opened was released then; anything
+  // pressed while it was up (keys typed into it) must not leak into play.
+  releaseHeldInputs();
+}
+
+/* Everything "held" as of now, let go: movement keys, trigger, ADS. The
+   menu steals keyup/mouseup (they land on the overlay, or the tab lost
+   focus), so without this you'd come back running, firing or scoped. */
+function releaseHeldInputs() {
+  keys.clear();
+  mouseDown = false;
+  adsHeld = false;
+  if (typeof gamepadState !== "undefined") { gamepadState.firing = false; gamepadState.ads = false; gamepadState.jump = false; }
+}
+
+/* Resume (the button, Start on a pad, Enter). Desktop resumes by taking the
+   mouse back; Chrome refuses that for ~1s after Esc released it, which used
+   to make the first Resume click do nothing at all. Now it waits out the
+   cooldown on its own ("Resuming…") and, if the lock is still refused,
+   drops the menu anyway so a click on the game picks the mouse up. */
+let resumeTimer = 0;
+const RELOCK_COOLDOWN = 1150;
+function resumePlay() {
+  if (isTouch) { closePauseMenu(); return; }
+  clearTimeout(resumeTimer);
+  const wait = RELOCK_COOLDOWN - (performance.now() - lockChangedAt);
+  const attempt = () => {
+    controls.lock().then(() => {
+      // Some browsers resolve without locking (no promise support): the
+      // lock event closes the menu when it really happens.
+    }).catch(() => {
+      setResumeLabel(null);
+      closePauseMenu();
+      showWaveBanner("Click to take the mouse back", 1600);
+    });
+  };
+  if (wait > 0) {
+    setResumeLabel("Resuming…");
+    resumeTimer = setTimeout(attempt, wait);
+  } else attempt();
+}
+
+function setResumeLabel(text) {
+  if (!els.resumeBtn) return;
+  els.resumeBtn.textContent = text || "Resume";
+  els.resumeBtn.disabled = !!text;
 }
 
 /* The local player as the wire sees them. Shared by the match loop and the
@@ -6288,7 +6365,7 @@ els.retryBtn.addEventListener("click", () => {
 });
 // Touch has no pointer lock to re-take, so Resume just closes the menu —
 // it used to do nothing there, stranding the player in the pause menu.
-els.resumeBtn.addEventListener("click", () => { if (isTouch) closePauseMenu(); else controls.lock(); });
+els.resumeBtn.addEventListener("click", resumePlay);
 els.rangeSpawnBot?.addEventListener("click", spawnRangeBot);
 els.quitBtn.addEventListener("click", () => {
   // Quitting mid-match used to just discard player.matchXp — every kill's
