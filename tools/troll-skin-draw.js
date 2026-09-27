@@ -13,8 +13,26 @@
 //   flip    1 mirrors the art along the part (optional, 0)
 // The crop's height follows from the part's shape, so art is never stretched.
 //
+// Layers: skin.layers = { stock: [layer, ...] } lays pieces of any picture
+// over a part (or a joined box), bottom to top, on top of its base crop:
+//   file     the picture (as in `art`)
+//   src      [x0, y0, x1, y1]  the piece, fractions of the picture
+//   at       [cx, cy, w]  where it sits on the part: centre as fractions of
+//            the part's width/height, width as a fraction of the part's
+//            width (height follows from the piece's shape)
+//   rot, flip (left-right), flipY (upside down), opacity (0-1), feather (0-1)
+//   mask     eraser mask: a PNG in assets/images/skin-art/masks, white where
+//            the piece shows, see-through where it was erased (the editor
+//            keeps an unsaved one as `maskData`, a data URL)
+//   text     1: the piece has writing, so it is flipped in place on the
+//            gun's right side and reads correctly there too
+//   lock     1: the editor won't move it
+// A layer is placed the same along the gun on both sides, like the rest.
+//
 // A part can take its art from its own picture instead of the banner:
-// skin.art = { stock: "problem-stock.jpg" } (files in assets/images/skin-art).
+// skin.art = { stock: "problem-stock.jpg" } (files in assets/images/skin-art;
+// a path with a folder, like "banners/banner-11.jpg", is under assets/images,
+// so any banner can be a part's picture).
 // That part's crop is then a crop of the picture, on both sides. Written
 // { file, bg }, the picture's white paper is keyed out and `bg` shows
 // through instead; `paper` adds [x, y] points (fractions of the picture) in
@@ -25,13 +43,67 @@ import { PANELS_416, panelBounds } from "../assets/games/troll-ops/weapon-416.js
 
 export const PARTS = ["upper", "lower", "handguard", "stock", "grip", "mag"];
 
+/* Joined parts: a skin with a `receiver` crop edits the upper and the lower
+   as one box. Each then takes the piece of that box where it really sits on
+   the gun, so the art runs straight across the seam between them. */
+export const JOINS = { receiver: ["upper", "lower"] };
+function joinBounds(keys) {
+  const bs = keys.map(panelBounds);
+  return {
+    z0: Math.min(...bs.map((b) => b.z0)), z1: Math.max(...bs.map((b) => b.z1)),
+    y0: Math.min(...bs.map((b) => b.y0)), y1: Math.max(...bs.map((b) => b.y1)),
+  };
+}
+/* The boxes a skin is edited with: its joins in place of the parts they cover. */
+export function partsOf(skin) {
+  let list = [...PARTS];
+  for (const [j, keys] of Object.entries(JOINS)) {
+    if (skin.crops[j]) list = [j, ...list.filter((p) => !keys.includes(p))];
+  }
+  return list;
+}
+/* The gun-space outline box of a part or joined box. */
+export function frameBounds(key) {
+  return JOINS[key] ? joinBounds(JOINS[key]) : panelBounds(key);
+}
+/* A part's shape (w:h), a join's taken from the gun itself. */
+export function regionOf(key) {
+  if (SKIN_ATLAS.regions[key]) return SKIN_ATLAS.regions[key];
+  const b = joinBounds(JOINS[key]);
+  return { w: 1000, h: 1000 * (b.y1 - b.y0) / (b.z1 - b.z0) };
+}
+/* Crops with every join split into its parts' own crops. `art`: pictures
+   by part (a join with its own picture is measured on that picture). */
+export function splitJoins(img, crops, art = {}) {
+  const out = { ...crops };
+  for (const [j, keys] of Object.entries(JOINS)) {
+    if (!crops[j]) continue;
+    const src = art[j] || img;
+    const f = cropFrame(src, j, crops[j]);
+    const B = joinBounds(keys);
+    const px = f.sw / (B.z1 - B.z0);   // banner px per metre of gun
+    const a = f.rot * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+    for (const key of keys) {
+      const b = panelBounds(key);
+      // The part's centre from the join's, in the box (muzzle at -x, up at -y).
+      let dx = ((b.z0 + b.z1) - (B.z0 + B.z1)) / 2 * px;
+      const dy = -((b.y0 + b.y1) - (B.y0 + B.y1)) / 2 * px;
+      if (f.flip) dx = -dx;
+      out[key] = [(f.x + dx * c - dy * s) / src.width, (f.y + dx * s + dy * c) / src.height,
+        (b.z1 - b.z0) * px / src.width, f.rot, f.flip ? 1 : 0];
+    }
+    delete out[j];
+  }
+  return out;
+}
+
 export const loadImage = (src) => new Promise((ok, bad) => {
   const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src;
 });
 const banners = {};
 export const bannerImage = async (file) => (banners[file] ||= await loadImage(new URL(`../assets/images/banners/${file}`, import.meta.url).href));
 const arts = {};
-export const artImage = async (file) => (arts[file] ||= await loadImage(new URL(`../assets/images/skin-art/${file}`, import.meta.url).href));
+export const artImage = async (file) => (arts[file] ||= await loadImage(new URL(`../assets/images/${file.includes("/") ? "" : "skin-art/"}${file}`, import.meta.url).href));
 /* The parts that have their own picture, loaded: { part: image }. */
 const keyed = new Map();
 export async function partArt(skin) {
@@ -44,7 +116,16 @@ export async function partArt(skin) {
     if (!keyed.has(id)) keyed.set(id, paperKeyed(img, bg, paper));
     out[key] = keyed.get(id);
   }
+  // A joined box's picture is its parts' picture.
+  for (const [j, keys] of Object.entries(JOINS)) if (out[j]) for (const k of keys) out[k] = out[j];
   return out;
+}
+/* A part's picture as written in the skin (its join's, for a joined part). */
+export function artSpec(skin, key) {
+  const a = skin.art || {};
+  if (a[key]) return a[key];
+  const j = Object.keys(JOINS).find((j) => JOINS[j].includes(key) && a[j]);
+  return j ? a[j] : null;
 }
 
 /* Line art on white, put on a colour: the paper is flooded out from the
@@ -319,7 +400,7 @@ export function panelPath(key) {
    in from an edge); a turned one is left where it's put, and anything past
    the banner's edge shows trim. */
 export function cropFrame(img, key, crop) {
-  const r = SKIN_ATLAS.regions[key];
+  const r = regionOf(key);
   const [cx, cy, zoom, rot = 0, flip = 0] = crop;
   let sw = zoom * img.width;
   let sh = sw * (r.h / r.w);
@@ -351,11 +432,110 @@ function drawCrop(ctx, img, key, crop) {
   ctx.restore();
 }
 
+/* Every picture a skin's layers use, loaded: { file: image }. */
+export async function layerImages(skin) {
+  const out = {};
+  for (const list of Object.values(skin.layers || {})) for (const l of list) out[l.file] ||= await artImage(l.file);
+  return out;
+}
+
+/* Eraser masks. The editor paints into a live canvas per layer (liveMasks);
+   otherwise a layer's mask is loaded from maskData or its saved file. */
+export const liveMasks = new WeakMap();
+const maskImgs = new Map();
+export async function layerMasks(skin) {
+  const out = new Map();
+  for (const list of Object.values(skin.layers || {})) {
+    for (const l of list) {
+      if (liveMasks.has(l)) continue;
+      const src = l.maskData || (l.mask && new URL(`../assets/images/skin-art/masks/${l.mask}`, import.meta.url).href);
+      if (!src) continue;
+      if (!maskImgs.has(src)) { try { maskImgs.set(src, await loadImage(src)); } catch { maskImgs.set(src, null); } }
+      if (maskImgs.get(src)) out.set(l, maskImgs.get(src));
+    }
+  }
+  return out;
+}
+/* A piece with its eraser mask applied. */
+export function maskedCut(cut, mask) {
+  if (!mask) return cut;
+  const c = document.createElement("canvas");
+  c.width = cut.width; c.height = cut.height;
+  const g = c.getContext("2d");
+  g.drawImage(cut, 0, 0);
+  g.globalCompositeOperation = "destination-in";
+  g.drawImage(mask, 0, 0, c.width, c.height);
+  return c;
+}
+
+/* A layer's piece cut from its picture, soft edges baked in. */
+const cuts = new Map();
+export function layerCut(img, l) {
+  const id = [l.file, ...l.src, l.feather || 0].join("|");
+  if (cuts.has(id)) return cuts.get(id);
+  const [x0, y0, x1, y1] = l.src;
+  const sw = Math.max(1, (x1 - x0) * img.width), sh = Math.max(1, (y1 - y0) * img.height);
+  const k = Math.min(1, 1024 / Math.max(sw, sh));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(sw * k)); c.height = Math.max(1, Math.round(sh * k));
+  const g = c.getContext("2d");
+  g.drawImage(img, x0 * img.width, y0 * img.height, sw, sh, 0, 0, c.width, c.height);
+  const f = (l.feather || 0) * Math.min(c.width, c.height) / 2;
+  if (f > 0.5) {
+    const m = document.createElement("canvas");
+    m.width = c.width; m.height = c.height;
+    const mg = m.getContext("2d");
+    mg.filter = `blur(${f / 2}px)`;
+    mg.fillStyle = "#fff";
+    mg.fillRect(f, f, c.width - 2 * f, c.height - 2 * f);
+    g.globalCompositeOperation = "destination-in";
+    g.drawImage(m, 0, 0);
+  }
+  if (cuts.size > 64) cuts.clear();
+  cuts.set(id, c);
+  return c;
+}
+
+/* Where a layer sits, in gun space: centre (z, y), size (metres), turn. */
+export function layerPlace(key, l, cut) {
+  const B = frameBounds(key), W = B.z1 - B.z0, H = B.y1 - B.y0;
+  const [cx, cy, w] = l.at;
+  const zw = w * W;
+  return { z: B.z0 + cx * W, y: B.y1 - cy * H, zw, zh: zw * cut.height / cut.width, rot: l.rot || 0 };
+}
+
+/* Draw the layers that land on atlas part `key` (its own, and its join's)
+   into its region. `right`: the gun's right side, where writing flips. */
+function drawLayers(ctx, skin, key, imgs, right, masks = new Map()) {
+  const r = SKIN_ATLAS.regions[key], b = panelBounds(key);
+  const sx = r.w / (b.z1 - b.z0), sy = r.h / (b.y1 - b.y0);
+  for (const [lk, list] of Object.entries(skin.layers || {})) {
+    if (lk !== key && !(JOINS[lk] || []).includes(key)) continue;
+    for (const l of list) {
+      const img = imgs[l.file];
+      if (!img || l.hidden) continue;
+      const raw = layerCut(img, l), P = layerPlace(lk, l, raw);
+      const cut = maskedCut(raw, liveMasks.get(l) || masks.get(l));
+      ctx.save();
+      ctx.globalAlpha = l.opacity ?? 1;
+      ctx.translate(r.x + (P.z - b.z0) * sx, r.y + (b.y1 - P.y) * sy);
+      ctx.rotate(P.rot * Math.PI / 180);
+      if (l.flip) ctx.scale(-1, 1);
+      if (l.flipY) ctx.scale(1, -1);
+      if (right && l.text) ctx.scale(-1, 1);
+      ctx.drawImage(cut, -P.zw * sx / 2, -P.zh * sy / 2, P.zw * sx, P.zh * sy);
+      ctx.restore();
+    }
+  }
+}
+
 /* The whole 1024x1024 atlas for a skin recipe: left side on top, right below. */
 export async function bakeAtlas(skin, canvas) {
   const ctx = canvas.getContext("2d");
   const img = editedBanner(await bannerImage(skin.banner), skin.lines, skin.cutouts);
   const art = await partArt(skin);
+  const limgs = await layerImages(skin);
+  const lmasks = await layerMasks(skin);
   const R = SKIN_ATLAS.regions;
   // Everything outside a part is trim, including the trim swatch the bevels
   // use, so mip bleed at a part's edge is the trim colour, not a neighbour.
@@ -363,11 +543,13 @@ export async function bakeAtlas(skin, canvas) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // --- left side (top half)
+  const crops = splitJoins(img, skin.crops, art);
   for (const key of PARTS) {
     const r = R[key];
     ctx.save();
     ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
-    drawCrop(ctx, art[key] || img, key, skin.crops[key]);
+    drawCrop(ctx, art[key] || img, key, crops[key]);
+    drawLayers(ctx, skin, key, limgs, false, lmasks);
     ctx.restore();
   }
   trimOutlines(ctx, skin, 0);
@@ -378,13 +560,14 @@ export async function bakeAtlas(skin, canvas) {
   const dy = SKIN_ATLAS.rightY;
   const raw = await bannerImage(skin.banner);
   const flipped = new Map();   // one right-side banner per crop angle
+  const rightCrops = splitJoins(raw, { ...skin.crops, ...(skin.right?.crops || {}) }, art);
   for (const key of PARTS) {
     const r = R[key];
     // The right side's own crop for this part, if it has one.
-    const crop = skin.right?.crops?.[key] || skin.crops[key];
+    const crop = rightCrops[key];
     const rot = crop[3] || 0;
-    // A part with its own picture has no writing to turn back: the model
-    // mirrors it, like the rest of the side.
+    // A part with its own picture is mirrored by the model like the rest of
+    // the side; only writing marked on the picture is turned back.
     if (!art[key] && !flipped.has(rot)) flipped.set(rot, rightBanner(raw, skin, rot));
     ctx.save();
     ctx.beginPath(); ctx.rect(r.x, r.y + dy, r.w, r.h); ctx.clip();
@@ -394,7 +577,8 @@ export async function bakeAtlas(skin, canvas) {
       ctx.translate(0, 2 * r.y + r.h);
       ctx.scale(1, -1);
     }
-    drawCrop(ctx, art[key] || flipped.get(rot), key, crop);
+    drawCrop(ctx, art[key] ? rightArt(skin, key, art[key], rot) : flipped.get(rot), key, crop);
+    drawLayers(ctx, skin, key, limgs, true, lmasks);
     ctx.restore();
   }
   trimOutlines(ctx, skin, dy);
@@ -420,6 +604,20 @@ function rightBanner(raw, skin, rot) {
   // Right-only text goes on last, over any text area it replaces.
   const finish = (c) => (R.newLines.length ? editedBanner(c, mirror(R.newLines), []) : c);
   if (!areas.length) return finish(base);
+  return finish(flipAreas(base, areas, rot));
+}
+
+/* A part's own picture as the right side needs it: writing marked on the
+   picture (art: { file, textAreas }) flipped in place, like the banner's. */
+function rightArt(skin, key, img, rot) {
+  const spec = artSpec(skin, key);
+  const areas = typeof spec === "string" ? [] : textAreas(spec, img);
+  return areas.length ? flipAreas(img, areas, rot) : img;
+}
+
+/* A copy of `base` with each area (four corners in pixels) mirrored in
+   place, along a crop turned `rot` degrees. */
+function flipAreas(base, areas, rot) {
   const c = document.createElement("canvas");
   c.width = base.width; c.height = base.height;
   const g = c.getContext("2d");
@@ -441,7 +639,7 @@ function rightBanner(raw, skin, rot) {
     g.drawImage(base, 0, 0);
     g.restore();
   }
-  return finish(c);
+  return c;
 }
 
 /* The right side's own pieces. `skin.right` can override each banner text

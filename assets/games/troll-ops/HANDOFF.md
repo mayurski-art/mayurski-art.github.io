@@ -9,6 +9,60 @@ push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 `?v=to-s12a` (game.js + style.css); bump it on any change to either.
 
+## Session 13 (2026-09-26): GTA 6 skin "Vice Grin" + skin editor upgrades
+
+Worked in the user's own checkout on `main`, committed + pushed at the end.
+**Vice Grin is Final locked** (user, 2026-09-26). New skin `vice` / "Vice Grin" in skins.js, built from Deep Cover
+(banner-11) and the GTA VI robbery key art (`skin-art/vice-robbery.jpg`, from
+`banners/Jason_and_Lucia_Robbery_With_Logo_landscape...avif`). The user designs
+it in the editor; don't overwrite their crops.
+
+Skin tooling added (tools/troll-skin-draw.js, -editor.html, -editor.mjs):
+- **Joined box:** `crops.receiver` = one box for upper + lower (JOINS /
+  splitJoins); the art runs across the seam. Only skins that have it.
+- **Any picture per part:** `art: { part: "banners/banner-11.jpg" }` (a path
+  with a folder is under assets/images; bare names are skin-art). Editor strip
+  of every banner + skin-art picture (server `GET /images`); Save writes `art`.
+- **Text areas on a part's own picture:** `art: { part: { file, textAreas } }`,
+  flipped in place on the right side (sides formula).
+- **✂ Snip** (S): drag a part-shaped rectangle on the picture, like a screenshot.
+- **Box opacity** slider (fades the picture INSIDE the coloured boxes; outside
+  stays full), **box layer order** (▲▼ column, PgUp/PgDn; editor view only).
+- **Part layers:** `layers: { part: [{ file, src, at, rot, flip, opacity,
+  feather, text, lock }] }` lay pieces of any picture over a part's locked
+  base without moving it. Edited in the Layers panel + flat part view under
+  the parts table. `text: 1` flips a piece in place on the right side.
+  Layers flip with ⇆ (`flip`) / ⇅ (`flipY`). **Opacity eraser** (🧽, E) and
+  🖌 Restore paint a per-layer mask on the part view (Strength caps how far
+  one stroke fades); Save writes it to
+  `assets/images/skin-art/masks/<skin>-<layerId>-<ver>.png` (older versions
+  of that layer's mask are deleted) and the layer keeps `mask: "<file>"`.
+  Unsaved strokes live in the draft as `maskData`. Wheel over the picture
+  zooms a selected layer's snip; Size slider and +/− size it on the part.
+
+Vice's stock: plain sky base + the GTA VI logo as a `text: 1` layer, so it
+reads correctly on both sides. The raw source files
+`banners/gta6-trollbanner.webp` and `banners/Jason_and_Lucia_...avif` are
+left untracked on purpose (unused by any skin; banner-17.jpg and
+skin-art/vice-robbery.jpg are the converted copies).
+
+### Idea (user, 2026-09-26): troll NFT based weapon skins
+Make weapon skins from the user's troll NFTs (OpenSea collection
+"trollsoneth"; see the autotrollinfo skill). Thoughts to explore, nothing
+decided: a skin per NFT (or per trait set) using the PFP art as banner/layers;
+possibly unlocked by holding that NFT (wallet check via the Phase 10 wallet
+layer, flag-gated) or as cosmetic-only for everyone. Ask the user before
+building; it touches wallets/ownership.
+
+**First candidate: TROLLS #1718 "Tank Runner"** — the user's own troll
+(troll_runner bought it for 0.11 ETH, 2026-09-27; lore §66 in
+trollrunner-terminal/docs/TROLL-LORE.md). Moustache trollface, black "U MAD
+BRO?" cap, neon-green tank top reading RUNNER, grey stone gradient. The art
+(1000x1000) is copied to `assets/images/skin-art/trolls-1718-tank-runner.jpg`
+(source: trollrunner-terminal/public/lore/), so it's already in the editor's
+picture strip. Neon green + black palette. When built: mark text areas round
+"U MAD BRO?" and "RUNNER" so both read correctly on the right side.
+
 ## Session 12 (2026-09-26): Halloween map "Hollowgrin"
 
 Worktree `GitHub/to-halloween-wt`, branch `halloween-map` (from main cdc07c9).

@@ -18,7 +18,7 @@ catch { ({ chromium } = require(path.join(process.execPath, "../../lib/node_modu
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "assets/games/troll-ops/skins");
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg" };
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".avif": "image/avif" };
 
 const server = http.createServer((req, res) => {
   const p = path.join(ROOT, decodeURIComponent(new URL(req.url, "http://x").pathname));

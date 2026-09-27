@@ -63,6 +63,19 @@
   .piece { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
   .piece h3 { margin: 0 0 6px; font-size: 13px; }
   .piece .num { width: 70px; background: #0f151a; border: 1px solid #2b3842; border-radius: 5px; padding: 3px 5px; }
+  .srcs { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 6px; margin-bottom: 8px; }
+  .src { flex: 0 0 auto; width: 112px; padding: 3px; text-align: left; background: #0f151a; }
+  .src img { width: 100%; height: 58px; object-fit: cover; border-radius: 4px; display: block; }
+  .src span { display: block; font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .src.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .src.on span { color: var(--text); }
+  .src:disabled { opacity: .45; cursor: not-allowed; }
+  #partview { display: block; border-radius: 6px; background: #0b0f12; margin-top: 8px; touch-action: none; cursor: crosshair; max-width: 100%; }
+  .layer-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 4px 6px; border-radius: 6px; margin-top: 4px; }
+  .layer-row.sel { background: #1d2731; }
+  .layer-row input[type=range] { width: 80px; vertical-align: middle; }
+  .layer-row .pick { min-width: 190px; text-align: left; }
+  .layer-row.sel .pick { border-color: #ffe14d; }
   #pieces .txt { width: 100%; background: #0f151a; border: 1px solid #2b3842; border-radius: 6px; padding: 6px 8px; font-size: 14px; }
 </style>
 <script type="importmap">
@@ -89,23 +102,51 @@
 <main>
   <div class="stack editing">
     <section>
-      <h2>Banner — drag the boxes</h2>
+      <h2>Pictures — drag the boxes, or snip</h2>
       <div class="row" role="group" aria-label="Which side of the gun you're editing" style="margin:0 0 8px">
         <span class="hint" style="margin:0">Editing:</span>
         <button id="side-left" class="on" aria-pressed="true">Left side</button>
         <button id="side-right" aria-pressed="false">Right side</button>
         <span class="hint" style="margin:0;min-height:2.8em;flex:1 1 300px" id="side-note">The left side. Right side has its own part boxes, locks, text and piece positions, so edits there never touch this side.</span>
       </div>
+      <div class="row" style="margin:0 0 6px">
+        <span class="hint" style="margin:0" id="src-label">Picture for the part:</span>
+        <button id="snip" aria-pressed="false" title="Drag a rectangle on the picture and the selected part shows exactly that (S)">✂ Snip <kbd>S</kbd></button>
+        <label class="hint" style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center">Box opacity
+          <input type="range" id="dim" min="0" max="100" step="5" value="60" aria-label="Opacity of the picture inside the part boxes">
+          <output id="dim-out" style="font:12px ui-monospace,monospace;min-width:34px">60%</output></label>
+      </div>
+      <p class="hint" style="margin:0 0 6px">Click a picture for the selected part, then snip the bit you want like a screenshot.</p>
+      <div id="sources" class="srcs" role="group" aria-label="Picture for the selected part"></div>
       <canvas id="banner"></canvas>
       <p class="hint">
         Drag inside a box to move it (<kbd>Shift</kbd> locks to X or Y) · corner dot to zoom · top dot to rotate (<kbd>Shift</kbd> snaps 15°) ·
-        wheel zooms, <kbd>Alt</kbd>+wheel rotates · <kbd>1</kbd>–<kbd>6</kbd> pick a part · arrows nudge ·
+        wheel zooms, <kbd>Alt</kbd>+wheel rotates · <kbd>1</kbd>–<kbd>6</kbd> pick a part · <kbd>S</kbd> snip (drag a box, <kbd>Esc</kbd> cancels) · <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>PgUp</kbd> <kbd>PgDn</kbd> layer up/down (<kbd>Shift</kbd>: top/bottom) · arrows nudge ·
         <kbd>[</kbd> <kbd>]</kbd> rotate 1° · <kbd>F</kbd> flip · 🔒 in the table locks a part so nothing moves it. The ▶ marks the muzzle end of each part.
       </p>
       <table>
-        <thead><tr><th>Part</th><th>X</th><th>Y</th><th>Zoom</th><th>Rotate°</th><th>Flip</th><th title="Upside down on the gun's right side only">Right ↕</th><th>Lock</th><th></th></tr></thead>
+        <thead><tr><th>Part</th><th>X</th><th>Y</th><th>Zoom</th><th>Rotate°</th><th>Flip</th><th title="Upside down on the gun's right side only">Right ↕</th><th title="Which box is on top where boxes overlap (PgUp / PgDn)">Layer</th><th>Lock</th><th></th></tr></thead>
         <tbody id="parts"></tbody>
       </table>
+      <div id="layers-box">
+        <h2 style="margin-top:14px" id="layers-title">Layers on this part</h2>
+        <div id="layers"></div>
+        <div class="row" id="brush-bar">
+          <button id="erase-btn" aria-pressed="false" title="Erase parts of the selected layer (E)">🧽 Eraser <kbd>E</kbd></button>
+          <button id="restore-btn" aria-pressed="false" title="Paint erased parts of the selected layer back">🖌 Restore</button>
+          <label class="hint" style="margin:0">Brush <input type="range" id="brush-size" min="4" max="160" value="30" aria-label="Brush size"></label>
+          <label class="hint" style="margin:0">Strength <input type="range" id="brush-strength" min="5" max="100" step="5" value="100" aria-label="Brush strength">
+            <output id="brush-strength-out" style="font:12px ui-monospace,monospace">100%</output></label>
+          <button id="clear-mask" title="Undo all erasing on the selected layer">Clear eraser</button>
+        </div>
+        <canvas id="partview" aria-label="The selected part, laid flat: drag a layer to place it, or erase with the brush"></canvas>
+        <p class="hint">The <b>base</b> is the part's own crop: set it, then 🔒 it in the table. <b>+ Add layer</b> lays a piece of any
+          picture on top of it: pick the picture in the strip, move or resize (or ✂ snip) the yellow box on the picture, then drag the
+          piece into place on the part here (corner dot, wheel, the Size slider or <kbd>+</kbd> <kbd>−</kbd> scale it; wheel over the picture zooms the snip; <kbd>Alt</kbd>+wheel turns, arrows nudge, <kbd>Esc</kbd> back to
+          the base). ⇆ ⇅ flip a layer. 🧽 <b>Eraser</b> (<kbd>E</kbd>) rubs the selected layer out on the part view: Strength is how far one
+          stroke fades it (100% erases fully), 🖌 <b>Restore</b> paints it back. Editing a layer never moves the base or another layer; 🔒 a layer to pin it too. Tick <b>Writing</b> when the piece
+          has text, so it reads correctly on the gun's right side. Layers are shared by both sides.</p>
+      </div>
       <div id="pieces-box" hidden>
         <h2 style="margin-top:14px">Banner pieces and text areas</h2>
         <div class="row" id="drag-target" role="group" aria-label="What dragging on the banner moves"></div>
@@ -113,7 +154,7 @@
         <p class="hint">Pick a piece above, then drag it on the banner (<kbd>Shift</kbd> keeps it on X or Y), wheel to resize,
           arrows nudge, <kbd>[</kbd> <kbd>]</kbd> rotate, <kbd>F</kbd> flip, <kbd>Esc</kbd> back to the part boxes.
           Its old spot is painted over, so it can go anywhere. Empty the text to leave it blank.
-          <b>Text areas</b>: drag a box round any writing in the banner art. On the gun's right side
+          <b>Text areas</b>: drag a box round any writing in the banner art (or in the selected part's own picture). On the gun's right side
           (a mirror of the left) that writing is flipped back so it reads correctly. Banner text lines count on their own.</p>
         <div id="areas"></div>
       </div>
@@ -151,10 +192,10 @@ import * as THREE from "three";
 import { SKINS, SKIN_BY_ID, SKIN_ATLAS } from "../assets/games/troll-ops/skins.js";
 import { build416 } from "../assets/games/troll-ops/weapon-416.js";
 import { resolveWeapon } from "../assets/games/troll-ops/attachments.js";
-import { PARTS, bannerImage, bakeAtlas, cropFrame, editedBanner, partArt, rightPieces } from "./troll-skin-draw.js";
+import { PARTS, JOINS, partsOf, regionOf, frameBounds, bannerImage, artImage, layerImages, layerMasks, layerCut, liveMasks, bakeAtlas, cropFrame, editedBanner, partArt, rightPieces } from "./troll-skin-draw.js";
 
-const COLORS = { upper: "#ff5a5a", lower: "#ffb020", handguard: "#3ddc84", stock: "#4aa8ff", grip: "#c77dff", mag: "#ff6ec7" };
-const NAMES = { upper: "Upper", lower: "Lower", handguard: "Handguard", stock: "Stock", grip: "Grip", mag: "Mag" };
+const COLORS = { receiver: "#ff7a3d", upper: "#ff5a5a", lower: "#ffb020", handguard: "#3ddc84", stock: "#4aa8ff", grip: "#c77dff", mag: "#ff6ec7" };
+const NAMES = { receiver: "Upper + lower", upper: "Upper", lower: "Lower", handguard: "Handguard", stock: "Stock", grip: "Grip", mag: "Mag" };
 const $ = (id) => document.getElementById(id);
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
@@ -174,6 +215,9 @@ let arts = {};       // parts with their own picture (skin.art), loaded
 const locked = new Set((() => { try { return JSON.parse(localStorage.getItem("skinEditor.locked") || "[]"); } catch { return []; } })());
 function saveLocks() { try { localStorage.setItem("skinEditor.locked", JSON.stringify([...locked])); } catch { /* private mode */ } }
 const skin = () => work[skinId];
+/* The boxes this skin is edited with: a skin with a `receiver` crop has one
+   box for the upper and lower together (see JOINS in troll-skin-draw.js). */
+const parts = () => partsOf(skin());
 /* Part crops per side: the right side has its own once you edit a part
    there (skin.right.crops); until then it follows the left. */
 const cropOf = (key) => (side === "right" && skin().right?.crops?.[key]) || skin().crops[key];
@@ -183,7 +227,7 @@ const lockKey = (key) => (side === "right" ? "right:" : "") + key;
 const isLocked = (key) => locked.has(lockKey(key));
 function toggleLock(key) { const k = lockKey(key); if (locked.has(k)) locked.delete(k); else locked.add(k); }
 const full = (c) => [c[0], c[1], c[2], c[3] || 0, c[4] ? 1 : 0];
-const recipe = (s) => JSON.stringify({ c: s.crops, l: s.lines || [], u: s.cutouts || [], t: s.textAreas || [], r: s.right || null, f: !!s.final });
+const recipe = (s) => JSON.stringify({ c: s.crops, l: s.lines || [], u: s.cutouts || [], t: s.textAreas || [], r: s.right || null, f: !!s.final, a: s.art || null, y: s.layers || null });
 const isDirty = (id) => recipe(work[id]) !== recipe(saved[id]);
 
 /* Unsaved edits are kept in this browser as you go, so a refresh (or a new
@@ -193,7 +237,7 @@ const DRAFTS = "skinEditor.drafts";
 function readDrafts() { try { return JSON.parse(localStorage.getItem(DRAFTS) || "{}"); } catch { return {}; } }
 function writeDraft(id) {
   const d = readDrafts();
-  if (isDirty(id)) d[id] = { crops: work[id].crops, lines: work[id].lines || [], cutouts: work[id].cutouts || [], textAreas: work[id].textAreas || [], right: work[id].right || null, final: !!work[id].final };
+  if (isDirty(id)) d[id] = { crops: work[id].crops, lines: work[id].lines || [], cutouts: work[id].cutouts || [], textAreas: work[id].textAreas || [], right: work[id].right || null, final: !!work[id].final, art: work[id].art || null, layers: work[id].layers || null };
   else delete d[id];
   try { localStorage.setItem(DRAFTS, JSON.stringify(d)); } catch { /* private mode */ }
 }
@@ -205,6 +249,8 @@ for (const [id, d] of Object.entries(readDrafts())) {
   if (d.textAreas?.length || work[id].textAreas) work[id].textAreas = d.textAreas || [];
   if ("right" in d) { if (d.right) work[id].right = d.right; else delete work[id].right; }
   if ("final" in d) { if (d.final) work[id].final = true; else delete work[id].final; }
+  if ("art" in d) { if (d.art) work[id].art = d.art; else delete work[id].art; }
+  if ("layers" in d) { if (d.layers) work[id].layers = d.layers; else delete work[id].layers; }
 }
 
 function setStatus(text, cls = "") { const s = $("status"); s.textContent = text; s.className = cls; }
@@ -219,6 +265,17 @@ function refreshStatus() {
 /* ----------------------------------------------------------------- banner */
 
 const bc = $("banner");
+/* How strongly the picture shows inside the part boxes (0: see-through, only
+   the outline and tint; 1: full strength). Kept per browser. */
+let dim = (() => { try { const v = Number(localStorage.getItem("skinEditor.boxOpacity")); return localStorage.getItem("skinEditor.boxOpacity") !== null && v >= 0 && v <= 1 ? v : 0.6; } catch { return 0.6; } })();
+function paintDim() { $("dim").value = String(Math.round(dim * 100)); $("dim-out").textContent = `${Math.round(dim * 100)}%`; }
+$("dim").addEventListener("input", () => {
+  dim = Number($("dim").value) / 100;
+  try { localStorage.setItem("skinEditor.boxOpacity", String(dim)); } catch { /* private mode */ }
+  paintDim();
+  if (img) drawBanner();
+});
+paintDim();
 const bx = bc.getContext("2d");
 let k = 1;   // canvas px per banner px
 
@@ -268,7 +325,15 @@ function viewBanner() {
 const baseLineCount = () => (skin().lines || []).length;
 /* A part with its own picture is edited on that picture, alone; every
    other part on the banner. */
-const onArt = () => (!dragTarget && arts[part]) || null;
+const onArt = () => ((!dragTarget || areasMode()) && arts[part]) || null;
+/* The text areas being edited: the selected part's own picture's, or the
+   banner's. `create` makes the list (and turns a plain file into { file }). */
+function areaList(create = false) {
+  if (!arts[part]) return create ? (skin().textAreas ||= []) : (skin().textAreas || []);
+  let spec = skin().art[part];
+  if (typeof spec === "string") { if (!create) return []; spec = skin().art[part] = { file: spec }; }
+  return create ? (spec.textAreas ||= []) : (spec.textAreas || []);
+}
 const shown = (key) => (onArt() ? key === part : !arts[key]);
 
 /* A piece's current values, for reading. On the right side that's the left
@@ -308,7 +373,7 @@ const areasMode = () => dragTarget?.kind === "areas";
 function drawAreas() {
   const dpr = devicePixelRatio;
   const on = areasMode();
-  (skin().textAreas || []).forEach(([x0, y0, x1, y1], i) => {
+  areaList().forEach(([x0, y0, x1, y1], i) => {
     const X = x0 * img.width * k, Y = y0 * img.height * k, W = (x1 - x0) * img.width * k, Hh = (y1 - y0) * img.height * k;
     bx.lineWidth = (on ? 2 : 1) * dpr;
     bx.strokeStyle = on ? "#4fd6ff" : "rgba(79,214,255,.5)";
@@ -330,7 +395,7 @@ function drawAreas() {
 }
 function drawPieces() {
   const dpr = devicePixelRatio;
-  if (onArt()) return;   // text areas and pieces live on the banner
+  if (onArt()) { if (areasMode()) drawAreas(); return; }   // pieces live on the banner
   drawAreas();
   if (areasMode()) return;
   for (const raw of img.pieces || []) {
@@ -347,18 +412,36 @@ function drawPieces() {
 }
 
 function drawBanner() {
-  const want = onArt() || viewBanner();
+  const L = curLayer();
+  const want = L ? limgs[L.file] : onArt() || viewBanner();
+  if (!want) return;
   if (want !== img) { img = want; fitBanner(); }
   bx.clearRect(0, 0, bc.width, bc.height);
-  bx.globalAlpha = 0.45;
   bx.drawImage(img, 0, 0, bc.width, bc.height);
-  bx.globalAlpha = 1;
-  const order = dragTarget ? [] : [...PARTS.filter((p) => p !== part && shown(p)), part];
-  if (dragTarget) { bx.globalAlpha = 1; bx.drawImage(img, 0, 0, bc.width, bc.height); }
-  // Art inside every box at full strength, so the crops read at a glance.
-  for (const key of order) {
+  if (snipping) {
+    // Snip: the whole picture, and the part-shaped box being dragged.
+    if (drag?.mode === "snip") {
+      const r = L ? freeRect(drag) : snipRect(drag);
+      bx.fillStyle = "rgba(0,0,0,.55)";
+      bx.beginPath(); bx.rect(0, 0, bc.width, bc.height); bx.rect(r.x, r.y, r.w, r.h); bx.fill("evenodd");
+      bx.strokeStyle = L ? LAYER_COLOR : COLORS[part]; bx.lineWidth = 2 * devicePixelRatio;
+      bx.strokeRect(r.x, r.y, r.w, r.h);
+    }
+    return;
+  }
+  if (L) { drawLayerSrc(L); return; }
+  // Boxes bottom to top in the layer order; the selected one's outline and
+  // handles go on last so they're never lost under another box.
+  const layers = dragTarget ? [] : layerOrder().filter(shown);
+  const order = [...layers.filter((p) => p !== part), ...layers.filter((p) => p === part)];
+  // Inside each box: its part's tint, then the picture at the box opacity.
+  for (const key of layers) {
     const b = boxOf(key);
-    bx.save(); boxPath(bx, b); bx.clip(); bx.drawImage(img, 0, 0, bc.width, bc.height); bx.restore();
+    bx.save(); boxPath(bx, b); bx.clip();
+    bx.fillStyle = "#0e1216"; bx.fillRect(0, 0, bc.width, bc.height);
+    bx.globalAlpha = dim; bx.drawImage(img, 0, 0, bc.width, bc.height);
+    bx.globalAlpha = 0.14; bx.fillStyle = COLORS[key]; bx.fillRect(0, 0, bc.width, bc.height);
+    bx.restore();
   }
   const dpr = devicePixelRatio;
   for (const key of order) {
@@ -410,6 +493,26 @@ let drag = null;
 let dragTarget = null;   // null: the part boxes · { kind: "line"|"cut", i }: a piece
 bc.addEventListener("pointerdown", (e) => {
   const [px, py] = canvasPoint(e);
+  if (snipping) {
+    drag = { mode: "snip", sx: px, sy: py, x: px, y: py };
+    bc.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    return;
+  }
+  const L = curLayer();
+  if (L) {
+    // The layer's piece of its picture: drag inside to move, a corner to resize.
+    if (L.lock) return;
+    const r = srcRect(L);
+    const near = (x, y) => Math.hypot(px - x, py - y) <= HANDLE() * 1.6;
+    const corner = [[0, 0], [1, 0], [1, 1], [0, 1]].find(([cx, cy]) => near(r.x + cx * r.w, r.y + cy * r.h));
+    if (corner) drag = { mode: "lsrc-size", fx: r.x + (1 - corner[0]) * r.w, fy: r.y + (1 - corner[1]) * r.h };
+    else if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) drag = { mode: "lsrc-move", ox: px - r.x, oy: py - r.y, w: r.w, h: r.h };
+    else return;
+    bc.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    return;
+  }
   if (areasMode()) {
     drag = { mode: "area", sx: px, sy: py, x: px, y: py };
     bc.setPointerCapture(e.pointerId);
@@ -435,7 +538,7 @@ bc.addEventListener("pointerdown", (e) => {
   } else {
     // Topmost box under the pointer: the selected one wins, then the rest
     // in reverse draw order.
-    const hit = [part, ...PARTS.filter((p) => p !== part).reverse()].filter((key) => shown(key) && !isLocked(key)).find((key) => {
+    const hit = [part, ...layerOrder().filter((p) => p !== part).reverse()].filter((key) => shown(key) && !isLocked(key)).find((key) => {
       const bb = boxOf(key); const [lx, ly] = toBox(bb, px, py);
       return Math.abs(lx) <= bb.hw && Math.abs(ly) <= bb.hh;
     });
@@ -451,14 +554,32 @@ bc.addEventListener("pointerdown", (e) => {
 bc.addEventListener("pointermove", (e) => {
   const [px, py] = canvasPoint(e);
   if (!drag) {
+    if (curLayer()) { bc.style.cursor = curLayer().lock ? "not-allowed" : "move"; return; }
     const b = boxOf(part);
     const [rx, ry] = rotHandle(b);
     bc.style.cursor = Math.hypot(px - rx, py - ry) <= HANDLE() * 1.6 ? "grab" : "crosshair";
     return;
   }
-  if (drag.mode === "area") {
+  if (drag.mode === "area" || drag.mode === "snip") {
     drag.x = px; drag.y = py;
     drawBanner();
+    return;
+  }
+  if (drag.mode === "lsrc-move" || drag.mode === "lsrc-size") {
+    const L = curLayer();
+    if (!L) return;
+    const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    let x0, y0, x1, y1;
+    if (drag.mode === "lsrc-move") {
+      x0 = cl(px - drag.ox, 0, bc.width - drag.w); y0 = cl(py - drag.oy, 0, bc.height - drag.h);
+      x1 = x0 + drag.w; y1 = y0 + drag.h;
+    } else {
+      const qx = cl(px, 0, bc.width), qy = cl(py, 0, bc.height);
+      x0 = Math.min(drag.fx, qx); x1 = Math.max(drag.fx, qx); y0 = Math.min(drag.fy, qy); y1 = Math.max(drag.fy, qy);
+      if (x1 - x0 < 4 || y1 - y0 < 4) return;
+    }
+    L.src = [x0 / bc.width, y0 / bc.height, x1 / bc.width, y1 / bc.height].map(r4);
+    changed();
     return;
   }
   if (drag.mode === "piece") {
@@ -501,13 +622,37 @@ bc.addEventListener("pointermove", (e) => {
 });
 const endDrag = () => {
   if (!drag) return;
+  if (drag.mode === "snip" && curLayer()) {
+    // A layer's piece: exactly the snipped rectangle, any shape.
+    const r = freeRect(drag);
+    drag = null;
+    if (r.w > 6 * devicePixelRatio && r.h > 6 * devicePixelRatio) {
+      curLayer().src = [r.x / bc.width, r.y / bc.height, (r.x + r.w) / bc.width, (r.y + r.h) / bc.height].map(r4);
+      changed();
+    }
+    setSnip(false);
+    return;
+  }
+  if (drag.mode === "lsrc-move" || drag.mode === "lsrc-size") { drag = null; return; }
+  if (drag.mode === "snip") {
+    // The part now shows exactly the snipped box (straight, keeping its flip).
+    const r = snipRect(drag);
+    drag = null;
+    if (r.w > 6 * devicePixelRatio) {
+      const c = full(cropOf(part));
+      setCrop(part, [(r.x + r.w / 2) / k / img.width, (r.y + r.h / 2) / k / img.height, r.w / k / img.width, 0, c[4]]);
+      settle(part);
+    }
+    setSnip(false);
+    return;
+  }
   if (drag.mode === "area") {
     const x0 = Math.min(drag.sx, drag.x) / k / img.width, x1 = Math.max(drag.sx, drag.x) / k / img.width;
     const y0 = Math.min(drag.sy, drag.y) / k / img.height, y1 = Math.max(drag.sy, drag.y) / k / img.height;
     drag = null;
     const r3 = (v) => Math.round(Math.max(0, Math.min(1, v)) * 1000) / 1000;
     if (x1 - x0 > 0.005 && y1 - y0 > 0.01) {
-      (skin().textAreas ||= []).push([r3(x0), r3(y0), r3(x1), r3(y1)]);
+      areaList(true).push([r3(x0), r3(y0), r3(x1), r3(y1)]);
       buildAreas();
       changed();
     } else drawBanner();
@@ -521,13 +666,14 @@ bc.addEventListener("pointercancel", endDrag);
 bc.addEventListener("wheel", (e) => {
   e.preventDefault();
   if (areasMode()) return;
+  if (curLayer()) { zoomLayerSrc(e.deltaY > 0 ? 1.05 : 1 / 1.05); return; }
   if (dragTarget) {
     const p = pieceOf(dragTarget.kind, dragTarget.i);
     if (e.altKey) setPiece({ rot: (p.rot || 0) + Math.sign(e.deltaY) * 2 });
     else setPiece({ size: (p.size || 1) * (e.deltaY > 0 ? 1 / 1.05 : 1.05) });
     return;
   }
-  if (isLocked(part)) return;
+  if (isLocked(part)) { lockedNote(); return; }
   const c = full(cropOf(part));
   if (e.altKey) c[3] = ((c[3] + Math.sign(e.deltaY) * 2 + 540) % 360) - 180;
   else c[2] = Math.max(0.01, Math.min(2, c[2] * (e.deltaY > 0 ? 1.05 : 1 / 1.05)));
@@ -547,18 +693,527 @@ function settle(key) {
   }
 }
 
+/* ---------------------------------------------------------- part layers */
+
+/* Pieces of any picture laid over a part, on top of its base crop (see
+   troll-skin-draw.js). One is "selected" at a time (layerSel, an index into
+   the part's list, or null for the base). While a layer is selected, every
+   drag, key and wheel acts on that layer only: the base and the other
+   layers can't move. */
+const LAYER_COLOR = "#ffe14d";
+const r4 = (v) => Math.round(v * 10000) / 10000;
+let layerSel = null;
+let limgs = {};   // pictures the layers use, loaded
+const layersOf = (key = part) => skin().layers?.[key] || [];
+const curLayer = () => (layerSel == null ? null : layersOf()[layerSel] || null);
+async function ensureImg(file) { limgs[file] ||= await artImage(file); return limgs[file]; }
+function freeRect(d) {
+  return { x: Math.min(d.sx, d.x), y: Math.min(d.sy, d.y), w: Math.abs(d.x - d.sx), h: Math.abs(d.y - d.sy) };
+}
+function srcRect(L) {
+  const [x0, y0, x1, y1] = L.src;
+  return { x: x0 * bc.width, y: y0 * bc.height, w: (x1 - x0) * bc.width, h: (y1 - y0) * bc.height };
+}
+/* The selected layer's piece on its picture: the rest dimmed. */
+function drawLayerSrc(L) {
+  const r = srcRect(L), dpr = devicePixelRatio;
+  bx.fillStyle = "rgba(0,0,0,.5)";
+  bx.beginPath(); bx.rect(0, 0, bc.width, bc.height); bx.rect(r.x, r.y, r.w, r.h); bx.fill("evenodd");
+  bx.strokeStyle = LAYER_COLOR; bx.lineWidth = 2.5 * dpr;
+  bx.strokeRect(r.x, r.y, r.w, r.h);
+  bx.font = `600 ${11 * dpr}px system-ui, sans-serif`;
+  const text = `${L.lock ? "🔒 " : ""}Layer ${layerSel + 1} on ${NAMES[part]}`;
+  const tw = bx.measureText(text).width;
+  bx.fillStyle = LAYER_COLOR; bx.fillRect(r.x, r.y - 15 * dpr, tw + 8 * dpr, 15 * dpr);
+  bx.fillStyle = "#0e1216"; bx.fillText(text, r.x + 4 * dpr, r.y - 4 * dpr);
+  if (!L.lock) {
+    bx.fillStyle = "#fff";
+    for (const [cx, cy] of [[0, 0], [1, 0], [1, 1], [0, 1]]) { bx.beginPath(); bx.arc(r.x + cx * r.w, r.y + cy * r.h, HANDLE() * 0.8, 0, Math.PI * 2); bx.fill(); }
+  }
+}
+/* Zoom the selected layer's snip on its picture about its centre (f > 1
+   takes in more of the picture), kept inside the picture. */
+function zoomLayerSrc(f) {
+  const L = curLayer();
+  if (!L) return;
+  if (L.lock) { lockedNote(); return; }
+  const [x0, y0, x1, y1] = L.src;
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  let hw = (x1 - x0) / 2 * f, hh = (y1 - y0) / 2 * f;
+  const k2 = Math.min(1, 0.5 / hw, 0.5 / hh);   // never bigger than the picture
+  hw *= k2; hh *= k2;
+  if (hw < 0.005 || hh < 0.005) return;
+  const nx = Math.max(hw, Math.min(1 - hw, cx)), ny = Math.max(hh, Math.min(1 - hh, cy));
+  L.src = [nx - hw, ny - hh, nx + hw, ny + hh].map(r4);
+  changed();
+}
+/* Resize the selected layer on the part (its width, as a share of the part). */
+function sizeLayer(f) {
+  const L = curLayer();
+  if (!L) return;
+  if (L.lock) { lockedNote(); return; }
+  L.at = [L.at[0], L.at[1], r4(Math.max(0.02, Math.min(4, L.at[2] * f)))];
+  changed();
+}
+/* Trying to change something that's locked: say so instead of doing nothing. */
+let noteTimer = 0;
+function lockedNote() {
+  const L = curLayer();
+  setStatus(L ? `🔒 Layer ${layerSel + 1} is locked: unlock it in the Layers panel to change it` : `🔒 ${NAMES[part]} is locked: unlock it in the table to zoom or move it`, "dirty");
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(refreshStatus, 2500);
+}
+function selectLayer(i) {
+  layerSel = i == null || !layersOf()[i] ? null : i;
+  if (brushMode && (!curLayer() || curLayer().lock)) setBrush(null);
+  paintBrushBar();
+  if (layerSel != null && dragTarget) { dragTarget = null; buildPieces(); }
+  if (snipping) setSnip(false);
+  img = null;
+  buildSources(); buildLayers();
+  drawBanner(); drawPartView();
+}
+async function addLayer() {
+  const file = artFile(skin().art?.[part]) || bannerFile();
+  await ensureImg(file);
+  ((skin().layers ||= {})[part] ||= []).push({ id: Math.random().toString(36).slice(2, 8), file, src: [0.35, 0.3, 0.65, 0.7], at: [0.5, 0.5, 0.35] });
+  selectLayer(layersOf().length - 1);
+  changed();
+}
+function dropLayer(i) {
+  const list = layersOf();
+  list.splice(i, 1);
+  if (!list.length) delete skin().layers[part];
+  if (skin().layers && !Object.keys(skin().layers).length) delete skin().layers;
+  selectLayer(null);
+  changed();
+}
+function buildLayers() {
+  const box = $("layers");
+  box.innerHTML = "";
+  $("layers-title").textContent = `Layers on ${NAMES[part]}`;
+  const list = layersOf();
+  const mkRow = (sel) => { const d = document.createElement("div"); d.className = "layer-row" + (sel ? " sel" : ""); return d; };
+  // Top of the stack first, like any layers panel.
+  for (let i = list.length - 1; i >= 0; i--) {
+    const l = list[i], d = mkRow(layerSel === i), lk = !!l.lock;
+    d.innerHTML = `<button class="pick" data-a="pick"></button>
+      <label class="hint" style="margin:0" title="Size on the part (wheel or + / − too)">Size <input type="range" min="0" max="1000" step="1" data-k="size"></label>
+      <label class="hint" style="margin:0">Opacity <input type="range" min="0" max="100" step="5" data-k="opacity"></label>
+      <label class="hint" style="margin:0">Soft edge <input type="range" min="0" max="100" step="5" data-k="feather"></label>
+      <label class="hint" style="margin:0" title="The piece has writing: flip it back on the right side so it reads correctly"><input type="checkbox" data-k="text"> Writing</label>
+      <button data-a="flipx" title="Flip left-right (F)">⇆</button><button data-a="flipy" title="Flip upside down">⇅</button>
+      <button data-a="up" title="Move up">▲</button><button data-a="down" title="Move down">▼</button>
+      <button data-a="lock" aria-pressed="${lk}">${lk ? "🔒" : "🔓"}</button>
+      <button data-a="del">×</button>`;
+    const n = i + 1, q = (sel) => d.querySelector(sel);
+    q('[data-a="pick"]').textContent = `${lk ? "🔒 " : ""}Layer ${n} · ${srcName(l.file)}`;
+    q('[data-a="pick"]').setAttribute("aria-pressed", String(layerSel === i));
+    q('[data-a="up"]').setAttribute("aria-label", `Move layer ${n} up`);
+    q('[data-a="down"]').setAttribute("aria-label", `Move layer ${n} down`);
+    q('[data-a="lock"]').setAttribute("aria-label", `Lock layer ${n}`);
+    q('[data-a="del"]').setAttribute("aria-label", `Delete layer ${n}`);
+    const SZ0 = Math.log(0.05), SZ1 = Math.log(3);
+    q('[data-k="size"]').value = String(Math.round((Math.log(Math.max(0.05, Math.min(3, l.at[2]))) - SZ0) / (SZ1 - SZ0) * 1000));
+    q('[data-k="size"]').addEventListener("input", (e) => {
+      if (layerSel !== i) selectLayer(i);
+      l.at = [l.at[0], l.at[1], r4(Math.exp(SZ0 + Number(e.target.value) / 1000 * (SZ1 - SZ0)))];
+      changed();
+    });
+    q('[data-k="opacity"]').value = String(Math.round((l.opacity ?? 1) * 100));
+    q('[data-k="feather"]').value = String(Math.round((l.feather || 0) * 100));
+    q('[data-k="text"]').checked = !!l.text;
+    q('[data-a="flipx"]').setAttribute("aria-label", `Flip layer ${n} left-right`);
+    q('[data-a="flipy"]').setAttribute("aria-label", `Flip layer ${n} upside down`);
+    q('[data-a="flipx"]').setAttribute("aria-pressed", String(!!l.flip));
+    q('[data-a="flipy"]').setAttribute("aria-pressed", String(!!l.flipY));
+    q('[data-a="flipx"]').classList.toggle("on", !!l.flip);
+    q('[data-a="flipy"]').classList.toggle("on", !!l.flipY);
+    d.querySelectorAll('input, [data-a="flipx"], [data-a="flipy"]').forEach((el) => { el.disabled = lk; });
+    const flipBy = (k) => { if (l[k]) delete l[k]; else l[k] = 1; buildLayers(); changed(); };
+    q('[data-a="flipx"]').addEventListener("click", () => flipBy("flip"));
+    q('[data-a="flipy"]').addEventListener("click", () => flipBy("flipY"));
+    q('[data-a="pick"]').addEventListener("click", () => selectLayer(i));
+    q('[data-k="opacity"]').addEventListener("input", (e) => { const v = Number(e.target.value) / 100; if (v >= 1) delete l.opacity; else l.opacity = v; changed(); });
+    q('[data-k="feather"]').addEventListener("input", (e) => { const v = Number(e.target.value) / 100; if (v <= 0) delete l.feather; else l.feather = v; changed(); });
+    q('[data-k="text"]').addEventListener("input", (e) => { if (e.target.checked) l.text = 1; else delete l.text; changed(); });
+    const swap = (j) => {
+      if (j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      if (layerSel === i) layerSel = j; else if (layerSel === j) layerSel = i;
+      buildLayers(); changed();
+    };
+    q('[data-a="up"]').addEventListener("click", () => swap(i + 1));
+    q('[data-a="down"]').addEventListener("click", () => swap(i - 1));
+    q('[data-a="lock"]').addEventListener("click", () => { if (l.lock) delete l.lock; else l.lock = 1; if (snipping) setSnip(false); buildLayers(); buildSources(); changed(); });
+    q('[data-a="del"]').addEventListener("click", () => { if (confirm(`Delete layer ${n}?`)) dropLayer(i); });
+    box.appendChild(d);
+  }
+  const base = mkRow(layerSel == null);
+  base.innerHTML = `<button class="pick" data-a="pick"></button><span class="hint" style="margin:0"></span>`;
+  base.querySelector("button").textContent = `${isLocked(part) ? "🔒 " : ""}Base · ${srcName(artFile(skin().art?.[part]) || bannerFile())}`;
+  base.querySelector("button").setAttribute("aria-pressed", String(layerSel == null));
+  base.querySelector("button").addEventListener("click", () => selectLayer(null));
+  base.querySelector("span").textContent = isLocked(part) ? "locked in place" : "not locked: 🔒 it in the table to pin it";
+  box.appendChild(base);
+  const add = document.createElement("div");
+  add.className = "row";
+  add.innerHTML = '<button id="add-layer">+ Add layer</button>';
+  add.querySelector("button").addEventListener("click", addLayer);
+  box.appendChild(add);
+}
+
+/* The selected part laid flat (from the baked atlas, left side), with its
+   layers' boxes: where the layer pieces are placed. */
+const pv = $("partview"), pvx = pv.getContext("2d");
+function pvFit() {
+  const B = frameBounds(part), asp = (B.y1 - B.y0) / (B.z1 - B.z0);
+  const cssW = Math.min(pv.parentElement.clientWidth || 600, 300 / asp);
+  pv.style.width = `${cssW}px`;
+  const w = Math.round(cssW * devicePixelRatio), h = Math.round(cssW * asp * devicePixelRatio);
+  if (pv.width !== w || pv.height !== h) { pv.width = w; pv.height = h; }
+  return B;
+}
+/* A layer's box on the part view, in canvas pixels. */
+function layerBox(l) {
+  const im = limgs[l.file];
+  if (!im) return null;
+  const [x0, y0, x1, y1] = l.src;
+  const bw = l.at[2] * pv.width, bh = bw * ((y1 - y0) * im.height) / Math.max(1e-6, (x1 - x0) * im.width);
+  const a = (l.rot || 0) * Math.PI / 180;
+  return { x: l.at[0] * pv.width, y: l.at[1] * pv.height, hw: bw / 2, hh: bh / 2, a, ux: Math.cos(a), uy: Math.sin(a) };
+}
+function drawPartView() {
+  if (!part) return;
+  const B = pvFit(), W = B.z1 - B.z0, H = B.y1 - B.y0, dpr = devicePixelRatio;
+  pvx.fillStyle = "#0b0f12"; pvx.fillRect(0, 0, pv.width, pv.height);
+  for (const p of JOINS[part] || [part]) {
+    const r = SKIN_ATLAS.regions[p], b = frameBounds(p);
+    pvx.drawImage(atlas, r.x, r.y, r.w, r.h,
+      (b.z0 - B.z0) / W * pv.width, (B.y1 - b.y1) / H * pv.height, (b.z1 - b.z0) / W * pv.width, (b.y1 - b.y0) / H * pv.height);
+  }
+  layersOf().forEach((l, i) => {
+    const b = layerBox(l);
+    if (!b) return;
+    const sel = i === layerSel;
+    pvx.lineWidth = (sel ? 2.5 : 1.2) * dpr;
+    pvx.strokeStyle = sel ? LAYER_COLOR : "rgba(255,225,77,.55)";
+    pvx.setLineDash(sel ? [] : [5 * dpr, 4 * dpr]);
+    boxPath(pvx, b); pvx.stroke();
+    pvx.setLineDash([]);
+    const [lx, ly] = fromBox(b, -b.hw, -b.hh);
+    pvx.font = `600 ${10 * dpr}px system-ui, sans-serif`;
+    pvx.fillStyle = sel ? LAYER_COLOR : "rgba(255,225,77,.7)";
+    pvx.fillText(`${l.lock ? "🔒" : ""}L${i + 1}`, lx + 3 * dpr, ly + 12 * dpr);
+    if (sel && !l.lock) {
+      pvx.fillStyle = "#fff";
+      for (const [cx, cy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const [x, y] = fromBox(b, cx * b.hw, cy * b.hh);
+        pvx.beginPath(); pvx.arc(x, y, HANDLE() * 0.8, 0, Math.PI * 2); pvx.fill();
+      }
+    }
+  });
+  if (brushMode && brushCursor) {
+    pvx.strokeStyle = brushMode === "erase" ? "#ff6e6e" : "#7bff66";
+    pvx.lineWidth = 1.5 * dpr;
+    pvx.beginPath(); pvx.arc(brushCursor[0], brushCursor[1], brushSize() / 2 * dpr, 0, Math.PI * 2); pvx.stroke();
+  }
+}
+/* ------------------------------------------------------------- eraser */
+
+/* An opacity eraser for the selected layer, painted on the part view. The
+   layer keeps a mask (alpha = how much of the piece shows): a stroke builds
+   up a soft brush shape, then takes Strength × that shape off the mask as it
+   was when the stroke began, so one stroke never fades past Strength however
+   often it crosses itself. Restore adds it back instead. */
+let brushMode = null;        // null | "erase" | "restore"
+let brushCursor = null;      // [x, y] on the part view
+let stroke = null;           // { base, buf, last }
+let loadedMasks = new Map(); // saved masks (files / maskData), by layer
+const brushSize = () => Number($("brush-size").value);
+const brushStrength = () => Number($("brush-strength").value) / 100;
+function paintBrushBar() {
+  const L = curLayer(), ok = !!L && !L.lock;
+  for (const id of ["erase-btn", "restore-btn", "clear-mask"]) $(id).disabled = !ok;
+  $("erase-btn").classList.toggle("on", brushMode === "erase");
+  $("erase-btn").setAttribute("aria-pressed", String(brushMode === "erase"));
+  $("restore-btn").classList.toggle("on", brushMode === "restore");
+  $("restore-btn").setAttribute("aria-pressed", String(brushMode === "restore"));
+  $("brush-strength-out").textContent = `${Math.round(brushStrength() * 100)}%`;
+}
+async function setBrush(mode) {
+  const L = curLayer();
+  if (mode && (!L || L.lock)) { if (L) lockedNote(); else setStatus("Pick a layer first: the eraser works on layers", "dirty"); mode = null; }
+  brushMode = mode;
+  pv.style.cursor = mode ? "none" : "crosshair";
+  paintBrushBar();
+  if (mode) loadedMasks = await layerMasks(skin());
+  drawPartView();
+}
+/* The live mask canvas of a layer (made from its saved mask, or all shown). */
+function maskFor(l) {
+  let m = liveMasks.get(l);
+  if (m) return m;
+  const cut = layerCut(limgs[l.file], l);
+  const kk = Math.min(1, 512 / Math.max(cut.width, cut.height));
+  m = document.createElement("canvas");
+  m.width = Math.max(1, Math.round(cut.width * kk)); m.height = Math.max(1, Math.round(cut.height * kk));
+  const g = m.getContext("2d");
+  const old = loadedMasks.get(l);
+  if (old) g.drawImage(old, 0, 0, m.width, m.height);
+  else { g.fillStyle = "#fff"; g.fillRect(0, 0, m.width, m.height); }
+  liveMasks.set(l, m);
+  return m;
+}
+/* A part-view point in the layer's mask pixels, with the brush radius there. */
+function toMask(l, m, x, y) {
+  const b = layerBox(l);
+  let [lx, ly] = toBox(b, x, y);
+  if (l.flip) lx = -lx;
+  if (l.flipY) ly = -ly;
+  return [(lx + b.hw) / (2 * b.hw) * m.width, (ly + b.hh) / (2 * b.hh) * m.height, brushSize() / 2 * devicePixelRatio * m.width / (2 * b.hw)];
+}
+function dab(g, u, v, r) {
+  const gr = g.createRadialGradient(u, v, 0, u, v, Math.max(0.5, r));
+  gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.5, "rgba(255,255,255,1)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = gr;
+  g.beginPath(); g.arc(u, v, Math.max(0.5, r), 0, Math.PI * 2); g.fill();
+}
+let strokeFrame = 0;
+function applyStroke(l) {
+  const m = maskFor(l), g = m.getContext("2d");
+  g.save();
+  g.clearRect(0, 0, m.width, m.height);
+  g.drawImage(stroke.base, 0, 0);
+  g.globalAlpha = brushStrength();
+  g.globalCompositeOperation = brushMode === "erase" ? "destination-out" : "source-over";
+  g.drawImage(stroke.buf, 0, 0);
+  g.restore();
+  if (!strokeFrame) strokeFrame = requestAnimationFrame(() => { strokeFrame = 0; rebake(); drawPartView(); });
+}
+function strokeTo(l, x, y) {
+  const m = maskFor(l);
+  const [u, v, r] = toMask(l, m, x, y);
+  const g = stroke.buf.getContext("2d");
+  const [pu, pv0] = stroke.last || [u, v];
+  const steps = Math.max(1, Math.ceil(Math.hypot(u - pu, v - pv0) / Math.max(1, r / 4)));
+  for (let i = 1; i <= steps; i++) dab(g, pu + (u - pu) * i / steps, pv0 + (v - pv0) * i / steps, r);
+  stroke.last = [u, v];
+  applyStroke(l);
+}
+function endStroke() {
+  const L = curLayer();
+  if (!stroke || !L) { stroke = null; return; }
+  stroke = null;
+  L.maskData = maskFor(L).toDataURL("image/png");
+  changed();
+}
+$("erase-btn").addEventListener("click", () => setBrush(brushMode === "erase" ? null : "erase"));
+$("restore-btn").addEventListener("click", () => setBrush(brushMode === "restore" ? null : "restore"));
+$("brush-strength").addEventListener("input", paintBrushBar);
+$("brush-size").addEventListener("input", () => drawPartView());
+$("clear-mask").addEventListener("click", () => {
+  const L = curLayer();
+  if (!L || L.lock) return;
+  delete L.mask; delete L.maskData;
+  liveMasks.delete(L); loadedMasks.delete(L);
+  changed();
+});
+pv.addEventListener("pointerleave", () => { brushCursor = null; drawPartView(); });
+
+const pvPoint = (e) => { const r = pv.getBoundingClientRect(); return [(e.clientX - r.left) * pv.width / r.width, (e.clientY - r.top) * pv.height / r.height]; };
+let pvDrag = null;
+pv.addEventListener("pointerdown", (e) => {
+  const [x, y] = pvPoint(e), list = layersOf();
+  if (brushMode) {
+    const L = curLayer();
+    if (!L || L.lock) { lockedNote(); return; }
+    const m = maskFor(L);
+    const base = document.createElement("canvas"); base.width = m.width; base.height = m.height;
+    base.getContext("2d").drawImage(m, 0, 0);
+    const buf = document.createElement("canvas"); buf.width = m.width; buf.height = m.height;
+    stroke = { base, buf, last: null };
+    strokeTo(L, x, y);
+    pv.setPointerCapture(e.pointerId); e.preventDefault();
+    return;
+  }
+  const near = (a, b) => Math.hypot(x - a, y - b) <= HANDLE() * 1.6;
+  const L = curLayer();
+  if (L && !L.lock) {
+    const b = layerBox(L);
+    if (b && [[-1, -1], [1, -1], [1, 1], [-1, 1]].some(([sx, sy]) => near(...fromBox(b, sx * b.hw, sy * b.hh)))) {
+      pvDrag = { mode: "scale", w0: L.at[2], d0: Math.hypot(x - b.x, y - b.y) };
+      pv.setPointerCapture(e.pointerId); e.preventDefault();
+      return;
+    }
+  }
+  // The layer under the pointer: the selected one first, then top down.
+  const hit = [layerSel, ...list.map((_, i) => i).reverse()].filter((i) => i != null && list[i]).find((i) => {
+    const b = layerBox(list[i]);
+    if (!b) return false;
+    const [lx, ly] = toBox(b, x, y);
+    return Math.abs(lx) <= b.hw && Math.abs(ly) <= b.hh;
+  });
+  if (hit == null) return;
+  if (hit !== layerSel) selectLayer(hit);
+  const l = list[hit];
+  if (l.lock) return;
+  const b = layerBox(l);
+  pvDrag = { mode: "move", ox: x - b.x, oy: y - b.y };
+  pv.setPointerCapture(e.pointerId); e.preventDefault();
+});
+pv.addEventListener("pointermove", (e) => {
+  const L = curLayer();
+  if (brushMode) {
+    brushCursor = pvPoint(e);
+    if (stroke && L) strokeTo(L, ...brushCursor); else drawPartView();
+    return;
+  }
+  if (!pvDrag || !L) return;
+  const [x, y] = pvPoint(e);
+  if (pvDrag.mode === "move") L.at = [r4((x - pvDrag.ox) / pv.width), r4((y - pvDrag.oy) / pv.height), L.at[2]];
+  else {
+    const b = layerBox(L);
+    L.at = [L.at[0], L.at[1], r4(Math.max(0.02, Math.min(4, pvDrag.w0 * Math.hypot(x - b.x, y - b.y) / Math.max(1, pvDrag.d0))))];
+  }
+  changed();
+});
+pv.addEventListener("pointerup", () => { pvDrag = null; if (stroke) endStroke(); });
+pv.addEventListener("pointercancel", () => { pvDrag = null; if (stroke) endStroke(); });
+pv.addEventListener("wheel", (e) => {
+  const L = curLayer();
+  if (!L) return;
+  e.preventDefault();
+  if (brushMode) { $("brush-size").value = String(Math.max(4, Math.min(160, brushSize() * (e.deltaY > 0 ? 1 / 1.1 : 1.1)))); drawPartView(); return; }
+  if (L.lock) { lockedNote(); return; }
+  if (e.altKey) { L.rot = (((L.rot || 0) + Math.sign(e.deltaY) * 2 + 540) % 360) - 180; if (!L.rot) delete L.rot; }
+  else L.at = [L.at[0], L.at[1], r4(Math.max(0.02, Math.min(4, L.at[2] * (e.deltaY > 0 ? 1 / 1.05 : 1.05))))];
+  changed();
+}, { passive: false });
+
+/* ---------------------------------------------------------------- layers */
+
+/* Which box sits on top where boxes overlap on a picture: bottom to top, per
+   skin, kept per browser. Only the editor's view; the gun's parts never
+   overlap. The top box wins a click (after the selected one). */
+const LAYERS = "skinEditor.layers";
+function layerOrder() {
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(LAYERS) || "{}")[skinId] || []; } catch { /* private mode */ }
+  const ps = parts();
+  return [...saved.filter((k) => ps.includes(k)), ...ps.filter((k) => !saved.includes(k))];
+}
+/* d: +1 forward (up), -1 back, or "top"/"bottom". */
+function moveLayer(key, d) {
+  const o = layerOrder().filter((k) => k !== key);
+  const i = layerOrder().indexOf(key);
+  const j = d === "top" ? o.length : d === "bottom" ? 0 : Math.max(0, Math.min(o.length, i + d));
+  o.splice(j, 0, key);
+  try { const all = JSON.parse(localStorage.getItem(LAYERS) || "{}"); all[skinId] = o; localStorage.setItem(LAYERS, JSON.stringify(all)); } catch { /* private mode */ }
+  drawBanner(); paintTable();
+}
+
+/* ------------------------------------------------------------------ snip */
+
+/* Snip: drag a rectangle on the picture, like a screenshot, and the selected
+   part shows exactly that. The rectangle keeps the part's own shape, so what
+   you draw is what goes on the gun. */
+let snipping = false;
+function setSnip(on) {
+  snipping = !!on && !(curLayer() ? curLayer().lock : isLocked(part));
+  if (snipping && dragTarget) { dragTarget = null; buildPieces(); }
+  $("snip").classList.toggle("on", snipping);
+  $("snip").setAttribute("aria-pressed", String(snipping));
+  bc.style.cursor = snipping ? "crosshair" : "";
+  drawBanner();
+}
+function snipRect(d) {
+  const r = regionOf(part), A = r.w / r.h;
+  const dx = d.x - d.sx, dy = d.y - d.sy;
+  const w = Math.max(Math.abs(dx), Math.abs(dy) * A), h = w / A;
+  return { x: dx < 0 ? d.sx - w : d.sx, y: dy < 0 ? d.sy - h : d.sy, w, h };
+}
+$("snip").addEventListener("click", () => setSnip(!snipping));
+
+/* --------------------------------------------------------------- sources */
+
+/* Every picture a part can wear: the banners and skin-art (listed by the
+   editor server). Each part shows the skin's banner, or its own picture. */
+let IMAGES = [];
+try { IMAGES = await fetch("/images").then((r) => r.json()); } catch { /* old server: banner only */ }
+const bannerFile = () => `banners/${skin().banner}`;
+const artFile = (spec) => { const f = typeof spec === "string" ? spec : spec?.file; return f && !f.includes("/") ? `skin-art/${f}` : f; };
+function srcName(file) {
+  const base = file.split("/").pop();
+  const users = SKINS.filter((x) => x.banner === base).map((x) => x.name);
+  // Plain file names read as words: no extension, no download hash, spaces.
+  return users.length ? users.join(" / ") : base.replace(/\.[a-z]+$/i, "").replace(/\.[a-z0-9]{8,}$/i, "").replace(/[_-]+/g, " ");
+}
+function buildSources() {
+  const box = $("sources");
+  box.innerHTML = "";
+  const L = curLayer();
+  $("src-label").textContent = L ? `Picture for Layer ${layerSel + 1} on ${NAMES[part]}:` : `Picture for ${NAMES[part]}:`;
+  const current = L ? L.file : artFile(skin().art?.[part]) || bannerFile();
+  const files = [bannerFile(), ...IMAGES.filter((f) => f !== bannerFile())];
+  for (const file of files) {
+    const b = document.createElement("button");
+    b.className = "src" + (file === current ? " on" : "");
+    b.setAttribute("aria-pressed", String(file === current));
+    b.disabled = L ? !!L.lock : isLocked(part);
+    const label = (file === bannerFile() ? "Skin banner · " : "") + srcName(file);
+    b.title = file;
+    b.innerHTML = `<img loading="lazy" alt=""><span></span>`;
+    b.querySelector("img").src = `../assets/images/${file}`;
+    b.querySelector("span").textContent = label;
+    b.setAttribute("aria-label", `Use ${label} for ${NAMES[part]}`);
+    b.addEventListener("click", () => setSource(file));
+    box.appendChild(b);
+  }
+}
+/* Give the selected part a picture. Its box starts as the whole picture (as
+   much as fits the part's shape) on both sides; then snip or drag it. */
+async function setSource(file) {
+  const L = curLayer();
+  if (L) {
+    // A layer: new picture, its piece starts as the middle of it.
+    if (L.lock) return;
+    L.file = file;
+    L.src = [0.3, 0.3, 0.7, 0.7];
+    await ensureImg(file);
+    img = null;
+    buildSources(); buildLayers();
+    changed();
+    return;
+  }
+  if (isLocked(part)) return;
+  const a = (skin().art ||= {});
+  if (file === bannerFile()) delete a[part];
+  else a[part] = file.startsWith("skin-art/") ? file.slice(9) : file;
+  if (!Object.keys(a).length) delete skin().art;
+  arts = await partArt(skin());
+  img = null;
+  const pic = arts[part] || rawImg, r = regionOf(part);
+  skin().crops[part] = [0.5, 0.5, Math.round(Math.min(1, (pic.height / pic.width) * (r.w / r.h)) * 1000) / 1000];
+  if (skin().right?.crops) delete skin().right.crops[part];
+  buildSources();
+  if (areasMode()) buildAreas();
+  changed();
+}
+
 /* ------------------------------------------------------------ part table */
 
 function buildTable() {
   const tb = $("parts");
   tb.innerHTML = "";
-  PARTS.forEach((key, i) => {
+  parts().forEach((key, i) => {
     const tr = document.createElement("tr");
     tr.className = "part"; tr.dataset.key = key;
     tr.innerHTML = `<td><span class="sw" style="background:${COLORS[key]}"></span>${i + 1} ${NAMES[key]}</td>`
       + ["cx", "cy", "zoom", "rot"].map((f) => `<td><input type="number" data-f="${f}" step="${f === "rot" ? 1 : 0.005}" aria-label="${NAMES[key]} ${f}"></td>`).join("")
       + `<td><input type="checkbox" data-f="flip" aria-label="Flip ${NAMES[key]}"></td>`
       + `<td><input type="checkbox" data-flipv aria-label="${NAMES[key]} upside down on the right side" title="Upside down on the gun's right side only"></td>`
+      + `<td style="white-space:nowrap"><button data-layer="1" aria-label="Bring ${NAMES[key]} forward" title="Bring forward (PgUp)">▲</button> <button data-layer="-1" aria-label="Send ${NAMES[key]} back" title="Send back (PgDn)">▼</button> <span data-layer-n class="hint" style="margin:0"></span></td>`
       + `<td><button data-lock aria-pressed="false" aria-label="Lock ${NAMES[key]}" title="Lock ${NAMES[key]}">🔓</button></td>`
       + `<td><button data-reset aria-label="Reset ${NAMES[key]}">Reset</button></td>`;
     tr.addEventListener("pointerdown", () => select(key));
@@ -566,7 +1221,7 @@ function buildTable() {
     tr.querySelector("[data-flipv]").addEventListener("input", (e) => {
       const r = (skin().right ||= {});
       const set = new Set(r.flipV || []);
-      if (e.target.checked) set.add(key); else set.delete(key);
+      for (const k of JOINS[key] || [key]) { if (e.target.checked) set.add(k); else set.delete(k); }
       r.flipV = PARTS.filter((p) => set.has(p));
       changed();
     });
@@ -585,6 +1240,7 @@ function buildTable() {
       if (skin().right?.crops) delete skin().right.crops[key];
       changed();
     });
+    tr.querySelectorAll("[data-layer]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); moveLayer(key, Number(b.dataset.layer)); }));
     tr.querySelector("[data-lock]").addEventListener("click", () => {
       toggleLock(key);
       saveLocks();
@@ -602,7 +1258,8 @@ function paintTable(skipKey = null) {
     const vals = { cx: c[0].toFixed(3), cy: c[1].toFixed(3), zoom: c[2].toFixed(3), rot: String(Math.round(c[3])) };
     tr.querySelectorAll("input[type=number]").forEach((inp) => { inp.value = vals[inp.dataset.f]; });
     tr.querySelector('[data-f="flip"]').checked = !!c[4];
-    tr.querySelector("[data-flipv]").checked = (skin().right?.flipV || []).includes(key);
+    { const o = layerOrder(), n = o.indexOf(key); const el = tr.querySelector("[data-layer-n]"); el.textContent = n === o.length - 1 ? "top" : n === 0 ? "bottom" : String(n + 1); }
+    tr.querySelector("[data-flipv]").checked = (JOINS[key] || [key]).every((k) => (skin().right?.flipV || []).includes(k));
     const rowLocked = isLocked(key);
     const lb = tr.querySelector("[data-lock]");
     lb.textContent = rowLocked ? "🔒" : "🔓";
@@ -726,6 +1383,7 @@ async function rebake() {
     await bakeAtlas(skin(), atlas);
     tex.needsUpdate = true;
     renderView();
+    drawPartView();
   } while (again);
   baking = false;
 }
@@ -733,6 +1391,7 @@ async function rebake() {
 function changed(skipTableKey = null) {
   writeDraft(skinId);
   drawBanner();
+  drawPartView();
   paintTable(skipTableKey);
   refreshStatus();
   rebake();
@@ -745,14 +1404,31 @@ function setCrop(key, c, { fromTable = false } = {}) {
   else skin().crops[key] = val;
   changed(fromTable ? key : null);
 }
-function select(key) { part = key; drawBanner(); paintTable(); }
+function select(key) {
+  part = key;
+  layerSel = null;
+  buildLayers();
+  if (snipping && isLocked(part)) setSnip(false);
+  buildSources();
+  if (areasMode()) buildAreas();
+  drawBanner(); paintTable();
+}
 
 async function openSkin(id) {
   skinId = id;
   $("skin").value = id;
   rawImg = await bannerImage(skin().banner);
   arts = await partArt(skin());
+  limgs = { ...limgs, ...(await layerImages(skin())) };
+  loadedMasks = await layerMasks(skin());
+  layerSel = null;
+  brushMode = null;
   img = null;
+  buildTable();
+  if (!parts().includes(part)) part = parts()[0];
+  buildSources();
+  buildLayers();
+  paintBrushBar();
   buildGun();
   dragTarget = null;
   buildPieces();
@@ -764,15 +1440,15 @@ async function openSkin(id) {
 
 function buildAreas() {
   const box = $("areas");
-  const list = skin().textAreas || [];
-  box.innerHTML = list.length ? "" : '<p class="hint">No text areas marked on this banner.</p>';
+  const list = areaList();
+  box.innerHTML = list.length ? "" : `<p class="hint">No text areas marked on this ${arts[part] ? "picture" : "banner"}.</p>`;
   const row = document.createElement("div");
   row.className = "row";
   list.forEach((_, i) => {
     const b = document.createElement("button");
     b.textContent = `Text area ${i + 1} ×`;
     b.setAttribute("aria-label", `Remove text area ${i + 1}`);
-    b.addEventListener("click", () => { skin().textAreas.splice(i, 1); buildAreas(); changed(); });
+    b.addEventListener("click", () => { areaList().splice(i, 1); buildAreas(); changed(); });
     row.appendChild(b);
   });
   if (list.length) box.appendChild(row);
@@ -910,11 +1586,25 @@ async function save() {
   tex.needsUpdate = true;
   const jpg = atlas.toDataURL("image/jpeg", 0.86);
   const thumb = renderThumb();
+  // Eraser masks painted since the last save go as PNG files; skins.js keeps
+  // just their names.
+  const masks = {}, pending = [];
+  const layersOut = JSON.parse(JSON.stringify(s.layers || {}));
+  for (const [key, list] of Object.entries(s.layers || {})) list.forEach((l, i) => {
+    if (!l.maskData) return;
+    l.id ||= Math.random().toString(36).slice(2, 8);
+    const name = `${s.id}-${l.id}-${Date.now().toString(36)}.png`;
+    masks[name] = l.maskData;
+    Object.assign(layersOut[key][i], { id: l.id, mask: name });
+    delete layersOut[key][i].maskData;
+    pending.push([l, name]);
+  });
   const res = await fetch("/save", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id: s.id, crops: s.crops, lines: s.lines || [], cutouts: s.cutouts || [], textAreas: s.textAreas || [], right: s.right || null, final: !!s.final, jpg, thumb }),
+    body: JSON.stringify({ masks, id: s.id, crops: s.crops, lines: s.lines || [], cutouts: s.cutouts || [], textAreas: s.textAreas || [], right: s.right || null, final: !!s.final, art: s.art || {}, layers: layersOut, jpg, thumb }),
   }).then((r) => r.json()).catch((e) => ({ ok: false, error: e.message }));
   if (!res.ok) { setStatus(`Save failed: ${res.error}. Is tools/troll-skin-editor.mjs running?`, "dirty"); return false; }
+  for (const [l, name] of pending) { l.mask = name; delete l.maskData; }
   saved[s.id] = clone(s);
   writeDraft(s.id);
   refreshStatus();
@@ -956,9 +1646,42 @@ window.addEventListener("keydown", (e) => {
     if (patch) { e.preventDefault(); setPiece(patch); }
     return;
   }
+  if (e.key === "Escape" && snipping) { setSnip(false); return; }
+  if (e.key === "Escape" && layerSel != null) { selectLayer(null); return; }
+  if (e.key === "PageUp" || e.key === "PageDown") { e.preventDefault(); moveLayer(part, e.key === "PageUp" ? (e.shiftKey ? "top" : 1) : (e.shiftKey ? "bottom" : -1)); return; }
+  if (e.key.toLowerCase() === "s" && !e.ctrlKey && !e.metaKey && !e.altKey) { setSnip(!snipping); return; }
   const n = Number(e.key);
-  if (n >= 1 && n <= 6) { select(PARTS[n - 1]); return; }
-  if (isLocked(part) && /^(Arrow|\[|\]|f|F)/.test(e.key)) return;
+  if (n >= 1 && n <= parts().length) { select(parts()[n - 1]); return; }
+  const L = curLayer();
+  if (L) {
+    // Keys move the selected layer only (on the part), never the base.
+    if (L.lock) return;
+    const st = e.shiftKey ? 0.05 : 0.005;
+    const [cx, cy, w] = L.at;
+    if (e.key === "ArrowLeft") L.at = [r4(cx - st), cy, w];
+    else if (e.key === "ArrowRight") L.at = [r4(cx + st), cy, w];
+    else if (e.key === "ArrowUp") L.at = [cx, r4(cy - st), w];
+    else if (e.key === "ArrowDown") L.at = [cx, r4(cy + st), w];
+    else if (e.key === "[" || e.key === "]") { L.rot = (((L.rot || 0) + (e.key === "[" ? -1 : 1) * (e.shiftKey ? 15 : 1) + 540) % 360) - 180; if (!L.rot) delete L.rot; }
+    else if (e.key.toLowerCase() === "f") { if (L.flip) delete L.flip; else L.flip = 1; buildLayers(); }
+    else if (e.key.toLowerCase() === "e") { e.preventDefault(); setBrush(brushMode === "erase" ? null : "erase"); return; }
+    else if (e.key === "+" || e.key === "=") { e.preventDefault(); sizeLayer(1.05); return; }
+    else if (e.key === "-" || e.key === "_") { e.preventDefault(); sizeLayer(1 / 1.05); return; }
+    else return;
+    e.preventDefault();
+    changed();
+    return;
+  }
+  if (isLocked(part) && /^(Arrow|\[|\]|f|F|\+|=|-|_)$/.test(e.key)) { if (/^[+=_-]$/.test(e.key)) lockedNote(); return; }
+  if (/^[+=_-]$/.test(e.key)) {
+    // Zoom the base crop (+ shows more detail, − shows more of the picture).
+    e.preventDefault();
+    const c = full(cropOf(part));
+    c[2] = Math.max(0.01, Math.min(2, c[2] * (e.key === "+" || e.key === "=" ? 1 / 1.05 : 1.05)));
+    setCrop(part, c);
+    settle(part);
+    return;
+  }
   const c = full(cropOf(part));
   const px = (e.shiftKey ? 10 : 1) / (img.width * k / devicePixelRatio);
   if (e.key === "ArrowLeft") c[0] -= px;
@@ -1027,6 +1750,9 @@ $("unlock").addEventListener("click", () => {
 window.__editor = {
   open: openSkin,
   setCrop: (id, key, c) => { work[id].crops[key] = c; if (id === skinId) changed(); },
+  source: (key, file) => { select(key); return setSource(file); },
+  addLayer: async (key, patch = {}) => { select(key); await addLayer(); Object.assign(curLayer(), patch); if (patch.file) await ensureImg(patch.file); selectLayer(layerSel); changed(); return layerSel; },
+  selectLayer: (i) => selectLayer(i),
   setLine: (id, i, text) => { work[id].lines[i].text = text; if (id === skinId) { buildPieces(); changed(); } },
   side: setSide,
   setPiece: (id, kind, i, patch) => { Object.assign((kind === "cut" ? work[id].cutouts : work[id].lines)[i], patch); if (id === skinId) { buildPieces(); changed(); } },

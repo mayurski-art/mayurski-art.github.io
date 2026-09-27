@@ -270,6 +270,21 @@ export const SKINS = [
       mag: [0.5, 0.82, 0.11],
     },
   },
+  {
+    id: "vice", name: "Vice Grin", banner: "banner-17.jpg",
+    blurb: "Leonida sunset, fully loaded.",
+    final: true,
+    palette: { trim: "#6c3f8e", ink: "#fff4e8", metal: 0x2b2233, accent: 0xff8fb8 },
+    art: { grip: "vice-robbery.jpg", mag: { file: "vice-robbery.jpg", textAreas: [[0.502, 0.36, 0.593, 0.422]] }, stock: "vice-robbery.jpg" },
+    layers: { receiver: [{ file: "banners/banner-11.jpg", src: [0.345, 0, 1, 1], at: [0.923, 0.587, 0.875], feather: 0.65, opacity: 0.65, id: "rkn0gy", mask: "vice-rkn0gy-mujaulpy.png", lock: 1 }], stock: [{ id: "8osvw2", file: "skin-art/vice-robbery.jpg", src: [0.044, 0.05, 0.376, 0.486], at: [0.64, 0.42, 0.595], text: 1, feather: 0.3 }] },
+    crops: {
+      receiver: [0.5, 0.344, 1],
+      handguard: [0.5, 0.281, 1],
+      stock: [0.03, 0.3, 0.055],
+      grip: [0.935, 0.53, 0.12],
+      mag: [0.53, 0.5, 0.27],
+    },
+  },
 ];
 
 export const SKIN_BY_ID = Object.fromEntries(SKINS.map((s) => [s.id, s]));

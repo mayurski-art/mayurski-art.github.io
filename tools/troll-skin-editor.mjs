@@ -14,7 +14,8 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SKINS_JS = path.join(ROOT, "assets/games/troll-ops/skins.js");
 const OUT = path.join(ROOT, "assets/games/troll-ops/skins");
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json" };
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".avif": "image/avif", ".json": "application/json" };
+const IMAGE = /\.(jpe?g|png|webp|avif)$/i;
 const PARTS = ["upper", "lower", "handguard", "stock", "grip", "mag"];
 
 const num = (v) => String(Math.round(v * 1000) / 1000);
@@ -59,9 +60,19 @@ function writePieces(block, field, list, kind) {
   return block.replace(anchor, `$1\n    ${field}: [${src}],`);
 }
 
+/* A value as JS source on one line: keys unquoted, numbers rounded. */
+function jsSrc(v) {
+  if (Array.isArray(v)) return `[${v.map(jsSrc).join(", ")}]`;
+  if (v && typeof v === "object") {
+    const kv = Object.entries(v).map(([k, x]) => `${/^[A-Za-z_$][\w$]*$/.test(k) ? k : str(k)}: ${jsSrc(x)}`);
+    return kv.length ? `{ ${kv.join(", ")} }` : "{}";
+  }
+  return typeof v === "number" ? num(v) : JSON.stringify(v);
+}
+
 /* Rewrite one skin's crops and banner pieces in skins.js, leaving every
    other line (and every other skin) exactly as it was. */
-function writeSkin({ id, crops, lines, cutouts, textAreas, right, final }) {
+function writeSkin({ id, crops, lines, cutouts, textAreas, right, final, art, layers }) {
   const raw = fs.readFileSync(SKINS_JS, "utf8");
   const crlf = raw.includes("\r\n");
   let s = raw.replace(/\r\n/g, "\n");
@@ -71,8 +82,21 @@ function writeSkin({ id, crops, lines, cutouts, textAreas, right, final }) {
   const end = s.indexOf("\n  },", at);
   let block = s.slice(start, end);
 
-  const cropLines = PARTS.map((k) => `      ${k}: ${cropSrc(crops[k])},`).join("\n");
+  // A joined box (receiver = upper + lower) is written in place of its parts.
+  const cropLines = ["receiver", ...PARTS].filter((k) => crops[k]).map((k) => `      ${k}: ${cropSrc(crops[k])},`).join("\n");
   block = block.replace(/    crops: \{[\s\S]*?\n    \},/, `    crops: {\n${cropLines}\n    },`);
+
+  // Each part's own picture (banner or skin-art), one line before the crops.
+  if (art !== undefined) {
+    block = /\n    art: \{\n/.test(block) ? block.replace(/\n    art: \{\n[\s\S]*?\n    \},/, "") : block.replace(/\n    art: .*/, "");
+    if (Object.keys(art || {}).length) block = block.replace(/(\n    crops: \{)/, `\n    art: ${jsSrc(art)},$1`);
+  }
+
+  // Layers laid over parts (pieces of other pictures), one line before the crops.
+  if (layers !== undefined) {
+    block = block.replace(/\n    layers: .*/, "");
+    if (Object.keys(layers || {}).length) block = block.replace(/(\n    crops: \{)/, `\n    layers: ${jsSrc(layers)},$1`);
+  }
 
   block = writePieces(block, "lines", lines, "line");
   block = writePieces(block, "cutouts", cutouts, "cut");
@@ -119,6 +143,18 @@ function writeImage(file, dataUrl) {
   return buf.length;
 }
 
+/* A layer's eraser mask (PNG, alpha = where the piece shows). */
+const MASKS = path.join(ROOT, "assets/images/skin-art/masks");
+function writeMask(file, dataUrl) {
+  if (!/^data:image\/png;base64,/.test(dataUrl)) throw new Error("expected a png mask");
+  if (!/^[a-z0-9-]+\.png$/.test(file)) throw new Error("bad mask name");
+  fs.mkdirSync(MASKS, { recursive: true });
+  fs.writeFileSync(path.join(MASKS, file), Buffer.from(dataUrl.split(",")[1], "base64"));
+  // Names are <skin>-<layer>-<version>.png: drop that layer's older versions.
+  const prefix = file.replace(/-[a-z0-9]+\.png$/, "-");
+  for (const old of fs.readdirSync(MASKS)) if (old !== file && old.startsWith(prefix) && /^[a-z0-9-]+\.png$/.test(old)) fs.unlinkSync(path.join(MASKS, old));
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
   if (req.method === "POST" && url.pathname === "/save") {
@@ -128,6 +164,7 @@ const server = http.createServer((req, res) => {
       try {
         const m = JSON.parse(body);
         if (!/^[a-z0-9-]+$/.test(m.id)) throw new Error("bad id");
+        for (const [file, data] of Object.entries(m.masks || {})) writeMask(file, data);
         writeSkin(m);
         const a = writeImage(`${m.id}.jpg`, m.jpg), t = writeImage(`${m.id}-thumb.jpg`, m.thumb);
         console.log(`saved ${m.id}: skins.js + atlas ${(a / 1024).toFixed(0)} KB + thumb ${(t / 1024).toFixed(0)} KB`);
@@ -139,6 +176,13 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ ok: false, error: e.message }));
       }
     });
+    return;
+  }
+  // Every picture a part can use: the banners and the skin-art folder.
+  if (url.pathname === "/images") {
+    const list = (dir) => fs.readdirSync(path.join(ROOT, "assets/images", dir)).filter((f) => IMAGE.test(f)).sort().map((f) => `${dir}/${f}`);
+    res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+    res.end(JSON.stringify([...list("banners"), ...list("skin-art")]));
     return;
   }
   const p = path.join(ROOT, decodeURIComponent(url.pathname));
