@@ -23,13 +23,13 @@ import {
 } from "./streak-entities.js";
 import { KillstreakUi } from "./killstreak-ui.js";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
-import { KillCam } from "./killcam.js?v=to-s12f-killcam";
+import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-s12f-killcam";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-s12h-death";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-s12h-death";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
@@ -6661,7 +6661,7 @@ function poseKillcamWorld(dt) {
     localRig.parts.head.visible = true;
     localRig.root.position.set(me.x, me.y, me.z);
     if (rt >= killcam.deathT) {
-      poseDeath(localRig, Math.min(1, (rt - killcam.deathT) / 0.55));
+      poseDeath(localRig, Math.min(1, (rt - killcam.deathT) / DEATH_TIME));
     } else {
       aimRig(localRig, me.yaw, dt, { moving: me.moving });
       if (me.moving) kcLocalPhase += dt * gaitPhaseRate(3.6);
@@ -6744,6 +6744,15 @@ function startKillcamPresentation(killerId, weaponId, isHead) {
   killcamHud.classList.remove("is-kill");
   killcamHud.hidden = false;
   if (killcam.replaying) {
+    // Which way we go down: shot from the front knocks us onto our back,
+    // from behind pitches us forward onto our face.
+    const k = killcam.sampleAt(killcam.killerId, killcam.deathT, {});
+    if (k) {
+      let d = Math.atan2(-(k.x - move.pos.x), -(k.z - move.pos.z)) - look.yaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      localRig.deathHint = { dir: Math.abs(d) < Math.PI / 2 ? 1 : -1 };
+    }
+    localRig.death = null;
     buildKillcamGun(weaponId && WEAPON_DEFS[weaponId] ? weaponId : killcam.killerWeapon);
     weaponRig.visible = false;
   }

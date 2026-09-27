@@ -19,9 +19,10 @@
 
 import * as THREE from "three";
 
-export const KILLCAM_PRE = 3.3;        // replay seconds before the killing shot
-const KILLCAM_POST = 0.85;              // replay seconds after it (all slow-mo)
+export const KILLCAM_PRE = 3.0;        // replay seconds before the killing shot
+const KILLCAM_POST = 1.45;              // replay seconds after it: the whole fall
 const SLOW_FROM = 0.2;                  // slow-mo starts this long before the kill
+const SLOW_TO = 0.45;                   // …and ends this long after it
 const SLOW = 0.4;                       // replay speed during slow-mo
 const HISTORY = 6;                      // seconds kept per actor
 const SAMPLE_DT = 1 / 30;
@@ -29,7 +30,7 @@ const EYE = 1.62;
 const FALLBACK_TIME = 2.6;
 
 /* Wall-clock length of a full replay (what the respawn timer has to cover). */
-export const KILLCAM_DURATION = (KILLCAM_PRE - SLOW_FROM) + (SLOW_FROM + KILLCAM_POST) / SLOW;
+export const KILLCAM_DURATION = (KILLCAM_PRE - SLOW_FROM) + (SLOW_FROM + SLOW_TO) / SLOW + (KILLCAM_POST - SLOW_TO);
 
 function lerpAngle(a, b, k) {
   let d = b - a;
@@ -125,7 +126,7 @@ export class KillCam {
       this.killerId = killerId;
       this.deathT = now;
       this.rt = this.prevRt = Math.max(tr[0].t, now - KILLCAM_PRE);
-      this.duration = (now - SLOW_FROM - this.rt) + (SLOW_FROM + KILLCAM_POST) / SLOW;
+      this.duration = (now - SLOW_FROM - this.rt) + (SLOW_FROM + SLOW_TO) / SLOW + (KILLCAM_POST - SLOW_TO);
       this.killerWeapon = this.sampleAt(killerId, now)?.wid || null;
       return;
     }
@@ -147,7 +148,10 @@ export class KillCam {
     this.t += dt;
     if (this.mode === "replay") {
       this.prevRt = this.rt;
-      const speed = this.rt < this.deathT - SLOW_FROM ? 1 : SLOW;
+      // Real time, slow-mo through the shot and the start of the fall, then
+      // real time again so the body hits the ground with its full weight.
+      const since = this.rt - this.deathT;
+      const speed = since < -SLOW_FROM || since > SLOW_TO ? 1 : SLOW;
       this.rt += dt * speed;
       if (this.rt >= this.deathT + KILLCAM_POST) { this.cancel(); return false; }
       this.poseKillerCamera();

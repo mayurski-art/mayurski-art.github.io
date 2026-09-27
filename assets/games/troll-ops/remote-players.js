@@ -6,14 +6,16 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES } from "./character.js";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-s12h-death";
 import { EMOTES } from "./emote-wheel.js";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js";
 import { WEAPON_DEFS } from "./weapons.js";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js";
 
 const RENDER_DELAY = 110; // ms
-const DEATH_FALL_TIME = 0.55; // seconds to collapse before the rig is hidden
+// The fall itself is DEATH_TIME (character.js); the body then stays down
+// this long before it's cleared, rather than vanishing the moment it lands.
+const BODY_LINGER = 3;
 
 export const TEAMS = {
   phantom: { name: "Phantoms", color: 0x8a6ad6, ui: "#a98cf0" },
@@ -209,7 +211,14 @@ export class RemotePlayer {
     // Just died: hold the last known pose and play a collapse instead of
     // instantly popping out of existence. Respawning (alive flips back to
     // true) cancels the fall immediately.
-    if (!this.alive && this.wasAlive) { this.dying = true; this.deathT = 0; }
+    if (!this.alive && this.wasAlive) {
+      this.dying = true;
+      this.deathT = 0;
+      // Running into it carries them forward onto their face; otherwise
+      // the round puts them down on their back.
+      const last = snaps[snaps.length - 1];
+      this.rig.deathHint = { dir: last?.moving && Math.random() < 0.55 ? -1 : 1 };
+    }
     if (this.alive) this.dying = false;
     this.wasAlive = this.alive;
 
@@ -217,8 +226,8 @@ export class RemotePlayer {
       this.deathT += dt;
       this.rig.root.visible = true;
       this.tag.visible = false;
-      poseDeath(this.rig, this.deathT / DEATH_FALL_TIME);
-      if (this.deathT >= DEATH_FALL_TIME) this.dying = false;
+      poseDeath(this.rig, Math.min(1, this.deathT / DEATH_TIME));
+      if (this.deathT >= DEATH_TIME + BODY_LINGER) this.dying = false;
       return;
     }
     this.tag.visible = true;

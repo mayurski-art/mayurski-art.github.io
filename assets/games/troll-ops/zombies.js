@@ -13,7 +13,7 @@
 import * as THREE from "three";
 import { FlowField } from "./nav.js";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
-import { buildHumanoid, poseHumanoid } from "./character.js";
+import { buildHumanoid, poseHumanoid } from "./character.js?v=to-s12h-death";
 import { groundHeightAt, resolveCircle } from "./movement.js";
 
 export const ZOMBIE_TYPES = {

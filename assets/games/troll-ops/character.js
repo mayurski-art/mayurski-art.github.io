@@ -1020,38 +1020,159 @@ export function poseDeath(rig, arg) { _poseDeath(rig, arg); rig.body.update(); }
 
 export const DANCES = [poseDance, poseDanceFloss, poseDanceHeadbang, poseDanceWave];
 
-/* Collapse the rig into a fallen heap. `t` is 0 (moment of death) to 1
-   (fully down); callers drive it up over ~0.5-0.6s then hide the rig. Tips
-   the whole body over sideways onto the ground and folds the limbs rather
-   than just freezing the last standing pose or popping out of existence —
-   a body that stays upright or vanishes instantly reads as a UI toggle,
-   not a kill. */
+/* ------------------------------------------------------------ death fall
+
+   Shot dead, a body doesn't pivot flat about the hips — it goes down in
+   stages, each driven by gravity rather than a tween:
+     1. the hit: the round jerks the torso and whips the head, arms fling;
+     2. the buckle: the legs stop holding, knees fold, the hips drop;
+     3. the fall: the rest tips over, accelerating (ease-in, like a real
+        drop), backward onto the seat and then the back, or forward onto the
+        knees and then the chest;
+     4. the impact: a small bounce and the limbs settle, the head lolls.
+   `t` is 0 (the shot) to 1 (settled, DEATH_TIME seconds later); hold it at
+   1 to leave the body lying there. Which way it goes is `rig.deathHint`
+   ({ dir: 1 backward | -1 forward }) if the caller knows (shot from the
+   front, or running into it), else mostly backward so the face shows. */
+export const DEATH_TIME = 1.25;
+
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const smooth = (v) => { v = clamp01(v); return v * v * (3 - 2 * v); };
+const lerp = (a, b, k) => a + (b - a) * k;
+
+function deathState(rig, u) {
+  const d = rig.death;
+  // A fresh fall: first call, or t went backwards (a new death on this rig).
+  if (!d || u < d.u - 0.05) {
+    const hint = rig.deathHint;
+    rig.deathHint = null;
+    rig.death = {
+      u,
+      dir: hint?.dir ?? (Math.random() < 0.7 ? 1 : -1),
+      side: Math.random() < 0.5 ? -1 : 1,
+      seed: Math.random(),
+    };
+    return rig.death;
+  }
+  d.u = u;
+  return d;
+}
+
 function _poseDeath(rig, t) {
   const p = rig.parts;
   _resetJoints(rig);
-  const k = Math.max(0, Math.min(1, t));
-  const ease = 1 - Math.pow(1 - k, 3);
+  const u = clamp01(t);
+  const st = deathState(rig, u);
+  const { dir, side } = st;
+  const T = rig.thigh, S = rig.shin, s = rig.scale;
+  const lieY = rig.limbRadius * 1.9;
 
-  p.hips.rotation.x = ease * (Math.PI / 2);
-  p.hips.rotation.z = 0.35 * ease;
-  p.hips.position.y = rig.hipY * (1 - ease * 0.92);
+  // Phase weights.
+  const hitUp = smooth(u / 0.1);
+  const hit = hitUp * (1 - smooth((u - 0.1) / 0.3));            // spike, then gone
+  const buckle = smooth((u - 0.05) / 0.33);                      // 0.05 → 0.38
+  const fk = clamp01((u - 0.32) / 0.4);                          // 0.32 → 0.72
+  const fall = fk * fk;                                          // gravity: slow start, fast end
+  const sk = clamp01((u - 0.72) / 0.28);                         // the landing
+  const bounce = sk > 0 ? Math.sin(sk * Math.PI * 2.4) * Math.pow(1 - sk, 2) : 0;
+  const landed = sk > 0 ? 1 : 0;
 
-  p.torso.rotation.x = ease * 0.3;
-  p.chest.rotation.x = ease * 0.2;
+  if (dir > 0) {
+    // ---- backward: crumple, sit back, then flat on the back.
+    // Thighs come up to horizontal as the seat drops; knees fold, then
+    // mostly straighten once lying — one stays up a little.
+    // Lying, the left leg goes flat and the right stays knee-up with the
+    // foot on the ground (thigh past horizontal, shin back down to the floor).
+    const aL = buckle * 1.05 + fall * (Math.PI / 2 - 0.04 - 1.05);
+    const aR = buckle * 1.0 + fall * (1.95 - 1.0);
+    const bL = buckle * 1.8 - fall * 1.7;
+    const bR = buckle * 1.6 - fall * 0.45;
+    const standY = T * Math.cos(buckle * 1.05) + S * Math.cos(buckle * 1.05 - buckle * 1.8);
+    p.hips.position.y = lerp(Math.min(rig.hipY, standY), lieY, fall) + bounce * 0.035 * s;
+    p.hips.position.z = (buckle * 0.14 + fall * 0.08) * s;          // the seat lands behind the feet
+    p.hips.rotation.x = 0;
+    p.hips.rotation.y = side * 0.35 * fall;
+    p.hips.rotation.z = side * 0.06 * fall;
 
-  p.legL.rotation.x = ease * 0.5;
-  p.legR.rotation.x = -ease * 0.3;
-  p.legL.rotation.z = ease * 0.2;
-  p.legR.rotation.z = -ease * 0.15;
+    // Jerked back by the round, slumps forward as the legs go, then falls
+    // back flat — the last part fastest, then a small rebound off the ground.
+    p.torso.rotation.x = hit * 0.4 - buckle * 0.3 * (1 - fall) + fall * (Math.PI / 2 - 0.02) - bounce * 0.1;
+    p.torso.rotation.z = side * 0.1 * fall;
+    p.chest.rotation.x = hit * 0.2 - buckle * 0.12 * (1 - fall) + bounce * 0.1;
 
-  p.armL.rotation.x = 0.2 + ease * 0.9;
-  p.armR.rotation.x = 0.2 + ease * 0.7;
-  p.armL.rotation.z = ease * 0.4;
-  p.armR.rotation.z = -ease * 0.3;
+    p.legL.rotation.x = aL;
+    p.legR.rotation.x = aR;
+    p.legL.rotation.z = -0.28 * fall;
+    p.legR.rotation.z = 0.22 * fall;
+    p.kneeL.rotation.x = -Math.max(0.1, bL);
+    p.kneeR.rotation.x = -Math.max(0.3, bR);
+    p.ankleL.rotation.x = 0.6 * fall;
+    p.ankleR.rotation.x = -0.25 * fall;
 
-  p.neckPivot.rotation.x = ease * 0.6;
-  p.headPivot.rotation.x = ease * 0.4;
-  p.headPivot.rotation.z = ease * 0.5;
+    // Arms fling out with the hit and end splayed on the ground by the head.
+    const outL = 0.5 * hit + buckle * 0.35 + fall * 0.95;
+    const outR = 0.45 * hit + buckle * 0.3 + fall * 1.15;
+    p.armL.rotation.z = -outL;
+    p.armR.rotation.z = outR;
+    p.armL.rotation.x = -0.35 * hit + fall * 0.35 + bounce * 0.2;
+    p.armR.rotation.x = -0.25 * hit + fall * 0.55 - bounce * 0.15;
+    p.elbowL.rotation.x = 0.5 * buckle * (1 - fall) + 0.35 * fall + bounce * 0.25;
+    p.elbowR.rotation.x = 0.7 * buckle * (1 - fall) + 0.6 * fall - bounce * 0.2;
+
+    // Head whips back on the hit, drops chin-to-chest in the buckle, and
+    // rolls to one side once lying.
+    p.neckPivot.rotation.x = hit * 0.55 - buckle * 0.35 * (1 - fall) + fall * 0.2 + bounce * 0.35;
+    p.headPivot.rotation.x = hit * 0.3 + bounce * 0.2;
+    p.headPivot.rotation.z = side * (0.15 * buckle + 0.55 * fall * landed + 0.25 * fall);
+  } else {
+    // ---- forward: knees buckle to the ground, then the body pitches over
+    // them onto the chest, arms trailing.
+    const kneelA = buckle * 0.22;
+    const kneelB = buckle * 1.7;
+    const kneelY = T * Math.cos(kneelA) + S * Math.cos(kneelA - kneelB);
+    // Pitch forward about the knees: the hips swing down and ahead of them.
+    const phi = fall * (Math.PI / 2);
+    const pivotY = lerp(rig.hipY, Math.max(kneelY, T * 0.98), buckle);
+    p.hips.position.y = lerp(pivotY, lieY + T * 0.02, fall) + bounce * 0.03 * s;
+    p.hips.position.z = -T * Math.sin(phi) * 0.85 + hit * 0.04 * s;
+    p.hips.rotation.x = -phi;
+    // No yaw twist here: hips rotate X-then-Y-then-Z in their own frame, so
+    // once pitched flat a "twist" is really a roll onto one side, which
+    // lifted one arm into the air and sank the other into the ground.
+    p.hips.rotation.y = 0;
+    p.hips.rotation.z = side * 0.03 * fall;
+
+    // The round rocks them back first, then they fold forward and land flat.
+    p.torso.rotation.x = hit * 0.3 - buckle * 0.45 * (1 - fall) - fall * 0.05 + bounce * 0.08;
+    p.chest.rotation.x = -buckle * 0.2 * (1 - fall) + bounce * 0.08;
+    p.torso.rotation.z = side * 0.08 * fall;
+
+    p.legL.rotation.x = kneelA * (1 - fall) + fall * 0.05;
+    p.legR.rotation.x = kneelA * 0.8 * (1 - fall) + fall * 0.18;
+    p.legL.rotation.z = -0.15 * fall;
+    p.legR.rotation.z = 0.2 * fall;
+    p.kneeL.rotation.x = -(kneelB * (1 - fall) + fall * 0.15);
+    p.kneeR.rotation.x = -(kneelB * 0.9 * (1 - fall) + fall * 0.55);
+    p.ankleL.rotation.x = -0.4 * fall;
+    p.ankleR.rotation.x = -0.3 * fall;
+
+    // Arms go limp: flung by the hit, dropping as the body tips, then lying
+    // along the sides, one bent up by the head.
+    // Face down, "forward" (+x) is into the ground: the left arm ends along
+    // the side, a touch behind; the right out past the head.
+    p.armL.rotation.z = -(0.45 * hit + 0.15 * buckle + 0.3 * fall);
+    p.armR.rotation.z = 0.4 * hit + 0.1 * buckle + 0.3 * fall;
+    p.armL.rotation.x = -0.3 * hit + buckle * 0.25 * (1 - fall) - fall * 0.08 - bounce * 0.12;
+    // Right arm swings on past the ground line to lie out beyond the head
+    // (π is straight overhead, along the ground when face down).
+    p.armR.rotation.x = -0.2 * hit + buckle * 0.2 + fall * 3.02 + bounce * 0.1;
+    p.elbowL.rotation.x = 0.3 * buckle * (1 - fall) + 0.1 * fall + bounce * 0.15;
+    p.elbowR.rotation.x = 0.4 * buckle * (1 - fall) + 0.08 * fall - bounce * 0.15;
+
+    p.neckPivot.rotation.x = hit * 0.4 - buckle * 0.3 + fall * 0.55 + bounce * 0.3;
+    p.headPivot.rotation.x = hit * 0.2 + fall * 0.25;
+    p.headPivot.rotation.z = side * (0.2 * buckle + 0.35 * fall);
+  }
 }
 
 /* ------------------------------------------------------------ head and neck
