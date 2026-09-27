@@ -41,7 +41,7 @@ import { GameAudio } from "./audio.js";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
-import { buildStreakDevice, buildMarkerDevice } from "./streak-device.js";
+import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-s12d-arms";
 import { FlowField } from "./nav.js";
 import { ZombieDirector } from "./zombies.js";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
@@ -515,7 +515,7 @@ function callStreak(id) {
     // the overhead map. Nothing is spent until the third is marked.
     markingStreak = id;
     updateStreakHud();
-    beginStreakHold(0);
+    beginStreakHold(0, "tablet", "strike");
     openStrikeTablet();
     return;
   }
@@ -660,7 +660,8 @@ function fireStreak(id, at = null) {
       }
       spawnRecon(move.pos.x, move.pos.z, yaw);
       showWaveBanner("UAV ONLINE", 1600);
-      beginStreakHold(1.0); // up, thumb the button, down (DESIGN-ARMS.md Phase 5)
+      // Up, thumb CONFIRM, a beat on "UAV ONLINE", down (DESIGN-ARMS.md Phase 5).
+      beginStreakHold(1.4, "tablet", "uav");
       break;
     }
 
@@ -701,7 +702,8 @@ function fireStreak(id, at = null) {
         net.publishStreak({ kind: "callout", label: "GUNSHIP INBOUND", who: net.name });
       }
       showWaveBanner("GUNSHIP INBOUND", 2000);
-      beginStreakHold(1.0);
+      // Same tablet call as the UAV, held a touch longer on the inbound page.
+      beginStreakHold(1.6, "tablet", "gunship");
       achievements.award("gunship");
       break;
     }
@@ -1331,13 +1333,17 @@ function nearestHostileToTeam(from, team, maxDist = Infinity) {
 /* Apply streak damage to a remote actor through the existing paths, so kill
    credit, the killfeed and assists all behave as they do for gunfire. */
 function dealDamageToRemote(rp, damage, weaponId) {
-  const bot = bots.byId(rp.id);
+  // RemotePlayer carries its id as `netId` — there is no `rp.id`. Reading
+  // that silently sent every gunship round, HK direct hit and crate crush
+  // to nobody.
+  const id = rp.netId;
+  const bot = bots.byId(id);
   if (bot) {
-    const { killed } = bots.applyHit(rp.id, damage);
-    noteDealt(rp.id, damage);
+    const { killed } = bots.applyHit(id, damage);
+    noteDealt(id, damage);
     if (killed) {
-      dealtLog.delete(rp.id);
-      net.reportDeathAs(rp.id, net.id, weaponId, false);
+      dealtLog.delete(id);
+      net.reportDeathAs(id, net.id, weaponId, false);
       registerDeath(bot.name, net.id, weaponId, {
         victimTeam: bot.team, victimPos: bot.pos, victimWeaponId: bot.weaponId,
         victimId: bot.id, victimIsBot: true,
@@ -1345,8 +1351,8 @@ function dealDamageToRemote(rp, damage, weaponId) {
     }
     return;
   }
-  noteDealt(rp.id, damage);
-  net.reportHit(rp.id, damage, false, weaponId);
+  noteDealt(id, damage);
+  net.reportHit(id, damage, false, weaponId);
 }
 
 /* Streak events from someone else. Display and world state only — our own
@@ -2956,6 +2962,14 @@ weaponRig.add(activeMarkerMesh);
 const activeDroneMesh = new THREE.Group();
 activeDroneMesh.visible = false;
 weaponRig.add(activeDroneMesh);
+// Both hands cup it from underneath, one either side of the body.
+activeDroneMesh.userData.anchors = (() => {
+  const right = new THREE.Object3D(), left = new THREE.Object3D();
+  right.position.set(0.075, -0.035, 0.01);
+  left.position.set(-0.075, -0.035, 0.01);
+  activeDroneMesh.add(right, left);
+  return { right, left };
+})();
 loadModel("hunter-drone").then((obj) => {
   obj.scale.setScalar(0.32);
   obj.traverse((n) => { if (n.isMesh) n.castShadow = false; });
@@ -3035,19 +3049,22 @@ let streakLowering = false;
    gunship, the strike's targeting), the care package marker, or the
    hunter-killer itself before it's tossed. */
 let streakDeviceKind = "tablet";
+// Which page the tablet shows: "uav", "gunship", "strike" (drawTabletScreen).
+let streakScreen = "idle";
 let streakHoldElapsed = 0;
 const MARKER_THROW_TIME = 0.5;
 let markerThrowT = 0;
 const DRONE_TOSS_AT = 0.6;          // seconds into the hold that the drone leaves the hand
 let pendingDroneLaunch = null;
 
-function beginStreakHold(seconds = 0, kind = "tablet") {
+function beginStreakHold(seconds = 0, kind = "tablet", screen = null) {
   if (player.holding === "melee") return; // never interrupt a mid-swing
   if (player.holding !== "streak" || streakDeviceKind !== kind) {
     streakHoldElapsed = 0;
     streakRaiseT = 0;
   }
   streakDeviceKind = kind;
+  if (screen) streakScreen = screen;
   streakLowering = false;
   setHolding("streak");
   streakHoldT = seconds;
@@ -7449,25 +7466,30 @@ const _meleeIdleEuler = new THREE.Euler();
 /* Streak device viewmodel (DESIGN-ARMS.md Phase 5). Simple raise/steady/
    lower — no swing state to fight over the pose the way melee has, so this
    is much shorter than updateMeleeView. `streakRaiseT` eases the device
-   into a steady hip-height hold pose; sprinting lowers it the same way the
-   gun/melee do. */
+   into its hold pose; sprinting lowers it the same way the gun/melee do.
+   Whatever's in hand, the real sleeved arms (streakArms) hold it. */
 let streakRaiseT = 0;
 let streakSprintT = 0;
-const STREAK_HOLD_POS = new THREE.Vector3(0.16, -0.14, -0.32);
+// Two-handed, centred and low, screen tipped up toward the eye — BO2's
+// tablet hold. The old one-hand wrist unit sat half off the bottom right.
+const TABLET_HOLD_POS = new THREE.Vector3(0, -0.098, -0.4);
+const TABLET_TILT = -0.36;
+const TABLET_PRESS_AT = 0.45;       // seconds into a UAV/gunship call the thumb goes down
 
 function updateStreakView(dt) {
   const held = player.holding === "streak";
   const mesh = streakDeviceKind === "marker" ? activeMarkerMesh
     : streakDeviceKind === "drone" ? activeDroneMesh : activeStreakMesh;
   for (const m of [activeStreakMesh, activeMarkerMesh, activeDroneMesh]) m.visible = held && m === mesh;
-  if (!held) { streakRaiseT = 0; streakSprintT = 0; return; }
+  if (!held) { streakRaiseT = 0; streakSprintT = 0; hideStreakArms(); return; }
   inspectArms.visible = false;
-  if (!player.alive) { finishStreakHold(); mesh.visible = false; return; }
+  if (!player.alive) { finishStreakHold(); mesh.visible = false; hideStreakArms(); return; }
+  if (streakHoldElapsed === 0) resetStreakArms();
   streakHoldElapsed += dt;
 
   // Up quickly, down a touch quicker; once it's down, the gun comes back.
   streakRaiseT = damp(streakRaiseT, streakLowering ? 0 : 1, streakLowering ? 11 : 8, dt);
-  if (streakLowering && streakRaiseT < 0.05) { finishStreakHold(); mesh.visible = false; return; }
+  if (streakLowering && streakRaiseT < 0.05) { finishStreakHold(); mesh.visible = false; hideStreakArms(); return; }
   streakSprintT = damp(streakSprintT, move.sprinting ? 1 : 0, 8, dt);
   const e = streakRaiseT, off = 1 - e, s = streakSprintT;
   const t = performance.now() / 1000;
@@ -7475,7 +7497,7 @@ function updateStreakView(dt) {
 
   if (streakDeviceKind === "marker") {
     // Held up by the shoulder, strobe blinking; the throw is a wind-back and
-    // an overhand flick, then the hand is empty.
+    // an overhand flick, then the hand is empty and follows through.
     activeMarkerMesh.userData.strobe.visible = (t * 2.5) % 1 < 0.2;
     let fx = 0, fy = 0, fz = 0, pitch = 0;
     if (markerThrowT > 0) {
@@ -7486,33 +7508,169 @@ function updateStreakView(dt) {
       else mesh.visible = false;   // it's gone; the empty hand drops away
     }
     mesh.scale.setScalar(0.6);
-    mesh.position.set(0.2 + off * 0.08 + idleX, -0.2 - off * 0.3 - s * 0.12 + idleY + fy, -0.36 + off * 0.05 + fz);
+    mesh.position.set(0.15 + off * 0.08 + idleX, -0.15 - off * 0.3 - s * 0.12 + idleY + fy, -0.36 + off * 0.05 + fz);
     mesh.rotation.set(s * 0.4 + off * 0.8 + pitch, -0.3 - off * 0.3, s * 0.25 + off * 0.4 + 0.15);
+    poseStreakArms(mesh.visible ? mesh : null, "wrap", dt, 0);
     return;
   }
 
   if (streakDeviceKind === "drone") {
-    // Cradled out in front, rotors spinning up, then tossed up and away.
+    // Cradled out in front in both hands, rotors spinning up, then tossed up
+    // and away; the hands follow through and drop out of view.
     const toss = Math.max(0, (streakHoldElapsed - DRONE_TOSS_AT + 0.15) / 0.3);
     for (const r of activeDroneMesh.userData.rotors || []) r.rotation.y += dt * 60 * Math.min(1, streakHoldElapsed / 0.5);
-    mesh.position.set(0.06 + off * 0.1 + idleX, -0.15 - off * 0.3 + idleY + toss * toss * 0.5, -0.42 + off * 0.05 - toss * 0.3);
-    mesh.rotation.set(-0.15 + off * 0.6 + toss * 0.4, 0.3 - off * 0.3, off * 0.3);
+    mesh.position.set(0.02 + off * 0.1 + idleX, -0.16 - off * 0.3 + idleY + toss * toss * 0.5, -0.42 + off * 0.05 - toss * 0.3);
+    mesh.rotation.set(-0.15 + off * 0.6 + toss * 0.4, 0.3 * off, off * 0.3);
     if (toss >= 1) mesh.visible = false;
+    // Hands let go a moment into the toss, not once it's gone.
+    poseStreakArms(toss > 0.35 ? null : mesh, "cup", dt, 0);
     if (pendingDroneLaunch && streakHoldElapsed >= DRONE_TOSS_AT) launchPendingDrone();
     return;
   }
 
-  // Tablet / remote: rises from low right with the wrist turning the screen
-  // up to the eye, then settles with a slight idle drift. A remote call
-  // (UAV, gunship) gets a thumb-press dip on the screen.
-  const press = streakHoldUntilMark ? 0
-    : Math.max(0, Math.sin(Math.min(1, Math.max(0, (streakHoldElapsed - 0.35) / 0.22)) * Math.PI));
+  // Tablet: rises from low with both hands, screen tipping up to the eye,
+  // then settles with a slight idle drift. A UAV/gunship call gets a right-
+  // thumb press on CONFIRM and the page flips; the strike tablet just holds.
+  const calling = streakScreen === "uav" || streakScreen === "gunship";
+  const pk = calling ? (streakHoldElapsed - TABLET_PRESS_AT) / 0.22 : -1;
+  const press = pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0;
+  const confirmed = calling && pk >= 0.5;
   mesh.position.set(
-    STREAK_HOLD_POS.x + off * 0.1 + idleX,
-    STREAK_HOLD_POS.y - off * 0.32 - s * 0.12 + idleY - press * 0.012,
-    STREAK_HOLD_POS.z + off * 0.06 + press * 0.01
+    TABLET_HOLD_POS.x + idleX,
+    TABLET_HOLD_POS.y - off * 0.3 - s * 0.1 + idleY - press * 0.006,
+    TABLET_HOLD_POS.z + off * 0.06 + press * 0.004
   );
-  mesh.rotation.set(s * 0.4 + off * 0.9 + press * 0.08, -off * 0.5, s * 0.25 + off * 0.45);
+  mesh.rotation.set(TABLET_TILT + s * 0.35 - off * 0.6 + press * 0.05, off * 0.2, s * 0.2 + off * 0.25);
+  drawTabletScreen(activeStreakMesh, streakScreen, streakHoldElapsed, confirmed);
+  poseStreakArms(mesh, "side", dt, press);
+}
+
+/* The arms that hold streak devices: the same sleeve/cuff/wrist build as
+   inspectArms (a shoulder below the screen to a fist on the device), with
+   a fist per grip — "side" wraps a tablet edge with the thumb on the bezel,
+   "cup" palms the drone from underneath, "wrap" closes round the marker.
+   Arm 0 is the right arm, arm 1 the left. */
+const STREAK_SHOULDER = [new THREE.Vector3(0.26, -0.5, 0.1), new THREE.Vector3(-0.26, -0.5, 0.1)];
+const streakArms = (() => {
+  const root = new THREE.Group();
+  root.visible = false;
+  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x31372b, roughness: 0.92, metalness: 0 });
+  const cuffMat = new THREE.MeshStandardMaterial({ color: 0x23271f, roughness: 0.9, metalness: 0 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd98a5f, roughness: 0.65, metalness: 0.02 });
+  const knuckleMat = new THREE.MeshStandardMaterial({ color: 0xb56e49, roughness: 0.65, metalness: 0.02 });
+  const unitCyl = (rTop, rBottom, mat) => {
+    const g = new THREE.CylinderGeometry(rTop, rBottom, 1, 10);
+    g.translate(0, 0.5, 0);
+    return new THREE.Mesh(g, mat);
+  };
+  const box = (w, h, d, mat, x = 0, y = 0, z = 0) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    return m;
+  };
+  const arms = [];
+  for (let i = 0; i < 2; i++) {
+    const side = i === 0 ? 1 : -1;       // +x for the right hand
+    const inward = -side;                // toward the tablet's middle
+    const fists = {};
+
+    // Tablet edge: palm round the outside of the edge, fingers behind the
+    // tablet, thumb across the front bezel.
+    const edge = new THREE.Group();
+    edge.add(box(0.03, 0.088, 0.034, skinMat, side * 0.011, -0.004, -0.008));
+    for (let k = 0; k < 4; k++) edge.add(box(0.05, 0.017, 0.014, knuckleMat, inward * 0.012, 0.03 - k * 0.02, -0.018));
+    const thumb = box(0.046, 0.019, 0.013, skinMat, inward * 0.012, 0.016, 0.017);
+    edge.add(thumb);
+    edge.userData.thumb = thumb;
+    fists.side = edge;
+
+    // Drone: flat palm under the body, fingers curling up the outside.
+    const cup = new THREE.Group();
+    cup.add(box(0.062, 0.02, 0.078, skinMat, 0, -0.012, 0));
+    for (let k = 0; k < 4; k++) cup.add(box(0.014, 0.032, 0.018, knuckleMat, side * 0.034, 0.002, -0.03 + k * 0.02));
+    cup.add(box(0.016, 0.026, 0.03, skinMat, -side * 0.03, 0.002, -0.028));
+    fists.cup = cup;
+
+    // Marker: a closed fist round the upright can, knuckles forward.
+    const wrap = new THREE.Group();
+    wrap.add(box(0.064, 0.078, 0.056, skinMat, 0, -0.004, 0.012));
+    for (let k = 0; k < 4; k++) wrap.add(box(0.068, 0.017, 0.02, knuckleMat, 0, 0.026 - k * 0.02, -0.03));
+    wrap.add(box(0.02, 0.05, 0.03, skinMat, -0.03, 0.03, -0.012));
+    fists.wrap = wrap;
+
+    const fist = new THREE.Group();
+    for (const f of Object.values(fists)) fist.add(f);
+    const wrist = unitCyl(0.022, 0.026, skinMat);
+    const cuff = unitCyl(0.037, 0.035, cuffMat);
+    const sleeve = unitCyl(0.044, 0.032, sleeveMat);
+    root.add(fist, wrist, cuff, sleeve);
+    arms.push({ fist, fists, wrist, cuff, sleeve, free: false, vel: new THREE.Vector3() });
+  }
+  root.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
+  root.userData.arms = arms;
+  return root;
+})();
+weaponRig.add(streakArms);
+
+function hideStreakArms() { streakArms.visible = false; }
+
+/* New hold: both hands start attached again. */
+function resetStreakArms() {
+  for (const arm of streakArms.userData.arms) { arm.free = false; arm.attached = false; arm.vel.set(0, 0, 0); }
+}
+
+/* Put the fists on `mesh`'s anchors and run each arm down to its shoulder.
+   `mesh` null means the hands have let go (a toss/throw): each fist keeps
+   the momentum it had and falls away below the screen. A one-handed device
+   (the marker) has no left anchor, so the left arm stays down. */
+const _armPrev = new THREE.Vector3();
+function poseStreakArms(mesh, style, dt, press) {
+  streakArms.visible = true;
+  const anchors = mesh?.userData.anchors || null;
+  if (mesh) mesh.updateMatrixWorld(true);
+  const arms = streakArms.userData.arms;
+  for (let i = 0; i < arms.length; i++) {
+    const arm = arms[i];
+    const anchor = anchors ? (i === 0 ? anchors.right : anchors.left) : null;
+    for (const [k, f] of Object.entries(arm.fists)) f.visible = k === style;
+    // The marker is carried at 0.6 scale; a full-size fist swallowed it.
+    arm.fist.scale.setScalar(style === "wrap" ? 0.72 : 1);
+    let show;
+    if (anchor && !arm.free) {
+      _armPrev.copy(arm.fist.position);
+      anchor.getWorldPosition(arm.fist.position);
+      anchor.getWorldQuaternion(arm.fist.quaternion);
+      // Remember how the hand was moving, for the follow-through if it lets go.
+      if (dt > 0 && arm.attached) arm.vel.subVectors(arm.fist.position, _armPrev).divideScalar(dt);
+      if (arm.vel.lengthSq() > 9) arm.vel.setLength(3);
+      arm.attached = true;
+      show = true;
+    } else if (arm.attached) {
+      // Let go: coast on, then drop out of view.
+      arm.free = true;
+      arm.vel.multiplyScalar(Math.max(0, 1 - dt * 6));
+      arm.vel.y -= dt * 3.2;
+      arm.fist.position.addScaledVector(arm.vel, dt);
+      show = arm.fist.position.y > -0.48;
+    } else {
+      show = false;
+    }
+    if (i === 0 && style === "side") {
+      // Right thumb presses CONFIRM: in toward the screen centre and down.
+      arm.fists.side.userData.thumb.position.set(-0.012 - press * 0.014, 0.016 - press * 0.004, 0.017 - press * 0.007);
+    }
+    arm.fist.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = show;
+    if (!show) continue;
+    const shoulder = STREAK_SHOULDER[i];
+    _armDir.subVectors(shoulder, arm.fist.position).normalize();
+    _armFrom.copy(arm.fist.position).addScaledVector(_armDir, 0.03);
+    _armTo.copy(arm.fist.position).addScaledVector(_armDir, 0.075);
+    stretchBetween(arm.wrist, _armFrom, _armTo);
+    _armFrom.copy(_armTo);
+    _armTo.copy(arm.fist.position).addScaledVector(_armDir, 0.1);
+    stretchBetween(arm.cuff, _armFrom, _armTo);
+    stretchBetween(arm.sleeve, _armTo, shoulder);
+  }
 }
 
 let weaponLowerT = 0;
