@@ -2359,3 +2359,62 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 /* While the killcam plays, it's the whole screen: the live HUD (crosshair,
    minimap, gear, ammo, hit arcs) goes; the killfeed and scoreboard stay. */
 .to-kc-on > *:not(.to-kc):not(.to-killcam-bars):not(.to-killfeed):not(.to-scoreboard):not(.to-respawn) { visibility: hidden !important; }
+
+/* ---- Your profile, in the lobby header (troll-accounts.js profile modal) ---- */
+/* A round avatar button; the name only shows where the tab bar has room. */
+.to-pf-profile {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 38px; height: 38px; box-sizing: border-box;
+  background: rgba(255, 255, 255, .05); border: 1px solid var(--pf-line); border-radius: 999px;
+  padding: 4px; color: var(--pf-text); cursor: pointer;
+  font-family: "Oswald", sans-serif; font-size: 13px; letter-spacing: .06em;
+}
+.to-pf-profile img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.to-pf-profile img[hidden] { display: none; }
+.to-pf-profile span { display: none; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 1560px) {
+  .to-pf-profile { padding-right: 14px; }
+  .to-pf-profile span { display: inline; }
+}
+.to-pf-profile:hover, .to-pf-profile:focus-visible { border-color: var(--pf-ok); }
+
+/* Operator names that open a profile card: the paused roster (a copy of the
+   scoreboard) and the lobby's "In the room" list. */
+.to-sb-name, .to-pf-op-name {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left;
+  text-decoration: underline dotted rgba(255, 255, 255, .45); text-underline-offset: 3px;
+}
+.to-sb-name:hover, .to-sb-name:focus-visible, .to-pf-op-name:hover, .to-pf-op-name:focus-visible { color: var(--pf-xp, #ffb020); }
+
+/* ---- Match chat (chat.js). Bottom-left, above the gear chips. ---- */
+.to-chat {
+  position: absolute; left: 18px; bottom: 96px; z-index: 13;
+  width: min(380px, calc(100% - 36px));
+  display: flex; flex-direction: column; gap: 4px;
+  pointer-events: none;
+  font-family: "DM Mono", monospace; font-size: 12.5px; color: #eaf5e4;
+}
+.to-chat[hidden] { display: none; }
+.to-chat-log {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 38vh; overflow: hidden;
+}
+.to-chat.is-open .to-chat-log { overflow-y: auto; background: rgba(8, 12, 10, .6); border-radius: 8px; padding: 6px 8px; }
+.to-chat-line { line-height: 1.35; overflow-wrap: anywhere; text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
+.to-chat:not(.is-open) .to-chat-line { align-self: flex-start; background: rgba(8, 12, 10, .4); border-radius: 4px; padding: 1px 6px; }
+.to-chat-tag { color: #8fe36a; margin-right: 4px; font-size: 11px; }
+.to-chat-name { font: inherit; font-weight: 700; color: #ffd84d; background: none; border: 0; padding: 0; }
+.to-chat.is-open, .to-chat.is-interactive { pointer-events: auto; }
+.to-chat.is-interactive button.to-chat-name { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.to-chat-form {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(8, 12, 10, .85); border: 1px solid rgba(143, 227, 106, .55); border-radius: 8px; padding: 6px 8px;
+}
+.to-chat-form[hidden] { display: none; }
+.to-chat-chan {
+  flex: none; font-family: "Oswald", sans-serif; font-size: 11px; letter-spacing: .08em;
+  color: #0b0f0c; background: #ffd84d; border-radius: 4px; padding: 1px 6px;
+}
+.to-chat-chan.is-team { background: #8fe36a; }
+.to-chat-input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: #fff; font: inherit; }

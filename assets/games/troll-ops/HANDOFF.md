@@ -9,6 +9,27 @@ push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 `?v=to-s12a` (game.js + style.css); bump it on any change to either.
 
+## Session 14 (2026-09-27): match chat + in-game profiles
+
+User asks: a chatbox in Troll Forces (match only; the site-wide TROLLCHAT
+room was removed from trollrunner.net the same day, DMs/groups kept as
+"Messages"), and the player profile inside the game.
+- **Match chat** (`chat.js`, class MatchChat): rides the room's broadcast
+  channel as `{ t: "chat", n, u, tm, x, tt }` (net.sendChat / onChat);
+  nothing is stored. **Enter** = all, **Y** = team (team modes; receivers drop
+  the other side's team lines). T stays weapon inspect (it was taken). While
+  typing, the input swallows keys and game keys are cleared. Log lives in
+  #to-hud bottom-left above the gear chips; closed it shows the last 6 lines
+  for 9 s. Touch has no way to type yet.
+- **Profiles**: each player's account id travels in hello/here (`u`, uuid-
+  checked) as `peer.uid`. Names open the site's profile card
+  (TrollrunnerAccounts.openProfileCard) from chat, the paused roster (a
+  scoreboard copy) and the lobby "In the room" list. The lobby header has a
+  round **your profile** button (openProfile, or sign-in when signed out).
+  The Tab scoreboard itself can't be clicked (mouse is locked there).
+- Test: `NODE_PATH=<main checkout>/node_modules node tools/troll-ops-chat-test.mjs`
+  (two tabs, fake accounts). The sync test still passes.
+
 ## Session 13 (2026-09-26): GTA 6 skin "Vice Grin" + skin editor upgrades
 
 Worked in the user's own checkout on `main`, committed + pushed at the end.

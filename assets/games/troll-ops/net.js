@@ -72,6 +72,12 @@ export function makeRoomCode() {
    quietly miss one of those call sites. */
 export const SYNTHETIC_ID_PREFIXES = ["bot-", "streak-"];
 
+/* Account ids are uuids; anything else off the wire is dropped. */
+function accountId(v) {
+  const s = String(v || "");
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? s : null;
+}
+
 export function isSyntheticId(id) {
   const s = String(id);
   return SYNTHETIC_ID_PREFIXES.some((p) => s.startsWith(p));
@@ -87,6 +93,7 @@ export class Net {
     this.myVote = null; // our map vote during an intermission
     this.team = null;   // stays unset until chooseTeam, so it can't leak into the handshake
     this.name = "operator";
+    this.uid = null;     // the signed-in account id, so others can open our profile
     this.mapId = "grinsite";
     this.peers = new Map();   // id -> { team, name, last, ... }
     this._acc = 0;
@@ -95,10 +102,11 @@ export class Net {
   get active() { return this.connected; }
   get playerCount() { return this.peers.size + 1; }
 
-  async start(room, { name, mapId }) {
+  async start(room, { name, mapId, uid }) {
     this.stop();
     this.room = String(room).toUpperCase();
     this.name = name || "operator";
+    this.uid = uid || null;
     this.mapId = mapId;
 
     const onMsg = (m) => this.onMessage(m);
@@ -112,7 +120,7 @@ export class Net {
 
     this.transport = t;
     this.connected = true;
-    this.send({ t: "hello", id: this.id, name: this.name, team: this.team, mapId: this.mapId });
+    this.send({ t: "hello", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, mapId: this.mapId });
 
     // Let the handshake settle before anyone picks a side. Choosing the
     // instant the channel subscribes means balancing against a room that
@@ -132,6 +140,13 @@ export class Net {
   }
 
   send(msg) { this.transport?.send(msg); }
+
+  /* One chat line to the room. `teamOnly` marks it for our side only. */
+  sendChat(text, teamOnly) {
+    const m = { t: "chat", id: this.id, n: this.name, u: this.uid || undefined, tm: this.team, x: String(text).slice(0, 120), tt: teamOnly ? 1 : 0 };
+    this.send(m);
+    return m;
+  }
 
   /* Join the side with fewer people. Only peers whose team we actually know
      are counted — counting undecided peers as phantoms made two simultaneous
@@ -155,7 +170,7 @@ export class Net {
       this.team = ids.indexOf(this.id) % 2 === 0 ? "phantom" : "ghost";
     }
     // Announce it so peers stop seeing us as undecided.
-    this.send({ t: "here", id: this.id, name: this.name, team: this.team });
+    this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team });
     return this.team;
   }
 
@@ -163,7 +178,7 @@ export class Net {
      than waiting for the next state message. */
   setTeam(team) {
     this.team = team;
-    if (this.connected) this.send({ t: "here", id: this.id, name: this.name, team });
+    if (this.connected) this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team });
   }
 
   peer(id) {
@@ -186,14 +201,16 @@ export class Net {
       case "hello": {
         const p = this.peer(m.id);
         p.name = m.name || p.name;
+        p.uid = accountId(m.u) || p.uid || null;
         p.team = m.team || p.team;
         // answer directly so the newcomer learns about us
-        this.send({ t: "here", id: this.id, name: this.name, team: this.team });
+        this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team });
         break;
       }
       case "here": {
         const p = this.peer(m.id);
         p.name = m.name || p.name;
+        p.uid = accountId(m.u) || p.uid || null;
         p.team = m.team || p.team;
         break;
       }
@@ -279,6 +296,12 @@ export class Net {
          named player turns itself; bots turn on the host. */
       case "infect": {
         this.h.onInfect?.(m);
+        break;
+      }
+      /* Match chat (chat.js). Nothing is stored: only whoever is in the
+         room right now sees it. Team chat is filtered by the receiver. */
+      case "chat": {
+        this.h.onChat?.(this.peer(m.id), m);
         break;
       }
       case "vote": {

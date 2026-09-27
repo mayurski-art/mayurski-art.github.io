@@ -27,7 +27,8 @@ import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
-import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js";
+import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-social1";
+import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-s12h-death";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-s12h-death";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js";
@@ -1688,6 +1689,11 @@ function initRadioWidget() {
   // they leave it in on the menu (playing or paused) carries into the match.
 }
 
+document.getElementById("to-menu-roster")?.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-uid]");
+  if (b) openPlayerProfile(b.dataset.uid);
+});
+
 function renderMenuRoster() {
   const box = document.getElementById("to-menu-roster");
   if (!box) return;
@@ -2051,10 +2057,10 @@ function renderLobbyRoster() {
   const box = document.getElementById("to-pf-roster");
   if (!box || !lobbyReady) return;
 
-  const rows = [{ name: playerName(), state: "READY", you: true }];
+  const rows = [{ name: playerName(), state: "READY", you: true, uid: playerUid() }];
   if (isPvp() && net.connected) {
     for (const p of net.peers.values()) {
-      rows.push({ name: p.name, state: isBotPeer(p) ? "BOT" : "IN ROOM" });
+      rows.push({ name: p.name, state: isBotPeer(p) ? "BOT" : "IN ROOM", uid: safeUid(p.uid) });
     }
   }
 
@@ -2063,8 +2069,14 @@ function renderLobbyRoster() {
     const el = document.createElement("div");
     el.className = row.you ? "to-pf-op is-you" : "to-pf-op is-idle";
     const box2 = document.createElement("i");
-    const name = document.createElement("span");
+    const name = document.createElement(row.uid ? "button" : "span");
     name.textContent = row.name;
+    if (row.uid) {
+      name.type = "button";
+      name.className = "to-pf-op-name";
+      name.title = `View ${row.name}'s profile`;
+      name.addEventListener("click", () => openPlayerProfile(row.uid));
+    }
     const state = document.createElement("b");
     state.textContent = row.state;
     el.append(box2, name, state);
@@ -2085,6 +2097,30 @@ function renderLobbyRoster() {
   }
 }
 
+/* The lobby header's profile button: your whole site profile (avatar,
+   banner, level, friends, settings), or the sign-in when signed out. */
+function renderProfileBtn() {
+  const btn = document.getElementById("to-pf-profile");
+  if (!btn) return;
+  const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
+  btn.querySelector("span").textContent = profile?.username || "Sign in";
+  const img = btn.querySelector("img");
+  img.hidden = !profile?.avatarUrl;
+  if (profile?.avatarUrl) img.src = profile.avatarUrl;
+  const svg = btn.querySelector("svg");
+  if (svg) svg.style.display = profile?.avatarUrl ? "none" : "";
+  const label = profile?.username ? `Your profile (${profile.username})` : "Sign in";
+  btn.title = label;
+  btn.setAttribute("aria-label", label);
+}
+renderProfileBtn();
+document.getElementById("to-pf-profile")?.addEventListener("click", () => {
+  const acc = window.TrollrunnerAccounts;
+  if (acc?.getCachedProfile?.()) acc.openProfile?.();
+  else if (acc?.openLogin) acc.openLogin("login");
+  else acc?.openProfile?.();
+});
+
 function renderCallsign() {
   const el = document.getElementById("to-pf-callsign");
   if (el) el.textContent = `Signed in as ${playerName()}`;
@@ -2095,6 +2131,7 @@ function renderCallsign() {
 // gets credited now.
 window.addEventListener("trollrunner:auth-changed", () => {
   renderCallsign();
+  renderProfileBtn();
   renderLobbyRoster();
   loadout.render();
   void syncXp()?.then(() => loadout.render());
@@ -2387,6 +2424,7 @@ const net = new Net({
   onInfect: (m) => applyInfect(m.ids || []),
   onNade: (m) => applyRemoteNade(m),
   onVote: () => { if (intermissionT > 0) renderVote(); },
+  onChat: (p, m) => chat.receive(p, m),
   /* Adopt the owner's countdown rather than running our own, so two clients
      that started a fraction of a second apart still hit zero together. We
      only ever take a *shorter* remaining time: a late "6" arriving after we
@@ -2473,6 +2511,28 @@ const net = new Net({
     }
   },
 });
+
+/* Match chat (chat.js): Enter all-chat, Y team chat. Lives in the HUD, so it
+   shows only in a match. While it's open the game's own keys stand down. */
+const chat = new MatchChat({
+  net,
+  mount: els.hud,
+  isTeamMode: () => !currentMode().ffa,
+  teamColor: (t) => TEAMS[t]?.ui,
+  openProfile: (uid) => openPlayerProfile(uid),
+  onOpenChange: (open) => { if (open) { keys.clear(); mouseDown = false; } },
+});
+
+/* The site's profile card (troll-accounts.js) for any operator with an
+   account. The pointer has to be free to use it, so only reachable from
+   menus, the paused roster and chat. */
+function openPlayerProfile(uid) {
+  const id = safeUid(uid);
+  if (id) window.TrollrunnerAccounts?.openProfileCard?.(id);
+}
+function playerUid() {
+  return safeUid(window.TrollrunnerAccounts?.getCachedProfile?.()?.userId);
+}
 
 lobbyReady = true;
 renderCallsign();
@@ -3220,6 +3280,14 @@ let spawner = null;
 
 const keys = new Set();
 window.addEventListener("keydown", (e) => {
+  if (chat.isTyping) return;
+  // Match chat: Enter for everyone, Y for your team (team modes).
+  if ((e.code === "Enter" || e.code === "NumpadEnter" || e.code === "KeyY") && !e.repeat
+      && gameState === "playing" && isPvp() && net.connected) {
+    e.preventDefault();
+    chat.open(e.code === "KeyY");
+    return;
+  }
   keys.add(e.code);
   if (e.code === "Space" && !e.repeat && killcam.active && !player.alive) skipKillcam();
   // Pause with other people still live in the match keeps gameState at
@@ -3270,13 +3338,13 @@ window.addEventListener("keyup", (e) => {
    one ranking. Bots don't earn assists, so theirs read as a dash. */
 function renderScoreboard() {
   const rows = [{
-    name: `${playerName()} (you)`, team: net.team, you: true,
+    name: `${playerName()} (you)`, team: net.team, you: true, uid: playerUid(),
     kills: player.kills | 0, deaths: player.deaths | 0, assists: player.assists | 0,
   }];
   for (const p of net.peers.values()) {
     if (String(p.id).startsWith("streak-")) continue;   // drones and gunships aren't players
     rows.push({
-      name: p.name, team: p.team, you: false,
+      name: p.name, team: p.team, you: false, uid: safeUid(p.uid),
       kills: p.kills | 0, deaths: p.deaths | 0, assists: isBotPeer(p) ? null : (p.assists | 0),
     });
   }
@@ -3284,7 +3352,9 @@ function renderScoreboard() {
   const rank = (a, b) => (b.kills - a.kills) || (a.deaths - b.deaths);
   const cols = `<span>K</span><span>D</span><span>A</span><span>K/D</span>`;
   const row = (r, place = null) => `<div class="to-sb-row${r.you ? " is-you" : ""}">`
-    + `<span>${place != null ? `<b>${place}.</b> ` : ""}${escapeHtml(r.name)}</span>`
+    + `<span>${place != null ? `<b>${place}.</b> ` : ""}${r.uid
+      ? `<button type="button" class="to-sb-name" data-uid="${r.uid}" title="View profile">${escapeHtml(r.name)}</button>`
+      : escapeHtml(r.name)}</span>`
     + `<span>${r.kills}</span><span>${r.deaths}</span><span>${r.assists ?? "–"}</span>`
     + `<span>${(r.kills / Math.max(1, r.deaths)).toFixed(2)}</span></div>`;
 
@@ -5593,12 +5663,12 @@ async function joinQuickplay() {
   const base = QUICKPLAY_BASE[modeId];
   if (!base) {
     const code = makeRoomCode();
-    return { code, kind: await net.start(code, { name: playerName(), mapId: loadout.mapId }) };
+    return { code, kind: await net.start(code, { name: playerName(), mapId: loadout.mapId, uid: playerUid() }) };
   }
   for (let shard = 1; shard <= QUICKPLAY_MAX_SHARDS; shard++) {
     const code = shard === 1 ? base : `${base}${shard}`;
     setNetStatus(shard === 1 ? "Connecting…" : `Server full, trying another (${shard})…`);
-    const kind = await net.start(code, { name: playerName(), mapId: loadout.mapId });
+    const kind = await net.start(code, { name: playerName(), mapId: loadout.mapId, uid: playerUid() });
     if (!kind) return { code, kind };   // real connectivity failure — retrying won't help
     if (net.playerCount <= MAX_PLAYERS || shard === QUICKPLAY_MAX_SHARDS) return { code, kind };
     net.stop();
@@ -5611,12 +5681,13 @@ async function startGame() {
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
     const result = els.room.value && roomIsCustom
-      ? { code: els.room.value, kind: await net.start(els.room.value, { name: playerName(), mapId: loadout.mapId }) }
+      ? { code: els.room.value, kind: await net.start(els.room.value, { name: playerName(), mapId: loadout.mapId, uid: playerUid() }) }
       : await joinQuickplay();
     els.startBtn.disabled = false;
     if (!result.kind) { setNetStatus("Couldn't reach the room. Try another code.", "bad"); return; }
     els.room.value = result.code;
     net.chooseTeam();
+    chat.render();   // it was built before the room connected
     setNetStatus(`Live · ${result.kind} · room ${result.code} · ${teamName(net.team)}`, "live");
   } else {
     net.stop();
@@ -6386,6 +6457,7 @@ els.quitBtn.addEventListener("click", () => {
   pickups.clear();
   bomb = null;
   net.stop();
+  chat.clear();
   remotes.clear();
   setNetStatus("Share the code with whoever you want in the match.");
   els.pause.hidden = true;
@@ -6398,8 +6470,9 @@ els.quitBtn.addEventListener("click", () => {
   showLobbyPanel("deploy");
 });
 
-controls.addEventListener("lock", () => closePauseMenu());
+controls.addEventListener("lock", () => { closePauseMenu(); chat.setInteractive(false); });
 controls.addEventListener("unlock", () => {
+  chat.setInteractive(true);
   cancelCook();
   if (gameState === "playing") openPauseMenu();
 });
@@ -8647,6 +8720,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
     renderer, scene,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
+    chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
     settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, emote: () => emote,
     closePauseMenu,
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
