@@ -2411,23 +2411,19 @@
       <div class="hub-chrome">
       <!-- Persistent tab bar — always visible above whichever screen is
            active (including the lobby placeholder itself), styled to sit
-           inside the blank tab slots baked into hub-interior-*.jpg. Chat
-           and Messages are the two fixed tabs; the remaining 4 slots are
+           inside the blank tab slots baked into hub-interior-*.jpg. Messages
+           is the fixed tab; the remaining 5 slots are
            filled dynamically with your most-recent DM/group threads (see
            renderRecentTabs below) so a conversation is one tap away without
            digging into the Messages inbox. Terminal/Maps/PFP/Games moved out
            of the Hub entirely — reach them from wherever else they already
            live on the site (desktop icons, nav). -->
       <div class="hub-tabbar" role="tablist" aria-label="Hub sections">
-        <button type="button" id="hub-open-general" class="hub-tab" role="tab" aria-selected="true">
-          <span class="hub-tab-icon" aria-hidden="true">💬</span>
-          <span class="hub-tab-label">Chat</span>
-        </button>
         <button type="button" id="hub-open-messages" class="hub-tab" role="tab" aria-selected="false">
           <span class="hub-tab-icon" aria-hidden="true">💗<span id="hub-messages-badge" class="hub-lobby-card-badge" hidden>0</span></span>
           <span class="hub-tab-label">Messages</span>
         </button>
-        <div id="hub-recent-tabs" class="hub-recent-tabs" data-count="4"></div>
+        <div id="hub-recent-tabs" class="hub-recent-tabs" data-count="5"></div>
       </div>
       <div class="hub-friends-row">
         <button type="button" id="hub-open-connect" class="hub-friends-btn" aria-label="Connect — browse every runner to friend or message">
@@ -2533,32 +2529,6 @@
         <div id="hub-thread-note" class="hub-note"></div>
       </section>
 
-      <section id="hub-room" class="hub-room" hidden aria-label="Live chat">
-        <div class="hub-room-top">
-          <div class="hub-room-title">
-            <div class="title">General Chat</div>
-            <div class="subtitle">
-              <span class="hub-live"><span class="hub-live-dot" aria-hidden="true"></span>LIVE</span>
-              &middot; <span id="hub-online-num">1</span>&nbsp;online
-            </div>
-          </div>
-          <button type="button" class="hub-room-back" id="hub-back-to-lobby">&#x2190; Back</button>
-        </div>
-
-        <div class="hub-feed-wrap">
-          <div id="hub-feed" class="hub-feed" role="log" aria-live="polite" aria-relevant="additions text"></div>
-          <button id="hub-jump" class="hub-jump-pill" type="button" hidden></button>
-        </div>
-        <div id="hub-typing" class="hub-typing" aria-live="polite">
-          <span id="hub-typing-text"></span>
-        </div>
-
-        <form id="hub-form" class="hub-composer" autocomplete="off">
-          <input id="hub-input" class="hub-msg-input" type="text" maxlength="240" placeholder="say something trolly…" aria-label="Message" autocomplete="off">
-          <button id="hub-send" class="hub-send" type="submit">Send</button>
-        </form>
-        <div id="hub-note" class="hub-note"></div>
-      </section>
       </div><!-- /.hub-panel -->
       </div><!-- /.hub-ui -->
     </div>
@@ -4619,7 +4589,6 @@
         }
       });
       if (!changed) return;
-      if (typeof renderFeed === 'function') renderFeed();
       if (typeof dmRenderThread === 'function' && typeof dm !== 'undefined' && dm?.open?.otherId) dmRenderThread();
     }
 
@@ -5022,55 +4991,20 @@
     } catch {}
 
     (function initHubChat() {
-      const HUB_CHANNEL = 'trollchat_room_v2';
+      // The general room (TROLLCHAT) was removed 2026-09-27. What's left here
+      // is what the Messages threads below share with it: the Supabase client,
+      // the troll_chat table (group messages live there too), message rows,
+      // name colours, times, avatar lookups, caps and the send cooldown.
       const HUB_TABLE = 'troll_chat';
-      const HUB_NAME_KEY = 'trollchat_name_v1';
-      const HUB_ID_KEY = 'trollchat_guest_id_v1';
-      const HUB_CACHE_KEY = 'trollchat_cache_v1';
-      const HUB_LASTREAD_KEY = 'trollchat_lastread_v1'; // id of the message the user last had in view
       const HUB_MSG_MAX = 240, HUB_KEEP = 80, HUB_HISTORY = 60;
-      const HUB_COOLDOWN_MS = 1500, HUB_TYPING_TTL_MS = 3200;
+      const HUB_COOLDOWN_MS = 1500;
+      const state = { client: null };
       const NAME_COLORS = ['#8fe36a', '#4deeff', '#ffd84d', '#ff8a5c', '#c792ff', '#ff5ec1', '#5fd6a8', '#7aa0c4'];
-
-      const state = {
-        guestId: '', name: '', client: null, channel: null, subscribed: false,
-        persistOk: null, messages: [], seen: new Set(), typingPeers: new Map(),
-        lastSendAt: 0, typingSentAt: 0,
-        lastSeenId: null, initialScrollDone: false, lastSeenSaveTimer: null,
-        unreadMarkerId: null,
-      };
-      const els = {};
-
-      function guestId() {
-        let id = '';
-        try { id = localStorage.getItem(HUB_ID_KEY) || ''; } catch {}
-        if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : 'guest-' + Date.now() + '-' + Math.random().toString(16).slice(2)); try { localStorage.setItem(HUB_ID_KEY, id); } catch {} }
-        return id;
-      }
-      // Guests get one stable "troll-####" identity (Roblox-style), generated
-      // once and persisted — never a user-editable field, and never
-      // regenerated on reload/logout, unlike the old call-every-time random
-      // name this replaced.
-      function defaultName() {
-        let n = '';
-        try { n = localStorage.getItem(HUB_NAME_KEY) || ''; } catch {}
-        if (!n) {
-          n = 'troll-' + Math.floor(1000 + Math.random() * 9000);
-          try { localStorage.setItem(HUB_NAME_KEY, n); } catch {}
-        }
-        return n.slice(0, 24);
-      }
-      function accountName() {
-        const session = window.TrollrunnerAccounts?.getCachedProfile?.();
-        return session?.username ? String(session.username).slice(0, 24) : '';
-      }
       function nameColor(name) {
         let h = 0; const s = String(name || '');
         for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
         return NAME_COLORS[h % NAME_COLORS.length];
       }
-      function loadCache() { try { const r = JSON.parse(localStorage.getItem(HUB_CACHE_KEY) || '[]'); return Array.isArray(r) ? r : []; } catch { return []; } }
-      function saveCache() { try { localStorage.setItem(HUB_CACHE_KEY, JSON.stringify(state.messages.slice(-HUB_HISTORY))); } catch {} }
       function fmtTime(v) {
         const d = v ? new Date(v) : new Date();
         if (Number.isNaN(d.getTime())) return '';
@@ -5095,17 +5029,6 @@
         return String(url).indexOf(prefix) === 0 ? String(url) : null;
       }
 
-      function normalize(raw) {
-        if (!raw || typeof raw !== 'object') return null;
-        const id = String(raw.id || '').trim();
-        const body = String(raw.text != null ? raw.text : raw.body || '').trim();
-        // drawings ("draw:data:image/png;base64,…") are allowed a bigger cap
-        const text = body.slice(0, window.TrollChatExtras ? window.TrollChatExtras.bodyCap(body) : HUB_MSG_MAX);
-        if (!id || !text) return null;
-        const uid = safeUid(raw.uid || raw.user_id);
-        return { id, name: (String(raw.name || 'Guest').trim() || 'Guest').slice(0, 24), text, ts: String(raw.ts || raw.created_at || new Date().toISOString()), uid, avatar: safeAvatarUrl(raw.avatar, uid) };
-      }
-
       /* Profile pictures for account messages — resolved from troll_profiles
          in one batched lookup and cached (history rows only carry user_id). */
       const avatarCache = new Map(); // user_id → avatar_url | null
@@ -5113,8 +5036,6 @@
       function avatarFor(m) {
         return m.avatar || (m.uid ? avatarCache.get(m.uid) : null) || null;
       }
-
-      async function resolveAvatars() { return resolveAvatarsFor(state.messages, renderFeed); }
 
       // Shared by the general room and the Messages thread view — both feeds
       // hold rows that only carry a user_id and need the profile's avatar.
@@ -5139,52 +5060,7 @@
         } catch {}
       }
 
-      function loadLastSeen() { try { return localStorage.getItem(HUB_LASTREAD_KEY) || null; } catch { return null; } }
-      function saveLastSeen(id) {
-        if (!id || id === state.lastSeenId) return;
-        state.lastSeenId = id;
-        if (state.lastSeenSaveTimer) clearTimeout(state.lastSeenSaveTimer);
-        state.lastSeenSaveTimer = setTimeout(() => { try { localStorage.setItem(HUB_LASTREAD_KEY, id); } catch {} }, 400);
-      }
-      // The topmost message still (at least partly) visible in the scrolled feed.
-      function topVisibleId() {
-        const rows = els.feed.querySelectorAll('.hub-msg');
-        for (const row of rows) {
-          if (row.offsetTop + row.offsetHeight - els.feed.scrollTop > 4) return row.dataset.id || null;
-        }
-        return null;
-      }
-      // Once the user has scrolled down to (or the feed already fits within)
-      // the caught-up point, the NEW divider has done its job — drop it so
-      // reopening the chat later doesn't show a stale marker for messages
-      // already seen.
-      function clearUnreadMarker() {
-        if (!state.unreadMarkerId) return;
-        state.unreadMarkerId = null;
-        const el = els.feed.querySelector('.hub-unread-divider');
-        if (el) el.remove();
-      }
-      function handleFeedScroll() {
-        saveLastSeen(topVisibleId());
-        const distanceFromBottom = els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight;
-        if (distanceFromBottom < 60) { hideJumpPill(); clearUnreadMarker(); }
-      }
-
-      // "N new messages" pill: caughtUpCount is the message count as of the last
-      // time we knew the user was scrolled to the bottom. The gap between it and
-      // the live count is how many they haven't seen yet.
-      function hideJumpPill() { if (els.jump) els.jump.hidden = true; state.caughtUpCount = state.messages.length; }
-      function updateJumpPill() {
-        if (!els.jump) return;
-        if (state.caughtUpCount == null) state.caughtUpCount = state.messages.length;
-        const n = Math.max(0, state.messages.length - state.caughtUpCount);
-        if (n <= 0) { els.jump.hidden = true; return; }
-        els.jump.hidden = false;
-        els.jump.textContent = '↓ ' + n + (n === 1 ? ' new message' : ' new messages');
-      }
-
-      /* One message row, shared by the general room and every Messages
-         thread. isMe only drives the highlight colour — the general room
+      /* One message row, shared by every Messages thread. isMe only drives
          knows the author by display name, a thread knows it by user id. */
       function msgRow(m, isMe) {
         const row = document.createElement('article'); row.className = 'hub-msg'; row.dataset.id = m.id; if (isMe) row.classList.add('is-me');
@@ -5216,216 +5092,12 @@
         return row;
       }
 
-      // Discord-style "— NEW —" divider: computed once, right before the
-      // first message you haven't seen yet (per the same lastSeenId the
-      // scroll-restore below already tracks). Stays put for the rest of
-      // this page session even as more messages arrive underneath it.
-      function unreadDivider() {
-        const row = document.createElement('div');
-        row.className = 'hub-unread-divider';
-        row.innerHTML = '<span>NEW</span>';
-        return row;
-      }
-
-      function renderFeed() {
-        const isFirstRender = !state.initialScrollDone;
-        const hadRows = els.feed.childElementCount > 0;
-        const distanceFromBottom = hadRows ? (els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight) : 0;
-        const wasNearBottom = !hadRows || distanceFromBottom < 60;
-        els.feed.innerHTML = '';
-        if (!state.messages.length) {
-          const empty = document.createElement('div'); empty.className = 'hub-empty';
-          const img = document.createElement('img'); img.src = 'assets/animations/troll-lel_transparent.gif'; img.alt = '';
-          const strong = document.createElement('strong'); strong.textContent = 'No trolls yet';
-          const span = document.createElement('span'); span.textContent = 'be the first to say something.';
-          empty.append(img, strong, span); els.feed.appendChild(empty); return;
-        }
-
-        const targetId = isFirstRender ? (state.lastSeenId || loadLastSeen()) : null;
-        if (isFirstRender && targetId) {
-          const idx = state.messages.findIndex(x => x.id === targetId);
-          if (idx >= 0 && idx < state.messages.length - 1) {
-            state.unreadMarkerId = state.messages[idx + 1].id;
-            state.caughtUpCount = idx + 1;
-          }
-        }
-        state.messages.forEach(m => {
-          if (m.id === state.unreadMarkerId) els.feed.appendChild(unreadDivider());
-          els.feed.appendChild(msgRow(m, m.name === state.name));
-        });
-
-        // initHubChat boots (and fetchHistory/addMessage fire) as soon as the
-        // page loads, long before the user has ever opened the Hub sheet —
-        // #hub-room sits behind the [hidden] attribute until they do, which
-        // means clientHeight/scrollHeight both read 0 here. Positioning the
-        // scroll (or recording topVisibleId as the read marker) against that
-        // fake zero-height layout would wrongly "read" everything down to
-        // row 1 and leave the feed pinned at the very top once it becomes
-        // visible — so both are skipped while hidden and retried by
-        // enterRoom() the moment the room is actually shown.
-        const feedVisible = els.feed.clientHeight > 0;
-        let stickToBottom = false;
-        if (isFirstRender && !feedVisible) {
-          // leave initialScrollDone false — next renderFeed() (triggered by
-          // enterRoom once visible, or the next message) tries again.
-        } else if (isFirstRender) {
-          state.initialScrollDone = true;
-          // Discord-style resume: land just above the NEW divider (the first
-          // message the user hasn't seen yet) instead of jumping to the very
-          // bottom, so reopening the chat picks up where they left off.
-          const dividerEl = els.feed.querySelector('.hub-unread-divider');
-          if (dividerEl) {
-            els.feed.scrollTop = Math.max(0, dividerEl.offsetTop - 12);
-            updateJumpPill();
-          } else {
-            els.feed.scrollTop = els.feed.scrollHeight;
-            hideJumpPill();
-            stickToBottom = true;
-          }
-        } else if (wasNearBottom) {
-          els.feed.scrollTop = els.feed.scrollHeight;
-          hideJumpPill();
-          stickToBottom = true;
-        } else {
-          els.feed.scrollTop = Math.max(0, els.feed.scrollHeight - els.feed.clientHeight - distanceFromBottom);
-          updateJumpPill();
-        }
-        // Avatars, GIFs, and drawings load async and grow the feed's height
-        // after we've already set scrollTop — which shoves the "bottom" view
-        // back up toward earlier messages. Re-stick once each image settles.
-        if (stickToBottom) {
-          els.feed.querySelectorAll('img').forEach(img => {
-            if (img.complete) return;
-            img.addEventListener('load', () => {
-              const stillNearBottom = els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight < 200;
-              if (stillNearBottom) els.feed.scrollTop = els.feed.scrollHeight;
-            }, { once: true });
-          });
-        }
-        if (feedVisible) {
-          saveLastSeen(topVisibleId());
-          if (els.feed.scrollHeight - els.feed.scrollTop - els.feed.clientHeight < 60) clearUnreadMarker();
-        }
-      }
-
-      function addMessage(raw, opts) {
-        opts = opts || {};
-        const m = normalize(raw);
-        if (!m || state.seen.has(m.id)) return false;
-        state.seen.add(m.id); state.messages.push(m);
-        state.messages.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
-        if (state.messages.length > HUB_KEEP) { state.messages = state.messages.slice(-HUB_KEEP); state.seen = new Set(state.messages.map(x => x.id)); }
-        if (m.name) state.typingPeers.forEach((v, k) => { if (v.name === m.name) state.typingPeers.delete(k); });
-        if (!opts.silent) { renderFeed(); renderTyping(); }
-        if (m.uid && !m.avatar) resolveAvatars();
-        saveCache(); return true;
-      }
-
-      function renderOnline(n) { els.onlineNum.forEach(el => { el.textContent = String(Math.max(1, Number(n) || 1)); }); }
-      function syncPresence() {
-        if (!state.channel) { renderOnline(1); return; }
-        const st = state.channel.presenceState(); const ids = new Set();
-        Object.values(st || {}).forEach(arr => { if (Array.isArray(arr)) arr.forEach(e => { if (e && e.id) ids.add(e.id); }); });
-        renderOnline(ids.size || 1);
-      }
-
-      function renderTyping() {
-        const now = Date.now(); const names = [];
-        state.typingPeers.forEach((v, k) => { if (v.until <= now) { state.typingPeers.delete(k); return; } if (v.name && v.name !== state.name) names.push(v.name); });
-        if (!names.length) { els.typing.classList.remove('is-active'); els.typingText.textContent = ''; return; }
-        els.typing.classList.add('is-active');
-        const u = Array.from(new Set(names)).slice(0, 3);
-        els.typingText.textContent = u.length === 1 ? u[0] + ' is typing' : u.join(', ') + ' are typing';
-      }
-
-      function setNote(msg) { els.note.textContent = msg || ''; }
-      function updateNote() { setNote(state.persistOk === false ? 'Live only — chat history isn’t being saved yet.' : ''); }
-
-      async function fetchHistory() {
-        try {
-          const qs = new URLSearchParams({ select: 'id,name,body,created_at,user_id', order: 'created_at.desc', limit: String(HUB_HISTORY) });
-          const res = await fetch(SUPABASE_URL + '/rest/v1/' + HUB_TABLE + '?' + qs.toString(), { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
-          if (!res.ok) { state.persistOk = false; updateNote(); return; }
-          const rows = await res.json();
-          if (Array.isArray(rows)) { rows.reverse().forEach(r => addMessage(r, { silent: true })); renderFeed(); resolveAvatars(); }
-          state.persistOk = true; updateNote();
-        } catch { state.persistOk = false; updateNote(); }
-      }
-
-      async function persist(m) {
-        if (state.persistOk === false) return;
-        try {
-          // RLS only allows a non-null user_id through the *authenticated*
-          // insert policy (checked against auth.uid()) — the anon-role policy
-          // requires user_id IS NULL. So a real account's message has to go
-          // out with its own access token, not the shared anon key, or the
-          // insert is rejected outright (see troll_accounts.sql §7).
-          const token = m.uid ? await window.TrollrunnerAccounts?.getAccessToken?.() : null;
-          const res = await fetch(SUPABASE_URL + '/rest/v1/' + HUB_TABLE, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), Prefer: 'return=minimal' },
-            body: JSON.stringify([{ id: m.id, name: m.name, body: m.text, created_at: m.ts, user_id: token ? m.uid : null }]),
-          });
-          const ok = res.ok || res.status === 409;
-          // A rejected drawing just means troll_chat_v2.sql hasn't run yet —
-          // don't flip the whole room into "live only" mode over it.
-          if (!ok && m.text.indexOf('draw:') === 0) {
-            setNote('Drawing went out live — run troll_chat_v2.sql so drawings save too.');
-            setTimeout(updateNote, 4500);
-            return;
-          }
-          if (state.persistOk !== ok) { state.persistOk = ok; updateNote(); }
-        } catch { if (state.persistOk !== false) { state.persistOk = false; updateNote(); } }
-      }
-
-      function broadcastTyping() {
-        if (!state.channel || !state.subscribed) return;
-        const now = Date.now(); if (now - state.typingSentAt < 1200) return; state.typingSentAt = now;
-        state.channel.send({ type: 'broadcast', event: 'typing', payload: { id: state.guestId, name: state.name } });
-      }
-
-      async function send(text) {
-        const t = String(text || '').trim(); if (!t) return false;
-        const now = Date.now();
-        if (now - state.lastSendAt < HUB_COOLDOWN_MS) { setNote('Whoa, slow down a sec…'); setTimeout(updateNote, 1200); return false; }
-        state.lastSendAt = now;
-        const cap = window.TrollChatExtras ? window.TrollChatExtras.bodyCap(t) : HUB_MSG_MAX;
-        const m = { id: (crypto.randomUUID ? crypto.randomUUID() : state.guestId + '-' + now + '-' + Math.random().toString(16).slice(2)), name: state.name, text: t.slice(0, cap), ts: new Date(now).toISOString() };
-        // Tie the message to the account so it renders as signed-in (not
-        // GUEST) — this was previously dropped, so persisted rows never
-        // carried user_id and even a logged-in sender's own recent messages
-        // read as guest until a reload re-normalized them from a row that
-        // also never had it.
-        const account = window.TrollrunnerAccounts?.getCachedProfile?.();
-        if (account?.userId) { m.uid = account.userId; if (account.avatarUrl) m.avatar = account.avatarUrl; }
-        addMessage(m);
-        if (state.channel && state.subscribed) state.channel.send({ type: 'broadcast', event: 'msg', payload: m });
-        persist(m); return true;
-      }
-
-      function startRealtime() {
-        if (!window.supabase || !window.supabase.createClient) { renderOnline(1); return; }
-        try {
-          state.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
-          state.channel = state.client.channel(HUB_CHANNEL, { config: { presence: { key: state.guestId }, broadcast: { self: false } } });
-          state.channel
-            .on('broadcast', { event: 'msg' }, ({ payload }) => addMessage(payload))
-            .on('broadcast', { event: 'typing' }, ({ payload }) => {
-              if (!payload || payload.id === state.guestId) return;
-              state.typingPeers.set(String(payload.id), { name: String(payload.name || 'Someone').slice(0, 24), until: Date.now() + HUB_TYPING_TTL_MS });
-              renderTyping();
-            })
-            .on('presence', { event: 'sync' }, syncPresence)
-            .subscribe(s => { if (s === 'SUBSCRIBED') { state.subscribed = true; state.channel.track({ id: state.guestId, name: state.name }); } });
-        } catch { state.channel = null; }
-      }
-
       /* The Hub sheet holds several exclusive screens under the persistent
-         tab bar: the lobby placeholder, the general room, the Messages
-         inbox, one open thread, and Connect (opened via the Friends button,
-         not a tab). Everything but the lobby wants the taller sheet
-         (.is-room), because all of them scroll or need real vertical room. */
-      const HUB_SCREENS = ['hub-lobby', 'hub-room', 'hub-messages', 'hub-thread', 'hub-connect', 'hub-friends'];
+         tab bar: the lobby placeholder, the Messages inbox, one open thread,
+         Connect and Friends. Everything but the lobby wants the taller
+         sheet (.is-room), because all of them scroll or need real vertical
+         room. */
+      const HUB_SCREENS = ['hub-lobby', 'hub-messages', 'hub-thread', 'hub-connect', 'hub-friends'];
       function showScreen(id) {
         HUB_SCREENS.forEach(s => { const el = document.getElementById(s); if (el) el.hidden = s !== id; });
         document.getElementById('hub').classList.toggle('is-room', id !== 'hub-lobby');
@@ -5435,14 +5107,6 @@
          since Terminal/Maps tabs never show a screen to sync against. */
       function setActiveTab(tabId) {
         document.querySelectorAll('.hub-tab').forEach(t => t.setAttribute('aria-selected', t.id === tabId ? 'true' : 'false'));
-      }
-      function enterRoom() {
-        showScreen('hub-room');
-        // renderFeed() ran earlier while #hub-room was still [hidden] (see
-        // its feedVisible guard) and deferred scroll positioning — now that
-        // the feed has real layout, retry so it actually lands at the
-        // divider/bottom instead of sitting wherever scrollTop defaulted to.
-        if (!state.initialScrollDone) renderFeed();
       }
 
       /* ================= MESSAGES (DMs + group chats) =================
@@ -5713,7 +5377,7 @@
         return items;
       }
 
-      // The 4 dynamic tab-bar slots (see the hub-recent-tabs comment in the
+      // The 5 dynamic tab-bar slots (see the hub-recent-tabs comment in the
       // markup) show your most-recent conversations so one is always a tap
       // away without opening the full Messages inbox. Clicking a tab just
       // calls the same open() dmOpenDm/dmOpenGroup the inbox row would —
@@ -5726,7 +5390,7 @@
         bar.innerHTML = '';
         const account = dmAccount();
         if (!account) return;
-        const items = dmRecentItems().filter(i => !dmTabDismissed(i.id, i.ts)).slice(0, 4);
+        const items = dmRecentItems().filter(i => !dmTabDismissed(i.id, i.ts)).slice(0, 5);
         items.forEach(item => {
           const btn = document.createElement('button');
           btn.type = 'button';
@@ -6339,7 +6003,6 @@
         const connectBack = document.getElementById('hub-connect-back');
         const friendsCard = document.getElementById('hub-open-friends');
         const friendsBack = document.getElementById('hub-friends-back');
-        if (general) general.addEventListener('click', () => { setActiveTab('hub-open-general'); enterRoom(); });
         if (messagesCard) messagesCard.addEventListener('click', () => {
           setActiveTab('hub-open-messages');
           showScreen('hub-messages');
@@ -6372,55 +6035,16 @@
           void dmLoadInbox();
         });
         if (friendsBack) friendsBack.addEventListener('click', () => { setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
-        const backToLobby = document.getElementById('hub-back-to-lobby');
-        if (backToLobby) backToLobby.addEventListener('click', () => { setActiveTab('hub-open-general'); showScreen('hub-lobby'); });
       }
 
       function init() {
+        // One Realtime client for every DM/group channel (dmSubscribe).
+        if (window.supabase?.createClient) {
+          try { state.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } }); } catch { state.client = null; }
+        }
         initHubLobby();
         initHubConnect();
         initHubMessages();
-        els.feed = document.getElementById('hub-feed');
-        els.jump = document.getElementById('hub-jump');
-        els.typing = document.getElementById('hub-typing');
-        els.typingText = document.getElementById('hub-typing-text');
-        els.note = document.getElementById('hub-note');
-        els.onlineNum = Array.from(document.querySelectorAll('#hub-online-num'));
-        const msgInput = document.getElementById('hub-input');
-        const form = document.getElementById('hub-form');
-        if (!els.feed || !form) return;
-
-        state.guestId = guestId(); state.name = accountName() || defaultName();
-        loadCache().forEach(x => addMessage(x, { silent: true }));
-        renderFeed(); renderOnline(1);
-
-        window.addEventListener('trollrunner:auth-changed', () => {
-          state.name = accountName() || defaultName();
-          if (state.channel && state.subscribed) state.channel.track({ id: state.guestId, name: state.name });
-          window.TrollChatExtras?.setMediaAllowed?.(form, !!accountName());
-        });
-        msgInput.addEventListener('input', broadcastTyping);
-        form.addEventListener('submit', e => { e.preventDefault(); send(msgInput.value).then(ok => { if (ok) msgInput.value = ''; }); });
-        // Guests can chat but not post a GIF/drawing — those buttons only
-        // show once signed in (see the auth-changed listener above).
-        if (window.TrollChatExtras) window.TrollChatExtras.attachComposer({ form, send, allowMedia: !!accountName(), btnClass: 'tcx-btn--glass' });
-
-        startRealtime();
-        fetchHistory();
-        setInterval(renderTyping, 1500);
-
-        if (els.jump) els.jump.addEventListener('click', () => {
-          els.feed.scrollTo({ top: els.feed.scrollHeight, behavior: 'smooth' });
-          hideJumpPill();
-        });
-
-        let scrollSaveTimer = null;
-        els.feed.addEventListener('scroll', () => {
-          if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
-          scrollSaveTimer = setTimeout(handleFeedScroll, 250);
-        });
-        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') handleFeedScroll(); });
-        window.addEventListener('beforeunload', handleFeedScroll);
       }
 
       init();

@@ -165,7 +165,7 @@
       // needed for the forcedMobile case (a desktop viewport opting into
       // this shell), and harmless for a genuine phone, which already
       // computes the same layout naturally.
-      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260910a' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
+      '</head><body><iframe id="troll-entrance" src="/world.html?embed=1&mobile=1&v=20260927a' + openHubParam + enterParam + '" title="TrollRunner" onload="this.focus()"></iframe></body></html>'
     );
     document.close();
   }
@@ -3015,6 +3015,16 @@ body.desktop-mode .troll-desktop { display: block; }
    space instead of sitting at its old small-floating-window fixed height,
    so the log itself gets taller instead of just scrolling more. */
 .tw-body > .live-chat-panel { width: 100%; height: 100%; min-height: 0; }
+/* No group open: the window is just the Messages inbox (the public room is
+   gone), so the feed, typing line, composer, live count and close are hidden. */
+#trollchat.is-inbox .live-chat-feed-wrap,
+#trollchat.is-inbox .live-chat-typing,
+#trollchat.is-inbox .live-chat-composer,
+#trollchat.is-inbox .tc-note,
+#trollchat.is-inbox .tc-live,
+#trollchat.is-inbox .tc-online,
+#trollchat.is-inbox .tc-groups-btn,
+#trollchat.is-inbox #tc-groups-close { display: none; }
 /* #td-windows already reserves the 46px taskbar strip via its own inset,
    so a maximized window only needs a small even margin here — the old
    54px bottom value double-counted that clearance and wasted ~54px of
@@ -3429,7 +3439,7 @@ setTimeout(function () {
         </button>
         <button class="td-hot" type="button" data-td-app="chat" style="--w:6%; --c:#ff9500; left:18%; top:45%;">
           <img src="assets/images/wallpaper/obj-chat.png" alt="">
-          <span class="td-hot-chip">TrollChat</span>
+          <span class="td-hot-chip">Messages</span>
         </button>
         <button class="td-hot" type="button" data-td-app="blog" style="--w:8%; --c:#ff2d55; left:77.7%; top:57.5%;">
           <img src="assets/images/wallpaper/obj-blog.png" alt="">
@@ -3570,14 +3580,14 @@ setTimeout(function () {
   </div>
 </section>
 
-<section class="live-chat-panel" id="trollchat" aria-label="Trollchat live chat room">
+<section class="live-chat-panel is-inbox" id="trollchat" aria-label="Messages: DMs and group chats">
   <div class="live-chat-window">
     <div class="live-chat-titlebar">
       <div class="tc-title-left">
         <img class="tc-title-troll" src="assets/animations/troll-grin.gif" alt="" aria-hidden="true">
         <div>
-          <div class="tc-title" id="tc-room-title">TROLLCHAT</div>
-          <div class="tc-subtitle" id="tc-room-subtitle">Trade Less, Troll More</div>
+          <div class="tc-title" id="tc-room-title">MESSAGES</div>
+          <div class="tc-subtitle" id="tc-room-subtitle">DMs and group chats</div>
         </div>
       </div>
       <div class="live-chat-status">
@@ -3601,7 +3611,6 @@ setTimeout(function () {
     </div>
 
     <form id="tc-form" class="live-chat-composer" autocomplete="off">
-      <input id="tc-name" class="tc-name" type="text" maxlength="24" placeholder="name" aria-label="Your display name" autocomplete="nickname">
       <input id="tc-input" class="tc-input" type="text" maxlength="240" placeholder="say something trolly…" aria-label="Message" autocomplete="off">
       <button id="tc-send" class="tc-send" type="submit">SEND</button>
     </form>
@@ -3615,25 +3624,6 @@ setTimeout(function () {
       <div id="tc-groups-body" class="tc-groups-body"></div>
     </div>
 
-    <div id="tc-preview" class="tc-preview" role="dialog" aria-label="Choose how to chat" hidden>
-      <div class="tc-preview-inner">
-        <img class="tc-preview-troll" src="assets/animations/troll-grin.gif" alt="" aria-hidden="true">
-        <div class="tc-preview-title">TROLLCHAT</div>
-        <div class="tc-preview-sub">How do you want to troll today?</div>
-        <div class="tc-preview-options">
-          <button type="button" class="tc-preview-card" id="tc-preview-general">
-            <span class="tc-preview-icon" aria-hidden="true">💬</span>
-            <span class="tc-preview-label">General Chat</span>
-            <span class="tc-preview-desc">Jump into the live room — everyone's here.</span>
-          </button>
-          <button type="button" class="tc-preview-card" id="tc-preview-groups">
-            <span class="tc-preview-icon" aria-hidden="true">💌</span>
-            <span class="tc-preview-label">Messages</span>
-            <span class="tc-preview-desc">DM a runner or start/join a group chat.</span>
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -3955,7 +3945,7 @@ function tdSetIcon(el, icon) {
 
 const TD_WINDOWS = {
   hub: { title: 'TrollRunner Hub', icon: TROLL_ICON, img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: false, url: 'https://www.trollrunner.net', build: tdBuildHub },
-  chat: { title: 'TrollChat', icon: '💬', img: 'assets/images/icons/trollchat.png', flat: true, width: 540, source: '#trollchat', maximizeByDefault: true },
+  chat: { title: 'Messages', icon: '💌', img: 'assets/images/icons/trollchat.png', flat: true, width: 540, source: '#trollchat', maximizeByDefault: true },
   cam: { title: 'Live Cam', icon: '📹', img: 'assets/images/icons/cam.png', flat: true, width: 620, source: '#bio-artwork' },
   updates: { title: 'Latest Updates', icon: '📰', img: 'assets/images/icons/updates.png', flat: true, width: 620, source: '#updates' },
   feedback: { title: 'Feedback', icon: '⌨️', img: 'assets/images/icons/feedback.png', flat: true, width: 660, source: '#feedback' },
@@ -4279,7 +4269,7 @@ function tdBuildHub(body) {
   chatCard.className = 'hub-card';
   chatCard.dataset.feature = 'troll_chat';
   chatCard.style.setProperty('--hc', '#3ddad7');
-  chatCard.appendChild(mkCard('💬', TD_WINDOWS.chat.img, 'TrollChat', 'Chat anonymously. Trade lies, troll lore.'));
+  chatCard.appendChild(mkCard('💌', TD_WINDOWS.chat.img, 'Messages', 'DM a runner or start/join a group chat.'));
   chatCard.addEventListener('click', () => twOpen('chat'));
   cards.splice(3, 0, chatCard);
   const worldCard = document.createElement('button');
@@ -4406,12 +4396,8 @@ function twOpen(id) {
     }
     tdEnsureTaskBtn(id);
     if (id === 'chat') {
-      tcOpenPreview();
-      // The feed renders (and its one-shot scroll restore fires) at page
-      // boot while this window is still hidden, so by the time someone
-      // actually opens it initialScrollDone is already spent and it just
-      // snaps to the bottom. Re-arm it here so "remember your place"
-      // happens while the feed is actually visible.
+      // Opens on the inbox unless a group is already open in it.
+      if (!trollChat.groupId) tcOpenGroups();
       trollChat.initialScrollDone = false;
       tcRenderFeed();
     }
@@ -4693,7 +4679,7 @@ function tdRenderDockIcons() {
     { icon: TD_WINDOWS.fitness.icon, img: TD_WINDOWS.fitness.img, flat: true, label: 'Fitness', onOpen: () => twOpen('fitness') },
     { icon: TD_WINDOWS.updates.icon, img: TD_WINDOWS.updates.img, flat: true, label: 'Latest Updates', onOpen: () => twOpen('updates') },
     { icon: TD_WINDOWS.terminal.icon, img: TD_WINDOWS.terminal.img, flat: true, label: 'Terminal', onOpen: () => twOpen('terminal') },
-    { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: true, label: 'TrollChat', feature: 'troll_chat', onOpen: () => twOpen('chat') },
+    { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: true, label: 'Messages', feature: 'troll_chat', onOpen: () => twOpen('chat') },
     { icon: TD_WINDOWS.finance.icon, img: TD_WINDOWS.finance.img, flat: true, label: 'Finances', onOpen: () => twOpen('finance') },
     { icon: TD_WINDOWS.stickers.icon, img: TD_WINDOWS.stickers.img, flat: true, label: 'Stickers', onOpen: () => twOpen('stickers') },
     { icon: TD_WINDOWS.maps.icon, img: TD_WINDOWS.maps.img, flat: true, label: 'Maps', onOpen: () => twOpen('maps') },
@@ -5140,7 +5126,7 @@ function trollDesktopShow(boot) {
       if (wanted === 'account') requestAnimationFrame(tdOpenAccount);
       else if (wanted && TD_WINDOWS[wanted]) requestAnimationFrame(() => twOpen(wanted));
       // /hub/index.html sends classic-desktop visitors here as ?open=chat
-      // (see that file) so they land on the same TrollChat window everyone
+      // (see that file) so they land on the same Messages window everyone
       // else on desktop already uses, styled like the rest of this UI
       // instead of the mobile sheet. Swap the URL for the same clean /hub
       // the mobile shell shows, same reasoning as the ?mobile=1/?desktop=1
@@ -7781,6 +7767,9 @@ function tcStartRealtime() {
    RPC (see assets/supabase/troll_chat_groups.sql); there's no direct
    insert/update access to the groups/members/invites tables. */
 function tcSwitchRoom(groupId, name, code) {
+  // No group means the inbox: the public general room was removed.
+  const panel = document.getElementById('trollchat');
+  if (panel) panel.classList.toggle('is-inbox', !groupId);
   if (trollChat.channel) {
     try { trollChat.channel.unsubscribe(); } catch {}
   }
@@ -7797,12 +7786,13 @@ function tcSwitchRoom(groupId, name, code) {
 
   const titleEl = document.getElementById('tc-room-title');
   const subtitleEl = document.getElementById('tc-room-subtitle');
-  if (titleEl) titleEl.textContent = groupId ? `TROLLCHAT · ${name}` : 'TROLLCHAT';
-  if (subtitleEl) subtitleEl.textContent = groupId ? `Group code ${code}` : 'Trade Less, Troll More';
+  if (titleEl) titleEl.textContent = groupId ? `MESSAGES · ${name}` : 'MESSAGES';
+  if (subtitleEl) subtitleEl.textContent = groupId ? `Group code ${code}` : 'DMs and group chats';
 
   tcRenderFeed();
   tcRenderOnline(1);
   tcSetNote('');
+  if (!groupId) { tcOpenGroups(); return; }
   void tcFetchHistory();
   tcStartRealtime();
 }
@@ -7821,6 +7811,8 @@ function tcOpenGroups() {
 }
 
 function tcCloseGroups() {
+  // With no group open there is nothing behind the inbox, so it stays.
+  if (!trollChat.groupId) return;
   const overlay = document.getElementById('tc-groups-overlay');
   const btn = document.getElementById('tc-groups-btn');
   if (overlay) overlay.hidden = true;
@@ -7848,28 +7840,6 @@ async function tcStartDmFromInbox(username, input, statusEl) {
   accounts.openDmPanel(profile.id, profile.username);
 }
 
-// Landing screen shown the first time TROLLCHAT's window opens each
-// session — lets people pick general chat, a DM, or a group instead of
-// always dropping into the live room feed.
-function tcOpenPreview() {
-  const preview = document.getElementById('tc-preview');
-  if (preview) preview.hidden = false;
-}
-
-function tcClosePreview() {
-  const preview = document.getElementById('tc-preview');
-  if (preview) preview.hidden = true;
-}
-
-function tcWirePreview() {
-  const generalBtn = document.getElementById('tc-preview-general');
-  const groupsBtn = document.getElementById('tc-preview-groups');
-  if (generalBtn) generalBtn.addEventListener('click', () => tcClosePreview());
-  if (groupsBtn) groupsBtn.addEventListener('click', () => {
-    tcClosePreview();
-    tcOpenGroups();
-  });
-}
 
 async function tcLoadGroupsData() {
   const account = tcAccount();
@@ -8288,10 +8258,9 @@ async function tcLeaveGroup(groupId) {
 function initializeTrollChat() {
   const feed = document.getElementById('tc-feed');
   const form = document.getElementById('tc-form');
-  const nameInput = document.getElementById('tc-name');
   const messageInput = document.getElementById('tc-input');
   const sendBtn = document.getElementById('tc-send');
-  if (!feed || !form || !nameInput || !messageInput) return;
+  if (!feed || !form || !messageInput) return;
 
   trollChat.els = {
     feed,
@@ -8308,23 +8277,12 @@ function initializeTrollChat() {
   });
   trollChat.guestId = tcGuestId();
   trollChat.name = tcDefaultName();
-  nameInput.value = trollChat.name;
   tcApplyAccountIdentity();
   window.addEventListener('trollrunner:auth-changed', tcApplyAccountIdentity);
   document.addEventListener('visibilitychange', tcClearUnreadIfVisible);
 
-  // seed from local cache so returning visitors see recent chatter instantly
-  tcLoadCache().forEach(item => tcAddMessage(item, { silent: true }));
   tcRenderFeed();
   tcRenderOnline(1);
-
-  nameInput.addEventListener('input', () => {
-    trollChat.name = String(nameInput.value || '').trim().slice(0, 24) || 'Guest';
-    try { localStorage.setItem(TC_NAME_KEY, trollChat.name); } catch {}
-    if (trollChat.channel && trollChat.subscribed) {
-      trollChat.channel.track({ id: trollChat.guestId, name: trollChat.name });
-    }
-  });
 
   messageInput.addEventListener('input', tcBroadcastTyping);
 
@@ -8347,10 +8305,9 @@ function initializeTrollChat() {
     if (typeof toggleViewerRoster === 'function') toggleViewerRoster();
   });
 
-  tcWirePreview();
-
-  tcStartRealtime();
-  void tcFetchHistory();
+  // The window starts on the Messages inbox; a group's room only connects
+  // once one is opened (tcSwitchRoom).
+  tcOpenGroups();
 
   let scrollSaveTimer = null;
   feed.addEventListener('scroll', () => {
