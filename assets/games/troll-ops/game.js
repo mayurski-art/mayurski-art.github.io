@@ -4281,7 +4281,6 @@ function updateStreakHud() {
     // Touch calls a streak by tapping its row; this button is only the
     // big "drop it here" confirm while one is being marked.
     els.touchStreak.hidden = !isTouch || !on || !markingStreak;
-    els.touchStreak.textContent = "CONFIRM";
   }
   if (!on) return;
 
@@ -5042,22 +5041,17 @@ function updateGearHud() {
   els.gearTacticalName.textContent = loadout.tactical.name;
   els.gearTacticalN.textContent = String(player.gear.tactical);
   els.gearTactical.classList.toggle("is-empty", player.gear.tactical <= 0);
-  // Touch: the buttons carry the name and count (the chips are hidden there).
+  // Touch: the buttons are icons and carry the count (the chips are hidden there).
   if (els.touchNade) {
-    els.touchNade.textContent = shortGearName(loadout.lethal.name);
+    els.touchNade.setAttribute("aria-label", `Throw ${loadout.lethal.name}`);
     els.touchNade.dataset.n = String(player.gear.lethal);
     els.touchNade.classList.toggle("is-empty", player.gear.lethal <= 0);
   }
   if (els.touchTac) {
-    els.touchTac.textContent = shortGearName(loadout.tactical.name);
+    els.touchTac.setAttribute("aria-label", `Throw ${loadout.tactical.name}`);
     els.touchTac.dataset.n = String(player.gear.tactical);
     els.touchTac.classList.toggle("is-empty", player.gear.tactical <= 0);
   }
-}
-
-function shortGearName(name) {
-  const n = String(name || "").split(/\s+/)[0].toUpperCase();
-  return n.length > 6 ? n.slice(0, 5) : n;
 }
 
 // -------------------- the test range --------------------

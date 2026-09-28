@@ -7,7 +7,9 @@ call it in" banner line, 4/5/6 on ready streak slots (now READY), key names
 in the pickup / care package / plant / defuse / marker prompts, killcam "Space
 to skip" (button just says Skip). Kills box hidden except Zombies (Points).
 Kept: "Click to take the mouse back" (only when a relock fails) and the Esc
-menu / lobby Controls lists. game.js `?v=to-hud1`.
+menu / lobby Controls lists. Touch buttons are inline SVG icons now (no
+words; aria-labels carry the names; nade/tac labels follow the loadout).
+game.js + style.css `?v=to-hud2`.
 
 ## QUEUE (user, 2026-09-28): do these in this order
 1. **Lightsaber: a new weapon.** The graphics have to be really good, on the

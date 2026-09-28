@@ -2228,6 +2228,9 @@ body.to-touch-play .to-touch-btn {
   padding: 0; line-height: 1; text-align: center;
   -webkit-tap-highlight-color: transparent;
 }
+/* Icons, not words, on every touch button (user, 2026-09-28). */
+.to-touch-btn svg { width: 50%; height: 50%; pointer-events: none; display: block; }
+body.to-touch-play .to-touch-fire svg { width: 42%; height: 42%; }
 body.to-touch-play .to-touch-btn.is-held { background: rgba(255,255,255,.3); transform: scale(.94); }
 body.to-touch-play .to-touch-btn.is-empty { opacity: .4; }
 /* AIM: a scope ring behind the label, lit green while toggled on. */
