@@ -247,6 +247,15 @@ export function build416(def, skinId, { texture = null } = {}) {
   const rail = railSection(0.44, 0.03, M.metal);
   rail.position.set(0, topY, -0.17);
   group.add(rail);
+  // A skin can fade the rail's teeth along the gun: palette.rail = [front
+  // (muzzle end), back] colours, each tooth coloured by where it sits.
+  if (Array.isArray(skin?.palette?.rail)) {
+    const front = new THREE.Color(skin.palette.rail[0]), back = new THREE.Color(skin.palette.rail[1]);
+    for (const m of rail.children) {
+      const t = Math.max(0, Math.min(1, m.position.z / 0.44 + 0.5));
+      m.material = new THREE.MeshStandardMaterial({ color: front.clone().lerp(back, t), roughness: 0.45, metalness: 0.45 });
+    }
+  }
 
   const sight = new THREE.Group();
   const opticKey = def.attachments?.optic || (def.sight === "scope" ? "acog" : def.sight === "reddot" ? "reflex" : "iron");

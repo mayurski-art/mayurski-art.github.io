@@ -176,6 +176,14 @@ bots (bots nav is ground-floor only, like every other map).
   zone, looting vs. loadouts, solo/duo/squads. Big build: draft a design
   doc and settle those with the user before any code (see the "design doc
   before big builds" rule).
+- **Add a Remington shotgun.** Like the Remington 870 MCS in Call of Duty:
+  Black Ops 2: pump action (a pump per shot, shell-by-shell reload you can
+  interrupt), wide close-range pellet spread. New weapon in weapons.js +
+  model + loadout slot + unlock level; ask the user for its in-game name
+  (weapon names are also due a rename pass, see above).
+- **Custom weapon crosshairs.** Let players customize their aim crosshair
+  (style, colour, size, gap, dot, outline; maybe per weapon class), saved
+  with their settings. Ask the user what options they want first.
 
 ## Reminders from the user (2026-09-26)
 
