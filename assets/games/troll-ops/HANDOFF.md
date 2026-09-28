@@ -170,6 +170,12 @@ bots (bots nav is ground-floor only, like every other map).
 - **Show earned medals at the end of the match.** Like BO2's after-action
   screen: the post-match summary should list every medal/badge earned that
   match (with counts, e.g. HEADSHOT x4), not just flash them mid-game.
+- **New game mode: Battle Royale.** The user wants a battle royale mode
+  added to Troll Forces. Nothing decided yet: player count / bots filling
+  the lobby, map (a new big map vs. an existing one), drop-in, shrinking
+  zone, looting vs. loadouts, solo/duo/squads. Big build: draft a design
+  doc and settle those with the user before any code (see the "design doc
+  before big builds" rule).
 
 ## Reminders from the user (2026-09-26)
 
