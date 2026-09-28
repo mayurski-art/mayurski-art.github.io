@@ -7,7 +7,7 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-870` (game.js), `?v=to-medals2` (style.css); bump on any change.
+`?v=to-gc1` (game.js, style.css); bump on any change.
 Modules imported with their own `?v=` (medals.js, killstreak-ui.js,
 achievements.js, audio.js, and weapons.js + weapon-model.js in EVERY importer)
 need that tag bumped too, and every importer of one module must use the same

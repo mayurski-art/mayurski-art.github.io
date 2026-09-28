@@ -670,6 +670,27 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   transition: transform .08s;
 }
 .to-crosshair.is-ads { opacity: 0; }
+/* Green Candles charge ring: a thin arc that fills clockwise (--p 0..1),
+   brighter and pulsing once full. Shows while aiming too. */
+.to-charge {
+  --p: 0;
+  position: absolute; top: 50%; left: 50%; width: 46px; height: 46px;
+  transform: translate(-50%,-50%);
+  border-radius: 50%;
+  background: conic-gradient(#6dff3a calc(var(--p) * 360deg), rgba(255,255,255,.14) 0);
+  -webkit-mask: radial-gradient(circle, transparent 19px, #000 20px);
+          mask: radial-gradient(circle, transparent 19px, #000 20px);
+  filter: drop-shadow(0 0 4px rgba(109,255,58,.55));
+  pointer-events: none;
+}
+.to-charge.is-full { animation: to-charge-full .28s ease-in-out infinite alternate; }
+@keyframes to-charge-full { from { opacity: .75; } to { opacity: 1; transform: translate(-50%,-50%) scale(1.06); } }
+.to-charge-cells {
+  position: absolute; top: 100%; left: 50%; transform: translate(-50%, 6px);
+  font: 600 11px/1 "Oswald", sans-serif; letter-spacing: .08em; color: #b9ff9a;
+  text-shadow: 0 1px 4px rgba(0,0,0,.8); white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) { .to-charge.is-full { animation: none; } }
 .to-ch-dot {
   position: absolute; top: 50%; left: 50%; width: 3px; height: 3px;
   background: #fff; border-radius: 50%; transform: translate(-50%,-50%);

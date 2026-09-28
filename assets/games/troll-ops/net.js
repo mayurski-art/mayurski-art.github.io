@@ -488,18 +488,21 @@ export class Net {
 
   /* `quiet` is the suppressor: the base weapon id alone can't say whether
      this copy of the gun has one fitted. */
-  reportShot(origin, dir, weaponId, quiet = false) {
-    this.reportShotAs(this.id, origin, dir, weaponId, quiet);
+  reportShot(origin, dir, weaponId, quiet = false, charge = 0) {
+    this.reportShotAs(this.id, origin, dir, weaponId, quiet, charge);
   }
 
   /* A bot's shot goes out under the bot's id, so every other client hears
      and sees it — bots used to fire only on the host's screen. */
-  reportShotAs(fromId, origin, dir, weaponId, quiet = false) {
+  /* `charge` 0..1: a charge weapon's shot level (Green Candles), so every
+     copy draws the bolt at the size it was fired. */
+  reportShotAs(fromId, origin, dir, weaponId, quiet = false, charge = 0) {
     this.send({
       t: "shot", id: fromId,
       ox: round2(origin.x), oy: round2(origin.y), oz: round2(origin.z),
       dx: round2(dir.x), dy: round2(dir.y), dz: round2(dir.z),
       w: weaponId, q: quiet ? 1 : 0,
+      ...(charge > 0 ? { c: round2(charge) } : {}),
     });
   }
 

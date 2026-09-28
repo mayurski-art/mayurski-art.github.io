@@ -7,8 +7,8 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS } from "./weapons.js?v=to-870";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=to-870";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gc1";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap } from "./weapon-model.js?v=to-gc1";
 import { WeaponInspector } from "./inspector.js";
 import { CharacterInspector } from "./char-inspector.js";
 import { Loadout } from "./loadout.js";
@@ -28,7 +28,7 @@ import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
-import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-social1";
+import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-gc1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-emotes1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-s12h-death";
@@ -40,7 +40,7 @@ import {
 } from "./modes.js";
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
-import { GameAudio } from "./audio.js?v=to-medals2";
+import { GameAudio } from "./audio.js?v=to-gc1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -145,6 +145,8 @@ const els = {
   hudKills: document.getElementById("hud-kills"),
   waveBanner: document.getElementById("hud-wave-banner"),
   crosshair: document.getElementById("to-crosshair"),
+  charge: document.getElementById("to-charge"),
+  chargeCells: document.getElementById("to-charge-cells"),
   killcamBars: document.getElementById("to-killcam-bars"),
   hitmarker: document.getElementById("to-hitmarker"),
   hitflash: document.getElementById("to-hitflash"),
@@ -2664,7 +2666,7 @@ const net = new Net({
   onRemoteShot: (p, m) => {
     const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
     const dir = new THREE.Vector3(m.dx, m.dy, m.dz);
-    remoteShotFx(origin, dir, m.w, !!m.q);
+    remoteShotFx(origin, dir, m.w, !!m.q, +m.c || 0);
     killcam.noteShot(kcClock, m.id || p?.id, origin, dir, m.w, !!m.q);
 
     // Was it aimed near our head? If so, suppress.
@@ -3139,14 +3141,52 @@ weaponScene.add(weaponRimLight);
 const weaponFillLight = new THREE.AmbientLight(0xaab8ff, 1.1);
 weaponScene.add(weaponFillLight);
 
+/* A small studio for the detailed guns' reflections (the Green Candles'
+   brass and steel): a dark floor, a grey horizon, a bright ceiling and
+   three softboxes, baked once into a PMREM map. Only materials that ask
+   for it use it (weapon-model.js), so no other gun or the world changes. */
+(() => {
+  const env = new THREE.Scene();
+  const geo = new THREE.SphereGeometry(10, 32, 16);
+  const cols = [];
+  const pos = geo.attributes.position;
+  const c = new THREE.Color();
+  const top = new THREE.Color(0.85, 0.87, 0.9), floor = new THREE.Color(0.05, 0.05, 0.055);
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i) / 10;
+    c.setRGB(0.32, 0.34, 0.37).lerp(y > 0 ? top : floor, y > 0 ? Math.pow(y, 0.8) : Math.pow(-y, 0.5));
+    cols.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
+  env.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  const panel = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  panel.color.setScalar(4);
+  for (const [x, y, z, w, h] of [[5, 5, 3, 5, 3], [-6, 3, -2, 3, 4], [0, 7, -6, 8, 1.2]]) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), panel);
+    p.position.set(x, y, z);
+    p.lookAt(0, 0, 0);
+    env.add(p);
+  }
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  setWeaponEnvMap(pmrem.fromScene(env, 0.04).texture);
+  pmrem.dispose();
+})();
+
 scene.add(camera);
 
 
 // Only the equipped weapon is built, and it's rebuilt whenever the loadout
 // changes, because attachments alter the geometry.
 let activeWeaponMesh = null;
+let activeWeaponDef = null;
+
+// Detailed models stream in; rebuild the gun in hand once they land.
+preloadWeaponModels().then((ok) => {
+  if (ok && activeWeaponDef?.model?.stock === "tank") setActiveWeaponMesh(activeWeaponDef);
+});
 
 function setActiveWeaponMesh(def) {
+  activeWeaponDef = def;
   if (activeWeaponMesh) {
     weaponRig.remove(activeWeaponMesh);
     activeWeaponMesh.traverse((o) => {
@@ -4299,14 +4339,20 @@ function tryReload() {
   currentWeapon().startReload();
 }
 
-function fireOnce() {
+/* `shot` (charge weapons, from chargedShotDef): the def this round flies
+   with, the cells it costs, its recoil scale and charge level. */
+function fireOnce(shot = null) {
   const w = currentWeapon();
-  const def = w.def;
+  const def = shot?.def || w.def;
   if (!w.canFire()) {
     if (w.ammoInMag <= 0 && !w.reloading) tryReload();
     return;
   }
-  w.fire();
+  w.fire(shot?.cells ?? 1, shot?.kick ?? 1);
+  if (w.def.charge) {
+    w.lastShotLevel = shot?.level ?? 0;
+    w.shotFlare = 1;
+  }
   inspectT = 0;      // shooting always wins over the flourish
   breakSpawnGuard();
   audio.shot(def);
@@ -4331,10 +4377,11 @@ function fireOnce() {
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
   const up = new THREE.Vector3().crossVectors(right, forward).normalize();
   const muzzle = origin.clone().addScaledVector(forward, 0.35);
-  if (isPvp()) net.reportShot(muzzle, forward, def.id, !!def.quiet);
+  if (isPvp()) net.reportShot(muzzle, forward, def.id, !!def.quiet, shot?.level ?? 0);
 
   for (let i = 0; i < pellets; i++) {
-    const spread = def.pelletSpread != null ? def.pelletSpread : w.spread;
+    // A charged bolt holds its line: the charge steadies the cone.
+    const spread = (def.pelletSpread != null ? def.pelletSpread : w.spread) * (1 - 0.7 * (shot?.level ?? 0));
     // Uniform disc around the aim axis — an even cone, unlike the old
     // world-axis rotation which skewed badly when looking up or down.
     const a = Math.random() * Math.PI * 2;
@@ -4877,6 +4924,7 @@ function switchWeapon(slot) {
   // A shell-by-shell reload is dropped on a swap; shells already in stay in.
   const prev = currentWeapon();
   if (prev !== w && prev?.def.shellReload) prev.abortReload();
+  if (prev !== w && prev?.charging) endCandleCharge(prev);
   currentWeaponSlot = slot;
   setActiveWeaponMesh(w.def);
   setHolding("gun");
@@ -5336,8 +5384,9 @@ function botTargets() {
    flash, and a tracer that follows the round's actual path so you can tell
    where fire is coming from. The tracer is cosmetic — hits are decided by
    whoever fired. */
-function remoteShotFx(origin, dir, weaponId, quiet = false) {
-  const base = WEAPON_DEFS[weaponId] || WEAPON_DEFS.problem416;
+function remoteShotFx(origin, dir, weaponId, quiet = false, charge = 0) {
+  let base = WEAPON_DEFS[weaponId] || WEAPON_DEFS.problem416;
+  if (charge > 0 && base.charge) base = chargedShotDef(base, charge).def;
   audio.shot(quiet ? { ...base, quiet: true } : base, 0.8, origin);
   if (!quiet) impactFx.puff(origin, dir.lengthSq() > 0.001 ? dir.clone().normalize() : null);
   if (dir.lengthSq() < 0.001) return;
@@ -7925,6 +7974,10 @@ function updatePlayer(dt) {
     canAds,
   });
 
+  // A charge only lives while the gun is up: melee, a streak device or
+  // death drops it.
+  if (w.charging && (player.holding !== "gun" || !player.alive)) endCandleCharge(w);
+
   // Holding the melee weapon turns the fire button into a swing.
   if (player.holding === "melee") {
     if (wantFire && fireEdgeTrigger && canAct) swingMelee();
@@ -7939,7 +7992,9 @@ function updatePlayer(dt) {
   // silently shooting through a hidden gun mesh while the device is up.
   if (player.holding === "streak") return;
 
-  if (wantFire && canAct && !swinging) {
+  if (w.def.fireMode === "charge") {
+    updateCandleCharge(w, dt, wantFire && canAct && !swinging);
+  } else if (wantFire && canAct && !swinging) {
     if (w.def.fireMode === "auto") {
       if (w.canFire()) fireOnce();
     } else if (w.def.fireMode === "burst") {
@@ -7962,6 +8017,46 @@ function updatePlayer(dt) {
     fireOnce();
     w.burstLeft--;
   }
+}
+
+/* Green Candles charge shot. Press starts a charge (the candle brightens,
+   a hum climbs, a ring fills round the crosshair); release fires. Let go
+   inside `minHold` and it's a tap: a quick 1-cell bolt. Past that, the
+   bolt scales with the charge up to a full 3-cell shot at `time`, capped
+   by what's left in the tank. Holding a full charge keeps it, with a
+   shake. Sprinting or reloading drops it without firing. */
+function updateCandleCharge(w, dt, held) {
+  const c = w.def.charge;
+  // Its own press edge (not the 16 ms fireEdgeTrigger): a slow frame must
+  // never swallow the press that starts a charge.
+  const pressed = held && !w.triggerHeld;
+  w.triggerHeld = held;
+  if (w.charging) {
+    if (w.reloading || move.sprinting || !held) {
+      const release = !held && !w.reloading && !move.sprinting;
+      const level = w.chargeT < c.minHold ? 0 : w.chargeLevel;
+      endCandleCharge(w);
+      if (release) fireOnce(chargedShotDef(w.def, level));
+      return;
+    }
+    w.chargeT += dt;
+    audio.candleCharge(w.chargeLevel, w.chargeT >= c.time);
+    return;
+  }
+  if (!pressed) return;
+  if (w.canFire()) {
+    w.charging = true;
+    w.chargeT = 0;
+    inspectT = 0;
+  } else if (w.ammoInMag <= 0 && !w.reloading) {
+    tryReload();
+  }
+}
+
+function endCandleCharge(w) {
+  w.cancelCharge();
+  audio.candleCharge(-1);
+  els.charge.hidden = true;
 }
 
 let fireEdgeTrigger = false;
@@ -8673,7 +8768,7 @@ function posePfArms(mesh, magBlend = 0) {
     anchor.getWorldPosition(_pfTip);
     _pfDown.set(0, -1, 0).applyQuaternion(mesh.quaternion);
     if (i === 1) {
-      _pfTip.addScaledVector(_pfDown, anchors[1] ? PF_SUPPORT_DROP : 0.03);
+      _pfTip.addScaledVector(_pfDown, anchors[1] ? (mesh.userData.pfSupportDrop ?? PF_SUPPORT_DROP) : 0.03);
       const mag = mesh.userData.shellMesh?.visible ? mesh.userData.shellMesh : mesh.userData.magMesh;
       if (magBlend > 0 && mag?.visible) {
         mag.getWorldPosition(_pfMag).addScaledVector(_pfDown, 0.05);
@@ -8866,7 +8961,7 @@ function reloadPose(w, mesh) {
   if (w.def.shellReload) return shellReloadPose(w, mesh, p);
 
   if (reloadEventsFiredFor !== w) {
-    audio.reload();
+    if (w.def.candleShot) audio.tankSwap(w.reloadTime); else audio.reload();
     reloadEventsFiredFor = w;
   }
 
@@ -8978,6 +9073,86 @@ function drainWeaponEvents(w) {
     else if (e === "rack") audio.pump(w.def.shellReload.rack);
   }
   w.events.length = 0;
+}
+
+/* Green Candles, per frame: the gauge shows what's in the tank; the candle
+   breathes, dims as the tank runs down, flickers when it's nearly dry,
+   brightens with the charge and flares on every shot while a pulse of
+   light runs down the hose into the body. On a reload the old tank keeps
+   its reading until it's off (magT 0.46), the candle goes out with the
+   hose disconnected, the fresh tank fills bottom to top as it seats, and
+   the candle catches again. Also drives the charge ring. */
+function updateGreenCandles(mesh, w, magT, dt) {
+  const gc = mesh.userData.gc;
+  const charging = !!gc && w.charging;
+  els.charge.hidden = !charging || player.holding !== "gun";
+  if (!gc) return;
+  const s = mesh.userData.gcState || (mesh.userData.gcState = { shown: w.ammoInMag / w.def.magSize, flare: 0, pulse: -1, amp: 0, t: 0 });
+  s.t += dt;
+  const size = w.def.magSize;
+  let target = w.ammoInMag / size;
+  let lit = 1;
+  if (w.reloading && magT >= 0) {
+    if (magT >= 0.46) target = (Math.min(size, w.ammoInMag + w.ammoReserve) / size) * smoothstep(Math.min(1, Math.max(0, (magT - 0.56) / 0.2)));
+    if (magT < 0.3) lit = 1 - 0.88 * smoothstep(magT / 0.3);
+    else if (magT < 0.72) lit = 0.12;
+    else lit = 0.12 + 0.88 * smoothstep(Math.min(1, (magT - 0.72) / 0.14)) * (0.7 + 0.3 * Math.abs(Math.sin(s.t * 40)));
+  }
+  s.shown = damp(s.shown, target, 14, dt);
+  gc.gaugeFill.scale.z = Math.max(0.001, s.shown);
+
+  const c = w.def.charge;
+  const level = w.chargeLevel;
+  const full = charging && w.chargeT >= c.time * Math.max(0.2, w.chargeCap);
+  if (w.shotFlare) {
+    s.flare = 1 + (w.lastShotLevel || 0) * 1.5;
+    s.pulse = 0;
+    s.amp = 2.5 + (w.lastShotLevel || 0) * 4;
+    w.shotFlare = 0;
+  }
+  s.flare *= Math.exp(-dt * 8);
+  if (s.pulse >= 0) {
+    s.pulse += dt / 0.2;
+    if (s.pulse > 1.3) s.pulse = -1;
+  } else if (charging && level > 0.05) {
+    // While charging, pulses feed the candle, quicker as it fills.
+    s.pulse = 0;
+    s.amp = 1.2 + level * 2;
+  }
+  const low = w.ammoInMag / size < 0.2 ? 0.28 * Math.max(0, Math.sin(s.t * 9) * Math.sin(s.t * 2.3 + 1)) : 0;
+  const flicker = 1 + 0.05 * Math.sin(s.t * 21) + 0.035 * Math.sin(s.t * 33.7) - low;
+  const fuel = 0.4 + 0.6 * s.shown;
+  const g = gc.glow;
+  const set = (m, k) => { if (m) m.emissiveIntensity = m.userData.baseEmissive * k; };
+  set(g.GC_CandleCore, lit * fuel * flicker * (1 + 0.55 * level) + s.flare * 1.2);
+  set(g.GC_CandleShell, lit * (0.5 + 0.5 * fuel) * flicker * (1 + 0.9 * level) + s.flare * 0.8);
+  set(g.GC_Wick, lit * flicker * (1 + 1.2 * level) + s.flare * 1.2);
+  set(g.GC_HoseGlow, (0.35 + 0.65 * lit) * (1 + 0.7 * level));
+  set(g.GC_Gauge, 0.75 + 0.25 * flicker + (full ? 0.5 * Math.abs(Math.sin(s.t * 14)) : 0));
+  set(g.GC_Led, full ? (Math.sin(s.t * 18) > 0 ? 1.6 : 0.3) : lit);
+  const [haloCandle, haloWick] = gc.halos;
+  const hk = lit * (0.7 + 0.3 * fuel) * flicker;
+  haloCandle.material.opacity = haloCandle.userData.base.opacity * (hk * (1 + 1.1 * level) + s.flare * 1.4);
+  haloCandle.scale.setScalar(haloCandle.userData.base.size * (0.9 + 0.35 * level + 0.35 * s.flare));
+  haloWick.material.opacity = Math.min(1, haloWick.userData.base.opacity * (hk * (1 + 1.6 * level) + s.flare * 1.2));
+  haloWick.scale.setScalar(haloWick.userData.base.size * (0.9 + 0.9 * level + 0.8 * s.flare));
+  const pu = g.GC_HoseGlow?.userData.pulse;
+  if (pu) {
+    pu.uPulse.value = s.pulse;
+    pu.uPulseAmp.value = s.pulse >= 0 ? s.amp : 0;
+  }
+  // A held full charge strains in the hands.
+  if (full) {
+    mesh.position.x += (Math.random() - 0.5) * 0.0024;
+    mesh.position.y += (Math.random() - 0.5) * 0.0024;
+  }
+
+  if (charging) {
+    els.charge.style.setProperty("--p", level.toFixed(3));
+    els.charge.classList.toggle("is-full", full);
+    const cells = w.chargeT >= c.minHold ? chargedShotDef(w.def, level).cells : 1;
+    els.chargeCells.textContent = w.chargeT >= c.minHold ? `${cells} ${cells === 1 ? "CELL" : "CELLS"}` : "";
+  }
 }
 
 /* The mag's path is picked in screen (weapon-camera) space and brought into
@@ -9126,6 +9301,7 @@ function updateWeaponView(dt) {
   const adsLambda = w.def.model?.heavy ? 10 : (w.def.inertia ?? 8) * 1.6;
   adsSmoothT = damp(adsSmoothT, adsOffset, adsLambda, dt);
   const hipPos = new THREE.Vector3(0.22, -0.2, -0.55);
+  if (mesh.userData.hipOffset) hipPos.add(mesh.userData.hipOffset);
   const aimPoint = mesh.userData.aimPoint || new THREE.Vector3(0, 0, -0.4);
   // Where the sight sits in front of the weapon camera. Tube optics ask to
   // come closer so the eyepiece frames the view rather than a pinhole.
@@ -9183,11 +9359,12 @@ function updateWeaponView(dt) {
   );
   mesh.rotation.set(
     -w.viewKickPitch * 0.8 + weaponLowerT * 0.45 + landPitch - turnLagY * 2 + insp.pitch + rl.pitch,
-    w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + sprintCant + turnLagX * 2 + insp.yaw + rl.yaw,
+    w.viewKickYaw * 0.6 + (1 - adsOffset) * (0.05 + (mesh.userData.hipYaw ?? 0)) + sprintCant + turnLagX * 2 + insp.yaw + rl.yaw,
     (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + sprintRoll + turnLagX * 4 + insp.roll + rl.roll + w.viewKickRoll
   );
   applyGunInspect(mesh, w);
   placeReloadMag(mesh, rl.magT ?? -1);
+  updateGreenCandles(mesh, w, rl.magT ?? -1, dt);
   placeReloadShell(mesh, rl.shellT ?? -1);
   placePump(mesh, w, rl.rack ?? -1);
   drainWeaponEvents(w);
@@ -9277,6 +9454,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,
     tryReload, currentWeapon, fireOnce, composer, setHolding,
     setTrigger: (v) => { mouseDown = !!v; },
+    isStaging: () => isStaging(),
+    candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
     targetMeshes: () => targetMeshes, meleeConnect,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,

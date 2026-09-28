@@ -11,6 +11,7 @@ import {
   buildIronRear, buildIronFront, railSection,
 } from "./attachment-models.js";
 import { build416 } from "./weapon-416.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const MATS = {
   body:   () => new THREE.MeshStandardMaterial({ color: 0x4a4f48, roughness: 0.4, metalness: 0.7 }),
@@ -21,6 +22,199 @@ const MATS = {
   glow:   () => new THREE.MeshBasicMaterial({ color: 0x6dff4a }),
   glowTube: () => new THREE.MeshStandardMaterial({ color: 0x4ee62f, emissive: 0x4ee62f, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0.92 }),
 };
+
+/* ---- Green Candles: the detailed Blender model ------------------------
+   models/build_greencandles.blender.py exports it in game coordinates. It
+   streams in (preloadWeaponModels); until it lands, buildTankLauncher
+   below stands in. The side tank is the magazine (magMesh), so the PF
+   reload pulls it off like a mag. Per-instance glow materials are handed
+   to game.js in userData.gc so the candle, hose and gauge can react. */
+const GC_URL = new URL("./models/greencandles.glb?v=gc1", import.meta.url).href;
+const GC_SCALE = 0.8;
+const GC_GLOW = ["GC_CandleCore", "GC_CandleShell", "GC_Wick", "GC_HoseGlow", "GC_Gauge", "GC_Led"];
+const GC_TUNE = {
+  // The view-model lights are blue (weaponScene's ambient + rim): a warmer
+  // grey here lands on the render's neutral matte grey.
+  GC_Body:        { color: 0x5b5550 },
+  GC_TankShell:   { color: 0x69635d },
+  GC_CandleCore:  { color: 0x5cff2a, emissive: 0x46e81c, emissiveIntensity: 1.35 },
+  GC_CandleShell: { color: 0x2f9e18, emissive: 0x2fb814, emissiveIntensity: 0.55, opacity: 0.58 },
+  GC_Wick:        { color: 0x7dff4a, emissive: 0x5cf22a, emissiveIntensity: 1.2 },
+  GC_HoseGlow:    { color: 0x2f9e18, emissive: 0x3fd01e, emissiveIntensity: 0.8, opacity: 0.88 },
+  GC_Gauge:       { color: 0x5cff2a, emissive: 0x46e81c, emissiveIntensity: 1.4 },
+  GC_Led:         { color: 0x7dff4a, emissive: 0x5cff2a, emissiveIntensity: 2.2 },
+};
+let gcTemplate = null;
+let gcLoading = null;
+let weaponEnvMap = null;
+
+/* A reflection map for the detailed models' metals (brass and steel read
+   black without one). game.js makes it once the renderer exists. */
+export function setWeaponEnvMap(tex) { weaponEnvMap = tex; }
+
+export function preloadWeaponModels() {
+  if (!gcLoading) {
+    gcLoading = new GLTFLoader().loadAsync(GC_URL).then((gltf) => {
+      gcTemplate = prepGreenCandles(gltf.scene);
+      return true;
+    }).catch((e) => { console.warn("[weapons] green candles model failed", e); return false; });
+  }
+  return gcLoading;
+}
+
+function prepGreenCandles(scene) {
+  // Bake the view-model scale into the vertices and node positions once,
+  // so every userData point below is in the root's own (unscaled) space,
+  // the space the reload/arm code works in.
+  scene.traverse((o) => {
+    if (o === scene) return;
+    o.position.multiplyScalar(GC_SCALE);
+    if (o.isMesh) {
+      // The hose's uv.x runs 0 at the tank to 1 at the body: copied into
+      // its own attribute for the shot pulse (no texture, so three.js
+      // wouldn't pass uv through).
+      const uv = o.geometry.attributes.uv;
+      if (o.material?.name === "GC_HoseGlow" && uv) {
+        const t = new Float32Array(uv.count);
+        for (let i = 0; i < uv.count; i++) t[i] = uv.getX(i);
+        o.geometry.setAttribute("hoseT", new THREE.BufferAttribute(t, 1));
+      }
+      o.geometry.scale(GC_SCALE, GC_SCALE, GC_SCALE);
+      o.geometry.userData.shared = true;
+      o.castShadow = false;
+      o.receiveShadow = false;
+    }
+  });
+  scene.traverse((o) => {
+    const m = o.material;
+    if (!m) return;
+    if (m.transparent) {
+      m.depthWrite = false;
+      o.renderOrder = m.name === "GC_Glass" ? 3 : 2;
+    }
+    // Blender's emission strengths are for Cycles; under the game's ACES
+    // at 1.5 exposure they blow out to white, so the glow is set here.
+    const tune = GC_TUNE[m.name];
+    if (tune) Object.assign(m, tune);
+    if (tune?.color) m.color = new THREE.Color(tune.color);
+    if (tune?.emissive) m.emissive = new THREE.Color(tune.emissive);
+    m.userData.baseEmissive = m.emissiveIntensity ?? 0;
+  });
+  return scene;
+}
+
+let _glowTex = null;
+function glowTexture() {
+  if (_glowTex) return _glowTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const g = c.getContext("2d");
+  const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, "rgba(255,255,255,1)");
+  r.addColorStop(0.18, "rgba(255,255,255,0.55)");
+  r.addColorStop(0.5, "rgba(255,255,255,0.12)");
+  r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 128, 128);
+  _glowTex = new THREE.CanvasTexture(c);
+  _glowTex.colorSpace = THREE.SRGBColorSpace;
+  return _glowTex;
+}
+
+function buildGreenCandles() {
+  const src = gcTemplate.clone(true);
+  const root = new THREE.Group();
+  const byName = (n) => src.getObjectByName(n);
+  const tank = byName("GC_Tank");
+  const gaugeFill = byName("GC_GaugeFill");
+  const grip = byName("GC_Grip").position.clone();
+  const support = byName("GC_Support").position.clone();
+  const muzzle = byName("GC_Muzzle").position.clone();
+  const aim = byName("GC_Aim").position.clone();
+  for (const c of [...src.children]) root.add(c);
+
+  // Own copies of every material: the glow ones animate per gun, and the
+  // game disposes a gun's materials when it swaps weapons.
+  const clones = new Map();
+  const glow = {};
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    let m = clones.get(o.material);
+    if (!m) {
+      m = o.material.clone();
+      m.userData.baseEmissive = o.material.userData.baseEmissive;
+      if (weaponEnvMap && m.isMeshStandardMaterial) {
+        m.envMap = weaponEnvMap;
+        m.envMapIntensity = m.metalness > 0.5 ? 1.0 : 0.45;
+      }
+      clones.set(o.material, m);
+      if (GC_GLOW.includes(m.name)) glow[m.name] = m;
+    }
+    o.material = m;
+  });
+
+  // Hose pulse: a band of extra glow at uPulse (0 tank .. 1 body).
+  const hose = glow.GC_HoseGlow;
+  if (hose) {
+    const u = { uPulse: { value: -1 }, uPulseAmp: { value: 0 } };
+    hose.userData.pulse = u;
+    hose.customProgramCacheKey = () => "gc-hose";
+    hose.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, u);
+      sh.vertexShader = "attribute float hoseT;\nvarying float vHoseT;\n"
+        + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n  vHoseT = hoseT;");
+      sh.fragmentShader = "uniform float uPulse;\nuniform float uPulseAmp;\nvarying float vHoseT;\n"
+        + sh.fragmentShader.replace("#include <emissivemap_fragment>",
+          "#include <emissivemap_fragment>\n  totalEmissiveRadiance *= 1.0 + uPulseAmp * exp(-pow((vHoseT - uPulse) * 7.0, 2.0));");
+    };
+  }
+
+  // Hidden hand meshes: the PF arms and the third-person rig aim at them.
+  const hand = buildGripHand(1.2);
+  hand.userData.hand = true;
+  hand.position.copy(grip);
+  hand.rotation.x = 0.28;
+  root.add(hand);
+  const supportHand = buildSupportHand(1.5);
+  supportHand.userData.hand = true;
+  supportHand.position.copy(support);
+  root.add(supportHand);
+
+  root.userData.gripPos = grip;
+  root.userData.supportHandPos = support.clone();
+  root.userData.pfAnchors = [hand, supportHand];
+  root.userData.pfSupportDrop = 0;     // the anchor already IS the foregrip
+  root.userData.magMesh = tank;
+  root.userData.magazinePoint = tank.position.clone();
+  root.userData.magRestRotationX = 0;
+  root.userData.sight = null;
+  // Iron sights: the rear notch is the aim point, the green bead on the
+  // collar sits in it with the candle glowing below.
+  root.userData.aimPoint = aim;
+  root.userData.adsDistance = 0.46;
+  root.userData.hipOffset = new THREE.Vector3(0.02, 0.0, 0.08);
+  root.userData.hipYaw = 0.26;
+  root.userData.muzzleZ = muzzle.z;
+  // Glow halos: the view model has no bloom, so the candle's light is sold
+  // with two soft additive sprites (round the candle, at the wick) that
+  // game.js swells with the charge and flashes on a shot.
+  const halo = (z, size, opacity) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTexture(), color: 0x3fd81e, blending: THREE.AdditiveBlending,
+      transparent: true, depthWrite: false, opacity,
+    }));
+    s.position.set(0, 0, z);
+    s.scale.setScalar(size);
+    s.renderOrder = 4;
+    s.userData.base = { size, opacity };
+    root.add(s);
+    return s;
+  };
+  const halos = [halo(-0.285 * GC_SCALE, 0.2, 0.28), halo(-0.37 * GC_SCALE, 0.08, 0.55)];
+
+  root.userData.gc = { glow, gaugeFill, tank, halos };
+  return root;
+}
 
 function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
 function cyl(rt, rb, h, mat, seg = 10) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); }
@@ -155,7 +349,7 @@ export function stripLights(obj) {
 export function buildWeaponMesh(def, { skin } = {}) {
   if (def.id === "problem416") return build416(def, skin ?? def.attachments?.skin ?? null);
   const spec = def.model || {};
-  if (spec.stock === "tank") return buildTankLauncher(def, spec, spec.len || 0.5);
+  if (spec.stock === "tank") return gcTemplate ? buildGreenCandles(def) : buildTankLauncher(def, spec, spec.len || 0.5);
   const len = spec.len || 0.5;
   const heavy = !!spec.heavy;
   const bodyH = (heavy ? 0.085 : 0.07) * (def.cls === "sidearm" ? 0.85 : 1);

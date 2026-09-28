@@ -149,6 +149,7 @@ export class GameAudio {
      suppressor swaps the crack for a muffled thud. */
   shot(def, volume = 1, at = null) {
     if (!this._ready() || volume <= 0.02) return;
+    if (def.candleShot) { this.candleShot(def.chargeLevel || 0, volume, at); return; }
     const heavy = Math.min(1, (def.damage * (def.pellets || 1)) / 90);
     const quiet = !!def.quiet;
 
@@ -174,6 +175,75 @@ export class GameAudio {
     if (!quiet) {
       this._noise({ duration: 0.035, gain: 0.28 * volume, type: "highpass", freq: 3000, at });
     }
+  }
+
+  /* Green Candles bolt: an electric zap falling in pitch over a hiss of
+     wax, with a sub thump that grows with the charge (0 = a tap). */
+  candleShot(level = 0, volume = 1, at = null) {
+    if (!this._ready()) return;
+    const dur = 0.16 + level * 0.28;
+    this._tone({ freq: 1250 - level * 350, to: 150 - level * 60, duration: dur, gain: 0.16 * volume, type: "sawtooth", at });
+    this._tone({ freq: 620 - level * 180, to: 90, duration: dur * 0.9, gain: 0.12 * volume, type: "square", at });
+    this._noise({ duration: dur * 0.8, gain: (0.22 + level * 0.12) * volume, type: "bandpass", freq: 2400, q: 1.4, sweepTo: 600, at });
+    this._tone({ freq: 95, to: 38, duration: 0.14 + level * 0.3, gain: (0.18 + level * 0.3) * volume, type: "sine", at });
+    if (level > 0.6) this._noise({ duration: 0.3, gain: 0.2 * volume, type: "lowpass", freq: 900, sweepTo: 120, delay: 0.02, at });
+  }
+
+  /* The charge hum: one held oscillator pair whose pitch and level follow
+     the charge; `level` < 0 stops it. `full` adds a warble. */
+  candleCharge(level, full = false) {
+    if (!this.ctx) return;
+    const t = this.now;
+    if (level < 0) {
+      if (this._hum) {
+        const h = this._hum;
+        this._hum = null;
+        h.g.gain.cancelScheduledValues(t);
+        h.g.gain.setTargetAtTime(0.0001, t, 0.03);
+        h.a.stop(t + 0.2);
+        h.b.stop(t + 0.2);
+        h.lfo.stop(t + 0.2);
+      }
+      return;
+    }
+    if (!this._ready()) return;
+    if (!this._hum) {
+      const a = this.ctx.createOscillator(), b = this.ctx.createOscillator(), lfo = this.ctx.createOscillator();
+      const lfoGain = this.ctx.createGain();
+      const f = this.ctx.createBiquadFilter();
+      const g = this.ctx.createGain();
+      a.type = "sawtooth";
+      b.type = "sine";
+      lfo.frequency.value = 7;
+      lfoGain.gain.value = 0;
+      f.type = "lowpass";
+      f.Q.value = 6;
+      g.gain.value = 0.0001;
+      lfo.connect(lfoGain).connect(a.frequency);
+      a.connect(f);
+      b.connect(f);
+      f.connect(g).connect(this.master);
+      a.start(t); b.start(t); lfo.start(t);
+      this._hum = { a, b, lfo, lfoGain, f, g };
+    }
+    const h = this._hum;
+    h.a.frequency.setTargetAtTime(110 + level * 330, t, 0.04);
+    h.b.frequency.setTargetAtTime(220 + level * 660, t, 0.04);
+    h.f.frequency.setTargetAtTime(500 + level * 2600, t, 0.05);
+    h.g.gain.setTargetAtTime(0.03 + level * 0.1, t, 0.05);
+    h.lfoGain.gain.setTargetAtTime(full ? 18 : 0, t, 0.08);
+  }
+
+  /* Tank swap: clamp release + hose hiss, the tank seating, then the
+     candle catching again. `dur` is the whole reload. */
+  tankSwap(dur = 3.2) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.06, gain: 0.18, type: "bandpass", freq: 1100, q: 3, delay: dur * 0.16 });
+    this._noise({ duration: 0.45, gain: 0.14, type: "highpass", freq: 3500, sweepTo: 1800, delay: dur * 0.2 });
+    this._noise({ duration: 0.08, gain: 0.22, type: "bandpass", freq: 520, q: 2, delay: dur * 0.56 });
+    this._noise({ duration: 0.05, gain: 0.18, type: "bandpass", freq: 1700, q: 4, delay: dur * 0.6 });
+    this._noise({ duration: 0.35, gain: 0.12, type: "bandpass", freq: 1400, q: 0.8, sweepTo: 3200, delay: dur * 0.7 });
+    this._tone({ freq: 180, to: 420, duration: 0.3, gain: 0.07, type: "sine", delay: dur * 0.7 });
   }
 
   /* Round striking the world. */

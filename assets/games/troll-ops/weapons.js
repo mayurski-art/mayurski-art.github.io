@@ -239,14 +239,22 @@ export const WEAPON_DEFS = {
     blurb: "Semi-auto sledgehammer.",
     model: { len: 0.6, stock: "folding", mag: "curved", barrel: 1.05 },
   }),
+  // Charge shot (fireMode "charge", game.js updateCandleCharge): tap for a
+  // quick green bolt (1 cell), hold to charge, release to fire a heavier,
+  // faster bolt that punches thin cover. Partial charges scale in between;
+  // a full one costs 3 cells. The side tank is the magazine (24 cells).
+  // Bolts are slow enough to see and lead.
   greencandle: mk("battle", {
     id: "greencandle", name: "Green Candles", rank: 28, sight: "none",
-    damage: 48, rpm: 340, magSize: 12, reserveMax: 60, reloadTime: 3.0,
-    falloffStart: 40, falloffEnd: 100, falloffMin: 0.58,
-    recoilKickPitch: 0.038, recoilKickKnockback: 0.03, recoilRecover: 7.5,
-    adsTime: 0.3, adsFovMult: 0.82, muzzleVelocity: 620, muzzleFlashScale: 1.15,
-    tracerColor: 0x4ee62f, muzzleColor: 0x4ee62f, tracerWidth: 0.045, tracerLength: 3.5,
-    blurb: "Backpack tank, brass barrel, and a glow that means business.",
+    fireMode: "charge", candleShot: true,
+    damage: 38, rpm: 300, magSize: 24, reserveMax: 96, reloadTime: 3.2,
+    falloffStart: 30, falloffEnd: 80, falloffMin: 0.7,
+    charge: { time: 0.8, minHold: 0.16, cells: 3, damage: 100, velocity: 260, penetration: 2.4,
+              kick: 2.4, tracerWidth: 0.17, tracerLength: 3.4, falloffMin: 0.85 },
+    recoilKickPitch: 0.03, recoilKickKnockback: 0.03, recoilRecover: 7.5,
+    adsTime: 0.3, adsFovMult: 0.82, muzzleVelocity: 190, penetration: 0.6, muzzleFlashScale: 1.15,
+    tracerColor: 0x6dff3a, muzzleColor: 0x5cff2a, tracerWidth: 0.075, tracerLength: 1.7,
+    blurb: "Tap for bolts. Hold to charge one through the wall.",
     model: { len: 0.58, stock: "tank", mag: "none", barrel: 0.85, heavy: true },
   }),
 
@@ -370,6 +378,8 @@ export class WeaponState {
     this.shellDur = 0;
     this.events = [];           // "shell" | "pump" | "rack", drained by the viewmodel for sound
     this.burstLeft = 0;
+    this.charging = false;      // charge weapons: trigger held, charge building
+    this.chargeT = 0;
     this.viewKickPitch = 0; // instantaneous kick applied to weapon model (visual only, decays)
     this.viewKickYaw = 0;
     this.viewKickKnockback = 0;
@@ -384,6 +394,7 @@ export class WeaponState {
 
   startReload() {
     if (this.reloading || this.ammoReserve <= 0 || this.ammoInMag >= this.def.magSize) return false;
+    this.cancelCharge();
     this.reloading = true;
     const sr = this.def.shellReload;
     if (sr) {
@@ -474,15 +485,37 @@ export class WeaponState {
     }
   }
 
-  fire() {
-    this.ammoInMag--;
+  /* Charge weapons (def.charge): how far the charge can go with what's in
+     the tank. A full charge costs `cells`; with fewer left it tops out
+     lower, so the gauge and the shot agree. */
+  get chargeCap() {
+    const c = this.def.charge;
+    if (!c) return 0;
+    return Math.max(0, Math.min(1, (this.ammoInMag - 1) / (c.cells - 1)));
+  }
+
+  get chargeLevel() {
+    const c = this.def.charge;
+    return c && this.charging ? Math.min(this.chargeCap, this.chargeT / c.time) : 0;
+  }
+
+  /* Drop a charge without firing (reload, swap, sprint, death). */
+  cancelCharge() {
+    this.charging = false;
+    this.chargeT = 0;
+  }
+
+  /* `cells` rounds leave the tank (a charged Green Candles bolt), `kick`
+     scales the recoil for that shot. */
+  fire(cells = 1, kick = 1) {
+    this.ammoInMag = Math.max(0, this.ammoInMag - cells);
     this.fireCooldown = this.fireInterval;
     if (this.def.fireMode === "pump" || this.def.fireMode === "bolt") {
       this.pumpT = this.pumpDur = this.def.pumpTime ?? (this.def.fireMode === "bolt" ? 0.55 : 0.4);
       if (this.def.fireMode === "pump" && this.ammoInMag > 0) this.events.push("pump");
     }
     // Shouldering the weapon steadies it: aimed fire kicks less than hipfire.
-    const steady = 1 - this.adsT * 0.35;
+    const steady = (1 - this.adsT * 0.35) * kick;
     const yawKick = ((Math.random() * 2 - 1) * this.def.recoilKickYawRand + this.def.recoilKickYaw) * steady;
     this.recoilPitch += this.def.recoilKickPitch * steady;
     this.recoilYaw += yawKick;
@@ -546,6 +579,42 @@ export class WeaponState {
   get moveSpeedMult() {
     return this.ads ? this.def.adsMoveMult : this.def.hipMoveMult;
   }
+}
+
+/* The def a charge weapon's shot flies with at `level` 0..1 (0 = a tap):
+   damage, speed, wall punch, recoil and the bolt's size all scale from the
+   tap figures to def.charge's. `cells` is what it costs. Same id, so kill
+   credit and remote copies still read as the gun. */
+const _chargeDefs = new Map();
+export function chargedShotDef(def, level) {
+  const c = def.charge;
+  if (!c || level <= 0) return { def, cells: 1, kick: 1, level: 0 };
+  const q = Math.round(Math.min(1, level) * 20) / 20;   // 5% steps, cached
+  const key = def.id + ":" + q;
+  let shot = _chargeDefs.get(key);
+  if (!shot) {
+    const lerp = (a, b) => a + (b - a) * q;
+    shot = {
+      def: {
+        ...def,
+        damage: lerp(def.damage, c.damage),
+        muzzleVelocity: lerp(def.muzzleVelocity, c.velocity),
+        penetration: lerp(def.penetration, c.penetration),
+        falloffMin: lerp(def.falloffMin, c.falloffMin),
+        recoilKickPitch: def.recoilKickPitch * lerp(1, c.kick),
+        recoilKickKnockback: def.recoilKickKnockback * lerp(1, c.kick),
+        tracerWidth: lerp(def.tracerWidth, c.tracerWidth),
+        tracerLength: lerp(def.tracerLength, c.tracerLength),
+        muzzleFlashScale: def.muzzleFlashScale * lerp(1, 1.8),
+        chargeLevel: q,
+      },
+      cells: 1 + Math.round((c.cells - 1) * q),
+      kick: lerp(1, c.kick),
+      level: q,
+    };
+    _chargeDefs.set(key, shot);
+  }
+  return shot;
 }
 
 export function computeDamage(def, distance, isHead) {
