@@ -1749,6 +1749,7 @@ $("unlock").addEventListener("click", () => {
 /* Hooks for scripted edits (a headless re-crop pass, tests). */
 window.__editor = {
   open: openSkin,
+  scene, renderView,   // renders on another background (product shots)
   setCrop: (id, key, c) => { work[id].crops[key] = c; if (id === skinId) changed(); },
   source: (key, file) => { select(key); return setSource(file); },
   addLayer: async (key, patch = {}) => { select(key); await addLayer(); Object.assign(curLayer(), patch); if (patch.file) await ensureImg(patch.file); selectLayer(layerSel); changed(); return layerSel; },
