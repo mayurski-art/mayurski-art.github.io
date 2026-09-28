@@ -1151,3 +1151,105 @@ button.pc-card:hover, button.pc-card:focus-visible { outline: none; transform: t
   .pc-card { padding: 12px 10px; }
   .retro-nav-row { margin-top: 14px; }
 }
+
+/* ======================================================================== *
+   PHONES PLAY LANDSCAPE  (and pause you can actually see)
+   Portrait phones get a "turn it sideways" card instead of the game. Touch
+   devices in landscape get a full-screen stage with the pad and attack
+   buttons floating over its bottom corners (they used to only exist under
+   760px wide, so landscape phones and tablets had no controls at all).
+   Pause + sound moved to the bottom of the stage: top right sat under the
+   P2 portrait, where nobody could see or tap it.
+ * ======================================================================== */
+.screen-wrap > .icon-btn {
+  top: auto; bottom: 12px; right: 12px; z-index: 6;
+  width: 46px; min-height: 42px; border-radius: 10px;
+  background: rgba(5, 0, 8, 0.62); border-color: rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.screen-wrap > .pause-btn { right: 66px; }
+.screen-wrap > .icon-btn:hover, .screen-wrap > .icon-btn:focus-visible { border-color: var(--green); outline: none; }
+.screen-wrap > .pause-btn[hidden] { display: none; }
+/* Mid-fight the corner Arcade link covered the P1 portrait; the pause menu
+   has "Back to arcade" instead. */
+body[data-game-state="fight"] .arcade-back-link { display: none; }
+.pause-arcade { text-decoration: none; display: inline-grid; place-items: center; }
+
+.tk-rotate { display: none; }
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 700px) {
+  .tk-rotate {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    padding: 24px; text-align: center; color: var(--ink);
+    background: radial-gradient(circle at 50% 40%, #2a0a1c, #050008 70%);
+  }
+  .tk-rotate strong { font-family: "Black Ops One", var(--mono); font-size: 24px; letter-spacing: .04em; text-transform: uppercase; }
+  .tk-rotate p { margin: 0; color: var(--muted); font-size: 15px; }
+  .tk-rotate-phone { color: var(--green); animation: tk-rotate-turn 2.4s ease-in-out infinite; }
+  .tk-rotate-back {
+    margin-top: 14px; padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line);
+    color: var(--ink); text-decoration: none; font-family: var(--mono); font-size: 12px; font-weight: 800; text-transform: uppercase;
+  }
+  .arcade-shell, .arcade-back-link { display: none; }
+  body { overflow: hidden; }
+}
+@keyframes tk-rotate-turn { 0%, 20% { transform: rotate(0); } 50%, 75% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .tk-rotate-phone { animation: none; transform: rotate(-90deg); } }
+
+@media (pointer: coarse) and (orientation: landscape) {
+  body { overflow: hidden; }
+  body[data-game-state] .arcade-shell { width: 100%; padding: 0; }
+  body[data-game-state] .fight-hero { min-height: 100svh; padding: 0; gap: 0; justify-content: center; }
+  body[data-game-state] .kombat-title, body[data-game-state] .cabinet-footer { display: none; }
+  body[data-game-state] .fight-cabinet {
+    --screenH: 100svh;
+    --screenW: min(100vw, calc(100svh * 1280 / 600));
+  }
+  body[data-game-state] .screen-wrap {
+    width: var(--screenW); height: calc(var(--screenW) * 600 / 1280); max-height: 100svh; margin: 0 auto;
+  }
+  body[data-game-state] .game-overlay { position: fixed; z-index: 30; }
+  body[data-game-state] .arcade-back-link { top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); }
+
+  /* The pad floats over the stage's bottom corners, see-through so the
+     fighters' feet still read. */
+  body[data-game-state] .touch-controls {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 8;
+    width: auto; margin: 0; gap: 0; align-items: flex-end; justify-content: space-between;
+    padding: 0 max(18px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    pointer-events: none; background: none;
+  }
+  body[data-game-state="select"] .touch-controls { display: none; }
+  /* A menu card (pause, results, connection lost) owns the screen:
+     the floating pad would draw over it. */
+  body:has(#tk-paused:not([hidden]), #tk-result.is-visible, #tk-netlost:not([hidden])) .touch-controls { display: none; }
+  /* Short screens: setup cards scroll instead of running off the bottom. */
+  body[data-game-state] .game-overlay { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  body[data-game-state] .touch-controls .tbtn {
+    pointer-events: auto; min-height: 0; border-radius: 14px;
+    border-color: rgba(255, 255, 255, 0.3); background-color: rgba(10, 4, 16, 0.4);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    font-size: 22px; color: #fff;
+  }
+  body[data-game-state] .touch-controls .tbtn.is-down { background-color: rgba(77, 255, 115, 0.32); border-color: var(--green); }
+  body[data-game-state] .touch-pad {
+    grid-template-columns: repeat(3, clamp(48px, 13svh, 62px));
+    grid-template-rows: repeat(2, clamp(48px, 13svh, 62px)); gap: 6px;
+  }
+  body[data-game-state] .touch-acts {
+    grid-template-columns: repeat(2, clamp(52px, 15svh, 68px));
+    grid-auto-rows: clamp(48px, 13svh, 62px); gap: 8px;
+  }
+  body[data-game-state] .touch-acts .is-punch { border-color: rgba(255, 216, 77, 0.55); }
+  body[data-game-state] .touch-acts .is-kick { border-color: rgba(255, 49, 79, 0.55); }
+  body[data-game-state] .touch-acts .is-special { border-color: rgba(77, 238, 255, 0.55); }
+  body[data-game-state] .touch-acts .is-block { border-color: rgba(154, 92, 255, 0.55); }
+
+  /* Pause and sound: bottom centre, between the thumbs. */
+  body[data-game-state] .screen-wrap > .icon-btn {
+    right: auto; left: calc(50% + 5px); bottom: max(12px, env(safe-area-inset-bottom));
+    width: 50px; min-height: 44px;
+  }
+  body[data-game-state] .screen-wrap > .pause-btn { left: calc(50% - 55px); }
+  body[data-game-state] .pause-resume-hint { display: none; }
+}

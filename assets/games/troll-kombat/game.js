@@ -1932,6 +1932,18 @@
     window.addEventListener("mouseup", up);
   });
 
+  /* Phones play landscape (style.css shows a rotate card in portrait). On the
+     first touch, go fullscreen and lock to landscape where the browser allows
+     it (Android Chrome); iOS ignores both, and the rotate card covers it. */
+  if (matchMedia("(pointer: coarse)").matches) {
+    const goLandscape = () => {
+      const el = document.documentElement;
+      const fs = el.requestFullscreen ? el.requestFullscreen({ navigationUI: "hide" }) : null;
+      Promise.resolve(fs).catch(() => {}).then(() => screen.orientation?.lock?.("landscape")).catch(() => {});
+    };
+    window.addEventListener("pointerdown", goLandscape, { once: true, capture: true });
+  }
+
   /* ==========================================================================
      GAMEPAD  —  same local-hot-seat model as the keyboard: the first connected
      pad drives slot 0, a second pad drives slot 1 only when local versus is

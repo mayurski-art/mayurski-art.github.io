@@ -13,12 +13,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
   <link rel="stylesheet" href="assets/css/troll-wallet.css?v=lab-v1">
-  <link rel="stylesheet" href="assets/games/troll-kombat/style.css?v=kombat-v29-center-fight">
+  <link rel="stylesheet" href="assets/games/troll-kombat/style.css?v=kombat-v30-landscape">
 </head>
 <body data-game-state="select">
   <div class="crt-overlay" aria-hidden="true"></div>
 
   <a class="arcade-back-link" href="games.html" aria-label="Back to Troll Runner Arcade">← Arcade</a>
+
+  <!-- Phones play sideways: portrait gets this instead of the game. -->
+  <div class="tk-rotate" role="alert">
+    <svg viewBox="0 0 64 64" width="84" height="84" aria-hidden="true" class="tk-rotate-phone"><rect x="18" y="6" width="28" height="52" rx="5" fill="none" stroke="currentColor" stroke-width="3.5"/><rect x="28" y="50" width="8" height="3" rx="1.5" fill="currentColor"/></svg>
+    <strong>Turn your phone sideways</strong>
+    <p>Troll Kombat plays in landscape.</p>
+    <a class="tk-rotate-back" href="games.html">Back to arcade</a>
+  </div>
 
   <main class="arcade-shell">
     <section class="fight-hero" aria-label="Troll Kombat">
@@ -68,11 +76,13 @@
               <div class="hud-icon"><span class="hud-tab">P2</span><img id="p2-icon" class="hud-icon-img" alt=""></div>
             </div>
 
-            <button id="tk-pause" class="icon-btn pause-btn" type="button" title="Pause (Esc / P)" aria-label="Pause game" hidden>⏸</button>
-            <button id="tk-sound" class="icon-btn" type="button" aria-pressed="false" title="Toggle arcade sound" aria-label="Toggle arcade sound">
-              <span class="sfx-on">🔊</span><span class="sfx-off">🔇</span>
-            </button>
           </div>
+
+          <!-- Pause + sound: on the stage, clear of the HUD (they used to sit under the P2 portrait). -->
+          <button id="tk-pause" class="icon-btn pause-btn" type="button" title="Pause (Esc / P)" aria-label="Pause game" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.2" fill="currentColor"/></svg></button>
+          <button id="tk-sound" class="icon-btn" type="button" aria-pressed="false" title="Toggle arcade sound" aria-label="Toggle arcade sound">
+            <span class="sfx-on">🔊</span><span class="sfx-off">🔇</span>
+          </button>
 
           <div id="tk-announce" class="tk-announce" aria-live="assertive"></div>
 
@@ -344,6 +354,7 @@
               <div class="overlay-actions">
                 <button id="pause-resume" class="primary-btn" type="button">▶ Resume</button>
                 <button id="pause-quit" class="secondary-btn" type="button">Quit to menu</button>
+                <a class="secondary-btn pause-arcade" href="games.html">Back to arcade</a>
               </div>
             </div>
           </div>
@@ -391,7 +402,7 @@
   <script src="assets/games/troll-kombat/leaderboard.js?v=kombat-lb-v2" defer></script>
   <script src="assets/games/troll-kombat/finisher-sequencer.js?v=phase11b-v1" defer></script>
   <script src="assets/games/troll-kombat/net.js?v=kombat-online-v1" defer></script>
-  <script src="assets/games/troll-kombat/game.js?v=kombat-gamepad1" defer></script>
+  <script src="assets/games/troll-kombat/game.js?v=kombat-landscape1" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>
   <script src="assets/games/shared/site-lock.js"></script>
