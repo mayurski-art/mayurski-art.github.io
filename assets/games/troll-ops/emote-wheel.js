@@ -3,19 +3,20 @@
 // Hold H in a match: a radial wheel opens over the crosshair. With the mouse
 // locked, the look movement steers a pointer round the wheel (the view holds
 // still while it's open); letting go of H plays whichever slice it points at.
-// Unlocked (touch, or a paused cursor) the slices are plain buttons. The
-// emotes themselves are the dances in character.js — the same ones the
-// lobby used to loop — so remote players can pose them from one index.
+// Unlocked (touch, or a paused cursor) the slices are plain buttons.
+//
+// The emotes live in emotes.js. Each slice is tagged by kind: 1P (first
+// person), 3P (third person) or DUO. Duo emotes are greyed out until the
+// crosshair is on a teammate (setDuoTarget), and can't be picked while grey.
 
-export const EMOTES = [
-  { name: "Groove", dance: 0 },
-  { name: "Floss", dance: 1 },
-  { name: "Headbang", dance: 2 },
-  { name: "Wave", dance: 3 },
-];
+import { EMOTES } from "./emotes.js?v=to-emotes1";
+
+export { EMOTES };
 
 // A little travel before a slice lights up, so a twitch on open doesn't pick.
 const DEADZONE = 22;
+const RADIUS = 146;   // px from the centre to each slice
+const KIND_TAG = { fp: "1P", tp: "3P", duo: "DUO" };
 
 export class EmoteWheel {
   constructor(parent, onPick) {
@@ -24,29 +25,56 @@ export class EmoteWheel {
     this.pick = -1;
     this.dx = 0;
     this.dy = 0;
+    this.duoTarget = null;
 
     this.el = document.createElement("div");
     this.el.className = "to-emote-wheel";
     this.el.hidden = true;
     this.el.setAttribute("role", "menu");
     this.el.setAttribute("aria-label", "Emotes");
+    const n = EMOTES.length;
     this.slices = EMOTES.map((e, i) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "to-emote-slice";
+      b.className = `to-emote-slice is-${e.kind}`;
       b.dataset.slot = String(i);
       b.setAttribute("role", "menuitem");
-      b.textContent = e.name;
-      b.addEventListener("click", () => { this.pick = i; this.close(); });
+      const a = (i / n) * Math.PI * 2;   // slot 0 at the top, clockwise
+      b.style.left = `calc(50% + ${Math.sin(a) * RADIUS}px)`;
+      b.style.top = `calc(50% - ${Math.cos(a) * RADIUS}px)`;
+      const tag = document.createElement("i");
+      tag.textContent = KIND_TAG[e.kind];
+      const name = document.createElement("span");
+      name.textContent = e.name;
+      b.append(tag, name);
+      b.addEventListener("click", () => {
+        if (this.disabled(i)) return;
+        this.pick = i;
+        this.close();
+      });
       this.el.appendChild(b);
       return b;
     });
-    const hub = document.createElement("div");
-    hub.className = "to-emote-hub";
-    hub.innerHTML = "<b>Emote</b><span>release H</span>";
-    this.el.appendChild(hub);
+    this.hub = document.createElement("div");
+    this.hub.className = "to-emote-hub";
+    this.hub.innerHTML = "<b>Emote</b><span></span>";
+    this.el.appendChild(this.hub);
     parent.appendChild(this.el);
+    this.paintHub();
   }
+
+  /* Who the crosshair is on (a teammate's name), or null. Duo slices light
+     up only while there is one. */
+  setDuoTarget(name) {
+    const next = name || null;
+    if (next === this.duoTarget) return;
+    this.duoTarget = next;
+    if (this.pick >= 0 && this.disabled(this.pick)) this.pick = -1;
+    this.paint();
+    this.paintHub();
+  }
+
+  disabled(i) { return EMOTES[i]?.kind === "duo" && !this.duoTarget; }
 
   open() {
     if (this.isOpen) return;
@@ -59,12 +87,13 @@ export class EmoteWheel {
 
   /* Look movement while open steers the pick instead of the camera. */
   move(dx, dy) {
-    this.dx = Math.max(-120, Math.min(120, this.dx + dx));
-    this.dy = Math.max(-120, Math.min(120, this.dy + dy));
+    this.dx = Math.max(-160, Math.min(160, this.dx + dx));
+    this.dy = Math.max(-160, Math.min(160, this.dy + dy));
     if (Math.hypot(this.dx, this.dy) < DEADZONE) { this.pick = -1; this.paint(); return; }
-    // Slices sit top, right, bottom, left.
-    const a = Math.atan2(this.dx, -this.dy);
-    this.pick = ((Math.round(a / (Math.PI / 2)) % 4) + 4) % 4;
+    const n = EMOTES.length;
+    const a = Math.atan2(this.dx, -this.dy);   // 0 at the top, clockwise
+    const i = ((Math.round(a / (Math.PI * 2 / n)) % n) + n) % n;
+    this.pick = this.disabled(i) ? -1 : i;
     this.paint();
   }
 
@@ -73,10 +102,21 @@ export class EmoteWheel {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.el.hidden = true;
-    if (!cancel && this.pick >= 0) this.onPick?.(this.pick);
+    if (!cancel && this.pick >= 0 && !this.disabled(this.pick)) this.onPick?.(this.pick, this.duoTarget);
   }
 
   paint() {
-    this.slices.forEach((b, i) => b.classList.toggle("is-picked", i === this.pick));
+    this.slices.forEach((b, i) => {
+      b.classList.toggle("is-picked", i === this.pick);
+      const off = this.disabled(i);
+      b.classList.toggle("is-disabled", off);
+      b.setAttribute("aria-disabled", String(off));
+    });
+  }
+
+  paintHub() {
+    this.hub.querySelector("span").textContent = this.duoTarget
+      ? `Duo with ${this.duoTarget}`
+      : "aim at a teammate for DUO";
   }
 }

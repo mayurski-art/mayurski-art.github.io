@@ -7,7 +7,7 @@
 
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-s12h-death";
-import { EMOTES } from "./emote-wheel.js";
+import { poseEmoteCode } from "./emotes.js?v=to-emotes1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js";
 import { WEAPON_DEFS } from "./weapons.js";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js";
@@ -202,8 +202,9 @@ export class RemotePlayer {
     // wire sends its id as the weapon.
     const meleeHeld = !!MELEE_DEFS[this.peer.weapon] && this.ensureMelee(this.peer.weapon);
     const sword = swinging || meleeHeld;
-    // Emoting (the peer's `em`, see emote-wheel.js): weapons away.
+    // Emoting (the peer's `em`, see emotes.js): weapons away.
     const em = this.alive ? (this.peer.emote | 0) : 0;
+    if (em !== this.emCode) { this.emCode = em; this.emoteT = 0; }   // a new emote starts from 0
     this.emoteT = em ? (this.emoteT || 0) + dt : 0;
     if (this.meleeMesh) this.meleeMesh.visible = sword && !em;
     if (this.weaponMesh) this.weaponMesh.visible = !sword && !em;
@@ -314,8 +315,8 @@ export class RemotePlayer {
       t: Math.min(1, this.melee.t / this.melee.total),
       kind: this.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
     } : null;
-    if (em && EMOTES[em - 1]) {
-      DANCES[EMOTES[em - 1].dance](this.rig, this.emoteT);
+    if (em && poseEmoteCode(this.rig, em, this.emoteT)) {
+      // posed
     } else poseHumanoid(this.rig, {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,

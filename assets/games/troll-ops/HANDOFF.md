@@ -9,6 +9,31 @@ push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 `?v=to-s12a` (game.js + style.css); bump it on any change to either.
 
+## Session 15 (2026-09-27): emotes: first person, third person, duo
+
+User ask: emotes in first person, third person, and duo emotes you invite a
+teammate to by aiming at them (they hold X). Decided with the user: the
+"troll starter pack", duo partners snap face to face, teammates only, 6 s
+invite, hold X to accept.
+- `emotes.js` holds the list: 3P (the 4 dances, Trollface sit, Dab), 1P
+  (Point & laugh, L on forehead, Gun spin, Facepalm: `fp(t)` gives hand
+  targets in viewmodel space + camera motion; `pose` is what others see),
+  DUO (Dap up, High five, Chest bump, Duo dance: `pose[0]` inviter,
+  `pose[1]` accepter, `dist` apart). Wire code: index+1, +64 for the
+  accepter's half (emoteCode / poseEmoteCode). FP_HAND_POSES (point, L,
+  flat) are merged into hand-model.js's HAND_POSES at startup.
+- Wheel (emote-wheel.js) is a ring of all 14, tagged 1P/3P/DUO; duo slices
+  are greyed until the crosshair line passes through a teammate's body
+  (findDuoTarget: 0.9 m column, feet to head, in sight, within 10 m).
+- Duo flow (game.js): pick -> net `{t:"duo", k:"invite", to, e}`; the
+  teammate sees "<name> wants to Dap up: hold X" (ring fills, 0.5 s);
+  accepting sends `k:"accept"` with the midpoint + direction, both snap and
+  start. While an invite is up, X accepts instead of picking up.
+- 1P emotes stay first person (the streak arms' real hands, layStreakArm);
+  3P and duo pull the camera out (duo at a 3/4 angle, centred on the pair).
+- Test: `tools/troll-ops-emote-test.mjs` (two tabs). Sync test still passes.
+  The new/changed modules are imported with `?v=to-emotes1`.
+
 ## Session 14 (2026-09-27): match chat + in-game profiles
 
 User asks: a chatbox in Troll Forces (match only; the site-wide TROLLCHAT

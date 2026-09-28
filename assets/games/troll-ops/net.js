@@ -304,6 +304,12 @@ export class Net {
         this.h.onChat?.(this.peer(m.id), m);
         break;
       }
+      /* Duo emotes (emotes.js): "invite" to one teammate, "accept" back with
+         the spot both players snap to. Addressed with `to`. */
+      case "duo": {
+        this.h.onDuo?.(this.peer(m.id), m);
+        break;
+      }
       case "vote": {
         const p = this.peer(m.id);
         p.vote = m.map;

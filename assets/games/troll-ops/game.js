@@ -29,9 +29,10 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-social1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-s12h-death";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-emotes1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-s12h-death";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
@@ -43,7 +44,7 @@ import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-s12d-arms";
-import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline } from "./hand-model.js?v=to-s12e-hands";
+import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES } from "./hand-model.js?v=to-s12e-hands";
 import { FlowField } from "./nav.js";
 import { ZombieDirector } from "./zombies.js";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
@@ -1559,12 +1560,130 @@ function toggleThirdPerson() {
    it. The camera pulls out to third person for it, like any locker-room
    emote; moving, firing, dying or the clock running out ends it. The index
    rides the state packet (`em`) so everyone else sees it too. */
-const EMOTE_SECONDS = 8;
-let emote = null;   // { idx, t } while the local player is emoting
+let emote = null;   // { idx, t, role } while the local player is emoting (role 1 = second half of a duo)
+Object.assign(HAND_POSES, FP_HAND_POSES);   // point / L / flat, for the first-person emotes
 const emoteWheel = new EmoteWheel(els.hud, (i) => {
-  if (gameState === "playing" && player.alive) emote = { idx: i, t: 0 };
+  if (gameState !== "playing" || !player.alive) return;
+  if (EMOTES[i].kind === "duo") { sendDuoInvite(i); return; }
+  emote = { idx: i, t: 0, role: 0 };
 });
 function stopEmote() { emote = null; }
+const emoteKind = () => (emote ? EMOTES[emote.idx]?.kind ?? null : null);
+/* Third person and duo emotes pull the camera out; first person ones don't. */
+const emoteIsTp = () => !!emote && emoteKind() !== "fp";
+/* This frame's first-person emote: hand targets, gun, camera motion. */
+const fpEmoteFrame = () => (emoteKind() === "fp" ? EMOTES[emote.idx].fp(emote.t) : null);
+/* Nothing to play (a bad index off a hook or old save): no emote. */
+function validEmote() { if (emote && !EMOTES[emote.idx]) emote = null; return emote; }
+
+/* Duo emotes. Aim at a teammate (a real player, alive, in sight, within
+   DUO_RANGE) with the wheel open and the duo slices light up. Picking one
+   sends them an invite; they have INVITE_SECONDS to hold X (DUO_HOLD) to
+   accept. The accepter works out where both stand (their midpoint, facing
+   each other the emote's distance apart) and sends it back, so both
+   clients snap to the same spots and start together. Teammates only. */
+const DUO_RANGE = 10, DUO_BODY = 0.9, INVITE_SECONDS = 6, DUO_HOLD = 0.5;
+let duoTarget = null;     // the teammate's RemotePlayer the crosshair is on
+let duoOutgoing = null;   // { to, name, idx, until }
+let duoIncoming = null;   // { from, name, idx, until, hold }
+const _duoFwd = new THREE.Vector3(), _duoTo = new THREE.Vector3();
+function findDuoTarget() {
+  if (!isPvp() || !net.connected || currentMode().ffa || !net.team || !player.alive) return null;
+  camera.getWorldDirection(_duoFwd);
+  let best = null, bestA = Infinity;
+  for (const rp of remotes.byId.values()) {
+    const peer = rp.peer;
+    if (!peer || isBotPeer(peer) || !rp.alive || peer.team !== net.team) continue;
+    // On them: the crosshair line passes through their body (a column
+    // DUO_BODY wide, feet to head), and nothing solid is in between.
+    const hx = rp.pos.x - camera.position.x, hz = rp.pos.z - camera.position.z;
+    const fh = Math.hypot(_duoFwd.x, _duoFwd.z);
+    if (fh < 0.2) continue;   // looking straight up or down
+    const along = (hx * _duoFwd.x + hz * _duoFwd.z) / fh;   // how far ahead they are
+    if (along < 0.3 || along > DUO_RANGE) continue;
+    const side = Math.abs(hx * _duoFwd.z - hz * _duoFwd.x) / fh;   // how far off to the side
+    if (side > DUO_BODY / 2 || side >= bestA) continue;
+    const yAt = camera.position.y + (_duoFwd.y / fh) * along;   // crosshair height at them
+    if (yAt < rp.pos.y - 0.1 || yAt > rp.pos.y + 2.0) continue;
+    _duoTo.set(rp.pos.x, rp.pos.y + 1.1, rp.pos.z);
+    if (segmentBlocked(colliders, camera.position, _duoTo)) continue;
+    best = rp; bestA = side;
+  }
+  return best;
+}
+function sendDuoInvite(idx) {
+  const rp = duoTarget;
+  if (!rp || !net.connected) return;
+  net.send({ t: "duo", id: net.id, to: rp.netId, k: "invite", e: idx });
+  duoOutgoing = { to: rp.netId, name: rp.peer?.name || "operator", idx, until: performance.now() + INVITE_SECONDS * 1000 };
+}
+function onDuoMessage(p, m) {
+  const idx = m.e | 0;
+  if (EMOTES[idx]?.kind !== "duo") return;
+  if (m.k === "invite") {
+    if (p.team !== net.team || currentMode().ffa) return;   // teammates only
+    duoIncoming = { from: p.id, name: p.name || "operator", idx, until: performance.now() + INVITE_SECONDS * 1000, hold: 0 };
+  } else if (m.k === "accept") {
+    if (!duoOutgoing || duoOutgoing.to !== p.id || duoOutgoing.idx !== idx) return;
+    duoOutgoing = null;
+    if (!player.alive || gameState !== "playing") return;
+    placeForDuo(m.mx, m.mz, m.dx, m.dz, idx, -1);
+    emote = { idx, t: 0, role: 0 };
+  }
+}
+/* Stand at the duo spot: `side` -1 is the inviter, +1 the accepter, along
+   (dx, dz), which points from the inviter to the accepter. */
+function placeForDuo(mx, mz, dx, dz, idx, side) {
+  if (![mx, mz, dx, dz].every(Number.isFinite)) return;
+  const half = (EMOTES[idx].dist || 1) / 2;
+  const x = mx + dx * side * half, z = mz + dz * side * half;
+  move.pos.x = x; move.pos.z = z;
+  player.pos.x = x; player.pos.z = z;
+  if (move.velocity) move.velocity.set(0, 0, 0);
+  // Face the partner: the inviter looks along (dx, dz), the accepter back.
+  const fx = -side * dx, fz = -side * dz;
+  look.yaw = Math.atan2(-fx, -fz);
+}
+function acceptDuo() {
+  const inv = duoIncoming;
+  duoIncoming = null;
+  const rp = remotes.byId.get(inv.from);
+  if (!rp || !player.alive || gameState !== "playing") return;
+  let dx = move.pos.x - rp.pos.x, dz = move.pos.z - rp.pos.z;
+  const len = Math.hypot(dx, dz) || 1;
+  dx /= len; dz /= len;
+  const mx = (move.pos.x + rp.pos.x) / 2, mz = (move.pos.z + rp.pos.z) / 2;
+  net.send({ t: "duo", id: net.id, to: inv.from, k: "accept", e: inv.idx, mx, mz, dx, dz });
+  placeForDuo(mx, mz, dx, dz, inv.idx, 1);
+  emote = { idx: inv.idx, t: 0, role: 1 };
+}
+const duoPromptEl = document.createElement("div");
+duoPromptEl.className = "to-duo-prompt";
+duoPromptEl.hidden = true;
+duoPromptEl.setAttribute("role", "status");
+duoPromptEl.innerHTML = "<i class=\"to-duo-ring\"></i><span></span>";
+els.hud.appendChild(duoPromptEl);
+/* Per frame: the wheel's duo target, the invite prompt and the X hold. */
+function updateDuo(dt) {
+  duoTarget = emoteWheel.isOpen ? findDuoTarget() : null;
+  emoteWheel.setDuoTarget(duoTarget?.peer?.name || null);
+  const now = performance.now();
+  if (duoOutgoing && now > duoOutgoing.until) duoOutgoing = null;
+  if (duoIncoming && (now > duoIncoming.until || !player.alive || gameState !== "playing")) duoIncoming = null;
+  if (duoIncoming) {
+    duoIncoming.hold = keys.has("KeyX") ? duoIncoming.hold + dt : Math.max(0, duoIncoming.hold - dt * 2);
+    if (duoIncoming.hold >= DUO_HOLD) acceptDuo();
+  }
+  const text = duoIncoming
+    ? `${duoIncoming.name} wants to ${EMOTES[duoIncoming.idx].name}: hold X`
+    : duoOutgoing ? `${EMOTES[duoOutgoing.idx].name}: waiting for ${duoOutgoing.name}…` : "";
+  duoPromptEl.hidden = !text;
+  if (text) {
+    duoPromptEl.querySelector("span").textContent = text;
+    duoPromptEl.classList.toggle("is-incoming", !!duoIncoming);
+    duoPromptEl.style.setProperty("--fill", String(duoIncoming ? Math.min(1, duoIncoming.hold / DUO_HOLD) : 0));
+  }
+}
 
 function bindRange(id, key, outId, suffix = "") {
   const el = document.getElementById(id);
@@ -2421,6 +2540,7 @@ const net = new Net({
     if (m.by !== net.id) creditAssistIfOwed(p.id, p.name);
   },
   onStreak: (m) => applyRemoteStreak(m),
+  onDuo: (p, m) => onDuoMessage(p, m),
   onInfect: (m) => applyInfect(m.ids || []),
   onNade: (m) => applyRemoteNade(m),
   onVote: () => { if (intermissionT > 0) renderVote(); },
@@ -4724,7 +4844,8 @@ function cycleWeapon() {
 let pkgHoldT = 0;
 function updatePickupPrompt(dt) {
   const padHold = gamepadState.pickup && !(isSnd() && sndCanInteract);
-  const held = !frozenPlayer() && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
+  // While a duo invite is up, X accepts it (updateDuo) instead.
+  const held = !frozenPlayer() && !duoIncoming && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
   const pkg = player.alive ? nearbyPackage() : null;
   const drop = player.alive ? pickups.nearest(move.pos.x, move.pos.z) : null;
 
@@ -4947,7 +5068,7 @@ function netSnapshot() {
   _netSnapshot.kills = player.kills;
   _netSnapshot.deaths = player.deaths;
   _netSnapshot.assists = player.assists;
-  _netSnapshot.emote = emote ? emote.idx + 1 : 0;
+  _netSnapshot.emote = emote ? emoteCode(emote.idx, emote.role) : 0;
   return _netSnapshot;
 }
 
@@ -7056,6 +7177,7 @@ function animate() {
     updatePlayer(dt);
     if (!isRange()) regenPlayer(dt);
     updateWeaponView(dt);
+    updateFpEmoteView();
 
     targetMeshes = [];
     if (staging) {
@@ -7292,7 +7414,7 @@ function animate() {
   // The FP viewmodel (gun+arms) only makes sense in first person — the gun
   // is already visible on the third-person rig itself, so rendering both
   // would double up the weapon on screen.
-  if (gameState === "playing" && ((!settings.thirdPerson && !emote) || killcam.replaying)) {
+  if (gameState === "playing" && ((!settings.thirdPerson && !emoteIsTp()) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
@@ -7326,12 +7448,19 @@ const _tpForward = new THREE.Vector3();
 /* While emoting the camera swings round in front, a little above, and
    looks back at the operator's chest — the locker-room angle — pulled in
    if a wall is in the way. `pivot` is the eye position. */
-function updateEmoteCamera(pivot, yaw) {
+function updateEmoteCamera(pivot, yaw, duoDist = 0) {
   _euler.set(0, yaw, 0);
   _tpForward.set(0, 0, -1).applyEuler(_euler);
   _tpPivot.copy(pivot);
   _tpPivot.y -= 0.45;
-  _tpDir.copy(_tpForward).multiplyScalar(2.7);
+  // A duo: look at the pair from a three-quarter angle, centred between
+  // them (a straight side view shows both flat trollfaces edge-on).
+  if (duoDist) {
+    _tpPivot.addScaledVector(_tpForward, duoDist / 2);
+    _euler.set(0, yaw + 0.95, 0);
+    _tpForward.set(0, 0, -1).applyEuler(_euler);
+  }
+  _tpDir.copy(_tpForward).multiplyScalar(duoDist ? 3.3 : 2.7);
   _tpDir.y += 0.5;
   const wantLen = _tpDir.length();
   _tpDir.normalize();
@@ -7422,14 +7551,15 @@ function updateLocalRig(dt) {
   syncLocalRigHeld(hold, def);
 
   if (emoteWheel.isOpen && (!player.alive || gameState !== "playing")) emoteWheel.close(true);
-  if (emote) {
+  updateDuo(dt);
+  if (validEmote()) {
     emote.t += dt;
-    if (move.moving || !player.alive || gameState !== "playing" || emote.t > EMOTE_SECONDS) stopEmote();
+    if (move.moving || !player.alive || gameState !== "playing" || emote.t > emoteSeconds(emote.idx)) stopEmote();
   }
   if (localHeld.mesh) localHeld.mesh.visible = !emote;
-  els.hud.classList.toggle("is-emoting", !!emote);
+  els.hud.classList.toggle("is-emoting", emoteIsTp());
   if (emote) {
-    DANCES[EMOTES[emote.idx].dance](localRig, emote.t);
+    poseEmoteCode(localRig, emoteCode(emote.idx, emote.role), emote.t);
     return;
   }
 
@@ -7624,13 +7754,15 @@ function updatePlayer(dt) {
   const meleeKick = meleeImpactT * 0.03;
   updateFireShake(dt);
   const buzz = fireShake.buzz;
-  const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake + fireShake.y + (Math.random() - 0.5) * buzz;
+  const fpCam = fpEmoteFrame()?.cam;   // a first-person emote's head motion (a laugh, a facepalm)
+  const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake + fireShake.y + (Math.random() - 0.5) * buzz
+    + (fpCam?.yaw || 0);
   const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
-    + fireShake.p + (Math.random() - 0.5) * buzz;
+    + fireShake.p + (Math.random() - 0.5) * buzz + (fpCam?.pitch || 0);
 
-  if (settings.thirdPerson || emote) {
+  if (settings.thirdPerson || emoteIsTp()) {
     localRig.root.visible = true;
-    if (emote) updateEmoteCamera(player.pos, look.yaw);
+    if (emoteIsTp()) updateEmoteCamera(player.pos, look.yaw, emoteKind() === "duo" ? EMOTES[emote.idx].dist || 1 : 0);
     else updateThirdPersonCamera(player.pos, viewYaw, viewPitch, w.adsT);
   } else {
     localRig.root.visible = false;
@@ -7964,18 +8096,55 @@ function poseStreakArms(mesh, style, dt, tap) {
     }
     arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = show;
     if (!show) continue;
-    // hand -> wrist -> cuff -> sleeve, all along the line to the shoulder.
-    const shoulder = STREAK_SHOULDER[i];
-    handWrist(arm.hand, _wristAt);
-    _armDir.subVectors(shoulder, _wristAt).normalize();
-    _armFrom.copy(_wristAt).addScaledVector(_armDir, -0.012);
-    _armTo.copy(_wristAt).addScaledVector(_armDir, 0.04);
-    stretchBetween(arm.wrist, _armFrom, _armTo);
-    _armFrom.copy(_armTo);
-    _armTo.copy(_wristAt).addScaledVector(_armDir, 0.065);
-    stretchBetween(arm.cuff, _armFrom, _armTo);
-    stretchBetween(arm.sleeve, _armTo, shoulder);
+    layStreakArm(arm, i);
   }
+}
+
+/* hand -> wrist -> cuff -> sleeve, all along the line to the shoulder. */
+function layStreakArm(arm, i) {
+  const shoulder = STREAK_SHOULDER[i];
+  handWrist(arm.hand, _wristAt);
+  _armDir.subVectors(shoulder, _wristAt).normalize();
+  _armFrom.copy(_wristAt).addScaledVector(_armDir, -0.012);
+  _armTo.copy(_wristAt).addScaledVector(_armDir, 0.04);
+  stretchBetween(arm.wrist, _armFrom, _armTo);
+  _armFrom.copy(_armTo);
+  _armTo.copy(_wristAt).addScaledVector(_armDir, 0.065);
+  stretchBetween(arm.cuff, _armFrom, _armTo);
+  stretchBetween(arm.sleeve, _armTo, shoulder);
+}
+
+/* A first-person emote (emotes.js `fp`): the gun goes away (or does the
+   trick), and the streak arms' real hands act it out in front of the camera.
+   Runs after updateWeaponView, so it has the last word on the viewmodel. */
+let fpEmoteArmsOn = false;
+function updateFpEmoteView() {
+  const f = fpEmoteFrame();
+  if (!f) {
+    if (fpEmoteArmsOn) { hideStreakArms(); fpEmoteArmsOn = false; }
+    return;
+  }
+  inspectArms.visible = false;
+  if (activeMeleeMesh) activeMeleeMesh.visible = false;
+  if (activeWeaponMesh) {
+    activeWeaponMesh.visible = !!f.gun && player.holding === "gun";
+    if (f.gun) {
+      activeWeaponMesh.position.y += f.gun.lift || 0;
+      activeWeaponMesh.rotateZ(f.gun.spin || 0);
+    }
+  }
+  streakArms.visible = true;
+  fpEmoteArmsOn = true;
+  const arms = streakArms.userData.arms;
+  ["R", "L"].forEach((k, i) => {
+    const arm = arms[i], h = f[k];
+    arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = !!h;
+    if (!h) return;
+    arm.hand.position.set(h.pos[0], h.pos[1], h.pos[2]);
+    arm.hand.rotation.set(h.rot[0], h.rot[1], h.rot[2], "YXZ");
+    poseHumanHand(arm.hand, h.pose);
+    layStreakArm(arm, i);
+  });
 }
 
 let weaponLowerT = 0;
@@ -8722,6 +8891,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
     settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, emote: () => emote,
+    duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
+    findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu,
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
