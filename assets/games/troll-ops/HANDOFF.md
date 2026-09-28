@@ -1,5 +1,22 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## QUEUE (user, 2026-09-28): do these in this order
+1. **Lightsaber: a new weapon.** The graphics have to be really good, on the
+   Green Candles bar: its own Blender build script -> glb (like
+   `build_greencandles.blender.py`), glowing emissive blade + halo sprites
+   tuned for ACES, detailed hilt, PMREM env map, and real mechanics (not a
+   reskinned knife): ignite/retract, hum + swing audio, blade trail on swings.
+   Open questions to ask first: melee slot or its own class, unlock level,
+   blade colour (green to match the brand?), name (troll pun?), can it
+   block/deflect bullets, one-hit or not.
+2. **Grinmington 870: same treatment.** Replace the procedural
+   `spec.pump` model with a detailed Blender glb at Green Candles quality,
+   keeping the pump / shell-by-shell reload / rack mechanics and hooks
+   (`pumpMesh`, `shellMesh`, `loadPort`, forend-parented support hand).
+   The shotgun test must still pass.
+3. Then everything else in this file (NEXT SESSION list below, reminders,
+   bugs, parked ideas).
+
 ## Session 18: tactical gloves SHIPPED (Settings → Gloves, on by default)
 User's CoD reference: black leather gloves + dark sleeves. Off = the PF look
 from before (black rod arms, old hip framing, white showcase inspect arms).
