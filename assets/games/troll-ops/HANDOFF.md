@@ -30,8 +30,15 @@ stared at the back of the dome).
 - User asked about **realistic gloved hands** (CoD-style black tactical
   gloves, from their reference image): told them yes, doable in Blender with
   a finger rig; it would replace the PF black rods. Not started: ask first.
-- Queued mid-session: scorestreaks invisible on mobile; better "Back to
-  arcade" button; Troll Kombat pause button, better mobile UI, landscape only.
+- **Lobby fixes (same session):** phones start with no mode picked, so the
+  Scorestreaks tab only showed the versus-only note: now the picker shows
+  until a no-streak mode is picked. "Back to arcade" is a pill left of the
+  logo on every size (icon-only on phones; the old corner text and the
+  copy hidden in Servers are gone). Landscape phones: short tab labels,
+  radio/X/$TRUTHS chips top right (they covered Test Range) and hidden off
+  the Play tab; portrait: profile button joins that chip row (it had been
+  stuck top-left, unpositioned). Cache-bust `?v=to-lobby1`.
+- Next asked: Troll Kombat pause button, better mobile UI, landscape only.
 
 # (previous) end of session 17
 
@@ -42,7 +49,7 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-gc1` (game.js, style.css); bump on any change.
+`?v=to-lobby1` (game.js, style.css); bump on any change.
 Modules imported with their own `?v=` (medals.js, killstreak-ui.js,
 achievements.js, audio.js, and weapons.js + weapon-model.js in EVERY importer)
 need that tag bumped too, and every importer of one module must use the same

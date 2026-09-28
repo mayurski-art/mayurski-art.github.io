@@ -1570,6 +1570,25 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 }
 .to-pf-logo b { color: var(--pf-ok); font-weight: 700; }
 
+/* Back to arcade: a pill left of the logo, on every screen size (it used
+   to be loose text in a corner, and hidden in Servers on phones). */
+.to-pf-brand { flex: none; display: flex; align-items: center; gap: 16px; }
+.to-pf-arcade {
+  flex: none; display: flex; align-items: center; gap: 4px;
+  height: 38px; box-sizing: border-box; padding: 0 14px 0 8px;
+  border-radius: 999px; border: 1px solid var(--pf-line);
+  background: rgba(255, 255, 255, .05); color: var(--pf-text); text-decoration: none;
+  font-family: "Oswald", sans-serif; font-weight: 600; font-size: 13px;
+  letter-spacing: .1em; text-transform: uppercase; line-height: 1;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.to-pf-arcade svg { flex: none; transition: transform .15s; }
+.to-pf-arcade:hover, .to-pf-arcade:focus-visible {
+  border-color: var(--pf-ok); color: var(--pf-ok); background: rgba(109, 255, 58, .08); outline: none;
+}
+.to-pf-arcade:hover svg { transform: translateX(-2px); }
+.to-pf-arcade:active { transform: scale(.96); }
+
 .to-pf-tabs {
   flex: 1; min-width: 0; height: 100%;
   display: flex; gap: 4px;
@@ -1735,17 +1754,6 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-pf-gearcells span { font-size: 11px; }
 .to-pf-gearcells b { font-size: 13px; font-weight: 700; line-height: 1.2; }
 
-/* ---- footer ---- */
-.to-pf-back {
-  position: absolute; left: var(--pf-pad); bottom: 16px; z-index: 1;
-  height: 40px; display: flex; align-items: center; gap: 6px;
-  font-size: 13px; color: var(--pf-body); text-decoration: none;
-}
-.to-pf-back:hover { color: var(--pf-text); }
-.to-pf .to-pf-back-inline {
-  position: static; height: 44px; margin: 8px 20px 4px;
-  display: none; align-self: flex-start;
-}
 /* The radio, X and $TRUTHS sit bottom right on the menu (the radio stays
    bottom left in a match, where the HUD expects it). */
 #to-title:not([hidden]) ~ .to-radio { left: auto; right: 234px; bottom: 16px; }
@@ -2041,8 +2049,10 @@ html, body { margin: 0; padding: 0; background: #05070a; }
     content: ""; position: absolute; left: 0; right: 0; top: 0; height: 56px;
     background: rgba(8, 11, 9, .86); z-index: 2;
   }
-  .to-pf-top { display: contents; }
-  .to-pf-logo { position: absolute; left: 16px; top: 17px; z-index: 3; font-size: 22px; }
+  .to-pf-top, .to-pf-brand { display: contents; }
+  .to-pf-logo { position: absolute; left: 60px; top: 17px; z-index: 3; font-size: 22px; }
+  .to-pf-arcade { position: absolute; left: 12px; top: 9px; z-index: 3; width: 38px; padding: 0; justify-content: center; }
+  .to-pf-arcade span { display: none; }
   .to-pf-rank { position: absolute; right: 16px; top: 14px; z-index: 3; gap: 5px; font-size: 11px; }
   .to-pf-rank .to-lo-rank-bar { width: 110px; }
 
@@ -2105,8 +2115,6 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   .to-pf-mapcard-blurb { display: none; }
   .to-pf-deploy { height: 64px; font-size: 26px; gap: 12px; }
   .to-pf[data-panel="deploy"] .to-pf-right { display: none; }
-  .to-pf-back { display: none; }
-  .to-pf .to-pf-back-inline { display: flex; }
 
   .to-pf-center { left: 8px; right: 8px; width: auto; top: 64px; bottom: 72px; }
   .to-pf-panel-bar { padding: 14px 16px 10px; font-size: 20px; }
@@ -2121,6 +2129,9 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   #to-title:not([hidden]) ~ .to-radio .to-radio-panel { top: 48px; bottom: auto; }
   #to-title:not([hidden]) ~ .to-x-link { right: 150px; left: auto; top: 64px; bottom: auto; }
   #to-title:not([hidden]) ~ .to-truths-link { right: 12px; left: auto; top: 64px; bottom: auto; }
+  /* Profile joins that row (the top bar has no room for it here). */
+  .to-pf-profile { position: absolute; right: 242px; top: 64px; z-index: 3; width: 40px; height: 40px; border-radius: 10px; }
+  .to-pf:not([data-panel="deploy"]) .to-pf-profile { display: none; }
   /* Up there they would sit on the other tabs panel headers. */
   #to-title:not([data-panel="deploy"]) ~ .to-radio,
   #to-title:not([data-panel="deploy"]) ~ .to-x-link,
@@ -2131,8 +2142,19 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 @container cab (min-width: 761px) and (max-height: 520px) {
   .to-pf { --pf-pad: 20px; }
   .to-pf-top { height: 48px; gap: 16px; }
+  .to-pf-brand { gap: 10px; }
+  .to-pf-arcade { height: 32px; width: 32px; padding: 0; justify-content: center; }
+  .to-pf-arcade span { display: none; }
+  /* Radio, X and $TRUTHS go top right (the mode list runs to the bottom
+     left, where they used to cover Test Range). */
+  #to-title:not([hidden]) ~ .to-radio { left: auto; right: 196px; top: 58px; bottom: auto; }
+  #to-title:not([hidden]) ~ .to-radio .to-radio-panel { top: 48px; bottom: auto; }
+  #to-title:not([hidden]) ~ .to-x-link { left: auto; right: 150px; top: 58px; bottom: auto; }
+  #to-title:not([hidden]) ~ .to-truths-link { left: auto; right: 20px; top: 58px; bottom: auto; }
   .to-pf-logo { font-size: 20px; }
-  .to-pf-tab { padding: 0 10px; font-size: 13px; letter-spacing: .08em; }
+  .to-pf-tab { padding: 0 9px; font-size: 13px; letter-spacing: .06em; }
+  .to-pf-tab-long { display: none; }
+  .to-pf-tab-short { display: inline !important; }
   .to-pf-rank-line { font-size: 11px; }
   .to-pf-rank .to-lo-rank-bar { width: 110px; }
   .to-pf-modes { top: 58px; bottom: 12px; width: 250px; }
@@ -2144,19 +2166,18 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   .to-pf-mapcard-thumb { width: 44px !important; height: 44px !important; }
   .to-pf-mapcard-name { font-size: 17px; }
   .to-pf-deploy { right: 20px; bottom: 12px; width: 220px; height: 56px; font-size: 22px; }
+  /* On the other tabs the panel runs to the bottom: the radio, X and
+     $TRUTHS chips would sit on its last rows. */
+  #to-title:not([data-panel="deploy"]) ~ .to-radio,
+  #to-title:not([data-panel="deploy"]) ~ .to-x-link,
+  #to-title:not([data-panel="deploy"]) ~ .to-truths-link { display: none; }
   .to-pf[data-panel="deploy"] .to-pf-right { display: none; }
-  .to-pf-back { display: none; }
-  .to-pf .to-pf-back-inline { display: flex; }
   .to-pf-center { top: 56px; bottom: 12px; }
   .to-char-view { top: 48px; }
   .to-pf-drawer { padding: 16px 20px; gap: 12px; }
   .to-pf .to-lo-map { min-height: 68px; padding: 8px; grid-template-columns: 52px minmax(0, 1fr) 20px; }
   .to-pf .to-map-thumb { width: 52px; height: 52px; }
   .to-pf-drawer-done { height: 44px; font-size: 16px; }
-  #to-title:not([hidden]) ~ .to-radio { left: 20px; right: auto; bottom: 12px; }
-  #to-title:not([hidden]) ~ .to-radio .to-radio-panel { left: 0; right: auto; bottom: 48px; }
-  #to-title:not([hidden]) ~ .to-x-link { left: 68px; right: auto; bottom: 12px; }
-  #to-title:not([hidden]) ~ .to-truths-link { left: 116px; right: auto; bottom: 12px; }
 }
 
 /* ================= Touch play: CoD Mobile-style landscape HUD =================

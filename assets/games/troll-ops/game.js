@@ -2023,8 +2023,10 @@ function renderModes() {
 
   // Scorestreaks are versus-only, and Gun Game / One in the Chamber opt out
   // (see modes.js noStreaks). The picker stays reachable either way so the
-  // note can explain why it's empty, rather than the tab vanishing.
-  const allowed = streaksAllowed(currentMode());
+  // note can explain why it's empty, rather than the tab vanishing. Until a
+  // mode is picked (phones start with none) the picker shows: the streaks
+  // you choose carry into any versus match.
+  const allowed = !modePicked || streaksAllowed(currentMode());
   const ssPanelNote = document.getElementById("to-ss-note");
   const ssSoloNote = document.getElementById("to-ss-solo-note");
   if (ssPanelNote) ssPanelNote.hidden = !allowed;

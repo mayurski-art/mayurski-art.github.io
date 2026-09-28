@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-gc1">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-lobby1">
 </head>
 <body>
 
@@ -29,7 +29,12 @@
                HANDOFF.md): tab bar on top, mode list left, loadout card
                right, map card and Deploy along the bottom. -->
           <header class="to-pf-top">
-            <span class="to-pf-logo">TROLL <b>FORCES</b></span>
+            <div class="to-pf-brand">
+              <a class="to-pf-arcade" href="games.html" title="Back to arcade" aria-label="Back to arcade">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Arcade</span>
+              </a>
+              <span class="to-pf-logo">TROLL <b>FORCES</b></span>
+            </div>
             <nav class="to-pf-tabs" id="to-pf-rail" aria-label="Lobby menu">
               <button type="button" class="to-pf-tab is-active" data-panel="deploy" aria-pressed="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span>Play</span></button>
               <button type="button" class="to-pf-tab" data-panel="loadout" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h14l3 3v2H3z"/><path d="M7 15v4"/><path d="M12 10V7h4"/></svg><span>Loadout</span></button>
@@ -208,7 +213,6 @@
                   <option value="veteran">Veteran</option>
                 </select>
               </label>
-              <a class="to-pf-back to-pf-back-inline" href="games.html">Back to arcade</a>
             </div>
 
           </section>
@@ -236,10 +240,6 @@
             </div>
           </aside>
 
-          <a class="to-pf-back" href="games.html">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-            Back to arcade
-          </a>
 
           <!-- "Change" on the map card opens this. The map buttons are the
                same ones loadout.js always built; only their home moved. -->
@@ -639,7 +639,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-gc1"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-lobby1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>
