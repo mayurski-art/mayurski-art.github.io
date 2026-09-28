@@ -10,6 +10,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gc2";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap } from "./weapon-model.js?v=to-gc2";
 import { WeaponInspector } from "./inspector.js?v=to-gc2";
+import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl1";
 import { CharacterInspector } from "./char-inspector.js";
 import { Loadout } from "./loadout.js";
 import { StreakPicker } from "./streak-picker.js";
@@ -3143,6 +3144,7 @@ weaponScene.add(weaponRimLight);
 const weaponFillLight = new THREE.AmbientLight(0xaab8ff, 1.1);
 weaponScene.add(weaponFillLight);
 
+let weaponEnvTex = null;
 /* A small studio for the detailed guns' reflections (the Green Candles'
    brass and steel): a dark floor, a grey horizon, a bright ceiling and
    three softboxes, baked once into a PMREM map. Only materials that ask
@@ -3170,7 +3172,8 @@ weaponScene.add(weaponFillLight);
     env.add(p);
   }
   const pmrem = new THREE.PMREMGenerator(renderer);
-  setWeaponEnvMap(pmrem.fromScene(env, 0.04).texture);
+  weaponEnvTex = pmrem.fromScene(env, 0.04).texture;
+  setWeaponEnvMap(weaponEnvTex);
   pmrem.dispose();
 })();
 
@@ -8749,6 +8752,68 @@ const pfArms = (() => {
 })();
 weaponRig.add(pfArms);
 
+/* Tactical gloves (glove-model.js): once they've loaded they replace the
+   black rods: the right glove wraps the pistol grip with the index on the
+   trigger, the left cups the handguard from below (or fists a vertical
+   foregrip: mesh.userData.supportStyle), and each wears a jacket sleeve
+   running off screen to the same shoulder points the rods used. */
+const gloveRig = new THREE.Group();
+gloveRig.visible = false;
+weaponRig.add(gloveRig);
+let gloves = null;
+Promise.all([buildGlove(1, weaponEnvTex), buildGlove(-1, weaponEnvTex)]).then((g) => {
+  if (!g[0] || !g[1]) return;
+  gloves = g;
+  for (const h of g) gloveRig.add(h.root, h.sleeve);
+});
+const basisQ = (x, y, z) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+  new THREE.Vector3(...x), new THREE.Vector3(...y), new THREE.Vector3(...z)));
+// Hand frames in the gun's frame (hand: fingers -Z, back +Y, thumb -X on
+// the right hand; the mirrored left hand's thumb is on +X).
+const GLOVE_GRIP_Q = basisQ([0, -1, 0], [1, 0, 0], [0, 0, 1]);      // right: back of hand out right, thumb up the grip
+const GLOVE_SUPPORT_Q = basisQ([0, 0, -1], [0, -1, 0], [-1, 0, 0]); // left: palm up under the handguard, thumb forward
+const GLOVE_FOREGRIP_Q = basisQ([0, 1, 0], [-1, 0, 0], [0, 0, 1]);  // left: fist round a vertical grip, thumb up
+const GLOVE_GRIP_OFF = new THREE.Vector3(0.03, -0.012, 0.006);      // palm centre from the grip anchor, in its frame
+const GLOVE_SUPPORT_OFF = new THREE.Vector3(0, -0.014, 0.004);
+const GLOVE_FOREGRIP_OFF = new THREE.Vector3(-0.03, 0.0, 0.004);
+const GLOVE_SLEEVE_LEN = 0.37;
+const _gloveQ = new THREE.Quaternion();
+const _gloveOff = new THREE.Vector3();
+const _gloveDir = new THREE.Vector3();
+const _gloveZ = new THREE.Vector3(0, 0, 1);
+const _gloveRigQ = new THREE.Quaternion();
+
+function placeGlove(g, i, mesh, anchor, tip, sidearm) {
+  const style = i === 0 ? "grip" : sidearm ? "support" : (mesh.userData.supportStyle || "support");
+  if (style === "grip") {
+    anchor.getWorldQuaternion(_gloveQ);
+    g.root.quaternion.copy(_gloveQ).multiply(GLOVE_GRIP_Q);
+    _gloveOff.copy(GLOVE_GRIP_OFF).applyQuaternion(_gloveQ);
+    poseGlove(g, "trigger");
+  } else if (style === "foregrip") {
+    g.root.quaternion.copy(mesh.quaternion).multiply(GLOVE_FOREGRIP_Q);
+    _gloveOff.copy(GLOVE_FOREGRIP_OFF).applyQuaternion(mesh.quaternion);
+    poseGlove(g, "foregrip");
+  } else {
+    g.root.quaternion.copy(mesh.quaternion).multiply(GLOVE_SUPPORT_Q);
+    _gloveOff.copy(GLOVE_SUPPORT_OFF).applyQuaternion(mesh.quaternion);
+    poseGlove(g, "support");
+  }
+  // Anchors are read in world space; the gloves live under gloveRig, so
+  // bring the pose into its frame (identity in play, not in debug shots).
+  g.root.position.copy(tip).add(_gloveOff);
+  gloveRig.updateMatrixWorld();
+  gloveRig.worldToLocal(g.root.position);
+  g.root.quaternion.premultiply(gloveRig.getWorldQuaternion(_gloveRigQ).invert());
+  // Sleeve: from the wrist to the shoulder, stretched only if it has to be.
+  const wrist = gloveWrist(g);
+  _gloveDir.subVectors(PF_ARM_SHOULDER[i], wrist);
+  const len = _gloveDir.length();
+  g.sleeve.position.copy(wrist);
+  g.sleeve.quaternion.setFromUnitVectors(_gloveZ, _gloveDir.multiplyScalar(1 / Math.max(1e-5, len)));
+  g.sleeve.scale.set(1, 1, Math.max(1, len / GLOVE_SLEEVE_LEN));
+}
+
 const _pfTip = new THREE.Vector3();
 const _pfMag = new THREE.Vector3();
 const _pfDown = new THREE.Vector3();
@@ -8756,7 +8821,8 @@ const _pfDown = new THREE.Vector3();
    magazine (reloads). */
 function posePfArms(mesh, magBlend = 0) {
   const show = !!mesh?.visible && !inspectArms.visible && player.holding === "gun";
-  pfArms.visible = show;
+  pfArms.visible = show && !gloves;
+  gloveRig.visible = show && !!gloves;
   if (!show) return;
   mesh.updateMatrixWorld(true);
   // [grip, support]: the support hand is the one parked at supportHandPos
@@ -8785,8 +8851,10 @@ function posePfArms(mesh, magBlend = 0) {
         _pfTip.lerp(_pfMag, magBlend);
       }
     }
-    stretchBetween(rods[i], PF_ARM_SHOULDER[i], _pfTip);
+    if (gloves) placeGlove(gloves[i], i, mesh, anchor, _pfTip, !anchors[1]);
+    else stretchBetween(rods[i], PF_ARM_SHOULDER[i], _pfTip);
   }
+  if (gloves && !anchors[0]) gloveRig.visible = false;
 }
 
 /* Keyboard Warrior toss. Beats (t):
@@ -9465,6 +9533,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     tryReload, currentWeapon, fireOnce, composer, setHolding,
     setTrigger: (v) => { mouseDown = !!v; },
     isStaging: () => isStaging(),
+    gloves: () => gloves, gloveRig: () => gloveRig, weaponRig: () => weaponRig,
     candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
     targetMeshes: () => targetMeshes, meleeConnect,

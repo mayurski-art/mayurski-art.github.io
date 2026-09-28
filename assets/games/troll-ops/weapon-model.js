@@ -184,6 +184,7 @@ function buildGreenCandles() {
   root.userData.supportHandPos = support.clone();
   root.userData.pfAnchors = [hand, supportHand];
   root.userData.pfSupportDrop = 0;     // the anchor already IS the foregrip
+  root.userData.supportStyle = "foregrip";   // gloves fist it (glove-model.js)
   root.userData.magMesh = tank;
   root.userData.magazinePoint = tank.position.clone();
   root.userData.magRestRotationX = 0;
