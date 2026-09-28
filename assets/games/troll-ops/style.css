@@ -1332,6 +1332,8 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   left: 22px; bottom: 198px; width: 52px; height: 52px; font-size: 8px;
   background: rgba(127,224,102,.24); border-color: rgba(127,224,102,.5);
 }
+.to-touch-emote { left: 22px; top: 96px; width: 52px; height: 32px; font-size: 9px; border-radius: 9px; }
+.to-touch-emote[aria-expanded="true"] { background: rgba(127,224,102,.3); border-color: rgba(127,224,102,.65); }
 .to-touch-btn.is-held { background: rgba(255,255,255,.26); }
 
 @media (max-width: 760px), (pointer: coarse) {
@@ -2471,3 +2473,24 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 .to-duo-prompt:not(.is-incoming) .to-duo-ring { animation: to-duo-wait 1s linear infinite; background: conic-gradient(#8fe36a 90deg, rgba(255,255,255,.15) 0); }
 @keyframes to-duo-wait { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .to-duo-prompt .to-duo-ring { animation: none; } }
+
+/* Emotes on touch: the wheel shrinks to fit a landscape phone's height. */
+body.to-touch-play .to-emote-wheel { transform: scale(calc(var(--k) * .78)); }
+body.to-touch-play .to-touch-emote {
+  left: auto; right: calc(var(--sr) + 24px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
+  width: calc(56px * var(--k)); height: calc(30px * var(--k)); font-size: calc(9px * var(--k));
+}
+
+/* Test Range on touch: the desktop panel sat over the right-thumb buttons.
+   A slim strip at the top centre instead, with only what a thumb can use
+   (the key hints and sens/fov rows are keyboard-only). */
+body.to-touch-play .to-range {
+  right: auto; left: 50%; bottom: auto; top: calc(8px * var(--k)); transform: translateX(-50%);
+  width: auto; display: flex; align-items: center; gap: 8px; padding: 3px 4px 3px 0;
+}
+body.to-touch-play .to-range-row,
+body.to-touch-play .to-range-note { display: none; }
+body.to-touch-play .to-range-bar { padding: 5px 8px; }
+body.to-touch-play .to-range-shot { padding: 0; font-size: 12px; white-space: nowrap; }
+body.to-touch-play .to-range-spawnbot { width: auto; margin: 0; padding: 5px 10px; }
+body.to-touch-play .to-range-spawnbot kbd { display: none; }

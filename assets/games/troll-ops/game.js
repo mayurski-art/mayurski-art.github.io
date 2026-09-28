@@ -171,6 +171,7 @@ const els = {
   touchNade: document.getElementById("to-touch-nade"),
   touchInteract: document.getElementById("to-touch-interact"),
   touchSwap: document.getElementById("to-touch-swap"),
+  touchEmote: document.getElementById("to-touch-emote"),
   touchStreak: document.getElementById("to-touch-streak"),
   gearMelee: document.getElementById("to-gear-melee"),
   gearMeleeName: document.getElementById("to-gear-melee-name"),
@@ -1676,7 +1677,8 @@ function updateDuo(dt) {
   if (duoOutgoing && now > duoOutgoing.until) duoOutgoing = null;
   if (duoIncoming && (now > duoIncoming.until || !player.alive || gameState !== "playing")) duoIncoming = null;
   if (duoIncoming) {
-    duoIncoming.hold = keys.has("KeyX") ? duoIncoming.hold + dt : Math.max(0, duoIncoming.hold - dt * 2);
+    const holdingX = keys.has("KeyX") || (isTouch && touchState.swap);
+    duoIncoming.hold = holdingX ? duoIncoming.hold + dt : Math.max(0, duoIncoming.hold - dt * 2);
     if (duoIncoming.hold >= DUO_HOLD) acceptDuo();
   }
   const text = duoIncoming
@@ -3687,6 +3689,17 @@ bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = fa
 // same way the key and the d-pad do.
 if (els.touchStreak) {
   els.touchStreak.addEventListener("touchstart", (e) => { e.preventDefault(); callReadyStreak(); });
+}
+// Emotes on touch: tap to open the wheel (its slices are plain buttons
+// without pointer lock), tap a slice to play it, tap EMOTE again to shut it.
+// Duo invites are accepted by holding X, same as the key.
+if (els.touchEmote) {
+  els.touchEmote.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    if (emoteWheel.isOpen) emoteWheel.close(true);
+    else if (gameState === "playing" && player.alive) emoteWheel.open();
+    els.touchEmote.setAttribute("aria-expanded", String(emoteWheel.isOpen));
+  }, { passive: false });
 }
 
 // -------------------- gamepad --------------------
@@ -8285,7 +8298,8 @@ function startInspect() {
 function updateInspect(dt) {
   if (inspectT <= 0) { inspectArms.visible = false; return; }
   // Anything that matters takes the weapon back immediately.
-  if (!player.alive || move.sprinting || move.busy) { inspectT = 0; return; }
+  // Sprinting does NOT cancel it: PF lets you admire the gun on the run.
+  if (!player.alive || move.busy) { inspectT = 0; return; }
   if (player.holding === "gun") {
     const w = currentWeapon();
     if (w.reloading || w.adsT > 0.05) { inspectT = 0; return; }
