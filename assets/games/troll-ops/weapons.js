@@ -297,6 +297,20 @@ export const WEAPON_DEFS = {
     blurb: "Tighter spread, longer reach.",
     model: { len: 0.56, stock: "bullpup", mag: "tube", barrel: 0.95 },
   }),
+  // BO2's Remington 870 MCS: pump every shot, shells go in one at a time
+  // (fire cuts the reload short), a tighter hard-hitting pattern that
+  // one-shots inside ~7 m. `shellReload` stage times are seconds: lift to
+  // the loading port, each shell, settle, and the rack an empty gun needs.
+  grinmington: mk("shotgun", {
+    id: "grinmington", name: "Grinmington 870", rank: 16, sight: "iron",
+    pellets: 8, damage: 19, pelletSpread: 0.085,
+    falloffStart: 7, falloffEnd: 19, falloffMin: 0.14,
+    magSize: 8, reserveMax: 40, rpm: 70, pumpTime: 0.82,
+    shellReload: { start: 0.34, each: 0.46, end: 0.26, rack: 0.42 },
+    recoilKickPitch: 0.062, recoilKickKnockback: 0.06,
+    blurb: "Rack it, drop them. One shell at a time.",
+    model: { len: 0.68, stock: "fixed", mag: "tube", barrel: 1.2, pump: true },
+  }),
   guffaw: mk("shotgun", {
     id: "guffaw", name: "Guffaw Saiga", rank: 24, sight: "reddot",
     fireMode: "semi", rpm: 240, pellets: 8, damage: 12, magSize: 10, reloadTime: 2.9,
@@ -348,6 +362,13 @@ export class WeaponState {
     this.recoilYaw = 0;
     this.bobPhase = 0;
     this.pumpT = 0; // pump/bolt-action animation lock after shot
+    this.pumpDur = 0; // that lock's full length, for the pump animation
+    // Shell-by-shell reload (def.shellReload): the current stage
+    // ("start" | "shell" | "end"), time left in it, and its full length.
+    this.shellStage = null;
+    this.shellT = 0;
+    this.shellDur = 0;
+    this.events = [];           // "shell" | "pump" | "rack", drained by the viewmodel for sound
     this.burstLeft = 0;
     this.viewKickPitch = 0; // instantaneous kick applied to weapon model (visual only, decays)
     this.viewKickYaw = 0;
@@ -364,6 +385,16 @@ export class WeaponState {
   startReload() {
     if (this.reloading || this.ammoReserve <= 0 || this.ammoInMag >= this.def.magSize) return false;
     this.reloading = true;
+    const sr = this.def.shellReload;
+    if (sr) {
+      this.reloadWasEmpty = this.ammoInMag <= 0;
+      this.setShellStage("start", sr.start);
+      // reloadTime/reloadT stay a whole-reload estimate for anything that
+      // only wants "how long", not the stages.
+      const shells = Math.min(this.def.magSize - this.ammoInMag, this.ammoReserve);
+      this.reloadTime = this.reloadT = sr.start + shells * sr.each + sr.end + (this.reloadWasEmpty ? sr.rack : 0);
+      return true;
+    }
     // Tac reload (a round still chambered) skips the empty-chamber beat and
     // runs faster than a full empty-reload — DESIGN-ARMS.md Phase 3's
     // single highest-impact reload item. `wasEmpty` is read by the
@@ -374,8 +405,65 @@ export class WeaponState {
     return true;
   }
 
+  setShellStage(stage, dur) {
+    this.shellStage = stage;
+    this.shellT = this.shellDur = dur;
+  }
+
+  /* Fire pressed mid-reload with shells in the tube: stop loading. An empty
+     gun that has had shells put in still has to rack one into the chamber. */
+  interruptReload() {
+    const sr = this.def.shellReload;
+    if (!sr || !this.reloading || this.ammoInMag <= 0 || this.shellStage === "end") return false;
+    this.beginShellEnd();
+    return true;
+  }
+
+  updateShellReload(dt) {
+    const sr = this.def.shellReload;
+    this.reloadT = Math.max(0, this.reloadT - dt);
+    this.shellT -= dt;
+    while (this.reloading && this.shellT <= 0) {
+      const over = this.shellT;
+      if (this.shellStage === "start") {
+        this.setShellStage("shell", sr.each);
+      } else if (this.shellStage === "shell") {
+        this.ammoInMag++;
+        this.ammoReserve--;
+        this.events.push("shell");
+        if (this.ammoInMag >= this.def.magSize || this.ammoReserve <= 0) {
+          this.beginShellEnd();
+        } else {
+          this.setShellStage("shell", sr.each);
+        }
+      } else {
+        this.reloading = false;
+        this.shellStage = null;
+        this.reloadT = 0;
+        return;
+      }
+      this.shellT += over;
+    }
+  }
+
+  /* Settle; an empty gun racks a shell into the chamber first. */
+  beginShellEnd() {
+    const sr = this.def.shellReload;
+    const rack = this.reloadWasEmpty;
+    this.setShellStage("end", sr.end + (rack ? sr.rack : 0));
+    if (rack) this.events.push("rack");
+  }
+
+  /* Swapping away mid-reload drops it: the shells already in stay in. */
+  abortReload() {
+    if (!this.reloading) return;
+    this.reloading = false;
+    this.shellStage = null;
+  }
+
   cancelReloadIfDone(dt) {
     if (!this.reloading) return;
+    if (this.def.shellReload) { this.updateShellReload(dt); return; }
     this.reloadT -= dt;
     if (this.reloadT <= 0) {
       const need = this.def.magSize - this.ammoInMag;
@@ -390,7 +478,8 @@ export class WeaponState {
     this.ammoInMag--;
     this.fireCooldown = this.fireInterval;
     if (this.def.fireMode === "pump" || this.def.fireMode === "bolt") {
-      this.pumpT = this.def.fireMode === "bolt" ? 0.55 : 0.4;
+      this.pumpT = this.pumpDur = this.def.pumpTime ?? (this.def.fireMode === "bolt" ? 0.55 : 0.4);
+      if (this.def.fireMode === "pump" && this.ammoInMag > 0) this.events.push("pump");
     }
     // Shouldering the weapon steadies it: aimed fire kicks less than hipfire.
     const steady = 1 - this.adsT * 0.35;

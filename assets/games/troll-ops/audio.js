@@ -235,6 +235,21 @@ export class GameAudio {
     this._tone({ freq: 1080, duration: 0.14, gain: 0.15, type: "triangle", delay: 0.07 });
   }
 
+  /* Pump action over `dur` seconds (the forend's own timeline in game.js
+     placePump): a gritty "shk" as it slams back, a bright "chk" home. */
+  pump(dur = 0.58) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.06, gain: 0.2, type: "bandpass", freq: 650, q: 2.5, sweepTo: 420, delay: dur * 0.36 });
+    this._noise({ duration: 0.05, gain: 0.2, type: "bandpass", freq: 1400, q: 3, delay: dur * 0.78 });
+  }
+
+  /* One shell thumbed into the tube: a short click-clack. */
+  shellIn() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.035, gain: 0.13, type: "bandpass", freq: 1900, q: 4 });
+    this._noise({ duration: 0.04, gain: 0.1, type: "bandpass", freq: 1100, q: 3, delay: 0.05 });
+  }
+
   reload() {
     if (!this._ready()) return;
     this._noise({ duration: 0.05, gain: 0.16, type: "bandpass", freq: 900, q: 3 });

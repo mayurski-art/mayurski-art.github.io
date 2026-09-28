@@ -7,8 +7,8 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS } from "./weapons.js";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js";
+import { WeaponState, WEAPON_DEFS } from "./weapons.js?v=to-870";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=to-870";
 import { WeaponInspector } from "./inspector.js";
 import { CharacterInspector } from "./char-inspector.js";
 import { Loadout } from "./loadout.js";
@@ -4874,6 +4874,9 @@ function switchWeapon(slot) {
   if (!id || !player.weapons[id]) return;
   const w = player.weapons[id];
   if (player.holding === "gun" && w === currentWeapon()) return;
+  // A shell-by-shell reload is dropped on a swap; shells already in stay in.
+  const prev = currentWeapon();
+  if (prev !== w && prev?.def.shellReload) prev.abortReload();
   currentWeaponSlot = slot;
   setActiveWeaponMesh(w.def);
   setHolding("gun");
@@ -7943,7 +7946,15 @@ function updatePlayer(dt) {
       if (fireEdgeTrigger && w.burstLeft <= 0 && w.canFire()) w.burstLeft = w.def.burst || 2;
     } else if (fireEdgeTrigger && w.canFire()) {
       fireOnce();
+    } else if (fireEdgeTrigger && w.reloading && w.def.shellReload && w.interruptReload()) {
+      // BO2 pump shotgun: fire stops the shell-by-shell reload, and the
+      // shot goes off as soon as the gun is back up.
+      w.fireQueued = true;
     }
+  }
+  if (w.fireQueued && !w.reloading) {
+    w.fireQueued = false;
+    if (wantFire && canAct && !swinging && w.canFire()) fireOnce();
   }
 
   // A burst finishes on its own cadence even if the trigger is released.
@@ -8663,7 +8674,7 @@ function posePfArms(mesh, magBlend = 0) {
     _pfDown.set(0, -1, 0).applyQuaternion(mesh.quaternion);
     if (i === 1) {
       _pfTip.addScaledVector(_pfDown, anchors[1] ? PF_SUPPORT_DROP : 0.03);
-      const mag = mesh.userData.magMesh;
+      const mag = mesh.userData.shellMesh?.visible ? mesh.userData.shellMesh : mesh.userData.magMesh;
       if (magBlend > 0 && mag?.visible) {
         mag.getWorldPosition(_pfMag).addScaledVector(_pfDown, 0.05);
         _pfTip.lerp(_pfMag, magBlend);
@@ -8839,6 +8850,7 @@ function reloadPose(w, mesh) {
 
   if (!w.reloading || !w.reloadTime) {
     p.x = p.y = p.z = p.pitch = p.yaw = p.roll = p.magHold = 0;
+    p.shellT = p.rack = -1;
     if (mag) {
       mag.visible = true;
       mag.position.copy(mesh.userData.magazinePoint);
@@ -8850,6 +8862,8 @@ function reloadPose(w, mesh) {
     }
     return p;
   }
+
+  if (w.def.shellReload) return shellReloadPose(w, mesh, p);
 
   if (reloadEventsFiredFor !== w) {
     audio.reload();
@@ -8884,6 +8898,86 @@ function reloadPose(w, mesh) {
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   p.magHold = p.magT < 0 ? 0 : smoothstep(clamp01((t - 0.08) / 0.1)) * (1 - smoothstep(clamp01((t - 0.72) / 0.12)));
   return p;
+}
+
+/* Shell-by-shell reload (the Grinmington, BO2's 870): the gun rolls over
+   to show the loading port under the receiver and tips its muzzle up; each
+   shell rides up on the support arm and is thumbed in (a small forward
+   shove as it seats). An empty gun ends on a rack of the pump. Driven by
+   WeaponState's shell stages, so the pose can't drift from the ammo count. */
+function shellReloadPose(w, mesh, p) {
+  const sr = w.def.shellReload;
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  const k = 1 - Math.max(0, w.shellT) / Math.max(0.001, w.shellDur);   // 0..1 through the stage
+  let env = 1;
+  if (w.shellStage === "start") env = smoothstep(k);
+  else if (w.shellStage === "end") env = smoothstep(clamp01(Math.max(0, w.shellT) / sr.end));
+  let shove = 0;
+  p.shellT = -1;
+  if (w.shellStage === "shell") {
+    p.shellT = k;
+    // Thumbed home over the last third of each shell.
+    shove = Math.sin(clamp01((k - 0.62) / 0.38) * Math.PI);
+  }
+  p.x = -env * 0.03;
+  p.y = -env * 0.05 + shove * 0.006;
+  p.z = env * 0.02 - shove * 0.018;
+  p.pitch = env * 0.2;
+  p.yaw = -env * 0.06;
+  p.roll = env * 0.62;      // port side (underneath) turned toward you
+  p.magT = -1;
+  // The support arm leaves the forend for each shell.
+  p.magHold = p.shellT < 0 ? 0 : Math.sin(clamp01(p.shellT / 0.85) * Math.PI) * 0.9;
+  // The rack: first sr.rack seconds of an empty gun's "end" stage.
+  p.rack = -1;
+  if (w.shellStage === "end" && w.shellDur > sr.end + 1e-4 && w.shellT > sr.end) {
+    p.rack = 1 - (w.shellT - sr.end) / sr.rack;
+  }
+  return p;
+}
+
+/* The pump forend: back and forward after each shot (pumpT) and on the
+   empty-reload rack. 0..1 progress -> how far back (0 = home). */
+const PUMP_TRAVEL = 0.085;
+function placePump(mesh, w, rackT) {
+  const pump = mesh?.userData.pumpMesh;
+  if (!pump) return;
+  let t = -1;
+  if (rackT >= 0) t = rackT;
+  else if (w.pumpT > 0 && w.pumpDur > 0 && w.def.fireMode === "pump") t = 1 - w.pumpT / w.pumpDur;
+  // A beat after the shot, a hard pull back, a hold, then home.
+  const back = t < 0 ? 0 : t < 0.18 ? 0 : t < 0.45 ? smoothstep((t - 0.18) / 0.27)
+    : t < 0.55 ? 1 : t < 0.85 ? 1 - smoothstep((t - 0.55) / 0.3) : 0;
+  pump.position.z = mesh.userData.pumpRestZ + back * PUMP_TRAVEL;
+}
+
+/* The shell in the support hand: from low left (off the bandolier) up to
+   the loading port, then gone into the tube. */
+const SHELL_HOLD_SCREEN = new THREE.Vector3(-0.07, -0.2, -0.5);
+const _shellHold = new THREE.Vector3();
+function placeReloadShell(mesh, t) {
+  const shell = mesh?.userData.shellMesh;
+  if (!shell) return;
+  if (t < 0 || t > 0.9) { shell.visible = false; return; }
+  mesh.updateMatrixWorld(true);
+  const port = mesh.userData.loadPort;
+  const hold = mesh.worldToLocal(_shellHold.copy(SHELL_HOLD_SCREEN));
+  const up = smoothstep(Math.min(1, t / 0.55));
+  shell.position.lerpVectors(hold, port, up);
+  // Pushed forward into the tube for the last stretch.
+  if (t > 0.62) shell.position.z -= smoothstep((t - 0.62) / 0.28) * 0.05;
+  shell.visible = true;
+}
+
+/* Sounds that ride WeaponState's own timeline (shell in, pump, rack). */
+function drainWeaponEvents(w) {
+  if (!w.events?.length) return;
+  for (const e of w.events) {
+    if (e === "shell") audio.shellIn();
+    else if (e === "pump") audio.pump(w.pumpDur);
+    else if (e === "rack") audio.pump(w.def.shellReload.rack);
+  }
+  w.events.length = 0;
 }
 
 /* The mag's path is picked in screen (weapon-camera) space and brought into
@@ -9094,6 +9188,9 @@ function updateWeaponView(dt) {
   );
   applyGunInspect(mesh, w);
   placeReloadMag(mesh, rl.magT ?? -1);
+  placeReloadShell(mesh, rl.shellT ?? -1);
+  placePump(mesh, w, rl.rack ?? -1);
+  drainWeaponEvents(w);
   posePfArms(mesh, rl.magHold || 0);
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;

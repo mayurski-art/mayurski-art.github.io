@@ -1,4 +1,4 @@
-# Troll Ops hand-off — 2026-09-25 (end of session 9)
+# Troll Ops hand-off — 2026-09-28 (end of session 17)
 
 Work happens on branch `game-improvements` in the worktree `GitHub/to-opus-wt`,
 and each finished piece is fast-forwarded onto `main` (`git push origin
@@ -7,7 +7,54 @@ game-improvements:main`): "push" means land it on main. After pushing, also
 or they see stale files there. github.com DNS drops out now and then; retry the
 push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
-`?v=to-s12a` (game.js + style.css); bump it on any change to either.
+`?v=to-870` (game.js), `?v=to-medals2` (style.css); bump on any change.
+Modules imported with their own `?v=` (medals.js, killstreak-ui.js,
+achievements.js, audio.js, and weapons.js + weapon-model.js in EVERY importer)
+need that tag bumped too, and every importer of one module must use the same
+tag or the browser loads two copies.
+
+## NEXT SESSION: start here
+Everything left needs the user first (ask before building):
+1. **Username rename list** (bots, killfeed, scoreboard, nametags).
+2. **Weapon rename list** (display names only; ids stay, or saved loadouts
+   and XP break). Include the Grinmington 870 if they want it renamed.
+3. **Custom crosshairs**: which options (style, colour, size, gap, dot,
+   outline, per class?).
+4. **Battle Royale** design doc (players/bots, map, drop-in, zone, loot vs
+   loadouts, squads) before any code.
+5. **Green Candles redesign** design pass (reference notes further down).
+Also parked: troll NFT weapon skins (Tank Runner #1718 first; touches
+wallets, ask), more radio songs (user sends mp3s), skins on hold.
+Not verified on real hardware: medals, the 870, PF arms (headless only). Ask
+how they feel on the user's laptop/phone.
+
+## Session 17 (2026-09-28): Grinmington 870 SHIPPED
+
+The BO2 Remington 870 MCS; the user said "you pick" the name + unlock:
+**Grinmington 870**, id `grinmington`, shotgun class, **LV 16** (between
+the Sawgrin KSG 11 and Guffaw Saiga 24). weapons.js:
+- 8 pellets x 19 dmg, spread 0.085 (tighter than the Widemouth), falloff
+  7-19 m: one-shot close. Tube of 8, reserve 40. 70 rpm (BO2's rate) and
+  `pumpTime: 0.82`, so the pump animation fills the whole shot cycle.
+- **Shell-by-shell reload** (`def.shellReload: { start, each, end, rack }`):
+  WeaponState stages `shellStage` start -> shell (x N, +1 ammo each) -> end;
+  an empty gun's end opens with a rack. `interruptReload()`: fire mid-reload
+  stops loading (`fireQueued` fires as soon as it's back up, ~0.26 s); no
+  rack if a shell was already chambered. `abortReload()` on a weapon swap.
+  reloadT/reloadTime stay a whole-reload estimate. Any weapon can use
+  shellReload now (Widemouth/Sawgrin still mag-style: ask before changing).
+- `events` ("shell" | "pump" | "rack") are drained by the viewmodel
+  (`drainWeaponEvents`) for `audio.shellIn()` / `audio.pump(dur)`.
+Model (weapon-model.js `spec.pump`): ribbed forend group on a longer mag
+tube (cap + barrel clamp); the support hand is parented to the forend, so
+`userData.pfAnchors` is pre-set (the PF arm lookup only scans direct
+children). `pumpMesh`/`pumpRestZ`, `shellMesh` (red hull, brass head),
+`loadPort`. game.js: `shellReloadPose` (gun rolls port-side toward you,
+muzzle up, a shove as each shell seats; support rod follows the shell via
+magHold), `placePump` (forend back/home after a shot and on the rack),
+`placeReloadShell`.
+Test: `NODE_PATH=<main checkout>/node_modules node tools/troll-ops-shotgun-test.mjs`
+(14 checks, all pass). Sync test passes solo.
 
 ## Session 17 (2026-09-28): BO2 medals SHIPPED
 
@@ -36,9 +83,7 @@ User picked: **Oswald** (not Barlow), **drawn badges** (not trollface art),
   (game.js, style.css, killstreak-ui.js, medals.js, achievements.js, audio.js).
 - Sync test: "infection: everyone starts a survivor" is timing-flaky under
   load (fails on unchanged main too when two runs share the machine).
-**Still waiting on the user** (unchanged): username + weapon rename lists,
-crosshair options, Battle Royale + Green Candles design docs. Remington: the
-user said "you pick" the name + unlock level; do that when building it.
+Waiting items: see "NEXT SESSION" at the top.
 
 ## Session 16 (2026-09-27): logout -> guest fix, then PAUSED by the user
 
@@ -348,7 +393,7 @@ bots (bots nav is ground-floor only, like every other map).
 - **Change the weapon names.** Rename weapons across the loadout, killfeed
   and HUD. Get the new list from the user; weapon ids/storage keys should
   stay put so saved loadouts and XP don't break (display names only).
-- **Restyle the killstreak and medal callouts.** The font and display of
+- **DONE session 17.** **Restyle the killstreak and medal callouts.** The font and display of
   the on-screen titles: HEADSHOT, REVENGE, AVENGER, SUICIDE, double/triple
   kill, the streak "ready" notes, etc. (killstreak-ui.js badges). Target
   look: **Call of Duty: Black Ops 2** — its medal/splash style (the medal
@@ -356,7 +401,7 @@ bots (bots nav is ground-floor only, like every other map).
   BO2's condensed uppercase font). This includes the medal badges
   themselves (the icon art), not just the text. Confirm the look with the
   user (mockup first).
-- **Show earned medals at the end of the match.** Like BO2's after-action
+- **DONE session 16-17.** **Show earned medals at the end of the match.** Like BO2's after-action
   screen: the post-match summary should list every medal/badge earned that
   match (with counts, e.g. HEADSHOT x4), not just flash them mid-game.
 - **New game mode: Battle Royale.** The user wants a battle royale mode
@@ -365,7 +410,7 @@ bots (bots nav is ground-floor only, like every other map).
   zone, looting vs. loadouts, solo/duo/squads. Big build: draft a design
   doc and settle those with the user before any code (see the "design doc
   before big builds" rule).
-- **Add a Remington shotgun.** Like the Remington 870 MCS in Call of Duty:
+- **DONE session 17 (Grinmington 870).** **Add a Remington shotgun.** Like the Remington 870 MCS in Call of Duty:
   Black Ops 2: pump action (a pump per shot, shell-by-shell reload you can
   interrupt), wide close-range pellet spread. New weapon in weapons.js +
   model + loadout slot + unlock level; ask the user for its in-game name

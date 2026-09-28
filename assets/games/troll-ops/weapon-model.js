@@ -185,8 +185,60 @@ export function buildWeaponMesh(def, { skin } = {}) {
   group.add(barrel);
   const muzzleZ = barrel.position.z - barrelLen / 2;
 
+  // --- pump forend (spec.pump): a ribbed slide riding the magazine tube.
+  // It carries the support hand, so game.js placePump moving it back and
+  // forward takes the hand (and the PF arm rod) with it.
+  let pumpSupport = null;
+  if (spec.pump) {
+    const tubeY = -bodyH * 0.52;
+    const forend = new THREE.Group();
+    const fLen = len * 0.3;
+    forend.position.set(0, tubeY, -len * 0.5);
+    const sleeve = cyl(bodyW * 0.62, bodyW * 0.62, fLen, furnitureMat, 12);
+    sleeve.rotation.x = Math.PI / 2;
+    sleeve.scale.set(1, 1, 0.82);     // a touch flatter than round
+    forend.add(sleeve);
+    // Grip ribs: raised rings down the slide.
+    for (let i = 0; i < 7; i++) {
+      const rib = cyl(bodyW * 0.66, bodyW * 0.66, 0.008, darkMat, 12);
+      rib.rotation.x = Math.PI / 2;
+      rib.scale.set(1, 1, 0.82);
+      rib.position.z = -fLen * 0.36 + i * fLen * 0.12;
+      forend.add(rib);
+    }
+    // Action bars back into the receiver (the part that visibly slides in).
+    for (const x of [-1, 1]) {
+      const bar = box(0.006, 0.01, len * 0.22, darkMat);
+      bar.position.set(x * bodyW * 0.42, bodyH * 0.12, fLen * 0.5 + len * 0.1);
+      forend.add(bar);
+    }
+    group.add(forend);
+    group.userData.pumpMesh = forend;
+    group.userData.pumpRestZ = forend.position.z;
+
+    pumpSupport = buildSupportHand((bodyH / 0.07) * 1.5);
+    pumpSupport.userData.hand = true;
+    pumpSupport.position.set(0, bodyH * 0.72, -fLen * 0.2);
+    forend.add(pumpSupport);
+    group.userData.supportHandPos = new THREE.Vector3(0, tubeY + bodyH * 0.72, forend.position.z - fLen * 0.2);
+
+    // The loading port under the receiver, and the shell the reload feeds.
+    group.userData.loadPort = new THREE.Vector3(0, -bodyH * 0.62, -len * 0.08);
+    const shell = new THREE.Group();
+    const hull = cyl(0.011, 0.011, 0.058, new THREE.MeshStandardMaterial({ color: 0xb3261e, roughness: 0.55, metalness: 0.1 }), 10);
+    hull.rotation.x = Math.PI / 2;
+    shell.add(hull);
+    const head = cyl(0.0125, 0.0125, 0.012, MATS.brass(), 10);
+    head.rotation.x = Math.PI / 2;
+    head.position.z = 0.034;
+    shell.add(head);
+    shell.visible = false;
+    group.add(shell);
+    group.userData.shellMesh = shell;
+  }
+
   // --- handguard / furniture over the barrel
-  if (!isPistol) {
+  if (!isPistol && !spec.pump) {
     const hg = box(bodyW * 1.05, bodyH * 0.55, len * 0.32 * (spec.barrel || 1), spec.wood ? furnitureMat : accentMat);
     hg.position.set(0, -bodyH * 0.05, -len * 0.4);
     group.add(hg);
@@ -249,6 +301,9 @@ export function buildWeaponMesh(def, { skin } = {}) {
   hand.position.copy(grip.position);
   hand.rotation.copy(grip.rotation);
   group.add(hand);
+  // The support hand rides the forend, not the group, so the PF arm lookup
+  // (direct children) can't find it: hand it over up front.
+  if (pumpSupport) group.userData.pfAnchors = [hand, pumpSupport];
 
   // --- magazine
   // Detachable types (box/curved/drum/long/topbox) store their mesh and rest
@@ -287,6 +342,18 @@ export function buildWeaponMesh(def, { skin } = {}) {
     tube.rotation.x = Math.PI / 2;
     tube.position.set(0, -bodyH * 0.55, -len * 0.45);
     group.add(tube);
+    if (spec.pump) {
+      // Longer tube out to the muzzle with an end cap, and a barrel clamp.
+      tube.scale.y = 1.3;
+      tube.position.z = -len * 0.54;
+      const cap = cyl(0.021, 0.021, 0.02, bodyMat, 10);
+      cap.rotation.x = Math.PI / 2;
+      cap.position.set(0, -bodyH * 0.55, -len * 0.54 - len * 0.55 * 0.65);
+      group.add(cap);
+      const clamp = box(bodyW * 0.5, bodyH * 0.75, 0.022, darkMat);
+      clamp.position.set(0, -bodyH * 0.22, cap.position.z + 0.04);
+      group.add(clamp);
+    }
   } else if (spec.mag === "topbox") {
     const mag = box(0.05, 0.032, len * 0.42, darkMat);
     mag.position.set(0, bodyH * 0.62, -len * 0.1);

@@ -11,7 +11,7 @@
 // a flaky network or a signed-out session never loses any. Until the queue
 // drains, the displayed level counts it on top of the account's XP.
 
-import { WEAPON_DEFS } from "./weapons.js";
+import { WEAPON_DEFS } from "./weapons.js?v=to-870";
 
 const KEY = "trollops:xp";                 // lifetime local total (guest level)
 const PENDING_KEY = "trollops:xp-pending"; // earned, not yet on the account
