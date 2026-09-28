@@ -31,12 +31,23 @@ Test gotcha: troll-ops.html loads troll-accounts.js from the ABSOLUTE URL
 `https://mayurski-art.github.io/assets/js/...`, so headless tests run the
 LIVE file unless they route that URL to the local copy.
 
-**Next session: the user picked ALL of these** (ask for the inputs first):
-start-now: end-of-match medals list, emote wheel on the touch HUD, BO2
-medal/splash mockup; needs input: username + weapon rename lists,
-Remington shotgun (name + unlock level), crosshair options, and design docs
-for Battle Royale + the Green Candles redesign. Details in the reminders
-below.
+**Session 16 later (resumed): shipped** end-of-match medal list
+(killstreakUi.medal/count/medals(), repeatable Revenge/Longshot/Shutdown via
+Achievements onRepeat, "N Kill Streak" rungs, renderMatchMedals on the
+game-over panel), range N key + Esc-menu bot buttons, PF arms/reload/
+sprint/turn/slide (below), touch EMOTE button + X-hold duo accept,
+inspect no longer cancelled by sprinting (user: PF lets you admire the gun
+while running), compact Test Range strip on touch. Cache-bust
+`?v=to-medals1` (game.js, style.css, killstreak-ui.js, achievements.js).
+**BO2 medal mockup** for approval: https://claude.ai/artifact/KBMEkVCr471CLRCqWM5NBG
+(drawn silver/gold/red badges: shield = kill, chevrons = multikill, star =
+streak, hexagon = feat; centre stack; "UAV READY" banner; after-action grid
+with icons). Open questions on the page: font (Barlow Condensed vs Oswald),
+drawn badges vs trollface art, show +points or not, a sound sting. Build it
+into killstreak-ui.js + renderMatchMedals once the user answers.
+**Still waiting on the user:** username + weapon rename lists, Remington
+shotgun (name + unlock level), crosshair options, and design docs for
+Battle Royale + the Green Candles redesign. Details in the reminders below.
 
 ### PF build, session 16: user picked arms + reload + sprint/turn feel
 (NOT the flat one-colour guns). All in game.js, shipped:
