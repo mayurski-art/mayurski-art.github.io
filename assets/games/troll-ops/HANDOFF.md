@@ -25,6 +25,12 @@ stared at the back of the dome).
   reload dark -> relight, hose pulse, halos, full-charge strain, the
   #to-charge ring). Net shot carries `c` (charge level). Audio:
   candleShot / candleCharge hum / tankSwap.
+- **It fires actual green candles** (user ask): ballistics.js CandleRound pool draws each
+  candleShot round as an upright candlestick-chart bar (body + wicks + glow),
+  bigger when charged; rounds slowed to 110 / 150 m/s with `gravityScale`
+  0.25 so you can watch them fly. Menu previews refresh once the model loads
+  (Play-tab card, operator, Loadout viewer); the Play-tab thumbnail no longer
+  auto-swings (it showed the fat gun from behind). Cache-bust `?v=to-gc2`.
 - Test: `tools/troll-ops-greencandles-test.mjs` (19 checks, all pass).
   Shotgun, medal and sync tests pass. fps same as the 416.
 - User asked about **realistic gloved hands** (CoD-style black tactical

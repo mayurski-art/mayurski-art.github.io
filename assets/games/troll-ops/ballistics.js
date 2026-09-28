@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { makeTracerMaterial } from "./shaders.js";
-import { computeDamage } from "./weapons.js?v=to-gc1";
+import { computeDamage } from "./weapons.js?v=to-gc2";
 
 const DROP = 9.81;          // m/s^2 applied to bullets
 const MAX_LIFE = 3.0;       // seconds before a stray round is culled
@@ -91,6 +91,58 @@ class Tracer {
   hide() { this.mesh.visible = false; }
 }
 
+/* Green Candles rounds fly as actual green candles: a candlestick-chart bar
+   (bright body, a wick above and below) standing upright, turning slowly,
+   with a soft additive glow. Unlit (no runtime lights, see light-pool.js);
+   a charged shot (def.chargeLevel) fires a bigger candle. */
+const CANDLE_GREEN = 0x16b82a;
+let _candleGlowTex = null;
+function candleGlowTexture() {
+  if (_candleGlowTex) return _candleGlowTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, "rgba(255,255,255,0.9)");
+  r.addColorStop(0.35, "rgba(255,255,255,0.25)");
+  r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 64, 64);
+  _candleGlowTex = new THREE.CanvasTexture(c);
+  return _candleGlowTex;
+}
+
+class CandleRound {
+  constructor(scene, geo, mats) {
+    this.group = new THREE.Group();
+    this.body = new THREE.Mesh(geo, mats.body);
+    this.edge = new THREE.Mesh(geo, mats.edge);          // darker rim, drawn behind
+    this.wickUp = new THREE.Mesh(geo, mats.body);
+    this.wickDown = new THREE.Mesh(geo, mats.body);
+    this.glow = new THREE.Sprite(mats.glow);
+    this.group.add(this.edge, this.body, this.wickUp, this.wickDown, this.glow);
+    this.group.visible = false;
+    this.spin = Math.random() * Math.PI * 2;
+    scene.add(this.group);
+  }
+  place(pos, level, dt) {
+    const h = 0.42 + 0.6 * level, w = 0.15 + 0.15 * level;
+    const up = 0.17 + 0.13 * level, down = 0.12 + 0.08 * level, t = 0.026 + 0.014 * level;
+    this.body.scale.set(w, h, w);
+    this.edge.scale.set(w * 1.18, h * 1.08, w * 1.18);
+    this.wickUp.scale.set(t, up, t);
+    this.wickUp.position.y = h / 2 + up / 2;
+    this.wickDown.scale.set(t, down, t);
+    this.wickDown.position.y = -h / 2 - down / 2;
+    this.glow.scale.setScalar(1.1 + 1.3 * level);
+    this.spin += dt * 3.2;
+    this.group.rotation.set(0, this.spin, 0);
+    this.group.position.copy(pos);
+    this.group.visible = true;
+  }
+  hide() { this.group.visible = false; }
+}
+
 export class BulletSystem {
   constructor(scene, { maxBullets = 160 } = {}) {
     this.scene = scene;
@@ -129,9 +181,23 @@ export class BulletSystem {
     });
   }
 
+  candleFor(i) {
+    if (!this.candles) {
+      this.candles = [];
+      this.candleGeo = new THREE.BoxGeometry(1, 1, 1);
+      this.candleMats = {
+        body: new THREE.MeshBasicMaterial({ color: CANDLE_GREEN }),
+        edge: new THREE.MeshBasicMaterial({ color: 0x063d0c, side: THREE.BackSide }),
+        glow: new THREE.SpriteMaterial({ map: candleGlowTexture(), color: 0x39ff4a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.8 }),
+      };
+    }
+    return this.candles[i] || (this.candles[i] = new CandleRound(this.scene, this.candleGeo, this.candleMats));
+  }
+
   clear() {
     this.bullets.length = 0;
     for (const t of this.tracers) t.hide();
+    if (this.candles) for (const c of this.candles) c?.hide();
   }
 
   /* ctx:
@@ -168,7 +234,7 @@ export class BulletSystem {
             || (b.pos.y > 60 && b.vel.y > 0))) { dead = true; break; }
 
         from.copy(b.pos);
-        b.vel.y -= DROP * STEP;
+        b.vel.y -= DROP * (b.def.gravityScale ?? 1) * STEP;
         to.copy(b.pos).addScaledVector(b.vel, STEP);
         dir.subVectors(to, from);
         const len = dir.length();
@@ -249,7 +315,20 @@ export class BulletSystem {
       dir.copy(b.vel).divideScalar(speed);
       const len = Math.min(b.dist, b.def.tracerLength || 9);
       if (len < 0.4) { this.tracers[i].hide(); continue; }
+      if (b.def.candleShot) {
+        // The candle itself, plus a short, thin green streak behind it.
+        this.candleFor(i).place(b.pos, b.def.chargeLevel || 0, dt);
+        this.tracers[i].place(b.pos, dir, Math.min(len, 1.4), 0.03, 0.55, b.def.tracerColor);
+        continue;
+      }
       this.tracers[i].place(b.pos, dir, len, b.def.tracerWidth || 0.02, 0.9, b.def.tracerColor);
+    }
+    // Candles whose round is gone, or whose slot now holds another gun's round.
+    if (this.candles) {
+      for (let i = 0; i < this.candles.length; i++) {
+        const b = this.bullets[i];
+        if (!b || !b.def.candleShot) this.candles[i]?.hide();
+      }
     }
   }
 }

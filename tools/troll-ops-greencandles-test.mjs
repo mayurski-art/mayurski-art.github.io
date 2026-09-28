@@ -152,13 +152,13 @@ check("fresh tank: 24 cells, gauge full, candle relit", s.ammo === 24 && after.g
 
 // Charged bolt stats
 const stats = await page.evaluate(async () => {
-  const W = await import("/assets/games/troll-ops/weapons.js?v=to-gc1");
+  const W = await import("/assets/games/troll-ops/weapons.js?v=to-gc2");
   const d = W.WEAPON_DEFS.greencandle;
   const tap = W.chargedShotDef(d, 0), full = W.chargedShotDef(d, 1);
   return { tap: [tap.def.damage, tap.cells], full: [full.def.damage, full.cells, full.def.muzzleVelocity, full.def.penetration] };
 });
-check("tap 38 dmg / 1 cell, full 100 dmg / 3 cells / 260 m/s / pen 2.4",
-  stats.tap[0] === 38 && stats.tap[1] === 1 && stats.full[0] === 100 && stats.full[1] === 3 && stats.full[2] === 260 && stats.full[3] === 2.4,
+check("tap 38 dmg / 1 cell, full 100 dmg / 3 cells / 150 m/s / pen 2.4",
+  stats.tap[0] === 38 && stats.tap[1] === 1 && stats.full[0] === 100 && stats.full[1] === 3 && stats.full[2] === 150 && stats.full[3] === 2.4,
   JSON.stringify(stats));
 
 await page.evaluate(() => window.__trollOps.setAds?.(true)); await sleep(700);

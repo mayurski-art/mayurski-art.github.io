@@ -11,7 +11,7 @@
 // to draw a menu prop would cost more than one more context.
 
 import * as THREE from "three";
-import { buildWeaponMesh } from "./weapon-model.js?v=to-gc1";
+import { buildWeaponMesh } from "./weapon-model.js?v=to-gc2";
 import { buildMeleeMesh } from "./gear.js";
 import { loadModel } from "./battlefield-props.js";
 
@@ -63,7 +63,7 @@ export class WeaponInspector {
     this.zoomTarget = 1;
     this.yaw = REST_YAW;
     this.pitch = 0.22;
-    this.autoSpin = true;
+    this.autoSpin = !thumb;     // the thumbnail holds the rest angle (a swing showed fat guns from behind)
     this.spinT = 0;
     this.width = 0;
     this.height = 0;

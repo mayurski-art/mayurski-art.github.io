@@ -8,8 +8,8 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-s12h-death";
 import { poseEmoteCode } from "./emotes.js?v=to-emotes1";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=to-gc1";
-import { WEAPON_DEFS } from "./weapons.js?v=to-gc1";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=to-gc2";
+import { WEAPON_DEFS } from "./weapons.js?v=to-gc2";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js";
 
 const RENDER_DELAY = 110; // ms

@@ -10,7 +10,7 @@
 
 import * as THREE from "three";
 import { groundHeightAt, resolveCircle } from "./movement.js";
-import { segmentBlocked } from "./ballistics.js";
+import { segmentBlocked } from "./ballistics.js?v=to-gc2";
 import { FlowField } from "./nav.js";
 
 const NAMES = [

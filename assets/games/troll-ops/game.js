@@ -7,9 +7,9 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gc1";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap } from "./weapon-model.js?v=to-gc1";
-import { WeaponInspector } from "./inspector.js";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gc2";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap } from "./weapon-model.js?v=to-gc2";
+import { WeaponInspector } from "./inspector.js?v=to-gc2";
 import { CharacterInspector } from "./char-inspector.js";
 import { Loadout } from "./loadout.js";
 import { StreakPicker } from "./streak-picker.js";
@@ -54,7 +54,7 @@ import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
-import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js";
+import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY } from "./gear.js";
 import { RangeSet } from "./range.js";
@@ -3184,7 +3184,15 @@ let activeWeaponDef = null;
 
 // Detailed models stream in; rebuild the gun in hand once they land.
 preloadWeaponModels().then((ok) => {
-  if (ok && activeWeaponDef?.model?.stock === "tank") setActiveWeaponMesh(activeWeaponDef);
+  if (!ok) return;
+  if (activeWeaponDef?.model?.stock === "tank") setActiveWeaponMesh(activeWeaponDef);
+  // The menu previews snapshot the gun once; redraw them with the real model.
+  if (loadout.resolved?.model?.stock === "tank") {
+    sumGunKey = null;
+    showSumGun();
+    charInspector?.setWeapon(loadout.resolved);
+    if (inspectorLive) inspector?.show(loadout.resolved);
+  }
 });
 
 function setActiveWeaponMesh(def) {
