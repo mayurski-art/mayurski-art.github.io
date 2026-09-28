@@ -93,7 +93,8 @@ function panelGeometry(key) {
   geo.translate(width / 2 - BEVEL, 0, 0);
   const b = panelBounds(key);
   const side = SKIN_ATLAS.regions[key];
-  const trim = SKIN_ATLAS.regions.trim;
+  // Edges read the part's own strip if it has one (see SKIN_ATLAS), else trim.
+  const trim = SKIN_ATLAS.regions[key + "Edge"] || SKIN_ATLAS.regions.trim;
   const pos = geo.attributes.position, nrm = geo.attributes.normal, uv = geo.attributes.uv;
   const W = SKIN_ATLAS.width, H = SKIN_ATLAS.height;
   const toUv = (r, s, t, dy = 0) => [
@@ -206,8 +207,12 @@ export function build416(def, skinId, { texture = null } = {}) {
   group.add(trigger);
   // No fire-selector stud: it sat on the lower receiver as a coloured dot
   // on top of the skin art.
-  // Butt pad, in the accent colour.
-  const butt = box(0.047, 0.09, 0.008, M.accent);
+  // Butt pad, in the accent colour (or the skin's own butt colour, so a
+  // stock edge gradient can run straight into it).
+  const buttM = skin?.palette?.butt != null
+    ? new THREE.MeshStandardMaterial({ color: skin.palette.butt, roughness: 0.5, metalness: 0.2 })
+    : M.accent;
+  const butt = box(0.047, 0.09, 0.008, buttM);
   butt.position.set(0, -0.015, 0.262);
   group.add(butt);
 

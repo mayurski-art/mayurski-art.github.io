@@ -32,6 +32,10 @@ export const SKIN_ATLAS = {
     stock:     { x: 0,   y: 281, w: 405, h: 230 },
     grip:      { x: 412, y: 281, w: 134, h: 228 },
     mag:       { x: 606, y: 206, w: 185, h: 304 },
+    // A part's own edge strip (top, bottom, front, back faces), laid along
+    // the part. Only the stock has one; a skin fills it from `edges.stock`,
+    // otherwise it stays trim like every other edge.
+    stockEdge: { x: 796, y: 206, w: 228, h: 100 },
   },
 };
 
@@ -274,8 +278,9 @@ export const SKINS = [
     id: "vice", name: "Vice Grin", banner: "banner-17.jpg",
     blurb: "Leonida sunset, fully loaded.",
     final: true,
-    palette: { trim: "#6c3f8e", ink: "#fff4e8", metal: 0x2b2233, accent: 0xff8fb8 },
-    art: { grip: "vice-gradient.jpg", mag: "vice-gradient.jpg", stock: "troll-crew-san-andreas.jpg", handguard: "gta6-troll-skin-part-vice80.jpg" },
+    palette: { trim: "#6c3f8e", ink: "#fff4e8", metal: 0x2b2233, accent: 0xff8fb8, butt: 0x92885f },
+    edges: { stock: "vice-stock-edge.jpg" },
+    art: { grip: "vice-gradient.jpg", mag: "vice-gradient.jpg", stock: "troll-crew-san-andreas.jpg", handguard: "gta6-troll-skin-part-vice60.jpg" },
     layers: { receiver: [{ file: "banners/banner-11.jpg", src: [0.345, 0, 1, 1], at: [0.923, 0.587, 0.875], feather: 0.65, opacity: 0.65, id: "rkn0gy", mask: "vice-rkn0gy-mujaulpy.png", lock: 1 }], stock: [{ id: "8osvw2", file: "skin-art/vice-robbery-troll.jpg", src: [0.044, 0.05, 0.376, 0.486], at: [0.64, 0.42, 0.676], text: 1, feather: 0.15, opacity: 0.65, lock: 1, mask: "vice-8osvw2-mukhm6ar.png" }] },
     crops: {
       receiver: [0.5, 0.344, 1],

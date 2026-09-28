@@ -27,6 +27,10 @@
 //   text     1: the piece has writing, so it is flipped in place on the
 //            gun's right side and reads correctly there too
 //   lock     1: the editor won't move it
+//
+// Edge strips: skin.edges = { stock: "file.jpg" } paints the stock's top,
+// bottom and front faces with that picture, stretched along the stock
+// (left = the front, by the receiver). palette.butt colours the butt pad.
 // A layer is placed the same along the gun on both sides, like the rest.
 //
 // A part can take its art from its own picture instead of the banner:
@@ -553,6 +557,12 @@ export async function bakeAtlas(skin, canvas) {
     ctx.restore();
   }
   trimOutlines(ctx, skin, 0);
+  // Edge strips (the edges read the top half only).
+  for (const [key, file] of Object.entries(skin.edges || {})) {
+    const r = R[key + "Edge"];
+    if (!r || !file) continue;
+    ctx.drawImage(await artImage(file), r.x, r.y, r.w, r.h);
+  }
 
   // --- right side (bottom half): the same art, placed the same along the
   // gun (the model mirrors it), with the writing turned back so it reads
