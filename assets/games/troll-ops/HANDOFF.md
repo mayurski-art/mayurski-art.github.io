@@ -9,6 +9,35 @@ push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 `?v=to-s12a` (game.js + style.css); bump it on any change to either.
 
+## Session 16 (2026-09-27): logout -> guest fix, then PAUSED by the user
+
+Fixed "Bugs to fix next" #1 (logged out, still `troll_runner`), in
+`assets/js/troll-accounts.js`:
+- `logout()` ignored signOut's result. supabase-js 2.110 keeps the stored
+  session when the access token has expired and the refresh can't go
+  through (sessionError path), so the page looked signed out and the next
+  load restored the account. Now on any error it removes
+  `trollrunner-accounts-auth` and the SSO cookie itself. Reproduced headless
+  (expired token + API blocked): old code left the session stored, new
+  clears it.
+- Cross-origin: sign-out stamps a `trollrunner_sso_out` cookie (time);
+  each origin keeps `trollrunner-accounts-auth-at` (set on a SIGNED_IN with
+  NEW tokens, on cookie adoption and on the iframe bridge). A local session
+  older than the last sign-out is dropped BEFORE createClient (else
+  INITIAL_SESSION re-mirrors it into the SSO cookie). Only on
+  *.trollrunner.net; not testable on localhost.
+- Same-origin tabs: a `storage` listener dispatches auth-changed(null).
+Test gotcha: troll-ops.html loads troll-accounts.js from the ABSOLUTE URL
+`https://mayurski-art.github.io/assets/js/...`, so headless tests run the
+LIVE file unless they route that URL to the local copy.
+
+**Next session: the user picked ALL of these** (ask for the inputs first):
+start-now: end-of-match medals list, emote wheel on the touch HUD, BO2
+medal/splash mockup; needs input: username + weapon rename lists,
+Remington shotgun (name + unlock level), crosshair options, and design docs
+for Battle Royale + the Green Candles redesign. Details in the reminders
+below.
+
 ## Session 15 (2026-09-27): emotes: first person, third person, duo
 
 User ask: emotes in first person, third person, and duo emotes you invite a
@@ -429,7 +458,7 @@ Hook: `__trollOps.gfx()`.
 
 ## Bugs to fix next (reported by the user 2026-09-25, not started)
 
-1. **Logged out, but Troll Ops still says `troll_runner`.** After logging
+1. **FIXED in session 16 (see top).** **Logged out, but Troll Ops still says `troll_runner`.** After logging
    out, opening Troll Ops should make you a guest; instead the callsign is
    still the account. Name comes from `playerName()` in game.js (~1597), which
    reads `TrollrunnerAccounts.getCachedProfile()`. Suspects, check in order:

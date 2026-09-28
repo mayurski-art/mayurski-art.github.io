@@ -146,27 +146,73 @@
     if (!match) return null;
     try { return JSON.parse(decodeURIComponent(match[1])); } catch { return null; }
   }
+  /* Signing out on one origin has to reach the others that kept their OWN
+     session in localStorage (adoptSsoCookie never overrides one). Sign-out
+     stamps a shared `trollrunner_sso_out` cookie with the time; each origin
+     remembers when it last started a session (AUTH_AT_KEY). A session that
+     started before the latest sign-out is dropped before the Supabase client
+     even loads it -- after createClient, its INITIAL_SESSION would re-mirror
+     the old tokens into the SSO cookie. */
+  const AUTH_STORAGE_KEY = 'trollrunner-accounts-auth';
+  const AUTH_AT_KEY = 'trollrunner-accounts-auth-at';
+  const SSO_OUT_COOKIE = 'trollrunner_sso_out';
+  let bootRefreshToken = null;
+  function writeSsoSignedOut() {
+    const domain = ssoCookieDomain();
+    if (!domain) return;
+    document.cookie = `${SSO_OUT_COOKIE}=${Date.now()}; Domain=${domain}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
+  }
+  function readSsoSignedOut() {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${SSO_OUT_COOKIE}=(\\d+)`));
+    return match ? Number(match[1]) : 0;
+  }
+  function markSessionStarted() {
+    try { localStorage.setItem(AUTH_AT_KEY, String(Date.now())); } catch {}
+  }
+  function dropSessionSignedOutElsewhere() {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (!raw) return;
+      const out = readSsoSignedOut();
+      const at = Number(localStorage.getItem(AUTH_AT_KEY)) || 0;
+      if (out && out > at) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        return;
+      }
+      bootRefreshToken = JSON.parse(raw)?.refresh_token || null;
+    } catch {}
+  }
+
   async function adoptSsoCookie(sb) {
     if (!ssoCookieDomain()) return;
     const { data } = await sb.auth.getSession();
     if (data?.session) return; // this origin already has its own session
     const cookieSession = readSsoCookie();
     if (!cookieSession?.access_token || !cookieSession?.refresh_token) return;
-    try { await sb.auth.setSession(cookieSession); } catch { /* stale/expired -- ignore */ }
+    try {
+      const { error } = await sb.auth.setSession(cookieSession);
+      if (!error) markSessionStarted();
+    } catch { /* stale/expired -- ignore */ }
   }
 
   function getClient() {
     if (client) return client;
     if (!window.supabase?.createClient) return null;
+    dropSessionSignedOutElsewhere();
     client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false,
-        storageKey: 'trollrunner-accounts-auth',
+        storageKey: AUTH_STORAGE_KEY,
       },
     });
     client.auth.onAuthStateChange((event, session) => {
+      // Supabase re-emits SIGNED_IN for the session it restores on load; only a
+      // session with new tokens counts as a fresh sign-in on this origin.
+      if (event === 'SIGNED_IN' && session && session.refresh_token !== bootRefreshToken) {
+        markSessionStarted();
+      }
       // INITIAL_SESSION fires on every fresh page load, including origins that
       // have never signed in locally and are relying on adoptSsoCookie() to pull
       // in a session from the cookie. Writing session:null here (this origin's
@@ -450,7 +496,17 @@
   async function logout() {
     const sb = getClient();
     if (!sb) return;
-    await sb.auth.signOut();
+    // signOut() hands back an error WITHOUT clearing the stored session when
+    // the revoke call fails (offline, 5xx, a refresh that can't go through).
+    // Left alone, the page looked signed out but the next page load (Troll
+    // Forces, any other tab) restored the account. Clear it here regardless.
+    let error = null;
+    try { ({ error } = await sb.auth.signOut()); } catch (e) { error = e; }
+    if (error) {
+      try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch {}
+      writeSsoCookie(null);
+    }
+    writeSsoSignedOut();
     cachedProfile = null;
     profilePromise = null;
     dispatch(null);
@@ -3673,7 +3729,8 @@
       const sb = getClient();
       if (!sb) return;
       if (msg.type === 'trollrunner:sso-session' && msg.accessToken && msg.refreshToken) {
-        void sb.auth.setSession({ access_token: msg.accessToken, refresh_token: msg.refreshToken });
+        void sb.auth.setSession({ access_token: msg.accessToken, refresh_token: msg.refreshToken })
+          .then(({ error }) => { if (!error) markSessionStarted(); }, () => {});
       } else if (msg.type === 'trollrunner:sso-logout') {
         void logout();
       }
@@ -3685,6 +3742,14 @@
     if (!sb) return;
     detectRecoveryLink();
     initSsoBridge();
+    // Another tab on this origin signed out (including the fallback path in
+    // logout() that clears storage without a SIGNED_OUT event).
+    window.addEventListener('storage', event => {
+      if (event.key !== AUTH_STORAGE_KEY || event.newValue || !cachedProfile) return;
+      cachedProfile = null;
+      profilePromise = null;
+      dispatch(null);
+    });
     void adoptSsoCookie(sb).then(() => getSession()).then(session => {
       if (session) {
         dispatch(session);
