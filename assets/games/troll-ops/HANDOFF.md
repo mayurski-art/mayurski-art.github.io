@@ -1,14 +1,24 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## HUD cleanup (2026-09-28, shipped)
+User: no control instructions while playing (incl. Test Range) and no
+top-left Kills counter. Gone: V/G/F letters on the gear chips, "Press 4 to
+call it in" banner line, 4/5/6 on ready streak slots (now READY), key names
+in the pickup / care package / plant / defuse / marker prompts, killcam "Space
+to skip" (button just says Skip). Kills box hidden except Zombies (Points).
+Kept: "Click to take the mouse back" (only when a relock fails) and the Esc
+menu / lobby Controls lists. game.js `?v=to-hud1`.
+
 ## QUEUE (user, 2026-09-28): do these in this order
 1. **Lightsaber: a new weapon.** The graphics have to be really good, on the
    Green Candles bar: its own Blender build script -> glb (like
    `build_greencandles.blender.py`), glowing emissive blade + halo sprites
    tuned for ACES, detailed hilt, PMREM env map, and real mechanics (not a
    reskinned knife): ignite/retract, hum + swing audio, blade trail on swings.
-   Open questions to ask first: melee slot or its own class, unlock level,
-   blade colour (green to match the brand?), name (troll pun?), can it
-   block/deflect bullets, one-hit or not.
+   User decided: **Trollsaber**, **melee slot** (replaces the knife when
+   equipped, still quick-melee, can be held as the active weapon), **red
+   blade**, **one-hit kill + deflects frontal bullets while blocking**
+   (block drains a meter), **unlock LV 30**.
 2. **Grinmington 870: same treatment.** Replace the procedural
    `spec.pump` model with a detailed Blender glb at Green Candles quality,
    keeping the pump / shell-by-shell reload / rack mechanics and hooks

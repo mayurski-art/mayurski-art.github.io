@@ -622,10 +622,9 @@ function updateMarking() {
     els.streakMark.hidden = true;
     return;
   }
-  // Care package: the marker is in your hand; the prompt says how to throw.
-  const fire = isTouch ? "FIRE" : gamepadState.connected ? "R2" : "Click";
+  // Care package: the marker is in your hand. No key hint (user call).
   els.streakMark.hidden = false;
-  els.streakMark.textContent = `${STREAK_DEFS[markingStreak].name} — ${fire} to throw the marker`;
+  els.streakMark.textContent = `${STREAK_DEFS[markingStreak].name}: throw the marker`;
   els.streakMark.classList.add("is-ready");
 }
 
@@ -2455,7 +2454,6 @@ function awardScore(amount) {
     selectedStreak = id;   // newest earned, like BO2's default pick
     killstreakUi.banner({
       title: `${STREAK_DEFS[id].name} ready`,
-      sub: isTouch ? "Tap STREAK to call it in" : `Press ${streakKeyLabel(id)} to call it in`,
       iconSvg: streakIconSvg(id),
     });
     audio.wave();
@@ -4332,9 +4330,8 @@ function updateStreakHud() {
       // On a pad, only the actually-selected slot shows the fire glyph —
       // the other ready ones are one d-pad-down press away, not a button
       // press away.
-      tag.textContent = ready
-        ? (onPad ? (isSelected ? key : "↓") : isTouch ? "TAP" : String(4 + slot))
-        : String(def.cost);
+      // No key hints on the HUD (user, 2026-09-28): a ready slot just says so.
+      tag.textContent = ready ? "READY" : String(def.cost);
       row.appendChild(tag);
       els.ssSlots.appendChild(row);
     });
@@ -5010,14 +5007,11 @@ function updatePickupPrompt(dt) {
 
   if (els.pickupPrompt) {
     if ((pkg || drop) && player.alive) {
-      // Keyboard holds X; the pad's equivalent is D-pad right (see the
-      // comment above gamepadState.pickup) — the prompt has to say whichever
-      // one the player is actually using or "Hold X" reads as broken on pad.
-      const holdKey = gamepadState.connected ? "D-pad right" : "X";
+      // No key hint in the prompt (user, 2026-09-28): just the action.
       const steal = pkg && !pkg.owned && (currentMode().ffa || !net.team || pkg.ownerTeam !== net.team);
       const label = pkg
-        ? (pkgHoldT > 0 ? (steal ? "Stealing the care package…" : "Capturing…") : `Hold ${holdKey} to ${steal ? "steal" : "capture"} the care package`)
-        : (swapHold.active ? `Picking up ${drop.def.name}…` : `Hold ${holdKey} to pick up ${drop.def.name}`);
+        ? (pkgHoldT > 0 ? (steal ? "Stealing the care package…" : "Capturing…") : `${steal ? "Steal" : "Capture"} the care package`)
+        : (swapHold.active ? `Picking up ${drop.def.name}…` : `Pick up ${drop.def.name}`);
       els.pickupPrompt.hidden = false;
       els.pickupPromptText.textContent = label;
       const progress = pkg ? pkgHoldT / packageCaptureTime(pkg) : swapHold.progress;
@@ -5872,9 +5866,8 @@ function updateSnd(dt) {
     els.bombPrompt.hidden = true;
     if (isPvp() && net.active) net.publishBomb({ kind: "event", action: "cancel" });
   } else if (!bomb.action) {
-    const key = isTouch ? "F" : (gamepadState.connected ? "D-pad →" : "F");
-    if (onSite) { els.bombPrompt.hidden = false; els.bombPromptText.textContent = `Hold ${key} to plant (site ${onSite.id})`; els.bombBarFill.style.width = "0%"; }
-    else if (canDefuse) { els.bombPrompt.hidden = false; els.bombPromptText.textContent = `Hold ${key} to defuse`; els.bombBarFill.style.width = "0%"; }
+    if (onSite) { els.bombPrompt.hidden = false; els.bombPromptText.textContent = `Plant (site ${onSite.id})`; els.bombBarFill.style.width = "0%"; }
+    else if (canDefuse) { els.bombPrompt.hidden = false; els.bombPromptText.textContent = "Defuse"; els.bombBarFill.style.width = "0%"; }
     else els.bombPrompt.hidden = true;
   }
 
@@ -6238,6 +6231,8 @@ function beginMatch(mapId = null) {
   document.getElementById("hud-l-wave").textContent = isZombies() || snd ? "Round" : "Wave";
   document.getElementById("hud-l-hostiles").textContent = isZombies() ? "Zombies" : (snd ? "Bomb" : "Hostiles");
   document.getElementById("hud-l-kills").textContent = isZombies() ? "Points" : "Kills";
+  // Only Zombies keeps this box (Points); the kill count is gone (user, 2026-09-28).
+  document.getElementById("hud-score-box").style.display = isZombies() ? "" : "none";
   els.respawn.hidden = true;
   els.scoreboard.hidden = true;
 
@@ -7122,8 +7117,7 @@ function startKillcamPresentation(killerId, weaponId, isHead) {
   const bits = [weaponNameFor(weaponId)].filter(Boolean);
   if (isHead) bits.push("Headshot");
   killcamHud.querySelector(".to-kc-weapon").textContent = bits.join(" · ");
-  killcamHud.querySelector(".to-kc-skip").innerHTML = isTouch ? "Tap to skip"
-    : gamepadState.connected ? "<b>A</b> to skip" : "<b>Space</b> to skip";
+  killcamHud.querySelector(".to-kc-skip").textContent = "Skip";
   killcamHud.classList.remove("is-kill");
   killcamHud.hidden = false;
   if (killcam.replaying) {

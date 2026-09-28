@@ -433,7 +433,7 @@
             <span class="to-hud-label" id="hud-l-hostiles">Hostiles</span>
             <strong id="hud-hostiles">0</strong>
           </div>
-          <div class="to-hud-score">
+          <div class="to-hud-score" id="hud-score-box">
             <span class="to-hud-label" id="hud-l-kills">Kills</span>
             <strong id="hud-kills">0</strong>
           </div>
@@ -554,9 +554,9 @@
         </div>
 
         <div class="to-hud-gear" id="to-hud-gear">
-          <div class="to-gear-chip" id="to-gear-melee"><b>V</b><span id="to-gear-melee-name">Knife</span></div>
-          <div class="to-gear-chip" id="to-gear-lethal"><b>G</b><span id="to-gear-lethal-name">Frag</span><i id="to-gear-lethal-n">2</i></div>
-          <div class="to-gear-chip" id="to-gear-tactical"><b>F</b><span id="to-gear-tactical-name">Flash</span><i id="to-gear-tactical-n">2</i></div>
+          <div class="to-gear-chip" id="to-gear-melee"><span id="to-gear-melee-name">Knife</span></div>
+          <div class="to-gear-chip" id="to-gear-lethal"><span id="to-gear-lethal-name">Frag</span><i id="to-gear-lethal-n">2</i></div>
+          <div class="to-gear-chip" id="to-gear-tactical"><span id="to-gear-tactical-name">Flash</span><i id="to-gear-tactical-n">2</i></div>
         </div>
 
         <div class="to-cook" id="to-cook" hidden aria-hidden="true"><i id="to-cook-fill"></i></div>
@@ -647,7 +647,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-gl1"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-hud1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>
