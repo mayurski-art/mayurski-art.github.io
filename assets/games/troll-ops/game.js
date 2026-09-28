@@ -7,10 +7,10 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gc2";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap } from "./weapon-model.js?v=to-gc2";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap } from "./weapon-model.js?v=to-gl1";
 import { WeaponInspector } from "./inspector.js?v=to-gc2";
-import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl1";
+import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js";
 import { Loadout } from "./loadout.js";
 import { StreakPicker } from "./streak-picker.js";
@@ -1531,7 +1531,7 @@ const animDebug = new AnimDebugLab();
 
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
-  volume: 50, sens: 100, fov: 78, invert: false, minimap: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
+  volume: 50, sens: 100, fov: 78, invert: false, minimap: true, gloves: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
   gfx: "auto",
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
@@ -1558,6 +1558,7 @@ function applySettings() {
   set("to-set-fov", settings.fov, "to-set-fov-out", "°");
   set("to-set-invert", settings.invert);
   set("to-set-minimap", settings.minimap);
+  set("to-set-gloves", settings.gloves);
   set("to-set-aimassist", settings.aimAssist);
 
   set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
@@ -1565,6 +1566,7 @@ function applySettings() {
   set("to-set-fov-lobby", settings.fov, "to-set-fov-lobby-out", "°");
   set("to-set-invert-lobby", settings.invert);
   set("to-set-minimap-lobby", settings.minimap);
+  set("to-set-gloves-lobby", settings.gloves);
   set("to-set-aimassist-lobby", settings.aimAssist);
   set("to-set-botskill", settings.botSkill);
   set("to-set-gfx", settings.gfx);
@@ -1747,6 +1749,7 @@ function initEscapeMenu() {
   bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
   bindCheck("to-set-invert", "invert");
   bindCheck("to-set-minimap", "minimap");
+  bindCheck("to-set-gloves", "gloves");
   bindCheck("to-set-aimassist", "aimAssist");
 
   bindRange("to-set-volume-lobby", "volume", "to-set-volume-lobby-out");
@@ -1754,6 +1757,7 @@ function initEscapeMenu() {
   bindRange("to-set-fov-lobby", "fov", "to-set-fov-lobby-out", "°");
   bindCheck("to-set-invert-lobby", "invert");
   bindCheck("to-set-minimap-lobby", "minimap");
+  bindCheck("to-set-gloves-lobby", "gloves");
   bindCheck("to-set-aimassist-lobby", "aimAssist");
   bindSelect("to-set-botskill", "botSkill");
   bindSelect("to-set-gfx", "gfx");
@@ -6227,7 +6231,9 @@ function beginMatch(mapId = null) {
   els.hudHostilesBox.hidden = (pvp && !snd) || isRange();
   els.bombStatus.hidden = !snd;
   if (els.touchInteract) els.touchInteract.hidden = !snd;
-  els.rangeHud.hidden = !isRange();
+  // The Test Range info box is retired (user, 2026-09-28): N still spawns a
+  // bot, and Esc has Spawn a bot / Clear bots and the full settings.
+  els.rangeHud.hidden = true;
   updateRangeHud();
   document.getElementById("hud-l-wave").textContent = isZombies() || snd ? "Round" : "Wave";
   document.getElementById("hud-l-hostiles").textContent = isZombies() ? "Zombies" : (snd ? "Bomb" : "Hostiles");
@@ -8601,7 +8607,9 @@ function applyGunInspect(mesh, w) {
   const long = inspectT > 0 && player.holding === "gun" && isLongGunInspect(w);
   const t = long ? inspectProgress() : 0;
   const blend = long ? rise(t, 0, 0.14) * (1 - rise(t, 0.86, 1)) : 0;
-  inspectArms.visible = blend > 0.12;
+  // With the gloves on they stay on the gun through the inspect; the old
+  // white showcase arms only stand in for the rods.
+  inspectArms.visible = blend > 0.12 && !glovesOn();
   if (blend <= 0) return;
 
   const [yaw, twist, tilt, x, y, dz] = sampleKeys(GUN_INSPECT_KEYS, t, _gunKey);
@@ -8761,6 +8769,9 @@ const gloveRig = new THREE.Group();
 gloveRig.visible = false;
 weaponRig.add(gloveRig);
 let gloves = null;
+/* Settings → Gloves. Off is the Phantom Forces look from before: black rod
+   arms, the old hip framing, the white showcase arms on inspect. */
+const glovesOn = () => !!gloves && settings.gloves !== false;
 Promise.all([buildGlove(1, weaponEnvTex), buildGlove(-1, weaponEnvTex)]).then((g) => {
   if (!g[0] || !g[1]) return;
   gloves = g;
@@ -8773,6 +8784,11 @@ const basisQ = (x, y, z) => new THREE.Quaternion().setFromRotationMatrix(new THR
 const GLOVE_GRIP_Q = basisQ([0, -1, 0], [1, 0, 0], [0, 0, 1]);      // right: back of hand out right, thumb up the grip
 const GLOVE_SUPPORT_Q = basisQ([0, 0, -1], [0, -1, 0], [-1, 0, 0]); // left: palm up under the handguard, thumb forward
 const GLOVE_FOREGRIP_Q = basisQ([0, 1, 0], [-1, 0, 0], [0, 0, 1]);  // left: fist round a vertical grip, thumb up
+// Left, C-clamp on the handguard's side: back of the hand out toward the
+// camera, fingers forward and a little up, thumb over the top, wrist back
+// and down (a hand cupped underneath is invisible from a first-person eye).
+const GLOVE_CCLAMP_Q = basisQ([0, 0.92, 0.4], [-1, 0, 0], [0, -0.4, 0.92]);
+const GLOVE_CCLAMP_OFF = new THREE.Vector3(-0.034, 0.028, 0.04);
 const GLOVE_GRIP_OFF = new THREE.Vector3(0.03, -0.012, 0.006);      // palm centre from the grip anchor, in its frame
 const GLOVE_SUPPORT_OFF = new THREE.Vector3(0, -0.014, 0.004);
 const GLOVE_FOREGRIP_OFF = new THREE.Vector3(-0.03, 0.0, 0.004);
@@ -8783,13 +8799,18 @@ const _gloveDir = new THREE.Vector3();
 const _gloveZ = new THREE.Vector3(0, 0, 1);
 const _gloveRigQ = new THREE.Quaternion();
 
-function placeGlove(g, i, mesh, anchor, tip, sidearm) {
-  const style = i === 0 ? "grip" : sidearm ? "support" : (mesh.userData.supportStyle || "support");
+function placeGlove(g, i, mesh, anchor, tip, sidearm, magBlend = 0) {
+  // During a mag swap the left hand holds the mag (palm under it).
+  const style = i === 0 ? "grip" : sidearm || magBlend > 0.35 ? "support" : (mesh.userData.supportStyle || "cclamp");
   if (style === "grip") {
     anchor.getWorldQuaternion(_gloveQ);
     g.root.quaternion.copy(_gloveQ).multiply(GLOVE_GRIP_Q);
     _gloveOff.copy(GLOVE_GRIP_OFF).applyQuaternion(_gloveQ);
     poseGlove(g, "trigger");
+  } else if (style === "cclamp") {
+    g.root.quaternion.copy(mesh.quaternion).multiply(GLOVE_CCLAMP_Q);
+    _gloveOff.copy(GLOVE_CCLAMP_OFF).applyQuaternion(mesh.quaternion);
+    poseGlove(g, "support");
   } else if (style === "foregrip") {
     g.root.quaternion.copy(mesh.quaternion).multiply(GLOVE_FOREGRIP_Q);
     _gloveOff.copy(GLOVE_FOREGRIP_OFF).applyQuaternion(mesh.quaternion);
@@ -8821,8 +8842,9 @@ const _pfDown = new THREE.Vector3();
    magazine (reloads). */
 function posePfArms(mesh, magBlend = 0) {
   const show = !!mesh?.visible && !inspectArms.visible && player.holding === "gun";
-  pfArms.visible = show && !gloves;
-  gloveRig.visible = show && !!gloves;
+  const gl = glovesOn();
+  pfArms.visible = show && !gl;
+  gloveRig.visible = show && gl;
   if (!show) return;
   mesh.updateMatrixWorld(true);
   // [grip, support]: the support hand is the one parked at supportHandPos
@@ -8851,10 +8873,10 @@ function posePfArms(mesh, magBlend = 0) {
         _pfTip.lerp(_pfMag, magBlend);
       }
     }
-    if (gloves) placeGlove(gloves[i], i, mesh, anchor, _pfTip, !anchors[1]);
+    if (gl) placeGlove(gloves[i], i, mesh, anchor, _pfTip, !anchors[1], i === 1 ? magBlend : 0);
     else stretchBetween(rods[i], PF_ARM_SHOULDER[i], _pfTip);
   }
-  if (gloves && !anchors[0]) gloveRig.visible = false;
+  if (gl && !anchors[0]) gloveRig.visible = false;
 }
 
 /* Keyboard Warrior toss. Beats (t):
@@ -9378,7 +9400,9 @@ function updateWeaponView(dt) {
   // and the sprint roll above, not new per-weapon data.
   const adsLambda = w.def.model?.heavy ? 10 : (w.def.inertia ?? 8) * 1.6;
   adsSmoothT = damp(adsSmoothT, adsOffset, adsLambda, dt);
-  const hipPos = new THREE.Vector3(0.22, -0.2, -0.55);
+  // With the gloves on, the gun rides a little higher and closer so the
+  // hands on it are in view (CoD-style framing); the rods sat off screen.
+  const hipPos = glovesOn() ? new THREE.Vector3(0.2, -0.165, -0.5) : new THREE.Vector3(0.22, -0.2, -0.55);
   if (mesh.userData.hipOffset) hipPos.add(mesh.userData.hipOffset);
   const aimPoint = mesh.userData.aimPoint || new THREE.Vector3(0, 0, -0.4);
   // Where the sight sits in front of the weapon camera. Tube optics ask to

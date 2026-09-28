@@ -14,7 +14,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { HAND_POSES } from "./hand-model.js";
 
-const URL_GLB = new URL("./models/gloves.glb?v=gl1", import.meta.url).href;
+const URL_GLB = new URL("./models/gloves.glb?v=gl3", import.meta.url).href;
 let bufferP = null;
 
 export function loadGloveData() {
@@ -55,12 +55,21 @@ export async function buildGlove(side = 1, envMap = null) {
     if (o.isMesh) {
       o.frustumCulled = false;
       o.castShadow = o.receiveShadow = false;
-      const m = o.material;
-      // Blender's sheen exports as a white sheen colour: under the view
-      // model's lights it turned the black leather grey-white.
-      if (m?.isMeshPhysicalMaterial) { m.sheen = 0; m.clearcoat = Math.min(m.clearcoat || 0, 0.12); m.clearcoatRoughness = 0.5; }
+      // Blender's sheen / coat export as MeshPhysicalMaterial, the priciest
+      // shader three has (and a white sheen that turned the black leather
+      // grey). The sleeves fill a lot of screen right by the camera, so
+      // per-pixel cost matters: plain standard materials, like the guns.
+      const src = o.material;
+      const m = src?.isMeshPhysicalMaterial
+        ? new THREE.MeshStandardMaterial({ name: src.name, color: src.color, roughness: src.roughness, metalness: src.metalness })
+        : src;
+      if (m !== src) { src.dispose(); o.material = m; }
       if (m?.isMeshStandardMaterial) m.roughness = Math.max(m.roughness, 0.55);
       if (m?.isMeshStandardMaterial && envMap) { m.envMap = envMap; m.envMapIntensity = 0.25; }
+      // Charcoal accents so the hand reads against dark guns: the knuckle
+      // guard, cuff and stitching lighter than the black leather.
+      const ACCENT = { GL_Rubber: 0x34373b, GL_Neoprene: 0x26282b, GL_Stitch: 0x7a7d82, GL_Velcro: 0x2e3033 };
+      if (m && ACCENT[m.name] != null) m.color.setHex(ACCENT[m.name]);
     }
   });
   scene.traverse((o) => { if (o.name === "GL_Sleeve") sleeve = o; });
@@ -83,7 +92,7 @@ export async function buildGlove(side = 1, envMap = null) {
     const s = new THREE.Group();
     // A touch slimmer than modelled: seen end-on from the camera, the
     // forearm reads fat.
-    s.scale.set(side * 0.82, 0.82, 1);
+    s.scale.set(side * 0.72, 0.72, 1);
     s.add(sleeve);
     sleeve.position.set(0, 0, 0);
     sleeveRoot.add(s);
@@ -95,9 +104,71 @@ export async function buildGlove(side = 1, envMap = null) {
     });
   }
 
-  const glove = { root, sleeve: sleeveRoot, bones, rest, side };
+  // Baked copies: the pose only changes a handful of times (grip, clamp,
+  // holding a mag), so each change is skinned once on the CPU into plain
+  // meshes and the skinned ones never draw. Per-frame GPU skinning cost
+  // nothing on a desktop GPU but crawled on software rendering (and weak
+  // phones), and the hands are on screen all match.
+  const skins = [];
+  scene.traverse((o) => {
+    if (!o.isSkinnedMesh) return;
+    const g = new THREE.BufferGeometry();
+    g.setIndex(o.geometry.index);
+    for (const [k, a] of Object.entries(o.geometry.attributes)) {
+      if (k === "skinIndex" || k === "skinWeight") continue;
+      g.setAttribute(k, k === "position" || k === "normal" ? a.clone() : a);
+    }
+    const baked = new THREE.Mesh(g, o.material);
+    baked.frustumCulled = false;
+    o.parent.add(baked);
+    baked.position.copy(o.position);
+    baked.quaternion.copy(o.quaternion);
+    baked.scale.copy(o.scale);
+    skins.push({ src: o, baked });
+  });
+  for (const k of skins) k.src.visible = false;
+
+  const glove = { root, sleeve: sleeveRoot, bones, rest, side, skins, pose: null };
   poseGlove(glove, "relaxed");
   return glove;
+}
+
+const _m = new THREE.Matrix4();
+const _mm = new THREE.Matrix4();
+const _v = new THREE.Vector3();
+const _n = new THREE.Vector3();
+/* CPU-skin every skinned part into its baked twin at the current pose
+   (three's own formula: bindMatrixInverse · Σ wᵢ·boneMatrixᵢ · bindMatrix). */
+function bakeGlove(glove) {
+  glove.root.updateMatrixWorld(true);
+  for (const { src, baked } of glove.skins) {
+    const sk = src.skeleton;
+    sk.update();
+    const bm = sk.boneMatrices;
+    const pos0 = src.geometry.attributes.position, nor0 = src.geometry.attributes.normal;
+    const si = src.geometry.attributes.skinIndex, sw = src.geometry.attributes.skinWeight;
+    const pos = baked.geometry.attributes.position, nor = baked.geometry.attributes.normal;
+    const e = _m.elements;
+    for (let i = 0; i < pos0.count; i++) {
+      e.fill(0);
+      for (let k = 0; k < 4; k++) {
+        const w = sw.getComponent(i, k);
+        if (w === 0) continue;
+        const o = si.getComponent(i, k) * 16;
+        for (let c = 0; c < 16; c++) e[c] += bm[o + c] * w;
+      }
+      _mm.multiplyMatrices(src.bindMatrixInverse, _m).multiply(src.bindMatrix);
+      _v.fromBufferAttribute(pos0, i).applyMatrix4(_mm);
+      pos.setXYZ(i, _v.x, _v.y, _v.z);
+      if (nor0) {
+        _n.fromBufferAttribute(nor0, i).transformDirection(_mm);
+        nor.setXYZ(i, _n.x, _n.y, _n.z);
+      }
+    }
+    pos.needsUpdate = true;
+    if (nor) nor.needsUpdate = true;
+    baked.geometry.computeBoundingSphere();
+  }
 }
 
 function setJoint(glove, name, x, y, order = "XYZ") {
@@ -111,6 +182,10 @@ function setJoint(glove, name, x, y, order = "XYZ") {
 
 /* Same pose data and conventions as hand-model.js poseHumanHand. */
 export function poseGlove(glove, pose, thumbPress = 0) {
+  // Same pose as last frame: nothing to redo (the bake is the costly part).
+  const key = pose + ":" + thumbPress;
+  if (glove.pose === key) return;
+  glove.pose = key;
   const p = GLOVE_POSES[pose] || HAND_POSES[pose] || HAND_POSES.relaxed;
   for (let i = 0; i < 4; i++) {
     const [a, b, c] = p.curl[i];
@@ -122,10 +197,11 @@ export function poseGlove(glove, pose, thumbPress = 0) {
   setJoint(glove, "T0", -pitch, yaw, "YXZ");
   setJoint(glove, "T1", -(c1 + thumbPress * 0.5), 0);
   setJoint(glove, "T2", -(c2 + thumbPress * 0.6), 0);
+  if (glove.skins) bakeGlove(glove);
 }
 
 /* The wrist, in the glove root's parent space. */
 const _w = new THREE.Vector3();
 export function gloveWrist(glove, out = _w) {
-  return out.set(0, 0, 0.05).applyQuaternion(glove.root.quaternion).add(glove.root.position);
+  return out.set(0, 0, 0.018).applyQuaternion(glove.root.quaternion).add(glove.root.position);   // the sleeve hem overlaps the cuff
 }

@@ -1,5 +1,37 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## Session 18: tactical gloves SHIPPED (Settings → Gloves, on by default)
+User's CoD reference: black leather gloves + dark sleeves. Off = the PF look
+from before (black rod arms, old hip framing, white showcase inspect arms).
+- `models/build_gloves.blender.py` -> `models/gloves.glb` (244 KB): ONE
+  skinned glove mesh on a bone rig (Hand, F{i}_{k}, T0-2) with the same
+  frame/joints/sizes as hand-model.js buildHumanHand, plus GL_Sleeve. Kept
+  lean on purpose (~5.8k tris a glove, 1.3k a sleeve, no subsurf): at ~66k
+  per hand the software-rendered tests (SwiftShader) crawled to 3-20 fps and
+  the sync test's grenade timings failed. `-- render` + GL_POSE for studio shots.
+- `glove-model.js`: buildGlove(side, env) parses its own copy of the glb per
+  hand (three r160 has no SkeletonUtils); HAND_POSES + GLOVE_POSES (trigger,
+  support, foregrip) are converted into bone space (W⁻¹·R·W); each pose change
+  is CPU-skinned once into plain baked meshes (skinned ones never draw);
+  physical materials swapped for standard (sheen exported white); charcoal
+  accents on knuckle guard / cuff / stitching.
+- game.js `placeGlove`: right hand wraps the pistol grip; left hand C-clamps
+  the side of the handguard (a hand under it is invisible from the eye),
+  fists a vertical foregrip (`mesh.userData.supportStyle = "foregrip"`, the
+  Green Candles), or holds the mag when magBlend > 0.35. Sleeves run wrist ->
+  PF_ARM_SHOULDER. Poses are placed in gloveRig space (world anchors ->
+  worldToLocal). With gloves on the hip framing is 0.2,-0.165,-0.5 (was
+  0.22,-0.2,-0.55) so the hands show; inspect keeps the gloves.
+- Test Range info box removed (user): N still spawns bots, Esc has the rest.
+- `tools/static-serve.mjs [port]`: no-deps local server for trying a
+  checkout (user tested the gloves on localhost:5190).
+- OPEN: user reported "can't shoot or reload" on localhost; never reproduced
+  (headless + in-app pane both fire/reload fine). Suspects: pointer lock not
+  engaged, or a device enumerating as a gamepad (Y cycles weapons, d-pad
+  right held swaps). Ask for the console snippet output if it recurs.
+- Cache-bust: game.js `?v=to-gl1`, weapons/weapon-model `?v=to-gl1` in every
+  importer, glove-model `?v=gl3`, gloves.glb `?v=gl3`.
+
 ## Session 18 (2026-09-28): Green Candles redesign SHIPPED
 Design pass: https://claude.ai/artifact/C1sceMWU1LyUWGZqR8PPU4 (user: "blueprint
 is good", wants very high detail). Recommended options taken: charge shot,

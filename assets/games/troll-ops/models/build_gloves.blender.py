@@ -231,26 +231,29 @@ def palm_pt(u, v):
 
 
 glove = Skin("GL_Glove")
-rows = glove.grid(palm_pt, 44, 20, "leather", cap0=None, cap1=None, uvs=(3, 2))
+# Kept lean (~5k tris a hand): the hands are on screen all match, and weak
+# GPUs / software rendering pay per triangle; smooth shading does the rest.
+PR = 28   # segments round the palm
+rows = glove.grid(palm_pt, PR, 12, "leather", cap0=None, cap1=None, uvs=(3, 2))
 # knuckle end: rounded shoulder, closed
-prev_pts = [palm_pt(i / 44, 1.0) for i in range(44)]
+prev_pts = [palm_pt(i / PR, 1.0) for i in range(PR)]
 prev = rows[-1]
-for step in range(1, 5):
-    f = step / 4
+for step in range(1, 4):
+    f = step / 3
     ring_pts = [Vector((p.x * (1 - 0.3 * f ** 2), p.y * (1 - 0.6 * f ** 2) + 0.0006 * f, Z1 - 0.0085 * math.sin(f * math.pi / 2)))
                 for p in prev_pts]
     ring = [glove.v(p) for p in ring_pts]
-    for i in range(44):
-        glove.face([prev[i], prev[(i + 1) % 44], ring[(i + 1) % 44], ring[i]], "leather")
+    for i in range(PR):
+        glove.face([prev[i], prev[(i + 1) % PR], ring[(i + 1) % PR], ring[i]], "leather")
     prev = ring
 c = glove.v(Vector((0, 0.0012, Z1 - 0.009)))
-for i in range(44):
-    glove.face([prev[i], prev[(i + 1) % 44], c], "leather")
+for i in range(PR):
+    glove.face([prev[i], prev[(i + 1) % PR], c], "leather")
 
 # wrist opening: turn in under the cuff so there's no open hole
 cz = glove.v(Vector((0, 0.0006, Z0 - 0.004)))
-for i in range(44):
-    glove.face([rows[0][(i + 1) % 44], rows[0][i], cz], "leather")
+for i in range(PR):
+    glove.face([rows[0][(i + 1) % PR], rows[0][i], cz], "leather")
 
 # back panel seams + stitching (raised piping from the cuff toward the finger gaps)
 for (u0, u1) in ((0.37, 0.33), (0.13, 0.17)):
@@ -287,7 +290,7 @@ def palm_top(x, z):
 # Knuckle guard: one molded padded strip across the knuckles (not separate
 # buttons), a soft rise over each knuckle, tapering at the edges.
 KG_X0, KG_X1, KG_Z0, KG_Z1 = -0.0325, 0.0295, -0.0128, -0.0268
-NS, NT = 36, 10
+NS, NT = 24, 6
 
 
 def kg_height(s, t):
@@ -329,11 +332,11 @@ def cuff_pt(u, v):
     return Vector((p.x * k, (p.y - 0.0006) * k + 0.0006, Z0 + 0.004 - 0.026 * v))
 
 
-glove.grid(cuff_pt, 44, 8, "neo", uvs=(3, 0.5))
-for j in range(6):
-    v = (j + 0.8) / 7
-    glove.tube([Vector((p.x * 1.006, (p.y - 0.0006) * 1.006 + 0.0006, p.z)) for p in (cuff_pt(i / 44, v) for i in range(45))],
-               0.00028, "panel", sides=5)
+glove.grid(cuff_pt, PR, 5, "neo", uvs=(3, 0.5))
+for j in range(3):
+    v = (j + 0.8) / 4
+    glove.tube([Vector((p.x * 1.006, (p.y - 0.0006) * 1.006 + 0.0006, p.z)) for p in (cuff_pt(i / 24, v) for i in range(25))],
+               0.00028, "panel", sides=4)
 top = cuff_pt(0.25, 0.5)
 glove.box(top + Vector((0.004, 0.0021, 0)), (0.031, 0.0022, 0.016), "velcro")
 glove.box(top + Vector((0.0205, 0.0019, 0)), (0.006, 0.0026, 0.012), "rubber")
@@ -415,7 +418,7 @@ def digit(origin, lens, radii, names, is_thumb=False):
         return seg_weights(d, joints, names)
 
     tip_pt = Vector((origin.x, origin.y, origin.z - L))
-    glove.grid(pt, 18, 34, "leather", wfn=wfn, cap0=None, cap1=tip_pt, uvs=(1, 3))
+    glove.grid(pt, 12, 18, "leather", wfn=wfn, cap0=None, cap1=tip_pt, uvs=(1, 3))
 
 
 for i, (fx, lens, r) in enumerate(FINGERS):
@@ -423,7 +426,7 @@ for i, (fx, lens, r) in enumerate(FINGERS):
     digit(Vector((fx, FINGER_Y, KNUCKLE_Z)), lens, (R, R * 0.95, R * 0.9), [f"F{i}_0", f"F{i}_1", f"F{i}_2"])
 digit(THUMB[0], THUMB[1], THUMB[2], ["T0", "T1", "T2"], is_thumb=True)
 
-glove_ob = glove.finish(subsurf=1)
+glove_ob = glove.finish(subsurf=0)   # dense enough to shade smooth; subsurf quadrupled it (~54k tris a hand)
 
 # ------------------------------------------------------------------ armature
 arm_data = bpy.data.armatures.new("GL_Rig")
@@ -475,7 +478,8 @@ def sleeve_pt(u, v):
 
 
 sleeve = Skin("GL_Sleeve")
-sleeve.grid(sleeve_pt, 36, 34, "sleeve", uvs=(2, 5))
+SR = 24   # segments round the sleeve
+sleeve.grid(sleeve_pt, SR, 20, "sleeve", uvs=(2, 5))
 
 
 def hem(u, v):
@@ -484,17 +488,17 @@ def hem(u, v):
     return Vector((p.x * k, (p.y - 0.002) * k + 0.002, 0.030 - 0.002 + 0.018 * v))
 
 
-sleeve.grid(hem, 36, 6, "sleeveD", uvs=(2, 0.3))
+sleeve.grid(hem, SR, 4, "sleeveD", uvs=(2, 0.3))
 # inner rim so the open end isn't see-through
-rim = [sleeve.v(Vector((p.x * 0.9, (p.y - 0.002) * 0.9 + 0.002, 0.028))) for p in (sleeve_pt(i / 36, 0.0) for i in range(36))]
-outer = [sleeve.v(Vector((p.x * 1.0, p.y, 0.028))) for p in (sleeve_pt(i / 36, 0.0) for i in range(36))]
-for i in range(36):
-    sleeve.face([outer[i], outer[(i + 1) % 36], rim[(i + 1) % 36], rim[i]], "sleeveD")
+rim = [sleeve.v(Vector((p.x * 0.9, (p.y - 0.002) * 0.9 + 0.002, 0.028))) for p in (sleeve_pt(i / SR, 0.0) for i in range(SR))]
+outer = [sleeve.v(Vector((p.x * 1.0, p.y, 0.028))) for p in (sleeve_pt(i / SR, 0.0) for i in range(SR))]
+for i in range(SR):
+    sleeve.face([outer[i], outer[(i + 1) % SR], rim[(i + 1) % SR], rim[i]], "sleeveD")
 tab = sleeve_pt(0.0, 0.06)
 sleeve.box(tab + Vector((0.0024, 0, 0.004)), (0.0032, 0.022, 0.03), "velcro")
 for k in range(6):
     sleeve.box(tab + Vector((0.0041, -0.009 + k * 0.0036, 0.0176)), (0.0005, 0.0018, 0.0006), "stitch")
-sleeve_ob = sleeve.finish(subsurf=1)
+sleeve_ob = sleeve.finish(subsurf=0)
 
 # ------------------------------------------------------------------ export
 bpy.ops.object.select_all(action="SELECT")
