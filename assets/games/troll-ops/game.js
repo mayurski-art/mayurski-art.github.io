@@ -7823,8 +7823,12 @@ function updatePlayer(dt) {
     localRig.root.visible = false;
     localRig.parts.head.visible = true;
     camera.position.copy(player.pos);
+    // PF slide: the view tips over a few degrees while you slide, leaning
+    // toward the side you're steering (left by default).
+    slideTiltT = damp(slideTiltT, move.stance === STANCE.SLIDE ? 1 : 0, 9, dt);
+    const slideRoll = slideTiltT * 0.075 * ((move.strafeInput ?? 0) > 0.2 ? -1 : 1);
     // One place composes the camera: aim + weapon recoil.
-    _euler.set(viewPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r);
+    _euler.set(viewPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll);
     camera.quaternion.setFromEuler(_euler);
   }
 
@@ -8228,6 +8232,9 @@ let sprintRollT = 0;
    so stopping reads as the weapon settling rather than the bob motion just
    stopping mid-swing. */
 let bobSettleT = 0;
+// Turn lag: last frame's look angles and the smoothed lag offsets.
+let lastLookYaw = 0, lastLookPitch = 0, turnLagX = 0, turnLagY = 0;
+let slideTiltT = 0;   // camera roll while sliding, eased in and out
 
 /* Phase 2: ADS transition weight. `w.adsT` (weapons.js) ramps linearly at
    a fixed rate and drives FOV/laser-threshold/etc elsewhere, so it isn't
@@ -8534,6 +8541,74 @@ function poseInspectArms(mesh, side) {
   }
 }
 
+/* Phantom Forces arms (user's PF reference clip, 2026-09-27): no hands at
+   all, just two thin black rods rising from below the screen, and the tip
+   of each rod IS the hand. The right rod ends on the pistol grip, the left
+   under the handguard (or on the magazine while reloading). Unlit black, so
+   they read as silhouettes and never sit on the skin art the way the block
+   hands did. The built hand meshes stay hidden; they're only the anchors. */
+const PF_ARM_SHOULDER = [new THREE.Vector3(0.36, -0.66, 0.02), new THREE.Vector3(-0.06, -0.7, -0.06)];
+const PF_SUPPORT_DROP = 0.085;   // from the rail-top support anchor to under the handguard
+const pfArms = (() => {
+  const root = new THREE.Group();
+  root.visible = false;
+  const mat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+  const rods = [];
+  for (let i = 0; i < 2; i++) {
+    // A unit rod standing on y=0: blunt taper to the tip (the "hand"),
+    // thicker toward the shoulder, stretched between two points per frame.
+    const g = new THREE.CylinderGeometry(0.013, 0.034, 1, 10);
+    g.translate(0, 0.5, 0);
+    const rod = new THREE.Mesh(g, mat);
+    rod.renderOrder = -1;
+    root.add(rod);
+    rods.push(rod);
+  }
+  root.userData.rods = rods;
+  return root;
+})();
+weaponRig.add(pfArms);
+
+const _pfTip = new THREE.Vector3();
+const _pfMag = new THREE.Vector3();
+const _pfDown = new THREE.Vector3();
+/* `magBlend` 0..1 moves the support rod's tip from the handguard onto the
+   magazine (reloads). */
+function posePfArms(mesh, magBlend = 0) {
+  const show = !!mesh?.visible && !inspectArms.visible && player.holding === "gun";
+  pfArms.visible = show;
+  if (!show) return;
+  mesh.updateMatrixWorld(true);
+  // [grip, support]: the support hand is the one parked at supportHandPos
+  // (build order differs between weapon-model.js and weapon-416.js).
+  let anchors = mesh.userData.pfAnchors;
+  if (!anchors) {
+    const hands = mesh.children.filter((o) => o.userData.hand);
+    const sp = mesh.userData.supportHandPos;
+    const support = sp ? hands.find((o) => o.position.distanceTo(sp) < 1e-4) : null;
+    const grip = hands.find((o) => o !== support);
+    anchors = mesh.userData.pfAnchors = [grip, support].filter(Boolean).length ? [grip || support, support] : [];
+  }
+  const rods = pfArms.userData.rods;
+  for (let i = 0; i < 2; i++) {
+    // Sidearms carry no support hand: the left rod cups the grip too.
+    const anchor = anchors[i] || anchors[0];
+    rods[i].visible = !!anchor;
+    if (!anchor) continue;
+    anchor.getWorldPosition(_pfTip);
+    _pfDown.set(0, -1, 0).applyQuaternion(mesh.quaternion);
+    if (i === 1) {
+      _pfTip.addScaledVector(_pfDown, anchors[1] ? PF_SUPPORT_DROP : 0.03);
+      const mag = mesh.userData.magMesh;
+      if (magBlend > 0 && mag?.visible) {
+        mag.getWorldPosition(_pfMag).addScaledVector(_pfDown, 0.05);
+        _pfTip.lerp(_pfMag, magBlend);
+      }
+    }
+    stretchBetween(rods[i], PF_ARM_SHOULDER[i], _pfTip);
+  }
+}
+
 /* Keyboard Warrior toss. Beats (t):
      0.00-0.10  wind-up dip
      0.10-0.34  toss: leaves the hands with one end-over-end flip, rising
@@ -8686,15 +8761,24 @@ function placeByCenter(mesh, quat, centerPos, localCenter) {
 const _reloadPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
 let reloadEventsFiredFor = null; // WeaponState instance we've already fired start/complete events for
 
+const MAG_HOLD_SCREEN = new THREE.Vector3(-0.05, -0.17, -0.62);
+const MAG_DROP_SCREEN = new THREE.Vector3(-0.06, -0.7, -0.45);
+const MAG_HOLD_QUAT = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.35, 0.5, -0.3));
+const _magRestQ = new THREE.Quaternion();
+const _magRestE = new THREE.Euler();
+const _magHoldQ = new THREE.Quaternion();
+const _magHold = new THREE.Vector3();
+const _magDrop = new THREE.Vector3();
 function reloadPose(w, mesh) {
   const p = _reloadPose;
   const mag = mesh?.userData.magMesh;
 
   if (!w.reloading || !w.reloadTime) {
-    p.x = p.y = p.z = p.pitch = p.yaw = p.roll = 0;
+    p.x = p.y = p.z = p.pitch = p.yaw = p.roll = p.magHold = 0;
     if (mag) {
       mag.visible = true;
       mag.position.copy(mesh.userData.magazinePoint);
+      mag.rotation.x = mesh.userData.magRestRotationX ?? mag.userData.restRotX ?? mag.rotation.x;
     }
     if (reloadEventsFiredFor === w) {
       audio.reloadComplete();
@@ -8711,43 +8795,64 @@ function reloadPose(w, mesh) {
   const total = w.reloadTime;
   const t = 1 - Math.max(0, w.reloadT) / total;  // 0..1 through the reload
 
-  // Overall dip/tilt envelope: eases in over the first stage, holds through
-  // the mag swap, eases back out over the last stage — same shape as the
-  // original single dip, just driven by named stage boundaries now.
-  const dip = Math.sin(Math.min(1, t / 0.12) * Math.PI / 2)
-    * Math.sin(Math.min(1, (1 - t) / 0.28) * Math.PI / 2);
-  p.x = -dip * 0.06;
-  p.y = -dip * 0.16;
-  p.z = dip * 0.05;
-  p.pitch = dip * 0.5;
-  p.yaw = -dip * 0.22;
-  p.roll = dip * 0.3;
+  // Phantom Forces reload (user's reference clip): the gun rolls well over
+  // (~40°, magwell toward you, muzzle up), the left arm pulls the mag out
+  // and down off screen, brings a fresh one up on the same arc, seats it,
+  // and the gun rolls back. The envelope eases in over the first 14% and
+  // out over the last 26%.
+  const dip = Math.sin(Math.min(1, t / 0.14) * Math.PI / 2)
+    * Math.sin(Math.min(1, (1 - t) / 0.26) * Math.PI / 2);
+  // Sidearms tip over less, or the pistol rolls half off the screen.
+  const rollK = mesh?.userData.supportHandPos ? 1 : 0.55;
+  p.x = -dip * 0.05;
+  p.y = -dip * 0.1 * rollK;
+  p.z = dip * 0.04;
+  p.pitch = dip * 0.32;
+  p.yaw = -dip * 0.12;
+  p.roll = dip * 0.72 * rollK;
 
-  if (mag && mesh) {
-    const rest = mesh.userData.magazinePoint;
-    if (w.reloadWasEmpty) {
-      // magOut 0.12-0.42: mag mesh drops straight down and out of frame.
-      const outK = smoothstep(Math.max(0, Math.min(1, (t - 0.12) / 0.30)));
-      // magIn 0.42-0.72: a (visually identical, cheap-to-fake) fresh mag
-      // rises back into the well from below.
-      const inK = smoothstep(Math.max(0, Math.min(1, (t - 0.42) / 0.30)));
-      if (t < 0.42) {
-        mag.position.set(rest.x, rest.y - outK * 0.22, rest.z);
-        mag.visible = outK < 1;
-      } else {
-        mag.position.set(rest.x, rest.y - (1 - inK) * 0.22, rest.z);
-        mag.visible = true;
-      }
-    } else {
-      // Tac reload: round's still chambered, mag never visibly leaves —
-      // just a quick partial dip-and-reseat rather than a full swap.
-      const inK = smoothstep(Math.max(0, Math.min(1, (t - 0.2) / 0.5)));
-      mag.position.set(rest.x, rest.y - (1 - inK) * 0.08, rest.z);
-      mag.visible = true;
-    }
-  }
-
+  // Stages: reach 0.08-0.18, pull out 0.18-0.34 to the hold point, down
+  // off screen for the swap 0.34-0.44, back up 0.46-0.56, seat 0.56-0.70,
+  // arm back to the handguard 0.72-0.84. A tac reload runs the same beats
+  // (PF swaps the mag either way); its shorter reloadTime makes it quicker.
+  // The mag itself is placed by placeReloadMag once the gun is posed.
+  p.magT = mag && mesh ? t : -1;
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  p.magHold = p.magT < 0 ? 0 : smoothstep(clamp01((t - 0.08) / 0.1)) * (1 - smoothstep(clamp01((t - 0.72) / 0.12)));
   return p;
+}
+
+/* The mag's path is picked in screen (weapon-camera) space and brought into
+   the gun's frame, so it has to run after this frame's gun pose: out of the
+   well to a hold point low and left of centre where you see it in the hand
+   (as in PF), down off screen for the swap, and the same way back. */
+function placeReloadMag(mesh, t) {
+  const mag = mesh?.userData.magMesh;
+  if (!mag || t < 0) return;
+  const rest = mesh.userData.magazinePoint;
+  if (mag.userData.restRotX == null) mag.userData.restRotX = mag.rotation.x;
+  const restRot = mesh.userData.magRestRotationX ?? mag.userData.restRotX;
+  const seg = (a, b) => smoothstep(Math.max(0, Math.min(1, (t - a) / (b - a))));
+  mesh.updateMatrixWorld(true);
+  // Sidearms (no support hand) keep it tight: straight down out of the
+  // grip and back, in the gun's own frame.
+  const sidearm = !mesh.userData.supportHandPos;
+  const hold = sidearm ? _magHold.set(rest.x, rest.y - 0.13, rest.z + 0.02)
+    : mesh.worldToLocal(_magHold.copy(MAG_HOLD_SCREEN));
+  const drop = sidearm ? _magDrop.set(rest.x, rest.y - 0.5, rest.z + 0.06)
+    : mesh.worldToLocal(_magDrop.copy(MAG_DROP_SCREEN));
+  if (t < 0.34) mag.position.lerpVectors(rest, hold, seg(0.18, 0.34));
+  else if (t < 0.45) mag.position.lerpVectors(hold, drop, seg(0.34, 0.44));
+  else if (t < 0.56) mag.position.lerpVectors(drop, hold, seg(0.46, 0.56));
+  else mag.position.lerpVectors(hold, rest, seg(0.56, 0.7));
+  const away = t < 0.45 ? seg(0.18, 0.34) : 1 - seg(0.56, 0.7);
+  // In the hand it hangs upright on screen, tipped toward you, whatever
+  // the gun's roll: slerp from its seated rotation to that screen pose.
+  _magRestQ.setFromEuler(_magRestE.set(restRot, 0, 0));
+  if (sidearm) _magHoldQ.setFromEuler(_magRestE.set(restRot + 0.3, 0, 0));
+  else mesh.getWorldQuaternion(_magHoldQ).invert().multiply(MAG_HOLD_QUAT);
+  mag.quaternion.copy(_magRestQ).slerp(_magHoldQ, away);
+  mag.visible = true;
 }
 
 const _laserRay = new THREE.Raycaster();
@@ -8826,6 +8931,7 @@ function updateWeaponView(dt) {
   // stack — return before any weapon-view math runs so weaponLowerT/insp/rl
   // don't fight the device pose for ownership of activeWeaponMesh (which is
   // simply hidden, not touched, while holding === "streak").
+  pfArms.visible = false;   // posePfArms below re-shows them on a held gun
   if (player.holding === "streak") return;
   if (!mesh) return;
 
@@ -8897,18 +9003,34 @@ function updateWeaponView(dt) {
   // elsewhere in weapon-model.js — reused here rather than adding new data).
   const weightMult = w.def.model?.heavy ? 1.35 : 1;
   const sprintRoll = sprintRollT * 0.22 * weightMult;
+  // PF sprint cant (user's reference clip): the gun swings across the body,
+  // muzzle up and to the LEFT, a diagonal rather than straight up the right.
+  const sprintCant = sprintRollT * 0.5;
+
+  // Turn lag (PF): the gun trails the view when you turn and rolls into
+  // it, heavier guns further. Look rates are per second, wrapped yaw.
+  const yawStep = Math.atan2(Math.sin(look.yaw - lastLookYaw), Math.cos(look.yaw - lastLookYaw));
+  const yawRate = dt > 0 ? yawStep / dt : 0;
+  const pitchRate = dt > 0 ? (look.pitch - lastLookPitch) / dt : 0;
+  lastLookYaw = look.yaw;
+  lastLookPitch = look.pitch;
+  const lagK = (w.def.model?.heavy ? 1.3 : 1) * (1 - adsOffset * 0.8);
+  turnLagX = damp(turnLagX, THREE.MathUtils.clamp(yawRate * 0.009, -0.05, 0.05) * lagK, 10, dt);
+  turnLagY = damp(turnLagY, THREE.MathUtils.clamp(pitchRate * 0.006, -0.035, 0.035) * lagK, 10, dt);
 
   mesh.position.set(
-    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + weaponLowerT * 0.05 + insp.x + rl.x,
-    basePos.y + bobY + swayY - weaponLowerT * 0.17 - landPos + insp.y + rl.y,
+    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + weaponLowerT * 0.02 + turnLagX + insp.x + rl.x,
+    basePos.y + bobY + swayY - weaponLowerT * 0.15 - landPos - turnLagY + insp.y + rl.y,
     basePos.z + w.viewKickKnockback * 0.6 + weaponLowerT * 0.08 + insp.z + rl.z
   );
   mesh.rotation.set(
-    -w.viewKickPitch * 0.8 + weaponLowerT * 0.55 + landPitch + insp.pitch + rl.pitch,
-    w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + insp.yaw + rl.yaw,
-    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + sprintRoll + insp.roll + rl.roll + w.viewKickRoll
+    -w.viewKickPitch * 0.8 + weaponLowerT * 0.45 + landPitch - turnLagY * 2 + insp.pitch + rl.pitch,
+    w.viewKickYaw * 0.6 + (1 - adsOffset) * 0.05 + sprintCant + turnLagX * 2 + insp.yaw + rl.yaw,
+    (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + sprintRoll + turnLagX * 4 + insp.roll + rl.roll + w.viewKickRoll
   );
   applyGunInspect(mesh, w);
+  placeReloadMag(mesh, rl.magT ?? -1);
+  posePfArms(mesh, rl.magHold || 0);
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
   fadeOpticGlass(mesh, adsSmoothT);
@@ -8948,7 +9070,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, emote: () => emote,
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
-    closePauseMenu, openPauseMenu,
+    closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, endMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
     startIntermission, updateIntermission, occupants, notePointDeath,

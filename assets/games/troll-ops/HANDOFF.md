@@ -38,6 +38,26 @@ Remington shotgun (name + unlock level), crosshair options, and design docs
 for Battle Royale + the Green Candles redesign. Details in the reminders
 below.
 
+### PF build, session 16: user picked arms + reload + sprint/turn feel
+(NOT the flat one-colour guns). All in game.js, shipped:
+- `pfArms` / `posePfArms(mesh, magBlend)`: two black MeshBasicMaterial
+  rods (unit cylinders, `stretchBetween`) from `PF_ARM_SHOULDER` to the
+  hidden hand anchors; the support tip drops `PF_SUPPORT_DROP` under the
+  handguard; sidearms put both on the grip. Anchors are cached per mesh
+  as `userData.pfAnchors` (support = the hand at `supportHandPos`; build
+  order differs per model). Hidden during inspect (inspectArms has its
+  own), melee, streak devices.
+- Reload: `reloadPose` = envelope only (roll 0.72 rad, sidearms x0.55) +
+  `magT`/`magHold`; `placeReloadMag(mesh, t)` runs AFTER the gun is posed
+  (screen-space targets need this frame's matrix): rest -> `MAG_HOLD_SCREEN`
+  (visible, low-left, slerped upright to `MAG_HOLD_QUAT`) -> off-screen
+  `MAG_DROP_SCREEN` swap -> back. Sidearms: straight down in gun frame.
+  The support rod follows the mag by `magHold`.
+- Sprint cant `sprintCant` (yaw, muzzle up-left), turn lag `turnLagX/Y`
+  from look rates (position + yaw + roll), slide camera roll `slideTiltT`.
+- Test hooks added: currentWeapon, tryReload, switchWeapon, pfArms,
+  setAds, openPauseMenu, endMatch. Screenshot scripts were scratchpad-only.
+
 ### Phantom Forces video study (user sent a clip, 2026-09-27)
 Source: a 22 s phone recording of a TikTok live of Phantom Forces (Roblox),
 `Downloads/ScreenRecording_09-27-2026 20-57-08_1.mov` (888x1920, game area
