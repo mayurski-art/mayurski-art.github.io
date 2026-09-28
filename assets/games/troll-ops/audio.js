@@ -318,6 +318,26 @@ export class GameAudio {
     this._tone({ freq: 300, to: 60, duration: 0.7, gain: 0.24, type: "sawtooth" });
   }
 
+  /* Medal sting, after the kill blip (0.14 s later so the two don't mash).
+     Silver: a bright two-note ping. Gold: a rising triad. Red: the triad
+     over a low brass stab. One per burst: KillstreakUi picks the metal. */
+  medal(metal = "silver") {
+    if (!this._ready()) return;
+    const d = 0.14;
+    if (metal === "silver") {
+      this._tone({ freq: 1320, duration: 0.09, gain: 0.08, type: "triangle", delay: d });
+      this._tone({ freq: 1760, duration: 0.2, gain: 0.08, type: "triangle", delay: d + 0.07 });
+      return;
+    }
+    [784, 988, 1175].forEach((f, i) => {
+      this._tone({ freq: f, duration: i === 2 ? 0.32 : 0.1, gain: 0.08, type: "triangle", delay: d + i * 0.07 });
+    });
+    if (metal === "red") {
+      this._tone({ freq: 196, duration: 0.45, gain: 0.07, type: "sawtooth", delay: d });
+      this._tone({ freq: 294, duration: 0.45, gain: 0.05, type: "sawtooth", delay: d });
+    }
+  }
+
   wave() {
     if (!this._ready()) return;
     this._tone({ freq: 420, duration: 0.16, gain: 0.14, type: "triangle" });

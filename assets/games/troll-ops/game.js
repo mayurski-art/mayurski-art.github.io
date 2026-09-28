@@ -21,10 +21,11 @@ import {
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE,
 } from "./streak-entities.js";
-import { KillstreakUi } from "./killstreak-ui.js?v=to-medals1";
+import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
+import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-s12h-death";
-import { Achievements } from "./achievements.js?v=to-medals1";
+import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-social1";
@@ -39,7 +40,7 @@ import {
 } from "./modes.js";
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
-import { GameAudio } from "./audio.js";
+import { GameAudio } from "./audio.js?v=to-medals2";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -104,6 +105,7 @@ const els = {
   xpPopups: document.getElementById("to-xp-pops"),
   damageNumbers: document.getElementById("to-dmg-nums"),
   ksBadges: document.getElementById("to-ks-badges"),
+  ksBanner: document.getElementById("to-ks-banner"),
   screenPulse: document.getElementById("to-screen-pulse"),
   ssHud: document.getElementById("to-ss-hud"),
   ssMeterFill: document.getElementById("to-ss-meter-fill"),
@@ -325,11 +327,23 @@ const streakPicker = new StreakPicker({ picker: els.ssPicker, count: els.ssCount
    everyone else what happened. */
 const streaks = new StreakState();
 
-const killstreakUi = new KillstreakUi({ badges: els.ksBadges, screenPulse: els.screenPulse });
+/* Medal points are real, like BO2's: they pay into the scorestreak meter
+   and match XP (PvP only, same as every other mid-match XP). The splash
+   shows the "+50" itself, so no XP popup here. */
+const killstreakUi = new KillstreakUi(
+  { badges: els.ksBadges, banner: els.ksBanner, screenPulse: els.screenPulse },
+  {
+    onPoints: (pts) => {
+      if (isPvp()) player.matchXp += pts;
+      awardScore(pts);
+    },
+    onSting: (metal) => audio.medal(metal),
+  },
+);
 
 const achievements = new Achievements(
-  (def) => killstreakUi.medal(def.name, "tier-note"),
-  (def) => killstreakUi.medal(def.name, "tier-note"),
+  (def) => killstreakUi.medal(def.name),
+  (def) => killstreakUi.medal(def.name),
 );
 
 /* UAV is a team-wide reveal with a clock, so it lives as two timestamps
@@ -1462,7 +1476,8 @@ function applyRemoteStreak(m) {
     case "callout":
       // Match-wide hype: the nuclear-tier badge and a gunship arriving.
       // Purely cosmetic, never gameplay.
-      killstreakUi.note(`${m.who || "Someone"} — ${m.label}`, "tier-nuclear");
+      killstreakUi.banner({ title: `${m.who || "Someone"}: ${m.label}`, sub: "Went nuclear", label: "Nuclear", tone: "red" });
+      killstreakUi.pulse();
       break;
   }
 }
@@ -2297,6 +2312,10 @@ els.noBots?.addEventListener("change", () => {
   }
 });
 
+/* Enemy id -> when they last killed a teammate, for the Avenger medal. */
+const recentTeamKillers = new Map();
+const AVENGER_WINDOW = 5000;   // ms
+
 function registerDeath(victimName, killerId, weaponId, opts = {}) {
   const mode = currentMode();
   const iDied = opts.victimIsMe;
@@ -2332,7 +2351,7 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
 
     // XP lands per kill, not in a lump at the end — the immediate feedback
     // is most of what makes the grind feel like progress.
-    awardKillXp(opts.head);
+    awardKillXp();
     announceStreak(player.streak);
     awardScore(SCORE.kill);
 
@@ -2346,6 +2365,13 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
     // moment, so it goes on the wire.
     if (called.nuclear && net.active) {
       net.publishStreak({ kind: "callout", label: "NUCLEAR", who: net.name });
+    }
+    // Avenger: the one who just dropped a teammate (Revenge is your own
+    // killer; the achievements layer has that one).
+    const avengedAt = opts.victimId && recentTeamKillers.get(opts.victimId);
+    if (avengedAt && performance.now() - avengedAt <= AVENGER_WINDOW) {
+      recentTeamKillers.delete(opts.victimId);
+      killstreakUi.medal("Avenger");
     }
     achievements.onKill({
       victimId: killerId === net.id ? opts.victimId : null,
@@ -2370,6 +2396,14 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
 
   // First Blood is a match-wide fact, so a peer's kill closes it for us too.
   if (!iKilled && !suicide && !teamkill) achievements.noteKillByOther();
+
+  // An enemy just dropped one of ours: killing them soon after is Avenger.
+  if (!mode.ffa && !iDied && !suicide && !teamkill && killerId && killerId !== net.id
+      && opts.victimTeam && opts.victimTeam === net.team) {
+    recentTeamKillers.set(killerId, performance.now());
+  }
+  // BO2 shows it and scores nothing; medals.js pays Suicide 0.
+  if (iDied && suicide && isPvp()) killstreakUi.medal("Suicide");
 
   // S&D scores round wins, not kills — sndRoundWin() owns teamScores and the
   // match-end check there instead, once the round itself is decided.
@@ -2396,8 +2430,10 @@ function addMatchXp(amount, label) {
   showXpPopup(amount, label);
 }
 
-function awardKillXp(isHead) {
-  addMatchXp(XP.kill + (isHead ? XP.headshot : 0), isHead ? "HEADSHOT" : "KILL");
+function awardKillXp() {
+  // The headshot bonus is the Headshot medal's +50 now (medals.js), so the
+  // total is unchanged; this pop is just the kill.
+  addMatchXp(XP.kill, "KILL");
 }
 
 /* Pay into the scorestreak meter. Separate from XP on purpose: XP is
@@ -2408,21 +2444,24 @@ function awardScore(amount) {
   if (!streaksAllowed(currentMode())) return;
   for (const id of streaks.addScore(amount)) {
     selectedStreak = id;   // newest earned, like BO2's default pick
-    killstreakUi.note(`${STREAK_DEFS[id].name} ready`, "tier-streak");
+    killstreakUi.banner({
+      title: `${STREAK_DEFS[id].name} ready`,
+      sub: isTouch ? "Tap STREAK to call it in" : `Press ${streakKeyLabel(id)} to call it in`,
+      iconSvg: streakIconSvg(id),
+    });
     audio.wave();
   }
   updateStreakHud();
 }
 
-const STREAKS = { 3: "Triple", 5: "Rampage", 7: "Unstoppable", 10: "Godlike" };
+const STREAK_RUNGS = new Set([3, 5, 7, 10]);
 
 function announceStreak(n) {
   player.bestStreak = Math.max(player.bestStreak, n);
-  const label = STREAKS[n];
-  if (!label) return;
-  killstreakUi.count(`${n} Kill Streak`);
-  showWaveBanner(`${label.toUpperCase()} — ${n} in a row`, 1500);
-  audio.wave();
+  if (!STREAK_RUNGS.has(n)) return;
+  // A star medal on the splash (medals.js); its sting replaces the old
+  // wave-banner chime.
+  killstreakUi.medal(`${n} Kill Streak`);
 }
 
 function showXpPopup(amount, label) {
@@ -6028,6 +6067,7 @@ function beginMatch(mapId = null) {
   uavUntil.phantom = 0;
   uavUntil.ghost = 0;
   killstreakUi.reset();
+  recentTeamKillers.clear();
   achievements.reset();
   clearStreakEntities();
   if (els.ssSlots) els.ssSlots.dataset.sig = "";
@@ -6467,13 +6507,23 @@ function renderMatchMedals() {
   for (const m of list) {
     const li = document.createElement("li");
     li.className = "to-go-medal";
+    const icon = document.createElement("span");
+    icon.className = "to-go-medal-icon";
+    icon.innerHTML = medalSvg(m.label);
     const name = document.createElement("span");
+    name.className = "to-go-medal-name";
     name.textContent = m.label;
     const n = document.createElement("b");
     n.textContent = `×${m.n}`;
-    li.append(name, n);
+    li.append(icon, name, n);
     li.setAttribute("aria-label", `${m.label}, ${m.n} time${m.n === 1 ? "" : "s"}`);
     ul.appendChild(li);
+  }
+  const bonus = killstreakUi.bonus();
+  const foot = box.querySelector(".to-go-medal-bonus");
+  if (foot) {
+    foot.hidden = !bonus;
+    foot.textContent = `Medal bonus +${bonus.toLocaleString()}`;
   }
 }
 
@@ -9115,7 +9165,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     resetMatchClock, swingMelee, botThrow, botMelee, isInfected, infectionCounts, applyInfect,
     infectionStarted: () => infectionStarted, pickFirstInfected, setInfectionT: (v) => { infectionT = v; }, botNadesThrown: () => botNadesThrown,
     activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
-    streaks, streakPicker, killstreakUi, achievements,
+    streaks, streakPicker, killstreakUi, achievements, streakIconSvg,
     awardScore, callReadyStreak, callStreak, fireStreak, startUav, applyRemoteStreak,
     cycleSelectedStreak, useSelectedStreak, selectedStreak: () => selectedStreak,
     readyStreaksOrdered, streakSlotIds, callStreakSlot, warmShaders, lightPool, pixelRatio: () => pixelRatio,

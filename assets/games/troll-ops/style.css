@@ -469,24 +469,31 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   letter-spacing: .06em; text-transform: uppercase; color: #ffd166;
 }
 
-/* After-action medal list (BO2 style): name + count chips. */
-.to-go-medals { width: min(440px, 100%); }
+/* After-action medal list (BO2 style): badge, name, count. */
+.to-go-medals { width: min(520px, 100%); }
 .to-go-medals h3 {
   margin: 0 0 7px; font-family: "Oswald", sans-serif; font-size: 11px; font-weight: 500;
   letter-spacing: .14em; text-transform: uppercase; color: #93a08c; text-align: center;
 }
 .to-go-medals ul {
   list-style: none; margin: 0; padding: 0;
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
-  max-height: 138px; overflow-y: auto;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 5px;
+  max-height: 176px; overflow-y: auto; text-align: left;
 }
 .to-go-medal {
-  display: flex; align-items: baseline; gap: 7px; padding: 5px 10px; border-radius: 7px;
-  background: rgba(255,209,102,.07); border: 1px solid rgba(255,209,102,.28);
-  font-family: "Oswald", sans-serif; font-size: 12.5px; letter-spacing: .06em;
+  display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  padding: 4px 10px 4px 6px; border-radius: 7px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(207,214,209,.14);
+  font-family: "Oswald", sans-serif; font-size: 13px; letter-spacing: .04em;
   text-transform: uppercase; color: #f3ead2;
 }
-.to-go-medal b { font-weight: 600; color: #ffd166; font-size: 12px; }
+.to-go-medal-icon svg { display: block; width: 30px; height: 30px; }
+.to-go-medal-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-go-medal b { font-weight: 700; color: #f5b82e; font-size: 15px; font-variant-numeric: tabular-nums; }
+.to-go-medal-bonus {
+  margin: 6px 0 0; text-align: center; font-family: "Oswald", sans-serif; font-size: 12px;
+  letter-spacing: .1em; text-transform: uppercase; color: #f5b82e;
+}
 
 .to-btn {
   font-family: "Oswald", sans-serif;
@@ -1009,7 +1016,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 /* XP earned mid-match, floating up near the crosshair. The per-kill feedback
    is most of what makes the unlock grind read as progress. */
 .to-xp-pops {
-  position: absolute; left: 50%; top: 56%; transform: translateX(-50%);
+  position: absolute; left: 50%; top: 41%; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   pointer-events: none; z-index: 13;
 }
@@ -1024,53 +1031,68 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   100% { opacity: 0; transform: translateY(-16px); }
 }
 
-/* Killstreak badges and achievement callouts. Above the crosshair rather
-   than below it, so they don't collide with the XP pops. */
+/* BO2 medal splash: badge, condensed caps title, gold +points, stacked
+   under the crosshair. The newest is on top; older ones shrink and fade.
+   Opaque by default and animated from there: if the animation never runs
+   (reduced motion, a throttled or headless tab) the medal still shows. */
 .to-ks-badges {
-  position: absolute; left: 50%; top: 30%; transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  position: absolute; left: 50%; top: 60%; transform: translateX(-50%);
+  width: min(70vw, 440px);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
   pointer-events: none; z-index: 14;
 }
-/* Opaque by default and animated from there, rather than animating up from
-   opacity:0 — if the animation never runs (reduced motion, a throttled or
-   headless tab) a badge that starts transparent never appears at all. */
-.to-ks-badge {
-  font-family: "Oswald", sans-serif; font-size: 19px; letter-spacing: .1em;
-  text-transform: uppercase; white-space: nowrap;
-  padding: 2px 12px; border-radius: 4px;
-  text-shadow: 0 1px 4px rgba(0,0,0,.85);
-  opacity: 1;
-  animation: to-ks-pop 1.8s ease-out forwards;
+.to-medal-pop {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  animation: to-medal-in .34s cubic-bezier(.2, 1.6, .4, 1);
+  transition: opacity .3s, transform .3s;
 }
-/* Gold for headshots, matching the killfeed's HS tag. */
-.to-ks-badge.tier-head { color: #0d1410; background: #ffd166; text-shadow: none; }
-/* Cyan for multikills, matching the killfeed's assist tag. */
-.to-ks-badge.tier-multi {
-  color: #7fd1e0; background: rgba(0,0,0,.45);
-  border: 1px solid rgba(127,209,224,.55);
+.to-medal-icon { width: clamp(44px, 6.4vh, 66px); aspect-ratio: 1; filter: drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
+.to-medal-icon svg { display: block; width: 100%; height: 100%; }
+.to-medal-name {
+  font-family: "Oswald", sans-serif; font-weight: 700; font-size: clamp(18px, 2.9vh, 28px);
+  letter-spacing: .04em; line-height: 1.05; text-transform: uppercase; white-space: nowrap;
+  color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.55), 0 0 16px rgba(0,0,0,.55);
 }
-/* Earned-a-streak and achievements sit below those two in the hierarchy. */
-.to-ks-badge.tier-note {
-  font-size: 15px; color: #dfe6da; background: rgba(0,0,0,.45);
-  border: 1px solid rgba(154,165,150,.4);
+.to-medal-pop.metal-gold .to-medal-name { color: #ffe7a8; }
+.to-medal-pop.metal-red .to-medal-name { color: #ffb2a6; }
+.to-medal-pts {
+  font-family: "Oswald", sans-serif; font-weight: 500; font-size: clamp(14px, 2vh, 19px);
+  letter-spacing: .04em; line-height: 1.1; color: #f5b82e; text-shadow: 0 2px 0 rgba(0,0,0,.5);
 }
-.to-ks-badge.tier-streak {
-  font-size: 16px; color: #7fe066; background: rgba(0,0,0,.5);
-  border: 1px solid rgba(127,224,102,.55);
+.to-medal-pop.is-old { opacity: .5; transform: scale(.72); margin-top: -6px; }
+.to-medal-pop.is-old .to-medal-icon { display: none; }
+@keyframes to-medal-in {
+  from { transform: scale(1.9); }
+  to { transform: scale(1); }
 }
-/* The one everybody in the match hears about. */
-.to-ks-badge.tier-nuclear {
-  font-size: 30px; font-weight: 700; letter-spacing: .18em;
-  color: #1a0d0d; background: #ff6b5a; text-shadow: none;
-  box-shadow: 0 0 24px rgba(255,107,90,.7);
+
+/* Streak ready / match-wide callouts: a bar across the top third, BO2's
+   "UAV READY" splash. */
+.to-ks-banner {
+  position: absolute; left: 50%; top: 12.5%; transform: translateX(-50%);
+  pointer-events: none; z-index: 14;
 }
-/* Starts at full opacity so the un-animated resting state is correct; the
-   punch-in is scale only. */
-@keyframes to-ks-pop {
-  0% { transform: scale(.88); }
-  12% { transform: scale(1); }
-  78% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-10px); }
+.to-ks-ready {
+  display: flex; align-items: center; gap: 12px; padding: 7px 26px 7px 14px; white-space: nowrap;
+  background: linear-gradient(90deg, transparent, rgba(12,14,13,.82) 14%, rgba(12,14,13,.82) 86%, transparent);
+  border-top: 1px solid rgba(245,184,46,.5); border-bottom: 1px solid rgba(245,184,46,.5);
+  animation: to-ks-ready-in .45s ease-out;
+}
+.to-ks-ready.tone-red { border-color: rgba(255,107,90,.6); }
+.to-ks-ready-icon { width: clamp(34px, 5vh, 48px); aspect-ratio: 1; flex: none; }
+.to-ks-ready-icon svg { display: block; width: 100%; height: 100%; }
+.to-ks-ready-t1 {
+  font-family: "Oswald", sans-serif; font-weight: 700; font-size: clamp(17px, 2.6vh, 26px);
+  letter-spacing: .05em; line-height: 1; text-transform: uppercase; color: #fff;
+}
+.to-ks-ready-t2 {
+  font-family: "Oswald", sans-serif; font-weight: 500; font-size: clamp(11px, 1.5vh, 14px);
+  letter-spacing: .12em; text-transform: uppercase; color: #f5b82e; margin-top: 2px;
+}
+.to-ks-ready.tone-red .to-ks-ready-t2 { color: #ff8a78; }
+@keyframes to-ks-ready-in {
+  from { transform: translateY(-12px); }
+  to { transform: none; }
 }
 
 /* Nuclear-only screen accent: a brief warm vignette, not a full flash — it
@@ -1292,7 +1314,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 
 @media (prefers-reduced-motion: reduce) {
   .to-xp-pop { animation-duration: .01s; animation-fill-mode: forwards; }
-  .to-ks-badge { animation: none; }
+  .to-medal-pop, .to-ks-ready { animation: none; }
 }
 
 /* ---------- Touch controls ---------- */

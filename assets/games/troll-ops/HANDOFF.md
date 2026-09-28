@@ -9,6 +9,37 @@ push in a loop. Sync test: `NODE_PATH=<main checkout>/node_modules node
 tools/troll-ops-sync-test.mjs` (passes). Cache-bust in troll-ops.html is
 `?v=to-s12a` (game.js + style.css); bump it on any change to either.
 
+## Session 17 (2026-09-28): BO2 medals SHIPPED
+
+User picked: **Oswald** (not Barlow), **drawn badges** (not trollface art),
+**+points shown**, **sound sting**. Built from the mockup:
+- `medals.js` (new): the catalog (label -> shape/glyph/metal/pts; shield =
+  kill, chevron = multikill, star = streak, hexagon = feat; silver/gold/red
+  = rarity) and `badgeSvg`/`medalSvg`. "N Kill Streak" and "N× Multi Kill"
+  are pattern families. Labels compare case-insensitively.
+- `killstreak-ui.js`: `splash()` = badge + title + gold +pts under the
+  crosshair (top 60%), newest on top, older shrink/fade/lose the badge, max
+  3. `banner()` = the "UAV READY / Press 4 to call it in" bar (top 12.5%),
+  also used for a peer's Nuclear callout (red). One sting per burst, pitched
+  for the rarest metal (`audio.medal(metal)`).
+- **Medal points are real**: `onPoints` pays them into the scorestreak meter
+  and match XP (PvP). The headshot XP bonus moved INTO the Headshot medal
+  (+50), so kill XP totals are unchanged; streaks now fill a bit faster
+  (BO2-accurate). XP pops moved above the crosshair (top 41%).
+- Streak rungs 3/5/7/10 are star medals now (the old "RAMPAGE — 5 in a
+  row" wave banner is gone).
+- New medals: **Avenger** (kill the enemy who killed a teammate within 5 s,
+  `recentTeamKillers`), **Suicide** (PvP, 0 pts).
+- After-action: badge grid with counts + "Medal bonus +N".
+- Test: `NODE_PATH=<main checkout>/node_modules node tools/troll-ops-medal-test.mjs`
+  (`OUT=<dir>` for screenshots), all pass. Cache-bust `?v=to-medals2`
+  (game.js, style.css, killstreak-ui.js, medals.js, achievements.js, audio.js).
+- Sync test: "infection: everyone starts a survivor" is timing-flaky under
+  load (fails on unchanged main too when two runs share the machine).
+**Still waiting on the user** (unchanged): username + weapon rename lists,
+crosshair options, Battle Royale + Green Candles design docs. Remington: the
+user said "you pick" the name + unlock level; do that when building it.
+
 ## Session 16 (2026-09-27): logout -> guest fix, then PAUSED by the user
 
 Fixed "Bugs to fix next" #1 (logged out, still `troll_runner`), in
