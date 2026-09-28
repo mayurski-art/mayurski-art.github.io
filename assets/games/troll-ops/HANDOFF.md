@@ -38,6 +38,23 @@ Remington shotgun (name + unlock level), crosshair options, and design docs
 for Battle Royale + the Green Candles redesign. Details in the reminders
 below.
 
+### Bug (user, 2026-09-27): can't click "Spawn a bot" in the Test Range
+The button (`#to-range-spawnbot` in troll-ops.html, click handler
+`spawnRangeBot` wired at game.js ~6561) lives in the in-match HUD, which is
+only on screen while the mouse is pointer-locked to aiming. A locked cursor
+can't click anything, and Esc (unlock) opens the pause panel on top, so on
+desktop the button is unreachable; only touch can use it. The same trap
+applies to ANY clickable control in #to-hud (check for others while fixing).
+Proposed fix (confirm with the user before building):
+1. **A key for it** while playing the range: e.g. `N` = spawn a bot (check
+   it's free first: B third person, H emotes, T inspect, X pick up,
+   Enter/Y chat, G/F grenades, 4/5/6 streaks, -/= sens, [/] fov). Show it
+   on the button as `<kbd>N</kbd> Spawn a bot` like the sens/fov rows.
+2. **The same button in the Esc pause panel** when the match is the range
+   (plus "Clear bots"), where the mouse is free, so it's clickable too.
+3. Keep the HUD button for touch (body.to-touch-play) and have it NOT take
+   focus/pointer on desktop (it's a label there, not a trap).
+
 ## Session 15 (2026-09-27): emotes: first person, third person, duo
 
 User ask: emotes in first person, third person, and duo emotes you invite a
