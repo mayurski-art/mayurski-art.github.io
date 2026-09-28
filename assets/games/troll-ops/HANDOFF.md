@@ -1,4 +1,39 @@
-# Troll Ops hand-off — 2026-09-28 (end of session 17)
+# Troll Ops hand-off — 2026-09-28 (session 18)
+
+## Session 18 (2026-09-28): Green Candles redesign SHIPPED
+Design pass: https://claude.ai/artifact/C1sceMWU1LyUWGZqR8PPU4 (user: "blueprint
+is good", wants very high detail). Recommended options taken: charge shot,
+tank-swap reload, held level. Sightless became iron sights (ADS otherwise
+stared at the back of the dome).
+- **Model**: `models/build_greencandles.blender.py` (Blender 5.2 headless;
+  `-- render` for Cycles studio shots, env GC_RENDER_DIR/GC_VIEWS/GC_SAMPLES)
+  -> `models/greencandles.glb` (~93k tris, 3 MB), authored in game coords.
+  Nodes: GC_Body, GC_BodyPrint, GC_Tank (+GC_TankPrint, GC_GaugeFill),
+  empties GC_Grip/Support/Muzzle/Aim. User had "KEEP LIT · NO REFUNDS"
+  removed; the tank just says GREEN CANDLES.
+- **Loader**: weapon-model.js `preloadWeaponModels` / `buildGreenCandles`
+  (scale baked in, GC_TUNE glow levels for ACES, per-instance materials,
+  hose pulse shader via a `hoseT` attribute, 2 additive halo sprites,
+  `setWeaponEnvMap` = small PMREM studio built in game.js that only these
+  materials use). Tank = magMesh, so the PF reload pulls it off. New
+  per-mesh hooks: `hipOffset`, `hipYaw`, `pfSupportDrop`.
+- **Mechanism**: weapons.js fireMode "charge" + `def.charge`,
+  `chargedShotDef(def, level)`, WeaponState `charging/chargeT/chargeCap/
+  chargeLevel/cancelCharge`, `fire(cells, kick)`. game.js
+  `updateCandleCharge` (its own press latch, not fireEdgeTrigger) and
+  `updateGreenCandles` (gauge, candle breathe/flare/low-tank flicker,
+  reload dark -> relight, hose pulse, halos, full-charge strain, the
+  #to-charge ring). Net shot carries `c` (charge level). Audio:
+  candleShot / candleCharge hum / tankSwap.
+- Test: `tools/troll-ops-greencandles-test.mjs` (19 checks, all pass).
+  Shotgun, medal and sync tests pass. fps same as the 416.
+- User asked about **realistic gloved hands** (CoD-style black tactical
+  gloves, from their reference image): told them yes, doable in Blender with
+  a finger rig; it would replace the PF black rods. Not started: ask first.
+- Queued mid-session: scorestreaks invisible on mobile; better "Back to
+  arcade" button; Troll Kombat pause button, better mobile UI, landscape only.
+
+# (previous) end of session 17
 
 Work happens on branch `game-improvements` in the worktree `GitHub/to-opus-wt`,
 and each finished piece is fast-forwarded onto `main` (`git push origin
