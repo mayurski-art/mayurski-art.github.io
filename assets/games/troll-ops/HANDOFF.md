@@ -38,6 +38,57 @@ Remington shotgun (name + unlock level), crosshair options, and design docs
 for Battle Royale + the Green Candles redesign. Details in the reminders
 below.
 
+### Phantom Forces video study (user sent a clip, 2026-09-27)
+Source: a 22 s phone recording of a TikTok live of Phantom Forces (Roblox),
+`Downloads/ScreenRecording_09-27-2026 20-57-08_1.mov` (888x1920, game area
+is y 340-1600). User: "really study the various mechanisms... jumping,
+sliding, reloading, aiming, speed, sensitivity... look at the arms,
+there's no hands, the front end of the arms are 'hands', black coloured"
++ "study the weapon design too". Nothing built yet; confirm before building.
+What the clip shows:
+- **Arms:** two thin, pure-black, unlit tapered rods rising from off the
+  bottom of the screen. No hands, no fingers, no visible elbow. The rod's
+  tip IS the hand: the right rod ends at the pistol grip, the left rod at
+  the handguard or magazine. They read as silhouettes, so they never fight
+  the gun's colours. Troll Forces today hides its first-person hands on
+  guns (user choice, session 9); PF's rods are the answer to "arms without
+  ugly hands". Build: one tapered cylinder per arm, MeshBasicMaterial black,
+  from a fixed off-screen shoulder to the existing grip/support anchors
+  (`gripPos`/`supportHandPos`, the same targets `inspectArms` uses).
+- **Weapon design:** low-poly, flat-shaded, one solid colour per gun (the
+  AK is plain copper/salmon with a slight sheen), true-to-life
+  silhouettes, chunky parts (big mag, top cover, tall front sight). The gun
+  is BIG in view: bottom-right ~40% of the screen, muzzle pointing in
+  toward the centre. The skinned C7A1 wears a black camo with copper
+  crack lines over the same geometry. Loadout menu = a pegboard "gun
+  wall" with the weapon hung on it, class tabs (Support, Recon, Carbine,
+  Shotgun), blueprints/custom-slot cards.
+- **Reload:** the gun rolls ~35-45° (muzzle up, mag side facing you), the
+  left rod pulls the magazine out and down off screen, a fresh mag rises
+  on the rod and seats, then the gun rolls back. The mag is its own mesh
+  that travels with the arm; the old mag is not dropped in the world.
+- **Sprint / move:** heavy weapon lag and roll when turning; sprint cants
+  the gun diagonally (muzzle up-left). Weapon switch dips the gun off the
+  bottom and raises the next.
+- **Slide:** camera drops low and fast (sliding down the escalator), gun
+  lowered and canted; momentum carries on slopes.
+- **Aim (ADS):** iron sights centred, the gun's top (rear sight, top
+  cover) fills the lower middle; modest zoom. Hip crosshair is tiny ticks.
+- **Melee:** a quick-melee item (pink, held on the black rod) swings out,
+  then the gun comes straight back.
+- **Feedback:** floating damage numbers in orange italic at the hit (18,
+  29), a red arc round the crosshair pointing at the damage source, small
+  serif italic score lines ("+100 Enemy Killed", "Headshot Bonus", "Assist
+  Counts As Kill"), "Hold [V] to pick up [MOSIN NAGANT]" prompts.
+- **Speed / sensitivity:** can't be measured from a phone-filmed stream
+  (no input, variable frame timing). Tune by feel against PF instead.
+Already in Troll Forces (don't rebuild): slide, dive-to-prone, vault
+(movement.js), idle sway + walk bob, damage numbers, hitmarkers, a
+damage-direction indicator, weapon pickups. Gaps worth proposing: the
+black rod arms, the mag-in-hand reload with a gun roll, sprint cant and
+turn lag, slide camera, and a flatter one-colour weapon look (clashes
+with skins on the 416; ask).
+
 ### Bug (user, 2026-09-27): can't click "Spawn a bot" in the Test Range
 The button (`#to-range-spawnbot` in troll-ops.html, click handler
 `spawnRangeBot` wired at game.js ~6561) lives in the in-match HUD, which is
