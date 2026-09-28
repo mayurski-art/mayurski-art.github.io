@@ -469,6 +469,25 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   letter-spacing: .06em; text-transform: uppercase; color: #ffd166;
 }
 
+/* After-action medal list (BO2 style): name + count chips. */
+.to-go-medals { width: min(440px, 100%); }
+.to-go-medals h3 {
+  margin: 0 0 7px; font-family: "Oswald", sans-serif; font-size: 11px; font-weight: 500;
+  letter-spacing: .14em; text-transform: uppercase; color: #93a08c; text-align: center;
+}
+.to-go-medals ul {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+  max-height: 138px; overflow-y: auto;
+}
+.to-go-medal {
+  display: flex; align-items: baseline; gap: 7px; padding: 5px 10px; border-radius: 7px;
+  background: rgba(255,209,102,.07); border: 1px solid rgba(255,209,102,.28);
+  font-family: "Oswald", sans-serif; font-size: 12.5px; letter-spacing: .06em;
+  text-transform: uppercase; color: #f3ead2;
+}
+.to-go-medal b { font-weight: 600; color: #ffd166; font-size: 12px; }
+
 .to-btn {
   font-family: "Oswald", sans-serif;
   font-weight: 600;

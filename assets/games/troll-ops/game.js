@@ -21,10 +21,10 @@ import {
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE,
 } from "./streak-entities.js";
-import { KillstreakUi } from "./killstreak-ui.js";
+import { KillstreakUi } from "./killstreak-ui.js?v=to-medals1";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-s12h-death";
-import { Achievements } from "./achievements.js";
+import { Achievements } from "./achievements.js?v=to-medals1";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-social1";
@@ -132,6 +132,7 @@ const els = {
   goTime: document.getElementById("to-go-time"),
   goXp: document.getElementById("to-go-xp"),
   goRank: document.getElementById("to-go-rank"),
+  goMedals: document.getElementById("to-go-medals"),
   retryBtn: document.getElementById("to-retry-btn"),
   intermission: document.getElementById("to-intermission"),
   voteList: document.getElementById("to-vote-list"),
@@ -322,9 +323,10 @@ const streaks = new StreakState();
 
 const killstreakUi = new KillstreakUi({ badges: els.ksBadges, screenPulse: els.screenPulse });
 
-const achievements = new Achievements((def) => {
-  killstreakUi.note(def.name, "tier-note");
-});
+const achievements = new Achievements(
+  (def) => killstreakUi.medal(def.name, "tier-note"),
+  (def) => killstreakUi.medal(def.name, "tier-note"),
+);
 
 /* UAV is a team-wide reveal with a clock, so it lives as two timestamps
    rather than on `streaks` — an enemy UAV reveals us to them, not them to us,
@@ -2413,6 +2415,7 @@ function announceStreak(n) {
   player.bestStreak = Math.max(player.bestStreak, n);
   const label = STREAKS[n];
   if (!label) return;
+  killstreakUi.count(`${n} Kill Streak`);
   showWaveBanner(`${label.toUpperCase()} — ${n} in a row`, 1500);
   audio.wave();
 }
@@ -6397,6 +6400,7 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts
   els.goXp.textContent = `+${gained.toLocaleString()} XP`;
   els.goRank.textContent = rankedUp ? `Level up — now LV ${rank}` : "";
   els.goRank.hidden = !rankedUp;
+  renderMatchMedals();
   loadout.render();
 
   // addXp above already queued this XP for the account (troll_ops_xp).
@@ -6409,6 +6413,28 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts
     wave: player.wave,
     map: loadedMapId || loadout.mapId,
   });
+}
+
+/* BO2's after-action medal list: every medal this match with its count,
+   most-earned first. Hidden when nothing was earned. */
+function renderMatchMedals() {
+  const box = els.goMedals;
+  if (!box) return;
+  const list = killstreakUi.medals();
+  box.hidden = !list.length;
+  const ul = box.querySelector("ul");
+  ul.replaceChildren();
+  for (const m of list) {
+    const li = document.createElement("li");
+    li.className = "to-go-medal";
+    const name = document.createElement("span");
+    name.textContent = m.label;
+    const n = document.createElement("b");
+    n.textContent = `×${m.n}`;
+    li.append(name, n);
+    li.setAttribute("aria-label", `${m.label}, ${m.n} time${m.n === 1 ? "" : "s"}`);
+    ul.appendChild(li);
+  }
 }
 
 function endGame(reason) {
@@ -6430,11 +6456,11 @@ function endMatch(title) {
   const won = mode.ffa
     ? title.startsWith("You")
     : title === `${teamName(net.team)} win`;
-  finishRun(title, headline, mode.ffa ? "Your score" : "Your side", "Your kills", "Match length", { won, completed: true });
-
+  // Before finishRun: Comeback/Flawless/Combat Medic belong in its medal list.
   achievements.onMatchEnd({
     won, deaths: player.deaths, assists: player.assists, kills: player.kills,
   });
+  finishRun(title, headline, mode.ffa ? "Your score" : "Your side", "Your kills", "Match length", { won, completed: true });
 
   window.TrollLeaderboard?.report?.("troll-ops", {
     pvp: true, kills: player.kills, deaths: player.deaths, won,
@@ -8895,7 +8921,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu,
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
-    startGame, beginMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
+    startGame, beginMatch, endMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
     startIntermission, updateIntermission, occupants, notePointDeath,
     isStaging, beginStaging, endStaging, updateStaging,
     isSnd, bomb: () => bomb, bombSites: () => bombSites, sndRound: () => sndRound,

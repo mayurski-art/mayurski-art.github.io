@@ -28,13 +28,18 @@ export const ACHIEVEMENTS = {
   gunship:     { id: "gunship",     name: "Air Superiority", blurb: "Called in a gunship." },
 };
 
+const REPEATABLE = new Set(["longshot", "revenge", "shutdown"]);
+
 function loadUnlocked() {
   try { return new Set(JSON.parse(localStorage.getItem(STORE)) || []); } catch { return new Set(); }
 }
 
 export class Achievements {
-  constructor(onEarn) {
+  constructor(onEarn, onRepeat) {
     this.onEarn = onEarn || (() => {});
+    // Kill medals can land more than once a match (the after-action list
+    // counts them: REVENGE x3), though only the first is "earned".
+    this.onRepeat = onRepeat || (() => {});
     this.unlocked = loadUnlocked();
     this.reset();
   }
@@ -48,7 +53,11 @@ export class Achievements {
   /* Awards once per match. Returns true the first time, so callers can treat
      it as "did this fire". */
   award(id) {
-    if (!ACHIEVEMENTS[id] || this.earned.has(id)) return false;
+    if (!ACHIEVEMENTS[id]) return false;
+    if (this.earned.has(id)) {
+      if (REPEATABLE.has(id)) this.onRepeat(ACHIEVEMENTS[id]);
+      return false;
+    }
     this.earned.add(id);
     if (!this.unlocked.has(id)) {
       this.unlocked.add(id);

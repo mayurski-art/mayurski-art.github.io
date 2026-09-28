@@ -24,11 +24,32 @@ const NUCLEAR_AT = 25;
 export class KillstreakUi {
   constructor(els) {
     this.els = els;
-    this.kills = [];       // timestamps inside the multikill window
+    this.reset();
   }
 
   reset() {
-    this.kills = [];
+    this.kills = [];          // timestamps inside the multikill window
+    this.tally = new Map();   // medal label -> times earned this match
+  }
+
+  /* Count a medal for the after-action list without flashing a badge (the
+     streak rungs already get announceStreak's banner). */
+  count(label) {
+    const e = this.tally.get(label);
+    if (e) e.n++;
+    else this.tally.set(label, { label, n: 1, order: this.tally.size });
+  }
+
+  /* A medal: counted for the end-of-match list AND shown on the strip. */
+  medal(label, tier) {
+    this.count(label);
+    this.badge(label, tier);
+  }
+
+  /* Everything earned this match, most-earned first, ties in the order
+     they were first earned. */
+  medals() {
+    return [...this.tally.values()].sort((a, b) => b.n - a.n || a.order - b.order);
   }
 
   /* One kill just landed. Returns what it announced, so the caller can
@@ -41,17 +62,17 @@ export class KillstreakUi {
 
     const out = { multi: 0, nuclear: false };
 
-    if (head) this.badge("HEADSHOT", "tier-head");
+    if (head) this.medal("HEADSHOT", "tier-head");
 
     const n = this.kills.length;
     if (n >= 2) {
       out.multi = n;
-      this.badge(MULTI_LABELS[n] || `${n}× Multi Kill`, "tier-multi");
+      this.medal(MULTI_LABELS[n] || `${n}× Multi Kill`, "tier-multi");
     }
 
     if (streak === NUCLEAR_AT) {
       out.nuclear = true;
-      this.badge("NUCLEAR", "tier-nuclear");
+      this.medal("NUCLEAR", "tier-nuclear");
     }
 
     return out;
