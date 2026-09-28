@@ -585,6 +585,10 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-menu-roster { font-family: "DM Mono", monospace; font-size: 12px; color: #9aa596; }
 
 .to-menu-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.to-menu-range { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.to-menu-range[hidden] { display: none; }
+.to-menu-range .to-btn { flex: 1; min-width: 120px; text-align: center; font-size: 13px; padding: 9px 16px; }
+.to-menu-range .to-btn:disabled { opacity: .45; cursor: default; }
 .to-menu-actions .to-btn { flex: 1; min-width: 120px; text-align: center; }
 
 .to-btn-danger {
@@ -829,6 +833,10 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   background: rgba(127,224,102,.14); color: #eaf5e4;
   font-family: "DM Mono", monospace; font-size: 10.5px; letter-spacing: .04em;
   cursor: pointer;
+}
+.to-range-spawnbot kbd {
+  display: inline-block; margin-right: 5px; padding: 0 5px; border-radius: 3px;
+  background: rgba(255,255,255,.12); color: #eef2ea; font-size: 9.5px;
 }
 .to-range-spawnbot:hover { background: rgba(127,224,102,.24); }
 .to-range-spawnbot:active { transform: translateY(1px); }

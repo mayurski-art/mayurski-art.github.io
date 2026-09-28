@@ -376,6 +376,10 @@
             <div id="to-menu-roster" class="to-menu-roster">Solo run — no other operators.</div>
           </div>
 
+          <div class="to-menu-range" id="to-pause-range" role="group" aria-label="Test range bots" hidden>
+            <button type="button" class="to-btn to-btn-ghost" id="to-pause-spawnbot">Spawn a bot</button>
+            <button type="button" class="to-btn to-btn-ghost" id="to-pause-clearbots">Clear bots</button>
+          </div>
           <div class="to-menu-actions">
             <button type="button" class="to-btn to-btn-primary" id="to-resume-btn">Resume</button>
             <button type="button" class="to-btn to-btn-ghost" id="to-quit-btn">Leave match</button>
@@ -533,7 +537,7 @@
           <div class="to-range-shot" id="to-range-shot">Take a shot.</div>
           <div class="to-range-row"><span><kbd>-</kbd><kbd>=</kbd> Sensitivity</span><b id="to-range-sens">100%</b></div>
           <div class="to-range-row"><span><kbd>[</kbd><kbd>]</kbd> Field of view</span><b id="to-range-fov">78°</b></div>
-          <button type="button" class="to-range-spawnbot" id="to-range-spawnbot">Spawn a bot</button>
+          <button type="button" class="to-range-spawnbot" id="to-range-spawnbot" tabindex="-1"><kbd>N</kbd> Spawn a bot</button>
           <p class="to-range-note">Plates stand back up. Ammo and gear refill. Esc for the full settings.</p>
         </div>
 

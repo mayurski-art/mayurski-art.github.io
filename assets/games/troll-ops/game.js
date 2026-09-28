@@ -190,6 +190,9 @@ const els = {
   rangeSens: document.getElementById("to-range-sens"),
   rangeFov: document.getElementById("to-range-fov"),
   rangeSpawnBot: document.getElementById("to-range-spawnbot"),
+  pauseRange: document.getElementById("to-pause-range"),
+  pauseSpawnBot: document.getElementById("to-pause-spawnbot"),
+  pauseClearBots: document.getElementById("to-pause-clearbots"),
 };
 
 const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
@@ -3439,6 +3442,7 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "Equal") nudgeSetting("sens", 5, 0, 200);
     if (e.code === "BracketLeft") nudgeSetting("fov", -1, 60, 100);
     if (e.code === "BracketRight") nudgeSetting("fov", 1, 60, 100);
+    if (e.code === "KeyN" && !e.repeat) spawnRangeBot();
   }
   if (e.code === "Space" && gameState === "playing" && !localPauseOnly) e.preventDefault();
   if (e.code === "Tab" && gameState === "playing" && !localPauseOnly && isPvp()) {
@@ -4989,6 +4993,7 @@ function openPauseMenu() {
   // isn't committed yet and the charge hasn't been spent.
   if (markingStreak) { cancelMark(); return; }
   releaseHeldInputs();
+  renderPauseRange();
   if (otherHumansInMatch()) {
     localPauseOnly = true;
     els.pause.hidden = false;
@@ -5229,10 +5234,32 @@ const RANGE_BOT_CAP = 6;
    the range's own per-frame bot update below. */
 function spawnRangeBot() {
   if (!isRange() || !net.isBotHost()) return;
-  if (bots.count >= RANGE_BOT_CAP) { showWaveBanner("Range is full — kill one first", 1800); return; }
+  if (bots.count >= RANGE_BOT_CAP) { showWaveBanner("Range is full — kill one first", 1800); renderPauseRange(); return; }
   bots.fill(bots.count + 2, 1, spawnForTeam, true);
   for (const b of bots.bots) net.publishBot(b);
   showWaveBanner(`Bot ${bots.count} in the range`, 1800);
+  renderPauseRange();
+}
+
+function clearRangeBots() {
+  if (!isRange() || !net.isBotHost()) return;
+  for (const b of bots.bots) net.dropBot(b.id);   // takes their rigs down too
+  bots.clear();
+  renderPauseRange();
+}
+
+/* The HUD's "Spawn a bot" can't be clicked on desktop: the HUD only shows
+   while the mouse is locked to aiming, and Esc opens this menu on top. So
+   the range's bot controls live here too (and on the N key). */
+function renderPauseRange() {
+  const box = els.pauseRange;
+  if (!box) return;
+  box.hidden = !isRange();
+  if (box.hidden) return;
+  const n = bots.count;
+  els.pauseSpawnBot.textContent = n >= RANGE_BOT_CAP ? `Range full (${n}/${RANGE_BOT_CAP})` : `Spawn a bot (${n}/${RANGE_BOT_CAP})`;
+  els.pauseSpawnBot.disabled = n >= RANGE_BOT_CAP;
+  els.pauseClearBots.disabled = n === 0;
 }
 
 /* Everything a bot could shoot at: us, other humans, and other bots. */
@@ -6585,6 +6612,8 @@ els.retryBtn.addEventListener("click", () => {
 // it used to do nothing there, stranding the player in the pause menu.
 els.resumeBtn.addEventListener("click", resumePlay);
 els.rangeSpawnBot?.addEventListener("click", spawnRangeBot);
+els.pauseSpawnBot?.addEventListener("click", spawnRangeBot);
+els.pauseClearBots?.addEventListener("click", clearRangeBots);
 els.quitBtn.addEventListener("click", () => {
   // Quitting mid-match used to just discard player.matchXp — every kill's
   // banked XP for the session, gone, with no result screen to explain why.
@@ -8919,7 +8948,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, emote: () => emote,
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
-    closePauseMenu,
+    closePauseMenu, openPauseMenu,
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, endMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
     startIntermission, updateIntermission, occupants, notePointDeath,

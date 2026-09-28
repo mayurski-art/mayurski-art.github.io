@@ -89,7 +89,12 @@ black rod arms, the mag-in-hand reload with a gun roll, sprint cant and
 turn lag, slide camera, and a flatter one-colour weapon look (clashes
 with skins on the 416; ask).
 
-### Bug (user, 2026-09-27): can't click "Spawn a bot" in the Test Range
+### FIXED (session 16): can't click "Spawn a bot" in the Test Range
+Shipped: N key in the range, Spawn a bot (n/6) + Clear bots in the Esc menu
+(renderPauseRange; Clear uses net.dropBot so rigs go too), HUD button kept
+for touch and shows <kbd>N</kbd>. Headless gotcha: Esc does NOT release
+pointer lock under Playwright, so mouse clicks land on the canvas; call
+document.exitPointerLock() before clicking menu buttons in tests.
 The button (`#to-range-spawnbot` in troll-ops.html, click handler
 `spawnRangeBot` wired at game.js ~6561) lives in the in-match HUD, which is
 only on screen while the mouse is pointer-locked to aiming. A locked cursor
