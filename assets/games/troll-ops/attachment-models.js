@@ -101,6 +101,14 @@ function turret(radius, height, mat) {
    `drop` is how far below the glass centre the rail sits; `top` is where
    the housing's underside is, and the legs start there. Legs drawn up to
    the glass centre stood inside the tube, right across the sight line. */
+// Both weapon builders put the optic origin at rail origin + 0.004 +
+// aimOffsetY, but the picatinny teeth top out 0.0107 above the rail origin.
+// A mount's shoe (0.008 tall, centred on -drop) has to reach those teeth, so
+// the drop follows from aimOffsetY instead of a hand-picked constant: the old
+// constants left every optic hovering 7-11 mm over the rail.
+const SHOE_ON_TEETH = 0.0027;
+const mountDrop = (aimOffsetY) => aimOffsetY - SHOE_ON_TEETH;
+
 function opticMount(drop, width, spread, mat, top = 0) {
   const g = new THREE.Group();
   for (const z of spread) {
@@ -156,8 +164,8 @@ function buildReflex() {
   battery.position.set(0.024, -wallH / 2 - 0.006, 0);
   g.add(battery);
 
-  g.add(opticMount(0.03, 0.03, [-0.012, 0.012], M.rail(), 0.016));
   g.userData.aimOffsetY = 0.048;   // glass centre above the rail surface
+  g.add(opticMount(mountDrop(0.048), 0.03, [-0.012, 0.012], M.rail(), 0.016));
   g.userData.lengthZ = 0.05;
   return g;
 }
@@ -199,8 +207,8 @@ function buildCoyote() {
   shade.position.z = -len / 2 - 0.007;
   g.add(shade);
 
-  g.add(opticMount(0.032, 0.026, [-0.016, 0.016], M.rail(), r * 0.95));
   g.userData.aimOffsetY = 0.053;
+  g.add(opticMount(mountDrop(0.053), 0.026, [-0.016, 0.016], M.rail(), r * 0.95));
   g.userData.lengthZ = 0.09;
   // Aimed, the glass sits this far in front of the eye (the default is 0.46,
   // which left the tube a pinhole) with the viewmodel lens narrowed to match.
@@ -258,8 +266,8 @@ function buildAcog() {
   t.rotation.z = -Math.PI / 2;
   g.add(t);
 
-  g.add(opticMount(0.034, 0.03, [-0.02, 0.022], M.rail(), 0.021));
   g.userData.aimOffsetY = 0.056;
+  g.add(opticMount(mountDrop(0.056), 0.03, [-0.02, 0.022], M.rail(), 0.021));
   g.userData.lengthZ = 0.14;
   // Real ACOG eye relief is short; up close the objective fills the view.
   g.userData.adsDistance = 0.14;
@@ -334,7 +342,7 @@ function buildScope8() {
   g.add(wind);
 
   // Two-ring mount, spread wide like real scope rings.
-  const drop = 0.036;
+  const drop = mountDrop(0.058);
   for (const z of [-len * 0.26, len * 0.26]) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(r + 0.004, 0.005, 8, 18), M.rail());
     ring.position.z = z;
