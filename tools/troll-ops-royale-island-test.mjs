@@ -43,7 +43,7 @@ await page.waitForFunction(() => window.__trollOps.state() === "playing" && !win
 
 const info = await page.evaluate(async () => {
   const T = window.__trollOps, r = T.royale();
-  const { ISLAND_EDGE, ISLAND_LAKE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti1");
+  const { ISLAND_EDGE, ISLAND_LAKE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti2");
   const { insidePolygon } = await import("/assets/games/troll-ops/edge.js");
   const items = [...r.loot.items.values()];
   return {
@@ -88,14 +88,15 @@ const [ex, ez] = info.edge0;
 const len = Math.hypot(ex, ez);
 const out = await walk(ex - (ex / len) * 4, ez - (ez / len) * 4, ex / len, ez / len, 3000);
 const held = await page.evaluate(async (p) => {
-  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti1");
+  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti2");
   const { insidePolygon } = await import("/assets/games/troll-ops/edge.js");
   return insidePolygon(ISLAND_EDGE, p[0], p[1]) && window.__trollOps.player.alive;
 }, out.end);
 check("the cliff edge holds you (invisible wall)", held, JSON.stringify(out.end.map((v) => +v.toFixed(1))));
 
-// Wading: the same walk on the ring road and across the middle of the lake.
-const dry = await walk(120, -45, 1, 0.1, 2000);
+// Wading: the same walk along the south-east path and across the middle of
+// the lake.
+const dry = await walk(68, 92, 1, -0.43, 2000);
 const wet = await walk(60, 40, 1, 0, 2000);
 check("the lake is a slow wade", wet.dist > 0.5 && wet.top < dry.top * 0.7,
   JSON.stringify({ dryTop: +dry.top.toFixed(2), wetTop: +wet.top.toFixed(2), dry: +dry.dist.toFixed(1), wet: +wet.dist.toFixed(1) }));

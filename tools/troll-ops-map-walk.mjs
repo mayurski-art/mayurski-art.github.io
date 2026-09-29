@@ -71,6 +71,21 @@ const RUNS = {
   [-6.2, 3.1, -19.9, -1, 0, 2, "east ramp top -> onto deck", (r) => r.end[0] < -9 && r.end[1] > 3],
   [-13, 3.1, -8, 0, -1, 8, "deck run to the end", (r) => r.end[2] < -40 && r.end[2] > -44.1 && r.end[1] > 3],
   ],
+  // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
+  // cave (-9.1, -32.6), portal (120.8, -100.6), bridge z 77.8 from x -56.3 to
+  // -0.5, boat (99.9, 16.3), gallery (-99, 45.3), shop (38.6, 77.8).
+  trollface: [  [56.8, 0, -12, 0, -1, 4, "peak: up to the first terrace", (r) => r.maxY >= 4.5],
+  [77.6, 4.7, -43.4, -1, 0, 4, "peak: first terrace -> second", (r) => r.maxY >= 8.4],
+  [56.8, 8.7, -57.6, 0, 1, 4, "peak: second terrace -> third", (r) => r.maxY >= 12],
+  [56.8, 12.3, -51.6, 0, 1, 3, "peak: the summit can't be climbed", (r) => r.maxY < 13],
+  [-9.1, 0, -16, 0, -1, 7, "cave: through the tunnel", (r) => r.end[2] < -45],
+  [116.8, 0, -85.8, 0, -1, 4, "portal: up onto the plateau", (r) => r.maxY >= 2.2],
+  [122.8, 2.4, -95, 0, -1, 3, "portal: up to the door", (r) => r.maxY >= 4.5],
+  [-61, 0, 77.8, 1, 0, 15, "bridge: across the river, dry", (r) => r.end[0] > 0],
+  [85, 0, 16.3, 1, 0, 5, "boat: up onto the deck", (r) => r.maxY >= 1.2],
+  [-99, 0, 64, 0, -1, 4, "gallery: in the south door", (r) => r.end[2] < 56],
+  [38.6, 0, 90, 0, -1, 4, "shop: in the front door", (r) => r.end[2] < 83],
+  ],
 };
 
 const server = http.createServer((req, res) => {

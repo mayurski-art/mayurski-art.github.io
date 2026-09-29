@@ -415,7 +415,7 @@ class Bot {
     }
 
     // Wading (a map's shallow water, arena.wade) slows them like it slows you.
-    const wading = arena.wade && insidePolygon(arena.wade, this.pos.x, this.pos.z);
+    const wading = arena.wade && this.pos.y < 0.5 && insidePolygon(arena.wade, this.pos.x, this.pos.z);
     const speed = BOT_SPEED * (this.speedMult || 1) * (wading ? 0.6 : 1);
     this.vel.x += (desired.x * speed - this.vel.x) * Math.min(1, dt * 5);
     this.vel.z += (desired.z * speed - this.vel.z) * Math.min(1, dt * 5);

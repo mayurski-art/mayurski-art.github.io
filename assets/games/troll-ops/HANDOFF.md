@@ -1,6 +1,112 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
-## RESUME HERE: Troll Royale phase 3 grey box SHIPPED (2026-09-29)
+## RESUME HERE: Trollface Island rebuilt to the trollface.io map (SHIPPED grey box, 2026-09-29)
+User (2026-09-29): "build the battle royale map to be like the trollface.io
+map". trollface.io = the official $TROLL site (same mint as ours); its home
+page is a floating-island world map. User's reference screenshot:
+scratchpad `images/1.png` of session 4a7b655b (if gone: open
+https://www.trollface.io in the built-in browser; the page is a lock screen,
+but its layers are readable with JS). The user pasted the per-landmark
+animation frames (`/assets/world/<name>/0000.png`..): REFERENCE ONLY. We
+model our own 3D versions; never download or ship their art.
+
+### Reference assets (for accuracy: open them to check shapes, proportions,
+colours and details of each landmark while modelling)
+View them in the built-in browser, or read them in-page with a canvas as below.
+Don't copy them into the repo or the game.
+Desktop layers, animation frames (the user's list):
+- City: https://www.trollface.io/assets/world/city/0000.png .. 0010.png
+- Observatory: https://www.trollface.io/assets/world/observatory/0000.png .. 0017.png
+- Meme Lab (meme-gen): https://www.trollface.io/assets/world/meme-gen/0000.png .. 0005.png
+- Gallery: https://www.trollface.io/assets/world/gallery/0000.png .. 0004.png
+- Marketplace: https://www.trollface.io/assets/world/marketplace/0000.png .. 0002.png
+- Portal: https://www.trollface.io/assets/world/portal/0000.png .. 0004.png
+- Shop lights: https://www.trollface.io/assets/world/shop-lights/0000.png .. 0009.png
+Also on the page (found in its DOM, frame 0000 each; desktop copies are
+probably at /assets/world/<name>/ too):
+- Land (terrain, roads, Skate Bowl, beach): https://www.trollface.io/assets/world/land.svg
+- https://www.trollface.io/assets/world-mobile/<layer>/0000.png for layer =
+  water, mountain, dock, boat, trees/trees-1, trees/trees-2, city,
+  shop-lights, portal, observatory, meme-gen, gallery, marketplace, cave
+- App cards (what each landmark is): https://www.trollface.io/assets/apps/
+  portal.jpg, city.jpg, shop.jpg, marketplace.png, meme-lab.jpg, gallery.jpg,
+  cave.jpg, nft.jpg (links: /portal, /city, umadbro.shop, /marketplace,
+  /meme-lab, /gallery, /cave)
+All layers share one frame (1536x952; water 1536x1627 from 30.05% down), so
+a pixel's position in any of them is its map position.
+
+### Where the data came from (so nobody has to redo it)
+The page stacks full-frame transparent PNG layers over `/assets/world/land.svg`
+(`/assets/world-mobile/<layer>/0000.png`, 1536x952 frame; water is 1536x1627
+drawn from 30.05% down the frame). I read each layer's pixel bounds in-page
+(canvas getImageData), traced the island top and the lake (+river) with a
+Moore boundary trace + Douglas-Peucker, and took tree-clump blobs off the
+two tree layers. Checked by drawing the composite with the traced outlines
+on top: they sit on the art. All numbers are % of the land frame, turned
+into metres by `P(px, py)`: x = (px-50)*4.54, z = (py-47)*3.62 (the map is
+drawn tilted; SZ un-squashes depth). Island ~400 x 300 m, bounds unchanged.
+
+### Layout (layer name -> our landmark, map % -> what we build)
+| layer | ours | at (px, py) | grey-box build |
+|---|---|---|---|
+| meme-gen | Meme Lab | 22, 15.5 | 18x12 platform (1.32 m, stairs S+E), blue ring portal (torus + swirl disc), orbiting lights, solar panel |
+| city | Troll City | 42, 23 | black trollface DOME (r 11) in a 76x46 plaza; 9 blue/yellow towers 10-40 m, 5 with walk-through lobbies |
+| observatory | The Observatory | 68, 19.5 | 14x14 white room (doors S, N), dome + telescope, mount inside |
+| portal | The Portal | 76.6, 19.2 | sandy rock plateau (2 tiers, stairs), green door frame on top |
+| (in land.svg) | Skate Bowl | 79, 30 | 60x36 walled concrete park, 2 funboxes, rails, ledges, a stand on the N rim |
+| mountain | Troll Peak | 62.5, 35 | 3 terraces (r 22/15/9, tops 4.62/8.58/12.21) linked by stairs S/E/N, snowy summit + flag (not climbable) |
+| cave | The Cave | 48, 38 | mossy rock mound, 5 m tunnel N-S, side chamber E, warning sign |
+| dock | The Dock | 27, 36-42 | L jetty into the lake (0.66 m deck, step at the shore) |
+| (in land.svg) | Old Tree | 33.6, 34.2 | big tree on a sand patch |
+| boat | The Boat | 72, 51.5 | sailboat on the lake: 17 m hull 1.32 m (stern steps), bow, cabin, mast, main + jib |
+| gallery | The Gallery | 28.2, 59.5 | framed glass pyramid (26 m base, 16 m) over a 3.4 m plinth, doors N+S, plinths inside |
+| shop / shop-lights | U Mad Bro Shop | 58.5, 68.5 | 26x14 store (doors S/N/E), neon sign + bulbs on the roof, shelves, counter |
+| marketplace | The Marketplace | 82, 74 | 6 stalls on a SW-NE diagonal, red/yellow/blue/green canopies |
+| (river) | The Bridge | 37.6-49.9, 68.5 | 54 m wooden bridge + rails on the south path |
+Terrain: the L-shaped lake (west lobe down to the Gallery, east bay up to
+the Skate Bowl), the river south to a waterfall off the cliff (`RIVER_MOUTH`),
+beach round the shore. Roads: the winding NORTH_ROAD (Meme Lab -> Observatory),
+the SWITCHBACK down into the city, the south sand path (Gallery -> Bridge ->
+Shop -> Marketplace -> up the east side -> Skate Bowl). Trees: the map's 38
+clumps (2-6 trees each). 45 seeded rocks. Spawns: 20 farthest-point picks
+on open ground (`spreadSpawns`), cover keeps 4 m off them.
+My picks (tell the user, change if they object): Peak terraces climbable but
+not the summit; cave is a walk-through tunnel; pyramid and shop enterable;
+the boat can be boarded.
+
+### Status: SHIPPED (grey box), waiting on the user's play-test
+Done this session, on top of the draft:
+- Look: the map was washed out (ACES at exposure 1.5 + hemi 1.9). Now sun
+  2.5 / hemi 0.75 / ambient 0.28 / fog 0.0018, and stronger base colours
+  (grass 0x3fbf62, sand 0xecd08e, water 0x3cc8ff, lakebed 0x49b8d8).
+- Troll Peak: steeper. Terraces r 22/15/9, tops 4.62/8.58/12.21 (each ring
+  as wide as the flight to the next), tiers lean in (visual rTop r-1.2,
+  collider at r-0.6), snow cone 26 m, flag at ~41 m. Summit not climbable.
+- Cave: mossy green (caveRock) with big lumps on top, dark lining inside
+  so the tunnel mouth reads as a hole.
+- Gallery: white ridge + course frame on the glass (opacity 0.5).
+- Boat: 17 m hull + pointed bow, waterline, 18 m mast, main + jib, blue mark.
+- Gallery and Portal nudged in (28.2, 59.5 / 76.6, 19.2): both stuck out
+  over the cliff; their patches shrank to 34x32 / 30x24.
+- Wading only counts with your feet in it (y < 0.5, game.js + bots.js), so
+  the bridge, dock and boat deck are full speed.
+- Tests: `troll-ops-map-walk.mjs trollface` (11 runs: all three Peak
+  flights, summit blocked, cave tunnel, portal plateau + door, bridge dry,
+  boat deck, gallery + shop doors), map audit PASS (409 colliders, no
+  traps), island test dry walk moved to the SE path (68, 92).
+- Perf (headless, loaded machine): 33 draw calls, ~23 fps with bots vs 34
+  without bot AI; the map itself isn't the cost.
+- Tags: trollface-island ti2, maps.js ti2 (game.js + loadout.js),
+  loadout.js ti2, bots.js to-ti2, game.js to-ti2.
+Known, fine for a grey box: the Skate Bowl's north stand and the Portal
+stairs leave a 2.6 m alley between them; 41 collider overlaps (wall corners).
+
+### Next
+1. User play-test feedback on the island (layout, sizes, what's fun).
+2. Later (unchanged): real art per landmark (ask before Blender), then Duos /
+Squads + Troll Court.
+
+## Troll Royale phase 3 grey box SHIPPED (2026-09-29)
 Troll Royale now plays on Trollface Island (grey box); Grin Beach is the
 separate "Mini Royale" mode (`royale_mini`, QTRM). NEXT: ask the user how
 the island plays and runs on their hardware, then real art for the

@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=to-gm1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js?v=gm1";
-import { Loadout } from "./loadout.js?v=ts2";
+import { Loadout } from "./loadout.js?v=ti2";
 import { StreakPicker } from "./streak-picker.js";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
 import {
@@ -28,7 +28,7 @@ import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti1";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti2";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-tr1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-tr3";
@@ -39,7 +39,7 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tr2";
-import { BotManager } from "./bots.js?v=to-ti1";
+import { BotManager } from "./bots.js?v=to-ti2";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-sb1";
 import { insidePolygon } from "./edge.js";
@@ -8709,7 +8709,8 @@ function updatePlayer(dt) {
   }
 
   // Shallow water (a map's `wade` outline, edge.js): slow, and no sprinting.
-  const wading = !!ARENA.wade && insidePolygon(ARENA.wade, move.pos.x, move.pos.z);
+  // Only with your feet in it: a jetty, bridge or boat deck over it is dry.
+  const wading = !!ARENA.wade && move.pos.y < 0.5 && insidePolygon(ARENA.wade, move.pos.x, move.pos.z);
   move.update(dt, {
     forward: iz,
     strafe: ix,
