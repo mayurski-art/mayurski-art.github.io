@@ -28,7 +28,7 @@ import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti1";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-tr1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-tr3";
@@ -38,17 +38,18 @@ import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=tr1";
-import { BotManager } from "./bots.js?v=to-tr3";
+} from "./modes.js?v=tr2";
+import { BotManager } from "./bots.js?v=to-ti1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-sb1";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=tr3";
+import { insidePolygon } from "./edge.js";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=ti1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-s12d-arms";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-s12e-hands";
-import { FlowField } from "./nav.js";
+import { FlowField } from "./nav.js?v=ti1";
 import { ZombieDirector } from "./zombies.js";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
@@ -57,7 +58,7 @@ import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
-import { MovementController, STANCE, groundHeightAt } from "./movement.js";
+import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK } from "./gear.js?v=ts2";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts1";
 import { RangeSet } from "./range.js";
@@ -1516,7 +1517,7 @@ const BOT_TARGET = 8;      // participants a PvP room is padded up to
 // public server for their mode, instead of each getting their own random
 // room. Only overflow into a numbered shard (QTDM2, QTDM3, ...) once the
 // base room is genuinely full of real people — see joinQuickplay().
-const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR" };
+const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR", royale_mini: "QTRM" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
 let gunGameProgress = 0;
@@ -1934,7 +1935,7 @@ function isSnd() { return !!currentMode().rounds; }
 function isInfection() { return !!currentMode().infection; }
 function isRoyale() { return !!currentMode().royale; }
 /* Participants a PvP room is padded up to with bots. */
-function botTarget() { return isRoyale() ? ROYALE.players : BOT_TARGET; }
+function botTarget() { return isRoyale() ? (builtMap?.map?.royale?.players || ROYALE.players) : BOT_TARGET; }
 /* Infection plays on the two ordinary sides: Phantoms are the survivors,
    Ghosts the infected. */
 function isInfected() { return isInfection() && net.team === "ghost"; }
@@ -2751,6 +2752,25 @@ renderer.domElement.style.position = "absolute";
 renderer.domElement.style.inset = "0";
 renderer.domElement.style.zIndex = "1";
 
+// three's compileAsync polls every material it saw until that shader is
+// ready, and one disposed meanwhile (a match torn down mid warm-up) throws
+// from inside the poll. Hold material disposals while a warm-up runs.
+if (renderer.compileAsync) {
+  let compiling = 0;
+  const held = [];
+  const rawDispose = THREE.Material.prototype.dispose;
+  THREE.Material.prototype.dispose = function () {
+    if (compiling) held.push(this); else rawDispose.call(this);
+  };
+  const rawCompileAsync = renderer.compileAsync.bind(renderer);
+  renderer.compileAsync = async (...args) => {
+    compiling++;
+    try { return await rawCompileAsync(...args); } finally {
+      if (--compiling === 0) for (const m of held.splice(0)) rawDispose.call(m);
+    }
+  };
+}
+
 const scene = new THREE.Scene();
 const lightPool = new LightPool(scene);
 scene.fog = new THREE.FogExp2(0x3a4a38, 0.01);
@@ -2786,6 +2806,10 @@ const skyMat = new THREE.ShaderMaterial({
   depthWrite: false,
 });
 const sky = new THREE.Mesh(new THREE.SphereGeometry(250, 24, 16), skyMat);
+// Drawn first and centred on the camera every frame (a skybox), so a map
+// bigger than the dome (Trollface Island) never looks past its edge.
+sky.renderOrder = -1;
+sky.frustumCulled = false;
 scene.add(sky);
 
 const camera = new THREE.PerspectiveCamera(78, 16 / 9, 0.05, 300);
@@ -2831,6 +2855,12 @@ function applyEnvironment(map) {
 
   scene.fog.color.set(map.fog.color);
   scene.fog.density = map.fog.density;
+
+  // How far you can see: 300 m on the arena maps, more on a big one
+  // (map.viewFar). The sky dome sits just inside it.
+  camera.far = map.viewFar || 300;
+  camera.updateProjectionMatrix();
+  sky.scale.setScalar((camera.far * 0.9) / 250);
 
   sun.color.set(map.sun.color);
   sun.intensity = map.sun.intensity;
@@ -2964,6 +2994,16 @@ function mapToMinimap(x, z) {
 function buildMinimapBase() {
   const ctx = minimapBase.getContext("2d");
   ctx.clearRect(0, 0, minimapBase.width, minimapBase.height);
+  // An island map: its coast and its lake, under the buildings.
+  const outline = (poly, fill, stroke) => {
+    ctx.beginPath();
+    poly.forEach(([x, z], i) => { const [a, b] = mapToMinimap(x, z); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); });
+    ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke();
+  };
+  if (ARENA.edge) outline(ARENA.edge, "rgba(110,190,95,.28)", "rgba(200,230,190,.5)");
+  if (ARENA.wade) outline(ARENA.wade, "rgba(70,170,255,.35)", "rgba(140,200,255,.5)");
   ctx.fillStyle = "rgba(150,170,140,.16)";
   ctx.strokeStyle = "rgba(190,210,180,.28)";
   ctx.lineWidth = 1;
@@ -5673,10 +5713,17 @@ function royaleGround(x, z) { return groundHeightAt(colliders, x, z, 0.8, 0.3) ?
 function setupRoyale(seed = royaleSeed()) {
   teardownRoyale();
   const rng = seededRng(seed);
-  const bounds = builtMap.map.bounds;
-  const zone = new RoyaleZone(bounds, rng);
+  const map = builtMap.map;
+  const bounds = map.bounds;
+  // A map can bring its own players, zone timings and loot density
+  // (Trollface Island), and keep circles and loot on land.
+  const onLand = (x, z) => (!map.edge || insidePolygon(map.edge, x, z));
+  const dry = (x, z) => onLand(x, z) && (!map.wade || !insidePolygon(map.wade, x, z));
+  // Circle centres stay on dry land too: a final circle in the lake is a
+  // slow wade for everyone.
+  const zone = new RoyaleZone(bounds, rng, map.royale?.phases || ROYALE.phases, map.edge ? dry : null);
   const loot = new LootField(scene);
-  loot.spawnSeeded(lootSpots(colliders, bounds, rng), rng, royaleGround);
+  loot.spawnSeeded(lootSpots(colliders, bounds, rng, { ok: map.edge ? dry : null, perSqM: map.royale?.lootPerSqM }), rng, royaleGround);
   royale = {
     seed, zone, loot, visual: new ZoneVisual(scene),
     t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
@@ -8364,6 +8411,7 @@ function animate() {
     if (charInspectorLive && !els.title.hidden) sumInspector?.tick(dt);
   }
 
+  sky.position.copy(camera.position);
   composer.render();
 
   // The FP viewmodel (gun+arms) only makes sense in first person — the gun
@@ -8660,16 +8708,18 @@ function updatePlayer(dt) {
       || (gp && gamepadState.pickup && sndCanInteract));
   }
 
+  // Shallow water (a map's `wade` outline, edge.js): slow, and no sprinting.
+  const wading = !!ARENA.wade && insidePolygon(ARENA.wade, move.pos.x, move.pos.z);
   move.update(dt, {
     forward: iz,
     strafe: ix,
-    sprint: (isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft"),
+    sprint: !wading && ((isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft")),
     jump: !frozen && ((isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space")),
     crouch: !frozen && ((isTouch && touchState.crouch) || (gp && gamepadState.crouch) || keys.has("KeyC")),
     dive: !frozen && ((isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight")),
     yaw: look.yaw,
     adsHeld: wantAds,
-    speedMult: w.moveSpeedMult * (isInfected() ? INFECTION.speed : 1),
+    speedMult: w.moveSpeedMult * (isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1),
     sprintMult: w.def.sprintMult,
     inertia: w.def.inertia,
   });

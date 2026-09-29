@@ -9,9 +9,10 @@
 // else already understands, so remote clients need no bot-specific code.
 
 import * as THREE from "three";
-import { groundHeightAt, resolveCircle } from "./movement.js";
+import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1";
 import { segmentBlocked } from "./ballistics.js?v=to-gc2";
-import { FlowField } from "./nav.js";
+import { FlowField } from "./nav.js?v=ti1";
+import { clampInsidePolygon, insidePolygon } from "./edge.js";
 
 const NAMES = [
   "grinbot", "sneerbot", "chuckles", "smirko", "haha_9000", "kekbot",
@@ -413,7 +414,9 @@ class Bot {
       desired = this.wanderStep(dt);
     }
 
-    const speed = BOT_SPEED * (this.speedMult || 1);
+    // Wading (a map's shallow water, arena.wade) slows them like it slows you.
+    const wading = arena.wade && insidePolygon(arena.wade, this.pos.x, this.pos.z);
+    const speed = BOT_SPEED * (this.speedMult || 1) * (wading ? 0.6 : 1);
     this.vel.x += (desired.x * speed - this.vel.x) * Math.min(1, dt * 5);
     this.vel.z += (desired.z * speed - this.vel.z) * Math.min(1, dt * 5);
     this.pos.x += this.vel.x * dt;
@@ -421,6 +424,7 @@ class Bot {
 
     this.pos.x = Math.max(arena.minX + BOT_RADIUS, Math.min(arena.maxX - BOT_RADIUS, this.pos.x));
     this.pos.z = Math.max(arena.minZ + BOT_RADIUS, Math.min(arena.maxZ - BOT_RADIUS, this.pos.z));
+    if (arena.edge) clampInsidePolygon(this.pos, arena.edge, BOT_RADIUS);
     resolveCircle(colliders, this.pos, BOT_RADIUS, this.groundY, BOT_HEIGHT, 0.5);
 
     const support = groundHeightAt(colliders, this.pos.x, this.pos.z, this.groundY + 0.5, BOT_RADIUS * 0.8);
@@ -599,6 +603,10 @@ export class BotManager {
      the moment the map changes, so they're dropped rather than reused. */
   rebuildNav(colliders, arena, floorY = 0) {
     this.fieldSrc = { colliders, arena, floorY };
+    // Which cells are blocked depends only on the map: worked out once here
+    // and copied into every field (a big map rebuilding it per target was
+    // most of the nav cost). arena.navCell: a coarser grid for big maps.
+    this.fieldBase = null;
     this.fieldPool.clear();
     this.frameFields.clear();
   }
@@ -651,11 +659,15 @@ export class BotManager {
         f = this.fieldPool.get(target.id);
         if (!f) {
           // Ids churn as people join, leave and bots recycle; keep the pool
-          // from growing for the length of a match.
-          if (this.fieldPool.size >= 12) {
+          // from growing for the length of a match. Room for two targets a
+          // bot (a Royale bot chases its own loot), or they evict each other
+          // and every lookup is a fresh sweep.
+          if (this.fieldPool.size >= Math.max(12, this.bots.length * 2)) {
             this.fieldPool.delete(this.fieldPool.keys().next().value);
           }
-          f = new FlowField(this.fieldSrc.colliders, this.fieldSrc.arena, this.fieldSrc.floorY);
+          const src = this.fieldSrc;
+          this.fieldBase ??= new FlowField(src.colliders, src.arena, src.floorY, src.arena.navCell ? { cell: src.arena.navCell } : {});
+          f = new FlowField(src.colliders, src.arena, src.floorY, { template: this.fieldBase });
           this.fieldPool.set(target.id, f);
         }
         f.compute(target.pos.x, target.pos.z);

@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
 import { HOLLOWGRIN } from "./hollowgrin.js";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=ti1";
 import { SURFACES } from "./surface-textures.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
@@ -1250,9 +1251,12 @@ export const MAPS = {
 MAPS.pentagrin = PENTAGRIN;
 // The Halloween map plays both ways: in the PvP picker, and in Zombies' list.
 MAPS.hollowgrin = HOLLOWGRIN;
+// Troll Royale's own map: 400 m across, far too big for the versus modes, so
+// it stays out of MAP_IDS (the vote pool).
+MAPS.trollface = TROLLFACE_ISLAND;
 
 // Neither the zombies map nor the range is a place you pick to fight in.
-export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id !== "range" && !id.endsWith("_wip"));
+export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id !== "range" && id !== "trollface" && !id.endsWith("_wip"));
 
 /* ------------------------------------------------------------------ builder */
 
@@ -1284,14 +1288,23 @@ export function buildMap(id, { colliders, arena }) {
 
   colliders.length = 0;
   Object.assign(arena, map.bounds);
+  // Non-rectangular maps (edge.js): the coastline you can't pass, water you
+  // wade through, and a coarser nav grid for a big map. null elsewhere.
+  arena.edge = map.edge || null;
+  arena.wade = map.wade || null;
+  arena.navCell = map.navCell || null;
 
-  const g = map.ground;
-  const w = map.bounds.maxX - map.bounds.minX + 24;
-  const d = map.bounds.maxZ - map.bounds.minZ + 24;
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(w, d, 1, 1), g.surface ? groundSurface(g, w, d) : makeGroundMaterial(g));
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  root.add(ground);
+  // A floating island draws its own ground; the endless plane would show
+  // under it. `noGroundPlane` skips it (the walkable floor is still y = 0).
+  if (!map.noGroundPlane) {
+    const g = map.ground;
+    const w = map.bounds.maxX - map.bounds.minX + 24;
+    const d = map.bounds.maxZ - map.bounds.minZ + 24;
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(w, d, 1, 1), g.surface ? groundSurface(g, w, d) : makeGroundMaterial(g));
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    root.add(ground);
+  }
 
   map.build(makeApi(root, colliders));
 

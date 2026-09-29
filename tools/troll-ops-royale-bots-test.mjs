@@ -64,7 +64,7 @@ const botState = () => page.evaluate(() => {
   return T.bots.bots.map((b) => ({ id: b.id, alive: b.alive, w: b.weaponId, r: b.gunRarity, plates: b.plates | 0, heals: b.heals | 0, armor: b.armor | 0, x: b.pos.x, z: b.pos.z, loot: b.lootId }));
 });
 
-await start("royale");
+await start("royale_mini");
 let bs = await botState();
 check("bots land with only a pistol", bs.length === 9 && bs.every((b) => b.w === "pocketgrin" && b.r == null), JSON.stringify(bs.map((b) => b.w)));
 const loot0 = await page.evaluate(() => window.__trollOps.royale().loot.items.size);
@@ -162,9 +162,9 @@ async function measure(label) {
 }
 await start("tdm");
 const tdm = await measure();
-await start("royale");
+await start("royale_mini");
 const r10 = await measure();
-await start("royale", 19);
+await start("royale_mini", 19);
 const r18 = await measure();
 console.log(`      perf: TDM ${JSON.stringify(tdm)}  Royale-9 ${JSON.stringify(r10)}  Royale-18 ${JSON.stringify(r18)}`);
 check("18 bots on one browser: frame rate holds", r18.bots >= 15 && r18.fps >= Math.min(30, tdm.fps * 0.75), JSON.stringify(r18));

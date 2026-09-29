@@ -10,6 +10,7 @@
 
 import * as THREE from "three";
 import { smoothstep, damp } from "./anim-curves.js";
+import { clampInsidePolygon } from "./edge.js";
 
 export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE: "prone", VAULT: "vault" };
 
@@ -142,6 +143,8 @@ export class MovementController {
     const a = this.arena;
     pos.x = Math.max(a.minX + RADIUS, Math.min(a.maxX - RADIUS, pos.x));
     pos.z = Math.max(a.minZ + RADIUS, Math.min(a.maxZ - RADIUS, pos.z));
+    // A coastline instead of a wall (Trollface Island): see edge.js.
+    if (a.edge) clampInsidePolygon(pos, a.edge, RADIUS);
     resolveCircle(this.colliders, pos, RADIUS, feetY, this.eyeHeight);
   }
 

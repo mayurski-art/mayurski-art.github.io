@@ -28,7 +28,22 @@ export class FlowField {
      across thin air. */
   /* `step`: the tallest thing a walker gets over. 1 m by default (bots
      vault); a zombie only steps about half that, so a hay bale is a wall. */
-  constructor(colliders, bounds, floorY, { needSupport = false, cell = CELL, pad = 0.35, step = 1.0 } = {}) {
+  /* `template`: another field on the same map: its blocked grid is copied
+     instead of being worked out again from every collider. */
+  constructor(colliders, bounds, floorY, { needSupport = false, cell = CELL, pad = 0.35, step = 1.0, template = null } = {}) {
+    if (template) {
+      this.cell = template.cell;
+      this.floorY = template.floorY;
+      this.minX = template.minX;
+      this.minZ = template.minZ;
+      this.w = template.w;
+      this.h = template.h;
+      this.blocked = template.blocked.slice();
+      this.dist = new Int32Array(this.w * this.h);
+      this.queue = new Int32Array(this.w * this.h);
+      this.targetIdx = -1;
+      return;
+    }
     this.cell = cell;
     this.floorY = floorY;
     this.minX = bounds.minX;

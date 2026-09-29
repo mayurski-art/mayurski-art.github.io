@@ -5,7 +5,7 @@
 // keep Gun Game and One in the Chamber from leaking special cases into the
 // main loop.
 
-import { FlowField } from "./nav.js";
+import { FlowField } from "./nav.js?v=ti1";
 
 export const MODES = {
   ops: {
@@ -128,8 +128,20 @@ MODES.royale = {
   pvp: true, ffa: true,
   royale: true,
   noStreaks: true,
+  forceMap: "trollface",
+  blurb: "Twenty trolls, one floating island. Land with a pistol, loot the rest, stay out of the Cringe.",
+};
+
+/* The phase 1 version, kept: ten trolls on Grin Beach, about five minutes. */
+MODES.royale_mini = {
+  id: "royale_mini",
+  name: "Mini Royale",
+  short: "Mini Royale",
+  pvp: true, ffa: true,
+  royale: true,
+  noStreaks: true,
   forceMap: "grinbeach",
-  blurb: "One life. Land with a pistol, loot the rest, stay out of the Cringe. Last troll standing wins.",
+  blurb: "Troll Royale on Grin Beach: ten trolls, a five-minute zone. Last troll standing wins.",
 };
 
 /* Infection tuning. */

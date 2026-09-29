@@ -48,7 +48,7 @@ await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
 async function startRoyale() {
   await page.evaluate(async () => {
     const T = window.__trollOps;
-    T.setMode("royale");
+    T.setMode("royale_mini");
     if (T.els.noBots) T.els.noBots.checked = false;
     await T.startGame();
   });

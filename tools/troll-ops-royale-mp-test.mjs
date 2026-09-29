@@ -50,7 +50,7 @@ async function open(label, matchesPlayed) {
   await page.evaluate(async (room) => {
     const T = window.__trollOps;
     T.composer && (T.composer.render = () => {});
-    T.setMode("royale");
+    T.setMode("royale_mini");
     if (T.els.noBots) T.els.noBots.checked = true;
     T.els.room.value = room;
     T.els.room.dispatchEvent(new Event("input"));

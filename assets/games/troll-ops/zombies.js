@@ -11,10 +11,10 @@
 // (the Pentagrin) everyone follows the player's floor field.
 
 import * as THREE from "three";
-import { FlowField } from "./nav.js";
+import { FlowField } from "./nav.js?v=ti1";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { buildHumanoid, poseHumanoid } from "./character.js?v=to-sb1";
-import { groundHeightAt, resolveCircle } from "./movement.js";
+import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1";
 
 export const ZOMBIE_TYPES = {
   troll: {

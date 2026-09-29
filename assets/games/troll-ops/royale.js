@@ -17,7 +17,7 @@ import * as THREE from "three";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
 import { ATTACHMENTS, SLOTS, defaultLoadoutFor, resolveWeapon } from "./attachments.js";
-import { FlowField } from "./nav.js";
+import { FlowField } from "./nav.js?v=ti1";
 
 /* ---- tuning ------------------------------------------------------------ */
 
@@ -33,6 +33,8 @@ export const ROYALE = {
   lootSpacing: 4.5,       // metres between floor loot spots
   lootPerSqM: 1 / 95,     // floor loot density (Grin Beach: ~60 items)
   gunDetail: 26,          // metres: gun models inside this, a beam beyond
+  lootDraw: 95,           // metres: nothing drawn past this
+  lootRing: 40,           // metres: floor ring and box past this, only the beam
   // Phase 1 is sized for an existing ~70-80 m map: `frac` is the circle's
   // radius as a share of the first circle's. The island (phase 3) gets the
   // doc's longer timings.
@@ -99,7 +101,9 @@ function pickWeighted(rng, list, weightOf) {
    for any moment of the match, so a client that joins late, or a frame that
    hitches, still agrees with everyone else. */
 export class RoyaleZone {
-  constructor(bounds, rng, phases = ROYALE.phases) {
+  /* `onLand(x, z)`: where a circle's centre may go (Trollface Island: on
+     the island, not over the void round it). */
+  constructor(bounds, rng, phases = ROYALE.phases, onLand = null) {
     this.phases = phases;
     const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
     const r0 = Math.hypot(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2 + 2;
@@ -112,10 +116,13 @@ export class RoyaleZone {
       const r = Math.min(prev.r, ph.frac * span);
       // Somewhere inside the last circle, and not hanging far off the map.
       const room = Math.max(0, Math.min(prev.r, span) - r);
-      const a = rng() * Math.PI * 2, d = Math.sqrt(rng()) * room * 0.85;
-      let x = prev.x + Math.cos(a) * d, z = prev.z + Math.sin(a) * d;
-      x = THREE.MathUtils.clamp(x, bounds.minX + r * 0.5, bounds.maxX - r * 0.5);
-      z = THREE.MathUtils.clamp(z, bounds.minZ + r * 0.5, bounds.maxZ - r * 0.5);
+      let x = prev.x, z = prev.z;
+      for (let tries = 0; tries < 24; tries++) {
+        const a = rng() * Math.PI * 2, d = Math.sqrt(rng()) * room * 0.85;
+        x = THREE.MathUtils.clamp(prev.x + Math.cos(a) * d, bounds.minX + r * 0.5, bounds.maxX - r * 0.5);
+        z = THREE.MathUtils.clamp(prev.z + Math.sin(a) * d, bounds.minZ + r * 0.5, bounds.maxZ - r * 0.5);
+        if (!onLand || onLand(x, z)) break;
+      }
       this.circles.push({ x, z, r });
     }
     this.length = phases.reduce((s, p) => s + p.wait + p.close, 0);
@@ -231,16 +238,22 @@ function rollItem(rng) {
 
 /* Where floor loot goes: open ground-floor cells of the bots' nav grid (so
    every item can be walked to), thinned to ROYALE.lootSpacing apart. */
-export function lootSpots(colliders, bounds, rng) {
-  const field = new FlowField(colliders, bounds, 0, { step: 0.6 });
+/* `ok(x, z)`: extra test for a spot (on the island, out of the lake).
+   `perSqM`: density; a big map runs thinner than a small one. */
+export function lootSpots(colliders, bounds, rng, { ok = null, perSqM = ROYALE.lootPerSqM } = {}) {
+  // The player's own step (movement.js STEP_UP 0.36) and a margin off walls,
+  // so every item is somewhere you can actually stand.
+  const field = new FlowField(colliders, bounds, 0, { step: 0.34, pad: 0.7 });
   const open = [];
   for (let iz = 1; iz < field.h - 1; iz++) {
     for (let ix = 1; ix < field.w - 1; ix++) {
-      if (!field.blocked[iz * field.w + ix]) open.push([ix, iz]);
+      if (field.blocked[iz * field.w + ix]) continue;
+      if (ok && !ok(field.minX + (ix + 0.5) * field.cell, field.minZ + (iz + 0.5) * field.cell)) continue;
+      open.push([ix, iz]);
     }
   }
-  const area = (bounds.maxX - bounds.minX) * (bounds.maxZ - bounds.minZ);
-  const want = Math.round(area * ROYALE.lootPerSqM);
+  const area = open.length * field.cell * field.cell;
+  const want = Math.round(area * perSqM);
   const out = [];
   const minD2 = ROYALE.lootSpacing * ROYALE.lootSpacing;
   for (let tries = 0; tries < want * 30 && out.length < want && open.length; tries++) {
@@ -286,6 +299,14 @@ const _itemMat = {
   ammo: new THREE.MeshStandardMaterial({ color: 0x6b6a3a, roughness: 0.8 }),
 };
 for (const g of Object.values(_itemGeo)) g.userData.shared = true;
+// A beam is a unit-tall strip standing on its foot; each instance scales it.
+const _beamGeo = new THREE.PlaneGeometry(0.5, 1).translate(0, 0.5, 0);
+// Shared for the page's life, never disposed (see disposeLater).
+const _beamMat = new THREE.MeshBasicMaterial({ map: _beamTex, transparent: true, blending: THREE.AdditiveBlending,
+  depthWrite: false, side: THREE.DoubleSide, fog: false });
+const _ringMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
+const _tmpM = new THREE.Matrix4(), _tmpQ = new THREE.Quaternion(), _tmpS = new THREE.Vector3(), _tmpP = new THREE.Vector3();
+const _tmpC = new THREE.Color(), _upY = new THREE.Vector3(0, 1, 0), _ringQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
 
 /* Everything lying on the ground in a Royale match, keyed by id: "s<n>" for
    the seeded floor loot, "<netId>.<n>" for whatever someone dropped. */
@@ -295,12 +316,39 @@ export class LootField {
     this.items = new Map();
     this.dropSeq = 0;
     this.time = 0;
+    // Every beam and every floor ring on the map is one instanced draw each
+    // (they were two draws an item, hundreds on the island). Additive
+    // light, so a beam's pulse is just its colour dimming.
+    this.cap = 0;
+    this.beams = this.rings = null;
+  }
+
+  ensureCap(n) {
+    if (n <= this.cap) return;
+    const cap = Math.max(64, Math.ceil(n * 1.5));
+    if (this.beams) { this.scene.remove(this.beams, this.rings); this.beams.dispose(); this.rings.dispose(); }
+    this.beams = new THREE.InstancedMesh(_beamGeo, _beamMat, cap);
+    this.rings = new THREE.InstancedMesh(_itemGeo.ring, _ringMat, cap);
+    for (const m of [this.beams, this.rings]) {
+      m.frustumCulled = false;
+      m.count = 0;
+      m.setColorAt(0, _tmpC.set(0xffffff));
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.scene.add(m);
+    }
+    this.cap = cap;
   }
 
   clear() {
     for (const it of this.items.values()) this.removeMeshes(it);
     this.items.clear();
     this.dropSeq = 0;
+    if (this.beams) {
+      this.scene.remove(this.beams, this.rings);
+      this.beams.dispose(); this.rings.dispose();
+      this.beams = this.rings = null;
+      this.cap = 0;
+    }
   }
 
   spawnSeeded(spots, rng, groundAt) {
@@ -318,18 +366,11 @@ export class LootField {
     if (it.k === "gun") it.def = resolveWeapon(it.w, it.a || defaultLoadoutFor(it.w));
     const group = new THREE.Group();
     group.position.set(it.x, (it.y || 0), it.z);
-    const color = it.k === "gun" ? RARITIES[it.r | 0].color
-      : it.k === "plate" ? 0x7fb2ff : it.k === "heal" ? 0x55ff7a : 0xd9d27a;
-    // A beam you can spot from across the map, and a ring on the floor.
-    const beam = new THREE.Mesh(new THREE.PlaneGeometry(0.5, it.k === "gun" ? 2.6 + (it.r | 0) * 0.5 : 1.4),
-      new THREE.MeshBasicMaterial({ map: _beamTex, color, transparent: true, opacity: it.k === "gun" ? 0.5 : 0.32,
-        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
-    beam.position.y = beam.geometry.parameters.height / 2;
-    beam.userData.billboard = true;
-    const ring = new THREE.Mesh(_itemGeo.ring, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide }));
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.03;
-    group.add(beam, ring);
+    // A beam you can spot from across the map, and a ring on the floor
+    // (both drawn in update, from the shared instanced meshes).
+    it.color = new THREE.Color(it.k === "gun" ? RARITIES[it.r | 0].color
+      : it.k === "plate" ? 0x7fb2ff : it.k === "heal" ? 0x55ff7a : 0xd9d27a);
+    it.beamH = it.k === "gun" ? 2.6 + (it.r | 0) * 0.5 : 1.4;
     if (it.k !== "gun") {
       const body = new THREE.Mesh(_itemGeo[it.k], _itemMat[it.k]);
       body.position.y = it.k === "plate" ? 0.2 : 0.22;
@@ -337,8 +378,6 @@ export class LootField {
       group.add(body);
       it.body = body;
     }
-    it.beam = beam;
-    it.ring = ring;
     it.mesh = group;
     this.scene.add(group);
     this.items.set(it.id, it);
@@ -356,7 +395,6 @@ export class LootField {
   removeMeshes(it) {
     if (!it.mesh) return;
     this.scene.remove(it.mesh);
-    disposeLater(it.beam.geometry, it.beam.material, it.ring.material);
     if (it.gun) this.disposeGun(it);
     it.mesh = null;
   }
@@ -372,9 +410,28 @@ export class LootField {
   update(dt, camera, viewer) {
     this.time += dt;
     const near2 = ROYALE.gunDetail * ROYALE.gunDetail, far2 = (ROYALE.gunDetail + 8) ** 2;
+    const draw2 = ROYALE.lootDraw * ROYALE.lootDraw, ring2 = ROYALE.lootRing * ROYALE.lootRing;
+    this.ensureCap(this.items.size);
+    let nb = 0, nr = 0;
     for (const it of this.items.values()) {
       it.t += dt;
       const d2 = (it.x - viewer.x) ** 2 + (it.z - viewer.z) ** 2;
+      // Past the fog nobody sees a beam anyway: hundreds on the island.
+      it.mesh.visible = d2 < draw2;
+      if (!it.mesh.visible) { if (it.gun) this.disposeGun(it); continue; }
+      // Beams face the camera around their own upright axis, and pulse.
+      _tmpQ.setFromAxisAngle(_upY, Math.atan2(camera.position.x - it.x, camera.position.z - it.z));
+      _tmpM.compose(_tmpP.set(it.x, it.y || 0, it.z), _tmpQ, _tmpS.set(1, it.beamH, 1));
+      this.beams.setMatrixAt(nb, _tmpM);
+      this.beams.setColorAt(nb++, _tmpC.copy(it.color).multiplyScalar((it.k === "gun" ? 0.42 : 0.26) + Math.sin(it.t * 3) * 0.06));
+      // Far off it's just the beam: the ring and the box only up close.
+      const near = d2 < ring2;
+      if (it.body) it.body.visible = near;
+      if (near) {
+        _tmpM.compose(_tmpP.set(it.x, (it.y || 0) + 0.03, it.z), _ringQ, _tmpS.set(1, 1, 1));
+        this.rings.setMatrixAt(nr, _tmpM);
+        this.rings.setColorAt(nr++, it.color);
+      }
       if (it.k === "gun") {
         if (!it.gun && d2 < near2) {
           it.gun = stripLights(buildWeaponMesh(it.def));
@@ -390,9 +447,11 @@ export class LootField {
         it.body.rotation.y = it.t * 1.1;
         it.body.position.y = 0.22 + Math.sin(it.t * 2.4) * 0.03;
       }
-      // Beams face the camera around their own upright axis.
-      it.beam.rotation.y = Math.atan2(camera.position.x - it.x, camera.position.z - it.z);
-      it.beam.material.opacity = (it.k === "gun" ? 0.42 : 0.26) + Math.sin(it.t * 3) * 0.06;
+    }
+    for (const [m, n] of [[this.beams, nb], [this.rings, nr]]) {
+      m.count = n;
+      m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
   }
 

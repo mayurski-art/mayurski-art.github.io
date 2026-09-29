@@ -1,8 +1,40 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
-## RESUME HERE: Troll Royale phase 2 DONE (2026-09-29), phase 3 next
-Phase 3 = Trollface Island grey-box layout for the user to approve (doc's
-build plan) before any Blender art. Ask before modelling.
+## RESUME HERE: Troll Royale phase 3 grey box SHIPPED (2026-09-29)
+Troll Royale now plays on Trollface Island (grey box); Grin Beach is the
+separate "Mini Royale" mode (`royale_mini`, QTRM). NEXT: ask the user how
+the island plays and runs on their hardware, then real art for the
+landmarks (ask before any Blender work), then duos/squads + Troll Court.
+User decisions (2026-09-29): layout approved as drawn; INVISIBLE WALL at the
+cliff edge (no falling off); the lake is SHALLOW (wade through, slow).
+- `trollface-island.js`: ISLAND_EDGE / ISLAND_LAKE polygons, ring + north
+  roads, 10 landmark blockouts (GreyKit merges per material), extruded slab +
+  cliff, lake/water/waterfall, 2 bridges, 90 seeded trees + 50 rocks. Map
+  spec: bounds +-205/+-155, `edge`, `wade`, `navCell: 2`, `noGroundPlane`,
+  `viewFar: 480`, `royale: { players 20, lootPerSqM 1/210, doc phases }`.
+  Not in MAP_IDS (Royale-only via `forceMap`).
+- `edge.js`: insidePolygon / clampInsidePolygon. The wall is a polygon clamp
+  in movement.js resolveHorizontal and bots.js, not colliders. Wading =
+  `ARENA.wade` in game.js move.update (x0.55, no sprint), bots x0.6.
+- Zone circle centres AND loot use `dry` (on the island, out of the lake).
+- lootSpots flow field step 0.34 / pad 0.7: loot on 0.5 m ledges used to be
+  unreachable (you only step 0.36 m) - since phase 1.
+- Sky dome follows the camera (renderOrder -1); `camera.far = map.viewFar`.
+- PERF: loot beams + floor rings are 2 InstancedMeshes total (were 2 draws an
+  item; ~230 -> ~150 calls on the island), rings/boxes only < 40 m
+  (`lootRing`), nothing past 95 m. bots.js field pool = max(12, 2/bot) (it
+  thrashed at 12 with 20 bots). Island headless ~26-31 fps; render is most
+  of the frame (shadows + zone-wall fill), bots ~2-6 ms.
+- `isReady` error, general fix: game.js holds every Material.dispose while a
+  renderer.compileAsync runs (wraps both), so teardown mid warm-up is safe.
+- Cache tags: maps/movement/nav.js now tagged `?v=ti1` in EVERY importer
+  (were untagged), royale.js `ti1`, bots.js `to-ti1`, game.js `to-ti1`.
+- Tests all pass: new `tools/troll-ops-royale-island-test.mjs` (8: 20 trolls,
+  loot/circles on dry land, the wall holds, wade peak speed 0.55x), royale,
+  royale-mp, royale-bots, sync (infection team check flaked once under load,
+  passed alone), trollsaber, saber-mp, emote; map-audit trollface PASS.
+
+## Troll Royale phase 2 DONE (2026-09-29)
 2026-09-29 session:
 - Gate PASSES: royale-bots test 13/13, Royale-18 33.1 fps vs TDM-6 39.7.
   Fix: remote-players.js `mergeHeld` merges a held gun into one mesh per
