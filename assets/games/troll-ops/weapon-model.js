@@ -54,12 +54,174 @@ export function setWeaponEnvMap(tex) { weaponEnvMap = tex; }
 
 export function preloadWeaponModels() {
   if (!gcLoading) {
-    gcLoading = new GLTFLoader().loadAsync(GC_URL).then((gltf) => {
+    const gc = new GLTFLoader().loadAsync(GC_URL).then((gltf) => {
       gcTemplate = prepGreenCandles(gltf.scene);
       return true;
     }).catch((e) => { console.warn("[weapons] green candles model failed", e); return false; });
+    const gm = new GLTFLoader().loadAsync(GM_URL).then((gltf) => {
+      gmTemplate = prepGrinmington(gltf.scene);
+      return true;
+    }).catch((e) => { console.warn("[weapons] grinmington model failed", e); return false; });
+    gcLoading = Promise.all([gc, gm]).then(([a, b]) => a || b);
   }
   return gcLoading;
+}
+
+/* Weapons whose first-person model streams in (game.js rebuilds the gun in
+   hand once it lands). */
+export function hasDetailedModel(def) {
+  return def?.model?.stock === "tank" || def?.id === "grinmington";
+}
+
+/* ---- Grinmington 870: the detailed Blender model ---------------------
+   models/build_grinmington.blender.py, BO2's 870 MCS in game coordinates.
+   Until it streams in, the procedural pump gun below stands in. The pump
+   node slides on z (game.js placePump), the loose shell rides the reload
+   (placeReloadShell), and the attachments hang off the same spots the
+   procedural gun used: optics on the rail, a device on the muzzle (the
+   breacher comes off), underbarrels on the pump so they ride with it. */
+const GM_URL = new URL("./models/grinmington.glb?v=gm2", import.meta.url).href;
+const GM_RAIL_TOP = 0.036;
+const GM_BARREL_END = -0.601;
+const GM_BORE_Y = 0.010;
+const GM_GRIP_RAKE = -0.315;      // the pistol grip leans back: the grip hand matches
+const GM_EMPTIES = new Set(["GM_Grip", "GM_Support", "GM_Muzzle", "GM_Aim", "GM_Port", "GM_Under", "GM_Rail"]);
+const GM_TUNE = {
+  GM_Lens: { emissiveIntensity: 0.35 },
+  GM_Dot: { emissiveIntensity: 0.9 },
+};
+let gmTemplate = null;
+
+function prepGrinmington(scene) {
+  scene.traverse((o) => {
+    if (o.isMesh) {
+      o.geometry.userData.shared = true;
+      o.castShadow = false;
+      o.receiveShadow = false;
+    }
+    const m = o.material;
+    if (!m) return;
+    const t = GM_TUNE[m.name];
+    if (t) Object.assign(m, t);
+  });
+  return scene;
+}
+
+function buildGrinmington(def) {
+  const src = gmTemplate.clone(true);
+  const root = new THREE.Group();
+  const node = (n) => src.getObjectByName(n);
+  const at = (n) => node(n).position.clone();
+  const grip = at("GM_Grip"), support = at("GM_Support"), muzzle = at("GM_Muzzle");
+  const aim = at("GM_Aim"), port = at("GM_Port"), under = at("GM_Under"), rail = at("GM_Rail");
+  for (const c of [...src.children]) if (!GM_EMPTIES.has(c.name)) root.add(c);
+
+  // Own materials per gun (the game disposes them on a swap), with the
+  // studio reflections the metals need.
+  const clones = new Map();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    let m = clones.get(o.material);
+    if (!m) {
+      m = o.material.clone();
+      if (weaponEnvMap && m.isMeshStandardMaterial) {
+        m.envMap = weaponEnvMap;
+        m.envMapIntensity = m.metalness > 0.5 ? 1.0 : 0.45;
+      }
+      clones.set(o.material, m);
+    }
+    o.material = m;
+  });
+
+  const pump = root.getObjectByName("GM_Pump");
+  const shell = root.getObjectByName("GM_Shell");
+  const breacher = root.getObjectByName("GM_Breacher");
+  const irons = [root.getObjectByName("GM_IronRear"), root.getObjectByName("GM_IronFront")];
+  shell.visible = false;
+
+  // Hidden hand meshes: the PF arms / gloves and the third-person rig aim
+  // at them. The support hand rides the pump, so the arm follows a rack.
+  const hand = buildGripHand(1);
+  hand.userData.hand = true;
+  hand.position.copy(grip);
+  hand.rotation.x = GM_GRIP_RAKE;
+  root.add(hand);
+  const pumpSupport = buildSupportHand(1.5);
+  pumpSupport.userData.hand = true;
+  pumpSupport.position.copy(support).sub(pump.position);
+  pump.add(pumpSupport);
+
+  const u = root.userData;
+  u.pumpMesh = pump;
+  u.pumpRestZ = pump.position.z;
+  u.supportHandPos = support.clone();
+  u.pfAnchors = [hand, pumpSupport];
+  u.pfSupportDrop = 0.05;            // anchor on the pump top -> under its belly
+  u.loadPort = port;
+  u.shellMesh = shell;
+  u.gripPos = grip;
+
+  // Sights: the ghost ring and post unless glass goes on the rail.
+  const opticKey = def.attachments?.optic
+    || (def.sight === "scope" ? "acog" : def.sight === "reddot" ? "reflex" : "iron");
+  const opticBuild = OPTIC_BUILDERS[opticKey];
+  u.aimPoint = aim;
+  // The ghost ring sits at the back of the receiver: brought close to the
+  // eye so the stock stays behind the camera instead of filling the view.
+  u.adsDistance = 0.3;
+  u.adsWeaponFov = null;
+  u.sight = null;
+  if (opticBuild) {
+    const optic = opticBuild();
+    const railY = GM_RAIL_TOP + 0.004;
+    const aimY = railY + (optic.userData.aimOffsetY ?? 0.05);
+    const aimZ = rail.z + (optic.userData.lengthZ > 0.12 ? -0.02 : 0.01);
+    const sight = new THREE.Group();
+    sight.add(optic);
+    sight.position.set(0, aimY, aimZ);
+    root.add(sight);
+    for (const i of irons) if (i) i.visible = false;
+    u.sight = sight;
+    u.aimPoint = new THREE.Vector3(0, aimY, aimZ);
+    u.adsDistance = optic.userData.adsDistance ?? null;
+    u.adsWeaponFov = optic.userData.adsWeaponFov ?? null;
+  }
+
+  // Muzzle: the breacher unless a barrel device replaces it.
+  u.muzzleZ = muzzle.z;
+  const devBuild = BARREL_BUILDERS[def.attachments?.barrel];
+  if (devBuild) {
+    const dev = devBuild(0.0105);
+    const devLen = dev.userData.lengthZ ?? 0.05;
+    dev.position.set(0, GM_BORE_Y, GM_BARREL_END - devLen / 2);
+    root.add(dev);
+    if (breacher) breacher.visible = false;
+    u.muzzleZ = GM_BARREL_END - devLen;
+  }
+
+  // Underbarrel: on the pump's belly, so it racks with it.
+  const ub = def.attachments?.underbarrel;
+  const ubBuild = UNDER_BUILDERS[ub];
+  if (ubBuild) {
+    const unit = ubBuild();
+    unit.position.copy(under).sub(pump.position);
+    if (ub === "laser") unit.position.y += 0.012;
+    pump.add(unit);
+    if (ub === "laser") {
+      const em = unit.userData.emitter || new THREE.Vector3();
+      const origin = unit.position.clone().add(pump.position).add(em);
+      const beamMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.85, depthWrite: false });
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 1, 6), beamMat);
+      beam.rotation.x = Math.PI / 2;
+      beam.position.copy(origin);
+      beam.visible = false;
+      root.add(beam);
+      u.laserBeam = beam;
+      u.laserOrigin = origin.clone();
+    }
+  }
+  root.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return root;
 }
 
 function prepGreenCandles(scene) {
@@ -351,6 +513,7 @@ export function buildWeaponMesh(def, { skin } = {}) {
   if (def.id === "problem416") return build416(def, skin ?? def.attachments?.skin ?? null);
   const spec = def.model || {};
   if (spec.stock === "tank") return gcTemplate ? buildGreenCandles(def) : buildTankLauncher(def, spec, spec.len || 0.5);
+  if (def.id === "grinmington" && gmTemplate) return buildGrinmington(def);
   const len = spec.len || 0.5;
   const heavy = !!spec.heavy;
   const bodyH = (heavy ? 0.085 : 0.07) * (def.cls === "sidearm" ? 0.85 : 1);

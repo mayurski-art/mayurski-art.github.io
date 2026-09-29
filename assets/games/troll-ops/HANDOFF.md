@@ -46,6 +46,26 @@ one-hit, deflects frontal rounds while blocking.
   trollsaber.js `?v=ts1` in every importer; loadout `?v=ts1`, inspector /
   remote-players / audio `?v=to-ts1`, game.js + style.css `?v=to-ts1`.
 
+## Grinmington 870 model SHIPPED (2026-09-28, queue item 2)
+- `models/build_grinmington.blender.py` -> `models/grinmington.glb` (~61k
+  tris, 1.9 MB), BO2 870 MCS read off the Pick 10 icon: rail + ghost ring,
+  vented heat shield, toothed breacher + front post, ribbed pump on the tube,
+  barrel clamp + sling loop, flashlight, raked stippled grip, M4-style stock
+  (dropped low so ADS stays clear), 4-shell side saddle (left). No text.
+  Nodes: GM_Body, GM_Pump (pivot = rest centre), GM_Breacher, GM_IronRear,
+  GM_IronFront, GM_Shell; empties GM_Grip/Support/Muzzle/Aim/Port/Under/Rail.
+- weapon-model.js `buildGrinmington` (procedural pump gun stands in until
+  it streams): keeps pumpMesh/pumpRestZ/shellMesh/loadPort/pfAnchors (support
+  hand on the pump, `pfSupportDrop` 0.05), grip hand raked -0.315 to match
+  the grip. Optic -> on the rail, irons hidden; barrel device -> breacher
+  hidden, muzzleZ moves; underbarrel -> on the pump (racks with it). Irons ADS
+  distance 0.3 (ghost ring is at the back of the receiver). `hasDetailedModel`
+  replaces the tank-only rebuild check in game.js.
+- Shotgun test +4 checks (model, attachments). One run in ~5 failed a
+  timing check under load; 3 reruns clean. Tags: weapon-model `?v=gm1` in
+  every importer, glb `?v=gm2`, inspector/remote-players `?v=to-gm1`,
+  char-inspector + pickups `?v=gm1`, game.js `?v=to-gm1`.
+
 ## QUEUE (user, 2026-09-28): do these in this order
 1. ~~**Lightsaber: a new weapon.**~~ SHIPPED (see above). The graphics have to be really good, on the
    Green Candles bar: its own Blender build script -> glb (like
@@ -56,7 +76,7 @@ one-hit, deflects frontal rounds while blocking.
    equipped, still quick-melee, can be held as the active weapon), **red
    blade**, **one-hit kill + deflects frontal bullets while blocking**
    (block drains a meter), **unlock LV 30**.
-2. **Grinmington 870: same treatment.** Replace the procedural
+2. ~~**Grinmington 870: same treatment.**~~ SHIPPED (see above). Replace the procedural
    `spec.pump` model with a detailed Blender glb at Green Candles quality,
    keeping the pump / shell-by-shell reload / rack mechanics and hooks
    (`pumpMesh`, `shellMesh`, `loadPort`, forend-parented support hand).

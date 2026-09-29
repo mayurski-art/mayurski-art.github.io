@@ -8,10 +8,10 @@ import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap } from "./weapon-model.js?v=to-gl1";
-import { WeaponInspector } from "./inspector.js?v=to-ts2";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
+import { WeaponInspector } from "./inspector.js?v=to-gm1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
-import { CharacterInspector } from "./char-inspector.js";
+import { CharacterInspector } from "./char-inspector.js?v=gm1";
 import { Loadout } from "./loadout.js?v=ts2";
 import { StreakPicker } from "./streak-picker.js";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
@@ -31,7 +31,7 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-gc1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-ts2";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-gm1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-s12h-death";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
@@ -60,7 +60,7 @@ import { MovementController, STANCE, groundHeightAt } from "./movement.js";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK } from "./gear.js?v=ts2";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts1";
 import { RangeSet } from "./range.js";
-import { PickupSystem, SwapHold } from "./pickups.js";
+import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
 
 const els = {
   cabinet: document.getElementById("to-cabinet"),
@@ -3197,9 +3197,9 @@ preloadTrollsaber();
 // Detailed models stream in; rebuild the gun in hand once they land.
 preloadWeaponModels().then((ok) => {
   if (!ok) return;
-  if (activeWeaponDef?.model?.stock === "tank") setActiveWeaponMesh(activeWeaponDef);
+  if (hasDetailedModel(activeWeaponDef)) setActiveWeaponMesh(activeWeaponDef);
   // The menu previews snapshot the gun once; redraw them with the real model.
-  if (loadout.resolved?.model?.stock === "tank") {
+  if (hasDetailedModel(loadout.resolved)) {
     sumGunKey = null;
     showSumGun();
     charInspector?.setWeapon(loadout.resolved);

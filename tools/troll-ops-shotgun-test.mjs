@@ -52,6 +52,21 @@ await page.evaluate(async () => {
 });
 await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 30000 });
 await sleep(4500);   // past the pre-match countdown
+// The Blender model streams in and replaces the procedural stand-in.
+await page.waitForFunction(() => window.__trollOps.activeWeaponMesh()?.userData.pumpMesh?.name === "GM_Pump", null, { timeout: 30000 }).catch(() => {});
+const model = await page.evaluate(() => {
+  const m = window.__trollOps.activeWeaponMesh();
+  let tris = 0;
+  m.traverse((o) => { if (o.isMesh && o.visible && !o.userData.hand) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
+  return { pump: m.userData.pumpMesh?.name, shell: m.userData.shellMesh?.name, tris: Math.round(tris), irons: !!m.getObjectByName("GM_IronRear")?.visible };
+});
+check("Grinmington wears the Blender 870 MCS model", model.pump === "GM_Pump" && model.shell === "GM_Shell" && model.tris > 30000, JSON.stringify(model));
+await shot(page, "0-hip.png");
+await page.evaluate(() => window.__trollOps.setAds(true));
+await sleep(700);
+await shot(page, "0-ads.png");
+await page.evaluate(() => window.__trollOps.setAds(false));
+await sleep(500);
 
 const info = await page.evaluate(() => {
   const T = window.__trollOps, m = T.activeWeaponMesh();
@@ -136,6 +151,25 @@ const cut = await page.evaluate(async () => {
 check("fire cuts the reload short", cut.ok && cut.after === cut.at && cut.after < 8, JSON.stringify(cut));
 check("no rack after a cut (already chambered)", Math.abs(cut.dur - 0.26) < 1e-6);
 check("gun is back up fast", cut.ms < 400 && cut.canFire, `${cut.ms} ms`);
+
+// Attachments on the detailed model: glass on the rail (irons fold away),
+// a device on the muzzle (the breacher comes off), a grip that rides the pump.
+const att = await page.evaluate(async () => {
+  const T = window.__trollOps;
+  Object.assign(T.loadout.attachmentsFor("grinmington"), { optic: "reflex", barrel: "suppressor", underbarrel: "vert" });
+  T.switchWeapon("secondary");
+  T.switchWeapon("primary");
+  const w = T.currentWeapon();
+  const { buildWeaponMesh } = await import("./assets/games/troll-ops/weapon-model.js?v=gm1");
+  const m = buildWeaponMesh(T.loadout.resolved);
+  const u = m.userData;
+  const underOnPump = u.pumpMesh.children.some((c) => !c.userData.hand);
+  return { sight: !!u.sight, irons: m.getObjectByName("GM_IronRear").visible, breacher: m.getObjectByName("GM_Breacher").visible,
+    muzzleZ: +u.muzzleZ.toFixed(3), aimY: +u.aimPoint.y.toFixed(3), underOnPump };
+});
+check("reflex on the rail, irons folded", att.sight && !att.irons && att.aimY > 0.06, JSON.stringify(att));
+check("suppressor replaces the breacher and moves the muzzle", !att.breacher && att.muzzleZ < -0.62);
+check("vertical grip rides the pump", att.underOnPump);
 
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
