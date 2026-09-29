@@ -6,7 +6,7 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-s12h-death";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-sb1";
 import { poseEmoteCode } from "./emotes.js?v=to-emotes1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
@@ -107,6 +107,22 @@ export class RemotePlayer {
     this.meleeSeen = peer.meleeSeq | 0;
     this.throwSeen = peer.throwSeq | 0;
     this.throwT = 0;
+    // Trollsaber: how far into the guard the arm is, whether the blade was
+    // out last frame, and sounds for game.js to play at this body
+    // ({ kind: "ignite" | "retract" | "swing", at }), drained each frame.
+    this.blockT = 0;
+    this.saberOut = false;
+    this.sfx = [];
+  }
+
+  get saber() { return this.meleeMesh?.userData.saber || null; }
+
+  /* Middle of the blade in world space (deflect sparks), or null. */
+  bladeMid(out = new THREE.Vector3()) {
+    const s = this.saber;
+    if (!s || !this.saberOut) return null;
+    out.copy(s.tipLocal).lerp(s.rootLocal, 0.45);
+    return this.meleeMesh.localToWorld(out);
   }
 
   /* Start playing a swing the peer announced, with the sword in the fist and
@@ -116,6 +132,7 @@ export class RemotePlayer {
     this.melee.t = 0;
     this.melee.swingIndex = kind & 1;
     this.melee.start();
+    if (this.melee.saber) this.sfx.push({ kind: "swing", at: this.centre() });
   }
 
   /* The melee state and the sword in the fist, built the first time either
@@ -123,10 +140,17 @@ export class RemotePlayer {
   ensureMelee(defId) {
     if (!MELEE_DEFS[defId]) return false;
     if (!this.melee || this.melee.def.id !== defId) this.melee = new MeleeState(defId);
+    // A different melee weapon from last time (keyboard -> saber): rebuild.
+    if (this.meleeMesh && this.meleeMesh.userData.meleeId !== defId) {
+      this.meleeMesh.parent?.remove(this.meleeMesh);
+      this.meleeMesh = null;
+      this.saberOut = false;
+    }
     if (!this.meleeMesh) {
       this.meleeMesh = buildMeleeMesh(this.melee.def, false);
       this.meleeMesh.scale.setScalar(1.1);
       this.meleeMesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      this.meleeMesh.userData.meleeId = defId;
       this.rig.parts.gripR.add(this.meleeMesh);
     }
     return true;
@@ -208,6 +232,16 @@ export class RemotePlayer {
     this.emoteT = em ? (this.emoteT || 0) + dt : 0;
     if (this.meleeMesh) this.meleeMesh.visible = sword && !em;
     if (this.weaponMesh) this.weaponMesh.visible = !sword && !em;
+    // The blade snaps out when it comes into their hand and goes back in
+    // when it leaves, with the sound, like our own.
+    const saberOut = !!this.saber && this.meleeMesh.visible && this.alive;
+    if (saberOut !== this.saberOut) {
+      this.saberOut = saberOut;
+      if (saberOut) { this.saber.snapOff(); this.saber.ignite(); }
+      if (snaps.length) this.sfx.push({ kind: saberOut ? "ignite" : "retract", at: this.centre() });
+    }
+    const guard = saberOut && meleeHeld && !swinging && !!this.peer.blocking;
+    this.blockT += ((guard ? 1 : 0) - this.blockT) * Math.min(1, dt * 14);
 
     // Just died: hold the last known pose and play a collapse instead of
     // instantly popping out of existence. Respawning (alive flips back to
@@ -320,7 +354,7 @@ export class RemotePlayer {
     } else poseHumanoid(this.rig, {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
-      hold: sword ? "melee" : "gun", swing,
+      hold: sword ? "melee" : "gun", swing, block: this.blockT,
     });
 
     if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);

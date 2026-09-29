@@ -950,6 +950,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   transform-origin: 0 0; white-space: nowrap;
 }
 .to-dmg-num.is-crit { color: #ffe27a; font-size: 19px; font-weight: 600; }
+.to-dmg-num.is-word { color: #ff6a4a; font-size: 13px; font-weight: 600; letter-spacing: .08em; }
 
 /* Standing inside smoke. Grey wash plus a soft vignette so the edges of the
    screen close in — you can still see your gun, just not the room. */

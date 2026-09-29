@@ -647,8 +647,8 @@ export function mountHeldWeapon(rig, mesh) {
    it, is the real speed and sizes the stride so the feet plant exactly. */
 /* `hold`: "gun" (default), "melee" or "none". `swing`: { t: 0..1, kind:
    "swing" | "thrust" } while a melee attack plays. `recoil`: 0..1, the gun's
-   current kick. */
-function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0 }) {
+   current kick. `block`: 0..1 into the saber guard (melee hold, no swing). */
+function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0, block = 0 }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
@@ -939,6 +939,7 @@ function _poseDanceWave(rig, t) {
 export function poseHumanoid(rig, arg) {
   _poseHumanoid(rig, arg);
   if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);
+  if (arg.hold === "melee" && arg.block > 0 && !arg.swing) _saberGuard(rig, Math.min(1, arg.block));
   rig.body.update();
 }
 
@@ -997,6 +998,43 @@ function _gripSupport(rig, { pitch = 0, recoil = 0 } = {}) {
   }
   _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT, _gPoleL);
   setHandPose(rig, -1, "fist");
+}
+
+/* Trollsaber guard, blended in by `k` over the melee carry: both fists on
+   the hilt in front of the chest (right at the emitter end, left below it), and the blade
+   turned to run up and across to the left, the way the first-person guard
+   holds it. Arms by the same IK as the gun; the blade by turning the right
+   hand until the held weapon's -Z lies along SABER_GUARD_DIR. */
+const SABER_GUARD_DIR = new THREE.Vector3(-0.62, 0.74, -0.25).normalize(); // chest space
+const SABER_GUARD_GRIP = new THREE.Vector3(0.12, -0.26, -0.34);              // x s·build, y/z x s
+const SABER_HAND_GAP = 0.11;                                                 // along the hilt, x s
+const _sgFk = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
+const _sgQ = new THREE.Quaternion(), _sgQ2 = new THREE.Quaternion(), _sgId = new THREE.Quaternion();
+const _sgR = new THREE.Vector3(), _sgL = new THREE.Vector3(), _sgB = new THREE.Vector3(), _sgD = new THREE.Vector3();
+function _saberGuard(rig, k) {
+  const p = rig.parts, s = rig.scale, w = rig.build;
+  const joints = [p.armR, p.elbowR, p.armL, p.elbowL];
+  joints.forEach((j, i) => _sgFk[i].copy(j.quaternion));
+  _sgR.set(SABER_GUARD_GRIP.x * s * w, SABER_GUARD_GRIP.y * s, SABER_GUARD_GRIP.z * s);
+  _sgL.copy(_sgR).addScaledVector(SABER_GUARD_DIR, -SABER_HAND_GAP * s);   // below it, toward the pommel
+  _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT.copy(_sgR).sub(p.armR.position), _gPoleR);
+  _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT.copy(_sgL).sub(p.armL.position), _gPoleL);
+  joints.forEach((j, i) => { _sgQ.copy(j.quaternion); j.quaternion.copy(_sgFk[i]).slerp(_sgQ, k); });
+  setHandPose(rig, -1, "fist");
+
+  // The blade: whatever the fist holds (the melee mesh on gripR).
+  const held = p.gripR.children.find((c) => c.visible && c.userData.meleeId);
+  if (!held) return;
+  p.chest.updateWorldMatrix(true, true);
+  held.getWorldQuaternion(_sgQ);
+  _sgB.set(0, 0, -1).applyQuaternion(_sgQ);
+  p.chest.getWorldQuaternion(_sgQ);
+  _sgD.copy(SABER_GUARD_DIR).applyQuaternion(_sgQ);
+  _sgQ2.setFromUnitVectors(_sgB, _sgD);             // world-space turn
+  _sgQ2.copy(_sgId).slerp(_sgQ2, k);
+  // gripR.local' = parent⁻¹ · turn · parent · gripR.local
+  p.gripR.parent.getWorldQuaternion(_sgQ);
+  p.gripR.quaternion.premultiply(_sgQ).premultiply(_sgQ2).premultiply(_sgQ.invert());
 }
 
 /* Throwing a grenade, laid over whatever pose the rig already has: the free

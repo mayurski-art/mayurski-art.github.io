@@ -45,11 +45,11 @@ const RELOAD_TIME = 2.3;
    chance it gets), how far off its throws land (metres of scatter at 20 m),
    and whether it cooks frags so they go off on landing. */
 const DIFFICULTY = {
-  recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.15, reaction: 0.45, strafe: 0.55, lead: 0.15,
+  recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.15, reaction: 0.45, strafe: 0.55, lead: 0.15, readsGuard: false,
     nade: { chance: 0.3, scatter: 3.2, cook: false } },
-  regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.85, reaction: 0.28, strafe: 0.75, lead: 0.4,
+  regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.85, reaction: 0.28, strafe: 0.75, lead: 0.4, readsGuard: true,
     nade: { chance: 0.55, scatter: 1.9, cook: false } },
-  veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.62, reaction: 0.16, strafe: 1.0, lead: 0.75,
+  veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.62, reaction: 0.16, strafe: 1.0, lead: 0.75, readsGuard: true,
     nade: { chance: 0.85, scatter: 1.0, cook: true } },
 };
 
@@ -70,6 +70,18 @@ const between = ([a, b]) => a + Math.random() * (b - a);
 const MELEE_REACH = 2.3;
 const MELEE_INTERVAL = 0.95;      // seconds between swings, scaled by skill below
 export const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
+
+/* Is target `t` holding a saber guard that faces `from`? Targets carry
+   `blocking` (bool), `yaw` and `blockCone` (the saber's deflect.cone,
+   a dot product against their facing). Forward at yaw 0 is -Z. */
+function isGuarding(t, from) {
+  if (!t.blocking) return false;
+  const dx = from.x - t.pos.x, dz = from.z - t.pos.z;
+  const len = Math.hypot(dx, dz);
+  if (len < 1e-3) return true;
+  const yaw = t.yaw || 0;
+  return (dx * -Math.sin(yaw) + dz * -Math.cos(yaw)) / len >= (t.blockCone ?? 0.26);
+}
 
 /* Bots carry real guns from the roster rather than all reporting problem416,
    so the killfeed says something true about how you died. */
@@ -256,6 +268,21 @@ class Bot {
     if (best) this.lastSeen = { id: best.id, x: best.pos.x, y: best.groundY ?? best.pos.y ?? 0, z: best.pos.z, age: 0 };
     else if (this.lastSeen) this.lastSeen.age += dt;
 
+    // A Trollsaber guard turned on us bats every round away: shooting into
+    // it only drains their meter a little. Smarter bots stop feeding it and
+    // work round the side or throw something the blade can't stop.
+    const guarded = !!best && isGuarding(best, this.pos);
+    if (guarded && !this.guarded) {
+      this.guardT = 0;
+      this.strafeDir = Math.random() < 0.5 ? 1 : -1;
+      // Reach for a grenade soon, unless one just went.
+      if (this.lastThrowAt == null || performance.now() - this.lastThrowAt > 6000) this.nadeT = Math.min(this.nadeT, 0.35 + this.diff.reaction * 2);
+    }
+    this.guarded = guarded;
+    if (guarded) this.guardT += dt;
+    // Recruits never catch on; the others after a round or two bounces off.
+    const respectGuard = guarded && this.diff.readsGuard && this.guardT > this.diff.reaction * 2;
+
     // --- grenades
     if (ctx.onThrow && !this.meleeOnly && !busy && !stunned && (this.frags > 0 || this.flashes > 0)) {
       this.nadeT -= dt;
@@ -270,6 +297,7 @@ class Bot {
           if (ctx.onThrow(this, plan.kind, at, plan.lob)) {
             if (plan.kind === "frag") this.frags--; else this.flashes--;
             this.nadeT = between(NADE_COOLDOWN);
+            this.lastThrowAt = performance.now();
             // A beat with the hand busy: no shot goes off mid-throw.
             this.fireT = Math.max(this.fireT, 0.45);
           } else {
@@ -321,6 +349,15 @@ class Bot {
       // the instinctive first move a real player makes under fire.
       if (this.flinchT > 0.15) {
         desired = lateral.clone().normalize();
+      } else if (respectGuard) {
+        // Flank: all-out sideways, one way (no strafe flips), backing off a
+        // touch if they're close enough to lunge.
+        desired = lateral.clone().normalize();
+        if (bestD < 8) {
+          const away = new THREE.Vector3(this.pos.x - best.pos.x, 0, this.pos.z - best.pos.z).normalize();
+          desired.addScaledVector(away, 0.5).normalize();
+        }
+        this.strafeT = Math.max(this.strafeT, 0.5);
       }
     } else if (objective && objD > objective.radius) {
       // Nobody in sight and the mode wants us somewhere — go there before
@@ -395,6 +432,7 @@ class Bot {
     }
     // Hands full with the bomb means no trigger, same as for a player.
     const canSee = !busy && best && bestD < FIRE_RANGE;
+    const canShoot = canSee && !respectGuard;
     // A short reaction delay before the first shot, so they don't snap onto
     // someone the instant they round a corner.
     const reacted = this.acquireT >= this.diff.reaction;
@@ -407,7 +445,7 @@ class Bot {
     else if (this.holdingSecondary && !canSee && this.reloadT <= 0) this.holdingSecondary = false;
 
     if (this.holdingSecondary) {
-      if (reacted && canSee && this.sidearmReloadT <= 0 && this.fireT <= 0) {
+      if (reacted && canShoot && this.sidearmReloadT <= 0 && this.fireT <= 0) {
         if (this.sidearmAmmo <= 0) {
           this.sidearmReloadT = SIDEARM_RELOAD_TIME;
         } else {
@@ -422,7 +460,7 @@ class Bot {
       return;
     }
 
-    if (canSee && reacted && this.reloadT <= 0 && this.fireT <= 0) {
+    if (canShoot && reacted && this.reloadT <= 0 && this.fireT <= 0) {
       if (this.ammo <= 0) {
         this.reloadT = RELOAD_TIME;
       } else {
@@ -456,6 +494,14 @@ class Bot {
     const distTo = (x, z) => Math.hypot(x - this.pos.x, z - this.pos.z);
     const inRange = (d) => d >= NADE_MIN && d <= NADE_MAX;
     const hidden = (x, y, z) => segmentBlocked(colliders, eye, new THREE.Vector3(x, y + 1, z));
+
+    // Saber guard up at us: the blade stops rounds, not blasts or flashes.
+    if (best && this.guarded) {
+      const d = distTo(best.pos.x, best.pos.z);
+      const kind = this.frags > 0 ? "frag" : this.flashes > 0 ? "flash" : null;
+      const y = best.groundY ?? best.pos.y ?? 0;
+      if (kind && inRange(d)) return { kind, x: best.pos.x, y, z: best.pos.z, dist: d, lob: false };
+    }
 
     if (this.frags > 0) {
       let bestGroup = null;

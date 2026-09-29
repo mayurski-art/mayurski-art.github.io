@@ -29,19 +29,19 @@ import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
-import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-gc1";
+import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-sb1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-tj1";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-s12h-death";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-sb1";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-sb1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tj1";
-import { BotManager } from "./bots.js";
+import { BotManager } from "./bots.js?v=to-sb1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
-import { GameAudio } from "./audio.js?v=to-ts1";
+import { GameAudio } from "./audio.js?v=to-sb1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -2599,6 +2599,7 @@ const net = new Net({
   onDuo: (p, m) => onDuoMessage(p, m),
   onInfect: (m) => applyInfect(m.ids || []),
   onNade: (m) => applyRemoteNade(m),
+  onDeflect: (p, m) => onRemoteDeflect(p, m),
   onVote: () => { if (intermissionT > 0) renderVote(); },
   onChat: (p, m) => chat.receive(p, m),
   /* Adopt the owner's countdown rather than running our own, so two clients
@@ -4150,10 +4151,10 @@ function showHitmarker(isCrit, damage = 0, point = null, killed = false) {
 const damageNumbers = [];
 const DAMAGE_NUMBER_LIFE = 0.9;
 
-function spawnDamageNumber(damage, point, isCrit) {
+function spawnDamageNumber(damage, point, isCrit, text = null) {
   const el = document.createElement("span");
-  el.className = "to-dmg-num" + (isCrit ? " is-crit" : "");
-  el.textContent = String(Math.round(damage));
+  el.className = "to-dmg-num" + (isCrit ? " is-crit" : "") + (text ? " is-word" : "");
+  el.textContent = text || String(Math.round(damage));
   els.damageNumbers.appendChild(el);
   damageNumbers.push({
     el,
@@ -5003,8 +5004,42 @@ function tryDeflect(amount, fromId, weaponId, fromPos) {
     spawnImpactBurst(camera.localToWorld(v), 0xff6a3a, 14);
   }
   audio.saberClash();
+  net.publishDeflect(fromId);
   if (saberBlock.meter <= 0) breakSaberGuard();
   return true;
+}
+
+/* Everyone else's sabers, once a frame after remotes.update: the sounds
+   their bodies queued (ignite, retract, swing) and one hum on the nearest
+   lit blade, bending up while it swings. */
+const _remoteHumAt = new THREE.Vector3();
+function updateRemoteSabers() {
+  let near = null, nearD = 30 * 30;
+  for (const rp of remotes.byId.values()) {
+    for (const s of rp.sfx) {
+      if (s.kind === "ignite") audio.saberIgnite(s.at);
+      else if (s.kind === "retract") audio.saberRetract(s.at);
+      else if (s.kind === "swing") audio.saberSwing(s.at);
+    }
+    rp.sfx.length = 0;
+    if (!rp.saberOut || !rp.saber?.lit) continue;
+    const d = rp.pos.distanceToSquared(move.pos);
+    if (d < nearD) { near = rp; nearD = d; }
+  }
+  if (!near) { audio.saberHumAt(-1); return; }
+  audio.saberHumAt(near.swinging ? 0.8 : 0, near.bladeMid(_remoteHumAt) || near.centre(_remoteHumAt));
+}
+
+/* A peer's blade ate a round: sparks on it for everyone; if it was our
+   round, the number that would have printed says DEFLECTED instead. */
+function onRemoteDeflect(p, m) {
+  const rp = remotes.byId.get(p.id);
+  if (!rp) return;
+  const at = rp.bladeMid() || rp.centre();
+  spawnImpactBurst(at, 0xff6a3a, 14);
+  rp.saber?.flare(0.9);
+  audio.saberClash(at);
+  if (m.by === net.id) spawnDamageNumber(0, at, false, "DEFLECTED");
 }
 
 /* Swing trail and the hum, once a frame while the saber is out. The trail
@@ -5303,6 +5338,7 @@ function netSnapshot() {
   _netSnapshot.deaths = player.deaths;
   _netSnapshot.assists = player.assists;
   _netSnapshot.emote = emote ? emoteCode(emote.idx, emote.role) : 0;
+  _netSnapshot.block = saberBlock.active;
   return _netSnapshot;
 }
 
@@ -5497,7 +5533,16 @@ function botTargets() {
     if (o.id === net.id && player.spawnGuard > 0) continue;
     // `melee`: only carrying a sword (Infection's infected), so worth
     // backing away from rather than holding ground against.
-    list.push({ id: o.id, team: o.team, alive: true, pos: o.pos, groundY: o.pos.y, melee: isInfection() && o.team === "ghost" });
+    // `blocking`: a Trollsaber guard up, which bots respect (bots.js
+    // isGuarding) instead of emptying magazines into it.
+    let blocking = false;
+    if (o.id === net.id) blocking = saberBlock.active;
+    else {
+      const rp = remotes.byId.get(o.id);
+      blocking = !!(rp?.peer.blocking && rp.saberOut);
+    }
+    list.push({ id: o.id, team: o.team, alive: true, pos: o.pos, groundY: o.pos.y, yaw: o.yaw,
+      melee: isInfection() && o.team === "ghost", blocking, blockCone: MELEE_DEFS.trollsaber.deflect.cone });
   }
   return list;
 }
@@ -7484,6 +7529,7 @@ function animate() {
         net.update(dt, netSnapshot());
         remotes.sync(net.peers);
         remotes.update(dt, net.team, !!currentMode().ffa);
+        updateRemoteSabers();
       }
     } else if (isRange()) {
       rangeSet.update(dt);
@@ -7512,6 +7558,7 @@ function animate() {
         net.update(dt, netSnapshot());
         remotes.sync(net.peers);
         remotes.update(dt, net.team, true);
+        updateRemoteSabers();
       }
     } else if (isZombies()) {
       const roundOver = zdir.update(dt, player.pos, onZombieAttack, move.pos.y);
@@ -7560,6 +7607,7 @@ function animate() {
       net.update(dt, netSnapshot());
       remotes.sync(net.peers);
       remotes.update(dt, net.team, ffa);
+      updateRemoteSabers();
       updateKillcam(dt);
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
 
@@ -7807,6 +7855,7 @@ function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
 
 let localLower = 0;
 let localThrowT = 0;   // the third-person body's overhand throw, counting down
+let localBlockT = 0;   // the third-person body in the saber guard, 0..1
 
 /* Positions and poses the local player's own humanoid rig every frame -
    same buildHumanoid/poseHumanoid contract remote-players.js drives other
@@ -7877,6 +7926,7 @@ function updateLocalRig(dt) {
       kind: player.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
     } : null,
     recoil: hold === "gun" ? Math.min(1, (currentWeapon()?.viewKickKnockback || 0) * 7) : 0,
+    block: localBlockT = damp(localBlockT, saberBlock.active ? 1 : 0, 14, dt),
   });
   if (localThrowT > 0) {
     localThrowT = Math.max(0, localThrowT - dt);
@@ -7903,6 +7953,7 @@ function syncLocalRigHeld(hold, def) {
     // No first-person hands on it: the body's own mitt holds it.
     localHeld.mesh = buildMeleeMesh(player.melee.def, false);
     localHeld.mesh.scale.setScalar(1.1);
+    localHeld.mesh.userData.meleeId = player.melee.def.id;
     localRig.parts.gripR.add(localHeld.mesh);
   }
   localHeld.mesh?.traverse((o) => { if (o.isMesh) o.castShadow = true; });

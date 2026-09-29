@@ -226,6 +226,7 @@ export class Net {
         p.deaths = m.d | 0;
         p.assists = m.as | 0;
         p.emote = m.em | 0;   // 1-based emote index, 0 = none
+        p.blocking = !!m.bl;  // Trollsaber guard up
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv });
         if (p.snaps.length > 12) p.snaps.shift();
@@ -251,6 +252,13 @@ export class Net {
         p.meleeSeq = (p.meleeSeq | 0) + 1;
         p.meleeKind = m.k | 0;
         p.meleeDef = m.md || "keyboard";
+        break;
+      }
+      /* Their saber batted a round away (the blocker's client decides, like
+         any damage it takes): sparks and a clash on everyone's screen, and
+         the shooter `by` learns the hit didn't land. */
+      case "deflect": {
+        this.h.onDeflect?.(this.peer(m.id), m);
         break;
       }
       case "hit": {
@@ -339,6 +347,7 @@ export class Net {
         w: local.weapon, sk: local.skin || undefined, tm: this.team, n: this.name, k: local.kills | 0,
         d: local.deaths | 0, as: local.assists | 0,
         em: local.emote || undefined,
+        bl: local.block ? 1 : undefined,
       });
     }
     const now = performance.now();
@@ -514,6 +523,10 @@ export class Net {
 
   publishMeleeAs(fromId, kind, meleeId) {
     this.send({ t: "melee", id: fromId, k: kind & 1, md: meleeId });
+  }
+
+  publishDeflect(byId) {
+    this.send({ t: "deflect", id: this.id, by: byId || undefined });
   }
 
   /* action "throw": { gid, def, ox..dz, fuse } · action "boom": { gid, def, x, y, z } */

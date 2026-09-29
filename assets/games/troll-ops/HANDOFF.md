@@ -1,5 +1,37 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## Trollsaber multiplayer (2026-09-28, shipped)
+Picked by the user from the NEXT SESSION list (no decisions needed).
+- **Guard on the wire:** state packet `bl: 1` while blocking (`p.blocking`).
+  RemotePlayer damps `blockT` and passes `block` to poseHumanoid; the local
+  3P body does the same (`localBlockT`). character.js `_saberGuard`: both
+  fists on the hilt by the gun's two-bone IK (`_reachArm`; right fist at the
+  emitter end, left 0.11 below it), then the right hand is turned until the
+  held mesh's -Z runs along `SABER_GUARD_DIR` (up and left, clear of the
+  face). The held melee mesh must carry `userData.meleeId` (remote + local
+  set it) or the blade isn't turned.
+- **Sounds for everyone:** RemotePlayer queues `sfx` (ignite / retract /
+  swing, positioned at the body); game.js `updateRemoteSabers()` drains them
+  after every `remotes.update` and runs ONE shared hum voice
+  (`audio.saberHumAt`) on the nearest lit remote blade within 30 m. The blade
+  snaps out on their screen when it enters the hand. Fixed on the way: a peer
+  switching keyboard -> saber kept the keyboard mesh (ensureMelee never
+  rebuilt).
+- **Deflects for everyone:** `tryDeflect` sends `{t:"deflect", id, by}`;
+  receivers spark the blocker's blade (`rp.bladeMid()`) + clash; the shooter
+  gets a "DEFLECTED" word in place of the damage number
+  (`spawnDamageNumber(..., text)`, `.to-dmg-num.is-word`).
+- **Bots respect a guard:** bot targets carry `blocking`/`yaw`/`blockCone`;
+  bots.js `isGuarding` (same 0.26 cone as the deflect). Regular/veteran
+  (`readsGuard`) stop shooting into it after `reaction * 2` s, flank hard
+  sideways (back off inside 8 m), and reach for a frag/flash (planThrow's
+  first reason; guard onset cuts the grenade timer unless one went in the
+  last 6 s). Recruits keep shooting.
+- Test: `tools/troll-ops-saber-mp-test.mjs` (20 checks: 7 bot sim with a
+  seeded RNG, 13 two-tab). Saber + sync tests still pass. Tags `?v=to-sb1`:
+  character.js (every importer), net, remote-players, audio, bots, game.js,
+  style.css.
+
 ## HUD cleanup (2026-09-28, shipped)
 User: no control instructions while playing (incl. Test Range) and no
 top-left Kills counter. Gone: V/G/F letters on the gear chips, "Press 4 to
@@ -39,9 +71,9 @@ one-hit, deflects frontal rounds while blocking.
   (`SABER_CUT` high-right to low-left, `SABER_RISE` backhand), windows
   0.24-0.34. NB gear.js `basisPointing` builds a MIRRORED basis (det -1,
   non-unit quats); the keyboard was tuned on top of it so it stays, the
-  saber uses `saberBasis`. 3P body still carries it one-handed.
-- Not done: others don't see your block pose or hear your saber (3P shows it
-  lit in hand); bots don't react to a block.
+  saber uses `saberBasis`. 3P body carries it one-handed except in the guard.
+- ~~Not done: others don't see your block pose or hear your saber; bots
+  don't react to a block.~~ DONE, see "Trollsaber multiplayer" at the top.
 - Test: `tools/troll-ops-trollsaber-test.mjs` (13 checks). Tags: gear.js and
   trollsaber.js `?v=ts1` in every importer; loadout `?v=ts1`, inspector /
   remote-players / audio `?v=to-ts1`, game.js + style.css `?v=to-ts1`.

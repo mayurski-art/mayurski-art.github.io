@@ -300,24 +300,63 @@ export class GameAudio {
     h.g.gain.setTargetAtTime(0.0001, t + 0.3, 0.06);
   }
 
-  saberIgnite() {
+  /* Someone else's blade: one shared hum voice, placed on the nearest lit
+     saber each frame (`at`), fading out when nobody keeps calling. A second
+     voice for a second saber isn't worth the oscillators. */
+  saberHumAt(level, at) {
+    if (!this.ctx) return;
+    const t = this.now;
+    if (level < 0 || !at) {
+      if (this._saberFar) this._saberFar.g.gain.setTargetAtTime(0.0001, t, 0.05);
+      return;
+    }
     if (!this._ready()) return;
-    this._noise({ duration: 0.09, gain: 0.3, type: "highpass", freq: 3000, sweepTo: 1200 });
-    this._noise({ duration: 0.35, gain: 0.16, type: "bandpass", freq: 700, q: 1.2, sweepTo: 2600, delay: 0.02 });
-    this._tone({ freq: 60, to: 170, duration: 0.32, gain: 0.12, type: "sawtooth", delay: 0.02 });
-    this._tone({ freq: 120, to: 90, duration: 0.4, gain: 0.07, type: "sawtooth", delay: 0.18 });
+    if (!this._saberFar) {
+      const a = this.ctx.createOscillator(), b = this.ctx.createOscillator();
+      const f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+      a.type = "sawtooth"; a.frequency.value = 86;
+      b.type = "sawtooth"; b.frequency.value = 88.7;
+      f.type = "lowpass"; f.frequency.value = 480; f.Q.value = 3;
+      g.gain.value = 0.0001;
+      const p = this._dest(at);
+      a.connect(f); b.connect(f); f.connect(g).connect(p);
+      a.start(t); b.start(t);
+      this._saberFar = { a, b, f, g, p };
+    }
+    const h = this._saberFar;
+    if (h.p.positionX) {
+      h.p.positionX.setTargetAtTime(at.x, t, 0.03);
+      h.p.positionY.setTargetAtTime(at.y, t, 0.03);
+      h.p.positionZ.setTargetAtTime(at.z, t, 0.03);
+    } else {
+      h.p.setPosition(at.x, at.y, at.z);
+    }
+    h.a.frequency.setTargetAtTime(86 + level * 70, t, 0.05);
+    h.b.frequency.setTargetAtTime(88.7 + level * 76, t, 0.05);
+    h.f.frequency.setTargetAtTime(480 + level * 1600, t, 0.05);
+    h.g.gain.cancelScheduledValues(t);
+    h.g.gain.setTargetAtTime(0.05 + level * 0.12, t, 0.05);
+    h.g.gain.setTargetAtTime(0.0001, t + 0.3, 0.06);
   }
 
-  saberRetract() {
+  saberIgnite(at = null) {
     if (!this._ready()) return;
-    this._tone({ freq: 170, to: 45, duration: 0.3, gain: 0.1, type: "sawtooth" });
-    this._noise({ duration: 0.25, gain: 0.09, type: "bandpass", freq: 2200, q: 1, sweepTo: 500 });
+    this._noise({ duration: 0.09, gain: 0.3, type: "highpass", freq: 3000, sweepTo: 1200, at });
+    this._noise({ duration: 0.35, gain: 0.16, type: "bandpass", freq: 700, q: 1.2, sweepTo: 2600, delay: 0.02, at });
+    this._tone({ freq: 60, to: 170, duration: 0.32, gain: 0.12, type: "sawtooth", delay: 0.02, at });
+    this._tone({ freq: 120, to: 90, duration: 0.4, gain: 0.07, type: "sawtooth", delay: 0.18, at });
   }
 
-  saberSwing() {
+  saberRetract(at = null) {
     if (!this._ready()) return;
-    this._tone({ freq: 150, to: 95, duration: 0.3, gain: 0.12, type: "sawtooth" });
-    this._noise({ duration: 0.26, gain: 0.14, type: "bandpass", freq: 600, q: 1.1, sweepTo: 2400 });
+    this._tone({ freq: 170, to: 45, duration: 0.3, gain: 0.1, type: "sawtooth", at });
+    this._noise({ duration: 0.25, gain: 0.09, type: "bandpass", freq: 2200, q: 1, sweepTo: 500, at });
+  }
+
+  saberSwing(at = null) {
+    if (!this._ready()) return;
+    this._tone({ freq: 150, to: 95, duration: 0.3, gain: 0.12, type: "sawtooth", at });
+    this._noise({ duration: 0.26, gain: 0.14, type: "bandpass", freq: 600, q: 1.1, sweepTo: 2400, at });
   }
 
   saberHit(at = null) {
