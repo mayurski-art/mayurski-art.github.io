@@ -233,8 +233,13 @@ Everything left needs the user first (ask before building):
    and XP break). Include the Grinmington 870 if they want it renamed.
 3. **Custom crosshairs**: which options (style, colour, size, gap, dot,
    outline, per class?).
-4. **Battle Royale** design doc (players/bots, map, drop-in, zone, loot vs
-   loadouts, squads) before any code.
+4. **Battle Royale**: design doc DRAFTED 2026-09-28, waiting on the user's
+   decisions: https://claude.ai/code/artifact/b21bbfbf-170d-4fa6-b4ce-1e092fc8df46
+   ("Troll Forces Battle Royale design"; a Claude Docs doc, edit it through the
+   docs connector). Picks proposed: Troll Royale, 20 players + bots, solo/duos,
+   new 400 m Trollface Island (World-page landmarks as POIs), plane drop,
+   loot only, 5-phase zone "the Cringe", Troll Court 1v1 second chance,
+   streaks off. Phase 1 = Mini Royale on an existing map. No code yet.
 5. **Green Candles redesign** design pass (reference notes further down).
 Also parked: troll NFT weapon skins (Tank Runner #1718 first; touches
 wallets, ask), more radio songs (user sends mp3s), skins on hold.
