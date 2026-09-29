@@ -1,8 +1,24 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
-## RESUME HERE (paused 2026-09-28 at the 5-hour limit): Troll Royale phase 2
-Phase 2 "bots that play BR" is built and pushed; one gate check is short.
-Done (game.js "Troll Royale bots" block + bots.js):
+## RESUME HERE: Troll Royale phase 2 DONE (2026-09-29), phase 3 next
+Phase 3 = Trollface Island grey-box layout for the user to approve (doc's
+build plan) before any Blender art. Ask before modelling.
+2026-09-29 session:
+- Gate PASSES: royale-bots test 13/13, Royale-18 33.1 fps vs TDM-6 39.7.
+  Fix: remote-players.js `mergeHeld` merges a held gun into one mesh per
+  material (hands, onBeforeRender meshes and multi-material ones stay
+  loose); a body went 39 -> 19 meshes. Close-ups of 416 / 870 / Green
+  Candles / RPK look unchanged. Remote gun swaps now `disposeLater` too
+  (the `isReady` error came back when bots swapped pistols at match start).
+- Spectating hides our own FP viewmodel (`royaleSpectating()` in render).
+- royale test: death-drop check counts our own drop ids (bots loot now).
+- All tests pass: sync, saber-mp, trollsaber, royale, royale-mp, emote,
+  royale-bots. Tags: remote-players/bots `?v=to-tr3`, royale.js `?v=tr3`,
+  game.js `?v=to-tr3`.
+- Not verified on real hardware: ask the user how Royale runs on their
+  laptop/phone.
+
+Phase 2 notes (2026-09-28), game.js "Troll Royale bots" block + bots.js:
 - Bots land with a pistol (`initRoyaleBot`), carry gunRarity/gunAtt/armor/
   plates/heals, and drop exactly that on death. Damage follows the gun
   (`royaleBotDamage`: pistol x0.65, looted 0.95 + 0.07/rarity).
@@ -18,17 +34,7 @@ Done (game.js "Troll Royale bots" block + bots.js):
   ALL modes), keeping their pick in between: bot AI 6.2 -> 2.4 ms at 18 bots.
 - Fixed: `isReady` page error (compileAsync polling a material Royale had
   disposed): royale.js `disposeLater`.
-- Test `tools/troll-ops-royale-bots-test.mjs`: 12/13 pass. The one FAIL is the
-  gate "18 bots: frame rate holds": headless Royale-18 25.1 fps vs TDM-7 38.8
-  / Royale-9 29.2 on Grin Beach (threshold 29). AI is cheap now; the rest is
-  rendering 18 rigs. Next: find the per-rig cost (draw calls per bot, gun
-  meshes, shadows) and LOD/skip far bots; then ask the user how it runs on
-  their laptop (the real gate).
-- NOT re-run after the sight throttle: sync, saber-mp, trollsaber, royale,
-  royale-mp tests. Run them first thing (NODE_PATH = main checkout
-  node_modules). Tags: bots.js `?v=to-tr2`, royale.js `?v=tr2`, game.js
-  `?v=to-tr2` (bump again on any change).
-- Then phase 3 (Trollface Island grey-box for the user to approve).
+- Test `tools/troll-ops-royale-bots-test.mjs` (13 checks incl. the perf gate).
 
 ## Troll Royale (battle royale) PHASE 1 SHIPPED (2026-09-28)
 Design doc (Claude Docs, edit via the docs connector):

@@ -11,11 +11,72 @@ import { poseEmoteCode } from "./emotes.js?v=to-emotes1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=ts2";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down
 // this long before it's cleared, rather than vanishing the moment it lands.
 const BODY_LINGER = 3;
+
+/* A gun in someone else's hands never moves its parts (no pump, no mag
+   out, no inspect), so its twenty-odd meshes become one per material: the
+   biggest draw-call saving there is with a room full of bots (Troll Royale
+   runs 18). Hidden meshes (the first-person hands) are left out; a mesh
+   that animates itself (onBeforeRender) or won't merge stays as it is.
+   The root keeps its userData (grip/support points for mountHeldWeapon). */
+const _mergeInv = new THREE.Matrix4();
+const _mergeM = new THREE.Matrix4();
+function mergeHeld(mesh) {
+  mesh.updateMatrixWorld(true);
+  _mergeInv.copy(mesh.matrixWorld).invert();
+  const groups = new Map();
+  const loose = [];
+  const shown = (o) => { for (let p = o; p && p !== mesh; p = p.parent) if (!p.visible || p.userData.hand) return false; return true; };
+  mesh.traverse((o) => {
+    if (!o.isMesh || o === mesh || !shown(o)) return;
+    _mergeM.multiplyMatrices(_mergeInv, o.matrixWorld);
+    const custom = o.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender;
+    if (custom || Array.isArray(o.material) || o.isInstancedMesh || o.isSkinnedMesh) {
+      loose.push({ o, m: _mergeM.clone() });
+      return;
+    }
+    const g = o.geometry;
+    const key = `${o.material.uuid}|${Object.keys(g.attributes).sort().join(",")}|${g.index ? 1 : 0}|${Object.keys(g.morphAttributes).length}`;
+    if (!groups.has(key)) groups.set(key, { mat: o.material, geos: [], shadow: false });
+    const e = groups.get(key);
+    e.geos.push(g.clone().applyMatrix4(_mergeM));
+    e.shadow = e.shadow || o.castShadow;
+  });
+  const out = new THREE.Group();
+  out.userData = mesh.userData;
+  out.scale.copy(mesh.scale);
+  for (const e of groups.values()) {
+    const merged = e.geos.length === 1 ? e.geos[0] : mergeGeometries(e.geos, false);
+    if (!merged) { for (const g of e.geos) out.add(new THREE.Mesh(g, e.mat)); continue; }
+    if (e.geos.length > 1) for (const g of e.geos) g.dispose();
+    const m = new THREE.Mesh(merged, e.mat);
+    m.castShadow = e.shadow;
+    out.add(m);
+  }
+  for (const { o, m } of loose) {
+    o.parent.remove(o);
+    o.matrixAutoUpdate = true;
+    m.decompose(o.position, o.quaternion, o.scale);
+    out.add(o);
+  }
+  return out;
+}
+
+/* Materials are freed a few seconds late: a shader warm-up (renderer
+   .compileAsync) still polling one that was disposed under it throws. */
+function disposeLater(obj) {
+  const geos = [], mats = [];
+  obj.traverse((o) => {
+    if (o.geometry && !o.geometry.userData.shared) geos.push(o.geometry);
+    if (o.material) mats.push(o.material);
+  });
+  setTimeout(() => { for (const g of geos) g.dispose(); for (const m of mats) m.dispose?.(); }, 5000);
+}
 
 export const TEAMS = {
   phantom: { name: "Trolls",   color: 0x8a6ad6, ui: "#a98cf0" },
@@ -168,15 +229,12 @@ export class RemotePlayer {
     const arm = this.rig.parts.armR;
     if (this.weaponMesh) {
       this.weaponMesh.parent?.remove(this.weaponMesh);
-      this.weaponMesh.traverse((o) => {
-        if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
-        if (o.material) o.material.dispose?.();
-      });
+      disposeLater(this.weaponMesh);
       this.weaponMesh = null;
     }
     const def = WEAPON_DEFS[weaponId];
     if (!def) return;
-    const mesh = stripLights(buildWeaponMesh(def, { skin }));
+    const mesh = mergeHeld(stripLights(buildWeaponMesh(def, { skin })));
     mountHeldWeapon(this.rig, mesh);
     this.weaponMesh = mesh;
   }

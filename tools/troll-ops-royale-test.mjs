@@ -204,12 +204,12 @@ const out = await page.evaluate(async () => {
   T.damagePlayer(999, killer.id, "problem416", false, killer.pos);
   await new Promise((res) => setTimeout(res, 7000));   // past the killcam
   return {
-    alive: T.player.alive, n0, n1: T.royale()?.loot.items.size, text: T.els.respawnText.textContent,
+    alive: T.player.alive, n0, n1: T.royale()?.loot.items.size, mine: [...(T.royale()?.loot.items.keys() || [])].filter((k) => k.startsWith(T.net.id + ".")).length, text: T.els.respawnText.textContent,
     spectating: !!T.royale()?.spectate, place: T.royale()?.place,
   };
 });
 check("dying is final: no respawn", !out.alive && /Eliminated/.test(out.text), out.text);
-check("your gear drops where you fell", out.n1 >= out.n0 + 1, JSON.stringify(out));
+check("your gear drops where you fell", out.mine >= 1, JSON.stringify(out));
 check("you spectate a troll still standing", out.spectating && /watching/.test(out.text), out.text);
 await shot(page, "royale-spectate.png");
 

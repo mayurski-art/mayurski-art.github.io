@@ -31,7 +31,7 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-tr1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-sb1";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-tr3";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-sb1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
@@ -39,10 +39,10 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tr1";
-import { BotManager } from "./bots.js?v=to-tr2";
+import { BotManager } from "./bots.js?v=to-tr3";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-sb1";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=tr2";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=tr3";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -8369,7 +8369,8 @@ function animate() {
   // The FP viewmodel (gun+arms) only makes sense in first person — the gun
   // is already visible on the third-person rig itself, so rendering both
   // would double up the weapon on screen.
-  if (gameState === "playing" && ((!settings.thirdPerson && !emoteIsTp()) || killcam.replaying)) {
+  // Spectating in Troll Royale: the view is someone else's, so no gun of ours.
+  if (gameState === "playing" && ((!settings.thirdPerson && !emoteIsTp() && !royaleSpectating()) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
