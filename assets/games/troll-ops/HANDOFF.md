@@ -1,5 +1,73 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## RESUME HERE (2026-09-29, end of session) — read this first
+Everything below is pushed to main and live (`troll-ops.html` loads
+`game.js?v=to-hw1`). Worktree: `to-opus-wt`, branch `game-improvements`;
+push = `git push origin game-improvements:main`, then `git pull --ff-only`
+in the main checkout, then curl the live `?v=` tag.
+
+### Shipped this session (newest first)
+- **Chainsaw (LV 45) + Reaper's Grin (LV 15)** melee (gear.js MELEE_DEFS
+  `chainsaw` / `reaper`). Blender-built: `models/build_halloween_melee.blender.py`
+  -> `chainsaw.glb`, `reaper.glb` (run with `-- render` for Cycles studio
+  shots; set HW_RENDER_DIR). `melee-models.js` loads them (weapon env map via
+  setHalloweenEnvMap), falls back to procedural stand-ins until loaded,
+  runs the chain teeth live (`userData.tick`, fast mid-swing), prints our own
+  gold "hooded trollface reaper" engraving on the knife panels (canvas).
+  Knife = karambit folder after the user's reference image (images/2.png of
+  session 4a7b655b); its blade is its own node on RG_Pivot
+  (`userData.setFold(0..1)`). Admire (T / touch sparkle) on the knife:
+  applyReaperInspect in game.js = fold shut, flick open (click), two wrist
+  rolls + toss, show engraving. Per-weapon view framing: `model.view`
+  {pos, rot, scale} applied in updateMeleeView. Sounds: audio.chainsawRev /
+  chainsawHit / reaperSwing. User wants these "really clean like Green
+  Candles"; latest in-game look was approved-in-progress, not yet reviewed
+  by the user in game. Chainsaw framing may still need tuning (bar points a
+  bit left; swings reuse the sword tracks).
+- **Games hub**: only Troll Kombat + Troll Forces visible (the other nine
+  cards are `<article hidden>`, CSS `.hub-card[hidden]`); the ⚙️ settings
+  link removed; Troll Forces key art = `assets/games/troll-ops/ui/troll-forces-key-art.jpg`
+  (the user's image, re-encoded through a canvas to strip C2PA/Grok
+  metadata: user said "do not mark it as AI"; do the same for any new art).
+  "Log in to save progress" copy; Troll Wizard card removed.
+- **Troll Royale sky lobby + Troll Bus + paraglider** (phases A+B of the
+  design doc below; `royale-drop.js`), space sky + stars on Trollface
+  Island (`map.stars`, setStarField), touch Admire button (`to-touch-admire`).
+- Care package on touch (swap button becomes CAPTURE / PICK UP), captured
+  streaks bank with a READY pulse and never auto-fire, package streaks
+  don't cost meter; one Throwable slot (lethal OR tactical, loadout
+  `throwKind`); HUD layout editor (Settings > HUD layout > Customize,
+  `hud-layout.js`, per device); royale gun pickups fixed; royale sprint
+  x1.25; Mini Royale hidden (kept only as a test fixture, room `QTRM`).
+
+### Troll Royale status (user asked)
+Playable end to end on Trollface Island: 90 s sky lobby (glass box 330 m
+up, lobby guns, no damage) -> Troll Bus across the island -> jump, freefall,
+trollface paraglider -> land -> loot, zone, last troll standing, 20 players
+with bots. NOT done (phase C): other players/bots don't show a glider on
+their rigs (snapshot flag + remote rig glider needed), late-join edge cases,
+real art for the bus/glider/box, and the landmarks' real art pass (ask
+before Blender for landmarks; weapons were explicitly requested).
+
+### Open questions / waiting on the user
+1. **Streak names "like Black Ops 2"**: the five are already UAV, Care
+   Package, Hunter-Killer Drone, Lightning Strike, Helicopter Gunship. Asked
+   whether they want names shown in the HUD (it's pictures only, by their
+   earlier ask), more BO2 streaks, or troll-parody names. No answer yet.
+2. Chainsaw/knife unlock levels (15 / 45) were my pick.
+3. The banner image: user is fixing the Vice Grin rifle in Grok with the
+   prompt I gave (two images: scene + `vice416-3q-transparent.png`); fallback
+   offered: composite the real render ourselves. They then picked
+   `Downloads/4kWO0.jpg` as the banner (now live).
+
+### Tests (all in tools/, NODE_PATH=<main checkout>/node_modules)
+royale-drop (14 checks), royale-island (sets DROP.enabled=false), royale,
+royale-bots, royale-mp, sync, emote, trollsaber, saber-mp, map-walk
+trollface, map-audit trollface. Known flake: sync "infection: everyone
+starts a survivor" (fails on and off, before this session too); run tests
+ONE AT A TIME (parallel headless runs starve each other and fail timing
+checks). Headless sim runs ~2.5x slow.
+
 ## DESIGN (APPROVED 2026-09-29): Troll Royale sky lobby + Troll Bus drop
 User answers: lobby guns do NO damage; third-person camera behind the bus;
 trollface PARAGLIDER. Build phases A -> B -> C below, push each.
@@ -86,7 +154,7 @@ Royale sky "should be an outer-space sky". Drop: jump + glide (user's pick).
    inside it?
 3. Glider look: a trollface paraglider (my pick), a parachute, or wings?
 
-## RESUME HERE: Trollface Island rebuilt to the trollface.io map (SHIPPED grey box, 2026-09-29)
+## (older) Trollface Island rebuilt to the trollface.io map (SHIPPED grey box, 2026-09-29)
 User (2026-09-29): "build the battle royale map to be like the trollface.io
 map". trollface.io = the official $TROLL site (same mint as ours); its home
 page is a floating-island world map. User's reference screenshot:
