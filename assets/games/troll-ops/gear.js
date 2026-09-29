@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import { smoothstep } from "./anim-curves.js";
 import { buildTrollsaber } from "./trollsaber.js?v=ts1";
+import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw1";
 
 export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where you look
 const GRAVITY = GRENADE_GRAVITY;
@@ -46,6 +47,22 @@ export const MELEE_DEFS = {
     blurb: "An elegant weapon for a more trolled age. Hold aim to deflect bullets.",
     deflect: { cone: 0.26, drainPerHit: 0.07, drainPerDamage: 0.0025, drainHeld: 0.05, regen: 0.3, regenDelay: 0.7, breakTime: 1.8 },
     model: { kind: "saber" },
+  },
+  // Halloween (melee-models.js). The Reaper's Grin: a scythe cut down to a
+  // knife, quick in the hand and cruel from behind.
+  reaper: {
+    id: "reaper", name: "Reaper's Grin", rank: 15,
+    damage: 115, backstabMult: 2.4, range: 2.9, arc: 0.62, knock: 5.5,
+    blurb: "Death came for you. It was smiling.",
+    model: { kind: "reaper", view: { pos: [-0.03, 0.08, 0.02] } },
+  },
+  // The Chainsaw: the biggest reach and sweep of any melee weapon, and it
+  // revs on every swing.
+  chainsaw: {
+    id: "chainsaw", name: "Chainsaw", rank: 45,
+    damage: 160, backstabMult: 1.5, range: 3.6, arc: 0.8, knock: 7.5,
+    blurb: "Groovy. Revs on every swing, and nobody stands back up.",
+    model: { kind: "chainsaw", view: { pos: [0.0, 0.0, 0.08], rot: [-1.3, 0.08, 0], scale: 0.85 } },
   },
 };
 
@@ -321,6 +338,25 @@ export function buildMeleeMesh(def, includeHands = true) {
     // other players' hands show it lit. No block hands: game.js wraps the
     // real arms (gloves, or the black rods) round the hilt, two-handed.
     return buildTrollsaber({ lit: !includeHands });
+  }
+
+  if (m.kind === "reaper" || m.kind === "chainsaw") {
+    const w = m.kind === "reaper" ? buildReaperKnife() : buildChainsaw();
+    if (includeHands) {
+      const hand = buildGripHand(MELEE_HAND_SCALE);
+      hand.userData.hand = true;
+      hand.position.copy(GRIP_ANCHOR);
+      w.add(hand);
+      if (m.kind === "chainsaw") {
+        // The other hand on the hoop over the powerhead.
+        const support = buildSupportHand(MELEE_HAND_SCALE * 0.85);
+        support.userData.hand = true;
+        support.position.set(0, 0.12, -0.26);
+        support.rotation.z = Math.PI / 2;
+        w.add(support);
+      }
+    }
+    return w;
   }
 
   if (m.kind === "keyboard") {

@@ -9,10 +9,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
-import { WeaponInspector } from "./inspector.js?v=to-gm1";
+import { WeaponInspector } from "./inspector.js?v=hw1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js?v=gm1";
-import { Loadout } from "./loadout.js?v=rd1";
+import { Loadout } from "./loadout.js?v=hw1";
 import { StreakPicker } from "./streak-picker.js?v=cp1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=cp1";
 import {
@@ -31,7 +31,7 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti3";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-tr1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-tr3";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=hw1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-sb1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
@@ -41,7 +41,7 @@ import {
 } from "./modes.js?v=tr3";
 import { BotManager } from "./bots.js?v=to-rd1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
-import { GameAudio } from "./audio.js?v=to-sb1";
+import { GameAudio } from "./audio.js?v=hw1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=ti1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
@@ -59,12 +59,13 @@ import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK } from "./gear.js?v=ts2";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK } from "./gear.js?v=hw1";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts1";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
 import { HudLayout } from "./hud-layout.js?v=hl1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rd1";
+import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw1";
 
 const els = {
   cabinet: document.getElementById("to-cabinet"),
@@ -3322,6 +3323,7 @@ let weaponEnvTex = null;
   weaponEnvTex = pmrem.fromScene(env, 0.04).texture;
   setWeaponEnvMap(weaponEnvTex);
   setSaberEnvMap(weaponEnvTex);
+  setHalloweenEnvMap(weaponEnvTex);
   pmrem.dispose();
 })();
 
@@ -3336,6 +3338,8 @@ let activeWeaponDef = null;
 // The Trollsaber's hilt streams in too; its builder swaps the model into
 // any saber already built (trollsaber.js), so nothing to rebuild here.
 preloadTrollsaber();
+// The Chainsaw and the Reaper's Grin stream in the same way (melee-models.js).
+preloadHalloweenMelee();
 
 // Detailed models stream in; rebuild the gun in hand once they land.
 preloadWeaponModels().then((ok) => {
@@ -5010,7 +5014,10 @@ function swingMelee() {
   // Everyone else sees the swing; the damage still travels as a normal hit.
   if (isPvp() && net.active) net.publishMelee(player.melee.swingIndex % 2, player.melee.def.id);
   breakSpawnGuard();
-  if (player.melee.def.model?.kind === "saber") audio.saberSwing();
+  const kind = player.melee.def.model?.kind;
+  if (kind === "saber") audio.saberSwing();
+  else if (kind === "chainsaw") audio.chainsawRev();
+  else if (kind === "reaper") audio.reaperSwing();
   else audio.swing();
 }
 
@@ -5049,6 +5056,7 @@ function meleeConnect() {
         if (theirs.dot(swing) > 0.35) mult = def.backstabMult;
       }
       if (def.model?.kind === "saber") audio.saberHit();
+      else if (def.model?.kind === "chainsaw") audio.chainsawHit();
       else audio.meleeHit();
       onBulletActorHit(actor, {
         damage: def.damage * mult,
@@ -9269,6 +9277,14 @@ function updateMeleeView(dt) {
   const { pos, quat } = melee.pose();
   mesh.position.copy(pos);
   mesh.quaternion.copy(quat);
+  // Per-weapon framing on top of the shared pose (gear.js model.view): the
+  // chainsaw is carried level with the bar out front, not up like a sword.
+  const view = melee.def.model?.view;
+  if (view) {
+    if (view.pos) { mesh.position.x += view.pos[0]; mesh.position.y += view.pos[1]; mesh.position.z += view.pos[2]; }
+    if (view.rot) mesh.quaternion.multiply(_meleeViewQ.setFromEuler(_meleeViewE.set(view.rot[0], view.rot[1], view.rot[2])));
+  }
+  mesh.scale.setScalar(view?.scale || 1);
 
   if (saber) {
     // Guard up: blade across the body. A deflect knocks it back a touch.
@@ -9341,9 +9357,13 @@ function updateMeleeView(dt) {
     }
 
     // Toss-and-float flourish (D-pad up / T while holding the sword), see
-    // applyMeleeInspect. Also lets tossed hands back onto the sword.
-    applyMeleeInspect(mesh);
+    // applyMeleeInspect. Also lets tossed hands back onto the sword. The
+    // Reaper's Grin has its own: shut, flick open, a knife trick.
+    if (mesh.userData.kind === "reaper") applyReaperInspect(mesh);
+    else applyMeleeInspect(mesh);
   }
+  // The chainsaw's chain idles round, and screams round mid-swing.
+  mesh.userData.tick?.(dt, swinging);
 
   if (saber) updateSaberFx(mesh, saber, swinging, dt);
   if (saberArmsOn) poseSaberArms(mesh);
@@ -10174,6 +10194,46 @@ function restoreMeleeHands(mesh) {
     h.obj.quaternion.copy(h.quat);
   }
   mesh.userData.handsTossed = false;
+}
+
+/* The Reaper's Grin, admired: the blade folds shut, you bring it up, flick
+   it open with a snap, roll it twice round the wrist with a little toss,
+   and turn it to show the engraving before it settles back.
+     0.00-0.10 fold shut    0.10-0.22 raise    0.22-0.32 flick open
+     0.34-0.70 two rolls    0.70-0.88 show     0.88-1.00 back to rest */
+let reaperClick = false;
+const _meleeViewQ = new THREE.Quaternion();
+const _meleeViewE = new THREE.Euler();
+function applyReaperInspect(mesh) {
+  const setFold = mesh.userData.setFold;
+  if (inspectT <= 0) { setFold?.(0); reaperClick = false; return; }
+  const t = inspectProgress();
+  const sm = (a, b) => smoothstep(Math.max(0, Math.min(1, (t - a) / (b - a))));
+  let fold = 0;
+  if (t < 0.1) fold = sm(0, 0.1);
+  else if (t < 0.22) fold = 1;
+  else if (t < 0.32) {
+    const u = (t - 0.22) / 0.1, c = 2.2;   // back-out: snaps past open, settles
+    fold = 1 - (1 + (c + 1) * Math.pow(u - 1, 3) + c * Math.pow(u - 1, 2));
+    if (!reaperClick) { reaperClick = true; audio.reload(); }
+  }
+  if (t < 0.2) reaperClick = false;
+  setFold?.(fold);
+  const raise = sm(0.1, 0.22) * (1 - sm(0.88, 1));
+  const snap = t > 0.22 && t < 0.34 ? Math.sin(((t - 0.22) / 0.12) * Math.PI) : 0;
+  const trick = Math.max(0, Math.min(1, (t - 0.34) / 0.36));
+  const roll = Math.PI * 4 * (trick < 0.5 ? 2 * trick * trick : 1 - Math.pow(-2 * trick + 2, 2) / 2);
+  const toss = Math.sin(trick * Math.PI) * 0.045;
+  const show = sm(0.7, 0.8) * (1 - sm(0.86, 0.94));
+  mesh.position.x -= 0.24 * raise;
+  mesh.position.y += 0.1 * raise + toss;
+  mesh.position.z += 0.04 * raise;
+  _qSpin.setFromAxisAngle(AXIS_X, -0.35 * raise - 0.25 * snap);
+  mesh.quaternion.multiply(_qSpin);
+  _qSpin.setFromAxisAngle(AXIS_Y, 0.55 * raise + 0.5 * show);
+  mesh.quaternion.multiply(_qSpin);
+  _qSpin.setFromAxisAngle(AXIS_Z, roll);
+  mesh.quaternion.multiply(_qSpin);
 }
 
 function applyMeleeInspect(mesh) {

@@ -353,6 +353,30 @@ export class GameAudio {
     this._noise({ duration: 0.25, gain: 0.09, type: "bandpass", freq: 2200, q: 1, sweepTo: 500, at });
   }
 
+  /* ---- Chainsaw and the Reaper's Grin -------------------------------- */
+  // The two-stroke rev on a swing, then the chain biting on a hit.
+  chainsawRev(at = null) {
+    if (!this._ready()) return;
+    this._tone({ freq: 62, to: 138, duration: 0.42, gain: 0.16, type: "sawtooth", at });
+    this._tone({ freq: 124, to: 270, duration: 0.42, gain: 0.07, type: "square", at });
+    this._noise({ duration: 0.4, gain: 0.1, type: "bandpass", freq: 700, q: 1.4, sweepTo: 1500, at });
+  }
+
+  chainsawHit(at = null) {
+    if (!this._ready()) return;
+    this._tone({ freq: 150, to: 90, duration: 0.35, gain: 0.18, type: "sawtooth", at });
+    this._noise({ duration: 0.34, gain: 0.34, type: "bandpass", freq: 1900, q: 0.9, sweepTo: 800, at });
+    this._noise({ duration: 0.16, gain: 0.3, type: "lowpass", freq: 700, sweepTo: 140, at });
+  }
+
+  // A thin, ghostly whistle behind the blade.
+  reaperSwing(at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.2, gain: 0.14, type: "bandpass", freq: 1500, q: 1.2, sweepTo: 4200, at });
+    this._tone({ freq: 880, to: 440, duration: 0.32, gain: 0.05, type: "sine", at });
+    this._tone({ freq: 1320, to: 620, duration: 0.3, gain: 0.025, type: "triangle", at });
+  }
+
   saberSwing(at = null) {
     if (!this._ready()) return;
     this._tone({ freq: 150, to: 95, duration: 0.3, gain: 0.12, type: "sawtooth", at });
