@@ -35,7 +35,7 @@
       } else {
         avatar.textContent = "?";
         name.textContent = "Guest troll";
-        sub.textContent = "Login to save your runs";
+        sub.textContent = "Log in to save progress";
         card.classList.remove("is-logged-in");
         card.onclick = () => {
           if (window.TrollrunnerAccounts?.openLogin) window.TrollrunnerAccounts.openLogin();

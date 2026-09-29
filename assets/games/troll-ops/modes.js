@@ -117,10 +117,9 @@ export const MODES = {
   },
 };
 
-/* Battle royale, phase 1 ("Mini Royale"): solo, one life, loot only, a
-   closing zone, last troll standing. Rules live in game.js (updateRoyale),
-   the zone/loot in royale.js. Grin Beach is the biggest map until the
-   island exists. */
+/* Battle royale: solo, one life, loot only, a closing zone, last troll
+   standing, on Trollface Island. Rules live in game.js (updateRoyale), the
+   zone/loot in royale.js. */
 MODES.royale = {
   id: "royale",
   name: "Troll Royale",
@@ -132,8 +131,11 @@ MODES.royale = {
   blurb: "Twenty trolls, one floating island. Land with a pistol, loot the rest, stay out of the Cringe.",
 };
 
-/* The phase 1 version, kept: ten trolls on Grin Beach, about five minutes. */
+/* The phase 1 version on Grin Beach: ten trolls, about five minutes. Taken
+   out of the game (user, 2026-09-29); kept hidden only as the royale tests'
+   quick fixture. `hidden` modes never show in the menu or quick play. */
 MODES.royale_mini = {
+  hidden: true,
   id: "royale_mini",
   name: "Mini Royale",
   short: "Mini Royale",

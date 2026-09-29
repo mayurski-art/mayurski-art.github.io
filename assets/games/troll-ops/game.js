@@ -38,7 +38,7 @@ import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=tr2";
+} from "./modes.js?v=tr3";
 import { BotManager } from "./bots.js?v=to-ti2";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-sb1";
@@ -1517,7 +1517,7 @@ const BOT_TARGET = 8;      // participants a PvP room is padded up to
 // public server for their mode, instead of each getting their own random
 // room. Only overflow into a numbered shard (QTDM2, QTDM3, ...) once the
 // base room is genuinely full of real people — see joinQuickplay().
-const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR", royale_mini: "QTRM" };
+const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
 let gunGameProgress = 0;
@@ -1985,7 +1985,7 @@ function buildModeButtons() {
   const placed = new Set(MODE_GROUPS.flatMap((g) => g.ids));
   const groups = MODE_GROUPS.map((g) => ({ ...g, ids: g.ids.filter((id) => MODES[id]) }));
   for (const id of MODE_IDS) {
-    if (!placed.has(id)) groups[MODES[id].pvp ? 0 : 1].ids.push(id);
+    if (!placed.has(id) && !MODES[id].hidden) groups[MODES[id].pvp ? 0 : 1].ids.push(id);
   }
   for (const g of groups) {
     const head = document.createElement("div");
@@ -8267,7 +8267,12 @@ function animate() {
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
 
       if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
-      else if (pickups.drops.length) pickups.clear();
+      else {
+        if (pickups.drops.length) pickups.clear();
+        // Troll Royale has no scavenge drops, but its guns on the ground
+        // (floor loot and whatever the dead leave) use the same hold-X prompt.
+        if (isRoyale()) updatePickupPrompt(dt);
+      }
 
       if (isInfection()) updateInfection(dt);
 
@@ -8721,7 +8726,8 @@ function updatePlayer(dt) {
     yaw: look.yaw,
     adsHeld: wantAds,
     speedMult: w.moveSpeedMult * (isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1),
-    sprintMult: w.def.sprintMult,
+    // Troll Royale is a 400 m island: sprinting covers it 25% faster.
+    sprintMult: (w.def.sprintMult || 1.35) * (isRoyale() ? 1.25 : 1),
     inertia: w.def.inertia,
   });
 

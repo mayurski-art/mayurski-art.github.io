@@ -49,6 +49,9 @@ async function startRoyale() {
   await page.evaluate(async () => {
     const T = window.__trollOps;
     T.setMode("royale_mini");
+    // Mini Royale is hidden now (no quick play room): pin the room it used,
+    // since the loot and zone seed come from the room code.
+    T.els.room.value = "QTRM"; T.els.room.dispatchEvent(new Event("input"));
     if (T.els.noBots) T.els.noBots.checked = false;
     await T.startGame();
   });
