@@ -12,9 +12,9 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=to-gm1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js?v=gm1";
-import { Loadout } from "./loadout.js?v=ti2";
-import { StreakPicker } from "./streak-picker.js";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
+import { Loadout } from "./loadout.js?v=cp1";
+import { StreakPicker } from "./streak-picker.js?v=cp1";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=cp1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
   PKG_CRUSH_RADIUS,
@@ -63,6 +63,7 @@ import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THR
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts1";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
+import { HudLayout } from "./hud-layout.js?v=hl1";
 
 const els = {
   cabinet: document.getElementById("to-cabinet"),
@@ -268,6 +269,33 @@ function setTouchControls(on) {
   if (!els.touch.hidden) lockLandscape();
 }
 
+/* Settings > HUD layout: drag the touch buttons and HUD pieces anywhere.
+   Opens from the lobby or the pause menu; the menus step aside and the HUD
+   (and, on a phone, the touch pad) shows until Done. */
+let layoutRestore = null;
+const hudLayout = new HudLayout({
+  stage: els.hud.parentElement || document.body,
+  touch: isTouch,
+  onOpen() {
+    layoutRestore = {
+      screens: [els.title, els.pause, els.gameover].map((el) => [el, el.hidden]),
+      hud: els.hud.hidden, touch: els.touch.hidden,
+    };
+    for (const [el] of layoutRestore.screens) el.hidden = true;
+    els.hud.hidden = false;
+    setTouchControls(true);
+  },
+  onClose() {
+    const r = layoutRestore;
+    layoutRestore = null;
+    if (!r) return;
+    for (const [el, was] of r.screens) el.hidden = was;
+    els.hud.hidden = r.hud;
+    setTouchControls(!r.touch);
+  },
+});
+for (const b of document.querySelectorAll("[data-hud-layout]")) b.addEventListener("click", () => hudLayout.open());
+
 /* Android Chrome can hold landscape once fullscreen; iOS can do neither and
    gets the rotate card instead. Both calls fail quietly where unsupported. */
 let triedLandscape = false;
@@ -418,6 +446,8 @@ let markingStreak = null;
    is purely for a pad, which has a spare button to dedicate to "pick"
    separately from "use". */
 let selectedStreak = null;
+let streakCallGuardUntil = 0;   // no calls for a moment after a care package pays out
+let freshStreak = null;         // { id, until }: the slot pulses "ready" after a package
 
 function clearStreakEntities() {
   for (const e of streakEntities.values()) e.dispose();
@@ -466,6 +496,7 @@ function cycleSelectedStreak() {
    elsewhere, or this is the first press with nothing cycled yet) — the
    button should never require two presses to do something the first time. */
 function useSelectedStreak() {
+  if (performance.now() < streakCallGuardUntil && !markingStreak) return;
   if (!streaksAllowed(currentMode()) || !player.alive) return;
   if (markingStreak) { confirmMark(); return; }
   const id = streaks.ready(selectedStreak) ? selectedStreak : readyStreaksOrdered()[0];
@@ -519,6 +550,7 @@ function streakSlotIds() {
    the drone. */
 function callReadyStreak() {
   if (!streaksAllowed(currentMode()) || !player.alive) return;
+  if (performance.now() < streakCallGuardUntil && !markingStreak) return;
 
   // Already lining one up: this press is the confirm, not a new call.
   if (markingStreak) { confirmMark(); return; }
@@ -533,6 +565,7 @@ function callReadyStreak() {
    mark and calls that one instead. */
 function callStreakSlot(i) {
   if (!streaksAllowed(currentMode()) || !player.alive) return;
+  if (performance.now() < streakCallGuardUntil && !markingStreak) return;
   const id = streakSlotIds()[i];
   if (!id) return;
   if (markingStreak) {
@@ -1066,8 +1099,8 @@ function claimPackage(pkg) {
       w.ammoReserve = w.def.reserveMax - w.def.magSize;
       w.ammoInMag = w.def.magSize;
     }
-    player.gear.lethal = loadout.lethal.carried;
-    player.gear.tactical = loadout.tactical.carried;
+    player.gear.lethal = loadout.carried("lethal");
+    player.gear.tactical = loadout.carried("tactical");
     showWaveBanner("RESUPPLIED", 1500);
   } else if (kind === "weapon") {
     const def = resolveWeapon(arg, defaultLoadoutFor(arg));
@@ -1082,8 +1115,14 @@ function claimPackage(pkg) {
   } else if (kind === "streak") {
     streaks.grant(arg);
     selectedStreak = arg;
-    updateStreakHud();
-    showWaveBanner(`PACKAGE — ${STREAK_DEFS[arg]?.name.toUpperCase() || "STREAK"}`, 1600);
+    // Banked, never fired for you: it sits in its slot, pulsing, until you
+    // call it. A short guard stops the same press (or a stray tap on the
+    // slot that just appeared) from calling it on the spot.
+    streakCallGuardUntil = performance.now() + 900;
+    freshStreak = { id: arg, until: performance.now() + 5000 };
+    setTimeout(updateStreakHud, 5100);   // the pulse ends
+        updateStreakHud();
+    showWaveBanner(`${STREAK_DEFS[arg]?.name.toUpperCase() || "STREAK"} READY — ${isTouch ? "TAP IT TO CALL" : `PRESS ${streakKeyLabel(arg).toUpperCase()}`}`, 2200);
   }
 
   audio.reload();
@@ -4373,7 +4412,8 @@ function updateStreakHud() {
   // (rollPackageReward/grant) — it still needs its own slot or securing the
   // package looks like it did nothing.
   const slotIds = streakSlotIds();
-  const signature = `${key}|${onPad || isTouch ? selId : ""}|${markingStreak || ""}|`
+  const freshId = freshStreak && performance.now() < freshStreak.until ? freshStreak.id : "";
+  const signature = `${key}|${onPad || isTouch ? selId : ""}|${markingStreak || ""}|${freshId}|`
     + slotIds.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
   if (els.ssSlots.dataset.sig !== signature) {
     els.ssSlots.dataset.sig = signature;
@@ -4383,7 +4423,8 @@ function updateStreakHud() {
       const ready = streaks.ready(id);
       const isSelected = (onPad || isTouch) && ready && id === selId;
       const row = document.createElement("div");
-      row.className = `to-ss-slot${ready ? " is-ready" : ""}${isSelected ? " is-selected" : ""}${id === markingStreak ? " is-marking" : ""}`;
+      const fresh = ready && freshStreak && freshStreak.id === id && performance.now() < freshStreak.until;
+      row.className = `to-ss-slot${ready ? " is-ready" : ""}${isSelected ? " is-selected" : ""}${id === markingStreak ? " is-marking" : ""}${fresh ? " is-fresh" : ""}`;
       // Touch: tap a row to call that streak (the pad and keyboard have keys).
       if (isTouch && ready) {
         row.setAttribute("role", "button");
@@ -4850,8 +4891,8 @@ function noteThrow(id) {
 }
 
 function refillGear() {
-  player.gear.lethal = loadout.lethal.carried;
-  player.gear.tactical = loadout.tactical.carried;
+  player.gear.lethal = loadout.carried("lethal");
+  player.gear.tactical = loadout.carried("tactical");
 }
 
 /* Cooking: holding the key starts the fuse while the grenade is still in
@@ -5205,6 +5246,7 @@ function updatePickupPrompt(dt) {
       pkgHoldT = 0;
       claimPackage(pkg);
       if (els.pickupPrompt) els.pickupPrompt.hidden = true;
+      setTouchContext(null);
       return;
     }
   } else pkgHoldT = 0;
@@ -5229,6 +5271,10 @@ function updatePickupPrompt(dt) {
     showWaveBanner(`Picked up ${drop.def.name}`, 1200);
   }
 
+  // Touch: the swap button turns into a labelled CAPTURE / PICK UP button
+  // while there is something to take, so it reads as the thing to hold.
+  setTouchContext(player.alive ? (pkg ? "Capture" : drop ? "Pick up" : null) : null);
+
   if (els.pickupPrompt) {
     if ((pkg || drop) && player.alive) {
       // No key hint in the prompt (user, 2026-09-28): just the action.
@@ -5244,6 +5290,18 @@ function updatePickupPrompt(dt) {
       els.pickupPrompt.hidden = true;
     }
   }
+}
+
+function setTouchContext(label) {
+  const b = els.touchSwap;
+  if (!b || !isTouch) return;
+  const on = !!label;
+  if (b.classList.contains("is-context") === on && (!on || b.dataset.ctx === label)) return;
+  b.classList.toggle("is-context", on);
+  b.dataset.ctx = label || "";
+  const span = b.querySelector(".to-touch-ctx");
+  if (span) span.textContent = label || "";
+  b.setAttribute("aria-label", on ? `Hold to ${label.toLowerCase()}` : "Hold to swap weapons, pick up a dropped weapon, or open a care package");
 }
 
 /* The landed, unclaimed package we're standing on, if any. */
@@ -5266,6 +5324,12 @@ function updateGearHud() {
   els.gearTacticalName.textContent = loadout.tactical.name;
   els.gearTacticalN.textContent = String(player.gear.tactical);
   els.gearTactical.classList.toggle("is-empty", player.gear.tactical <= 0);
+  // One throwable slot: the kind you didn't bring has no chip and no button.
+  const offKind = loadout.throwKind === "lethal" ? "tactical" : "lethal";
+  els.gearLethal.classList.toggle("is-uncarried", offKind === "lethal");
+  els.gearTactical.classList.toggle("is-uncarried", offKind === "tactical");
+  els.touchNade?.classList.toggle("is-uncarried", offKind === "lethal");
+  els.touchTac?.classList.toggle("is-uncarried", offKind === "tactical");
   // Touch: the buttons are icons and carry the count (the chips are hidden there).
   if (els.touchNade) {
     els.touchNade.setAttribute("aria-label", `Throw ${loadout.lethal.name}`);
@@ -7075,8 +7139,8 @@ function nextZombieRound() {
    The mag you're holding stays as it is, the way the genre does it. */
 function zombieMaxAmmo() {
   for (const w of Object.values(player.weapons)) w.ammoReserve = w.def.reserveMax - w.def.magSize;
-  player.gear.lethal = loadout.lethal.carried;
-  player.gear.tactical = loadout.tactical.carried;
+  player.gear.lethal = loadout.carried("lethal");
+  player.gear.tactical = loadout.carried("tactical");
   showWaveBanner("MAX AMMO", 1600);
   audio.wave();
 }
@@ -8192,8 +8256,8 @@ function animate() {
       // Ammo and gear are free here — the range is for testing, not rationing.
       const w = currentWeapon();
       w.ammoReserve = w.def.reserveMax;
-      player.gear.lethal = loadout.lethal.carried;
-      player.gear.tactical = loadout.tactical.carried;
+      player.gear.lethal = loadout.carried("lethal");
+      player.gear.tactical = loadout.carried("tactical");
       player.hp = Math.min(player.maxHp, player.hp + dt * 12);
       // Bots spawned via the range's "Spawn a bot" button (spawnRangeBot)
       // keep steering/animating here — this whole block is a no-op for

@@ -122,6 +122,7 @@ export class StreakState {
   reset() {
     this.score = 0;
     this.charges = {};   // streak id -> how many calls are banked
+    this.gifted = {};    // how many of those came from a care package (free)
     this.selected = [];  // the three ids picked in the lobby
   }
 
@@ -176,6 +177,7 @@ export class StreakState {
   grant(id) {
     if (!STREAK_DEFS[id]) return false;
     this.charges[id] = (this.charges[id] || 0) + 1;
+    this.gifted[id] = (this.gifted[id] || 0) + 1;
     return true;
   }
 
@@ -185,6 +187,8 @@ export class StreakState {
     if (!this.ready(id)) return false;
     this.charges[id] -= 1;
     if (this.charges[id] <= 0) delete this.charges[id];
+    // A care package's streak was a gift: calling it doesn't touch the meter.
+    if (this.gifted[id] > 0) { this.gifted[id] -= 1; return true; }
     this.score = Math.max(0, this.score - STREAK_DEFS[id].cost);
     return true;
   }

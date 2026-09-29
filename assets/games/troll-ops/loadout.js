@@ -90,6 +90,9 @@ export class Loadout {
     this.meleeId = this.validGear(saved.meleeId, MELEE_DEFS, MELEE_IDS);
     this.lethalId = this.validGear(saved.lethalId, THROWABLE_DEFS, LETHAL_IDS);
     this.tacticalId = this.validGear(saved.tacticalId, THROWABLE_DEFS, TACTICAL_IDS);
+    // One throwable slot (user, 2026-09-29): a lethal OR a tactical, never
+    // both. Both picks are remembered; `throwKind` says which one you carry.
+    this.throwKind = saved.throwKind === "tactical" ? "tactical" : "lethal";
 
     this.buildMaps();
     this.buildSlotToggle();
@@ -129,6 +132,10 @@ export class Loadout {
   get melee() { return MELEE_DEFS[this.meleeId]; }
   get lethal() { return THROWABLE_DEFS[this.lethalId]; }
   get tactical() { return THROWABLE_DEFS[this.tacticalId]; }
+  /* The one throwable you carry. */
+  get throwable() { return this.throwKind === "tactical" ? this.tactical : this.lethal; }
+  /* How many of this kind you drop in with: the carried kind's count, 0 for the other. */
+  carried(kind) { return kind === this.throwKind ? this[kind].carried : 0; }
 
   validGear(id, defs, ids) {
     if (id && defs[id] && rankUnlocked(defs[id].rank)) return id;
@@ -141,6 +148,7 @@ export class Loadout {
       poolMapId: this.poolMapId,
       attachments: this.attachmentsByWeapon,
       meleeId: this.meleeId, lethalId: this.lethalId, tacticalId: this.tacticalId,
+      throwKind: this.throwKind,
     });
     this.onChange(this.resolvedActive);
   }
@@ -467,10 +475,10 @@ export class Loadout {
     wrap.innerHTML = "";
     this.gearButtons = {};
 
+    // Lethals and tacticals share one "Throwable" row: you carry one of them.
     const rows = [
       ["melee", "Melee", MELEE_DEFS, MELEE_IDS, "meleeId"],
-      ["lethal", "Lethal", THROWABLE_DEFS, LETHAL_IDS, "lethalId"],
-      ["tactical", "Tactical", THROWABLE_DEFS, TACTICAL_IDS, "tacticalId"],
+      ["throwable", "Throwable", THROWABLE_DEFS, [...LETHAL_IDS, ...TACTICAL_IDS], null],
     ];
 
     for (const [slot, label, defs, ids, prop] of rows) {
@@ -501,7 +509,11 @@ export class Loadout {
         b.setAttribute("aria-label",
           `${label}: ${def.name} — ${unlocked ? def.blurb : `locked until level ${def.rank}`}`);
         b.addEventListener("click", () => {
-          this[prop] = id;
+          if (prop) this[prop] = id;
+          else {
+            this.throwKind = def.kind;
+            if (def.kind === "lethal") this.lethalId = id; else this.tacticalId = id;
+          }
           this.persist();
           this.render();
         });
@@ -515,7 +527,7 @@ export class Loadout {
 
   renderGear() {
     if (!this.gearButtons) return;
-    const active = { melee: this.meleeId, lethal: this.lethalId, tactical: this.tacticalId };
+    const active = { melee: this.meleeId, throwable: this.throwable.id };
     for (const [slot, buttons] of Object.entries(this.gearButtons)) {
       for (const [id, b] of Object.entries(buttons)) {
         const on = active[slot] === id;
@@ -613,8 +625,8 @@ export class Loadout {
     if (sum.secondary) sum.secondary.textContent = this.resolvedSecondary.name;
     if (sum.attWeapon) sum.attWeapon.textContent = ` — ${def.name}`;
     if (sum.melee) sum.melee.textContent = this.melee.name;
-    if (sum.lethal) sum.lethal.textContent = `${this.lethal.name} ×${this.lethal.carried}`;
-    if (sum.tactical) sum.tactical.textContent = `${this.tactical.name} ×${this.tactical.carried}`;
+    if (sum.lethal) sum.lethal.textContent = `${this.throwable.name} ×${this.throwable.carried}`;
+    if (sum.tactical) sum.tactical.parentElement.hidden = true;   // one throwable slot now
 
     // The primary's fitted parts as chips; stock parts (iron sights, Standard
     // barrel, no underbarrel...) are left out so the card only shows what you chose.
