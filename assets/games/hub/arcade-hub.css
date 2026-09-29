@@ -422,3 +422,6 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Games taken off the hub for now keep their card markup, hidden. */
+.hub-card[hidden] { display: none !important; }
