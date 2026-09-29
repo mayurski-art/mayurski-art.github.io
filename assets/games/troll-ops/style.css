@@ -691,6 +691,23 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   text-shadow: 0 1px 4px rgba(0,0,0,.8); white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) { .to-charge.is-full { animation: none; } }
+/* Trollsaber block meter: a red arc low-left of the crosshair. Brightens
+   while the guard is up; blinks while broken (not colour alone). */
+.to-saber-meter {
+  --p: 1;
+  position: absolute; top: 50%; left: 50%; width: 60px; height: 60px;
+  transform: translate(-50%,-50%) rotate(200deg);
+  border-radius: 50%;
+  background: conic-gradient(#ff3b2a calc(var(--p) * 140deg), rgba(255,255,255,.16) calc(var(--p) * 140deg) 140deg, transparent 140deg);
+  -webkit-mask: radial-gradient(circle, transparent 26px, #000 27px);
+          mask: radial-gradient(circle, transparent 26px, #000 27px);
+  filter: drop-shadow(0 0 4px rgba(255,59,42,.6));
+  opacity: .5; pointer-events: none; transition: opacity .12s;
+}
+.to-saber-meter.is-on { opacity: 1; }
+.to-saber-meter.is-broken { opacity: .9; animation: to-saber-broken .2s steps(2) infinite; }
+@keyframes to-saber-broken { 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .to-saber-meter.is-broken { animation: none; } }
 .to-ch-dot {
   position: absolute; top: 50%; left: 50%; width: 3px; height: 3px;
   background: #fff; border-radius: 50%; transform: translate(-50%,-50%);

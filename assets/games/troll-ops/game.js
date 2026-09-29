@@ -9,10 +9,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap } from "./weapon-model.js?v=to-gl1";
-import { WeaponInspector } from "./inspector.js?v=to-gc2";
+import { WeaponInspector } from "./inspector.js?v=to-ts1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js";
-import { Loadout } from "./loadout.js";
+import { Loadout } from "./loadout.js?v=ts1";
 import { StreakPicker } from "./streak-picker.js";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
 import {
@@ -31,7 +31,7 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-gc1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-emotes1";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-ts1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-s12h-death";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
@@ -41,7 +41,7 @@ import {
 } from "./modes.js";
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
-import { GameAudio } from "./audio.js?v=to-gc1";
+import { GameAudio } from "./audio.js?v=to-ts1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -57,7 +57,8 @@ import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY } from "./gear.js";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK } from "./gear.js?v=ts1";
+import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts1";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js";
 
@@ -147,6 +148,7 @@ const els = {
   waveBanner: document.getElementById("hud-wave-banner"),
   crosshair: document.getElementById("to-crosshair"),
   charge: document.getElementById("to-charge"),
+  saberMeter: document.getElementById("to-saber-meter"),
   chargeCells: document.getElementById("to-charge-cells"),
   killcamBars: document.getElementById("to-killcam-bars"),
   hitmarker: document.getElementById("to-hitmarker"),
@@ -3176,6 +3178,7 @@ let weaponEnvTex = null;
   const pmrem = new THREE.PMREMGenerator(renderer);
   weaponEnvTex = pmrem.fromScene(env, 0.04).texture;
   setWeaponEnvMap(weaponEnvTex);
+  setSaberEnvMap(weaponEnvTex);
   pmrem.dispose();
 })();
 
@@ -3186,6 +3189,10 @@ scene.add(camera);
 // changes, because attachments alter the geometry.
 let activeWeaponMesh = null;
 let activeWeaponDef = null;
+
+// The Trollsaber's hilt streams in too; its builder swaps the model into
+// any saber already built (trollsaber.js), so nothing to rebuild here.
+preloadTrollsaber();
 
 // Detailed models stream in; rebuild the gun in hand once they land.
 preloadWeaponModels().then((ok) => {
@@ -4858,7 +4865,8 @@ function swingMelee() {
   // Everyone else sees the swing; the damage still travels as a normal hit.
   if (isPvp() && net.active) net.publishMelee(player.melee.swingIndex % 2, player.melee.def.id);
   breakSpawnGuard();
-  audio.swing();
+  if (player.melee.def.model?.kind === "saber") audio.saberSwing();
+  else audio.swing();
 }
 
 /* The swing itself: a short fan of rays rather than one, so a swing that is
@@ -4895,7 +4903,8 @@ function meleeConnect() {
         swing.normalize();
         if (theirs.dot(swing) > 0.35) mult = def.backstabMult;
       }
-      audio.meleeHit();
+      if (def.model?.kind === "saber") audio.saberHit();
+      else audio.meleeHit();
       onBulletActorHit(actor, {
         damage: def.damage * mult,
         isHead: mult > 1,
@@ -4906,8 +4915,122 @@ function meleeConnect() {
       return;
     }
   }
-  audio.impact();
+  if (def.model?.kind !== "saber") audio.impact();
   meleeWhiffT = 1;
+}
+
+/* ---- Trollsaber: block and deflect ----------------------------------
+   With the saber drawn, holding aim raises it across the body; rounds from
+   the front (inside def.deflect.cone) hit the blade instead of you. Each
+   one, and holding the guard, drains a meter; run it dry and the guard
+   breaks for def.deflect.breakTime. Blasts, melee, zombies and the bomb go
+   straight through (only WEAPON_DEFS rounds are deflectable). */
+const saberBlock = { active: false, meter: 1, broken: 0, idle: 0, t: 0 };
+let saberDeflectT = 0;
+let saberWasShown = false;
+let saberTrail = null;
+let saberSwingSpeed = 0;
+let saberHavePrevTip = false;
+const _saberPrevTip = new THREE.Vector3();
+const _saberRoot = new THREE.Vector3();
+const _saberTip = new THREE.Vector3();
+const _deflectTo = new THREE.Vector3();
+const _deflectFwd = new THREE.Vector3();
+
+function heldSaberDeflect() {
+  return player.melee?.def?.deflect || null;
+}
+
+function updateSaberBlock(dt, wantAds) {
+  const d = heldSaberDeflect();
+  const want = !!d && player.holding === "melee" && player.alive && wantAds
+    && !player.melee.busy && saberBlock.broken <= 0 && saberBlock.meter > 0 && !isStaging();
+  saberBlock.active = want;
+  if (saberBlock.broken > 0) saberBlock.broken = Math.max(0, saberBlock.broken - dt);
+  if (!d) {
+    saberBlock.meter = 1;
+  } else if (want) {
+    saberBlock.meter = Math.max(0, saberBlock.meter - d.drainHeld * dt);
+    saberBlock.idle = 0;
+    if (saberBlock.meter <= 0) breakSaberGuard();
+  } else {
+    saberBlock.idle += dt;
+    if (saberBlock.idle > d.regenDelay && saberBlock.broken <= 0) saberBlock.meter = Math.min(1, saberBlock.meter + d.regen * dt);
+  }
+  if (!els.saberMeter) return;
+  const show = !!d && player.holding === "melee" && player.alive
+    && (want || saberBlock.meter < 0.999 || saberBlock.broken > 0);
+  els.saberMeter.hidden = !show;
+  if (!show) return;
+  els.saberMeter.style.setProperty("--p", saberBlock.meter.toFixed(3));
+  els.saberMeter.classList.toggle("is-on", want);
+  els.saberMeter.classList.toggle("is-broken", saberBlock.broken > 0);
+}
+
+function breakSaberGuard() {
+  const d = heldSaberDeflect();
+  if (!d) return;
+  saberBlock.meter = 0;
+  saberBlock.active = false;
+  saberBlock.broken = d.breakTime;
+  audio.saberBreak();
+  activeMeleeMesh?.userData.saber?.flare(1.4);
+}
+
+/* damagePlayer asks first: true means the blade took it. */
+function tryDeflect(amount, fromId, weaponId, fromPos) {
+  if (!saberBlock.active) return false;
+  const d = heldSaberDeflect();
+  if (!d || !WEAPON_DEFS[weaponId]) return false;
+  const src = fromPos || killerPosFor(fromId);
+  camera.getWorldDirection(_deflectFwd);
+  _deflectFwd.y = 0;
+  _deflectFwd.normalize();
+  if (src) {
+    _deflectTo.set(src.x - move.pos.x, 0, src.z - move.pos.z);
+    if (_deflectTo.lengthSq() > 1e-6 && _deflectTo.normalize().dot(_deflectFwd) < d.cone) return false;
+  }
+  saberBlock.meter -= d.drainPerHit + amount * d.drainPerDamage;
+  saberBlock.idle = 0;
+  saberDeflectT = 1;
+  activeMeleeMesh?.userData.saber?.flare(0.9);
+  // Sparks where the round met the blade: the blade's middle is in view
+  // space (the weapon camera sits at the origin), so re-aim it through the
+  // world camera's wider lens and put the burst out along that ray.
+  const saberMesh = activeMeleeMesh;
+  const s = saberMesh?.userData.saber;
+  if (s) {
+    const v = s.tipLocal.clone().lerp(s.rootLocal, 0.45);
+    saberMesh.localToWorld(v);
+    const k = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.tan(THREE.MathUtils.degToRad(weaponCamera.fov / 2));
+    v.x *= k; v.y *= k;
+    v.normalize().multiplyScalar(1.3);
+    spawnImpactBurst(camera.localToWorld(v), 0xff6a3a, 14);
+  }
+  audio.saberClash();
+  if (saberBlock.meter <= 0) breakSaberGuard();
+  return true;
+}
+
+/* Swing trail and the hum, once a frame while the saber is out. The trail
+   lives in weaponRig, the parent of the melee mesh, so its points are the
+   mesh's own matrix applied to the blade root/tip. */
+function updateSaberFx(mesh, saber, swinging, dt) {
+  if (!saberTrail) saberTrail = new SaberTrail(weaponRig);
+  mesh.updateMatrix();
+  _saberRoot.copy(saber.rootLocal).applyMatrix4(mesh.matrix);
+  _saberTip.copy(saber.tipLocal).applyMatrix4(mesh.matrix);
+  const now = performance.now() / 1000;
+  // Only the cut itself leaves a trail, not the wind-up or the recovery.
+  const m = player.melee;
+  const cutting = swinging && m.t >= m.window.open - 0.09 && m.t <= m.window.close + 0.05;
+  if (cutting && saber.lit) saberTrail.push(_saberRoot, _saberTip, now);
+  saberTrail.update(now);
+  const speed = saberHavePrevTip ? _saberTip.distanceTo(_saberPrevTip) / Math.max(dt, 1e-3) : 0;
+  _saberPrevTip.copy(_saberTip);
+  saberHavePrevTip = true;
+  saberSwingSpeed = damp(saberSwingSpeed, speed, 12, dt);
+  audio.saberHum(saber.lit ? Math.min(1, saberSwingSpeed / 7) : -1);
 }
 
 function setHolding(what) {
@@ -6875,6 +6998,8 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
   if (!player.alive) return;
   // Nothing lands before the match is live, whoever reports it.
   if (isStaging()) return;
+  // A raised Trollsaber eats rounds from the front.
+  if (tryDeflect(amount, fromId, weaponId, fromPos)) return;
   // Your own grenade can still sting on the range; it can't end the session.
   if (isRange()) {
     player.hp = Math.max(1, player.hp - amount);
@@ -7977,9 +8102,12 @@ function updatePlayer(dt) {
     sprinting: move.sprinting,
     grounded: move.grounded,
     jumping: move.jumping,
-    adsHeld: wantAds && canAds,
+    // A held melee weapon has the hands: the gun behind it doesn't scope in
+    // (with the saber, aim is the block instead).
+    adsHeld: wantAds && canAds && player.holding !== "melee",
     canAds,
   });
+  updateSaberBlock(dt, wantAds && canAds);
 
   // A charge only lives while the gun is up: melee, a streak device or
   // death drops it.
@@ -8101,14 +8229,38 @@ function updateMeleeView(dt) {
   // Tossed hands go back on the sword the moment the toss isn't playing.
   if (!(inspectT > 0 && held && !swinging)) restoreMeleeHands(mesh);
   mesh.visible = held || swinging;
+  const saber = mesh.userData.saber;
+  if (saber && mesh.visible !== saberWasShown) {
+    saberWasShown = mesh.visible;
+    saber.snapOff();
+    saberTrail?.clear();
+    saberHavePrevTip = false;
+    if (mesh.visible) { saber.ignite(); audio.saberIgnite(); }
+    else { audio.saberHum(-1); audio.saberRetract(); }
+  }
   // Only while the gun is what we hold: this used to re-show it every frame,
   // so it stayed on screen beside the streak tablet and marker.
   if (activeWeaponMesh) activeWeaponMesh.visible = player.holding === "gun" && !swinging;
-  if (!mesh.visible) { meleeIdleT = 0; return; }
+  if (!mesh.visible) { meleeIdleT = 0; saberBlock.t = 0; return; }
 
   const { pos, quat } = melee.pose();
   mesh.position.copy(pos);
   mesh.quaternion.copy(quat);
+
+  if (saber) {
+    // Guard up: blade across the body. A deflect knocks it back a touch.
+    saberBlock.t = damp(saberBlock.t, saberBlock.active ? 1 : 0, 16, dt);
+    if (saberBlock.t > 0.001) {
+      mesh.position.lerp(SABER_BLOCK.pos, saberBlock.t);
+      mesh.quaternion.slerp(SABER_BLOCK.quat, saberBlock.t);
+    }
+    if (saberDeflectT > 0) {
+      saberDeflectT = Math.max(0, saberDeflectT - dt * 7);
+      mesh.position.z += saberDeflectT * 0.035;
+      mesh.position.x += (Math.random() - 0.5) * saberDeflectT * 0.012;
+      mesh.position.y += (Math.random() - 0.5) * saberDeflectT * 0.012;
+    }
+  }
 
   if (swinging) {
     // Impact: a brief sharp decel + tiny recoil-back, same idea as the
@@ -8169,6 +8321,8 @@ function updateMeleeView(dt) {
     // applyMeleeInspect. Also lets tossed hands back onto the sword.
     applyMeleeInspect(mesh);
   }
+
+  if (saber) updateSaberFx(mesh, saber, swinging, dt);
 }
 const MELEE_IDLE_PERIOD = 3.2;
 const _meleeIdleEuler = new THREE.Euler();
@@ -9549,6 +9703,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
     targetMeshes: () => targetMeshes, meleeConnect,
+    saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT }),
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
     beginStreakHold, endStreakHold,
     landDipT: () => landDipT, landDipMag: () => landDipMag,

@@ -13,6 +13,7 @@
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import { smoothstep } from "./anim-curves.js";
+import { buildTrollsaber } from "./trollsaber.js?v=ts1";
 
 export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where you look
 const GRAVITY = GRENADE_GRAVITY;
@@ -35,6 +36,16 @@ export const MELEE_DEFS = {
       color: 0x111114, grip: 0x30170d,
       guardWide: 0.42, guardTall: 0.052,
     },
+  },
+  // Darth Vader's hilt, red blade (trollsaber.js). One swing, one kill; held
+  // with aim it bats incoming rounds away from the front until the block
+  // meter runs dry (game.js saberBlock).
+  trollsaber: {
+    id: "trollsaber", name: "Trollsaber", rank: 30,
+    damage: 400, backstabMult: 1, range: 3.4, arc: 0.72, knock: 5,
+    blurb: "An elegant weapon for a more trolled age. Hold aim to deflect bullets.",
+    deflect: { cone: 0.26, drainPerHit: 0.07, drainPerDamage: 0.0025, drainHeld: 0.05, regen: 0.3, regenDelay: 0.7, breakTime: 1.8 },
+    model: { kind: "saber" },
   },
 };
 
@@ -139,6 +150,13 @@ const THRUST_TRACK = gripTrack(0.46, [
 ]);
 const THRUST_WINDOW = { open: 0.20, close: 0.32 };
 
+/* Trollsaber guard: blade laid across the body, up and to the left, so the
+   player watches the rounds hit it. Blended in by game.js while blocking. */
+export const SABER_BLOCK = {
+  pos: new THREE.Vector3(0.20, -0.25, -0.46),
+  quat: basisPointing(new THREE.Vector3(-0.78, 0.55, -0.30), 18),
+};
+
 /* Smoothstep-eased lerp across whichever pair of keys straddle `t` — the
    reference uses cubic interpolation; smoothstep between adjacent keys
    reads the same for tracks this short and needs no spline library. */
@@ -235,6 +253,24 @@ export function buildMeleeMesh(def, includeHands = true) {
   // down to match rather than dwarfing the weapon the way the untuned
   // default did on first pass.
   const MELEE_HAND_SCALE = 0.62;
+
+  if (m.kind === "saber") {
+    // The in-match view model starts dark and ignites when drawn; menus and
+    // other players' hands show it lit.
+    const saber = buildTrollsaber({ lit: !includeHands });
+    if (includeHands) {
+      const hand = buildGripHand(MELEE_HAND_SCALE);
+      hand.userData.hand = true;
+      hand.position.set(0, 0, 0.05);
+      saber.add(hand);
+      const support = buildSupportHand(MELEE_HAND_SCALE * 0.85);
+      support.userData.hand = true;
+      support.position.set(0, 0, 0.108);
+      support.rotation.z = Math.PI / 2;
+      saber.add(support);
+    }
+    return saber;
+  }
 
   if (m.kind === "keyboard") {
     const sword = buildKeyboardSword(m, mat, group);

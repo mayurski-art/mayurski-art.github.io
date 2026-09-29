@@ -259,6 +259,88 @@ export class GameAudio {
     this._tone({ freq: 150, to: 60, duration: 0.13, gain: 0.22, type: "square", at });
   }
 
+  /* ---- Trollsaber ---------------------------------------------------
+     A hum that bends up with swing speed (the film trick: the hum
+     doppler-shifts past the mic), a snap-hiss ignite, a whoosh-buzz swing,
+     a sizzle on a hit and a crackling clash when the blade eats a round. */
+  saberHum(level) {
+    if (!this.ctx) return;
+    const t = this.now;
+    if (level < 0) {
+      if (this._saber) {
+        const h = this._saber;
+        this._saber = null;
+        h.g.gain.cancelScheduledValues(t);
+        h.g.gain.setTargetAtTime(0.0001, t, 0.03);
+        for (const o of [h.a, h.b, h.lfo]) o.stop(t + 0.25);
+      }
+      return;
+    }
+    if (!this._ready()) return;
+    if (!this._saber) {
+      const a = this.ctx.createOscillator(), b = this.ctx.createOscillator(), lfo = this.ctx.createOscillator();
+      const lfoGain = this.ctx.createGain(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+      a.type = "sawtooth"; a.frequency.value = 88;
+      b.type = "sawtooth"; b.frequency.value = 90.5;
+      lfo.frequency.value = 5.5; lfoGain.gain.value = 1.8;
+      f.type = "lowpass"; f.frequency.value = 520; f.Q.value = 3;
+      g.gain.value = 0.0001;
+      lfo.connect(lfoGain).connect(a.frequency);
+      a.connect(f); b.connect(f); f.connect(g).connect(this.master);
+      a.start(t); b.start(t); lfo.start(t);
+      this._saber = { a, b, lfo, f, g };
+    }
+    const h = this._saber;
+    h.a.frequency.setTargetAtTime(88 + level * 70, t, 0.03);
+    h.b.frequency.setTargetAtTime(90.5 + level * 76, t, 0.03);
+    h.f.frequency.setTargetAtTime(520 + level * 1700, t, 0.03);
+    h.g.gain.cancelScheduledValues(t);
+    h.g.gain.setTargetAtTime(0.045 + level * 0.11, t, 0.04);
+    // Fades on its own if nobody keeps calling (pause, game over).
+    h.g.gain.setTargetAtTime(0.0001, t + 0.3, 0.06);
+  }
+
+  saberIgnite() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.09, gain: 0.3, type: "highpass", freq: 3000, sweepTo: 1200 });
+    this._noise({ duration: 0.35, gain: 0.16, type: "bandpass", freq: 700, q: 1.2, sweepTo: 2600, delay: 0.02 });
+    this._tone({ freq: 60, to: 170, duration: 0.32, gain: 0.12, type: "sawtooth", delay: 0.02 });
+    this._tone({ freq: 120, to: 90, duration: 0.4, gain: 0.07, type: "sawtooth", delay: 0.18 });
+  }
+
+  saberRetract() {
+    if (!this._ready()) return;
+    this._tone({ freq: 170, to: 45, duration: 0.3, gain: 0.1, type: "sawtooth" });
+    this._noise({ duration: 0.25, gain: 0.09, type: "bandpass", freq: 2200, q: 1, sweepTo: 500 });
+  }
+
+  saberSwing() {
+    if (!this._ready()) return;
+    this._tone({ freq: 150, to: 95, duration: 0.3, gain: 0.12, type: "sawtooth" });
+    this._noise({ duration: 0.26, gain: 0.14, type: "bandpass", freq: 600, q: 1.1, sweepTo: 2400 });
+  }
+
+  saberHit(at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.3, gain: 0.35, type: "highpass", freq: 2500, sweepTo: 700, at });
+    this._noise({ duration: 0.18, gain: 0.3, type: "lowpass", freq: 900, sweepTo: 150, at });
+    this._tone({ freq: 210, to: 70, duration: 0.25, gain: 0.14, type: "sawtooth", at });
+  }
+
+  saberClash(at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.05, gain: 0.45, type: "bandpass", freq: 3200, q: 2, at });
+    this._noise({ duration: 0.28, gain: 0.2, type: "highpass", freq: 4200, sweepTo: 1500, delay: 0.02, at });
+    this._tone({ freq: 1500, to: 900, duration: 0.12, gain: 0.07, type: "square", at });
+    this._tone({ freq: 220, to: 120, duration: 0.18, gain: 0.1, type: "sawtooth", at });
+  }
+
+  saberBreak() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.4, gain: 0.3, type: "bandpass", freq: 1600, q: 0.8, sweepTo: 300 });
+    this._tone({ freq: 180, to: 40, duration: 0.45, gain: 0.14, type: "sawtooth" });
+  }
+
   throwGear() {
     if (!this._ready()) return;
     this._noise({ duration: 0.16, gain: 0.14, type: "bandpass", freq: 600, sweepTo: 1800, q: 1.4 });

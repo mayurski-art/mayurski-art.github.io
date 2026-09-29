@@ -10,7 +10,7 @@ import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mo
 import { poseEmoteCode } from "./emotes.js?v=to-emotes1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=to-gl1";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
-import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=ts1";
 
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down

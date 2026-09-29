@@ -11,8 +11,34 @@ menu / lobby Controls lists. Touch buttons are inline SVG icons now (no
 words; aria-labels carry the names; nade/tac labels follow the loadout).
 game.js + style.css `?v=to-hud2`.
 
+## Trollsaber SHIPPED (2026-09-28, queue item 1)
+User: Darth Vader's exact hilt, NO text on it, red blade, melee slot, LV 30,
+one-hit, deflects frontal rounds while blocking.
+- `models/build_trollsaber.blender.py` -> `models/trollsaber.glb` (~39k tris,
+  1.2 MB): ESB/ROTJ Vader (MPP) read off a side-on reference: ribbed chrome
+  end cap, 6 black T-track grips, black clamp + screw + bubble strip, chrome
+  body with black top plate, red pill button, amber slot, pin hole, screws,
+  crinkle-black shroud collar, knurled thumb screw, slanted hood. Empties
+  TS_Grip / TS_Support / TS_Emitter. `-- render` adds a stand-in blade.
+- `trollsaber.js`: hilt streams in (stand-in until then, swapped in place);
+  blade = axial-billboard capsule shader (white core, red glow, halo faded
+  across the quad) + solid core rod + emitter sprite; self-animating in
+  onBeforeRender (ignite 0.2 s, flicker, flare); `SaberTrail` ribbon.
+- gear.js `MELEE_DEFS.trollsaber` (damage 400, `deflect` tuning),
+  `SABER_BLOCK` guard pose. game.js: ignite on draw, hum bends with swing
+  speed, trail only during the cut, hold aim = block (`updateSaberBlock`,
+  red arc meter #to-saber-meter; blinks when broken), `tryDeflect` in
+  damagePlayer (WEAPON_DEFS rounds inside the front cone; blasts/melee/
+  zombies go through), sparks re-aimed from view space. The gun behind a
+  held melee weapon no longer scopes in. audio.js saber* sounds.
+- Not done: others don't see your block pose or hear your saber (3P shows it
+  lit in hand); bots don't react to a block.
+- Test: `tools/troll-ops-trollsaber-test.mjs` (13 checks). Tags: gear.js and
+  trollsaber.js `?v=ts1` in every importer; loadout `?v=ts1`, inspector /
+  remote-players / audio `?v=to-ts1`, game.js + style.css `?v=to-ts1`.
+
 ## QUEUE (user, 2026-09-28): do these in this order
-1. **Lightsaber: a new weapon.** The graphics have to be really good, on the
+1. ~~**Lightsaber: a new weapon.**~~ SHIPPED (see above). The graphics have to be really good, on the
    Green Candles bar: its own Blender build script -> glb (like
    `build_greencandles.blender.py`), glowing emissive blade + halo sprites
    tuned for ACES, detailed hilt, PMREM env map, and real mechanics (not a
