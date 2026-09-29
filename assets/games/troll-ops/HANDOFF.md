@@ -1,5 +1,35 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## RESUME HERE (paused 2026-09-28 at the 5-hour limit): Troll Royale phase 2
+Phase 2 "bots that play BR" is built and pushed; one gate check is short.
+Done (game.js "Troll Royale bots" block + bots.js):
+- Bots land with a pistol (`initRoyaleBot`), carry gunRarity/gunAtt/armor/
+  plates/heals, and drop exactly that on death. Damage follows the gun
+  (`royaleBotDamage`: pistol x0.65, looted 0.95 + 0.07/rarity).
+- `royaleBotObjective` order: zone (urgent if already outside the circle)
+  -> loot (`royaleBotLoot`, unclaimed, inside the next circle; urgent for an
+  unarmed bot's gun, a needed plate/heal, or anything < 8 m) -> gunfire
+  (`royaleNoise`, armed bots, < 45 m, 4 s) -> hunt. bots.js: an `urgent`
+  objective steers the bot there (flow field) even while fighting.
+- `updateRoyaleBot`: pickup at 1.3 m, plate/heal when nobody in sight or not
+  hit for 2 s, cancelled by a hit (`bot.hurtAt`). Bot armour in
+  `bots.applyHit(id, dmg, { pierce })` (the Cringe pierces).
+- PERF: bots now re-check line of sight every ~0.15 s (`SIGHT_RECHECK`,
+  ALL modes), keeping their pick in between: bot AI 6.2 -> 2.4 ms at 18 bots.
+- Fixed: `isReady` page error (compileAsync polling a material Royale had
+  disposed): royale.js `disposeLater`.
+- Test `tools/troll-ops-royale-bots-test.mjs`: 12/13 pass. The one FAIL is the
+  gate "18 bots: frame rate holds": headless Royale-18 25.1 fps vs TDM-7 38.8
+  / Royale-9 29.2 on Grin Beach (threshold 29). AI is cheap now; the rest is
+  rendering 18 rigs. Next: find the per-rig cost (draw calls per bot, gun
+  meshes, shadows) and LOD/skip far bots; then ask the user how it runs on
+  their laptop (the real gate).
+- NOT re-run after the sight throttle: sync, saber-mp, trollsaber, royale,
+  royale-mp tests. Run them first thing (NODE_PATH = main checkout
+  node_modules). Tags: bots.js `?v=to-tr2`, royale.js `?v=tr2`, game.js
+  `?v=to-tr2` (bump again on any change).
+- Then phase 3 (Trollface Island grey-box for the user to approve).
+
 ## Troll Royale (battle royale) PHASE 1 SHIPPED (2026-09-28)
 Design doc (Claude Docs, edit via the docs connector):
 https://claude.ai/code/artifact/b21bbfbf-170d-4fa6-b4ce-1e092fc8df46

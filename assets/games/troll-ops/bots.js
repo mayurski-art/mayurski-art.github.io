@@ -33,6 +33,10 @@ const FIRE_RANGE = 38;
    falls off with distance, so pushing them punishes and sniping them rewards
    the same way it would against a person. */
 const ACQUIRE_TIME = 0.9;         // seconds of continuous sight to be fully on target
+// Line-of-sight raycasts are the bots' biggest cost (every bot against every
+// target), so each bot re-checks who it can see this often and keeps its
+// pick in between. Well under a human's reaction time.
+const SIGHT_RECHECK = 0.15;
 const NEAR_RANGE = 8;             // at or under this, accuracy is at its best
 const HEADSHOT_CHANCE = 0.12;
 
@@ -172,6 +176,7 @@ class Bot {
      immediately — that's the difference between a bot that eats a flank in
      silence and one that reacts like it's actually being shot at. */
   onDamaged() {
+    this.hurtAt = performance.now();
     this.flinchT = 0.35 + Math.random() * 0.25;
     this.strafeDir = -this.strafeDir;
   }
@@ -226,6 +231,9 @@ class Bot {
     const eye = new THREE.Vector3(this.pos.x, this.groundY + 1.5, this.pos.z);
     let best = null, bestD = Infinity;         // visible
     let lead = null, leadD = Infinity;         // visible or not — who to walk toward
+    this.sightT = (this.sightT ?? Math.random() * SIGHT_RECHECK) - dt;
+    const rescan = this.sightT <= 0;
+    if (rescan) this.sightT = SIGHT_RECHECK * (0.8 + Math.random() * 0.4);
     for (const t of targets) {
       if (!t.alive) continue;
       if (t.id === this.id) continue;
@@ -234,12 +242,16 @@ class Bot {
       if (d < leadD) { lead = t; leadD = d; }
       if (stunned) continue;     // blind: knows roughly where people are, sees nobody
       if (d > SIGHT_RANGE || d >= bestD) continue;
+      // Between checks: stay on whoever the last one found.
+      if (!rescan) { if (t.id === this.seenId) { best = t; bestD = d; } continue; }
       const theirEye = new THREE.Vector3(t.pos.x, (t.groundY ?? t.pos.y ?? 0) + 1.4, t.pos.z);
       if (segmentBlocked(colliders, eye, theirEye)) continue;
       // Smoke and the like: opaque to bots exactly as it is to players.
       if (sightBlocked?.(eye, theirEye)) continue;
       best = t; bestD = d;
     }
+
+    if (rescan) this.seenId = best?.id ?? null;
 
     // Sight has to be held to be worth anything; losing it resets the aim.
     if (best && best.id === this.lastTargetId) this.acquireT += dt;
@@ -345,9 +357,16 @@ class Bot {
       desired = toTarget.multiplyScalar(closeSign * 0.6)
         .addScaledVector(lateral, this.diff.strafe)
         .normalize();
-      // A fresh flinch briefly overrides strafing with a hard juke off-line —
-      // the instinctive first move a real player makes under fire.
-      if (this.flinchT > 0.15) {
+      // An objective that can't wait (Troll Royale: the Cringe burning them,
+      // or a gun an unarmed bot needs): keep shooting, but keep moving there,
+      // by the flow field so walls don't pin them.
+      if (objective?.urgent) {
+        const step = navFor?.({ id: objective.id, pos: objective })?.steer(this.pos.x, this.pos.z);
+        const toward = step ? step.clone() : new THREE.Vector3(objective.x - this.pos.x, 0, objective.z - this.pos.z).normalize();
+        desired = toward.addScaledVector(lateral, 0.35).normalize();
+      } else if (this.flinchT > 0.15) {
+        // A fresh flinch briefly overrides strafing with a hard juke off-line —
+        // the instinctive first move a real player makes under fire.
         desired = lateral.clone().normalize();
       } else if (respectGuard) {
         // Flank: all-out sideways, one way (no strafe flips), backing off a
@@ -660,9 +679,17 @@ export class BotManager {
   }
 
   /* Returns { killed, bot } so the caller can award the kill. */
-  applyHit(botId, dmg) {
+  /* `pierce`: ignores armour (Troll Royale's Cringe). Bots only carry
+     armour in Troll Royale (`bot.armor`, set by game.js). */
+  applyHit(botId, dmg, { pierce = false } = {}) {
     const bot = this.byId(botId);
     if (!bot || !bot.alive) return { killed: false, bot: null };
+    if (!pierce && bot.armor > 0) {
+      const soak = Math.min(bot.armor, dmg);
+      bot.armor -= soak;
+      dmg -= soak;
+      if (dmg <= 0) { bot.onDamaged(); return { killed: false, bot }; }
+    }
     bot.hp -= dmg;
     bot.onDamaged();
     if (bot.hp > 0) return { killed: false, bot };

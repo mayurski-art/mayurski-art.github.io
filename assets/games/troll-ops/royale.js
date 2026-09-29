@@ -58,6 +58,12 @@ const KIND_WEIGHTS = [["gun", 46], ["ammo", 22], ["plate", 20], ["heal", 12]];
 
 export const ITEM_NAMES = { plate: "Cope Plate", heal: "Hopium", ammo: "Ammo box" };
 
+/* Materials are freed a few seconds late: a shader warm-up (renderer
+   .compileAsync) still polling one that was disposed under it throws. */
+function disposeLater(...things) {
+  setTimeout(() => { for (const t of things) t?.dispose?.(); }, 5000);
+}
+
 /* ---- seeded randomness --------------------------------------------------- */
 
 export function hashSeed(str) {
@@ -190,8 +196,7 @@ export class ZoneVisual {
 
   dispose() {
     this.scene.remove(this.group);
-    this.wall.geometry.dispose(); this.wallMat.dispose();
-    this.next.geometry.dispose(); this.next.material.dispose();
+    disposeLater(this.wall.geometry, this.wallMat, this.next.geometry, this.next.material);
   }
 }
 
@@ -351,7 +356,7 @@ export class LootField {
   removeMeshes(it) {
     if (!it.mesh) return;
     this.scene.remove(it.mesh);
-    it.beam.geometry.dispose(); it.beam.material.dispose(); it.ring.material.dispose();
+    disposeLater(it.beam.geometry, it.beam.material, it.ring.material);
     if (it.gun) this.disposeGun(it);
     it.mesh = null;
   }

@@ -39,10 +39,10 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tr1";
-import { BotManager } from "./bots.js?v=to-sb1";
+import { BotManager } from "./bots.js?v=to-tr2";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-sb1";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=tr1";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=tr2";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -2697,6 +2697,7 @@ const net = new Net({
     const dir = new THREE.Vector3(m.dx, m.dy, m.dz);
     remoteShotFx(origin, dir, m.w, !!m.q, +m.c || 0);
     killcam.noteShot(kcClock, m.id || p?.id, origin, dir, m.w, !!m.q);
+    if (royale && !m.q) royaleNoise(origin.x, origin.z, m.id || p?.id);
 
     // Was it aimed near our head? If so, suppress.
     if (dir.lengthSq() > 0.001 && player.alive) {
@@ -4419,6 +4420,7 @@ function fireOnce(shot = null) {
   const up = new THREE.Vector3().crossVectors(right, forward).normalize();
   const muzzle = origin.clone().addScaledVector(forward, 0.35);
   if (isPvp()) net.reportShot(muzzle, forward, def.id, !!def.quiet, shot?.level ?? 0);
+  if (royale && !def.quiet) royaleNoise(move.pos.x, move.pos.z, net.id);
 
   for (let i = 0; i < pellets; i++) {
     // A charged bolt holds its line: the charge steadies the cone.
@@ -5605,6 +5607,7 @@ const _botAim = new THREE.Vector3();
 
 function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = false) {
   const wid = (usingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
+  if (royale) { dmg = royaleBotDamage(bot, dmg); royaleNoise(bot.pos.x, bot.pos.z, bot.id); }
 
   // The round's visible path: at the target's chest on a hit, off to one
   // side on a miss. Played here (we host the bot) and sent to the room,
@@ -5678,6 +5681,7 @@ function setupRoyale(seed = royaleSeed()) {
     seed, zone, loot, visual: new ZoneVisual(scene),
     t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
     stageKey: "", zoneAcc: 0, act: null, spectate: null, outShown: false,
+    noises: [],   // recent gunfire { x, z, t }, for bots to third-party
   };
   royale.visual.update(zone.state(0), 0);
 }
@@ -5765,7 +5769,7 @@ function updateRoyale(dt) {
         if (b.zoneAcc >= 1) {
           const d = Math.floor(b.zoneAcc);
           b.zoneAcc -= d;
-          const { killed } = bots.applyHit(b.id, d);
+          const { killed } = bots.applyHit(b.id, d, { pierce: true });
           if (killed) {
             net.reportDeathAs(b.id, null, "zone", false);
             registerDeath(b.name, null, "zone", { victimTeam: b.team, victimIsBot: true, victimId: b.id });
@@ -5773,8 +5777,10 @@ function updateRoyale(dt) {
         }
       }
       if (!b.alive && !b.royaleDropped) { b.royaleDropped = true; royaleDropBotGear(b); }
+      if (b.alive) updateRoyaleBot(b, dt);
     }
   }
+  if (r.noises.length && r.t - r.noises[0].t > 5) r.noises.shift();
 
   if (player.alive && r.live) royaleAutoPickup();
   updateRoyaleAct(dt);
@@ -5846,17 +5852,170 @@ function royaleDrop(fields, x, z) {
   return it;
 }
 
-/* A bot we host went down: its gun, and sometimes a plate or a Hopium. */
+/* A bot we host went down: whatever it was carrying. */
 function royaleDropBotGear(b) {
-  const at = (i) => [b.pos.x + Math.cos(i * 2.4) * 0.7, b.pos.z + Math.sin(i * 2.4) * 0.7];
+  const at = (i) => [b.pos.x + Math.cos(i * 2.4) * (0.6 + i * 0.15), b.pos.z + Math.sin(i * 2.4) * (0.6 + i * 0.15)];
   let i = 0;
   if (WEAPON_DEFS[b.weaponId]) {
     const [x, z] = at(i++);
-    const def = resolveWeapon(b.weaponId, defaultLoadoutFor(b.weaponId));
-    royaleDrop({ k: "gun", w: def.id, a: def.attachments, r: Math.random() < 0.3 ? 1 : 0 }, x, z);
+    royaleDrop({ k: "gun", w: b.weaponId, a: b.gunAtt || defaultLoadoutFor(b.weaponId), r: b.gunRarity ?? 0 }, x, z);
   }
-  if (Math.random() < 0.5) { const [x, z] = at(i++); royaleDrop({ k: "plate", n: 1 }, x, z); }
-  if (Math.random() < 0.3) { const [x, z] = at(i++); royaleDrop({ k: "heal", n: 1 }, x, z); }
+  for (let n = 0; n < (b.plates | 0); n++) { const [x, z] = at(i++); royaleDrop({ k: "plate", n: 1 }, x, z); }
+  for (let n = 0; n < (b.heals | 0); n++) { const [x, z] = at(i++); royaleDrop({ k: "heal", n: 1 }, x, z); }
+  b.plates = 0;
+  b.heals = 0;
+}
+
+// ---- Troll Royale bots (phase 2): they loot, plate up, heal, move with
+// the zone and go to where the shooting is. All on the bot host. bots.js
+// stays generic: it walks to whatever botObjective() hands it.
+
+const BOT_LOOT_REACH = 1.3;      // metres: close enough to grab it
+const BOT_LOOT_SEARCH = 30;      // how far a bot looks for loot it wants
+const BOT_LOOT_SEARCH_ARMED = 10;
+const BOT_NOISE_RANGE = 45;      // gunfire this close draws an armed bot in
+
+/* First sight of a bot this match: a pistol and empty pockets, like us. */
+function initRoyaleBot(b) {
+  b.royaleInit = true;
+  b.weaponId = ROYALE.startWeapon;
+  b.secondaryId = ROYALE.startWeapon;
+  b.gunRarity = null;     // null = still on the pistol
+  b.gunAtt = null;
+  b.armor = 0;
+  b.plates = 0;
+  b.heals = 0;
+  b.act = null;
+  b.lootId = null;
+}
+
+function botArmed(b) { return b.gunRarity != null; }
+
+function botWants(b, it) {
+  if (it.k === "gun") {
+    if (WEAPON_DEFS[it.w]?.cls === "sidearm") return false;   // it already has one
+    return !botArmed(b) || (it.r | 0) > b.gunRarity;
+  }
+  if (it.k === "plate") return (b.plates | 0) < ROYALE.carryPlates;
+  if (it.k === "heal") return (b.heals | 0) < ROYALE.carryHeals;
+  return false;
+}
+
+/* The loot a bot is heading for: it keeps its pick while it's still there
+   and still wanted, else the nearest wanted item inside the coming circle
+   that no other bot has already called. */
+function royaleBotLoot(b, circle) {
+  const items = royale.loot.items;
+  if (b.lootId) {
+    const it = items.get(b.lootId);
+    if (it && botWants(b, it)) return it;
+    b.lootId = null;
+  }
+  const claimed = new Set();
+  for (const o of bots.bots) if (o !== b && o.alive && o.lootId) claimed.add(o.lootId);
+  const reach = botArmed(b) && (b.plates | 0) > 0 ? BOT_LOOT_SEARCH_ARMED : BOT_LOOT_SEARCH;
+  let best = null, bestD = reach;
+  for (const it of items.values()) {
+    if (claimed.has(it.id) || !botWants(b, it)) continue;
+    if (Math.hypot(it.x - circle.x, it.z - circle.z) > circle.r) continue;
+    const d = Math.hypot(it.x - b.pos.x, it.z - b.pos.z);
+    if (d < bestD) { best = it; bestD = d; }
+  }
+  b.lootId = best?.id || null;
+  return best;
+}
+
+/* The newest gunfire an armed bot can hear that isn't its own. */
+function royaleNoiseFor(b) {
+  if (!botArmed(b)) return null;
+  for (let i = royale.noises.length - 1; i >= 0; i--) {
+    const n = royale.noises[i];
+    if (royale.t - n.t > 4 || n.by === b.id) continue;
+    const d = Math.hypot(n.x - b.pos.x, n.z - b.pos.z);
+    if (d > 6 && d < BOT_NOISE_RANGE) return { id: `noise-${Math.round(n.x / 6)}-${Math.round(n.z / 6)}`, x: n.x, z: n.z };
+  }
+  return null;
+}
+
+/* Gunfire, for the bots to hear. */
+function royaleNoise(x, z, by) {
+  if (!royale?.live) return;
+  royale.noises.push({ x, z, t: royale.t, by });
+  if (royale.noises.length > 24) royale.noises.shift();
+}
+
+/* Where the zone says a bot must be, or null. `urgent` when it's already
+   burning: bots.js then moves it even mid-fight. */
+function royaleBotObjective(b) {
+  if (!royale.live) return null;
+  if (!b.royaleInit) initRoyaleBot(b);
+  const s = royale.zone.state(royale.t);
+  const c = s.next && s.stage !== "final" ? s.next : s;
+  const outNow = RoyaleZone.outside(s, b.pos.x, b.pos.z);
+  const d = Math.hypot(b.pos.x - c.x, b.pos.z - c.z);
+  const zone = { id: `zone-${s.phase}`, x: c.x, z: c.z, radius: Math.max(2, c.r * 0.5), urgent: outNow };
+  const soon = s.stage !== "wait" || s.left < 15;
+  if (outNow || (d > c.r * 0.8 && soon)) return zone;
+  const it = royaleBotLoot(b, c);
+  // Without a real gun, getting one beats trading pistol shots.
+  if (it) {
+    const d = Math.hypot(it.x - b.pos.x, it.z - b.pos.z);
+    const need = (it.k === "gun" && !botArmed(b))
+      || (it.k === "plate" && !(b.plates | 0) && !(b.armor | 0) && d < 15)
+      || (it.k === "heal" && b.hp < 50 && d < 15);
+    return { id: `loot-${it.id}`, x: it.x, z: it.z, radius: 0.9, urgent: need || d < 8 };
+  }
+  const noise = royaleNoiseFor(b);
+  if (noise) return { ...noise, radius: 3 };
+  if (d > c.r * 0.8) return zone;
+  return null;   // armed and stocked: hunt (bots.js walks to the nearest enemy)
+}
+
+/* Per frame, per bot we host: grab what it reached, plate or heal when
+   nobody is in sight. */
+function updateRoyaleBot(b, dt) {
+  if (!b.royaleInit) initRoyaleBot(b);
+  if (b.lootId) {
+    const it = royale.loot.items.get(b.lootId);
+    if (!it) b.lootId = null;
+    else if (Math.hypot(it.x - b.pos.x, it.z - b.pos.z) < BOT_LOOT_REACH && botWants(b, it)) {
+      royaleTake(it);
+      b.lootId = null;
+      if (it.k === "gun") {
+        // A real gun in hand: the pistol goes back to being the sidearm.
+        if (botArmed(b)) {
+          royaleDrop({ k: "gun", w: b.weaponId, a: b.gunAtt || defaultLoadoutFor(b.weaponId), r: b.gunRarity }, b.pos.x + 0.6, b.pos.z);
+        }
+        b.weaponId = it.w;
+        b.gunAtt = it.a;
+        b.gunRarity = it.r | 0;
+        b.holdingSecondary = false;
+      } else if (it.k === "plate") b.plates++;
+      else if (it.k === "heal") b.heals++;
+    }
+  }
+  // Plate or heal with nobody in sight, or mid-fight while nothing has hit
+  // it for a couple of seconds (behind cover); a hit cancels it.
+  const quiet = !b.lastTargetId || performance.now() - (b.hurtAt || 0) > 2000;
+  if (b.act) {
+    if (!quiet || (b.hurtAt || 0) > b.act.at) { b.act = null; return; }
+    b.act.t += dt;
+    if (b.act.t < b.act.dur) return;
+    if (b.act.kind === "plate") { b.plates--; b.armor = Math.min(ROYALE.maxArmor, (b.armor | 0) + ROYALE.plateHp); }
+    else { b.heals--; b.hp = b.maxHp || 100; }
+    b.act = null;
+  } else if (quiet && b.plates > 0 && (b.armor | 0) < ROYALE.maxArmor) {
+    b.act = { kind: "plate", t: 0, dur: ROYALE.plateTime * 1.2, at: performance.now() };
+  } else if (quiet && b.heals > 0 && b.hp < 70) {
+    b.act = { kind: "heal", t: 0, dur: ROYALE.healTime, at: performance.now() };
+  }
+}
+
+/* A bot's shot hits as hard as the gun it's holding: the pistol it lands
+   with is weak, a looted gun better, a rarer one better still. */
+function royaleBotDamage(b, dmg) {
+  if (!botArmed(b) || b.holdingSecondary) return dmg * 0.65;
+  return dmg * (0.95 + 0.07 * (b.gunRarity | 0));
 }
 
 /* Someone else's pickup or drop. */
@@ -6986,15 +7145,8 @@ function pickCarrier() {
    onto it), defenders split across both, and once it's planted everyone
    converges — defenders right onto the bomb. */
 function botObjective(bot) {
-  // Troll Royale: get inside the circle that's coming (bots only look for
-  // this with nobody in sight; they don't loot until phase 2).
-  if (royale) {
-    if (!royale.live) return null;
-    const s = royale.zone.state(royale.t);
-    const c = s.next && s.stage !== "final" ? s.next : s;
-    const d = Math.hypot(bot.pos.x - c.x, bot.pos.z - c.z);
-    return d > c.r * 0.75 ? { id: `zone-${s.phase}`, x: c.x, z: c.z, radius: Math.max(2, c.r * 0.5) } : null;
-  }
+  // Troll Royale: the zone first, then loot, then the sound of a fight.
+  if (royale) return royaleBotObjective(bot);
   if (hill) {
     const p = hill.position;
     return { id: `hill-${hill.index}`, x: p.x, z: p.z, radius: hill.radius * 0.6 };
@@ -10307,6 +10459,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     targetMeshes: () => targetMeshes, meleeConnect,
     saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT }),
     royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale,
+    royaleBotObjective, royaleBotDamage, royaleNoise, ROYALE,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
     beginStreakHold, endStreakHold,
     landDipT: () => landDipT, landDipMag: () => landDipMag,
