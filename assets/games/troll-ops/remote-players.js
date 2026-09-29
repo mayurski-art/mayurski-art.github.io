@@ -18,8 +18,8 @@ const RENDER_DELAY = 110; // ms
 const BODY_LINGER = 3;
 
 export const TEAMS = {
-  phantom: { name: "Phantoms", color: 0x8a6ad6, ui: "#a98cf0" },
-  ghost:   { name: "Ghosts",   color: 0xd6a85a, ui: "#e8bf76" },
+  phantom: { name: "Trolls",   color: 0x8a6ad6, ui: "#a98cf0" },
+  ghost:   { name: "Jeets",    color: 0xd6a85a, ui: "#e8bf76" },
 };
 
 // Name tags read relative to the local player, not by team identity: white

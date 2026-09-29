@@ -14,7 +14,7 @@ import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js?v=gm1";
 import { Loadout } from "./loadout.js?v=ts2";
 import { StreakPicker } from "./streak-picker.js";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
   PKG_CRUSH_RADIUS,
@@ -31,14 +31,14 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-gc1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-gm1";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-tj1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-s12h-death";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js";
+} from "./modes.js?v=tj1";
 import { BotManager } from "./bots.js";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-ts1";
@@ -46,7 +46,7 @@ import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-s12d-arms";
-import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES } from "./hand-model.js?v=to-s12e-hands";
+import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-s12e-hands";
 import { FlowField } from "./nav.js";
 import { ZombieDirector } from "./zombies.js";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
@@ -4278,6 +4278,8 @@ function showWaveBanner(text, ms = 1800) {
 /* The scorestreak strip: a meter toward the cheapest streak that isn't ready
    yet, then one row per selected streak. Rebuilt only when the set of rows
    changes; the meter itself is just a width. */
+const STREAK_ICON_URL = (id) => new URL(`./streak-icons/${id}.png?v=ss1`, import.meta.url).href;
+
 function updateStreakHud() {
   if (!els.ssHud) return;
   const on = streaksAllowed(currentMode()) && (streaks.selected.length > 0 || streaks.readyIds().length > 0);
@@ -4321,24 +4323,17 @@ function updateStreakHud() {
         row.setAttribute("aria-label", `Call ${def.name}`);
         row.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); callStreakSlot(slot); }, { passive: false });
       }
-      const label = document.createElement("span");
-      label.className = "to-ss-label";
-      const icon = document.createElement("i");
-      icon.className = "to-ss-icon";
-      icon.innerHTML = streakIconSvg(id);
-      label.appendChild(icon);
-      const name = document.createElement("span");
-      name.textContent = streakShortName(id);
-      label.appendChild(name);
-      row.appendChild(label);
-      const tag = document.createElement("span");
-      tag.className = ready ? "to-ss-key" : "to-ss-cost";
-      // On a pad, only the actually-selected slot shows the fire glyph —
-      // the other ready ones are one d-pad-down press away, not a button
-      // press away.
-      // No key hints on the HUD (user, 2026-09-28): a ready slot just says so.
-      tag.textContent = ready ? "READY" : String(def.cost);
-      row.appendChild(tag);
+      // A picture of the streak, not its name (user, 2026-09-28): rendered
+      // from the game's own models (models/render_streak_icons.blender.py).
+      // Ready = lit with a green rim; not yet = dimmed grey.
+      const img = document.createElement("img");
+      img.className = "to-ss-img";
+      img.src = STREAK_ICON_URL(id);
+      img.alt = "";
+      img.draggable = false;
+      row.appendChild(img);
+      row.title = `${def.name}${ready ? " (ready)" : `: ${def.cost}`}`;
+      if (!row.hasAttribute("aria-label")) row.setAttribute("aria-label", row.title);
       els.ssSlots.appendChild(row);
     });
   }
@@ -8445,6 +8440,35 @@ const streakArms = (() => {
 })();
 weaponRig.add(streakArms);
 
+/* With Settings > Gloves on, the streak devices are held in the same
+   tactical gloves and sleeves as the guns (user: the white hands didn't
+   match). A pair of their own, posed off the placed white hand (the glove
+   rig shares hand-model.js's frame), sleeve run to the streak shoulders. */
+let streakGloves = null;
+Promise.all([buildGlove(1, weaponEnvTex), buildGlove(-1, weaponEnvTex)]).then((g) => {
+  if (!g[0] || !g[1]) return;
+  streakGloves = g;
+  for (const h of g) {
+    h.root.visible = h.sleeve.visible = false;
+    streakArms.add(h.root, h.sleeve);
+  }
+});
+
+/* Swap arm i's white hand for its glove when gloves are on. True if the
+   glove took over (the white hand, wrist, cuff and sleeve are hidden). */
+function dressStreakArm(arm, i, show, pose, thumb = 0) {
+  const g = streakGloves?.[i];
+  const on = !!g && glovesOn() && show;
+  if (g) g.root.visible = g.sleeve.visible = on;
+  if (!on) return false;
+  arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = false;
+  g.root.position.copy(arm.hand.position);
+  g.root.quaternion.copy(arm.hand.quaternion);
+  poseGlove(g, pose, thumb);
+  layGloveSleeve(g, STREAK_SHOULDER[i]);
+  return true;
+}
+
 function hideStreakArms() { streakArms.visible = false; }
 
 /* New hold: both hands start attached again. */
@@ -8488,7 +8512,8 @@ function poseStreakArms(mesh, style, dt, tap) {
       show = false;
     }
     arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = show;
-    if (!show) continue;
+    const pose = arm.free ? "relaxed" : HAND_GRIPS[style]?.pose || "relaxed";
+    if (dressStreakArm(arm, i, show, pose, i === 0 ? tap : 0) || !show) continue;
     layStreakArm(arm, i);
   }
 }
@@ -8532,10 +8557,11 @@ function updateFpEmoteView() {
   ["R", "L"].forEach((k, i) => {
     const arm = arms[i], h = f[k];
     arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = !!h;
-    if (!h) return;
+    if (!h) { dressStreakArm(arm, i, false); return; }
     arm.hand.position.set(h.pos[0], h.pos[1], h.pos[2]);
     arm.hand.rotation.set(h.rot[0], h.rot[1], h.rot[2], "YXZ");
     poseHumanHand(arm.hand, h.pose);
+    if (dressStreakArm(arm, i, true, h.pose)) return;
     layStreakArm(arm, i);
   });
 }
@@ -8979,9 +9005,13 @@ function finishGlove(g, i, tip) {
   gloveRig.updateMatrixWorld();
   gloveRig.worldToLocal(g.root.position);
   g.root.quaternion.premultiply(gloveRig.getWorldQuaternion(_gloveRigQ).invert());
-  // Sleeve: from the wrist to the shoulder, stretched only if it has to be.
+  layGloveSleeve(g, PF_ARM_SHOULDER[i]);
+}
+
+/* Sleeve: from the wrist to the shoulder, stretched only if it has to be. */
+function layGloveSleeve(g, shoulder) {
   const wrist = gloveWrist(g);
-  _gloveDir.subVectors(PF_ARM_SHOULDER[i], wrist);
+  _gloveDir.subVectors(shoulder, wrist);
   const len = _gloveDir.length();
   g.sleeve.position.copy(wrist);
   g.sleeve.quaternion.setFromUnitVectors(_gloveZ, _gloveDir.multiplyScalar(1 / Math.max(1e-5, len)));
@@ -9564,7 +9594,8 @@ function updateWeaponView(dt) {
   // don't fight the device pose for ownership of activeWeaponMesh (which is
   // simply hidden, not touched, while holding === "streak").
   if (!saberArmsOn) pfArms.visible = false;   // posePfArms below re-shows them on a held gun
-  if (player.holding === "streak") return;
+  // The streak device has its own arms (streakArms): the gun's gloves go.
+  if (player.holding === "streak") { gloveRig.visible = false; pfArms.visible = false; return; }
   if (!mesh) return;
 
   // Aiming plants the sight: bob and idle sway fall away as the weapon

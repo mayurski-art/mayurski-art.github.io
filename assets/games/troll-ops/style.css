@@ -1154,7 +1154,7 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-ss-hud {
   position: absolute; left: 16px; bottom: 96px;
   display: flex; flex-direction: column; gap: 5px;
-  pointer-events: none; z-index: 13; width: 132px;
+  pointer-events: none; z-index: 13; width: max-content;
 }
 .to-ss-meter {
   height: 3px; background: rgba(0,0,0,.5); border-radius: 2px; overflow: hidden;
@@ -1163,13 +1163,19 @@ html, body { margin: 0; padding: 0; background: #05070a; }
   display: block; height: 100%; width: 0;
   background: #7fe066; transition: width .18s linear;
 }
-.to-ss-slots { display: flex; flex-direction: column; gap: 3px; }
+/* One picture per streak (rendered from its model), side by side. */
+.to-ss-slots { display: flex; flex-direction: row; gap: 6px; }
 .to-ss-slot {
-  display: flex; align-items: center; justify-content: space-between; gap: 6px;
-  font-family: "DM Mono", monospace; font-size: 10px; color: #9aa596;
-  background: rgba(0,0,0,.35); border-radius: 4px; padding: 2px 6px;
-  border-left: 2px solid transparent;
+  position: relative; width: 80px; height: 80px; padding: 4px; box-sizing: border-box;
+  background: rgba(0,0,0,.42); border-radius: 9px;
+  border: 2px solid rgba(255,255,255,.08);
+  transition: border-color .15s, box-shadow .15s;
 }
+.to-ss-img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+  filter: grayscale(1) brightness(.55); opacity: .7; transition: filter .15s, opacity .15s;
+}
+.to-ss-slot.is-ready .to-ss-img { filter: none; opacity: 1; }
 /* One line per streak: "Helicopter Gunship" is wider than the strip, and
    letting it wrap makes the rows different heights. */
 .to-ss-label {
@@ -1180,19 +1186,21 @@ html, body { margin: 0; padding: 0; background: #05070a; }
 .to-ss-slot.is-ready .to-ss-icon { color: #7fe066; opacity: 1; }
 /* Ready to call — the key hint only appears when pressing it does something. */
 .to-ss-slot.is-ready {
-  color: #eaf5e4; background: rgba(0,0,0,.55); border-left-color: #7fe066;
+  background: rgba(10,22,8,.6); border-color: #7fe066;
+  box-shadow: 0 0 12px rgba(127,224,102,.55);
 }
 .to-ss-slot.is-ready .to-ss-key { opacity: 1; }
 /* Controller only: which ready streak d-pad right currently fires. A
    brighter rail than the plain-ready state, since "ready" and "the one
    that's actually armed right now" are different facts on a pad. */
 .to-ss-slot.is-selected {
-  border-left-color: #ffd166; background: rgba(40,32,10,.6);
+  border-color: #ffd166; background: rgba(40,32,10,.6); box-shadow: 0 0 12px rgba(255,209,102,.5);
 }
 /* The streak you're lining up right now. */
-.to-ss-slot.is-marking { border-left-color: #ffd166; color: #ffe7a3; }
+.to-ss-slot.is-marking { border-color: #ffd166; box-shadow: 0 0 12px rgba(255,209,102,.5); }
+.to-ss-slot.is-marking .to-ss-img { filter: none; opacity: 1; }
 /* Touch: ready rows are tap targets (the strip itself stays click-through). */
-.to-ss-slot[role="button"] { pointer-events: auto; min-height: 26px; }
+.to-ss-slot[role="button"] { pointer-events: auto; }
 .to-ss-key {
   opacity: 0; font-size: 9px; letter-spacing: .06em;
   color: #0d1410; background: #7fe066; border-radius: 2px; padding: 0 3px;
@@ -2335,10 +2343,9 @@ body.to-touch-play .to-cabinet canvas.to-minimap {
 }
 body.to-touch-play .to-ss-hud {
   left: calc(var(--sl) + 10px); top: calc(14px + 96px * var(--k)); bottom: auto;
-  width: calc(124px * var(--k)); z-index: 16;
+  width: max-content; z-index: 16;
 }
-body.to-touch-play .to-ss-slot { font-size: calc(10px * var(--k)); }
-body.to-touch-play .to-ss-slot[role="button"] { min-height: calc(28px * var(--k)); }
+body.to-touch-play .to-ss-slot { width: calc(64px * var(--k)); height: calc(64px * var(--k)); }
 body.to-touch-play .to-hud-top { padding-left: calc(var(--sl) + 20px + 96px * var(--k)); padding-right: calc(var(--sr) + 76px); top: 8px; }
 body.to-touch-play .to-hud-teams { top: 10px; }
 /* The HUD's own tappables (menu button, streak rows, strike tablet) sat

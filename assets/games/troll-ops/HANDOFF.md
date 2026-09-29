@@ -46,6 +46,23 @@ one-hit, deflects frontal rounds while blocking.
   trollsaber.js `?v=ts1` in every importer; loadout `?v=ts1`, inspector /
   remote-players / audio `?v=to-ts1`, game.js + style.css `?v=to-ts1`.
 
+## Streak HUD images, gloved streak arms, Trolls vs Jeets (2026-09-28)
+- **Live-site gotcha:** GitHub Pages ran NO deploy for six pushes in a row
+  (5bda5e3 -> 540c998); the site sat on game.js `?v=to-gl1` and the user
+  saw the old HUD. An empty commit pushed to main alone kicked a deploy.
+  After pushing, check `curl -s https://trollrunner.net/troll-ops.html |
+  grep game.js?v=` and the Actions runs API before calling it live.
+- Streak HUD: one 80 px picture tile per streak (64 px x --k on touch), no
+  names; rendered from the game's own models by
+  `models/render_streak_icons.blender.py` -> `streak-icons/<id>.png`
+  (olive finish, fitted to the outline). Ready = colour + green rim, not yet
+  = dim grey, marking/pad-selected = gold rim; name in title/aria-label.
+- Streak devices (tablet, marker, drone) and FP emotes are held in the
+  tactical gloves + sleeves when Gloves is on (`streakGloves`, posed off the
+  placed white hand; `layGloveSleeve` shared with the gun gloves). The gun
+  gloves are hidden while a streak device is out (they froze on screen).
+- Teams display as **Trolls** (phantom) and **Jeets** (ghost); ids unchanged.
+
 ## Grinmington 870 model SHIPPED (2026-09-28, queue item 2)
 - `models/build_grinmington.blender.py` -> `models/grinmington.glb` (~61k
   tris, 1.9 MB), BO2 870 MCS read off the Pick 10 icon: rail + ghost ring,

@@ -44,7 +44,7 @@ export const MODES = {
     pvp: true, ffa: false,
     scoreLimit: 50,
     timeLimit: 600,   // 10 minutes — highest score wins if nobody hits 50 first
-    blurb: "Phantoms against Ghosts. First side to 50 kills, or most at the buzzer.",
+    blurb: "Trolls against Jeets. First side to 50 kills, or most at the buzzer.",
   },
 
   koth: {
@@ -83,7 +83,7 @@ export const MODES = {
     pvp: true, ffa: false,
     rounds: true,
     roundsToWin: 6,     // first to 6 — Black Ops 2's number, no overtime
-    blurb: "One life. Phantoms plant, Ghosts defuse. First to 6 rounds, sides swap at 5.",
+    blurb: "One life. Trolls plant, Jeets defuse. First to 6 rounds, sides swap at 5.",
   },
 
   gungame: {
@@ -160,8 +160,8 @@ export function matchWinner(mode, { teamScores, selfScore, selfName, peers }) {
     return null;
   }
 
-  if (teamScores.phantom >= limit) return "Phantoms win";
-  if (teamScores.ghost >= limit) return "Ghosts win";
+  if (teamScores.phantom >= limit) return "Trolls win";
+  if (teamScores.ghost >= limit) return "Jeets win";
   return null;
 }
 
@@ -182,7 +182,7 @@ export function matchWinnerOnTimeout(mode, { teamScores, selfScore, selfName, pe
   }
 
   if (teamScores.phantom === teamScores.ghost) return "Time's up — tie";
-  return teamScores.phantom > teamScores.ghost ? "Phantoms win" : "Ghosts win";
+  return teamScores.phantom > teamScores.ghost ? "Trolls win" : "Jeets win";
 }
 
 /* King of the Hill: a capture ring that relocates on a timer. */

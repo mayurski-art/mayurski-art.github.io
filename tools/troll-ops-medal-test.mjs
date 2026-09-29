@@ -90,7 +90,7 @@ await page.evaluate(() => {
   const K = window.__trollOps.killstreakUi;
   ["Headshot", "Headshot", "Headshot", "Longshot", "First Blood", "Shutdown", "5 Kill Streak", "Avenger", "Triple Kill"].forEach((l) => K.medal(l));
   document.exitPointerLock?.();
-  window.__trollOps.endMatch("Phantoms win");
+  window.__trollOps.endMatch("Trolls win");
 });
 await sleep(1200);
 const aar = await page.evaluate(() => ({
