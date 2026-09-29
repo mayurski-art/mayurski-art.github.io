@@ -2683,3 +2683,12 @@ body.to-layout-edit #hud-health.to-layout-item, body.to-layout-edit #hud-ammo.to
   background: rgba(255,255,255,.08); color: #e6ede2; font: 600 12.5px "DM Sans", sans-serif; cursor: pointer;
 }
 .to-layout-bar button.is-primary { background: #7fe066; border-color: #7fe066; color: #0b1408; }
+
+/* Admire (inspect) your weapon: a sparkle under Emote. */
+.to-touch-admire { left: 22px; top: 136px; width: 52px; height: 32px; border-radius: 9px; }
+.to-touch-admire svg { width: 16px; height: 16px; }
+body.to-touch-play .to-touch-admire {
+  left: auto; right: calc(var(--sr) + 24px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 100px * var(--k));
+  width: calc(56px * var(--k)); height: calc(30px * var(--k));
+}
+body.to-touch-play .to-touch-admire svg { width: calc(17px * var(--k)); height: calc(17px * var(--k)); }

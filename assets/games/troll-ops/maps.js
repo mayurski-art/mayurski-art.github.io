@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
 import { HOLLOWGRIN } from "./hollowgrin.js";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=ti2";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=ti3";
 import { SURFACES } from "./surface-textures.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {

@@ -1,6 +1,19 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
-## DESIGN (awaiting user OK): Troll Royale sky lobby + Troll Bus drop (2026-09-29)
+## DESIGN (APPROVED 2026-09-29): Troll Royale sky lobby + Troll Bus drop
+User answers: lobby guns do NO damage; third-person camera behind the bus;
+trollface PARAGLIDER. Build phases A -> B -> C below, push each.
+
+STATUS: A + B BUILT (royale-drop.js + game.js glue), tested by
+`tools/troll-ops-royale-drop-test.mjs` (14 checks: lobby, no damage, lobby
+gun pick-up + respawn, bus boarding, box gone, pistol-only drop, jump, glider
+opens ~30 m, land on the island, all bots land, zone live). Space sky + stars
+on Trollface Island (map.stars, setStarField). Other royale tests switch the
+drop off with `T.DROP.enabled = false` (Mini Royale / Grin Beach never has it:
+no map.edge). NEXT (phase C): gliders seen by others (snapshot flag + remote
+rig glider), bots' gliders on the host, late joiners, then real art (bus,
+glider, box). Known: headless sim runs ~2.5x slow, so the 90 s lobby takes
+longer there; tests shorten it with T.DROP.lobbySeconds.
 User's asks: "a 90 second countdown where we spawn in a lobby with everyone
 (can run around and test random weapons lying all around the floor), before
 spawning in a troll vehicle (a bus for now), kind of like Fortnite, then we

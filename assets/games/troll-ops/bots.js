@@ -215,6 +215,9 @@ class Bot {
       this.respawnT -= dt;
       return;
     }
+    // Troll Royale's sky lobby, bus and drop move this bot (royale-drop.js
+    // via game.js): no AI, no physics until it lands.
+    if (this.airborne) return;
 
     // Mode objective (a hill, a bomb site) and whether the mode has this bot
     // pinned in place mid-plant/defuse. Both optional — TDM passes neither.

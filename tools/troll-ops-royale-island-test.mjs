@@ -38,12 +38,13 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`http://localhost:${server.address().port}/troll-ops.html?tohooks=1`);
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
-await page.evaluate(async () => { const T = window.__trollOps; T.setMode("royale"); await T.startGame(); });
+// The sky lobby and the bus have their own test (troll-ops-royale-drop-test.mjs).
+await page.evaluate(async () => { const T = window.__trollOps; T.DROP.enabled = false; T.setMode("royale"); await T.startGame(); });
 await page.waitForFunction(() => window.__trollOps.state() === "playing" && !window.__trollOps.isStaging(), null, { timeout: 120000 });
 
 const info = await page.evaluate(async () => {
   const T = window.__trollOps, r = T.royale();
-  const { ISLAND_EDGE, ISLAND_LAKE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti2");
+  const { ISLAND_EDGE, ISLAND_LAKE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti3");
   const { insidePolygon } = await import("/assets/games/troll-ops/edge.js");
   const items = [...r.loot.items.values()];
   return {
@@ -88,7 +89,7 @@ const [ex, ez] = info.edge0;
 const len = Math.hypot(ex, ez);
 const out = await walk(ex - (ex / len) * 4, ez - (ez / len) * 4, ex / len, ez / len, 3000);
 const held = await page.evaluate(async (p) => {
-  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti2");
+  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti3");
   const { insidePolygon } = await import("/assets/games/troll-ops/edge.js");
   return insidePolygon(ISLAND_EDGE, p[0], p[1]) && window.__trollOps.player.alive;
 }, out.end);

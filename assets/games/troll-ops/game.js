@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=to-gm1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js?v=gm1";
-import { Loadout } from "./loadout.js?v=cp1";
+import { Loadout } from "./loadout.js?v=rd1";
 import { StreakPicker } from "./streak-picker.js?v=cp1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=cp1";
 import {
@@ -28,7 +28,7 @@ import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti2";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti3";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-tr1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-tr3";
@@ -39,7 +39,7 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tr3";
-import { BotManager } from "./bots.js?v=to-ti2";
+import { BotManager } from "./bots.js?v=to-rd1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-sb1";
 import { insidePolygon } from "./edge.js";
@@ -64,6 +64,7 @@ import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
 import { HudLayout } from "./hud-layout.js?v=hl1";
+import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rd1";
 
 const els = {
   cabinet: document.getElementById("to-cabinet"),
@@ -194,6 +195,7 @@ const els = {
   touchNade: document.getElementById("to-touch-nade"),
   touchInteract: document.getElementById("to-touch-interact"),
   touchSwap: document.getElementById("to-touch-swap"),
+  touchAdmire: document.getElementById("to-touch-admire"),
   touchEmote: document.getElementById("to-touch-emote"),
   touchStreak: document.getElementById("to-touch-streak"),
   gearMelee: document.getElementById("to-gear-melee"),
@@ -2919,6 +2921,43 @@ function applyEnvironment(map) {
 
   ambient.color.set(map.ambient.color);
   ambient.intensity = map.ambient.intensity;
+
+  // A map in space (Trollface Island) gets stars inside the sky dome.
+  setStarField(!!map.stars);
+}
+
+/* Stars for a space sky: points just inside the dome, so they ride along
+   with it (it follows the camera) and never get closer. A denser, tinted
+   band across the sky reads as the Milky Way. */
+let starField = null;
+function setStarField(on) {
+  if (!on) {
+    if (starField) { sky.remove(starField); starField.geometry.dispose(); starField.material.dispose(); starField = null; }
+    return;
+  }
+  if (starField) return;
+  const N = 5200, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  let s = 0x5eed;
+  const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  for (let i = 0; i < N; i++) {
+    const band = i < N * 0.45;
+    let x, y, z;
+    do {
+      x = rnd() * 2 - 1; y = rnd() * 2 - 1; z = rnd() * 2 - 1;
+      if (band) y = y * 0.16 + x * 0.45;   // a tilted band
+    } while (x * x + y * y + z * z > 1 || x * x + y * y + z * z < 0.05);
+    const l = Math.hypot(x, y, z), r = 240;
+    pos.set([x / l * r, y / l * r, z / l * r], i * 3);
+    const b = 0.45 + rnd() * 0.55;
+    const tint = rnd();
+    col.set(tint < 0.12 ? [b, b * 0.8, b * 1.2] : tint < 0.22 ? [b * 1.15, b, b * 0.8] : [b, b, b], i * 3);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  starField = new THREE.Points(geo, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, fog: false, depthWrite: false, transparent: true, opacity: 0.95 }));
+  starField.renderOrder = -1;
+  sky.add(starField);
 }
 
 let loadedMapId = null;
@@ -3892,6 +3931,8 @@ bindHold(els.touchNade, () => startCook("lethal"), () => releaseCook());
 if (els.touchTac) bindHold(els.touchTac, () => startCook("tactical"), () => releaseCook());
 bindHold(els.touchInteract, () => touchState.interact = true, () => touchState.interact = false);
 bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = false);
+// Admire (inspect) the gun or melee in your hands, the T key on a keyboard.
+els.touchAdmire?.addEventListener("touchstart", (e) => { e.preventDefault(); startInspect(); }, { passive: false });
 // A tap, not a hold — and it doubles as the confirm for a marked spot, the
 // same way the key and the d-pad do.
 if (els.touchStreak) {
@@ -4964,7 +5005,7 @@ function releaseCook({ cookedOff = false } = {}) {
 /* Quick melee swings without putting the gun away; pressing 3 makes the
    melee weapon the thing in your hands, which swings and moves faster. */
 function swingMelee() {
-  if (!player.alive || move.busy || gameState !== "playing" || isStaging()) return;
+  if (!player.alive || move.busy || gameState !== "playing" || stageFrozen() || royaleDropView()) return;
   if (!player.melee || !player.melee.start()) return;
   // Everyone else sees the swing; the damage still travels as a normal hit.
   if (isPvp() && net.active) net.publishMelee(player.melee.swingIndex % 2, player.melee.def.id);
@@ -5312,7 +5353,7 @@ function nearbyPackage() {
   return null;
 }
 
-function frozenPlayer() { return !player.alive || isStaging(); }
+function frozenPlayer() { return !player.alive || stageFrozen() || royaleDropView(); }
 
 function updateGearHud() {
   const melee = (player.melee && player.melee.def) || loadout.melee;
@@ -5487,7 +5528,7 @@ function netSnapshot() {
    very occupants it was supposed to be spacing out. */
 function occupants() {
   const list = [];
-  if (player.alive) {
+  if (player.alive && !royaleDropView()) {
     list.push({ id: net.id, team: net.team, pos: move.pos, yaw: look.yaw });
   }
   for (const rp of remotes.byId.values()) {
@@ -5495,7 +5536,7 @@ function occupants() {
     list.push({ id: rp.netId, team: rp.team, pos: rp.pos, yaw: rp.yaw ?? 0 });
   }
   for (const b of bots.bots) {
-    if (!b.alive) continue;
+    if (!b.alive || b.airborne) continue;
     list.push({ id: b.id, team: b.team, pos: b.pos, yaw: b.yaw ?? 0 });
   }
   return list;
@@ -5793,12 +5834,185 @@ function setupRoyale(seed = royaleSeed()) {
     t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
     stageKey: "", zoneAcc: 0, act: null, spectate: null, outShown: false,
     noises: [],   // recent gunfire { x, z, t }, for bots to third-party
+    drop: null, me: "ground", flight: null, lobbyItems: null,
   };
   royale.visual.update(zone.state(0), 0);
+  // Trollface Island opens in the sky lobby, then the Troll Bus (royale-drop.js).
+  if (DROP.enabled && map.edge) {
+    royale.drop = new RoyaleDrop({ scene, colliders, edge: map.edge }, seed);
+    royale.me = "lobby";
+    royale.lobbyItems = new Map();
+    for (const it of royale.drop.lobbyGunItems()) { royale.lobbyItems.set(it.id, it); loot.add(it); }
+  }
+}
+
+/* In the sky lobby: free to move and try the guns, but nothing can be hurt. */
+function inSkyLobby() { return !!royale?.drop && royale.drop.phase === "lobby" && isStaging(); }
+/* The pre-match countdown freezes you, except in the sky lobby. */
+function stageFrozen() { return isStaging() && !inSkyLobby(); }
+/* On the bus or in the air: the drop owns movement and the camera. */
+function royaleDropView() { return !!royale?.drop && player.alive && (royale.me === "bus" || royale.me === "fall" || royale.me === "glide"); }
+
+const _dropTarget = new THREE.Vector3();
+const _dropCam = new THREE.Vector3();
+const _busAt = new THREE.Vector3();
+let dropJumpWas = false;
+let playerGlider = null;
+
+/* Orbit `dist` m behind `target` along the look direction, `height` up. */
+function placeDropCamera(target, dist, height) {
+  const cp = Math.cos(look.pitch);
+  _dropCam.set(Math.sin(look.yaw) * cp * dist, height - Math.sin(look.pitch) * dist, Math.cos(look.yaw) * cp * dist).add(target);
+  camera.position.copy(_dropCam);
+  camera.lookAt(target);
+}
+
+function dropGround(x, z, fromY) { return groundHeightAt(colliders, x, z, fromY); }
+
+/* The glider over your own rig (seen in the third-person drop camera). */
+function setPlayerGlider(on) {
+  if (on && !playerGlider) {
+    playerGlider = buildParaglider();
+    playerGlider.position.y = 1.7;
+    localRig.root.add(playerGlider);
+  } else if (!on && playerGlider) {
+    playerGlider.parent?.remove(playerGlider);
+    playerGlider.traverse((o) => { o.geometry?.dispose(); if (o.material && !o.material.map) o.material.dispose?.(); });
+    playerGlider = null;
+  }
+}
+
+/* The bots wait in the box with everyone else, standing round the middle. */
+function placeBotsInLobby() {
+  const n = bots.bots.length + 1;
+  bots.bots.forEach((b, i) => {
+    const s = royale.drop.lobbySpot(i + 1, n);
+    b.pos.set(s.x, s.y, s.z);
+    b.groundY = s.y;
+    b.airborne = true;   // parked: the bot AI leaves it be until it lands
+    b.drop = { state: "lobby" };
+    net.publishBot(b);
+  });
+}
+
+/* Sky lobby tick: the guns on the floor (infinite ammo, back a few seconds
+   after they're taken), the pick-up prompt, and the countdown on the HUD. */
+function updateSkyLobby(dt) {
+  const r = royale;
+  r.loot.update(dt, camera, move.pos);
+  for (const id of r.drop.lobbyRespawns(dt)) {
+    const it = r.lobbyItems.get(id);
+    if (it) r.loot.add(it);
+  }
+  for (const ws of Object.values(player.weapons)) if (ws) ws.ammoReserve = ws.def.reserveMax;
+  if (player.alive) updatePickupPrompt(dt);
+  const secs = Math.max(0, Math.ceil(stageT));
+  const timer = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  if (els.royalePhase.textContent !== "Bus leaves in") els.royalePhase.textContent = "Bus leaves in";
+  if (els.royaleTimer.textContent !== timer) els.royaleTimer.textContent = timer;
+  const n = `${royaleAliveList().length} trolls`;
+  if (els.royaleAlive.textContent !== n) els.royaleAlive.textContent = n;
+}
+
+/* 0:00 in the lobby: the box goes, the lobby guns go (and whatever you
+   picked up), and everyone is on the Troll Bus. */
+function startRoyaleBus() {
+  const r = royale, d = r.drop;
+  d.startBus();
+  for (const it of [...r.loot.items.values()]) if ((it.y || 0) > 100) r.loot.take(it.id);
+  equipFromLoadout();
+  setActiveWeaponMesh(currentWeapon().def);
+  if (els.pickupPrompt) els.pickupPrompt.hidden = true;
+  setTouchContext(null);
+  r.me = "bus";
+  // Nothing can reach you up here, so no spawn-protection card either.
+  player.spawnGuard = 0;
+  updateSpawnGuardHud();
+  dropJumpWas = true;   // a key held over from the lobby isn't a jump
+  look.yaw = d.path.yaw + Math.PI / 2 + Math.PI;   // looking along the bus's line
+  look.pitch = -0.25;
+  if (net.isBotHost()) {
+    const spots = builtMap.spawnPoints?.length ? builtMap.spawnPoints : [{ x: 0, z: 0 }];
+    for (const b of bots.bots) {
+      const target = spots[Math.floor(Math.random() * spots.length)];
+      const tx = target.x + (Math.random() - 0.5) * 20, tz = target.z + (Math.random() - 0.5) * 20;
+      b.airborne = true;
+      b.drop = { state: "bus", tx, tz, jumpT: d.timeNearest(tx, tz) + (Math.random() - 0.5) * 2, flight: null };
+    }
+  }
+  showWaveBanner(isTouch ? "ALL ABOARD — tap JUMP to drop" : gamepadState.connected ? "ALL ABOARD — A to drop" : "ALL ABOARD — SPACE to drop", 2600);
+}
+
+/* The bus flies; the bots aboard ride it, jump near where they want to
+   land and glide there; the zone goes live once the bus has crossed. */
+function updateRoyaleDropWorld(dt) {
+  const r = royale, d = r.drop;
+  if (!d || d.phase === "lobby") return;
+  if (d.phase === "bus") {
+    d.updateBus(dt);
+    if (!r.live && d.pastIsland(d.busT)) {
+      r.live = true;
+      r.t = 0;
+      showWaveBanner("Everyone's out — last troll standing wins", 1800);
+    }
+  }
+  if (!net.isBotHost()) return;
+  for (const b of bots.bots) {
+    const bd = b.drop;
+    if (!bd || !b.alive) continue;
+    if (bd.state === "bus") {
+      if (d.phase === "bus") d.busPos(d.busT, b.pos).y -= 1.4;
+      b.groundY = b.pos.y;
+      if (d.phase !== "bus" || d.pastIsland(d.busT) || (d.busT >= bd.jumpT && d.overIsland(d.busT))) {
+        bd.flight = new Flight(_busAt.copy(b.pos).setY(b.pos.y - 3), builtMap.map.edge);
+        bd.state = "fly";
+      }
+    } else if (bd.state === "fly") {
+      const f = bd.flight;
+      const dx = bd.tx - f.pos.x, dz = bd.tz - f.pos.z, dist = Math.hypot(dx, dz);
+      const yaw = Math.atan2(-dx, -dz);
+      f.update(dt, { forward: dist > 6 ? 1 : 0, strafe: 0, yaw, pitch: dist > 60 ? -0.9 : -0.2, open: false }, dropGround);
+      b.pos.copy(f.pos);
+      b.groundY = f.pos.y;
+      b.yaw = yaw;
+      if (f.state === "landed") { b.airborne = false; b.drop = null; }
+    }
+  }
+}
+
+/* You, on the bus or in the air. */
+function updateDropPlayer(dt, ix, iz, jumpHeld) {
+  const r = royale, d = r.drop;
+  const pressed = jumpHeld && !dropJumpWas;
+  dropJumpWas = jumpHeld;
+  if (r.me === "bus") {
+    if (d.phase === "bus") d.busPos(d.busT, move.pos).y -= 1.4;
+    move.velocity.set(0, 0, 0);
+    if (d.phase !== "bus" || d.pastIsland(d.busT) || (pressed && d.overIsland(d.busT))) {
+      r.flight = new Flight(_busAt.copy(move.pos).setY(move.pos.y - 3), builtMap.map.edge);
+      r.me = "fall";
+      showWaveBanner(isTouch ? "Tap JUMP again to open the glider early" : "The glider opens by itself — jump again to open it early", 1800);
+    } else if (pressed) showWaveBanner("Wait till you're over the island", 900);
+    return;
+  }
+  const f = r.flight;
+  f.update(dt, { forward: iz, strafe: ix, yaw: look.yaw, pitch: look.pitch, open: pressed }, dropGround);
+  move.pos.copy(f.pos);
+  move.velocity.copy(f.vel);
+  if (f.state === "glide" && r.me !== "glide") { r.me = "glide"; setPlayerGlider(true); audio.reload(); }
+  if (f.state === "landed") {
+    move.reset(f.pos.x, f.pos.z, f.pos.y);
+    r.me = "ground";
+    r.flight = null;
+    setPlayerGlider(false);
+    setHolding("gun");
+  }
 }
 
 function teardownRoyale() {
   if (!royale) return;
+  royale.drop?.dispose();
+  setPlayerGlider(false);
   royale.visual.dispose();
   royale.loot.clear();
   royale = null;
@@ -5833,6 +6047,7 @@ function ordinal(n) {
 function updateRoyale(dt) {
   const r = royale;
   if (!r) return;
+  updateRoyaleDropWorld(dt);
   if (r.live && !r.over) r.t += dt;
   const s = r.zone.state(r.t);
   r.visual.update(s, r.t);
@@ -5845,8 +6060,11 @@ function updateRoyale(dt) {
   const secs = Math.max(0, Math.ceil(s.left));
   const phase = s.stage === "final" ? "Final circle" : s.stage === "closing" ? `Zone ${s.phase} closing` : `Zone ${s.phase}`;
   const timer = s.stage === "final" ? "—" : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
-  if (els.royalePhase.textContent !== phase) els.royalePhase.textContent = phase;
-  if (els.royaleTimer.textContent !== timer) els.royaleTimer.textContent = timer;
+  const onBus = r.drop?.phase === "bus" && !r.live;
+  const phaseText = onBus ? "Troll Bus" : phase;
+  const timerText = onBus ? (r.me === "bus" ? "JUMP" : "—") : timer;
+  if (els.royalePhase.textContent !== phaseText) els.royalePhase.textContent = phaseText;
+  if (els.royaleTimer.textContent !== timerText) els.royaleTimer.textContent = timerText;
   const left = `${alive.length} left`;
   if (els.royaleAlive.textContent !== left) els.royaleAlive.textContent = left;
   els.royale.classList.toggle("is-closing", s.stage === "closing");
@@ -5888,7 +6106,7 @@ function updateRoyale(dt) {
         }
       }
       if (!b.alive && !b.royaleDropped) { b.royaleDropped = true; royaleDropBotGear(b); }
-      if (b.alive) updateRoyaleBot(b, dt);
+      if (b.alive && !b.airborne) updateRoyaleBot(b, dt);
     }
   }
   if (r.noises.length && r.t - r.noises[0].t > 5) r.noises.shift();
@@ -6132,12 +6350,13 @@ function royaleBotDamage(b, dmg) {
 /* Someone else's pickup or drop. */
 function onRoyaleLoot(p, m) {
   if (!royale) return;
-  if (m.k === "take") royale.loot.take(String(m.i));
+  if (m.k === "take") { royale.loot.take(String(m.i)); royale.drop?.lobbyTake(String(m.i)); }
   else if (m.k === "add" && m.item && typeof m.item.id === "string") royale.loot.add(m.item);
 }
 
 function royaleTake(it) {
   royale.loot.take(it.id);
+  royale.drop?.lobbyTake(it.id);
   net.publishLoot({ k: "take", i: it.id });
 }
 
@@ -6873,8 +7092,10 @@ function beginStaging(seconds = STAGE_SECONDS) {
   stageOwner = !isPvp() || !net.active;
   // A beat in, once the bots that fill the room have streamed in.
   setTimeout(() => { if (isStaging()) warmShaders(); }, 900);
-  els.staging.hidden = false;
-  document.body.classList.add("to-staging-on");
+  // The sky lobby is a place to walk round in, not a frozen countdown card.
+  els.staging.hidden = !!royale?.drop;
+  if (!royale?.drop) document.body.classList.add("to-staging-on");
+  else showWaveBanner("SKY LOBBY — try the guns, the bus leaves soon", 2600);
   els.stagingMode.textContent = isPvp()
     ? `${currentMode().name} — ${builtMap.map.name}`
     : builtMap.map.name;
@@ -6887,7 +7108,9 @@ function beginStaging(seconds = STAGE_SECONDS) {
 }
 
 function endStaging() {
-  if (stageT <= 0 && els.staging.hidden) return;
+  // Already ended. (The sky lobby hides the countdown card, so a hidden card
+  // alone doesn't mean that there.)
+  if (stageT <= 0 && els.staging.hidden && royale?.drop?.phase !== "lobby") return;
   stageT = 0;
   spawnOpening = false;
   els.staging.hidden = true;
@@ -6895,7 +7118,8 @@ function endStaging() {
   // The opening seconds still deserve the cover a respawn gets.
   player.spawnGuard = isPvp() ? SPAWN_GUARD : 0;
   updateSpawnGuardHud();
-  if (royale) { royale.live = true; royale.t = 0; showWaveBanner("DROP IN — last troll standing wins", 1800); }
+  if (royale?.drop) startRoyaleBus();
+  else if (royale) { royale.live = true; royale.t = 0; showWaveBanner("DROP IN — last troll standing wins", 1800); }
   else if (isPvp() && !isSnd()) showWaveBanner("FIGHT", 1100);
   audio.stageTick(true);
   // The horde/zombie clock — and the first wave banner — start now, not when
@@ -7008,7 +7232,7 @@ function beginMatch(mapId = null) {
   if (isRoyale()) setupRoyale(); else teardownRoyale();
   spawnOpening = true;   // cleared by endStaging — everyone opens on their own side
   clearDeathVisuals();   // dying as the last match ended left the screen dark
-  const sp = isPvp() ? teamSpawn() : builtMap.playerSpawn;
+  const sp = royale?.drop ? royale.drop.lobbySpot(0) : isPvp() ? teamSpawn() : builtMap.playerSpawn;
   move.reset(sp.x, sp.z, sp.y || 0);
   look.yaw = yawTowardCentre(sp);
   look.pitch = 0;
@@ -7107,12 +7331,14 @@ function beginMatch(mapId = null) {
       bots.fill(noBotsRoom() ? 0 : botTarget(), humans, spawnForTeam, !!currentMode().ffa, teams);
       for (const b of bots.bots) net.publishBot(b);
     }
+    // Troll Royale: the bots wait in the sky lobby too.
+    if (royale?.drop) placeBotsInLobby();
     // S&D's round 1 is set up like every later round, under this countdown.
     if (isSnd()) prepareSndRound();
     // Wave 1 / Round 1 don't spawn until the countdown clears — starting the
     // spawner immediately would have grunts standing idle mid-countdown and
     // "WAVE 1" competing on screen with "GET READY".
-    beginStaging();
+    beginStaging(royale?.drop ? DROP.lobbySeconds : undefined);
   }
 
   // Browsers refuse a pointer lock requested too soon after an unlock without
@@ -8242,6 +8468,7 @@ function animate() {
 
     targetMeshes = [];
     if (staging) {
+      if (inSkyLobby()) updateSkyLobby(dt);
       // Hostiles hold still, but remote operators and bots still stream in so
       // the room visibly fills while the player waits.
       if (isPvp()) {
@@ -8487,7 +8714,7 @@ function animate() {
   // is already visible on the third-person rig itself, so rendering both
   // would double up the weapon on screen.
   // Spectating in Troll Royale: the view is someone else's, so no gun of ours.
-  if (gameState === "playing" && ((!settings.thirdPerson && !emoteIsTp() && !royaleSpectating()) || killcam.replaying)) {
+  if (gameState === "playing" && ((!settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView()) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
@@ -8758,7 +8985,10 @@ function updatePlayer(dt) {
   // client's own avatar the same way death or staging does, while net
   // updates, bots and remote players keep simulating around it.
   // Heads-down on the strike tablet: you stand still, as in BO2.
-  const frozen = !player.alive || isStaging() || localPauseOnly || !!strikeTablet?.isOpen;
+  // On the bus or in the air your stick steers the fall, not your feet.
+  const dropping = royaleDropView();
+  const dropIx = ix, dropIz = iz;
+  const frozen = dropping || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen;
   if (frozen) { ix = 0; iz = 0; }
   // A toggled AIM shouldn't survive a death or a streak call.
   if (touchState.ads && (!player.alive || player.holding === "streak")) setTouchAds(false);
@@ -8780,7 +9010,8 @@ function updatePlayer(dt) {
   // Shallow water (a map's `wade` outline, edge.js): slow, and no sprinting.
   // Only with your feet in it: a jetty, bridge or boat deck over it is dry.
   const wading = !!ARENA.wade && move.pos.y < 0.5 && insidePolygon(ARENA.wade, move.pos.x, move.pos.z);
-  move.update(dt, {
+  if (dropping) updateDropPlayer(dt, dropIx, dropIz, (isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space"));
+  else move.update(dt, {
     forward: iz,
     strafe: ix,
     sprint: !wading && ((isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft")),
@@ -8843,6 +9074,12 @@ function updatePlayer(dt) {
   if (royaleSpectating()) {
     localRig.root.visible = false;
     placeSpectateCamera(dt);
+  } else if (royaleDropView()) {
+    // Third person on the drop: behind the bus while you ride, then behind
+    // you (and your glider) on the way down. Look orbits the camera.
+    localRig.root.visible = royale.me !== "bus";
+    if (royale.me === "bus") placeDropCamera(royale.drop.bus ? royale.drop.bus.position : move.pos, 26, 8);
+    else placeDropCamera(_dropTarget.set(move.pos.x, move.pos.y + (royale.me === "glide" ? 3 : 1.4), move.pos.z), royale.me === "glide" ? 10 : 7, 1.5);
   } else if (settings.thirdPerson || emoteIsTp()) {
     localRig.root.visible = true;
     if (emoteIsTp()) updateEmoteCamera(player.pos, look.yaw, emoteKind() === "duo" ? EMOTES[emote.idx].dist || 1 : 0);
@@ -8873,7 +9110,7 @@ function updatePlayer(dt) {
   const swinging = !!player.melee && player.melee.busy;
   if (player.melee && player.melee.update(dt)) meleeConnect();
 
-  const canAct = !move.busy && player.alive && !isStaging();
+  const canAct = !move.busy && player.alive && !stageFrozen() && !royaleDropView();
   // Pulling the trigger drops a plate or a Hopium half-used.
   if (royale?.act && wantFire) cancelRoyaleAct();
   // Aiming itself is harmless during the pre-match countdown — no shooting,
@@ -10580,6 +10817,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
     targetMeshes: () => targetMeshes, meleeConnect,
     saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT }),
+    DROP, royaleDropView, inSkyLobby, startRoyaleBus,
     royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale,
     royaleBotObjective, royaleBotDamage, royaleNoise, ROYALE,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,

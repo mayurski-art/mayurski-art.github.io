@@ -33,6 +33,7 @@ const TOUCH = [
   ["to-touch-swap", "Swap / pick up"],
   ["to-touch-streak", "Streak"],
   ["to-touch-emote", "Emote"],
+  ["to-touch-admire", "Admire"],
 ];
 
 function load(touch) {

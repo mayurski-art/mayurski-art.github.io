@@ -648,8 +648,11 @@ export const TROLLFACE_ISLAND = {
   blurb: "The trollface.io island, floating over nothing. Grey box: layout first, art later.",
   bounds: { ...BOUNDS },
   playerSpawn: { x: SPAWNS[0][0], z: SPAWNS[0][1] },
-  sky: { top: 0x2f7fd6, horizon: 0xcdeaff, bottom: 0x9fd0f5 },
-  fog: { color: 0xb4d8f2, density: 0.0018 },
+  // The island floats in space (the trollface.io look): a black-blue sky
+  // with stars, and dark fog so the far side fades into it.
+  sky: { top: 0x02030a, horizon: 0x101c3f, bottom: 0x02030a },
+  stars: true,
+  fog: { color: 0x0b1330, density: 0.0011 },
   ground: { colorA: 0x6fd490, colorB: 0x5aa84d, grid: 0x74c864 },
   sun: { color: 0xfff1d6, intensity: 2.5, pos: [-60, 90, -40] },
   hemi: { sky: 0xcfe6ff, ground: 0x4f7a45, intensity: 0.75 },
@@ -660,7 +663,7 @@ export const TROLLFACE_ISLAND = {
   wade: ISLAND_LAKE,
   navCell: 2,
   noGroundPlane: true,
-  viewFar: 480,   // the island is 400 m across (game.js applyEnvironment)
+  viewFar: 1000,  // 400 m across, and seen from the sky lobby 330 m up (game.js applyEnvironment)
   // Troll Royale on the full island: the design doc's players and timings.
   royale: {
     players: 20,
