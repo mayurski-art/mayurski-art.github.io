@@ -31,6 +31,15 @@ one-hit, deflects frontal rounds while blocking.
   damagePlayer (WEAPON_DEFS rounds inside the front cone; blasts/melee/
   zombies go through), sparks re-aimed from view space. The gun behind a
   held melee weapon no longer scopes in. audio.js saber* sounds.
+- **Held like a saber** (user, same day): two-handed mid guard (hilt low
+  right, blade up and across to the left, clear of the crosshair), both
+  gloved fists round the hilt (`poseSaberArms`: each hand frame built from
+  the hilt axis + the way to its shoulder; rods when Gloves is off; the
+  `saberArmsOn` flag keeps posePfArms off the arms). Own tracks in gear.js
+  (`SABER_CUT` high-right to low-left, `SABER_RISE` backhand), windows
+  0.24-0.34. NB gear.js `basisPointing` builds a MIRRORED basis (det -1,
+  non-unit quats); the keyboard was tuned on top of it so it stays, the
+  saber uses `saberBasis`. 3P body still carries it one-handed.
 - Not done: others don't see your block pose or hear your saber (3P shows it
   lit in hand); bots don't react to a block.
 - Test: `tools/troll-ops-trollsaber-test.mjs` (13 checks). Tags: gear.js and

@@ -9,10 +9,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap } from "./weapon-model.js?v=to-gl1";
-import { WeaponInspector } from "./inspector.js?v=to-ts1";
+import { WeaponInspector } from "./inspector.js?v=to-ts2";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js";
-import { Loadout } from "./loadout.js?v=ts1";
+import { Loadout } from "./loadout.js?v=ts2";
 import { StreakPicker } from "./streak-picker.js";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakShortName, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js";
 import {
@@ -31,7 +31,7 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-gc1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-ts1";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-ts2";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-s12h-death";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
@@ -57,7 +57,7 @@ import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK } from "./gear.js?v=ts1";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK } from "./gear.js?v=ts2";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts1";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js";
@@ -8241,6 +8241,9 @@ function updateMeleeView(dt) {
   // Only while the gun is what we hold: this used to re-show it every frame,
   // so it stayed on screen beside the streak tablet and marker.
   if (activeWeaponMesh) activeWeaponMesh.visible = player.holding === "gun" && !swinging;
+  saberArmsOn = !!saber && mesh.visible && inspectT <= 0 && player.alive;
+  if (!saberArmsOn && saberArmsWere) { gloveRig.visible = false; pfArms.visible = false; }
+  saberArmsWere = saberArmsOn;
   if (!mesh.visible) { meleeIdleT = 0; saberBlock.t = 0; return; }
 
   const { pos, quat } = melee.pose();
@@ -8323,6 +8326,7 @@ function updateMeleeView(dt) {
   }
 
   if (saber) updateSaberFx(mesh, saber, swinging, dt);
+  if (saberArmsOn) poseSaberArms(mesh);
 }
 const MELEE_IDLE_PERIOD = 3.2;
 const _meleeIdleEuler = new THREE.Euler();
@@ -8962,6 +8966,13 @@ function placeGlove(g, i, mesh, anchor, tip, sidearm, magBlend = 0) {
     _gloveOff.copy(GLOVE_SUPPORT_OFF).applyQuaternion(mesh.quaternion);
     poseGlove(g, "support");
   }
+  finishGlove(g, i, tip);
+}
+
+/* The glove at `tip` + _gloveOff (world space, root quaternion already set
+   in world space), brought into gloveRig's frame, with its sleeve run to
+   the shoulder. */
+function finishGlove(g, i, tip) {
   // Anchors are read in world space; the gloves live under gloveRig, so
   // bring the pose into its frame (identity in play, not in debug shots).
   g.root.position.copy(tip).add(_gloveOff);
@@ -8977,12 +8988,58 @@ function placeGlove(g, i, mesh, anchor, tip, sidearm, magBlend = 0) {
   g.sleeve.scale.set(1, 1, Math.max(1, len / GLOVE_SLEEVE_LEN));
 }
 
+/* Trollsaber: held like a saber, two fists round the hilt, right hand up
+   by the clamp, left down by the pommel. Each hand's frame is built from
+   the hilt axis and the way to its shoulder, so the fists stay wrapped on
+   and the forearms run back to the body through every swing and the
+   guard. Gloves off: the black rods run to the same two spots. */
+let saberArmsOn = false;
+let saberArmsWere = false;
+const SABER_HAND_Z = [0.045, 0.104];                 // along the hilt (gear.js grip at 0)
+const SABER_GLOVE_OFF = [new THREE.Vector3(0.036, -0.010, 0.006), new THREE.Vector3(-0.036, 0.0, 0.006)];
+const _saP = new THREE.Vector3();
+const _saA = new THREE.Vector3();
+const _saT = new THREE.Vector3();
+const _saX = new THREE.Vector3();
+const _saQ = new THREE.Quaternion();
+const _saM = new THREE.Matrix4();
+function poseSaberArms(mesh) {
+  const gl = glovesOn();
+  pfArms.visible = !gl;
+  gloveRig.visible = gl;
+  mesh.updateMatrixWorld(true);
+  mesh.getWorldQuaternion(_saQ);
+  _saA.set(0, 0, -1).applyQuaternion(_saQ);          // up the blade
+  const rods = pfArms.userData.rods;
+  for (let i = 0; i < 2; i++) {
+    _saP.set(0, 0, SABER_HAND_Z[i]);
+    mesh.localToWorld(_saP);
+    if (!gl) {
+      rods[i].visible = true;
+      stretchBetween(rods[i], PF_ARM_SHOULDER[i], _saP);
+      continue;
+    }
+    // wrist side (the gun frame's +Z) toward the shoulder, square to the hilt
+    _saT.subVectors(PF_ARM_SHOULDER[i], _saP);
+    _saT.addScaledVector(_saA, -_saA.dot(_saT)).normalize();
+    _saX.crossVectors(_saA, _saT);
+    _saM.makeBasis(_saX, _saA, _saT);
+    const g = gloves[i];
+    g.root.quaternion.setFromRotationMatrix(_saM);
+    _gloveOff.copy(SABER_GLOVE_OFF[i]).applyQuaternion(g.root.quaternion);
+    g.root.quaternion.multiply(i === 0 ? GLOVE_GRIP_Q : GLOVE_FOREGRIP_Q);
+    poseGlove(g, "foregrip");
+    finishGlove(g, i, _saP);
+  }
+}
+
 const _pfTip = new THREE.Vector3();
 const _pfMag = new THREE.Vector3();
 const _pfDown = new THREE.Vector3();
 /* `magBlend` 0..1 moves the support rod's tip from the handguard onto the
    magazine (reloads). */
 function posePfArms(mesh, magBlend = 0) {
+  if (saberArmsOn) return;   // the Trollsaber has the arms (poseSaberArms)
   const show = !!mesh?.visible && !inspectArms.visible && player.holding === "gun";
   const gl = glovesOn();
   pfArms.visible = show && !gl;
@@ -9506,7 +9563,7 @@ function updateWeaponView(dt) {
   // stack — return before any weapon-view math runs so weaponLowerT/insp/rl
   // don't fight the device pose for ownership of activeWeaponMesh (which is
   // simply hidden, not touched, while holding === "streak").
-  pfArms.visible = false;   // posePfArms below re-shows them on a held gun
+  if (!saberArmsOn) pfArms.visible = false;   // posePfArms below re-shows them on a held gun
   if (player.holding === "streak") return;
   if (!mesh) return;
 

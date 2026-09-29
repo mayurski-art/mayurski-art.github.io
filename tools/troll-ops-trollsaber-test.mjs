@@ -138,9 +138,18 @@ for (let i = 0; i < 20 && !sawTrail; i++) {
   await sleep(20);
   sawTrail = await page.evaluate(() => window.__trollOps.saberState().trail);
 }
-await sleep(120);
-await shot(page, "ts-swing.png");
 check("a swing leaves a trail", sawTrail);
+// A few frames through the next swing (the rising backhand) for the eye.
+await sleep(700);
+// Headless frames are too slow to catch a 0.56 s swing, so pin the swing
+// clock at each beat (already landed: no hit) and take a frame.
+for (const [i, kind, t] of [[0, 0, 0.11], [1, 0, 0.2], [2, 0, 0.28], [3, 0, 0.37], [4, 1, 0.11], [5, 1, 0.28], [6, 1, 0.37]]) {
+  await page.evaluate(([k, tt]) => { const m = window.__trollOps.player.melee; m.swingIndex = k; m.t = tt; m.landed = true; }, [kind, t]);
+  await sleep(30);
+  await page.evaluate(([k, tt]) => { const m = window.__trollOps.player.melee; m.swingIndex = k; m.t = tt; }, [kind, t]);
+  await shot(page, `ts-swing-${i}.png`);
+}
+await page.evaluate(() => { window.__trollOps.player.melee.t = 0; });
 
 // The loadout gear card is gated at LV 30.
 const card = await page.evaluate(() => {

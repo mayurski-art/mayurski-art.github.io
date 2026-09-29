@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { buildWeaponMesh } from "./weapon-model.js?v=to-gl1";
-import { buildMeleeMesh } from "./gear.js?v=ts1";
+import { buildMeleeMesh } from "./gear.js?v=ts2";
 import { loadModel } from "./battlefield-props.js";
 
 /* The glb each scorestreak flies in the match (see streak-entities.js). */

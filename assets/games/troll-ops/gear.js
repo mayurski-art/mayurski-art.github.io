@@ -150,11 +150,66 @@ const THRUST_TRACK = gripTrack(0.46, [
 ]);
 const THRUST_WINDOW = { open: 0.20, close: 0.32 };
 
-/* Trollsaber guard: blade laid across the body, up and to the left, so the
-   player watches the rounds hit it. Blended in by game.js while blocking. */
+/* ---- Trollsaber: held like a saber ----------------------------------
+   Two hands on the hilt (game.js puts the gloves on it), hilt low and
+   central, blade up and across the view to the left: a mid guard. Its
+   attacks are two-handed diagonal slashes, alternating a downward cut
+   (high right to low left) with a rising backhand, instead of the
+   keyboard's chop-and-thrust. Keys are [t, blade direction (camera space,
+   null = guard), roll about the blade, grip offset from the guard spot]. */
+/* A proper rotation whose -Z points along `dir`, rolled about it.
+   (basisPointing above builds a mirrored basis: the keyboard's tracks were
+   tuned by eye on top of that, so it stays; the saber uses this.) */
+function saberBasis(dir, rollDeg) {
+  const forward = dir.clone().normalize();
+  const up = Math.abs(forward.dot(_upAxis)) > 0.985 ? _backAxis : _upAxis;
+  const right = forward.clone().cross(up).normalize();
+  const trueUp = right.clone().cross(forward).normalize();
+  const m = new THREE.Matrix4().makeBasis(right, trueUp, forward.clone().negate());
+  const q = new THREE.Quaternion().setFromRotationMatrix(m);
+  return q.premultiply(new THREE.Quaternion().setFromAxisAngle(forward, THREE.MathUtils.degToRad(rollDeg)));
+}
+const SABER_REST_POS = new THREE.Vector3(0.19, -0.13, -0.50);
+const SABER_REST_DIR = new THREE.Vector3(-0.32, 0.74, -0.58);
+const SABER_REST_ROLL = 0;
+const SABER_REST_QUAT = saberBasis(SABER_REST_DIR, SABER_REST_ROLL);
+export const SABER_REST = { pos: SABER_REST_POS, quat: SABER_REST_QUAT };
+
+function dirTrack(length, keys) {
+  const posKeys = [], quatKeys = [];
+  for (const [t, dir, roll, off] of keys) {
+    posKeys.push({ t, v: SABER_REST_POS.clone().add(off || new THREE.Vector3()) });
+    quatKeys.push({ t, q: dir ? saberBasis(dir, roll) : SABER_REST_QUAT.clone() });
+  }
+  return { length, posKeys, quatKeys };
+}
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const SABER_CUT = dirTrack(0.56, [
+  [0.00, null, 0, null],
+  [0.11, V(0.55, 0.78, 0.18), -60, V(0.07, 0.10, 0.06)],     // wound up over the right shoulder
+  [0.20, V(0.32, 0.62, -0.72), -35, V(0.03, 0.10, -0.04)],   // coming over
+  [0.28, V(-0.25, 0.14, -1.0), 5, V(-0.02, 0.08, -0.12)],    // through the crosshair
+  [0.37, V(-0.80, -0.34, -0.45), 30, V(-0.10, -0.02, -0.05)], // follow through low left
+  [0.46, V(-0.55, 0.30, -0.62), 0, V(-0.04, -0.02, 0)],
+  [0.56, null, 0, null],
+]);
+const SABER_CUT_WINDOW = { open: 0.24, close: 0.34 };
+const SABER_RISE = dirTrack(0.56, [
+  [0.00, null, 0, null],
+  [0.11, V(-0.72, -0.30, -0.35), 20, V(-0.08, -0.02, 0.04)], // dropped low left
+  [0.20, V(-0.50, -0.22, -0.80), 5, V(-0.05, 0.02, -0.04)],
+  [0.28, V(0.28, 0.16, -1.0), -25, V(0.02, 0.07, -0.12)],     // through the crosshair
+  [0.37, V(0.70, 0.58, -0.42), -60, V(0.10, 0.06, -0.05)],   // up past the right shoulder
+  [0.46, V(0.10, 0.80, -0.55), -40, V(0.04, 0.02, 0)],
+  [0.56, null, 0, null],
+]);
+const SABER_RISE_WINDOW = { open: 0.24, close: 0.34 };
+
+/* Guard up (blocking): blade laid across the body, up and to the left, so
+   the player watches the rounds hit it. Blended in by game.js. */
 export const SABER_BLOCK = {
-  pos: new THREE.Vector3(0.20, -0.25, -0.46),
-  quat: basisPointing(new THREE.Vector3(-0.78, 0.55, -0.30), 18),
+  pos: new THREE.Vector3(0.10, -0.15, -0.46),
+  quat: saberBasis(new THREE.Vector3(-0.86, 0.42, -0.30), -10),
 };
 
 /* Smoothstep-eased lerp across whichever pair of keys straddle `t` — the
@@ -186,8 +241,15 @@ export class MeleeState {
     this.swingIndex = 0;
   }
 
-  get track() { return this.swingIndex % 2 === 0 ? SWING_TRACK : THRUST_TRACK; }
-  get window() { return this.swingIndex % 2 === 0 ? SWING_WINDOW : THRUST_WINDOW; }
+  get saber() { return this.def?.model?.kind === "saber"; }
+  get track() {
+    if (this.saber) return this.swingIndex % 2 === 0 ? SABER_CUT : SABER_RISE;
+    return this.swingIndex % 2 === 0 ? SWING_TRACK : THRUST_TRACK;
+  }
+  get window() {
+    if (this.saber) return this.swingIndex % 2 === 0 ? SABER_CUT_WINDOW : SABER_RISE_WINDOW;
+    return this.swingIndex % 2 === 0 ? SWING_WINDOW : THRUST_WINDOW;
+  }
   get total() { return this.track.length; }
   get busy() { return this.t > 0; }
   canSwing() { return this.t <= 0; }
@@ -214,7 +276,7 @@ export class MeleeState {
 
   /* Grip position + orientation for the view model this frame. */
   pose() {
-    if (this.t <= 0) return { pos: REST_POS, quat: REST_QUAT };
+    if (this.t <= 0) return this.saber ? SABER_REST : { pos: REST_POS, quat: REST_QUAT };
     return sampleTrack(this.track, Math.min(this.t, this.total));
   }
 
@@ -256,20 +318,9 @@ export function buildMeleeMesh(def, includeHands = true) {
 
   if (m.kind === "saber") {
     // The in-match view model starts dark and ignites when drawn; menus and
-    // other players' hands show it lit.
-    const saber = buildTrollsaber({ lit: !includeHands });
-    if (includeHands) {
-      const hand = buildGripHand(MELEE_HAND_SCALE);
-      hand.userData.hand = true;
-      hand.position.set(0, 0, 0.05);
-      saber.add(hand);
-      const support = buildSupportHand(MELEE_HAND_SCALE * 0.85);
-      support.userData.hand = true;
-      support.position.set(0, 0, 0.108);
-      support.rotation.z = Math.PI / 2;
-      saber.add(support);
-    }
-    return saber;
+    // other players' hands show it lit. No block hands: game.js wraps the
+    // real arms (gloves, or the black rods) round the hilt, two-handed.
+    return buildTrollsaber({ lit: !includeHands });
   }
 
   if (m.kind === "keyboard") {
