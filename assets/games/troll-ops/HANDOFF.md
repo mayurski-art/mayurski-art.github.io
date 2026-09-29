@@ -1,5 +1,78 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## DESIGN (awaiting user OK): Troll Royale sky lobby + Troll Bus drop (2026-09-29)
+User's asks: "a 90 second countdown where we spawn in a lobby with everyone
+(can run around and test random weapons lying all around the floor), before
+spawning in a troll vehicle (a bus for now), kind of like Fortnite, then we
+deploy, drop down and land." Lobby: "up in outer space in a transparent glass
+box where users can look down at the map surrounded by space", and the Troll
+Royale sky "should be an outer-space sky". Drop: jump + glide (user's pick).
+
+### The flow
+1. **Sky lobby, 90 s.** Everyone spawns in a glass box floating ~600 m above
+   Trollface Island. The existing staging countdown (`stageT`, host-owned
+   clock, already synced over the wire) runs 90 s for royale; late joiners
+   land in the box too. Bots fill in at the end, as now.
+2. **Board.** At 0 everyone is put on the Troll Bus (no walking to it).
+3. **Flight, ~20 s.** The bus flies a straight line across the island at
+   ~220 m, 30 m/s. The line comes from the match seed, so every client flies
+   the same one (like the loot and zone). Its path shows on the minimap.
+4. **Jump.** Space / a big JUMP button (touch) / A (pad), any time once the
+   bus is over the island; anyone still aboard is kicked out at the far edge.
+5. **Freefall.** ~45 m/s down, steer ~18 m/s sideways; hold forward and look
+   down to dive faster (~60 m/s).
+6. **Glide.** A glider opens by itself at ~30 m above the ground (or press
+   jump again under 120 m to open early): ~10 m/s down, ~16 m/s forward,
+   steerable. No fall damage on landing.
+7. **Land and play.** Pistol only, as now. Zone 1's timer starts when the bus
+   leaves the island, so early and late droppers get the same zone.
+
+### The glass box (grey-box first, art later)
+- ~40 x 40 m floor, 6 m high: glass floor, walls and roof (see-through,
+  thin white frame so you can tell where the walls are), you look straight
+  down through the floor at the island.
+- 30-40 random guns scattered on the floor, every rarity, with the normal
+  pick-up (hold X / Pick up). Infinite ammo, they respawn when taken.
+- Lobby rule (my pick, say if you want it different): guns fire and show
+  hit markers but do NO damage in the lobby. Nothing carries over: everyone
+  drops with the usual pistol.
+- A big countdown on the wall and the HUD: "Bus leaves in 0:42".
+
+### Space sky (the whole royale map)
+- Troll Royale swaps the island's blue sky for space: a black-to-deep-blue
+  dome, a star field and a faint nebula band, a bright sun (the island stays
+  lit by it). Fog goes dark blue-black so the island's edges fade into space.
+  The island floating in space matches the trollface.io look and the art
+  you generated.
+
+### The Troll Bus (grey box)
+- A chunky bus with a trollface on the front, stubby wings and rear thrusters
+  (grey box now, real model later). Seen from a third-person camera behind
+  it while you ride; the HUD says "JUMP" + how many are still aboard.
+
+### Bots
+- Each picks a landing spot (weighted toward landmarks with loot), jumps
+  when the bus passes nearest to it, glides there. Hosted by whoever hosts
+  bots now.
+
+### Netcode
+- Bus path = f(seed): nobody sends it. A player's state goes on the wire as
+  now plus a phase (lobby / bus / fall / glide / ground), so others see
+  gliders in the air. Jumping is local. Joining after the bus leaves =
+  spectate, as now.
+
+### Build phases
+- A: space sky + glass lobby + lobby guns + 90 s countdown (reuses staging).
+- B: bus, jump, freefall, glider, landing; solo + bots; touch + pad controls.
+- C: multiplayer sync (gliders seen by others), spectate edge cases, tests
+  (royale tests start from the lobby), then real art (bus, glider, box).
+
+### Questions for the user
+1. Lobby guns: no damage (my pick) or real damage with instant respawn?
+2. Riding the bus: third-person behind the bus (my pick) or first-person
+   inside it?
+3. Glider look: a trollface paraglider (my pick), a parachute, or wings?
+
 ## RESUME HERE: Trollface Island rebuilt to the trollface.io map (SHIPPED grey box, 2026-09-29)
 User (2026-09-29): "build the battle royale map to be like the trollface.io
 map". trollface.io = the official $TROLL site (same mint as ours); its home
