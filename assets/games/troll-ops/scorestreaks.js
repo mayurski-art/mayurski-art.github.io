@@ -28,6 +28,7 @@ export const SCORE = {
 export const STREAK_DEFS = {
   uav: {
     id: "uav",
+    badge: "silver",   // BO2 tiers: silver, gold, then red for the top streak
     name: "UAV",
     icon: "uav",
     cost: 200,
@@ -37,6 +38,7 @@ export const STREAK_DEFS = {
   },
   carepackage: {
     id: "carepackage",
+    badge: "silver",   // BO2 tiers: silver, gold, then red for the top streak
     name: "Care Package",
     icon: "carepackage",
     cost: 300,
@@ -45,6 +47,7 @@ export const STREAK_DEFS = {
   },
   drone: {
     id: "drone",
+    badge: "gold",   // BO2 tiers: silver, gold, then red for the top streak
     name: "Hunter-Killer Drone",
     short: "Hunter-Killer",
     icon: "drone",
@@ -54,6 +57,7 @@ export const STREAK_DEFS = {
   },
   airstrike: {
     id: "airstrike",
+    badge: "gold",   // BO2 tiers: silver, gold, then red for the top streak
     name: "Lightning Strike",
     icon: "airstrike",
     cost: 450,
@@ -62,6 +66,7 @@ export const STREAK_DEFS = {
   },
   helicopter: {
     id: "helicopter",
+    badge: "red",   // BO2 tiers: silver, gold, then red for the top streak
     name: "Helicopter Gunship",
     short: "Gunship",
     icon: "helicopter",
@@ -102,6 +107,30 @@ const STREAK_ICON_PATHS = {
 export function streakIconSvg(id) {
   const paths = STREAK_ICON_PATHS[STREAK_DEFS[id]?.icon] || '<circle cx="12" cy="12" r="4"/>';
   return `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" aria-hidden="true">${paths}</svg>`;
+}
+
+/* The streak's badge, BO2 style: a bevelled metal hexagon (silver, gold or
+   red by tier, def.badge) with its symbol stamped in the middle. Used on the
+   HUD slots and in the lobby picker. `dim`: not earned yet. */
+const BADGE_METALS = {
+  silver: ["#f4f6f8", "#9aa3ad", "#59616b", "#1d2127"],
+  gold:   ["#fff1b8", "#e2b340", "#98701c", "#2a1d06"],
+  red:    ["#ffc2b8", "#e2463a", "#8e1a14", "#2a0706"],
+};
+let badgeSeq = 0;
+export function streakBadgeSvg(id, { dim = false } = {}) {
+  const def = STREAK_DEFS[id];
+  const [hi, mid, lo, ink] = BADGE_METALS[def?.badge] || BADGE_METALS.silver;
+  const g = `ssb${++badgeSeq}`;
+  const paths = STREAK_ICON_PATHS[def?.icon] || '<circle cx="12" cy="12" r="4"/>';
+  return `<svg viewBox="0 0 64 64" aria-hidden="true"${dim ? ' class="is-dim"' : ""}>
+<defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${hi}"/><stop offset=".5" stop-color="${mid}"/><stop offset="1" stop-color="${lo}"/></linearGradient></defs>
+<path d="M32 2 58 17v30L32 62 6 47V17z" fill="${ink}" opacity=".85"/>
+<path d="M32 5 55.5 18.5v27L32 59 8.5 45.5v-27z" fill="url(#${g})"/>
+<path d="M32 11 50 21.5v21L32 53 14 42.5v-21z" fill="${ink}" opacity=".9"/>
+<path d="M32 13 48 22.3v19.4L32 51 16 41.7V22.3z" fill="none" stroke="${mid}" stroke-width="1.2" opacity=".7"/>
+<g transform="translate(18 18) scale(1.17)" fill="${hi}" stroke="${hi}" stroke-width="1.2">${paths}</g>
+</svg>`;
 }
 
 /* Name for the in-match HUD strip, which is narrower than the lobby card. */

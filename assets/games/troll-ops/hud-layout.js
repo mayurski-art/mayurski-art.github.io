@@ -21,7 +21,6 @@ const SHARED = [
 const TOUCH = [
   ["to-touch-move", "Move stick"],
   ["to-touch-fire", "Fire"],
-  ["to-touch-fire-l", "Left fire"],
   ["to-touch-ads", "Aim"],
   ["to-touch-jump", "Jump"],
   ["to-touch-reload", "Reload"],

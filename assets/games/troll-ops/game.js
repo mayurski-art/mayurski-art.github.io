@@ -13,8 +13,8 @@ import { WeaponInspector } from "./inspector.js?v=hw1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js?v=gm1";
 import { Loadout } from "./loadout.js?v=hw1";
-import { StreakPicker } from "./streak-picker.js?v=cp1";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=cp1";
+import { StreakPicker } from "./streak-picker.js?v=bd1";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=bd1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
   PKG_CRUSH_RADIUS,
@@ -63,7 +63,7 @@ import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THR
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts1";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
-import { HudLayout } from "./hud-layout.js?v=hl1";
+import { HudLayout } from "./hud-layout.js?v=hl2";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rd1";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw1";
 
@@ -542,8 +542,11 @@ function groundAimPoint(maxDist = 140) {
 
 /* The HUD's streak rows, in order: the loadout's picks, then anything a care
    package granted outside them. Keyboard slot i is key 4 + i. */
+/* Left to right, cheapest to dearest (user, 2026-09-29), a care package's
+   extra streak slotting in by its cost too; the keys (4, 5, 6...) follow. */
 function streakSlotIds() {
-  return streaks.selected.concat(streaks.readyIds().filter((id) => !streaks.selected.includes(id)));
+  return streaks.selected.concat(streaks.readyIds().filter((id) => !streaks.selected.includes(id)))
+    .sort((a, b) => STREAK_DEFS[a].cost - STREAK_DEFS[b].cost);
 }
 
 /* The touch STREAK button (and nothing else now): the selected streak, which
@@ -2516,7 +2519,9 @@ function awardScore(amount) {
     selectedStreak = id;   // newest earned, like BO2's default pick
     killstreakUi.banner({
       title: `${STREAK_DEFS[id].name} ready`,
+      sub: isTouch ? "Tap it to call it in" : `Press ${streakKeyLabel(id)} to call it in`,
       iconSvg: streakIconSvg(id),
+      tone: STREAK_DEFS[id].badge === "red" ? "red" : "gold",
     });
     audio.wave();
   }
@@ -4485,6 +4490,20 @@ function updateStreakHud() {
       img.alt = "";
       img.draggable = false;
       row.appendChild(img);
+      // BO2: every streak carries its badge (tier metal + its symbol) and its
+      // name, with the cost under it until it's earned, then how to call it.
+      const badge = document.createElement("i");
+      badge.className = "to-ss-badge";
+      badge.innerHTML = streakBadgeSvg(id, { dim: !ready });
+      row.appendChild(badge);
+      const cap = document.createElement("div");
+      cap.className = "to-ss-cap";
+      const nm = document.createElement("b");
+      nm.textContent = streakShortName(id);
+      const sub = document.createElement("span");
+      sub.textContent = ready ? (isTouch ? "READY · TAP" : `READY · ${onPad ? "→" : streakKeyLabel(id)}`) : `${def.cost}`;
+      cap.append(nm, sub);
+      row.appendChild(cap);
       row.title = `${def.name}${ready ? " (ready)" : `: ${def.cost}`}`;
       if (!row.hasAttribute("aria-label")) row.setAttribute("aria-label", row.title);
       els.ssSlots.appendChild(row);

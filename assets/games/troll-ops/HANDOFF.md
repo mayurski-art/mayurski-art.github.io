@@ -49,11 +49,25 @@ their rigs (snapshot flag + remote rig glider needed), late-join edge cases,
 real art for the bus/glider/box, and the landmarks' real art pass (ask
 before Blender for landmarks; weapons were explicitly requested).
 
+### TODO (user asked to note it)
+- **Create a Halloween-themed weapon skin** (for the Problem 416, the only
+  skinnable gun: skins.js SKINS + a baked atlas in skins/). Pairs with the
+  Halloween melee (Reaper's Grin, Chainsaw): think pumpkins, reaper, bone,
+  violet/orange. Not started.
+
+### Streaks (done, 2026-09-29)
+BO2 names kept (UAV, Care Package, Hunter-Killer Drone, Lightning Strike,
+Helicopter Gunship). Each has a tier badge (scorestreaks.js streakBadgeSvg:
+silver UAV/Care Package, gold Hunter-Killer/Lightning, red Gunship) shown on
+the HUD slot corner and in the lobby picker; slots show picture + name +
+cost (or READY + key); ready banner names the key. Slots sort left to right
+cheapest to dearest (streakSlotIds). Max 3 in the loadout (LOADOUT_SIZE).
+All five verified callable on an emulated phone by tapping (Care Package
+confirm button, Lightning Strike tablet taps). Touch: only the big right
+Fire button now (left fire hidden); Admire button is a praise-hands icon.
+
 ### Open questions / waiting on the user
-1. **Streak names "like Black Ops 2"**: the five are already UAV, Care
-   Package, Hunter-Killer Drone, Lightning Strike, Helicopter Gunship. Asked
-   whether they want names shown in the HUD (it's pictures only, by their
-   earlier ask), more BO2 streaks, or troll-parody names. No answer yet.
+1. (answered) Streak names stay BO2, with symbols and badges: done above.
 2. Chainsaw/knife unlock levels (15 / 45) were my pick.
 3. The banner image: user is fixing the Vice Grin rifle in Grok with the
    prompt I gave (two images: scene + `vice416-3q-transparent.png`); fallback

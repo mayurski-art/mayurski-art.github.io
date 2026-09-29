@@ -5,7 +5,7 @@
 // folding it into that class would mean threading unrelated state through a
 // constructor already building five regions.
 
-import { STREAK_DEFS, STREAK_IDS, LOADOUT_SIZE, streakUnlocked, streakIconSvg } from "./scorestreaks.js?v=cp1";
+import { STREAK_DEFS, STREAK_IDS, LOADOUT_SIZE, streakUnlocked, streakIconSvg, streakBadgeSvg } from "./scorestreaks.js?v=bd1";
 
 const STORE = "trollops:streaks";
 
@@ -81,7 +81,7 @@ export class StreakPicker {
       // events), so you can still preview what you're working toward.
       if (!unlocked) b.setAttribute("aria-disabled", "true");
       b.classList.toggle("is-locked", !unlocked);
-      b.innerHTML = `<i class="to-ss-icon">${streakIconSvg(id)}</i><strong></strong><span></span><em></em>`;
+      b.innerHTML = `<i class="to-ss-icon to-ss-badgeicon">${streakBadgeSvg(id, { dim: !unlocked })}</i><strong></strong><span></span><em></em>`;
       b.querySelector("strong").textContent = def.name;
       b.querySelector("span").textContent = unlocked ? `${def.cost} score` : `LV ${def.rank}`;
       b.querySelector("em").textContent = def.blurb;

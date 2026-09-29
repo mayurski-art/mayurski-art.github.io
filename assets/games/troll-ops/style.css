@@ -2691,4 +2691,31 @@ body.to-touch-play .to-touch-admire {
   left: auto; right: calc(var(--sr) + 24px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 100px * var(--k));
   width: calc(56px * var(--k)); height: calc(30px * var(--k));
 }
-body.to-touch-play .to-touch-admire svg { width: calc(17px * var(--k)); height: calc(17px * var(--k)); }
+body.to-touch-play .to-touch-admire svg { width: calc(20px * var(--k)); height: calc(20px * var(--k)); }
+
+/* Scorestreak slots, BO2 style: the picture with the streak's tier badge on
+   its corner, its name under it, then the cost (or READY and the key). */
+.to-ss-slot { width: 92px; height: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 4px 5px; }
+.to-ss-slot .to-ss-img { width: 70px; height: 62px; }
+.to-ss-badge { position: absolute; left: -7px; top: -7px; width: 30px; height: 30px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+.to-ss-badge svg { width: 100%; height: 100%; display: block; }
+.to-ss-badge svg.is-dim { filter: grayscale(.85) brightness(.7); }
+.to-ss-cap { display: flex; flex-direction: column; align-items: center; min-width: 0; width: 100%; line-height: 1.15; text-align: center; }
+.to-ss-cap b { font: 700 10.5px/1.2 "Oswald", sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #e8eee4;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-ss-cap span { font: 500 9.5px/1.2 "DM Mono", monospace; color: #9aa596; }
+.to-ss-slot.is-ready .to-ss-cap span { color: #9dff7a; }
+.to-ss-slot:not(.is-ready) .to-ss-cap b { color: #b7bfb2; }
+/* The READY tag of a fresh care-package streak sits over the picture now. */
+.to-ss-slot.is-fresh::after { bottom: auto; top: 44px; }
+body.to-touch-play .to-ss-slot { width: calc(70px * var(--k)); height: auto; padding: calc(3px * var(--k)); }
+body.to-touch-play .to-ss-slot .to-ss-img { width: calc(52px * var(--k)); height: calc(44px * var(--k)); }
+body.to-touch-play .to-ss-badge { width: calc(22px * var(--k)); height: calc(22px * var(--k)); left: -5px; top: -5px; }
+body.to-touch-play .to-ss-cap b { font-size: calc(8.5px * var(--k)); }
+body.to-touch-play .to-ss-cap span { font-size: calc(8px * var(--k)); }
+/* Lobby picker: the badge in place of the plain symbol. */
+.to-ss-icon.to-ss-badgeicon { width: 34px; height: 34px; color: inherit; }
+/* Long BO2 names ("Lightning Strike") wrap to two lines rather than cut off. */
+.to-ss-cap b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.1; }
+body.to-touch-play .to-ss-slot { width: calc(64px * var(--k)); }
+body.to-touch-play .to-ss-slot .to-ss-img { width: calc(46px * var(--k)); height: calc(38px * var(--k)); }
