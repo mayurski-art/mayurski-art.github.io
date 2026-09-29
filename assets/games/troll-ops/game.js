@@ -29,7 +29,7 @@ import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js";
-import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-sb1";
+import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-tr1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-sb1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-sb1";
@@ -38,10 +38,11 @@ import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=tj1";
+} from "./modes.js?v=tr1";
 import { BotManager } from "./bots.js?v=to-sb1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-sb1";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=tr1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -93,6 +94,19 @@ const els = {
   stagingSub: document.getElementById("to-staging-sub"),
   stagingRoster: document.getElementById("to-staging-roster"),
   bombStatus: document.getElementById("to-bomb-status"),
+  royale: document.getElementById("to-royale"),
+  royalePhase: document.getElementById("to-royale-phase"),
+  royaleTimer: document.getElementById("to-royale-timer"),
+  royaleAlive: document.getElementById("to-royale-alive"),
+  royaleAct: document.getElementById("to-royale-act"),
+  royaleActText: document.getElementById("to-royale-act-text"),
+  royaleActFill: document.getElementById("to-royale-act-fill"),
+  cringe: document.getElementById("to-cringe"),
+  armor: document.getElementById("to-armor"),
+  gearPlates: document.getElementById("to-gear-plates"),
+  gearPlatesN: document.getElementById("to-gear-plates-n"),
+  gearHeals: document.getElementById("to-gear-heals"),
+  gearHealsN: document.getElementById("to-gear-heals-n"),
   bombSide: document.getElementById("to-bomb-side"),
   bombTimer: document.getElementById("to-bomb-timer"),
   bombPrompt: document.getElementById("to-bomb-prompt"),
@@ -1502,7 +1516,7 @@ const BOT_TARGET = 8;      // participants a PvP room is padded up to
 // public server for their mode, instead of each getting their own random
 // room. Only overflow into a numbered shard (QTDM2, QTDM3, ...) once the
 // base room is genuinely full of real people — see joinQuickplay().
-const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF" };
+const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
 let gunGameProgress = 0;
@@ -1918,6 +1932,9 @@ function isZombies() { return !!currentMode().zombies; }
 function isRange() { return !!currentMode().range; }
 function isSnd() { return !!currentMode().rounds; }
 function isInfection() { return !!currentMode().infection; }
+function isRoyale() { return !!currentMode().royale; }
+/* Participants a PvP room is padded up to with bots. */
+function botTarget() { return isRoyale() ? ROYALE.players : BOT_TARGET; }
 /* Infection plays on the two ordinary sides: Phantoms are the survivors,
    Ghosts the infected. */
 function isInfected() { return isInfection() && net.team === "ghost"; }
@@ -2600,6 +2617,7 @@ const net = new Net({
   onInfect: (m) => applyInfect(m.ids || []),
   onNade: (m) => applyRemoteNade(m),
   onDeflect: (p, m) => onRemoteDeflect(p, m),
+  onLoot: (p, m) => onRoyaleLoot(p, m),
   onVote: () => { if (intermissionT > 0) renderVote(); },
   onChat: (p, m) => chat.receive(p, m),
   /* Adopt the owner's countdown rather than running our own, so two clients
@@ -2608,6 +2626,9 @@ const net = new Net({
      are down to 2 must not push us back up the clock. */
   onStage: (m) => {
     if (gameState !== "playing" || !isPvp()) return;
+    // Troll Royale: the owner's seed wins, so everyone has the same zone
+    // and loot even if their match counts drifted apart.
+    if (royale && isStaging() && m.sd && (m.sd >>> 0) !== royale.seed) setupRoyale(m.sd >>> 0);
     const left = Number(m.left);
     if (!Number.isFinite(left) || left <= 0) { if (isStaging()) endStaging(); return; }
     if (isStaging() && left < stageT) { stageT = left; stageOwner = false; }
@@ -2969,6 +2990,8 @@ function drawMinimap() {
     ctx.arc(hx, hz, Math.max(4, r), 0, Math.PI * 2);
     ctx.stroke();
   }
+
+  if (royale) drawRoyaleMinimap(ctx, size);
 
   if (isPvp()) {
     // Friendlies always show. Enemies are fogged unless a UAV is up, or
@@ -3534,7 +3557,9 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "Digit3") setHolding("melee");
     // One key per streak row (4 = top). A single "call the priciest" key
     // fired the hunter-killer whenever you meant the care package.
-    if (/^Digit[4-7]$/.test(e.code) && !e.repeat) callStreakSlot(+e.code.slice(5) - 4);
+    // Troll Royale has no streaks: 4 puts a plate on, 5 uses Hopium.
+    if (royale && (e.code === "Digit4" || e.code === "Digit5") && !e.repeat) startRoyaleAct(e.code === "Digit4" ? "plate" : "heal");
+    else if (/^Digit[4-7]$/.test(e.code) && !e.repeat) callStreakSlot(+e.code.slice(5) - 4);
     if (e.code === "KeyG" && !e.repeat) startCook("lethal");
     // F is plant/defuse while you're somewhere you can do either (S&D);
     // everywhere else it's the tactical.
@@ -5123,7 +5148,10 @@ function updatePickupPrompt(dt) {
   // While a duo invite is up, X accepts it (updateDuo) instead.
   const held = !frozenPlayer() && !duoIncoming && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
   const pkg = player.alive ? nearbyPackage() : null;
-  const drop = player.alive ? pickups.nearest(move.pos.x, move.pos.z) : null;
+  // Troll Royale: guns on the ground are loot, picked up the same way.
+  const lootGun = royale && player.alive ? royale.loot.nearest(move.pos.x, move.pos.z, 1.6, (it) => it.k === "gun") : null;
+  const drop = lootGun ? { def: lootGun.def, loot: lootGun, name: gunDisplayName(lootGun) }
+    : (player.alive && !royale ? pickups.nearest(move.pos.x, move.pos.z) : null);
 
   // A package has its own capture clock (BO2: the owner grabs it fast, an
   // enemy stands there stealing it). `canPickup` keeps the instant-swap
@@ -5141,6 +5169,8 @@ function updatePickupPrompt(dt) {
   const action = swapHold.update(dt, held && !pkg, !!drop || !!pkg);
   if (action === "swap") {
     switchWeapon(currentWeaponSlot === "secondary" ? "primary" : "secondary");
+  } else if (action === "pickup" && drop?.loot) {
+    royalePickupGun(drop.loot);
   } else if (action === "pickup" && drop) {
     pickups.take(drop);
     player.secondaryId = drop.def.id;
@@ -5163,7 +5193,7 @@ function updatePickupPrompt(dt) {
       const steal = pkg && !pkg.owned && (currentMode().ffa || !net.team || pkg.ownerTeam !== net.team);
       const label = pkg
         ? (pkgHoldT > 0 ? (steal ? "Stealing the care package…" : "Capturing…") : `${steal ? "Steal" : "Capture"} the care package`)
-        : (swapHold.active ? `Picking up ${drop.def.name}…` : `Pick up ${drop.def.name}`);
+        : (swapHold.active ? `Picking up ${drop.name || drop.def.name}…` : `Pick up ${drop.name || drop.def.name}`);
       els.pickupPrompt.hidden = false;
       els.pickupPromptText.textContent = label;
       const progress = pkg ? pkgHoldT / packageCaptureTime(pkg) : swapHold.progress;
@@ -5621,6 +5651,392 @@ function botDealDamage(bot, targetId, dmg, isHead, wid) {
   net.reportHitAs(bot.id, targetId, dmg, isHead, wid);
 }
 
+// -------------------- Troll Royale --------------------
+//
+// Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
+// last troll standing. royale.js has the zone, the loot and their visuals;
+// this is the rules. Every client runs the same zone off its own match clock
+// (they agree because staging ends together) and the same floor loot from
+// the stage owner's seed; only pickups and drops travel ("loot" messages).
+// Each client ends the match itself when one troll is left, the way score
+// limits already work.
+
+let royale = null;
+
+function royaleSeed() { return hashSeed(`${net.room || "solo"}:${matchesPlayed}:royale`); }
+
+function royaleGround(x, z) { return groundHeightAt(colliders, x, z, 0.8, 0.3) ?? 0; }
+
+function setupRoyale(seed = royaleSeed()) {
+  teardownRoyale();
+  const rng = seededRng(seed);
+  const bounds = builtMap.map.bounds;
+  const zone = new RoyaleZone(bounds, rng);
+  const loot = new LootField(scene);
+  loot.spawnSeeded(lootSpots(colliders, bounds, rng), rng, royaleGround);
+  royale = {
+    seed, zone, loot, visual: new ZoneVisual(scene),
+    t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
+    stageKey: "", zoneAcc: 0, act: null, spectate: null, outShown: false,
+  };
+  royale.visual.update(zone.state(0), 0);
+}
+
+function teardownRoyale() {
+  if (!royale) return;
+  royale.visual.dispose();
+  royale.loot.clear();
+  royale = null;
+  els.cringe?.classList.remove("is-on");
+  if (els.royaleAct) els.royaleAct.hidden = true;
+}
+
+/* Everyone still standing, counted once each: us, peers, and the bots we
+   host (on anyone else's screen those arrive as peers). */
+function royaleAliveList() {
+  const list = [];
+  if (player.alive) list.push({ id: net.id, name: "You", pos: move.pos, yaw: look.yaw, me: true });
+  const seen = new Set([net.id]);
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive || seen.has(rp.netId)) continue;
+    seen.add(rp.netId);
+    list.push({ id: rp.netId, name: rp.tagText, pos: rp.pos, yaw: rp.yaw || 0 });
+  }
+  for (const b of bots.bots) {
+    if (!b.alive || seen.has(b.id)) continue;
+    seen.add(b.id);
+    list.push({ id: b.id, name: b.name, pos: b.pos, yaw: b.yaw || 0 });
+  }
+  return list;
+}
+
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function updateRoyale(dt) {
+  const r = royale;
+  if (!r) return;
+  if (r.live && !r.over) r.t += dt;
+  const s = r.zone.state(r.t);
+  r.visual.update(s, r.t);
+  r.loot.update(dt, camera, player.alive ? move.pos : camera.position);
+
+  const alive = royaleAliveList();
+  if (r.live) r.peak = Math.max(r.peak, alive.length);
+
+  // Zone, countdown, trolls left.
+  const secs = Math.max(0, Math.ceil(s.left));
+  const phase = s.stage === "final" ? "Final circle" : s.stage === "closing" ? `Zone ${s.phase} closing` : `Zone ${s.phase}`;
+  const timer = s.stage === "final" ? "—" : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  if (els.royalePhase.textContent !== phase) els.royalePhase.textContent = phase;
+  if (els.royaleTimer.textContent !== timer) els.royaleTimer.textContent = timer;
+  const left = `${alive.length} left`;
+  if (els.royaleAlive.textContent !== left) els.royaleAlive.textContent = left;
+  els.royale.classList.toggle("is-closing", s.stage === "closing");
+  const key = `${s.phase}:${s.stage}`;
+  if (r.live && key !== r.stageKey) {
+    if (r.stageKey) {
+      if (s.stage === "closing") { showWaveBanner("The Cringe is closing in", 1600); audio.wave(); }
+      else if (s.stage === "wait") showWaveBanner(`Zone ${s.phase} marked`, 1300);
+      else if (s.stage === "final") showWaveBanner("Final circle", 1400);
+    }
+    r.stageKey = key;
+  }
+
+  // The Cringe: whole points of damage as they add up, armour ignored.
+  const out = player.alive && r.live && RoyaleZone.outside(s, move.pos.x, move.pos.z);
+  els.cringe.classList.toggle("is-on", !!out);
+  if (out && s.dps > 0) {
+    r.zoneAcc += s.dps * dt;
+    if (r.zoneAcc >= 1) {
+      const d = Math.floor(r.zoneAcc);
+      r.zoneAcc -= d;
+      damagePlayer(d, null, "zone");
+    }
+  } else r.zoneAcc = 0;
+
+  // The bots we host take the Cringe too, and leave their gear when they go.
+  if (net.isBotHost()) {
+    for (const b of bots.bots) {
+      if (r.live && b.alive && s.dps > 0 && RoyaleZone.outside(s, b.pos.x, b.pos.z)) {
+        b.zoneAcc = (b.zoneAcc || 0) + s.dps * dt;
+        if (b.zoneAcc >= 1) {
+          const d = Math.floor(b.zoneAcc);
+          b.zoneAcc -= d;
+          const { killed } = bots.applyHit(b.id, d);
+          if (killed) {
+            net.reportDeathAs(b.id, null, "zone", false);
+            registerDeath(b.name, null, "zone", { victimTeam: b.team, victimIsBot: true, victimId: b.id });
+          }
+        }
+      }
+      if (!b.alive && !b.royaleDropped) { b.royaleDropped = true; royaleDropBotGear(b); }
+    }
+  }
+
+  if (player.alive && r.live) royaleAutoPickup();
+  updateRoyaleAct(dt);
+
+  if (player.alive) {
+    if (player.spawnGuard > 0) {
+      player.spawnGuard -= dt;
+      if (player.spawnGuard <= 0) { player.spawnGuard = 0; updateSpawnGuardHud(); }
+      else if (els.spawnGuard?.hidden) updateSpawnGuardHud();
+    }
+  } else {
+    // Out: watch whoever got you, then whoever is nearest.
+    r.spectate = pickSpectateTarget(r.spectate, alive);
+    const text = `Eliminated — ${ordinal(r.place || alive.length + 1)} of ${r.peak}${r.spectate ? ` · watching ${r.spectate.name}` : ""}`;
+    if (els.respawnText.textContent !== text) els.respawnText.textContent = text;
+    if (!r.outShown) { r.outShown = true; els.respawn.hidden = false; }
+  }
+
+  // The end: one troll left (or none, if the Cringe took the last two).
+  const ended = r.live && !r.over && r.t > 3 && ((r.peak >= 2 && alive.length <= 1) || alive.length === 0);
+  if (ended) {
+    r.endT += dt;
+    if (r.endT > 1.2) finishRoyale(alive);
+  } else r.endT = 0;
+}
+
+function finishRoyale(alive) {
+  const r = royale;
+  r.over = true;
+  const won = player.alive;
+  const place = won ? 1 : (r.place || r.peak);
+  const bonus = Math.max(0, r.peak - place) * 40 + (won ? 400 : 0);
+  if (bonus > 0) addMatchXp(bonus, won ? "LAST TROLL STANDING" : `${ordinal(place).toUpperCase()} PLACE`);
+  const winner = alive.find((a) => !a.me)?.name;
+  r.finalPlace = place;
+  endMatch(won ? "You win — last troll standing" : winner ? `${winner} wins` : "The Cringe wins");
+}
+
+/* Out of the match: where we finished, and everything we carried on the floor. */
+function royaleOnDeath() {
+  const r = royale;
+  r.place = royaleAliveList().length + 1;
+  r.act = null;
+  let n = 0;
+  const put = (fields) => {
+    const a = n * 2.39996, d = 0.55 + n * 0.18;
+    n++;
+    royaleDrop(fields, move.pos.x + Math.cos(a) * d, move.pos.z + Math.sin(a) * d);
+  };
+  for (const id of [player.weaponId, player.secondaryId]) {
+    const ws = id && player.weapons[id];
+    if (ws) put(gunFields(ws));
+  }
+  for (let i = 0; i < player.plates; i++) put({ k: "plate", n: 1 });
+  for (let i = 0; i < player.heals; i++) put({ k: "heal", n: 1 });
+  player.plates = 0;
+  player.heals = 0;
+  player.armor = 0;
+  updateRoyaleGear();
+}
+
+function gunFields(ws) {
+  return { k: "gun", w: ws.def.id, a: ws.def.attachments, r: ws.royaleRarity | 0, ammo: ws.ammoReserve + ws.ammoInMag };
+}
+
+function royaleDrop(fields, x, z) {
+  const it = royale.loot.add({ id: royale.loot.nextDropId(net.id), ...fields, x, y: royaleGround(x, z), z });
+  net.publishLoot({ k: "add", item: LootField.wire(it) });
+  return it;
+}
+
+/* A bot we host went down: its gun, and sometimes a plate or a Hopium. */
+function royaleDropBotGear(b) {
+  const at = (i) => [b.pos.x + Math.cos(i * 2.4) * 0.7, b.pos.z + Math.sin(i * 2.4) * 0.7];
+  let i = 0;
+  if (WEAPON_DEFS[b.weaponId]) {
+    const [x, z] = at(i++);
+    const def = resolveWeapon(b.weaponId, defaultLoadoutFor(b.weaponId));
+    royaleDrop({ k: "gun", w: def.id, a: def.attachments, r: Math.random() < 0.3 ? 1 : 0 }, x, z);
+  }
+  if (Math.random() < 0.5) { const [x, z] = at(i++); royaleDrop({ k: "plate", n: 1 }, x, z); }
+  if (Math.random() < 0.3) { const [x, z] = at(i++); royaleDrop({ k: "heal", n: 1 }, x, z); }
+}
+
+/* Someone else's pickup or drop. */
+function onRoyaleLoot(p, m) {
+  if (!royale) return;
+  if (m.k === "take") royale.loot.take(String(m.i));
+  else if (m.k === "add" && m.item && typeof m.item.id === "string") royale.loot.add(m.item);
+}
+
+function royaleTake(it) {
+  royale.loot.take(it.id);
+  net.publishLoot({ k: "take", i: it.id });
+}
+
+/* Plates, Hopium and ammo go straight into your pockets when there's room. */
+function royaleAutoPickup() {
+  const it = royale.loot.nearest(move.pos.x, move.pos.z, 1.3, (x) => x.k !== "gun" && royaleWants(x));
+  if (!it) return;
+  royaleTake(it);
+  if (it.k === "plate") player.plates++;
+  else if (it.k === "heal") player.heals++;
+  else if (it.k === "ammo") {
+    for (const id of [player.weaponId, player.secondaryId]) {
+      const ws = id && player.weapons[id];
+      if (ws) ws.ammoReserve = Math.min(ws.def.reserveMax, ws.ammoReserve + Math.ceil(ws.def.reserveMax * 0.4));
+    }
+  }
+  audio.reload();
+  showWaveBanner(`+ ${ITEM_NAMES[it.k]}`, 700);
+  updateRoyaleGear();
+}
+
+function royaleWants(it) {
+  if (it.k === "plate") return player.plates < ROYALE.carryPlates;
+  if (it.k === "heal") return player.heals < ROYALE.carryHeals;
+  if (it.k === "ammo") {
+    return [player.weaponId, player.secondaryId].some((id) => {
+      const ws = id && player.weapons[id];
+      return ws && ws.ammoReserve < ws.def.reserveMax;
+    });
+  }
+  return false;
+}
+
+/* A gun off the floor: into the empty slot if there is one, else in place
+   of the one in your hands, which drops where you stand. */
+function royalePickupGun(it) {
+  royaleTake(it);
+  const ws = new WeaponState(it.def);
+  ws.royaleRarity = it.r | 0;
+  const inMag = Math.min(ws.def.magSize, it.ammo ?? ws.def.magSize);
+  ws.ammoInMag = inMag;
+  ws.ammoReserve = it.ammo != null ? Math.max(0, it.ammo - inMag) : Math.round(ws.def.reserveMax * 0.35);
+  let slot = !player.secondaryId ? "secondary" : currentWeaponSlot === "secondary" ? "secondary" : "primary";
+  // The same gun as the other slot would share its key: take that slot.
+  const other = slot === "primary" ? player.secondaryId : player.weaponId;
+  if (other === it.def.id) slot = slot === "primary" ? "secondary" : "primary";
+  const oldId = slot === "primary" ? player.weaponId : player.secondaryId;
+  if (oldId && player.weapons[oldId]) {
+    const a = Math.random() * Math.PI * 2;
+    royaleDrop(gunFields(player.weapons[oldId]), move.pos.x + Math.cos(a) * 0.8, move.pos.z + Math.sin(a) * 0.8);
+    delete player.weapons[oldId];
+  }
+  if (slot === "primary") player.weaponId = it.def.id; else player.secondaryId = it.def.id;
+  player.weapons[it.def.id] = ws;
+  currentWeaponSlot = slot;
+  setActiveWeaponMesh(it.def);
+  setHolding("gun");
+  audio.reload();
+  showWaveBanner(`Picked up ${gunDisplayName(it)}`, 1200);
+}
+
+/* Plating up / Hopium: a short channel, cancelled by firing or dying. */
+function startRoyaleAct(kind) {
+  if (!royale || !player.alive || royale.act || isStaging()) return;
+  if (kind === "plate" && (player.plates <= 0 || player.armor >= ROYALE.maxArmor)) return;
+  if (kind === "heal" && (player.heals <= 0 || player.hp >= player.maxHp)) return;
+  royale.act = { kind, t: 0, dur: kind === "plate" ? ROYALE.plateTime : ROYALE.healTime, rate: (player.maxHp - player.hp) / ROYALE.healTime };
+  audio.throwGear();
+}
+
+function cancelRoyaleAct() {
+  if (royale) royale.act = null;
+  if (els.royaleAct) els.royaleAct.hidden = true;
+}
+
+function updateRoyaleAct(dt) {
+  const a = royale.act;
+  if (!a || !player.alive) { if (a) royale.act = null; els.royaleAct.hidden = true; return; }
+  a.t += dt;
+  const k = Math.min(1, a.t / a.dur);
+  if (a.kind === "heal") player.hp = Math.min(player.maxHp, player.hp + a.rate * dt);
+  els.royaleAct.hidden = false;
+  const text = a.kind === "plate" ? "Plating up" : "Hopium";
+  if (els.royaleActText.textContent !== text) els.royaleActText.textContent = text;
+  els.royaleActFill.style.width = `${Math.round(k * 100)}%`;
+  els.royaleActFill.style.background = a.kind === "plate" ? "#7fb2ff" : "#55ff7a";
+  if (k < 1) return;
+  if (a.kind === "plate") {
+    player.plates--;
+    player.armor = Math.min(ROYALE.maxArmor, player.armor + ROYALE.plateHp);
+    audio.reload();
+  } else {
+    player.heals--;
+    player.hp = player.maxHp;
+  }
+  royale.act = null;
+  els.royaleAct.hidden = true;
+  updateRoyaleGear();
+}
+
+function updateRoyaleGear() {
+  if (!els.armor) return;
+  const on = !!royale;
+  els.armor.hidden = !on;
+  els.gearPlates.hidden = !on;
+  els.gearHeals.hidden = !on;
+  if (!on) return;
+  [...els.armor.children].forEach((seg, i) => {
+    seg.style.setProperty("--p", Math.max(0, Math.min(1, (player.armor - i * ROYALE.plateHp) / ROYALE.plateHp)).toFixed(3));
+  });
+  els.gearPlatesN.textContent = String(player.plates);
+  els.gearHealsN.textContent = String(player.heals);
+  els.gearPlates.classList.toggle("is-empty", player.plates <= 0);
+  els.gearHeals.classList.toggle("is-empty", player.heals <= 0);
+}
+
+/* Spectating: keep watching someone while they're alive; our killer first. */
+function pickSpectateTarget(cur, alive) {
+  const others = alive.filter((a) => !a.me);
+  if (!others.length) return null;
+  if (cur) { const still = others.find((a) => a.id === cur.id); if (still) return still; }
+  const killer = others.find((a) => a.id === player.lastKilledBy);
+  if (killer) return killer;
+  let best = null, bestD = Infinity;
+  for (const a of others) {
+    const d = Math.hypot(a.pos.x - move.pos.x, a.pos.z - move.pos.z);
+    if (d < bestD) { best = a; bestD = d; }
+  }
+  return best;
+}
+
+function royaleSpectating() {
+  return !!royale && !player.alive && !!royale.spectate && !killcam.replaying && gameState === "playing";
+}
+
+/* Over the shoulder of whoever we're watching, eased so it doesn't jitter
+   on their 15 Hz updates. */
+const _specAt = new THREE.Vector3();
+const _specLook = new THREE.Vector3();
+function placeSpectateCamera(dt) {
+  const t = royale.spectate;
+  const back = 3.4, up = 2.1;
+  _specAt.set(t.pos.x + Math.sin(t.yaw) * back, (t.pos.y || 0) + up, t.pos.z + Math.cos(t.yaw) * back);
+  if (camera.position.distanceTo(_specAt) > 12) camera.position.copy(_specAt);
+  else camera.position.lerp(_specAt, Math.min(1, dt * 6));
+  _specLook.set(t.pos.x - Math.sin(t.yaw) * 4, (t.pos.y || 0) + 1.3, t.pos.z - Math.cos(t.yaw) * 4);
+  camera.lookAt(_specLook);
+}
+
+// Touch: the plate and Hopium chips are buttons.
+els.gearPlates?.addEventListener("click", () => startRoyaleAct("plate"));
+els.gearHeals?.addEventListener("click", () => startRoyaleAct("heal"));
+
+/* Zone rings on the minimap: the Cringe's edge now, and the next circle. */
+function drawRoyaleMinimap(ctx, size) {
+  const s = royale.zone.state(royale.t);
+  const scale = (size - 12) / (ARENA.maxX - ARENA.minX);
+  const ring = (x, z, r, style, w) => {
+    const [mx, mz] = mapToMinimap(x, z);
+    ctx.strokeStyle = style;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.arc(mx, mz, Math.max(2, r * scale), 0, Math.PI * 2);
+    ctx.stroke();
+  };
+  if (s.next) ring(s.next.x, s.next.z, s.next.r, "rgba(255,255,255,.85)", 1.5);
+  ring(s.x, s.z, s.r, "rgba(125,255,74,.95)", 2);
+}
+
 // -------------------- Infection --------------------
 //
 // Nobody hosts the match: every client turns itself when it dies, and its
@@ -6037,7 +6453,8 @@ function updateSnd(dt) {
    the next gun for everyone. */
 function scavengeAllowed() {
   // Infection: the infected can't carry a gun, so nothing is worth dropping.
-  return !weaponForMode(currentMode(), gunGameProgress) && !isInfection();
+  // Troll Royale: everything on the ground is loot (royale.js), not a drop.
+  return !weaponForMode(currentMode(), gunGameProgress) && !isInfection() && !isRoyale();
 }
 
 /* Drop whatever gun the player was holding right where they died, so
@@ -6054,11 +6471,13 @@ function dropCarriedWeapon() {
 function equipFromLoadout() {
   const mode = currentMode();
   const forcedId = weaponForMode(mode, gunGameProgress);
-  let def = forcedId ? resolveWeapon(forcedId, defaultLoadoutFor(forcedId)) : loadout.resolved;
+  // Troll Royale: you land with a pistol and find the rest.
+  const startId = mode.royale ? ROYALE.startWeapon : forcedId;
+  let def = startId ? resolveWeapon(startId, defaultLoadoutFor(startId)) : loadout.resolved;
   if (mode.tuneWeapon) def = mode.tuneWeapon(def);
   player.weaponId = def.id;
   player.weapons = { [def.id]: new WeaponState(def) };
-  if (!forcedId) {
+  if (!startId) {
     const secDef = loadout.resolvedSecondary;
     player.secondaryId = secDef.id;
     player.weapons[secDef.id] = new WeaponState(secDef);
@@ -6206,7 +6625,8 @@ function endStaging() {
   // The opening seconds still deserve the cover a respawn gets.
   player.spawnGuard = isPvp() ? SPAWN_GUARD : 0;
   updateSpawnGuardHud();
-  if (isPvp() && !isSnd()) showWaveBanner("FIGHT", 1100);
+  if (royale) { royale.live = true; royale.t = 0; showWaveBanner("DROP IN — last troll standing wins", 1800); }
+  else if (isPvp() && !isSnd()) showWaveBanner("FIGHT", 1100);
   audio.stageTick(true);
   // The horde/zombie clock — and the first wave banner — start now, not when
   // the map loaded, so nothing was ever ticking behind the countdown.
@@ -6242,7 +6662,7 @@ function updateStaging(dt) {
     stagePub -= dt;
     if (stageOwner && stagePub <= 0) {
       stagePub = 0.33;
-      net.publishStage(loadout.mapId, modeId, stageT);
+      net.publishStage(loadout.mapId, modeId, stageT, royale ? royale.seed : undefined);
     }
   }
 
@@ -6312,6 +6732,10 @@ function beginMatch(mapId = null) {
   updateSpawnGuardHud();
 
   loadMap(matchMapId(mapId));
+  player.armor = 0;
+  player.plates = 0;
+  player.heals = 0;
+  if (isRoyale()) setupRoyale(); else teardownRoyale();
   spawnOpening = true;   // cleared by endStaging — everyone opens on their own side
   clearDeathVisuals();   // dying as the last match ended left the screen dark
   const sp = isPvp() ? teamSpawn() : builtMap.playerSpawn;
@@ -6374,7 +6798,9 @@ function beginMatch(mapId = null) {
 
   const pvp = isPvp();
   const snd = isSnd();
-  els.hudTeams.hidden = !pvp;
+  els.hudTeams.hidden = !pvp || isRoyale();
+  els.royale.hidden = !isRoyale();
+  updateRoyaleGear();
   // S&D keeps the wave/hostiles boxes — repurposed as round count and bomb
   // status — where every other PvP mode hides them.
   els.hudWaveBox.hidden = (pvp && !snd) || isRange();
@@ -6408,7 +6834,7 @@ function beginMatch(mapId = null) {
     // already populated while the player watches the clock.
     if (isPvp() && net.isBotHost()) {
       const { humans, teams } = humanHeadcount();
-      bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, !!currentMode().ffa, teams);
+      bots.fill(noBotsRoom() ? 0 : botTarget(), humans, spawnForTeam, !!currentMode().ffa, teams);
       for (const b of bots.bots) net.publishBot(b);
     }
     // S&D's round 1 is set up like every later round, under this countdown.
@@ -6560,6 +6986,15 @@ function pickCarrier() {
    onto it), defenders split across both, and once it's planted everyone
    converges — defenders right onto the bomb. */
 function botObjective(bot) {
+  // Troll Royale: get inside the circle that's coming (bots only look for
+  // this with nobody in sight; they don't loot until phase 2).
+  if (royale) {
+    if (!royale.live) return null;
+    const s = royale.zone.state(royale.t);
+    const c = s.next && s.stage !== "final" ? s.next : s;
+    const d = Math.hypot(bot.pos.x - c.x, bot.pos.z - c.z);
+    return d > c.r * 0.75 ? { id: `zone-${s.phase}`, x: c.x, z: c.z, radius: Math.max(2, c.r * 0.5) } : null;
+  }
   if (hill) {
     const p = hill.position;
     return { id: `hill-${hill.index}`, x: p.x, z: p.z, radius: hill.radius * 0.6 };
@@ -6765,7 +7200,8 @@ function endGame(reason) {
 function endMatch(title) {
   endStaging();          // a match can be ended from outside (everyone left)
   const mode = currentMode();
-  const headline = mode.ffa ? String(player.kills) : String(teamScores[net.team] ?? 0);
+  const headline = royale?.finalPlace ? ordinal(royale.finalPlace)
+    : mode.ffa ? String(player.kills) : String(teamScores[net.team] ?? 0);
   const won = mode.ffa
     ? title.startsWith("You")
     : title === `${teamName(net.team)} win`;
@@ -6773,7 +7209,7 @@ function endMatch(title) {
   achievements.onMatchEnd({
     won, deaths: player.deaths, assists: player.assists, kills: player.kills,
   });
-  finishRun(title, headline, mode.ffa ? "Your score" : "Your side", "Your kills", "Match length", { won, completed: true });
+  finishRun(title, headline, royale ? "Your place" : mode.ffa ? "Your score" : "Your side", "Your kills", "Match length", { won, completed: true });
 
   window.TrollLeaderboard?.report?.("troll-ops", {
     pvp: true, kills: player.kills, deaths: player.deaths, won,
@@ -6788,6 +7224,9 @@ function endMatch(title) {
   if (els.pickupPrompt) els.pickupPrompt.hidden = true;
   pickups.clear();
   bomb = null;
+  teardownRoyale();
+  updateRoyaleGear();
+  if (els.royale) els.royale.hidden = true;
 
   // The room stays up. Tearing the channel down here meant everyone had to
   // re-enter a code and re-handshake to play a second match — and quickplay
@@ -6998,6 +7437,7 @@ const STREAK_KILL_NAMES = {
   airstrike: "Lightning Strike",
   carepackage: "Care Package",
   bomb: "Bomb",
+  zone: "the Cringe",
 };
 
 function weaponNameFor(id) {
@@ -7049,6 +7489,21 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
   }
   // Freshly respawned and haven't fired yet — the round passes through.
   if (player.spawnGuard > 0 && isPvp()) return;
+  // Troll Royale: Cope Plates soak everything but the Cringe itself.
+  if (royale && player.armor > 0 && weaponId !== "zone") {
+    const soak = Math.min(player.armor, amount);
+    player.armor -= soak;
+    amount -= soak;
+    updateRoyaleGear();
+    if (player.armor <= 0) audio.saberBreak();
+    if (amount <= 0) {
+      noteDamage(fromId, soak, weaponId, isHead);
+      noteHitDirection(fromId, fromPos);
+      flinchPeer(net.id, fromId, isHead, fromPos);
+      flashHit();
+      return;
+    }
+  }
 
   player.hp = Math.max(0, player.hp - amount);
   player.lastHurtAt = performance.now();
@@ -7078,7 +7533,8 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
     // S&D has no respawn timer — updateSnd() owns the "eliminated" HUD text
     // once this sets player.alive false; every other PvP mode counts this
     // down and calls respawnPlayer() itself.
-    if (!isSnd()) respawnT = 4;
+    if (!isSnd() && !isRoyale()) respawnT = 4;
+    if (royale) royaleOnDeath();
     // Remember where we fell, so the picker stops handing out this corner.
     notePointDeath(move.pos.x, move.pos.z);
     dropCarriedWeapon();
@@ -7583,7 +8039,7 @@ function animate() {
         const { humans, teams } = humanHeadcount();
         // Infection's sides change all match long; padding them back to even
         // would undo every infection, so it just fills the room.
-        bots.fill(noBotsRoom() ? 0 : BOT_TARGET, humans, spawnForTeam, ffa || isInfection(), isInfection() ? null : teams);
+        bots.fill(noBotsRoom() ? 0 : botTarget(), humans, spawnForTeam, ffa || isInfection(), isInfection() ? null : teams);
         if (isInfection()) sortInfectionBots();
         bots.update(dt, {
           colliders, arena: ARENA, ffa,
@@ -7596,7 +8052,7 @@ function animate() {
           sightBlocked: (a, b) => grenades.blocksSight(a, b),
           objectiveFor: botObjective,
           isBusy: botBusy,
-          noRespawn: isSnd(),
+          noRespawn: isSnd() || isRoyale(),
         });
         for (const b of bots.bots) net.publishBot(b);
       } else if (bots.count) {
@@ -7624,6 +8080,8 @@ function animate() {
 
       if (isSnd()) {
         updateSnd(dt);
+      } else if (isRoyale()) {
+        updateRoyale(dt);
       } else if (!player.alive) {
         respawnT -= dt;
         els.respawnText.textContent = `Down — back in ${Math.max(1, Math.ceil(respawnT))}`;
@@ -8108,7 +8566,10 @@ function updatePlayer(dt) {
   const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
     + fireShake.p + (Math.random() - 0.5) * buzz + (fpCam?.pitch || 0);
 
-  if (settings.thirdPerson || emoteIsTp()) {
+  if (royaleSpectating()) {
+    localRig.root.visible = false;
+    placeSpectateCamera(dt);
+  } else if (settings.thirdPerson || emoteIsTp()) {
     localRig.root.visible = true;
     if (emoteIsTp()) updateEmoteCamera(player.pos, look.yaw, emoteKind() === "duo" ? EMOTES[emote.idx].dist || 1 : 0);
     else updateThirdPersonCamera(player.pos, viewYaw, viewPitch, w.adsT);
@@ -8139,6 +8600,8 @@ function updatePlayer(dt) {
   if (player.melee && player.melee.update(dt)) meleeConnect();
 
   const canAct = !move.busy && player.alive && !isStaging();
+  // Pulling the trigger drops a plate or a Hopium half-used.
+  if (royale?.act && wantFire) cancelRoyaleAct();
   // Aiming itself is harmless during the pre-match countdown — no shooting,
   // no movement change beyond what ADS already slows — so it gets its own,
   // looser gate instead of inheriting the staging freeze from canAct.
@@ -9843,6 +10306,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
     targetMeshes: () => targetMeshes, meleeConnect,
     saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT }),
+    royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
     beginStreakHold, endStreakHold,
     landDipT: () => landDipT, landDipMag: () => landDipMag,

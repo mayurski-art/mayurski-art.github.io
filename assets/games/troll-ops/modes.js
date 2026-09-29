@@ -117,6 +117,21 @@ export const MODES = {
   },
 };
 
+/* Battle royale, phase 1 ("Mini Royale"): solo, one life, loot only, a
+   closing zone, last troll standing. Rules live in game.js (updateRoyale),
+   the zone/loot in royale.js. Grin Beach is the biggest map until the
+   island exists. */
+MODES.royale = {
+  id: "royale",
+  name: "Troll Royale",
+  short: "Troll Royale",
+  pvp: true, ffa: true,
+  royale: true,
+  noStreaks: true,
+  forceMap: "grinbeach",
+  blurb: "One life. Land with a pistol, loot the rest, stay out of the Cringe. Last troll standing wins.",
+};
+
 /* Infection tuning. */
 export const INFECTION = {
   firstDelay: 8,          // seconds after GO before anyone is infected

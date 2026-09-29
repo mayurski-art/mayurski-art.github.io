@@ -1,5 +1,37 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## Troll Royale (battle royale) PHASE 1 SHIPPED (2026-09-28)
+Design doc (Claude Docs, edit via the docs connector):
+https://claude.ai/code/artifact/b21bbfbf-170d-4fa6-b4ce-1e092fc8df46
+User decided: new Trollface Island map, Solo + Duos + Squads of 4, loot
+only, Troll Court 1v1 second chance. Rest = my picks (20 players, plane
+drop, streaks off, 5-phase zone "the Cringe"). 5-phase build plan in the doc.
+Phase 1 "Mini Royale" (this commit), mode id `royale`, forceMap grinbeach:
+- `royale.js`: ROYALE tuning, seeded RNG (mulberry32 + hashSeed),
+  `RoyaleZone` (all circles decided up front; `state(t)` for any t),
+  `ZoneVisual` (shader cylinder + next-circle ring, no lights), `LootField`
+  (items keyed "s<n>" seeded / "<netId>.<n>" dropped; gun models only within
+  26 m, beams beyond), `lootSpots` (open ground cells of a nav FlowField),
+  rarity = attachment count.
+- game.js "Troll Royale" section: setup/teardown, `updateRoyale` (HUD,
+  Cringe damage ignores armour, host applies it to bots, auto-pickup of
+  plates/Hopium/ammo, plating (4) / Hopium (5) channels cancelled by firing,
+  spectate cam, end when <= 1 alive), gun pickup reuses the X-hold prompt
+  (`royalePickupGun`: empty slot first, else swaps the held gun, which drops),
+  armour soak in damagePlayer, death drops all gear + no respawn, placement
+  XP (40/place + 400 win), end card shows "Your place". Bots: noRespawn,
+  botObjective walks them into the next circle (no looting yet = phase 2).
+- Sync: seed = hash(room:matchesPlayed) but the stage owner sends `sd` in
+  stage messages and everyone adopts it during staging. Net `loot` msg:
+  `take` {i} / `add` {item}. Known gaps: two players grabbing the same item
+  in one latency window both get it; a mid-match joiner sees stale loot.
+- Grenades still come from your loadout (doc says looted; later phase).
+- Tests: `tools/troll-ops-royale-test.mjs` (21 checks, solo + bots) and
+  `tools/troll-ops-royale-mp-test.mjs` (7, two tabs). Sync + saber mp pass.
+  Tags: royale.js `?v=tr1`, modes.js `?v=tr1`, net/game/style `?v=to-tr1`.
+- NEXT: phase 2 (bots that loot, rotate, plate; measure 18 bots on one host).
+  Duos/Squads need N teams (today only phantom/ghost): phase 4.
+
 ## Trollsaber multiplayer (2026-09-28, shipped)
 Picked by the user from the NEXT SESSION list (no decisions needed).
 - **Guard on the wire:** state packet `bl: 1` while blocking (`p.blocking`).

@@ -261,6 +261,12 @@ export class Net {
         this.h.onDeflect?.(this.peer(m.id), m);
         break;
       }
+      /* Troll Royale loot: "take" (someone picked item `i` up) or "add"
+         (someone dropped `item`). Floor loot itself is never sent. */
+      case "loot": {
+        this.h.onLoot?.(this.peer(m.id), m);
+        break;
+      }
       case "hit": {
         // Everyone sees the victim flinch; only the target applies the
         // damage — to itself, or to a bot it owns.
@@ -430,10 +436,12 @@ export class Net {
      republishes the remaining seconds, so everyone drops in together and a
      late arrival joins the countdown already in progress rather than
      starting its own. */
-  publishStage(mapId, modeId, secondsLeft) {
+  /* `seed`: Troll Royale's match seed (zone + loot), so late joiners agree. */
+  publishStage(mapId, modeId, secondsLeft, seed) {
     this.send({
       t: "stage", id: this.id, map: mapId, mode: modeId,
       left: Math.max(0, round2(secondsLeft)),
+      ...(seed != null ? { sd: seed } : {}),
     });
   }
 
@@ -523,6 +531,10 @@ export class Net {
 
   publishMeleeAs(fromId, kind, meleeId) {
     this.send({ t: "melee", id: fromId, k: kind & 1, md: meleeId });
+  }
+
+  publishLoot(payload) {
+    this.send({ t: "loot", id: this.id, ...payload });
   }
 
   publishDeflect(byId) {

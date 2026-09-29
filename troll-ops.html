@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-sb1">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=to-tr1">
 </head>
 <body>
 
@@ -445,6 +445,15 @@
           <span class="to-bomb-timer" id="to-bomb-timer" hidden></span>
         </div>
 
+        <!-- Troll Royale: zone phase + countdown, trolls left. -->
+        <div class="to-royale" id="to-royale" hidden aria-live="off">
+          <span class="to-royale-phase" id="to-royale-phase">Zone 1</span>
+          <b class="to-royale-timer" id="to-royale-timer">0:45</b>
+          <span class="to-royale-alive" id="to-royale-alive">10 left</span>
+        </div>
+        <div class="to-cringe" id="to-cringe" aria-hidden="true"></div>
+        <div class="to-royale-act" id="to-royale-act" hidden aria-hidden="true"><span id="to-royale-act-text">Plating</span><i><b id="to-royale-act-fill"></b></i></div>
+
         <div class="to-hud-teams" id="to-hud-teams" hidden>
           <span class="to-team to-team-phantom"><b id="hud-score-phantom">0</b> <span id="hud-name-phantom">Trolls</span></span>
           <strong class="to-hud-matchclock" id="to-hud-matchclock" hidden aria-label="Time remaining">10:00</strong>
@@ -534,6 +543,7 @@
 
         <div class="to-hud-bottom">
           <div class="to-hud-health">
+            <div class="to-armor" id="to-armor" hidden aria-label="Armour"><i></i><i></i><i></i></div>
             <div class="to-hp-bar"><div class="to-hp-fill" id="hud-hp-fill"></div></div>
             <span id="hud-hp-text">100</span>
           </div>
@@ -558,6 +568,8 @@
           <div class="to-gear-chip" id="to-gear-melee"><span id="to-gear-melee-name">Knife</span></div>
           <div class="to-gear-chip" id="to-gear-lethal"><span id="to-gear-lethal-name">Frag</span><i id="to-gear-lethal-n">2</i></div>
           <div class="to-gear-chip" id="to-gear-tactical"><span id="to-gear-tactical-name">Flash</span><i id="to-gear-tactical-n">2</i></div>
+          <button type="button" class="to-gear-chip" id="to-gear-plates" hidden aria-label="Put on a Cope Plate"><span>Plates</span><i id="to-gear-plates-n">0</i></button>
+          <button type="button" class="to-gear-chip" id="to-gear-heals" hidden aria-label="Use Hopium"><span>Hopium</span><i id="to-gear-heals-n">0</i></button>
         </div>
 
         <div class="to-cook" id="to-cook" hidden aria-hidden="true"><i id="to-cook-fill"></i></div>
@@ -648,7 +660,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-sb1"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-tr1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>
