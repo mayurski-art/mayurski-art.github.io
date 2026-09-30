@@ -71,7 +71,7 @@ fires so it doesn't spam in a 100-troll Royale.
   UTC day (`awardLoginXp`, key `trollrunner:login-xp`);
   `assets/supabase/troll_login_once_a_day.sql` adds a unique per-day index
   (the real guard) and sets troll_runner to LV 69 (231,200 XP). **User must
-  run that SQL.**
+  run that SQL.** DONE: user ran it 2026-09-30.
 
 ## Troll Royale polish (2026-09-29, user list) — `game.js?v=to-rs1`
 - **Loot pickup keycap**: Royale's gun prompt is the ONE exception to the
