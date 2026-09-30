@@ -13,7 +13,17 @@ const SUPABASE_URL = "https://tjsyhfplxjtakdfkpdtg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ";
 
 export const MAX_PLAYERS = 20;
+export const MAX_PLAYERS_ROYALE = 100;
 const STATE_HZ = 15;
+// A big bot room (Troll Royale's 100) sends each bot a bit less often; the
+// renderer's 110 ms delay still covers a 10 Hz feed.
+const BOT_HZ_CROWD = 10;
+const CROWD_BOTS = 24;
+// Everything sent inside one window goes out as ONE broadcast. Supabase's
+// client drops anything past eventsPerSecond (30), and one message per bot
+// per tick (plus every bot shot) blew through that long before 100 bots.
+const FLUSH_MS = 50;
+const BATCH_MAX = 160;
 const PEER_TIMEOUT = 5000;
 const HANDSHAKE_SETTLE = 700;
 
@@ -97,10 +107,19 @@ export class Net {
     this.mapId = "grinsite";
     this.peers = new Map();   // id -> { team, name, last, ... }
     this._acc = 0;
+    this._out = [];
+    this._flushT = null;
+    this.botCount = 0;   // bots this client hosts (game.js keeps it current)
   }
 
   get active() { return this.connected; }
   get playerCount() { return this.peers.size + 1; }
+  /* Real people only (us included): what a room's player cap is about. */
+  get humanCount() {
+    let n = 1;
+    for (const id of this.peers.keys()) if (!isSyntheticId(id)) n++;
+    return n;
+  }
 
   async start(room, { name, mapId, uid }) {
     this.stop();
@@ -132,14 +151,32 @@ export class Net {
   stop() {
     if (this.transport) {
       this.send({ t: "bye", id: this.id });
+      this.flush();
       this.transport.close();
     }
+    clearTimeout(this._flushT);
+    this._flushT = null;
+    this._out.length = 0;
     this.transport = null;
     this.connected = false;
     this.peers.clear();
   }
 
-  send(msg) { this.transport?.send(msg); }
+  send(msg) {
+    if (!this.transport) return;
+    this._out.push(msg);
+    if (this._out.length >= BATCH_MAX) this.flush();
+    else if (!this._flushT) this._flushT = setTimeout(() => this.flush(), FLUSH_MS);
+  }
+
+  flush() {
+    clearTimeout(this._flushT);
+    this._flushT = null;
+    const out = this._out;
+    this._out = [];
+    if (!out.length || !this.transport) return;
+    this.transport.send(out.length === 1 ? out[0] : { t: "batch", id: this.id, m: out });
+  }
 
   /* One chat line to the room. `teamOnly` marks it for our side only. */
   sendChat(text, teamOnly) {
@@ -198,6 +235,10 @@ export class Net {
     if (m.to && m.to !== this.id) return;
 
     switch (m.t) {
+      case "batch": {
+        if (Array.isArray(m.m)) for (const sub of m.m) this.onMessage(sub);
+        break;
+      }
       case "hello": {
         const p = this.peer(m.id);
         p.name = m.name || p.name;
@@ -229,7 +270,7 @@ export class Net {
         p.blocking = !!m.bl;  // Trollsaber guard up
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
-          ads: Math.max(0, Math.min(1, +m.ad || 0)) });
+          ads: Math.max(0, Math.min(1, +m.ad || 0)), roll: Math.max(0, Math.min(1, +m.ro || 0)) });
         if (p.snaps.length > 12) p.snaps.shift();
         break;
       }
@@ -356,6 +397,7 @@ export class Net {
         em: local.emote || undefined,
         bl: local.block ? 1 : undefined,
         ad: local.ads > 0.01 ? round2(local.ads) : undefined,   // aiming down sights, 0..1
+        ro: local.roll > 0 ? round2(local.roll) : undefined,    // Royale landing roll, 0..1
       });
     }
     const now = performance.now();
@@ -386,7 +428,7 @@ export class Net {
     const snap = {
       t: performance.now(),
       x: bot.pos.x, y: bot.pos.y, z: bot.pos.z,
-      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: !!bot.moving, ads: bot.ads || 0,
+      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: !!bot.moving, ads: bot.ads || 0, roll: bot.roll || 0,
     };
     let p = this.peers.get(bot.id);
     if (!p) {
@@ -417,7 +459,8 @@ export class Net {
     // full frame rate instead of STATE_HZ, multiplying outbound traffic with
     // bot count and dragging the whole match down.
     const now = snap.t;
-    if (now - (p.lastSent || 0) < 1000 / STATE_HZ) return;
+    const hz = this.botCount > CROWD_BOTS ? BOT_HZ_CROWD : STATE_HZ;
+    if (now - (p.lastSent || 0) < 1000 / hz) return;
     p.lastSent = now;
     this.send({
       t: "state", id: bot.id,
@@ -426,6 +469,7 @@ export class Net {
       hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,
       w: p.weapon, tm: bot.team, n: bot.name, k: bot.kills | 0, d: bot.deaths | 0,
       ad: bot.ads > 0.01 ? round2(bot.ads) : undefined,
+      ro: bot.roll > 0 ? round2(bot.roll) : undefined,
     });
   }
 

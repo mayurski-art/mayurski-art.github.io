@@ -17,6 +17,11 @@ const KEY = "trollops:xp";                 // lifetime local total (guest level)
 const PENDING_KEY = "trollops:xp-pending"; // earned, not yet on the account
 const MIGRATED_KEY = "trollops:xp-account-sync";
 
+/* Every XP rate below is a tenth of what it was on 2026-09-29: a match used
+   to be worth about a level on its own. Medal points (medals.js) keep their
+   full value for the scorestreak meter and pay XP at this scale. */
+export const XP_SCALE = 0.1;
+
 function readNum(key) {
   try {
     const raw = Number(localStorage.getItem(key));
@@ -33,6 +38,16 @@ try {
   if (!localStorage.getItem(MIGRATED_KEY)) {
     writeNum(PENDING_KEY, readNum(PENDING_KEY) + readNum(KEY));
     localStorage.setItem(MIGRATED_KEY, "1");
+  }
+} catch { /* private mode */ }
+
+// 2026-09-30: match XP cut to a tenth (user: "way too much xp"). Anything
+// still queued was earned at the old rates, so it goes up at the new ones.
+const RATE_KEY = "trollops:xp-rate-2";
+try {
+  if (!localStorage.getItem(RATE_KEY)) {
+    writeNum(PENDING_KEY, readNum(PENDING_KEY) * XP_SCALE);
+    localStorage.setItem(RATE_KEY, "1");
   }
 } catch { /* private mode */ }
 
@@ -113,16 +128,16 @@ export function addXp(amount) {
    earn `kills * 50` alone, which barely moved the shared unlock track for
    anyone who only played PvP. */
 export const XP = {
-  kill: 100,
-  headshot: 50,      // on top of the kill
-  assist: 40,
-  objective: 75,     // hill ticks, gun-game ladder steps
-  win: 800,
-  matchComplete: 250,
+  kill: 10,
+  headshot: 5,       // on top of the kill
+  assist: 4,
+  objective: 8,      // hill ticks, gun-game ladder steps
+  win: 80,
+  matchComplete: 25,
 };
 
 export function xpForRun({ kills = 0, wave = 0 }) {
-  return kills * 50 + wave * 300;
+  return kills * 5 + wave * 30;
 }
 
 /* End-of-match settlement. Per-kill XP is already banked by the time this

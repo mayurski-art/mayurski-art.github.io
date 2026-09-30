@@ -666,7 +666,7 @@ export const TROLLFACE_ISLAND = {
   viewFar: 1000,  // 400 m across, and seen from the sky lobby 330 m up (game.js applyEnvironment)
   // Troll Royale on the full island: the design doc's players and timings.
   royale: {
-    players: 20,
+    players: 100,         // real players each take one bot's place
     lootPerSqM: 1 / 210,   // ~330 items: thinner than the small maps, still a gun every ~20 m
     phases: [
       { wait: 150, close: 60, frac: 0.6, dps: 1 },

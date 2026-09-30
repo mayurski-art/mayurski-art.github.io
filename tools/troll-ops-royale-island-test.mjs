@@ -1,4 +1,4 @@
-// Troll Royale on Trollface Island: 20 trolls, loot and zone circles only on
+// Troll Royale on Trollface Island: 100 trolls, loot and zone circles only on
 // dry land, the invisible wall at the cliff edge holds, and the lake is a
 // slow wade.
 //
@@ -56,7 +56,7 @@ const info = await page.evaluate(async () => {
   };
 });
 check("Troll Royale plays on Trollface Island", info.map === "trollface", info.map);
-check("20 trolls land", info.alive === 20, `${info.alive}`);
+check("100 trolls land", info.alive === 100, `${info.alive}`);
 check("the island is stocked", info.loot >= 250, `${info.loot} items`);
 check("no loot in the sea or the lake", info.offIsland === 0 && info.inLake === 0, JSON.stringify({ off: info.offIsland, lake: info.inLake }));
 check("every zone circle is centred on dry land", info.wetCircles === 0, `${info.wetCircles} of ${info.circles} wet`);

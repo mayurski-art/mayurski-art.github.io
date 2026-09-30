@@ -8,6 +8,8 @@
 // called from the Drop In click.
 
 const NOISE_SECONDS = 2;
+const HRTF_RANGE = 40;   // metres: sounds further off pan left/right only
+const SHOT_CULL = 160;   // metres: gunfire further off isn't played
 
 export class GameAudio {
   constructor() {
@@ -64,6 +66,7 @@ export class GameAudio {
      and the whole map would sound like it was north of you. */
   setListener(pos, forward, up) {
     if (!this._ready()) return;
+    this._lx = pos.x; this._ly = pos.y; this._lz = pos.z;
     const l = this.listener;
     const t = this.now;
     // Firefox still lacks the AudioParam form of the listener properties.
@@ -83,13 +86,21 @@ export class GameAudio {
     }
   }
 
+  /* Is `at` more than `range` metres from the listener? */
+  _far(at, range) {
+    if (this._lx === undefined) return false;
+    return (at.x - this._lx) ** 2 + (at.y - this._ly) ** 2 + (at.z - this._lz) ** 2 > range * range;
+  }
+
   /* Node a sound should connect to. With a position that's a fresh panner
      feeding master; without one it's master itself. Panners are cheap and
      get collected once the source stops, so one per emission is fine. */
   _dest(at) {
     if (!at) return this.master;
     const p = this.ctx.createPanner();
-    p.panningModel = "HRTF";
+    // HRTF is the costly model; far off, plain left/right panning sounds
+    // the same and is a fraction of the work.
+    p.panningModel = this._far(at, HRTF_RANGE) ? "equalpower" : "HRTF";
     p.distanceModel = "inverse";
     p.refDistance = 4;        // full volume within a few metres
     p.rolloffFactor = 0.9;
@@ -149,6 +160,9 @@ export class GameAudio {
      suppressor swaps the crack for a muffled thud. */
   shot(def, volume = 1, at = null) {
     if (!this._ready() || volume <= 0.02) return;
+    // A 100-troll Royale fires constantly across the island: past this a
+    // shot is a whisper anyway, and every one was a stack of new nodes.
+    if (at && this._far(at, SHOT_CULL)) return;
     if (def.candleShot) { this.candleShot(def.chargeLevel || 0, volume, at); return; }
     const heavy = Math.min(1, (def.damage * (def.pellets || 1)) / 90);
     const quiet = !!def.quiet;

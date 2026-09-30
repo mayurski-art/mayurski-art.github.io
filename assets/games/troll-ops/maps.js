@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
 import { HOLLOWGRIN } from "./hollowgrin.js";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=ti3";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=ti4";
 import { SURFACES } from "./surface-textures.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
@@ -415,7 +415,8 @@ export const MAPS = {
         gsModel(api, "light-tower", { x, z, rot: Math.atan2(x, z) });
       }
     },
-    spawns: [[-30, -30], [30, -30], [-30, 30], [30, 30], [0, -31], [0, 31], [-31, 0], [31, 0]],
+    // corners sit beside the light towers at (±30, ±30), not inside them
+    spawns: [[-30, -24], [30, -24], [-30, 24], [30, 24], [0, -31], [0, 31], [-31, 0], [31, 0]],
   },
 
   undergrin: {

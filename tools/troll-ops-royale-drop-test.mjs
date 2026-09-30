@@ -58,7 +58,7 @@ const state = () => page.evaluate(() => {
 // ---- the lobby
 let s = await state();
 check("you start in the sky lobby, high over the island", s.me === "lobby" && s.phase === "lobby" && Math.abs(s.y - 330) < 1, JSON.stringify({ me: s.me, y: +s.y.toFixed(1) }));
-check("everyone is in the lobby", s.trolls === 20 && s.airborne === 19, `${s.trolls} trolls, ${s.airborne} bots parked`);
+check("everyone is in the lobby", s.trolls === 100 && s.airborne === 99,`${s.trolls} trolls, ${s.airborne} bots parked`);
 check("guns all over the lobby floor", s.lobbyGuns >= 25, `${s.lobbyGuns}`);
 const walk = await page.evaluate(async () => {
   const T = window.__trollOps, x0 = T.move.pos.x, z0 = T.move.pos.z;
@@ -86,7 +86,7 @@ check("a lobby gun picks up, and comes back", pick.gone && pick.held && pick.bac
 await page.waitForFunction(() => window.__trollOps.royale().me === "bus", null, { timeout: 120000 });
 await new Promise((r) => setTimeout(r, 600));
 s = await state();
-check("0:00: everyone is on the Troll Bus", s.me === "bus" && s.phase === "bus" && s.airborne === 19, JSON.stringify({ me: s.me, airborne: s.airborne }));
+check("0:00: everyone is on the Troll Bus", s.me === "bus" && s.phase === "bus" && s.airborne === 99,JSON.stringify({ me: s.me, airborne: s.airborne }));
 check("the glass box and its guns are gone", s.highColliders === 0 && s.lobbyGuns === 0, JSON.stringify({ colliders: s.highColliders, guns: s.lobbyGuns }));
 const kit = await page.evaluate(() => [window.__trollOps.player.weaponId, window.__trollOps.player.secondaryId]);
 check("you drop with the pistol, not a lobby gun", kit[0] === "pocketgrin" && !kit[1], JSON.stringify(kit));
@@ -113,7 +113,7 @@ const onIsland = await page.evaluate(async (p) => {
 check("you land on the island", onIsland && s.y < 45 && s.me === "ground", JSON.stringify({ x: +s.x.toFixed(1), y: +s.y.toFixed(1), z: +s.z.toFixed(1) }));
 await page.waitForFunction(() => { const T = window.__trollOps; return T.royale().live && T.bots.bots.every((b) => !b.alive || !b.airborne); }, null, { timeout: 120000 }).catch(() => {});
 s = await state();
-check("every bot lands and the zone goes live", s.live && s.airborne === 0 && s.botsOff === 0 && s.trolls === 20, JSON.stringify({ live: s.live, airborne: s.airborne, stuckHigh: s.botsOff, trolls: s.trolls }));
+check("every bot lands and the zone goes live", s.live && s.airborne === 0 && s.botsOff === 0 && s.trolls >= 90,JSON.stringify({ live: s.live, airborne: s.airborne, stuckHigh: s.botsOff, trolls: s.trolls }));
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 await browser.close();

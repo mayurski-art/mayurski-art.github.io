@@ -18,6 +18,25 @@ const RENDER_DELAY = 110; // ms
 // this long before it's cleared, rather than vanishing the moment it lands.
 const BODY_LINGER = 3;
 
+/* Troll Royale's landing: a tuck and roll forward, then you run. `k` 0..1
+   through it (0 = upright). The rig turns head-over-heels about a point at
+   hip height, so it tumbles in place instead of pivoting on its feet. Call
+   it every frame after the rig is placed and posed; outside a roll it just
+   puts the rig upright. Shared by the local body, bots and peers. */
+export const ROLL_TIME = 0.8;
+const ROLL_PIVOT = 0.55;
+export function rollRig(rig, k) {
+  const root = rig.root;
+  if (root.rotation.order !== "YXZ") root.rotation.order = "YXZ";
+  if (!(k > 0 && k < 1)) { root.rotation.x = 0; return; }
+  const a = -Math.PI * 2 * k * k * (3 - 2 * k);
+  root.rotation.x = a;
+  const dz = -ROLL_PIVOT * Math.sin(a), yaw = root.rotation.y;
+  root.position.x += dz * Math.sin(yaw);
+  root.position.y += ROLL_PIVOT * (1 - Math.cos(a));
+  root.position.z += dz * Math.cos(yaw);
+}
+
 /* A gun in someone else's hands never moves its parts (no pump, no mag
    out, no inspect), so its twenty-odd meshes become one per material: the
    biggest draw-call saving there is with a room full of bots (Troll Royale
@@ -316,6 +335,7 @@ export class RemotePlayer {
     if (this.alive) this.dying = false;
     this.wasAlive = this.alive;
 
+    rollRig(this.rig, 0);
     if (this.dying) {
       this.deathT += dt;
       this.rig.root.visible = true;
@@ -349,7 +369,9 @@ export class RemotePlayer {
     this.yaw = lerpAngle(a.yaw, b.yaw, k);
     this.pitch = a.pitch + (b.pitch - a.pitch) * k;
 
-    const wantLower = STANCE_LOWER[b.stance] ?? 0;
+    // A landing roll: tucked all the way down while it lasts.
+    const roll = (b.roll || 0) >= (a.roll || 0) ? (a.roll || 0) + ((b.roll || 0) - (a.roll || 0)) * k : b.roll || 0;
+    const wantLower = roll > 0 ? 1 : STANCE_LOWER[b.stance] ?? 0;
     this.lower += (wantLower - this.lower) * Math.min(1, dt * 8);
     this.ads += ((b.ads || 0) - this.ads) * Math.min(1, dt * 14);
 
@@ -418,6 +440,7 @@ export class RemotePlayer {
     });
 
     if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);
+    rollRig(this.rig, roll);
 
     this.tag.position.y = 2.15 - this.lower * 0.75;
   }
@@ -441,6 +464,19 @@ export class RemotePlayer {
       phase: this.replayPhase || 0, moving: s.moving, pitch: s.pitch, lower: s.lower, strafe: 0, forward: 1,
       speed: s.moving ? 0.85 : 0, mps: s.moving ? 3.6 : 0, dt,
       hasGun: WEAPON_DEFS[this.weaponId]?.cls !== "sidearm", hold: "gun", swing: null,
+    });
+  }
+
+  /* Shadows off for a far-away troll (RemotePlayers' crowd LOD). Meshes
+     that never cast one stay that way. */
+  setShadow(on) {
+    if (this.shadowOn === on) return;
+    if (this.shadowOn === undefined && on) { this.shadowOn = true; return; }
+    this.shadowOn = on;
+    this.rig.root.traverse((o) => {
+      if (!o.isMesh) return;
+      o.userData.castShadow0 ??= o.castShadow;
+      o.castShadow = on && o.userData.castShadow0;
     });
   }
 
@@ -469,6 +505,8 @@ function lerpAngle(a, b, k) {
 }
 
 /* Owns the set of remote players and keeps it in sync with Net's peer map. */
+const FAR_HIDE = 150;   // metres: a crowd's trolls past this aren't drawn
+
 export class RemotePlayers {
   constructor(scene) {
     this.scene = scene;
@@ -484,8 +522,29 @@ export class RemotePlayers {
     }
   }
 
-  update(dt = 0.016, myTeam = null, ffa = false) {
-    for (const rp of this.byId.values()) rp.update(dt, myTeam, ffa);
+  /* `eye` (the camera) turns on level of detail in a crowd (Troll Royale's
+     100): a troll 40 m off is posed every 2nd frame, 100 m off every 4th,
+     staggered, with the skipped time handed over; past 40 m it casts no
+     shadow. Small rooms pose everyone every frame, as before. */
+  update(dt = 0.016, myTeam = null, ffa = false, eye = null) {
+    const lod = !!eye && this.byId.size > 24;
+    this.frame = (this.frame || 0) + 1;
+    let i = 0;
+    for (const rp of this.byId.values()) {
+      i++;
+      if (!lod) { rp.setShadow(true); rp.update(dt, myTeam, ffa); continue; }
+      const d2 = (rp.pos.x - eye.x) ** 2 + (rp.pos.z - eye.z) ** 2;
+      rp.setShadow(d2 < 40 * 40);
+      const every = d2 > 100 * 100 ? 4 : d2 > 40 * 40 ? 2 : 1;
+      rp.lodDt = (rp.lodDt || 0) + dt;
+      if ((this.frame + i) % every) continue;
+      const step = Math.min(0.1, rp.lodDt);
+      rp.lodDt = 0;
+      rp.update(step, myTeam, ffa);
+      // Past 150 m a troll is a couple of pixels: not drawn at all (the body
+      // was most of a 100-troll frame). Still placed, so it can still be hit.
+      if (d2 > FAR_HIDE * FAR_HIDE && !rp.dying) { rp.rig.root.visible = false; rp.tag.visible = false; }
+    }
   }
 
   /* Pass a team to spare friendlies, or null in free-for-all. */

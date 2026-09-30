@@ -687,12 +687,17 @@ export class BotManager {
     this.fieldT -= dt;
     if (this.fieldT <= 0) { this.fieldT = 0.3; this.frameFields?.clear(); }
     if (!this.frameFields) this.frameFields = new Map();
+    // A big room: at most this many sweeps a frame. Past it a field already
+    // swept for that target is reused a few frames stale rather than 100
+    // bots re-sweeping 100 different island-sized fields every 0.3 s.
+    let budget = this.bots.length > 24 ? 6 : Infinity;
 
     const navFor = (target) => {
       if (!target || !this.fieldSrc) return null;
       let f = this.frameFields.get(target.id);
       if (!f) {
         f = this.fieldPool.get(target.id);
+        if (f?.swept && budget <= 0) return f;
         if (!f) {
           // Ids churn as people join, leave and bots recycle; keep the pool
           // from growing for the length of a match. Room for two targets a
@@ -707,13 +712,33 @@ export class BotManager {
           this.fieldPool.set(target.id, f);
         }
         f.compute(target.pos.x, target.pos.z);
+        f.swept = true;
+        budget--;
         this.frameFields.set(target.id, f);
       }
       return f;
     };
 
-    for (const bot of this.bots) {
-      bot.update(dt, { ...ctx, navFor });
+    // A big room (Troll Royale's 100): a bot nowhere near a real player
+    // thinks every 2nd frame (4th past 150 m), staggered, with the skipped
+    // time handed over in one go, so it still covers the same ground.
+    // `ctx.lodNear`: where the real players are (null = every bot, every frame).
+    const lod = ctx.lodNear && this.bots.length > 24 ? ctx.lodNear : null;
+    this.lodFrame = (this.lodFrame || 0) + 1;
+    const sub = { ...ctx, navFor };
+    for (let i = 0; i < this.bots.length; i++) {
+      const bot = this.bots[i];
+      let step = dt;
+      if (lod && bot.alive) {
+        let d2 = Infinity;
+        for (const p of lod) d2 = Math.min(d2, (p.x - bot.pos.x) ** 2 + (p.z - bot.pos.z) ** 2);
+        const every = d2 > 150 * 150 ? 4 : d2 > 70 * 70 ? 2 : 1;
+        bot.lodDt = (bot.lodDt || 0) + dt;
+        if ((this.lodFrame + i) % every) continue;
+        step = Math.min(0.1, bot.lodDt);
+        bot.lodDt = 0;
+      }
+      bot.update(step, sub);
       // One-life modes (Search & Destroy) bring bots back at the round
       // boundary via reviveAll, never on the respawn clock — respawning here
       // meant the attacking side could never be eliminated.

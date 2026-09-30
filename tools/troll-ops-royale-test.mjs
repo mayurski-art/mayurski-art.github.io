@@ -202,7 +202,7 @@ await sleep(2500);
 info = await page.evaluate(() => ({ state: window.__trollOps.state(), royale: !!window.__trollOps.royale(), xp: window.__trollOps.player.matchXp,
   title: document.querySelector("#to-gameover h2, #to-gameover .to-go-title, #to-gameover")?.textContent.replace(/\s+/g, " ").slice(0, 120) }));
 check("last troll standing ends the match as a win", info.state !== "playing" && !info.royale && /You win/.test(info.title || ""), JSON.stringify(info));
-check("the win pays placement XP", info.xp >= 400, `${info.xp} XP`);
+check("the win pays placement XP", info.xp >= 40,`${info.xp} XP`);
 
 // ---- dying is final ----------------------------------------------------------
 await startRoyale();

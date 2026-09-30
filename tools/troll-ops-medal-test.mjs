@@ -71,7 +71,8 @@ check("+points shown", pops[0]?.pts === "+50");
 check("badge drawn", pops.every((p) => p.svg));
 check("Oswald font", /Oswald/.test(pops[0]?.font || ""), pops[0]?.font);
 const after = await page.evaluate(() => ({ xp: window.__trollOps.player.matchXp, score: window.__trollOps.streaks.score }));
-check("medal points paid to XP", after.xp - before.xp === 150, `${before.xp} -> ${after.xp}`);
+// XP pays medals at a tenth (progression.js XP_SCALE); the meter at full value.
+check("medal points paid to XP", after.xp - before.xp === 15,`${before.xp} -> ${after.xp}`);
 check("medal points paid to score meter", after.score - before.score === 150, `${before.score} -> ${after.score}`);
 await shot(page, "1-splash.png");
 

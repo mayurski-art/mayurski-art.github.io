@@ -128,7 +128,7 @@ MODES.royale = {
   royale: true,
   noStreaks: true,
   forceMap: "trollface",
-  blurb: "Twenty trolls, one floating island. Land with a pistol, loot the rest, stay out of the Cringe.",
+  blurb: "A hundred trolls, one floating island. Land with a pistol, loot the rest, stay out of the Cringe.",
 };
 
 /* The phase 1 version on Grin Beach: ten trolls, about five minutes. Taken

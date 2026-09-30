@@ -448,7 +448,7 @@
       if (loginError) throw friendlyError(loginError, 'Account created — but login failed. Try logging in.');
     }
     await refreshProfile();
-    void awardXp('login_streak', 'register');
+    awardLoginXp('register');
     return toPublicSession();
   }
 
@@ -476,7 +476,7 @@
     if (error) throw friendlyError(error, 'Login failed. Check your details and try again.');
 
     await refreshProfile();
-    void awardXp('login_streak', 'login');
+    awardLoginXp('login');
     return toPublicSession();
   }
 
@@ -1109,6 +1109,25 @@
         setTimeout(() => el.remove(), 300);
       }, 3500);
     } catch {}
+  }
+
+  /* The daily login bonus: asked for once per account per UTC day from this
+     browser. Every page (and every embedded game frame) runs init(), and
+     logging in fires its own request too, so without this one page load sent
+     several at once and more than one could get past the server's cooldown
+     check. The database's one-a-day index (troll_login_once_a_day.sql) is the
+     real guarantee; this just stops the pile-up. */
+  const LOGIN_XP_KEY = 'trollrunner:login-xp';
+  function awardLoginXp(source) {
+    const id = cachedProfile?.id;
+    if (id) {
+      const mark = `${id}:${new Date().toISOString().slice(0, 10)}`;
+      try {
+        if (localStorage.getItem(LOGIN_XP_KEY) === mark) return;
+        localStorage.setItem(LOGIN_XP_KEY, mark);
+      } catch {}
+    }
+    void awardXp('login_streak', source);
   }
 
   async function awardXp(eventType, source, meta) {
@@ -3753,7 +3772,7 @@
     void adoptSsoCookie(sb).then(() => getSession()).then(session => {
       if (session) {
         dispatch(session);
-        void awardXp('login_streak', 'visit');
+        awardLoginXp('visit');
       }
     });
   }

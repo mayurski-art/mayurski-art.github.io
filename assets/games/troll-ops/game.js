@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=vsat3";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
 import { CharacterInspector } from "./char-inspector.js?v=to-ads1";
-import { Loadout } from "./loadout.js?v=lv4";
+import { Loadout } from "./loadout.js?v=lv5";
 import { StreakPicker } from "./streak-picker.js?v=lv4";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=vsat1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -29,21 +29,21 @@ import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
-import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js?v=lv3";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti3";
-import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-ads1";
+import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=lv4";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti4";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-r100";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-ads1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig } from "./remote-players.js?v=to-r100";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-2h1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-ads1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=vsat2";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=tr3";
-import { BotManager } from "./bots.js?v=to-ads1";
+} from "./modes.js?v=tr4";
+import { BotManager } from "./bots.js?v=to-r100";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
-import { GameAudio } from "./audio.js?v=vsat1";
+import { GameAudio } from "./audio.js?v=to-r100";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=ti1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
@@ -395,7 +395,7 @@ const killstreakUi = new KillstreakUi(
   { badges: els.ksBadges, banner: els.ksBanner, screenPulse: els.screenPulse },
   {
     onPoints: (pts) => {
-      if (isPvp()) player.matchXp += pts;
+      if (isPvp()) player.matchXp += Math.round(pts * XP_SCALE);
       awardScore(pts);
     },
     onSting: (metal) => audio.medal(metal),
@@ -2549,6 +2549,18 @@ function teamName(team) {
 let zdir = null;
 let rangeSet = null;
 function isBotPeer(p) { return p.isBot || isSyntheticId(p.id); }
+
+/* Where the real people are looking from (us: the camera, so a spectator
+   counts where they watch), for the bots' level of detail. */
+const _humanEyes = [];
+function humanEyes() {
+  _humanEyes.length = 0;
+  _humanEyes.push(camera.position);
+  for (const rp of remotes.byId.values()) {
+    if (rp.alive && !isBotPeer(rp.peer)) _humanEyes.push(rp.pos);
+  }
+  return _humanEyes;
+}
 
 /* Real people in the room, and how they're split — what the bots pad out. */
 function humanHeadcount() {
@@ -6210,6 +6222,7 @@ function netSnapshot() {
   _netSnapshot.assists = player.assists;
   _netSnapshot.emote = emote ? emoteCode(emote.idx, emote.role) : 0;
   _netSnapshot.block = saberBlock.active;
+  _netSnapshot.roll = royaleRollK();
   return _netSnapshot;
 }
 
@@ -6682,7 +6695,17 @@ function updateRoyaleDropWorld(dt) {
       b.pos.copy(f.pos);
       b.groundY = f.pos.y;
       b.yaw = yaw;
-      if (f.state === "landed") { b.airborne = false; b.drop = null; }
+      if (f.state === "landed") { bd.state = "roll"; bd.t = 0; b.roll = 0.001; }
+    } else if (bd.state === "roll") {
+      // Tuck and roll off the landing, carried a few metres forward, then run.
+      bd.t += dt;
+      const k = Math.min(1, bd.t / ROLL_TIME);
+      const step = ROLL_SPEED * (1 - k) * dt;
+      const nx = b.pos.x - Math.sin(b.yaw) * step, nz = b.pos.z - Math.cos(b.yaw) * step;
+      const g = dropGround(nx, nz, b.pos.y + 0.6);
+      if (g != null && Math.abs(g - b.pos.y) < 0.6) { b.pos.x = nx; b.pos.z = nz; b.pos.y = g; b.groundY = g; }
+      b.roll = k < 1 ? Math.max(0.001, k) : 0;
+      if (k >= 1) { b.airborne = false; b.drop = null; }
     }
   }
 }
@@ -6709,11 +6732,28 @@ function updateDropPlayer(dt, ix, iz, jumpHeld) {
   if (f.state === "glide" && r.me !== "glide") { r.me = "glide"; setPlayerGlider(true); audio.reload(); }
   if (f.state === "landed") {
     move.reset(f.pos.x, f.pos.z, f.pos.y);
-    r.me = "ground";
+    // Tuck and roll off the landing (the way the glider was flying), then
+    // the gun comes up and you're off.
+    r.me = "roll";
+    r.rollT = 0;
+    r.rollYaw = r.flight.heading ?? look.yaw;
     r.flight = null;
     setPlayerGlider(false);
-    setHolding("gun");
+    setHolding("none");
+    audio.land(7);
   }
+}
+
+/* The landing roll: you're carried forward and can't act till it's done. */
+const ROLL_SPEED = 5;   // m/s at the start of the roll, easing to 0
+function royaleRolling() { return royale?.me === "roll" && player.alive; }
+function royaleRollK() { return royaleRolling() ? Math.min(1, royale.rollT / ROLL_TIME) : 0; }
+function updateRoyaleRoll(dt) {
+  const r = royale;
+  r.rollT += dt;
+  if (r.rollT < ROLL_TIME) return;
+  r.me = "ground";
+  setHolding("gun");
 }
 
 function teardownRoyale() {
@@ -6871,7 +6911,7 @@ function finishRoyale(alive) {
   hideSpectateHud();
   const won = player.alive;
   const place = won ? 1 : (r.place || r.peak);
-  const bonus = Math.max(0, r.peak - place) * 40 + (won ? 400 : 0);
+  const bonus = Math.max(0, r.peak - place) * 4 + (won ? 40 : 0);
   if (bonus > 0) addMatchXp(bonus, won ? "LAST TROLL STANDING" : `${ordinal(place).toUpperCase()} PLACE`);
   const winner = alive.find((a) => !a.me)?.name;
   r.finalPlace = place;
@@ -7774,7 +7814,10 @@ async function joinQuickplay() {
     setNetStatus(shard === 1 ? "Connecting…" : `Server full, trying another (${shard})…`);
     const kind = await net.start(code, { name: playerName(), mapId: loadout.mapId, uid: playerUid() });
     if (!kind) return { code, kind };   // real connectivity failure — retrying won't help
-    if (net.playerCount <= MAX_PLAYERS || shard === QUICKPLAY_MAX_SHARDS) return { code, kind };
+    // Real people only: a room's bots (mirrored into its peer list) would
+    // otherwise make a busy Royale look full and shard every joiner away.
+    const cap = isRoyale() ? MAX_PLAYERS_ROYALE : MAX_PLAYERS;
+    if (net.humanCount <= cap || shard === QUICKPLAY_MAX_SHARDS) return { code, kind };
     net.stop();
   }
 }
@@ -8106,6 +8149,7 @@ function beginMatch(mapId = null) {
     if (isPvp() && net.isBotHost()) {
       const { humans, teams } = humanHeadcount();
       bots.fill(noBotsRoom() ? 0 : botTarget(), humans, spawnForTeam, !!currentMode().ffa, teams);
+      net.botCount = bots.bots.length;
       for (const b of bots.bots) net.publishBot(b);
     }
     // Troll Royale: the bots wait in the sky lobby too.
@@ -9315,6 +9359,7 @@ function animate() {
         // Infection's sides change all match long; padding them back to even
         // would undo every infection, so it just fills the room.
         bots.fill(noBotsRoom() ? 0 : botTarget(), humans, spawnForTeam, ffa || isInfection(), isInfection() ? null : teams);
+        net.botCount = bots.bots.length;
         if (isInfection()) sortInfectionBots();
         bots.update(dt, {
           colliders, arena: ARENA, ffa,
@@ -9328,6 +9373,7 @@ function animate() {
           objectiveFor: botObjective,
           isBusy: botBusy,
           noRespawn: isSnd() || isRoyale(),
+          lodNear: isRoyale() ? humanEyes() : null,
         });
         for (const b of bots.bots) net.publishBot(b);
       } else if (bots.count) {
@@ -9337,7 +9383,7 @@ function animate() {
 
       net.update(dt, netSnapshot());
       remotes.sync(net.peers);
-      remotes.update(dt, net.team, ffa);
+      remotes.update(dt, net.team, ffa, camera.position);
       updateRemoteSabers();
       updateKillcam(dt);
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
@@ -9618,9 +9664,10 @@ let localBlockT = 0;   // the third-person body in the saber guard, 0..1
 function updateLocalRig(dt) {
   localRig.root.position.set(move.pos.x, move.pos.y, move.pos.z);
   // The body follows the aim a beat behind; the head leads the turn.
-  aimRig(localRig, look.yaw, dt, { moving: move.moving });
+  const rolling = royaleRolling();
+  aimRig(localRig, rolling ? royale.rollYaw : look.yaw, dt, { moving: move.moving, snap: rolling });
 
-  const wantLower = STANCE_LOWER[move.stance] ?? 0;
+  const wantLower = rolling ? 1 : STANCE_LOWER[move.stance] ?? 0;
   localLower += (wantLower - localLower) * Math.min(1, dt * 8);
 
   // Signed forward/strafe relative to facing, same convention
@@ -9684,6 +9731,7 @@ function updateLocalRig(dt) {
     localThrowT = Math.max(0, localThrowT - dt);
     poseThrowArm(localRig, 1 - localThrowT / THROW_TIME);
   }
+  rollRig(localRig, royaleRollK());
 }
 
 /* The third-person body carries the same gun or melee weapon the first-
@@ -9785,8 +9833,14 @@ function updatePlayer(dt) {
   // On the bus or in the air your stick steers the fall, not your feet.
   const dropping = royaleDropView();
   const dropIx = ix, dropIz = iz;
-  const frozen = dropping || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen || warshipView();
+  const rolling = royaleRolling();
+  const frozen = dropping || rolling || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen || warshipView();
   if (frozen) { ix = 0; iz = 0; }
+  // The landing roll carries you forward along the glider's line.
+  if (rolling) {
+    updateRoyaleRoll(dt);
+    iz = Math.max(0, 1 - royaleRollK()) * (ROLL_SPEED / 4.2);
+  }
   // A toggled AIM shouldn't survive a death or a streak call.
   if (touchState.ads && (!player.alive || player.holding === "streak")) setTouchAds(false);
 
@@ -9811,11 +9865,11 @@ function updatePlayer(dt) {
   else move.update(dt, {
     forward: iz,
     strafe: ix,
-    sprint: !wading && ((isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft")),
+    sprint: !wading && !rolling && ((isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft")),
     jump: !frozen && ((isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space")),
     crouch: !frozen && ((isTouch && touchState.crouch) || (gp && gamepadState.crouch) || keys.has("KeyC")),
     dive: !frozen && ((isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight")),
-    yaw: look.yaw,
+    yaw: rolling ? royale.rollYaw : look.yaw,
     adsHeld: wantAds,
     speedMult: w.moveSpeedMult * (isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1),
     // Troll Royale is a 400 m island: sprinting covers it 25% faster.
@@ -9890,12 +9944,16 @@ function updatePlayer(dt) {
     localRig.root.visible = false;
     localRig.parts.head.visible = true;
     camera.position.copy(player.pos);
+    // Landing roll: the view goes head over heels once and dips as you tuck.
+    const rollK = royaleRollK();
+    if (rollK > 0) camera.position.y -= Math.sin(Math.PI * rollK) * 0.9;
     // PF slide: the view tips over a few degrees while you slide, leaning
     // toward the side you're steering (left by default).
     slideTiltT = damp(slideTiltT, move.stance === STANCE.SLIDE ? 1 : 0, 9, dt);
     const slideRoll = slideTiltT * 0.075 * ((move.strafeInput ?? 0) > 0.2 ? -1 : 1);
     // One place composes the camera: aim + weapon recoil.
-    _euler.set(viewPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll);
+    const rollPitch = rollK > 0 ? -Math.PI * 2 * rollK * rollK * (3 - 2 * rollK) : 0;
+    _euler.set(viewPitch + rollPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll);
     camera.quaternion.setFromEuler(_euler);
   }
 

@@ -165,11 +165,23 @@ class BodyStroke {
     this.mesh.userData.isBodyStroke = true;
     // The pose functions rebuild the line as they finish (see the wrappers
     // by DANCES); this only catches a rig that is drawn without being posed.
-    this.mesh.onBeforeRender = () => this.update();
+    this.mesh.onBeforeRender = () => this.updateOncePerFrame();
     root.add(this.mesh);
     this._inv = new THREE.Matrix4();
     this._t = new THREE.Vector3(); this._n = new THREE.Vector3(); this._b = new THREE.Vector3();
     this._tmp = new THREE.Vector3();
+  }
+
+  /* The draw-time safety net. Shadow, SSAO and the frame itself all draw the
+     rig, and each pass re-checked every joint: in a 100-troll Royale that
+     was the single biggest cost of the frame. Once per animation frame is
+     enough (document.timeline.currentTime is fixed inside one); the pose
+     functions' own update() calls are never skipped. */
+  updateOncePerFrame() {
+    const frame = document.timeline?.currentTime;
+    if (frame != null && frame === this.checkedAt) return;
+    this.checkedAt = frame;
+    this.update();
   }
 
   update() {

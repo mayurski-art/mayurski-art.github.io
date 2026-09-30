@@ -1,5 +1,64 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## BACKLOG: audio + dialogue pass (user, 2026-09-30) — BIG PROJECT, not started
+The game needs lots of audio and voice lines. The user wants the dialogue to be
+**very close to Call of Duty: Black Ops 2**: announcer and operator callouts
+for streaks earned and called in ("UAV online", "Enemy UAV spotted",
+"Care package inbound", "Enemy VTOL Warship inbound"), match flow ("Mission
+start", "One minute remaining", "We're losing / winning", "Mission failed /
+accomplished"), objective lines (S&D bomb planted / defused, KOTH hill
+moving), multikill and medal stingers, reload / grenade / "frag out" chatter
+from your own troll and from bots, and pickup and landing lines for Troll Royale.
+Write it in the troll voice, not copied BO2 lines (same beats and cadence,
+original wording). Needs a design doc first (feedback: design doc before
+big builds): line list per event, who says it (announcer vs own troll vs
+enemy), how it's voiced (TTS? recorded? which provider), the audio.js
+hooks it plugs into, a volume/voice setting, and a rule for how often chatter
+fires so it doesn't spam in a 100-troll Royale.
+
+## Troll Royale: 100 trolls, landing roll, Grin Site spawn (2026-09-30) — `game.js?v=to-r100`
+- **100 trolls** on Trollface Island (`royale.players` in trollface-island.js);
+  real players each take one bot's place (bots.fill already did that).
+- **net.js batches every send**: everything queued inside 50 ms goes out as
+  one `{t:"batch", m:[...]}` broadcast (Supabase's client silently drops
+  past eventsPerSecond 30, which one-message-per-bot blew through long
+  before 100). Past 24 hosted bots each bot's state goes at 10 Hz
+  (`net.botCount`, set by game.js after bots.fill).
+- **Crowd LOD** (only when a room has > 24 trolls, so every other mode is
+  untouched). Measured with `tools/troll-ops-royale-fps.mjs 20 100`
+  (headless, real GPU; `HIDE_RIGS=1` hides every body): at 100 trolls the
+  frame was bots 16.6 ms, rig posing 23.6 ms, render 53.6 ms (1,176 calls).
+  - bots.js: a bot > 70 m from every real player (`ctx.lodNear`,
+    game.js `humanEyes()`) thinks every 2nd frame, > 150 m every 4th, with
+    the skipped dt handed over; flow-field sweeps capped at 6 a frame
+    (a pooled field is reused a few frames stale past that).
+  - remote-players.js: posing every 2nd frame past 40 m, 4th past 100 m;
+    no shadow past 40 m; not drawn past 150 m (`FAR_HIDE`, still hittable).
+  - Rig bodies were most of the render cost (45 ms visible vs 18 ms
+    hidden). If phones still struggle: a one-mesh impostor for 60-150 m
+    trolls is the next step, or a lower bot count on touch devices.
+- **Quickplay cap counts humans only** (`net.humanCount`); Royale's cap is
+  `MAX_PLAYERS_ROYALE` (100). Before this, a lobby's bots made it look full.
+- **Tuck and roll on landing**: `royale.me` goes glide → "roll" → "ground".
+  0.8 s (`ROLL_TIME`, remote-players.js), carried forward along the glider's
+  heading, gun comes up at the end. `rollRig(rig, k)` tumbles any rig about
+  hip height; wire field `ro` (0..1) so peers and bots roll on every screen.
+  First person: the camera flips once and dips.
+- **Grin Site corner spawns** were exactly on the light towers at (±30, ±30):
+  moved to (±30, ±24).
+- **Match XP cut to a tenth** (user: "way too much xp"): progression.js
+  `XP` (kill 10, win 80, ...), `xpForRun`, `XP_SCALE = 0.1` on medal points
+  (the scorestreak meter still gets full medal points), Royale placement
+  bonus. XP already queued in `trollops:xp-pending` is scaled once
+  (`trollops:xp-rate-2`).
+- **Daily login XP paid more than once** (user, on phone): every page and
+  game iframe asked for `login_streak` on load, plus the login itself, and
+  the server's cooldown check races. Client now asks once per account per
+  UTC day (`awardLoginXp`, key `trollrunner:login-xp`);
+  `assets/supabase/troll_login_once_a_day.sql` adds a unique per-day index
+  (the real guard) and sets troll_runner to LV 69 (231,200 XP). **User must
+  run that SQL.**
+
 ## Troll Royale polish (2026-09-29, user list) — `game.js?v=to-rs1`
 - **Loot pickup keycap**: Royale's gun prompt is the ONE exception to the
   "no key hints" rule (user asked): pulsing X / "D-pad →" keycap + HOLD,
