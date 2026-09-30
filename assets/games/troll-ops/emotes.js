@@ -281,4 +281,7 @@ export const FP_HAND_POSES = {
   point: { curl: [[0.02, 0.05, 0.02], FIST_CURL, FIST_CURL, FIST_CURL], spread: 0, thumb: [0.25, 0.9, 0.5, 0.4] },
   L: { curl: [[0.0, 0.02, 0.0], FIST_CURL, FIST_CURL, FIST_CURL], spread: 0, thumb: [1.25, 0.05, 0.0, 0.0] },
   flat: { curl: [[0.03, 0.03, 0.02], [0.03, 0.03, 0.02], [0.03, 0.03, 0.02], [0.05, 0.04, 0.03]], spread: 0.04, thumb: [0.55, 0.2, 0.05, 0.05] },
+  // Calling the K9s: index and middle together, tips bent in toward the
+  // lips, ring and pinky folded under the thumb.
+  whistle: { curl: [[0.05, 0.12, 0.2], [0.05, 0.12, 0.2], FIST_CURL, FIST_CURL], spread: 0, thumb: [0.35, 0.95, 0.55, 0.35] },
 };

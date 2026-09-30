@@ -9,12 +9,12 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
-import { WeaponInspector } from "./inspector.js?v=hw3";
+import { WeaponInspector } from "./inspector.js?v=vsat1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
 import { CharacterInspector } from "./char-inspector.js?v=to-ads1";
 import { Loadout } from "./loadout.js?v=lv4";
 import { StreakPicker } from "./streak-picker.js?v=lv4";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=lv3";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=vsat1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
@@ -36,20 +36,20 @@ import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-ads1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-2h1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-ads1";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-ads1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=vsat2";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tr3";
 import { BotManager } from "./bots.js?v=to-ads1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
-import { GameAudio } from "./audio.js?v=hw2";
+import { GameAudio } from "./audio.js?v=vsat1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=ti1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
-import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=cuav1";
+import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=vsat1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1";
 import { ZombieDirector } from "./zombies.js";
@@ -416,6 +416,19 @@ function uavActiveFor(team) {
   return !!team && uavUntil[team] > performance.now();
 }
 
+/* Orbital VSAT (BO2): a satellite sweep that shows enemies AND which way
+   they face. Its own clock, because nothing can shoot a satellite down: an
+   enemy Counter-UAV still jams the minimap but leaves vsatUntil alone. */
+const vsatUntil = { phantom: 0, ghost: 0 };
+function vsatActiveFor(team) {
+  return !!team && vsatUntil[team] > performance.now();
+}
+function startVsat(team, duration) {
+  if (!team) return;
+  vsatUntil[team] = Math.max(vsatUntil[team] || 0, performance.now() + duration * 1000);
+}
+function vsatUp() { return vsatActiveFor(uavBucket()) && !minimapJammed(); }
+
 /* Which bucket a UAV we call belongs in. Free-for-all has no sides to share a
    reveal with, and offline play never runs chooseTeam so `net.team` is null —
    both collapse onto the same single bucket, which is also what keeps a solo
@@ -428,7 +441,8 @@ function uavBucket() {
 /* Whether we can currently see enemies on the minimap. An enemy
    Counter-UAV jams it, whoever's UAV is up. */
 function enemiesRevealed() {
-  return uavActiveFor(uavBucket()) && !minimapJammed();
+  const team = uavBucket();
+  return (uavActiveFor(team) || vsatActiveFor(team)) && !minimapJammed();
 }
 
 /* Counter-UAV (BO2): an enemy one scrambles our minimap until jammedUntil,
@@ -439,7 +453,7 @@ let jammedUntil = 0;
 let myUavUntil = 0;
 function minimapJammed() { return jammedUntil > performance.now(); }
 
-/* Per-streak lockouts, ms timestamps: the gunship's cooldown after a call,
+/* Per-streak lockouts, ms timestamps: the gunship/K9/Swarm cooldown after a call,
    and the UAV lockout an enemy Counter-UAV hands whoever's UAV it downed.
    A banked charge waits it out; nothing is lost. */
 const streakLockUntil = {};
@@ -776,6 +790,9 @@ function throwMarker() {
 /* Run a streak we just called. Each one decides everything locally and then
    tells the room; nobody else re-derives any of it. */
 function fireStreak(id, at = null) {
+  // Everything past Lightning Strike: one call a minute at most (user), from
+  // the call. A charge earned in the meantime waits in its slot.
+  if (STREAK_DEFS[id]?.cooldown) lockStreak(id, STREAK_DEFS[id].cooldown, "cooldown");
   switch (id) {
     case "uav": {
       const team = uavBucket();
@@ -792,6 +809,19 @@ function fireStreak(id, at = null) {
       showWaveBanner("UAV ONLINE", 1600);
       // Up, thumb CONFIRM, a beat on "UAV ONLINE", down (DESIGN-ARMS.md Phase 5).
       beginStreakHold(1.4, "tablet", "uav");
+      break;
+    }
+
+    case "vsat": {
+      const team = uavBucket();
+      const dur = STREAK_DEFS.vsat.duration;
+      startVsat(team, dur);
+      if (net.active) {
+        net.publishStreak({ kind: "vsat", action: "start", team, duration: dur });
+        net.publishStreak({ kind: "callout", label: "ORBITAL VSAT", who: net.name });
+      }
+      showWaveBanner("ORBITAL VSAT ONLINE", 1800);
+      beginStreakHold(1.5, "tablet", "vsat");
       break;
     }
 
@@ -847,9 +877,6 @@ function fireStreak(id, at = null) {
         net.publishStreak({ kind: "callout", label: "GUNSHIP INBOUND", who: net.name });
       }
       showWaveBanner("GUNSHIP INBOUND", 2000);
-      // User: the gunship was overpowered. One every 90 s at most, counted
-      // from the call; a gunship earned in the meantime waits in its slot.
-      lockStreak("helicopter", STREAK_DEFS.helicopter.cooldown, "cooldown");
       // Same tablet call as the UAV, held a touch longer on the inbound page.
       beginStreakHold(1.6, "tablet", "gunship");
       achievements.award("gunship");
@@ -865,7 +892,9 @@ function fireStreak(id, at = null) {
         net.publishStreak({ kind: "callout", label: "K9 UNIT", who: net.name });
       }
       showWaveBanner("K9 UNIT RELEASED", 1800);
-      beginStreakHold(1.2, "tablet", "k9");
+      // No tablet for the dogs: two fingers in the mouth and a whistle.
+      beginStreakHold(WHISTLE_HOLD, "whistle");
+      audio.whistle(null, WHISTLE_BLOW_AT);
       break;
     }
 
@@ -1917,6 +1946,14 @@ function applyRemoteStreak(m) {
       if (m.action === "start") applyCounterUav(m);
       break;
 
+    case "vsat":
+      if (m.action === "start") {
+        startVsat(m.team, m.duration || STREAK_DEFS.vsat.duration);
+        if (m.team === uavBucket() && !currentMode().ffa) showWaveBanner("FRIENDLY VSAT IN ORBIT", 1500);
+        else showWaveBanner("ENEMY ORBITAL VSAT — THEY SEE YOU", 1800);
+      }
+      break;
+
     case "uav":
       if (m.action === "start") {
         startUav(m.team, m.duration || STREAK_DEFS.uav.duration);
@@ -2015,6 +2052,7 @@ function applyRemoteStreak(m) {
       let pack = streakEntities.get(m.eid);
       if (m.action === "spawn" && !pack) {
         spawnK9({ id: m.eid, owned: false, team: m.team, ownerId: m.id, x: m.x, y: m.y, z: m.z, yaw: m.yaw || 0 });
+        audio.whistle({ x: m.x, y: (m.y || 0) + 1.6, z: m.z });   // the handler calling them in
         if (currentMode().ffa || !net.team || m.team !== net.team) showWaveBanner("ENEMY K9 UNIT — WATCH YOUR BACK", 1800);
       } else if (m.action === "pos") {
         if (!pack && Array.isArray(m.d)) {
@@ -3636,6 +3674,7 @@ function drawMinimap() {
     // the current map's size so small maps don't hand out free radar and
     // huge ones don't demand near-melee range before anything shows.
     const showEnemies = enemiesRevealed();
+    const vsat = vsatUp();
     const arenaSpan = Math.max(ARENA.maxX - ARENA.minX, ARENA.maxZ - ARENA.minZ);
     const proximityRadius = Math.min(28, Math.max(14, arenaSpan * 0.16));
     for (const rp of remotes.byId.values()) {
@@ -3648,14 +3687,29 @@ function drawMinimap() {
       const [x, z] = mapToMinimap(rp.pos.x, rp.pos.z);
       ctx.fillStyle = friendly ? "#7fd1e0" : "#ff6b5a";
       ctx.beginPath();
-      ctx.arc(x, z, 3, 0, Math.PI * 2);
-      ctx.fill();
+      if (!friendly && vsat) {
+        // The VSAT's edge over a UAV: which way they're facing, too.
+        ctx.save();
+        ctx.translate(x, z);
+        ctx.rotate(-(rp.yaw || 0));
+        ctx.moveTo(0, -5);
+        ctx.lineTo(3.4, 3.6);
+        ctx.lineTo(-3.4, 3.6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.arc(x, z, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     if (showEnemies) {
       // A thin sweep ring, so it reads as "the UAV is why you can see this".
-      ctx.strokeStyle = "rgba(255,107,90,.5)";
+      // The satellite's is doubled and brighter.
+      ctx.strokeStyle = vsat ? "rgba(255,150,110,.85)" : "rgba(255,107,90,.5)";
       ctx.lineWidth = 1;
       ctx.strokeRect(1.5, 1.5, size - 3, size - 3);
+      if (vsat) ctx.strokeRect(4.5, 4.5, size - 9, size - 9);
     }
 
     // Care packages beacon their own position by radio the moment they
@@ -4987,7 +5041,7 @@ function showWaveBanner(text, ms = 1800) {
 /* The scorestreak strip: a meter toward the cheapest streak that isn't ready
    yet, then one row per selected streak. Rebuilt only when the set of rows
    changes; the meter itself is just a width. */
-const STREAK_ICON_URL = (id) => new URL(`./streak-icons/${id}.png?v=ss1`, import.meta.url).href;
+const STREAK_ICON_URL = (id) => new URL(`./streak-icons/${id}.png?v=ss2`, import.meta.url).href;
 
 function updateStreakHud() {
   if (!els.ssHud) return;
@@ -7899,6 +7953,8 @@ function beginMatch(mapId = null) {
   streaks.setSelected(streakPicker.selected);
   uavUntil.phantom = 0;
   uavUntil.ghost = 0;
+  vsatUntil.phantom = 0;
+  vsatUntil.ghost = 0;
   clearStreakLocks();
   killstreakUi.reset();
   recentTeamKillers.clear();
@@ -8127,6 +8183,8 @@ function prepareSndRound() {
   streaks.onRoundEnd();
   uavUntil.phantom = 0;
   uavUntil.ghost = 0;
+  vsatUntil.phantom = 0;
+  vsatUntil.ghost = 0;
   jammedUntil = 0;
   myUavUntil = 0;
   // A gunship or a crate has no round to belong to once this one ends.
@@ -10159,25 +10217,52 @@ let streakSprintT = 0;
 const TABLET_HOLD_POS = new THREE.Vector3(0, -0.098, -0.4);
 const TABLET_TILT = -0.36;
 const TABLET_PRESS_AT = 0.45;       // seconds into a UAV/gunship call the thumb goes down
+// The K9 whistle: hand target in viewmodel space (fingers up and back into
+// the mouth, so you see the back of it, knuckles forward), how long it is
+// held, when the note starts.
+const WHISTLE_HAND = [0.035, -0.1, -0.195];
+const WHISTLE_ROT = [-0.3, Math.PI - 0.35, 0.3];
+const WHISTLE_HOLD = 1.6;
+const WHISTLE_BLOW_AT = 0.3;
 
 function updateStreakView(dt) {
   const held = player.holding === "streak";
   const mesh = streakDeviceKind === "marker" ? activeMarkerMesh
-    : streakDeviceKind === "drone" ? activeDroneMesh : activeStreakMesh;
+    : streakDeviceKind === "drone" ? activeDroneMesh
+    : streakDeviceKind === "whistle" ? null : activeStreakMesh;
   for (const m of [activeStreakMesh, activeMarkerMesh, activeDroneMesh]) m.visible = held && m === mesh;
   if (!held) { streakRaiseT = 0; streakSprintT = 0; hideStreakArms(); return; }
   inspectArms.visible = false;
-  if (!player.alive) { finishStreakHold(); mesh.visible = false; hideStreakArms(); return; }
+  if (!player.alive) { finishStreakHold(); if (mesh) mesh.visible = false; hideStreakArms(); return; }
   if (streakHoldElapsed === 0) resetStreakArms();
   streakHoldElapsed += dt;
 
   // Up quickly, down a touch quicker; once it's down, the gun comes back.
   streakRaiseT = damp(streakRaiseT, streakLowering ? 0 : 1, streakLowering ? 11 : 8, dt);
-  if (streakLowering && streakRaiseT < 0.05) { finishStreakHold(); mesh.visible = false; hideStreakArms(); return; }
+  if (streakLowering && streakRaiseT < 0.05) { finishStreakHold(); if (mesh) mesh.visible = false; hideStreakArms(); return; }
   streakSprintT = damp(streakSprintT, move.sprinting ? 1 : 0, 8, dt);
   const e = streakRaiseT, off = 1 - e, s = streakSprintT;
   const t = performance.now() / 1000;
   const idleX = Math.sin(t * 1.3) * 0.003, idleY = Math.sin(t * 1.9) * 0.003;
+
+  if (streakDeviceKind === "whistle") {
+    // K9 call: the right hand comes up to the mouth, two fingers in, and
+    // blows; the head tips back a touch with the breath, then it drops away.
+    const blow = Math.max(0, Math.min(1, (streakHoldElapsed - WHISTLE_BLOW_AT) / 0.9));
+    const push = Math.sin(blow * Math.PI);            // the breath swelling and fading
+    const trill = blow > 0 && blow < 1 ? Math.sin(t * 38) * 0.0015 : 0;
+    poseFreeArms({
+      R: {
+        pos: [WHISTLE_HAND[0] + off * 0.1 + idleX,
+          WHISTLE_HAND[1] - off * 0.32 - s * 0.1 + idleY + push * 0.008 + trill,
+          WHISTLE_HAND[2] + off * 0.06 + push * 0.01],
+        rot: [WHISTLE_ROT[0] - off * 0.9, WHISTLE_ROT[1], WHISTLE_ROT[2] + off * 0.3],
+        pose: "whistle",
+      },
+      L: null,
+    });
+    return;
+  }
 
   if (streakDeviceKind === "marker") {
     // Held up by the shoulder, strobe blinking; the throw is a wind-back and
@@ -10215,7 +10300,7 @@ function updateStreakView(dt) {
   // Tablet: rises from low with both hands, screen tipping up to the eye,
   // then settles with a slight idle drift. A UAV/gunship call gets a right-
   // thumb press on CONFIRM and the page flips; the strike tablet just holds.
-  const calling = ["uav", "counteruav", "gunship", "k9", "warship", "swarm"].includes(streakScreen);
+  const calling = ["uav", "counteruav", "vsat", "gunship", "k9", "warship", "swarm"].includes(streakScreen);
   const pk = calling ? (streakHoldElapsed - TABLET_PRESS_AT) / 0.22 : -1;
   const press = pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0;
   const confirmed = calling && pk >= 0.5;
@@ -10404,8 +10489,15 @@ function updateFpEmoteView() {
       activeWeaponMesh.rotateZ(f.gun.spin || 0);
     }
   }
-  streakArms.visible = true;
   fpEmoteArmsOn = true;
+  poseFreeArms(f);
+}
+
+/* Both streak arms placed straight from hand targets in viewmodel space
+   ({R, L}: {pos, rot, pose} or null), not off a device's grip anchors: the
+   first-person emotes and the K9 whistle. */
+function poseFreeArms(f) {
+  streakArms.visible = true;
   const arms = streakArms.userData.arms;
   ["R", "L"].forEach((k, i) => {
     const arm = arms[i], h = f[k];
@@ -11732,7 +11824,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     awardScore, callReadyStreak, callStreak, fireStreak, startUav, applyRemoteStreak,
     cycleSelectedStreak, useSelectedStreak, selectedStreak: () => selectedStreak,
     readyStreaksOrdered, streakSlotIds, callStreakSlot, warmShaders, lightPool, pixelRatio: () => pixelRatio,
-    updateStreakHud, enemiesRevealed, uavBucket, uavUntil, drawMinimap,
+    updateStreakHud, enemiesRevealed, uavBucket, uavUntil, vsatUntil, drawMinimap,
     streakLockLeft, minimapJammed, applyCounterUav, flyovers, STREAK_DEFS,
     lastHitRange: () => lastHitRange,
     streakEntities, pendingStrikes, flyovers, strikeTablet: () => strikeTablet, openStrikeTablet, throwMarker, HunterDroneClass: HunterDrone, droneWorld, raycastWorld, groundHeightAt,
@@ -11756,6 +11848,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale, cycleSpectate, royaleSpectating,
     royaleBotObjective, royaleBotDamage, royaleNoise, ROYALE,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
+    streakArms, beginStreakHold, weaponRig, WHISTLE_HAND, WHISTLE_ROT,
     beginStreakHold, endStreakHold,
     landDipT: () => landDipT, landDipMag: () => landDipMag,
     aimAssistPoints, findAimAssistTarget, applyAimAssist, controls,

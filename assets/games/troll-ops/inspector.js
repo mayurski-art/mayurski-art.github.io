@@ -19,8 +19,29 @@ import { loadModel } from "./battlefield-props.js";
 const STREAK_MODELS = {
   uav: "recon-drone", carepackage: "care-package", drone: "hunter-drone",
   airstrike: "strike-jet", helicopter: "helicopter",
-  k9: "k9-dog", warship: "vtol-warship", swarm: "hunter-drone",
+  k9: "k9-dog", vsat: "orbital-vsat", warship: "vtol-warship", swarm: "hunter-drone",
 };
+
+/* The Swarm isn't one drone: a staggered wedge of Hunter-Killers diving in
+   together, so its preview doesn't look like the single Hunter-Killer's. */
+const SWARM_WEDGE = [
+  [0, 0.25, 0, 0], [-0.75, 0.05, 0.6, 0.12], [0.75, 0.1, 0.55, -0.12],
+  [-1.45, -0.2, 1.25, 0.22], [1.5, -0.12, 1.2, -0.2], [0.05, -0.45, 1.5, 0.05],
+];
+function loadSwarm() {
+  return Promise.all(SWARM_WEDGE.map(() => loadModel("hunter-drone"))).then((drones) => {
+    const g = new THREE.Group();
+    const size = new THREE.Box3().setFromObject(drones[0]).getSize(new THREE.Vector3());
+    const unit = Math.max(size.x, size.z) * 1.1;
+    drones.forEach((d, i) => {
+      const [x, y, z, yaw] = SWARM_WEDGE[i];
+      d.position.set(x * unit, y * unit, z * unit);
+      d.rotation.set(-0.18, yaw, yaw * 0.6);   // nose down, banking in
+      g.add(d);
+    });
+    return g;
+  });
+}
 
 const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 2.4;
@@ -153,7 +174,8 @@ export class WeaponInspector {
     const name = STREAK_MODELS[id];
     if (!name || this.streakId === id) return;
     const token = this.pending = {};
-    loadModel(name).then((obj) => {
+    const load = id === "swarm" ? loadSwarm() : loadModel(name);
+    load.then((obj) => {
       if (this.pending !== token) return;
       // Clones share the cached geometry: never dispose it on swap.
       obj.traverse((o) => { if (o.geometry) o.geometry.userData.shared = true; });
@@ -200,6 +222,11 @@ export class WeaponInspector {
       // Only ever seen near the rest angle: fit height and length directly.
       this.baseDist = Math.max(this.halfHeight / Math.tan(vHalf), this.halfWidth / Math.tan(hHalf)) * 1.15 + this.halfWidth * 0.8;
     }
+    // Clip planes follow the subject: a fixed 40 m far plane cut the VTOL
+    // (framed from ~40 m out) out of the picture entirely.
+    this.camera.near = Math.max(0.005, this.radius * 0.02);
+    this.camera.far = this.baseDist * MAX_ZOOM + this.radius * 4;
+    this.camera.updateProjectionMatrix();
   }
 
   tick(dt) {

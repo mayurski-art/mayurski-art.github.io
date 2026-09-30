@@ -106,7 +106,7 @@ export function drawTabletScreen(device, mode, t, confirmed) {
   g.fillStyle = green;
   g.font = "bold 15px monospace";
   g.textBaseline = "top";
-  const TITLES = { uav: "UAV // RECON", counteruav: "COUNTER-UAV // JAMMER", gunship: "GUNSHIP // AIR SUPPORT", strike: "LIGHTNING STRIKE",
+  const TITLES = { uav: "UAV // RECON", counteruav: "COUNTER-UAV // JAMMER", vsat: "ORBITAL VSAT // UPLINK", gunship: "GUNSHIP // AIR SUPPORT", strike: "LIGHTNING STRIKE",
     k9: "K9 UNIT // RELEASE", warship: "VTOL WARSHIP // GUNNER", swarm: "SWARM // HK DRONES" };
   const title = TITLES[mode] || "STREAK LINK";
   g.fillText(title, 24, 10);
@@ -145,6 +145,29 @@ export function drawTabletScreen(device, mode, t, confirmed) {
     g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
     g.globalAlpha = 1;
     g.lineWidth = 1;
+  } else if (mode === "vsat") {
+    // The globe from orbit: the satellite tracking round it, beaming down,
+    // and enemy arrows lit up on the surface facing their way.
+    g.strokeStyle = "rgba(109,255,74,.55)";
+    g.beginPath(); g.arc(cx, cy, 40, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.ellipse(cx, cy, 40, 14, 0, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.ellipse(cx, cy, 14, 40, 0, 0, Math.PI * 2); g.stroke();
+    const a = t * 1.6;
+    const sx = cx + Math.cos(a) * 66, sy = cy + Math.sin(a) * 24;
+    g.fillStyle = "rgba(109,255,74,.18)";
+    g.beginPath(); g.moveTo(sx, sy); g.lineTo(cx - 16, cy + 6); g.lineTo(cx + 16, cy - 6); g.closePath(); g.fill();
+    g.fillStyle = green;
+    g.fillRect(sx - 4, sy - 4, 8, 8);
+    g.fillRect(sx - 15, sy - 2, 9, 4);
+    g.fillRect(sx + 6, sy - 2, 9, 4);
+    g.fillStyle = "#ff4a3a";
+    for (const [bx, by, yaw] of [[-18, -12, 0.6], [14, 8, 2.4], [4, -22, -1.2], [-8, 20, 3.6]]) {
+      g.save();
+      g.translate(cx + bx, cy + by);
+      g.rotate(yaw + Math.sin(t * 2 + bx) * 0.3);
+      g.beginPath(); g.moveTo(0, -6); g.lineTo(4, 4); g.lineTo(-4, 4); g.closePath(); g.fill();
+      g.restore();
+    }
   } else if (mode === "gunship") {
     // Helicopter silhouette, then CONFIRMED + an inbound bar.
     g.save();
@@ -199,7 +222,7 @@ export function drawTabletScreen(device, mode, t, confirmed) {
 
   // Footer: the call's state.
   g.font = "bold 16px monospace";
-  const CONFIRMED = { uav: "UAV ONLINE", counteruav: "JAMMING ENEMY", gunship: "CONFIRMED — INBOUND", k9: "DOGS RELEASED", warship: "CONFIRMED — BOARDING", swarm: "SWARM INBOUND" };
+  const CONFIRMED = { uav: "UAV ONLINE", counteruav: "JAMMING ENEMY", vsat: "SATELLITE ONLINE", gunship: "CONFIRMED — INBOUND", k9: "DOGS RELEASED", warship: "CONFIRMED — BOARDING", swarm: "SWARM INBOUND" };
   if (CONFIRMED[mode]) {
     if (confirmed) {
       g.fillStyle = "rgba(109,255,74,.22)";

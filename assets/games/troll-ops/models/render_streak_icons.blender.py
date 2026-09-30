@@ -29,6 +29,7 @@ STREAKS = {
     "helicopter":  ("helicopter.glb", (1.3, -1.0, 0.55), 70),
     "k9":          ("k9-dog.glb", (1.25, 1.0, 0.45), 70),
     "warship":     ("vtol-warship.glb", (1.2, 1.1, 0.7), 70),
+    "vsat":        ("orbital-vsat.glb", (0.9, 1.4, 0.75), 70),
     # three drones in a loose V: the swarm
     "swarm":       (["hunter-drone.glb", "hunter-drone.glb", "hunter-drone.glb"], (1.0, -1.25, 0.95), 70),
 }

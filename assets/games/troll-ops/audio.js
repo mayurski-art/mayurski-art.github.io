@@ -273,6 +273,37 @@ export class GameAudio {
     this._noise({ duration: 0.06, gain: 0.2, type: "lowpass", freq: 900, sweepTo: 200, delay: 0.1, at });
   }
 
+  /* Calling the K9s: a two-finger whistle. A short rising chirp, then the
+     long note that swoops up and falls away, each over a breathy hiss.
+     `delay` lines it up with the fingers reaching the mouth. */
+  whistle(at = null, delay = 0) {
+    if (!this._ready()) return;
+    const note = (t0, dur, f0, f1, f2, gain) => {
+      const osc = this.ctx.createOscillator();
+      const vib = this.ctx.createOscillator();
+      const vibGain = this.ctx.createGain();
+      const g = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(f0, t0);
+      osc.frequency.exponentialRampToValueAtTime(f1, t0 + dur * 0.3);
+      osc.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+      vib.frequency.value = 6.5;
+      vibGain.gain.value = f1 * 0.012;
+      vib.connect(vibGain).connect(osc.frequency);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(gain, t0 + 0.035);
+      g.gain.setValueAtTime(gain, t0 + dur * 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0008, t0 + dur);
+      osc.connect(g).connect(this._dest(at));
+      osc.start(t0); vib.start(t0);
+      osc.stop(t0 + dur + 0.02); vib.stop(t0 + dur + 0.02);
+      this._noise({ duration: dur, gain: gain * 0.35, type: "bandpass", freq: f1, q: 6, delay: t0 - this.now, at });
+    };
+    const t = this.now + delay;
+    note(t, 0.2, 1500, 2600, 2500, 0.13);
+    note(t + 0.3, 0.62, 1900, 3000, 1700, 0.15);
+  }
+
   /* ---- Trollsaber ---------------------------------------------------
      A hum that bends up with swing speed (the film trick: the hum
      doppler-shifts past the mic), a snap-hiss ignite, a whoosh-buzz swing,

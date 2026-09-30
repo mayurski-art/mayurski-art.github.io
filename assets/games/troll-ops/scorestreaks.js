@@ -85,7 +85,8 @@ export const STREAK_DEFS = {
     cost: 550,
     rank: 25,
     duration: 45,
-    blurb: "Six attack dogs hunt the enemy team for 45 seconds. They can be shot.",
+    cooldown: 60,      // user: one pack a minute at most
+    blurb: "Six attack dogs hunt the enemy team for 45 seconds. They can be shot. 60 second cooldown before the next pack.",
   },
   helicopter: {
     id: "helicopter",
@@ -96,8 +97,20 @@ export const STREAK_DEFS = {
     cost: 700,
     rank: 30,
     duration: 45,
-    cooldown: 90,      // seconds before you can call another (user: it was overpowered)
-    blurb: "A gunship on station for 45 seconds, picking off whatever it can see. 90 second cooldown before the next one.",
+    cooldown: 60,      // seconds before you can call another (user: everything past Lightning Strike)
+    blurb: "A gunship on station for 45 seconds, picking off whatever it can see. 60 second cooldown before the next one.",
+  },
+  vsat: {
+    id: "vsat",
+    badge: "red",
+    name: "Orbital VSAT",
+    short: "VSAT",
+    icon: "vsat",
+    cost: 800,
+    rank: 32,
+    duration: 40,
+    cooldown: 60,
+    blurb: "A satellite shows every enemy on your team's minimap for 40 seconds, and which way they're facing. Can't be shot down. 60 second cooldown before the next one.",
   },
   warship: {
     id: "warship",
@@ -107,7 +120,8 @@ export const STREAK_DEFS = {
     cost: 850,
     rank: 35,
     duration: 40,
-    blurb: "Take the guns of a VTOL circling overhead: 25 mm chain gun and 105 mm cannon. Your body stays on the ground.",
+    cooldown: 60,
+    blurb: "Take the guns of a VTOL circling overhead: 25 mm chain gun and 105 mm cannon. Your body stays on the ground. 60 second cooldown before the next one.",
   },
   swarm: {
     id: "swarm",
@@ -118,7 +132,8 @@ export const STREAK_DEFS = {
     rank: 48,
     duration: 30,
     count: 24,
-    blurb: "Hunter-Killer drones pour in from the sky for 30 seconds, one enemy each.",
+    cooldown: 60,      // user: one swarm a minute at most
+    blurb: "Hunter-Killer drones pour in from the sky for 30 seconds, one enemy each. 60 second cooldown before the next one.",
   },
 };
 
@@ -146,6 +161,7 @@ const STREAK_ICON_PATHS = {
   airstrike: '<path d="M12 1v10" stroke-linecap="round" fill="none"/><path d="M12 11l-3.5 8h7L12 11z"/><path d="M8 15l-4 1.5M16 15l4 1.5" fill="none" stroke-linecap="round"/>',
   k9: '<path d="M4 9l2-6 3 4h6l3-4 2 6c0 5-3 9-8 9s-8-4-8-9z"/><circle cx="9.3" cy="11" r="1.1" fill="#0d1410" stroke="none"/><circle cx="14.7" cy="11" r="1.1" fill="#0d1410" stroke="none"/><path d="M10.4 15h3.2l-1.6 1.8z" fill="#0d1410" stroke="none"/>',
   warship: '<rect x="10.5" y="3" width="3" height="17" rx="1.5"/><rect x="2" y="9" width="20" height="2.4" rx="1"/><circle cx="3.5" cy="10.2" r="2.6" fill="none"/><circle cx="20.5" cy="10.2" r="2.6" fill="none"/><rect x="7" y="18.5" width="10" height="1.8" rx="0.9"/>',
+  vsat: '<rect x="9.5" y="9.5" width="5" height="5" rx="1" transform="rotate(45 12 12)"/><rect x="1.5" y="10" width="6" height="4" rx="0.6"/><rect x="16.5" y="10" width="6" height="4" rx="0.6"/><path d="M7.5 12h2M14.5 12h2" stroke-linecap="round"/><path d="M8 4.5a5.5 5.5 0 0 1 8 0M10 6.6a2.8 2.8 0 0 1 4 0" fill="none" stroke-linecap="round"/><path d="M12 15.5v4M9.5 21h5" fill="none" stroke-linecap="round"/>',
   swarm: '<rect x="3" y="4" width="4.5" height="4.5" rx="1"/><rect x="15" y="3" width="4.5" height="4.5" rx="1"/><rect x="9.5" y="10" width="5" height="5" rx="1"/><rect x="3.5" y="16" width="4" height="4" rx="1"/><rect x="16" y="15.5" width="4.5" height="4.5" rx="1"/><path d="M5.2 4V2M17.2 3V1M12 10V8" stroke-linecap="round"/>',
   helicopter: '<ellipse cx="10" cy="14" rx="7" ry="4"/><rect x="16" y="13" width="6" height="2" rx="1"/><rect x="9" y="6" width="2" height="6" rx="1"/><path d="M2 6h16" fill="none" stroke-linecap="round"/><rect x="7" y="18" width="6" height="2" rx="1"/>',
 };
