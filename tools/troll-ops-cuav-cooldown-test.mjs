@@ -162,6 +162,20 @@ const swing = await page.evaluate(async () => {
 check("a swing revs hard enough to shake the screen", swing.maxShake > 0.01, swing.maxShake.toFixed(4));
 check("the throttle trigger squeezes on the rev", swing.throttle && swing.maxThrottle > 0.2, JSON.stringify(swing));
 
+// ---- Level readout = the trollrunner.net profile, number for number
+const lv = await page.evaluate(async () => {
+  const P = await import("/assets/games/troll-ops/progression.js?v=lv3");
+  const real = window.TrollrunnerAccounts;
+  window.TrollrunnerAccounts = { ...(real || {}), getCachedProfile: () => ({ xp: 475000, level: 98 }) };
+  localStorage.setItem("trollops:xp-pending", "9000");   // queued XP must not show until it lands
+  const out = { text: P.rankXpText(), rank: P.getRank(), pct: Math.round(P.rankProgress() * 100) };
+  localStorage.removeItem("trollops:xp-pending");
+  window.TrollrunnerAccounts = real;
+  return out;
+});
+// troll-accounts.js xpProgress for level 98 / 475,000 XP: floor 470,450, next 480,200, 47%
+check("level readout matches the site exactly", lv.text === "475,000 / 480,200 XP" && lv.rank === 98 && lv.pct === 47, JSON.stringify(lv));
+
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();
 server.close();

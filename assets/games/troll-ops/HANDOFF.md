@@ -2,7 +2,7 @@
 
 ## RESUME HERE (2026-09-29, end of session) — read this first
 Everything below is pushed to main and live (`troll-ops.html` loads
-`game.js?v=to-lv2`). Worktree: `to-opus-wt`, branch `game-improvements`;
+`game.js?v=to-lv3`). Worktree: `to-opus-wt`, branch `game-improvements`;
 push = `git push origin game-improvements:main`, then `git pull --ff-only`
 in the main checkout, then curl the live `?v=` tag.
 

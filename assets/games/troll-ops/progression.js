@@ -56,12 +56,17 @@ export function isAccountLevel() {
   return accountXp() !== null;
 }
 
+/* Signed in, these are exactly the account numbers trollrunner.net shows
+   (user: "just make the numbers look the same"): XP still queued for the
+   account shows up here once it lands, not before. */
 export function getXp() {
   const account = accountXp();
-  return account === null ? readNum(KEY) : account + readNum(PENDING_KEY);
+  return account === null ? readNum(KEY) : account;
 }
 
 export function getRank() {
+  const level = Number(window.TrollrunnerAccounts?.getCachedProfile?.()?.level);
+  if (accountXp() !== null && Number.isFinite(level) && level >= 1) return Math.floor(level);
   return levelForXp(getXp());
 }
 
@@ -128,21 +133,23 @@ export function xpForMatch({ won = false, completed = true }) {
 
 /* Progress through the current level, 0..1. */
 export function rankProgress() {
-  const xp = getXp(), level = levelForXp(xp);
+  const { xp, floor, next } = levelSpan();
+  return Math.max(0, Math.min(1, (xp - floor) / Math.max(1, next - floor)));
+}
+
+/* The trollrunner.net profile bar, number for number (troll-accounts.js
+   xpProgress). */
+function levelSpan() {
+  const level = getRank();
   const floor = xpForLevel(level);
-  return (xp - floor) / (xpForLevel(level + 1) - floor);
+  return { xp: Math.max(getXp(), floor), floor, next: xpForLevel(level + 1) };
 }
 
 /* "475,000 / 480,200 XP": total XP over the total the next level needs,
-   the same readout as the trollrunner.net profile (troll-accounts.js
-   xpProgress), so the two never show different numbers for one level.
-   Signed in, XP still on its way to the account is called out, since the
-   level here already counts it and the site will not until it lands. */
+   the same readout as the trollrunner.net profile. */
 export function rankXpText() {
-  const xp = getXp(), level = levelForXp(xp);
-  const pending = accountXp() === null ? 0 : readNum(PENDING_KEY);
-  const text = `${xp.toLocaleString()} / ${xpForLevel(level + 1).toLocaleString()} XP`;
-  return pending > 0 ? `${text} (+${pending.toLocaleString()} syncing)` : text;
+  const { xp, next } = levelSpan();
+  return `${xp.toLocaleString()} / ${next.toLocaleString()} XP`;
 }
 
 /* Level gate for anything that isn't in WEAPON_DEFS — melee, throwables. */
