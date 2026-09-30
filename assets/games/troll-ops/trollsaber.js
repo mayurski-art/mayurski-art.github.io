@@ -142,7 +142,9 @@ void main() {
   float rim = exp(-pow((d - uCore) / (uCore * 0.9), 2.0)) * 0.5;
   vec3 col = uColor * (glow * 1.35 + halo + rim) * uPower;
   col = mix(col, vec3(1.0, 0.93, 0.9), core);
-  gl_FragColor = vec4(col, 1.0);
+  // Alpha only where it glows: an alpha of 1 across the whole quad showed as
+  // a black box on the menu preview (its canvas is transparent).
+  gl_FragColor = vec4(col, clamp(max(col.r, max(col.g, col.b)), 0.0, 1.0));
 }`.replace(/uHalfEdge/g, BEAM_HALF.toFixed(4));
 
 function beamMaterial() {
@@ -160,6 +162,7 @@ function beamMaterial() {
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
+    premultipliedAlpha: true,   // add the colour as is (ONE, ONE); alpha adds too
     side: THREE.DoubleSide,
   });
 }
@@ -354,9 +357,9 @@ export class SaberTrail {
         void main() {
           float k = vFade * vFade * vEdge * vEdge;
           vec3 c = uColor * k * 0.85 + vec3(1.0, 0.85, 0.8) * pow(vFade, 5.0) * pow(vEdge, 6.0) * 0.4;
-          gl_FragColor = vec4(c, 1.0);
+          gl_FragColor = vec4(c, clamp(max(c.r, max(c.g, c.b)), 0.0, 1.0));
         }`,
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, premultipliedAlpha: true, side: THREE.DoubleSide,
     }));
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 3;

@@ -15,7 +15,8 @@ fuel cap and hump on top, muffler on the left, a black hoop handle over the
 front, the tan wrapped rear handle in its D frame (the grip), and a long bar
 with a darker rail, rivets, the clutch cover and bar nuts, well bloodied.
 The chain is NOT in here: melee-models.js runs its teeth round the bar live.
-  CS_Body  (one mesh)   CS_Grip / CS_Support  empties
+  CS_Body  (one mesh)   CS_Throttle (the trigger, pivots at its origin)
+  CS_Grip / CS_Support / CS_Exhaust  empties
 
 Reaper's Grin (reaper.glb): a reaper's scythe cut down to a knife. A curved
 black blade hooking up to the point with a notched spine and a heel spike,
@@ -535,8 +536,17 @@ for i in range(8):
     splat(body, (-0.061, 0.0 + rnd.random() * 0.1, -0.12 - rnd.random() * 0.15), (-1, 0, 0), 0.003 + rnd.random() * 0.008, "bloodD")
 
 body.finish(bevel=0.0012, bevel_segs=2)
+
+# The throttle trigger under the rear handle, its own node so the game can
+# squeeze it when the saw revs: pivots at its front end (the node origin).
+throttle = Part("CS_Throttle", pivot=(0, -0.017, -0.052))
+box(throttle, (0, -0.025, -0.03), (0.009, 0.013, 0.04), "black")
+box(throttle, (0, -0.031, -0.014), (0.0095, 0.007, 0.016), "black")
+throttle.finish(bevel=0.0008, bevel_segs=1)
+
 empty("CS_Grip", (0, 0, 0))
 empty("CS_Support", (0.0, 0.175, -0.268))
+empty("CS_Exhaust", (-0.08, 0.0, -0.25))   # the muffler outlet: exhaust smoke comes out here
 export(os.path.join(OUT_DIR, "chainsaw.glb"), "CS_")
 
 # ================================================================== REAPER'S GRIN

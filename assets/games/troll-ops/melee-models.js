@@ -1,8 +1,9 @@
 // Troll Forces — the Halloween melee weapons: the Reaper's Grin (a scythe
 // knife) and the Chainsaw. Same convention as every melee model (gear.js
 // buildMeleeMesh): the grip at the origin, the blade running down -Z.
-// A model can carry `userData.tick(dt, busy)`: the chainsaw runs its chain
-// with it (fast while swinging), game.js calls it for the held weapon.
+// A model can carry `userData.tick(dt, busy, rev)`: the chainsaw runs its
+// chain with it, squeezes its throttle and puffs exhaust as `rev` (0..1)
+// climbs; game.js calls it for the held weapon.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -239,10 +240,10 @@ function buildChainsawFallback() {
     g.add(drop);
   }
 
-  // The chain idles slowly and screams round while you swing.
+  // The chain idles slowly and screams round as it revs.
   let offset = 0;
-  g.userData.tick = (dt, busy) => {
-    offset += dt * (busy ? 3.2 : 0.35);
+  g.userData.tick = (dt, busy, rev = busy ? 1 : 0) => {
+    offset += dt * (0.35 + rev * 3.4);
     layChain(offset);
   };
   g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
@@ -256,7 +257,7 @@ function buildChainsawFallback() {
 
 const URLS = {
   reaper: new URL("./models/reaper.glb?v=hw1", import.meta.url).href,
-  chainsaw: new URL("./models/chainsaw.glb?v=hw1", import.meta.url).href,
+  chainsaw: new URL("./models/chainsaw.glb?v=hw2", import.meta.url).href,
 };
 const templates = {};
 const waiting = { reaper: new Set(), chainsaw: new Set() };
@@ -430,8 +431,95 @@ function fitChainsaw(holder, src) {
   };
   lay(0);
   for (const im of [teeth, cutters, bloody]) { im.frustumCulled = false; src.add(im); }
+  const throttle = src.getObjectByName("CS_Throttle");
+  const exhaust = src.getObjectByName("CS_Exhaust");
+  const smoke = exhaust ? new ExhaustSmoke() : null;
   let offset = 0;
-  holder.userData.tick = (dt, busy) => { offset += dt * (busy ? 3.4 : 0.3); lay(offset); };
+  holder.userData.tick = (dt, busy, rev = busy ? 1 : 0) => {
+    offset += dt * (0.3 + rev * 3.8);
+    lay(offset);
+    // The trigger squeezes up into the handle with the throttle.
+    if (throttle) throttle.rotation.x = rev * 0.32;
+    if (smoke && holder.parent) smoke.update(dt, rev, exhaust, holder.parent);
+  };
+  holder.userData.disposeFx = () => smoke?.dispose();
+}
+
+/* Two-stroke exhaust: soft grey puffs out of the muffler, a lazy one now and
+   then at idle, a dark rolling stream while it revs. They live in the
+   saw's parent (the view model rig), so they hang in the air and trail
+   behind as the saw moves instead of riding along glued to it. */
+let puffTex = null;
+function puffTexture() {
+  if (puffTex) return puffTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, "rgba(255,255,255,0.9)");
+  r.addColorStop(0.45, "rgba(255,255,255,0.45)");
+  r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 64, 64);
+  puffTex = new THREE.CanvasTexture(c);
+  return puffTex;
+}
+const _exPos = new THREE.Vector3(), _exDir = new THREE.Vector3(), _exQ = new THREE.Quaternion();
+class ExhaustSmoke {
+  constructor(n = 18) {
+    this.puffs = [];
+    this.next = 0;
+    this.parent = null;
+    for (let i = 0; i < n; i++) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTexture(), color: 0x8a8a86, transparent: true, depthWrite: false, opacity: 0 }));
+      s.visible = false;
+      s.renderOrder = 2;
+      this.puffs.push({ s, age: 0, life: 1, vel: new THREE.Vector3(), size: 0.05 });
+    }
+  }
+
+  update(dt, rev, exhaust, parent) {
+    if (this.parent !== parent) {
+      for (const p of this.puffs) { p.s.removeFromParent(); parent.add(p.s); }
+      this.parent = parent;
+    }
+    this.next -= dt;
+    if (this.next <= 0 && exhaust.parent) {
+      this.next = rev > 0.2 ? 0.035 + (1 - rev) * 0.06 : 0.45 + Math.random() * 0.35;
+      const p = this.puffs.find((q) => !q.s.visible) || this.puffs[0];
+      // Out of the muffler (the saw's -x side), in the rig's frame.
+      exhaust.getWorldPosition(_exPos);
+      parent.worldToLocal(_exPos);
+      exhaust.getWorldQuaternion(_exQ);
+      _exDir.set(-1, 0.35, 0.1).applyQuaternion(_exQ);
+      const pq = parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+      _exDir.applyQuaternion(pq).normalize();
+      p.s.position.copy(_exPos);
+      p.vel.copy(_exDir).multiplyScalar(0.12 + rev * 0.35);
+      p.vel.y += 0.05;
+      p.age = 0;
+      p.life = 0.55 + Math.random() * 0.4 + rev * 0.3;
+      p.size = 0.025 + rev * 0.03;
+      p.dark = rev;
+      p.s.visible = true;
+    }
+    for (const p of this.puffs) {
+      if (!p.s.visible) continue;
+      p.age += dt;
+      const k = p.age / p.life;
+      if (k >= 1) { p.s.visible = false; continue; }
+      p.vel.multiplyScalar(Math.max(0, 1 - dt * 2.2));
+      p.vel.y += dt * 0.08;
+      p.s.position.addScaledVector(p.vel, dt);
+      p.s.scale.setScalar(p.size * (1 + k * 3));
+      p.s.material.opacity = (1 - k) * (0.2 + p.dark * 0.16);
+      p.s.material.color.setScalar(0.42 - p.dark * 0.24);
+    }
+  }
+
+  dispose() {
+    for (const p of this.puffs) { p.s.removeFromParent(); p.s.material.dispose(); }
+  }
 }
 
 /* The builders gear.js calls. */
@@ -451,7 +539,7 @@ export function buildChainsaw() {
   if (templates.chainsaw) { fill(h, "chainsaw"); return h; }
   const fb = buildChainsawFallback();
   h.add(fb);
-  h.userData.tick = (dt, busy) => fb.userData.tick?.(dt, busy);
+  h.userData.tick = (dt, busy, rev) => fb.userData.tick?.(dt, busy, rev);
   waiting.chainsaw.add(h);
   preloadHalloweenMelee();
   return h;

@@ -9,12 +9,12 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
-import { WeaponInspector } from "./inspector.js?v=sw1";
-import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
+import { WeaponInspector } from "./inspector.js?v=hw2";
+import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
 import { CharacterInspector } from "./char-inspector.js?v=gm1";
-import { Loadout } from "./loadout.js?v=hw1";
-import { StreakPicker } from "./streak-picker.js?v=sw1";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=sw1";
+import { Loadout } from "./loadout.js?v=hw2";
+import { StreakPicker } from "./streak-picker.js?v=cuav1";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=cuav1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
@@ -23,7 +23,7 @@ import {
   DRONE_DAMAGE, DRONE_SPLASH_RADIUS,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE,
-} from "./streak-entities.js?v=sw1";
+} from "./streak-entities.js?v=cuav1";
 import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
 import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
@@ -33,9 +33,9 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti3";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-tr1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=hw1";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=hw2";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-sb1";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes1";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes2";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
@@ -43,14 +43,14 @@ import {
 } from "./modes.js?v=tr3";
 import { BotManager } from "./bots.js?v=to-rd1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
-import { GameAudio } from "./audio.js?v=sw1";
+import { GameAudio } from "./audio.js?v=hw2";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=ti1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
-import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=sw1";
-import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-s12e-hands";
+import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=cuav1";
+import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1";
 import { ZombieDirector } from "./zombies.js";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
@@ -61,13 +61,13 @@ import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK } from "./gear.js?v=hw1";
-import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts1";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, chainsawRevAt } from "./gear.js?v=hw2";
+import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts2";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rd1";
-import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw1";
+import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 
 const els = {
   cabinet: document.getElementById("to-cabinet"),
@@ -417,9 +417,38 @@ function uavBucket() {
   return net.team;
 }
 
-/* Whether we can currently see enemies on the minimap. */
+/* Whether we can currently see enemies on the minimap. An enemy
+   Counter-UAV jams it, whoever's UAV is up. */
 function enemiesRevealed() {
-  return uavActiveFor(uavBucket());
+  return uavActiveFor(uavBucket()) && !minimapJammed();
+}
+
+/* Counter-UAV (BO2): an enemy one scrambles our minimap until jammedUntil,
+   knocks our side's UAV down, and whoever of us had called that UAV gets
+   locked out of calling another (streakLockUntil.uav). myUavUntil is how we
+   know it was us. */
+let jammedUntil = 0;
+let myUavUntil = 0;
+function minimapJammed() { return jammedUntil > performance.now(); }
+
+/* Per-streak lockouts, ms timestamps: the gunship's cooldown after a call,
+   and the UAV lockout an enemy Counter-UAV hands whoever's UAV it downed.
+   A banked charge waits it out; nothing is lost. */
+const streakLockUntil = {};
+const streakLockWhy = {};
+function streakLockLeft(id) {
+  const left = ((streakLockUntil[id] || 0) - performance.now()) / 1000;
+  return left > 0 ? left : 0;
+}
+function lockStreak(id, seconds, why) {
+  streakLockUntil[id] = Math.max(streakLockUntil[id] || 0, performance.now() + seconds * 1000);
+  streakLockWhy[id] = why;
+  updateStreakHud();
+}
+function clearStreakLocks() {
+  for (const k of Object.keys(streakLockUntil)) delete streakLockUntil[k];
+  jammedUntil = 0;
+  myUavUntil = 0;
 }
 
 /* Live streak objects. Keyed by id so a net message can find the one it is
@@ -484,7 +513,8 @@ function clearStreakEntities() {
    spent or deselected. Most-valuable-first means whichever streak took the
    most kills to earn is the one the button actually fires. */
 function readyStreaksOrdered() {
-  return streaks.readyIds().sort((a, b) => STREAK_DEFS[b].cost - STREAK_DEFS[a].cost);
+  return streaks.readyIds().filter((id) => !streakLockLeft(id))
+    .sort((a, b) => STREAK_DEFS[b].cost - STREAK_DEFS[a].cost);
 }
 
 /* D-pad down: move the pointer to the next ready streak. Does nothing with
@@ -595,6 +625,11 @@ function callStreakSlot(i) {
    point, enter marking instead of spending yet. Shared by the keyboard's
    single-button call and the pad's cycle-then-use pair. */
 function callStreak(id) {
+  const lock = streakLockLeft(id);
+  if (lock > 0) {
+    showWaveBanner(`${STREAK_DEFS[id].name} ${streakLockWhy[id] === "jammed" ? "jammed" : "cooling down"}: ${Math.ceil(lock)}s`, 1100);
+    return;
+  }
   // The marking streaks don't spend until the point is confirmed — dying or
   // cancelling mid-mark must not eat the reward.
   if (id === "airstrike") {
@@ -737,6 +772,7 @@ function fireStreak(id, at = null) {
     case "uav": {
       const team = uavBucket();
       startUav(team, STREAK_DEFS.uav.duration);
+      myUavUntil = performance.now() + STREAK_DEFS.uav.duration * 1000;
       const yaw = Math.random() * Math.PI * 2;
       if (net.active) {
         net.publishStreak({
@@ -744,10 +780,25 @@ function fireStreak(id, at = null) {
           x: round2(move.pos.x), z: round2(move.pos.z), yaw: round2(yaw),
         });
       }
-      spawnRecon(move.pos.x, move.pos.z, yaw);
+      spawnRecon(move.pos.x, move.pos.z, yaw, STREAK_DEFS.uav.duration, { team });
       showWaveBanner("UAV ONLINE", 1600);
       // Up, thumb CONFIRM, a beat on "UAV ONLINE", down (DESIGN-ARMS.md Phase 5).
       beginStreakHold(1.4, "tablet", "uav");
+      break;
+    }
+
+    case "counteruav": {
+      const def = STREAK_DEFS.counteruav;
+      const yaw = Math.random() * Math.PI * 2;
+      if (net.active) {
+        net.publishStreak({
+          kind: "cuav", action: "start", team: net.team, duration: def.duration, lockout: def.lockout,
+          x: round2(move.pos.x), z: round2(move.pos.z), yaw: round2(yaw),
+        });
+      }
+      spawnRecon(move.pos.x, move.pos.z, yaw, def.duration, { counter: true });
+      showWaveBanner("COUNTER-UAV ONLINE", 1600);
+      beginStreakHold(1.4, "tablet", "counteruav");
       break;
     }
 
@@ -788,6 +839,9 @@ function fireStreak(id, at = null) {
         net.publishStreak({ kind: "callout", label: "GUNSHIP INBOUND", who: net.name });
       }
       showWaveBanner("GUNSHIP INBOUND", 2000);
+      // User: the gunship was overpowered. One every 90 s at most, counted
+      // from the call; a gunship earned in the meantime waits in its slot.
+      lockStreak("helicopter", STREAK_DEFS.helicopter.cooldown, "cooldown");
       // Same tablet call as the UAV, held a touch longer on the inbound page.
       beginStreakHold(1.6, "tablet", "gunship");
       achievements.award("gunship");
@@ -1428,9 +1482,10 @@ function launchSwarmDrone(victim) {
 /* UAV's world presence: a spotter plane circling the map for the UAV's
    duration (ReconPlane). Purely decorative — enemiesRevealed()/uavUntil own
    the reveal; the heading just seeds where on the orbit it comes in. */
-function spawnRecon(x, z, yaw, duration = STREAK_DEFS.uav.duration) {
+function spawnRecon(x, z, yaw, duration = STREAK_DEFS.uav.duration, { team = null, counter = false } = {}) {
   const bounds = builtMap?.map?.bounds || ARENA;
-  const plane = new ReconPlane({ bounds, yaw, duration });
+  const plane = new ReconPlane({ bounds, yaw, duration, counter });
+  plane.team = team;
   flyovers.push(plane);
   scene.add(plane.root);
   return plane;
@@ -1493,6 +1548,33 @@ function claimPackage(pkg) {
   spawnImpactBurst(new THREE.Vector3(pkg.x, pkg.groundY + 0.8, pkg.z), 0x9dff7a, 16);
 }
 
+/* Someone else's Counter-UAV. From the enemy: our minimap scrambles, our
+   side's UAV (and its plane) goes down, and if that UAV was ours we can't
+   call another for the lockout. In free-for-all everyone else is the enemy. */
+function applyCounterUav(m) {
+  const def = STREAK_DEFS.counteruav;
+  const dur = m.duration || def.duration;
+  if (typeof m.x === "number" && typeof m.z === "number") {
+    spawnRecon(m.x, m.z, m.yaw || 0, dur, { counter: true });
+  }
+  const enemy = currentMode().ffa || !net.team || m.team !== net.team;
+  if (!enemy) { showWaveBanner("FRIENDLY COUNTER-UAV", 1500); return; }
+  const now = performance.now();
+  jammedUntil = Math.max(jammedUntil, now + dur * 1000);
+  const mine = uavBucket();
+  uavUntil[mine] = 0;
+  uavWasUp = false;   // our own banner below says why, not "UAV OFFLINE"
+  for (const f of flyovers) if (f.team === mine && !f.counter) f.cutShort();
+  if (myUavUntil > now) {
+    myUavUntil = 0;
+    const secs = m.lockout || def.lockout;
+    lockStreak("uav", secs, "jammed");
+    showWaveBanner(`UAV SHOT DOWN · NO UAV FOR ${secs}s`, 2200);
+  } else {
+    showWaveBanner("ENEMY COUNTER-UAV · RADAR JAMMED", 1800);
+  }
+}
+
 function startUav(team, duration) {
   if (!team) return;
   const until = performance.now() + duration * 1000;
@@ -1505,6 +1587,8 @@ function startUav(team, duration) {
    than the minimap breaking. */
 let uavWasUp = false;
 function updateUavState() {
+  // Lockout countdowns tick on the HUD (the signature stops redundant rebuilds).
+  if (Object.keys(streakLockUntil).length) updateStreakHud();
   const up = enemiesRevealed();
   if (uavWasUp && !up) showWaveBanner("UAV OFFLINE", 1200);
   uavWasUp = up;
@@ -1821,11 +1905,15 @@ function dealDamageToRemote(rp, damage, weaponId) {
    meter is never touched from the wire. */
 function applyRemoteStreak(m) {
   switch (m.kind) {
+    case "cuav":
+      if (m.action === "start") applyCounterUav(m);
+      break;
+
     case "uav":
       if (m.action === "start") {
         startUav(m.team, m.duration || STREAK_DEFS.uav.duration);
         if (typeof m.x === "number" && typeof m.z === "number") {
-          spawnRecon(m.x, m.z, m.yaw || 0, m.duration || STREAK_DEFS.uav.duration);
+          spawnRecon(m.x, m.z, m.yaw || 0, m.duration || STREAK_DEFS.uav.duration, { team: m.team });
         }
         // Only say so when it's our side's UAV — an enemy one reveals us to
         // them, which is not something we'd be told about.
@@ -3595,6 +3683,9 @@ function drawMinimap() {
     }
   }
 
+  // Jammed by an enemy Counter-UAV: static over everything but ourselves.
+  if (isPvp() && minimapJammed()) drawMinimapStatic(ctx, size);
+
   // us, as an arrow pointing where we're looking
   const [px, pz] = mapToMinimap(move.pos.x, move.pos.z);
   ctx.save();
@@ -3609,6 +3700,25 @@ function drawMinimap() {
   ctx.closePath();
   ctx.fill();
   ctx.restore();
+}
+
+function drawMinimapStatic(ctx, size) {
+  ctx.fillStyle = "rgba(8,10,9,.72)";
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 260; i++) {
+    const v = 90 + ((Math.random() * 150) | 0);
+    ctx.fillStyle = `rgba(${v},${v},${v},${0.25 + Math.random() * 0.4})`;
+    ctx.fillRect((Math.random() * size) | 0, (Math.random() * size) | 0, 2 + ((Math.random() * 5) | 0), 1 + ((Math.random() * 2) | 0));
+  }
+  // A rolling tear band, like a dead feed.
+  const band = ((performance.now() / 9) % (size + 20)) - 10;
+  ctx.fillStyle = "rgba(255,255,255,.12)";
+  ctx.fillRect(0, band, size, 6);
+  ctx.fillStyle = "#ff6b5a";
+  ctx.font = "bold 12px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("JAMMED", size / 2, size / 2 + 4);
+  ctx.textAlign = "start";
 }
 
 // King of the Hill's capture ring — an open cylinder so you can see through it.
@@ -4570,6 +4680,14 @@ function pollGamepad(dt) {
     if (pressedEdge(14)) startCook("tactical");
     if (gpPrev[14] && !btn(14)) releaseCook();
     if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
+    // L3 (click the left stick), held -> emote wheel, the pad's H: the right
+    // stick points at a slice instead of turning the view, let go to play it.
+    if (pressedEdge(10) && gameState === "playing" && player.alive) emoteWheel.open();
+    if (emoteWheel.isOpen && btn(10)) {
+      emoteWheel.aim(gp.axes[2] || 0, gp.axes[3] || 0);
+      gamepadState.lookDX = 0; gamepadState.lookDY = 0;
+    }
+    if (gpPrev[10] && !btn(10)) emoteWheel.close();
     if (pressedEdge(8)) toggleThirdPerson();  // Select/View/Minus -> camera toggle
     // D-pad down cycles which ready streak d-pad right will fire — a pick,
     // not a use, since the pad has a button to spare for it and keyboard's
@@ -4877,17 +4995,18 @@ function updateStreakHud() {
   const slotIds = streakSlotIds();
   const freshId = freshStreak && performance.now() < freshStreak.until ? freshStreak.id : "";
   const signature = `${key}|${onPad || isTouch ? selId : ""}|${markingStreak || ""}|${freshId}|`
-    + slotIds.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}`).join("|");
+    + slotIds.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}:${Math.ceil(streakLockLeft(id))}`).join("|");
   if (els.ssSlots.dataset.sig !== signature) {
     els.ssSlots.dataset.sig = signature;
     els.ssSlots.innerHTML = "";
     slotIds.forEach((id, slot) => {
       const def = STREAK_DEFS[id];
-      const ready = streaks.ready(id);
+      const lock = Math.ceil(streakLockLeft(id));
+      const ready = streaks.ready(id) && !lock;
       const isSelected = (onPad || isTouch) && ready && id === selId;
       const row = document.createElement("div");
       const fresh = ready && freshStreak && freshStreak.id === id && performance.now() < freshStreak.until;
-      row.className = `to-ss-slot${ready ? " is-ready" : ""}${isSelected ? " is-selected" : ""}${id === markingStreak ? " is-marking" : ""}${fresh ? " is-fresh" : ""}`;
+      row.className = `to-ss-slot${ready ? " is-ready" : ""}${lock ? " is-locked" : ""}${isSelected ? " is-selected" : ""}${id === markingStreak ? " is-marking" : ""}${fresh ? " is-fresh" : ""}`;
       // Touch: tap a row to call that streak (the pad and keyboard have keys).
       if (isTouch && ready) {
         row.setAttribute("role", "button");
@@ -4914,10 +5033,11 @@ function updateStreakHud() {
       const nm = document.createElement("b");
       nm.textContent = streakShortName(id);
       const sub = document.createElement("span");
-      sub.textContent = ready ? (isTouch ? "READY · TAP" : `READY · ${onPad ? "→" : streakKeyLabel(id)}`) : `${def.cost}`;
+      sub.textContent = lock ? `${streakLockWhy[id] === "jammed" ? "JAMMED" : "COOLDOWN"} ${lock}s`
+        : ready ? (isTouch ? "READY · TAP" : `READY · ${onPad ? "→" : streakKeyLabel(id)}`) : `${def.cost}`;
       cap.append(nm, sub);
       row.appendChild(cap);
-      row.title = `${def.name}${ready ? " (ready)" : `: ${def.cost}`}`;
+      row.title = `${def.name}${lock ? ` (${streakLockWhy[id] === "jammed" ? "jammed" : "cooldown"}, ${lock}s)` : ready ? " (ready)" : `: ${def.cost}`}`;
       if (!row.hasAttribute("aria-label")) row.setAttribute("aria-label", row.title);
       els.ssSlots.appendChild(row);
     });
@@ -7668,6 +7788,7 @@ function beginMatch(mapId = null) {
   streaks.setSelected(streakPicker.selected);
   uavUntil.phantom = 0;
   uavUntil.ghost = 0;
+  clearStreakLocks();
   killstreakUi.reset();
   recentTeamKillers.clear();
   achievements.reset();
@@ -7895,6 +8016,8 @@ function prepareSndRound() {
   streaks.onRoundEnd();
   uavUntil.phantom = 0;
   uavUntil.ghost = 0;
+  jammedUntil = 0;
+  myUavUntil = 0;
   // A gunship or a crate has no round to belong to once this one ends.
   clearStreakEntities();
   updateStreakHud();
@@ -9541,9 +9664,9 @@ function updatePlayer(dt) {
   const buzz = fireShake.buzz;
   const fpCam = fpEmoteFrame()?.cam;   // a first-person emote's head motion (a laugh, a facepalm)
   const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake + fireShake.y + (Math.random() - 0.5) * buzz
-    + (fpCam?.yaw || 0);
+    + (fpCam?.yaw || 0) + (Math.random() - 0.5) * sawShake;
   const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
-    + fireShake.p + (Math.random() - 0.5) * buzz + (fpCam?.pitch || 0);
+    + fireShake.p + (Math.random() - 0.5) * buzz + (fpCam?.pitch || 0) + (Math.random() - 0.5) * sawShake;
 
   if (royaleSpectating()) {
     localRig.root.visible = false;
@@ -9720,6 +9843,7 @@ const _meleeImpactEuler = new THREE.Euler();
 function updateMeleeView(dt) {
   const mesh = activeMeleeMesh;
   const melee = player.melee;
+  sawShake = 0;
   if (!mesh || !melee) return;
 
   const held = player.holding === "melee";
@@ -9831,16 +9955,73 @@ function updateMeleeView(dt) {
     // applyMeleeInspect. Also lets tossed hands back onto the sword. The
     // Reaper's Grin has its own: shut, flick open, a knife trick.
     if (mesh.userData.kind === "reaper") applyReaperInspect(mesh);
+    else if (mesh.userData.kind === "chainsaw") applySawRev(mesh);
     else applyMeleeInspect(mesh);
   }
-  // The chainsaw's chain idles round, and screams round mid-swing.
-  mesh.userData.tick?.(dt, swinging);
+  // The chainsaw revs: the engine shakes it (and, hard, the screen), the
+  // chain speeds up, the throttle squeezes and the exhaust smokes.
+  let rev = 0;
+  if (mesh.userData.kind === "chainsaw") {
+    if (swinging) {
+      const t = melee.t;
+      rev = chainsawRevAt(t);
+      if (sawPrevT < 0.28 && t >= 0.28) audio.chainsawRip();
+      // Grinding in: sawed back and forth along the bar.
+      if (t > 0.38 && t < 0.64) mesh.translateZ(Math.sin(t * 58) * 0.022 * Math.min(1, (t - 0.38) / 0.05));
+      sawPrevT = t;
+    } else {
+      sawPrevT = 0;
+      rev = sawInspectRev;
+    }
+    const grinding = swinging && melee.t > 0.34 && melee.t < 0.64;
+    const amp = 0.0014 + rev * (grinding ? 0.016 : 0.009);
+    mesh.position.x += (Math.random() - 0.5) * amp;
+    mesh.position.y += (Math.random() - 0.5) * amp;
+    mesh.position.z += (Math.random() - 0.5) * amp * 0.5;
+    sawShake = rev * (grinding ? 0.02 : 0.007);
+  }
+  mesh.userData.tick?.(dt, swinging, rev);
 
   if (saber) updateSaberFx(mesh, saber, swinging, dt);
   if (saberArmsOn) poseSaberArms(mesh);
 }
 const MELEE_IDLE_PERIOD = 3.2;
 const _meleeIdleEuler = new THREE.Euler();
+
+/* Chainsaw rev (admire, T / D-pad up / the touch admire button): brought up
+   in front of the face, bar tipped up, three throttle blips, the last one
+   held, then back down. applySawRev leaves the throttle in sawInspectRev
+   for updateMeleeView's shake, chain and smoke. */
+const SAW_REV_TIME = 1.7;
+const SAW_BLIPS = [[0.1, 0.28], [0.36, 0.52], [0.6, 0.9]];
+let sawRevBlips = 0;
+let sawInspectRev = 0;
+let sawPrevT = 0;
+let sawShake = 0;      // extra screen jitter (radians) while the saw is revving
+const _sawQ = new THREE.Quaternion();
+const _sawE = new THREE.Euler();
+function applySawRev(mesh) {
+  sawInspectRev = 0;
+  if (inspectT <= 0) return;
+  const k = 1 - inspectT / inspectDur;
+  const lift = smooth01(Math.min(1, k / 0.12)) * (1 - smooth01(Math.max(0, (k - 0.9) / 0.1)));
+  for (let i = 0; i < SAW_BLIPS.length; i++) {
+    const [a, b] = SAW_BLIPS[i];
+    if (k >= a && k < b) {
+      const u = (k - a) / (b - a);
+      sawInspectRev = Math.max(sawInspectRev, Math.min(1, u * 6) * (i === SAW_BLIPS.length - 1 ? 1 : 1 - u * 0.4));
+      if (sawRevBlips <= i) { sawRevBlips = i + 1; i === SAW_BLIPS.length - 1 ? audio.chainsawRip() : audio.chainsawRev(); }
+    }
+  }
+  sawInspectRev = Math.max(sawInspectRev, lift * 0.12);
+  mesh.position.x -= 0.1 * lift;
+  mesh.position.y += 0.1 * lift;
+  mesh.position.z += 0.06 * lift;
+  // bar tipped up toward the sky, a little toward the middle; it bucks on each blip
+  _sawQ.setFromEuler(_sawE.set((0.42 + sawInspectRev * 0.06) * lift, 0.26 * lift, 0.18 * lift));
+  mesh.quaternion.premultiply(_sawQ);
+}
+function smooth01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
 
 /* Streak device viewmodel (DESIGN-ARMS.md Phase 5). Simple raise/steady/
    lower — no swing state to fight over the pose the way melee has, so this
@@ -9910,7 +10091,7 @@ function updateStreakView(dt) {
   // Tablet: rises from low with both hands, screen tipping up to the eye,
   // then settles with a slight idle drift. A UAV/gunship call gets a right-
   // thumb press on CONFIRM and the page flips; the strike tablet just holds.
-  const calling = ["uav", "gunship", "k9", "warship", "swarm"].includes(streakScreen);
+  const calling = ["uav", "counteruav", "gunship", "k9", "warship", "swarm"].includes(streakScreen);
   const pk = calling ? (streakHoldElapsed - TABLET_PRESS_AT) / 0.22 : -1;
   const press = pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0;
   const confirmed = calling && pk >= 0.5;
@@ -9950,6 +10131,16 @@ const streakArms = (() => {
     root.add(hand, wrist, cuff, sleeve);
     arms.push({ hand, wrist, cuff, sleeve, free: false, attached: false, vel: new THREE.Vector3() });
   }
+  // Gloves off: the Phantom Forces black rods (see pfArms), tip on the grip.
+  const rodMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+  for (const arm of arms) {
+    const g = new THREE.CylinderGeometry(0.013, 0.034, 1, 10);
+    g.translate(0, 0.5, 0);
+    arm.rod = new THREE.Mesh(g, rodMat);
+    arm.rod.renderOrder = -1;
+    arm.rod.visible = false;
+    root.add(arm.rod);
+  }
   root.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
   root.userData.arms = arms;
   return root;
@@ -9985,7 +10176,10 @@ function dressStreakArm(arm, i, show, pose, thumb = 0) {
   return true;
 }
 
-function hideStreakArms() { streakArms.visible = false; }
+function hideStreakArms() {
+  streakArms.visible = false;
+  for (const arm of streakArms.userData.arms) arm.rod.visible = false;
+}
 
 /* New hold: both hands start attached again. */
 function resetStreakArms() {
@@ -10028,10 +10222,29 @@ function poseStreakArms(mesh, style, dt, tap) {
       show = false;
     }
     arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = show;
+    arm.rod.visible = false;
     const pose = arm.free ? "relaxed" : HAND_GRIPS[style]?.pose || "relaxed";
     if (dressStreakArm(arm, i, show, pose, i === 0 ? tap : 0) || !show) continue;
-    layStreakArm(arm, i);
+    // Gloves off is the PF look everywhere: no hands, the rod's tip holds it.
+    // (The white hand stays posed, invisibly, as the grip point.)
+    arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = false;
+    arm.rod.visible = true;
+    stretchBetween(arm.rod, STREAK_SHOULDER[i], streakRodTip(arm, anchor, style, i));
   }
+}
+
+/* Where a gloves-off rod ends. On the tablet the palm centre sits outside
+   the edge, so the rod goes to the edge itself, low on the side; elsewhere
+   (and once a hand has let go) the placed hand is the spot. */
+const STREAK_ROD_TIP = { side: new THREE.Vector3(0.006, -0.05, -0.004) };
+const _rodTip = new THREE.Vector3();
+const _rodQ = new THREE.Quaternion();
+function streakRodTip(arm, anchor, style, i) {
+  const off = STREAK_ROD_TIP[style];
+  if (!off || !anchor || arm.free) return arm.hand.position;
+  anchor.getWorldPosition(_rodTip);
+  anchor.getWorldQuaternion(_rodQ);
+  return _rodTip.add(_armDir.set(off.x * (i === 0 ? 1 : -1), off.y, off.z).applyQuaternion(_rodQ));
 }
 
 /* hand -> wrist -> cuff -> sleeve, all along the line to the shoulder. */
@@ -10072,6 +10285,7 @@ function updateFpEmoteView() {
   const arms = streakArms.userData.arms;
   ["R", "L"].forEach((k, i) => {
     const arm = arms[i], h = f[k];
+    arm.rod.visible = false;
     arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = !!h;
     if (!h) { dressStreakArm(arm, i, false); return; }
     arm.hand.position.set(h.pos[0], h.pos[1], h.pos[2]);
@@ -10150,12 +10364,14 @@ function startInspect() {
     inspectDur = isLongGunInspect(w) ? GUN_INSPECT_TIME : SIDEARM_INSPECT_TIME;
   } else if (player.holding === "melee") {
     if (!player.melee || player.melee.busy) return;
-    inspectDur = MELEE_INSPECT_TIME;
+    inspectDur = player.melee.chainsaw ? SAW_REV_TIME : MELEE_INSPECT_TIME;
   } else {
     return;
   }
   inspectT = inspectDur;
-  audio.reload();     // the same handling clicks, which is what an inspect is
+  sawRevBlips = 0;
+  // Admiring the chainsaw revs it instead (applySawRev plays the blips).
+  if (player.holding !== "melee" || !player.melee.chainsaw) audio.reload();     // the same handling clicks, which is what an inspect is
 }
 
 function updateInspect(dt) {
@@ -11332,6 +11548,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     cycleSelectedStreak, useSelectedStreak, selectedStreak: () => selectedStreak,
     readyStreaksOrdered, streakSlotIds, callStreakSlot, warmShaders, lightPool, pixelRatio: () => pixelRatio,
     updateStreakHud, enemiesRevealed, uavBucket, uavUntil, drawMinimap,
+    streakLockLeft, minimapJammed, applyCounterUav, flyovers, STREAK_DEFS,
     lastHitRange: () => lastHitRange,
     streakEntities, pendingStrikes, flyovers, strikeTablet: () => strikeTablet, openStrikeTablet, throwMarker, HunterDroneClass: HunterDrone, droneWorld, raycastWorld, groundHeightAt,
     markingStreak: () => markingStreak, confirmMark, cancelMark, updateMarking,
@@ -11347,7 +11564,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     isStaging: () => isStaging(),
     gloves: () => gloves, gloveRig: () => gloveRig, weaponRig: () => weaponRig,
     candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
-    meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT,
+    meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT, sawShake: () => sawShake, sawInspectRev: () => sawInspectRev,
     targetMeshes: () => targetMeshes, meleeConnect,
     saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT }),
     DROP, royaleDropView, inSkyLobby, startRoyaleBus,

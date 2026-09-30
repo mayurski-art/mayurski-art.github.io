@@ -2752,6 +2752,10 @@ body.to-touch-play .to-touch-admire svg { width: calc(20px * var(--k)); height: 
 .to-ss-cap span { font: 500 9.5px/1.2 "DM Mono", monospace; color: #9aa596; }
 .to-ss-slot.is-ready .to-ss-cap span { color: #9dff7a; }
 .to-ss-slot:not(.is-ready) .to-ss-cap b { color: #b7bfb2; }
+/* Earned but locked out: the gunship cooldown, or a UAV an enemy
+   Counter-UAV shot down. Amber rim and a countdown under the name. */
+.to-ss-slot.is-locked { border-color: rgba(255,176,58,.6); }
+.to-ss-slot.is-locked .to-ss-cap span { color: #ffb03a; }
 /* The READY tag of a fresh care-package streak sits over the picture now. */
 .to-ss-slot.is-fresh::after { bottom: auto; top: 44px; }
 body.to-touch-play .to-ss-slot { width: calc(70px * var(--k)); height: auto; padding: calc(3px * var(--k)); }

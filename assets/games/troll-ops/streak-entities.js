@@ -851,10 +851,11 @@ export class HunterDrone {
 const RECON_ENTER = 5;
 const RECON_EXIT = 5;
 export class ReconPlane {
-  constructor({ bounds, yaw = 0, duration = 25 }) {
+  constructor({ bounds, yaw = 0, duration = 25, counter = false }) {
     this.age = 0;
     this.done = false;
     this.duration = duration;
+    this.counter = counter;   // a Counter-UAV: the same plane in red jammer livery
     const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
     this.centre = { x: cx, z: cz };
     this.radius = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) * 0.45 + 12;
@@ -868,6 +869,17 @@ export class ReconPlane {
 
     loadModel("recon-drone").then((obj) => {
       if (this.dead) return;
+      if (this.counter) {
+        // Own materials (the model's are shared with every UAV), greys
+        // pushed to a dark jammer red.
+        obj.traverse((o) => {
+          if (!o.isMesh || !o.material?.color) return;
+          o.material = o.material.clone();
+          const hsl = {};
+          o.material.color.getHSL(hsl);
+          if (hsl.s < 0.2) o.material.color.setHSL(0.99, 0.55, Math.min(0.32, 0.1 + hsl.l * 0.4));
+        });
+      }
       this.root.add(obj);
       this.prop = obj.getObjectByName("ReconProp") || null;
     });
@@ -900,6 +912,11 @@ export class ReconPlane {
     // Banked into the orbit, levelling out to leave.
     const onOrbit = this.age > RECON_ENTER * 0.6 && this.age < this.duration;
     this.root.rotation.z += ((onOrbit ? this.dir * 0.28 : 0) - this.root.rotation.z) * 0.05;
+  }
+
+  /* Shot down by a Counter-UAV: leave now, the same peel-off as expiring. */
+  cutShort() {
+    this.duration = Math.min(this.duration, Math.max(this.age, RECON_ENTER));
   }
 
   update(dt) {

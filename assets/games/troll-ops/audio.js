@@ -376,6 +376,14 @@ export class GameAudio {
     this._noise({ duration: 0.4, gain: 0.1, type: "bandpass", freq: 700, q: 1.4, sweepTo: 1500, at });
   }
 
+  // The engine pinned as the saw goes in: a higher, ragged scream.
+  chainsawRip(at = null) {
+    if (!this._ready()) return;
+    this._tone({ freq: 130, to: 240, duration: 0.5, gain: 0.15, type: "sawtooth", at });
+    this._tone({ freq: 262, to: 470, duration: 0.45, gain: 0.06, type: "square", delay: 0.03, at });
+    this._noise({ duration: 0.5, gain: 0.12, type: "bandpass", freq: 1300, q: 1.2, sweepTo: 2600, at });
+  }
+
   chainsawHit(at = null) {
     if (!this._ready()) return;
     this._tone({ freq: 150, to: 90, duration: 0.35, gain: 0.18, type: "sawtooth", at });

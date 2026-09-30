@@ -169,9 +169,10 @@ export function buildHumanHand(side = 1, mats = handMaterials()) {
 export const HAND_POSES = {
   relaxed: { curl: [[0.25, 0.3, 0.2], [0.28, 0.32, 0.2], [0.3, 0.35, 0.22], [0.35, 0.4, 0.25]], spread: 0.06, thumb: [0.55, 0.3, 0.15, 0.15] },
   fist: { curl: [[1.45, 1.55, 1.0], [1.5, 1.6, 1.0], [1.5, 1.6, 1.0], [1.45, 1.55, 1.0]], spread: 0, thumb: [0.25, 0.9, 0.5, 0.4] },
-  // Round a tablet edge from behind: fingers hook over the edge so the tips
-  // rest on the front bezel (where you can see them), thumb stays behind.
-  grip: { curl: [[0.95, 1.35, 0.7], [0.95, 1.4, 0.7], [0.95, 1.4, 0.7], [1.0, 1.4, 0.75]], spread: 0.02, thumb: [0.05, 1.15, 0.35, 0.3], press: "index" },
+  // Hold a tablet by its side: fingers wrap round behind it, the thumb lies
+  // in across the front bezel (how you really carry one; the thumb is what
+  // taps CONFIRM).
+  grip: { curl: [[1.2, 1.2, 0.6], [1.2, 1.2, 0.6], [1.2, 1.2, 0.6], [1.2, 1.2, 0.6]], spread: 0.02, thumb: [0.7, 0.7, 0.3, 0.2] },
   // Palm up under the drone, fingers lightly curled up its sides.
   cup: { curl: [[0.55, 0.45, 0.25], [0.55, 0.45, 0.25], [0.6, 0.45, 0.25], [0.65, 0.5, 0.3]], spread: 0.1, thumb: [0.7, 0.2, 0.25, 0.2] },
 };
@@ -307,9 +308,9 @@ export function buildSupportHand(scale = 1) {
    fingers point this way, the palm faces that way" because that's how you
    reason about a grip; placeHand() turns it into a rotation. */
 export const HAND_GRIPS = {
-  // Tablet edge: palm on the back near the edge, fingers hooked round the
-  // edge with their tips on the front bezel.
-  side: { pose: "grip", finger: [1, 0.9, 0], palm: [0, 0, 1], pos: [-0.03, -0.03, -0.024] },
+  // Tablet edge, low on the side: palm against the edge, fingers up and
+  // round the back, thumb across the front bezel.
+  side: { pose: "grip", finger: [0, 0.7, -0.7], palm: [-1, 0, 0], pos: [0.035, -0.07, -0.02] },
   // Drone: palm up under the body, fingers forward and a little out.
   cup: { pose: "cup", finger: [0.3, 0.15, -1], palm: [0, 1, 0], pos: [0.0, -0.014, 0.022] },
   // Marker: a fist round the upright can from behind, thumb on top.

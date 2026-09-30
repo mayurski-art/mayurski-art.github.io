@@ -13,8 +13,8 @@
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import { smoothstep } from "./anim-curves.js";
-import { buildTrollsaber } from "./trollsaber.js?v=ts1";
-import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw1";
+import { buildTrollsaber } from "./trollsaber.js?v=ts2";
+import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw2";
 
 export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where you look
 const GRAVITY = GRENADE_GRAVITY;
@@ -61,8 +61,9 @@ export const MELEE_DEFS = {
   chainsaw: {
     id: "chainsaw", name: "Chainsaw", rank: 45,
     damage: 160, backstabMult: 1.5, range: 3.6, arc: 0.8, knock: 7.5,
-    blurb: "Groovy. Revs on every swing, and nobody stands back up.",
-    model: { kind: "chainsaw", view: { pos: [0.0, 0.0, 0.08], rot: [-1.3, 0.08, 0], scale: 0.85 } },
+    blurb: "Groovy. Revs on every swing, and nobody stands back up. Admire it to rev it.",
+    // Framing lives in CHAINSAW_REST / its own swing tracks below.
+    model: { kind: "chainsaw", view: { scale: 0.85 } },
   },
 };
 
@@ -229,6 +230,55 @@ export const SABER_BLOCK = {
   quat: saberBasis(new THREE.Vector3(-0.86, 0.42, -0.30), -10),
 };
 
+/* ---- Chainsaw: rev it, then rip ---------------------------------------
+   Rest is the saw carried low right, bar up and out. Every swing opens
+   with a rev-up: pulled in close to the face, bar raised, the engine
+   screaming (game.js shakes the saw and the screen off chainsawRevAt).
+   Then it alternates an overhead plunge that grinds in, and a gutting
+   sweep right to left. Keys: [t, grip offset (camera space), rotation
+   offset (camera-space Euler, radians)] on top of the rest pose. */
+const CS_REST_POS = REST_POS.clone().add(V(0, 0, 0.08));
+const CS_REST_QUAT = REST_QUAT.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.3, 0.08, 0)));
+export const CHAINSAW_REST = { pos: CS_REST_POS, quat: CS_REST_QUAT };
+function csTrack(length, keys) {
+  const posKeys = [], quatKeys = [];
+  for (const [t, off, rot] of keys) {
+    posKeys.push({ t, v: CS_REST_POS.clone().add(off) });
+    quatKeys.push({ t, q: new THREE.Quaternion().setFromEuler(new THREE.Euler(rot[0], rot[1], rot[2])).multiply(CS_REST_QUAT) });
+  }
+  return { length, posKeys, quatKeys };
+}
+const CS_PLUNGE = csTrack(0.86, [
+  [0.00, V(0, 0, 0), [0, 0, 0]],
+  [0.10, V(-0.13, 0.12, 0.12), [0.35, 0.3, 0.25]],       // hauled up by the face, revving
+  [0.27, V(-0.15, 0.15, 0.1), [0.45, 0.34, 0.28]],       // held there, screaming
+  [0.36, V(-0.2, 0.24, -0.08), [-0.62, 0.2, 0.05]],      // driven down into them from above
+  [0.63, V(-0.2, 0.2, -0.07), [-0.68, 0.16, 0.05]],      // grinding in (game.js saws it)
+  [0.75, V(-0.04, 0.09, 0.04), [0.3, 0.12, 0.1]],        // ripped back out
+  [0.86, V(0, 0, 0), [0, 0, 0]],
+]);
+const CS_SWEEP = csTrack(0.86, [
+  [0.00, V(0, 0, 0), [0, 0, 0]],
+  [0.10, V(-0.08, 0.06, 0.06), [0.1, -0.3, -0.2]],       // cocked back right, revving
+  [0.27, V(-0.07, 0.08, 0.05), [0.14, -0.36, -0.24]],
+  [0.36, V(-0.1, 0.0, -0.26), [-0.28, 0.5, -1.15]],      // bar level, ripping across
+  [0.48, V(-0.22, 0.12, -0.1), [-0.22, 0.85, -1.3]],     // on through, left
+  [0.63, V(-0.2, 0.11, -0.08), [-0.2, 0.78, -1.2]],
+  [0.75, V(-0.06, 0.02, 0.02), [0.05, 0.2, -0.3]],
+  [0.86, V(0, 0, 0), [0, 0, 0]],
+]);
+const CS_WINDOW = { open: 0.34, close: 0.46 };
+
+/* 0..1: how hard the engine is revving `t` seconds into a swing. Up over
+   the wind-up, pinned through the cut and the grind, off as it comes out. */
+export function chainsawRevAt(t) {
+  if (t <= 0) return 0;
+  if (t < 0.24) return smoothstep(t / 0.24);
+  if (t < 0.63) return 1;
+  if (t < 0.8) return 1 - (t - 0.63) / 0.17;
+  return 0;
+}
+
 /* Smoothstep-eased lerp across whichever pair of keys straddle `t` — the
    reference uses cubic interpolation; smoothstep between adjacent keys
    reads the same for tracks this short and needs no spline library. */
@@ -259,12 +309,15 @@ export class MeleeState {
   }
 
   get saber() { return this.def?.model?.kind === "saber"; }
+  get chainsaw() { return this.def?.model?.kind === "chainsaw"; }
   get track() {
     if (this.saber) return this.swingIndex % 2 === 0 ? SABER_CUT : SABER_RISE;
+    if (this.chainsaw) return this.swingIndex % 2 === 0 ? CS_PLUNGE : CS_SWEEP;
     return this.swingIndex % 2 === 0 ? SWING_TRACK : THRUST_TRACK;
   }
   get window() {
     if (this.saber) return this.swingIndex % 2 === 0 ? SABER_CUT_WINDOW : SABER_RISE_WINDOW;
+    if (this.chainsaw) return CS_WINDOW;
     return this.swingIndex % 2 === 0 ? SWING_WINDOW : THRUST_WINDOW;
   }
   get total() { return this.track.length; }
@@ -293,7 +346,7 @@ export class MeleeState {
 
   /* Grip position + orientation for the view model this frame. */
   pose() {
-    if (this.t <= 0) return this.saber ? SABER_REST : { pos: REST_POS, quat: REST_QUAT };
+    if (this.t <= 0) return this.saber ? SABER_REST : this.chainsaw ? CHAINSAW_REST : { pos: REST_POS, quat: REST_QUAT };
     return sampleTrack(this.track, Math.min(this.t, this.total));
   }
 

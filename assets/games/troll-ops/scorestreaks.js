@@ -37,6 +37,18 @@ export const STREAK_DEFS = {
     duration: 25,
     blurb: "Enemy positions on your minimap for 25 seconds. Your whole team sees it.",
   },
+  counteruav: {
+    id: "counteruav",
+    badge: "silver",
+    name: "Counter-UAV",
+    short: "Counter-UAV",
+    icon: "counteruav",
+    cost: 250,
+    rank: 3,
+    duration: 30,      // the enemy minimap is jammed this long
+    lockout: 45,       // whoever had an enemy UAV up can't call another this long
+    blurb: "Jams the enemy minimap for 30 seconds and knocks their UAV out of the sky. Whoever called it can't call another UAV for 45 seconds.",
+  },
   carepackage: {
     id: "carepackage",
     badge: "silver",   // BO2 tiers: silver, gold, then red for the top streak
@@ -84,7 +96,8 @@ export const STREAK_DEFS = {
     cost: 700,
     rank: 30,
     duration: 45,
-    blurb: "A gunship on station for 45 seconds, picking off whatever it can see.",
+    cooldown: 90,      // seconds before you can call another (user: it was overpowered)
+    blurb: "A gunship on station for 45 seconds, picking off whatever it can see. 90 second cooldown before the next one.",
   },
   warship: {
     id: "warship",
@@ -114,7 +127,7 @@ export const LOADOUT_SIZE = 3;
 
 /* Every streak above the first tier hands out rewards from the care package,
    so the roll needs a pool that can't hand out another care package. */
-export const PACKAGE_STREAK_POOL = ["uav", "drone", "airstrike"];
+export const PACKAGE_STREAK_POOL = ["uav", "counteruav", "drone", "airstrike"];
 
 export function streakUnlocked(id) {
   const def = STREAK_DEFS[id];
@@ -127,6 +140,7 @@ export function streakUnlocked(id) {
    throughout so the existing ready/selected CSS states just work. */
 const STREAK_ICON_PATHS = {
   uav: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/><circle cx="12" cy="12" r="7.5" fill="none"/>',
+  counteruav: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.5" fill="none"/><path d="M3 3l18 18M12 2v3M2 12h3" stroke-linecap="round" fill="none" stroke-width="2"/>',
   carepackage: '<rect x="4" y="10" width="16" height="10" rx="1"/><path d="M4 14h16M12 10v10" stroke="#0d1410" stroke-width="1"/><path d="M12 2v8M7 5l5-3 5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   drone: '<path d="M12 8l7-4M12 8l-7-4M12 16l7 4M12 16l-7 4" stroke-linecap="round" fill="none"/><circle cx="19" cy="4" r="2.4"/><circle cx="5" cy="4" r="2.4"/><circle cx="19" cy="20" r="2.4"/><circle cx="5" cy="20" r="2.4"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/>',
   airstrike: '<path d="M12 1v10" stroke-linecap="round" fill="none"/><path d="M12 11l-3.5 8h7L12 11z"/><path d="M8 15l-4 1.5M16 15l4 1.5" fill="none" stroke-linecap="round"/>',

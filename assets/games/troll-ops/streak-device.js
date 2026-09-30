@@ -106,7 +106,7 @@ export function drawTabletScreen(device, mode, t, confirmed) {
   g.fillStyle = green;
   g.font = "bold 15px monospace";
   g.textBaseline = "top";
-  const TITLES = { uav: "UAV // RECON", gunship: "GUNSHIP // AIR SUPPORT", strike: "LIGHTNING STRIKE",
+  const TITLES = { uav: "UAV // RECON", counteruav: "COUNTER-UAV // JAMMER", gunship: "GUNSHIP // AIR SUPPORT", strike: "LIGHTNING STRIKE",
     k9: "K9 UNIT // RELEASE", warship: "VTOL WARSHIP // GUNNER", swarm: "SWARM // HK DRONES" };
   const title = TITLES[mode] || "STREAK LINK";
   g.fillText(title, 24, 10);
@@ -130,6 +130,21 @@ export function drawTabletScreen(device, mode, t, confirmed) {
     for (const [bx, by, ph] of [[-30, -18, 0.2], [38, 10, 1.1], [12, 40, 2.3]]) {
       if ((t + ph) % 1.4 < 0.9) { g.beginPath(); g.arc(cx + bx, cy + by, 4, 0, Math.PI * 2); g.fill(); }
     }
+  } else if (mode === "counteruav") {
+    // Radar rings drowned in static, a red jamming burst pulsing out.
+    g.strokeStyle = "rgba(109,255,74,.35)";
+    for (const r of [22, 44, 66]) { g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke(); }
+    for (let i = 0; i < 90; i++) {
+      g.fillStyle = `rgba(160,255,140,${Math.random() * 0.5})`;
+      g.fillRect(cx - 80 + Math.random() * 160, cy - 60 + Math.random() * 120, 3 + Math.random() * 6, 1);
+    }
+    g.strokeStyle = "#ff5a3a";
+    g.lineWidth = 3;
+    const r = 10 + ((t * 70) % 60);
+    g.globalAlpha = 1 - r / 70;
+    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+    g.globalAlpha = 1;
+    g.lineWidth = 1;
   } else if (mode === "gunship") {
     // Helicopter silhouette, then CONFIRMED + an inbound bar.
     g.save();
@@ -184,7 +199,7 @@ export function drawTabletScreen(device, mode, t, confirmed) {
 
   // Footer: the call's state.
   g.font = "bold 16px monospace";
-  const CONFIRMED = { uav: "UAV ONLINE", gunship: "CONFIRMED — INBOUND", k9: "DOGS RELEASED", warship: "CONFIRMED — BOARDING", swarm: "SWARM INBOUND" };
+  const CONFIRMED = { uav: "UAV ONLINE", counteruav: "JAMMING ENEMY", gunship: "CONFIRMED — INBOUND", k9: "DOGS RELEASED", warship: "CONFIRMED — BOARDING", swarm: "SWARM INBOUND" };
   if (CONFIRMED[mode]) {
     if (confirmed) {
       g.fillStyle = "rgba(109,255,74,.22)";

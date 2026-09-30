@@ -21,6 +21,8 @@ SAMPLES = int(os.environ.get("ICON_SAMPLES", "64"))
 # streak id -> (model, view direction from the model's centre, lens)
 STREAKS = {
     "uav":         ("recon-drone.glb", (1.0, -1.25, 0.95), 70),
+    # the same plane in dark jammer red (FINISH below), seen from the other side
+    "counteruav":  ("recon-drone.glb", (-1.0, -1.25, 0.95), 70),
     "carepackage": ("care-package.glb", (1.0, -1.35, 0.85), 70),
     "drone":       ("hunter-drone.glb", (1.0, -1.25, 0.95), 70),
     "airstrike":   ("strike-jet.glb", (1.2, -1.0, 0.75), 70),
@@ -33,6 +35,8 @@ STREAKS = {
 # Nose is +Y in these two (the older models face -Y), hence the flipped views.
 # ICON_ONLY=k9,warship renders just those.
 ONLY = [s for s in os.environ.get("ICON_ONLY", "").split(",") if s]
+# Hull colour the neutral greys become: olive drab by default.
+FINISH = {"counteruav": (0.34, 0.07, 0.06)}
 SWARM_OFFSETS = [(0, 0, 0.3), (0.55, 0.45, -0.2), (-0.35, -0.55, -0.35)]
 
 
@@ -73,7 +77,8 @@ def render(streak, model, view, lens):
         h, l, sat = colorsys.rgb_to_hls(r, g, bl)
         if sat < 0.18:
             k = 0.35 + 0.65 * min(1.0, l * 1.6)
-            b.inputs["Base Color"].default_value = (0.20 * k, 0.225 * k, 0.17 * k, a)
+            fr, fg, fb = FINISH.get(streak, (0.20, 0.225, 0.17))
+            b.inputs["Base Color"].default_value = (fr * k, fg * k, fb * k, a)
             b.inputs["Metallic"].default_value = 0.45
             b.inputs["Roughness"].default_value = 0.42
 

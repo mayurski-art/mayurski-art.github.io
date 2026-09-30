@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { HAND_POSES } from "./hand-model.js";
+import { HAND_POSES } from "./hand-model.js?v=to-grip2";
 
 const URL_GLB = new URL("./models/gloves.glb?v=gl3", import.meta.url).href;
 let bufferP = null;

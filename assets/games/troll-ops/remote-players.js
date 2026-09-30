@@ -10,7 +10,7 @@ import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mo
 import { poseEmoteCode } from "./emotes.js?v=to-emotes1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
-import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=hw1";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=hw2";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const RENDER_DELAY = 110; // ms

@@ -2,11 +2,49 @@
 
 ## RESUME HERE (2026-09-29, end of session) — read this first
 Everything below is pushed to main and live (`troll-ops.html` loads
-`game.js?v=to-sw1`). Worktree: `to-opus-wt`, branch `game-improvements`;
+`game.js?v=to-cuav1`). Worktree: `to-opus-wt`, branch `game-improvements`;
 push = `git push origin game-improvements:main`, then `git pull --ff-only`
 in the main checkout, then curl the live `?v=` tag.
 
 ### Shipped this session (newest first)
+- **Batch of six fixes (user list, 2026-09-29 evening)**. Test:
+  `tools/troll-ops-cuav-cooldown-test.mjs` (19 checks); streaks-bo2,
+  trollsaber and emote suites still green.
+  - **Tablet hands**: hand-model.js `HAND_GRIPS.side` + `HAND_POSES.grip`
+    now hold the tablet by its sides, fingers round the back, thumbs on the
+    front bezel (the thumb taps CONFIRM). User: "we're not using white
+    hands": the two live looks are Settings > Gloves ON (tactical gloves) and
+    OFF (PF black rods). Streak devices with gloves off now use rods
+    (`arm.rod` in streakArms, tip = STREAK_ROD_TIP on the tablet edge), never
+    the white hands. The first-person EMOTES still use white hands with
+    gloves off (rods can't gesture): not changed, ask the user.
+    glove-model.js now imports hand-model.js with the same ?v tag as game.js
+    (one module instance: the gloves also get the emote finger poses now).
+    Glove poses are cached by pose NAME (poseGlove key): a runtime tweak to a
+    pose's numbers doesn't re-bake unless the name changes.
+  - **Pad emote wheel**: hold L3, right stick points (EmoteWheel.aim), let go
+    to play. Every other pad button was taken.
+  - **Gunship cooldown 90 s** from the call (STREAK_DEFS.helicopter.cooldown).
+    Generic lockouts: game.js `streakLockUntil` / `lockStreak(id, s, why)`;
+    a locked streak keeps its charge, the HUD slot shows COOLDOWN/JAMMED Ns
+    (`.is-locked`), readyStreaksOrdered skips locked ids.
+  - **Counter-UAV** (250, LV 3, silver): my reading of the ask: an enemy
+    Counter-UAV jams your minimap 30 s (static + JAMMED), knocks your side's
+    UAV down (its plane peels off), and whoever called that UAV
+    (`myUavUntil`) can't call UAV for 45 s. Wire msg kind "cuav".
+    Jammer plane = recon-drone in red (ReconPlane `counter`); HUD picture
+    rendered with render_streak_icons (FINISH tint). In the care package pool.
+  - **Saber black rectangle**: it was the menu/loadout preview (transparent
+    canvas): the beam and trail shaders wrote alpha 1 over their whole quad.
+    Now alpha = brightness with premultipliedAlpha additive (same look in game).
+  - **Chainsaw**: own swing tracks in gear.js (CS_PLUNGE overhead drive +
+    grind, CS_SWEEP gutting sweep; rev-up first, hit at 0.34 s, 0.86 s total),
+    `chainsawRevAt` drives engine vibration, screen shake (`sawShake`),
+    chain speed, the new `CS_Throttle` trigger node and exhaust smoke from
+    `CS_Exhaust` (build_halloween_melee.blender.py, chainsaw.glb?v=hw2).
+    Admire (T / D-pad up / touch) on the chainsaw = rev it (applySawRev, three
+    blips). Sounds: chainsawRev + new chainsawRip. The old block grip hand
+    (white stub on the rear handle) still shows on it: pre-existing.
 - **K9 Unit (550, LV 25), VTOL Warship (850, LV 35), Swarm (1000, LV 48)**,
   the BO2 top tier. Models: `models/build_streaks2.blender.py` -> `k9-dog.glb`
   (German shepherd in a vest; K9_Head/Jaw/Tail/Leg*_Lo nodes posed in

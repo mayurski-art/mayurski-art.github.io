@@ -3,6 +3,7 @@
 // Hold H in a match: a radial wheel opens over the crosshair. With the mouse
 // locked, the look movement steers a pointer round the wheel (the view holds
 // still while it's open); letting go of H plays whichever slice it points at.
+// On a controller it's L3 held, the right stick points, let go to play.
 // Unlocked (touch, or a paused cursor) the slices are plain buttons.
 //
 // The emotes live in emotes.js. Each slice is tagged by kind: 1P (first
@@ -89,6 +90,18 @@ export class EmoteWheel {
   move(dx, dy) {
     this.dx = Math.max(-160, Math.min(160, this.dx + dx));
     this.dy = Math.max(-160, Math.min(160, this.dy + dy));
+    this.pickFromPointer();
+  }
+
+  /* A controller stick points straight at a slice (-1..1 each axis); back
+     in the middle, nothing is picked. */
+  aim(x, y) {
+    this.dx = x * 160;
+    this.dy = y * 160;
+    this.pickFromPointer();
+  }
+
+  pickFromPointer() {
     if (Math.hypot(this.dx, this.dy) < DEADZONE) { this.pick = -1; this.paint(); return; }
     const n = EMOTES.length;
     const a = Math.atan2(this.dx, -this.dy);   // 0 at the top, clockwise
