@@ -9,19 +9,21 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
-import { WeaponInspector } from "./inspector.js?v=hw1";
+import { WeaponInspector } from "./inspector.js?v=sw1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl3";
 import { CharacterInspector } from "./char-inspector.js?v=gm1";
 import { Loadout } from "./loadout.js?v=hw1";
-import { StreakPicker } from "./streak-picker.js?v=bd1";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=bd1";
+import { StreakPicker } from "./streak-picker.js?v=sw1";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=sw1";
+import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
+  VtolWarship, WARSHIP_GUNS,
   PKG_CRUSH_RADIUS,
   DRONE_DAMAGE, DRONE_SPLASH_RADIUS,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE,
-} from "./streak-entities.js";
+} from "./streak-entities.js?v=sw1";
 import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
 import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
@@ -41,13 +43,13 @@ import {
 } from "./modes.js?v=tr3";
 import { BotManager } from "./bots.js?v=to-rd1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
-import { GameAudio } from "./audio.js?v=hw1";
+import { GameAudio } from "./audio.js?v=sw1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=ti1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
-import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-s12d-arms";
+import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=sw1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-s12e-hands";
 import { FlowField } from "./nav.js?v=ti1";
 import { ZombieDirector } from "./zombies.js";
@@ -467,6 +469,9 @@ function clearStreakEntities() {
   markingStreak = null;
   selectedStreak = null;
   pendingDroneLaunch = null;
+  swarmRuns.length = 0;
+  warship = null;
+  syncWarshipView();
   droneFields.clear();   // built against this map's colliders
   if (streakHoldActive()) endStreakHold(true);
   if (els.streakMark) els.streakMark.hidden = true;
@@ -788,6 +793,41 @@ function fireStreak(id, at = null) {
       achievements.award("gunship");
       break;
     }
+
+    case "k9": {
+      const eid = `streak-k9-${net.id}-${Math.round(performance.now())}`;
+      spawnK9({ id: eid, owned: true, team: net.team, ownerId: net.id, x: move.pos.x, y: move.pos.y, z: move.pos.z, yaw: look.yaw });
+      if (net.active) {
+        net.publishStreak({ kind: "k9", action: "spawn", eid, team: net.team,
+          x: round2(move.pos.x), y: round2(move.pos.y), z: round2(move.pos.z), yaw: round2(look.yaw) });
+        net.publishStreak({ kind: "callout", label: "K9 UNIT", who: net.name });
+      }
+      showWaveBanner("K9 UNIT RELEASED", 1800);
+      beginStreakHold(1.2, "tablet", "k9");
+      break;
+    }
+
+    case "warship": {
+      const eid = `streak-vtol-${net.id}-${Math.round(performance.now())}`;
+      const seed = Math.floor(Math.random() * 360);
+      warship = spawnWarship({ id: eid, seed, owned: true, team: net.team });
+      warshipGun = "chain";
+      if (net.active) {
+        net.publishStreak({ kind: "warship", action: "spawn", eid, seed, team: net.team });
+        net.publishStreak({ kind: "callout", label: "VTOL WARSHIP", who: net.name });
+      }
+      showWaveBanner("VTOL WARSHIP INBOUND", 1400);
+      beginStreakHold(WARSHIP_BOARD_AT, "tablet", "warship");
+      break;
+    }
+
+    case "swarm": {
+      swarmRuns.push({ t: 0, next: 1.4, sent: 0 });
+      if (net.active) net.publishStreak({ kind: "callout", label: "SWARM", who: net.name });
+      showWaveBanner("SWARM INBOUND", 2000);
+      beginStreakHold(1.4, "tablet", "swarm");
+      break;
+    }
   }
 }
 
@@ -873,11 +913,11 @@ function launchPendingDrone() {
   audio.throwGear();
 }
 
-function spawnDrone({ id, targetId, owned, pos, yaw = 0 }) {
-  const drone = new HunterDrone({ id, owned, targetId, pos, yaw });
+function spawnDrone({ id, targetId, owned, pos, yaw = 0, sky = false, credit = "drone" }) {
+  const drone = new HunterDrone({ id, owned, targetId, pos, yaw, sky, credit });
   streakEntities.set(id, drone);
   scene.add(drone.root);
-  audio.wave();
+  if (!sky) audio.wave();   // a Swarm is two dozen of them
   return drone;
 }
 
@@ -1070,6 +1110,321 @@ function spawnHelicopter({ id, seed, owned, team }) {
   return heli;
 }
 
+/* ---------------- K9 Unit, VTOL Warship, Swarm (BO2's top tier) ---------------- */
+
+function streakBounds() {
+  return builtMap?.map?.bounds || { minX: ARENA.minX, maxX: ARENA.maxX, minZ: ARENA.minZ, maxZ: ARENA.maxZ };
+}
+
+function spawnK9({ id, owned, team, ownerId, x, y, z, yaw = 0 }) {
+  const pack = new K9Pack({
+    id, owned, team, ownerId, origin: new THREE.Vector3(x, y, z), yaw,
+    duration: STREAK_DEFS.k9.duration, world: { colliders, bounds: streakBounds() },
+  });
+  streakEntities.set(id, pack);
+  scene.add(pack.root);
+  audio.wave();
+  return pack;
+}
+
+/* A pack that's hostile to us: shootable, and on our radar as a threat. */
+function k9Hostile(pack) {
+  if (pack.owned) return false;
+  return !!currentMode().ffa || !net.team || pack.team !== net.team;
+}
+
+/* Who a pack may go for: its owner's enemies (bots and peers both live in
+   remotes). The owner is never on the list. */
+function k9Hostiles(pack) {
+  const ffa = currentMode().ffa;
+  const out = [];
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive || rp.netId === pack.ownerId) continue;
+    if (!ffa && pack.team && rp.team === pack.team) continue;
+    out.push({ id: rp.netId, pos: rp.pos, alive: true });
+  }
+  return out;
+}
+
+function updateK9(id, pack, dt) {
+  if (!pack.owned) {
+    if (pack.updateCopy(dt) === "expire") { pack.dispose(); streakEntities.delete(id); }
+    return;
+  }
+  const out = pack.updateOwned(dt, {
+    hostiles: () => k9Hostiles(pack),
+    ownerPos: player.alive ? move.pos : null,
+    onBite: (dog, targetId, dmg) => {
+      const rp = remotes.byId.get(targetId);
+      if (rp && rp.alive) dealDamageToRemote(rp, dmg, "k9");
+      audio.bark?.(dog.pos);
+    },
+  });
+  if (net.active && pack.snapT <= 0) {
+    pack.snapT = 1 / K9.snapHz;
+    net.publishStreak({ kind: "k9", action: "pos", eid: id, team: pack.team, d: pack.snapshot() });
+  }
+  if (out === "expire") {
+    if (net.active) net.publishStreak({ kind: "k9", action: "end", eid: id });
+    showWaveBanner("K9 UNIT CALLED OFF", 1400);
+    pack.dispose();
+    streakEntities.delete(id);
+  }
+}
+
+/* A dog taking damage from us, one of our bots, or a hit off the wire. Only
+   the pack's owner applies it; anyone else forwards it. True if it died. */
+function damageDog(pack, i, dmg, byId) {
+  if (!pack.dogs[i]?.alive) return false;
+  if (!pack.owned) {
+    if (net.active) net.publishStreak({ kind: "k9", action: "hit", eid: pack.id, i, dmg: Math.round(dmg), by: byId });
+    return false;
+  }
+  if (!pack.damage(i, dmg)) return false;
+  audio.bark?.(pack.dogs[i].pos, true);
+  if (net.active) net.publishStreak({ kind: "k9", action: "die", eid: pack.id, i, by: byId });
+  return true;
+}
+
+function dogKilledBy(byId) {
+  if (byId !== net.id) return;
+  awardScore(SCORE.dogKill);
+  pushKillfeed(`K9 down  +${SCORE.dogKill}`);
+  audio.kill();
+}
+
+/* The VTOL Warship. `warship` is our own while we ride its guns. */
+let warship = null;
+let warshipGun = "chain";
+let wsViewOn = false, wsSaved = null, wsStable = false, wsHud = null;
+const WARSHIP_BOARD_AT = 1.3;   // the tablet call, then you're in the gunner's seat
+
+function warshipView() {
+  return !!warship && !warship.dead && player.alive && warship.age >= WARSHIP_BOARD_AT && warship.age < warship.duration;
+}
+
+function spawnWarship({ id, seed, owned, team }) {
+  const ws = new VtolWarship({ id, owned, bounds: streakBounds(), seed, team, duration: STREAK_DEFS.warship.duration });
+  streakEntities.set(id, ws);
+  scene.add(ws.root);
+  audio.wave();
+  return ws;
+}
+
+/* The gunner's thermal feed: a black-hot-white filter on the world, a
+   reticle, the gun readout and a box on every troll down there. */
+function warshipHudEl() {
+  if (wsHud) return wsHud;
+  wsHud = document.createElement("div");
+  wsHud.className = "to-ws";
+  wsHud.hidden = true;
+  wsHud.setAttribute("aria-hidden", "true");
+  wsHud.innerHTML = `<div class="to-ws-marks"></div><div class="to-ws-scan"></div>
+<div class="to-ws-reticle"><i></i><i></i><i></i><i></i><b></b></div>
+<div class="to-ws-top"><strong>VTOL WARSHIP</strong><span class="to-ws-time"></span></div>
+<div class="to-ws-guns"><span data-g="chain">25MM</span><span data-g="cannon">105MM</span><em class="to-ws-hint"></em></div>
+<div class="to-ws-reload"><i></i></div>`;
+  (els.streakMark?.parentElement || document.body).appendChild(wsHud);
+  return wsHud;
+}
+
+function syncWarshipView() {
+  // Killed on the ground: the ride is over, and the warship heads home.
+  if (warship && !player.alive && warship.age < warship.duration) {
+    warship.duration = Math.max(WARSHIP_BOARD_AT, warship.age);
+    if (net.active) net.publishStreak({ kind: "warship", action: "leave", eid: warship.id });
+  }
+  const on = warshipView();
+  if (on === wsViewOn) return;
+  wsViewOn = on;
+  const el = warshipHudEl();
+  el.hidden = !on;
+  renderer.domElement.style.filter = on ? "grayscale(1) contrast(1.5) brightness(1.12)" : "";
+  document.body.classList.toggle("to-in-warship", on);
+  if (on) {
+    wsSaved = { yaw: look.yaw, pitch: look.pitch };
+    wsStable = false;
+    // Start looking at the middle of the map.
+    const at = warship.gunnerPos(new THREE.Vector3());
+    const dx = warship.centre.x - at.x, dz = warship.centre.z - at.z;
+    look.yaw = Math.atan2(-dx, -dz);
+    look.pitch = Math.atan2(-at.y, Math.hypot(dx, dz));
+    el.querySelector(".to-ws-hint").textContent = isTouch ? "SWAP to change gun" : gamepadState.connected ? "Y changes gun" : "1 / 2 or scroll changes gun";
+    showWaveBanner("VTOL WARSHIP — YOU HAVE THE GUNS", 1600);
+  } else {
+    if (wsSaved) { look.yaw = wsSaved.yaw; look.pitch = wsSaved.pitch; }
+    wsSaved = null;
+    if (player.alive && warship) showWaveBanner("WARSHIP LEAVING", 1200);
+  }
+}
+
+const _wsDir = new THREE.Vector3();
+const _wsP = new THREE.Vector3();
+/* The gunner's camera: rides the gun deck, and holds the ground point under
+   the crosshair still while the ship circles (a stabilised gimbal), so
+   aiming is about the target, not about fighting the orbit. */
+function placeWarshipCamera() {
+  _euler.set(look.pitch, look.yaw, 0);
+  _wsDir.set(0, 0, -1).applyEuler(_euler);
+  let held = false;
+  if (wsStable && _wsDir.y < -0.02) {
+    const t = (0 - camera.position.y) / _wsDir.y;
+    _wsP.copy(camera.position).addScaledVector(_wsDir, t);
+    held = true;
+  }
+  warship.gunnerPos(camera.position);
+  if (held) {
+    const dx = _wsP.x - camera.position.x, dy = _wsP.y - camera.position.y, dz = _wsP.z - camera.position.z;
+    look.yaw = Math.atan2(-dx, -dz);
+    look.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+  }
+  look.pitch = Math.max(-1.52, Math.min(-0.1, look.pitch));
+  wsStable = true;
+  _euler.set(look.pitch, look.yaw, 0);
+  camera.quaternion.setFromEuler(_euler);
+}
+
+function toggleWarshipGun() {
+  warshipGun = warshipGun === "chain" ? "cannon" : "chain";
+  audio.reload();
+}
+
+function fireWarship() {
+  const ws = warship;
+  const g = WARSHIP_GUNS[warshipGun];
+  if (!ws.tryFire(warshipGun)) return;
+  const dir = camera.getWorldDirection(new THREE.Vector3());
+  if (g.spread) {
+    dir.x += (Math.random() - 0.5) * g.spread * 2;
+    dir.y += (Math.random() - 0.5) * g.spread * 2;
+    dir.z += (Math.random() - 0.5) * g.spread * 2;
+    dir.normalize();
+  }
+  const from = camera.position;
+  let d = raycastWorld(colliders, from, dir, 480);
+  if (dir.y < -1e-3) d = Math.min(d, (0 - from.y) / dir.y);
+  const to = from.clone().addScaledVector(dir, d);
+  ws.shoot(warshipGun, to);
+  if (net.active) {
+    net.publishStreak({ kind: "warship", action: "shot", eid: ws.id, g: warshipGun, x: round2(to.x), y: round2(to.y), z: round2(to.z) });
+  }
+  if (warshipGun === "cannon") {
+    audio.explosion(0.35);
+    shakeMag = Math.max(shakeMag, 0.035); shakeT = 0.25;
+  } else {
+    audio.shot(WEAPON_DEFS.bellow || WEAPON_DEFS.problem416, 0.45);
+  }
+}
+
+/* A round landing. Everyone sees it; only the gunner's copy hurts anyone. */
+function warshipImpact(ws, r) {
+  const g = WARSHIP_GUNS[r.gun];
+  if (r.gun === "cannon") {
+    explosionFx({ kind: "lethal", glow: 0xffb347, radius: g.radius }, r.to);
+    streakBlast(r.to, 1.1);
+    impactFx.hit(r.to, { normal: new THREE.Vector3(0, 1, 0), surface: "ground", scale: 4 });
+  } else {
+    impactFx.hit(r.to, { normal: new THREE.Vector3(0, 1, 0), surface: "ground", scale: 1.8 });
+    spawnImpactBurst(r.to, 0xffc46a, 6);
+    if (Math.random() < 0.35) audio.impact(r.to);
+  }
+  if (ws.owned) {
+    areaDamage(r.to, g.radius, g.damage,
+      { id: "warship", radius: g.radius, minDamage: g.damage * 0.25, selfMult: 0 },
+      { creditAs: "warship" });
+  }
+}
+
+const _wsProj = new THREE.Vector3();
+function updateWarshipHud() {
+  if (!wsViewOn || !wsHud) return;
+  const g = WARSHIP_GUNS[warshipGun];
+  wsHud.querySelector(".to-ws-time").textContent = `${Math.max(0, Math.ceil(warship.duration - warship.age))}s`;
+  for (const s of wsHud.querySelectorAll(".to-ws-guns span")) s.classList.toggle("is-on", s.dataset.g === warshipGun);
+  const cool = warship.fireT / g.interval;
+  wsHud.querySelector(".to-ws-reload i").style.width = `${Math.round((1 - Math.min(1, cool)) * 100)}%`;
+  wsHud.classList.toggle("is-cannon", warshipGun === "cannon");
+  // Boxes on everyone: red for the enemy, blue for your side, and you.
+  const marks = wsHud.querySelector(".to-ws-marks");
+  const host = wsHud.getBoundingClientRect();
+  const ffa = !!currentMode().ffa;
+  const list = [];
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive) continue;
+    list.push({ pos: rp.pos, kind: !ffa && net.team && rp.team === net.team ? "friend" : "foe" });
+  }
+  for (const e of streakEntities.values()) {
+    if (e instanceof K9Pack && k9Hostile(e)) for (const d of e.dogs) if (d?.alive) list.push({ pos: d.pos, kind: "foe dog" });
+  }
+  list.push({ pos: move.pos, kind: "you" });
+  while (marks.children.length < list.length) marks.appendChild(document.createElement("i"));
+  [...marks.children].forEach((m, i) => {
+    const it = list[i];
+    if (!it) { m.hidden = true; return; }
+    _wsProj.set(it.pos.x, it.pos.y + 0.9, it.pos.z).project(camera);
+    const vis = _wsProj.z < 1 && Math.abs(_wsProj.x) < 1.05 && Math.abs(_wsProj.y) < 1.05;
+    m.hidden = !vis;
+    if (!vis) return;
+    m.className = `is-${it.kind.replace(" ", " is-")}`;
+    m.style.transform = `translate(${((_wsProj.x + 1) / 2) * host.width}px, ${((1 - _wsProj.y) / 2) * host.height}px)`;
+  });
+}
+
+/* The Swarm: Hunter-Killers diving in from the map's edge, one after
+   another, each after its own enemy, until the count or the clock runs out. */
+const swarmRuns = [];
+const SWARM_MAX_ALIVE = 6;
+let swarmSeq = 0;
+
+function updateSwarms(dt) {
+  const def = STREAK_DEFS.swarm;
+  for (let i = swarmRuns.length - 1; i >= 0; i--) {
+    const s = swarmRuns[i];
+    s.t += dt;
+    if (s.t > def.duration || s.sent >= def.count) { swarmRuns.splice(i, 1); continue; }
+    if (s.t < s.next) continue;
+    let alive = 0;
+    const onTarget = new Map();
+    for (const e of streakEntities.values()) {
+      if (!(e instanceof HunterDrone) || !e.owned || !e.sky || e.frozen) continue;
+      alive++;
+      if (e.targetId) onTarget.set(e.targetId, (onTarget.get(e.targetId) || 0) + 1);
+    }
+    if (alive >= SWARM_MAX_ALIVE) continue;
+    // Spread them out: whoever has the fewest drones on them already.
+    const ffa = currentMode().ffa;
+    let victim = null, best = Infinity;
+    for (const rp of remotes.byId.values()) {
+      if (!rp.alive) continue;
+      if (!ffa && net.team && rp.team === net.team) continue;
+      const score = (onTarget.get(rp.netId) || 0) + Math.random() * 0.5;
+      if (score < best) { best = score; victim = rp; }
+    }
+    if (!victim) { s.next = s.t + 0.5; continue; }
+    s.next = s.t + def.duration / def.count;
+    s.sent++;
+    launchSwarmDrone(victim);
+  }
+}
+
+function launchSwarmDrone(victim) {
+  const b = streakBounds();
+  const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+  const r = Math.max(b.maxX - b.minX, b.maxZ - b.minZ) * 0.5;
+  // In over the edge on the victim's far side-ish, high above the rooftops.
+  const a = Math.atan2(victim.pos.z - cz, victim.pos.x - cx) + Math.PI + (Math.random() - 0.5) * 2.2;
+  const pos = new THREE.Vector3(cx + Math.cos(a) * r, 30 + Math.random() * 10, cz + Math.sin(a) * r);
+  const yaw = Math.atan2(-(victim.pos.x - pos.x), -(victim.pos.z - pos.z));
+  const id = `streak-swarm-${net.id}-${Math.round(performance.now())}-${++swarmSeq}`;
+  spawnDrone({ id, targetId: victim.netId, owned: true, pos, yaw, sky: true, credit: "swarm" });
+  if (net.active) {
+    net.publishStreak({
+      kind: "drone", action: "launch", eid: id, target: victim.netId, sky: 1, credit: "swarm",
+      x: round2(pos.x), y: round2(pos.y), z: round2(pos.z), yaw: round2(yaw),
+    });
+  }
+}
+
 /* UAV's world presence: a spotter plane circling the map for the UAV's
    duration (ReconPlane). Purely decorative — enemiesRevealed()/uavUntil own
    the reveal; the heading just seeds where on the orbit it comes in. */
@@ -1198,6 +1553,23 @@ function updateStreakEntities(dt) {
       continue;
     }
 
+    if (e instanceof K9Pack) {
+      updateK9(id, e, dt);
+      continue;
+    }
+
+    if (e instanceof VtolWarship) {
+      const landed = [];
+      const out = e.update(dt, landed);
+      for (const r of landed) warshipImpact(e, r);
+      if (out === "expire") {
+        if (e === warship) warship = null;
+        e.dispose();
+        streakEntities.delete(id);
+      }
+      continue;
+    }
+
     if (e instanceof HelicopterGunship) {
       let aim = null;
       if (e.onStation) {
@@ -1222,6 +1594,9 @@ function updateStreakEntities(dt) {
     }
   }
   updateDroneLock();
+  updateSwarms(dt);
+  syncWarshipView();
+  updateWarshipHud();
   strikeTablet?.update(dt);
 
   // Lightning strikes: each run plays its own timeline (smoke, jet, bombs)
@@ -1282,7 +1657,7 @@ function updateDrone(id, e, dt) {
     const nextId = next?.netId || null;
     if (nextId !== e.targetId) {
       e.targetId = nextId;
-      if (next) showWaveBanner(`HUNTER-KILLER — RETARGETED ${String(next.peer?.name || "").toUpperCase()}`, 1400);
+      if (next && !e.sky) showWaveBanner(`HUNTER-KILLER — RETARGETED ${String(next.peer?.name || "").toUpperCase()}`, 1400);
       if (net.active) net.publishStreak({ kind: "drone", action: "retarget", eid: id, target: nextId });
     }
   }
@@ -1322,11 +1697,11 @@ function detonateDrone(e, out) {
     const rp = remotes.byId.get(e.targetId);
     // Damage goes through the ordinary hit path, so a drone kill credits
     // and killfeeds exactly like a bullet one.
-    if (rp && rp.alive) dealDamageToRemote(rp, DRONE_DAMAGE, "drone");
+    if (rp && rp.alive) dealDamageToRemote(rp, DRONE_DAMAGE, e.credit);
   }
   areaDamage(at, DRONE_SPLASH_RADIUS, out === "expire" ? DRONE_DAMAGE * 0.5 : DRONE_DAMAGE * 0.8,
-    { id: "drone", radius: DRONE_SPLASH_RADIUS, minDamage: 20, selfMult: 1 },
-    { creditAs: "drone" });
+    { id: e.credit, radius: DRONE_SPLASH_RADIUS, minDamage: 20, selfMult: e.sky ? 0 : 1 },
+    { creditAs: e.credit });
 }
 
 /* A red lock bracket over whatever our hunter-killer is chasing, so you can
@@ -1493,8 +1868,11 @@ function applyRemoteStreak(m) {
           const snap = from?.snaps?.[from.snaps.length - 1];
           pos = snap ? new THREE.Vector3(snap.x, snap.y + 1.4, snap.z) : move.pos.clone();
         }
-        spawnDrone({ id: m.eid, targetId: m.target || null, owned: false, pos, yaw: m.yaw || 0 });
-        if (m.target && m.target === net.id) showWaveBanner("HUNTER-KILLER INBOUND — MOVE", 1800);
+        spawnDrone({ id: m.eid, targetId: m.target || null, owned: false, pos, yaw: m.yaw || 0, sky: !!m.sky, credit: m.credit || "drone" });
+        if (m.target && m.target === net.id && performance.now() - (applyRemoteStreak.warnAt || 0) > 2500) {
+          applyRemoteStreak.warnAt = performance.now();
+          showWaveBanner(m.sky ? "SWARM DRONE ON YOU — MOVE" : "HUNTER-KILLER INBOUND — MOVE", 1800);
+        }
       } else if (m.action === "retarget") {
         const d = streakEntities.get(m.eid);
         if (d) {
@@ -1537,10 +1915,45 @@ function applyRemoteStreak(m) {
       }
       break;
 
+    case "k9": {
+      let pack = streakEntities.get(m.eid);
+      if (m.action === "spawn" && !pack) {
+        spawnK9({ id: m.eid, owned: false, team: m.team, ownerId: m.id, x: m.x, y: m.y, z: m.z, yaw: m.yaw || 0 });
+        if (currentMode().ffa || !net.team || m.team !== net.team) showWaveBanner("ENEMY K9 UNIT — WATCH YOUR BACK", 1800);
+      } else if (m.action === "pos") {
+        if (!pack && Array.isArray(m.d)) {
+          // Joined mid-pack: start the copy from the first dog we're told about.
+          const f = m.d.find(Array.isArray);
+          if (f) pack = spawnK9({ id: m.eid, owned: false, team: m.team, ownerId: m.id, x: f[0] / 10, y: f[1] / 10, z: f[2] / 10 });
+        }
+        if (pack instanceof K9Pack && !pack.owned) pack.applySnapshot(m.d);
+      } else if (m.action === "hit") {
+        if (pack instanceof K9Pack && pack.owned) damageDog(pack, m.i | 0, +m.dmg || 0, m.by);
+      } else if (m.action === "die") {
+        if (pack instanceof K9Pack) pack.kill(m.i | 0);
+        dogKilledBy(m.by);
+      } else if (m.action === "end" && pack) {
+        pack.dispose();
+        streakEntities.delete(m.eid);
+      }
+      break;
+    }
+
+    case "warship": {
+      const ws = streakEntities.get(m.eid);
+      if (m.action === "spawn" && !ws) spawnWarship({ id: m.eid, seed: m.seed, owned: false, team: m.team });
+      else if (m.action === "shot" && ws instanceof VtolWarship && WARSHIP_GUNS[m.g]) {
+        ws.shoot(m.g, new THREE.Vector3(m.x, m.y, m.z));
+        if (m.g === "cannon") audio.explosion(0.2, ws.root.position);
+        else if (Math.random() < 0.3) audio.shot(WEAPON_DEFS.bellow || WEAPON_DEFS.problem416, 0.3, ws.root.position);
+      } else if (m.action === "leave" && ws instanceof VtolWarship) ws.duration = Math.min(ws.duration, ws.age);
+      break;
+    }
+
     case "callout":
-      // Match-wide hype: the nuclear-tier badge and a gunship arriving.
+      // Match-wide hype: the nuclear-tier badge and the big streaks arriving.
       // Purely cosmetic, never gameplay.
-      killstreakUi.banner({ title: `${m.who || "Someone"}: ${m.label}`, sub: "Went nuclear", label: "Nuclear", tone: "red" });
+      killstreakUi.banner({ title: `${m.who || "Someone"}: ${m.label}`, sub: m.label === "NUCLEAR" ? "Went nuclear" : "Scorestreak inbound", label: m.label === "NUCLEAR" ? "Nuclear" : "Streak", tone: "red" });
       killstreakUi.pulse();
       break;
   }
@@ -4583,13 +4996,22 @@ function fireOnce(shot = null) {
 }
 
 function resolveBulletTarget(object) {
-  return rangeSet?.resolve(object)
+  return resolveK9(object)
+    || rangeSet?.resolve(object)
     || remotes.resolve(object)
     || zdir?.resolve(object)
     || findGruntFromObject(object);
 }
 
 function onBulletActorHit(actor, info) {
+  if (actor.isK9Dog) {
+    // An enemy dog: its owner applies the damage (damageDog forwards it).
+    damageDog(actor.pack, actor.i, info.damage, net.id);
+    showHitmarker(false, info.damage, info.point, false);
+    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "zombie", scale: 0.9 });
+    return;
+  }
+
   if (actor.isRangeTarget) {
     const { killed } = actor.takeDamage(info.damage, info.isHead);
     showHitmarker(info.isHead, info.damage, info.point, killed);
@@ -4708,6 +5130,12 @@ function blastCandidates(sparedTeam = net.team) {
     for (const t of rangeSet.targets) {
       if (t.down <= 0) out.push({ actor: t, pos: t.mesh.position });
     }
+  }
+  // Enemy dogs: a frag or a strike takes them out too. Never our own pack.
+  for (const e of streakEntities.values()) {
+    if (!(e instanceof K9Pack) || e.owned) continue;
+    if (!ffa && sparedTeam && e.team === sparedTeam) continue;
+    for (const d of e.dogs) if (d?.alive) out.push({ actor: d, pos: d.pos });
   }
   return out;
 }
@@ -5258,6 +5686,7 @@ function setHolding(what) {
    player.secondaryId null there - Gun Game, One in the Chamber) or when
    already holding that slot's gun. */
 function switchWeapon(slot) {
+  if (warshipView()) { toggleWarshipGun(); return; }
   if (isInfected()) return;
   const id = slot === "secondary" ? player.secondaryId : player.weaponId;
   if (!id || !player.weapons[id]) return;
@@ -5748,6 +6177,13 @@ function botTargets() {
     list.push({ id: o.id, team: o.team, alive: true, pos: o.pos, groundY: o.pos.y, yaw: o.yaw,
       melee: isInfection() && o.team === "ghost", blocking, blockCone: MELEE_DEFS.trollsaber.deflect.cone });
   }
+  // K9 dogs are fair game: bots shoot the ones coming for them.
+  for (const e of streakEntities.values()) {
+    if (!(e instanceof K9Pack)) continue;
+    for (const d of e.dogs) {
+      if (d?.alive) list.push({ id: `k9:${e.id}:${d.i}`, team: e.team, alive: true, pos: d.pos, groundY: d.pos.y, yaw: d.yaw, dog: true });
+    }
+  }
   return list;
 }
 
@@ -5809,6 +6245,12 @@ function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = 
    player (who applies it to themselves when the hit arrives). */
 function botDealDamage(bot, targetId, dmg, isHead, wid) {
   if (targetId === net.id) { damagePlayer(dmg, bot.id, wid, isHead); return; }
+  if (typeof targetId === "string" && targetId.startsWith("k9:")) {
+    const j = targetId.lastIndexOf(":");
+    const pack = streakEntities.get(targetId.slice(3, j));
+    if (pack instanceof K9Pack) damageDog(pack, +targetId.slice(j + 1), dmg, bot.id);
+    return;
+  }
   flinchPeer(targetId, bot.id, isHead);
 
   if (bots.byId(targetId)) {
@@ -7081,7 +7523,7 @@ function isStaging() { return stageT > 0; }
    in the scene; the rest gets one throwaway stand-in each, parked out of
    sight, compiled, and removed. compileAsync lets the driver compile in
    parallel where it can, so the countdown keeps ticking meanwhile. */
-const WARM_MODELS = ["care-package", "helicopter", "hunter-drone", "recon-drone", "strike-jet"];
+const WARM_MODELS = ["care-package", "helicopter", "hunter-drone", "recon-drone", "strike-jet", "k9-dog", "vtol-warship"];
 let warmedOnce = false;
 async function warmShaders() {
   if (!renderer.compileAsync) return;
@@ -7952,6 +8394,9 @@ const STREAK_KILL_NAMES = {
   heli: "Gunship",
   airstrike: "Lightning Strike",
   carepackage: "Care Package",
+  k9: "K9 Unit",
+  warship: "VTOL Warship",
+  swarm: "Swarm",
   bomb: "Bomb",
   zone: "the Cringe",
 };
@@ -8583,6 +9028,7 @@ function animate() {
       updateRemoteSabers();
       updateKillcam(dt);
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
+      for (const e of streakEntities.values()) if (e instanceof K9Pack && k9Hostile(e)) targetMeshes.push(...e.hitMeshes());
 
       if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
       else {
@@ -8713,6 +9159,7 @@ function animate() {
     if (w.ads) targetFov = baseFov * def.adsFovMult;
     if (move.sprinting && !w.ads) targetFov = baseFov * 1.06;
     if (move.stance === STANCE.SLIDE) targetFov = baseFov * 1.12;
+    if (warshipView()) targetFov = WARSHIP_GUNS[warshipGun].fov;
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
     camera.updateProjectionMatrix();
 
@@ -8741,7 +9188,7 @@ function animate() {
   // is already visible on the third-person rig itself, so rendering both
   // would double up the weapon on screen.
   // Spectating in Troll Royale: the view is someone else's, so no gun of ours.
-  if (gameState === "playing" && ((!settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView()) || killcam.replaying)) {
+  if (gameState === "playing" && ((!settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView()) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
@@ -9015,7 +9462,7 @@ function updatePlayer(dt) {
   // On the bus or in the air your stick steers the fall, not your feet.
   const dropping = royaleDropView();
   const dropIx = ix, dropIz = iz;
-  const frozen = dropping || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen;
+  const frozen = dropping || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen || warshipView();
   if (frozen) { ix = 0; iz = 0; }
   // A toggled AIM shouldn't survive a death or a streak call.
   if (touchState.ads && (!player.alive || player.holding === "streak")) setTouchAds(false);
@@ -9101,6 +9548,11 @@ function updatePlayer(dt) {
   if (royaleSpectating()) {
     localRig.root.visible = false;
     placeSpectateCamera(dt);
+  } else if (warshipView()) {
+    // Up in the VTOL's gunner seat; your body stands where you called it.
+    localRig.root.visible = true;
+    placeWarshipCamera();
+    if ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown) fireWarship();
   } else if (royaleDropView()) {
     // Third person on the drop: behind the bus while you ride, then behind
     // you (and your glider) on the way down. Look orbits the camera.
@@ -9137,7 +9589,7 @@ function updatePlayer(dt) {
   const swinging = !!player.melee && player.melee.busy;
   if (player.melee && player.melee.update(dt)) meleeConnect();
 
-  const canAct = !move.busy && player.alive && !stageFrozen() && !royaleDropView();
+  const canAct = !move.busy && player.alive && !stageFrozen() && !royaleDropView() && !warshipView();
   // Pulling the trigger drops a plate or a Hopium half-used.
   if (royale?.act && wantFire) cancelRoyaleAct();
   // Aiming itself is harmless during the pre-match countdown — no shooting,
@@ -9458,7 +9910,7 @@ function updateStreakView(dt) {
   // Tablet: rises from low with both hands, screen tipping up to the eye,
   // then settles with a slight idle drift. A UAV/gunship call gets a right-
   // thumb press on CONFIRM and the page flips; the strike tablet just holds.
-  const calling = streakScreen === "uav" || streakScreen === "gunship";
+  const calling = ["uav", "gunship", "k9", "warship", "swarm"].includes(streakScreen);
   const pk = calling ? (streakHoldElapsed - TABLET_PRESS_AT) / 0.22 : -1;
   const press = pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0;
   const confirmed = calling && pk >= 0.5;
@@ -10885,6 +11337,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     markingStreak: () => markingStreak, confirmMark, cancelMark, updateMarking,
     groundAimPoint, rollPackageReward, claimPackage, clearStreakEntities,
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,
+    spawnK9, spawnWarship, warship: () => warship, warshipView, warshipGun: () => warshipGun, fireWarship, toggleWarshipGun,
+    swarmRuns, damageDog, K9Pack, VtolWarship, WARSHIP_GUNS, K9,
     nearestHostileTo, strikeImpact, spawnAirstrike, pickDroneTarget, nearbyPackage, updatePickupPrompt,
     gamepadState, touchState, streakKeyLabel, keys, swapHold,
     animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,

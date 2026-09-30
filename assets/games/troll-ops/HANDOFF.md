@@ -2,11 +2,30 @@
 
 ## RESUME HERE (2026-09-29, end of session) — read this first
 Everything below is pushed to main and live (`troll-ops.html` loads
-`game.js?v=to-hw1`). Worktree: `to-opus-wt`, branch `game-improvements`;
+`game.js?v=to-sw1`). Worktree: `to-opus-wt`, branch `game-improvements`;
 push = `git push origin game-improvements:main`, then `git pull --ff-only`
 in the main checkout, then curl the live `?v=` tag.
 
 ### Shipped this session (newest first)
+- **K9 Unit (550, LV 25), VTOL Warship (850, LV 35), Swarm (1000, LV 48)**,
+  the BO2 top tier. Models: `models/build_streaks2.blender.py` -> `k9-dog.glb`
+  (German shepherd in a vest; K9_Head/Jaw/Tail/Leg*_Lo nodes posed in
+  code) and `vtol-warship.glb` (VTOL_Nacelle_L/R tilt, VTOL_Rotor_L/R spin);
+  HUD pictures via `render_streak_icons.blender.py` (ICON_ONLY=k9,warship,swarm).
+  - K9 (`k9-unit.js`): 6 dogs, 90 hp, bite 55, 45 s, FlowField per target;
+    owner simulates, snapshots at 8 Hz ("k9" pos msgs), hits on dogs go to
+    the owner ("hit" -> "die"); bots target dogs (`k9:<eid>:<i>` ids in
+    botTargets/botDealDamage); +50 score (SCORE.dogKill) for a dog.
+  - Warship (`VtolWarship` in streak-entities.js): you ride the port gun
+    for 40 s, ground-stabilised aim, thermal CSS filter + `.to-ws` HUD,
+    25 mm chain gun / 105 mm cannon (switchWeapon toggles), body stays on
+    the ground and dying ends the ride ("leave" msg).
+  - Swarm: 24 Hunter-Killers over 30 s, max 6 in the air, diving from the
+    map edge (HunterDrone `sky` option, credit "swarm"), reuses the drone
+    "launch" message with sky:1.
+  - Test: `tools/troll-ops-streaks-bo2-test.mjs` (18 checks).
+  - Not done: bots don't shoot down the warship / swarm drones (BO2 lets
+    you); dogs only walk the ground floor field.
 - **Chainsaw (LV 45) + Reaper's Grin (LV 15)** melee (gear.js MELEE_DEFS
   `chainsaw` / `reaper`). Blender-built: `models/build_halloween_melee.blender.py`
   -> `chainsaw.glb`, `reaper.glb` (run with `-- render` for Cycles studio

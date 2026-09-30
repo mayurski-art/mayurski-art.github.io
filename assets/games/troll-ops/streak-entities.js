@@ -670,10 +670,16 @@ export class CarePackage {
    tight turn instead of a 6 m orbit. Walls ahead make it climb; a wall it
    can't clear is where it goes off. */
 export class HunterDrone {
-  constructor({ id, owned, targetId = null, pos, yaw = 0 }) {
+  /* `sky`: one of a Swarm, diving in from high over the map edge rather
+     than tossed off the hand, so it skips the launch climb. `credit` is
+     the killfeed's name for what did it. */
+  constructor({ id, owned, targetId = null, pos, yaw = 0, sky = false, credit = "drone" }) {
     this.id = id;
     this.owned = !!owned;
     this.targetId = targetId;
+    this.sky = !!sky;
+    this.credit = credit;
+    this.lifetime = sky ? 22 : DRONE_LIFETIME;
     this.age = 0;
     this.done = false;
     this.frozen = false;         // a copy that thinks it arrived, awaiting the owner's word
@@ -687,6 +693,12 @@ export class HunterDrone {
     this.root.rotation.y = yaw;
     this.root.scale.setScalar(0.4);   // grows to full size as it leaves the hand
     this.rotors = [];
+    if (this.sky) {
+      this.age = DRONE_LAUNCH;
+      this.speed = 15;
+      this.vel.set(this.fwd.x * 15, -3, this.fwd.z * 15);
+      this.root.scale.setScalar(1);
+    }
 
     // A blinking red beacon, so it can be tracked across the sky.
     this.beacon = glowSprite(0xff3b2f, 0.28);
@@ -709,10 +721,10 @@ export class HunterDrone {
     const spin = Math.min(1, this.age / 0.4);
     for (const r of this.rotors) r.rotation.y += dt * 44 * spin;
     this.beacon.material.opacity = (this.age * 3) % 1 < 0.5 ? 1 : 0.2;
-    this.root.scale.setScalar(0.4 + 0.6 * smooth01(this.age / 0.45));
+    if (!this.sky) this.root.scale.setScalar(0.4 + 0.6 * smooth01(this.age / 0.45));
     if (this.frozen) return null;
 
-    if (this.age > DRONE_LIFETIME) { this.done = true; return "expire"; }
+    if (this.age > this.lifetime) { this.done = true; return "expire"; }
     const p = this.root.position;
 
     // 1. Launch: straight up off the hand, rotors spinning up, before it
@@ -1223,6 +1235,165 @@ export class HelicopterGunship {
     this.dead = true;
     this.lights?.release(this.searchlight);
     this.searchlight = null;
+    this.root.parent?.remove(this.root);
+  }
+}
+
+/* ------------------------------------------------------------ VTOL warship
+
+   BO2's VTOL Warship: a tilt-rotor gunship that flies in and circles the
+   map, and the caller rides its gun. It orbits port side in (the guns are
+   on the left, like an AC-130's), so the whole map turns slowly under the
+   gunner. Two guns: the 25 mm chain gun and the 105 mm cannon.
+
+   Like the helicopter, its flight is a function of age and the wire's seed,
+   so every client flies the same one. Its rounds are real travelling
+   tracers; the caller's copy decides the damage where each one lands, the
+   other copies play the same shot from the "shot" message. */
+export const WARSHIP_ALTITUDE = 62;
+export const WARSHIP_SPEED = 15;
+export const WARSHIP_ENTER = 6;
+export const WARSHIP_EXIT = 6;
+export const WARSHIP_GUNS = {
+  chain:  { id: "chain", name: "25MM", interval: 0.13, damage: 55, radius: 2.6, speed: 240, spread: 0.006, fov: 44 },
+  cannon: { id: "cannon", name: "105MM", interval: 2.3, damage: 280, radius: 7.5, speed: 170, spread: 0, fov: 34 },
+};
+const WARSHIP_ROTOR_RPS = 4.2;
+const NACELLE_TILT = -0.62;     // rotors tipped forward for cruise
+
+let tracerGeo = null, tracerMat = null, shellGeo = null, shellMat = null;
+function roundMeshes() {
+  if (!tracerGeo) {
+    tracerGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.2, 5);
+    tracerGeo.rotateX(Math.PI / 2);
+    tracerMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.95, depthWrite: false });
+    shellGeo = new THREE.SphereGeometry(0.32, 8, 6);
+    shellMat = new THREE.MeshBasicMaterial({ color: 0xfff1c2, transparent: true, opacity: 0.95, depthWrite: false });
+  }
+}
+
+export class VtolWarship {
+  constructor({ id, owned, bounds, seed = 0, team, duration = 40 }) {
+    this.id = id;
+    this.owned = !!owned;
+    this.team = team;
+    this.duration = duration;
+    this.age = 0;
+    this.done = false;
+    this.fireT = 0;
+    this.rounds = [];
+    const spanX = bounds.maxX - bounds.minX, spanZ = bounds.maxZ - bounds.minZ;
+    this.centre = { x: (bounds.minX + bounds.maxX) / 2, z: (bounds.minZ + bounds.maxZ) / 2 };
+    this.radius = Math.max(28, Math.min(spanX, spanZ) * 0.36);
+    this.angle0 = (seed % 360) * (Math.PI / 180);
+    // Clockwise from above keeps the port side (the guns) facing in.
+    this.dir = -1;
+    this.omega = this.dir * WARSHIP_SPEED / this.radius;
+    this.root = new THREE.Group();
+    this.root.rotation.order = "YXZ";
+    this.nacelles = [];
+    this.rotors = [];
+    this.pathAt(0, this.root.position);
+    this.root.rotation.y = this.headingAt(0);
+    loadModel("vtol-warship").then((obj) => {
+      if (this.dead) return;
+      this.root.add(obj);
+      obj.traverse((n) => {
+        if (n.name?.startsWith("VTOL_Nacelle")) { this.nacelles.push(n); n.rotation.x = NACELLE_TILT; }
+        else if (n.name?.startsWith("VTOL_Rotor")) this.rotors.push(n);
+      });
+    });
+  }
+
+  pathAt(t, out) {
+    const r = this.radius;
+    const a = this.angle0 + this.omega * Math.min(t, this.duration);
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const tx = -sa * this.dir, tz = ca * this.dir;
+    out.set(this.centre.x + ca * r, WARSHIP_ALTITUDE + Math.sin(t * 0.4) * 0.8, this.centre.z + sa * r);
+    if (t < WARSHIP_ENTER) {
+      const k = 1 - smooth01(t / WARSHIP_ENTER);
+      const back = k * k * 140;
+      out.x -= tx * back; out.z -= tz * back;
+      out.y += k * k * 18;
+    } else if (t > this.duration) {
+      const e = t - this.duration;
+      const run = WARSHIP_SPEED * e + 5 * e * e;
+      out.x += tx * run; out.z += tz * run;
+      out.y += e * e * 1.5;
+    }
+    return out;
+  }
+
+  headingAt(t) {
+    const a = this.pathAt(t, new THREE.Vector3());
+    const b = this.pathAt(t + 0.1, new THREE.Vector3());
+    return Math.atan2(-(b.x - a.x), -(b.z - a.z));
+  }
+
+  /* The gunner can shoot once it's settled into the orbit. */
+  get onStation() { return this.age > WARSHIP_ENTER * 0.6 && this.age < this.duration; }
+
+  /* Where the gunner's camera rides: outside the port gun deck. */
+  gunnerPos(out = new THREE.Vector3()) { return this.root.localToWorld(out.set(-3.4, -1.6, -0.6)); }
+
+  muzzle(gun, out = new THREE.Vector3()) {
+    return this.root.localToWorld(gun === "cannon" ? out.set(-3.7, -1.35, -1.2) : out.set(-3.1, -1.0, 0.4));
+  }
+
+  /* Gun off cooldown? The caller picks the aim and spends the shot. */
+  tryFire(gun) {
+    if (this.fireT > 0 || !this.onStation) return false;
+    this.fireT = WARSHIP_GUNS[gun].interval;
+    return true;
+  }
+
+  /* A round leaving the gun for `to`. Returns it so the caller can tag it. */
+  shoot(gun, to) {
+    roundMeshes();
+    const from = this.muzzle(gun);
+    const g = WARSHIP_GUNS[gun];
+    const mesh = new THREE.Mesh(gun === "cannon" ? shellGeo : tracerGeo, gun === "cannon" ? shellMat : tracerMat);
+    mesh.position.copy(from);
+    mesh.lookAt(to);
+    mesh.frustumCulled = false;
+    this.root.parent?.add(mesh);
+    const r = { gun, from, to: to.clone(), t: 0, dur: Math.max(0.05, from.distanceTo(to) / g.speed), mesh };
+    this.rounds.push(r);
+    return r;
+  }
+
+  /* Returns "expire" once it has flown off; `landed` collects the rounds
+     that hit this frame. */
+  update(dt, landed = null) {
+    this.age += dt;
+    this.fireT = Math.max(0, this.fireT - dt);
+    for (const r of this.rotors) r.rotation.y += dt * Math.PI * 2 * WARSHIP_ROTOR_RPS;
+    const t = this.age;
+    this.pathAt(t, this.root.position);
+    const yaw = this.headingAt(t);
+    const yawRate = wrapAngle(this.headingAt(t + 0.25) - yaw) / 0.25;
+    this.root.rotation.y += wrapAngle(yaw - this.root.rotation.y) * Math.min(1, dt * 5);
+    this.root.rotation.z += (Math.max(-0.3, Math.min(0.3, yawRate * 1.4)) - this.root.rotation.z) * Math.min(1, dt * 2);
+    for (let i = this.rounds.length - 1; i >= 0; i--) {
+      const r = this.rounds[i];
+      r.t += dt;
+      const k = Math.min(1, r.t / r.dur);
+      r.mesh.position.lerpVectors(r.from, r.to, k);
+      if (k >= 1) {
+        r.mesh.parent?.remove(r.mesh);
+        this.rounds.splice(i, 1);
+        landed?.push(r);
+      }
+    }
+    if (t >= this.duration + WARSHIP_EXIT && !this.rounds.length) { this.done = true; return "expire"; }
+    return null;
+  }
+
+  dispose() {
+    this.dead = true;
+    for (const r of this.rounds) r.mesh.parent?.remove(r.mesh);
+    this.rounds.length = 0;
     this.root.parent?.remove(this.root);
   }
 }

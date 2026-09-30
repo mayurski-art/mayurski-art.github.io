@@ -21,6 +21,7 @@ export const SCORE = {
   hillCapture: 75,
   plant: 150,
   defuse: 150,
+  dogKill: 50,          // shooting an enemy K9
 };
 
 /* The ladder. `cost` is score in one life; `rank` gates it in the picker.
@@ -64,6 +65,16 @@ export const STREAK_DEFS = {
     rank: 20,
     blurb: "Mark a spot. Five seconds later it stops being a spot.",
   },
+  k9: {
+    id: "k9",
+    badge: "gold",
+    name: "K9 Unit",
+    icon: "k9",
+    cost: 550,
+    rank: 25,
+    duration: 45,
+    blurb: "Six attack dogs hunt the enemy team for 45 seconds. They can be shot.",
+  },
   helicopter: {
     id: "helicopter",
     badge: "red",   // BO2 tiers: silver, gold, then red for the top streak
@@ -74,6 +85,27 @@ export const STREAK_DEFS = {
     rank: 30,
     duration: 45,
     blurb: "A gunship on station for 45 seconds, picking off whatever it can see.",
+  },
+  warship: {
+    id: "warship",
+    badge: "red",
+    name: "VTOL Warship",
+    icon: "warship",
+    cost: 850,
+    rank: 35,
+    duration: 40,
+    blurb: "Take the guns of a VTOL circling overhead: 25 mm chain gun and 105 mm cannon. Your body stays on the ground.",
+  },
+  swarm: {
+    id: "swarm",
+    badge: "red",
+    name: "Swarm",
+    icon: "swarm",
+    cost: 1000,
+    rank: 48,
+    duration: 30,
+    count: 24,
+    blurb: "Hunter-Killer drones pour in from the sky for 30 seconds, one enemy each.",
   },
 };
 
@@ -98,6 +130,9 @@ const STREAK_ICON_PATHS = {
   carepackage: '<rect x="4" y="10" width="16" height="10" rx="1"/><path d="M4 14h16M12 10v10" stroke="#0d1410" stroke-width="1"/><path d="M12 2v8M7 5l5-3 5 3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   drone: '<path d="M12 8l7-4M12 8l-7-4M12 16l7 4M12 16l-7 4" stroke-linecap="round" fill="none"/><circle cx="19" cy="4" r="2.4"/><circle cx="5" cy="4" r="2.4"/><circle cx="19" cy="20" r="2.4"/><circle cx="5" cy="20" r="2.4"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/>',
   airstrike: '<path d="M12 1v10" stroke-linecap="round" fill="none"/><path d="M12 11l-3.5 8h7L12 11z"/><path d="M8 15l-4 1.5M16 15l4 1.5" fill="none" stroke-linecap="round"/>',
+  k9: '<path d="M4 9l2-6 3 4h6l3-4 2 6c0 5-3 9-8 9s-8-4-8-9z"/><circle cx="9.3" cy="11" r="1.1" fill="#0d1410" stroke="none"/><circle cx="14.7" cy="11" r="1.1" fill="#0d1410" stroke="none"/><path d="M10.4 15h3.2l-1.6 1.8z" fill="#0d1410" stroke="none"/>',
+  warship: '<rect x="10.5" y="3" width="3" height="17" rx="1.5"/><rect x="2" y="9" width="20" height="2.4" rx="1"/><circle cx="3.5" cy="10.2" r="2.6" fill="none"/><circle cx="20.5" cy="10.2" r="2.6" fill="none"/><rect x="7" y="18.5" width="10" height="1.8" rx="0.9"/>',
+  swarm: '<rect x="3" y="4" width="4.5" height="4.5" rx="1"/><rect x="15" y="3" width="4.5" height="4.5" rx="1"/><rect x="9.5" y="10" width="5" height="5" rx="1"/><rect x="3.5" y="16" width="4" height="4" rx="1"/><rect x="16" y="15.5" width="4.5" height="4.5" rx="1"/><path d="M5.2 4V2M17.2 3V1M12 10V8" stroke-linecap="round"/>',
   helicopter: '<ellipse cx="10" cy="14" rx="7" ry="4"/><rect x="16" y="13" width="6" height="2" rx="1"/><rect x="9" y="6" width="2" height="6" rx="1"/><path d="M2 6h16" fill="none" stroke-linecap="round"/><rect x="7" y="18" width="6" height="2" rx="1"/>',
 };
 

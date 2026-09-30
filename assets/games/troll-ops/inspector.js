@@ -19,6 +19,7 @@ import { loadModel } from "./battlefield-props.js";
 const STREAK_MODELS = {
   uav: "recon-drone", carepackage: "care-package", drone: "hunter-drone",
   airstrike: "strike-jet", helicopter: "helicopter",
+  k9: "k9-dog", warship: "vtol-warship", swarm: "hunter-drone",
 };
 
 const MIN_ZOOM = 0.45;

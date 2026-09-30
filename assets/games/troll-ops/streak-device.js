@@ -106,7 +106,9 @@ export function drawTabletScreen(device, mode, t, confirmed) {
   g.fillStyle = green;
   g.font = "bold 15px monospace";
   g.textBaseline = "top";
-  const title = mode === "uav" ? "UAV // RECON" : mode === "gunship" ? "GUNSHIP // AIR SUPPORT" : mode === "strike" ? "LIGHTNING STRIKE" : "STREAK LINK";
+  const TITLES = { uav: "UAV // RECON", gunship: "GUNSHIP // AIR SUPPORT", strike: "LIGHTNING STRIKE",
+    k9: "K9 UNIT // RELEASE", warship: "VTOL WARSHIP // GUNNER", swarm: "SWARM // HK DRONES" };
+  const title = TITLES[mode] || "STREAK LINK";
   g.fillText(title, 24, 10);
   // Blinking link light, top right.
   g.fillStyle = (t * 2) % 1 < 0.5 ? green : "rgba(109,255,74,.25)";
@@ -141,6 +143,37 @@ export function drawTabletScreen(device, mode, t, confirmed) {
     g.fillRect(-3 - blade, -27, blade * 2 + 6, 3);
     g.fillRect(-26, 16, 44, 3);
     g.restore();
+  } else if (mode === "k9") {
+    // A paw print, pads pulsing.
+    g.fillStyle = green;
+    const pulse = 1 + Math.sin(t * 8) * 0.06;
+    g.beginPath(); g.ellipse(cx, cy + 8, 22 * pulse, 18 * pulse, 0, 0, Math.PI * 2); g.fill();
+    for (const [dx, dy] of [[-26, -16], [-9, -30], [9, -30], [26, -16]]) {
+      g.beginPath(); g.ellipse(cx + dx, cy + dy, 8, 10, dx * 0.012, 0, Math.PI * 2); g.fill();
+    }
+  } else if (mode === "warship") {
+    // Top-down tilt-rotor circling a target ring.
+    g.strokeStyle = "rgba(109,255,74,.5)";
+    g.beginPath(); g.arc(cx, cy, 44, 0, Math.PI * 2); g.stroke();
+    const a = -t * 1.4;
+    g.save();
+    g.translate(cx + Math.cos(a) * 44, cy + Math.sin(a) * 44);
+    g.rotate(a);
+    g.fillStyle = green;
+    g.fillRect(-3, -14, 6, 28);
+    g.fillRect(-18, -3, 36, 5);
+    g.beginPath(); g.arc(-18, 0, 6, 0, Math.PI * 2); g.arc(18, 0, 6, 0, Math.PI * 2); g.fill();
+    g.restore();
+    g.strokeStyle = "#ff5a3a";
+    g.beginPath(); g.moveTo(cx - 8, cy); g.lineTo(cx + 8, cy); g.moveTo(cx, cy - 8); g.lineTo(cx, cy + 8); g.stroke();
+  } else if (mode === "swarm") {
+    // A cloud of drones drifting in.
+    g.fillStyle = green;
+    for (let i = 0; i < 14; i++) {
+      const x = cx - 80 + ((i * 37 + t * 60) % 160), y = cy - 36 + ((i * 23) % 72) + Math.sin(t * 3 + i) * 3;
+      g.fillRect(x - 4, y - 4, 8, 8);
+      g.fillRect(x - 7, y - 1, 14, 2);
+    }
   } else if (mode === "strike") {
     g.strokeStyle = "#ff5a3a";
     g.lineWidth = 2;
@@ -151,12 +184,13 @@ export function drawTabletScreen(device, mode, t, confirmed) {
 
   // Footer: the call's state.
   g.font = "bold 16px monospace";
-  if (mode === "uav" || mode === "gunship") {
+  const CONFIRMED = { uav: "UAV ONLINE", gunship: "CONFIRMED — INBOUND", k9: "DOGS RELEASED", warship: "CONFIRMED — BOARDING", swarm: "SWARM INBOUND" };
+  if (CONFIRMED[mode]) {
     if (confirmed) {
       g.fillStyle = "rgba(109,255,74,.22)";
       g.fillRect(22, H - 38, W - 44, 26);
       g.fillStyle = green;
-      g.fillText(mode === "uav" ? "UAV ONLINE" : "CONFIRMED — INBOUND", 30, H - 33);
+      g.fillText(CONFIRMED[mode], 30, H - 33);
     } else {
       g.strokeStyle = green;
       g.lineWidth = 2;

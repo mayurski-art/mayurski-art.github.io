@@ -259,6 +259,20 @@ export class GameAudio {
     this._tone({ freq: 150, to: 60, duration: 0.13, gain: 0.22, type: "square", at });
   }
 
+  /* A K9's bark as it bites (a gruff two-part "rruf"), or its yelp going
+     down. Placed in the world like the other hits. */
+  bark(at = null, yelp = false) {
+    if (!this._ready()) return;
+    if (yelp) {
+      this._tone({ freq: 900, to: 420, duration: 0.22, gain: 0.16, type: "sawtooth", at });
+      return;
+    }
+    this._noise({ duration: 0.09, gain: 0.32, type: "bandpass", freq: 520, q: 1.4, sweepTo: 300, at });
+    this._tone({ freq: 240, to: 150, duration: 0.1, gain: 0.2, type: "sawtooth", at });
+    this._tone({ freq: 300, to: 170, duration: 0.08, gain: 0.14, type: "sawtooth", delay: 0.1, at });
+    this._noise({ duration: 0.06, gain: 0.2, type: "lowpass", freq: 900, sweepTo: 200, delay: 0.1, at });
+  }
+
   /* ---- Trollsaber ---------------------------------------------------
      A hum that bends up with swing speed (the film trick: the hum
      doppler-shifts past the mic), a snap-hiss ignite, a whoosh-buzz swing,

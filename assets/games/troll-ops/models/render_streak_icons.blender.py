@@ -25,13 +25,30 @@ STREAKS = {
     "drone":       ("hunter-drone.glb", (1.0, -1.25, 0.95), 70),
     "airstrike":   ("strike-jet.glb", (1.2, -1.0, 0.75), 70),
     "helicopter":  ("helicopter.glb", (1.3, -1.0, 0.55), 70),
+    "k9":          ("k9-dog.glb", (1.25, 1.0, 0.45), 70),
+    "warship":     ("vtol-warship.glb", (1.2, 1.1, 0.7), 70),
+    # three drones in a loose V: the swarm
+    "swarm":       (["hunter-drone.glb", "hunter-drone.glb", "hunter-drone.glb"], (1.0, -1.25, 0.95), 70),
 }
+# Nose is +Y in these two (the older models face -Y), hence the flipped views.
+# ICON_ONLY=k9,warship renders just those.
+ONLY = [s for s in os.environ.get("ICON_ONLY", "").split(",") if s]
+SWARM_OFFSETS = [(0, 0, 0.3), (0.55, 0.45, -0.2), (-0.35, -0.55, -0.35)]
 
 
 def render(streak, model, view, lens):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
-    bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, model))
+    models = model if isinstance(model, list) else [model]
+    for i, m in enumerate(models):
+        before = set(scene.objects)
+        bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, m))
+        if len(models) > 1:
+            for o in set(scene.objects) - before:
+                if o.parent is None:
+                    o.location = Vector(o.location) + Vector(SWARM_OFFSETS[i])
+                    o.rotation_euler.z += (i - 1) * 0.25
+    bpy.context.view_layer.update()
     meshes = [o for o in scene.objects if o.type == "MESH"]
     lo = Vector((1e9, 1e9, 1e9))
     hi = Vector((-1e9, -1e9, -1e9))
@@ -113,4 +130,6 @@ def render(streak, model, view, lens):
 
 
 for sid, (model, view, lens) in STREAKS.items():
+    if ONLY and sid not in ONLY:
+        continue
     render(sid, model, view, lens)

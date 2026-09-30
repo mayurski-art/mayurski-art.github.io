@@ -1287,6 +1287,52 @@ button.to-gear-chip { cursor: pointer; }
   .to-hk-lock > i { animation: none; }
 }
 
+/* VTOL Warship gunner feed (game.js warshipHudEl): thermal filter on the
+   world canvas, a reticle, the gun readout, and boxes on every troll. */
+.to-ws { position: absolute; inset: 0; z-index: 14; pointer-events: none; color: #e9f2e4;
+  font-family: "Oswald", sans-serif; letter-spacing: .12em; }
+.to-ws[hidden] { display: none; }
+/* Up in the gunner seat the soldier's HUD has nothing to say. */
+body.to-in-warship #to-ss-hud, body.to-in-warship #to-crosshair, body.to-in-warship #hud-ammo,
+body.to-in-warship #to-hud-gear, body.to-in-warship #to-spawnguard, body.to-in-warship .to-hud-weapon { visibility: hidden; }
+.to-ws-scan { position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%); }
+.to-ws-reticle { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; transform: translate(-50%, -50%); }
+.to-ws-reticle > i { position: absolute; background: rgba(233,242,228,.9); box-shadow: 0 0 2px #000; }
+.to-ws-reticle > i:nth-child(1) { left: 0; top: 50%; width: 42px; height: 2px; margin-top: -1px; }
+.to-ws-reticle > i:nth-child(2) { right: 0; top: 50%; width: 42px; height: 2px; margin-top: -1px; }
+.to-ws-reticle > i:nth-child(3) { top: 0; left: 50%; height: 42px; width: 2px; margin-left: -1px; }
+.to-ws-reticle > i:nth-child(4) { bottom: 0; left: 50%; height: 42px; width: 2px; margin-left: -1px; }
+.to-ws-reticle > b { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%);
+  border: 2px solid rgba(233,242,228,.9); }
+.to-ws.is-cannon .to-ws-reticle { width: 190px; height: 190px; }
+.to-ws.is-cannon .to-ws-reticle > b { width: 64px; height: 64px; border-radius: 50%; }
+.to-ws-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 18px;
+  font-size: 15px; text-shadow: 0 1px 3px #000; }
+.to-ws-top strong { font-weight: 600; }
+.to-ws-guns { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); display: flex; gap: 10px;
+  align-items: center; font-size: 15px; }
+.to-ws-guns span { padding: 3px 10px; border: 1px solid rgba(233,242,228,.35); opacity: .55; }
+.to-ws-guns span.is-on { opacity: 1; border-color: #e9f2e4; background: rgba(233,242,228,.14); }
+.to-ws-guns em { font-style: normal; font-size: 11px; opacity: .7; margin-left: 6px; }
+.to-ws-reload { position: absolute; left: 50%; bottom: 84px; width: 160px; height: 3px; transform: translateX(-50%);
+  background: rgba(233,242,228,.2); }
+.to-ws-reload i { display: block; height: 100%; background: #e9f2e4; }
+.to-ws-marks > i { position: absolute; left: 0; top: 0; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  border: 2px solid #ff3b30; box-shadow: 0 0 4px rgba(0,0,0,.8); }
+.to-ws-marks > i[hidden] { display: none; }
+.to-ws-marks > i.is-dog { width: 14px; height: 14px; margin: -7px 0 0 -7px; }
+.to-ws-marks > i.is-friend { border-color: #3fa9ff; border-radius: 50%; }
+.to-ws-marks > i.is-you { border-color: #7dff5a; border-radius: 50%; }
+.to-ws-marks > i.is-you::after { content: "YOU"; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  font-size: 10px; color: #7dff5a; margin-top: 2px; }
+@media (max-width: 760px) {
+  .to-ws-guns { bottom: 150px; font-size: 13px; }
+  .to-ws-reload { bottom: 138px; }
+  .to-ws-guns em { display: none; }
+}
+
 /* Lightning Strike tablet (streak-tablet.js): a rugged tablet raised into
    the hands, overhead map on the screen. Slides up tilted and settles flat;
    lowers the same way. */
