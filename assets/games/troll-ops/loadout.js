@@ -4,7 +4,7 @@ import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapon
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js";
 import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js";
-import { getRank, isUnlocked, rankUnlocked, rankProgress, rankXpText } from "./progression.js";
+import { getRank, isUnlocked, rankUnlocked, rankProgress, rankXpText } from "./progression.js?v=lv2";
 import { MAPS, MAP_IDS, mapSchematic } from "./maps.js?v=ti3";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=hw3";
 

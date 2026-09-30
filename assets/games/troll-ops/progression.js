@@ -133,11 +133,16 @@ export function rankProgress() {
   return (xp - floor) / (xpForLevel(level + 1) - floor);
 }
 
-/* "340 / 450 XP" toward the next level. */
+/* "475,000 / 480,200 XP": total XP over the total the next level needs,
+   the same readout as the trollrunner.net profile (troll-accounts.js
+   xpProgress), so the two never show different numbers for one level.
+   Signed in, XP still on its way to the account is called out, since the
+   level here already counts it and the site will not until it lands. */
 export function rankXpText() {
   const xp = getXp(), level = levelForXp(xp);
-  const floor = xpForLevel(level);
-  return `${(xp - floor).toLocaleString()} / ${(xpForLevel(level + 1) - floor).toLocaleString()} XP`;
+  const pending = accountXp() === null ? 0 : readNum(PENDING_KEY);
+  const text = `${xp.toLocaleString()} / ${xpForLevel(level + 1).toLocaleString()} XP`;
+  return pending > 0 ? `${text} (+${pending.toLocaleString()} syncing)` : text;
 }
 
 /* Level gate for anything that isn't in WEAPON_DEFS — melee, throwables. */
