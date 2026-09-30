@@ -18,7 +18,8 @@ import { sharedParaglider } from "./royale-drop.js?v=rd2";
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down
 // this long before it's cleared, rather than vanishing the moment it lands.
-const BODY_LINGER = 8;   // seconds a body stays down after the fall (respawning clears it sooner)
+const BODY_LINGER = 8;
+const SWIVEL_TIME = 0.5;   // game.js swivel, played on their body   // seconds a body stays down after the fall (respawning clears it sooner)
 
 /* Troll Royale's landing: a tuck and roll forward, then you run. `k` 0..1
    through it (0 = upright). The rig turns head-over-heels about a point at
@@ -238,6 +239,9 @@ export class RemotePlayer {
     // ({ kind: "ignite" | "retract" | "swing", at }), drained each frame.
     this.blockT = 0;
     this.parry = { zone: "left", t: 9 };   // last deflect's parry (game.js onRemoteDeflect)
+    this.swivelSeen = null;                  // their swivel counter (sv); a change starts a spin
+    this.swivelT = 9;
+    this.swivelDir = 0;
     this.saberOut = false;
     this.sfx = [];
   }
@@ -500,6 +504,17 @@ export class RemotePlayer {
     this.rig.root.position.copy(this.pos);
     // Their head leads toward where they aim; the body turns after it.
     aimRig(this.rig, this.yaw, dt, { moving });
+    // A swivel they started: the body spins the full turn over SWIVEL_TIME.
+    if ((this.peer.swivel | 0) !== this.swivelSeen) {
+      const first = this.swivelSeen === null;   // just met them: take the count, don't spin
+      this.swivelSeen = this.peer.swivel | 0;
+      if (this.swivelSeen && !first) { this.swivelT = 0; this.swivelDir = Math.sign(this.swivelSeen); }
+    }
+    if (this.swivelT < SWIVEL_TIME) {
+      this.swivelT += dt;
+      const k = Math.min(1, this.swivelT / SWIVEL_TIME);
+      this.rig.root.rotation.y += -this.swivelDir * Math.PI * 2 * k * k * (3 - 2 * k);
+    }
 
     // Two-handed carry (armL on the support hand instead of a free run
     // swing) for anything but a sidearm — matches weapon-model.js's own

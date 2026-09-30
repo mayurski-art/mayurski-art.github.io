@@ -11,16 +11,16 @@
 // while it's held.
 //
 // Bindings follow the W3C "standard" gamepad mapping pollGamepad in
-// game.js reads (button index = position on the pad, not the letter). The
-// emote button is the pad's T by default and can be rebound here
-// (padEmoteButton): on some pads T is a hardware turbo switch the browser
-// never hears about, so the card lets the player press whatever they want.
+// game.js reads (button index = position on the pad, not the letter).
+// Emotes are both sticks clicked together (user; the Voyee's T is a
+// hardware turbo the browser never hears); one stick alone is the swivel.
+// A single emote button can be set here instead (padEmoteButton).
 
 const NS = "http://www.w3.org/2000/svg";
 const EMOTE_KEY = "trollops:padEmote";
 
-/* The emote button's index, or -1 for "auto": any button past the
-   standard 16 (where a pad's extra T / capture buttons land). */
+/* The emote button's index, or -1 for the default: L3 + R3 together
+   (game.js reads that chord itself). */
 export function padEmoteButton() {
   try {
     const v = localStorage.getItem(EMOTE_KEY);
@@ -33,9 +33,7 @@ function setPadEmoteButton(i) {
 /* Did the emote button go down this frame? `edge(i)` = pressed now, not before. */
 export function padEmotePressed(gp, edge) {
   const b = padEmoteButton();
-  if (b >= 0) return edge(b);
-  for (let i = 17; i < (gp?.buttons.length || 0); i++) if (edge(i)) return true;
-  return false;
+  return b >= 0 && edge(b);
 }
 
 /* What each standard-mapping button does in a match. Keep in step with
@@ -50,10 +48,10 @@ const BINDINGS = [
   { i: 0,  side: "R", action: "Jump · vault" },
   { i: 2,  side: "R", action: "Quick melee" },
   { i: 9,  side: "R", action: "Menu" },
-  { i: 11, side: "R", action: "Look", stick: "R" },
+  { i: 11, side: "R", action: "Look · click: swivel right", stick: "R" },
   { i: 6,  side: "L", action: "Aim down sights" },
   { i: 4,  side: "L", action: "Reload" },
-  { i: 10, side: "L", action: "Move", stick: "L" },
+  { i: 10, side: "L", action: "Move · click: swivel left", stick: "L" },
   { i: 8,  side: "L", action: "Third person" },
   { i: EMOTE, side: "L", action: "Emote wheel" },
   { i: 12, side: "L", action: "Inspect weapon" },
@@ -103,6 +101,7 @@ const SPOTS = {
   12: [282, 192], 13: [282, 236], 14: [260, 214], 15: [304, 214],  // D-pad
   16: [320, 156], 17: [346, 128],                                  // Home, O
   T: [294, 128],
+  chord: [297, 178],   // between the sticks: both clicked together
 };
 
 export class ControllerLayout {
@@ -154,7 +153,7 @@ export class ControllerLayout {
     const reset = document.createElement("button");
     reset.type = "button";
     reset.className = "to-set-btn to-pad-reset";
-    reset.textContent = "Use T";
+    reset.textContent = "Use both sticks";
     reset.addEventListener("click", () => { setPadEmoteButton(-1); this.rebinding = false; this.paintBind(); });
     bind.append(this.bindText, this.bindBtn, reset);
     host.appendChild(bind);
@@ -253,7 +252,7 @@ export class ControllerLayout {
         const y = top + n * gap;
         const tx = side === "L" ? 6 : VIEW_W - 6;
         const lx = side === "L" ? 214 : VIEW_W - 214;
-        const spot = SPOTS[b.i === EMOTE ? "T" : b.i];
+        const spot = SPOTS[b.i === EMOTE ? (padEmoteButton() >= 0 ? padEmoteButton() : "chord") : b.i] || SPOTS.chord;
         const bx = spot[0] + PAD_X, by = spot[1];
         const g = el("g", { class: "pad-callout" }, this.svg);
         el("polyline", { points: `${lx},${y} ${side === "L" ? lx + 14 : lx - 14},${y} ${bx},${by}`, class: "pad-lead" }, g);
@@ -276,7 +275,8 @@ export class ControllerLayout {
   /* Name of the emote button in the current family. */
   emoteName() {
     const b = padEmoteButton();
-    return b < 0 ? "T" : GLYPHS[this.family][b] || `Button ${b}`;
+    const g = GLYPHS[this.family];
+    return b < 0 ? `${g[10]} + ${g[11]}` : g[b] || `Button ${b}`;
   }
 
   setFamily(f) {
@@ -310,7 +310,7 @@ export class ControllerLayout {
 
   paintBind() {
     if (!this.bindText) return;
-    this.bindText.textContent = this.rebinding ? "Press the button you want for emotes…" : `Emote button: ${this.emoteName()}${padEmoteButton() < 0 ? " (or any extra button)" : ""}`;
+    this.bindText.textContent = this.rebinding ? "Press the button you want for emotes…" : `Emotes: ${this.emoteName()}${padEmoteButton() < 0 ? " (click both sticks together)" : ""}`;
     this.bindBtn.disabled = this.rebinding;
     const c = this.callouts.get(EMOTE);
     if (c) c.glyph.textContent = this.emoteName();
@@ -351,8 +351,7 @@ export class ControllerLayout {
       }
     }
     const emoteIdx = padEmoteButton();
-    const emoteOn = !!gp && (emoteIdx >= 0 ? !!gp.buttons[emoteIdx]?.pressed : gp.buttons.slice(17).some((b) => b.pressed));
-    for (const n of this.parts.get("T") || []) n.classList.toggle("is-on", emoteOn);
+    const emoteOn = !!gp && (emoteIdx >= 0 ? !!gp.buttons[emoteIdx]?.pressed : !!(gp.buttons[10]?.pressed && gp.buttons[11]?.pressed));
     this.emoteCallout?.classList.toggle("is-on", emoteOn);
     for (const [i, nodes] of this.parts) {
       if (i === "T") continue;

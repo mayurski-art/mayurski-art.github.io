@@ -49,8 +49,7 @@ because software GL draws only a few fps).
   (`padEmoteButton`, localStorage `trollops:padEmote`, default "any button
   past index 16"; "Set emote button" rebinds it, since T is often a
   hardware turbo the browser never sees). Hold Y/Triangle is the fallback
-  (tap Y still switches weapon, on release). **L3 is free** (user wants it
-  for "the swivel" — ask what that is). Desktop stays H = emotes, T = inspect.
+  (superseded, see the follow-up below). Desktop stays H = emotes, T = inspect.
 - **Killcam melee**: killcam.js records `mid/sw/si/bk` per actor; replays
   swing the sword / raise the saber guard on every body and show the
   killer's melee viewmodel (`updateKillcamMelee`).
@@ -81,10 +80,35 @@ because software GL draws only a few fps).
   trollface) + skin tint (8 colours), saved `trollops:cosmetics`, shown on
   the menu operator and your body, sent as `fc` so others see it
   (character.js `faceMaterial` / `setFace`, `rig.face`).
-- Not done / next: bots don't call Dragonfire or SAM (add to
-  BOT_STREAK_POOL), bots still don't shoot aircraft; more cosmetic slots
-  (the user asked for a cosmetics section; face is the first); the
-  "swivel" on L3.
+- **Follow-up (same session):**
+  - **Swivel** (user's spec, basketball spin move): running forward,
+    double-tap A or D (pad: click the left or right stick alone) -> a 360
+    spin toward that side over `SWIVEL_TIME` 0.5 s, coming out
+    `SWIVEL_SIDE` 0.9 m to that side of where it started, still running.
+    game.js `trySwivel`/`updateSwivel` (sideways shift through
+    `move.resolveHorizontal`), body spin on the 3P rig (`swivelSpin`) and on
+    everyone else's view (wire `sv` = side * count, remote-players.js). In
+    first person: a roll + FOV kick, not a full camera turn. The user said
+    "left ... clockwise": left currently turns the body's left first;
+    `SWIVEL_LEFT_SIGN` flips it if that reads wrong to them.
+  - **Pad emotes = L3 + R3 clicked together** (user; the Voyee's T is a
+    hardware turbo the browser never sees). A single stick click waits
+    `STICK_CHORD` 0.12 s for the other before it's a swivel. Y is an
+    instant weapon swap again. The controller card can still set one
+    button for emotes instead (`padEmoteButton`, "Use both sticks" resets).
+  - **Tablet dive** (user item 7): Lightning Strike, VTOL Warship and
+    Dragonfire tip the view down onto the tablet, push into its screen and
+    cut through a green scan flash (`startTabletDive`, `.to-tablet-dive`)
+    into the strike map / gunner feed / drone camera. UAV, gunship, VSAT
+    etc. keep the plain confirm. DF_BOARD_AT is 1.2 s now.
+  - **Bots call Dragonfire and SAM Turrets** (BOT_STREAK_POOL; Dragonfire is
+    an air streak under BOT_AIR_CAP). A bot's Dragonfire is flown by
+    `flyBotDragonfire` (holds ~9 m off its target and 5 m up, faces it,
+    fires on the bot's hit chance x0.8); the bot stands still while it
+    flies (`bot.piloting` via botBusy) and the drone drops if the bot dies.
+    Bot SAMs use the same AI as ours (`samTargets` by `botTeam`).
+- Not done / next: bots still don't shoot aircraft with their guns; more
+  cosmetic slots (face is the first); killcam doesn't record swivels.
 - Pre-existing failures under software GL (same on the base commit): sync,
   bot-moves, bot-streaks killfeed, streaks-bo2/trollsaber start timeouts.
 

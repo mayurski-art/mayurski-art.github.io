@@ -2982,3 +2982,15 @@ body.to-in-dragonfire #to-hud-gear, body.to-in-dragonfire #to-spawnguard, body.t
 @media (max-width: 760px) {
   .to-pf[data-panel="cosmetics"] .to-pf-center { top: 44%; }
 }
+
+/* Tablet dive (game.js startTabletDive): the cut into the tablet's screen. */
+.to-tablet-dive { position: absolute; inset: 0; z-index: 30; pointer-events: none; opacity: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(109,255,74,.22) 0 2px, transparent 2px 5px),
+    radial-gradient(ellipse at center, rgba(160,255,130,.9) 0%, rgba(40,120,30,.85) 45%, rgba(3,12,4,.95) 100%); }
+.to-tablet-dive.is-on { animation: to-tablet-dive .42s ease-out forwards; }
+@keyframes to-tablet-dive {
+  0% { opacity: 1; transform: scale(1.04); filter: brightness(1.6); }
+  35% { opacity: .9; }
+  100% { opacity: 0; transform: scale(1); filter: brightness(1); }
+}

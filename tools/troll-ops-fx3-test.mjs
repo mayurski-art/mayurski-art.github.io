@@ -62,11 +62,11 @@ const pad = await page.evaluate(() => {
   lobby.querySelector('.to-pad-picker [data-family="xbox"]').click();
   const xb = lobby.querySelector(".to-pad-svg").textContent;
   return { hosts: hosts.length, svgs: document.querySelectorAll(".to-pad-svg").length, ps: ps.includes("✕") && ps.includes("R2"), xbox: xb.includes("RT") && xb.includes("LB"),
-    emote: xb.includes("Emote wheel") && xb.includes("T") };
+    emote: xb.includes("Emote wheel") && xb.includes("LS + RS") && xb.includes("swivel left") };
 });
 check("controller layout drawn in lobby Settings and the Esc menu", pad.hosts === 2 && pad.svgs === 2, pad);
 check("button names follow the pad family (PlayStation / Xbox)", pad.ps && pad.xbox, pad);
-check("controller emote is the pad's T button", pad.emote);
+check("controller: both sticks = emotes, one stick = swivel", pad.emote);
 await page.evaluate(() => window.__trollOps.showLobbyPanel("controls"));
 await sleep(400);
 if (SHOT) await page.screenshot({ path: `${SHOT}/fx3-controls.png` });
@@ -97,7 +97,10 @@ const sad = await page.evaluate(async () => {
   for (let i = 0; i < 200 && !(T.charInspector.emote?.t > 0.3); i++) await new Promise((r) => setTimeout(r, 100));
   const during = T.charInspector.humanoid.parts.head.material.map?.image?.getContext ? "sad" : "grin";
   T.charInspector.emote = null;
-  T.charInspector.tick(0.016);
+  // The menu canvas may have no size at a small viewport (it never ticks
+  // then), so put the rig back through its ordinary pose directly.
+  const C = await import("/assets/games/troll-ops/character.js?v=to-fx3");
+  C.poseHumanoid(T.charInspector.humanoid, { moving: false, pitch: 0, dt: 0.016, hold: "none" });
   const after = T.charInspector.humanoid.parts.head.material.map?.image?.getContext ? "sad" : "grin";
   return { during, after, name: T.emoteWheel.slices[idx]?.textContent };
 });
@@ -137,6 +140,38 @@ const kc = await page.evaluate(() => {
   return { mid: s.mid, sw: s.sw, si: s.si };
 });
 check("killcam replays the swing (melee id + swing fraction interpolated)", kc.mid === "trollsaber" && Math.abs(kc.sw - 0.3) < 0.02 && kc.si === 1, kc);
+
+// --- Swivel: running forward, a spin to the side that ends ~0.9 m over
+const sw = await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.player.spawnGuard = 0;
+  const yaw = T.look.yaw;
+  T.move.velocity.set(-Math.sin(yaw) * 4.5, 0, -Math.cos(yaw) * 4.5);
+  const p0 = T.move.pos.clone();
+  const ok = T.trySwivel(-1);
+  for (let i = 0; i < 300 && T.swivel.dir; i++) await new Promise((r) => setTimeout(r, 50));
+  const d = T.move.pos.clone().sub(p0);
+  const side = d.x * Math.cos(yaw) - d.z * Math.sin(yaw);   // + right, - left
+  return { ok, side: +side.toFixed(2), done: !T.swivel.dir, seq: T.swivel.seq };
+});
+check("Swivel left: a spin that comes out ~0.9 m to the left", sw.ok && sw.done && sw.side < -0.6, sw);
+const sw2 = await page.evaluate(() => { const T = window.__trollOps; T.move.velocity.set(0, 0, 0); return T.trySwivel(1); });
+check("no swivel standing still (needs a forward run)", sw2 === false);
+
+// --- Tablet dive into Lightning Strike's map
+const dive = await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.streaks.grant("airstrike");
+  T.callStreak("airstrike");
+  const started = !!T.tabletDive();
+  let maxDip = 0;
+  for (let i = 0; i < 400 && !T.strikeTablet()?.isOpen; i++) { maxDip = Math.max(maxDip, T.tabletDiveDip()); await new Promise((r) => setTimeout(r, 50)); }
+  const open = !!T.strikeTablet()?.isOpen;
+  const flash = !!document.querySelector(".to-tablet-dive.is-on");
+  T.cancelMark();
+  return { started, open, flash, maxDip: +maxDip.toFixed(2) };
+});
+check("Lightning Strike: the view dives into the tablet, then the map opens", dive.started && dive.open && dive.flash && dive.maxDip > 0.2, dive);
 
 // --- Dragonfire
 await page.evaluate(() => {
@@ -199,6 +234,24 @@ const samInfo = await page.evaluate(() => {
   return s ? { target: s.targetId, lock: s.lockT, missiles: s.missiles.length, age: s.age } : null;
 });
 check("SAM Turret shoots an enemy gunship down", downed, samInfo);
+
+// --- bots call Dragonfire and SAM Turrets
+const botCalls = await page.evaluate(async () => {
+  const T = window.__trollOps;
+  const b = T.bots.bots.find((x) => x.alive);
+  if (!b) return { none: true };
+  const inPool = T.BOT_STREAK_POOL.includes("dragonfire") && T.BOT_STREAK_POOL.includes("samturret");
+  if (!inPool) return { inPool };
+  T.botFireStreak(b, "dragonfire");
+  T.botFireStreak(b, "samturret");
+  const ents = [...T.streakEntities.values()];
+  const df = ents.find((e) => e.constructor.name === "Dragonfire" && e.botId === b.id);
+  const sam = ents.find((e) => e.constructor.name === "SamTurret" && e.botId === b.id);
+  const p0 = df ? df.pos.clone() : null;
+  for (let i = 0; i < 60; i++) T.updateStreakEntities(0.05);
+  return { df: !!df, sam: !!sam, flew: df && p0 ? +df.pos.distanceTo(p0).toFixed(1) : 0, piloting: !!b.piloting, log: T.botStreakLog.slice(-3).map((x) => x.id) };
+});
+check("bots call Dragonfire (and fly it, standing still) and SAM Turrets", botCalls.df && botCalls.sam && botCalls.flew > 1 && botCalls.piloting, botCalls);
 
 // --- dying shows the body, not the guns
 await page.evaluate(() => {

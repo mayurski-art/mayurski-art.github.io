@@ -1,6 +1,6 @@
 // Troll Forces — the emote wheel.
 //
-// Press H (controller: T, or hold Triangle / Y) and a radial wheel opens. Hover a slice (the
+// Press H (controller: click both sticks together) and a radial wheel opens. Hover a slice (the
 // mouse, locked or not, or the right stick), then click / X (controller:
 // Cross/A) plays it; H, Esc or Circle/B closes it. The stick's pick stays
 // put when the stick springs back, so it's still there when you press.

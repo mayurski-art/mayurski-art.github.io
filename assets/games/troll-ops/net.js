@@ -277,6 +277,7 @@ export class Net {
         p.emote = m.em | 0;   // 1-based emote index, 0 = none
         p.blocking = !!m.bl;  // Trollsaber guard up
         p.face = m.fc || null;  // cosmetics.js face key ("expression:tint")
+        p.swivel = m.sv | 0;
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
@@ -410,6 +411,7 @@ export class Net {
         ro: local.roll > 0 ? round2(local.roll) : undefined,    // Royale landing roll, 0..1
         dr: local.drop || undefined,   // Royale drop: 1 bus, 2 freefall, 3 glider
         fc: local.face && local.face !== "grin:og" ? local.face : undefined,   // cosmetics.js face
+        sv: local.swivel || undefined,   // swivel: side (sign) * count, a new count = a new spin
       });
     }
     const now = performance.now();

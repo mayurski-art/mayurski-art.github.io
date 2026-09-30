@@ -66,7 +66,7 @@ import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
-import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl4";
+import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl6";
 import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=cos1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df1";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
@@ -683,7 +683,7 @@ function callStreak(id) {
     markingStreak = id;
     updateStreakHud();
     beginStreakHold(0, "tablet", "strike");
-    openStrikeTablet();
+    startTabletDive(0.95, () => { if (markingStreak === "airstrike") openStrikeTablet(); });
     return;
   }
   if (id === "carepackage") {
@@ -934,6 +934,7 @@ function fireStreak(id, at = null) {
       }
       showWaveBanner("VTOL WARSHIP INBOUND", 1400);
       beginStreakHold(WARSHIP_BOARD_AT, "tablet", "warship");
+      startTabletDive(WARSHIP_BOARD_AT);
       break;
     }
 
@@ -960,6 +961,7 @@ function fireStreak(id, at = null) {
       }
       showWaveBanner("DRAGONFIRE INBOUND", 1200);
       beginStreakHold(DF_BOARD_AT, "tablet", "dragonfire");
+      startTabletDive(DF_BOARD_AT);
       break;
     }
 
@@ -1349,7 +1351,7 @@ function dogKilledBy(byId) {
    (its gun's hits, its SAM's locks and kills, its Dragonfire's health),
    everyone else draws a copy from the wire. */
 let dragonfire = null;          // our own while we fly it
-const DF_BOARD_AT = 1.0;        // the tablet call, then you're flying
+const DF_BOARD_AT = 1.2;        // the tablet dive, then you're flying
 let dfViewOn = false, dfSaved = null, dfHud = null, dfSendT = 0;
 let dfIx = 0, dfIz = 0;         // this frame's stick, taken before the body freezes
 const samHitCount = new Map();  // air eid -> SAM missiles it has taken (owner side)
@@ -2035,7 +2037,10 @@ function updateStreakEntities(dt) {
     }
 
     if (e instanceof Dragonfire) {
-      if (e.owned && e === dragonfire && dragonfireView()) {
+      if (e.owned && e.botId) {
+        flyBotDragonfire(e, dt);
+        if (e.dead) continue;
+      } else if (e.owned && e === dragonfire && dragonfireView()) {
         const up = ((isTouch && touchState.jump) || (gamepadState.connected && gamepadState.jump) || keys.has("Space") ? 1 : 0)
           - ((isTouch && touchState.crouch) || (gamepadState.connected && gamepadState.crouch) || keys.has("KeyC") || keys.has("ControlLeft") ? 1 : 0);
         e.fly(dt, { fwd: dfIz, strafe: dfIx, up, yaw: look.yaw, pitch: look.pitch },
@@ -2052,6 +2057,8 @@ function updateStreakEntities(dt) {
       if (out === "expire") {
         if (e.owned && net.active && e.hp > 0) net.publishStreak({ kind: "dragonfire", action: "end", eid: e.id });
         if (e === dragonfire) dragonfire = null;
+        const pilot = e.botId && bots.byId(e.botId);
+        if (pilot && pilot.piloting === e.id) pilot.piloting = null;
         e.dispose();
         streakEntities.delete(id);
       }
@@ -2365,9 +2372,9 @@ function streakOwnerHates(team, botId) {
 // sees it through the streak messages players' streaks already send.
 // Phase 1 has the seven that run themselves; the Care Package, Lightning
 // Strike and VTOL Warship need bot brains of their own (phases 2 and 3).
-const BOT_STREAK_POOL = ["uav", "counteruav", "vsat", "drone", "k9", "helicopter", "swarm"];
+const BOT_STREAK_POOL = ["uav", "counteruav", "vsat", "drone", "k9", "helicopter", "swarm", "samturret", "dragonfire"];
 const BOT_RADAR = new Set(["uav", "counteruav", "vsat"]);   // no sides to share in FFA
-const BOT_AIR = new Set(["drone", "helicopter", "swarm", "warship"]);
+const BOT_AIR = new Set(["drone", "helicopter", "swarm", "warship", "dragonfire"]);
 const BOT_AIR_CAP = 2;      // bot air streaks up at once, per team
 const BOT_QUIET = 1.5;      // seconds with nobody in sight before calling
 const BOT_STREAK_KEY = "trollops:botStreaks";
@@ -2403,7 +2410,7 @@ function botEarn(b, pts) {
 function botAirUp(team) {
   let n = 0;
   for (const e of streakEntities.values()) {
-    if (e.botId && e.botTeam === team && !e.sky && (e instanceof HunterDrone || e instanceof HelicopterGunship)) n++;
+    if (e.botId && e.botTeam === team && !e.sky && (e instanceof HunterDrone || e instanceof HelicopterGunship || e instanceof Dragonfire)) n++;
   }
   for (const s of swarmRuns) if (s.botId && s.team === team) n++;
   return n;
@@ -2503,7 +2510,89 @@ function botFireStreak(b, id) {
       swarmRuns.push({ t: 0, next: 1.4, sent: 0, botId: b.id, team: b.team });
       callout("SWARM");
       break;
+    case "samturret": {
+      const eid = `streak-sam-${tag}`;
+      const at = samDeployPoint(b.pos, b.yaw);
+      const e = spawnSam({ id: eid, owned: true, team: b.team, ...at });
+      e.botId = b.id; e.botTeam = b.team;
+      if (net.active) net.publishStreak({ kind: "sam", action: "spawn", eid, team: b.team, x: round2(at.x), y: round2(at.y), z: round2(at.z), yaw: round2(at.yaw) });
+      callout("SAM TURRET");
+      break;
+    }
+    case "dragonfire": {
+      // The bot stands where it called it (botBusy) and flies it (flyBotDragonfire).
+      const eid = `streak-df-${tag}`;
+      const from = { x: b.pos.x - Math.sin(b.yaw) * 0.8, y: b.pos.y + 1.3, z: b.pos.z - Math.cos(b.yaw) * 0.8 };
+      const e = spawnDragonfire({ id: eid, owned: true, team: b.team, ...from, yaw: b.yaw, botId: b.id });
+      e.botTeam = b.team;
+      b.piloting = eid;
+      if (net.active) net.publishStreak({ kind: "dragonfire", action: "spawn", eid, team: b.team, x: round2(from.x), y: round2(from.y), z: round2(from.z), yaw: round2(b.yaw) });
+      callout("DRAGONFIRE");
+      break;
+    }
   }
+}
+
+/* A bot's Dragonfire, on the bot host: pick the nearest enemy it can get
+   at, hold a firing spot ~9 m off it and 5 m up, face it, and shoot on the
+   bot's own accuracy. No enemy: circle over the bot. The bot dying drops it. */
+const _bdfTo = new THREE.Vector3(), _bdfDir = new THREE.Vector3();
+function flyBotDragonfire(e, dt) {
+  const bot = bots.byId(e.botId);
+  if (!bot || !bot.alive) { shootDownAir(e.id, null, true); return; }
+  if (!e.launched) { e.fly(dt, { fwd: 0, strafe: 0, up: 0, yaw: e.yaw, pitch: e.pitch }, null, null); return; }
+  e.aiT = (e.aiT || 0) - dt;
+  if (e.aiT <= 0) {
+    e.aiT = 0.5;
+    let best = null, bestD = Infinity;
+    const ffa = !!currentMode().ffa;
+    const consider = (id, pos) => {
+      const d = pos.distanceTo(e.pos);
+      if (d < bestD) { bestD = d; best = { id, pos }; }
+    };
+    for (const rp of remotes.byId.values()) {
+      if (!rp.alive || rp.netId === bot.id || (!ffa && rp.team === bot.team)) continue;
+      consider(rp.netId, rp.pos);
+    }
+    if (player.alive && streakOwnerHates(bot.team, bot.id)) consider(net.id, move.pos);
+    e.aiTarget = best;
+  }
+  const t = e.aiTarget;
+  let tx, ty, tz, faceYaw;
+  if (t) {
+    _bdfDir.set(e.pos.x - t.pos.x, 0, e.pos.z - t.pos.z);
+    if (_bdfDir.lengthSq() < 1e-3) _bdfDir.set(1, 0, 0);
+    _bdfDir.normalize();
+    tx = t.pos.x + _bdfDir.x * 9; tz = t.pos.z + _bdfDir.z * 9; ty = t.pos.y + 5;
+    faceYaw = Math.atan2(-(t.pos.x - e.pos.x), -(t.pos.z - e.pos.z));
+  } else {
+    const a = e.age * 0.4;
+    tx = bot.pos.x + Math.cos(a) * 10; tz = bot.pos.z + Math.sin(a) * 10; ty = bot.pos.y + 7;
+    faceYaw = Math.atan2(-(tx - e.pos.x), -(tz - e.pos.z));
+  }
+  let dyaw = Math.atan2(Math.sin(faceYaw - e.yaw), Math.cos(faceYaw - e.yaw));
+  const yaw = e.yaw + Math.max(-3 * dt, Math.min(3 * dt, dyaw));
+  const dx = tx - e.pos.x, dz = tz - e.pos.z, dy = ty - e.pos.y;
+  const sn = Math.sin(yaw), cs = Math.cos(yaw);
+  const clamp1 = (v) => Math.max(-1, Math.min(1, v));
+  const aimPitch = t ? Math.atan2(t.pos.y + 1.1 - e.pos.y, Math.hypot(t.pos.x - e.pos.x, t.pos.z - e.pos.z)) : -0.2;
+  e.fly(dt, { fwd: clamp1(-(dx * sn + dz * cs) / 4), strafe: clamp1((dx * cs - dz * sn) / 4), up: clamp1(dy / 2.5), yaw, pitch: aimPitch },
+    (from, dir, max) => raycastWorld(colliders, from, dir, max),
+    (x, z, fromY) => groundHeightAt(colliders, x, z, fromY));
+  // Fire when it's facing them with a clear line.
+  if (!t || Math.abs(dyaw) > 0.3) return;
+  const from = e.muzzleWorld(_bdfTo.set(0, 0, 0)).clone();
+  const aim = t.pos.clone(); aim.y += 1.1;
+  const d = from.distanceTo(aim);
+  if (d > DF_RANGE || !e.tryFire()) return;
+  _bdfDir.copy(aim).sub(from).divideScalar(d);
+  if (raycastWorld(colliders, from, _bdfDir, d) < d - 0.5) return;
+  const hit = Math.random() < (bot.diff?.hit ?? 0.45) * 0.8;
+  const to = hit ? aim : aim.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2.4, (Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 2.4));
+  e.shoot(to);
+  if (net.active) net.publishStreak({ kind: "dragonfire", action: "shot", eid: e.id, x: round2(to.x), y: round2(to.y), z: round2(to.z) });
+  if (Math.random() < 0.35) audio.shot(WEAPON_DEFS.bellow || WEAPON_DEFS.problem416, 0.25, e.pos);
+  if (hit) streakDamage(bot.id, t.id, DF_DAMAGE, "dragonfire");
 }
 
 /* Streak events from someone else. Display and world state only — our own
@@ -3407,7 +3496,7 @@ function mountCharView(panel) {
 }
 
 /* Emoting in the main menu (user): the same wheel as in a match, played by
-   the operator on Match Setup. H / the pad's T (or hold Y) / the Emote button open it. */
+   the operator on Match Setup. H / L3 + R3 together / the Emote button open it. */
 const menuEmoteWheel = charView && els.title ? new EmoteWheel(els.title, (i) => charInspector?.playEmote(i)) : null;
 menuEmoteWheel?.el.classList.add("is-menu");
 const menuEmoteBtn = document.getElementById("to-char-emote");
@@ -3415,8 +3504,8 @@ menuEmoteBtn?.addEventListener("click", () => {
   menuEmoteWheel?.toggle(charInspectorLive && gameState === "menu");
   menuEmoteBtn.setAttribute("aria-expanded", String(!!menuEmoteWheel?.isOpen));
 });
-// Pad in the menu: T (the emote button, controller-layout.js) or Triangle/Y
-// opens, the right stick points, Cross/A plays, Circle/B closes.
+// Pad in the menu: both sticks clicked together (or the emote button set on
+// the controller card) opens, the right stick points, Cross/A plays, Circle/B closes.
 let gpMenuEmotePrev = {};
 function pollMenuEmotePad() {
   const w = menuEmoteWheel;
@@ -3424,7 +3513,7 @@ function pollMenuEmotePad() {
   const gp = w && charInspectorLive ? Array.from(pads).find((p) => p && p.connected) : null;
   if (!gp) { gpMenuEmotePrev = {}; return; }
   const b = (i) => !!gp.buttons[i]?.pressed, edge = (i) => b(i) && !gpMenuEmotePrev[i];
-  if (padEmotePressed(gp, edge) || edge(3)) w.toggle();
+  if (padEmotePressed(gp, edge) || (b(10) && b(11) && (edge(10) || edge(11)))) w.toggle();
   if (w.isOpen) {
     w.aim(gp.axes[2] || 0, gp.axes[3] || 0);
     if (edge(0)) w.close();
@@ -4824,6 +4913,50 @@ let markerThrowT = 0;
 const DRONE_TOSS_AT = 0.6;          // seconds into the hold that the drone leaves the hand
 let pendingDroneLaunch = null;
 
+/* Tablet dive (user): for the streaks you work from the tablet (Lightning
+   Strike, VTOL Warship, Dragonfire) the view tips down onto the tablet in
+   your hands, then pushes into its screen and cuts through a green scan
+   flash to whatever it opens (the strike map, the gunner's feed, the
+   drone's camera). `then` runs at the cut. Called streaks that just
+   confirm (UAV, gunship, VSAT...) keep the plain hold. */
+let tabletDive = null;        // { t, dur, then }
+let tabletDiveFx = null;
+const DIVE_LOOK = 0.42;       // share of the dive spent looking down at it
+function startTabletDive(dur, then = null) {
+  tabletDive = { t: 0, dur: Math.max(0.5, dur), then };
+}
+function tabletDiveK() { return tabletDive ? Math.min(1, tabletDive.t / tabletDive.dur) : 0; }
+/* How far the view has tipped down onto the tablet (radians). */
+function tabletDiveDip() {
+  if (!tabletDive) return 0;
+  const k = tabletDiveK();
+  const a = Math.min(1, k / DIVE_LOOK);
+  return 0.38 * a * a * (3 - 2 * a);
+}
+function updateTabletDive(dt) {
+  if (!tabletDive) return;
+  if (!player.alive || gameState !== "playing") { tabletDive = null; return; }
+  tabletDive.t += dt;
+  if (tabletDive.t >= tabletDive.dur) {
+    const then = tabletDive.then;
+    tabletDive = null;
+    tabletDiveFlash();
+    then?.();
+  }
+}
+function tabletDiveFlash() {
+  if (!tabletDiveFx) {
+    tabletDiveFx = document.createElement("div");
+    tabletDiveFx.className = "to-tablet-dive";
+    tabletDiveFx.setAttribute("aria-hidden", "true");
+    (els.streakMark?.parentElement || document.body).appendChild(tabletDiveFx);
+  }
+  tabletDiveFx.classList.remove("is-on");
+  void tabletDiveFx.offsetWidth;   // restart the animation
+  tabletDiveFx.classList.add("is-on");
+  audio.reload();
+}
+
 function beginStreakHold(seconds = 0, kind = "tablet", screen = null) {
   if (player.holding === "melee") return; // never interrupt a mid-swing
   if (player.holding !== "streak" || streakDeviceKind !== kind) {
@@ -5013,6 +5146,11 @@ window.addEventListener("keydown", (e) => {
   // action keys need their own guard now instead of relying on gameState.
   if (!localPauseOnly) {
     if (e.code === "KeyR") tryReload();
+    if ((e.code === "KeyA" || e.code === "KeyD") && !e.repeat) {
+      const now = performance.now() / 1000;
+      if (now - swivelTaps[e.code] < SWIVEL_TAP) { trySwivel(e.code === "KeyA" ? -1 : 1); swivelTaps[e.code] = 0; }
+      else swivelTaps[e.code] = now;
+    }
     if (e.code === "KeyT" && !e.repeat) startInspect();
     if (e.code === "KeyV" && !e.repeat) swingMelee();
     if (e.code === "KeyB" && !e.repeat) toggleThirdPerson();
@@ -5441,8 +5579,8 @@ function applyAimAssist(dt, strength = 1) {
 }
 
 let gpWheelSwallow = false;   // the A/B that worked the emote wheel isn't a jump/crouch
-const EMOTE_HOLD = 0.35;   // seconds Triangle/Y is held before it means "emote"
-let gpTriHeld = 0, gpTriUsed = false, gpDt = 0;
+const STICK_CHORD = 0.12;  // seconds a stick click waits for the other stick
+let stickChord = null, gpDt = 0;
 function pollGamepad(dt) {
   gpDt = dt;
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -5514,24 +5652,27 @@ function pollGamepad(dt) {
   if (!localPauseOnly) {
     if (pressedEdge(4)) tryReload();          // L1 -> reload (kept off fire face buttons)
     if (pressedEdge(2)) swingMelee();         // X / square -> melee
-    // The emote button: the pad's T (user's Voyee), rebindable on the
-    // Settings controller card (controller-layout.js padEmoteButton).
+    // Stick clicks (user): both sticks together open the emote wheel; one
+    // alone is the swivel to that side. Decided STICK_CHORD s after the
+    // first click, so the second stick of a chord isn't read as a swivel.
+    // A single emote button can be set on the Settings controller card
+    // (controller-layout.js padEmoteButton) instead.
     if (padEmotePressed(gp, pressedEdge)) emoteWheel.toggle(gameState === "playing" && player.alive);
-    // Y / triangle: a tap cycles primary/secondary/melee (on release, so a
-    // hold can mean something else); held EMOTE_HOLD s it opens the emote
-    // wheel too, for pads whose T never reaches the browser. L3 stays free
-    // (user: kept for the swivel).
-    if (btn(3)) {
-      gpTriHeld += gpDt;
-      if (gpTriHeld >= EMOTE_HOLD && !gpTriUsed) {
-        gpTriUsed = true;
+    if (!stickChord && (pressedEdge(10) || pressedEdge(11))) stickChord = { t: 0, l: false, r: false, done: false };
+    if (stickChord) {
+      stickChord.t += gpDt;
+      stickChord.l ||= btn(10);
+      stickChord.r ||= btn(11);
+      if (!stickChord.done && stickChord.l && stickChord.r) {
+        stickChord.done = true;
         emoteWheel.toggle(gameState === "playing" && player.alive);
+      } else if (!stickChord.done && stickChord.t >= STICK_CHORD) {
+        stickChord.done = true;
+        trySwivel(stickChord.l ? -1 : 1);
       }
-    } else {
-      if (gpPrev[3] && !gpTriUsed) { if (emoteWheel.isOpen) emoteWheel.close(true); else cycleWeapon(); }
-      gpTriHeld = 0;
-      gpTriUsed = false;
+      if (stickChord.done && !btn(10) && !btn(11)) stickChord = null;
     }
+    if (pressedEdge(3)) cycleWeapon();        // Y / triangle -> cycle primary/secondary/melee
     // R1 -> cook whatever throwable you brought. It used to be lethal-only,
     // so a loadout carrying a flash/smoke/EMP threw nothing on RB (user:
     // "throwable doesn't work on controller").
@@ -5542,7 +5683,7 @@ function pollGamepad(dt) {
     if (pressedEdge(14)) startCook(carriedThrowSlot());
     if (gpPrev[14] && !btn(14)) releaseCook();
     if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
-    // Emote wheel open (hold Triangle/Y above): the right stick points at a
+    // Emote wheel open (both sticks, above): the right stick points at a
     // slice instead of turning the view, Cross/A plays it, Circle/B closes.
     // A held A or B doesn't jump or crouch.
     if (emoteWheel.isOpen) {
@@ -5557,6 +5698,7 @@ function pollGamepad(dt) {
       else if (!emoteWheel.isOpen) gpWheelSwallow = false;
     }
     if (pressedEdge(8)) toggleThirdPerson();  // Select/View/Minus -> camera toggle
+
     // D-pad down cycles which ready streak d-pad right will fire — a pick,
     // not a use, since the pad has a button to spare for it and keyboard's
     // single-button "4" doesn't need one.
@@ -7037,6 +7179,7 @@ function netSnapshot() {
   _netSnapshot.roll = royaleRollK();
   _netSnapshot.drop = royaleDropCode();
   _netSnapshot.face = cosmetics.face;
+  _netSnapshot.swivel = swivel.seq ? swivel.seq * (swivel.dir || swivel.lastDir || 1) : 0;
   return _netSnapshot;
 }
 
@@ -9192,7 +9335,14 @@ function botObjective(bot) {
   return { id: `site-${s.id}`, x: s.x, z: s.z, radius: 6 };
 }
 
-function botBusy(bot) { return !!sndBotAction && sndBotAction.botId === bot.id; }
+function botBusy(bot) {
+  // Flying its Dragonfire: stands still where it called it, like a player.
+  if (bot.piloting) {
+    if (streakEntities.get(bot.piloting)?.alive) return true;
+    bot.piloting = null;
+  }
+  return !!sndBotAction && sndBotAction.botId === bot.id;
+}
 
 /* Bot plants and defuses, run by the bot host only. Same timings as a
    player's hold-E, and broadcast through the same bomb messages, so every
@@ -10467,6 +10617,7 @@ function animate() {
     if (w.ads) targetFov = baseFov * def.adsFovMult;
     if (move.sprinting && !w.ads) targetFov = baseFov * 1.06;
     if (move.stance === STANCE.SLIDE) targetFov = baseFov * 1.12;
+    if (swivel.dir) targetFov = baseFov * (1 + 0.1 * Math.sin(Math.PI * swivelK()));
     if (warshipView()) targetFov = WARSHIP_GUNS[warshipGun].fov;
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
     camera.updateProjectionMatrix();
@@ -10602,6 +10753,57 @@ let localBlockT = 0;   // the third-person body in the saber guard, 0..1
    instead of reconstructed network deltas. Runs regardless of view mode
    (cheap, and keeps the rig ready the instant third person is toggled on)
    but only actually matters visually while localRig.root.visible is true. */
+/* ---------------- Swivel (user: a basketball spin move) ----------------
+   Running forward, double-tap A or D (a pad: click the left or right
+   stick) and the body spins a full 360 on the spot toward that side and
+   comes out of it SWIVEL_SIDE metres over to that side, still running.
+   Left spins to the body's left first (flip SWIVEL_LEFT_SIGN to reverse).
+   Everyone else sees the spin (`sv` on the state packet: side * count); in
+   first person it's a quick roll and FOV kick rather than a full turn of
+   the camera. */
+const SWIVEL_TIME = 0.5;
+const SWIVEL_SIDE = 0.9;          // metres gained toward that side
+const SWIVEL_COOLDOWN = 0.35;     // after one ends
+const SWIVEL_TAP = 0.28;          // seconds between the two taps
+const SWIVEL_LEFT_SIGN = 1;       // +1: a left swivel turns left first (yaw grows to the left)
+const swivel = { t: 0, dir: 0, yaw: 0, cd: 0, seq: 0, prevK: 0 };
+const swivelTaps = { KeyA: 0, KeyD: 0 };
+function swivelK() { return swivel.dir ? Math.min(1, swivel.t / SWIVEL_TIME) : 0; }
+function swivelEase(k) { return k * k * (3 - 2 * k); }
+/* `dir` -1 left, +1 right. Needs to be running forward on the ground. */
+function trySwivel(dir) {
+  if (swivel.dir || swivel.cd > 0 || !player.alive || localPauseOnly || stageFrozen()) return false;
+  if (!move.grounded || move.busy || move.stance !== STANCE.STAND) return false;
+  const fwd = -(move.velocity.x * Math.sin(look.yaw) + move.velocity.z * Math.cos(look.yaw));
+  if (fwd < 1.5) return false;
+  swivel.dir = dir;
+  swivel.lastDir = dir;
+  swivel.t = 0;
+  swivel.prevK = 0;
+  swivel.yaw = look.yaw;
+  swivel.seq = (swivel.seq % 999) + 1;
+  audio.slide?.();
+  return true;
+}
+/* Per frame after the move: shift sideways along the swivel's arc. */
+function updateSwivel(dt) {
+  swivel.cd = Math.max(0, swivel.cd - dt);
+  if (!swivel.dir) return;
+  swivel.t += dt;
+  const k = swivelK();
+  const step = (swivelEase(k) - swivelEase(swivel.prevK)) * SWIVEL_SIDE * swivel.dir;
+  swivel.prevK = k;
+  // Right of the heading the swivel started on: (cos, 0, -sin).
+  move.pos.x += Math.cos(swivel.yaw) * step;
+  move.pos.z -= Math.sin(swivel.yaw) * step;
+  move.resolveHorizontal(move.pos, move.pos.y);
+  if (k >= 1 || !player.alive) { swivel.dir = 0; swivel.cd = SWIVEL_COOLDOWN; }
+}
+/* The body's extra turn for a swivel of `dir` at `k` (0..1), radians. */
+function swivelSpin(dir, k) {
+  return -dir * SWIVEL_LEFT_SIGN * Math.PI * 2 * swivelEase(Math.max(0, Math.min(1, k)));
+}
+
 /* Dead, between the killcam and the respawn (or with no killcam at all):
    your own body lies where you fell, weapons gone from it and from the
    screen (user: show the dead body, not the guns). Timed off kcClock, so a
@@ -10642,6 +10844,7 @@ function updateLocalRig(dt) {
   // Under the glider the body hangs the way the wing flies, not where you look.
   const gliding = royale?.me === "glide" && royale.flight;
   aimRig(localRig, rolling ? royale.rollYaw : gliding ? royale.flight.heading : look.yaw, dt, { moving: move.moving, snap: rolling });
+  if (swivel.dir) localRig.root.rotation.y += swivelSpin(swivel.dir, swivelK());
 
   const wantLower = rolling ? 1 : STANCE_LOWER[move.stance] ?? 0;
   localLower += (wantLower - localLower) * Math.min(1, dt * 8);
@@ -10864,6 +11067,8 @@ function updatePlayer(dt) {
     inertia: w.def.inertia,
   });
 
+  updateSwivel(dt);
+
   if (move.moving && move.grounded && player.alive) {
     stepPhase += dt * (move.sprinting ? 13 : 9);
     if (stepPhase > Math.PI) { stepPhase -= Math.PI; audio.step(); }
@@ -10906,7 +11111,8 @@ function updatePlayer(dt) {
   const fpCam = fpEmoteFrame()?.cam;   // a first-person emote's head motion (a laugh, a facepalm)
   const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake + fireShake.y + (Math.random() - 0.5) * buzz
     + (fpCam?.yaw || 0) + (Math.random() - 0.5) * sawShake;
-  const viewPitch = look.pitch + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
+  updateTabletDive(dt);
+  const viewPitch = look.pitch - tabletDiveDip() + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
     + fireShake.p + (Math.random() - 0.5) * buzz + (fpCam?.pitch || 0) + (Math.random() - 0.5) * sawShake;
 
   if (royaleSpectating()) {
@@ -10944,7 +11150,8 @@ function updatePlayer(dt) {
     // PF slide: the view tips over a few degrees while you slide, leaning
     // toward the side you're steering (left by default).
     slideTiltT = damp(slideTiltT, move.stance === STANCE.SLIDE ? 1 : 0, 9, dt);
-    const slideRoll = slideTiltT * 0.075 * ((move.strafeInput ?? 0) > 0.2 ? -1 : 1);
+    const slideRoll = slideTiltT * 0.075 * ((move.strafeInput ?? 0) > 0.2 ? -1 : 1)
+      + (swivel.dir ? -swivel.dir * 0.16 * Math.sin(Math.PI * swivelK()) : 0);
     // One place composes the camera: aim + weapon recoil.
     const rollPitch = rollK > 0 ? -Math.PI * 2 * rollK * rollK * (3 - 2 * rollK) : 0;
     _euler.set(viewPitch + rollPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll);
@@ -11388,6 +11595,19 @@ function updateStreakView(dt) {
     TABLET_HOLD_POS.z + off * 0.06 + press * 0.004
   );
   mesh.rotation.set(TABLET_TILT + s * 0.35 - off * 0.6 + press * 0.05, off * 0.2, s * 0.2 + off * 0.25);
+  if (tabletDive) {
+    // The dive: the tablet comes up square to the eye as the view tips down
+    // to it, then rushes into the lens until its screen is all there is.
+    const k = tabletDiveK();
+    const a = Math.min(1, k / DIVE_LOOK), b = Math.max(0, (k - DIVE_LOOK) / (1 - DIVE_LOOK));
+    const ea = a * a * (3 - 2 * a), eb = b * b * b;
+    mesh.position.x += (0 - mesh.position.x) * ea;
+    mesh.position.y += (-0.05 - mesh.position.y) * ea + 0.05 * eb;
+    mesh.position.z += (-0.34 - mesh.position.z) * ea + 0.3 * eb;
+    mesh.rotation.x += (-0.02 - mesh.rotation.x) * ea;
+    mesh.rotation.y *= 1 - ea;
+    mesh.rotation.z *= 1 - ea;
+  }
   drawTabletScreen(activeStreakMesh, streakScreen, streakHoldElapsed, confirmed);
   poseStreakArms(mesh, "side", dt, pk > 0 && pk < 1 ? pk : 0);
 }
@@ -12911,6 +13131,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,
     spawnK9, spawnWarship, spawnDragonfire, spawnSam, dragonfire: () => dragonfire, dragonfireView, samTargets, shootDownAir,
     fireDragonfire, roomBotSkill, boostedXp, veteranBoostOn, weaponRig, localHeld, MELEE_DEFS, saberParry,
+    trySwivel, swivel, tabletDive: () => tabletDive, tabletDiveDip, botFireStreak, BOT_STREAK_POOL,
     warship: () => warship, warshipView, warshipGun: () => warshipGun, fireWarship, toggleWarshipGun,
     swarmRuns, damageDog, K9Pack, VtolWarship, WARSHIP_GUNS, K9,
     nearestHostileTo, strikeImpact, spawnAirstrike, pickDroneTarget, nearbyPackage, updatePickupPrompt,
