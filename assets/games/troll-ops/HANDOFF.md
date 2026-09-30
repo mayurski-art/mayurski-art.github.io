@@ -48,8 +48,22 @@ fires so it doesn't spam in a 100-troll Royale.
 - K9s were already killable (hit -> owner -> die, +50); nobody but you
   calls them yet, so you never meet enemy dogs.
 - Test: `tools/troll-ops-fixlist-test.mjs` (11 checks).
+- **Bots move like players** (user: never saw them scope, slide or jump;
+  `game.js?v=to-fx2`): bots.js hop (`startHop`, in fights by
+  `diff.jump`, and when pinned `STUCK_HOP`) and slide (`startSlide`, by
+  `diff.slide`, or after a hit), `bot.stance` on the wire ("slide").
+  Throwables rolled per life: lethal frag|firebomb, tactical
+  flash|smoke|EMP; smoke goes between a hurt bot and its enemy, then it
+  backs off (`retreatT`). Test: `tools/troll-ops-bot-moves-test.mjs`.
+- **Scoped pose is readable now** (character.js, all rigs incl. yours in
+  3P): only the Problem 416 has grip points (`_gripSupport`); every other
+  gun uses the arm-rotation path, where ADS lifted the arm 0.2 rad (looked
+  like nothing). Now 0.6 + support arm follows. character.js tag bumped to
+  `to-ads2` in every importer (emotes/enemies/zombies tags bumped too).
+- Pre-existing (fails on main too): royale-bots "most bots have picked
+  something up" (5/9).
 - **NOT done, needs a design doc**: bots using scorestreaks (3 random each,
-  no level gates) + "smarter" bots (ask what feels dumb). Every streak is
+  no level gates). Every streak is
   written for a human caller (tablets, riding the warship gun), so each
   needs a bot version. Park map on hold (user).
 

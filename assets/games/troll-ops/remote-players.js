@@ -6,8 +6,8 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-2h1";
-import { poseEmoteCode } from "./emotes.js?v=vsat2";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-ads2";
+import { poseEmoteCode } from "./emotes.js?v=to-ads2";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=hw3";

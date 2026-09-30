@@ -11,7 +11,7 @@ import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1"
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
 import { WeaponInspector } from "./inspector.js?v=vsat3";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
-import { CharacterInspector } from "./char-inspector.js?v=to-emx";
+import { CharacterInspector } from "./char-inspector.js?v=to-bm1";
 import { Loadout } from "./loadout.js?v=lv5";
 import { StreakPicker } from "./streak-picker.js?v=lv4";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=vsat1";
@@ -31,17 +31,17 @@ import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=lv4";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti4";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-rdc";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-bm1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-rdc";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-2h1";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emx";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=vsat2";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-bm1";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-ads2";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-bm1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-ads2";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tr4";
-import { BotManager } from "./bots.js?v=to-r100";
+import { BotManager } from "./bots.js?v=to-bm1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-r100";
 import { insidePolygon } from "./edge.js";
@@ -52,13 +52,13 @@ import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=vsat1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1";
-import { ZombieDirector } from "./zombies.js";
+import { ZombieDirector } from "./zombies.js?v=to-ads2";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js";
-import { WaveSpawner } from "./enemies.js";
+import { WaveSpawner } from "./enemies.js?v=to-ads2";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, chainsawRevAt } from "./gear.js?v=hw3";

@@ -12,9 +12,9 @@
 // identical here and not re-explained.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-2h1";
+import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-ads2";
 import { buildWeaponMesh } from "./weapon-model.js?v=gm1";
-import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=vsat2";
+import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=to-ads2";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;

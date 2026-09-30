@@ -440,7 +440,7 @@ export class Net {
     const snap = {
       t: performance.now(),
       x: bot.pos.x, y: bot.pos.y, z: bot.pos.z,
-      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: !!bot.moving, ads: bot.ads || 0, roll: bot.roll || 0, drop: bot.dropCode || 0,
+      yaw: bot.yaw, pitch: bot.pitch, stance: bot.stance || "stand", moving: !!bot.moving, ads: bot.ads || 0, roll: bot.roll || 0, drop: bot.dropCode || 0,
     };
     let p = this.peers.get(bot.id);
     if (!p) {
@@ -477,7 +477,7 @@ export class Net {
     this.send({
       t: "state", id: bot.id,
       x: round2(bot.pos.x), y: round2(bot.pos.y), z: round2(bot.pos.z),
-      ry: round2(bot.yaw), rp: 0, st: "stand", mv: 1,
+      ry: round2(bot.yaw), rp: 0, st: bot.stance || "stand", mv: 1,
       hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,
       w: p.weapon, tm: bot.team, n: bot.name, k: bot.kills | 0, d: bot.deaths | 0,
       ad: bot.ads > 0.01 ? round2(bot.ads) : undefined,

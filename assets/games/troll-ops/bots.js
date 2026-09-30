@@ -62,16 +62,30 @@ const RELOAD_TIME = 2.3;
    and whether it cooks frags so they go off on landing. */
 const DIFFICULTY = {
   recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.15, reaction: 0.45, strafe: 0.55, lead: 0.15, readsGuard: false, adsTime: 0.42,
-    nade: { chance: 0.3, scatter: 3.2, cook: false } },
+    nade: { chance: 0.3, scatter: 3.2, cook: false }, jump: 0.05, slide: 0.05 },
   regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.85, reaction: 0.28, strafe: 0.75, lead: 0.4, readsGuard: true, adsTime: 0.3,
-    nade: { chance: 0.55, scatter: 1.9, cook: false } },
+    nade: { chance: 0.55, scatter: 1.9, cook: false }, jump: 0.12, slide: 0.12 },
   veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.62, reaction: 0.16, strafe: 1.0, lead: 0.75, readsGuard: true, adsTime: 0.22,
-    nade: { chance: 0.85, scatter: 1.0, cook: true } },
+    nade: { chance: 0.85, scatter: 1.0, cook: true }, jump: 0.2, slide: 0.2 },
 };
 
-/* Grenades. One frag and one flash a life, the same as a player's default
-   kit, and a cooldown between throws so a bot that keeps its reason (a
-   camper behind the same wall) doesn't empty its pockets at it at once. */
+/* Moving like a player (user: bots never jumped or slid). In a fight a bot
+   rolls every MOVE_ROLL seconds for a hop or a slide (`jump` / `slide`
+   above); a bot pinned against something low hops over it. */
+const MOVE_ROLL = 0.5;
+const HOP_SPEED = 5.4;            // m/s up, the player's jump
+const HOP_GRAVITY = 16;
+const SLIDE_TIME = 0.75;
+const SLIDE_BOOST = 1.75;         // speed at the start of a slide, easing to 1
+const STUCK_HOP = 0.6;            // seconds pushing into something before hopping it
+const MOVE_COOLDOWN = 1.2;
+
+/* Grenades. One lethal and one tactical a life, like a player's kit, rolled
+   per life (lethal: frag or firebomb; tactical: flash, smoke or EMP), and
+   a cooldown between throws so a bot that keeps its reason (a camper
+   behind the same wall) doesn't empty its pockets at it at once. */
+const BOT_LETHALS = ["frag", "firebomb"];
+const BOT_TACTICALS = ["flash", "smoke", "emp"];
 const NADE_FIRST = [5, 10];       // seconds after spawning before the first throw
 const NADE_COOLDOWN = [9, 15];
 const NADE_RECHECK = 0.6;         // how often a bot looks for a reason
@@ -157,9 +171,38 @@ class Bot {
     this.speedMult = 1;
     this.maxHp = BOT_HP;
     this.meleeT = 0;
+    this.resetMoves();
+  }
+
+  resetMoves() {
+    this.hopY = 0;            // height of a hop above groundY
+    this.hopV = 0;
+    this.slideT = 0;
+    this.slideDir = new THREE.Vector3();
+    this.moveRollT = MOVE_ROLL;
+    this.moveCd = 0;
+    this.stuckT = 0;
+    this.wantSlide = false;
+    this.stance = "stand";    // on the wire (net.js publishBot)
+  }
+
+  startHop() {
+    if (this.hopY > 0 || this.hopV > 0 || this.slideT > 0) return;
+    this.hopV = HOP_SPEED;
+    this.moveCd = MOVE_COOLDOWN;
+  }
+
+  startSlide(dir) {
+    if (this.hopY > 0 || this.slideT > 0 || dir.lengthSq() < 0.01) return;
+    this.slideT = SLIDE_TIME;
+    this.slideDir.set(dir.x, 0, dir.z).normalize();
+    this.moveCd = MOVE_COOLDOWN;
   }
 
   resetNades() {
+    // `frags` / `flashes` count the lethal / tactical, whatever kind it is.
+    this.lethalKind = BOT_LETHALS[Math.floor(Math.random() * BOT_LETHALS.length)];
+    this.tacticalKind = BOT_TACTICALS[Math.floor(Math.random() * BOT_TACTICALS.length)];
     this.frags = 1;
     this.flashes = 1;
     this.nadeT = between(NADE_FIRST);
@@ -186,6 +229,7 @@ class Bot {
     this.stunT = 0;
     this.prevTargetPos = null;
     this.resetNades();
+    this.resetMoves();
   }
 
   /* Called when a shot connects on this bot. Real players flinch off-line
@@ -195,6 +239,8 @@ class Bot {
     this.hurtAt = performance.now();
     this.flinchT = 0.35 + Math.random() * 0.25;
     this.strafeDir = -this.strafeDir;
+    // Sometimes the answer to being shot is to drop into a slide.
+    if (Math.random() < this.diff.slide * 1.5) this.wantSlide = true;
   }
 
   /* Flashbanged or scrambled. Bots were handed to flashPlayer/empPlayer as
@@ -298,6 +344,7 @@ class Bot {
       this.targetVel.set(0, 0, 0);
     }
     if (this.flinchT > 0) this.flinchT -= dt;
+    if (this.retreatT > 0) this.retreatT -= dt;
 
     if (best) this.lastSeen = { id: best.id, x: best.pos.x, y: best.groundY ?? best.pos.y ?? 0, z: best.pos.z, age: 0 };
     else if (this.lastSeen) this.lastSeen.age += dt;
@@ -329,8 +376,9 @@ class Bot {
           const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * s;
           const at = { x: plan.x + Math.cos(a) * r, y: plan.y, z: plan.z + Math.sin(a) * r };
           if (ctx.onThrow(this, plan.kind, at, plan.lob)) {
-            if (plan.kind === "frag") this.frags--; else this.flashes--;
+            if (plan.kind === this.lethalKind) this.frags--; else this.flashes--;
             this.nadeT = between(NADE_COOLDOWN);
+            if (plan.kind === "smoke") this.retreatT = 3;
             this.lastThrowAt = performance.now();
             // A beat with the hand busy: no shot goes off mid-throw.
             this.fireT = Math.max(this.fireT, 0.45);
@@ -375,7 +423,8 @@ class Bot {
       const lateral = new THREE.Vector3(-toTarget.z, 0, toTarget.x).multiplyScalar(this.strafeDir);
       // Someone coming in with a sword gets kited: back off while shooting,
       // since standing to trade is exactly what they want.
-      const closeSign = best.melee ? (bestD < 14 ? -1 : 0) : bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
+      // Just smoked themselves: back off in it.
+      const closeSign = this.retreatT > 0 ? -1 : best.melee ? (bestD < 14 ? -1 : 0) : bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
       desired = toTarget.multiplyScalar(closeSign * 0.6)
         .addScaledVector(lateral, this.diff.strafe)
         .normalize();
@@ -435,22 +484,63 @@ class Bot {
       desired = this.wanderStep(dt);
     }
 
+    // --- hop and slide, like a player. In a fight a few rolls a second;
+    // taking a hit can queue a slide; pinned on something low, hop it.
+    const grounded = this.hopY <= 0 && this.hopV <= 0;
+    this.moveCd = Math.max(0, this.moveCd - dt);
+    if (best && !busy && !stunned && grounded && this.slideT <= 0 && this.moveCd <= 0) {
+      this.moveRollT -= dt;
+      if (this.wantSlide && this.moving) { this.wantSlide = false; this.startSlide(this.vel); }
+      else if (this.moveRollT <= 0) {
+        this.moveRollT = MOVE_ROLL;
+        const r = Math.random();
+        if (r < this.diff.jump) this.startHop();
+        else if (r < this.diff.jump + this.diff.slide && this.moving) this.startSlide(this.vel);
+      }
+    }
+    if (this.slideT > 0) {
+      this.slideT -= dt;
+      desired = this.slideDir.clone();
+      if (this.slideT <= 0) this.slideT = 0;
+    }
+    this.stance = this.slideT > 0 ? "slide" : "stand";
+
     // Wading (a map's shallow water, arena.wade) slows them like it slows you.
     const wading = arena.wade && this.pos.y < 0.5 && insidePolygon(arena.wade, this.pos.x, this.pos.z);
-    const speed = BOT_SPEED * (this.speedMult || 1) * (wading ? 0.6 : 1) * (1 - (1 - ADS_MOVE) * this.ads);
-    this.vel.x += (desired.x * speed - this.vel.x) * Math.min(1, dt * 5);
-    this.vel.z += (desired.z * speed - this.vel.z) * Math.min(1, dt * 5);
+    const slideBoost = this.slideT > 0 ? 1 + (SLIDE_BOOST - 1) * (this.slideT / SLIDE_TIME) : 1;
+    const speed = BOT_SPEED * (this.speedMult || 1) * (wading ? 0.6 : 1) * slideBoost
+      * (this.slideT > 0 ? 1 : 1 - (1 - ADS_MOVE) * this.ads);
+    const turn = this.slideT > 0 || !grounded ? 1.5 : 5;   // committed in a slide or a hop
+    this.vel.x += (desired.x * speed - this.vel.x) * Math.min(1, dt * turn);
+    this.vel.z += (desired.z * speed - this.vel.z) * Math.min(1, dt * turn);
+    const wasX = this.pos.x, wasZ = this.pos.z;
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
 
     this.pos.x = Math.max(arena.minX + BOT_RADIUS, Math.min(arena.maxX - BOT_RADIUS, this.pos.x));
     this.pos.z = Math.max(arena.minZ + BOT_RADIUS, Math.min(arena.maxZ - BOT_RADIUS, this.pos.z));
     if (arena.edge) clampInsidePolygon(this.pos, arena.edge, BOT_RADIUS);
-    resolveCircle(colliders, this.pos, BOT_RADIUS, this.groundY, BOT_HEIGHT, 0.5);
+    resolveCircle(colliders, this.pos, BOT_RADIUS, this.groundY + this.hopY, BOT_HEIGHT, 0.5);
 
-    const support = groundHeightAt(colliders, this.pos.x, this.pos.z, this.groundY + 0.5, BOT_RADIUS * 0.8);
-    this.groundY += (support - this.groundY) * Math.min(1, dt * 9);
-    this.pos.y = this.groundY;
+    // Pushing into something and getting nowhere: hop it.
+    const wantMove = desired.lengthSq() > 0.25;
+    const got = Math.hypot(this.pos.x - wasX, this.pos.z - wasZ) / Math.max(dt, 1e-3);
+    this.stuckT = wantMove && got < 0.6 && grounded ? this.stuckT + dt : 0;
+    if (this.stuckT > STUCK_HOP) { this.stuckT = 0; this.startHop(); }
+
+    if (this.hopY > 0 || this.hopV > 0) {
+      this.hopV -= HOP_GRAVITY * dt;
+      this.hopY += this.hopV * dt;
+      // Landing on whatever is under the feet (a crate hopped onto counts).
+      const feet = this.groundY + this.hopY;
+      const under = groundHeightAt(colliders, this.pos.x, this.pos.z, feet + 0.3, BOT_RADIUS * 0.8);
+      if (this.hopV < 0 && feet <= under) { this.groundY = under; this.hopY = 0; this.hopV = 0; }
+      else if (under > this.groundY && feet > under) { this.hopY = feet - under; this.groundY = under; }
+    } else {
+      const support = groundHeightAt(colliders, this.pos.x, this.pos.z, this.groundY + 0.5, BOT_RADIUS * 0.8);
+      this.groundY += (support - this.groundY) * Math.min(1, dt * 9);
+    }
+    this.pos.y = this.groundY + this.hopY;
 
     // Real ground speed, not "had steering input" — a bot holding its strafe
     // dance to trade shots was reporting `moving: true` every tick (see the
@@ -488,6 +578,7 @@ class Bot {
     if (!this.holdingSecondary && this.ammo <= 0 && canSee) this.holdingSecondary = true;
     else if (this.holdingSecondary && !canSee && this.reloadT <= 0) this.holdingSecondary = false;
     this.updateAds(dt, { canShoot, reacted, range: bestD, objective });
+    if (this.slideT > 0 || this.hopY > 0) this.ads = Math.max(0, this.ads - dt * 6);   // no scope mid-slide or mid-air
 
     if (this.holdingSecondary) {
       if (reacted && canShoot && this.sidearmReloadT <= 0 && this.fireT <= 0) {
@@ -553,16 +644,31 @@ class Bot {
     const distTo = (x, z) => Math.hypot(x - this.pos.x, z - this.pos.z);
     const inRange = (d) => d >= NADE_MIN && d <= NADE_MAX;
     const hidden = (x, y, z) => segmentBlocked(colliders, eye, new THREE.Vector3(x, y + 1, z));
+    // What's in the pockets: the lethal, and the tactical (smoke is cover,
+    // not something to throw at someone, so it has its own use below).
+    const L = this.frags > 0 ? this.lethalKind : null;
+    const T = this.flashes > 0 ? this.tacticalKind : null;
+    const Tat = T && T !== "smoke" ? T : null;
+
+    // Hurt and in a gunfight: smoke between us and them, then back off in it.
+    if (T === "smoke" && best && this.hp < (this.maxHp || BOT_HP) * 0.5) {
+      const d = distTo(best.pos.x, best.pos.z);
+      if (d >= 6) {
+        const k = Math.min(0.45, 9 / d);
+        const x = this.pos.x + (best.pos.x - this.pos.x) * k, z = this.pos.z + (best.pos.z - this.pos.z) * k;
+        return { kind: T, x, y: this.groundY, z, dist: distTo(x, z), lob: false };
+      }
+    }
 
     // Saber guard up at us: the blade stops rounds, not blasts or flashes.
     if (best && this.guarded) {
       const d = distTo(best.pos.x, best.pos.z);
-      const kind = this.frags > 0 ? "frag" : this.flashes > 0 ? "flash" : null;
+      const kind = L || Tat;
       const y = best.groundY ?? best.pos.y ?? 0;
       if (kind && inRange(d)) return { kind, x: best.pos.x, y, z: best.pos.z, dist: d, lob: false };
     }
 
-    if (this.frags > 0) {
+    if (L) {
       let bestGroup = null;
       for (const e of enemies) {
         const d = distTo(e.pos.x, e.pos.z);
@@ -575,7 +681,7 @@ class Bot {
         if (n >= 2 && (!bestGroup || n > bestGroup.n)) bestGroup = { n, x: cx / n, z: cz / n, y: e.groundY ?? e.pos.y ?? 0 };
       }
       if (bestGroup) {
-        return { kind: "frag", x: bestGroup.x, y: bestGroup.y, z: bestGroup.z,
+        return { kind: L, x: bestGroup.x, y: bestGroup.y, z: bestGroup.z,
           dist: distTo(bestGroup.x, bestGroup.z), lob: hidden(bestGroup.x, bestGroup.y, bestGroup.z) };
       }
     }
@@ -584,7 +690,8 @@ class Bot {
       const d = distTo(objective.x, objective.z);
       const held = enemies.some((e) => Math.hypot(e.pos.x - objective.x, e.pos.z - objective.z) <= (objective.radius || 4) + 2);
       if (held && inRange(d)) {
-        const kind = this.frags > 0 ? "frag" : "flash";
+        // Smoke on a held objective is cover for the push onto it.
+        const kind = L || T;
         const y = objective.y ?? this.groundY;
         return { kind, x: objective.x, y, z: objective.z, dist: d, lob: hidden(objective.x, y, objective.z) };
       }
@@ -595,7 +702,7 @@ class Bot {
       const still = enemies.find((e) => e.id === seen.id && Math.hypot(e.pos.x - seen.x, e.pos.z - seen.z) < 5);
       const d = distTo(seen.x, seen.z);
       if (still && inRange(d)) {
-        const kind = d < 15 && this.flashes > 0 ? "flash" : this.frags > 0 ? "frag" : this.flashes > 0 ? "flash" : null;
+        const kind = d < 15 && Tat ? Tat : L || Tat;
         if (kind) return { kind, x: seen.x, y: seen.y, z: seen.z, dist: d, lob: true };
       }
     }

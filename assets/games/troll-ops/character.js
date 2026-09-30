@@ -767,10 +767,11 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const kick = Math.max(0, Math.min(1, recoil));
   const gunInHands = hold === "gun";
   if (gunInHands) {
-    // Scoped, a one-handed gun comes up level with the eye and in toward
+    // Scoped, a one-handed gun comes up level with the eye (0.6 rad: 0.2
+    // read as no change at all from across the map; user) and in toward
     // the centre line, and follows the aim (two-handed: _gripSupport).
     const a = Math.max(0, Math.min(1, ads));
-    p.armR.rotation.set(GUN_CARRY + a * 0.2 + pitch * (0.32 + a * 0.6) + carrySwing * (1 - a) + kick * 0.18 - lean, 0, -0.15 + a * 0.12);
+    p.armR.rotation.set(GUN_CARRY + a * 0.6 + pitch * (0.32 + a * 0.6) + carrySwing * (1 - a) + kick * 0.18 - lean, 0, -0.15 + a * 0.32);
     p.elbowR.rotation.set(0, 0, 0);
     p.torso.rotation.x -= kick * 0.05;
   } else if (hold === "melee") {
@@ -788,7 +789,8 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
 
   if (gunInHands && hasGun) {
     // Support hand on the handguard.
-    p.armL.rotation.set(GUN_CARRY - 0.07 + pitch * 0.28 + carrySwing * 0.6 + kick * 0.15 - lean, 0, 0.18);
+    const aL = gunInHands ? Math.max(0, Math.min(1, ads)) : 0;
+    p.armL.rotation.set(GUN_CARRY - 0.07 + aL * 0.55 + pitch * 0.28 + carrySwing * 0.6 + kick * 0.15 - lean, 0, 0.18 - aL * 0.08);
     p.elbowL.rotation.set(0, 0, 0);
   } else {
     // Free arm: swings against its own leg, from the shoulder, with an elbow
@@ -997,7 +999,10 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0 } = {}) {
   const a = Math.max(0, Math.min(1, ads));
   p.gunMount.rotation.set(pitch * (0.32 + a * 0.6) + kick * 0.18 - lean, 0, 0);
   // Trigger hand: right of centre, below the neck, forward of the chest.
-  _gGrip.set((0.12 - a * 0.05) * s * w, (-0.24 + a * 0.13) * s, (-0.30 + a * 0.04 + kick * 0.03) * s);
+  // Scoped it rises to the chin and in to the centre line, so the sights
+  // sit in front of the face and a scoped troll reads as scoped from across
+  // the map (user: bots never looked like they aimed in; it was 13 cm, now 40).
+  _gGrip.set((0.12 - a * 0.09) * s * w, (-0.24 + a * 0.4) * s, (-0.30 - a * 0.1 + kick * 0.03) * s);
   _gP.copy(mesh.userData.gripPos).applyEuler(p.gunMount.rotation);
   p.gunMount.position.copy(_gGrip).sub(_gP);
 
