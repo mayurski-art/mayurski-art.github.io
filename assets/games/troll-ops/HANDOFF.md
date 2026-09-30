@@ -30,6 +30,29 @@ fires so it doesn't spam in a 100-troll Royale.
   terminal's own coin with a no-shill boundary (memory
   truths-token-terminal-coin).
 
+## Fix list (user, 2026-09-30) — `game.js?v=to-fx1`, `style.css?v=to-fx1`
+- **No select / highlight / drag anywhere** (style.css top + document
+  dragstart/selectstart/contextmenu in game.js; inputs still select).
+- **Touch: throwable buttons aim when dragged** (`dragAims`, same as Fire).
+- **Map vote previews**: `ui/maps/<id>.jpg`, rendered by
+  `tools/troll-ops-map-previews.mjs` (VIEWS table = camera spots). Re-run it
+  after a map's look changes (the map detail pass will).
+- **Emote wheel is press-to-open now**: H / L3 toggles; hover (mouse, free
+  cursor, right stick; the stick's pick is sticky) then click / X / Cross-A
+  plays, Esc / right click / Circle-B closes. Touch unchanged.
+- **Emotes in the main menu**: `menuEmoteWheel` on `#to-title`, Emote pill
+  under the operator (`#to-char-emote`), H and L3 too; plays on the menu
+  operator (`CharacterInspector.playEmote`).
+- **VTOL Warship look sensitivity** x0.35, lower still on the zoomed gun
+  (`lookSensScale`).
+- K9s were already killable (hit -> owner -> die, +50); nobody but you
+  calls them yet, so you never meet enemy dogs.
+- Test: `tools/troll-ops-fixlist-test.mjs` (11 checks).
+- **NOT done, needs a design doc**: bots using scorestreaks (3 random each,
+  no level gates) + "smarter" bots (ask what feels dumb). Every streak is
+  written for a human caller (tablets, riding the warship gun), so each
+  needs a bot version. Park map on hold (user).
+
 ## Troll Royale phase C: everyone's drop + late join (2026-09-30) — `game.js?v=to-rdc`
 - **Wire field `dr`** on every state msg (you and hosted bots): 1 bus,
   2 freefall, 3 glider (`DROP_BUS/FALL/GLIDE`, remote-players.js; bots carry

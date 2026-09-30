@@ -1,10 +1,11 @@
 // Troll Forces — the emote wheel.
 //
-// Hold H in a match: a radial wheel opens over the crosshair. With the mouse
-// locked, the look movement steers a pointer round the wheel (the view holds
-// still while it's open); letting go of H plays whichever slice it points at.
-// On a controller it's L3 held, the right stick points, let go to play.
-// Unlocked (touch, or a paused cursor) the slices are plain buttons.
+// Press H (controller: L3) and a radial wheel opens. Hover a slice (the
+// mouse, locked or not, or the right stick), then click / X (controller:
+// Cross/A) plays it; H, Esc or Circle/B closes it. The stick's pick stays
+// put when the stick springs back, so it's still there when you press.
+// Touch: the slices are plain buttons. Also opens in the main menu on the
+// operator (game.js's menuEmoteWheel).
 //
 // The emotes live in emotes.js. Each slice is tagged by kind: 1P (first
 // person), 3P (third person) or DUO. Duo emotes are greyed out until the
@@ -53,6 +54,12 @@ export class EmoteWheel {
         this.pick = i;
         this.close();
       });
+      // A free cursor hovers a slice the way the locked mouse points at one.
+      b.addEventListener("mouseenter", () => {
+        if (this.disabled(i)) return;
+        this.pick = i;
+        this.paint();
+      });
       this.el.appendChild(b);
       return b;
     });
@@ -93,9 +100,11 @@ export class EmoteWheel {
     this.pickFromPointer();
   }
 
-  /* A controller stick points straight at a slice (-1..1 each axis); back
-     in the middle, nothing is picked. */
+  /* A controller stick points straight at a slice (-1..1 each axis). Back
+     in the middle it keeps what it last pointed at, so the pick survives
+     the stick springing back before Cross/A is pressed. */
   aim(x, y) {
+    if (Math.hypot(x, y) < 0.35) return;
     this.dx = x * 160;
     this.dy = y * 160;
     this.pickFromPointer();
@@ -108,6 +117,11 @@ export class EmoteWheel {
     const i = ((Math.round(a / (Math.PI * 2 / n)) % n) + n) % n;
     this.pick = this.disabled(i) ? -1 : i;
     this.paint();
+  }
+
+  toggle(canOpen = true) {
+    if (this.isOpen) this.close(true);
+    else if (canOpen) this.open();
   }
 
   /* Closes and plays the picked emote, if any. `cancel` just closes. */

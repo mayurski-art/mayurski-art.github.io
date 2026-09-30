@@ -6,6 +6,20 @@
 
 /* The page is only ever the game, so the shell adds no chrome of its own. */
 html, body { margin: 0; padding: 0; background: #05070a; }
+
+/* Nothing on the page selects, highlights or drags (user, 2026-09-30): no
+   blue text-selection or tap flash on phones, no long-press callout, no
+   dragging images out to copy them. Typing fields still select. */
+html, body, body * {
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+img, svg, canvas, a { -webkit-user-drag: none; }
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text; user-select: text;
+  -webkit-touch-callout: default;
+}
 .arcade-shell { width: 100%; margin: 0; padding: 0; }
 
 .to-cabinet {
@@ -540,18 +554,26 @@ button.to-gear-chip { cursor: pointer; }
   letter-spacing: .12em; text-transform: uppercase; color: #9aa596;
 }
 .to-vote-head span { color: #7fd1e0; }
-.to-vote-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+.to-vote-list { display: flex; justify-content: center; gap: 8px; }
+/* A card per map: its preview shot, then name + votes. */
 .to-vote-opt {
-  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  flex: 1 1 0; min-width: 0; max-width: 200px;
+  display: flex; flex-direction: column; gap: 5px; cursor: pointer;
   font-family: "Oswald", sans-serif; font-size: 12px; letter-spacing: .05em;
-  padding: 7px 12px; border-radius: 8px; color: #cfe0e4;
+  padding: 4px 4px 6px; border-radius: 9px; color: #cfe0e4;
   background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
-  transition: background .14s, border-color .14s, color .14s;
+  transition: background .14s, border-color .14s, color .14s, transform .14s;
 }
+.to-vote-img {
+  display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: 6px; background: #0b0f14; pointer-events: none;
+}
+.to-vote-row { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 0 4px; }
+.to-vote-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .to-vote-opt:hover { border-color: rgba(127,209,224,.45); }
-.to-vote-opt.is-mine { border-color: #7fd1e0; color: #eaf7fa; background: rgba(127,209,224,.14); }
+.to-vote-opt.is-mine { border-color: #7fd1e0; color: #eaf7fa; background: rgba(127,209,224,.14); transform: translateY(-2px); }
 .to-vote-opt:focus-visible { outline: 2px solid #7fd1e0; outline-offset: 2px; }
-.to-vote-n { font-size: 11px; color: #7fe066; min-width: 8px; }
+.to-vote-n { font-size: 11px; color: #7fe066; white-space: nowrap; }
 
 .to-go-rank {
   margin: -6px 0 0; font-family: "Oswald", sans-serif; font-size: 13px;
@@ -2160,6 +2182,20 @@ body.to-in-warship #to-hud-gear, body.to-in-warship #to-spawnguard, body.to-in-w
   pointer-events: auto;
 }
 .to-char-view canvas:active { cursor: grabbing; }
+/* Emote on the menu's operator: a pill under its feet. */
+.to-char-emote {
+  position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
+  pointer-events: auto; cursor: pointer;
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 16px 8px 12px; border-radius: 999px;
+  font-family: "Oswald", sans-serif; font-size: 14px; letter-spacing: .06em; text-transform: uppercase;
+  color: #eef2ea; background: rgba(10,14,11,.62); border: 1px solid rgba(255,255,255,.2);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.to-char-emote svg { width: 20px; height: 20px; }
+.to-char-emote:hover, .to-char-emote[aria-expanded="true"] { border-color: #7fe066; color: #fff; }
+.to-char-emote:focus-visible { outline: 2px solid #7fe066; outline-offset: 2px; }
+.to-emote-wheel.is-menu .to-emote-hub span { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .to-pf-drawer { animation: none; }

@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-2h1";
 import { buildWeaponMesh } from "./weapon-model.js?v=gm1";
+import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=vsat2";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
@@ -57,6 +58,7 @@ export class CharacterInspector {
     this.held = null;
     this.heldKey = null;
     this.hasGun = true;
+    this.emote = null;   // { code, t, secs } while the operator plays one
     aimRig(this.humanoid, FACING, 0, { snap: true });
     // The rig's root sits at the feet (y=0) with the crown at `height` -
     // recentre it on its own midpoint so it doesn't swing off-screen when
@@ -162,6 +164,11 @@ export class CharacterInspector {
     return Math.hypot(a.x - b.x, a.y - b.y);
   }
 
+  /* Plays EMOTES[idx] once (duo emotes: the lead's half). */
+  playEmote(idx) {
+    this.emote = { code: emoteCode(idx), t: 0, secs: emoteSeconds(idx) };
+  }
+
   setZoom(value) {
     this.zoomTarget = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
   }
@@ -185,17 +192,24 @@ export class CharacterInspector {
     this.zoom += (this.zoomTarget - this.zoom) * Math.min(1, dt * 9);
 
     // The operator stands ready with the loadout's gun, both hands on it —
-    // the same pose, hands and head the match draws. (Emotes live on the
-    // in-match emote wheel now, not on a loop here.)
+    // the same pose, hands and head the match draws — unless it's playing
+    // an emote picked off the menu's emote wheel (gun away meanwhile).
     this.breathT += dt;
     aimRig(this.humanoid, FACING, dt);
-    // A slow breath in the aim keeps the ready stance from reading as a
-    // frozen frame.
-    const breath = Math.sin(this.breathT * 1.3) * 0.025;
-    poseHumanoid(this.humanoid, {
-      moving: false, pitch: -0.06 + breath, dt,
-      hold: this.held ? "gun" : "none", hasGun: !!this.held && this.hasGun,
-    });
+    if (this.emote) {
+      this.emote.t += dt;
+      if (this.emote.t > this.emote.secs) this.emote = null;
+    }
+    if (this.held) this.held.visible = !this.emote;
+    if (!this.emote || !poseEmoteCode(this.humanoid, this.emote.code, this.emote.t)) {
+      // A slow breath in the aim keeps the ready stance from reading as a
+      // frozen frame.
+      const breath = Math.sin(this.breathT * 1.3) * 0.025;
+      poseHumanoid(this.humanoid, {
+        moving: false, pitch: -0.06 + breath, dt,
+        hold: this.held ? "gun" : "none", hasGun: !!this.held && this.hasGun,
+      });
+    }
 
     const dist = this.baseDist * this.zoom;
     const cp = Math.cos(this.pitch);

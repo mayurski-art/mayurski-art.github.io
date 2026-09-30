@@ -11,7 +11,7 @@ import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1"
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
 import { WeaponInspector } from "./inspector.js?v=vsat3";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
-import { CharacterInspector } from "./char-inspector.js?v=to-ads1";
+import { CharacterInspector } from "./char-inspector.js?v=to-emx";
 import { Loadout } from "./loadout.js?v=lv5";
 import { StreakPicker } from "./streak-picker.js?v=lv4";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=vsat1";
@@ -35,7 +35,7 @@ import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } fro
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-rdc";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-2h1";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-ads1";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emx";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=vsat2";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
@@ -1302,6 +1302,14 @@ const WARSHIP_BOARD_AT = 1.3;   // the tablet call, then you're in the gunner's 
 
 function warshipView() {
   return !!warship && !warship.dead && player.alive && warship.age >= WARSHIP_BOARD_AT && warship.age < warship.duration;
+}
+/* Look sensitivity on the warship's gun (user: needs to be low): a third of
+   your normal aim, and lower still the more the gun zooms in. Mouse, stick
+   and touch alike. */
+const WARSHIP_SENS = 0.35;
+function lookSensScale() {
+  if (!warshipView()) return 1;
+  return WARSHIP_SENS * Math.min(1, (WARSHIP_GUNS[warshipGun]?.fov || baseFov) / baseFov);
 }
 
 function spawnWarship({ id, seed, owned, team }) {
@@ -2739,6 +2747,33 @@ function mountGunView(panel) {
 function mountCharView(panel) {
   charInspectorLive = !!(charView && panel === "deploy");
   if (charView) charView.style.display = charInspectorLive ? "" : "none";
+  if (!charInspectorLive) menuEmoteWheel?.close(true);
+}
+
+/* Emoting in the main menu (user): the same wheel as in a match, played by
+   the operator on Match Setup. H / L3 / the Emote button open it. */
+const menuEmoteWheel = charView && els.title ? new EmoteWheel(els.title, (i) => charInspector?.playEmote(i)) : null;
+menuEmoteWheel?.el.classList.add("is-menu");
+const menuEmoteBtn = document.getElementById("to-char-emote");
+menuEmoteBtn?.addEventListener("click", () => {
+  menuEmoteWheel?.toggle(charInspectorLive && gameState === "menu");
+  menuEmoteBtn.setAttribute("aria-expanded", String(!!menuEmoteWheel?.isOpen));
+});
+// Pad in the menu: L3 opens, the right stick points, Cross/A plays, Circle/B closes.
+let gpMenuEmotePrev = {};
+function pollMenuEmotePad() {
+  const w = menuEmoteWheel;
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = w && charInspectorLive ? Array.from(pads).find((p) => p && p.connected) : null;
+  if (!gp) { gpMenuEmotePrev = {}; return; }
+  const b = (i) => !!gp.buttons[i]?.pressed, edge = (i) => b(i) && !gpMenuEmotePrev[i];
+  if (edge(10)) w.toggle();
+  if (w.isOpen) {
+    w.aim(gp.axes[2] || 0, gp.axes[3] || 0);
+    if (edge(0)) w.close();
+    else if (edge(1)) w.close(true);
+  }
+  gpMenuEmotePrev = { 0: b(0), 1: b(1), 10: b(10) };
 }
 
 // "deploy" (Match Setup) is the panel left un-hidden in the HTML, so it's
@@ -2791,6 +2826,7 @@ function showLobbyPanel(name) {
   } else {
     charInspectorLive = false;
     if (charView) charView.style.display = "none";
+    menuEmoteWheel?.close(true);
   }
 }
 
@@ -4272,7 +4308,7 @@ document.addEventListener("mousemove", (e) => {
   // Near a target, aim assist makes the mouse a little "sticky" (see
   // applyAimAssist) — the same slowdown the stick gets, just gentler.
   const sticky = aimAssistSticky ? AIM_ASSIST_MOUSE_SLOWDOWN : 1;
-  const sens = BASE_MOUSE_SENS * (settings.sens / 100) * sticky;
+  const sens = BASE_MOUSE_SENS * (settings.sens / 100) * sticky * lookSensScale();
   look.yaw -= mx * sens;
   look.pitch += (settings.invert ? 1 : -1) * my * sens;
   look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
@@ -4290,6 +4326,17 @@ window.addEventListener("keydown", (e) => {
     chat.open(e.code === "KeyY");
     return;
   }
+  // The emote wheel (in a match, or on the menu's operator): H opens and
+  // closes it, X plays what's hovered, Esc closes.
+  const wheel = gameState === "menu" ? (charInspectorLive ? menuEmoteWheel : null) : emoteWheel;
+  if (wheel && !e.repeat && !typingField(e.target)) {
+    if (e.code === "KeyH" && !localPauseOnly) {
+      wheel.toggle(gameState === "menu" || (gameState === "playing" && player.alive));
+      return;
+    }
+    if (wheel.isOpen && e.code === "KeyX") { wheel.close(); return; }
+    if (wheel.isOpen && e.code === "Escape") wheel.close(true);
+  }
   keys.add(e.code);
   if (e.code === "Space" && !e.repeat && killcam.active && !player.alive) skipKillcam();
   if (!e.repeat && !player.alive && royaleSpectating()) {
@@ -4304,7 +4351,6 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "KeyT" && !e.repeat) startInspect();
     if (e.code === "KeyV" && !e.repeat) swingMelee();
     if (e.code === "KeyB" && !e.repeat) toggleThirdPerson();
-    if (e.code === "KeyH" && !e.repeat && gameState === "playing" && player.alive) emoteWheel.open();
     if (e.code === "Digit1") switchWeapon("primary");
     if (e.code === "Digit2") switchWeapon("secondary");
     if (e.code === "Digit3") setHolding("melee");
@@ -4338,7 +4384,6 @@ window.addEventListener("blur", () => { cancelCook(); emoteWheel.close(true); })
 window.addEventListener("keyup", (e) => {
   keys.delete(e.code);
   if (e.code === "Tab") els.scoreboard.hidden = true;
-  if (e.code === "KeyH") emoteWheel.close();
   if ((e.code === "KeyG" && cooking.slot)
     || (e.code === "KeyF" && cooking.slot === "tactical")) releaseCook();
 });
@@ -4409,6 +4454,12 @@ renderer.domElement.addEventListener("mousedown", (e) => {
     else if (e.button === 2) strikeTablet.undo();
     return;
   }
+  // Emote wheel open: a click plays what's hovered, a right click closes.
+  if (emoteWheel.isOpen) {
+    if (e.button === 0) emoteWheel.close();
+    else if (e.button === 2) emoteWheel.close(true);
+    return;
+  }
   // Troll Royale, out: a click is next, a right click the one before.
   if (!player.alive && royaleSpectating() && (e.button === 0 || e.button === 2)) { cycleSpectate(e.button === 0 ? 1 : -1); return; }
   if (e.button === 0) mouseDown = true;
@@ -4419,6 +4470,12 @@ window.addEventListener("mouseup", (e) => {
   if (e.button === 2) adsHeld = false;
 });
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
+// Belt and braces for style.css's no-select rule: no drag of any image or
+// link, no selection start or long-press menu outside a typing field.
+const typingField = (t) => !!t?.closest?.("input, textarea, [contenteditable='true']");
+document.addEventListener("dragstart", (e) => e.preventDefault());
+document.addEventListener("selectstart", (e) => { if (!typingField(e.target)) e.preventDefault(); });
+document.addEventListener("contextmenu", (e) => { if (!typingField(e.target)) e.preventDefault(); });
 
 // -------------------- touch controls --------------------
 
@@ -4532,14 +4589,17 @@ const fireDown = () => { firingThumbs++; touchState.firing = true; };
 const fireUp = () => { firingThumbs = Math.max(0, firingThumbs - 1); touchState.firing = firingThumbs > 0; };
 bindHold(els.touchFire, fireDown, fireUp);
 if (els.touchFireL) bindHold(els.touchFireL, fireDown, fireUp);
-(function fireDragAims() {
+/* A held button that also aims: drag it like the look pad. Fire, and the
+   throwable (user: free look up and down while holding a grenade). */
+function dragAims(el) {
+  if (!el) return;
   let id = null;
   const last = { x: 0, y: 0, t: 0 };
-  els.touchFire.addEventListener("touchstart", (e) => {
+  el.addEventListener("touchstart", (e) => {
     const t = e.changedTouches[0];
     id = t.identifier; last.x = t.clientX; last.y = t.clientY; last.t = performance.now();
   }, { passive: true });
-  els.touchFire.addEventListener("touchmove", (e) => {
+  el.addEventListener("touchmove", (e) => {
     e.preventDefault();
     for (const t of e.changedTouches) {
       if (t.identifier !== id) continue;
@@ -4548,9 +4608,10 @@ if (els.touchFireL) bindHold(els.touchFireL, fireDown, fireUp);
     }
   }, { passive: false });
   const end = (e) => { for (const t of e.changedTouches) if (t.identifier === id) { id = null; touchState.looking = false; } };
-  els.touchFire.addEventListener("touchend", end);
-  els.touchFire.addEventListener("touchcancel", end);
-})();
+  el.addEventListener("touchend", end);
+  el.addEventListener("touchcancel", end);
+}
+dragAims(els.touchFire);
 /* AIM is a tap toggle, like CoD Mobile's default: tap to scope in, tap
    again to come out, so the right thumb stays free to aim and shoot. */
 function setTouchAds(on) {
@@ -4565,7 +4626,9 @@ els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); tryR
 els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); swingMelee(); });
 // Touch cooks for as long as the button is held, same as the key.
 bindHold(els.touchNade, () => startCook("lethal"), () => releaseCook());
+dragAims(els.touchNade);
 if (els.touchTac) bindHold(els.touchTac, () => startCook("tactical"), () => releaseCook());
+dragAims(els.touchTac);
 bindHold(els.touchInteract, () => touchState.interact = true, () => touchState.interact = false);
 bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = false);
 // Admire (inspect) the gun or melee in your hands, the T key on a keyboard.
@@ -4712,6 +4775,7 @@ function applyAimAssist(dt, strength = 1) {
   }
 }
 
+let gpWheelSwallow = false;   // the A/B that worked the emote wheel isn't a jump/crouch
 function pollGamepad(dt) {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let gp = gpIndex != null ? pads[gpIndex] : null;
@@ -4793,14 +4857,21 @@ function pollGamepad(dt) {
     if (pressedEdge(14)) startCook(carriedThrowSlot());
     if (gpPrev[14] && !btn(14)) releaseCook();
     if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
-    // L3 (click the left stick), held -> emote wheel, the pad's H: the right
-    // stick points at a slice instead of turning the view, let go to play it.
-    if (pressedEdge(10) && gameState === "playing" && player.alive) emoteWheel.open();
-    if (emoteWheel.isOpen && btn(10)) {
+    // L3 (click the left stick) -> emote wheel, the pad's H: the right stick
+    // points at a slice instead of turning the view, Cross/A plays it,
+    // Circle/B (or L3 again) closes. A held A or B doesn't jump or crouch.
+    if (pressedEdge(10)) emoteWheel.toggle(gameState === "playing" && player.alive);
+    if (emoteWheel.isOpen) {
       emoteWheel.aim(gp.axes[2] || 0, gp.axes[3] || 0);
       gamepadState.lookDX = 0; gamepadState.lookDY = 0;
+      if (pressedEdge(0)) emoteWheel.close();
+      else if (pressedEdge(1)) emoteWheel.close(true);
+      gpWheelSwallow = true;
     }
-    if (gpPrev[10] && !btn(10)) emoteWheel.close();
+    if (gpWheelSwallow) {
+      if (btn(0) || btn(1)) { gamepadState.jump = false; gamepadState.crouch = false; }
+      else if (!emoteWheel.isOpen) gpWheelSwallow = false;
+    }
     if (pressedEdge(8)) toggleThirdPerson();  // Select/View/Minus -> camera toggle
     // D-pad down cycles which ready streak d-pad right will fire — a pick,
     // not a use, since the pad has a button to spare for it and keyboard's
@@ -8659,9 +8730,12 @@ function renderVote() {
     btn.className = "to-vote-opt";
     btn.classList.toggle("is-mine", net.myVote === id);
     btn.setAttribute("aria-pressed", String(net.myVote === id));
+    // A real shot of the map (tools/troll-ops-map-previews.mjs renders them).
     btn.innerHTML =
-      `<span class="to-vote-name">${MAPS[id]?.name || id}</span>` +
-      `<span class="to-vote-n">${n || ""}</span>`;
+      `<img class="to-vote-img" src="assets/games/troll-ops/ui/maps/${id}.jpg?v=mp1" alt="" loading="eager" draggable="false">` +
+      `<span class="to-vote-row"><span class="to-vote-name">${MAPS[id]?.name || id}</span>` +
+      `<span class="to-vote-n">${n ? `${n} vote${n === 1 ? "" : "s"}` : ""}</span></span>`;
+    btn.querySelector("img").addEventListener("error", (e) => e.target.remove());
     btn.addEventListener("click", () => {
       net.castVote(id);
       renderVote();
@@ -9603,6 +9677,7 @@ function animate() {
 
   if (gameState === "menu") {
     updateLobbyCamera(dt);
+    pollMenuEmotePad();
     if (inspectorLive && !els.title.hidden) inspector?.tick(dt);
     if (charInspectorLive && !els.title.hidden) charInspector?.tick(dt);
     if (charInspectorLive && !els.title.hidden) sumInspector?.tick(dt);
@@ -9866,8 +9941,9 @@ function updatePlayer(dt) {
   if (canAssist && mouseSteering) applyAimAssist(dt, AIM_ASSIST_MOUSE_PULL);
 
   if ((isTouch &&(touchState.lookDX || touchState.lookDY)) || (gp && (gamepadState.lookDX || gamepadState.lookDY))) {
-    look.yaw -= touchState.lookDX + gamepadState.lookDX;
-    look.pitch -= touchState.lookDY + gamepadState.lookDY;
+    const ls = lookSensScale();
+    look.yaw -= (touchState.lookDX + gamepadState.lookDX) * ls;
+    look.pitch -= (touchState.lookDY + gamepadState.lookDY) * ls;
     look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
     touchState.lookDX = 0; touchState.lookDY = 0;
     gamepadState.lookDX = 0; gamepadState.lookDY = 0;
@@ -11932,7 +12008,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     renderer, scene,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
-    settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, emote: () => emote,
+    settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, emote: () => emote,
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },
