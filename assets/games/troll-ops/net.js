@@ -110,6 +110,7 @@ export class Net {
     this._out = [];
     this._flushT = null;
     this.botCount = 0;   // bots this client hosts (game.js keeps it current)
+    this.since = 0;      // when we joined the room (host election, isBotHost)
   }
 
   get active() { return this.connected; }
@@ -139,7 +140,8 @@ export class Net {
 
     this.transport = t;
     this.connected = true;
-    this.send({ t: "hello", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, mapId: this.mapId });
+    this.since = Date.now();
+    this.send({ t: "hello", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, mapId: this.mapId, js: this.since });
 
     // Let the handshake settle before anyone picks a side. Choosing the
     // instant the channel subscribes means balancing against a room that
@@ -207,7 +209,7 @@ export class Net {
       this.team = ids.indexOf(this.id) % 2 === 0 ? "phantom" : "ghost";
     }
     // Announce it so peers stop seeing us as undecided.
-    this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team });
+    this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, js: this.since });
     return this.team;
   }
 
@@ -215,7 +217,7 @@ export class Net {
      than waiting for the next state message. */
   setTeam(team) {
     this.team = team;
-    if (this.connected) this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team });
+    if (this.connected) this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team, js: this.since });
   }
 
   peer(id) {
@@ -244,8 +246,10 @@ export class Net {
         p.name = m.name || p.name;
         p.uid = accountId(m.u) || p.uid || null;
         p.team = m.team || p.team;
+        if (+m.js > 0) p.since = +m.js;
         // answer directly so the newcomer learns about us
-        this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team });
+        this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, js: this.since });
+        this.h.onHello?.(p);
         break;
       }
       case "here": {
@@ -253,6 +257,7 @@ export class Net {
         p.name = m.name || p.name;
         p.uid = accountId(m.u) || p.uid || null;
         p.team = m.team || p.team;
+        if (+m.js > 0) p.since = +m.js;
         break;
       }
       case "state": {
@@ -270,7 +275,7 @@ export class Net {
         p.blocking = !!m.bl;  // Trollsaber guard up
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
-          ads: Math.max(0, Math.min(1, +m.ad || 0)), roll: Math.max(0, Math.min(1, +m.ro || 0)) });
+          ads: Math.max(0, Math.min(1, +m.ad || 0)), roll: Math.max(0, Math.min(1, +m.ro || 0)), drop: (m.dr | 0) & 3 });
         if (p.snaps.length > 12) p.snaps.shift();
         break;
       }
@@ -398,6 +403,7 @@ export class Net {
         bl: local.block ? 1 : undefined,
         ad: local.ads > 0.01 ? round2(local.ads) : undefined,   // aiming down sights, 0..1
         ro: local.roll > 0 ? round2(local.roll) : undefined,    // Royale landing roll, 0..1
+        dr: local.drop || undefined,   // Royale drop: 1 bus, 2 freefall, 3 glider
       });
     }
     const now = performance.now();
@@ -406,18 +412,24 @@ export class Net {
     }
   }
 
-  /* Exactly one client simulates the bots: the lowest id in the room. Every
-     client computes this from the same set, so they agree without electing. */
+  /* Exactly one client simulates the bots: whoever has been in the room
+     longest (join time from hello/here, lowest id breaks a tie). Every client
+     computes this from the same set, so they agree without electing. It used
+     to be the lowest id alone, so anyone joining mid-match with a lower
+     random id took the bots over: the old host's bots timed out and a fresh
+     set spawned (in Troll Royale, 99 new bots on the ground mid-match). A
+     peer whose join time we haven't heard yet counts as the older one. */
   isBotHost() {
     if (!this.connected) return true;
-    for (const id of this.peers.keys()) {
+    for (const [id, p] of this.peers) {
       // Bots live in this map too, and their ids would otherwise make the
       // host conclude it isn't the host and drop its own bots. Scorestreak
       // entities (drones, gunships) ride the same publishBot channel and are
       // simulated by whoever called them, so they are not operators either —
       // miss them here and calling a streak silently flips host election.
       if (isSyntheticId(id)) continue;
-      if (id < this.id) return false;
+      const since = p.since || 0;
+      if (since < this.since || (since === this.since && id < this.id)) return false;
     }
     return true;
   }
@@ -428,7 +440,7 @@ export class Net {
     const snap = {
       t: performance.now(),
       x: bot.pos.x, y: bot.pos.y, z: bot.pos.z,
-      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: !!bot.moving, ads: bot.ads || 0, roll: bot.roll || 0,
+      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: !!bot.moving, ads: bot.ads || 0, roll: bot.roll || 0, drop: bot.dropCode || 0,
     };
     let p = this.peers.get(bot.id);
     if (!p) {
@@ -470,6 +482,7 @@ export class Net {
       w: p.weapon, tm: bot.team, n: bot.name, k: bot.kills | 0, d: bot.deaths | 0,
       ad: bot.ads > 0.01 ? round2(bot.ads) : undefined,
       ro: bot.roll > 0 ? round2(bot.roll) : undefined,
+      dr: bot.dropCode || undefined,
     });
   }
 
@@ -490,6 +503,13 @@ export class Net {
       left: Math.max(0, round2(secondsLeft)),
       ...(seed != null ? { sd: seed } : {}),
     });
+  }
+
+  /* Troll Royale, to one newcomer: where the match already is (a "stage"
+     at 0 carrying the seed, the bus clock and the match clock), so they
+     don't sit out a sky lobby of their own while everyone else plays. */
+  publishRoyaleCatchUp(to, seed, busT, matchT, live) {
+    this.send({ t: "stage", id: this.id, to, left: 0, sd: seed, bt: round2(busT), rt: round2(matchT), lv: live ? 1 : 0 });
   }
 
   /* Search & Destroy bomb state. `kind` is "action" for a live plant/defuse

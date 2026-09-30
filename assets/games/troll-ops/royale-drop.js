@@ -15,6 +15,7 @@
 // the box, the bus, the glider and the flight physics.
 
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon, clampInsidePolygon } from "./edge.js";
 import { rollGun, RARITIES, seededRng } from "./royale.js?v=ti1";
 
@@ -64,18 +65,21 @@ export function buildParaglider() {
     const a = (i / cells - 0.5) * 2.1;   // radians across the arch
     pts.push(new THREE.Vector3(Math.sin(a) * span / 2, rise + Math.cos(a) * 1.4 - 1.4, 0));
   }
+  // The cells and their rims go in as one mesh each (a sky full of gliders
+  // is otherwise ~20 draw calls a troll).
+  const cellGeos = [], rimGeos = [];
+  const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _one = new THREE.Vector3(1, 1, 1);
   for (let i = 0; i < cells; i++) {
     const a = pts[i], b = pts[i + 1];
     const len = a.distanceTo(b);
-    const cell = new THREE.Mesh(new THREE.BoxGeometry(len + 0.02, 0.28, chord), wingMat);
-    cell.position.copy(a).add(b).multiplyScalar(0.5);
-    cell.rotation.z = Math.atan2(b.y - a.y, b.x - a.x);
-    g.add(cell);
-    const rim = new THREE.Mesh(new THREE.BoxGeometry(len + 0.04, 0.3, 0.08), rimMat);
-    rim.position.copy(cell.position).add(new THREE.Vector3(0, 0, -chord / 2));
-    rim.rotation.z = cell.rotation.z;
-    g.add(rim);
+    const mid = a.clone().add(b).multiplyScalar(0.5);
+    _q.setFromEuler(_e.set(0, 0, Math.atan2(b.y - a.y, b.x - a.x)));
+    cellGeos.push(new THREE.BoxGeometry(len + 0.02, 0.28, chord).applyMatrix4(_m.compose(mid, _q, _one)));
+    rimGeos.push(new THREE.BoxGeometry(len + 0.04, 0.3, 0.08).applyMatrix4(_m.compose(mid.setZ(-chord / 2), _q, _one)));
   }
+  g.add(new THREE.Mesh(mergeGeometries(cellGeos), wingMat));
+  g.add(new THREE.Mesh(mergeGeometries(rimGeos), rimMat));
+  for (const geo of [...cellGeos, ...rimGeos]) geo.dispose();
   // The face on the underside, facing down: a flat decal under the middle.
   const face = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.8),
     new THREE.MeshBasicMaterial({ map: trollfaceTexture(), transparent: true, side: THREE.DoubleSide, depthWrite: false }));
@@ -97,6 +101,14 @@ export function buildParaglider() {
   }
   g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(linePts), lineMat));
   return g;
+}
+
+/* Everyone else's glider: clones of one shared build (geometry and
+   materials shared, so never dispose what this returns; just remove it). */
+let gliderTemplate = null;
+export function sharedParaglider() {
+  if (!gliderTemplate) gliderTemplate = buildParaglider();
+  return gliderTemplate.clone();
 }
 
 /* The Troll Bus (grey box): a chunky yellow bus with a trollface on its

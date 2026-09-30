@@ -31,9 +31,9 @@ import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=lv4";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti4";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-r100";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-rdc";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig } from "./remote-players.js?v=to-r100";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-rdc";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-2h1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-ads1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=vsat2";
@@ -66,7 +66,7 @@ import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
-import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rd1";
+import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rd2";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 
 const els = {
@@ -3214,6 +3214,13 @@ function updateMatchClock(dt) {
 const net = new Net({
   // Bots filling the room isn't news; only announce real people.
   onJoin: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} joined`); },
+  // Someone arrived after the sky lobby: the host tells them where the
+  // Royale is (the lobby's own clock only goes out while it runs).
+  onHello: (p) => {
+    if (!royale?.drop || gameState !== "playing" || isStaging() || isBotPeer(p) || !net.isBotHost()) return;
+    const d = royale.drop;
+    net.publishRoyaleCatchUp(p.id, royale.seed, d.phase === "bus" ? d.busT : ROYALE_BUS_GONE, royale.t, royale.live);
+  },
   onLeave: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} left`); },
   // `hd` has always been on the wire; we just never read it.
   onHitTaken: (m) => damagePlayer(m.dmg, m.id, m.w, !!m.hd),
@@ -3246,6 +3253,9 @@ const net = new Net({
      only ever take a *shorter* remaining time: a late "6" arriving after we
      are down to 2 must not push us back up the clock. */
   onStage: (m) => {
+    // Troll Royale catch-up (we joined after the sky lobby): kept until our
+    // own Royale is set up, which can be after this lands.
+    if (m.bt != null) { royaleCatchUp = { ...m, at: performance.now() }; applyRoyaleCatchUp(); return; }
     if (gameState !== "playing" || !isPvp()) return;
     // Troll Royale: the owner's seed wins, so everyone has the same zone
     // and loot even if their match counts drifted apart.
@@ -6208,7 +6218,9 @@ function setResumeLabel(text) {
 const _netSnapshot = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, stance: null, moving: false, ads: 0, hp: 0, alive: true, weapon: null, skin: null, kills: 0 };
 function netSnapshot() {
   _netSnapshot.x = move.pos.x; _netSnapshot.y = move.pos.y; _netSnapshot.z = move.pos.z;
-  _netSnapshot.yaw = look.yaw; _netSnapshot.pitch = look.pitch;
+  // Under the glider everyone else sees the wing's heading, not your look.
+  _netSnapshot.yaw = royale?.me === "glide" && royale.flight ? royale.flight.heading : look.yaw;
+  _netSnapshot.pitch = look.pitch;
   _netSnapshot.stance = move.stance; _netSnapshot.moving = move.moving;
   _netSnapshot.ads = player.holding === "gun" ? currentWeapon()?.adsT || 0 : 0;
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
@@ -6223,6 +6235,7 @@ function netSnapshot() {
   _netSnapshot.emote = emote ? emoteCode(emote.idx, emote.role) : 0;
   _netSnapshot.block = saberBlock.active;
   _netSnapshot.roll = royaleRollK();
+  _netSnapshot.drop = royaleDropCode();
   return _netSnapshot;
 }
 
@@ -6572,6 +6585,11 @@ function inSkyLobby() { return !!royale?.drop && royale.drop.phase === "lobby" &
 function stageFrozen() { return isStaging() && !inSkyLobby(); }
 /* On the bus or in the air: the drop owns movement and the camera. */
 function royaleDropView() { return !!royale?.drop && player.alive && (royale.me === "bus" || royale.me === "fall" || royale.me === "glide"); }
+/* Where you are in the drop, as the wire's `dr` (0 = not dropping). */
+function royaleDropCode() {
+  if (!royaleDropView()) return 0;
+  return royale.me === "bus" ? DROP_BUS : royale.me === "fall" ? DROP_FALL : DROP_GLIDE;
+}
 
 const _dropTarget = new THREE.Vector3();
 const _dropCam = new THREE.Vector3();
@@ -6611,6 +6629,7 @@ function placeBotsInLobby() {
     b.groundY = s.y;
     b.airborne = true;   // parked: the bot AI leaves it be until it lands
     b.drop = { state: "lobby" };
+    b.dropCode = 0;
     net.publishBot(b);
   });
 }
@@ -6683,9 +6702,11 @@ function updateRoyaleDropWorld(dt) {
     if (bd.state === "bus") {
       if (d.phase === "bus") d.busPos(d.busT, b.pos).y -= 1.4;
       b.groundY = b.pos.y;
+      b.dropCode = DROP_BUS;
       if (d.phase !== "bus" || d.pastIsland(d.busT) || (d.busT >= bd.jumpT && d.overIsland(d.busT))) {
         bd.flight = new Flight(_busAt.copy(b.pos).setY(b.pos.y - 3), builtMap.map.edge);
         bd.state = "fly";
+        b.dropCode = DROP_FALL;
       }
     } else if (bd.state === "fly") {
       const f = bd.flight;
@@ -6694,7 +6715,8 @@ function updateRoyaleDropWorld(dt) {
       f.update(dt, { forward: dist > 6 ? 1 : 0, strafe: 0, yaw, pitch: dist > 60 ? -0.9 : -0.2, open: false }, dropGround);
       b.pos.copy(f.pos);
       b.groundY = f.pos.y;
-      b.yaw = yaw;
+      b.yaw = f.state === "glide" ? f.heading : yaw;
+      b.dropCode = f.state === "glide" ? DROP_GLIDE : f.state === "fall" ? DROP_FALL : 0;
       if (f.state === "landed") { bd.state = "roll"; bd.t = 0; b.roll = 0.001; }
     } else if (bd.state === "roll") {
       // Tuck and roll off the landing, carried a few metres forward, then run.
@@ -6754,6 +6776,40 @@ function updateRoyaleRoll(dt) {
   if (r.rollT < ROLL_TIME) return;
   r.me = "ground";
   setHolding("gun");
+}
+
+/* Joined after the sky lobby (onHello / onStage "bt"): skip our own lobby,
+   board the bus where it is now, and run the match clock from where the
+   room's is. Once the bus has crossed the island there's no way in: watch
+   till the next match. */
+const ROYALE_BUS_GONE = 1e6;
+let royaleCatchUp = null;
+function applyRoyaleCatchUp() {
+  const c = royaleCatchUp;
+  if (!c || !royale?.drop || gameState !== "playing" || !isStaging()) return;
+  royaleCatchUp = null;
+  const late = (performance.now() - c.at) / 1000;
+  if (performance.now() - c.at > 30000) return;   // stale: from some older match
+  if (c.sd && (c.sd >>> 0) !== royale.seed) setupRoyale(c.sd >>> 0);
+  endStaging();
+  const r = royale, d = r.drop;
+  d.busT = Math.min(+c.bt + late, ROYALE_BUS_GONE);
+  if (c.lv) { r.live = true; r.t = (+c.rt || 0) + late; }
+  if (!d.overIsland(d.busT) && d.along(d.busT) > d.path.tIn) royaleLateSpectate();
+}
+
+function royaleLateSpectate() {
+  const r = royale;
+  r.lateJoin = true;
+  r.me = "ground";
+  r.flight = null;
+  r.live = true;
+  setPlayerGlider(false);
+  player.alive = false;
+  player.hp = 0;
+  player.spawnGuard = 0;
+  updateSpawnGuardHud();
+  showWaveBanner("This drop already left — spectating till the next one", 2600);
 }
 
 function teardownRoyale() {
@@ -6874,7 +6930,8 @@ function updateRoyale(dt) {
     const prev = r.spectate;
     r.spectate = pickSpectateTarget(r.spectate, alive);
     if (r.spectate && r.spectate !== prev && r.spectate.id !== prev?.id) onSpectateTarget();
-    const out = `Eliminated — ${ordinal(r.place || alive.length + 1)} of ${r.peak}`;
+    const out = r.lateJoin ? "Joined mid-match — you're in the next one"
+      : `Eliminated — ${ordinal(r.place || alive.length + 1)} of ${r.peak}`;
     if (!r.outShown) { r.outShown = true; els.respawn.hidden = false; }
     const watching = royaleSpectating();
     // The spectator view is clear: no 62% death fade, no low-HP pulse, and
@@ -6911,7 +6968,7 @@ function finishRoyale(alive) {
   hideSpectateHud();
   const won = player.alive;
   const place = won ? 1 : (r.place || r.peak);
-  const bonus = Math.max(0, r.peak - place) * 4 + (won ? 40 : 0);
+  const bonus = r.lateJoin ? 0 : Math.max(0, r.peak - place) * 4 + (won ? 40 : 0);
   if (bonus > 0) addMatchXp(bonus, won ? "LAST TROLL STANDING" : `${ordinal(place).toUpperCase()} PLACE`);
   const winner = alive.find((a) => !a.me)?.name;
   r.finalPlace = place;
@@ -8160,6 +8217,7 @@ function beginMatch(mapId = null) {
     // spawner immediately would have grunts standing idle mid-countdown and
     // "WAVE 1" competing on screen with "GET READY".
     beginStaging(royale?.drop ? DROP.lobbySeconds : undefined);
+    applyRoyaleCatchUp();
   }
 
   // Browsers refuse a pointer lock requested too soon after an unlock without
@@ -9665,7 +9723,9 @@ function updateLocalRig(dt) {
   localRig.root.position.set(move.pos.x, move.pos.y, move.pos.z);
   // The body follows the aim a beat behind; the head leads the turn.
   const rolling = royaleRolling();
-  aimRig(localRig, rolling ? royale.rollYaw : look.yaw, dt, { moving: move.moving, snap: rolling });
+  // Under the glider the body hangs the way the wing flies, not where you look.
+  const gliding = royale?.me === "glide" && royale.flight;
+  aimRig(localRig, rolling ? royale.rollYaw : gliding ? royale.flight.heading : look.yaw, dt, { moving: move.moving, snap: rolling });
 
   const wantLower = rolling ? 1 : STANCE_LOWER[move.stance] ?? 0;
   localLower += (wantLower - localLower) * Math.min(1, dt * 8);
@@ -9732,7 +9792,15 @@ function updateLocalRig(dt) {
     poseThrowArm(localRig, 1 - localThrowT / THROW_TIME);
   }
   rollRig(localRig, royaleRollK());
+  // Skydiving, then hanging under the glider (seen in the drop camera).
+  const dropCode = royaleDropCode();
+  if (dropCode === DROP_FALL || dropCode === DROP_GLIDE) {
+    localDropT += dt;
+    poseDrop(localRig, dropCode, localDropT);
+    if (localHeld.mesh) localHeld.mesh.visible = false;
+  }
 }
+let localDropT = 0;
 
 /* The third-person body carries the same gun or melee weapon the first-
    person view shows. Rebuilt only when what's held changes. */

@@ -380,8 +380,11 @@ check("the bot's frag goes off on both clients", !!botNade && (await spent(H, bo
 
 // ---------- 14. Infection: the pick, the sword, and turning on death
 const IROOM = "INF" + Math.floor(Math.random() * 90 + 10);
-const C = await open("C", true, "infection", IROOM);
-const D = await open("D", true, "infection", IROOM);
+// Opened together: one after the other, C's countdown and 8 s infection
+// delay can run out before D has loaded, and D then rightly comes in as a
+// latecomer, infected. (It used to pass half the time, whenever D's random
+// id stole host and reset the clock; the longest-joined client hosts now.)
+const [C, D] = await Promise.all([open("C", true, "infection", IROOM), open("D", true, "infection", IROOM)]);
 await Promise.all([C, D].map((p) => p.waitForFunction(() => {
   const T = window.__trollOps; return T.state() === "playing" && T.stageT() <= 0;
 }, null, { timeout: 30000 })));

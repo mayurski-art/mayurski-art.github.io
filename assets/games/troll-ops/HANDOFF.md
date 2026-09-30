@@ -30,6 +30,32 @@ fires so it doesn't spam in a 100-troll Royale.
   terminal's own coin with a no-shill boundary (memory
   truths-token-terminal-coin).
 
+## Troll Royale phase C: everyone's drop + late join (2026-09-30) — `game.js?v=to-rdc`
+- **Wire field `dr`** on every state msg (you and hosted bots): 1 bus,
+  2 freefall, 3 glider (`DROP_BUS/FALL/GLIDE`, remote-players.js; bots carry
+  `b.dropCode`). Remote rigs: hidden on the bus (inside it), belly-down
+  skydive in freefall, `poseDrop` + a glider when gliding (`sharedParaglider()`
+  clones one build, never disposed). Your own third-person body uses the
+  same `poseDrop`. While gliding your sent yaw = the wing's heading. Gliders
+  stay drawn to 300 m in the crowd LOD (bodies still 150 m).
+- **Glider is ~5 draw calls** (cells and rims merged), was ~21.
+- **Bot host = longest in the room** (net.js `since`, sent as `js` in
+  hello/here; lowest id only breaks a tie; unknown = older). Before, a
+  late joiner with a lower random id took the bots over and 99 fresh bots
+  spawned mid-Royale. Affects every mode's host (stage clock, S&D carrier,
+  infection pick). Assumes clocks roughly agree across machines.
+- **Late join**: the host answers a newcomer's hello with a `stage`
+  carrying `bt` (bus clock) / `rt` / `lv` (`publishRoyaleCatchUp`); the
+  joiner skips its own sky lobby, boards the bus where it is and runs the
+  match clock from the room's (`applyRoyaleCatchUp`, held until their Royale
+  is set up). Joining after the bus crossed the island: spectate
+  (`royale.lateJoin`, "Joined mid-match", no placement XP).
+- Test: `tools/troll-ops-royale-phase-c-test.mjs` (9 checks). Drop, royale-mp
+  and sync suites green. Sync's infection check was a timing race (C's
+  countdown + 8 s delay ran out before D loaded; it passed only when D stole
+  host), now opens C and D together.
+- Not done: real art for bus/glider/box; landmark art (ask first).
+
 ## Troll Royale: 100 trolls, landing roll, Grin Site spawn (2026-09-30) — `game.js?v=to-r100`
 - **100 trolls** on Trollface Island (`royale.players` in trollface-island.js);
   real players each take one bot's place (bots.fill already did that).
@@ -196,9 +222,8 @@ in the main checkout, then curl the live `?v=` tag.
 Playable end to end on Trollface Island: 90 s sky lobby (glass box 330 m
 up, lobby guns, no damage) -> Troll Bus across the island -> jump, freefall,
 trollface paraglider -> land -> loot, zone, last troll standing, 20 players
-with bots. NOT done (phase C): other players/bots don't show a glider on
-their rigs (snapshot flag + remote rig glider needed), late-join edge cases,
-real art for the bus/glider/box, and the landmarks' real art pass (ask
+with bots. Phase C sync + late join DONE 2026-09-30 (section at the top).
+NOT done: real art for the bus/glider/box, and the landmarks' real art pass (ask
 before Blender for landmarks; weapons were explicitly requested).
 
 ### TODO (user asked to note it)
@@ -233,7 +258,7 @@ Fire button now (left fire hidden); Admire button is a praise-hands icon.
    `Downloads/4kWO0.jpg` as the banner (now live).
 
 ### Tests (all in tools/, NODE_PATH=<main checkout>/node_modules)
-royale-drop (14 checks), royale-island (sets DROP.enabled=false), royale,
+royale-phase-c (9 checks), royale-drop (14 checks), royale-island (sets DROP.enabled=false), royale,
 royale-bots, royale-mp, sync, emote, trollsaber, saber-mp, map-walk
 trollface, map-audit trollface. Known flake: sync "infection: everyone
 starts a survivor" (fails on and off, before this session too); run tests

@@ -12,6 +12,7 @@ import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=hw3";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { sharedParaglider } from "./royale-drop.js?v=rd2";
 
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down
@@ -35,6 +36,49 @@ export function rollRig(rig, k) {
   root.position.x += dz * Math.sin(yaw);
   root.position.y += ROLL_PIVOT * (1 - Math.cos(a));
   root.position.z += dz * Math.cos(yaw);
+}
+
+/* Troll Royale's drop on any rig (you, bots, peers). `state` is the wire's
+   `dr`: 2 = freefall, belly down, arms and legs spread, a flutter in the
+   wind; 3 = hanging under the glider, hands up on the lines, legs loose.
+   `t` is seconds, for the flutter. Call after poseHumanoid and rollRig. */
+export const DROP_BUS = 1, DROP_FALL = 2, DROP_GLIDE = 3;
+const FALL_PIVOT = 1.0;   // tip over about the belly, not the feet
+export function poseDrop(rig, state, t) {
+  const p = rig.parts, root = rig.root;
+  if (root.rotation.order !== "YXZ") root.rotation.order = "YXZ";
+  const f = Math.sin(t * 11) * 0.07, f2 = Math.sin(t * 7.3 + 1) * 0.06;
+  p.torso.rotation.set(0, 0, 0);
+  p.chest.rotation.set(0, 0, 0);
+  for (const j of [p.kneeL, p.kneeR, p.ankleL, p.ankleR, p.elbowL, p.elbowR]) j.rotation.set(0, 0, 0);
+  if (state === DROP_FALL) {
+    const a = -1.35;
+    root.rotation.x = a;
+    const dz = -FALL_PIVOT * Math.sin(a), yaw = root.rotation.y;
+    root.position.x += dz * Math.sin(yaw);
+    root.position.y += FALL_PIVOT * (1 - Math.cos(a));
+    root.position.z += dz * Math.cos(yaw);
+    p.chest.rotation.x = -0.25;   // chest up, arching into the wind
+    p.armL.rotation.set(1.1 + f, 0, 1.2);
+    p.armR.rotation.set(1.1 - f, 0, -1.2);
+    p.elbowL.rotation.x = 0.8;
+    p.elbowR.rotation.x = 0.8;
+    p.legL.rotation.set(-0.2, 0, 0.3 + f2);
+    p.legR.rotation.set(-0.2, 0, -0.3 - f2);
+    p.kneeL.rotation.x = -0.9;
+    p.kneeR.rotation.x = -0.9;
+  } else if (state === DROP_GLIDE) {
+    root.rotation.x = 0;
+    p.armL.rotation.set(2.75, 0, 0.3);
+    p.armR.rotation.set(2.75, 0, -0.3);
+    p.elbowL.rotation.x = 0.35;
+    p.elbowR.rotation.x = 0.35;
+    p.legL.rotation.set(0.25 + f, 0, 0.05);
+    p.legR.rotation.set(0.2 - f, 0, -0.05);
+    p.kneeL.rotation.x = -0.35;
+    p.kneeR.rotation.x = -0.3;
+  }
+  rig.body.update();
 }
 
 /* A gun in someone else's hands never moves its parts (no pump, no mag
@@ -340,6 +384,7 @@ export class RemotePlayer {
       this.deathT += dt;
       this.rig.root.visible = true;
       this.tag.visible = false;
+      this.setGlider(false);
       poseDeath(this.rig, Math.min(1, this.deathT / DEATH_TIME));
       if (this.deathT >= DEATH_TIME + BODY_LINGER) this.dying = false;
       return;
@@ -348,7 +393,7 @@ export class RemotePlayer {
 
     const visible = this.alive && snaps.length > 0;
     this.rig.root.visible = visible;
-    if (!visible) return;
+    if (!visible) { this.setGlider(false); return; }
 
     const target = performance.now() - RENDER_DELAY;
     let a = null, b = null;
@@ -368,6 +413,17 @@ export class RemotePlayer {
     );
     this.yaw = lerpAngle(a.yaw, b.yaw, k);
     this.pitch = a.pitch + (b.pitch - a.pitch) * k;
+
+    // Troll Royale's drop: nobody's drawn riding the bus (they're inside
+    // it); in the air they skydive, then hang under a glider.
+    const drop = b.drop | 0;
+    this.drop = drop;
+    this.setGlider(drop === DROP_GLIDE);
+    if (drop === DROP_BUS) {
+      this.rig.root.visible = false;
+      this.tag.visible = false;
+      return;
+    }
 
     // A landing roll: tucked all the way down while it lasts.
     const roll = (b.roll || 0) >= (a.roll || 0) ? (a.roll || 0) + ((b.roll || 0) - (a.roll || 0)) * k : b.roll || 0;
@@ -441,6 +497,12 @@ export class RemotePlayer {
 
     if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);
     rollRig(this.rig, roll);
+    if (drop) {
+      this.dropT = (this.dropT || 0) + dt;
+      poseDrop(this.rig, drop, this.dropT);
+      if (this.weaponMesh) this.weaponMesh.visible = false;
+      if (this.meleeMesh) this.meleeMesh.visible = false;
+    }
 
     this.tag.position.y = 2.15 - this.lower * 0.75;
   }
@@ -485,7 +547,21 @@ export class RemotePlayer {
     return out.set(this.pos.x, this.pos.y + 1.1 - this.lower * 0.5, this.pos.z);
   }
 
+  /* The glider over their head (a clone of the shared one: removed, never
+     disposed). */
+  setGlider(on) {
+    if (on && !this.glider) {
+      this.glider = sharedParaglider();
+      this.glider.position.y = 1.7;
+      this.rig.root.add(this.glider);
+    } else if (!on && this.glider) {
+      this.glider.parent?.remove(this.glider);
+      this.glider = null;
+    }
+  }
+
   dispose() {
+    this.setGlider(false);
     this.scene.remove(this.rig.root);
     this.rig.root.traverse((o) => {
       if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
@@ -543,7 +619,9 @@ export class RemotePlayers {
       rp.update(step, myTeam, ffa);
       // Past 150 m a troll is a couple of pixels: not drawn at all (the body
       // was most of a 100-troll frame). Still placed, so it can still be hit.
-      if (d2 > FAR_HIDE * FAR_HIDE && !rp.dying) { rp.rig.root.visible = false; rp.tag.visible = false; }
+      // A glider is 7 m wide, so it stays in sight twice as far.
+      const far = rp.drop === DROP_GLIDE ? FAR_HIDE * 2 : FAR_HIDE;
+      if (d2 > far * far && !rp.dying) { rp.rig.root.visible = false; rp.tag.visible = false; }
     }
   }
 
