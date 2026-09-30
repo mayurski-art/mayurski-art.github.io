@@ -179,6 +179,8 @@ export class WeaponInspector {
       if (this.pending !== token) return;
       // Clones share the cached geometry: never dispose it on swap.
       obj.traverse((o) => { if (o.geometry) o.geometry.userData.shared = true; });
+      // The VSAT's antenna plate is its front (-Z); face it at the camera.
+      if (id === "vsat") obj.rotation.y = Math.PI;
       this.setMesh(obj);
       this.streakId = id;
     }).catch(() => {});

@@ -133,6 +133,12 @@ before Blender for landmarks; weapons were explicitly requested).
   skinnable gun: skins.js SKINS + a baked atlas in skins/). Pairs with the
   Halloween melee (Reaper's Grin, Chainsaw): think pumpkins, reaper, bone,
   violet/orange. Not started.
+- **Create a flamethrower** (user, 2026-09-30): it must be a VERY unique
+  design, not a stock military flamer. Needs its own silhouette (the way the
+  Green Candles is a candle-tank launcher, not a rocket tube): pitch 2-3
+  concept directions to the user before modelling (design doc first, per the
+  big-build rule), then Blender model + PF-style reload (tank swap, like
+  Green Candles' tankSwap) + fire stream/burn FX. Not started.
 
 ### Streaks (done, 2026-09-29)
 BO2 names kept (UAV, Care Package, Hunter-Killer Drone, Lightning Strike,

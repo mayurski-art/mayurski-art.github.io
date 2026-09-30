@@ -29,7 +29,7 @@ STREAKS = {
     "helicopter":  ("helicopter.glb", (1.3, -1.0, 0.55), 70),
     "k9":          ("k9-dog.glb", (1.25, 1.0, 0.45), 70),
     "warship":     ("vtol-warship.glb", (1.2, 1.1, 0.7), 70),
-    "vsat":        ("orbital-vsat.glb", (0.9, 1.4, 0.75), 70),
+    "vsat":        ("orbital-vsat.glb", (-0.75, 1.4, 0.4), 70),
     # three drones in a loose V: the swarm
     "swarm":       (["hunter-drone.glb", "hunter-drone.glb", "hunter-drone.glb"], (1.0, -1.25, 0.95), 70),
 }
@@ -38,6 +38,8 @@ STREAKS = {
 ONLY = [s for s in os.environ.get("ICON_ONLY", "").split(",") if s]
 # Hull colour the neutral greys become: olive drab by default.
 FINISH = {"counteruav": (0.34, 0.07, 0.06)}
+# These keep their own colours (the VSAT is gold foil and blue-grey cells).
+NO_FINISH = {"vsat"}
 SWARM_OFFSETS = [(0, 0, 0.3), (0.55, 0.45, -0.2), (-0.35, -0.55, -0.35)]
 
 
@@ -68,7 +70,7 @@ def render(streak, model, view, lens):
     # Military finish: neutral greys become olive-drab / gunmetal; coloured
     # details (lights, straps, glass) keep their colour.
     import colorsys
-    for m in bpy.data.materials:
+    for m in ([] if streak in NO_FINISH else bpy.data.materials):
         if not m.use_nodes:
             continue
         b = m.node_tree.nodes.get("Principled BSDF")

@@ -840,6 +840,107 @@ export class HunterDrone {
   }
 }
 
+/* ------------------------------------------------------------ orbital vsat
+
+   The VSAT's world presence (user: "a decent sized orbital vsat in the sky"):
+   the satellite drifts slowly across the whole sky over the map for as long
+   as it's up, antenna plate turned down at the ground, a faint scan beam
+   sweeping under it. Big and high, drawn without fog so it reads as being
+   up above the weather. Decides nothing: vsatUntil owns the reveal, and a
+   Counter-UAV can't touch it (cutShort is a no-op). */
+export const VSAT_ALTITUDE = 88;
+export const VSAT_SCALE = 6;
+const VSAT_ENTER = 6, VSAT_EXIT = 6;
+export class VsatSatellite {
+  constructor({ bounds, yaw = 0, duration = 40 }) {
+    this.age = 0;
+    this.done = false;
+    this.duration = duration;
+    this.vsat = true;
+    const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
+    const span = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+    // A chord across the sky, offset a little from dead centre so it's seen
+    // at an angle rather than straight overhead from the middle of the map.
+    this.dir = { x: Math.cos(yaw), z: Math.sin(yaw) };
+    const off = span * 0.12;
+    this.mid = { x: cx - this.dir.z * off, z: cz + this.dir.x * off };
+    this.half = Math.max(90, span * 0.9);
+    this.root = new THREE.Group();
+    this.sat = new THREE.Group();
+    this.sat.scale.setScalar(VSAT_SCALE);
+    // Antenna plate (the model's -Z) turned down at the map.
+    this.sat.rotation.x = -Math.PI / 2;
+    this.spin = new THREE.Group();
+    this.spin.add(this.sat);
+    this.root.add(this.spin);
+
+    // The scan: a thin cone of light from the dish to the ground.
+    const beamGeo = new THREE.ConeGeometry(14, VSAT_ALTITUDE, 32, 1, true);
+    beamGeo.translate(0, -VSAT_ALTITUDE / 2 - 10, 0);   // starts under the dish, not over the bird
+    this.beamMat = new THREE.MeshBasicMaterial({
+      color: 0xff7a5a, transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+    });
+    this.beam = new THREE.Mesh(beamGeo, this.beamMat);
+    this.beam.renderOrder = 2;
+    this.root.add(this.beam);
+    this.place();
+
+    loadModel("orbital-vsat").then((obj) => {
+      if (this.dead) return;
+      obj.traverse((o) => {
+        if (!o.isMesh) return;
+        o.castShadow = o.receiveShadow = false;
+        o.frustumCulled = false;
+        for (const m of [].concat(o.material)) {
+          // Seen from below against the sky: no fog, and lifted so the
+          // underside isn't a black cut-out (there's no sun on it).
+          m.fog = false;
+          if (m.emissive && m.color) m.emissive.copy(m.color).multiplyScalar(0.28);
+          if (m.metalness > 0.6) m.metalness = 0.6;
+        }
+      });
+      this.sat.add(obj);
+    });
+  }
+
+  pathAt(t, out) {
+    const total = this.duration + VSAT_ENTER + VSAT_EXIT;
+    const k = Math.min(1, Math.max(0, t / total));
+    const s = -this.half + 2 * this.half * k;
+    out.set(this.mid.x + this.dir.x * s, VSAT_ALTITUDE, this.mid.z + this.dir.z * s);
+    return out;
+  }
+
+  place() {
+    this.pathAt(this.age, this.root.position);
+    // Travelling "forward" along its track, turning slowly about its nadir.
+    this.root.rotation.y = Math.atan2(-this.dir.x, -this.dir.z);
+    this.spin.rotation.y = this.age * 0.06;
+    this.sat.rotation.z = Math.sin(this.age * 0.25) * 0.05;
+    // Beam fades in once it's on station and out as it leaves.
+    const on = smooth01((this.age - 1) / 2) * (1 - smooth01((this.age - this.duration - VSAT_ENTER) / 2));
+    this.beamMat.opacity = on * (0.022 + 0.012 * Math.sin(this.age * 3));
+    this.beam.visible = on > 0.01;
+  }
+
+  cutShort() { /* can't be shot down */ }
+
+  update(dt) {
+    this.age += dt;
+    this.place();
+    if (this.age > this.duration + VSAT_ENTER + VSAT_EXIT) { this.done = true; return "expire"; }
+    return null;
+  }
+
+  dispose() {
+    this.dead = true;
+    this.beam.geometry.dispose();
+    this.beamMat.dispose();
+    this.root.parent?.remove(this.root);
+  }
+}
+
 /* ------------------------------------------------------------- recon plane
 
    UAV's world presence, as in Black Ops 2: a spotter plane flies in from off

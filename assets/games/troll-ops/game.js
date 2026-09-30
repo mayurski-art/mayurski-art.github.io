@@ -9,7 +9,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
-import { WeaponInspector } from "./inspector.js?v=vsat1";
+import { WeaponInspector } from "./inspector.js?v=vsat3";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
 import { CharacterInspector } from "./char-inspector.js?v=to-ads1";
 import { Loadout } from "./loadout.js?v=lv4";
@@ -18,12 +18,12 @@ import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakB
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
-  VtolWarship, WARSHIP_GUNS,
+  VtolWarship, WARSHIP_GUNS, VsatSatellite,
   PKG_CRUSH_RADIUS,
   DRONE_DAMAGE, DRONE_SPLASH_RADIUS,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE,
-} from "./streak-entities.js?v=cuav1";
+} from "./streak-entities.js?v=vsat2";
 import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
 import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
@@ -423,6 +423,14 @@ const vsatUntil = { phantom: 0, ghost: 0 };
 function vsatActiveFor(team) {
   return !!team && vsatUntil[team] > performance.now();
 }
+/* The satellite itself, crossing the sky while it's up (everyone sees it). */
+function spawnVsatSat(yaw, duration) {
+  const bounds = builtMap?.map?.bounds || ARENA;
+  const sat = new VsatSatellite({ bounds, yaw, duration });
+  flyovers.push(sat);
+  scene.add(sat.root);
+  return sat;
+}
 function startVsat(team, duration) {
   if (!team) return;
   vsatUntil[team] = Math.max(vsatUntil[team] || 0, performance.now() + duration * 1000);
@@ -816,8 +824,10 @@ function fireStreak(id, at = null) {
       const team = uavBucket();
       const dur = STREAK_DEFS.vsat.duration;
       startVsat(team, dur);
+      const yaw = Math.random() * Math.PI * 2;
+      spawnVsatSat(yaw, dur);
       if (net.active) {
-        net.publishStreak({ kind: "vsat", action: "start", team, duration: dur });
+        net.publishStreak({ kind: "vsat", action: "start", team, duration: dur, yaw: round2(yaw) });
         net.publishStreak({ kind: "callout", label: "ORBITAL VSAT", who: net.name });
       }
       showWaveBanner("ORBITAL VSAT ONLINE", 1800);
@@ -1949,6 +1959,7 @@ function applyRemoteStreak(m) {
     case "vsat":
       if (m.action === "start") {
         startVsat(m.team, m.duration || STREAK_DEFS.vsat.duration);
+        spawnVsatSat(+m.yaw || 0, m.duration || STREAK_DEFS.vsat.duration);
         if (m.team === uavBucket() && !currentMode().ffa) showWaveBanner("FRIENDLY VSAT IN ORBIT", 1500);
         else showWaveBanner("ENEMY ORBITAL VSAT — THEY SEE YOU", 1800);
       }
@@ -4280,7 +4291,8 @@ window.addEventListener("keydown", (e) => {
     // Troll Royale has no streaks: 4 puts a plate on, 5 uses Hopium.
     if (royale && (e.code === "Digit4" || e.code === "Digit5") && !e.repeat) startRoyaleAct(e.code === "Digit4" ? "plate" : "heal");
     else if (/^Digit[4-7]$/.test(e.code) && !e.repeat) callStreakSlot(+e.code.slice(5) - 4);
-    if (e.code === "KeyG" && !e.repeat) startCook("lethal");
+    // G throws whatever throwable you brought (one slot: lethal OR tactical).
+    if (e.code === "KeyG" && !e.repeat) startCook(carriedThrowSlot());
     // F is plant/defuse while you're somewhere you can do either (S&D);
     // everywhere else it's the tactical.
     if (e.code === "KeyF" && !e.repeat && !(isSnd() && sndCanInteract)) startCook("tactical");
@@ -4305,7 +4317,7 @@ window.addEventListener("keyup", (e) => {
   keys.delete(e.code);
   if (e.code === "Tab") els.scoreboard.hidden = true;
   if (e.code === "KeyH") emoteWheel.close();
-  if ((e.code === "KeyG" && cooking.slot === "lethal")
+  if ((e.code === "KeyG" && cooking.slot)
     || (e.code === "KeyF" && cooking.slot === "tactical")) releaseCook();
 });
 
@@ -4749,11 +4761,14 @@ function pollGamepad(dt) {
     if (pressedEdge(4)) tryReload();          // L1 -> reload (kept off fire face buttons)
     if (pressedEdge(2)) swingMelee();         // X / square -> melee
     if (pressedEdge(3)) cycleWeapon();        // Y / triangle -> cycle primary/secondary/melee
-    if (pressedEdge(5)) startCook("lethal");  // R1 -> cook nade
+    // R1 -> cook whatever throwable you brought. It used to be lethal-only,
+    // so a loadout carrying a flash/smoke/EMP threw nothing on RB (user:
+    // "throwable doesn't work on controller").
+    if (pressedEdge(5)) startCook(carriedThrowSlot());
     if (gpPrev[5] && !btn(5)) releaseCook();
-    // Tactical goes on d-pad left, NOT L1 — L1 is already reload above, and
-    // one button doing both would reload every time you threw a flash.
-    if (pressedEdge(14)) startCook("tactical");
+    // D-pad left does the same (NOT L1 — L1 is reload above, and one button
+    // doing both would reload every time you threw a flash).
+    if (pressedEdge(14)) startCook(carriedThrowSlot());
     if (gpPrev[14] && !btn(14)) releaseCook();
     if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
     // L3 (click the left stick), held -> emote wheel, the pad's H: the right
@@ -5041,7 +5056,7 @@ function showWaveBanner(text, ms = 1800) {
 /* The scorestreak strip: a meter toward the cheapest streak that isn't ready
    yet, then one row per selected streak. Rebuilt only when the set of rows
    changes; the meter itself is just a width. */
-const STREAK_ICON_URL = (id) => new URL(`./streak-icons/${id}.png?v=ss2`, import.meta.url).href;
+const STREAK_ICON_URL = (id) => new URL(`./streak-icons/${id}.png?v=ss3`, import.meta.url).href;
 
 function updateStreakHud() {
   if (!els.ssHud) return;
@@ -5581,6 +5596,11 @@ function noteThrow(id) {
 function refillGear() {
   player.gear.lethal = loadout.carried("lethal");
   player.gear.tactical = loadout.carried("tactical");
+}
+
+/* The one throwable slot a loadout carries: lethal or tactical. */
+function carriedThrowSlot() {
+  return loadout.throwKind === "tactical" ? "tactical" : "lethal";
 }
 
 /* Cooking: holding the key starts the fuse while the grenade is still in
@@ -11848,7 +11868,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale, cycleSpectate, royaleSpectating,
     royaleBotObjective, royaleBotDamage, royaleNoise, ROYALE,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
-    streakArms, beginStreakHold, weaponRig, WHISTLE_HAND, WHISTLE_ROT,
+    streakArms, beginStreakHold, weaponRig, WHISTLE_HAND, WHISTLE_ROT, spawnVsatSat,
     beginStreakHold, endStreakHold,
     landDipT: () => landDipT, landDipMag: () => landDipMag,
     aimAssistPoints, findAimAssistTarget, applyAimAssist, controls,
