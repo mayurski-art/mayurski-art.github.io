@@ -12,7 +12,7 @@
 // identical here and not re-explained.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-ads1";
+import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-2h1";
 import { buildWeaponMesh } from "./weapon-model.js?v=gm1";
 
 const MIN_ZOOM = 0.5;

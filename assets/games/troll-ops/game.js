@@ -34,7 +34,7 @@ import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti3";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-ads1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-ads1";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-ads1";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-2h1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-ads1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-ads1";
 import {
@@ -121,6 +121,14 @@ const els = {
   pickupPrompt: document.getElementById("to-pickup-prompt"),
   pickupPromptText: document.getElementById("to-pickup-prompt-text"),
   pickupBarFill: document.getElementById("to-pickup-bar-fill"),
+  pickupKey: document.getElementById("to-pickup-key"),
+  pickupKeyCap: document.getElementById("to-pickup-key-cap"),
+  spectate: document.getElementById("to-spectate"),
+  spectateOut: document.getElementById("to-spectate-out"),
+  spectateName: document.getElementById("to-spectate-name"),
+  spectateN: document.getElementById("to-spectate-n"),
+  spectatePrev: document.getElementById("to-spectate-prev"),
+  spectateNext: document.getElementById("to-spectate-next"),
   deathBy: document.getElementById("to-deathby"),
   deathByName: document.getElementById("to-deathby-name"),
   deathByMeta: document.getElementById("to-deathby-meta"),
@@ -4197,6 +4205,10 @@ window.addEventListener("keydown", (e) => {
   }
   keys.add(e.code);
   if (e.code === "Space" && !e.repeat && killcam.active && !player.alive) skipKillcam();
+  if (!e.repeat && !player.alive && royaleSpectating()) {
+    if (e.code === "ArrowLeft" || e.code === "KeyA" || e.code === "KeyQ") cycleSpectate(-1);
+    if (e.code === "ArrowRight" || e.code === "KeyD" || e.code === "KeyE") cycleSpectate(1);
+  }
   // Pause with other people still live in the match keeps gameState at
   // "playing" (see openPauseMenu) so their match doesn't stall, so these
   // action keys need their own guard now instead of relying on gameState.
@@ -4309,6 +4321,8 @@ renderer.domElement.addEventListener("mousedown", (e) => {
     else if (e.button === 2) strikeTablet.undo();
     return;
   }
+  // Troll Royale, out: a click is next, a right click the one before.
+  if (!player.alive && royaleSpectating() && (e.button === 0 || e.button === 2)) { cycleSpectate(e.button === 0 ? 1 : -1); return; }
   if (e.button === 0) mouseDown = true;
   if (e.button === 2) adsHeld = true;   // PF parity: right mouse aims
 });
@@ -4647,6 +4661,11 @@ function pollGamepad(dt) {
   const btn = (i) => !!gp.buttons[i]?.pressed;
   const pressedEdge = (i) => btn(i) && !gpPrev[i];
   if (killcam.active && !player.alive && pressedEdge(0)) skipKillcam();
+  // Troll Royale, out: bumpers or the D-pad go round the players still alive.
+  if (!player.alive && royaleSpectating()) {
+    if (pressedEdge(4) || pressedEdge(14)) cycleSpectate(-1);
+    if (pressedEdge(5) || pressedEdge(15)) cycleSpectate(1);
+  }
 
   // The strike tablet takes the pad: either stick aims, A / R2 marks,
   // B undoes (and cancels with nothing marked). Nothing else fires.
@@ -5911,6 +5930,20 @@ function updatePickupPrompt(dt) {
         : (swapHold.active ? `Picking up ${drop.name || drop.def.name}…` : `Pick up ${drop.name || drop.def.name}`);
       els.pickupPrompt.hidden = false;
       els.pickupPromptText.textContent = label;
+      // Troll Royale is the exception to "no key hints" (user, 2026-09-29):
+      // loot is the whole game there and nobody knew it was a hold. A keycap
+      // that pulses until you start holding it. Touch has its own labelled
+      // PICK UP button, so no cap there.
+      const cap = !!royale && !!drop?.loot && !isTouch;
+      els.pickupPrompt.classList.toggle("is-royale", cap);
+      if (els.pickupKey) {
+        els.pickupKey.hidden = !cap;
+        if (cap) {
+          const k = gamepadState.connected ? "D-pad →" : "X";
+          if (els.pickupKeyCap.textContent !== k) els.pickupKeyCap.textContent = k;
+          els.pickupKey.classList.toggle("is-held", swapHold.active);
+        }
+      }
       const progress = pkg ? pkgHoldT / packageCaptureTime(pkg) : swapHold.progress;
       els.pickupBarFill.style.width = `${Math.round(progress * 100)}%`;
     } else {
@@ -6618,6 +6651,7 @@ function teardownRoyale() {
   royale = null;
   els.cringe?.classList.remove("is-on");
   if (els.royaleAct) els.royaleAct.hidden = true;
+  hideSpectateHud();
 }
 
 /* Everyone still standing, counted once each: us, peers, and the bots we
@@ -6721,11 +6755,32 @@ function updateRoyale(dt) {
       else if (els.spawnGuard?.hidden) updateSpawnGuardHud();
     }
   } else {
-    // Out: watch whoever got you, then whoever is nearest.
+    // Out: watch whoever got you, then whoever is nearest; prev/next (and
+    // the mouse, stick or a drag) go round everyone still standing.
+    const prev = r.spectate;
     r.spectate = pickSpectateTarget(r.spectate, alive);
-    const text = `Eliminated — ${ordinal(r.place || alive.length + 1)} of ${r.peak}${r.spectate ? ` · watching ${r.spectate.name}` : ""}`;
-    if (els.respawnText.textContent !== text) els.respawnText.textContent = text;
+    if (r.spectate && r.spectate !== prev && r.spectate.id !== prev?.id) onSpectateTarget();
+    const out = `Eliminated — ${ordinal(r.place || alive.length + 1)} of ${r.peak}`;
     if (!r.outShown) { r.outShown = true; els.respawn.hidden = false; }
+    const watching = royaleSpectating();
+    // The spectator view is clear: no 62% death fade, no low-HP pulse, and
+    // the centre "Eliminated" line moves down into the bar.
+    if (watching) els.deathfade.classList.remove("is-dead");
+    els.respawn.hidden = watching;
+    els.spectate.hidden = !watching;
+    els.killcamBars.parentElement.classList.toggle("to-spectating", watching);
+    const text = watching ? out : r.spectate ? `${out} · watching ${r.spectate.name}` : out;
+    if (els.respawnText.textContent !== text) els.respawnText.textContent = text;
+    if (watching) {
+      const others = spectateOrder(alive);
+      const n = `${others.findIndex((a) => a.id === r.spectate.id) + 1} of ${others.length} alive`;
+      if (els.spectateOut.textContent !== out) els.spectateOut.textContent = out;
+      if (els.spectateName.textContent !== r.spectate.name) els.spectateName.textContent = r.spectate.name;
+      if (els.spectateN.textContent !== n) els.spectateN.textContent = n;
+      const one = others.length < 2;
+      els.spectatePrev.hidden = one;
+      els.spectateNext.hidden = one;
+    }
   }
 
   // The end: one troll left (or none, if the Cringe took the last two).
@@ -6739,6 +6794,7 @@ function updateRoyale(dt) {
 function finishRoyale(alive) {
   const r = royale;
   r.over = true;
+  hideSpectateHud();
   const won = player.alive;
   const place = won ? 1 : (r.place || r.peak);
   const bonus = Math.max(0, r.peak - place) * 40 + (won ? 400 : 0);
@@ -6753,6 +6809,9 @@ function royaleOnDeath() {
   const r = royale;
   r.place = royaleAliveList().length + 1;
   r.act = null;
+  // Out for good: nothing left to protect (its pill hung over the spectator view).
+  player.spawnGuard = 0;
+  updateSpawnGuardHud();
   let n = 0;
   const put = (fields) => {
     const a = n * 2.39996, d = 0.55 + n * 0.18;
@@ -7092,18 +7151,59 @@ function royaleSpectating() {
   return !!royale && !player.alive && !!royale.spectate && !killcam.replaying && gameState === "playing";
 }
 
-/* Over the shoulder of whoever we're watching, eased so it doesn't jitter
-   on their 15 Hz updates. */
-const _specAt = new THREE.Vector3();
-const _specLook = new THREE.Vector3();
+/* Everyone still standing but us, in a fixed order so prev/next go round. */
+function spectateOrder(alive = royaleAliveList()) {
+  return alive.filter((a) => !a.me).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+}
+
+function cycleSpectate(dir) {
+  if (!royaleSpectating()) return;
+  const others = spectateOrder();
+  if (others.length < 2) return;
+  const at = others.findIndex((a) => a.id === royale.spectate.id);
+  royale.spectate = others[(at + dir + others.length) % others.length];
+  onSpectateTarget();
+}
+
+/* A new troll to watch: start from behind them, looking where they look. */
+let specSnap = true;
+function onSpectateTarget() {
+  const t = royale?.spectate;
+  if (!t) return;
+  look.yaw = t.yaw;
+  look.pitch = -0.18;
+  specSnap = true;
+}
+
+/* A free orbit round whoever we're watching: the mouse, stick or a drag
+   swing it (look.yaw / look.pitch, which nothing else reads while we're
+   out), pulled in off walls, and eased onto their 15 Hz position updates.
+   It used to be locked behind their back and looking where they did. */
+const _specPivot = new THREE.Vector3();
+const _specWant = new THREE.Vector3();
+const _specDir = new THREE.Vector3();
+const SPEC_DIST = 4.2;
 function placeSpectateCamera(dt) {
   const t = royale.spectate;
-  const back = 3.4, up = 2.1;
-  _specAt.set(t.pos.x + Math.sin(t.yaw) * back, (t.pos.y || 0) + up, t.pos.z + Math.cos(t.yaw) * back);
-  if (camera.position.distanceTo(_specAt) > 12) camera.position.copy(_specAt);
-  else camera.position.lerp(_specAt, Math.min(1, dt * 6));
-  _specLook.set(t.pos.x - Math.sin(t.yaw) * 4, (t.pos.y || 0) + 1.3, t.pos.z - Math.cos(t.yaw) * 4);
-  camera.lookAt(_specLook);
+  _specWant.set(t.pos.x, (t.pos.y || 0) + 1.55, t.pos.z);
+  if (specSnap || _specPivot.distanceTo(_specWant) > 12) { _specPivot.copy(_specWant); specSnap = false; }
+  else _specPivot.lerp(_specWant, Math.min(1, dt * 10));
+  _euler.set(Math.max(-1.1, Math.min(0.45, look.pitch)), look.yaw, 0);
+  _specDir.set(0, 0, 1).applyEuler(_euler);   // from the pivot back toward the camera
+  const len = Math.max(0.6, raycastWorld(colliders, _specPivot, _specDir, SPEC_DIST) - 0.15);
+  camera.position.copy(_specPivot).addScaledVector(_specDir, len);
+  camera.lookAt(_specPivot.x, _specPivot.y + 0.3, _specPivot.z);
+  // Their floating name would sit across the top of the view from here;
+  // the spectate bar already says who it is.
+  for (const rp of remotes.byId.values()) if (rp.netId === t.id && rp.tag) rp.tag.visible = false;
+}
+
+els.spectatePrev?.addEventListener("click", () => cycleSpectate(-1));
+els.spectateNext?.addEventListener("click", () => cycleSpectate(1));
+
+function hideSpectateHud() {
+  if (els.spectate) els.spectate.hidden = true;
+  els.killcamBars.parentElement.classList.remove("to-spectating");
 }
 
 // Touch: the plate and Hopium chips are buttons.
@@ -8877,6 +8977,7 @@ function clearDeathVisuals() {
   els.killcamBars.classList.remove("is-on");
   els.deathfade.classList.remove("is-dead");
   if (els.deathBy) els.deathBy.hidden = true;
+  hideSpectateHud();
 }
 
 function respawnPlayer() {
@@ -9228,12 +9329,22 @@ function animate() {
     if (reloadHidden !== hudCache.reloadHidden) { hudCache.reloadHidden = reloadHidden; els.reloadTag.hidden = reloadHidden; }
     if (w.ads !== hudCache.ads) {
       hudCache.ads = w.ads;
-      els.crosshair.classList.toggle("is-ads", w.ads);
       // Raising/lowering the sight was the one silent transition on the gun —
       // every other action (fire, reload, inspect) already has a cue.
       audio.ads(w.ads);
     }
-    const lowhp = player.hp < 25;
+    // First person aims through the gun's own sight, so the crosshair goes.
+    // Third person has no sight picture (the camera sits over the shoulder),
+    // so it stays, tightened, or aiming in left you with nothing to aim by.
+    const adsTp = w.ads && (settings.thirdPerson || emoteIsTp());
+    const adsHide = w.ads && !adsTp;
+    if (adsHide !== hudCache.adsHide || adsTp !== hudCache.adsTp) {
+      hudCache.adsHide = adsHide;
+      hudCache.adsTp = adsTp;
+      els.crosshair.classList.toggle("is-ads", adsHide);
+      els.crosshair.classList.toggle("is-ads-tp", adsTp);
+    }
+    const lowhp = player.hp < 25 && !royaleSpectating();
     if (lowhp !== hudCache.lowhp) { hudCache.lowhp = lowhp; els.lowhp.classList.toggle("is-low", lowhp); }
 
     // A cooked grenade keeps ticking in your hand, and can go off in it.
@@ -9526,7 +9637,7 @@ function syncLocalRigHeld(hold, def) {
    cheap, but it was unconditional — every one of these touched layout/paint
    60×/sec even sitting still with full ammo and health. Comparing first
    means the browser only does anything the frame a number actually moves. */
-const hudCache = { hpPct: -1, hpLow: null, hpText: -1, ammoCur: -1, ammoRes: -1, reloadHidden: null, ads: null, lowhp: null };
+const hudCache = { hpPct: -1, hpLow: null, hpText: -1, ammoCur: -1, ammoRes: -1, reloadHidden: null, ads: null, adsHide: null, adsTp: null, lowhp: null };
 
 /* Passive regen: health climbs back to full on its own once you've been out
    of a fight for a beat, instead of every scratch being permanent until the
@@ -11601,7 +11712,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     voteOptions: () => voteOptions,
     intermissionT: () => intermissionT,
     state: () => gameState,
-    grenades, audio, camera, colliders, killcam, bullets,
+    grenades, audio, camera, colliders, killcam, bullets, look,
     startCook, releaseCook, cancelCook, applyRemoteNade, blindT: () => blindT, cooking,
     empT: () => empT,
     empPlayer, flashPlayer, explosionFx, fireShake,
@@ -11642,7 +11753,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     targetMeshes: () => targetMeshes, meleeConnect,
     saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT }),
     DROP, royaleDropView, inSkyLobby, startRoyaleBus,
-    royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale,
+    royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale, cycleSpectate, royaleSpectating,
     royaleBotObjective, royaleBotDamage, royaleNoise, ROYALE,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
     beginStreakHold, endStreakHold,

@@ -185,6 +185,30 @@ button.to-gear-chip { cursor: pointer; }
   font-family: "Oswald", sans-serif; font-size: 12px; letter-spacing: .06em;
   text-transform: uppercase; color: #eef2ea; text-shadow: 0 1px 6px rgba(0,0,0,.7);
 }
+/* Troll Royale loot: the one prompt that names its key, loud (a keycap that
+   pulses until you're holding it, a bigger line and bar). */
+.to-bomb-prompt.is-royale { font-size: 15px; }
+.to-bomb-prompt.is-royale .to-bomb-bar { width: 190px; height: 6px; margin: 7px auto 0; }
+.to-hold-key { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 7px; }
+.to-hold-key kbd {
+  min-width: 34px; height: 34px; padding: 0 9px; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: #f4f6f0; color: #111;
+  font: 700 17px/1 "Oswald", sans-serif; letter-spacing: 0;
+  box-shadow: 0 3px 0 #9aa391, 0 0 0 2px rgba(125,255,74,.0), 0 4px 14px rgba(0,0,0,.55);
+  text-shadow: none; animation: to-key-pulse 1.1s ease-in-out infinite;
+}
+.to-hold-key[hidden] { display: none; }
+.to-hold-key em { font-style: normal; font-weight: 600; font-size: 13px; color: #7dff4a; letter-spacing: .14em; }
+.to-hold-key.is-held kbd {
+  animation: none; transform: translateY(2px);
+  box-shadow: 0 1px 0 #9aa391, 0 0 0 3px rgba(125,255,74,.85), 0 2px 10px rgba(0,0,0,.5);
+}
+@keyframes to-key-pulse {
+  0%, 100% { box-shadow: 0 3px 0 #9aa391, 0 0 0 2px rgba(125,255,74,0), 0 4px 14px rgba(0,0,0,.55); }
+  50% { box-shadow: 0 3px 0 #9aa391, 0 0 0 5px rgba(125,255,74,.55), 0 4px 14px rgba(0,0,0,.55); }
+}
+@media (prefers-reduced-motion: reduce) { .to-hold-key kbd { animation: none; } }
 .to-bomb-bar {
   margin-top: 5px; width: 140px; height: 4px; border-radius: 3px;
   background: rgba(0,0,0,.45); overflow: hidden;
@@ -235,6 +259,36 @@ button.to-gear-chip { cursor: pointer; }
   font-family: "Oswald", sans-serif; font-size: 20px; letter-spacing: .08em;
   color: #ff8a5a; text-align: center; z-index: 13;
 }
+
+/* Troll Royale spectating: bottom-centre, out of the way of the view. */
+.to-spectate {
+  position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+  z-index: 14; text-align: center; font-family: "Oswald", sans-serif;
+  color: #eef2ea; text-shadow: 0 1px 6px rgba(0,0,0,.7);
+}
+.to-spectate[hidden] { display: none; }
+.to-spectate-out {
+  display: inline-block; margin: 0 0 8px; padding: 3px 12px; border-radius: 999px;
+  background: rgba(6,9,7,.62); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #ff8a5a;
+}
+.to-spectate-row { display: flex; align-items: center; gap: 10px; }
+.to-spectate-who {
+  display: flex; flex-direction: column; align-items: center; min-width: 190px;
+  padding: 7px 16px; border-radius: 12px; background: rgba(6,9,7,.62);
+  border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(4px);
+}
+.to-spectate-l { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #9aa391; }
+.to-spectate-name { font-size: 19px; font-weight: 600; letter-spacing: .03em; color: #fff; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-spectate-n { font-family: "DM Mono", monospace; font-size: 11px; color: #7dff4a; }
+.to-spectate-btn {
+  pointer-events: auto;
+  width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.18); background: rgba(6,9,7,.62); color: #fff;
+  font: 600 24px/1 "Oswald", sans-serif; display: inline-flex; align-items: center; justify-content: center;
+}
+.to-spectate-btn:hover, .to-spectate-btn:focus-visible { background: rgba(125,255,74,.22); border-color: #7dff4a; outline: none; }
+/* Spectating: our own crosshair and gun readouts aren't ours to use. */
+.to-spectating #to-crosshair, .to-spectating #hud-ammo { display: none; }
 
 /* Pre-match staging. Deliberately the loudest thing on screen — it's the only
    moment the player is meant to be looking at the HUD rather than the map. */
@@ -705,6 +759,9 @@ button.to-gear-chip { cursor: pointer; }
   transition: transform .08s;
 }
 .to-crosshair.is-ads { opacity: 0; }
+/* Third person aiming in: no sight picture, so the crosshair stays, pulled
+   in tight (game.js is-ads-tp). */
+.to-crosshair.is-ads-tp { transform: translate(-50%,-50%) scale(.62); }
 /* Green Candles charge ring: a thin arc that fills clockwise (--p 0..1),
    brighter and pulsing once full. Shows while aiming too. */
 .to-charge {

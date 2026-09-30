@@ -943,6 +943,7 @@ function _poseDanceWave(rig, t) {
 export function poseHumanoid(rig, arg) {
   _poseHumanoid(rig, arg);
   if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);
+  if (arg.hold === "melee") _meleeSupport(rig);
   if (arg.hold === "melee" && arg.block > 0 && !arg.swing) _saberGuard(rig, Math.min(1, arg.block));
   rig.body.update();
 }
@@ -1003,6 +1004,28 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0 } = {}) {
     }
     _gT.lerpVectors(_gO, _gT, lo);
   }
+  _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT, _gPoleL);
+  setHandPose(rig, -1, "fist");
+}
+
+/* Two-handed melee in third person, the way first person holds them: the
+   left fist goes on the weapon too, carry and swings alike (user: the saber
+   was one-handed in third person). Points are in the melee mesh's own frame
+   (gear.js: grip at the origin, blade down -Z), so the hand rides the swing.
+   The saber guard lays over this. Reaper's Grin stays one-handed. */
+const MELEE_SUPPORT = {
+  trollsaber: new THREE.Vector3(0, 0, 0.1),        // below the right fist, toward the pommel
+  keyboard: new THREE.Vector3(0, 0, 0.11),         // choked up behind the grip (gear.js SUPPORT_ANCHOR)
+  chainsaw: new THREE.Vector3(0, 0.175, -0.268),   // the hoop over the powerhead
+};
+function _meleeSupport(rig) {
+  const p = rig.parts;
+  const held = p.gripR.children.find((c) => c.visible && MELEE_SUPPORT[c.userData.meleeId]);
+  if (!held) return;
+  held.updateWorldMatrix(true, false);
+  _gT.copy(MELEE_SUPPORT[held.userData.meleeId]);
+  held.localToWorld(_gT);
+  p.armL.parent.worldToLocal(_gT).sub(p.armL.position);
   _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT, _gPoleL);
   setHandPose(rig, -1, "fist");
 }

@@ -125,6 +125,13 @@ check("a gun off the floor fills the empty slot", pick.secondary === g.w && pick
 await sleep(300);
 await shot(page, "royale-loot.png");
 g = await teleportTo("gun");
+await sleep(300);
+const cap = await page.evaluate(() => {
+  const k = document.getElementById("to-pickup-key");
+  return { shown: !document.getElementById("to-pickup-prompt").hidden && !k.hidden && k.getBoundingClientRect().width > 20, key: k.textContent };
+});
+check("standing on loot shows a pulsing HOLD keycap", cap.shown && /X/.test(cap.key) && /Hold/i.test(cap.key), JSON.stringify(cap));
+await shot(page, "royale-pickup-key.png");
 pick = await page.evaluate(({ id, was }) => {
   const T = window.__trollOps, r = T.royale();
   const n0 = r.loot.items.size;
@@ -209,12 +216,34 @@ const out = await page.evaluate(async () => {
   return {
     alive: T.player.alive, n0, n1: T.royale()?.loot.items.size, mine: [...(T.royale()?.loot.items.keys() || [])].filter((k) => k.startsWith(T.net.id + ".")).length, text: T.els.respawnText.textContent,
     spectating: !!T.royale()?.spectate, place: T.royale()?.place,
+    bar: !document.getElementById("to-spectate").hidden, name: document.getElementById("to-spectate-name").textContent,
+    faded: document.getElementById("to-deathfade").classList.contains("is-dead"),
+    lowhp: document.getElementById("to-lowhp")?.classList.contains("is-low") || false,
   };
 });
 check("dying is final: no respawn", !out.alive && /Eliminated/.test(out.text), out.text);
 check("your gear drops where you fell", out.mine >= 1, JSON.stringify(out));
-check("you spectate a troll still standing", out.spectating && /watching/.test(out.text), out.text);
+check("you spectate a troll still standing", out.spectating && out.bar && out.name.length > 0, JSON.stringify(out));
+check("the spectator view isn't darkened", !out.faded && !out.lowhp, JSON.stringify(out));
 await shot(page, "royale-spectate.png");
+
+// Prev/next go round everyone still standing; the mouse orbits the camera.
+const cyc = await page.evaluate(async () => {
+  const T = window.__trollOps, r = T.royale();
+  const seen = new Set([r.spectate.id]);
+  const n = T.royaleAliveList().filter((a) => !a.me).length;
+  for (let i = 0; i < n; i++) { T.cycleSpectate(1); seen.add(T.royale().spectate.id); }
+  const back = T.royale().spectate.id;
+  T.cycleSpectate(-1); T.cycleSpectate(1);
+  await new Promise((res) => setTimeout(res, 100));
+  const c0 = T.camera.position.clone();
+  T.look.yaw += 1.4;
+  await new Promise((res) => setTimeout(res, 150));
+  return { n, seen: seen.size, wrapped: T.royale().spectate.id === back, orbit: +T.camera.position.distanceTo(c0).toFixed(2), label: document.getElementById("to-spectate-n").textContent };
+});
+check("prev/next cycles through every troll still alive", cyc.seen === cyc.n && cyc.wrapped, JSON.stringify(cyc));
+check("the spectator camera orbits with the look", cyc.orbit > 1, JSON.stringify(cyc));
+await shot(page, "royale-spectate-orbit.png");
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();

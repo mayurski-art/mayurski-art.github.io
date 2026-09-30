@@ -1,5 +1,20 @@
 # Troll Ops hand-off — 2026-09-28 (session 18)
 
+## Troll Royale polish (2026-09-29, user list) — `game.js?v=to-rs1`
+- **Loot pickup keycap**: Royale's gun prompt is the ONE exception to the
+  "no key hints" rule (user asked): pulsing X / "D-pad →" keycap + HOLD,
+  bigger line and bar (`.to-hold-key`, `#to-pickup-prompt.is-royale`). No
+  cap on touch (the PICK UP button is already labelled).
+- **Two hands on melee in third person**: character.js `MELEE_SUPPORT` puts
+  the left fist on the saber hilt, keyboard grip and chainsaw hoop, carry
+  and swings; the saber guard still lays over it. Reaper stays one-handed.
+- **Crosshair in third-person ADS**: stays (scaled to .62, `.is-ads-tp`);
+  first person still hides it for the gun's own sight.
+- **Spectating**: no death fade / low-HP pulse / spawn pill; free orbit on
+  look.yaw/pitch round the watched troll (their nametag hidden); bottom bar
+  with prev/next (buttons, A/D/Q/E/arrows, click/right-click, LB/RB or
+  D-pad). `cycleSpectate`, `spectateOrder`. Royale test now 26 checks.
+
 ## RESUME HERE (2026-09-29, end of session) — read this first
 Everything below is pushed to main and live (`troll-ops.html` loads
 `game.js?v=to-lv3`). Worktree: `to-opus-wt`, branch `game-improvements`;
