@@ -130,6 +130,10 @@
                   <input type="checkbox" id="to-nobots">
                   No bots (just me) — for walking a map solo, no code needed. Share the room code above only if you want someone else to join you.
                 </label>
+                <label class="to-lo-nobots" for="to-botstreaks">
+                  <input type="checkbox" id="to-botstreaks" checked>
+                  Bot scorestreaks — bots earn and call their own streaks (UAVs, dogs, gunships…).
+                </label>
                 <span class="to-net-status" id="to-net-status">Leave blank to auto-match into the public server for this mode. Enter a code for a private room instead.</span>
               </div>
               <div class="to-pf-roster" aria-label="Operators in the room">
@@ -687,7 +691,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-fx2"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-bs1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

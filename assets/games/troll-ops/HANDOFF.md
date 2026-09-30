@@ -1,4 +1,55 @@
-# Troll Ops hand-off — 2026-09-28 (session 18)
+# Troll Ops hand-off — 2026-09-30 (session 19)
+
+## RESUME HERE (2026-09-30, session 19) — read this first
+Worktree `to-opus-wt` (branch `game-improvements`), push =
+`git push origin HEAD:main`, then `git pull --ff-only` in the main checkout,
+then curl the live `?v=` tag (`troll-ops.html` loads `game.js?v=to-bs1`).
+Two approved design docs drive the next work, in this order:
+1. **Bot scorestreaks** — https://claude.ai/code/artifact/39ee72a4-672a-4d4e-a60e-44eaf81fffc3
+   Phase 1 SHIPPED (below). Next: phase 2 (Care Package: mark, run to the
+   crate, capture, use; Lightning Strike: pick 3 spots from where its team
+   last saw the most enemies), then phase 3 (AI gunner on the VTOL
+   Warship; bots shoot down enemy drones/gunships/warships, which they
+   ignore today). Add each to `BOT_STREAK_POOL` as it lands. Decisions:
+   sky cap 2 air streaks per team + 1 bot warship a match; friendly bots'
+   streaks count for your team; toggle on by default; no bot streaks in
+   the Test Range.
+2. **Map detail pass** — https://claude.ai/code/artifact/6c5f187b-8e24-4227-b0cb-823fb3646b46
+   (Claude Docs doc; its Decisions section has the user's answers). Six
+   phases: atmosphere on all maps first (Dust Bowl turns SUNSET, others
+   keep their time of day), island ground + clutter, island landmarks A
+   (follow trollface.io, then restyle; bus/glider/glass box art folded in
+   here), landmarks B, PvP second pass, Hollowgrin models. Hollowgrin's
+   dark parts get brighter through light-giving decor (lanterns, candles,
+   pumpkins), not global light (my reading of "lighter"; confirm). Re-run
+   `tools/troll-ops-map-previews.mjs` after any map's look changes.
+Parked by the user: the park map (wants ~5 inspiration images first).
+
+## Bot scorestreaks phase 1 (2026-09-30) — `game.js?v=to-bs1`
+- Bots we host roll 3 streaks a match (`botStreakState`, from
+  `BOT_STREAK_POOL`: uav, counteruav, vsat, drone, k9, helicopter, swarm;
+  radar ones left out in FFA), earn on kills (`botEarn` from
+  registerDeath; meter empties on death, earned ones stay), and call one
+  after `BOT_QUIET` s with nobody in sight (`updateBotStreaks`, bot host
+  only, after `bots.update`). `botFireStreak` mirrors `fireStreak` with the
+  bot as owner and sends the same streak messages + a callout banner.
+- Owner plumbing: entities carry `botId` / `botTeam`. `streakDamage(botId,
+  target, dmg, wid)` routes through `botDealDamage` (bot credit, can hit
+  the local player; a bot that left drops the damage).
+  `streakOwnerHates(team, botId)` adds the local player as a target for
+  drone picks (`pickDroneTarget(from, eyeUp, {team, botId})`), gunship,
+  K9 (`k9Hostiles`) and Swarm runs. `k9Hostile` lets you shoot an enemy
+  bot's dogs even though your client hosts them.
+- Limits: `BOT_AIR_CAP` 2 air streaks per team (drone/gunship/swarm), the
+  same cooldowns as players (per bot `s.lock`). Lobby checkbox
+  `#to-botstreaks` "Bot scorestreaks" (on, saved in localStorage
+  `trollops:botStreaks`). Off in Royale, Test Range, non-PvP.
+- `botStreakLog` (hook) = recent bot calls. Test:
+  `tools/troll-ops-bot-streaks-test.mjs` (8 checks). streaks-bo2 + sync
+  suites still green.
+- Not done: bot callouts are one red banner per call (can get busy with 12
+  bots; consider only enemy calls, or a softer friendly banner); bots
+  don't react to an enemy UAV beyond the minimap.
 
 ## BACKLOG: audio + dialogue pass (user, 2026-09-30) — BIG PROJECT, not started
 The game needs lots of audio and voice lines. The user wants the dialogue to be
@@ -62,10 +113,8 @@ fires so it doesn't spam in a 100-troll Royale.
   `to-ads2` in every importer (emotes/enemies/zombies tags bumped too).
 - Pre-existing (fails on main too): royale-bots "most bots have picked
   something up" (5/9).
-- **NOT done, needs a design doc**: bots using scorestreaks (3 random each,
-  no level gates). Every streak is
-  written for a human caller (tablets, riding the warship gun), so each
-  needs a bot version. Park map on hold (user).
+- Bot scorestreaks: see the section above (phase 1 shipped). Park map on
+  hold (user).
 
 ## Troll Royale phase C: everyone's drop + late join (2026-09-30) — `game.js?v=to-rdc`
 - **Wire field `dr`** on every state msg (you and hosted bots): 1 bus,

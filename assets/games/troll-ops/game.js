@@ -83,6 +83,7 @@ const els = {
   room: document.getElementById("to-room"),
   newRoom: document.getElementById("to-newroom"),
   noBots: document.getElementById("to-nobots"),
+  botStreaks: document.getElementById("to-botstreaks"),
   netStatus: document.getElementById("to-net-status"),
   hudTeams: document.getElementById("to-hud-teams"),
   hudMatchClock: document.getElementById("to-hud-matchclock"),
@@ -1127,22 +1128,27 @@ function droneTargetPos(targetId) {
 
 /* Hunter-killer target pick: nearest enemy, but one it can actually see
    beats a closer one behind a wall (scored as if 25 m further away). */
-function pickDroneTarget(from, eyeUp = 1.6) {
+/* `team` / `botId`: whose drone (default ours). A bot's can pick us. */
+function pickDroneTarget(from, eyeUp = 1.6, { team = net.team, botId = null } = {}) {
   let best = null, bestScore = Infinity;
   const ffa = currentMode().ffa;
   const eye = new THREE.Vector3(from.x, from.y + eyeUp, from.z);
   const dir = new THREE.Vector3();
-  for (const rp of remotes.byId.values()) {
-    if (!rp.alive) continue;
-    if (!ffa && net.team && rp.team === net.team) continue;
-    const d = from.distanceTo(rp.pos);
-    dir.set(rp.pos.x - eye.x, rp.pos.y + 1.2 - eye.y, rp.pos.z - eye.z);
+  const consider = (pos, who) => {
+    const d = from.distanceTo(pos);
+    dir.set(pos.x - eye.x, pos.y + 1.2 - eye.y, pos.z - eye.z);
     const len = dir.length() || 1;
     dir.divideScalar(len);
     const seen = raycastWorld(colliders, eye, dir, len) >= len - 0.3;
     const score = d + (seen ? 0 : 25);
-    if (score < bestScore) { bestScore = score; best = rp; }
+    if (score < bestScore) { bestScore = score; best = who; }
+  };
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive || rp.netId === botId) continue;
+    if (!ffa && team && rp.team === team) continue;
+    consider(rp.pos, rp);
   }
+  if (streakOwnerHates(team, botId)) consider(move.pos, { netId: net.id, pos: move.pos, peer: { name: "you" } });
   return best;
 }
 
@@ -1230,7 +1236,8 @@ function spawnK9({ id, owned, team, ownerId, x, y, z, yaw = 0 }) {
 
 /* A pack that's hostile to us: shootable, and on our radar as a threat. */
 function k9Hostile(pack) {
-  if (pack.owned) return false;
+  if (pack.owned && !pack.botId) return false;   // ours (a bot's pack we host can be the enemy's)
+  if (pack.botId && !currentMode().ffa && pack.team === net.team) return false;
   return !!currentMode().ffa || !net.team || pack.team !== net.team;
 }
 
@@ -1244,6 +1251,7 @@ function k9Hostiles(pack) {
     if (!ffa && pack.team && rp.team === pack.team) continue;
     out.push({ id: rp.netId, pos: rp.pos, alive: true });
   }
+  if (streakOwnerHates(pack.team, pack.botId)) out.push({ id: net.id, pos: move.pos, alive: true });
   return out;
 }
 
@@ -1252,12 +1260,12 @@ function updateK9(id, pack, dt) {
     if (pack.updateCopy(dt) === "expire") { pack.dispose(); streakEntities.delete(id); }
     return;
   }
+  const ownerBot = pack.botId ? bots.byId(pack.botId) : null;
   const out = pack.updateOwned(dt, {
     hostiles: () => k9Hostiles(pack),
-    ownerPos: player.alive ? move.pos : null,
+    ownerPos: ownerBot ? (ownerBot.alive ? ownerBot.pos : null) : player.alive ? move.pos : null,
     onBite: (dog, targetId, dmg) => {
-      const rp = remotes.byId.get(targetId);
-      if (rp && rp.alive) dealDamageToRemote(rp, dmg, "k9");
+      streakDamage(pack.botId, targetId, dmg, "k9");
       audio.bark?.(dog.pos);
     },
   });
@@ -1267,7 +1275,7 @@ function updateK9(id, pack, dt) {
   }
   if (out === "expire") {
     if (net.active) net.publishStreak({ kind: "k9", action: "end", eid: id });
-    showWaveBanner("K9 UNIT CALLED OFF", 1400);
+    if (!pack.botId) showWaveBanner("K9 UNIT CALLED OFF", 1400);
     pack.dispose();
     streakEntities.delete(id);
   }
@@ -1492,10 +1500,12 @@ function updateSwarms(dt) {
     s.t += dt;
     if (s.t > def.duration || s.sent >= def.count) { swarmRuns.splice(i, 1); continue; }
     if (s.t < s.next) continue;
+    // Whose run: ours, or a bot's we host (`botId`, `team`).
+    const team = s.botId ? s.team : net.team;
     let alive = 0;
     const onTarget = new Map();
     for (const e of streakEntities.values()) {
-      if (!(e instanceof HunterDrone) || !e.owned || !e.sky || e.frozen) continue;
+      if (!(e instanceof HunterDrone) || !e.owned || !e.sky || e.frozen || (e.botId || null) !== (s.botId || null)) continue;
       alive++;
       if (e.targetId) onTarget.set(e.targetId, (onTarget.get(e.targetId) || 0) + 1);
     }
@@ -1504,19 +1514,23 @@ function updateSwarms(dt) {
     const ffa = currentMode().ffa;
     let victim = null, best = Infinity;
     for (const rp of remotes.byId.values()) {
-      if (!rp.alive) continue;
-      if (!ffa && net.team && rp.team === net.team) continue;
+      if (!rp.alive || rp.netId === s.botId) continue;
+      if (!ffa && team && rp.team === team) continue;
       const score = (onTarget.get(rp.netId) || 0) + Math.random() * 0.5;
       if (score < best) { best = score; victim = rp; }
+    }
+    if (streakOwnerHates(team, s.botId)) {
+      const score = (onTarget.get(net.id) || 0) + Math.random() * 0.5;
+      if (score < best) { best = score; victim = { netId: net.id, pos: move.pos }; }
     }
     if (!victim) { s.next = s.t + 0.5; continue; }
     s.next = s.t + def.duration / def.count;
     s.sent++;
-    launchSwarmDrone(victim);
+    launchSwarmDrone(victim, s);
   }
 }
 
-function launchSwarmDrone(victim) {
+function launchSwarmDrone(victim, run = null) {
   const b = streakBounds();
   const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
   const r = Math.max(b.maxX - b.minX, b.maxZ - b.minZ) * 0.5;
@@ -1525,7 +1539,8 @@ function launchSwarmDrone(victim) {
   const pos = new THREE.Vector3(cx + Math.cos(a) * r, 30 + Math.random() * 10, cz + Math.sin(a) * r);
   const yaw = Math.atan2(-(victim.pos.x - pos.x), -(victim.pos.z - pos.z));
   const id = `streak-swarm-${net.id}-${Math.round(performance.now())}-${++swarmSeq}`;
-  spawnDrone({ id, targetId: victim.netId, owned: true, pos, yaw, sky: true, credit: "swarm" });
+  const e = spawnDrone({ id, targetId: victim.netId, owned: true, pos, yaw, sky: true, credit: "swarm" });
+  if (run?.botId) { e.botId = run.botId; e.botTeam = run.team; }
   if (net.active) {
     net.publishStreak({
       kind: "drone", action: "launch", eid: id, target: victim.netId, sky: 1, credit: "swarm",
@@ -1719,7 +1734,8 @@ function updateStreakEntities(dt) {
             gunshipShotFx(e, victim.chest);
             // Only the caller's copy deals damage; the hit reaches everyone
             // else as an ordinary hit message.
-            if (e.owned && victim.rp) dealDamageToRemote(victim.rp, HELI_DAMAGE, "heli");
+            if (e.owned && e.botId) streakDamage(e.botId, victim.rp ? victim.rp.netId : net.id, HELI_DAMAGE, "heli");
+            else if (e.owned && victim.rp) dealDamageToRemote(victim.rp, HELI_DAMAGE, "heli");
           }
         }
       }
@@ -1792,11 +1808,11 @@ function strikeImpact(s, at) {
    same steering at the same target and waits for the caller's word. */
 function updateDrone(id, e, dt) {
   if (e.owned && e.age > 0.3 && !droneTargetPos(e.targetId)) {
-    const next = pickDroneTarget(e.root.position, 0);
+    const next = pickDroneTarget(e.root.position, 0, e.botId ? { team: e.botTeam, botId: e.botId } : undefined);
     const nextId = next?.netId || null;
     if (nextId !== e.targetId) {
       e.targetId = nextId;
-      if (next && !e.sky) showWaveBanner(`HUNTER-KILLER — RETARGETED ${String(next.peer?.name || "").toUpperCase()}`, 1400);
+      if (next && !e.sky && !e.botId) showWaveBanner(`HUNTER-KILLER — RETARGETED ${String(next.peer?.name || "").toUpperCase()}`, 1400);
       if (net.active) net.publishStreak({ kind: "drone", action: "retarget", eid: id, target: nextId });
     }
   }
@@ -1832,15 +1848,14 @@ function detonateDrone(e, out) {
   const at = e.root.position.clone();
   explosionFx({ kind: "lethal", glow: 0xffa23a, radius: DRONE_SPLASH_RADIUS }, at);
   streakBlast(at, out === "expire" ? 0.6 : 0.9);
-  if (out === "hit" && e.targetId && e.targetId !== net.id) {
-    const rp = remotes.byId.get(e.targetId);
-    // Damage goes through the ordinary hit path, so a drone kill credits
-    // and killfeeds exactly like a bullet one.
-    if (rp && rp.alive) dealDamageToRemote(rp, DRONE_DAMAGE, e.credit);
+  // Damage goes through the ordinary hit path, so a drone kill credits and
+  // killfeeds exactly like a bullet one. A bot's drone can be hitting us.
+  if (out === "hit" && e.targetId && (e.botId || e.targetId !== net.id)) {
+    streakDamage(e.botId, e.targetId, DRONE_DAMAGE, e.credit);
   }
   areaDamage(at, DRONE_SPLASH_RADIUS, out === "expire" ? DRONE_DAMAGE * 0.5 : DRONE_DAMAGE * 0.8,
-    { id: e.credit, radius: DRONE_SPLASH_RADIUS, minDamage: 20, selfMult: e.sky ? 0 : 1 },
-    { creditAs: e.credit });
+    { id: e.credit, radius: DRONE_SPLASH_RADIUS, minDamage: 20, selfMult: e.sky || e.botId ? 0 : 1 },
+    { creditAs: e.credit, botId: e.botId || null });
 }
 
 /* A red lock bracket over whatever our hunter-killer is chasing, so you can
@@ -1849,7 +1864,7 @@ let lockEl = null;
 function updateDroneLock() {
   let drone = null;
   for (const e of streakEntities.values()) {
-    if (e instanceof HunterDrone && e.owned && !e.frozen) drone = e;
+    if (e instanceof HunterDrone && e.owned && !e.botId && !e.frozen) drone = e;
   }
   const target = drone ? droneTargetPos(drone.targetId) : null;
   if (!target) { if (lockEl) lockEl.hidden = true; return; }
@@ -1889,11 +1904,12 @@ function gunshipTarget(e) {
     best = { chest, rp };
   };
   for (const rp of remotes.byId.values()) {
-    if (!rp.alive) continue;
+    if (!rp.alive || rp.netId === e.botId) continue;
     if (!ffa && e.team && rp.team === e.team) continue;
     consider(rp.pos, rp);
   }
-  if (!e.owned && player.alive && (ffa || !e.team || e.team !== net.team)) consider(move.pos, null);
+  // Someone else's, or one of our bots' on the other side: we're a target.
+  if ((!e.owned || e.botId) && player.alive && (ffa || !e.team || e.team !== net.team)) consider(move.pos, null);
   return best;
 }
 
@@ -1954,6 +1970,177 @@ function dealDamageToRemote(rp, damage, weaponId) {
   }
   noteDealt(id, damage);
   net.reportHit(id, damage, false, weaponId);
+}
+
+/* Streak damage from whoever owns the streak: us (the old path above), or a
+   bot we host (its own gun's path, so the kill, killfeed and team score
+   credit the bot, and the local player can be the one hit). */
+function streakDamage(botId, targetId, damage, weaponId) {
+  if (botId) {
+    // A bot that has since left takes its streak's damage with it.
+    const bot = bots.byId(botId);
+    if (bot) botDealDamage(bot, targetId, damage, false, weaponId);
+    return;
+  }
+  const rp = remotes.byId.get(targetId);
+  if (rp && rp.alive) dealDamageToRemote(rp, damage, weaponId);
+}
+
+/* A hostile of a streak's owner, as a target: the local player counts when
+   the owner is one of our bots on the other side. */
+function streakOwnerHates(team, botId) {
+  if (!botId || !player.alive) return false;
+  return !!currentMode().ffa || !team || team !== net.team;
+}
+
+// -------------------- Bot scorestreaks (phase 1) --------------------
+//
+// Every bot rolls three streaks a match and earns them on the same meter a
+// player does (kills; the meter empties on death, an earned streak stays).
+// Once one is ready it waits for a quiet beat (nobody in sight a moment)
+// and calls it. The bot host runs the streak as its owner; everyone else
+// sees it through the streak messages players' streaks already send.
+// Phase 1 has the seven that run themselves; the Care Package, Lightning
+// Strike and VTOL Warship need bot brains of their own (phases 2 and 3).
+const BOT_STREAK_POOL = ["uav", "counteruav", "vsat", "drone", "k9", "helicopter", "swarm"];
+const BOT_RADAR = new Set(["uav", "counteruav", "vsat"]);   // no sides to share in FFA
+const BOT_AIR = new Set(["drone", "helicopter", "swarm", "warship"]);
+const BOT_AIR_CAP = 2;      // bot air streaks up at once, per team
+const BOT_QUIET = 1.5;      // seconds with nobody in sight before calling
+const BOT_STREAK_KEY = "trollops:botStreaks";
+
+try { if (els.botStreaks && localStorage.getItem(BOT_STREAK_KEY) === "0") els.botStreaks.checked = false; } catch { /* private window */ }
+els.botStreaks?.addEventListener("change", () => {
+  try { localStorage.setItem(BOT_STREAK_KEY, els.botStreaks.checked ? "1" : "0"); } catch { /* private window */ }
+});
+
+function botStreaksOn() {
+  return isPvp() && !isRange() && !royale && streaksAllowed(currentMode()) && (!els.botStreaks || els.botStreaks.checked);
+}
+
+function botStreakState(b) {
+  if (!b.streak || b.streak.match !== matchesPlayed) {
+    const pool = BOT_STREAK_POOL.filter((id) => !(currentMode().ffa && BOT_RADAR.has(id)));
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    b.streak = { picks: pool.slice(0, 3), pts: 0, earned: new Set(), ready: [], lock: {}, wasAlive: b.alive, match: matchesPlayed };
+  }
+  return b.streak;
+}
+
+/* A bot we host scored (a kill, from registerDeath). */
+function botEarn(b, pts) {
+  if (!botStreaksOn()) return;
+  const s = botStreakState(b);
+  s.pts += pts;
+  for (const id of s.picks) {
+    if (!s.earned.has(id) && s.pts >= STREAK_DEFS[id].cost) { s.earned.add(id); s.ready.push(id); }
+  }
+}
+
+function botAirUp(team) {
+  let n = 0;
+  for (const e of streakEntities.values()) {
+    if (e.botId && e.botTeam === team && !e.sky && (e instanceof HunterDrone || e instanceof HelicopterGunship)) n++;
+  }
+  for (const s of swarmRuns) if (s.botId && s.team === team) n++;
+  return n;
+}
+
+/* Per frame on the bot host: reset meters on death, call what's ready. */
+function updateBotStreaks(dt) {
+  if (!botStreaksOn() || isStaging() || !net.isBotHost()) return;
+  const now = performance.now();
+  for (const b of bots.bots) {
+    const s = botStreakState(b);
+    if (s.wasAlive && !b.alive) { s.pts = 0; s.earned.clear(); }
+    s.wasAlive = b.alive;
+    if (!b.alive || !s.ready.length || b.airborne) continue;
+    const quiet = !b.lastSeen || b.lastSeen.age > BOT_QUIET;
+    if (!quiet || b.reloadT > 0) continue;
+    const i = s.ready.findIndex((id) => (s.lock[id] || 0) <= now && (!BOT_AIR.has(id) || botAirUp(b.team) < BOT_AIR_CAP));
+    if (i < 0) continue;
+    const id = s.ready.splice(i, 1)[0];
+    if (STREAK_DEFS[id].cooldown) s.lock[id] = now + STREAK_DEFS[id].cooldown * 1000;
+    botFireStreak(b, id);
+  }
+}
+
+/* A bot calls a streak: the same world events fireStreak makes for us,
+   owned by the bot. */
+const botStreakLog = [];   // recent bot calls, newest last (tests, debugging)
+function botFireStreak(b, id) {
+  botStreakLog.push({ bot: b.id, team: b.team, id, t: Math.round(performance.now()) });
+  if (botStreakLog.length > 60) botStreakLog.shift();
+  const def = STREAK_DEFS[id];
+  const tag = `${b.id}-${Math.round(performance.now())}`;
+  const callout = (label) => {
+    const m = { kind: "callout", label, who: b.name };
+    if (net.active) net.publishStreak(m);
+    applyRemoteStreak(m);
+  };
+  switch (id) {
+    case "uav": {
+      const yaw = Math.random() * Math.PI * 2;
+      startUav(b.team, def.duration);
+      spawnRecon(b.pos.x, b.pos.z, yaw, def.duration, { team: b.team });
+      if (net.active) net.publishStreak({ kind: "uav", action: "start", team: b.team, duration: def.duration, x: round2(b.pos.x), z: round2(b.pos.z), yaw: round2(yaw) });
+      callout("UAV");
+      break;
+    }
+    case "vsat": {
+      const yaw = Math.random() * Math.PI * 2;
+      startVsat(b.team, def.duration);
+      spawnVsatSat(yaw, def.duration);
+      if (net.active) net.publishStreak({ kind: "vsat", action: "start", team: b.team, duration: def.duration, yaw: round2(yaw) });
+      callout("ORBITAL VSAT");
+      break;
+    }
+    case "counteruav": {
+      const m = { kind: "cuav", action: "start", team: b.team, duration: def.duration, lockout: def.lockout,
+        x: round2(b.pos.x), z: round2(b.pos.z), yaw: round2(Math.random() * Math.PI * 2) };
+      if (net.active) net.publishStreak(m);
+      applyCounterUav(m);   // the host is in the room too
+      callout("COUNTER-UAV");
+      break;
+    }
+    case "drone": {
+      const eid = `streak-drone-${tag}`;
+      const victim = pickDroneTarget(b.pos, 1.6, { team: b.team, botId: b.id });
+      const from = new THREE.Vector3(b.pos.x, b.pos.y + 1.8, b.pos.z);
+      const e = spawnDrone({ id: eid, targetId: victim?.netId || null, owned: true, pos: from, yaw: b.yaw });
+      e.botId = b.id; e.botTeam = b.team;
+      if (net.active) {
+        net.publishStreak({ kind: "drone", action: "launch", eid, target: victim?.netId || null,
+          x: round2(from.x), y: round2(from.y), z: round2(from.z), yaw: round2(b.yaw) });
+      }
+      callout("HUNTER-KILLER");
+      break;
+    }
+    case "helicopter": {
+      const eid = `streak-heli-${tag}`;
+      const seed = Math.floor(Math.random() * 360);
+      const e = spawnHelicopter({ id: eid, seed, owned: true, team: b.team });
+      e.botId = b.id; e.botTeam = b.team;
+      if (net.active) net.publishStreak({ kind: "heli", action: "spawn", eid, seed, team: b.team });
+      callout("GUNSHIP INBOUND");
+      break;
+    }
+    case "k9": {
+      const eid = `streak-k9-${tag}`;
+      const e = spawnK9({ id: eid, owned: true, team: b.team, ownerId: b.id, x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: b.yaw });
+      e.botId = b.id; e.botTeam = b.team;
+      if (net.active) {
+        net.publishStreak({ kind: "k9", action: "spawn", eid, team: b.team,
+          x: round2(b.pos.x), y: round2(b.pos.y), z: round2(b.pos.z), yaw: round2(b.yaw) });
+      }
+      callout("K9 UNIT");
+      break;
+    }
+    case "swarm":
+      swarmRuns.push({ t: 0, next: 1.4, sent: 0, botId: b.id, team: b.team });
+      callout("SWARM");
+      break;
+  }
 }
 
 /* Streak events from someone else. Display and world state only — our own
@@ -3023,6 +3210,10 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
     mine: killerId === net.id || iDied,
     suicide,
   });
+
+  // A bot we host got a kill: its scorestreak meter, like ours.
+  const killerBot = !suicide && !teamkill && killerId !== net.id ? bots.byId(killerId) : null;
+  if (killerBot) botEarn(killerBot, SCORE.kill);
 
   if (iKilled) {
     player.kills++;
@@ -9507,6 +9698,7 @@ function animate() {
           noRespawn: isSnd() || isRoyale(),
           lodNear: isRoyale() ? humanEyes() : null,
         });
+        updateBotStreaks(dt);
         for (const b of bots.bots) net.publishBot(b);
       } else if (bots.count) {
         for (const b of bots.bots) net.dropBot(b.id);
@@ -12008,7 +12200,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     renderer, scene,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
-    settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, emote: () => emote,
+    settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, emote: () => emote,
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },
