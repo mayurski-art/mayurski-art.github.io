@@ -107,7 +107,8 @@ export function drawTabletScreen(device, mode, t, confirmed) {
   g.font = "bold 15px monospace";
   g.textBaseline = "top";
   const TITLES = { uav: "UAV // RECON", counteruav: "COUNTER-UAV // JAMMER", vsat: "ORBITAL VSAT // UPLINK", gunship: "GUNSHIP // AIR SUPPORT", strike: "LIGHTNING STRIKE",
-    k9: "K9 UNIT // RELEASE", warship: "VTOL WARSHIP // GUNNER", swarm: "SWARM // HK DRONES" };
+    k9: "K9 UNIT // RELEASE", warship: "VTOL WARSHIP // GUNNER", swarm: "SWARM // HK DRONES",
+    dragonfire: "DRAGONFIRE // PILOT LINK", samturret: "SAM TURRET // AIR DEFENSE" };
   const title = TITLES[mode] || "STREAK LINK";
   g.fillText(title, 24, 10);
   // Blinking link light, top right.
@@ -212,6 +213,38 @@ export function drawTabletScreen(device, mode, t, confirmed) {
       g.fillRect(x - 4, y - 4, 8, 8);
       g.fillRect(x - 7, y - 1, 14, 2);
     }
+  } else if (mode === "dragonfire") {
+    // The quad from above, four ringed rotors spinning, a crosshair on its nose.
+    g.save();
+    g.translate(cx, cy);
+    g.rotate(Math.sin(t * 1.3) * 0.15);
+    g.strokeStyle = green; g.fillStyle = green; g.lineWidth = 3;
+    for (const [dx, dy] of [[-34, -30], [34, -30], [-34, 30], [34, 30]]) {
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(dx, dy); g.stroke();
+      g.beginPath(); g.arc(dx, dy, 20, 0, Math.PI * 2); g.stroke();
+      const a = t * 30 + dx;
+      g.fillRect(dx - Math.cos(a) * 15, dy - Math.sin(a) * 15, 3, 3);
+      g.beginPath(); g.moveTo(dx - Math.cos(a) * 15, dy - Math.sin(a) * 15); g.lineTo(dx + Math.cos(a) * 15, dy + Math.sin(a) * 15); g.stroke();
+    }
+    g.fillRect(-10, -22, 20, 44);
+    g.restore();
+    g.strokeStyle = "#ff5a3a"; g.lineWidth = 2;
+    g.beginPath(); g.arc(cx, cy - 58, 6, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = 1;
+  } else if (mode === "samturret") {
+    // Radar sweep with the turret in the middle and air contacts boxed.
+    g.strokeStyle = "rgba(109,255,74,.45)";
+    for (const r of [26, 52, 76]) { g.beginPath(); g.arc(cx, cy, r, Math.PI, Math.PI * 2); g.stroke(); }
+    const a = Math.PI + ((t * 1.8) % Math.PI);
+    g.strokeStyle = green; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * 76, cy + Math.sin(a) * 76); g.stroke();
+    g.fillStyle = green;
+    g.fillRect(cx - 14, cy - 6, 10, 8); g.fillRect(cx + 4, cy - 6, 10, 8); g.fillRect(cx - 4, cy - 4, 8, 12);
+    g.strokeStyle = "#ff5a3a";
+    for (const [bx, by, ph] of [[-44, -40, 0.3], [30, -58, 1.2]]) {
+      if ((t + ph) % 1.2 < 0.8) g.strokeRect(cx + bx - 6, cy + by - 6, 12, 12);
+    }
+    g.lineWidth = 1;
   } else if (mode === "strike") {
     g.strokeStyle = "#ff5a3a";
     g.lineWidth = 2;
@@ -222,7 +255,8 @@ export function drawTabletScreen(device, mode, t, confirmed) {
 
   // Footer: the call's state.
   g.font = "bold 16px monospace";
-  const CONFIRMED = { uav: "UAV ONLINE", counteruav: "JAMMING ENEMY", vsat: "SATELLITE ONLINE", gunship: "CONFIRMED — INBOUND", k9: "DOGS RELEASED", warship: "CONFIRMED — BOARDING", swarm: "SWARM INBOUND" };
+  const CONFIRMED = { uav: "UAV ONLINE", counteruav: "JAMMING ENEMY", vsat: "SATELLITE ONLINE", gunship: "CONFIRMED — INBOUND", k9: "DOGS RELEASED", warship: "CONFIRMED — BOARDING", swarm: "SWARM INBOUND",
+    dragonfire: "LINK UP — LAUNCHING", samturret: "DEPLOYED — ARMED" };
   if (CONFIRMED[mode]) {
     if (confirmed) {
       g.fillStyle = "rgba(109,255,74,.22)";

@@ -12,16 +12,22 @@
 // identical here and not re-explained.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-ads2";
+import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-fx3";
 import { buildWeaponMesh } from "./weapon-model.js?v=gm1";
-import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=to-ads2";
+import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=to-fx3";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
-const REST_YAW = -0.45;
-// Facing the camera, turned a little so the rifle points off past it
-// rather than straight down the lens.
-const FACING = Math.PI + 0.62;
+// Default view (user): the operator stands straight, square to the camera,
+// face centred. Dragging still orbits; a double-click comes back here.
+const REST_YAW = 0;
+const REST_PITCH = 0.04;
+const FACING = Math.PI;
+// Port arms: the rifle held diagonally across the chest, muzzle up and out
+// to the operator's left, so it reads side-on while the body faces the lens.
+const LOW_READY = 1.2;     // aim pitch (tips the muzzle up)
+const PORT_YAW = 1.15;     // turns the barrel across the body
+const PORT_ROLL = 0.5;
 
 const OPERATOR_MATERIAL = new THREE.MeshStandardMaterial({
   color: 0x0a0a0a, roughness: 0.7, metalness: 0.1,
@@ -60,6 +66,8 @@ export class CharacterInspector {
     this.hasGun = true;
     this.emote = null;   // { code, t, secs } while the operator plays one
     aimRig(this.humanoid, FACING, 0, { snap: true });
+    // No idle glances left and right: the face stays centred on the camera.
+    this.humanoid.noIdleGlance = true;
     // The rig's root sits at the feet (y=0) with the crown at `height` -
     // recentre it on its own midpoint so it doesn't swing off-screen when
     // orbited, same reasoning as WeaponInspector's bounding-box centring.
@@ -72,8 +80,10 @@ export class CharacterInspector {
     this.zoom = 1;
     this.zoomTarget = 1;
     this.yaw = REST_YAW;
-    this.pitch = 0.1;
-    this.autoSpin = true;
+    this.pitch = REST_PITCH;
+    // No idle sway off-centre: the camera holds the front view until the
+    // player drags it.
+    this.autoSpin = false;
     this.spinT = 0;
     this.breathT = 0;
     this.width = 0;
@@ -92,6 +102,7 @@ export class CharacterInspector {
     canvas.addEventListener("pointerdown", (e) => {
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       this.autoSpin = false;
+      this.dragging = true;
       if (pointers.size === 2) {
         pinchStart = this.pinchDistance(pointers);
         pinchZoom = this.zoomTarget;
@@ -119,6 +130,7 @@ export class CharacterInspector {
     const release = (e) => {
       pointers.delete(e.pointerId);
       if (pointers.size < 2) pinchStart = 0;
+      if (!pointers.size) { this.dragging = false; this.idleT = 0; }
     };
     canvas.addEventListener("pointerup", release);
     canvas.addEventListener("pointercancel", release);
@@ -133,9 +145,8 @@ export class CharacterInspector {
     canvas.addEventListener("dblclick", () => {
       this.zoomTarget = 1;
       this.yaw = REST_YAW;
-      this.pitch = 0.14;
+      this.pitch = REST_PITCH;
       this.spinT = 0;
-      this.autoSpin = true;
     });
   }
 
@@ -188,6 +199,12 @@ export class CharacterInspector {
     if (this.autoSpin) {
       this.spinT += dt;
       this.yaw = REST_YAW + Math.sin(this.spinT * 0.3) * 0.35;
+    } else if (!this.dragging && (this.idleT = (this.idleT || 0) + dt) > 2.5) {
+      // Let go and, after a moment to look, the view eases back to the
+      // straight-on front shot.
+      const k = Math.min(1, dt * 2.5);
+      this.yaw += (REST_YAW - this.yaw) * k;
+      this.pitch += (REST_PITCH - this.pitch) * k;
     }
     this.zoom += (this.zoomTarget - this.zoom) * Math.min(1, dt * 9);
 
@@ -204,11 +221,19 @@ export class CharacterInspector {
     if (!this.emote || !poseEmoteCode(this.humanoid, this.emote.code, this.emote.t)) {
       // A slow breath in the aim keeps the ready stance from reading as a
       // frozen frame.
-      const breath = Math.sin(this.breathT * 1.3) * 0.025;
+      // Standing straight at port arms (aimed square at the camera the rifle
+      // read as a stick), the head taken back to level so the face stays
+      // centred on the lens.
+      const breath = Math.sin(this.breathT * 1.3) * 0.012;
       poseHumanoid(this.humanoid, {
-        moving: false, pitch: -0.06 + breath, dt,
+        moving: false, pitch: LOW_READY + breath, dt,
         hold: this.held ? "gun" : "none", hasGun: !!this.held && this.hasGun,
+        carryYaw: PORT_YAW, carryRoll: PORT_ROLL,
       });
+      const p = this.humanoid.parts;
+      p.neckPivot.rotation.x += (LOW_READY + breath) * 0.25;
+      p.headPivot.rotation.x += (LOW_READY + breath) * 0.6;
+      this.humanoid.body.update();
     }
 
     const dist = this.baseDist * this.zoom;

@@ -50,6 +50,64 @@ const TROLLFACE_HEAD_MAT = new THREE.MeshStandardMaterial({
   roughness: 0.7,
 });
 
+/* The sad trollface (trolltruths.com's, ui/trollface-sad.png), for the Sad
+   trollface emote. It's wider than the head board, so it's letterboxed onto
+   a transparent canvas of the board's shape rather than stretched. */
+const SAD_CANVAS = document.createElement("canvas");
+SAD_CANVAS.width = 512; SAD_CANVAS.height = 480;   // the head board's 0.48 x 0.45
+const SAD_TEXTURE = new THREE.CanvasTexture(SAD_CANVAS);
+SAD_TEXTURE.colorSpace = THREE.SRGBColorSpace;
+{
+  const img = new Image();
+  img.onload = () => {
+    const g = SAD_CANVAS.getContext("2d");
+    const w = SAD_CANVAS.width, h = w * img.height / img.width;
+    g.drawImage(img, 0, (SAD_CANVAS.height - h) / 2, w, h);
+    SAD_TEXTURE.needsUpdate = true;
+  };
+  img.src = new URL("./ui/trollface-sad.png", import.meta.url).href;
+}
+const SAD_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
+SAD_HEAD_MAT.map = SAD_TEXTURE;
+SAD_HEAD_MAT.emissiveMap = SAD_TEXTURE;
+
+/* Faces a rig can wear, by key "expression:tint" (cosmetics.js): the
+   expression picks the artwork (the grin, or trolltruths' sad one), the
+   tint colours the skin while the ink stays black. `rig.face` is the
+   rig's own pick; the Sad trollface emote swaps the expression for a
+   moment and keeps the tint. Materials are made on first use and shared. */
+const FACE_ART = { grin: TROLLFACE_HEAD_MAT, sad: SAD_HEAD_MAT };
+export const FACE_TINTS = {
+  og: 0xffffff, gold: 0xffd54a, green: 0x9dff7a, blue: 0x86ccff,
+  pink: 0xff9fd4, purple: 0xc7a2ff, red: 0xff7f72, stone: 0xbdbdb4,
+};
+const FACE_MATS = new Map();
+export function faceMaterial(key = "grin:og") {
+  let m = FACE_MATS.get(key);
+  if (m) return m;
+  const [expr, tint] = String(key).split(":");
+  const base = FACE_ART[expr] || TROLLFACE_HEAD_MAT;
+  const color = FACE_TINTS[tint] ?? 0xffffff;
+  if (color === 0xffffff) m = base;
+  else {
+    m = base.clone();
+    m.color.setHex(color);
+    m.emissive.setHex(color);
+  }
+  FACE_MATS.set(key, m);
+  return m;
+}
+
+/* Put `mood` ("sad") on a rig's face, or with no mood its own pick back.
+   Only trollface heads (other faces keep theirs). */
+export function setFace(rig, mood = null) {
+  const head = rig.parts?.head;
+  if (!head || !head.userData.trollface) return;
+  const own = rig.face || "grin:og";
+  const want = faceMaterial(mood ? `${mood}:${own.split(":")[1] || "og"}` : own);
+  if (head.material !== want) head.material = want;
+}
+
 /* ------------------------------------------------------------ the body line
 
    The body is ONE mesh: a round tube swept through the joints, like a line
@@ -369,6 +427,7 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   head.rotation.y = Math.PI;
   head.castShadow = true;
   head.userData.isHead = true;
+  head.userData.trollface = true;
   headPivot.add(head);
 
   if (face === "pepe") {
@@ -955,10 +1014,11 @@ function _poseDanceWave(rig, t) {
    runs, so rebuilding there would draw the line a frame behind the hands
    and head, and it would visibly slip off them in fast motion. */
 export function poseHumanoid(rig, arg) {
+  if (rig.parts.head.userData.trollface && rig.parts.head.material !== faceMaterial(rig.face)) setFace(rig);
   _poseHumanoid(rig, arg);
   if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);
   if (arg.hold === "melee") _meleeSupport(rig);
-  if (arg.hold === "melee" && arg.block > 0 && !arg.swing) _saberGuard(rig, Math.min(1, arg.block));
+  if (arg.hold === "melee" && arg.block > 0 && !arg.swing) _saberGuard(rig, Math.min(1, arg.block), arg.parry);
   rig.body.update();
 }
 
@@ -986,7 +1046,7 @@ function _reachArm(rig, pivot, elbow, rest, target, pole) {
   _gQ.copy(pivot.quaternion).invert();
   elbow.quaternion.setFromUnitVectors(rest, _gF.applyQuaternion(_gQ));
 }
-function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0 } = {}) {
+function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, carryRoll = 0 } = {}) {
   const mesh = rig.held;
   const p = rig.parts;
   if (!mesh || !mesh.visible || mesh.parent !== p.gunMount) return;
@@ -997,7 +1057,9 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0 } = {}) {
   // Scoped: the stock comes up into the shoulder and the sights to the eye,
   // and the barrel follows the aim all the way instead of a third of it.
   const a = Math.max(0, Math.min(1, ads));
-  p.gunMount.rotation.set(pitch * (0.32 + a * 0.6) + kick * 0.18 - lean, 0, 0);
+  // `carryYaw`/`carryRoll` turn the gun across the body (the menu's port-arms
+  // carry); the hands follow it through the IK below.
+  p.gunMount.rotation.set(pitch * (0.32 + a * 0.6) + kick * 0.18 - lean, carryYaw, carryRoll);
   // Trigger hand: right of centre, below the neck, forward of the chest.
   // Scoped it rises to the chin and in to the centre line, so the sights
   // sit in front of the face and a scoped troll reads as scoped from across
@@ -1058,12 +1120,53 @@ const SABER_HAND_GAP = 0.11;                                                 // 
 const _sgFk = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
 const _sgQ = new THREE.Quaternion(), _sgQ2 = new THREE.Quaternion(), _sgId = new THREE.Quaternion();
 const _sgR = new THREE.Vector3(), _sgL = new THREE.Vector3(), _sgB = new THREE.Vector3(), _sgD = new THREE.Vector3();
-function _saberGuard(rig, k) {
+const _sgDir = new THREE.Vector3();
+
+/* Deflect parries (user: the saber should bat rounds away with a few
+   animations by where they come from). A round that meets the guard snaps
+   the blade toward it and it eases back: from the left, the blade sweeps
+   out left, upright; from the right it swings across to the right; from
+   above it goes flat overhead; from below it drops point-down. `dir` is the
+   blade in chest space, `grip` where the fists go (same units as
+   SABER_GUARD_GRIP). */
+export const PARRY_ZONES = ["left", "right", "high", "low"];
+const PARRY = {
+  left:  { dir: new THREE.Vector3(-0.35, 0.9, -0.28).normalize(), grip: new THREE.Vector3(-0.1, -0.2, -0.4) },
+  right: { dir: new THREE.Vector3(0.3, 0.92, -0.25).normalize(), grip: new THREE.Vector3(0.26, -0.22, -0.38) },
+  high:  { dir: new THREE.Vector3(-0.96, 0.18, -0.2).normalize(), grip: new THREE.Vector3(0.16, 0.02, -0.34) },
+  low:   { dir: new THREE.Vector3(-0.3, -0.62, -0.72).normalize(), grip: new THREE.Vector3(0.1, -0.3, -0.42) },
+};
+/* Which parry a round gets, from where it came from in the blocker's view:
+   `side` +1 right / -1 left, `up` +1 above / -1 below (unit-ish, e.g. the
+   direction to the shooter in view space). A dead-centre round alternates. */
+let _parryFlip = false;
+export function parryZone(side, up) {
+  if (up > 0.28) return "high";
+  if (up < -0.3) return "low";
+  if (Math.abs(side) < 0.08) return (_parryFlip = !_parryFlip) ? "left" : "right";
+  return side > 0 ? "right" : "left";
+}
+/* 0..1 strength of a parry `t` seconds after the hit: a sharp snap out in
+   ~0.06 s, a short hold, then eased back by ~0.4 s. */
+export function parryWeight(t) {
+  if (!(t >= 0) || t > 0.42) return 0;
+  if (t < 0.06) return t / 0.06;
+  if (t < 0.12) return 1;
+  const k = (t - 0.12) / 0.3;
+  return 1 - k * k * (3 - 2 * k);
+}
+function _saberGuard(rig, k, parry = null) {
   const p = rig.parts, s = rig.scale, w = rig.build;
   const joints = [p.armR, p.elbowR, p.armL, p.elbowL];
   joints.forEach((j, i) => _sgFk[i].copy(j.quaternion));
-  _sgR.set(SABER_GUARD_GRIP.x * s * w, SABER_GUARD_GRIP.y * s, SABER_GUARD_GRIP.z * s);
-  _sgL.copy(_sgR).addScaledVector(SABER_GUARD_DIR, -SABER_HAND_GAP * s);   // below it, toward the pommel
+  // A parry (`{ zone, k }`) pulls the fists and the blade toward that
+  // zone's pose, by k.
+  const pz = parry && PARRY[parry.zone], pk = pz ? Math.max(0, Math.min(1, parry.k)) : 0;
+  _sgR.copy(SABER_GUARD_GRIP);
+  _sgDir.copy(SABER_GUARD_DIR);
+  if (pk > 0) { _sgR.lerp(pz.grip, pk); _sgDir.lerp(pz.dir, pk).normalize(); }
+  _sgR.set(_sgR.x * s * w, _sgR.y * s, _sgR.z * s);
+  _sgL.copy(_sgR).addScaledVector(_sgDir, -SABER_HAND_GAP * s);   // below it, toward the pommel
   _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT.copy(_sgR).sub(p.armR.position), _gPoleR);
   _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT.copy(_sgL).sub(p.armL.position), _gPoleL);
   joints.forEach((j, i) => { _sgQ.copy(j.quaternion); j.quaternion.copy(_sgFk[i]).slerp(_sgQ, k); });
@@ -1076,7 +1179,7 @@ function _saberGuard(rig, k) {
   held.getWorldQuaternion(_sgQ);
   _sgB.set(0, 0, -1).applyQuaternion(_sgQ);
   p.chest.getWorldQuaternion(_sgQ);
-  _sgD.copy(SABER_GUARD_DIR).applyQuaternion(_sgQ);
+  _sgD.copy(_sgDir).applyQuaternion(_sgQ);
   _sgQ2.setFromUnitVectors(_sgB, _sgD);             // world-space turn
   _sgQ2.copy(_sgId).slerp(_sgQ2, k);
   // gripR.local' = parent⁻¹ · turn · parent · gripR.local
@@ -1360,7 +1463,7 @@ function _poseNeckAndHead(rig, { pitch, sway, dt, lead, lean = 0, bob = 0, run =
   // --- idle glances: only once the rig has stood still with its aim held
   // for a moment, and gone the instant either changes.
   const I = h.idle;
-  const idleOk = !moving && !busy && h.still > 1.2 && useState;
+  const idleOk = !moving && !busy && !rig.noIdleGlance && h.still > 1.2 && useState;
   if (useState) {
     I.w += ((idleOk ? 1 : 0) - I.w) * Math.min(1, step * (idleOk ? 1.5 : 10));
     I.next -= step;

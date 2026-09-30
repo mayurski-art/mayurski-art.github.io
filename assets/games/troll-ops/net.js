@@ -14,6 +14,9 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export const MAX_PLAYERS = 20;
 export const MAX_PLAYERS_ROYALE = 100;
+/* Bot skill tiers on the wire (`bs` on a bot's state): the tier the bot
+   host built that bot with, so every client knows the room's bot skill. */
+const BOT_SKILLS = ["recruit", "regular", "veteran"];
 const STATE_HZ = 15;
 // A big bot room (Troll Royale's 100) sends each bot a bit less often; the
 // renderer's 110 ms delay still covers a 10 Hz feed.
@@ -273,6 +276,8 @@ export class Net {
         p.assists = m.as | 0;
         p.emote = m.em | 0;   // 1-based emote index, 0 = none
         p.blocking = !!m.bl;  // Trollsaber guard up
+        p.face = m.fc || null;  // cosmetics.js face key ("expression:tint")
+        if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
           ads: Math.max(0, Math.min(1, +m.ad || 0)), roll: Math.max(0, Math.min(1, +m.ro || 0)), drop: (m.dr | 0) & 3 });
@@ -404,6 +409,7 @@ export class Net {
         ad: local.ads > 0.01 ? round2(local.ads) : undefined,   // aiming down sights, 0..1
         ro: local.roll > 0 ? round2(local.roll) : undefined,    // Royale landing roll, 0..1
         dr: local.drop || undefined,   // Royale drop: 1 bus, 2 freefall, 3 glider
+        fc: local.face && local.face !== "grin:og" ? local.face : undefined,   // cosmetics.js face
       });
     }
     const now = performance.now();
@@ -454,6 +460,7 @@ export class Net {
     p.alive = bot.alive;
     p.kills = bot.kills;
     p.deaths = bot.deaths;
+    p.botSkill = bot.skill || null;
     // The wire "state" message sets this on every OTHER client (case "state"
     // above); the bot-hosting client never routes its own bots' state through
     // onMessage, so without this line the host's own view of its bots never
@@ -483,6 +490,7 @@ export class Net {
       ad: bot.ads > 0.01 ? round2(bot.ads) : undefined,
       ro: bot.roll > 0 ? round2(bot.roll) : undefined,
       dr: bot.dropCode || undefined,
+      bs: Math.max(0, BOT_SKILLS.indexOf(bot.skill)),
     });
   }
 

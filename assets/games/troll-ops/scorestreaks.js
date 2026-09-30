@@ -22,6 +22,7 @@ export const SCORE = {
   plant: 150,
   defuse: 150,
   dogKill: 50,          // shooting an enemy K9
+  airKill: 125,         // an enemy aircraft or SAM Turret destroyed
 };
 
 /* The ladder. `cost` is score in one life; `rank` gates it in the picker.
@@ -77,6 +78,20 @@ export const STREAK_DEFS = {
     rank: 20,
     blurb: "Mark a spot. Five seconds later it stops being a spot.",
   },
+  // BO2's SAM Turret: set it down and it shoots enemy aircraft out of the
+  // sky by itself (UAVs, drones, gunships, warships, Dragonfires), never
+  // people. Enemies can shoot it apart. game.js + sam-turret.js.
+  samturret: {
+    id: "samturret",
+    badge: "gold",
+    name: "SAM Turret",
+    short: "SAM Turret",
+    icon: "samturret",
+    cost: 500,
+    rank: 22,
+    duration: 90,
+    blurb: "Set down an anti-air turret. It locks onto enemy aircraft and fires missiles until they're gone. Enemies can shoot it. Lasts 90 seconds.",
+  },
   k9: {
     id: "k9",
     badge: "gold",
@@ -99,6 +114,20 @@ export const STREAK_DEFS = {
     duration: 45,
     cooldown: 60,      // seconds before you can call another (user: everything past Lightning Strike)
     blurb: "A gunship on station for 45 seconds, picking off whatever it can see. 60 second cooldown before the next one.",
+  },
+  // BO2's Dragonfire: a quadrotor you pilot yourself through its nose
+  // camera, with an LMG under it. Your body stays where you called it.
+  // game.js + dragonfire.js.
+  dragonfire: {
+    id: "dragonfire",
+    badge: "red",
+    name: "Dragonfire",
+    icon: "dragonfire",
+    cost: 750,
+    rank: 31,
+    duration: 60,
+    cooldown: 60,
+    blurb: "Fly a quadrotor drone with a light machine gun for 60 seconds. It can be shot down, and your body stays where you called it. 60 second cooldown before the next one.",
   },
   vsat: {
     id: "vsat",
@@ -163,6 +192,8 @@ const STREAK_ICON_PATHS = {
   warship: '<rect x="10.5" y="3" width="3" height="17" rx="1.5"/><rect x="2" y="9" width="20" height="2.4" rx="1"/><circle cx="3.5" cy="10.2" r="2.6" fill="none"/><circle cx="20.5" cy="10.2" r="2.6" fill="none"/><rect x="7" y="18.5" width="10" height="1.8" rx="0.9"/>',
   vsat: '<rect x="9.5" y="9.5" width="5" height="5" rx="1" transform="rotate(45 12 12)"/><rect x="1.5" y="10" width="6" height="4" rx="0.6"/><rect x="16.5" y="10" width="6" height="4" rx="0.6"/><path d="M7.5 12h2M14.5 12h2" stroke-linecap="round"/><path d="M8 4.5a5.5 5.5 0 0 1 8 0M10 6.6a2.8 2.8 0 0 1 4 0" fill="none" stroke-linecap="round"/><path d="M12 15.5v4M9.5 21h5" fill="none" stroke-linecap="round"/>',
   swarm: '<rect x="3" y="4" width="4.5" height="4.5" rx="1"/><rect x="15" y="3" width="4.5" height="4.5" rx="1"/><rect x="9.5" y="10" width="5" height="5" rx="1"/><rect x="3.5" y="16" width="4" height="4" rx="1"/><rect x="16" y="15.5" width="4.5" height="4.5" rx="1"/><path d="M5.2 4V2M17.2 3V1M12 10V8" stroke-linecap="round"/>',
+  dragonfire: '<circle cx="5.5" cy="5.5" r="3.6" fill="none"/><circle cx="18.5" cy="5.5" r="3.6" fill="none"/><circle cx="5.5" cy="18.5" r="3.6" fill="none"/><circle cx="18.5" cy="18.5" r="3.6" fill="none"/><path d="M8 8l2.5 2.5M16 8l-2.5 2.5M8 16l2.5-2.5M16 16l-2.5-2.5" stroke-linecap="round"/><rect x="9.5" y="7.5" width="5" height="9" rx="1"/><path d="M12 16.5v4" stroke-linecap="round"/>',
+  samturret: '<rect x="2" y="4" width="6.5" height="6.5" rx="0.8"/><rect x="15.5" y="4" width="6.5" height="6.5" rx="0.8"/><rect x="9.5" y="5.5" width="5" height="4.5" rx="0.8"/><path d="M9.8 5.5a2.2 2.2 0 0 1 4.4 0" fill="none"/><path d="M12 10v4M12 14l-6 7M12 14l6 7M12 14v7" fill="none" stroke-linecap="round"/>',
   helicopter: '<ellipse cx="10" cy="14" rx="7" ry="4"/><rect x="16" y="13" width="6" height="2" rx="1"/><rect x="9" y="6" width="2" height="6" rx="1"/><path d="M2 6h16" fill="none" stroke-linecap="round"/><rect x="7" y="18" width="6" height="2" rx="1"/>',
 };
 

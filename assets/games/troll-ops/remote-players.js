@@ -6,18 +6,19 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-ads2";
-import { poseEmoteCode } from "./emotes.js?v=to-ads2";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, parryWeight } from "./character.js?v=to-fx3";
+import { poseEmoteCode } from "./emotes.js?v=to-fx3";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
-import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=hw3";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-fx3";
+import { cleanFaceKey } from "./cosmetics.js?v=cos1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rd2";
 
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down
 // this long before it's cleared, rather than vanishing the moment it lands.
-const BODY_LINGER = 3;
+const BODY_LINGER = 8;   // seconds a body stays down after the fall (respawning clears it sooner)
 
 /* Troll Royale's landing: a tuck and roll forward, then you run. `k` 0..1
    through it (0 = upright). The rig turns head-over-heels about a point at
@@ -236,6 +237,7 @@ export class RemotePlayer {
     // out last frame, and sounds for game.js to play at this body
     // ({ kind: "ignite" | "retract" | "swing", at }), drained each frame.
     this.blockT = 0;
+    this.parry = { zone: "left", t: 9 };   // last deflect's parry (game.js onRemoteDeflect)
     this.saberOut = false;
     this.sfx = [];
   }
@@ -282,6 +284,19 @@ export class RemotePlayer {
   }
 
   get swinging() { return !!this.melee?.busy; }
+
+  startParry(zone) { this.parry.zone = zone; this.parry.t = 0; }
+
+  /* Melee state for the killcam's recorder (killcam.js `record`). */
+  meleeSample() {
+    const on = !!this.meleeMesh?.visible;
+    return {
+      mid: on ? this.meleeMesh.userData.meleeId : null,
+      sw: on && this.swinging ? Math.min(1, this.melee.t / this.melee.total) : -1,
+      si: this.melee ? this.melee.swingIndex & 1 : 0,
+      bk: on ? this.blockT : 0,
+    };
+  }
 
   /* Build and attach the real weapon model for whatever this peer is
      currently holding, replacing whatever was there before. Mirrors the
@@ -331,6 +346,8 @@ export class RemotePlayer {
     this.setTeam(this.peer.team);
     this.setLocalTeam(myTeam, ffa);
     this.setWeaponModel(this.peer.weapon, this.peer.skin || null);
+    // Their cosmetic face; poseHumanoid puts it on (character.js setFace).
+    this.rig.face = cleanFaceKey(this.peer.face);
 
     if ((this.peer.meleeSeq | 0) !== this.meleeSeen) {
       this.meleeSeen = this.peer.meleeSeq | 0;
@@ -364,6 +381,7 @@ export class RemotePlayer {
     }
     const guard = saberOut && meleeHeld && !swinging && !!this.peer.blocking;
     this.blockT += ((guard ? 1 : 0) - this.blockT) * Math.min(1, dt * 14);
+    this.parry.t += dt;
 
     // Just died: hold the last known pose and play a collapse instead of
     // instantly popping out of existence. Respawning (alive flips back to
@@ -385,6 +403,10 @@ export class RemotePlayer {
       this.rig.root.visible = true;
       this.tag.visible = false;
       this.setGlider(false);
+      // The body goes down empty-handed: no gun or blade left floating in
+      // the fist (user: weapons not visible on death, show the body).
+      if (this.weaponMesh) this.weaponMesh.visible = false;
+      if (this.meleeMesh) this.meleeMesh.visible = false;
       poseDeath(this.rig, Math.min(1, this.deathT / DEATH_TIME));
       if (this.deathT >= DEATH_TIME + BODY_LINGER) this.dying = false;
       return;
@@ -493,6 +515,7 @@ export class RemotePlayer {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
       hold: sword ? "melee" : "gun", swing, block: this.blockT, ads: sword ? 0 : this.ads,
+      parry: { zone: this.parry.zone, k: parryWeight(this.parry.t) },
     });
 
     if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);
@@ -517,15 +540,21 @@ export class RemotePlayer {
     if (hidden || !s || !s.alive) { root.visible = false; return; }
     root.visible = true;
     if (s.wid && WEAPON_DEFS[s.wid]) this.setWeaponModel(s.wid, this.skin);
-    if (this.weaponMesh) this.weaponMesh.visible = true;
-    if (this.meleeMesh) this.meleeMesh.visible = false;
+    // Sword in the fist at that moment (held, or mid quick-melee): show it,
+    // swinging or in the saber guard as recorded.
+    const sword = !!s.mid && this.ensureMelee(s.mid);
+    if (this.weaponMesh) this.weaponMesh.visible = !sword;
+    if (this.meleeMesh) this.meleeMesh.visible = sword;
+    if (sword && this.saber) { this.saber.target = 1; this.saber.frac = Math.max(this.saber.frac, 0.999); }
     root.position.set(s.x, s.y, s.z);
     if (s.moving) this.replayPhase = (this.replayPhase || 0) + dt * gaitPhaseRate(3.6);
     aimRig(this.rig, s.yaw, dt, { moving: s.moving });
     poseHumanoid(this.rig, {
       phase: this.replayPhase || 0, moving: s.moving, pitch: s.pitch, lower: s.lower, strafe: 0, forward: 1,
       speed: s.moving ? 0.85 : 0, mps: s.moving ? 3.6 : 0, dt,
-      hasGun: WEAPON_DEFS[this.weaponId]?.cls !== "sidearm", hold: "gun", swing: null,
+      hasGun: !sword && WEAPON_DEFS[this.weaponId]?.cls !== "sidearm", hold: sword ? "melee" : "gun",
+      swing: sword && s.sw >= 0 ? { t: s.sw, kind: s.si % 2 === 0 ? "swing" : "thrust" } : null,
+      block: sword && s.sw < 0 ? s.bk : 0,
     });
   }
 

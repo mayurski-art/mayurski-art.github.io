@@ -97,7 +97,7 @@ const between = ([a, b]) => a + Math.random() * (b - a);
 
 /* Melee-only bots (Infection's infected): they run the target down and
    swing when they're in reach. */
-const MELEE_REACH = 2.3;
+const MELEE_REACH = 1.9;   // keyboard reach (gear.js range 2.0 from the eye), centre to centre
 const MELEE_INTERVAL = 0.95;      // seconds between swings, scaled by skill below
 export const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
 
@@ -132,7 +132,8 @@ class Bot {
     this.name = NAMES[counter % NAMES.length];
     this.team = team;
     this.isBot = true;
-    this.diff = DIFFICULTY[difficulty] || DIFFICULTY.regular;
+    this.skill = DIFFICULTY[difficulty] ? difficulty : "regular";
+    this.diff = DIFFICULTY[this.skill];
     this.weaponId = BOT_WEAPONS[counter % BOT_WEAPONS.length];
     this.secondaryId = BOT_SIDEARMS[counter % BOT_SIDEARMS.length];
     this.holdingSecondary = false;

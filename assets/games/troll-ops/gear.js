@@ -26,10 +26,17 @@ const RADIUS = 0.11;
 /* Custom trollface melee. Every one of these is a real thing somebody
    built - the keyboard sword exists as a fabricated prop - so the models
    below are read off the design sheets rather than invented here. */
+/* Reach (`range`, metres from the eye) and sweep (`arc`, radians across)
+   are read off the models (user: the Trollsaber's and Keyboard Warrior's
+   damage radius wasn't realistic; they hit from 3+ m). About an arm plus
+   the blade: keyboard 0.78 m blade -> 2.0 m, saber 0.88 m beam + hilt ->
+   2.2 m. A horizontal cut covers the whole arc; a thrust (every other
+   swing) reaches a touch further down a narrow line. game.js meleeConnect
+   sweeps the arc with a fan of rays at chest, waist and head height. */
 export const MELEE_DEFS = {
   keyboard: {
     id: "keyboard", name: "Keyboard Warrior", rank: 0,
-    damage: 120, backstabMult: 1.8, range: 3.0, arc: 0.66, knock: 6.5,
+    damage: 120, backstabMult: 1.8, range: 2.0, arc: 1.0, knock: 6.5,
     blurb: "The keyboard is mightier than the sword. U mad bro?",
     model: {
       kind: "keyboard",
@@ -43,7 +50,7 @@ export const MELEE_DEFS = {
   // meter runs dry (game.js saberBlock).
   trollsaber: {
     id: "trollsaber", name: "Trollsaber", rank: 30,
-    damage: 400, backstabMult: 1, range: 3.4, arc: 0.72, knock: 5,
+    damage: 400, backstabMult: 1, range: 2.2, arc: 1.1, knock: 5,
     blurb: "An elegant weapon for a more trolled age. Hold aim to deflect bullets.",
     deflect: { cone: 0.26, drainPerHit: 0.07, drainPerDamage: 0.0025, drainHeld: 0.05, regen: 0.3, regenDelay: 0.7, breakTime: 1.8 },
     model: { kind: "saber" },
@@ -52,7 +59,7 @@ export const MELEE_DEFS = {
   // knife, quick in the hand and cruel from behind.
   reaper: {
     id: "reaper", name: "Reaper's Grin", rank: 15,
-    damage: 115, backstabMult: 2.4, range: 2.9, arc: 0.62, knock: 5.5,
+    damage: 115, backstabMult: 2.4, range: 1.8, arc: 0.8, knock: 5.5,
     blurb: "Death came for you. It was smiling.",
     model: { kind: "reaper", view: { pos: [-0.03, 0.08, 0.02] } },
   },
@@ -60,7 +67,7 @@ export const MELEE_DEFS = {
   // revs on every swing.
   chainsaw: {
     id: "chainsaw", name: "Chainsaw", rank: 45,
-    damage: 160, backstabMult: 1.5, range: 3.6, arc: 0.8, knock: 7.5,
+    damage: 160, backstabMult: 1.5, range: 2.1, arc: 0.9, knock: 7.5,
     blurb: "Groovy. Revs on every swing, and nobody stands back up. Admire it to rev it.",
     // Framing lives in CHAINSAW_REST / its own swing tracks below.
     model: { kind: "chainsaw", view: { scale: 0.85 } },
@@ -228,6 +235,15 @@ const SABER_RISE_WINDOW = { open: 0.24, close: 0.34 };
 export const SABER_BLOCK = {
   pos: new THREE.Vector3(0.10, -0.15, -0.46),
   quat: saberBasis(new THREE.Vector3(-0.86, 0.42, -0.30), -10),
+};
+/* First-person deflect parries, one per zone (character.js parryZone):
+   the blade snaps from the guard toward the round and eases back
+   (game.js updateMeleeView, weighted by parryWeight). */
+export const SABER_PARRY = {
+  left:  { pos: new THREE.Vector3(-0.03, -0.11, -0.46), quat: saberBasis(new THREE.Vector3(-0.35, 0.9, -0.3), 0) },
+  right: { pos: new THREE.Vector3(0.25, -0.12, -0.44), quat: saberBasis(new THREE.Vector3(0.3, 0.9, -0.3), 0) },
+  high:  { pos: new THREE.Vector3(0.06, 0.0, -0.46), quat: saberBasis(new THREE.Vector3(-0.97, 0.12, -0.2), -8) },
+  low:   { pos: new THREE.Vector3(0.12, -0.24, -0.44), quat: saberBasis(new THREE.Vector3(-0.4, -0.5, -0.75), 0) },
 };
 
 /* ---- Chainsaw: rev it, then rip ---------------------------------------

@@ -11,10 +11,10 @@ import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1"
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
 import { WeaponInspector } from "./inspector.js?v=vsat3";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
-import { CharacterInspector } from "./char-inspector.js?v=to-bm1";
+import { CharacterInspector } from "./char-inspector.js?v=to-fx3";
 import { Loadout } from "./loadout.js?v=lv5";
-import { StreakPicker } from "./streak-picker.js?v=lv4";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=vsat1";
+import { StreakPicker } from "./streak-picker.js?v=to-df1";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=to-df1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
@@ -27,21 +27,21 @@ import {
 import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
 import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
-import { KillCam } from "./killcam.js?v=to-s12h-death";
+import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=lv4";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti4";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-bm1";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-fx3";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-bm1";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-ads2";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-bm1";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-ads2";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-fx3";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, parryZone, parryWeight } from "./character.js?v=to-fx3";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-fx3";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-fx3";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tr4";
-import { BotManager } from "./bots.js?v=to-bm1";
+import { BotManager } from "./bots.js?v=to-fx3";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=to-r100";
 import { insidePolygon } from "./edge.js";
@@ -49,7 +49,7 @@ import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSe
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
-import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=vsat1";
+import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1";
 import { ZombieDirector } from "./zombies.js?v=to-ads2";
@@ -61,11 +61,15 @@ import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js?v=to-ads2";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, chainsawRevAt } from "./gear.js?v=hw3";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-fx3";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts2";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
+import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl4";
+import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=cos1";
+import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df1";
+import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rd2";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 
@@ -323,6 +327,14 @@ function lockLandscape() {
   } else go();
 }
 setTouchControls(false);
+// Settings > Controller (lobby and Esc menu): the pad drawn with its bindings.
+for (const host of document.querySelectorAll("[data-pad-layout]")) new ControllerLayout(host);
+function markPadPresent() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  document.body.classList.toggle("to-has-pad", Array.from(pads).some((p) => p && p.connected));
+}
+window.addEventListener("gamepadconnected", markPadPresent);
+window.addEventListener("gamepaddisconnected", markPadPresent);
 window.addEventListener("gamepadconnected", (e) => {
   gpIndex = e.gamepad.index;
   gamepadState.connected = true;
@@ -529,6 +541,8 @@ function clearStreakEntities() {
   markingStreak = null;
   selectedStreak = null;
   pendingDroneLaunch = null;
+  dragonfire = null;
+  samHitCount.clear();
   swarmRuns.length = 0;
   warship = null;
   syncWarshipView();
@@ -814,7 +828,7 @@ function fireStreak(id, at = null) {
           x: round2(move.pos.x), z: round2(move.pos.z), yaw: round2(yaw),
         });
       }
-      spawnRecon(move.pos.x, move.pos.z, yaw, STREAK_DEFS.uav.duration, { team });
+      spawnRecon(round2(move.pos.x), move.pos.z, round2(yaw), STREAK_DEFS.uav.duration, { team });
       showWaveBanner("UAV ONLINE", 1600);
       // Up, thumb CONFIRM, a beat on "UAV ONLINE", down (DESIGN-ARMS.md Phase 5).
       beginStreakHold(1.4, "tablet", "uav");
@@ -845,7 +859,7 @@ function fireStreak(id, at = null) {
           x: round2(move.pos.x), z: round2(move.pos.z), yaw: round2(yaw),
         });
       }
-      spawnRecon(move.pos.x, move.pos.z, yaw, def.duration, { counter: true });
+      spawnRecon(round2(move.pos.x), move.pos.z, round2(yaw), def.duration, { counter: true, team: net.team });
       showWaveBanner("COUNTER-UAV ONLINE", 1600);
       beginStreakHold(1.4, "tablet", "counteruav");
       break;
@@ -920,6 +934,32 @@ function fireStreak(id, at = null) {
       }
       showWaveBanner("VTOL WARSHIP INBOUND", 1400);
       beginStreakHold(WARSHIP_BOARD_AT, "tablet", "warship");
+      break;
+    }
+
+    case "samturret": {
+      const eid = `streak-sam-${net.id}-${Math.round(performance.now())}`;
+      const at = samDeployPoint(move.pos, look.yaw);
+      spawnSam({ id: eid, owned: true, team: net.team, ...at });
+      if (net.active) {
+        net.publishStreak({ kind: "sam", action: "spawn", eid, team: net.team, x: round2(at.x), y: round2(at.y), z: round2(at.z), yaw: round2(at.yaw) });
+        net.publishStreak({ kind: "callout", label: "SAM TURRET", who: net.name });
+      }
+      showWaveBanner("SAM TURRET DEPLOYED", 1600);
+      beginStreakHold(1.3, "tablet", "samturret");
+      break;
+    }
+
+    case "dragonfire": {
+      const eid = `streak-df-${net.id}-${Math.round(performance.now())}`;
+      const from = new THREE.Vector3(move.pos.x - Math.sin(look.yaw) * 0.8, move.pos.y + 1.3, move.pos.z - Math.cos(look.yaw) * 0.8);
+      dragonfire = spawnDragonfire({ id: eid, owned: true, team: net.team, x: from.x, y: from.y, z: from.z, yaw: look.yaw });
+      if (net.active) {
+        net.publishStreak({ kind: "dragonfire", action: "spawn", eid, team: net.team, x: round2(from.x), y: round2(from.y), z: round2(from.z), yaw: round2(look.yaw) });
+        net.publishStreak({ kind: "callout", label: "DRAGONFIRE", who: net.name });
+      }
+      showWaveBanner("DRAGONFIRE INBOUND", 1200);
+      beginStreakHold(DF_BOARD_AT, "tablet", "dragonfire");
       break;
     }
 
@@ -1302,6 +1342,285 @@ function dogKilledBy(byId) {
   audio.kill();
 }
 
+/* ---------------- Dragonfire + SAM Turret (BO2) ----------------
+   dragonfire.js / sam-turret.js own the models and flight; this is the
+   piloting, the guns' damage, the SAM's targeting and the shoot-downs.
+   Authority follows the rest of the streaks: the owner's client decides
+   (its gun's hits, its SAM's locks and kills, its Dragonfire's health),
+   everyone else draws a copy from the wire. */
+let dragonfire = null;          // our own while we fly it
+const DF_BOARD_AT = 1.0;        // the tablet call, then you're flying
+let dfViewOn = false, dfSaved = null, dfHud = null, dfSendT = 0;
+let dfIx = 0, dfIz = 0;         // this frame's stick, taken before the body freezes
+const samHitCount = new Map();  // air eid -> SAM missiles it has taken (owner side)
+
+function dragonfireView() {
+  return !!dragonfire && dragonfire.alive && player.alive && dragonfire.age >= DF_BOARD_AT;
+}
+
+function spawnDragonfire({ id, owned, team, x, y, z, yaw, botId = null }) {
+  const df = new Dragonfire({ id, owned, team, x, y, z, yaw, duration: STREAK_DEFS.dragonfire.duration, botId });
+  streakEntities.set(id, df);
+  scene.add(df.root);
+  audio.wave();
+  return df;
+}
+
+function spawnSam({ id, owned, team, x, y, z, yaw, botId = null }) {
+  const sam = new SamTurret({ id, owned, team, x, y, z, yaw, duration: STREAK_DEFS.samturret.duration, botId });
+  streakEntities.set(id, sam);
+  scene.add(sam.root);
+  audio.land?.(6);
+  return sam;
+}
+
+/* Where a SAM goes down: a couple of metres ahead, pulled back off a wall,
+   on the floor there. */
+function samDeployPoint(from, yaw) {
+  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const eye = new THREE.Vector3(from.x, from.y + 1, from.z);
+  const d = Math.max(0.6, Math.min(2.2, raycastWorld(colliders, eye, dir, 2.2) - 0.6));
+  const x = from.x + dir.x * d, z = from.z + dir.z * d;
+  const y = groundHeightAt(colliders, x, z, from.y + 1.5) ?? from.y;
+  return { x, y, z, yaw };
+}
+
+/* Streak kit that's hostile to us (shootable, and a SAM target). */
+function streakHostileToMe(e) {
+  if (e.owned && !e.botId) return false;
+  const ffa = !!currentMode().ffa;
+  if (ffa || !net.team) return true;
+  return (e.botTeam || e.team) !== net.team;
+}
+
+/* Aircraft a SAM on `team` (owned by `botId`, or us) should shoot at:
+   { id, pos, need } where `need` is how many missiles bring it down. */
+const _airPos = new THREE.Vector3();
+function samTargets(sam) {
+  const ffa = !!currentMode().ffa;
+  const team = sam.botId ? sam.botTeam || sam.team : sam.team;
+  const hostile = (t, ownedByMe) => ffa ? !ownedByMe : !!t && t !== team;
+  const out = [];
+  for (const e of streakEntities.values()) {
+    if (e === sam || e.dead) continue;
+    const mine = e.owned && !e.botId && !sam.botId;
+    if (e instanceof Dragonfire) {
+      if (e.alive && e.launched && hostile(e.botTeam || e.team, mine)) out.push({ id: e.id, pos: e.pos, need: 1 });
+    } else if (e instanceof HelicopterGunship) {
+      if (e.onStation && hostile(e.botTeam || e.team, mine)) out.push({ id: e.id, pos: e.root.position, need: 2 });
+    } else if (e instanceof VtolWarship) {
+      if (e.onStation && hostile(e.team, mine)) out.push({ id: e.id, pos: e.root.position, need: 3 });
+    } else if (e instanceof HunterDrone) {
+      // Its side is whoever it's hunting's enemy: hunting us or ours = hostile.
+      let t = e.botTeam || null;
+      if (!t && !e.owned) {
+        const tp = e.targetId === net.id ? net.team : net.peers.get(e.targetId)?.team;
+        t = tp && !ffa ? (tp === "phantom" ? "ghost" : "phantom") : null;
+      } else if (!t && e.owned) t = net.team;
+      if (e.root.position.y > 3 && (ffa ? !mine : hostile(t, mine))) out.push({ id: e.id, pos: e.root.position, need: 1 });
+    }
+  }
+  for (const f of flyovers) {
+    if (!f.eid || f.done || f.dead || f.age < 3 || f.age > f.duration) continue;
+    if (hostile(f.team, f.team === net.team && !sam.botId)) out.push({ id: f.eid, pos: f.root.position, need: 1 });
+  }
+  return out;
+}
+
+function airTargetPos(id) {
+  const e = streakEntities.get(id);
+  if (e && !e.dead) return e instanceof Dragonfire ? e.pos : e.root.position;
+  const f = flyovers.find((p) => p.eid === id && !p.dead);
+  return f ? f.root.position : null;
+}
+
+/* Owner: pick, slew, lock, fire pairs. */
+function updateSamAi(sam, dt) {
+  if (sam.age < 1.2 || !sam.alive) return;
+  sam.reloadT = Math.max(0, sam.reloadT - dt);
+  const list = samTargets(sam);
+  const eye = _airPos.set(sam.pos.x, sam.pos.y + 1.3, sam.pos.z);
+  const inbound = (id) => sam.missiles.filter((m) => m.targetId === id).length;
+  const usable = (t) => {
+    const d = t.pos.distanceTo(eye);
+    if (d > SAM_RANGE) return false;
+    if ((samHitCount.get(t.id) || 0) + inbound(t.id) >= t.need) return false;   // enough already on the way
+    const dir = t.pos.clone().sub(eye).divideScalar(d);
+    return raycastWorld(colliders, eye, dir, d) >= d - 2;
+  };
+  let tgt = sam.targetId ? list.find((t) => t.id === sam.targetId) : null;
+  if (tgt && !usable(tgt) && sam.salvo <= 0) tgt = null;
+  if (!tgt) {
+    let best = Infinity;
+    for (const t of list) {
+      if (!usable(t)) continue;
+      const d = t.pos.distanceTo(eye);
+      if (d < best) { best = d; tgt = t; }
+    }
+    if (tgt?.id !== sam.targetId) sam.lockT = 0;
+  }
+  sam.targetId = tgt ? tgt.id : null;
+  if (!tgt) return;
+  const off = sam.aimAt(tgt.pos, dt);
+  sam.lockT = off < 0.12 ? sam.lockT + dt : Math.max(0, sam.lockT - dt);
+  if (sam.salvo <= 0 && sam.reloadT <= 0 && sam.lockT >= SAM_LOCK) { sam.salvo = Math.min(2, tgt.need); sam.salvoT = 0; }
+  if (sam.salvo > 0) {
+    sam.salvoT -= dt;
+    if (sam.salvoT <= 0) {
+      const ms = sam.launch(tgt.id);
+      sam.salvo--;
+      sam.salvoT = SAM_SALVO_GAP;
+      if (sam.salvo <= 0) sam.reloadT = SAM_RELOAD;
+      audio.explosion?.(0.12, ms.pos);
+      if (net.active) {
+        net.publishStreak({ kind: "sam", action: "launch", eid: sam.id, t: tgt.id,
+          x: round2(ms.pos.x), y: round2(ms.pos.y), z: round2(ms.pos.z), dx: round2(ms.dir.x), dy: round2(ms.dir.y), dz: round2(ms.dir.z) });
+      }
+    }
+  }
+}
+
+/* A SAM missile reaching its target, on the SAM owner's client. */
+function samMissileHit(sam, targetId) {
+  const n = (samHitCount.get(targetId) || 0) + 1;
+  samHitCount.set(targetId, n);
+  const t = samTargets(sam).find((x) => x.id === targetId);
+  const need = t ? t.need : 1;
+  if (n >= need) shootDownAir(targetId, sam.botId || net.id, true);
+}
+
+/* Bullets (or a Dragonfire's gun) on streak kit: its owner applies it. */
+function damageStreakEntity(e, dmg, byId) {
+  if (e.owned) {
+    e.hp -= dmg;
+    if (e.hp <= 0) shootDownAir(e.id, byId, true);
+  } else if (net.active) {
+    net.publishStreak({ kind: "air", action: "hit", eid: e.id, dmg: Math.round(dmg), by: byId });
+  }
+}
+
+/* Destroyed: a Dragonfire or SAM shot apart, or an aircraft a SAM hit.
+   `announce`: this client decided it, so tell the room. */
+function shootDownAir(eid, byId, announce = false) {
+  const e = streakEntities.get(eid);
+  const plane = !e && flyovers.find((f) => f.eid === eid);
+  if (!e && !plane) return;
+  if (announce && net.active) net.publishStreak({ kind: "air", action: "down", eid, by: byId || null });
+  const at = (e ? (e instanceof Dragonfire ? e.pos : e instanceof SamTurret ? e.pos.clone().setY(e.pos.y + 1) : e.root.position) : plane.root.position).clone();
+  explosionFx({ kind: "lethal", glow: 0xffa23a, radius: 4 }, at);
+  streakBlast(at, e instanceof HunterDrone || e instanceof Dragonfire ? 0.7 : 1.2);
+  audio.explosion?.(0.5, at);
+  const mine = e ? (e.owned && !e.botId) : plane.team === uavBucket() && !currentMode().ffa;
+  if (e) {
+    if (e === warship) warship = null;
+    if (e === dragonfire) { dragonfire = null; showWaveBanner("DRAGONFIRE DESTROYED", 1600); }
+    if (e instanceof HelicopterGunship && mine) showWaveBanner("GUNSHIP SHOT DOWN", 1600);
+    if (e instanceof VtolWarship && mine) showWaveBanner("WARSHIP SHOT DOWN", 1600);
+    if (e instanceof SamTurret && mine) showWaveBanner("SAM TURRET DESTROYED", 1600);
+    e.dispose();
+    streakEntities.delete(eid);
+  } else {
+    if (!plane.counter) {
+      if (plane.team) uavUntil[plane.team] = 0;
+      if (plane.team === uavBucket() && myUavUntil > performance.now()) myUavUntil = 0;
+      if (mine) showWaveBanner("UAV SHOT DOWN", 1600);
+    } else if (currentMode().ffa || !net.team || plane.team !== net.team) {
+      jammedUntil = 0;   // their jammer's down: our radar's back
+      showWaveBanner("ENEMY COUNTER-UAV DOWN", 1500);
+    }
+    plane.dispose();
+    flyovers.splice(flyovers.indexOf(plane), 1);
+  }
+  samHitCount.delete(eid);
+  if (byId && byId === net.id && !mine) {
+    awardScore(SCORE.airKill);
+    addMatchXp(XP.kill, "AIRCRAFT DOWN");
+    pushKillfeed(`Aircraft down  +${SCORE.airKill}`);
+  }
+}
+
+/* Owner: our Dragonfire's gun. Hitscan from the nose camera along the
+   crosshair; people, dogs and enemy streak kit all take it. */
+const _dfRay = new THREE.Raycaster();
+function fireDragonfire() {
+  const df = dragonfire;
+  if (!df || !df.tryFire()) return;
+  const dir = camera.getWorldDirection(new THREE.Vector3());
+  dir.x += (Math.random() - 0.5) * DF_SPREAD * 2;
+  dir.y += (Math.random() - 0.5) * DF_SPREAD * 2;
+  dir.z += (Math.random() - 0.5) * DF_SPREAD * 2;
+  dir.normalize();
+  const from = camera.position.clone();
+  const wall = raycastWorld(colliders, from, dir, DF_RANGE);
+  _dfRay.set(from, dir);
+  _dfRay.near = 0.3;
+  _dfRay.far = wall;
+  let to = from.clone().addScaledVector(dir, wall);
+  const meshes = targetMeshes.filter((m) => !m.userData?.air || m.userData.air !== df);
+  const hits = meshes.length ? _dfRay.intersectObjects(meshes, true) : [];
+  let hitActor = false;
+  for (const h of hits) {
+    const actor = resolveBulletTarget(h.object);
+    if (!actor) continue;
+    to = h.point.clone();
+    onBulletActorHit(actor, { damage: DF_DAMAGE, isHead: false, point: h.point, dir, creditAs: "dragonfire", distance: h.distance });
+    hitActor = true;
+    break;
+  }
+  if (!hitActor && wall < DF_RANGE) impactFx.hit(to, { normal: dir.clone().negate(), dir, surface: "ground", scale: 1 });
+  df.shoot(to);
+  audio.shot(WEAPON_DEFS.bellow || WEAPON_DEFS.problem416, 0.4);
+  shakeMag = Math.max(shakeMag, 0.004); shakeT = 0.06;
+  if (net.active) net.publishStreak({ kind: "dragonfire", action: "shot", eid: df.id, x: round2(to.x), y: round2(to.y), z: round2(to.z) });
+}
+
+/* The pilot's feed: a timer, the drone's health, a reticle. */
+function dragonfireHudEl() {
+  if (dfHud) return dfHud;
+  dfHud = document.createElement("div");
+  dfHud.className = "to-df";
+  dfHud.hidden = true;
+  dfHud.setAttribute("aria-hidden", "true");
+  dfHud.innerHTML = `<div class="to-df-scan"></div><div class="to-df-frame"><i></i><i></i><i></i><i></i></div>
+<div class="to-df-reticle"><b></b></div>
+<div class="to-df-top"><strong>DRAGONFIRE</strong><span class="to-df-time"></span></div>
+<div class="to-df-hp"><span>HULL</span><div><i></i></div></div>
+<div class="to-df-alt"></div>`;
+  (els.streakMark?.parentElement || document.body).appendChild(dfHud);
+  return dfHud;
+}
+
+function syncDragonfireView() {
+  // Killed on the ground: the link's cut and the drone drops.
+  if (dragonfire && !player.alive && dragonfire.alive) {
+    dragonfire.hp = 0;
+    shootDownAir(dragonfire.id, null, true);
+  }
+  const on = dragonfireView();
+  if (on !== dfViewOn) {
+    dfViewOn = on;
+    const el = dragonfireHudEl();
+    el.hidden = !on;
+    document.body.classList.toggle("to-in-dragonfire", on);
+    if (on) {
+      dfSaved = { yaw: look.yaw, pitch: look.pitch };
+      look.pitch = -0.1;
+      showWaveBanner("DRAGONFIRE — YOU HAVE CONTROL", 1500);
+    } else {
+      if (dfSaved) { look.yaw = dfSaved.yaw; look.pitch = dfSaved.pitch; }
+      dfSaved = null;
+      if (player.alive && dragonfire && !dragonfire.alive) showWaveBanner("DRAGONFIRE OFFLINE", 1200);
+    }
+  }
+  if (!on) return;
+  const df = dragonfire;
+  dfHud.querySelector(".to-df-time").textContent = `${Math.max(0, Math.ceil(df.duration - df.age))}s`;
+  dfHud.querySelector(".to-df-hp i").style.width = `${Math.round(Math.max(0, df.hp / DF_HP) * 100)}%`;
+  const floor = groundHeightAt(colliders, df.pos.x, df.pos.z, df.pos.y) ?? 0;
+  dfHud.querySelector(".to-df-alt").textContent = `ALT ${Math.max(0, df.pos.y - floor).toFixed(1)}m`;
+  dfHud.classList.toggle("is-low", df.duration - df.age < 10 || df.hp < DF_HP * 0.35);
+}
+
 /* The VTOL Warship. `warship` is our own while we ride its guns. */
 let warship = null;
 let warshipGun = "chain";
@@ -1556,6 +1875,9 @@ function spawnRecon(x, z, yaw, duration = STREAK_DEFS.uav.duration, { team = nul
   const bounds = builtMap?.map?.bounds || ARENA;
   const plane = new ReconPlane({ bounds, yaw, duration, counter });
   plane.team = team;
+  // The same id on every client (from the call's rounded x and yaw, which
+  // is what the wire carries), so a SAM Turret can shoot one down for all.
+  plane.eid = `recon:${counter ? 1 : 0}:${Math.round(yaw * 100)}:${Math.round(x * 100)}`;
   flyovers.push(plane);
   scene.add(plane.root);
   return plane;
@@ -1625,7 +1947,7 @@ function applyCounterUav(m) {
   const def = STREAK_DEFS.counteruav;
   const dur = m.duration || def.duration;
   if (typeof m.x === "number" && typeof m.z === "number") {
-    spawnRecon(m.x, m.z, m.yaw || 0, dur, { counter: true });
+    spawnRecon(m.x, m.z, m.yaw || 0, dur, { counter: true, team: m.team });
   }
   const enemy = currentMode().ffa || !net.team || m.team !== net.team;
   if (!enemy) { showWaveBanner("FRIENDLY COUNTER-UAV", 1500); return; }
@@ -1712,6 +2034,46 @@ function updateStreakEntities(dt) {
       continue;
     }
 
+    if (e instanceof Dragonfire) {
+      if (e.owned && e === dragonfire && dragonfireView()) {
+        const up = ((isTouch && touchState.jump) || (gamepadState.connected && gamepadState.jump) || keys.has("Space") ? 1 : 0)
+          - ((isTouch && touchState.crouch) || (gamepadState.connected && gamepadState.crouch) || keys.has("KeyC") || keys.has("ControlLeft") ? 1 : 0);
+        e.fly(dt, { fwd: dfIz, strafe: dfIx, up, yaw: look.yaw, pitch: look.pitch },
+          (from, dir, max) => raycastWorld(colliders, from, dir, max),
+          (x, z, fromY) => groundHeightAt(colliders, x, z, fromY));
+      } else if (e.owned && !e.launched) {
+        e.fly(dt, { fwd: 0, strafe: 0, up: 0, yaw: e.yaw, pitch: e.pitch }, null, null);
+      }
+      if (e.owned && net.active && (dfSendT -= dt) <= 0) {
+        dfSendT = 1 / 12;
+        net.publishStreak({ kind: "dragonfire", action: "pos", eid: e.id, x: round2(e.pos.x), y: round2(e.pos.y), z: round2(e.pos.z), yaw: round2(e.yaw), p: round2(e.pitch) });
+      }
+      const out = e.update(dt);
+      if (out === "expire") {
+        if (e.owned && net.active && e.hp > 0) net.publishStreak({ kind: "dragonfire", action: "end", eid: e.id });
+        if (e === dragonfire) dragonfire = null;
+        e.dispose();
+        streakEntities.delete(id);
+      }
+      continue;
+    }
+
+    if (e instanceof SamTurret) {
+      if (e.owned) updateSamAi(e, dt);
+      const hits = e.updateMissiles(dt, airTargetPos);
+      for (const h of hits) {
+        explosionFx({ kind: "lethal", glow: 0xffc070, radius: 2.5 }, h.at);
+        if (e.owned && h.targetId && airTargetPos(h.targetId)) samMissileHit(e, h.targetId);
+      }
+      const out = e.update(dt);
+      if (out === "expire") {
+        if (e.owned && net.active && e.hp > 0) net.publishStreak({ kind: "sam", action: "end", eid: e.id });
+        e.dispose();
+        streakEntities.delete(id);
+      }
+      continue;
+    }
+
     if (e instanceof VtolWarship) {
       const landed = [];
       const out = e.update(dt, landed);
@@ -1752,6 +2114,7 @@ function updateStreakEntities(dt) {
   updateSwarms(dt);
   syncWarshipView();
   updateWarshipHud();
+  syncDragonfireView();
   strikeTablet?.update(dt);
 
   // Lightning strikes: each run plays its own timeline (smoke, jet, bombs)
@@ -2082,7 +2445,7 @@ function botFireStreak(b, id) {
     case "uav": {
       const yaw = Math.random() * Math.PI * 2;
       startUav(b.team, def.duration);
-      spawnRecon(b.pos.x, b.pos.z, yaw, def.duration, { team: b.team });
+      spawnRecon(round2(b.pos.x), b.pos.z, round2(yaw), def.duration, { team: b.team });
       if (net.active) net.publishStreak({ kind: "uav", action: "start", team: b.team, duration: def.duration, x: round2(b.pos.x), z: round2(b.pos.z), yaw: round2(yaw) });
       callout("UAV");
       break;
@@ -2279,6 +2642,45 @@ function applyRemoteStreak(m) {
       break;
     }
 
+    case "dragonfire": {
+      const df = streakEntities.get(m.eid);
+      if (m.action === "spawn" && !df) {
+        spawnDragonfire({ id: m.eid, owned: false, team: m.team, x: m.x, y: m.y, z: m.z, yaw: m.yaw || 0 });
+        if (currentMode().ffa || !net.team || m.team !== net.team) showWaveBanner("ENEMY DRAGONFIRE INBOUND", 1800);
+      } else if (df instanceof Dragonfire) {
+        if (m.action === "pos") df.applySnapshot(m.x, m.y, m.z, m.yaw || 0, m.p || 0);
+        else if (m.action === "shot") {
+          df.shoot(new THREE.Vector3(m.x, m.y, m.z));
+          if (Math.random() < 0.5) audio.shot(WEAPON_DEFS.bellow || WEAPON_DEFS.problem416, 0.3, df.pos);
+        } else if (m.action === "end") { df.dispose(); streakEntities.delete(m.eid); }
+      }
+      break;
+    }
+
+    case "sam": {
+      const sam = streakEntities.get(m.eid);
+      if (m.action === "spawn" && !sam) {
+        spawnSam({ id: m.eid, owned: false, team: m.team, x: m.x, y: m.y, z: m.z, yaw: m.yaw || 0 });
+        if (currentMode().ffa || !net.team || m.team !== net.team) showWaveBanner("ENEMY SAM TURRET — AIR DEFENSES UP", 1800);
+      } else if (sam instanceof SamTurret) {
+        if (m.action === "launch") {
+          sam.targetId = m.t || null;
+          sam.spawnMissile(new THREE.Vector3(m.x, m.y, m.z), new THREE.Vector3(m.dx, m.dy, m.dz), m.t || null);
+          const tp = airTargetPos(m.t);
+          if (tp) sam.aimAt(tp, 10);
+          audio.explosion?.(0.1, sam.pos);
+        } else if (m.action === "end") { sam.dispose(); streakEntities.delete(m.eid); }
+      }
+      break;
+    }
+
+    case "air": {
+      const e = streakEntities.get(m.eid);
+      if (m.action === "hit" && e && e.owned) damageStreakEntity(e, +m.dmg || 0, m.by);
+      else if (m.action === "down") shootDownAir(m.eid, m.by);
+      break;
+    }
+
     case "warship": {
       const ws = streakEntities.get(m.eid);
       if (m.action === "spawn" && !ws) spawnWarship({ id: m.eid, seed: m.seed, owned: false, team: m.team });
@@ -2389,6 +2791,65 @@ function applySettings() {
   // Takes effect for bots created from here on, so a change mid-match applies
   // as they respawn rather than rewriting the ones already in the fight.
   bots.difficulty = settings.botSkill;
+  renderBotSkillNote();
+}
+
+/* -------------------- room bot skill --------------------
+   Bots only ever run on ONE client, the bot host (net.isBotHost: whoever has
+   been in the room longest, which is normally whoever started it), and it
+   builds them with its own Bot skill setting. So the host's setting is the
+   room's, and a joiner's own choice does nothing while someone else hosts.
+   Every bot carries its tier on the wire (`bs`), so each client reads the
+   room's skill off the bots themselves: the lobby says whose setting is in
+   charge, and the veteran XP boost pays everyone in the room, not only the
+   host. If the host leaves, the next-longest player takes the bots over and
+   keeps the tier the room was playing at for the rest of that match
+   (`roomSkillSeen`), instead of swapping to their own setting mid-fight. */
+let roomSkillSeen = null;   // tier read off another host's bots this match
+function roomBotSkill() {
+  if (!net.active || net.isBotHost()) return bots.count ? bots.difficulty : null;
+  const n = {};
+  for (const p of net.peers.values()) if (p.botSkill) n[p.botSkill] = (n[p.botSkill] || 0) + 1;
+  let best = null;
+  for (const k in n) if (!best || n[k] > n[best]) best = k;
+  return best;   // null: no bots in the room
+}
+const VETERAN_XP_BOOST = 0.1;   // +10% XP for a match played against veteran bots
+function syncRoomBotSkill(dt) {
+  if (net.active && !net.isBotHost()) {
+    const seen = roomBotSkill();
+    if (seen) roomSkillSeen = seen;
+  } else if (net.active && roomSkillSeen) {
+    bots.difficulty = roomSkillSeen;   // took the bots over mid-match
+  }
+  // Veteran time, for the XP boost: the boost pays once veteran bots have
+  // been in the match for at least half of it, so a tier flipped in the
+  // last minute doesn't earn it.
+  if (gameState !== "playing" || isStaging()) return;
+  player.matchT += dt;
+  if (roomBotSkill() === "veteran") player.vetBotT += dt;
+  renderBotSkillNote();
+}
+function veteranBoostOn() {
+  return isPvp() && !isRange() && player.matchT > 0 && player.vetBotT >= player.matchT * 0.5;
+}
+/* XP as it's banked on the account: the veteran boost on top. */
+function boostedXp(amount) {
+  return veteranBoostOn() ? Math.round(amount * (1 + VETERAN_XP_BOOST)) : amount;
+}
+/* Lobby: under the Bot skill picker, say whose setting runs the room. */
+let botSkillNoteText = null;
+function renderBotSkillNote() {
+  const el = document.getElementById("to-set-botskill-note");
+  if (!el) return;
+  let text = "Veteran bots: +10% XP";
+  if (net.active && !net.isBotHost()) {
+    const seen = roomBotSkill() || roomSkillSeen;
+    text = seen
+      ? `Host's bots: ${seen[0].toUpperCase() + seen.slice(1)}${seen === "veteran" ? " (+10% XP)" : ""}. Yours applies when you host.`
+      : "The host's setting runs the bots. Yours applies when you host.";
+  }
+  if (text !== botSkillNoteText) { botSkillNoteText = text; el.textContent = text; }
 }
 
 function toggleThirdPerson() {
@@ -2878,7 +3339,7 @@ function renderModes() {
 // tab (mode list, map card, Deploy); the rest open one panel each.
 // Loadout and Customize share the Loadout tab.
 
-const LOBBY_PANELS = ["deploy", "loadout", "customize", "gear", "streaks", "server", "controls"];
+const LOBBY_PANELS = ["deploy", "loadout", "customize", "gear", "cosmetics", "streaks", "server", "controls"];
 const TAB_FOR_PANEL = { customize: "loadout" };
 const pfRoot = document.getElementById("to-pf");
 // Tabs, the Loadout/Customize switch and the loadout card's Edit link.
@@ -2906,6 +3367,14 @@ let inspectorLive = false;
 const charView = document.getElementById("to-char-view");
 const charCanvas = document.getElementById("to-char-canvas");
 const charInspector = charCanvas ? new CharacterInspector(charCanvas) : null;
+/* Cosmetics (cosmetics.js): the face you wear, on the menu operator, your
+   own body in matches, and everyone else's view of you (`fc`). */
+const cosmetics = new CosmeticsPanel(document.getElementById("to-cos-body"), (face) => applyOwnFace(face));
+function applyOwnFace(face) {
+  if (charInspector) charInspector.humanoid.face = face;
+  localRig.face = face;   // only ever called on a pick, long after localRig exists
+}
+if (charInspector) charInspector.humanoid.face = cosmetics.face;
 let charInspectorLive = false;
 // The operator on the main menu carries your equipped primary.
 charInspector?.setWeapon(loadout.resolved);
@@ -2932,13 +3401,13 @@ function mountGunView(panel) {
    per-panel box — it's a free-floating hero shot over the whole lobby
    (see .to-char-view), so showing it for a panel is just an on/off flag. */
 function mountCharView(panel) {
-  charInspectorLive = !!(charView && panel === "deploy");
+  charInspectorLive = !!(charView && (panel === "deploy" || panel === "cosmetics"));
   if (charView) charView.style.display = charInspectorLive ? "" : "none";
   if (!charInspectorLive) menuEmoteWheel?.close(true);
 }
 
 /* Emoting in the main menu (user): the same wheel as in a match, played by
-   the operator on Match Setup. H / L3 / the Emote button open it. */
+   the operator on Match Setup. H / the pad's T (or hold Y) / the Emote button open it. */
 const menuEmoteWheel = charView && els.title ? new EmoteWheel(els.title, (i) => charInspector?.playEmote(i)) : null;
 menuEmoteWheel?.el.classList.add("is-menu");
 const menuEmoteBtn = document.getElementById("to-char-emote");
@@ -2946,7 +3415,8 @@ menuEmoteBtn?.addEventListener("click", () => {
   menuEmoteWheel?.toggle(charInspectorLive && gameState === "menu");
   menuEmoteBtn.setAttribute("aria-expanded", String(!!menuEmoteWheel?.isOpen));
 });
-// Pad in the menu: L3 opens, the right stick points, Cross/A plays, Circle/B closes.
+// Pad in the menu: T (the emote button, controller-layout.js) or Triangle/Y
+// opens, the right stick points, Cross/A plays, Circle/B closes.
 let gpMenuEmotePrev = {};
 function pollMenuEmotePad() {
   const w = menuEmoteWheel;
@@ -2954,13 +3424,14 @@ function pollMenuEmotePad() {
   const gp = w && charInspectorLive ? Array.from(pads).find((p) => p && p.connected) : null;
   if (!gp) { gpMenuEmotePrev = {}; return; }
   const b = (i) => !!gp.buttons[i]?.pressed, edge = (i) => b(i) && !gpMenuEmotePrev[i];
-  if (edge(10)) w.toggle();
+  if (padEmotePressed(gp, edge) || edge(3)) w.toggle();
   if (w.isOpen) {
     w.aim(gp.axes[2] || 0, gp.axes[3] || 0);
     if (edge(0)) w.close();
     else if (edge(1)) w.close(true);
   }
-  gpMenuEmotePrev = { 0: b(0), 1: b(1), 10: b(10) };
+  gpMenuEmotePrev = {};
+  for (let i = 0; i < gp.buttons.length; i++) gpMenuEmotePrev[i] = b(i);
 }
 
 // "deploy" (Match Setup) is the panel left un-hidden in the HTML, so it's
@@ -3008,7 +3479,7 @@ function showLobbyPanel(name) {
     if (gunView) gunView.style.display = "none";
   }
 
-  if (name === "deploy") {
+  if (name === "deploy" || name === "cosmetics") {
     mountCharView(name);
   } else {
     charInspectorLive = false;
@@ -4316,6 +4787,8 @@ const player = {
   streak: 0,            // kills since last death
   bestStreak: 0,
   matchXp: 0,           // XP banked during this match, shown on the result screen
+  matchT: 0,            // seconds of this match played (veteran XP boost)
+  vetBotT: 0,           // ...of them with veteran bots in the room
   lastKilledBy: null,   // whose kill sent us back, for the Revenge achievement
 };
 
@@ -4442,6 +4915,7 @@ const bullets = new BulletSystem(scene);
 // would otherwise occlude the FP view.
 const LOCAL_RIG_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
 const localRig = buildHumanoid(LOCAL_RIG_MAT, { height: 1.8, gun: false });
+localRig.face = cosmetics.face;
 localRig.root.visible = false;
 scene.add(localRig.root);
 // Our own head gets its own copy of the face material, so it can fade out of
@@ -4967,7 +5441,10 @@ function applyAimAssist(dt, strength = 1) {
 }
 
 let gpWheelSwallow = false;   // the A/B that worked the emote wheel isn't a jump/crouch
+const EMOTE_HOLD = 0.35;   // seconds Triangle/Y is held before it means "emote"
+let gpTriHeld = 0, gpTriUsed = false, gpDt = 0;
 function pollGamepad(dt) {
+  gpDt = dt;
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let gp = gpIndex != null ? pads[gpIndex] : null;
   if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
@@ -5037,7 +5514,24 @@ function pollGamepad(dt) {
   if (!localPauseOnly) {
     if (pressedEdge(4)) tryReload();          // L1 -> reload (kept off fire face buttons)
     if (pressedEdge(2)) swingMelee();         // X / square -> melee
-    if (pressedEdge(3)) cycleWeapon();        // Y / triangle -> cycle primary/secondary/melee
+    // The emote button: the pad's T (user's Voyee), rebindable on the
+    // Settings controller card (controller-layout.js padEmoteButton).
+    if (padEmotePressed(gp, pressedEdge)) emoteWheel.toggle(gameState === "playing" && player.alive);
+    // Y / triangle: a tap cycles primary/secondary/melee (on release, so a
+    // hold can mean something else); held EMOTE_HOLD s it opens the emote
+    // wheel too, for pads whose T never reaches the browser. L3 stays free
+    // (user: kept for the swivel).
+    if (btn(3)) {
+      gpTriHeld += gpDt;
+      if (gpTriHeld >= EMOTE_HOLD && !gpTriUsed) {
+        gpTriUsed = true;
+        emoteWheel.toggle(gameState === "playing" && player.alive);
+      }
+    } else {
+      if (gpPrev[3] && !gpTriUsed) { if (emoteWheel.isOpen) emoteWheel.close(true); else cycleWeapon(); }
+      gpTriHeld = 0;
+      gpTriUsed = false;
+    }
     // R1 -> cook whatever throwable you brought. It used to be lethal-only,
     // so a loadout carrying a flash/smoke/EMP threw nothing on RB (user:
     // "throwable doesn't work on controller").
@@ -5048,10 +5542,9 @@ function pollGamepad(dt) {
     if (pressedEdge(14)) startCook(carriedThrowSlot());
     if (gpPrev[14] && !btn(14)) releaseCook();
     if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
-    // L3 (click the left stick) -> emote wheel, the pad's H: the right stick
-    // points at a slice instead of turning the view, Cross/A plays it,
-    // Circle/B (or L3 again) closes. A held A or B doesn't jump or crouch.
-    if (pressedEdge(10)) emoteWheel.toggle(gameState === "playing" && player.alive);
+    // Emote wheel open (hold Triangle/Y above): the right stick points at a
+    // slice instead of turning the view, Cross/A plays it, Circle/B closes.
+    // A held A or B doesn't jump or crouch.
     if (emoteWheel.isOpen) {
       emoteWheel.aim(gp.axes[2] || 0, gp.axes[3] || 0);
       gamepadState.lookDX = 0; gamepadState.lookDY = 0;
@@ -5490,8 +5983,15 @@ function fireOnce(shot = null) {
   }
 }
 
+/* An enemy Dragonfire's or SAM Turret's hit volume. */
+function resolveStreakKit(object) {
+  const e = object?.userData?.air || object?.userData?.sam;
+  return e ? { isStreakKit: true, entity: e } : null;
+}
+
 function resolveBulletTarget(object) {
-  return resolveK9(object)
+  return resolveStreakKit(object)
+    || resolveK9(object)
     || rangeSet?.resolve(object)
     || remotes.resolve(object)
     || zdir?.resolve(object)
@@ -5499,6 +5999,13 @@ function resolveBulletTarget(object) {
 }
 
 function onBulletActorHit(actor, info) {
+  if (actor.isStreakKit) {
+    damageStreakEntity(actor.entity, info.damage, net.id);
+    showHitmarker(false, info.damage, info.point, false);
+    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "metal", scale: 1 });
+    spawnImpactBurst(info.point, 0xffd08a, 5);
+    return;
+  }
   if (actor.isK9Dog) {
     // An enemy dog: its owner applies the damage (damageDog forwards it).
     damageDog(actor.pack, actor.i, info.damage, net.id);
@@ -5980,10 +6487,20 @@ function meleeConnect() {
 
   const ray = new THREE.Raycaster();
   ray.near = 0;
-  ray.far = def.range;
+  // A cut sweeps the whole arc; a thrust goes a little further down a narrow
+  // line. Rays fan across the sweep at three heights (the aim, the chest of
+  // someone a little below it, the head of someone a little above), centre
+  // first so a square hit wins.
+  const thrust = player.melee.swingIndex % 2 === 1 && def.model?.kind !== "chainsaw";
+  const reach = def.range * (thrust ? 1.1 : 1);
+  const half = (thrust ? def.arc * 0.3 : def.arc) / 2;
+  ray.far = reach;
+  const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+  const fan = [];
+  for (const h of [0, -0.5, 0.5, -1, 1]) for (const v of [0, -0.28, 0.14]) fan.push([h * half, v]);
 
-  for (const off of [0, -def.arc / 2, def.arc / 2]) {
-    const dir = forward.clone().addScaledVector(right, Math.tan(off)).normalize();
+  for (const [off, tilt] of fan) {
+    const dir = forward.clone().addScaledVector(right, Math.tan(off)).addScaledVector(up, Math.tan(tilt)).normalize();
     ray.set(origin, dir);
     const hits = targetMeshes.length ? ray.intersectObjects(targetMeshes, true) : [];
     for (const h of hits) {
@@ -6027,6 +6544,8 @@ function meleeConnect() {
    straight through (only WEAPON_DEFS rounds are deflectable). */
 const saberBlock = { active: false, meter: 1, broken: 0, idle: 0, t: 0 };
 let saberDeflectT = 0;
+const saberParry = { zone: "left", t: 9 };   // the last deflect's parry, seconds since
+const _parryV = new THREE.Vector3();
 let saberWasShown = false;
 let saberTrail = null;
 let saberSwingSpeed = 0;
@@ -6036,6 +6555,7 @@ const _saberRoot = new THREE.Vector3();
 const _saberTip = new THREE.Vector3();
 const _deflectTo = new THREE.Vector3();
 const _deflectFwd = new THREE.Vector3();
+const _deflectQ = new THREE.Quaternion();
 
 function heldSaberDeflect() {
   return player.melee?.def?.deflect || null;
@@ -6093,6 +6613,14 @@ function tryDeflect(amount, fromId, weaponId, fromPos) {
   saberBlock.meter -= d.drainPerHit + amount * d.drainPerDamage;
   saberBlock.idle = 0;
   saberDeflectT = 1;
+  // Which parry: where the round came from, in our view.
+  if (src) {
+    camera.getWorldPosition(_parryV);
+    _parryV.set(src.x - _parryV.x, (src.y ?? move.pos.y) + 1.4 - _parryV.y, src.z - _parryV.z).normalize();
+    _parryV.applyQuaternion(_deflectQ.copy(camera.quaternion).invert());
+    saberParry.zone = parryZone(_parryV.x, _parryV.y);
+  } else saberParry.zone = parryZone(0, 0);
+  saberParry.t = 0;
   activeMeleeMesh?.userData.saber?.flare(0.9);
   // Sparks where the round met the blade: the blade's middle is in view
   // space (the weapon camera sits at the origin), so re-aim it through the
@@ -6139,6 +6667,16 @@ function updateRemoteSabers() {
 function onRemoteDeflect(p, m) {
   const rp = remotes.byId.get(p.id);
   if (!rp) return;
+  // Their parry, by where the shooter stands relative to them.
+  const from = m.by === net.id ? move.pos : killerPosFor(m.by);
+  if (from) {
+    const dx = from.x - rp.pos.x, dz = from.z - rp.pos.z, dy = (from.y ?? rp.pos.y) - rp.pos.y;
+    const c = Math.cos(rp.yaw), sn = Math.sin(rp.yaw);
+    // rig right is (cos, 0, -sin), ahead is (-sin, 0, -cos)
+    const side = dx * c - dz * sn, ahead = -dx * sn - dz * c;
+    const len = Math.max(0.5, Math.hypot(side, ahead));
+    rp.startParry(parryZone(side / len, Math.atan2(dy, len)));
+  } else rp.startParry(parryZone(0, 0));
   const at = rp.bladeMid() || rp.centre();
   spawnImpactBurst(at, 0xff6a3a, 14);
   rp.saber?.flare(0.9);
@@ -6498,6 +7036,7 @@ function netSnapshot() {
   _netSnapshot.block = saberBlock.active;
   _netSnapshot.roll = royaleRollK();
   _netSnapshot.drop = royaleDropCode();
+  _netSnapshot.face = cosmetics.face;
   return _netSnapshot;
 }
 
@@ -8328,6 +8867,9 @@ function beginMatch(mapId = null) {
   player.streak = 0;
   player.bestStreak = 0;
   player.matchXp = 0;
+  player.matchT = 0;
+  player.vetBotT = 0;
+  roomSkillSeen = null;
   player.lastKilledBy = null;
   // A fresh match starts with nothing earned and nothing banked, and picks up
   // whatever three streaks the lobby has selected.
@@ -8765,11 +9307,12 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts
 
   // PvP banks XP per kill as the match runs, so only the end-of-match
   // bonuses are settled here. Ops still pays once, on its wave curve.
-  const gained = isPvp()
+  const base = isPvp()
     ? player.matchXp + xpForMatch({ won: !!opts.won, completed: !!opts.completed })
     : xpForRun({ kills: player.kills, wave: player.wave });
+  const gained = boostedXp(base);
   const { rankedUp, rank } = addXp(gained);
-  els.goXp.textContent = `+${gained.toLocaleString()} XP`;
+  els.goXp.textContent = `+${gained.toLocaleString()} XP${gained > base ? " · +10% veteran bots" : ""}`;
   els.goRank.textContent = rankedUp ? `Level up — now LV ${rank}` : "";
   els.goRank.hidden = !rankedUp;
   renderMatchMedals();
@@ -8982,7 +9525,7 @@ els.quitBtn.addEventListener("click", () => {
   // finishRun settles it normally on a real match end; here there's no
   // result screen to show, so just fold the banked amount into the total.
   if (isPvp() && gameState === "playing" && player.matchXp > 0) {
-    addXp(player.matchXp);
+    addXp(boostedXp(player.matchXp));
     player.matchXp = 0;
   }
   gameState = "menu";
@@ -9005,6 +9548,8 @@ els.quitBtn.addEventListener("click", () => {
   els.title.hidden = false;
   loadout.render();
   renderLobbyRoster();
+  roomSkillSeen = null;
+  renderBotSkillNote();
   showLobbyPanel("deploy");
 });
 
@@ -9022,7 +9567,7 @@ document.addEventListener("visibilitychange", () => {
   // match XP — a closed tab never runs another frame, so this can't wait
   // for the "playing" branch above's later logic or a normal match end.
   if (document.hidden && isPvp() && player.matchXp > 0) {
-    addXp(player.matchXp);
+    addXp(boostedXp(player.matchXp));
     player.matchXp = 0;
   }
 });
@@ -9076,6 +9621,7 @@ const STREAK_KILL_NAMES = {
   k9: "K9 Unit",
   warship: "VTOL Warship",
   swarm: "Swarm",
+  dragonfire: "Dragonfire",
   bomb: "Bomb",
   zone: "the Cringe",
 };
@@ -9191,6 +9737,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
       respawnT = INFECTION.respawn;
     }
     showDeathCard(fromId, weaponId, isHead);
+    noteLocalDeath();
     els.deathfade.classList.add("is-dead");
     damageLog.clear();
     els.respawn.hidden = false;
@@ -9266,12 +9813,17 @@ function updateKillcam(dt) {
       killcam.record(kcClock, rp.netId, {
         x: rp.pos.x, y: rp.pos.y, z: rp.pos.z, yaw: rp.yaw, pitch: rp.pitch, lower: rp.lower,
         alive: rp.alive, wid: rp.weaponId, moving: !!snaps?.[snaps.length - 1]?.moving, bot: !!rp.peer.isBot,
+        ...rp.meleeSample(),
       });
     }
     if (player.alive) {
+      const pm = player.melee;
+      const sword = !!pm && (player.holding === "melee" || pm.busy);
       killcam.record(kcClock, killcamSelfId(), {
         x: move.pos.x, y: move.pos.y, z: move.pos.z, yaw: look.yaw, pitch: look.pitch,
         lower: localLower, alive: true, wid: currentWeapon()?.def?.id, moving: move.moving,
+        mid: sword ? pm.def.id : null, sw: sword && pm.busy ? Math.min(1, pm.t / pm.total) : -1,
+        si: pm ? pm.swingIndex & 1 : 0, bk: sword ? localBlockT : 0,
       });
     }
     return;
@@ -9294,13 +9846,23 @@ function poseKillcamWorld(dt) {
     localRig.parts.head.visible = true;
     localRig.root.position.set(me.x, me.y, me.z);
     if (rt >= killcam.deathT) {
+      if (localHeld.mesh) localHeld.mesh.visible = false;   // goes down empty-handed
       poseDeath(localRig, Math.min(1, (rt - killcam.deathT) / DEATH_TIME));
     } else {
       aimRig(localRig, me.yaw, dt, { moving: me.moving });
       if (me.moving) kcLocalPhase += dt * gaitPhaseRate(3.6);
+      // Our own swings and guard play back too (the held melee mesh is
+      // already on the rig: syncLocalRigHeld).
+      const sword = !!me.mid && MELEE_DEFS[me.mid];
+      syncLocalRigHeld(sword ? "melee" : "gun", sword ? MELEE_DEFS[me.mid] : WEAPON_DEFS[me.wid] || currentWeapon()?.def);
+      if (localHeld.mesh) localHeld.mesh.visible = true;
+      const sab = sword && localHeld.mesh?.userData.saber;
+      if (sab) { sab.target = 1; sab.frac = Math.max(sab.frac, 0.999); }
       poseHumanoid(localRig, {
         phase: kcLocalPhase, moving: me.moving, pitch: me.pitch, lower: me.lower, strafe: 0, forward: 1,
-        speed: me.moving ? 0.85 : 0, mps: me.moving ? 3.6 : 0, dt, hasGun: true, hold: "gun", swing: null,
+        speed: me.moving ? 0.85 : 0, mps: me.moving ? 3.6 : 0, dt, hasGun: !sword, hold: sword ? "melee" : "gun",
+        swing: sword && me.sw >= 0 ? { t: me.sw, kind: me.si % 2 === 0 ? "swing" : "thrust" } : null,
+        block: sword && me.sw < 0 ? me.bk : 0,
       });
     }
   }
@@ -9333,10 +9895,55 @@ function disposeKillcamGun() {
   killcamGun = null;
 }
 
+/* The killer's melee weapon in front of the camera while it's in their fist
+   in the replay: its swings played off the recorded swing fraction on the
+   same tracks our own sword uses, the saber's guard lerped in the same way. */
+let killcamMelee = null;   // { mesh, state, id }
+function disposeKillcamMelee() {
+  if (!killcamMelee) return;
+  weaponScene.remove(killcamMelee.mesh);
+  killcamMelee.mesh.traverse((o) => {
+    if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+    if (o.material) o.material.dispose?.();
+  });
+  killcamMelee = null;
+}
+function updateKillcamMelee(s) {
+  const def = s?.mid && MELEE_DEFS[s.mid];
+  if (!def) { if (killcamMelee) killcamMelee.mesh.visible = false; return false; }
+  if (killcamMelee?.id !== def.id) {
+    disposeKillcamMelee();
+    const mesh = stripLights(buildMeleeMesh(def, false));
+    const sab = mesh.userData.saber;
+    if (sab) { sab.target = 1; sab.frac = 1; }
+    weaponScene.add(mesh);
+    killcamMelee = { mesh, state: new MeleeState(def), id: def.id };
+  }
+  const { mesh, state } = killcamMelee;
+  mesh.visible = true;
+  state.swingIndex = s.si | 0;
+  state.t = s.sw >= 0 ? Math.max(1e-4, s.sw * state.total) : 0;
+  const { pos, quat } = state.pose();
+  mesh.position.copy(pos);
+  mesh.quaternion.copy(quat);
+  const view = def.model?.view;
+  if (view?.pos) { mesh.position.x += view.pos[0]; mesh.position.y += view.pos[1]; mesh.position.z += view.pos[2]; }
+  if (view?.rot) mesh.quaternion.multiply(_meleeViewQ.setFromEuler(_meleeViewE.set(view.rot[0], view.rot[1], view.rot[2])));
+  mesh.scale.setScalar(view?.scale || 1);
+  if (mesh.userData.saber && s.sw < 0 && s.bk > 0.001) {
+    mesh.position.lerp(SABER_BLOCK.pos, s.bk);
+    mesh.quaternion.slerp(SABER_BLOCK.quat, s.bk);
+  }
+  return true;
+}
+
 function updateKillcamGun(dt) {
+  const sm = killcam.sampleAt(killcam.killerId, killcam.rt, _kcSample);
+  const melee = updateKillcamMelee(sm);
   if (!killcamGun) return;
+  killcamGun.visible = !melee;
   killcamKick = Math.max(0, killcamKick - dt * 10);
-  const s = killcam.sampleAt(killcam.killerId, killcam.rt, _kcSample);
+  const s = sm;
   const walk = s?.moving ? killcam.rt * 9 : 0;
   const k = killcamKick;
   killcamGun.position.set(
@@ -9399,7 +10006,8 @@ function endKillcamPresentation() {
   if (killcamHud) killcamHud.hidden = true;
   els.killcamBars.parentElement.classList.remove("to-kc-on");
   disposeKillcamGun();
-  weaponRig.visible = true;
+  disposeKillcamMelee();
+  weaponRig.visible = player.alive;
   els.respawn.style.visibility = "";
   els.killcamBars.classList.remove("is-on");
   if (!player.alive) els.deathfade.classList.add("is-dead");
@@ -9423,6 +10031,9 @@ function clearDeathVisuals() {
   els.deathfade.classList.remove("is-dead");
   if (els.deathBy) els.deathBy.hidden = true;
   hideSpectateHud();
+  // Every caller is about to put us back up (respawn, new round, new match).
+  weaponRig.visible = true;
+  localRig.death = null;
 }
 
 function respawnPlayer() {
@@ -9675,6 +10286,7 @@ function animate() {
     } else {
       const ffa = !!currentMode().ffa;
 
+      syncRoomBotSkill(dt);
       // Exactly one client simulates the bots and publishes them as peers, so
       // everyone else needs no bot-specific code at all.
       if (net.isBotHost()) {
@@ -9711,7 +10323,10 @@ function animate() {
       updateRemoteSabers();
       updateKillcam(dt);
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
-      for (const e of streakEntities.values()) if (e instanceof K9Pack && k9Hostile(e)) targetMeshes.push(...e.hitMeshes());
+      for (const e of streakEntities.values()) {
+        if (e instanceof K9Pack && k9Hostile(e)) targetMeshes.push(...e.hitMeshes());
+        else if ((e instanceof Dragonfire || e instanceof SamTurret) && streakHostileToMe(e)) targetMeshes.push(...e.hitMeshes());
+      }
 
       if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
       else {
@@ -9882,7 +10497,8 @@ function animate() {
   // is already visible on the third-person rig itself, so rendering both
   // would double up the weapon on screen.
   // Spectating in Troll Royale: the view is someone else's, so no gun of ours.
-  if (gameState === "playing" && ((!settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView()) || killcam.replaying)) {
+  // Dead (and not in a replay): no gun on screen, the camera is on the body.
+  if (gameState === "playing" && ((player.alive && !settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView() && !dragonfireView()) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
@@ -9986,7 +10602,40 @@ let localBlockT = 0;   // the third-person body in the saber guard, 0..1
    instead of reconstructed network deltas. Runs regardless of view mode
    (cheap, and keeps the rig ready the instant third person is toggled on)
    but only actually matters visually while localRig.root.visible is true. */
+/* Dead, between the killcam and the respawn (or with no killcam at all):
+   your own body lies where you fell, weapons gone from it and from the
+   screen (user: show the dead body, not the guns). Timed off kcClock, so a
+   fall the killcam already played stays settled rather than replaying. */
+let localDeadAt = 0;
+function noteLocalDeath() {
+  localDeadAt = kcClock;
+  localRig.death = null;
+}
+function updateLocalDeadBody() {
+  localRig.root.visible = true;
+  localRig.parts.head.visible = true;
+  localRig.root.position.set(move.pos.x, move.pos.y, move.pos.z);
+  if (localHeld.mesh) localHeld.mesh.visible = false;
+  weaponRig.visible = false;
+  poseDeath(localRig, Math.min(1, (kcClock - localDeadAt) / DEATH_TIME));
+}
+const _deathCamAt = new THREE.Vector3(), _deathCamDir = new THREE.Vector3();
+/* Looking down at the body from a little behind and above, drifting slowly
+   round it; pulled in off walls like the third-person camera. */
+function placeDeathCamera() {
+  const t = kcClock - localDeadAt;
+  const a = look.yaw + 0.5 + t * 0.12;
+  _deathCamAt.set(move.pos.x, move.pos.y + 0.35, move.pos.z);
+  _deathCamDir.set(Math.sin(a) * 2.6, 2.4, Math.cos(a) * 2.6);
+  const want = _deathCamDir.length();
+  _deathCamDir.normalize();
+  const len = Math.max(0.6, raycastWorld(colliders, _deathCamAt, _deathCamDir, want) - 0.15);
+  camera.position.copy(_deathCamAt).addScaledVector(_deathCamDir, len);
+  camera.lookAt(_deathCamAt);
+}
+
 function updateLocalRig(dt) {
+  if (!player.alive && gameState === "playing" && !royaleSpectating()) { updateLocalDeadBody(); return; }
   localRig.root.position.set(move.pos.x, move.pos.y, move.pos.z);
   // The body follows the aim a beat behind; the head leads the turn.
   const rolling = royaleRolling();
@@ -10053,6 +10702,7 @@ function updateLocalRig(dt) {
     } : null,
     recoil: hold === "gun" ? Math.min(1, (currentWeapon()?.viewKickKnockback || 0) * 7) : 0,
     block: localBlockT = damp(localBlockT, saberBlock.active ? 1 : 0, 14, dt),
+    parry: { zone: saberParry.zone, k: parryWeight(saberParry.t) },
   });
   if (localThrowT > 0) {
     localThrowT = Math.max(0, localThrowT - dt);
@@ -10170,7 +10820,8 @@ function updatePlayer(dt) {
   const dropping = royaleDropView();
   const dropIx = ix, dropIz = iz;
   const rolling = royaleRolling();
-  const frozen = dropping || rolling || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen || warshipView();
+  dfIx = ix; dfIz = iz;   // the Dragonfire flies off the same stick
+  const frozen = dropping || rolling || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen || warshipView() || dragonfireView();
   if (frozen) { ix = 0; iz = 0; }
   // The landing roll carries you forward along the glider's line.
   if (rolling) {
@@ -10261,6 +10912,13 @@ function updatePlayer(dt) {
   if (royaleSpectating()) {
     localRig.root.visible = false;
     placeSpectateCamera(dt);
+  } else if (!player.alive && gameState === "playing") {
+    placeDeathCamera();
+  } else if (dragonfireView()) {
+    // Flying the Dragonfire through its nose camera; your body stays put.
+    localRig.root.visible = true;
+    dragonfire.cameraPose(camera.position, camera.quaternion);
+    if (!localPauseOnly && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown)) fireDragonfire();
   } else if (warshipView()) {
     // Up in the VTOL's gunner seat; your body stands where you called it.
     localRig.root.visible = true;
@@ -10484,11 +11142,17 @@ function updateMeleeView(dt) {
       mesh.position.lerp(SABER_BLOCK.pos, saberBlock.t);
       mesh.quaternion.slerp(SABER_BLOCK.quat, saberBlock.t);
     }
+    // A deflect snaps the blade to that zone's parry and eases it back.
+    saberParry.t += dt;
+    const pw = parryWeight(saberParry.t) * saberBlock.t;
+    if (pw > 0.001) {
+      const pz = SABER_PARRY[saberParry.zone];
+      mesh.position.lerp(pz.pos, pw);
+      mesh.quaternion.slerp(pz.quat, pw);
+    }
     if (saberDeflectT > 0) {
       saberDeflectT = Math.max(0, saberDeflectT - dt * 7);
-      mesh.position.z += saberDeflectT * 0.035;
-      mesh.position.x += (Math.random() - 0.5) * saberDeflectT * 0.012;
-      mesh.position.y += (Math.random() - 0.5) * saberDeflectT * 0.012;
+      mesh.position.z += saberDeflectT * 0.03;
     }
   }
 
@@ -10714,7 +11378,7 @@ function updateStreakView(dt) {
   // Tablet: rises from low with both hands, screen tipping up to the eye,
   // then settles with a slight idle drift. A UAV/gunship call gets a right-
   // thumb press on CONFIRM and the page flips; the strike tablet just holds.
-  const calling = ["uav", "counteruav", "vsat", "gunship", "k9", "warship", "swarm"].includes(streakScreen);
+  const calling = ["uav", "counteruav", "vsat", "gunship", "k9", "warship", "swarm", "dragonfire", "samturret"].includes(streakScreen);
   const pk = calling ? (streakHoldElapsed - TABLET_PRESS_AT) / 0.22 : -1;
   const press = pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0;
   const confirmed = calling && pk >= 0.5;
@@ -12245,7 +12909,9 @@ if (/[?&]tohooks=1/.test(location.search)) {
     markingStreak: () => markingStreak, confirmMark, cancelMark, updateMarking,
     groundAimPoint, rollPackageReward, claimPackage, clearStreakEntities,
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,
-    spawnK9, spawnWarship, warship: () => warship, warshipView, warshipGun: () => warshipGun, fireWarship, toggleWarshipGun,
+    spawnK9, spawnWarship, spawnDragonfire, spawnSam, dragonfire: () => dragonfire, dragonfireView, samTargets, shootDownAir,
+    fireDragonfire, roomBotSkill, boostedXp, veteranBoostOn, weaponRig, localHeld, MELEE_DEFS, saberParry,
+    warship: () => warship, warshipView, warshipGun: () => warshipGun, fireWarship, toggleWarshipGun,
     swarmRuns, damageDog, K9Pack, VtolWarship, WARSHIP_GUNS, K9,
     nearestHostileTo, strikeImpact, spawnAirstrike, pickDroneTarget, nearbyPackage, updatePickupPrompt,
     gamepadState, touchState, streakKeyLabel, keys, swapHold,

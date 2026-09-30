@@ -69,7 +69,12 @@ export class KillCam {
     const last = tr[tr.length - 1];
     if (last && t - last.t < SAMPLE_DT) return;
     tr.push({ t, x: s.x, y: s.y, z: s.z, yaw: s.yaw, pitch: s.pitch || 0, lower: s.lower || 0,
-      alive: s.alive !== false, wid: s.wid || null, moving: !!s.moving, bot: !!s.bot });
+      alive: s.alive !== false, wid: s.wid || null, moving: !!s.moving, bot: !!s.bot,
+      // Melee (user: the killcam should show swings and the saber guard):
+      // `mid` the melee weapon in the fist (null: the gun), `sw` how far
+      // through a swing 0..1 (-1: not swinging), `si` which swing of the
+      // pair, `bk` how far into the guard 0..1.
+      mid: s.mid || null, sw: s.sw ?? -1, si: s.si | 0, bk: s.bk || 0 });
     while (tr.length && tr[0].t < t - HISTORY) tr.shift();
   }
 
@@ -109,6 +114,13 @@ export class KillCam {
     out.wid = b.wid;
     out.moving = b.moving;
     out.bot = b.bot;
+    const near = k < 0.5 ? a : b;
+    out.mid = near.mid;
+    out.si = near.si;
+    // A swing plays forward between two samples of the same swing; across a
+    // start or an end it snaps to the nearer one.
+    out.sw = a.sw >= 0 && b.sw >= a.sw && a.si === b.si ? a.sw + (b.sw - a.sw) * k : near.sw;
+    out.bk = a.bk + (b.bk - a.bk) * k;
     return out;
   }
 

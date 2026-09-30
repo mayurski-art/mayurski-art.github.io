@@ -16,7 +16,7 @@
 // Arm angles follow character.js: positive x raises an arm forward, positive
 // z swings the left arm out (the right arm out is negative z).
 
-import { DANCES, setHandPose } from "./character.js?v=to-ads2";
+import { DANCES, setHandPose, setFace } from "./character.js?v=to-fx3";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -34,6 +34,7 @@ function base(rig) {
   }
   setHandPose(rig, -1, "open");
   setHandPose(rig, 1, "open");
+  setFace(rig);   // the rig's own face (the sad emote swaps it)
 }
 function head(rig, pitch = 0, yaw = 0, roll = 0) {
   const p = rig.parts;
@@ -133,6 +134,34 @@ function poseFacepalmTP(rig, t) {
   p.elbowR.rotation.x = 2.3 * up;
   p.chest.rotation.x = 0.1 * up;
   head(rig, 0.5 * up, Math.sin(t * 3) * 0.2 * up, 0);
+  done(rig);
+}
+
+/* Sad trollface (user): the face goes to the sad trollface, the head hangs,
+   the shoulders heave with sobs and the right forearm wipes the eyes; the
+   other arm hangs limp. */
+function poseSadTP(rig, t) {
+  const p = rig.parts;
+  base(rig);
+  setFace(rig, "sad");
+  const s = rig.scale, down = env(t, 0, 0.5, 3.6, 4.2);
+  const sob = Math.max(0, Math.sin(t * 13)) * (0.6 + 0.4 * Math.sin(t * 2.1)) * down;
+  const wipe = Math.sin(t * 5.5) * down;
+  p.hips.position.y = rig.hipY - 0.04 * s * down;
+  p.kneeL.rotation.x = -0.18 * down;
+  p.kneeR.rotation.x = -0.18 * down;
+  p.legL.rotation.x = 0.09 * down;
+  p.legR.rotation.x = 0.09 * down;
+  p.torso.rotation.x = 0.22 * down + sob * 0.04;
+  p.chest.rotation.x = 0.16 * down + sob * 0.05;
+  // Right forearm across the eyes, rubbing side to side.
+  p.armR.rotation.set(2.25 * down, 0.2 * down, (-0.55 + wipe * 0.12) * down);
+  p.elbowR.rotation.x = 2.2 * down;
+  setHandPose(rig, 1, "fist");
+  // Left arm limp, hanging a little forward.
+  p.armL.rotation.set(0.12 * down + sob * 0.04, 0, 0.1);
+  p.elbowL.rotation.x = 0.2 * down;
+  head(rig, 0.42 * down + sob * 0.05, wipe * 0.06, 0.12 * down);
   done(rig);
 }
 
@@ -254,6 +283,8 @@ export const EMOTES = [
   { id: "five", name: "High five", kind: "duo", pose: [fiveHalf, fiveHalf], dist: 0.95, seconds: 1.6 },
   { id: "chest", name: "Chest bump", kind: "duo", pose: [chestHalf, chestHalf], dist: 0.7, seconds: 1.6 },
   { id: "duodance", name: "Duo dance", kind: "duo", pose: [duoDanceLead, duoDancePartner], dist: 1.3 },
+  // Last in the list so every older emote keeps its wire code.
+  { id: "sad", name: "Sad trollface", kind: "tp", pose: poseSadTP, seconds: 4.2 },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;

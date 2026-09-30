@@ -2797,6 +2797,7 @@ body.to-touch-play .to-touch-swap.is-context .to-touch-ctx {
 }
 .to-set-btn:hover, .to-set-btn:focus-visible { background: rgba(127,224,102,.28); outline: none; }
 .to-set-hint { display: block; font-size: 10.5px; color: #8f9a8b; margin-top: 2px; }
+.to-set-note { margin: -4px 0 6px; padding: 0 2px; }
 body.to-layout-edit .to-hud, body.to-layout-edit .to-touch { background: rgba(6,10,8,.35); }
 body.to-layout-edit .to-layout-item {
   pointer-events: auto !important; cursor: grab; touch-action: none;
@@ -2862,3 +2863,122 @@ body.to-touch-play .to-ss-cap span { font-size: calc(8px * var(--k)); }
 .to-ss-cap b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.1; }
 body.to-touch-play .to-ss-slot { width: calc(64px * var(--k)); }
 body.to-touch-play .to-ss-slot .to-ss-img { width: calc(46px * var(--k)); height: calc(38px * var(--k)); }
+
+/* -------------------- controller layout card (controller-layout.js) -------------------- */
+.to-controls-wrap { display: flex; flex-direction: column; }
+body.to-has-pad .to-controls-pad { order: -1; }   /* a pad is plugged in: its layout first */
+.to-pad-host { padding: 4px 20px 10px; }
+.to-menu-panel .to-pad-host { padding: 4px 0 8px; }
+.to-pad-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 6px; }
+.to-pad-name { font-weight: 600; font-size: 13px; color: #eaf5e4; }
+.to-pad-status { font-family: "DM Mono", monospace; font-size: 10.5px; color: #8f9a8b; }
+.to-pad-status.is-live { color: #7fe066; }
+.to-pad-picker { display: inline-flex; margin-left: auto; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; overflow: hidden; }
+.to-pad-picker button {
+  font: inherit; font-size: 11px; padding: 4px 9px; border: 0; cursor: pointer;
+  background: transparent; color: #b9c4b2;
+}
+.to-pad-picker button + button { border-left: 1px solid rgba(255,255,255,.14); }
+.to-pad-picker button[aria-pressed="true"] { background: rgba(127,224,102,.2); color: #eaf5e4; }
+.to-pad-picker button:focus-visible { outline: 2px solid #7fe066; outline-offset: -2px; }
+/* Blueprint: navy sheet, a faint grid, the pad in white line work. */
+.to-pad-svg { display: block; width: 100%; height: auto; max-height: 340px; border-radius: 10px;
+  background: radial-gradient(ellipse at 50% 40%, #174a86 0%, #0f3767 70%, #0b2b52 100%); }
+.to-pad-svg .pad-grid line { stroke: rgba(170,210,255,.12); stroke-width: 0.6; }
+.to-pad-svg .pad-shell { fill: rgba(200,228,255,.05); stroke: #e3f1ff; stroke-width: 1.8; }
+.to-pad-svg .pad-panel { fill: none; stroke: rgba(227,241,255,.55); stroke-width: 1; stroke-dasharray: 5 4; }
+.to-pad-svg .pad-dim { fill: none; stroke: rgba(227,241,255,.5); stroke-width: 1; }
+.to-pad-svg .pad-dimtext { font: 600 8px "DM Mono", monospace; fill: rgba(227,241,255,.6); letter-spacing: .12em; }
+.to-pad-svg .pad-well { fill: none; stroke: rgba(227,241,255,.45); stroke-width: 1; }
+.to-pad-svg .pad-knurl { fill: none; stroke: rgba(227,241,255,.35); stroke-width: 1; stroke-dasharray: 2 2; pointer-events: none; }
+.to-pad-svg .pad-dcore { fill: rgba(200,228,255,.1); stroke: rgba(227,241,255,.6); }
+.to-pad-svg .pad-led { fill: rgba(227,241,255,.7); }
+.to-pad-svg .pad-btn { fill: rgba(200,228,255,.1); stroke: #e3f1ff; stroke-width: 1.2; transition: fill .08s; }
+.to-pad-svg .pad-face { stroke-width: 1.6; }
+.to-pad-svg .pad-btn.is-on { fill: #7fe066; stroke: #d4ffc6; }
+.to-pad-svg .pad-glyph { font: 600 13px "DM Sans", sans-serif; fill: #e3f1ff; pointer-events: none; }
+.to-pad-svg .pad-glyph-sm { font-size: 9px; font-weight: 700; }
+.to-pad-svg .pad-glyph-xs { font-size: 5.5px; letter-spacing: .02em; }
+.to-pad-svg .pad-lead { fill: none; stroke: rgba(227,241,255,.3); stroke-width: 1; }
+.to-pad-svg .pad-call { font: 12px "DM Sans", sans-serif; fill: #c4dcf5; }
+.to-pad-svg .pad-call-key { font: 600 11px "DM Mono", monospace; fill: #ffffff; }
+.to-pad-svg .pad-callout.is-on .pad-lead { stroke: #7fe066; stroke-width: 1.6; }
+.to-pad-svg .pad-callout.is-on .pad-call { fill: #ffffff; }
+.to-pad-svg .pad-callout.is-on .pad-call-key { fill: #7fe066; }
+.to-pad-bind { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: #b9c4b2; }
+.to-pad-bind span { flex: 1 1 180px; }
+.to-pad-bind .to-set-btn[disabled] { opacity: .5; cursor: default; }
+/* The list says the same thing in text; on a wide card the drawing carries
+   it, on a narrow one (controller-layout.js .is-narrow) the pad is drawn
+   alone and the list sits under it. */
+.to-pad-list { display: none; margin-top: 8px; }
+.to-pad-host.is-narrow .pad-callout { display: none; }
+.to-pad-host.is-narrow .to-pad-svg { max-height: 220px; }
+.to-pad-host.is-narrow .to-pad-list { display: grid; }
+.to-pad-list kbd { min-width: 64px; }
+.to-pad-list kbd.is-on { background: #7fe066; color: #0d1410; border-color: #c9ffb8; }
+
+/* -------------------- Dragonfire pilot feed (game.js dragonfireHudEl) -------------------- */
+.to-df { position: absolute; inset: 0; z-index: 14; pointer-events: none; color: #dff6ff;
+  font-family: "Oswald", sans-serif; letter-spacing: .12em; }
+.to-df[hidden] { display: none; }
+body.to-in-dragonfire #to-ss-hud, body.to-in-dragonfire #to-crosshair, body.to-in-dragonfire #hud-ammo,
+body.to-in-dragonfire #to-hud-gear, body.to-in-dragonfire #to-spawnguard, body.to-in-dragonfire .to-hud-weapon { visibility: hidden; }
+.to-df-scan { position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(160,220,255,.04) 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at center, transparent 50%, rgba(0,10,20,.6) 100%); }
+.to-df-frame { position: absolute; inset: 9% 12%; }
+.to-df-frame i { position: absolute; width: 38px; height: 38px; border: 2px solid rgba(223,246,255,.75); }
+.to-df-frame i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+.to-df-frame i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+.to-df-frame i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+.to-df-frame i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+.to-df-reticle { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; transform: translate(-50%, -50%);
+  border: 2px solid rgba(223,246,255,.85); border-radius: 50%; box-shadow: 0 0 3px #000; }
+.to-df-reticle b { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: #ff5a3a; border-radius: 50%; }
+.to-df-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 18px;
+  font-size: 15px; text-shadow: 0 1px 3px #000; }
+.to-df-hp { position: absolute; left: 50%; bottom: 90px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; font-size: 12px; }
+.to-df-hp div { width: 180px; height: 5px; background: rgba(223,246,255,.2); }
+.to-df-hp i { display: block; height: 100%; background: #dff6ff; transition: width .15s; }
+.to-df-alt { position: absolute; right: 14%; top: 50%; transform: translateY(-50%); font-size: 13px; text-shadow: 0 1px 3px #000; }
+.to-df.is-low .to-df-time, .to-df.is-low .to-df-hp i { color: #ff5a3a; background-color: #ff5a3a; }
+.to-df.is-low .to-df-time { background: none; }
+
+/* -------------------- Cosmetics panel (cosmetics.js) -------------------- */
+.to-cos-hint { margin: -2px 20px 8px; font-size: 11.5px; color: #8f9a8b; }
+.to-cos-faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; padding: 0 20px 8px; }
+.to-cos-face {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 10px 10px;
+  border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04);
+  color: #dfe8da; font: 600 13px "DM Sans", sans-serif; cursor: pointer;
+}
+.to-cos-face:hover { background: rgba(255,255,255,.08); }
+.to-cos-face.is-on { border-color: #7fe066; background: rgba(127,224,102,.14); box-shadow: 0 0 0 1px #7fe066 inset; }
+.to-cos-face:focus-visible, .to-cos-tint:focus-visible { outline: 2px solid #7fe066; outline-offset: 2px; }
+.to-cos-thumb { position: relative; width: 100px; height: 76px; }
+.to-cos-thumb::before {
+  content: ""; position: absolute; inset: 0; background: var(--tint, #fff);
+  -webkit-mask: var(--art) center / contain no-repeat; mask: var(--art) center / contain no-repeat;
+}
+.to-cos-thumb img { position: relative; width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
+.to-cos-tints { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; padding: 0 20px 12px; }
+.to-cos-tint {
+  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03);
+  color: #b9c4b2; font: 500 11px "DM Sans", sans-serif; cursor: pointer;
+}
+.to-cos-tint::before {
+  content: ""; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--tint); border: 2px solid #0a0a0a; box-shadow: 0 0 0 1px rgba(255,255,255,.25);
+}
+.to-cos-tint.is-on { border-color: #7fe066; color: #eaf5e4; background: rgba(127,224,102,.12); }
+/* The operator steps right while the Cosmetics panel is open on the left. */
+.to-title[data-panel="cosmetics"] .to-char-view { left: 46%; }
+.to-title[data-panel="cosmetics"] .to-char-emote { display: none; }
+@media (max-width: 760px) {
+  .to-title[data-panel="cosmetics"] .to-char-view { left: 0; top: 56px; bottom: 58%; }
+}
+@media (max-width: 760px) {
+  .to-pf[data-panel="cosmetics"] .to-pf-center { top: 44%; }
+}

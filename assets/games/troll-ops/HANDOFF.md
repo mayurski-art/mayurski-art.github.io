@@ -25,6 +25,69 @@ Two approved design docs drive the next work, in this order:
    `tools/troll-ops-map-previews.mjs` after any map's look changes.
 Parked by the user: the park map (wants ~5 inspiration images first).
 
+## Second fix list + Dragonfire / SAM Turret / Cosmetics (2026-09-30, session 20) — `game.js?v=to-fx3`, `style.css?v=to-fx3`
+Branch `claude/nifty-bardeen-l6xrcp` (not yet merged to main). Test:
+`tools/troll-ops-fx3-test.mjs` (19 checks; in a Linux container run with
+`ANGLE=swiftshader VW=640 VH=360`, it steps streaks via updateStreakEntities
+because software GL draws only a few fps).
+- **Menu operator** (char-inspector.js): square to the camera (FACING PI,
+  REST_YAW 0, no auto sway, eases back 2.5 s after a drag), no idle head
+  glances (`rig.noIdleGlance`), rifle at port arms across the chest
+  (new `carryYaw`/`carryRoll` in character.js `_gripSupport`).
+- **Bot skill is room-wide**: bots run on the bot host (longest in the room,
+  normally whoever started it) with the host's setting. Each bot now carries
+  its tier on the wire (`bs` on a bot's state, net.js BOT_SKILLS); every
+  client reads `roomBotSkill()`; a client that takes over mid-match keeps the
+  room's tier (`roomSkillSeen`). Lobby note `#to-set-botskill-note`.
+- **+10% XP with veteran bots**: `boostedXp` at every settle point (finishRun,
+  quit, tab hidden) once veteran bots were in the room for half the match
+  (`player.matchT` / `player.vetBotT`).
+- **Controller card** (controller-layout.js, lobby Settings + Esc menu): a
+  blueprint of the user's Voyee pad (Switch Pro layout), callouts in the
+  pad's own names (Switch / Xbox / PlayStation picker), live highlights,
+  narrow mode = pad + list. **Emote on a pad = the Voyee's T button**
+  (`padEmoteButton`, localStorage `trollops:padEmote`, default "any button
+  past index 16"; "Set emote button" rebinds it, since T is often a
+  hardware turbo the browser never sees). Hold Y/Triangle is the fallback
+  (tap Y still switches weapon, on release). **L3 is free** (user wants it
+  for "the swivel" — ask what that is). Desktop stays H = emotes, T = inspect.
+- **Killcam melee**: killcam.js records `mid/sw/si/bk` per actor; replays
+  swing the sword / raise the saber guard on every body and show the
+  killer's melee viewmodel (`updateKillcamMelee`).
+- **Saber parries**: 4 zones by where the round came from (character.js
+  `parryZone`/`parryWeight`, `PARRY` poses on the body, gear.js
+  `SABER_PARRY` first person), remote bodies via `rp.startParry`.
+- **Melee reach**: keyboard 2.0 m / saber 2.2 m / reaper 1.8 / chainsaw 2.1,
+  fan of rays at 3 heights, thrusts narrower and a touch longer; bots'
+  MELEE_REACH 1.9.
+- **Death**: no viewmodel, your own body on the ground empty-handed and a
+  slow orbit camera until respawn (`updateLocalDeadBody`/`placeDeathCamera`);
+  remote bodies drop their weapons and stay down 8 s (BODY_LINGER).
+- **Dragonfire** (dragonfire.js, 750 score, LV 31, 60 s, 60 s cooldown):
+  procedural model off the user's reference (ringed ducts, desert digital
+  camo, LMG + lens under the nose), flown in first person (WASD/stick,
+  Space/A up, C/Ctrl/B down, fire), 300 hp, owner hitscan 34 dmg; wire
+  `kind:"dragonfire"` spawn/pos/shot/end. Icon `streak-icons/dragonfire.png`.
+- **SAM Turret** (sam-turret.js, 500 score, LV 22, 90 s): tripod + 2x2 pods
+  + radome off the reference; owner AI locks the nearest enemy aircraft in
+  LOS (UAV/CUAV planes, HK drones, gunships x2, warships x3, Dragonfires),
+  fires pairs of homing missiles. Shoot-downs: `shootDownAir` + wire
+  `kind:"air"` hit/down (also bullets on enemy Dragonfire/SAM). Recon planes
+  now carry a shared `eid`. `SCORE.airKill` 125 + XP.
+- **Sad trollface emote** (last in EMOTES, wire code 15): trolltruths.com's
+  sad trollface (copied from trollrunner-terminal `public/boot/trollface-sad.png`
+  to `ui/trollface-sad.png`), head hung, sobbing, wiping eyes.
+- **Cosmetics tab** (cosmetics.js): face expression (Trollface / Sad
+  trollface) + skin tint (8 colours), saved `trollops:cosmetics`, shown on
+  the menu operator and your body, sent as `fc` so others see it
+  (character.js `faceMaterial` / `setFace`, `rig.face`).
+- Not done / next: bots don't call Dragonfire or SAM (add to
+  BOT_STREAK_POOL), bots still don't shoot aircraft; more cosmetic slots
+  (the user asked for a cosmetics section; face is the first); the
+  "swivel" on L3.
+- Pre-existing failures under software GL (same on the base commit): sync,
+  bot-moves, bot-streaks killfeed, streaks-bo2/trollsaber start timeouts.
+
 ## Bot scorestreaks phase 1 (2026-09-30) — `game.js?v=to-bs1`
 - Bots we host roll 3 streaks a match (`botStreakState`, from
   `BOT_STREAK_POOL`: uav, counteruav, vsat, drone, k9, helicopter, swarm;

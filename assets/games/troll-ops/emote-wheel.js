@@ -1,6 +1,6 @@
 // Troll Forces — the emote wheel.
 //
-// Press H (controller: L3) and a radial wheel opens. Hover a slice (the
+// Press H (controller: T, or hold Triangle / Y) and a radial wheel opens. Hover a slice (the
 // mouse, locked or not, or the right stick), then click / X (controller:
 // Cross/A) plays it; H, Esc or Circle/B closes it. The stick's pick stays
 // put when the stick springs back, so it's still there when you press.
@@ -11,7 +11,7 @@
 // person), 3P (third person) or DUO. Duo emotes are greyed out until the
 // crosshair is on a teammate (setDuoTarget), and can't be picked while grey.
 
-import { EMOTES } from "./emotes.js?v=to-ads2";
+import { EMOTES } from "./emotes.js?v=to-fx3";
 
 export { EMOTES };
 
