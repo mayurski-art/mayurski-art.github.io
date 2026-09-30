@@ -107,8 +107,23 @@ because software GL draws only a few fps).
     fires on the bot's hit chance x0.8); the bot stands still while it
     flies (`bot.piloting` via botBusy) and the drone drops if the bot dies.
     Bot SAMs use the same AI as ours (`samTargets` by `botTeam`).
-- Not done / next: bots still don't shoot aircraft with their guns; more
-  cosmetic slots (face is the first); killcam doesn't record swivels.
+  - Swivel on a pad confirmed by the user: L3 alone = left, R3 alone =
+    right, both together = emotes.
+  - **Aircraft can be shot with guns** (user: bots should learn to shoot
+    aircraft). HK drones (60 hp), gunships (600) and UAV/Counter-UAV planes
+    (450) get an invisible hit sphere (`attachAirHitbox`, userData.air) on
+    top of the Dragonfire (300) and SAM (500). Our bullets hit enemy ones
+    (targetMeshes from `enemyAirFor`); the owner applies hits
+    (`damageStreakEntity`; recon planes have no owner copy, so every client
+    counts the same `air hit` messages). Warships stay out of reach.
+    `enemyAirFor(team, owner)` is the one enemy-aircraft list (SAM, bots,
+    us). **Bot anti-air** (`updateBotAntiAir`, bot host, after bots.update):
+    with no enemy seen for 1.2 s a bot turns on the nearest enemy aircraft
+    or SAM in the clear within 85 m and fires at its skill's rate, hit
+    chance scaled by size and range (BOT_AA_SIZE); a kill pays the bot
+    SCORE.airKill toward its streaks.
+- Not done / next: more cosmetic slots (face is the first); killcam doesn't
+  record swivels.
 - Pre-existing failures under software GL (same on the base commit): sync,
   bot-moves, bot-streaks killfeed, streaks-bo2/trollsaber start timeouts.
 

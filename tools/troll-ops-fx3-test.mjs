@@ -253,6 +253,41 @@ const botCalls = await page.evaluate(async () => {
 });
 check("bots call Dragonfire (and fly it, standing still) and SAM Turrets", botCalls.df && botCalls.sam && botCalls.flew > 1 && botCalls.piloting, botCalls);
 
+// --- bots shoot enemy aircraft with their guns
+const aa = await page.evaluate(() => {
+  const T = window.__trollOps;
+  const b = T.bots.bots.find((x) => x.alive && !x.piloting);
+  if (!b) return { none: true };
+  const enemy = b.team === "phantom" ? "ghost" : "phantom";
+  // Earlier steps left SAM Turrets up; they'd take the gunship first.
+  for (const [id, e] of [...T.streakEntities]) if (e.constructor.name === "SamTurret") { e.dispose(); T.streakEntities.delete(id); }
+  const heli = T.spawnHelicopter({ id: "aa-heli", seed: 90, owned: true, team: enemy });
+  for (let i = 0; i < 140; i++) T.updateStreakEntities(0.05);   // onto its orbit
+  const hp0 = heli.hp;
+  // Park the bot under the orbit with a clear sky and nobody else to fight.
+  // Walk the bot round under the orbit (it moves every couple of seconds),
+  // on the ground, so some spots have open sky over them.
+  let shots = 0, noTarget = 0;
+  for (let i = 0; i < 700 && T.streakEntities.has("aa-heli"); i++) {
+    b.lastSeen = null;
+    b.reloadT = 0;
+    b.hp = 1e6;   // the gunship shoots back; keep the test about the bot's aim
+    const ang = Math.floor(i / 40) * 1.1;
+    const gx = heli.root.position.x + Math.cos(ang) * 8, gz = heli.root.position.z + Math.sin(ang) * 8;
+    const gy = T.groundHeightAt(T.colliders, gx, gz, 40) ?? 0;
+    b.pos.set(gx, gy, gz);
+    b.groundY = gy;
+    const before = heli.hp;
+    T.updateBotAntiAir(0.05);
+    T.updateStreakEntities(0.05);
+    if (heli.hp < before) shots++;
+    if (!b.aa) noTarget++;
+  }
+  return { hp0, hp: heli.hp, hits: shots, noTarget, down: !T.streakEntities.has("aa-heli"), inList: T.enemyAirFor(b.team, b.id).some((a) => a.id === "aa-heli"),
+    staging: T.isStaging(), state: T.state(), alive: b.alive, melee: !!b.meleeOnly, air: !!b.airborne, pilot: b.piloting || null };
+});
+check("bots shoot enemy aircraft with their guns (a gunship takes real damage)", aa.hits >= 5 && aa.hp0 - aa.hp >= 80, aa);
+
 // --- dying shows the body, not the guns
 await page.evaluate(() => {
   const T = window.__trollOps;

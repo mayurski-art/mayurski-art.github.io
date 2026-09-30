@@ -828,7 +828,7 @@ function fireStreak(id, at = null) {
           x: round2(move.pos.x), z: round2(move.pos.z), yaw: round2(yaw),
         });
       }
-      spawnRecon(round2(move.pos.x), move.pos.z, round2(yaw), STREAK_DEFS.uav.duration, { team });
+      spawnRecon(round2(move.pos.x), move.pos.z, round2(yaw), STREAK_DEFS.uav.duration, { team, caller: net.id });
       showWaveBanner("UAV ONLINE", 1600);
       // Up, thumb CONFIRM, a beat on "UAV ONLINE", down (DESIGN-ARMS.md Phase 5).
       beginStreakHold(1.4, "tablet", "uav");
@@ -859,7 +859,7 @@ function fireStreak(id, at = null) {
           x: round2(move.pos.x), z: round2(move.pos.z), yaw: round2(yaw),
         });
       }
-      spawnRecon(round2(move.pos.x), move.pos.z, round2(yaw), def.duration, { counter: true, team: net.team });
+      spawnRecon(round2(move.pos.x), move.pos.z, round2(yaw), def.duration, { counter: true, team: net.team, caller: net.id });
       showWaveBanner("COUNTER-UAV ONLINE", 1600);
       beginStreakHold(1.4, "tablet", "counteruav");
       break;
@@ -1059,6 +1059,7 @@ function launchPendingDrone() {
 
 function spawnDrone({ id, targetId, owned, pos, yaw = 0, sky = false, credit = "drone" }) {
   const drone = new HunterDrone({ id, owned, targetId, pos, yaw, sky, credit });
+  attachAirHitbox(drone, 0.7, AIR_HP.drone);
   streakEntities.set(id, drone);
   scene.add(drone.root);
   if (!sky) audio.wave();   // a Swarm is two dozen of them
@@ -1248,11 +1249,26 @@ function spawnAirstrike({ x, z, yaw, owned, team, delay = AIRSTRIKE_DELAY }) {
   return run;
 }
 
+/* Bullets can bring aircraft down (user: bots should shoot aircraft with
+   their guns; so can people). An invisible hit volume on the airframe
+   (game.js resolveStreakKit reads userData.air) and a health pool; the
+   owner applies hits (damageStreakEntity), recon planes on every client. */
+const AIR_HP = { drone: 60, heli: 600, recon: 450 };
+const _airHitMat = new THREE.MeshBasicMaterial({ visible: false });
+function attachAirHitbox(e, radius, hp) {
+  e.hp = hp;
+  const m = new THREE.Mesh(new THREE.SphereGeometry(radius, 8, 6), _airHitMat);
+  m.userData.air = e;
+  e.root.add(m);
+  e.hitbox = m;
+}
+
 function spawnHelicopter({ id, seed, owned, team }) {
   const bounds = builtMap?.map?.bounds || { minX: ARENA.minX, maxX: ARENA.maxX, minZ: ARENA.minZ, maxZ: ARENA.maxZ };
   const heli = new HelicopterGunship({
     id, owned, bounds, seed, team, lights: lightPool, duration: STREAK_DEFS.helicopter.duration,
   });
+  attachAirHitbox(heli, 3.2, AIR_HP.heli);
   streakEntities.set(id, heli);
   scene.add(heli.root);
   audio.wave();
@@ -1398,35 +1414,43 @@ function streakHostileToMe(e) {
 /* Aircraft a SAM on `team` (owned by `botId`, or us) should shoot at:
    { id, pos, need } where `need` is how many missiles bring it down. */
 const _airPos = new THREE.Vector3();
-function samTargets(sam) {
+/* Enemy aircraft for a side: { id, pos, need, e } where `need` is how many
+   SAM missiles bring it down and `e` the entity (or recon plane). `team` is
+   the side looking; `owner` whose kit to leave alone in FFA (net.id for
+   us, a bot's id). Used by SAM Turrets, bots' guns and our own bullets. */
+function enemyAirFor(team, owner) {
   const ffa = !!currentMode().ffa;
-  const team = sam.botId ? sam.botTeam || sam.team : sam.team;
-  const hostile = (t, ownedByMe) => ffa ? !ownedByMe : !!t && t !== team;
+  const ownerOf = (e) => (e.botId || (e.owned ? net.id : e.ownerId || null));
+  const hostile = (t, e) => ffa ? ownerOf(e) !== owner : !!t && t !== team;
   const out = [];
   for (const e of streakEntities.values()) {
-    if (e === sam || e.dead) continue;
-    const mine = e.owned && !e.botId && !sam.botId;
+    if (e.dead) continue;
     if (e instanceof Dragonfire) {
-      if (e.alive && e.launched && hostile(e.botTeam || e.team, mine)) out.push({ id: e.id, pos: e.pos, need: 1 });
+      if (e.alive && e.launched && hostile(e.botTeam || e.team, e)) out.push({ id: e.id, pos: e.pos, need: 1, e });
     } else if (e instanceof HelicopterGunship) {
-      if (e.onStation && hostile(e.botTeam || e.team, mine)) out.push({ id: e.id, pos: e.root.position, need: 2 });
+      if (e.onStation && hostile(e.botTeam || e.team, e)) out.push({ id: e.id, pos: e.root.position, need: 2, e });
     } else if (e instanceof VtolWarship) {
-      if (e.onStation && hostile(e.team, mine)) out.push({ id: e.id, pos: e.root.position, need: 3 });
+      if (e.onStation && hostile(e.team, e)) out.push({ id: e.id, pos: e.root.position, need: 3, e });
     } else if (e instanceof HunterDrone) {
-      // Its side is whoever it's hunting's enemy: hunting us or ours = hostile.
+      // Its side is its hunter's: hunting us or ours = it's the enemy's.
       let t = e.botTeam || null;
       if (!t && !e.owned) {
         const tp = e.targetId === net.id ? net.team : net.peers.get(e.targetId)?.team;
         t = tp && !ffa ? (tp === "phantom" ? "ghost" : "phantom") : null;
       } else if (!t && e.owned) t = net.team;
-      if (e.root.position.y > 3 && (ffa ? !mine : hostile(t, mine))) out.push({ id: e.id, pos: e.root.position, need: 1 });
+      if (e.root.position.y > 3 && hostile(t, e)) out.push({ id: e.id, pos: e.root.position, need: 1, e });
     }
   }
   for (const f of flyovers) {
     if (!f.eid || f.done || f.dead || f.age < 3 || f.age > f.duration) continue;
-    if (hostile(f.team, f.team === net.team && !sam.botId)) out.push({ id: f.eid, pos: f.root.position, need: 1 });
+    if (ffa ? f.caller !== owner : hostile(f.team, f)) out.push({ id: f.eid, pos: f.root.position, need: 1, e: f });
   }
   return out;
+}
+
+function samTargets(sam) {
+  const team = sam.botId ? sam.botTeam || sam.team : sam.team;
+  return enemyAirFor(team, sam.botId || (sam.owned ? net.id : null)).filter((t) => t.e !== sam);
 }
 
 function airTargetPos(id) {
@@ -1492,7 +1516,14 @@ function samMissileHit(sam, targetId) {
 }
 
 /* Bullets (or a Dragonfire's gun) on streak kit: its owner applies it. */
-function damageStreakEntity(e, dmg, byId) {
+function damageStreakEntity(e, dmg, byId, fromWire = false) {
+  if (e instanceof ReconPlane) {
+    // No owner copy to defer to: every client counts the same hits.
+    e.hp -= dmg;
+    if (!fromWire && net.active) net.publishStreak({ kind: "air", action: "hit", eid: e.eid, dmg: Math.round(dmg), by: byId });
+    if (e.hp <= 0) shootDownAir(e.eid, byId, false);
+    return;
+  }
   if (e.owned) {
     e.hp -= dmg;
     if (e.hp <= 0) shootDownAir(e.id, byId, true);
@@ -1534,6 +1565,8 @@ function shootDownAir(eid, byId, announce = false) {
     flyovers.splice(flyovers.indexOf(plane), 1);
   }
   samHitCount.delete(eid);
+  const botShooter = byId && bots.byId(byId);
+  if (botShooter) botEarn(botShooter, SCORE.airKill);
   if (byId && byId === net.id && !mine) {
     awardScore(SCORE.airKill);
     addMatchXp(XP.kill, "AIRCRAFT DOWN");
@@ -1873,13 +1906,15 @@ function launchSwarmDrone(victim, run = null) {
 /* UAV's world presence: a spotter plane circling the map for the UAV's
    duration (ReconPlane). Purely decorative — enemiesRevealed()/uavUntil own
    the reveal; the heading just seeds where on the orbit it comes in. */
-function spawnRecon(x, z, yaw, duration = STREAK_DEFS.uav.duration, { team = null, counter = false } = {}) {
+function spawnRecon(x, z, yaw, duration = STREAK_DEFS.uav.duration, { team = null, counter = false, caller = null } = {}) {
   const bounds = builtMap?.map?.bounds || ARENA;
   const plane = new ReconPlane({ bounds, yaw, duration, counter });
   plane.team = team;
   // The same id on every client (from the call's rounded x and yaw, which
   // is what the wire carries), so a SAM Turret can shoot one down for all.
   plane.eid = `recon:${counter ? 1 : 0}:${Math.round(yaw * 100)}:${Math.round(x * 100)}`;
+  plane.caller = caller;
+  attachAirHitbox(plane, 2.8, AIR_HP.recon);
   flyovers.push(plane);
   scene.add(plane.root);
   return plane;
@@ -1949,7 +1984,7 @@ function applyCounterUav(m) {
   const def = STREAK_DEFS.counteruav;
   const dur = m.duration || def.duration;
   if (typeof m.x === "number" && typeof m.z === "number") {
-    spawnRecon(m.x, m.z, m.yaw || 0, dur, { counter: true, team: m.team });
+    spawnRecon(m.x, m.z, m.yaw || 0, dur, { counter: true, team: m.team, caller: m.id || null });
   }
   const enemy = currentMode().ffa || !net.team || m.team !== net.team;
   if (!enemy) { showWaveBanner("FRIENDLY COUNTER-UAV", 1500); return; }
@@ -2452,7 +2487,7 @@ function botFireStreak(b, id) {
     case "uav": {
       const yaw = Math.random() * Math.PI * 2;
       startUav(b.team, def.duration);
-      spawnRecon(round2(b.pos.x), b.pos.z, round2(yaw), def.duration, { team: b.team });
+      spawnRecon(round2(b.pos.x), b.pos.z, round2(yaw), def.duration, { team: b.team, caller: b.id });
       if (net.active) net.publishStreak({ kind: "uav", action: "start", team: b.team, duration: def.duration, x: round2(b.pos.x), z: round2(b.pos.z), yaw: round2(yaw) });
       callout("UAV");
       break;
@@ -2616,7 +2651,7 @@ function applyRemoteStreak(m) {
       if (m.action === "start") {
         startUav(m.team, m.duration || STREAK_DEFS.uav.duration);
         if (typeof m.x === "number" && typeof m.z === "number") {
-          spawnRecon(m.x, m.z, m.yaw || 0, m.duration || STREAK_DEFS.uav.duration, { team: m.team });
+          spawnRecon(m.x, m.z, m.yaw || 0, m.duration || STREAK_DEFS.uav.duration, { team: m.team, caller: m.id || null });
         }
         // Only say so when it's our side's UAV — an enemy one reveals us to
         // them, which is not something we'd be told about.
@@ -2766,6 +2801,10 @@ function applyRemoteStreak(m) {
     case "air": {
       const e = streakEntities.get(m.eid);
       if (m.action === "hit" && e && e.owned) damageStreakEntity(e, +m.dmg || 0, m.by);
+      else if (m.action === "hit" && !e) {
+        const plane = flyovers.find((f) => f.eid === m.eid);
+        if (plane) damageStreakEntity(plane, +m.dmg || 0, m.by, true);
+      }
       else if (m.action === "down") shootDownAir(m.eid, m.by);
       break;
     }
@@ -7449,6 +7488,73 @@ function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = 
   botDealDamage(bot, target.id, dmg, isHead, wid);
 }
 
+/* Bots shoot enemy aircraft (user): when nobody on the ground has their
+   attention (no enemy seen for a moment), a bot turns its gun on the
+   nearest enemy aircraft it can see within BOT_AA_RANGE and fires at its
+   own rate and accuracy, harder to hit the smaller and faster it is. The
+   rounds are drawn and sent like any bot shot; damage goes to the
+   aircraft's owner (damageStreakEntity). SAM Turrets on the ground count
+   too. */
+const BOT_AA_RANGE = 85;
+const BOT_AA_SIZE = { drone: 0.35, dragonfire: 0.55, heli: 0.95, recon: 0.6, sam: 1 };
+const _aaEye = new THREE.Vector3(), _aaDir = new THREE.Vector3();
+function botAirTargets(b) {
+  const list = enemyAirFor(b.team, b.id).filter((a) => !(a.e instanceof VtolWarship));
+  const ffa = !!currentMode().ffa;
+  for (const e of streakEntities.values()) {
+    if (!(e instanceof SamTurret) || !e.alive) continue;
+    const owner = e.botId || (e.owned ? net.id : null);
+    if (ffa ? owner !== b.id : (e.botTeam || e.team) !== b.team) list.push({ id: e.id, pos: e.pos.clone().setY(e.pos.y + 1.1), e });
+  }
+  return list;
+}
+function updateBotAntiAir(dt) {
+  if (isStaging()) return;
+  for (const b of bots.bots) {
+    if (!b.alive || b.airborne || b.meleeOnly || b.piloting || botBusy(b) || b.reloadT > 0) { b.aa = null; continue; }
+    if (b.lastSeen && b.lastSeen.age < 1.2) { b.aa = null; continue; }   // busy with people
+    b.aaT = (b.aaT || 0) - dt;
+    _aaEye.set(b.pos.x, (b.groundY ?? b.pos.y) + 1.5, b.pos.z);
+    if (!b.aa || b.aaT <= -1.5) {
+      // Re-pick now and then: the nearest one in the clear.
+      let best = null, bestD = BOT_AA_RANGE;
+      for (const a of botAirTargets(b)) {
+        const d = a.pos.distanceTo(_aaEye);
+        if (d > bestD) continue;
+        _aaDir.copy(a.pos).sub(_aaEye).divideScalar(d);
+        if (raycastWorld(colliders, _aaEye, _aaDir, d) < d - 1.5) continue;
+        best = a; bestD = d;
+      }
+      b.aa = best ? { id: best.id } : null;
+      b.aaT = Math.max(0, b.aaT);
+    }
+    if (!b.aa) continue;
+    const a = botAirTargets(b).find((x) => x.id === b.aa.id);
+    if (!a) { b.aa = null; continue; }
+    // Face it; the reaction beat before the first round.
+    b.yaw = Math.atan2(-(a.pos.x - b.pos.x), -(a.pos.z - b.pos.z));
+    b.pitch = Math.atan2(a.pos.y - _aaEye.y, Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z));
+    if (b.aaT > 0) continue;
+    const diff = b.diff || {};
+    b.aaT = (diff.interval ?? 0.85) * (0.8 + Math.random() * 0.4);
+    const kind = a.e instanceof HunterDrone ? "drone" : a.e instanceof Dragonfire ? "dragonfire" : a.e instanceof HelicopterGunship ? "heli" : a.e instanceof SamTurret ? "sam" : "recon";
+    const d = a.pos.distanceTo(_aaEye);
+    const hit = Math.random() < (diff.hit ?? 0.45) * BOT_AA_SIZE[kind] * Math.max(0.35, 1 - d / 140);
+    const fwdX = -Math.sin(b.yaw), fwdZ = -Math.cos(b.yaw);
+    _botMuzzle.set(b.pos.x + fwdX * 0.5, _aaEye.y - 0.05, b.pos.z + fwdZ * 0.5);
+    _botAim.copy(a.pos);
+    if (!hit) { _botAim.x += (Math.random() - 0.5) * 4; _botAim.y += (Math.random() - 0.5) * 3; _botAim.z += (Math.random() - 0.5) * 4; }
+    const dir = _botAim.clone().sub(_botMuzzle).normalize();
+    const wid = b.weaponId || "problem416";
+    remoteShotFx(_botMuzzle, dir, wid);
+    if (net.active) net.reportShotAs(b.id, _botMuzzle, dir, wid);
+    if (hit) {
+      spawnImpactBurst(a.pos, 0xffd08a, 4);
+      damageStreakEntity(a.e, diff.damage ?? 17, b.id);
+    }
+  }
+}
+
 /* Damage a bot we host deals to anyone: us, another of our bots, or a remote
    player (who applies it to themselves when the hit arrives). */
 function botDealDamage(bot, targetId, dmg, isHead, wid) {
@@ -10461,6 +10567,7 @@ function animate() {
           lodNear: isRoyale() ? humanEyes() : null,
         });
         updateBotStreaks(dt);
+        updateBotAntiAir(dt);
         for (const b of bots.bots) net.publishBot(b);
       } else if (bots.count) {
         for (const b of bots.bots) net.dropBot(b.id);
@@ -10475,7 +10582,11 @@ function animate() {
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
       for (const e of streakEntities.values()) {
         if (e instanceof K9Pack && k9Hostile(e)) targetMeshes.push(...e.hitMeshes());
-        else if ((e instanceof Dragonfire || e instanceof SamTurret) && streakHostileToMe(e)) targetMeshes.push(...e.hitMeshes());
+        else if (e instanceof SamTurret && streakHostileToMe(e)) targetMeshes.push(...e.hitMeshes());
+      }
+      for (const a of enemyAirFor(net.team, net.id)) {
+        if (a.e instanceof Dragonfire) targetMeshes.push(...a.e.hitMeshes());
+        else if (a.e.hitbox && a.e.hp > 0) targetMeshes.push(a.e.hitbox);
       }
 
       if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
@@ -13131,7 +13242,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,
     spawnK9, spawnWarship, spawnDragonfire, spawnSam, dragonfire: () => dragonfire, dragonfireView, samTargets, shootDownAir,
     fireDragonfire, roomBotSkill, boostedXp, veteranBoostOn, weaponRig, localHeld, MELEE_DEFS, saberParry,
-    trySwivel, swivel, tabletDive: () => tabletDive, tabletDiveDip, botFireStreak, BOT_STREAK_POOL,
+    trySwivel, swivel, tabletDive: () => tabletDive, tabletDiveDip, botFireStreak, BOT_STREAK_POOL, updateBotAntiAir, enemyAirFor,
     warship: () => warship, warshipView, warshipGun: () => warshipGun, fireWarship, toggleWarshipGun,
     swarmRuns, damageDog, K9Pack, VtolWarship, WARSHIP_GUNS, K9,
     nearestHostileTo, strikeImpact, spawnAirstrike, pickDroneTarget, nearbyPackage, updatePickupPrompt,
