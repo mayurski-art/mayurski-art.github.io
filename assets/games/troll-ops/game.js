@@ -9,10 +9,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
-import { WeaponInspector } from "./inspector.js?v=hw2";
+import { WeaponInspector } from "./inspector.js?v=hw3";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
 import { CharacterInspector } from "./char-inspector.js?v=gm1";
-import { Loadout } from "./loadout.js?v=hw2";
+import { Loadout } from "./loadout.js?v=hw3";
 import { StreakPicker } from "./streak-picker.js?v=cuav1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=cuav1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -33,7 +33,7 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti3";
 import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-tr1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=hw2";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=hw3";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-sb1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes2";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
@@ -61,7 +61,7 @@ import { kickCurve } from "./attachments.js";
 import { WaveSpawner } from "./enemies.js";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, chainsawRevAt } from "./gear.js?v=hw2";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, chainsawRevAt } from "./gear.js?v=hw3";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts2";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
@@ -9864,7 +9864,9 @@ function updateMeleeView(dt) {
   // Only while the gun is what we hold: this used to re-show it every frame,
   // so it stayed on screen beside the streak tablet and marker.
   if (activeWeaponMesh) activeWeaponMesh.visible = player.holding === "gun" && !swinging;
-  saberArmsOn = !!saber && mesh.visible && inspectT <= 0 && player.alive;
+  // Every melee weapon is held by the real arms now (gloves, or the black
+  // rods), not the old white block hands. The saber lets go for its inspect.
+  saberArmsOn = mesh.visible && player.alive && (!saber || inspectT <= 0);
   if (!saberArmsOn && saberArmsWere) { gloveRig.visible = false; pfArms.visible = false; }
   saberArmsWere = saberArmsOn;
   if (!mesh.visible) { meleeIdleT = 0; saberBlock.t = 0; return; }
@@ -9983,7 +9985,7 @@ function updateMeleeView(dt) {
   mesh.userData.tick?.(dt, swinging, rev);
 
   if (saber) updateSaberFx(mesh, saber, swinging, dt);
-  if (saberArmsOn) poseSaberArms(mesh);
+  if (saberArmsOn) (saber ? poseSaberArms(mesh) : poseMeleeArms(mesh));
 }
 const MELEE_IDLE_PERIOD = 3.2;
 const _meleeIdleEuler = new THREE.Euler();
@@ -10292,7 +10294,12 @@ function updateFpEmoteView() {
     arm.hand.rotation.set(h.rot[0], h.rot[1], h.rot[2], "YXZ");
     poseHumanHand(arm.hand, h.pose);
     if (dressStreakArm(arm, i, true, h.pose)) return;
-    layStreakArm(arm, i);
+    // Gloves off: the black rods act the emote out, no fingers at all (user:
+    // "it makes it even funnier"). The white hand stays posed, unseen, as the
+    // point the rod reaches for.
+    arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = false;
+    arm.rod.visible = true;
+    stretchBetween(arm.rod, STREAK_SHOULDER[i], arm.hand.position);
   });
 }
 
@@ -10511,9 +10518,9 @@ function applyGunInspect(mesh, w) {
   const long = inspectT > 0 && player.holding === "gun" && isLongGunInspect(w);
   const t = long ? inspectProgress() : 0;
   const blend = long ? rise(t, 0, 0.14) * (1 - rise(t, 0.86, 1)) : 0;
-  // With the gloves on they stay on the gun through the inspect; the old
-  // white showcase arms only stand in for the rods.
-  inspectArms.visible = blend > 0.12 && !glovesOn();
+  // Gloves or rods, the arms stay on the gun through the inspect (user:
+  // no white hands anywhere; the old showcase arms are retired).
+  inspectArms.visible = false;
   if (blend <= 0) return;
 
   const [yaw, twist, tilt, x, y, dz] = sampleKeys(GUN_INSPECT_KEYS, t, _gunKey);
@@ -10769,6 +10776,7 @@ function poseSaberArms(mesh) {
   const gl = glovesOn();
   pfArms.visible = !gl;
   gloveRig.visible = gl;
+  showBothGloves();
   mesh.updateMatrixWorld(true);
   mesh.getWorldQuaternion(_saQ);
   _saA.set(0, 0, -1).applyQuaternion(_saQ);          // up the blade
@@ -10795,6 +10803,57 @@ function poseSaberArms(mesh) {
   }
 }
 
+/* The other melee weapons (Keyboard Warrior, Chainsaw, Reaper's Grin): their
+   built block hands stay as invisible grip points (they still get tossed
+   and caught by the keyboard's inspect, so the arms follow), and the gloves
+   or the black rods take them, fists wrapped round each hand's grip axis
+   (userData.gripAxis in the hand's own frame, default its -Z). A one-handed
+   weapon's other arm stays down. */
+const _meleeAxisDefault = new THREE.Vector3(0, 0, -1);
+function poseMeleeArms(mesh) {
+  const gl = glovesOn();
+  pfArms.visible = !gl;
+  gloveRig.visible = gl;
+  showBothGloves();
+  mesh.updateMatrixWorld(true);
+  const hands = meleeHands(mesh);
+  const rods = pfArms.userData.rods;
+  for (let i = 0; i < 2; i++) {
+    const h = hands[i]?.obj;
+    if (h) h.visible = false;
+    if (!h) {
+      rods[i].visible = false;
+      if (gloves) gloves[i].root.visible = gloves[i].sleeve.visible = false;
+      continue;
+    }
+    h.updateMatrixWorld(true);
+    h.getWorldPosition(_saP);
+    h.getWorldQuaternion(_saQ);
+    _saA.copy(h.userData.gripAxis || _meleeAxisDefault).applyQuaternion(_saQ).normalize();
+    if (!gl) {
+      rods[i].visible = true;
+      stretchBetween(rods[i], PF_ARM_SHOULDER[i], _saP);
+      continue;
+    }
+    _saT.subVectors(PF_ARM_SHOULDER[i], _saP);
+    _saT.addScaledVector(_saA, -_saA.dot(_saT)).normalize();
+    _saX.crossVectors(_saA, _saT);
+    _saM.makeBasis(_saX, _saA, _saT);
+    const g = gloves[i];
+    g.root.quaternion.setFromRotationMatrix(_saM);
+    _gloveOff.copy(SABER_GLOVE_OFF[i]).applyQuaternion(g.root.quaternion);
+    g.root.quaternion.multiply(i === 0 ? GLOVE_GRIP_Q : GLOVE_FOREGRIP_Q);
+    poseGlove(g, "foregrip");
+    finishGlove(g, i, _saP);
+  }
+}
+
+/* A one-handed melee weapon hides a glove; everything else wants both. */
+function showBothGloves() {
+  if (!gloves) return;
+  for (const g of gloves) g.root.visible = g.sleeve.visible = true;
+}
+
 const _pfTip = new THREE.Vector3();
 const _pfMag = new THREE.Vector3();
 const _pfDown = new THREE.Vector3();
@@ -10807,6 +10866,7 @@ function posePfArms(mesh, magBlend = 0) {
   pfArms.visible = show && !gl;
   gloveRig.visible = show && gl;
   if (!show) return;
+  showBothGloves();
   mesh.updateMatrixWorld(true);
   // [grip, support]: the support hand is the one parked at supportHandPos
   // (build order differs between weapon-model.js and weapon-416.js).

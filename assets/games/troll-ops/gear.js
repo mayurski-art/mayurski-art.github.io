@@ -404,7 +404,10 @@ export function buildMeleeMesh(def, includeHands = true) {
         // The other hand on the hoop over the powerhead.
         const support = buildSupportHand(MELEE_HAND_SCALE * 0.85);
         support.userData.hand = true;
-        support.position.set(0, 0.12, -0.26);
+        // The hoop runs across the saw (weapon +X): in this quarter-turned
+        // hand's own frame that's -Y. game.js wraps the real arms round it.
+        support.userData.gripAxis = new THREE.Vector3(0, -1, 0);
+        support.position.set(0, 0.175, -0.268);
         support.rotation.z = Math.PI / 2;
         w.add(support);
       }

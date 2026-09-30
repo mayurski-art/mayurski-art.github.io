@@ -2,11 +2,18 @@
 
 ## RESUME HERE (2026-09-29, end of session) — read this first
 Everything below is pushed to main and live (`troll-ops.html` loads
-`game.js?v=to-cuav1`). Worktree: `to-opus-wt`, branch `game-improvements`;
+`game.js?v=to-arms1`). Worktree: `to-opus-wt`, branch `game-improvements`;
 push = `git push origin game-improvements:main`, then `git pull --ff-only`
 in the main checkout, then curl the live `?v=` tag.
 
 ### Shipped this session (newest first)
+- **No white hands anywhere** (user). Melee (keyboard, chainsaw, reaper)
+  now held by the gloves or the PF rods like the saber (`poseMeleeArms`: the
+  block hands are invisible grip points, `userData.gripAxis` per hand; the
+  chainsaw support hand sits on the hoop top). Gloves-off FP emotes = the
+  rods act them out with no fingers (user: funnier, "its trolling"). Gun
+  inspect with gloves off keeps the rods on the gun (white showcase arms
+  retired: `inspectArms` never shown).
 - **Batch of six fixes (user list, 2026-09-29 evening)**. Test:
   `tools/troll-ops-cuav-cooldown-test.mjs` (19 checks); streaks-bo2,
   trollsaber and emote suites still green.
