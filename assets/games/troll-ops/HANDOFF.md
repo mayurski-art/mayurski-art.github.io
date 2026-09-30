@@ -16,6 +16,20 @@ enemy), how it's voiced (TTS? recorded? which provider), the audio.js
 hooks it plugs into, a volume/voice setting, and a rule for how often chatter
 fires so it doesn't spam in a 100-troll Royale.
 
+## BACKLOG: open asks from the 2026-09-30 list — waiting on the user
+- **Purge XP** ("purge xp level in players to incentivize using terminal
+  site to earn xp?"). Not done. The Troll Forces XP cut to a tenth and the
+  user's own reset to LV 69 may cover it; ask before touching anyone
+  else's XP. A reset of all players can't be undone: back up
+  troll_profiles / troll_xp_events first.
+- **Game tournaments paid in $TRUTHS.** Not started. Needs a design doc
+  first: entry fee or free entry, prize pool and payout (troll-pay.js is the
+  live Solana lib), which games, anti-cheat (Troll Forces is
+  client-authoritative, so scores are forgeable), and the legal side (paid
+  entry + token prizes can count as gambling/sweepstakes). $TRUTHS is the
+  terminal's own coin with a no-shill boundary (memory
+  truths-token-terminal-coin).
+
 ## Troll Royale: 100 trolls, landing roll, Grin Site spawn (2026-09-30) — `game.js?v=to-r100`
 - **100 trolls** on Trollface Island (`royale.players` in trollface-island.js);
   real players each take one bot's place (bots.fill already did that).
