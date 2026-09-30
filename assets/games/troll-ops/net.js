@@ -228,7 +228,8 @@ export class Net {
         p.emote = m.em | 0;   // 1-based emote index, 0 = none
         p.blocking = !!m.bl;  // Trollsaber guard up
         // keep a short history so the renderer can interpolate in the past
-        p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv });
+        p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
+          ads: Math.max(0, Math.min(1, +m.ad || 0)) });
         if (p.snaps.length > 12) p.snaps.shift();
         break;
       }
@@ -354,6 +355,7 @@ export class Net {
         d: local.deaths | 0, as: local.assists | 0,
         em: local.emote || undefined,
         bl: local.block ? 1 : undefined,
+        ad: local.ads > 0.01 ? round2(local.ads) : undefined,   // aiming down sights, 0..1
       });
     }
     const now = performance.now();
@@ -384,7 +386,7 @@ export class Net {
     const snap = {
       t: performance.now(),
       x: bot.pos.x, y: bot.pos.y, z: bot.pos.z,
-      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: !!bot.moving,
+      yaw: bot.yaw, pitch: bot.pitch, stance: "stand", moving: !!bot.moving, ads: bot.ads || 0,
     };
     let p = this.peers.get(bot.id);
     if (!p) {
@@ -423,6 +425,7 @@ export class Net {
       ry: round2(bot.yaw), rp: 0, st: "stand", mv: 1,
       hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,
       w: p.weapon, tm: bot.team, n: bot.name, k: bot.kills | 0, d: bot.deaths | 0,
+      ad: bot.ads > 0.01 ? round2(bot.ads) : undefined,
     });
   }
 

@@ -9,7 +9,7 @@
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { MovementController } from "./movement.js?v=ti1";
-import { buildHumanoid, poseHumanoid, gaitPhaseRate } from "./character.js?v=to-sb1";
+import { buildHumanoid, poseHumanoid, gaitPhaseRate } from "./character.js?v=to-ads1";
 
 // ---------- renderer / scene ----------
 const stage = document.getElementById("stage");

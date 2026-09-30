@@ -11,9 +11,9 @@ import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1"
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
 import { WeaponInspector } from "./inspector.js?v=hw3";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
-import { CharacterInspector } from "./char-inspector.js?v=gm1";
-import { Loadout } from "./loadout.js?v=lv3";
-import { StreakPicker } from "./streak-picker.js?v=lv3";
+import { CharacterInspector } from "./char-inspector.js?v=to-ads1";
+import { Loadout } from "./loadout.js?v=lv4";
+import { StreakPicker } from "./streak-picker.js?v=lv4";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=lv3";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
 import {
@@ -31,17 +31,17 @@ import { KillCam } from "./killcam.js?v=to-s12h-death";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP } from "./progression.js?v=lv3";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti3";
-import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-tr1";
+import { Net, makeRoomCode, MAX_PLAYERS, isSyntheticId } from "./net.js?v=to-ads1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=hw3";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-sb1";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-emotes2";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-emotes1";
+import { RemotePlayers, TEAMS, STANCE_LOWER } from "./remote-players.js?v=to-ads1";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES } from "./character.js?v=to-ads1";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-ads1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-ads1";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tr3";
-import { BotManager } from "./bots.js?v=to-rd1";
+import { BotManager } from "./bots.js?v=to-ads1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
 import { GameAudio } from "./audio.js?v=hw2";
 import { insidePolygon } from "./edge.js";
@@ -2848,7 +2848,10 @@ window.addEventListener("trollrunner:auth-changed", () => {
   renderCallsign();
   renderProfileBtn();
   renderLobbyRoster();
-  loadout.render();
+  // Picks locked by the guest level at page load come back now that the
+  // account level is known (phones: the profile often lands after the lobby).
+  if (!loadout.restoreSaved()) loadout.render();
+  streakPicker.restore();
   void syncXp()?.then(() => loadout.render());
 });
 
@@ -5808,6 +5811,9 @@ function setHolding(what) {
 function switchWeapon(slot) {
   if (warshipView()) { toggleWarshipGun(); return; }
   if (isInfected()) return;
+  // Mid-streak the tablet/marker is in your hands; a swap would yank it away
+  // and leave you on the other gun once the streak is done.
+  if (player.holding === "streak") return;
   const id = slot === "secondary" ? player.secondaryId : player.weaponId;
   if (!id || !player.weapons[id]) return;
   const w = player.weapons[id];
@@ -5827,6 +5833,7 @@ function switchWeapon(slot) {
    there isn't one (Gun Game, One in the Chamber, or no sidearm picked up
    yet) rather than landing on a dead slot. */
 function cycleWeapon() {
+  if (player.holding === "streak") return;   // same reason as switchWeapon
   const order = ["primary", ...(player.secondaryId ? ["secondary"] : []), "melee"];
   const current = player.holding === "melee" ? "melee" : currentWeaponSlot;
   const at = order.indexOf(current);
@@ -5844,14 +5851,17 @@ function cycleWeapon() {
    "hold X on the thing at your feet" is one idea, not three. */
 let pkgHoldT = 0;
 function updatePickupPrompt(dt) {
-  const padHold = gamepadState.pickup && !(isSnd() && sndCanInteract);
-  // While a duo invite is up, X accepts it (updateDuo) instead.
-  const held = !frozenPlayer() && !duoIncoming && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
   const pkg = player.alive ? nearbyPackage() : null;
   // Troll Royale: guns on the ground are loot, picked up the same way.
   const lootGun = royale && player.alive ? royale.loot.nearest(move.pos.x, move.pos.z, 1.6, (it) => it.k === "gun") : null;
   const drop = lootGun ? { def: lootGun.def, loot: lootGun, name: gunDisplayName(lootGun) }
     : (player.alive && !royale ? pickups.nearest(move.pos.x, move.pos.z) : null);
+  // D-pad right only counts as "hold X" with something underfoot. With
+  // nothing there the same press fires a streak, and counting it here too
+  // swapped you onto your secondary every time you called one (Y swaps).
+  const padHold = gamepadState.pickup && !(isSnd() && sndCanInteract) && (!!pkg || !!drop);
+  // While a duo invite is up, X accepts it (updateDuo) instead.
+  const held = !frozenPlayer() && !duoIncoming && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
 
   // A package has its own capture clock (BO2: the owner grabs it fast, an
   // enemy stands there stealing it). `canPickup` keeps the instant-swap
@@ -6076,11 +6086,12 @@ function setResumeLabel(text) {
 // net.update() only actually sends this at 15Hz, but it used to get a fresh
 // object every animate() frame at 60Hz regardless — three throwaway objects
 // for every one that ships. One reused object costs nothing to overwrite.
-const _netSnapshot = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, stance: null, moving: false, hp: 0, alive: true, weapon: null, skin: null, kills: 0 };
+const _netSnapshot = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, stance: null, moving: false, ads: 0, hp: 0, alive: true, weapon: null, skin: null, kills: 0 };
 function netSnapshot() {
   _netSnapshot.x = move.pos.x; _netSnapshot.y = move.pos.y; _netSnapshot.z = move.pos.z;
   _netSnapshot.yaw = look.yaw; _netSnapshot.pitch = look.pitch;
   _netSnapshot.stance = move.stance; _netSnapshot.moving = move.moving;
+  _netSnapshot.ads = player.holding === "gun" ? currentWeapon()?.adsT || 0 : 0;
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
   _netSnapshot.weapon = player.holding === "melee" && player.melee
     ? player.melee.def.id
@@ -11106,7 +11117,10 @@ function reloadPose(w, mesh) {
 
   if (!w.reloading || !w.reloadTime) {
     p.x = p.y = p.z = p.pitch = p.yaw = p.roll = p.magHold = 0;
-    p.shellT = p.rack = -1;
+    // magT too: `p` is shared, and a reload cut short by death left the
+    // last mid-reload value here, so placeReloadMag kept every gun after it
+    // (the respawned one included) holding its mag out in the air.
+    p.shellT = p.rack = p.magT = -1;
     if (mag) {
       mag.visible = true;
       mag.position.copy(mesh.userData.magazinePoint);

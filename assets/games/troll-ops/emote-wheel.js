@@ -10,7 +10,7 @@
 // person), 3P (third person) or DUO. Duo emotes are greyed out until the
 // crosshair is on a teammate (setDuoTarget), and can't be picked while grey.
 
-import { EMOTES } from "./emotes.js?v=to-emotes1";
+import { EMOTES } from "./emotes.js?v=to-ads1";
 
 export { EMOTES };
 

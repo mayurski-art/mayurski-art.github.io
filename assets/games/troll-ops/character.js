@@ -647,8 +647,9 @@ export function mountHeldWeapon(rig, mesh) {
    it, is the real speed and sizes the stride so the feet plant exactly. */
 /* `hold`: "gun" (default), "melee" or "none". `swing`: { t: 0..1, kind:
    "swing" | "thrust" } while a melee attack plays. `recoil`: 0..1, the gun's
-   current kick. `block`: 0..1 into the saber guard (melee hold, no swing). */
-function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0, block = 0 }) {
+   current kick. `block`: 0..1 into the saber guard (melee hold, no swing).
+   `ads`: 0..1 aiming down sights — the gun comes up to the eye, on the aim. */
+function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0, block = 0, ads = 0 }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
@@ -754,7 +755,10 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const kick = Math.max(0, Math.min(1, recoil));
   const gunInHands = hold === "gun";
   if (gunInHands) {
-    p.armR.rotation.set(GUN_CARRY + pitch * 0.32 + carrySwing + kick * 0.18 - lean, 0, -0.15);
+    // Scoped, a one-handed gun comes up level with the eye and in toward
+    // the centre line, and follows the aim (two-handed: _gripSupport).
+    const a = Math.max(0, Math.min(1, ads));
+    p.armR.rotation.set(GUN_CARRY + a * 0.2 + pitch * (0.32 + a * 0.6) + carrySwing * (1 - a) + kick * 0.18 - lean, 0, -0.15 + a * 0.12);
     p.elbowR.rotation.set(0, 0, 0);
     p.torso.rotation.x -= kick * 0.05;
   } else if (hold === "melee") {
@@ -967,7 +971,7 @@ function _reachArm(rig, pivot, elbow, rest, target, pole) {
   _gQ.copy(pivot.quaternion).invert();
   elbow.quaternion.setFromUnitVectors(rest, _gF.applyQuaternion(_gQ));
 }
-function _gripSupport(rig, { pitch = 0, recoil = 0 } = {}) {
+function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0 } = {}) {
   const mesh = rig.held;
   const p = rig.parts;
   if (!mesh || !mesh.visible || mesh.parent !== p.gunMount) return;
@@ -975,9 +979,12 @@ function _gripSupport(rig, { pitch = 0, recoil = 0 } = {}) {
   const kick = Math.max(0, Math.min(1, recoil));
   // Level at the aim, independent of the body's lean (the chest carries it).
   const lean = p.torso.rotation.x + p.chest.rotation.x;
-  p.gunMount.rotation.set(pitch * 0.32 + kick * 0.18 - lean, 0, 0);
+  // Scoped: the stock comes up into the shoulder and the sights to the eye,
+  // and the barrel follows the aim all the way instead of a third of it.
+  const a = Math.max(0, Math.min(1, ads));
+  p.gunMount.rotation.set(pitch * (0.32 + a * 0.6) + kick * 0.18 - lean, 0, 0);
   // Trigger hand: right of centre, below the neck, forward of the chest.
-  _gGrip.set(0.12 * s * w, -0.24 * s, (-0.30 + kick * 0.03) * s);
+  _gGrip.set((0.12 - a * 0.05) * s * w, (-0.24 + a * 0.13) * s, (-0.30 + a * 0.04 + kick * 0.03) * s);
   _gP.copy(mesh.userData.gripPos).applyEuler(p.gunMount.rotation);
   p.gunMount.position.copy(_gGrip).sub(_gP);
 

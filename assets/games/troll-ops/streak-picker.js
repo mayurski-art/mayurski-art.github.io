@@ -23,10 +23,16 @@ export class StreakPicker {
     // Hover/focus/click on a card: the lobby shows that streak's model.
     this.onFocus = onFocus || (() => {});
 
+    this.restore();
+  }
+
+  /* Built from the SAVED picks, not the current ones. The account level
+     lands after the page loads (slowest on phones), and until then the level
+     is this device's guest total, which can lock streaks the account has --
+     so this runs again once the profile arrives and those picks come back. */
+  restore() {
     const saved = load();
     const wanted = Array.isArray(saved.selected) ? saved.selected : [];
-    // A saved pick can be locked again — the rank track is local and can be
-    // reset — so filter before falling back to the cheapest unlocked ones.
     this.selected = wanted.filter((id) => STREAK_DEFS[id] && streakUnlocked(id)).slice(0, LOADOUT_SIZE);
     if (!this.selected.length) this.selected = this.defaults();
     this.sortSelected();

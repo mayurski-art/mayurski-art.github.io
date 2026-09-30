@@ -6,8 +6,8 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-sb1";
-import { poseEmoteCode } from "./emotes.js?v=to-emotes1";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME } from "./character.js?v=to-ads1";
+import { poseEmoteCode } from "./emotes.js?v=to-ads1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=hw3";
@@ -155,6 +155,7 @@ export class RemotePlayer {
     this.yaw = 0;
     this.pitch = 0;
     this.lower = 0;
+    this.ads = 0;         // aiming down sights, 0..1 (smoothed from the wire)
     this.phase = Math.random() * Math.PI * 2;
 
     this.wasAlive = true;
@@ -350,6 +351,7 @@ export class RemotePlayer {
 
     const wantLower = STANCE_LOWER[b.stance] ?? 0;
     this.lower += (wantLower - this.lower) * Math.min(1, dt * 8);
+    this.ads += ((b.ads || 0) - this.ads) * Math.min(1, dt * 14);
 
     // Strafe (and the leg-swing rate below) are not sent over the wire
     // (net.js snapshots carry position/yaw/pitch/stance/moving only) -
@@ -412,7 +414,7 @@ export class RemotePlayer {
     } else poseHumanoid(this.rig, {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
-      hold: sword ? "melee" : "gun", swing, block: this.blockT,
+      hold: sword ? "melee" : "gun", swing, block: this.blockT, ads: sword ? 0 : this.ads,
     });
 
     if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);

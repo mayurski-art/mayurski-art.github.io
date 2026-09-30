@@ -137,6 +137,33 @@ export class Loadout {
   /* How many of this kind you drop in with: the carried kind's count, 0 for the other. */
   carried(kind) { return kind === this.throwKind ? this[kind].carried : 0; }
 
+  /* The account level lands after the page loads (slowest on phones); until
+     then the level is this device's guest total and the constructor may have
+     swapped saved picks for rank-0 fallbacks. Once the profile arrives, put
+     back any saved pick that's unlocked now. Nothing is persisted until the
+     player changes something, so the saved picks are still the real ones. */
+  restoreSaved() {
+    const saved = load();
+    let changed = false;
+    const take = (key, id) => { if (id && this[key] !== id) { this[key] = id; changed = true; } };
+    if (WEAPON_DEFS[saved.weaponId] && isUnlocked(saved.weaponId)) take("weaponId", saved.weaponId);
+    if (WEAPON_DEFS[saved.secondaryId]?.cls === "sidearm" && isUnlocked(saved.secondaryId)) {
+      take("secondaryId", saved.secondaryId);
+    }
+    if (MELEE_DEFS[saved.meleeId] && rankUnlocked(MELEE_DEFS[saved.meleeId].rank)) take("meleeId", saved.meleeId);
+    for (const key of ["lethalId", "tacticalId"]) {
+      if (THROWABLE_DEFS[saved[key]] && rankUnlocked(THROWABLE_DEFS[saved[key]].rank)) take(key, saved[key]);
+    }
+    if (!changed) return false;
+    this.cls = WEAPON_DEFS[this.weaponId].cls;
+    this.buildClasses();
+    this.buildSlots();
+    this.buildGear();
+    this.render();
+    this.onChange(this.resolvedActive);
+    return true;
+  }
+
   validGear(id, defs, ids) {
     if (id && defs[id] && rankUnlocked(defs[id].rank)) return id;
     return ids.find((k) => rankUnlocked(defs[k].rank)) || ids[0];

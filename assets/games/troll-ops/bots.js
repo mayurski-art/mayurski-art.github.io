@@ -41,6 +41,17 @@ const SIGHT_RECHECK = 0.15;
 const NEAR_RANGE = 8;             // at or under this, accuracy is at its best
 const HEADSHOT_CHANCE = 0.12;
 
+/* Aiming down sights. Bots used to shoot everything from the hip at the
+   same accuracy. Now they scope in on anyone past arm's length (it takes
+   diff.adsTime to come up), shoot better and walk slower while in, and come
+   back out to reload, when someone's in their face (hip-fire is faster
+   there), or a beat after losing sight (they check the corner first). */
+const ADS_MIN_RANGE = 6;          // closer than this: hip-fire
+const ADS_LINGER = [0.4, 0.9];    // seconds scoped after losing sight
+const ADS_MOVE = 0.5;             // move speed while fully scoped
+const HIP_AT_RANGE = 0.7;         // hip-fire accuracy past NEAR_RANGE
+const ADS_AT_RANGE = 1.1;         // scoped accuracy past NEAR_RANGE
+
 /* Magazines. Firing forever with no reload gave the fight no rhythm and no
    reason to push. */
 const MAG_SIZE = 26;
@@ -50,11 +61,11 @@ const RELOAD_TIME = 2.3;
    chance it gets), how far off its throws land (metres of scatter at 20 m),
    and whether it cooks frags so they go off on landing. */
 const DIFFICULTY = {
-  recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.15, reaction: 0.45, strafe: 0.55, lead: 0.15, readsGuard: false,
+  recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.15, reaction: 0.45, strafe: 0.55, lead: 0.15, readsGuard: false, adsTime: 0.42,
     nade: { chance: 0.3, scatter: 3.2, cook: false } },
-  regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.85, reaction: 0.28, strafe: 0.75, lead: 0.4, readsGuard: true,
+  regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.85, reaction: 0.28, strafe: 0.75, lead: 0.4, readsGuard: true, adsTime: 0.3,
     nade: { chance: 0.55, scatter: 1.9, cook: false } },
-  veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.62, reaction: 0.16, strafe: 1.0, lead: 0.75, readsGuard: true,
+  veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.62, reaction: 0.16, strafe: 1.0, lead: 0.75, readsGuard: true, adsTime: 0.22,
     nade: { chance: 0.85, scatter: 1.0, cook: true } },
 };
 
@@ -129,6 +140,8 @@ class Bot {
     this.moving = false;   // real ground speed, not "has steering input" — see update()
     this.ammo = MAG_SIZE;
     this.reloadT = 0;
+    this.ads = 0;             // 0 = hip, 1 = fully scoped (see ADS_* above)
+    this.adsLingerT = 0;
     this.acquireT = 0;        // how long the current target has been in view
     this.lastTargetId = null;
     this.roam = null;         // a point to head for when nobody is visible
@@ -164,6 +177,8 @@ class Bot {
     this.holdingSecondary = false;
     this.sidearmAmmo = SIDEARM_MAG_SIZE;
     this.sidearmReloadT = 0;
+    this.ads = 0;
+    this.adsLingerT = 0;
     this.acquireT = 0;
     this.lastTargetId = null;
     this.roam = null;
@@ -189,6 +204,7 @@ class Bot {
   stun(seconds) {
     this.stunT = Math.max(this.stunT || 0, seconds);
     this.acquireT = 0;
+    this.adsLingerT = 0;      // blinded: out of the scope
     this.lastTargetId = null;
   }
 
@@ -205,7 +221,9 @@ class Bot {
       : Math.max(0.25, 1 - (range - NEAR_RANGE) / (FIRE_RANGE - NEAR_RANGE) * 0.75);
     const targetSpeed = this.targetVel ? this.targetVel.length() : 0;
     const evasion = Math.min(1, targetSpeed / 6) * (1 - this.diff.lead) * 0.5;
-    return this.diff.hit * falloff * (0.35 + 0.65 * acquired) * (1 - evasion);
+    // Past close range, the scope is the difference: hip-fire sprays.
+    const sights = range <= NEAR_RANGE ? 1 : HIP_AT_RANGE + (ADS_AT_RANGE - HIP_AT_RANGE) * this.ads;
+    return this.diff.hit * falloff * (0.35 + 0.65 * acquired) * (1 - evasion) * sights;
   }
 
   update(dt, ctx) {
@@ -419,7 +437,7 @@ class Bot {
 
     // Wading (a map's shallow water, arena.wade) slows them like it slows you.
     const wading = arena.wade && this.pos.y < 0.5 && insidePolygon(arena.wade, this.pos.x, this.pos.z);
-    const speed = BOT_SPEED * (this.speedMult || 1) * (wading ? 0.6 : 1);
+    const speed = BOT_SPEED * (this.speedMult || 1) * (wading ? 0.6 : 1) * (1 - (1 - ADS_MOVE) * this.ads);
     this.vel.x += (desired.x * speed - this.vel.x) * Math.min(1, dt * 5);
     this.vel.z += (desired.z * speed - this.vel.z) * Math.min(1, dt * 5);
     this.pos.x += this.vel.x * dt;
@@ -469,6 +487,7 @@ class Bot {
     // reload just below.
     if (!this.holdingSecondary && this.ammo <= 0 && canSee) this.holdingSecondary = true;
     else if (this.holdingSecondary && !canSee && this.reloadT <= 0) this.holdingSecondary = false;
+    this.updateAds(dt, { canShoot, reacted, range: bestD, objective });
 
     if (this.holdingSecondary) {
       if (reacted && canShoot && this.sidearmReloadT <= 0 && this.fireT <= 0) {
@@ -501,6 +520,20 @@ class Bot {
       // Top up while out of contact rather than mid-firefight.
       this.reloadT = RELOAD_TIME;
     }
+  }
+
+  /* Scope in or out this frame. Moves `ads` toward the goal at the
+     difficulty's scope-in speed (out is quicker, as for a player). */
+  updateAds(dt, { canShoot, reacted, range, objective }) {
+    const reloading = this.holdingSecondary ? this.sidearmReloadT > 0 : this.reloadT > 0;
+    const engaged = canShoot && reacted && range >= ADS_MIN_RANGE;
+    if (engaged) this.adsLingerT = between(ADS_LINGER);
+    else this.adsLingerT = Math.max(0, this.adsLingerT - dt);
+    // An objective that can't wait means running, not scoping.
+    const want = !this.meleeOnly && !reloading && !objective?.urgent && !(this.stunT > 0)
+      && (engaged || (this.adsLingerT > 0 && !(canShoot && range < ADS_MIN_RANGE)));
+    const rate = want ? 1 / (this.diff.adsTime || 0.3) : 1 / 0.15;
+    this.ads = want ? Math.min(1, this.ads + dt * rate) : Math.max(0, this.ads - dt * rate);
   }
 
   /* A reason to throw, or null. In order of how good a reason it is:
