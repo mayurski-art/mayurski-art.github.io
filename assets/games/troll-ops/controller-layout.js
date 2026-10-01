@@ -56,7 +56,7 @@ const BINDINGS = [
   { i: EMOTE, side: "L", action: "Emote wheel" },
   { i: 12, side: "L", action: "Inspect weapon" },
   { i: 14, side: "L", action: "Throwable" },
-  { i: 15, side: "L", action: "Use streak · hold: pick up" },
+  { i: 15, side: "L", action: "Use streak · hold: pick up / end streak" },
   { i: 13, side: "L", action: "Next scorestreak" },
 ];
 

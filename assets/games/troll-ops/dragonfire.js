@@ -15,10 +15,19 @@ import * as THREE from "three";
 
 export const DF_DURATION = 60;         // seconds of flight
 export const DF_HP = 300;              // about ten rifle rounds
-export const DF_SPEED = 11;            // m/s flat out
-export const DF_CLIMB = 6;             // m/s up/down
-export const DF_ACCEL = 5;             // how quickly it reaches the stick's speed (1/s)
+// User: it didn't move fast enough. Mostly a bug (see fly(): it never got
+// near its top speed); with that fixed it also flies a little quicker.
+export const DF_SPEED = 14;            // m/s flat out
+export const DF_CLIMB = 7;             // m/s up/down
+export const DF_ACCEL = 6;             // how quickly it reaches the stick's speed (1/s)
 export const DF_FIRE_INTERVAL = 0.085; // ~700 rpm
+// The gun overheats (user: it needs a firing cooldown): each round adds
+// heat, about 2.5 s of trigger fills it, and it cools once you let go.
+// Run it to the top and it locks until it has cooled right down.
+export const DF_HEAT_PER_SHOT = 0.034;
+export const DF_COOL_RATE = 0.6;       // heat shed per second off the trigger
+export const DF_COOL_DELAY = 0.2;      // seconds after the last round before it sheds
+export const DF_HEAT_RESUME = 0.35;    // overheated: locked until it's back under this
 export const DF_DAMAGE = 34;           // three to four rounds on a troll
 export const DF_RANGE = 90;
 export const DF_SPREAD = 0.012;
@@ -488,6 +497,9 @@ export class Dragonfire {
     this.duration = duration;
     this.age = 0;
     this.hp = DF_HP;
+    this.heat = 0;            // gun heat 0..1 (tryFire)
+    this.overheated = false;
+    this.sinceShot = 9;
     this.dead = false;
     this.fireT = 0;
     this.flashT = 0;
@@ -551,8 +563,13 @@ export class Dragonfire {
       if (Math.abs(d) < 1e-6) continue;
       _v.set(0, 0, 0);
       _v[axis] = Math.sign(d);
-      const free = collide ? collide(this.pos, _v, Math.abs(d) + DF_RADIUS) : Infinity;
-      if (free <= Math.abs(d) + DF_RADIUS) {
+      const reach = Math.abs(d) + DF_RADIUS;
+      const free = collide ? collide(this.pos, _v, reach) : Infinity;
+      // raycastWorld returns the full length when nothing's there: only a
+      // shorter answer is a wall. This was `<=`, so a clear path counted as
+      // a hit every frame on every axis and the drone bounced its own
+      // velocity backwards, crawling along at about a third of DF_SPEED.
+      if (free < reach - 1e-4) {
         this.pos[axis] += Math.sign(d) * Math.max(0, free - DF_RADIUS);
         this.vel[axis] *= -0.15;          // a soft bump off it
       } else this.pos[axis] += d;
@@ -570,8 +587,11 @@ export class Dragonfire {
   }
 
   tryFire() {
-    if (!this.launched || this.fireT > 0 || !this.alive) return false;
+    if (!this.launched || this.fireT > 0 || !this.alive || this.overheated) return false;
     this.fireT = DF_FIRE_INTERVAL;
+    this.heat = Math.min(1, this.heat + DF_HEAT_PER_SHOT);
+    this.sinceShot = 0;
+    if (this.heat >= 1) this.overheated = true;
     return true;
   }
 
@@ -595,6 +615,9 @@ export class Dragonfire {
   update(dt) {
     this.age += dt;
     this.fireT = Math.max(0, this.fireT - dt);
+    this.sinceShot += dt;
+    if (this.sinceShot > DF_COOL_DELAY) this.heat = Math.max(0, this.heat - DF_COOL_RATE * dt);
+    if (this.overheated && this.heat <= DF_HEAT_RESUME) this.overheated = false;
     if (!this.owned && this.snaps.length) {
       // Draw 120 ms in the past, between the two snapshots around then.
       const t = performance.now() - 120;

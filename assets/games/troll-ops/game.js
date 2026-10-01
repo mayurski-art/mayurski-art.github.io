@@ -9,7 +9,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
-import { WeaponInspector } from "./inspector.js?v=df2";
+import { WeaponInspector } from "./inspector.js?v=df3";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
 import { CharacterInspector } from "./char-inspector.js?v=to-fx3";
 import { Loadout } from "./loadout.js?v=lv5";
@@ -66,9 +66,9 @@ import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
-import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl6";
+import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
 import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=cos1";
-import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df1";
+import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df2";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rd2";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
@@ -214,6 +214,7 @@ const els = {
   touchAdmire: document.getElementById("to-touch-admire"),
   touchEmote: document.getElementById("to-touch-emote"),
   touchStreak: document.getElementById("to-touch-streak"),
+  touchEndStreak: document.getElementById("to-touch-endstreak"),
   gearMelee: document.getElementById("to-gear-melee"),
   gearMeleeName: document.getElementById("to-gear-melee-name"),
   gearLethal: document.getElementById("to-gear-lethal"),
@@ -246,7 +247,7 @@ const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in win
 const GP_DEADZONE = 0.18;
 const gamepadState = {
   connected: false, moveX: 0, moveY: 0, lookDX: 0, lookDY: 0,
-  firing: false, ads: false, jump: false, crouch: false, pickup: false,
+  firing: false, ads: false, jump: false, crouch: false, pickup: false, endStreak: false,
 };
 let gpIndex = null;
 let gpPrev = {};
@@ -670,6 +671,13 @@ function callStreakSlot(i) {
    point, enter marking instead of spending yet. Shared by the keyboard's
    single-button call and the pad's cycle-then-use pair. */
 function callStreak(id) {
+  if (id === "dragonfire") {
+    const why = dragonfireBlocked();
+    if (why) {
+      showWaveBanner(`DRAGONFIRE ${DF_BLOCK_TEXT[why]} — GET OUTSIDE`, 1600);
+      return;
+    }
+  }
   const lock = streakLockLeft(id);
   if (lock > 0) {
     showWaveBanner(`${STREAK_DEFS[id].name} ${streakLockWhy[id] === "jammed" ? "jammed" : "cooling down"}: ${Math.ceil(lock)}s`, 1100);
@@ -681,6 +689,7 @@ function callStreak(id) {
     // BO2's Lightning Strike: up comes the tablet, you mark three spots on
     // the overhead map. Nothing is spent until the third is marked.
     markingStreak = id;
+    cancelCook();
     updateStreakHud();
     beginStreakHold(0, "tablet", "strike");
     startTabletDive(0.95, () => { if (markingStreak === "airstrike") openStrikeTablet(); });
@@ -690,6 +699,7 @@ function callStreak(id) {
     // BO2: out comes the smoke marker; throwing it is what calls the drop.
     // Nothing is spent until it leaves your hand.
     markingStreak = id;
+    cancelCook();
     showWaveBanner("CARE PACKAGE — THROW THE MARKER", 2000);
     updateStreakHud();   // keeps the touch button up through the mark
     beginStreakHold(0, "marker");
@@ -697,6 +707,7 @@ function callStreak(id) {
   }
 
   if (!streaks.spend(id)) return;
+  cancelCook();   // a grenade in hand goes back on the belt
   fireStreak(id);
   // Firing clears the pointer to the next ready one, so d-pad right on a
   // controller is immediately useful again without a re-cycle.
@@ -768,6 +779,136 @@ function updateMarking() {
   els.streakMark.textContent = `${STREAK_DEFS[markingStreak].name}: throw the marker`;
   els.streakMark.classList.add("is-ready");
 }
+
+/* ---- In a streak: no throwables, and hold to end it ------------------
+   While you're working a streak (flying the Dragonfire, on the Warship's
+   guns, lining up a Lightning Strike or holding a care package marker) or
+   it's in your hands (the tablet, the whistle, the drone), your throwables
+   stay on your belt (user). And any streak you're in can be ended early by
+   holding one input for END_HOLD seconds: d-pad right on a pad (the streak
+   button already), X on a keyboard (its "hold to act" key), the END button
+   on touch. A marking streak hasn't been spent, so ending it costs nothing;
+   a Dragonfire or Warship ended early is gone, like letting it time out. */
+const END_HOLD = 0.8;
+const streakEnd = { t: 0, latch: false, padAt: 0, padShort: false };
+let streakEndEl = null;
+
+/* What you're in that holding can end, or null. */
+function streakControlActive() {
+  if (!player.alive || gameState !== "playing") return null;
+  if (dragonfire && dragonfire.owned && dragonfire.alive) return "dragonfire";
+  if (warship && warship.owned && !warship.dead && warship.age < warship.duration) return "warship";
+  if (markingStreak) return markingStreak;
+  return null;
+}
+
+/* Anything streak-shaped in your hands or under your control. */
+function streakBusy() {
+  return !!streakControlActive() || player.holding === "streak" || !!tabletDive || !!strikeTablet?.isOpen;
+}
+
+function endActiveStreak() {
+  const what = streakControlActive();
+  if (!what) return;
+  tabletDive = null;
+  if (what === "dragonfire") {
+    // Expires on the next tick: the owner loop tells the room and drops it.
+    dragonfire.duration = Math.min(dragonfire.duration, dragonfire.age);
+    endStreakHold(true);
+    showWaveBanner("DRAGONFIRE ENDED", 1200);
+  } else if (what === "warship") {
+    warship.duration = Math.min(warship.duration, warship.age);
+    if (net.active) net.publishStreak({ kind: "warship", action: "leave", eid: warship.id });
+    endStreakHold(true);
+    showWaveBanner("VTOL WARSHIP ENDED", 1200);
+  } else {
+    cancelMark();
+  }
+  audio.reload();
+  updateStreakHud();
+}
+
+function streakEndKeyLabel() {
+  if (isTouch) return "END";
+  if (gamepadState.connected) return "\u2192";   // d-pad right
+  return "X";
+}
+
+function streakEndHudEl() {
+  if (streakEndEl) return streakEndEl;
+  streakEndEl = document.createElement("div");
+  streakEndEl.className = "to-ss-endhold";
+  streakEndEl.hidden = true;
+  streakEndEl.setAttribute("aria-live", "polite");
+  streakEndEl.innerHTML = `<span class="to-ss-endhold-k"></span><span class="to-ss-endhold-t"></span><i class="to-ss-endhold-bar"><b></b></i>`;
+  (els.streakMark?.parentElement || document.body).appendChild(streakEndEl);
+  return streakEndEl;
+}
+
+/* Once a frame: the hold toward ending, its prompt, and the throwables
+   greying out while a streak is busy. */
+function updateStreakControl(dt) {
+  const what = streakControlActive();
+  const held = !!what && !localPauseOnly && (keys.has("KeyX") || (gamepadState.connected && gamepadState.endStreak) || (isTouch && touchState.endStreak));
+  if (!held) streakEnd.latch = false;
+  if (held && !streakEnd.latch) {
+    streakEnd.t += dt;
+    if (streakEnd.t >= END_HOLD) {
+      streakEnd.t = 0;
+      streakEnd.latch = true;   // let go before the next one can end
+      streakEnd.padShort = false;
+      endActiveStreak();
+    }
+  } else streakEnd.t = Math.max(0, streakEnd.t - dt * 3);
+
+  document.body.classList.toggle("to-streak-busy", streakBusy());
+  if (streaks.ready("dragonfire")) updateStreakHud();   // the open-sky tag (the signature skips a no-op)
+  if (els.touchEndStreak) els.touchEndStreak.hidden = !isTouch || !what;
+  if (els.touchEndStreak) els.touchEndStreak.style.setProperty("--p", (streakEnd.t / END_HOLD).toFixed(3));
+
+  const el = streakEndHudEl();
+  // Touch has the END button itself; the prompt is for keys and pads.
+  const show = !!what && !isTouch;
+  el.hidden = !show;
+  if (!show) return;
+  const name = what === "dragonfire" ? "Dragonfire" : what === "warship" ? "VTOL Warship" : STREAK_DEFS[what]?.name || "streak";
+  el.querySelector(".to-ss-endhold-k").textContent = streakEndKeyLabel();
+  el.querySelector(".to-ss-endhold-t").textContent = `Hold to ${STREAK_DEFS[what] && what === markingStreak ? "cancel" : "end"} ${name}`;
+  el.style.setProperty("--p", (streakEnd.t / END_HOLD).toFixed(3));
+  el.classList.toggle("is-holding", streakEnd.t > 0.02);
+}
+
+/* ---- Dragonfire needs open sky ----------------------------------------
+   A quadrotor can't launch from inside a house or a tunnel (user): it
+   needs sky overhead and room around you. Covered = anything solid within
+   DF_SKY_UP straight up; confined = most of DF_SKY_RAYS level rays meet a
+   wall within DF_SKY_SIDE (a room, a corridor, a container). The houses on
+   Cul-de-Grin have walls but no roof collider, which is why the walls count
+   on their own. Rays leave from DF_SKY_FROM up: over fences and waist-high
+   cover (the street's median fence read as a roof from 1.5 m), under any
+   real ceiling. Checked a few times a second, and only while a Dragonfire
+   is ready. */
+const DF_SKY_UP = 14, DF_SKY_SIDE = 12, DF_SKY_RAYS = 12, DF_SKY_BLOCKED = 9, DF_SKY_FROM = 2.0;
+const dfSky = { t: 0, why: null };
+const _skyFrom = new THREE.Vector3();
+const _skyDir = new THREE.Vector3();
+function dragonfireSkyCheck(pos) {
+  _skyFrom.set(pos.x, pos.y + DF_SKY_FROM, pos.z);
+  if (raycastWorld(colliders, _skyFrom, _skyDir.set(0, 1, 0), DF_SKY_UP) < DF_SKY_UP - 1e-3) return "covered";
+  let blocked = 0;
+  for (let i = 0; i < DF_SKY_RAYS; i++) {
+    const a = (i / DF_SKY_RAYS) * Math.PI * 2;
+    if (raycastWorld(colliders, _skyFrom, _skyDir.set(Math.sin(a), 0, Math.cos(a)), DF_SKY_SIDE) < DF_SKY_SIDE - 1e-3) blocked++;
+  }
+  return blocked >= DF_SKY_BLOCKED ? "confined" : null;
+}
+/* Why the Dragonfire can't launch from here right now, or null. */
+function dragonfireBlocked() {
+  const now = performance.now();
+  if (now - dfSky.t > 250) { dfSky.t = now; dfSky.why = player.alive ? dragonfireSkyCheck(move.pos) : null; }
+  return dfSky.why;
+}
+const DF_BLOCK_TEXT = { covered: "NEEDS OPEN SKY", confined: "TOO CONFINED" };
 
 /* Throw the care package marker we're holding. It spends the streak, lobs
    a canister that bounces and settles, and the drop is called where it
@@ -1620,6 +1761,7 @@ function dragonfireHudEl() {
 <div class="to-df-reticle"><b></b></div>
 <div class="to-df-top"><strong>DRAGONFIRE</strong><span class="to-df-time"></span></div>
 <div class="to-df-hp"><span>HULL</span><div><i></i></div></div>
+<div class="to-df-heat"><span>GUN</span><div><i></i></div><em>OVERHEATED</em></div>
 <div class="to-df-alt"></div>`;
   (els.streakMark?.parentElement || document.body).appendChild(dfHud);
   return dfHud;
@@ -1651,6 +1793,10 @@ function syncDragonfireView() {
   const df = dragonfire;
   dfHud.querySelector(".to-df-time").textContent = `${Math.max(0, Math.ceil(df.duration - df.age))}s`;
   dfHud.querySelector(".to-df-hp i").style.width = `${Math.round(Math.max(0, df.hp / DF_HP) * 100)}%`;
+  dfHud.querySelector(".to-df-heat i").style.width = `${Math.round(df.heat * 100)}%`;
+  dfHud.classList.toggle("is-hot", df.heat > 0.7);
+  if (df.overheated && !dfHud.classList.contains("is-overheated")) audio.reload();   // the clack of a locked gun
+  dfHud.classList.toggle("is-overheated", df.overheated);
   const floor = groundHeightAt(colliders, df.pos.x, df.pos.z, df.pos.y) ?? 0;
   dfHud.querySelector(".to-df-alt").textContent = `ALT ${Math.max(0, df.pos.y - floor).toFixed(1)}m`;
   dfHud.classList.toggle("is-low", df.duration - df.age < 10 || df.hp < DF_HP * 0.35);
@@ -2157,6 +2303,7 @@ function updateStreakEntities(dt) {
   syncWarshipView();
   updateWarshipHud();
   syncDragonfireView();
+  updateStreakControl(dt);
   strikeTablet?.update(dt);
 
   // Lightning strikes: each run plays its own timeline (smoke, jet, bombs)
@@ -2411,6 +2558,11 @@ const BOT_STREAK_POOL = ["uav", "counteruav", "vsat", "drone", "k9", "helicopter
 const BOT_RADAR = new Set(["uav", "counteruav", "vsat"]);   // no sides to share in FFA
 const BOT_AIR = new Set(["drone", "helicopter", "swarm", "warship", "dragonfire"]);
 const BOT_AIR_CAP = 2;      // bot air streaks up at once, per team
+/* Veteran bots (user): twice the scorestreaks of a regular bot, friend and
+   foe alike: their kills pay double into the streak meter, and twice as
+   many of their aircraft can be up at once. */
+const BOT_VET_STREAK_MULT = 2;
+function botStreakMult(b) { return b.skill === "veteran" ? BOT_VET_STREAK_MULT : 1; }
 const BOT_QUIET = 1.5;      // seconds with nobody in sight before calling
 const BOT_STREAK_KEY = "trollops:botStreaks";
 
@@ -2436,7 +2588,7 @@ function botStreakState(b) {
 function botEarn(b, pts) {
   if (!botStreaksOn()) return;
   const s = botStreakState(b);
-  s.pts += pts;
+  s.pts += pts * botStreakMult(b);
   for (const id of s.picks) {
     if (!s.earned.has(id) && s.pts >= STREAK_DEFS[id].cost) { s.earned.add(id); s.ready.push(id); }
   }
@@ -2462,7 +2614,10 @@ function updateBotStreaks(dt) {
     if (!b.alive || !s.ready.length || b.airborne) continue;
     const quiet = !b.lastSeen || b.lastSeen.age > BOT_QUIET;
     if (!quiet || b.reloadT > 0) continue;
-    const i = s.ready.findIndex((id) => (s.lock[id] || 0) <= now && (!BOT_AIR.has(id) || botAirUp(b.team) < BOT_AIR_CAP));
+    // Bots keep a Dragonfire banked until they're out under open sky, same
+    // as a player.
+    const i = s.ready.findIndex((id) => (s.lock[id] || 0) <= now && (!BOT_AIR.has(id) || botAirUp(b.team) < BOT_AIR_CAP * botStreakMult(b))
+      && (id !== "dragonfire" || !dragonfireSkyCheck(b.pos)));
     if (i < 0) continue;
     const id = s.ready.splice(i, 1)[0];
     if (STREAK_DEFS[id].cooldown) s.lock[id] = now + STREAK_DEFS[id].cooldown * 1000;
@@ -5324,7 +5479,7 @@ document.addEventListener("contextmenu", (e) => { if (!typingField(e.target)) e.
 const touchState = {
   moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, looking: false,
   firing: false, ads: false, jump: false,
-  crouch: false, dive: false, interact: false, swap: false,
+  crouch: false, dive: false, interact: false, swap: false, endStreak: false,
 };
 
 /* `zone`: a touch anywhere in it moves the stick under the thumb first
@@ -5477,6 +5632,7 @@ bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = fa
 els.touchAdmire?.addEventListener("touchstart", (e) => { e.preventDefault(); startInspect(); }, { passive: false });
 // A tap, not a hold — and it doubles as the confirm for a marked spot, the
 // same way the key and the d-pad do.
+if (els.touchEndStreak) bindHold(els.touchEndStreak, () => { touchState.endStreak = true; }, () => { touchState.endStreak = false; });
 if (els.touchStreak) {
   els.touchStreak.addEventListener("touchstart", (e) => { e.preventDefault(); callReadyStreak(); });
 }
@@ -5747,9 +5903,20 @@ function pollGamepad(dt) {
     // otherwise it fires whichever streak is currently selected. Checked
     // here (edge-triggered) only when nothing is underfoot; the hold case is
     // handled below by updatePickupPrompt reading gamepadState.pickup.
-    if (pressedEdge(15) && !nearbyPackage() && !pickups.nearest(move.pos.x, move.pos.z)
+    // In a streak, d-pad right is the hold-to-end (updateStreakControl).
+    // A quick tap while marking still confirms the mark, on release so a
+    // hold that's ending it never confirms on the way.
+    if (pressedEdge(15) && streakControlActive()) {
+      streakEnd.padAt = performance.now();
+      streakEnd.padShort = !!markingStreak;
+    } else if (pressedEdge(15) && !nearbyPackage() && !pickups.nearest(move.pos.x, move.pos.z)
         && !(isSnd() && sndCanInteract)) {
       useSelectedStreak();
+    }
+    if (gpPrev[15] && !btn(15) && streakEnd.padAt) {
+      if (streakEnd.padShort && markingStreak && performance.now() - streakEnd.padAt < 300) useSelectedStreak();
+      streakEnd.padAt = 0;
+      streakEnd.padShort = false;
     }
   }
   // D-pad right, held: the pad's equivalent of holding X for swap/pickup/
@@ -5758,7 +5925,8 @@ function pollGamepad(dt) {
   // edge-triggered streak-fire above actually does anything is decided by
   // updatePickupPrompt/useSelectedStreak looking at what's underfoot, same
   // question both ask.
-  gamepadState.pickup = !localPauseOnly && btn(15);
+  gamepadState.pickup = !localPauseOnly && btn(15) && !streakControlActive();
+  gamepadState.endStreak = !localPauseOnly && btn(15);
   if (pressedEdge(9)) {                     // Start/Home -> same as the on-screen gear icon
     if (controls.isLocked) controls.unlock();
     else openPauseMenu();
@@ -6043,7 +6211,9 @@ function updateStreakHud() {
   // package looks like it did nothing.
   const slotIds = streakSlotIds();
   const freshId = freshStreak && performance.now() < freshStreak.until ? freshStreak.id : "";
-  const signature = `${key}|${onPad || isTouch ? selId : ""}|${markingStreak || ""}|${freshId}|`
+  // A ready Dragonfire says so when you're somewhere it can't launch from.
+  const dfWhy = slotIds.includes("dragonfire") && streaks.ready("dragonfire") ? dragonfireBlocked() : null;
+  const signature = `${key}|${onPad || isTouch ? selId : ""}|${markingStreak || ""}|${freshId}|${dfWhy || ""}|`
     + slotIds.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}:${Math.ceil(streakLockLeft(id))}`).join("|");
   if (els.ssSlots.dataset.sig !== signature) {
     els.ssSlots.dataset.sig = signature;
@@ -6055,7 +6225,8 @@ function updateStreakHud() {
       const isSelected = (onPad || isTouch) && ready && id === selId;
       const row = document.createElement("div");
       const fresh = ready && freshStreak && freshStreak.id === id && performance.now() < freshStreak.until;
-      row.className = `to-ss-slot${ready ? " is-ready" : ""}${lock ? " is-locked" : ""}${isSelected ? " is-selected" : ""}${id === markingStreak ? " is-marking" : ""}${fresh ? " is-fresh" : ""}`;
+      const skyBlocked = id === "dragonfire" && ready && dfWhy;
+      row.className = `to-ss-slot${ready ? " is-ready" : ""}${skyBlocked ? " is-blocked" : ""}${lock ? " is-locked" : ""}${isSelected ? " is-selected" : ""}${id === markingStreak ? " is-marking" : ""}${fresh ? " is-fresh" : ""}`;
       // Touch: tap a row to call that streak (the pad and keyboard have keys).
       if (isTouch && ready) {
         row.setAttribute("role", "button");
@@ -6083,10 +6254,18 @@ function updateStreakHud() {
       nm.textContent = streakShortName(id);
       const sub = document.createElement("span");
       sub.textContent = lock ? `${streakLockWhy[id] === "jammed" ? "JAMMED" : "COOLDOWN"} ${lock}s`
+        : skyBlocked ? DF_BLOCK_TEXT[dfWhy]
         : ready ? (isTouch ? "READY · TAP" : `READY · ${onPad ? "→" : streakKeyLabel(id)}`) : `${def.cost}`;
       cap.append(nm, sub);
       row.appendChild(cap);
-      row.title = `${def.name}${lock ? ` (${streakLockWhy[id] === "jammed" ? "jammed" : "cooldown"}, ${lock}s)` : ready ? " (ready)" : `: ${def.cost}`}`;
+      if (skyBlocked) {
+        // A roof over the picture: get outside to fly it.
+        const tag = document.createElement("em");
+        tag.className = "to-ss-sky";
+        tag.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M4 4l16 16"/></svg>`;
+        row.appendChild(tag);
+      }
+      row.title = `${def.name}${skyBlocked ? ` (${dfWhy === "covered" ? "needs open sky overhead" : "too confined here"}: get outside)` : ""}${lock ? ` (${streakLockWhy[id] === "jammed" ? "jammed" : "cooldown"}, ${lock}s)` : ready ? " (ready)" : `: ${def.cost}`}`;
       if (!row.hasAttribute("aria-label")) row.setAttribute("aria-label", row.title);
       els.ssSlots.appendChild(row);
     });
@@ -6579,6 +6758,7 @@ function carriedThrowSlot() {
    your hand. Impact throwables ignore it — they go off where they land. */
 function startCook(slot) {
   if (cooking.def || !player.alive || gameState !== "playing" || isStaging() || isInfected()) return;
+  if (streakBusy()) return;   // no throwables while working a streak (user)
   if (player.gear[slot] <= 0) return;
   const def = slot === "lethal" ? loadout.lethal : loadout.tactical;
   cooking.def = def;
@@ -6604,7 +6784,7 @@ function cancelCook() {
    second time a frame after the in-hand blast: two explosions, double damage. */
 function releaseCook({ cookedOff = false } = {}) {
   if (!cooking.def) return;
-  if (!player.alive || gameState !== "playing") { cancelCook(); return; }
+  if (!player.alive || gameState !== "playing" || streakBusy()) { cancelCook(); return; }
   const def = cooking.def;
   const slot = cooking.slot;
   cooking.def = null;
@@ -6987,7 +7167,8 @@ function updatePickupPrompt(dt) {
   // swapped you onto your secondary every time you called one (Y swaps).
   const padHold = gamepadState.pickup && !(isSnd() && sndCanInteract) && (!!pkg || !!drop);
   // While a duo invite is up, X accepts it (updateDuo) instead.
-  const held = !frozenPlayer() && !duoIncoming && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
+  // In a streak, holding X ends it instead (updateStreakControl).
+  const held = !frozenPlayer() && !duoIncoming && !streakControlActive() && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
 
   // A package has its own capture clock (BO2: the owner grabs it fast, an
   // enemy stands there stealing it). `canPickup` keeps the instant-swap
@@ -13247,7 +13428,7 @@ animate();
    is. Behind ?tohooks=1 so normal play never exposes it. */
 if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
-    renderer, scene,
+    renderer, scene, colliders,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
     settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, emote: () => emote,
@@ -13296,6 +13477,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     groundAimPoint, rollPackageReward, claimPackage, clearStreakEntities,
     spawnCarePackage, spawnDrone, spawnHelicopter, updateStreakEntities,
     spawnK9, spawnWarship, spawnDragonfire, spawnSam, dragonfire: () => dragonfire, dragonfireView, samTargets, shootDownAir,
+    botStreakMult, dragonfireSkyCheck, dragonfireBlocked, streakControlActive, streakBusy, endActiveStreak, streakEnd, warship: () => warship, markingStreak: () => markingStreak,
     fireDragonfire, roomBotSkill, boostedXp, veteranBoostOn, weaponRig, localHeld, MELEE_DEFS, saberParry,
     trySwivel, swivel, tabletDive: () => tabletDive, tabletDiveDip, botFireStreak, BOT_STREAK_POOL, updateBotAntiAir, enemyAirFor,
     warship: () => warship, warshipView, warshipGun: () => warshipGun, fireWarship, toggleWarshipGun,
