@@ -37,10 +37,12 @@ const VIEWS = {
   culdegrin: [4, 26, 38, 0, 0, -4, 55],
   grinbeach: [40, 22, 30, -6, 0, -10, 55],
   hollowgrin: [30, 16, 30, -3, 0, -3, 55],
+  grinleria: [22.5, 6.3, -1.2, -6, 2.0, 2.2, 72],
 };
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(VIEWS);
 
-const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--autoplay-policy=no-user-gesture-required"] });
+// ANGLE=swiftshader on a machine without a d3d11 GPU (Linux containers)
+const browser = await chromium.launch({ args: [`--use-angle=${process.env.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
 await ctx.route(/supabase/, (r) => r.abort());
 for (const id of ids) {
@@ -56,7 +58,7 @@ for (const id of ids) {
     await T.startGame();
     if (T.isStaging()) T.endStaging();
   }, id);
-  await new Promise((r) => setTimeout(r, 6000));   // models + textures stream in
+  await new Promise((r) => setTimeout(r, +(process.env.WAIT || 6000)));   // models + textures stream in
   const data = await page.evaluate(async (v) => {
     const T = window.__trollOps;
     const cam = T.camera.clone();

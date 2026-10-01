@@ -7,6 +7,8 @@ rough}.jpg for surface-textures.js:
   plaster  mud plaster: trowel blotches, hairline cracks, straw flecks
   grass  mown lawn: blade grain, clumps, a few worn and clover patches
   tile  white subway tile (8 x 16 per tile, offset rows) with grout + grime
+  marble  polished mall floor: 2 x 2 checkered slabs (cream / warm beige),
+          warped veins, fine cracks, hairline grout (The Grinleria)
 
 Run once per set:
   blender --background --python bake_surfaces.blender.py -- dirt
@@ -321,7 +323,61 @@ def grass_graph():
     return col2.outputs[2], rough, height, 0.8
 
 
+def marble_graph():
+    n = 2.0                                    # slabs per texture, each way
+    uu = math_node("MULTIPLY", uv_axis(0), vb=n)
+    vv = math_node("MULTIPLY", uv_axis(1), vb=n)
+    checker = math_node("MODULO", math_node("ADD", math_node("FLOOR", uu), math_node("FLOOR", vv)), vb=2.0)
+    fu, fv = math_node("FRACT", uu), math_node("FRACT", vv)
+    gw = 0.006
+    eu = math_node("MINIMUM", fu, math_node("SUBTRACT", va=1.0, b=fu))
+    ev = math_node("MINIMUM", fv, math_node("SUBTRACT", va=1.0, b=fv))
+    inside = math_node("MULTIPLY", math_node("GREATER_THAN", eu, vb=gw), math_node("GREATER_THAN", ev, vb=gw))
+    # two stones, each mottled
+    mot = noise(1.0, 3.0, 8, 0.6)
+    cream = ramp(mot.outputs["Fac"], [(0.3, lin(0xe4d9c4)), (0.55, lin(0xefe7d8)), (0.75, lin(0xf6f0e4))])
+    beige = ramp(mot.outputs["Fac"], [(0.3, lin(0xc7b79c)), (0.55, lin(0xd3c4a8)), (0.75, lin(0xdccfb6))])
+    base = node("ShaderNodeMix", data_type="RGBA")
+    Lk.new(checker, base.inputs["Factor"])
+    Lk.new(cream, base.inputs[6])
+    Lk.new(beige, base.inputs[7])
+    # veins: a sine band through the slab, warped by noise (integer
+    # frequencies keep it periodic), plus a finer second set
+    warp = noise(1.0, 1.2, 3, 0.5)
+    ph = math_node("ADD", math_node("ADD", math_node("MULTIPLY", uv_axis(0), vb=3.0), math_node("MULTIPLY", uv_axis(1), vb=2.0)),
+                   math_node("MULTIPLY", warp.outputs["Fac"], vb=2.4))
+    band = math_node("ABSOLUTE", math_node("SINE", math_node("MULTIPLY", ph, vb=2 * math.pi)))
+    vein = ramp(band, [(0.0, (0.85, 0.85, 0.85, 1)), (0.035, (0.3, 0.3, 0.3, 1)), (0.12, (0, 0, 0, 1))])
+    warp2 = noise(1.0, 2.2, 4, 0.55)
+    ph2 = math_node("ADD", math_node("SUBTRACT", math_node("MULTIPLY", uv_axis(1), vb=5.0), math_node("MULTIPLY", uv_axis(0), vb=2.0)),
+                    math_node("MULTIPLY", warp2.outputs["Fac"], vb=2.0))
+    band2 = math_node("ABSOLUTE", math_node("SINE", math_node("MULTIPLY", ph2, vb=2 * math.pi)))
+    vein2 = ramp(band2, [(0.0, (0.4, 0.4, 0.4, 1)), (0.02, (0, 0, 0, 1))])
+    cr = voronoi(1.0, 7.0)
+    cr.feature = "DISTANCE_TO_EDGE"
+    crack = ramp(cr.outputs["Distance"], [(0.0, (0.14, 0.14, 0.14, 1)), (0.006, (0, 0, 0, 1))])
+    vm = mix("LIGHTEN", mix("LIGHTEN", vein, vein2), crack)
+    vcol = ramp(mot.outputs["Fac"], [(0.3, lin(0x8f8476)), (0.7, lin(0xa69a88))])
+    c = node("ShaderNodeMix", data_type="RGBA")
+    sep_v = node("ShaderNodeSeparateColor")
+    Lk.new(vm, sep_v.inputs[0])
+    Lk.new(sep_v.outputs[0], c.inputs["Factor"])
+    Lk.new(base.outputs[2], c.inputs[6])
+    Lk.new(vcol, c.inputs[7])
+    # hairline grout
+    col = node("ShaderNodeMix", data_type="RGBA")
+    Lk.new(inside, col.inputs["Factor"])
+    col.inputs[6].default_value = lin(0x9c917e)
+    Lk.new(c.outputs[2], col.inputs[7])
+    height = math_node("ADD", math_node("MULTIPLY", inside, vb=1.0), math_node("MULTIPLY", sep_v.outputs[0], vb=-0.03))
+    # polished: low roughness, a touch more in the veins and the grout
+    rough = math_node("ADD", math_node("ADD", va=0.16, b=math_node("MULTIPLY", sep_v.outputs[0], vb=0.12)),
+                      math_node("MULTIPLY", math_node("SUBTRACT", va=1.0, b=inside), vb=0.6))
+    return col.outputs[2], rough, height, 0.25
+
+
 color_out, rough_d, height, bump_strength = {
+    "marble": marble_graph,
     "grass": grass_graph,
     "dirt": dirt_graph, "cast": cast_graph, "sand": sand_graph, "plaster": plaster_graph, "tile": tile_graph,
 }[SURFACE]()

@@ -37,7 +37,8 @@ def hexlin(h):
 # materials grinsite-props.js swaps for a tiled photo texture
 TEXTURED = {"GS_Concrete", "GS_Slab", "GS_Block", "GS_Plank", "GS_Timber", "GS_Ply",
             "GS_Brick", "GS_Rubble", "GS_Precast", "GS_Plaster", "GS_PlasterDark", "GS_Rock",
-            "GS_Stone", "GS_Tile", "GS_FloorConc", "GS_PlasterLight", "GS_Ballast", "GS_Grass", "GS_Pavement"}
+            "GS_Stone", "GS_Tile", "GS_FloorConc", "GS_PlasterLight", "GS_Ballast", "GS_Grass", "GS_Pavement",
+            "GS_Marble", "GS_MarbleUp", "GS_WoodFloor", "GS_Asphalt"}
 
 
 def paint_material():

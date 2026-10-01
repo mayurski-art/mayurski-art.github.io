@@ -1,4 +1,92 @@
-# Troll Ops hand-off — 2026-09-30 (session 19)
+# Troll Ops hand-off — 2026-10-01 (session 21)
+
+## New map: The Grinleria (2026-10-01, session 21) — `game.js?v=to-gl1`, `style.css?v=to-gl1`, `maps.js?v=gl1`
+Branch `claude/bold-shannon-0h5uzi` (cloud session; not merged). User asks,
+in order: "troll forces map idea: the Galleria mall in Houston with various
+restaurants and shopping spots", "think deeply and take your time",
+"make the map twice as big" (read as twice the AREA: 80x56 -> 112x80 m;
+ask if they meant twice each side), "a trollface sculpture with a nearby
+waterfall and some flora, blend the trollface nicely".
+- **Layout** (`grinleria-layout.js`, no imports): ONE source of truth.
+  `grinleriaLayout()` returns `solids` ({k, x, z, w, d, h, y, pen, f}),
+  escalators, lights, spawns. grinleria.js turns every solid into a ghost
+  collider; `node tools/troll-ops-grinleria-layout.mjs` dumps it to
+  `models/grinleria-layout.json`, and `models/build_grinleria.blender.py`
+  draws a model for each solid BY KIND (`PROPS` dispatch; `_kinds` are
+  drawn by their parent). Change the layout, re-dump, re-run Blender.
+  180° rotationally symmetric (team halves), each half dressed as
+  different shops via `alt` kinds (`S2()`).
+- **What's in it**: ice rink (painted ice canvas, trollface at centre ice,
+  the Trollboni zamboni, nets, boards with ads) under a glass barrel vault;
+  4 escalators (atrium ends) up to the end decks; upper concourses round the
+  vault + a mid bridge; 20 parody shopfronts (10 open with interiors:
+  Trolliffany, Trapple, GameStonk, Troll Locker, H-Town Threads, Sephtroll,
+  Grand Lulz Cafe (2 units), Cheesecake Trollery, Brick Problem, Hot
+  Trollpic, Lulzlemon, Build-A-Troll, Trollbucks Reserve; closed ones show a
+  window display); service corridors behind both shop rows (stock-room
+  doors, fire exits, doors into the wings); west wing Neiman Narcus
+  (beauty island, racks, runways, fitting rooms, shoe salon); east wing food
+  court (6 stalls with kitchens you can hop into, skylight); outside north
+  the Westheimer valet drive (canopies, palms, monument sign), outside south
+  the garage's ground level; Houston skyline incl. Williams Tower beyond
+  the bounds (`viewFar` 420, fog 0.0026). Spawns: 4 per wing + 1 outside
+  each street door, split W/E.
+- **Trollface Falls** (food court centrepiece, replaced the tiered
+  fountain): `build_trollhead()` reads `images/wallpaper/trollface
+  transparent.png`, makes the outline a rounded solid (distance-transform
+  dome), carves the ink lines as grooves, relaxes the stair-stepped rim,
+  weathered sandstone vertex colours + moss -> `gl-trollhead.glb`. Grotto
+  rocks, rock collar, moss, ivy, ferns, flowers -> `gl-falls.glb`. The
+  waterfall (two scrolling sheets, foam, mist, ripples) is JS (`buildFalls`),
+  plus one warm accent light on the face. Colliders `falls` + `_head`.
+- **Glass/signs/lights are JS** (grinleria.js): one transparent batch for
+  shopfronts, balustrades, board glass, escalator glass; the vault glazing
+  separately (no shadows: the sun stripes the ice through the ribs). Every
+  sign is a rect in ONE 2048 canvas atlas (`signSpecs()`/`bannerSpecs()`,
+  80 px/m, tallest-first shelf packing; it overflowed at 110 px/m and the
+  last signs drew as colour blocks). Atlas, ice, waterfall textures are made
+  once per page (maps dispose geometry/materials, never textures). 15
+  point lights, all at load.
+- **Gameplay notes**: shop glass is penetrable (`pen` 1.2 open / 3 closed);
+  bots are ground-floor only (like every map) but shoot up; escalator feet
+  were first 0.5 m behind the rink boards (unwalkable), moved to x0 14.8.
+- **Perf** (swiftshader headless, so relative only): 46 draw calls, 161k
+  tris. Models 8.6 MB after `models/quantize_glb.py` (byte colours/normals
+  via KHR_mesh_quantization, UVs dropped where never textured; was 16.3).
+  Biggest is gl-shops (2.9 MB). If phones struggle: lower trollhead `res`,
+  thin the shop props.
+- **Marble**: new baked surface `marble` (`bake_surfaces.blender.py --
+  marble`), `GS_Marble`/`GS_MarbleUp` in RETEXTURE; the map sets
+  `noGroundPlane` and draws its own floors.
+- **Preview** `ui/maps/grinleria.jpg`; views in
+  `tools/troll-ops-map-views.json`.
+- Not done / ideas: escalator treads don't move; no zombies layout; the
+  sky is a gradient (the vault would love clouds); bots don't use the
+  upper level; parody names are my picks (user may want others).
+
+### HUD fix (same session): streak text over the scoreboard
+User: "scorestreak text should not get in the way of the scoreboard text
+... while using VTOL Warship". `.to-ks-banner` (streak ready + enemy
+callouts) was at `top: 12.5%`, 45-90 px on most screens, i.e. on the team
+score (46 px; 10 px on touch) and S&D/Royale status (to ~84 px); now
+`top: max(12.5%, 100px)`. The VTOL Warship / Dragonfire title bars
+(`.to-ws-top`, `.to-df-top`) moved from the top centre to just above their
+gun / HP readouts (bottom 128 / 116 px; 180 px under 760 px wide).
+
+### Tools changed this session (all maps re-audited, all PASS)
+- `troll-ops-map-audit.mjs`: drops must fall through a clear column (a
+  floor slab over the landing spot was read as a way down); a top with a
+  solid starting right on it (a wall run up under a slab) isn't a floor;
+  spawns stand at y 0 / on a low platform, not on a roof overhead (matches
+  the game); `AUDIT_WHY="x,z,y"` prints the route the audit found to there.
+- `troll-ops-map-walk.mjs`, `troll-ops-map-previews.mjs`: `ANGLE=swiftshader`
+  for machines without d3d11; walk `STEP=1` drives movement at a fixed
+  60 Hz (software GL can't walk in real time; Depot passes the same way).
+- **Blender in a Linux cloud container**: `pip install bpy==4.2.0` into a
+  venv (Python 3.11) works headless; run scripts with
+  `runpy.run_path(script, run_name="__main__")` after setting
+  `sys.argv = [script, "--", ...]`. Chromium for Playwright is at
+  /opt/pw-browsers (Playwright 1.56 matches it).
 
 ## RESUME HERE (2026-09-30, session 19) — read this first
 Worktree `to-opus-wt` (branch `game-improvements`), push =

@@ -99,7 +99,10 @@ for (const map of maps) {
       const x = cx(i), z = cz(j);
       const tops = [0];
       for (const k of near(x, z)) if (inside(boxes[k], x, z)) tops.push(boxes[k][4]);
-      const ok = [...new Set(tops.map((t) => +t.toFixed(3)))].filter((t) => free(x, z, t + STEP, t + HEAD))   // anything lower is stepped onto, not blocked by;
+      // a top with another solid starting right on it (a wall run up under
+      // a floor slab) is inside that solid, not somewhere to stand
+      const buried = (t) => near(x, z).some((k) => inside(boxes[k], x, z) && boxes[k][1] <= t + 0.01 && boxes[k][4] > t + 0.01);
+      const ok = [...new Set(tops.map((t) => +t.toFixed(3)))].filter((t) => !buried(t) && free(x, z, t + STEP, t + HEAD))   // anything lower is stepped onto, not blocked by;
       if (ok.length) levels.set(i + "," + j, ok);
     }
   }
@@ -125,6 +128,10 @@ for (const map of maps) {
           const f = k / (2 * steps);
           clear = free(cx(i) + di * GRID * f, cz(j) + dj * GRID * f, y0, y1);
         }
+        // dropping: the body falls down the target column, so that column
+        // must be clear from where it lands up to where it fell from (a
+        // floor slab over the target is a ceiling, not a way down)
+        if (clear && up < -STEP) clear = free(cx(i + di), cz(j + dj), t + STEP, h + 0.05);
         if (clear) out.push([i + di, j + dj, t]);
       }
     }
@@ -134,9 +141,11 @@ for (const map of maps) {
   // spawns
   const starts = [];
   for (const [sx, sz] of map.spawns) {
-    // the game drops a spawn onto the highest surface under it
+    // the game spawns at y 0 and the controller lifts you onto a platform
+    // you're standing in (Undergrin's); a roof or a deck overhead is not
+    // the ground
     let ground = 0;
-    for (const k of near(sx, sz)) if (inside(boxes[k], sx, sz) && boxes[k][4] > ground) ground = boxes[k][4];
+    for (const k of near(sx, sz)) if (inside(boxes[k], sx, sz) && boxes[k][4] > ground && boxes[k][1] < 0.05 && boxes[k][4] <= 1.5) ground = boxes[k][4];
     ground = +ground.toFixed(3);
     if (!free(sx, sz, ground + 0.05, ground + HEAD)) { errors.push(`spawn (${sx}, ${sz}) is blocked or has no head room`); continue; }
     const i0 = Math.floor((sx - B.minX) / GRID), j0 = Math.floor((sz - B.minZ) / GRID);
@@ -149,7 +158,7 @@ for (const map of maps) {
   }
 
   // forward reach from spawns, and which nodes can get back to a spawn
-  const reach = new Set(), q = [...starts], rev = new Map();
+  const reach = new Set(), q = [...starts], rev = new Map(), parent = new Map();
   for (const s of starts) reach.add(node(...s));
   while (q.length) {
     const [i, j, h] = q.pop();
@@ -158,7 +167,7 @@ for (const map of maps) {
       const k = node(...m);
       if (!rev.has(k)) rev.set(k, []);
       rev.get(k).push(from);
-      if (!reach.has(k)) { reach.add(k); q.push(m); }
+      if (!reach.has(k)) { reach.add(k); parent.set(k, from); q.push(m); }
     }
   }
   // walk the recorded edges backwards from the spawns
@@ -167,6 +176,21 @@ for (const map of maps) {
     for (const p of rev.get(bq.pop()) || []) if (!back.has(p)) { back.add(p); bq.push(p); }
   }
   const reachList = [...reach].map((k) => k.split(",").map(Number));
+  if (process.env.AUDIT_WHY) {
+    // AUDIT_WHY="x,z,y": the route the audit found from a spawn to there
+    const [wx, wz, wy] = process.env.AUDIT_WHY.split(",").map(Number);
+    const wi = Math.floor((wx - B.minX) / GRID), wj = Math.floor((wz - B.minZ) / GRID);
+    let cur = [...reach].find((k) => { const [i, j, h] = k.split(",").map(Number); return i === wi && j === wj && Math.abs(h - wy) < 0.01; });
+    const seen = new Set();
+    const route = [];
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      const [i, j, h] = cur.split(",").map(Number);
+      route.push(`(${cx(i)}, ${cz(j)}, y ${h})`);
+      cur = parent.get(cur);
+    }
+    console.log("   route (target first): " + (route.length ? route.join(" <- ") : "not reachable"));
+  }
   if (process.env.AUDIT_AT) {
     const [dx, dz] = process.env.AUDIT_AT.split(",").map(Number);
     const i0 = Math.floor((dx - B.minX) / GRID), j0 = Math.floor((dz - B.minZ) / GRID);

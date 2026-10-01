@@ -43,6 +43,7 @@ export const SURFACES = {
   plaster: lazySet("plaster"),
   tile: lazySet("tile"),
   grass: lazySet("grass"),
+  marble: lazySet("marble"),
 };
 
 /* Builds one tinted, textured MeshStandardMaterial from a SURFACES entry,

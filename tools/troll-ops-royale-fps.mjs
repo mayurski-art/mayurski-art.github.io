@@ -32,7 +32,7 @@ for (const n of counts.length ? counts : [20, 100]) {
   await page.goto(`http://localhost:${server.address().port}/troll-ops.html?tohooks=1`, { timeout: 120000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 120000 });
   await page.evaluate(async (n) => {
-    const { MAPS } = await import("/assets/games/troll-ops/maps.js?v=ti4");
+    const { MAPS } = await import("/assets/games/troll-ops/maps.js?v=gl1");
     MAPS.trollface.royale.players = n;
     const T = window.__trollOps; T.DROP.enabled = false; T.setMode("royale"); await T.startGame();
   }, n);

@@ -1220,9 +1220,10 @@ button.to-gear-chip { cursor: pointer; }
 }
 
 /* Streak ready / match-wide callouts: a bar across the top third, BO2's
-   "UAV READY" splash. */
+   "UAV READY" splash. Never higher than 100px: above that it sat on the team
+   score and the S&D / Royale status (seen during a VTOL Warship ride). */
 .to-ks-banner {
-  position: absolute; left: 50%; top: 12.5%; transform: translateX(-50%);
+  position: absolute; left: 50%; top: max(12.5%, 100px); transform: translateX(-50%);
   pointer-events: none; z-index: 14;
 }
 .to-ks-ready {
@@ -1387,9 +1388,12 @@ body.to-in-warship #to-hud-gear, body.to-in-warship #to-spawnguard, body.to-in-w
   border: 2px solid rgba(233,242,228,.9); }
 .to-ws.is-cannon .to-ws-reticle { width: 190px; height: 190px; }
 .to-ws.is-cannon .to-ws-reticle > b { width: 64px; height: 64px; border-radius: 50%; }
-.to-ws-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 18px;
+.to-ws-top { position: absolute; bottom: 128px; left: 50%; transform: translateX(-50%); display: flex; gap: 18px;
   font-size: 15px; text-shadow: 0 1px 3px #000; }
 .to-ws-top strong { font-weight: 600; }
+/* Streak titles (here and .to-df-top) sit at the bottom with their own gun /
+   HP readouts: the top centre belongs to the score band (team score 46px,
+   10px on touch; S&D / Royale status down to ~84px) and the callout banner. */
 .to-ws-guns { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); display: flex; gap: 10px;
   align-items: center; font-size: 15px; }
 .to-ws-guns span { padding: 3px 10px; border: 1px solid rgba(233,242,228,.35); opacity: .55; }
@@ -1408,6 +1412,7 @@ body.to-in-warship #to-hud-gear, body.to-in-warship #to-spawnguard, body.to-in-w
   font-size: 10px; color: #7dff5a; margin-top: 2px; }
 @media (max-width: 760px) {
   .to-ws-guns { bottom: 150px; font-size: 13px; }
+  .to-ws-top { bottom: 180px; font-size: 13px; }
   .to-ws-reload { bottom: 138px; }
   .to-ws-guns em { display: none; }
 }
@@ -2936,13 +2941,17 @@ body.to-in-dragonfire #to-hud-gear, body.to-in-dragonfire #to-spawnguard, body.t
 .to-df-reticle { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; transform: translate(-50%, -50%);
   border: 2px solid rgba(223,246,255,.85); border-radius: 50%; box-shadow: 0 0 3px #000; }
 .to-df-reticle b { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: #ff5a3a; border-radius: 50%; }
-.to-df-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 18px;
+.to-df-top { position: absolute; bottom: 116px; left: 50%; transform: translateX(-50%); display: flex; gap: 18px;
   font-size: 15px; text-shadow: 0 1px 3px #000; }
 .to-df-hp { position: absolute; left: 50%; bottom: 90px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; font-size: 12px; }
 .to-df-hp div { width: 180px; height: 5px; background: rgba(223,246,255,.2); }
 .to-df-hp i { display: block; height: 100%; background: #dff6ff; transition: width .15s; }
 .to-df-alt { position: absolute; right: 14%; top: 50%; transform: translateY(-50%); font-size: 13px; text-shadow: 0 1px 3px #000; }
 .to-df.is-low .to-df-time, .to-df.is-low .to-df-hp i { color: #ff5a3a; background-color: #ff5a3a; }
+@media (max-width: 760px) {
+  .to-df-top { bottom: 180px; font-size: 13px; }
+  .to-df-hp { bottom: 150px; }
+}
 .to-df.is-low .to-df-time { background: none; }
 
 /* -------------------- Cosmetics panel (cosmetics.js) -------------------- */

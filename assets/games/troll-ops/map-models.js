@@ -1,7 +1,7 @@
 // Troll Forces — modelled map props (every map rebuilt in Blender).
 //
 // Models come from models/build_<map>.blender.py (shared kit: map_kit.py):
-// gs-* Grin Site, db-* Dust Bowl, dp-* The Depot, ug-* Undergrin. Their UVs
+// gs-* Grin Site, db-* Dust Bowl, dp-* The Depot, ug-* Undergrin, gl-* The Grinleria. Their UVs
 // are in metres, so the repeat values below are tiles per metre: 0.5 means
 // one texture tile every 2 m, on every face, at every size.
 //
@@ -34,6 +34,11 @@ export const RETEXTURE = {
   GS_Ballast: ["rock", 1.6],
   GS_Grass: ["grass", 0.25],
   GS_Pavement: ["cast", 0.5],
+  // The Grinleria (gl-*): 2 m polished slabs, the store floors' boards
+  GS_Marble: ["marble", 0.25],
+  GS_MarbleUp: ["marble", 0.25],
+  GS_WoodFloor: ["wood", 0.7],
+  GS_Asphalt: ["asphalt", 0.25],
 };
 
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.

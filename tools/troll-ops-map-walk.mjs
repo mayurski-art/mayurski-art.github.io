@@ -71,6 +71,22 @@ const RUNS = {
   [-6.2, 3.1, -19.9, -1, 0, 2, "east ramp top -> onto deck", (r) => r.end[0] < -9 && r.end[1] > 3],
   [-13, 3.1, -8, 0, -1, 8, "deck run to the end", (r) => r.end[2] < -40 && r.end[2] > -44.1 && r.end[1] > 3],
   ],
+  // The Grinleria (grinleria-layout.js): escalators, the bridges, the
+  // balustrades, and the doors that make its flanks (shop links, a stock
+  // room into the service corridor, the corridors' ends, the street doors).
+  grinleria: [  [-13.8, 0, -3.45, -1, 0, 5, "west escalator up", (r) => r.maxY >= 4.4],
+  [13.8, 0, 3.45, 1, 0, 5, "east escalator up", (r) => r.maxY >= 4.4],
+  [-8, 4.5, -12, 0, 1, 2, "upper balustrade holds", (r) => r.end[2] < -9.9 && r.end[1] > 4.4],
+  [0, 4.5, -12, 0, 1, 7, "across the mid bridge", (r) => r.end[2] > 11 && r.end[1] > 4.4],
+  [27, 4.5, -13, 0, 1, 7, "across the east end deck", (r) => r.end[2] > 11 && r.end[1] > 4.4],
+  [0, 0, -9, 0, 1, 3, "onto the ice by the north gate", (r) => r.end[2] > -4],
+  [-22.5, 0, -24, 1, 0, 3, "Trolliffany -> Trapple link", (r) => r.end[0] > -18.5],
+  [16.6, 0, -25, 0, -1, 3, "GameStonk stock room -> corridor", (r) => r.end[2] < -29.5],
+  [-28, 0, -30.15, -1, 0, 4, "corridor -> Neiman fitting rooms", (r) => r.end[0] < -33.5],
+  [29, 0, -22, 1, 0, 3, "Troll Locker side door -> food court", (r) => r.end[0] > 33],
+  [46.9, 0, -29, 0, -1, 4, "food court -> valet drive", (r) => r.end[2] < -34],
+  [0, 0, 29.5, 0, 1, 4, "south corridor fire exit -> garage", (r) => r.end[2] > 34],
+  ],
   // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
   // cave (-9.1, -32.6), portal (120.8, -100.6), bridge z 77.8 from x -56.3 to
   // -0.5, boat (99.9, 16.3), gallery (-99, 45.3), shop (38.6, 77.8).
@@ -96,7 +112,9 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, r));
 const BASE = `http://localhost:${server.address().port}`;
-const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"] });
+// ANGLE=swiftshader STEP=1 for a machine without a d3d11 GPU (Linux containers):
+// STEP drives movement at a fixed 60 Hz instead of waiting on frames
+const browser = await chromium.launch({ args: [`--use-angle=${process.env.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"] });
 const ctx = await browser.newContext({ viewport: { width: 640, height: 360 } });
 await ctx.route(/supabase/, (r) => r.abort());
 const maps = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(RUNS);
@@ -114,24 +132,34 @@ for (const map of maps) {
   await new Promise((r) => setTimeout(r, 6000));
   console.log(`\n${map}`);
   for (const [x, y, z, fx, fz, secs, label, check] of [[0, 0, 0, 0, 1, 1.5, "warm-up", () => true], ...RUNS[map]]) {
-    const r = await page.evaluate(async ([x, y, z, fx, fz, secs]) => {
+    const r = await page.evaluate(async ([x, y, z, fx, fz, secs, step]) => {
       const T = window.__trollOps;
       T.keys.clear();
       T.move.pos.set(x, y, z); T.move.velocity?.set(0, 0, 0);
       await new Promise((r) => setTimeout(r, 400));
       T.look.yaw = Math.atan2(-fx, -fz); T.look.pitch = 0;
       const startY = T.move.pos.y;
-      T.keys.add("KeyW");
       let maxY = startY;
-      const t0 = performance.now();
-      while (performance.now() - t0 < secs * 1000) {
-        T.look.yaw = Math.atan2(-fx, -fz);
-        maxY = Math.max(maxY, T.move.pos.y);
-        await new Promise((r) => setTimeout(r, 50));
+      if (step) {
+        // stepped: drive the movement controller at a fixed 60 Hz in one go,
+        // for software GL that can't render fast enough to walk in real time
+        const yaw = Math.atan2(-fx, -fz);
+        for (let i = 0; i < secs * 60; i++) {
+          T.move.update(1 / 60, { forward: 1, strafe: 0, yaw, speedMult: 1, sprintMult: 1.35 });
+          maxY = Math.max(maxY, T.move.pos.y);
+        }
+      } else {
+        T.keys.add("KeyW");
+        const t0 = performance.now();
+        while (performance.now() - t0 < secs * 1000) {
+          T.look.yaw = Math.atan2(-fx, -fz);
+          maxY = Math.max(maxY, T.move.pos.y);
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        T.keys.delete("KeyW");
       }
-      T.keys.delete("KeyW");
       return { startY: +startY.toFixed(2), maxY: +maxY.toFixed(2), end: [+T.move.pos.x.toFixed(1), +T.move.pos.y.toFixed(2), +T.move.pos.z.toFixed(1)] };
-    }, [x, y, z, fx, fz, secs]);
+    }, [x, y, z, fx, fz, secs, !!process.env.STEP]);
     if (label === "warm-up") continue;
     const ok = check(r);
     if (!ok) fails++;

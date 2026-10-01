@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
 import { HOLLOWGRIN } from "./hollowgrin.js";
+import { GRINLERIA } from "./grinleria.js";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=ti4";
 import { SURFACES } from "./surface-textures.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
@@ -1252,6 +1253,8 @@ export const MAPS = {
 MAPS.pentagrin = PENTAGRIN;
 // The Halloween map plays both ways: in the PvP picker, and in Zombies' list.
 MAPS.hollowgrin = HOLLOWGRIN;
+// The Houston mall: two levels round an ice rink, in the versus pool.
+MAPS.grinleria = GRINLERIA;
 // Troll Royale's own map: 400 m across, far too big for the versus modes, so
 // it stays out of MAP_IDS (the vote pool).
 MAPS.trollface = TROLLFACE_ISLAND;
