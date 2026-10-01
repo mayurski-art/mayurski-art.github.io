@@ -6,30 +6,54 @@
 // pumpkin market; the graveyard fills the west, the corn and the pumpkin
 // patch the east; the candy shop and the barn sit by the south road.
 //
+// Round the village (the map doubled in area, 72 x 64 -> 102 x 90 m): the
+// ruined chapel of St. Grinsworth past the graveyard's west gate, the
+// witch's hollow and her pond in the north-west, the broken glasshouse
+// behind the manor, the Grinmoor Fair down the east side (a carousel, game
+// stalls, the Ferris wheel turning beyond the woods), Trick-or-Treat Lane
+// along the south with the Troll House and its Meme Gallery, and a creek
+// under a covered bridge in the south-west. String lights, ground fog,
+// fireflies and will-o'-wisps everywhere.
+//
 // It plays both ways. Versus: team spawns north and south, three lanes
-// (graveyard, square, corn) and the manor's balcony over the middle.
-// Zombies: they claw up out of the open graves and the pumpkin patch, walk
-// in out of the woods, and climb in through the manor's upstairs windows;
-// a zombie left downstairs walks to the grand stair and comes up after you
-// (zombieLayout below; routing in zombies.js).
+// (graveyard, square, corn), the manor's balcony over the middle, and the
+// flanks round the outside (chapel, fair). Zombies: they claw up out of the
+// open graves and the pumpkin patch, walk in out of the woods, and climb in
+// through the manor's upstairs windows; a zombie left downstairs walks to
+// the grand stair and comes up after you (zombieLayout below; routing in
+// zombies.js).
 //
 // Everything is procedural and batched: every piece of geometry that shares
 // a material is merged into one mesh (Kit.flush), so the whole village costs
 // a few dozen draws. Colliders are plain AABBs through api.ghostBox, laid by
 // the same helpers that lay the visible pieces, so the two can't drift.
-// Light is mostly emissive (carved pumpkins, candles, windows) with only
-// nine real point lights, all built here at load: nothing adds a light at
-// runtime (see light-pool.js for why that matters).
+// Light is mostly emissive (carved pumpkins, candles, windows, bulbs) with
+// sixteen real point lights, all built here at load: nothing adds a light at
+// runtime (see light-pool.js for why that matters). The glows (bulb halos,
+// fireflies, wisps) are one Points draw, animated in its vertex shader.
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { SURFACES } from "./surface-textures.js";
 import { portrait } from "./house-props.js";
+import { mapModel } from "./map-models.js";
 
 export const HG_FLOORS = { ground: 0, upper: 3.6 };
 export function hgFloorOf(y) { return y >= 2.2 ? "upper" : "ground"; }
 
-const BOUNDS = { minX: -36, maxX: 36, minZ: -32, maxZ: 32 };
+const BOUNDS = { minX: -51, maxX: 51, minZ: -45, maxZ: 45 };
+
+// The outskirts (see the districts below).
+const CHAPEL = { x0: -49.5, x1: -39, z0: -3, z1: 7, h: 6.4 };
+const FERRIS = { x: 60, z: 2, r: 11, hub: 13.2 };
+const CAROUSEL = { x: 44.5, z: -4, r: 4.5 };
+const LANE = { z0: 33.4, z1: 36.6 };
+const BRIDGE = { x0: -40.4, x1: -34.4 };   // the deck; steps either end
+// The creek's centre line, from the west edge to the south edge, and the
+// pond's outline: one `wade` polygon for both (see wadePolygon).
+const CREEK = [[-54, 18.5], [-49, 21.5], [-44.5, 25.5], [-40.6, 30], [-37.8, 34.5], [-37, 39], [-36.4, 48]];
+const CREEK_W = 3.4;
+const POND = { x: -46, z: -20, rx: 5.2, rz: 4.2 };
 
 // Grinmoor Manor's footprint and storeys.
 const MANOR = { x0: -13, x1: 13, z0: -28, z1: -12 };
@@ -832,6 +856,292 @@ function ironFence(K, M, { axis, at, a, b, h = 1.9 }) {
   }
 }
 
+/* ============================================================ the outskirts */
+
+/* Distance from (x, z) to the creek's centre line. */
+function creekDist(x, z) {
+  let best = Infinity;
+  for (let i = 1; i < CREEK.length; i++) {
+    const [ax, az] = CREEK[i - 1], [bx, bz] = CREEK[i];
+    const ex = bx - ax, ez = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / (ex * ex + ez * ez)));
+    best = Math.min(best, Math.hypot(x - ax - ex * t, z - az - ez * t));
+  }
+  return best;
+}
+
+/* The creek's two banks: offset the centre line `half` each way. */
+function creekBanks(half = CREEK_W / 2) {
+  const left = [], right = [];
+  for (let i = 0; i < CREEK.length; i++) {
+    const [px, pz] = CREEK[Math.max(0, i - 1)], [nx, nz] = CREEK[Math.min(CREEK.length - 1, i + 1)];
+    let dx = nx - px, dz = nz - pz;
+    const l = Math.hypot(dx, dz);
+    dx /= l; dz /= l;
+    const [x, z] = CREEK[i];
+    left.push([x + dz * half, z - dx * half]);
+    right.push([x - dz * half, z + dx * half]);
+  }
+  return { left, right };
+}
+
+function pondOutline(n = 28, grow = 0) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const wob = 1 + 0.08 * Math.sin(a * 3 + 1) + 0.05 * Math.sin(a * 5 + 2);
+    pts.push([POND.x + Math.cos(a) * (POND.rx + grow) * wob, POND.z + Math.sin(a) * (POND.rz + grow) * wob]);
+  }
+  return pts;
+}
+
+/* The pond and the creek as ONE polygon (edge.js's insidePolygon is
+   even-odd over a single outline): the pond, out to the west wall, down
+   the outside of the wall to the creek and round it, and back up the same
+   line, which encloses nothing. */
+function wadePolygon() {
+  const W = BOUNDS.minX - 1.5;
+  const pond = pondOutline(28, -0.3);
+  // start the pond at its westmost point, so the run to the wall is short
+  let wi = 0;
+  pond.forEach((p, i) => { if (p[0] < pond[wi][0]) wi = i; });
+  const ring = [...pond.slice(wi), ...pond.slice(0, wi), pond[wi]];
+  const { left, right } = creekBanks(CREEK_W / 2 - 0.15);
+  return [
+    [W, ring[0][1]], ...ring, [W, ring[0][1] + 0.01],
+    [W, right[0][1]], ...right, ...left.reverse(), [W, left[left.length - 1][1]],
+    [W, ring[0][1] + 0.02],
+  ];
+}
+
+const _up = new THREE.Vector3(0, 1, 0);
+/* A thin open cylinder from a to b ([x, y, z]). */
+function rodGeo(a, b, r, seg = 4) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+  const dir = B.clone().sub(A);
+  const len = dir.length();
+  const g = new THREE.CylinderGeometry(r, r, len, seg, 1, true);
+  g.translate(0, len / 2, 0);
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(_up, dir.normalize()));
+  g.translate(A.x, A.y, A.z);
+  return g;
+}
+
+function imageTex(file) {
+  return tex(`img-${file}`, () => {
+    const t = new THREE.TextureLoader().load(new URL(file, import.meta.url).href);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  });
+}
+
+/* The trollface artwork as it is: white face, black ink. */
+const trollTexture = () => imageTex("../../images/wallpaper/trollface%20transparent.png");
+
+/* St. Grinsworth's rose window: twelve wedges of coloured glass in lead,
+   and the trollface grinning out of the middle in pale amber glass. */
+function roseTexture() {
+  return tex("rose", () => {
+    const S = 512, c = document.createElement("canvas");
+    c.width = c.height = S;
+    const g = c.getContext("2d");
+    const glass = ["#7a2fd0", "#2fae5a", "#e08a1e", "#2a5ad8", "#c0243c", "#2fae5a"];
+    g.fillStyle = "#000";
+    g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 1) / 12) * Math.PI * 2;
+      g.fillStyle = glass[i % glass.length];
+      g.beginPath(); g.moveTo(S / 2, S / 2); g.arc(S / 2, S / 2, S / 2 - 6, a0, a1); g.closePath(); g.fill();
+      // petals of a lighter shade on each wedge
+      g.fillStyle = "rgba(255,255,255,.18)";
+      const am = (a0 + a1) / 2;
+      g.beginPath(); g.arc(S / 2 + Math.cos(am) * 200, S / 2 + Math.sin(am) * 200, 34, 0, Math.PI * 2); g.fill();
+    }
+    g.strokeStyle = "#0b0a0c";
+    g.lineWidth = 9;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      g.beginPath(); g.moveTo(S / 2 + Math.cos(a) * 150, S / 2 + Math.sin(a) * 150); g.lineTo(S / 2 + Math.cos(a) * 252, S / 2 + Math.sin(a) * 252); g.stroke();
+    }
+    for (const r of [150, 252]) { g.beginPath(); g.arc(S / 2, S / 2, r, 0, Math.PI * 2); g.stroke(); }
+    g.fillStyle = "#5a2a8a";
+    g.beginPath(); g.arc(S / 2, S / 2, 148, 0, Math.PI * 2); g.fill();
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    const img = new Image();
+    img.onload = () => {
+      const k = document.createElement("canvas");
+      k.width = k.height = 260;
+      const kg = k.getContext("2d");
+      const s = Math.min(250 / img.width, 250 / img.height);
+      kg.drawImage(img, (260 - img.width * s) / 2, (260 - img.height * s) / 2, img.width * s, img.height * s);
+      const d = kg.getImageData(0, 0, 260, 260), px = d.data;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 100) { px[i + 3] = 0; continue; }
+        const lum = px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11;
+        if (lum < 110) { px[i] = 12; px[i + 1] = 10; px[i + 2] = 12; }        // the lead
+        else { px[i] = 255; px[i + 1] = 222; px[i + 2] = 150; }               // amber glass
+        px[i + 3] = 255;
+      }
+      kg.putImageData(d, 0, 0);
+      g.drawImage(k, S / 2 - 130, S / 2 - 130);
+      t.needsUpdate = true;
+    };
+    img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+    return t;
+  });
+}
+
+/* Ground mist: soft white blobs on transparent, tiling. */
+function mistTexture() {
+  return tex("mist", () => canvasTex(256, 256, (g) => {
+    const R = rng(77);
+    for (let i = 0; i < 70; i++) {
+      const x = R() * 256, y = R() * 256, r = 18 + R() * 46, a = 0.05 + R() * 0.12;
+      for (const [ox, oy] of [[0, 0], [256, 0], [-256, 0], [0, 256], [0, -256]]) {
+        const m = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+        m.addColorStop(0, `rgba(255,255,255,${a})`);
+        m.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = m;
+        g.fillRect(x + ox - r, y + oy - r, r * 2, r * 2);
+      }
+    }
+  }, { srgb: false, repeat: true }));
+}
+
+/* An opaque white-to-black radial fade, for alphaMap (it reads green). */
+function fadeTexture() {
+  return tex("fade", () => canvasTex(128, 128, (g) => {
+    g.fillStyle = "#000";
+    g.fillRect(0, 0, 128, 128);
+    const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    r.addColorStop(0, "#fff");
+    r.addColorStop(0.55, "#bbb");
+    r.addColorStop(1, "#000");
+    g.fillStyle = r;
+    g.fillRect(0, 0, 128, 128);
+  }, { srgb: false }));
+}
+
+/* Glowing points: bulb halos, fireflies, will-o'-wisps. One draw for all
+   of them; each point carries its own size, wander (how far it drifts),
+   blink and phase, and the vertex shader moves it. Additive, so the fog
+   dims it rather than tinting it. */
+function sparkMaterial() {
+  const m = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uMap: { value: null }, uScale: { value: 600 } }]),
+    vertexShader: `
+      attribute float aPhase;
+      attribute float aSize;
+      attribute float aWander;
+      attribute float aBlink;
+      uniform float uTime;
+      uniform float uScale;
+      varying vec3 vColor;
+      varying float vAlpha;
+      #include <fog_pars_vertex>
+      void main() {
+        float t = uTime * (0.22 + 0.25 * fract(aPhase * 7.13)) + aPhase * 6.283;
+        vec3 p = position + aWander * vec3(sin(t) + 0.5 * sin(t * 2.3 + 1.0), 0.4 * sin(t * 1.7 + 2.0), cos(t * 0.9) + 0.5 * sin(t * 1.9));
+        float b = 0.5 + 0.5 * sin(uTime * (1.3 + aPhase * 1.7) + aPhase * 40.0);
+        vAlpha = mix(1.0, smoothstep(0.35, 0.95, b), aBlink);
+        vColor = color;
+        vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+        gl_PointSize = aSize * uScale / max(0.5, -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: `
+      uniform sampler2D uMap;
+      varying vec3 vColor;
+      varying float vAlpha;
+      #include <fog_pars_fragment>
+      void main() {
+        float k = texture2D(uMap, gl_PointCoord).a;
+        gl_FragColor = vec4(vColor * k * vAlpha, 1.0);
+        #ifdef USE_FOG
+          #ifdef FOG_EXP2
+            float ff = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
+          #else
+            float ff = smoothstep(fogNear, fogFar, vFogDepth);
+          #endif
+          gl_FragColor.rgb *= 1.0 - ff;
+        #endif
+      }`,
+    fog: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true,
+  });
+  m.uniforms.uTime = TIME;
+  m.uniforms.uMap.value = glowTexture();
+  return m;
+}
+
+/* Collects the glowing points as they're laid, then makes them one Points. */
+class Sparks {
+  constructor() { this.a = { position: [], color: [], aSize: [], aWander: [], aBlink: [], aPhase: [] }; this.R = rng(321); }
+  add(x, y, z, color, { size = 0.6, wander = 0, blink = 0, phase = null } = {}) {
+    const c = new THREE.Color(color);
+    this.a.position.push(x, y, z);
+    this.a.color.push(c.r, c.g, c.b);
+    this.a.aSize.push(size);
+    this.a.aWander.push(wander);
+    this.a.aBlink.push(blink);
+    this.a.aPhase.push(phase ?? this.R());
+  }
+  /* A swarm: n points scattered in a box round (x, z), y0..y1 high. */
+  swarm(n, x, z, w, d, y0, y1, color, opts = {}) {
+    for (let i = 0; i < n; i++) {
+      this.add(x + (this.R() - 0.5) * w, y0 + this.R() * (y1 - y0), z + (this.R() - 0.5) * d, color, opts);
+    }
+  }
+  points(mat) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(this.a.position, 3));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(this.a.color, 3));
+    for (const k of ["aSize", "aWander", "aBlink", "aPhase"]) g.setAttribute(k, new THREE.Float32BufferAttribute(this.a[k], 1));
+    const p = new THREE.Points(g, mat);
+    p.frustumCulled = false;
+    p.renderOrder = 2;
+    p.onBeforeRender = (renderer, scene, camera) => {
+      tickTime();
+      const h = renderer.getDrawingBufferSize(_v2).y;
+      mat.uniforms.uScale.value = h / (2 * Math.tan(THREE.MathUtils.degToRad((camera.fov || 70) / 2)));
+    };
+    return p;
+  }
+}
+const _v2 = new THREE.Vector2();
+
+const BULBS = [0xffa040, 0xb070ff, 0x8cff5a, 0xffd27a];
+
+/* A string of festoon lights hung through `pts` ([x, y, z] anchors),
+   sagging between them: a wire, a bulb every `every` metres, and a halo
+   on each bulb. */
+function festoon(K, M, SP, pts, { sag = 0.55, every = 0.75, seed = 1 } = {}) {
+  let k = seed;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    const at = (t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - sag * (len / 8) * 4 * t * (1 - t), a[2] + (b[2] - a[2]) * t];
+    const n = Math.max(2, Math.ceil(len / 0.6));
+    for (let j = 0; j < n; j++) K.add(M.iron, rodGeo(at(j / n), at((j + 1) / n), 0.009, 3), { shadow: false });
+    const nb = Math.max(1, Math.round(len / every));
+    for (let j = 0; j < nb; j++) {
+      const [x, y, z] = at((j + 0.5) / nb);
+      const col = BULBS[k++ % BULBS.length];
+      K.add(M.bulb, place(new THREE.OctahedronGeometry(0.06), { x, y: y - 0.07, z }), { color: col, shadow: false });
+      SP.add(x, y - 0.07, z, col, { size: 0.55, blink: 0.12 });
+    }
+  }
+}
+
+/* A plain wooden pole for the strings to hang from. */
+function pole(K, M, x, z, h = 4.2) {
+  K.solid(x, z, 0.2, 0.2, h, { pen: 3 });
+  K.cyl(M.stairWood, x, 0, z, 0.09, 0.07, h, 6);
+  K.box(M.stairWood, x, h - 0.4, z, 0.6, 0.06, 0.06);
+}
+
 /* ===================================================================== map */
 
 function buildHollowgrin(api) {
@@ -912,15 +1222,18 @@ function buildHollowgrin(api) {
   dirtPlane(-24, -19, 12, 2.4);
 
   /* ------------------------------------------------------- boundary */
-  api.ghostWalls(0, 0, 72 + 2.8, 64 + 2.8, 8, 1.4);
+  api.ghostWalls(0, 0, BOUNDS.maxX - BOUNDS.minX + 2.8, BOUNDS.maxZ - BOUNDS.minZ + 2.8, 8, 1.4);
   // A crumbling field-stone wall just outside the line, then the woods.
   {
     const R = rng(4);
-    const run = (axis, at, a, b) => {
+    // gaps where the lane runs out east and west and the creek in and out
+    const lane = [LANE.z0 - 0.4, LANE.z1 + 0.4];
+    const run = (axis, at, a, b, gaps = []) => {
       let s = a;
       while (s < b) {
         const len = Math.min(b - s, 2 + R() * 3.5);
-        if (R() > 0.12) {
+        const open = gaps.some(([g0, g1]) => s < g1 && s + len > g0);
+        if (R() > 0.12 && !open) {
           const h = 0.7 + R() * 0.6;
           const c = s + len / 2;
           const x = axis === "x" ? c : at, z = axis === "x" ? at : c;
@@ -930,16 +1243,16 @@ function buildHollowgrin(api) {
       }
     };
     run("x", BOUNDS.minZ - 0.6, BOUNDS.minX - 1, BOUNDS.maxX + 1);
-    run("x", BOUNDS.maxZ + 0.6, BOUNDS.minX - 1, BOUNDS.maxX + 1);
-    run("z", BOUNDS.minX - 0.6, BOUNDS.minZ, BOUNDS.maxZ);
-    run("z", BOUNDS.maxX + 0.6, BOUNDS.minZ, BOUNDS.maxZ);
+    run("x", BOUNDS.maxZ + 0.6, BOUNDS.minX - 1, BOUNDS.maxX + 1, [[-38.9, -33.6]]);
+    run("z", BOUNDS.minX - 0.6, BOUNDS.minZ, BOUNDS.maxZ, [lane, [16.5, 23.5]]);
+    run("z", BOUNDS.maxX + 0.6, BOUNDS.minZ, BOUNDS.maxZ, [lane]);
 
     // The woods: four tree shapes, instanced round the outside.
     const variants = [11, 23, 37, 51].map((s, i) => treeGeo(s, { height: 7 + i, r: 0.28 + i * 0.03, levels: 3 }));
     for (const v of variants) metreUVs(v, M.bark.userData.tile);
     const spots = [];
     const T = rng(99);
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 150; i++) {
       // walk the perimeter, pushed out 1.5-13 m
       const t = T() * 4;
       const out = 1.6 + Math.pow(T(), 0.7) * 12;
@@ -948,7 +1261,12 @@ function buildHollowgrin(api) {
       else if (t < 2) { x = THREE.MathUtils.lerp(BOUNDS.minX - 10, BOUNDS.maxX + 10, t - 1); z = BOUNDS.maxZ + out; }
       else if (t < 3) { z = THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 2); x = BOUNDS.minX - out; }
       else { z = THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 3); x = BOUNDS.maxX + out; }
-      spots.push([x, z, T() * 6.28, 0.85 + T() * 0.5, Math.floor(T() * 4)]);
+      const keep = [T() * 6.28, 0.85 + T() * 0.5, Math.floor(T() * 4)];
+      // clear the Ferris wheel's field, the lane's ends and the creek's bed
+      if (x > BOUNDS.maxX && Math.abs(z - FERRIS.z) < FERRIS.r + 4) continue;
+      if (Math.abs(x) > BOUNDS.maxX && z > LANE.z0 - 1.5 && z < LANE.z1 + 1.5) continue;
+      if (creekDist(x, z) < CREEK_W) continue;
+      spots.push([x, z, ...keep]);
     }
     variants.forEach((geo, vi) => {
       const mine = spots.filter((s) => s[4] === vi);
