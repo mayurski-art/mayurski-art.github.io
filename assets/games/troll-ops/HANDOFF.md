@@ -1,71 +1,190 @@
 # Troll Ops hand-off — 2026-10-01 (session 21)
 
-## PAUSED HERE (2026-10-01, session 21): Hollowgrin expansion — read first
-The Grinleria (below) is merged to main (e2167b9). Then the user asked:
-"work on making hollowgrin map twice as bigger and more and better decor
-lights and graphics etc. i also want to put some easter eggs around the map.
-maybe like a painting in a house with these images" (two images: a sci-fi
-poster screen "Dark Planetoid Rising / Fist of the Unicorn" with a small
-trollface on it, and a photo of white-trollface + Pepe sculptures on black
-plinths at a "meme gallery"). Then: "update handoff.md and pause the work".
+## PAUSED HERE (2026-10-01, session 21, second pause): Hollowgrin expansion — read first
+The Grinleria is on main (e2167b9). The user asked to make Hollowgrin "twice
+as bigger", with more and better decor lights and graphics, and easter eggs:
+"maybe like a painting in a house with these images" (two images: the
+sci-fi poster screen "Dark Planetoid Rising / Fist of the Unicorn" with a
+small trollface on it, and the meme-gallery photo of white trollface and
+Pepe sculptures on black plinths). Then: "push what we have so far to main
+and update handoff.md".
 
-**Done (committed on `claude/bold-shannon-0h5uzi`, NOT on main):**
-- The two images, re-encoded clean (metadata stripped), 1024 wide:
-  `ui/easter/poster-dark-planetoid.jpg`, `ui/easter/meme-gallery.jpg`.
+**On main (assets only; the live map is unchanged):**
+- `ui/easter/poster-dark-planetoid.jpg`, `ui/easter/meme-gallery.jpg`
+  (both 1024x576, metadata stripped).
 - `models/build_hollowgrin_eggs.blender.py` -> `hg-trollbust.glb` (white
-  trollface bust, black carved lines, the Trollface Falls carving code) and
-  `hg-pepe.glb` (Pepe head: droopy lids, side-eye, lips). Both at the origin
-  facing +z, base on y 0, ~1.1 m tall; quantized. Look-dev render was good.
-- `build_grinleria.blender.py`: `build_trollhead()` now takes `name`,
-  `place`, `colors`, `moss_on` (Trollface Falls output unchanged, byte for
-  byte); its `main()` is guarded by `__name__` so other scripts can import it.
+  trollface bust, black carved lines) and `hg-pepe.glb`. Both sit at the
+  origin facing +z with the base on y 0, about 1.1 m tall and 1.5 m wide,
+  quantized. `build_grinleria.blender.py`'s `build_trollhead()` takes
+  `name/place/colors/moss_on`, and its `main()` is guarded.
 
-**Not started: the Hollowgrin code itself (hollowgrin.js untouched).** Plan
-(user didn't object to "twice as big" = twice the AREA for the Grinleria,
-so the same reading): BOUNDS -36..36 x -32..32 -> **-51..51 x -45..45**,
-everything existing stays put, new districts in the ring:
-- **W: ruined chapel "St. Grinsworth's"** (~x -49..-39, z -12..8): bell
-  tower at the south door, pews (low cover), altar, a lit trollface
-  stained-glass rose window, half the roof fallen in, a collapsed east wall
-  gap. Open a gate in the graveyard's west fence (`ironFence` axis z at
-  x -35.6, a -6..20) at z 0.4..3.6 so the graveyard lane leads to it.
-- **NW: witch's hollow**: hut with a green-glowing cauldron and potion
-  shelves, a pond (map `wade` polygon slows you), lily pads, wisps.
-- **N: ruined glasshouse** behind the manor (~x -9..9, z -43..-34): iron
-  frame, part-broken glass, raised beds, glowing plants. North team spawns
-  move to z ~ -42.
-- **E: "Grinmoor Fair"** (x 36..51): carousel (~(44, -6), r 4.5,
-  turning visually; colliders: platform + centre post), game stalls
-  (Whack-a-Troll, ring toss) with striped awnings, ticket booth, entrance
-  arch, string lights; a lit Ferris wheel OUTSIDE the east bound (~x 58,
-  art only; clear the woods ring there).
-- **S: "Trick-or-Treat Lane"**: road z ~33.5..36.5 (the old road gate at
-  (±3, 31.2) becomes the village gate onto it), yards z 36.5..39.5, houses
-  z 39.5..44.6 facing north. **The Troll House** (x -5..5, enterable):
-  living room with the two images as framed paintings (gold frames; give
-  the canvases a little emissive so they read in the dark), fireplace,
-  sofa. Its front yard = the **Meme Gallery**: hg-trollbust + hg-pepe on
-  black plinths on purple discs (plinth text "MEME GALLERY", not the
-  photo's brand). Other houses closed, lit windows, porch decor. South
-  spawns move to the road (z ~35).
-- **SW: creek + covered bridge** where the creek crosses the lane (~x
-  -39..-34): wade polygon from the west edge down to the south edge.
-- **Lights/graphics pass, whole map**: festoon string lights (emissive
-  bulbs on catenaries: square, lane, fair, glasshouse), more lanterns and
-  candles in windows, drifting ground-fog sheets (graveyard, corn, pond,
-  creek), fireflies + will-o'-wisps (animated Points). Real lights now 9;
-  keep the total ~16 (all built at load, light-pool.js rule).
-- Bounds-dependent code to change in hollowgrin.js: `BOUNDS` (line ~32),
-  `api.ghostWalls(0, 0, 72 + 2.8, 64 + 2.8, ...)` (~915, use BOUNDS),
-  zombie edge spawns list (~1800), `spawns` (~1824). The wall ring and the
-  woods already follow BOUNDS. Add zombie rise points in the new areas.
-- Then: map audit + new walk runs (chapel door, glasshouse, bridge, Troll
-  House door, carousel platform) in tools/troll-ops-map-walk.mjs, zombie
-  routing sanity, bot match, re-render `ui/maps/hollowgrin.jpg`
-  (`ANGLE=swiftshader WAIT=15000 node tools/troll-ops-map-previews.mjs
-  hollowgrin`), bump `?v=` tags (maps.js imports hollowgrin.js unversioned;
-  bump maps.js's tag in game.js + loadout.js, then loadout.js and game.js),
-  ask the user before pushing to main again.
+**Work in progress, ONLY on branch `claude/bold-shannon-0h5uzi` (NOT
+main): `hollowgrin.js`.** Do not ship it until the districts exist:
+right now the bounds are doubled and the ring round the village is empty
+grass. Done so far:
+- Header comment rewritten for the new map. `BOUNDS` is -51..51 x -45..45;
+  `ghostWalls` derives from BOUNDS. `import { mapModel }` added.
+- Constants: `CHAPEL {x0 -49.5, x1 -39, z0 -3, z1 7, h 6.4}`,
+  `FERRIS {x 60, z 2, r 11, hub 13.2}`, `CAROUSEL {44.5, -4, r 4.5}`,
+  `LANE {z0 33.4, z1 36.6}`, `BRIDGE {x0 -40.4, x1 -34.4}`, `CREEK`
+  (centre line from (-54, 18.5) to (-36.4, 48)), `CREEK_W` 3.4,
+  `POND {-46, -20, rx 5.2, rz 4.2}`.
+- Stone wall ring: gaps where the lane leaves east and west, and where the
+  creek runs in (west wall, z 16.5..23.5) and out (south wall,
+  x -38.9..-33.6). The woods are 150 trees now; they skip the Ferris
+  field, the lane ends and the creek bed.
+- Module helpers (above `/* === map */`), not yet called:
+  - `creekDist`, `creekBanks`, `pondOutline`.
+  - `wadePolygon()`: the pond and the creek in ONE even-odd outline,
+    joined by a retraced line outside the west wall (edge.js takes a
+    single polygon). Set `HOLLOWGRIN.wade = wadePolygon()`.
+  - `rodGeo`, `imageTex(file)`, `trollTexture()` (the PNG as it is).
+  - `roseTexture()` (a stained-glass rose window with the trollface in
+    amber glass), `mistTexture()`, `fadeTexture()` (alphaMap, so set
+    `.channel = 1` with a 0..1 uv1).
+  - `sparkMaterial()` + `class Sparks`: one additive Points draw for bulb
+    halos, fireflies and wisps, animated in the vertex shader. Each point
+    has size, wander, blink and phase. Fog dims the points instead of
+    tinting them.
+  - `festoon(K, M, SP, pts, {sag, every})`: string lights with a wire,
+    octahedron bulbs and a halo on each. `pole(K, M, x, z)`. `BULBS`.
+
+**Still to do (the plan, with coordinates; check everything against
+existing pieces):**
+- **New materials in M**:
+  - glass (transparent 0.16, depthWrite off), pond (dark, glossy), bulb
+    (MeshBasic, vertexColors);
+  - rose (Basic + roseTexture), trollLit (Basic + trollTexture,
+    alphaTest), purpleGlow (flickerMat with the glow texture);
+  - horse, gold, pumpkinSolid, awningRed (stripes `#b8242c`/`#f0e6d6`),
+    purpleDisc, plinth;
+  - the paintings: Standard with map = emissiveMap = the image and
+    emissive about 0x555555, so they read in the dark;
+  - 3 house sidings, witchWood, thatch, toadCap, brew (green flicker).
+  - Kit flat planes rotate with `rz` (not `ry`) after `rx: -PI/2`.
+- **Graveyard west gate**: split `ironFence z at -35.6` into -6..0.4 and
+  3.6..20, with stone pillars at z 0.1 and 3.9. Dirt from the gate to the
+  chapel door: (-37.2, 2, 4.4 x 2.6).
+- **Chapel** (CHAPEL, walls t 0.6, stone):
+  - Walls: the east door at z 2 (w 2.2, h 3.3) is on the graveyard lane.
+    North windows at x -47, -44.2, -41.4 (1.1 wide, 1.8..4.6 high). The
+    south wall is in two pieces either side of a breach at x -45..-42.2,
+    with jagged stone up high and low rubble colliders inside and out
+    (keep 1.3 m clear). Buttresses.
+  - Roof: the west half is intact; the east half is bare rafters.
+  - Bell tower over the east gable (x -41..-39, up to about 16 m, with a
+    bell and a rope down into the nave).
+  - Inside: a dais (x -48.9..-46.7, 0.3 high), altar and candles, the rose
+    window on both faces of the west wall at y 4.3 (r 1.5), pews at
+    x -46/-44.6/-43.2/-41.8/-40.4 (north side; south side only -46,
+    -41.8, -40.4, the rest smashed).
+  - Churchyard south of it (z 9.6..14.8) with 2 open graves (zombie rise
+    points). Sign "ST. GRINSWORTH'S". 1 real light (violet).
+- **Witch's hollow**:
+  - The pond (water mesh, mud bank, stones, reeds, lily pads). Easter egg:
+    a tiny hg-pepe (scale 0.3) on a big lily pad at (-47.5, -19.3),
+    facing east.
+  - Hut at x -47.5..-42, z -42.5..-37.5, h 2.8: doors south (x -44.6) and
+    east (z -41.4), a crooked thatch pyramid roof, glowing potion shelves.
+  - Cauldron at (-40.5, -33.5) with green brew, a fire and a green real
+    light.
+  - Toadstool fairy ring at (-36.5, -40) (zombie rise point). Dead trees,
+    wisps, fireflies.
+  - Paths: (-35.5, -19) west from the hedge garden's west gap, and from
+    the pond to the hut.
+- **Glasshouse** (x -9..9, z -43..-34, eaves 3, ridge 5.2):
+  - Colliders are glass walls (pen 0.6) with doors: south at x +-6.5
+    (paths from the manor back doors at +-8), north at x 0, and east and
+    west at z -38.5.
+  - Visuals: a brick knee wall to 0.7 m, iron mullions, about 25% of the
+    panes missing, a glass roof with rafters.
+  - Inside: raised beds (0.6 high) with glowing plants, a festoon under
+    the ridge, 1 real light (cool green).
+- **Spawns**: N [-31,-42.5], [-20,-42], [-12.5,-36.5], [12.5,-36.5],
+  [20,-42], [31,-42.5]; S on the lane [-30,35], [-18,35], [-6.5,35],
+  [6.5,35], [18,35], [30,35].
+- **Grinmoor Fair** (east, x 37..51):
+  - The midway, dirt at x 39.2 from z -40 to 33, meets the lane. The
+    entrance arch "GRINMOOR FAIR" at x 37.3, posts at z 2.3 and 5.9, on a
+    new dirt path at z 4.1 that runs from the east road between the corn
+    (ends z 3) and the patch (starts z 5.2).
+  - Carousel (CAROUSEL): crossed 0.3-high platform colliders and a centre
+    column (1.3 m). Static striped canopy, valance and bulbs. A rotating
+    platform mesh, InstancedMesh horses (8, r 3.3) and pumpkin coaches
+    (4, r 1.9), bobbing (horse yaw = -a - PI/2). 1 real light.
+  - Booths facing west at x 46..49.6: Whack-a-Troll z 6.8..11.2 (popping
+    troll heads, instanced) and Ring Toss z 14.4..18.8; 1 real light
+    between them.
+  - Candy-apple cart (43.2, 24). Ticket booth (36.2, 7.6) with the "Dark
+    Planetoid" poster on its north face (a second easter egg).
+  - High striker "TEST YOUR LULZ" (42.5, -17). Fortune tent "MADAME LULZ"
+    (45.5, -30), door west, with a crystal ball.
+  - Festoon zigzags on poles at x 37.6 / 41.4.
+  - Ferris wheel outside the bound (FERRIS), art only: A-frame legs; the
+    wheel in the yz plane turning about x; one merged steel mesh and one
+    bulb mesh; instanced cabins kept upright; a halo Points child.
+- **Trick-or-Treat Lane**:
+  - Dirt (0, 35, 112 x 3.2) at y 0.014, plus a joiner (0, 32.6, 4.4 x 1.8)
+    from the old south road (the old gate pillars at +-3, 31.2 stay).
+  - Closed houses at x [-49.5,-42.5], [-31,-24], [-19.5,-12.5],
+    [12.5,19.5], [24,31], [39,46]. Each: body z 39.8..44.6, 5.4 high, one
+    collider box, a gable roof, lit and dark windows, a porch deck
+    (0.3 high) and porch roof. Decor varies (ghost sheets, foam
+    tombstones, a giant roof spider). Picket fences at z 36.95 with a gate
+    gap.
+  - Festoon poles on the north verge at z 32.7 (x -44, -32, -18, -8, 8,
+    18, 30, 45). No string over the bridge.
+  - Gas lamps along the lane; one at (11.5, 32.7) carries the real light.
+  - **The Troll House** (x -6..6, z 39.6..44.7, walls t 0.3, h 3.4):
+    - Openings: front door at x 0 (1.4 wide); front windows at x +-3.6
+      (2.0 wide, 0.9..2.3 high); east side door z 42.6; side windows.
+    - Paintings, 2.08 x 1.17, 16:9, in gold frames on the back wall's
+      inner face (z 44.4) at y 1.75: the poster at x -3.15, the meme
+      gallery at x +3.15. Little picture lamps over them.
+    - Fireplace between the paintings, sofa, armchairs, bookcase.
+    - Sign "THE TROLL HOUSE", a "U MAD?" doormat, 1 real light.
+  - **Meme Gallery** front yard: purple discs (r 1.25) and black plinths
+    (1.1 x 0.9 x 1.0, "MEME GALLERY" text) at x +-3.3, z 38.3.
+    `mapModel(api, "hg-trollbust" | "hg-pepe", {x, z: 38.3, y: 1.0, rot:
+    Math.PI, scale: 0.95})`, bust colliders on the plinths. Black barrier
+    banners "MEME GALLERY" (magenta) on the fence like the photo, and
+    purple uplights.
+- **Creek + covered bridge**:
+  - Water ribbon from `creekBanks()`, bank stones and reeds.
+  - Bridge deck x -40.4..-34.4, z 33.2..36.8, 0.54 high, with 0.18/0.36
+    steps at each end. Barn-red side walls on the deck with windows,
+    gable portals and a roof.
+  - Signs "TROLL BRIDGE" / "TOLL: 1 LULZ". A troll face (trollTexture)
+    peeks from the dark under the deck's north edge at about
+    (-38.6, 0.32, 33.12).
+- **Atmosphere**:
+  - One merged mist mesh (map scrolls, alphaMap fade on uv1) over the
+    graveyard, corn and patch, pond, hollow, creek and churchyard.
+  - Fireflies (pond, creek, hedge garden, corn, glasshouse); wisps
+    (graveyard, hollow, churchyard).
+  - Halos on the existing gas lamps and porch lanterns.
+  - Real lights: 9 old + chapel, cauldron, glasshouse, carousel, booths,
+    Troll House, lane lamp = 16.
+  - Maybe fog 0.019 -> 0.016.
+- **Zombies**:
+  - Woods walk-ins round the new edge: N z -44.3; E x 50.2 at z -40,
+    -20, 1.5, 26, 35; W x -50.2 at z -32, -8, 10, 35; S z 44.3 in the
+    gaps between houses (x -41, -21.7, -9, 9, 21.7, 35).
+  - Rise points: churchyard graves, fairy ring, glasshouse aisle
+    (4.2, -38.5), the pond (-43, -19.5).
+  - The nav grid grows (0.55 cell over 102 x 90), so check zombie
+    routing time.
+- **Then**: the map audit, walk runs (chapel door and breach, glasshouse
+  doors, bridge steps, Troll House door, carousel platform) in
+  tools/troll-ops-map-walk.mjs, a bot match, a zombies round, an FPS
+  check.
+  - Re-render `ui/maps/hollowgrin.jpg` (`ANGLE=swiftshader WAIT=15000 node
+    tools/troll-ops-map-previews.mjs hollowgrin`; widen its view in that
+    tool).
+  - Bump the `?v=` tags (maps.js imports hollowgrin.js unversioned: bump
+    maps.js's tag in game.js and loadout.js, then loadout.js's and
+    game.js's).
+  - Ask before pushing to main.
 
 ## New map: The Grinleria (2026-10-01, session 21) — `game.js?v=to-gl1`, `style.css?v=to-gl1`, `maps.js?v=gl1`
 Branch `claude/bold-shannon-0h5uzi` (cloud session; not merged). User asks,
