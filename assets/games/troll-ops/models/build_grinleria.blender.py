@@ -1779,11 +1779,15 @@ def _blur(a, n=1):
     return a
 
 
-def build_trollhead(P, width=2.8, res=180, front=0.62, back=0.42, carve=0.09):
+def build_trollhead(P, width=2.8, res=180, front=0.62, back=0.42, carve=0.09, name="gl-trollhead",
+                    place=None, colors=None, moss_on=True):
     """The trollface carved in stone: the real artwork's outline is the
     silhouette, its ink lines are cut in as grooves, and the solid swells
     from a rounded rim to a full face. Weathered stone, darker in the cuts,
-    moss creeping up from below. Writes gl-trollhead.glb."""
+    moss creeping up from below. Writes <name>.glb (gl-trollhead by default,
+    placed on Trollface Falls; `place` = (x, y, z, yaw, pitch, roll) puts it
+    elsewhere, `colors` = (stone_a, stone_b, groove) hex recolours it, so
+    Hollowgrin's white Meme Gallery bust is the same code)."""
     import numpy as np
     img = bpy.data.images.load(TROLLFACE_PNG)
     W, H = img.size
@@ -1824,8 +1828,8 @@ def build_trollhead(P, width=2.8, res=180, front=0.62, back=0.42, carve=0.09):
     idx_b = -np.ones((rh, res), int)
     verts, cols = [], []
     rnd = random.Random(5)
-    stone_a, stone_b = hexlin(0xa5967d), hexlin(0x8a7b63)      # the grotto's weathered rock
-    groove = hexlin(0x3a322a)
+    ca, cb, cg = colors or (0xa5967d, 0x8a7b63, 0x3a322a)          # the grotto's weathered rock
+    stone_a, stone_b, groove = hexlin(ca), hexlin(cb), hexlin(cg)
     moss = hexlin(0x4f6a2e)
     for i in range(rh):
         for j in range(res):
@@ -1839,14 +1843,14 @@ def build_trollhead(P, width=2.8, res=180, front=0.62, back=0.42, carve=0.09):
             g = float(ink[i, j]) * 0.85
             sp = 0.88 + 0.24 * rnd.random()                             # speckle, like the rock's grain
             c = [(base[k] * sp) * (1 - g) + groove[k] * g for k in range(3)]
-            m = max(0.0, 1 - i / (rh * 0.22)) * (0.55 + 0.45 * rnd.random())
+            m = max(0.0, 1 - i / (rh * 0.22)) * (0.55 + 0.45 * rnd.random()) if moss_on else 0.0
             c = [c[k] * (1 - m) + moss[k] * m for k in range(3)]
             idx_f[i, j] = len(verts)
             verts.append((x, y, float(zf[i, j])))
             cols.append((*c, 1.0))
             idx_b[i, j] = len(verts)
             verts.append((x, y, float(zb[i, j])))
-            mb = max(0.0, 1 - i / (rh * 0.35))
+            mb = max(0.0, 1 - i / (rh * 0.35)) if moss_on else 0.0
             cb = [base[k] * (1 - mb) + moss[k] * mb for k in range(3)]
             cols.append((*cb, 1.0))
     faces = []
@@ -1901,12 +1905,14 @@ def build_trollhead(P, width=2.8, res=180, front=0.62, back=0.42, carve=0.09):
     # cocked to one side, sat on the grotto's top
     hx, hy, hz = FALLS["head"]
     yaw, pitch, roll = -math.pi / 2, -0.12, 0.07
+    if place:
+        hx, hy, hz, yaw, pitch, roll = place
     from mathutils import Matrix
     M = (Matrix.Translation((hx, hy, hz)) @ Matrix.Rotation(yaw, 4, "Y")
          @ Matrix.Rotation(pitch, 4, "X") @ Matrix.Rotation(roll, 4, "Z"))
     Rz = Matrix.Rotation(math.pi / 2, 4, "X")                 # game -> Blender (the kit's convention)
     out = [tuple(Rz @ M @ Vector(v)) for v in verts]
-    me = bpy.data.meshes.new("gl-trollhead")
+    me = bpy.data.meshes.new(name)
     me.from_pydata(out, [], faces)
     me.validate()
     attr = me.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
@@ -1917,12 +1923,12 @@ def build_trollhead(P, width=2.8, res=180, front=0.62, back=0.42, carve=0.09):
     me.materials.append(paint_material())
     me.color_attributes.active_color_name = "Col"
     me.color_attributes.render_color_index = me.color_attributes.active_color_index
-    obj = bpy.data.objects.new("gl-trollhead", me)
+    obj = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(obj)
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
-    path = os.path.join(OUT_DIR, "gl-trollhead.glb")
+    path = os.path.join(OUT_DIR, name + ".glb")
     bpy.ops.export_scene.gltf(filepath=path, use_selection=True, export_format="GLB", export_yup=True, export_apply=True)
     print("Exported", path, len(verts), "verts")
     bpy.data.objects.remove(obj)
@@ -2068,4 +2074,7 @@ def main():
     quantize_glb.main(fresh)
 
 
-main()
+# imported by build_hollowgrin_eggs.blender.py for build_trollhead: only
+# build when run as the script
+if __name__ == "__main__":
+    main()

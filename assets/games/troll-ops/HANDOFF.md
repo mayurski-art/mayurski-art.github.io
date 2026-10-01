@@ -1,5 +1,72 @@
 # Troll Ops hand-off — 2026-10-01 (session 21)
 
+## PAUSED HERE (2026-10-01, session 21): Hollowgrin expansion — read first
+The Grinleria (below) is merged to main (e2167b9). Then the user asked:
+"work on making hollowgrin map twice as bigger and more and better decor
+lights and graphics etc. i also want to put some easter eggs around the map.
+maybe like a painting in a house with these images" (two images: a sci-fi
+poster screen "Dark Planetoid Rising / Fist of the Unicorn" with a small
+trollface on it, and a photo of white-trollface + Pepe sculptures on black
+plinths at a "meme gallery"). Then: "update handoff.md and pause the work".
+
+**Done (committed on `claude/bold-shannon-0h5uzi`, NOT on main):**
+- The two images, re-encoded clean (metadata stripped), 1024 wide:
+  `ui/easter/poster-dark-planetoid.jpg`, `ui/easter/meme-gallery.jpg`.
+- `models/build_hollowgrin_eggs.blender.py` -> `hg-trollbust.glb` (white
+  trollface bust, black carved lines, the Trollface Falls carving code) and
+  `hg-pepe.glb` (Pepe head: droopy lids, side-eye, lips). Both at the origin
+  facing +z, base on y 0, ~1.1 m tall; quantized. Look-dev render was good.
+- `build_grinleria.blender.py`: `build_trollhead()` now takes `name`,
+  `place`, `colors`, `moss_on` (Trollface Falls output unchanged, byte for
+  byte); its `main()` is guarded by `__name__` so other scripts can import it.
+
+**Not started: the Hollowgrin code itself (hollowgrin.js untouched).** Plan
+(user didn't object to "twice as big" = twice the AREA for the Grinleria,
+so the same reading): BOUNDS -36..36 x -32..32 -> **-51..51 x -45..45**,
+everything existing stays put, new districts in the ring:
+- **W: ruined chapel "St. Grinsworth's"** (~x -49..-39, z -12..8): bell
+  tower at the south door, pews (low cover), altar, a lit trollface
+  stained-glass rose window, half the roof fallen in, a collapsed east wall
+  gap. Open a gate in the graveyard's west fence (`ironFence` axis z at
+  x -35.6, a -6..20) at z 0.4..3.6 so the graveyard lane leads to it.
+- **NW: witch's hollow**: hut with a green-glowing cauldron and potion
+  shelves, a pond (map `wade` polygon slows you), lily pads, wisps.
+- **N: ruined glasshouse** behind the manor (~x -9..9, z -43..-34): iron
+  frame, part-broken glass, raised beds, glowing plants. North team spawns
+  move to z ~ -42.
+- **E: "Grinmoor Fair"** (x 36..51): carousel (~(44, -6), r 4.5,
+  turning visually; colliders: platform + centre post), game stalls
+  (Whack-a-Troll, ring toss) with striped awnings, ticket booth, entrance
+  arch, string lights; a lit Ferris wheel OUTSIDE the east bound (~x 58,
+  art only; clear the woods ring there).
+- **S: "Trick-or-Treat Lane"**: road z ~33.5..36.5 (the old road gate at
+  (±3, 31.2) becomes the village gate onto it), yards z 36.5..39.5, houses
+  z 39.5..44.6 facing north. **The Troll House** (x -5..5, enterable):
+  living room with the two images as framed paintings (gold frames; give
+  the canvases a little emissive so they read in the dark), fireplace,
+  sofa. Its front yard = the **Meme Gallery**: hg-trollbust + hg-pepe on
+  black plinths on purple discs (plinth text "MEME GALLERY", not the
+  photo's brand). Other houses closed, lit windows, porch decor. South
+  spawns move to the road (z ~35).
+- **SW: creek + covered bridge** where the creek crosses the lane (~x
+  -39..-34): wade polygon from the west edge down to the south edge.
+- **Lights/graphics pass, whole map**: festoon string lights (emissive
+  bulbs on catenaries: square, lane, fair, glasshouse), more lanterns and
+  candles in windows, drifting ground-fog sheets (graveyard, corn, pond,
+  creek), fireflies + will-o'-wisps (animated Points). Real lights now 9;
+  keep the total ~16 (all built at load, light-pool.js rule).
+- Bounds-dependent code to change in hollowgrin.js: `BOUNDS` (line ~32),
+  `api.ghostWalls(0, 0, 72 + 2.8, 64 + 2.8, ...)` (~915, use BOUNDS),
+  zombie edge spawns list (~1800), `spawns` (~1824). The wall ring and the
+  woods already follow BOUNDS. Add zombie rise points in the new areas.
+- Then: map audit + new walk runs (chapel door, glasshouse, bridge, Troll
+  House door, carousel platform) in tools/troll-ops-map-walk.mjs, zombie
+  routing sanity, bot match, re-render `ui/maps/hollowgrin.jpg`
+  (`ANGLE=swiftshader WAIT=15000 node tools/troll-ops-map-previews.mjs
+  hollowgrin`), bump `?v=` tags (maps.js imports hollowgrin.js unversioned;
+  bump maps.js's tag in game.js + loadout.js, then loadout.js and game.js),
+  ask the user before pushing to main again.
+
 ## New map: The Grinleria (2026-10-01, session 21) — `game.js?v=to-gl1`, `style.css?v=to-gl1`, `maps.js?v=gl1`
 Branch `claude/bold-shannon-0h5uzi` (cloud session; not merged). User asks,
 in order: "troll forces map idea: the Galleria mall in Houston with various
