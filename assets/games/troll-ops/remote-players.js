@@ -6,7 +6,7 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, parryWeight } from "./character.js?v=to-fx3";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-lk1";
 import { poseEmoteCode } from "./emotes.js?v=to-fx3";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
 import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
@@ -238,7 +238,7 @@ export class RemotePlayer {
     // out last frame, and sounds for game.js to play at this body
     // ({ kind: "ignite" | "retract" | "swing", at }), drained each frame.
     this.blockT = 0;
-    this.parry = { zone: "left", t: 9 };   // last deflect's parry (game.js onRemoteDeflect)
+    this.parry = new ParryState();   // last deflect's parry (game.js onRemoteDeflect)
     this.swivelSeen = null;                  // their swivel counter (sv); a change starts a spin
     this.swivelT = 9;
     this.swivelDir = 0;
@@ -289,7 +289,7 @@ export class RemotePlayer {
 
   get swinging() { return !!this.melee?.busy; }
 
-  startParry(zone) { this.parry.zone = zone; this.parry.t = 0; }
+  startParry(side, up) { this.parry.start(side, up); }
 
   /* Melee state for the killcam's recorder (killcam.js `record`). */
   meleeSample() {
@@ -385,7 +385,7 @@ export class RemotePlayer {
     }
     const guard = saberOut && meleeHeld && !swinging && !!this.peer.blocking;
     this.blockT += ((guard ? 1 : 0) - this.blockT) * Math.min(1, dt * 14);
-    this.parry.t += dt;
+    this.parry.update(dt);
 
     // Just died: hold the last known pose and play a collapse instead of
     // instantly popping out of existence. Respawning (alive flips back to
@@ -530,7 +530,7 @@ export class RemotePlayer {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
       hold: sword ? "melee" : "gun", swing, block: this.blockT, ads: sword ? 0 : this.ads,
-      parry: { zone: this.parry.zone, k: parryWeight(this.parry.t) },
+      parry: this.parry.sample(),
     });
 
     if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);

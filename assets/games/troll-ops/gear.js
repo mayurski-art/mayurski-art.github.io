@@ -236,9 +236,9 @@ export const SABER_BLOCK = {
   pos: new THREE.Vector3(0.10, -0.15, -0.46),
   quat: saberBasis(new THREE.Vector3(-0.86, 0.42, -0.30), -10),
 };
-/* First-person deflect parries, one per zone (character.js parryZone):
+/* First-person deflect parries, one per zone (blended by character.js parryWeights):
    the blade snaps from the guard toward the round and eases back
-   (game.js updateMeleeView, weighted by parryWeight). */
+   (game.js updateMeleeView, timed by ParryState). */
 export const SABER_PARRY = {
   left:  { pos: new THREE.Vector3(-0.03, -0.11, -0.46), quat: saberBasis(new THREE.Vector3(-0.35, 0.9, -0.3), 0) },
   right: { pos: new THREE.Vector3(0.25, -0.12, -0.44), quat: saberBasis(new THREE.Vector3(0.3, 0.9, -0.3), 0) },

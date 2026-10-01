@@ -14,6 +14,8 @@ import * as THREE from "three";
 import { buildWeaponMesh } from "./weapon-model.js?v=gm1";
 import { buildMeleeMesh } from "./gear.js?v=to-fx3";
 import { loadModel } from "./battlefield-props.js";
+import { buildDragonfireModel } from "./dragonfire.js?v=df1";
+import { buildSamTurretModel } from "./sam-turret.js?v=sam1";
 
 /* The glb each scorestreak flies in the match (see streak-entities.js). */
 const STREAK_MODELS = {
@@ -21,6 +23,25 @@ const STREAK_MODELS = {
   airstrike: "strike-jet", helicopter: "helicopter",
   k9: "k9-dog", vsat: "orbital-vsat", warship: "vtol-warship", swarm: "hunter-drone",
 };
+
+/* Streaks with no glb: the match builds them procedurally, so the preview
+   builds the same model. Their materials are a module-wide cache shared with
+   the match copies, so they're flagged to survive a preview swap. */
+const STREAK_BUILDERS = {
+  dragonfire: () => buildDragonfireModel().root,
+  samturret: () => {
+    const { root, hitbox } = buildSamTurretModel();
+    root.remove(hitbox);   // invisible, but it would still pad the framing box
+    return root;
+  },
+};
+function loadBuilt(id) {
+  const obj = STREAK_BUILDERS[id]();
+  obj.traverse((o) => {
+    for (const m of [].concat(o.material || [])) m.userData.shared = true;
+  });
+  return Promise.resolve(obj);
+}
 
 /* The Swarm isn't one drone: a staggered wedge of Hunter-Killers diving in
    together, so its preview doesn't look like the single Hunter-Killer's. */
@@ -172,13 +193,14 @@ export class WeaponInspector {
      show()/showStreak() while it loads wins. */
   showStreak(id) {
     const name = STREAK_MODELS[id];
-    if (!name || this.streakId === id) return;
+    const built = STREAK_BUILDERS[id];
+    if ((!name && !built) || this.streakId === id) return;
     const token = this.pending = {};
-    const load = id === "swarm" ? loadSwarm() : loadModel(name);
+    const load = built ? loadBuilt(id) : id === "swarm" ? loadSwarm() : loadModel(name);
     load.then((obj) => {
       if (this.pending !== token) return;
       // Clones share the cached geometry: never dispose it on swap.
-      obj.traverse((o) => { if (o.geometry) o.geometry.userData.shared = true; });
+      if (!built) obj.traverse((o) => { if (o.geometry) o.geometry.userData.shared = true; });
       // The VSAT's antenna plate is its front (-Z); face it at the camera.
       if (id === "vsat") obj.rotation.y = Math.PI;
       this.setMesh(obj);
@@ -194,7 +216,7 @@ export class WeaponInspector {
       this.rig.remove(this.mesh);
       this.mesh.traverse((o) => {
         if (!o.geometry?.userData.shared) o.geometry?.dispose?.();
-        if (o.material) for (const m of [].concat(o.material)) m.dispose?.();
+        if (o.material) for (const m of [].concat(o.material)) if (!m.userData?.shared) m.dispose?.();
       });
     }
 

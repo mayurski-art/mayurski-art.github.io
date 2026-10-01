@@ -16,7 +16,7 @@
 // Arm angles follow character.js: positive x raises an arm forward, positive
 // z swings the left arm out (the right arm out is negative z).
 
-import { DANCES, setHandPose, setFace } from "./character.js?v=to-fx3";
+import { DANCES, setHandPose, setFace } from "./character.js?v=to-lk1";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
