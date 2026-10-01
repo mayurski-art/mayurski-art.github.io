@@ -614,8 +614,8 @@ export class Net {
     this.send({ t: "loot", id: this.id, ...payload });
   }
 
-  publishDeflect(byId) {
-    this.send({ t: "deflect", id: this.id, by: byId || undefined });
+  publishDeflect(byId, weaponId) {
+    this.send({ t: "deflect", id: this.id, by: byId || undefined, w: weaponId || undefined });
   }
 
   /* action "throw": { gid, def, ox..dz, fuse } · action "boom": { gid, def, x, y, z } */

@@ -12,7 +12,7 @@
 // identical here and not re-explained.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-fx3";
+import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-lk1";
 import { buildWeaponMesh } from "./weapon-model.js?v=gm1";
 import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=to-fx3";
 

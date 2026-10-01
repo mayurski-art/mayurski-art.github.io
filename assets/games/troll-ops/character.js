@@ -1123,12 +1123,14 @@ const _sgR = new THREE.Vector3(), _sgL = new THREE.Vector3(), _sgB = new THREE.V
 const _sgDir = new THREE.Vector3();
 
 /* Deflect parries (user: the saber should bat rounds away with a few
-   animations by where they come from). A round that meets the guard snaps
-   the blade toward it and it eases back: from the left, the blade sweeps
-   out left, upright; from the right it swings across to the right; from
-   above it goes flat overhead; from below it drops point-down. `dir` is the
-   blade in chest space, `grip` where the fists go (same units as
-   SABER_GUARD_GRIP). */
+   animations by where they come from, the way Luke Skywalker's blade meets
+   every bolt in The Mandalorian). Four poses frame the directions: from the
+   left, the blade sweeps out left, upright; from the right it swings across
+   to the right; from above it goes flat overhead; from below it drops
+   point-down. A round's parry is a blend of them aimed at where it came
+   from (ParryState), not one fixed pose, so the blade goes to meet each
+   round. `dir` is the blade in chest space, `grip` where the fists go
+   (same units as SABER_GUARD_GRIP). */
 export const PARRY_ZONES = ["left", "right", "high", "low"];
 const PARRY = {
   left:  { dir: new THREE.Vector3(-0.35, 0.9, -0.28).normalize(), grip: new THREE.Vector3(-0.1, -0.2, -0.4) },
@@ -1136,35 +1138,129 @@ const PARRY = {
   high:  { dir: new THREE.Vector3(-0.96, 0.18, -0.2).normalize(), grip: new THREE.Vector3(0.16, 0.02, -0.34) },
   low:   { dir: new THREE.Vector3(-0.3, -0.62, -0.72).normalize(), grip: new THREE.Vector3(0.1, -0.3, -0.42) },
 };
-/* Which parry a round gets, from where it came from in the blocker's view:
-   `side` +1 right / -1 left, `up` +1 above / -1 below (unit-ish, e.g. the
-   direction to the shooter in view space). A dead-centre round alternates. */
-let _parryFlip = false;
-export function parryZone(side, up) {
-  if (up > 0.28) return "high";
-  if (up < -0.3) return "low";
-  if (Math.abs(side) < 0.08) return (_parryFlip = !_parryFlip) ? "left" : "right";
-  return side > 0 ? "right" : "left";
+/* How much of each zone's pose an aim (x: -1 left..+1 right, y: -1 below..
+   +1 above) takes. Sums to 1. */
+export function parryWeights(x, y, out = {}) {
+  out.left = Math.max(0, -x); out.right = Math.max(0, x);
+  out.high = Math.max(0, y); out.low = Math.max(0, -y);
+  const sum = out.left + out.right + out.high + out.low || 1;
+  for (const z of PARRY_ZONES) out[z] /= sum;
+  return out;
 }
-/* 0..1 strength of a parry `t` seconds after the hit: a sharp snap out in
-   ~0.06 s, a short hold, then eased back by ~0.4 s. */
+/* The strongest zone for an aim: the old one-pose answer, kept for anything
+   that only wants a label. */
+export function parryZone(side, up) {
+  const w = parryWeights(side, up);
+  return PARRY_ZONES.reduce((a, b) => (w[b] > w[a] ? b : a));
+}
+
+/* One blocker's parries. Beats, from the round's arrival (t = 0):
+     0 - 0.05 s   the blade whips from wherever it is to meet the round
+     0.05 - 0.16  a wrist flick bats it away: the blade carries on past
+                  the intercept the way it was moving (rounds landing on
+                  one side in quick succession alternate it forehand/
+                  backhand, so a burst reads as the blade flowing, not
+                  the same snap)
+     0.16 - 0.46  eased back to the guard
+   A round that lands mid-parry starts from the blade's current aim, so a
+   burst chains instead of popping back to the guard between rounds. */
+const PARRY_SNAP = 0.05, PARRY_FLICK = 0.16, PARRY_END = 0.46;
+const _ps = { x: 0, y: 0, k: 0, flick: 0 };
+export class ParryState {
+  constructor() {
+    this.x = 0; this.y = 0;     // aim of the current parry
+    this.px = 0; this.py = 0;   // aim it started from
+    this.pk = 0;                // how far out the blade already was
+    this.flip = 1;
+    this.side = 1;
+    this.t = 9;
+  }
+
+  /* A round met the blade from (side, up): the direction to the shooter in
+     the blocker's view, unit-ish. */
+  start(side, up) {
+    const cur = this.sample();
+    this.px = cur.x; this.py = cur.y; this.pk = cur.k;
+    const chained = this.t < PARRY_END;
+    // Spread the view direction out (rounds from the front cluster near
+    // the middle), a dead-centre round goes to whichever side the blade
+    // isn't on, and every parry wanders a little so a burst from one
+    // shooter never lands the same pose twice.
+    let x = Math.max(-1, Math.min(1, side * 2.6));
+    const y = Math.max(-1, Math.min(1, up * 3));
+    if (Math.abs(x) < 0.35 && Math.abs(y) < 0.35) x = chained && this.x !== 0 ? -Math.sign(this.x) * 0.6 : (Math.random() < 0.5 ? -0.6 : 0.6);
+    this.x = Math.max(-1, Math.min(1, x + (Math.random() - 0.5) * 0.35));
+    this.y = Math.max(-1, Math.min(1, y + (Math.random() - 0.5) * 0.3));
+    // Rounds landing on the same side in quick succession alternate the
+    // flick forehand/backhand.
+    const out = this.x < 0 ? 1 : -1;
+    this.flip = chained && out === this.side ? -this.flip : 1;
+    this.side = out;
+    this.t = 0;
+  }
+
+  update(dt) { this.t += dt; }
+
+  /* The pose to show now: aim (x, y), k 0..1 toward the parry pose, and
+     flick, -1..1: +1 carries the blade on past the intercept the way it
+     moved from the guard, -1 whips it back (the backhand). The returned
+     object is shared: copy what you keep. */
+  sample() {
+    const t = this.t;
+    if (!(t >= 0) || t >= PARRY_END) { _ps.x = this.x; _ps.y = this.y; _ps.k = 0; _ps.flick = 0; return _ps; }
+    const m = t < PARRY_SNAP ? 1 - (1 - t / PARRY_SNAP) ** 2 : 1;
+    _ps.x = this.px + (this.x - this.px) * m;
+    _ps.y = this.py + (this.y - this.py) * m;
+    const b = t < PARRY_FLICK ? 0 : (t - PARRY_FLICK) / (PARRY_END - PARRY_FLICK);
+    _ps.k = (this.pk + (1 - this.pk) * m) * (1 - b * b * (3 - 2 * b));
+    let f = 0;
+    if (t >= PARRY_SNAP) {
+      const up = Math.min(1, (t - PARRY_SNAP) / 0.04);
+      const down = t > PARRY_FLICK ? Math.max(0, 1 - (t - PARRY_FLICK) / 0.2) : 1;
+      f = up * down * down;
+    }
+    _ps.flick = f * this.flip;
+    return _ps;
+  }
+}
+
+/* Kept for anything still weighting a parry by time alone. */
 export function parryWeight(t) {
-  if (!(t >= 0) || t > 0.42) return 0;
-  if (t < 0.06) return t / 0.06;
-  if (t < 0.12) return 1;
-  const k = (t - 0.12) / 0.3;
+  if (!(t >= 0) || t >= PARRY_END) return 0;
+  if (t < PARRY_SNAP) return t / PARRY_SNAP;
+  if (t < PARRY_FLICK) return 1;
+  const k = (t - PARRY_FLICK) / (PARRY_END - PARRY_FLICK);
   return 1 - k * k * (3 - 2 * k);
 }
+const _pw = {};
+const _pGrip = new THREE.Vector3(), _pDir = new THREE.Vector3();
+const _chestFwd = new THREE.Vector3(0, 0, 1);
 function _saberGuard(rig, k, parry = null) {
   const p = rig.parts, s = rig.scale, w = rig.build;
   const joints = [p.armR, p.elbowR, p.armL, p.elbowL];
   joints.forEach((j, i) => _sgFk[i].copy(j.quaternion));
-  // A parry (`{ zone, k }`) pulls the fists and the blade toward that
-  // zone's pose, by k.
-  const pz = parry && PARRY[parry.zone], pk = pz ? Math.max(0, Math.min(1, parry.k)) : 0;
+  // A parry (ParryState.sample(): `{ x, y, k, flick }`) pulls the fists and
+  // the blade toward its aimed pose by k, then the flick turns the blade
+  // outward about the chest's forward axis.
+  const pk = parry ? Math.max(0, Math.min(1, parry.k || 0)) : 0;
   _sgR.copy(SABER_GUARD_GRIP);
   _sgDir.copy(SABER_GUARD_DIR);
-  if (pk > 0) { _sgR.lerp(pz.grip, pk); _sgDir.lerp(pz.dir, pk).normalize(); }
+  if (pk > 0) {
+    parryWeights(parry.x, parry.y, _pw);
+    _pGrip.set(0, 0, 0); _pDir.set(0, 0, 0);
+    for (const z of PARRY_ZONES) {
+      _pGrip.addScaledVector(PARRY[z].grip, _pw[z]);
+      _pDir.addScaledVector(PARRY[z].dir, _pw[z]);
+    }
+    _sgR.lerp(_pGrip, pk);
+    _sgDir.lerp(_pDir.normalize(), pk).normalize();
+  }
+  if (parry?.flick && pk > 0) {
+    // Carry on the way the blade turned from the guard (its turn about the
+    // chest's forward axis).
+    const turn = Math.sign(SABER_GUARD_DIR.x * _pDir.y - SABER_GUARD_DIR.y * _pDir.x) || 1;
+    _sgDir.applyAxisAngle(_chestFwd, parry.flick * turn * 0.6).normalize();
+  }
   _sgR.set(_sgR.x * s * w, _sgR.y * s, _sgR.z * s);
   _sgL.copy(_sgR).addScaledVector(_sgDir, -SABER_HAND_GAP * s);   // below it, toward the pommel
   _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT.copy(_sgR).sub(p.armR.position), _gPoleR);

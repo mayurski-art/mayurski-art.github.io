@@ -31,10 +31,10 @@ import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=lv4";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ti4";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-fx3";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-fx3";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, parryZone, parryWeight } from "./character.js?v=to-fx3";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-lk1";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-lk1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-fx3";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-fx3";
 import {
@@ -6725,8 +6725,16 @@ function meleeConnect() {
    straight through (only WEAPON_DEFS rounds are deflectable). */
 const saberBlock = { active: false, meter: 1, broken: 0, idle: 0, t: 0 };
 let saberDeflectT = 0;
-const saberParry = { zone: "left", t: 9 };   // the last deflect's parry, seconds since
+const saberParry = new ParryState();   // the last deflect's parry (character.js)
 const _parryV = new THREE.Vector3();
+const _parryW = {};
+const _parryPos = new THREE.Vector3();
+const _parryQ = new THREE.Quaternion();
+const _flickQ = new THREE.Quaternion();
+const _viewZ = new THREE.Vector3(0, 0, 1);
+const _viewX = new THREE.Vector3(1, 0, 0);
+const _bladeG = new THREE.Vector3(), _bladeP = new THREE.Vector3();
+let saberFlick = 0;
 let saberWasShown = false;
 let saberTrail = null;
 let saberSwingSpeed = 0;
@@ -6794,14 +6802,14 @@ function tryDeflect(amount, fromId, weaponId, fromPos) {
   saberBlock.meter -= d.drainPerHit + amount * d.drainPerDamage;
   saberBlock.idle = 0;
   saberDeflectT = 1;
-  // Which parry: where the round came from, in our view.
+  // Which parry: where the round came from, in our view. killerPosFor
+  // already puts `src` at the shooter's eye.
   if (src) {
     camera.getWorldPosition(_parryV);
-    _parryV.set(src.x - _parryV.x, (src.y ?? move.pos.y) + 1.4 - _parryV.y, src.z - _parryV.z).normalize();
+    _parryV.set(src.x - _parryV.x, (src.y ?? _parryV.y) - _parryV.y, src.z - _parryV.z).normalize();
     _parryV.applyQuaternion(_deflectQ.copy(camera.quaternion).invert());
-    saberParry.zone = parryZone(_parryV.x, _parryV.y);
-  } else saberParry.zone = parryZone(0, 0);
-  saberParry.t = 0;
+    saberParry.start(_parryV.x, _parryV.y);
+  } else saberParry.start(0, 0);
   activeMeleeMesh?.userData.saber?.flare(0.9);
   // Sparks where the round met the blade: the blade's middle is in view
   // space (the weapon camera sits at the origin), so re-aim it through the
@@ -6814,12 +6822,30 @@ function tryDeflect(amount, fromId, weaponId, fromPos) {
     const k = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.tan(THREE.MathUtils.degToRad(weaponCamera.fov / 2));
     v.x *= k; v.y *= k;
     v.normalize().multiplyScalar(1.3);
-    spawnImpactBurst(camera.localToWorld(v), 0xff6a3a, 14);
+    camera.localToWorld(v);
+    spawnImpactBurst(v, 0xff6a3a, 14);
+    ricochetRound(v, src, weaponId);
   }
   audio.saberClash();
-  net.publishDeflect(fromId);
+  net.publishDeflect(fromId, weaponId);
   if (saberBlock.meter <= 0) breakSaberGuard();
   return true;
+}
+
+/* A deflected round, batted back the way it came (the way Luke sends bolts
+   back at the troopers): a cosmetic tracer from the blade toward the
+   shooter, thrown wide enough that it reads as redirected, not aimed. */
+const _ricoDir = new THREE.Vector3();
+function ricochetRound(at, towards, weaponId) {
+  const def = WEAPON_DEFS[weaponId];
+  if (!def) return;
+  if (towards) _ricoDir.subVectors(towards, at).normalize();
+  else _ricoDir.set(Math.random() - 0.5, 0.2, Math.random() - 0.5).normalize();
+  _ricoDir.x += (Math.random() - 0.5) * 0.5;
+  _ricoDir.y += (Math.random() - 0.3) * 0.35;
+  _ricoDir.z += (Math.random() - 0.5) * 0.5;
+  _ricoDir.normalize();
+  bullets.spawn({ origin: at.clone().addScaledVector(_ricoDir, 0.15), dir: _ricoDir.clone(), def, ownerId: "remote", cosmetic: true });
 }
 
 /* Everyone else's sabers, once a frame after remotes.update: the sounds
@@ -6856,10 +6882,13 @@ function onRemoteDeflect(p, m) {
     // rig right is (cos, 0, -sin), ahead is (-sin, 0, -cos)
     const side = dx * c - dz * sn, ahead = -dx * sn - dz * c;
     const len = Math.max(0.5, Math.hypot(side, ahead));
-    rp.startParry(parryZone(side / len, Math.atan2(dy, len)));
-  } else rp.startParry(parryZone(0, 0));
+    rp.startParry(side / len, Math.atan2(dy, len));
+  } else rp.startParry(0, 0);
   const at = rp.bladeMid() || rp.centre();
   spawnImpactBurst(at, 0xff6a3a, 14);
+  // Our own position is the feet; killerPosFor's is already the eye.
+  const lift = from === move.pos ? 1.5 : 0;
+  ricochetRound(at, from ? _parryV.set(from.x, (from.y ?? at.y - lift) + lift, from.z) : null, WEAPON_DEFS[m.w] ? m.w : "problem416");
   rp.saber?.flare(0.9);
   audio.saberClash(at);
   if (m.by === net.id) spawnDamageNumber(0, at, false, "DEFLECTED");
@@ -6877,7 +6906,8 @@ function updateSaberFx(mesh, saber, swinging, dt) {
   // Only the cut itself leaves a trail, not the wind-up or the recovery.
   const m = player.melee;
   const cutting = swinging && m.t >= m.window.open - 0.09 && m.t <= m.window.close + 0.05;
-  if (cutting && saber.lit) saberTrail.push(_saberRoot, _saberTip, now);
+  // A deflect's flick is a cut too: the blade whips and streaks.
+  if ((cutting || Math.abs(saberFlick) > 0.25) && saber.lit) saberTrail.push(_saberRoot, _saberTip, now);
   saberTrail.update(now);
   const speed = saberHavePrevTip ? _saberTip.distanceTo(_saberPrevTip) / Math.max(dt, 1e-3) : 0;
   _saberPrevTip.copy(_saberTip);
@@ -11016,7 +11046,7 @@ function updateLocalRig(dt) {
     } : null,
     recoil: hold === "gun" ? Math.min(1, (currentWeapon()?.viewKickKnockback || 0) * 7) : 0,
     block: localBlockT = damp(localBlockT, saberBlock.active ? 1 : 0, 14, dt),
-    parry: { zone: saberParry.zone, k: parryWeight(saberParry.t) },
+    parry: saberParry.sample(),
   });
   if (localThrowT > 0) {
     localThrowT = Math.max(0, localThrowT - dt);
@@ -11460,13 +11490,38 @@ function updateMeleeView(dt) {
       mesh.position.lerp(SABER_BLOCK.pos, saberBlock.t);
       mesh.quaternion.slerp(SABER_BLOCK.quat, saberBlock.t);
     }
-    // A deflect snaps the blade to that zone's parry and eases it back.
-    saberParry.t += dt;
-    const pw = parryWeight(saberParry.t) * saberBlock.t;
+    // A deflect whips the blade to meet the round (a blend of the zone
+    // parries aimed at the shooter), flicks it away and eases back.
+    saberParry.update(dt);
+    const ps = saberParry.sample();
+    const pw = ps.k * saberBlock.t;
+    saberFlick = ps.flick * saberBlock.t;
+    let turn = 1;
     if (pw > 0.001) {
-      const pz = SABER_PARRY[saberParry.zone];
-      mesh.position.lerp(pz.pos, pw);
-      mesh.quaternion.slerp(pz.quat, pw);
+      parryWeights(ps.x, ps.y, _parryW);
+      _parryPos.set(0, 0, 0);
+      let acc = 0;
+      for (const z of PARRY_ZONES) {
+        const w = _parryW[z];
+        if (w <= 0) continue;
+        _parryPos.addScaledVector(SABER_PARRY[z].pos, w);
+        if (acc === 0) _parryQ.copy(SABER_PARRY[z].quat);
+        else _parryQ.slerp(SABER_PARRY[z].quat, w / (acc + w));
+        acc += w;
+      }
+      // Which way the blade turned (in the view plane) to meet the round:
+      // the flick carries on that way.
+      _bladeG.subVectors(saber.tipLocal, saber.rootLocal).applyQuaternion(mesh.quaternion);
+      _bladeP.subVectors(saber.tipLocal, saber.rootLocal).applyQuaternion(_parryQ);
+      turn = Math.sign(_bladeG.x * _bladeP.y - _bladeG.y * _bladeP.x) || 1;
+      mesh.position.lerp(_parryPos, pw);
+      mesh.quaternion.slerp(_parryQ, pw);
+    }
+    if (Math.abs(saberFlick) > 0.001) {
+      // The wrist turn, in view space: on past the intercept, pushed out at
+      // the round.
+      mesh.quaternion.premultiply(_flickQ.setFromAxisAngle(_viewZ, saberFlick * turn * 0.6));
+      mesh.quaternion.premultiply(_flickQ.setFromAxisAngle(_viewX, -Math.abs(saberFlick) * 0.25));
     }
     if (saberDeflectT > 0) {
       saberDeflectT = Math.max(0, saberDeflectT - dt * 7);
@@ -13255,7 +13310,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT, sawShake: () => sawShake, sawInspectRev: () => sawInspectRev,
     targetMeshes: () => targetMeshes, meleeConnect,
-    saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT }),
+    saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT, parry: { ...saberParry.sample(), t: saberParry.t }, flick: saberFlick }),
     DROP, royaleDropView, inSkyLobby, startRoyaleBus,
     royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale, cycleSpectate, royaleSpectating,
     royaleBotObjective, royaleBotDamage, royaleNoise, ROYALE,
