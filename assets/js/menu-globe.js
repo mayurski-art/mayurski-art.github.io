@@ -409,6 +409,24 @@ export function mountMenuBackdrop(host) {
     return best;
   }
 
+  // Where the trolls are: the average of every pin as a point on the
+  // sphere, so map mode opens facing them instead of wherever the spin left
+  // the planet (two pins on opposite sides of the Atlantic both show).
+  function pinsCentre() {
+    if (!pins.length) return null;
+    const rad = Math.PI / 180;
+    let x = 0, y = 0, z = 0;
+    for (const p of pins) {
+      const la = p.lat * rad, lo = p.lng * rad;
+      x += Math.cos(la) * Math.cos(lo); y += Math.cos(la) * Math.sin(lo); z += Math.sin(la);
+    }
+    const n = Math.hypot(x, y, z);
+    if (n < 1e-6) return null;   // spread evenly round the planet: no side wins
+    const lat = Math.asin(z / n) / rad, lng = Math.atan2(y, x) / rad;
+    // Keep a little tilt toward the equator so the poles don't fill the view.
+    return [lng, Math.max(-35, Math.min(45, lat))];
+  }
+
   async function refreshPins() {
     const list = await loadPins();
     if (dead || !map) return pins;
@@ -455,10 +473,14 @@ export function mountMenuBackdrop(host) {
     const cx = left + aw / 2, cy = ah / 2;
     const target = Math.min(aw, ah) * 0.44;
     const pad = paddingFor(cx, cy, w, h);
-    map.jumpTo({ padding: pad });
+    // Measure the zoom where the camera will end up: the globe's size at a
+    // given zoom changes with the latitude it is centred on.
+    const from = { padding: paddingFor(px, py, w, h), center: map.getCenter(), zoom: map.getZoom() };
+    const face = pinsCentre() || [from.center.lng, from.center.lat];
+    map.jumpTo({ padding: pad, center: face });
     const z = zoomForRadius(target);
-    map.jumpTo({ padding: paddingFor(px, py, w, h) });
-    map.easeTo({ padding: pad, zoom: z, duration: still ? 0 : 900 });
+    map.jumpTo(from);
+    map.easeTo({ padding: pad, zoom: z, center: face, duration: still ? 0 : 900 });
     await settle();
     MAP_HANDLERS.forEach((k) => map[k] && map[k].enable());
     map.setMinZoom(Math.max(0, z - 0.6));
