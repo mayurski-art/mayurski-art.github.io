@@ -734,4 +734,5 @@ def main():
         quantize_glb.main([os.path.join(OUT_DIR, FILES[n])])
 
 
-main()
+if __name__ == "__main__":
+    main()

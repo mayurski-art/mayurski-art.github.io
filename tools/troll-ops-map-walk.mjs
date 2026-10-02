@@ -119,6 +119,14 @@ const RUNS = {
   [75, 6, -7, -1, 0, 2, "wheel: the deck rail holds", (r) => r.end[0] > 73.9 && r.end[1] > 5.8],
   [56.35, 0, -6.5, 0, -1, 3, "stall: in through the counter flap", (r) => r.end[2] < -9.5],
   [55, 0, -6.5, 0, -1, 3, "stall: the counter stops you", (r) => r.end[2] > -8.3],
+  // phase 6c: U Mad Mansion
+  [69.5, 0, 15.5, 0, 1, 4, "mansion: up the steps, in the front door", (r) => r.end[2] > 21.5 && r.end[1] > 0.35],
+  [68, 0.4, 21.75, -1, 0, 3, "mansion: foyer into the endless hall", (r) => r.end[0] < 64.5],
+  [68.2, 0.4, 28.2, -1, 0, 4, "mansion: up the ballroom stair to the attic", (r) => r.end[1] > 4.1],
+  [69.5, 4.2, 23, 0, -1, 3, "mansion: out onto the upper gallery", (r) => r.end[2] < 20.3 && r.end[1] > 4.1],
+  [66, 4.2, 19.5, 0, -1, 2, "mansion: the gallery rail holds", (r) => r.end[2] > 18.2 && r.end[1] > 4.1],
+  [75.4, 0.4, 29.4, 0, 1, 2, "mansion: out the back door", (r) => r.end[2] > 30.8],
+  [64, 4.2, 26.5, 0, 1, 2, "mansion: the stairwell rail holds", (r) => r.end[1] > 4.1],
   ],
   // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
   // cave (-9.1, -32.6), portal (120.8, -100.6), bridge z 77.8 from x -56.3 to

@@ -2,7 +2,7 @@
 Troll Forces — Hollowgrin's Grinmoor Fair park (map detail pass phase 6b).
 
 Run with (no names = all):
-  blender --background --python build_grinmoor.blender.py -- carousel ride horse fountain plaza wheel stalls
+  blender --background --python build_grinmoor.blender.py -- carousel ride horse fountain plaza wheel stalls mansion
 
 Writes, in MAP coordinates (placed at the origin) unless noted:
   hg-carousel.glb       the carousel's still parts: drum, canopy, rounding boards
@@ -15,6 +15,8 @@ Writes, in MAP coordinates (placed at the origin) unless noted:
   hg-wheelbase.glb      the Ferris wheel's A-frame, boarding deck, stair, lamp deck,
                         operator's shack and ticket podium (the wheel itself is JS)
   hg-stalls.glb         the five midway stalls on the plaza's north edge
+  hg-mansion.glb        U Mad Mansion (6c): shell, gallery, roof, cupola, stair,
+                        attic, planters, the scarecrow (its head is a JS jack)
 Colliders live in hollowgrin.js (constants PARK_* / FOUNTAIN / FERRIS /
 STALLS): change a size here, change it there. The JS keeps everything that
 glows, flickers, turns or carries a canvas (bulbs, water, signs, prizes,
@@ -28,7 +30,7 @@ from map_kit import *  # noqa: E402,F401,F403
 import math  # noqa: E402
 import random  # noqa: E402
 
-TEXTURED.update({"HG_Granite", "HG_GraniteDark", "HG_Brick", "HG_Floorboards", "HG_BarnWood"})
+TEXTURED.update({"HG_Granite", "HG_GraniteDark", "HG_Brick", "HG_Floorboards", "HG_BarnWood", "GF_Clapboard"})
 
 TAU = math.pi * 2
 
@@ -89,6 +91,19 @@ def gf_palette():
         "glass": mat("HG_GlassDark", 0x1a2028, 0.1),
         "rubber": mat("GF_Rubber", 0x222226, 0.9),
         "canvas": mat("GF_Canvas", 0xd8ccb0, 0.95),
+        # the mansion
+        "clapw": mat("GF_Clapboard", 0xe8e4dc, 0.8),
+        "trim_w": mat("GF_TrimWhite", 0xf2efe8, 0.7),
+        "damask": mat("GF_Damask", 0x5a1c2a, 0.85),
+        "plaster_in": mat("GF_PlasterIn", 0xcfc6b4, 0.9),
+        "slate": mat("GF_Slate", 0x5a5a6c, 0.75),
+        "slate_dk": mat("GF_SlateDark", 0x3a3a46, 0.8),
+        "shutter": mat("GF_Shutter", 0x1f3a2c, 0.8),
+        "sheet": mat("GF_Sheet", 0xd8d4c8, 0.95),
+        "bone": mat("GF_Bone", 0xe8dfc8, 0.7),
+        "burlap": mat("GF_Burlap", 0x7a5a38, 1.0),
+        "straw": mat("GF_Straw", 0xd8b860, 1.0),
+        "denim": mat("GF_Denim", 0x2e3a5a, 0.9),
     }
 
 
@@ -753,10 +768,287 @@ def build_stalls(P):
     b.finish("hg-stalls.glb")
 
 
+# ------------------------------------------------------------ U Mad Mansion (6c)
+
+def _hollowgrin_kit():
+    """The village builder's Wall helpers (it only runs its main() as a script)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("hg_kit", os.path.join(OUT_DIR, "build_hollowgrin.blender.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+# Shared with hollowgrin.js (MANSION_*): spans are relative to the floor (0.4).
+MANSION = dict(x0=62.0, x1=77.0, z0=20.5, z1=30.5, t=0.3, floor=0.4, slab=3.9, up=4.2, ceil=7.6, eave=7.9)
+GALLERY = dict(x0=61.4, x1=77.6, z0=18.2, z1=20.5)
+M_COLS = [61.6, 63.85, 66.1, 68.35, 70.65, 72.9, 75.15, 77.4]
+_W, _D = (0.9, 2.6), (0.0, 2.8)
+_F = 0.4   # the floor: low enough (< 0.45) that zombies path over the sill
+_UW, _UD = (4.5 - _F, 6.1 - _F), (4.2 - _F, 6.6 - _F)
+# one opening per column, both storeys stacked in its spans (openings must not overlap)
+M_FRONT = [dict(c=63.9, w=1.4, spans=[_W, _UD]), dict(c=66.9, w=1.1, spans=[_W, _UW]), dict(c=69.5, w=1.8, spans=[_D, _UD]),
+           dict(c=72.1, w=1.1, spans=[_W, _UW]), dict(c=75.1, w=1.4, spans=[_W, _UD])]
+M_BACK = [dict(c=64.5, w=1.1, spans=[_UW]), dict(c=68.0, w=1.1, spans=[_W, _UW]), dict(c=71.0, w=1.1, spans=[_W, _UW]),
+          dict(c=75.4, w=1.7, spans=[(0.0, 2.5), _UW])]
+M_WEST = [dict(c=26.3, w=1.1, spans=[_W]), dict(c=23.0, w=1.1, spans=[_UW]), dict(c=27.5, w=1.1, spans=[_UW])]
+M_EAST = [dict(c=22.8, w=1.1, spans=[_W, _UW]), dict(c=27.5, w=1.1, spans=[_UW])]
+# ground-floor partitions: (axis, at, a, b, holes); 0.2 thick, floor to slab
+# (doorways >= 1.7 m: the zombies' flow field needs a whole free cell through)
+M_PARTS = [("z", 66.0, 20.8, 25.2, [dict(c=21.75, w=1.7, spans=[(0.0, 2.4)])]),
+           ("x", 25.2, 62.3, 76.7, [dict(c=63.25, w=1.8, spans=[(0.0, 2.4)])]),
+           ("z", 73.0, 25.3, 30.2, [dict(c=26.2, w=1.7, spans=[(0.0, 2.4)])])]
+M_CLOSET = (64.2, 65.9, 22.7, 25.1)
+M_STAIR = dict(x_foot=67.7, z=28.2, w=1.2, steps=14, rise=(4.2 - 0.4) / 14, run=0.27)
+M_HOLE = (64.2, 66.4, 27.6, 28.8)
+M_MAZE = [("x", 27.4, 73.1, 74.9), ("x", 28.8, 74.9, 76.7)]
+SCARECROW = (59.4, 21.5)
+LIT = {63.9, 72.1, 68.0, 22.8}
+
+
+def build_mansion(P):
+    hk = _hollowgrin_kit()
+    Wall = hk.Wall
+    b = Builder()
+    Mn = MANSION
+    x0, x1, z0, z1, t, F = Mn["x0"], Mn["x1"], Mn["z0"], Mn["z1"], Mn["t"], Mn["floor"]
+    CL, TR, DM, PL = P["clapw"], P["trim_w"], P["damask"], P["plaster_in"]
+    H = Mn["ceil"] - F
+    # the foundation: brick, a white skirt, floorboards on top
+    for (ax0, ax1, az0, az1) in ((x0, x1, z0, z1), (GALLERY["x0"], GALLERY["x1"], GALLERY["z0"], z0)):
+        b.box(P["brick"], ax1 - ax0, F - 0.02, az1 - az0, (ax0 + ax1) / 2, 0, (az0 + az1) / 2)
+        b.box(TR, ax1 - ax0 + 0.04, 0.08, az1 - az0 + 0.04, (ax0 + ax1) / 2, F - 0.12, (az0 + az1) / 2)
+        b.box(P["deck"], ax1 - ax0, 0.02, az1 - az0, (ax0 + ax1) / 2, F - 0.02, (az0 + az1) / 2)
+    walls = [Wall("x", z0 + t / 2, x0, x1, H, t, holes=M_FRONT, y=F, out=-1),
+             Wall("x", z1 - t / 2, x0, x1, H, t, holes=M_BACK, y=F, out=1),
+             Wall("z", x0 + t / 2, z0 + t, z1 - t, H, t, holes=M_WEST, y=F, out=-1),
+             Wall("z", x1 - t / 2, z0 + t, z1 - t, H, t, holes=M_EAST, y=F, out=1)]
+    for w in walls:
+        w.solid(b, CL, inner=DM, split=0.4)
+        w.laps(b, CL, every=0.21, y0=0.05, y1=H)
+        w.casings(b, TR, fw=0.13)
+        # baseboards and a picture rail inside, on both floors
+        for lo, hi in ((0.0, 0.16), (2.6, 2.66), (3.6, 3.76), (6.2, 6.26)):
+            for s, e in hk.spans_free(w.a, w.b, w.holes, (lo + hi) / 2):
+                w.slab(b, P["wood_dk"], s, e, lo, hi, w.face(-0.02), 0.04)
+        # the glass: warm where a lamp is lit inside, dark otherwise, with mullions
+        for hole in w.holes:
+            for lo, hi in hole["spans"]:
+                if lo < 0.05 or (lo, hi) == _UD:
+                    continue
+                lit = hole["c"] in LIT
+                w.slab(b, P["warm"] if lit else P["glass"], hole["c"] - hole["w"] / 2, hole["c"] + hole["w"] / 2, lo, hi, w.at, 0.03)
+                w.slab(b, TR, hole["c"] - 0.025, hole["c"] + 0.025, lo, hi, w.at + 0.0, 0.07)
+                w.slab(b, TR, hole["c"] - hole["w"] / 2, hole["c"] + hole["w"] / 2, (lo + hi) / 2 - 0.025, (lo + hi) / 2 + 0.025, w.at, 0.07)
+                # green shutters either side, outside
+                for side in (-1, 1):
+                    p0 = hole["c"] + side * (hole["w"] / 2 + 0.13)
+                    p1 = p0 + side * hole["w"] * 0.5
+                    w.slab(b, P["shutter"], min(p0, p1), max(p0, p1), lo, hi, w.face(0.03), 0.04)
+    # corner boards
+    for cx in (x0, x1):
+        for cz in (z0, z1):
+            b.box(TR, 0.36, H, 0.36, cx, F, cz)
+    # the partitions downstairs, the closet block
+    for axis, at, a, b_, holes in M_PARTS:
+        pw = Wall(axis, at, a, b_, Mn["slab"] - F, 0.2, holes=holes, y=F, out=1)
+        pw.solid(b, DM)
+        pw.casings(b, P["wood_dk"], fw=0.1, side=1)
+        pw.casings(b, P["wood_dk"], fw=0.1, side=-1)
+        for side in (-1, 1):
+            for s, e in hk.spans_free(pw.a, pw.b, pw.holes, 0.08):
+                pw.slab(b, P["wood_dk"], s, e, 0.0, 0.16, pw.face(0.02) if side > 0 else pw.face(-0.02), 0.04)
+    cx0, cx1, cz0, cz1 = M_CLOSET
+    b.box(DM, cx1 - cx0, Mn["slab"] - F, cz1 - cz0, (cx0 + cx1) / 2, F, (cz0 + cz1) / 2)
+    b.box(P["wood_dk"], 0.9, 2.2, 0.04, (cx0 + cx1) / 2, F, cz0 - 0.02)       # a closet door that never opens
+    b.box(P["brass"], 0.05, 0.05, 0.05, (cx0 + cx1) / 2 + 0.32, F + 1.0, cz0 - 0.05)
+    # the upper floor: ceiling plaster under, boards on top, the stairwell open
+    hx0, hx1, hz0, hz1 = M_HOLE
+    ix0, ix1, iz0, iz1 = x0 + t, x1 - t, z0 + t, z1 - t
+    for (a0, a1, c0, c1) in ((ix0, hx0, iz0, iz1), (hx1, ix1, iz0, iz1), (hx0, hx1, iz0, hz0), (hx0, hx1, hz1, iz1)):
+        b.box(PL, a1 - a0, 0.22, c1 - c0, (a0 + a1) / 2, Mn["slab"], (c0 + c1) / 2)
+        b.box(P["deck"], a1 - a0, 0.08, c1 - c0, (a0 + a1) / 2, Mn["slab"] + 0.22, (c0 + c1) / 2)
+    b.box(PL, ix1 - ix0, 0.3, iz1 - iz0, (ix0 + ix1) / 2, Mn["ceil"], (iz0 + iz1) / 2)
+    # crown moulding round both ceilings
+    for yy in (Mn["slab"] - 0.12, Mn["ceil"] - 0.12):
+        for (ax, az, bx, bz) in ((ix0, iz0 + 0.06, ix1, iz0 + 0.06), (ix0, iz1 - 0.06, ix1, iz1 - 0.06),
+                                 (ix0 + 0.06, iz0, ix0 + 0.06, iz1), (ix1 - 0.06, iz0, ix1 - 0.06, iz1)):
+            b.bar(TR, (ax, yy + 0.06, az), (bx, yy + 0.06, bz), 0.12)
+    # the stair: treads, risers, a panelled side, balusters and a rail
+    S = M_STAIR
+    for i in range(S["steps"]):
+        top = F + S["rise"] * (i + 1)
+        xc = S["x_foot"] - S["run"] * (i + 0.5)
+        b.box(P["wood_dk"], S["run"] + 0.03, 0.05, S["w"] + 0.06, xc, top - 0.05, S["z"])
+        b.box(P["deck"], 0.03, S["rise"] - 0.05, S["w"], xc + S["run"] / 2 - 0.015, top - S["rise"], S["z"])
+    xt = S["x_foot"] - S["run"] * S["steps"]
+    for zz in (S["z"] - S["w"] / 2 - 0.03, S["z"] + S["w"] / 2 + 0.03):
+        b.prism(P["wood_dk"], [(xt, F), (S["x_foot"], F), (S["x_foot"], F + S["rise"]), (xt, F + S["rise"] * S["steps"])], zz - 0.03, zz + 0.03, axis="z")
+    zr = S["z"] - S["w"] / 2 - 0.02
+    for i in range(0, S["steps"], 1):
+        xc = S["x_foot"] - S["run"] * (i + 0.5)
+        top = F + S["rise"] * (i + 1)
+        b.cyl(P["wood_dk"], 0.025, (xc, top, zr), (xc, top + 0.9, zr), seg=6)
+    b.bar(P["wood_dk"], (S["x_foot"] + 0.1, F + 0.95, zr), (xt, F + S["rise"] * S["steps"] + 0.95, zr), 0.07)
+    b.box(P["wood_dk"], 0.16, 1.2, 0.16, S["x_foot"] + 0.12, F, zr)
+    lathe(b, P["brass"], S["x_foot"] + 0.12, zr, [(0, F + 1.2), (0.09, F + 1.24), (0.0, F + 1.36)], seg=8)
+    # rails round the stairwell upstairs
+    U = Mn["up"]
+    for (ax, az, bx, bz) in ((hx0, hz0 - 0.05, hx1, hz0 - 0.05), (hx0, hz1 + 0.05, hx1, hz1 + 0.05), (hx1 + 0.05, hz0, hx1 + 0.05, hz1)):
+        L = math.hypot(bx - ax, bz - az)
+        n = max(2, round(L / 0.2))
+        for k in range(n + 1):
+            px, pz = ax + (bx - ax) * k / n, az + (bz - az) * k / n
+            b.cyl(P["wood_dk"], 0.022, (px, U, pz), (px, U + 0.95, pz), seg=6)
+        b.bar(P["wood_dk"], (ax, U + 0.97, az), (bx, U + 0.97, bz), 0.08, 0.06)
+    # the gallery: two decks of columns, the upper deck and its roof
+    G = GALLERY
+    gcx, gcz = (G["x0"] + G["x1"]) / 2, (G["z0"] + G["z1"]) / 2
+    gw, gd = G["x1"] - G["x0"], G["z1"] - G["z0"]
+    b.box(TR, gw, 0.26, gd, gcx, 3.94, gcz)
+    b.box(P["deck"], gw - 0.04, 0.02, gd - 0.04, gcx, 4.18, gcz)
+    b.box(TR, gw + 0.3, 0.16, gd + 0.4, gcx, Mn["eave"], gcz - 0.1)
+    b.box(P["slate"], gw + 0.4, 0.06, gd + 0.5, gcx, Mn["eave"] + 0.16, gcz - 0.1)
+    for x in M_COLS:
+        for (ya, yb) in ((F, 3.94), (4.2, Mn["eave"])):
+            b.box(TR, 0.4, 0.14, 0.4, x, ya, 18.4)
+            b.cyl(TR, 0.15, (x, ya + 0.14, 18.4), (x, yb - 0.2, 18.4), seg=14, r2=0.13)
+            b.box(TR, 0.42, 0.08, 0.42, x, yb - 0.2, 18.4)
+            b.box(TR, 0.34, 0.12, 0.34, x, yb - 0.12, 18.4)
+    # the front steps, the back steps
+    b.box(P["granite"], 3.6, 0.2, 0.4, 69.5, 0, 18.0)
+    b.box(P["granite"], 1.6, 0.2, 0.4, 75.4, 0, 30.7)
+    # the roof: a hipped slate roof, a ridge crest, two chimneys
+    E = Mn["eave"]
+    ra, rb, rc, rd = (x0 - 0.4, E, z0 - 0.4), (x1 + 0.4, E, z0 - 0.4), (x1 + 0.4, E, z1 + 0.4), (x0 - 0.4, E, z1 + 0.4)
+    half = (z1 - z0) / 2 + 0.4
+    rise = 2.7
+    r1, r2 = ((x0 - 0.4) + half, E + rise, (z0 + z1) / 2), ((x1 + 0.4) - half, E + rise, (z0 + z1) / 2)
+    b.poly(P["slate"], [ra, rb, rc, rd, r1, r2], [[0, 1, 5, 4], [2, 3, 4, 5], [3, 0, 4], [1, 2, 5], [3, 2, 1, 0]])
+    # shingle courses: thin lines up each face (just proud of it)
+    for k in range(1, 9):
+        f = k / 9
+        y = E + rise * f
+        inset = half * f
+        for (a, c) in (((x0 - 0.4 + inset, z0 - 0.4 + inset), (x1 + 0.4 - inset, z0 - 0.4 + inset)),
+                       ((x0 - 0.4 + inset, z1 + 0.4 - inset), (x1 + 0.4 - inset, z1 + 0.4 - inset))):
+            sgn = -1 if c[1] < (z0 + z1) / 2 else 1
+            b.bar(P["slate_dk"], (a[0], y + 0.02, a[1] + sgn * 0.02), (c[0], y + 0.02, c[1] + sgn * 0.02), 0.04, 0.03)
+    b.bar(P["slate_dk"], r1, r2, 0.16)
+    for (p, q) in ((ra, r1), (rd, r1), (rb, r2), (rc, r2)):
+        b.bar(P["slate_dk"], p, q, 0.12)
+    for k in range(int((r2[0] - r1[0]) / 0.3) + 1):
+        xx = r1[0] + k * 0.3
+        b.cyl(P["iron"], 0.012, (xx, r1[1] + 0.08, r1[2]), (xx, r1[1] + 0.5, r1[2]), seg=4)
+        lathe(b, P["iron"], xx, r1[2], [(0, r1[1] + 0.45), (0.035, r1[1] + 0.5), (0, r1[1] + 0.6)], seg=4)
+    b.bar(P["iron"], (r1[0], r1[1] + 0.3, r1[2]), (r2[0], r1[1] + 0.3, r1[2]), 0.02)
+    b.box(TR, x1 - x0 + 0.9, 0.22, 0.12, (x0 + x1) / 2, E - 0.2, z0 - 0.42)
+    b.box(TR, x1 - x0 + 0.9, 0.22, 0.12, (x0 + x1) / 2, E - 0.2, z1 + 0.42)
+    b.box(TR, 0.12, 0.22, z1 - z0 + 0.9, x0 - 0.42, E - 0.2, (z0 + z1) / 2)
+    b.box(TR, 0.12, 0.22, z1 - z0 + 0.9, x1 + 0.42, E - 0.2, (z0 + z1) / 2)
+    for cx in (63.6, 75.4):
+        b.box(P["brick"], 0.9, 4.6, 0.7, cx, E + 0.4, 27.6)
+        b.box(P["granite_dk"], 1.05, 0.14, 0.85, cx, E + 5.0, 27.6)
+        for s in (-0.2, 0.2):
+            b.cyl(P["brick"], 0.1, (cx + s, E + 5.14, 27.6), (cx + s, E + 5.5, 27.6), seg=8)
+    # the cupola: windows lit, a cornice, a pyramid cap, cresting, a vane mast
+    cx, cz, cy = (x0 + x1) / 2, (z0 + z1) / 2, E + rise - 0.3
+    b.box(TR, 2.3, 1.6, 2.3, cx, cy, cz)
+    for (dx, dz, w_, d_) in ((0, -1.16, 1.5, 0.03), (0, 1.16, 1.5, 0.03), (-1.16, 0, 0.03, 1.5), (1.16, 0, 0.03, 1.5)):
+        b.box(P["warm"], w_, 0.9, d_, cx + dx, cy + 0.4, cz + dz)
+    b.box(TR, 2.6, 0.18, 2.6, cx, cy + 1.6, cz)
+    pc = cy + 1.78
+    b.poly(P["slate"], [(cx - 1.3, pc, cz - 1.3), (cx + 1.3, pc, cz - 1.3), (cx + 1.3, pc, cz + 1.3), (cx - 1.3, pc, cz + 1.3), (cx, pc + 1.3, cz)],
+           [[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4], [3, 2, 1, 0]])
+    b.cyl(P["iron"], 0.03, (cx, pc + 1.25, cz), (cx, pc + 2.6, cz), seg=6)
+    for (dx, dz) in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        b.bar(P["iron"], (cx, pc + 2.0, cz), (cx + dx * 0.35, pc + 2.0, cz + dz * 0.35), 0.015)
+    b.bar(P["iron"], (cx - 0.6, pc + 2.45, cz), (cx + 0.6, pc + 2.45, cz), 0.03)
+    b.poly(P["iron"], [(cx + 0.6, pc + 2.33, cz), (cx + 0.6, pc + 2.57, cz), (cx + 0.82, pc + 2.45, cz)], [[0, 1, 2]])
+    b.poly(P["iron"], [(cx + 0.6, pc + 2.57, cz), (cx + 0.6, pc + 2.33, cz), (cx + 0.82, pc + 2.45, cz)], [[0, 1, 2]])
+    # foyer: a round ottoman and a grandfather clock; the ballroom fireplace
+    lathe(b, P["red"], 71.4, 23.0, [(0, F), (0.85, F), (0.85, F + 0.42), (0.7, F + 0.5), (0, F + 0.52)], seg=20)
+    b.cyl(P["wood_dk"], 0.12, (71.4, F + 0.5, 23.0), (71.4, F + 1.3, 23.0), seg=10, r2=0.06)
+    b.box(P["wood_dk"], 0.6, 2.3, 0.45, 76.3, F, 24.6)
+    b.cyl(P["cream"], 0.2, (76.06, F + 1.85, 24.6), (76.04, F + 1.85, 24.6), seg=16)
+    b.box(P["brass"], 0.03, 0.6, 0.03, 76.05, F + 0.9, 24.6)
+    fx_, fz_ = 69.5, 25.3
+    b.box(P["granite"], 2.0, 1.25, 0.5, fx_, F, fz_ + 0.25)
+    b.box(P["black"], 1.1, 0.8, 0.06, fx_, F, fz_ + 0.5)
+    b.box(P["granite"], 2.4, 0.12, 0.62, fx_, F + 1.25, fz_ + 0.3)
+    # the attic upstairs: dust sheets over furniture, trunks, a rocking chair
+    for (ax, az, w_, h_, d_, sd) in ((64.0, 22.5, 1.8, 1.0, 0.9, 1), (71.5, 23.0, 1.2, 1.3, 1.2, 2), (73.8, 28.6, 2.0, 0.9, 1.0, 3),
+                                     (68.0, 29.2, 1.6, 1.6, 0.8, 4), (66.6, 29.5, 0.9, 1.1, 0.9, 5)):
+        b.lump(P["sheet"], w_, h_, d_, ax, U, az, seed=sd, rnd=0.35, jitter=0.04)
+    for (ax, az, ry) in ((66.8, 26.0, 0.3), (75.6, 21.6, -0.2), (62.9, 23.0, 1.5)):
+        b.box(P["wood"], 1.0, 0.55, 0.6, ax, U, az, ry=ry, bevel=0.02)
+        b.box(P["brass"], 1.02, 0.05, 0.62, ax, U + 0.45, az, ry=ry)
+    rcx, rcz = 70.6, 27.8
+    for s in (-0.25, 0.25):
+        b.bar(P["wood_dk"], (rcx - 0.4, U + 0.05, rcz + s), (rcx + 0.4, U + 0.05, rcz + s), 0.04, 0.06)
+        b.bar(P["wood_dk"], (rcx, U + 0.05, rcz + s), (rcx, U + 0.45, rcz + s), 0.04)
+        b.bar(P["wood_dk"], (rcx + 0.2, U + 0.45, rcz + s), (rcx + 0.3, U + 1.15, rcz + s), 0.04)
+    b.box(P["wood_dk"], 0.5, 0.05, 0.56, rcx, U + 0.45, rcz)
+    b.box(P["wood_dk"], 0.05, 0.6, 0.5, rcx + 0.26, U + 0.5, rcz, rz=0.2)
+    # the planter walls in front, an arch over the way in, the queue rail
+    for (a0, a1) in ((G["x0"], 67.5), (71.5, G["x1"])):
+        c = (a0 + a1) / 2
+        b.box(P["brick"], a1 - a0, 0.7, 0.5, c, 0, 17.25)
+        b.box(P["granite"], a1 - a0 + 0.08, 0.06, 0.58, c, 0.7, 17.25)
+        b.box(P["black"], a1 - a0 - 0.1, 0.02, 0.4, c, 0.69, 17.25)
+        rnd = random.Random(int(a0 * 10))
+        for k in range(int((a1 - a0) / 0.5)):
+            px = a0 + 0.3 + k * 0.5
+            b.lump(P["leaf_r"] if k % 3 else P["vine"], 0.4, 0.2, 0.36, px, 0.7, 17.25 + rnd.uniform(-0.05, 0.05), seed=900 + k, rnd=0.7, jitter=0.03)
+            if k % 2:
+                pumpkin(b, P["pumpkin"], px + 0.1, 0.72, 17.25, 0.14, ribs=8, squash=0.8, seed=950 + k, stem=P["stem"])
+        n = max(1, round((a1 - a0) / 1.6))
+        for k in range(n + 1):
+            px = a0 + 0.15 + (a1 - a0 - 0.3) * k / n
+            b.cyl(P["iron"], 0.03, (px, 0.76, 17.25), (px, 1.65, 17.25), seg=6)
+            lathe(b, P["gold"], px, 17.25, [(0, 1.62), (0.05, 1.68), (0, 1.78)], seg=6)
+        for yy in (1.1, 1.55):
+            b.bar(P["iron"], (a0 + 0.15, yy, 17.25), (a1 - 0.15, yy, 17.25), 0.025)
+    for px in (67.45, 71.55):
+        b.box(P["iron"], 0.14, 3.3, 0.14, px, 0, 17.25)
+        lathe(b, P["gold"], px, 17.25, [(0, 3.3), (0.1, 3.38), (0, 3.55)], seg=8)
+    b.box(P["iron"], 4.3, 0.1, 0.1, 69.5, 2.95, 17.25)
+    b.box(P["iron"], 4.3, 0.06, 0.06, 69.5, 2.35, 17.25)
+    # garlands of skulls and pumpkins swagged along the upper rail
+    for i, xa in enumerate(M_COLS[:-1]):
+        xb = M_COLS[i + 1]
+        for k, p in enumerate(catenary((xa, 5.15, 18.2), (xb, 5.15, 18.2), 0.35, 7)):
+            if 0 < k < 7:
+                m = P["bone"] if k % 2 else P["pumpkin"]
+                b.lump(m, 0.13, 0.13, 0.12, p[0], p[1] - 0.07, p[2], seed=i * 10 + k, rnd=0.8, jitter=0.02)
+    # the scarecrow: post and crossbar, a ragged coat, straw, dangling legs, a witch's hat
+    sx, sz = SCARECROW
+    b.cyl(P["wood"], 0.11, (sx, 0, sz), (sx, 5.3, sz), seg=8)
+    b.bar(P["wood"], (sx - 1.7, 4.45, sz), (sx + 1.7, 4.45, sz), 0.12)
+    b.lump(P["burlap"], 1.1, 2.1, 0.62, sx, 2.6, sz, seed=71, rnd=0.45, jitter=0.06)
+    for s in (-1, 1):
+        b.lump(P["burlap"], 1.6, 0.42, 0.46, sx + s * 0.95, 4.2, sz, seed=72 + s, rnd=0.5, jitter=0.05)
+        b.lump(P["straw"], 0.3, 0.32, 0.3, sx + s * 1.8, 4.25, sz, seed=74 + s, rnd=0.8, jitter=0.08)
+        b.lump(P["denim"], 0.34, 1.3, 0.34, sx + s * 0.24, 1.4, sz, seed=76 + s, rnd=0.5, jitter=0.04)
+        b.lump(P["straw"], 0.26, 0.3, 0.26, sx + s * 0.24, 1.15, sz, seed=78 + s, rnd=0.8, jitter=0.08)
+        b.lump(P["black"], 0.3, 0.2, 0.42, sx + s * 0.24, 0.95, sz - 0.05, seed=80 + s, rnd=0.6, jitter=0.02)
+    rnd = random.Random(5)
+    for k in range(14):
+        a = k / 14 * TAU
+        b.box(P["burlap"], 0.18, 0.5 + rnd.random() * 0.4, 0.04, sx + math.cos(a) * 0.5, 2.2, sz + math.sin(a) * 0.3, ry=-a)
+    b.lump(P["black"], 0.9, 0.2, 0.7, sx, 4.75, sz, seed=82, rnd=0.6, jitter=0.03)       # collar
+    hy = 6.15
+    lathe(b, P["black"], sx, sz, [(0, hy), (1.15, hy), (1.12, hy + 0.06), (0.55, hy + 0.12), (0, hy + 0.12)], seg=24)
+    b.cyl(P["black"], 0.55, (sx, hy + 0.1, sz), (sx + 0.1, hy + 1.0, sz + 0.05), seg=16, r2=0.3)
+    b.cyl(P["black"], 0.3, (sx + 0.1, hy + 1.0, sz + 0.05), (sx + 0.45, hy + 1.55, sz + 0.2), seg=12, r2=0.04)
+    b.cyl(P["purple"], 0.56, (sx, hy + 0.12, sz), (sx + 0.01, hy + 0.32, sz), seg=16)
+    b.finish("hg-mansion.glb")
+
+
 BUILDS = {"carousel": build_carousel, "ride": build_ride, "horse": build_horse, "fountain": build_fountain,
-          "plaza": build_plaza, "wheel": build_wheel, "stalls": build_stalls}
+          "plaza": build_plaza, "wheel": build_wheel, "stalls": build_stalls, "mansion": build_mansion}
 FILES = {"carousel": "hg-carousel.glb", "ride": "hg-carousel-ride.glb", "horse": "hg-horse.glb",
-         "fountain": "hg-fountain.glb", "plaza": "hg-plaza.glb", "wheel": "hg-wheelbase.glb", "stalls": "hg-stalls.glb"}
+         "fountain": "hg-fountain.glb", "plaza": "hg-plaza.glb", "wheel": "hg-wheelbase.glb", "stalls": "hg-stalls.glb", "mansion": "hg-mansion.glb"}
 
 
 def main():

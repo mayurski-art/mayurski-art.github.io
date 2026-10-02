@@ -36,12 +36,12 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { SURFACES, retexture } from "./surface-textures.js?v=hg6a";
-import { portrait } from "./house-props.js?v=hg6a";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6a";
+import { SURFACES, retexture } from "./surface-textures.js?v=hg6c";
+import { portrait } from "./house-props.js?v=hg6c";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6c";
 import { loadModel } from "./battlefield-props.js";
 
-export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0 };
+export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2 };
 // The barn's loft (x 17.35..20.4 over the west end) is its own floor: by
 // height alone a zombie would take it for the manor's upstairs. So is the
 // Ferris wheel's lamp deck, and its stair counts as ground until the top.
@@ -50,6 +50,7 @@ export function hgFloorOf(y, x, z) {
   if (x !== undefined) {
     if (y >= 1.6 && x > 17 && x < 29 && z > 20 && z < 29) return "loft";
     if (x > 73.5 && x < 78.5 && z > -9.3 && z < 1) return y >= 4.6 && z < -5 ? "wheel" : "ground";
+    if (x > 61 && x < 78 && z > 17.9 && z < 31) return y >= 2.5 ? "mansion" : "ground";
   }
   return y >= 2.2 ? "upper" : "ground";
 }
@@ -72,6 +73,35 @@ const SHACK = { x0: 74.4, x1: 77.0, z0: -8.4, z1: -5.9, h: 2.6 };
 const PODIUM = { x: 75.2, z: 5.2 };
 const STALL_Z = { back: -11.2, front: -8.2 };
 const STALLS = [[53.4, 56.9], [56.9, 60.4], [62.9, 66.4], [66.4, 69.9], [69.9, 73.4]];
+// U Mad Mansion (6c): shared with build_grinmoor.blender.py build_mansion.
+// Spans are relative to its floor (0.4: under a zombie's 0.45 m step, or
+// the flow field would shut the whole house).
+const MANSION = { x0: 62, x1: 77, z0: 20.5, z1: 30.5, t: 0.3, floor: 0.4, slab: 3.9, up: 4.2, ceil: 7.6, eave: 7.9 };
+const MANSION_GALLERY = { x0: 61.4, x1: 77.6, z0: 18.2, z1: 20.5 };
+const MANSION_COLS = [61.6, 63.85, 66.1, 68.35, 70.65, 72.9, 75.15, 77.4];
+const MANSION_HOLES = (() => {
+  const F = MANSION.floor, W = [0.9, 2.6], D = [0, 2.8], UW = [4.5 - F, 6.1 - F], UD = [4.2 - F, 6.6 - F];
+  const h = (c, w, spans) => ({ c, w, spans });
+  // one opening per column, both storeys stacked in its spans: wall()
+  // can't take openings that overlap along the wall
+  return {
+    front: [h(63.9, 1.4, [W, UD]), h(66.9, 1.1, [W, UW]), h(69.5, 1.8, [D, UD]), h(72.1, 1.1, [W, UW]), h(75.1, 1.4, [W, UD])],
+    back: [h(64.5, 1.1, [UW]), h(68.0, 1.1, [W, UW]), h(71.0, 1.1, [W, UW]), h(75.4, 1.7, [[0, 2.5], UW])],
+    west: [h(26.3, 1.1, [W]), h(23.0, 1.1, [UW]), h(27.5, 1.1, [UW])],
+    east: [h(22.8, 1.1, [W, UW]), h(27.5, 1.1, [UW])],
+  };
+})();
+// (doorways >= 1.7 m: the zombies' flow field needs a whole free cell through)
+const MANSION_PARTS = [["z", 66.0, 20.8, 25.2, [{ c: 21.75, w: 1.7, spans: [[0, 2.4]] }]],
+  ["x", 25.2, 62.3, 76.7, [{ c: 63.25, w: 1.8, spans: [[0, 2.4]] }]],
+  ["z", 73.0, 25.3, 30.2, [{ c: 26.2, w: 1.7, spans: [[0, 2.4]] }]]];
+const MANSION_CLOSET = [64.2, 65.9, 22.7, 25.1];
+const MANSION_STAIR = { xFoot: 67.7, z: 28.2, w: 1.2, steps: 14, rise: (4.2 - 0.4) / 14, run: 0.27 };
+const MANSION_HOLE = [64.2, 66.4, 27.6, 28.8];
+const MANSION_MAZE = [["x", 27.4, 73.1, 74.9], ["x", 28.8, 74.9, 76.7]];
+const MANSION_SCARECROW = [59.4, 21.5];
+const MANSION_SHEETS = [[64.0, 22.5, 1.8, 1.0, 0.9], [71.5, 23.0, 1.2, 1.3, 1.2], [73.8, 28.6, 2.0, 0.9, 1.0], [68.0, 29.2, 1.6, 1.6, 0.8], [66.6, 29.5, 0.9, 1.1, 0.9]];
+const MANSION_TRUNKS = [[66.8, 26.0], [75.6, 21.6], [62.9, 23.0]];
 // shots that land on the map, for things that react to them (the tin trolls)
 const SHOT_HOOKS = [];
 const CAROUSEL = { x: 44.5, z: -4, r: 4.5 };
@@ -2550,6 +2580,479 @@ function buildPark(api, K, M, SP, root, lights) {
   }
 }
 
+/* ------------------------------------------------ U Mad Mansion (6c) */
+
+/* Cast-iron lace: scrolls and rings between two rails, white on clear (the
+   material tints it green); tiles along a panel's length. */
+function laceTexture() {
+  return tex("lace", () => canvasTex(256, 128, (g, w, h) => {
+    g.strokeStyle = "#fff";
+    g.fillStyle = "#fff";
+    g.lineCap = "round";
+    g.lineWidth = 9;
+    g.beginPath(); g.moveTo(0, 8); g.lineTo(w, 8); g.moveTo(0, h - 8); g.lineTo(w, h - 8); g.stroke();
+    g.lineWidth = 6;
+    for (const cx of [0, w / 2, w]) {
+      g.beginPath(); g.moveTo(cx, 8); g.lineTo(cx, h - 8); g.stroke();
+    }
+    for (const cx of [w / 4, (3 * w) / 4]) {
+      g.lineWidth = 6;
+      g.beginPath(); g.arc(cx, h / 2, 26, 0, Math.PI * 2); g.stroke();
+      g.lineWidth = 4;
+      g.beginPath(); g.arc(cx, h / 2, 11, 0, Math.PI * 2); g.stroke();
+      for (const s of [-1, 1]) {
+        // S-scrolls out to the posts
+        g.beginPath();
+        g.moveTo(cx + s * 26, h / 2);
+        g.bezierCurveTo(cx + s * 44, h / 2 - 34, cx + s * 64, h / 2 - 30, cx + s * 60, h / 2 - 10);
+        g.stroke();
+        g.beginPath();
+        g.moveTo(cx + s * 26, h / 2);
+        g.bezierCurveTo(cx + s * 44, h / 2 + 34, cx + s * 64, h / 2 + 30, cx + s * 60, h / 2 + 10);
+        g.stroke();
+        g.beginPath(); g.arc(cx + s * 52, h / 2 - 16, 6, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(cx + s * 52, h / 2 + 16, 6, 0, Math.PI * 2); g.fill();
+      }
+      // a fleur up top and a drop below
+      g.beginPath(); g.moveTo(cx, h / 2 - 26); g.lineTo(cx - 9, 14); g.lineTo(cx + 9, 14); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(cx, h / 2 + 26); g.lineTo(cx - 7, h - 14); g.lineTo(cx + 7, h - 14); g.closePath(); g.fill();
+    }
+  }, { repeat: true }));
+}
+
+/* The endless hallway, painted on the wall at the corridor's end: doors and
+   sconces marching off to a dark point, with something waiting there. */
+function endlessHallTexture() {
+  return tex("endless", () => canvasTex(512, 1024, (g, w, h) => {
+    const vx = w / 2, vy = h * 0.47;
+    g.fillStyle = "#08060a";
+    g.fillRect(0, 0, w, h);
+    const frame = (k) => {
+      const s = Math.pow(0.78, k);
+      return { x0: vx - (w / 2) * s, x1: vx + (w / 2) * s, y0: vy - vy * s, y1: vy + (h - vy) * s, s };
+    };
+    for (let k = 0; k < 22; k++) {
+      const a = frame(k), b = frame(k + 1);
+      const fade = Math.pow(0.84, k);
+      const wall = (r, gg, bb) => `rgb(${r * fade | 0},${gg * fade | 0},${bb * fade | 0})`;
+      // floor, ceiling, walls of this slice
+      g.fillStyle = wall(70, 46, 30);
+      g.beginPath(); g.moveTo(a.x0, a.y1); g.lineTo(a.x1, a.y1); g.lineTo(b.x1, b.y1); g.lineTo(b.x0, b.y1); g.fill();
+      g.fillStyle = wall(40, 34, 32);
+      g.beginPath(); g.moveTo(a.x0, a.y0); g.lineTo(a.x1, a.y0); g.lineTo(b.x1, b.y0); g.lineTo(b.x0, b.y0); g.fill();
+      for (const side of [0, 1]) {
+        const ax = side ? a.x1 : a.x0, bx = side ? b.x1 : b.x0;
+        g.fillStyle = wall(92, 28, 40);
+        g.beginPath(); g.moveTo(ax, a.y0); g.lineTo(bx, b.y0); g.lineTo(bx, b.y1); g.lineTo(ax, a.y1); g.fill();
+        if (k % 2 === 0) {
+          // a door on every other slice, a sconce between
+          const t0 = 0.25, t1 = 0.75;
+          const px = (t) => ax + (bx - ax) * t, py = (t, f) => (a.y0 + (b.y0 - a.y0) * t) + ((a.y1 + (b.y1 - a.y1) * t) - (a.y0 + (b.y0 - a.y0) * t)) * f;
+          g.fillStyle = wall(28, 16, 12);
+          g.beginPath(); g.moveTo(px(t0), py(t0, 0.32)); g.lineTo(px(t1), py(t1, 0.32)); g.lineTo(px(t1), py(t1, 1)); g.lineTo(px(t0), py(t0, 1)); g.fill();
+        } else {
+          const px = ax + (bx - ax) * 0.5, py = (a.y0 + b.y0) / 2 + ((a.y1 + b.y1) / 2 - (a.y0 + b.y0) / 2) * 0.35;
+          const r = 30 * a.s;
+          const gr = g.createRadialGradient(px, py, 0, px, py, r);
+          gr.addColorStop(0, `rgba(255,190,110,${0.9 * fade})`);
+          gr.addColorStop(1, "rgba(255,190,110,0)");
+          g.fillStyle = gr;
+          g.fillRect(px - r, py - r, r * 2, r * 2);
+        }
+      }
+      // the slice's edges
+      g.strokeStyle = `rgba(0,0,0,${0.5 * fade})`;
+      g.lineWidth = 2;
+      g.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+    }
+    // something pale standing at the far end
+    g.fillStyle = "rgba(220,230,240,0.55)";
+    g.beginPath(); g.ellipse(vx, vy + 6, 5, 12, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(vx, vy - 9, 4, 0, Math.PI * 2); g.fill();
+  }));
+}
+
+/* A long checkerboard of cream and black marble for the ballroom. */
+function checkerTexture() {
+  return tex("checker", () => canvasTex(256, 256, (g, w, h) => {
+    const R = rng(8);
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        const dark = (i + j) % 2;
+        g.fillStyle = dark ? "#18161a" : "#d8cfbe";
+        g.fillRect(i * 64, j * 64, 64, 64);
+        g.strokeStyle = dark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.08)";
+        for (let k = 0; k < 4; k++) {
+          g.beginPath();
+          g.moveTo(i * 64 + R() * 64, j * 64);
+          g.bezierCurveTo(i * 64 + R() * 64, j * 64 + 20, i * 64 + R() * 64, j * 64 + 44, i * 64 + R() * 64, j * 64 + 64);
+          g.stroke();
+        }
+      }
+    }
+  }, { repeat: true }));
+}
+
+/* Mirror glass: a dim, streaky silver that reads as reflective at night. */
+function mirrorTexture() {
+  return tex("mirror", () => canvasTex(256, 512, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, w, h);
+    gr.addColorStop(0, "#4a525c");
+    gr.addColorStop(0.45, "#2a2e34");
+    gr.addColorStop(0.55, "#5c646e");
+    gr.addColorStop(1, "#24272c");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, w, h);
+    g.globalAlpha = 0.08;
+    for (let i = 0; i < 3; i++) {
+      g.fillStyle = "#fff";
+      g.save();
+      g.translate(w * (0.1 + i * 0.17), 0);
+      g.rotate(0.35);
+      g.fillRect(0, -40, 6 + (i % 3) * 5, h * 1.3);
+      g.restore();
+    }
+  }));
+}
+
+/* The troll's naughty list, a parchment scroll. */
+function scrollTexture() {
+  return tex("scroll", () => canvasTex(256, 768, (g, w, h) => {
+    g.fillStyle = "#d8c8a0";
+    g.fillRect(0, 0, w, h);
+    const R = rng(4);
+    for (let i = 0; i < 300; i++) {
+      g.fillStyle = `rgba(90,60,30,${R() * 0.12})`;
+      g.fillRect(R() * w, R() * h, 3 + R() * 8, 2 + R() * 6);
+    }
+    g.fillStyle = "#3a1a10";
+    g.textAlign = "center";
+    g.font = "800 34px Georgia, serif";
+    g.fillText("NAUGHTY", w / 2, 70);
+    g.fillText("LIST", w / 2, 110);
+    g.font = "italic 24px Georgia, serif";
+    ["U MAD", "PROBLEM?", "GG NO RE", "RAGE QUIT", "AFK 4EVER", "CAMPER", "NOOB TUBE", "LAG SWITCH", "TEAMKILLER"].forEach((t, i) => {
+      g.fillText(t, w / 2, 170 + i * 58);
+      g.fillRect(40, 182 + i * 58, w - 80, 1);
+    });
+    g.fillStyle = "#6a1a1a";
+    g.font = "800 22px Georgia, serif";
+    g.fillText("— the Troll", w / 2, h - 30);
+  }));
+}
+
+/* Opaque at the top, gone at the bottom: a ghost's robe trailing away. */
+function ghostFadeTexture() {
+  return tex("ghostFade", () => canvasTex(4, 128, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, 0, h);
+    gr.addColorStop(0, "#fff");
+    gr.addColorStop(0.45, "#888");
+    gr.addColorStop(1, "#000");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, w, h);
+  }, { srgb: false }));
+}
+
+/* A ghost troll: robe, head, a faint trollface; see-through. */
+function ghostTroll(M, body = M.ghostly, faceMat = M.ghostFace) {
+  const g = new THREE.Group();
+  const robe = new THREE.Mesh(new THREE.ConeGeometry(0.36, 1.35, 12, 1, true), body);
+  robe.position.y = 0.75;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), body);
+  head.position.y = 1.55;
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), faceMat);
+  face.position.set(0, 1.56, 0.2);
+  for (const s of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 6), body);
+    arm.position.set(s * 0.32, 1.12, 0.14);
+    arm.rotation.set(-0.9, 0, s * 0.6);
+    g.add(arm);
+  }
+  g.add(robe, head, face);
+  return g;
+}
+
+/* The scare sting: a shriek sweeping down over a burst of hiss, played
+   through the game's own mixer (attachAudio), only for whoever set it off. */
+let AUDIO = null;
+function scareSting() {
+  const ctx = AUDIO?.ctx, out = AUDIO?.master;
+  if (!ctx || !out) return;
+  const t = ctx.currentTime;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.32, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+  g.connect(out);
+  for (const det of [0, 13, -9]) {
+    const o = ctx.createOscillator();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(1500 + det * 20, t);
+    o.frequency.exponentialRampToValueAtTime(180 + det, t + 0.8);
+    o.connect(g);
+    o.start(t);
+    o.stop(t + 0.9);
+  }
+  const len = Math.floor(ctx.sampleRate * 0.5);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const n = ctx.createBufferSource();
+  n.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.setValueAtTime(3000, t);
+  bp.frequency.exponentialRampToValueAtTime(400, t + 0.5);
+  n.connect(bp);
+  bp.connect(g);
+  n.start(t);
+}
+
+/* A lace panel from a to b along `axis` at `at`, y..y+h, tiling the lace
+   every 2h along its length. */
+function lacePanel(K, M, axis, at, a, b, y, h) {
+  const len = b - a;
+  if (len < 0.05) return;
+  const geo = new THREE.PlaneGeometry(len, h);
+  const uv = geo.attributes.uv.array;
+  for (let i = 0; i < uv.length; i += 2) uv[i] *= len / (h * 2);
+  const c = (a + b) / 2;
+  K.add(M.lace, place(geo, axis === "x" ? { x: c, y: y + h / 2, z: at } : { x: at, y: y + h / 2, z: c, ry: Math.PI / 2 }), { shadow: false });
+}
+
+function buildMansion(api, K, M, SP, root, lights) {
+  const sign = (lines, o) => new THREE.MeshBasicMaterial({ map: signTexture(lines, o), color: 0xffffff });
+  const Mn = MANSION, F = Mn.floor;
+  const { x0, x1, z0, z1, t } = Mn;
+  hgModel(api, "hg-mansion", { wash: { color: 0x9a8aff, top: 2.6, strength: 0.07 } });
+
+  /* ---- the shell: foundation, walls, floors, roof */
+  K.solid((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, F, { pen: 10 });
+  K.solid((MANSION_GALLERY.x0 + MANSION_GALLERY.x1) / 2, (MANSION_GALLERY.z0 + z0) / 2, MANSION_GALLERY.x1 - MANSION_GALLERY.x0, z0 - MANSION_GALLERY.z0, F, { pen: 10 });
+  const H = Mn.ceil - F;
+  const outer = [["x", z0 + t / 2, x0, x1, MANSION_HOLES.front], ["x", z1 - t / 2, x0, x1, MANSION_HOLES.back],
+    ["z", x0 + t / 2, z0 + t, z1 - t, MANSION_HOLES.west], ["z", x1 - t / 2, z0 + t, z1 - t, MANSION_HOLES.east]];
+  for (const [axis, at, a, b, holes] of outer) {
+    wall(K, { axis, at, a, b, y: F, h: H, t, holes, pen: 8 });
+    // glass in the windows: stops a body, barely slows a bullet
+    for (const hole of holes) {
+      for (const [lo, hi] of hole.spans) {
+        if (lo < 0.05 || Math.abs(lo - (MANSION.up - MANSION.floor)) < 0.01) continue;   // doors, the gallery doors
+        K.api.ghostBox(axis === "x" ? hole.c : at, axis === "x" ? at : hole.c, axis === "x" ? hole.w : 0.06, axis === "x" ? 0.06 : hole.w, hi - lo, { y: F + lo, pen: 0.3 });
+      }
+    }
+  }
+  for (const [axis, at, a, b, holes] of MANSION_PARTS) wall(K, { axis, at, a, b, y: F, h: Mn.slab - F, t: 0.2, holes, pen: 6 });
+  {
+    const [a0, a1, c0, c1] = MANSION_CLOSET;
+    K.solid((a0 + a1) / 2, (c0 + c1) / 2, a1 - a0, c1 - c0, Mn.slab - F, { y: F, pen: 6 });
+  }
+  const [hx0, hx1, hz0, hz1] = MANSION_HOLE;
+  slabWithHole(K, { x0: x0 + t, x1: x1 - t, z0: z0 + t, z1: z1 - t, y: Mn.slab, h: Mn.up - Mn.slab, hole: { x0: hx0, x1: hx1, z0: hz0, z1: hz1 }, pen: 8 });
+  K.solid((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.3, { y: Mn.ceil, pen: 8 });
+  K.solid((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0 + 0.8, z1 - z0 + 0.8, 2.4, { y: Mn.eave, pen: 8 });
+  const S = MANSION_STAIR;
+  api.stairs(S.xFoot, S.z, S.w, S.steps, S.rise, S.run, "-x", { ghost: true, y: F });
+  const rail = { y: Mn.up, pen: 0.3 };
+  K.api.ghostBox((hx0 + hx1) / 2, hz0 - 0.05, hx1 - hx0, 0.08, 1.05, rail);
+  K.api.ghostBox((hx0 + hx1) / 2, hz1 + 0.05, hx1 - hx0, 0.08, 1.05, rail);
+  K.api.ghostBox(hx1 + 0.05, (hz0 + hz1) / 2, 0.08, hz1 - hz0, 1.05, rail);
+
+  /* ---- the gallery: decks, columns, lace, steps */
+  const G = MANSION_GALLERY, gcx = (G.x0 + G.x1) / 2, gcz = (G.z0 + G.z1) / 2;
+  K.solid(gcx, gcz, G.x1 - G.x0, G.z1 - G.z0, 0.26, { y: Mn.up - 0.26, pen: 6 });
+  K.solid(gcx, gcz - 0.1, G.x1 - G.x0 + 0.3, G.z1 - G.z0 + 0.4, 0.22, { y: Mn.eave, pen: 6 });
+  for (const x of MANSION_COLS) K.solid(x, 18.4, 0.4, 0.4, Mn.eave - F, { y: F, pen: 6 });
+  K.api.ghostBox(gcx, 18.25, G.x1 - G.x0, 0.08, 1.05, rail);
+  for (const x of [G.x0 + 0.05, G.x1 - 0.05]) K.api.ghostBox(x, gcz, 0.08, G.z1 - G.z0, 1.05, rail);
+  // the downstairs porch rail, open in the middle bay over the steps
+  for (const [a, b] of [[G.x0, 68.35], [70.65, G.x1]]) K.api.ghostBox((a + b) / 2, 18.25, b - a, 0.08, 0.9, { y: F, pen: 0.3 });
+  K.api.ghostBox(69.5, 18.0, 3.6, 0.4, 0.2, { pen: 4 });
+  K.api.ghostBox(75.4, 30.7, 1.6, 0.4, 0.2, { pen: 4 });
+  for (let i = 0; i < MANSION_COLS.length - 1; i++) {
+    const a = MANSION_COLS[i] + 0.2, b = MANSION_COLS[i + 1] - 0.2;
+    lacePanel(K, M, "x", 18.4, a, b, Mn.up - 0.78, 0.5);            // frieze under the upper deck
+    lacePanel(K, M, "x", 18.4, a, b, Mn.eave - 0.62, 0.5);          // frieze under the roof
+    lacePanel(K, M, "x", 18.25, a, b, Mn.up + 0.06, 0.88);          // upstairs railing
+    if (i !== 3) lacePanel(K, M, "x", 18.25, a, b, F + 0.05, 0.78); // downstairs railing
+  }
+  for (const x of [G.x0 + 0.05, G.x1 - 0.05]) {
+    lacePanel(K, M, "z", x, G.z0 + 0.2, G.z1, Mn.up + 0.06, 0.88);
+    lacePanel(K, M, "z", x, G.z0 + 0.2, G.z1, F + 0.05, 0.78);
+  }
+  // jack-o'-lanterns all along the gallery roof's edge
+  for (let i = 0; i < 8; i++) jack(K, M, G.x0 + 0.5 + i * ((G.x1 - G.x0 - 1) / 7), Mn.eave + 0.22, 18.0, { r: 0.24, face: Math.PI, seed: 7000 + i, glow: false });
+  // candelabras either side of the front door, the naughty list hung out front
+  for (const x of [67.9, 71.1]) {
+    K.cyl(M.iron, x, F, 20.15, 0.12, 0.04, 1.25, 8);
+    K.box(M.iron, x, F + 1.25, 20.15, 0.46, 0.03, 0.05);
+    for (const dx of [-0.2, 0, 0.2]) candle(K, M, x + dx, F + 1.28, 20.15, { h: 0.22, seed: Math.round(x * 10 + dx * 10) });
+    SP.add(x, F + 1.6, 20.15, 0xffb860, { size: 1.2, blink: 0.08 });
+    K.add(M.lanternPool, place(new THREE.PlaneGeometry(2.6, 2.6), { x, y: F + 0.02, z: 19.8, rx: -Math.PI / 2 }), { shadow: false, phase: x });
+  }
+  K.add(M.scroll, place(new THREE.PlaneGeometry(0.85, 2.6), { x: 67.25, y: 5.95, z: 18.13, ry: Math.PI }), { shadow: false });
+  K.add(M.scrollBack, place(new THREE.PlaneGeometry(0.85, 2.6), { x: 67.25, y: 5.95, z: 18.15 }), { shadow: false });
+  K.box(M.gold, 67.25, 7.25, 18.14, 1.0, 0.06, 0.06);
+  K.box(M.gold, 67.25, 4.62, 18.14, 1.0, 0.06, 0.06);
+  // the planters, their rail and the arch over the way in, with its sign
+  for (const [a, b] of [[G.x0, 67.5], [71.5, G.x1]]) {
+    K.solid((a + b) / 2, 17.25, b - a, 0.5, 0.74, { pen: 8 });
+    K.api.ghostBox((a + b) / 2, 17.25, b - a, 0.1, 1.0, { y: 0.74, pen: 0.3 });
+  }
+  for (const x of [67.45, 71.55]) K.solid(x, 17.25, 0.16, 0.16, 3.3, { pen: 3 });
+  const title = sign(["U MAD MANSION"], { bg: "#0e0a14", fg: "#c8f0d8", edge: "#3a7a5a" });
+  K.add(title, place(new THREE.PlaneGeometry(3.9, 0.56), { x: 69.5, y: 2.66, z: 17.17, ry: Math.PI }), { shadow: false });
+  K.add(title, place(new THREE.PlaneGeometry(3.9, 0.56), { x: 69.5, y: 2.66, z: 17.33 }), { shadow: false });
+  for (const x of [67.45, 71.55]) lantern(K, M, x, 3.6, 17.25, { floor: 0, seed: Math.round(x), pool: 3 });
+
+  /* ---- the scarecrow */
+  {
+    const [sx, sz] = MANSION_SCARECROW;
+    K.solid(sx, sz, 0.45, 0.45, 5.3, { pen: 6 });
+    K.api.ghostBox(sx, sz, 1.1, 0.62, 2.1, { y: 2.6, pen: 1 });
+    jack(K, M, sx, 4.75, sz, { r: 0.9, face: Math.PI, seed: 7100 });
+    SP.add(sx, 5.4, sz - 0.9, 0xffa040, { size: 3.2, blink: 0.1 });
+  }
+
+  /* ---- inside: the stretching room (foyer) */
+  {
+    const tall = (x, z, ry) => {
+      K.add(M.portraitBg, place(new THREE.PlaneGeometry(1.0, 2.7), { x, y: F + 2.0, z, ry }), { shadow: false });
+      const off = 0.012, ox = Math.sin(ry) * off, oz = Math.cos(ry) * off;
+      K.add(M.portraitFace, place(new THREE.PlaneGeometry(0.86, 2.4), { x: x + ox, y: F + 2.0, z: z + oz, ry }), { shadow: false });
+      for (const [dy, w, h] of [[1.38, 1.16, 0.1], [-1.38, 1.16, 0.1]]) {
+        K.box(M.gold, x + ox * 2, F + 2.0 + dy - h / 2, z + oz * 2, Math.abs(Math.cos(ry)) > 0.5 ? w : 0.05, h, Math.abs(Math.cos(ry)) > 0.5 ? 0.05 : w);
+      }
+      for (const s of [-1, 1]) {
+        const lx = Math.cos(ry) * 0.53 * s, lz = -Math.sin(ry) * 0.53 * s;
+        K.box(M.gold, x + lx + ox * 2, F + 0.62, z + lz + oz * 2, Math.abs(Math.cos(ry)) > 0.5 ? 0.1 : 0.05, 2.76, Math.abs(Math.cos(ry)) > 0.5 ? 0.05 : 0.1);
+      }
+    };
+    tall(67.6, 25.08, Math.PI);
+    tall(73.0, 25.08, Math.PI);
+    tall(75.4, 25.08, Math.PI);
+    tall(76.68, 21.6, -Math.PI / 2);
+    tall(66.12, 23.6, Math.PI / 2);
+    candleCluster(K, M, 71.4, F + 0.52, 23.0, { n: 5, seed: 7200 });
+    lantern(K, M, 71.4, 2.6, 23.0, { hang: 1.0, floor: F, seed: 7201, pool: 4 });
+  }
+
+  /* ---- the endless hallway, and what lives at the end of it */
+  K.add(M.endless, place(new THREE.PlaneGeometry(1.9, Mn.slab - F), { x: x0 + t + 0.01, y: (F + Mn.slab) / 2, z: 21.75, ry: Math.PI / 2 }), { shadow: false });
+  for (const x of [63.4, 65.0]) {
+    K.box(M.gold, x, 2.4, 20.82, 0.12, 0.2, 0.08);
+    SP.add(x, 2.6, 20.9, 0xffb860, { size: 0.9, blink: 0.1 });
+  }
+  {
+    // its own materials: it fades, the ballroom's dancers don't
+    const body = M.ghostly.clone(), faceMat = M.ghostFace.clone();
+    const ghost = ghostTroll(M, body, faceMat);
+    ghost.visible = false;
+    root.add(ghost);
+    let at = -99, cool = 0;
+    root.add(ticker((renderer, scene, camera) => {
+      const now = performance.now() / 1000;
+      const p = camera.position;
+      if (now > cool && p.x > x0 && p.x < 65.6 && p.z > 20.8 && p.z < 22.7 && p.y < 3.5) {
+        at = now;
+        cool = now + 25;
+        scareSting();
+      }
+      const k = now - at;
+      if (k > 1.1) { ghost.visible = false; return; }
+      ghost.visible = true;
+      const rush = Math.min(1, k / 0.32);
+      ghost.position.set(62.6 + rush * 2.2, F + 0.2 + Math.sin(k * 20) * 0.04, 21.75);
+      ghost.rotation.y = Math.PI / 2;
+      ghost.scale.setScalar(0.9 + rush * 0.35);
+      body.opacity = k < 0.5 ? 0.6 : 0.6 * Math.max(0, 1 - (k - 0.5) / 0.6);
+      faceMat.opacity = body.opacity * 1.4;
+    }, M.iron));
+  }
+
+  /* ---- the ballroom: checkered floor, a chandelier, ghosts waltzing */
+  {
+    const geo = new THREE.PlaneGeometry(72.9 - 62.3, 30.2 - 25.3);
+    const uv = geo.attributes.uv.array;
+    for (let i = 0; i < uv.length; i += 2) { uv[i] *= (72.9 - 62.3) / 2; uv[i + 1] *= (30.2 - 25.3) / 2; }
+    K.add(M.checker, place(geo, { x: (62.3 + 72.9) / 2, y: F + 0.005, z: (25.3 + 30.2) / 2, rx: -Math.PI / 2 }), { shadow: false });
+    const cx = 70.3, cz = 27.7;   // east of the stair's foot
+    K.cyl(M.iron, cx, 3.1, cz, 0.01, 0.01, Mn.slab - 3.1, 4);
+    K.add(M.gold, place(new THREE.TorusGeometry(0.75, 0.03, 6, 28), { x: cx, y: 3.05, z: cz, rx: Math.PI / 2 }));
+    K.add(M.gold, place(new THREE.TorusGeometry(0.4, 0.025, 6, 20), { x: cx, y: 3.25, z: cz, rx: Math.PI / 2 }));
+    K.add(M.gold, place(new THREE.SphereGeometry(0.16, 10, 8), { x: cx, y: 2.95, z: cz }));
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      candle(K, M, cx + Math.cos(a) * 0.75, 3.07, cz + Math.sin(a) * 0.75, { h: 0.14, seed: 7300 + i });
+      SP.add(cx + Math.cos(a) * 0.75, 3.3, cz + Math.sin(a) * 0.75, 0xffc070, { size: 0.7, blink: 0.1 });
+    }
+    const l = new THREE.PointLight(0xffd0a0, 6, 12, 2);
+    l.position.set(cx, 2.8, cz);
+    l.userData.flicker = 1.3;
+    lights.push(l);
+    K.add(M.ember, place(new THREE.PlaneGeometry(0.9, 0.55), { x: 69.5, y: F + 0.3, z: 25.84 }), { shadow: false });
+    K.add(M.glow, place(new THREE.PlaneGeometry(2.8, 2.8), { x: 69.5, y: F + 0.02, z: 26.6, rx: -Math.PI / 2 }), { shadow: false, phase: 0.6 });
+    const dancers = [];
+    for (let i = 0; i < 6; i++) {
+      const gh = ghostTroll(M);
+      root.add(gh);
+      dancers.push(gh);
+    }
+    root.add(ticker(() => {
+      const now = performance.now() / 1000;
+      dancers.forEach((gh, i) => {
+        const pair = Math.floor(i / 2), side = i % 2 ? 1 : -1;
+        const a = now * 0.35 + (pair / 3) * Math.PI * 2;
+        const px = cx + Math.cos(a) * 1.9, pz = cz + Math.sin(a) * 1.5;
+        const spin = now * 2.2 + pair;
+        gh.position.set(px + Math.cos(spin) * 0.3 * side, F + 0.12 + Math.sin(now * 2 + i) * 0.06, pz + Math.sin(spin) * 0.3 * side);
+        gh.rotation.y = -spin + (side > 0 ? Math.PI : 0) + Math.PI / 2;
+      });
+    }, M.iron));
+  }
+
+  /* ---- the mirror maze */
+  {
+    for (const [axis, at, a, b] of MANSION_MAZE) {
+      K.api.ghostBox(axis === "x" ? (a + b) / 2 : at, axis === "x" ? at : (a + b) / 2, axis === "x" ? b - a : 0.08, axis === "x" ? 0.08 : b - a, 2.7, { y: F, pen: 1 });
+      for (const s of [-1, 1]) {
+        K.add(M.mirror, place(new THREE.PlaneGeometry(b - a - 0.1, 2.5), { x: (a + b) / 2, y: F + 1.35, z: at + s * 0.045, ry: s < 0 ? Math.PI : 0 }), { shadow: false });
+      }
+      for (const y of [F + 0.08, F + 2.62]) K.box(M.gold, (a + b) / 2, y, at, b - a, 0.08, 0.12);
+    }
+    K.add(M.mirror, place(new THREE.PlaneGeometry(4.6, 2.5), { x: 76.69, y: F + 1.35, z: 27.75, ry: -Math.PI / 2 }), { shadow: false });
+    K.add(M.mirror, place(new THREE.PlaneGeometry(3.0, 2.5), { x: 73.11, y: F + 1.35, z: 28.3, ry: Math.PI / 2 }), { shadow: false });
+    for (const [x, z] of [[74.2, 26.0], [76.0, 29.6]]) SP.add(x, 2.6, z, 0x9ad8ff, { size: 0.8, blink: 0.4 });
+    lantern(K, M, 74.9, 2.5, 27.75, { hang: 1.2, floor: F, seed: 7400, pool: 3 });
+  }
+
+  /* ---- the attic upstairs */
+  {
+    const U = Mn.up;
+    for (const [ax, az, w, h, d] of MANSION_SHEETS) K.api.ghostBox(ax, az, w * 0.9, d * 0.9, h, { y: U, pen: 2 });
+    for (const [ax, az] of MANSION_TRUNKS) K.api.ghostBox(ax, az, 1.0, 0.7, 0.55, { y: U, pen: 3 });
+    candleCluster(K, M, 66.8, U + 0.55, 26.0, { n: 4, seed: 7500 });
+    candleCluster(K, M, 75.6, U + 0.55, 21.6, { n: 3, seed: 7501 });
+    lantern(K, M, 69.5, 6.6, 25.5, { hang: 0.8, floor: U, seed: 7502, pool: 5 });
+    for (const [cx, cz, ry] of [[x0 + t + 0.4, z0 + t + 0.4, Math.PI / 4], [x1 - t - 0.4, z1 - t - 0.4, -3 * Math.PI / 4], [x0 + t + 0.4, z1 - t - 0.4, 3 * Math.PI / 4]]) {
+      K.add(M.web, place(new THREE.PlaneGeometry(1.3, 1.3), { x: cx, y: Mn.ceil - 0.6, z: cz, ry }), { shadow: false });
+    }
+  }
+
+  /* ---- out the back: the pet cemetery */
+  {
+    const pets = [[64.0, 31.9], [65.6, 32.3], [67.4, 31.8], [69.6, 32.2], [71.6, 31.9], [73.2, 32.3]];
+    pets.forEach(([x, z], i) => {
+      K.add(M.trim, place(headstoneGeo(0.36, 0.48, 0.07), { x, z, ry: (i % 3 - 1) * 0.12, rz: (i % 2 ? 1 : -1) * 0.05 }));
+      K.add(M.epitaph, place(new THREE.PlaneGeometry(0.3, 0.16), { x, y: 0.3, z: z - 0.04, ry: Math.PI }), { shadow: false });
+      K.api.ghostBox(x, z, 0.4, 0.12, 0.5, { pen: 2 });
+      if (i % 2) candleCluster(K, M, x + 0.3, 0, z - 0.2, { n: 3, seed: 7600 + i });
+    });
+    K.add(sign(["REST IN PIXELS"], { w: 512, h: 128, bg: "#2a2420", fg: "#d8d0c0", edge: "#4a3a2a" }), place(new THREE.PlaneGeometry(1.4, 0.35), { x: 66.4, y: 1.0, z: 31.0, ry: Math.PI }), { shadow: false });
+    K.solid(66.4, 31.05, 0.08, 0.08, 1.2, { pen: 1 });
+  }
+}
+
 /* ===================================================================== map */
 
 function buildHollowgrin(api) {
@@ -2641,6 +3144,17 @@ function buildHollowgrin(api) {
     stainedOut: new THREE.MeshBasicMaterial({ map: stainedTexture(), alphaTest: 0.5, color: new THREE.Color(0xffffff).multiplyScalar(0.9) }),
     lanternPool: flickerMat({ map: glowTexture(), color: new THREE.Color(0xffa04a).multiplyScalar(0.26), additive: true, strength: 0.8 }),
     web: new THREE.MeshBasicMaterial({ map: webTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide, color: 0x9a9aa8 }),
+    // phase 6c: the mansion
+    lace: new THREE.MeshStandardMaterial({ map: laceTexture(), alphaTest: 0.5, side: THREE.DoubleSide, color: 0x3a7a58, roughness: 0.6, metalness: 0.2, emissive: 0x0c2418 }),
+    endless: new THREE.MeshBasicMaterial({ map: endlessHallTexture(), color: 0xffffff }),
+    checker: new THREE.MeshStandardMaterial({ map: checkerTexture(), roughness: 0.25, metalness: 0.1 }),
+    mirror: new THREE.MeshStandardMaterial({ map: mirrorTexture(), roughness: 0.1, metalness: 0.2, emissive: 0x30343a, emissiveMap: mirrorTexture() }),
+    scroll: new THREE.MeshStandardMaterial({ map: scrollTexture(), roughness: 0.9, emissive: 0x2a2014 }),
+    scrollBack: new THREE.MeshStandardMaterial({ color: 0xb8a880, roughness: 0.95 }),
+    portraitBg: new THREE.MeshStandardMaterial({ color: 0x1c2a24, roughness: 0.8 }),
+    portraitFace: new THREE.MeshStandardMaterial({ map: trollTexture(), alphaTest: 0.5, color: 0xd8cfb8, roughness: 0.7, emissive: 0x2a2620, emissiveMap: trollTexture() }),
+    ghostly: new THREE.MeshBasicMaterial({ alphaMap: ghostFadeTexture(), color: 0x7aaad0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
+    ghostFace: new THREE.MeshBasicMaterial({ map: trollTexture(), color: 0xcfefff, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
     // phase 6b: the park
     setts: new THREE.MeshStandardMaterial({ map: settsTexture(), color: 0x9a96a0, roughness: 0.92 }),
     fountainWater: new THREE.MeshStandardMaterial({ color: 0x08262a, roughness: 0.08, metalness: 0.45, emissive: 0x3ab8b0, emissiveMap: rippleTexture(), emissiveIntensity: 0.9 }),
@@ -3527,6 +4041,7 @@ function buildHollowgrin(api) {
 
   buildOutskirts(api, K, M, SP, root, lights);
   buildPark(api, K, M, SP, root, lights);
+  buildMansion(api, K, M, SP, root, lights);
 
   /* ------------------------------------------------ the sky: a full moon */
   {
@@ -3635,6 +4150,8 @@ export const HOLLOWGRIN = {
   ambient: { color: 0x6a5a8a, intensity: 0.35 },
   build: buildHollowgrin,
   onShot: (p) => { for (const f of SHOT_HOOKS) f(p); },
+  // the game's mixer, for the mansion's scare sting
+  attachAudio: (a) => { AUDIO = a; },
   // Team spawns: six along the north edge and one in the park's north
   // end; six on Trick-or-Treat Lane and one in the park's south end.
   spawns: [[-31, -42.5], [-20, -42], [-12.5, -36.5], [12.5, -36.5], [20, -42], [31, -42.5], [70, -41],
@@ -3654,7 +4171,9 @@ export const HOLLOWGRIN = {
       // wall: a zombie outside the wall can't start climbing through it)
       { from: "ground", to: "loft", a: { x: 25.3, z: 27.7 }, b: { x: 19.6, z: 27.7 } },
       // the Ferris wheel's lamp deck: up its stair from 1.3 m short of the foot
-      { from: "ground", to: "wheel", a: { x: 77.2, z: 1.9 }, b: { x: 77.2, z: -6.6 } }],
+      { from: "ground", to: "wheel", a: { x: 77.2, z: 1.9 }, b: { x: 77.2, z: -6.6 } },
+      // the mansion's stair, up the ballroom's west end to the attic
+      { from: "ground", to: "mansion", a: { x: 69.0, z: 28.2 }, b: { x: 63.4, z: 28.2 } }],
     support: true,
     preferDist: 17,
     navCell: 0.55,
