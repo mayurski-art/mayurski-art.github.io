@@ -722,17 +722,18 @@ function frondTexture() {
   return frondTex;
 }
 
+/* spots: [x, z, height?, base y?] */
 export function palmTrees(root, spots, { seed = 5 } = {}) {
   const r = rng(seed);
   const trunks = [], fronds = [], nuts = [];
   const col = new THREE.Color();
   const v = new THREE.Vector3(), side = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
-  for (const [x, z, h0] of spots) {
+  for (const [x, z, h0, y0 = 0] of spots) {
     const H = h0 ?? 5.4 + r() * 1.2;
     const lean = r() * Math.PI * 2, leanAmt = 0.4 + r() * 0.7;
     const lx = Math.cos(lean), lz = Math.sin(lean);
     // trunk centreline: a gentle curve, leaning out then rising
-    const at = (t) => new THREE.Vector3(x + lx * leanAmt * (t * t * 0.6 + t * 0.4), H * t, z + lz * leanAmt * (t * t * 0.6 + t * 0.4));
+    const at = (t) => new THREE.Vector3(x + lx * leanAmt * (t * t * 0.6 + t * 0.4), y0 + H * t, z + lz * leanAmt * (t * t * 0.6 + t * 0.4));
     const RINGS = 22, SEG = 9;
     const pos = [], cols = [], idx = [];
     for (let i = 0; i <= RINGS; i++) {
@@ -809,4 +810,94 @@ export function palmTrees(root, spots, { seed = 5 } = {}) {
     new THREE.MeshStandardMaterial({ color: 0x5a3a1c, roughness: 0.7, metalness: 0 }));
   for (const m of [trunkMesh, frondMesh, nutMesh]) { m.castShadow = true; m.receiveShadow = true; root.add(m); }
   frondMesh.name = "palm-fronds";
+}
+
+/* ------------------------------------------------------- Grin Beach signs */
+// The shop boards' lettering: the sign colour, a white inner keyline and
+// chunky white letters, faintly self-lit so they read in the low sun.
+export function shopSignMaterial(text, color) {
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 96;
+  const g = c.getContext("2d");
+  const col = "#" + new THREE.Color(color).getHexString();
+  g.fillStyle = col; g.fillRect(0, 0, 512, 96);
+  g.strokeStyle = "rgba(255,255,255,0.85)"; g.lineWidth = 4; g.strokeRect(8, 8, 496, 80);
+  g.font = "900 54px 'Arial Black', Impact, sans-serif";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.lineWidth = 8; g.strokeStyle = "rgba(0,0,0,0.35)"; g.strokeText(text, 258, 52, 470);
+  g.fillStyle = "#fffaf0"; g.fillText(text, 256, 50, 470);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.35, roughness: 0.5 });
+}
+
+/* The mural on the lot's back wall (inner face z 30.6): a sunset over the
+   waves, palm silhouettes, GRIN BEACH in surf lettering and the grin,
+   weathered. One canvas on one plane. */
+export function beachMural() {
+  const W = 2048, H = 268;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const r = rng(303);
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "#2f5fa8"); sky.addColorStop(0.45, "#f08a6a"); sky.addColorStop(0.75, "#ffd08a");
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#fff0c0"; g.beginPath(); g.arc(1500, 168, 70, 0, Math.PI * 2); g.fill();
+  for (let k = 0; k < 6; k++) { g.fillStyle = "rgba(255,240,200,0.5)"; g.fillRect(1420, 120 + k * 16, 160, 5); }
+  // waves
+  for (let row = 0; row < 3; row++) {
+    g.fillStyle = ["#2a8ab8", "#1f6f9f", "#16557f"][row];
+    g.beginPath(); g.moveTo(0, H);
+    for (let x = 0; x <= W; x += 16) g.lineTo(x, 196 + row * 24 + Math.sin(x * 0.02 + row * 2) * 8);
+    g.lineTo(W, H); g.fill();
+    g.strokeStyle = "rgba(255,255,255,0.7)"; g.lineWidth = 3; g.beginPath();
+    for (let x = 0; x <= W; x += 16) g.lineTo(x, 196 + row * 24 + Math.sin(x * 0.02 + row * 2) * 8);
+    g.stroke();
+  }
+  // palm silhouettes
+  const palmS = (px, h, lean) => {
+    g.strokeStyle = "#2a1a2a"; g.lineWidth = 10; g.lineCap = "round";
+    g.beginPath(); g.moveTo(px, H); g.quadraticCurveTo(px + lean * 0.3, H - h * 0.6, px + lean, H - h); g.stroke();
+    g.fillStyle = "#2a1a2a";
+    for (let k = 0; k < 7; k++) {
+      const a = -Math.PI + (k / 6) * Math.PI + (r() - 0.5) * 0.3;
+      g.save(); g.translate(px + lean, H - h); g.rotate(a);
+      g.beginPath(); g.ellipse(48, 10, 52, 9, 0.35, 0, Math.PI * 2); g.fill();
+      g.restore();
+    }
+  };
+  palmS(120, 220, 30); palmS(260, 170, -20); palmS(1880, 230, -34); palmS(1990, 160, 18);
+  // GRIN BEACH
+  g.font = "900 150px 'Arial Black', Impact, sans-serif";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.lineJoin = "round";
+  g.lineWidth = 22; g.strokeStyle = "#1a1030"; g.strokeText("GRIN BEACH", 820, 130);
+  const tg = g.createLinearGradient(0, 60, 0, 200);
+  tg.addColorStop(0, "#ffe25a"); tg.addColorStop(1, "#ff6a3a");
+  g.fillStyle = tg; g.fillText("GRIN BEACH", 820, 130);
+  // the grin, on the sun side
+  g.save(); g.translate(1700, 120); g.scale(0.7, 0.7);
+  g.fillStyle = "#fffaf0"; g.strokeStyle = "#1a1030"; g.lineWidth = 9;
+  g.beginPath(); g.ellipse(0, 0, 104, 96, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(-76, 8); g.quadraticCurveTo(0, 104, 78, 0); g.lineTo(-76, 8); g.fillStyle = "#fff"; g.fill(); g.stroke();
+  for (let k = 0; k < 7; k++) { const x = -58 + k * 19; g.lineWidth = 6; g.beginPath(); g.moveTo(x, 10); g.lineTo(x + 2, 36 + Math.sin(k / 6 * Math.PI) * 16); g.stroke(); }
+  g.lineWidth = 7;
+  for (const ex of [-40, 40]) { g.beginPath(); g.ellipse(ex, -40, 20, 10, ex < 0 ? 0.25 : -0.25, 0, Math.PI * 2); g.stroke(); }
+  g.beginPath(); g.moveTo(-66, -66); g.lineTo(-20, -56); g.moveTo(66, -66); g.lineTo(20, -56); g.stroke();
+  g.restore();
+  // weathering: chips and a dirty bottom edge
+  for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(240,232,220,${0.15 + r() * 0.4})`; const d = 1 + r() * 4; g.fillRect(r() * W, r() * H, d, d); }
+  const dirt = g.createLinearGradient(0, H - 50, 0, H);
+  dirt.addColorStop(0, "rgba(60,50,40,0)"); dirt.addColorStop(1, "rgba(60,50,40,0.55)");
+  g.fillStyle = dirt; g.fillRect(0, H - 50, W, 50);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(40, 5.24), new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
+  m.rotation.y = Math.PI;      // faces -z, into the lot
+  m.position.set(0, 0.35 + 2.62, 30.46);   // just proud of the pilasters
+  m.receiveShadow = true;
+  return m;
 }

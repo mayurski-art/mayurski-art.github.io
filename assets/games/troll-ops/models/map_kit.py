@@ -38,7 +38,8 @@ def hexlin(h):
 TEXTURED = {"GS_Concrete", "GS_Slab", "GS_Block", "GS_Plank", "GS_Timber", "GS_Ply",
             "GS_Brick", "GS_Rubble", "GS_Precast", "GS_Plaster", "GS_PlasterDark", "GS_Rock",
             "GS_Stone", "GS_Tile", "GS_FloorConc", "GS_PlasterLight", "GS_Ballast", "GS_Grass", "GS_Pavement",
-            "GS_Marble", "GS_MarbleUp", "GS_WoodFloor", "GS_Asphalt"}
+            "GS_Marble", "GS_MarbleUp", "GS_WoodFloor", "GS_Asphalt",
+            "GS_StuccoA", "GS_StuccoB", "GS_StuccoC", "GS_StuccoD", "GS_StuccoE", "GS_Driftwood", "GS_Sandstone", "GS_Deck"}
 
 
 def paint_material():
@@ -509,29 +510,12 @@ def arch(b, m, cx, cz, span, depth, y0, along="x", thick=0.35, seg=9):
 
 
 def palm(b, P, x, z, h=6.0, lean=(0.4, 0.2), seed=0):
-    """Date palm: a gently curving tapered trunk and a crown of drooping fronds."""
-    import random
-    r = random.Random(seed)
-    n = 6
-    pts = []
-    for i in range(n + 1):
-        t = i / n
-        pts.append(Vector((x + lean[0] * t * t, h * t, z + lean[1] * t * t)))
-    for i in range(n):
-        r0 = 0.2 - 0.07 * i / n
-        b.cyl(P["palm_trunk"], r0, pts[i], pts[i + 1] + Vector((0, 0.05, 0)), seg=8, r2=r0 - 0.012)
-        b.cyl(P["palm_trunk"], r0 + 0.035, pts[i] + Vector((0, 0.15, 0)), pts[i] + Vector((0, 0.3, 0)), seg=8)
-    top = pts[-1]
-    for k in range(11):
-        a = 2 * math.pi * k / 11 + r.uniform(-0.15, 0.15)
-        L = r.uniform(2.0, 2.8)
-        droop = r.uniform(0.5, 1.2)
-        d = Vector((math.cos(a), 0, math.sin(a)))
-        mid = top + d * (L * 0.5) + Vector((0, 0.45, 0))
-        tip = top + d * L + Vector((0, -droop, 0))
-        for p0, p1 in ((top, mid), (mid, tip)):
-            b.bar(P["palm_leaf"], p0, p1, 0.5, 0.03)
-    b.lump(P["palm_trunk"], 0.5, 0.45, 0.5, top.x, top.y - 0.3, top.z, seed=seed)
+    """Palms are drawn in the game now (map-dressing.js palmTrees: ringed
+    trunks, feathered alpha fronds), at the spots the maps list; the flat
+    board fronds a model can do read as fake. Kept as a no-op so the build
+    scripts' layouts stay as they are."""
+    return
+
 
 def edge_rail(b, P, x0, z0, x1, z1, y):
     """Yellow edge protection along a slab edge: posts, top + mid rail, toe board."""

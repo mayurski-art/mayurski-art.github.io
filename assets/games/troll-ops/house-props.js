@@ -5,47 +5,21 @@
 // is hand-drawn with canvas arcs, same as the rest of the procedural set.
 
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture, applyBakedLightMap } from "./surface-textures.js";
+import { retexture } from "./surface-textures.js";
+import { RETEXTURE } from "./map-models.js";
 
 const portraitCache = new Map();
 const MODEL_BASE = new URL("./models/", import.meta.url).href;
 const houseLoader = new GLTFLoader();
 const houseCache = new Map();
-const bakeCache = new Map();
 
-/* Optional per-model baked lightmap: models/<name>-bake.jpg, if a Blender
-   bake pass has produced one. Missing file just means no bake yet (this
-   loader has nothing to opt into until a Blender pass exports one — see
-   applyBakedLightMap's comment for why it's an inert no-op until then),
-   so a failed fetch resolves to null rather than throwing. */
-function loadBakeTexture(name) {
-  if (!bakeCache.has(name)) {
-    bakeCache.set(name, new Promise((resolve) => {
-      new THREE.TextureLoader().load(
-        `${MODEL_BASE}${name}-bake.jpg`,
-        (tex) => resolve(tex),
-        undefined,
-        () => resolve(null),
-      );
-    }));
-  }
-  return bakeCache.get(name);
-}
-
-/* Blender material name -> [surface, repeat]. concrete's texture set is a
-   visible cinder-block pattern (color AND normal) — right for bunker walls
-   elsewhere on the maps, wrong for a suburban house, so walls use wood's
-   subtler plank grain as clapboard siding instead, at a wider tile than
-   the roof so the two don't read as the same material up close. Chimney
-   is small enough that brick's texture scale still tiles convincingly.
-   Trim/Glass/Canvas are left flat — a photo texture on thin bright trim
-   or the hand-painted portrait canvas reads worse than the plain color. */
-const HOUSE_RETEXTURE = {
-  Wall: ["wood", 5],
-  Roof: ["wood", 10],
-  Chimney: ["brick", 1],
-};
+/* The houses are built by models/build_cg_houses.blender.py with the map
+   kit (lap siding, cased windows, shingles...): flat paint arrives as vertex
+   colour, and the few textured materials (brick, concrete, the wood floor and
+   porch planks) use the same metre-UV table as the other map models. */
+const HOUSE_RETEXTURE = RETEXTURE;
 
 /* Fetches (once) and returns a clone of the named house model — same
    cache-then-clone shape as battlefield-props.js's loadModel, kept as a
@@ -59,14 +33,14 @@ function loadHouseModel(name) {
       return scene;
     }));
   }
-  return Promise.all([houseCache.get(name), loadBakeTexture(name)]).then(([scene, bake]) => {
+  // (no baked lightmaps since the rebuild: the old bakes don't fit the new meshes)
+  return houseCache.get(name).then((scene) => {
     const clone = scene.clone(true);
     clone.traverse((n) => {
       if (n.isMesh) {
         n.material = n.material.clone();
         n.castShadow = true;
         n.receiveShadow = true;
-        if (bake) applyBakedLightMap(n, bake);
       }
     });
     retexture(clone, HOUSE_RETEXTURE);
@@ -159,28 +133,71 @@ export function portrait(api, { x, y, z, facing = "s", hue = 20 }) {
    not real cover. */
 export function picketFence(api, { x, z, w = 8, rot = 0, h = 0.9 }) {
   const along = Math.abs(Math.sin(rot)) < 0.5 ? "x" : "z";
-  api.box(x, z, along === "x" ? w : 0.15, along === "z" ? w : 0.15, h,
-    { color: 0xd8d0c0, pen: 0.4 });
+  api.box(x, z, along === "x" ? w : 0.15, along === "z" ? w : 0.15, h, { ghost: true, pen: 0.4 });
+  // Pickets with pointed tops, two rails behind them, a post every 2 m: one
+  // merged mesh (it used to be a solid white slab).
+  const parts = [];
+  const add = (g, px, py, pz) => { g.translate(px, py, pz); parts.push(g); };
+  for (let t = -w / 2 + 0.06; t <= w / 2 - 0.05; t += 0.14) {
+    const p = new THREE.BoxGeometry(0.075, h - 0.1, 0.025);
+    add(p, t, (h - 0.1) / 2, 0.03);
+    const tip = new THREE.CylinderGeometry(0, 0.053, 0.1, 4, 1);
+    tip.rotateY(Math.PI / 4);
+    tip.scale(1, 1, 0.33);
+    add(tip, t, h - 0.05, 0.03);
+  }
+  for (const ry of [0.2, h - 0.25]) add(new THREE.BoxGeometry(w, 0.07, 0.04), 0, ry, -0.01);
+  for (let t = -w / 2; t <= w / 2 + 0.01; t += 2) add(new THREE.BoxGeometry(0.09, h + 0.05, 0.09), Math.min(t, w / 2 - 0.05), (h + 0.05) / 2, -0.04);
+  const geo = mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)), false);
+  geo.rotateY(along === "x" ? 0 : Math.PI / 2);
+  const mesh = new THREE.Mesh(geo, api.mat(0xeeeae0, 0.7));
+  mesh.position.set(x, 0, z);
+  mesh.receiveShadow = true;
+  api.prop(mesh);
   return h;
 }
 
-/* Mailbox on a post — small yard prop, no collider (too thin to matter). */
+/* Mailbox on a post — small yard prop, no collider (too thin to matter).
+   A rounded-top box with a door and a little red flag. */
 export function mailbox(api, { x, z, hue = 20 }) {
-  const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.9, 0.08), api.mat(0x5a5348, 0.8));
-  post.position.set(x, 0.45, z);
+  const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.0, 0.09), api.mat(0x6a5a48, 0.85));
+  post.position.set(x, 0.5, z);
   api.prop(post);
-  const box = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.22, 0.2), api.mat(`hsl(${hue}, 40%, 45%)`, 0.6, 0.2));
-  box.position.set(x, 0.95, z);
-  api.prop(box);
+  const paint = api.mat(`hsl(${hue}, 40%, 45%)`, 0.5, 0.3);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.22), paint);
+  body.position.set(x, 1.07, z);
+  api.prop(body);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.42, 12, 1, false, 0, Math.PI), paint);
+  top.rotation.z = Math.PI / 2;
+  top.rotation.y = Math.PI / 2;
+  top.position.set(x, 1.14, z);
+  api.prop(top);
+  const flag = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.14, 0.09), api.mat(0xd82a22, 0.6));
+  flag.position.set(x + 0.08, 1.24, z + 0.12);
+  api.prop(flag);
 }
 
 /* Kiddie pool — a Nuketown-style centrepiece hazard: low, bright, and
-   just tall enough to block grazing fire without stopping a grenade. */
+   just tall enough to block grazing fire without stopping a grenade.
+   An inflatable: three stacked tubes, blue and white, water inside. */
 export function kiddiePool(api, { x, z, r = 2.2 }) {
-  api.cylinder(x, z, r, 0.5, { color: 0x3aa0c8, pen: 1.2 });
-  const water = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.85, r * 0.85, 0.02, 20),
-    new THREE.MeshStandardMaterial({ color: 0x2a7ea8, roughness: 0.15, metalness: 0.4 }));
-  water.position.set(x, 0.42, z);
+  api.cylinder(x, z, r, 0.5, { ghost: true, pen: 1.2 });
+  const tube = 0.085;
+  for (let k = 0; k < 3; k++) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r - tube, tube, 10, 40),
+      api.mat(k === 1 ? 0xf2f2ee : 0x3aa0d8, 0.35, 0.05));
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(x, tube + k * tube * 1.9, z);
+    api.prop(ring);
+  }
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(r - tube, 32), api.mat(0x58b8e0, 0.5));
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(x, 0.02, z);
+  api.prop(floor);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(r - tube * 1.6, 32),
+    new THREE.MeshStandardMaterial({ color: 0x3a9ec8, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.75 }));
+  water.rotation.x = -Math.PI / 2;
+  water.position.set(x, 0.32, z);
   api.prop(water);
 }
 

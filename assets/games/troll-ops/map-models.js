@@ -40,6 +40,16 @@ export const RETEXTURE = {
   GS_MarbleUp: ["marble", 0.25],
   GS_WoodFloor: ["wood", 0.7],
   GS_Asphalt: ["asphalt", 0.25],
+  // Grin Beach (gb-*): the shops' painted stucco, driftwood, the sandstone
+  // bluffs, the boardwalk's boards
+  GS_StuccoA: ["plaster", 0.45],
+  GS_StuccoB: ["plaster", 0.45],
+  GS_StuccoC: ["plaster", 0.45],
+  GS_StuccoD: ["plaster", 0.45],
+  GS_StuccoE: ["plaster", 0.45],
+  GS_Driftwood: ["wood", 0.9],
+  GS_Sandstone: ["rock", 0.35],
+  GS_Deck: ["wood", 0.8],
 };
 
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.

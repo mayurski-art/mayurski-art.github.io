@@ -7,6 +7,7 @@
 // up for free.
 
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=atm1";
@@ -19,7 +20,7 @@ import {
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js";
 import { gsModel, mapModel } from "./map-models.js";
-import { dressMap, beachWaterMaterial, palmTrees } from "./map-dressing.js?v=dr2";
+import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural } from "./map-dressing.js?v=gb1";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,
@@ -704,9 +705,12 @@ export const MAPS = {
       // village is drawn by the db-*.glb zone models (models/build_dustbowl.blender.py).
       for (const zone of ["perimeter", "north", "centre", "market", "south"]) mapModel(api, `db-${zone}`, { x: 0, z: 0 });
       // palm trunks (the models' PALMS list, plus one in each courtyard)
-      for (const [x, z] of [[-14.5, 11.3], [15, 11.3], [-6.8, -10.4], [24, -2.5], [-24, -2.5], [-30.5, -25], [30.5, -25]]) {
-        api.ghostBox(x, z, 0.4, 0.4, 4, { pen: 3 });
-      }
+      const PALMS = [[-14.5, 11.3], [15, 11.3], [-6.8, -10.4], [24, -2.5], [-24, -2.5], [-30.5, -25], [30.5, -25]];
+      for (const [x, z] of PALMS) api.ghostBox(x, z, 0.4, 0.4, 4, { pen: 3 });
+      // date palms drawn here (map-dressing.js palmTrees), not in the models
+      const palmRoot = new THREE.Group();
+      api.prop(palmRoot);
+      palmTrees(palmRoot, PALMS, { seed: 29 });
     },
     spawns: [[-30, -31], [30, -31], [0, -33], [-33, 0], [33, 0], [-28, 25], [28, 25], [12, 25]],
   },
@@ -931,7 +935,7 @@ export const MAPS = {
         api.box(kx - fw * 0.4, kz, 1.7, 0.62, 0.92, { ghost: true, pen: 1.5 });
         api.box(kx + fw * 0.85, kz, 0.8, 0.7, 1.85, { ghost: true, pen: 2 });
         mapModel(api, "cg-kitchen", { x: kx, z: kz, scale: [fw, 1, 1] });
-        api.lamp(x, 3.2, z, 0xffcf9a, 8, 12);
+        api.lamp(x, 2.85, z, 0xffcf9a, 8, 12);   // under the ceiling (at 3.2 it sat in it and the ceiling went brown)
         // a portrait on the back interior wall, facing the doorway, plus a
         // second on a side wall so there's something to see from most angles
         const backWallX = x + (door === "e" ? w / 2 - 0.4 : -(w / 2 - 0.4));
@@ -977,7 +981,28 @@ export const MAPS = {
           const sInner = sOuter - sgn * 2;
           const stairX = (sOuter + sInner) / 2;
           const HOLE_Z0 = z - 3.6, HOLE_Z1 = z - 3.6 + 12 * 0.45;
-          api.stairs(stairX, HOLE_Z0, 2, 12, 0.27, 0.45, "+z", { color: 0x8a7358 });
+          api.stairs(stairX, HOLE_Z0, 2, 12, 0.27, 0.45, "+z", { ghost: true });
+          // drawn: oak treads and risers on a closed stringer, a handrail
+          {
+            const parts = [];
+            const box = (w, h, d, px, py, pz) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(px, py, pz); parts.push(g); };
+            for (let i = 0; i < 12; i++) {
+              const top = 0.27 * (i + 1), zc = HOLE_Z0 + 0.45 * (i + 0.5);
+              box(2, 0.05, 0.47, stairX, top - 0.025, zc + 0.01);           // tread, a lip over the riser
+              box(1.96, 0.25, 0.03, stairX, top - 0.15, zc - 0.21);         // riser
+            }
+            const run = 12 * 0.45, rise = 12 * 0.27, len = Math.hypot(run, rise), ang = Math.atan2(rise, run);
+            const sideX = stairX - sgn * 1.02;
+            const str = new THREE.BoxGeometry(0.06, 0.4, len);
+            str.rotateX(-ang); str.translate(sideX, rise / 2 - 0.05, HOLE_Z0 + run / 2); parts.push(str);
+            const rail = new THREE.BoxGeometry(0.06, 0.06, len);
+            rail.rotateX(-ang); rail.translate(sideX, rise / 2 + 0.9, HOLE_Z0 + run / 2); parts.push(rail);
+            for (let i = 0; i < 12; i += 2) box(0.03, 0.9, 0.03, sideX, 0.27 * (i + 1) + 0.45, HOLE_Z0 + 0.45 * (i + 0.5));
+            const geo = mergeGeometries(parts.map((g) => g.toNonIndexed()), false);
+            const mesh = new THREE.Mesh(geo, api.mat(0x8a6040, 0.6));
+            mesh.castShadow = mesh.receiveShadow = true;
+            api.prop(mesh);
+          }
           // attic floor, in pieces around the stairwell: solid so the player
           // can stand on it, sized to the model's inset attic room (w-2 by d-2,
           // per build_houses.blender.py)
@@ -986,7 +1011,7 @@ export const MAPS = {
           const hx0 = Math.min(sOuter, sInner), hx1 = Math.max(sOuter, sInner);
           const floorPiece = (x0, x1, z0, z1) => {
             if (x1 - x0 < 0.05 || z1 - z0 < 0.05) return;
-            api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.15, { color: 0x9a8a72, y: ATTIC_Y, pen: 6 });
+            api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.15, { color: 0xd8b088, y: ATTIC_Y, pen: 6, surface: "wood", tile: 1.6 });
           };
           floorPiece(ax0, hx0, az0, az1);
           floorPiece(hx1, ax1, az0, az1);
@@ -1075,9 +1100,14 @@ export const MAPS = {
       // The shell only closes three sides. -Z is open ocean, held by a low
       // seawall instead of a 6m box, so the horizon reads as water rather
       // than a wall the player happens to be standing in front of.
-      api.box(0, 31.3, 80, 1.4, 6, { color: 0x8a7d62, surface: "concrete" });
-      api.box(-39.3, -6, 1.4, 76, 6, { color: 0x8a7d62, surface: "concrete" });
-      api.box(39.3, -6, 1.4, 76, 6, { color: 0x8a7d62, surface: "concrete" });
+      // Drawn by gb-bluffs (realism pass): sandstone bluffs close both ends and
+      // run out into the sea, the lot's back wall is a painted retaining wall
+      // (its mural is a canvas, beachMural).
+      api.box(0, 31.3, 80, 1.4, 6, { ghost: true });
+      api.box(-39.3, -6, 1.4, 76, 6, { ghost: true });
+      api.box(39.3, -6, 1.4, 76, 6, { ghost: true });
+      mapModel(api, "gb-bluffs", { x: 0, z: 0 });
+      api.prop(beachMural());
 
       /* --------------------------------------------------------- the ocean */
       // buildMap's shared ground plane is centred on `bounds` and overhangs
@@ -1101,7 +1131,7 @@ export const MAPS = {
       // ocean — the thing that makes this read as a beach at all — into a
       // grey stripe above a wall. The real edge of the arena is `bounds`,
       // which the movement controller clamps to regardless.
-      api.box(0, -21, 80, 0.8, 0.75, { color: 0xb4ab98, pen: 5, surface: "concrete", tile: 2.5 });
+      api.box(0, -21, 80, 0.8, 0.75, { ghost: true, pen: 5 });   // gb-beach: precast blocks, a capped top, weed on the sea face
       /* ----------------------------------------------------------- the pier */
       // The long lane. A raised deck running out over the water, high enough
       // to look back down the whole beach. A bait shack partway out keeps the
@@ -1151,64 +1181,62 @@ export const MAPS = {
       // Middle lane: open, fast, and deliberately thin on hard cover so it
       // stays a crossing rather than a place to sit. Everything here is
       // low — lifeguard towers are the only thing worth climbing.
-      const TOWER = 0xd8452f;
       // Lifeguard towers, the sand lane's only vertical cover. Stilted hut
-      // with a ramp, so holding one costs you the ground floor.
+      // with a ramp, so holding one costs you the ground floor. Drawn by
+      // gb-towers (braced stilts, red lap siding, the LIFEGUARD board, a
+      // buoy and a flag); these are its colliders.
+      const G = { ghost: true };
       for (const [tx, tz] of [[14, -16], [-30, -12], [26, 2]]) {
         const TY = 2.1;
         for (const [dx, dz] of [[-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8], [1.8, 1.8]]) {
-          api.cylinder(tx + dx, tz + dz, 0.22, TY, { color: 0x8a6a4a, pen: 2 });
+          api.cylinder(tx + dx, tz + dz, 0.22, TY, { ...G, pen: 2 });
         }
-        // Flat paint, not wood: the wood photo is dark, and tinting it red
-        // came out a muddy brown.
-        api.box(tx, tz, 4.6, 4.6, 0.3, { color: TOWER, y: TY, pen: 2.5 });
+        api.box(tx, tz, 4.6, 4.6, 0.3, { ...G, y: TY, pen: 2.5 });
         // Waist-high sides and a roof on corner posts, 2.3m up: the old roof
         // sat 1.5m over the floor, too low to stand under.
-        api.walls(tx, tz, 4.6, 4.6, 1.1, 0.25, {
-          color: TOWER, y: TY + 0.3, gaps: { n: 2.6, s: 2.6 },
-        });
+        api.ghostWalls(tx, tz, 4.6, 4.6, 1.1, 0.25, { y: TY + 0.3, gaps: { n: 2.6, s: 2.6 } });
         for (const [dx, dz] of [[-2.15, -2.15], [2.15, -2.15], [-2.15, 2.15], [2.15, 2.15]]) {
-          api.cylinder(tx + dx, tz + dz, 0.1, 2.3, { color: 0x8a6a4a, y: TY + 0.3, pen: 2 });
+          api.cylinder(tx + dx, tz + dz, 0.1, 2.3, { ...G, y: TY + 0.3, pen: 2 });
         }
-        api.box(tx, tz, 5, 5, 0.22, { color: 0xb8391f, y: TY + 2.6, pen: 2 });
+        api.box(tx, tz, 5, 5, 0.22, { ...G, y: TY + 2.6, pen: 2 });
         // The stair lands on the deck at the south doorway; it used to run
         // underneath the deck and stop against it.
-        api.stairs(tx, tz + 2.3 + 8 * 0.5, 2.4, 8, 0.3, 0.5, "-z", { color: 0xc07a4a });
+        api.stairs(tx, tz + 2.3 + 8 * 0.5, 2.4, 8, 0.3, 0.5, "-z", G);
       }
+      mapModel(api, "gb-towers", { x: 0, z: 0 });
+      // (gb-beach draws the net, the umbrellas and loungers, the fire rings,
+      // the driftwood and the seawall; the boxes below are their colliders)
+      mapModel(api, "gb-beach", { x: 0, z: 0 });
       // beach volleyball net — soft cover mid-sand, bullets go through
       for (const px of [-2, 8]) {
-        api.cylinder(px, -12, 0.12, 2.6, { color: 0x6d5b41, pen: 1 });
+        api.cylinder(px, -12, 0.12, 2.6, { ghost: true, pen: 1 });
       }
-      api.box(3, -12, 10, 0.1, 0.9, { color: 0xe8e4d8, y: 1.5, pen: 0.3 });
+      api.box(3, -12, 10, 0.1, 0.9, { ghost: true, y: 1.5, pen: 0.3 });
       // beach umbrellas: pure decoration overhead, a thin pole at ground level
-      for (const [ux, uz, hue] of [[-24, -18, 8], [4, -20, 190], [32, -14, 45], [-6, -4, 320]]) {
-        api.cylinder(ux, uz, 0.09, 2.2, { color: 0x9a9a92, pen: 0.5 });
-        const canopy = new THREE.Mesh(
-          new THREE.ConeGeometry(2.1, 0.7, 12),
-          api.mat(`hsl(${hue}, 62%, 58%)`, 0.75),
-        );
-        canopy.position.set(ux, 2.5, uz);
-        api.prop(canopy);
+      for (const [ux, uz] of [[-24, -18], [4, -20], [32, -14], [-6, -4]]) {
+        api.cylinder(ux, uz, 0.09, 2.2, { ghost: true, pen: 0.5 });
       }
       // Concrete fire rings — squat, dark, and small enough to read as a pit
       // rather than a table. Each gets a low ember light so the sand has
       // something warm in it after the sun drops behind the pier.
       for (const [x, z] of [[-23, -1.5], [20, -20], [10, 8]]) {        // (-20,-6) blocked the pier ramp
-        api.cylinder(x, z, 1.15, 0.45, { color: 0x6a6660, pen: 4, surface: "concrete", tile: 0.8 });
+        api.cylinder(x, z, 1.15, 0.45, { ghost: true, pen: 4 });
         const embers = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.85, 0.85, 0.04, 14),
+          new THREE.CylinderGeometry(0.72, 0.72, 0.04, 14),
           new THREE.MeshStandardMaterial({
             color: 0x2a1a14, emissive: 0xc2481a, emissiveIntensity: 0.7, roughness: 0.9,
           }),
         );
-        embers.position.set(x, 0.46, z);
+        embers.position.set(x, 0.2, z);   // in the ash, under the charred logs
         api.prop(embers);
-        api.lamp(x, 0.8, z, 0xff7a2a, 4, 7);
+        const glow = new THREE.PointLight(0xff7a2a, 4, 7, 2);   // no bulb: the fire is the source
+        glow.position.set(x, 0.8, z);
+        api.prop(glow);
       }
       for (const [x, z] of [[-33, -20], [34, -24], [-16, 4], [18, -8]]) barrel(api, { x, z });
       // driftwood logs, long and low — the sand lane's prone cover
       for (const [x, z, w, d] of [[-8, -26, 7, 1], [24, -30, 1, 6], [-28, 2, 6, 1]]) {
-        api.box(x, z, w, d, 0.8, { color: 0xc2b08c, pen: 1.5, surface: "wood", tile: 1.2 });
+        api.box(x, z, w, d, 0.8, { ghost: true, pen: 1.5 });
       }
 
       /* ------------------------------------------------------- the boardwalk */
@@ -1217,17 +1245,18 @@ export const MAPS = {
       // between the two sand-side spawns. Every shop is enterable and open
       // at the back onto the parking lot, so nothing here is a dead end.
       const WALK_Y = 0.45;
-      const PLANK = 0xd2b98c;
-      // (8 m sections; with world-metre UVs one long slab would tile fine too)
+      // Drawn by gb-boardwalk: gapped deck boards, a fascia on posts, a
+      // railing with balusters, plank steps.
       for (let x = -38; x < 38; x += 8) {
-        api.box(x + 4, 12, 8, 7, WALK_Y, { color: PLANK, pen: 3, surface: "wood", tile: 2 });
+        api.box(x + 4, 12, 8, 7, WALK_Y, { ghost: true, pen: 3 });
       }
       // low rail on the sand side, with gaps at the two stair runs
       for (const [rx, rw] of [[-27, 22], [0, 14], [27, 22]]) {
-        api.box(rx, 8.7, rw, 0.25, 1, { color: PLANK, y: WALK_Y, pen: 1, surface: "wood", tile: 1.5 });
+        api.box(rx, 8.7, rw, 0.25, 1, { ghost: true, y: WALK_Y, pen: 1 });
       }
-      api.stairs(-15, 7.6, 5, 2, 0.25, 0.6, "+z", { color: PLANK, surface: "wood", tile: 1 });
-      api.stairs(15, 7.6, 5, 2, 0.25, 0.6, "+z", { color: PLANK, surface: "wood", tile: 1 });
+      api.stairs(-15, 7.6, 5, 2, 0.25, 0.6, "+z", { ghost: true });
+      api.stairs(15, 7.6, 5, 2, 0.25, 0.6, "+z", { ghost: true });
+      mapModel(api, "gb-boardwalk", { x: 0, z: 0 });
 
       // Shop row. Each unit is a room with a storefront gap onto the
       // boardwalk (s) and a back door onto the lot (n), so the whole row is
@@ -1236,27 +1265,30 @@ export const MAPS = {
       // each a different pastel, and a uniform grey row read as one long
       // office block rather than four separate storefronts.
       const shops = [
-        { x: -28, w: 12, sign: 0xe8574a, stucco: 0xf0d8c8 },
-        { x: -12, w: 10, sign: 0x2fa8b8, stucco: 0xd8ece8 },
-        { x: 4, w: 11, sign: 0xf2b134, stucco: 0xf4e6c4 },
-        { x: 22, w: 13, sign: 0x8a5ad8, stucco: 0xe2d8ee },
+        { x: -28, w: 12, sign: 0xe8574a, name: "SURF SHACK" },
+        { x: -12, w: 10, sign: 0x2fa8b8, name: "TROLL TACOS" },
+        { x: 4, w: 11, sign: 0xf2b134, name: "ICE SCREAM" },
+        { x: 22, w: 13, sign: 0x8a5ad8, name: "1UP ARCADE" },
       ];
-      for (const { x, w, sign, stucco } of shops) {
-        api.walls(x, 19, w, 9, 3.4, 0.45, {
-          color: stucco, gaps: { s: 3.4, n: 2.8 }, surface: "concrete", tile: 2,
-        });
+      // Drawn by gb-shops (models/build_grinbeach.blender.py SHOPS): stucco,
+      // storefront glass, pilasters, striped awnings, interiors stocked by
+      // theme; only the sign lettering is a canvas here.
+      mapModel(api, "gb-shops", { x: 0, z: 0 });
+      for (const { x, w, sign, name } of shops) {
+        api.ghostWalls(x, 19, w, 9, 3.4, 0.45, { gaps: { s: 3.4, n: 2.8 } });
         // flat roof — reachable from the lot-side containers, and low enough
         // that holding it trades cover for exposure to the pier
-        api.box(x, 19, w + 1, 10, 0.3, { color: 0xc8bfae, y: 3.4, pen: 4, surface: "concrete", tile: 2 });
+        api.box(x, 19, w + 1, 10, 0.3, { ghost: true, y: 3.4, pen: 4 });
         // awning over the storefront, and a lit sign board above it
-        api.box(x, 13.6, w, 2.4, 0.2, { color: sign, y: 3, pen: 1.2 });
-        const board = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 1, 0.2), api.mat(sign, 0.5, 0.2));
-        board.position.set(x, 4.2, 14.2);
+        api.box(x, 13.6, w, 2.4, 0.2, { ghost: true, y: 3, pen: 1.2 });
+        const board = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, 1), shopSignMaterial(name, sign));
+        board.rotation.y = Math.PI;                     // faces -z, the boardwalk
+        board.position.set(x, 4.24, 14.15);
         api.prop(board);
-        api.lamp(x, 3.9, 14.6, sign, 6, 9);
+        api.lamp(x, 5.3, 13.6, sign, 3, 8);   // over the board: at 3.9 it blew the awning scallops out white
         // interior counter — cover inside each unit so a doorway trade is
         // not automatically won by whoever peeks first
-        api.box(x, 21, w - 4, 1.2, 1.15, { color: 0x8a7358, pen: 1.8, surface: "wood", tile: 1.2 });
+        api.box(x, 21, w - 4, 1.2, 1.15, { ghost: true, pen: 1.8 });
         api.lamp(x, 3, 19, 0xffe8c8, 7, 11);
       }
 

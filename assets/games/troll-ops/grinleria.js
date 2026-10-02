@@ -19,6 +19,7 @@
 import * as THREE from "three";
 import { GL, STORES, WINGS, STALLS, KIOSKS, grinleriaLayout } from "./grinleria-layout.js";
 import { mapModel } from "./map-models.js";
+import { palmTrees } from "./map-dressing.js?v=gb1";
 
 const TROLLFACE_URL = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 
@@ -638,6 +639,17 @@ function buildGrinleria(api) {
   mapModel(api, "gl-shops", { x: 0, z: 0, castShadow: false });
   mapModel(api, "gl-wings", { x: 0, z: 0, castShadow: false });
   mapModel(api, "gl-outside", { x: 0, z: 0 });
+  // palms in the planters (map-dressing.js palmTrees; the models no longer draw them)
+  const palmSpots = [];
+  for (const s of solids) {
+    if (s.k === "palmplanter") palmSpots.push([s.x, s.z, 6.5, s.y + s.h]);
+    else if (s.k === "palmbed") palmSpots.push([s.x, s.z, 5.2, s.y + s.h], [s.x + 0.2, s.z + 1.0, 4.0, s.y + s.h]);
+  }
+  if (palmSpots.length) {
+    const palmRoot = new THREE.Group();
+    api.prop(palmRoot);
+    palmTrees(palmRoot, palmSpots, { seed: 41 });
+  }
   // Trollface Falls, under the food court's skylight: the grotto and the
   // trollface carved in stone (gl-trollhead, made from the artwork itself)
   mapModel(api, "gl-falls", { x: 0, z: 0 });
