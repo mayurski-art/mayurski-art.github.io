@@ -30,6 +30,10 @@ export const GLOVE_POSES = {
   support: { curl: [[0.85, 0.9, 0.5], [0.9, 0.95, 0.5], [0.95, 1.0, 0.55], [1.0, 1.05, 0.6]], spread: 0.03, thumb: [0.6, 0.55, 0.3, 0.2] },
   // Round a vertical foregrip: a fist.
   foregrip: { curl: [[1.35, 1.45, 0.9], [1.4, 1.5, 0.9], [1.4, 1.5, 0.9], [1.35, 1.45, 0.9]], spread: 0.01, thumb: [0.3, 0.95, 0.45, 0.35] },
+  // Point (the point-and-laugh emote): index out, a fist behind it. The
+  // white hand's thumb values stuck the glove's thumb straight out like an
+  // L (user); this folds it in over the curled fingers.
+  point: { curl: [[0.02, 0.05, 0.02], [1.45, 1.55, 1.0], [1.45, 1.55, 1.0], [1.45, 1.55, 1.0]], spread: 0, thumb: [-0.45, 0.2, 0.75, 0.6] },
 };
 
 const _e = new THREE.Euler();

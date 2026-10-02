@@ -10,7 +10,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=cg1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=cg1";
 import { WeaponInspector } from "./inspector.js?v=cg1";
-import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
+import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=cg1";
 import { Loadout } from "./loadout.js?v=cg1";
 import { StreakPicker } from "./streak-picker.js?v=cg1";

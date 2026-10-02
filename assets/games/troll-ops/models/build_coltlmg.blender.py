@@ -196,7 +196,7 @@ fs.finish(bevel=0.0002)
 
 # ------------------------------------------------------------------ anchors
 empty("CL_Grip", tuple(GRIP_TOP + GRIP_AX * 0.050))
-empty("CL_Support", (0, BORE_Y - 0.022, -0.300))
+empty("CL_Support", (0, BORE_Y + 0.023, -0.300))     # top of the handguard: the arm code drops the hand 5 cm to its belly
 empty("CL_Muzzle", (0, BORE_Y, MUZZLE_Z - 0.046))
 empty("CL_Aim", (0, SIGHT_Y, REAR_Z))
 empty("CL_Under", (0, BORE_Y - 0.026, -0.300))
