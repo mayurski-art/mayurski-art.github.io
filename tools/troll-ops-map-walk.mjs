@@ -111,6 +111,14 @@ const RUNS = {
   [19.0, 2.4, 22.5, 1, 0, 2, "barn: the loft rail holds", (r) => r.end[0] < 20.4 && r.end[1] > 2.3],
   [14, 0, 24.5, 1, 0, 3, "barn: in through the west door", (r) => r.end[0] > 18.5],
   [-21, 0, 11, -1, 0, 3, "into the mausoleum", (r) => r.end[0] < -26.5],
+  // phase 6b: the park fence and its gaps, the wheel's stair and lamp deck, a stall
+  [46, 0, 2.5, 1, 0, 4, "park: in through the main gate", (r) => r.end[0] > 55],
+  [47, 0, 15, 1, 0, 3, "park: the fence holds", (r) => r.end[0] < 51],
+  [47, 0, 35, 1, 0, 3, "park: the lane runs through", (r) => r.end[0] > 53],
+  [77.2, 0, 1.6, 0, -1, 4, "wheel: up the stair to the lamp deck", (r) => r.end[1] > 5.8],
+  [75, 6, -7, -1, 0, 2, "wheel: the deck rail holds", (r) => r.end[0] > 73.9 && r.end[1] > 5.8],
+  [56.35, 0, -6.5, 0, -1, 3, "stall: in through the counter flap", (r) => r.end[2] < -9.5],
+  [55, 0, -6.5, 0, -1, 3, "stall: the counter stops you", (r) => r.end[2] > -8.3],
   ],
   // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
   // cave (-9.1, -32.6), portal (120.8, -100.6), bridge z 77.8 from x -56.3 to

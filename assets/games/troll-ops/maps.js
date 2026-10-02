@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6a";
-import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6a";
+import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6b";
 import { GRINLERIA } from "./grinleria.js?v=hg6a";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6a";
 import { SURFACES } from "./surface-textures.js?v=hg6a";

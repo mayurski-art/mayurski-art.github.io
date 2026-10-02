@@ -1,6 +1,136 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
-## RESUME HERE (2026-10-02, session 25) — phase 6a SHIPPED, next 6b
+## RESUME HERE (2026-10-02, session 25, later) — phase 6b SHIPPED; 3 new asks queued
+**Two workstreams now. Run them in separate sessions, each in its OWN git
+worktree + branch** (the main checkout is shared; see "Splitting work"
+below). Stream A = Hollowgrin map (phase 6 + the new map asks). Stream B =
+the main menu redesign (self-contained, menu files only).
+
+### 6b SHIPPED (`game.js?v=to-hg6b`; maps.js / hollowgrin.js / loadout.js ?v=hg6b)
+- BOUNDS maxX 51 -> 87 (map 138 x 90). **Bug fixed on the way:**
+  api.ghostWalls was centred on (0, 0); it's now centred on the bounds'
+  middle (on an asymmetric map it put the east wall through the park and
+  opened the west edge).
+- New `models/build_grinmoor.blender.py` (`-- carousel ride horse fountain
+  plaza wheel stalls`) -> hg-carousel (still parts), hg-carousel-ride (the
+  turning deck/poles/pumpkin coaches, about the carousel centre; JS spins it),
+  hg-horse (one horse; JS instances 8 and bobs them), hg-fountain, hg-plaza
+  (benches, banner lamp posts, edging), hg-wheelbase (A-frames, boarding deck,
+  stair, lamp deck, shack boxed in with lattice up to the deck, podium),
+  hg-stalls. Shared constants at the top of both files (PLAZA, FERRIS,
+  WHEEL_*, BOARDING, SHACK, PODIUM, STALL_Z, STALLS): change one, change the
+  other.
+- hollowgrin.js `buildPark()` (runs after buildOutskirts): the park fence at
+  x 51 (brick piers + low wall are solid, the iron bars pen 0.25) with gaps
+  for the main gate z 0..5 (+1.1 m of pier each side), a staff gap
+  z -40..-37.5 and the lane; the main gate (tall piers, jacks, bracket
+  lanterns, iron arch, GRINMOOR FAIR sign, bulbs, leaves swung open); the
+  plaza at (63, 2.5) r 9 in granite setts (settsTexture/settsRing/settsRect);
+  the pumpkin fountain (discCollider = AABB bands for round things; water
+  discs with a scrolling ripple emissive, additive falling sheets, spray
+  sparks, a bronze troll with a trollface and a lantern, 5 giant jacks);
+  8 lamp posts + 6 benches; the Ferris wheel moved to (80, 2.5) facing the
+  gate; a lamp deck at y 6 (x 74..78, z -8.8..-5.4) up a 20-step stair; 5
+  stalls (Balloon Pop, Shooting Gallery, Hook-a-Pepe, Cotton Candy, Corn
+  Dogs), each with a counter flap at its east end. One new real light (the
+  fountain): 13 of the 14 budget.
+- **The shooting gallery's tin trolls flip when shot**: new map hook
+  `HOLLOWGRIN.onShot(point)`, called from game.js onWorldHit (any map may
+  export onShot); hollowgrin keeps SHOT_HOOKS (cleared each build).
+- hgModel(api, name, { wash, bounce, parent, then }) now returns its promise
+  and can parent to a group (the carousel ride).
+- signTexture squeezes text to fit its frame (fillText maxWidth).
+- Spawns: + [70, -41] (north side) and [58, 40] (south side): 7 + 7.
+- Zombies: HG_FLOORS.wheel 6.0. hgFloorOf: x 73.5..78.5, z -9.3..1 ->
+  "wheel" when y >= 4.6 and z < -5, else ground. Link ground->wheel a
+  (77.2, 1.9) b (77.2, -6.6). **Gotcha:** a link's end must be ON the floor
+  it names. The first try ended on the 0.4 m boarding steps: zombies coming
+  down never read as "level" and hung in the climb. The steps now sit at
+  z 2.0..4.2 only. East walk-ins moved to x 86.2, plus three more on the north
+  edge and one on the south.
+- Tests: audit all maps PASS (hollowgrin 713 colliders). map-walk hollowgrin
+  ALL PASS in STEP=1 mode (new: main gate, fence holds, lane through, wheel
+  stair, deck rail, stall flap, counter stops you). Real-time mode failed the
+  glasshouse west door once from timing noise; STEP=1 passes it. Zombie sim
+  (scratchpad zloft.mjs): wheel deck reached in 26 s, plaza in 14 s, loft in
+  34 s. fps was noisy on this machine today (old build 9.5 vs new 18-21 in
+  the same run; ~480-520 draws both): no regression visible.
+- The park's north (coaster yard) and south (mansion/mountain) are open grass
+  until 6c-6e.
+
+### Stream A next (Hollowgrin): 6c mansion -> 6d mountain + moat -> 6e coaster -> 6f tuning, PLUS two new asks
+1. **Mannequins all over Hollowgrin** (user, 2026-10-02): "make them look as
+   realistic as possible, kind of like Nuketown in Call of Duty". Their ref
+   is a Nuketown mannequin: a woman in a 60s orange shift dress with a white
+   pattern, dark long sleeves, patterned tights, a bob haircut, a painted
+   face with rosy cheeks, mid-stride. Scenes asked for: **a priest with a man
+   begging on his knees inside the church**, kids and adults
+   trick-or-treating (costumes, candy buckets) on the lane, pets (dogs,
+   cats), "etc.". Static posed props (no AI) modelled in Blender: realistic
+   proportions, a painted-plastic look, real clothes and hair, varied poses.
+   A shared body with per-pose rigs would keep it cheap (instance where
+   possible). Bullets should hit them (a low-pen ghostBox per figure); maybe
+   later they get knocked over like in Nuketown. **Design doc first** (cast
+   list, placement map, poly budget).
+2. **Remake the church interior** (St. Grinsworth's chapel, CHAPEL in
+   hollowgrin.js, currently a ruin with a broken south wall). User refs:
+   (a) a Gothic-revival nave: buff brick walls, a dark timber hammer-beam
+   roof with painted red/gold panels, stained-glass lancets, carved pews
+   either side of a red-carpet aisle, a raised altar on red steps, a hanging
+   lantern; (b) a domed chapel: a blue/gold mosaic dome with saints, a
+   painted band of text round its base, a hanging star lantern, arched side
+   bays with stained glass, warm uplights, a marble floor with inlaid
+   borders, pews. The goal is a beautiful, lit, intact interior that stays
+   playable (centre aisle + side aisles, cover from the pews). It hosts the
+   priest + kneeling man mannequins. Keep the trollface spin (stained glass,
+   mosaics); no real-church branding. Fold it into the mannequin design doc
+   or give it its own. Ask the user whether to do church + mannequins before
+   or after 6c-6f.
+
+### Stream B (another session): main menu redesign, BO2 Zombies style
+The user wants the Troll Forces menu screen "similar to" a Black Ops 2
+Zombies menu:
+- A cinematic full-bleed background: a huge planet lit from behind, molten
+  cracks, an asteroid field, a warm sunburst.
+- The menu as a plain, left-aligned, stacked text list in a condensed sans:
+  a section title on top, the hovered item highlighted orange, items in
+  small clusters (e.g. PUBLIC MATCH / SOLO PLAY // CUSTOM GAMES / THEATER //
+  LEADERBOARDS // OPTIONS / STORE).
+- A one-line description of the hovered item under the list.
+- The party list top-right ("1 Player (8 Max)" + names).
+- "N Online" bottom-left with a Back prompt; button hints bottom-right.
+
+**The globe:** "for the globe we can use the maps that we have" and "remake
+the globe to look similar to this ... just as a placeholder for now, so we
+can essentially integrate the function of trollrunner.net/maps into here".
+So the planet in the menu should BE the troll world map: the MapLibre globe
+from trollrunner.net/maps (main repo: maps.html + assets/js/troll-map.js,
+MapLibre pinned to v5, OpenFreeMap tiles, troll pins from Supabase
+troll_locations), styled dark and molten to look like the BO2 planet, behind
+the menu. A placeholder is fine; the user may make art with ChatGPT later.
+
+Rules for that session:
+- The approved menu design lives in the Design canvas
+  https://claude.ai/artifact/XXhnWGcoA1BfCYvUC49LKa. Re-read it fresh (the
+  user edits it), mock the new direction there first (design doc before big
+  builds), get the OK, then build in troll-ops.html + style.css (+ a small
+  menu module).
+- Mind CSP (connect-src/script-src for MapLibre + tiles).
+- Keep it light on mobile: the menu runs on phones, and a WebGL globe behind
+  it must not tank the game's first load (lazy-load it, pause it when a
+  match starts).
+
+### Splitting work (both streams)
+- Each session: `git worktree add ../to-<name>-wt -b <branch>` (or the
+  desktop app's worktree option). Never work in the shared main checkout in
+  parallel.
+- Before pushing: `git fetch && git rebase origin/main`, run the tests for
+  what you touched, commit only your own files.
+- Shared files to coordinate: HANDOFF.md (add your own RESUME section, don't
+  rewrite the other's), troll-ops.html (the game.js ?v= tag: if both changed
+  it, bump to a fresh unique tag on rebase), and game.js's import ?v= tags.
+
+## (previous) RESUME HERE (2026-10-02, session 25) — phase 6a SHIPPED, next 6b
 User OK'd design doc rev 2 (all defaults: 36 m strip, park spawn pair per
 team, wade moat, keep 4 high spots, "Grinmoor Fair", barn loft / scare
 sting / moving rides yes): https://claude.ai/artifact/92dGJceNRbWv5zViUnxocN
