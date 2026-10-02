@@ -474,6 +474,68 @@ function neonSignTexture() {
   return neonTex;
 }
 
+/* Meme Lab's portal: a white crayon spiral on electric blue (the art's
+   swirl), drawn once a page. */
+let swirlTex = null;
+function swirlTexture() {
+  if (swirlTex) return swirlTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 512;
+  const g = c.getContext("2d");
+  const r = rng(0x5717);
+  const grad = g.createRadialGradient(256, 256, 20, 256, 256, 256);
+  grad.addColorStop(0, "#9ff4ff"); grad.addColorStop(0.55, "#2fd4ff"); grad.addColorStop(1, "#1aa8f0");
+  g.fillStyle = grad; g.fillRect(0, 0, 512, 512);
+  g.lineCap = "round"; g.lineJoin = "round";
+  // a few loose passes of the spiral, like the art's crayon strokes
+  for (let pass = 0; pass < 5; pass++) {
+    g.strokeStyle = `rgba(255,255,255,${0.55 + r() * 0.4})`;
+    g.lineWidth = 16 + r() * 14;
+    g.beginPath();
+    for (let a = 0.6; a < Math.PI * 6.6; a += 0.05) {
+      const rad = 12 + a * 12.8 + (r() - 0.5) * 6;
+      const px = 256 + Math.cos(a + pass * 0.08) * rad, py = 256 + Math.sin(a + pass * 0.08) * rad;
+      if (a === 0.6) g.moveTo(px, py); else g.lineTo(px, py);
+    }
+    g.stroke();
+  }
+  for (let k = 0; k < 900; k++) {                                   // crayon grain
+    g.fillStyle = r() < 0.5 ? "rgba(255,255,255,0.35)" : "rgba(20,150,220,0.35)";
+    g.fillRect(r() * 512, r() * 512, 2 + r() * 4, 2);
+  }
+  swirlTex = new THREE.CanvasTexture(c);
+  swirlTex.colorSpace = THREE.SRGBColorSpace;
+  swirlTex.anisotropy = 4;
+  return swirlTex;
+}
+
+/* The Portal's door: lime green with pale rounded rings, like the art. */
+let doorTex = null;
+function portalDoorTexture() {
+  if (doorTex) return doorTex;
+  const c = document.createElement("canvas");
+  c.width = 384; c.height = 512;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(192, 256, 30, 192, 256, 300);
+  grad.addColorStop(0, "#c6ff7a"); grad.addColorStop(0.6, "#7dff3a"); grad.addColorStop(1, "#4fe024");
+  g.fillStyle = grad; g.fillRect(0, 0, 384, 512);
+  g.strokeStyle = "#f2ffd0"; g.lineWidth = 14; g.strokeRect(7, 7, 370, 498);
+  g.lineCap = "round";
+  const rr = (w, h, rad) => {
+    const x = 192 - w / 2, y = 256 - h / 2;
+    g.beginPath(); g.roundRect(x, y, w, h, rad);
+  };
+  for (const [w, h, dash] of [[250, 360, [70, 26]], [160, 240, [46, 22]], [80, 130, [30, 18]]]) {
+    g.strokeStyle = "rgba(236,255,200,0.9)"; g.lineWidth = 9; g.setLineDash(dash);
+    rr(w, h, w * 0.4); g.stroke();
+  }
+  g.setLineDash([]);
+  doorTex = new THREE.CanvasTexture(c);
+  doorTex.colorSpace = THREE.SRGBColorSpace;
+  doorTex.anisotropy = 4;
+  return doorTex;
+}
+
 /* A trollface grin sprayed on the ground (decal texture). */
 function grinTexture() {
   const c = document.createElement("canvas");
@@ -499,30 +561,14 @@ function buildTrollfaceIsland(api) {
   const K = new GreyKit(api, root);
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.9, ...o });
   const M = {
-    grass: std(0x3fbf62, { roughness: 0.95 }),
     cliff: std(0x3b404b),
-    sand: std(0xecd08e, { roughness: 0.95 }),
-    road: std(0xd9c79a, { roughness: 0.95 }),
-    concrete: std(0xcfd0d2),
     lakebed: std(0x49b8d8, { roughness: 1 }),
     water: new THREE.MeshStandardMaterial({ color: 0x3cc8ff, roughness: 0.15, metalness: 0.05, transparent: true, opacity: 0.7, depthWrite: false }),
     falls: new THREE.MeshBasicMaterial({ color: 0xa6e6ff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }),
-    grey: std(0xb8bbc2, { roughness: 0.85 }),
     greyDark: std(0x8b8f98, { roughness: 0.85 }),
-    white: std(0xf1f1ee, { roughness: 0.7 }),
-    tower: std(0x6f9fe0, { roughness: 0.6 }),
-    rock: std(0x7d8088, { roughness: 0.95, flatShading: true }),
-    caveRock: std(0x4f9a82, { roughness: 0.95, flatShading: true }),
-    caveDark: std(0x16261f, { roughness: 1 }),
     wood: std(0x9a7b55),
     trunk: std(0x6b4a2e),
-    leaves: std(0x1f7a3a),
     glass: new THREE.MeshStandardMaterial({ color: 0x9fdcff, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }),
-    portalBlue: new THREE.MeshBasicMaterial({ color: 0x38d8ff, side: THREE.DoubleSide }),
-    portalGreen: new THREE.MeshBasicMaterial({ color: 0x49ff6a, side: THREE.DoubleSide }),
-    bulb: new THREE.MeshBasicMaterial({ color: 0xffe36b }),
-    sail: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, side: THREE.DoubleSide }),
-    red: std(0xe8412f), yellow: std(0xf6d23a), blue: std(0x2f63e0), green: std(0x3dbb4a),
   };
   const L = LANDMARKS;
 
@@ -581,30 +627,20 @@ function buildTrollfaceIsland(api) {
   /* ---- landmarks (grey boxes, sized for play) ---------------------------- */
 
   // Meme Lab: the blue ring portal on its platform, with the solar panel.
+  // Drawn by tf-memelab (models/build_island.blender.py); the swirl is a
+  // canvas.
   {
     const { x, z } = L.memelab;
-    K.box(x, z, 18, 12, 1.32, M.grey);
-    K.stairs(x, z + 6, 0, 1, 0, 1.32, 4, M.greyDark);
-    K.stairs(x + 9, z, 1, 0, 0, 1.32, 4, M.greyDark);
-    const ring = new THREE.TorusGeometry(6, 0.7, 10, 40);
-    ring.rotateY(-0.6);
-    ring.translate(x - 2, 1.32 + 6.7, z - 1);
-    K.add(ring, M.greyDark);
-    const swirl = new THREE.CircleGeometry(5.3, 32);
+    K.box(x, z, 18, 12, 1.32, null);
+    K.stairs(x, z + 6, 0, 1, 0, 1.32, 4, null);
+    K.stairs(x + 9, z, 1, 0, 0, 1.32, 4, null);
+    const swirl = new THREE.CircleGeometry(5.3, 48);
     swirl.rotateY(-0.6);
     swirl.translate(x - 2, 1.32 + 6.7, z - 1);
-    K.add(swirl, M.portalBlue);
-    K.box(x - 2, z - 1, 2.4, 1.6, 1.4, M.greyDark, { y: 1.32 });           // the ring's foot
-    for (let i = 0; i < 6; i++) {                                           // the orbiting lights
-      const a = (i / 6) * Math.PI * 2, b = new THREE.SphereGeometry(0.45, 10, 8);
-      b.translate(x - 2 + Math.cos(a) * 7.6 * Math.cos(0.6), 1.32 + 6.7 + Math.sin(a) * 7.6, z - 1 + Math.cos(a) * 7.6 * Math.sin(0.6));
-      K.add(b, M.bulb);
-    }
-    const panel = new THREE.BoxGeometry(7, 0.2, 4.4);
-    panel.rotateX(-0.35);
-    panel.translate(x + 5, 2.6, z + 1.5);
-    K.add(panel, M.tower);
-    K.box(x + 5, z + 1.5, 1, 1, 1.4, M.greyDark, { y: 1.32 });
+    K.add(swirl, new THREE.MeshBasicMaterial({ map: swirlTexture(), side: THREE.DoubleSide }));
+    K.box(x - 2, z - 1, 2.4, 1.6, 1.4, null, { y: 1.32 });                  // the ring's foot
+    K.box(x + 5, z + 1.5, 1, 1, 1.4, null, { y: 1.32 });                    // the panel's stand
+    mapModel(api, "tf-memelab", { x, z });
   }
 
   // Troll City: the black trollface dome among blue and yellow towers, some
@@ -634,58 +670,55 @@ function buildTrollfaceIsland(api) {
     mapModel(api, "tf-cityface", { x, z });
   }
 
-  // The Observatory: a white drum with a dome and the telescope out of it.
+  // The Observatory: a grey-blue house under a white dome, the telescope out
+  // of it. Drawn by tf-observatory.
   {
     const { x, z } = L.observatory;
-    K.room(x, z, 14, 14, 6, M.white, [["s", 0, 3], ["n", 2, 2.6]]);
-    K.box(x, z, 14.6, 14.6, 0.5, M.grey, { y: 6 });
-    const dome = new THREE.SphereGeometry(6.4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-    dome.translate(x, 6.5, z);
-    K.add(dome, M.white);
-    K.disc(x, z, 5.4, 5, M.white, { y: 6.5, visual: false });
-    const scope = new THREE.CylinderGeometry(1.1, 1.4, 9, 14);
-    scope.rotateZ(-0.9);
-    scope.translate(x + 4.5, 11, z);
-    K.add(scope, M.greyDark);
-    K.box(x - 2, z - 2, 3, 3, 1.2, M.greyDark);                             // the mount, inside
+    K.room(x, z, 14, 14, 6, null, [["s", 0, 3], ["n", 2, 2.6]]);
+    K.box(x, z, 14.6, 14.6, 0.5, null, { y: 6 });
+    K.disc(x, z, 5.4, 5, null, { y: 6.5, visual: false });
+    K.box(x - 2, z - 2, 3, 3, 1.2, null);                                   // the mount, inside
+    mapModel(api, "tf-observatory", { x, z });
   }
 
-  // The Portal: the green door on a sandy rock plateau.
+  // The Portal: the stone gateway on a sandy rock plateau. Drawn by
+  // tf-portal; the green door is a canvas.
   {
     const { x, z } = L.portal;
-    K.box(x, z, 26, 20, 2.31, M.rock);
-    K.stairs(x - 4, z + 10, 0, 1, 0, 2.31, 4, M.rock);
-    K.stairs(x - 13, z + 4, -1, 0, 0, 2.31, 4, M.rock);
-    K.box(x + 2, z - 5, 12, 7, 4.62, M.rock, { y: 0 });
-    K.stairs(x + 2, z - 1.5, 0, 1, 2.31, 4.62, 3.4, M.rock);
-    K.box(x - 1.5, z - 5, 1, 1, 8, M.wood, { y: 4.62 });
-    K.box(x + 5.5, z - 5, 1, 1, 8, M.wood, { y: 4.62 });
-    K.box(x + 2, z - 5, 8, 1, 1, M.wood, { y: 12.62 });
-    K.box(x + 2, z - 5, 6, 0.2, 8, M.portalGreen, { y: 4.62, collide: false });
+    K.box(x, z, 26, 20, 2.31, null);
+    K.stairs(x - 4, z + 10, 0, 1, 0, 2.31, 4, null);
+    K.stairs(x - 13, z + 4, -1, 0, 0, 2.31, 4, null);
+    K.box(x + 2, z - 5, 12, 7, 4.62, null, { y: 0 });
+    K.stairs(x + 2, z - 1.5, 0, 1, 2.31, 4.62, 3.4, null);
+    K.box(x - 1.5, z - 5, 1, 1, 8, null, { y: 4.62 });
+    K.box(x + 5.5, z - 5, 1, 1, 8, null, { y: 4.62 });
+    K.box(x + 2, z - 5, 8, 1, 1, null, { y: 12.62 });
+    const door = new THREE.PlaneGeometry(6, 8);
+    door.translate(x + 2, 4.62 + 4, z - 5);
+    K.add(door, new THREE.MeshBasicMaterial({ map: portalDoorTexture(), side: THREE.DoubleSide }));
     for (const [dx, dz, s] of [[-10, -7, 2.2], [9, 6, 1.8], [11, -8, 2.6], [-7, 7, 1.5]]) {
-      const g = new THREE.DodecahedronGeometry(s, 0);
-      g.translate(x + dx, 2.31 + s * 0.4, z + dz);
-      K.add(g, M.rock);
       api.ghostBox(x + dx, z + dz, s * 1.6, s * 1.6, s * 1.2, { y: 2.31, pen: 6 });
     }
+    mapModel(api, "tf-portal", { x, z });
   }
 
   // Skate Bowl: a walled concrete park, ramps, rails and ledges inside, a
-  // little stand on the north rim.
+  // little stand on the north rim. Drawn by tf-skate.
   {
     const { x, z } = L.skate;
-    K.room(x, z, 60, 36, 1.1, M.concrete, [["s", -12, 6], ["w", 4, 6], ["e", 0, 6], ["n", 16, 5]]);
+    K.room(x, z, 60, 36, 1.1, null, [["s", -12, 6], ["w", 4, 6], ["e", 0, 6], ["n", 16, 5]]);
     // Two funboxes: stairs up both ends of a raised deck.
     for (const [dx, dz] of [[-14, -4], [12, 6]]) {
-      K.box(x + dx, z + dz, 10, 5, 1.65, M.concrete);
-      K.stairs(x + dx - 5, z + dz, -1, 0, 0, 1.65, 5, M.greyDark);
-      K.stairs(x + dx + 5, z + dz, 1, 0, 0, 1.65, 5, M.greyDark);
+      K.box(x + dx, z + dz, 10, 5, 1.65, null);
+      K.stairs(x + dx - 5, z + dz, -1, 0, 0, 1.65, 5, null);
+      K.stairs(x + dx + 5, z + dz, 1, 0, 0, 1.65, 5, null);
     }
-    K.box(x + 2, z - 8, 12, 0.4, 0.7, M.greyDark);                           // rails
-    K.box(x - 4, z + 10, 10, 0.4, 0.7, M.greyDark);
-    K.box(x + 20, z - 8, 6, 3, 1, M.concrete);                               // ledges
-    K.box(x - 22, z + 9, 3, 7, 1, M.concrete);
-    for (let t = 0; t < 3; t++) K.box(x - 6, z - 19.5 - t * 1.4, 26, 1.4, 0.66 * (t + 1), M.grey);
+    K.box(x + 2, z - 8, 12, 0.4, 0.7, null);                                 // rails
+    K.box(x - 4, z + 10, 10, 0.4, 0.7, null);
+    K.box(x + 20, z - 8, 6, 3, 1, null);                                     // ledges
+    K.box(x - 22, z + 9, 3, 7, 1, null);
+    for (let t = 0; t < 3; t++) K.box(x - 6, z - 19.5 - t * 1.4, 26, 1.4, 0.66 * (t + 1), null);
+    mapModel(api, "tf-skate", { x, z });
   }
 
   // Troll Peak: a terraced purple mountain, stairs round it from terrace to
@@ -706,77 +739,47 @@ function buildTrollfaceIsland(api) {
   }
 
   // The Cave: a rock mound with a tunnel through it (in from the south), and
-  // a side chamber off the tunnel.
+  // a side chamber off the tunnel. Drawn by tf-cave.
   {
     const { x, z } = L.cave;
-    K.box(x - 6.5, z, 8, 22, 6, M.caveRock);                                     // west
-    K.box(x + 6.5, z - 7, 8, 8, 6, M.caveRock);                                  // east, split
-    K.box(x + 6.5, z + 7, 8, 8, 6, M.caveRock);
-    K.box(x + 9.25, z, 2.5, 6, 6, M.caveRock);
-    K.box(x, z, 5, 22, 2.8, M.caveRock, { y: 3.2 });                             // roofs
-    K.box(x + 5.25, z, 5.5, 6, 2.8, M.caveRock, { y: 3.2 });
-    for (const [dx, dz, s] of [[-5, -5, 5.2], [5, 4, 4.6], [-5, 6, 4.4], [4, -6, 4.8], [0, 0, 5.6], [8, 0, 3.6]]) {
-      const g = new THREE.DodecahedronGeometry(s, 0);
-      g.scale(1.2, 0.5, 1.2);
-      g.translate(x + dx, 5.4 + s * 0.3, z + dz);
-      K.add(g, M.caveRock);
-    }
-    // Dark lining inside, so the tunnel mouth reads as a hole from outside.
-    for (const [bx, bz, bw, bd, bh, by] of [[-2.4, 0, 0.2, 22, 3.2, 0], [2.4, -7, 0.2, 8, 3.2, 0], [2.4, 7, 0.2, 8, 3.2, 0],
-      [0, 0, 5, 22, 0.1, 3.08], [5.25, 0, 5.5, 6, 0.1, 3.08], [8, 0, 0.2, 6, 3.2, 0]]) {
-      K.box(x + bx, z + bz, bw, bd, bh, M.caveDark, { y: by, collide: false });
-    }
-    K.box(x + 3.6, z + 12.5, 0.2, 0.2, 2.4, M.greyDark, { collide: false });   // the warning sign
-    K.box(x + 3.6, z + 12.5, 1.2, 0.1, 1.1, M.yellow, { y: 2.2, collide: false });
+    K.box(x - 6.5, z, 8, 22, 6, null);                                           // west
+    K.box(x + 6.5, z - 7, 8, 8, 6, null);                                        // east, split
+    K.box(x + 6.5, z + 7, 8, 8, 6, null);
+    K.box(x + 9.25, z, 2.5, 6, 6, null);
+    K.box(x, z, 5, 22, 2.8, null, { y: 3.2 });                                   // roofs
+    K.box(x + 5.25, z, 5.5, 6, 2.8, null, { y: 3.2 });
+    mapModel(api, "tf-cave", { x, z });
   }
 
-  // The Dock: a jetty out into the lake, turning east.
+  // The Dock: a jetty out into the lake, turning east. Drawn by tf-dock (its
+  // origin is the jetty's shore end, x0 z0).
   {
     const [x0] = P(27, 0), [, z0] = P(0, 36), [, z1] = P(0, 42), [x1] = P(33, 0);
-    K.box(x0, z0 - 0.5, 3.6, 1, 0.33, M.wood);
-    K.box(x0, (z0 + z1) / 2, 3.6, z1 - z0, 0.66, M.wood);
-    K.box((x0 + x1) / 2 + 1.8, z1 + 1.8 - 1.8, x1 - x0, 3.6, 0.66, M.wood);
-    for (let t = 0; t < 5; t++) K.cyl(x0 + 2, z0 + 3 + t * 4.5, 0.2, 1.6, M.trunk, { segs: 6, collide: false });
-    K.box(x1 - 2, z1, 1.4, 1.4, 1.1, M.wood, { y: 0.66 });                    // a crate
+    K.box(x0, z0 - 0.5, 3.6, 1, 0.33, null);
+    K.box(x0, (z0 + z1) / 2, 3.6, z1 - z0, 0.66, null);
+    K.box((x0 + x1) / 2 + 1.8, z1 + 1.8 - 1.8, x1 - x0, 3.6, 0.66, null);
+    K.box(x1 - 2, z1, 1.4, 1.4, 1.1, null, { y: 0.66 });                      // a crate
+    mapModel(api, "tf-dock", { x: x0, z: z0 });
   }
 
-  // Old Tree: the big one on the sand by the dock.
+  // Old Tree: the big one on the sand by the dock, a tyre swing off its long
+  // branch. Drawn by tf-tree.
   {
     const { x, z } = L.tree;
-    K.cyl(x, z, 0.8, 5, M.trunk, { segs: 8 });
-    const crown = new THREE.IcosahedronGeometry(4.6, 1);
-    crown.scale(1.5, 0.55, 1.2);
-    crown.translate(x + 1, 6.2, z);
-    K.add(crown, M.leaves);
+    K.cyl(x, z, 0.8, 5, null, { segs: 8 });
+    mapModel(api, "tf-tree", { x, z });
   }
 
   // The Boat: a sailboat on the lake; steps up the stern, a cabin on deck.
+  // Drawn by tf-boat.
   {
     const { x, z } = L.boat;
-    K.box(x, z, 17, 5.6, 1.32, M.white);
-    K.box(x, z, 17.2, 5.8, 0.5, M.greyDark, { collide: false });             // the waterline
-    const tip = new THREE.Shape();                                             // the pointed bow
-    tip.moveTo(0, -2.8); tip.lineTo(4.4, 0); tip.lineTo(0, 2.8); tip.closePath();
-    const bow = new THREE.ExtrudeGeometry(tip, { depth: 1.32, bevelEnabled: false });
-    bow.rotateX(-Math.PI / 2);
-    bow.translate(x + 8.5, 0, z);
-    K.add(bow, M.white);
-    api.ghostBox(x + 10, z, 3, 3.2, 1.32, { pen: 1.2 });
-    K.stairs(x - 8.5, z, -1, 0, 0, 1.32, 2.4, M.wood);
-    K.box(x + 3, z, 5, 3.6, 1.9, M.white, { y: 1.32 });                     // the cabin
-    K.cyl(x - 1, z, 0.25, 18, M.greyDark, { y: 1.32, segs: 8 });
-    const sail = new THREE.Shape();
-    sail.moveTo(0, 0); sail.lineTo(0, 17); sail.lineTo(-8.5, 0.8); sail.closePath();
-    const jib = new THREE.Shape();
-    jib.moveTo(0, 0); jib.lineTo(0, 15); jib.lineTo(9.5, 0.6); jib.closePath();
-    for (const [shape, dx] of [[sail, -1.3], [jib, -0.7]]) {
-      const sg = new THREE.ShapeGeometry(shape);
-      sg.translate(x + dx, 2.4, z);
-      K.add(sg, M.sail);
-    }
-    const logo = new THREE.CircleGeometry(1.4, 16);                          // the blue mark on the sail
-    logo.translate(x - 4, 6.5, z + 0.03);
-    K.add(logo, M.blue);
+    K.box(x, z, 17, 5.6, 1.32, null);
+    api.ghostBox(x + 10, z, 3, 3.2, 1.32, { pen: 1.2 });                      // the pointed bow
+    K.stairs(x - 8.5, z, -1, 0, 0, 1.32, 2.4, null);
+    K.box(x + 3, z, 5, 3.6, 1.9, null, { y: 1.32 });                         // the cabin
+    K.cyl(x - 1, z, 0.25, 18, null, { y: 1.32, segs: 8 });
+    mapModel(api, "tf-boat", { x, z });
   }
 
   // The Gallery: a glass pyramid over a plinth, doors north and south.
@@ -811,27 +814,25 @@ function buildTrollfaceIsland(api) {
     K.add(sign, new THREE.MeshBasicMaterial({ map: neonSignTexture(), transparent: true, depthWrite: false }));
   }
 
-  // The Marketplace: a line of stalls under striped canopies.
+  // The Marketplace: a line of stalls under bright canopies and fairy lights.
+  // Drawn by tf-market.
   {
     const { x, z } = L.market;
-    const awnings = [M.red, M.yellow, M.blue, M.green];
-    for (let t = 0; t < 6; t++) {
-      const sx = x - 20 + t * 8, sz = z + 12 - t * 5;
-      K.box(sx, sz, 4.4, 2, 1.1, M.wood);
-      for (const [dx, dz] of [[-2.2, -1.6], [2.2, -1.6], [-2.2, 1.6], [2.2, 1.6]]) K.box(sx + dx, sz + dz, 0.2, 0.2, 2.8, M.greyDark, { collide: false });
-      K.box(sx, sz, 5.2, 3.8, 0.25, awnings[t % 4], { y: 2.8, collide: false });
-    }
+    for (let t = 0; t < 6; t++) K.box(x - 20 + t * 8, z + 12 - t * 5, 4.4, 2, 1.1, null);
+    mapModel(api, "tf-market", { x, z });
   }
 
-  // The Bridge: over the river on the south path, rails both sides.
+  // The Bridge: over the river on the south path, rails both sides. Drawn by
+  // tf-bridge (its origin is the deck's middle).
   {
     const [xa] = P(37.6, 0), [xb] = P(49.9, 0), { z } = L.bridge;
     const len = xb - xa, mid = (xa + xb) / 2;
-    K.box(xa - 0.5, z, 1, 5, 0.33, M.wood);
-    K.box(xb + 0.5, z, 1, 5, 0.33, M.wood);
-    K.box(mid, z, len, 5, 0.66, M.wood);
-    K.box(mid, z - 2.4, len, 0.2, 0.9, M.wood, { y: 0.66 });
-    K.box(mid, z + 2.4, len, 0.2, 0.9, M.wood, { y: 0.66 });
+    K.box(xa - 0.5, z, 1, 5, 0.33, null);
+    K.box(xb + 0.5, z, 1, 5, 0.33, null);
+    K.box(mid, z, len, 5, 0.66, null);
+    K.box(mid, z - 2.4, len, 0.2, 0.9, null, { y: 0.66 });
+    K.box(mid, z + 2.4, len, 0.2, 0.9, null, { y: 0.66 });
+    mapModel(api, "tf-bridge", { x: mid, z });
   }
 
   /* ---- cover: the map's tree clumps, and rocks where nothing else is ----- */

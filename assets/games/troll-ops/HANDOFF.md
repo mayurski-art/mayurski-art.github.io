@@ -1,12 +1,51 @@
-# Troll Ops hand-off — 2026-10-02 (session 23)
+# Troll Ops hand-off — 2026-10-02 (session 24)
 
-## RESUME HERE (2026-10-02, session 23)
+## RESUME HERE (2026-10-02, session 24)
+Phase 3 got the user's OK ("continue"). **Phase 4 (island landmarks B)
+SHIPPED** (section below): show the user the shots, get their OK at the
+gate, then **phase 5 = PvP second pass** (per the design doc; Grin Beach
+water is in it), then phase 6 (Hollowgrin models).
+
+## Map detail pass phase 4 SHIPPED (2026-10-02) — `game.js?v=to-tf4`, `maps.js?v=tf4`, `loadout.js?v=tf4`, `trollface-island.js?v=tf4`
+- build_island.blender.py now builds by name:
+  `blender --background --python build_island.blender.py -- cave skate`
+  (no names = all 18). New: tf-memelab, tf-observatory, tf-portal,
+  tf-skate, tf-cave, tf-dock, tf-tree, tf-boat, tf-market, tf-bridge
+  (palette `pal4()`, helpers torus / sheet / arc / crag_box / catenary).
+  Every landmark B collider is unchanged (audit: 424 colliders, PASS);
+  the JS blocks pass `null` and call mapModel. Dock's model origin is
+  (x0, z0) of the jetty, the Bridge's is the deck's middle.
+- Reference art (trollface.io world layers, scratchpad only, never
+  shipped) drove: Meme Lab = slate ring with cream cuffs, orbs with green
+  cores, cyan sparks, the swirl a JS canvas (`swirlTexture`), steel deck
+  with hazard edging + underglow; Observatory = grey-blue house, round
+  windows, white dome with a dark slit + rails, fat yellow telescope;
+  Portal = chunky terracotta gateway, glowing runes, floating pebbles,
+  sandstone plateau (door = JS canvas `portalDoorTexture`); Cave = teal
+  rounded sides + a faceted heightfield hill (slabs of lumps looked like a
+  box), dark lining, crystals, lanterns, sand spilling out, yellow "!"
+  sign; Dock = plank jetty on piles, mooring posts, crate, lamp, ladder;
+  Old Tree = bonsai trunk + limbs, lumpy crowns, tyre swing; Boat = lofted
+  hull with navy boot stripe, cabin, mast/boom, both sails (blue blob on
+  the main), rigging, lifelines; Marketplace = wooden stalls, sagging
+  cloth canopies with scalloped valances, goods, fairy-light strings,
+  banner poles. Skate Bowl and Bridge aren't in the art: coping, graffiti,
+  painted funboxes, yellow rails, bleachers, flood lights; plank bridge on
+  pile bents with post-and-rail sides and lanterns.
+- Island materials no longer used were dropped from `M`.
+- fps (meadow view): 41.5 warm-up / 49 — same as after phase 3.
+  tf-market.glb is the biggest new file (690 KB, the fairy bulbs).
+- Shots: scratchpad only; views memelab [-118,2,-92 -> -127,6,-114], obs
+  [92,2,-76 -> 82,7,-100], portal [104,3,-78 -> 122,8,-105], skate aerial
+  [131,22,-20 -> 131,0,-60], cave [-2,1,-8 -> -9,3,-32], dock
+  [-68,4,-4 -> -95,0,-30], tree [-64,1.5,-36 -> -75,5,-46], boat
+  [82,3,32 -> 100,5,16], market [128,2,118 -> 145,2,97], bridge
+  [-6,3,92 -> -28,1,78].
+
+## (previous) RESUME HERE (2026-10-02, session 23)
 Phase 2 got the user's OK ("proceed"). **Phase 3 (island landmarks A + the
-Royale props) SHIPPED** (section below): show the user the shots, get their
-OK at the gate, then **phase 4 = landmarks B** (Meme Lab, Observatory,
-Portal, Skate Bowl, Cave, Dock/Old Tree, Boat, Marketplace, Bridge), same
-pipeline (models/build_island.blender.py, collider-only kit calls).
-Also shipped: **View mode** (owner-only setting, section below).
+Royale props) SHIPPED** (section below). Also shipped: **View mode**
+(owner-only setting, section below).
 
 ## Map detail pass phase 3 SHIPPED (2026-10-02) — `game.js?v=to-vm1`, `maps.js?v=tf3`, `trollface-island.js?v=tf3`, `royale-drop.js?v=rp3`, `remote-players.js?v=rp3`
 - **models/build_island.blender.py** (Blender 5.2, `--background --python`)
