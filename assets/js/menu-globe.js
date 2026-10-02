@@ -62,6 +62,7 @@ const CSS = `
 .tr-space.is-map .tr-space-planet canvas{touch-action:none;cursor:grab}
 .tr-space.is-map .tr-space-planet canvas:active{cursor:grabbing}
 .tr-space.is-map .tr-space-planet.is-pin canvas{cursor:pointer}
+.tr-space.is-map .tr-space-planet.is-picking canvas{cursor:crosshair}
 .tr-space-limb,.tr-space-shade,.tr-space-rocks,.tr-space-vignette{transition:opacity .5s ease}
 .tr-space.is-map .tr-space-limb,.tr-space.is-map .tr-space-shade,.tr-space.is-map .tr-space-standin{opacity:0}
 .tr-space.is-map .tr-space-rocks{opacity:.35}
@@ -160,6 +161,7 @@ function style() {
     sources: {
       countries: { type: "geojson", data: COUNTRIES },
       pins: { type: "geojson", data: pinsGeo([]) },
+      draft: { type: "geojson", data: pinsGeo([]) },
     },
     layers: [
       // The sea is near-black rock; land is crust, and the continents read
@@ -178,6 +180,12 @@ function style() {
       { id: "pin", type: "circle", source: "pins",
         paint: { "circle-color": "#fff6d8", "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 4, 5, 7],
           "circle-stroke-color": "#ffcf70", "circle-stroke-width": 1 } },
+      // The spot being picked for your own pin: a white ring, so it reads
+      // apart from the trolls already there.
+      { id: "draft-glow", type: "circle", source: "draft",
+        paint: { "circle-color": "#ffffff", "circle-radius": 26, "circle-blur": 1, "circle-opacity": 0.55 } },
+      { id: "draft", type: "circle", source: "draft",
+        paint: { "circle-color": "#ff4a0c", "circle-radius": 7, "circle-stroke-color": "#ffffff", "circle-stroke-width": 3 } },
     ],
   };
 }
@@ -263,6 +271,8 @@ export function mountMenuBackdrop(host) {
   let pins = [];
   let mapMode = null;      // { onPin, inset } while the planet is the live map
   let busy = false;        // a mode change is easing
+  let picker = null;       // fn({ lat, lng }, point) taking every tap in map mode
+  let draft = null;        // { lat, lng } of the spot being picked
 
   // Lay out the planet and the sun from the host's size.
   function layout() {
@@ -364,7 +374,10 @@ export function mountMenuBackdrop(host) {
       // test by hand: the nearest troll on the facing side within a finger.
       map.on("mousemove", (e) => { if (mapMode) planetEl.classList.toggle("is-pin", !!pinAt(e.point, 14)); });
       map.on("click", (e) => {
-        if (!mapMode || !mapMode.onPin) return;
+        if (!mapMode) return;
+        // Picking a spot for your own pin: every tap is a spot, not a troll.
+        if (picker) { picker({ lat: e.lngLat.lat, lng: e.lngLat.lng }, e.point); return; }
+        if (!mapMode.onPin) return;
         const hit = pinAt(e.point, 22);
         mapMode.onPin(hit ? hit.pin : null, hit ? hit.at : e.point);
       });
@@ -461,6 +474,8 @@ export function mountMenuBackdrop(host) {
     MAP_HANDLERS.forEach((k) => map[k] && map[k].disable());
     mapMode = null;
     planetEl.classList.remove("is-pin");
+    setPicker(null);
+    setDraft(null);
     map.setMinZoom(0);
     const { w, h, px, py, pr } = geom;
     const pad = paddingFor(px, py, w, h);
@@ -486,11 +501,24 @@ export function mountMenuBackdrop(host) {
     map.flyTo({ center: [lng, lat], zoom, duration: still ? 0 : 1600, essential: true });
   }
 
+  function setPicker(fn) {
+    picker = fn || null;
+    planetEl.classList.toggle("is-picking", !!picker);
+  }
+  function setDraft(spot) {
+    draft = spot && Number.isFinite(spot.lat) && Number.isFinite(spot.lng) ? { lat: spot.lat, lng: spot.lng } : null;
+    if (!map) return;
+    const set = () => map.getSource("draft") && map.getSource("draft").setData(pinsGeo(draft ? [draft] : []));
+    if (map.isStyleLoaded()) set(); else map.once("style.load", set);
+  }
+
   return {
     get map() { return map; },
     get pins() { return pins; },
     get isMap() { return !!mapMode; },
-    enterMap, exitMap, flyTo, refreshPins,
+    // setPicker(fn): while set, map-mode taps pick a spot instead of a
+    // troll. setDraft({ lat, lng } | null): marks the picked spot.
+    enterMap, exitMap, flyTo, refreshPins, setPicker, setDraft,
     pause() { paused = true; if (raf) cancelAnimationFrame(raf); raf = 0; root.style.visibility = "hidden"; },
     resume() { paused = false; root.style.visibility = ""; run(); },
     destroy() { dead = true; ro.disconnect(); if (raf) cancelAnimationFrame(raf); if (map) map.remove(); map = null; root.remove(); },

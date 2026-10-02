@@ -181,9 +181,9 @@ textarea.home-field{min-height:120px;resize:vertical}
 <script src="assets/js/troll-accounts.js?v=20260930a"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script type="module">
-import { createBo2Menu } from './assets/js/bo2-menu.js?v=home2';
-import { joinSitePresence, viewerId } from './assets/js/site-presence.js?v=home2';
-import { createMapMode } from './assets/js/troll-map-mode.js?v=home2';
+import { createBo2Menu } from './assets/js/bo2-menu.js?v=home3';
+import { joinSitePresence, viewerId } from './assets/js/site-presence.js?v=home3';
+import { createMapMode } from './assets/js/troll-map-mode.js?v=home3';
 
 const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
@@ -289,7 +289,7 @@ const menu = createBo2Menu(nav, {
   screens, keys: true,
   onScreen(id, s, m) {
     PANELS.forEach((p) => { $(p).hidden = p !== s.panel; });
-    document.body.classList.toggle('has-panel', !!s.panel || id === 'search');
+    document.body.classList.toggle('has-panel', !!s.panel || id === 'search' || id === 'pinsearch');
     // The footer Back is for screens without their own Back row.
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === 'back');
     $('home-back').classList.toggle('is-on', m.depth() > 0 && !ownBack);
@@ -553,7 +553,7 @@ var backdrop = null;   // var: read by menu callbacks that can run before this l
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
 window.addEventListener('load', () => idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home2');
+    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home3');
     backdrop = mountMenuBackdrop($('home-backdrop'));
     document.querySelector('.home-still')?.remove();
     window.__trHome = { backdrop, menu };   // for headless tests

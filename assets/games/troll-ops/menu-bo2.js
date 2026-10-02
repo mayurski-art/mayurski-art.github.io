@@ -11,9 +11,9 @@
    (#to-pf-center) moves into the right-hand detail pane, with the parts
    that became lists hidden by CSS. */
 
-import { createBo2Menu } from "../../js/bo2-menu.js?v=to-bo2a";
-import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2a";
-import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2a";
+import { createBo2Menu } from "../../js/bo2-menu.js?v=to-bo2b";
+import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2b";
+import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2b";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -385,7 +385,7 @@ const menu = createBo2Menu(nav, {
     root.dataset.screen = id;
     // Phones size the operator and the detail pane from the list's height.
     pf.style.setProperty("--menu-h", `${nav.offsetHeight}px`);
-    root.classList.toggle("has-detail", !!s.detail || id === "search");
+    root.classList.toggle("has-detail", !!s.detail || id === "search" || id === "pinsearch");
     root.classList.toggle("has-gun", !!s.gun);
     root.classList.toggle("has-lb", !!s.lb);
     lbHost.hidden = !s.lb;
@@ -434,7 +434,7 @@ const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));
 function coverOn(on) { document.body.classList.toggle("to-bo2-cover", on); }
 idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import("../../js/menu-globe.js?v=to-bo2a");
+    const { mountMenuBackdrop } = await import("../../js/menu-globe.js?v=to-bo2b");
     backdrop = mountMenuBackdrop($(".to-bo2-bg", root));
     coverOn(!title.hidden);
     if (title.hidden) backdrop.pause();
