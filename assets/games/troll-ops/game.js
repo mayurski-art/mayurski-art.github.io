@@ -1853,6 +1853,15 @@ function warshipHudEl() {
 <div class="to-ws-top"><strong>VTOL WARSHIP</strong><span class="to-ws-time"></span></div>
 <div class="to-ws-guns"><span data-g="chain">25MM</span><span data-g="cannon">105MM</span><em class="to-ws-hint"></em></div>
 <div class="to-ws-reload"><i></i></div>`;
+  // Touch has no 1/2 keys: tap a gun's label to switch to it (it was
+  // impossible to swap guns on a phone; the swap button is the END hold there).
+  for (const s of wsHud.querySelectorAll(".to-ws-guns span")) {
+    s.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (warshipView() && s.dataset.g !== warshipGun) toggleWarshipGun();
+    });
+  }
   (els.streakMark?.parentElement || document.body).appendChild(wsHud);
   return wsHud;
 }
@@ -5950,7 +5959,7 @@ dragAims(els.touchNade);
 if (els.touchTac) bindHold(els.touchTac, () => startCook("tactical"), () => releaseCook());
 dragAims(els.touchTac);
 bindHold(els.touchInteract, () => touchState.interact = true, () => touchState.interact = false);
-bindHold(els.touchSwap, () => touchState.swap = true, () => touchState.swap = false);
+bindHold(els.touchSwap, () => { touchState.swap = true; if (warshipView()) toggleWarshipGun(); }, () => touchState.swap = false);
 // Admire (inspect) the gun or melee in your hands, the T key on a keyboard.
 els.touchAdmire?.addEventListener("touchstart", (e) => { e.preventDefault(); startInspect(); }, { passive: false });
 // A tap, not a hold — and it doubles as the confirm for a marked spot, the

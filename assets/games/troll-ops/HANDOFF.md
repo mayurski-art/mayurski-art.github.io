@@ -13,6 +13,14 @@ be ordered with the user (design doc first for the big ones):
 4. **Pointstreaks**, a new kind of streak. First one: **Trollernaut**, the
    player turns into a giant troll monster: 10 s invincible, then 3x health
    but 0.75x movement speed.
+   Look (user's reference, memedepot image, scratchpad trollernaut-ref.jpg,
+   never shipped): a giant, ripped, glossy-white trollface body, a
+   diamond-encrusted gauntlet (Infinity-Gauntlet style, sparkling) on the
+   right hand, black briefs with a neon-green "U MAD BRO?" waistband and
+   green piping. The user ALSO shared a knight (muscular trollface in dark
+   plate, blue cape, trollface brooch, a giant RGB keyboard greatsword with a
+   trollface pommel) and said "that can be a knight instead": a separate
+   knight character/skin, not the Trollernaut.
 5. Cinematic intro of both teams at the start of every Team Deathmatch and
    Search & Destroy.
 6. Animated weapon skins with effects coming off them (certain skins).
@@ -20,7 +28,17 @@ be ordered with the user (design doc first for the big ones):
    while falling from the sky in Troll Royale: the trollface reaches out his
    hand as if romantically saving someone; cinematic shots (face, hand,
    body, background...).
-8. BUG: on mobile you can't swap guns in the VTOL Warship.
+9. **Three characters** (user: "the knight, the trollernaut and this
+   character"): the knight (above), the Trollernaut (above), and a
+   **metamorphic character**: mid-transformation, the left half Pepe (green,
+   screaming open mouth, torn white lab coat, clawed hand), the right half a
+   huge glossy chrome-white muscular trollface, a ragged seam between them,
+   white wisps, green-black background with a light shaft. For a **Left 4
+   Dead-style zombies mode** (the user's idea; design doc first: co-op
+   campaign, specials, where the metamorph fits).
+8. ~~BUG: on mobile you can't swap guns in the VTOL Warship~~ FIXED
+   (`game.js?v=to-ws1`, `style.css?v=to-ws1`): tap the 25MM / 105MM labels
+   on the warship HUD (pointer-events on touch), or tap the swap button.
 
 ## Map detail pass phase 5 (PvP second pass) SHIPPED (2026-10-02) — `game.js?v=to-dr1`, `maps.js?v=dr1`, `loadout.js?v=dr1`, `map-dressing.js?v=dr1`
 - **map-dressing.js** (new): a map opts in with `dress` (maps.js "dressing"

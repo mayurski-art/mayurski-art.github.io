@@ -1398,6 +1398,8 @@ body.to-in-warship #to-hud-gear, body.to-in-warship #to-spawnguard, body.to-in-w
   align-items: center; font-size: 15px; }
 .to-ws-guns span { padding: 3px 10px; border: 1px solid rgba(233,242,228,.35); opacity: .55; }
 .to-ws-guns span.is-on { opacity: 1; border-color: #e9f2e4; background: rgba(233,242,228,.14); }
+/* tappable on touch (the HUD layer itself lets touches through) */
+body.to-touch-play .to-ws-guns span { pointer-events: auto; cursor: pointer; padding: 8px 14px; }
 .to-ws-guns em { font-style: normal; font-size: 11px; opacity: .7; margin-left: 6px; }
 .to-ws-reload { position: absolute; left: 50%; bottom: 84px; width: 160px; height: 3px; transform: translateX(-50%);
   background: rgba(233,242,228,.2); }

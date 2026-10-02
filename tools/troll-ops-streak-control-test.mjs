@@ -171,6 +171,17 @@ check("holding X cancels a care package marker, still banked", pkg.marking === "
 // The VTOL Warship ends the same way.
 await page.evaluate(() => { const T = window.__trollOps; T.streaks.grant("warship"); T.fireStreak("warship"); });
 await step(30);
+// Touch: tapping a gun's label on the warship HUD switches to it (no 1/2 keys on a phone).
+const wsTap = await page.evaluate(() => {
+  const T = window.__trollOps;
+  const before = T.warshipGun(), view = T.warshipView();
+  const span = document.querySelector(`.to-ws-guns span[data-g="${before === "chain" ? "cannon" : "chain"}"]`);
+  span?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  const after = T.warshipGun();
+  span?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));   // same label again: no change
+  return { view, before, after, again: T.warshipGun() };
+});
+check("tapping a warship gun label switches to that gun", wsTap.view && wsTap.after !== wsTap.before && wsTap.again === wsTap.after, JSON.stringify(wsTap));
 await page.evaluate(() => window.__trollOps.keys.add("KeyX"));
 await step(20);
 await page.evaluate(() => window.__trollOps.keys.delete("KeyX"));
