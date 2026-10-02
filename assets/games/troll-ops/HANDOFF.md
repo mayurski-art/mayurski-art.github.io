@@ -4,8 +4,9 @@
 1. ~~Hollowgrin expansion~~: SHIPPED this session (below).
 2. ~~Bot scorestreaks phases 2 + 3~~: SHIPPED this session (below).
 3. **Map detail pass** (design doc link in the session 19 section): six
-   phases. Phase 1 (atmosphere) SHIPPED (below); WAITING on the user's OK at
-   the design's gate before phase 2.
+   phases. Phase 1 (atmosphere) SHIPPED (below). User OK'd phase 2
+   (2026-10-01): **phase 2 = Trollface Island ground**: grass/sand/rock/
+   path blend, instanced trees/rocks/fences, decals/posters/signs. NEXT.
 3b. ~~Custom guns (user, 2026-10-01)~~: SHIPPED (below): THE BEAST, the
    Hyuck Colt LMG and the Ghost Glass finish. The user then said: "after
    doing these guns then work on the rest of the tasks", so next is the
@@ -34,10 +35,26 @@
      the nearest enemy, seen or not).
    - Undergrin "stuck in place": the literal bug is FIXED (spawns were put
      at y 0 inside the 1.1 m platforms and pushed out past the end wall;
-     loadMap now stands every spawn on the floor under it). "Needs to be
-     developed" (expansion) is WAITING on the user: the map pass doc said
-     no added geometry for Undergrin (slowest map), so asked before
-     building.
+     loadMap now stands every spawn on the floor under it). EXPANDED too
+     (user chose "expand it", `game.js?v=to-ug1`, `maps.js?v=ug1`):
+     maps.js undergrinExpansion() + build_undergrin.blender.py
+     build_expansion (ug-expansion.glb) and the cut-open ug-station.glb:
+       * staff doors in both side walls at z -3.5 and 11.7 (2 m, platform
+         height) into service corridors x +-(13..17.5), floor 1.1;
+       * steps down at both corridor ends into cross passages z +-(32..38)
+         at track level; the tunnel mouths are open, so each end is a loop;
+       * a ticket hall over the station (floor 7 = the old ceiling slab,
+         walls to 10.6) up an 11-step stair along the end wall of each
+         mezzanine, a railed light well (x +-1.6, z +-5) onto the train,
+         gate lines, ticket offices, machines, columns, trollface murals;
+       * 6 more real lights (2 hall, 1 per corridor, 1 per passage); fps
+         within noise of before; bounds now x +-18.5, z +-39;
+       * spawns can be [x, z, floorY]; bots never take upstairs spawns
+         (botSpawn -> spawnForTeam groundOnly) since they path on one
+         ground-level flow field and can't reach the hall (known limit,
+         same as other multi-level maps).
+     Walks: 7 new undergrin runs in tools/troll-ops-map-walk.mjs, all pass.
+     A 60 s bot match: bots use corridors and passages, none stuck.
    Known stale test: tools/troll-ops-cuav-cooldown-test.mjs fails the same
    2 checks on the pushed build (gunship cooldown now 60 s; pad emote wheel
    stick), not caused by this session.
