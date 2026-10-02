@@ -202,6 +202,25 @@ the main menu redesign (self-contained, menu files only).
    the hitboxes zombies.js already uses. Self-contained (zombies.js +
    models), so it suits its own session/worktree too.
 
+### Session "zombies" status (2026-10-02, branch worktree-to-zombies, worktree .claude/worktrees/to-zombies)
+Design doc v1 published, WAITING on the user:
+https://claude.ai/artifact/Motm585y8qJeknjWVv9CuC
+- Tried the pure-procedural body first: `models/build_zombies.blender.py`
+  (metaballs; `-- render` with ZB_* env vars, see its docstring). The
+  proportions and rig fit are right (legs match buildHumanoid: hip 0.89, thigh
+  and shin 0.445; arms rest 26 deg off vertical like the rig's ARM). But it
+  reads as clay up close. **Metaball gotcha:** the surface sits at
+  sqrt(1 - (threshold/stiffness)^(1/3)) x radius (0.575 at s 2 / t 0.6),
+  so vis() in the script converts visible sizes to element radii.
+- Recommended in the doc: MPFB 2 (MakeHuman's official Blender extension;
+  assets and outputs CC0) as the base bodies, zombified in our script. Needs
+  the user's OK to download it. The chapel session's mannequins could share it.
+- Open questions in the doc: body source A/B/C, a rare trollface-mask easter
+  egg or none, women in the horde, head hitbox r 0.24 -> 0.15.
+- Animation plan changed from the plan below: baked Blender clips +
+  AnimationMixer (poseHumanoid is stick-tuned), with procedural as fallback.
+  Death = fall + sink instead of the dissolve.
+
 ### Zombie redesign plan (for its own session; user asked for the plan 2026-10-02)
 **Today:** zombies.js builds every zombie with character.js `buildHumanoid`
 (the procedural stick-limb rig the bots use) in a flat dissolve material,
