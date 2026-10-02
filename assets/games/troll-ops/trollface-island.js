@@ -19,6 +19,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon } from "./edge.js";
+import { SURFACES } from "./surface-textures.js";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
@@ -242,6 +243,224 @@ function spreadSpawns(n) {
 }
 const SPAWNS = spreadSpawns(20);
 
+/* ======================================================================
+   Map detail pass, phase 2 (2026-10-01): the island's ground and dressing.
+   - One ground shader: grass, sand, packed-earth paths and rock patches,
+     blended by a mask baked here at build time (2 m a texel: shore and
+     coast sand, the roads, worn rings round the landmarks, rock outcrops,
+     and a noise channel for colour variation), the textures sampled in
+     world space at two scales so the tiling doesn't show.
+   - Trees in two kinds (broadleaf, pine) with per-tree tints, textured
+     boulder clusters, instanced bushes / grass tufts / flowers (no
+     colliders; game.js applyClutter thins them on lower graphics tiers),
+     two fenced paddocks, signposts, billboards, grin graffiti.
+   ====================================================================== */
+const MASK_RES = 2;   // metres a mask texel
+
+function roadDistance(x, z) {
+  let best = Infinity;
+  for (const road of ROADS) for (let i = 1; i < road.length; i++) best = Math.min(best, segDist(x, z, ...road[i - 1], ...road[i]));
+  return best;
+}
+function lakeEdgeDistance(x, z) {
+  let best = Infinity;
+  for (let i = 0, j = ISLAND_LAKE.length - 1; i < ISLAND_LAKE.length; j = i++) best = Math.min(best, segDist(x, z, ...ISLAND_LAKE[j], ...ISLAND_LAKE[i]));
+  return best;
+}
+const smooth = (e0, e1, v) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+
+/* Smooth value noise on a lattice of `cell` metres. */
+function valueNoise(cell, seed) {
+  const r = rng(seed);
+  const nx = Math.ceil((BOUNDS.maxX - BOUNDS.minX) / cell) + 2, nz = Math.ceil((BOUNDS.maxZ - BOUNDS.minZ) / cell) + 2;
+  const v = Float32Array.from({ length: nx * nz }, () => r());
+  return (x, z) => {
+    const fx = (x - BOUNDS.minX) / cell, fz = (z - BOUNDS.minZ) / cell;
+    const ix = Math.floor(fx), iz = Math.floor(fz);
+    const tx = smooth(0, 1, fx - ix), tz = smooth(0, 1, fz - iz);
+    const at = (a, b) => v[Math.min(nz - 1, b) * nx + Math.min(nx - 1, a)];
+    const top = at(ix, iz) + (at(ix + 1, iz) - at(ix, iz)) * tx;
+    const bot = at(ix, iz + 1) + (at(ix + 1, iz + 1) - at(ix, iz + 1)) * tx;
+    return top + (bot - top) * tz;
+  };
+}
+
+/* R sand, G path / worn earth, B rock, A colour noise. */
+function groundMask() {
+  const W = Math.ceil((BOUNDS.maxX - BOUNDS.minX) / MASK_RES), H = Math.ceil((BOUNDS.maxZ - BOUNDS.minZ) / MASK_RES);
+  const data = new Uint8Array(W * H * 4);
+  const big = valueNoise(34, 11), small = valueNoise(9, 12);
+  const L = LANDMARKS;
+  const sandy = [[L.portal.x, L.portal.z, 15, 12], [L.tree.x, L.tree.z, 9, 7]];
+  for (let j = 0; j < H; j++) {
+    for (let i = 0; i < W; i++) {
+      const x = BOUNDS.minX + (i + 0.5) * MASK_RES, z = BOUNDS.minZ + (j + 0.5) * MASK_RES;
+      const o = (j * W + i) * 4;
+      if (!insidePolygon(ISLAND_EDGE, x, z)) { data[o] = 255; continue; }
+      const inLake = insidePolygon(ISLAND_LAKE, x, z);
+      let sand = Math.max(smooth(13, 5, edgeDistance(x, z)), inLake ? 1 : smooth(11, 4, lakeEdgeDistance(x, z)));
+      for (const [sx, sz, hw, hd] of sandy) {
+        const dx = Math.abs(x - sx) - hw, dz = Math.abs(z - sz) - hd;
+        sand = Math.max(sand, smooth(3, -1, Math.max(dx, dz)));
+      }
+      let path = smooth(4.4, 1.8, roadDistance(x, z));
+      for (const l of Object.values(L)) {
+        const d = Math.hypot(x - l.x, z - l.z) - l.r * 0.85;
+        path = Math.max(path, smooth(7, 0, Math.abs(d)) * 0.55);
+      }
+      const nb = big(x, z), ns = small(x, z);
+      const rock = smooth(0.66, 0.8, nb) * (1 - path) * smooth(8, 16, edgeDistance(x, z)) * (inLake ? 0 : 1);
+      data[o] = Math.round(sand * 255);
+      data[o + 1] = Math.round(path * 255);
+      data[o + 2] = Math.round(rock * 255);
+      data[o + 3] = Math.round((ns * 0.6 + nb * 0.4) * 255);
+    }
+  }
+  const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
+  tex.magFilter = tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+/* The island top: four textures blended by the mask, in world space. */
+function groundMaterial(mask) {
+  const S = SURFACES;
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 });
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, {
+      tGrass: { value: S.grass.color }, tSand: { value: S.sand.color }, tDirt: { value: S.dirt.color },
+      tRock: { value: S.rock.color }, tMask: { value: mask },
+      uBounds: { value: new THREE.Vector4(BOUNDS.minX, BOUNDS.minZ, 1 / (BOUNDS.maxX - BOUNDS.minX), 1 / (BOUNDS.maxZ - BOUNDS.minZ)) },
+    });
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vWXZ;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\nvWXZ = (modelMatrix * vec4(transformed, 1.0)).xz;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", `#include <common>
+varying vec2 vWXZ;
+uniform sampler2D tGrass, tSand, tDirt, tRock, tMask;
+uniform vec4 uBounds;`)
+      .replace("#include <map_fragment>", `
+// Grass everywhere; sand, earth and rock only sampled where the mask asks
+// for them (most of the island is plain meadow, so most pixels pay for two
+// texture reads). The mask's noise channel breaks up the tiling.
+vec2 wuv = vWXZ / 7.0;
+vec4 mk = texture2D(tMask, (vWXZ - uBounds.xy) * uBounds.zw);
+vec3 g1 = texture2D(tGrass, wuv + mk.a * 0.6).rgb;
+vec3 col = g1 * mix(vec3(1.0, 1.32, 0.82), vec3(1.42, 1.36, 0.74), mk.a);
+float jit = (g1.g - 0.3) * 0.8;
+float wr = smoothstep(0.35, 0.65, mk.b + jit);
+float wg = smoothstep(0.3, 0.62, mk.g + jit * 0.7);
+float ws = smoothstep(0.3, 0.62, mk.r + jit * 0.7);
+if (wr > 0.003) col = mix(col, texture2D(tRock, wuv * 0.6).rgb * vec3(1.15, 1.18, 1.2), wr);
+if (wg + ws > 0.003) {
+  vec3 sandC = texture2D(tSand, wuv * 0.9).rgb * vec3(1.2, 1.12, 1.0);
+  if (wg > 0.003) col = mix(col, mix(texture2D(tDirt, wuv).rgb * vec3(1.45, 1.3, 1.1), sandC, 0.5), wg);
+  col = mix(col, sandC, ws);
+}
+diffuseColor.rgb *= col;`);
+  };
+  m.customProgramCacheKey = () => "tfi-ground-2";
+  return m;
+}
+
+/* A tileable texture set as a material with a fixed repeat (UVs in metres). */
+function texMaterial(surface, color, metresPerTile, o = {}) {
+  const s = SURFACES[surface];
+  const tint = new THREE.Color(color);
+  const mk = (t) => { const c = t.clone(); c.wrapS = c.wrapT = THREE.RepeatWrapping; c.repeat.set(1 / metresPerTile, 1 / metresPerTile); c.needsUpdate = true; return c; };
+  return new THREE.MeshStandardMaterial({ color: tint, map: mk(s.color), normalMap: mk(s.normal), roughnessMap: mk(s.rough), roughness: 1, ...o });
+}
+
+/* UVs from world x/z in metres (for flat patches merged into one mesh). */
+function worldUV(g) {
+  const p = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i), p.getZ(i));
+  return g;
+}
+
+/* Give a geometry one vertex colour (for tinting merged trees). */
+function tinted(g, hex) {
+  const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+  g.setAttribute("color", new THREE.BufferAttribute(a, 3));
+  return g;
+}
+
+/* Lumpy: push each vertex out or in a little (same vertex, same push). */
+function lumpy(g, r, amt) {
+  const p = g.attributes.position, seen = new Map();
+  for (let i = 0; i < p.count; i++) {
+    const k = `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`;
+    if (!seen.has(k)) seen.set(k, 1 + (r() - 0.5) * amt);
+    const s = seen.get(k);
+    p.setXYZ(i, p.getX(i) * s, p.getY(i) * s, p.getZ(i) * s);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/* A canvas texture of grass blades, for the tufts. */
+function tuftTexture() {
+  const c = document.createElement("canvas");
+  c.width = 64; c.height = 64;
+  const g = c.getContext("2d");
+  const r = rng(77);
+  for (let k = 0; k < 22; k++) {
+    const x = 6 + r() * 52, lean = (r() - 0.5) * 16, h = 30 + r() * 30;
+    g.strokeStyle = `hsl(${100 + r() * 30}, ${55 + r() * 20}%, ${38 + r() * 22}%)`;
+    g.lineWidth = 2 + r() * 2;
+    g.beginPath();
+    g.moveTo(x, 64);
+    g.quadraticCurveTo(x + lean * 0.3, 64 - h * 0.6, x + lean, 64 - h);
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/* The signposts' boards: one canvas atlas, a row a name. */
+function signAtlas(names) {
+  const c = document.createElement("canvas");
+  const rowH = 64;
+  c.width = 512; c.height = rowH * names.length;
+  const g = c.getContext("2d");
+  names.forEach((name, i) => {
+    const y = i * rowH;
+    g.fillStyle = "#e9d8a6"; g.fillRect(0, y, 512, rowH);
+    g.fillStyle = "#c9b27a"; for (let k = 0; k < 4; k++) g.fillRect(0, y + 8 + k * 14, 512, 2);
+    g.strokeStyle = "#5a4224"; g.lineWidth = 6; g.strokeRect(3, y + 3, 506, rowH - 6);
+    g.fillStyle = "#2b2116";
+    g.font = "bold 34px Impact, 'Arial Black', sans-serif";
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(name.toUpperCase(), 256, y + rowH / 2 + 2);
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return { tex: t, rows: names.length };
+}
+
+/* A trollface grin sprayed on the ground (decal texture). */
+function grinTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  g.strokeStyle = "rgba(255,255,255,0.92)"; g.lineCap = "round"; g.lineJoin = "round";
+  g.lineWidth = 9;
+  g.beginPath(); g.ellipse(128, 132, 104, 96, 0, 0, Math.PI * 2); g.stroke();             // face
+  g.lineWidth = 8;
+  g.beginPath(); g.moveTo(52, 140); g.quadraticCurveTo(128, 236, 206, 132); g.lineTo(52, 140); g.stroke();   // the grin
+  for (let k = 0; k < 7; k++) { const x = 70 + k * 19; g.beginPath(); g.moveTo(x, 142); g.lineTo(x + 2, 168 + Math.sin(k / 6 * Math.PI) * 16); g.stroke(); }
+  g.lineWidth = 7;
+  for (const ex of [88, 168]) { g.beginPath(); g.ellipse(ex, 92, 20, 10, ex < 128 ? 0.25 : -0.25, 0, Math.PI * 2); g.stroke(); }
+  g.beginPath(); g.moveTo(62, 66); g.lineTo(108, 76); g.moveTo(194, 66); g.lineTo(148, 76); g.stroke();      // brows
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 function buildTrollfaceIsland(api) {
   const root = new THREE.Group();
   api.prop(root);
@@ -284,7 +503,10 @@ function buildTrollfaceIsland(api) {
   const slab = new THREE.ExtrudeGeometry(shapeOf(ISLAND_EDGE), { depth: CLIFF_DEPTH, bevelEnabled: false, curveSegments: 1 });
   slab.rotateX(-Math.PI / 2);
   slab.translate(0, -CLIFF_DEPTH, 0);
-  const island = new THREE.Mesh(slab, [M.grass, M.cliff]);
+  // Phase 2: the textured, blended ground and rock cliffs (UVs are metres).
+  const ground = groundMaterial(groundMask());
+  const cliffRock = texMaterial("rock", 0xd2d6e0, 9);
+  const island = new THREE.Mesh(slab, [ground, cliffRock]);
   island.receiveShadow = true;
   root.add(island);
   const under = new THREE.ConeGeometry(150, 70, 9);
@@ -316,19 +538,18 @@ function buildTrollfaceIsland(api) {
   // The beach all round the shore (not over the waterfall's lip).
   const mouth = LAKE_PCT.findIndex(([px, py]) => px === 37.2 && py === 72.2);
   const shore = [...ISLAND_LAKE.slice(mouth), ...ISLAND_LAKE.slice(0, mouth - 1)];
-  root.add(Object.assign(new THREE.Mesh(ribbon(shore, 16, 0.02), M.sand), { receiveShadow: true }));
+  void shore;   // (the beach is in the ground mask now: phase 2)
 
   /* ---- roads, paths and paved ground ----------------------------------- */
-  for (const road of ROADS) root.add(Object.assign(new THREE.Mesh(ribbon(road, 5, 0.03), M.road), { receiveShadow: true }));
+  // Roads and paths are in the ground mask (phase 2); plazas are textured.
   const paved = [
     patch(L.city.x, L.city.z, 76, 46, 0.025),
     patch(L.skate.x, L.skate.z, 62, 38, 0.025),
     patch(L.gallery.x, L.gallery.z, 34, 32, 0.025),
     patch(L.shop.x, L.shop.z + 2, 40, 24, 0.025),
   ];
-  root.add(Object.assign(new THREE.Mesh(mergeGeometries(paved, false), M.concrete), { receiveShadow: true }));
-  const sandy = [patch(L.portal.x, L.portal.z, 30, 24, 0.022), patch(L.tree.x, L.tree.z, 18, 14, 0.022)];
-  root.add(Object.assign(new THREE.Mesh(mergeGeometries(sandy, false), M.sand), { receiveShadow: true }));
+  const plaza = texMaterial("cast", 0xe6e3dc, 5, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  root.add(Object.assign(new THREE.Mesh(mergeGeometries(paved.map(worldUV), false), plaza), { receiveShadow: true }));
 
   /* ---- landmarks (grey boxes, sized for play) ---------------------------- */
 
@@ -608,13 +829,35 @@ function buildTrollfaceIsland(api) {
   const r = rng(0x7a011f);
   const spawnClear = (x, z) => SPAWNS.every(([sx, sz]) => Math.hypot(x - sx, z - sz) > 4);
   const clear = (x, z, pad) => openGround(x, z, pad) && spawnClear(x, z);
+  // Two kinds of tree, each crown its own shade (vertex colours, so they
+  // all still merge into one mesh).
+  const leaf = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true });
+  const LEAF = [0x2f9e44, 0x3fbf62, 0x2a8a3c, 0x58c46a, 0x4caf50, 0x7bc95a];
+  const PINE = [0x1f6b45, 0x26805a, 0x1d5c3f, 0x2e7d4f];
   const tree = (x, z) => {
-    const h = 2.6 + r() * 1.6, s = 2 + r() * 1.2;
-    K.cyl(x, z, 0.35, h, M.trunk, { segs: 7 });
-    const crown = new THREE.IcosahedronGeometry(s, 0);
-    crown.scale(1, 0.85, 1);
-    crown.translate(x, h + s * 0.6, z);
-    K.add(crown, M.leaves);
+    if (r() < 0.3) {
+      const h = 1.6 + r() * 0.8, s = 2.2 + r() * 0.9;
+      K.cyl(x, z, 0.3, h + 0.6, M.trunk, { segs: 7 });
+      const col = PINE[Math.floor(r() * PINE.length)];
+      for (let k = 0; k < 3; k++) {
+        const g = new THREE.ConeGeometry(s * (1 - k * 0.24), 2.6, 8);
+        g.rotateY(r() * 6);
+        g.translate(x, h + 1.1 + k * 1.45, z);
+        K.add(tinted(g, new THREE.Color(col).offsetHSL(0, 0, (r() - 0.5) * 0.06).getHex()), leaf);
+      }
+    } else {
+      const h = 2.4 + r() * 1.4, s = 1.7 + r() * 1.0;
+      K.cyl(x, z, 0.33, h, M.trunk, { segs: 7, rTop: 0.24 });
+      const col = LEAF[Math.floor(r() * LEAF.length)];
+      for (let k = 0; k < 3; k++) {
+        const ss = s * (0.65 + r() * 0.35);
+        const g = lumpy(new THREE.IcosahedronGeometry(ss, 1), r, 0.22);
+        g.scale(1, 0.8, 1);
+        const a = (k / 3) * Math.PI * 2 + r();
+        g.translate(x + Math.cos(a) * s * 0.45, h + ss * 0.55 + k * 0.35, z + Math.sin(a) * s * 0.45);
+        K.add(tinted(g, new THREE.Color(col).offsetHSL((r() - 0.5) * 0.02, 0, (r() - 0.5) * 0.08).getHex()), leaf);
+      }
+    }
   };
   for (const [px, py, n] of TREE_CLUMPS) {
     const [cx, cz] = P(px, py - 1);
@@ -627,25 +870,214 @@ function buildTrollfaceIsland(api) {
       k++;
     }
   }
+  // Boulders: textured, each with a couple of smaller stones at its foot.
+  const boulder = texMaterial("rock", 0xf4f2ee, 2.2, { flatShading: true });
   let rocks = 0;
   for (let tries = 0; tries < 3000 && rocks < 45; tries++) {
     const x = BOUNDS.minX + r() * (BOUNDS.maxX - BOUNDS.minX), z = BOUNDS.minZ + r() * (BOUNDS.maxZ - BOUNDS.minZ);
     if (!clear(x, z, 5)) continue;
     const s = 0.9 + r() * 1.1;
-    const g = new THREE.DodecahedronGeometry(s, 0);
+    const g = lumpy(new THREE.DodecahedronGeometry(s, 1), r, 0.3);
     g.scale(1.3, 0.75, 1);
-    g.translate(x, s * 0.5, z);
-    K.add(g, M.rock);
+    g.rotateY(r() * 6);
+    g.translate(x, s * 0.42, z);
+    K.add(g, boulder);
     api.ghostBox(x, z, s * 2.2, s * 1.8, s * 1.2, { pen: 6 });
+    for (let k = 0; k < 2; k++) {
+      const ss = 0.25 + r() * 0.3, a = r() * 6;
+      const sg = lumpy(new THREE.DodecahedronGeometry(ss, 0), r, 0.3);
+      sg.translate(x + Math.cos(a) * s * 1.5, ss * 0.35, z + Math.sin(a) * s * 1.2);
+      K.add(sg, boulder);
+    }
     rocks++;
   }
 
+  dressIsland(api, root, K, M, r, clear);
   K.flush();
+}
+
+/* Instanced clutter, paddocks, signposts, billboards, graffiti (phase 2). */
+function dressIsland(api, root, K, M, r, clear) {
+  const L = LANDMARKS;
+  const dummy = new THREE.Object3D();
+  const col = new THREE.Color();
+  const scatter = (n, pad, near = null) => {
+    const out = [];
+    for (let tries = 0; tries < n * 30 && out.length < n; tries++) {
+      let x, z;
+      if (near && r() < 0.6) {
+        const [px, py, size] = near[Math.floor(r() * near.length)];
+        const [cx, cz] = P(px, py - 1);
+        const a = r() * Math.PI * 2, d = Math.sqrt(r()) * (4 + Math.sqrt(size));
+        x = cx + Math.cos(a) * d; z = cz + Math.sin(a) * d;
+      } else {
+        x = BOUNDS.minX + r() * (BOUNDS.maxX - BOUNDS.minX);
+        z = BOUNDS.minZ + r() * (BOUNDS.maxZ - BOUNDS.minZ);
+      }
+      if (clear(x, z, pad)) out.push([x, z]);
+    }
+    return out;
+  };
+  const instanced = (geo, mat, spots, place, palette) => {
+    const mesh = new THREE.InstancedMesh(geo, mat, spots.length);
+    spots.forEach(([x, z], i) => {
+      place(dummy, x, z);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      if (palette) mesh.setColorAt(i, col.set(palette[Math.floor(r() * palette.length)]).offsetHSL(0, 0, (r() - 0.5) * 0.08));
+    });
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.userData.clutter = spots.length;    // game.js applyClutter thins this by graphics tier
+    mesh.computeBoundingSphere();
+    root.add(mesh);
+    return mesh;
+  };
+
+  // bushes, mostly round the tree clumps
+  const bushGeo = lumpy(new THREE.IcosahedronGeometry(1, 1), r, 0.25);
+  bushGeo.scale(1, 0.7, 1);
+  instanced(bushGeo, new THREE.MeshLambertMaterial({ flatShading: true }), scatter(360, 2.5, TREE_CLUMPS),
+    (d, x, z) => { const s = 0.45 + r() * 0.65; d.position.set(x, s * 0.35, z); d.rotation.set(0, r() * 6, 0); d.scale.set(s, s * (0.8 + r() * 0.4), s); },
+    [0x2f9e44, 0x3a9d3a, 0x4caf50, 0x2a7a3c, 0x5fae4a]);
+
+  // grass tufts all over the open ground
+  const tuftGeo = mergeGeometries([0, 1].map((k) => {
+    const g = new THREE.PlaneGeometry(0.9, 0.6);
+    g.translate(0, 0.3, 0);
+    g.rotateY((k / 2) * Math.PI);
+    return g;
+  }), false);
+  instanced(tuftGeo, new THREE.MeshLambertMaterial({ map: tuftTexture(), alphaTest: 0.45, side: THREE.DoubleSide }), scatter(1800, 1.5),
+    (d, x, z) => { const s = 0.7 + r() * 0.7; d.position.set(x, 0, z); d.rotation.set(0, r() * 6, 0); d.scale.set(s, s * (0.8 + r() * 0.5), s); },
+    [0xffffff, 0xeaffd8, 0xf6ffc8, 0xd8f0c0]);
+
+  // flowers in loose drifts
+  const petal = new THREE.CircleGeometry(0.16, 5);
+  petal.rotateX(-Math.PI / 2);
+  petal.translate(0, 0.32, 0);
+  const stem = new THREE.PlaneGeometry(0.03, 0.32);
+  stem.translate(0, 0.16, 0);
+  const flowerGeo = mergeGeometries([petal, stem], false);
+  const drifts = scatter(40, 3).map(([x, z]) => [x, z]);
+  const flowerSpots = [];
+  for (const [cx, cz] of drifts) {
+    for (let k = 0; k < 18; k++) {
+      const a = r() * 6, d = Math.sqrt(r()) * 4;
+      const x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
+      if (clear(x, z, 1)) flowerSpots.push([x, z]);
+    }
+  }
+  instanced(flowerGeo, new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, emissive: 0x111111 }), flowerSpots,
+    (d, x, z) => { const s = 0.8 + r() * 0.6; d.position.set(x, 0, z); d.rotation.set(0, r() * 6, 0); d.scale.set(s, s, s); },
+    [0xffffff, 0xffe14a, 0xff7ab8, 0xb084ff, 0xff9a3a]);
+
+  // two fenced paddocks (gates on the road side), out in open meadow
+  const fence = (cx, cz, w, d, gateSide) => {
+    const sides = [["n", cx, cz - d / 2, w, "x"], ["s", cx, cz + d / 2, w, "x"], ["w", cx - w / 2, cz, d, "z"], ["e", cx + w / 2, cz, d, "z"]];
+    for (const [side, sx, sz, len, axis] of sides) {
+      const gate = side === gateSide ? 3 : 0;
+      for (const half of gate ? [-1, 1] : [0]) {
+        const seg = gate ? (len - gate) / 2 : len;
+        const off = gate ? half * (gate / 2 + seg / 2) : 0;
+        const mx = axis === "x" ? sx + off : sx, mz = axis === "z" ? sz + off : sz;
+        const n = Math.max(1, Math.round(seg / 2.4));
+        for (let k = 0; k <= n; k++) {
+          const t = -seg / 2 + (k / n) * seg;
+          K.box(axis === "x" ? mx + t : mx, axis === "z" ? mz + t : mz, 0.16, 0.16, 1.15, M.wood, { collide: false });
+        }
+        for (const ry of [0.45, 0.85]) K.box(mx, mz, axis === "x" ? seg : 0.08, axis === "z" ? seg : 0.08, 0.1, M.wood, { y: ry, collide: false });
+        api.ghostBox(mx, mz, axis === "x" ? seg : 0.2, axis === "z" ? seg : 0.2, 1.0, { pen: 0.6 });
+      }
+    }
+  };
+  for (const [px, py, w, d, gate] of [[36, 46, 16, 11, "n"], [70, 60, 14, 12, "w"]]) {
+    const [cx, cz] = P(px, py);
+    if (clear(cx, cz, Math.max(w, d) / 2 + 2)) fence(cx, cz, w, d, gate);
+  }
+
+  // signposts: a board a landmark, on the road nearest it, pointing at it
+  const signed = ["city", "portal", "skate", "peak", "gallery", "shop", "market", "memelab", "cave", "observatory"];
+  const atlas = signAtlas(signed.map((k) => L[k].name));
+  const boardMat = new THREE.MeshStandardMaterial({ map: atlas.tex, roughness: 0.8, side: THREE.DoubleSide });
+  const boards = [];
+  signed.forEach((key, row) => {
+    const l = L[key];
+    // nearest road point to the landmark, then a few metres off the road
+    let best = null, bestD = Infinity;
+    for (const road of ROADS) for (const [x, z] of road) { const dd = Math.hypot(x - l.x, z - l.z); if (dd < bestD) { bestD = dd; best = [x, z]; } }
+    if (!best || bestD > 90 || bestD < 8) return;
+    const dirx = (l.x - best[0]) / bestD, dirz = (l.z - best[1]) / bestD;
+    const px = best[0] - dirz * 3.6, pz = best[1] + dirx * 3.6;
+    if (!insidePolygon(ISLAND_EDGE, px, pz) || insidePolygon(ISLAND_LAKE, px, pz)) return;
+    K.cyl(px, pz, 0.09, 2.6, M.wood, { segs: 6 });
+    const g = new THREE.PlaneGeometry(2.4, 0.5);
+    const v0 = 1 - (row + 1) / atlas.rows, v1 = 1 - row / atlas.rows;
+    g.setAttribute("uv", new THREE.Float32BufferAttribute([0, v1, 1, v1, 0, v0, 1, v0], 2));
+    g.translate(1.2, 0, 0);            // hinged at the post, pointing along +x
+    g.rotateY(-Math.atan2(dirz, dirx));
+    g.translate(px, 2.15, pz);
+    boards.push(g);
+    const tip = new THREE.CircleGeometry(0.3, 3);
+    tip.translate(2.5, 0, 0);
+    tip.rotateY(-Math.atan2(dirz, dirx));
+    tip.translate(px, 2.15, pz);
+    K.add(tip, M.wood);
+  });
+  if (boards.length) {
+    const mesh = new THREE.Mesh(mergeGeometries(boards, false), boardMat);
+    mesh.castShadow = true;
+    root.add(mesh);
+  }
+
+  // billboards by the roads: the key art, the sad troll, the key art again
+  const loader = new THREE.TextureLoader();
+  const art = (file) => { const t = loader.load(new URL(`./ui/${file}`, import.meta.url).href); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const billboards = [[NORTH_ROAD, 4, "troll-forces-key-art.jpg", 7.5, 4.2], [SOUTH_EAST_PATH, 3, "trollface-sad.png", 4.5, 4.5], [SWITCHBACK, 2, "troll-forces-key-art.jpg", 7.5, 4.2]];
+  for (const [road, idx, file, w, h] of billboards) {
+    const [ax, az] = road[idx], [bx, bz] = road[idx + 1];
+    const len = Math.hypot(bx - ax, bz - az), tx = (bx - ax) / len, tz = (bz - az) / len;
+    const mx = (ax + bx) / 2, mz = (az + bz) / 2;
+    // 8 m off whichever side of the road has room, facing the road
+    let spot = null;
+    for (const side of [1, -1]) {
+      const x = mx + side * tz * 8, z = mz - side * tx * 8;
+      if (clear(x, z, 2) && clear(x + tx * w / 2, z + tz * w / 2, 1) && clear(x - tx * w / 2, z - tz * w / 2, 1)) { spot = [x, z, -side * tz, side * tx]; break; }
+    }
+    if (!spot) continue;
+    const [x, z, fx, fz] = spot;
+    const th = Math.atan2(fx, fz);                // plane +z -> (fx, fz)
+    const ux = Math.cos(th), uz = -Math.sin(th);  // along the board
+    for (const sd of [-1, 1]) K.cyl(x + ux * sd * (w / 2 - 0.4), z + uz * sd * (w / 2 - 0.4), 0.14, 2.6 + h, M.greyDark, { segs: 8 });
+    const back = new THREE.BoxGeometry(w + 0.3, h + 0.3, 0.2);
+    back.rotateY(th);
+    back.translate(x, 2.6 + h / 2, z);
+    K.add(back, M.greyDark);
+    const face = new THREE.PlaneGeometry(w, h);
+    face.rotateY(th);
+    face.translate(x + fx * 0.11, 2.6 + h / 2, z + fz * 0.11);
+    root.add(new THREE.Mesh(face, new THREE.MeshStandardMaterial({ map: art(file), roughness: 0.6 })));
+  }
+
+  // grin graffiti sprayed on the plazas
+  const grinMat = new THREE.MeshBasicMaterial({ map: grinTexture(), transparent: true, depthWrite: false, opacity: 0.85,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const grins = [];
+  for (const [l, dx, dz, s] of [[L.city, 14, 12, 7], [L.skate, -18, 10, 6], [L.gallery, 8, -9, 5], [L.shop, -12, 6, 5]]) {
+    const g = new THREE.PlaneGeometry(s, s);
+    g.rotateX(-Math.PI / 2);
+    g.rotateY(r() * 6);
+    g.translate(l.x + dx, 0.05, l.z + dz);
+    grins.push(g);
+  }
+  const gm = new THREE.Mesh(mergeGeometries(grins, false), grinMat);
+  gm.renderOrder = 1;
+  root.add(gm);
 }
 
 export const TROLLFACE_ISLAND = {
   name: "Trollface Island",
-  blurb: "The trollface.io island, floating over nothing. Grey box: layout first, art later.",
+  blurb: "The trollface.io island, floating over nothing: meadows, beaches and the landmarks, art coming in.",
   bounds: { ...BOUNDS },
   playerSpawn: { x: SPAWNS[0][0], z: SPAWNS[0][1] },
   // The island floats in space (the trollface.io look): a black-blue sky

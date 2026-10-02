@@ -11,7 +11,7 @@ import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=atm1";
 import { GRINLERIA } from "./grinleria.js?v=atm1";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=atm1";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=tf2";
 import { SURFACES } from "./surface-textures.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {

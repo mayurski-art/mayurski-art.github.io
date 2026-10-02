@@ -4,9 +4,12 @@
 1. ~~Hollowgrin expansion~~: SHIPPED this session (below).
 2. ~~Bot scorestreaks phases 2 + 3~~: SHIPPED this session (below).
 3. **Map detail pass** (design doc link in the session 19 section): six
-   phases. Phase 1 (atmosphere) SHIPPED (below). User OK'd phase 2
-   (2026-10-01): **phase 2 = Trollface Island ground**: grass/sand/rock/
-   path blend, instanced trees/rocks/fences, decals/posters/signs. NEXT.
+   phases. Phase 1 (atmosphere) SHIPPED. Phase 2 (Trollface Island
+   ground) SHIPPED 2026-10-01 night (below). **RESUME HERE (next session):
+   show the user phase 2 (before/after shots + the fps numbers below) and
+   get their OK at the gate, then phase 3 = island landmarks A (Troll
+   City, Troll Peak, the Gallery, U Mad Bro Shop; Blender glbs over the
+   existing colliders; royale props bus/glider/glass box folded in).**
 3b. ~~Custom guns (user, 2026-10-01)~~: SHIPPED (below): THE BEAST, the
    Hyuck Colt LMG and the Ghost Glass finish. The user then said: "after
    doing these guns then work on the rest of the tasks", so next is the
@@ -65,6 +68,42 @@
 Note: the user asked to "compact the session after each task until task 3
 is done". Claude can't run /compact itself; the session compacts on its own
 and this file carries everything across.
+
+## Map detail pass phase 2 (Trollface Island ground) SHIPPED (2026-10-01) — `game.js?v=to-tf2`, `maps.js?v=tf2`, `trollface-island.js?v=tf2`
+All in trollface-island.js (groundMask, groundMaterial, dressIsland):
+- **Ground**: one shader on the island top. A mask baked at build time
+  (2 m/texel over BOUNDS: R sand = coast + lake shore + the portal/old-tree
+  patches, G packed earth = the ROADS + worn rings round each landmark,
+  B rock outcrops from value noise, A colour noise) blends grass / sand /
+  dirt / rock textures sampled in world space; sand, dirt and rock are
+  only sampled where their weight > 0 (most pixels: 2 reads). The old
+  road ribbons, beach ribbon and sandy patches are gone (the mask draws
+  them). Cliffs: rock texture (extrude side UVs are metres). Plazas:
+  "cast" texture with world UVs.
+- **Trees**: broadleaf (3 lumpy icosahedron crowns) or pine (3 cones),
+  per-tree tint via vertex colours so they still merge into one mesh.
+  **Boulders**: textured, lumpy, 2 small stones at the foot.
+- **Clutter** (instanced, no colliders, Lambert): 360 bushes (round the
+  tree clumps), 1800 grass tufts (2 crossed alpha-tested planes), ~670
+  flowers in drifts. game.js applyClutter() sets InstancedMesh.count from
+  userData.clutter x CLUTTER_SHARE {low .15, medium .35, high .55}, on
+  map load and every applyGraphics.
+- **Paddocks** (2, fenced, a gate gap, colliders), **10 signposts** (canvas
+  atlas of landmark names, arrow-tipped board pointing at the landmark,
+  on the nearest road point), **3 billboards** facing the roads (key art,
+  sad trollface; 2 placed, the third had no room), **grin graffiti**
+  decals on 4 plazas.
+- **fps** (tools/troll-ops-map-fps.mjs trollface, new "meadow" view in
+  tools/troll-ops-map-views.json; very noisy, 3-5 runs each): old ~44-49.
+  New with clutter off ~50; with full clutter ~40, so the clutter was the
+  cost: now Lambert + 55% on high. At 75% it read ~44 vs ~50 old, so 55%
+  should be about even, NOT re-measured at 55% before shipping (user was
+  done for the night). **Re-measure first thing next session**; if still
+  under, drop high to ~0.4 or fade tufts by distance.
+- Shots: before/after were rendered to the scratchpad only; re-shoot with
+  tools/troll-ops-map-shots.mjs (views: aerial [-10,30,10 -> -36,0,-60],
+  meadow [-50,0,-20 -> -36,3,-70], billboards at (53.3,-131.9) and
+  (116.3,61) seen from the road side).
 
 ## Custom guns SHIPPED (2026-10-01, session 22) — `game.js?v=to-cg1`, changed modules `?v=cg1`
 - **THE BEAST** (`beast`, assault, rank 25): the user's two references
