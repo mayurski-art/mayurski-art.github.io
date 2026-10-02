@@ -12424,6 +12424,9 @@ function updateFpEmoteView() {
   }
   inspectArms.visible = false;
   if (activeMeleeMesh) activeMeleeMesh.visible = false;
+  // The gun is put away: so are the arms that hold it (PF rods or gloves),
+  // or they hang in view as a second pair beside the emote hands.
+  if (!f.gun) { pfArms.visible = false; gloveRig.visible = false; }
   if (activeWeaponMesh) {
     activeWeaponMesh.visible = !!f.gun && player.holding === "gun";
     if (f.gun) {
