@@ -199,7 +199,26 @@ Rules for that session:
   it must not tank the game's first load (lazy-load it, pause it when a
   match starts).
 
-### Splitting work (both streams)
+### Who does what (user OK'd parallel sessions, 2026-10-02)
+- **Session "park"** (the main session): 6c mansion -> 6d mountain + moat ->
+  6e coaster. Owns hollowgrin.js buildPark() and models/build_grinmoor.
+- **Session "zombies"**: the zombie redesign plan above. zombies.js,
+  models/build_zombies.blender.py, audio.js. Doesn't touch hollowgrin.js.
+- **Session "chapel"**: church interior FIRST, then the mannequins (the
+  priest scene lives in the church). To stay out of the park session's way
+  in hollowgrin.js: put the chapel in a NEW module `hollowgrin-chapel.js`
+  (export buildChapel(api, K, M, SP, root, lights); move the CHAPEL block out
+  of buildOutskirts into it, keep its colliders/doors where they are unless
+  the design says otherwise) and the figures in `hollowgrin-mannequins.js`
+  (export placeMannequins(...)); hollowgrin.js only gets the import + one
+  call line each. Blender: models/build_chapel.blender.py,
+  models/build_mannequins.blender.py (hg-chapel*.glb, mq-*.glb).
+  Kit/place/jack/etc. live in hollowgrin.js: export what the new modules
+  need (named exports; ES module cycles are fine for functions/classes used
+  at build time).
+- **Session "menu"**: Stream B below.
+
+### Splitting work (all sessions)
 - Each session: `git worktree add ../to-<name>-wt -b <branch>` (or the
   desktop app's worktree option). Never work in the shared main checkout in
   parallel.
