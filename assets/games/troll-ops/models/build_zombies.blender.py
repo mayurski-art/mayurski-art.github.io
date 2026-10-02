@@ -1,32 +1,41 @@
 """
-Troll Forces zombies (zombies.js): one base body, clothes, variants.
+Troll Forces zombies (zombies.js): realistic zombies on MakeHuman bodies.
 
-    blender --background --python build_zombies.blender.py -- render
+    blender --background --python build_zombies.blender.py -- render [look ...]
 
-Env: ZB_RENDER_DIR, ZB_SAMPLES, ZB_VIEWS ("0,35,90,180"), ZB_GAUNT 0..1,
-ZB_ARM (arm length factor), ZB_TAG (file prefix).
+Needs the MPFB 2 extension (extensions.blender.org, id "mpfb") and the CC0
+MakeHuman asset packs "makehuman system assets", "shirts01", "pants01",
+"dress01" installed into its user data (see HANDOFF.md, session "zombies").
+Everything those produce is CC0. Do NOT call read_factory_settings here: it
+unloads the extension.
 
-Blender is Z-up and the body faces -Y (Blender's front view). Lengths are
-metres. The legs match character.js buildHumanoid exactly (hip joint 0.89,
-thigh 0.445, shin 0.445 at 1.78 m) so the rig's foot IK still plants the
-feet; everything above the hips is real human proportion.
+Env: ZB_RENDER_DIR, ZB_SAMPLES, ZB_VIEWS ("0,35,90,180"), ZB_FACE (1 = also
+a face close-up).
 
-The body is metaballs: capsules along the bones plus ellipsoids for the
-big muscle masses, blended into one surface, with negative elements
-carving the eye sockets, the nose cavity and the torn mouth. It's then
-turned into a mesh and roughened (noise displacement) so it reads as
-skin, not plastic.
+Pipeline per look: a MakeHuman body (macros for sex/age/build) with the
+"game_engine" rig (UE-style bone names), facial expression units for the
+snarl (lips pulled back off the teeth, jaw open, eyes wide), the cheeks
+hollowed, low-poly eyes and teeth, clothes from the packs. Then every
+material is swapped for a zombie one: the skin's own texture desaturated
+and pushed grey-green with mottling, veins, bruising and dried blood round
+the mouth and down the chest; milky eyes; yellowed teeth; clothes grimed,
+bloodied and torn (alpha holes).
 """
 import bpy
 import math
 import os
-import random
 import sys
-from mathutils import Vector, Euler
+from mathutils import Vector
+
+from bl_ext.blender_org.mpfb.services.humanservice import HumanService
+from bl_ext.blender_org.mpfb.services.targetservice import TargetService
+from bl_ext.blender_org.mpfb.services.locationservice import LocationService
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 RENDER_DIR = os.environ.get("ZB_RENDER_DIR", os.path.join(OUT_DIR, "_renders"))
+MPFB_SYS = LocationService.get_mpfb_data()        # bundled: base mesh, targets, rigs
+MPFB_USER = LocationService.get_user_data()       # the asset packs
 
 
 def hexlin(h):
@@ -38,379 +47,498 @@ def hexlin(h):
     return (*out, 1.0)
 
 
-def reset():
-    bpy.ops.wm.read_factory_settings(use_empty=True)
+def clear_scene():
+    for ob in list(bpy.data.objects):
+        bpy.data.objects.remove(ob)
+    for coll in (bpy.data.meshes, bpy.data.materials, bpy.data.images, bpy.data.armatures):
+        for d in list(coll):
+            if d.users == 0:
+                coll.remove(d)
 
 
-# ---------------------------------------------------------------- skeleton
-# One table of joints both the metaballs and (later) the armature read.
-# Left side only (+X); the right mirrors it.
-J = {
-    "pelvis":   Vector((0.0, 0.01, 0.95)),
-    "hip":      Vector((0.09, 0.0, 0.89)),
-    "knee":     Vector((0.095, -0.015, 0.445)),
-    "ankle":    Vector((0.10, 0.015, 0.075)),
-    "heel":     Vector((0.10, 0.05, 0.035)),
-    "ball":     Vector((0.105, -0.10, 0.025)),
-    "toe":      Vector((0.105, -0.155, 0.022)),
-    "waist":    Vector((0.0, 0.015, 1.06)),
-    "belly":    Vector((0.0, 0.01, 1.18)),
-    "chest":    Vector((0.0, 0.0, 1.32)),
-    "uchest":   Vector((0.0, 0.01, 1.42)),
-    "neckbase": Vector((0.0, 0.03, 1.49)),
-    "neck":     Vector((0.0, 0.02, 1.565)),
-    "head":     Vector((0.0, 0.0, 1.66)),
-    "clav":     Vector((0.03, -0.01, 1.455)),
-    "shoulder": Vector((0.185, 0.02, 1.445)),
+def user_asset(kind, name, ext=".mhclo"):
+    d = os.path.join(MPFB_USER, kind, name)
+    for f in os.listdir(d):
+        if f.endswith(ext):
+            return os.path.join(d, f)
+    raise FileNotFoundError(f"{kind}/{name}/*{ext}")
+
+
+# ---------------------------------------------------------------- looks
+# macros: MakeHuman's 0..1 sliders. face: expression units + shape targets.
+SNARL = {
+    "expression/units/caucasian/mouth-open": 0.4,
+    "expression/units/caucasian/mouth-retraction": 1.0,
+    "expression/units/caucasian/mouth-upward-retraction": 1.0,
+    "expression/units/caucasian/mouth-depression-retraction": 1.0,
+    "expression/units/caucasian/eyebrows-left-down": 0.4,
+    "expression/units/caucasian/eyebrows-right-down": 0.4,
+    "expression/units/caucasian/neck-platysma": 0.6,
+    "expression/units/caucasian/eye-left-opened-up": 0.45,
+    "expression/units/caucasian/eye-right-opened-up": 0.45,
+    "expression/units/caucasian/nose-left-dilatation": 0.5,
+    "expression/units/caucasian/nose-right-dilatation": 0.5,
+    "cheek/l-cheek-volume-decr": 0.8,
+    "cheek/r-cheek-volume-decr": 0.8,
+    "cheek/l-cheek-bones-incr": 0.5,
+    "cheek/r-cheek-bones-incr": 0.5,
 }
-# Arms rest 26 degrees off vertical, the rig's own rest angle
-# (character.js ARM = (0.30, -0.62)), so its arm rotations carry over.
-_ARM = Vector((math.sin(math.radians(26)), 0.0, -math.cos(math.radians(26))))
-J["elbow"] = J["shoulder"] + _ARM * 0.29 + Vector((0, 0.01, 0))
-J["wrist"] = J["elbow"] + _ARM * 0.26 + Vector((0, -0.01, 0))
-J["hand"] = J["wrist"] + _ARM * 0.10 + Vector((0, -0.01, 0))
+
+GAUNT = {
+    **SNARL,
+    "cheek/l-cheek-volume-decr": 1.0,
+    "cheek/r-cheek-volume-decr": 1.0,
+    "cheek/l-cheek-bones-incr": 1.0,
+    "cheek/r-cheek-bones-incr": 1.0,
+    "expression/units/caucasian/mouth-open": 0.75,
+}
+
+# Render poses, applied in order: (bone, (x, y, z)) aims the bone along that
+# WORLD direction; (bone, (axis, degrees)) turns it about a world axis.
+# World: +X the body's left, -Y forward, +Z up. Parents before children.
+SHAMBLE = [
+    ("spine_02", ("X", 8)), ("spine_03", ("X", 6)), ("neck_01", ("Y", -12)), ("head", ("X", 14)),
+    ("upperarm_l", (0.25, -0.92, -0.3)), ("lowerarm_l", (0.1, -0.97, -0.2)),
+    ("upperarm_r", (-0.3, -0.8, -0.5)), ("lowerarm_r", (-0.05, -0.9, -0.42)),
+    ("thigh_l", (0.05, -0.25, -0.97)), ("calf_l", (0.03, 0.1, -1)),
+    ("thigh_r", (-0.06, 0.12, -1)), ("calf_r", (0.0, 0.2, -1)),
+]
+SPRINT = [
+    ("spine_01", ("X", 18)), ("spine_03", ("X", 6)), ("head", ("X", -12)),
+    ("upperarm_l", (0.15, -0.6, -0.78)), ("lowerarm_l", (0.05, -0.97, -0.2)),
+    ("upperarm_r", (-0.2, 0.55, -0.8)), ("lowerarm_r", (-0.05, -0.4, -0.9)),
+    ("thigh_l", (0.04, -0.82, -0.57)), ("calf_l", (0.0, 0.15, -1)),
+    ("thigh_r", (-0.03, 0.45, -0.9)), ("calf_r", (0.0, 0.95, -0.3)),
+]
+LEAP = [
+    ("spine_01", ("X", 38)), ("spine_02", ("X", 10)), ("head", ("X", -42)),
+    ("upperarm_l", (0.4, -0.9, 0.15)), ("lowerarm_l", (0.15, -0.98, 0.05)),
+    ("upperarm_r", (-0.4, -0.9, 0.15)), ("lowerarm_r", (-0.15, -0.98, 0.05)),
+    ("thigh_l", (0.15, -0.85, -0.5)), ("calf_l", (0.05, 0.3, -0.95)),
+    ("thigh_r", (-0.1, 0.1, -1)), ("calf_r", (0.0, 0.95, -0.3)),
+]
+
+LOOKS = {
+    # the RE walker: middle-aged man, striped shirt, jeans
+    "walker": {
+        "macros": {"gender": 1.0, "age": 0.62, "muscle": 0.45, "weight": 0.45, "height": 0.55},
+        "skin": "old_caucasian_male",
+        "clothes": ["male_casualsuit03", "shoes02"],
+        "face": SNARL,
+        "pose": SHAMBLE,
+    },
+    # the horde's sprinters: younger, T-shirt and cargo trousers, some hair
+    "runner": {
+        "macros": {"gender": 1.0, "age": 0.35, "muscle": 0.55, "weight": 0.35, "height": 0.6},
+        "skin": "young_caucasian_male",
+        "clothes": ["elvs_crude_t-shirt_male", "cortu_cargo_pants", "shoes01"],
+        "hair": "short02",
+        "face": SNARL,
+        "pose": SPRINT,
+    },
+    # the leaper: starved, shirtless, barefoot, trousers in rags, long arms
+    # and hooked claws
+    "leaper": {
+        "macros": {"gender": 1.0, "age": 0.5, "muscle": 0.3, "weight": 0.0, "height": 0.8},
+        "skin": "old_caucasian_male",
+        "clothes": ["toigo_wool_pants"],
+        "face": GAUNT,
+        "tear": 0.5,
+        "arms": 1.22,
+        "claws": True,
+        "pose": LEAP,
+        "chest_blood": True,
+    },
+}
 
 
-def mirror(v):
-    return Vector((-v.x, v.y, v.z))
+def make_human(look):
+    macro = TargetService.get_default_macro_info_dict()
+    macro.update(look["macros"])
+    bm = HumanService.create_human(macro_detail_dict=macro)
+    for rel, w in look["face"].items():
+        path = os.path.join(MPFB_SYS, "targets", rel + ".target.gz")
+        TargetService.load_target(bm, path, weight=w)
+    rig = HumanService.add_builtin_rig(bm, "game_engine")
+    HumanService.add_mhclo_asset(user_asset("eyes", "low-poly"), bm, asset_type="Eyes", subdiv_levels=0)
+    HumanService.add_mhclo_asset(user_asset("teeth", "teeth_base"), bm, asset_type="Teeth", subdiv_levels=0)
+    for c in look["clothes"]:
+        HumanService.add_mhclo_asset(user_asset("clothes", c), bm, asset_type="Clothes", subdiv_levels=0)
+    if look.get("hair"):
+        HumanService.add_mhclo_asset(user_asset("hair", look["hair"]), bm, asset_type="Hair", subdiv_levels=0)
+    # MPFB deletes the body under each garment; keep it under torn clothes so
+    # the tears show skin, not a hole (shoes still hide the feet)
+    for md in list(bm.modifiers):
+        if md.type == "MASK" and md.name.startswith("Delete.") and not any(k in md.name for k in ("shoe", "boot")):
+            bm.modifiers.remove(md)
+    return bm, rig
 
 
-# ---------------------------------------------------------------- metaballs
-THRESHOLD = 0.6
+def _pb_world(rig, pb):
+    return rig.matrix_world @ pb.matrix
 
 
-def vis(stiff):
-    """Where a lone element's surface sits, as a share of its radius.
-    Blender's field is s * (1 - d^2/r^2)^3; the rest of r is blend reach,
-    so stiffer elements blend over a shorter distance."""
-    return math.sqrt(1 - (THRESHOLD / stiff) ** (1 / 3))
+def _set_world_rot(rig, pb, rot_fn):
+    from mathutils import Matrix
+    loc, rot, scl = _pb_world(rig, pb).decompose()
+    r = rot_fn(rot)
+    pb.matrix = rig.matrix_world.inverted() @ (Matrix.Translation(loc) @ r.to_matrix().to_4x4() @ Matrix.Diagonal((*scl, 1)))
+    bpy.context.view_layer.update()
 
 
-class Meta:
-    """One metaball family. Every size passed in is the size the surface
-    should SHOW; the element radius is scaled up to match."""
-
-    def __init__(self, name, res=0.008):
-        self.mb = bpy.data.metaballs.new(name)
-        self.mb.resolution = res
-        self.mb.render_resolution = res
-        self.mb.threshold = THRESHOLD
-        self.ob = bpy.data.objects.new(name, self.mb)
-        bpy.context.scene.collection.objects.link(self.ob)
-
-    def _el(self, kind, co, r, stiff, neg):
-        e = self.mb.elements.new(type=kind)
-        e.co = co
-        e.radius = r / vis(stiff)
-        e.stiffness = stiff
-        e.use_negative = neg
-        return e
-
-    def cap(self, a, b, r, stiff=2.0, neg=False):
-        """Capsule from a to b, radius r."""
-        a, b = Vector(a), Vector(b)
-        d = b - a
-        e = self._el("CAPSULE", (a + b) / 2, r, stiff, neg)
-        e.size_x = d.length / 2          # the straight part's half length
-        e.rotation = Vector((1, 0, 0)).rotation_difference(d.normalized())
-        return e
-
-    def ell(self, c, sx, sy, sz, stiff=2.0, neg=False, rot=None):
-        """Ellipsoid with half extents sx, sy, sz."""
-        e = self._el("ELLIPSOID", Vector(c), 1.0, stiff, neg)
-        e.size_x, e.size_y, e.size_z = sx, sy, sz
-        if rot is not None:
-            e.rotation = Euler(rot).to_quaternion()
-        return e
-
-    def ball(self, c, r, stiff=2.0, neg=False):
-        return self._el("BALL", Vector(c), r, stiff, neg)
+def turn(rig, bone, axis, deg):
+    """Rotate a pose bone about a WORLD axis through its head."""
+    from mathutils import Quaternion
+    q = Quaternion(Vector({"X": (1, 0, 0), "Y": (0, 1, 0), "Z": (0, 0, 1)}[axis]), math.radians(deg))
+    _set_world_rot(rig, rig.pose.bones[bone], lambda rot: q @ rot)
 
 
-def along(a, b):
-    """An Euler turning +Z onto a->b (orients an ellipsoid's long axis)."""
-    return Vector((0, 0, 1)).rotation_difference((b - a).normalized()).to_euler()
+def aim(rig, bone, direction):
+    """Swing a pose bone so it points along a WORLD direction (+X the body's
+    left, -Y forward, +Z up). The shortest swing, so its twist is kept."""
+    pb = rig.pose.bones[bone]
+    h = rig.matrix_world @ pb.head
+    cur = (rig.matrix_world @ pb.tail - h).normalized()
+    q = cur.rotation_difference(Vector(direction).normalized())
+    _set_world_rot(rig, pb, lambda rot: q @ rot)
 
 
-def build_body(gaunt=0.0, arm_len=1.0, claws=False):
-    """The body as one metaball surface. gaunt 0..1 strips fat and muscle
-    (hollow belly, stick limbs). Torso masses blend softly (stiffness 3);
-    limbs are stiffer so the thighs don't fuse into one column."""
-    M = Meta("ZB_BodyMeta")
-    g = 1.0 - gaunt * 0.35            # soft-tissue scale
-    j = {k: v.copy() for k, v in J.items()}
-    if arm_len != 1.0:
-        j["elbow"] = j["shoulder"] + (J["elbow"] - J["shoulder"]) * arm_len
-        j["wrist"] = j["elbow"] + (J["wrist"] - J["elbow"]) * arm_len
-        j["hand"] = j["wrist"] + (J["hand"] - J["wrist"])
-    LIMB = 4.5
-
-    # --- torso: rib cage, belly, pelvis
-    M.ell(j["chest"] + Vector((0, 0.005, 0.01)), 0.118 * g + 0.02, 0.08 * g + 0.012, 0.12, stiff=3)
-    M.ell(j["uchest"] + Vector((0, 0.012, 0.0)), 0.13 * g + 0.02, 0.065 * g + 0.012, 0.055, stiff=3)
-    M.ell(j["belly"] + Vector((0, -0.005 * g, 0)), 0.1 * g + 0.012, 0.07 * g + 0.005, 0.09, stiff=3)
-    M.ell(j["waist"], 0.105 * g + 0.012, 0.07 * g + 0.005, 0.07, stiff=3)
-    M.ell(j["pelvis"] + Vector((0, 0.0, -0.01)), 0.12 * g + 0.012, 0.08 * g + 0.005, 0.07, stiff=3)
-    for s in (1, -1):
-        M.ell(Vector((s * 0.068, -0.045 * g - 0.01, 1.365)), 0.07 * g, 0.012 * g + 0.004, 0.04 * g, stiff=4)   # pec
-        M.cap(Vector((s * 0.035, 0.03, 1.475)), Vector((s * 0.14, 0.025, 1.455)), 0.032 * g + 0.008, stiff=4)  # trapezius
-        M.ell(Vector((s * 0.066, 0.065 * g + 0.005, 0.875)), 0.062 * g, 0.042 * g, 0.068 * g, stiff=4)        # glute
-        M.ell(Vector((s * 0.06, 0.05, 1.25)), 0.048 * g, 0.028 * g, 0.12, stiff=4)                          # lats
-    # neck, a little forward-thrust
-    M.cap(j["neckbase"] + Vector((0, 0.0, -0.02)), j["neck"] + Vector((0, -0.005, 0.04)), 0.045 * (0.85 + 0.15 * g), stiff=4)
-
-    # --- legs
-    for s in (1, -1):
-        m = (lambda v: v) if s == 1 else mirror
-        hip, knee, ankle = m(j["hip"]), m(j["knee"]), m(j["ankle"])
-        M.cap(hip + Vector((s * 0.005, 0, 0.0)), knee, 0.058 * g + 0.01, stiff=LIMB)
-        M.ell(hip.lerp(knee, 0.4) + Vector((s * 0.012, -0.018, 0)), 0.05 * g + 0.01, 0.055 * g + 0.008, 0.14, stiff=LIMB)  # quads
-        M.cap(knee, ankle + Vector((0, 0, 0.02)), 0.038 * g + 0.006, stiff=LIMB)
-        M.ell(knee.lerp(ankle, 0.27) + Vector((0, 0.022, 0)), 0.04 * g + 0.006, 0.04 * g + 0.006, 0.1, stiff=LIMB)  # calf
-        M.ball(knee + Vector((0, -0.012, 0)), 0.046, stiff=LIMB)
-        M.ball(ankle, 0.034, stiff=LIMB)
-        M.cap(m(j["heel"]), m(j["ball"]), 0.03, stiff=LIMB)
-        M.cap(m(j["ball"]), m(j["toe"]), 0.022, stiff=LIMB)
-        M.ell(m(j["heel"].lerp(j["ball"], 0.55)) + Vector((0, 0, 0.012)), 0.036, 0.065, 0.024, stiff=LIMB)
-
-    # --- arms
-    for s in (1, -1):
-        m = (lambda v: v) if s == 1 else mirror
-        sh, el, wr = m(j["shoulder"]), m(j["elbow"]), m(j["wrist"])
-        M.ell(sh + Vector((s * 0.012, 0, -0.02)), 0.044 * g + 0.01, 0.048 * g + 0.01, 0.055 * g + 0.01, stiff=5,
-              rot=along(sh, el))                                                   # deltoid
-        M.cap(sh, el, 0.032 * g + 0.008, stiff=LIMB)
-        M.ell(sh.lerp(el, 0.5) + Vector((0, -0.01, 0)), 0.033 * g + 0.006, 0.034 * g + 0.006, 0.08, stiff=LIMB,
-              rot=along(sh, el))                                                   # biceps
-        M.cap(el, wr, 0.024 * g + 0.006, stiff=LIMB)
-        M.ell(el.lerp(wr, 0.28), 0.032 * g + 0.004, 0.03 * g + 0.004, 0.065, stiff=LIMB,
-              rot=along(el, wr))                                                   # forearm
-        build_hand(M, wr, m(j["hand"]), s, claws)
-    return M
+def stretch_arms(rig, k, claws):
+    """Lengthen the arms (upper and fore) by k along the bone, then fingers
+    for claws, curled into hooks. Pose scale only: Y is along the bone and
+    children don't inherit it (their inherit_scale is set to NONE_LEGACY so
+    the forearm doesn't get fat)."""
+    for side in ("l", "r"):
+        for b in ("upperarm", "lowerarm"):
+            pb = rig.pose.bones[f"{b}_{side}"]
+            pb.scale = (1.0, k, 1.0)
+        for f in ("index", "middle", "ring", "pinky"):
+            for n in (1, 2, 3):
+                pb = rig.pose.bones[f"{f}_0{n}_{side}"]
+                if claws:
+                    pb.scale = (0.85, 1.5 if n > 1 else 1.25, 0.85)
+                    pb.rotation_mode = "XYZ"
+                    pb.rotation_euler = (math.radians(28 if n > 1 else 10), 0, 0)
+    for bone in rig.data.bones:
+        if bone.parent and bone.parent.name.startswith(("upperarm", "lowerarm", "hand", "index", "middle", "ring", "pinky")):
+            bone.inherit_scale = "NONE_LEGACY"
+    bpy.context.view_layer.update()
 
 
-def build_hand(M, wrist, tip, side, claws):
-    """Palm plus four fingers and a thumb, each a two-segment capsule chain.
-    Claws: long bony fingers hooked at the ends."""
-    d = (tip - wrist).normalized()
-    across = Vector((0, -1, 0))          # palm faces the thigh; fingers fan along -Y
-    out = Vector((side, 0, 0))
-    M.ell(wrist + d * 0.05, 0.02, 0.042, 0.052, stiff=7, rot=along(wrist, tip))
-    flen = 0.095 * (1.7 if claws else 1.0)
-    for i, off in enumerate((-0.025, -0.008, 0.008, 0.023)):
-        k = (0.92, 1.0, 0.97, 0.8)[i]
-        base = wrist + d * 0.088 + across * off
-        mid = base + d * flen * 0.55 * k
-        hook = 1.1 if claws else 0.35          # curl toward the palm
-        end = mid + (d - out * hook).normalized() * flen * 0.45 * k
-        M.cap(base, mid, 0.0085 if claws else 0.0105, stiff=9)
-        M.cap(mid, end, 0.006 if claws else 0.0092, stiff=9)
-    tb = wrist + d * 0.035 + across * 0.03
-    M.cap(tb, tb + (d * 0.55 + across * 0.55 - out * 0.3).normalized() * 0.055, 0.0105, stiff=9)
-
-
-def build_head(M, gaunt=0.0):
-    """Skull, jaw, cheekbones and brow as positive elements; eye sockets, a
-    rotted-out nose and the torn mouth carved by negative ones. The face
-    points -Y. After the RE reference: hollow cheeks, a heavy brow over deep
-    sockets, the lips eaten away so both rows of teeth show."""
-    c = J["head"]
-    g = 1.0 - gaunt * 0.4
-    F = 5.0
-    M.ell(c + Vector((0, 0.015, 0.035)), 0.074, 0.09, 0.085, stiff=3)              # cranium
-    M.ell(c + Vector((0, -0.04, -0.02)), 0.045 * g + 0.012, 0.045, 0.056, stiff=F)  # mid-face
-    M.ell(c + Vector((0, -0.05, -0.09)), 0.032, 0.03, 0.022, stiff=F)              # chin
-    for s in (1, -1):
-        M.cap(c + Vector((s * 0.024, -0.056, -0.096)), c + Vector((s * 0.052, -0.012, -0.072)), 0.011, stiff=F)  # mandible
-        M.ell(c + Vector((s * 0.05, -0.055, 0.0)), 0.019, 0.015, 0.012, stiff=F)   # cheekbone
-        M.cap(c + Vector((s * 0.01, -0.083, 0.038)), c + Vector((s * 0.05, -0.07, 0.04)), 0.0095, stiff=F)  # brow
-        M.ell(c + Vector((s * 0.075, 0.012, -0.005)), 0.008, 0.019, 0.026, stiff=F)  # ear
-        M.ball(c + Vector((s * 0.031, -0.086, 0.013)), 0.027, stiff=2, neg=True)    # socket
-        M.ball(c + Vector((s * 0.046, -0.082, -0.04)), 0.018 * (1.6 - g), stiff=3, neg=True)  # sunken cheek
-    # nose: a narrow bridge, then a ragged hole where the tip rotted off
-    M.cap(c + Vector((0, -0.086, 0.022)), c + Vector((0, -0.097, -0.016)), 0.008, stiff=F)
-    M.ball(c + Vector((0, -0.1, -0.028)), 0.013, stiff=3, neg=True)
-    # mouth: torn open, wider on the left where the cheek has gone
-    M.ell(c + Vector((0, -0.096, -0.062)), 0.028, 0.028, 0.018, stiff=3, neg=True)
-    M.ell(c + Vector((0.024, -0.084, -0.066)), 0.016, 0.018, 0.013, stiff=3, neg=True)
-
-
-def to_mesh(meta, name):
-    dg = bpy.context.evaluated_depsgraph_get()
-    ev = meta.ob.evaluated_get(dg)
-    me = bpy.data.meshes.new_from_object(ev)
-    me.name = name
-    ob = bpy.data.objects.new(name, me)
-    bpy.context.scene.collection.objects.link(ob)
-    bpy.data.objects.remove(meta.ob)
-    for p in me.polygons:
-        p.use_smooth = True
-    return ob
-
-
-def roughen(ob, amount=0.003, scale=0.04):
-    """Lumpy skin: a low noise displacement over the whole surface."""
-    tex = bpy.data.textures.new(ob.name + "_lumps", "CLOUDS")
-    tex.noise_scale = scale
-    tex.noise_depth = 3
-    mod = ob.modifiers.new("lumps", "DISPLACE")
-    mod.texture = tex
-    mod.strength = amount
-    mod.mid_level = 0.5
-    mod.texture_coords = "OBJECT"
-    sm = ob.modifiers.new("smooth", "CORRECTIVE_SMOOTH")
-    sm.iterations = 3
+def pose(rig, look):
+    for pb in rig.pose.bones:
+        pb.rotation_mode = "QUATERNION"
+    if look.get("arms"):
+        stretch_arms(rig, look["arms"], look.get("claws"))
+    for bone, how in look.get("pose", []):
+        if isinstance(how, tuple) and len(how) == 3:
+            aim(rig, bone, how)
+        else:
+            turn(rig, bone, *how)
 
 
 # ---------------------------------------------------------------- materials
-def mat_skin(name="ZB_Skin", base=0x7d8468, pale=0x9d9a80, bruise=0x5b5450, blood=0x3e0b08):
-    m = bpy.data.materials.new(name)
+def _nodes(m):
     m.use_nodes = True
-    N, L = m.node_tree.nodes, m.node_tree.links
+    return m.node_tree.nodes, m.node_tree.links
+
+
+def _noise(N, L, vec, scale, detail=6.0):
+    n = N.new("ShaderNodeTexNoise")
+    n.inputs["Scale"].default_value = scale
+    n.inputs["Detail"].default_value = detail
+    L.new(vec, n.inputs["Vector"])
+    return n
+
+
+def _range(N, L, src, a, b, lo=0.0, hi=1.0):
+    r = N.new("ShaderNodeMapRange")
+    r.inputs["From Min"].default_value = a
+    r.inputs["From Max"].default_value = b
+    r.inputs["To Min"].default_value = lo
+    r.inputs["To Max"].default_value = hi
+    L.new(src, r.inputs["Value"])
+    return r.outputs["Result"]
+
+
+def _mix(N, L, fac, a, b, blend="MIX"):
+    m = N.new("ShaderNodeMix")
+    m.data_type = "RGBA"
+    m.blend_type = blend
+    if isinstance(fac, float):
+        m.inputs["Factor"].default_value = fac
+    else:
+        L.new(fac, m.inputs["Factor"])
+    for i, v in ((6, a), (7, b)):
+        if isinstance(v, tuple):
+            m.inputs[i].default_value = v
+        else:
+            L.new(v, m.inputs[i])
+    return m.outputs[2]
+
+
+def _near(N, L, pos, center, radius, soft):
+    """1 within `radius` of `center` (object space), fading over `soft`."""
+    d = N.new("ShaderNodeVectorMath")
+    d.operation = "DISTANCE"
+    d.inputs[1].default_value = center
+    L.new(pos, d.inputs[0])
+    return _range(N, L, d.outputs["Value"], radius, radius + soft, 1.0, 0.0)
+
+
+def zombie_skin(skin_name):
+    """The MakeHuman skin texture, rotted: desaturated, pushed grey-green,
+    mottled with bruises, laced with veins, blood round the mouth and down
+    the chin and chest."""
+    m = bpy.data.materials.new("ZB_Skin")
+    N, L = _nodes(m)
     bsdf = N["Principled BSDF"]
     tc = N.new("ShaderNodeTexCoord")
-    noise = N.new("ShaderNodeTexNoise")
-    noise.inputs["Scale"].default_value = 9.0
-    noise.inputs["Detail"].default_value = 8.0
-    L.new(tc.outputs["Object"], noise.inputs["Vector"])
-    ramp = N.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].color = hexlin(pale)
-    ramp.color_ramp.elements[1].color = hexlin(base)
-    ramp.color_ramp.elements.new(0.72).color = hexlin(bruise)
-    ramp.color_ramp.elements[0].position = 0.3
-    ramp.color_ramp.elements[1].position = 0.5
-    L.new(noise.outputs["Fac"], ramp.inputs["Fac"])
-    # veins: thin voronoi edges, warped by noise so they don't read as tiles
-    warp = N.new("ShaderNodeTexNoise")
-    warp.inputs["Scale"].default_value = 3.0
-    L.new(tc.outputs["Object"], warp.inputs["Vector"])
-    wmix = N.new("ShaderNodeMix")
-    wmix.data_type = "VECTOR"
-    wmix.inputs["Factor"].default_value = 0.25
-    L.new(tc.outputs["Object"], wmix.inputs[4])
-    L.new(warp.outputs["Color"], wmix.inputs[5])
+    img = N.new("ShaderNodeTexImage")
+    d = os.path.join(MPFB_USER, "skins", skin_name)
+    img.image = bpy.data.images.load(os.path.join(d, [f for f in os.listdir(d) if f.endswith(".png")][0]))
+    L.new(tc.outputs["UV"], img.inputs["Vector"])
+    hsv = N.new("ShaderNodeHueSaturation")
+    hsv.inputs["Saturation"].default_value = 0.15
+    hsv.inputs["Value"].default_value = 0.8
+    L.new(img.outputs["Color"], hsv.inputs["Color"])
+    obj = tc.outputs["Object"]
+    zm = N.new("ShaderNodeVertexColor")
+    zm.layer_name = "zmask"
+    sep = N.new("ShaderNodeSeparateColor")
+    L.new(zm.outputs["Color"], sep.inputs["Color"])
+    lips, sock, mblood = sep.outputs[0], sep.outputs[1], sep.outputs[2]
+    # rot tint: grey-green, patchy, a jaundiced yellow in places
+    patch = _noise(N, L, obj, 7.0)
+    tint = _mix(N, L, _range(N, L, patch.outputs["Fac"], 0.3, 0.7), hexlin(0x9ea492), hexlin(0x606b4f))
+    yel = _noise(N, L, obj, 2.5)
+    tint = _mix(N, L, _range(N, L, yel.outputs["Fac"], 0.55, 0.7, 0.0, 0.5), tint, hexlin(0xa39a6a))
+    col = _mix(N, L, 1.0, hsv.outputs["Color"], tint, "MULTIPLY")
+    # sunken sockets: bruised dark rings
+    col = _mix(N, L, sock, col, hexlin(0x3a2c30), "MULTIPLY")
+    # lips eaten back to raw, dark meat
+    raw = _mix(N, L, _range(N, L, _noise(N, L, obj, 80.0).outputs["Fac"], 0.3, 0.7), hexlin(0x4a1610), hexlin(0x1e0705))
+    col = _mix(N, L, lips, col, raw)
+    # bruising: purple-grey blotches
+    bru = _noise(N, L, obj, 3.5)
+    col = _mix(N, L, _range(N, L, bru.outputs["Fac"], 0.58, 0.7, 0.0, 0.55), col, hexlin(0x4c3f4a), "MULTIPLY")
+    # veins: thin warped voronoi edges
+    warp = _noise(N, L, obj, 4.0)
+    wv = N.new("ShaderNodeMix")
+    wv.data_type = "VECTOR"
+    wv.inputs["Factor"].default_value = 0.2
+    L.new(obj, wv.inputs[4])
+    L.new(warp.outputs["Color"], wv.inputs[5])
     vor = N.new("ShaderNodeTexVoronoi")
     vor.feature = "DISTANCE_TO_EDGE"
-    vor.inputs["Scale"].default_value = 18.0
-    L.new(wmix.outputs[1], vor.inputs["Vector"])
-    vr = N.new("ShaderNodeMapRange")
-    vr.inputs["From Min"].default_value = 0.0
-    vr.inputs["From Max"].default_value = 0.01
-    vr.inputs["To Min"].default_value = 0.35
-    vr.inputs["To Max"].default_value = 0.0
-    L.new(vor.outputs["Distance"], vr.inputs["Value"])
-    veins = N.new("ShaderNodeMix")
-    veins.data_type = "RGBA"
-    L.new(vr.outputs["Result"], veins.inputs["Factor"])
-    L.new(ramp.outputs["Color"], veins.inputs[6])
-    veins.inputs[7].default_value = hexlin(0x3a4048)
-    # blood: big blotches
-    bn = N.new("ShaderNodeTexNoise")
-    bn.inputs["Scale"].default_value = 4.0
-    bn.inputs["Detail"].default_value = 6.0
-    L.new(tc.outputs["Object"], bn.inputs["Vector"])
-    br = N.new("ShaderNodeMapRange")
-    br.inputs["From Min"].default_value = 0.6
-    br.inputs["From Max"].default_value = 0.66
-    L.new(bn.outputs["Fac"], br.inputs["Value"])
-    mix = N.new("ShaderNodeMix")
-    mix.data_type = "RGBA"
-    L.new(br.outputs["Result"], mix.inputs["Factor"])
-    L.new(veins.outputs[2], mix.inputs[6])
-    mix.inputs[7].default_value = hexlin(blood)
-    L.new(mix.outputs[2], bsdf.inputs["Base Color"])
-    bsdf.inputs["Roughness"].default_value = 0.58
+    vor.inputs["Scale"].default_value = 22.0
+    L.new(wv.outputs[1], vor.inputs["Vector"])
+    col = _mix(N, L, _range(N, L, vor.outputs["Distance"], 0.0, 0.008, 0.45, 0.0), col, hexlin(0x2c3440))
+    # blood: round the mouth and down the chin (zmask B), plus spatter
+    sp = _noise(N, L, obj, 9.0, 8.0)
+    spat = _range(N, L, sp.outputs["Fac"], 0.62, 0.7)
+    breakup = _noise(N, L, obj, 14.0)
+    m2 = N.new("ShaderNodeMath")
+    m2.operation = "MULTIPLY"
+    L.new(mblood, m2.inputs[0])
+    L.new(_range(N, L, breakup.outputs["Fac"], 0.3, 0.5), m2.inputs[1])
+    m3 = N.new("ShaderNodeMath")
+    m3.operation = "MAXIMUM"
+    L.new(m2.outputs[0], m3.inputs[0])
+    L.new(spat, m3.inputs[1])
+    # dried blood: near-black brown, fresher red only in the thick of it
+    dried = _mix(N, L, _range(N, L, breakup.outputs["Fac"], 0.45, 0.65), hexlin(0x1e0604), hexlin(0x3f0a06))
+    col = _mix(N, L, m3.outputs[0], col, dried)
+    L.new(col, bsdf.inputs["Base Color"])
+    rough = N.new("ShaderNodeMath")
+    rough.operation = "MULTIPLY_ADD"
+    rough.inputs[1].default_value = -0.2        # a little tacky where it's bloody
+    rough.inputs[2].default_value = 0.62
+    L.new(m3.outputs[0], rough.inputs[0])
+    L.new(rough.outputs[0], bsdf.inputs["Roughness"])
     bump = N.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 0.3
-    L.new(noise.outputs["Fac"], bump.inputs["Height"])
+    bump.inputs["Strength"].default_value = 0.25
+    bump.inputs["Distance"].default_value = 0.002
+    L.new(_noise(N, L, obj, 60.0).outputs["Fac"], bump.inputs["Height"])
     L.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return m
 
 
-def mat_flat(name, col, rough=0.6, emit=None, emit_k=0.0):
+def flat(name, col, rough=0.5, emit=None, k=0.0):
     m = bpy.data.materials.new(name)
-    m.use_nodes = True
-    b = m.node_tree.nodes["Principled BSDF"]
+    N, _ = _nodes(m)
+    b = N["Principled BSDF"]
     b.inputs["Base Color"].default_value = hexlin(col)
     b.inputs["Roughness"].default_value = rough
     if emit is not None:
         b.inputs["Emission Color"].default_value = hexlin(emit)
-        b.inputs["Emission Strength"].default_value = emit_k
+        b.inputs["Emission Strength"].default_value = k
     return m
 
 
-# ---------------------------------------------------------------- face bits
-def add_eyes_teeth():
-    """Milky eyes sunk in the sockets; two rows of small, uneven, yellowed
-    teeth; a dark mouth behind them."""
-    c = J["head"]
-    eye_m = mat_flat("ZB_Eye", 0xcfd4cb, 0.2, 0xb8c4bd, 0.1)
-    gum_m = mat_flat("ZB_Gum", 0x2a0a08, 0.6)
-    tooth_m = mat_flat("ZB_Tooth", 0xc9b98a, 0.4)
-    obs = []
-    for s in (1, -1):
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0112, segments=16, ring_count=10,
-                                             location=c + Vector((s * 0.031, -0.063, 0.012)))
-        e = bpy.context.active_object
-        e.data.materials.append(eye_m)
-        obs.append(e)
-    rnd = random.Random(7)
-    for z, h in ((-0.056, 0.011), (-0.071, 0.0095)):
-        n = 12
-        for i in range(n):
-            if rnd.random() < 0.1:
-                continue                           # a gap where one fell out
-            t = (i + 0.5) / n - 0.5
-            ang = t * 2.4
-            x = math.sin(ang) * 0.026
-            y = -0.086 + (1 - math.cos(ang)) * 0.022
-            bpy.ops.mesh.primitive_cube_add(size=1, location=c + Vector((x, y, z)))
-            tt = bpy.context.active_object
-            w = 0.0052 if abs(t) < 0.2 else 0.0058
-            tt.scale = (w, 0.0045, h * (0.8 + rnd.random() * 0.4))
-            tt.rotation_euler = (rnd.uniform(-0.25, 0.25), rnd.uniform(-0.2, 0.2), -ang)
-            bev = tt.modifiers.new("bev", "BEVEL")
-            bev.width = 0.0012
-            bev.segments = 2
-            tt.data.materials.append(tooth_m)
-            obs.append(tt)
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=1, segments=16, ring_count=10,
-                                         location=c + Vector((0, -0.066, -0.064)))
-    gm = bpy.context.active_object
-    gm.scale = (0.027, 0.022, 0.022)
-    gm.data.materials.append(gum_m)
-    obs.append(gm)
-    return obs
+def rotten_teeth():
+    """MakeHuman's teeth texture (it has the gums and gaps), stained
+    yellow-brown and darkened at the gum line."""
+    m = bpy.data.materials.new("ZB_Teeth")
+    N, L = _nodes(m)
+    b = N["Principled BSDF"]
+    img = N.new("ShaderNodeTexImage")
+    img.image = bpy.data.images.load(os.path.join(MPFB_USER, "teeth", "teeth_base", "teeth.png"))
+    stain = _noise(N, L, N.new("ShaderNodeTexCoord").outputs["Object"], 40.0)
+    tint = _mix(N, L, _range(N, L, stain.outputs["Fac"], 0.3, 0.7), hexlin(0xc4ad78), hexlin(0x7a6440))
+    L.new(_mix(N, L, 1.0, img.outputs["Color"], tint, "MULTIPLY"), b.inputs["Base Color"])
+    b.inputs["Roughness"].default_value = 0.4
+    return m
+
+
+def lank_hair(m):
+    """Dull, dirty, darker hair."""
+    N, L = _nodes(m)
+    bsdf = next(n for n in N if n.type == "BSDF_PRINCIPLED")
+    link = next((l for l in bsdf.inputs["Base Color"].links), None)
+    if not link:
+        return
+    hsv = N.new("ShaderNodeHueSaturation")
+    hsv.inputs["Saturation"].default_value = 0.45
+    hsv.inputs["Value"].default_value = 0.4
+    L.new(link.from_socket, hsv.inputs["Color"])
+    L.new(hsv.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.8
+
+
+def zombify_cloth(m, tear_at=0.6):
+    """Grime, blood and tears on top of the garment's own texture. Lower
+    tear_at = more holes."""
+    N, L = _nodes(m)
+    bsdf = next(n for n in N if n.type == "BSDF_PRINCIPLED")
+    link = next((l for l in bsdf.inputs["Base Color"].links), None)
+    src = link.from_socket if link else None
+    tc = N.new("ShaderNodeTexCoord")
+    obj = tc.outputs["Object"]
+    if src is None:
+        rgb = N.new("ShaderNodeRGB")
+        rgb.outputs[0].default_value = bsdf.inputs["Base Color"].default_value
+        src = rgb.outputs[0]
+    dirt = _noise(N, L, obj, 5.0)
+    col = _mix(N, L, _range(N, L, dirt.outputs["Fac"], 0.4, 0.7, 0.15, 0.6), src, hexlin(0x4a3f2e), "MULTIPLY")
+    pos = N.new("ShaderNodeNewGeometry").outputs["Position"]
+    chest = _near(N, L, pos, (0.0, -0.12, 1.38), 0.08, 0.16)
+    bl = _noise(N, L, obj, 6.0, 8.0)
+    m1 = N.new("ShaderNodeMath")
+    m1.operation = "MULTIPLY"
+    L.new(chest, m1.inputs[0])
+    L.new(_range(N, L, bl.outputs["Fac"], 0.42, 0.55), m1.inputs[1])
+    sp = _range(N, L, _noise(N, L, obj, 4.0, 8.0).outputs["Fac"], 0.64, 0.7, 0.0, 0.9)
+    m2 = N.new("ShaderNodeMath")
+    m2.operation = "MAXIMUM"
+    L.new(m1.outputs[0], m2.inputs[0])
+    L.new(sp, m2.inputs[1])
+    col = _mix(N, L, m2.outputs[0], col, hexlin(0x3d0907))
+    L.new(col, bsdf.inputs["Base Color"])
+    # tears: holes where a coarse noise peaks (alpha clipped in the game)
+    tear = _noise(N, L, obj, 4.5, 12.0)
+    L.new(_range(N, L, tear.outputs["Fac"], tear_at, tear_at + 0.005, 1.0, 0.0), bsdf.inputs["Alpha"])
+    # wash the colour out: years of dirt
+    hsv = N.new("ShaderNodeHueSaturation")
+    hsv.inputs["Saturation"].default_value = 0.6
+    hsv.inputs["Value"].default_value = 0.8
+    L.new(col, hsv.inputs["Color"])
+    L.new(hsv.outputs["Color"], bsdf.inputs["Base Color"])
+    m.use_backface_culling = False
+
+
+def face_masks(bm, rig, chest=False):
+    """Paint the face masks the skin shader reads, as a colour attribute
+    "zmask" on the body: R = the lips (eaten raw), G = the eye sockets
+    (sunken, dark), B = blood from the mouth down the chin and throat.
+    Positions are the snarl-posed ones (shape keys on, modifiers off, so
+    vertex indices match the base mesh)."""
+    for md in bm.modifiers:
+        md.show_viewport = False
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = bm.evaluated_get(dg)
+    P = [bm.matrix_world @ v.co for v in ev.data.vertices]
+    for md in bm.modifiers:
+        md.show_viewport = True
+    gi = bm.vertex_groups["lips"].index
+    lipw = [0.0] * len(P)
+    for v in bm.data.vertices:
+        for g in v.groups:
+            if g.group == gi:
+                lipw[v.index] = g.weight
+    lip_pts = [P[i] for i, w in enumerate(lipw) if w > 0.5]
+    mouth = sum(lip_pts, Vector()) / len(lip_pts)
+    eyes = []
+    eye_ob = next(c for c in rig.children_recursive if "low-poly" in c.name)
+    for side in (1, -1):
+        pts = [eye_ob.matrix_world @ v.co for v in eye_ob.data.vertices if v.co.x * side > 0]
+        eyes.append(sum(pts, Vector()) / len(pts))
+    attr = bm.data.color_attributes.new("zmask", "FLOAT_COLOR", "POINT")
+
+    def fall(d, r, soft):
+        return max(0.0, min(1.0, 1 - (d - r) / soft))
+
+    for i, p in enumerate(P):
+        # lips: the group itself plus a ragged rim, worse on the left
+        rim = fall((p - mouth).length, 0.022 + 0.008 * (p.x > 0), 0.012)
+        lip = max(lipw[i], rim * 0.8)
+        sock = max(fall((p - e).length, 0.014, 0.018) for e in eyes)
+        below = mouth.z - p.z
+        drip = 0.0
+        if -0.01 < below < 0.2 and p.y < mouth.y + 0.06:
+            # a run down the chin, narrowing as it goes
+            drip = fall(abs(p.x - 0.006 * math.sin(below * 60)), 0.012 + 0.03 * (1 - below / 0.2), 0.01)
+        blood = max(fall((p - mouth).length, 0.03, 0.025), drip)
+        if chest and p.y < 0.0:
+            # a rotted, bloody chest: a big wound under the left pec
+            blood = max(blood, fall((p - Vector((0.05, -0.12, 1.3))).length, 0.06, 0.1))
+        attr.data[i].color = (lip, sock, blood, 1.0)
+    return mouth, eyes
+
+
+def zombify_materials(bm, rig, look):
+    face_masks(bm, rig, look.get("chest_blood", False))
+    skin = zombie_skin(look["skin"])
+    eye = flat("ZB_Eye", 0xd6dbd2, 0.15, 0xc8d2cc, 0.08)
+    for ob in [bm] + [c for c in rig.children_recursive if c.type == "MESH"]:
+        name = ob.name.lower()
+        if ob is bm:
+            ob.data.materials.clear()
+            ob.data.materials.append(skin)
+        elif "low-poly" in name or "eye" in name:
+            ob.data.materials.clear()
+            ob.data.materials.append(eye)
+        elif "teeth" in name:
+            ob.data.materials.clear()
+            ob.data.materials.append(rotten_teeth())
+        else:
+            for m in ob.data.materials:
+                if not m:
+                    continue
+                if ob.name.endswith("." + look.get("hair", "-")):
+                    lank_hair(m)
+                else:
+                    zombify_cloth(m, look.get("tear", 0.6))
 
 
 # ---------------------------------------------------------------- render
-def look_body(name, gaunt=0.0, arm_len=1.0, claws=False, skin=None):
-    M = build_body(gaunt, arm_len, claws)
-    build_head(M, gaunt)
-    ob = to_mesh(M, name)
-    roughen(ob)
-    ob.data.materials.append(skin or mat_skin())
-    extras = add_eyes_teeth()
-    return ob, extras
-
-
 def render_setup():
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     sc.cycles.samples = int(os.environ.get("ZB_SAMPLES", "32"))
     sc.cycles.use_denoising = True
-    sc.render.resolution_x = int(os.environ.get("ZB_W", "720"))
-    sc.render.resolution_y = int(os.environ.get("ZB_H", "1080"))
+    sc.render.resolution_x = 720
+    sc.render.resolution_y = 1080
     sc.view_settings.view_transform = "AgX"
+    sc.view_settings.exposure = float(os.environ.get("ZB_EXPOSURE", "-0.9"))
     w = bpy.data.worlds.new("W")
     sc.world = w
     w.use_nodes = True
     bg = w.node_tree.nodes["Background"]
     bg.inputs["Color"].default_value = hexlin(0x1b1d1e)
     bg.inputs["Strength"].default_value = 0.5
-    # key, rim, fill
     for nm, loc, e, col in (("key", (1.6, -2.2, 2.6), 420, 0xfff0dc),
-                            ("rim", (-1.8, 2.0, 2.2), 240, 0xd9e2f0),
+                            ("rim", (-1.8, 2.0, 2.2), 260, 0xd9e2f0),
                             ("fill", (-2.2, -1.6, 1.0), 70, 0xeeeeee)):
         ld = bpy.data.lights.new(nm, "AREA")
         ld.energy = e
@@ -418,40 +546,44 @@ def render_setup():
         ld.color = hexlin(col)[:3]
         lo = bpy.data.objects.new(nm, ld)
         lo.location = loc
-        lo.rotation_euler = (Vector((0, 0, 0.95)) - Vector(loc)).to_track_quat("-Z", "Y").to_euler()
+        lo.rotation_euler = (Vector((0, 0, 1.0)) - Vector(loc)).to_track_quat("-Z", "Y").to_euler()
         sc.collection.objects.link(lo)
-    cd = bpy.data.cameras.new("cam")
-    cam = bpy.data.objects.new("cam", cd)
+    cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
     sc.collection.objects.link(cam)
     sc.camera = cam
     return cam
 
 
-def shoot(cam, path, yaw_deg, target=(0, 0, 0.92), dist=4.6, height=1.0, lens=70):
+def shoot(cam, path, yaw_deg, target=(0, 0, 0.9), dist=4.6, height=1.0, lens=70, w=720, h=1080):
+    sc = bpy.context.scene
+    sc.render.resolution_x, sc.render.resolution_y = w, h
     yaw = math.radians(yaw_deg)
     t = Vector(target)
     cam.data.lens = lens
     cam.location = Vector((t.x + math.sin(yaw) * dist, t.y - math.cos(yaw) * dist, height))
     cam.rotation_euler = (t - cam.location).to_track_quat("-Z", "Y").to_euler()
-    bpy.context.scene.render.filepath = path
+    sc.render.filepath = path
     bpy.ops.render.render(write_still=True)
 
 
 def main():
-    reset()
+    names = [a for a in ARGS if a in LOOKS] or list(LOOKS)
     os.makedirs(RENDER_DIR, exist_ok=True)
-    gaunt = float(os.environ.get("ZB_GAUNT", "0"))
-    arm = float(os.environ.get("ZB_ARM", "1"))
-    ob, _ = look_body("ZB_Body", gaunt, arm, claws=gaunt > 0.5)
-    cam = render_setup()
-    tag = os.environ.get("ZB_TAG", "base")
-    if "render" in ARGS:
-        for yaw in [int(v) for v in os.environ.get("ZB_VIEWS", "0,35,90,180").split(",") if v]:
-            shoot(cam, os.path.join(RENDER_DIR, f"{tag}-y{yaw}.png"), yaw)
-        bpy.context.scene.render.resolution_x = 800
-        bpy.context.scene.render.resolution_y = 800
-        shoot(cam, os.path.join(RENDER_DIR, f"{tag}-face.png"), 20, target=(0, -0.05, 1.63), dist=0.9, height=1.68, lens=60)
-    print("tris", sum(len(p.vertices) - 2 for p in ob.data.polygons))
+    for name in names:
+        clear_scene()
+        look = LOOKS[name]
+        bm, rig = make_human(look)
+        zombify_materials(bm, rig, look)
+        if "render" in ARGS:
+            pose(rig, look)
+            cam = render_setup()
+            for yaw in [int(v) for v in os.environ.get("ZB_VIEWS", "0,35").split(",") if v]:
+                shoot(cam, os.path.join(RENDER_DIR, f"{name}-y{yaw}.png"), yaw)
+            if os.environ.get("ZB_FACE", "1") == "1":
+                hb = rig.pose.bones["head"]
+                hp = rig.matrix_world @ hb.head.lerp(hb.tail, 0.35)
+                shoot(cam, os.path.join(RENDER_DIR, f"{name}-face.png"), 25, target=tuple(hp + Vector((0, -0.04, 0))),
+                      dist=0.8, height=hp.z + 0.05, lens=60, w=800, h=800)
 
 
 main()

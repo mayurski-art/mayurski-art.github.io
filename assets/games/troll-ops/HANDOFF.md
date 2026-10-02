@@ -203,20 +203,31 @@ the main menu redesign (self-contained, menu files only).
    models), so it suits its own session/worktree too.
 
 ### Session "zombies" status (2026-10-02, branch worktree-to-zombies, worktree .claude/worktrees/to-zombies)
-Design doc v1 published, WAITING on the user:
-https://claude.ai/artifact/Motm585y8qJeknjWVv9CuC
-- Tried the pure-procedural body first: `models/build_zombies.blender.py`
-  (metaballs; `-- render` with ZB_* env vars, see its docstring). The
-  proportions and rig fit are right (legs match buildHumanoid: hip 0.89, thigh
-  and shin 0.445; arms rest 26 deg off vertical like the rig's ARM). But it
-  reads as clay up close. **Metaball gotcha:** the surface sits at
-  sqrt(1 - (threshold/stiffness)^(1/3)) x radius (0.575 at s 2 / t 0.6),
-  so vis() in the script converts visible sizes to element radii.
-- Recommended in the doc: MPFB 2 (MakeHuman's official Blender extension;
-  assets and outputs CC0) as the base bodies, zombified in our script. Needs
-  the user's OK to download it. The chapel session's mannequins could share it.
-- Open questions in the doc: body source A/B/C, a rare trollface-mask easter
-  egg or none, women in the horde, head hitbox r 0.24 -> 0.15.
+Design doc v2: https://claude.ai/artifact/Motm585y8qJeknjWVv9CuC
+- **User decided:** bodies = MakeHuman via MPFB 2; YES to a rare (~1/40)
+  rubber trollface-mask zombie made from the real mascot art.
+- Installed: Blender extension `mpfb` (`blender --online-mode --command
+  extension install -s -e mpfb`) + CC0 packs (makehuman system assets,
+  shirts01, pants01, dress01) extracted into MPFB user data
+  (%APPDATA%/Blender Foundation/Blender/5.2/extensions/.user/blender_org/mpfb/data).
+  CC-BY packs deliberately NOT used. Assets stay out of the repo; only the
+  exported GLB will be committed.
+- `models/build_zombies.blender.py` now builds looks walker / runner / leaper
+  on MPFB bodies (game_engine rig, UE bone names), snarl from expression
+  units, zmask colour attribute (R lips, G sockets, B blood) from the `lips`
+  vertex group + eye centres, zombie skin/cloth/teeth/hair materials, render
+  poses via aim(). `-- render [look]`, env ZB_* (docstring). Renders are in
+  the doc. **Gotchas:** never call read_factory_settings (unloads MPFB);
+  MPFB's "Delete.*" MASK modifiers hide the body under clothes, removed so
+  tears show skin; the eyes object is "Human.low-poly"; MakeHuman's rest pose
+  bends the forearms forward, so pose by aiming bones, not world-axis turns;
+  AgX at exposure 0 blows dark red up to bright red (renders use -0.9).
+- NEXT (ZR1): export GLB on the low-poly proxy body (proxymeshes/male1591,
+  ~3k tris) with face detail + rot baked to a 1024 atlas/normal map, baked
+  clips (shamble, swipe, die), zombies.js loader + AnimationMixer, hitboxes on
+  bones (head r 0.15 pending user OK), remove troll/pepe types. Also tune:
+  leaper pose/claws, a woman walker, the mask zombie.
+- Old procedural metaball prototype is in commit cf7e64c if ever needed.
 - Animation plan changed from the plan below: baked Blender clips +
   AnimationMixer (poseHumanoid is stick-tuned), with procedural as fallback.
   Death = fall + sink instead of the dissolve.
