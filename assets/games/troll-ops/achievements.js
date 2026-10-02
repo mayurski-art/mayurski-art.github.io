@@ -9,6 +9,8 @@
 // localStorage set is permanent ("have I ever"). The per-match layer is what
 // gates the callout, so you don't get told about First Blood twice.
 
+import { isSignedIn } from "./progression.js?v=gu1";
+
 const STORE = "trollops:achievements";
 
 export const LONGSHOT_METRES = 40;
@@ -61,7 +63,10 @@ export class Achievements {
     this.earned.add(id);
     if (!this.unlocked.has(id)) {
       this.unlocked.add(id);
-      try { localStorage.setItem(STORE, JSON.stringify([...this.unlocked])); } catch { /* private mode */ }
+      // Guests keep nothing between visits (progression.js isSignedIn).
+      if (isSignedIn()) {
+        try { localStorage.setItem(STORE, JSON.stringify([...this.unlocked])); } catch { /* private mode */ }
+      }
     }
     this.onEarn(ACHIEVEMENTS[id]);
     return true;

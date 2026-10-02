@@ -3,19 +3,21 @@
 // One level shared with the trollrunner.net account. Signed in, your Troll
 // Ops level IS your account level (troll_profiles.level), weapon unlocks
 // included, and match XP is credited 1:1 to the account through the
-// `troll_ops_xp` event (assets/supabase/troll_ops_xp.sql). Guests level on
-// the same curve from a local total, and that total is credited the first
-// time they sign in on this device.
+// `troll_ops_xp` event (assets/supabase/troll_ops_xp.sql).
 //
-// XP earned is queued in PENDING_KEY before it's sent, so a closed tab,
-// a flaky network or a signed-out session never loses any. Until the queue
-// drains, the displayed level counts it on top of the account's XP.
+// Guests keep nothing (user, 2026-10-01: "remove progress being saved for
+// guest accounts"): they level on the same curve for the session, in
+// memory, and it's gone when the tab closes. Nothing is stored or queued
+// for a later sign-in.
+//
+// Signed in, XP earned is queued in PENDING_KEY before it's sent, so a
+// closed tab or a flaky network never loses any.
 
 import { WEAPON_DEFS } from "./weapons.js?v=cg1";
 
-const KEY = "trollops:xp";                 // lifetime local total (guest level)
-const PENDING_KEY = "trollops:xp-pending"; // earned, not yet on the account
-const MIGRATED_KEY = "trollops:xp-account-sync";
+const KEY = "trollops:xp";                 // the old saved guest total: no longer kept (cleared below)
+const PENDING_KEY = "trollops:xp-pending"; // earned signed in, not yet on the account
+const AUTH_KEY = "trollrunner-accounts-auth";   // troll-accounts.js keeps its session here
 
 /* Every XP rate below is a tenth of what it was on 2026-09-29: a match used
    to be worth about a level on its own. Medal points (medals.js) keep their
@@ -33,13 +35,11 @@ function writeNum(key, value) {
   try { localStorage.setItem(key, String(Math.max(0, Math.floor(value)))); } catch { /* private mode */ }
 }
 
-// XP banked before the account link existed goes up once, with the first sync.
-try {
-  if (!localStorage.getItem(MIGRATED_KEY)) {
-    writeNum(PENDING_KEY, readNum(PENDING_KEY) + readNum(KEY));
-    localStorage.setItem(MIGRATED_KEY, "1");
-  }
-} catch { /* private mode */ }
+// Guest progress isn't kept: the old saved guest total goes.
+try { localStorage.removeItem(KEY); } catch { /* private mode */ }
+
+/* This session's guest XP (never saved). */
+let sessionXp = 0;
 
 // 2026-09-30: match XP cut to a tenth (user: "way too much xp"). Anything
 // still queued was earned at the old rates, so it goes up at the new ones.
@@ -71,12 +71,20 @@ export function isAccountLevel() {
   return accountXp() !== null;
 }
 
+/* Signed in, or a stored session whose profile is still loading (so XP
+   earned in the first seconds of a signed-in visit isn't taken for a
+   guest's). A guest has neither. */
+export function isSignedIn() {
+  if (accountXp() !== null) return true;
+  try { return !!localStorage.getItem(AUTH_KEY); } catch { return false; }
+}
+
 /* Signed in, these are exactly the account numbers trollrunner.net shows
    (user: "just make the numbers look the same"): XP still queued for the
    account shows up here once it lands, not before. */
 export function getXp() {
   const account = accountXp();
-  return account === null ? readNum(KEY) : account;
+  return account === null ? sessionXp : account;
 }
 
 export function getRank() {
@@ -112,8 +120,8 @@ export function syncXp() {
 export function addXp(amount) {
   const gained = Math.max(0, Math.round(amount));
   const before = getRank();
-  writeNum(KEY, readNum(KEY) + gained);
-  writeNum(PENDING_KEY, readNum(PENDING_KEY) + gained);
+  if (isSignedIn()) writeNum(PENDING_KEY, readNum(PENDING_KEY) + gained);
+  else sessionXp += gained;          // a guest: this session only
   const total = getXp();
   const rank = levelForXp(total);
   void syncXp();
