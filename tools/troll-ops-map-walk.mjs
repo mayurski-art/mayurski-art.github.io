@@ -96,9 +96,11 @@ const RUNS = {
   [0, 0, 29.5, 0, 1, 4, "south corridor fire exit -> garage", (r) => r.end[2] > 34],
   ],
   // Hollowgrin's outskirts (hollowgrin.js buildOutskirts): the chapel's door
-  // and breach, the glasshouse and hut doors, the bridge, the Troll House.
+  // and side door, the aisle, the glasshouse and hut doors, the bridge, the Troll House.
   hollowgrin: [  [-36.5, 0, 2, -1, 0, 3, "graveyard gate -> chapel door", (r) => r.end[0] < -40.6],
-  [-43.6, 0, 9.5, 0, -1, 3, "churchyard -> chapel breach", (r) => r.end[2] < 5],
+  [-42.6, 0, 9.5, 0, -1, 3, "churchyard -> chapel side door", (r) => r.end[2] < 5],
+  [-40.0, 0, 2, -1, 0, 8, "chapel aisle -> up the chancel steps", (r) => r.end[0] < -47.6 && r.end[1] > 0.25],
+  [-42.6, 0, 6.0, 0, -1, 7, "chapel cross aisle, side door -> centre aisle", (r) => r.end[2] < 2.0],
   [-6.5, 0, -31, 0, -1, 3, "glasshouse south door", (r) => r.end[2] < -36],
   [-12, 0, -38.5, 1, 0, 3, "glasshouse west door", (r) => r.end[0] > -7],
   [-44.6, 0, -34, 0, -1, 3, "witch's hut south door", (r) => r.end[2] < -38.5],

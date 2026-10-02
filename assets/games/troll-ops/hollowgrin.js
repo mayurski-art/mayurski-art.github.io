@@ -8,7 +8,7 @@
 //
 // Round the village (the map doubled in area, 72 x 64 -> 102 x 90 m, and the park
 // took it to 138 x 90): the
-// ruined chapel of St. Grinsworth past the graveyard's west gate, the
+// chapel of St. Grinsworth past the graveyard's west gate, the
 // witch's hollow and her pond in the north-west, the broken glasshouse
 // behind the manor, the old midway down the east side (a carousel, game
 // booths) and beyond its fence the Grinmoor Fair park (a pumpkin fountain
@@ -40,6 +40,7 @@ import { SURFACES, retexture } from "./surface-textures.js?v=hg6e";
 import { portrait } from "./house-props.js?v=hg6e";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e";
 import { loadModel } from "./battlefield-props.js";
+import { buildChapel } from "./hollowgrin-chapel.js?v=hg6g";
 
 export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2, brake: 9.0 };
 // The barn's loft (x 17.35..20.4 over the west end) is its own floor: by
@@ -58,8 +59,6 @@ export function hgFloorOf(y, x, z) {
 
 const BOUNDS = { minX: -51, maxX: 87, minZ: -45, maxZ: 45 };
 
-// The outskirts (see the districts below).
-const CHAPEL = { x0: -49.5, x1: -39, z0: -3, z1: 7, h: 6.4 };
 // The Grinmoor Fair park (phase 6b on): the strip east of the old midway,
 // x 51..87, behind a brick-and-iron fence. Shared with
 // models/build_grinmoor.blender.py: change a size there, change it here.
@@ -1509,104 +1508,8 @@ function buildOutskirts(api, K, M, SP, root, lights) {
   }
   flat(K, M.dirt, -37.2, 2, 4.4, 2.6);
 
-  /* ------------------------------------------- St. Grinsworth's chapel */
-  {
-    const C = CHAPEL, t = 0.6, cz = (C.z0 + C.z1) / 2;
-    flat(K, M.stoneDark, (C.x0 + C.x1) / 2, cz, C.x1 - C.x0 - 1, C.z1 - C.z0 - 1, { y: 0.016 });
-    const win = (c) => ({ c, w: 1.1, spans: [[1.8, 4.6]] });
-    wall(K, { axis: "x", at: C.z0 + t / 2, a: C.x0, b: C.x1, h: C.h, t, mat: M.stone, trim: M.stoneDark, out: -1, holes: [-47, -44.2, -41.4].map(win) });
-    // the south wall is broken through between x -45 and -42.2
-    wall(K, { axis: "x", at: C.z1 - t / 2, a: C.x0, b: C.x1, h: C.h, t, mat: M.stone, trim: M.stoneDark, out: 1,
-      holes: [win(-47.2), win(-40.4), { c: -43.6, w: 2.8, spans: [[0, 3.7]] }] });
-    wall(K, { axis: "z", at: C.x0 + t / 2, a: C.z0 + t, b: C.z1 - t, h: C.h, t, mat: M.stone });
-    wall(K, { axis: "z", at: C.x1 - t / 2, a: C.z0 + t, b: C.z1 - t, h: C.h, t, mat: M.stone, trim: M.stoneDark, out: 1,
-      holes: [{ c: 2, w: 2.2, spans: [[0, 3.3]] }] });
-    // jagged stone hanging over the breach, rubble either side of it
-    for (let i = 0; i < 6; i++) {
-      const x = -44.9 + i * 0.52;
-      K.box(M.stone, x, 3.2 + (i % 3) * 0.12, C.z1 - 0.3, 0.5, 0.6, 0.55, { rz: (R() - 0.5) * 0.6 });
-    }
-    for (const [x, z, w, d] of [[-44.8, 5.5, 0.7, 0.8], [-42.5, 7.9, 0.75, 0.9]]) {
-      K.api.ghostBox(x, z, w, d, 0.45, { pen: 4 });
-      for (let i = 0; i < 4; i++) {
-        K.add(M.stone, place(new THREE.DodecahedronGeometry(0.22 + R() * 0.14), { x: x + (R() - 0.5) * w, y: 0.15, z: z + (R() - 0.5) * d, ry: R() * 6, sy: 0.7 }));
-      }
-    }
-    // buttresses
-    for (const [x, z] of [[-45.6, C.z0 - 0.35], [-42.6, C.z0 - 0.35], [-46.0, C.z1 + 0.35], [-39.9, C.z1 + 0.35]]) {
-      K.solid(x, z, 0.7, 0.7, 4.6, { mat: M.stone, pen: 10 });
-      K.box(M.stoneDark, x, 4.6, z, 0.8, 0.2, 0.8, { rx: 0.3 });
-    }
-    // roof: the west half is whole, the east half bare rafters
-    const rise = 3.5, half = (C.z1 - C.z0) / 2 + 0.4;
-    const len = Math.hypot(half, rise), ang = Math.atan2(rise, half);
-    for (const s of [-1, 1]) K.box(M.roof, -47.05, C.h + rise / 2 - 0.12, cz + s * half / 2, 5.6, 0.2, len, { rx: s * ang });
-    for (let x = -44.0; x < C.x1 - 0.2; x += 0.9) {
-      for (const s of [-1, 1]) K.add(M.stairWood, rodGeo([x, C.h, cz + s * half], [x, C.h + rise, cz], 0.07, 4));
-    }
-    K.box(M.stairWood, -44.25, C.h + rise - 0.1, cz, C.x1 - C.x0 + 0.6, 0.2, 0.2);
-    K.box(M.roof, -43.7, C.h + 1.2, cz - 3.2, 1.6, 0.16, 1.2, { rx: -0.9, rz: 0.3 });   // a slab hanging loose
-    for (const gx of [C.x0 + t / 2, C.x1 - t / 2]) {
-      K.add(M.stone, place(prismGeo([[-(C.z1 - C.z0) / 2, 0], [(C.z1 - C.z0) / 2, 0], [0, rise]], t), { x: gx, y: C.h, z: cz, ry: Math.PI / 2 }));
-    }
-    // the rose window, both faces of the west wall
-    for (const [x, ry] of [[C.x0 + t + 0.01, Math.PI / 2], [C.x0 - 0.01, -Math.PI / 2]]) {
-      K.add(M.rose, place(new THREE.CircleGeometry(1.5, 36), { x, y: 4.3, z: cz, ry }), { shadow: false });
-      K.add(M.stoneDark, place(new THREE.TorusGeometry(1.56, 0.12, 6, 32), { x, y: 4.3, z: cz, ry }));
-    }
-    // the bell tower over the east gable
-    {
-      const tx = -40, tz = cz, y0 = C.h;
-      K.box(M.stone, tx, y0, tz, 2, 3.6, 2);
-      for (const [dx, dz] of [[-0.85, -0.85], [0.85, -0.85], [-0.85, 0.85], [0.85, 0.85]]) K.box(M.stone, tx + dx, y0 + 3.6, tz + dz, 0.3, 2.6, 0.3);
-      K.box(M.stoneDark, tx, y0 + 6.2, tz, 2.3, 0.35, 2.3);
-      K.add(M.roof, place(new THREE.ConeGeometry(1.6, 3.4, 4), { x: tx, y: y0 + 6.55 + 1.7, z: tz, ry: Math.PI / 4 }));
-      K.cyl(M.iron, tx, y0 + 9.9, tz, 0.04, 0.02, 0.9, 4);
-      K.box(M.iron, tx, y0 + 10.4, tz, 0.05, 0.05, 0.5);
-      K.add(M.gold, place(new THREE.CylinderGeometry(0.22, 0.55, 0.8, 14, 1, true), { x: tx, y: y0 + 4.6, z: tz }));
-      K.cyl(M.iron, tx, y0 + 4.95, tz, 0.05, 0.05, 1.2, 4);
-      K.box(M.burlap, tx - 0.1, 1.2, tz + 0.6, 0.03, y0 + 3.6 - 1.2, 0.03, {}, { shadow: false });
-    }
-    // inside: the dais, the altar, the pews (the south side's mostly smashed)
-    K.solid(-47.8, cz, 2.2, C.z1 - C.z0 - 1.2, 0.3, { mat: M.stoneDark, pen: 8 });
-    K.solid(-48.3, cz, 0.9, 2.2, 1.0, { y: 0.3, mat: M.stone, pen: 8 });
-    K.box(M.fabric, -48.3, 1.3, cz, 1.0, 0.02, 2.4, {}, { shadow: false });
-    K.box(M.fabric, -47.83, 0.75, cz, 0.02, 0.56, 1.1, {}, { shadow: false });
-    for (let i = 0; i < 5; i++) candle(K, M, -48.3, 1.31, cz - 0.8 + i * 0.4, { seed: 3100 + i, h: 0.14 + (i % 2) * 0.1 });
-    for (const dz of [-1.6, 1.6]) {
-      K.cyl(M.iron, -47.3, 0.3, cz + dz, 0.12, 0.04, 1.2, 6);
-      for (const k of [-0.15, 0, 0.15]) candle(K, M, -47.3 + k, 1.5, cz + dz, { seed: 3120 + dz * 10 + k * 10 });
-    }
-    const pew = (x, zc, l) => {
-      K.api.ghostBox(x, zc, 0.55, l, 0.95, { pen: 1.5 });
-      K.box(M.stairWood, x, 0.42, zc, 0.46, 0.06, l);
-      K.box(M.stairWood, x + 0.22, 0.42, zc, 0.06, 0.55, l);
-      for (const e of [-1, 1]) K.box(M.stairWood, x, 0, zc + e * (l / 2 - 0.04), 0.5, 0.95, 0.08);
-    };
-    for (const x of [-46, -44.6, -43.2, -41.8, -40.4]) pew(x, -0.6, 2.8);
-    for (const x of [-46, -41.8, -40.4]) pew(x, 4.6, 2.8);
-    for (const x of [-44.6, -43.2]) {
-      for (let i = 0; i < 4; i++) K.box(M.stairWood, x + (R() - 0.5) * 0.8, 0.03, 4.4 + (R() - 0.5) * 2, 0.4, 0.05, 1 + R(), { ry: R() * 2, rz: (R() - 0.5) * 0.3 });
-    }
-    K.add(sign(["ST. GRINSWORTH'S"], { bg: "#141018", fg: "#c9a6ff", edge: "#3a2a4a" }), place(new THREE.PlaneGeometry(3.4, 0.62), { x: C.x1 + 0.02, y: 4.0, z: cz, ry: Math.PI / 2 }), { shadow: false });
-    const l = new THREE.PointLight(0xb070ff, 10, 16, 2);
-    l.position.set(-44.5, 4.2, cz);
-    lights.push(l);
-    SP.swarm(10, -44, cz, 8, 8, 1, 5, 0xb48cff, { size: 0.3, wander: 1.4, blink: 0.4 });
-
-    // the churchyard, out through the breach
-    for (const [x, z] of [[-47.8, 10.4], [-45.6, 10.2], [-40.4, 10.6], [-48.2, 13.6], [-44.2, 14.2], [-39.8, 13.8]]) {
-      const w = 0.6 + R() * 0.2, h = 0.8 + R() * 0.3;
-      K.api.ghostBox(x, z, w, 0.3, h, { pen: 3 });
-      K.add(R() < 0.5 ? M.stone : M.stoneDark, place(headstoneGeo(w, h, 0.18), { x, z, ry: (R() - 0.5) * 0.2 }));
-    }
-    for (const [x, z] of [[-46.4, 12.4], [-42.2, 12.0]]) {
-      K.box(M.dirt, x, 0, z, 0.8, 0.08, 1.7, {}, { shadow: false });
-      K.add(M.dirt, place(new THREE.SphereGeometry(0.5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), { x: x + 0.85, y: 0, z, sx: 0.7, sy: 0.5, sz: 1.6 }));
-      ZSPAWNS.push({ x, y: 0, z, rise: true });
-    }
-    jack(K, M, -43.6, 0, 9.4, { r: 0.26, face: Math.PI, seed: 3200 });
-  }
+  /* ------------------------------------------- St. Grinsworth's chapel (hollowgrin-chapel.js) */
+  buildChapel(api, K, M, SP, root, lights, { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS });
 
   /* ------------------------------------------- the witch's hollow */
   {
@@ -3766,7 +3669,7 @@ function buildHollowgrin(api) {
     };
     run("x", BOUNDS.minZ - 0.6, BOUNDS.minX - 1, BOUNDS.maxX + 1);
     run("x", BOUNDS.maxZ + 0.6, BOUNDS.minX - 1, BOUNDS.maxX + 1, [[-38.9, -33.6]]);
-    run("z", BOUNDS.minX - 0.6, BOUNDS.minZ, BOUNDS.maxZ, [lane, [16.5, 23.5]]);
+    run("z", BOUNDS.minX - 0.6, BOUNDS.minZ, BOUNDS.maxZ, [lane, [16.5, 23.5], [-1.6, 5.6]]);   // the chapel's apse
     run("z", BOUNDS.maxX + 0.6, BOUNDS.minZ, BOUNDS.maxZ);
 
     // The woods: four tree shapes, instanced round the outside.
@@ -3787,6 +3690,7 @@ function buildHollowgrin(api) {
       // clear the lane's west end and the creek's bed
       if (x < BOUNDS.minX && z > LANE.z0 - 1.5 && z < LANE.z1 + 1.5) continue;
       if (creekDist(x, z) < CREEK_W) continue;
+      if (x < BOUNDS.minX && x > BOUNDS.minX - 6 && z > -3 && z < 7) continue;   // behind the chapel's apse
       spots.push([x, z, ...keep]);
     }
     variants.forEach((geo, vi) => {
