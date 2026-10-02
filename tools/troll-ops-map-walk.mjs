@@ -127,6 +127,13 @@ const RUNS = {
   [66, 4.2, 19.5, 0, -1, 2, "mansion: the gallery rail holds", (r) => r.end[2] > 18.2 && r.end[1] > 4.1],
   [75.4, 0.4, 29.4, 0, 1, 2, "mansion: out the back door", (r) => r.end[2] > 30.8],
   [64, 4.2, 26.5, 0, 1, 2, "mansion: the stairwell rail holds", (r) => r.end[1] > 4.1],
+  // phase 6d: the moat (bridges + wading), the cave path through Skull Mountain
+  [69.5, 0, 11, 0, 1, 4, "moat: over the north bridge", (r) => r.end[2] > 17 && r.maxY >= 0.5],
+  [61, 0, 11, 0, 1, 5, "moat: wade across", (r) => r.end[2] > 17],
+  [62, 0, 35, 1, 0, 5, "mountain: into the cave path", (r) => r.end[0] > 74.5],
+  [75.1, 0, 35, 0, -1, 3, "mountain: out its north end", (r) => r.end[2] < 30.4],
+  [78.8, 0, 21.7, 1, 0, 3, "moat: east bridge to the lawn", (r) => r.end[0] > 84.5 && r.maxY >= 0.5],
+  [66, 0, 36.5, 1, 0, 4, "mountain: the rock stops you", (r) => r.end[0] < 76.3],
   ],
   // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
   // cave (-9.1, -32.6), portal (120.8, -100.6), bridge z 77.8 from x -56.3 to

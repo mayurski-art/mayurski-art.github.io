@@ -62,6 +62,8 @@ export const RETEXTURE = {
   HG_Brick: ["brick", 1.1, 0.45],
   HG_Floorboards: ["wood", 0.9, 0.3],
   GF_Clapboard: ["plaster", 1.0, 0.45],
+  GF_Rock: ["rock", 0.5, 0.4],
+  GF_RockDark: ["rock", 0.5, 0.3],
 };
 
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.

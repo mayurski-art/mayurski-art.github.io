@@ -36,9 +36,9 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { SURFACES, retexture } from "./surface-textures.js?v=hg6c";
-import { portrait } from "./house-props.js?v=hg6c";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6c";
+import { SURFACES, retexture } from "./surface-textures.js?v=hg6d";
+import { portrait } from "./house-props.js?v=hg6d";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6d";
 import { loadModel } from "./battlefield-props.js";
 
 export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2 };
@@ -102,6 +102,45 @@ const MANSION_MAZE = [["x", 27.4, 73.1, 74.9], ["x", 28.8, 74.9, 76.7]];
 const MANSION_SCARECROW = [59.4, 21.5];
 const MANSION_SHEETS = [[64.0, 22.5, 1.8, 1.0, 0.9], [71.5, 23.0, 1.2, 1.3, 1.2], [73.8, 28.6, 2.0, 0.9, 1.0], [68.0, 29.2, 1.6, 1.6, 0.8], [66.6, 29.5, 0.9, 1.1, 0.9]];
 const MANSION_TRUNKS = [[66.8, 26.0], [75.6, 21.6], [62.9, 23.0]];
+// Skull Mountain + the moat (6d): shared with build_grinmoor.blender.py.
+// Rock solids [x0, x1, z0, z1, y0, h] (the last two are the cave path's
+// ceilings); the path itself; the waterway's arms, pool, curbs, bridges.
+const MOUNT_SOLIDS = [[72.7, 74.0, 30.6, 34.0, 0, 9], [76.2, 80.4, 30.6, 36.2, 0, 11], [80.4, 83.6, 31.6, 36.2, 0, 11],
+  [83.6, 87.0, 30.6, 36.2, 0, 10], [72.7, 87.0, 36.2, 45.5, 0, 12], [72.7, 76.2, 34.0, 36.2, 3.2, 7.5], [74.0, 76.2, 30.6, 34.0, 3.2, 6.5]];
+// the rock's height: 15 m at the peak, 1.35 m lower per metre out, never
+// under 3.2 (4.6 over the cave path, so it keeps a roof); one column per cell
+const MOUNT_PEAK = [80.5, 39.5, 15];
+const MOUNT_CELL = 1.8;
+function mountainH(x, z, ceiling) {
+  return Math.max(ceiling ? 4.6 : 3.2, MOUNT_PEAK[2] - 1.35 * Math.hypot(x - MOUNT_PEAK[0], z - MOUNT_PEAK[1]));
+}
+function mountainCells() {
+  const out = [];
+  for (const [x0, x1, z0, z1, y0] of MOUNT_SOLIDS) {
+    const nx = Math.max(1, Math.round((x1 - x0) / MOUNT_CELL)), nz = Math.max(1, Math.round((z1 - z0) / MOUNT_CELL));
+    for (let i = 0; i < nx; i++) {
+      for (let k = 0; k < nz; k++) {
+        const cx = x0 + ((x1 - x0) * (i + 0.5)) / nx, cz = z0 + ((z1 - z0) * (k + 0.5)) / nz;
+        out.push([cx, cz, (x1 - x0) / nx, (z1 - z0) / nz, y0, mountainH(cx, cz, y0 > 0)]);
+      }
+    }
+  }
+  return out;
+}
+const MOUNT_TUNNEL = [[72.7, 76.2, 34.0, 36.2], [74.0, 76.2, 30.6, 34.0]];
+const MOUNT_CHUTE = [[74.6, 7.6, 41.1], [70.6, 0.3, 41.1]];
+const MOUNT_SKULL = [79.6, 11.6, 38.4, Math.atan2(-0.55, -0.85)];
+const MOAT_ARMS = [[54.0, 83.6, 13.5, 16.7], [54.0, 57.2, 16.7, 42.7], [57.2, 64.6, 39.5, 42.7], [80.4, 83.6, 16.7, 31.6]];
+const MOAT_POOL = [67.5, 41.1, 3.2];
+const MOAT_BRIDGES = [["z", 69.5, 13.5, 16.7, 3.6], ["x", 35.0, 54.0, 57.2, 3.2], ["x", 21.7, 80.4, 83.6, 2.8]];
+const MOAT_DECK_Y = 0.55;
+const MOAT_CURBS = [["x", 13.375, 53.75, 83.85, [[67.7, 71.3]]], ["z", 53.875, 13.5, 42.95, [[33.4, 36.6]]],
+  ["x", 42.825, 54.0, 64.6, []], ["z", 83.725, 13.5, 31.6, [[20.3, 23.1]]],
+  ["x", 16.825, 57.2, 80.4, [[67.7, 71.3]]], ["z", 57.325, 16.7, 39.5, [[33.4, 36.6]]],
+  ["x", 39.375, 57.2, 64.6, []], ["z", 80.275, 16.7, 30.6, [[20.3, 23.1]]]];
+// the water you wade through: the U of the channel and the pool
+const MOAT_WADE = [[54, 13.5], [83.6, 13.5], [83.6, 31.6], [80.4, 31.6], [80.4, 16.7], [57.2, 16.7], [57.2, 39.5], [64.6, 39.5],
+  [65.4, 38.2], [67.5, 37.9], [69.6, 38.2], [70.5, 39.2], [70.7, 41.1], [70.5, 43.0], [69.6, 44.0], [67.5, 44.3], [65.4, 44.0], [64.6, 42.7], [54, 42.7]];
 // shots that land on the map, for things that react to them (the tin trolls)
 const SHOT_HOOKS = [];
 const CAROUSEL = { x: 44.5, z: -4, r: 4.5 };
@@ -1079,6 +1118,9 @@ function wadePolygon() {
     [W, ring[0][1]], ...ring, [W, ring[0][1] + 0.01],
     [W, right[0][1]], ...right, ...left.reverse(), [W, left[left.length - 1][1]],
     [W, ring[0][1] + 0.02],
+    // out round the south of the map to the moat and back the same way: a
+    // doubled edge cancels under even-odd, so the two shapes stay separate
+    [W, 47], [MOAT_WADE[0][0], 47], ...MOAT_WADE, MOAT_WADE[0], [MOAT_WADE[0][0], 47], [W, 47], [W, ring[0][1] + 0.02],
   ];
 }
 
@@ -2225,6 +2267,25 @@ function rippleTexture() {
   }, { repeat: true }));
 }
 
+/* The moat's glow: a lit teal-grey base with brighter rings drifting on it. */
+function glowRippleTexture() {
+  return tex("glowRipple", () => canvasTex(256, 256, (g, w, h) => {
+    const R = rng(17);
+    g.fillStyle = "#4a4a4a";
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 70; i++) {
+      const x = R() * w, y = R() * h, r = 6 + R() * 28;
+      for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) {
+        g.strokeStyle = `rgba(255,255,255,${0.12 + R() * 0.25})`;
+        g.lineWidth = 1 + R() * 3;
+        g.beginPath();
+        g.ellipse(x + ox, y + oy, r, r * 0.7, 0, 0, Math.PI * 2);
+        g.stroke();
+      }
+    }
+  }, { repeat: true }));
+}
+
 /* Falling water: thin bright streaks on black, for additive sheets. */
 function streamTexture() {
   return tex("stream", () => canvasTex(128, 256, (g, w, h) => {
@@ -3053,6 +3114,159 @@ function buildMansion(api, K, M, SP, root, lights) {
   }
 }
 
+/* ------------------------------------------------ Skull Mountain + the moat (6d) */
+
+/* The logs' loop: out of the splash pool, round the island and into the
+   mountain by the east arm; then (unseen) up inside and down the chute. */
+const LOG_PATH = [[67.5, 41.1], [55.6, 41.1], [55.6, 15.1], [82.0, 15.1], [82.0, 31.2]];
+
+function buildMountain(api, K, M, SP, root, lights) {
+  hgModel(api, "hg-mountain", { wash: { color: 0x3a6aff, top: 9, strength: 0.13 } });
+  hgModel(api, "hg-moat");
+
+  /* ---- the rock and the cave path through it */
+  for (const [cx, cz, w, d, y0, top] of mountainCells()) K.api.ghostBox(cx, cz, w, d, top - y0, { y: y0, pen: 12 });
+  for (const [x0, x1, z0, z1] of MOUNT_TUNNEL) flat(K, M.dirt, (x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, { y: 0.014 });
+  lantern(K, M, 74.4, 2.3, 35.1, { hang: 0.8, floor: 0, seed: 8000, pool: 3 });
+  lantern(K, M, 75.1, 2.3, 31.6, { hang: 0.8, floor: 0, seed: 8001, pool: 3 });
+  K.add(M.greenGlow, place(new THREE.PlaneGeometry(3, 3), { x: 75.1, y: 0.03, z: 33.6, rx: -Math.PI / 2 }), { shadow: false, phase: 0.3 });
+  SP.swarm(6, 74.6, 33.5, 2, 4, 0.5, 2.6, 0x7affd0, { size: 0.25, wander: 0.6, blink: 0.5 });
+  for (const [x, z, ry] of [[72.9, 34.3, Math.PI / 2], [76.0, 30.9, Math.PI], [76.0, 35.9, -Math.PI / 2]]) {
+    K.add(M.web, place(new THREE.PlaneGeometry(1.2, 1.2), { x, y: 2.6, z, ry }), { shadow: false });
+  }
+
+  /* ---- the skull's eyes, pulsing red */
+  {
+    const [sx, sy, sz, yaw] = MOUNT_SKULL;
+    const S = (lx, ly, lz) => [sx + lx * Math.cos(yaw) + lz * Math.sin(yaw), sy + ly, sz - lx * Math.sin(yaw) + lz * Math.cos(yaw)];
+    for (const s of [-1, 1]) {
+      const [x, y, z] = S(s * 0.95, 1.5, 2.0);
+      K.add(M.skullEye, place(new THREE.SphereGeometry(0.34, 14, 10), { x, y, z }), { shadow: false, phase: s * 0.1 });
+      SP.add(x, y, z, 0xff2a1a, { size: 5, blink: 0.35 });
+    }
+  }
+
+  /* ---- the waterway: one glowing teal sheet, the pool a little higher */
+  {
+    const parts = MOAT_ARMS.map(([x0, x1, z0, z1]) => place(new THREE.PlaneGeometry(x1 - x0, z1 - z0), { x: (x0 + x1) / 2, y: 0.04, z: (z0 + z1) / 2, rx: -Math.PI / 2 }));
+    const [px, pz, pr] = MOAT_POOL;
+    parts.push(place(new THREE.CircleGeometry(pr, 32), { x: px, y: 0.045, z: pz, rx: -Math.PI / 2 }));
+    for (const g of parts) {
+      // world-metre UVs, so the ripples run at one scale everywhere
+      const p = g.attributes.position.array, uv = g.attributes.uv.array;
+      for (let i = 0; i < uv.length / 2; i++) { uv[i * 2] = p[i * 3] / 4; uv[i * 2 + 1] = p[i * 3 + 2] / 4; }
+      K.add(M.moatWater, g, { shadow: false });
+    }
+    // the chute's water, a sheet down the trough
+    const [[ax, ay, az], [cx, cy, cz]] = MOUNT_CHUTE;
+    const len = Math.hypot(ax - cx, ay - cy), ang = Math.atan2(ay - cy, ax - cx);
+    K.add(M.moatWater, new THREE.PlaneGeometry(len, 1.15).rotateX(-Math.PI / 2).rotateZ(ang).translate((ax + cx) / 2, (ay + cy) / 2 + 0.1, az), { shadow: false });
+    root.add(ticker(() => {
+      const t = performance.now() / 1000;
+      M.moatWater.emissiveMap.offset.set(t * 0.05, -t * 0.12);
+    }, M.iron));
+    // the curbs: knee-low, stepped over (bodies, not bullets, care)
+    for (const [axis, at, a, b, gaps] of MOAT_CURBS) {
+      for (const [s, e] of runs(a, b, gaps)) {
+        if (axis === "x") K.api.ghostBox((s + e) / 2, at, e - s, 0.25, 0.2, { pen: 4 });
+        else K.api.ghostBox(at, (s + e) / 2, 0.25, e - s, 0.2, { pen: 4 });
+      }
+    }
+    // the footbridges: deck at 0.55 (dry: wading stops at 0.5), a step each end, rails
+    for (const [axis, c, a0, a1, w] of MOAT_BRIDGES) {
+      const box = (along0, along1, h, y = 0, across = w, off = 0, pen = 6) => {
+        const m = (along0 + along1) / 2, L = along1 - along0;
+        if (axis === "x") K.api.ghostBox(m, c + off, L, across, h, { y, pen });
+        else K.api.ghostBox(c + off, m, across, L, h, { y, pen });
+      };
+      box(a0 - 0.3, a1 + 0.3, MOAT_DECK_Y);
+      box(a0 - 0.9, a0 - 0.3, 0.27);
+      box(a1 + 0.3, a1 + 0.9, 0.27);
+      for (const s of [-1, 1]) box(a0 - 0.3, a1 + 0.3, 1.0, MOAT_DECK_Y, 0.08, s * (w / 2 - 0.05), 0.3);
+    }
+    // the lane carries on over its bridge to the mountain\x27s cave
+    flat(K, M.dirt, (57.8 + 72.7) / 2, 35, 72.7 - 57.8, 3.2, { y: 0.014 });
+  }
+
+  /* ---- posts along the banks: corn husks, a pumpkin, a lantern glow */
+  {
+    const posts = [[59.2, 17.25], [64.6, 17.25], [74.2, 17.25], [79.2, 17.25], [57.75, 21], [57.75, 26.5], [57.75, 31.2], [57.75, 38.6],
+      [56.5, 13.0], [61.5, 13.0], [76.0, 13.0], [81.0, 13.0], [84.1, 18], [84.1, 26.5], [53.4, 24], [53.4, 40]];
+    posts.forEach(([x, z], i) => {
+      K.solid(x, z, 0.22, 0.22, 1.5, { mat: M.stairWood, pen: 4 });
+      for (const ry of [0, Math.PI / 3, (2 * Math.PI) / 3]) {
+        K.add(M.corn, place(new THREE.PlaneGeometry(0.6, 1.3), { x, y: 0.75, z, ry }), { shadow: false });
+      }
+      jack(K, M, x, 1.5, z, { r: 0.22, face: Math.atan2(63 - x, 2.5 - z), seed: 8100 + i, glow: false });
+      K.add(M.lanternPool, place(new THREE.PlaneGeometry(2.6, 2.6), { x, y: 0.05, z, rx: -Math.PI / 2 }), { shadow: false, phase: i * 0.21 });
+      SP.add(x, 1.75, z, 0xffa040, { size: 1.1, blink: 0.08 });
+    });
+  }
+
+  /* ---- the logs: round the loop, into the mountain, down the chute */
+  {
+    const segs = [];
+    let total = 0;
+    for (let i = 1; i < LOG_PATH.length; i++) {
+      const [ax, az] = LOG_PATH[i - 1], [bx, bz] = LOG_PATH[i];
+      const L = Math.hypot(bx - ax, bz - az);
+      segs.push({ ax, az, bx, bz, L, from: total });
+      total += L;
+    }
+    const SPEED = 1.8, RIDE = total / SPEED, INSIDE = 6, DROP = 1.1, CYCLE = RIDE + INSIDE + DROP, N = 6;
+    const [[tx, ty, tz], [bx, by, bz]] = MOUNT_CHUTE;
+    const parts = [
+      new THREE.CylinderGeometry(0.48, 0.48, 2.3, 12, 1, true, Math.PI, Math.PI).rotateZ(Math.PI / 2).toNonIndexed(),
+      new THREE.CircleGeometry(0.48, 12, Math.PI, Math.PI).rotateY(Math.PI / 2).translate(1.15, 0, 0).toNonIndexed(),
+      new THREE.CircleGeometry(0.48, 12, Math.PI, Math.PI).rotateY(-Math.PI / 2).translate(-1.15, 0, 0).toNonIndexed(),
+      new THREE.BoxGeometry(0.12, 0.08, 0.8).translate(0.2, -0.15, 0).toNonIndexed(),
+    ];
+    const logs = new THREE.InstancedMesh(mergeGeometries(parts, false), M.log, N);
+    parts.forEach((p) => p.dispose());
+    logs.frustumCulled = false;
+    logs.castShadow = true;
+    root.add(logs);
+    // the splash: a white crown in the pool when a log lands
+    const splash = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 0.5, 1.4, 20, 1, true), M.fall);
+    splash.position.set(bx - 1.6, 0.6, bz);
+    splash.visible = false;
+    root.add(splash);
+    const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
+    logs.onBeforeRender = () => {
+      const now = performance.now() / 1000;
+      let lastLand = 99;
+      for (let i = 0; i < N; i++) {
+        const t = (now + (i * CYCLE) / N) % CYCLE;
+        if (t < DROP) {
+          // down the chute, nose first, gathering speed
+          const k = (t / DROP) ** 1.6;
+          _p.set(tx + (bx - tx) * k, ty + (by - ty) * k + 0.25, tz + (bz - tz) * k);
+          _e.set(0, 0, Math.atan2(ty - by, tx - bx));
+          _q.setFromEuler(_e);
+          _m4.compose(_p, _q, _s.set(1, 1, 1));
+          logs.setMatrixAt(i, _m4);
+          continue;
+        }
+        lastLand = Math.min(lastLand, t - DROP);
+        const ride = t - DROP;
+        if (ride > RIDE) { logs.setMatrixAt(i, hidden); continue; }
+        const d = ride * SPEED;
+        const sg = segs.find((g) => d <= g.from + g.L) || segs[segs.length - 1];
+        const k = (d - sg.from) / sg.L;
+        _p.set(sg.ax + (sg.bx - sg.ax) * k, 0.18 + Math.sin(now * 2 + i) * 0.03, sg.az + (sg.bz - sg.az) * k);
+        _e.set(Math.sin(now * 1.3 + i) * 0.04, -Math.atan2(sg.bz - sg.az, sg.bx - sg.ax), 0);
+        _q.setFromEuler(_e);
+        _m4.compose(_p, _q, _s.set(1, 1, 1));
+        logs.setMatrixAt(i, _m4);
+      }
+      logs.instanceMatrix.needsUpdate = true;
+      splash.visible = lastLand < 0.7;
+      if (splash.visible) splash.scale.set(0.6 + lastLand * 1.4, 1 - lastLand, 0.6 + lastLand * 1.4);
+    };
+    logs.onBeforeRender();
+  }
+}
+
 /* ===================================================================== map */
 
 function buildHollowgrin(api) {
@@ -3154,6 +3368,10 @@ function buildHollowgrin(api) {
     portraitBg: new THREE.MeshStandardMaterial({ color: 0x1c2a24, roughness: 0.8 }),
     portraitFace: new THREE.MeshStandardMaterial({ map: trollTexture(), alphaTest: 0.5, color: 0xd8cfb8, roughness: 0.7, emissive: 0x2a2620, emissiveMap: trollTexture() }),
     ghostly: new THREE.MeshBasicMaterial({ alphaMap: ghostFadeTexture(), color: 0x7aaad0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
+    // phase 6d: the moat, the logs, the skull's eyes
+    moatWater: new THREE.MeshStandardMaterial({ color: 0x062a2c, roughness: 0.06, metalness: 0.4, emissive: 0x1ab89e, emissiveMap: glowRippleTexture(), emissiveIntensity: 0.8 }),
+    log: surfMat("wood", 0x6a4a30, { mix: 0.3, tile: 1 }),
+    skullEye: flickerMat({ color: new THREE.Color(0xff2a14).multiplyScalar(2.2), strength: 1.2, speed: 0.35 }),
     ghostFace: new THREE.MeshBasicMaterial({ map: trollTexture(), color: 0xcfefff, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
     // phase 6b: the park
     setts: new THREE.MeshStandardMaterial({ map: settsTexture(), color: 0x9a96a0, roughness: 0.92 }),
@@ -3164,6 +3382,7 @@ function buildHollowgrin(api) {
   };
   M.fountainWater.emissiveMap.repeat.set(3, 3);
   M.fall.map.repeat.set(10, 1);
+  M.log.side = THREE.DoubleSide;
 
   /* --------------------------------------------------------- the ground */
   // Dirt paths and the square laid over the grass, a hair above it.
@@ -4042,6 +4261,7 @@ function buildHollowgrin(api) {
   buildOutskirts(api, K, M, SP, root, lights);
   buildPark(api, K, M, SP, root, lights);
   buildMansion(api, K, M, SP, root, lights);
+  buildMountain(api, K, M, SP, root, lights);
 
   /* ------------------------------------------------ the sky: a full moon */
   {
@@ -4127,7 +4347,7 @@ function buildHollowgrin(api) {
   for (const [x, z] of [
     [-40, -44.3], [-24, -44.3], [-12, -44.3], [12, -44.3], [24, -44.3], [40, -44.3],
     [54, -44.3], [66, -44.3], [78, -44.3], [58, 44.3],
-    [86.2, -38], [86.2, -24], [86.2, -10], [86.2, 14], [86.2, 30],
+    [86.2, -38], [86.2, -24], [86.2, -10], [86.2, 14], [86.2, 27],
     [-50.2, -32], [-50.2, -8], [-50.2, 10], [-50.2, 35],
     [-41, 44.3], [-21.7, 44.3], [-9, 44.3], [9, 44.3], [21.7, 44.3], [35, 44.3],
   ]) ZSPAWNS.push({ x, y: 0, z });
@@ -4155,7 +4375,7 @@ export const HOLLOWGRIN = {
   // Team spawns: six along the north edge and one in the park's north
   // end; six on Trick-or-Treat Lane and one in the park's south end.
   spawns: [[-31, -42.5], [-20, -42], [-12.5, -36.5], [12.5, -36.5], [20, -42], [31, -42.5], [70, -41],
-    [-30, 35], [-18, 35], [-6.5, 35], [6.5, 35], [18, 35], [30, 35], [58, 40]],
+    [-30, 35], [-18, 35], [-6.5, 35], [6.5, 35], [18, 35], [30, 35], [60.5, 38.2]],
   // the pond and the creek: wade through them
   wade: wadePolygon(),
 

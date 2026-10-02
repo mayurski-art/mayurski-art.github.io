@@ -2,7 +2,7 @@
 Troll Forces — Hollowgrin's Grinmoor Fair park (map detail pass phase 6b).
 
 Run with (no names = all):
-  blender --background --python build_grinmoor.blender.py -- carousel ride horse fountain plaza wheel stalls mansion
+  blender --background --python build_grinmoor.blender.py -- carousel ride horse fountain plaza wheel stalls mansion mountain moat
 
 Writes, in MAP coordinates (placed at the origin) unless noted:
   hg-carousel.glb       the carousel's still parts: drum, canopy, rounding boards
@@ -15,6 +15,9 @@ Writes, in MAP coordinates (placed at the origin) unless noted:
   hg-wheelbase.glb      the Ferris wheel's A-frame, boarding deck, stair, lamp deck,
                         operator's shack and ticket podium (the wheel itself is JS)
   hg-stalls.glb         the five midway stalls on the plaza's north edge
+  hg-mountain.glb       Skull Mountain (6d): boulders over the rock solids, the cave
+                        path, the flume chute, pines, the trollface skull
+  hg-moat.glb           the waterway's curbs and its three footbridges
   hg-mansion.glb        U Mad Mansion (6c): shell, gallery, roof, cupola, stair,
                         attic, planters, the scarecrow (its head is a JS jack)
 Colliders live in hollowgrin.js (constants PARK_* / FOUNTAIN / FERRIS /
@@ -30,7 +33,7 @@ from map_kit import *  # noqa: E402,F401,F403
 import math  # noqa: E402
 import random  # noqa: E402
 
-TEXTURED.update({"HG_Granite", "HG_GraniteDark", "HG_Brick", "HG_Floorboards", "HG_BarnWood", "GF_Clapboard"})
+TEXTURED.update({"HG_Granite", "HG_GraniteDark", "HG_Brick", "HG_Floorboards", "HG_BarnWood", "GF_Clapboard", "GF_Rock", "GF_RockDark"})
 
 TAU = math.pi * 2
 
@@ -104,6 +107,12 @@ def gf_palette():
         "burlap": mat("GF_Burlap", 0x7a5a38, 1.0),
         "straw": mat("GF_Straw", 0xd8b860, 1.0),
         "denim": mat("GF_Denim", 0x2e3a5a, 0.9),
+        # the mountain + moat
+        "rock": mat("GF_Rock", 0x5a6070, 0.9),
+        "rock_dk": mat("GF_RockDark", 0x3a3e4a, 0.9),
+        "pine": mat("GF_Pine", 0x1e3a2a, 0.9),
+        "snow": mat("GF_Snow", 0xdde4ee, 0.7),
+        "moss": mat("GF_Moss", 0x2c3a24, 0.9),
     }
 
 
@@ -1045,10 +1054,203 @@ def build_mansion(P):
     b.finish("hg-mansion.glb")
 
 
+# ------------------------------------------------------------ Skull Mountain + the moat (6d)
+
+# Shared with hollowgrin.js (MOUNTAIN_*, MOAT_*): the rock solids (x0, x1, z0, z1, y0, h),
+# the cave path through them, the waterway and its bridges.
+MOUNT_SOLIDS = [(72.7, 74.0, 30.6, 34.0, 0.0, 9.0), (76.2, 80.4, 30.6, 36.2, 0.0, 11.0), (80.4, 83.6, 31.6, 36.2, 0.0, 11.0),
+                (83.6, 87.0, 30.6, 36.2, 0.0, 10.0), (72.7, 87.0, 36.2, 45.5, 0.0, 12.0),
+                (72.7, 76.2, 34.0, 36.2, 3.2, 7.5), (74.0, 76.2, 30.6, 34.0, 3.2, 6.5)]
+MOUNT_PEAK = (80.5, 39.5, 15.0)
+MOUNT_CELL = 1.8
+
+
+def mountain_h(x, z, ceiling):
+    """The rock's height at (x, z): 15 m at the peak, 1.35 m lower per metre
+    out, never under 3.2 (4.6 over the cave path, so it has a roof)."""
+    px, pz, ph = MOUNT_PEAK
+    return max(4.6 if ceiling else 3.2, ph - 1.35 * math.hypot(x - px, z - pz))
+
+
+def mountain_cells():
+    """(cx, cz, w, d, y0, top) for every rock column, solid by solid."""
+    out = []
+    for (x0, x1, z0, z1, y0, _h) in MOUNT_SOLIDS:
+        nx, nz = max(1, round((x1 - x0) / MOUNT_CELL)), max(1, round((z1 - z0) / MOUNT_CELL))
+        for i in range(nx):
+            for k in range(nz):
+                cx, cz = x0 + (x1 - x0) * (i + 0.5) / nx, z0 + (z1 - z0) * (k + 0.5) / nz
+                out.append((cx, cz, (x1 - x0) / nx, (z1 - z0) / nz, y0, mountain_h(cx, cz, y0 > 0)))
+    return out
+TUNNEL = [(72.7, 76.2, 34.0, 36.2), (74.0, 76.2, 30.6, 34.0)]
+MOAT_ARMS = [(54.0, 83.6, 13.5, 16.7), (54.0, 57.2, 16.7, 42.7), (57.2, 64.6, 39.5, 42.7), (80.4, 83.6, 16.7, 31.6)]
+POOL = (67.5, 41.1, 3.2)
+BRIDGES = [("z", 69.5, 13.5, 16.7, 3.6), ("x", 35.0, 54.0, 57.2, 3.2), ("x", 21.7, 80.4, 83.6, 2.8)]   # axis of travel, centre across, span, width
+DECK_Y = 0.55
+# curbs along both banks: (axis, at, a, b, gaps); 0.25 thick, 0.2 tall
+MOAT_CURBS = [("x", 13.375, 53.75, 83.85, [(67.7, 71.3)]), ("z", 53.875, 13.5, 42.95, [(33.4, 36.6)]),
+              ("x", 42.825, 54.0, 64.6, []), ("z", 83.725, 13.5, 31.6, [(20.3, 23.1)]),
+              ("x", 16.825, 57.2, 80.4, [(67.7, 71.3)]), ("z", 57.325, 16.7, 39.5, [(33.4, 36.6)]),
+              ("x", 39.375, 57.2, 64.6, []), ("z", 80.275, 16.7, 30.6, [(20.3, 23.1)])]
+
+
+def runs(a, b_, gaps):
+    out, cur = [], a
+    for g0, g1 in sorted(gaps):
+        if g0 > cur:
+            out.append((cur, g0))
+        cur = max(cur, g1)
+    if cur < b_:
+        out.append((cur, b_))
+    return out
+CHUTE = ((74.6, 7.6, 41.1), (70.6, 0.3, 41.1))
+SKULL = (79.6, 11.6, 38.4, math.atan2(-0.55, -0.85))   # x, y, z, facing yaw (toward the plaza)
+
+
+def build_mountain(P):
+    b = Builder()
+    rnd = random.Random(31)
+    ROCK, ROCKD = P["rock"], P["rock_dk"]
+    px, pz, ph = MOUNT_PEAK
+
+    # a grid of rock columns whose heights fall away from the peak (the JS
+    # lays one collider per column with the same mountain_h)
+    for (cx, cz, cw, cd, y0, top) in mountain_cells():
+        y = y0
+        layer = 0
+        while y < top - 0.3:
+            lh = min(top - y, 2.0 + rnd.random() * 1.4)
+            shrink = max(0.55, 1.0 - 0.05 * layer)
+            m = ROCKD if rnd.random() < 0.35 else ROCK
+            b.lump(m, cw * (1.3 + rnd.random() * 0.25) * shrink, lh * 1.3, cd * (1.3 + rnd.random() * 0.25) * shrink,
+                   cx + rnd.uniform(-0.25, 0.25), y - 0.2, cz + rnd.uniform(-0.25, 0.25),
+                   seed=rnd.randint(0, 99999), rnd=0.6, jitter=0.14, ry=rnd.uniform(0, 6.28))
+            y += lh * 0.8
+            layer += 1
+
+    def top_at(x, z, box_h):
+        return mountain_h(x, z, False)
+    # keep the cave path clear: line it with flat rock walls (the boulders
+    # above stop at the solids, so the walls are what you see inside)
+    for (x0, x1, z0, z1) in TUNNEL:
+        b.box(ROCKD, x1 - x0, 0.3, z1 - z0, (x0 + x1) / 2, 3.2, (z0 + z1) / 2)
+    # the flume chute: a trough down the west face into the splash pool, its
+    # supports, and a dark cave mouth at its top
+    (ax, ay, az), (cx, cy, cz) = CHUTE
+    W = P["plank"]
+    n = 10
+    for i in range(n):
+        t0, t1 = i / n, (i + 1) / n
+        p0 = (ax + (cx - ax) * t0, ay + (cy - ay) * t0, az)
+        p1 = (ax + (cx - ax) * t1, ay + (cy - ay) * t1, az)
+        b.bar(W, p0, p1, 1.4, 0.12)
+        for s in (-1, 1):
+            b.bar(W, (p0[0], p0[1] + 0.35, p0[2] + s * 0.7), (p1[0], p1[1] + 0.35, p1[2] + s * 0.7), 0.1, 0.7)
+    for t in (0.35, 0.7):
+        x, y = ax + (cx - ax) * t, ay + (cy - ay) * t
+        for s in (-1, 1):
+            b.bar(W, (x, 0, az + s * 0.8), (x, y, az + s * 0.7), 0.16)
+        b.bar(W, (x, y * 0.5, az - 0.8), (x, y * 0.5, az + 0.8), 0.1)
+    b.lump(P["black"], 2.2, 2.0, 1.2, ax + 0.4, ay - 0.6, az, seed=5, rnd=0.7, jitter=0.05)
+    # cave mouths: the flank path's two ends and where the waterway goes in
+    for (mx, mz, w, ry) in ((72.6, 35.1, 2.4, math.pi / 2), (75.1, 30.5, 2.4, 0.0), (82.0, 31.5, 3.4, 0.0)):
+        for s in (-1, 1):
+            ox, oz = (math.cos(ry) * s * (w / 2 + 0.3), -math.sin(ry) * s * (w / 2 + 0.3))
+            b.lump(ROCKD, 0.9, 3.6, 0.9, mx + ox, 0, mz + oz, seed=int(mx * 10 + s), rnd=0.5, jitter=0.1)
+        b.lump(ROCKD, w + 1.4, 1.0, 1.0, mx, 3.0, mz, seed=int(mz * 10), rnd=0.5, jitter=0.1, ry=ry)
+    # frosted pines on the shoulders
+    for (tx, tz, th) in ((74.0, 38.5, 3.2), (75.6, 43.0, 3.8), (78.2, 33.4, 3.0), (84.5, 33.5, 3.4), (85.8, 41.0, 4.0),
+                         (82.8, 43.6, 3.5), (77.5, 44.2, 3.0), (86.0, 37.4, 3.6)):
+        base = top_at(tx, tz, 12 if tz > 36.2 else 10) - 0.6
+        b.cyl(P["wood_dk"], 0.12, (tx, base, tz), (tx, base + 0.8, tz), seg=6)
+        for k in range(4):
+            y = base + 0.6 + k * th * 0.22
+            r = th * 0.32 * (1 - k * 0.2)
+            b.cyl(P["pine"], r, (tx, y, tz), (tx, y + th * 0.34, tz), seg=8, r2=0.02)
+            b.cyl(P["snow"], r * 0.55, (tx, y + th * 0.17, tz), (tx, y + th * 0.34, tz), seg=8, r2=0.02)
+    # the skull at the peak: a trollface skull, cracked, its grin full of teeth
+    sx, sy, sz, yaw = SKULL
+    cy_, sy_ = math.cos(yaw), math.sin(yaw)
+
+    def S(lx, ly, lz):   # skull-local (x right, y up, z out of the face) -> map
+        return (sx + lx * cy_ + lz * sy_, sy + ly, sz - lx * sy_ + lz * cy_)
+    B = P["bone"]
+    b.lump(B, 4.4, 3.6, 4.0, *S(0, 0, 0), seed=11, rnd=0.85, jitter=0.04, ry=yaw)
+    b.lump(B, 4.6, 1.3, 3.0, *S(0, -0.9, 0.7), seed=12, rnd=0.7, jitter=0.04, ry=yaw)      # cheekbones / maxilla
+    b.lump(B, 4.0, 1.1, 2.6, *S(0, -1.7, 0.6), seed=13, rnd=0.7, jitter=0.04, ry=yaw)      # jaw
+    for s in (-1, 1):
+        b.lump(P["black"], 1.15, 1.0, 0.6, *S(s * 0.95, 1.05, 1.8), seed=14 + s, rnd=0.8, jitter=0.02, ry=yaw)   # sockets
+        b.lump(B, 1.4, 0.35, 0.5, *S(s * 0.95, 1.85, 1.85), seed=16 + s, rnd=0.6, jitter=0.02, ry=yaw + s * 0.25)  # brow ridge
+    b.lump(P["black"], 0.5, 0.6, 0.4, *S(0, 0.25, 1.95), seed=18, rnd=0.6, jitter=0.02, ry=yaw)   # nose
+    # the grin: a wide crescent of teeth, trollface-wide, corners pulled up
+    for i in range(15):
+        t = (i / 14) * 2 - 1
+        lx = t * 1.9
+        ly = -0.75 + 0.55 * t * t
+        lz = 1.55 - 0.45 * t * t
+        b.box(P["white"], 0.24, 0.42, 0.22, *S(lx, ly - 0.05, lz), ry=yaw - t * 0.6)
+        b.box(P["white"], 0.24, 0.36, 0.22, *S(lx, ly - 0.5, lz - 0.05), ry=yaw - t * 0.6)
+    b.lump(P["black"], 3.6, 0.35, 0.6, *S(0, -1.0, 1.3), seed=19, rnd=0.6, jitter=0.02, ry=yaw)   # the dark between the teeth
+    for (a, c) in (((0.4, 1.6, 1.6), (0.9, 0.7, 1.9)), ((-1.4, 1.7, 1.2), (-1.8, 0.6, 1.5)), ((0.2, 1.9, 0.4), (1.2, 1.5, 1.2))):
+        b.bar(P["black"], S(*a), S(*c), 0.06)
+    b.finish("hg-mountain.glb")
+
+
+def build_moat(P):
+    b = Builder()
+    C = P["conc"]
+    # the channel's curbs on both banks, broken where the bridges cross
+    gaps = {i: [] for i in range(len(MOAT_ARMS))}
+
+    def curb(x0, x1, z0, z1):
+        if x1 - x0 > 0.05 and z1 - z0 > 0.05:
+            b.box(C, x1 - x0, 0.2, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2, bevel=0.02)
+            b.box(P["moss"], x1 - x0, 0.02, z1 - z0, (x0 + x1) / 2, 0.2, (z0 + z1) / 2)
+    for (axis, at, a, b_, gp) in MOAT_CURBS:
+        for (s, e) in runs(a, b_, gp):
+            if axis == "x":
+                curb(s, e, at - 0.125, at + 0.125)
+            else:
+                curb(at - 0.125, at + 0.125, s, e)
+    # the splash pool's round curb, open on the west where the channel leaves
+    px_, pz_, pr = POOL
+    lathe(b, C, px_, pz_, [(pr, 0.0), (pr + 0.25, 0.0), (pr + 0.25, 0.2), (pr, 0.2), (pr, 0.0)], seg=24, a0=-math.pi + 0.55, a1=math.pi - 0.55)
+    # the footbridges: a planked deck on beams, posts and a rail
+    for (axis, c, a0, a1, w) in BRIDGES:
+        L = a1 - a0 + 0.6          # the deck: 0.3 past each bank; a step beyond that
+        mid = (a0 + a1) / 2
+        def at(along, across, y=0.0):
+            return (along, y, c + across) if axis == "x" else (c + across, y, along)
+        bw, bd = (L, w) if axis == "x" else (w, L)
+        cx, _, cz = at(mid, 0)
+        b.box(P["wood_dk"], bw, 0.25, bd, cx, DECK_Y - 0.3, cz)
+        n = int(L / 0.32)
+        for k in range(n):
+            p = a0 - 0.3 + (k + 0.5) * L / n
+            x, _, z = at(p, 0)
+            b.box(P["plank"], (L / n - 0.03) if axis == "x" else w, 0.06, w if axis == "x" else (L / n - 0.03), x, DECK_Y - 0.06, z)
+        for e in (a0 - 0.6, a1 + 0.6):
+            x, _, z = at(e, 0)
+            b.box(P["plank"], 0.6 if axis == "x" else w, 0.27, w if axis == "x" else 0.6, x, 0, z)
+        for s in (-1, 1):
+            for k in range(5):
+                p = a0 - 0.2 + (L - 0.4) * k / 4
+                x, _, z = at(p, s * (w / 2 - 0.05))
+                b.box(P["wood_dk"], 0.12, 1.1, 0.12, x, DECK_Y, z)
+                lathe(b, P["pumpkin"], x, z, [(0, DECK_Y + 1.1), (0.1, DECK_Y + 1.16), (0.0, DECK_Y + 1.3)], seg=8)
+            p0, p1 = at(a0 - 0.25, s * (w / 2 - 0.05), DECK_Y + 1.0), at(a1 + 0.25, s * (w / 2 - 0.05), DECK_Y + 1.0)
+            b.bar(P["wood_dk"], p0, p1, 0.1, 0.08)
+            p0, p1 = at(a0 - 0.25, s * (w / 2 - 0.05), DECK_Y + 0.5), at(a1 + 0.25, s * (w / 2 - 0.05), DECK_Y + 0.5)
+            b.bar(P["wood_dk"], p0, p1, 0.06)
+    b.finish("hg-moat.glb")
+
+
 BUILDS = {"carousel": build_carousel, "ride": build_ride, "horse": build_horse, "fountain": build_fountain,
-          "plaza": build_plaza, "wheel": build_wheel, "stalls": build_stalls, "mansion": build_mansion}
+          "plaza": build_plaza, "wheel": build_wheel, "stalls": build_stalls, "mansion": build_mansion,
+          "mountain": build_mountain, "moat": build_moat}
 FILES = {"carousel": "hg-carousel.glb", "ride": "hg-carousel-ride.glb", "horse": "hg-horse.glb",
-         "fountain": "hg-fountain.glb", "plaza": "hg-plaza.glb", "wheel": "hg-wheelbase.glb", "stalls": "hg-stalls.glb", "mansion": "hg-mansion.glb"}
+         "fountain": "hg-fountain.glb", "plaza": "hg-plaza.glb", "wheel": "hg-wheelbase.glb", "stalls": "hg-stalls.glb", "mansion": "hg-mansion.glb",
+         "mountain": "hg-mountain.glb", "moat": "hg-moat.glb"}
 
 
 def main():
