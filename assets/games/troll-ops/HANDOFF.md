@@ -4,9 +4,35 @@
 User (after phase 5): "i want all objects in all maps to looks more realistic.
 so go do that finish that then we move to phase 6", then "you know how we
 turned those trees to be more realistic, well i image theres other objects.
-walls buildings etc." **Realism pass SHIPPED** (below). Next: **phase 6
-(Hollowgrin models)**, folding in the user's amusement-park ask (list
-below) — design doc / OK first.
+walls buildings etc." **Realism pass SHIPPED** (below, live as
+`game.js?v=to-rl1`, commits 120f90b + e1b319e). Shots were sent; the user
+hasn't commented on them yet.
+
+**Next: phase 6 (Hollowgrin models)** with the user's amusement-park ask
+folded in. Questions put to the user, NOT yet answered (get answers, then
+write the design doc, get the OK, then build):
+1. The park: a new district bolted onto Hollowgrin, or replacing part of
+   the village?
+2. Rides: proposed default = Ferris wheel, carousel, haunted funhouse, game
+   stalls, a climbable coaster track (not a working coaster).
+3. Keep it Halloween-night themed like the rest of Hollowgrin?
+Phase 6's own scope (design doc): real models for the mausoleum, barn and
+shop; moonlight + ground fog; dark corners lit by decor (lanterns,
+candles, glowing pumpkins), not global light; zombie paths unchanged.
+
+**After phase 6, the user's other list** (the "(previous) RESUME HERE
+... later" section below, items 1-9, with the Trollernaut / knight /
+metamorph references): tablet streak animation, bus-deploy camera shots,
+Pointstreaks + Trollernaut, TDM/S&D intros, animated skins, "For You"
+emote, three characters + L4D-style zombies mode. My proposed order (not
+yet confirmed by the user): quick polish (tablet, animated skins) ->
+Trollernaut -> cinematics (bus deploy, match intros, For You) -> the L4D
+mode (design doc first). Item 8 (VTOL gun swap on mobile) is done.
+
+Remaining realism gaps if the user wants more: Pentagrin's props.js
+pieces (lab benches, desks, cabinets) are still simple boxes; Depot
+wrapped pallets/boxes are plain; Hollowgrin is phase 6. Known pre-existing:
+pentagrin's map audit FAILs on 4 unused spawns (zombies use windows).
 
 ## Realism pass SHIPPED (2026-10-02) — `game.js?v=to-rl1`; maps/loadout/map-models/map-dressing/house-props/pentagrin/grinleria/hollowgrin/trollface-island all `?v=rl1`
 Every collider unchanged (audit PASS on all maps, same counts; pentagrin's
