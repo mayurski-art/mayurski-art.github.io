@@ -55,8 +55,8 @@ RAIL_TOP = 0.0375
 SIGHT_Y = 0.062
 REAR_Z = 0.048
 HG0, HG1 = U_Z1 - 0.002, -0.334     # handguard rear / front (the head goes on from there)
-FRONT_Z = -0.506
-MUZZLE_Z = -0.600
+FRONT_Z = -0.526
+MUZZLE_Z = -0.618
 GRIP_TOP = Vector((0, -0.036, 0.028))
 GRIP_AX = Vector((0, -0.93, 0.37)).normalized()
 MAG_TOP = Vector((0, -0.044, -0.092))
@@ -138,74 +138,91 @@ for k in range(7):
     for sx in (-1, 1):
         spike(body, (sx * 0.010, bot + 0.002, z), (sx * 0.15, -1, -0.25), 0.006 + 0.005 * t, 0.0021, "ivory", sides=4)
 
-# ---- THE HEAD on the front: a faceted beast's head, the barrel out of its
-# open jaws. Brow and cheeks wider than the handguard, big glowing eyes
-# under angry brow ridges, horns swept back past the cheeks, fangs.
+# ---- THE HEAD on the front, grown out of the handguard: the sections start
+# exactly where the handguard ends and swell gradually to the brow, then
+# narrow down a long snout. The lower jaw carries on from the handguard's
+# blade and drops open toward the front, the barrel running out through
+# the gap. Brow and nose ridges are swept into the surface, not stuck on.
 HEAD = [  # (z, half width, top, bottom of the upper head)
-    (HG1 + 0.002, 0.0200, 0.0262, BORE_Y - 0.020),
-    (-0.344, 0.0262, 0.0420, 0.0150),
-    (-0.366, 0.0272, 0.0445, 0.0180),
-    (-0.390, 0.0236, 0.0410, 0.0205),
-    (-0.418, 0.0188, 0.0360, 0.0212),
-    (-0.446, 0.0150, 0.0318, 0.0214),
-    (-0.466, 0.0110, 0.0290, 0.0218),
-    (-0.476, 0.0062, 0.0262, 0.0226),
+    (HG1 + 0.0005, 0.0195, U_TOP - 0.0005, BORE_Y - 0.0235),
+    (-0.350, 0.0212, 0.0318, BORE_Y - 0.0170),
+    (-0.368, 0.0236, 0.0392, BORE_Y - 0.0080),
+    (-0.386, 0.0248, 0.0438, BORE_Y + 0.0000),
+    (-0.402, 0.0238, 0.0428, BORE_Y + 0.0070),
+    (-0.424, 0.0206, 0.0378, BORE_Y + 0.0105),
+    (-0.450, 0.0172, 0.0334, BORE_Y + 0.0115),
+    (-0.472, 0.0136, 0.0302, BORE_Y + 0.0120),
+    (-0.486, 0.0096, 0.0282, BORE_Y + 0.0126),
+    (-0.493, 0.0052, 0.0258, BORE_Y + 0.0136),
 ]
-loft(body, [rrect(z, hw, top, bot, 0.004, n=2) for (z, hw, top, bot) in HEAD], "bone")
-JAW = [  # the lower jaw, hinged under the cheeks, hanging open
-    (-0.334, 0.0195, 0.0040, BORE_Y - 0.036),
-    (-0.360, 0.0190, 0.0030, -0.0230),
-    (-0.396, 0.0160, 0.0012, -0.0180),
-    (-0.430, 0.0128, 0.0008, -0.0120),
-    (-0.456, 0.0094, 0.0010, -0.0070),
-    (-0.466, 0.0060, 0.0012, -0.0040),
+JAW = [   # (z, half width, top, bottom of the lower jaw)
+    (HG1 + 0.0005, 0.0190, BORE_Y - 0.0150, BORE_Y - 0.0245),
+    (-0.360, 0.0190, BORE_Y - 0.0140, BORE_Y - 0.0270),
+    (-0.392, 0.0168, BORE_Y - 0.0150, BORE_Y - 0.0295),
+    (-0.424, 0.0142, BORE_Y - 0.0170, BORE_Y - 0.0305),
+    (-0.452, 0.0114, BORE_Y - 0.0195, BORE_Y - 0.0310),
+    (-0.472, 0.0086, BORE_Y - 0.0215, BORE_Y - 0.0300),
+    (-0.481, 0.0052, BORE_Y - 0.0228, BORE_Y - 0.0278),
 ]
-loft(body, [rrect(z, hw, top, bot, 0.004, n=2) for (z, hw, top, bot) in JAW], "bone")
-box(body, (0, 0.0115, -0.350), (0.030, 0.024, 0.020), "dark")                     # the throat
-box(body, (0, 0.0040, -0.405), (0.020, 0.0030, 0.090), "dark")                    # tongue/palate shadow
-# the bridge of the nose and the nostrils
-box(body, (0, 0.0325, -0.432), (0.010, 0.006, 0.070), "boneD")
+
+
+def lerp_tab(tab, z, col):
+    for a, b in zip(tab, tab[1:]):
+        if b[0] <= z <= a[0]:
+            t = (a[0] - z) / (a[0] - b[0])
+            return a[col] + (b[col] - a[col]) * t
+    return tab[-1][col]
+
+
+loft(body, [rrect(z, hw, top, bot, 0.005, n=3) for (z, hw, top, bot) in HEAD], "bone")
+loft(body, [rrect(z, hw, top, bot, 0.004, n=3) for (z, hw, top, bot) in JAW], "bone")
+# inside the mouth: the palate, the tongue, the throat at the back of the gap
+box(body, (0, lerp_tab(HEAD, -0.430, 3) - 0.0008, -0.430), (0.011, 0.0016, 0.060), "dark")
+box(body, (0, BORE_Y - 0.004, -0.386), (0.014, 0.014, 0.004), "dark")
+# the ridge down the nose, swept into the surface, and the nostrils
+nose = catmull([(0, 0.0428, -0.392), (0, 0.0368, -0.430), (0, 0.0318, -0.466), (0, 0.0270, -0.490)], 12)
+sweep(body, nose, lambda t: 0.0034 - 0.0016 * t, "bone", sides=8, uv=False)
 for sx in (-1, 1):
-    box(body, (sx * 0.0040, 0.0275, -0.4745), (0.0030, 0.0030, 0.0040), "dark")
+    box(body, (sx * 0.0042, 0.0266, -0.4895), (0.0030, 0.0026, 0.0040), "dark")
 for sx in (-1, 1):
-    # angry brow ridge, slanting down toward the snout over the eye
-    a, b = Vector((sx * 0.0255, 0.0465, -0.354)), Vector((sx * 0.0150, 0.0395, -0.398))
-    ez = (b - a).normalized()
-    ey = ez.cross(X).normalized()
-    box(body, (a + b) / 2, (0.010, 0.0055, (b - a).length), "boneD", (X, ey, ez))
-    # cheekbone ridge and the jaw hinge
-    box(body, (sx * 0.0270, 0.0220, -0.372), (0.0040, 0.0070, 0.040), "boneD")
-    local_lathe(body, (sx * 0.0190, 0.0030, -0.346), (sx, 0, 0), [(0, 0.0080), (0.0030, 0.0070), (0.0040, 0.0)], "boneD", segs=10)
-    # the eye: a deep dark socket, a big glowing eye, a slit pupil
-    eye_c = Vector((sx * 0.0236, 0.0335, -0.382))
-    eye_n = Vector((sx * 0.88, 0.18, -0.44))
-    local_lathe(body, eye_c, eye_n, [(-0.003, 0.0105), (0.0008, 0.0100), (0.0012, 0.0)], "dark", segs=16)
-    local_lathe(body, eye_c + eye_n.normalized() * 0.0002, eye_n, [(-0.002, 0.0078), (0.0020, 0.0074), (0.0042, 0.0)], "core", segs=14)
-    box(body, eye_c + eye_n.normalized() * 0.0045, (0.0014, 0.0090, 0.0016), "dark", (eye_n.normalized(), Vector((0, 1, 0)), eye_n.normalized().cross(Vector((0, 1, 0)))))
+    # brow ridge over the eye: a swept ridge growing out of the head
+    brow = catmull([(sx * 0.0190, 0.0436, -0.370), (sx * 0.0236, 0.0438, -0.388), (sx * 0.0222, 0.0412, -0.408), (sx * 0.0186, 0.0380, -0.424)], 12)
+    sweep(body, brow, lambda t: 0.0030 + 0.0012 * math.sin(math.pi * t), "bone", sides=8, uv=False)
+    # cheekbone: a soft ridge back toward the jaw hinge
+    cheek = catmull([(sx * 0.0232, 0.0240, -0.420), (sx * 0.0246, 0.0220, -0.392), (sx * 0.0228, 0.0160, -0.362), (sx * 0.0200, 0.0110, -0.344)], 12)
+    sweep(body, cheek, lambda t: 0.0024 + 0.0008 * math.sin(math.pi * t), "bone", sides=8, uv=False)
+    # the eye: a dark socket, a big glowing eye, a slit pupil
+    eye_c = Vector((sx * 0.0232, 0.0335, -0.398))
+    eye_n = Vector((sx * 0.88, 0.16, -0.44)).normalized()
+    local_lathe(body, eye_c - eye_n * 0.001, eye_n, [(-0.003, 0.0098), (0.0008, 0.0094), (0.0012, 0.0)], "dark", segs=16)
+    local_lathe(body, eye_c, eye_n, [(-0.002, 0.0072), (0.0018, 0.0068), (0.0036, 0.0)], "core", segs=14)
+    box(body, eye_c + eye_n * 0.0040, (0.0014, 0.0084, 0.0016), "dark", (eye_n, Vector((0, 1, 0)), eye_n.cross(Vector((0, 1, 0)))))
     # horns: off the back of the brow, swept back and out, then up
-    horn = catmull([(sx * 0.0200, 0.0410, -0.346), (sx * 0.0360, 0.0480, -0.322), (sx * 0.0500, 0.0590, -0.292),
-                    (sx * 0.0580, 0.0740, -0.262), (sx * 0.0590, 0.0880, -0.240)], 18)
-    sweep(body, horn, lambda t: 0.0072 * (1 - t) ** 0.9 + 0.0004, "ivory", sides=8, uv=False)
-    # cheek spikes swept back under the horns
-    spike(body, (sx * 0.0270, 0.0260, -0.348), (sx * 0.7, 0.2, 0.7), 0.022, 0.0040, "ivory", sides=4)
-    spike(body, (sx * 0.0255, 0.0140, -0.356), (sx * 0.7, -0.1, 0.7), 0.016, 0.0034, "ivory", sides=4)
+    horn = catmull([(sx * 0.0170, 0.0400, -0.372), (sx * 0.0290, 0.0475, -0.354), (sx * 0.0395, 0.0565, -0.331),
+                    (sx * 0.0455, 0.0670, -0.309), (sx * 0.0465, 0.0775, -0.291)], 18)
+    sweep(body, horn, lambda t: 0.0056 * (1 - t) ** 0.9 + 0.0004, "ivory", sides=8, uv=False)
+    # cheek spikes swept back off the jaw line
+    spike(body, (sx * 0.0215, BORE_Y - 0.006, -0.356), (sx * 0.7, 0.05, 0.7), 0.020, 0.0036, "ivory", sides=4)
+    spike(body, (sx * 0.0190, BORE_Y - 0.020, -0.352), (sx * 0.6, -0.3, 0.7), 0.015, 0.0030, "ivory", sides=4)
     # fangs: big canines at the front, a row of teeth back along both jaws
-    spike(body, (sx * 0.0078, 0.0222, -0.462), (0, -1, -0.12), 0.0175, 0.0030, "ivory", sides=5)
-    spike(body, (sx * 0.0070, 0.0010, -0.452), (0, 1, -0.15), 0.0120, 0.0026, "ivory", sides=5)
+    spike(body, (sx * 0.0082, lerp_tab(HEAD, -0.478, 3) + 0.0010, -0.478), (0, -1, -0.10), 0.0185, 0.0030, "ivory", sides=5)
+    spike(body, (sx * 0.0068, lerp_tab(JAW, -0.470, 2) - 0.0010, -0.470), (0, 1, -0.15), 0.0130, 0.0026, "ivory", sides=5)
     for k in range(5):
-        zz = -0.446 + k * 0.016
-        spike(body, (sx * (0.0128 + k * 0.0020), 0.0212, zz), (sx * 0.1, -1, 0), 0.0075, 0.0019, "ivory", sides=4)
-        spike(body, (sx * (0.0108 + k * 0.0020), 0.0012, zz + 0.008), (sx * 0.1, 1, 0), 0.0060, 0.0017, "ivory", sides=4)
+        zz = -0.462 + k * 0.016
+        spike(body, (sx * (lerp_tab(HEAD, zz, 1) - 0.0030), lerp_tab(HEAD, zz, 3) + 0.0008, zz), (sx * 0.08, -1, 0), 0.0080, 0.0019, "ivory", sides=4)
+        spike(body, (sx * (lerp_tab(JAW, zz + 0.006, 1) - 0.0030), lerp_tab(JAW, zz + 0.006, 2) - 0.0008, zz + 0.006), (sx * 0.08, 1, 0), 0.0065, 0.0017, "ivory", sides=4)
+    # jaw hinge, half sunk in under the cheek
+    local_lathe(body, (sx * 0.0175, BORE_Y - 0.012, -0.352), (sx, 0, 0), [(0, 0.0062), (0.0024, 0.0054), (0.0032, 0.0)], "bone", segs=12)
 
 # ---- barrel (bone, long and thin), A-frame front sight, dark muzzle section
-lathe(body, [(HG1 + 0.004, 0.0), (HG1 + 0.004, 0.0088), (-0.522, 0.0086), (-0.522, 0.0)], "bone", segs=24, cy=BORE_Y)
-lathe(body, [(-0.522, 0.0), (-0.522, 0.0102), (MUZZLE_Z + 0.040, 0.0102), (MUZZLE_Z + 0.040, 0.0)], "steel", segs=24, cy=BORE_Y)
+lathe(body, [(HG1 + 0.004, 0.0), (HG1 + 0.004, 0.0088), (-0.542, 0.0086), (-0.542, 0.0)], "bone", segs=24, cy=BORE_Y)
+lathe(body, [(-0.542, 0.0), (-0.542, 0.0102), (MUZZLE_Z + 0.040, 0.0102), (MUZZLE_Z + 0.040, 0.0)], "steel", segs=24, cy=BORE_Y)
 box(body, (0, BORE_Y + 0.004, FRONT_Z), (0.018, 0.024, 0.030), "steel")                 # gas block
-for (z0, z1) in ((-0.492, -0.505), (-0.520, -0.513)):                                  # the A-frame legs
+for (z0, z1) in ((FRONT_Z + 0.014, FRONT_Z + 0.001), (FRONT_Z - 0.014, FRONT_Z - 0.007)):   # the A-frame legs
     sweep(body, [Vector((0, BORE_Y + 0.014, z0)), Vector((0, SIGHT_Y - 0.008, z1))], lambda s: 0.0032, "steel", sides=4, uv=False)
-box(body, (0, SIGHT_Y - 0.007, -0.509), (0.008, 0.005, 0.014), "steel")
+box(body, (0, SIGHT_Y - 0.007, FRONT_Z - 0.003), (0.008, 0.005, 0.014), "steel")
 for sx in (-1, 1):
-    box(body, (sx * 0.0065, SIGHT_Y - 0.004, -0.509), (0.0022, 0.012, 0.012), "steel")    # post ears
+    box(body, (sx * 0.0065, SIGHT_Y - 0.004, FRONT_Z - 0.003), (0.0022, 0.012, 0.012), "steel")    # post ears
 
 # ---- the mane: bone and crystal spikes splayed off both sides of the upper,
 # tallest over the middle, swept back; a glowing core at its front
@@ -282,8 +299,8 @@ ring = [Vector((0.0042 * math.cos(TAU * i / 24), SIGHT_Y + 0.0042 * math.sin(TAU
 sweep(ir, ring, lambda s: 0.0016, "steel", sides=8, uv=False)
 ir.finish(bevel=0.0002)
 fs = Part("BE_IronFront")
-box(fs, (0, SIGHT_Y - 0.003, -0.509), (0.0024, 0.010, 0.0030), "steel")
-local_lathe(fs, (0, SIGHT_Y - 0.0016, -0.5074), (0, 0, 1), [(0, 0.0010), (0.0004, 0.0010), (0.0005, 0.0)], "core", segs=10)
+box(fs, (0, SIGHT_Y - 0.003, FRONT_Z - 0.003), (0.0024, 0.010, 0.0030), "steel")
+local_lathe(fs, (0, SIGHT_Y - 0.0016, FRONT_Z - 0.0014), (0, 0, 1), [(0, 0.0010), (0.0004, 0.0010), (0.0005, 0.0)], "core", segs=10)
 fs.finish(bevel=0.0002)
 
 # ------------------------------------------------------------------ anchors

@@ -90,7 +90,7 @@ export function hasDetailedModel(def) {
    hand matches); `railY` is the top of the rail an optic sits on. */
 const DETAILED = {
   beast: {
-    url: new URL("./models/beast.glb?v=be1", import.meta.url).href,
+    url: new URL("./models/beast.glb?v=be2", import.meta.url).href,
     p: "BE", device: "BE_Brake", rake: -0.35, railY: 0.038, adsDistance: 0.24,
     glow: ["BE_Core", "BE_Vein"],
   },
