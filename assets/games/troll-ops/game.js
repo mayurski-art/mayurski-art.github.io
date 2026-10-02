@@ -4859,6 +4859,11 @@ function loadMap(id) {
   builtMap = buildMap(id, { colliders, arena: ARENA });
   scene.add(builtMap.root);
   spawnPoints = builtMap.spawnPoints;
+  // Spawns are authored as [x, z]: stand each on the floor under it (a
+  // platform, a step), not at y 0 inside it. At y 0 on Undergrin the push
+  // out of the 1.1 m platform shoved players out past the end wall, stuck
+  // in a sliver they could only shuffle along (user: "stuck in place").
+  for (const sp of spawnPoints) if (!sp.y) sp.y = groundHeightAt(colliders, sp.x, sp.z, 2.0);
   spawnSides = splitSpawnSides(spawnPoints);
   applyEnvironment(builtMap.map);
   buildMinimapBase();
