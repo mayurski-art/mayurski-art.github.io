@@ -19,7 +19,7 @@ import {
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js";
 import { gsModel, mapModel } from "./map-models.js";
-import { dressMap, beachWaterMaterial } from "./map-dressing.js?v=dr1";
+import { dressMap, beachWaterMaterial, palmTrees } from "./map-dressing.js?v=dr2";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,
@@ -1325,21 +1325,15 @@ export const MAPS = {
       }
 
       /* -------------------------------------------------------------- polish */
-      // Palms along the boardwalk's sand edge — decorative canopies on thin
-      // trunks, so they frame the lane without blocking shots through it.
-      for (const [px, pz] of [[-34, 7], [-20, 7], [-6, 7], [8, 7], [22, 7], [35, 7]]) {
-        api.cylinder(px, pz, 0.32, 5.5, { color: 0x7a6748, pen: 2, surface: "wood", tile: 1.5 });
-        for (let i = 0; i < 6; i++) {
-          const frond = new THREE.Mesh(
-            new THREE.BoxGeometry(3.2, 0.12, 0.7),
-            api.mat(0x3f7a3a, 0.8),
-          );
-          const a = (i / 6) * Math.PI * 2;
-          frond.position.set(px + Math.cos(a) * 1.5, 5.6, pz + Math.sin(a) * 1.5);
-          frond.rotation.set(0, -a, -0.35);
-          api.prop(frond);
-        }
-      }
+      // Palms along the boardwalk's sand edge: coconut palms (map-dressing.js
+      // palmTrees: leaning ringed trunks, drooping feathered fronds), framing
+      // the lane without blocking shots through it. The collider is the
+      // trunk's base, as before.
+      const PALMS = [[-34, 7], [-20, 7], [-6, 7], [8, 7], [22, 7], [35, 7]];
+      for (const [px, pz] of PALMS) api.cylinder(px, pz, 0.32, 5.5, { ghost: true, pen: 2 });
+      const palmRoot = new THREE.Group();
+      api.prop(palmRoot);
+      palmTrees(palmRoot, PALMS, { seed: 17 });
       // streetlamps down the lot, and floodlights at the far corners so the
       // sand does not go flat at its edges
       for (const [x, z] of [[-24, 23.5], [0, 23.5], [24, 23.5]]) streetlamp(api, { x, z, rot: 0 });

@@ -684,3 +684,129 @@ export function beachWaterMaterial({ shore = -21, shallow = 0x48c8c0, deep = 0x1
   m.customProgramCacheKey = () => "troll-beach-sea";
   return m;
 }
+
+/* ------------------------------------------------------------------ palms */
+// Coconut palms (Grin Beach): a leaning, tapered, ringed trunk, a crown of
+// drooping feathered fronds (leaflets on a canvas, alpha-tested, with a
+// fold down the rachis) and a cluster of coconuts. All the palms on a map
+// share three merged meshes. Decoration only: the map keeps its own trunk
+// colliders at each base.
+let frondTex = null;
+function frondTexture() {
+  if (frondTex) return frondTex;
+  const c = document.createElement("canvas");
+  c.width = 128; c.height = 512;
+  const g = c.getContext("2d");
+  const r = rng(91);
+  // leaflets: from the rachis out to both edges, swept toward the tip (v = 1 at the top)
+  for (let y = 500; y > 8; y -= 7) {
+    const t = 1 - y / 512;
+    for (const side of [-1, 1]) {
+      if (r() < 0.08) continue;   // the odd gap, like a wind-torn frond
+      const len = 58 * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, t * 1.15))) * (0.85 + r() * 0.3);
+      const l = 20 + r() * 14, h = 88 + r() * 22;
+      g.strokeStyle = `hsl(${h}, ${38 + r() * 14}%, ${l}%)`;
+      g.lineWidth = 4 + r() * 2;
+      g.lineCap = "round";
+      g.beginPath();
+      g.moveTo(64, y);
+      g.quadraticCurveTo(64 + side * len * 0.5, y - 10, 64 + side * len, y - 22 - r() * 10);
+      g.stroke();
+    }
+  }
+  g.strokeStyle = "#6a6a2a"; g.lineWidth = 5;
+  g.beginPath(); g.moveTo(64, 512); g.lineTo(64, 4); g.stroke();
+  frondTex = new THREE.CanvasTexture(c);
+  frondTex.colorSpace = THREE.SRGBColorSpace;
+  frondTex.anisotropy = 4;
+  return frondTex;
+}
+
+export function palmTrees(root, spots, { seed = 5 } = {}) {
+  const r = rng(seed);
+  const trunks = [], fronds = [], nuts = [];
+  const col = new THREE.Color();
+  const v = new THREE.Vector3(), side = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  for (const [x, z, h0] of spots) {
+    const H = h0 ?? 5.4 + r() * 1.2;
+    const lean = r() * Math.PI * 2, leanAmt = 0.4 + r() * 0.7;
+    const lx = Math.cos(lean), lz = Math.sin(lean);
+    // trunk centreline: a gentle curve, leaning out then rising
+    const at = (t) => new THREE.Vector3(x + lx * leanAmt * (t * t * 0.6 + t * 0.4), H * t, z + lz * leanAmt * (t * t * 0.6 + t * 0.4));
+    const RINGS = 22, SEG = 9;
+    const pos = [], cols = [], idx = [];
+    for (let i = 0; i <= RINGS; i++) {
+      const t = i / RINGS, c = at(t);
+      const rad = (0.3 - 0.11 * t + (i === 0 ? 0.08 : 0)) * (i % 2 ? 1 : 1.07);   // leaf-scar rings
+      const shade = (i % 2 ? 0.88 : 1) * (0.9 + r() * 0.1);
+      col.setHSL(0.075, 0.3, 0.1 * shade + t * 0.02);   // linear: these read about 2x lighter on screen
+      for (let k = 0; k <= SEG; k++) {
+        const a = (k / SEG) * Math.PI * 2;
+        pos.push(c.x + Math.cos(a) * rad, c.y, c.z + Math.sin(a) * rad);
+        cols.push(col.r, col.g, col.b);
+      }
+    }
+    for (let i = 0; i < RINGS; i++) for (let k = 0; k < SEG; k++) {
+      const a = i * (SEG + 1) + k, b = a + SEG + 1;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+    const tg = new THREE.BufferGeometry();
+    tg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    tg.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
+    tg.setIndex(idx);
+    tg.computeVertexNormals();
+    trunks.push(tg.toNonIndexed());
+
+    // the crown
+    const top = at(1);
+    const N = 9 + Math.floor(r() * 3);
+    for (let f = 0; f < N + 3; f++) {
+      const young = f >= N;                      // a few short ones still standing up
+      const az = (f / N) * Math.PI * 2 + r() * 0.5;
+      const L = young ? 1.6 + r() * 0.6 : 3.2 + r() * 1.1;
+      const rise = young ? 1.1 : 0.55 + r() * 0.3, droop = young ? 0.5 : 0.95 + r() * 0.35;
+      const dir = new THREE.Vector3(Math.cos(az), 0, Math.sin(az));
+      side.crossVectors(up, dir).normalize();
+      const STEPS = 10, fp = [], fu = [], fi = [];
+      for (let s = 0; s <= STEPS; s++) {
+        const t = s / STEPS;
+        const spine = v.copy(top).addScaledVector(dir, L * t * (young ? 0.5 : 1));
+        spine.y += L * (rise * t - droop * t * t);
+        const w = 0.75 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.05)), 0.6) + 0.04;
+        for (const u of [-1, 0, 1]) {
+          const fold = u === 0 ? 0.08 * w : -0.14 * w;   // a V down the rachis
+          fp.push(spine.x + side.x * w * u, spine.y + fold, spine.z + side.z * w * u);
+          fu.push((u + 1) / 2, t);
+        }
+      }
+      for (let s = 0; s < STEPS; s++) for (let k = 0; k < 2; k++) {
+        const a = s * 3 + k, b = a + 3;
+        fi.push(a, b, a + 1, b, b + 1, a + 1);
+      }
+      const fg = new THREE.BufferGeometry();
+      fg.setAttribute("position", new THREE.Float32BufferAttribute(fp, 3));
+      fg.setAttribute("uv", new THREE.Float32BufferAttribute(fu, 2));
+      fg.setIndex(fi);
+      fg.computeVertexNormals();
+      fronds.push(fg.toNonIndexed());
+    }
+    // coconuts tucked under the crown
+    const n = 3 + Math.floor(r() * 4);
+    for (let k = 0; k < n; k++) {
+      const a = r() * Math.PI * 2;
+      const s = new THREE.SphereGeometry(0.15 + r() * 0.03, 8, 6);
+      s.scale(1, 1.15, 1);
+      s.translate(top.x + Math.cos(a) * 0.3, top.y - 0.22 - r() * 0.15, top.z + Math.sin(a) * 0.3);
+      s.deleteAttribute("uv");
+      nuts.push(s.toNonIndexed());
+    }
+  }
+  const trunkMesh = new THREE.Mesh(mergeGeometries(trunks, false),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 }));
+  const frondMesh = new THREE.Mesh(mergeGeometries(fronds, false),
+    new THREE.MeshStandardMaterial({ map: frondTexture(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8, metalness: 0 }));
+  const nutMesh = new THREE.Mesh(mergeGeometries(nuts, false),
+    new THREE.MeshStandardMaterial({ color: 0x5a3a1c, roughness: 0.7, metalness: 0 }));
+  for (const m of [trunkMesh, frondMesh, nutMesh]) { m.castShadow = true; m.receiveShadow = true; root.add(m); }
+  frondMesh.name = "palm-fronds";
+}

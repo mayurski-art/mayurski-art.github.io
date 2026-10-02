@@ -36,6 +36,12 @@ be ordered with the user (design doc first for the big ones):
    white wisps, green-black background with a light shaft. For a **Left 4
    Dead-style zombies mode** (the user's idea; design doc first: co-op
    campaign, specials, where the metamorph fits).
+8b. ~~Grin Beach palms (user: "could use some work, more realistic")~~ DONE
+   (`game.js?v=to-pm1`, `maps.js?v=dr2`): map-dressing.js `palmTrees(root,
+   spots)`: leaning tapered ringed trunks (vertex colours are LINEAR, keep
+   them dark), drooping V-folded fronds with a canvas leaflet texture
+   (alphaTest), young upright fronds, coconuts; 3 merged meshes for all six.
+   Colliders unchanged (ghost trunk cylinders).
 8. ~~BUG: on mobile you can't swap guns in the VTOL Warship~~ FIXED
    (`game.js?v=to-ws1`, `style.css?v=to-ws1`): tap the 25MM / 105MM labels
    on the warship HUD (pointer-events on touch), or tap the swap button.
