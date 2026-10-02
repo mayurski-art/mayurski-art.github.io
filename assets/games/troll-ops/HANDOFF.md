@@ -97,9 +97,10 @@ All in trollface-island.js (groundMask, groundMaterial, dressIsland):
   tools/troll-ops-map-views.json; very noisy, 3-5 runs each): old ~44-49.
   New with clutter off ~50; with full clutter ~40, so the clutter was the
   cost: now Lambert + 55% on high. At 75% it read ~44 vs ~50 old, so 55%
-  should be about even, NOT re-measured at 55% before shipping (user was
-  done for the night). **Re-measure first thing next session**; if still
-  under, drop high to ~0.4 or fade tufts by distance.
+  should be about even. **Re-measured 2026-10-02 at 55%** (meadow view, 3
+  runs each, alternating, old = ee11954^ in a worktree): new 53.8 / 57.0 /
+  50.8 (avg ~54) vs old 55.5 / 48.5 / 51.5 (avg ~52): even, no change
+  needed. Draws 164-178 vs 163-176.
 - Shots: before/after were rendered to the scratchpad only; re-shoot with
   tools/troll-ops-map-shots.mjs (views: aerial [-10,30,10 -> -36,0,-60],
   meadow [-50,0,-20 -> -36,3,-70], billboards at (53.3,-131.9) and
