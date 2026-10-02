@@ -292,7 +292,7 @@ export function mountMenuBackdrop(host) {
   function frame(t) {
     raf = 0;
     if (paused || dead) return;
-    const dt = last ? Math.min(0.1, (t - last) / 1000) : 0;
+    const dt = last && !still ? Math.min(0.1, (t - last) / 1000) : 0;
     last = t;
     if (map) {
       const c = map.getCenter();
@@ -305,12 +305,14 @@ export function mountMenuBackdrop(host) {
     const { sun, rockScale } = geom;
     drawRocks(farCv.getContext("2d"), farCv.width, farCv.height, far, sun, rockScale);
     drawRocks(nearCv.getContext("2d"), nearCv.width, nearCv.height, near, sun, rockScale);
-    raf = requestAnimationFrame(frame);
+    // Reduced motion: draw once (and again on resize), never animate.
+    if (!still) raf = requestAnimationFrame(frame);
   }
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const run = () => { if (!raf && !paused && !dead) { last = 0; raf = requestAnimationFrame(frame); } };
 
   layout();
-  const ro = new ResizeObserver(() => layout());
+  const ro = new ResizeObserver(() => { layout(); run(); });
   ro.observe(root);
   run();
 
