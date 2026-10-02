@@ -68,7 +68,7 @@ import { PickupSystem, SwapHold } from "./pickups.js?v=cg1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
 import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=cos1";
-import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df2";
+import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=cg1";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
@@ -1718,10 +1718,17 @@ function shootDownAir(eid, byId, announce = false) {
 /* Owner: our Dragonfire's gun. Hitscan from the nose camera along the
    crosshair; people, dogs and enemy streak kit all take it. */
 const _dfRay = new THREE.Raycaster();
+const DF_ASSIST_CONE_DEG = 10;   // the pull's search cone (the gun's is 7)
+const DF_ASSIST_PULL = 0.7;      // share of the gun's full pull, every frame while flying
+const DF_MAGNET_DEG = 3;         // rounds bend onto a target this close to the reticle
 function fireDragonfire() {
   const df = dragonfire;
   if (!df || !df.tryFire()) return;
   const dir = camera.getWorldDirection(new THREE.Vector3());
+  // Magnetism: someone within a few degrees of the reticle (in sight, in
+  // range) draws the round onto their chest before the spread goes on.
+  const mag = settings.aimAssist ? findAimAssistTarget(DF_MAGNET_DEG, DF_RANGE) : null;
+  if (mag) dir.set(mag.aim.x - camera.position.x, mag.aim.y - camera.position.y, mag.aim.z - camera.position.z).normalize();
   dir.x += (Math.random() - 0.5) * DF_SPREAD * 2;
   dir.y += (Math.random() - 0.5) * DF_SPREAD * 2;
   dir.z += (Math.random() - 0.5) * DF_SPREAD * 2;
@@ -1762,7 +1769,8 @@ function dragonfireHudEl() {
 <div class="to-df-top"><strong>DRAGONFIRE</strong><span class="to-df-time"></span></div>
 <div class="to-df-hp"><span>HULL</span><div><i></i></div></div>
 <div class="to-df-heat"><span>GUN</span><div><i></i></div><em>OVERHEATED</em></div>
-<div class="to-df-alt"></div>`;
+<div class="to-df-alt"></div>
+<div class="to-df-keys"></div>`;
   (els.streakMark?.parentElement || document.body).appendChild(dfHud);
   return dfHud;
 }
@@ -1782,6 +1790,10 @@ function syncDragonfireView() {
     if (on) {
       dfSaved = { yaw: look.yaw, pitch: look.pitch };
       look.pitch = -0.1;
+      // How to climb and dive, in whatever the player is holding (user:
+      // couldn't find how to go up or down).
+      el.querySelector(".to-df-keys").textContent = gamepadState.connected ? "A climb · B dive · R2 fire"
+        : isTouch ? "▲ climb · ▼ dive · or look and fly" : "SPACE climb · C dive · or look and fly";
       showWaveBanner("DRAGONFIRE — YOU HAVE CONTROL", 1500);
     } else {
       if (dfSaved) { look.yaw = dfSaved.yaw; look.pitch = dfSaved.pitch; }
@@ -2227,7 +2239,7 @@ function updateStreakEntities(dt) {
       } else if (e.owned && e === dragonfire && dragonfireView()) {
         const up = ((isTouch && touchState.jump) || (gamepadState.connected && gamepadState.jump) || keys.has("Space") ? 1 : 0)
           - ((isTouch && touchState.crouch) || (gamepadState.connected && gamepadState.crouch) || keys.has("KeyC") || keys.has("ControlLeft") ? 1 : 0);
-        e.fly(dt, { fwd: dfIz, strafe: dfIx, up, yaw: look.yaw, pitch: look.pitch },
+        e.fly(dt, { fwd: dfIz, strafe: dfIx, up, yaw: look.yaw, pitch: look.pitch, followPitch: true },
           (from, dir, max) => raycastWorld(colliders, from, dir, max),
           (x, z, fromY) => groundHeightAt(colliders, x, z, fromY));
       } else if (e.owned && !e.launched) {
@@ -5992,7 +6004,7 @@ function aimAssistPoints() {
 /* Best point to assist toward right now, or null. Picks whatever is closest
    to the crosshair (not just closest in space) inside the search cone, with
    actual line of sight. */
-function findAimAssistTarget() {
+function findAimAssistTarget(coneDeg = AIM_ASSIST_CONE_DEG, range = AIM_ASSIST_RANGE) {
   camera.getWorldPosition(_aaOrigin);
   camera.getWorldDirection(_aaForward);
 
@@ -6001,13 +6013,13 @@ function findAimAssistTarget() {
   // has to narrow with it or assist gets stronger while ADS/scoped and
   // weaker at hip-fire relative to what's actually on screen.
   const fovScale = camera.fov / baseFov;
-  const cone = Math.cos(THREE.MathUtils.degToRad(AIM_ASSIST_CONE_DEG * fovScale));
+  const cone = Math.cos(THREE.MathUtils.degToRad(coneDeg * fovScale));
 
   let best = null, bestDot = -Infinity;
   for (const pt of aimAssistPoints()) {
     _aaToTarget.set(pt.x - _aaOrigin.x, pt.y - _aaOrigin.y, pt.z - _aaOrigin.z);
     const dist = _aaToTarget.length();
-    if (dist < 0.01 || dist > AIM_ASSIST_RANGE) continue;
+    if (dist < 0.01 || dist > range) continue;
     _aaToTarget.multiplyScalar(1 / dist);
 
     const dot = _aaToTarget.dot(_aaForward);
@@ -6022,9 +6034,9 @@ function findAimAssistTarget() {
    player's own stick/thumb turn when it's already close — the "sticky" half
    GTA5 pairs with the pull. Both effects fall off with angle so the assist
    never overrides a deliberate flick past the target. */
-function applyAimAssist(dt, strength = 1) {
+function applyAimAssist(dt, strength = 1, coneDeg = AIM_ASSIST_CONE_DEG, range = AIM_ASSIST_RANGE) {
   if (!settings.aimAssist) return;
-  const target = findAimAssistTarget();
+  const target = findAimAssistTarget(coneDeg, range);
   if (!target) return;
 
   camera.getWorldPosition(_aaOrigin);
@@ -6094,7 +6106,7 @@ function pollGamepad(dt) {
   // look that the controller itself is actively driving, so it's gated on
   // real right-stick deflection this frame, not on pad presence.
   const usingGamepadLook = lookX !== 0 || lookY !== 0;
-  if (usingGamepadLook && player.alive && !isStaging()) applyAimAssist(dt);
+  if (usingGamepadLook && player.alive && !isStaging() && !dragonfireView()) applyAimAssist(dt);
 
   const btn = (i) => !!gp.buttons[i]?.pressed;
   const pressedEdge = (i) => btn(i) && !gpPrev[i];
@@ -11600,7 +11612,7 @@ function updatePlayer(dt) {
   // trackpad while it's being moved. aimAssistSticky is left set from the
   // pad's pass this frame, so only clear it when nothing is steering.
   const mouseSteering = controls.isLocked && performance.now() - mouseLookAt < MOUSE_ACTIVE_MS;
-  const canAssist = player.alive && !isStaging();
+  const canAssist = player.alive && !isStaging() && !dragonfireView();
   if (canAssist && touchState.looking) applyAimAssist(dt);
   if (canAssist && mouseSteering) applyAimAssist(dt, AIM_ASSIST_MOUSE_PULL);
 
@@ -11741,9 +11753,17 @@ function updatePlayer(dt) {
     placeDeathCamera();
   } else if (dragonfireView()) {
     // Flying the Dragonfire through its nose camera; your body stays put.
+    // Its own airframe is hidden from its own camera: the gun and the
+    // rotor arms used to hang across the view (user: fix the camera).
     localRig.root.visible = true;
+    dragonfire.root.visible = false;
     dragonfire.cameraPose(camera.position, camera.quaternion);
-    if (!localPauseOnly && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown)) fireDragonfire();
+    // Aim assist (user): a pull onto whoever is near the reticle, out to the
+    // gun's range, while you shoot or aim. Just flying, it leaves the drone
+    // alone: a constant pull steered it into walls.
+    const dfFiring = (isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown;
+    if (!localPauseOnly && (dfFiring || mouseSteering || touchState.looking || gp)) applyAimAssist(dt, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, DF_RANGE);
+    if (!localPauseOnly && dfFiring) fireDragonfire();
   } else if (warshipView()) {
     // Up in the VTOL's gunner seat; your body stands where you called it.
     localRig.root.visible = true;
@@ -13731,7 +13751,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     renderer, scene, colliders,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
-    settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, emote: () => emote,
+    settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },

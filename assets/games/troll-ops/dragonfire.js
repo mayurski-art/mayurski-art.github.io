@@ -34,6 +34,7 @@ export const DF_SPREAD = 0.012;
 export const DF_CEILING = 34;          // metres above the ground it can climb
 export const DF_RADIUS = 0.55;         // how close it lets itself get to a wall
 export const DF_LAUNCH = 1.1;          // seconds climbing out of the operator's hands
+export const DF_LEVEL_BAND = 0.2;      // radians either side of level that fly level (look-to-climb deadzone)
 
 /* ---------------------------------------------------------------- textures */
 
@@ -540,7 +541,7 @@ export class Dragonfire {
 
   muzzleWorld(out = new THREE.Vector3()) { return this.model.muzzle.getWorldPosition(out); }
 
-  /* Owner: fly from input. `input` { fwd, strafe, up (-1..1), yaw, pitch }. */
+  /* Owner: fly from input. `input` { fwd, strafe, up (-1..1), yaw, pitch, followPitch }. */
   fly(dt, input, collide, groundAt) {
     this.yaw = input.yaw;
     this.pitch = Math.max(-1.3, Math.min(0.9, input.pitch));
@@ -548,10 +549,18 @@ export class Dragonfire {
       // Up out of the hands and a little forward before the pilot has it.
       this.vel.set(-Math.sin(this.yaw) * 1.2, 3.2, -Math.cos(this.yaw) * 1.2);
     } else {
+      // Forward flies where the camera points: look down and push on to
+      // dive, look up to climb (user: couldn't get it up or down), on top of
+      // the climb / dive buttons.
       const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
-      const tx = (-s * input.fwd + c * input.strafe) * DF_SPEED;
-      const tz = (-c * input.fwd - s * input.strafe) * DF_SPEED;
-      const ty = input.up * DF_CLIMB;
+      // (followPitch: the pilot only; bots aim with pitch and fly by altitude.)
+      // Within DF_LEVEL_BAND of level it flies level, so the slight downward
+      // look you board with, or aiming a little low, doesn't sink it.
+      const pe = input.followPitch ? Math.sign(this.pitch) * Math.max(0, Math.abs(this.pitch) - DF_LEVEL_BAND) : 0;
+      const cp = Math.cos(pe), sp = Math.sin(pe);
+      const tx = (-s * input.fwd * cp + c * input.strafe) * DF_SPEED;
+      const tz = (-c * input.fwd * cp - s * input.strafe) * DF_SPEED;
+      const ty = Math.max(-1, Math.min(1, input.up + input.fwd * sp * 1.6)) * DF_CLIMB;
       const k = Math.min(1, dt * DF_ACCEL);
       this.vel.x += (tx - this.vel.x) * k;
       this.vel.z += (tz - this.vel.z) * k;

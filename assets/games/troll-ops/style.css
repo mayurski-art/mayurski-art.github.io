@@ -2947,6 +2947,8 @@ body.to-in-dragonfire #to-hud-gear, body.to-in-dragonfire #to-spawnguard, body.t
 .to-df-hp div { width: 180px; height: 5px; background: rgba(223,246,255,.2); }
 .to-df-hp i { display: block; height: 100%; background: #dff6ff; transition: width .15s; }
 .to-df-alt { position: absolute; right: 14%; top: 50%; transform: translateY(-50%); font-size: 13px; text-shadow: 0 1px 3px #000; }
+.to-df-keys { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); font-size: 12px; letter-spacing: 0.12em;
+  white-space: nowrap; opacity: 0.85; text-shadow: 0 1px 3px #000; }
 .to-df.is-low .to-df-time, .to-df.is-low .to-df-hp i { color: #ff5a3a; background-color: #ff5a3a; }
 @media (max-width: 760px) {
   .to-df-top { bottom: 180px; font-size: 13px; }
