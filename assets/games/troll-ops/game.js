@@ -1174,7 +1174,7 @@ function streakIconTexture(id) {
 /* How long a package takes to capture: its owner grabs it quickly, a
    teammate a little slower, and an enemy has to stand there and steal it. */
 function packageCaptureTime(pkg) {
-  if (pkg.owned) return 0.8;
+  if (pkg.owned && !pkg.botId) return 0.8;   // a bot's crate we host is still the bot's
   if (!currentMode().ffa && net.team && pkg.ownerTeam === net.team) return 1.6;
   return 3.5;
 }
@@ -1948,7 +1948,7 @@ function warshipImpact(ws, r) {
   if (ws.owned) {
     areaDamage(r.to, g.radius, g.damage,
       { id: "warship", radius: g.radius, minDamage: g.damage * 0.25, selfMult: 0 },
-      { creditAs: "warship" });
+      { creditAs: "warship", botId: ws.botId || null });
   }
 }
 
@@ -2179,14 +2179,17 @@ function updateStreakEntities(dt) {
       if (e.update(dt) === "rest" && e.owned) {
         // Settled: call the drop right here, for everyone.
         const p = e.pos;
-        spawnCarePackage({ id, x: p.x, z: p.z, groundY: e.floor, reward: e.reward, owned: true, ownerTeam: net.team });
+        // One of our bots' (botId): its side owns the crate, and it comes for it.
+        const team = e.botId ? e.botTeam : net.team;
+        const pkg = spawnCarePackage({ id, x: p.x, z: p.z, groundY: e.floor, reward: e.reward, owned: true, ownerTeam: team });
+        if (e.botId) pkg.botId = e.botId;
         if (net.active) {
           net.publishStreak({
             kind: "carepackage", action: "drop",
-            eid: id, x: round2(p.x), z: round2(p.z), y: round2(e.floor), reward: e.reward, team: net.team,
+            eid: id, x: round2(p.x), z: round2(p.z), y: round2(e.floor), reward: e.reward, team,
           });
         }
-        showWaveBanner("CARE PACKAGE INBOUND", 1800);
+        if (!e.botId) showWaveBanner("CARE PACKAGE INBOUND", 1800);
       } else if (!e.owned && e.age > 12) { e.dispose(); streakEntities.delete(id); }
       continue;
     }
@@ -2263,6 +2266,7 @@ function updateStreakEntities(dt) {
     }
 
     if (e instanceof VtolWarship) {
+      if (e.owned && e.botId) botWarshipGunner(e, dt);
       const landed = [];
       const out = e.update(dt, landed);
       for (const r of landed) warshipImpact(e, r);
@@ -2330,6 +2334,18 @@ function updateStreakEntities(dt) {
 /* A crate landing on someone. Only the caller's copy runs this. */
 function crushUnderPackage(pkg) {
   const at = new THREE.Vector3(pkg.x, pkg.groundY, pkg.z);
+  if (pkg.botId) {
+    // A bot's crate: the bot's kill, and it spares the bot's own side.
+    const bot = bots.byId(pkg.botId);
+    if (!bot) return;
+    const ffa = !!currentMode().ffa;
+    const under = (p) => Math.hypot(p.x - pkg.x, p.z - pkg.z) <= PKG_CRUSH_RADIUS && Math.abs(p.y - pkg.groundY) <= 2.5;
+    for (const rp of remotes.byId.values()) {
+      if (rp.alive && rp.netId !== bot.id && (ffa || rp.team !== bot.team) && under(rp.pos)) botDealDamage(bot, rp.netId, 400, false, "carepackage");
+    }
+    if (player.alive && (ffa || net.team !== bot.team) && under(move.pos)) botDealDamage(bot, net.id, 400, false, "carepackage");
+    return;
+  }
   for (const rp of remotes.byId.values()) {
     if (!rp.alive) continue;
     if (Math.hypot(rp.pos.x - pkg.x, rp.pos.z - pkg.z) > PKG_CRUSH_RADIUS) continue;
@@ -2351,7 +2367,7 @@ function strikeImpact(s, at) {
     areaDamage(at, AIRSTRIKE_RADIUS * 0.6,
       AIRSTRIKE_DAMAGE / AIRSTRIKE_BOMBS * 2,
       { id: "airstrike", radius: AIRSTRIKE_RADIUS * 0.6, minDamage: 20, selfMult: 1 },
-      { creditAs: "airstrike" });
+      { creditAs: "airstrike", botId: s.botId || null });
   }
 }
 
@@ -2552,11 +2568,14 @@ function streakOwnerHates(team, botId) {
 // Once one is ready it waits for a quiet beat (nobody in sight a moment)
 // and calls it. The bot host runs the streak as its owner; everyone else
 // sees it through the streak messages players' streaks already send.
-// Phase 1 has the seven that run themselves; the Care Package, Lightning
-// Strike and VTOL Warship need bot brains of their own (phases 2 and 3).
-const BOT_STREAK_POOL = ["uav", "counteruav", "vsat", "drone", "k9", "helicopter", "swarm", "samturret", "dragonfire"];
+// Phase 1 had the ones that run themselves; phase 2 added the Care Package
+// (throw the marker, run to the crate, capture it) and the Lightning Strike
+// (three marks where the team last saw the most enemies), phase 3 the VTOL
+// Warship (the bot stands still and works the guns, botWarshipGunner).
+const BOT_STREAK_POOL = ["uav", "counteruav", "vsat", "carepackage", "drone", "airstrike", "k9", "helicopter", "swarm", "samturret", "dragonfire", "warship"];
 const BOT_RADAR = new Set(["uav", "counteruav", "vsat"]);   // no sides to share in FFA
 const BOT_AIR = new Set(["drone", "helicopter", "swarm", "warship", "dragonfire"]);
+let botWarshipMatch = -1;   // one bot warship a match (design call), whoever's side
 const BOT_AIR_CAP = 2;      // bot air streaks up at once, per team
 /* Veteran bots (user): twice the scorestreaks of a regular bot, friend and
    foe alike: their kills pay double into the streak meter, and twice as
@@ -2597,7 +2616,7 @@ function botEarn(b, pts) {
 function botAirUp(team) {
   let n = 0;
   for (const e of streakEntities.values()) {
-    if (e.botId && e.botTeam === team && !e.sky && (e instanceof HunterDrone || e instanceof HelicopterGunship || e instanceof Dragonfire)) n++;
+    if (e.botId && e.botTeam === team && !e.sky && (e instanceof HunterDrone || e instanceof HelicopterGunship || e instanceof Dragonfire || e instanceof VtolWarship)) n++;
   }
   for (const s of swarmRuns) if (s.botId && s.team === team) n++;
   return n;
@@ -2607,17 +2626,23 @@ function botAirUp(team) {
 function updateBotStreaks(dt) {
   if (!botStreaksOn() || isStaging() || !net.isBotHost()) return;
   const now = performance.now();
+  noteBotSightings(dt);
   for (const b of bots.bots) {
     const s = botStreakState(b);
-    if (s.wasAlive && !b.alive) { s.pts = 0; s.earned.clear(); }
+    if (s.wasAlive && !b.alive) { s.pts = 0; s.earned.clear(); b.crate = null; }
     s.wasAlive = b.alive;
-    if (!b.alive || !s.ready.length || b.airborne) continue;
+    if (b.alive && b.crate) updateBotCrate(b, dt);
+    if (!b.alive || !s.ready.length || b.airborne || botBusy(b)) continue;
     const quiet = !b.lastSeen || b.lastSeen.age > BOT_QUIET;
     if (!quiet || b.reloadT > 0) continue;
     // Bots keep a Dragonfire banked until they're out under open sky, same
-    // as a player.
+    // as a player; a Lightning Strike until their side has seen someone to
+    // drop it on; a Warship if one bot already had this match's.
     const i = s.ready.findIndex((id) => (s.lock[id] || 0) <= now && (!BOT_AIR.has(id) || botAirUp(b.team) < BOT_AIR_CAP * botStreakMult(b))
-      && (id !== "dragonfire" || !dragonfireSkyCheck(b.pos)));
+      && (id !== "dragonfire" || !dragonfireSkyCheck(b.pos))
+      && (id !== "airstrike" || botStrikeSpots(b).length > 0)
+      && (id !== "warship" || botWarshipMatch !== matchesPlayed)
+      && (id !== "carepackage" || !b.crate));
     if (i < 0) continue;
     const id = s.ready.splice(i, 1)[0];
     if (STREAK_DEFS[id].cooldown) s.lock[id] = now + STREAK_DEFS[id].cooldown * 1000;
@@ -2634,7 +2659,7 @@ function botFireStreak(b, id) {
   const def = STREAK_DEFS[id];
   const tag = `${b.id}-${Math.round(performance.now())}`;
   const callout = (label) => {
-    const m = { kind: "callout", label, who: b.name };
+    const m = { kind: "callout", label, who: b.name, team: currentMode().ffa ? null : b.team };
     if (net.active) net.publishStreak(m);
     applyRemoteStreak(m);
   };
@@ -2720,7 +2745,197 @@ function botFireStreak(b, id) {
       callout("DRAGONFIRE");
       break;
     }
+    case "carepackage": {
+      // Lob the marker a few metres ahead, like a player's throw; the drop is
+      // called where it settles (updateStreakEntities), and the bot goes to
+      // fetch it (botObjective, updateBotCrate).
+      const eid = `pkg-${b.id}-${Math.round(performance.now())}`;
+      const origin = new THREE.Vector3(b.pos.x, b.pos.y + 1.5, b.pos.z);
+      const dir = new THREE.Vector3(-Math.sin(b.yaw), 0.35, -Math.cos(b.yaw)).normalize();
+      origin.addScaledVector(dir, Math.max(0, Math.min(0.5, raycastWorld(colliders, origin, dir, 0.85) - 0.25)));
+      const marker = new MarkerCanister({ id: eid, origin, dir, world: droneWorld, owned: true });
+      marker.reward = rollPackageReward();
+      marker.botId = b.id;
+      marker.botTeam = b.team;
+      streakEntities.set(eid, marker);
+      scene.add(marker.root);
+      if (net.active) {
+        net.publishStreak({ kind: "carepackage", action: "marker", eid,
+          ox: round2(origin.x), oy: round2(origin.y), oz: round2(origin.z), dx: round2(dir.x), dy: round2(dir.y), dz: round2(dir.z) });
+      }
+      b.crate = { eid, holdT: 0 };
+      callout("CARE PACKAGE");
+      break;
+    }
+    case "airstrike": {
+      const spots = botStrikeSpots(b);
+      if (!spots.length) break;
+      // The jets come in from the caller's side of the marks.
+      const cx = spots.reduce((a, p) => a + p.x, 0) / spots.length, cz = spots.reduce((a, p) => a + p.z, 0) / spots.length;
+      const yaw = Math.atan2(-(cx - b.pos.x), -(cz - b.pos.z));
+      const runs = spots.map((p, i) => ({ x: round2(p.x), z: round2(p.z), delay: round2(strikeDelay(i)) }));
+      for (const r of runs) {
+        const run = spawnAirstrike({ ...r, yaw, owned: true, team: b.team });
+        run.botId = b.id;
+      }
+      if (net.active) net.publishStreak({ kind: "airstrike", action: "mark", runs, yaw: round2(yaw), team: b.team });
+      callout("LIGHTNING STRIKE");
+      break;
+    }
+    case "warship": {
+      // The bot stands where it called it (botBusy) and works the guns
+      // (botWarshipGunner) until it leaves or the bot dies.
+      const eid = `streak-vtol-${tag}`;
+      const seed = Math.floor(Math.random() * 360);
+      const ws = spawnWarship({ id: eid, seed, owned: true, team: b.team });
+      ws.botId = b.id; ws.botTeam = b.team;
+      b.gunning = eid;
+      botWarshipMatch = matchesPlayed;
+      if (net.active) net.publishStreak({ kind: "warship", action: "spawn", eid, seed, team: b.team });
+      callout("VTOL WARSHIP");
+      break;
+    }
   }
+}
+
+/* Where a bot's side has been seeing enemies: every sighting a bot makes
+   (bots.js lastSeen) is kept a while, per side, for its Lightning Strike. */
+const BOT_INTEL_KEEP = 25;      // seconds a sighting stays useful
+const botIntel = new Map();     // side -> [{ x, z, t }]
+let botIntelT = 0;
+function botSide(b) { return currentMode().ffa ? b.id : b.team; }
+function noteBotSightings(dt) {
+  if ((botIntelT -= dt) > 0) return;
+  botIntelT = 0.5;
+  const now = performance.now() / 1000;
+  for (const b of bots.bots) {
+    if (!b.alive || !b.lastSeen || b.lastSeen.age > 1) continue;
+    const side = botSide(b);
+    const list = botIntel.get(side) || [];
+    list.push({ x: b.lastSeen.x, z: b.lastSeen.z, t: now });
+    while (list.length > 60 || (list.length && now - list[0].t > BOT_INTEL_KEEP)) list.shift();
+    botIntel.set(side, list);
+  }
+}
+
+/* Up to three strike marks for a bot: the densest clusters of its side's
+   recent sightings (newer counts more), at least 9 m apart, none on top of a
+   friend. Empty when the side has seen nobody lately. */
+function botStrikeSpots(b) {
+  const now = performance.now() / 1000;
+  const pts = (botIntel.get(botSide(b)) || []).filter((p) => now - p.t <= BOT_INTEL_KEEP);
+  if (!pts.length) return [];
+  const ffa = !!currentMode().ffa;
+  const friends = [];
+  if (!ffa) {
+    for (const o of bots.bots) if (o.alive && o.team === b.team) friends.push(o.pos);
+    if (player.alive && net.team === b.team) friends.push(move.pos);
+  } else friends.push(b.pos);
+  const spots = [];
+  const left = pts.slice();
+  while (spots.length < 3 && left.length) {
+    let best = null, bestW = 0;
+    for (const p of left) {
+      let w = 0;
+      for (const q of left) {
+        if (Math.hypot(p.x - q.x, p.z - q.z) < 7) w += 1 - (now - q.t) / BOT_INTEL_KEEP * 0.7;
+      }
+      if (w > bestW) { bestW = w; best = p; }
+    }
+    if (!best) break;
+    for (let i = left.length - 1; i >= 0; i--) if (Math.hypot(left[i].x - best.x, left[i].z - best.z) < 9) left.splice(i, 1);
+    if (!friends.some((f) => Math.hypot(f.x - best.x, f.z - best.z) < AIRSTRIKE_RADIUS + 2)) spots.push({ x: best.x, z: best.z });
+  }
+  return spots;
+}
+
+/* A bot fetching its care package: the objective walks it over, standing
+   on it runs the owner's capture clock, and the reward goes in its slots
+   (a streak bots can't call becomes one they can). */
+function updateBotCrate(b, dt) {
+  const e = streakEntities.get(b.crate.eid);
+  if (!e || (e instanceof CarePackage && e.claimed)) { b.crate = null; return; }
+  if (!(e instanceof CarePackage) || !e.landed) return;   // still the marker, or the heli's inbound
+  if (!e.withinClaim(b.pos.x, b.pos.z)) { b.crate.holdT = 0; return; }
+  b.crate.holdT += dt;
+  if (b.crate.holdT < 0.8) return;
+  const [kind, arg] = String(e.reward).split(":");
+  if (kind === "streak") {
+    const callable = BOT_STREAK_POOL.filter((id) => id !== "carepackage" && !(currentMode().ffa && BOT_RADAR.has(id)));
+    const id = callable.includes(arg) ? arg : callable[Math.floor(Math.random() * callable.length)];
+    botStreakState(b).ready.push(id);
+  }
+  if (net.active) net.publishStreak({ kind: "carepackage", action: "claimed", eid: e.id });
+  e.open();
+  spawnImpactBurst(new THREE.Vector3(e.x, e.groundY + 0.8, e.z), 0x9dff7a, 16);
+  b.crate = null;
+}
+
+/* A bot's VTOL Warship, on the bot host: from the gun deck, pick the
+   nearest enemy in the clear, rake them with the 25MM in bursts, and drop a
+   105MM shell when two or more are bunched up. Aim error scales with the
+   bot's skill. The bot dying sends the ship home, as it does for a player. */
+const _bwsFrom = new THREE.Vector3(), _bwsDir = new THREE.Vector3(), _bwsAim = new THREE.Vector3();
+function botWarshipGunner(ws, dt) {
+  const bot = bots.byId(ws.botId);
+  if (!bot || !bot.alive) {
+    if (ws.age < ws.duration) {
+      ws.duration = Math.max(WARSHIP_BOARD_AT, ws.age);
+      if (net.active) net.publishStreak({ kind: "warship", action: "leave", eid: ws.id });
+    }
+    if (bot && bot.gunning === ws.id) bot.gunning = null;
+    return;
+  }
+  if (!ws.onStation) return;
+  ws.gunnerPos(_bwsFrom);
+  ws.aiT = (ws.aiT || 0) - dt;
+  if (ws.aiT <= 0) {
+    ws.aiT = 0.6;
+    ws.aiTarget = null;
+    const ffa = !!currentMode().ffa;
+    let bestD = Infinity;
+    const consider = (id, pos) => {
+      _bwsAim.set(pos.x, pos.y + 0.9, pos.z);
+      const d = _bwsFrom.distanceTo(_bwsAim);
+      if (d >= bestD) return;
+      _bwsDir.copy(_bwsAim).sub(_bwsFrom).divideScalar(d);
+      if (raycastWorld(colliders, _bwsFrom, _bwsDir, d) < d - 0.6) return;   // under a roof
+      bestD = d;
+      ws.aiTarget = { id, pos };
+    };
+    for (const rp of remotes.byId.values()) {
+      if (!rp.alive || rp.netId === bot.id || (!ffa && rp.team === bot.team)) continue;
+      consider(rp.netId, rp.pos);
+    }
+    if (player.alive && (ffa || net.team !== bot.team)) consider(net.id, move.pos);
+  }
+  const tgt = ws.aiTarget;
+  if (!tgt) return;
+  // Bursts: ~1.2 s on the trigger, ~0.7 s off, like a person walking it on.
+  ws.burstT = (ws.burstT ?? 1.2) - dt;
+  if (ws.burstT < -0.7) ws.burstT = 1.2;
+  // Anyone else on the bot's hit list within 6 m of the target.
+  const ffa = !!currentMode().ffa;
+  let bunched = 0;
+  for (const rp of remotes.byId.values()) {
+    if (!rp.alive || rp.netId === tgt.id || rp.netId === bot.id || (!ffa && rp.team === bot.team)) continue;
+    if (Math.hypot(rp.pos.x - tgt.pos.x, rp.pos.z - tgt.pos.z) < 6) bunched++;
+  }
+  if (tgt.id !== net.id && player.alive && (ffa || net.team !== bot.team) && Math.hypot(move.pos.x - tgt.pos.x, move.pos.z - tgt.pos.z) < 6) bunched++;
+  const gun = bunched >= 1 && (ws.cannonT = (ws.cannonT || 0) - dt) <= 0 ? "cannon" : "chain";
+  if (gun === "chain" && ws.burstT < 0) return;
+  if (!ws.tryFire(gun)) return;
+  if (gun === "cannon") ws.cannonT = 4;
+  const err = (bot.skill === "veteran" ? 0.6 : bot.skill === "recruit" ? 2.2 : 1.3) * (gun === "cannon" ? 1.5 : 1);
+  _bwsAim.set(tgt.pos.x + (Math.random() - 0.5) * err, tgt.pos.y + 0.6, tgt.pos.z + (Math.random() - 0.5) * err);
+  _bwsDir.copy(_bwsAim).sub(_bwsFrom).normalize();
+  let d = raycastWorld(colliders, _bwsFrom, _bwsDir, 480);
+  if (_bwsDir.y < -1e-3) d = Math.min(d, (0 - _bwsFrom.y) / _bwsDir.y);
+  const to = _bwsFrom.clone().addScaledVector(_bwsDir, d);
+  ws.shoot(gun, to);
+  if (net.active) net.publishStreak({ kind: "warship", action: "shot", eid: ws.id, g: gun, x: round2(to.x), y: round2(to.y), z: round2(to.z) });
+  if (gun === "cannon") audio.explosion(0.2, ws.root.position);
+  else if (Math.random() < 0.3) audio.shot(WEAPON_DEFS.bellow || WEAPON_DEFS.problem416, 0.3, ws.root.position);
 }
 
 /* A bot's Dragonfire, on the bot host: pick the nearest enemy it can get
@@ -2977,7 +3192,13 @@ function applyRemoteStreak(m) {
 
     case "callout":
       // Match-wide hype: the nuclear-tier badge and the big streaks arriving.
-      // Purely cosmetic, never gameplay.
+      // Purely cosmetic, never gameplay. A bot on our own side (its call
+      // carries `team`) gets a quiet line, not the big red banner: with a
+      // dozen bots calling things it was all you saw.
+      if (m.team && !currentMode().ffa && m.team === net.team) {
+        showWaveBanner(`${m.who || "Ally"}: ${m.label}`, 1100);
+        break;
+      }
       killstreakUi.banner({ title: `${m.who || "Someone"}: ${m.label}`, sub: m.label === "NUCLEAR" ? "Went nuclear" : "Scorestreak inbound", label: m.label === "NUCLEAR" ? "Nuclear" : "Streak", tone: "red" });
       killstreakUi.pulse();
       break;
@@ -7212,7 +7433,7 @@ function updatePickupPrompt(dt) {
   if (els.pickupPrompt) {
     if ((pkg || drop) && player.alive) {
       // No key hint in the prompt (user, 2026-09-28): just the action.
-      const steal = pkg && !pkg.owned && (currentMode().ffa || !net.team || pkg.ownerTeam !== net.team);
+      const steal = pkg && (!pkg.owned || pkg.botId) && (currentMode().ffa || !net.team || pkg.ownerTeam !== net.team);
       const label = pkg
         ? (pkgHoldT > 0 ? (steal ? "Stealing the care package…" : "Capturing…") : `${steal ? "Steal" : "Capture"} the care package`)
         : (swapHold.active ? `Picking up ${drop.name || drop.def.name}…` : `Pick up ${drop.name || drop.def.name}`);
@@ -9631,6 +9852,11 @@ function pickCarrier() {
 function botObjective(bot) {
   // Troll Royale: the zone first, then loot, then the sound of a fight.
   if (royale) return royaleBotObjective(bot);
+  // Its own care package, once it's down: go and get it.
+  if (bot.crate) {
+    const pkg = streakEntities.get(bot.crate.eid);
+    if (pkg instanceof CarePackage && !pkg.claimed) return { id: `pkg-${pkg.id}`, x: pkg.x, z: pkg.z, radius: 0.6 };
+  }
   if (hill) {
     const p = hill.position;
     return { id: `hill-${hill.index}`, x: p.x, z: p.z, radius: hill.radius * 0.6 };
@@ -9657,6 +9883,12 @@ function botBusy(bot) {
   if (bot.piloting) {
     if (streakEntities.get(bot.piloting)?.alive) return true;
     bot.piloting = null;
+  }
+  // On a Warship's guns: the same, until the ship leaves.
+  if (bot.gunning) {
+    const ws = streakEntities.get(bot.gunning);
+    if (ws instanceof VtolWarship && ws.age < ws.duration) return true;
+    bot.gunning = null;
   }
   return !!sndBotAction && sndBotAction.botId === bot.id;
 }

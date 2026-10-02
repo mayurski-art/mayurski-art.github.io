@@ -2,15 +2,8 @@
 
 ## RESUME HERE (2026-10-01, session 22): the queue, in the user's order
 1. ~~Hollowgrin expansion~~: SHIPPED this session (below).
-2. **Bot scorestreaks phases 2 + 3** (design doc link in the session 19
-   section below). Already done since: bots shoot aircraft with their guns,
-   bots call Dragonfire + SAM Turret. Still to do: bots use Care Package
-   (mark, run to the crate, capture, use), Lightning Strike (3 spots where
-   their team last saw the most enemies) and the VTOL Warship's AI gunner.
-   Add each to `BOT_STREAK_POOL` (game.js) as it lands. Polish: bot callout
-   banners get busy with 12 bots (only enemy calls, or a softer friendly
-   banner); bots ignore an enemy UAV beyond the minimap.
-3. **Map detail pass** (design doc link in the session 19 section): six
+2. ~~Bot scorestreaks phases 2 + 3~~: SHIPPED this session (below).
+3. **Map detail pass** <- NEXT (design doc link in the session 19 section): six
    phases, atmosphere on all maps first (Dust Bowl turns SUNSET).
 4. **The user's fix list (2026-10-01): do this INSTEAD of the old "smaller
    TODOs" and "backlog" items, after task 3.** The user's words, tidied:
@@ -27,6 +20,33 @@
 Note: the user asked to "compact the session after each task until task 3
 is done". Claude can't run /compact itself; the session compacts on its own
 and this file carries everything across.
+
+## Bot scorestreaks phases 2 + 3 SHIPPED (2026-10-01, session 22) — `game.js?v=to-bs2`
+Every streak is now in `BOT_STREAK_POOL` (game.js), so any bot can roll
+any of them:
+- **Care Package**: the bot lobs the marker ahead (same MarkerCanister as a
+  player); on the bot host the crate is `owned` but carries `botId`, and
+  its side is the bot's. `botObjective` walks the bot to its crate,
+  `updateBotCrate` runs the owner's 0.8 s capture, and the reward streak
+  goes into the bot's ready list (one bots can't call becomes a random one
+  they can). A crate crushing someone is the bot's kill and spares its side.
+  The host player now steals an enemy bot's crate on the steal clock (3.5 s)
+  and sees "Steal", not their own 0.8 s (`packageCaptureTime`).
+- **Lightning Strike**: `noteBotSightings` keeps each side's sightings
+  (bots' `lastSeen`) for 25 s; `botStrikeSpots` picks up to 3 densest
+  clusters, 9 m apart, none on a friend. A bot holds the strike until its
+  side has seen someone. Damage goes through `areaDamage(..., { botId })`, so
+  kills read "<bot> Lightning Strike -> victim".
+- **VTOL Warship**: the bot stands still (`bot.gunning`, `botBusy`) and
+  `botWarshipGunner` works the guns: nearest enemy in the clear from the gun
+  deck, 25MM in ~1.2 s bursts, a 105MM shell when two are bunched (4 s
+  apart), aim error by skill. The bot dying sends the ship home. One bot
+  warship a match (`botWarshipMatch`), and it counts toward the air cap.
+- **Callouts**: a friendly bot's call is a quiet one-line banner now; an
+  enemy's keeps the big red one (the callout message carries `team`).
+- Test: `tools/troll-ops-bot-streaks2-test.mjs` (9 checks, all pass); the
+  phase 1 test and the streak-control test still pass.
+- Not done: bots don't react to an enemy UAV beyond the minimap.
 
 ## Hollowgrin expansion SHIPPED (2026-10-01, session 22) — `game.js?v=to-hg2`, `maps.js?v=hg2`, `hollowgrin.js?v=hg2`, `loadout.js?v=hg2`
 The map is twice the area (72 x 64 -> 102 x 90 m, `BOUNDS` -51..51 x
