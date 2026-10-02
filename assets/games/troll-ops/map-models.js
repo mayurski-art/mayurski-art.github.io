@@ -50,6 +50,17 @@ export const RETEXTURE = {
   GS_Driftwood: ["wood", 0.9],
   GS_Sandstone: ["rock", 0.35],
   GS_Deck: ["wood", 0.8],
+  // Hollowgrin (hg-*): granite tombs, a red barn, the candy shop. A third
+  // value is how far the paint is lifted toward white (default 0.55): the
+  // barn red and the shop purple stay strong at 0.2-0.3. Painted boards use
+  // the plaster photo: under paint the dark wood one read black at night.
+  HG_Granite: ["rock", 0.8, 0.5],
+  HG_GraniteDark: ["rock", 0.8, 0.35],
+  HG_BarnRed: ["plaster", 0.9, 0.22],
+  HG_BarnWood: ["wood", 0.9, 0.35],
+  HG_Clapboard: ["plaster", 1.0, 0.3],
+  HG_Brick: ["brick", 1.1, 0.45],
+  HG_Floorboards: ["wood", 0.9, 0.3],
 };
 
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.

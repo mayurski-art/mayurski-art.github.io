@@ -9,18 +9,18 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeGroundMaterial } from "./shaders.js";
-import { PENTAGRIN } from "./pentagrin.js?v=rl1";
-import { HOLLOWGRIN } from "./hollowgrin.js?v=rl1";
-import { GRINLERIA } from "./grinleria.js?v=rl1";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=rl1";
-import { SURFACES } from "./surface-textures.js";
+import { PENTAGRIN } from "./pentagrin.js?v=hg6a";
+import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6a";
+import { GRINLERIA } from "./grinleria.js?v=hg6a";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6a";
+import { SURFACES } from "./surface-textures.js?v=hg6a";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
-} from "./house-props.js?v=rl1";
-import { gsModel, mapModel } from "./map-models.js?v=rl1";
-import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=rl1";
+} from "./house-props.js?v=hg6a";
+import { gsModel, mapModel } from "./map-models.js?v=hg6a";
+import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6a";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,

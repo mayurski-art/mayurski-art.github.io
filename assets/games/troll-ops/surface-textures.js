@@ -60,10 +60,10 @@ export const SURFACES = {
    bake in favor of the flat runtime aoMap tiling, since the two textures
    answer different questions (bake = this exact mesh's real occlusion,
    aoMap = generic tiled photo texture) and read fine layered together. */
-function buildSurfaceMaterial(surface, color, repeat = 1, bakedLightMap = null) {
+function buildSurfaceMaterial(surface, color, repeat = 1, bakedLightMap = null, mix = 0.55) {
   const s = SURFACES[surface];
   if (!s) return null;
-  const tint = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.55);
+  const tint = new THREE.Color(color).lerp(new THREE.Color(0xffffff), mix);
   const opts = {
     color: tint.getHex(),
     map: s.color.clone(),
@@ -130,9 +130,9 @@ export function retexture(obj, mapping) {
     if (!n.isMesh || !n.material) return;
     const rule = mapping[n.material.name];
     if (!rule) return;
-    const [surface, repeat] = rule;
+    const [surface, repeat, mix] = rule;
     const color = n.material.color ? n.material.color.getHex() : 0xffffff;
-    const textured = buildSurfaceMaterial(surface, color, repeat, n.material.lightMap || null);
+    const textured = buildSurfaceMaterial(surface, color, repeat, n.material.lightMap || null, mix);
     if (textured) n.material = textured;
   });
 }

@@ -105,6 +105,12 @@ const RUNS = {
   [-46, 0, 35, 1, 0, 6, "over the covered bridge", (r) => r.end[0] > -33 && r.maxY >= 0.5],
   [0, 0, 36, 0, 1, 3, "into the Troll House", (r) => r.end[2] > 40.5],
   [38.5, 0, -4, 1, 0, 2.5, "onto the carousel", (r) => r.maxY >= 0.28],
+  // phase 6a: the barn's loft (stair up its east edge, rail gap at the top),
+  // the lowered west door, the mausoleum's door
+  [25.3, 0, 27.7, -1, 0, 4, "barn: up the loft stair onto the loft", (r) => r.end[0] < 19.6 && r.end[1] > 2.3],
+  [19.0, 2.4, 22.5, 1, 0, 2, "barn: the loft rail holds", (r) => r.end[0] < 20.4 && r.end[1] > 2.3],
+  [14, 0, 24.5, 1, 0, 3, "barn: in through the west door", (r) => r.end[0] > 18.5],
+  [-21, 0, 11, -1, 0, 3, "into the mausoleum", (r) => r.end[0] < -26.5],
   ],
   // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
   // cave (-9.1, -32.6), portal (120.8, -100.6), bridge z 77.8 from x -56.3 to

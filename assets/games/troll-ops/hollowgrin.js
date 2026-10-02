@@ -34,12 +34,19 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { SURFACES } from "./surface-textures.js";
-import { portrait } from "./house-props.js?v=rl1";
-import { mapModel } from "./map-models.js?v=rl1";
+import { SURFACES, retexture } from "./surface-textures.js?v=hg6a";
+import { portrait } from "./house-props.js?v=hg6a";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6a";
+import { loadModel } from "./battlefield-props.js";
 
-export const HG_FLOORS = { ground: 0, upper: 3.6 };
-export function hgFloorOf(y) { return y >= 2.2 ? "upper" : "ground"; }
+export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4 };
+// The barn's loft (x 17.35..20.4 over the west end) is its own floor: by
+// height alone a zombie would take it for the manor's upstairs.
+const BARN_LOFT = { x0: 17.35, x1: 20.4, z0: 20.35, z1: 28.65, y: 2.4 };
+export function hgFloorOf(y, x, z) {
+  if (x !== undefined && y >= 1.6 && x > 17 && x < 29 && z > 20 && z < 29) return "loft";
+  return y >= 2.2 ? "upper" : "ground";
+}
 
 const BOUNDS = { minX: -51, maxX: 51, minZ: -45, maxZ: 45 };
 
@@ -68,6 +75,84 @@ const HOLE = { x0: -1.6, x1: 1.6, z0: STAIR.z - STAIR.steps * STAIR.run, z1: STA
 // Where zombies come from, filled by build() (it runs more than once: the
 // lobby's schematic builds a throwaway copy).
 const ZSPAWNS = [];
+
+/* ============================================================ the night look */
+
+/* Ground fog: the scene fog thickens near the ground, so the graveyard,
+   the patch and the low ground sit in a haze with the tops clear. One
+   shared uniform: (strength, base y, falloff metres, build-up per metre of
+   view distance), so it costs one line per fragment and no layers.
+   Colour wash (`material.userData.wash`: { color, top, strength }): a
+   coloured glow, strongest at a surface's foot and gone by `top` metres up,
+   like a flood lamp on the ground aimed up. No real lights: the map keeps
+   its few (see light-pool.js on why). */
+const GROUND_FOG = { value: new THREE.Vector4(0.5, 0.0, 1.5, 0.05) };
+
+function nightFx(mat) {
+  if (!mat || mat.userData.nightFx || mat.isShaderMaterial || mat.isPointsMaterial || mat.isSpriteMaterial) return;
+  if (mat.blending === THREE.AdditiveBlending || mat.fog === false) return;
+  mat.userData.nightFx = true;
+  const wash = mat.isMeshBasicMaterial ? null : mat.userData.wash;
+  const prev = mat.onBeforeCompile;
+  const own = mat.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey;
+  const prevKey = own ? mat.customProgramCacheKey() : prev ? prev.toString() : "";
+  const c = wash ? new THREE.Color(wash.color) : null;
+  const washKey = wash ? `${wash.color}-${wash.top}-${wash.strength}` : "";
+  const f = (v) => v.toFixed(4);
+  mat.onBeforeCompile = function (sh, r) {
+    prev?.call(this, sh, r);
+    sh.uniforms.uGroundFog = GROUND_FOG;
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying float vHgY;")
+      .replace("#include <project_vertex>", `#include <project_vertex>
+        { vec4 hgW = vec4( transformed, 1.0 );
+        #ifdef USE_INSTANCING
+          hgW = instanceMatrix * hgW;
+        #endif
+          vHgY = ( modelMatrix * hgW ).y; }`);
+    let fs = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying float vHgY;\nuniform vec4 uGroundFog;")
+      .replace("#include <fog_fragment>", `#ifdef USE_FOG
+        #ifdef FOG_EXP2
+          float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+        #else
+          float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+        #endif
+          float hgLow = uGroundFog.x * exp( - max( vHgY - uGroundFog.y, 0.0 ) / uGroundFog.z ) * ( 1.0 - exp( - vFogDepth * uGroundFog.w ) );
+          fogFactor = 1.0 - ( 1.0 - fogFactor ) * ( 1.0 - hgLow );
+          gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+        #endif`);
+    if (wash) {
+      fs = fs.replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
+        totalEmissiveRadiance += vec3( ${f(c.r)}, ${f(c.g)}, ${f(c.b)} ) * ${f(wash.strength)} * ( 1.0 - smoothstep( ${f(wash.base ?? 0)}, ${f(wash.top)}, vHgY ) );`);
+    }
+    sh.fragmentShader = fs;
+  };
+  mat.customProgramCacheKey = () => `${prevKey}|hgfx${washKey}`;
+  mat.needsUpdate = true;
+}
+
+/* A modelled building (models/build_hollowgrin.blender.py), in map
+   coordinates. `wash` tints its materials; `bounce` lifts the named
+   (Blender) materials' own texture, for interiors the moon can't reach. */
+function hgModel(api, name, { wash = null, bounce = {} } = {}) {
+  loadModel(name, {}).then((obj) => {
+    obj.traverse((n) => { if (n.isMesh) n.userData.blenderMat = n.material.name; });
+    retexture(obj, RETEXTURE);
+    obj.traverse((n) => {
+      if (!n.isMesh) return;
+      const m = n.material;
+      const b = bounce[n.userData.blenderMat];
+      if (b && m.map) {
+        m.emissive = m.color.clone().multiplyScalar(b);
+        m.emissiveMap = m.map;
+      }
+      if (wash) m.userData.wash = wash;
+      nightFx(m);
+    });
+    api.prop(obj);
+  });
+}
 
 /* ================================================================ utilities */
 
@@ -802,6 +887,34 @@ function candle(K, M, x, y, z, { h = 0.18, r = 0.035, seed = 1 } = {}) {
   }
 }
 
+/* An iron candle lantern standing at (x, y, z), or hanging `hang` metres
+   under a hook. Its light is all fake: a lit glass, a candle flame, a halo
+   and a warm pool on the floor at `floor`. Decoration only: no collider. */
+function lantern(K, M, x, y, z, { hang = 0, floor = 0, seed = 1, pool = 2.4 } = {}) {
+  const phase = rng(seed)();
+  K.box(M.iron, x, y, z, 0.2, 0.03, 0.2);
+  for (const [dx, dz] of [[-0.085, -0.085], [0.085, -0.085], [-0.085, 0.085], [0.085, 0.085]]) K.box(M.iron, x + dx, y, z + dz, 0.02, 0.28, 0.02);
+  K.box(M.lampGlass, x, y + 0.03, z, 0.15, 0.22, 0.15, {}, { shadow: false });
+  K.cyl(M.iron, x, y + 0.28, z, 0.14, 0.03, 0.12, 4, { ry: Math.PI / 4 });
+  K.add(M.iron, place(new THREE.TorusGeometry(0.05, 0.01, 4, 10), { x, y: y + 0.44, z }));
+  if (hang) K.cyl(M.iron, x, y + 0.48, z, 0.006, 0.006, hang - 0.48, 4);
+  for (const ry of [0, Math.PI / 2]) K.add(M.flame, place(new THREE.PlaneGeometry(0.06, 0.12), { x, y: y + 0.13, z, ry }), { phase, shadow: false });
+  K.sparks?.add(x, y + 0.14, z, 0xffb86a, { size: 0.65, blink: 0.06 });
+  if (pool) K.add(M.lanternPool, place(new THREE.PlaneGeometry(pool, pool), { x, y: floor + 0.03, z, rx: -Math.PI / 2 }), { shadow: false, phase });
+}
+
+/* A few candles of different heights melted onto a grave or a step, with a
+   small warm pool round them. */
+function candleCluster(K, M, x, y, z, { n = 4, seed = 1 } = {}) {
+  const R = rng(seed);
+  for (let i = 0; i < n; i++) {
+    const a = R() * Math.PI * 2, d = 0.06 + R() * 0.16;
+    candle(K, M, x + Math.cos(a) * d, y, z + Math.sin(a) * d, { h: 0.1 + R() * 0.22, r: 0.03 + R() * 0.02, seed: seed * 7 + i });
+  }
+  K.add(M.lanternPool, place(new THREE.PlaneGeometry(1.4, 1.4), { x, y: y + 0.02, z, rx: -Math.PI / 2 }), { shadow: false, phase: R() });
+  K.sparks?.add(x, y + 0.3, z, 0xffb060, { size: 0.7, blink: 0.1 });
+}
+
 function hayBale(K, M, x, z, { y = 0, ry = 0, collide = true } = {}) {
   const w = 1.3, h = 0.75, d = 0.85;
   if (collide) {
@@ -998,6 +1111,90 @@ function roseTexture() {
     img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
     return t;
   });
+}
+
+/* The mausoleum's arched window: diamond quarries of coloured glass in
+   lead, a trollface in amber in the middle. Transparent round the arch. */
+function stainedTexture() {
+  return tex("stained", () => {
+    const W = 256, H = 432, c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    const R = rng(66);
+    const r = W / 2;
+    const arch = () => { g.beginPath(); g.moveTo(0, H); g.lineTo(0, r); g.arc(r, r, r, Math.PI, 0); g.lineTo(W, H); g.closePath(); };
+    g.save();
+    arch();
+    g.clip();
+    const glass = ["#3a1f6a", "#1f5a3a", "#6a2a8a", "#2a3a7a", "#7a1a2a", "#245a4a", "#5a3a8a"];
+    const s = 36;
+    for (let y = -s; y < H + s; y += s / 2) {
+      for (let x = -s; x < W + s; x += s) {
+        const ox = ((y / (s / 2)) % 2) ? s / 2 : 0;
+        g.fillStyle = glass[Math.floor(R() * glass.length)];
+        g.beginPath();
+        g.moveTo(x + ox, y - s / 2); g.lineTo(x + ox + s / 2, y); g.lineTo(x + ox, y + s / 2); g.lineTo(x + ox - s / 2, y);
+        g.closePath(); g.fill();
+        g.strokeStyle = "#0b0a0c"; g.lineWidth = 4; g.stroke();
+      }
+    }
+    g.fillStyle = "#1c0c2a";
+    g.beginPath(); g.arc(W / 2, H * 0.48, 82, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 8; g.strokeStyle = "#0b0a0c"; g.stroke();
+    g.restore();
+    arch();
+    g.lineWidth = 10; g.strokeStyle = "#0b0a0c"; g.stroke();
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    const img = new Image();
+    img.onload = () => {
+      const k = document.createElement("canvas");
+      k.width = k.height = 150;
+      const kg = k.getContext("2d");
+      const sc = Math.min(140 / img.width, 140 / img.height);
+      kg.drawImage(img, (150 - img.width * sc) / 2, (150 - img.height * sc) / 2, img.width * sc, img.height * sc);
+      const d = kg.getImageData(0, 0, 150, 150), px = d.data;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 100) { px[i + 3] = 0; continue; }
+        const lum = px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11;
+        if (lum < 110) { px[i] = 12; px[i + 1] = 10; px[i + 2] = 12; } else { px[i] = 255; px[i + 1] = 214; px[i + 2] = 130; }
+        px[i + 3] = 255;
+      }
+      kg.putImageData(d, 0, 0);
+      g.drawImage(k, W / 2 - 75, H * 0.48 - 75);
+      t.needsUpdate = true;
+    };
+    img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+    return t;
+  });
+}
+
+/* A cobweb strung across a corner: spokes and a sagging spiral. */
+function webTexture() {
+  return tex("web", () => canvasTex(256, 180, (g, W, H) => {
+    g.strokeStyle = "rgba(230,230,240,.55)";
+    g.lineWidth = 1.4;
+    const cx = W / 2, cy = 8;
+    const spokes = 9;
+    for (let i = 0; i <= spokes; i++) {
+      const a = Math.PI * (0.04 + 0.92 * i / spokes);
+      g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * 200, cy + Math.sin(a) * 200); g.stroke();
+    }
+    for (let ring = 1; ring < 9; ring++) {
+      const rr = ring * 19;
+      g.beginPath();
+      for (let i = 0; i <= spokes; i++) {
+        const a = Math.PI * (0.04 + 0.92 * i / spokes);
+        const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+        if (i === 0) g.moveTo(px, py);
+        else {
+          const ap = Math.PI * (0.04 + 0.92 * (i - 0.5) / spokes);
+          g.quadraticCurveTo(cx + Math.cos(ap) * rr * 0.86, cy + Math.sin(ap) * rr * 0.86, px, py);
+        }
+      }
+      g.stroke();
+    }
+  }));
 }
 
 /* Ground mist: soft white blobs on transparent, tiling. */
@@ -2047,6 +2244,12 @@ function buildHollowgrin(api) {
     picket: new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.8 }),
     ghost: new THREE.MeshStandardMaterial({ color: 0xeeeef4, roughness: 0.9, emissive: 0x3a3a48, side: THREE.DoubleSide }),
     lily: new THREE.MeshStandardMaterial({ color: 0x2f5a2a, roughness: 0.6, side: THREE.DoubleSide }),
+    // phase 6a: the mausoleum's relief, stained window and cobwebs
+    relief: new THREE.MeshStandardMaterial({ map: trollTexture(), alphaTest: 0.5, color: 0x8a8a94, roughness: 0.95 }),
+    stained: new THREE.MeshBasicMaterial({ map: stainedTexture(), alphaTest: 0.5, color: new THREE.Color(0xffffff).multiplyScalar(1.5) }),
+    stainedOut: new THREE.MeshBasicMaterial({ map: stainedTexture(), alphaTest: 0.5, color: new THREE.Color(0xffffff).multiplyScalar(0.9) }),
+    lanternPool: flickerMat({ map: glowTexture(), color: new THREE.Color(0xffa04a).multiplyScalar(0.26), additive: true, strength: 0.8 }),
+    web: new THREE.MeshBasicMaterial({ map: webTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide, color: 0x9a9aa8 }),
   };
 
   /* --------------------------------------------------------- the ground */
@@ -2485,6 +2688,13 @@ function buildHollowgrin(api) {
       for (let i = 0; i < 9; i++) K.box(M.iron, -16.2 - i * 0.18, 0.1, gz + dir * 0.05, 0.025, 1.7, 0.025);
     }
 
+    // a lantern hung in the gate's arch; candles left burning on graves
+    lantern(K, M, -16, 3.45, 2, { hang: 0.95, seed: 73, pool: 3.0 });
+    let cs = 80;
+    for (const [gx, gz] of [[-33.4, 5], [-30.4, -2], [-22.6, 12.5], [-19.6, 7.5], [-27.2, -4.5], [-33.4, 12.5], [-19.6, -2], [-30.4, 15]]) {
+      candleCluster(K, M, gx + 0.4, 0, gz + 0.15, { n: 3 + (cs % 3), seed: cs++ });
+    }
+
     // headstones in rows, graves running east of each stone
     const R = rng(66);
     const zs = [-4.5, -2.0, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5];
@@ -2547,27 +2757,38 @@ function buildHollowgrin(api) {
     K.cyl(M.stone, -24, 3.7, 2, 0.32, 0, 0.7, 4, { ry: Math.PI / 4 });
     for (let i = 0; i < 4; i++) candle(K, M, -24 + [-0.5, 0.5, -0.5, 0.5][i], 0.5, 2 + [-0.5, -0.5, 0.5, 0.5][i], { seed: 400 + i, h: 0.22, r: 0.05 });
 
-    // the mausoleum: stone, one door east, a sarcophagus and a green glow
+    // the mausoleum: a granite Greek-revival tomb (models/build_hollowgrin
+    // .blender.py: hg-mausoleum) over these colliders; one door east, a
+    // sarcophagus, a stained window and a green glow
     const mx0 = -31, mx1 = -25, mz0 = 8, mz1 = 14, mh = 3.2;
-    wall(K, { axis: "x", at: mz0 + 0.25, a: mx0, b: mx1, h: mh, t: 0.5, mat: M.stone });
-    wall(K, { axis: "x", at: mz1 - 0.25, a: mx0, b: mx1, h: mh, t: 0.5, mat: M.stone });
-    wall(K, { axis: "z", at: mx0 + 0.25, a: mz0 + 0.5, b: mz1 - 0.5, h: mh, t: 0.5, mat: M.stone });
-    wall(K, { axis: "z", at: mx1 - 0.25, a: mz0 + 0.5, b: mz1 - 0.5, h: mh, t: 0.5, mat: M.stone,
-      holes: [{ c: 11, w: 1.8, spans: [[0, 2.5]] }], trim: M.stoneDark, out: 1 });
-    K.solid(-28, 11, 6.8, 6.8, 0.35, { y: mh, mat: M.stoneDark, pen: 10 });
-    K.add(M.stone, place(prismGeo([[-3.4, 0], [3.4, 0], [0, 1.3]], 6.6), { x: -28, y: mh + 0.35, z: 11, ry: Math.PI / 2 }));
-    for (const cz of [9.3, 12.7]) {
-      K.solid(-24.55, cz, 0.44, 0.44, mh, { pen: 8 });
-      K.cyl(M.stone, -24.55, 0, cz, 0.24, 0.2, mh, 12);
+    wall(K, { axis: "x", at: mz0 + 0.25, a: mx0, b: mx1, h: mh, t: 0.5 });
+    wall(K, { axis: "x", at: mz1 - 0.25, a: mx0, b: mx1, h: mh, t: 0.5 });
+    wall(K, { axis: "z", at: mx0 + 0.25, a: mz0 + 0.5, b: mz1 - 0.5, h: mh, t: 0.5 });
+    wall(K, { axis: "z", at: mx1 - 0.25, a: mz0 + 0.5, b: mz1 - 0.5, h: mh, t: 0.5,
+      holes: [{ c: 11, w: 1.8, spans: [[0, 2.5]] }] });
+    K.solid(-28, 11, 6.8, 6.8, 0.35, { y: mh, pen: 10 });
+    for (const cz of [9.3, 12.7]) K.solid(-24.55, cz, 0.44, 0.44, mh, { pen: 8 });
+    K.solid(-24.4, 11, 1.2, 4.2, 0.18, { pen: 6 });
+    hgModel(api, "hg-mausoleum", { wash: { color: 0x2a8a52, top: 2.2, strength: 0.16 } });
+    lantern(K, M, -23.55, 0, 8.7, { seed: 71, pool: 2.0 });
+    lantern(K, M, -23.55, 0, 13.3, { seed: 72, pool: 2.0 });
+    // the trollface carved in the east pediment
+    K.add(M.relief, place(new THREE.PlaneGeometry(0.95, 0.95), { x: -24.13, y: 4.03, z: 11, ry: Math.PI / 2 }), { shadow: false });
+    // the stained window, lit from inside, on both faces of the west wall
+    K.add(M.stained, place(new THREE.PlaneGeometry(1.1, 1.85), { x: -30.47, y: 2.12, z: 11, ry: Math.PI / 2 }), { shadow: false });
+    K.add(M.stainedOut, place(new THREE.PlaneGeometry(1.1, 1.85), { x: -31.04, y: 2.12, z: 11, ry: -Math.PI / 2 }), { shadow: false });
+    // cobwebs strung across the top corners
+    for (const [cx, cz] of [[mx0 + 0.5, mz0 + 0.5], [mx0 + 0.5, mz1 - 0.5], [mx1 - 0.5, mz0 + 0.5], [mx1 - 0.5, mz1 - 0.5]]) {
+      // across the corner, facing the middle of the room
+      const ry = Math.atan2(-28 - cx, 11 - cz);
+      K.add(M.web, place(new THREE.PlaneGeometry(1.3, 0.9), { x: cx + Math.sign(-28 - cx) * 0.18, y: 2.55, z: cz + Math.sign(11 - cz) * 0.18, ry }), { shadow: false });
     }
-    K.solid(-24.4, 11, 1.2, 4.2, 0.18, { mat: M.stoneDark, pen: 6 });
     const plaque = new THREE.MeshBasicMaterial({ map: signTexture(["TROLL"], { w: 512, h: 128, bg: "#3a3a40", fg: "#141418", edge: "#55555c" }), color: 0xb0b0b8 });
     K.add(plaque, place(new THREE.PlaneGeometry(1.8, 0.45), { x: -24.74, y: 2.85, z: 11, ry: Math.PI / 2 }), { shadow: false });
-    K.solid(-28.4, 11, 1.1, 2.3, 0.95, { mat: M.stoneDark, pen: 10 });
-    K.box(M.stone, -28.4, 0.95, 11, 1.2, 0.15, 2.4);
+    K.solid(-28.4, 11, 1.1, 2.3, 0.95, { pen: 10 });
     for (const [cx, cz] of [[-27.6, 9.6], [-27.6, 12.4], [-29.8, 9.2], [-29.8, 12.8]]) candle(K, M, cx, 0, cz, { seed: 500 + cx, h: 0.3, r: 0.05 });
     K.add(M.greenGlow, place(new THREE.PlaneGeometry(4.5, 4.5), { x: -28, y: 0.04, z: 11, rx: -Math.PI / 2 }), { shadow: false, phase: 0.3 });
-    const ml = new THREE.PointLight(0x5dff8a, 6, 10, 2);
+    const ml = new THREE.PointLight(0x5dff8a, 4.5, 10, 2);
     ml.position.set(-28, 2.4, 11);
     lights.push(ml);
 
@@ -2584,6 +2805,14 @@ function buildHollowgrin(api) {
   {
     const hedge = (x, z, w, d) => K.solid(x, z, w, d, 1.35, { mat: M.hedge, pen: 0.6 });
     const cx = -24, cz = -19, half = 6;
+    // lanterns set on the hedge ends either side of each way in
+    let ls = 90;
+    for (const s of [-1, 1]) {
+      for (const g of [-1.35, 1.35]) {
+        lantern(K, M, cx + g, 1.35, cz + s * half, { seed: ls++, floor: 0, pool: 2.6 });
+        lantern(K, M, cx + s * half, 1.35, cz + g, { seed: ls++, floor: 0, pool: 2.6 });
+      }
+    }
     for (const s of [-1, 1]) {
       // north + south runs, each split by a path
       hedge(cx - 3.6, cz + s * half, 4.8, 1.0);
@@ -2743,36 +2972,37 @@ function buildHollowgrin(api) {
 
   /* ------------------------------------------------ the candy shop (S) */
   {
+    // brick sides, a clapboard Victorian front with a bay window and a false
+    // front (hg-candyshop) over these colliders
     const sx0 = -11, sx1 = -1, sz0 = 21, sz1 = 27.5, sh = 3.4;
-    const S = { mat: M.shop, trim: M.shopTrim, pen: 8 };
+    const S = { pen: 8 };
     wall(K, { axis: "x", at: sz0 + 0.2, a: sx0, b: sx1, h: sh, out: -1, ...S,
       holes: [{ c: -6, w: 1.8, spans: [[0, 2.5]] }, { c: -9, w: 2.2, spans: [[0.9, 2.3]] }, { c: -2.9, w: 1.8, spans: [[0.9, 2.3]] }] });
     wall(K, { axis: "x", at: sz1 - 0.2, a: sx0, b: sx1, h: sh, out: 1, ...S,
       holes: [{ c: -3.5, w: 1.6, spans: [[0, 2.4]] }, { c: -8.5, w: 1.4, spans: [[1.0, 2.2]] }] });
     wall(K, { axis: "z", at: sx0 + 0.2, a: sz0 + 0.4, b: sz1 - 0.4, h: sh, out: -1, ...S, holes: [{ c: 24.2, w: 1.6, spans: [[1.0, 2.3]] }] });
     wall(K, { axis: "z", at: sx1 - 0.2, a: sz0 + 0.4, b: sz1 - 0.4, h: sh, out: 1, ...S, holes: [{ c: 24.2, w: 1.4, spans: [[1.0, 2.3]] }] });
-    K.solid(-6, 24.25, 10.6, 7.1, 0.3, { y: sh, mat: M.trimDark, pen: 8 });
-    K.add(M.floor, place(new THREE.PlaneGeometry(9.6, 6.1), { x: -6, y: 0.02, z: 24.25, rx: -Math.PI / 2 }), { shadow: false });
-    // false front with the sign
-    K.box(M.shop, -6, sh, sz0 + 0.1, 10.2, 1.8, 0.3);
-    K.box(M.shopTrim, -6, sh + 1.8, sz0 + 0.1, 10.6, 0.16, 0.45);
+    K.solid(-6, 24.25, 10.6, 7.1, 0.3, { y: sh, pen: 8 });
+    // the bay window's knee wall
+    K.api.ghostBox(-9, 20.72, 2.0, 0.55, 0.9, { pen: 4 });
+    hgModel(api, "hg-candyshop", { bounce: { HG_Floorboards: 0.1 } });
+    // the sign on the false front's panel
     const sign = new THREE.MeshBasicMaterial({ map: signTexture(["TROLL & TREAT"], { fg: "#ffb347", edge: "#8e4dcf", bg: "#1c1024" }), color: 0xffffff });
-    K.add(sign, place(new THREE.PlaneGeometry(7.4, 1.35), { x: -6, y: sh + 0.9, z: sz0 - 0.07, ry: Math.PI }), { shadow: false });
-    // striped awnings over the windows
+    K.add(sign, place(new THREE.PlaneGeometry(7.4, 1.35), { x: -6, y: sh + 0.9, z: sz0 - 0.2, ry: Math.PI }), { shadow: false });
+    // striped awnings over the windows, the left one clear of the bay's cap
     for (const [ax, aw] of [[-9, 2.8], [-2.9, 2.4]]) {
-      K.box(M.awningPurple, ax, 2.55, sz0 - 0.45, aw, 0.04, 1.0, { rx: -0.35 });
+      K.box(M.awningPurple, ax, 2.78, sz0 - 0.45, aw, 0.04, 1.0, { rx: -0.35 });
     }
     // inside: counter, shelves of jars, a cauldron of candy
-    K.solid(-8.4, 25.1, 2.8, 0.8, 1.05, { mat: M.stairWood, pen: 1.8 });
-    K.solid(-7.6, 27.0, 4.6, 0.5, 2.2, { mat: M.stairWood, pen: 2 });
+    K.solid(-8.4, 25.1, 2.8, 0.8, 1.05, { pen: 1.8 });
+    K.solid(-7.6, 27.0, 4.6, 0.5, 2.2, { pen: 2 });
     const C = rng(31);
     for (let shelf = 0; shelf < 3; shelf++) {
       for (let i = 0; i < 9; i++) {
         const hue = new THREE.Color().setHSL(C(), 0.75, 0.55);
-        const jarX = -9.6 + i * 0.5, jarY = 0.5 + shelf * 0.62;
-        K.add(M.candy, place(new THREE.CylinderGeometry(0.13, 0.13, 0.32, 10), { x: jarX, y: jarY + 0.16, z: 26.75 }), { color: hue.getHex(), shadow: false });
+        const jarX = -9.6 + i * 0.5, jarY = 0.45 + shelf * 0.62;
+        K.add(M.candy, place(new THREE.CylinderGeometry(0.13, 0.13, 0.32, 10), { x: jarX, y: jarY + 0.16, z: 26.9 }), { color: hue.getHex(), shadow: false });
       }
-      K.box(M.trimDark, -7.6, 0.45 + shelf * 0.62, 26.72, 4.6, 0.05, 0.4, {}, { shadow: false });
     }
     K.api.ghostBox(-3, 23.6, 1.3, 1.3, 0.8, { pen: 6 });
     K.add(M.iron, place(new THREE.SphereGeometry(0.65, 16, 10, 0, Math.PI * 2, Math.PI * 0.4, Math.PI * 0.6), { x: -3, y: 0.65, z: 23.6 }));
@@ -2785,46 +3015,53 @@ function buildHollowgrin(api) {
     lights.push(cl);
     let s = 1100;
     for (const [x, z, r] of [[-7.2, 20.4, 0.3], [-4.8, 20.3, 0.25], [-10.6, 20.4, 0.28], [-1.4, 20.5, 0.22]]) jack(K, M, x, 0, z, { r, face: Math.PI, seed: s++ });
+    // a lantern on a bracket by the back door
+    lantern(K, M, -2.45, 2.2, 27.88, { hang: 0.5, seed: 77, pool: 2.2 });
+    K.box(M.iron, -2.45, 2.72, 27.7, 0.03, 0.03, 0.4);
   }
 
   /* ------------------------------------------------ the barn (SE) */
   {
+    // board-and-batten red barn, gambrel roof, cupola, sliding doors
+    // (hg-barn) over these colliders. The west door is 2.2 tall so the
+    // loft over it can have a window onto the south road.
     const bx0 = 17, bx1 = 29, bz0 = 20, bz1 = 29, bh = 4.4, t = 0.35;
-    const B = { mat: M.barn, trim: M.barnTrim, t };
+    const B = { t };
     wall(K, { axis: "x", at: bz0 + t / 2, a: bx0, b: bx1, h: bh, out: -1, ...B, holes: [{ c: 23, w: 4, spans: [[0, 3.6]] }] });
     wall(K, { axis: "x", at: bz1 - t / 2, a: bx0, b: bx1, h: bh, out: 1, ...B, holes: [{ c: 20, w: 1.2, spans: [[1.8, 2.8]] }, { c: 26, w: 1.2, spans: [[1.8, 2.8]] }] });
-    wall(K, { axis: "z", at: bx0 + t / 2, a: bz0 + t, b: bz1 - t, h: bh, out: -1, ...B, holes: [{ c: 24.5, w: 3, spans: [[0, 3.2]] }] });
+    wall(K, { axis: "z", at: bx0 + t / 2, a: bz0 + t, b: bz1 - t, h: bh, out: -1, ...B, holes: [{ c: 24.5, w: 3, spans: [[0, 2.2]] }, { c: 22, w: 1.4, spans: [[3.0, 4.25]] }] });
     wall(K, { axis: "z", at: bx1 - t / 2, a: bz0 + t, b: bz1 - t, h: bh, out: 1, ...B, holes: [{ c: 26, w: 1.6, spans: [[0, 2.4]] }, { c: 22.5, w: 1.2, spans: [[1.8, 2.8]] }] });
-    K.solid(23, 24.5, 12.4, 9.4, 0.3, { y: bh, mat: M.stairWood, pen: 8 });
+    K.solid(23, 24.5, 12.4, 9.4, 0.3, { y: bh, pen: 8 });
+    hgModel(api, "hg-barn", { wash: { color: 0xff7a2a, top: 1.2, strength: 0.07 }, bounce: { HG_BarnWood: 0.32 } });
     K.add(M.hay, place(new THREE.PlaneGeometry(11.2, 8.2), { x: 23, y: 0.02, z: 24.5, rx: -Math.PI / 2 }), { shadow: false });
-    // gambrel roof along x
-    const half = (bz1 - bz0) / 2 + 0.4;
-    const lowRun = half - 3, lowRise = 2.0, upRun = 3, upRise = 1.3;
-    const ridge = (bz0 + bz1) / 2;
-    for (const s of [-1, 1]) {
-      const lLen = Math.hypot(lowRun, lowRise), lAng = Math.atan2(lowRise, lowRun);
-      K.box(M.roof, 23, bh + lowRise / 2 - 0.1, ridge + s * (3 + lowRun / 2), 12.8, 0.2, lLen, { rx: s * lAng });
-      const uLen = Math.hypot(upRun, upRise), uAng = Math.atan2(upRise, upRun);
-      K.box(M.roof, 23, bh + lowRise + upRise / 2 - 0.1, ridge + s * (upRun / 2), 12.8, 0.2, uLen, { rx: s * uAng });
-    }
-    const gable = [[-half + 0.4, 0], [half - 0.4, 0], [3, lowRise], [0, lowRise + upRise], [-3, lowRise]];
-    for (const gx of [bx0 + 0.18, bx1 - 0.18]) K.add(M.barn, place(prismGeo(gable, 0.35), { x: gx, y: bh, z: ridge, ry: Math.PI / 2 }));
-    // big door leaves swung flat against the wall, with the white X
-    for (const s of [-1, 1]) {
-      const dx = 23 + s * 3.05;
-      K.box(M.barn, dx, 0, bz0 - 0.1, 2.0, 3.5, 0.08);
-      K.box(M.barnTrim, dx, 1.72, bz0 - 0.16, 2.1, 0.12, 0.04);
-      K.box(M.barnTrim, dx, 0, bz0 - 0.16, 2.0, 3.5, 0.04, {}, { shadow: false });
-      for (const r of [0.97, -0.97]) K.box(M.barn, dx, 0.1, bz0 - 0.18, 0.14, 3.9, 0.04, { rz: r * 0.5 });
-    }
-    // hayloft (just the look of one: out of reach), hay stacks, a wagon
-    K.box(M.stairWood, 18.5, 3.0, 24.5, 2.6, 0.15, 8.2);
+    // the vane's little troll head
+    K.add(M.trollLit, place(new THREE.PlaneGeometry(0.26, 0.26), { x: 22.95, y: 10.25, z: 24.5 - 0.012 }), { shadow: false });
+    // the loft over the west end (zombies: its own floor, BARN_LOFT), a
+    // steep plank stair up its east edge, a rail with a gap at the top
+    const LOFT = BARN_LOFT;
+    K.solid((LOFT.x0 + LOFT.x1) / 2, (LOFT.z0 + LOFT.z1) / 2, LOFT.x1 - LOFT.x0, LOFT.z1 - LOFT.z0, 0.15, { y: LOFT.y - 0.15, pen: 3 });
+    for (const pz of [LOFT.z0 + 0.12, LOFT.z1 - 0.12]) K.solid(LOFT.x1 - 0.1, pz, 0.2, 0.2, LOFT.y - 0.15, { pen: 4 });
+    // The stair climbs west, straight at the loft's edge (no rail beside
+    // it: a zombie walking up it must not have one between it and you).
+    api.stairs(24.4, 27.7, 1.0, 8, 0.3, 0.42, "-x", { ghost: true });
+    K.api.ghostBox(20.72, 27.7, 0.64, 1.0, LOFT.y, { pen: 6 });
+    K.api.ghostBox(LOFT.x1 - 0.04, (LOFT.z0 + 27.1) / 2, 0.1, 27.1 - LOFT.z0, 1.05, { y: LOFT.y, pen: 0.3 });
+    hayBale(K, M, 19.4, 20.85, { y: LOFT.y });
+    hayBale(K, M, 18.3, 27.6, { y: LOFT.y, ry: 0.1 });
+    hayBale(K, M, 18.3, 27.6, { y: LOFT.y + 0.75, ry: -0.08, collide: false });
+    // a lantern hung over the loft, another by the west door
+    lantern(K, M, 18.9, 3.25, 24.5, { hang: 1.1, floor: LOFT.y, seed: 75, pool: 2.4 });
+    lantern(K, M, 16.62, 2.3, 22.6, { hang: 0.55, seed: 76, pool: 2.2 });
+    K.box(M.iron, 16.75, 2.83, 22.6, 0.3, 0.03, 0.03);
+    // stall partitions along the east wall
+    for (const pz of [23.3, 24.9]) K.api.ghostBox(27.75, pz, 2.0, 0.1, 1.05, { pen: 1.5 });
+    // hay stacks under the loft, a wagon
     K.solid(18.6, 27.4, 2.6, 2.2, 1.5, { pen: 1.5 });
     for (let i = 0; i < 4; i++) hayBale(K, M, 18.0 + (i % 2) * 1.3, 26.9 + Math.floor(i / 2) * 0.9, { y: 0, collide: false });
     for (let i = 0; i < 2; i++) hayBale(K, M, 18.6, 27.35, { y: 0.75, ry: i * 0.1, collide: false });
     hayBale(K, M, 27, 21.6, { ry: Math.PI / 2 });
     hayBale(K, M, 27, 21.6, { y: 0.75, ry: Math.PI / 2 + 0.1 });
-    hayBale(K, M, 25.4, 27.5, {});
+    hayBale(K, M, 27.6, 27.9, {});
     const cw = { x: 23.6, z: 25.2 };
     K.api.ghostBox(cw.x, cw.z, 3.2, 1.6, 1.3, { pen: 2 });
     K.box(M.stairWood, cw.x, 0.55, cw.z, 3.2, 0.12, 1.6);
@@ -2965,6 +3202,12 @@ function buildHollowgrin(api) {
     }, M.iron));
   }
 
+  // the night look on everything built so far, the ground plane too (it is
+  // maps.js's, beside our root); models patch themselves as they stream in
+  (root.parent || root).traverse((n) => {
+    if (n.isMesh) for (const m of [].concat(n.material)) nightFx(m);
+  });
+
   /* ------------------------------------------------ zombie entry points */
   // out of the woods, all round the edge (south: between the lane's houses)
   for (const [x, z] of [
@@ -2987,8 +3230,8 @@ export const HOLLOWGRIN = {
   sky: { top: 0x05060f, horizon: 0x2a1838, bottom: 0x0a0710, haze: 0.2, clouds: 0.28, cloudColor: 0x4a4466, cloudShade: 0x0c0a16 },
   fog: { color: 0x1c1428, density: 0.016 },
   ground: { colorA: 0x4a5634, colorB: 0x3a4428, grid: 0x5a6a44, surface: "grass", tile: 4 },
-  sun: { color: 0xa8b8ff, intensity: 1.5, pos: [-26, 48, -58] },
-  hemi: { sky: 0x6c78c0, ground: 0x3a2a24, intensity: 1.35 },
+  sun: { color: 0xb4c4ff, intensity: 1.75, pos: [-30, 40, -60] },
+  hemi: { sky: 0x6c78c0, ground: 0x3a2a24, intensity: 1.25 },
   ambient: { color: 0x6a5a8a, intensity: 0.35 },
   build: buildHollowgrin,
   // Team spawns: six along the north edge, six on Trick-or-Treat Lane.
@@ -3003,7 +3246,11 @@ export const HOLLOWGRIN = {
     windows: ZSPAWNS.map((w) => ({ ...w })),
     floorOf: hgFloorOf,
     floors: HG_FLOORS,
-    links: [{ from: "ground", to: "upper", a: { x: STAIR.x, z: STAIR.z + 0.9 }, b: { x: STAIR.x, z: HOLE.z0 - 1.0 } }],
+    links: [{ from: "ground", to: "upper", a: { x: STAIR.x, z: STAIR.z + 0.9 }, b: { x: STAIR.x, z: HOLE.z0 - 1.0 } },
+      // the barn loft's stair: straight up it from the foot to the landing
+      // (its foot is 0.9 m east of the first step, 1.3 m in from the south
+      // wall: a zombie outside the wall can't start climbing through it)
+      { from: "ground", to: "loft", a: { x: 25.3, z: 27.7 }, b: { x: 19.6, z: 27.7 } }],
     support: true,
     preferDist: 17,
     navCell: 0.55,

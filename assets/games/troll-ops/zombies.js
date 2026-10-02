@@ -169,8 +169,11 @@ export class Zombie {
     } else if (!inReach && dist > 0.05) {
       to.normalize();
       // Indoors the field knows the way round the walls; close in, or when
-      // this spot has no route, fall back to walking straight at them.
-      const steer = (field && dist > 2.5) ? field.steer(this.mesh.position.x, this.mesh.position.z) : null;
+      // this spot has no route, fall back to walking straight at them. Not
+      // while still below or above them (a stair's top step, a rail between):
+      // straight at them is into the rail.
+      const level = Math.abs(feetY - this.groundY) < 0.25;
+      const steer = (field && (dist > 2.5 || !level)) ? field.steer(this.mesh.position.x, this.mesh.position.z) : null;
       const dir = steer || to;
       this.velocity.x += (dir.x * this.speed - this.velocity.x) * Math.min(1, dt * 5);
       this.velocity.z += (dir.z * this.speed - this.velocity.z) * Math.min(1, dt * 5);
@@ -284,7 +287,7 @@ export class AmmoDrop {
 }
 
 export class ZombieDirector {
-  /* `layout`: { windows: [{ x, y, z, rise? }], floorOf(y) -> floor id,
+  /* `layout`: { windows: [{ x, y, z, rise? }], floorOf(y, x, z) -> floor id,
      floors: { id: y }, links?: [{ from, to, a: {x,z}, b: {x,z} }] (a on
      `from`, b on `to`), support?: upper floors only open where there is
      floor under them, preferDist?: metres a spawn should ideally be from
@@ -333,13 +336,37 @@ export class ZombieDirector {
   /* The field toward the player on the player's floor, re-swept a few times
      a second rather than every frame. `feet` is the player's feet. */
   fieldFor(feet, dt) {
-    const field = this.field(this.floorOf(feet.y), "player");
+    const field = this.field(this.floorOf(feet.y, feet.x, feet.z), "player");
     this.fieldT -= dt;
     if (this.fieldT <= 0 || field.targetIdx < 0) {
       this.fieldT = 0.3;
       field.compute(feet.x, feet.z);
     }
     return field;
+  }
+
+  /* The first floor to climb to on the way from `from` to `to` (a breadth-
+     first walk over the stair links), or null if they don't connect. */
+  nextFloor(from, to) {
+    const key = `${from}>${to}`;
+    this.hops ??= new Map();
+    if (this.hops.has(key)) return this.hops.get(key);
+    const prev = new Map([[from, null]]);
+    const queue = [from];
+    while (queue.length && !prev.has(to)) {
+      const f = queue.shift();
+      for (const l of this.links) {
+        const n = l.from === f ? l.to : l.to === f ? l.from : null;
+        if (n && !prev.has(n)) { prev.set(n, f); queue.push(n); }
+      }
+    }
+    let step = null;
+    if (prev.has(to)) {
+      step = to;
+      while (prev.get(step) !== from) step = prev.get(step);
+    }
+    this.hops.set(key, step);
+    return step;
   }
 
   /* Where one zombie should head. On the player's floor (or on a map with
@@ -354,9 +381,12 @@ export class ZombieDirector {
       if ((level && d < 1.2) || z.climbT > CLIMB_GIVE_UP) z.climb = null;
       else return { field: null, goal: exit, chase: false };
     }
-    const here = this.floorOf(z.groundY + 0.2);
-    const there = this.floorOf(feetY + 0.2);
+    const here = this.floorOf(z.groundY + 0.2, z.mesh.position.x, z.mesh.position.z);
+    const there = this.floorOf(feetY + 0.2, playerPos.x, playerPos.z);
     if (!this.links.length || here === there) return { field: playerField, goal: playerPos, chase: true };
+    // With more than one stair, only take one that leads toward the
+    // player's floor (the next floor on the way, through the links).
+    const toward = this.nextFloor(here, there);
     let best = null, bestD = Infinity;
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
@@ -364,6 +394,7 @@ export class ZombieDirector {
       if (link.from === here) { entry = link.a; exit = link.b; exitFloor = link.to; end = "a"; }
       else if (link.to === here) { entry = link.b; exit = link.a; exitFloor = link.from; end = "b"; }
       else continue;
+      if (toward && exitFloor !== toward) continue;
       const d = Math.hypot(entry.x - z.mesh.position.x, entry.z - z.mesh.position.z);
       if (d < bestD) { bestD = d; best = { i, entry, exit, exitFloor, end }; }
     }
@@ -403,8 +434,8 @@ export class ZombieDirector {
 
   /* Entry points on the player's floor — zombies come in where you are. */
   spawnPointFor(feet) {
-    const floor = this.floorOf(feet.y);
-    const here = this.windows.filter((w) => this.floorOf(w.y + 0.2) === floor);
+    const floor = this.floorOf(feet.y, feet.x, feet.z);
+    const here = this.windows.filter((w) => this.floorOf(w.y + 0.2, w.x, w.z) === floor);
     const pool = here.length ? here : this.windows;
     if (!pool.length) return null;
     // Prefer one that isn't right on top of the player; on a big open map,

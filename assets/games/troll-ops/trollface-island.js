@@ -19,8 +19,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon } from "./edge.js";
-import { SURFACES } from "./surface-textures.js";
-import { mapModel } from "./map-models.js?v=rl1";
+import { SURFACES } from "./surface-textures.js?v=hg6a";
+import { mapModel } from "./map-models.js?v=hg6a";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
