@@ -7,8 +7,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture } from "./surface-textures.js?v=hg6d";
-import { RETEXTURE } from "./map-models.js?v=hg6d";
+import { retexture } from "./surface-textures.js?v=hg6e";
+import { RETEXTURE } from "./map-models.js?v=hg6e";
 
 const portraitCache = new Map();
 const MODEL_BASE = new URL("./models/", import.meta.url).href;

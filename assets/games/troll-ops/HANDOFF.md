@@ -35,6 +35,66 @@ stream (the "trollrunner.net Simplified" session was folded in and deleted).
   from the user (ChatGPT) later and would replace menu-globe's sky/limb CSS.
 
 ## RESUME HERE (2026-10-02, session 25, later) — phase 6b SHIPPED; 3 new asks queued
+
+## RESUME HERE (2026-10-02, session 25, latest) — 6c, 6d, 6e SHIPPED; next chapel + mannequins, then 6f
+All in hollowgrin.js (buildMansion, buildMountain, buildCoaster run after
+buildPark) + models/build_grinmoor.blender.py (`-- mansion mountain moat`).
+Tags now `game.js?v=to-hg6e`, every troll-ops import ?v=hg6e.
+- **6c U Mad Mansion** (x 62..77, z 20.5..30.5, floor 0.4): lace galleries
+  (upper one playable from the attic), hipped roof + cupola, scarecrow,
+  naughty list, planters + queue arch. Inside: stretching-portrait foyer ->
+  endless hallway (ghost rush + scare sting via new `attachAudio` map hook,
+  game.js calls builtMap.map.attachAudio(audio)) -> ballroom (ghost dancers,
+  chandelier, the one new real light: 14 of 14) -> mirror maze -> back door
+  -> pet cemetery; ballroom stair -> attic. Zombie floor "mansion" + link.
+  **Gotchas:** (1) a floor > 0.45 m makes the zombie flow field treat the
+  whole house as a wall -> floor 0.4; (2) the field only passes a doorway
+  with a whole free 0.55 cell after 0.3 m padding each side -> doorways >=
+  1.7 m; (3) wall() can't take openings that overlap along the wall -> one
+  opening per column, storeys stacked in its spans.
+- **6d Skull Mountain + moat**: mountain = grid of rock columns, height
+  mountainH(x, z) (15 m peak, -1.35 m/m, min 3.2 / 4.6 over the cave path),
+  same grid for colliders (JS mountainCells) and boulders (Python
+  mountain_cells); cave path from the lane's end (x 72.7, z 35) out north
+  (x 75, z 30.6). Skull (red pulsing eyes), pines, flume chute into the
+  splash pool (67.5, 41.1). Waterway U round the island (MOAT_ARMS), glowing
+  teal, wadeable (MOAT_WADE joined to the creek/pond wade polygon by a
+  doubled slit outside the map: even-odd cancels it), curbs 0.2, three
+  bridges (decks 0.55 so you stay dry: wading = y < 0.5), corn-husk posts,
+  log boats on the loop + down the chute with a splash. **The 5 m ledge was
+  dropped** (no stair spot that doesn't land in the mansion or the cave path).
+  South park spawn moved to (60.5, 38.2).
+- **6e The Grinder**: track generated in JS from one closed CatmullRom
+  curve (coasterPoints: station z -18.5, lift x 74 to 21 m, drop west, loop
+  at x 55, corkscrew along z -26, brake run x 78.9 at 9 m, back along
+  z -13.2 at 3.2 m), parallel-transport up vectors (transportUps), rails +
+  spine + ties, tan supports (ghost columns, pen 0.6), a 4-car train timed
+  by gravity (chain lift 3.2 m/s, 5 s station dwell). Station with two
+  platforms (0.3 m step rises: 0.4 was too much), queue maze, brake deck
+  (x 80.2..83.2, z -37.2..-30.4, y 9) up a 30-step stair, zombie floor
+  "brake" + link. Drop tower at (85, -43.5) (ring climbs 8 s, falls 1.4 s).
+- Tests: audit all maps PASS (hollowgrin 1035 colliders); map-walk hollowgrin
+  ALL PASS with STEP=1 (new runs for mansion, moat, cave, station, brake
+  deck, stall alley/walkway); zombie sim: attic 33-42 s, gallery, maze 15 s,
+  cave path 28 s, brake deck 15 s, coaster yard 9 s; fps 25-28.5, ~470-500
+  draws (no regression vs 6b).
+
+**Next in THIS session (user moved it here): chapel + mannequins.**
+Prototype: models/build_mannequins.blender.py (skin-modifier bodies,
+painted faces; `-- proto` -> mq-proto.glb, NOT in the game, not committed).
+Plan sent to the user (chapel rebuilt intact in its 10 x 10 m footprint:
+hammer-beam roof, brick, lancets, pews + red aisle, raised altar, mosaic
+half-dome apse west, rose window to the east gable, the breach becomes a
+side door; cast of ~19 people + 4 pets: chapel priest/kneeling man/2 in
+pews, lane families + pets, park bench couple/kid/vendor/attendant,
+shopkeeper, farmer). **Waiting on 3 answers** (defaults if no reply): what
+goes over the altar (gold trollface sunburst), ghoulish touches (no, clean
+Nuketown), shootable knock-over (no, just stop bullets). Put the chapel in
+hollowgrin-chapel.js and the figures in hollowgrin-mannequins.js as planned.
+Then **6f**: bot roam waypoints into the park, zombie rise points (splash
+pool, pet cemetery, cave, under the coaster), previews, final look.
+
+## (previous) RESUME HERE (2026-10-02, session 25, later) — phase 6b SHIPPED; 3 new asks queued
 **Two workstreams now. Run them in separate sessions, each in its OWN git
 worktree + branch** (the main checkout is shared; see "Splitting work"
 below). Stream A = Hollowgrin map (phase 6 + the new map asks). Stream B =

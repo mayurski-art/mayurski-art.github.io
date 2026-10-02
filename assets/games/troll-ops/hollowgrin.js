@@ -36,12 +36,12 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { SURFACES, retexture } from "./surface-textures.js?v=hg6d";
-import { portrait } from "./house-props.js?v=hg6d";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6d";
+import { SURFACES, retexture } from "./surface-textures.js?v=hg6e";
+import { portrait } from "./house-props.js?v=hg6e";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e";
 import { loadModel } from "./battlefield-props.js";
 
-export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2 };
+export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2, brake: 9.0 };
 // The barn's loft (x 17.35..20.4 over the west end) is its own floor: by
 // height alone a zombie would take it for the manor's upstairs. So is the
 // Ferris wheel's lamp deck, and its stair counts as ground until the top.
@@ -51,6 +51,7 @@ export function hgFloorOf(y, x, z) {
     if (y >= 1.6 && x > 17 && x < 29 && z > 20 && z < 29) return "loft";
     if (x > 73.5 && x < 78.5 && z > -9.3 && z < 1) return y >= 4.6 && z < -5 ? "wheel" : "ground";
     if (x > 61 && x < 78 && z > 17.9 && z < 31) return y >= 2.5 ? "mansion" : "ground";
+    if (x > 80 && x < 83.4 && z > -37.4 && z < -20.5) return y >= 4.6 && z < -30 ? "brake" : "ground";
   }
   return y >= 2.2 ? "upper" : "ground";
 }
@@ -141,6 +142,10 @@ const MOAT_CURBS = [["x", 13.375, 53.75, 83.85, [[67.7, 71.3]]], ["z", 53.875, 1
 // the water you wade through: the U of the channel and the pool
 const MOAT_WADE = [[54, 13.5], [83.6, 13.5], [83.6, 31.6], [80.4, 31.6], [80.4, 16.7], [57.2, 16.7], [57.2, 39.5], [64.6, 39.5],
   [65.4, 38.2], [67.5, 37.9], [69.6, 38.2], [70.5, 39.2], [70.7, 41.1], [70.5, 43.0], [69.6, 44.0], [67.5, 44.3], [65.4, 44.0], [64.6, 42.7], [54, 42.7]];
+// The Grinder (6e): its brake deck at 9 m and the stair up to it; the drop tower.
+const COASTER_DECK = { x0: 80.2, x1: 83.2, z0: -37.2, z1: -30.4, y: 9.0 };
+const COASTER_STAIR = { x0: 81.6, x1: 82.8, zFoot: -21.4, steps: 30, rise: 0.3, run: 0.3 };
+const COASTER_TOWER = [85, -43.5];
 // shots that land on the map, for things that react to them (the tin trolls)
 const SHOT_HOOKS = [];
 const CAROUSEL = { x: 44.5, z: -4, r: 4.5 };
@@ -3267,6 +3272,330 @@ function buildMountain(api, K, M, SP, root, lights) {
   }
 }
 
+/* ------------------------------------------------ The Grinder + the drop tower (6e) */
+
+/* The coaster's centre line, in ride order (a closed loop): out of the
+   station east, round and up the lift hill north, over the crest and down
+   the big drop west, through the vertical loop heading south, east through
+   the corkscrew, up to the brake run beside the deck, round the east side
+   and back along the stalls into the station. */
+function coasterPoints() {
+  const P = [];
+  const add = (x, y, z) => P.push(new THREE.Vector3(x, y, z));
+  add(57, 1.45, -18.5); add(62, 1.45, -18.5); add(66.5, 1.45, -18.5);
+  add(70.5, 1.9, -19.3); add(73.2, 2.8, -21.2);
+  add(74, 5.5, -24); add(74, 12, -30); add(74, 18.5, -36); add(73.4, 20.8, -39.3);
+  add(71, 21.2, -41.6); add(67.5, 20.2, -42.4);
+  add(63.5, 12, -42); add(60.5, 4.6, -41); add(57.2, 3.2, -38.6); add(55, 3.1, -35);
+  // the vertical loop: a circle in the y-z plane drifting 1.4 m east
+  for (let i = 0; i <= 8; i++) {
+    const f = i / 8, a = f * Math.PI * 2;
+    add(54.8 + 1.4 * f, 9 - 5.8 * Math.cos(a), -31 + 5.8 * Math.sin(a));
+  }
+  add(56.6, 3.4, -25.5); add(58.6, 3.6, -22.6);
+  // the corkscrew: one roll round an axis along x at z -26, y 7.5
+  for (let i = 0; i <= 8; i++) {
+    const f = i / 8, a = f * Math.PI * 2;
+    add(61.2 + 9.6 * f, 7.5 - 3.6 * Math.cos(a), -26 - 3.6 * Math.sin(a));
+  }
+  add(73.6, 4.6, -26.2); add(76.8, 7.2, -28.4); add(78.9, 9, -31.4);
+  add(78.9, 9, -34.4); add(78.9, 9, -37.2);
+  add(80.6, 8.6, -40.2); add(84, 7.4, -39.8); add(85.3, 6.2, -35.5);
+  add(85.4, 4.8, -27); add(85.2, 3.6, -19); add(83.4, 3.2, -14.2);
+  add(78, 3.2, -13.2); add(68, 3.2, -13.2); add(58, 3.2, -13.2); add(53.6, 2.8, -14.6);
+  add(53.0, 2.2, -16.9); add(54.6, 1.6, -18.5);
+  return P;
+}
+
+/* Up vectors along the track by parallel transport from "straight up" at
+   the station, the leftover twist spread round the loop so it closes. */
+function transportUps(tangents) {
+  const n = tangents.length, ups = [];
+  let u = new THREE.Vector3(0, 1, 0);
+  u.addScaledVector(tangents[0], -u.dot(tangents[0])).normalize();
+  ups.push(u.clone());
+  const q = new THREE.Quaternion();
+  for (let i = 1; i < n; i++) {
+    q.setFromUnitVectors(tangents[i - 1], tangents[i]);
+    u = u.clone().applyQuaternion(q);
+    u.addScaledVector(tangents[i], -u.dot(tangents[i])).normalize();
+    ups.push(u);
+  }
+  // close it: rotate each frame about its tangent by a share of the mismatch
+  const end = ups[n - 1].clone().applyQuaternion(new THREE.Quaternion().setFromUnitVectors(tangents[n - 1], tangents[0]));
+  const side0 = new THREE.Vector3().crossVectors(tangents[0], ups[0]);
+  const twist = Math.atan2(end.dot(side0), end.dot(ups[0]));
+  for (let i = 0; i < n; i++) ups[i].applyAxisAngle(tangents[i], (-twist * i) / n);
+  return ups;
+}
+
+/* Rings of `seg` points round a path (offset by `off(i)` from it), joined
+   into one tube; frames from the track. */
+function trackTube(pts, ups, tans, off, r, seg = 6) {
+  const pos = [];
+  const ring = (i) => {
+    const t = tans[i], u = ups[i], sd = new THREE.Vector3().crossVectors(t, u);
+    const c = pts[i].clone().add(off(sd, u));
+    const out = [];
+    for (let k = 0; k < seg; k++) {
+      const a = (k / seg) * Math.PI * 2;
+      out.push(c.clone().addScaledVector(u, Math.cos(a) * r).addScaledVector(sd, Math.sin(a) * r));
+    }
+    return out;
+  };
+  let prev = ring(0);
+  for (let i = 1; i <= pts.length; i++) {
+    const cur = ring(i % pts.length);
+    for (let k = 0; k < seg; k++) {
+      const j = (k + 1) % seg;
+      for (const p of [prev[k], cur[k], cur[j], prev[k], cur[j], prev[j]]) pos.push(p.x, p.y, p.z);
+    }
+    prev = cur;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+function buildCoaster(api, K, M, SP, root, lights) {
+  const sign = (lines, o) => new THREE.MeshBasicMaterial({ map: signTexture(lines, o), color: 0xffffff });
+  const curve = new THREE.CatmullRomCurve3(coasterPoints(), true, "centripetal");
+  const L = curve.getLength();
+  const N = Math.round(L / 0.5);
+  const pts = [], tans = [];
+  for (let i = 0; i < N; i++) {
+    pts.push(curve.getPointAt(i / N));
+    tans.push(curve.getTangentAt(i / N).normalize());
+  }
+  const ups = transportUps(tans);
+
+  /* ---- the track: two rails, a teal box spine under them, ties */
+  K.add(M.track, trackTube(pts, ups, tans, (sd, u) => sd.clone().multiplyScalar(0.55), 0.07));
+  K.add(M.track, trackTube(pts, ups, tans, (sd, u) => sd.clone().multiplyScalar(-0.55), 0.07));
+  K.add(M.track, trackTube(pts, ups, tans, (sd, u) => u.clone().multiplyScalar(-0.42), 0.2, 8));
+  for (let i = 0; i < N; i += 3) {
+    const t = tans[i], u = ups[i], sd = new THREE.Vector3().crossVectors(t, u), p = pts[i];
+    for (const s of [-1, 1]) {
+      K.add(M.track, rodGeo([p.x + sd.x * s * 0.55, p.y + sd.y * s * 0.55, p.z + sd.z * s * 0.55], [p.x - u.x * 0.42, p.y - u.y * 0.42, p.z - u.z * 0.42], 0.035, 4), { shadow: false });
+    }
+  }
+  // chain dogs up the lift hill, a catwalk beside it
+  for (let i = 0; i < N; i++) {
+    const p = pts[i];
+    if (!(p.x > 73 && p.x < 75 && p.z < -22 && p.z > -38.5) || i % 2) continue;
+    K.box(M.iron, p.x, p.y - 0.1, p.z, 0.16, 0.05, 0.16, {}, { shadow: false });
+  }
+
+  /* ---- supports: tan tubular columns wherever the track rides upright */
+  {
+    const spawns = HOLLOWGRIN.spawns.map(([x, z]) => [x, z]);
+    let last = -99;
+    for (let i = 0; i < N; i++) {
+      const p = pts[i], u = ups[i];
+      if (i - last < 9 || u.y < 0.8 || p.y < 2.4) continue;
+      if (p.x > 55.4 && p.x < 68.6 && p.z > -21.4 && p.z < -15.6) continue;   // the station carries itself
+      if (p.x > 55 && p.x < 69 && p.z > -26 && p.z < -21.4) continue;          // keep the queue lanes clear
+      if (spawns.some(([x, z]) => Math.hypot(x - p.x, z - p.z) < 1.8)) continue;
+      last = i;
+      const top = p.y - 0.62;
+      K.cyl(M.support, p.x, 0, p.z, 0.2, 0.16, top, 8);
+      K.cyl(M.concrete, p.x, 0, p.z, 0.42, 0.42, 0.25, 8);
+      if (top > 8) {
+        const sd = new THREE.Vector3().crossVectors(tans[i], u).setY(0).normalize();
+        for (const s of [-1, 1]) {
+          K.add(M.support, rodGeo([p.x + sd.x * s * 1.6, 0, p.z + sd.z * s * 1.6], [p.x, top * 0.7, p.z], 0.12, 6));
+          K.api.ghostBox(p.x + sd.x * s * 1.6, p.z + sd.z * s * 1.6, 0.4, 0.4, 2.0, { pen: 0.6 });
+        }
+      }
+      K.api.ghostBox(p.x, p.z, 0.4, 0.4, top, { pen: 0.6 });
+    }
+    // low track outside the station: a body-height barrier under it
+    for (let i = 0; i < N; i += 2) {
+      const p = pts[i];
+      if (p.y > 2.6) continue;
+      if (p.x > 51 && p.x < 72 && p.z > -22 && p.z < -12) continue;   // round the station: walk under it
+      K.api.ghostBox(p.x, p.z, 0.9, 0.9, p.y + 0.3, { pen: 0.5 });
+    }
+  }
+
+  /* ---- the station: two platforms either side of the track, a roof */
+  {
+    // 2 m clear of the stalls' backs, so there's a walkway between
+    const st = { x0: 55.5, x1: 68.5, zN: -20.9, zS: -16.1, y: 1.2 };
+    const cx = (st.x0 + st.x1) / 2, w = st.x1 - st.x0;
+    K.solid(cx, -20.15, w, 1.5, st.y, { mat: M.stationDeck, pen: 8 });
+    K.solid(cx, -16.85, w, 1.5, st.y, { mat: M.stationDeck, pen: 8 });
+    for (const z of [-20.9, -16.1]) {
+      for (const x of [st.x0 + 0.2, cx, st.x1 - 0.2]) K.solid(x, z, 0.25, 0.25, 4.2, { mat: M.support, pen: 6 });
+    }
+    K.solid(cx, -18.5, w + 0.6, 5.6, 0.25, { y: 4.2, mat: M.stationRoof, pen: 6 });
+    K.box(M.track, cx, 4.45, -18.5, w + 0.7, 0.35, 5.7);
+    // steps up to each platform from the west end, a gate rail on the track side
+    for (const z of [-20.15, -16.85]) {
+      for (let k = 0; k < 3; k++) K.solid(st.x0 - 0.2 - (2 - k) * 0.4, z, 0.4, 1.5, 0.3 * (k + 1), { mat: M.stationDeck, pen: 6 });   // 0.3 m rises
+    }
+    for (const z of [-19.45, -17.55]) {
+      K.api.ghostBox(cx, z, w, 0.08, 1.0, { y: st.y, pen: 0.3 });
+      K.box(M.gold, cx, st.y + 0.95, z, w, 0.06, 0.06);
+      for (let x = st.x0 + 0.5; x < st.x1; x += 1.3) K.box(M.gold, x, st.y, z, 0.05, 0.95, 0.05, {}, { shadow: false });
+    }
+    const title = sign(["THE GRINDER"], { bg: "#0a1a1c", fg: "#7affe0", edge: "#ffb347" });
+    for (const [z, ry] of [[-21.32, Math.PI], [-15.68, 0]]) K.add(title, place(new THREE.PlaneGeometry(6.4, 0.8), { x: cx, y: 5.2, z, ry }), { shadow: false });
+    for (const z of [-21.36, -15.64]) K.box(M.track, cx, 4.75, z, 6.8, 0.95, 0.06);
+    // the queue maze north of it: switchback rails, posts with bulbs
+    for (const [z, a, b] of [[-22.6, 57.5, 68.5], [-24.0, 55.5, 66.5], [-25.4, 57.5, 68.5]]) {
+      K.api.ghostBox((a + b) / 2, z, b - a, 0.08, 1.0, { pen: 0.3 });
+      for (const y of [0.5, 0.95]) K.box(M.iron, (a + b) / 2, y, z, b - a, 0.05, 0.05, {}, { shadow: false });
+      for (let x = a; x <= b + 0.01; x += 2.2) {
+        K.box(M.iron, x, 0, z, 0.08, 1.05, 0.08);
+        K.add(M.bulb, place(new THREE.OctahedronGeometry(0.06), { x, y: 1.12, z }), { color: BULBS[Math.round(x) % 4], shadow: false });
+      }
+    }
+    lantern(K, M, cx - 3, 3.6, -18.5, { hang: 0.5, floor: st.y, seed: 9000, pool: 4 });
+    lantern(K, M, cx + 3, 3.6, -18.5, { hang: 0.5, floor: st.y, seed: 9001, pool: 4 });
+    festoon(K, M, SP, [[st.x0, 4.15, -21.0], [st.x1, 4.15, -21.0]], { sag: 0.2, every: 0.5, seed: 90 });
+  }
+
+  /* ---- the brake deck at 9 m beside the brake run, its stair */
+  {
+    const D = COASTER_DECK, S = COASTER_STAIR;
+    const dcx = (D.x0 + D.x1) / 2, dcz = (D.z0 + D.z1) / 2;
+    K.solid(dcx, dcz, D.x1 - D.x0, D.z1 - D.z0, 0.25, { y: D.y - 0.25, mat: M.stationDeck, pen: 6 });
+    for (const x of [D.x0 + 0.15, D.x1 - 0.15]) for (const z of [D.z0 + 0.15, D.z1 - 0.15]) K.solid(x, z, 0.24, 0.24, D.y - 0.25, { mat: M.support, pen: 6 });
+    const rail = { y: D.y, pen: 0.3 };
+    K.api.ghostBox(dcx, D.z0 + 0.03, D.x1 - D.x0, 0.08, 1.05, rail);
+    K.api.ghostBox(D.x0 + 0.03, dcz, 0.08, D.z1 - D.z0, 1.05, rail);
+    K.api.ghostBox(D.x1 - 0.03, dcz, 0.08, D.z1 - D.z0, 1.05, rail);
+    for (const [a, b] of [[D.x0, S.x0], [S.x1, D.x1]]) K.api.ghostBox((a + b) / 2, D.z1 - 0.03, b - a, 0.08, 1.05, rail);
+    for (const [ax, az, bx, bz] of [[D.x0, D.z0, D.x1, D.z0], [D.x0, D.z0, D.x0, D.z1], [D.x1, D.z0, D.x1, D.z1], [D.x0, D.z1, S.x0, D.z1], [S.x1, D.z1, D.x1, D.z1]]) {
+      const len = Math.hypot(bx - ax, bz - az), cxx = (ax + bx) / 2, czz = (az + bz) / 2;
+      for (const y of [0.5, 1.0]) K.box(M.yellow, cxx, D.y + y, czz, Math.max(0.05, Math.abs(bx - ax)), 0.05, Math.max(0.05, Math.abs(bz - az)), {}, { shadow: false });
+      for (let k = 0; k <= Math.round(len); k++) {
+        K.box(M.yellow, ax + ((bx - ax) * k) / Math.max(1, Math.round(len)), D.y, az + ((bz - az) * k) / Math.max(1, Math.round(len)), 0.06, 1.05, 0.06, {}, { shadow: false });
+      }
+    }
+    api.stairs((S.x0 + S.x1) / 2, S.zFoot, S.x1 - S.x0, S.steps, S.rise, S.run, "-z", { ghost: true });
+    for (let i = 0; i < S.steps; i++) {
+      const top = S.rise * (i + 1), zc = S.zFoot - S.run * (i + 0.5);
+      K.box(M.stationDeck, (S.x0 + S.x1) / 2, top - 0.06, zc, S.x1 - S.x0, 0.06, S.run + 0.02, {}, { shadow: false });
+    }
+    for (const x of [S.x0, S.x1]) {
+      K.add(M.support, rodGeo([x, 0, S.zFoot + 0.1], [x, S.rise * S.steps, S.zFoot - S.run * S.steps], 0.05, 4));
+      K.add(M.yellow, rodGeo([x, 1.0, S.zFoot], [x, S.rise * S.steps + 1.0, S.zFoot - S.run * S.steps], 0.025, 4), { shadow: false });
+    }
+    K.box(M.track, (S.x0 + S.x1) / 2, 0, (S.zFoot + S.zFoot - S.run * S.steps) / 2, S.x1 - S.x0 - 0.1, 0.02, S.run * S.steps, {}, { shadow: false });
+    // a flood lamp on the deck and a warning sign
+    K.cyl(M.support, D.x1 - 0.3, D.y, D.z0 + 0.3, 0.06, 0.05, 2.6, 6);
+    K.box(M.lampGlass, D.x1 - 0.3, D.y + 2.6, D.z0 + 0.5, 0.4, 0.3, 0.08, {}, { shadow: false });
+    SP.add(D.x1 - 0.3, D.y + 2.75, D.z0 + 0.55, 0xfff0c8, { size: 2.2, blink: 0.02 });
+    K.add(sign(["STAFF ONLY", "BRAKE RUN"], { w: 512, h: 256, bg: "#e8dcc0", fg: "#8a1a1a", edge: "#8a1a1a" }),
+      place(new THREE.PlaneGeometry(0.8, 0.4), { x: (S.x0 + S.x1) / 2, y: 1.6, z: S.zFoot + 0.25 }), { shadow: false });
+  }
+
+  /* ---- the train: four cars riding the curve; slow up the lift, a pause
+     in the station, gravity everywhere else */
+  {
+    const TOP = 21.6;
+    const speed = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      const p = pts[i], t = tans[i];
+      if (p.x > 55.5 && p.x < 68.5 && p.z > -20 && p.z < -17 && p.y < 2) speed[i] = 2.2;
+      else if (t.y > 0.3 && p.x > 72.8 && p.x < 75.2) speed[i] = 3.2;           // the chain lift
+      else if (p.x > 78 && p.x < 80 && p.z < -30 && p.z > -38) speed[i] = 4.0;  // the brakes
+      else speed[i] = Math.max(4, Math.sqrt(2 * 9.8 * 0.82 * Math.max(0, TOP - p.y)));
+    }
+    const step = L / N, times = new Float32Array(N + 1);
+    const DWELL = 5, dwellAt = pts.findIndex((p) => p.x > 61.5 && p.y < 2);
+    for (let i = 0; i < N; i++) times[i + 1] = times[i] + step / speed[i] + (i === dwellAt ? DWELL : 0);
+    const CYCLE = times[N];
+    const sAt = (t) => {
+      let lo = 0, hi = N;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (times[m] <= t) lo = m; else hi = m; }
+      const span = times[lo + 1] - times[lo];
+      const f = lo === dwellAt ? Math.max(0, (t - times[lo] - DWELL) / (span - DWELL)) : (t - times[lo]) / span;
+      return (lo + Math.min(1, Math.max(0, f))) * step;
+    };
+    const car = mergeGeometries([
+      new THREE.BoxGeometry(1.7, 0.55, 1.15).translate(0, 0.35, 0).toNonIndexed(),
+      new THREE.BoxGeometry(0.15, 0.6, 1.1).translate(0.55, 0.85, 0).toNonIndexed(),
+      new THREE.BoxGeometry(0.15, 0.6, 1.1).translate(-0.2, 0.85, 0).toNonIndexed(),
+      new THREE.BoxGeometry(0.3, 0.35, 1.2).translate(0.85, 0.3, 0).toNonIndexed(),
+    ], false);
+    const cars = new THREE.InstancedMesh(car, M.coasterCar, 4);
+    cars.frustumCulled = false;
+    cars.castShadow = true;
+    root.add(cars);
+    const m3 = new THREE.Matrix4(), side = new THREE.Vector3(), tv = new THREE.Vector3(), uv = new THREE.Vector3();
+    const frameAt = (s) => {
+      const u = ((s % L) + L) % L / L;
+      const i = Math.floor(u * N) % N;
+      _p.copy(curve.getPointAt(u));
+      tv.copy(tans[i]);
+      uv.copy(ups[i]);
+      side.crossVectors(tv, uv);
+      m3.makeBasis(tv, uv, side);
+      _q.setFromRotationMatrix(m3);
+      _p.addScaledVector(uv, -0.05);
+    };
+    cars.onBeforeRender = () => {
+      const t = (performance.now() / 1000) % CYCLE;
+      const head = sAt(t);
+      for (let k = 0; k < 4; k++) {
+        frameAt(head - k * 1.95);
+        _m4.compose(_p, _q, _s.set(1, 1, 1));
+        cars.setMatrixAt(k, _m4);
+      }
+      cars.instanceMatrix.needsUpdate = true;
+    };
+    cars.onBeforeRender();
+  }
+
+  /* ---- the drop tower: a lattice mast, a ring of seats that creeps up
+     then falls */
+  {
+    const [tx, tz] = COASTER_TOWER, H = 30;
+    K.solid(tx, tz, 3.2, 3.2, 1.0, { mat: M.concrete, pen: 10 });
+    K.api.ghostBox(tx, tz, 1.6, 1.6, H, { y: 1.0, pen: 1.2 });
+    for (const [dx, dz] of [[-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) K.cyl(M.support, tx + dx, 1.0, tz + dz, 0.12, 0.1, H - 1, 6);
+    for (let y = 2; y < H; y += 2) {
+      for (const [ax, az, bx, bz] of [[-0.7, -0.7, 0.7, -0.7], [0.7, -0.7, 0.7, 0.7], [0.7, 0.7, -0.7, 0.7], [-0.7, 0.7, -0.7, -0.7]]) {
+        K.add(M.support, rodGeo([tx + ax, y, tz + az], [tx + bx, y + 2, tz + bz], 0.04, 4), { shadow: false });
+      }
+    }
+    K.box(M.track, tx, H, tz, 2.6, 0.6, 2.6);
+    K.cyl(M.track, tx, H + 0.6, tz, 0.9, 0.2, 1.6, 8);
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2, x = tx + Math.cos(a) * 1.4, z = tz + Math.sin(a) * 1.4;
+      K.add(M.bulb, place(new THREE.OctahedronGeometry(0.08), { x, y: H + 0.3, z }), { color: BULBS[i % 4], shadow: false });
+      SP.add(x, H + 0.3, z, BULBS[i % 4], { size: 0.9, blink: 0.4 });
+    }
+    K.add(sign(["DROP OF DOOM"], { bg: "#1a0c14", fg: "#ff5a6a", edge: "#ffd23a" }), place(new THREE.PlaneGeometry(2.4, 0.5), { x: tx, y: H - 1.4, z: tz + 1.32 }), { shadow: false });
+    const ringGeo = mergeGeometries([
+      new THREE.CylinderGeometry(1.9, 1.9, 0.5, 20, 1, true).toNonIndexed(),
+      ...Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2;
+        return new THREE.BoxGeometry(0.5, 0.9, 0.45).translate(Math.cos(a) * 2.1, -0.35, Math.sin(a) * 2.1).toNonIndexed();
+      }),
+    ], false);
+    const ring = new THREE.Mesh(ringGeo, M.awningRed);
+    ring.castShadow = true;
+    root.add(ring);
+    ring.position.set(tx, 2.2, tz);
+    ring.onBeforeRender = () => {
+      // 14 s cycle: 8 s creeping up, 2 s hanging at the top, a 1.4 s fall, 2.6 s settling
+      const t = (performance.now() / 1000) % 14;
+      let y;
+      if (t < 8) y = 2.2 + (H - 4.2) * (t / 8);
+      else if (t < 10) y = H - 2 + Math.sin(t * 9) * 0.03;
+      else if (t < 11.4) { const k = (t - 10) / 1.4; y = H - 2 - (H - 4.2) * k * k; }
+      else y = 2.2 + Math.sin((t - 11.4) * 6) * 0.25 * Math.exp(-(t - 11.4) * 2);
+      ring.position.y = y;
+      ring.rotation.y = t * 0.2;
+    };
+  }
+}
+
 /* ===================================================================== map */
 
 function buildHollowgrin(api) {
@@ -3368,6 +3697,14 @@ function buildHollowgrin(api) {
     portraitBg: new THREE.MeshStandardMaterial({ color: 0x1c2a24, roughness: 0.8 }),
     portraitFace: new THREE.MeshStandardMaterial({ map: trollTexture(), alphaTest: 0.5, color: 0xd8cfb8, roughness: 0.7, emissive: 0x2a2620, emissiveMap: trollTexture() }),
     ghostly: new THREE.MeshBasicMaterial({ alphaMap: ghostFadeTexture(), color: 0x7aaad0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
+    // phase 6e: the coaster and the drop tower
+    track: new THREE.MeshStandardMaterial({ color: 0x1a8a86, roughness: 0.4, metalness: 0.3, emissive: 0x06201e }),
+    support: new THREE.MeshStandardMaterial({ color: 0xc8a878, roughness: 0.55, metalness: 0.2 }),
+    concrete: surfMat("cast", 0x8a8a8e, { mix: 0.4, tile: 1.2 }),
+    stationDeck: surfMat("wood", 0x6a4a30, { mix: 0.35, tile: 1, bounce: 0.15 }),
+    stationRoof: new THREE.MeshStandardMaterial({ color: 0x23302f, roughness: 0.7 }),
+    coasterCar: new THREE.MeshStandardMaterial({ color: 0xd8402a, roughness: 0.35, metalness: 0.3, emissive: 0x2a0806 }),
+    yellow: new THREE.MeshStandardMaterial({ color: 0xd8b02a, roughness: 0.5 }),
     // phase 6d: the moat, the logs, the skull's eyes
     moatWater: new THREE.MeshStandardMaterial({ color: 0x062a2c, roughness: 0.06, metalness: 0.4, emissive: 0x1ab89e, emissiveMap: glowRippleTexture(), emissiveIntensity: 0.8 }),
     log: surfMat("wood", 0x6a4a30, { mix: 0.3, tile: 1 }),
@@ -3383,6 +3720,9 @@ function buildHollowgrin(api) {
   M.fountainWater.emissiveMap.repeat.set(3, 3);
   M.fall.map.repeat.set(10, 1);
   M.log.side = THREE.DoubleSide;
+  // the coaster's steel washed green from below, like the photo
+  M.track.userData.wash = { color: 0x3aff8a, top: 6, strength: 0.07 };
+  M.support.userData.wash = { color: 0x3aff8a, top: 6, strength: 0.08 };
 
   /* --------------------------------------------------------- the ground */
   // Dirt paths and the square laid over the grass, a hair above it.
@@ -4262,6 +4602,7 @@ function buildHollowgrin(api) {
   buildPark(api, K, M, SP, root, lights);
   buildMansion(api, K, M, SP, root, lights);
   buildMountain(api, K, M, SP, root, lights);
+  buildCoaster(api, K, M, SP, root, lights);
 
   /* ------------------------------------------------ the sky: a full moon */
   {
@@ -4393,7 +4734,9 @@ export const HOLLOWGRIN = {
       // the Ferris wheel's lamp deck: up its stair from 1.3 m short of the foot
       { from: "ground", to: "wheel", a: { x: 77.2, z: 1.9 }, b: { x: 77.2, z: -6.6 } },
       // the mansion's stair, up the ballroom's west end to the attic
-      { from: "ground", to: "mansion", a: { x: 69.0, z: 28.2 }, b: { x: 63.4, z: 28.2 } }],
+      { from: "ground", to: "mansion", a: { x: 69.0, z: 28.2 }, b: { x: 63.4, z: 28.2 } },
+      // the coaster's brake deck: up the maintenance stair
+      { from: "ground", to: "brake", a: { x: 82.2, z: -20.1 }, b: { x: 82.2, z: -33.0 } }],
     support: true,
     preferDist: 17,
     navCell: 0.55,

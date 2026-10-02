@@ -134,6 +134,12 @@ const RUNS = {
   [75.1, 0, 35, 0, -1, 3, "mountain: out its north end", (r) => r.end[2] < 30.4],
   [78.8, 0, 21.7, 1, 0, 3, "moat: east bridge to the lawn", (r) => r.end[0] > 84.5 && r.maxY >= 0.5],
   [66, 0, 36.5, 1, 0, 4, "mountain: the rock stops you", (r) => r.end[0] < 76.3],
+  // phase 6e: the coaster station, the brake deck's stair and rail
+  [53.0, 0, -20.15, 1, 0, 3, "coaster: up onto the loading platform", (r) => r.end[1] > 1.1 && r.end[0] > 57],
+  [82.2, 0, -19.5, 0, -1, 5, "coaster: up the stair to the brake deck", (r) => r.end[1] > 8.9],
+  [81.5, 9, -33.5, -1, 0, 2, "coaster: the brake deck rail holds", (r) => r.end[0] > 80.1 && r.end[1] > 8.9],
+  [62, 0, -6.5, 0, -1, 4, "coaster: through the stall alley", (r) => r.end[2] < -14],
+  [60, 0, -14, 1, 0, 4, "coaster: along the walkway behind the stalls", (r) => r.end[0] > 70],
   ],
   // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
   // cave (-9.1, -32.6), portal (120.8, -100.6), bridge z 77.8 from x -56.3 to
