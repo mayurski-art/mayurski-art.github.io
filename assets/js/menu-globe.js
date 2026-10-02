@@ -340,8 +340,10 @@ export function mountMenuBackdrop(host) {
   ro.observe(root);
   run();
 
+  // One retry: a flaky CDN fetch shouldn't leave the stand-in planet up.
+  const loadLibRetry = () => loadLib().catch(() => new Promise((res) => setTimeout(res, 3000)).then(loadLib));
   if (webglOk()) {
-    loadLib().then((maplibregl) => {
+    loadLibRetry().then((maplibregl) => {
       if (dead) return;
       map = new maplibregl.Map({
         container: planetEl,

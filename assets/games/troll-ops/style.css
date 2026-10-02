@@ -3059,3 +3059,120 @@ body.to-touch-play .to-ss-sky { width: calc(24px * var(--k)); height: calc(24px 
 .to-df.is-overheated .to-df-heat em { display: block; }
 .to-df.is-overheated .to-df-reticle { opacity: .35; }
 @keyframes to-df-hot { from { opacity: 1; } to { opacity: .45; } }
+
+/* =====================================================================
+   Main menu v3: Black Ops 2 Zombies style (menu-bo2.js). A plain stacked
+   text list (assets/js/bo2-menu.js) over the molten troll-map planet
+   (assets/js/menu-globe.js), the same look as the trollrunner.net home.
+   The old menu's lists still exist (game.js builds them, menu-bo2.js
+   drives them); here they're hidden, and the old panel container sits in
+   the right-hand detail pane for what isn't a list (stats, room, keys).
+   ===================================================================== */
+#to-title.is-bo2 { background: #030101; }
+#to-title.is-bo2 .to-title-bg,
+#to-title.is-bo2 .to-pf-top,
+#to-title.is-bo2 .to-pf-play,
+#to-title.is-bo2 .to-pf-right,
+#to-title.is-bo2 #to-map-drawer,
+#to-title.is-bo2 #to-map-scrim { display: none !important; }
+.to-bo2 {
+  --bo2-ink: #f3ece4; --bo2-dim: #c9b8a6; --bo2-soft: #e2d6c8; --bo2-hot: #ff8a1f; --bo2-gold: #ffd27a;
+  --bo2-col: max(560px, 44%);   /* also set on .to-pf below, for the gun view */
+  position: absolute; inset: 0; color: var(--bo2-ink); pointer-events: none;
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+.to-bo2 > :not(.to-bo2-bg) { pointer-events: auto; }
+.to-bo2-bg { position: absolute; inset: 0; z-index: 0; }
+.to-bo2-brand {
+  position: absolute; left: 72px; top: 40px; z-index: 3;
+  font: 700 22px/1 Oswald, "Arial Narrow", sans-serif; letter-spacing: .08em;
+  color: var(--bo2-ink); text-decoration: none; text-shadow: 0 2px 8px rgba(0,0,0,.8);
+}
+.to-bo2-brand em { font-style: normal; color: var(--bo2-hot); }
+.to-bo2-menu { position: absolute; left: 96px; top: 100px; width: 440px; max-height: calc(100% - 210px); overflow-y: auto; z-index: 3; scrollbar-width: none; }
+.to-bo2-party { position: absolute; left: var(--bo2-col); top: 140px; width: min(380px, calc(100% - var(--bo2-col) - 48px)); z-index: 3; display: flex; flex-direction: column; gap: 6px; }
+.to-bo2.has-detail .to-bo2-party, body.is-map .to-bo2-party { visibility: hidden; }
+.to-bo2-party-lbl { font: 500 17px Oswald, sans-serif; letter-spacing: .04em; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
+.to-bo2-party-lbl span { color: var(--bo2-dim); }
+.to-bo2-party-row {
+  display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px;
+  border: 0; border-bottom: 1px solid rgba(255,176,32,.55);
+  background: linear-gradient(90deg, rgba(10,4,2,.8), rgba(10,4,2,.2));
+  color: inherit; text-align: left; cursor: pointer;
+}
+.to-bo2-party-row:focus-visible { outline: 2px solid var(--bo2-hot); outline-offset: 2px; }
+.to-bo2-party-row b { font: 500 18px Oswald, sans-serif; letter-spacing: .03em; color: var(--bo2-gold); }
+.to-bo2-lv { font: normal 12px "DM Mono", monospace; color: var(--bo2-hot); }
+.to-bo2-xp { font: 12px "DM Mono", monospace; color: var(--bo2-dim); text-shadow: 0 1px 4px rgba(0,0,0,.9); }
+
+/* The detail pane: the old panels (minus their lists), a map shot, the board. */
+.to-bo2-detail, .to-bo2-panel {
+  position: absolute; left: var(--bo2-col); right: 48px; top: 100px; bottom: 96px; z-index: 3;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 18px 20px; box-sizing: border-box;
+  background: rgba(10,4,2,.82); border: 1px solid rgba(243,236,228,.14); border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.to-bo2-panel, .to-bo2-detail { bottom: auto; max-height: calc(100% - 196px); }
+#to-title.is-bo2 .to-pf { --bo2-col: max(560px, 44%); }
+.to-bo2.has-gun .to-bo2-detail { max-height: calc(100% - 210px - 40cqh); }
+.to-bo2:not(.has-detail) .to-bo2-detail { display: none; }
+.to-bo2.has-gun .to-bo2-detail { top: calc(100px + 40cqh + 14px); }
+#to-title.is-bo2 .to-pf > .to-gun-view.is-hero {
+  left: var(--bo2-col); right: 48px; top: 100px; bottom: auto; height: 40cqh; z-index: 3;
+  border-color: rgba(243,236,228,.14);
+  background: radial-gradient(60% 60% at 50% 45%, rgba(60,34,18,.92), rgba(10,4,2,.95));
+}
+#to-title.is-bo2 .to-bo2-detail #to-pf-center {
+  position: static; width: auto; inset: auto; display: block; pointer-events: auto;
+}
+#to-title.is-bo2 .to-bo2-detail .to-pf-panel { background: none; border: 0; max-height: none; overflow: visible; padding: 0; }
+#to-title.is-bo2 .to-bo2-detail :is(.to-pf-panel-bar, .to-pf-seg, #to-lo-slot-toggle, #to-lo-classes, #to-lo-list, #to-lo-atts, #to-lo-gear, #to-ss-picker, #to-cos-body) { display: none !important; }
+#to-title.is-bo2 .to-bo2-detail .to-lo-body { display: block; }
+#to-title.is-bo2 .to-bo2-detail #to-pfp-controls > :not(.to-controls-wrap) { display: none; }
+.to-bo2.has-lb #to-pf-center, .to-bo2[data-screen="maps"] #to-pf-center { display: none !important; }
+.to-bo2-mapshot { margin: 0; }
+.to-bo2-mapshot img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; }
+.to-bo2-mapshot figcaption { margin-top: 10px; color: var(--bo2-soft); font-size: 15px; }
+/* The operator stands in the right half, beside the list. */
+#to-title.is-bo2 .to-char-view { left: 46%; top: 0; bottom: 110px; z-index: 1; }
+.to-bo2.has-detail ~ .to-char-view, body.is-map #to-title.is-bo2 .to-char-view { visibility: hidden; }
+
+.to-bo2-foot { position: absolute; left: 96px; right: 48px; bottom: 30px; z-index: 3; display: flex; align-items: flex-end; gap: 26px; color: var(--bo2-dim); font-size: 15px; pointer-events: none; }
+.to-bo2-foot > * { pointer-events: auto; }
+.to-bo2-online { font: 600 38px/1 Oswald, sans-serif; letter-spacing: .02em; color: var(--bo2-ink); text-shadow: 0 2px 10px rgba(0,0,0,.9); }
+.to-bo2-status { display: block; margin-top: 8px; font: 13px "DM Mono", monospace; color: var(--bo2-soft); }
+.to-bo2-status:empty { display: none; }
+.to-bo2-back { display: none; align-items: center; gap: 8px; margin-top: 10px; padding: 0; border: 0; background: none; color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; cursor: pointer; }
+.to-bo2-back.is-on { display: flex; }
+.to-bo2-hints { display: flex; gap: 22px; margin-left: auto; margin-right: 56px; }
+.to-bo2-hints span { display: flex; align-items: center; gap: 8px; }
+.to-bo2 kbd { font: 12px "DM Mono", monospace; padding: 3px 7px; border-radius: 5px; border: 1px solid rgba(243,236,228,.35); color: var(--bo2-ink); background: none; }
+body.is-map .to-bo2-hints { visibility: hidden; }
+/* trollrunner.net's home carries the socials now; keep the menu clean.
+   The radio moves to the top right, clear of the hints. */
+#to-title.is-bo2:not([hidden]) ~ .to-x-link,
+#to-title.is-bo2:not([hidden]) ~ .to-truths-link { display: none; }
+#to-title.is-bo2:not([hidden]) ~ .to-radio { right: 48px; bottom: auto; top: 30px; }
+#to-title.is-bo2:not([hidden]) ~ .to-radio .to-radio-panel { bottom: auto; top: 48px; }
+.to-bo2-hints { margin-right: 0 !important; }
+
+@container cab (max-width: 760px) {
+  .to-bo2 { --bo2-col: 12px; }
+  .to-bo2-brand { left: 20px; top: 16px; font-size: 18px; }
+  .to-bo2-party { left: 20px; right: 20px; width: auto; top: 46px; }
+  .to-bo2-party-lbl, .to-bo2-xp { display: none; }
+  .to-bo2-menu { left: 20px; right: 20px; width: auto; top: auto; bottom: 84px; max-height: 64cqh; }
+  .to-bo2-bg::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(3,1,1,0) 12%, rgba(3,1,1,.5) 34%, rgba(3,1,1,.85) 62%); }
+  body.is-map .to-bo2-bg::after { display: none; }
+  .to-bo2-detail, .to-bo2-panel { left: 12px; right: 12px; top: 84px; bottom: calc(var(--menu-h, 300px) + 96px); max-height: none; padding: 12px; }
+  #to-title.is-bo2 .to-bo2-detail .to-lo-detail { background: none; border: 0; padding: 0; box-shadow: none; }
+  .to-bo2-panel { bottom: auto; }
+  .to-bo2.has-gun .to-bo2-detail { top: 92px; }
+  #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: none; }
+  #to-title.is-bo2 .to-char-view { left: 0; top: 76px; bottom: calc(var(--menu-h, 300px) + 92px); }
+  .to-bo2-foot { left: 20px; right: 16px; bottom: 18px; }
+  .to-bo2-online { font-size: 24px; }
+  .to-bo2-hints { display: none; }
+}
+@media (hover: none) { .to-bo2-back kbd { display: none; } .to-bo2-back { min-height: 44px; font: 600 16px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; } }

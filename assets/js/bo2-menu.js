@@ -10,6 +10,8 @@
                  onSelect?(item, api), disabled?, on? (ticked) }
      keys: true to drive it from the keyboard (arrows / W S, Enter, Esc or
        Backspace for Back) while no text field has focus.
+     item.adjust(dir): a value row (a setting). Left/right (A/D) call it
+       with -1/+1; a click or Enter steps it with +1.
    api: go(id), back(), refresh(), current(), highlight(id), destroy()
 
    Phones have no hover, so the first tap highlights a row and shows its
@@ -51,7 +53,7 @@ function injectCss() {
 
 const typing = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 
-export function createBo2Menu(nav, { screens, start = "main", keys = false, onScreen = null } = {}) {
+export function createBo2Menu(nav, { screens, start = "main", keys = false, onScreen = null, onHot = null } = {}) {
   injectCss();
   nav.classList.add("tr-menu");
   const title = document.createElement("h1");
@@ -80,6 +82,7 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
     buttons.forEach((b, i) => b.classList.toggle("is-hot", i === hot));
     const it = items[hot];
     desc.textContent = it ? (it.desc || "") : "";
+    if (onHot) onHot(it || null, api);
   }
 
   function setHot(i, focus) {
@@ -89,9 +92,20 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
     if (focus) buttons[i].focus({ preventScroll: true });
   }
 
+  function adjust(i, dir) {
+    const it = items[i];
+    if (!it || it.disabled || !it.adjust) return false;
+    const hadFocus = nav.contains(document.activeElement);
+    it.adjust(dir, it, api);
+    render(it.id);
+    if (hadFocus) setHot(hot, true);
+    return true;
+  }
+
   function activate(i) {
     const it = items[i];
     if (!it || it.disabled) return;
+    if (it.adjust) { adjust(i, 1); return; }
     if (it.onSelect) it.onSelect(it, api);
     if (it.go) go(it.go);
     else if (it.href) {
@@ -123,7 +137,8 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
         b.appendChild(label);
         if (it.on) b.insertAdjacentHTML("beforeend", '<span class="tr-menu-tick" aria-label="selected">&#10003;</span>');
         const value = typeof it.value === "function" ? it.value() : it.value;
-        if (value) { const sm = document.createElement("small"); sm.textContent = value; b.appendChild(sm); }
+        if (value) { const sm = document.createElement("small"); sm.textContent = it.adjust ? `‹ ${value} ›` : value; b.appendChild(sm); }
+        if (it.adjust) b.setAttribute("aria-label", `${it.label}: ${value}. Left and right arrows change it.`);
         if (it.go) b.insertAdjacentHTML("beforeend", '<small aria-hidden="true">&rsaquo;</small>');
         if (it.newTab) b.insertAdjacentHTML("beforeend", '<small>new tab</small>');
         b.addEventListener("mouseenter", () => { if (!touch) setHot(i); });
@@ -180,6 +195,8 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
     };
     if (k === "ArrowDown" || k === "s" || k === "S") { e.preventDefault(); step(1); }
     else if (k === "ArrowUp" || k === "w" || k === "W") { e.preventDefault(); step(-1); }
+    else if ((k === "ArrowLeft" || k === "a" || k === "A") && items[hot]?.adjust) { e.preventDefault(); adjust(hot, -1); }
+    else if ((k === "ArrowRight" || k === "d" || k === "D") && items[hot]?.adjust) { e.preventDefault(); adjust(hot, 1); }
     else if (k === "Enter" && !nav.contains(document.activeElement)) { e.preventDefault(); activate(hot); }
     else if (k === "Escape" || k === "Backspace") { if (back()) e.preventDefault(); }
   }
@@ -187,10 +204,12 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
 
   const api = {
     go, back,
+    backTo(id) { while (screenId !== id && stack.length) { if (!back()) break; } },
     refresh() { render(items[hot] && items[hot].id); },
     current() { return screenId; },
     depth() { return stack.length; },
     highlight(id) { const i = items.findIndex((it) => it.id === id); if (i >= 0) setHot(i); },
+    hot() { return items[hot] || null; },
     destroy() { if (keys) document.removeEventListener("keydown", onKey); nav.replaceChildren(); },
   };
   render();

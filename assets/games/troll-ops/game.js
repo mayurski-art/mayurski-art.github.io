@@ -11341,7 +11341,9 @@ function animate() {
   }
 
   sky.position.copy(camera.position);
-  composer.render();
+  // The BO2 menu's planet (menu-bo2.js) covers the whole lobby: skip
+  // drawing the arena nobody can see behind it.
+  if (!(gameState === "menu" && document.body.classList.contains("to-bo2-cover"))) composer.render();
 
   // The FP viewmodel (gun+arms) only makes sense in first person — the gun
   // is already visible on the third-person rig itself, so rendering both
