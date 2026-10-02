@@ -1,5 +1,29 @@
 # Troll Ops hand-off — 2026-10-02 (session 24)
 
+## RESUME HERE (2026-10-02, session 25) — phase 6 design doc awaiting OK
+The user answered the phase 6 questions: park = **new district** (village
+untouched), rides = **all four** (Ferris wheel, carousel, haunted funhouse,
+climbable coaster + game stalls), **Halloween night** theme, and the
+**proposed order** for the rest of their list (tablet + animated skins ->
+Trollernaut -> cinematics -> L4D mode). Design doc published:
+https://claude.ai/artifact/92dGJceNRbWv5zViUnxocN (scratchpad source
+hollowgrin-phase6.html). The plan: bounds maxX 51 -> 81 (132 x 90 m); the east
+field-stone wall becomes a park fence with 3 gates; the Ferris wheel (60, 2)
+comes in bounds with a base + 6 m service deck (cabins still art); the
+carousel stays at (44.5, -4) and gets a Blender model; "The Grinder" coaster
+in the NE (station ~(62, -16), lift-hill maintenance stair to a 9 m brake
+deck, track = art); "U Mad House" funhouse in the SE (walk in through the
+grin; mirror maze, tilted room, barrel tunnel, black-light room; corridors
+>= 1.4 m); stall row on a N-S promenade (Balloon Pop, Shooting Gallery with
+flip-down tin trolls, Hook-a-Pepe, Cotton Candy, Corn Dogs); service yard
+in the SE corner. Models: mausoleum, barn, candy shop (colliders unchanged,
+ghosts). Light: moonlight tune, height-falloff ground fog, decor-only light;
+real lights <= 14 (funhouse + coaster station only). Build order 6a models +
+light, 6b park shell, 6c coaster, 6d funhouse, 6e bots/zombies/tuning.
+**Open decisions in the doc** (defaults in brackets): name [keep Grinmoor
+Fair], coaster train [runs every ~40 s, art], perches [keep both], barn loft
+playable [yes], funhouse scares [visual + quiet sting]. Get the OK, then 6a.
+
 ## RESUME HERE (2026-10-02, session 24, realism pass)
 User (after phase 5): "i want all objects in all maps to looks more realistic.
 so go do that finish that then we move to phase 6", then "you know how we
