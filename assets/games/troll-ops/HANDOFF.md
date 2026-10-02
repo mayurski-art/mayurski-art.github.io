@@ -1,6 +1,71 @@
-# Troll Ops hand-off — 2026-10-01 (session 22)
+# Troll Ops hand-off — 2026-10-02 (session 23)
 
-## RESUME HERE (2026-10-01, session 22): the queue, in the user's order
+## RESUME HERE (2026-10-02, session 23)
+Phase 2 got the user's OK ("proceed"). **Phase 3 (island landmarks A + the
+Royale props) SHIPPED** (section below): show the user the shots, get their
+OK at the gate, then **phase 4 = landmarks B** (Meme Lab, Observatory,
+Portal, Skate Bowl, Cave, Dock/Old Tree, Boat, Marketplace, Bridge), same
+pipeline (models/build_island.blender.py, collider-only kit calls).
+Also shipped: **View mode** (owner-only setting, section below).
+
+## Map detail pass phase 3 SHIPPED (2026-10-02) — `game.js?v=to-vm1`, `maps.js?v=tf3`, `trollface-island.js?v=tf3`, `royale-drop.js?v=rp3`, `remote-players.js?v=rp3`
+- **models/build_island.blender.py** (Blender 5.2, `--background --python`)
+  writes tf-city, tf-cityface, tf-peak, tf-gallery, tf-shop, tf-bus,
+  tf-busface, tf-skybox (quantized). Landmarks are authored in their
+  LANDMARKS-local coords; trollface-island.js places them with mapModel.
+  Their numbers (TOWERS, TIERS, stairs, rooms + doors) are copies of the
+  JS colliders: change one, change the other. `GreyKit.add(geo, null)` now
+  means collider only, so the landmark blocks keep every collider with a
+  `null` material.
+- **Troll City**: towers with lit window grids (TF_Window emissive 0.55;
+  1.6 bloomed everything white), black corner posts + parapets (the art's
+  outlines), lobby storefronts, door frames, roof kit, the yellow tower's
+  red-tipped aerial, plaza lamps. **The dome's grin** is build_grinleria's
+  build_trollhead carving (white, black cuts) WRAPPED onto the dome: a
+  stand-in `GLB.Vector` bends each face-space point round the sphere
+  (build_city_face). Width 14.
+- **Troll Peak**: flat-painted cartoon facets (the textured purple rock
+  read dark grey: surface-textures lerps tints 55% to white), grass/rock/snow
+  tops, jagged snow summit, crags, the flag, stone stairs step for step.
+- **The Gallery**: glass is JS (the room walls are now M.glass, pyramid
+  base on the walls, apex 18); frames, diamond lattice, marble floor,
+  plinths + art (golden orb, cube stack, ribbon, easel), Hollowgrin's white
+  trollbust on the middle plinth, red ropes on brass posts, 4 spotlights.
+- **U Mad Bro Shop**: white walls, red cornice + wing slopes, blue windows +
+  awnings, open glass doors, black board with marquee bulbs; the neon
+  lettering is a canvas (`neonSignTexture`, once a page). Inside: tile,
+  light strips, shelves of merch, counter + register.
+- **Royale props** (royale-drop.js): the bus = tf-bus + tf-busface (carved
+  grin on the nose) + JS flames, grey bus kept as the fallback; the sky box
+  frame/deck rim/hull/anti-grav ring = tf-skybox (glass + roof face still
+  JS); models preload in the RoyaleDrop constructor; `disposeOwn` leaves
+  the loader's shared geometry alone. **The paraglider was redone in JS**
+  (user: "could be better designed"): airfoil cells with seams, green tips,
+  black nose, cascaded A/B/C lines to two risers, and the trollface PRINTED
+  on the curved canopy (UV skins on the top, head to the nose, and the
+  underside, head to the tail so it's upright to the rider). 3 draws a
+  glider (was 5).
+- Tests: map audit trollface PASS; royale-drop test all pass; view-mode
+  test all pass. fps (meadow view, 3 runs): 40.5 (warm-up) / 50.5 / 49.3 vs
+  ~54 before: a small cost (city face 38k verts, window boxes). If it
+  matters: lower build_city_face res (190 -> 120) first.
+- Shots: scratchpad only; re-shoot views city [-36,0,-48 -> -36,9,-87],
+  peak [56,0,-2 -> 57,14,-43], gallery [-99,0,76 -> -99,6,45], shop
+  [38.6,0,99 -> 38.6,6,78].
+
+## View mode (user, 2026-10-02) — owner only
+"only for troll_runner, create a settings feature called View mode. where
+this is only to view the maps. no fighting." Lobby Settings row
+`#to-set-viewmode-lobby` (hidden unless the cached profile's username is
+troll_runner, re-checked on auth-changed); `settings.viewMode`. On, Deploy
+swaps in the hidden mode `view` (modes.js) on the lobby's map: offline, no
+spawner/bots/streaks, HUD hidden, no viewmodel, no firing/ADS, keys only
+fly (`flyView`: WASD where you look, Space up, C/Ctrl down, Shift x3.5),
+no gravity or collisions. Quit restores the lobby's mode (`viewPrevMode`).
+The gate is client-side only (it's a viewer, nothing to protect).
+Test: tools/troll-ops-view-mode-test.mjs (11 checks).
+
+## (previous) RESUME HERE (2026-10-01, session 22): the queue, in the user's order
 1. ~~Hollowgrin expansion~~: SHIPPED this session (below).
 2. ~~Bot scorestreaks phases 2 + 3~~: SHIPPED this session (below).
 3. **Map detail pass** (design doc link in the session 19 section): six

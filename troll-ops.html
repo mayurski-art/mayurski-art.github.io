@@ -238,6 +238,11 @@
                 </select>
               </label>
               <p class="to-set-hint to-set-note" id="to-set-botskill-note">Veteran bots: +10% XP</p>
+              <label class="to-set-row to-set-check" id="to-set-viewmode-row" hidden>
+                <span>View mode <small class="to-set-hint">just look at the maps, no fighting</small></span>
+                <input type="checkbox" id="to-set-viewmode-lobby">
+              </label>
+              <p class="to-set-hint to-set-note" id="to-set-viewmode-note" hidden>Deploy opens the map with nobody in it. Fly with WASD, Space up, C down, Shift fast.</p>
               <div class="to-set-row to-set-check">
                 <span>HUD layout <small class="to-set-hint">move the buttons and HUD</small></span>
                 <button type="button" class="to-set-btn" data-hud-layout>Customize</button>
@@ -692,7 +697,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-tf2"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-vm1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

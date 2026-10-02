@@ -20,6 +20,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon } from "./edge.js";
 import { SURFACES } from "./surface-textures.js";
+import { mapModel } from "./map-models.js";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
@@ -98,7 +99,9 @@ function rng(seed) {
 /* Batches geometry per material, lays colliders beside it. */
 class GreyKit {
   constructor(api, root) { this.api = api; this.root = root; this.parts = new Map(); }
+  /* mat null = collider only: a Blender model draws that part. */
   add(geo, mat) {
+    if (!mat) { geo.dispose(); return; }
     if (!this.parts.has(mat)) this.parts.set(mat, []);
     this.parts.get(mat).push(geo.index ? geo.toNonIndexed() : geo);
   }
@@ -442,6 +445,35 @@ function signAtlas(names) {
   return { tex: t, rows: names.length };
 }
 
+/* The U Mad Bro Shop's neon lettering, glow and all, on a clear canvas (the
+   board and its bulbs are the model). Made once a page: maps dispose their
+   materials on unload, never textures. */
+let neonTex = null;
+function neonSignTexture() {
+  if (neonTex) return neonTex;
+  const c = document.createElement("canvas");
+  c.width = 1024; c.height = 408;
+  const g = c.getContext("2d");
+  g.textAlign = "center"; g.textBaseline = "middle";
+  const line = (text, y, size) => {
+    g.font = `900 ${size}px Impact, 'Arial Black', sans-serif`;
+    g.lineJoin = "round";
+    for (const [blur, col] of [[38, "rgba(80,255,60,0.9)"], [16, "rgba(120,255,90,0.9)"]]) {
+      g.shadowColor = col; g.shadowBlur = blur;
+      g.fillStyle = "#5dff48"; g.fillText(text, 512, y);
+    }
+    g.shadowBlur = 0;
+    g.lineWidth = 5; g.strokeStyle = "#1d7a12"; g.strokeText(text, 512, y);
+    g.fillStyle = "#b9ff9e"; g.fillText(text, 512, y);
+  };
+  line("U MAD BRO", 118, 132);
+  line("SHOP", 290, 190);
+  neonTex = new THREE.CanvasTexture(c);
+  neonTex.colorSpace = THREE.SRGBColorSpace;
+  neonTex.anisotropy = 4;
+  return neonTex;
+}
+
 /* A trollface grin sprayed on the ground (decal texture). */
 function grinTexture() {
   const c = document.createElement("canvas");
@@ -478,21 +510,16 @@ function buildTrollfaceIsland(api) {
     grey: std(0xb8bbc2, { roughness: 0.85 }),
     greyDark: std(0x8b8f98, { roughness: 0.85 }),
     white: std(0xf1f1ee, { roughness: 0.7 }),
-    black: std(0x1b1b1f, { roughness: 0.6 }),
     tower: std(0x6f9fe0, { roughness: 0.6 }),
-    towerYellow: std(0xf2cf4a, { roughness: 0.7 }),
     rock: std(0x7d8088, { roughness: 0.95, flatShading: true }),
-    peakRock: std(0x6a5fc0, { roughness: 0.95, flatShading: true }),
     caveRock: std(0x4f9a82, { roughness: 0.95, flatShading: true }),
     caveDark: std(0x16261f, { roughness: 1 }),
-    snow: std(0xf4f6fb, { roughness: 0.8 }),
     wood: std(0x9a7b55),
     trunk: std(0x6b4a2e),
     leaves: std(0x1f7a3a),
     glass: new THREE.MeshStandardMaterial({ color: 0x9fdcff, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }),
     portalBlue: new THREE.MeshBasicMaterial({ color: 0x38d8ff, side: THREE.DoubleSide }),
     portalGreen: new THREE.MeshBasicMaterial({ color: 0x49ff6a, side: THREE.DoubleSide }),
-    neon: new THREE.MeshBasicMaterial({ color: 0x57ff4f }),
     bulb: new THREE.MeshBasicMaterial({ color: 0xffe36b }),
     sail: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, side: THREE.DoubleSide }),
     red: std(0xe8412f), yellow: std(0xf6d23a), blue: std(0x2f63e0), green: std(0x3dbb4a),
@@ -581,31 +608,30 @@ function buildTrollfaceIsland(api) {
   }
 
   // Troll City: the black trollface dome among blue and yellow towers, some
-  // with a lobby you can run through.
+  // with a lobby you can run through. Drawn by tf-city + tf-cityface
+  // (models/build_island.blender.py, its TOWERS list copies these numbers).
   {
     const { x, z } = L.city;
-    K.disc(x, z, 11, 5, M.black);                                           // the dome's drum...
-    const dome = new THREE.SphereGeometry(11, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2);
-    dome.translate(x, 5, z);
-    K.add(dome, M.black);
-    K.disc(x, z, 8, 5.5, M.black, { y: 5, visual: false });                 // ...and its crown
-    const tower = (dx, dz, w, d, h, mat, doors) => {
+    K.disc(x, z, 11, 5, null);                                              // the dome's drum...
+    K.disc(x, z, 8, 5.5, null, { y: 5 });                                   // ...and its crown
+    const tower = (dx, dz, w, d, h, doors) => {
       if (doors) {
-        K.room(x + dx, z + dz, w, d, 4, mat, doors);
-        K.box(x + dx, z + dz, w, d, h - 4, mat, { y: 4 });
-        K.box(x + dx - w / 4, z + dz, 1, 1, 4, M.greyDark);                // a pillar for cover inside
-      } else K.box(x + dx, z + dz, w, d, h, mat);
+        K.room(x + dx, z + dz, w, d, 4, null, doors);
+        K.box(x + dx, z + dz, w, d, h - 4, null, { y: 4 });
+        K.box(x + dx - w / 4, z + dz, 1, 1, 4, null);                      // a pillar for cover inside
+      } else K.box(x + dx, z + dz, w, d, h, null);
     };
-    tower(-24, -2, 9, 9, 18, M.tower, [["e", 0, 3], ["s", 0, 3]]);
-    tower(-22, 11, 8, 8, 12, M.tower);
-    tower(-33, 6, 8, 10, 24, M.tower, [["n", 0, 3], ["e", 1, 2.6]]);
-    tower(4, -17, 10, 8, 22, M.towerYellow, [["s", 0, 3], ["w", 0, 2.6]]);
-    tower(15, -15, 5, 5, 40, M.towerYellow);
-    tower(-6, -18, 8, 7, 16, M.towerYellow);
-    tower(22, 4, 9, 9, 20, M.tower, [["w", 0, 3], ["s", 2, 2.6]]);
-    tower(31, -5, 8, 8, 14, M.tower);
-    tower(27, 14, 8, 8, 10, M.tower, [["n", 0, 3]]);
-    K.cyl(x + 15, z - 15, 0.25, 8, M.greyDark, { y: 40, collide: false, segs: 6 });   // the aerial
+    tower(-24, -2, 9, 9, 18, [["e", 0, 3], ["s", 0, 3]]);
+    tower(-22, 11, 8, 8, 12);
+    tower(-33, 6, 8, 10, 24, [["n", 0, 3], ["e", 1, 2.6]]);
+    tower(4, -17, 10, 8, 22, [["s", 0, 3], ["w", 0, 2.6]]);
+    tower(15, -15, 5, 5, 40);
+    tower(-6, -18, 8, 7, 16);
+    tower(22, 4, 9, 9, 20, [["w", 0, 3], ["s", 2, 2.6]]);
+    tower(31, -5, 8, 8, 14);
+    tower(27, 14, 8, 8, 10, [["n", 0, 3]]);
+    mapModel(api, "tf-city", { x, z });
+    mapModel(api, "tf-cityface", { x, z });
   }
 
   // The Observatory: a white drum with a dome and the telescope out of it.
@@ -669,22 +695,14 @@ function buildTrollfaceIsland(api) {
     // Terraces: [radius, top]. Each ring is as wide as the flight up to the
     // next is long (0.5 m a step), so no flight overhangs the ring below.
     const tiers = [[22, 4.62], [15, 8.58], [9, 12.21]];
-    let base = 0;
-    tiers.forEach(([rad, top], i) => {
-      // The visible tier leans in; its collider sits at the mid radius.
-      K.cyl(x, z, rad, top - base, i < 2 ? M.peakRock : M.snow, { y: base, rTop: rad - 1.2, segs: 11, collide: false });
-      K.disc(x, z, rad - 0.6, top, null, { visual: false });
-      base = top;
-    });
-    const summit = new THREE.ConeGeometry(8.4, 26, 11);
-    summit.translate(x, 12.21 + 13, z);
-    K.add(summit, M.snow);
+    // Drawn by tf-peak (models/build_island.blender.py: TIERS, the summit,
+    // the flag and these three flights step for step).
+    for (const [rad, top] of tiers) K.disc(x, z, rad - 0.6, top, null, { visual: false });
     K.disc(x, z, 7.6, 26, null, { y: 12.21, visual: false });
-    K.stairs(x, z + 21.4, 0, 1, 0, 4.62, 4, M.rock);
-    K.stairs(x + 14.4, z, 1, 0, 4.62, 8.58, 4, M.rock);
-    K.stairs(x, z - 8.4, 0, -1, 8.58, 12.21, 4, M.rock);
-    K.cyl(x, z, 0.15, 4, M.greyDark, { y: 38.2, collide: false, segs: 6 });
-    K.box(x + 1.2, z, 2.2, 0.1, 1.4, M.red, { y: 40.7, collide: false });
+    K.stairs(x, z + 21.4, 0, 1, 0, 4.62, 4, null);
+    K.stairs(x + 14.4, z, 1, 0, 4.62, 8.58, 4, null);
+    K.stairs(x, z - 8.4, 0, -1, 8.58, 12.21, 4, null);
+    mapModel(api, "tf-peak", { x, z });
   }
 
   // The Cave: a rock mound with a tunnel through it (in from the south), and
@@ -764,42 +782,33 @@ function buildTrollfaceIsland(api) {
   // The Gallery: a glass pyramid over a plinth, doors north and south.
   {
     const { x, z } = L.gallery;
-    K.room(x, z, 26, 26, 3.4, M.grey, [["s", 0, 3.4], ["n", 0, 3.4]]);
-    const pyr = new THREE.ConeGeometry(26 / Math.SQRT2, 16, 4, 1, true);
+    // Glass here (the walls are its colliders); frames, floor, plinths, art,
+    // ropes and spotlights are tf-gallery (models/build_island.blender.py).
+    K.room(x, z, 26, 26, 3.4, M.glass, [["s", 0, 3.4], ["n", 0, 3.4]]);
+    const pyr = new THREE.ConeGeometry(26 / Math.SQRT2, 14.6, 4, 1, true);   // base on the walls, apex at 18
     pyr.rotateY(Math.PI / 4);
-    pyr.translate(x, 8, z);
+    pyr.translate(x, 3.4 + 7.3, z);
     K.add(pyr, M.glass);
-    const ridge = Math.hypot(13 * Math.SQRT2, 16);
-    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-      const g = new THREE.CylinderGeometry(0.22, 0.22, ridge, 5);
-      g.rotateZ(Math.atan2(13 * Math.SQRT2, 16));
-      g.rotateY(Math.atan2(-sz, sx));
-      g.translate(x + sx * 6.5, 8, z + sz * 6.5);
-      K.add(g, M.white);
-    }
-    for (const h of [3.4, 7, 10.6]) {
-      const half = 13 * (1 - h / 16) + 0.1;
-      for (const [w, d, dx, dz] of [[half * 2, 0.3, 0, -half], [half * 2, 0.3, 0, half], [0.3, half * 2, -half, 0], [0.3, half * 2, half, 0]]) {
-        K.box(x + dx, z + dz, w, d, 0.3, M.white, { y: h, collide: false });
-      }
-    }
-    for (const [dx, dz] of [[-6, -5], [6, -5], [0, 4], [-7, 7], [7, 7]]) K.box(x + dx, z + dz, 1.6, 1.6, 1.3, M.white);   // plinths
+    for (const [dx, dz] of [[-6, -5], [6, -5], [0, 4], [-7, 7], [7, 7]]) K.box(x + dx, z + dz, 1.6, 1.6, 1.3, null);   // plinths
+    mapModel(api, "tf-gallery", { x, z });
+    // the centrepiece: the white trollface bust (Hollowgrin's Meme Gallery
+    // carving) on the middle plinth, facing the south door
+    mapModel(api, "hg-trollbust", { x, z: z + 4, y: 1.3, scale: 0.9 });
   }
 
   // The U Mad Bro Shop: a big store with its sign lit up on the roof.
   {
     const { x, z } = L.shop;
-    K.room(x, z, 26, 14, 6.5, M.white, [["s", 0, 4], ["n", -6, 3], ["e", 0, 2.6]]);
-    K.box(x, z, 26.6, 14.6, 0.5, M.grey, { y: 6.5 });
-    K.box(x, z - 2, 16, 0.6, 5, M.neon, { y: 7, collide: false });
-    for (let i = 0; i < 18; i++) {
-      const b = new THREE.SphereGeometry(0.3, 8, 6);
-      const t = i / 17;
-      b.translate(x - 8 + t * 16, i % 2 ? 12.2 : 6.8 + 0.3, z - 1.6);
-      K.add(b, M.bulb);
-    }
-    for (let i = 0; i < 3; i++) K.box(x - 7 + i * 7, z - 2, 4.5, 1.2, 1.8, M.greyDark);   // shelves
-    K.box(x + 8, z + 3.5, 5, 1.4, 1.1, M.wood);                              // the counter
+    // Drawn by tf-shop (models/build_island.blender.py); the sign's neon
+    // lettering is a canvas on its black board, over the front doors.
+    K.room(x, z, 26, 14, 6.5, null, [["s", 0, 4], ["n", -6, 3], ["e", 0, 2.6]]);
+    K.box(x, z, 26.6, 14.6, 0.5, null, { y: 6.5 });
+    for (let i = 0; i < 3; i++) K.box(x - 7 + i * 7, z - 2, 4.5, 1.2, 1.8, null);   // shelves
+    K.box(x + 8, z + 3.5, 5, 1.4, 1.1, null);                                // the counter
+    mapModel(api, "tf-shop", { x, z });
+    const sign = new THREE.PlaneGeometry(13.6, 5.4);
+    sign.translate(x, 8.1, z + 7.6);
+    K.add(sign, new THREE.MeshBasicMaterial({ map: neonSignTexture(), transparent: true, depthWrite: false }));
   }
 
   // The Marketplace: a line of stalls under striped canopies.

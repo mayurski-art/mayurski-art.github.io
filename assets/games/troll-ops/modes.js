@@ -26,6 +26,18 @@ export const MODES = {
     blurb: "No enemies, no clock. Set your sensitivity and FOV, then shoot things that stand back up.",
   },
 
+  // View mode (owner only, Settings > View mode): Deploy opens the lobby's
+  // map with nobody in it, no guns, and a free-flying camera. Never listed.
+  view: {
+    id: "view",
+    name: "View mode",
+    short: "View mode",
+    pvp: false,
+    view: true,
+    hidden: true,
+    blurb: "Just the map. Fly round it, nothing to fight.",
+  },
+
   zombies: {
     id: "zombies",
     name: "Zombies",

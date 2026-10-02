@@ -1,7 +1,8 @@
 // Troll Forces — modelled map props (every map rebuilt in Blender).
 //
 // Models come from models/build_<map>.blender.py (shared kit: map_kit.py):
-// gs-* Grin Site, db-* Dust Bowl, dp-* The Depot, ug-* Undergrin, gl-* The Grinleria. Their UVs
+// gs-* Grin Site, db-* Dust Bowl, dp-* The Depot, ug-* Undergrin, gl-* The Grinleria,
+// tf-* Trollface Island. Their UVs
 // are in metres, so the repeat values below are tiles per metre: 0.5 means
 // one texture tile every 2 m, on every face, at every size.
 //

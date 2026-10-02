@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=cg1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=cg1";
-import { Loadout } from "./loadout.js?v=tf2";
+import { Loadout } from "./loadout.js?v=tf3";
 import { StreakPicker } from "./streak-picker.js?v=gu1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=gu1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -30,17 +30,17 @@ import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=gu1";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=gu1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=tf2";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=tf3";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=cg1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=rp3";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-lk1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-fx3";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-fx3";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=tr4";
+} from "./modes.js?v=vm1";
 import { BotManager } from "./bots.js?v=cg1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
 import { GameAudio } from "./audio.js?v=to-r100";
@@ -70,7 +70,7 @@ import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7"
 import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=cos1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
-import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=cg1";
+import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 
 const els = {
@@ -3264,7 +3264,7 @@ const animDebug = new AnimDebugLab();
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
   volume: 50, sens: 100, fov: 78, invert: false, minimap: true, gloves: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
-  gfx: "auto",
+  gfx: "auto", viewMode: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
 
@@ -3300,6 +3300,8 @@ function applySettings() {
   set("to-set-minimap-lobby", settings.minimap);
   set("to-set-gloves-lobby", settings.gloves);
   set("to-set-aimassist-lobby", settings.aimAssist);
+  set("to-set-viewmode-lobby", settings.viewMode);
+  renderViewModeRow();
   set("to-set-botskill", settings.botSkill);
   set("to-set-gfx", settings.gfx);
   set("to-set-gfx-lobby", settings.gfx);
@@ -3550,6 +3552,7 @@ function initEscapeMenu() {
   bindCheck("to-set-minimap-lobby", "minimap");
   bindCheck("to-set-gloves-lobby", "gloves");
   bindCheck("to-set-aimassist-lobby", "aimAssist");
+  bindCheck("to-set-viewmode-lobby", "viewMode");
   bindSelect("to-set-botskill", "botSkill");
   bindSelect("to-set-gfx", "gfx");
   bindSelect("to-set-gfx-lobby", "gfx");
@@ -3706,6 +3709,20 @@ function currentMode() { return MODES[modeId]; }
 function isPvp() { return currentMode().pvp; }
 function isZombies() { return !!currentMode().zombies; }
 function isRange() { return !!currentMode().range; }
+function isView() { return !!currentMode().view; }
+/* View mode is the owner's alone (user: "only for troll_runner"): the
+   setting row only shows, and only takes effect, on that account. */
+function isTrollRunner() {
+  return String(window.TrollrunnerAccounts?.getCachedProfile?.()?.username || "").toLowerCase() === "troll_runner";
+}
+function viewModeOn() { return !!settings.viewMode && isTrollRunner(); }
+function renderViewModeRow() {
+  const row = document.getElementById("to-set-viewmode-row");
+  if (row) row.hidden = !isTrollRunner();
+  const note = document.getElementById("to-set-viewmode-note");
+  if (note) note.hidden = !viewModeOn();
+}
+let viewPrevMode = null;   // the mode the lobby had before Deploy swapped in View mode
 function isSnd() { return !!currentMode().rounds; }
 function isInfection() { return !!currentMode().infection; }
 function isRoyale() { return !!currentMode().royale; }
@@ -4125,6 +4142,7 @@ function renderCallsign() {
 // gets credited now.
 window.addEventListener("trollrunner:auth-changed", () => {
   renderCallsign();
+  renderViewModeRow();
   renderProfileBtn();
   renderLobbyRoster();
   // Picks locked by the guest level at page load come back now that the
@@ -5633,6 +5651,8 @@ window.addEventListener("keydown", (e) => {
     if (wheel.isOpen && e.code === "Escape") wheel.close(true);
   }
   keys.add(e.code);
+  // View mode: the keys only fly the camera (and Esc still pauses).
+  if (isView() && gameState === "playing" && e.code !== "Escape") return;
   if (e.code === "Space" && !e.repeat && killcam.active && !player.alive) skipKillcam();
   if (!e.repeat && !player.alive && royaleSpectating()) {
     if (e.code === "ArrowLeft" || e.code === "KeyA" || e.code === "KeyQ") cycleSpectate(-1);
@@ -9453,6 +9473,9 @@ async function joinQuickplay() {
 
 async function startGame() {
   audio.resume();   // the click that got us here is the gesture Web Audio needs
+  // View mode: the lobby's map, nobody in it (see isView).
+  if (viewModeOn() && modeId !== "view") { viewPrevMode = modeId; modeId = "view"; }
+  else if (!viewModeOn() && modeId === "view") modeId = viewPrevMode || "ops";
   if (isPvp()) {
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
@@ -9738,7 +9761,7 @@ function beginMatch(mapId = null) {
     rangeSet = new RangeSet(scene);
   } else if (isZombies()) {
     zdir = new ZombieDirector(scene, ARENA, colliders, builtMap.map.zombieLayout());
-  } else if (!isPvp()) {
+  } else if (!isPvp() && !isView()) {
     spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
   }
 
@@ -9768,12 +9791,14 @@ function beginMatch(mapId = null) {
   els.title.hidden = true;
   els.gameover.hidden = true;
   els.pause.hidden = true;
-  els.hud.hidden = false;
+  els.hud.hidden = isView();   // View mode: just the map on screen
   setTouchControls(true);
   gameState = "playing";
 
   // The range is a sandbox, not a match — there is nothing to count down to.
-  if (isRange()) {
+  if (isView()) {
+    showWaveBanner("View mode: fly with WASD, Space up, C down, Shift fast", 3200);
+  } else if (isRange()) {
     showWaveBanner("Test range — nothing here shoots back", 2600);
   } else {
     // Bots are filled here rather than on the first live frame, so the room is
@@ -10318,6 +10343,7 @@ els.quitBtn.addEventListener("click", () => {
     player.matchXp = 0;
   }
   gameState = "menu";
+  if (modeId === "view") modeId = viewPrevMode || "ops";
   localPauseOnly = false;
   endStaging();
   cancelIntermission();
@@ -11079,7 +11105,9 @@ function animate() {
       els.hudHostiles.textContent = String(zdir.remaining);
       els.hudKills.textContent = zdir.points.toLocaleString();
       targetMeshes = zdir.hitMeshes();
-    } else if (!isPvp()) {
+    } else if (isView()) {
+      // View mode: an empty map, nothing to simulate.
+    } else if (!isPvp() && spawner) {
       spawner.update(dt, player.pos, onGruntAttack);
       els.hudHostiles.textContent = String(spawner.aliveCount + spawner.toSpawn);
       if (spawner.isWaveClear()) nextWave();
@@ -11305,7 +11333,7 @@ function animate() {
   // would double up the weapon on screen.
   // Spectating in Troll Royale: the view is someone else's, so no gun of ours.
   // Dead (and not in a replay): no gun on screen, the camera is on the body.
-  if (gameState === "playing" && ((player.alive && !settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView() && !dragonfireView()) || killcam.replaying)) {
+  if (gameState === "playing" && ((player.alive && !isView() && !settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView() && !dragonfireView()) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
@@ -11622,6 +11650,23 @@ function regenPlayer(dt) {
   player.hp = Math.min(player.maxHp, player.hp + REGEN_RATE * dt);
 }
 
+/* View mode's camera: flies where you look, through everything, no gravity.
+   Space / jump up, C / Ctrl / crouch down, Shift (or the stick pushed all
+   the way) for speed. */
+const VIEW_FLY_SPEED = 12;
+function flyView(dt, ix, iz) {
+  const gp = gamepadState.connected;
+  const up = keys.has("Space") || (isTouch && touchState.jump) || (gp && gamepadState.jump) ? 1 : 0;
+  const down = keys.has("KeyC") || keys.has("ControlLeft") || (isTouch && touchState.crouch) || (gp && gamepadState.crouch) ? 1 : 0;
+  const fast = keys.has("ShiftLeft") || ((isTouch || gp) && iz > 0.9) ? 3.5 : 1;
+  const sp = VIEW_FLY_SPEED * fast * dt;
+  const cy = Math.cos(look.yaw), sy = Math.sin(look.yaw), cp = Math.cos(look.pitch);
+  move.pos.x += (-sy * cp * iz + cy * ix) * sp;
+  move.pos.z += (-cy * cp * iz - sy * ix) * sp;
+  move.pos.y = Math.max(-30, move.pos.y + (Math.sin(look.pitch) * iz + up - down) * sp);
+  move.velocity.set(0, 0, 0);
+}
+
 function updatePlayer(dt) {
   const w = currentWeapon();
 
@@ -11696,9 +11741,9 @@ function updatePlayer(dt) {
   // primary's optic has no business popping up over it (that's the "scoped
   // weapon flash" glitch when activating a killstreak while holding ADS).
   // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
-  const wantAds = player.alive && !localPauseOnly && empT <= 0 && player.holding !== "streak"
+  const wantAds = player.alive && !isView() && !localPauseOnly && empT <= 0 && player.holding !== "streak"
     && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
-  const wantFire = !frozen && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
+  const wantFire = !frozen && !isView() && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
   if (isSnd()) {
     sndInteractHeld = !frozen && ((isTouch && touchState.interact) || (keys.has("KeyF") && cooking.slot !== "tactical")
       || (gp && gamepadState.pickup && sndCanInteract));
@@ -11708,6 +11753,7 @@ function updatePlayer(dt) {
   // Only with your feet in it: a jetty, bridge or boat deck over it is dry.
   const wading = !!ARENA.wade && move.pos.y < 0.5 && insidePolygon(ARENA.wade, move.pos.x, move.pos.z);
   if (dropping) updateDropPlayer(dt, dropIx, dropIz, (isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space"));
+  else if (isView()) flyView(dt, ix, iz);
   else move.update(dt, {
     forward: iz,
     strafe: ix,
@@ -13774,7 +13820,7 @@ animate();
 if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
     renderer, scene, colliders,
-    els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap,
+    els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap, modeId: () => modeId, spawner: () => spawner,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
     settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),

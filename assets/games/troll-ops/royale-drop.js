@@ -18,6 +18,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon, clampInsidePolygon } from "./edge.js";
 import { rollGun, RARITIES, seededRng } from "./royale.js?v=cg1";
+import { loadModel } from "./battlefield-props.js";
 
 export const DROP = {
   enabled: true,        // tests switch it off to start on the ground, as before
@@ -52,53 +53,143 @@ function trollfaceTexture() {
 }
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1, ...o });
 
-/* The trollface paraglider: an arched ram-air wing, white with a black rim,
-   the trollface printed on its underside (what you see looking up), lines
-   down to a harness point at the rider's shoulders. Origin = the harness. */
+/* The trollface paraglider: a ram-air wing arched over the rider. Each cell
+   is an airfoil (round open nose, thin tail) with a seam between cells, the
+   panels alternating white and pearl, green wingtips, a black nose with the
+   cell mouths. The trollface is PRINTED on the canopy: a skin that follows
+   the curved top (head to the nose: upright to everyone behind you) and the
+   underside (head to the tail: upright to the rider looking up). Lines
+   cascade from the underside to two risers at the harness. Origin = the
+   harness; the nose points -z. */
+const GLIDE = { span: 7.4, chord: 2.6, rise: 3.6, arc: 2.1, cells: 18, sub: 2, rows: 10 };
+const glideArch = (t) => {
+  const a = (t - 0.5) * GLIDE.arc;
+  return { x: Math.sin(a) * GLIDE.span / 2, y: GLIDE.rise + Math.cos(a) * 1.4 - 1.4, nx: Math.sin(a), ny: Math.cos(a) };
+};
+const glideTaper = (t) => 0.55 + 0.45 * Math.sin(Math.PI * t);
+/* Height off the arch at chord fraction u (0 nose, 1 tail): top and bottom skins. */
+const glideFoil = (u) => {
+  const top = 0.36 * Math.pow(1 - u, 1.3) * Math.min(1, 0.35 + u * 4) + 0.025;
+  const bot = -0.09 * Math.sin(Math.PI * Math.min(1, u * 1.25));
+  return { top, bot };
+};
+/* A point on the canopy: span t, chord u, skin side (+1 top, -1 bottom), lifted `out` metres. */
+function glidePoint(t, u, side, out = 0, bulge = 0) {
+  const p = glideArch(t), k = glideTaper(t), f = glideFoil(u);
+  const h = (side > 0 ? f.top + bulge : f.bot) * k + out * side;
+  const z = (-0.5 + u) * GLIDE.chord * (0.72 + 0.28 * k);
+  return [p.x + p.nx * h, p.y + p.ny * h, z];
+}
+
 export function buildParaglider() {
   const g = new THREE.Group();
-  const span = 7.2, chord = 2.3, rise = 3.6, cells = 9;
-  const wingMat = mat(0xf4f4f0, { side: THREE.DoubleSide, roughness: 0.8 });
-  const rimMat = mat(0x111111, { roughness: 0.7 });
-  const pts = [];
-  for (let i = 0; i <= cells; i++) {
-    const a = (i / cells - 0.5) * 2.1;   // radians across the arch
-    pts.push(new THREE.Vector3(Math.sin(a) * span / 2, rise + Math.cos(a) * 1.4 - 1.4, 0));
+  const { cells, sub, rows } = GLIDE;
+  // Canopy: one indexed patch per cell (shared verts inside a cell, none
+  // across cells), so each cell shades round and the seams stay crisp.
+  const pos = [], col = [], idx = [];
+  const C = (hex) => new THREE.Color(hex);
+  const WHITE = C(0xf7f7f3), PEARL = C(0xe2e6ea), GREEN = C(0x55cf4c), INK = C(0x141416), UNDER = C(0xd9dde2);
+  for (let c = 0; c < cells; c++) {
+    const tip = c === 0 || c === cells - 1;
+    const panel = tip ? GREEN : (c % 2 ? PEARL : WHITE);
+    for (const side of [1, -1]) {
+      const base = pos.length / 3;
+      for (let s = 0; s <= sub; s++) {
+        const t = (c + s / sub) / cells;
+        const bulge = s === 0 || s === sub ? 0 : 0.035;   // cells puff between the ribs
+        for (let r = 0; r <= rows; r++) {
+          const u = r / rows;
+          pos.push(...glidePoint(t, u, side, 0, bulge));
+          const k = side > 0 ? (r === 0 ? INK : panel) : (tip ? GREEN : UNDER);
+          col.push(k.r, k.g, k.b);
+        }
+      }
+      for (let s = 0; s < sub; s++) {
+        for (let r = 0; r < rows; r++) {
+          const a = base + s * (rows + 1) + r, b = a + rows + 1;
+          if (side > 0) idx.push(a, b, a + 1, b, b + 1, a + 1);
+          else idx.push(a, a + 1, b, b, a + 1, b + 1);
+        }
+      }
+    }
   }
-  // The cells and their rims go in as one mesh each (a sky full of gliders
-  // is otherwise ~20 draw calls a troll).
-  const cellGeos = [], rimGeos = [];
-  const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _one = new THREE.Vector3(1, 1, 1);
-  for (let i = 0; i < cells; i++) {
-    const a = pts[i], b = pts[i + 1];
-    const len = a.distanceTo(b);
-    const mid = a.clone().add(b).multiplyScalar(0.5);
-    _q.setFromEuler(_e.set(0, 0, Math.atan2(b.y - a.y, b.x - a.x)));
-    cellGeos.push(new THREE.BoxGeometry(len + 0.02, 0.28, chord).applyMatrix4(_m.compose(mid, _q, _one)));
-    rimGeos.push(new THREE.BoxGeometry(len + 0.04, 0.3, 0.08).applyMatrix4(_m.compose(mid.setZ(-chord / 2), _q, _one)));
+  // The nose (dark cell mouths), the tail edge, the two tip caps.
+  const strip = (pairs) => {
+    const base = pos.length / 3;
+    for (const [p, q] of pairs) { pos.push(...p, ...q); col.push(INK.r, INK.g, INK.b, INK.r, INK.g, INK.b); }
+    for (let i = 0; i < pairs.length - 1; i++) {
+      const a = base + i * 2;
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  };
+  const steps = cells * sub;
+  for (const u of [0, 1]) {
+    const pairs = [];
+    for (let i = 0; i <= steps; i++) pairs.push(u === 0 ? [glidePoint(i / steps, 0, -1), glidePoint(i / steps, 0, 1)] : [glidePoint(i / steps, 1, 1), glidePoint(i / steps, 1, -1)]);
+    strip(pairs);
   }
-  g.add(new THREE.Mesh(mergeGeometries(cellGeos), wingMat));
-  g.add(new THREE.Mesh(mergeGeometries(rimGeos), rimMat));
-  for (const geo of [...cellGeos, ...rimGeos]) geo.dispose();
-  // The face on the underside, facing down: a flat decal under the middle.
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.8),
-    new THREE.MeshBasicMaterial({ map: trollfaceTexture(), transparent: true, side: THREE.DoubleSide, depthWrite: false }));
-  face.rotation.x = Math.PI / 2;
-  face.rotation.z = Math.PI;
-  face.position.set(0, rise - 0.2, 0);
-  g.add(face);
-  // And one on top, for everyone else.
-  const top = face.clone();
-  top.rotation.x = -Math.PI / 2;
-  top.rotation.z = 0;
-  top.position.y = rise + 0.16;
-  g.add(top);
-  // Lines from the wing's edge to the harness.
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x222222 });
+  for (const t of [0, 1]) {
+    const pairs = [];
+    for (let r = 0; r <= rows; r++) pairs.push(t === 0 ? [glidePoint(0, r / rows, 1), glidePoint(0, r / rows, -1)] : [glidePoint(1, r / rows, -1), glidePoint(1, r / rows, 1)]);
+    strip(pairs);
+  }
+  const canopy = new THREE.BufferGeometry();
+  canopy.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  canopy.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  canopy.setIndex(idx);
+  canopy.computeVertexNormals();
+  g.add(new THREE.Mesh(canopy, mat(0xffffff, { vertexColors: true, roughness: 0.75, metalness: 0, side: THREE.DoubleSide, emissive: 0x2a2a2a })));
+
+  // The printed trollface: skins over the middle cells, a hair off the
+  // canopy, UVs across the span and down the chord. The image is 800 x 730.
+  const faceH = 0.9, faceW = (GLIDE.chord * 0.86 * faceH) * (800 / 730);
+  const arcLen = GLIDE.arc * GLIDE.span / 2;
+  const t0 = 0.5 - faceW / arcLen / 2, t1 = 0.5 + faceW / arcLen / 2;
+  const u0 = 0.06, u1 = u0 + faceH;
+  const skin = (side) => {
+    const P = [], UV = [], I = [], NS = 24, NR = 12;
+    for (let s = 0; s <= NS; s++) {
+      const t = t0 + (t1 - t0) * (s / NS);
+      for (let r = 0; r <= NR; r++) {
+        const u = u0 + (u1 - u0) * (r / NR);
+        P.push(...glidePoint(t, u, side, 0.02, side > 0 ? 0.035 * Math.sin(Math.PI * ((t * GLIDE.cells) % 1)) : 0));
+        // On top the head points to the nose (upright seen from behind); underneath
+        // it points to the tail, which is "up" for the rider looking up at it.
+        UV.push(s / NS, side > 0 ? 1 - r / NR : r / NR);
+      }
+    }
+    for (let s = 0; s < NS; s++) {
+      for (let r = 0; r < NR; r++) {
+        const a = s * (NR + 1) + r, b = a + NR + 1;
+        if (side > 0) I.push(a, b, a + 1, b, b + 1, a + 1); else I.push(a, a + 1, b, b, a + 1, b + 1);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
+    geo.setAttribute("uv", new THREE.Float32BufferAttribute(UV, 2));
+    geo.setIndex(I);
+    geo.computeVertexNormals();
+    return geo;
+  };
+  const faceMat = mat(0xffffff, { map: trollfaceTexture(), transparent: true, alphaTest: 0.4, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, emissive: 0x2a2a2a,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const faceGeo = mergeGeometries([skin(1), skin(-1)]);
+  g.add(new THREE.Mesh(faceGeo, faceMat));
+
+  // Lines: A/B/C rows off the underside of every other rib, gathered to
+  // two risers just over the shoulders, then down to the harness.
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x2a2a2e });
   const linePts = [];
-  for (let i = 0; i <= cells; i += 3) {
-    for (const z of [-chord / 2 + 0.2, chord / 2 - 0.2]) linePts.push(pts[i].clone().setZ(z), new THREE.Vector3(0, 0, 0));
+  const riser = (sx) => new THREE.Vector3(sx * 0.32, 1.0, 0);
+  for (let i = 0; i <= cells; i += 2) {
+    const t = i / cells, sx = t < 0.5 ? -1 : 1;
+    for (const u of [0.12, 0.45, 0.8]) {
+      const [x, y, z] = glidePoint(t, u, -1);
+      const mid = new THREE.Vector3(x * 0.55 + sx * 0.32 * 0.45, y * 0.5 + 1.0 * 0.5 + 0.4, z * 0.4);
+      linePts.push(new THREE.Vector3(x, y, z), mid, mid, riser(sx));
+    }
   }
+  for (const sx of [-1, 1]) linePts.push(riser(sx), new THREE.Vector3(sx * 0.22, 0, 0));
   g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(linePts), lineMat));
   return g;
 }
@@ -111,9 +202,44 @@ export function sharedParaglider() {
   return gliderTemplate.clone();
 }
 
-/* The Troll Bus (grey box): a chunky yellow bus with a trollface on its
-   nose, stubby wings and two glowing thrusters. Faces +X. */
+/* The Troll Bus: tf-bus + the carved grin on its nose, tf-busface
+   (models/build_island.blender.py), loaded when the match starts so they're
+   ready long before the lobby ends. The thruster flames flicker in JS. If the
+   models never arrive, the old grey-box bus stands in. Faces +X. */
+const BUS_MODELS = ["tf-bus", "tf-busface", "tf-skybox"];
+function preloadRoyaleModels() {
+  for (const m of BUS_MODELS) loadModel(m).catch(() => {});
+}
+/* A model in a group that disposal must leave alone (its geometry is the
+   loader's cache, shared by every later clone). */
+function addModel(group, name, onFail) {
+  loadModel(name).then((obj) => {
+    obj.userData.shared = true;
+    group.add(obj);
+  }).catch(() => onFail?.());
+}
+function disposeOwn(root) {
+  const skip = new Set();
+  root.traverse((o) => { if (o.userData.shared) o.traverse((c) => skip.add(c)); });
+  root.traverse((o) => { if (!skip.has(o)) { o.geometry?.dispose(); o.material?.dispose?.(); } });
+}
+
 function buildBus() {
+  const g = new THREE.Group();
+  for (const z of [-1, 1]) {
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.6, 12), new THREE.MeshBasicMaterial({ color: 0x7fd6ff, transparent: true, opacity: 0.85 }));
+    flame.rotation.z = Math.PI / 2;
+    flame.position.set(-9.05, 2.2, z * 1.2);
+    flame.userData.flame = true;
+    g.add(flame);
+  }
+  addModel(g, "tf-bus", () => g.add(buildGreyBus()));
+  addModel(g, "tf-busface");
+  return g;
+}
+
+/* The grey-box bus, kept as the fallback. */
+function buildGreyBus() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(12, 3.6, 3.6), mat(0xf2cf3a));
   body.position.y = 1.8;
@@ -138,11 +264,6 @@ function buildBus() {
     pod.rotation.z = Math.PI / 2;
     pod.position.set(-6.4, 2.2, z * 1.2);
     g.add(pod);
-    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.6, 12), new THREE.MeshBasicMaterial({ color: 0x7fd6ff, transparent: true, opacity: 0.85 }));
-    flame.rotation.z = Math.PI / 2;
-    flame.position.set(-8.8, 2.2, z * 1.2);
-    flame.userData.flame = true;
-    g.add(flame);
   }
   for (const [x, z] of [[4, -1.85], [4, 1.85], [-3.6, -1.85], [-3.6, 1.85]]) {
     const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.4, 14), mat(0x151515));
@@ -167,6 +288,7 @@ export class RoyaleDrop {
     this.lobbyTaken = new Map();    // lobby gun id -> seconds until it's back
     this.path = this.planPath();
     this.bus = null;
+    preloadRoyaleModels();
     this.buildBox();
   }
 
@@ -182,7 +304,6 @@ export class RoyaleDrop {
     const glass = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false, fog: false });
     const floorGlass = glass.clone();
     floorGlass.opacity = 0.14;
-    const frame = mat(0xf0f3f5, { metalness: 0.3, roughness: 0.4 });
     const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); g.add(o); return o; };
     // Glass floor, walls and roof.
     add(new THREE.BoxGeometry(S, t, S), floorGlass, 0, y0 - t / 2, 0).renderOrder = 4;
@@ -190,18 +311,12 @@ export class RoyaleDrop {
     for (const [w, d, x, z] of [[S, t, 0, -S / 2], [S, t, 0, S / 2], [t, S, -S / 2, 0], [t, S, S / 2, 0]]) {
       add(new THREE.BoxGeometry(w, H, d), glass, x, y0 + H / 2, z).renderOrder = 4;
     }
-    // A white frame so you can tell where the glass is: edges and a floor grid.
-    const beam = (w, h, d, x, y, z) => add(new THREE.BoxGeometry(w, h, d), frame, x, y, z);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) beam(0.35, H, 0.35, sx * S / 2, y0 + H / 2, sz * S / 2);
-    for (const y of [y0, y0 + H]) {
-      beam(S, 0.3, 0.3, 0, y, -S / 2); beam(S, 0.3, 0.3, 0, y, S / 2);
-      beam(0.3, 0.3, S, -S / 2, y, 0); beam(0.3, 0.3, S, S / 2, y, 0);
-    }
-    for (let i = 1; i < 4; i++) {
-      const c = -S / 2 + (i * S) / 4;
-      beam(S, 0.06, 0.12, 0, y0 + 0.02, c);
-      beam(0.12, 0.06, S, c, y0 + 0.02, 0);
-    }
+    // The frame round the glass, the deck rim and the hull under it:
+    // tf-skybox (models/build_island.blender.py), origin at the floor's middle.
+    const frameRoot = new THREE.Group();
+    frameRoot.position.y = y0;
+    g.add(frameRoot);
+    addModel(frameRoot, "tf-skybox");
     // A trollface on the roof, looking down at you.
     const face = add(new THREE.PlaneGeometry(10, 8.5),
       new THREE.MeshBasicMaterial({ map: trollfaceTexture(), transparent: true, side: THREE.DoubleSide, depthWrite: false }), 0, y0 + H + 0.3, 0);
@@ -268,7 +383,7 @@ export class RoyaleDrop {
     this.boxColliders = [];
     if (this.box) {
       scene.remove(this.box);
-      this.box.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+      disposeOwn(this.box);
       this.box = null;
     }
   }
@@ -338,7 +453,7 @@ export class RoyaleDrop {
     this.phase = "done";
     if (this.bus) {
       this.ctx.scene.remove(this.bus);
-      this.bus.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+      disposeOwn(this.bus);
       this.bus = null;
     }
   }

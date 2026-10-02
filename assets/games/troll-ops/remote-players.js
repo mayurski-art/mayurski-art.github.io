@@ -13,7 +13,7 @@ import { WEAPON_DEFS } from "./weapons.js?v=cg1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-fx3";
 import { cleanFaceKey } from "./cosmetics.js?v=cos1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { sharedParaglider } from "./royale-drop.js?v=cg1";
+import { sharedParaglider } from "./royale-drop.js?v=rp3";
 
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down
