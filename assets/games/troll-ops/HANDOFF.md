@@ -1,5 +1,39 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## STREAM B (menu) — SHIPPED 2026-10-02: BO2 Zombies menu over the troll-map planet
+Branch `worktree-to-menu-bo2`, all on main (295fb06). The user also asked
+for trollrunner.net itself to get this design; that shipped from the same
+stream (the "trollrunner.net Simplified" session was folded in and deleted).
+- **Shared pieces in `assets/js/`** (both the site home and Troll Forces use
+  them; change once): `bo2-menu.js` (the stacked list: screens, drill-down,
+  arrows/W S/Enter/Esc, value rows with A D, phone tap-twice, onHot,
+  backTo), `menu-globe.js` (the molten planet: MapLibre 5.24 globe from
+  assets/geo/countries.json, no tiles, troll pins; CSS sun + canvas asteroid
+  belt; `enterMap/exitMap/flyTo` = Troll Map mode; pause/resume),
+  `troll-map-mode.js` (map screens: top cities, find a city via Nominatim,
+  drop my pin -> maps.html pin flow, pin card), `site-presence.js` (N Online,
+  global getViewerRoster for troll-accounts).
+- **Troll Forces: `menu-bo2.js` drives the OLD lobby, it doesn't replace
+  it.** game.js/loadout.js still build every list; the menu reads and
+  clicks their buttons and the hidden tab bar (showLobbyPanel), so new
+  weapons/modes/maps appear automatically. `#to-pf-center` is MOVED into
+  the BO2 detail pane (stats, room code, key lists); the parts that became
+  lists are hidden by CSS (style.css "Main menu v3" block at the end).
+- **game.js touch (1 line, near `composer.render()` in animate):** skips
+  the arena render in the menu while `body.to-bo2-cover` is set. If the
+  lobby ever looks black behind a screen, that class is the reason.
+- CSP (troll-ops.html, index.html): `worker-src 'self' blob:` (MapLibre),
+  Nominatim in connect-src.
+- trollrunner.net: new `index.html` (old desktop OS kept unlinked at
+  `/desktop.html`; phones get the same menu, world.html is no longer the
+  phone home; Messages dropped per the user). Old `?open=` links forward.
+- Design canvas row "v3" in https://claude.ai/artifact/XXhnWGcoA1BfCYvUC49LKa
+  (renders are placeholders; the live planet is code).
+- **Open / next:** Drop my pin still hands off to maps.html (X-link +
+  consent flow lives there); gamepad D-pad navigation for the BO2 list isn't
+  wired; the operator preview on phones is small; real planet art may come
+  from the user (ChatGPT) later and would replace menu-globe's sky/limb CSS.
+
 ## RESUME HERE (2026-10-02, session 25, later) — phase 6b SHIPPED; 3 new asks queued
 **Two workstreams now. Run them in separate sessions, each in its OWN git
 worktree + branch** (the main checkout is shared; see "Splitting work"
