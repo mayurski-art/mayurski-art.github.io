@@ -7,14 +7,14 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=to-gl1";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=gm1";
-import { WeaponInspector } from "./inspector.js?v=df3";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=cg1";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=cg1";
+import { WeaponInspector } from "./inspector.js?v=cg1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
-import { CharacterInspector } from "./char-inspector.js?v=to-fx3";
-import { Loadout } from "./loadout.js?v=atm1";
-import { StreakPicker } from "./streak-picker.js?v=to-df1";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=to-df1";
+import { CharacterInspector } from "./char-inspector.js?v=cg1";
+import { Loadout } from "./loadout.js?v=cg1";
+import { StreakPicker } from "./streak-picker.js?v=cg1";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=cg1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
@@ -29,11 +29,11 @@ import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=to-medals2";
-import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=lv4";
+import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=cg1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=atm1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-lk1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=cg1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-lk1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-fx3";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-fx3";
@@ -41,11 +41,11 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=tr4";
-import { BotManager } from "./bots.js?v=to-fx3";
-import { resolveWeapon, defaultLoadoutFor } from "./attachments.js";
+import { BotManager } from "./bots.js?v=cg1";
+import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
 import { GameAudio } from "./audio.js?v=to-r100";
 import { insidePolygon } from "./edge.js";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=ti1";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=cg1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -57,20 +57,20 @@ import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js";
-import { kickCurve } from "./attachments.js";
+import { kickCurve } from "./attachments.js?v=cg1";
 import { WaveSpawner } from "./enemies.js?v=to-ads2";
-import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=to-gc2";
+import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-fx3";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts2";
 import { RangeSet } from "./range.js";
-import { PickupSystem, SwapHold } from "./pickups.js?v=gm1";
+import { PickupSystem, SwapHold } from "./pickups.js?v=cg1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
 import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=cos1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df2";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
-import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rd2";
+import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=cg1";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 
 const els = {

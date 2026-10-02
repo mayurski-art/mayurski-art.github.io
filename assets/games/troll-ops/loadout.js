@@ -1,10 +1,10 @@
 // Troll Forces — loadout screen: class → weapon → attachments.
 
-import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=to-gl1";
-import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js";
+import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=cg1";
+import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js?v=cg1";
 import { iconFor } from "./attachment-icons.js";
-import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js";
-import { getRank, isUnlocked, rankUnlocked, rankProgress, rankXpText } from "./progression.js?v=lv4";
+import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=cg1";
+import { getRank, isUnlocked, rankUnlocked, rankProgress, rankXpText } from "./progression.js?v=cg1";
 import { MAPS, MAP_IDS, mapSchematic } from "./maps.js?v=atm1";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-fx3";
 
@@ -419,7 +419,7 @@ export class Loadout {
       this.skinWeapon = this.activeId;
       this.skinOpts.innerHTML = "";
       this.skinButtons.clear();
-      for (const skin of [{ id: null, name: "Factory", blurb: "Grey steel, black furniture." }, ...skins]) {
+      for (const skin of [{ id: null, name: "Factory", blurb: "The finish it left the factory in." }, ...skins]) {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "to-lo-skin";

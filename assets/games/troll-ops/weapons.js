@@ -186,6 +186,17 @@ export const WEAPON_DEFS = {
     blurb: "Bullpup. Snaps to the shoulder.",
     model: { len: 0.5, stock: "bullpup", mag: "box", barrel: 1.1 },
   }),
+  // THE BEAST (after Phantom Forces' modded custom gun): an AK grown a
+  // frill of bone and crystal. Hits like the AR-12, fires like the 416,
+  // and a little heavier to swing for it. Detailed model: models/beast.glb.
+  beast: mk("assault", {
+    id: "beast", name: "THE BEAST", rank: 25, sight: "iron",
+    damage: 33, rpm: 660, recoilKickPitch: 0.025, recoilKickYaw: 0.011, muzzleVelocity: 760,
+    adsTime: 0.27, sprintMult: 1.26, penetration: 1.5,
+    tracerColor: 0x9fe8ff, muzzleColor: 0xbff0ff,
+    blurb: "It was a rifle once. Now it's a rifle with opinions.",
+    model: { len: 0.6, stock: "fixed", mag: "curved", barrel: 1.0 },
+  }),
   coalface: mk("assault", {
     id: "coalface", name: "Coalface AN-94", rank: 34, sight: "reddot",
     rpm: 1800, burst: 2, fireMode: "burst", damage: 27, recoilKickPitch: 0.014,
@@ -285,6 +296,15 @@ export const WEAPON_DEFS = {
     magSize: 75, damage: 28, recoilKickPitch: 0.022, reloadTime: 3.6,
     blurb: "Controllable, for a bullet hose.",
     model: { len: 0.66, stock: "fixed", mag: "drum", barrel: 1.25, wood: true },
+  }),
+  // The Colt LMG: an M16 that never stops. Laser-flat for an LMG (it's an
+  // AR underneath), a drum of 100. Detailed model: models/coltlmg.glb.
+  coltlmg: mk("lmg", {
+    id: "coltlmg", name: "Hyuck Colt LMG", rank: 22, sight: "iron",
+    damage: 29, rpm: 680, recoilKickPitch: 0.020, recoilKickYaw: 0.010, spreadAds: 0.007,
+    adsTime: 0.38, reloadTime: 4.0,
+    blurb: "An M16 that refuses to stop talking.",
+    model: { len: 0.66, stock: "fixed", mag: "drum", barrel: 1.3, heavy: true },
   }),
   bellylaugh: mk("lmg", {
     id: "bellylaugh", name: "Bellylaugh M60", rank: 30, sight: "iron",

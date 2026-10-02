@@ -10,7 +10,8 @@ import {
   OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS,
   buildIronRear, buildIronFront, railSection,
 } from "./attachment-models.js";
-import { build416 } from "./weapon-416.js";
+import { build416 } from "./weapon-416.js?v=cg1";
+import { finishDef } from "./skins.js?v=cg1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const MATS = {
@@ -62,7 +63,11 @@ export function preloadWeaponModels() {
       gmTemplate = prepGrinmington(gltf.scene);
       return true;
     }).catch((e) => { console.warn("[weapons] grinmington model failed", e); return false; });
-    gcLoading = Promise.all([gc, gm]).then(([a, b]) => a || b);
+    const dt = Object.entries(DETAILED).map(([id, cfg]) => new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
+      detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));
+      return true;
+    }).catch((e) => { console.warn(`[weapons] ${id} model failed`, e); return false; }));
+    gcLoading = Promise.all([gc, gm, ...dt]).then((r) => r.some(Boolean));
   }
   return gcLoading;
 }
@@ -70,7 +75,163 @@ export function preloadWeaponModels() {
 /* Weapons whose first-person model streams in (game.js rebuilds the gun in
    hand once it lands). */
 export function hasDetailedModel(def) {
-  return def?.model?.stock === "tank" || def?.id === "grinmington";
+  return def?.model?.stock === "tank" || def?.id === "grinmington" || !!DETAILED[def?.id];
+}
+
+/* ---- Detailed rifles: one loader for the Blender-built guns that reload
+   with a magazine (THE BEAST, the Colt LMG). Each build script
+   (models/build_<id>.blender.py, helpers in models/gunkit.py) exports, in
+   game coordinates, under its prefix P:
+     P_Body, P_Mag (pivot = the mag point), P_IronRear / P_IronFront (hidden
+     under an optic), the muzzle device `device` (hidden under a barrel
+     attachment), and empties P_Grip / P_Support / P_Muzzle / P_Aim /
+     P_Under / P_Rail.
+   `glow` materials pulse gently; `rake` is the grip's lean (the grip
+   hand matches); `railY` is the top of the rail an optic sits on. */
+const DETAILED = {
+  beast: {
+    url: new URL("./models/beast.glb?v=be1", import.meta.url).href,
+    p: "BE", device: "BE_Brake", rake: -0.35, railY: 0.038, adsDistance: 0.24,
+    glow: ["BE_Core", "BE_Vein"],
+  },
+  coltlmg: {
+    url: new URL("./models/coltlmg.glb?v=cl1", import.meta.url).href,
+    p: "CL", device: "CL_Hider", rake: -0.37, railY: 0.0465, adsDistance: null,
+    glow: [],
+  },
+};
+const detailedTemplates = new Map();
+
+function prepDetailed(scene, cfg) {
+  scene.traverse((o) => {
+    if (o.isMesh) {
+      o.geometry.userData.shared = true;
+      o.castShadow = false;
+      o.receiveShadow = false;
+    }
+  });
+  return scene;
+}
+
+function buildDetailed(def, cfg, template) {
+  const P = cfg.p;
+  const src = template.clone(true);
+  const root = new THREE.Group();
+  const at = (n) => src.getObjectByName(`${P}_${n}`)?.position.clone();
+  const grip = at("Grip"), support = at("Support"), muzzle = at("Muzzle");
+  const aim = at("Aim"), under = at("Under"), rail = at("Rail");
+  const empties = new Set(["Grip", "Support", "Muzzle", "Aim", "Under", "Rail"].map((n) => `${P}_${n}`));
+  for (const c of [...src.children]) if (!empties.has(c.name)) root.add(c);
+
+  // Own materials per gun (the game disposes them on a swap), with studio
+  // reflections for the metals; the glow materials breathe.
+  const clones = new Map();
+  const glows = [];
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    let m = clones.get(o.material);
+    if (!m) {
+      m = o.material.clone();
+      if (weaponEnvMap && m.isMeshStandardMaterial) {
+        m.envMap = weaponEnvMap;
+        m.envMapIntensity = m.metalness > 0.5 ? 1.0 : 0.45;
+      }
+      if (cfg.glow.includes(m.name)) glows.push({ m, base: m.emissiveIntensity || 1 });
+      clones.set(o.material, m);
+    }
+    o.material = m;
+  });
+  if (glows.length) {
+    const body = root.getObjectByName(`${P}_Body`);
+    body.onBeforeRender = () => {
+      const k = 0.78 + 0.22 * Math.sin(performance.now() * 0.0031);
+      for (const g of glows) g.m.emissiveIntensity = g.base * k;
+    };
+  }
+
+  const u = root.userData;
+  const mag = root.getObjectByName(`${P}_Mag`);
+  u.magMesh = mag;
+  u.magazinePoint = mag.position.clone();
+  u.magRestRotationX = mag.rotation.x;
+
+  // Hidden hand meshes: the PF arms / gloves and the third-person rig aim at them.
+  const hand = buildGripHand(1);
+  hand.userData.hand = true;
+  hand.position.copy(grip);
+  hand.rotation.x = cfg.rake;
+  root.add(hand);
+  const sup = buildSupportHand(1.5);
+  sup.userData.hand = true;
+  sup.position.copy(support);
+  root.add(sup);
+  u.supportHandPos = support.clone();
+  u.pfAnchors = [hand, sup];
+  u.pfSupportDrop = 0.05;
+  u.gripPos = grip;
+
+  // Sights: the irons unless glass goes on the rail.
+  const irons = [root.getObjectByName(`${P}_IronRear`), root.getObjectByName(`${P}_IronFront`)];
+  const opticKey = def.attachments?.optic
+    || (def.sight === "scope" ? "acog" : def.sight === "reddot" ? "reflex" : "iron");
+  const opticBuild = OPTIC_BUILDERS[opticKey];
+  u.aimPoint = aim;
+  u.adsDistance = cfg.adsDistance;
+  u.adsWeaponFov = null;
+  u.sight = null;
+  if (opticBuild) {
+    const optic = opticBuild();
+    const railY = cfg.railY + 0.004;
+    const aimY = railY + (optic.userData.aimOffsetY ?? 0.05);
+    const aimZ = rail.z + (optic.userData.lengthZ > 0.12 ? -0.02 : 0.01);
+    const sight = new THREE.Group();
+    sight.add(optic);
+    sight.position.set(0, aimY, aimZ);
+    root.add(sight);
+    for (const i of irons) if (i) i.visible = false;
+    u.sight = sight;
+    u.aimPoint = new THREE.Vector3(0, aimY, aimZ);
+    u.adsDistance = optic.userData.adsDistance ?? null;
+    u.adsWeaponFov = optic.userData.adsWeaponFov ?? null;
+  }
+
+  // Muzzle: the gun's own device unless a barrel attachment replaces it.
+  u.muzzleZ = muzzle.z;
+  const devBuild = BARREL_BUILDERS[def.attachments?.barrel];
+  if (devBuild) {
+    const device = root.getObjectByName(cfg.device);
+    const dz = device ? new THREE.Box3().setFromObject(device).max.z : muzzle.z;
+    const dev = devBuild(0.011);
+    const devLen = dev.userData.lengthZ ?? 0.05;
+    dev.position.set(0, muzzle.y, dz - devLen / 2);
+    root.add(dev);
+    if (device) device.visible = false;
+    u.muzzleZ = dz - devLen;
+  }
+
+  // Underbarrel on the handguard's belly.
+  const ub = def.attachments?.underbarrel;
+  const ubBuild = UNDER_BUILDERS[ub];
+  if (ubBuild) {
+    const unit = ubBuild();
+    unit.position.copy(under);
+    if (ub === "laser") unit.position.y += 0.012;
+    root.add(unit);
+    if (ub === "laser") {
+      const em = unit.userData.emitter || new THREE.Vector3();
+      const origin = unit.position.clone().add(em);
+      const beamMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.85, depthWrite: false });
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 1, 6), beamMat);
+      beam.rotation.x = Math.PI / 2;
+      beam.position.copy(origin);
+      beam.visible = false;
+      root.add(beam);
+      u.laserBeam = beam;
+      u.laserOrigin = origin.clone();
+    }
+  }
+  root.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return root;
 }
 
 /* ---- Grinmington 870: the detailed Blender model ---------------------
@@ -510,10 +671,70 @@ export function stripLights(obj) {
 }
 
 export function buildWeaponMesh(def, { skin } = {}) {
+  const fin = finishDef(skin ?? def.attachments?.skin ?? null);
+  if (!fin) return buildBaseMesh(def, skin);
+  // A finish goes over the factory gun ("" = no banner skin).
+  return applyFinish(buildBaseMesh(def, ""), fin);
+}
+
+/* ---- Finishes (skins.js FINISHES) ----------------------------------------
+   Ghost Glass: every surface turns to clear glass with its edges drawn in
+   white, and the small hardware (sights, pins, trigger, bolts) goes frosted
+   white so the gun still reads. Hands, glows, lenses and beams are left
+   alone. Edge lines are cached per geometry (the detailed models share
+   theirs between builds). */
+const _edgeCache = new WeakMap();
+const _box = new THREE.Box3();
+const _size = new THREE.Vector3();
+function glassMats() {
+  return {
+    glass: new THREE.MeshStandardMaterial({
+      color: 0xeaf2ff, roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.2,
+      depthWrite: false, envMap: weaponEnvMap, envMapIntensity: 1.6,
+    }),
+    frost: new THREE.MeshStandardMaterial({ color: 0xf2f5f8, roughness: 0.3, metalness: 0.05, envMap: weaponEnvMap, envMapIntensity: 0.6 }),
+    edge: new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false }),
+  };
+}
+function applyFinish(root, fin) {
+  if (fin.finish !== "glass") return root;
+  const M = glassMats();
+  const meshes = [];
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (let p = o; p && p !== root; p = p.parent) if (p.userData.hand) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    // Glows, reticles, lenses and the laser keep their look.
+    if (mats.some((m) => m.isMeshBasicMaterial || (m.transparent && m.opacity < 0.95) || (m.emissiveIntensity > 0.3 && m.emissive?.getHex()))) return;
+    meshes.push(o);
+  });
+  for (const o of meshes) {
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    _box.copy(o.geometry.boundingBox).getSize(_size).multiply(o.getWorldScale(new THREE.Vector3()));
+    const small = _size.length() < 0.045;
+    o.material = small ? M.frost : M.glass;
+    o.renderOrder = small ? 0 : 2;
+    let eg = _edgeCache.get(o.geometry);
+    if (!eg) {
+      eg = new THREE.EdgesGeometry(o.geometry, 32);
+      if (o.geometry.userData.shared) eg.userData.shared = true;
+      _edgeCache.set(o.geometry, eg);
+    }
+    const lines = new THREE.LineSegments(eg, M.edge);
+    lines.renderOrder = 3;
+    lines.userData.finishEdge = true;
+    o.add(lines);
+  }
+  root.userData.finish = fin.id;
+  return root;
+}
+
+function buildBaseMesh(def, skin) {
   if (def.id === "problem416") return build416(def, skin ?? def.attachments?.skin ?? null);
   const spec = def.model || {};
   if (spec.stock === "tank") return gcTemplate ? buildGreenCandles(def) : buildTankLauncher(def, spec, spec.len || 0.5);
   if (def.id === "grinmington" && gmTemplate) return buildGrinmington(def);
+  if (DETAILED[def.id] && detailedTemplates.has(def.id)) return buildDetailed(def, DETAILED[def.id], detailedTemplates.get(def.id));
   const len = spec.len || 0.5;
   const heavy = !!spec.heavy;
   const bodyH = (heavy ? 0.085 : 0.07) * (def.cls === "sidearm" ? 0.85 : 1);

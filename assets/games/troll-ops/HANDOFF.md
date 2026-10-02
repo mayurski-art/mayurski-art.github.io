@@ -6,10 +6,11 @@
 3. **Map detail pass** (design doc link in the session 19 section): six
    phases. Phase 1 (atmosphere) SHIPPED (below); WAITING on the user's OK at
    the design's gate before phase 2.
-3b. **NEW (user, 2026-10-01): a custom gun like Phantom Forces' modded "THE
-   BEAST"**: an AK whose top is a row of white bone/crystal spikes (a
-   dragon spine), cream/bone body, glowing blue core near the receiver.
-   Do it while waiting on the phase 2 OK.
+3b. ~~Custom guns (user, 2026-10-01)~~: SHIPPED (below): THE BEAST, the
+   Hyuck Colt LMG and the Ghost Glass finish. The user then said: "after
+   doing these guns then work on the rest of the tasks", so next is the
+   fix list (4), then the map pass phases 2+ (phase 2 still wants the
+   user's OK at the design's gate).
 4. **The user's fix list (2026-10-01): do this INSTEAD of the old "smaller
    TODOs" and "backlog" items, after task 3.** The user's words, tidied:
    - Emote hands duplicate (e.g. point-and-laugh): fix it.
@@ -25,6 +26,39 @@
 Note: the user asked to "compact the session after each task until task 3
 is done". Claude can't run /compact itself; the session compacts on its own
 and this file carries everything across.
+
+## Custom guns SHIPPED (2026-10-01, session 22) — `game.js?v=to-cg1`, changed modules `?v=cg1`
+- **THE BEAST** (`beast`, assault, rank 25): the user's two references
+  combined: structure from a modern AK/AR hybrid (flattop upper, angular
+  lower + flared magwell, long faceted handguard sweeping into a toothed
+  blade, A-frame front sight, slotted hider, tactical stock), style from
+  PF's modded "THE BEAST" (bone/ivory over dark olive-steel, a mane of
+  bone + crystal spikes off the upper round a glowing core, glowing veins,
+  grip talons, comb teeth). The user asked for the gun itself to look like
+  a beast: a faceted **dragon head** on the front (horns, angry brow,
+  big glowing slit-pupil eyes, fanged open jaws, the barrel out of its
+  mouth). User feedback on the way: spikes were too big (halved), "better".
+  Nothing rises into the iron/optic sight line. 44k tris.
+- **Hyuck Colt LMG** (`coltlmg`, LMG, rank 22): M16-pattern LMG, flattop
+  rail, square ribbed handguard, heavy barrel, A2 front sight, birdcage,
+  A2 stock, 100-round drum. 28k tris.
+- Both are Blender builds (models/build_beast.blender.py,
+  build_coltlmg.blender.py; shared helpers in models/gunkit.py, lifted from
+  the Grinmington builder) loaded by ONE generic path in weapon-model.js:
+  `DETAILED` table + `buildDetailed` (P_Body, P_Mag with the mag point as
+  its pivot, P_IronRear/Front, a muzzle device, P_* empties). Add the next
+  detailed rifle as a table entry. Glow materials breathe (onBeforeRender).
+- **Ghost Glass finish** (skins.js `FINISHES`): a new skin kind that ANY
+  gun can wear (the picker now shows on every gun: Factory + finishes,
+  plus the banner skins on the 416). weapon-model.js `applyFinish`: clear
+  glass, white edge lines (EdgesGeometry, cached per shared geometry),
+  small hardware frosted white; hands/glows/lenses/beams untouched. Goes
+  over the wire like any skin id. Thumb: tools/troll-ops-finish-thumbs.mjs.
+- Test: tools/troll-ops-custom-guns-test.mjs (both models load with mag +
+  both arm anchors, reload pulls the mag and returns it, glass on the Colt
+  and the 416, no page errors; all pass).
+- Cache tags: every module whose import lines changed was bumped to cg1,
+  cascaded to a fixed point (bots, royale-drop, scorestreaks too).
 
 ## Map detail pass phase 1 (atmosphere) SHIPPED (2026-10-01, session 22) — `game.js?v=to-atm1`, `maps.js`/`loadout.js`/`hollowgrin.js`/`grinleria.js`/`trollface-island.js` all `?v=atm1`
 - New sky shader (game.js `skyMat`): gradient + horizon haze + sun disc and

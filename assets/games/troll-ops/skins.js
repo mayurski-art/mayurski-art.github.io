@@ -292,16 +292,31 @@ export const SKINS = [
   },
 ];
 
-export const SKIN_BY_ID = Object.fromEntries(SKINS.map((s) => [s.id, s]));
+/* Finishes: skins that change what the gun is made of instead of painting
+   it, so every gun can wear them (weapon-model.js applyFinish). Ghost Glass
+   is after the clear "glass" guns in Phantom Forces: see-through panels,
+   bright edges, the small hardware frosted white. */
+export const FINISHES = [
+  { id: "ghostglass", name: "Ghost Glass", finish: "glass", blurb: "See-through, every edge lit. Nothing to hide." },
+];
 
-/* The skin a weapon should wear, or null for the factory finish. */
+export const SKIN_BY_ID = Object.fromEntries([...SKINS, ...FINISHES].map((s) => [s.id, s]));
+
+/* The banner skin a weapon should wear, or null for the factory finish (or a finish). */
 export function skinDef(skinId, weaponId) {
   if (!skinId || !SKINNABLE.has(weaponId)) return null;
-  return SKIN_BY_ID[skinId] || null;
+  const s = SKIN_BY_ID[skinId];
+  return s && !s.finish ? s : null;
+}
+
+/* The finish a weapon should wear (any weapon), or null. */
+export function finishDef(skinId) {
+  const s = skinId ? SKIN_BY_ID[skinId] : null;
+  return s?.finish ? s : null;
 }
 
 export function skinsFor(weaponId) {
-  return SKINNABLE.has(weaponId) ? SKINS : [];
+  return [...(SKINNABLE.has(weaponId) ? SKINS : []), ...FINISHES];
 }
 
 export const skinAtlasUrl = (id) => new URL(`./skins/${id}.jpg`, import.meta.url).href;

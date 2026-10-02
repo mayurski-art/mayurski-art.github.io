@@ -8,12 +8,12 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-lk1";
 import { poseEmoteCode } from "./emotes.js?v=to-fx3";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
-import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=cg1";
+import { WEAPON_DEFS } from "./weapons.js?v=cg1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-fx3";
 import { cleanFaceKey } from "./cosmetics.js?v=cos1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { sharedParaglider } from "./royale-drop.js?v=rd2";
+import { sharedParaglider } from "./royale-drop.js?v=cg1";
 
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down

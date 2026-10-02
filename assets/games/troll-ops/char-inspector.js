@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-lk1";
-import { buildWeaponMesh } from "./weapon-model.js?v=gm1";
+import { buildWeaponMesh } from "./weapon-model.js?v=cg1";
 import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=to-fx3";
 
 const MIN_ZOOM = 0.5;

@@ -14,9 +14,9 @@
 // zone maths, the loot tables and everything drawn for them.
 
 import * as THREE from "three";
-import { WEAPON_DEFS } from "./weapons.js?v=to-gl1";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=gm1";
-import { ATTACHMENTS, SLOTS, defaultLoadoutFor, resolveWeapon } from "./attachments.js";
+import { WEAPON_DEFS } from "./weapons.js?v=cg1";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=cg1";
+import { ATTACHMENTS, SLOTS, defaultLoadoutFor, resolveWeapon } from "./attachments.js?v=cg1";
 import { FlowField } from "./nav.js?v=ti1";
 
 /* ---- tuning ------------------------------------------------------------ */
