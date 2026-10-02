@@ -181,9 +181,9 @@ textarea.home-field{min-height:120px;resize:vertical}
 <script src="assets/js/troll-accounts.js?v=20260930a"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script type="module">
-import { createBo2Menu } from './assets/js/bo2-menu.js?v=home4';
-import { joinSitePresence, viewerId } from './assets/js/site-presence.js?v=home4';
-import { createMapMode } from './assets/js/troll-map-mode.js?v=home4';
+import { createBo2Menu } from './assets/js/bo2-menu.js?v=home5';
+import { joinSitePresence, viewerId } from './assets/js/site-presence.js?v=home5';
+import { createMapMode } from './assets/js/troll-map-mode.js?v=home5';
 
 const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
@@ -553,7 +553,7 @@ var backdrop = null;   // var: read by menu callbacks that can run before this l
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
 window.addEventListener('load', () => idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home4');
+    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home5');
     backdrop = mountMenuBackdrop($('home-backdrop'));
     document.querySelector('.home-still')?.remove();
     window.__trHome = { backdrop, menu };   // for headless tests

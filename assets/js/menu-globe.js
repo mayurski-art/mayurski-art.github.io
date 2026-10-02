@@ -68,6 +68,18 @@ const CSS = `
 .tr-space.is-map .tr-space-rocks{opacity:.35}
 .tr-space.is-map .tr-space-vignette{opacity:.6}
 .tr-space.is-swap .tr-space-planet{transition:none}
+/* Map mode: every troll is their face on the planet, ringed in molten
+   orange, with their level on a chip. MapLibre's own CSS isn't loaded. */
+.tr-space .maplibregl-marker{position:absolute;top:0;left:0;will-change:transform}
+.tr-face{width:40px;height:40px;padding:0;border:2px solid #ffb84a;border-radius:50%;background:#2a170d;cursor:pointer;
+  box-shadow:0 0 0 2px rgba(10,4,2,.85),0 0 16px 4px rgba(255,120,30,.65);transition:transform .15s ease,box-shadow .15s ease,opacity .3s ease}
+.tr-face img,.tr-face i{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
+.tr-face i{font:600 18px/36px Oswald,"Arial Narrow",sans-serif;font-style:normal;color:#ff8a1f;text-align:center}
+.tr-face b{position:absolute;right:-9px;bottom:-6px;min-width:20px;padding:1px 4px;border-radius:7px;background:#ff8a1f;color:#1a0904;
+  font:700 11px/14px Oswald,"Arial Narrow",sans-serif;letter-spacing:.02em;box-shadow:0 0 0 2px rgba(10,4,2,.9)}
+.tr-face:hover,.tr-face:focus-visible,.tr-face.is-on{transform:scale(1.25);box-shadow:0 0 0 2px rgba(10,4,2,.85),0 0 24px 8px rgba(255,150,50,.85);outline:none;z-index:2}
+.tr-face.is-on{border-color:#fff3d6}
+.tr-space:not(.is-map) .tr-face{visibility:hidden}
 @media (prefers-reduced-motion: reduce){.tr-space-rays{animation:none}}
 `;
 
@@ -433,7 +445,57 @@ export function mountMenuBackdrop(host) {
     pins = list;
     const set = () => map.getSource("pins") && map.getSource("pins").setData(pinsGeo(pins));
     if (map.isStyleLoaded()) set(); else map.once("style.load", set);
+    renderFaces();
     return pins;
+  }
+
+  // Faces for the most recent trolls; past that they stay glowing spots
+  // (still tappable through pinAt). Markers on the far side fade out.
+  const MAX_FACES = 200;
+  let faces = [];
+  function renderFaces() {
+    faces.forEach((f) => f.marker.remove());
+    faces = [];
+    const lib = window.maplibregl;
+    if (!map || !lib || !lib.Marker) return;
+    for (const pin of pins.slice(0, MAX_FACES)) {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "tr-face";
+      el.setAttribute("aria-label", `${pin.username}, level ${pin.level}${pin.label ? `, ${pin.label}` : ""}`);
+      const initial = () => { const i = document.createElement("i"); i.textContent = (pin.username || "?")[0].toUpperCase(); return i; };
+      let pic = initial();
+      if (pin.avatarUrl) {
+        const img = document.createElement("img");
+        img.alt = ""; img.decoding = "async";
+        img.addEventListener("error", () => img.replaceWith(initial()), { once: true });
+        img.src = pin.avatarUrl;
+        pic = img;
+      }
+      const lv = document.createElement("b");
+      lv.textContent = pin.level;
+      el.append(pic, lv);
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!mapMode) return;
+        const at = map.project([pin.lng, pin.lat]);
+        if (picker) { picker({ lat: pin.lat, lng: pin.lng }, at); return; }
+        if (mapMode.onPin) mapMode.onPin(pin, at);
+      });
+      const marker = new lib.Marker({ element: el, anchor: "center", opacityWhenCovered: "0" }).setLngLat([pin.lng, pin.lat]).addTo(map);
+      faces.push({ pin, el, marker });
+    }
+  }
+  function markFace(pin) { faces.forEach((f) => f.el.classList.toggle("is-on", !!pin && f.pin.userId === pin.userId)); }
+
+  // Where a spot is on screen right now, or null when it's round the back.
+  function screenPoint(lat, lng) {
+    if (!map) return null;
+    const c = map.getCenter(), rad = Math.PI / 180;
+    const cosd = Math.sin(c.lat * rad) * Math.sin(lat * rad) + Math.cos(c.lat * rad) * Math.cos(lat * rad) * Math.cos((lng - c.lng) * rad);
+    if (cosd < 0.1) return null;
+    const p = map.project([lng, lat]);
+    return { x: p.x, y: p.y };
   }
 
   // MapLibre's camera centres the globe in the padded area, so padding is
@@ -485,6 +547,7 @@ export function mountMenuBackdrop(host) {
     MAP_HANDLERS.forEach((k) => map[k] && map[k].enable());
     map.setMinZoom(Math.max(0, z - 0.6));
     mapMode = { onPin, inset };
+    root.removeAttribute("aria-hidden");   // the faces are real buttons now
     busy = false;
     refreshPins();
     return true;
@@ -498,6 +561,8 @@ export function mountMenuBackdrop(host) {
     planetEl.classList.remove("is-pin");
     setPicker(null);
     setDraft(null);
+    markFace(null);
+    root.setAttribute("aria-hidden", "true");
     map.setMinZoom(0);
     const { w, h, px, py, pr } = geom;
     const pad = paddingFor(px, py, w, h);
@@ -540,7 +605,9 @@ export function mountMenuBackdrop(host) {
     get isMap() { return !!mapMode; },
     // setPicker(fn): while set, map-mode taps pick a spot instead of a
     // troll. setDraft({ lat, lng } | null): marks the picked spot.
-    enterMap, exitMap, flyTo, refreshPins, setPicker, setDraft,
+    // markFace(pin | null): ring the troll whose card is open.
+    // screenPoint(lat, lng): { x, y } on screen, or null on the far side.
+    enterMap, exitMap, flyTo, refreshPins, setPicker, setDraft, markFace, screenPoint,
     pause() { paused = true; if (raf) cancelAnimationFrame(raf); raf = 0; root.style.visibility = "hidden"; },
     resume() { paused = false; root.style.visibility = ""; run(); },
     destroy() { dead = true; ro.disconnect(); if (raf) cancelAnimationFrame(raf); if (map) map.remove(); map = null; root.remove(); },

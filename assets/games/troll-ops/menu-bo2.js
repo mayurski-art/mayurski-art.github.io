@@ -11,9 +11,9 @@
    (#to-pf-center) moves into the right-hand detail pane, with the parts
    that became lists hidden by CSS. */
 
-import { createBo2Menu } from "../../js/bo2-menu.js?v=to-bo2c";
-import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2c";
-import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2c";
+import { createBo2Menu } from "../../js/bo2-menu.js?v=to-bo2d";
+import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
+import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -434,7 +434,7 @@ const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));
 function coverOn(on) { document.body.classList.toggle("to-bo2-cover", on); }
 idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import("../../js/menu-globe.js?v=to-bo2c");
+    const { mountMenuBackdrop } = await import("../../js/menu-globe.js?v=to-bo2d");
     backdrop = mountMenuBackdrop($(".to-bo2-bg", root));
     coverOn(!title.hidden);
     if (title.hidden) backdrop.pause();
