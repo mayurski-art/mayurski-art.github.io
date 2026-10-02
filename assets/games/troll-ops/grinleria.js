@@ -708,7 +708,7 @@ export const GRINLERIA = {
   playerSpawn: { x: -51, z: 0 },
   // A bright Houston afternoon: the sun comes down through the vault onto
   // the ice; the skyline sits in a light haze.
-  sky: { top: 0x2f6fc4, horizon: 0xc6dcef, bottom: 0x9ab0c4 },
+  sky: { top: 0x2f6fc4, horizon: 0xc6dcef, bottom: 0x9ab0c4, sun: 1.0, haze: 0.5, clouds: 0.4, cloudColor: 0xffffff, cloudShade: 0x98a8bc },
   fog: { color: 0xcfdbe6, density: 0.0026 },
   viewFar: 420,
   // The mall draws its own floors (marble inside, pavement and the garage

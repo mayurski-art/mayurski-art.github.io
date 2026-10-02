@@ -650,7 +650,7 @@ export const TROLLFACE_ISLAND = {
   playerSpawn: { x: SPAWNS[0][0], z: SPAWNS[0][1] },
   // The island floats in space (the trollface.io look): a black-blue sky
   // with stars, and dark fog so the far side fades into it.
-  sky: { top: 0x02030a, horizon: 0x101c3f, bottom: 0x02030a },
+  sky: { top: 0x02030a, horizon: 0x101c3f, bottom: 0x02030a, sun: 1.4, sunSize: 0.035 },   // a hard sun in black space, no cloud
   stars: true,
   fog: { color: 0x0b1330, density: 0.0011 },
   ground: { colorA: 0x6fd490, colorB: 0x5aa84d, grid: 0x74c864 },

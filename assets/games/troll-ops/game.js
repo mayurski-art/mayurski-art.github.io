@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=df3";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl4";
 import { CharacterInspector } from "./char-inspector.js?v=to-fx3";
-import { Loadout } from "./loadout.js?v=hg2";
+import { Loadout } from "./loadout.js?v=atm1";
 import { StreakPicker } from "./streak-picker.js?v=to-df1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=to-df1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -30,7 +30,7 @@ import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=to-medals2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=lv4";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg2";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=atm1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=to-lk1";
@@ -4607,11 +4607,27 @@ const scene = new THREE.Scene();
 const lightPool = new LightPool(scene);
 scene.fog = new THREE.FogExp2(0x3a4a38, 0.01);
 
+/* The sky (map detail pass, phase 1): the map's three-colour gradient, a
+   band of haze on the horizon, the sun (a disc and its glow, off for
+   indoor and night maps), and a layer of slow clouds lit from the sun's
+   side. All one shader on the dome: no geometry, no lights. Clouds cost an
+   fbm per pixel, so Graphics > Medium halves them and Low turns them off
+   (uCloudQ). Writes sRGB, so each map's hex colours read as written. */
 const skyMat = new THREE.ShaderMaterial({
   uniforms: {
     uTop: { value: new THREE.Color(0x1a2e4a) },
     uHorizon: { value: new THREE.Color(0x6b8a5e) },
     uBottom: { value: new THREE.Color(0x2a3324) },
+    uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+    uSunColor: { value: new THREE.Color(0xffffff) },
+    uSunSize: { value: 0.03 },      // disc radius, radians
+    uSunGlow: { value: 0.0 },
+    uHaze: { value: 0.0 },
+    uCloud: { value: 0.0 },         // coverage 0..1
+    uCloudQ: { value: 2 },          // 0 off, 1 cheap, 2 full
+    uCloudColor: { value: new THREE.Color(0xffffff) },
+    uCloudShade: { value: new THREE.Color(0x8090a0) },
+    uTime: { value: 0 },
   },
   vertexShader: /* glsl */`
     varying vec3 vDir;
@@ -4621,16 +4637,51 @@ const skyMat = new THREE.ShaderMaterial({
     }
   `,
   fragmentShader: /* glsl */`
-    uniform vec3 uTop;
-    uniform vec3 uHorizon;
-    uniform vec3 uBottom;
+    uniform vec3 uTop, uHorizon, uBottom, uSunDir, uSunColor, uCloudColor, uCloudShade;
+    uniform float uSunSize, uSunGlow, uHaze, uCloud, uCloudQ, uTime;
     varying vec3 vDir;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float noise(vec2 p) {
+      vec2 i = floor(p), f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+    }
+    float fbm(vec2 p) {
+      float v = 0.0, a = 0.5, t = 0.0;
+      for (int i = 0; i < 5; i++) {
+        if (float(i) >= 2.0 + uCloudQ * 1.5) break;
+        v += a * noise(p);
+        t += a;
+        p = p * 2.03 + vec2(17.0, 9.0);
+        a *= 0.5;
+      }
+      return v / t;   // 0..1 whatever the octave count, so coverage means the same on every tier
+    }
     void main() {
-      float h = vDir.y;
+      vec3 d = normalize(vDir);
+      float h = d.y;
       vec3 color = h > 0.0
-        ? mix(uHorizon, uTop, smoothstep(0.0, 0.6, h))
+        ? mix(uHorizon, uTop, pow(smoothstep(0.0, 0.75, h), 0.8))
         : mix(uHorizon, uBottom, smoothstep(0.0, -0.3, h));
+      // haze: the horizon colour pulled up into the lowest few degrees
+      color = mix(color, uHorizon, uHaze * exp(-abs(h) * 9.0));
+      float c = max(dot(d, uSunDir), 0.0);
+      // glow round the sun, wide and soft, then tight and hot
+      color += uSunColor * uSunGlow * (0.18 * pow(c, 6.0) + 0.55 * pow(c, 90.0));
+      if (uCloud > 0.0 && uCloudQ > 0.0 && h > 0.0) {
+        vec2 p = d.xz / (h + 0.12) * 1.6 + vec2(uTime * 0.012, uTime * 0.004);
+        float n = fbm(p);
+        float cov = smoothstep(1.0 - uCloud, 1.0 - uCloud + 0.32, n) * smoothstep(0.0, 0.18, h);
+        // lit edge toward the sun, shaded underside away from it
+        float lit = 0.45 + 0.55 * smoothstep(0.35, 0.8, fbm(p + uSunDir.xz * 0.12));
+        vec3 cloud = mix(uCloudShade, uCloudColor, lit) + uSunColor * uSunGlow * 0.35 * pow(c, 4.0);
+        color = mix(color, cloud, cov * 0.92);
+      }
+      // the disc itself, in front of the clouds' thin edges
+      float disc = smoothstep(cos(uSunSize), cos(uSunSize * 0.82), dot(d, uSunDir)) * step(0.001, uSunGlow);
+      color = mix(color, uSunColor * 1.6 + 0.3, disc);
       gl_FragColor = vec4(color, 1.0);
+      #include <colorspace_fragment>
     }
   `,
   side: THREE.BackSide,
@@ -4642,6 +4693,7 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(250, 24, 16), skyMat);
 // bigger than the dome (Trollface Island) never looks past its edge.
 sky.renderOrder = -1;
 sky.frustumCulled = false;
+sky.onBeforeRender = () => { skyMat.uniforms.uTime.value = performance.now() / 1000; };
 scene.add(sky);
 
 const camera = new THREE.PerspectiveCamera(78, 16 / 9, 0.05, 300);
@@ -4684,6 +4736,18 @@ function applyEnvironment(map) {
   skyMat.uniforms.uTop.value.set(map.sky.top);
   skyMat.uniforms.uHorizon.value.set(map.sky.horizon);
   skyMat.uniforms.uBottom.value.set(map.sky.bottom);
+  // Sun disc + glow (a map without `sky.sun` has none: indoors, night),
+  // horizon haze, clouds. The disc sits where the sun light comes from.
+  const sk = map.sky;
+  skyMat.uniforms.uSunDir.value.set(...map.sun.pos).normalize();
+  skyMat.uniforms.uSunColor.value.set(sk.sunColor ?? map.sun.color);
+  skyMat.uniforms.uSunGlow.value = sk.sun ?? 0;
+  skyMat.uniforms.uSunSize.value = sk.sunSize ?? 0.03;
+  skyMat.uniforms.uHaze.value = sk.haze ?? 0;
+  skyMat.uniforms.uCloud.value = sk.clouds ?? 0;
+  skyMat.uniforms.uCloudColor.value.set(sk.cloudColor ?? 0xffffff);
+  skyMat.uniforms.uCloudShade.value.set(sk.cloudShade ?? 0x8a96a6);
+  renderer.toneMappingExposure = map.exposure ?? 1.5;
 
   scene.fog.color.set(map.fog.color);
   scene.fog.density = map.fog.density;
@@ -10827,6 +10891,7 @@ function applyGraphics() {
   if (tier === gfxApplied) return;
   gfxApplied = tier;
   const cfg = GFX[tier];
+  skyMat.uniforms.uCloudQ.value = tier === "low" ? 0 : tier === "medium" ? 1 : 2;
   ssao.enabled = cfg.ssao;
   bloom.enabled = cfg.bloom;
   if (sun.shadow.mapSize.x !== cfg.shadowSize) {

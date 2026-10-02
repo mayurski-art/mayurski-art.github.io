@@ -3,8 +3,13 @@
 ## RESUME HERE (2026-10-01, session 22): the queue, in the user's order
 1. ~~Hollowgrin expansion~~: SHIPPED this session (below).
 2. ~~Bot scorestreaks phases 2 + 3~~: SHIPPED this session (below).
-3. **Map detail pass** <- NEXT (design doc link in the session 19 section): six
-   phases, atmosphere on all maps first (Dust Bowl turns SUNSET).
+3. **Map detail pass** (design doc link in the session 19 section): six
+   phases. Phase 1 (atmosphere) SHIPPED (below); WAITING on the user's OK at
+   the design's gate before phase 2.
+3b. **NEW (user, 2026-10-01): a custom gun like Phantom Forces' modded "THE
+   BEAST"**: an AK whose top is a row of white bone/crystal spikes (a
+   dragon spine), cream/bone body, glowing blue core near the receiver.
+   Do it while waiting on the phase 2 OK.
 4. **The user's fix list (2026-10-01): do this INSTEAD of the old "smaller
    TODOs" and "backlog" items, after task 3.** The user's words, tidied:
    - Emote hands duplicate (e.g. point-and-laugh): fix it.
@@ -20,6 +25,25 @@
 Note: the user asked to "compact the session after each task until task 3
 is done". Claude can't run /compact itself; the session compacts on its own
 and this file carries everything across.
+
+## Map detail pass phase 1 (atmosphere) SHIPPED (2026-10-01, session 22) — `game.js?v=to-atm1`, `maps.js`/`loadout.js`/`hollowgrin.js`/`grinleria.js`/`trollface-island.js` all `?v=atm1`
+- New sky shader (game.js `skyMat`): gradient + horizon haze + sun disc and
+  glow at the sun light's direction + drifting fbm clouds (octaves by
+  graphics tier, none on low; fbm normalised so coverage means the same on
+  every tier). Per map in `sky`: `sun` (glow strength, 0/absent = no
+  disc), `sunSize`, `sunColor`, `haze`, `clouds` (0..1), `cloudColor`,
+  `cloudShade`; per map `exposure` (default 1.5).
+- **Dust Bowl is a sunset** (user's call): sun at [90,17,34], violet->orange
+  sky, cool lavender hemi as the shadow fill (brown fill looked muddy).
+  Grin Site: real blue day + clouds (the murky green is gone). Cul-de-Grin
+  golden hour kept, pink clouds. Grin Beach afternoon, sun over the water.
+  Grinnery overcast. Grinleria day (seen through the dome). Island: hard
+  sun in space, no cloud. Hollowgrin: no disc (moon mesh), thin dark
+  cloud. Undergrin/Depot unchanged (no sky).
+- fps: same draw counts, readings within run-to-run noise vs the shipped
+  build (2 runs each, grinsite/dustbowl/culdegrin). Previews re-rendered.
+- Grin Beach water is NOT improved yet (still the plain MeshStandard
+  plane); it belongs to the beach phase.
 
 ## Bot scorestreaks phases 2 + 3 SHIPPED (2026-10-01, session 22) — `game.js?v=to-bs2`
 Every streak is now in `BOT_STREAK_POOL` (game.js), so any bot can roll

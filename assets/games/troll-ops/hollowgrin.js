@@ -2983,7 +2983,8 @@ export const HOLLOWGRIN = {
   bounds: { ...BOUNDS },
   playerSpawn: { x: 0, z: 8 },
   // Midnight with a full moon: violet sky, the moon high behind the manor.
-  sky: { top: 0x05060f, horizon: 0x2a1838, bottom: 0x0a0710 },
+  // No sun disc (the moon is its own mesh); thin, moonlit cloud drifting.
+  sky: { top: 0x05060f, horizon: 0x2a1838, bottom: 0x0a0710, haze: 0.2, clouds: 0.28, cloudColor: 0x4a4466, cloudShade: 0x0c0a16 },
   fog: { color: 0x1c1428, density: 0.016 },
   ground: { colorA: 0x4a5634, colorB: 0x3a4428, grid: 0x5a6a44, surface: "grass", tile: 4 },
   sun: { color: 0xa8b8ff, intensity: 1.5, pos: [-26, 48, -58] },

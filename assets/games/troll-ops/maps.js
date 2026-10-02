@@ -9,9 +9,9 @@
 import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
-import { HOLLOWGRIN } from "./hollowgrin.js?v=hg2";
-import { GRINLERIA } from "./grinleria.js";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=ti4";
+import { HOLLOWGRIN } from "./hollowgrin.js?v=atm1";
+import { GRINLERIA } from "./grinleria.js?v=atm1";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=atm1";
 import { SURFACES } from "./surface-textures.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
@@ -269,8 +269,10 @@ export const MAPS = {
     blurb: "Half-built and wide open above. Watch the girders.",
     bounds: { minX: -34, maxX: 34, minZ: -34, maxZ: 34 },
     playerSpawn: { x: 0, z: 26 },
-    sky: { top: 0x1a2e4a, horizon: 0x6b8a5e, bottom: 0x2a3324 },
-    fog: { color: 0x3a4a38, density: 0.009 },
+    // A clear working day: blue overhead, a pale dusty horizon, fair-weather
+    // cloud, and the sun up over the crane (map detail pass, phase 1).
+    sky: { top: 0x2662b4, horizon: 0x9cbcd8, bottom: 0x5a5444, sun: 1.0, haze: 0.35, clouds: 0.42, cloudColor: 0xffffff, cloudShade: 0x9aa6b4 },
+    fog: { color: 0x8ea4b4, density: 0.0085 },
     ground: { colorA: 0x9a8a70, colorB: 0x7a6a52, grid: 0x8fae6e, surface: "dirt", tile: 3 },
     sun: { color: 0xfff2d8, intensity: 2.2, pos: [30, 45, -20] },
     hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.1 },
@@ -425,7 +427,7 @@ export const MAPS = {
     blurb: "Two platforms, one stopped train. Nowhere to be far away.",
     bounds: { minX: -13, maxX: 13, minZ: -32, maxZ: 32 },
     playerSpawn: { x: 0, z: 26 },
-    sky: { top: 0x05070a, horizon: 0x0d1015, bottom: 0x05070a },
+    sky: { top: 0x05070a, horizon: 0x0d1015, bottom: 0x05070a },   // underground: no sun, no cloud
     fog: { color: 0x0c1014, density: 0.025 },
     ground: { colorA: 0x77726c, colorB: 0x5a5650, grid: 0x4a5566, surface: "dirt", tile: 2.5 },
     sun: { color: 0x6a7a99, intensity: 0.25, pos: [10, 30, 10] },
@@ -517,12 +519,16 @@ export const MAPS = {
     blurb: "Mud-brick lanes and a dry riverbed. The minaret sees everything.",
     bounds: { minX: -36, maxX: 36, minZ: -36, maxZ: 36 },
     playerSpawn: { x: 0, z: -30 },
-    sky: { top: 0x3b6ea5, horizon: 0xd9b271, bottom: 0x94764a },
-    fog: { color: 0xc0a473, density: 0.0032 },
+    // Sunset (user's call, map detail pass): the sun a hand above the wall,
+    // every house and palm throwing a long shadow, a violet sky going orange
+    // at the horizon, warm dust in the air.
+    sky: { top: 0x24306a, horizon: 0xff9450, bottom: 0x6a4630, sun: 1.6, sunSize: 0.045, sunColor: 0xffb060, haze: 0.8, clouds: 0.3, cloudColor: 0xffa070, cloudShade: 0x5a3a5a },
+    fog: { color: 0xc98a5a, density: 0.0048 },
+    exposure: 1.5,
     ground: { colorA: 0xd8c29a, colorB: 0xc0a676, grid: 0xb8a271, surface: "sand", tile: 4 },
-    sun: { color: 0xfff0cf, intensity: 2.6, pos: [40, 55, 25] },
-    hemi: { sky: 0xffe6bb, ground: 0x6a5730, intensity: 0.62 },
-    ambient: { color: 0xfff2dd, intensity: 0.26 },
+    sun: { color: 0xffad66, intensity: 3.1, pos: [90, 17, 34] },
+    hemi: { sky: 0x9a9ad8, ground: 0x8a5a3a, intensity: 1.05 },
+    ambient: { color: 0xffd0b0, intensity: 0.34 },
     build(api) {
       const MUD = 0xb89a68, MUD_DK = 0x9c7f52, ROCK = 0x7a6848, STONE = 0x9a8a6a, WOOD = 0x7a5a36;
       api.ghostWalls(0, 0, 72, 72, 5, 1.6, { ghost: true, color: 0x8a7346, surface: "brick", tile: 2.5 });
@@ -682,8 +688,8 @@ export const MAPS = {
     blurb: "Covered range. Fixed distances, targets that stand back up.",
     bounds: { minX: -22, maxX: 22, minZ: -34, maxZ: 30 },
     playerSpawn: { x: 0, z: 26 },
-    sky: { top: 0x243044, horizon: 0x53637a, bottom: 0x2b3340 },
-    fog: { color: 0x39424f, density: 0.006 },
+    sky: { top: 0x34506e, horizon: 0x8a9aac, bottom: 0x2b3340, sun: 0.5, haze: 0.4, clouds: 0.6, cloudColor: 0xd8dee6, cloudShade: 0x6a7686 },
+    fog: { color: 0x5a6676, density: 0.006 },
     ground: { colorA: 0x4d5348, colorB: 0x3c4239, grid: 0x77836a },
     sun: { color: 0xfff2d8, intensity: 1.5, pos: [18, 40, 30] },
     hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.0 },
@@ -742,8 +748,10 @@ export const MAPS = {
     blurb: "Quiet street. Every window is a problem.",
     bounds: { minX: -34, maxX: 34, minZ: -30, maxZ: 30 },
     playerSpawn: { x: 0, z: 24 },
-    sky: { top: 0x24406b, horizon: 0xd88a5a, bottom: 0x3a3040 },
-    fog: { color: 0x6a5a55, density: 0.012 },
+    // Golden hour (as before): the sun low over the back gardens, pink-lit
+    // clouds, haze in the street.
+    sky: { top: 0x2c4f86, horizon: 0xf0a878, bottom: 0x3a3040, sun: 1.3, sunSize: 0.04, haze: 0.6, clouds: 0.45, cloudColor: 0xffc0a0, cloudShade: 0x6a5a78 },
+    fog: { color: 0x9a8078, density: 0.011 },
     ground: { colorA: 0x8faa70, colorB: 0x6f8a55, grid: 0x7d8a63, surface: "grass", tile: 4 },
     sun: { color: 0xffc898, intensity: 1.6, pos: [-35, 22, 30] },
     hemi: { sky: 0x8aa2cc, ground: 0x2e3326, intensity: 0.9 },
@@ -948,8 +956,8 @@ export const MAPS = {
     // 2.6 brings it to 42 while leaving the deck at 80, so the lane keeps
     // its contrast without any face going to mud. That is also roughly what
     // open-beach bounce light does in reality.
-    sky: { top: 0x2f6ea8, horizon: 0xf2c68e, bottom: 0xc6dae2 },
-    fog: { color: 0xcad2cc, density: 0.0055 },
+    sky: { top: 0x2f6ea8, horizon: 0xf2a86a, bottom: 0xc6dae2, sun: 1.4, sunSize: 0.04, haze: 0.45, clouds: 0.3, cloudColor: 0xfff2e0, cloudShade: 0xa8a4b4 },
+    fog: { color: 0xd8bea4, density: 0.0055 },
     ground: { colorA: 0xd6c194, colorB: 0xbfa97c, grid: 0xe6d6ae },
     sun: { color: 0xffe2b4, intensity: 2.4, pos: [-22, 26, -52] },
     hemi: { sky: 0xcce8ff, ground: 0xc4b087, intensity: 2.6 },
