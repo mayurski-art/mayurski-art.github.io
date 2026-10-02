@@ -11,14 +11,36 @@
    doing these guns then work on the rest of the tasks", so next is the
    fix list (4), then the map pass phases 2+ (phase 2 still wants the
    user's OK at the design's gate).
-4. **The user's fix list (2026-10-01): do this INSTEAD of the old "smaller
-   TODOs" and "backlog" items, after task 3.** The user's words, tidied:
-   - Emote hands duplicate (e.g. point-and-laugh): fix it.
-   - Dragonfire: can't climb or descend; fix its camera angle; give it some
-     auto aim assist.
-   - Don't save progress for guest accounts.
-   - Undergrin needs developing: "it seems like I am stuck in place" there.
-   - Check that orbital VSAT helps ALL teammates (user hopes it already does).
+4. **The user's fix list (2026-10-01)**, status:
+   - ~~Emote hands duplicate~~ DONE: first-person emotes hide the gun's arms
+     (pfArms / gloveRig) when the gun is put away; the glove has its own
+     "point" pose (glove-model.js GLOVE_POSES.point, thumb folded in; the
+     white hand's values stuck it out like an L, user caught it).
+   - ~~Dragonfire~~ DONE: forward flies where you look past a +-0.2 rad
+     level band (DF_LEVEL_BAND, player only, bots fly by altitude); climb /
+     dive hint on the feed (.to-df-keys); its own airframe hidden from its
+     camera (the gun and arms hung across the view); aim assist while
+     shooting or aiming (applyAimAssist with DF cone 10 deg, range 90, 0.7
+     pull; a constant pull steered it into walls) + shot magnetism (3 deg).
+     Test: tools/troll-ops-dragonfire-test.mjs.
+   - ~~Guest progress~~ DONE: progression.js keeps guest XP in memory only
+     (isSignedIn = cached profile OR a stored 'trollrunner-accounts-auth'
+     session); old 'trollops:xp' guest total removed on load and no longer
+     credited on sign-in; achievements not saved for guests.
+     Test: tools/troll-ops-guest-progress-test.mjs.
+   - ~~VSAT for all teammates~~ CHECKED, already true: vsatUntil is per
+     team, published to peers, every teammate's minimap reads it; bot VSATs
+     reach their human team too. Bots don't need it (they always path to
+     the nearest enemy, seen or not).
+   - Undergrin "stuck in place": the literal bug is FIXED (spawns were put
+     at y 0 inside the 1.1 m platforms and pushed out past the end wall;
+     loadMap now stands every spawn on the floor under it). "Needs to be
+     developed" (expansion) is WAITING on the user: the map pass doc said
+     no added geometry for Undergrin (slowest map), so asked before
+     building.
+   Known stale test: tools/troll-ops-cuav-cooldown-test.mjs fails the same
+   2 checks on the pushed build (gunship cooldown now 60 s; pad emote wheel
+   stick), not caused by this session.
    The old smaller TODOs (Halloween skin, flamethrower, Grinleria leftovers,
    cosmetic slots, royale art) and the backlog (audio/dialogue, purge XP,
    $TRUTHS tournaments, park map) are ON HOLD until the user says otherwise.
