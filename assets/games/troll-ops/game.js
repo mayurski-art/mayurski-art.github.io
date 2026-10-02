@@ -244,7 +244,6 @@ const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in win
 // fire/aim. Covers Bluetooth/MFi pads on iPad as well as desktop controllers
 // — no separate "controller mode" toggle, it activates the moment a pad
 // reports input, same way key state does.
-const GP_DEADZONE = 0.18;
 const gamepadState = {
   connected: false, moveX: 0, moveY: 0, lookDX: 0, lookDY: 0,
   firing: false, ads: false, jump: false, crouch: false, pickup: false, endStreak: false,
@@ -3272,7 +3271,7 @@ const animDebug = new AnimDebugLab();
 
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
-  volume: 50, sens: 100, fov: 78, invert: false, minimap: true, gloves: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
+  volume: 50, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, gloves: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
   gfx: "auto", viewMode: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
@@ -3296,7 +3295,9 @@ function applySettings() {
   };
   set("to-set-volume", settings.volume, "to-set-volume-out");
   set("to-set-sens", settings.sens, "to-set-sens-out", "%");
-  set("to-set-fov", settings.fov, "to-set-fov-out", "°");
+  set("to-set-padsens", settings.padSens);
+  set("to-set-padsens-lobby", settings.padSens);
+  set("to-set-fov",settings.fov, "to-set-fov-out", "°");
   set("to-set-invert", settings.invert);
   set("to-set-minimap", settings.minimap);
   set("to-set-gloves", settings.gloves);
@@ -3546,6 +3547,21 @@ function bindSelect(id, key) {
 // Same settings, reachable from both the in-match Esc menu and the lobby's
 // Controls tab — a player shouldn't have to deploy just to fix sensitivity.
 function initEscapeMenu() {
+  // Stick sensitivity runs BO2's 1–14 ladder, its named steps included.
+  for (const id of ["to-set-padsens", "to-set-padsens-lobby"]) {
+    const sel = document.getElementById(id);
+    if (!sel) continue;
+    PAD_SENS_MULT.forEach((_, i) => {
+      const n = i + 1;
+      sel.add(new Option(PAD_SENS_NAMES[n] ? `${n} (${PAD_SENS_NAMES[n]})` : String(n), String(n)));
+    });
+    sel.value = String(settings.padSens);
+    sel.addEventListener("change", () => {
+      settings.padSens = Number(sel.value);
+      applySettings();
+      saveSettings();
+    });
+  }
   bindRange("to-set-volume", "volume", "to-set-volume-out");
   bindRange("to-set-sens", "sens", "to-set-sens-out", "%");
   bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
@@ -5983,7 +5999,69 @@ if (els.touchEmote) {
 
 // -------------------- gamepad --------------------
 
-function deadzone(v) { return Math.abs(v) < GP_DEADZONE ? 0 : v; }
+/* Stick look, built like Black Ops 2's (user: "smooth like BO2"). The old
+   look was stick × one flat speed with a square per-axis deadzone, so a
+   small push already turned fast and diagonals snapped to an axis. BO2's
+   feel comes from five things together:
+   - a small ROUND deadzone, rescaled so the first bit past it starts at 0
+     (no jump the moment the stick leaves centre)
+   - a response curve: half a push is a quarter speed, so small corrections
+     are fine and a full push is still quick
+   - pitch turns slower than yaw (CoD's turn rates are about 0.6 : 1)
+   - a turn boost: hold the stick at the rim and the yaw ramps up after a
+     beat, so you can whip round without a high sensitivity (hip only)
+   - ADS drops the rate, and a scope's zoom drops it further
+   The 1–14 ladder is BO2's, 3 (Medium) its default. */
+const PAD_SENS_MULT = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.3, 3.6, 4];
+const PAD_SENS_NAMES = { 1: "Low", 3: "Medium", 5: "High", 7: "Very High", 9: "Insane" };
+const PAD_LOOK_DEADZONE = 0.1;
+const PAD_MOVE_DEADZONE = 0.15;
+const PAD_CURVE = 2;                                      // magnitude ^ this
+const PAD_YAW_RATE = THREE.MathUtils.degToRad(170);       // full push at Medium, hip
+const PAD_PITCH_RATE = THREE.MathUtils.degToRad(105);
+const PAD_ADS_RATE = 0.55;                                // hip -> iron sights
+const PAD_BOOST = 1.7;                                    // yaw x at the rim, fully ramped
+const PAD_BOOST_EDGE = 0.95;                              // how far out counts as the rim
+const PAD_BOOST_DELAY = 0.15;                             // s at the rim before it starts
+const PAD_BOOST_RAMP = 0.35;                              // s to ramp to the full boost
+const PAD_SMOOTH = 0.025;                                 // s, irons out stick jitter only
+let padRimT = 0, padLookX = 0, padLookY = 0;
+
+/* Round deadzone, rescaled: returns [x, y, magnitude] with magnitude 0..1. */
+function radialStick(x, y, dz) {
+  const m = Math.hypot(x, y);
+  if (m <= dz) return [0, 0, 0];
+  const n = Math.min(1, (m - dz) / (1 - dz));
+  return [(x / m) * n, (y / m) * n, n];
+}
+
+/* The look turn for this frame (radians) from the right stick. */
+function padLookTurn(x, y, mag, dt) {
+  const w = currentWeapon();
+  const adsT = w?.adsT || 0;
+  // Zoom past the plain iron sights (scopes) slows it in step with the FOV.
+  const zoom = Math.min(1, camera.fov / (baseFov * 0.78));
+  const ads = (1 - (1 - PAD_ADS_RATE) * adsT) * (adsT > 0.5 ? zoom : 1);
+  const sens = (PAD_SENS_MULT[(settings.padSens | 0) - 1] ?? 1) * ads;
+
+  const shaped = mag > 0 ? Math.pow(mag, PAD_CURVE) / mag : 0;
+  let cx = x * shaped, cy = y * shaped;
+
+  // Turn boost: mostly-sideways push at the rim, not aiming down sights.
+  if (mag >= PAD_BOOST_EDGE && Math.abs(x) > 0.7 && adsT < 0.3) padRimT += dt;
+  else padRimT = 0;
+  const boost = 1 + (PAD_BOOST - 1) * THREE.MathUtils.clamp((padRimT - PAD_BOOST_DELAY) / PAD_BOOST_RAMP, 0, 1);
+
+  // A very light low-pass, short enough not to read as lag; a released
+  // stick still stops dead because the target is exactly 0.
+  const k = 1 - Math.exp(-dt / PAD_SMOOTH);
+  padLookX += (cx - padLookX) * k;
+  padLookY += (cy - padLookY) * k;
+  if (!cx && Math.abs(padLookX) < 1e-3) padLookX = 0;
+  if (!cy && Math.abs(padLookY) < 1e-3) padLookY = 0;
+
+  return [padLookX * PAD_YAW_RATE * sens * boost * dt, padLookY * PAD_PITCH_RATE * sens * dt];
+}
 
 /* Aim assist — a soft rotational pull toward whatever is already near the
    crosshair, the way GTA5's "assisted aim" (not the full auto-lock option)
@@ -6127,13 +6205,11 @@ function pollGamepad(dt) {
   if (gpDebugForced || gp.mapping !== "standard") renderGpDebug(gp);
   else if (gpDebugEl && !gpDebugEl.hidden) gpDebugEl.hidden = true;
 
-  gamepadState.moveX = deadzone(gp.axes[0] || 0);
-  gamepadState.moveY = deadzone(gp.axes[1] || 0);
-  const lookX = deadzone(gp.axes[2] || 0);
-  const lookY = deadzone(gp.axes[3] || 0);
-  const sens = BASE_MOUSE_SENS * (settings.sens / 100) * 42;
-  gamepadState.lookDX += lookX * sens * dt * 60;
-  gamepadState.lookDY += lookY * sens * dt * 60 * (settings.invert ? -1 : 1);
+  [gamepadState.moveX, gamepadState.moveY] = radialStick(gp.axes[0] || 0, gp.axes[1] || 0, PAD_MOVE_DEADZONE);
+  const [lookX, lookY, lookMag] = radialStick(gp.axes[2] || 0, gp.axes[3] || 0, PAD_LOOK_DEADZONE);
+  const [turnX, turnY] = padLookTurn(lookX, lookY, lookMag, dt);
+  gamepadState.lookDX += turnX;
+  gamepadState.lookDY += turnY * (settings.invert ? -1 : 1);
 
   // Merely having a gamepad connected isn't "playing with a controller" — a
   // trackpad or certain mice enumerate as a Gamepad object too, and this
@@ -13841,7 +13917,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     renderer, scene, colliders,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap, modeId: () => modeId, spawner: () => spawner,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
-    settings, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,
+    settings, radialStick, padLookTurn, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },

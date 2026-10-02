@@ -332,7 +332,8 @@ const screens = {
     groups: [
       [
         rangeRow("to-set-volume-lobby", "Master volume", 10, "How loud everything is."),
-        rangeRow("to-set-sens-lobby", "Look sensitivity", 10, "Mouse and stick look speed."),
+        rangeRow("to-set-sens-lobby", "Look sensitivity", 10, "Mouse and touch look speed."),
+        selectRow("to-set-padsens-lobby", "Stick sensitivity", "Controller look speed. 3 is the BO2 default."),
         rangeRow("to-set-fov-lobby", "Field of view", 2, "Wider sees more, narrower zooms in."),
         selectRow("to-set-gfx-lobby", "Graphics", "Auto picks for your device."),
       ].filter(Boolean),
