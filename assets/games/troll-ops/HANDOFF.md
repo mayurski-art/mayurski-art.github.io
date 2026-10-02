@@ -1,6 +1,68 @@
 # Troll Ops hand-off — 2026-10-02 (session 24)
 
-## RESUME HERE (2026-10-02, session 24, later)
+## RESUME HERE (2026-10-02, session 24, realism pass)
+User (after phase 5): "i want all objects in all maps to looks more realistic.
+so go do that finish that then we move to phase 6", then "you know how we
+turned those trees to be more realistic, well i image theres other objects.
+walls buildings etc." **Realism pass SHIPPED** (below). Next: **phase 6
+(Hollowgrin models)**, folding in the user's amusement-park ask (list
+below) — design doc / OK first.
+
+## Realism pass SHIPPED (2026-10-02) — `game.js?v=to-rl1`; maps/loadout/map-models/map-dressing/house-props/pentagrin/grinleria/hollowgrin/trollface-island all `?v=rl1`
+Every collider unchanged (audit PASS on all maps, same counts; pentagrin's
+audit FAILs on 4 unused `spawns` exactly as before the pass: zombies use
+the windows). The look moved into Blender models / JS meshes over ghosts:
+- **Grin Beach** (models/build_grinbeach.blender.py, now buildable by name:
+  `-- shops towers beach bluffs boardwalk pier foodtruck`, quantized):
+  gb-shops (stucco per shop GS_StuccoA-D, storefront glass + mullions,
+  pilasters, striped awnings with scalloped valances, roof fascia, sign
+  frames; interiors stocked by theme: SURF SHACK boards, TROLL TACOS
+  griddle, ICE SCREAM freezer + giant cone, 1UP ARCADE cabinets; AC units
+  and meters out back), gb-towers (braced stilts, red lap siding, LIFEGUARD
+  board, buoy, flag, stair stringers + rails), gb-beach (umbrellas with
+  ribs/valances + loungers, cast fire rings with ash and charred logs, the
+  JS embers sit in them, driftwood, a real net, precast seawall with weed),
+  gb-bluffs (sandstone bluffs close both ends and run into the sea; the back
+  wall is painted with pilasters; `beachMural` canvas GRIN BEACH mural),
+  gb-boardwalk (gapped boards GS_Deck, fascia, posts, baluster rail, steps).
+  Shop sign lettering = `shopSignMaterial` canvases. Fire glow is a bare
+  PointLight (api.lamp drew a bulb). Sign lamps moved up over the boards
+  (they blew the awnings out white).
+- **Cul-de-Grin houses** rebuilt: models/build_cg_houses.blender.py writes
+  the same house-<variant>[-attic].glb (map kit, GAME coords, door +x):
+  lap siding, cased windows + shutters + curtains, open double doors with a
+  transom, porch with columns and lamp, shingled gable roof with fascia,
+  gutters + downpipes, gable vents + barge boards, exterior brick chimney,
+  interior paint, wood floor, skirting, ceiling + light. Attic houses are
+  storey-and-a-half (pent roof skirt, sided attic storey with its window,
+  the +z sniper opening). The old build_houses.blender.py still makes the
+  yard props (toy car, gnome, can, swing, streetlamp, portrait). Baked
+  lightmaps deleted (they don't fit). house-props.js uses map-models
+  RETEXTURE now. picketFence = merged pickets/rails/posts over a ghost;
+  mailbox rounded with a flag; kiddiePool = inflatable tubes + water. Attic
+  stair = drawn treads/risers/stringer/handrail over ghost steps; the house
+  lamp moved to 2.85 (inside the ceiling it left the ceiling brown).
+- **Palms**: map_kit.palm() is a no-op now; palms are JS `palmTrees`
+  (spots [x, z, h, baseY]) on Dust Bowl (maps.js PALMS) and the Grinleria
+  (from layout solids palmplanter / palmbed). db-*.glb and gl-*.glb rebuilt
+  (db-* quantized for the first time).
+- **The Grinnery** (models/build_range.blender.py -> gr-range.glb): block
+  shell, pilasters, coping, dado band, sandbag backstop, timber firing line
+  with plywood bays and baffles under a corrugated steel roof, concrete
+  block / sandbag / jersey cover, scaffold platform + grated stair. Distance
+  boards + pen-wall labels = `rangeBoardMaterial`. Gravel ground. Dressing:
+  brass casings at the line, lane lines, scuffs.
+- **Pentagrin**: real surfaces through api options: painted plaster walls
+  (new maps.js surf mode `"<set>-paint"`: flat colour + the set's normal
+  and roughness, because the plaster photo is tan), lab tile ground,
+  polished-concrete war floor, marble boardroom floor, wood panelling,
+  desks, counters, crates; suspended-ceiling tile planes under every slab.
+- fps (meadow-style first view, warm): culdegrin 44.3, grinbeach 42-43 (was
+  42-46; draws 412 -> ~570), dustbowl 41-55, grinleria 43.8.
+- tools/troll-ops-map-shots.mjs: `MODE=view` (owner stub + View mode) and
+  `cache-control: no-store` (Chrome served stale modules between pages).
+
+## (previous) RESUME HERE (2026-10-02, session 24, later)
 Phase 4 got the user's OK ("continue"). **Phase 5 (PvP second pass) SHIPPED**
 (section below): show the shots, get the OK at the gate, then phase 6
 (Hollowgrin models). **The user's new list (2026-10-02)**, not started, to

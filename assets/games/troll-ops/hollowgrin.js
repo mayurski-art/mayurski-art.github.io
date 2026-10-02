@@ -35,8 +35,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { SURFACES } from "./surface-textures.js";
-import { portrait } from "./house-props.js";
-import { mapModel } from "./map-models.js";
+import { portrait } from "./house-props.js?v=rl1";
+import { mapModel } from "./map-models.js?v=rl1";
 
 export const HG_FLOORS = { ground: 0, upper: 3.6 };
 export function hgFloorOf(y) { return y >= 2.2 ? "upper" : "ground"; }

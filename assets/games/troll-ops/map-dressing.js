@@ -335,6 +335,12 @@ function kind(name) {
       mat = lambert();
       break;
     }
+    case "brass": {           // a spent rifle casing
+      geo = new THREE.CylinderGeometry(0.0055, 0.006, 0.045, 6);
+      geo.rotateZ(Math.PI / 2); geo.translate(0, 0.006, 0);
+      mat = new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.3 });   // (no env map: full metal reads black)
+      break;
+    }
     case "bottle": {
       const body = new THREE.CylinderGeometry(0.035, 0.035, 0.2, 8); body.translate(0, 0, 0);
       const neck = new THREE.CylinderGeometry(0.012, 0.03, 0.09, 8); neck.translate(0, 0.14, 0);
@@ -900,4 +906,21 @@ export function beachMural() {
   m.position.set(0, 0.35 + 2.62, 30.46);   // just proud of the pilasters
   m.receiveShadow = true;
   return m;
+}
+
+/* The Grinnery's distance boards and penetration-wall labels: black stencil
+   on white. */
+export function rangeBoardMaterial(text) {
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 96;
+  const g = c.getContext("2d");
+  g.fillStyle = "#f2efe6"; g.fillRect(0, 0, 256, 96);
+  g.fillStyle = "#1a1a1a";
+  g.font = "900 64px 'Arial Black', Impact, sans-serif";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(text, 128, 52, 236);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 });
 }

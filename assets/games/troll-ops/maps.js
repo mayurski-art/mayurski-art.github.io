@@ -9,18 +9,18 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeGroundMaterial } from "./shaders.js";
-import { PENTAGRIN } from "./pentagrin.js";
-import { HOLLOWGRIN } from "./hollowgrin.js?v=atm1";
-import { GRINLERIA } from "./grinleria.js?v=atm1";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=tf4";
+import { PENTAGRIN } from "./pentagrin.js?v=rl1";
+import { HOLLOWGRIN } from "./hollowgrin.js?v=rl1";
+import { GRINLERIA } from "./grinleria.js?v=rl1";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=rl1";
 import { SURFACES } from "./surface-textures.js";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
-} from "./house-props.js";
-import { gsModel, mapModel } from "./map-models.js";
-import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural } from "./map-dressing.js?v=gb1";
+} from "./house-props.js?v=rl1";
+import { gsModel, mapModel } from "./map-models.js?v=rl1";
+import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=rl1";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,
@@ -53,14 +53,19 @@ function makeApi(root, colliders) {
   const surfMatCache = new Map();
   const tint = new THREE.Color();
   const surf = (surface, color) => {
-    const s = SURFACES[surface];
+    // "<set>-paint": the colour is the paint, flat; the set only lends its
+    // bumps and roughness (painted plaster, say: the plaster photo is tan,
+    // and a tint can only multiply into it).
+    const paint = surface.endsWith("-paint");
+    const s = SURFACES[paint ? surface.slice(0, -6) : surface];
     if (!s) return mat(color);
     const key = `${surface}|${color}`;
     if (surfMatCache.has(key)) return surfMatCache.get(key);
-    tint.set(color).lerp(new THREE.Color(0xffffff), 0.55);
+    tint.set(color);
+    if (!paint) tint.lerp(new THREE.Color(0xffffff), 0.55);
     const opts = {
       color: tint.getHex(),
-      map: s.color.clone(),
+      map: paint ? null : s.color.clone(),
       normalMap: s.normal.clone(),
       roughnessMap: s.rough.clone(),
       roughness: 1,
@@ -803,51 +808,66 @@ export const MAPS = {
     playerSpawn: { x: 0, z: 26 },
     sky: { top: 0x34506e, horizon: 0x8a9aac, bottom: 0x2b3340, sun: 0.5, haze: 0.4, clouds: 0.6, cloudColor: 0xd8dee6, cloudShade: 0x6a7686 },
     fog: { color: 0x5a6676, density: 0.006 },
-    ground: { colorA: 0x4d5348, colorB: 0x3c4239, grid: 0x77836a },
+    ground: { colorA: 0x8a8678, colorB: 0x6a675c, grid: 0x77836a, surface: "dirt", tile: 2.5 },
     sun: { color: 0xfff2d8, intensity: 1.5, pos: [18, 40, 30] },
     hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.0 },
     ambient: { color: 0xffffff, intensity: 0.7 },
     build(api) {
-      const WALL = 0x59604f;
-      const BAY = 0x6d7462;
-
+      // Drawn by gr-range (models/build_range.blender.py, realism pass): a
+      // block shell with pilasters and coping, a sandbag backstop, the timber
+      // firing line with plywood bays under a steel roof, concrete-block and
+      // sandbag cover, a jersey barrier, a scaffold platform. These boxes are
+      // its colliders, unchanged.
+      const G = { ghost: true };
       // outer shell, high enough that stray rounds stay inside
-      api.walls(0, -2, 44, 64, 8, 1.2, { color: WALL, pen: 14, surface: "concrete" });
+      api.ghostWalls(0, -2, 44, 64, 8, 1.2, { pen: 14 });
 
       // firing line: a low bench you shoot over, with three bays
-      api.box(0, 27.2, 44, 0.6, 1.05, { color: BAY, pen: 6 });
-      for (const x of [-7, 7]) api.box(x, 28.6, 0.5, 3.2, 2.4, { color: BAY, pen: 6 });
+      api.box(0, 27.2, 44, 0.6, 1.05, { ...G, pen: 6 });
+      for (const x of [-7, 7]) api.box(x, 28.6, 0.5, 3.2, 2.4, { ...G, pen: 6 });
 
       // roof over the firing line only — the lane itself stays open to the sky
-      api.box(0, 28.4, 44, 5.2, 0.4, { color: 0x4a5044, y: 4.2, pen: 10 });
+      api.box(0, 28.4, 44, 5.2, 0.4, { ...G, y: 4.2, pen: 10 });
       for (const x of [-20, -7, 7, 20]) {
-        api.box(x, 30.4, 0.5, 0.5, 4.2, { color: 0x3e443a, pen: 8 });
+        api.box(x, 30.4, 0.5, 0.5, 4.2, { ...G, pen: 8 });
       }
 
-      // distance boards down the left wall, one per marked range
+      // distance boards down the left wall, one per marked range: the board
+      // is in the model, the number a canvas; a painted line across the deck
       const board = (dz, label) => {
         const z = 26 - dz;
-        api.box(-20.6, z, 0.4, 2.4, 0.9, { color: 0x2b3128, y: 1.6, pen: 4 });
+        api.box(-20.6, z, 0.4, 2.4, 0.9, { ...G, y: 1.6, pen: 4 });
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.85), rangeBoardMaterial(`${dz} M`));
+        face.rotation.y = Math.PI / 2;
+        face.position.set(-20.64, 2.05, z);
+        api.prop(face);
         api.lamp(-19.4, 2.6, z, 0xffe2b0, 5, 9);
-        // a stripe on the deck so the distance reads from the firing line too
-        api.box(0, z, 40, 0.35, 0.06, { color: label % 2 ? 0x8f9a80 : 0xb9c2a8, pen: 0.4 });
+        api.box(0, z, 40, 0.35, 0.06, { ...G, pen: 0.4 });
       };
       board(10, 1); board(25, 2); board(40, 3); board(55, 4);
 
       // cover blocks mid-lane: something to lean out of and bounce nades off
       for (const [x, z, w, d, h] of [[-11, 8, 3, 3, 1.5], [11, 8, 3, 3, 1.5],
         [-6, -2, 2.4, 6, 1.2], [6, -2, 2.4, 6, 1.2], [0, 14, 5, 1.6, 1.1]]) {
-        api.box(x, z, w, d, h, { color: 0x545c48, pen: 2.5 });
+        api.box(x, z, w, d, h, { ...G, pen: 2.5 });
       }
 
       // a short flight up to a raised platform, for testing angles and vaults
-      api.stairs(16, 20, 4, 8, 0.34, 0.7, "-z", { color: 0x5e6553 });
-      api.box(16, 10, 6, 10, 2.7, { color: 0x5e6553, pen: 8 });
+      api.stairs(16, 20, 4, 8, 0.34, 0.7, "-z", G);
+      api.box(16, 10, 6, 10, 2.7, { ...G, pen: 8 });
+      mapModel(api, "gr-range", { x: 0, z: 0 });
 
-      // penetration wall: three thicknesses of the same material, side by side
-      api.box(-14, -14, 3, 0.4, 2.4, { color: 0x7a7268, pen: 1, surface: "brick", tile: 1.5 });
-      api.box(-9, -14, 3, 1.0, 2.4, { color: 0x7a7268, pen: 1, surface: "brick", tile: 1.5 });
-      api.box(-4, -14, 3, 1.8, 2.4, { color: 0x7a7268, pen: 1, surface: "brick", tile: 1.5 });
+      // penetration wall: three thicknesses of the same material, side by
+      // side, with a coping and a painted label each
+      for (const [x, d] of [[-14, 0.4], [-9, 1.0], [-4, 1.8]]) {
+        api.box(x, -14, 3, d, 2.4, { color: 0x9a7a68, pen: 1, surface: "brick", tile: 1.5 });
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.08, d + 0.08), api.mat(0xb0aca4, 0.9));
+        cap.position.set(x, 2.44, -14);
+        api.prop(cap);
+        const tag = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.35), rangeBoardMaterial(`${d.toFixed(1)} M`));
+        tag.position.set(x, 1.9, -14 + d / 2 + 0.01);   // faces the firing line
+        api.prop(tag);
+      }
 
       for (const [x, z] of [[-16, 24], [16, 24], [-16, -6], [16, -6]]) {
         api.lamp(x, 5, z, 0xfff0d0, 14, 26);
@@ -1387,6 +1407,22 @@ export const MAPS = {
 // how a map plays moves. Undergrin gets decals only (one merged mesh): it is
 // already the slowest map.
 const SOOT = 0x14110e, MUCK = 0x2e2418;
+MAPS.range.dress = {
+  seed: 97,
+  areas: { line: [-20, 23, 20, 26.6], lane: [-20, -28, 20, 22] },
+  decals: [
+    { cell: "dirt", n: 40, area: "lane", size: [2, 4], color: 0x3a3428, alpha: 0.35 },
+    { cell: "steps", n: 20, area: "lane", size: [1, 1.3], stretch: 2.2, color: 0x2a261e, alpha: 0.3 },
+  ],
+  place: [
+    ...[16, 1, -14, -29].map((z) => ({ cell: "stripe", x: 0, z, w: 0.9, d: 40, rot: Math.PI / 2, color: 0xf2efe4, alpha: 0.8 })),
+  ],
+  clutter: [
+    { kind: "brass", n: 160, area: "line", size: [1, 1], colors: [0xc8a040, 0xb89038, 0xd8b050] },
+    { kind: "pebble", n: 120, area: "lane", size: [0.08, 0.2], colors: [0x8a8678, 0x6a675c] },
+    { kind: "paper", n: 8, area: "lane", size: [1.2, 1.6], colors: [0xf2efe4] },
+  ],
+};
 MAPS.grinsite.dress = {
   seed: 31,
   areas: { slab: [-29.5, -11.5, -16.5, 11.5, 1.2], deck: [-8, -6, 8, 6, 3.5], edge: [-32, -32, 32, -26], edge2: [-32, 26, 32, 32] },

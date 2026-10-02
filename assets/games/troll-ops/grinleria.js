@@ -18,8 +18,8 @@
 
 import * as THREE from "three";
 import { GL, STORES, WINGS, STALLS, KIOSKS, grinleriaLayout } from "./grinleria-layout.js";
-import { mapModel } from "./map-models.js";
-import { palmTrees } from "./map-dressing.js?v=gb1";
+import { mapModel } from "./map-models.js?v=rl1";
+import { palmTrees } from "./map-dressing.js?v=rl1";
 
 const TROLLFACE_URL = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 
