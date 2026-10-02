@@ -1,7 +1,8 @@
 /* The menu's backdrop: the troll world map (trollrunner.net/maps) as a huge
    molten planet, backlit by a sun, with an asteroid field drifting past.
    A Black Ops 2 Zombies menu, troll edition. Placeholder art until real art
-   lands; everything here is code, no images.
+   lands; everything here is code, no images. Shared: the trollrunner.net
+   home menu and the Troll Forces menu both mount it.
 
    Same engine as maps.html (MapLibre GL, pinned to v5: v6 ships its tile
    worker as a chunk a static site can't resolve and the globe goes black
@@ -18,7 +19,7 @@
    sun and asteroids still draw and the planet is a CSS stand-in. */
 
 const MAPLIBRE = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js";
-const COUNTRIES = new URL("../../geo/countries.json", import.meta.url).href;
+const COUNTRIES = new URL("../geo/countries.json", import.meta.url).href;
 
 // Degrees of longitude per second: one turn in about six minutes.
 const SPIN = 1.0;
@@ -29,33 +30,33 @@ const PLANET = { x: 0.2, y: 0.6, r: 0.64, rw: 0.8 };
 const TILT_LAT = 22;
 
 const CSS = `
-.to-space{position:absolute;inset:0;overflow:hidden;background:#030101;pointer-events:none;contain:strict}
-.to-space-sky{position:absolute;inset:0;background:
+.tr-space{position:absolute;inset:0;overflow:hidden;background:#030101;pointer-events:none;contain:strict}
+.tr-space-sky{position:absolute;inset:0;background:
   radial-gradient(ellipse 55% 7% at var(--sun-x) var(--sun-y),rgba(255,226,160,.85) 0,rgba(255,150,50,.4) 30%,rgba(255,110,30,0) 100%),
   radial-gradient(ellipse 80% 22% at calc(var(--sun-x) + 18%) var(--sun-y),rgba(200,90,20,.28) 0,rgba(120,40,10,0) 100%),
   radial-gradient(circle at var(--sun-x) var(--sun-y),#fffbe8 0,#ffe09a 2.2%,rgba(255,170,70,.8) 5%,rgba(230,90,25,.32) 14%,rgba(120,30,8,.12) 32%,rgba(0,0,0,0) 58%),
   radial-gradient(ellipse 120% 80% at 70% 110%,#1d0904 0,#070201 55%,#020000 100%)}
-.to-space-rays{position:absolute;left:var(--sun-x);top:var(--sun-y);width:260vmax;height:260vmax;margin:-130vmax 0 0 -130vmax;
+.tr-space-rays{position:absolute;left:var(--sun-x);top:var(--sun-y);width:260vmax;height:260vmax;margin:-130vmax 0 0 -130vmax;
   background:repeating-conic-gradient(from 0deg,rgba(255,190,110,.10) 0deg 2.2deg,rgba(255,190,110,0) 2.2deg 9deg);
   -webkit-mask:radial-gradient(circle,#000 0,rgba(0,0,0,.55) 8%,rgba(0,0,0,0) 34%);mask:radial-gradient(circle,#000 0,rgba(0,0,0,.55) 8%,rgba(0,0,0,0) 34%);
-  animation:to-space-spin 240s linear infinite}
-@keyframes to-space-spin{to{transform:rotate(360deg)}}
-.to-space-planet,.to-space-limb,.to-space-shade,.to-space-standin{position:absolute;left:calc(var(--px) - var(--pr));top:calc(var(--py) - var(--pr));width:calc(var(--pr) * 2);height:calc(var(--pr) * 2);border-radius:50%}
-.to-space-standin{background:radial-gradient(circle at 34% 30%,#3a1e10 0,#1a0b05 45%,#070201 75%)}
-.to-space-planet{border-radius:0;opacity:0;transition:opacity 1.6s ease;left:calc(var(--px) - var(--pr) * 1.3);top:calc(var(--py) - var(--pr) * 1.3);width:calc(var(--pr) * 2.6);height:calc(var(--pr) * 2.6)}
-.to-space-planet.is-ready{opacity:1}
-.to-space-planet .maplibregl-canvas{outline:none}
-.to-space-planet.is-ready + .to-space-standin{opacity:0;transition:opacity 1.6s ease}
+  animation:tr-space-spin 240s linear infinite}
+@keyframes tr-space-spin{to{transform:rotate(360deg)}}
+.tr-space-planet,.tr-space-limb,.tr-space-shade,.tr-space-standin{position:absolute;left:calc(var(--px) - var(--pr));top:calc(var(--py) - var(--pr));width:calc(var(--pr) * 2);height:calc(var(--pr) * 2);border-radius:50%}
+.tr-space-standin{background:radial-gradient(circle at 34% 30%,#3a1e10 0,#1a0b05 45%,#070201 75%)}
+.tr-space-planet{border-radius:0;opacity:0;transition:opacity 1.6s ease;left:calc(var(--px) - var(--pr) * 1.3);top:calc(var(--py) - var(--pr) * 1.3);width:calc(var(--pr) * 2.6);height:calc(var(--pr) * 2.6)}
+.tr-space-planet.is-ready{opacity:1}
+.tr-space-planet .maplibregl-canvas{outline:none}
+.tr-space-planet.is-ready + .tr-space-standin{opacity:0;transition:opacity 1.6s ease}
 /* The face toward us is in shadow (the sun is behind the planet), the limb
    facing the sun burns. */
-.to-space-shade{background:radial-gradient(circle at var(--shade-x) var(--shade-y),rgba(0,0,0,0) 0,rgba(0,0,0,0) 52%,rgba(3,1,0,.55) 78%,rgba(3,1,0,.82) 100%)}
-.to-space-limb{box-shadow:
+.tr-space-shade{background:radial-gradient(circle at var(--shade-x) var(--shade-y),rgba(0,0,0,0) 0,rgba(0,0,0,0) 52%,rgba(3,1,0,.55) 78%,rgba(3,1,0,.82) 100%)}
+.tr-space-limb{box-shadow:
   inset var(--limb-dx) var(--limb-dy) calc(var(--pr) * .05) calc(var(--pr) * -.01) rgba(255,214,140,.95),
   inset calc(var(--limb-dx) * 2.4) calc(var(--limb-dy) * 2.4) calc(var(--pr) * .16) rgba(255,110,30,.55),
   calc(var(--limb-dx) * -.6) calc(var(--limb-dy) * -.6) calc(var(--pr) * .12) calc(var(--pr) * .01) rgba(255,120,40,.35)}
-.to-space-rocks{position:absolute;inset:0;width:100%;height:100%}
-.to-space-vignette{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.5) 0,rgba(0,0,0,.25) 26%,rgba(0,0,0,0) 42%),radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,.6) 100%)}
-@media (prefers-reduced-motion: reduce){.to-space-rays{animation:none}}
+.tr-space-rocks{position:absolute;inset:0;width:100%;height:100%}
+.tr-space-vignette{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.5) 0,rgba(0,0,0,.25) 26%,rgba(0,0,0,0) 42%),radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,.6) 100%)}
+@media (prefers-reduced-motion: reduce){.tr-space-rays{animation:none}}
 `;
 
 let libPromise = null;
@@ -214,25 +215,25 @@ function drawRocks(ctx, w, h, rocks, sun, dpr) {
 }
 
 export function mountMenuBackdrop(host) {
-  if (!document.getElementById("to-space-css")) {
+  if (!document.getElementById("tr-space-css")) {
     const st = document.createElement("style");
-    st.id = "to-space-css";
+    st.id = "tr-space-css";
     st.textContent = CSS;
     document.head.appendChild(st);
   }
   const root = document.createElement("div");
-  root.className = "to-space";
+  root.className = "tr-space";
   root.setAttribute("aria-hidden", "true");
-  root.innerHTML = `<div class="to-space-sky"></div><div class="to-space-rays"></div>
-    <canvas class="to-space-rocks" data-layer="far"></canvas>
-    <div class="to-space-planet"></div><div class="to-space-standin"></div>
-    <div class="to-space-shade"></div><div class="to-space-limb"></div>
-    <canvas class="to-space-rocks" data-layer="near"></canvas>
-    <div class="to-space-vignette"></div>`;
+  root.innerHTML = `<div class="tr-space-sky"></div><div class="tr-space-rays"></div>
+    <canvas class="tr-space-rocks" data-layer="far"></canvas>
+    <div class="tr-space-planet"></div><div class="tr-space-standin"></div>
+    <div class="tr-space-shade"></div><div class="tr-space-limb"></div>
+    <canvas class="tr-space-rocks" data-layer="near"></canvas>
+    <div class="tr-space-vignette"></div>`;
   host.prepend(root);
 
-  const planetEl = root.querySelector(".to-space-planet");
-  const [farCv, nearCv] = root.querySelectorAll(".to-space-rocks");
+  const planetEl = root.querySelector(".tr-space-planet");
+  const [farCv, nearCv] = root.querySelectorAll(".tr-space-rocks");
   const rocks = makeRocks();
   const far = rocks.filter((k) => k.depth < 0.62), near = rocks.filter((k) => k.depth >= 0.62);
 
