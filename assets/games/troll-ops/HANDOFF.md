@@ -108,6 +108,64 @@ the main menu redesign (self-contained, menu files only).
    the hitboxes zombies.js already uses. Self-contained (zombies.js +
    models), so it suits its own session/worktree too.
 
+### Zombie redesign plan (for its own session; user asked for the plan 2026-10-02)
+**Today:** zombies.js builds every zombie with character.js `buildHumanoid`
+(the procedural stick-limb rig the bots use) in a flat dissolve material,
+with a "grin" (trollface) or "pepe" face: ZOMBIE_TYPES troll/pepe. Hit
+detection is the rig's invisible `hitboxMeshes` (head, torso, hips, arms,
+legs) that game.js raycasts. Motion is `poseHumanoid(..., { zombie: true })`.
+
+**Goal (refs in refs/zombie-ref.png + the horde shot described above):**
+real zombies, not trolls in green paint. Grey-green rotting skin, milky
+eyes, torn lips over bare teeth, ordinary clothes torn and bloodied, a
+shambling-to-sprinting horde, and a rarer lanky leaper with claws.
+
+**Build**
+1. `models/build_zombies.blender.py` -> `zombie.glb`: ONE skinned base body
+   (~4-6k tris), modelled in Blender at real proportions, with an armature
+   whose bones match buildHumanoid's joints (hips, spine, chest, neck, head,
+   upper/lower arm, hand, thigh, shin, foot), so poseHumanoid's angles drive
+   it directly. No new animation system to start with: copy the procedural
+   pose onto the bones each frame. If that reads stiff, phase 2 bakes clips
+   in Blender (shamble, run, swipe, lunge, rise, die) and uses an
+   AnimationMixer.
+2. Look: one 1024² texture atlas painted procedurally in Blender (bake):
+   mottled grey-green skin, veins, bruising, dried blood round the mouth
+   and on the chest; eyes as a separate milky-white emissive-ish material;
+   a lipless jaw with modelled teeth. Clothes as separate meshes on the same
+   skeleton: shirt (torn hem, open collar), trousers, a hoodie, a dress, a
+   suit jacket, a work coat. Per-zombie variety = which clothing meshes are
+   on + a vertex-colour/tint per piece (shirt colour, skin tone, blood
+   amount) + a scale jitter. 6-8 looks from one GLB.
+3. Variants (ZOMBIE_TYPES):
+   - walker (most): shambles, speedForRound as now.
+   - runner (from ~round 5, 25%): sprint, lower HP (x0.8).
+   - **leaper** (from ~round 8, rare, max 2 alive): gaunt body variant with
+     arms ~25% longer and hooked claw hands; at 4-7 m with line of sight it
+     crouches 0.4 s then leaps (a ballistic arc, ~1.2 m up) and swipes on
+     landing; a clear wind-up sound so it's fair.
+   - Keep ONE troll easter egg: a rare zombie in a trollface mask (the
+     mascot artwork on a rubber mask mesh), never the Unicode emoji.
+     **Ask the user** if they want this or zero trollfaces on zombies.
+4. Hitboxes: keep the same named hitbox set, parented to the matching bones
+   (same sizes as today), so game.js's damage/headshot code is untouched.
+   The dissolve-on-death shader (makeEnemyDissolveMaterial) must be applied
+   to the skinned materials (onBeforeCompile on MeshStandardMaterial, or
+   swap to a quick fade + sink into the ground).
+5. Gore-lite feedback: a blood decal/puff on hit (impactFx "zombie" surface
+   exists), a head-pop on headshot kills (hide the head mesh + burst).
+6. Audio: groans per variant (pitch-shifted), a leaper shriek on wind-up.
+7. Performance: MAX_ALIVE 12 skinned meshes is fine; one shared geometry and
+   one material set (clone only the tint uniforms), no per-zombie textures.
+   Measure with tools/troll-ops-map-fps.mjs on Hollowgrin zombies at round 10.
+8. Tests: the scratchpad zombie sim (see session 25 notes: zloft.mjs) for
+   routing, plus a hitbox test (headshot on a walking zombie lands as a
+   head hit), screenshots up close at night on Hollowgrin and the Pentagrin.
+Order: design doc with a Blender turnaround render of the base body + 3
+looks -> user OK -> build 1-4 -> 5-6 -> tune. Branch/worktree of its own;
+it touches zombies.js, character.js (only if a bone hook is needed),
+models/, audio.js.
+
 ### Stream B (another session): main menu redesign, BO2 Zombies style
 The user wants the Troll Forces menu screen "similar to" a Black Ops 2
 Zombies menu:
