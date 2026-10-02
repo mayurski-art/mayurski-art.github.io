@@ -1,6 +1,65 @@
-# Troll Ops hand-off — 2026-10-02 (session 24)
+# Troll Ops hand-off — 2026-10-02 (session 25)
 
-## RESUME HERE (2026-10-02, session 25) — phase 6 design doc REV 2 awaiting OK
+## RESUME HERE (2026-10-02, session 25) — phase 6a SHIPPED, next 6b
+User OK'd design doc rev 2 (all defaults: 36 m strip, park spawn pair per
+team, wade moat, keep 4 high spots, "Grinmoor Fair", barn loft / scare
+sting / moving rides yes): https://claude.ai/artifact/92dGJceNRbWv5zViUnxocN
+**6a SHIPPED** (commit 556a057, `game.js?v=to-hg6a`, every ?v=rl1 -> hg6a,
+surface-textures.js now tagged ?v=hg6a everywhere, zombies.js?v=to-hg6a):
+- models/build_hollowgrin.blender.py (`-- mausoleum barn shop`) ->
+  hg-mausoleum/hg-barn/hg-candyshop.glb in MAP coords over unchanged
+  colliders (walls/solids now pass no mat). Its Wall class mirrors
+  hollowgrin.js wall() (holes, battens, lap boards, ashlar joints, casings).
+  hollowgrin.js hgModel(api, name, { wash, bounce }) loads with no mapping,
+  remembers Blender material names, retextures, applies bounce by name.
+- RETEXTURE rule may carry a 3rd value = paint mix (surface-textures.js).
+  Painted boards (HG_BarnRed, HG_Clapboard) use the PLASTER photo: on the
+  dark wood photo the red read black at night.
+- nightFx(material): ground fog (GROUND_FOG uniform: strength, base y,
+  falloff, per-metre build-up) + optional `userData.wash` {color, top,
+  strength} emissive gradient; applied to every material under the map root
+  INCLUDING maps.js's ground plane (root.parent) at the end of build, and to
+  models as they stream in. Skips additive/Shader/Points. The park's colour
+  washes (6b+) go through this.
+- lantern()/candleCluster() helpers (emissive + lanternPool glow + spark
+  halo, no lights): graveyard gate + 8 graves, hedge garden (8), mausoleum
+  steps, barn loft + west door, shop back door. Moon 0xb4c4ff 1.75 from
+  [-30,40,-60], hemi 1.25; mausoleum green light 6 -> 4.5.
+- Barn loft PLAYABLE: BARN_LOFT x 17.35..20.4, z 20.35..28.65, y 2.4; stair
+  climbs WEST along the south wall (stairs(24.4, 27.7, ..., "-x")), landing
+  x 20.4..21.04, rail along x 20.36 for z < 27.1; west door now 2.2 tall,
+  loft window c 22 [3.0, 4.25]. Zombies: HG_FLOORS.loft, hgFloorOf(y, x, z)
+  (barn rect + y>=1.6 -> loft), link a (25.3, 27.7) b (19.6, 27.7).
+  **Gotchas found**: (1) a link entry within 1.3 m of a wall lets zombies
+  OUTSIDE the wall start "climbing" into it; (2) with 2+ links zombies took
+  the nearest stair, not one toward the player's floor -> fixed with
+  ZombieDirector.nextFloor (BFS over links); (3) within 2.5 m zombies beeline
+  and walked into a rail beside the stair -> they now keep the field while
+  |dy| >= 0.25, and the stair no longer runs beside a rail.
+- Tests: audit all PvP maps PASS (hollowgrin 543 colliders); map-walk
+  hollowgrin ALL PASS (new: loft stair, loft rail, barn west door,
+  mausoleum); zombie sim (scratchpad zloft.mjs, throwaway): loft 23 s,
+  manor upstairs 26 s, loft-from-manor 26 s, ground 13 s; Pentagrin
+  unchanged. fps (15 s settle, warm): old 36-39, new 29-40, draws +45 (the
+  first 7 s of tools/troll-ops-map-fps.mjs read low while GLBs stream in).
+- Preview ui/maps/hollowgrin.jpg re-rendered.
+
+**Next: 6b** park shell + plaza: BOUNDS maxX 51 -> 87, east field-stone
+wall -> painted park fence, main gate opposite the carousel (z 0..4), plaza
+~(60, 0) + pumpkin fountain, Ferris wheel moved to ~(79, 0) with base +
+6 m deck, stall row on the plaza's north edge, carousel Blender model,
+woods/zombie walk-ins moved to the new edge, park spawn pair per team.
+Then 6c mansion, 6d skull mountain + moat, 6e coaster + drop tower, 6f
+tuning.
+
+**New user request (2026-10-02, not started, not yet ordered): redesign the
+zombies "like actual zombies"** (reference: a Resident Evil-style rotting
+zombie, scratchpad only: grey-green decayed skin, milky white eyes, torn
+lips/teeth, blood-stained torn shirt). Design doc first (models via
+Blender/PixelLab?, variants, animation, keep hitboxes in zombies.js).
+
+
+## (previous) RESUME HERE (2026-10-02, session 25) — design doc rev 2 (approved)
 The user answered the phase 6 questions (new district, village untouched;
 all four rides; Halloween night; the proposed order for the rest of their
 list), then sent 3 inspiration photos (scratchpad park-refs/1-3.webp, NOT
