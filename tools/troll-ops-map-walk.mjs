@@ -87,6 +87,17 @@ const RUNS = {
   [46.9, 0, -29, 0, -1, 4, "food court -> valet drive", (r) => r.end[2] < -34],
   [0, 0, 29.5, 0, 1, 4, "south corridor fire exit -> garage", (r) => r.end[2] > 34],
   ],
+  // Hollowgrin's outskirts (hollowgrin.js buildOutskirts): the chapel's door
+  // and breach, the glasshouse and hut doors, the bridge, the Troll House.
+  hollowgrin: [  [-36.5, 0, 2, -1, 0, 3, "graveyard gate -> chapel door", (r) => r.end[0] < -40.6],
+  [-43.6, 0, 9.5, 0, -1, 3, "churchyard -> chapel breach", (r) => r.end[2] < 5],
+  [-6.5, 0, -31, 0, -1, 3, "glasshouse south door", (r) => r.end[2] < -36],
+  [-12, 0, -38.5, 1, 0, 3, "glasshouse west door", (r) => r.end[0] > -7],
+  [-44.6, 0, -34, 0, -1, 3, "witch's hut south door", (r) => r.end[2] < -38.5],
+  [-46, 0, 35, 1, 0, 6, "over the covered bridge", (r) => r.end[0] > -33 && r.maxY >= 0.5],
+  [0, 0, 36, 0, 1, 3, "into the Troll House", (r) => r.end[2] > 40.5],
+  [38.5, 0, -4, 1, 0, 2.5, "onto the carousel", (r) => r.maxY >= 0.28],
+  ],
   // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
   // cave (-9.1, -32.6), portal (120.8, -100.6), bridge z 77.8 from x -56.3 to
   // -0.5, boat (99.9, 16.3), gallery (-99, 45.3), shop (38.6, 77.8).

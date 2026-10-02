@@ -28,7 +28,7 @@
 // a few dozen draws. Colliders are plain AABBs through api.ghostBox, laid by
 // the same helpers that lay the visible pieces, so the two can't drift.
 // Light is mostly emissive (carved pumpkins, candles, windows, bulbs) with
-// sixteen real point lights, all built here at load: nothing adds a light at
+// twelve real point lights, all built here at load: nothing adds a light at
 // runtime (see light-pool.js for why that matters). The glows (bulb halos,
 // fireflies, wisps) are one Points draw, animated in its vertex shader.
 
@@ -825,6 +825,7 @@ function gasLamp(K, M, x, z, { lights = null } = {}) {
     l.position.set(x, 3.3, z);
     lights.push(l);
   }
+  K.sparks?.add(x, 3.3, z, 0xffb86a, { size: 1.4, blink: 0.05 });
 }
 
 /* Crooked iron fence with spear-top bars: `len` along `axis` from (x, z).
@@ -934,6 +935,12 @@ function imageTex(file) {
     t.anisotropy = 4;
     return t;
   });
+}
+
+/* A painting: the picture lights itself a little, so it reads in the dark. */
+function paintMat(file) {
+  const t = imageTex(file);
+  return new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: 0x555555, roughness: 0.6 });
 }
 
 /* The trollface artwork as it is: white face, black ink. */
@@ -1142,6 +1149,818 @@ function pole(K, M, x, z, h = 4.2) {
   K.box(M.stairWood, x, h - 0.4, z, 0.6, 0.06, 0.06);
 }
 
+/* A flat patch on the ground (planes turn with rz after rx). */
+function flat(K, mat, x, z, w, d, { y = 0.012, rz = 0 } = {}) {
+  K.add(mat, place(new THREE.PlaneGeometry(w, d), { x, y, z, rx: -Math.PI / 2, rz }), { shadow: false });
+}
+
+/* The open runs of [a, b] once the `gaps` ([lo, hi]) are taken out. */
+function runs(a, b, gaps = []) {
+  const out = [];
+  let s = a;
+  for (const [g0, g1] of [...gaps].sort((p, q) => p[0] - q[0])) {
+    if (g0 > s) out.push([s, Math.min(g0, b)]);
+    s = Math.max(s, g1);
+  }
+  if (b > s) out.push([s, b]);
+  return out;
+}
+
+/* A gable roof with its ridge along x over the rectangle, eaves at `y`. */
+function gableRoof(K, roof, end, { x0, x1, z0, z1, y, rise, over = 0.35, endT = 0.3, ridge = null }) {
+  const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2, half = (z1 - z0) / 2 + over;
+  const len = Math.hypot(half, rise), ang = Math.atan2(rise, half);
+  K.box(roof, mx, y + rise / 2 - 0.12, mz - half / 2, x1 - x0 + over * 2, 0.2, len, { rx: -ang });
+  K.box(roof, mx, y + rise / 2 - 0.12, mz + half / 2, x1 - x0 + over * 2, 0.2, len, { rx: ang });
+  if (ridge) K.box(ridge, mx, y + rise - 0.06, mz, x1 - x0 + over * 2 + 0.1, 0.18, 0.26);
+  if (!end) return;
+  for (const gx of [x0 + endT / 2, x1 - endT / 2]) {
+    K.add(end, place(prismGeo([[-(z1 - z0) / 2, 0], [(z1 - z0) / 2, 0], [0, rise]], endT), { x: gx, y, z: mz, ry: Math.PI / 2 }));
+  }
+}
+
+/* A picket fence along x at `z` from a to b, with gaps. Stops bodies only. */
+function picketFence(K, M, z, a, b, gaps = []) {
+  for (const [s, e] of runs(a, b, gaps)) {
+    const len = e - s, c = (s + e) / 2;
+    if (len < 0.2) continue;
+    K.api.ghostBox(c, z, len, 0.1, 0.95, { pen: 0.3 });
+    for (const y of [0.3, 0.68]) K.box(M.picket, c, y, z + 0.03, len, 0.07, 0.03);
+    for (let x = s + 0.08; x < e; x += 0.17) {
+      K.box(M.picket, x, 0, z, 0.08, 0.86, 0.025, {}, { shadow: false });
+      K.cyl(M.picket, x, 0.86, z, 0.04, 0, 0.09, 4, { ry: Math.PI / 4 }, { shadow: false });
+    }
+  }
+}
+
+/* A carousel horse, nose along +x, legs mid-gallop. */
+function horseGeo() {
+  const parts = [
+    place(new THREE.BoxGeometry(1.0, 0.4, 0.3), {}),
+    place(new THREE.BoxGeometry(0.2, 0.5, 0.2), { x: 0.46, y: 0.3, rz: -0.5 }),
+    place(new THREE.BoxGeometry(0.42, 0.18, 0.18), { x: 0.68, y: 0.52, rz: -0.3 }),
+    place(new THREE.BoxGeometry(0.1, 0.36, 0.08), { x: 0.52, y: 0.62, rz: 0.4 }),
+    place(new THREE.BoxGeometry(0.4, 0.08, 0.06), { x: -0.6, y: 0.05, rz: 0.8 }),
+    place(new THREE.BoxGeometry(0.3, 0.06, 0.34), { x: -0.05, y: 0.22 }),
+  ];
+  for (const [lx, lz, r] of [[0.38, 0.1, -0.6], [0.38, -0.1, -0.4], [-0.38, 0.1, 0.6], [-0.38, -0.1, 0.4]]) {
+    parts.push(place(new THREE.BoxGeometry(0.08, 0.5, 0.08), { x: lx, y: -0.36, z: lz, rz: r }));
+  }
+  const g = mergeGeometries(parts.map((p) => p.toNonIndexed()), false);
+  parts.forEach((p) => p.dispose());
+  return g;
+}
+
+/* Everything round the old village: the chapel, the witch's hollow, the
+   glasshouse, the fair and its Ferris wheel, Trick-or-Treat Lane with the
+   Troll House, the creek and the covered bridge, and the mist. */
+function buildOutskirts(api, K, M, SP, root, lights) {
+  const sign = (lines, o) => new THREE.MeshBasicMaterial({ map: signTexture(lines, o), color: 0xffffff });
+  const R = rng(2026);
+
+  /* ------------------------------------------- graveyard west gate */
+  ironFence(K, M, { axis: "z", at: -35.6, a: -6, b: 0.4 });
+  ironFence(K, M, { axis: "z", at: -35.6, a: 3.6, b: 20 });
+  for (const gz of [0.1, 3.9]) {
+    K.solid(-35.6, gz, 0.6, 0.6, 2.3, { mat: M.stone, pen: 10 });
+    K.box(M.stoneDark, -35.6, 2.3, gz, 0.75, 0.15, 0.75);
+    jack(K, M, -35.6, 2.45, gz, { r: 0.24, face: -Math.PI / 2, seed: 3000 + gz * 10, glow: false });
+  }
+  flat(K, M.dirt, -37.2, 2, 4.4, 2.6);
+
+  /* ------------------------------------------- St. Grinsworth's chapel */
+  {
+    const C = CHAPEL, t = 0.6, cz = (C.z0 + C.z1) / 2;
+    flat(K, M.stoneDark, (C.x0 + C.x1) / 2, cz, C.x1 - C.x0 - 1, C.z1 - C.z0 - 1, { y: 0.016 });
+    const win = (c) => ({ c, w: 1.1, spans: [[1.8, 4.6]] });
+    wall(K, { axis: "x", at: C.z0 + t / 2, a: C.x0, b: C.x1, h: C.h, t, mat: M.stone, trim: M.stoneDark, out: -1, holes: [-47, -44.2, -41.4].map(win) });
+    // the south wall is broken through between x -45 and -42.2
+    wall(K, { axis: "x", at: C.z1 - t / 2, a: C.x0, b: C.x1, h: C.h, t, mat: M.stone, trim: M.stoneDark, out: 1,
+      holes: [win(-47.2), win(-40.4), { c: -43.6, w: 2.8, spans: [[0, 3.7]] }] });
+    wall(K, { axis: "z", at: C.x0 + t / 2, a: C.z0 + t, b: C.z1 - t, h: C.h, t, mat: M.stone });
+    wall(K, { axis: "z", at: C.x1 - t / 2, a: C.z0 + t, b: C.z1 - t, h: C.h, t, mat: M.stone, trim: M.stoneDark, out: 1,
+      holes: [{ c: 2, w: 2.2, spans: [[0, 3.3]] }] });
+    // jagged stone hanging over the breach, rubble either side of it
+    for (let i = 0; i < 6; i++) {
+      const x = -44.9 + i * 0.52;
+      K.box(M.stone, x, 3.2 + (i % 3) * 0.12, C.z1 - 0.3, 0.5, 0.6, 0.55, { rz: (R() - 0.5) * 0.6 });
+    }
+    for (const [x, z, w, d] of [[-44.8, 5.5, 0.7, 0.8], [-42.5, 7.9, 0.75, 0.9]]) {
+      K.api.ghostBox(x, z, w, d, 0.45, { pen: 4 });
+      for (let i = 0; i < 4; i++) {
+        K.add(M.stone, place(new THREE.DodecahedronGeometry(0.22 + R() * 0.14), { x: x + (R() - 0.5) * w, y: 0.15, z: z + (R() - 0.5) * d, ry: R() * 6, sy: 0.7 }));
+      }
+    }
+    // buttresses
+    for (const [x, z] of [[-45.6, C.z0 - 0.35], [-42.6, C.z0 - 0.35], [-46.0, C.z1 + 0.35], [-39.9, C.z1 + 0.35]]) {
+      K.solid(x, z, 0.7, 0.7, 4.6, { mat: M.stone, pen: 10 });
+      K.box(M.stoneDark, x, 4.6, z, 0.8, 0.2, 0.8, { rx: 0.3 });
+    }
+    // roof: the west half is whole, the east half bare rafters
+    const rise = 3.5, half = (C.z1 - C.z0) / 2 + 0.4;
+    const len = Math.hypot(half, rise), ang = Math.atan2(rise, half);
+    for (const s of [-1, 1]) K.box(M.roof, -47.05, C.h + rise / 2 - 0.12, cz + s * half / 2, 5.6, 0.2, len, { rx: s * ang });
+    for (let x = -44.0; x < C.x1 - 0.2; x += 0.9) {
+      for (const s of [-1, 1]) K.add(M.stairWood, rodGeo([x, C.h, cz + s * half], [x, C.h + rise, cz], 0.07, 4));
+    }
+    K.box(M.stairWood, -44.25, C.h + rise - 0.1, cz, C.x1 - C.x0 + 0.6, 0.2, 0.2);
+    K.box(M.roof, -43.7, C.h + 1.2, cz - 3.2, 1.6, 0.16, 1.2, { rx: -0.9, rz: 0.3 });   // a slab hanging loose
+    for (const gx of [C.x0 + t / 2, C.x1 - t / 2]) {
+      K.add(M.stone, place(prismGeo([[-(C.z1 - C.z0) / 2, 0], [(C.z1 - C.z0) / 2, 0], [0, rise]], t), { x: gx, y: C.h, z: cz, ry: Math.PI / 2 }));
+    }
+    // the rose window, both faces of the west wall
+    for (const [x, ry] of [[C.x0 + t + 0.01, Math.PI / 2], [C.x0 - 0.01, -Math.PI / 2]]) {
+      K.add(M.rose, place(new THREE.CircleGeometry(1.5, 36), { x, y: 4.3, z: cz, ry }), { shadow: false });
+      K.add(M.stoneDark, place(new THREE.TorusGeometry(1.56, 0.12, 6, 32), { x, y: 4.3, z: cz, ry }));
+    }
+    // the bell tower over the east gable
+    {
+      const tx = -40, tz = cz, y0 = C.h;
+      K.box(M.stone, tx, y0, tz, 2, 3.6, 2);
+      for (const [dx, dz] of [[-0.85, -0.85], [0.85, -0.85], [-0.85, 0.85], [0.85, 0.85]]) K.box(M.stone, tx + dx, y0 + 3.6, tz + dz, 0.3, 2.6, 0.3);
+      K.box(M.stoneDark, tx, y0 + 6.2, tz, 2.3, 0.35, 2.3);
+      K.add(M.roof, place(new THREE.ConeGeometry(1.6, 3.4, 4), { x: tx, y: y0 + 6.55 + 1.7, z: tz, ry: Math.PI / 4 }));
+      K.cyl(M.iron, tx, y0 + 9.9, tz, 0.04, 0.02, 0.9, 4);
+      K.box(M.iron, tx, y0 + 10.4, tz, 0.05, 0.05, 0.5);
+      K.add(M.gold, place(new THREE.CylinderGeometry(0.22, 0.55, 0.8, 14, 1, true), { x: tx, y: y0 + 4.6, z: tz }));
+      K.cyl(M.iron, tx, y0 + 4.95, tz, 0.05, 0.05, 1.2, 4);
+      K.box(M.burlap, tx - 0.1, 1.2, tz + 0.6, 0.03, y0 + 3.6 - 1.2, 0.03, {}, { shadow: false });
+    }
+    // inside: the dais, the altar, the pews (the south side's mostly smashed)
+    K.solid(-47.8, cz, 2.2, C.z1 - C.z0 - 1.2, 0.3, { mat: M.stoneDark, pen: 8 });
+    K.solid(-48.3, cz, 0.9, 2.2, 1.0, { y: 0.3, mat: M.stone, pen: 8 });
+    K.box(M.fabric, -48.3, 1.3, cz, 1.0, 0.02, 2.4, {}, { shadow: false });
+    K.box(M.fabric, -47.83, 0.75, cz, 0.02, 0.56, 1.1, {}, { shadow: false });
+    for (let i = 0; i < 5; i++) candle(K, M, -48.3, 1.31, cz - 0.8 + i * 0.4, { seed: 3100 + i, h: 0.14 + (i % 2) * 0.1 });
+    for (const dz of [-1.6, 1.6]) {
+      K.cyl(M.iron, -47.3, 0.3, cz + dz, 0.12, 0.04, 1.2, 6);
+      for (const k of [-0.15, 0, 0.15]) candle(K, M, -47.3 + k, 1.5, cz + dz, { seed: 3120 + dz * 10 + k * 10 });
+    }
+    const pew = (x, zc, l) => {
+      K.api.ghostBox(x, zc, 0.55, l, 0.95, { pen: 1.5 });
+      K.box(M.stairWood, x, 0.42, zc, 0.46, 0.06, l);
+      K.box(M.stairWood, x + 0.22, 0.42, zc, 0.06, 0.55, l);
+      for (const e of [-1, 1]) K.box(M.stairWood, x, 0, zc + e * (l / 2 - 0.04), 0.5, 0.95, 0.08);
+    };
+    for (const x of [-46, -44.6, -43.2, -41.8, -40.4]) pew(x, -0.6, 2.8);
+    for (const x of [-46, -41.8, -40.4]) pew(x, 4.6, 2.8);
+    for (const x of [-44.6, -43.2]) {
+      for (let i = 0; i < 4; i++) K.box(M.stairWood, x + (R() - 0.5) * 0.8, 0.03, 4.4 + (R() - 0.5) * 2, 0.4, 0.05, 1 + R(), { ry: R() * 2, rz: (R() - 0.5) * 0.3 });
+    }
+    K.add(sign(["ST. GRINSWORTH'S"], { bg: "#141018", fg: "#c9a6ff", edge: "#3a2a4a" }), place(new THREE.PlaneGeometry(3.4, 0.62), { x: C.x1 + 0.02, y: 4.0, z: cz, ry: Math.PI / 2 }), { shadow: false });
+    const l = new THREE.PointLight(0xb070ff, 10, 16, 2);
+    l.position.set(-44.5, 4.2, cz);
+    lights.push(l);
+    SP.swarm(10, -44, cz, 8, 8, 1, 5, 0xb48cff, { size: 0.3, wander: 1.4, blink: 0.4 });
+
+    // the churchyard, out through the breach
+    for (const [x, z] of [[-47.8, 10.4], [-45.6, 10.2], [-40.4, 10.6], [-48.2, 13.6], [-44.2, 14.2], [-39.8, 13.8]]) {
+      const w = 0.6 + R() * 0.2, h = 0.8 + R() * 0.3;
+      K.api.ghostBox(x, z, w, 0.3, h, { pen: 3 });
+      K.add(R() < 0.5 ? M.stone : M.stoneDark, place(headstoneGeo(w, h, 0.18), { x, z, ry: (R() - 0.5) * 0.2 }));
+    }
+    for (const [x, z] of [[-46.4, 12.4], [-42.2, 12.0]]) {
+      K.box(M.dirt, x, 0, z, 0.8, 0.08, 1.7, {}, { shadow: false });
+      K.add(M.dirt, place(new THREE.SphereGeometry(0.5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), { x: x + 0.85, y: 0, z, sx: 0.7, sy: 0.5, sz: 1.6 }));
+      ZSPAWNS.push({ x, y: 0, z, rise: true });
+    }
+    jack(K, M, -43.6, 0, 9.4, { r: 0.26, face: Math.PI, seed: 3200 });
+  }
+
+  /* ------------------------------------------- the witch's hollow */
+  {
+    // the pond: water, a mud bank, stones, reeds, lily pads
+    const shape = (pts) => new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, -z)));
+    K.add(M.pond, place(new THREE.ShapeGeometry(shape(pondOutline(28, 0))), { y: 0.04, rx: -Math.PI / 2 }), { shadow: false });
+    const bank = shape(pondOutline(28, 1.1));
+    bank.holes.push(new THREE.Path(pondOutline(28, -0.1).map(([x, z]) => new THREE.Vector2(x, -z))));
+    K.add(M.dirt, place(new THREE.ShapeGeometry(bank), { y: 0.022, rx: -Math.PI / 2 }), { shadow: false });
+    for (const [i, [x, z]] of pondOutline(22, 0.6).entries()) {
+      if (i % 2) K.add(M.stoneDark, place(new THREE.DodecahedronGeometry(0.18 + R() * 0.2), { x, y: 0.08, z, sy: 0.6, ry: R() * 6 }));
+      else for (let k = 0; k < 6; k++) K.box(M.stem, x + (R() - 0.5) * 0.5, 0, z + (R() - 0.5) * 0.5, 0.025, 0.7 + R() * 0.6, 0.025, { rz: (R() - 0.5) * 0.3, rx: (R() - 0.5) * 0.3 }, { shadow: false });
+    }
+    for (const [x, z, r] of [[-44, -21.5, 0.4], [-48.6, -18.4, 0.35], [-43.2, -18.6, 0.3], [-45.4, -17.4, 0.32], [-47.5, -19.3, 0.6]]) {
+      K.add(M.lily, place(new THREE.CircleGeometry(r, 14, 0.3, Math.PI * 2 - 0.6), { x, y: 0.05, z, rx: -Math.PI / 2, rz: R() * 6 }), { shadow: false });
+    }
+    // the easter egg: Pepe, sitting on the big pad, looking east
+    mapModel(api, "hg-pepe", { x: -47.5, z: -19.3, y: 0.06, rot: Math.PI / 2, scale: 0.3 });
+    SP.swarm(14, POND.x, POND.z, 12, 10, 0.4, 2, 0xd8ff6a, { size: 0.12, wander: 0.9, blink: 1 });
+    ZSPAWNS.push({ x: -43, y: 0, z: -19.5, rise: true });
+
+    // paths: from the hedge garden's west gap, and from the pond to the hut
+    flat(K, M.dirt, -35.5, -19, 10, 2.2);
+    flat(K, M.dirt, -44.6, -31, 2, 13);
+
+    // the hut, crooked, with a thatch roof
+    const hx0 = -47.5, hx1 = -42, hz0 = -42.5, hz1 = -37.5, hh = 2.8, ht = 0.25;
+    const HW = { mat: M.witchWood, trim: M.trimDark, shutter: M.shutter, t: ht, h: hh };
+    wall(K, { axis: "x", at: hz0 + ht / 2, a: hx0, b: hx1, out: -1, ...HW, holes: [{ c: -45.5, w: 0.8, spans: [[1.0, 1.8]] }] });
+    wall(K, { axis: "x", at: hz1 - ht / 2, a: hx0, b: hx1, out: 1, ...HW, holes: [{ c: -44.6, w: 1.2, spans: [[0, 2.1]] }, { c: -46.6, w: 0.8, spans: [[1.0, 1.8]] }] });
+    wall(K, { axis: "z", at: hx0 + ht / 2, a: hz0 + ht, b: hz1 - ht, out: -1, ...HW, holes: [{ c: -40, w: 0.8, spans: [[1.0, 1.8]] }] });
+    wall(K, { axis: "z", at: hx1 - ht / 2, a: hz0 + ht, b: hz1 - ht, out: 1, ...HW, holes: [{ c: -41.4, w: 1.2, spans: [[0, 2.1]] }] });
+    K.api.ghostBox((hx0 + hx1) / 2, (hz0 + hz1) / 2, 6, 5.5, 0.3, { y: hh, pen: 6 });
+    K.add(M.thatch, place(new THREE.ConeGeometry(4.3, 3.2, 4, 1, true), { x: (hx0 + hx1) / 2, y: hh + 1.5, z: (hz0 + hz1) / 2, ry: Math.PI / 4 + 0.08, rz: 0.06 }));
+    K.cyl(M.brick, -43, hh, -41.6, 0.25, 0.2, 2.6, 6, { rz: -0.1 });
+    flat(K, M.floor, (hx0 + hx1) / 2, (hz0 + hz1) / 2, 5, 4.5, { y: 0.018 });
+    // potion shelves along the west wall, glowing
+    for (let s = 0; s < 3; s++) {
+      K.box(M.stairWood, hx0 + 0.45, 0.6 + s * 0.55, -40, 0.35, 0.04, 3.2);
+      for (let i = 0; i < 9; i++) {
+        const col = [0x6aff8c, 0xb070ff, 0xffa040, 0x5ac8ff][(i + s) % 4];
+        const h = 0.16 + R() * 0.14;
+        K.add(M.bulb, place(new THREE.CylinderGeometry(0.06, 0.08, h, 8), { x: hx0 + 0.45, y: 0.64 + s * 0.55 + h / 2, z: -41.4 + i * 0.35 }), { color: col, shadow: false });
+        if (i % 3 === 0) SP.add(hx0 + 0.5, 0.75 + s * 0.55, -41.4 + i * 0.35, col, { size: 0.3, blink: 0.2 });
+      }
+    }
+    K.api.ghostBox(hx0 + 0.45, -40, 0.4, 3.3, 2.0, { pen: 2 });
+    K.solid(-45.6, -41.4, 1.2, 0.8, 0.8, { mat: M.stairWood, pen: 1.5 });
+    candle(K, M, -45.8, 0.8, -41.4, { seed: 3300 });
+    // the cauldron, bubbling green over a fire
+    {
+      const cx = -40.5, cz = -33.5;
+      K.api.ghostBox(cx, cz, 1.5, 1.5, 0.95, { pen: 6 });
+      K.add(M.iron, place(new THREE.SphereGeometry(0.7, 16, 10, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.65), { x: cx, y: 0.85, z: cz }));
+      K.add(M.iron, place(new THREE.TorusGeometry(0.62, 0.05, 6, 20), { x: cx, y: 0.9, z: cz, rx: Math.PI / 2 }));
+      K.add(M.brew, place(new THREE.CircleGeometry(0.6, 20), { x: cx, y: 0.84, z: cz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.2 });
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2;
+        K.box(M.iron, cx + Math.cos(a) * 0.5, 0, cz + Math.sin(a) * 0.5, 0.07, 0.4, 0.07);
+      }
+      for (let i = 0; i < 5; i++) K.cyl(M.bark, cx + (R() - 0.5) * 0.4, 0.04, cz + (R() - 0.5) * 0.4, 0.06, 0.05, 0.8, 5, { rz: Math.PI / 2, ry: R() * 3 });
+      for (const ry of [0, Math.PI / 3, (2 * Math.PI) / 3]) K.add(M.flame, place(new THREE.PlaneGeometry(0.7, 0.5), { x: cx, y: 0.28, z: cz, ry }), { phase: 0.6, shadow: false });
+      K.add(M.greenGlow, place(new THREE.PlaneGeometry(5, 5), { x: cx, y: 0.04, z: cz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.7 });
+      SP.swarm(8, cx, cz, 0.8, 0.8, 1.0, 2.4, 0x8cff6a, { size: 0.16, wander: 0.4, blink: 0.8 });
+    }
+    // the toadstool fairy ring
+    {
+      const fx = -36.5, fz = -40;
+      for (let i = 0; i < 11; i++) {
+        const a = (i / 11) * Math.PI * 2, r = 2.2 + (R() - 0.5) * 0.3, s = 0.6 + R() * 0.6;
+        const x = fx + Math.cos(a) * r, z = fz + Math.sin(a) * r;
+        K.cyl(M.picket, x, 0, z, 0.06 * s, 0.05 * s, 0.35 * s, 6);
+        K.add(M.toadCap, place(new THREE.SphereGeometry(0.2 * s, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), { x, y: 0.33 * s, z, sy: 0.7 }));
+      }
+      K.add(M.purpleGlow, place(new THREE.PlaneGeometry(6, 6), { x: fx, y: 0.04, z: fz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.1 });
+      SP.swarm(9, fx, fz, 4, 4, 0.3, 1.6, 0xd08cff, { size: 0.2, wander: 0.6, blink: 0.6 });
+      ZSPAWNS.push({ x: fx, y: 0, z: fz, rise: true });
+    }
+    // dead trees
+    for (const [x, z, seed] of [[-49, -30, 4001], [-38.4, -26.5, 4002], [-49.2, -43.2, 4003], [-33.5, -33, 4004]]) {
+      K.add(M.bark, place(treeGeo(seed, { height: 6 + (seed % 3), r: 0.28, levels: 3 }), { x, z, ry: seed }));
+      K.api.ghostBox(x, z, 0.6, 0.6, 4, { pen: 6 });
+    }
+    SP.swarm(12, -42, -36, 14, 12, 0.6, 3, 0x7affd0, { size: 0.3, wander: 1.6, blink: 0.4 });
+  }
+
+  /* ------------------------------------------- the glasshouse */
+  {
+    const gx0 = -9, gx1 = 9, gz0 = -43, gz1 = -34, eave = 3, ridgeY = 5.2, gcz = (gz0 + gz1) / 2;
+    const G = { t: 0.12, h: eave, mat: null, pen: 0.6 };
+    const sDoors = [{ c: -6.5, w: 1.4, spans: [[0, 2.4]] }, { c: 6.5, w: 1.4, spans: [[0, 2.4]] }];
+    const nDoors = [{ c: 0, w: 1.6, spans: [[0, 2.4]] }];
+    const ewDoor = [{ c: -38.5, w: 1.4, spans: [[0, 2.4]] }];
+    wall(K, { axis: "x", at: gz1, a: gx0, b: gx1, ...G, holes: sDoors });
+    wall(K, { axis: "x", at: gz0, a: gx0, b: gx1, ...G, holes: nDoors });
+    wall(K, { axis: "z", at: gx0, a: gz0, b: gz1, ...G, holes: ewDoor });
+    wall(K, { axis: "z", at: gx1, a: gz0, b: gz1, ...G, holes: ewDoor });
+    const holesOf = (hs) => hs.map((h) => [h.c - h.w / 2, h.c + h.w / 2]);
+    const side = (axis, at, a, b, holes) => {
+      const gaps = holesOf(holes);
+      const pos = (s, w, d) => (axis === "x" ? [s, at, w, d] : [at, s, d, w]);
+      for (const [s, e] of runs(a, b, gaps)) {
+        const [x, z, w, d] = pos((s + e) / 2, e - s, 0.24);
+        K.box(M.brick, x, 0, z, w, 0.7, d);
+      }
+      // mullions every 1.5 m, panes between (some smashed), a transom over doors
+      for (let s = a; s <= b + 0.01; s += 1.5) {
+        const [x, z] = pos(s, 0, 0);
+        K.box(M.iron, x, 0.7, z, 0.07, eave - 0.7, 0.07);
+      }
+      for (let s = a; s < b - 0.01; s += 1.5) {
+        const e = Math.min(b, s + 1.5), c = (s + e) / 2;
+        const door = gaps.some(([g0, g1]) => c > g0 - 0.4 && c < g1 + 0.4);
+        if (!door && R() < 0.25) continue;
+        const [x, z, w, d] = pos(c, e - s - 0.07, 0.02);
+        if (door) K.box(M.glass, x, 2.45, z, w, eave - 2.45, d, {}, { shadow: false });
+        else K.box(M.glass, x, 0.7, z, w, eave - 0.7, d, {}, { shadow: false });
+      }
+      const [x, z, w, d] = pos((a + b) / 2, b - a, 0.1);
+      K.box(M.iron, x, eave - 0.06, z, w, 0.08, d);
+    };
+    side("x", gz1, gx0, gx1, sDoors);
+    side("x", gz0, gx0, gx1, nDoors);
+    side("z", gx0, gz0, gz1, ewDoor);
+    side("z", gx1, gz0, gz1, ewDoor);
+    // the glass roof on iron rafters
+    const half = (gz1 - gz0) / 2, rise = ridgeY - eave;
+    const len = Math.hypot(half, rise), ang = Math.atan2(rise, half);
+    for (let x = gx0; x <= gx1 + 0.01; x += 1.5) {
+      for (const s of [-1, 1]) K.add(M.iron, rodGeo([x, eave, gcz + s * half], [x, ridgeY, gcz], 0.04, 4));
+    }
+    for (let x = gx0; x < gx1 - 0.01; x += 1.5) {
+      for (const s of [-1, 1]) {
+        if (R() < 0.2) continue;
+        K.box(M.glass, x + 0.75, eave + rise / 2 - 0.01, gcz + s * half / 2, 1.43, 0.02, len, { rx: s * ang }, { shadow: false });
+      }
+    }
+    K.box(M.iron, 0, ridgeY - 0.05, gcz, gx1 - gx0, 0.1, 0.1);
+    for (const x of [gx0, gx1]) K.add(M.glass, place(prismGeo([[-half, 0], [half, 0], [0, rise]], 0.02), { x, y: eave, z: gcz, ry: Math.PI / 2 }), { shadow: false });
+    flat(K, M.stoneDark, 0, gcz, gx1 - gx0 - 0.2, gz1 - gz0 - 0.2, { y: 0.016 });
+    // raised beds of glowing plants
+    for (const [x, z, w, d] of [[-4.7, -40.8, 7, 1.6], [4.7, -40.8, 7, 1.6], [0, -36.3, 10.8, 1.4]]) {
+      K.solid(x, z, w, d, 0.6, { mat: M.brick, pen: 3 });
+      flat(K, M.dirt, x, z, w - 0.2, d - 0.2, { y: 0.61 });
+      for (let i = 0; i < Math.round(w * 1.6); i++) {
+        const px = x - w / 2 + 0.3 + R() * (w - 0.6), pz = z + (R() - 0.5) * (d - 0.4);
+        K.add(M.leaf, place(new THREE.PlaneGeometry(0.6, 0.6), { x: px, y: 0.9, z: pz, ry: R() * 3 }), { shadow: false });
+        if (i % 3 === 0) {
+          const col = [0x6aff8c, 0xb070ff, 0xffd27a][i % 3 === 0 ? (i / 3) % 3 : 0];
+          K.add(M.bulb, place(new THREE.SphereGeometry(0.07, 6, 4), { x: px, y: 1.15, z: pz }), { color: col, shadow: false });
+          SP.add(px, 1.15, pz, col, { size: 0.35, blink: 0.3 });
+        }
+      }
+    }
+    festoon(K, M, SP, [[gx0 + 0.5, ridgeY - 0.4, gcz], [gx1 - 0.5, ridgeY - 0.4, gcz]], { sag: 0.35, seed: 7 });
+    SP.swarm(10, 0, gcz, 16, 7, 0.8, 2.6, 0xd8ff6a, { size: 0.12, wander: 0.8, blink: 1 });
+    K.add(M.greenGlow, place(new THREE.PlaneGeometry(16, 8), { x: 0, y: 0.03, z: gcz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.5 });
+    ZSPAWNS.push({ x: 4.2, y: 0, z: -38.5, rise: true });
+    // paths from the manor's back doors
+    for (const s of [-1, 1]) flat(K, M.dirt, s * 7.25, -31, 2, 6.2);
+  }
+
+  /* ------------------------------------------- Grinmoor Fair (east) */
+  {
+    flat(K, M.dirt, 39.2, -3.5, 3.4, 73);
+    flat(K, M.dirt, 28.6, 4.1, 17.4, 1.8);
+    // the entrance arch
+    for (const z of [2.3, 5.9]) {
+      K.solid(37.3, z, 0.4, 0.4, 4.2, { mat: M.barn, pen: 6 });
+      K.add(M.gold, place(new THREE.SphereGeometry(0.22, 10, 8), { x: 37.3, y: 4.4, z }));
+    }
+    K.box(M.barn, 37.3, 3.5, 4.1, 0.2, 0.85, 4.2);
+    const fairSign = sign(["GRINMOOR FAIR"], { bg: "#1a0c14", fg: "#ffcf5a", edge: "#c0283a" });
+    for (const [x, ry] of [[37.18, -Math.PI / 2], [37.42, Math.PI / 2]]) K.add(fairSign, place(new THREE.PlaneGeometry(3.9, 0.72), { x, y: 3.92, z: 4.1, ry }), { shadow: false });
+    festoon(K, M, SP, [[37.3, 4.5, 2.3], [37.3, 4.5, 5.9]], { sag: 0.25, every: 0.4, seed: 3 });
+
+    // the carousel
+    {
+      const { x: cx, z: cz, r } = CAROUSEL;
+      K.api.ghostBox(cx, cz, r * 2, r * 1.25, 0.3, { pen: 6 });
+      K.api.ghostBox(cx, cz, r * 1.25, r * 2, 0.3, { pen: 6 });
+      K.solid(cx, cz, 1.3, 1.3, 4.6, { pen: 10 });
+      K.cyl(M.gold, cx, 0.3, cz, 0.62, 0.62, 4.3, 16);
+      K.add(M.awningRed, place(new THREE.ConeGeometry(r + 0.6, 1.8, 24, 1, true), { x: cx, y: 4.6 + 0.9, z: cz }));
+      K.add(M.awningRed, place(new THREE.CylinderGeometry(r + 0.6, r + 0.6, 0.5, 24, 1, true), { x: cx, y: 4.35, z: cz }));
+      K.add(M.gold, place(new THREE.TorusGeometry(r + 0.6, 0.06, 6, 32), { x: cx, y: 4.1, z: cz, rx: Math.PI / 2 }));
+      K.cyl(M.gold, cx, 6.4, cz, 0.12, 0.02, 0.8, 8);
+      for (let i = 0; i < 28; i++) {
+        const a = (i / 28) * Math.PI * 2, x = cx + Math.cos(a) * (r + 0.62), z = cz + Math.sin(a) * (r + 0.62);
+        const col = BULBS[i % BULBS.length];
+        K.add(M.bulb, place(new THREE.OctahedronGeometry(0.07), { x, y: 4.08, z }), { color: col, shadow: false });
+        SP.add(x, 4.08, z, col, { size: 0.5, blink: 0.25 });
+      }
+      // the turning part: platform, poles, horses and pumpkin coaches
+      const spin = new THREE.Group();
+      spin.position.set(cx, 0, cz);
+      root.add(spin);
+      const plat = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.3, 32), M.stairWood);
+      plat.position.y = 0.15;
+      plat.receiveShadow = true;
+      spin.add(plat);
+      const poleParts = [];
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        poleParts.push(new THREE.CylinderGeometry(0.035, 0.035, 4.0, 6).translate(Math.cos(a) * 3.3, 2.3, Math.sin(a) * 3.3));
+      }
+      const poles = new THREE.Mesh(mergeGeometries(poleParts), M.gold);
+      poleParts.forEach((p) => p.dispose());
+      spin.add(poles);
+      const horses = new THREE.InstancedMesh(horseGeo(), M.horse, 8);
+      const coaches = new THREE.InstancedMesh(pumpkinGeo(0.6, { ribs: 10, squash: 0.85 }), M.pumpkinSolid, 4);
+      horses.castShadow = coaches.castShadow = true;
+      horses.frustumCulled = coaches.frustumCulled = false;
+      spin.add(horses, coaches);
+      for (let i = 0; i < 4; i++) {
+        const a = ((i + 0.5) / 4) * Math.PI * 2;
+        _e.set(0, -a, 0);
+        _q.setFromEuler(_e);
+        _m4.compose(_p.set(Math.cos(a) * 1.9, 0.82, Math.sin(a) * 1.9), _q, _s.set(1, 1, 1));
+        coaches.setMatrixAt(i, _m4);
+      }
+      plat.onBeforeRender = () => {
+        const t = performance.now() / 1000;
+        spin.rotation.y = -t * 0.35;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          _e.set(0, -a - Math.PI / 2, 0);
+          _q.setFromEuler(_e);
+          _m4.compose(_p.set(Math.cos(a) * 3.3, 1.35 + 0.28 * Math.sin(t * 2.2 + i * 1.7), Math.sin(a) * 3.3), _q, _s.set(1, 1, 1));
+          horses.setMatrixAt(i, _m4);
+        }
+        horses.instanceMatrix.needsUpdate = true;
+      };
+      plat.onBeforeRender();
+      const l = new THREE.PointLight(0xffc070, 10, 16, 2);
+      l.position.set(cx, 3.4, cz);
+      lights.push(l);
+    }
+
+    // the game booths, facing west onto the midway
+    const booth = (z0, z1, title, stripes) => {
+      const mz = (z0 + z1) / 2, d = z1 - z0;
+      K.solid(49.5, mz, 0.2, d, 3, { mat: M.stairWood, pen: 8 });
+      for (const z of [z0 + 0.1, z1 - 0.1]) K.solid(47.8, z, 3.6, 0.2, 2.6, { mat: M.stairWood, pen: 8 });
+      K.solid(46.25, mz, 0.5, d - 0.4, 1.0, { mat: M.barn, pen: 2 });
+      K.box(stripes, 47.7, 2.6, mz, 4.0, 0.05, d + 0.3, { rz: -0.14 });
+      K.add(stripes, place(new THREE.PlaneGeometry(d + 0.3, 0.45), { x: 45.75, y: 2.45, z: mz, ry: -Math.PI / 2 }), { shadow: false });
+      K.add(sign([title], { bg: "#1a0c14", fg: "#ffcf5a", edge: "#7a2ab8" }), place(new THREE.PlaneGeometry(d - 0.8, 0.6), { x: 45.7, y: 3.1, z: mz, ry: -Math.PI / 2 }), { shadow: false });
+      festoon(K, M, SP, [[45.8, 2.75, z0 + 0.2], [45.8, 2.75, z1 - 0.2]], { sag: 0.15, every: 0.45, seed: Math.round(z0) });
+      K.box(M.lampGlass, 47.6, 2.35, mz, 0.08, 0.05, d - 0.8, {}, { shadow: false });
+      K.add(M.glow, place(new THREE.PlaneGeometry(3.4, d), { x: 47.8, y: 0.03, z: mz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.2 });
+    };
+    booth(6.8, 11.2, "WHACK-A-TROLL", M.awningRed);
+    booth(14.4, 18.8, "RING TOSS", M.awningPurple);
+    // whack-a-troll: the mole board, and troll heads popping out of it
+    K.box(M.trimDark, 47.8, 0, 9, 1.2, 0.95, 3.6);
+    const heads = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.42, 0.42), M.trollLit, 6);
+    root.add(heads);
+    heads.frustumCulled = false;
+    heads.onBeforeRender = () => {
+      const t = performance.now() / 1000;
+      for (let i = 0; i < 6; i++) {
+        const k = Math.max(0, Math.sin(t * (1.6 + i * 0.37) + i * 2.1));
+        _e.set(0, -Math.PI / 2, 0);
+        _q.setFromEuler(_e);
+        _m4.compose(_p.set(47.15, 0.98 + 0.45 * k, 7.6 + i * 0.56), _q, _s.set(1, 1, 1));
+        heads.setMatrixAt(i, _m4);
+      }
+      heads.instanceMatrix.needsUpdate = true;
+    };
+    heads.onBeforeRender();
+    K.box(M.barn, 46.9, 1.0, 9, 0.12, 0.3, 3.6);
+    // ring toss: bottles on tiers, rings on the counter
+    for (let tier = 0; tier < 3; tier++) {
+      K.box(M.stairWood, 48.2 + tier * 0.4, 0, 16.6, 0.4, 0.9 + tier * 0.3, 3.4);
+      for (let i = 0; i < 8; i++) {
+        const col = new THREE.Color().setHSL(R(), 0.7, 0.45).getHex();
+        K.add(M.candy, place(new THREE.CylinderGeometry(0.05, 0.09, 0.32, 8), { x: 48.2 + tier * 0.4, y: 0.9 + tier * 0.3 + 0.16, z: 15.2 + i * 0.4 }), { color: col, shadow: false });
+      }
+    }
+    for (let i = 0; i < 5; i++) K.add(M.candy, place(new THREE.TorusGeometry(0.12, 0.02, 4, 12), { x: 46.25 + (R() - 0.5) * 0.2, y: 1.02, z: 15.4 + i * 0.5, rx: Math.PI / 2 }), { color: [0xff3a5a, 0xffd23a, 0x3ad0ff][i % 3], shadow: false });
+
+    // the candy-apple cart
+    {
+      const x = 43.2, z = 24;
+      K.api.ghostBox(x, z, 1.8, 1.0, 1.0, { pen: 2 });
+      K.box(M.barn, x, 0.35, z, 1.8, 0.65, 1.0);
+      for (const dz of [-0.55, 0.55]) K.add(M.trimDark, place(new THREE.TorusGeometry(0.3, 0.04, 6, 14), { x: x - 0.4, y: 0.3, z: z + dz }));
+      for (let i = 0; i < 12; i++) {
+        const ax = x - 0.7 + (i % 6) * 0.28, az = z - 0.2 + Math.floor(i / 6) * 0.4;
+        K.add(M.candy, place(new THREE.SphereGeometry(0.09, 8, 6), { x: ax, y: 1.09, z: az }), { color: 0xb8101e, shadow: false });
+        K.box(M.stairWood, ax, 1.15, az, 0.015, 0.16, 0.015, {}, { shadow: false });
+      }
+      for (const [dx, dz] of [[-0.85, -0.45], [0.85, -0.45], [-0.85, 0.45], [0.85, 0.45]]) K.box(M.iron, x + dx, 1.0, z + dz, 0.04, 1.2, 0.04);
+      K.box(M.awningRed, x, 2.2, z, 2.1, 0.04, 1.3);
+      SP.add(x, 2.0, z, 0xffd27a, { size: 0.8, blink: 0.1 });
+    }
+    // the ticket booth, with the second easter egg on its north side
+    {
+      const x = 36.2, z = 7.6;
+      K.solid(x, z, 1.6, 1.6, 2.4, { mat: M.barn, pen: 8 });
+      K.add(M.roof, place(new THREE.ConeGeometry(1.4, 1.1, 4), { x, y: 2.95, z, ry: Math.PI / 4 }));
+      K.add(M.winGlow, place(new THREE.PlaneGeometry(0.8, 0.6), { x: x - 0.81, y: 1.4, z, ry: -Math.PI / 2 }), { shadow: false });
+      K.add(sign(["TICKETS"], { w: 512, h: 128, bg: "#1a0c14", fg: "#ffcf5a", edge: "#c0283a" }), place(new THREE.PlaneGeometry(1.2, 0.3), { x: x - 0.82, y: 2.0, z, ry: -Math.PI / 2 }), { shadow: false });
+      K.add(M.posterPaint, place(new THREE.PlaneGeometry(1.42, 0.8), { x, y: 1.35, z: z - 0.82, ry: Math.PI }), { shadow: false });
+      K.box(M.gold, x, 0.91, z - 0.81, 1.56, 0.07, 0.04);
+      K.box(M.gold, x, 1.74, z - 0.81, 1.56, 0.07, 0.04);
+    }
+    // the high striker
+    {
+      const x = 42.5, z = -17;
+      K.solid(x, z, 1.2, 1.2, 0.3, { mat: M.stairWood, pen: 6 });
+      K.solid(x, z, 0.35, 0.35, 5.6, { y: 0.3, pen: 6 });
+      K.box(M.awningRed, x - 0.18, 0.3, z, 0.02, 5.3, 0.3, {}, { shadow: false });
+      K.box(M.barnTrim, x, 0.3, z, 0.3, 5.3, 0.25);
+      K.add(M.gold, place(new THREE.SphereGeometry(0.28, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), { x, y: 5.75, z, rx: Math.PI }));
+      K.box(M.candy, x - 0.2, 1.6, z, 0.12, 0.12, 0.16, {}, { color: 0xff3a3a });
+      K.add(sign(["TEST YOUR LULZ"], { bg: "#1a0c14", fg: "#ff5a6a", edge: "#ffd23a" }), place(new THREE.PlaneGeometry(2.6, 0.5), { x: x - 0.2, y: 6.3, z, ry: -Math.PI / 2 }), { shadow: false });
+      K.box(M.stairWood, x - 0.9, 0, z + 0.7, 0.07, 1.1, 0.07, { rz: 0.35 });
+      K.box(M.stairWood, x - 1.08, 1.02, z + 0.7, 0.32, 0.2, 0.2, { rz: 0.35 });
+      SP.add(x, 5.6, z, 0xffd27a, { size: 0.9, blink: 0.3 });
+    }
+    // Madame Lulz's fortune tent
+    {
+      const x = 45.5, z = -30, r = 2.4;
+      K.add(M.awningPurple, place(new THREE.CylinderGeometry(r, r, 2.2, 14, 1, true, Math.PI * 1.5 + 0.32, Math.PI * 2 - 0.64), { x, y: 1.1, z }));
+      K.add(M.awningPurple, place(new THREE.ConeGeometry(r + 0.25, 2.0, 14, 1, true), { x, y: 3.2, z }));
+      K.add(M.gold, place(new THREE.SphereGeometry(0.15, 8, 6), { x, y: 4.3, z }));
+      K.api.ghostBox(x, z - r, r * 2, 0.2, 2.2, { pen: 1 });
+      K.api.ghostBox(x, z + r, r * 2, 0.2, 2.2, { pen: 1 });
+      K.api.ghostBox(x + r, z, 0.2, r * 2, 2.2, { pen: 1 });
+      for (const s of [-1, 1]) K.api.ghostBox(x - r, z + s * 1.5, 0.2, 1.8, 2.2, { pen: 1 });
+      K.solid(x + 0.6, z, 1.0, 1.0, 0.8, { mat: M.fabric, pen: 1.5 });
+      K.add(M.bulb, place(new THREE.SphereGeometry(0.2, 14, 10), { x: x + 0.6, y: 1.0, z }), { color: 0xc89aff, shadow: false });
+      K.add(M.purpleGlow, place(new THREE.PlaneGeometry(4, 4), { x, y: 0.04, z, rx: -Math.PI / 2 }), { shadow: false, phase: 0.4 });
+      SP.add(x + 0.6, 1.0, z, 0xb070ff, { size: 1.4, blink: 0.3 });
+      K.add(sign(["MADAME LULZ"], { bg: "#140a1c", fg: "#d8a6ff", edge: "#ffcf5a" }), place(new THREE.PlaneGeometry(2.2, 0.45), { x: x - r - 0.05, y: 2.45, z, ry: -Math.PI / 2 }), { shadow: false });
+    }
+    // string lights zig-zagging down the midway
+    const fpts = [[37.6, -36], [41.4, -30], [37.6, -24], [41.4, -18], [37.6, -12], [37.6, 0], [41.4, 12], [37.6, 24], [41.4, 30]];
+    for (const [x, z] of fpts) pole(K, M, x, z);
+    festoon(K, M, SP, fpts.map(([x, z]) => [x, 4.0, z]), { seed: 11 });
+
+    // the Ferris wheel, out past the wall (art only)
+    {
+      const { x: fx, z: fz, r, hub } = FERRIS;
+      for (const s of [-1, 1]) {
+        for (const dz of [-5, 5]) K.add(M.steel, rodGeo([fx + s * 1.6, 0, fz + dz], [fx + s * 0.7, hub, fz], 0.16, 6));
+        K.box(M.steel, fx + s * 1.6, 0, fz, 0.3, 0.3, 10.4);
+      }
+      K.add(M.steel, rodGeo([fx - 1.0, hub, fz], [fx + 1.0, hub, fz], 0.3, 10));
+      const wheel = new THREE.Group();
+      wheel.position.set(fx, hub, fz);
+      root.add(wheel);
+      const KW = new Kit(api, wheel);
+      const WS = new Sparks();
+      for (const s of [-0.5, 0.5]) {
+        KW.add(M.steel, place(new THREE.TorusGeometry(r, 0.11, 6, 64), { x: s, ry: Math.PI / 2 }));
+        KW.add(M.steel, place(new THREE.TorusGeometry(r * 0.55, 0.07, 6, 48), { x: s, ry: Math.PI / 2 }));
+        for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * Math.PI * 2;
+          KW.add(M.steel, rodGeo([s * 0.3, 0, 0], [s, Math.cos(a) * r, Math.sin(a) * r], 0.05, 4));
+        }
+        for (let i = 0; i < 48; i++) {
+          const a = (i / 48) * Math.PI * 2, y = Math.cos(a) * (r + 0.15), z = Math.sin(a) * (r + 0.15);
+          const col = BULBS[i % BULBS.length];
+          KW.add(M.bulb, place(new THREE.OctahedronGeometry(0.11), { x: s, y, z }), { color: col, shadow: false });
+          WS.add(s, y, z, col, { size: 0.8, blink: 0.15 });
+        }
+      }
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        KW.add(M.steel, rodGeo([-0.5, Math.cos(a) * r, Math.sin(a) * r], [0.5, Math.cos(a) * r, Math.sin(a) * r], 0.05, 4));
+      }
+      KW.flush();
+      wheel.add(WS.points(sparkMaterial()));
+      const cabin = mergeGeometries([
+        new THREE.BoxGeometry(1.1, 0.9, 1.0).translate(0, -1.0, 0).toNonIndexed(),
+        new THREE.ConeGeometry(0.8, 0.4, 4).rotateY(Math.PI / 4).translate(0, -0.35, 0).toNonIndexed(),
+      ], false);
+      const cabins = new THREE.InstancedMesh(cabin, M.awningRed, 16);
+      cabins.frustumCulled = false;
+      root.add(cabins);
+      cabins.onBeforeRender = () => {
+        const t = performance.now() / 1000, th = t * 0.12;
+        wheel.rotation.x = th;
+        for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * Math.PI * 2 + th;
+          _m4.makeTranslation(fx, hub + Math.cos(a) * r, fz + Math.sin(a) * r);
+          cabins.setMatrixAt(i, _m4);
+        }
+        cabins.instanceMatrix.needsUpdate = true;
+      };
+      cabins.onBeforeRender();
+    }
+  }
+
+  /* ------------------------------------------- Trick-or-Treat Lane */
+  {
+    flat(K, M.dirt, 0, 35, 112, 3.2, { y: 0.014 });
+    flat(K, M.dirt, 0, 32.6, 4.4, 1.8, { y: 0.013 });
+    const sidings = [M.sidingA, M.sidingB, M.sidingC];
+    const houses = [[-49.5, -42.5], [-31, -24], [-19.5, -12.5], [12.5, 19.5], [24, 31], [39, 46]];
+    houses.forEach(([xa, xb], i) => {
+      const mid = (xa + xb) / 2, w = xb - xa, zf = 39.8, zb = 44.6, h = 5.4, sid = sidings[i % 3];
+      K.solid(mid, (zf + zb) / 2, w, zb - zf, h, { mat: sid, pen: 8 });
+      K.box(M.foundation, mid, 0, (zf + zb) / 2, w + 0.2, 0.5, zb - zf + 0.2);
+      gableRoof(K, M.roof, sid, { x0: xa, x1: xb, z0: zf, z1: zb, y: h, rise: 2.4, ridge: M.trimDark });
+      for (const dx of [-w * 0.3, w * 0.3]) {
+        for (const y of [1.1, 3.6]) {
+          const lit = R() < 0.55;
+          K.add(lit ? M.winGlow : M.glassDark, place(new THREE.PlaneGeometry(1.0, 1.3), { x: mid + dx, y: y + 0.65, z: zf - 0.01, ry: Math.PI }), { shadow: false });
+          K.box(M.trim, mid + dx, y - 0.08, zf - 0.06, 1.25, 0.08, 0.14);
+          K.box(M.trim, mid + dx, y + 1.3, zf - 0.04, 1.2, 0.1, 0.08);
+          if (lit) SP.add(mid + dx, y + 0.65, zf - 0.4, 0xffb060, { size: 1.2, blink: 0 });
+        }
+      }
+      K.box(M.trimDark, mid, 0.3, zf - 0.03, 1.1, 2.2, 0.06);
+      // the porch: deck, posts, a little roof, a lantern
+      K.solid(mid, 39.1, 4.2, 1.4, 0.3, { mat: M.stairWood, pen: 4 });
+      for (const s of [-1, 1]) K.solid(mid + s * 1.95, 38.55, 0.14, 0.14, 2.3, { y: 0.3, mat: M.trim, pen: 2 });
+      K.box(M.roof, mid, 2.55, 39.0, 4.6, 0.12, 1.9, { rx: 0.14 });
+      K.box(M.lampGlass, mid + 0.85, 1.9, zf - 0.08, 0.16, 0.26, 0.12, {}, { shadow: false });
+      SP.add(mid + 0.85, 2.03, zf - 0.2, 0xffb86a, { size: 0.9, blink: 0.05 });
+      jack(K, M, mid - 1.4, 0.3, 38.7, { r: 0.26, face: Math.PI, seed: 5000 + i * 3 });
+      jack(K, M, mid + 1.5, 0.3, 38.8, { r: 0.21, face: Math.PI, seed: 5001 + i * 3, glow: false });
+      flat(K, M.dirt, mid, 37.7, 1.1, 1.4, { y: 0.013 });
+      picketFence(K, M, 36.95, xa - 0.4, xb + 0.4, [[mid - 0.6, mid + 0.6]]);
+      // decor, house by house
+      if (i % 3 === 0) {
+        for (const s of [-1, 1]) {
+          const gx = mid + s * 1.1;
+          K.add(M.ghost, place(new THREE.ConeGeometry(0.34, 0.95, 10, 1, true), { x: gx, y: 1.85, z: 38.6 }), { shadow: false });
+          K.add(M.ghost, place(new THREE.SphereGeometry(0.2, 10, 8), { x: gx, y: 2.25, z: 38.6 }), { shadow: false });
+          K.box(M.trimDark, gx, 2.35, 38.6, 0.01, 0.2, 0.01, {}, { shadow: false });
+        }
+      } else if (i % 3 === 1) {
+        for (const [dx, dz] of [[-2.4, 37.8], [-1.6, 38.1], [2.1, 37.7]]) {
+          K.add(M.trim, place(headstoneGeo(0.5, 0.65, 0.08), { x: mid + dx, z: dz, ry: (R() - 0.5) * 0.4, rz: (R() - 0.5) * 0.2 }));
+        }
+      } else {
+        const sx = mid + 1.2, sy = h + 1.1, sz = zf + 0.7;
+        K.add(M.car, place(new THREE.SphereGeometry(0.6, 12, 8), { x: sx, y: sy, z: sz, sz: 1.3 }));
+        K.add(M.car, place(new THREE.SphereGeometry(0.35, 10, 8), { x: sx, y: sy - 0.2, z: sz - 0.8 }));
+        for (let k = 0; k < 8; k++) {
+          const side = k < 4 ? -1 : 1, j = (k % 4) - 1.5;
+          const kx = sx + side * 0.5, kz = sz - 0.3 + j * 0.35;
+          const ex = sx + side * 1.6, ez = sz - 0.3 + j * 0.7;
+          K.add(M.car, rodGeo([kx, sy, kz], [(kx + ex) / 2, sy + 0.6, (kz + ez) / 2], 0.05, 4));
+          K.add(M.car, rodGeo([(kx + ex) / 2, sy + 0.6, (kz + ez) / 2], [ex, sy - 0.9, ez], 0.04, 4));
+        }
+        for (const s of [-1, 1]) K.add(M.bulb, place(new THREE.SphereGeometry(0.06, 6, 4), { x: sx + s * 0.12, y: sy - 0.15, z: sz - 1.12 }), { color: 0xff2a2a, shadow: false });
+      }
+    });
+    // string lights on the north verge (none over the bridge)
+    const verge = [-32, -18, -8, 8, 18, 30, 45];
+    for (const x of [-44, ...verge]) pole(K, M, x, 32.7);
+    festoon(K, M, SP, verge.map((x) => [x, 4.0, 32.7]), { seed: 17 });
+    festoon(K, M, SP, [[-44, 4.0, 32.7], [-46, 2.6, 38.5]], { seed: 23 });
+    for (const x of [-48, -25, 36]) gasLamp(K, M, x, 32.7);
+    gasLamp(K, M, 11.5, 32.7);
+
+    // the Troll House
+    {
+      const tx0 = -6, tx1 = 6, tz0 = 39.6, tz1 = 44.7, th = 3.4, t = 0.3;
+      const TW = { mat: M.sidingC, trim: M.trim, shutter: M.shutter, t, h: th };
+      wall(K, { axis: "x", at: tz0 + t / 2, a: tx0, b: tx1, out: -1, ...TW,
+        holes: [{ c: 0, w: 1.4, spans: [[0, 2.4]] }, { c: -3.6, w: 2.0, spans: [[0.9, 2.3]] }, { c: 3.6, w: 2.0, spans: [[0.9, 2.3]] }] });
+      wall(K, { axis: "x", at: tz1 - t / 2, a: tx0, b: tx1, out: 1, ...TW });
+      wall(K, { axis: "z", at: tx0 + t / 2, a: tz0 + t, b: tz1 - t, out: -1, ...TW, holes: [{ c: 42.2, w: 1.2, spans: [[0.9, 2.2]] }] });
+      wall(K, { axis: "z", at: tx1 - t / 2, a: tz0 + t, b: tz1 - t, out: 1, ...TW, holes: [{ c: 42.6, w: 1.1, spans: [[0, 2.3]] }] });
+      K.solid(0, (tz0 + tz1) / 2, 12, 5.1, 0.25, { y: th, mat: M.floor, pen: 8 });
+      gableRoof(K, M.roof, M.sidingC, { x0: tx0, x1: tx1, z0: tz0, z1: tz1, y: th + 0.25, rise: 2.2, ridge: M.trimDark });
+      K.solid(0, (tz0 + tz1) / 2, 12.2, 5.3, 0.35, { mat: M.foundation, pen: 8 });
+      K.add(M.floor, place(new THREE.PlaneGeometry(11.4, 4.5), { x: 0, y: 0.36, z: (tz0 + tz1) / 2, rx: -Math.PI / 2 }), { shadow: false });
+      // the paintings, in gold frames, each with a little lamp over it
+      for (const [x, mat] of [[-3.15, M.posterPaint], [3.15, M.galleryPaint]]) {
+        const zf = tz1 - t - 0.03;
+        K.add(mat, place(new THREE.PlaneGeometry(2.08, 1.17), { x, y: 1.75, z: zf, ry: Math.PI }), { shadow: false });
+        for (const [dx, dy, w, h] of [[0, 0.64, 2.3, 0.11], [0, -0.64, 2.3, 0.11], [-1.1, 0, 0.11, 1.39], [1.1, 0, 0.11, 1.39]]) {
+          K.box(M.gold, x + dx, 1.75 + dy - h / 2, zf - 0.03, w, h, 0.06);
+        }
+        K.box(M.gold, x, 2.48, zf - 0.12, 0.6, 0.05, 0.08);
+        K.box(M.lampGlass, x, 2.44, zf - 0.16, 0.5, 0.03, 0.03, {}, { shadow: false });
+        SP.add(x, 2.4, zf - 0.2, 0xffe0a0, { size: 0.7, blink: 0 });
+      }
+      // fireplace, sofa, armchairs, bookcase
+      K.solid(0, tz1 - t - 0.3, 1.6, 0.6, 1.2, { y: 0.35, mat: M.brick, pen: 8 });
+      K.box(M.stoneDark, 0, 1.55, tz1 - t - 0.35, 1.9, 0.1, 0.75);
+      K.box(M.brick, 0, 1.65, tz1 - t - 0.2, 1.1, th - 1.65, 0.4);
+      K.box(M.ember, 0, 0.4, tz1 - t - 0.62, 0.9, 0.5, 0.02, {}, { shadow: false });
+      K.add(M.glow, place(new THREE.PlaneGeometry(3, 3), { x: 0, y: 0.38, z: tz1 - t - 1.3, rx: -Math.PI / 2 }), { shadow: false, phase: 0.3 });
+      for (const k of [-0.6, 0.6]) candle(K, M, k, 1.65, tz1 - t - 0.35, { seed: 5100 + k * 10 });
+      K.solid(0, 42.0, 2.4, 0.8, 0.85, { y: 0.35, pen: 1.5 });
+      K.box(M.fabric, 0, 0.35, 42.0, 2.4, 0.45, 0.8);
+      K.box(M.fabric, 0, 0.8, 41.68, 2.4, 0.5, 0.18);
+      for (const s of [-1, 1]) {
+        K.solid(s * 3.4, 42.6, 0.85, 0.85, 0.85, { y: 0.35, pen: 1.5 });
+        K.box(M.fabricDark, s * 3.4, 0.35, 42.6, 0.85, 0.45, 0.85);
+        K.box(M.fabricDark, s * 3.4, 0.8, 42.25, 0.85, 0.5, 0.15);
+      }
+      K.solid(-5.45, 40.7, 0.5, 1.4, 2.2, { y: 0.35, pen: 3 });
+      K.box(M.books, -5.45, 0.35, 40.7, 0.5, 2.2, 1.4);
+      K.box(M.fabricDark, 0, 0.36, 42.0, 4, 0.01, 2.6, {}, { shadow: false });
+      // out front: the sign, the doormat
+      K.add(sign(["THE TROLL HOUSE"], { bg: "#120c10", fg: "#ffffff", edge: "#e0662f" }), place(new THREE.PlaneGeometry(3.2, 0.55), { x: 0, y: 2.85, z: tz0 - 0.02, ry: Math.PI }), { shadow: false });
+      K.add(sign(["U MAD?"], { w: 512, h: 256, bg: "#6a4a2c", fg: "#1a120c", edge: "#3a2614" }), place(new THREE.PlaneGeometry(1.2, 0.6), { x: 0, y: 0.02, z: tz0 - 0.55, rx: -Math.PI / 2, rz: Math.PI }), { shadow: false });
+      K.solid(0, tz0 - 0.4, 1.8, 0.5, 0.18, { mat: M.stairWood, pen: 4 });
+      const l = new THREE.PointLight(0xffb070, 8, 12, 2);
+      l.position.set(0, 2.9, 42.2);
+      lights.push(l);
+    }
+    // the Meme Gallery in its front yard
+    {
+      for (const [x, model] of [[-3.3, "hg-trollbust"], [3.3, "hg-pepe"]]) {
+        K.add(M.purpleDisc, place(new THREE.CircleGeometry(1.25, 28), { x, y: 0.015, z: 38.3, rx: -Math.PI / 2 }), { shadow: false });
+        K.solid(x, 38.3, 1.1, 0.9, 1.0, { mat: M.plinth, pen: 8 });
+        K.add(sign(["MEME GALLERY"], { w: 512, h: 128, bg: "#08080a", fg: "#ff3ad0", edge: "#08080a" }), place(new THREE.PlaneGeometry(0.9, 0.22), { x, y: 0.7, z: 37.84, ry: Math.PI }), { shadow: false });
+        mapModel(api, model, { x, z: 38.3, y: 1.0, rot: Math.PI, scale: 0.95 });
+        K.api.ghostBox(x, 38.3, 1.0, 0.8, 1.1, { y: 1.0, pen: 4 });
+        K.add(M.purpleGlow, place(new THREE.PlaneGeometry(3.4, 3.4), { x, y: 0.03, z: 38.3, rx: -Math.PI / 2 }), { shadow: false, phase: x });
+        for (const s of [-1, 1]) SP.add(x + s * 0.55, 0.2, 37.7, 0xc040ff, { size: 1.0, blink: 0.1 });
+      }
+      picketFence(K, M, 36.95, -6.4, 6.4, [[-0.7, 0.7]]);
+      const banner = sign(["MEME GALLERY"], { w: 1024, h: 256, bg: "#050506", fg: "#ff3ad0", edge: "#050506" });
+      for (const x of [-3.4, 3.4]) K.add(banner, place(new THREE.PlaneGeometry(2.4, 0.6), { x, y: 0.5, z: 36.9, ry: Math.PI }), { shadow: false });
+    }
+  }
+
+  /* ------------------------------------------- the creek + the covered bridge */
+  {
+    const { left, right } = creekBanks();
+    const pos = [];
+    for (let i = 1; i < CREEK.length; i++) {
+      const a = left[i - 1], b = right[i - 1], c = left[i], d = right[i];
+      pos.push(a[0], 0.035, a[1], b[0], 0.035, b[1], c[0], 0.035, c[1], b[0], 0.035, b[1], d[0], 0.035, d[1], c[0], 0.035, c[1]);
+    }
+    const water = new THREE.BufferGeometry();
+    water.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    water.computeVertexNormals();
+    K.add(M.pond, water, { shadow: false });
+    const mud = creekBanks(CREEK_W / 2 + 0.7);
+    const mpos = [];
+    for (const [inner, outer] of [[left, mud.left], [right, mud.right]]) {
+      for (let i = 1; i < CREEK.length; i++) {
+        const a = inner[i - 1], b = outer[i - 1], c = inner[i], d = outer[i];
+        mpos.push(a[0], 0.02, a[1], b[0], 0.02, b[1], c[0], 0.02, c[1], b[0], 0.02, b[1], d[0], 0.02, d[1], c[0], 0.02, c[1]);
+      }
+    }
+    const mg = new THREE.BufferGeometry();
+    mg.setAttribute("position", new THREE.Float32BufferAttribute(mpos, 3));
+    mg.computeVertexNormals();
+    K.add(M.dirt, mg, { shadow: false });
+    // stones and reeds along the banks, kept off the bridge
+    for (const bank of [mud.left, mud.right]) {
+      for (let i = 1; i < bank.length; i++) {
+        const [ax, az] = bank[i - 1], [bx, bz] = bank[i];
+        const n = Math.round(Math.hypot(bx - ax, bz - az) / 1.3);
+        for (let k = 0; k < n; k++) {
+          const x = ax + ((bx - ax) * (k + R())) / n, z = az + ((bz - az) * (k + R())) / n;
+          if (x > -42 && x < -33 && z > 32.4 && z < 37.6) continue;
+          if (R() < 0.5) K.add(M.stoneDark, place(new THREE.DodecahedronGeometry(0.15 + R() * 0.2), { x, y: 0.06, z, sy: 0.6, ry: R() * 6 }));
+          else for (let j = 0; j < 5; j++) K.box(M.stem, x + (R() - 0.5) * 0.4, 0, z + (R() - 0.5) * 0.4, 0.025, 0.6 + R() * 0.6, 0.025, { rz: (R() - 0.5) * 0.3 }, { shadow: false });
+        }
+      }
+    }
+    SP.swarm(12, -43, 27, 10, 14, 0.4, 2, 0xd8ff6a, { size: 0.12, wander: 0.9, blink: 1 });
+
+    // the covered bridge: a deck with steps either end, barn-red walls and a roof
+    const { x0: bx0, x1: bx1 } = BRIDGE, bz0 = 33.2, bz1 = 36.8, deck = 0.54, bmid = (bx0 + bx1) / 2;
+    K.api.ghostBox(bmid, (bz0 + bz1) / 2, bx1 - bx0, bz1 - bz0, deck, { pen: 8 });
+    for (const s of [-1, 1]) {
+      const edge = s < 0 ? bx0 : bx1;
+      K.solid(edge + s * 0.3, (bz0 + bz1) / 2, 0.6, bz1 - bz0 - 0.4, 0.36, { mat: M.stairWood, pen: 6 });
+      K.solid(edge + s * 0.9, (bz0 + bz1) / 2, 0.6, bz1 - bz0 - 0.4, 0.18, { mat: M.stairWood, pen: 6 });
+    }
+    K.box(M.stairWood, bmid, 0.4, (bz0 + bz1) / 2, bx1 - bx0, 0.14, bz1 - bz0);
+    K.box(M.iron, bmid, 0, (bz0 + bz1) / 2, bx1 - bx0 - 0.2, 0.4, bz1 - bz0 - 0.8);
+    for (const x of [bx0 + 0.3, bmid, bx1 - 0.3]) for (const z of [bz0 + 0.2, bz1 - 0.2]) K.box(M.bark, x, 0, z, 0.25, 0.42, 0.25);
+    // something lives under it
+    K.add(M.trollLit, place(new THREE.PlaneGeometry(0.36, 0.36), { x: -38.6, y: 0.18, z: bz0 + 0.12, ry: Math.PI }), { shadow: false });
+    for (const z of [bz0 + 0.1, bz1 - 0.1]) {
+      wall(K, { axis: "x", at: z, a: bx0, b: bx1, y: deck, h: 2.4, t: 0.16, mat: M.barn, trim: M.barnTrim, out: z < 35 ? -1 : 1,
+        holes: [{ c: bmid - 1.6, w: 1.0, spans: [[1.0, 1.6]] }, { c: bmid + 1.6, w: 1.0, spans: [[1.0, 1.6]] }] });
+    }
+    gableRoof(K, M.roof, null, { x0: bx0 - 0.2, x1: bx1 + 0.2, z0: bz0, z1: bz1, y: deck + 2.4, rise: 1.3, ridge: M.trimDark });
+    for (const x of [bx0 + 0.05, bx1 - 0.05]) {
+      K.add(M.barn, place(prismGeo([[-(bz1 - bz0) / 2 - 0.1, 0], [(bz1 - bz0) / 2 + 0.1, 0], [0, 1.3]], 0.1), { x, y: deck + 2.4, z: (bz0 + bz1) / 2, ry: Math.PI / 2 }));
+      K.box(M.barn, x, deck + 2.15, (bz0 + bz1) / 2, 0.1, 0.25, bz1 - bz0);
+    }
+    const bridgeSign = sign(["TROLL BRIDGE"], { bg: "#2a120c", fg: "#ffd27a", edge: "#cfc6b4" });
+    for (const [x, ry] of [[bx0 - 0.02, -Math.PI / 2], [bx1 + 0.02, Math.PI / 2]]) {
+      K.add(bridgeSign, place(new THREE.PlaneGeometry(2.4, 0.5), { x, y: deck + 2.85, z: (bz0 + bz1) / 2, ry }), { shadow: false });
+    }
+    K.solid(-42.2, 32.6, 0.15, 0.15, 1.6, { mat: M.stairWood, pen: 2 });
+    K.add(sign(["TOLL: 1 LULZ"], { w: 512, h: 160, bg: "#3a2416", fg: "#f0e6d6", edge: "#1a120c" }), place(new THREE.PlaneGeometry(0.9, 0.3), { x: -42.2, y: 1.45, z: 32.5, ry: Math.PI }), { shadow: false });
+  }
+
+  /* ------------------------------------------- halos, fireflies, wisps, mist */
+  for (const lx of [-1.6, 1.6]) SP.add(lx, 2.3, MANOR.z1 + 0.2, 0xffb86a, { size: 1.2, blink: 0.05 });
+  SP.swarm(16, -24, -19, 12, 12, 0.4, 2.2, 0xd8ff6a, { size: 0.12, wander: 0.9, blink: 1 });
+  SP.swarm(16, 26.5, -3, 10, 12, 0.6, 2.6, 0xd8ff6a, { size: 0.12, wander: 0.9, blink: 1 });
+  SP.swarm(18, -26, 7, 18, 24, 0.5, 2.5, 0x7affd0, { size: 0.3, wander: 1.6, blink: 0.4 });
+  {
+    const pos = [], uv = [], uv1 = [];
+    for (const [x, z, w, d] of [[-25.8, 7, 20, 27], [25, 4, 22, 25], [POND.x, POND.z, 15, 13], [-42, -36, 17, 15], [-42.5, 27, 14, 18], [-44, 12.2, 12, 7]]) {
+      for (const [y, sc] of [[0.45, 0.1]]) {
+        const c = [[0, 0], [0, 1], [1, 1], [0, 0], [1, 1], [1, 0]];   // wound to face up
+        for (const [i, j] of c) {
+          const px = x - w / 2 + i * w, pz = z - d / 2 + j * d;
+          pos.push(px, y, pz);
+          uv.push(px * sc + y * 3, pz * sc);
+          uv1.push(i, j);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    g.setAttribute("uv1", new THREE.Float32BufferAttribute(uv1, 2));
+    const map = mistTexture().clone();
+    map.needsUpdate = true;
+    const fade = fadeTexture();
+    fade.channel = 1;
+    const mat = new THREE.MeshBasicMaterial({ map, alphaMap: fade, color: 0x9a8cc0, transparent: true, opacity: 0.75, depthWrite: false });
+    const mist = new THREE.Mesh(g, mat);
+    mist.renderOrder = 1;
+    mist.onBeforeRender = () => {
+      const t = performance.now() / 1000;
+      map.offset.set(t * 0.012, t * 0.006);
+    };
+    root.add(mist);
+  }
+}
+
 /* ===================================================================== map */
 
 function buildHollowgrin(api) {
@@ -1151,6 +1970,8 @@ function buildHollowgrin(api) {
   root.castShadow = false;
   const K = new Kit(api, root);
   const lights = [];
+  const SP = new Sparks();
+  K.sparks = SP;
 
   /* ---------------------------------------------------------- materials */
   const M = {
@@ -1200,6 +2021,32 @@ function buildHollowgrin(api) {
     glassDark: new THREE.MeshStandardMaterial({ color: 0x141a24, roughness: 0.1, metalness: 0.3 }),
     candy: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, emissive: 0x220a18 }),
     moss: surfMat("grass", 0x2c3a24, { mix: 0.2, tile: 1 }),
+    // the outskirts
+    glass: new THREE.MeshBasicMaterial({ color: 0x5a7a86, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide }),
+    pond: new THREE.MeshStandardMaterial({ color: 0x06121a, roughness: 0.08, metalness: 0.5, side: THREE.DoubleSide }),
+    bulb: new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(0xffffff).multiplyScalar(1.6) }),
+    rose: new THREE.MeshBasicMaterial({ map: roseTexture(), color: new THREE.Color(0xffffff).multiplyScalar(1.25) }),
+    trollLit: new THREE.MeshBasicMaterial({ map: trollTexture(), alphaTest: 0.5, side: THREE.DoubleSide, color: 0xd8d8d0 }),
+    purpleGlow: flickerMat({ map: glowTexture(), color: new THREE.Color(0xa040ff).multiplyScalar(0.5), additive: true, strength: 0.7 }),
+    brew: flickerMat({ color: new THREE.Color(0x5aff6a).multiplyScalar(1.4), strength: 0.8, speed: 0.4 }),
+    horse: new THREE.MeshStandardMaterial({ color: 0xf0e6d6, roughness: 0.4, emissive: 0x2a2018 }),
+    gold: new THREE.MeshStandardMaterial({ color: 0xd8b050, roughness: 0.3, metalness: 0.6, emissive: 0x2a1c06 }),
+    steel: new THREE.MeshStandardMaterial({ color: 0xc8ccd6, roughness: 0.45, metalness: 0.3 }),
+    pumpkinSolid: new THREE.MeshStandardMaterial({ color: 0xe07423, roughness: 0.5, emissive: 0x2a0e02 }),
+    awningRed: texMat(stripesTexture("#b8242c", "#f0e6d6"), { rough: 0.9, side: THREE.DoubleSide }),
+    purpleDisc: new THREE.MeshStandardMaterial({ color: 0x6a2aa8, roughness: 0.6, emissive: 0x3a0f6a }),
+    plinth: new THREE.MeshStandardMaterial({ color: 0x0c0c10, roughness: 0.35 }),
+    posterPaint: paintMat("ui/easter/poster-dark-planetoid.jpg"),
+    galleryPaint: paintMat("ui/easter/meme-gallery.jpg"),
+    sidingA: surfMat("wood", 0x3c4a5a, { mix: 0.25, tile: 1.6 }),
+    sidingB: surfMat("wood", 0x5a4a3a, { mix: 0.25, tile: 1.6 }),
+    sidingC: surfMat("wood", 0x4a3a52, { mix: 0.25, tile: 1.6 }),
+    witchWood: surfMat("wood", 0x3a3026, { mix: 0.15, tile: 1.2 }),
+    thatch: texMat(hayTexture(), { color: 0x8a7a50, tile: 1.2, rough: 1, side: THREE.DoubleSide }),
+    toadCap: new THREE.MeshStandardMaterial({ color: 0xc0283a, roughness: 0.5, emissive: 0x3a0610 }),
+    picket: new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.8 }),
+    ghost: new THREE.MeshStandardMaterial({ color: 0xeeeef4, roughness: 0.9, emissive: 0x3a3a48, side: THREE.DoubleSide }),
+    lily: new THREE.MeshStandardMaterial({ color: 0x2f5a2a, roughness: 0.6, side: THREE.DoubleSide }),
   };
 
   /* --------------------------------------------------------- the ground */
@@ -1277,7 +2124,7 @@ function buildHollowgrin(api) {
         _m4.compose(_p.set(x, 0, z), _q, _s.set(sc, sc * (0.9 + (i % 3) * 0.1), sc));
         inst.setMatrixAt(i, _m4);
       });
-      inst.castShadow = true;
+      inst.castShadow = false;   // outside the bounds: their shadows cost more than they show
       inst.receiveShadow = true;
       root.add(inst);
     });
@@ -1619,7 +2466,7 @@ function buildHollowgrin(api) {
     ironFence(K, M, { axis: "z", at: -16, a: -6, b: 0.4 });
     ironFence(K, M, { axis: "z", at: -16, a: 3.6, b: 12.4 });
     ironFence(K, M, { axis: "z", at: -16, a: 15.6, b: 20 });
-    ironFence(K, M, { axis: "z", at: -35.6, a: -6, b: 20 });
+    // (the west side, with its gate out to the chapel, is in buildOutskirts)
     // the main gate: stone pillars, an iron arch, and a sign
     for (const gz of [0.1, 3.9]) {
       K.solid(-16, gz, 0.6, 0.6, 2.5, { mat: M.stone, pen: 10 });
@@ -2043,6 +2890,8 @@ function buildHollowgrin(api) {
     }
   }
 
+  buildOutskirts(api, K, M, SP, root, lights);
+
   /* ------------------------------------------------ the sky: a full moon */
   {
     const dir = new THREE.Vector3(...HOLLOWGRIN.sun.pos).normalize();
@@ -2097,6 +2946,7 @@ function buildHollowgrin(api) {
   }
 
   K.flush();
+  root.add(SP.points(sparkMaterial()));
 
   // lights: a flickering few, the rest steady
   const flickers = lights.filter((l) => l.userData.flicker);
@@ -2116,10 +2966,12 @@ function buildHollowgrin(api) {
   }
 
   /* ------------------------------------------------ zombie entry points */
-  // out of the woods, all round the edge
+  // out of the woods, all round the edge (south: between the lane's houses)
   for (const [x, z] of [
-    [-34, -28], [-14.5, -30.5], [18, -30.5], [34.5, -29], [34.5, -15], [34.5, 7], [34.5, 30.5],
-    [6, 30.8], [-20, 30.8], [-34.5, 30.5], [-34.5, -9],
+    [-40, -44.3], [-24, -44.3], [-12, -44.3], [12, -44.3], [24, -44.3], [40, -44.3],
+    [50.2, -40], [50.2, -20], [50.2, 1.5], [50.2, 26], [50.2, 35],
+    [-50.2, -32], [-50.2, -8], [-50.2, 10], [-50.2, 35],
+    [-41, 44.3], [-21.7, 44.3], [-9, 44.3], [9, 44.3], [21.7, 44.3], [35, 44.3],
   ]) ZSPAWNS.push({ x, y: 0, z });
 }
 
@@ -2132,14 +2984,17 @@ export const HOLLOWGRIN = {
   playerSpawn: { x: 0, z: 8 },
   // Midnight with a full moon: violet sky, the moon high behind the manor.
   sky: { top: 0x05060f, horizon: 0x2a1838, bottom: 0x0a0710 },
-  fog: { color: 0x1c1428, density: 0.019 },
+  fog: { color: 0x1c1428, density: 0.016 },
   ground: { colorA: 0x4a5634, colorB: 0x3a4428, grid: 0x5a6a44, surface: "grass", tile: 4 },
   sun: { color: 0xa8b8ff, intensity: 1.5, pos: [-26, 48, -58] },
   hemi: { sky: 0x6c78c0, ground: 0x3a2a24, intensity: 1.35 },
   ambient: { color: 0x6a5a8a, intensity: 0.35 },
   build: buildHollowgrin,
-  // Team spawns: four behind the manor, four along the south edge.
-  spawns: [[-30, -29.5], [-8, -30.5], [8, -30.5], [31, -29.5], [-30, 29.5], [-14, 30.5], [12, 30.5], [33, 25]],
+  // Team spawns: six along the north edge, six on Trick-or-Treat Lane.
+  spawns: [[-31, -42.5], [-20, -42], [-12.5, -36.5], [12.5, -36.5], [20, -42], [31, -42.5],
+    [-30, 35], [-18, 35], [-6.5, 35], [6.5, 35], [18, 35], [30, 35]],
+  // the pond and the creek: wade through them
+  wade: wadePolygon(),
 
   // For zombies.js: graves and woods on the ground, the manor's upstairs
   // windows, and the grand stair joining the two floors.

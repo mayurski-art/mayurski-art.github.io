@@ -9,7 +9,7 @@
 import * as THREE from "three";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js";
-import { HOLLOWGRIN } from "./hollowgrin.js";
+import { HOLLOWGRIN } from "./hollowgrin.js?v=hg2";
 import { GRINLERIA } from "./grinleria.js";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=ti4";
 import { SURFACES } from "./surface-textures.js";
