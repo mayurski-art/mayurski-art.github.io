@@ -15,7 +15,7 @@ import { FlowField } from "./nav.js?v=ti1";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { buildHumanoid, poseHumanoid } from "./character.js?v=to-lk1";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1";
-import { preloadZombieModels, zombieModelsReady, readyLooks, createZombieBody, CLIP_SPEED } from "./zombie-models.js?v=zr1";
+import { preloadZombieModels, zombieModelsReady, pickLook, createZombieBody, CLIP_SPEED, ONE_SHOTS } from "./zombie-models.js?v=zr2";
 
 /* Behaviour types. The look (body + clothes) is picked separately, so a
    runner can be any of the horde's bodies. `gait` is the clip it moves on. */
@@ -95,8 +95,8 @@ export class Zombie {
     this.attackT = 0;        // the swipe clip still playing
     this.sinkT = 0;
 
-    const looks = readyLooks();
-    const look = looks[Math.floor(Math.random() * looks.length)];
+    const look = pickLook();
+    this.look = look;
     this.body = look ? createZombieBody(look, {
       tint: TINTS[Math.floor(Math.random() * TINTS.length)],
       build: 0.94 + Math.random() * 0.14,
@@ -109,7 +109,7 @@ export class Zombie {
       this.flinch = new THREE.Vector3();     // x: pitch, z: roll (radians), decaying
       // out of step with each other, or the horde marches like a drill team
       for (const a of Object.values(this.body.actions)) a.time = Math.random() * a.getClip().duration;
-      this.play(rise ? "idle" : this.type.gait, 0);
+      this.play(rise ? this._riseClip() : this.type.gait, 0);
     } else {
       // models unavailable: the old stick figure in the dissolve shader
       const mat = makeEnemyDissolveMaterial(this.type.color);
@@ -146,7 +146,7 @@ export class Zombie {
   play(name, fade = 0.25) {
     const next = this.body.actions[name];
     if (!next || this.anim === next) return;
-    if (name === "attack" || name === "die") next.reset();
+    if (ONE_SHOTS.has(name)) next.reset();
     next.enabled = true;
     next.setEffectiveTimeScale(1);
     next.setEffectiveWeight(1);
@@ -188,7 +188,7 @@ export class Zombie {
     } else if (this.attackT > 0) {
       this.attackT -= dt;
     } else if (this.riseT > 0) {
-      this.play("idle", 0.2);
+      this.play(this._riseClip(), 0.2);
     } else if (moving && speed > 0.15) {
       const g = this.type.gait;
       this.play(g, 0.3);
@@ -198,6 +198,11 @@ export class Zombie {
     }
     this.body.mixer.update(dt);
     this._flinchPose(dt);
+  }
+
+  /* Clawing out of a grave (the clip is RISE_TIME long); older GLBs had none. */
+  _riseClip() {
+    return this.body.actions.rise ? "rise" : "idle";
   }
 
   _swing() {

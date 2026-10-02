@@ -3,7 +3,8 @@
 // models/build_zombies.blender.py exports one GLB per look: a MakeHuman body
 // on the "game_engine" rig (UE-style bone names) with its rotted skin baked
 // to colour + normal maps, clothes with baked colour + alpha tears, teeth,
-// milky eyes, and five in-place clips: walk, run, idle, attack, die.
+// milky eyes, and six in-place clips: walk, run, idle, attack, die, rise
+// (clawing out of a grave).
 //
 // Each GLB is fetched and parsed once. Every zombie is a skinned clone that
 // shares the geometry, textures and (apart from a skin tint) the materials,
@@ -14,14 +15,23 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const LOOKS = {
-  walker: new URL("./models/zombie-walker.glb?v=zr1", import.meta.url).href,
-  runner: new URL("./models/zombie-runner.glb?v=zr1", import.meta.url).href,
+  walker: new URL("./models/zombie-walker.glb?v=zr2", import.meta.url).href,
+  runner: new URL("./models/zombie-runner.glb?v=zr2", import.meta.url).href,
+  woman: new URL("./models/zombie-woman.glb?v=zr2", import.meta.url).href,
+  worker: new URL("./models/zombie-worker.glb?v=zr2", import.meta.url).href,
+  // the rare one: a rubber mask of the real trollface art (zombies.js
+  // picks it about 1 in 40)
+  trollmask: new URL("./models/zombie-trollmask.glb?v=zr2", import.meta.url).href,
 };
 export const ZOMBIE_LOOKS = Object.keys(LOOKS);
+export const RARE_LOOKS = { trollmask: 1 / 40 };
 
 // Ground speed (m/s) each clip's stride covers at timeScale 1, so the feet
 // keep pace with the body instead of skating.
 export const CLIP_SPEED = { walk: 0.95, run: 3.4 };
+
+// clips that play once and hold their last frame
+export const ONE_SHOTS = new Set(["attack", "die", "rise"]);
 
 const templates = new Map();   // look -> { scene, clips } once loaded
 const pending = new Map();     // look -> Promise
@@ -74,6 +84,16 @@ export function zombieModelsReady() {
 
 export function readyLooks() {
   return ZOMBIE_LOOKS.filter((l) => templates.has(l));
+}
+
+/* A look for a new zombie: each rare one at its odds, else any common one. */
+export function pickLook() {
+  const ready = readyLooks();
+  for (const [look, odds] of Object.entries(RARE_LOOKS)) {
+    if (ready.includes(look) && Math.random() < odds) return look;
+  }
+  const common = ready.filter((l) => !(l in RARE_LOOKS));
+  return common.length ? common[Math.floor(Math.random() * common.length)] : ready[0] ?? null;
 }
 
 /* A clone of a skinned scene: shared geometry and materials, fresh bones,
@@ -171,7 +191,7 @@ export function createZombieBody(look, { tint = null, build = 1 } = {}) {
   const actions = {};
   for (const clip of t.clips) {
     const a = mixer.clipAction(clip);
-    if (clip.name === "attack" || clip.name === "die") {
+    if (ONE_SHOTS.has(clip.name)) {
       a.setLoop(THREE.LoopOnce, 1);
       a.clampWhenFinished = true;
     }

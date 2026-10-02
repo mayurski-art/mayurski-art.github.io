@@ -245,10 +245,30 @@ Design doc v2: https://claude.ai/artifact/Motm585y8qJeknjWVv9CuC
     (bodies, clips, head vs chest hitbox, death+cleanup, textures, no
     errors). FPS=1: round-10 horde of 12 = 33 fps / 473 draws vs 29.6 / 385
     on the old build (headless, noisy).
-- NEXT: ZR2 variety (more clothes looks + a woman walker, the rare ~1/40
-  trollface-mask zombie from the mascot art, grave-rise clip); ZR3 the
-  leaper (body + crouch-leap AI + shriek); ZR4 gore (head-pop, blood),
-  groans, tuning. Draw calls: merge each zombie's clothes into one mesh.
+- **ZR2 SHIPPED (2026-10-02, game.js?v=to-hg6e-zr2, zombies.js?v=zr2,
+  GLBs ?v=zr2):** five looks, all with a sixth clip `rise`.
+  - New looks: `woman` (female_casualsuit01, long01 hair, tear 0.7),
+    `worker` (male_worksuit01, african skin, cloth_value 0.38 = filthier),
+    `trollmask` (the rare one). `-- export walker runner woman worker
+    trollmask` rebuilds all (13-17k tris, 0.9-1.1 MB each).
+  - **Trollmask:** rubber_mask() copies the body's head (head-weight >= 0.5),
+    pushes it out 6 mm, swells the jaw, rigid on the head bone; the body's
+    eye openings become eye holes. Its face is the REAL art
+    assets/pfp/base/og.webp projected from the front (ART_EYES/ART_CHIN/
+    ART_M_PER_PX place it); that webp is transparent round the face, so the
+    ink is gated on its alpha. Baked to one 512 texture; teeth dropped.
+    The look uses HOLLOW (no snarl) so the mouth is closed under it.
+  - Garments now get a 5 mm DISPLACE "standoff" (the body is kept under torn
+    clothes, and tight tops showed skin through without it). Garments over
+    CLOTH_TRIS (7000) are decimated down to it.
+  - zombie-models.js: RARE_LOOKS { trollmask: 1/40 } + pickLook();
+    ONE_SHOTS (attack, die, rise). zombies.js: grave spawns play `rise`
+    (48 frames = RISE_TIME) while lifted out of the ground; z.look is kept.
+  - Test: ALL PASS both maps, plus a forced trollmask close-up (it sets
+    RARE_LOOKS.trollmask = 1 for one round). FPS=1: 35 fps / 470 draws.
+- NEXT: ZR3 the leaper (body + crouch-leap AI + shriek); ZR4 gore
+  (head-pop, blood), groans, tuning. Draw calls: merge each zombie's
+  clothes into one mesh.
 - Old procedural metaball prototype is in commit cf7e64c if ever needed.
 - Animation plan changed from the plan below: baked Blender clips +
   AnimationMixer (poseHumanoid is stick-tuned), with procedural as fallback.

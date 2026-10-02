@@ -90,11 +90,13 @@ for (const map of maps) {
       bodies: zs.filter((z) => !!z.body).length,
       clips: zs.map((z) => z.animName),
       types: zs.map((z) => z.type.id),
+      looks: zs.map((z) => z.look),
       hitboxes: zs.map((z) => z.hitboxMeshes.length),
     };
   });
   check(info.bodies === info.n, "every zombie is a model body", `${info.bodies}/${info.n}`);
-  check(info.clips.every((c) => ["walk", "run", "idle", "attack"].includes(c)), "zombies play clips", info.clips.join(","));
+  check(info.clips.every((c) => ["walk", "run", "idle", "attack", "rise"].includes(c)), "zombies play clips", info.clips.join(","));
+  console.log("looks", info.looks.join(","));
   check(info.hitboxes.every((h) => h === 11), "11 hitboxes each", info.hitboxes.join(","));
 
   // shots: from 3 m in front of one zombie, at its head proxy, then its chest
@@ -167,6 +169,37 @@ for (const map of maps) {
   }, shots.id);
   check(killed.clip === "die", "a kill plays the death clip", killed.clip);
   check(killed.gone, "the body is removed after sinking", `${killed.secs}s`);
+
+  // the rare trollface-mask zombie: force its odds to 1 and look at one
+  const mask = await page.evaluate(async () => {
+    const T = window.__trollOps;
+    const zm = await import("/assets/games/troll-ops/zombie-models.js?v=zr2");
+    zm.RARE_LOOKS.trollmask = 1;
+    const zd = T.zdir();
+    zd.clear();
+    zd.startRound(2);
+    const t0 = performance.now();
+    let z = null;
+    while (!z && performance.now() - t0 < 60000) {
+      await new Promise((r) => setTimeout(r, 250));
+      z = zd.zombies.find((q) => q.alive && !q.dying && q.body && q.riseT <= 0);
+    }
+    zm.RARE_LOOKS.trollmask = 1 / 40;
+    if (!z) return null;
+    let maskTex = false;
+    z.mesh.traverse((o) => { if (o.isMesh && /mask/.test(o.material.name) && o.material.map?.image) maskTex = true; });
+    const p = z.mesh.position, fy = z.mesh.rotation.y;
+    const fx = -Math.sin(fy), fz = -Math.cos(fy);
+    T.move.pos.set(p.x + fx * 1.6, T.move.pos.y, p.z + fz * 1.6);
+    T.look.yaw = Math.atan2(fx, fz);
+    T.look.pitch = 0.05;
+    return { look: z.look, maskTex };
+  });
+  check(mask?.look === "trollmask" && mask.maskTex, "the trollface-mask zombie spawns with its mask", JSON.stringify(mask));
+  await new Promise((r) => setTimeout(r, 1500));
+  const mshot = path.join(SHOTS, `zombie-mask-${map}.png`);
+  await page.screenshot({ path: mshot });
+  console.log("shot", mshot);
 
   // frame-ancestors in a <meta> CSP is a standing, harmless warning
   const errs = errors.filter((e) => !/favicon|net::ERR|supabase|404|frame-ancestors/i.test(e));

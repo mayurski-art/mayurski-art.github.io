@@ -93,6 +93,9 @@ GAUNT = {
     "expression/units/caucasian/mouth-open": 0.75,
 }
 
+# under a rubber mask: no snarl (the mask closes over the mouth), just hollow
+HOLLOW = {k: v for k, v in SNARL.items() if k.startswith("cheek/")}
+
 # Render poses, applied in order: (bone, (x, y, z)) aims the bone along that
 # WORLD direction; (bone, (axis, degrees)) turns it about a world axis.
 # World: +X the body's left, -Y forward, +Z up. Parents before children.
@@ -136,6 +139,35 @@ LOOKS = {
         "face": SNARL,
         "pose": SPRINT,
     },
+    # a woman in casual clothes, long lank hair (fewer tears: no bare chest)
+    "woman": {
+        "macros": {"gender": 0.0, "age": 0.5, "muscle": 0.4, "weight": 0.5, "height": 0.45},
+        "skin": "middleage_caucasian_female",
+        "clothes": ["female_casualsuit01", "shoes04"],
+        "hair": "long01",
+        "face": SNARL,
+        "tear": 0.7,
+        "pose": SHAMBLE,
+    },
+    # a heavy-set man in work overalls
+    "worker": {
+        "macros": {"gender": 1.0, "age": 0.55, "muscle": 0.6, "weight": 0.65, "height": 0.5},
+        "skin": "middleage_african_male",
+        "clothes": ["male_worksuit01", "shoes03"],
+        "cloth_value": 0.38,
+        "face": SNARL,
+        "pose": SHAMBLE,
+    },
+    # the rare one (about 1 in 40): a rubber trollface Halloween mask, the
+    # face from the real mascot art (assets/pfp/base/og.webp)
+    "trollmask": {
+        "macros": {"gender": 1.0, "age": 0.45, "muscle": 0.5, "weight": 0.5, "height": 0.55},
+        "skin": "middleage_caucasian_male",
+        "clothes": ["male_casualsuit01", "shoes02"],
+        "face": HOLLOW,
+        "mask": True,
+        "pose": SHAMBLE,
+    },
     # the leaper: starved, shirtless, barefoot, trousers in rags, long arms
     # and hooked claws
     "leaper": {
@@ -163,7 +195,14 @@ def make_human(look):
     HumanService.add_mhclo_asset(user_asset("eyes", "low-poly"), bm, asset_type="Eyes", subdiv_levels=0)
     HumanService.add_mhclo_asset(user_asset("teeth", "teeth_base"), bm, asset_type="Teeth", subdiv_levels=0)
     for c in look["clothes"]:
-        HumanService.add_mhclo_asset(user_asset("clothes", c), bm, asset_type="Clothes", subdiv_levels=0)
+        cl = HumanService.add_mhclo_asset(user_asset("clothes", c), bm, asset_type="Clothes", subdiv_levels=0)
+        if cl is not None and not any(k in c for k in ("shoe", "boot")):
+            # the body under it stays (see below), so stand the cloth off it
+            # a little or tight tops show skin through
+            md = cl.modifiers.new("standoff", "DISPLACE")
+            md.direction = "NORMAL"
+            md.mid_level = 0.0
+            md.strength = 0.005
     if look.get("hair"):
         HumanService.add_mhclo_asset(user_asset("hair", look["hair"]), bm, asset_type="Hair", subdiv_levels=0)
     # MPFB deletes the body under each garment; keep it under torn clothes so
@@ -406,9 +445,9 @@ def lank_hair(m):
     bsdf.inputs["Roughness"].default_value = 0.8
 
 
-def zombify_cloth(m, tear_at=0.6):
+def zombify_cloth(m, tear_at=0.6, value=0.8):
     """Grime, blood and tears on top of the garment's own texture. Lower
-    tear_at = more holes."""
+    tear_at = more holes; lower value = filthier (pale cloth needs it)."""
     N, L = _nodes(m)
     bsdf = next(n for n in N if n.type == "BSDF_PRINCIPLED")
     link = next((l for l in bsdf.inputs["Base Color"].links), None)
@@ -441,7 +480,7 @@ def zombify_cloth(m, tear_at=0.6):
     # wash the colour out: years of dirt
     hsv = N.new("ShaderNodeHueSaturation")
     hsv.inputs["Saturation"].default_value = 0.6
-    hsv.inputs["Value"].default_value = 0.8
+    hsv.inputs["Value"].default_value = value
     L.new(col, hsv.inputs["Color"])
     L.new(hsv.outputs["Color"], bsdf.inputs["Base Color"])
     m.use_backface_culling = False
@@ -496,8 +535,124 @@ def face_masks(bm, rig, chest=False):
     return mouth, eyes
 
 
+# The rubber mask's face is the real mascot art, never redrawn: og.webp is the
+# PFP base (1024 px square). ART_EYES is the pixel midway between its eyes,
+# ART_CHIN the bottom of its jaw line; ART_M_PER_PX sizes it on a head (its
+# eyes land ~5.6 cm apart, the jaw ~11 cm under them).
+MASK_ART = os.path.normpath(os.path.join(OUT_DIR, "..", "..", "..", "pfp", "base", "og.webp"))
+ART_SIZE = 1024
+ART_EYES = (560, 332)
+ART_CHIN = 668
+ART_M_PER_PX = 0.00033
+
+
+def rubber_mask_material():
+    """Aged latex, off-white going yellow, the trollface drawing printed on
+    the front (vertex colour "front" says where), grime and blood spatter."""
+    m = bpy.data.materials.new("ZB_Mask")
+    N, L = _nodes(m)
+    b = N["Principled BSDF"]
+    obj = N.new("ShaderNodeTexCoord").outputs["Object"]
+    uv = N.new("ShaderNodeUVMap")
+    uv.uv_map = "proj"
+    img = N.new("ShaderNodeTexImage")
+    img.image = bpy.data.images.load(MASK_ART)
+    img.extension = "EXTEND"
+    L.new(uv.outputs["UV"], img.inputs["Vector"])
+    fr = N.new("ShaderNodeVertexColor")
+    fr.layer_name = "front"
+    sep = N.new("ShaderNodeSeparateColor")
+    L.new(fr.outputs["Color"], sep.inputs["Color"])
+    lat = _mix(N, L, _range(N, L, _noise(N, L, obj, 6.0).outputs["Fac"], 0.35, 0.7), hexlin(0xe0d9c4), hexlin(0xbfb293))
+    # the art is transparent round the face (black underneath): ink only
+    # where it's opaque
+    k = N.new("ShaderNodeMath")
+    k.operation = "MULTIPLY"
+    L.new(sep.outputs[0], k.inputs[0])
+    L.new(img.outputs["Alpha"], k.inputs[1])
+    ink = _mix(N, L, k.outputs[0], (1.0, 1.0, 1.0, 1.0), img.outputs["Color"])
+    col = _mix(N, L, 1.0, lat, ink, "MULTIPLY")
+    col = _mix(N, L, _range(N, L, _noise(N, L, obj, 9.0).outputs["Fac"], 0.45, 0.7, 0.0, 0.55), col, hexlin(0x4a3d2c), "MULTIPLY")
+    spat = _range(N, L, _noise(N, L, obj, 7.0, 8.0).outputs["Fac"], 0.63, 0.69)
+    col = _mix(N, L, spat, col, hexlin(0x3a0806))
+    L.new(col, b.inputs["Base Color"])
+    b.inputs["Roughness"].default_value = 0.35
+    return m
+
+
+def rubber_mask(bm, rig, eyes):
+    """A full-head rubber mask: the head of the body (shape keys applied),
+    pushed out 6 mm, the jaw swollen into the troll's big grin, rigid on the
+    head bone. The body's own eye openings become the mask's eye holes. UVs:
+    "UVMap" (smart projected) for the bake, "proj" maps the art from the
+    front with its eyes on the body's eyes."""
+    import bmesh
+    ob = _snapshot(bm, "ZB_mask")
+    me = ob.data
+    inv = ob.matrix_world.inverted()
+    E = inv @ ((eyes[0] + eyes[1]) / 2)
+    gi = ob.vertex_groups["head"].index
+    keep = {v.index for v in me.vertices if any(g.group == gi and g.weight >= 0.5 for g in v.groups)}
+    ob.vertex_groups.clear()
+    hg = ob.vertex_groups.new(name="head")
+    b = bmesh.new()
+    b.from_mesh(me)
+    b.verts.ensure_lookup_table()
+    dl = b.verts.layers.deform.verify()
+    bmesh.ops.delete(b, geom=[v for v in b.verts if v.index not in keep], context="VERTS")
+    b.normal_update()
+    for v in b.verts:
+        v.co += v.normal * 0.006
+        v[dl].clear()
+        v[dl][hg.index] = 1.0
+    for v in b.verts:
+        p = v.co
+        t = max(0.0, min(1.0, (E.y + 0.03 - p.y) / 0.06)) * max(0.0, min(1.0, (E.z - 0.03 - p.z) / 0.07))
+        p.x = E.x + (p.x - E.x) * (1 + 0.14 * t)
+        p.y -= 0.012 * t
+    b.to_mesh(me)
+    b.free()
+    me.update()
+    for a in list(me.color_attributes):
+        me.color_attributes.remove(a)
+    while len(me.uv_layers) > 1:
+        me.uv_layers.remove(me.uv_layers[-1])
+    me.materials.clear()
+    me.materials.append(rubber_mask_material())
+
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = ob
+    ob.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.02)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    proj = me.uv_layers.new(name="proj")
+    me.uv_layers.active = me.uv_layers[0]
+    me.uv_layers[0].active_render = True
+    for li, loop in enumerate(me.loops):
+        p = me.vertices[loop.vertex_index].co
+        px = ART_EYES[0] + (p.x - E.x) / ART_M_PER_PX      # +X (the body's left) is the art's right
+        py = ART_EYES[1] + (E.z - p.z) / ART_M_PER_PX
+        proj.data[li].uv = (px / ART_SIZE, 1 - py / ART_SIZE)
+    fa = me.color_attributes.new("front", "FLOAT_COLOR", "POINT")
+    for v in me.vertices:
+        f = max(0.0, min(1.0, (-v.normal.y - 0.15) / 0.35))
+        py = ART_EYES[1] + (E.z - v.co.z) / ART_M_PER_PX
+        w = f * max(0.0, min(1.0, (ART_CHIN + 12 - py) / 14))
+        fa.data[v.index].color = (w, w, w, 1.0)
+
+    mw = ob.matrix_world.copy()
+    ob.parent = rig
+    ob.parent_type = "BONE"
+    ob.parent_bone = "head"
+    ob.matrix_world = mw
+    return ob
+
+
 def zombify_materials(bm, rig, look):
-    face_masks(bm, rig, look.get("chest_blood", False))
+    _, eyes = face_masks(bm, rig, look.get("chest_blood", False))
     skin = zombie_skin(look["skin"])
     eye = flat("ZB_Eye", 0xd6dbd2, 0.15, 0xc8d2cc, 0.08)
     for ob in [bm] + [c for c in rig.children_recursive if c.type == "MESH"]:
@@ -518,7 +673,9 @@ def zombify_materials(bm, rig, look):
                 if ob.name.endswith("." + look.get("hair", "-")):
                     lank_hair(m)
                 else:
-                    zombify_cloth(m, look.get("tear", 0.6))
+                    zombify_cloth(m, look.get("tear", 0.6), look.get("cloth_value", 0.8))
+    if look.get("mask"):
+        rubber_mask(bm, rig, eyes)
 
 
 # ---------------------------------------------------------------- clips
@@ -558,6 +715,14 @@ def _sway(k):
     """Upper-body loll, k in -1..1."""
     return [("spine_02", ("X", 9)), ("spine_03", ("X", 5)), ("spine_02", ("Y", 4 * k)),
             ("neck_01", ("Y", -10 * k)), ("head", ("X", 12))]
+
+
+def _rise_arms(up):
+    """One hand reaching up for a hold, the other pulling down on the ground."""
+    a, b = (up, "r" if up == "l" else "l")
+    sx = {"l": 1, "r": -1}
+    return [(f"upperarm_{a}", (0.25 * sx[a], -0.35, 0.9)), (f"lowerarm_{a}", (0.15 * sx[a], -0.3, 0.94)),
+            (f"upperarm_{b}", (0.3 * sx[b], -0.8, 0.5)), (f"lowerarm_{b}", (0.1 * sx[b], -0.5, -0.85))]
 
 
 CLIPS = {
@@ -616,6 +781,16 @@ CLIPS = {
               ("thigh_r", (-0.12, -0.6, 0.79)), ("calf_r", (-0.06, -1, 0.05)),
               ("upperarm_l", (0.95, 0.3, 0.1)), ("lowerarm_l", (0.9, 0.0, 0.4)),
               ("upperarm_r", (-0.95, 0.25, 0.15)), ("lowerarm_r", (-0.98, -0.15, 0.05))]),
+    ]},
+    # out of a grave (the game lifts the body through the ground meanwhile):
+    # head up, hands clawing over each other, then into the shamble.
+    # 48 frames = zombies.js RISE_TIME
+    "rise": {"loop": False, "keys": [
+        (0, _rise_arms("l") + [("spine_02", ("X", 12)), ("head", ("X", -22))]),
+        (12, _rise_arms("r") + [("spine_02", ("X", 16)), ("head", ("X", -16))]),
+        (24, _rise_arms("l") + [("spine_02", ("X", 20)), ("head", ("X", -10))]),
+        (36, _rise_arms("r") + [("spine_02", ("X", 18)), ("head", ("X", 0))]),
+        (48, _sway(0) + ARMS_OUT),
     ]},
 }
 
@@ -826,6 +1001,9 @@ def _tris(ob):
     return len(ob.data.loop_triangles)
 
 
+CLOTH_TRIS = 7000      # a garment over this is decimated down to it
+
+
 def export_look(name, look):
     """zombie-<name>.glb: the rig with its clips, a decimated body with a
     baked skin set (colour + normal from the full-detail body), teeth, eyes
@@ -849,8 +1027,17 @@ def export_look(name, look):
     parts = [body]
     for ob in extras:
         key = ob.name.split(".")[-1]
-        snap = _snapshot(ob, f"ZB_{key}")
-        if "teeth" in key:
+        if look.get("mask") and "teeth" in key:
+            continue                              # behind a closed rubber mouth
+        snap = _snapshot(ob, key if key.startswith("ZB_") else f"ZB_{key}")
+        if key == "ZB_mask":
+            me = snap.data
+            _decimate(snap, 0.4)
+            me = snap.data
+            me.uv_layers.active = me.uv_layers[0]  # the smart-projected one
+            bake_object(snap, 512, f"{name}_mask", rough=0.38)
+            me.uv_layers.remove(me.uv_layers["proj"])
+        elif "teeth" in key:
             _decimate(snap, 0.15)
             bake_object(snap, 256, f"{name}_teeth", rough=0.45)
         elif "low-poly" in key:
@@ -858,6 +1045,8 @@ def export_look(name, look):
         else:
             if any(k in key for k in ("shoe", "boot")):
                 _decimate(snap, 0.4)
+            elif _tris(snap) > CLOTH_TRIS:
+                _decimate(snap, CLOTH_TRIS / _tris(snap))
             bake_object(snap, 512, f"{name}_{key}", rough=0.85)
         _bind(snap, rig)
         parts.append(snap)
