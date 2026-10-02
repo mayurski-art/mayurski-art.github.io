@@ -173,7 +173,7 @@ for (const map of maps) {
   // the rare trollface-mask zombie: force its odds to 1 and look at one
   const mask = await page.evaluate(async () => {
     const T = window.__trollOps;
-    const zm = await import("/assets/games/troll-ops/zombie-models.js?v=zr2");
+    const zm = await import("/assets/games/troll-ops/zombie-models.js?v=zr3");
     zm.RARE_LOOKS.trollmask = 1;
     const zd = T.zdir();
     zd.clear();
@@ -200,6 +200,79 @@ for (const map of maps) {
   const mshot = path.join(SHOTS, `zombie-mask-${map}.png`);
   await page.screenshot({ path: mshot });
   console.log("shot", mshot);
+
+  // the leaper: force one, stand it 5.5 m off on a clear line, and watch it
+  // crouch (with a shriek), fly and land a hit
+  const leap = await page.evaluate(async () => {
+    const T = window.__trollOps;
+    const { lineClear } = await import("/assets/games/troll-ops/zombies.js?v=zr3");
+    const zd = T.zdir();
+    zd.clear();
+    zd.forceType = "leaper";
+    zd.startRound(9);
+    const t0 = performance.now();
+    let z = null;
+    while (!z && performance.now() - t0 < 60000) {
+      await new Promise((r) => setTimeout(r, 250));
+      z = zd.zombies.find((q) => q.alive && !q.dying && q.body && q.riseT <= 0);
+    }
+    zd.forceType = null;
+    if (!z) return null;
+    zd.toSpawn = 0;
+    for (const q of zd.zombies) if (q !== z) q.alive = false;
+    const out = { look: z.look, clips: Object.keys(z.body.actions).sort().join(","), hitboxes: z.hitboxMeshes.length };
+    const feet = T.move.pos;
+    let spot = null;
+    for (let i = 0; i < 16 && !spot; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const s = { x: feet.x + Math.sin(a) * 5.5, z: feet.z + Math.cos(a) * 5.5 };
+      if (lineClear(zd.colliders, s, feet, feet.y)) spot = s;
+    }
+    if (!spot) return { ...out, err: "no clear spot" };
+    const shrieks = [];
+    const push = zd.events.push.bind(zd.events);
+    zd.events.push = (e) => { if (e.type === "shriek") shrieks.push(e); return push(e); };
+    z.mesh.position.set(spot.x, feet.y, spot.z);
+    z.groundY = feet.y;
+    z.leapCdT = 0;
+    T.look.yaw = Math.atan2(-(spot.x - feet.x), -(spot.z - feet.z));
+    T.look.pitch = 0.1;
+    const st = window.__leapTest = { z, out, shrieks, push, hp0: T.player.hp, phases: new Set(), maxUp: 0, feetY: feet.y };
+    const t1 = performance.now();
+    // hand back mid-air for a screenshot
+    while (performance.now() - t1 < 15000 && !(z.leap?.phase === "air" && z.leap.k > 0.35)) {
+      await new Promise((r) => requestAnimationFrame(r));
+      if (z.leap) { st.phases.add(z.leap.phase); st.phases.add(z.animName); }
+    }
+    // the arc's peak can pass during the screenshot: record the height here
+    st.maxUp = z.mesh.position.y - st.feetY;
+    return { ok: true };
+  });
+  if (leap?.ok) {
+    const lshot = path.join(SHOTS, `zombie-leap-${map}.png`);
+    await page.screenshot({ path: lshot });
+    console.log("shot", lshot);
+    Object.assign(leap, await page.evaluate(async () => {
+      const T = window.__trollOps;
+      const st = window.__leapTest;
+      const { z } = st;
+      const t1 = performance.now();
+      while (performance.now() - t1 < 15000) {
+        await new Promise((r) => setTimeout(r, 30));
+        if (z.leap) { st.phases.add(z.leap.phase); st.phases.add(z.animName); }
+        st.maxUp = Math.max(st.maxUp, z.mesh.position.y - st.feetY);
+        if (st.phases.has("land") && T.player.hp < st.hp0) break;
+      }
+      T.zdir().events.push = st.push;
+      return { ...st.out, phases: [...st.phases].join(","), maxUp: +st.maxUp.toFixed(2), shrieks: st.shrieks.length, hurt: T.player.hp < st.hp0 };
+    }));
+  }
+  check(leap?.look === "leaper" && /crouch/.test(leap.clips) && /leap/.test(leap.clips) && /lope/.test(leap.clips) && leap.hitboxes === 11,
+    "the leaper spawns in its own body", JSON.stringify(leap && { look: leap.look, clips: leap.clips, hitboxes: leap.hitboxes }));
+  check(leap && /windup/.test(leap.phases) && /air/.test(leap.phases) && /land/.test(leap.phases) && leap.maxUp > 0.8,
+    "it crouches, leaps and lands", JSON.stringify(leap && { phases: leap.phases, maxUp: leap.maxUp, err: leap.err }));
+  check(leap?.shrieks >= 1, "the wind-up shrieks", String(leap?.shrieks));
+  check(!!leap?.hurt, "the landing hits");
 
   // frame-ancestors in a <meta> CSP is a standing, harmless warning
   const errs = errors.filter((e) => !/favicon|net::ERR|supabase|404|frame-ancestors/i.test(e));

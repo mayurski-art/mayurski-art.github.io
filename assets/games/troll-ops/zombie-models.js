@@ -4,7 +4,8 @@
 // on the "game_engine" rig (UE-style bone names) with its rotted skin baked
 // to colour + normal maps, clothes with baked colour + alpha tears, teeth,
 // milky eyes, and six in-place clips: walk, run, idle, attack, die, rise
-// (clawing out of a grave).
+// (clawing out of a grave). The leaper's set swaps walk/run for lope,
+// crouch and leap.
 //
 // Each GLB is fetched and parsed once. Every zombie is a skinned clone that
 // shares the geometry, textures and (apart from a skin tint) the materials,
@@ -22,16 +23,22 @@ const LOOKS = {
   // the rare one: a rubber mask of the real trollface art (zombies.js
   // picks it about 1 in 40)
   trollmask: new URL("./models/zombie-trollmask.glb?v=zr2", import.meta.url).href,
+  // the leaper's own gaunt, long-armed body and clip set (idle, lope,
+  // crouch, leap, attack, die, rise)
+  leaper: new URL("./models/zombie-leaper.glb?v=zr3", import.meta.url).href,
 };
 export const ZOMBIE_LOOKS = Object.keys(LOOKS);
 export const RARE_LOOKS = { trollmask: 1 / 40 };
+// a type that always wears its own look (and no other type does)
+export const TYPE_LOOKS = { leaper: "leaper" };
+const DEDICATED = new Set(Object.values(TYPE_LOOKS));
 
 // Ground speed (m/s) each clip's stride covers at timeScale 1, so the feet
 // keep pace with the body instead of skating.
-export const CLIP_SPEED = { walk: 0.95, run: 3.4 };
+export const CLIP_SPEED = { walk: 0.95, run: 3.4, lope: 4.0 };
 
 // clips that play once and hold their last frame
-export const ONE_SHOTS = new Set(["attack", "die", "rise"]);
+export const ONE_SHOTS = new Set(["attack", "die", "rise", "crouch", "leap"]);
 
 const templates = new Map();   // look -> { scene, clips } once loaded
 const pending = new Map();     // look -> Promise
@@ -86,9 +93,16 @@ export function readyLooks() {
   return ZOMBIE_LOOKS.filter((l) => templates.has(l));
 }
 
-/* A look for a new zombie: each rare one at its odds, else any common one. */
-export function pickLook() {
-  const ready = readyLooks();
+export function lookReady(look) {
+  return templates.has(look);
+}
+
+/* A look for a new zombie of `type`: its own look if it has one, else each
+   rare one at its odds, else any common one. */
+export function pickLook(type = null) {
+  const own = TYPE_LOOKS[type];
+  if (own && templates.has(own)) return own;
+  const ready = readyLooks().filter((l) => !DEDICATED.has(l));
   for (const [look, odds] of Object.entries(RARE_LOOKS)) {
     if (ready.includes(look) && Math.random() < odds) return look;
   }

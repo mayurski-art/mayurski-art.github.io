@@ -635,6 +635,39 @@ export class GameAudio {
     }
   }
 
+  /* A leaper's wind-up, the tell before it jumps: a rasping scream that
+     climbs, then cracks and falls away, over a hiss. Positional, so it says
+     which way it's coming from. */
+  zombieShriek(at = null) {
+    if (!this._ready() || (at && this._far(at, 60))) return;
+    const t0 = this.now;
+    const osc = this.ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(520, t0);
+    osc.frequency.exponentialRampToValueAtTime(1350, t0 + 0.18);
+    osc.frequency.exponentialRampToValueAtTime(380, t0 + 0.7);
+    // a fast wobble makes it a throat, not a whistle
+    const vib = this.ctx.createOscillator();
+    vib.frequency.value = 38;
+    const depth = this.ctx.createGain();
+    depth.gain.value = 60;
+    vib.connect(depth).connect(osc.frequency);
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1800;
+    bp.Q.value = 1.2;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0008, t0);
+    g.gain.exponentialRampToValueAtTime(0.32, t0 + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.75);
+    osc.connect(bp).connect(g).connect(this._dest(at));
+    osc.start(t0);
+    vib.start(t0);
+    osc.stop(t0 + 0.8);
+    vib.stop(t0 + 0.8);
+    this._noise({ duration: 0.6, gain: 0.18, type: "highpass", freq: 2500, sweepTo: 900, at });
+  }
+
   wave() {
     if (!this._ready()) return;
     this._tone({ freq: 420, duration: 0.16, gain: 0.14, type: "triangle" });

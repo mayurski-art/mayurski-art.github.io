@@ -43,7 +43,7 @@ import {
 } from "./modes.js?v=vm1";
 import { BotManager } from "./bots.js?v=cg1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
-import { GameAudio } from "./audio.js?v=to-r100";
+import { GameAudio } from "./audio.js?v=to-r100-zr3";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=cg1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
@@ -52,7 +52,7 @@ import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1";
-import { ZombieDirector } from "./zombies.js?v=zr2";
+import { ZombieDirector } from "./zombies.js?v=zr3";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
@@ -11115,6 +11115,7 @@ function animate() {
       if (roundOver) nextZombieRound();
       for (const ev of zdir.events.splice(0)) {
         if (ev.type === "maxammo") zombieMaxAmmo();
+        else if (ev.type === "shriek") audio.zombieShriek(ev.at);
       }
       els.hudHostiles.textContent = String(zdir.remaining);
       els.hudKills.textContent = zdir.points.toLocaleString();

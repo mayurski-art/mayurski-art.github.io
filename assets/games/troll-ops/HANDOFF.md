@@ -266,9 +266,29 @@ Design doc v2: https://claude.ai/artifact/Motm585y8qJeknjWVv9CuC
     (48 frames = RISE_TIME) while lifted out of the ground; z.look is kept.
   - Test: ALL PASS both maps, plus a forced trollmask close-up (it sets
     RARE_LOOKS.trollmask = 1 for one round). FPS=1: 35 fps / 470 draws.
-- NEXT: ZR3 the leaper (body + crouch-leap AI + shriek); ZR4 gore
-  (head-pop, blood), groans, tuning. Draw calls: merge each zombie's
-  clothes into one mesh.
+- **ZR3 SHIPPED (2026-10-02, game.js?v=to-hg6e-zr3, zombies.js?v=zr3,
+  audio.js?v=to-r100-zr3, zombie-leaper.glb?v=zr3):** the leaper.
+  - Body: the `leaper` look, its long arms/fingers from MakeHuman's
+    arms/measure-*-length-incr + hands/*-fingers-length-incr targets (so
+    the rig fits them; pose-bone scale does NOT survive glTF, three
+    inherits scale). 10.9k tris, 839 KB. Claws = a ("fingers", ("curl",
+    deg)) spec. Own clip set LEAPER_CLIPS (look "clips": "leaper"): idle,
+    lope, crouch, leap, attack, die, rise. Preview any clip key without
+    exporting: ZB_CLIPS="crouch:12,leap:6" with `-- render leaper`.
+  - zombie-models.js: TYPE_LOOKS { leaper: "leaper" } (only the leaper
+    wears it, it wears nothing else), lookReady(), CLIP_SPEED.lope 4.0.
+  - zombies.js: type leaper (HP x0.7, speed 2.9, dmg 26), from round 8,
+    12% share, max 2 alive. At 3.5-7.5 m, level, with lineClear() (2D slab
+    test vs the collider boxes): 0.4 s crouch + shriek event, a 0.7 s arc
+    1.2 m high landing 1 m short of where you stood (walls still stop it),
+    swipe on landing if you're in reach, 0.5 s recovery, 3.5 s cooldown.
+    Shot/stunned mid-air it drops. director.forceType for tests.
+  - audio.js zombieShriek(at): positional saw scream + hiss; game.js plays
+    it on the director's "shriek" event.
+  - Test: ALL PASS both maps incl. a forced leaper (crouch, leap, land,
+    shriek, landing hit) + a mid-air screenshot.
+- NEXT: ZR4 gore (head-pop, blood), groans, tuning. Draw calls: merge each
+  zombie's clothes into one mesh.
 - Old procedural metaball prototype is in commit cf7e64c if ever needed.
 - Animation plan changed from the plan below: baked Blender clips +
   AnimationMixer (poseHumanoid is stick-tuned), with procedural as fallback.

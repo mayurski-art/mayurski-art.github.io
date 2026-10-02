@@ -15,7 +15,7 @@ import { FlowField } from "./nav.js?v=ti1";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { buildHumanoid, poseHumanoid } from "./character.js?v=to-lk1";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1";
-import { preloadZombieModels, zombieModelsReady, pickLook, createZombieBody, CLIP_SPEED, ONE_SHOTS } from "./zombie-models.js?v=zr2";
+import { preloadZombieModels, zombieModelsReady, pickLook, lookReady, createZombieBody, CLIP_SPEED, ONE_SHOTS } from "./zombie-models.js?v=zr3";
 
 /* Behaviour types. The look (body + clothes) is picked separately, so a
    runner can be any of the horde's bodies. `gait` is the clip it moves on. */
@@ -30,10 +30,52 @@ export const ZOMBIE_TYPES = {
     hpMult: 0.8, speed: 2.4, height: 1.78, build: 1.0,
     damage: 18, attackRange: 1.55, attackCd: 0.95,
   },
+  // gaunt and long-armed, always in its own body: lopes in low and, from a
+  // few metres off with a clear line, crouches with a shriek and leaps
+  leaper: {
+    id: "leaper", gait: "lope", color: 0x8f9a86,
+    hpMult: 0.7, speed: 2.9, height: 1.7, build: 0.9,
+    damage: 26, attackRange: 1.6, attackCd: 0.9, leaps: true,
+  },
 };
 
 const RUNNERS_FROM = 5;       // round runners start showing up
 const RUNNER_SHARE = 0.25;
+const LEAPERS_FROM = 8;
+const LEAPER_SHARE = 0.12;
+const MAX_LEAPERS = 2;        // alive at once
+
+/* The leap: from LEAP_MIN..LEAP_MAX metres, level with the target and with a
+   clear line, a LEAP_WINDUP crouch (the shriek is the tell, so it's fair),
+   then a LEAP_TIME arc LEAP_HEIGHT up that lands just short of where the
+   target stood, raking if they're still in reach. */
+const LEAP_MIN = 3.5;
+const LEAP_MAX = 7.5;
+const LEAP_WINDUP = 0.4;
+const LEAP_TIME = 0.7;
+const LEAP_HEIGHT = 1.2;
+const LEAP_SHORT = 1.0;       // lands this far in front of the target
+const LEAP_RECOVER = 0.5;
+const LEAP_CD = 3.5;
+
+/* Nothing tall between a and b at chest height on feet height y (colliders
+   are boxes: a 2D slab test per box). */
+export function lineClear(colliders, a, b, y) {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  for (const c of colliders) {
+    if (c.max.y < y + 0.5 || c.min.y > y + 1.4) continue;
+    let t0 = 0, t1 = 1;
+    for (const [p, d, lo, hi] of [[a.x, dx, c.min.x, c.max.x], [a.z, dz, c.min.z, c.max.z]]) {
+      if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) { t0 = 2; break; } continue; }
+      let u = (lo - p) / d, v = (hi - p) / d;
+      if (u > v) [u, v] = [v, u];
+      t0 = Math.max(t0, u); t1 = Math.min(t1, v);
+      if (t0 > t1) break;
+    }
+    if (t0 <= t1) return false;
+  }
+  return true;
+}
 const DIE_HOLD = 1.6;         // seconds a body lies there before it sinks
 const SINK_TIME = 1.4;
 const SINK_DEPTH = 0.6;
@@ -95,7 +137,11 @@ export class Zombie {
     this.attackT = 0;        // the swipe clip still playing
     this.sinkT = 0;
 
-    const look = pickLook();
+    this.leap = null;        // { phase: windup | air | land, t, from, to }
+    this.leapCdT = 1.5;
+    this.shrieked = false;   // set on a wind-up; the director turns it into an event
+
+    const look = pickLook(typeId);
     this.look = look;
     this.body = look ? createZombieBody(look, {
       tint: TINTS[Math.floor(Math.random() * TINTS.length)],
@@ -187,6 +233,8 @@ export class Zombie {
       this.play("die", 0.12);
     } else if (this.attackT > 0) {
       this.attackT -= dt;
+    } else if (this.leap) {
+      // the leap sets its own clips (crouch, leap, idle on landing)
     } else if (this.riseT > 0) {
       this.play(this._riseClip(), 0.2);
     } else if (moving && speed > 0.15) {
@@ -198,6 +246,57 @@ export class Zombie {
     }
     this.body.mixer.update(dt);
     this._flinchPose(dt);
+  }
+
+  _clip(name, fade) {
+    if (this.body) this.play(name, fade);
+  }
+
+  /* One frame of a leap: crouch (facing the target), the arc, the landing.
+     The arc moves in steps that walls still stop. */
+  _leapStep(dt, playerPos, onAttack, arena, colliders, feetY) {
+    const L = this.leap;
+    const p = this.mesh.position;
+    const r = this.radius;
+    this.velocity.set(0, 0, 0);
+    if (L.phase === "windup") {
+      this.mesh.rotation.y = Math.atan2(-(playerPos.x - p.x), -(playerPos.z - p.z));
+      L.t -= dt;
+      if (L.t > 0) return;
+      const dx = playerPos.x - p.x, dz = playerPos.z - p.z;
+      const d = Math.hypot(dx, dz) || 1;
+      const reach = Math.max(0.5, Math.min(LEAP_MAX, d - LEAP_SHORT));
+      this.leap = { phase: "air", k: 0, y0: this.groundY, dx: (dx / d) * reach, dz: (dz / d) * reach };
+      this._clip("leap", 0.08);
+      return;
+    }
+    if (L.phase === "air") {
+      const k0 = L.k;
+      L.k = Math.min(1, L.k + dt / LEAP_TIME);
+      p.x += L.dx * (L.k - k0);
+      p.z += L.dz * (L.k - k0);
+      p.x = Math.max(arena.minX + r, Math.min(arena.maxX - r, p.x));
+      p.z = Math.max(arena.minZ + r, Math.min(arena.maxZ - r, p.z));
+      const y = L.y0 + 4 * LEAP_HEIGHT * L.k * (1 - L.k);
+      resolveCircle(colliders, p, r, y, this.type.height, 0.5);
+      p.y = y;
+      if (L.k < 1) return;
+      this.groundY = groundHeightAt(colliders, p.x, p.z, L.y0 + 0.6, r * 0.8);
+      p.y = this.groundY;
+      this.leap = { phase: "land", t: LEAP_RECOVER };
+      this.leapCdT = LEAP_CD;
+      const d = Math.hypot(playerPos.x - p.x, playerPos.z - p.z);
+      if (d <= this.type.attackRange + 0.4 && Math.abs(feetY - this.groundY) < ATTACK_REACH_Y) {
+        this.attackCdT = this.type.attackCd;
+        this._swing();
+        onAttack(this, this.type.damage);
+      } else {
+        this._clip("idle", 0.15);
+      }
+      return;
+    }
+    L.t -= dt;
+    if (L.t <= 0) this.leap = null;
   }
 
   /* Clawing out of a grave (the clip is RISE_TIME long); older GLBs had none. */
@@ -230,6 +329,11 @@ export class Zombie {
       if (this.riseT <= 0) this.mesh.rotation.z = 0;
       return;
     }
+    // shot dead or stunned mid-leap: it drops out of the air
+    if (this.leap && (this.dying || this.stunT > 0)) this.leap = null;
+    if (!this.leap && this.mesh.position.y > this.groundY + 0.01) {
+      this.mesh.position.y = Math.max(this.groundY, this.mesh.position.y - 7 * dt);
+    }
     if (this.stunT > 0 && !this.dying) {
       this.stunT -= dt;
       this.mesh.rotation.y += dt * 3;
@@ -257,6 +361,12 @@ export class Zombie {
       return;
     }
 
+    if (this.leap) {
+      this._leapStep(dt, playerPos, onAttack, arena, colliders, playerFeetY ?? this.groundY);
+      if (this.body) this._animate(dt);
+      return;
+    }
+
     const field = route ? route.field : null;
     const goal = route?.goal || playerPos;
     const chase = route ? route.chase : true;
@@ -265,6 +375,19 @@ export class Zombie {
     this.attackCdT = Math.max(0, this.attackCdT - dt);
     const feetY = playerFeetY ?? this.groundY;
     const inReach = chase && dist <= this.type.attackRange && Math.abs(feetY - this.groundY) < ATTACK_REACH_Y;
+
+    if (this.type.leaps) {
+      this.leapCdT = Math.max(0, this.leapCdT - dt);
+      if (chase && this.leapCdT <= 0 && this.staggerT <= 0 && dist >= LEAP_MIN && dist <= LEAP_MAX
+          && Math.abs(feetY - this.groundY) < 0.4 && lineClear(colliders, this.mesh.position, goal, this.groundY)) {
+        this.leap = { phase: "windup", t: LEAP_WINDUP };
+        this.shrieked = true;
+        this.mesh.rotation.y = Math.atan2(-to.x, -to.z);
+        this._clip("crouch", 0.12);
+        if (this.body) this._animate(dt);
+        return;
+      }
+    }
 
     // Damping belongs only where we're NOT steering. Applying it every frame
     // on top of the steering lerp settles the velocity at ~0.375x the
@@ -442,7 +565,8 @@ export class ZombieDirector {
     this.drop = null;          // the Max Ammo can on the ground, if any
     this.dropAtKill = -1;      // which of this round's kills drops it
     this.roundKills = 0;
-    this.events = [];          // drained by game.js: { type: "maxammo" }
+    this.events = [];          // drained by game.js: { type: "maxammo" } | { type: "shriek", at }
+    this.forceType = null;     // tests: every spawn is this type
     preloadZombieModels();     // the bodies; spawning waits for them (see update)
   }
 
@@ -582,6 +706,11 @@ export class ZombieDirector {
   }
 
   pickType() {
+    if (this.forceType) return this.forceType;          // tests
+    if (this.round >= LEAPERS_FROM && lookReady("leaper") && Math.random() < LEAPER_SHARE
+        && this.zombies.filter((z) => z.alive && !z.dying && z.type.id === "leaper").length < MAX_LEAPERS) {
+      return "leaper";
+    }
     return this.round >= RUNNERS_FROM && Math.random() < RUNNER_SHARE ? "runner" : "walker";
   }
 
@@ -618,6 +747,11 @@ export class ZombieDirector {
       if (!z.alive) continue;
       const route = z.dying ? null : this.routeFor(z, playerPos, field, feetY, dt);
       z.update(dt, playerPos, onAttack, this.arena, this.colliders, route, feetY);
+      if (z.shrieked) {
+        z.shrieked = false;
+        const p = z.mesh.position;
+        this.events.push({ type: "shriek", at: { x: p.x, y: p.y + 1.5, z: p.z } });
+      }
       if (z.dying && !z.counted) {
         z.counted = true;
         this.roundKills++;

@@ -119,6 +119,7 @@ LEAP = [
     ("upperarm_r", (-0.4, -0.9, 0.15)), ("lowerarm_r", (-0.15, -0.98, 0.05)),
     ("thigh_l", (0.15, -0.85, -0.5)), ("calf_l", (0.05, 0.3, -0.95)),
     ("thigh_r", (-0.1, 0.1, -1)), ("calf_r", (0.0, 0.95, -0.3)),
+    ("fingers", ("curl", 40)),
 ]
 
 LOOKS = {
@@ -169,17 +170,27 @@ LOOKS = {
         "pose": SHAMBLE,
     },
     # the leaper: starved, shirtless, barefoot, trousers in rags, long arms
-    # and hooked claws
+    # and long hooked fingers. The length comes from MakeHuman's own
+    # measure/finger targets, so the rig is fitted to it (bone scale doesn't
+    # survive glTF: three inherits scale where Blender was told not to).
+    # Its clips are LEAPER_CLIPS: a crouched lope, a crouch wind-up, a leap.
     "leaper": {
         "macros": {"gender": 1.0, "age": 0.5, "muscle": 0.3, "weight": 0.0, "height": 0.8},
         "skin": "old_caucasian_male",
         "clothes": ["toigo_wool_pants"],
         "face": GAUNT,
+        "body": {
+            "arms/measure-upperarm-length-incr": 1.0,
+            "arms/measure-lowerarm-length-incr": 1.0,
+            "hands/l-hand-fingers-length-incr": 1.0,
+            "hands/r-hand-fingers-length-incr": 1.0,
+            "hands/l-hand-scale-incr": 0.5,
+            "hands/r-hand-scale-incr": 0.5,
+        },
         "tear": 0.5,
-        "arms": 1.22,
-        "claws": True,
         "pose": LEAP,
         "chest_blood": True,
+        "clips": "leaper",
     },
 }
 
@@ -188,7 +199,7 @@ def make_human(look):
     macro = TargetService.get_default_macro_info_dict()
     macro.update(look["macros"])
     bm = HumanService.create_human(macro_detail_dict=macro)
-    for rel, w in look["face"].items():
+    for rel, w in {**look["face"], **look.get("body", {})}.items():
         path = os.path.join(MPFB_SYS, "targets", rel + ".target.gz")
         TargetService.load_target(bm, path, weight=w)
     rig = HumanService.add_builtin_rig(bm, "game_engine")
@@ -269,11 +280,7 @@ def pose(rig, look):
         pb.rotation_mode = "QUATERNION"
     if look.get("arms"):
         stretch_arms(rig, look["arms"], look.get("claws"))
-    for bone, how in look.get("pose", []):
-        if isinstance(how, tuple) and len(how) == 3:
-            aim(rig, bone, how)
-        else:
-            turn(rig, bone, *how)
+    apply_spec(rig, look.get("pose", []))
 
 
 # ---------------------------------------------------------------- materials
@@ -795,6 +802,74 @@ CLIPS = {
 }
 
 
+# The leaper moves low: hunched, knees bent, long arms hanging, claws hooked.
+CLAWS = [("fingers", ("curl", 34))]
+HUNCH = [("spine_01", ("X", 28)), ("spine_02", ("X", 14)), ("head", ("X", -38))]
+
+
+def _hang(k=0.0):
+    """Long arms hanging forward; k swings them (-1..1, left forward at +1)."""
+    return [("upperarm_l", (0.22, -0.45 - 0.3 * k, -0.86 + 0.15 * abs(k))), ("lowerarm_l", (0.12, -0.55 - 0.25 * k, -0.83)),
+            ("upperarm_r", (-0.22, -0.45 + 0.3 * k, -0.86 + 0.15 * abs(k))), ("lowerarm_r", (-0.12, -0.55 + 0.25 * k, -0.83))]
+
+
+def _bent(drop=0.16):
+    return [("pelvis", ("drop", drop))] + [
+        (f"{b}_{s}", (x, y, z)) for s, sx in (("l", 0.06), ("r", -0.06))
+        for b, x, y, z in (("thigh", sx, -0.6, -0.8), ("calf", sx * 0.5, 0.55, -0.83))]
+
+
+def _lope_legs(fwd_side, phase):
+    return [("pelvis", ("drop", 0.13 if phase == "reach" else 0.05))] + _run_legs(fwd_side, phase)
+
+
+LOPE_BODY = [("spine_01", ("X", 34)), ("spine_02", ("X", 10)), ("head", ("X", -40))]
+
+LEAPER_CLIPS = {
+    # hunched, swaying, the head twitching round
+    "idle": {"loop": True, "keys": [
+        (0, _bent() + HUNCH + _hang(0) + CLAWS),
+        (18, _bent(0.18) + HUNCH + [("neck_01", ("Z", 22))] + _hang(0.15) + CLAWS),
+        (24, _bent(0.18) + HUNCH + [("neck_01", ("Z", -14))] + _hang(0.1) + CLAWS),
+        (44, _bent() + HUNCH + _hang(-0.1) + CLAWS),
+        (60, _bent() + HUNCH + _hang(0) + CLAWS),
+    ]},
+    # a low, fast lope, arms swinging with the stride
+    "lope": {"loop": True, "keys": [
+        (0, LOPE_BODY + _lope_legs("l", "reach") + _hang(-0.8) + CLAWS),
+        (4, LOPE_BODY + _lope_legs("r", "pass") + _hang(0) + CLAWS),
+        (8, LOPE_BODY + _lope_legs("r", "reach") + _hang(0.8) + CLAWS),
+        (12, LOPE_BODY + _lope_legs("l", "pass") + _hang(0) + CLAWS),
+        (16, LOPE_BODY + _lope_legs("l", "reach") + _hang(-0.8) + CLAWS),
+    ]},
+    # the wind-up: down into a deep crouch, arms back, head up at you
+    "crouch": {"loop": False, "keys": [
+        (0, _bent() + HUNCH + _hang(0) + CLAWS),
+        (12, [("pelvis", ("drop", 0.3)), ("spine_01", ("X", 40)), ("spine_02", ("X", 10)), ("head", ("X", -52)),
+              ("thigh_l", (0.08, -0.78, -0.62)), ("calf_l", (0.04, 0.72, -0.69)),
+              ("thigh_r", (-0.08, -0.78, -0.62)), ("calf_r", (-0.04, 0.72, -0.69)),
+              ("upperarm_l", (0.3, 0.55, -0.78)), ("lowerarm_l", (0.1, 0.3, -0.95)),
+              ("upperarm_r", (-0.3, 0.55, -0.78)), ("lowerarm_r", (-0.1, 0.3, -0.95)),
+              ("fingers", ("curl", 42))]),
+    ]},
+    # airborne: stretched out flat, claws first, legs trailing
+    "leap": {"loop": False, "keys": [
+        (0, [("pelvis", ("drop", 0.1)), ("spine_01", ("X", 30)), ("head", ("X", -40))] + _hang(0) + CLAWS),
+        (6, [("spine_01", ("X", 48)), ("spine_02", ("X", 6)), ("head", ("X", -55)),
+             ("upperarm_l", (0.35, -0.9, 0.25)), ("lowerarm_l", (0.15, -0.98, 0.12)),
+             ("upperarm_r", (-0.35, -0.9, 0.25)), ("lowerarm_r", (-0.15, -0.98, 0.12)),
+             ("thigh_l", (0.08, 0.35, -0.94)), ("calf_l", (0.04, 0.9, -0.43)),
+             ("thigh_r", (-0.08, 0.2, -0.98)), ("calf_r", (-0.04, 0.8, -0.6)),
+             ("fingers", ("curl", 46))]),
+    ]},
+    # a raking swipe from the crouch
+    "attack": {"loop": False, "keys": [(f, _bent() + s + CLAWS) for f, s in CLIPS["attack"]["keys"]]},
+    "die": {"loop": False, "keys": [(f, s + CLAWS) for f, s in CLIPS["die"]["keys"]]},
+    "rise": {"loop": False, "keys": [(f, s + CLAWS) for f, s in CLIPS["rise"]["keys"]]},
+}
+CLIP_SETS = {"human": CLIPS, "leaper": LEAPER_CLIPS}
+
+
 def _rest(rig):
     for pb in rig.pose.bones:
         pb.rotation_mode = "QUATERNION"
@@ -807,6 +882,16 @@ def apply_spec(rig, spec):
     for bone, how in spec:
         if isinstance(how, tuple) and len(how) == 3:
             aim(rig, bone, how)
+        elif how[0] == "curl":
+            # ("fingers", ("curl", deg)): every finger joint bent about its
+            # own X axis (the knuckle less), hooking the hands into claws
+            from mathutils import Quaternion
+            for side in ("l", "r"):
+                for f in ("index", "middle", "ring", "pinky"):
+                    for n in (1, 2, 3):
+                        pb = rig.pose.bones[f"{f}_0{n}_{side}"]
+                        pb.rotation_quaternion = Quaternion((1, 0, 0), math.radians(how[1] * (0.4 if n == 1 else 1.0)))
+            bpy.context.view_layer.update()
         elif how[0] == "drop":
             from mathutils import Matrix
             pb = rig.pose.bones[bone]
@@ -817,11 +902,11 @@ def apply_spec(rig, spec):
             turn(rig, bone, *how)
 
 
-def make_clips(rig):
+def make_clips(rig, clips=CLIPS):
     """One NLA track per clip, named after it: the glTF exporter's
     NLA_TRACKS mode turns each track into one animation."""
     rig.animation_data_create()
-    for name, clip in CLIPS.items():
+    for name, clip in clips.items():
         act = bpy.data.actions.new("ZB_" + name)
         rig.animation_data.action = act
         for frame, spec in clip["keys"]:
@@ -1051,7 +1136,7 @@ def export_look(name, look):
         _bind(snap, rig)
         parts.append(snap)
 
-    make_clips(rig)
+    make_clips(rig, CLIP_SETS[look.get("clips", "human")])
     for ob in {high, bm, *[c for c in rig.children_recursive if c.type == "MESH" and c not in parts]}:
         bpy.data.objects.remove(ob)
     rig.name = "ZB_rig"
@@ -1128,6 +1213,18 @@ def main():
             continue
         bm, rig = make_human(look)
         zombify_materials(bm, rig, look)
+        if "render" in ARGS and os.environ.get("ZB_CLIPS"):
+            # ZB_CLIPS="idle:0,crouch:12": one shot per clip key, side-on
+            cam = render_setup()
+            clips = CLIP_SETS[look.get("clips", "human")]
+            for item in os.environ["ZB_CLIPS"].split(","):
+                cn, fr = item.split(":")
+                spec = dict(clips[cn]["keys"])[int(fr)]
+                _rest(rig)
+                apply_spec(rig, spec)
+                for yaw in [int(v) for v in os.environ.get("ZB_VIEWS", "60").split(",") if v]:
+                    shoot(cam, os.path.join(RENDER_DIR, f"{name}-{cn}{fr}-y{yaw}.png"), yaw)
+            continue
         if "render" in ARGS:
             pose(rig, look)
             cam = render_setup()
