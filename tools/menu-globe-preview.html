@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Menu globe preview</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#host{position:fixed;inset:0}</style>
+</head>
+<body>
+<div id="host"></div>
+<script type="module">
+import { mountMenuBackdrop } from "../assets/games/troll-ops/menu-globe.js";
+window.space = mountMenuBackdrop(document.getElementById("host"));
+</script>
+</body>
+</html>
