@@ -263,6 +263,86 @@ function makeApi(root, colliders) {
 
 /* ------------------------------------------------------------------- maps */
 
+/* Undergrin's expansion (2026-10-01): all ghost colliders, drawn by
+   ug-expansion.glb and the cut-open ug-station.glb (build_undergrin.blender.py
+   mirrors every number here: change one, change the other).
+     - service corridors x +-(13 .. 17.5), floor at platform height, through
+       the staff doors; steps down at both ends into
+     - the cross passages z +-(32 .. 38), track level, which the tunnels open
+       into: platform, door, corridor, passage, tunnel, track, platform is a
+       loop at both ends;
+     - the ticket hall over the station, floor at 7 (the station ceiling),
+       up a stair on each mezzanine (11 steps, along x by the end wall), with
+       a railed light well over the middle of the train. */
+function undergrinExpansion(api, P) {
+  const CON = 7.0, CON_H = 3.6;
+
+  /* ---- service corridors */
+  for (const s of [-1, 1]) {
+    api.ghostBox(s * 15.25, 0, 4.5, 64, P, { pen: 8 });                                // raised floor
+    api.ghostBox(s * 18, 0, 1.0, 78, 4.2, { pen: 8 });                                 // outer wall, the length of corridor + passages
+    for (const zs of [-1, 1]) api.stairs(s * 15.25, zs * 34.4, 4.5, 4, 0.275, 0.6, zs < 0 ? "+z" : "-z", { ghost: true });
+    // cover: lockers, crate stacks, a cable drum, a fuse cabinet
+    api.ghostBox(s * 17.15, s * -21, 0.6, 5, 2.0, { y: P, pen: 2 });
+    api.ghostBox(s * 14.4, s * 25, 1.2, 1.2, 1.2, { y: P, pen: 1.5 });
+    api.ghostBox(s * 14.4, s * 26.3, 1.2, 1.2, 2.4, { y: P, pen: 1.5 });
+    api.cylinder(s * 16.4, s * 4, 0.7, 1.0, { ghost: true, y: P });
+    api.ghostBox(s * 17.2, s * -8, 0.5, 1.6, 2.2, { y: P, pen: 2 });
+    api.ghostBox(s * 14.2, s * -14, 1.0, 2.2, 1.0, { y: P, pen: 1.5 });
+  }
+
+  /* ---- cross passages through both tunnels */
+  for (const zs of [-1, 1]) {
+    api.ghostBox(0, zs * 38.5, 37, 1.0, 4.2, { pen: 8 });                               // far wall
+    // the track runs on to a buffer stop; a maintenance cart and cable drums for cover
+    for (const rx of [-0.75, 0.75]) api.box(rx, zs * 33.75, 0.12, 3.5, 0.12, { ghost: true, color: 0x8a8a8e, pen: 6 });
+    api.ghostBox(0, zs * 35.8, 3.0, 0.8, 1.1, { pen: 4 });
+    api.ghostBox(zs * 7.5, zs * 35.2, 3.2, 1.6, 1.4, { pen: 3 });
+    api.cylinder(zs * -6.5, zs * 36.6, 0.75, 1.3, { ghost: true });
+    api.cylinder(zs * -9, zs * 36.8, 0.6, 1.0, { ghost: true });
+    api.ghostBox(zs * 12, zs * 37.6, 2.4, 0.8, 2.2, { pen: 3 });                        // generator against the far wall
+  }
+
+  /* ---- the ticket hall upstairs */
+  // Floor (the station's ceiling slab, top at 7), open over the light well
+  // and both stairwells.
+  const slab = (x0, x1, z0, z1) => api.ghostBox((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.3, { y: CON - 0.3, pen: 8 });
+  slab(-11.5, 2, -30.5, -28.5); slab(8.05, 11.5, -30.5, -28.5);
+  slab(-11.5, 11.5, -28.5, -5);
+  slab(-11.5, -1.6, -5, 5); slab(1.6, 11.5, -5, 5);
+  slab(-11.5, 11.5, 5, 28.5);
+  slab(-11.5, -8.05, 28.5, 30.5); slab(-2, 11.5, 28.5, 30.5);
+  // walls up from the station's
+  for (const s of [-1, 1]) {
+    api.ghostBox(s * 12.25, 0, 1.5, 64, CON_H, { y: CON, pen: 8 });
+    api.ghostBox(0, s * 31.25, 23, 1.5, CON_H, { y: CON, pen: 8 });
+  }
+  // stairs from each mezzanine (top 3.8) along x by the end wall up to 7
+  api.stairs(2.0, -29.5, 1.8, 11, 0.29, 0.55, "+x", { ghost: true, y: 3.8 });
+  api.stairs(-2.0, 29.5, 1.8, 11, 0.29, 0.55, "-x", { ghost: true, y: 3.8 });
+  // rails round the openings
+  const rail = (x, z, w, d) => api.ghostBox(x, z, w, d, 1.0, { y: CON, pen: 0.3 });
+  rail(0, -5.05, 3.3, 0.1); rail(0, 5.05, 3.3, 0.1); rail(-1.65, 0, 0.1, 10.2); rail(1.65, 0, 0.1, 10.2);
+  rail(5.0, -28.45, 6.1, 0.1); rail(1.95, -29.5, 0.1, 2.0);
+  rail(-5.0, 28.45, 6.1, 0.1); rail(-1.95, 29.5, 0.1, 2.0);
+  // gate lines across the hall, ticket offices, machines, columns, benches
+  for (const zs of [-1, 1]) {
+    for (const x of [-10, -8, -6, -4, 4, 6, 8, 10]) api.ghostBox(x, zs * 16, 0.3, 1.2, 1.0, { y: CON, pen: 2 });
+    api.ghostBox(zs * 8, zs * 22.5, 3.0, 3.0, 2.6, { y: CON, pen: 4 });
+    for (const z of [-9, -3, 3, 9]) api.ghostBox(zs * 11.1, z, 0.7, 1.0, 1.9, { y: CON, pen: 3 });
+    for (const z of [10, 22]) for (const sx of [-1, 1]) api.ghostBox(sx * 5.5, zs * z, 0.8, 0.8, CON_H, { y: CON, pen: 8 });
+    api.ghostBox(0, zs * 11, 3.2, 0.5, 0.5, { y: CON, pen: 1.5 });
+  }
+
+  /* ---- six real lights for all of it (the station has 20; every real
+     light costs every lit pixel, so the rest is emissive fittings) */
+  for (const zs of [-1, 1]) {
+    api.lamp(0, CON + 3.2, zs * 18, 0xfff0d8, 10, 16);            // ticket hall
+    api.lamp(zs * 15.25, P + 2.7, zs * 6, 0xffa050, 6, 12);       // corridor, caged work light
+    api.lamp(zs * 10, 3.3, zs * 35.5, 0xff4a2a, 5, 10);           // passage, red
+  }
+}
+
 export const MAPS = {
   grinsite: {
     name: "Grin Site",
@@ -424,8 +504,13 @@ export const MAPS = {
 
   undergrin: {
     name: "Undergrin",
-    blurb: "Two platforms, one stopped train. Nowhere to be far away.",
-    bounds: { minX: -13, maxX: 13, minZ: -32, maxZ: 32 },
+    blurb: "Two platforms, a stopped train, the service tunnels round the back and the ticket hall upstairs.",
+    // Expanded 2026-10-01 (user: "needs to be developed, it seems like I am
+    // stuck in place"): service corridors behind both platform walls, cross
+    // passages through both track tunnels joining them into a loop, and a
+    // ticket-hall concourse over the station (stairs up off each mezzanine,
+    // a light well down onto the train).
+    bounds: { minX: -18.5, maxX: 18.5, minZ: -39, maxZ: 39 },
     playerSpawn: { x: 0, z: 26 },
     sky: { top: 0x05070a, horizon: 0x0d1015, bottom: 0x05070a },   // underground: no sun, no cloud
     fog: { color: 0x0c1014, density: 0.025 },
@@ -435,7 +520,26 @@ export const MAPS = {
     ambient: { color: 0xc8d4e6, intensity: 0.6 },
     build(api) {
       const TILE = 0xd8dcd4, PLAT = 0x6a6e72, TRAIN = 0xc8ccd0;
-      api.ghostWalls(0, 0, 26, 64, 7, 1.5, { ghost: true, color: TILE, surface: "concrete" });
+      /* ---- the station box, cut open: two staff doors in each side wall
+         (z -3.5 and 11.7, between the roundels, posters and vending
+         machines) and both track tunnel mouths (x +-2.8, up to 3.1). */
+      const DOORS = [-3.5, 11.7], DOOR_W = 2.0, DOOR_TOP = 3.7;
+      for (const s of [-1, 1]) {
+        let from = -32;
+        for (const dz of [...DOORS, 32 + DOOR_W / 2]) {
+          const to = dz - DOOR_W / 2;
+          if (to - from > 0.05) api.ghostBox(s * 12.25, (from + to) / 2, 1.5, to - from, 7, { pen: 8 });
+          if (dz < 32) {
+            api.ghostBox(s * 12.25, dz, 1.5, DOOR_W, 1.1, { pen: 8 });                            // sill, flush with both floors (platform height)
+            api.ghostBox(s * 12.25, dz, 1.5, DOOR_W, 7 - DOOR_TOP, { y: DOOR_TOP, pen: 8 });       // lintel
+          }
+          from = dz + DOOR_W / 2;
+        }
+      }
+      for (const zs of [-1, 1]) {
+        for (const sx of [-1, 1]) api.ghostBox(sx * 7.15, zs * 31.25, 8.7, 1.5, 7, { pen: 8 });   // x 2.8 .. 11.5
+        api.ghostBox(0, zs * 31.25, 5.6, 1.5, 7 - 3.1, { y: 3.1, pen: 8 });                     // over the tunnel mouth
+      }
 
       /* ---- platforms, and the edge that closes up to the train mid-station */
       const P = 1.1;
@@ -507,11 +611,15 @@ export const MAPS = {
       }
       for (const z of [-8, 8]) api.lamp(0, P + 2.0, z, 0xfff0d0, 6, 9);
 
+      undergrinExpansion(api, P);
+
       // Every collider above is the approved blockout's, now invisible; the
       // station is drawn by ug-*.glb (models/build_undergrin.blender.py).
-      for (const part of ["station", "platforms", "train", "fittings"]) mapModel(api, `ug-${part}`, { x: 0, z: 0, castShadow: false });
+      for (const part of ["station", "platforms", "train", "fittings", "expansion"]) mapModel(api, `ug-${part}`, { x: 0, z: 0, castShadow: false });
     },
-    spawns: [[0, -30], [0, 30], [-9, -29], [9, -29], [-9, 29], [9, 29], [-9, -18], [9, 18]],
+    // [x, z] or [x, z, floor y] (the concourse is upstairs).
+    spawns: [[0, -30], [0, 30], [-9, -29], [9, -29], [-9, 29], [9, 29], [-9, -18], [9, 18],
+      [15.25, -20], [-15.25, 20], [12, -35.5], [-12, 35.5], [-8, -12, 7], [8, 12, 7]],
   },
 
   dustbowl: {
@@ -1323,7 +1431,7 @@ export function buildMap(id, { colliders, arena }) {
   return {
     root,
     map,
-    spawnPoints: map.spawns.map(([x, z]) => new THREE.Vector3(x, 0, z)),
+    spawnPoints: map.spawns.map(([x, z, y]) => new THREE.Vector3(x, y ?? 0, z)),
     playerSpawn: map.playerSpawn,
   };
 }

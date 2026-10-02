@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=cg1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=cg1";
-import { Loadout } from "./loadout.js?v=gu1";
+import { Loadout } from "./loadout.js?v=ug1";
 import { StreakPicker } from "./streak-picker.js?v=gu1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=gu1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -30,7 +30,7 @@ import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=gu1";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=gu1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=atm1";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=ug1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=cg1";
@@ -7814,12 +7814,18 @@ const SPAWN_SIDE_BONUS = 35;
    that corner, and with a 4s respawn that is the fastest way to make a match
    miserable. Enemies nearby, enemies looking this way and recent deaths all
    push a point down; nearby friendlies and being on your own side pull it up. */
-function spawnForTeam(team, forId = net.id, { sideOnly = spawnOpening || isSnd() } = {}) {
+function spawnForTeam(team, forId = net.id, { sideOnly = spawnOpening || isSnd(), groundOnly = false } = {}) {
   const pts = builtMap.spawnPoints;
   if (!pts?.length) return { x: 0, y: 0, z: 0 };
   const ffa = !!currentMode().ffa;
   const own = new Set(!ffa && spawnSides ? spawnSides[spawnSideFor(team)] : pts.map((_, i) => i));
-  const candidates = sideOnly ? [...own] : pts.map((_, i) => i);
+  let candidates = sideOnly ? [...own] : pts.map((_, i) => i);
+  // Bots path on the ground floor only (one flow field at y 0): an upstairs
+  // spawn (Undergrin's ticket hall) would leave one wandering up there.
+  if (groundOnly || bots.byId?.(forId)) {
+    const ground = candidates.filter((i) => (pts[i].y || 0) < 3);
+    if (ground.length) candidates = ground;
+  }
 
   // Never score against ourselves: the corpse we're respawning from would
   // read as a nearby "teammate" and pull us straight back to where we died.
@@ -7877,6 +7883,8 @@ function spawnForTeam(team, forId = net.id, { sideOnly = spawnOpening || isSnd()
 }
 
 function teamSpawn(opts) { return spawnForTeam(net.team, net.id, opts); }
+/* Where a bot comes in: ground floor only (see groundOnly). */
+const botSpawn = (team, id, opts = {}) => spawnForTeam(team, id, { ...opts, groundOnly: true });
 
 // Capped so a player mashing the button in the range can't spawn an
 // unbounded crowd — plenty to look at, cheap enough to never matter.
@@ -7890,7 +7898,7 @@ const RANGE_BOT_CAP = 6;
 function spawnRangeBot() {
   if (!isRange() || !net.isBotHost()) return;
   if (bots.count >= RANGE_BOT_CAP) { showWaveBanner("Range is full — kill one first", 1800); renderPauseRange(); return; }
-  bots.fill(bots.count + 2, 1, spawnForTeam, true);
+  bots.fill(bots.count + 2, 1, botSpawn, true);
   for (const b of bots.bots) net.publishBot(b);
   showWaveBanner(`Bot ${bots.count} in the range`, 1800);
   renderPauseRange();
@@ -9771,7 +9779,7 @@ function beginMatch(mapId = null) {
     // already populated while the player watches the clock.
     if (isPvp() && net.isBotHost()) {
       const { humans, teams } = humanHeadcount();
-      bots.fill(noBotsRoom() ? 0 : botTarget(), humans, spawnForTeam, !!currentMode().ffa, teams);
+      bots.fill(noBotsRoom() ? 0 : botTarget(), humans, botSpawn, !!currentMode().ffa, teams);
       net.botCount = bots.bots.length;
       for (const b of bots.bots) net.publishBot(b);
     }
@@ -9901,7 +9909,7 @@ function prepareSndRound() {
   setActiveWeaponMesh(equipFromLoadout());
 
   if (isPvp() && net.isBotHost()) {
-    bots.reviveAll((team, id) => spawnForTeam(team, id, { sideOnly: true }));
+    bots.reviveAll((team, id) => botSpawn(team, id, { sideOnly: true }));
     for (const b of bots.bots) net.publishBot(b);
   }
 }
@@ -11041,7 +11049,7 @@ function animate() {
           // is a no-op so they never actually damage you here.
           targets: botTargets(),
           onShoot: () => {},
-          spawnFor: spawnForTeam,
+          spawnFor: botSpawn,
           sightBlocked: (a, b) => grenades.blocksSight(a, b),
         });
         for (const b of bots.bots) net.publishBot(b);
@@ -11074,7 +11082,7 @@ function animate() {
         const { humans, teams } = humanHeadcount();
         // Infection's sides change all match long; padding them back to even
         // would undo every infection, so it just fills the room.
-        bots.fill(noBotsRoom() ? 0 : botTarget(), humans, spawnForTeam, ffa || isInfection(), isInfection() ? null : teams);
+        bots.fill(noBotsRoom() ? 0 : botTarget(), humans, botSpawn, ffa || isInfection(), isInfection() ? null : teams);
         net.botCount = bots.bots.length;
         if (isInfection()) sortInfectionBots();
         bots.update(dt, {
@@ -11084,7 +11092,7 @@ function animate() {
           // Weapon-decided modes (One in the Chamber, Gun Game) stay gun-only.
           onThrow: currentMode().noBotNades ? null : botThrow,
           onMelee: botMelee,
-          spawnFor: spawnForTeam,
+          spawnFor: botSpawn,
           sightBlocked: (a, b) => grenades.blocksSight(a, b),
           objectiveFor: botObjective,
           isBusy: botBusy,

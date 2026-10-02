@@ -21,6 +21,28 @@ PH = 1.1          # platform height
 MEZ = 3.5         # mezzanine slab bottom
 CARS = (-8, 8)    # carriage centres
 DOORS = (-4.5, 0, 4.5)
+# 2026-10-01 expansion (mirrors maps.js undergrinExpansion + the cut station walls)
+STAFF_DOORS = (-3.5, 11.7)   # z of the staff doors in both side walls
+DOOR_W, DOOR_TOP = 2.0, 3.7
+CON, CON_H = 7.0, 3.6        # ticket hall floor, wall height
+
+
+def zsegs(z0, z1, gaps, w):
+    """[z0, z1] minus a w-wide gap centred on each of gaps: the solid spans."""
+    out, cur = [], z0
+    for g in sorted(gaps):
+        if g - w / 2 - cur > 0.02:
+            out.append((cur, g - w / 2))
+        cur = g + w / 2
+    if z1 - cur > 0.02:
+        out.append((cur, z1))
+    return out
+
+
+# the ceiling slab / hall floor, open over the light well and both stairwells
+SLAB = [(-11.5, 2, -30.5, -28.5), (8.05, 11.5, -30.5, -28.5), (-11.5, 11.5, -28.5, -5),
+        (-11.5, -1.6, -5, 5), (1.6, 11.5, -5, 5), (-11.5, 11.5, 5, 28.5),
+        (-11.5, -8.05, 28.5, 30.5), (-2, 11.5, 28.5, 30.5)]
 
 
 def poster(b, P, x, y, z, face, w, h, seed):
@@ -50,14 +72,35 @@ def build_station(P):
     """walls(0, 0, 26, 64, 7, 1.5) + ceiling at y 7 (inner faces x +-11.5, z +-30.5)."""
     b = Builder()
     for s in (-1, 1):
-        b.box(P["tile"], 1.5, 7, 64, s * 12.25, 0, 0)
-        b.box(P["tile"], 23, 7, 1.5, 0, 0, s * 31.25)
-    b.box(P["panel_dk"], 26, 0.6, 64, 0, 6.7, 0)
+        for (z0, z1) in zsegs(-32, 32, STAFF_DOORS, DOOR_W):
+            b.box(P["tile"], 1.5, 7, z1 - z0, s * 12.25, 0, (z0 + z1) / 2)
+        for dz in STAFF_DOORS:
+            b.box(P["tile"], 1.5, 7 - DOOR_TOP, DOOR_W, s * 12.25, DOOR_TOP, dz)        # over the door
+            b.box(P["floorconc"], 1.5, PH, DOOR_W, s * 12.25, 0, dz)                   # sill
+            # steel frame, hazard edge, a lit STAFF ONLY sign over it
+            for side in (-1, 1):
+                b.box(P["rail_steel"], 1.56, DOOR_TOP - PH, 0.12, s * 12.25, PH, dz + side * (DOOR_W / 2 + 0.04))
+            b.box(P["rail_steel"], 1.56, 0.14, DOOR_W + 0.2, s * 12.25, DOOR_TOP - 0.07, dz)
+            b.box(P["yellow"], 1.52, 0.02, DOOR_W, s * 12.25, PH, dz)
+            b.box(P["sign_red"], 0.04, 0.32, 1.4, s * 11.47, DOOR_TOP + 0.2, dz)
+            b.box(P["white"], 0.045, 0.06, 1.1, s * 11.46, DOOR_TOP + 0.33, dz)
+        for sx in (-1, 1):
+            b.box(P["tile"], 8.7, 7, 1.5, sx * 7.15, 0, s * 31.25)
+        b.box(P["tile"], 5.6, 7 - 3.1, 1.5, 0, 3.1, s * 31.25)
+    for (x0, x1, z0, z1) in SLAB:
+        # outer pieces run on under the walls so no seam shows
+        xa = -13 if x0 <= -11.5 else x0
+        xb = 13 if x1 >= 11.5 else x1
+        za = -32 if z0 <= -30.5 else z0
+        zb = 32 if z1 >= 30.5 else z1
+        b.box(P["panel_dk"], xb - xa, 0.6, zb - za, (xa + xb) / 2, 6.7, (za + zb) / 2)
     # green tile band + dark skirting on the side walls, roundels, beams
     for s in (-1, 1):
-        b.box(P["tile_green"], 0.03, 0.35, 61, s * 11.49, 3.4, 0)
-        b.box(P["tile_green"], 0.03, 0.1, 61, s * 11.49, 3.9, 0)
-        b.box(P["black"], 0.03, 0.25, 61, s * 11.49, PH, 0)
+        for (z0, z1) in zsegs(-30.5, 30.5, STAFF_DOORS, DOOR_W + 0.3):
+            L, zc = z1 - z0, (z0 + z1) / 2
+            b.box(P["tile_green"], 0.03, 0.35, L, s * 11.49, 3.4, zc)
+            b.box(P["tile_green"], 0.03, 0.1, L, s * 11.49, 3.9, zc)
+            b.box(P["black"], 0.03, 0.25, L, s * 11.49, PH, zc)
         for z in (-24, -12, 0, 12, 24):
             roundel(b, P, s * 11.47, 2.6, z + 3, -s)
         for z in (-18, 6, 18):
@@ -80,7 +123,6 @@ def build_station(P):
         zf = zs * 30.49
         # the mouth sits under the mezzanine slab (y 3.5): dark opening, concrete
         # jambs and lintel, a row of red lamps on the lintel
-        b.box(P["black"], 5.6, 3.1, 0.04, 0, 0, zf)
         b.box(P["conc"], 6.4, 0.4, 0.3, 0, 3.1, zf - zs * 0.1)
         for sx in (-1, 1):
             b.box(P["conc"], 0.4, 3.1, 0.3, sx * 3.0, 0, zf - zs * 0.1)
@@ -292,11 +334,185 @@ def build_fittings(P):
     b.finish("ug-fittings.glb")
 
 
+# ------------------------------------------------------------ the expansion
+
+def build_expansion(P):
+    """Service corridors, cross passages, the ticket hall (2026-10-01)."""
+    b = Builder()
+    rng = random.Random(11)
+
+    # ---- service corridors: x +-(13 .. 17.5), floor at PH, ceiling 4.2
+    for s in (-1, 1):
+        xc = s * 15.25
+        b.box(P["floorconc"], 4.5, PH, 64, xc, 0, 0)
+        b.box(P["conc"], 1.0, 4.4, 78, s * 18, 0, 0)                          # outer wall
+        b.box(P["panel_dk"], 5.6, 0.3, 78, s * 15.6, 4.2, 0)                  # ceiling
+        b.box(P["conc"], 0.03, 4.2 - PH, 64, s * 13.01, PH, 0)                # back of the station wall, painted
+        # painted dado + a yellow walkway line
+        b.box(P["tile_green"], 0.03, 1.1, 76, s * 17.49, PH, 0)
+        b.box(P["yellow"], 0.12, 0.01, 64, s * 14.0, PH, 0)
+        # pipes and a cable tray along the outer wall
+        for k, (py, pr, pm) in enumerate(((3.5, 0.14, "rust"), (3.15, 0.09, "rail_steel"), (2.85, 0.07, "train_red"))):
+            b.cyl(P[pm], pr, (s * (17.3 - k * 0.05), py, -38.5), (s * (17.3 - k * 0.05), py, 38.5), seg=10)
+        b.box(P["dark"], 0.5, 0.05, 76, s * 16.9, 3.85, 0)
+        for z in range(-36, 37, 3):
+            b.box(P["dark"], 0.04, 0.4, 0.04, s * 17.2, 3.85, z)
+        # caged work lights every 6 m (only one is a real light)
+        for z in range(-30, 31, 6):
+            b.box(P["dark"], 0.5, 0.08, 0.3, s * 15.4, 4.12, z)
+            b.box(P["lamp"], 0.36, 0.05, 0.2, s * 15.4, 4.07, z)
+        # cover, as maps.js: lockers, crates, cable drum, fuse cabinet, a toolbox bench
+        zl = s * -21
+        for k in range(8):
+            z = zl - 2.2 + k * 0.62
+            b.box(P["sign_blue"], 0.6, 2.0, 0.6, s * 17.15, PH, z)
+            b.box(P["dark"], 0.02, 0.5, 0.05, s * (17.15 - 0.31), PH + 1.2, z)
+        for (cz, cy, ch) in ((s * 25, PH, 1.2), (s * 26.3, PH, 1.2), (s * 26.3, PH + 1.2, 1.2)):
+            b.box(P["cardboard"], 1.2, ch, 1.2, s * 14.4, cy, cz, bevel=0.02)
+            b.box(P["tape"], 1.22, 0.06, 0.2, s * 14.4, cy + ch - 0.05, cz)
+        b.cyl(P["plank"], 0.7, (s * 16.4, PH, s * 4 - 0.5), (s * 16.4, PH, s * 4 + 0.5), seg=18)
+        b.cyl(P["dark"], 0.3, (s * 16.4, PH, s * 4 - 0.52), (s * 16.4, PH, s * 4 + 0.52), seg=12)
+        b.box(P["panel"], 0.5, 2.2, 1.6, s * 17.2, PH, s * -8)
+        b.box(P["yellow"], 0.02, 0.3, 0.3, s * (17.2 - 0.26), PH + 1.6, s * -8)
+        b.box(P["desk"], 1.0, 0.9, 2.2, s * 14.2, PH, s * -14)
+        b.box(P["train_red"], 0.4, 0.25, 0.6, s * 14.2, PH + 0.9, s * -14 + 0.4)
+        # graffiti: a big painted grin on the outer wall
+        b.box(P["white"], 0.02, 1.6, 3.2, s * 17.47, PH + 1.2, s * 12)
+        b.box(P["black"], 0.025, 0.18, 2.6, s * 17.46, PH + 1.55, s * 12)
+        for k in range(6):
+            b.box(P["black"], 0.025, 0.5, 0.06, s * 17.46, PH + 1.55, s * 12 - 1.15 + k * 0.46)
+        for ex in (-0.7, 0.7):
+            b.cyl(P["black"], 0.22, (s * 17.46, PH + 2.3, s * 12 + ex), (s * 17.44, PH + 2.3, s * 12 + ex), seg=12)
+        # steps down to the passages at both ends
+        for zs in (-1, 1):
+            for i in range(4):
+                h = 0.275 * (i + 1)
+                b.box(P["conc"], 4.5, h, 0.6, xc, 0, zs * (34.4 - 0.6 * (i + 0.5)))
+                b.box(P["yellow"], 4.5, 0.012, 0.05, xc, h, zs * (34.4 - 0.6 * i - 0.03))
+
+    # ---- cross passages z +-(32 .. 38), track level, ceiling 3.8
+    for zs in (-1, 1):
+        zc = zs * 35.25
+        b.box(P["conc"], 37, 4.4, 1.0, 0, 0, zs * 38.5)                       # far wall
+        b.box(P["panel_dk"], 37, 0.3, 6.5, 0, 3.8, zc)                        # ceiling
+        b.box(P["floorconc"], 37, 0.02, 6.5, 0, 0, zc)
+        b.box(P["conc"], 37, 3.9, 0.03, 0, 0, zs * 31.98)                     # backs of the station's end walls
+        # the track runs on to a buffer stop
+        b.box(P["ballast"], 3.0, 0.06, 3.6, 0, 0, zs * 33.8)
+        for rx in (-0.75, 0.75):
+            b.box(P["rail_steel"], 0.12, 0.12, 3.5, rx, 0, zs * 33.75)
+        b.box(P["train_red"], 3.0, 1.1, 0.8, 0, 0, zs * 35.8)
+        for k in range(5):
+            b.box(P["yellow"] if k % 2 else P["black"], 0.6, 0.3, 0.82, -1.2 + k * 0.6, 0.6, zs * 35.8)
+        # maintenance cart, cable drums, generator
+        cx = zs * 7.5
+        b.box(P["yellow"], 3.2, 0.9, 1.6, cx, 0.3, zs * 35.2)
+        b.box(P["dark"], 3.0, 0.5, 1.4, cx, 1.2, zs * 35.2)
+        for wx in (-1.1, 1.1):
+            for wz in (-0.6, 0.6):
+                b.cyl(P["tyre"], 0.28, (cx + wx, 0.28, zs * 35.2 + wz - 0.1), (cx + wx, 0.28, zs * 35.2 + wz + 0.1), seg=12)
+        for (dx, dz, r, h) in ((-6.5, 36.6, 0.75, 1.3), (-9, 36.8, 0.6, 1.0)):
+            x, z = zs * dx, zs * dz
+            b.cyl(P["plank"], r, (x, 0, z), (x, h, z), seg=18)
+            b.cyl(P["drum_blue"], r * 0.6, (x, 0.02, z), (x, h + 0.02, z), seg=14)
+        b.box(P["panel"], 2.4, 2.2, 0.8, zs * 12, 0, zs * 37.6)
+        b.box(P["dark"], 2.0, 0.6, 0.02, zs * 12, 1.2, zs * 37.19)
+        b.box(P["red_lamp"], 0.2, 0.2, 0.05, zs * 12 + 0.9, 1.9, zs * 37.18)
+        # red hazard lights along the ceiling, pipes on the far wall
+        for x in range(-16, 17, 4):
+            b.box(P["red_lamp"], 0.3, 0.08, 0.3, x, 3.72, zc)
+        for k, (py, pr) in enumerate(((3.3, 0.13), (2.95, 0.08))):
+            b.cyl(P["rust" if k == 0 else "rail_steel"], pr, (-18, py, zs * 37.85), (18, py, zs * 37.85), seg=10)
+        # trollface poster in the tunnel and a "NO ENTRY" sign by the steps
+        b.box(P["white"], 2.4, 1.6, 0.02, 0, 0.9, zs * 37.97)
+        b.box(P["black"], 2.0, 0.16, 0.025, 0, 1.25, zs * 37.95)
+        for k in range(6):
+            b.box(P["black"], 0.06, 0.4, 0.025, -0.9 + k * 0.36, 1.25, zs * 37.95)
+        for ex in (-0.6, 0.6):
+            b.cyl(P["black"], 0.2, (ex, 1.95, zs * 37.95), (ex, 1.95, zs * 37.93), seg=12)
+        for sx in (-1, 1):
+            b.box(P["sign_red"], 1.2, 0.4, 0.04, sx * 15.25, 3.0, zs * 37.97)
+
+    # ---- the ticket hall: floor at CON over the station, walls to CON + CON_H
+    for (x0, x1, z0, z1) in SLAB:
+        b.box(P["floorconc"], x1 - x0, 0.02, z1 - z0, (x0 + x1) / 2, CON, (z0 + z1) / 2)
+    for s in (-1, 1):
+        b.box(P["tile"], 1.5, CON_H + 0.4, 64, s * 12.25, CON, 0)
+        b.box(P["tile"], 23, CON_H + 0.4, 1.5, 0, CON, s * 31.25)
+        b.box(P["tile_green"], 0.03, 0.3, 61, s * 11.49, CON + 1.2, 0)
+        b.box(P["tile_green"], 23, 0.3, 0.03, 0, CON + 1.2, s * 30.49)
+    b.box(P["panel_dk"], 26, 0.4, 64, 0, CON + CON_H, 0)                      # ceiling
+    for z in range(-28, 29, 4):
+        b.box(P["dark"], 0.3, 0.08, 2.4, -6, CON + CON_H - 0.06, z)
+        b.box(P["lamp"], 0.22, 0.03, 2.2, -6, CON + CON_H - 0.08, z)
+        b.box(P["dark"], 0.3, 0.08, 2.4, 6, CON + CON_H - 0.06, z)
+        b.box(P["lamp"], 0.22, 0.03, 2.2, 6, CON + CON_H - 0.08, z)
+    # rails round the light well and the stairwells
+    for (x0, z0, x1, z1) in ((-1.6, -5.05, 1.6, -5.05), (-1.6, 5.05, 1.6, 5.05), (-1.65, -5, -1.65, 5), (1.65, -5, 1.65, 5),
+                             (1.95, -28.45, 8.05, -28.45), (1.95, -30.5, 1.95, -28.45),
+                             (-8.05, 28.45, -1.95, 28.45), (-1.95, 28.45, -1.95, 30.5)):
+        edge_rail(b, P, x0, z0, x1, z1, CON)
+    # the stairs up off each mezzanine (11 x 0.29 rise, 0.55 run, along x)
+    for (x0, zc, sx) in ((2.0, -29.5, 1), (-2.0, 29.5, -1)):
+        for i in range(11):
+            h = 0.29 * (i + 1)
+            b.box(P["conc"], 0.55, h, 1.8, x0 + sx * 0.55 * (i + 0.5), MEZ + 0.3, zc)
+            b.box(P["yellow"], 0.05, 0.012, 1.8, x0 + sx * (0.55 * i + 0.03), MEZ + 0.3 + h, zc)
+        b.bar(P["rail_steel"], (x0, MEZ + 0.3 + 1.0, zc + 0.95), (x0 + sx * 6.05, CON + 1.0, zc + 0.95), 0.05)
+        b.box(P["green"], 1.6, 0.4, 0.06, x0 + sx * 1.0, 5.6, zc + 0.95)
+    # gate lines (gaps in the middle), ticket offices, machines, columns, benches
+    for zs in (-1, 1):
+        zg = zs * 16
+        for x in (-10, -8, -6, -4, 4, 6, 8, 10):
+            b.box(P["rail_steel"], 0.3, 1.0, 1.2, x, CON, zg, bevel=0.03)
+            b.box(P["black"], 0.31, 0.06, 0.6, x, CON + 1.0, zg)
+            b.box(P["green"], 0.1, 0.06, 0.1, x, CON + 1.02, zg - zs * 0.4)
+            if abs(x) < 10:
+                b.box(P["glass"], 1.4, 0.7, 0.03, x + 1.0, CON + 0.3, zg)
+        bx, bz = zs * 8, zs * 22.5
+        b.box(P["panel"], 3.0, 1.1, 3.0, bx, CON, bz)
+        b.box(P["glass"], 3.0, 1.2, 3.0, bx, CON + 1.1, bz)
+        b.box(P["panel_dk"], 3.2, 0.3, 3.2, bx, CON + 2.3, bz)
+        b.box(P["sign_lit"], 2.6, 0.3, 0.04, bx, CON + 2.35, bz - zs * 1.62)
+        b.box(P["desk"], 1.0, 0.8, 0.6, bx, CON + 0.3, bz)
+        for z in (-9, -3, 3, 9):
+            x = zs * 11.1
+            b.box(P["sign_blue"], 0.7, 1.9, 1.0, x, CON, z)
+            b.box(P["screen"], 0.02, 0.4, 0.5, x - zs * 0.36, CON + 1.2, z)
+            b.box(P["yellow"], 0.02, 0.08, 0.6, x - zs * 0.36, CON + 0.8, z)
+        for z in (10, 22):
+            for sx in (-1, 1):
+                b.box(P["tile"], 0.8, CON_H, 0.8, sx * 5.5, CON, zs * z)
+                b.box(P["tile_green"], 0.84, 0.3, 0.84, sx * 5.5, CON + 1.2, zs * z)
+        b.box(P["desk"], 3.2, 0.08, 0.5, 0, CON + 0.42, zs * 11)
+        for bx2 in (-1.4, 1.4):
+            b.box(P["dark"], 0.08, 0.42, 0.45, bx2, CON, zs * 11)
+        # departure board over the gate line, roundels, posters
+        b.box(P["black"], 4.0, 0.9, 0.12, 0, CON + 2.5, zg)
+        for r in range(3):
+            b.box(P["sign_lit"], 3.6, 0.14, 0.13, 0, CON + 2.62 + r * 0.24, zg)
+        for z in (-26, -14, 14, 26):
+            roundel(b, P, zs * 11.47, CON + 2.3, z, -zs)
+        for z in (-20, -6, 6, 20):
+            poster(b, P, zs * 11.44, CON + 1.1, z, -zs, 1.6, 1.0, int(z * 3 + zs * 5))
+    # the big mural on each end wall: a trollface grin, tiled
+    for zs in (-1, 1):
+        z = zs * 30.47
+        b.box(P["white"], 9.0, 2.6, 0.03, 0, CON + 0.6, z)
+        b.box(P["black"], 7.6, 0.3, 0.035, 0, CON + 1.1, z)
+        for k in range(10):
+            b.box(P["black"], 0.08, 0.7, 0.035, -3.4 + k * 0.76, CON + 1.1, z)
+        for ex in (-2.4, 2.4):
+            b.cyl(P["black"], 0.45, (ex, CON + 2.5, z), (ex, CON + 2.5, z - zs * 0.04), seg=18)
+            b.cyl(P["white"], 0.18, (ex + 0.15, CON + 2.6, z - zs * 0.04), (ex + 0.15, CON + 2.6, z - zs * 0.06), seg=12)
+    b.finish("ug-expansion.glb")
+
+
 def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     P = palette()
-    for fn in (build_station, build_platforms, build_train, build_fittings):
+    for fn in (build_station, build_platforms, build_train, build_fittings, build_expansion):
         fn(P)
     print("ALL UNDERGRIN MODELS EXPORTED")
 
