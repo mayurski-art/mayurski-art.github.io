@@ -1,28 +1,38 @@
 # Troll Ops hand-off — 2026-10-02 (session 24)
 
-## RESUME HERE (2026-10-02, session 25) — phase 6 design doc awaiting OK
-The user answered the phase 6 questions: park = **new district** (village
-untouched), rides = **all four** (Ferris wheel, carousel, haunted funhouse,
-climbable coaster + game stalls), **Halloween night** theme, and the
-**proposed order** for the rest of their list (tablet + animated skins ->
-Trollernaut -> cinematics -> L4D mode). Design doc published:
+## RESUME HERE (2026-10-02, session 25) — phase 6 design doc REV 2 awaiting OK
+The user answered the phase 6 questions (new district, village untouched;
+all four rides; Halloween night; the proposed order for the rest of their
+list), then sent 3 inspiration photos (scratchpad park-refs/1-3.webp, NOT
+shipped): a white antebellum haunted mansion with green cast-iron lace
+galleries + giant pumpkin-head scarecrow; a skull-topped log-flume mountain
+at night with blue/green/red colour washes and a lantern-lined waterway;
+a vine-wrapped pumpkin fountain in front of a teal steel coaster + drop
+tower. They said "replan the plan ... take your time". Design doc rev 2:
 https://claude.ai/artifact/92dGJceNRbWv5zViUnxocN (scratchpad source
-hollowgrin-phase6.html). The plan: bounds maxX 51 -> 81 (132 x 90 m); the east
-field-stone wall becomes a park fence with 3 gates; the Ferris wheel (60, 2)
-comes in bounds with a base + 6 m service deck (cabins still art); the
-carousel stays at (44.5, -4) and gets a Blender model; "The Grinder" coaster
-in the NE (station ~(62, -16), lift-hill maintenance stair to a 9 m brake
-deck, track = art); "U Mad House" funhouse in the SE (walk in through the
-grin; mirror maze, tilted room, barrel tunnel, black-light room; corridors
->= 1.4 m); stall row on a N-S promenade (Balloon Pop, Shooting Gallery with
-flip-down tin trolls, Hook-a-Pepe, Cotton Candy, Corn Dogs); service yard
-in the SE corner. Models: mausoleum, barn, candy shop (colliders unchanged,
-ghosts). Light: moonlight tune, height-falloff ground fog, decor-only light;
-real lights <= 14 (funhouse + coaster station only). Build order 6a models +
-light, 6b park shell, 6c coaster, 6d funhouse, 6e bots/zombies/tuning.
-**Open decisions in the doc** (defaults in brackets): name [keep Grinmoor
-Fair], coaster train [runs every ~40 s, art], perches [keep both], barn loft
-playable [yes], funhouse scares [visual + quiet sting]. Get the OK, then 6a.
+hollowgrin-phase6.html). The plan: bounds maxX 51 -> 87 (138 x 90 m). Main
+gate opposite the carousel -> round plaza ~(60, 0) with the PUMPKIN FOUNTAIN
+(bronze troll with lantern on top) -> Ferris wheel MOVED to ~(79, 0) behind
+it (base + 6 m deck). Stalls row on the plaza's north edge. North: "The
+Grinder" now a STEEL coaster (teal track, tan supports, loop + corkscrew;
+station ~(62, -18); 9 m brake deck via lift-hill stair; train runs ~40 s;
+drop tower NE, art). South: "U Mad Mansion" (photo-1 mansion: iron-lace
+porches = alpha panels, playable upper balcony, 7 m trollface-pumpkin
+scarecrow, brick planter + queue rail; interior walk-through: stretching
+portraits, endless hall, ghost ballroom, mirror maze, pet-cemetery exit) on
+an island ringed by the flume WATERWAY (wade; 3 footbridges; lane enters
+over one). SE: SKULL MOUNTAIN (~15 m, trollface skull with red eyes, flume
+drop into a splash pool at ~(66, 40), cave flank path, 5 m ledge; logs
+animated). Night look = a "colour wash" shader chunk (emissive gradient
+fading with height) per material instead of real lights; real lights <= 14.
+No real-park branding (no Disney/Knott's names, no Jack/Sandy Claws
+costume). Order: 6a village models (mausoleum, barn, candy shop) + light +
+the wash shader, 6b park shell + plaza + fountain + wheel + stalls +
+carousel model, 6c mansion, 6d mountain + moat, 6e coaster + drop tower, 6f
+spawns/bots/zombies/tuning. **Open decisions** (defaults): 36 m strip
+[yes], park spawn pair per team [yes], moat [wade], 4 high spots [keep],
+name [Grinmoor Fair], barn loft / scare sting / moving rides [yes]. Get the
+OK, then 6a.
 
 ## RESUME HERE (2026-10-02, session 24, realism pass)
 User (after phase 5): "i want all objects in all maps to looks more realistic.
