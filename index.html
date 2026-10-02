@@ -91,16 +91,6 @@ textarea.home-field{min-height:120px;resize:vertical}
 .home-admin{display:flex;gap:8px;margin-top:16px}
 .home-admin .home-field{max-width:220px}
 .home-radio-now{font:500 15px var(--mono);color:var(--gold)}
-/* Troll Map mode: a card for the tapped troll, and the city search. */
-.home-pincard{position:absolute;z-index:5;display:flex;align-items:center;gap:12px;min-width:200px;max-width:280px;padding:10px 14px 10px 10px;background:var(--panel);border:1px solid rgba(255,176,32,.5);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.6);transform:translate(-50%,calc(-100% - 34px));pointer-events:none}
-.home-pincard[hidden]{display:none}
-.home-pincard img,.home-pincard .home-pincard-ph{width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#2a170d;display:flex;align-items:center;justify-content:center;font:600 18px var(--display);color:var(--hot)}
-.home-pincard b{display:block;font:500 18px/1.2 var(--display);letter-spacing:.03em;color:var(--gold);white-space:nowrap}
-.home-pincard span{display:block;font-size:13px;color:var(--soft)}
-.home-results{display:flex;flex-direction:column;margin-top:10px}
-.home-result{display:flex;flex-direction:column;align-items:flex-start;min-height:44px;padding:8px 10px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);text-align:left;cursor:pointer;font:500 16px var(--display);letter-spacing:.03em}
-.home-result small{font:13px var(--body);color:var(--dim);letter-spacing:0}
-.home-result:hover,.home-result:focus-visible{background:rgba(255,138,31,.16);outline:none}
 .is-map .home-acct,.is-map .home-hints{visibility:hidden}
 #spotify-embed{position:fixed;left:-10000px;top:0;width:300px;height:352px;opacity:0;pointer-events:none}
 
@@ -164,14 +154,6 @@ textarea.home-field{min-height:120px;resize:vertical}
     <div id="admin-auth-status" class="home-status" aria-live="polite"></div>
   </section>
 
-  <section class="home-panel" id="panel-search" aria-label="Find a city" hidden>
-    <label for="city-q" class="home-check">Search a city or town</label>
-    <input class="home-field" id="city-q" type="search" placeholder="e.g. Fontana" autocomplete="off" enterkeyhint="search">
-    <div class="home-results" id="city-results" aria-live="polite"></div>
-  </section>
-
-  <div class="home-pincard" id="home-pincard" hidden></div>
-
   <section class="home-panel" id="panel-radio" aria-label="Troll Radio" hidden>
 
     <p class="home-radio-now" id="radio-now">Not playing</p>
@@ -199,7 +181,9 @@ textarea.home-field{min-height:120px;resize:vertical}
 <script src="assets/js/troll-accounts.js?v=20260930a"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script type="module">
-import { createBo2Menu } from './assets/js/bo2-menu.js?v=home1';
+import { createBo2Menu } from './assets/js/bo2-menu.js?v=home2';
+import { joinSitePresence, viewerId } from './assets/js/site-presence.js?v=home2';
+import { createMapMode } from './assets/js/troll-map-mode.js?v=home2';
 
 const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
@@ -216,6 +200,18 @@ const openProfile = () => {
 const panel = (id, title, desc) => ({
   title, panel: id,
   groups: [[{ id: 'back', label: 'Back', desc, onSelect: (_, m) => m.back() }]],
+});
+
+const nav = $('home-menu');
+// Troll Map mode (shared with Troll Forces): the planet becomes the live map.
+const mapMode = createMapMode({
+  host: $('home'), panelClass: 'home-panel',
+  getBackdrop: () => backdrop, getMenu: () => menu,
+  getInset() {
+    const r = nav.getBoundingClientRect();
+    return matchMedia('(max-width:760px), (max-aspect-ratio:9/10)').matches
+      ? { bottom: Math.max(0, innerHeight - r.top + 8) } : { left: r.right + 24 };
+  },
 });
 
 const screens = {
@@ -271,33 +267,7 @@ const screens = {
   updates: panel('panel-updates', 'Latest Updates', 'Back to More.'),
   feedback: panel('panel-feedback', 'Feedback', 'Back to More.'),
   about: panel('panel-about', 'About', 'Back to More.'),
-  map: () => ({
-    title: 'Troll Map', map: true,
-    groups: [
-      [
-        { id: 'm-top', label: 'Top cities', value: trollCount(), desc: 'Where the most trolls are from. Pick one to fly there.', go: 'top' },
-        { id: 'm-find', label: 'Find a city', desc: 'Search any city or town and fly to it.', go: 'search' },
-      ],
-      [
-        { id: 'm-pin', label: 'Drop my pin', desc: 'Put your city on the map. Needs a linked X account; opens the pin flow.', onSelect: dropPin },
-        { id: 'm-full', label: 'Full map page', desc: 'The flat map, country stats and the rest of the map tools.', href: 'maps.html' },
-      ],
-      [{ id: 'back', label: 'Back', desc: 'Drag the planet to spin it, scroll or pinch to zoom, tap a glowing spot to see who is there.', onSelect: (_, m) => m.back() }],
-    ],
-  }),
-  top: () => ({
-    title: 'Top Cities', map: true,
-    groups: [
-      topCities.length
-        ? topCities.map((c, i) => ({ id: `t-${i}`, label: c.label, value: `${c.trolls} troll${c.trolls === 1 ? '' : 's'}`, desc: c.country ? `${c.label}, ${c.country}.` : c.label, onSelect: () => backdrop && backdrop.flyTo(c.lat, c.lng, 4) }))
-        : [{ id: 't-none', label: topLoading ? 'Loading...' : 'No pins yet', desc: topLoading ? 'Counting trolls.' : 'Be the first: Drop my pin.', disabled: true }],
-      [{ id: 'back', label: 'Back', desc: 'Back to the map menu.', onSelect: (_, m) => m.back() }],
-    ],
-  }),
-  search: {
-    title: 'Find a City', map: true, panel: 'panel-search',
-    groups: [[{ id: 'back', label: 'Back', desc: 'Back to the map menu.', onSelect: (_, m) => m.back() }]],
-  },
+  ...mapMode.screens,
   radio: () => ({
     title: 'Troll Radio', panel: 'panel-radio',
     groups: [
@@ -314,106 +284,21 @@ const screens = {
   }),
 };
 
-const PANELS = ['panel-updates', 'panel-feedback', 'panel-about', 'panel-radio', 'panel-search'];
-const nav = $('home-menu');
+const PANELS = ['panel-updates', 'panel-feedback', 'panel-about', 'panel-radio'];
 const menu = createBo2Menu(nav, {
   screens, keys: true,
   onScreen(id, s, m) {
     PANELS.forEach((p) => { $(p).hidden = p !== s.panel; });
-    document.body.classList.toggle('has-panel', !!s.panel);
+    document.body.classList.toggle('has-panel', !!s.panel || id === 'search');
     // The footer Back is for screens without their own Back row.
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === 'back');
     $('home-back').classList.toggle('is-on', m.depth() > 0 && !ownBack);
     if (s.panel === 'panel-updates') loadUpdates();
-    if (id === 'top') loadTop();
-    if (id === 'search') setTimeout(() => $('city-q').focus(), 50);
-    setMapMode(!!s.map);
+    mapMode.onScreen(id, s);
     document.documentElement.style.setProperty('--menu-h', `${nav.offsetHeight}px`);
   },
 });
 $('home-back').addEventListener('click', () => menu.back());
-
-/* ── Troll Map mode: the backdrop planet becomes the live map ─────────── */
-var topCities = [], topLoading = false, topAt = 0;
-const trollCount = () => (backdrop && backdrop.pins.length ? `${backdrop.pins.length} trolls` : '');
-function dropPin() {
-  try { sessionStorage.setItem('trollrunner_maps_pin_intent', '1'); } catch {}
-  location.href = 'maps.html';
-}
-async function loadTop() {
-  if (topLoading || Date.now() - topAt < 60000) return;
-  const sb = accounts() && accounts().getClient && accounts().getClient();
-  if (!sb) return;
-  topLoading = true;
-  try {
-    const { data } = await sb.rpc('troll_top_locations', { p_limit: 8 });
-    topCities = (data || []).map((r) => ({ label: r.label, country: r.country, trolls: Number(r.trolls) || 0, lat: r.lat, lng: r.lng }));
-    topAt = Date.now();
-  } catch {}
-  topLoading = false;
-  if (menu.current() === 'top') { menu.refresh(); if (topCities.length) menu.highlight('t-0'); }
-}
-function showPinCard(pin, point) {
-  const card = $('home-pincard');
-  if (!pin) { card.hidden = true; return; }
-  card.replaceChildren();
-  let face;
-  if (pin.avatarUrl) { face = document.createElement('img'); face.src = pin.avatarUrl; face.alt = ''; }
-  else { face = document.createElement('span'); face.className = 'home-pincard-ph'; face.textContent = (pin.username || '?')[0].toUpperCase(); }
-  const txt = document.createElement('div');
-  const b = document.createElement('b'); b.textContent = `${pin.username} · LV ${pin.level}`;
-  const where = document.createElement('span'); where.textContent = [pin.label, pin.country].filter(Boolean).join(', ');
-  txt.append(b, where);
-  card.append(face, txt);
-  card.style.left = `${point.x}px`;
-  card.style.top = `${point.y}px`;
-  card.hidden = false;
-}
-var wantMap = false;   // var: onScreen runs while the menu is being built
-async function setMapMode(on) {
-  wantMap = on;
-  if (!on) $('home-pincard').hidden = true;
-  if (!backdrop || !backdrop.map) {
-    if (on) location.href = 'maps.html';   // no WebGL / not loaded: the map page
-    return;
-  }
-  if (on === backdrop.isMap) return;
-  document.body.classList.toggle('is-map', on);
-  const narrow = matchMedia('(max-width:760px), (max-aspect-ratio:9/10)').matches;
-  const r = nav.getBoundingClientRect();
-  const inset = narrow ? { bottom: Math.max(0, innerHeight - r.top + 8) } : { left: r.right + 24 };
-  const done = on ? await backdrop.enterMap({ onPin: showPinCard, inset }) : await backdrop.exitMap();
-  if (done && wantMap !== on) setMapMode(wantMap);   // the user moved on mid-ease
-  if (on && menu.current() === 'map') menu.refresh();  // the troll count arrives
-}
-let searchCtl = null, searchTimer = 0;
-$('city-q').addEventListener('input', () => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(async () => {
-    const q = $('city-q').value.trim();
-    const out = $('city-results');
-    if (q.length < 2) { out.replaceChildren(); return; }
-    if (searchCtl) searchCtl.abort();
-    searchCtl = new AbortController();
-    try {
-      const url = new URL('https://nominatim.openstreetmap.org/search');
-      url.search = new URLSearchParams({ q, format: 'jsonv2', addressdetails: '1', limit: '6', featureType: 'settlement' });
-      const res = await fetch(url, { signal: searchCtl.signal, headers: { Accept: 'application/json' } });
-      const places = res.ok ? await res.json() : [];
-      out.replaceChildren(...places.map((pl) => {
-        const a = pl.address || {};
-        const btn = document.createElement('button');
-        btn.type = 'button'; btn.className = 'home-result';
-        btn.textContent = a.city || a.town || a.village || a.municipality || a.county || pl.name || pl.display_name.split(',')[0];
-        const sm = document.createElement('small'); sm.textContent = pl.display_name;
-        btn.appendChild(sm);
-        btn.addEventListener('click', () => backdrop && backdrop.flyTo(Number(pl.lat), Number(pl.lon), 4.5));
-        return btn;
-      }));
-      if (!places.length) out.textContent = 'Nothing found.';
-    } catch (e) { if (e.name !== 'AbortError') out.textContent = 'Search is unavailable right now.'; }
-  }, 450);   // Nominatim asks for under 1 request a second
-});
 
 /* ── Account row ──────────────────────────────────────────────────────── */
 function renderAccount() {
@@ -439,70 +324,6 @@ $('home-acct-row').addEventListener('click', openProfile);
 window.addEventListener('trollrunner:auth-changed', renderAccount);
 document.addEventListener('DOMContentLoaded', renderAccount);
 renderAccount();
-
-/* ── Who's online ─────────────────────────────────────────────────────────
-   Same channel and payload as world.html and troll-presence.js, deduped by
-   viewerId; getViewerRoster stays global because troll-accounts.js reads it
-   for friend-list online dots on every trollrunner:presence-sync. */
-const VIEWER_ID_KEY = 'trollrunner_viewer_id_v1';
-function viewerId() {
-  try {
-    let id = localStorage.getItem(VIEWER_ID_KEY);
-    if (!id) {
-      id = crypto.randomUUID ? crypto.randomUUID() : `viewer-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      localStorage.setItem(VIEWER_ID_KEY, id);
-    }
-    return id;
-  } catch { return `viewer-${Date.now()}`; }
-}
-const onlineAt = new Date().toISOString();
-let presence = null;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function payload() {
-  const a = accounts() && accounts().getCachedProfile && accounts().getCachedProfile();
-  return {
-    viewerId: viewerId(), userId: a?.userId || null, username: a?.username || null,
-    avatarUrl: a?.avatarUrl || null, level: a?.level || null,
-    host: location.hostname, path: location.pathname, activeWindow: null,
-    onlineAt, trackedAt: new Date().toISOString(),
-  };
-}
-window.getViewerRoster = function getViewerRoster() {
-  const byViewer = new Map();
-  const state = presence ? presence.presenceState() : {};
-  Object.values(state).flat().forEach((e) => {
-    if (!e || !e.viewerId) return;
-    const prev = byViewer.get(e.viewerId);
-    if (!prev || String(e.trackedAt) >= String(prev.trackedAt)) byViewer.set(e.viewerId, e);
-  });
-  if (!byViewer.size) byViewer.set(viewerId(), payload());
-  const members = new Map(), guests = [];
-  byViewer.forEach((e) => {
-    const uid = UUID.test(String(e.userId || '')) ? e.userId : null;
-    if (uid && e.username) members.set(uid, { userId: uid, username: String(e.username).slice(0, 20), level: Math.max(1, e.level || 1), avatarUrl: e.avatarUrl || null, activeWindow: e.activeWindow === 'games' ? 'games' : null });
-    else guests.push(e);
-  });
-  guests.sort((a, b) => String(a.onlineAt).localeCompare(String(b.onlineAt)) || String(a.viewerId).localeCompare(String(b.viewerId)));
-  return { members: [...members.values()], guests: guests.map((g, i) => ({ viewerId: g.viewerId, label: `Guest${String(i + 1).padStart(3, '0')}` })) };
-};
-function syncOnline() {
-  const r = window.getViewerRoster();
-  const n = Math.max(1, r.members.length + r.guests.length);
-  $('home-online').textContent = `${n} Online`;
-  window.dispatchEvent(new CustomEvent('trollrunner:presence-sync'));
-}
-function joinPresence() {
-  if (!window.supabase) return;
-  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
-  presence = client.channel('trollrunner-site-presence', { config: { presence: { key: viewerId() } } });
-  let joined = false;
-  const retrack = async () => { if (!joined) return; try { await presence.untrack(); await presence.track(payload()); } catch {} };
-  presence.on('presence', { event: 'sync' }, syncOnline).subscribe((status) => {
-    if (status === 'SUBSCRIBED') { joined = true; presence.track(payload()); }
-  });
-  setInterval(retrack, 30000);
-  window.addEventListener('trollrunner:auth-changed', retrack);
-}
 
 // One view per day per tab session for the admin analytics (admins skipped).
 async function recordView() {
@@ -721,7 +542,7 @@ document.addEventListener('keydown', (e) => {
 
 /* ── Boot: menu first, then the network, then the planet ──────────────── */
 function bootLater() {
-  joinPresence();
+  joinSitePresence({ onCount: (n) => { $('home-online').textContent = `${n} Online`; } });
   recordView();
   refreshLive();
   setInterval(() => { if (!document.hidden) refreshLive(); }, 30000);
@@ -732,7 +553,7 @@ var backdrop = null;   // var: read by menu callbacks that can run before this l
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
 window.addEventListener('load', () => idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home1');
+    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home2');
     backdrop = mountMenuBackdrop($('home-backdrop'));
     document.querySelector('.home-still')?.remove();
     window.__trHome = { backdrop, menu };   // for headless tests
