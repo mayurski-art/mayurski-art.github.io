@@ -90,9 +90,19 @@ the main menu redesign (self-contained, menu files only).
 3. **Redesign the zombies "like actual zombies"** (user, 2026-10-02, NOT
    started). Their reference: a Resident Evil-style rotting zombie with
    grey-green decayed skin, milky white eyes, torn lips showing the teeth,
-   and a blood-stained, torn shirt. The image itself was NOT saved (pasted
-   in chat only): ask the user to put it in the repo (e.g.
-   assets/games/troll-ops/refs/zombie-ref.jpg) before designing. Design doc
+   and a blood-stained, torn shirt. A second ref (2026-10-02): a swamp horde
+   in the style of Back 4 Blood: a gaunt zombie LEAPING at the camera with
+   long, overlong arms and hooked claws, a rotted, bloody chest, torn green
+   trousers; ordinary-clothed runners sprinting through water behind it;
+   fog and reeds. So: plain-clothed walkers/runners plus a lanky leaper
+   variant. **Reference images are LOCAL ONLY, untracked on purpose** (other
+   studios' screenshots; the repo is public): the main checkout's
+   assets/games/troll-ops/refs/ holds zombie-ref.png,
+   mannequin-nuketown-ref.webp, church-nave-ref.webp, church-dome-ref.webp,
+   menu-bo2-zombies-ref.png (worktrees: read them by absolute path from
+   C:/Users/mayur/OneDrive/Documents/GitHub/mayurski-art.github.io/...).
+   The horde image wasn't saved; ask the user to re-send it if needed.
+   Never commit refs/. Design doc
    first: how the models are made (Blender), variants (shirt colours,
    wounds, a few body types), animation (shamble, lunge, crawl?), and keep
    the hitboxes zombies.js already uses. Self-contained (zombies.js +
