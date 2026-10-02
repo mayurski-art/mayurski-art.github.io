@@ -56,6 +56,17 @@ const CSS = `
   calc(var(--limb-dx) * -.6) calc(var(--limb-dy) * -.6) calc(var(--pr) * .12) calc(var(--pr) * .01) rgba(255,120,40,.35)}
 .tr-space-rocks{position:absolute;inset:0;width:100%;height:100%}
 .tr-space-vignette{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.5) 0,rgba(0,0,0,.25) 26%,rgba(0,0,0,0) 42%),radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,.6) 100%)}
+/* Map mode: the planet becomes the interactive troll map. */
+.tr-space.is-map{pointer-events:none}
+.tr-space.is-map .tr-space-planet{left:0;top:0;width:100%;height:100%;pointer-events:auto}
+.tr-space.is-map .tr-space-planet canvas{touch-action:none;cursor:grab}
+.tr-space.is-map .tr-space-planet canvas:active{cursor:grabbing}
+.tr-space.is-map .tr-space-planet.is-pin canvas{cursor:pointer}
+.tr-space-limb,.tr-space-shade,.tr-space-rocks,.tr-space-vignette{transition:opacity .5s ease}
+.tr-space.is-map .tr-space-limb,.tr-space.is-map .tr-space-shade,.tr-space.is-map .tr-space-standin{opacity:0}
+.tr-space.is-map .tr-space-rocks{opacity:.35}
+.tr-space.is-map .tr-space-vignette{opacity:.6}
+.tr-space.is-swap .tr-space-planet{transition:none}
 @media (prefers-reduced-motion: reduce){.tr-space-rays{animation:none}}
 `;
 
@@ -82,21 +93,29 @@ function webglOk() {
   } catch { return false; }
 }
 
+// Same view and columns as maps.html (troll-map.js listPins). RLS keeps
+// hidden pins out; coordinates are already rounded to ~1 km server-side.
 async function loadPins() {
   const A = window.TrollrunnerAccounts;
   const sb = A && A.getClient && A.getClient();
   if (!sb) return [];
   try {
-    const { data, error } = await sb.from("troll_locations_view").select("lat, lng").limit(5000);
+    const { data, error } = await sb.from("troll_locations_view")
+      .select("user_id, lat, lng, label, country, username, avatar_url, level")
+      .order("updated_at", { ascending: false }).limit(5000);
     if (error) return [];
-    return (data || []).filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng));
+    return (data || []).filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng)).map((r) => ({
+      userId: r.user_id, lat: r.lat, lng: r.lng, label: r.label || "", country: r.country || "",
+      username: r.username || "troll", avatarUrl: r.avatar_url || "", level: r.level || 1,
+    }));
   } catch { return []; }
 }
 
 const pinsGeo = (pins) => ({
   type: "FeatureCollection",
-  features: pins.map((p) => ({ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [p.lng, p.lat] } })),
+  features: pins.map((p, i) => ({ type: "Feature", properties: { i }, geometry: { type: "Point", coordinates: [p.lng, p.lat] } })),
 });
+const MAP_HANDLERS = ["dragPan", "scrollZoom", "touchZoomRotate", "doubleClickZoom", "keyboard"];
 
 // Seeded so the crust and the rocks are the same every visit.
 function rng(seed) {
@@ -153,10 +172,12 @@ function style() {
         paint: { "line-color": "#ff8a24", "line-width": 2.2, "line-blur": 1 } },
       { id: "crack", type: "line", source: "countries",
         paint: { "line-color": "#ffe0a0", "line-width": 0.7 } },
+      // Each troll is a hot spot: a wide glow and a white-hot core.
       { id: "pin-glow", type: "circle", source: "pins",
-        paint: { "circle-color": "#ff8a2a", "circle-radius": 10, "circle-blur": 1, "circle-opacity": 0.75 } },
+        paint: { "circle-color": "#ff9a3a", "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 16, 5, 34], "circle-blur": 0.8, "circle-opacity": 0.95 } },
       { id: "pin", type: "circle", source: "pins",
-        paint: { "circle-color": "#fff4cc", "circle-radius": 2.4 } },
+        paint: { "circle-color": "#fff6d8", "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 4, 5, 7],
+          "circle-stroke-color": "#ffcf70", "circle-stroke-width": 1 } },
     ],
   };
 }
@@ -239,6 +260,9 @@ export function mountMenuBackdrop(host) {
 
   let map = null, raf = 0, last = 0, paused = false, dead = false;
   let geom = null;
+  let pins = [];
+  let mapMode = null;      // { onPin, inset } while the planet is the live map
+  let busy = false;        // a mode change is easing
 
   // Lay out the planet and the sun from the host's size.
   function layout() {
@@ -259,7 +283,7 @@ export function mountMenuBackdrop(host) {
     for (const cv of [farCv, nearCv]) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
     // Rocks scale with the screen, so a phone isn't all boulder.
     geom = { w, h, pr, px, py, sun: { x: sx / w, y: sy / h }, dpr, rockScale: dpr * Math.min(1, Math.min(w, h) / 900) };
-    if (map) { map.resize(); fitZoom(); }
+    if (map) { map.resize(); if (!mapMode && !busy) fitZoom(); }
   }
   // Zoom so MapLibre's globe radius on screen matches --pr. Its perspective
   // camera makes the formula only approximate, so measure: walk north from
@@ -294,7 +318,7 @@ export function mountMenuBackdrop(host) {
     if (paused || dead) return;
     const dt = last && !still ? Math.min(0.1, (t - last) / 1000) : 0;
     last = t;
-    if (map) {
+    if (map && !mapMode && !busy) {
       const c = map.getCenter();
       map.setCenter([((c.lng + SPIN * dt + 540) % 360) - 180, c.lat]);
     }
@@ -324,10 +348,23 @@ export function mountMenuBackdrop(host) {
         style: style(),
         center: [-30, TILT_LAT],
         zoom: 1,
-        interactive: false,
         attributionControl: false,
         fadeDuration: 0,
+        dragRotate: false,
+        pitchWithRotate: false,
+        boxZoom: false,
+        maxZoom: 6,
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+      });
+      // Handlers exist but stay off until map mode turns them on.
+      MAP_HANDLERS.forEach((h) => map[h] && map[h].disable());
+      // queryRenderedFeatures doesn't report circles on the globe, so hit
+      // test by hand: the nearest troll on the facing side within a finger.
+      map.on("mousemove", (e) => { if (mapMode) planetEl.classList.toggle("is-pin", !!pinAt(e.point, 14)); });
+      map.on("click", (e) => {
+        if (!mapMode || !mapMode.onPin) return;
+        const hit = pinAt(e.point, 22);
+        mapMode.onPin(hit ? hit.pin : null, hit ? hit.at : e.point);
       });
       map.on("style.load", () => {
         map.setProjection({ type: "globe" });
@@ -338,16 +375,120 @@ export function mountMenuBackdrop(host) {
         map.once("idle", () => planetEl.classList.add("is-ready"));
       });
       map.on("error", (e) => console.warn("[menu-globe]", e && e.error ? e.error.message : e));
-      loadPins().then((pins) => {
-        if (dead || !map || !pins.length) return;
-        const set = () => map.getSource("pins") && map.getSource("pins").setData(pinsGeo(pins));
-        if (map.isStyleLoaded()) set(); else map.once("style.load", set);
-      });
+      refreshPins();
     }).catch((e) => console.warn("[menu-globe]", e.message));
+  }
+
+  function pinAt(point, maxPx) {
+    const c = map.getCenter();
+    const rad = Math.PI / 180;
+    let best = null;
+    for (const pin of pins) {
+      // Skip the far side of the planet (angular distance from the centre).
+      const cosd = Math.sin(c.lat * rad) * Math.sin(pin.lat * rad) + Math.cos(c.lat * rad) * Math.cos(pin.lat * rad) * Math.cos((pin.lng - c.lng) * rad);
+      if (cosd < 0.15) continue;
+      const at = map.project([pin.lng, pin.lat]);
+      const d = Math.hypot(at.x - point.x, at.y - point.y);
+      if (d <= maxPx && (!best || d < best.d)) best = { pin, at, d };
+    }
+    return best;
+  }
+
+  async function refreshPins() {
+    const list = await loadPins();
+    if (dead || !map) return pins;
+    pins = list;
+    const set = () => map.getSource("pins") && map.getSource("pins").setData(pinsGeo(pins));
+    if (map.isStyleLoaded()) set(); else map.once("style.load", set);
+    return pins;
+  }
+
+  // MapLibre's camera centres the globe in the padded area, so padding is
+  // how the planet stays put while its box changes size.
+  function paddingFor(cx, cy, w, h) {
+    return {
+      left: Math.max(0, 2 * cx - w), right: Math.max(0, w - 2 * cx),
+      top: Math.max(0, 2 * cy - h), bottom: Math.max(0, h - 2 * cy),
+    };
+  }
+  function zoomForRadius(r) {
+    const now = limbRadius();
+    return now > 1 ? map.getZoom() + Math.log2(r / now) : map.getZoom();
+  }
+  const settle = () => new Promise((res) => {
+    let done = false;
+    const end = () => { if (!done) { done = true; res(); } };
+    map.once("moveend", end);
+    setTimeout(end, 1600);
+  });
+
+  // inset: { left, bottom } px of screen the page's own UI covers, so the
+  // live globe sits in the open part of the screen.
+  async function enterMap({ onPin = null, inset = {} } = {}) {
+    if (!map || mapMode || busy) return false;
+    busy = true;
+    const { w, h, px, py, pr } = geom;
+    // Swap the planet's box to full screen without the globe moving...
+    root.classList.add("is-swap", "is-map");
+    map.resize();
+    map.jumpTo({ padding: paddingFor(px, py, w, h) });
+    map.setZoom(zoomForRadius(pr));
+    root.classList.remove("is-swap");
+    // ...then ease it into the open area, big.
+    const left = inset.left || 0, bottom = inset.bottom || 0;
+    const aw = w - left, ah = h - bottom;
+    const cx = left + aw / 2, cy = ah / 2;
+    const target = Math.min(aw, ah) * 0.44;
+    const pad = paddingFor(cx, cy, w, h);
+    map.jumpTo({ padding: pad });
+    const z = zoomForRadius(target);
+    map.jumpTo({ padding: paddingFor(px, py, w, h) });
+    map.easeTo({ padding: pad, zoom: z, duration: still ? 0 : 900 });
+    await settle();
+    MAP_HANDLERS.forEach((k) => map[k] && map[k].enable());
+    map.setMinZoom(Math.max(0, z - 0.6));
+    mapMode = { onPin, inset };
+    busy = false;
+    refreshPins();
+    return true;
+  }
+
+  async function exitMap() {
+    if (!map || !mapMode || busy) return false;
+    busy = true;
+    MAP_HANDLERS.forEach((k) => map[k] && map[k].disable());
+    mapMode = null;
+    planetEl.classList.remove("is-pin");
+    map.setMinZoom(0);
+    const { w, h, px, py, pr } = geom;
+    const pad = paddingFor(px, py, w, h);
+    const keep = { center: map.getCenter(), zoom: map.getZoom(), padding: map.getPadding() };
+    map.jumpTo({ padding: pad, center: [keep.center.lng, TILT_LAT] });
+    const z = zoomForRadius(pr);
+    map.jumpTo(keep);
+    map.easeTo({ padding: pad, zoom: z, center: [keep.center.lng, TILT_LAT], duration: still ? 0 : 800 });
+    await settle();
+    root.classList.add("is-swap");
+    root.classList.remove("is-map");
+    map.resize();
+    map.jumpTo({ padding: { left: 0, right: 0, top: 0, bottom: 0 } });
+    fitZoom();
+    root.classList.remove("is-swap");
+    busy = false;
+    run();
+    return true;
+  }
+
+  function flyTo(lat, lng, zoom = 4) {
+    if (!map || !mapMode) return;
+    map.flyTo({ center: [lng, lat], zoom, duration: still ? 0 : 1600, essential: true });
   }
 
   return {
     get map() { return map; },
+    get pins() { return pins; },
+    get isMap() { return !!mapMode; },
+    enterMap, exitMap, flyTo, refreshPins,
     pause() { paused = true; if (raf) cancelAnimationFrame(raf); raf = 0; root.style.visibility = "hidden"; },
     resume() { paused = false; root.style.visibility = ""; run(); },
     destroy() { dead = true; ro.disconnect(); if (raf) cancelAnimationFrame(raf); if (map) map.remove(); map = null; root.remove(); },
