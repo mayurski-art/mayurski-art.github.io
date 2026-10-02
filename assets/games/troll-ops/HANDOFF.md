@@ -1,6 +1,77 @@
 # Troll Ops hand-off — 2026-10-02 (session 24)
 
-## RESUME HERE (2026-10-02, session 24)
+## RESUME HERE (2026-10-02, session 24, later)
+Phase 4 got the user's OK ("continue"). **Phase 5 (PvP second pass) SHIPPED**
+(section below): show the shots, get the OK at the gate, then phase 6
+(Hollowgrin models). **The user's new list (2026-10-02)**, not started, to
+be ordered with the user (design doc first for the big ones):
+1. Hollowgrin: expand/modify it to have an amusement park (fold into phase 6?).
+2. Tablet scorestreaks: more animation, e.g. the right hand presses confirm;
+   the tablet must never say "boarding" / "onboarding".
+3. Troll Royale bus deploy: really good third-person AND first-person
+   shots when players jump off the bus.
+4. **Pointstreaks**, a new kind of streak. First one: **Trollernaut**, the
+   player turns into a giant troll monster: 10 s invincible, then 3x health
+   but 0.75x movement speed.
+5. Cinematic intro of both teams at the start of every Team Deathmatch and
+   Search & Destroy.
+6. Animated weapon skins with effects coming off them (certain skins).
+7. **"For You"**: an optional emote on the emote wheel that only works
+   while falling from the sky in Troll Royale: the trollface reaches out his
+   hand as if romantically saving someone; cinematic shots (face, hand,
+   body, background...).
+8. BUG: on mobile you can't swap guns in the VTOL Warship.
+
+## Map detail pass phase 5 (PvP second pass) SHIPPED (2026-10-02) — `game.js?v=to-dr1`, `maps.js?v=dr1`, `loadout.js?v=dr1`, `map-dressing.js?v=dr1`
+- **map-dressing.js** (new): a map opts in with `dress` (maps.js "dressing"
+  section, after the MAPS table); buildMap calls `dressMap(root, colliders,
+  map)` after build, so the seeded scatter keeps clear of every collider
+  (a collider topping out at the floor counts as floor: `areas` take a
+  floor y, e.g. Undergrin's platforms at 1.1), spawns (`spawnPad`) and
+  `avoid` rects (house floors, the pier). Decoration only: no colliders.
+  - Decals: ONE merged mesh per map off a 4x4 canvas atlas (`DECAL`: crack,
+    oil, tyre, scorch, grin, puddle, dirt, leaves, steps, ripples, splat,
+    drain, stripe, wrack, streak, tag), tinted by vertex colour+alpha;
+    `decals` scatter, `place` exact spots (`wall: yaw` stands one up).
+  - Clutter: one InstancedMesh per kind (pebble, rubble, can, bottle, paper,
+    plank, rebar, cone, tuft, weed, shrub, jar, basket, cardboard, pallet,
+    shell, seaweed, towel, bucket, castle, ball, leafpile, hose, ticket),
+    no shadow casting. Thinned by tier through `userData.clutterShare`
+    (low 0.4 / medium 0.7 / high 1); game.js applyClutter reads it (the
+    island's own clutter keeps CLUTTER_SHARE).
+- **Grin Beach**: the ground is the textured sand now (was the grid
+  shader); the sea is `beachWaterMaterial` (lit MeshStandard +
+  onBeforeCompile: shallow turquoise -> deep blue, 4 travelling-sine wave
+  normals faded with distance, a swash foam line washing up to the seawall
+  plus broken breakers ~7 m out; uTime set in onBeforeRender). The old
+  wet-sand and foam planes are gone. Towels, buckets, sandcastles, balls,
+  shells, kelp, dune grass, ripples, footprints, a tideline of wrack, a grin
+  drawn in the sand, sand blown onto the boardwalk, lot oil/cracks.
+- Grin Site: muck, puddles, tyre tracks, oil under the van/forklift, cracks
+  on the slab + L1 deck, a pink sprayed grin on the slab; pebbles, rubble,
+  offcuts, rebar, cones, cans, litter, weeds along the hoardings.
+  Dust Bowl: dirt, tracks, footprints, riverbed ripples, scorch round the
+  wrecked truck, a grin on the centre roof; pebbles, scrub, dry weeds, clay
+  jars + baskets in the market, litter. Depot: yellow aisle lines, oil,
+  forklift tracks, cracks, drains, a pink grin on the north wall over the
+  catwalk; boxes, pallets, litter. Cul-de-Grin: leaf drifts + grass tufts on
+  the lawns, leaf piles, hoses, balls; road cracks/oil/tracks/drains, a
+  pink chalk grin + paint splat on the road. Undergrin: decals only
+  (grime, cracks, puddles on the platforms, oil in the track bed).
+- Audit: all six PASS, collider counts unchanged. fps (tools/troll-ops-
+  map-fps.mjs; noisy, first map of a run reads low): before grinsite 39.3 /
+  dustbowl 43.5 / depot 38.3 / undergrin 43 / culdegrin 41 / grinbeach 42;
+  after (best of runs) 42.8 / 45.3 / 39.5 / 39.5 / 44 / 46.3; +5..15 draws.
+- Previews re-rendered (ui/maps/*.jpg). tools/troll-ops-map-shots.mjs now
+  takes MODE=view (owner stub + View mode: no bots, HUD or gun in shots;
+  in ops mode the bots' hits tint every shot red).
+- Shot views (scratchpad only): grinbeach sea [0,0,-6 -> 0,0,-40], aerial
+  [0,16,14 -> 0,0,-18], walk [-20,0.45,12 -> 0,1,12]; grinsite aerial
+  [0,14,30 -> 0,0,0]; dustbowl channel [-25,0,25 -> 10,0,25]; depot aisle
+  [-26,0,-5.5 -> 10,0.5,-5.5]; culdegrin road [0,0,26 -> 0,0,6], lawn
+  [-27,0,-12 -> -22,0,8].
+
+## (previous) RESUME HERE (2026-10-02, session 24, before phase 5)
 Phase 3 got the user's OK ("continue"). **Phase 4 (island landmarks B)
 SHIPPED** (section below): show the user the shots, get their OK at the
 gate, then **phase 5 = PvP second pass** (per the design doc; Grin Beach

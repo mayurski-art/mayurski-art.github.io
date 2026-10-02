@@ -19,6 +19,7 @@ import {
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js";
 import { gsModel, mapModel } from "./map-models.js";
+import { dressMap, beachWaterMaterial } from "./map-dressing.js?v=dr1";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,
@@ -1066,7 +1067,7 @@ export const MAPS = {
     // open-beach bounce light does in reality.
     sky: { top: 0x2f6ea8, horizon: 0xf2a86a, bottom: 0xc6dae2, sun: 1.4, sunSize: 0.04, haze: 0.45, clouds: 0.3, cloudColor: 0xfff2e0, cloudShade: 0xa8a4b4 },
     fog: { color: 0xd8bea4, density: 0.0055 },
-    ground: { colorA: 0xd6c194, colorB: 0xbfa97c, grid: 0xe6d6ae },
+    ground: { colorA: 0xd6c194, colorB: 0xbfa97c, grid: 0xe6d6ae, surface: "sand", tile: 3.5 },
     sun: { color: 0xffe2b4, intensity: 2.4, pos: [-22, 26, -52] },
     hemi: { sky: 0xcce8ff, ground: 0xc4b087, intensity: 2.6 },
     ambient: { color: 0xfff0dd, intensity: 0.75 },
@@ -1084,29 +1085,17 @@ export const MAPS = {
       // shoreline and hang over the sea. The water is therefore laid *over*
       // that overhang (slightly proud of it) and run out far enough to meet
       // the fog, which hides its far edge.
-      const water = new THREE.Mesh(
-        new THREE.PlaneGeometry(260, 200),
-        new THREE.MeshStandardMaterial({ color: 0x2f7fa8, roughness: 0.16, metalness: 0.5 }),
-      );
+      // The sea (phase 5): shallows to deep blue, travelling wave normals and
+      // a foam line washing up to the seawall (map-dressing.js). It starts
+      // under the seawall, so the wall is the tideline.
+      const sea = beachWaterMaterial({ shore: -21 });
+      const water = new THREE.Mesh(new THREE.PlaneGeometry(260, 200), sea);
       water.rotation.x = -Math.PI / 2;
-      water.position.set(0, 0.05, -122);
+      water.position.set(0, 0.05, -121);
+      water.receiveShadow = true;
+      water.onBeforeRender = () => { sea.userData.seaUniforms.uTime.value = performance.now() / 1000; };
       api.prop(water);
-      // wet sand then a foam line at the tideline, so the sand meets the sea
-      // as a gradient rather than one hard seam
-      const wet = new THREE.Mesh(
-        new THREE.PlaneGeometry(260, 6),
-        new THREE.MeshStandardMaterial({ color: 0xa48f66, roughness: 0.5 }),
-      );
-      wet.rotation.x = -Math.PI / 2;
-      wet.position.set(0, 0.04, -25);
-      api.prop(wet);
-      const foam = new THREE.Mesh(
-        new THREE.PlaneGeometry(260, 2.4),
-        new THREE.MeshStandardMaterial({ color: 0xeef6f4, roughness: 0.6 }),
-      );
-      foam.rotation.x = -Math.PI / 2;
-      foam.position.set(0, 0.06, -22.2);
-      api.prop(foam);
+      water.castShadow = false;
       // Knee-high seawall at the tideline. Deliberately low: it marks the
       // edge of play and gives prone cover, but anything taller turns the
       // ocean — the thing that makes this read as a beach at all — into a
@@ -1365,6 +1354,166 @@ export const MAPS = {
 
 };
 
+/* -------------------------------------------------------------- dressing */
+// Map detail pass phase 5: ground decals and loose clutter on the PvP maps
+// (map-dressing.js). Decoration only: no colliders, nothing above the shin,
+// and the scatter keeps clear of every collider and spawn, so nothing about
+// how a map plays moves. Undergrin gets decals only (one merged mesh): it is
+// already the slowest map.
+const SOOT = 0x14110e, MUCK = 0x2e2418;
+MAPS.grinsite.dress = {
+  seed: 31,
+  areas: { slab: [-29.5, -11.5, -16.5, 11.5, 1.2], deck: [-8, -6, 8, 6, 3.5], edge: [-32, -32, 32, -26], edge2: [-32, 26, 32, 32] },
+  decals: [
+    { cell: "dirt", n: 70, size: [2, 5], color: MUCK, alpha: 0.7 },
+    { cell: "puddle", n: 16, size: [1.2, 3.2], color: 0x1c1a16, alpha: 0.55 },
+    { cell: "tyre", n: 26, size: [1.6, 2.2], stretch: 3, color: 0x140f08, alpha: 0.75 },
+    { cell: "oil", n: 8, size: [1, 2], color: SOOT, alpha: 0.6 },
+    { cell: "crack", n: 14, area: "slab", size: [1.5, 3], color: 0x2a2826, alpha: 0.75 },
+    { cell: "crack", n: 10, area: "deck", size: [1.5, 3], color: 0x2a2826, alpha: 0.75 },
+    { cell: "dirt", n: 10, area: ["slab", "deck"], size: [1.5, 3], color: 0x4a3a28, alpha: 0.4 },
+  ],
+  place: [
+    { cell: "grin", x: -21.5, z: -3, y: 1.2, size: 4.2, rot: 0.3, color: 0xff4fa0, alpha: 0.85 },
+    { cell: "oil", x: 3, z: 19, size: 2.6, color: SOOT, alpha: 0.7 },          // under the van
+    { cell: "oil", x: 19.5, z: 19, size: 1.8, color: SOOT, alpha: 0.7 },       // under the forklift
+  ],
+  clutter: [
+    { kind: "pebble", n: 260, size: [0.12, 0.38], colors: [0x8a8478, 0x6e6a62, 0x9a8a72, 0x5e564a] },
+    { kind: "rubble", n: 70, size: [0.7, 1.2], colors: [0x8a867c, 0x76726a, 0x9a9284] },
+    { kind: "rubble", n: 18, area: "slab", size: [0.6, 1], colors: [0xa8a49a, 0x8e8a80] },
+    { kind: "plank", n: 40, size: [0.8, 1.6], colors: [0xb8925c, 0xa07a48, 0xc8a670] },
+    { kind: "rebar", n: 26, size: [0.8, 1.4], colors: [0x6a3a22, 0x7a4a2a] },
+    { kind: "cone", n: 16, size: [0.9, 1.1], colors: [0xff6a1a, 0xff7a24] },
+    { kind: "can", n: 36, size: [1, 1], colors: [0xd8302a, 0x2a6ad8, 0xe8e8e8, 0x2aa84a] },
+    { kind: "paper", n: 30, size: [0.6, 1], colors: [0xc8c4b8, 0xb8b09a, 0xa8a8a0] },
+    { kind: "weed", n: 170, area: ["edge", "edge2"], size: [0.7, 1.3], colors: [0xb8c070, 0xa0a858, 0xc8b878] },
+  ],
+};
+MAPS.dustbowl.dress = {
+  seed: 47,
+  areas: { market: [-30, 4, 30, 12], channel: [-34, 20.5, 34, 29.5] },
+  // house floors
+  avoid: [[-5, -8, 5, 0], [-20, -3, -12, 3], [12, -3, 20, 3], [-26, 12, -18, 16], [-11, 12, -3, 16], [4, 12, 12, 16], [18, 12, 26, 16]],
+  decals: [
+    { cell: "dirt", n: 60, size: [2, 5], color: 0x6a4a2a, alpha: 0.4 },
+    { cell: "tyre", n: 14, size: [1.6, 2.2], stretch: 3, color: 0x4a3420, alpha: 0.4 },
+    { cell: "steps", n: 36, size: [1, 1.4], stretch: 2.2, color: 0x6a5030, alpha: 0.35 },
+    { cell: "ripples", n: 26, area: "channel", size: [3, 6], color: 0x7a5a36, alpha: 0.35 },
+    { cell: "oil", n: 5, size: [1, 1.8], color: SOOT, alpha: 0.5 },
+  ],
+  place: [
+    { cell: "scorch", x: 1, z: -28, size: 6, color: SOOT, alpha: 0.75 },         // round the wrecked truck
+    { cell: "oil", x: 3.5, z: -26, size: 2.4, color: SOOT, alpha: 0.7 },
+    { cell: "grin", x: 1.2, z: -4, y: 3.5, size: 4, rot: -0.2, color: 0xffffff, alpha: 0.8 },   // sprayed on the centre roof
+  ],
+  clutter: [
+    { kind: "pebble", n: 300, size: [0.12, 0.4], colors: [0xb89a70, 0x9a7e58, 0xc8ae84, 0x8a7050] },
+    { kind: "shrub", n: 60, size: [0.8, 1.5], colors: [0x7a8a4a, 0x6a7a42, 0x8a8a52] },
+    { kind: "weed", n: 160, size: [0.7, 1.2], colors: [0xc8b070, 0xb8a060, 0xa89058] },
+    { kind: "jar", n: 26, area: "market", size: [0.8, 1.3], colors: [0xb8643a, 0xa85a32, 0xc8784a, 0x9a5a3a] },
+    { kind: "basket", n: 12, area: "market", size: [0.9, 1.2], colors: [0xc8a060, 0xb08a50] },
+    { kind: "plank", n: 16, size: [0.8, 1.4], colors: [0x8a6a42, 0x7a5a36] },
+    { kind: "can", n: 18, size: [1, 1], colors: [0xd8302a, 0xe8e8e8, 0x2aa84a] },
+    { kind: "paper", n: 18, size: [0.8, 1.2], colors: [0xf2efe6, 0xe8e0c8] },
+  ],
+};
+MAPS.depot.dress = {
+  seed: 59,
+  decals: [
+    { cell: "oil", n: 26, size: [0.8, 2.2], color: SOOT, alpha: 0.55 },
+    { cell: "tyre", n: 30, size: [1.2, 1.6], stretch: 3.5, color: 0x141414, alpha: 0.45 },
+    { cell: "crack", n: 30, size: [1.5, 3], color: 0x2a2c2e, alpha: 0.7 },
+    { cell: "dirt", n: 34, size: [2, 4], color: 0x2a2620, alpha: 0.35 },
+    { cell: "puddle", n: 5, size: [1.5, 3], color: 0x101418, alpha: 0.55 },
+  ],
+  place: [
+    // aisle lines down the walkways (yellow, worn)
+    ...[-15, -5.5, 5.5, 15].flatMap((z) => [-21, -15, -9, -3, 3, 9, 15, 21].map((x) => ({ cell: "stripe", x, z, w: 0.6, d: 6, rot: Math.PI / 2, color: 0xe8c020, alpha: 0.75 }))),
+    { cell: "drain", x: -8, z: 5.5, size: 0.9, color: 0x1a1c1e, alpha: 0.9 },
+    { cell: "drain", x: 10, z: -5.5, size: 0.9, color: 0x1a1c1e, alpha: 0.9 },
+    { cell: "grin", x: -9, z: -20.4, y: 6.6, size: 3, wall: 0, color: 0xff4fa0, alpha: 0.85 },   // on the north wall, over the catwalk
+  ],
+  clutter: [
+    { kind: "cardboard", n: 30, size: [0.8, 1.3], colors: [0xb8925c, 0xa88450, 0xc8a26a] },
+    { kind: "pallet", n: 12, size: [1, 1], colors: [0xb89a6a, 0xa88a5a] },
+    { kind: "paper", n: 40, size: [0.8, 1.3], colors: [0xf2efe6, 0xe8e0c8, 0xd8d8d0] },
+    { kind: "can", n: 14, size: [1, 1], colors: [0xd8302a, 0x2a6ad8, 0xe8e8e8] },
+    { kind: "plank", n: 12, size: [0.8, 1.3], colors: [0xb89a6a, 0xa88a5a] },
+  ],
+};
+MAPS.undergrin.dress = {
+  seed: 61,
+  areas: { west: [-12.8, -30.5, -4.2, 30.5, 1.1], east: [4.2, -30.5, 12.8, 30.5, 1.1], tracks: [-1.6, -30, 1.6, 30] },
+  decals: [
+    { cell: "dirt", n: 40, area: ["west", "east"], size: [1.5, 3.5], color: 0x1e1c18, alpha: 0.4 },
+    { cell: "crack", n: 22, area: ["west", "east"], size: [1.2, 2.5], color: 0x2a2826, alpha: 0.7 },
+    { cell: "puddle", n: 8, area: ["west", "east"], size: [0.8, 1.6], color: 0x101418, alpha: 0.5 },
+    { cell: "oil", n: 12, area: "tracks", size: [0.8, 1.8], color: SOOT, alpha: 0.6 },
+    { cell: "puddle", n: 8, area: "tracks", size: [1, 2], color: 0x101418, alpha: 0.6 },
+  ],
+};
+MAPS.culdegrin.dress = {
+  seed: 73,
+  areas: { road: [-5.8, -29, 5.8, 29], lawnW: [-33, -29, -9, 29], lawnE: [9, -29, 33, 29] },
+  // house floors
+  avoid: [[-25, -23, -11, -13], [-25, -6, -11, 6], [-24, 12.5, -12, 23.5], [12, -23.5, 24, -12.5], [11, -6, 25, 6], [11, 13, 25, 23]],
+  decals: [
+    { cell: "leaves", n: 46, area: ["lawnW", "lawnE"], size: [1.5, 3], color: 0xffffff, alpha: 0.85 },
+    { cell: "crack", n: 18, area: "road", size: [1.5, 3], color: 0x1e1e20, alpha: 0.7 },
+    { cell: "oil", n: 10, area: "road", size: [0.8, 1.8], color: SOOT, alpha: 0.5 },
+    { cell: "tyre", n: 10, area: "road", size: [1.4, 1.8], stretch: 3, rot: 0.05, color: 0x111111, alpha: 0.4 },
+    { cell: "puddle", n: 5, area: "road", size: [1.2, 2.4], color: 0x16181c, alpha: 0.5 },
+  ],
+  place: [
+    { cell: "grin", x: 0, z: 20, size: 4.2, rot: 0.15, color: 0xff8ad0, alpha: 0.75 },     // chalk on the road
+    { cell: "splat", x: -2.5, z: 22.5, size: 1.6, color: 0xffffff, alpha: 0.7 },
+    { cell: "drain", x: -5.5, z: -4, size: 0.8, color: 0x1a1a1c, alpha: 0.9 },
+    { cell: "drain", x: 5.5, z: 6, size: 0.8, color: 0x1a1a1c, alpha: 0.9 },
+    { cell: "oil", x: -7, z: -10, size: 2.2, color: SOOT, alpha: 0.65 },
+    { cell: "oil", x: 7, z: 10, size: 2.2, color: SOOT, alpha: 0.65 },
+  ],
+  clutter: [
+    { kind: "tuft", n: 700, area: ["lawnW", "lawnE"], size: [0.8, 1.4], colors: [0x9ac070, 0x8ab060, 0xa8c878, 0x7a9a50] },
+    { kind: "leafpile", n: 10, area: ["lawnW", "lawnE"], size: [0.8, 1.3], colors: [0xb8602a, 0xc87a30, 0xa84a22] },
+    { kind: "ball", n: 4, area: ["lawnW", "lawnE"], size: [1, 1], colors: [0xe83a3a, 0x3a8ae8, 0xf2c232] },
+    { kind: "hose", n: 5, area: ["lawnW", "lawnE"], size: [1, 1.2], colors: [0x3aa84a, 0x2a8a3a] },
+    { kind: "pebble", n: 50, area: "road", size: [0.06, 0.14], colors: [0x6e6a62, 0x8a8478] },
+    { kind: "can", n: 10, size: [1, 1], colors: [0xd8302a, 0x2a6ad8, 0xe8e8e8] },
+    { kind: "paper", n: 14, size: [0.8, 1.2], colors: [0xf2efe6, 0xe8e0c8] },
+  ],
+};
+MAPS.grinbeach.dress = {
+  seed: 83,
+  areas: { beach: [-38, -20.2, 38, 8.2], shore: [-38, -20.2, 38, -15], dune: [-38, 3, 38, 8.4], lot: [-38, 24, 38, 31], walk: [-38, 8.8, 38, 15.2, 0.45] },
+  avoid: [[-18.5, -44, -7.5, -4]],   // the pier and its ramps
+  decals: [
+    { cell: "ripples", n: 60, area: "beach", size: [3, 6], color: 0x8a7450, alpha: 0.35 },
+    { cell: "steps", n: 40, area: "beach", size: [1, 1.4], stretch: 2.4, color: 0x7a6040, alpha: 0.35 },
+    { cell: "dirt", n: 18, area: "walk", size: [1.5, 3], color: 0xd8c08a, alpha: 0.45 },   // sand blown up onto the boardwalk
+    { cell: "oil", n: 10, area: "lot", size: [0.8, 1.8], color: SOOT, alpha: 0.55 },
+    { cell: "crack", n: 12, area: "lot", size: [1.5, 3], color: 0x1e1e20, alpha: 0.65 },
+  ],
+  place: [
+    // the tideline: seaweed and shell grit along the foot of the seawall
+    ...Array.from({ length: 13 }, (_, i) => ({ cell: "wrack", x: -36 + i * 6 + (((i * 37) % 5) - 2) * 0.4, z: -19.6 - (i % 3) * 0.3, w: 6.5, d: 1.4, color: 0x3a3a24, alpha: 0.75 })),
+    { cell: "grin", x: 6, z: -8, size: 4.5, rot: 0.4, color: 0x7a5a36, alpha: 0.45 },    // drawn in the sand
+    { cell: "oil", x: 0, z: 26.3, size: 2.4, color: SOOT, alpha: 0.6 },                  // under the food truck
+  ],
+  clutter: [
+    { kind: "shell", n: 140, area: "beach", size: [0.7, 1.6], colors: [0xf4ece0, 0xf0c8c0, 0xe8dcc8, 0xd8b8a0] },
+    { kind: "seaweed", n: 40, area: "shore", size: [0.8, 1.4], colors: [0x4a4426, 0x3a3a1e, 0x5a5030, 0x2e3a1c] },
+    { kind: "towel", n: 20, area: "beach", size: [0.9, 1.1], colors: [0xff5a6a, 0x3ab0e8, 0xf2c232, 0x5ad88a, 0xb07ae8] },
+    { kind: "bucket", n: 9, area: "beach", size: [1, 1.2], colors: [0xff5a3a, 0x3a8ae8, 0xf2c232, 0x5ad88a] },
+    { kind: "castle", n: 6, area: "beach", size: [0.9, 1.3], colors: [0xd6c194, 0xcab486] },
+    { kind: "ball", n: 5, area: "beach", size: [1, 1.2], colors: [0xe83a3a, 0x3a8ae8, 0xf2c232] },
+    { kind: "bottle", n: 10, area: "beach", size: [1, 1], colors: [0x6ac08a, 0x8a5a2a, 0xd8e8e8] },
+    { kind: "can", n: 14, size: [1, 1], colors: [0xd8302a, 0x2a6ad8, 0xe8e8e8] },
+    { kind: "pebble", n: 50, area: "beach", size: [0.06, 0.16], colors: [0x9a8a72, 0x7a7262, 0xb8a888] },
+    { kind: "weed", n: 90, area: "dune", size: [0.8, 1.3], colors: [0xa8b860, 0x98a850, 0xb8c070] },
+  ],
+};
+
 // Zombies-only, so it's registered for buildMap but kept out of the PvP picker.
 MAPS.pentagrin = PENTAGRIN;
 // The Halloween map plays both ways: in the PvP picker, and in Zombies' list.
@@ -1427,6 +1576,9 @@ export function buildMap(id, { colliders, arena }) {
   }
 
   map.build(makeApi(root, colliders));
+  // Decals and loose clutter (map-dressing.js), laid once every collider is
+  // known so the scatter keeps clear of them.
+  dressMap(root, colliders, map);
 
   return {
     root,

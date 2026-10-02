@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=cg1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=cg1";
-import { Loadout } from "./loadout.js?v=tf4";
+import { Loadout } from "./loadout.js?v=dr1";
 import { StreakPicker } from "./streak-picker.js?v=gu1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=gu1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -30,7 +30,7 @@ import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=gu1";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=gu1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=tf4";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=dr1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=rp3";
@@ -10939,8 +10939,11 @@ function gfxTier() {
    leading share is spread evenly. */
 const CLUTTER_SHARE = { low: 0.15, medium: 0.35, high: 0.55 };
 function applyClutter() {
-  const share = CLUTTER_SHARE[gfxTier()] ?? 1;
-  builtMap?.root?.traverse((o) => { if (o.userData.clutter) o.count = Math.max(1, Math.round(o.userData.clutter * share)); });
+  const tier = gfxTier();
+  const share = CLUTTER_SHARE[tier] ?? 1;
+  // A mesh can carry its own shares (map-dressing.js: the PvP maps' clutter
+  // is sparse to begin with, so it thins less than the island's).
+  builtMap?.root?.traverse((o) => { if (o.userData.clutter) o.count = Math.max(1, Math.round(o.userData.clutter * (o.userData.clutterShare?.[tier] ?? share))); });
 }
 
 function applyGraphics() {

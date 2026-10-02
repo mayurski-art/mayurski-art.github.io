@@ -30,15 +30,20 @@ for (const [id, views] of Object.entries(VIEWS)) {
   page.on("pageerror", (e) => console.log("ERR", id, e.message));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 90000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
-  await page.evaluate(async (id) => {
+  await page.evaluate(async ([id, mode]) => {
     const T = window.__trollOps;
-    T.setMode("ops"); T.loadout.mapId = id;
+    if (mode === "view") {   // View mode (owner only): no bots, HUD or viewmodel in the shot
+      window.TrollrunnerAccounts = window.TrollrunnerAccounts || {};
+      window.TrollrunnerAccounts.getCachedProfile = () => ({ username: "troll_runner" });
+      window.dispatchEvent(new Event("trollrunner:auth-changed"));
+    }
+    T.settings.viewMode = mode === "view"; T.setMode("ops"); T.loadout.mapId = id;
     await T.startGame(); if (T.isStaging()) T.endStaging();
     T.player.maxHp = T.player.hp = 1e9;
     const st = document.createElement("style");
     st.textContent = "body *:not(canvas):not(main):not(section):not(.arcade-shell) { visibility: hidden !important; } canvas { visibility: visible !important; } .to-minimap { display:none !important }";
     document.head.appendChild(st);
-  }, id);
+  }, [id, process.env.MODE || "ops"]);
   await new Promise((r) => setTimeout(r, 6000));
   for (const [x, y, z, lx, ly, lz, tag] of views) {
     await page.evaluate(([x, y, z, lx, ly, lz]) => {
