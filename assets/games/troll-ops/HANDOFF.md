@@ -87,6 +87,17 @@ the main menu redesign (self-contained, menu files only).
    or give it its own. Ask the user whether to do church + mannequins before
    or after 6c-6f.
 
+3. **Redesign the zombies "like actual zombies"** (user, 2026-10-02, NOT
+   started). Their reference: a Resident Evil-style rotting zombie with
+   grey-green decayed skin, milky white eyes, torn lips showing the teeth,
+   and a blood-stained, torn shirt. The image itself was NOT saved (pasted
+   in chat only): ask the user to put it in the repo (e.g.
+   assets/games/troll-ops/refs/zombie-ref.jpg) before designing. Design doc
+   first: how the models are made (Blender), variants (shirt colours,
+   wounds, a few body types), animation (shamble, lunge, crawl?), and keep
+   the hitboxes zombies.js already uses. Self-contained (zombies.js +
+   models), so it suits its own session/worktree too.
+
 ### Stream B (another session): main menu redesign, BO2 Zombies style
 The user wants the Troll Forces menu screen "similar to" a Black Ops 2
 Zombies menu:
@@ -184,7 +195,7 @@ tuning.
 
 **New user request (2026-10-02, not started, not yet ordered): redesign the
 zombies "like actual zombies"** (reference: a Resident Evil-style rotting
-zombie, scratchpad only: grey-green decayed skin, milky white eyes, torn
+zombie, image NOT saved, see the newer section: grey-green decayed skin, milky white eyes, torn
 lips/teeth, blood-stained torn shirt). Design doc first (models via
 Blender/PixelLab?, variants, animation, keep hitboxes in zombies.js).
 
