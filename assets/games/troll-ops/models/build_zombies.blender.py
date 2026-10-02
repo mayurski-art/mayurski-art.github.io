@@ -521,6 +521,368 @@ def zombify_materials(bm, rig, look):
                     zombify_cloth(m, look.get("tear", 0.6))
 
 
+# ---------------------------------------------------------------- clips
+# Keyframed in-place, 30 fps. Each key is a pose spec (as SHAMBLE): bones
+# are aimed along WORLD directions from the rest pose, so the same spec
+# works on every body. ("pelvis", ("drop", metres)) lowers the hips.
+FPS = 30
+ARMS_OUT = [
+    ("upperarm_l", (0.22, -0.93, -0.28)), ("lowerarm_l", (0.08, -0.97, -0.2)),
+    ("upperarm_r", (-0.25, -0.88, -0.4)), ("lowerarm_r", (-0.05, -0.92, -0.38)),
+]
+
+
+def _legs(fwd_side, phase):
+    """Leg aims for a walk: phase 'reach' (fwd_side leg out front, the other
+    trailing) or 'pass' (fwd_side leg swinging through, the other planted)."""
+    a, b = ("l", "r") if fwd_side == "l" else ("r", "l")
+    sx = {"l": 0.04, "r": -0.04}
+    if phase == "reach":
+        return [(f"thigh_{a}", (sx[a], -0.4, -0.92)), (f"calf_{a}", (sx[a], -0.12, -0.99)),
+                (f"thigh_{b}", (sx[b], 0.32, -0.95)), (f"calf_{b}", (sx[b], 0.5, -0.87))]
+    return [(f"thigh_{a}", (sx[a], -0.2, -0.98)), (f"calf_{a}", (sx[a], 0.42, -0.91)),
+            (f"thigh_{b}", (sx[b], 0.02, -1)), (f"calf_{b}", (sx[b], 0.06, -1))]
+
+
+def _run_legs(fwd_side, phase):
+    a, b = ("l", "r") if fwd_side == "l" else ("r", "l")
+    sx = {"l": 0.04, "r": -0.04}
+    if phase == "reach":
+        return [(f"thigh_{a}", (sx[a], -0.75, -0.66)), (f"calf_{a}", (sx[a], -0.2, -0.98)),
+                (f"thigh_{b}", (sx[b], 0.5, -0.87)), (f"calf_{b}", (sx[b], 0.9, -0.44))]
+    return [(f"thigh_{a}", (sx[a], -0.45, -0.89)), (f"calf_{a}", (sx[a], 0.75, -0.66)),
+            (f"thigh_{b}", (sx[b], 0.05, -1)), (f"calf_{b}", (sx[b], 0.15, -0.99))]
+
+
+def _sway(k):
+    """Upper-body loll, k in -1..1."""
+    return [("spine_02", ("X", 9)), ("spine_03", ("X", 5)), ("spine_02", ("Y", 4 * k)),
+            ("neck_01", ("Y", -10 * k)), ("head", ("X", 12))]
+
+
+CLIPS = {
+    # the shamble: arms out, a lopsided drag, the head lolling
+    "walk": {"loop": True, "keys": [
+        (0, _sway(1) + ARMS_OUT + _legs("l", "reach")),
+        (9, _sway(0) + ARMS_OUT + _legs("r", "pass")),
+        (18, _sway(-1) + ARMS_OUT + _legs("r", "reach")),
+        (27, _sway(0) + ARMS_OUT + _legs("l", "pass")),
+        (36, _sway(1) + ARMS_OUT + _legs("l", "reach")),
+    ]},
+    # the sprint: leaning in, arms flailing forward
+    "run": {"loop": True, "keys": [
+        (0, [("spine_01", ("X", 22)), ("head", ("X", -14)),
+             ("upperarm_l", (0.3, -0.85, -0.2)), ("lowerarm_l", (0.1, -0.9, 0.3)),
+             ("upperarm_r", (-0.25, 0.4, -0.88)), ("lowerarm_r", (-0.1, -0.5, -0.86))] + _run_legs("l", "reach")),
+        (5, [("spine_01", ("X", 22)), ("head", ("X", -14))] + ARMS_OUT + _run_legs("r", "pass")),
+        (10, [("spine_01", ("X", 22)), ("head", ("X", -14)),
+              ("upperarm_r", (-0.3, -0.85, -0.2)), ("lowerarm_r", (-0.1, -0.9, 0.3)),
+              ("upperarm_l", (0.25, 0.4, -0.88)), ("lowerarm_l", (0.1, -0.5, -0.86))] + _run_legs("r", "reach")),
+        (15, [("spine_01", ("X", 22)), ("head", ("X", -14))] + ARMS_OUT + _run_legs("l", "pass")),
+        (20, [("spine_01", ("X", 22)), ("head", ("X", -14)),
+              ("upperarm_l", (0.3, -0.85, -0.2)), ("lowerarm_l", (0.1, -0.9, 0.3)),
+              ("upperarm_r", (-0.25, 0.4, -0.88)), ("lowerarm_r", (-0.1, -0.5, -0.86))] + _run_legs("l", "reach")),
+    ]},
+    "idle": {"loop": True, "keys": [
+        (0, _sway(0.6) + ARMS_OUT),
+        (30, _sway(-0.6) + ARMS_OUT + [("upperarm_l", ("X", -6))]),
+        (60, _sway(0.6) + ARMS_OUT),
+    ]},
+    # a two-handed swipe: rear back, then rake down and forward
+    "attack": {"loop": False, "keys": [
+        (0, _sway(0) + ARMS_OUT),
+        (8, [("spine_02", ("X", -6)), ("head", ("X", 4)),
+             ("upperarm_l", (0.35, -0.3, 0.88)), ("lowerarm_l", (0.2, 0.2, 0.96)),
+             ("upperarm_r", (-0.35, -0.3, 0.88)), ("lowerarm_r", (-0.2, 0.2, 0.96))]),
+        (13, [("spine_01", ("X", 18)), ("spine_02", ("X", 12)), ("head", ("X", 10)),
+              ("upperarm_l", (0.1, -0.85, -0.52)), ("lowerarm_l", (-0.05, -0.6, -0.8)),
+              ("upperarm_r", (-0.1, -0.85, -0.52)), ("lowerarm_r", (0.05, -0.6, -0.8))]),
+        (22, _sway(0) + ARMS_OUT),
+    ]},
+    # collapse: knees go, then over onto its back
+    "die": {"loop": False, "keys": [
+        (0, _sway(0) + ARMS_OUT),
+        (9, [("pelvis", ("drop", 0.35)), ("pelvis", ("X", -18)), ("spine_02", ("X", 25)), ("head", ("X", 20)),
+             ("thigh_l", (0.1, -0.7, -0.7)), ("calf_l", (0.05, 0.6, -0.8)),
+             ("thigh_r", (-0.1, -0.6, -0.8)), ("calf_r", (-0.05, 0.7, -0.7)),
+             ("upperarm_l", (0.6, -0.2, -0.77)), ("upperarm_r", (-0.6, -0.2, -0.77))]),
+        (22, [("pelvis", ("drop", 0.8)), ("pelvis", ("X", -82)), ("head", ("X", -25)),
+              ("thigh_l", (0.12, -0.55, 0.83)), ("calf_l", (0.1, -0.98, -0.1)),
+              ("thigh_r", (-0.1, -0.7, 0.7)), ("calf_r", (-0.05, -0.99, 0.1)),
+              ("upperarm_l", (0.9, 0.3, 0.3)), ("lowerarm_l", (0.8, 0.0, 0.6)),
+              ("upperarm_r", (-0.9, 0.2, 0.4)), ("lowerarm_r", (-0.95, -0.2, 0.2))]),
+        (30, [("pelvis", ("drop", 0.82)), ("pelvis", ("X", -88)), ("head", ("X", -30)),
+              ("thigh_l", (0.15, -0.45, 0.88)), ("calf_l", (0.12, -1, 0.0)),
+              ("thigh_r", (-0.12, -0.6, 0.79)), ("calf_r", (-0.06, -1, 0.05)),
+              ("upperarm_l", (0.95, 0.3, 0.1)), ("lowerarm_l", (0.9, 0.0, 0.4)),
+              ("upperarm_r", (-0.95, 0.25, 0.15)), ("lowerarm_r", (-0.98, -0.15, 0.05))]),
+    ]},
+}
+
+
+def _rest(rig):
+    for pb in rig.pose.bones:
+        pb.rotation_mode = "QUATERNION"
+        pb.rotation_quaternion = (1, 0, 0, 0)
+        pb.location = (0, 0, 0)
+    bpy.context.view_layer.update()
+
+
+def apply_spec(rig, spec):
+    for bone, how in spec:
+        if isinstance(how, tuple) and len(how) == 3:
+            aim(rig, bone, how)
+        elif how[0] == "drop":
+            from mathutils import Matrix
+            pb = rig.pose.bones[bone]
+            w = _pb_world(rig, pb)
+            pb.matrix = rig.matrix_world.inverted() @ Matrix.Translation((0, 0, -how[1])) @ w
+            bpy.context.view_layer.update()
+        else:
+            turn(rig, bone, *how)
+
+
+def make_clips(rig):
+    """One NLA track per clip, named after it: the glTF exporter's
+    NLA_TRACKS mode turns each track into one animation."""
+    rig.animation_data_create()
+    for name, clip in CLIPS.items():
+        act = bpy.data.actions.new("ZB_" + name)
+        rig.animation_data.action = act
+        for frame, spec in clip["keys"]:
+            _rest(rig)
+            apply_spec(rig, spec)
+            for pb in rig.pose.bones:
+                pb.keyframe_insert("rotation_quaternion", frame=frame)
+                if pb.name == "pelvis":
+                    pb.keyframe_insert("location", frame=frame)
+        track = rig.animation_data.nla_tracks.new()
+        track.name = name
+        track.strips.new(name, 0, act)
+        rig.animation_data.action = None
+    _rest(rig)
+
+
+# ---------------------------------------------------------------- bake
+BAKE_DIR = os.environ.get("ZB_BAKE_DIR", os.path.join(os.environ.get("TEMP", "/tmp"), "zb_bake"))
+
+
+def _bsdf(m):
+    return next(n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+
+
+def _bake(ob, img, kind, sources=()):
+    """Bake into `img` on ob (the active object), from `sources` if given."""
+    for m in ob.data.materials:
+        N = m.node_tree.nodes
+        t = N.new("ShaderNodeTexImage")
+        t.image = img
+        N.active = t
+    bpy.ops.object.select_all(action="DESELECT")
+    for s in sources:
+        s.select_set(True)
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    sc = bpy.context.scene
+    kw = {"type": kind, "margin": 6, "use_clear": True}
+    if kind == "DIFFUSE":
+        kw["pass_filter"] = {"COLOR"}
+    if sources:
+        kw.update(use_selected_to_active=True, cage_extrusion=0.012, max_ray_distance=0.03)
+    bpy.ops.object.bake(**kw)
+    for m in ob.data.materials:
+        N = m.node_tree.nodes
+        for n in [n for n in N if n.type == "TEX_IMAGE" and n.image == img]:
+            N.remove(n)
+
+
+def _new_img(name, size, data=False, alpha=False):
+    img = bpy.data.images.new(name, size, size, alpha=alpha, float_buffer=False)
+    if data:
+        img.colorspace_settings.name = "Non-Color"
+    return img
+
+
+def _save(img):
+    os.makedirs(BAKE_DIR, exist_ok=True)
+    img.filepath_raw = os.path.join(BAKE_DIR, img.name + ".png")
+    img.file_format = "PNG"
+    img.save()
+    return img
+
+
+def _alpha_source(m):
+    b = _bsdf(m)
+    link = next(iter(b.inputs["Alpha"].links), None)
+    return link.from_socket if link else None
+
+
+def bake_object(ob, size, name, normal_from=None, rough=0.7):
+    """Bake ob's (procedural) materials to one texture set and swap in a plain
+    glTF-friendly material: colour (+ alpha when the material has one), and
+    a normal map when baked from a detailed source mesh."""
+    sc = bpy.context.scene
+    col = _new_img(name + "_col", size)
+    _bake(ob, col, "DIFFUSE")
+    alpha_src = _alpha_source(ob.data.materials[0]) if ob.data.materials else None
+    a_img = None
+    if alpha_src is not None:
+        # route the alpha through an emission shader and bake that
+        for m in ob.data.materials:
+            N, L = m.node_tree.nodes, m.node_tree.links
+            src = _alpha_source(m)
+            out = next(n for n in N if n.type == "OUTPUT_MATERIAL")
+            em = N.new("ShaderNodeEmission")
+            if src is not None:
+                L.new(src, em.inputs["Color"])
+            L.new(em.outputs[0], out.inputs["Surface"])
+        a_img = _new_img(name + "_a", size)
+        _bake(ob, a_img, "EMIT")
+        px = list(col.pixels)
+        ap = list(a_img.pixels)
+        px[3::4] = ap[0::4]
+        rgba = _new_img(name + "_col", size, alpha=True)
+        rgba.pixels = px
+        col = rgba
+    nrm = None
+    if normal_from is not None:
+        nrm = _new_img(name + "_nrm", size, data=True)
+        _bake(ob, nrm, "NORMAL", sources=[normal_from])
+    _save(col)
+    if nrm:
+        _save(nrm)
+    m = bpy.data.materials.new("ZB_" + name)
+    N, L = _nodes(m)
+    b = N["Principled BSDF"]
+    t = N.new("ShaderNodeTexImage")
+    t.image = col
+    L.new(t.outputs["Color"], b.inputs["Base Color"])
+    if a_img is not None:
+        L.new(t.outputs["Alpha"], b.inputs["Alpha"])
+    b.inputs["Roughness"].default_value = rough
+    if nrm:
+        tn = N.new("ShaderNodeTexImage")
+        tn.image = nrm
+        nm = N.new("ShaderNodeNormalMap")
+        L.new(tn.outputs["Color"], nm.inputs["Color"])
+        L.new(nm.outputs["Normal"], b.inputs["Normal"])
+    ob.data.materials.clear()
+    ob.data.materials.append(m)
+    return m
+
+
+def _snapshot(ob, name, keep_armature=False):
+    """A new object holding ob's evaluated mesh (shape keys and masks applied,
+    the armature NOT), with its vertex groups."""
+    arm = [md for md in ob.modifiers if md.type == "ARMATURE"]
+    for md in arm:
+        md.show_viewport = keep_armature
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
+    for md in arm:
+        md.show_viewport = True
+    me.name = name
+    new = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(new)
+    new.matrix_world = ob.matrix_world.copy()
+    for g in ob.vertex_groups:
+        new.vertex_groups.new(name=g.name)
+    for m in ob.data.materials:
+        me.materials.append(m)
+    return new
+
+
+def _decimate(ob, ratio):
+    md = ob.modifiers.new("dec", "DECIMATE")
+    md.ratio = ratio
+    md.use_symmetry = True
+    md.symmetry_axis = "X"
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
+    ob.modifiers.remove(md)
+    old = ob.data
+    ob.data = me
+    bpy.data.meshes.remove(old)
+
+
+def _bind(ob, rig):
+    ob.parent = rig
+    ob.matrix_parent_inverse = rig.matrix_world.inverted()
+    md = ob.modifiers.new("Armature", "ARMATURE")
+    md.object = rig
+    # only the rig's bones as groups (drops MPFB's helper/landmark groups)
+    bones = {b.name for b in rig.data.bones}
+    for g in list(ob.vertex_groups):
+        if g.name not in bones:
+            ob.vertex_groups.remove(g)
+    # the bake masks (zmask) must not ride along: GLTFLoader would multiply
+    # the base colour by them
+    for a in list(ob.data.color_attributes):
+        ob.data.color_attributes.remove(a)
+
+
+def _tris(ob):
+    ob.data.calc_loop_triangles()
+    return len(ob.data.loop_triangles)
+
+
+def export_look(name, look):
+    """zombie-<name>.glb: the rig with its clips, a decimated body with a
+    baked skin set (colour + normal from the full-detail body), teeth, eyes
+    and each garment with its own baked colour+alpha."""
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    sc.cycles.samples = 4
+    sc.cycles.use_denoising = False
+    sc.render.fps = FPS                       # clip lengths are in these frames
+    bm, rig = make_human(look)
+    zombify_materials(bm, rig, look)
+    _rest(rig)
+
+    extras = [c for c in rig.children_recursive if c.type == "MESH" and c is not bm]
+    high = _snapshot(bm, "ZB_high")
+    body = _snapshot(bm, "ZB_body")
+    _decimate(body, float(os.environ.get("ZB_BODY_RATIO", "0.26")))
+    bake_object(body, int(os.environ.get("ZB_SKIN_SIZE", "1024")), f"{name}_skin", normal_from=high, rough=0.62)
+    _bind(body, rig)
+
+    parts = [body]
+    for ob in extras:
+        key = ob.name.split(".")[-1]
+        snap = _snapshot(ob, f"ZB_{key}")
+        if "teeth" in key:
+            _decimate(snap, 0.15)
+            bake_object(snap, 256, f"{name}_teeth", rough=0.45)
+        elif "low-poly" in key:
+            pass                                  # the flat milky eye material exports as is
+        else:
+            if any(k in key for k in ("shoe", "boot")):
+                _decimate(snap, 0.4)
+            bake_object(snap, 512, f"{name}_{key}", rough=0.85)
+        _bind(snap, rig)
+        parts.append(snap)
+
+    make_clips(rig)
+    for ob in {high, bm, *[c for c in rig.children_recursive if c.type == "MESH" and c not in parts]}:
+        bpy.data.objects.remove(ob)
+    rig.name = "ZB_rig"
+
+    bpy.ops.object.select_all(action="DESELECT")
+    rig.select_set(True)
+    for p in parts:
+        p.select_set(True)
+    bpy.context.view_layer.objects.active = rig
+    path = os.path.join(OUT_DIR, f"zombie-{name}.glb")
+    bpy.ops.export_scene.gltf(
+        filepath=path, export_format="GLB", use_selection=True, export_yup=True,
+        export_apply=False, export_skins=True, export_animations=True,
+        export_animation_mode="NLA_TRACKS", export_image_format="WEBP", export_image_quality=82,
+        export_def_bones=False, export_extras=False, export_cameras=False, export_lights=False,
+    )
+    tris = sum(_tris(p) for p in parts)
+    print(f"EXPORT {path} tris={tris} parts={[(p.name, _tris(p)) for p in parts]} size={os.path.getsize(path) // 1024} KB")
+
+
 # ---------------------------------------------------------------- render
 def render_setup():
     sc = bpy.context.scene
@@ -572,6 +934,9 @@ def main():
     for name in names:
         clear_scene()
         look = LOOKS[name]
+        if "export" in ARGS:
+            export_look(name, look)
+            continue
         bm, rig = make_human(look)
         zombify_materials(bm, rig, look)
         if "render" in ARGS:

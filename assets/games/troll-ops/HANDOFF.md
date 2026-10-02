@@ -222,11 +222,33 @@ Design doc v2: https://claude.ai/artifact/Motm585y8qJeknjWVv9CuC
   tears show skin; the eyes object is "Human.low-poly"; MakeHuman's rest pose
   bends the forearms forward, so pose by aiming bones, not world-axis turns;
   AgX at exposure 0 blows dark red up to bright red (renders use -0.9).
-- NEXT (ZR1): export GLB on the low-poly proxy body (proxymeshes/male1591,
-  ~3k tris) with face detail + rot baked to a 1024 atlas/normal map, baked
-  clips (shamble, swipe, die), zombies.js loader + AnimationMixer, hitboxes on
-  bones (head r 0.15 pending user OK), remove troll/pepe types. Also tune:
-  leaper pose/claws, a woman walker, the mask zombie.
+- **ZR1 SHIPPED (2026-10-02, game.js?v=to-zr1, zombies.js?v=zr1):** the
+  realistic zombies are in the game.
+  - `-- export walker runner` -> models/zombie-walker.glb / zombie-runner.glb
+    (~13-14k tris, ~0.9 MB each): body decimated (ZB_BODY_RATIO 0.26) with
+    its rot baked to colour + a normal map from the full-detail body; each
+    garment/hair baked to colour+alpha (512); teeth 256; eyes flat. Clips
+    (NLA_TRACKS, 30 fps): walk, run, idle, attack, die, keyed with the
+    aim() pose specs in CLIPS. Bake PNGs go to %TEMP%/zb_bake (ZB_BAKE_DIR).
+  - zombie-models.js: one load per GLB, cloneSkinned() (r160 has no
+    SkeletonUtils), clothes alphaTest not blend, skin tint per instance,
+    11 hitboxes on bones placed from rest-pose bone positions (head sphere
+    r 0.15, user OK'd). CLIP_SPEED maps ground speed to clip timeScale.
+  - zombies.js: types are now walker / runner (runners from round 5, 25%,
+    HP x0.8); any look can be either. Death = die clip, lie 1.6 s, sink.
+    flinchFrom() (game.js calls it when the actor has no stick rig).
+    Spawning waits for the GLBs; if they fail, the old stick figures stand
+    in. resolve() goes by mesh.userData.zombie now.
+  - **CSP:** troll-ops.html img-src AND connect-src need `blob:` or
+    GLTFLoader's embedded textures silently fail (untextured zombies).
+  - tools/troll-ops-zombie-test.mjs: ALL PASS on hollowgrin + pentagrin
+    (bodies, clips, head vs chest hitbox, death+cleanup, textures, no
+    errors). FPS=1: round-10 horde of 12 = 33 fps / 473 draws vs 29.6 / 385
+    on the old build (headless, noisy).
+- NEXT: ZR2 variety (more clothes looks + a woman walker, the rare ~1/40
+  trollface-mask zombie from the mascot art, grave-rise clip); ZR3 the
+  leaper (body + crouch-leap AI + shriek); ZR4 gore (head-pop, blood),
+  groans, tuning. Draw calls: merge each zombie's clothes into one mesh.
 - Old procedural metaball prototype is in commit cf7e64c if ever needed.
 - Animation plan changed from the plan below: baked Blender clips +
   AnimationMixer (poseHumanoid is stick-tuned), with procedural as fallback.

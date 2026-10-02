@@ -15,19 +15,31 @@ import { FlowField } from "./nav.js?v=ti1";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { buildHumanoid, poseHumanoid } from "./character.js?v=to-lk1";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1";
+import { preloadZombieModels, zombieModelsReady, readyLooks, createZombieBody, CLIP_SPEED } from "./zombie-models.js?v=zr1";
 
+/* Behaviour types. The look (body + clothes) is picked separately, so a
+   runner can be any of the horde's bodies. `gait` is the clip it moves on. */
 export const ZOMBIE_TYPES = {
-  troll: {
-    id: "troll", face: "grin", color: 0x8f9a86,
-    hpMult: 1, speed: 1.5, height: 1.78, build: 1.05,
+  walker: {
+    id: "walker", gait: "walk", color: 0x8f9a86,
+    hpMult: 1, speed: 1.5, height: 1.78, build: 1.0,
     damage: 22, attackRange: 1.5, attackCd: 1.1,
   },
-  pepe: {
-    id: "pepe", face: "pepe", color: 0x62a34a,
-    hpMult: 0.85, speed: 1.85, height: 1.72, build: 1.0,
-    damage: 18, attackRange: 1.45, attackCd: 0.95,
+  runner: {
+    id: "runner", gait: "run", color: 0x8f9a86,
+    hpMult: 0.8, speed: 2.4, height: 1.78, build: 1.0,
+    damage: 18, attackRange: 1.55, attackCd: 0.95,
   },
 };
+
+const RUNNERS_FROM = 5;       // round runners start showing up
+const RUNNER_SHARE = 0.25;
+const DIE_HOLD = 1.6;         // seconds a body lies there before it sinks
+const SINK_TIME = 1.4;
+const SINK_DEPTH = 0.6;
+
+// per-zombie skin tints, multiplied over the baked skin: pale, greener, greyer
+const TINTS = [0xffffff, 0xe6f0d8, 0xd8dccf, 0xf0e8d8, 0xd0dcc4].map((h) => new THREE.Color(h));
 
 // points, straight from the genre
 export const POINTS = { hit: 10, kill: 60, headshotKill: 100 };
@@ -80,16 +92,33 @@ export class Zombie {
     this.riseT = rise ? RISE_TIME : 0;
     this.climb = null;       // { exit, exitFloor } while changing floors
     this.climbT = 0;
+    this.attackT = 0;        // the swipe clip still playing
+    this.sinkT = 0;
 
-    const mat = makeEnemyDissolveMaterial(this.type.color);
-    this.rig = buildHumanoid(mat, {
-      height: this.type.height,
-      build: this.type.build,
-      gun: false,
-      face: this.type.face,
-    });
-    this.mesh = this.rig.root;
-    this.mesh.userData.dissolveMat = mat;
+    const looks = readyLooks();
+    const look = looks[Math.floor(Math.random() * looks.length)];
+    this.body = look ? createZombieBody(look, {
+      tint: TINTS[Math.floor(Math.random() * TINTS.length)],
+      build: 0.94 + Math.random() * 0.14,
+    }) : null;
+    if (this.body) {
+      this.mesh = this.body.root;
+      this.hitboxMeshes = this.body.hitboxMeshes;
+      this.anim = null;
+      this.sinkT = 0;
+      this.flinch = new THREE.Vector3();     // x: pitch, z: roll (radians), decaying
+      // out of step with each other, or the horde marches like a drill team
+      for (const a of Object.values(this.body.actions)) a.time = Math.random() * a.getClip().duration;
+      this.play(rise ? "idle" : this.type.gait, 0);
+    } else {
+      // models unavailable: the old stick figure in the dissolve shader
+      const mat = makeEnemyDissolveMaterial(this.type.color);
+      this.rig = buildHumanoid(mat, { height: this.type.height, build: this.type.build, gun: false, face: "grin" });
+      this.mesh = this.rig.root;
+      this.mesh.userData.dissolveMat = mat;
+      this.hitboxMeshes = this.rig.hitboxMeshes;
+    }
+    this.mesh.userData.zombie = this;
     this.mesh.position.copy(position);
     if (rise) {
       this.mesh.position.y = this.groundY - RISE_DEPTH;
@@ -113,6 +142,70 @@ export class Zombie {
     this.stunT = Math.max(this.stunT || 0, seconds);
   }
 
+  /* Cross-fade to a clip. Loops keep their own phase; one-shots restart. */
+  play(name, fade = 0.25) {
+    const next = this.body.actions[name];
+    if (!next || this.anim === next) return;
+    if (name === "attack" || name === "die") next.reset();
+    next.enabled = true;
+    next.setEffectiveTimeScale(1);
+    next.setEffectiveWeight(1);
+    next.play();
+    if (this.anim && fade > 0) this.anim.crossFadeTo(next, fade, false);
+    else if (this.anim) this.anim.stop();
+    this.anim = next;
+    this.animName = name;
+  }
+
+  /* A bullet's shove: the chest tips away from the shot, then recovers.
+     Called by game.js for the model bodies (the stick rig flinches itself). */
+  flinchFrom(dir, strength = 0.5) {
+    if (!this.body || this.dying) return;
+    const len = Math.hypot(dir.x, dir.z) || 1;
+    // axis up x dir: a turn about it tips the top toward where the shot went
+    this.flinch.x += (dir.z / len) * 0.32 * strength;
+    this.flinch.z += (-dir.x / len) * 0.32 * strength;
+  }
+
+  _flinchPose(dt) {
+    const f = this.flinch;
+    const amt = Math.hypot(f.x, f.z);
+    if (amt < 1e-3) return;
+    const bone = this.body.bones.spine_02;
+    _axis.set(f.x / amt, 0, f.z / amt);
+    _qw.setFromAxisAngle(_axis, Math.min(0.6, amt));
+    bone.parent.getWorldQuaternion(_qp);
+    // world-axis turn expressed in the bone's parent frame
+    _ql.copy(_qp).invert().multiply(_qw).multiply(_qp);
+    bone.quaternion.premultiply(_ql);
+    f.multiplyScalar(Math.max(0, 1 - dt * 7));
+  }
+
+  /* Drive the clips from what the body is doing this frame. */
+  _animate(dt, { moving = false, speed = 0 } = {}) {
+    if (this.dying) {
+      this.play("die", 0.12);
+    } else if (this.attackT > 0) {
+      this.attackT -= dt;
+    } else if (this.riseT > 0) {
+      this.play("idle", 0.2);
+    } else if (moving && speed > 0.15) {
+      const g = this.type.gait;
+      this.play(g, 0.3);
+      this.anim.setEffectiveTimeScale(Math.max(0.45, Math.min(2.4, speed / CLIP_SPEED[g])));
+    } else {
+      this.play("idle", 0.35);
+    }
+    this.body.mixer.update(dt);
+    this._flinchPose(dt);
+  }
+
+  _swing() {
+    if (!this.body) return;
+    this.play("attack", 0.1);
+    this.attackT = this.body.actions.attack.getClip().duration * 0.9;
+  }
+
   /* `route` says where to go: { field, goal, chase }. `field` steers round
      walls toward `goal` (null = walk straight at it); `chase` is false while
      heading for a stair, when there's nobody in reach to swing at.
@@ -127,7 +220,8 @@ export class Zombie {
       this.mesh.position.y = this.groundY - RISE_DEPTH * (1 - ease);
       this.mesh.rotation.z = Math.sin(k * 14) * 0.06 * (1 - k);
       this.phase += dt * 2.5;
-      poseHumanoid(this.rig, { phase: this.phase, moving: false, zombie: true, dt });
+      if (this.body) this._animate(dt);
+      else poseHumanoid(this.rig, { phase: this.phase, moving: false, zombie: true, dt });
       if (this.riseT <= 0) this.mesh.rotation.z = 0;
       return;
     }
@@ -135,9 +229,22 @@ export class Zombie {
       this.stunT -= dt;
       this.mesh.rotation.y += dt * 3;
       this.velocity.multiplyScalar(Math.max(0, 1 - 6 * dt));
+      if (this.body) this._animate(dt);
       return;
     }
     if (this.dying) {
+      if (this.body) {
+        // fall (the die clip), lie there a moment, then sink into the ground
+        this.dissolveT += dt;
+        const dieLen = this.body.actions.die.getClip().duration;
+        if (this.dissolveT > dieLen + DIE_HOLD) {
+          this.sinkT += dt;
+          this.mesh.position.y = this.groundY - SINK_DEPTH * Math.min(1, this.sinkT / SINK_TIME);
+          if (this.sinkT >= SINK_TIME) this.alive = false;
+        }
+        this._animate(dt);
+        return;
+      }
       this.dissolveT += dt * 1.5;
       this.mesh.userData.dissolveMat.uniforms.uDissolve.value = this.dissolveT;
       this.mesh.position.y -= dt * 0.25;
@@ -182,6 +289,7 @@ export class Zombie {
       damp(9);
       if (inReach && this.attackCdT <= 0) {
         this.attackCdT = this.type.attackCd;
+        this._swing();
         onAttack(this, this.type.damage);
       }
     }
@@ -199,16 +307,30 @@ export class Zombie {
     this.mesh.position.y = this.groundY;
 
     const moving = !inReach;
+    if (this.body) {
+      this._animate(dt, { moving, speed: Math.hypot(this.velocity.x, this.velocity.z) });
+      return;
+    }
     this.phase += dt * (moving ? 5.5 : 2.5);
     poseHumanoid(this.rig, { phase: this.phase, moving, zombie: true, dt });
   }
 
   dispose(scene) {
     scene.remove(this.mesh);
+    if (this.body) {
+      // the geometry and textures are the shared template's
+      this.body.dispose();
+      return;
+    }
     this.mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
     this.mesh.userData.dissolveMat.dispose();
   }
 }
+
+const _axis = new THREE.Vector3();
+const _qw = new THREE.Quaternion();
+const _qp = new THREE.Quaternion();
+const _ql = new THREE.Quaternion();
 
 /* The Max Ammo drop: an ammo can that bobs, turns and glows until it's
    walked over or times out (blinking through its last five seconds). The
@@ -316,6 +438,7 @@ export class ZombieDirector {
     this.dropAtKill = -1;      // which of this round's kills drops it
     this.roundKills = 0;
     this.events = [];          // drained by game.js: { type: "maxammo" }
+    preloadZombieModels();     // the bodies; spawning waits for them (see update)
   }
 
   /* A field on `floor`, keyed by what it leads to. */
@@ -454,7 +577,7 @@ export class ZombieDirector {
   }
 
   pickType() {
-    return Math.random() < 0.45 ? "pepe" : "troll";
+    return this.round >= RUNNERS_FROM && Math.random() < RUNNER_SHARE ? "runner" : "walker";
   }
 
   /* `playerPos` is the eye; `feetY` the player's feet (defaults to a
@@ -464,7 +587,9 @@ export class ZombieDirector {
     if (this.state === "spawning" || this.state === "fighting") {
       if (this.toSpawn > 0) {
         this.spawnCd -= dt;
-        if (this.spawnCd <= 0 && this.aliveCount < MAX_ALIVE) {
+        // false = the bodies are still downloading (null = they failed: the
+        // stick figures stand in rather than nobody ever turning up)
+        if (this.spawnCd <= 0 && this.aliveCount < MAX_ALIVE && zombieModelsReady() !== false) {
           this.spawnCd = SPAWN_INTERVAL;
           const w = this.spawnPointFor(feet);
           if (w) {
@@ -525,7 +650,7 @@ export class ZombieDirector {
     const out = [];
     for (const z of this.zombies) {
       if (!z.alive || z.dying) continue;
-      out.push(...z.rig.hitboxMeshes);
+      out.push(...z.hitboxMeshes);
     }
     return out;
   }
@@ -533,10 +658,8 @@ export class ZombieDirector {
   resolve(object) {
     let o = object;
     while (o) {
-      if (o.userData?.dissolveMat) {
-        const z = this.zombies.find((zz) => zz.mesh === o);
-        if (z) return z;
-      }
+      const z = o.userData?.zombie;
+      if (z && this.zombies.includes(z)) return z;
       o = o.parent;
     }
     return null;

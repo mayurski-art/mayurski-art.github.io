@@ -52,7 +52,7 @@ import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1";
-import { ZombieDirector } from "./zombies.js?v=to-hg6a";
+import { ZombieDirector } from "./zombies.js?v=zr1";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
@@ -6721,6 +6721,7 @@ function onBulletActorHit(actor, info) {
     showHitmarker(info.isHead, info.damage, info.point, killed);
     impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "zombie", scale: info.isHead ? 1.5 : 1.1 });
     if (actor.rig) flinchRigFrom(actor.rig, info.dir, info.isHead ? 1 : 0.5);
+    else actor.flinchFrom?.(info.dir, info.isHead ? 1 : 0.5);
     if (killed) {
       zdir.kills++;
       player.kills++;
