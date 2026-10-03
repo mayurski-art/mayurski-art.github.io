@@ -3100,7 +3100,9 @@ body.to-touch-play .to-ss-sky { width: calc(24px * var(--k)); height: calc(24px 
   color: var(--bo2-ink); text-decoration: none; text-shadow: 0 2px 8px rgba(0,0,0,.8);
 }
 .to-bo2-brand em { font-style: normal; color: var(--bo2-hot); }
-.to-bo2-menu { position: absolute; left: 96px; top: 100px; width: 440px; max-height: calc(100% - 210px); overflow-y: auto; z-index: 3; scrollbar-width: none; }
+/* Never reaches the footer: --foot-h is its live height (menu-bo2.js), so
+   a long list or description scrolls here instead of running over "N Online". */
+.to-bo2-menu { position: absolute; left: 96px; top: 100px; width: 440px; max-height: calc(100% - 100px - 30px - var(--foot-h, 60px) - 20px); overflow: hidden; z-index: 3; }
 .to-bo2-party { position: absolute; left: var(--bo2-col); top: 140px; width: min(380px, calc(100% - var(--bo2-col) - 48px)); z-index: 3; display: flex; flex-direction: column; gap: 6px; }
 .to-bo2.has-detail .to-bo2-party, body.is-map .to-bo2-party { visibility: hidden; }
 .to-bo2-party-lbl { font: 500 17px Oswald, sans-serif; letter-spacing: .04em; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
@@ -3191,15 +3193,15 @@ body.is-map .to-bo2-hints { visibility: hidden; }
   .to-bo2-brand { left: 20px; top: 16px; font-size: 18px; }
   .to-bo2-party { left: 20px; right: 20px; width: auto; top: 46px; }
   .to-bo2-party-lbl, .to-bo2-xp { display: none; }
-  .to-bo2-menu { left: 20px; right: 20px; width: auto; top: auto; bottom: 84px; max-height: 64cqh; }
+  .to-bo2-menu { left: 20px; right: 20px; width: auto; top: auto; bottom: calc(var(--foot-h, 42px) + 18px + 12px); max-height: min(64cqh, calc(100% - var(--foot-h, 42px) - 120px)); }
   .to-bo2-bg::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(3,1,1,0) 12%, rgba(3,1,1,.5) 34%, rgba(3,1,1,.85) 62%); }
   body.is-map .to-bo2-bg::after { display: none; }
-  .to-bo2-detail, .to-bo2-panel { left: 12px; right: 12px; top: 84px; bottom: calc(var(--menu-h, 300px) + 96px); max-height: none; padding: 12px; }
+  .to-bo2-detail, .to-bo2-panel { left: 12px; right: 12px; top: 84px; bottom: calc(var(--menu-h, 300px) + var(--foot-h, 42px) + 42px); max-height: none; padding: 12px; }
   #to-title.is-bo2 .to-bo2-detail .to-lo-detail { background: none; border: 0; padding: 0; box-shadow: none; }
   .to-bo2-panel { bottom: auto; }
   .to-bo2.has-gun .to-bo2-detail { top: 92px; }
   #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: none; }
-  #to-title.is-bo2 .to-char-view { left: 0; top: 76px; bottom: calc(var(--menu-h, 300px) + 92px); }
+  #to-title.is-bo2 .to-char-view { left: 0; top: 76px; bottom: calc(var(--menu-h, 300px) + var(--foot-h, 42px) + 38px); }
   .to-bo2-foot { left: 20px; right: 16px; bottom: 18px; }
   .to-bo2-online { font-size: 24px; }
   .to-bo2-hints { display: none; }

@@ -11,7 +11,7 @@
    (#to-pf-center) moves into the right-hand detail pane, with the parts
    that became lists hidden by CSS. */
 
-import { createBo2Menu } from "../../js/bo2-menu.js?v=to-bo2d";
+import { createBo2Menu } from "../../js/bo2-menu.js?v=to-ft2";
 import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
 import { canPrestige, prestigeUp, getPrestige, PRESTIGE_MASTER } from "./progression.js?v=umb1";
@@ -457,6 +457,14 @@ function renderParty() {
   $(".to-bo2-xp", root).textContent = p ? text($("#to-pf-xp")) : "Log in to keep your XP";
 }
 $(".to-bo2-party-row", root).addEventListener("click", () => $("#to-pf-profile")?.click());
+// The footer grows (Back button, status line), so the list's room comes
+// from its real height: see .to-bo2-menu in style.css.
+{
+  const foot = $(".to-bo2-foot", root);
+  const setFoot = () => root.style.setProperty("--foot-h", `${foot.offsetHeight}px`);
+  setFoot();
+  new ResizeObserver(setFoot).observe(foot);
+}
 window.addEventListener("trollrunner:auth-changed", () => setTimeout(() => { renderParty(); menu.refresh(); }, 50));
 window.addEventListener("trollforces:prestige-changed", () => setTimeout(() => { renderParty(); menu.refresh(); }, 50));
 for (const el of [$("#to-lo-rank-label"), $("#to-pf-roster")]) if (el) new MutationObserver(renderParty).observe(el, { childList: true, characterData: true, subtree: true });

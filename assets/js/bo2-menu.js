@@ -21,7 +21,7 @@
 const CSS = `
 .tr-menu{display:flex;flex-direction:column;align-items:flex-start;color:#f3ece4}
 .tr-menu-title{margin:0 0 8px;font:600 44px/1 Oswald,"Arial Narrow",sans-serif;letter-spacing:.04em;text-transform:uppercase;text-shadow:0 2px 10px rgba(0,0,0,.85)}
-.tr-menu-groups{display:flex;flex-direction:column;align-self:stretch}
+.tr-menu-groups{display:flex;flex-direction:column;align-self:stretch;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;margin-left:-14px;padding-left:14px}.tr-menu-groups::-webkit-scrollbar{display:none}.tr-menu-title,.tr-menu-desc{flex-shrink:0}.tr-menu-groups.fade-b{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 28px),transparent)}.tr-menu-groups.fade-t{-webkit-mask-image:linear-gradient(to top,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to top,#000 calc(100% - 28px),transparent)}.tr-menu-groups.fade-t.fade-b{-webkit-mask-image:linear-gradient(transparent,#000 28px,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(transparent,#000 28px,#000 calc(100% - 28px),transparent)}
 .tr-menu-group{display:flex;flex-direction:column;padding-bottom:14px}
 .tr-menu-item{display:flex;align-items:baseline;gap:12px;align-self:stretch;min-height:34px;padding:0 14px;margin-left:-14px;border:0;background:none;
   color:inherit;text-align:left;cursor:pointer;font:500 22px/34px Oswald,"Arial Narrow",sans-serif;letter-spacing:.04em;text-transform:uppercase;
@@ -60,6 +60,13 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
   title.className = "tr-menu-title";
   const list = document.createElement("div");
   list.className = "tr-menu-groups";
+  // Fade the list's edge only where there's more to scroll to.
+  const edges = () => {
+    list.classList.toggle("fade-t", list.scrollTop > 2);
+    list.classList.toggle("fade-b", list.scrollTop + list.clientHeight < list.scrollHeight - 2);
+  };
+  list.addEventListener("scroll", edges, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(edges).observe(list);
   const desc = document.createElement("p");
   desc.className = "tr-menu-desc";
   desc.setAttribute("aria-live", "polite");
@@ -89,7 +96,8 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
     if (i < 0 || i >= items.length) return;
     hot = i;
     paint();
-    if (focus) buttons[i].focus({ preventScroll: true });
+    // Only the item list scrolls (a short window); keep the hot one in it.
+    if (focus) { buttons[i].focus({ preventScroll: true }); buttons[i].scrollIntoView({ block: "nearest" }); }
   }
 
   function adjust(i, dir) {
@@ -160,6 +168,7 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
     hot = keep >= 0 ? keep : Math.max(0, items.findIndex((it) => !it.disabled));
     armed = -1;
     paint();
+    edges();
     if (onScreen) onScreen(screenId, s, api);
   }
 

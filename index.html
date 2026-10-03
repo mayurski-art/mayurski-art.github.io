@@ -40,7 +40,12 @@ a{color:var(--hot)}a:hover{color:#ffb870}
 .home-brand{position:absolute;left:72px;top:44px;display:flex;align-items:center;gap:12px;font:700 22px/1 var(--display);letter-spacing:.08em;color:var(--ink);text-decoration:none;text-shadow:0 2px 8px rgba(0,0,0,.8)}
 .home-backdrop::after{content:"";position:absolute;inset:0;pointer-events:none}
 .home-brand em{font-style:normal;color:var(--hot)}
-.home-menu{position:absolute;left:96px;top:112px;width:440px;max-height:calc(100% - 230px)}
+/* The list never reaches the footer: --foot-h is the footer's live height
+   (set from JS). Only the item list scrolls (bo2-menu.js), so the title and
+   description stay whole and nothing runs over "N Online". 14px of padding
+   on the left keeps the hot bar (items sit 14px out) in view. */
+.home-menu{position:absolute;left:82px;padding-left:14px;top:112px;width:454px;box-sizing:border-box;max-height:calc(100% - 112px - 34px - var(--foot-h,64px) - 20px);overflow:hidden}
+
 
 .home-acct{position:absolute;left:min(56vw,calc(100% - 420px));top:150px;width:380px;display:flex;flex-direction:column;gap:6px}
 .home-acct-lbl{font:500 17px var(--display);letter-spacing:.04em;text-shadow:0 1px 6px rgba(0,0,0,.9)}
@@ -101,11 +106,11 @@ textarea.home-field{min-height:120px;resize:vertical}
   .home-backdrop::after{background:linear-gradient(180deg,rgba(3,1,1,0) 12%,rgba(3,1,1,.5) 34%,rgba(3,1,1,.82) 62%,rgba(3,1,1,.92) 100%)}
   .home-acct{left:20px;right:20px;width:auto;top:calc(62px + env(safe-area-inset-top))}
   .home-acct-lbl{display:none}
-  .home-menu{left:20px;right:20px;width:auto;top:auto;bottom:calc(92px + env(safe-area-inset-bottom));max-height:none}
+  .home-menu{left:6px;right:20px;width:auto;top:auto;bottom:calc(var(--foot-h,58px) + 22px + 12px + env(safe-area-inset-bottom));max-height:calc(100% - var(--foot-h,58px) - 150px - env(safe-area-inset-bottom) - env(safe-area-inset-top))}
   .home-foot{left:20px;right:20px;bottom:calc(22px + env(safe-area-inset-bottom))}
   .home-online{font-size:26px}
   .home-hints{display:none}
-  .home-panel{left:12px;right:12px;width:auto;top:calc(110px + env(safe-area-inset-top));bottom:calc(var(--menu-h,180px) + 100px + env(safe-area-inset-bottom));max-height:none;padding:18px}
+  .home-panel{left:12px;right:12px;width:auto;top:calc(110px + env(safe-area-inset-top));bottom:calc(var(--menu-h,180px) + var(--foot-h,58px) + 42px + env(safe-area-inset-bottom));max-height:none;padding:18px}
 }
 @media (prefers-reduced-motion:reduce){.home-live i{animation:none}}
 </style>
@@ -181,7 +186,7 @@ textarea.home-field{min-height:120px;resize:vertical}
 <script src="assets/js/troll-accounts.js?v=20260930a"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script type="module">
-import { createBo2Menu } from './assets/js/bo2-menu.js?v=home5';
+import { createBo2Menu } from './assets/js/bo2-menu.js?v=home7';
 import { joinSitePresence, viewerId } from './assets/js/site-presence.js?v=home5';
 import { createMapMode } from './assets/js/troll-map-mode.js?v=home5';
 import { startTrollForcesPrefetch } from './assets/js/tf-prefetch.js?v=tfp1';
@@ -208,6 +213,13 @@ const panel = (id, title, desc) => ({
 });
 
 const nav = $('home-menu');
+// The footer grows (Back button, live status), so the list's room is set
+// from its real height: see .home-menu in the CSS.
+{
+  const foot = document.querySelector('.home-foot');
+  const setFoot = () => document.documentElement.style.setProperty('--foot-h', `${foot.offsetHeight}px`);
+  if (foot) { setFoot(); new ResizeObserver(setFoot).observe(foot); }
+}
 // Troll Map mode (shared with Troll Forces): the planet becomes the live map.
 const mapMode = createMapMode({
   host: $('home'), panelClass: 'home-panel',
