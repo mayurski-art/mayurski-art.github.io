@@ -183,21 +183,6 @@ const blocks = await B.evaluate(({ c }) => {
 check("smoke blocks sight on the other client", blocks === true);
 check("smoke grenade spent on both", (await spent(A, smoke.gid)) && (await spent(B, smoke.gid)));
 
-// ---------- 3. firebomb: pool on both, same spot, B's copy does no damage
-await revive(A);
-const fire = await throwFrom(A, "lethal", "firebomb");
-await sleep(2500);
-const pools = await Promise.all([A, B].map((p) => p.evaluate(() =>
-  window.__trollOps.grenades.pools.map((q) => ({ x: q.pos.x, z: q.pos.z, remote: !!q.remote }))
-)));
-const pA = pools[0].at(-1), pB = pools[1].at(-1);
-check("fire pool exists on both clients", !!pA && !!pB, JSON.stringify(pools));
-if (pA && pB) {
-  check("fire pool lands in the same spot", Math.hypot(pA.x - pB.x, pA.z - pB.z) < 0.05);
-  check("fire pool is local on thrower, remote on the other", !pA.remote && pB.remote);
-}
-check("firebomb goes off once on the other client", await spent(B, fire.gid));
-
 // ---------- 4. flash: an enemy in range is blinded, a teammate is spared
 async function flashTest(teamSame) {
   await B.evaluate((t) => { window.__trollOps.net.team = t; }, teamSame ? info[0].team : (info[0].team === "phantom" ? "ghost" : "phantom"));

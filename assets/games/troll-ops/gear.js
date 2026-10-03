@@ -904,15 +904,6 @@ export const THROWABLE_DEFS = {
     color: 0x4b5a3c, glow: 0xff7a2a,
     blurb: "Cook it, bounce it round the corner, count to three.",
   },
-  firebomb: {
-    id: "firebomb", name: "Firebomb", kind: "lethal", rank: 12,
-    carried: 1, fuse: 4, impact: true,
-    radius: 3, damage: 45, minDamage: 10, selfMult: 1,
-    pool: { radius: 4.4, dps: 85, duration: 7.5 },
-    throwSpeed: 18, bounce: 0, roll: 0,
-    color: 0x8a5a2a, glow: 0xff9430,
-    blurb: "Breaks where it lands and denies the room for seven seconds.",
-  },
   flash: {
     id: "flash", name: "Flashbang", kind: "tactical", rank: 0,
     carried: 2, fuse: 1.9, cookable: true,
@@ -979,15 +970,6 @@ class Grenade {
     this.fuse = fuseLeft;
     this.resting = false;
     this.spin = new THREE.Vector3(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-  }
-}
-
-class FirePool {
-  constructor(def, pos) {
-    this.def = def;
-    this.pos = pos.clone();
-    this.life = def.pool.duration;
-    this.tick = 0;
   }
 }
 
@@ -1072,14 +1054,12 @@ export class GrenadeSystem {
     this.scene = scene;
     this.lights = lights;
     this.live = [];
-    this.pools = [];
     this.clouds = [];
     this.spent = new Set();   // grenade ids already detonated, so a late `boom` can't double up
     this.root = new THREE.Group();
     scene.add(this.root);
     this.geo = new THREE.IcosahedronGeometry(RADIUS, 0);
     this.mats = new Map();
-    this.fireGeo = new THREE.CircleGeometry(1, 20);
     this.puffGeo = new THREE.PlaneGeometry(1, 1);
     this.puffTex = makePuffTexture();
   }
@@ -1131,13 +1111,11 @@ export class GrenadeSystem {
 
   clear() {
     for (const g of this.live) { this.root.remove(g.mesh); g.mesh.material.dispose(); }
-    for (const p of this.pools) { this.root.remove(p.mesh); this.lights?.release(p.light); }
     for (const c of this.clouds) {
       for (const puff of c.puffs) puff.mesh.material.dispose();
       this.root.remove(c.group);
     }
     this.live.length = 0;
-    this.pools.length = 0;
     this.clouds.length = 0;
   }
 
@@ -1194,34 +1172,6 @@ export class GrenadeSystem {
       g.mesh.material.emissiveIntensity = (Math.sin(g.fuse / blink * Math.PI * 2) > 0 ? 1.6 : 0.15) * (def.kind === "tactical" ? 0.7 : 1);
       if (g.fuse <= 0) { this.detonate(i, ctx); continue; }
     }
-
-    // ---- lingering fire
-    for (let i = this.pools.length - 1; i >= 0; i--) {
-      const p = this.pools[i];
-      p.life -= dt;
-      p.tick += dt;
-      const fade = Math.min(1, p.life / 1.2);
-      if (p.mesh) {
-        p.mesh.material.opacity = 0.5 * fade;
-        p.mesh.scale.setScalar(p.def.pool.radius * (0.94 + Math.sin(p.tick * 7) * 0.05));
-      }
-      if (p.light) p.light.intensity = (9 + Math.sin(p.tick * 13) * 3) * fade;
-      // Damage ticks four times a second rather than per frame, so a fast
-      // machine doesn't burn people faster than a slow one.
-      while (p.tick >= 0.25 && p.life > 0) {
-        p.tick -= 0.25;
-        // Someone else's fire is theirs to score; ours only shows it.
-        if (!p.remote) onAreaDamage?.(p.pos, p.def.pool.radius, p.def.pool.dps * 0.25, p.def, { fire: true, botId: p.botId });
-      }
-      if (p.life <= 0) {
-        this.root.remove(p.mesh);
-        this.lights?.release(p.light);
-        p.light = null;
-        // the disc geometry is shared, so only the per-pool material is freed
-        p.mesh?.material?.dispose?.();
-        this.pools.splice(i, 1);
-      }
-    }
   }
 
   detonate(index, ctx) {
@@ -1244,23 +1194,6 @@ export class GrenadeSystem {
     if (!g.remote) ctx.onDetonate?.(g, g.pos.clone());
 
     if (def.smoke) this.spawnSmoke(def, g.pos);
-
-    if (def.pool) {
-      const p = new FirePool(def, g.pos);
-      p.remote = !!g.remote;
-      p.botId = g.botId || null;
-      p.mesh = new THREE.Mesh(this.fireGeo, new THREE.MeshBasicMaterial({
-        color: def.glow, transparent: true, opacity: 0.5, depthWrite: false,
-        blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-      }));
-      p.mesh.rotation.x = -Math.PI / 2;
-      p.mesh.position.set(g.pos.x, g.pos.y - RADIUS + 0.05, g.pos.z);
-      p.mesh.scale.setScalar(def.pool.radius);
-      p.light = this.lights?.acquire("point", this.root, { color: def.glow, intensity: 10, distance: def.pool.radius * 2.4 }) || null;
-      p.light?.position.set(g.pos.x, g.pos.y + 0.8, g.pos.z);
-      this.root.add(p.mesh);
-      this.pools.push(p);
-    }
   }
 
   spawnSmoke(def, pos) {

@@ -10,11 +10,11 @@ import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mo
 import { poseEmoteCode } from "./emotes.js?v=hb4";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm";
-import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb2";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3";
-import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g";
+import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 
 const RENDER_DELAY = 110; // ms

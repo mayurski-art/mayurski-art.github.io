@@ -9,10 +9,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5";
-import { WeaponInspector } from "./inspector.js?v=hb1";
+import { WeaponInspector } from "./inspector.js?v=hb1-nf";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4";
-import { Loadout } from "./loadout.js?v=p5tc";
+import { Loadout } from "./loadout.js?v=p5tc-nf";
 import { StreakPicker } from "./streak-picker.js?v=umb1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -39,7 +39,7 @@ import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { createMapLoadScreen } from "./map-load-screen.js?v=ml2";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4";
@@ -47,7 +47,7 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=umb1";
-import { BotManager } from "./bots.js?v=cg3";
+import { BotManager } from "./bots.js?v=cg4";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
 import { GameAudio } from "./audio.js?v=umb1kb2";
 import { insidePolygon } from "./edge.js";
@@ -67,9 +67,9 @@ import { kickCurve } from "./attachments.js?v=cg1";
 import { WaveSpawner } from "./enemies.js?v=hb4";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
-import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g";
+import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g-nf";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb2";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
 import { createKeyboardRepair, KB_SHIELD } from "./keyboard-repair.js?v=kr9";
 import { RangeSet } from "./range.js";
@@ -12188,7 +12188,7 @@ function animate() {
     if (lowhp !== hudCache.lowhp) { hudCache.lowhp = lowhp; els.lowhp.classList.toggle("is-low", lowhp); }
 
     // A cooked grenade keeps ticking in your hand, and can go off in it.
-    // Only cookable ones: a firebomb or smoke held down used to burn its fuse
+    // Only cookable ones: a smoke held down used to burn its fuse
     // in your hand too, with no cook bar to warn you.
     if (cooking.def && cooking.def.cookable) {
       cooking.fuse -= dt;

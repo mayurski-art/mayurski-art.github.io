@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { buildWeaponMesh } from "./weapon-model.js?v=p5";
-import { buildMeleeMesh } from "./gear.js?v=to-hb1kb2";
+import { buildMeleeMesh } from "./gear.js?v=to-hb1kb3";
 import { loadModel } from "./battlefield-props.js";
 import { buildDragonfireModel } from "./dragonfire.js?v=df2";
 import { buildSamTurretModel } from "./sam-turret.js?v=sam1";

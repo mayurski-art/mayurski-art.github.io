@@ -81,10 +81,10 @@ const STUCK_HOP = 0.6;            // seconds pushing into something before hoppi
 const MOVE_COOLDOWN = 1.2;
 
 /* Grenades. One lethal and one tactical a life, like a player's kit, rolled
-   per life (lethal: frag or firebomb; tactical: flash, smoke or EMP), and
+   per life (lethal: frag; tactical: flash, smoke or EMP), and
    a cooldown between throws so a bot that keeps its reason (a camper
    behind the same wall) doesn't empty its pockets at it at once. */
-const BOT_LETHALS = ["frag", "firebomb"];
+const BOT_LETHALS = ["frag"];
 const BOT_TACTICALS = ["flash", "smoke", "emp"];
 const NADE_FIRST = [5, 10];       // seconds after spawning before the first throw
 const NADE_COOLDOWN = [9, 15];
