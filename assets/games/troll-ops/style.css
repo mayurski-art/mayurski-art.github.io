@@ -1649,33 +1649,214 @@ body.to-touch-play .to-ws-guns span { pointer-events: auto; cursor: pointer; pad
 .to-radio-toggle:hover { border-color: rgba(127,224,102,.45); }
 .to-radio-toggle[aria-expanded="true"] { border-color: #7fe066; color: #7fe066; }
 
-.to-radio-panel {
+/* Grinspace: the radio panel, skinned after the old Media Player
+   "Headspace" skin. A lime-green CRT with a head underneath (ours is the
+   trollface), EQ on the left wing, playlist on the right, speaker pods on
+   both ends that kick with the bass. Fixed 680x368 design, zoomed down on
+   small cabinets. */
+.to-radio-panel.gs {
+  --gs-hi: #c9f75a; --gs-mid: #74c81c; --gs-lo: #2f7a06; --gs-ink: #0c2a03;
+  --gs-lcd: #0d3306; --gs-lcd-txt: #b9ff7a;
+  --gs-body: radial-gradient(120% 90% at 35% 18%, var(--gs-hi) 0%, var(--gs-mid) 42%, var(--gs-lo) 100%);
   position: absolute; left: 0; bottom: 42px;
-  width: 220px; padding: 10px 12px;
-  background: rgba(10,14,10,.92); border: 1px solid rgba(255,255,255,.14);
-  border-radius: 12px; backdrop-filter: blur(6px);
-  display: flex; flex-direction: column; gap: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  width: 680px; height: 368px; padding: 0;
+  background: none; border: 0; border-radius: 0; box-shadow: none;
+  backdrop-filter: none;
+  display: block;
+  font-family: Tahoma, Verdana, "DM Sans", sans-serif;
+  filter: drop-shadow(0 14px 22px rgba(0,0,0,.55));
+  user-select: none;
 }
-.to-radio-track { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.to-radio-track strong {
-  font-size: 12px; color: #eef2ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.to-radio-track span { font-size: 10.5px; color: #9aa596; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.to-radio-panel.gs[hidden] { display: none; }
+.gs button { font-family: inherit; }
+.gs :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
-.to-radio-controls { display: flex; align-items: center; gap: 6px; }
-.to-radio-btn {
-  flex: 1; height: 28px; border-radius: 7px;
-  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14);
-  color: #dfe6da; font-size: 12px; cursor: pointer;
+/* ---- wings ---- */
+.gs-wing { position: absolute; top: 64px; width: 262px; height: 150px; }
+.gs-wing-l { left: 0; }
+.gs-wing-r { right: 0; }
+.gs-wing::before {
+  content: ""; position: absolute; top: 12px; bottom: 12px; left: 34px; right: 0;
+  background: var(--gs-body); border-radius: 20px;
+  box-shadow: inset 0 2px 1px rgba(255,255,255,.55), inset 0 -3px 6px rgba(0,0,0,.35), 0 0 0 1px var(--gs-ink);
 }
-.to-radio-btn:hover { border-color: rgba(127,224,102,.45); }
-.to-radio-btn:disabled { opacity: .35; cursor: default; }
-.to-radio-btn.is-active { color: #7fe066; border-color: #7fe066; background: rgba(127,224,102,.14); }
-.to-radio-play { flex: 1.3; color: #7fe066; }
+.gs-wing-r::before { left: 0; right: 34px; }
 
-.to-radio-vol { display: flex; align-items: center; gap: 8px; font-size: 10.5px; color: #9aa596; }
-.to-radio-vol input[type="range"] { flex: 1; accent-color: #7fe066; }
+.gs-pods {
+  position: absolute; top: 0; width: 64px; height: 150px; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
+  background: var(--gs-body); border-radius: 32px;
+  box-shadow: inset 0 3px 2px rgba(255,255,255,.6), inset 0 -4px 8px rgba(0,0,0,.4), 0 0 0 1px var(--gs-ink);
+}
+.gs-wing-l .gs-pods { left: 0; }
+.gs-wing-r .gs-pods { right: 0; }
+.gs-pods i {
+  width: 40px; height: 40px; border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, #222 0 14%, #8d9196 15% 24%, #3a3d40 25% 30%, #c7cbd0 31% 52%, #6e7378 53% 62%, #e3e6e9 63% 76%, #4a4e52 77% 100%);
+  box-shadow: 0 0 0 2px var(--gs-ink), inset 0 0 4px rgba(0,0,0,.6);
+  transform: scale(calc(1 + var(--kick, 0) * .14));
+  transition: transform 60ms linear;
+}
+
+.gs-inset {
+  position: absolute; top: 22px; height: 106px; width: 160px; z-index: 1;
+  background: linear-gradient(180deg, #1a4d0b, var(--gs-lcd) 70%);
+  border-radius: 8px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.45);
+  color: var(--gs-lcd-txt); font-size: 9px;
+}
+.gs-wing-l .gs-inset { left: 68px; }
+.gs-wing-r .gs-inset { right: 68px; }
+
+/* EQ */
+.gs-eq { padding: 6px 8px 0; box-sizing: border-box; }
+.gs-sliders { display: flex; gap: 10px; }
+.gs-sliders label { flex: 1; display: flex; flex-direction: column-reverse; align-items: center; gap: 1px; }
+.gs-sliders span { font-size: 8.5px; letter-spacing: .02em; opacity: .9; }
+.gs-bands { display: flex; justify-content: space-between; margin-top: 5px; height: 58px; }
+.gs-bands label { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 13px; }
+.gs-bands span { font-size: 6.5px; opacity: .85; white-space: nowrap; }
+.gs-reset {
+  position: absolute; right: 7px; bottom: 3px; padding: 0; border: 0; background: none;
+  color: var(--gs-lcd-txt); font-size: 8.5px; text-decoration: underline; cursor: pointer;
+}
+
+.gs input[type="range"] {
+  -webkit-appearance: none; appearance: none; margin: 0; background: none; cursor: pointer;
+}
+.gs input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: #061a02; box-shadow: 0 1px 0 rgba(185,255,122,.25); }
+.gs input[type="range"]::-moz-range-track { height: 3px; border-radius: 2px; background: #061a02; }
+.gs input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 7px; margin-top: -2px; border-radius: 2px;
+  background: linear-gradient(#f4f6f2, #9da59a); border: 1px solid #0c2a03;
+}
+.gs input[type="range"]::-moz-range-thumb { width: 12px; height: 7px; border-radius: 2px; background: linear-gradient(#f4f6f2, #9da59a); border: 1px solid #0c2a03; }
+.gs-sliders input[type="range"] { width: 100%; height: 10px; }
+.gs-bands input[type="range"] { writing-mode: vertical-lr; direction: rtl; width: 10px; height: 46px; }
+.gs-bands input[type="range"]::-webkit-slider-runnable-track { width: 3px; height: auto; }
+.gs-bands input[type="range"]::-moz-range-track { width: 3px; height: auto; }
+.gs-bands input[type="range"]::-webkit-slider-thumb { width: 10px; height: 6px; margin-top: 0; margin-left: -3.5px; }
+
+/* Playlist */
+.gs-list { display: flex; flex-direction: column; padding: 5px 5px 4px; box-sizing: border-box; }
+.gs-list-head {
+  display: flex; align-items: center; gap: 5px; height: 15px; padding: 0 4px; margin-bottom: 3px;
+  background: #e9f5df; color: #0c2a03; border-radius: 3px; font-size: 9.5px; font-weight: 700;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.35);
+}
+.gs-disc { width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle, #0c2a03 0 18%, #b9c0c6 20% 60%, #6f777d 62%); }
+.gs-list ol { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: #74c81c transparent; }
+.gs-list button {
+  display: flex; width: 100%; align-items: baseline; gap: 4px; padding: 2px 4px;
+  background: none; border: 0; border-radius: 2px; color: var(--gs-lcd-txt);
+  font-size: 10px; text-align: left; cursor: pointer;
+}
+.gs-list button span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-list button small { max-width: 52px; font-size: 8px; opacity: .65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-list button:hover { background: rgba(185,255,122,.12); }
+.gs-list button[aria-current="true"] { background: #3e9a12; color: #fff; }
+.gs-list button[aria-current="true"] span::before { content: "\25B8  "; }
+
+/* ---- core: the CRT + the head ---- */
+.gs-core { position: absolute; left: 228px; top: 0; width: 224px; height: 368px; z-index: 2; }
+.gs-core::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 18px; height: 200px; z-index: 1;
+  background: var(--gs-body); border-radius: 54px 54px 40px 40px / 50px 50px 44px 44px;
+  box-shadow: inset 0 4px 3px rgba(255,255,255,.6), inset 0 -6px 10px rgba(0,0,0,.4), 0 0 0 1px var(--gs-ink);
+}
+.gs-head {
+  position: absolute; left: -10px; top: 170px; width: 244px; height: auto; z-index: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)) saturate(1.25) brightness(1.08);
+}
+.gs-crown {
+  position: absolute; left: 50%; top: 0; z-index: 2; transform: translateX(-50%);
+  width: 52px; height: 24px; border-radius: 12px 12px 0 0;
+  background: var(--gs-body); box-shadow: inset 0 2px 1px rgba(255,255,255,.6), 0 0 0 1px var(--gs-ink);
+  display: flex; justify-content: center; align-items: flex-start; padding-top: 3px; box-sizing: border-box;
+}
+.gs-x {
+  width: 18px; height: 14px; padding: 0; border-radius: 3px; border: 1px solid var(--gs-ink);
+  background: linear-gradient(#e7fbd2, #8bd24a); color: var(--gs-ink);
+  font: 700 12px/11px Tahoma, Verdana, sans-serif; cursor: pointer;
+}
+.gs-x:hover { background: linear-gradient(#fff, #b4ef78); }
+
+.gs-transport {
+  position: absolute; left: 0; right: 0; top: 30px; z-index: 2;
+  display: flex; justify-content: center; align-items: center; gap: 12px;
+}
+.gs-pill {
+  display: flex; gap: 3px; padding: 3px 5px; border-radius: 14px;
+  background: linear-gradient(#2f7a06, #5ead19); box-shadow: inset 0 1px 3px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.5);
+}
+.gs-btn {
+  width: 24px; height: 24px; padding: 0; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center;
+  border: 1px solid #2b0f4a; color: #1d0838;
+  background: radial-gradient(circle at 38% 30%, #f6ecff 0 10%, #c49af0 32%, #8550c4 70%, #4d2386 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,.45);
+}
+.gs-btn svg { width: 11px; height: 11px; fill: currentColor; }
+.gs-btn:hover { filter: brightness(1.12); }
+.gs-btn:active { transform: translateY(1px); }
+.gs-btn:disabled { opacity: .4; cursor: default; }
+.gs .gs-ico-pause, .gs.is-playing .gs-ico-play { display: none; }
+.gs.is-playing .gs-ico-pause { display: inline; }
+.gs-shuffle {
+  width: 22px; height: 22px;
+  background: radial-gradient(circle at 38% 30%, #fffbe0 0 10%, #ffd84a 40%, #d08a00 100%);
+  border-color: #5a3a00; color: #4a2a00;
+}
+.gs-shuffle.is-active { box-shadow: 0 0 0 2px #fff, 0 0 10px #ffd84a; }
+
+.gs-screen {
+  position: absolute; left: 20px; top: 62px; width: 184px; height: 116px; z-index: 2;
+  border-radius: 20px / 18px; overflow: hidden; background: #000;
+  box-shadow: 0 0 0 3px #1c4a05, 0 0 0 4px rgba(255,255,255,.4), inset 0 0 18px rgba(0,0,0,.9);
+}
+.gs-screen canvas { display: block; width: 100%; height: 100%; }
+.gs-screen::after { /* glass glare */
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(120% 70% at 30% 0%, rgba(255,255,255,.14), transparent 55%);
+}
+.gs-readout {
+  position: absolute; left: 10px; right: 10px; bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+  font: 9.5px "DM Mono", ui-monospace, monospace; color: #b9ff7a; text-shadow: 0 0 4px rgba(127,224,102,.7);
+}
+.gs-marquee { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
+.gs-marquee span { display: inline-block; padding-left: 100%; animation: gs-marquee 11s linear infinite; }
+.gs-marquee b { font-weight: 600; }
+.gs-marquee em { font-style: normal; opacity: .75; }
+.gs:not(.is-playing) .gs-marquee span { animation: none; padding-left: 0; }
+@keyframes gs-marquee { to { transform: translateX(-100%); } }
+.gs-time { flex: none; opacity: .85; }
+
+.gs-seek {
+  position: absolute; left: 22px; right: 22px; top: 186px; z-index: 2;
+  display: flex; align-items: center; gap: 6px;
+}
+.gs-mini { width: 12px; height: 12px; fill: var(--gs-ink); opacity: .75; flex: none; }
+.gs-seek input[type="range"] {
+  flex: 1; height: 12px; border-radius: 6px;
+  background: linear-gradient(#1c4a05, #3e8a0e); box-shadow: inset 0 1px 2px rgba(0,0,0,.6);
+  padding: 0 3px; box-sizing: border-box;
+}
+.gs-seek input[type="range"]::-webkit-slider-runnable-track { background: none; box-shadow: none; }
+.gs-seek input[type="range"]::-moz-range-track { background: none; }
+.gs-seek input[type="range"]::-webkit-slider-thumb {
+  width: 22px; height: 10px; margin-top: -3.5px; border-radius: 5px;
+  background: radial-gradient(circle at 40% 30%, #f6ecff, #8550c4 70%); border-color: #2b0f4a;
+}
+.gs-seek input[type="range"]::-moz-range-thumb { width: 22px; height: 10px; border-radius: 5px; background: radial-gradient(circle at 40% 30%, #f6ecff, #8550c4 70%); border-color: #2b0f4a; }
+
+/* Smaller cabinets: same skin, zoomed down. */
+@container cab (max-width: 900px) { .to-radio-panel.gs { zoom: .78; } }
+@container cab (max-width: 700px) { .to-radio-panel.gs { zoom: .56; } }
+@container cab (max-height: 620px) { .to-radio-panel.gs { zoom: .7; } }
+@container cab (max-height: 460px) { .to-radio-panel.gs { zoom: .55; } }
 
 /* X/Twitter link — sits right next to the radio toggle, main menu only
    (the radio itself stays up through the match; this doesn't need to). */
@@ -1713,7 +1894,6 @@ body.to-touch-play .to-ws-guns span { pointer-events: auto; cursor: pointer; pad
 
 @media (max-width: 760px) {
   .to-radio { left: 10px; bottom: 10px; }
-  .to-radio-panel { width: 190px; }
 }
 
 

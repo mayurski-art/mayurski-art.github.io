@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:wght@500;700;900&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=umb2-pc1-p5">
+  <link rel="stylesheet" href="assets/games/troll-ops/style.css?v=umb2-pc1-p5-gs1">
 </head>
 <body>
 
@@ -665,21 +665,56 @@
            lobby and the match. Visible on the title screen and in the HUD. -->
       <div class="to-radio" id="to-radio" aria-label="Radio">
         <button type="button" class="to-radio-toggle" id="to-radio-toggle" aria-label="Show radio controls" aria-expanded="false">♪</button>
-        <div class="to-radio-panel" id="to-radio-panel" hidden>
-          <div class="to-radio-track">
-            <strong id="to-radio-title">No tracks loaded</strong>
-            <span id="to-radio-artist"></span>
+        <!-- Grinspace: the old Media Player "Headspace" skin, but the head is
+             the trollface. Wings = EQ (left) and playlist (right). -->
+        <div class="to-radio-panel gs" id="to-radio-panel" role="dialog" aria-label="Grinspace radio" hidden>
+          <div class="gs-wing gs-wing-l">
+            <div class="gs-pods" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="gs-inset gs-eq">
+              <div class="gs-sliders">
+                <label><span>Balance</span><input type="range" id="to-radio-balance" min="-100" max="100" step="1" value="0" aria-label="Balance"></label>
+                <label><span>Volume</span><input type="range" id="to-radio-volume" min="0" max="100" step="1" aria-label="Volume"></label>
+              </div>
+              <div class="gs-bands" id="to-radio-eq" role="group" aria-label="Equalizer"></div>
+              <button type="button" class="gs-reset" id="to-radio-eqreset">reset</button>
+            </div>
           </div>
-          <div class="to-radio-controls">
-            <button type="button" class="to-radio-btn" id="to-radio-prev" aria-label="Previous track">⏮</button>
-            <button type="button" class="to-radio-btn to-radio-play" id="to-radio-play" aria-label="Play">▶</button>
-            <button type="button" class="to-radio-btn" id="to-radio-next" aria-label="Next track">⏭</button>
-            <button type="button" class="to-radio-btn to-radio-shuffle" id="to-radio-shuffle" aria-label="Shuffle" aria-pressed="false">⇄</button>
+
+          <div class="gs-core">
+            <img class="gs-head" src="assets/games/troll-ops/radio-grin-head.webp?v=gs1" alt="" draggable="false">
+            <div class="gs-crown">
+              <button type="button" class="gs-x" id="to-radio-close" aria-label="Close radio">×</button>
+            </div>
+            <div class="gs-transport">
+              <div class="gs-pill">
+                <button type="button" class="gs-btn" id="to-radio-prev" aria-label="Previous track"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3h2v10H3zM14 3v10L6 8z"/></svg></button>
+                <button type="button" class="gs-btn" id="to-radio-play" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="gs-ico-play" d="M4 2.5v11L13.5 8z"/><path class="gs-ico-pause" d="M3.5 3h3v10h-3zM9.5 3h3v10h-3z"/></svg></button>
+                <button type="button" class="gs-btn" id="to-radio-stop" aria-label="Stop"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3.5h9v9h-9z"/></svg></button>
+                <button type="button" class="gs-btn" id="to-radio-next" aria-label="Next track"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 3h2v10h-2zM2 3v10l8-5z"/></svg></button>
+              </div>
+              <button type="button" class="gs-btn gs-shuffle" id="to-radio-shuffle" aria-label="Shuffle" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4h3l6 8h3v-2l3 3-3 3v-2h-4L3 6H1zM10 4h3V2l3 3-3 3V6h-2l-1.6 2.1-1.2-1.6z"/></svg></button>
+            </div>
+            <div class="gs-screen">
+              <canvas id="to-radio-viz" width="360" height="232" aria-hidden="true"></canvas>
+              <div class="gs-readout">
+                <div class="gs-marquee"><span><b id="to-radio-title">No tracks loaded</b> <em id="to-radio-artist"></em></span></div>
+                <span class="gs-time" id="to-radio-time">0:00</span>
+              </div>
+            </div>
+            <div class="gs-seek">
+              <svg class="gs-mini" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 14V9h2v5zM6 14V4h2v10zM10 14V7h2v7zM14 14V2h-1v12z"/></svg>
+              <input type="range" id="to-radio-seek" min="0" max="1000" step="1" value="0" aria-label="Seek">
+              <svg class="gs-mini" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1h7l3 3v11H3zM5 7h6v1H5zm0 2h6v1H5zm0 2h4v1H5z"/></svg>
+            </div>
           </div>
-          <label class="to-radio-vol">
-            <span>Vol</span>
-            <input type="range" id="to-radio-volume" min="0" max="100" step="1">
-          </label>
+
+          <div class="gs-wing gs-wing-r">
+            <div class="gs-inset gs-list">
+              <div class="gs-list-head"><span class="gs-disc" aria-hidden="true"></span><span>Troll Forces FM</span></div>
+              <ol id="to-radio-list" aria-label="Playlist"></ol>
+            </div>
+            <div class="gs-pods" aria-hidden="true"><i></i><i></i><i></i></div>
+          </div>
         </div>
       </div>
 
@@ -705,7 +740,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-umb3e-rm2"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-umb3e-rm2-gs1"></script>
   <script type="module" src="assets/games/troll-ops/menu-bo2.js?v=umb2-bn1-rec1-pc1-p5"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
