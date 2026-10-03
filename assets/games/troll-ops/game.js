@@ -3528,7 +3528,7 @@ const animDebug = new AnimDebugLab();
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
   volume: 50, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, gloves: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
-  gfx: "auto", viewMode: false,
+  gfx: "auto", viewMode: false, invincible: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
 
@@ -3567,6 +3567,7 @@ function applySettings() {
   set("to-set-gloves-lobby", settings.gloves);
   set("to-set-aimassist-lobby", settings.aimAssist);
   set("to-set-viewmode-lobby", settings.viewMode);
+  set("to-set-invincible", settings.invincible);
   renderViewModeRow();
   set("to-set-botskill", settings.botSkill);
   set("to-set-gfx", settings.gfx);
@@ -3825,6 +3826,7 @@ function initEscapeMenu() {
   bindCheck("to-set-minimap", "minimap");
   bindCheck("to-set-gloves", "gloves");
   bindCheck("to-set-aimassist", "aimAssist");
+  bindCheck("to-set-invincible", "invincible");
 
   bindRange("to-set-volume-lobby", "volume", "to-set-volume-lobby-out");
   bindRange("to-set-sens-lobby", "sens", "to-set-sens-lobby-out", "%");
@@ -4123,9 +4125,14 @@ function isTrollRunner() {
   return String(window.TrollrunnerAccounts?.getCachedProfile?.()?.username || "").toLowerCase() === "troll_runner";
 }
 function viewModeOn() { return !!settings.viewMode && isTrollRunner(); }
+/* Invincible is the owner's too: the pause-menu row only shows, and only
+   takes effect, on troll_runner. */
+function invincibleOn() { return !!settings.invincible && isTrollRunner(); }
 function renderViewModeRow() {
   const row = document.getElementById("to-set-viewmode-row");
   if (row) row.hidden = !isTrollRunner();
+  const godRow = document.getElementById("to-set-invincible-row");
+  if (godRow) godRow.hidden = !isTrollRunner();
   const note = document.getElementById("to-set-viewmode-note");
   if (note) note.hidden = !viewModeOn();
 }
@@ -11386,6 +11393,8 @@ function killerPosFor(id) {
    look up by id — a zombie, a grunt, the bomb. */
 function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) {
   if (!player.alive) return;
+  // Owner's Invincible toggle: nothing lands, from anyone or anything.
+  if (invincibleOn()) return;
   // Nothing lands before the match is live, whoever reports it.
   if (isStaging()) return;
   // A raised Trollsaber eats rounds from the front.
