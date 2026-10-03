@@ -47,7 +47,7 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=umb1";
-import { BotManager } from "./bots.js?v=cg2";
+import { BotManager } from "./bots.js?v=cg3";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
 import { GameAudio } from "./audio.js?v=umb1kb2";
 import { insidePolygon } from "./edge.js";
@@ -13069,8 +13069,25 @@ function updateMeleeView(dt) {
     if (kbShield.t > 0.001) {
       mesh.position.lerp(KB_SHIELD.pos, kbShield.t);
       mesh.quaternion.slerp(KB_SHIELD.quat, kbShield.t);
-      const sup = meleeHands(mesh)[1]?.obj;
-      if (sup) sup.position.lerp(_kbFarGrip, kbShield.t);
+    }
+    // The support hand rides out to the far end for the shield and onto the
+    // tools for the repair, and must come back under the main hand after
+    // (user: it stayed up the blade, and its arm hid the U MAD BRO? guard).
+    // `home` eases back to the built grip; the shield lerps from it fresh
+    // every frame instead of compounding on the hand's own position.
+    const sup = meleeHands(mesh)[1];
+    if (sup && !mesh.userData.handsTossed) {
+      const home = sup.home || (sup.home = { pos: sup.pos.clone(), quat: sup.quat.clone() });
+      if (kbRepair.active) {
+        home.pos.copy(sup.obj.position);
+        home.quat.copy(sup.obj.quaternion);
+      } else {
+        const k = 1 - Math.exp(-dt * 12);
+        home.pos.lerp(sup.pos, k);
+        home.quat.slerp(sup.quat, k);
+        sup.obj.position.copy(home.pos).lerp(_kbFarGrip, kbShield.t);
+        sup.obj.quaternion.copy(home.quat);
+      }
     }
     // each round knocks it back into your face a little
     if (kbShield.kick > 0) {
