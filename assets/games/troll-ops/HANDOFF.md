@@ -912,7 +912,10 @@ be ordered with the user (design doc first for the big ones):
      played without a Prestige 2 sign-in; the live site keeps the lock.
      Third person (B) with a hero body sits +0.5 m back and +0.32 m out
      (updateThirdPersonCamera `big`), or the Knight's head covers the
-     crosshair. Next: Hunter (+ Doge), Super Troll,
+     crosshair. Cape deepened to 0x1a3f9e (the game sun washed the first
+     blue out). Knight SHIPPED + LIVE 2026-10-03 (4b80b38). **USER: HOLD OFF
+     on the other characters** (Hunter, Super Troll, Metamorph, Trollernaut)
+     until they say go. When resumed: Hunter (+ Doge), Super Troll,
      Metamorph (both forms), then phase 4 Trollernaut.
    - **REQUIRED for every character model (user, 2026-10-03): a timelapse
      video of Claude building it.** Not a turntable of the finished model:
