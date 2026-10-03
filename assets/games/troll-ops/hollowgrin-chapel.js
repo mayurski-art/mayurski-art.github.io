@@ -457,18 +457,24 @@ function frontalTexture() {
 }
 
 /* The house rules, in gold on black, either side of the apse. */
+/* The Ten Controllments (user, 2026-10-03), five a plaque: a two-line title
+   then the commandments. Drawn at 2x so the small lines stay crisp up close. */
 function rulesTexture(lines) {
-  return canvasTex(320, 360, (g, W, H) => {
+  return canvasTex(640, 720, (g) => {
+    g.scale(2, 2);
+    const W = 320, H = 360;
     g.fillStyle = "#14100e"; g.fillRect(0, 0, W, H);
     g.strokeStyle = "#c89a3a"; g.lineWidth = 6; g.strokeRect(12, 12, W - 24, H - 24);
     g.lineWidth = 2; g.strokeRect(22, 22, W - 44, H - 44);
     g.fillStyle = "#e8c868";
     g.textAlign = "center";
+    g.font = "bold 18px Georgia, serif";
+    g.fillText(lines[0], W / 2, 56, W - 60);
     g.font = "bold 30px Georgia, serif";
-    g.fillText(lines[0], W / 2, 66);
-    g.fillRect(W / 2 - 60, 80, 120, 3);
-    g.font = "22px Georgia, serif";
-    lines.slice(1).forEach((l, i) => g.fillText(l, W / 2, 128 + i * 52, W - 60));
+    g.fillText(lines[1], W / 2, 90, W - 60);
+    g.fillRect(W / 2 - 60, 104, 120, 3);
+    g.font = "19px Georgia, serif";
+    lines.slice(2).forEach((l, i) => g.fillText(l, W / 2, 148 + i * 42, W - 56));
   });
 }
 
@@ -763,14 +769,15 @@ export function buildChapel(api, K, M, SP, root, lights, H) {
     }
   }
 
-  /* ---- the west wall either side of the apse: the house rules */
+  /* ---- the west wall either side of the apse: the Ten Controllments,
+     I-V on the left as you face the altar (+z), VI-X on the right */
   for (const [z, lines] of [
-    [CZ - APSE.r - 0.95, ["THE RULES", "I · NO RAGE QUITS", "II · FEED NO TROLLS", "III · U MAD? NO."]],
-    [CZ + APSE.r + 0.95, ["THE RULES", "IV · PROBLEM? NONE", "V · GG, ALWAYS", "VI · STAY GRINNING"]],
+    [CZ + APSE.r + 0.95, ["THE TEN", "CONTROLLMENTS", "I · THOU SHALT NOT RAGE QUIT", "II · FEED NO TROLLS", "III · U MAD? NO.", "IV · PROBLEM? NONE", "V · GG, ALWAYS"]],
+    [CZ - APSE.r - 0.95, ["THE TEN", "CONTROLLMENTS", "VI · STAY GRINNING", "VII · LURK MOAR", "VIII · TAKE NOT THE BAIT", "IX · BLESSED ARE THE AFK", "X · KEEP CALM, TROLL ON"]],
   ]) {
-    K.box(CM.timber, IN.x0 + 0.03, CHANCEL.y + 1.2, z, 0.06, 1.95, 1.62);
+    K.box(CM.timber, IN.x0 + 0.03, CHANCEL.y + 1.5, z, 0.06, 1.95, 1.62);   // up 0.3: the priest's raised hand hid line V
     K.add(new THREE.MeshStandardMaterial({ map: rulesTexture(lines), emissiveMap: rulesTexture(lines), emissive: 0x6a6050, roughness: 0.6 }),
-      place(new THREE.PlaneGeometry(1.44, 1.62), { x: IN.x0 + 0.065, y: CHANCEL.y + 2.175, z, ry: Math.PI / 2 }), { shadow: false });
+      place(new THREE.PlaneGeometry(1.44, 1.62), { x: IN.x0 + 0.065, y: CHANCEL.y + 2.475, z, ry: Math.PI / 2 }), { shadow: false });
   }
 
   /* ---- the chancel: pulpit and the communion rail */

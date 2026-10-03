@@ -7,12 +7,12 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5";
 import { WeaponInspector } from "./inspector.js?v=hb1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4";
-import { Loadout } from "./loadout.js?v=p5";
+import { Loadout } from "./loadout.js?v=p5tc";
 import { StreakPicker } from "./streak-picker.js?v=umb1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -34,7 +34,7 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5";
 import { openProfileCard } from "./profile-card.js?v=pc1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { createMapLoadScreen } from "./map-load-screen.js?v=ml2";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2";
@@ -343,9 +343,38 @@ function markPadPresent() {
 }
 window.addEventListener("gamepadconnected", markPadPresent);
 window.addEventListener("gamepaddisconnected", markPadPresent);
+/* Which pad to read (user, 2026-10-03: "I auto sway to the left" on a
+   controller). The last pad to connect used to win, so a phantom or
+   non-standard device (some laptops expose one, an axis resting at -1)
+   could take over and hold the player at full left. A standard-mapped pad
+   is preferred over anything else; among those, the one already in use. */
+function pickPad(pads, current) {
+  const live = Array.from(pads).filter((p) => p && p.connected);
+  const cur = current != null ? live.find((p) => p.index === current) : null;
+  if (cur && cur.mapping === "standard") return cur;
+  return live.find((p) => p.mapping === "standard") || cur || live[0] || null;
+}
+
+/* The left stick's resting offset. A worn stick that rests a little off
+   centre (drift) used to walk you sideways once it passed the deadzone; it's
+   measured whenever the stick should be at rest (a pad connecting, the
+   loading screen coming down) and taken off every reading. Only a small
+   offset counts: anything bigger is someone actually pushing the stick. */
+const padRest = { x: 0, y: 0, index: null };
+function calibratePadRest() {
+  const gp = gpIndex != null ? navigator.getGamepads?.()[gpIndex] : null;
+  if (!gp) return;
+  const x = gp.axes[0] || 0, y = gp.axes[1] || 0;
+  if (padRest.index !== gp.index) { padRest.x = 0; padRest.y = 0; padRest.index = gp.index; }
+  if (Math.hypot(x, y) < 0.3) { padRest.x = x; padRest.y = y; }
+}
+
 window.addEventListener("gamepadconnected", (e) => {
-  gpIndex = e.gamepad.index;
+  const gp = pickPad(navigator.getGamepads ? navigator.getGamepads() : [e.gamepad], gpIndex);
+  gpIndex = gp ? gp.index : e.gamepad.index;
   gamepadState.connected = true;
+  // A beat later: a fresh pad's first reading can still be all zeros.
+  setTimeout(calibratePadRest, 300);
   if (gameState === "playing") setTouchControls(true);
 });
 window.addEventListener("gamepaddisconnected", (e) => {
@@ -6508,7 +6537,7 @@ if (els.touchEmote) {
 const PAD_SENS_MULT = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.3, 3.6, 4];
 const PAD_SENS_NAMES = { 1: "Low", 3: "Medium", 5: "High", 7: "Very High", 9: "Insane" };
 const PAD_LOOK_DEADZONE = 0.1;
-const PAD_MOVE_DEADZONE = 0.15;
+const PAD_MOVE_DEADZONE = 0.18;
 const PAD_CURVE = 2;                                      // magnitude ^ this
 const PAD_YAW_RATE = THREE.MathUtils.degToRad(170);       // full push at Medium, hip
 const PAD_PITCH_RATE = THREE.MathUtils.degToRad(105);
@@ -6683,8 +6712,7 @@ let stickChord = null, gpDt = 0;
 function pollGamepad(dt) {
   gpDt = dt;
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  let gp = gpIndex != null ? pads[gpIndex] : null;
-  if (!gp) gp = Array.from(pads).find((p) => p && p.connected) || null;
+  const gp = pickPad(pads, gpIndex);
   if (!gp) {
     gamepadState.connected = false;
     // Held-button state has to clear with the pad, or unplugging mid-hold
@@ -6698,7 +6726,8 @@ function pollGamepad(dt) {
   if (gpDebugForced || gp.mapping !== "standard") renderGpDebug(gp);
   else if (gpDebugEl && !gpDebugEl.hidden) gpDebugEl.hidden = true;
 
-  [gamepadState.moveX, gamepadState.moveY] = radialStick(gp.axes[0] || 0, gp.axes[1] || 0, PAD_MOVE_DEADZONE);
+  if (padRest.index !== gp.index) calibratePadRest();
+  [gamepadState.moveX, gamepadState.moveY] = radialStick((gp.axes[0] || 0) - padRest.x, (gp.axes[1] || 0) - padRest.y, PAD_MOVE_DEADZONE);
   const [lookX, lookY, lookMag] = radialStick(gp.axes[2] || 0, gp.axes[3] || 0, PAD_LOOK_DEADZONE);
   const [turnX, turnY] = padLookTurn(lookX, lookY, lookMag, dt);
   gamepadState.lookDX += turnX;
@@ -6843,7 +6872,7 @@ function pollGamepad(dt) {
 let gpMenuPrev = {};
 function pollGamepadMenu() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  const gp = (gpIndex != null ? pads[gpIndex] : null) || Array.from(pads).find((p) => p && p.connected) || null;
+  const gp = pickPad(pads, gpIndex);
   if (!gp) { gpMenuPrev = {}; return; }
   const pressed = !!gp.buttons[9]?.pressed;
   if (pressed && !gpMenuPrev[9] && !els.pause.hidden) {
@@ -10224,6 +10253,7 @@ function releaseLoad(left = 0) {
   loadTarget = null;
   if (left > 0 && isStaging()) { stageT = left; stageShown = -1; }
   loadScreen.hide();
+  calibratePadRest();   // nobody should be pushing the stick on the loading screen
   if (!isTouch && gameState === "playing") {
     try { controls.lock(); } catch { /* refused — the pause screen catches it */ }
     setTimeout(() => {

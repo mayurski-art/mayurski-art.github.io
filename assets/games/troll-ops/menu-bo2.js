@@ -17,11 +17,11 @@ import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression.js?v=p5";
 
 import { fetchRecord, formatPlayed } from "./record.js?v=rec1";
-import { WEAPON_DEFS } from "./weapons.js?v=p5";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm";
 import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=p5";
 import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1";
 import { FINISHES } from "./skins.js?v=p5";
-import { MAPS, REWARD_MAPS } from "./maps.js?v=p5";
+import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards, the gold gun and the private-match maps. */

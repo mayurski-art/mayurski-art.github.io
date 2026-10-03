@@ -191,6 +191,8 @@ export const WEAPON_DEFS = {
   // and a little heavier to swing for it. Detailed model: models/beast.glb.
   beast: mk("assault", {
     id: "beast", name: "THE BEAST", rank: 25, sight: "iron",
+    // 50-round magazine (user, 2026-10-03), five of them in reserve.
+    magSize: 50, reserveMax: 250,
     damage: 33, rpm: 660, recoilKickPitch: 0.025, recoilKickYaw: 0.011, muzzleVelocity: 760,
     adsTime: 0.27, sprintMult: 1.26, penetration: 1.5,
     tracerColor: 0x9fe8ff, muzzleColor: 0xbff0ff,
