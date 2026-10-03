@@ -1,5 +1,19 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## One map per room — SHIPPED 2026-10-03 (branch tf-room-map-sync)
+Every versus room (private AND public quickplay) plays the host's map; the
+host = the room's oldest player (net.isBotHost). Before: each client loaded
+its own pick, so a room could be split across maps. game.js followsHostMap()
+takes a stage msg's map only from an older peer, same mode, and a mode
+without forceMap/mapPool; before your match starts it's noted in
+roomMapHint (startGame -> beginMatch(roomMapHint)), during the countdown it
+switches (beginMatch(m.map)). The host also tells each newcomer directly
+(onHello -> net.publishRoomMap, answers while paused too). This also evens
+out the next-map vote: whatever each client's shortlist, everyone ends on
+the host's winner. Test: tools/troll-ops-room-map-test.mjs (ALL PASS);
+tools/troll-ops-sync-test.mjs still ALL PASS (its stale "green" skin check
+now uses "problem").
+
 ## STREAM C (prestige + profile card) — ALL 5 PHASES SHIPPED (2026-10-03); re-run troll_forces_card.sql for the phase 5 cards
 Design doc (Claude Doc, `read` sinceRev 26):
 https://claude.ai/code/artifact/9331349a-6d55-4028-b8fe-f64f48398855
@@ -1554,19 +1568,8 @@ enemy), how it's voiced (TTS? recorded? which provider), the audio.js
 hooks it plugs into, a volume/voice setting, and a rule for how often chatter
 fires so it doesn't spam in a 100-troll Royale.
 
-## BACKLOG: open asks from the 2026-09-30 list — waiting on the user
-- **Purge XP** ("purge xp level in players to incentivize using terminal
-  site to earn xp?"). Not done. The Troll Forces XP cut to a tenth and the
-  user's own reset to LV 69 may cover it; ask before touching anyone
-  else's XP. A reset of all players can't be undone: back up
-  troll_profiles / troll_xp_events first.
-- **Game tournaments paid in $TRUTHS.** Not started. Needs a design doc
-  first: entry fee or free entry, prize pool and payout (troll-pay.js is the
-  live Solana lib), which games, anti-cheat (Troll Forces is
-  client-authoritative, so scores are forgeable), and the legal side (paid
-  entry + token prizes can count as gambling/sweepstakes). $TRUTHS is the
-  terminal's own coin with a no-shill boundary (memory
-  truths-token-terminal-coin).
+## BACKLOG: open asks from the 2026-09-30 list — CANCELLED by the user 2026-10-03
+Purge XP and $TRUTHS-paid tournaments are both cancelled. Don't pick them up.
 
 ## Fix list (user, 2026-09-30) — `game.js?v=to-fx1`, `style.css?v=to-fx1`
 - **No select / highlight / drag anywhere** (style.css top + document

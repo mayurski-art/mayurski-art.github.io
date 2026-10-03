@@ -550,6 +550,12 @@ export class Net {
     this.send({ t: "stage", id: this.id, to, left: 0, sd: seed, bt: round2(busT), rt: round2(matchT), lv: live ? 1 : 0 });
   }
 
+  /* To one newcomer: the map and mode the room is playing (a "stage" at 0,
+     the match is already on), so they load the host's map, not their own. */
+  publishRoomMap(to, mapId, modeId) {
+    this.send({ t: "stage", id: this.id, to, map: mapId, mode: modeId, left: 0 });
+  }
+
   /* Search & Destroy bomb state. `kind` is "action" for a live plant/defuse
      in progress (sent a few times a second by whoever is holding it) or
      "event" for a one-off outcome (planted/defused/exploded/reset) that

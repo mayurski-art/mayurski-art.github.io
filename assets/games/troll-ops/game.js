@@ -34,9 +34,9 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5";
 import { openProfileCard } from "./profile-card.js?v=pc1";
-import { buildMap, disposeMap, MAPS, MAP_IDS, REWARD_MAPS } from "./maps.js?v=p5";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb2-pc1";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=rm1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=rk1-pc1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
@@ -3437,6 +3437,8 @@ const BOT_TARGET = 8;      // participants a PvP room is padded up to
 const QUICKPLAY_BASE = { umb: "QUMB", tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
+/* The room's map, as its host told us before our match began (onStage). */
+let roomMapHint = null;
 let gunGameProgress = 0;
 let hill = null;
 let hillAcc = 0;
@@ -4741,6 +4743,9 @@ const net = new Net({
   // Someone arrived after the sky lobby: the host tells them where the
   // Royale is (the lobby's own clock only goes out while it runs).
   onHello: (p) => {
+    // Everyone in a room plays the host's map: tell the newcomer which.
+    // (Paused counts: the host may be sitting in the pause menu.)
+    if ((gameState === "playing" || gameState === "paused") && isPvp() && !isBotPeer(p) && net.isBotHost() && loadedMapId) net.publishRoomMap(p.id, loadedMapId, modeId);
     if (!royale?.drop || gameState !== "playing" || isStaging() || isBotPeer(p) || !net.isBotHost()) return;
     const d = royale.drop;
     net.publishRoyaleCatchUp(p.id, royale.seed, d.phase === "bus" ? d.busT : ROYALE_BUS_GONE, royale.t, royale.live);
@@ -4781,13 +4786,16 @@ const net = new Net({
     // Troll Royale catch-up (we joined after the sky lobby): kept until our
     // own Royale is set up, which can be after this lands.
     if (m.bt != null) { royaleCatchUp = { ...m, at: performance.now() }; applyRoyaleCatchUp(); return; }
-    if (gameState !== "playing" || !isPvp()) return;
-    // A private room on the host's prestige map (The Pentagrin, Trollface
-    // Island): everyone else follows them onto it, unlocked or not.
-    if (isStaging() && roomIsCustom && REWARD_MAPS[m.map] && m.map !== loadedMapId && !currentMode().forceMap && !currentMode().mapPool) {
-      beginMatch(m.map);
-      return;
+    // One map per room: the host's (the room's oldest player, who runs the
+    // countdown). Everyone used to load their own pick, so a room could be
+    // split across maps. Before our match starts we note it for startGame;
+    // during the countdown we switch to it. A prestige map comes with the
+    // host, unlocked or not.
+    if (followsHostMap(m)) {
+      if (gameState !== "playing" && gameState !== "paused") { roomMapHint = m.map; return; }
+      if (isStaging() && m.map !== loadedMapId) { beginMatch(m.map); return; }
     }
+    if (gameState !== "playing" || !isPvp()) return;
     // Troll Royale: the owner's seed wins, so everyone has the same zone
     // and loot even if their match counts drifted apart.
     if (royale && isStaging() && m.sd && (m.sd >>> 0) !== royale.seed) setupRoyale(m.sd >>> 0);
@@ -9936,12 +9944,26 @@ async function joinQuickplay() {
   }
 }
 
+/* A stage message whose map this client should take: from a player who
+   joined the room before us (so two newcomers can't swap maps back and
+   forth), same mode, and a mode that lets you pick the map at all. */
+function followsHostMap(m) {
+  if (!m.map || !MAPS[m.map] || m.mode !== modeId || !isPvp()) return false;
+  const mode = currentMode();
+  if (mode.forceMap || mode.mapPool) return false;
+  const p = net.peers.get(m.id);
+  if (!p) return false;
+  const since = p.since || 0;
+  return since < net.since || (since === net.since && m.id < net.id);
+}
+
 async function startGame() {
   audio.resume();   // the click that got us here is the gesture Web Audio needs
   // View mode: the lobby's map, nobody in it (see isView).
   if (viewModeOn() && modeId !== "view") { viewPrevMode = modeId; modeId = "view"; }
   else if (!viewModeOn() && modeId === "view") modeId = viewPrevMode || "ops";
   if (isPvp()) {
+    roomMapHint = null;
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
     const result = els.room.value && roomIsCustom
@@ -9957,7 +9979,7 @@ async function startGame() {
     net.stop();
   }
 
-  beginMatch();
+  beginMatch(isPvp() ? roomMapHint : null);
 }
 
 /* -------------------- pre-match staging --------------------
