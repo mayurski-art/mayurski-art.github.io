@@ -715,6 +715,11 @@ be ordered with the user (design doc first for the big ones):
      (hero kits, weapon table, Trollernaut at 1,500 pts / 40 s, Horde rules,
      7-phase build plan, a "Decisions for you" checklist). Build nothing
      until the user OKs it.
+   - User decided (2026-10-03): mode name **"U Mad Bro?"** (Horde = "U Mad
+     Bro?: Horde"); **unlocked only at a higher prestige** (doc proposes
+     Prestige 5, not confirmed; gate via the usual rank/unlock check so the
+     owner stays unlocked); **weapons later**: characters first, then
+     Trollernaut, then funny weapons, then Horde.
 8b. ~~Grin Beach palms (user: "could use some work, more realistic")~~ DONE
    (`game.js?v=to-pm1`, `maps.js?v=dr2`): map-dressing.js `palmTrees(root,
    spots)`: leaning tapered ringed trunks (vertex colours are LINEAR, keep
