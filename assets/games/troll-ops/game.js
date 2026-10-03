@@ -369,6 +369,31 @@ function calibratePadRest() {
   if (Math.hypot(x, y) < 0.3) { padRest.x = x; padRest.y = y; }
 }
 
+/* ...and re-learned during play (user, 2026-10-03: "still a left sided auto
+   drift but it's small"). One reading at connect or load can be wrong: a pad
+   that hasn't reported yet reads all zeros, and a worn stick wanders. A stick
+   sitting near the centre and almost perfectly still for over a second is
+   resting, not being pushed (a thumb holding a tilt wobbles more than this),
+   so its average then becomes the new rest. */
+const REST_LEARN = { secs: 1.2, wobble: 0.025, radius: 0.28 };
+const restWin = { t: 0, minX: 0, maxX: 0, minY: 0, maxY: 0, sx: 0, sy: 0, n: 0 };
+function learnPadRest(x, y, dt) {
+  if (Math.hypot(x, y) >= REST_LEARN.radius) { restWin.t = 0; restWin.n = 0; return; }
+  if (!restWin.n) Object.assign(restWin, { t: 0, minX: x, maxX: x, minY: y, maxY: y, sx: 0, sy: 0 });
+  restWin.minX = Math.min(restWin.minX, x); restWin.maxX = Math.max(restWin.maxX, x);
+  restWin.minY = Math.min(restWin.minY, y); restWin.maxY = Math.max(restWin.maxY, y);
+  if (restWin.maxX - restWin.minX > REST_LEARN.wobble || restWin.maxY - restWin.minY > REST_LEARN.wobble) {
+    restWin.n = 0;   // moving: start a fresh window next frame
+    return;
+  }
+  restWin.t += dt; restWin.sx += x; restWin.sy += y; restWin.n++;
+  if (restWin.t >= REST_LEARN.secs) {
+    padRest.x = restWin.sx / restWin.n;
+    padRest.y = restWin.sy / restWin.n;
+    restWin.n = 0;
+  }
+}
+
 window.addEventListener("gamepadconnected", (e) => {
   const gp = pickPad(navigator.getGamepads ? navigator.getGamepads() : [e.gamepad], gpIndex);
   gpIndex = gp ? gp.index : e.gamepad.index;
@@ -6727,6 +6752,7 @@ function pollGamepad(dt) {
   else if (gpDebugEl && !gpDebugEl.hidden) gpDebugEl.hidden = true;
 
   if (padRest.index !== gp.index) calibratePadRest();
+  learnPadRest(gp.axes[0] || 0, gp.axes[1] || 0, dt);
   [gamepadState.moveX, gamepadState.moveY] = radialStick((gp.axes[0] || 0) - padRest.x, (gp.axes[1] || 0) - padRest.y, PAD_MOVE_DEADZONE);
   const [lookX, lookY, lookMag] = radialStick(gp.axes[2] || 0, gp.axes[3] || 0, PAD_LOOK_DEADZONE);
   const [turnX, turnY] = padLookTurn(lookX, lookY, lookMag, dt);
