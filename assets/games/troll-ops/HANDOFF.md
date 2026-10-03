@@ -36,7 +36,48 @@ stream (the "trollrunner.net Simplified" session was folded in and deleted).
 
 ## RESUME HERE (2026-10-02, session 25, later) — phase 6b SHIPPED; 3 new asks queued
 
-## RESUME HERE (2026-10-02, session 25, latest) — 6c, 6d, 6e SHIPPED; next chapel + mannequins, then 6f
+## RESUME HERE (2026-10-02, session 25, latest) — 6g chapel + 6h mannequins SHIPPED (`game.js?v=to-padbo2-hg6h`, maps/loadout/hollowgrin/chapel/mannequins `?v=hg6h`); next 6f
+- **6g chapel** (`hollowgrin-chapel.js`, buildChapel; hollowgrin.js hands
+  its helpers in as H, so the module never imports hollowgrin.js back: a
+  second `?v=` would make a second copy of it). St. Grinsworth's rebuilt
+  whole from the two church refs: brick, hammer-beam roof over painted
+  red/gold panels (trollface roundels), stained lancets (a saint with a
+  trollface), oak pews + red runner, rail, pulpit, the altar on two red
+  steps under a gold trollface sunburst, a half-domed mosaic apse (text
+  band, star lantern) poking 2.7 m out west against the map edge (its stone
+  benches cover the edge's ghost wall at x -51; boundary wall + trees skip
+  it). Side door at x -42.6 (was the breach), rose window + bellcote on the
+  east gable. One light (the chapel's old one).
+  **Zombie-reach gotchas** (all fixed, sim-checked): pew rows are ONE
+  collider per run, 1.2 m tall (rows' 0.5 m gaps were player-only pockets;
+  1.2 is over the 1.1 m jump); front row 1.7 m off the rail; the apse behind
+  the altar is shut; pulpit and the priest's/beggar's colliders run to the
+  walls/pews. The sim's "reached" is 1.6 m horizontal THROUGH walls: a
+  zombie outside the west wall "reached" the altar. Use 0.9-1.35 m.
+- **6h mannequins** (`hollowgrin-mannequins.js`, placeMannequins; table
+  MANNEQUINS = [name, x, y, z, facing, collider, offset]). 17 people + 3 pets
+  as `models/mq-<name>.glb`, built by `models/build_mannequins.blender.py`
+  (`-- render [names]` for Cycles previews, `-- export [names]`). People are
+  MakeHuman (MPFB 2) via the zombie builder's plumbing (exec'd minus its
+  main()): clean skin with a sheen, eyebrows/lashes, recoloured clothes
+  (tint keep 0 = flat colour), poses on the game_engine rig, props laid ON
+  the posed surface by BVH ray casts (stole, aprons, skeleton bones), frozen,
+  decimated, ONE 768 atlas per figure. Pets: primitives fused by a voxel
+  remesh (metaballs came apart). Each person has a pen-6 collider.
+  **Builder gotchas:** MPFB purges unused materials while building a human
+  (palette needs use_fake_user); join() merges UV layers BY NAME (rename
+  every part's to "UVMap" first or clothes get zeroed UVs); keep a UV-layer
+  handle across an edit-mode round trip and Blender segfaults; only hair /
+  brows / lashes may bake alpha (clothes textures carry alpha too and
+  decimated triangles land on clear texels). The render_glb.py preview draws
+  alpha opaque: judge the GLBs in game.
+- **Concurrency:** another session ran `git pull --rebase --autostash` in
+  THIS checkout and stashed my uncommitted builder (it sat in
+  `stash@{0}: autostash`). Commit work in progress early.
+- Next: **6f** (bot roam waypoints into the park, zombie rise points:
+  splash pool, pet cemetery, cave, under the coaster; previews; final look).
+
+## (previous) RESUME HERE (2026-10-02, session 25) — 6c, 6d, 6e SHIPPED; next chapel + mannequins, then 6f
 All in hollowgrin.js (buildMansion, buildMountain, buildCoaster run after
 buildPark) + models/build_grinmoor.blender.py (`-- mansion mountain moat`).
 Tags now `game.js?v=to-hg6e`, every troll-ops import ?v=hg6e.

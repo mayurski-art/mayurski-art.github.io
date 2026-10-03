@@ -773,19 +773,14 @@ export function buildChapel(api, K, M, SP, root, lights, H) {
       place(new THREE.PlaneGeometry(1.44, 1.62), { x: IN.x0 + 0.065, y: CHANCEL.y + 2.175, z, ry: Math.PI / 2 }), { shadow: false });
   }
 
-  /* ---- the chancel: pulpit, lectern, the communion rail */
+  /* ---- the chancel: pulpit and the communion rail */
   {
     const px = -48.4, pz = IN.z0 + 0.95;
     K.api.ghostBox(px, (IN.z0 + pz + 0.5) / 2, 1.0, pz + 0.5 - IN.z0, 1.15, { y: CHANCEL.y, pen: 4 });   // to the wall: no gap behind
     K.cyl(CM.oak, px, CHANCEL.y, pz, 0.32, 0.48, 1.05, 8);
     K.cyl(CM.timber, px, CHANCEL.y + 1.05, pz, 0.52, 0.52, 0.08, 8);
     K.box(M.gold, px + 0.32, CHANCEL.y + 1.12, pz, 0.3, 0.03, 0.42, { rz: 0.35 });
-    const lx = -48.35, lz = IN.z1 - 0.9;
-    K.api.ghostBox(lx, (lz - 0.25 + IN.z1) / 2, 0.5, IN.z1 - lz + 0.25, 1.3, { y: CHANCEL.y, pen: 1 });
-    K.cyl(M.gold, lx, CHANCEL.y, lz, 0.22, 0.14, 0.08, 10);
-    K.cyl(M.gold, lx, CHANCEL.y + 0.08, lz, 0.04, 0.04, 1.05, 8);
-    K.box(M.gold, lx + 0.06, CHANCEL.y + 1.13, lz, 0.4, 0.04, 0.55, { rz: 0.4 });
-    K.add(M.gold, place(new THREE.SphereGeometry(0.1, 10, 8), { x: lx, y: CHANCEL.y + 1.13, z: lz }));
+    // (the lectern's corner is the priest's: hollowgrin-mannequins.js)
     // the rail, with a gap on the aisle
     for (const [a, b] of [[IN.z0, CZ - 1.0], [CZ + 1.0, IN.z1]]) {
       const zc = (a + b) / 2, L = b - a;

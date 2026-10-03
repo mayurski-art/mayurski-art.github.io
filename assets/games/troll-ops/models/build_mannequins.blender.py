@@ -633,7 +633,7 @@ def _tris(ob):
     return len(ob.data.loop_triangles)
 
 
-BUDGET = {"body": 4200, "hair": 1600, "cloth": 1400, "shoe": 300, "prop": 900}
+BUDGET = {"body": 3200, "hair": 1200, "cloth": 1600, "shoe": 260, "prop": 700}
 
 
 def export_person(name, look, P):
@@ -658,8 +658,15 @@ def export_person(name, look, P):
             kind = None
         if kind and _tris(f) > BUDGET[kind]:
             Z["_decimate"](f, BUDGET[kind] / _tris(f))
-        if not f.data.uv_layers:
-            f.data.uv_layers.new(name="UVMap")
+        # one UV map per part, all named alike: join() merges layers BY NAME,
+        # and a part whose map is named otherwise ends up with zeroed UVs
+        uvs = f.data.uv_layers
+        if not uvs:
+            uvs.new(name="UVMap")
+        keep = uvs.active_render if uvs.active_render is not None else uvs[0]
+        for u in [u for u in uvs if u.name != keep.name]:
+            uvs.remove(u)
+        uvs[0].name = "UVMap"
         parts.append(f)
     # one mesh
     bpy.ops.object.select_all(action="DESELECT")
@@ -670,6 +677,11 @@ def export_person(name, look, P):
     ob = bpy.context.view_layer.objects.active
     ob.name = f"MQ_{name}"
     me = ob.data
+    if me.has_custom_normals:
+        bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    for a in [a for a in me.attributes if a.name in ("sharp_face", "sharp_edge")]:
+        me.attributes.remove(a)
+    me.shade_smooth()
     # the atlas UV: smart projected, the head's islands doubled, packed
     atlas = me.uv_layers.new(name="atlas")
     me.uv_layers.active = atlas
@@ -679,6 +691,7 @@ def export_person(name, look, P):
     bpy.ops.object.mode_set(mode="OBJECT")
     head_z = (rig.matrix_world @ rig.pose.bones["neck_01"].head).z
     head_c = rig.matrix_world @ rig.pose.bones["head"].head
+    atlas = me.uv_layers["atlas"]   # edit mode reallocated the layers: never reuse the old handle
     uvd = atlas.data
     for poly in me.polygons:
         c = ob.matrix_world @ poly.center
@@ -689,14 +702,17 @@ def export_person(name, look, P):
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.pack_islands(rotate=True, margin=0.004)
     bpy.ops.object.mode_set(mode="OBJECT")
-    size = int(os.environ.get("MQ_SIZE", "1024"))
+    size = int(os.environ.get("MQ_SIZE", "768"))
     col = Z["_new_img"](f"mq_{name}_col", size)
     Z["_bake"](ob, col, "DIFFUSE")
-    # alpha (hair, brows, lashes) through an emission bake: 1 where opaque
+    # alpha through an emission bake, ONLY from hair, brows and lashes:
+    # clothes textures carry alpha too, and a decimated triangle that lands
+    # on a clear texel would bake see-through
+    cards = ("eyebrow", "eyelash") + ((look["hair"][0],) if look.get("hair") else ())
     for m in me.materials:
         N, L = _nodes(m)
         b = next(n for n in N if n.type == "BSDF_PRINCIPLED")
-        src = next(iter(b.inputs["Alpha"].links), None)
+        src = next(iter(b.inputs["Alpha"].links), None) if any(k in m.name for k in cards) else None
         out = next(n for n in N if n.type == "OUTPUT_MATERIAL")
         em = N.new("ShaderNodeEmission")
         if src is not None:
@@ -721,7 +737,7 @@ def export_person(name, look, P):
     t.image = rgba
     L.new(t.outputs["Color"], b.inputs["Base Color"])
     L.new(t.outputs["Alpha"], b.inputs["Alpha"])
-    b.inputs["Roughness"].default_value = 0.5
+    b.inputs["Roughness"].default_value = 0.75
     me.materials.clear()
     me.materials.append(m)
     for uv in [u for u in me.uv_layers if u.name != "atlas"]:
@@ -742,7 +758,7 @@ def export_person(name, look, P):
     path = os.path.join(HERE, f"mq-{name}.glb")
     bpy.ops.export_scene.gltf(
         filepath=path, export_format="GLB", use_selection=True, export_yup=True, export_apply=True,
-        export_image_format="WEBP", export_image_quality=80, export_extras=False, export_cameras=False, export_lights=False,
+        export_image_format="WEBP", export_image_quality=72, export_extras=False, export_cameras=False, export_lights=False,
     )
     print(f"EXPORT {path} tris={_tris(ob)} size={os.path.getsize(path) // 1024} KB")
 
