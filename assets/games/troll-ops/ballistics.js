@@ -207,9 +207,13 @@ export class BulletSystem {
        onActorHit    — (actor, { damage, isHead, point, dir, distance })
        onWorldHit    — (point, cosmetic, { normal, dir, ground }), normal
                        being the face the round struck
-       bounds        — the arena; a round that leaves it can't hit anything  */
+       bounds        — the arena; a round that leaves it can't hit anything
+       onTrace       — optional, (bullet, from, dir, len, hitObj): every step
+                       a round flies (len cut short where it struck, hitObj
+                       the actor mesh it struck), then (bullet, null) once
+                       the round is gone. The hitbox lab reads real paths. */
   update(dt, ctx) {
-    const { colliders = [], targetMeshes = [], resolveTarget, onActorHit, onWorldHit, bounds } = ctx;
+    const { colliders = [], targetMeshes = [], resolveTarget, onActorHit, onWorldHit, bounds, onTrace } = ctx;
     const ray = this._ray || (this._ray = new THREE.Raycaster());
     const from = this._from || (this._from = new THREE.Vector3());
     const to = this._to || (this._to = new THREE.Vector3());
@@ -270,6 +274,7 @@ export class BulletSystem {
         if (b.vel.y < 0 && to.y <= 0 && from.y > 0) groundT = ((from.y - 0) / (from.y - to.y)) * len;
 
         const first = Math.min(actorT, wallT, groundT);
+        onTrace?.(b, from, dir, Math.min(first, len), actorT === first ? actorObj : null);
         if (first === Infinity) { b.pos.copy(to); b.dist += len; continue; }
 
         if (actorT === first) {
@@ -303,7 +308,7 @@ export class BulletSystem {
         b.pos.copy(from).addScaledVector(dir, wallExit + 0.02);
       }
 
-      if (dead) { this.bullets.splice(i, 1); continue; }
+      if (dead) { onTrace?.(b, null); this.bullets.splice(i, 1); continue; }
     }
 
     // --- tracers: one per live bullet, trailing behind it

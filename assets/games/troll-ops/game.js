@@ -6759,7 +6759,8 @@ function resolveStreakKit(object) {
 }
 
 function resolveBulletTarget(object) {
-  return resolveStreakKit(object)
+  return hitboxLab?.resolve(object)
+    || resolveStreakKit(object)
     || resolveK9(object)
     || rangeSet?.resolve(object)
     || remotes.resolve(object)
@@ -6768,6 +6769,12 @@ function resolveBulletTarget(object) {
 }
 
 function onBulletActorHit(actor, info) {
+  if (actor.isLabDummy) {
+    // The lab scores the round itself (onTrace); here it's just the feedback.
+    showHitmarker(info.isHead, info.damage, info.point, false);
+    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "zombie", scale: info.isHead ? 1.3 : 1 });
+    return;
+  }
   if (actor.isStreakKit) {
     damageStreakEntity(actor.entity, info.damage, net.id);
     showHitmarker(false, info.damage, info.point, false);
@@ -6872,6 +6879,7 @@ const grenades = new GrenadeSystem(scene, lightPool);
 /* Whatever the bullets are allowed to hit this frame. Hoisted out of the
    frame loop because melee and blasts need the same list. */
 let targetMeshes = [];
+let hitboxLab = null;   // localhost ?hitbox=1 only (hitbox-lab.js)
 
 /* Everything alive that a blast could reach, as { actor, pos } pairs. The
    three enemy systems keep their own arrays, so this is the one place that
@@ -11160,6 +11168,12 @@ function animate() {
     } else if (isRange()) {
       rangeSet.update(dt);
       targetMeshes = rangeSet.hitMeshes();
+      // The hitbox lab clears the plates away so only its trolls take rounds.
+      if (hitboxLab) {
+        hitboxLab.update(dt);
+        targetMeshes = hitboxLab.hitMeshes();
+        for (const t of rangeSet.targets) t.mesh.visible = false;
+      }
       // Ammo and gear are free here — the range is for testing, not rationing.
       const w = currentWeapon();
       w.ammoReserve = w.def.reserveMax;
@@ -11293,6 +11307,7 @@ function animate() {
       targetMeshes,
       resolveTarget: resolveBulletTarget,
       onActorHit: onBulletActorHit,
+      onTrace: hitboxLab?.onTrace,
       // Someone else's round striking a wall throws the same dust, a touch
       // lighter — it's the "they're shooting at that corner" cue.
       onWorldHit: (point, cosmetic, hit = {}) => {
@@ -13909,67 +13924,16 @@ loadMap(lobbyMapId());
 els.loading.hidden = true;
 animate();
 
-/* Hitbox tuner, localhost only, behind ?hitbox=1 (user: trolls' hitboxes
-   don't feel big enough; tune it by feel before baking numbers into
-   character.js). Draws every hit proxy as a wireframe and scales them live:
-   head as a whole, body and limbs in thickness only, so a limb doesn't grow
-   past its joint. Zombie proxies are hit proxies too and scale with it.
-   Settings stick in localStorage so a reload keeps the trial values. */
+/* Hitbox lab, localhost only, behind ?hitbox=1: puts you in the Test Range
+   with a row of trolls and reads every round against both the hitbox and
+   the visible body (hitbox-lab.js). Loaded lazily, so play never fetches it. */
 if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]hitbox=1/.test(location.search)) {
-  const KEY = "trollops:hitboxTune";
-  const tune = { head: 1, body: 1, limbs: 1, show: true };
-  try { Object.assign(tune, JSON.parse(localStorage.getItem(KEY)) || {}); } catch { /* fresh */ }
-  const wire = {
-    head: new THREE.MeshBasicMaterial({ color: 0xff3355, wireframe: true, depthTest: false, transparent: true, opacity: 0.8 }),
-    body: new THREE.MeshBasicMaterial({ color: 0x33ff88, wireframe: true, depthTest: false, transparent: true, opacity: 0.6 }),
-    limbs: new THREE.MeshBasicMaterial({ color: 0x33aaff, wireframe: true, depthTest: false, transparent: true, opacity: 0.6 }),
-  };
-  const partOf = (m) => {
-    if (m.userData.isHead) return "head";
-    const r = m.geometry.parameters?.radius ?? 0;
-    return m.geometry.type === "SphereGeometry" || r > 0.11 ? "body" : "limbs";
-  };
-  const apply = () => {
-    scene.traverse((m) => {
-      if (!m.userData.isHitProxy) return;
-      const part = m.userData.hitPart ||= partOf(m);
-      m.userData.hitMat ||= m.material;
-      const f = tune[part];
-      if (part === "head" || m.geometry.type === "SphereGeometry") m.scale.setScalar(f);
-      else m.scale.set(f, 1, f);
-      m.visible = tune.show;
-      m.material = tune.show ? wire[part] : m.userData.hitMat;
+  import("./hitbox-lab.js?v=hl1").then(({ createHitboxLab }) => {
+    hitboxLab = createHitboxLab({
+      scene, look, move, colliders: () => colliders, isRange, state: () => gameState, startGame,
+      setMode: (id) => { modeId = id; modePicked = true; },
     });
-  };
-  const panel = document.createElement("div");
-  panel.style.cssText = "position:fixed;top:250px;left:12px;z-index:99999;background:rgba(10,10,12,.88);color:#fff;font:12px/1.4 'DM Mono',monospace;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,.2);width:230px";
-  const row = (k, label) => `<label style="display:grid;grid-template-columns:52px 1fr 38px;gap:6px;align-items:center;margin:4px 0">${label}<input type="range" min="0.5" max="3" step="0.05" data-k="${k}" value="${tune[k]}"><output data-o="${k}">${tune[k]}x</output></label>`;
-  panel.innerHTML = `<b>Hitbox tuner</b> <small style="opacity:.6">localhost</small>`
-    + row("head", "Head") + row("body", "Body") + row("limbs", "Limbs")
-    + `<label style="display:flex;gap:6px;margin:6px 0"><input type="checkbox" data-k="show" ${tune.show ? "checked" : ""}>Show hitboxes</label>`
-    + `<button type="button" data-reset style="font:inherit">Reset to 1x</button>`;
-  document.body.append(panel);
-  panel.addEventListener("input", (e) => {
-    const k = e.target.dataset.k;
-    if (!k) return;
-    tune[k] = e.target.type === "checkbox" ? e.target.checked : Number(e.target.value);
-    const o = panel.querySelector(`[data-o="${k}"]`);
-    if (o) o.textContent = `${tune[k]}x`;
-    try { localStorage.setItem(KEY, JSON.stringify(tune)); } catch { /* private mode */ }
-    apply();
   });
-  panel.querySelector("[data-reset]").addEventListener("click", () => {
-    Object.assign(tune, { head: 1, body: 1, limbs: 1 });
-    for (const k of ["head", "body", "limbs"]) {
-      panel.querySelector(`[data-k="${k}"]`).value = 1;
-      panel.querySelector(`[data-o="${k}"]`).textContent = "1x";
-    }
-    try { localStorage.setItem(KEY, JSON.stringify(tune)); } catch { /* private mode */ }
-    apply();
-  });
-  // Bots and players respawn with fresh proxies, so keep re-applying.
-  setInterval(apply, 400);
-  apply();
 }
 
 /* Test hook. This file is a module, so nothing above is reachable from a
@@ -13980,7 +13944,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     renderer, scene, colliders,
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap, modeId: () => modeId, spawner: () => spawner,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
-    settings, radialStick, padLookTurn, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,
+    settings, radialStick, padLookTurn, hitboxLab: () => hitboxLab, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },
