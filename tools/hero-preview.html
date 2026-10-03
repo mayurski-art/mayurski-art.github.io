@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hero Preview</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #1d2126; color: #e8ece4; font: 13px/1.4 "DM Mono", ui-monospace, monospace; }
+  canvas { display: block; }
+  #ui { position: fixed; left: 12px; top: 12px; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 24px); }
+  #ui button { background: #2b3138; color: inherit; border: 1px solid #444c55; border-radius: 6px; padding: 4px 9px; cursor: pointer; font: inherit; }
+  #ui button.on { border-color: #b6ff3c; color: #b6ff3c; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "../assets/vendor/three.module.min.js", "three/addons/": "../assets/vendor/addons/" } }
+</script>
+</head>
+<body>
+<div id="ui" role="toolbar" aria-label="Preview controls"></div>
+<script type="module">
+/* U Mad Bro? hero preview (localhost tool): a hero body on the game's own
+   stick rig, posed by the game's own pose code. Drag to orbit.
+   ?hero=knight&pose=idle|walk|aim|melee|dance|death&yaw=0&spin=1 */
+import * as THREE from "three";
+import { buildHumanoid, poseHumanoid, poseDeath, DANCES } from "../assets/games/troll-ops/character.js?v=to-hb4";
+import { applyHeroBody, syncHeroBody, setHeroEnvMap, HERO_BODIES } from "../assets/games/troll-ops/hero-bodies.js?v=umb3c";
+
+const q = new URLSearchParams(location.search);
+let hero = q.get("hero") || "knight";
+let pose = q.get("pose") || "idle";
+let yaw = +(q.get("yaw") || 0) * Math.PI / 180;
+let spin = q.get("spin") === "1";
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.shadowMap.enabled = true;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fb4d6);
+scene.fog = new THREE.Fog(0x8fb4d6, 12, 40);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 100);
+scene.add(new THREE.HemisphereLight(0xdfe9f3, 0x5a4a3a, 1.1));
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+sun.position.set(3, 6, -4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(6, 48), new THREE.MeshStandardMaterial({ color: 0x6d6457, roughness: 0.95 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+// A small studio map for the metal (the game passes its weapon studio).
+{
+  const env = new THREE.Scene();
+  const g = new THREE.SphereGeometry(10, 24, 12);
+  env.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x8a919a, side: THREE.BackSide })));
+  const panel = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  panel.color.setScalar(4);
+  for (const [x, y, z] of [[5, 5, 3], [-6, 3, -2], [0, 7, -6]]) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(4, 3), panel);
+    p.position.set(x, y, z); p.lookAt(0, 0, 0); env.add(p);
+  }
+  const pm = new THREE.PMREMGenerator(renderer);
+  setHeroEnvMap(pm.fromScene(env, 0.04).texture);
+}
+
+const rig = buildHumanoid(new THREE.MeshStandardMaterial({ color: 0x222222 }), { height: 1.8, gun: false });
+rig.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+scene.add(rig.root);
+applyHeroBody(rig, hero);
+
+// Orbit.
+let orbit = { yaw: 0.5, pitch: 0.12, dist: 4.4 }, drag = null;
+addEventListener("pointerdown", (e) => { if (e.target === renderer.domElement) drag = { x: e.clientX, y: e.clientY }; });
+addEventListener("pointerup", () => { drag = null; });
+addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  orbit.yaw -= (e.clientX - drag.x) * 0.008;
+  orbit.pitch = Math.max(-0.3, Math.min(1.2, orbit.pitch + (e.clientY - drag.y) * 0.006));
+  drag = { x: e.clientX, y: e.clientY };
+});
+addEventListener("wheel", (e) => { orbit.dist = Math.max(1.6, Math.min(9, orbit.dist * (1 + e.deltaY * 0.001))); });
+
+const ui = document.getElementById("ui");
+function buttons() {
+  ui.innerHTML = "";
+  for (const h of Object.keys(HERO_BODIES).concat("none")) mk(h, hero === h, () => { hero = h; applyHeroBody(rig, h === "none" ? null : h); });
+  for (const p of ["idle", "walk", "aim", "melee", "dance", "death"]) mk(p, pose === p, () => { pose = p; t0 = performance.now(); });
+  mk("spin", spin, () => { spin = !spin; });
+}
+function mk(label, on, fn) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = label; b.className = on ? "on" : "";
+  b.setAttribute("aria-pressed", String(on));
+  b.onclick = () => { fn(); buttons(); };
+  ui.appendChild(b);
+}
+buttons();
+
+let t0 = performance.now(), last = t0;
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+resize();
+window.__preview = { rig, setPose: (p) => { pose = p; t0 = performance.now(); }, setYaw: (d) => { orbit.yaw = d * Math.PI / 180; }, orbit };
+
+renderer.setAnimationLoop((now) => {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const t = (now - t0) / 1000;
+  if (spin) orbit.yaw += dt * 0.6;
+  rig.root.rotation.y = yaw;
+  if (pose === "death") poseDeath(rig, Math.min(1, t / 1.25));
+  else if (pose === "dance") DANCES[0](rig, t);
+  else poseHumanoid(rig, {
+    phase: t * 9, moving: pose === "walk", mps: pose === "walk" ? 5 : 0, dt,
+    hasGun: false, hold: pose === "melee" ? "melee" : "gun", ads: pose === "aim" ? 1 : 0,
+    swing: pose === "melee" ? { t: (t % 1.2) / 1.2, kind: "slash" } : null,
+  });
+  syncHeroBody(rig);
+  const c = new THREE.Vector3(0, 1.05, 0);
+  camera.position.set(c.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist * -1, c.y + Math.sin(orbit.pitch) * orbit.dist, c.z - Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);
+  camera.lookAt(c);
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

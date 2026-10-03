@@ -485,6 +485,7 @@ export class Net {
     p.deaths = bot.deaths;
     p.botSkill = bot.skill || null;
     p.level = botLevel(bot.id);
+    p.hero = bot.hero || null;   // U Mad Bro? (the wire carries it as hr below)
     // The wire "state" message sets this on every OTHER client (case "state"
     // above); the bot-hosting client never routes its own bots' state through
     // onMessage, so without this line the host's own view of its bots never

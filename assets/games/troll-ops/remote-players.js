@@ -14,6 +14,7 @@ import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3";
+import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3c";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 
 const RENDER_DELAY = 110; // ms
@@ -399,6 +400,9 @@ export class RemotePlayer {
     this.setWeaponModel(this.peer.weapon, this.peer.skin || null);
     // Their cosmetic face; poseHumanoid puts it on (character.js setFace).
     this.rig.face = cleanFaceKey(this.peer.face);
+    // U Mad Bro? hero body (hero-bodies.js), from the wire's hero id.
+    applyHeroBody(this.rig, this.peer.hero);
+    syncHeroBody(this.rig);
 
     if ((this.peer.meleeSeq | 0) !== this.meleeSeen) {
       this.meleeSeen = this.peer.meleeSeq | 0;

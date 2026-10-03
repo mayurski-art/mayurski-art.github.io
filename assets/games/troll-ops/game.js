@@ -33,9 +33,9 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, ge
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb2";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=rk1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3c";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4";
@@ -63,6 +63,7 @@ import { kickCurve } from "./attachments.js?v=cg1";
 import { WaveSpawner } from "./enemies.js?v=hb4";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
+import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3c";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts3";
@@ -1530,6 +1531,7 @@ function applyHeroLoadout() {
     return;
   }
   heroWasOn = true;
+  preloadHeroBodies();
   hero().onSpawn();
   player.maxHp = hero().maxHp();
   player.hp = player.maxHp;
@@ -1562,6 +1564,9 @@ function useHeroAbility() {
 function updateHero(dt) {
   footprintTrail?.update(dt);
   const on = currentMode().funny && gameState === "playing";
+  // Your own body in third person / the killcam wears your hero too.
+  applyHeroBody(localRig, on ? hero().wireId() : null);
+  syncHeroBody(localRig);
   if (on && player.alive) hero().update(dt);
   heroHud(on);
   // Phones: the gear row is hidden, so the streak button is the ability.
@@ -4044,7 +4049,10 @@ if (modeColumn && "ResizeObserver" in window) new ResizeObserver(fitModeBlurb).o
 /* A prestige-gated mode (U Mad Bro?, Prestige 2) shows locked until then:
    disabled, with the requirement in its title and data-lock. The BO2 menu
    reads both off the button. */
-const modeLocked = (m) => !!m?.prestige && !prestigeUnlocked(m.prestige);
+// Localhost (development) skips the lock so the mode can be played and tested
+// without a signed-in Prestige 2 account; the live site keeps it.
+const DEV_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+const modeLocked = (m) => !!m?.prestige && !DEV_HOST && !prestigeUnlocked(m.prestige);
 
 function renderModes() {
   // Picked, then the lock came back (signed out): fall back to TDM.
@@ -5571,6 +5579,7 @@ let weaponEnvTex = null;
   setWeaponEnvMap(weaponEnvTex);
   setSaberEnvMap(weaponEnvTex);
   setHalloweenEnvMap(weaponEnvTex);
+  setHeroEnvMap(weaponEnvTex);
   pmrem.dispose();
 })();
 
@@ -11846,8 +11855,12 @@ function updateEmoteCamera(pivot, yaw, duoDist = 0) {
 }
 
 function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
-  const dist = TP_HIP_DIST + (TP_ADS_DIST - TP_HIP_DIST) * adsT;
-  const side = TP_HIP_SIDE + (TP_ADS_SIDE - TP_HIP_SIDE) * adsT;
+  // A U Mad Bro? hero body is far wider than the stick figure (the Knight's
+  // head and pauldrons): sit further back and further out so it never
+  // covers the crosshair.
+  const big = localRig.heroBodyId ? 1 : 0;
+  const dist = TP_HIP_DIST + (TP_ADS_DIST - TP_HIP_DIST) * adsT + big * 0.5;
+  const side = TP_HIP_SIDE + (TP_ADS_SIDE - TP_HIP_SIDE) * adsT + big * 0.32;
 
   _euler.set(pitch, yaw, 0);
   _tpForward.set(0, 0, -1).applyEuler(_euler);

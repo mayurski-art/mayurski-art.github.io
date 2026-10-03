@@ -762,6 +762,45 @@ be ordered with the user (design doc first for the big ones):
      brute 200 HP/x2 melee and back, fx fling/pin, TDM unaffected. Not
      verified with two real humans (fx over the wire). Next: phase 3, the
      four real bodies (with build timelapses, below).
+   - **PHASE 3 IN PROGRESS: Knight body DONE (2026-10-03)** (`game.js?v=
+     to-umb3b`). How hero bodies work: players are a stick rig (character.js
+     buildHumanoid: ink tube limbs, a flat trollface board head, forward -Z,
+     right +X, rest joints in models/hero_kit.py REST). A hero is rigid
+     pieces named `<joint>__<piece>` authored on the REST pose in Blender
+     (`models/build_hero_<id>.blender.py` + shared `models/hero_kit.py`:
+     loft/sheet/ico/box/disc helpers, `paint()` keys applied at the paint
+     stage, `trollface_head()` = the real art's outline swept into a round
+     head, per-hero shape params). `hero-bodies.js` loads hero-<id>.glb,
+     moves each piece into its joint's rest frame, merges per joint +
+     material, adds one inverted-hull ink outline per joint (inkMat uses
+     the `normal` attribute: `objectNormal` doesn't exist in MeshBasic),
+     hides the stick limbs/mitts/board, and syncs the head front to the
+     board's face material every frame (cosmetics keep working).
+     `applyHeroBody(rig, wireId)` + `syncHeroBody(rig)` run in
+     RemotePlayer.update (peer.hero; the bot host now mirrors `p.hero` for
+     its own bots in net.js) and game.js updateHero (localRig). Limbs are
+     drawn outward from the rig's hugging bones and taper back to the true
+     wrist/ankle so held weapons line up; elbow/knee caps hide the gap.
+     Knight: 7.7k tris, keyboard greatsword (gear.js mesh) across his back,
+     hidden while a melee is held. Heroes without a GLB stay stick figures
+     (HERO_BODIES in hero-bodies.js). Preview tool: `tools/hero-preview.html
+     ?hero=knight&pose=idle|walk|aim|melee|dance|death` (localhost, game's
+     own renderer + poses). Blender: `"/c/Program Files/Blender Foundation/
+     Blender 5.2/blender.exe" --background --python build_hero_knight.
+     blender.py [-- check | finish]` (check = review renders in
+     models/_renders/<hero>; finish = no new frames, turntable + video).
+     User asked for a DIFFERENT HEAD PER HERO (not one shared head): Knight =
+     wide, square jaw, deep skull, bull neck; plan Hunter = ram-skull helm,
+     Metamorph = half Pepe / half chrome, Super = classic + cape collar,
+     Trollernaut = oversized glossy. Knight v5 (user: "make the face bigger,
+     body bigger, more muscle"): head 0.6 x 0.56, cuirass ~18% bigger with a
+     six-pack, huge sword arm, 8.1k tris. LOCALHOST: U Mad Bro? is unlocked
+     on localhost/127.0.0.1 (game.js DEV_HOST in modeLocked) so it can be
+     played without a Prestige 2 sign-in; the live site keeps the lock.
+     Third person (B) with a hero body sits +0.5 m back and +0.32 m out
+     (updateThirdPersonCamera `big`), or the Knight's head covers the
+     crosshair. Next: Hunter (+ Doge), Super Troll,
+     Metamorph (both forms), then phase 4 Trollernaut.
    - **REQUIRED for every character model (user, 2026-10-03): a timelapse
      video of Claude building it.** Not a turntable of the finished model:
      the build itself. Every time the builder script runs (each iteration,
