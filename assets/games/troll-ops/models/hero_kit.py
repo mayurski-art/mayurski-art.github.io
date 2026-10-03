@@ -119,12 +119,16 @@ def _frame(d):
     return e1, e2
 
 
+SEG_SCALE = 1.0   # hero builders raise this for rounder pieces (v6 "sharp" pass)
+
+
 def loft(name, a, b, rings, segs=12, shape=None, cap_a=True, cap_b=True, mat=None, twist=0.0):
     """A tube from a to b (game coords). rings: [(t, rx, rz)] or
     [(t, rx, rz, ox, oz)] with t 0..1 along a->b, rx across (lateral), rz
     front/back, ox/oz an offset of the ring centre. shape(theta, t) -> radius
     multiplier (theta 0 = +lateral, pi/2 = e2 side). Returns the object."""
     a, b = V(a), V(b)
+    segs = max(4, int(round(segs * SEG_SCALE)))
     d = (b - a).normalized()
     e1, e2 = _frame(d)
     verts, faces = [], []
@@ -477,7 +481,8 @@ def export(path):
 
 # ------------------------------------------------------------------ the 3D trollface head
 def trollface_head(name="headPivot__head", center=None, w=0.48, h=0.45, depth_front=0.09,
-                   depth_back=0.22, jaw=0.0, crown=0.0, lift=0.0, segs=56, lat=10, smooth=5):
+                   depth_back=0.22, jaw=0.0, crown=0.0, lift=0.0, segs=96, lat=12, smooth=1,
+                   p_front=2.4, p_back=2.4, jut=0.25, skull=0.25, rim_band=0.42):
     """The real trollface art made into a round head (user, 2026-10-03:
     "redesign the head", one per hero). The art's outline, seen from the
     front, is measured as a radius per angle from its centre (smoothed, so
@@ -510,7 +515,10 @@ def trollface_head(name="headPivot__head", center=None, w=0.48, h=0.45, depth_fr
             if px[(j * W + i) * 4 + 3] > 0.5:
                 su += i / (W - 1); sv += j / (H - 1); n += 1
     cu, cv = su / n, sv / n
-    # Radius (uv units) to the outline at each angle, marched outward.
+    # Radius (uv units) to the outline at each angle, marched outward. v7
+    # (user: "the shape of the head needs to blend well with the shape of
+    # the trollface"): the art's own silhouette, finely sampled and barely
+    # smoothed, so the drawing's black outline lands on the head's edge.
     radii = []
     for k in range(segs):
         th = TAU * k / segs
@@ -519,49 +527,70 @@ def trollface_head(name="headPivot__head", center=None, w=0.48, h=0.45, depth_fr
         while r < 0.9:
             if alpha(cu + du * r, cv + dv * r) > 0.5:
                 last = r
-            r += 0.004
+            r += 0.002
         radii.append(last)
-    # Smooth round the loop (the ear tufts and teeth gaps are noise here).
     for _ in range(smooth):
         radii = [(radii[k - 1] + 2 * radii[k] + radii[(k + 1) % segs]) / 4 for k in range(segs)]
+    # A heavily smoothed copy for the skull: the exact outline (spiky tufts
+    # and all) only at the rim, easing into a clean round shape inward, so
+    # the back never pinches into a star.
+    soft = list(radii)
+    for _ in range(40):
+        soft = [(soft[k - 1] + 2 * soft[k] + soft[(k + 1) % segs]) / 4 for k in range(segs)]
 
     def outline(k, scale=1.0):
         th = TAU * k / segs
-        u = cu + math.cos(th) * radii[k] * scale
-        v = cv + math.sin(th) * radii[k] * scale
+        blend = min(1.0, (1.0 - scale) * 4.0)          # 0 at the rim
+        rad = radii[k] * (1 - blend) + soft[k] * blend
+        u = cu + math.cos(th) * rad * scale
+        v = cv + math.sin(th) * rad * scale
         x = (0.5 - u) * w          # viewer's left (+u) is the hero's right (+X)
         y = (v - 0.5) * h
         y0 = (v - cv) * 2           # -1 bottom .. 1 top, roughly
         x *= 1 + jaw * max(0.0, -y0) + crown * max(0.0, y0)
         return x, y, u, v
 
+    def depth_at(k, side):
+        # The meme's shape in depth: the grinning jaw juts forward under the
+        # face, the cranium bulges up and back behind it.
+        s = math.sin(TAU * k / segs)
+        if side < 0:
+            return depth_front * (1 + jut * max(0.0, -s))
+        return depth_back * (1 + skull * max(0.0, s))
+
     verts, uvs, faces, mats = [], [], [], []
-    # Latitude rings from the front pole (-Z) through the rim to the back pole.
+    # Latitude rings from the front pole (-Z) through the rim to the back
+    # pole, on superellipse profiles: a flatter front (the drawing reads
+    # flat on) that rolls tightly into the rim, a rounder skull behind.
     rings = []
-    for side, depth in ((-1, depth_front), (1, depth_back)):
+    for side, p in ((-1, p_front), (1, p_back)):
         for li in range(lat, 0, -1) if side < 0 else range(1, lat + 1):
             phi = (math.pi / 2) * li / lat           # 0 at the rim, pi/2 at the pole
-            rings.append((side, math.cos(phi), side * depth * math.sin(phi)))
+            rings.append((side, math.cos(phi) ** (2 / p), math.sin(phi) ** (2 / p)))
         if side < 0:
             rings.append((0, 1.0, 0.0))              # the rim itself
-    for (side, k_scale, z) in rings:
+    for (side, k_scale, zf) in rings:
         ring = []
         for k in range(segs):
             x, y, u, v = outline(k, k_scale)
+            z = side * depth_at(k, side) * zf
             ring.append(len(verts))
-            verts.append(c + V(x * 1.0, y, z))
+            verts.append(c + V(x, y, z))
             uvs.append((u, v) if side <= 0 else (0.5, 0.5))
-        rings_idx = ring
         if len(verts) > segs:
             prev = list(range(len(verts) - 2 * segs, len(verts) - segs))
             for k in range(segs):
                 a, b2 = prev[k], prev[(k + 1) % segs]
                 c2, d = ring[(k + 1) % segs], ring[k]
                 faces.append((a, b2, c2, d))
-                mats.append(0 if side <= 0 and z <= 0 else 1)
+                # The drawing stays on the forward-facing part; the steep band
+                # round the rim is plain skin, so from the side the face does
+                # not wrap round as a black band (the game ink-outlines the
+                # silhouette anyway).
+                mats.append(0 if side < 0 and zf >= rim_band else 1)
     # Poles.
     front_pole = len(verts); verts.append(c + V((0.5 - cu) * w, (cv - 0.5) * h, -depth_front)); uvs.append((cu, cv))
-    back_pole = len(verts); verts.append(c + V((0.5 - cu) * w, (cv - 0.5) * h, depth_back)); uvs.append((0.5, 0.5))
+    back_pole = len(verts); verts.append(c + V((0.5 - cu) * w, (cv - 0.5) * h, depth_back * (1 + skull * 0.5))); uvs.append((0.5, 0.5))
     for k in range(segs):
         faces.append((front_pole, (k + 1) % segs, k)); mats.append(0)
         base = len(verts) - 2 - segs
@@ -588,3 +617,51 @@ def trollface_head(name="headPivot__head", center=None, w=0.48, h=0.45, depth_fr
     ob["paint"] = ""
     print("HEAD", name, "verts", len(verts), "tris", sum(len(p.vertices) - 2 for p in me.polygons))
     return ob
+
+
+# ------------------------------------------------------------------ crisp pass (v6)
+def crisp(ob, bevel=0.0035, angle=32, segments=2):
+    """The Green Candles finish (user, 2026-10-03: "sharp just like the green
+    candles gun"): edges sharper than `angle` get a small bevel with
+    hardened normals, a weighted-normal pass keeps flat faces flat, and
+    those edges are marked sharp so the glTF normals split there. Smooth
+    curves (pecs, domes) stay smooth; plate rims catch a clean highlight."""
+    bpy.context.view_layer.objects.active = ob
+    me = ob.data
+    for p in me.polygons:
+        p.use_smooth = True
+    if bevel > 0:
+        bv = ob.modifiers.new("crisp_bevel", "BEVEL")
+        bv.width = bevel
+        bv.segments = segments
+        bv.limit_method = "ANGLE"
+        bv.angle_limit = math.radians(angle)
+        bv.harden_normals = True
+    wn = ob.modifiers.new("crisp_wn", "WEIGHTED_NORMAL")
+    wn.keep_sharp = True
+    apply_mods(ob)
+    try:
+        me.set_sharpness_by_angle(angle=math.radians(angle + 8))
+    except AttributeError:
+        pass
+    return ob
+
+
+def crisp_all(keys=("iron", "ironDark", "gold", "leather"), **kw):
+    """crisp() every exported piece painted with one of `keys`."""
+    n = 0
+    for ob in list(bpy.context.scene.objects):
+        if ob.type == "MESH" and not ob.name.startswith("REF_") and ob.get("paint") in keys:
+            crisp(ob, **kw)
+            n += 1
+    print("CRISP", n)
+
+
+def trim(name, a, b, rx, rz, width=0.012, lip=0.008, segs=24, shape=None):
+    """A rolled rim round the end of a plate (a thin ring), the detail that
+    makes armour read as forged plates rather than tubes."""
+    a, b = V(a), V(b)
+    d = (b - a).normalized()
+    return loft(name, a - d * width / 2, a + d * width / 2,
+                [(0, rx + lip, rz + lip), (0.5, rx + lip * 1.4, rz + lip * 1.4), (1, rx + lip, rz + lip)],
+                segs=segs, shape=shape, cap_a=False, cap_b=False)

@@ -28,6 +28,9 @@ OUT = os.path.join(K.HERE, "hero-knight.glb")
 K.reset_scene()
 tl = K.Timelapse("knight", enabled="nosnap" not in ARGS, samples=int(os.environ.get("HK_SAMPLES", 24)))
 J = K.REST
+# v6 "sharp" pass (user: "graphics sharp like the green candles gun"): rounder
+# pieces everywhere, crisp bevelled plate edges (K.crisp_all), rolled trims.
+K.SEG_SCALE = 1.6
 tl.quiet = "finish" in ARGS   # rebuild without new frames, then turntable + video
 
 
@@ -42,8 +45,8 @@ K.stick_rig(face=False)
 # His own head: wider, heavier jaw, a deep skull on a bull neck.
 # v5 (user: "make the face bigger"): ~20% bigger, a flatter front so the
 # drawing reads large, a deeper skull behind.
-K.trollface_head(w=0.6, h=0.56, jaw=0.12, depth_front=0.075, depth_back=0.29, lift=0.04)
-tl.snap("head v5: face 20% bigger, flatter front, deeper skull")
+K.trollface_head(w=0.6, h=0.56, jaw=0.12, depth_front=0.16, depth_back=0.26, lift=0.04, jut=0.25, skull=0.2)
+tl.snap("head v9: egg-shaped, the drawing on the front only, a clean white skull round it")
 
 # ---------------------------------------------------------------- 1. cuirass
 def pecs(th, t):
@@ -80,6 +83,7 @@ cuirass = loft("chest__cuirass", (0, 0.99, 0), (0, 1.49, 0), [
 ], segs=26, shape=pecs)
 K.subdivide(cuirass, 1)
 paint(cuirass, "iron")
+paint(K.trim("chest__waisttrim", (0, 0.995, 0), (0, 1.1, 0), 0.145, 0.128, width=0.016, segs=26), "ironDark")
 # Centre ridge (the plate's crease) and two rows of rivets down the sides.
 paint(loft("chest__ridge", (0, 1.2, -0.17), (0, 1.38, -0.19), [(0, 0.010, 0.006), (1, 0.010, 0.006)], segs=6), "ironDark")
 for s in (-1, 1):
@@ -113,16 +117,20 @@ for s in (-1, 1):
         # Left: full plate. Pauldron of three lames, rerebrace, couter,
         # vambrace, gauntlet.
         paint(ico(f"arm{tag}__pauldome", shoulder + V(-0.005, 0.05, 0.0), 0.18, sub=3, scale=(1.0, 0.72, 1.05)), "iron")
+        paint(K.trim(f"arm{tag}__ptrim", shoulder + V(-0.005, 0.05, 0.0), shoulder + V(-0.005, 0.25, 0.0), 0.172, 0.18, width=0.014, lip=0.006), "gold")
         for k, (y, r) in enumerate(((1.355, 0.19), (1.29, 0.185), (1.225, 0.17))):
             lame = loft(f"arm{tag}__pauldron{k}", V(shoulder.x - 0.01 * k, y + 0.06, 0.0), V(shoulder.x - 0.03 - 0.01 * k, y - 0.03, 0.0),
                         [(0, 0.04, 0.04), (0.35, r * 0.9, r * 0.88), (1, r, r * 0.95)], segs=16, cap_b=False)
             paint(lame, "iron" if k != 1 else "ironDark")
         paint(loft(f"arm{tag}__rerebrace", shoulder + V(0, -0.06, 0), elbow, [(0, 0.098, 0.098), (0.45, 0.096, 0.094), (1, 0.074, 0.072)], segs=14), "iron")
+        paint(K.trim(f"arm{tag}__rtrim", elbow + (shoulder - elbow) * 0.05, shoulder, 0.074, 0.072), "ironDark")
         paint(loft(f"elbow{tag}__vambrace", elbow, wrist + V(0, 0.03, 0), [(0, 0.078, 0.075), (0.32, 0.088, 0.082), (1, 0.06, 0.057)], segs=14), "iron")
         paint(ico(f"elbow{tag}__couter", elbow, 0.092, sub=2, scale=(1, 0.9, 1)), "ironDark")
-        g = loft(f"wrist{tag}__gauntlet", wrist + V(0, 0.03, 0), wrist + V(s * 0.03, -0.135, -0.01),
-                 [(0, 0.065, 0.06), (0.3, 0.075, 0.066), (0.75, 0.07, 0.06), (1, 0.042, 0.036)], segs=12)
-        paint(g, "ironDark")
+        # The gauntlet's flared cuff; the articulated plated hand itself is
+        # built in the game (hero-bodies.js) so every finger can move.
+        paint(loft(f"elbow{tag}__cuff", wrist + V(0, 0.085, 0), wrist + V(0, -0.005, 0),
+                   [(0, 0.066, 0.062), (0.6, 0.074, 0.07), (1, 0.086, 0.08)], segs=14, cap_b=False), "ironDark")
+        paint(K.trim(f"elbow{tag}__vtrim", elbow + (wrist - elbow) * 0.08, wrist, 0.084, 0.078), "gold")
     else:
         # Right: the bare sword arm. Deltoid, bicep, a bandaged forearm, a
         # big white fist. Cape strap over the shoulder.
@@ -143,10 +151,10 @@ for s in (-1, 1):
             c = elbow.lerp(wrist, t)
             r = 0.086 - 0.026 * t
             paint(loft(f"elbow{tag}__wrap{k}", c + V(0, 0.022, 0), c + V(0, -0.022, 0), [(0, r + 0.006, r + 0.004), (1, r + 0.005, r + 0.004)], segs=12, twist=k * 0.3), "bandage")
-        fist = loft(f"wrist{tag}__fist", wrist + V(0, 0.03, 0), wrist + V(s * 0.03, -0.135, -0.01),
-                    [(0, 0.06, 0.055), (0.3, 0.073, 0.065), (0.75, 0.07, 0.06), (1, 0.043, 0.038)], segs=12)
-        paint(fist, "skin")
-tl.snap("arms v5: huge deltoid, peaked bicep + tricep, thick forearm, bigger plate arm")
+        # A last bandage turn at the wrist; the hand is the game's articulated one.
+        paint(loft(f"elbow{tag}__wristwrap", wrist + V(0, 0.05, 0), wrist + V(0, -0.005, 0),
+                   [(0, 0.06, 0.056), (1, 0.058, 0.054)], segs=12), "bandage")
+tl.snap("arms v6: plate trims, gauntlet cuff + bandaged wrist (articulated hands come in-game)")
 
 # ---------------------------------------------------------------- 4. legs
 HP, KN, AN = 0.115, 0.078, 0.04   # outward draw at hip, knee, ankle
@@ -155,10 +163,12 @@ for s in (-1, 1):
     hip = V(s * HP, 0.86, 0.0)
     knee = side_pt("knee", s, KN)
     ankle = side_pt("ankle", s, AN)
+    paint(K.trim(f"thigh{tag}__ctrim", knee + V(0, 0.05, 0), hip, 0.088, 0.09), "ironDark")
     paint(loft(f"thigh{tag}__cuisse", hip, knee + V(0, 0.03, 0), [(0, 0.13, 0.132), (0.35, 0.128, 0.13), (1, 0.088, 0.09)], segs=18), "iron")
     paint(ico(f"knee{tag}__poleyn", knee + V(0, 0, -0.03), 0.085, sub=2, scale=(1, 1.05, 0.9)), "ironDark")
     def calf(th, t):
         return 1 + 0.2 * math.sin(min(1, t / 0.6) * math.pi) * max(0, math.sin(th))
+    paint(K.trim(f"knee{tag}__gtrim", knee + V(0, -0.005, 0), ankle, 0.088, 0.088), "gold")
     paint(loft(f"knee{tag}__greave", knee, ankle + V(0, 0.07, 0), [(0, 0.088, 0.088), (0.35, 0.095, 0.1), (1, 0.066, 0.066)], segs=16, shape=calf), "iron")
     # Sabaton: the sole sits on the floor (y 0), toe pointing forward (-Z).
     paint(loft(f"ankle{tag}__sabaton", V(ankle.x, 0.05, 0.06), V(ankle.x, 0.04, -0.19),
@@ -200,13 +210,19 @@ for k, (a, b) in enumerate((((0.28, 1.45, -0.1), (0.06, 1.27, -0.255)), ((0.06, 
     paint(loft(f"chest__baldric{k}", a, b, [(0, 0.03, 0.008), (1, 0.03, 0.008)], segs=6), "leather")
 tl.snap("bull neck + low gorget, trollface brooch, cape cord, sword baldric")
 
-# ---------------------------------------------------------------- 7. paint
+# ---------------------------------------------------------------- 7. crisp
+K.crisp_all()
+tl.snap("crisp pass: bevelled plate edges, hardened normals, rolled trims")
+
+# ---------------------------------------------------------------- 8. paint
 MATS = {
-    "iron": K.material("Iron", 0x4a5058, 0.38, metal=0.35, coat=0.2),
-    "ironDark": K.material("IronDark", 0x23262a, 0.45, metal=0.3),
+    # Polished: the game gives these the weapon studio's reflections
+    # (hero-bodies.js dressMaterial), like the Green Candles' steel.
+    "iron": K.material("Iron", 0x56606b, 0.28, metal=0.72, coat=0.25),
+    "ironDark": K.material("IronDark", 0x24282d, 0.36, metal=0.6),
     "leather": K.material("Leather", 0x5b3a22, 0.7),
     "cloth": K.material("Breeches", 0x2b2a2e, 0.85, sheen=0.3),
-    "gold": K.material("Gold", 0xd6a53a, 0.32, metal=0.55),
+    "gold": K.material("Gold", 0xd6a53a, 0.24, metal=0.85),
     "skin": K.material("Skin", 0xf4f2ec, 0.55),
     "bandage": K.material("Bandage", 0xe2d8c2, 0.85),
     "cape": K.material("Cape", 0x1a3f9e, 0.8, sheen=0.15),   # deeper: the game sun washed 0x2357c4 to baby blue

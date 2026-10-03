@@ -18,9 +18,10 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { buildHumanoid } from "./character.js?v=to-hb4";
 import { buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1";
+import { buildHumanHand, poseHumanHand, handMaterials } from "./hand-model.js?v=to-grip2";
 
 /* Which heroes have a body so far. The rest keep the stick figure. */
-export const HERO_BODIES = { knight: "hero-knight.glb?v=hk3" };
+export const HERO_BODIES = { knight: "hero-knight.glb?v=hk9" };
 const BASE = new URL("./models/", import.meta.url).href;   // works from any page
 
 const OUTLINE = 0.0085;   // metres the ink hull sits outside the surface
@@ -63,10 +64,16 @@ const templates = new Map();
 
 function dressMaterial(m) {
   const out = m.clone();
-  // glTF metals render near-black without reflections; keep them modest
-  // and give them the weapons' studio map.
-  out.metalness = Math.min(out.metalness ?? 0, 0.3);
-  if (envMap) { out.envMap = envMap; out.envMapIntensity = 0.55; }
+  // Polished plate, like the Green Candles' steel: real metalness, lit by
+  // the weapons' studio reflections. Without that map a glTF metal goes
+  // near-black, so it stays modest then.
+  if (envMap) {
+    out.metalness = Math.min(out.metalness ?? 0, 0.85);
+    out.envMap = envMap;
+    out.envMapIntensity = 1.0;
+  } else {
+    out.metalness = Math.min(out.metalness ?? 0, 0.3);
+  }
   out.userData.shared = true;
   return out;
 }
@@ -140,16 +147,110 @@ export function preloadHeroBodies() {
 }
 
 /* ------------------------------------------------------------------ per rig */
+/* ------------------------------------------------------------------ hands
+   Real, articulated hands (user: "he should have hands", "well developed",
+   "each finger should be moveable"): hand-model.js's posable hand (palm,
+   three-joint fingers, a two-joint thumb, nails, ink outline), scaled to
+   the hero, in the mitt's place under the wrist. Bare white on the sword
+   hand, plated iron on the gauntlet hand. They follow the rig's own
+   open/fist state; poseHeroHand() sets any HAND_POSES pose or per-finger
+   curls directly (emotes, a thumbs-up, the Diamond Gauntlet later). */
+const HAND_SCALE = { knight: 1.55 };
+const HAND_STYLE = { knight: { L: "plate", R: "bare" } };
+// hand-model frame: wrist +Z, fingers -Z, palm -Y, a right thumb on -X.
+// The mitt frame (character.js buildHand, inside `turn`): fingers -Y from
+// the wrist, a right thumb +X, palm -Z. This turns one into the other.
+const HAND_BASIS = new THREE.Matrix4().makeBasis(
+  new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0));
+const PALM_HALF = 0.035;   // hand-model PALM.l / 2: wrist end to palm centre
+
+function plateMats() {
+  const m = handMaterials();
+  const iron = new THREE.MeshStandardMaterial({ color: 0x56606b, roughness: 0.3, metalness: envMap ? 0.75 : 0.3 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x24282d, roughness: 0.38, metalness: envMap ? 0.6 : 0.3 });
+  for (const x of [iron, dark]) if (envMap) { x.envMap = envMap; x.envMapIntensity = 1.0; }
+  m.skin = iron;
+  m.shade = dark;
+  m.nail = dark;
+  return m;
+}
+
+function buildHeroHands(rig, id) {
+  const scale = HAND_SCALE[id] || 1.4;
+  const style = HAND_STYLE[id] || { L: "bare", R: "bare" };
+  rig.heroHands = {};
+  for (const side of [-1, 1]) {
+    const key = side < 0 ? "L" : "R";
+    const mitt = rig.hands?.[key];
+    if (!mitt) continue;
+    const hand = buildHumanHand(side, style[key] === "plate" ? plateMats() : handMaterials());
+    hand.scale.setScalar(scale);
+    hand.quaternion.setFromRotationMatrix(HAND_BASIS);
+    // Wrist end of the palm on the wrist joint (mitt frame +Y = toward the elbow).
+    hand.position.set(0, -PALM_HALF * scale, 0);
+    hand.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    mitt.turn.add(hand);
+    // The flat mitts stay in the scene (setHandPose keeps switching them),
+    // just never drawn.
+    mitt.open.layers.disableAll();
+    mitt.fist.layers.disableAll();
+    rig.heroHands[key] = { hand, pose: null, scale, rest: hand.position.clone() };
+    poseHeroHand(rig, side, "relaxed");
+  }
+}
+
+/* side -1 left / 1 right. `pose`: a HAND_POSES name ("relaxed", "fist",
+   "grip", "cup", ...) or { curl: [[a,b,c] x4], spread, thumb: [yaw, pitch, j1, j2] }
+   to place every finger joint by hand. */
+export function poseHeroHand(rig, side, pose) {
+  const h = rig.heroHands?.[side < 0 ? "L" : "R"];
+  if (!h) return;
+  if (typeof pose === "string") {
+    if (h.pose === pose) return;
+    h.pose = pose;
+    poseHumanHand(h.hand, pose);
+  } else if (pose === null) {
+    h.pose = null;   // back to following the rig's open/fist
+  } else {
+    h.pose = "custom";
+    const rigH = h.hand.userData.rig;
+    pose.curl?.forEach(([a, b, c], i) => {
+      const js = rigH.fingers[i];
+      js[0].rotation.set(-a, (1.5 - i) * (pose.spread || 0), 0);
+      js[1].rotation.set(-b, 0, 0);
+      js[2].rotation.set(-c, 0, 0);
+    });
+    if (pose.thumb) {
+      const [yaw, pitch, c1, c2] = pose.thumb;
+      rigH.thumb[0].rotation.set(-pitch, yaw, 0, "YXZ");
+      rigH.thumb[1].rotation.set(-c1, 0, 0);
+      rigH.thumb[2].rotation.set(-c2, 0, 0);
+    }
+  }
+}
+
+function clearHands(rig) {
+  for (const key of ["L", "R"]) {
+    const h = rig.heroHands?.[key];
+    if (h) {
+      h.hand.parent?.remove(h.hand);
+      h.hand.traverse((o) => { if (o.isMesh) o.geometry?.dispose(); });
+    }
+    const mitt = rig.hands?.[key];
+    if (mitt) { mitt.open.layers.set(0); mitt.fist.layers.set(0); }
+  }
+  rig.heroHands = null;
+}
+
 function clearBody(rig) {
   for (const m of rig.heroPieces || []) m.parent?.remove(m);
   rig.heroPieces = [];
   rig.heroFace = [];
   if (rig.heroSword) { rig.heroSword.parent?.remove(rig.heroSword); rig.heroSword = null; }
+  clearHands(rig);
   const p = rig.parts;
   if (p.body) p.body.visible = true;
   if (p.head) p.head.visible = true;
-  if (p.handL) p.handL.visible = true;
-  if (p.handR) p.handR.visible = true;
 }
 
 /* Put hero `id` (wire form: "metamorph!" = the brute) on `rig`, or take it
@@ -187,11 +288,10 @@ export function applyHeroBody(rig, wireId) {
       rig.parts.chest.add(sword);
       rig.heroSword = sword;
     }
+    buildHeroHands(rig, want);
     const p = rig.parts;
     if (p.body) p.body.visible = false;
     if (p.head) p.head.visible = false;
-    if (p.handL) p.handL.visible = false;
-    if (p.handR) p.handR.visible = false;
   });
 }
 
@@ -201,6 +301,28 @@ export function syncHeroBody(rig) {
   if (!rig.heroBodyId) return;
   const faceMat = rig.parts.head?.material;
   for (const m of rig.heroFace) if (m.material !== faceMat) m.material = faceMat;
+  // The face is big on a hero head: keep its texture sharp at an angle.
+  if (faceMat?.map && faceMat.map.anisotropy < 8) { faceMat.map.anisotropy = 8; faceMat.map.needsUpdate = true; }
+  // Hands. A melee weapon drawn (anything showing in the right grip): the
+  // fingers close round its handle, which runs through the wrist along the
+  // hand's knuckle line, so the hand slides up onto it. A gun: a fist where
+  // the old mitt's fist was. Otherwise relaxed. A custom pose is left alone.
+  if (rig.heroHands) {
+    let melee = false;
+    const grip = rig.parts.gripR;
+    if (grip) for (const c of grip.children) if (c.visible && c !== rig.heroHands.R?.hand) { melee = true; break; }
+    for (const [key, side] of [["L", -1], ["R", 1]]) {
+      const h = rig.heroHands[key];
+      const mitt = rig.hands?.[key];
+      if (!h || !mitt || h.pose === "custom") continue;
+      const wrap = side > 0 && melee;
+      poseHeroHand(rig, side, wrap ? "grip" : mitt.pose === "fist" ? "fist" : "relaxed");
+      // Where the curled fingers' tunnel sits, in the mitt frame (hand-model
+      // finger roots, curled ~1.2 rad, at this scale): put it on the handle.
+      if (wrap) h.hand.position.set(0, 0.035 * h.scale, 0.018 * h.scale);
+      else h.hand.position.copy(h.rest);
+    }
+  }
   // poseHumanoid can flip the board back on; keep it off.
   if (rig.parts.head?.visible) rig.parts.head.visible = false;
   if (rig.parts.body?.visible) rig.parts.body.visible = false;

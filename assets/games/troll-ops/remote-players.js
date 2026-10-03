@@ -14,7 +14,7 @@ import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3";
-import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3d";
+import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 
 const RENDER_DELAY = 110; // ms

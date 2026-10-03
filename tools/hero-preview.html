@@ -24,7 +24,8 @@
    ?hero=knight&pose=idle|walk|aim|melee|dance|death&yaw=0&spin=1 */
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, DANCES } from "../assets/games/troll-ops/character.js?v=to-hb4";
-import { applyHeroBody, syncHeroBody, setHeroEnvMap, HERO_BODIES } from "../assets/games/troll-ops/hero-bodies.js?v=umb3d";
+import { buildMeleeMesh, MELEE_DEFS } from "../assets/games/troll-ops/gear.js?v=to-hb1";
+import { applyHeroBody, syncHeroBody, setHeroEnvMap, HERO_BODIES, poseHeroHand } from "../assets/games/troll-ops/hero-bodies.js?v=umb3g";
 
 const q = new URLSearchParams(location.search);
 let hero = q.get("hero") || "knight";
@@ -108,7 +109,12 @@ function resize() {
 }
 addEventListener("resize", resize);
 resize();
-window.__preview = { rig, setPose: (p) => { pose = p; t0 = performance.now(); }, setYaw: (d) => { orbit.yaw = d * Math.PI / 180; }, orbit };
+// The held melee weapon, as RemotePlayer.ensureMelee mounts it.
+const held = buildMeleeMesh(MELEE_DEFS.keyboard, false);
+held.scale.setScalar(1.1);
+held.visible = false;
+rig.parts.gripR.add(held);
+window.__preview = { rig, poseHeroHand, setPose: (p) => { pose = p; t0 = performance.now(); }, setYaw: (d) => { orbit.yaw = d * Math.PI / 180; }, orbit };
 
 renderer.setAnimationLoop((now) => {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -122,6 +128,7 @@ renderer.setAnimationLoop((now) => {
     hasGun: false, hold: pose === "melee" ? "melee" : "gun", ads: pose === "aim" ? 1 : 0,
     swing: pose === "melee" ? { t: (t % 1.2) / 1.2, kind: "slash" } : null,
   });
+  held.visible = pose === "melee";
   syncHeroBody(rig);
   const c = new THREE.Vector3(0, 1.05, 0);
   camera.position.set(c.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist * -1, c.y + Math.sin(orbit.pitch) * orbit.dist, c.z - Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);
