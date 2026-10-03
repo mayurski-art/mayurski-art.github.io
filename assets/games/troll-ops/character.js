@@ -536,41 +536,69 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   // bullet raycasts. The visible line is a few cm across — true to the look,
   // but a needle-thin hitbox would be nearly unhittable at range or with a
   // controller. They ride the same pivots, so they follow every pose.
-  const makeHitProxy = (geo, parent, isHead) => {
+  //
+  // 2026-10-02, from the hitbox lab's coverage sweep (hitbox-lab.js): 8-11%
+  // of a visible troll took no hit. 73% of that was the mitts (no proxy at
+  // all), 16% the forearm (one upright capsule per arm, so a bent arm left
+  // it), 6% the feet, 5% the face board's edges. Now every bone has its own
+  // capsule laid along it, the mitts and feet have theirs, and the head is
+  // sized to the board's corners. `hitPart` names the part for the lab.
+  const makeHitProxy = (geo, parent, isHead, part = isHead ? "head" : "limbs") => {
     const m = new THREE.Mesh(geo, HIT_PROXY_MAT);
     m.visible = false;
     m.userData.isHitProxy = true;
+    m.userData.hitPart = part;
     if (isHead) m.userData.isHead = true;
     parent.add(m);
     return m;
   };
+  // A capsule from `parent`'s origin to the point `to` in its space.
+  const boneProxy = (parent, to, r) => {
+    const m = makeHitProxy(new THREE.CapsuleGeometry(r, Math.max(0.001, to.length()), 4, 8), parent, false);
+    m.position.copy(to).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().normalize());
+    return m;
+  };
 
-  // Sized to the board, so a shot that visibly lands on the face is a headshot.
-  const hitHead = makeHitProxy(new THREE.SphereGeometry(0.24 * s, 8, 6), headPivot, true);
+  // The board's corners: 0.24 left about 6% of the face art outside.
+  const hitHead = makeHitProxy(new THREE.SphereGeometry(0.255 * s, 20, 14), headPivot, true);
   hitHead.position.y = headH * 0.5 + 0.03 * s;
 
-  const hitTorso = makeHitProxy(new THREE.CapsuleGeometry(0.16 * s * w, 0.42 * s, 4, 8), torso, false);
+  const hitTorso = makeHitProxy(new THREE.CapsuleGeometry(0.16 * s * w, 0.42 * s, 4, 8), torso, false, "body");
   hitTorso.position.y = 0.24 * s;
 
-  const hitHips = makeHitProxy(new THREE.SphereGeometry(0.15 * s * w, 8, 6), hips, false);
+  const hitHips = makeHitProxy(new THREE.SphereGeometry(0.15 * s * w, 8, 6), hips, false, "body");
 
-  const hitArmL = makeHitProxy(new THREE.CapsuleGeometry(0.075 * s * w, 0.5 * s, 4, 6), L.pivot, false);
-  hitArmL.position.set(-0.15 * s * w, -0.31 * s, 0);
-  const hitArmR = makeHitProxy(new THREE.CapsuleGeometry(0.075 * s * w, 0.5 * s, 4, 6), R.pivot, false);
-  hitArmR.position.set(0.15 * s * w, -0.31 * s, 0);
-
-  // Thigh proxies on the hip pivot, shin proxies on the knee, so a bent leg
-  // is still covered where it actually is.
-  const hitLegs = [];
-  for (const leg of [LL, LR]) {
-    const thigh = makeHitProxy(new THREE.CapsuleGeometry(0.08 * s * w, THIGH * 0.8, 4, 6), leg.pivot, false);
-    thigh.position.y = -THIGH / 2;
-    const shin = makeHitProxy(new THREE.CapsuleGeometry(0.07 * s * w, SHIN * 0.8, 4, 6), leg.knee, false);
-    shin.position.y = -SHIN / 2;
-    hitLegs.push(thigh, shin);
+  // Arms: upper arm and forearm each along their own bone, and the mitt.
+  const hitArms = [];
+  for (const [arm, hand] of [[L, hands.L], [R, hands.R]]) {
+    hitArms.push(boneProxy(arm.pivot, arm.elbow.position, 0.075 * s * w));
+    hitArms.push(boneProxy(arm.elbow, arm.hand.position, 0.07 * s * w));
+    // a ball round the mitt, centred on the mitt itself (it sits off the
+    // wrist joint): measured 10.7 cm to its farthest point
+    // (visible meshes only: the group also carries hidden spare hands)
+    root.updateMatrixWorld(true);
+    const box = new THREE.Box3(), piece = new THREE.Box3();
+    hand.group.traverse((o) => {
+      if (!o.isMesh || !o.visible) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      box.union(piece.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld));
+    });
+    const mitt = makeHitProxy(new THREE.SphereGeometry(0.1 * s, 10, 8), hand.group, false);
+    hand.group.worldToLocal(box.getCenter(mitt.position));
+    hitArms.push(mitt);
   }
 
-  const hitboxMeshes = [hitHead, hitTorso, hitHips, hitArmL, hitArmR, ...hitLegs];
+  // Legs: thigh on the splay joint (the one the knee hangs from, so the
+  // splay is followed), the whole shin, and the foot to the toe.
+  const hitLegs = [];
+  for (const leg of [LL, LR]) {
+    hitLegs.push(boneProxy(leg.knee.parent, leg.knee.position, 0.08 * s * w));
+    hitLegs.push(boneProxy(leg.knee, leg.ankle.position, 0.07 * s * w));
+    hitLegs.push(boneProxy(leg.ankle, leg.toe.position, 0.06 * s));
+  }
+
+  const hitboxMeshes = [hitHead, hitTorso, hitHips, ...hitArms, ...hitLegs];
 
   const rig = {
     root,

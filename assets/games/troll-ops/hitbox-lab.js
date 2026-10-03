@@ -17,7 +17,7 @@
 // be tuned and then baked into character.js.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate } from "./character.js?v=to-jn1";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate } from "./character.js?v=to-hb4";
 import { raycastWorld, segmentBlocked } from "./ballistics.js?v=cg1";
 
 const DISTANCES = [8, 15, 25, 40];
@@ -124,10 +124,11 @@ export function createHitboxLab(ctx) {
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(tune)); } catch { /* private mode */ } };
 
   const wire = {
-    head: new THREE.MeshBasicMaterial({ color: 0xff3355, wireframe: true, depthTest: false, transparent: true, opacity: 0.55 }),
-    body: new THREE.MeshBasicMaterial({ color: 0x33ff88, wireframe: true, depthTest: false, transparent: true, opacity: 0.4 }),
-    limbs: new THREE.MeshBasicMaterial({ color: 0x33aaff, wireframe: true, depthTest: false, transparent: true, opacity: 0.4 }),
+    head: new THREE.MeshBasicMaterial({ color: 0xff3355, wireframe: true, depthTest: false, transparent: true, opacity: 0.22 }),
+    body: new THREE.MeshBasicMaterial({ color: 0x33ff88, wireframe: true, depthTest: false, transparent: true, opacity: 0.16 }),
+    limbs: new THREE.MeshBasicMaterial({ color: 0x33aaff, wireframe: true, depthTest: false, transparent: true, opacity: 0.16 }),
   };
+  const hitFill = new THREE.MeshBasicMaterial({ color: 0xff7070, transparent: true, opacity: 0.32, depthTest: false, depthWrite: false });
   const markGeo = new THREE.SphereGeometry(0.022, 8, 6);
   const markMats = {};
   for (const [k, c] of Object.entries(COLORS)) markMats[k] = new THREE.MeshBasicMaterial({ color: c, depthTest: false, transparent: true });
@@ -152,8 +153,19 @@ export function createHitboxLab(ctx) {
       const f = tune[part];
       if (part === "head" || m.geometry.type === "SphereGeometry") m.scale.setScalar(f);
       else m.scale.set(f, 1, f);
+      // The hit area itself, filled light red (user: "show me the area of
+      // impact as well with a light red box"), with the part's coloured
+      // outline on top so head / body / limbs still read apart.
       m.visible = tune.show;
-      m.material = tune.show ? wire[part] : m.userData.hitMat;
+      m.material = tune.show ? hitFill : m.userData.hitMat;
+      let w = m.userData.hitWire;
+      if (!w && tune.show) {
+        w = m.userData.hitWire = new THREE.Mesh(m.geometry, wire[part]);
+        w.raycast = () => {};   // drawn only: rounds must hit the proxy itself
+        w.renderOrder = 2;
+        m.add(w);
+      }
+      if (w) w.visible = tune.show;
     });
   }
 
@@ -263,6 +275,23 @@ export function createHitboxLab(ctx) {
     const x = Math.min(px.w - 1, Math.max(0, Math.floor(uv.x * px.w)));
     const y = Math.min(px.h - 1, Math.max(0, Math.floor((1 - uv.y) * px.h)));
     return px.d[(y * px.w + x) * 4 + 3] / 255 >= 0.3;
+  }
+
+  /* Which bit of the troll a sight line touched: the face board, a mitt, or
+     the ink line nearest to which joint. For the coverage sweep. */
+  const _jp = new THREE.Vector3();
+  function whereOn(d, h) {
+    if (h.object === d.rig.parts.head) return "face";
+    for (const side of ["L", "R"]) {
+      for (let p = h.object; p; p = p.parent) if (p === d.rig.hands?.[side]?.group) return `hand${side}`;
+    }
+    let best = "?", bd = Infinity;
+    for (const [name, j] of Object.entries(d.rig.parts)) {
+      if (!j?.isObject3D || ["gun", "body", "head", "handL", "handR", "gripR", "gunMount"].includes(name)) continue;
+      const dd = j.getWorldPosition(_jp).distanceTo(h.point);
+      if (dd < bd) { bd = dd; best = name; }
+    }
+    return best;
   }
 
   // Raycasts ignore .visible; the rig keeps spare hand meshes hidden.
@@ -394,7 +423,7 @@ export function createHitboxLab(ctx) {
     </div>
     <div class="sec">Hitbox size
       ${["head", "body", "limbs"].map((k) => `<label class="row">${k[0].toUpperCase() + k.slice(1)}<input type="range" min="0.5" max="3" step="0.05" data-k="${k}" value="${tune[k]}"><output data-o="${k}">${tune[k]}x</output></label>`).join("")}
-      <label class="k" style="margin:4px 0"><input type="checkbox" data-k="show" ${tune.show ? "checked" : ""}>Show hitboxes</label>
+      <label class="k" style="margin:4px 0"><input type="checkbox" data-k="show" ${tune.show ? "checked" : ""}>Show hit area (light red)</label>
       <button type="button" data-reset>Reset to 1x</button>
     </div>
     <div class="sec">
@@ -481,6 +510,32 @@ export function createHitboxLab(ctx) {
       if ((tuneT += dt) > 0.4) { tuneT = 0; applyTune(); }
     },
     debug: () => dummies,
+    /* One sight line against one troll, for the coverage sweep: does it
+       touch the visible troll, which hitbox part (if any) it hits, and for
+       each part the size factor that part would need to catch it (capsules
+       grow in thickness only, spheres whole, as the sliders do). */
+    probe(d, origin, dir) {
+      d.root.updateWorldMatrix(true, true);
+      ray.set(origin, dir); ray.near = 0; ray.far = 200;
+      let vis = false;
+      let where = null;
+      for (const h of ray.intersectObjects(d.visual, false)) {
+        if (!shown(h.object, d.root)) continue;
+        if (h.object === d.rig.parts.head && !opaqueAt(h.object, h.uv)) continue;
+        vis = true; where = whereOn(d, h); break;
+      }
+      const hit = ray.intersectObjects(d.proxies, false)[0];
+      _end.copy(origin).addScaledVector(dir, 200);
+      const need = { head: Infinity, body: Infinity, limbs: Infinity };
+      for (const m of d.proxies) {
+        const part = m.userData.hitPart, f = tune[part];
+        const r = proxyShape(m, _a, _b);
+        const dist = segSeg(origin, _end, _a, _b, _q1, _q2);
+        need[part] = Math.min(need[part], dist / (r / f));   // factor vs the 1x radius
+      }
+      return { vis, where, hit: hit ? hit.object.userData.hitPart : null, need };
+    },
+    setTune(t) { Object.assign(tune, t); applyTune(); },
     state: () => ({ tune: { ...tune }, stats: { ...stats }, last, dummies: dummies.map((d) => ({ dist: d.dist, x: d.root.position.x, y: d.root.position.y, z: d.root.position.z })) }),
   };
 }

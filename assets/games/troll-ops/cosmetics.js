@@ -8,7 +8,7 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_TINTS } from "./character.js?v=to-jn1";
+import { FACE_TINTS } from "./character.js?v=to-hb4";
 
 const KEY = "trollops:cosmetics";
 

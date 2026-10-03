@@ -11,7 +11,7 @@ import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=cg1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=cg1";
 import { WeaponInspector } from "./inspector.js?v=hb1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
-import { CharacterInspector } from "./char-inspector.js?v=jn1";
+import { CharacterInspector } from "./char-inspector.js?v=hb4";
 import { Loadout } from "./loadout.js?v=pr2";
 import { StreakPicker } from "./streak-picker.js?v=pr1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=pr1";
@@ -34,10 +34,10 @@ import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=rp4";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-jn1";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-jn1";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-jn1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=hb4";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
@@ -53,13 +53,13 @@ import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1";
-import { ZombieDirector } from "./zombies.js?v=zr4";
+import { ZombieDirector } from "./zombies.js?v=hb4";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js?v=cg1";
-import { WaveSpawner } from "./enemies.js?v=to-jn1";
+import { WaveSpawner } from "./enemies.js?v=hb4";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1";
@@ -68,7 +68,7 @@ import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=cg1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
-import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=cos2";
+import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=hb4";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3";
@@ -14004,7 +14004,7 @@ animate();
    with a row of trolls and reads every round against both the hitbox and
    the visible body (hitbox-lab.js). Loaded lazily, so play never fetches it. */
 if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]hitbox=1/.test(location.search)) {
-  import("./hitbox-lab.js?v=hl2").then(({ createHitboxLab }) => {
+  import("./hitbox-lab.js?v=hl3").then(({ createHitboxLab }) => {
     hitboxLab = createHitboxLab({
       scene, look, move, colliders: () => colliders, isRange, state: () => gameState, startGame,
       setMode: (id) => { modeId = id; modePicked = true; },
