@@ -915,6 +915,18 @@ be ordered with the user (design doc first for the big ones):
      crosshair. Cape deepened to 0x1a3f9e (the game sun washed the first
      blue out). Knight SHIPPED + LIVE 2026-10-03 (4b80b38). **USER: HOLD OFF
      on the other characters** (Hunter, Super Troll, Metamorph, Trollernaut)
+     Knight v9 LIVE (6e34369): face upside-down fix (glTF V flip, flipped
+     back on load in hero-bodies.js); ARTICULATED HANDS from hand-model.js
+     buildHumanHand x1.55 under each mitt `turn` (mitts hidden via
+     layers.disableAll since setHandPose keeps toggling visibility),
+     poseHeroHand(rig, side, poseName|{curl,spread,thumb}|null), sword hand
+     slides onto the handle and curls "grip" when anything shows in gripR;
+     "sharp" pass = hero_kit crisp_all (angle bevel + harden normals +
+     weighted normals), SEG_SCALE 1.6, trims, metal 0.72-0.85 on the studio
+     env (21.4k tris now: watch perf with many Knights); head v9 =
+     exact art outline at the rim easing to a smoothed skull, superellipse
+     p 2.4 both sides, drawing only on forward faces (rim_band) so no black
+     band from the side.
      until they say go. When resumed: Hunter (+ Doge), Super Troll,
      Metamorph (both forms), then phase 4 Trollernaut.
    - **REQUIRED for every character model (user, 2026-10-03): a timelapse
