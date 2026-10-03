@@ -16,6 +16,19 @@ import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
 import { canPrestige, prestigeUp, getPrestige, PRESTIGE_MASTER } from "./progression.js?v=umb1";
 
+import { fetchRecord, formatPlayed } from "./record.js?v=rec1";
+import { WEAPON_DEFS } from "./weapons.js?v=cg1";
+
+/* The combat record screen's data: the last fetch, refreshed on each visit. */
+let recordView = null, recordState = "idle";
+function loadRecord() {
+  recordState = "loading";
+  fetchRecord()
+    .then((r) => { recordView = r; })
+    .catch(() => {})
+    .finally(() => { recordState = "done"; if (menu.current() === "record") menu.refresh(); });
+}
+
 const nextPrestigeName = () => (getPrestige() + 1 >= PRESTIGE_MASTER ? "Master" : `P${getPrestige() + 1}`);
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -198,6 +211,7 @@ const screens = {
       ].filter(Boolean),
       [
         { id: "leaders", label: "Leaderboards", desc: "This week's best trolls.", go: "leaders" },
+        { id: "record", label: "Combat Record", desc: "Your lifetime K/D, W/L, accuracy and more, across every match.", go: "record" },
         { id: "map", label: "Troll Map", desc: "This planet is the troll map. Spin it, find your city, see who is out there.", go: "map" },
       ],
       [
@@ -232,6 +246,40 @@ const screens = {
         }],
         [back("Not yet.")],
       ],
+    };
+  },
+  /* Combat record (prestige phase 3, record.js): lifetime PvP numbers. The
+     screen draws from the last fetch and redraws when a fresh one lands. */
+  record: () => {
+    const signedIn = !!window.TrollrunnerAccounts?.getCachedProfile?.();
+    const r = recordView;
+    const row = (id, label, value, desc) => ({ id, label, value, desc });
+    let rows;
+    if (!signedIn) rows = [row("r-guest", "Sign in", "", "Sign in to keep a combat record. Guests' matches aren't saved.")];
+    else if (recordState === "loading" && !r) rows = [row("r-load", "Loading", "…", "Fetching your record.")];
+    else if (!r) rows = [row("r-none", "No matches yet", "", "Finish a match and it lands here.")];
+    else {
+      const pct = (x) => `${(x * 100).toFixed(1)}%`;
+      const fav = r.favourite ? `${WEAPON_DEFS[r.favourite]?.name || r.favourite} · ${r.favKills}` : "–";
+      rows = [
+        row("r-kd", "K/D", r.kd.toFixed(2), `${r.kills.toLocaleString()} kills, ${r.deaths.toLocaleString()} deaths.`),
+        row("r-wl", "W/L", r.wl.toFixed(2), `${r.wins.toLocaleString()} wins, ${r.losses.toLocaleString()} losses.`),
+        row("r-spm", "Score per minute", Math.round(r.spm).toLocaleString(), "All the score you've earned over all the time you've played."),
+        row("r-acc", "Accuracy", pct(r.accuracy), `${r.shotsHit.toLocaleString()} of ${r.shotsFired.toLocaleString()} rounds hit a player. Each shotgun pellet counts.`),
+        row("r-hs", "Headshots", r.headshots.toLocaleString(), r.kills ? `${pct(r.headshots / r.kills)} of your kills.` : "Kills to the head."),
+        row("r-streak", "Best streak", String(r.bestStreak), "Most kills in one life."),
+      ];
+      rows.push(
+        row("r-matches", "Matches", r.matches.toLocaleString(), "Every match you finished."),
+        row("r-time", "Time played", formatPlayed(r.seconds), "In finished matches."),
+        row("r-fav", "Favourite gun", fav, "The gun with the most kills."),
+        row("r-assists", "Assists", r.assists.toLocaleString(), "Damage that helped someone else's kill."),
+      );
+    }
+    return {
+      title: "Combat Record", panel: "deploy",
+      enter: () => loadRecord(),
+      groups: [rows.slice(0, 6), rows.slice(6), [back("Back to the main menu.")]].filter((g) => g.length),
     };
   },
   public: () => ({

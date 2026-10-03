@@ -31,6 +31,7 @@ import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=umb1";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=umb1";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
+import { recordMatch } from "./record.js?v=rec1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb2";
@@ -4504,6 +4505,7 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
     player.streak++;
     if (mode.funny) hero().onKill();
     if (opts.head) player.headshots++;
+    if (weaponId) player.weaponKills[weaponId] = (player.weaponKills[weaponId] || 0) + 1;
     audio.kill();
     els.hudKills.textContent = String(player.kills);
 
@@ -4599,6 +4601,7 @@ function awardKillXp() {
    pays into both, which is why every call site here sits next to an
    addMatchXp call. */
 function awardScore(amount) {
+  player.matchScore += amount;   // combat record SPM, whether streaks are on or not
   if (!streaksAllowed(currentMode())) return;
   for (const id of streaks.addScore(amount)) {
     selectedStreak = id;   // newest earned, like BO2's default pick
@@ -5713,6 +5716,11 @@ const player = {
   matchT: 0,            // seconds of this match played (veteran XP boost)
   vetBotT: 0,           // ...of them with veteran bots in the room
   lastKilledBy: null,   // whose kill sent us back, for the Revenge achievement
+  // Combat record (prestige phase 3, record.js): this match's extra counters.
+  shotsFired: 0,        // rounds fired (each shotgun pellet is a round)
+  shotsHit: 0,          // ...that hit an enemy player or bot
+  matchScore: 0,        // all score earned, streaks allowed or not (for SPM)
+  weaponKills: {},      // kills per weapon id (favourite gun)
 };
 
 // Which slot (primary/secondary) currentWeapon() resolves against - reset
@@ -7078,6 +7086,7 @@ function fireOnce(shot = null) {
       .addScaledVector(up, Math.sin(a) * r)
       .normalize();
     bullets.spawn({ origin: muzzle.clone(), dir, def, ownerId: "player" });
+    player.shotsFired++;   // combat record accuracy
   }
 }
 
@@ -7145,6 +7154,7 @@ function onBulletActorHit(actor, info) {
 
   // Remote players own their own health: we report the hit and they apply it.
   if (actor.netId) {
+    player.shotsHit++;   // combat record accuracy: a round on an enemy player or bot
     noteDealt(actor.netId, info.damage);
     if (heroActive()) hero().onDealt(info.damage);
     // Our own bots never hear our broadcasts, so resolve those locally.
@@ -10099,6 +10109,10 @@ function beginMatch(mapId = null) {
   player.matchXp = 0;
   player.matchT = 0;
   player.vetBotT = 0;
+  player.shotsFired = 0;
+  player.shotsHit = 0;
+  player.matchScore = 0;
+  player.weaponKills = {};
   roomSkillSeen = null;
   player.lastKilledBy = null;
   // A fresh match starts with nothing earned and nothing banked, and picks up
@@ -10643,6 +10657,13 @@ function endMatch(title) {
   window.TrollLeaderboard?.report?.("troll-ops", {
     pvp: true, kills: player.kills, deaths: player.deaths, won,
     assists: player.assists, headshots: player.headshots, streak: player.bestStreak,
+  });
+  // Combat record (record.js): this match onto the account'''s lifetime totals.
+  recordMatch({
+    won, kills: player.kills, deaths: player.deaths, assists: player.assists,
+    headshots: player.headshots, bestStreak: player.bestStreak, score: player.matchScore,
+    seconds: player.matchT, shotsFired: player.shotsFired, shotsHit: player.shotsHit,
+    weaponKills: player.weaponKills,
   });
 
   bots.clear();
