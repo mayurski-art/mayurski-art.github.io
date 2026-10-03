@@ -1586,6 +1586,11 @@ MAPS.grinleria = GRINLERIA;
 // it stays out of MAP_IDS (the vote pool).
 MAPS.trollface = TROLLFACE_ISLAND;
 
+// Prestige rewards (prestige phase 5): playable in versus only in a private
+// room you host, from this prestige on (loadout.js mapOpen). Joiners follow
+// the host onto them (game.js onStage).
+export const REWARD_MAPS = { pentagrin: 4, trollface: 8 };
+
 // Neither the zombies map nor the range is a place you pick to fight in.
 export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id !== "range" && id !== "trollface" && !id.endsWith("_wip"));
 

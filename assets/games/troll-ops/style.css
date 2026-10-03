@@ -3258,3 +3258,98 @@ body.is-map .to-bo2-hints { visibility: hidden; }
 .to-gear-chip.to-hero-chip.is-ready { opacity: 1; border-color: #b6ff3c; background: rgba(182,255,60,.16); }
 .to-gear-chip.to-hero-chip.is-ready i { color: #b6ff3c; }
 .to-touch-streak.is-hero-ready { box-shadow: 0 0 0 2px #b6ff3c; }
+
+/* Profile card (prestige phase 4, profile-card.js): BO2's calling card.
+   Emblem (the account PFP) | calling card with [CLAN] name | rank + level,
+   then the headline six. The emblem is square and the card 3:1, so one
+   height (--h) sizes the whole top row from the card's own width. */
+.tf-card { container-type: inline-size; color: #f3ece4; font-family: "DM Sans", system-ui, sans-serif; }
+.tf-card-top {
+  --rank-w: 100px; --gap: 6px;
+  --h: calc((100cqw - var(--rank-w) - 2 * var(--gap)) / 4);
+  display: grid; grid-template-columns: var(--h) calc(var(--h) * 3) var(--rank-w); gap: var(--gap); height: var(--h);
+}
+.tf-card-emblem, .tf-card-banner, .tf-card-rank {
+  border: 1px solid rgba(255,176,32,.45); border-radius: 6px; overflow: hidden;
+  background: #120806; box-shadow: 0 6px 18px rgba(0,0,0,.45);
+}
+.tf-card-emblem img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tf-card-banner { position: relative; background-size: cover; background-position: center; }
+.tf-card-banner::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(0deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,0) 48%);
+}
+.tf-card-id {
+  position: absolute; left: 10px; right: 10px; bottom: 6px; z-index: 1;
+  display: flex; align-items: baseline; gap: 6px; min-width: 0;
+  font: 600 clamp(14px, 5cqw, 26px)/1.1 Oswald, "Arial Narrow", sans-serif; letter-spacing: .04em;
+  text-shadow: 0 2px 6px rgba(0,0,0,.95);
+}
+.tf-card-clan { color: #ffd27a; flex: none; }
+.tf-card-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf-card-rank {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: linear-gradient(180deg, #2a1608, #0d0603); text-align: center; padding: 4px;
+}
+.tf-card-rank > svg { flex: none; width: min(64px, 78%); height: auto; filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
+.tf-card-rank > b { font: 600 15px "DM Mono", monospace; color: #ffd27a; }
+.tf-card-rank > small { font: 10px "DM Mono", monospace; color: #c9b8a6; line-height: 1.1; }
+.tf-card-rank > .is-owner { font-size: 10px; padding-right: 8px; }
+.tf-card-stats {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 8px 0 0;
+}
+.tf-card-stats > div {
+  padding: 8px 6px; border-radius: 6px; background: rgba(255,255,255,.05);
+  border: 1px solid rgba(243,236,228,.1); text-align: center; min-width: 0;
+}
+.tf-card-stats dt { font: 10px "DM Mono", monospace; color: #c9b8a6; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tf-card-stats dd { margin: 3px 0 0; font: 600 18px Oswald, sans-serif; color: #f3ece4; }
+.tf-card-note { margin: 10px 0 0; font: 13px "DM Mono", monospace; color: #c9b8a6; }
+@container (max-width: 520px) {
+  .tf-card-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (max-width: 420px) {
+  .tf-card-top { --rank-w: 64px; --gap: 4px; }
+  .tf-card-rank > b { font-size: 12px; }
+  .tf-card-rank > small { display: none; }
+  .tf-card-id { left: 6px; bottom: 4px; }
+}
+
+/* The card as a pop-up over anything (menus, the paused scoreboard, chat). */
+.tf-card-overlay {
+  position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center;
+  padding: 16px; box-sizing: border-box; background: rgba(3,1,1,.72); backdrop-filter: blur(3px);
+}
+.tf-card-overlay[hidden] { display: none; }
+.tf-card-dialog {
+  width: min(760px, 100%); padding: 16px; box-sizing: border-box; border-radius: 12px;
+  background: rgba(10,4,2,.94); border: 1px solid rgba(243,236,228,.16); box-shadow: 0 24px 70px rgba(0,0,0,.6);
+}
+.tf-card-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.tf-card-actions button {
+  min-height: 36px; padding: 0 16px; border-radius: 6px; cursor: pointer;
+  font: 600 13px Oswald, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  color: #f3ece4; background: rgba(255,255,255,.06); border: 1px solid rgba(243,236,228,.2);
+}
+.tf-card-actions button:hover, .tf-card-actions button:focus-visible { color: #ff8a1f; border-color: #ff8a1f; outline: none; }
+.tf-card-actions button[hidden] { display: none; }
+
+/* Barracks (menu-bo2.js): your card up top, then the calling cards or the
+   clan tag box under it. */
+.to-bo2.has-card #to-pf-center { display: none !important; }
+.to-bo2-card[hidden], .to-bo2-clan[hidden] { display: none; }
+.to-bo2-cardnote { margin: 12px 0 0; font-size: 14px; color: var(--bo2-soft); }
+.to-bo2-clan { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.to-bo2-clan label { font: 500 15px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--bo2-soft); }
+.to-bo2-clan input {
+  width: 6.5em; min-height: 36px; padding: 0 10px; border-radius: 6px; box-sizing: border-box;
+  font: 600 18px "DM Mono", monospace; letter-spacing: .14em; text-transform: uppercase;
+  color: #ffd27a; background: rgba(0,0,0,.5); border: 1px solid rgba(255,176,32,.55);
+}
+.to-bo2-clan input:focus { outline: 2px solid var(--bo2-hot); outline-offset: 1px; }
+.to-bo2-clan button {
+  min-height: 36px; padding: 0 14px; border-radius: 6px; cursor: pointer;
+  font: 600 13px Oswald, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--bo2-ink); background: rgba(255,138,31,.2); border: 1px solid var(--bo2-hot);
+}
+.to-bo2-clan small { flex-basis: 100%; color: var(--bo2-dim); font: 12px "DM Mono", monospace; }

@@ -101,7 +101,19 @@ export const SKINS = [
    bright edges, the small hardware frosted white. */
 export const FINISHES = [
   { id: "ghostglass", name: "Ghost Glass", finish: "glass", blurb: "See-through, every edge lit. Nothing to hide." },
+  // Prestige finishes (prestige phase 5, design doc "Troll Forces: Prestige +
+  // Profile Card"): each opens at its prestige (loadout.js finishUnlocked).
+  // `metal` is [base, shadow]: dark parts of the gun take the shadow tone so
+  // it still reads as two-tone.
+  { id: "bronzegrin", name: "Bronze Grin", finish: "metal", metal: [0xe8a06a, 0x9a5a2c], rough: 0.3, prestige: 1, blurb: "Prestige 1. Third place never looked this smug." },
+  { id: "silvergrin", name: "Silver Grin", finish: "metal", metal: [0xf4f7fa, 0xa9b1b9], rough: 0.2, prestige: 2, blurb: "Prestige 2. Polished until it reflects your K/D." },
+  { id: "goldgrin", name: "Gold Grin", finish: "metal", metal: [0xffd34a, 0xd09a1c], rough: 0.18, prestige: 3, blurb: "Prestige 3. Solid gold, solid grin." },
+  { id: "diamondgrin", name: "Diamond Grin", finish: "diamond", prestige: 5, blurb: "Prestige 5. Cut, faceted, flawless. Unlike your aim." },
+  { id: "darkmatter", name: "Dark Matter", finish: "darkmatter", prestige: 10, blurb: "Prestige 10. A slice of the void, still swirling." },
 ];
+
+/* Guns that wear their own finish and nothing else (the Prestige 7 gun). */
+export const OWN_FINISH = new Set(["goldengrin"]);
 
 export const SKIN_BY_ID = Object.fromEntries([...SKINS, ...FINISHES].map((s) => [s.id, s]));
 
@@ -119,6 +131,7 @@ export function finishDef(skinId) {
 }
 
 export function skinsFor(weaponId) {
+  if (OWN_FINISH.has(weaponId)) return [];
   return [...(SKINNABLE.has(weaponId) ? SKINS : []), ...FINISHES];
 }
 

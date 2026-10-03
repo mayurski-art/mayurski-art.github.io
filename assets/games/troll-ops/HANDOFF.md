@@ -1,5 +1,118 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## One map per room — SHIPPED 2026-10-03 (branch tf-room-map-sync)
+Every versus room (private AND public quickplay) plays the host's map; the
+host = the room's oldest player (net.isBotHost). Before: each client loaded
+its own pick, so a room could be split across maps. game.js followsHostMap()
+takes a stage msg's map only from an older peer, same mode, and a mode
+without forceMap/mapPool; before your match starts it's noted in
+roomMapHint (startGame -> beginMatch(roomMapHint)), during the countdown it
+switches (beginMatch(m.map)). The host also tells each newcomer directly
+(onHello -> net.publishRoomMap, answers while paused too). This also evens
+out the next-map vote: whatever each client's shortlist, everyone ends on
+the host's winner. Test: tools/troll-ops-room-map-test.mjs (ALL PASS);
+tools/troll-ops-sync-test.mjs still ALL PASS (its stale "green" skin check
+now uses "problem").
+
+## STREAM C (prestige + profile card) — ALL 5 PHASES SHIPPED (2026-10-03); re-run troll_forces_card.sql for the phase 5 cards
+Design doc (Claude Doc, `read` sinceRev 26):
+https://claude.ai/code/artifact/9331349a-6d55-4028-b8fe-f64f48398855
+- **Phase 5 exclusive rewards** (branch tf-prestige-rewards, on main):
+  finishes in skins.js FINISHES with `prestige`: Bronze/Silver/Gold Grin
+  (`finish: "metal"`, [base, shadow], own canvas "metal studio" env map +
+  sliding sheen, weapon-model.js metalMats), Diamond Grin (P5, icy physical
+  material + glints + blue edges), Dark Matter (P10, animated nebula +
+  stars). Shader bits share withFx() (object-space vFxPos, uFxTime ticked by
+  the meshes' onBeforeRender). Thumbs: tools/troll-ops-finish-thumbs.mjs
+  (NODE_PATH=<main checkout>/node_modules). Locked finishes: loadout.js
+  finishUnlocked + wearable() (a saved locked pick goes out as factory).
+  P7 gun: weapons.js `goldengrin` "Golden Grin .50" (Wide Deagle stats,
+  rank 69 + prestige 7, `ownFinish: "goldgrin"`, OWN_FINISH hides its skin
+  row); progression isUnlocked checks def.prestige; royale loot skips it.
+  Maps: maps.js REWARD_MAPS {pentagrin: 4, trollface: 8} listed after the
+  versus maps, open only in a private room (loadout.mapOpen/versusMapId,
+  game.js syncPrivateRoom on the room code); joiners follow the host onto
+  one (game.js onStage -> beginMatch(m.map)); host now publishes
+  loadedMapId in the stage msg. Cards p1-p10 + master (ui/cards, master is
+  a composed gold trollface) in calling-cards.js; SQL allows them by
+  prestige and lets the owner wear all. Barracks > Prestige Rewards lists
+  the ladder. All changed modules' ?v= tags are `p5` everywhere.
+- **Phase 4 profile card + Barracks** (branch tf-profile-card, on main):
+  `calling-cards.js` (CARDS: 6 free starters cut from assets/images/banners
+  04/05/07/08/11/12 into `ui/cards/*.jpg` 900x300; cardUnlocked via
+  prestigeUnlocked so phase 5 cards just add `prestige: n`; cleanClan
+  A-Z0-9 max 4 + small slur blocklist; getMyCard/saveMyCard/fetchCard,
+  event `trollforces:card-changed`). `profile-card.js` (renderCard(d) =
+  emblem PFP | calling card with `[CLAN] name` | rank icon + LV + prestige
+  name, then K/D W/L SPM accuracy headshots best streak; openProfileCard(uid,
+  hint) overlay, Esc/scrim close, "Full profile" -> the site card). Every
+  name now opens it (game.js openPlayerProfile passes the peer's wire data
+  as the hint), and the BO2 party row opens your own. Menu: "Combat Record"
+  row became **Barracks** (Calling Card list with live preview, Clan Tag box
+  in the detail pane, Combat Record, View Card). Wire: state msg `cl` clan +
+  `cc` card (omitted when default hitman); scoreboard, lobby roster, party
+  row and name tags show `[TAG] name`. SQL `assets/supabase/troll_forces_card.sql`
+  (table troll_forces_card, rpc troll_forces_set_card, card list in
+  troll_forces_card_allowed()) — until it's run, saving says "Cards aren't
+  switched on yet." Phase 5: add reward cards to CARDS AND to
+  troll_forces_card_allowed() (check p_prestige).
+**Locked decisions:** prestige is Troll Forces ONLY (site account level/XP
+never reset); TF level = own faster curve `120n + 2n^2` (LV 69 = 17,408 XP,
+~87 matches) on account XP minus `xp_base`; cap 69; Prestige 1-10 then
+11 = Prestige Master; NOTHING relocks (unlock gate = max(account level, TF
+level, 69 once prestiged)); clan tags yes (4 chars); P7 gun = a GOLD version
+of an existing gun; Pentagrin + Trollface map are prestige rewards; guests
+never prestige or keep a record (guest XP isn't saved). Owner `troll_runner`:
+no level (getLevel() null, getRank() Infinity), gold OWNER badge, all
+current and future unlocks open; any new gate must go through
+getRank/rankUnlocked/isUnlocked/prestigeUnlocked so the owner stays open.
+- **Phase 1 core** (958b877): `progression.js` (tfXpForLevel/tfLevelForXp,
+  getLevel, getPrestige, canPrestige, prestigeUp, event
+  `trollforces:prestige-changed`); BO2 menu Prestige row at 69 + confirm
+  screen (menu-bo2.js `prestige`). SQL `assets/supabase/troll_forces_prestige.sql`
+  (table troll_forces_prestige, fn troll_forces_prestige_up re-checks 69) RUN.
+- **Phase 2 icons** (01543d3): `rank-icons.js` — rankIconSvg (14 tiers),
+  prestigeIconSvg (11, real trollface art `assets/images/wallpaper/trollface
+  transparent.png`), playerIconCanvas (canvas copy for name tags; owner =
+  crowned troll `assets/images/icons/pfp.png`). Shown in loadout strip,
+  BO2 party row, scoreboard (`rankChip`), name tags (remote-players
+  makeNameTag(text, colour, rank), rebuilt on rank change). net.js state
+  msg carries `lv`/`pg`/`ow`; bots get `botLevel(id)`. Preview page:
+  `tools/rank-icons-preview.html`.
+- **Phase 3 combat record** (4c51bbe): `record.js` (recordMatch -> queue
+  `trollops:record-pending` -> rpc troll_forces_record_match, retry 30s;
+  fetchRecord/derive/formatPlayed). game.js counters: player.shotsFired
+  (bullets.spawn), shotsHit (onBulletActorHit netId branch), matchScore
+  (awardScore), weaponKills (registerDeath); recorded in endMatch (PvP only).
+  Menu screen "Combat Record". SQL `assets/supabase/troll_forces_record.sql` RUN.
+- **Phase 4 plan (DONE, see top)**, per the doc: BO2 card =
+  emblem (the account avatar from PFP Studio, `troll_profiles.avatar_url`)
+  on the left, name + `[CLAN]` tag across a calling card banner, prestige
+  /rank icon + level on the right, headline six stats under it (K/D, W/L,
+  SPM, accuracy, headshots, best streak via fetchRecord(userId)). Opens
+  from every name (scoreboard/roster/chat already call
+  `openPlayerProfile` -> TrollrunnerAccounts.openProfileCard, game.js
+  ~4618; swap/extend that in-game). New "Barracks" BO2 menu screen: pick
+  calling card, set clan tag, full combat record (fold the current Combat
+  Record screen into it). Needs: clan tag + calling card storage (new
+  columns/table + SQL, e.g. troll_forces_card {user_id, clan, card}),
+  clan tag + card on the wire (state msg like lv/pg/ow) for scoreboard and
+  name tags (`[TRLL] name`), ~6 free starter calling cards cut from
+  assets/images/banners + @swish art. Profile mock-up is in the doc.
+- **NEXT, phase 5 (exclusive rewards)**: Bronze/Silver/Gold/Diamond/
+  Dark Matter finishes (materials like Ghost Glass in skins.js), Pentagrin
+  + Trollface map gated by prestige, gold P7 gun, reward calling cards.
+- **Concurrency:** another session builds "U Mad Bro?" mode (Prestige 2
+  lock via prestigeUnlocked) in the same files (game.js, menu-bo2.js,
+  remote-players.js, troll-ops.html). Conflicts so far were only `?v=`
+  tags: keep their side, re-bump to a fresh combined tag. Every importer of
+  progression.js / character.js / rank-icons.js must use the same `?v=`
+  or the module loads twice (split state).
+- Also this session: BO2 stick look + Stick sensitivity 1-14 (game.js
+  padLookTurn), hitbox lab `?hitbox=1` on localhost (hitbox-lab.js;
+  per-bone hitboxes in character.js, visible hits count, user CLOSED it),
+  menus can't overlap "N Online" (--foot-h, only the list scrolls).
+
 ## STREAM B (menu) — SHIPPED 2026-10-02: BO2 Zombies menu over the troll-map planet
 Branch `worktree-to-menu-bo2`, all on main (295fb06). The user also asked
 for trollrunner.net itself to get this design; that shipped from the same
@@ -1494,19 +1607,8 @@ enemy), how it's voiced (TTS? recorded? which provider), the audio.js
 hooks it plugs into, a volume/voice setting, and a rule for how often chatter
 fires so it doesn't spam in a 100-troll Royale.
 
-## BACKLOG: open asks from the 2026-09-30 list — waiting on the user
-- **Purge XP** ("purge xp level in players to incentivize using terminal
-  site to earn xp?"). Not done. The Troll Forces XP cut to a tenth and the
-  user's own reset to LV 69 may cover it; ask before touching anyone
-  else's XP. A reset of all players can't be undone: back up
-  troll_profiles / troll_xp_events first.
-- **Game tournaments paid in $TRUTHS.** Not started. Needs a design doc
-  first: entry fee or free entry, prize pool and payout (troll-pay.js is the
-  live Solana lib), which games, anti-cheat (Troll Forces is
-  client-authoritative, so scores are forgeable), and the legal side (paid
-  entry + token prizes can count as gambling/sweepstakes). $TRUTHS is the
-  terminal's own coin with a no-shill boundary (memory
-  truths-token-terminal-coin).
+## BACKLOG: open asks from the 2026-09-30 list — CANCELLED by the user 2026-10-03
+Purge XP and $TRUTHS-paid tournaments are both cancelled. Don't pick them up.
 
 ## Fix list (user, 2026-09-30) — `game.js?v=to-fx1`, `style.css?v=to-fx1`
 - **No select / highlight / drag anywhere** (style.css top + document

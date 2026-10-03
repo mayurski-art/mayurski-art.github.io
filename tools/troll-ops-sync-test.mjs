@@ -51,7 +51,7 @@ const errors = [];
 async function open(label, noBots, mode = "tdm", room = ROOM) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
-  await page.goto(`${BASE}/troll-ops.html?tohooks=1`);
+  await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
   await page.evaluate(async ({ room, noBots, mode }) => {
     const T = window.__trollOps;
@@ -315,16 +315,16 @@ check("a hit shows a direction marker", !!marker, marker || "none");
 await A.evaluate(() => {
   const T = window.__trollOps;
   T.loadout.weaponId = "problem416";
-  T.loadout.attachmentsFor("problem416").skin = "green";
+  T.loadout.attachmentsFor("problem416").skin = "problem";
   T.respawnPlayer();
   T.setHolding?.("gun");
 });
-await B.waitForFunction((id) => window.__trollOps.remotes.byId.get(id)?.skin === "green", info[0].id, { timeout: 5000 }).catch(() => {});
+await B.waitForFunction((id) => window.__trollOps.remotes.byId.get(id)?.skin === "problem", info[0].id, { timeout: 5000 }).catch(() => {});
 const skinSeen = await B.evaluate((id) => {
   const r = window.__trollOps.remotes.byId.get(id);
   return { weapon: r?.weaponId, skin: r?.skin, mesh: r?.weaponMesh?.userData.skin };
 }, info[0].id);
-check("a weapon skin shows on the other client", skinSeen.skin === "green" && skinSeen.mesh === "green", JSON.stringify(skinSeen));
+check("a weapon skin shows on the other client", skinSeen.skin === "problem" && skinSeen.mesh === "problem", JSON.stringify(skinSeen));
 
 // ---------- 12. a melee swing plays on the other client's view of you
 await A.evaluate(() => { const T = window.__trollOps; T.player.spawnGuard = 999; T.swingMelee(); });

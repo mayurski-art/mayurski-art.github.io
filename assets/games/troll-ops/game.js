@@ -7,12 +7,12 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=cg1";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=cg1";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5";
 import { WeaponInspector } from "./inspector.js?v=hb1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4";
-import { Loadout } from "./loadout.js?v=rk1";
+import { Loadout } from "./loadout.js?v=p5";
 import { StreakPicker } from "./streak-picker.js?v=umb1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -29,13 +29,16 @@ import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=umb1";
-import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=umb1";
+import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=p5";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
+import { recordMatch } from "./record.js?v=rec1";
+import { getMyCard, withClan } from "./calling-cards.js?v=p5";
+import { openProfileCard } from "./profile-card.js?v=pc1";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3c";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3c-pc1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4";
@@ -47,7 +50,7 @@ import { BotManager } from "./bots.js?v=cg1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
 import { GameAudio } from "./audio.js?v=umb1";
 import { insidePolygon } from "./edge.js";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=cg1";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -3439,6 +3442,8 @@ const BOT_TARGET = 8;      // participants a PvP room is padded up to
 const QUICKPLAY_BASE = { umb: "QUMB", tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
+/* The room's map, as its host told us before our match began (onStage). */
+let roomMapHint = null;
 let gunGameProgress = 0;
 let hill = null;
 let hillAcc = 0;
@@ -4305,10 +4310,10 @@ function renderLobbyRoster() {
   const box = document.getElementById("to-pf-roster");
   if (!box || !lobbyReady) return;
 
-  const rows = [{ name: playerName(), state: "READY", you: true, uid: playerUid() }];
+  const rows = [{ name: withClan(playerName(), getMyCard().clan), state: "READY", you: true, uid: playerUid() }];
   if (isPvp() && net.connected) {
     for (const p of net.peers.values()) {
-      rows.push({ name: p.name, state: isBotPeer(p) ? "BOT" : "IN ROOM", uid: safeUid(p.uid) });
+      rows.push({ name: withClan(p.name, p.clan), state: isBotPeer(p) ? "BOT" : "IN ROOM", uid: safeUid(p.uid) });
     }
   }
 
@@ -4395,6 +4400,8 @@ window.addEventListener("trollforces:prestige-changed", () => {
   streakPicker.restore();
   renderModes();   // U Mad Bro? unlocks at Prestige 2
 });
+// Your clan tag changed (Barracks): the roster shows it.
+window.addEventListener("trollforces:card-changed", () => renderLobbyRoster());
 
 function playerName() {
   const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
@@ -4441,13 +4448,17 @@ function renderHeroButtons() {
 }
 buildHeroButtons();
 
+/* A private room opens the prestige reward maps (loadout.js mapOpen). */
+function syncPrivateRoom() { loadout.setPrivateRoom(roomIsCustom && !!els.room.value); }
 els.newRoom.addEventListener("click", () => {
   els.room.value = makeRoomCode();
   roomIsCustom = true;   // an explicit fresh code means "private room", not quickplay
+  syncPrivateRoom();
 });
 els.room.addEventListener("input", () => {
   els.room.value = els.room.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
   roomIsCustom = els.room.value.length > 0;
+  syncPrivateRoom();
 });
 
 /* "No bots" — walk a map alone without a match happening around you. Ticking
@@ -4459,6 +4470,7 @@ els.noBots?.addEventListener("change", () => {
   if (els.noBots.checked && !els.room.value) {
     els.room.value = makeRoomCode();
     roomIsCustom = true;
+    syncPrivateRoom();
   }
 });
 
@@ -4512,6 +4524,7 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
     player.streak++;
     if (mode.funny) hero().onKill();
     if (opts.head) player.headshots++;
+    if (weaponId) player.weaponKills[weaponId] = (player.weaponKills[weaponId] || 0) + 1;
     audio.kill();
     els.hudKills.textContent = String(player.kills);
 
@@ -4607,6 +4620,7 @@ function awardKillXp() {
    pays into both, which is why every call site here sits next to an
    addMatchXp call. */
 function awardScore(amount) {
+  player.matchScore += amount;   // combat record SPM, whether streaks are on or not
   if (!streaksAllowed(currentMode())) return;
   for (const id of streaks.addScore(amount)) {
     selectedStreak = id;   // newest earned, like BO2's default pick
@@ -4737,6 +4751,9 @@ const net = new Net({
   // Someone arrived after the sky lobby: the host tells them where the
   // Royale is (the lobby's own clock only goes out while it runs).
   onHello: (p) => {
+    // Everyone in a room plays the host's map: tell the newcomer which.
+    // (Paused counts: the host may be sitting in the pause menu.)
+    if ((gameState === "playing" || gameState === "paused") && isPvp() && !isBotPeer(p) && net.isBotHost() && loadedMapId) net.publishRoomMap(p.id, loadedMapId, modeId);
     if (!royale?.drop || gameState !== "playing" || isStaging() || isBotPeer(p) || !net.isBotHost()) return;
     const d = royale.drop;
     net.publishRoyaleCatchUp(p.id, royale.seed, d.phase === "bus" ? d.busT : ROYALE_BUS_GONE, royale.t, royale.live);
@@ -4777,6 +4794,15 @@ const net = new Net({
     // Troll Royale catch-up (we joined after the sky lobby): kept until our
     // own Royale is set up, which can be after this lands.
     if (m.bt != null) { royaleCatchUp = { ...m, at: performance.now() }; applyRoyaleCatchUp(); return; }
+    // One map per room: the host's (the room's oldest player, who runs the
+    // countdown). Everyone used to load their own pick, so a room could be
+    // split across maps. Before our match starts we note it for startGame;
+    // during the countdown we switch to it. A prestige map comes with the
+    // host, unlocked or not.
+    if (followsHostMap(m)) {
+      if (gameState !== "playing" && gameState !== "paused") { roomMapHint = m.map; return; }
+      if (isStaging() && m.map !== loadedMapId) { beginMatch(m.map); return; }
+    }
     if (gameState !== "playing" || !isPvp()) return;
     // Troll Royale: the owner's seed wins, so everyone has the same zone
     // and loot even if their match counts drifted apart.
@@ -4874,12 +4900,16 @@ const chat = new MatchChat({
   onOpenChange: (open) => { if (open) { keys.clear(); mouseDown = false; } },
 });
 
-/* The site's profile card (troll-accounts.js) for any operator with an
-   account. The pointer has to be free to use it, so only reachable from
-   menus, the paused roster and chat. */
+/* The Troll Forces profile card (profile-card.js) for any operator with an
+   account; its "Full profile" opens the site's own card. What the match
+   already knows about them draws at once. The pointer has to be free to
+   use it, so only reachable from menus, the paused roster and chat. */
 function openPlayerProfile(uid) {
   const id = safeUid(uid);
-  if (id) window.TrollrunnerAccounts?.openProfileCard?.(id);
+  if (!id) return;
+  let peer = null;
+  for (const p of net.peers.values()) if (safeUid(p.uid) === id) { peer = p; break; }
+  openProfileCard(id, peer ? { name: peer.name, level: peer.level, prestige: peer.prestige, owner: peer.owner, clan: peer.clan, card: peer.card } : {});
 }
 function playerUid() {
   return safeUid(window.TrollrunnerAccounts?.getCachedProfile?.()?.userId);
@@ -5238,7 +5268,7 @@ function matchMapId(roomMapId = null) {
   const m = currentMode();
   if (m.forceMap) return m.forceMap;
   if (m.mapPool) return m.mapPool.includes(loadout.poolMapId) ? loadout.poolMapId : m.mapPool[0];
-  return roomMapId || loadout.mapId;
+  return roomMapId || loadout.versusMapId;   // a prestige map only in a private room
 }
 
 function lobbyMapId() { return matchMapId(); }
@@ -5722,6 +5752,11 @@ const player = {
   matchT: 0,            // seconds of this match played (veteran XP boost)
   vetBotT: 0,           // ...of them with veteran bots in the room
   lastKilledBy: null,   // whose kill sent us back, for the Revenge achievement
+  // Combat record (prestige phase 3, record.js): this match's extra counters.
+  shotsFired: 0,        // rounds fired (each shotgun pellet is a round)
+  shotsHit: 0,          // ...that hit an enemy player or bot
+  matchScore: 0,        // all score earned, streaks allowed or not (for SPM)
+  weaponKills: {},      // kills per weapon id (favourite gun)
 };
 
 // Which slot (primary/secondary) currentWeapon() resolves against - reset
@@ -6050,14 +6085,14 @@ function rankChip(r) {
 
 function renderScoreboard() {
   const rows = [{
-    name: `${playerName()} (you)`, team: net.team, you: true, uid: playerUid(),
+    name: `${withClan(playerName(), getMyCard().clan)} (you)`, team: net.team, you: true, uid: playerUid(),
     kills: player.kills | 0, deaths: player.deaths | 0, assists: player.assists | 0,
     level: getLevel(), prestige: getPrestige(), owner: isOwner(),
   }];
   for (const p of net.peers.values()) {
     if (String(p.id).startsWith("streak-")) continue;   // drones and gunships aren't players
     rows.push({
-      name: p.name, team: p.team, you: false, uid: safeUid(p.uid),
+      name: withClan(p.name, p.clan), team: p.team, you: false, uid: safeUid(p.uid),
       kills: p.kills | 0, deaths: p.deaths | 0, assists: isBotPeer(p) ? null : (p.assists | 0),
       level: p.level, prestige: p.prestige | 0, owner: !!p.owner,
     });
@@ -7087,6 +7122,7 @@ function fireOnce(shot = null) {
       .addScaledVector(up, Math.sin(a) * r)
       .normalize();
     bullets.spawn({ origin: muzzle.clone(), dir, def, ownerId: "player" });
+    player.shotsFired++;   // combat record accuracy
   }
 }
 
@@ -7154,6 +7190,7 @@ function onBulletActorHit(actor, info) {
 
   // Remote players own their own health: we report the hit and they apply it.
   if (actor.netId) {
+    player.shotsHit++;   // combat record accuracy: a round on an enemy player or bot
     noteDealt(actor.netId, info.damage);
     if (heroActive()) hero().onDealt(info.damage);
     // Our own bots never hear our broadcasts, so resolve those locally.
@@ -8194,6 +8231,7 @@ function netSnapshot() {
   _netSnapshot.level = getLevel();
   _netSnapshot.prestige = getPrestige();
   _netSnapshot.owner = isOwner();
+  { const c = getMyCard(); _netSnapshot.clan = c.clan; _netSnapshot.card = c.card; }
   _netSnapshot.hero = heroActive() ? hero().wireId() : null;
   _netSnapshot.swivel = swivel.seq ? swivel.seq * (swivel.dir || swivel.lastDir || 1) : 0;
   return _netSnapshot;
@@ -9915,12 +9953,26 @@ async function joinQuickplay() {
   }
 }
 
+/* A stage message whose map this client should take: from a player who
+   joined the room before us (so two newcomers can't swap maps back and
+   forth), same mode, and a mode that lets you pick the map at all. */
+function followsHostMap(m) {
+  if (!m.map || !MAPS[m.map] || m.mode !== modeId || !isPvp()) return false;
+  const mode = currentMode();
+  if (mode.forceMap || mode.mapPool) return false;
+  const p = net.peers.get(m.id);
+  if (!p) return false;
+  const since = p.since || 0;
+  return since < net.since || (since === net.since && m.id < net.id);
+}
+
 async function startGame() {
   audio.resume();   // the click that got us here is the gesture Web Audio needs
   // View mode: the lobby's map, nobody in it (see isView).
   if (viewModeOn() && modeId !== "view") { viewPrevMode = modeId; modeId = "view"; }
   else if (!viewModeOn() && modeId === "view") modeId = viewPrevMode || "ops";
   if (isPvp()) {
+    roomMapHint = null;
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
     const result = els.room.value && roomIsCustom
@@ -9936,7 +9988,7 @@ async function startGame() {
     net.stop();
   }
 
-  beginMatch();
+  beginMatch(isPvp() ? roomMapHint : null);
 }
 
 /* -------------------- pre-match staging --------------------
@@ -10069,7 +10121,7 @@ function updateStaging(dt) {
     stagePub -= dt;
     if (stageOwner && stagePub <= 0) {
       stagePub = 0.33;
-      net.publishStage(loadout.mapId, modeId, stageT, royale ? royale.seed : undefined);
+      net.publishStage(loadedMapId || loadout.mapId, modeId, stageT, royale ? royale.seed : undefined);
     }
   }
 
@@ -10108,6 +10160,10 @@ function beginMatch(mapId = null) {
   player.matchXp = 0;
   player.matchT = 0;
   player.vetBotT = 0;
+  player.shotsFired = 0;
+  player.shotsHit = 0;
+  player.matchScore = 0;
+  player.weaponKills = {};
   roomSkillSeen = null;
   player.lastKilledBy = null;
   // A fresh match starts with nothing earned and nothing banked, and picks up
@@ -10652,6 +10708,13 @@ function endMatch(title) {
   window.TrollLeaderboard?.report?.("troll-ops", {
     pvp: true, kills: player.kills, deaths: player.deaths, won,
     assists: player.assists, headshots: player.headshots, streak: player.bestStreak,
+  });
+  // Combat record (record.js): this match onto the account'''s lifetime totals.
+  recordMatch({
+    won, kills: player.kills, deaths: player.deaths, assists: player.assists,
+    headshots: player.headshots, bestStreak: player.bestStreak, score: player.matchScore,
+    seconds: player.matchT, shotsFired: player.shotsFired, shotsHit: player.shotsHit,
+    weaponKills: player.weaponKills,
   });
 
   bots.clear();

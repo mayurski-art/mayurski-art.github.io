@@ -1,15 +1,25 @@
 // Troll Forces — loadout screen: class → weapon → attachments.
 
-import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=cg1";
+import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5";
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js?v=cg1";
 import { iconFor } from "./attachment-icons.js";
-import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=sk3";
-import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText } from "./progression.js?v=umb1";
+import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=p5";
+import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
-import { MAPS, MAP_IDS, mapSchematic } from "./maps.js?v=hg6i";
+import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1";
 
 const STORE = "trollops:loadout";
+
+/* Prestige finishes (skins.js) open at their prestige. A saved pick you can't
+   wear right now (signed out, say) is kept, but the gun goes out in factory. */
+export function finishUnlocked(skin) {
+  return !skin?.prestige || prestigeUnlocked(skin.prestige);
+}
+function wearable(atts) {
+  const s = atts?.skin && SKIN_BY_ID[atts.skin];
+  return s && !finishUnlocked(s) ? { ...atts, skin: null } : atts;
+}
 
 function load() {
   try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; }
@@ -97,6 +107,7 @@ export class Loadout {
     // separately, so choosing a zombies map never changes your versus map.
     this.poolMapId = MAPS[saved.poolMapId] ? saved.poolMapId : null;
     this.mapPool = null;
+    this.privateRoom = false;   // game.js: a room code is set (prestige maps play only there)
 
     // Gear falls back to the rank-0 option whenever a saved pick is unknown
     // or has been locked again (the rank track is local and can be reset).
@@ -135,12 +146,12 @@ export class Loadout {
 
   get attachments() { return this.attachmentsFor(this.activeId); }
 
-  get resolved() { return resolveWeapon(this.weaponId, this.attachmentsFor(this.weaponId)); }
-  get resolvedSecondary() { return resolveWeapon(this.secondaryId, this.attachmentsFor(this.secondaryId)); }
+  get resolved() { return resolveWeapon(this.weaponId, wearable(this.attachmentsFor(this.weaponId))); }
+  get resolvedSecondary() { return resolveWeapon(this.secondaryId, wearable(this.attachmentsFor(this.secondaryId))); }
   // Whichever of the two the slot toggle currently has open — for previews
   // (the 3D inspector), never for equipping: equipFromLoadout always wants
   // `resolved`/`resolvedSecondary` specifically, not "whatever's on screen".
-  get resolvedActive() { return resolveWeapon(this.activeId, this.attachments); }
+  get resolvedActive() { return resolveWeapon(this.activeId, wearable(this.attachments)); }
 
   get melee() { return MELEE_DEFS[this.meleeId]; }
   get lethal() { return THROWABLE_DEFS[this.lethalId]; }
@@ -197,7 +208,9 @@ export class Loadout {
     const wrap = this.els.maps;
     if (!wrap) return;
     wrap.innerHTML = "";
-    for (const id of this.mapPool || MAP_IDS) {
+    // The prestige reward maps (The Pentagrin, Trollface Island) sit at the
+    // end of the versus list, locked until their prestige and a private room.
+    for (const id of this.mapPool || [...MAP_IDS, ...Object.keys(REWARD_MAPS)]) {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "to-lo-map";
@@ -263,11 +276,29 @@ export class Loadout {
     this.render();
   }
 
+  /* A prestige reward map: its prestige, in a private room. Others always. */
+  mapOpen(id) {
+    const p = REWARD_MAPS[id];
+    return !p || (this.mapPool ? true : this.privateRoom && prestigeUnlocked(p));
+  }
+
+  /* The versus map you'll get: your pick, unless it's a reward map you
+     can't play here (a public room, or signed out), then the first map. */
+  get versusMapId() {
+    return this.mapOpen(this.mapId) ? this.mapId : MAP_IDS[0];
+  }
+
+  setPrivateRoom(on) {
+    if (this.privateRoom === !!on) return;
+    this.privateRoom = !!on;
+    this.render();
+  }
+
   /* The map the Play tab will deploy into. */
   get activeMapId() {
     if (this.forcedMapId) return this.forcedMapId;
     if (this.mapPool) return this.mapPool.includes(this.poolMapId) ? this.poolMapId : this.mapPool[0];
-    return this.mapId;
+    return this.versusMapId;
   }
 
   renderMapCard() {
@@ -457,9 +488,13 @@ export class Loadout {
     const current = this.attachments.skin || null;
     for (const [id, { b, skin }] of this.skinButtons) {
       const on = id === current;
+      const open = finishUnlocked(skin);
       b.classList.toggle("is-active", on);
+      b.classList.toggle("is-locked", !open);
+      b.disabled = !open;
       b.setAttribute("aria-pressed", String(on));
-      b.setAttribute("aria-label", `Skin: ${skin.name}. ${skin.blurb}${on ? " Equipped" : ""}`);
+      b.title = open ? skin.blurb : `Unlocks at Prestige ${skin.prestige}.`;
+      b.setAttribute("aria-label", `Skin: ${skin.name}. ${open ? skin.blurb : `Locked, unlocks at Prestige ${skin.prestige}.`}${on ? " Equipped" : ""}`);
     }
   }
 
@@ -592,6 +627,15 @@ export class Loadout {
         const on = b.dataset.map === this.activeMapId;
         b.classList.toggle("is-active", on);
         b.setAttribute("aria-pressed", String(on));
+        const p = !this.mapPool && REWARD_MAPS[b.dataset.map];
+        if (p) {
+          const open = this.mapOpen(b.dataset.map);
+          b.disabled = !open;
+          b.classList.toggle("is-locked", !open);
+          const tag = b.querySelector(".to-map-tag");
+          tag.textContent = !prestigeUnlocked(p) ? `Prestige ${p} reward. Private matches you host.`
+            : open ? MAPS[b.dataset.map].blurb : "Your prestige map: set a private room code to play it.";
+        }
       }
     }
     this.renderMapCard();
@@ -610,12 +654,13 @@ export class Loadout {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "to-lo-weapon";
+      const lockText = w.prestige ? `Unlocks at Prestige ${w.prestige}` : `Unlocks at level ${w.rank}`;
       b.classList.toggle("is-active", id === this.activeId);
       b.classList.toggle("is-locked", !unlocked);
       b.disabled = !unlocked;
       b.setAttribute("aria-pressed", String(id === this.activeId));
-      b.innerHTML = `<strong>${w.name}</strong><span>${unlocked ? `${w.damage} dmg · ${w.rpm} rpm` : `Unlocks at level ${w.rank}`}</span>`;
-      if (!unlocked) b.setAttribute("aria-label", `${w.name}, locked, unlocks at level ${w.rank}`);
+      b.innerHTML = `<strong>${w.name}</strong><span>${unlocked ? `${w.damage} dmg · ${w.rpm} rpm` : lockText}</span>`;
+      if (!unlocked) b.setAttribute("aria-label", `${w.name}, locked, ${lockText.toLowerCase()}`);
       b.addEventListener("click", () => {
         this.activeId = id;
         this.persist();

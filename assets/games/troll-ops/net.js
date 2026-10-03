@@ -288,6 +288,9 @@ export class Net {
         p.level = m.lv | 0 || null;
         p.prestige = m.pg | 0;
         p.owner = !!m.ow;
+        // Profile card (prestige phase 4): clan tag and calling card.
+        p.clan = typeof m.cl === "string" ? m.cl.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) : "";
+        p.card = typeof m.cc === "string" ? m.cc.slice(0, 32) : null;
         p.swivel = m.sv | 0;
         p.hero = m.hr || null;
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
@@ -432,6 +435,7 @@ export class Net {
         fc: local.face && local.face !== "grin:og" ? local.face : undefined,   // cosmetics.js face
         sv: local.swivel || undefined,   // swivel: side (sign) * count, a new count = a new spin
         lv: local.level || undefined, pg: local.prestige || undefined, ow: local.owner ? 1 : undefined,   // rank
+        cl: local.clan || undefined, cc: local.card && local.card !== "hitman" ? local.card : undefined,   // profile card
         hr: local.hero || undefined,   // U Mad Bro? hero id (+ "!" while the Metamorph is the brute)
       });
     }
@@ -545,6 +549,12 @@ export class Net {
      don't sit out a sky lobby of their own while everyone else plays. */
   publishRoyaleCatchUp(to, seed, busT, matchT, live) {
     this.send({ t: "stage", id: this.id, to, left: 0, sd: seed, bt: round2(busT), rt: round2(matchT), lv: live ? 1 : 0 });
+  }
+
+  /* To one newcomer: the map and mode the room is playing (a "stage" at 0,
+     the match is already on), so they load the host's map, not their own. */
+  publishRoomMap(to, mapId, modeId) {
+    this.send({ t: "stage", id: this.id, to, map: mapId, mode: modeId, left: 0 });
   }
 
   /* Search & Destroy bomb state. `kind` is "action" for a live plant/defuse

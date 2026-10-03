@@ -11,7 +11,7 @@ import {
   buildIronRear, buildIronFront, railSection,
 } from "./attachment-models.js";
 import { build416 } from "./weapon-416.js?v=cg1";
-import { finishDef } from "./skins.js?v=cg1";
+import { finishDef } from "./skins.js?v=p5";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const MATS = {
@@ -671,7 +671,8 @@ export function stripLights(obj) {
 }
 
 export function buildWeaponMesh(def, { skin } = {}) {
-  const fin = finishDef(skin ?? def.attachments?.skin ?? null);
+  // A gun with its own finish (the Prestige 7 gold gun) always wears it.
+  const fin = finishDef(def.ownFinish || (skin ?? def.attachments?.skin ?? null));
   if (!fin) return buildBaseMesh(def, skin);
   // A finish goes over the factory gun ("" = no banner skin).
   return applyFinish(buildBaseMesh(def, ""), fin);
@@ -696,9 +697,142 @@ function glassMats() {
     edge: new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false }),
   };
 }
+function edgesOf(o, mat) {
+  let eg = _edgeCache.get(o.geometry);
+  if (!eg) {
+    eg = new THREE.EdgesGeometry(o.geometry, 32);
+    if (o.geometry.userData.shared) eg.userData.shared = true;
+    _edgeCache.set(o.geometry, eg);
+  }
+  const lines = new THREE.LineSegments(eg, mat);
+  lines.renderOrder = 3;
+  lines.userData.finishEdge = true;
+  o.add(lines);
+}
+
+/* How light a part's own paint is, 0..1: dark furniture stays darker than
+   the receiver under a metal finish. */
+function toneOf(o) {
+  const m = Array.isArray(o.material) ? o.material[0] : o.material;
+  const c = m?.color;
+  if (!c) return 0.5;
+  return Math.min(1, (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) * 2.2);
+}
+
+/* Prestige metals (Bronze, Silver, Gold Grin): polished metal, the gun's
+   dark parts in the metal's shadow tone. Four tone steps, one material each. */
+/* Polished metal is all reflection, and a dim map (or the thumbnail room)
+   gives it nothing bright to reflect, so it goes black or flat. The metals
+   carry their own little photo studio instead: a dark room with soft light
+   bands, drawn once on a canvas (three.js prefilters it like any env map). */
+let _metalStudio = null;
+function metalStudio() {
+  if (_metalStudio) return _metalStudio;
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 256;
+  const g = c.getContext("2d");
+  const sky = g.createLinearGradient(0, 0, 0, 256);
+  sky.addColorStop(0, "#5a5f66"); sky.addColorStop(0.45, "#1c1f23"); sky.addColorStop(1, "#08090a");
+  g.fillStyle = sky; g.fillRect(0, 0, 512, 256);
+  const band = (y, h, a) => {
+    const b = g.createLinearGradient(0, y - h, 0, y + h);
+    b.addColorStop(0, "rgba(255,255,255,0)"); b.addColorStop(0.5, `rgba(255,255,255,${a})`); b.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = b; g.fillRect(0, y - h, 512, h * 2);
+  };
+  band(70, 16, 0.95); band(120, 8, 0.55); band(170, 22, 0.25);
+  // two softboxes for the sharp highlights that run along a polished part
+  g.fillStyle = "rgba(255,255,255,0.9)";
+  g.fillRect(90, 40, 40, 70); g.fillRect(330, 50, 30, 60);
+  _metalStudio = new THREE.CanvasTexture(c);
+  _metalStudio.mapping = THREE.EquirectangularReflectionMapping;
+  _metalStudio.colorSpace = THREE.SRGBColorSpace;
+  _metalStudio.userData.shared = true;
+  return _metalStudio;
+}
+
+function metalMats(fin) {
+  const base = new THREE.Color(fin.metal[0]), shadow = new THREE.Color(fin.metal[1]);
+  // The gun's flat panels each reflect one direction, so on top of the
+  // studio a slow sheen slides along the metal and the upper edges catch
+  // light: it reads as polished from any angle, in any map.
+  return [0, 1, 2, 3].map((i) => {
+    const c = shadow.clone().lerp(base, i / 3);
+    return withFx(new THREE.MeshStandardMaterial({
+      color: c, metalness: 0.9, roughness: fin.rough + (3 - i) * 0.04,
+      envMap: metalStudio(), envMapIntensity: 1.4,
+    }), "tf-metal", `
+      float sheen = smoothstep(0.78, 1.0, sin(vFxPos.z * 7.0 + vFxPos.y * 11.0 - uFxTime * 0.9));
+      float lift = smoothstep(-0.04, 0.06, vFxPos.y);
+      totalEmissiveRadiance += diffuseColor.rgb * (0.16 + 0.12 * lift + 0.45 * sheen);
+    `);
+  });
+}
+
+/* A material whose emissive gets extra GLSL, in object space (vFxPos) with a
+   shared clock (uFxTime): the Diamond glints and the Dark Matter nebula. */
+const FX_TIME = { value: 0 };
+const fxTick = () => { FX_TIME.value = performance.now() / 1000; };
+function withFx(m, key, glsl) {
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uFxTime = FX_TIME;
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vFxPos;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvFxPos = position;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", `#include <common>
+      varying vec3 vFxPos;
+      uniform float uFxTime;
+      float fxHash(vec3 c) { return fract(sin(dot(c, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+      // a twinkling point in some cells of a 3D grid
+      float fxStars(vec3 p, float density, float size, float speed) {
+        vec3 cell = floor(p);
+        float h = fxHash(cell);
+        float d = length(fract(p) - 0.5);
+        return step(1.0 - density, h) * smoothstep(size, 0.0, d) * (0.5 + 0.5 * sin(uFxTime * speed + h * 60.0));
+      }`)
+      .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n{\n${glsl}\n}`);
+  };
+  m.customProgramCacheKey = () => key;
+  return m;
+}
+
+/* Diamond Grin: icy crystal with a rainbow sheen, cut-glass edges in blue,
+   and glints that flash across it. */
+function diamondMats() {
+  return {
+    body: withFx(new THREE.MeshPhysicalMaterial({
+      color: 0xbfe6ff, metalness: 0.35, roughness: 0.06, flatShading: true,
+      clearcoat: 1, clearcoatRoughness: 0.02, iridescence: 1, iridescenceIOR: 1.9, iridescenceThicknessRange: [200, 900],
+      emissive: 0x16384f, envMap: weaponEnvMap, envMapIntensity: 2.6,
+    }), "tf-diamond", `
+      vec3 p = vFxPos * 38.0;
+      float g = fxStars(p, 0.05, 0.42, 5.0) + fxStars(p * 0.55 + 7.3, 0.04, 0.4, 3.3);
+      float band = smoothstep(0.92, 1.0, sin(vFxPos.z * 9.0 + vFxPos.y * 6.0 - uFxTime * 1.6));
+      totalEmissiveRadiance += vec3(0.85, 0.95, 1.0) * g * 2.2 + vec3(0.35, 0.6, 0.8) * band * 0.5;
+    `),
+    edge: new THREE.LineBasicMaterial({ color: 0x3fb8ff, transparent: true, opacity: 0.85, depthWrite: false }),
+  };
+}
+
+/* Dark Matter: black metal with a slow purple nebula and twinkling stars
+   moving through it, after BO2's. One shared clock for every gun wearing it,
+   ticked by whichever of them draws first each frame. */
+function darkMatterMat() {
+  return withFx(new THREE.MeshStandardMaterial({ color: 0x050208, metalness: 0.75, roughness: 0.2, envMap: weaponEnvMap, envMapIntensity: 1.0 }), "tf-darkmatter", `
+      vec3 p = vFxPos * 22.0;
+      float t = uFxTime * 0.35;
+      float n = sin(p.x * 1.3 + t * 2.0 + sin(p.y * 2.1 - t)) * sin(p.z * 1.1 - t * 1.4 + sin(p.x * 0.9 + t * 0.6));
+      n += 0.5 * sin(p.x * 3.1 - t * 1.2 + sin(p.z * 2.7 + t)) * sin(p.y * 2.9 + t * 0.8);
+      n = n * 0.33 + 0.5;
+      float wisp = smoothstep(0.58, 0.95, n);
+      vec3 neb = mix(vec3(0.03, 0.0, 0.07), vec3(0.42, 0.08, 0.85), wisp) * 0.55;
+      neb += vec3(0.05, 0.3, 0.9) * smoothstep(0.85, 1.0, n) * 0.35;
+      float s = fxStars(vFxPos * 60.0, 0.06, 0.38, 6.0) + fxStars(vFxPos * 110.0 + 3.1, 0.05, 0.4, 9.0) * 0.7;
+      totalEmissiveRadiance += neb + vec3(0.9, 0.85, 1.0) * s * 2.0;
+  `);
+}
+
 function applyFinish(root, fin) {
-  if (fin.finish !== "glass") return root;
-  const M = glassMats();
   const meshes = [];
   root.traverse((o) => {
     if (!o.isMesh) return;
@@ -708,22 +842,25 @@ function applyFinish(root, fin) {
     if (mats.some((m) => m.isMeshBasicMaterial || (m.transparent && m.opacity < 0.95) || (m.emissiveIntensity > 0.3 && m.emissive?.getHex()))) return;
     meshes.push(o);
   });
+  if (fin.finish === "metal") {
+    const M = metalMats(fin);
+    for (const o of meshes) { o.material = M[Math.min(3, Math.round(toneOf(o) * 3))]; o.onBeforeRender = fxTick; }
+  } else if (fin.finish === "diamond") {
+    const M = diamondMats();
+    for (const o of meshes) { o.material = M.body; o.onBeforeRender = fxTick; edgesOf(o, M.edge); }
+  } else if (fin.finish === "darkmatter") {
+    const m = darkMatterMat();
+    for (const o of meshes) { o.material = m; o.onBeforeRender = fxTick; }
+  }
+  if (fin.finish !== "glass") { root.userData.finish = fin.id; return root; }
+  const M = glassMats();
   for (const o of meshes) {
     if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
     _box.copy(o.geometry.boundingBox).getSize(_size).multiply(o.getWorldScale(new THREE.Vector3()));
     const small = _size.length() < 0.045;
     o.material = small ? M.frost : M.glass;
     o.renderOrder = small ? 0 : 2;
-    let eg = _edgeCache.get(o.geometry);
-    if (!eg) {
-      eg = new THREE.EdgesGeometry(o.geometry, 32);
-      if (o.geometry.userData.shared) eg.userData.shared = true;
-      _edgeCache.set(o.geometry, eg);
-    }
-    const lines = new THREE.LineSegments(eg, M.edge);
-    lines.renderOrder = 3;
-    lines.userData.finishEdge = true;
-    o.add(lines);
+    edgesOf(o, M.edge);
   }
   root.userData.finish = fin.id;
   return root;

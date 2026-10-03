@@ -8,8 +8,8 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4";
 import { poseEmoteCode } from "./emotes.js?v=hb4";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=cg1";
-import { WEAPON_DEFS } from "./weapons.js?v=cg1";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5";
+import { WEAPON_DEFS } from "./weapons.js?v=p5";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -378,9 +378,12 @@ export class RemotePlayer {
     const p = this.peer;
     const rank = p.owner ? { owner: true } : p.level ? { level: p.level, prestige: p.prestige | 0 } : null;
     const rankKey = rank ? (rank.owner ? "o" : `${rank.level}.${rank.prestige}`) : "";
-    if (color === this.tagColor && rankKey === this.tagRank) return;
+    // Clan tag (prestige phase 4) in front: `[TRLL] name`.
+    const text = p.clan ? `[${p.clan}] ${p.name || "operator"}` : (p.name || "operator");
+    if (color === this.tagColor && rankKey === this.tagRank && text === this.tagText) return;
     this.tagColor = color;
     this.tagRank = rankKey;
+    this.tagText = text;
     const tex = this.tag.material.map;
     this.tag.material.map = null;
     this.tag.material.dispose();
