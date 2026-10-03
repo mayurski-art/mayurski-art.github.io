@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rank Icons Preview</title>
+<style>
+  body{margin:0;padding:24px;background:#120806;color:#f3ece4;font:13px "DM Mono",monospace}
+  h2{font:600 15px "DM Sans",sans-serif;margin:18px 0 10px}
+  .row{display:flex;flex-wrap:wrap;gap:14px}
+  .cell{display:flex;flex-direction:column;align-items:center;gap:6px;width:92px;padding:10px 4px;border-radius:10px;background:rgba(255,255,255,.04)}
+  .small{display:flex;gap:6px;align-items:center}
+</style>
+<h2>Rank icons, levels 1-69 (14 tiers)</h2>
+<div class="row" id="ranks"></div>
+<h2>Prestige icons</h2>
+<div class="row" id="prestige"></div>
+<script type="module">
+  import { rankIconSvg, prestigeIconSvg, prestigeName } from "../assets/games/troll-ops/rank-icons.js";
+  const ranks = document.getElementById("ranks"), pres = document.getElementById("prestige");
+  for (let t = 0; t < 14; t++) {
+    const lo = t * 5 + 1, hi = Math.min(69, lo + 4);
+    ranks.insertAdjacentHTML("beforeend", `<div class="cell">${rankIconSvg(lo, 64)}<div class="small">${rankIconSvg(lo, 24)}${rankIconSvg(lo, 16)}</div><span>LV ${lo}-${hi}</span></div>`);
+  }
+  for (let p = 1; p <= 11; p++) {
+    pres.insertAdjacentHTML("beforeend", `<div class="cell">${prestigeIconSvg(p, 64)}<div class="small">${prestigeIconSvg(p, 24)}${prestigeIconSvg(p, 16)}</div><span>${p === 11 ? "Master" : "P" + p}</span></div>`);
+  }
+</script>

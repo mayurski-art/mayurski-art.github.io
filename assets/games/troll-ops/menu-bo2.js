@@ -453,6 +453,10 @@ function renderParty() {
   const rankEl = $("#to-lo-rank-label"), owner = !!rankEl?.classList.contains("is-owner");
   const lv = $(".to-bo2-lv", root);
   lv.textContent = owner ? "Owner" : (text(rankEl) || "Level 1").replace(/Level/i, "LV");
+  // the rank or prestige icon in front, as in the loadout strip
+  const icon = !owner && rankEl?.querySelector("svg");
+  if (icon) lv.prepend(icon.cloneNode(true));
+  lv.classList.toggle("has-rank-icon", !!icon);
   lv.classList.toggle("is-owner", owner);   // the owner badge, no level (style.css)
   $(".to-bo2-xp", root).textContent = p ? text($("#to-pf-xp")) : "Log in to keep your XP";
 }

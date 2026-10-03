@@ -5,6 +5,7 @@ import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, stat
 import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=sk3";
 import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText } from "./progression.js?v=umb1";
+import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { MAPS, MAP_IDS, mapSchematic } from "./maps.js?v=hg6i";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1";
 
@@ -646,7 +647,11 @@ export class Loadout {
       // Prestige shows ahead of the Troll Forces level ("P3 · Level 12").
       const level = getLevel(), owner = level === null, p = getPrestige();
       const pre = p >= PRESTIGE_MASTER ? "Master · " : p > 0 ? `P${p} · ` : "";
-      this.els.rank.textContent = owner ? "Owner" : `${pre}Level ${level}`;
+      // The rank or prestige icon leads (rank-icons.js); text read elsewhere
+      // (menu-bo2.js) comes from textContent, which the icon adds nothing to.
+      if (owner) this.els.rank.textContent = "Owner";
+      else this.els.rank.innerHTML = `${playerIconSvg(level, p, 18)}${pre}Level ${level}`;
+      this.els.rank.classList.toggle("has-rank-icon", !owner);
       this.els.rank.classList.toggle("is-owner", owner);
       this.els.rankFill.style.width = `${Math.round(rankProgress() * 100)}%`;
     }

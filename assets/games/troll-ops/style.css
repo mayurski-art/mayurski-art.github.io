@@ -3235,3 +3235,13 @@ body.is-map .to-bo2-hints { visibility: hidden; }
 }
 @keyframes to-owner-shine { 0%, 55% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
 @media (prefers-reduced-motion: reduce) { .is-owner::after { animation: none; display: none; } }
+
+/* Rank in front of a scoreboard name (prestige phase 2, rank-icons.js). */
+.to-sb-rank { display: inline-flex; align-items: center; gap: 3px; margin-right: 7px; vertical-align: middle; }
+.to-sb-rank > svg { flex: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+.to-sb-rank > b { font: 600 11px "DM Mono", monospace; color: #ffd27a; min-width: 1.4em; }
+.to-sb-owner { padding: 1px 7px 1px 1px; gap: 4px; font-size: 9.5px; letter-spacing: .12em; }
+.to-sb-owner::before { width: 14px; height: 14px; }
+/* Your own rank: icon in front of the level (loadout strip, BO2 party row). */
+.has-rank-icon { display: inline-flex; align-items: center; gap: 5px; }
+.has-rank-icon > svg { flex: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }

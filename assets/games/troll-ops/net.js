@@ -17,6 +17,13 @@ export const MAX_PLAYERS_ROYALE = 100;
 /* Bot skill tiers on the wire (`bs` on a bot's state): the tier the bot
    host built that bot with, so every client knows the room's bot skill. */
 const BOT_SKILLS = ["recruit", "regular", "veteran"];
+/* A bot's level for the scoreboard: fixed per bot id (1-69), so a bot
+   keeps the same rank all match and every client agrees on it. */
+function botLevel(id) {
+  let h = 2166136261;
+  for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return 1 + ((h >>> 0) % 69);
+}
 const STATE_HZ = 15;
 // A big bot room (Troll Royale's 100) sends each bot a bit less often; the
 // renderer's 110 ms delay still covers a 10 Hz feed.
@@ -277,6 +284,10 @@ export class Net {
         p.emote = m.em | 0;   // 1-based emote index, 0 = none
         p.blocking = !!m.bl;  // Trollsaber guard up
         p.face = m.fc || null;  // cosmetics.js face key ("expression:tint")
+        // Rank (prestige phase 2): Troll Forces level, prestige 1-11, owner.
+        p.level = m.lv | 0 || null;
+        p.prestige = m.pg | 0;
+        p.owner = !!m.ow;
         p.swivel = m.sv | 0;
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
@@ -412,6 +423,7 @@ export class Net {
         dr: local.drop || undefined,   // Royale drop: 1 bus, 2 freefall, 3 glider
         fc: local.face && local.face !== "grin:og" ? local.face : undefined,   // cosmetics.js face
         sv: local.swivel || undefined,   // swivel: side (sign) * count, a new count = a new spin
+        lv: local.level || undefined, pg: local.prestige || undefined, ow: local.owner ? 1 : undefined,   // rank
       });
     }
     const now = performance.now();
@@ -463,6 +475,7 @@ export class Net {
     p.kills = bot.kills;
     p.deaths = bot.deaths;
     p.botSkill = bot.skill || null;
+    p.level = botLevel(bot.id);
     // The wire "state" message sets this on every OTHER client (case "state"
     // above); the bot-hosting client never routes its own bots' state through
     // onMessage, so without this line the host's own view of its bots never
@@ -493,6 +506,7 @@ export class Net {
       ro: bot.roll > 0 ? round2(bot.roll) : undefined,
       dr: bot.dropCode || undefined,
       bs: Math.max(0, BOT_SKILLS.indexOf(bot.skill)),
+      lv: botLevel(bot.id),
     });
   }
 

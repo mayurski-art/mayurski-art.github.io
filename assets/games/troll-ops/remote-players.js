@@ -14,6 +14,7 @@ import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3";
+import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down
@@ -183,20 +184,34 @@ const ENEMY_TAG_COLOR = "#ff4d3d";
 // How far the body is folded down in each stance, 0 = upright.
 export const STANCE_LOWER = { stand: 0, crouch: 0.55, slide: 0.8, prone: 1, vault: 0.3 };
 
-function makeNameTag(text, colorHex) {
+/* `rank` ({ level, prestige, owner }) puts the player's rank icon in front
+   of the name (prestige phase 2); it draws in once its art has loaded. */
+function makeNameTag(text, colorHex, rank = null) {
   const canvas = document.createElement("canvas");
   canvas.width = 256; canvas.height = 64;
   const ctx = canvas.getContext("2d");
-  ctx.font = "bold 30px 'DM Mono', monospace";
-  ctx.textAlign = "center";
+  const icon = rank ? 48 : 0;
+  let fs = 30;
+  ctx.font = `bold ${fs}px 'DM Mono', monospace`;
+  while (fs > 18 && ctx.measureText(text).width > 248 - icon) { fs -= 2; ctx.font = `bold ${fs}px 'DM Mono', monospace`; }
+  const w = Math.min(248 - icon, ctx.measureText(text).width);
+  const x0 = 128 - (icon + w) / 2;
+  ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.lineWidth = 6;
   ctx.strokeStyle = "rgba(0,0,0,.85)";
-  ctx.strokeText(text, 128, 32);
+  ctx.strokeText(text, x0 + icon, 32, 248 - icon);
   ctx.fillStyle = colorHex;
-  ctx.fillText(text, 128, 32);
+  ctx.fillText(text, x0 + icon, 32, 248 - icon);
   const tex = new THREE.CanvasTexture(canvas);
   tex.needsUpdate = true;
+  if (rank) {
+    playerIconCanvas(rank.level, rank.prestige, rank.owner).then((c) => {
+      if (!c) return;
+      ctx.drawImage(c, x0, 10, 44, 44);
+      tex.needsUpdate = true;
+    });
+  }
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
   sprite.scale.set(1.5, 0.38, 1);
   sprite.renderOrder = 20;
@@ -357,13 +372,19 @@ export class RemotePlayer {
   setLocalTeam(myTeam, ffa) {
     const friendly = !ffa && !!myTeam && this.team === myTeam;
     const color = friendly ? FRIENDLY_TAG_COLOR : ENEMY_TAG_COLOR;
-    if (color === this.tagColor) return;
+    // Rank arrives with their state messages, so the tag redraws when it
+    // lands or changes, not only on a team colour change.
+    const p = this.peer;
+    const rank = p.owner ? { owner: true } : p.level ? { level: p.level, prestige: p.prestige | 0 } : null;
+    const rankKey = rank ? (rank.owner ? "o" : `${rank.level}.${rank.prestige}`) : "";
+    if (color === this.tagColor && rankKey === this.tagRank) return;
     this.tagColor = color;
+    this.tagRank = rankKey;
     const tex = this.tag.material.map;
     this.tag.material.map = null;
     this.tag.material.dispose();
     tex.dispose();
-    const fresh = makeNameTag(this.tagText, color);
+    const fresh = makeNameTag(this.tagText, color, rank);
     this.tag.material = fresh.material;
   }
 

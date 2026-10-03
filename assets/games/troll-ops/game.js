@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4";
-import { Loadout } from "./loadout.js?v=umb1";
+import { Loadout } from "./loadout.js?v=rk1";
 import { StreakPicker } from "./streak-picker.js?v=umb1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -29,12 +29,13 @@ import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=umb1";
-import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked } from "./progression.js?v=umb1";
+import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=umb1";
+import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=rk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=rk1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4";
@@ -5806,23 +5807,33 @@ window.addEventListener("keyup", (e) => {
 /* Kills, deaths, assists and K/D per operator. Team modes list each side
    under its score; free-for-all modes have no sides worth showing, so it's
    one ranking. Bots don't earn assists, so theirs read as a dash. */
+/* Rank in front of a scoreboard name (prestige phase 2): the owner's badge,
+   else the prestige or rank icon and the Troll Forces level. */
+function rankChip(r) {
+  if (r.owner) return `<span class="to-sb-rank"><i class="is-owner to-sb-owner">Owner</i></span>`;
+  if (!r.level) return "";
+  return `<span class="to-sb-rank">${playerIconSvg(r.level, r.prestige, 18)}<b>${r.level}</b></span>`;
+}
+
 function renderScoreboard() {
   const rows = [{
     name: `${playerName()} (you)`, team: net.team, you: true, uid: playerUid(),
     kills: player.kills | 0, deaths: player.deaths | 0, assists: player.assists | 0,
+    level: getLevel(), prestige: getPrestige(), owner: isOwner(),
   }];
   for (const p of net.peers.values()) {
     if (String(p.id).startsWith("streak-")) continue;   // drones and gunships aren't players
     rows.push({
       name: p.name, team: p.team, you: false, uid: safeUid(p.uid),
       kills: p.kills | 0, deaths: p.deaths | 0, assists: isBotPeer(p) ? null : (p.assists | 0),
+      level: p.level, prestige: p.prestige | 0, owner: !!p.owner,
     });
   }
   // Most kills first; fewer deaths breaks a tie.
   const rank = (a, b) => (b.kills - a.kills) || (a.deaths - b.deaths);
   const cols = `<span>K</span><span>D</span><span>A</span><span>K/D</span>`;
   const row = (r, place = null) => `<div class="to-sb-row${r.you ? " is-you" : ""}">`
-    + `<span>${place != null ? `<b>${place}.</b> ` : ""}${r.uid
+    + `<span>${place != null ? `<b>${place}.</b> ` : ""}${rankChip(r)}${r.uid
       ? `<button type="button" class="to-sb-name" data-uid="${r.uid}" title="View profile">${escapeHtml(r.name)}</button>`
       : escapeHtml(r.name)}</span>`
     + `<span>${r.kills}</span><span>${r.deaths}</span><span>${r.assists ?? "–"}</span>`
@@ -7945,6 +7956,9 @@ function netSnapshot() {
   _netSnapshot.roll = royaleRollK();
   _netSnapshot.drop = royaleDropCode();
   _netSnapshot.face = cosmetics.face;
+  _netSnapshot.level = getLevel();
+  _netSnapshot.prestige = getPrestige();
+  _netSnapshot.owner = isOwner();
   _netSnapshot.swivel = swivel.seq ? swivel.seq * (swivel.dir || swivel.lastDir || 1) : 0;
   return _netSnapshot;
 }
