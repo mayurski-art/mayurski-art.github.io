@@ -92,6 +92,13 @@ function loadTemplate(id) {
       for (const k of Object.keys(geo.attributes)) if (!["position", "normal", "uv"].includes(k)) geo.deleteAttribute(k);
       if (!geo.attributes.uv) geo.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
       const face = o.material.name === "trollface";
+      // glTF stores V flipped (top-left origin); the board's face texture is
+      // a normal flipY texture, so flip the head's V back or the face is
+      // upside down.
+      if (face) {
+        const uv = geo.attributes.uv;
+        for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i));
+      }
       const mname = o.material.name || "m";
       if (!mats.has(mname)) mats.set(mname, face ? null : dressMaterial(o.material));
       const key = `${joint}|${mname}`;
