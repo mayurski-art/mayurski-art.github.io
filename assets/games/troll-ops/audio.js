@@ -412,6 +412,23 @@ export class GameAudio {
     this._noise({ duration: 0.25, gain: 0.09, type: "bandpass", freq: 2200, q: 1, sweepTo: 500, at });
   }
 
+  /* The Halo Blade: brighter and glassier than the saber. A crackle, two
+     prongs' tones sliding up a fifth apart, and a shimmer to settle on. */
+  haloIgnite(at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.12, gain: 0.26, type: "highpass", freq: 4200, sweepTo: 1800, at });
+    this._tone({ freq: 140, to: 420, duration: 0.42, gain: 0.1, type: "sawtooth", delay: 0.03, at });
+    this._tone({ freq: 210, to: 630, duration: 0.42, gain: 0.07, type: "triangle", delay: 0.05, at });
+    this._noise({ duration: 0.5, gain: 0.12, type: "bandpass", freq: 1200, q: 2, sweepTo: 5200, delay: 0.06, at });
+    this._tone({ freq: 880, to: 1320, duration: 0.3, gain: 0.035, type: "sine", delay: 0.35, at });
+  }
+
+  haloRetract(at = null) {
+    if (!this._ready()) return;
+    this._tone({ freq: 420, to: 90, duration: 0.24, gain: 0.08, type: "sawtooth", at });
+    this._noise({ duration: 0.2, gain: 0.08, type: "bandpass", freq: 3200, q: 1.4, sweepTo: 600, at });
+  }
+
   /* ---- Chainsaw and the Reaper's Grin -------------------------------- */
   // The two-stroke rev on a swing, then the chain biting on a hit.
   chainsawRev(at = null) {

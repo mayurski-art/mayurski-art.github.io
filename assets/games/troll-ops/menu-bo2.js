@@ -60,6 +60,7 @@ root.innerHTML = `
     <div>
       <div class="to-bo2-online">1 Online</div>
       <span class="to-bo2-status"></span>
+      <span class="to-bo2-dl" aria-live="polite"><i></i><b></b></span>
       <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
     <div class="to-bo2-hints" aria-hidden="true">
@@ -466,6 +467,39 @@ let netBase = text(net);
 if (net) new MutationObserver(() => { const t = text(net); $(".to-bo2-status", root).textContent = t !== netBase ? t : ""; }).observe(net, { childList: true, characterData: true, subtree: true });
 
 joinSitePresence({ onCount: (n) => { $(".to-bo2-online", root).textContent = `${n} Online`; } });
+
+/* ── Map preloading (map-preload.js): a quiet line under the online count ─ */
+const dl = $(".to-bo2-dl", root);
+function renderDl() {
+  const P = window.__trollPreload;
+  if (!P) return;
+  const id = P.current;
+  if (id) {
+    const st = P.status(id);
+    dl.classList.add("is-on");
+    dl.classList.toggle("is-done", false);
+    $("b", dl).textContent = `${st.state === "compiling" ? "Warming" : "Loading"} ${P.names[id] || id} ${Math.round(st.progress * 100)}%`;
+    $("i", dl).style.setProperty("--p", st.progress);
+  } else {
+    // Quiet once nothing is moving; it says so briefly when a batch ends.
+    const n = P.readyCount();
+    dl.classList.toggle("is-on", n > 0 && dl.classList.contains("is-on"));
+    dl.classList.add("is-done");
+    $("b", dl).textContent = "Maps ready";
+    $("i", dl).style.setProperty("--p", n / P.ids.length);
+  }
+}
+let dlHide = 0;
+(function hookPreload() {
+  const P = window.__trollPreload;
+  if (!P) { setTimeout(hookPreload, 250); return; }
+  P.onChange(() => {
+    renderDl();
+    clearTimeout(dlHide);
+    if (!P.current) dlHide = setTimeout(() => dl.classList.remove("is-on"), 2500);
+  });
+  renderDl();
+})();
 
 /* ── The planet: lazy, and paused whenever the lobby isn't showing ───── */
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));

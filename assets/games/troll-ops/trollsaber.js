@@ -26,7 +26,7 @@ const TS_URL = new URL("./models/trollsaber.glb?v=ts1", import.meta.url).href;
 export const SABER_BLADE_LEN = 0.88;
 export const SABER_EMIT_Z = -0.142;   // inside the shroud (models/build_trollsaber)
 const SABER_RED = new THREE.Color(1.0, 0.1, 0.045);
-const IGNITE_TIME = 0.2;
+const IGNITE_TIME = 0.34;   // long enough to read as the blade extending
 const RETRACT_TIME = 0.16;
 
 // The game's ACES at 1.5 exposure blows Cycles-strength emission to white.

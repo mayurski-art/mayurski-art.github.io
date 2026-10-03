@@ -184,6 +184,11 @@ textarea.home-field{min-height:120px;resize:vertical}
 import { createBo2Menu } from './assets/js/bo2-menu.js?v=home5';
 import { joinSitePresence, viewerId } from './assets/js/site-presence.js?v=home5';
 import { createMapMode } from './assets/js/troll-map-mode.js?v=home5';
+import { startTrollForcesPrefetch } from './assets/js/tf-prefetch.js?v=tfp1';
+
+// Troll Forces' code and maps stream into the cache while you're here, so
+// the game opens without the wait (assets/js/tf-prefetch.js).
+startTrollForcesPrefetch();
 
 const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';

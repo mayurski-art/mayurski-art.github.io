@@ -409,8 +409,11 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   // bends the whole upper body as one; the chest used to hang off the hips
   // on its own, and any lean tore the line apart.
   const torso = joint(hips);
+  // Mid-back: the chest hangs off it, so the spine can bend in two places
+  // (a hunch over the gun, a counter-twist against the hips) instead of
+  // swinging as one stick.
   const torsoMid = joint(torso, 0, 0.24 * s, 0);
-  const chest = joint(torso, 0, 0.48 * s, 0);
+  const chest = joint(torsoMid, 0, 0.24 * s, 0);
 
   const neckLen = 0.09 * s;
   const neckPivot = joint(chest);
@@ -458,11 +461,18 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   // with it at 0 the arm is a straight stick, so every existing pose (and
   // the gun, mounted on armR at the hand) still lines up.
   const ARM = new THREE.Vector3(0.30 * s * w, -0.62 * s, 0);
+  // Shoulder: a socket at the neck base that only ever SLIDES (a shrug, a
+  // roll forward and back with the arm swing) — the arm pivot under it does
+  // all the turning, so every IK below still solves in chest axes. At rest
+  // it sits exactly on the chest point and the silhouette is unchanged.
+  // Wrist: turns the mitt (and anything the fist holds) against the forearm.
   const mkArm = (side) => {
-    const pivot = joint(chest);
+    const shoulder = joint(chest);
+    const pivot = joint(shoulder);
     const elbow = joint(pivot, side * ARM.x * 0.48, ARM.y * 0.48, 0);
     const hand = joint(elbow, side * ARM.x * 0.52, ARM.y * 0.52, 0);
-    return { pivot, elbow, hand };
+    const wrist = joint(hand);
+    return { shoulder, pivot, elbow, hand, wrist };
   };
   const L = mkArm(-1), R = mkArm(1);
   const inkMat = material?.isShaderMaterial ? material : INK;
@@ -470,10 +480,10 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   // Big cartoon mitts, the way the figure is drawn — about a third of the
   // head's width across.
   const handScale = 1.55 * s;
-  const hands = { L: buildHand(L.hand, -1, handScale, inkMat, -armAngle), R: buildHand(R.hand, 1, handScale, inkMat, armAngle) };
+  const hands = { L: buildHand(L.wrist, -1, handScale, inkMat, -armAngle), R: buildHand(R.wrist, 1, handScale, inkMat, armAngle) };
   // What the right fist holds that isn't a gun (a melee weapon): a mount at
-  // the hand whose x rotation is the wrist.
-  const gripR = joint(R.hand);
+  // the wrist whose own x rotation is the melee wrist cock.
+  const gripR = joint(R.wrist);
   // Two-handed guns ride the chest, not an arm: both hands reach to them
   // (see _gripSupport). One-handed ones (pistols) stay on the right arm.
   const gunMount = joint(chest);
@@ -490,18 +500,21 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     splay.rotation.z = side * LEG_SPLAY;
     const knee = joint(splay, 0, -THIGH, 0);
     const ankle = joint(knee, 0, -SHIN, 0);
-    const toe = joint(ankle, 0, -0.005 * s, -0.085 * s);
-    return { pivot, knee, ankle, toe };
+    // Ball of the foot: the toe flexes up here as the heel peels off.
+    const ball = joint(ankle, 0, -0.003 * s, -0.05 * s);
+    const toe = joint(ball, 0, -0.002 * s, -0.035 * s);
+    return { pivot, knee, ankle, ball, toe };
   };
   const LL = mkLeg(-1), LR = mkLeg(1);
 
   const body = new BodyStroke(root, [
     // neck → spine → hips → left leg, one stroke
-    [neckTop, chest, torsoMid, hips, LL.knee, LL.ankle, LL.toe],
-    [hips, LR.knee, LR.ankle, LR.toe],
-    [chest, L.elbow, L.hand],
-    [chest, R.elbow, R.hand],
-  ], [neckTop, chest, hips, LL.toe, LR.toe, L.hand, R.hand], limbRadius,
+    [neckTop, chest, torsoMid, hips, LL.knee, LL.ankle, LL.ball, LL.toe],
+    [hips, LR.knee, LR.ankle, LR.ball, LR.toe],
+    // Arms are drawn from the shoulder sockets, so a shrug lifts the line.
+    [L.shoulder, L.elbow, L.hand],
+    [R.shoulder, R.elbow, R.hand],
+  ], [neckTop, chest, hips, LL.toe, LR.toe, L.hand, R.hand, L.shoulder, R.shoulder], limbRadius,
   // The enemy dissolve is a shader of its own; everything else is ink.
   inkMat);
 
@@ -562,10 +575,15 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   const rig = {
     root,
     parts: {
-      hips, torso, chest, neckPivot, headPivot, head,
+      hips, torso, spine: torsoMid, chest, neckPivot, headPivot, head,
+      shoulderL: L.shoulder, shoulderR: R.shoulder,
       armL: L.pivot, armR: R.pivot, elbowL: L.elbow, elbowR: R.elbow,
-      legL: LL.pivot, legR: LR.pivot, kneeL: LL.knee, kneeR: LR.knee,
-      ankleL: LL.ankle, ankleR: LR.ankle,
+      wristL: L.wrist, wristR: R.wrist,
+      // The hip sockets are the leg pivots; named both ways.
+      legL: LL.pivot, legR: LR.pivot, hipL: LL.pivot, hipR: LR.pivot,
+      kneeL: LL.knee, kneeR: LR.knee,
+      ankleL: LL.ankle, ankleR: LR.ankle, ballL: LL.ball, ballR: LR.ball,
+      toeL: LL.toe, toeR: LR.toe,
       gun: gunMesh, body: body.mesh,
       handL: hands.L.group, handR: hands.R.group, gripR, gunMount,
     },
@@ -590,6 +608,27 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   return rig;
 }
 
+/* The finer joints — mid-back, shoulder sockets, wrists, balls of the feet —
+   back to rest. Poses that don't drive them (dances, emotes, the death fall)
+   call this so a gait's leftovers don't stick. */
+export function resetSecondaryJoints(rig) {
+  const p = rig.parts;
+  p.spine.rotation.set(0, 0, 0);
+  p.shoulderL.position.set(0, 0, 0);
+  p.shoulderR.position.set(0, 0, 0);
+  p.wristL.rotation.set(0, 0, 0);
+  p.wristR.rotation.set(0, 0, 0);
+  p.ballL.rotation.set(0, 0, 0);
+  p.ballR.rotation.set(0, 0, 0);
+}
+
+/* Every named joint a pose can turn, for tools (the ?joints=1 rig lab). */
+export const RIG_JOINTS = [
+  "hips", "torso", "spine", "chest", "neckPivot", "headPivot",
+  "shoulderL", "armL", "elbowL", "wristL", "shoulderR", "armR", "elbowR", "wristR",
+  "hipL", "kneeL", "ankleL", "ballL", "hipR", "kneeR", "ankleR", "ballR",
+];
+
 /* Straight knees and elbows, level feet, square hips — the neutral the
    dances and the death pose were written against. Walking leaves them bent. */
 function _resetJoints(rig) {
@@ -602,6 +641,7 @@ function _resetJoints(rig) {
   p.elbowR.rotation.set(0, 0, 0);
   p.hips.rotation.y = 0;
   p.chest.rotation.y = 0;
+  resetSecondaryJoints(rig);
   setHandPose(rig, -1, "open");
   setHandPose(rig, 1, "open");
 }
@@ -768,20 +808,25 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   for (const [side, legPhase] of [[-1, cyc], [1, cyc + Math.PI]]) {
     let u = (legPhase / (Math.PI * 2)) % 1;
     if (u < 0) u += 1;
-    let along, up, pitchFoot;
+    let along, up, pitchFoot, flex = 0;
     if (u < duty) {
-      // Planted: slides from ahead to behind at the body's own speed.
+      // Planted: slides from ahead to behind at the body's own speed. Late
+      // in the stance the heel peels up and the toe bends at the ball.
       const t = u / duty;
       along = (0.5 - t) * duty * 2 * stride;
       up = 0;
-      pitchFoot = 0;
+      flex = t > 0.7 ? (t - 0.7) / 0.3 : 0;
+      pitchFoot = -flex * 0.3;
     } else {
       // Swing: peel off behind, arc forward, reach for the next footfall.
       const t = (u - duty) / (1 - duty);
       along = (-0.5 + _smooth(t)) * duty * 2 * stride;
       up = Math.sin(Math.PI * Math.pow(t, 0.8)) * lift;
       pitchFoot = -Math.sin(Math.PI * t) * 0.22 + (t > 0.8 ? (t - 0.8) * 1.2 : 0);
+      // ...and springs straight again as the foot leaves the ground.
+      flex = t < 0.3 ? 1 - t / 0.3 : 0;
     }
+    flex *= (0.45 + run * 0.25) * blend;
     along *= blend;
     up *= blend;
     pitchFoot *= blend;
@@ -790,19 +835,24 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     _foot.set(baseX + tx * along, rig.limbRadius + up, tz * along);
     // Crouched feet land a touch behind the hips, prone ones further.
     _foot.z += crouch * 0.12 * s;
-    feet.push({ side, along, target: _foot.clone(), pitch: pitchFoot });
+    feet.push({ side, along, target: _foot.clone(), pitch: pitchFoot, flex });
   }
+  p.ballL.rotation.set(feet[0].flex, 0, 0);
+  p.ballR.rotation.set(feet[1].flex, 0, 0);
   _solveLeg(rig, -1, p.legL, p.kneeL, p.ankleL, feet[0].target, feet[0].pitch);
   _solveLeg(rig, 1, p.legR, p.kneeR, p.ankleR, feet[1].target, feet[1].pitch);
   // -1 = that foot trails behind, 1 = it's out ahead: drives the arms.
   const legSwingL = (feet[0].along / Math.max(1e-3, duty * stride)) * Math.sign(-tz || 1);
 
   // Lean: into a run, back when backpedalling, banked into a strafe. The
-  // chest rides the torso now, so its share adds on top.
+  // chest rides the mid-back, which rides the torso, so the upper body's
+  // share is split over two joints and the back curves instead of kinking;
+  // the counter-twist against the hips runs up the spine the same way.
   const moveLean = (0.04 + run * 0.16) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7);
   p.torso.rotation.set(crouch * 0.25 + moveLean * 0.7, 0, str * -0.1 * blend);
-  p.chest.rotation.set(crouch * 0.12 + moveLean * 0.3, -p.hips.rotation.y * 1.4, str * -0.06 * blend);
-  const lean = p.torso.rotation.x + p.chest.rotation.x;
+  p.spine.rotation.set(crouch * 0.05 + moveLean * 0.15, -p.hips.rotation.y * 0.55, str * -0.03 * blend);
+  p.chest.rotation.set(crouch * 0.07 + moveLean * 0.15, -p.hips.rotation.y * 0.85, str * -0.03 * blend);
+  const lean = p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
 
   if (zombie) {
     // Both arms out front, with a lopsided shamble.
@@ -813,6 +863,12 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     setHandPose(rig, -1, "open");
     setHandPose(rig, 1, "open");
     p.torso.rotation.x += 0.12;
+    // Hunched: shoulders up and forward, limp wrists.
+    p.spine.rotation.x += 0.08;
+    p.shoulderL.position.set(0, 0.008 * s, -0.022 * s);
+    p.shoulderR.position.set(0, 0.012 * s, -0.018 * s);
+    p.wristL.rotation.set(0.6 + Math.sin(phase * 0.5) * 0.12, 0, 0);
+    p.wristR.rotation.set(0.7 + Math.cos(phase * 0.5) * 0.12, 0, 0);
     _poseNeckAndHead(rig, { pitch: 0.16, sway: Math.sin(phase * 0.5) * 0.09, dt, lead: 0, lean, bob, run, phase, moving: blend > 0.5 });
     return;
   }
@@ -859,6 +915,21 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     p.armL.rotation.set(-legSwingL * swingAmp - lean * 0.8 - 0.05 - run * 0.25 * blend, 0, 0.06 + run * 0.04);
     p.elbowL.rotation.set(0.2 + (run * 1.1 + Math.max(0, legSwingL) * 0.25) * blend, 0, 0);
   }
+
+  // Shoulder sockets: each rolls forward with its own arm's swing, both
+  // rise a touch on every breath and in a sprint, and the trigger side
+  // shrugs back into the recoil. They only slide (see buildHumanoid).
+  const gripped = gunInHands && hasGun;
+  rig.breathT = (rig.breathT || 0) + dt;
+  const breath = Math.sin(rig.breathT * 2.1) * 0.005 * s * (1 - blend * 0.7);
+  const shoulderLift = breath + run * 0.007 * s * blend;
+  const roll = legSwingL * (0.012 + run * 0.01) * s * blend;
+  p.shoulderL.position.set(0, shoulderLift, gripped ? 0 : roll);
+  p.shoulderR.position.set(0, shoulderLift + kick * 0.014 * s, gripped ? kick * 0.012 * s : -roll * 0.5);
+  // Wrists: a held weapon owns the hand, so they stay straight; a free hand
+  // flicks a little past each end of its swing.
+  p.wristL.rotation.set(gripped ? 0 : -legSwingL * 0.2 * blend, 0, 0);
+  p.wristR.rotation.set(hold === "none" ? legSwingL * 0.15 * blend : 0, 0, 0);
 
   _poseNeckAndHead(rig, { pitch, sway: 0, dt, lead: str * blend, lean, bob, run, phase, moving: blend > 0.3, busy: kick > 0.02 || !!swing });
 }
@@ -1053,7 +1124,7 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, carry
   const s = rig.scale, w = rig.build;
   const kick = Math.max(0, Math.min(1, recoil));
   // Level at the aim, independent of the body's lean (the chest carries it).
-  const lean = p.torso.rotation.x + p.chest.rotation.x;
+  const lean = p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
   // Scoped: the stock comes up into the shoulder and the sights to the eye,
   // and the barrel follows the aim all the way instead of a third of it.
   const a = Math.max(0, Math.min(1, ads));
@@ -1068,12 +1139,12 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, carry
   _gP.copy(mesh.userData.gripPos).applyEuler(p.gunMount.rotation);
   p.gunMount.position.copy(_gGrip).sub(_gP);
 
-  _gT.copy(_gGrip).sub(p.armR.position);
+  _gT.copy(_gGrip).sub(p.armR.position).sub(p.shoulderR.position);
   _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT, _gPoleR);
 
   // Support hand: along grip → handguard, as far as the left arm reaches.
-  _gO.copy(_gGrip).sub(p.armL.position);
-  _gT.copy(mesh.userData.supportHandPos).applyEuler(p.gunMount.rotation).add(p.gunMount.position).sub(p.armL.position);
+  _gO.copy(_gGrip).sub(p.armL.position).sub(p.shoulderL.position);
+  _gT.copy(mesh.userData.supportHandPos).applyEuler(p.gunMount.rotation).add(p.gunMount.position).sub(p.armL.position).sub(p.shoulderL.position);
   const reach = (rig.upperArm + rig.foreArm) * 0.97;
   if (_gT.length() > reach) {
     let lo = 0, hi = 1;
@@ -1263,8 +1334,8 @@ function _saberGuard(rig, k, parry = null) {
   }
   _sgR.set(_sgR.x * s * w, _sgR.y * s, _sgR.z * s);
   _sgL.copy(_sgR).addScaledVector(_sgDir, -SABER_HAND_GAP * s);   // below it, toward the pommel
-  _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT.copy(_sgR).sub(p.armR.position), _gPoleR);
-  _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT.copy(_sgL).sub(p.armL.position), _gPoleL);
+  _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT.copy(_sgR).sub(p.armR.position).sub(p.shoulderR.position), _gPoleR);
+  _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT.copy(_sgL).sub(p.armL.position).sub(p.shoulderL.position), _gPoleL);
   joints.forEach((j, i) => { _sgQ.copy(j.quaternion); j.quaternion.copy(_sgFk[i]).slerp(_sgQ, k); });
   setHandPose(rig, -1, "fist");
 

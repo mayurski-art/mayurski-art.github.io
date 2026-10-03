@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { buildWeaponMesh } from "./weapon-model.js?v=cg1";
-import { buildMeleeMesh } from "./gear.js?v=to-fx3";
+import { buildMeleeMesh } from "./gear.js?v=to-hb1";
 import { loadModel } from "./battlefield-props.js";
 import { buildDragonfireModel } from "./dragonfire.js?v=df2";
 import { buildSamTurretModel } from "./sam-turret.js?v=sam1";
@@ -187,6 +187,13 @@ export class WeaponInspector {
     // The first-person hands built onto a gun belong to the viewmodel.
     mesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
     this.setMesh(mesh);
+    // Picking an energy blade in the menu lights it up, the way drawing it
+    // in a match does: dark hilt, a beat, then the blade.
+    const power = mesh.userData.saber || mesh.userData.halo;
+    if (power) {
+      power.snapOff();
+      setTimeout(() => { if (this.mesh === mesh) { power.ignite(); power.flare?.(1); } }, 260);
+    }
   }
 
   /* A scorestreak's model. Loaded async (and cached by loadModel); a newer

@@ -6,12 +6,12 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-lk1";
-import { poseEmoteCode } from "./emotes.js?v=to-fx3";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-jn1";
+import { poseEmoteCode } from "./emotes.js?v=to-jn1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=cg1";
 import { WEAPON_DEFS } from "./weapons.js?v=cg1";
-import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-fx3";
-import { cleanFaceKey } from "./cosmetics.js?v=cos1";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1";
+import { cleanFaceKey } from "./cosmetics.js?v=cos2";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3";
 
@@ -382,6 +382,14 @@ export class RemotePlayer {
       this.saberOut = saberOut;
       if (saberOut) { this.saber.snapOff(); this.saber.ignite(); }
       if (snaps.length) this.sfx.push({ kind: saberOut ? "ignite" : "retract", at: this.centre() });
+    }
+    // The Halo Blade does the same: its prongs unfold as it's drawn.
+    const halo = this.meleeMesh?.userData.halo;
+    const haloOut = !!halo && this.meleeMesh.visible && this.alive;
+    if (haloOut !== !!this.haloOut) {
+      this.haloOut = haloOut;
+      if (haloOut) { halo.snapOff(); halo.ignite(); }
+      if (snaps.length) this.sfx.push({ kind: haloOut ? "haloIgnite" : "haloRetract", at: this.centre() });
     }
     const guard = saberOut && meleeHeld && !swinging && !!this.peer.blocking;
     this.blockT += ((guard ? 1 : 0) - this.blockT) * Math.min(1, dt * 14);

@@ -29,7 +29,7 @@ function loadHouseModel(name) {
   if (!houseCache.has(name)) {
     houseCache.set(name, houseLoader.loadAsync(`${MODEL_BASE}${name}.glb`).then((gltf) => {
       const scene = gltf.scene;
-      scene.traverse((n) => { if (n.isMesh) n.castShadow = true; });
+      scene.traverse((n) => { if (n.isMesh) { n.castShadow = true; n.geometry.userData.shared = true; } });
       return scene;
     }));
   }

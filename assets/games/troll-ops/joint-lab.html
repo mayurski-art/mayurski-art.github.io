@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troll Forces — Joint Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1c1c1e; font-family: "DM Sans", -apple-system, sans-serif; color: #f5f5f7; }
+  #stage { position: fixed; inset: 0; }
+  canvas { display: block; }
+  #panel {
+    position: fixed; top: 12px; right: 12px; width: 300px; max-height: calc(100vh - 24px); overflow-y: auto;
+    background: rgba(28,28,30,.92); border: .5px solid rgba(255,255,255,.15); border-radius: 14px; padding: 14px;
+    font-size: 12px; backdrop-filter: blur(10px); box-shadow: 0 8px 30px rgba(0,0,0,.4); z-index: 2;
+  }
+  h1 { font-size: 13px; margin: 0 0 4px; }
+  .sub { color: #9a9a9e; margin: 0 0 10px; line-height: 1.4; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #8a8a8e; margin: 12px 0 6px; border-top: .5px solid rgba(255,255,255,.12); padding-top: 10px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .row label { width: 54px; color: #d0d0d4; }
+  .row input[type=range] { flex: 1; accent-color: #ff7ec4; }
+  .row .val { width: 48px; text-align: right; font-family: "DM Mono", monospace; color: #7fd8ff; font-size: 11px; }
+  .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-size: 12px; background: #2c2c2e; color: #f5f5f7; border: .5px solid rgba(255,255,255,.15);
+    border-radius: 8px; padding: 5px 9px; cursor: pointer;
+  }
+  button[aria-pressed="true"] { background: #5856d6; border-color: #7a78ff; }
+  button:focus-visible { outline: 2px solid #7fd8ff; outline-offset: 1px; }
+  #joints { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  #joints button { text-align: left; font-family: "DM Mono", monospace; font-size: 11px; }
+  #joints button.new::after { content: " new"; color: #ff7ec4; font-size: 10px; }
+  .legend { display: flex; gap: 12px; color: #9a9a9e; margin-top: 6px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  @media (max-width: 760px) { #panel { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; max-height: 48vh; } }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<aside id="panel" aria-label="Joint controls">
+  <h1>Joint Lab</h1>
+  <p class="sub">Every pivot on the troll rig. Click a dot (or a name), then turn it. Shoulders slide instead of turning. Drag to orbit, scroll to zoom.</p>
+  <h2>Motion</h2>
+  <div class="seg" id="motion">
+    <button data-v="pose" aria-pressed="true">Hold pose</button>
+    <button data-v="idle">Idle</button>
+    <button data-v="walk">Walk</button>
+    <button data-v="run">Run</button>
+    <button data-v="zombie">Zombie</button>
+  </div>
+  <h2>In hand</h2>
+  <div class="seg" id="held">
+    <button data-v="halo" aria-pressed="true">Halo Blade</button>
+    <button data-v="gun">Gun</button>
+    <button data-v="none">Nothing</button>
+    <button id="swing">Swing</button>
+  </div>
+  <h2>Joints</h2>
+  <div id="joints"></div>
+  <div class="legend"><span><i class="dot" style="background:#7fd8ff"></i>existing</span><span><i class="dot" style="background:#ff7ec4"></i>new</span><span><i class="dot" style="background:#ffd27a"></i>selected</span></div>
+  <h2 id="selName">—</h2>
+  <div id="sliders"></div>
+  <div class="seg" style="margin-top:8px">
+    <button id="resetOne">Reset joint</button>
+    <button id="resetAll">Reset all</button>
+  </div>
+</aside>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../../vendor/three.module.min.js",
+    "three/addons/": "../../vendor/addons/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { buildHumanoid, poseHumanoid, gaitPhaseRate, RIG_JOINTS } from "./character.js?v=to-jn1";
+import { buildMeleeMesh, MELEE_DEFS, MeleeState } from "./gear.js?v=to-hb1";
+
+const NEW = new Set(["spine", "shoulderL", "shoulderR", "wristL", "wristR", "ballL", "ballR"]);
+const SLIDES = new Set(["shoulderL", "shoulderR"]);   // these move, they don't turn
+
+const stage = document.getElementById("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.setSize(innerWidth, innerHeight);
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf2efe9);
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.05, 100);
+/* A small orbit: drag to turn round the troll, wheel/pinch-free zoom. */
+const orbit = { yaw: 2.6, pitch: 0.22, dist: 3.1, target: new THREE.Vector3(0, 0.95, 0) };
+const controls = {
+  update() {
+    const c = Math.cos(orbit.pitch);
+    camera.position.set(Math.sin(orbit.yaw) * c, Math.sin(orbit.pitch), Math.cos(orbit.yaw) * c).multiplyScalar(orbit.dist).add(orbit.target);
+    camera.lookAt(orbit.target);
+  },
+};
+{
+  let drag = null;
+  renderer.domElement.addEventListener("pointerdown", (e) => { drag = [e.clientX, e.clientY]; });
+  addEventListener("pointerup", () => { drag = null; });
+  addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    orbit.yaw -= (e.clientX - drag[0]) * 0.008;
+    orbit.pitch = Math.max(-0.4, Math.min(1.3, orbit.pitch + (e.clientY - drag[1]) * 0.006));
+    drag = [e.clientX, e.clientY];
+  });
+  renderer.domElement.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    orbit.dist = Math.max(0.8, Math.min(8, orbit.dist * (1 + Math.sign(e.deltaY) * 0.1)));
+  }, { passive: false });
+}
+controls.update();
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8478, 1.4));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(3, 6, -2);
+scene.add(sun);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(3, 48), new THREE.MeshStandardMaterial({ color: 0xe4ded3, roughness: 1 }));
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+const rig = buildHumanoid(null, { gun: true });
+scene.add(rig.root);
+const p = rig.parts;
+const halo = buildMeleeMesh(MELEE_DEFS.halo, false);
+halo.scale.setScalar(1.1);
+halo.userData.meleeId = "halo";
+p.gripR.add(halo);
+const melee = new MeleeState("halo");
+
+/* ---- joint dots, drawn over the body */
+const dotGeo = new THREE.SphereGeometry(0.022, 12, 8);
+const dots = new Map();
+for (const name of RIG_JOINTS) {
+  const m = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: NEW.has(name) ? 0xff7ec4 : 0x7fd8ff, depthTest: false, transparent: true }));
+  m.renderOrder = 10;
+  m.userData.joint = name;
+  scene.add(m);
+  dots.set(name, m);
+}
+
+/* ---- state */
+let motion = "pose", held = "halo", selected = "spine", phase = 0, swingOn = false;
+const offsets = Object.fromEntries(RIG_JOINTS.map((n) => [n, [0, 0, 0]]));
+
+/* ---- UI */
+const $ = (s) => document.querySelector(s);
+const jointBox = $("#joints");
+for (const name of RIG_JOINTS) {
+  const b = document.createElement("button");
+  b.textContent = name;
+  b.dataset.joint = name;
+  if (NEW.has(name)) b.className = "new";
+  b.addEventListener("click", () => select(name));
+  jointBox.appendChild(b);
+}
+function seg(id, onPick) {
+  const box = $(id);
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-v]");
+    if (!b) return;
+    for (const x of box.querySelectorAll("button[data-v]")) x.setAttribute("aria-pressed", String(x === b));
+    onPick(b.dataset.v);
+  });
+}
+seg("#motion", (v) => { motion = v; });
+seg("#held", (v) => { held = v; });
+$("#swing").addEventListener("click", () => { held = "halo"; for (const x of $("#held").querySelectorAll("button[data-v]")) x.setAttribute("aria-pressed", String(x.dataset.v === "halo")); melee.start(); });
+$("#resetOne").addEventListener("click", () => { offsets[selected] = [0, 0, 0]; renderSliders(); });
+$("#resetAll").addEventListener("click", () => { for (const n of RIG_JOINTS) offsets[n] = [0, 0, 0]; renderSliders(); });
+
+function select(name) {
+  selected = name;
+  for (const b of jointBox.children) b.setAttribute("aria-pressed", String(b.dataset.joint === name));
+  renderSliders();
+}
+function renderSliders() {
+  const slide = SLIDES.has(selected);
+  $("#selName").textContent = `${selected} — ${slide ? "slide (cm)" : "turn (degrees)"}`;
+  const box = $("#sliders");
+  box.innerHTML = "";
+  ["x", "y", "z"].forEach((axis, i) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    const max = slide ? 6 : 180;
+    const v = slide ? offsets[selected][i] * 100 : THREE.MathUtils.radToDeg(offsets[selected][i]);
+    row.innerHTML = `<label for="s-${axis}">${axis.toUpperCase()}</label><input id="s-${axis}" type="range" min="${-max}" max="${max}" step="${slide ? 0.1 : 1}" value="${v}" aria-label="${selected} ${axis}"><span class="val">${v.toFixed(slide ? 1 : 0)}</span>`;
+    const input = row.querySelector("input"), out = row.querySelector(".val");
+    input.addEventListener("input", () => {
+      const n = +input.value;
+      offsets[selected][i] = slide ? n / 100 : THREE.MathUtils.degToRad(n);
+      out.textContent = n.toFixed(slide ? 1 : 0);
+    });
+    box.appendChild(row);
+  });
+}
+select("spine");
+
+/* ---- picking dots */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;   // an orbit drag
+  mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  ray.params.Mesh = {};
+  // Dots are tiny; pick the one nearest the click ray within a few cm.
+  let best = null, bestD = 0.06;
+  const w = new THREE.Vector3();
+  for (const [name, m] of dots) {
+    const d = ray.ray.distanceToPoint(m.getWorldPosition(w));
+    if (d < bestD) { bestD = d; best = name; }
+  }
+  if (best) select(best);
+});
+
+/* ---- loop */
+const clock = new THREE.Clock();
+const SPEED = { pose: 0, idle: 0, walk: 1.5, run: 4.6, zombie: 1.3 };
+const _w = new THREE.Vector3();
+function frame() {
+  const dt = Math.min(0.05, clock.getDelta());
+  const mps = SPEED[motion];
+  phase += gaitPhaseRate(mps) * dt;
+  if (melee.busy) melee.update(dt);
+  halo.visible = held === "halo";
+  if (rig.parts.gun) rig.parts.gun.visible = held === "gun";
+  halo.userData.tick?.(dt, melee.busy);
+
+  const swing = melee.busy ? { t: melee.t / melee.total, kind: melee.swingIndex % 2 ? "thrust" : "swing" } : null;
+  poseHumanoid(rig, {
+    phase, moving: mps > 0, mps, speed: mps / 4.2, dt: motion === "pose" ? 0 : dt,
+    zombie: motion === "zombie", hold: held === "halo" ? "melee" : held, hasGun: held === "gun", swing,
+  });
+  // The lab's own turns go on top of whatever the pose did.
+  for (const name of RIG_JOINTS) {
+    const o = offsets[name];
+    if (!o[0] && !o[1] && !o[2]) continue;
+    const j = p[name];
+    if (SLIDES.has(name)) { j.position.x += o[0]; j.position.y += o[1]; j.position.z += o[2]; }
+    else { j.rotation.x += o[0]; j.rotation.y += o[1]; j.rotation.z += o[2]; }
+  }
+  rig.body.update();
+  rig.root.updateMatrixWorld(true);
+  for (const [name, m] of dots) {
+    p[name].getWorldPosition(_w);
+    m.position.copy(_w);
+    m.material.color.set(name === selected ? 0xffd27a : NEW.has(name) ? 0xff7ec4 : 0x7fd8ff);
+    m.scale.setScalar(name === selected ? 1.5 : 1);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+frame();
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+window.__jointLab = { rig, offsets, select, melee, orbit, scene, halo };
+</script>
+</body>
+</html>

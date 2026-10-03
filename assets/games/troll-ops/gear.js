@@ -13,8 +13,9 @@
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import { smoothstep } from "./anim-curves.js";
-import { buildTrollsaber } from "./trollsaber.js?v=ts2";
+import { buildTrollsaber } from "./trollsaber.js?v=ts3";
 import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw2";
+import { buildHaloBlade } from "./halo-blade.js?v=hb1";
 
 export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where you look
 const GRAVITY = GRENADE_GRAVITY;
@@ -71,6 +72,16 @@ export const MELEE_DEFS = {
     blurb: "Groovy. Revs on every swing, and nobody stands back up. Admire it to rev it.",
     // Framing lives in CHAINSAW_REST / its own swing tracks below.
     model: { kind: "chainsaw", view: { scale: 0.85 } },
+  },
+  // Energy-sword style (halo-blade.js): twin plasma prongs, sky blue into
+  // bubblegum pink, glowing violet. Long reach for a one-hander.
+  halo: {
+    id: "halo", name: "Halo Blade", rank: 20,
+    damage: 150, backstabMult: 2, range: 2.3, arc: 0.95, knock: 6,
+    blurb: "Sky blue, bubblegum pink, glows violet. Lunges like it means it.",
+    // Held out and tipped forward so the whole sword shows, both prongs
+    // spread, hilt bar across the fist (tuned in the Test Range).
+    model: { kind: "halo", view: { pos: [-0.08, 0.1, 0.0], rot: [-0.45, 0.1, 0.25], scale: 0.85 } },
   },
 };
 
@@ -409,8 +420,8 @@ export function buildMeleeMesh(def, includeHands = true) {
     return buildTrollsaber({ lit: !includeHands });
   }
 
-  if (m.kind === "reaper" || m.kind === "chainsaw") {
-    const w = m.kind === "reaper" ? buildReaperKnife() : buildChainsaw();
+  if (m.kind === "reaper" || m.kind === "chainsaw" || m.kind === "halo") {
+    const w = m.kind === "reaper" ? buildReaperKnife() : m.kind === "halo" ? buildHaloBlade({ lit: !includeHands }) : buildChainsaw();
     if (includeHands) {
       const hand = buildGripHand(MELEE_HAND_SCALE);
       hand.userData.hand = true;

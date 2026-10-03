@@ -3143,6 +3143,12 @@ body.to-touch-play .to-ss-sky { width: calc(24px * var(--k)); height: calc(24px 
 .to-bo2-online { font: 600 38px/1 Oswald, sans-serif; letter-spacing: .02em; color: var(--bo2-ink); text-shadow: 0 2px 10px rgba(0,0,0,.9); }
 .to-bo2-status { display: block; margin-top: 8px; font: 13px "DM Mono", monospace; color: var(--bo2-soft); }
 .to-bo2-status:empty { display: none; }
+/* Map downloads (map-preload.js): a thin bar and a line of mono text under
+   the online count, only while something is loading (and briefly after). */
+.to-bo2-dl { display: none; margin-top: 8px; font: 12px "DM Mono", monospace; color: var(--bo2-soft); text-shadow: 0 1px 6px rgba(0,0,0,.9); }
+.to-bo2-dl.is-on { display: block; }
+.to-bo2-dl i { display: block; width: 220px; max-width: 60vw; height: 3px; margin-bottom: 6px; border-radius: 2px; background: linear-gradient(90deg, var(--bo2-hot) calc(var(--p, 0) * 100%), rgba(243,236,228,.18) 0); }
+.to-bo2-dl.is-done i { background: linear-gradient(90deg, var(--bo2-gold) calc(var(--p, 0) * 100%), rgba(243,236,228,.18) 0); }
 .to-bo2-back { display: none; align-items: center; gap: 8px; margin-top: 10px; padding: 0; border: 0; background: none; color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; cursor: pointer; }
 .to-bo2-back.is-on { display: flex; }
 .to-bo2-hints { display: flex; gap: 22px; margin-left: auto; margin-right: 56px; }

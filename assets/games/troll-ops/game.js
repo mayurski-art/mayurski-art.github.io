@@ -9,10 +9,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=cg1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=cg1";
-import { WeaponInspector } from "./inspector.js?v=cg1";
+import { WeaponInspector } from "./inspector.js?v=hb1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
-import { CharacterInspector } from "./char-inspector.js?v=cg1";
-import { Loadout } from "./loadout.js?v=pr1";
+import { CharacterInspector } from "./char-inspector.js?v=jn1";
+import { Loadout } from "./loadout.js?v=pr2";
 import { StreakPicker } from "./streak-picker.js?v=pr1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=pr1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -31,19 +31,20 @@ import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=pr1";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=pr1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
+import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=rp3";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-lk1";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-fx3";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-fx3";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=rp4";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-jn1";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=to-jn1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=to-jn1";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=vm1";
 import { BotManager } from "./bots.js?v=cg1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
-import { GameAudio } from "./audio.js?v=to-r100-zr3";
+import { GameAudio } from "./audio.js?v=to-hb1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=cg1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
@@ -52,22 +53,22 @@ import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1";
-import { ZombieDirector } from "./zombies.js?v=zr3";
+import { ZombieDirector } from "./zombies.js?v=zr4";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js?v=cg1";
-import { WaveSpawner } from "./enemies.js?v=to-ads2";
+import { WaveSpawner } from "./enemies.js?v=to-jn1";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-fx3";
-import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts2";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1";
+import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts3";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=cg1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
-import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=cos1";
+import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=cos2";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3";
@@ -4905,7 +4906,18 @@ function buildColliderDebugOverlay() {
 function loadMap(id) {
   if (id === loadedMapId) return;    // the lobby already put us in this one
   disposeMap(builtMap, scene);
-  builtMap = buildMap(id, { colliders, arena: ARENA });
+  // A map preloaded from the menu (map-preload.js) is adopted as built: its
+  // colliders and bounds are copied into the live arrays the movement
+  // controller holds, and nothing is rebuilt or re-downloaded.
+  const pre = mapPreload?.take(id);
+  if (pre) {
+    colliders.length = 0;
+    for (const c of pre.colliders) colliders.push(c);
+    Object.assign(ARENA, pre.arena);
+    builtMap = pre.built;
+  } else {
+    builtMap = buildMap(id, { colliders, arena: ARENA });
+  }
   builtMap.map.attachAudio?.(audio);
   scene.add(builtMap.root);
   spawnPoints = builtMap.spawnPoints;
@@ -4927,6 +4939,32 @@ function loadMap(id) {
     colliderDebugGroup = buildColliderDebugOverlay();
     builtMap.root.add(colliderDebugGroup);
   }
+  // Whatever was just built should be warm too (its shaders compile now,
+  // under the menu, not on the first frame of the match).
+  if (!pre) mapPreload?.noteLive(id);
+}
+
+// -------------------- map preloading --------------------
+// Automatic, no button (user): the map the lobby would play warms first,
+// then every other map in the background while you're in the menu. The
+// trollrunner.net home has usually prefetched their files already
+// (assets/js/tf-prefetch.js), so this is mostly GPU work. Phones only warm
+// the selected map: eight maps' textures is a lot of GPU memory for one.
+// menu-bo2.js shows the progress under the online count.
+const mapPreload = createMapPreloader({
+  renderer, scene, camera, buildMap, maps: MAPS, ids: MAP_IDS,
+  getLive: () => (builtMap ? { id: loadedMapId, root: builtMap.root } : null),
+  // Off-map builds wait for the menu: never compile behind a live match.
+  canRun: () => gameState === "menu",
+});
+window.__trollPreload = mapPreload;
+const PRELOAD_ALL_MAPS = !matchMedia("(pointer: coarse)").matches && !(navigator.deviceMemory && navigator.deviceMemory < 4);
+
+function kickMapPreload() {
+  if (gameState !== "menu") return;
+  const first = lobbyMapId();
+  mapPreload.preload(first);
+  if (PRELOAD_ALL_MAPS) mapPreload.preloadAll(MAP_IDS.filter((id) => id !== first));
 }
 
 // -------------------- lobby backdrop --------------------
@@ -7254,7 +7292,7 @@ function swingMelee() {
   if (isPvp() && net.active) net.publishMelee(player.melee.swingIndex % 2, player.melee.def.id);
   breakSpawnGuard();
   const kind = player.melee.def.model?.kind;
-  if (kind === "saber") audio.saberSwing();
+  if (kind === "saber" || kind === "halo") audio.saberSwing();
   else if (kind === "chainsaw") audio.chainsawRev();
   else if (kind === "reaper") audio.reaperSwing();
   else audio.swing();
@@ -7304,7 +7342,7 @@ function meleeConnect() {
         swing.normalize();
         if (theirs.dot(swing) > 0.35) mult = def.backstabMult;
       }
-      if (def.model?.kind === "saber") audio.saberHit();
+      if (def.model?.kind === "saber" || def.model?.kind === "halo") audio.saberHit();
       else if (def.model?.kind === "chainsaw") audio.chainsawHit();
       else audio.meleeHit();
       onBulletActorHit(actor, {
@@ -7340,6 +7378,9 @@ const _viewX = new THREE.Vector3(1, 0, 0);
 const _bladeG = new THREE.Vector3(), _bladeP = new THREE.Vector3();
 let saberFlick = 0;
 let saberWasShown = false;
+// The draw flourish when an energy blade (saber, halo) comes into the hand.
+const MELEE_DRAW_TIME = 0.5;
+let meleeDrawT = 0;
 let saberTrail = null;
 let saberSwingSpeed = 0;
 let saberHavePrevTip = false;
@@ -7463,6 +7504,8 @@ function updateRemoteSabers() {
       if (s.kind === "ignite") audio.saberIgnite(s.at);
       else if (s.kind === "retract") audio.saberRetract(s.at);
       else if (s.kind === "swing") audio.saberSwing(s.at);
+      else if (s.kind === "haloIgnite") audio.haloIgnite(s.at);
+      else if (s.kind === "haloRetract") audio.haloRetract(s.at);
     }
     rp.sfx.length = 0;
     if (!rp.saberOut || !rp.saber?.lit) continue;
@@ -12143,8 +12186,16 @@ function updateMeleeView(dt) {
     saber.snapOff();
     saberTrail?.clear();
     saberHavePrevTip = false;
-    if (mesh.visible) { saber.ignite(); audio.saberIgnite(); }
+    if (mesh.visible) { saber.ignite(); saber.flare(1.2); audio.saberIgnite(); meleeDrawT = MELEE_DRAW_TIME; }
     else { audio.saberHum(-1); audio.saberRetract(); }
+  }
+  // The Halo Blade: dark in the hand, its prongs unfold out of the hilt as
+  // it's drawn (halo-blade.js), and fold away when it's put up.
+  const halo = mesh.userData.halo;
+  if (halo && mesh.visible !== !!mesh.userData.wasShown) {
+    mesh.userData.wasShown = mesh.visible;
+    if (mesh.visible) { halo.snapOff(); halo.ignite(); audio.haloIgnite(); meleeDrawT = MELEE_DRAW_TIME; }
+    else { halo.retract(); audio.haloRetract(); }
   }
   // Only while the gun is what we hold: this used to re-show it every frame,
   // so it stayed on screen beside the streak tablet and marker.
@@ -12167,6 +12218,23 @@ function updateMeleeView(dt) {
     if (view.rot) mesh.quaternion.multiply(_meleeViewQ.setFromEuler(_meleeViewE.set(view.rot[0], view.rot[1], view.rot[2])));
   }
   mesh.scale.setScalar(view?.scale || 1);
+
+  // Drawing an energy blade: it comes up from low right, hilt first, turning
+  // into the guard while the blade lights — a flourish, not a pop-in. The
+  // arms follow the weapon, so they draw it too.
+  if (meleeDrawT > 0) {
+    meleeDrawT = Math.max(0, meleeDrawT - dt);
+    const k = 1 - meleeDrawT / MELEE_DRAW_TIME;
+    const e = 1 - Math.pow(1 - k, 3);              // ease out
+    const off = 1 - e;
+    mesh.position.x += off * 0.14;
+    mesh.position.y -= off * 0.34;
+    mesh.position.z += off * 0.08;
+    // Twist about the blade (roll) and tip it back, settling with a small
+    // overshoot right at the end.
+    const settle = Math.sin(k * Math.PI) * 0.12 * (k > 0.6 ? 1 : 0);
+    mesh.quaternion.multiply(_meleeViewQ.setFromEuler(_meleeViewE.set(off * -0.9 + settle, 0, off * 1.6)));
+  }
 
   if (saber) {
     // Guard up: blade across the body. A deflect knocks it back a touch.
@@ -13927,6 +13995,8 @@ applySettings();
 initEscapeMenu();
 initRadioWidget();
 loadMap(lobbyMapId());
+// Once the menu has settled, warm the rest of the maps in the background.
+setTimeout(kickMapPreload, 2500);
 els.loading.hidden = true;
 animate();
 
@@ -13934,7 +14004,7 @@ animate();
    with a row of trolls and reads every round against both the hitbox and
    the visible body (hitbox-lab.js). Loaded lazily, so play never fetches it. */
 if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]hitbox=1/.test(location.search)) {
-  import("./hitbox-lab.js?v=hl1").then(({ createHitboxLab }) => {
+  import("./hitbox-lab.js?v=hl2").then(({ createHitboxLab }) => {
     hitboxLab = createHitboxLab({
       scene, look, move, colliders: () => colliders, isRange, state: () => gameState, startGame,
       setMode: (id) => { modeId = id; modePicked = true; },

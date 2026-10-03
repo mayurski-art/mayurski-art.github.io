@@ -60,7 +60,7 @@ export function loadModel(name, mapping = PROP_RETEXTURE) {
   if (!cache.has(name)) {
     cache.set(name, loader.loadAsync(`${MODEL_BASE}${name}.glb`).then((gltf) => {
       const scene = gltf.scene;
-      scene.traverse((n) => { if (n.isMesh) n.castShadow = true; });
+      scene.traverse((n) => { if (n.isMesh) { n.castShadow = true; n.geometry.userData.shared = true; } });
       return scene;
     }));
   }
