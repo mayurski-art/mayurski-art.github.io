@@ -708,6 +708,9 @@ button.to-gear-chip { cursor: pointer; }
 .to-menu-range .to-btn { flex: 1; min-width: 120px; text-align: center; font-size: 13px; padding: 9px 16px; }
 .to-menu-range .to-btn:disabled { opacity: .45; cursor: default; }
 .to-menu-actions .to-btn { flex: 1; min-width: 120px; text-align: center; }
+/* Owner's Invincible toggle: a full-width line between Resume and the rest. */
+.to-menu-actions .to-menu-god { flex: 1 0 100%; box-sizing: border-box; margin: 0; padding: 8px 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; }
+.to-menu-actions .to-menu-god[hidden] { display: none; }
 
 .to-btn-danger {
   background: rgba(214,74,58,.16);
