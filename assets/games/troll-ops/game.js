@@ -33,7 +33,7 @@ import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, ge
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=rk1";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb2";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=rk1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
@@ -62,7 +62,8 @@ import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js?v=cg1";
 import { WaveSpawner } from "./enemies.js?v=hb4";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1";
-import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=ti1";
+import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
+import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts3";
 import { RangeSet } from "./range.js";
@@ -1423,15 +1424,192 @@ function streakBounds() {
   return builtMap?.map?.bounds || { minX: ARENA.minX, maxX: ARENA.maxX, minZ: ARENA.minZ, maxZ: ARENA.maxZ };
 }
 
-function spawnK9({ id, owned, team, ownerId, x, y, z, yaw = 0 }) {
+function spawnK9({ id, owned, team, ownerId, x, y, z, yaw = 0, count = undefined, duration = undefined }) {
   const pack = new K9Pack({
-    id, owned, team, ownerId, origin: new THREE.Vector3(x, y, z), yaw,
-    duration: STREAK_DEFS.k9.duration, world: { colliders, bounds: streakBounds() },
+    id, owned, team, ownerId, origin: new THREE.Vector3(x, y, z), yaw, count,
+    duration: duration || STREAK_DEFS.k9.duration, world: { colliders, bounds: streakBounds() },
   });
   streakEntities.set(id, pack);
   scene.add(pack.root);
   audio.wave();
   return pack;
+}
+
+/* ---------------- U Mad Bro? heroes (heroes.js) ----------------
+   The kit owns the rules; this is the world it acts on. Hits ride the
+   normal damage path (onBulletActorHit: credit, killfeed, the death
+   launch), and the shove rides heroFx: our own bots take it here, real
+   players and other hosts' bots get a net "fx" and apply it themselves. */
+const HUNTER_DOG_BITE = 12, HUNTER_PIN = 2, HUNTER_DOG_TIME = 7;
+let heroKit = null, footprintTrail = null, heroWasOn = false;
+
+function hero() {
+  return heroKit ||= new HeroKit({
+    move, look, audio,
+    hostiles: heroHostiles,
+    hit: heroHit,
+    spawnDog: spawnHunterDog,
+    word: (pos, text) => spawnComicWord(pos, false, text),
+    banner: (text) => showWaveBanner(text, 1200),
+    reEquip: heroReEquip,
+  });
+}
+function footprints() { return footprintTrail ||= new FootprintTrail(scene); }
+function heroActive() { return !!currentMode().funny; }
+
+function heroHostiles() {
+  const out = [];
+  for (const rp of remotes.byId.values()) if (rp.alive && !rp.dying) out.push({ id: rp.netId, pos: rp.pos });
+  return out;
+}
+
+function heroHit(id, dmg, push, from) {
+  const rp = remotes.byId.get(id);
+  if (!rp || !rp.alive) return;
+  const dir = push.clone().normalize();
+  onBulletActorHit(rp, {
+    damage: dmg, isHead: false, point: rp.pos.clone().setY(rp.pos.y + 1.1), dir,
+    creditAs: hero().def.melee, distance: from ? rp.pos.distanceTo(from) : 0,
+  });
+  heroFx(id, "fling", { dx: round2(push.x), dy: round2(push.y), dz: round2(push.z) });
+}
+
+function heroFx(id, kind, data) {
+  const b = bots.byId(id);
+  if (b) botFx(b, kind, data);
+  else if (id === net.id) applyHeroFx({ to: net.id, k: kind, ...data });
+  else if (net.active) net.publishFx(id, kind, data);
+}
+
+/* A shove on a bot we host: thrown up (its hop) and along, dazed a moment. */
+function botFx(b, kind, d) {
+  if (!b.alive) return;
+  if (kind === "fling") {
+    b.vel.set(+d.dx || 0, 0, +d.dz || 0);
+    b.hopV = Math.max(b.hopV, +d.dy || 0);
+    b.stun(0.8);
+  } else if (kind === "pin") b.stun(+d.s || HUNTER_PIN);
+}
+
+function applyHeroFx(m) {
+  if (!currentMode().funny) return;
+  if (m.to === net.id) {
+    if (!player.alive) return;
+    if (m.k === "fling") move.impulse(+m.dx || 0, +m.dy || 0, +m.dz || 0, 0.5);
+    else if (m.k === "pin") { hero().pin(+m.s || HUNTER_PIN); showWaveBanner("PINNED BY A DOGE", 1200); }
+    return;
+  }
+  const b = bots.byId(m.to);
+  if (b) botFx(b, m.k, m);
+}
+
+/* Hunter: one Doge, out of the K9 pack code, that pins its first bite. */
+function spawnHunterDog() {
+  if (!heroHostiles().length) return false;
+  const eid = `hero-dog-${net.id}-${Math.round(performance.now())}`;
+  const pack = spawnK9({ id: eid, owned: true, team: net.team, ownerId: net.id, x: move.pos.x, y: move.pos.y, z: move.pos.z, yaw: look.yaw, count: 1, duration: HUNTER_DOG_TIME });
+  pack.hunter = true;
+  if (net.active) {
+    net.publishStreak({ kind: "k9", action: "spawn", eid, team: net.team, n: 1, dur: HUNTER_DOG_TIME,
+      x: round2(move.pos.x), y: round2(move.pos.y), z: round2(move.pos.z), yaw: round2(look.yaw) });
+  }
+  return true;
+}
+
+/* Spawn (and the match start): the hero's health and movement perks. Out
+   of the mode, put everything back once. */
+function applyHeroLoadout() {
+  if (!currentMode().funny) {
+    if (heroWasOn) {
+      hero().off();
+      player.maxHp = 100;
+      player.hp = Math.min(player.hp, 100);
+      footprintTrail?.clear();
+      heroWasOn = false;
+    }
+    return;
+  }
+  heroWasOn = true;
+  hero().onSpawn();
+  player.maxHp = hero().maxHp();
+  player.hp = player.maxHp;
+}
+
+function heroMeleeDef() {
+  const k = hero();
+  const base = MELEE_DEFS[k.def.melee] || MELEE_DEFS.keyboard;
+  const mult = k.meleeMult();
+  return mult === 1 ? base : { ...base, damage: Math.round(base.damage * mult) };
+}
+
+/* The Metamorph turning (or turning back): new health, harder hits. */
+function heroReEquip() {
+  const k = hero();
+  player.maxHp = k.maxHp();
+  player.hp = k.brute ? player.maxHp : Math.min(player.hp, player.maxHp);
+  const def = heroMeleeDef();
+  const wasMelee = player.holding === "melee";
+  player.melee = new MeleeState(def);
+  setActiveMeleeMesh(def);
+  if (!wasMelee && activeMeleeMesh) activeMeleeMesh.visible = false;
+}
+
+function useHeroAbility() {
+  if (!currentMode().funny || gameState !== "playing" || !player.alive || isStaging()) return;
+  hero().tryAbility();
+}
+
+function updateHero(dt) {
+  footprintTrail?.update(dt);
+  const on = currentMode().funny && gameState === "playing";
+  if (on && player.alive) hero().update(dt);
+  heroHud(on);
+  // Phones: the gear row is hidden, so the streak button is the ability.
+  if (isTouch && els.touchStreak && on) {
+    els.touchStreak.hidden = !player.alive;
+    els.touchStreak.classList.toggle("is-hero-ready", hero().hud().ready);
+    els.touchStreak.setAttribute("aria-label", "Use hero ability");
+  }
+}
+
+/* The ability chip, first in the gear row: key, name, cooldown or meter. */
+let heroChip = null, heroChipKey = "";
+function heroHud(on) {
+  if (!heroChip) {
+    if (!on) return;
+    // A button: on a phone, tapping it is the ability.
+    heroChip = document.createElement("button");
+    heroChip.type = "button";
+    heroChip.tabIndex = -1;
+    heroChip.className = "to-gear-chip to-hero-chip";
+    heroChip.setAttribute("aria-label", "Use hero ability");
+    heroChip.innerHTML = `<kbd>${isTouch ? "" : "E"}</kbd><span></span><i></i><b aria-hidden="true"></b>`;
+    heroChip.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); useHeroAbility(); });
+    document.getElementById("to-hud-gear")?.prepend(heroChip);
+  }
+  heroChip.hidden = !on;
+  if (!on) return;
+  const h = hero().hud();
+  const key = `${h.name}|${h.label}|${h.ready}`;
+  if (key !== heroChipKey) {
+    heroChipKey = key;
+    heroChip.children[1].textContent = h.name;
+    heroChip.children[2].textContent = h.label;
+    heroChip.classList.toggle("is-ready", h.ready);
+  }
+  heroChip.lastChild.style.transform = `scaleX(${Math.max(0, Math.min(1, h.frac)).toFixed(3)})`;
+}
+
+/* Bots (we host) get a random hero: its health and speed, no abilities. */
+function assignBotHeroes() {
+  for (const b of bots.bots) {
+    if (b.hero) continue;
+    b.hero = randomHero();
+    const s = botStats(b.hero);
+    b.maxHp = s.maxHp;
+    b.speedMult = s.speedMult;
+    if (b.alive) b.hp = b.maxHp;
+  }
 }
 
 /* A pack that's hostile to us: shootable, and on our radar as a threat. */
@@ -1465,8 +1643,18 @@ function updateK9(id, pack, dt) {
     hostiles: () => k9Hostiles(pack),
     ownerPos: ownerBot ? (ownerBot.alive ? ownerBot.pos : null) : player.alive ? move.pos : null,
     onBite: (dog, targetId, dmg) => {
-      streakDamage(pack.botId, targetId, dmg, "k9");
       audio.bark?.(dog.pos);
+      if (pack.hunter) {
+        // U Mad Bro? Hunter's Doge: one bite pins them, then it trots off.
+        if (pack.pinned) return;
+        pack.pinned = true;
+        streakDamage(pack.botId, targetId, HUNTER_DOG_BITE, "k9");
+        heroFx(targetId, "pin", { s: HUNTER_PIN });
+        spawnComicWord(dog.pos, false, "PINNED!");
+        pack.duration = pack.age + HUNTER_PIN + 0.3;
+        return;
+      }
+      streakDamage(pack.botId, targetId, dmg, "k9");
     },
   });
   if (net.active && pack.snapT <= 0) {
@@ -1475,7 +1663,7 @@ function updateK9(id, pack, dt) {
   }
   if (out === "expire") {
     if (net.active) net.publishStreak({ kind: "k9", action: "end", eid: id });
-    if (!pack.botId) showWaveBanner("K9 UNIT CALLED OFF", 1400);
+    if (!pack.botId && !pack.hunter) showWaveBanner("K9 UNIT CALLED OFF", 1400);
     pack.dispose();
     streakEntities.delete(id);
   }
@@ -3136,9 +3324,9 @@ function applyRemoteStreak(m) {
     case "k9": {
       let pack = streakEntities.get(m.eid);
       if (m.action === "spawn" && !pack) {
-        spawnK9({ id: m.eid, owned: false, team: m.team, ownerId: m.id, x: m.x, y: m.y, z: m.z, yaw: m.yaw || 0 });
+        spawnK9({ id: m.eid, owned: false, team: m.team, ownerId: m.id, x: m.x, y: m.y, z: m.z, yaw: m.yaw || 0, count: m.n || undefined, duration: m.dur || undefined });
         audio.whistle({ x: m.x, y: (m.y || 0) + 1.6, z: m.z });   // the handler calling them in
-        if (currentMode().ffa || !net.team || m.team !== net.team) showWaveBanner("ENEMY K9 UNIT — WATCH YOUR BACK", 1800);
+        if (!m.n && (currentMode().ffa || !net.team || m.team !== net.team)) showWaveBanner("ENEMY K9 UNIT — WATCH YOUR BACK", 1800);
       } else if (m.action === "pos") {
         if (!pack && Array.isArray(m.d)) {
           // Joined mid-pack: start the copy from the first dog we're told about.
@@ -3712,6 +3900,7 @@ function updateEnemySteps(dt) {
 
     if (t.dist >= STEP_STRIDE) {
       t.dist -= STEP_STRIDE;
+      if (heroActive() && hero().id === "hunter" && player.alive) footprints().drop(s.pos, look.yaw);
       const range = s.pos.distanceTo(player.pos);
       if (range < STEP_HEARING) {
         // Louder than your own steps: these are the ones worth hearing.
@@ -4212,6 +4401,38 @@ function setNetStatus(text, state = "") {
 
 buildModeButtons();
 
+/* U Mad Bro? hero picker. Hidden buttons the BO2 menu reads and clicks
+   (menu-bo2.js "heroes" screen), like every other lobby list. The pick is
+   saved (heroes.js) and used from the next spawn. */
+function buildHeroButtons() {
+  const box = document.createElement("div");
+  box.id = "to-lo-heroes";
+  box.hidden = true;
+  for (const id of HERO_IDS) {
+    const h = HEROES[id];
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "to-lo-hero";
+    b.dataset.hero = id;
+    b.title = `${h.blurb} ${h.hp} HP, ${Math.round(h.speed * 100)}% speed. Passive: ${h.passive}.`;
+    b.innerHTML = `<strong></strong>`;
+    b.firstChild.textContent = h.name;
+    // heroKit is built lazily (it needs move/look, declared further down).
+    b.addEventListener("click", () => { if (heroKit) heroKit.setHero(id); else saveHero(id); renderHeroButtons(); });
+    box.appendChild(b);
+  }
+  els.loMode.parentElement.appendChild(box);
+  renderHeroButtons();
+}
+function renderHeroButtons() {
+  for (const b of document.querySelectorAll("#to-lo-heroes .to-lo-hero")) {
+    const on = b.dataset.hero === (heroKit ? heroKit.id : savedHero());
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-pressed", String(on));
+  }
+}
+buildHeroButtons();
+
 els.newRoom.addEventListener("click", () => {
   els.room.value = makeRoomCode();
   roomIsCustom = true;   // an explicit fresh code means "private room", not quickplay
@@ -4281,6 +4502,7 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
   if (iKilled) {
     player.kills++;
     player.streak++;
+    if (mode.funny) hero().onKill();
     if (opts.head) player.headshots++;
     audio.kill();
     els.hudKills.textContent = String(player.kills);
@@ -4533,6 +4755,7 @@ const net = new Net({
   onStreak: (m) => applyRemoteStreak(m),
   onDuo: (p, m) => onDuoMessage(p, m),
   onInfect: (m) => applyInfect(m.ids || []),
+  onFx: (m) => applyHeroFx(m),
   onNade: (m) => applyRemoteNade(m),
   onDeflect: (p, m) => onRemoteDeflect(p, m),
   onLoot: (p, m) => onRoyaleLoot(p, m),
@@ -5766,6 +5989,7 @@ window.addEventListener("keydown", (e) => {
     }
     if (e.code === "KeyT" && !e.repeat) startInspect();
     if (e.code === "KeyV" && !e.repeat) swingMelee();
+    if (e.code === "KeyE" && !e.repeat) useHeroAbility();
     if (e.code === "KeyB" && !e.repeat) toggleThirdPerson();
     if (e.code === "Digit1") switchWeapon("primary");
     if (e.code === "Digit2") switchWeapon("secondary");
@@ -6063,7 +6287,7 @@ els.touchAdmire?.addEventListener("touchstart", (e) => { e.preventDefault(); sta
 // same way the key and the d-pad do.
 if (els.touchEndStreak) bindHold(els.touchEndStreak, () => { touchState.endStreak = true; }, () => { touchState.endStreak = false; });
 if (els.touchStreak) {
-  els.touchStreak.addEventListener("touchstart", (e) => { e.preventDefault(); callReadyStreak(); });
+  els.touchStreak.addEventListener("touchstart", (e) => { e.preventDefault(); if (heroActive()) useHeroAbility(); else callReadyStreak(); });
 }
 // Emotes on touch: tap to open the wheel (its slices are plain buttons
 // without pointer lock), tap a slice to play it, tap EMOTE again to shut it.
@@ -6386,7 +6610,7 @@ function pollGamepad(dt) {
     // D-pad down cycles which ready streak d-pad right will fire — a pick,
     // not a use, since the pad has a button to spare for it and keyboard's
     // single-button "4" doesn't need one.
-    if (pressedEdge(13)) cycleSelectedStreak();
+    if (pressedEdge(13)) { if (heroActive()) useHeroAbility(); else cycleSelectedStreak(); }
     // D-pad right is context-dependent, the same way holding X already is:
     // over a dropped weapon or a landed package, hold it to pick up/open —
     // otherwise it fires whichever streak is currently selected. Checked
@@ -6567,11 +6791,11 @@ function spawnDamageNumber(damage, point, isCrit, text = null) {
 const COMIC_WORD_LIFE = 1.4;
 const COMIC_WORDS = ["BONK!", "POW!", "OOF!", "YEET!", "WHAM!", "GG!", "BOING!", "SPLAT!", "KAPOW!", "RIP"];
 const COMIC_HEAD_WORDS = ["NO SCOPE!", "HEADSHOT!", "CRITICAL!", "BOOM!"];
-function spawnComicWord(point, head = false) {
+function spawnComicWord(point, head = false, text = null) {
   const words = head ? COMIC_HEAD_WORDS : COMIC_WORDS;
   const el = document.createElement("span");
   el.className = "to-dmg-num is-comic";
-  el.textContent = words[Math.floor(Math.random() * words.length)];
+  el.textContent = text || words[Math.floor(Math.random() * words.length)];
   els.damageNumbers.appendChild(el);
   damageNumbers.push({
     el, pos: point.clone().setY(point.y + 1.5), life: COMIC_WORD_LIFE, max: COMIC_WORD_LIFE,
@@ -6706,7 +6930,8 @@ function updateStreakHud() {
   if (els.touchStreak) {
     // Touch calls a streak by tapping its row; this button is only the
     // big "drop it here" confirm while one is being marked.
-    els.touchStreak.hidden = !isTouch || !on || !markingStreak;
+    // U Mad Bro? has no streaks: the button is the hero ability (updateHero).
+    if (!heroActive()) els.touchStreak.hidden = !isTouch || !on || !markingStreak;
   }
   if (!on) return;
 
@@ -6921,6 +7146,7 @@ function onBulletActorHit(actor, info) {
   // Remote players own their own health: we report the hit and they apply it.
   if (actor.netId) {
     noteDealt(actor.netId, info.damage);
+    if (heroActive()) hero().onDealt(info.damage);
     // Our own bots never hear our broadcasts, so resolve those locally.
     const shotWith = info.creditAs || currentWeapon().def.id;
     let killedNow = false;
@@ -7959,6 +8185,7 @@ function netSnapshot() {
   _netSnapshot.level = getLevel();
   _netSnapshot.prestige = getPrestige();
   _netSnapshot.owner = isOwner();
+  _netSnapshot.hero = heroActive() ? hero().wireId() : null;
   _netSnapshot.swivel = swivel.seq ? swivel.seq * (swivel.dir || swivel.lastDir || 1) : 0;
   return _netSnapshot;
 }
@@ -9643,8 +9870,9 @@ function equipFromLoadout() {
   } else {
     player.secondaryId = null;
   }
-  player.melee = new MeleeState(loadout.melee);
-  setActiveMeleeMesh(loadout.melee);
+  const meleeDef = heroActive() ? heroMeleeDef() : loadout.melee;
+  player.melee = new MeleeState(meleeDef);
+  setActiveMeleeMesh(meleeDef);
   currentWeaponSlot = "primary";
   player.holding = "gun";
   if (activeMeleeMesh) activeMeleeMesh.visible = false;
@@ -9901,6 +10129,8 @@ function beginMatch(mapId = null) {
   gunGameProgress = 0;
   hillAcc = 0;
   resetInfection();
+  // After that reset: it reads a 150 max as "was infected" (the Knight's 150 too).
+  applyHeroLoadout();
 
   spawnDeaths.clear();
   // Spawn protection starts when the countdown ends, not when the map loads —
@@ -10714,6 +10944,7 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
     }
   }
 
+  if (heroActive()) amount = hero().incoming(amount, fromPos || remotes.byId.get(fromId)?.pos || null);
   player.hp = Math.max(0, player.hp - amount);
   player.lastHurtAt = performance.now();
   noteDamage(fromId, amount, weaponId, isHead);
@@ -11069,6 +11300,7 @@ function respawnPlayer() {
   player.hp = player.maxHp;
   player.alive = true;
   player.spawnGuard = SPAWN_GUARD;
+  applyHeroLoadout();
   setActiveWeaponMesh(equipFromLoadout());
   applyInfectionLoadout();
   els.respawn.hidden = true;
@@ -11343,6 +11575,7 @@ function animate() {
         bots.fill(noBotsRoom() ? 0 : botTarget(), humans, botSpawn, ffa || isInfection(), isInfection() ? null : teams);
         net.botCount = bots.bots.length;
         if (isInfection()) sortInfectionBots();
+        if (currentMode().funny) assignBotHeroes();
         bots.update(dt, {
           colliders, arena: ARENA, ffa,
           targets: botTargets(),
@@ -11514,6 +11747,7 @@ function animate() {
     impactPass.uniforms.uSuppress.value = suppressT;
     updateUavState();
     updateStreakEntities(dt);
+    updateHero(dt);
     drawMinimap();
 
     // fov kick based on sprint/ads
@@ -11986,7 +12220,7 @@ function updatePlayer(dt) {
     dive: !frozen && ((isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight")),
     yaw: rolling ? royale.rollYaw : look.yaw,
     adsHeld: wantAds,
-    speedMult: w.moveSpeedMult * (isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1),
+    speedMult: w.moveSpeedMult * (isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1) * (heroActive() ? hero().speedMult() : 1),
     // Troll Royale is a 400 m island: sprinting covers it 25% faster.
     sprintMult: (w.def.sprintMult || 1.35) * (isRoyale() ? 1.25 : 1),
     inertia: w.def.inertia,
@@ -14109,6 +14343,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     startInspect, inspectT: () => inspectT, inspectPose, setInspectFreeze: (v) => { inspectFreeze = v; },
     showHitmarker, damageNumbers: () => damageNumbers, noteHitDirection, hitDirs,
     setMode: (id) => { modeId = id; modePicked = true; },
+    hero: () => hero(), heroHostiles, applyHeroFx, useHeroAbility,
     zdir: () => zdir,
     loadedMapId: () => loadedMapId,
     THREE,

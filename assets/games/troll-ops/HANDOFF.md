@@ -737,6 +737,31 @@ be ordered with the user (design doc first for the big ones):
      (`.to-kf-weapon.is-joke`). Verified in the browser with ?tohooks=1.
      Known/pre-existing: FFA modes (also OITC/Gun Game) still show the
      Trolls/Jeets team score bar. Next: phase 2, hero pick + kits.
+   - **PHASE 2 SHIPPED (2026-10-03)** (`game.js?v=to-umb2`; heroes.js,
+     movement.js, net.js `?v=umb2`). heroes.js: HEROES data + `HeroKit`
+     (rules) + `FootprintTrail`; game.js "U Mad Bro? heroes" block (after
+     spawnK9) is the world side: heroHostiles/heroHit/heroFx/botFx/
+     applyHeroFx, spawnHunterDog (a 1-dog K9Pack, `pack.hunter`, pins on
+     first bite), applyHeroLoadout (spawn + beginMatch AFTER
+     resetInfection: it reads maxHp 150 as "was infected", same as the
+     Knight), heroMeleeDef, heroReEquip, updateHero, heroHud (chip prepended
+     to #to-hud-gear; phones use #to-touch-streak since the gear row is
+     hidden there), assignBotHeroes (bots: random hero, HP + speed only, NO
+     abilities yet). movement.js: maxAirJumps/airJumpsLeft, glide (hold
+     jump, fall capped 2.6 m/s), `impulse(vx,vy,vz,t)` skips steering for t.
+     net.js: `t:"fx"` (publishFx(to, kind, data); kinds fling {dx,dy,dz},
+     pin {s}) applied by the target's own client or the bot host, and `hr`
+     (hero id, "!" suffix = Metamorph brute) in player + bot state, not yet
+     rendered by anyone (phase 3 bodies). Key: **E** (Q is ADS, the doc's Q
+     was wrong), pad d-pad down, touch = streak button. Hero pick: hidden
+     `#to-lo-heroes` buttons, BO2 menu "Hero" row under the modes when
+     U Mad Bro? is picked (`heroes` optionScreen), saved in
+     localStorage `trollops:hero`. Melee are STAND-INS (knight keyboard
+     x1.3, hunter reaper, super trollsaber, metamorph halo; brute x2).
+     Verified in browser: charge 9 m + fling, slam POW 3 bots, Doge pin,
+     brute 200 HP/x2 melee and back, fx fling/pin, TDM unaffected. Not
+     verified with two real humans (fx over the wire). Next: phase 3, the
+     four real bodies (with build timelapses, below).
    - **REQUIRED for every character model (user, 2026-10-03): a timelapse
      video of Claude building it.** Not a turntable of the finished model:
      the build itself. Every time the builder script runs (each iteration,

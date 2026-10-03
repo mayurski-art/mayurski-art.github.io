@@ -20,6 +20,7 @@ const STANCE_SPEED = { stand: 1, crouch: 0.48, slide: 1, prone: 0.22, vault: 0 }
 const WALK_SPEED = 5.2;
 const GRAVITY = 22;
 const JUMP_SPEED = 7.0;
+const GLIDE_FALL = 2.6;   // m/s: Super Troll's slow fall with jump held
 const RADIUS = 0.35;
 const STEP_UP = 0.36;        // ledges at or below this are walked over, not blocked
 
@@ -116,6 +117,21 @@ export class MovementController {
     this._prevJump = false;
     this._prevCrouch = false;
     this._prevDive = false;
+
+    // U Mad Bro? heroes (game.js sets these per hero; 0/false = normal):
+    // extra jumps in the air, a slow fall while jump is held, and a
+    // knockback/dash impulse that steering can't fight for `impulseT` s.
+    this.maxAirJumps = 0;
+    this.airJumpsLeft = 0;
+    this.glide = false;
+    this.impulseT = 0;
+  }
+
+  /* Launch: set the velocity outright and hold off steering for `t` s. */
+  impulse(vx, vy, vz, t = 0.35) {
+    this.velocity.set(vx, vy, vz);
+    if (vy > 0) { this.grounded = false; this.jumping = true; }
+    this.impulseT = Math.max(this.impulseT, t);
   }
 
   /* `y` is the floor to stand on — multi-storey maps spawn above ground. */
@@ -124,7 +140,7 @@ export class MovementController {
     this.velocity.set(0, 0, 0);
     this.stance = STANCE.STAND;
     this.eyeHeight = EYE.stand;
-    this.slideT = this.slideCd = this.diveT = 0;
+    this.slideT = this.slideCd = this.diveT = this.impulseT = 0;
     this.vault = null;
     this.grounded = true;
   }
@@ -180,6 +196,7 @@ export class MovementController {
     const { yaw, speedMult = 1 } = input;
 
     this.slideCd = Math.max(0, this.slideCd - dt);
+    if (this.impulseT > 0) this.impulseT = Math.max(0, this.impulseT - dt);
     if (this.diveT > 0) this.diveT = Math.max(0, this.diveT - dt);
 
     // ---- vault runs to completion, ignoring normal physics
@@ -284,6 +301,10 @@ export class MovementController {
           this.jumping = true;
           if (this.stance === STANCE.SLIDE) { this.stance = STANCE.STAND; this.slideCd = this.tuning.SLIDE_COOLDOWN; }
         }
+      } else if (this.airJumpsLeft > 0) {
+        this.airJumpsLeft--;
+        this.velocity.y = this.tuning.JUMP_SPEED;
+        this.jumping = true;
       }
     }
 
@@ -293,7 +314,7 @@ export class MovementController {
     const target = this.tuning.WALK_SPEED * stanceMult * sprintMult * speedMult;
     const inertia = input.inertia || 9;
 
-    if (this.stance !== STANCE.SLIDE) {
+    if (this.stance !== STANCE.SLIDE && this.impulseT <= 0) {
       if (this.moving) {
         const nx = ix / inputLen, nz = iz / inputLen;
         const moveDir = new THREE.Vector3()
@@ -311,6 +332,7 @@ export class MovementController {
 
     // ---- integrate
     this.velocity.y -= this.tuning.GRAVITY * dt;
+    if (this.glide && input.jump && !this.grounded && this.velocity.y < -GLIDE_FALL) this.velocity.y = -GLIDE_FALL;
     this.pos.x += this.velocity.x * dt;
     this.pos.z += this.velocity.z * dt;
     this.pos.y += this.velocity.y * dt;
@@ -337,6 +359,7 @@ export class MovementController {
       }
       this.grounded = true;
       this.jumping = false;
+      this.airJumpsLeft = this.maxAirJumps;
       if (wasFalling && this.stance === STANCE.SLIDE) this.stance = STANCE.CROUCH;
     } else {
       this.grounded = false;

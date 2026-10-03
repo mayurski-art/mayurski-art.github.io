@@ -103,6 +103,12 @@ function ensureGroup(group, fallback) {
   if (!cur || !modeButtons(group).includes(cur)) $(`#to-lo-mode [data-mode="${fallback}"]`)?.click();
 }
 const startBtn = () => $("#to-start-btn");
+/* U Mad Bro?: a Hero row under the modes while that mode is picked. */
+const heroRow = () => {
+  if (currentModeBtn()?.dataset.mode !== "umb") return null;
+  const hb = $("#to-lo-heroes .to-lo-hero.is-active");
+  return { id: "hero", label: "Hero", value: hb ? strongOf(hb) : "", go: "heroes", desc: hb?.title || "Pick who you play." };
+};
 const mapRow = () => ({
   id: "map", label: "Map", value: mapName(), go: mapForced() ? null : "maps",
   disabled: mapForced(), desc: mapForced() ? "This mode always plays its own map." : text($("#to-pf-mapcard-blurb")) || "Pick where you drop.",
@@ -231,7 +237,7 @@ const screens = {
   public: () => ({
     title: "Public Match", panel: "deploy",
     enter: () => { ensureGroup("versus", "tdm"); const r = $("#to-room"); if (r && r.value) { r.value = ""; r.dispatchEvent(new Event("input", { bubbles: true })); } },
-    groups: [modeItems("versus"), [mapRow()], [deployRow("Find Match", "Join the public room for this mode."), back("Back to the main menu.")]],
+    groups: [modeItems("versus"), [heroRow(), mapRow()].filter(Boolean), [deployRow("Find Match", "Join the public room for this mode."), back("Back to the main menu.")]],
   }),
   solo: () => ({
     title: "Solo Play", panel: "deploy",
@@ -243,7 +249,7 @@ const screens = {
     enter: () => ensureGroup("versus", "tdm"),
     groups: [
       modeItems("versus"),
-      [{ id: "room", label: "Room", value: $("#to-room")?.value || "Auto", desc: "Room code, bots and who's in.", go: "room" }, mapRow()],
+      [heroRow(), { id: "room", label: "Room", value: $("#to-room")?.value || "Auto", desc: "Room code, bots and who's in.", go: "room" }, mapRow()].filter(Boolean),
       [deployRow("Start", "Open the room. Friends join with your code."), back("Back to the main menu.")],
     ],
   }),
@@ -359,6 +365,7 @@ const screens = {
       ],
     };
   },
+  heroes: () => optionScreen("Hero", $$("#to-lo-heroes .to-lo-hero")),
   faces: () => optionScreen("Face", $$("#to-cos-body .to-cos-face"), { descOf: () => "Everyone in the match sees it." }),
   tints: () => optionScreen("Face colour", $$("#to-cos-body .to-cos-tint"), { descOf: (b) => `${b.title} skin.` }),
   leaders: { title: "Leaderboards", panel: "deploy", detail: true, lb: true, groups: [[back("Back to the main menu.")]] },

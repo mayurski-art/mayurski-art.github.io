@@ -289,6 +289,7 @@ export class Net {
         p.prestige = m.pg | 0;
         p.owner = !!m.ow;
         p.swivel = m.sv | 0;
+        p.hero = m.hr || null;
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
@@ -376,6 +377,13 @@ export class Net {
         this.h.onInfect?.(m);
         break;
       }
+      /* U Mad Bro? hero effects (fling, pin, slam): sent to one target id.
+         The target's own client applies it to itself, or the bot host to
+         its bot, the same split as hits. */
+      case "fx": {
+        this.h.onFx?.(m);
+        break;
+      }
       /* Match chat (chat.js). Nothing is stored: only whoever is in the
          room right now sees it. Team chat is filtered by the receiver. */
       case "chat": {
@@ -424,6 +432,7 @@ export class Net {
         fc: local.face && local.face !== "grin:og" ? local.face : undefined,   // cosmetics.js face
         sv: local.swivel || undefined,   // swivel: side (sign) * count, a new count = a new spin
         lv: local.level || undefined, pg: local.prestige || undefined, ow: local.owner ? 1 : undefined,   // rank
+        hr: local.hero || undefined,   // U Mad Bro? hero id (+ "!" while the Metamorph is the brute)
       });
     }
     const now = performance.now();
@@ -507,6 +516,7 @@ export class Net {
       dr: bot.dropCode || undefined,
       bs: Math.max(0, BOT_SKILLS.indexOf(bot.skill)),
       lv: botLevel(bot.id),
+      hr: bot.hero || undefined,
     });
   }
 
@@ -626,6 +636,11 @@ export class Net {
 
   publishLoot(payload) {
     this.send({ t: "loot", id: this.id, ...payload });
+  }
+
+  /* kind "fling": { dx, dy, dz } velocity · "pin": { s } seconds. */
+  publishFx(targetId, kind, data = {}) {
+    this.send({ t: "fx", id: this.id, to: targetId, k: kind, ...data });
   }
 
   publishDeflect(byId, weaponId) {

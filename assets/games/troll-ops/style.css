@@ -3245,3 +3245,16 @@ body.is-map .to-bo2-hints { visibility: hidden; }
 /* Your own rank: icon in front of the level (loadout strip, BO2 party row). */
 .has-rank-icon { display: inline-flex; align-items: center; gap: 5px; }
 .has-rank-icon > svg { flex: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+
+/* U Mad Bro? hero ability chip (game.js heroHud): key, ability name,
+   cooldown/meter, and a fill bar along the bottom. Bright when ready. */
+.to-gear-chip.to-hero-chip { position: relative; overflow: hidden; pointer-events: auto; cursor: pointer; }
+.to-hero-chip kbd { font-family: "DM Mono", monospace; font-size: 9px; color: #0d1210; background: #b6ff3c; border-radius: 3px; padding: 0 4px; }
+.to-hero-chip kbd:empty { display: none; }
+.to-gear-chip.to-hero-chip b {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 2px; padding: 0; border-radius: 0;
+  background: #b6ff3c; transform-origin: 0 50%;
+}
+.to-gear-chip.to-hero-chip.is-ready { opacity: 1; border-color: #b6ff3c; background: rgba(182,255,60,.16); }
+.to-gear-chip.to-hero-chip.is-ready i { color: #b6ff3c; }
+.to-touch-streak.is-hero-ready { box-shadow: 0 0 0 2px #b6ff3c; }
