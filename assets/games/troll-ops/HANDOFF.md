@@ -694,6 +694,22 @@ be ordered with the user (design doc first for the big ones):
      chrome-white ripped body, sparkling diamond gauntlet on the RIGHT hand
      (fist forward), black briefs, neon-green "U MAD BRO?" waistband + green
      piping, misty dark backdrop.
+   **Direction (2026-10-03, user):** these characters are for "a funny mod
+   game mode", "with funny characters and funny weapons" (Garry's Mod
+   energy; existing guns are all realistic, this mode gets the joke ones).
+   Brainstorm so far, NOT approved, design doc still to write:
+   - Heroes: Knight (keyboard greatsword charge), Hunter (spear + Doge pins
+     a target), Super Troll (flight / superhero-landing slam), Metamorph
+     (weak fast Pepe, kills fill a meter -> chrome brute). Trollernaut = the
+     mode's pointstreak (diamond-gauntlet punches launch people).
+   - Weapons pitched: RGB Keyboard Greatsword (insults float up), Rubber
+     Chicken, Ban Hammer (fake BANNED death screen), Copium Launcher,
+     Ratio Rifle, Doge Cannon, Dial-Up Shotgun, Trollface Boomerang,
+     Diamond Gauntlet, and the user's own: **Reverse Uno card** (reflects
+     incoming damage/projectiles back at the shooter for a short window).
+   - Tone: ragdolls, comic-book kill text, meme sounds, joke killfeed icons.
+   - Open: standalone FFA first vs the L4D zombies idea; is the L4D mode a
+     funny co-op version of this one?
 8b. ~~Grin Beach palms (user: "could use some work, more realistic")~~ DONE
    (`game.js?v=to-pm1`, `maps.js?v=dr2`): map-dressing.js `palmTrees(root,
    spots)`: leaning tapered ringed trunks (vertex colours are LINEAR, keep
