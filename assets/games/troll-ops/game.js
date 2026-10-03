@@ -13909,6 +13909,69 @@ loadMap(lobbyMapId());
 els.loading.hidden = true;
 animate();
 
+/* Hitbox tuner, localhost only, behind ?hitbox=1 (user: trolls' hitboxes
+   don't feel big enough; tune it by feel before baking numbers into
+   character.js). Draws every hit proxy as a wireframe and scales them live:
+   head as a whole, body and limbs in thickness only, so a limb doesn't grow
+   past its joint. Zombie proxies are hit proxies too and scale with it.
+   Settings stick in localStorage so a reload keeps the trial values. */
+if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]hitbox=1/.test(location.search)) {
+  const KEY = "trollops:hitboxTune";
+  const tune = { head: 1, body: 1, limbs: 1, show: true };
+  try { Object.assign(tune, JSON.parse(localStorage.getItem(KEY)) || {}); } catch { /* fresh */ }
+  const wire = {
+    head: new THREE.MeshBasicMaterial({ color: 0xff3355, wireframe: true, depthTest: false, transparent: true, opacity: 0.8 }),
+    body: new THREE.MeshBasicMaterial({ color: 0x33ff88, wireframe: true, depthTest: false, transparent: true, opacity: 0.6 }),
+    limbs: new THREE.MeshBasicMaterial({ color: 0x33aaff, wireframe: true, depthTest: false, transparent: true, opacity: 0.6 }),
+  };
+  const partOf = (m) => {
+    if (m.userData.isHead) return "head";
+    const r = m.geometry.parameters?.radius ?? 0;
+    return m.geometry.type === "SphereGeometry" || r > 0.11 ? "body" : "limbs";
+  };
+  const apply = () => {
+    scene.traverse((m) => {
+      if (!m.userData.isHitProxy) return;
+      const part = m.userData.hitPart ||= partOf(m);
+      m.userData.hitMat ||= m.material;
+      const f = tune[part];
+      if (part === "head" || m.geometry.type === "SphereGeometry") m.scale.setScalar(f);
+      else m.scale.set(f, 1, f);
+      m.visible = tune.show;
+      m.material = tune.show ? wire[part] : m.userData.hitMat;
+    });
+  };
+  const panel = document.createElement("div");
+  panel.style.cssText = "position:fixed;top:250px;left:12px;z-index:99999;background:rgba(10,10,12,.88);color:#fff;font:12px/1.4 'DM Mono',monospace;padding:10px 12px;border-radius:10px;border:0.5px solid rgba(255,255,255,.2);width:230px";
+  const row = (k, label) => `<label style="display:grid;grid-template-columns:52px 1fr 38px;gap:6px;align-items:center;margin:4px 0">${label}<input type="range" min="0.5" max="3" step="0.05" data-k="${k}" value="${tune[k]}"><output data-o="${k}">${tune[k]}x</output></label>`;
+  panel.innerHTML = `<b>Hitbox tuner</b> <small style="opacity:.6">localhost</small>`
+    + row("head", "Head") + row("body", "Body") + row("limbs", "Limbs")
+    + `<label style="display:flex;gap:6px;margin:6px 0"><input type="checkbox" data-k="show" ${tune.show ? "checked" : ""}>Show hitboxes</label>`
+    + `<button type="button" data-reset style="font:inherit">Reset to 1x</button>`;
+  document.body.append(panel);
+  panel.addEventListener("input", (e) => {
+    const k = e.target.dataset.k;
+    if (!k) return;
+    tune[k] = e.target.type === "checkbox" ? e.target.checked : Number(e.target.value);
+    const o = panel.querySelector(`[data-o="${k}"]`);
+    if (o) o.textContent = `${tune[k]}x`;
+    try { localStorage.setItem(KEY, JSON.stringify(tune)); } catch { /* private mode */ }
+    apply();
+  });
+  panel.querySelector("[data-reset]").addEventListener("click", () => {
+    Object.assign(tune, { head: 1, body: 1, limbs: 1 });
+    for (const k of ["head", "body", "limbs"]) {
+      panel.querySelector(`[data-k="${k}"]`).value = 1;
+      panel.querySelector(`[data-o="${k}"]`).textContent = "1x";
+    }
+    try { localStorage.setItem(KEY, JSON.stringify(tune)); } catch { /* private mode */ }
+    apply();
+  });
+  // Bots and players respawn with fresh proxies, so keep re-applying.
+  setInterval(apply, 400);
+  apply();
+}
+
 /* Test hook. This file is a module, so nothing above is reachable from a
    headless harness by bare identifier the way the main site's inline script
    is. Behind ?tohooks=1 so normal play never exposes it. */

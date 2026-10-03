@@ -3157,6 +3157,18 @@ body.is-map .to-bo2-hints { visibility: hidden; }
 #to-title.is-bo2:not([hidden]) ~ .to-radio .to-radio-panel { bottom: auto; top: 48px; }
 .to-bo2-hints { margin-right: 0 !important; }
 
+/* Tablet widths: the 560px detail column left the panel ~160px wide at
+   768, wrapping its text a word a line. Pull the list in and give the
+   detail pane the rest. */
+@container cab (min-width: 761px) and (max-width: 980px) {
+  .to-bo2, #to-title.is-bo2 .to-pf { --bo2-col: 404px; }
+  .to-bo2-brand { left: 40px; }
+  .to-bo2-menu { left: 40px; width: 340px; }
+  .to-bo2-menu .tr-menu-title { font-size: 36px; }
+  .to-bo2-detail, .to-bo2-panel, #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { right: 24px; }
+  .to-bo2-foot { left: 40px; right: 24px; }
+}
+
 @container cab (max-width: 760px) {
   .to-bo2 { --bo2-col: 12px; }
   .to-bo2-brand { left: 20px; top: 16px; font-size: 18px; }
