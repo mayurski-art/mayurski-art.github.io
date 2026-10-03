@@ -655,8 +655,7 @@ be ordered with the user (design doc first for the big ones):
 4. **Pointstreaks**, a new kind of streak. First one: **Trollernaut**, the
    player turns into a giant troll monster: 10 s invincible, then 3x health
    but 0.75x movement speed.
-   Look (user's reference, memedepot image, scratchpad trollernaut-ref.jpg,
-   never shipped): a giant, ripped, glossy-white trollface body, a
+   Look (user's reference, memedepot image, refs/trollernaut-ref.jpg): a giant, ripped, glossy-white trollface body, a
    diamond-encrusted gauntlet (Infinity-Gauntlet style, sparkling) on the
    right hand, black briefs with a neon-green "U MAD BRO?" waistband and
    green piping. The user ALSO shared a knight (muscular trollface in dark
@@ -678,6 +677,23 @@ be ordered with the user (design doc first for the big ones):
    white wisps, green-black background with a light shaft. For a **Left 4
    Dead-style zombies mode** (the user's idea; design doc first: co-op
    campaign, specials, where the metamorph fits).
+   **Roster update (2026-10-03):** the user re-sent the refs and now names
+   FOUR characters, plus the Trollernaut as a pointstreak (separate). All in
+   `assets/games/troll-ops/refs/` (local only, never committed):
+   - **Troll Knight** `knight-ref.jpg`: muscular trollface, dark plate,
+     blue cape, trollface brooch, RGB keyboard greatsword over the shoulder,
+     trollface pommel on the wrapped grip.
+   - **Troll Hunter** `hunter-ref.jpg` (NEW): crouching tribal hunter, ram-
+     skull helmet over the trollface, burlap/fur cloak, tattooed pale skin,
+     tall spear + bloodied curved knife, a Doge (shiba) companion. Savanna.
+   - **Super Troll** `super-troll-ref.jpg` (NEW, "superman style"): blue
+     suit, red cape + briefs, yellow belt, red/black "T" diamond chest crest.
+   - **Troll Metamorphosis** `metamorph-ref.jpg`: the Pepe/chrome-trollface
+     half-and-half described above.
+   - **Trollernaut** `trollernaut-ref.jpg` (re-sent 2026-10-03): glossy
+     chrome-white ripped body, sparkling diamond gauntlet on the RIGHT hand
+     (fist forward), black briefs, neon-green "U MAD BRO?" waistband + green
+     piping, misty dark backdrop.
 8b. ~~Grin Beach palms (user: "could use some work, more realistic")~~ DONE
    (`game.js?v=to-pm1`, `maps.js?v=dr2`): map-dressing.js `palmTrees(root,
    spots)`: leaning tapered ringed trunks (vertex colours are LINEAR, keep
