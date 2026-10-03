@@ -737,6 +737,18 @@ be ordered with the user (design doc first for the big ones):
      (`.to-kf-weapon.is-joke`). Verified in the browser with ?tohooks=1.
      Known/pre-existing: FFA modes (also OITC/Gun Game) still show the
      Trolls/Jeets team score bar. Next: phase 2, hero pick + kits.
+   - **REQUIRED for every character model (user, 2026-10-03): a timelapse
+     video of Claude building it.** Not a turntable of the finished model:
+     the build itself. Every time the builder script runs (each iteration,
+     each fix after a screenshot review) AND after each stage inside a run
+     (base body, proportions, each armour/clothing piece, materials, props,
+     rig/pose), render one frame from the same fixed camera into
+     `models/_timelapse/<hero>/NNNN.png` with a caption (step + what
+     changed), never overwriting earlier frames, so dead ends show too. At
+     the end stitch with ffmpeg (on PATH via winget) into
+     `<hero>-build-timelapse.mp4` (~8-12 fps, hold the final frame, end on
+     a short turntable) and SendUserFile it. Applies to the Knight, Hunter
+     (+ Doge), Super Troll, Metamorph (both forms) and the Trollernaut.
 8b. ~~Grin Beach palms (user: "could use some work, more realistic")~~ DONE
    (`game.js?v=to-pm1`, `maps.js?v=dr2`): map-dressing.js `palmTrees(root,
    spots)`: leaning tapered ringed trunks (vertex colours are LINEAR, keep
