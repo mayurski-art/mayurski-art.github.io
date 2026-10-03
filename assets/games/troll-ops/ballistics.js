@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { makeTracerMaterial } from "./shaders.js";
-import { computeDamage } from "./weapons.js?v=cg1";
+import { computeDamage } from "./weapons.js?v=p5";
 
 const DROP = 9.81;          // m/s^2 applied to bullets
 const MAX_LIFE = 3.0;       // seconds before a stray round is culled

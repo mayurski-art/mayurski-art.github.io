@@ -3,8 +3,10 @@
 -- run again.
 --
 -- assets/games/troll-ops/calling-cards.js keeps the same list of cards and the
--- same clan tag rules. Phase 5 adds prestige reward cards: extend
--- troll_forces_card_allowed() below when it does.
+-- same clan tag rules: change both together.
+--
+-- 2026-10-03, phase 5: the prestige reward cards (p1-p10, master), and the
+-- owner (troll_runner) may wear any card. Re-run this whole file to apply.
 
 create table if not exists public.troll_forces_card (
   user_id    uuid primary key references auth.users(id) on delete cascade,
@@ -23,10 +25,13 @@ create policy "troll forces card is public"
 
 grant select on public.troll_forces_card to anon, authenticated;
 
--- Which calling cards a player at this prestige may wear. Starters are free.
+-- Which calling cards a player at this prestige may wear. Starters are free;
+-- p1-p10 need that prestige, master needs Prestige Master (11).
 create or replace function public.troll_forces_card_allowed(p_card text, p_prestige int)
 returns boolean language sql immutable as $$
-  select p_card = any (array['hitman', 'blade', 'overcharge', 'main-event', 'ambush', 'brute']);
+  select p_card = any (array['hitman', 'blade', 'overcharge', 'main-event', 'ambush', 'brute'])
+      or (p_card ~ '^p([1-9]|10)$' and coalesce(p_prestige, 0) >= substring(p_card from 2)::int)
+      or (p_card = 'master' and coalesce(p_prestige, 0) >= 11);
 $$;
 
 create or replace function public.troll_forces_set_card(p_clan text, p_card text)
@@ -46,6 +51,10 @@ begin
   if v_clan ~ '(NIG|FAG|KKK|NAZI|HTLR|CUNT|RAPE)' then raise exception 'Pick another clan tag.'; end if;
 
   select coalesce(prestige, 0) into v_prestige from public.troll_forces_prestige where user_id = uid;
+  -- The owner never prestiges but has every unlock, now and later.
+  if exists (select 1 from public.troll_profiles where id = uid and lower(username) = 'troll_runner') then
+    v_prestige := 11;
+  end if;
   if not public.troll_forces_card_allowed(v_card, coalesce(v_prestige, 0)) then
     raise exception 'That calling card is locked.';
   end if;

@@ -364,6 +364,16 @@ export const WEAPON_DEFS = {
     blurb: "A pistol with no self-control.",
     model: { len: 0.25, stock: "none", mag: "long", barrel: 0.5 },
   }),
+  // The Prestige 7 gun (prestige phase 5): a solid gold Wide Deagle with its
+  // own name. Same handling as the Deagle; the gold is the reward. Rank 69
+  // keeps it last in the list (anyone at Prestige 7 is past 69 anyway).
+  goldengrin: mk("sidearm", {
+    id: "goldengrin", name: "Golden Grin .50", rank: 69, prestige: 7, sight: "iron",
+    damage: 55, rpm: 260, magSize: 7, recoilKickPitch: 0.06, recoilKickKnockback: 0.045,
+    ownFinish: "goldgrin",
+    blurb: "Prestige 7. The same two shots, but everyone saw them coming.",
+    model: { len: 0.28, stock: "none", mag: "box", barrel: 0.6, heavy: true },
+  }),
 };
 
 export const WEAPON_IDS = Object.keys(WEAPON_DEFS);

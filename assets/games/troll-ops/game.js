@@ -7,12 +7,12 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=cg1";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=cg1";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5";
 import { WeaponInspector } from "./inspector.js?v=hb1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4";
-import { Loadout } from "./loadout.js?v=rk1";
+import { Loadout } from "./loadout.js?v=p5";
 import { StreakPicker } from "./streak-picker.js?v=umb1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
@@ -29,12 +29,12 @@ import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=umb1";
-import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=umb1";
+import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=p5";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
-import { getMyCard, withClan } from "./calling-cards.js?v=pc1";
+import { getMyCard, withClan } from "./calling-cards.js?v=p5";
 import { openProfileCard } from "./profile-card.js?v=pc1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
+import { buildMap, disposeMap, MAPS, MAP_IDS, REWARD_MAPS } from "./maps.js?v=p5";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb2-pc1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
@@ -50,7 +50,7 @@ import { BotManager } from "./bots.js?v=cg1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
 import { GameAudio } from "./audio.js?v=umb1";
 import { insidePolygon } from "./edge.js";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=cg1";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
@@ -4438,13 +4438,17 @@ function renderHeroButtons() {
 }
 buildHeroButtons();
 
+/* A private room opens the prestige reward maps (loadout.js mapOpen). */
+function syncPrivateRoom() { loadout.setPrivateRoom(roomIsCustom && !!els.room.value); }
 els.newRoom.addEventListener("click", () => {
   els.room.value = makeRoomCode();
   roomIsCustom = true;   // an explicit fresh code means "private room", not quickplay
+  syncPrivateRoom();
 });
 els.room.addEventListener("input", () => {
   els.room.value = els.room.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
   roomIsCustom = els.room.value.length > 0;
+  syncPrivateRoom();
 });
 
 /* "No bots" — walk a map alone without a match happening around you. Ticking
@@ -4456,6 +4460,7 @@ els.noBots?.addEventListener("change", () => {
   if (els.noBots.checked && !els.room.value) {
     els.room.value = makeRoomCode();
     roomIsCustom = true;
+    syncPrivateRoom();
   }
 });
 
@@ -4777,6 +4782,12 @@ const net = new Net({
     // own Royale is set up, which can be after this lands.
     if (m.bt != null) { royaleCatchUp = { ...m, at: performance.now() }; applyRoyaleCatchUp(); return; }
     if (gameState !== "playing" || !isPvp()) return;
+    // A private room on the host's prestige map (The Pentagrin, Trollface
+    // Island): everyone else follows them onto it, unlocked or not.
+    if (isStaging() && roomIsCustom && REWARD_MAPS[m.map] && m.map !== loadedMapId && !currentMode().forceMap && !currentMode().mapPool) {
+      beginMatch(m.map);
+      return;
+    }
     // Troll Royale: the owner's seed wins, so everyone has the same zone
     // and loot even if their match counts drifted apart.
     if (royale && isStaging() && m.sd && (m.sd >>> 0) !== royale.seed) setupRoyale(m.sd >>> 0);
@@ -5241,7 +5252,7 @@ function matchMapId(roomMapId = null) {
   const m = currentMode();
   if (m.forceMap) return m.forceMap;
   if (m.mapPool) return m.mapPool.includes(loadout.poolMapId) ? loadout.poolMapId : m.mapPool[0];
-  return roomMapId || loadout.mapId;
+  return roomMapId || loadout.versusMapId;   // a prestige map only in a private room
 }
 
 function lobbyMapId() { return matchMapId(); }
@@ -10079,7 +10090,7 @@ function updateStaging(dt) {
     stagePub -= dt;
     if (stageOwner && stagePub <= 0) {
       stagePub = 0.33;
-      net.publishStage(loadout.mapId, modeId, stageT, royale ? royale.seed : undefined);
+      net.publishStage(loadedMapId || loadout.mapId, modeId, stageT, royale ? royale.seed : undefined);
     }
   }
 

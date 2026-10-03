@@ -14,8 +14,8 @@
 // zone maths, the loot tables and everything drawn for them.
 
 import * as THREE from "three";
-import { WEAPON_DEFS } from "./weapons.js?v=cg1";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=cg1";
+import { WEAPON_DEFS } from "./weapons.js?v=p5";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5";
 import { ATTACHMENTS, SLOTS, defaultLoadoutFor, resolveWeapon } from "./attachments.js?v=cg1";
 import { FlowField } from "./nav.js?v=ti1";
 
@@ -212,7 +212,7 @@ export class ZoneVisual {
 /* A gun def at a rarity: that many random attachments, never two in one
    slot. Snipers always keep glass. */
 export function rollGun(rng, rarityIdx, weaponId = null) {
-  const ids = Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].hidden);
+  const ids = Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].hidden && !WEAPON_DEFS[id].prestige);   // prestige guns are earned, never looted
   const id = weaponId || ids[Math.floor(rng() * ids.length)];
   const att = { ...defaultLoadoutFor(id) };
   if (WEAPON_DEFS[id].cls === "sniper") att.optic = "scope8";

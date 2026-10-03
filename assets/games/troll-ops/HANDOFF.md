@@ -1,8 +1,28 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
-## STREAM C (prestige + profile card) — RESUME HERE (2026-10-03): phases 1-4 SHIPPED; phase 4 SQL NOT RUN YET; NEXT = phase 5 (exclusive rewards)
-Design doc (Claude Doc, read it first, `read` sinceRev 25):
+## STREAM C (prestige + profile card) — ALL 5 PHASES SHIPPED (2026-10-03); re-run troll_forces_card.sql for the phase 5 cards
+Design doc (Claude Doc, `read` sinceRev 26):
 https://claude.ai/code/artifact/9331349a-6d55-4028-b8fe-f64f48398855
+- **Phase 5 exclusive rewards** (branch tf-prestige-rewards, on main):
+  finishes in skins.js FINISHES with `prestige`: Bronze/Silver/Gold Grin
+  (`finish: "metal"`, [base, shadow], own canvas "metal studio" env map +
+  sliding sheen, weapon-model.js metalMats), Diamond Grin (P5, icy physical
+  material + glints + blue edges), Dark Matter (P10, animated nebula +
+  stars). Shader bits share withFx() (object-space vFxPos, uFxTime ticked by
+  the meshes' onBeforeRender). Thumbs: tools/troll-ops-finish-thumbs.mjs
+  (NODE_PATH=<main checkout>/node_modules). Locked finishes: loadout.js
+  finishUnlocked + wearable() (a saved locked pick goes out as factory).
+  P7 gun: weapons.js `goldengrin` "Golden Grin .50" (Wide Deagle stats,
+  rank 69 + prestige 7, `ownFinish: "goldgrin"`, OWN_FINISH hides its skin
+  row); progression isUnlocked checks def.prestige; royale loot skips it.
+  Maps: maps.js REWARD_MAPS {pentagrin: 4, trollface: 8} listed after the
+  versus maps, open only in a private room (loadout.mapOpen/versusMapId,
+  game.js syncPrivateRoom on the room code); joiners follow the host onto
+  one (game.js onStage -> beginMatch(m.map)); host now publishes
+  loadedMapId in the stage msg. Cards p1-p10 + master (ui/cards, master is
+  a composed gold trollface) in calling-cards.js; SQL allows them by
+  prestige and lets the owner wear all. Barracks > Prestige Rewards lists
+  the ladder. All changed modules' ?v= tags are `p5` everywhere.
 - **Phase 4 profile card + Barracks** (branch tf-profile-card, on main):
   `calling-cards.js` (CARDS: 6 free starters cut from assets/images/banners
   04/05/07/08/11/12 into `ui/cards/*.jpg` 900x300; cardUnlocked via

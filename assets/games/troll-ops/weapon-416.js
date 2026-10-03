@@ -19,7 +19,7 @@
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, buildIronRear, buildIronFront, railSection } from "./attachment-models.js";
-import { skinAtlasTexture, SKIN_ATLAS, skinDef } from "./skins.js?v=cg1";
+import { skinAtlasTexture, SKIN_ATLAS, skinDef } from "./skins.js?v=p5";
 
 /* Side profiles in weapon space, as [z, y] points (z forward is negative,
    y up), plus each part's thickness across x. The baker draws its panel

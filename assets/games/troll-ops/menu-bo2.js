@@ -14,12 +14,26 @@
 import { createBo2Menu } from "../../js/bo2-menu.js?v=to-ft2";
 import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
-import { canPrestige, prestigeUp, getPrestige, PRESTIGE_MASTER } from "./progression.js?v=umb1";
+import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression.js?v=p5";
 
 import { fetchRecord, formatPlayed } from "./record.js?v=rec1";
-import { WEAPON_DEFS } from "./weapons.js?v=cg1";
-import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=pc1";
+import { WEAPON_DEFS } from "./weapons.js?v=p5";
+import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=p5";
 import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1";
+import { FINISHES } from "./skins.js?v=p5";
+import { MAPS, REWARD_MAPS } from "./maps.js?v=p5";
+
+/* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
+   calling cards, the gold gun and the private-match maps. */
+function rewardLadder() {
+  const at = Array.from({ length: PRESTIGE_MASTER + 1 }, () => []);
+  for (const f of FINISHES) if (f.prestige) at[f.prestige].push(`${f.name} finish`);
+  for (const w of Object.values(WEAPON_DEFS)) if (w.prestige) at[w.prestige].push(`${w.name} (gold pistol)`);
+  for (const [id, p] of Object.entries(REWARD_MAPS)) at[p].push(`${MAPS[id]?.name || id} map, private matches`);
+  for (const c of CARDS) if (c.prestige) at[c.prestige].push(`${c.name} calling card`);
+  at[1].unshift("Prestige icon");
+  return at.map((items, p) => ({ p, items })).filter((r) => r.p > 0 && r.items.length);
+}
 
 /* The combat record screen's data: the last fetch, refreshed on each visit. */
 let recordView = null, recordState = "idle";
@@ -364,12 +378,28 @@ const screens = {
         [
           { id: "b-card", label: "Calling Card", value: signedIn ? cardById(card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : guest, go: "cards" },
           { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, onSelect: () => editClan() },
+          { id: "b-rewards", label: "Prestige Rewards", desc: "What each prestige unlocks.", go: "rewards" },
           { id: "b-record", label: "Combat Record", desc: "Your lifetime K/D, W/L, accuracy and more, across every match.", go: "record" },
         ],
         [
           { id: "b-view", label: "View Card", disabled: !signedIn, desc: signedIn ? "Your card the way other players see it." : "Sign in to get a profile card.", onSelect: () => openProfileCard(myUid()) },
           back("Back to the main menu."),
         ],
+      ],
+    };
+  },
+  rewards: () => {
+    const now = getPrestige();
+    const owner = prestigeUnlocked(PRESTIGE_MASTER) && now < PRESTIGE_MASTER;   // the owner has it all
+    return {
+      title: "Prestige Rewards", panel: "deploy",
+      groups: [
+        rewardLadder().map(({ p, items }) => ({
+          id: `rw-${p}`, label: p >= PRESTIGE_MASTER ? "Prestige Master" : `Prestige ${p}`,
+          value: owner || now >= p ? "Unlocked" : "Locked",
+          desc: items.join(" · ") + ".",
+        })),
+        [back("Back to the Barracks.")],
       ],
     };
   },
@@ -381,11 +411,14 @@ const screens = {
       groups: [
         CARDS.map((c) => {
           const open = cardUnlocked(c);
+          const pname = c.prestige >= PRESTIGE_MASTER ? "Prestige Master" : `Prestige ${c.prestige}`;
+          // Locked cards stay in the list so you can preview what's coming.
           return {
-            id: `card-${c.id}`, label: c.name, cardId: c.id, on: c.id === mine, disabled: !open,
-            value: c.id === mine ? "Wearing" : open ? "" : `Prestige ${c.prestige}`,
-            desc: open ? c.desc : `Unlocks at Prestige ${c.prestige}.`,
+            id: `card-${c.id}`, label: c.name, cardId: c.id, on: c.id === mine,
+            value: c.id === mine ? "Wearing" : open ? "" : `Locked`,
+            desc: open ? c.desc : `Unlocks at ${pname}.`,
             onSelect: async (_, m) => {
+              if (!open) { setStatus(`${c.name} unlocks at ${pname}.`); return; }
               if (c.id === mine) { m.back(); return; }
               setStatus("Saving…");
               try { await saveMyCard({ card: c.id }); setStatus(`Calling card: ${c.name}.`); m.back(); }
@@ -433,7 +466,9 @@ const screens = {
     groups: [
       $$("#to-lo-maps .to-lo-map").map((b) => ({
         id: `map-${b.dataset.map}`, label: text($(".to-map-name", b)), desc: text($(".to-map-tag", b)), on: isOn(b), mapId: b.dataset.map,
-        onSelect: (_, m) => { b.click(); m.back(); },
+        // A locked prestige map stays reachable so its reason can be read.
+        value: isLocked(b) ? "Locked" : "",
+        onSelect: (_, m) => { if (isLocked(b)) { setStatus(text($(".to-map-tag", b))); return; } b.click(); m.back(); },
       })),
       [back("Keep this map.")],
     ],
