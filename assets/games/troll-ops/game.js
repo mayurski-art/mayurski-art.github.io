@@ -12,9 +12,9 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4";
-import { Loadout } from "./loadout.js?v=pr2";
-import { StreakPicker } from "./streak-picker.js?v=pr1";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=pr1";
+import { Loadout } from "./loadout.js?v=umb1";
+import { StreakPicker } from "./streak-picker.js?v=umb1";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
@@ -28,23 +28,23 @@ import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
 import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
-import { Achievements } from "./achievements.js?v=pr1";
-import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=pr1";
+import { Achievements } from "./achievements.js?v=umb1";
+import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked } from "./progression.js?v=umb1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE } from "./remote-players.js?v=hb4";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=vm1";
+} from "./modes.js?v=umb1";
 import { BotManager } from "./bots.js?v=cg1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
-import { GameAudio } from "./audio.js?v=to-hb1";
+import { GameAudio } from "./audio.js?v=umb1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=cg1";
 import { GameMusic } from "./music.js?v=to-s12c-optin";
@@ -3242,7 +3242,7 @@ const BOT_TARGET = 8;      // participants a PvP room is padded up to
 // public server for their mode, instead of each getting their own random
 // room. Only overflow into a numbered shard (QTDM2, QTDM3, ...) once the
 // base room is genuinely full of real people — see joinQuickplay().
-const QUICKPLAY_BASE = { tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR" };
+const QUICKPLAY_BASE = { umb: "QUMB", tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
 let gunGameProgress = 0;
@@ -3804,7 +3804,7 @@ function otherHumansInMatch() {
 /* The Play tab's mode list: versus modes first, then the solo ones, each a
    full-width row with a tick on the one you're deploying into. */
 const MODE_GROUPS = [
-  { label: "Versus", ids: ["tdm", "koth", "snd", "infection", "oitc", "gungame"] },
+  { label: "Versus", ids: ["tdm", "koth", "snd", "infection", "oitc", "gungame", "umb"] },
   { label: "Solo", ids: ["ops", "zombies", "range"] },
 ];
 const TICK_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -3833,7 +3833,7 @@ function buildModeButtons() {
       name.textContent = m.name;
       b.appendChild(name);
       b.insertAdjacentHTML("beforeend", TICK_SVG);
-      b.addEventListener("click", () => { modeId = id; modePicked = true; renderModes(); });
+      b.addEventListener("click", () => { if (modeLocked(m)) return; modeId = id; modePicked = true; renderModes(); });
       els.loMode.appendChild(b);
     }
   }
@@ -3851,9 +3851,22 @@ function fitModeBlurb() {
 }
 if (modeColumn && "ResizeObserver" in window) new ResizeObserver(fitModeBlurb).observe(modeColumn);
 
+/* A prestige-gated mode (U Mad Bro?, Prestige 2) shows locked until then:
+   disabled, with the requirement in its title and data-lock. The BO2 menu
+   reads both off the button. */
+const modeLocked = (m) => !!m?.prestige && !prestigeUnlocked(m.prestige);
+
 function renderModes() {
+  // Picked, then the lock came back (signed out): fall back to TDM.
+  if (modePicked && modeLocked(currentMode())) modeId = "tdm";
   for (const b of els.loMode.children) {
     if (!b.dataset.mode) continue;
+    const m = MODES[b.dataset.mode];
+    const locked = modeLocked(m);
+    b.disabled = locked;
+    b.classList.toggle("is-locked", locked);
+    b.dataset.lock = locked ? `Prestige ${m.prestige}` : "";
+    b.title = locked ? `Unlocks at Prestige ${m.prestige}. ${m.blurb}` : m.blurb;
     const on = modePicked && b.dataset.mode === modeId;
     b.classList.toggle("is-active", on);
     b.setAttribute("aria-pressed", String(on));
@@ -4182,6 +4195,7 @@ window.addEventListener("trollrunner:auth-changed", () => {
 window.addEventListener("trollforces:prestige-changed", () => {
   if (!loadout.restoreSaved()) loadout.render();
   streakPicker.restore();
+  renderModes();   // U Mad Bro? unlocks at Prestige 2
 });
 
 function playerName() {
@@ -4234,12 +4248,23 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
   const iKilled = killerId === net.id && !suicide && !teamkill;
   const killer = killerId === net.id ? "You" : nameFor(killerId);
 
+  // U Mad Bro?: the body flies (remote-players.js), a comic word pops over
+  // it, a slide whistle follows it, and your own kills honk.
+  if (mode.funny) {
+    if (opts.victimPos && !opts.victimIsMe) {
+      spawnComicWord(opts.victimPos, !!opts.head);
+      audio.slideWhistle(opts.victimPos);
+    }
+    if (iKilled) { if (opts.head) audio.airhorn(); else audio.bonk(); }
+  }
+
   pushKillfeed({
     killer: suicide ? victimName : killer,
     killerIsBot: killerId !== net.id && !!bots.byId(killerId),
     victim: victimName,
     victimIsBot: !!opts.victimIsBot,
-    weapon: suicide ? (weaponNameFor(weaponId) || "self") : weaponNameFor(weaponId),
+    joke: !!mode.funny && !suicide,
+    weapon: suicide ? (weaponNameFor(weaponId) || "self") : mode.funny ? jokeVerb(!!opts.head) : weaponNameFor(weaponId),
     tag: teamkill ? "teamkill" : null,
     head: !!opts.head && !suicide,
     killerTeam: suicide ? opts.victimTeam : killerTeam,
@@ -6452,7 +6477,7 @@ function pushKillfeed(entry) {
     } else {
       if (entry.weapon) {
         const w = document.createElement("span");
-        w.className = "to-kf-weapon";
+        w.className = entry.joke ? "to-kf-weapon is-joke" : "to-kf-weapon";
         w.textContent = entry.weapon;
         div.appendChild(w);
       }
@@ -6526,6 +6551,28 @@ function spawnDamageNumber(damage, point, isCrit, text = null) {
   }
 }
 
+/* U Mad Bro?: a comic-book word over a body as it goes flying. Rides the
+   damage-number layer, bigger, tilted and slower to fade. */
+const COMIC_WORD_LIFE = 1.4;
+const COMIC_WORDS = ["BONK!", "POW!", "OOF!", "YEET!", "WHAM!", "GG!", "BOING!", "SPLAT!", "KAPOW!", "RIP"];
+const COMIC_HEAD_WORDS = ["NO SCOPE!", "HEADSHOT!", "CRITICAL!", "BOOM!"];
+function spawnComicWord(point, head = false) {
+  const words = head ? COMIC_HEAD_WORDS : COMIC_WORDS;
+  const el = document.createElement("span");
+  el.className = "to-dmg-num is-comic";
+  el.textContent = words[Math.floor(Math.random() * words.length)];
+  els.damageNumbers.appendChild(el);
+  damageNumbers.push({
+    el, pos: point.clone().setY(point.y + 1.5), life: COMIC_WORD_LIFE, max: COMIC_WORD_LIFE,
+    drift: (Math.random() - 0.5) * 40, tilt: (Math.random() - 0.5) * 24,
+  });
+  while (damageNumbers.length > 24) damageNumbers.shift().el.remove();
+}
+
+/* The U Mad Bro? killfeed swaps the weapon for what happened to them. */
+const JOKE_VERBS = ["bonked", "ratio'd", "deleted", "uninstalled", "yeeted", "sent to Brazil", "told to touch grass", "muted", "clapped", "rekt"];
+const jokeVerb = (head) => (head ? "no-scoped" : JOKE_VERBS[Math.floor(Math.random() * JOKE_VERBS.length)]);
+
 const _dmgProject = new THREE.Vector3();
 
 function updateDamageNumbers(dt) {
@@ -6534,14 +6581,16 @@ function updateDamageNumbers(dt) {
     d.life -= dt;
     if (d.life <= 0) { d.el.remove(); damageNumbers.splice(i, 1); continue; }
 
-    const t = 1 - d.life / DAMAGE_NUMBER_LIFE;
+    const t = 1 - d.life / (d.max || DAMAGE_NUMBER_LIFE);
     _dmgProject.copy(d.pos).project(camera);
     // Behind the camera projects to a mirrored on-screen point, so hide it.
     if (_dmgProject.z > 1) { d.el.style.opacity = "0"; continue; }
 
     const x = (_dmgProject.x * 0.5 + 0.5) * window.innerWidth + d.drift * t;
     const y = (-_dmgProject.y * 0.5 + 0.5) * window.innerHeight - t * 46;
-    d.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${(1 + (1 - t) * 0.25).toFixed(2)})`;
+    // Comic words punch in big, then settle; numbers just shrink a little.
+    const sc = d.tilt != null ? 1 + Math.max(0, 0.6 - t * 4) : 1 + (1 - t) * 0.25;
+    d.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${sc.toFixed(2)})${d.tilt != null ? ` rotate(${d.tilt.toFixed(1)}deg)` : ""}`;
     d.el.style.opacity = String(Math.min(1, d.life / 0.35));
   }
 }
@@ -9793,6 +9842,7 @@ function updateStaging(dt) {
    making everyone re-handshake. */
 function beginMatch(mapId = null) {
   killcam.clear();
+  setFunnyDeaths(!!currentMode().funny);
   suppressT = 0;
   clearHitDirs();
   player.hp = player.maxHp;

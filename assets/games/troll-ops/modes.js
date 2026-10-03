@@ -129,6 +129,24 @@ export const MODES = {
   },
 };
 
+/* U Mad Bro?: the joke mode (design doc "Troll Forces: U Mad Bro? mode").
+   Free-for-all, unlocked at Prestige 2 (`prestige`). `funny` turns on the
+   cartoon layer in funny-fx.js: bodies launch and spin, comic words pop on
+   kills, meme sounds, a joke killfeed. Normal streaks are off; the
+   Trollernaut pointstreak, the heroes and the joke weapons come later. */
+MODES.umb = {
+  id: "umb",
+  name: "U Mad Bro?",
+  short: "U Mad Bro?",
+  pvp: true, ffa: true,
+  scoreLimit: 25,
+  timeLimit: 480,
+  funny: true,
+  prestige: 2,
+  noStreaks: true,
+  blurb: "Free-for-all, but nobody takes it seriously. Bodies fly, kills go BONK. First to 25.",
+};
+
 /* Battle royale: solo, one life, loot only, a closing zone, last troll
    standing, on Trollface Island. Rules live in game.js (updateRoyale), the
    zone/loot in royale.js. */

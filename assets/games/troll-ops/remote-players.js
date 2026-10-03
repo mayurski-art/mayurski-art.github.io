@@ -21,6 +21,32 @@ const RENDER_DELAY = 110; // ms
 const BODY_LINGER = 8;
 const SWIVEL_TIME = 0.5;   // game.js swivel, played on their body   // seconds a body stays down after the fall (respawning clears it sooner)
 
+/* U Mad Bro?'s cartoon deaths: the body is launched up and away, does one
+   full flip about the hips, and lands where the normal fall finishes it.
+   The flip is timed to the flight so it ends upright (a whole turn) and
+   the death pose lies flat. Purely visual; each client rolls its own. */
+let funnyDeaths = false;
+export function setFunnyDeaths(on) { funnyDeaths = !!on; }
+const LAUNCH_G = 18, LAUNCH_UP = 8, LAUNCH_OUT = 3, LAUNCH_PIVOT = 0.9;
+function startLaunch(root) {
+  const a = Math.random() * Math.PI * 2;
+  return { x: root.position.x, y: root.position.y, z: root.position.z, vx: Math.cos(a) * LAUNCH_OUT, vz: Math.sin(a) * LAUNCH_OUT, t: 0, dir: Math.random() < 0.5 ? -1 : 1 };
+}
+function stepLaunch(rig, L, dt) {
+  const root = rig.root;
+  const T = (2 * LAUNCH_UP) / LAUNCH_G;
+  L.t = Math.min(T, L.t + dt);
+  const t = L.t;
+  root.position.set(L.x + L.vx * t, L.y + LAUNCH_UP * t - 0.5 * LAUNCH_G * t * t, L.z + L.vz * t);
+  if (t >= T) { root.rotation.x = 0; return; }
+  const ang = L.dir * Math.PI * 2 * (t / T);
+  root.rotation.x = ang;
+  const dz = -LAUNCH_PIVOT * Math.sin(ang), yaw = root.rotation.y;
+  root.position.x += dz * Math.sin(yaw);
+  root.position.y += LAUNCH_PIVOT * (1 - Math.cos(ang));
+  root.position.z += dz * Math.cos(yaw);
+}
+
 /* Troll Royale's landing: a tuck and roll forward, then you run. `k` 0..1
    through it (0 = upright). The rig turns head-over-heels about a point at
    hip height, so it tumbles in place instead of pivoting on its feet. Call
@@ -405,6 +431,7 @@ export class RemotePlayer {
       // the round puts them down on their back.
       const last = snaps[snaps.length - 1];
       this.rig.deathHint = { dir: last?.moving && Math.random() < 0.55 ? -1 : 1 };
+      this.launch = funnyDeaths ? startLaunch(this.rig.root) : null;
     }
     if (this.alive) this.dying = false;
     this.wasAlive = this.alive;
@@ -420,6 +447,7 @@ export class RemotePlayer {
       if (this.weaponMesh) this.weaponMesh.visible = false;
       if (this.meleeMesh) this.meleeMesh.visible = false;
       poseDeath(this.rig, Math.min(1, this.deathT / DEATH_TIME));
+      if (this.launch) stepLaunch(this.rig, this.launch, dt);
       if (this.deathT >= DEATH_TIME + BODY_LINGER) this.dying = false;
       return;
     }

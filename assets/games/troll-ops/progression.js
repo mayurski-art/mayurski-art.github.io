@@ -282,6 +282,12 @@ export function rankUnlocked(rank) {
   return getRank() >= (rank || 0);
 }
 
+/* Prestige gate (U Mad Bro? at Prestige 2). The owner never prestiges and
+   has everything, so they pass; guests never prestige, so they don't. */
+export function prestigeUnlocked(n) {
+  return isOwner() || getPrestige() >= (n || 0);
+}
+
 export function isUnlocked(weaponId) {
   const def = WEAPON_DEFS[weaponId];
   if (!def) return false;

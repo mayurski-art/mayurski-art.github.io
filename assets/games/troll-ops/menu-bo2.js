@@ -14,7 +14,7 @@
 import { createBo2Menu } from "../../js/bo2-menu.js?v=to-bo2d";
 import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
-import { canPrestige, prestigeUp, getPrestige, PRESTIGE_MASTER } from "./progression.js?v=pr1";
+import { canPrestige, prestigeUp, getPrestige, PRESTIGE_MASTER } from "./progression.js?v=umb1";
 
 const nextPrestigeName = () => (getPrestige() + 1 >= PRESTIGE_MASTER ? "Master" : `P${getPrestige() + 1}`);
 
@@ -94,6 +94,7 @@ const strongOf = (b) => text($("strong", b)) || text($("span", b)) || text(b);
 function modeItems(group, after) {
   return modeButtons(group).map((b) => ({
     id: `mode-${b.dataset.mode}`, label: text($("span", b)), desc: b.title, on: isOn(b),
+    disabled: isLocked(b), value: b.dataset.lock || "",
     onSelect: (_, m) => { b.click(); m.refresh(); if (after) after(); },
   }));
 }

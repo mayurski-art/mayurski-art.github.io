@@ -287,6 +287,35 @@ export class GameAudio {
     this._noise({ duration: 0.06, gain: 0.2, type: "lowpass", freq: 900, sweepTo: 200, delay: 0.1, at });
   }
 
+  /* ---- U Mad Bro? meme sounds ------------------------------------------
+     All synthesised like everything else here: a cartoon bonk (a hollow
+     wooden knock with a high ring), the MLG airhorn (three detuned square
+     blasts) and a slide whistle that falls as a body flies off. */
+  bonk(at = null) {
+    if (!this._ready()) return;
+    this._tone({ freq: 620, to: 540, duration: 0.18, gain: 0.26, type: "triangle", at });
+    this._tone({ freq: 1240, to: 1080, duration: 0.12, gain: 0.1, type: "sine", at });
+    this._noise({ duration: 0.05, gain: 0.3, type: "bandpass", freq: 1800, q: 3, at });
+  }
+
+  airhorn() {
+    if (!this._ready()) return;
+    const blast = (delay, dur) => {
+      for (const f of [466, 470, 233]) this._tone({ freq: f, to: f * 0.97, duration: dur, gain: 0.07, type: "square", delay });
+      this._noise({ duration: dur, gain: 0.05, type: "bandpass", freq: 1400, q: 1.2, delay });
+    };
+    blast(0, 0.16);
+    blast(0.2, 0.16);
+    blast(0.4, 0.55);
+  }
+
+  slideWhistle(at = null, up = false) {
+    if (!this._ready()) return;
+    const [a, b] = up ? [500, 1900] : [1900, 380];
+    this._tone({ freq: a, to: b, duration: 0.7, gain: 0.14, type: "sine", at });
+    this._noise({ duration: 0.7, gain: 0.03, type: "bandpass", freq: 1500, q: 4, at });
+  }
+
   /* Calling the K9s: a two-finger whistle. A short rising chirp, then the
      long note that swoops up and falls away, each over a breathy hiss.
      `delay` lines it up with the fingers reaching the mouth. */

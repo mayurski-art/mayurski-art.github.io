@@ -720,6 +720,23 @@ be ordered with the user (design doc first for the big ones):
      PRESTIGE 2, 2026-10-03; gate via the usual rank/unlock check so the
      owner stays unlocked); **weapons later**: characters first, then
      Trollernaut, then funny weapons, then Horde.
+   - User said "defaults" to the rest (FFA first, Trollernaut 1,500 pts /
+     40 s, Horde on Hollowgrin). Doc approved.
+   - **PHASE 1 SHIPPED (2026-10-03)** (`game.js?v=to-umb1`, every changed
+     module + its importers `?v=umb1`): `MODES.umb` (modes.js: ffa, 25 kills
+     / 8 min, `funny`, `prestige: 2`, noStreaks; quickplay room QUMB; last
+     row of Versus). Lock: progression.js `prestigeUnlocked(n)` (owner
+     passes, guests never); game.js `modeLocked` disables the lobby button
+     + `data-lock="Prestige 2"`, menu-bo2.js modeItems reads disabled/value;
+     re-checked on `trollforces:prestige-changed`. Funny layer: remote-
+     players.js `setFunnyDeaths()` (set in beginMatch) launches every body
+     (bots + peers) up ~3.5 m with one flip timed to land flat; game.js
+     registerDeath spawns a comic word (`spawnComicWord`, rides the damage-
+     number layer, `.to-dmg-num.is-comic`) + slide whistle at the body, your
+     kills bonk (headshot = airhorn, audio.js), killfeed weapon -> joke verb
+     (`.to-kf-weapon.is-joke`). Verified in the browser with ?tohooks=1.
+     Known/pre-existing: FFA modes (also OITC/Gun Game) still show the
+     Trolls/Jeets team score bar. Next: phase 2, hero pick + kits.
 8b. ~~Grin Beach palms (user: "could use some work, more realistic")~~ DONE
    (`game.js?v=to-pm1`, `maps.js?v=dr2`): map-dressing.js `palmTrees(root,
    spots)`: leaning tapered ringed trunks (vertex colours are LINEAR, keep
