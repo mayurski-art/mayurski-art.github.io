@@ -4598,6 +4598,11 @@ function buildHollowgrin(api) {
     [-50.2, -32], [-50.2, -8], [-50.2, 10], [-50.2, 35],
     [-41, 44.3], [-21.7, 44.3], [-9, 44.3], [9, 44.3], [21.7, 44.3], [35, 44.3],
   ]) ZSPAWNS.push({ x, y: 0, z });
+  // the park (6f): they claw up in front of the pet cemetery, out of the
+  // splash pool, in the cave under Skull Mountain and under the coaster
+  for (const [x, z] of [[65.6, 33.1], [70.6, 33.1], [65.2, 41.1], [75.1, 33.0], [57, -26], [64, -36]]) {
+    ZSPAWNS.push({ x, y: 0, z, rise: true });
+  }
 }
 
 /* ================================================================ the map */

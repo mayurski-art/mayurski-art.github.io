@@ -36,7 +36,7 @@ const VIEWS = {
   depot:     [-25, 7.5, 19, 6, 1, -6, 68],
   culdegrin: [4, 26, 38, 0, 0, -4, 55],
   grinbeach: [40, 22, 30, -6, 0, -10, 55],
-  hollowgrin: [50, 24, 52, -6, 0, -6, 58],   // wide: the map doubled (fair, Ferris wheel, the lane)
+  hollowgrin: [38, 26, 34, 74, 3, -6, 62],   // the Grinmoor Fair: mansion, fountain, Ferris wheel, coaster
   grinleria: [22.5, 6.3, -1.2, -6, 2.0, 2.2, 72],
 };
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(VIEWS);
