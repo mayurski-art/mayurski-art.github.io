@@ -11,11 +11,10 @@ Authored in GAME coords, in the rig's REST pose (REST below, dumped from a
 fresh buildHumanoid): metres, feet on y=0, forward -Z, the hero's right at
 +X. B() converts to Blender (game -Z forward = Blender +Y).
 
-Timelapse (user, 2026-10-03: "timelapse video of you building it"): call
-snap("caption") after every build stage. Each call renders one frame from a
-fixed camera into _timelapse/<hero>/NNNN.png, numbered on from whatever is
-already there, so every run (and every redo) stays in the video.
-stitch() turns the frames + a turntable into <hero>-build-timelapse.mp4.
+Timelapse frames / videos: the user asked for them, then dropped them
+(2026-10-03: "i dont want any timelapse videos"). The Timelapse class stays
+only as the camera + render setup for check() review renders; builders
+leave it disabled unless asked.
 """
 import bpy
 import bmesh

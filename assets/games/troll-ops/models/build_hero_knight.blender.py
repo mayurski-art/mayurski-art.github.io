@@ -4,9 +4,8 @@ trollface in dark plate, blue cape, trollface brooch, a bare muscled sword
 arm with a bandaged forearm. The keyboard greatsword is the game's own
 (gear.js "keyboard"), carried on his back by hero-bodies.js.
 
-    blender --background --python build_hero_knight.blender.py               # build + timelapse frames + export
-    blender --background --python build_hero_knight.blender.py -- nosnap      # export only
-    blender --background --python build_hero_knight.blender.py -- turntable   # + turntable + stitch the video
+    blender --background --python build_hero_knight.blender.py               # build + export
+    blender --background --python build_hero_knight.blender.py -- check       # + review renders (models/_renders/knight)
       env HK_SAMPLES (timelapse render samples, default 24)
 
 Pieces are "<joint>__<piece>" (hero_kit.py). The stick rig's limbs hug the
@@ -26,12 +25,15 @@ ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = os.path.join(K.HERE, "hero-knight.glb")
 
 K.reset_scene()
-tl = K.Timelapse("knight", enabled="nosnap" not in ARGS, samples=int(os.environ.get("HK_SAMPLES", 24)))
+# No timelapse (user, 2026-10-03: "i dont want any timelapse videos"). The
+# renderer only spins up for "-- check" review renders; "-- snap" still
+# writes stage frames if ever wanted.
+tl = K.Timelapse("knight", enabled=("check" in ARGS or "snap" in ARGS), samples=int(os.environ.get("HK_SAMPLES", 24)))
 J = K.REST
 # v6 "sharp" pass (user: "graphics sharp like the green candles gun"): rounder
 # pieces everywhere, crisp bevelled plate edges (K.crisp_all), rolled trims.
 K.SEG_SCALE = 1.6
-tl.quiet = "finish" in ARGS   # rebuild without new frames, then turntable + video
+tl.quiet = "snap" not in ARGS
 
 
 def side_pt(name, s, dx=0.0, dy=0.0, dz=0.0):
@@ -235,6 +237,6 @@ tl.snap(f"exported hero-knight.glb ({tris} tris)")
 
 if "check" in ARGS:
     tl.check()
-if "turntable" in ARGS or "finish" in ARGS:
+if "turntable" in ARGS:
     tl.turntable()
     K.stitch("knight")

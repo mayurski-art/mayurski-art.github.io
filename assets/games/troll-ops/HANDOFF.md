@@ -929,18 +929,11 @@ be ordered with the user (design doc first for the big ones):
      band from the side.
      until they say go. When resumed: Hunter (+ Doge), Super Troll,
      Metamorph (both forms), then phase 4 Trollernaut.
-   - **REQUIRED for every character model (user, 2026-10-03): a timelapse
-     video of Claude building it.** Not a turntable of the finished model:
-     the build itself. Every time the builder script runs (each iteration,
-     each fix after a screenshot review) AND after each stage inside a run
-     (base body, proportions, each armour/clothing piece, materials, props,
-     rig/pose), render one frame from the same fixed camera into
-     `models/_timelapse/<hero>/NNNN.png` with a caption (step + what
-     changed), never overwriting earlier frames, so dead ends show too. At
-     the end stitch with ffmpeg (on PATH via winget) into
-     `<hero>-build-timelapse.mp4` (~8-12 fps, hold the final frame, end on
-     a short turntable) and SendUserFile it. Applies to the Knight, Hunter
-     (+ Doge), Super Troll, Metamorph (both forms) and the Trollernaut.
+   - **NO timelapse videos or turntables (user, 2026-10-03: "i dont want
+     any timelapse videos").** This REVERSES the earlier ask. Builders run
+     with no renders by default (`-- check` for review renders only;
+     `-- snap` / `-- turntable` still exist but don't use them unprompted).
+     Show progress with screenshots from tools/hero-preview.html instead.
 8b. ~~Grin Beach palms (user: "could use some work, more realistic")~~ DONE
    (`game.js?v=to-pm1`, `maps.js?v=dr2`): map-dressing.js `palmTrees(root,
    spots)`: leaning tapered ringed trunks (vertex colours are LINEAR, keep
