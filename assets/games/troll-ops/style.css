@@ -3344,17 +3344,22 @@ body.to-touch-play .to-ss-sky { width: calc(24px * var(--k)); height: calc(24px 
 .to-bo2-dl.is-done i { background: linear-gradient(90deg, var(--bo2-gold) calc(var(--p, 0) * 100%), rgba(243,236,228,.18) 0); }
 .to-bo2-back { display: none; align-items: center; gap: 8px; margin-top: 10px; padding: 0; border: 0; background: none; color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; cursor: pointer; }
 .to-bo2-back.is-on { display: flex; }
-.to-bo2-hints { display: flex; gap: 22px; margin-left: auto; margin-right: 56px; }
-.to-bo2-hints span { display: flex; align-items: center; gap: 8px; }
+/* Animations switch (menu-bo2.js), where the key hints used to be. */
+.to-bo2-anim { margin-left: auto; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid rgba(243,236,228,.35); border-radius: 10px; background: rgba(3,1,1,.45); color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; cursor: pointer; }
+.to-bo2-anim b { font: 600 13px "DM Mono", monospace; color: var(--bo2-ink); }
+.to-bo2-anim[aria-checked="false"] b { color: var(--bo2-hot); }
+.to-bo2-anim:hover, .to-bo2-anim:focus-visible { color: var(--bo2-ink); border-color: var(--bo2-ink); outline: none; }
+/* Off: nothing in the menu or the countdown card moves. */
+body.tf-anim-off #to-title *, body.tf-anim-off #to-title *::before, body.tf-anim-off #to-title *::after,
+body.tf-anim-off #to-staging, body.tf-anim-off #to-staging * { animation: none !important; transition: none !important; }
 .to-bo2 kbd { font: 12px "DM Mono", monospace; padding: 3px 7px; border-radius: 5px; border: 1px solid rgba(243,236,228,.35); color: var(--bo2-ink); background: none; }
-body.is-map .to-bo2-hints { visibility: hidden; }
+body.is-map .to-bo2-anim { visibility: hidden; }
 /* trollrunner.net's home carries the socials now; keep the menu clean.
-   The radio moves to the top right, clear of the hints. */
+   The radio moves to the top right, clear of the animations switch. */
 #to-title.is-bo2:not([hidden]) ~ .to-x-link,
 #to-title.is-bo2:not([hidden]) ~ .to-truths-link { display: none; }
 #to-title.is-bo2:not([hidden]) ~ .to-radio { right: 48px; bottom: auto; top: 30px; }
 #to-title.is-bo2:not([hidden]) ~ .to-radio .to-radio-panel { bottom: auto; top: 48px; }
-.to-bo2-hints { margin-right: 0 !important; }
 
 /* Tablet widths: the 560px detail column left the panel ~160px wide at
    768, wrapping its text a word a line. Pull the list in and give the
@@ -3384,7 +3389,7 @@ body.is-map .to-bo2-hints { visibility: hidden; }
   #to-title.is-bo2 .to-char-view { left: 0; top: 76px; bottom: calc(var(--menu-h, 300px) + var(--foot-h, 42px) + 38px); }
   .to-bo2-foot { left: 20px; right: 16px; bottom: 18px; }
   .to-bo2-online { font-size: 24px; }
-  .to-bo2-hints { display: none; }
+  .to-bo2-anim { min-height: 44px; font-size: 13px; padding: 0 10px; }
 }
 @media (hover: none) { .to-bo2-back kbd { display: none; } .to-bo2-back { min-height: 44px; font: 600 16px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; } }
 

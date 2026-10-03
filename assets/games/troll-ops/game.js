@@ -10172,6 +10172,10 @@ async function warmShaders() {
 /* Frozen: input is ignored and damage is refused. The camera still moves so
    the player can look around the room while they wait. */
 function beginStaging(seconds = STAGE_SECONDS) {
+  // Animations off (menu-bo2.js switch): solo skips most of the wait. PvP
+  // keeps the room's clock, since everyone in it shares one countdown.
+  const fast = !isPvp() && document.body.classList.contains("tf-anim-off");
+  if (fast) seconds = Math.min(seconds, 2);
   stageT = seconds;
   stageShown = -1;
   stagePub = 0;
@@ -10181,7 +10185,7 @@ function beginStaging(seconds = STAGE_SECONDS) {
   // "I'm alone" snapshot would leave two clients both convinced they own it.
   stageOwner = !isPvp() || !net.active;
   // A beat in, once the bots that fill the room have streamed in.
-  setTimeout(() => { if (isStaging()) warmShaders(); }, 900);
+  setTimeout(() => { if (isStaging()) warmShaders(); }, fast ? 0 : 900);
   // The sky lobby is a place to walk round in, not a frozen countdown card.
   els.staging.hidden = !!royale?.drop;
   if (!royale?.drop) document.body.classList.add("to-staging-on");

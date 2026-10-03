@@ -96,9 +96,7 @@ root.innerHTML = `
       <span class="to-bo2-dl" aria-live="polite"><i></i><b></b></span>
       <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
-    <div class="to-bo2-hints" aria-hidden="true">
-      <span><kbd>Enter</kbd>Select</span><span><kbd>W S</kbd>Move</span><span><kbd>A D</kbd>Change</span><span><kbd>Esc</kbd>Back</span>
-    </div>
+    <button type="button" class="to-bo2-anim" role="switch" aria-checked="true">Animations <b>On</b></button>
   </footer>`;
 pf.prepend(root);
 const nav = $(".to-bo2-menu", root);
@@ -759,13 +757,35 @@ let dlHide = 0;
   renderDl();
 })();
 
+/* ── Animations switch (bottom right) ─────────────────────────────────
+   For slow laptops (user, 2026-10-03): off freezes the planet and the
+   asteroids, drops the menu's CSS animations (body.tf-anim-off), and
+   game.js cuts the solo pre-match countdown short. Remembered per device. */
+const ANIM_KEY = "tf-anim-off";
+const animBtn = $(".to-bo2-anim", root);
+let animOff = false;
+try { animOff = localStorage.getItem(ANIM_KEY) === "1"; } catch {}
+function applyAnim() {
+  document.body.classList.toggle("tf-anim-off", animOff);
+  animBtn.setAttribute("aria-checked", String(!animOff));
+  $("b", animBtn).textContent = animOff ? "Off" : "On";
+  backdrop?.setStill?.(animOff);
+}
+animBtn.addEventListener("click", () => {
+  animOff = !animOff;
+  try { animOff ? localStorage.setItem(ANIM_KEY, "1") : localStorage.removeItem(ANIM_KEY); } catch {}
+  applyAnim();
+});
+applyAnim();
+
 /* ── The planet: lazy, and paused whenever the lobby isn't showing ───── */
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));
 function coverOn(on) { document.body.classList.toggle("to-bo2-cover", on); }
 idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import("../../js/menu-globe.js?v=to-bo2d");
+    const { mountMenuBackdrop } = await import("../../js/menu-globe.js?v=to-bo2e");
     backdrop = mountMenuBackdrop($(".to-bo2-bg", root));
+    if (animOff) backdrop.setStill?.(true);
     coverOn(!title.hidden);
     if (title.hidden) backdrop.pause();
   } catch (e) { console.warn("[menu-bo2] backdrop", e); }

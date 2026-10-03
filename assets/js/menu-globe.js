@@ -16,7 +16,9 @@
    mountMenuBackdrop(host) -> { pause, resume, destroy, map }. Nothing loads
    until it is called, so the game's first paint never waits on it. pause()
    stops both render loops (call it when a match starts); with no WebGL the
-   sun and asteroids still draw and the planet is a CSS stand-in. */
+   sun and asteroids still draw and the planet is a CSS stand-in.
+   setStill(true) freezes the spin and the rocks like reduced motion does
+   (Troll Forces' "Animations off" switch, for slow laptops). */
 
 const MAPLIBRE = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js";
 const COUNTRIES = new URL("../geo/countries.json", import.meta.url).href;
@@ -81,6 +83,7 @@ const CSS = `
 .tr-face.is-on{border-color:#fff3d6}
 .tr-space:not(.is-map) .tr-face{visibility:hidden}
 @media (prefers-reduced-motion: reduce){.tr-space-rays{animation:none}}
+.tr-space.is-still .tr-space-rays{animation:none}
 `;
 
 let libPromise = null;
@@ -354,7 +357,8 @@ export function mountMenuBackdrop(host) {
     // Reduced motion: draw once (and again on resize), never animate.
     if (!still) raf = requestAnimationFrame(frame);
   }
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let still = reduced;
   const run = () => { if (!raf && !paused && !dead) { last = 0; raf = requestAnimationFrame(frame); } };
 
   layout();
@@ -609,6 +613,8 @@ export function mountMenuBackdrop(host) {
     // screenPoint(lat, lng): { x, y } on screen, or null on the far side.
     enterMap, exitMap, flyTo, refreshPins, setPicker, setDraft, markFace, screenPoint,
     pause() { paused = true; if (raf) cancelAnimationFrame(raf); raf = 0; root.style.visibility = "hidden"; },
+    // One last frame at dt 0 when freezing; the loop restarts when thawed.
+    setStill(on) { still = reduced || !!on; root.classList.toggle("is-still", !!on); last = 0; run(); },
     resume() { paused = false; root.style.visibility = ""; run(); },
     destroy() { dead = true; ro.disconnect(); if (raf) cancelAnimationFrame(raf); if (map) map.remove(); map = null; root.remove(); },
   };
