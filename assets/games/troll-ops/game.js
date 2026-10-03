@@ -32,11 +32,13 @@ import { Achievements } from "./achievements.js?v=umb1";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=umb1";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
+import { getMyCard, withClan } from "./calling-cards.js?v=pc1";
+import { openProfileCard } from "./profile-card.js?v=pc1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb2";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb2-pc1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=rk1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=rk1-pc1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4";
@@ -4298,10 +4300,10 @@ function renderLobbyRoster() {
   const box = document.getElementById("to-pf-roster");
   if (!box || !lobbyReady) return;
 
-  const rows = [{ name: playerName(), state: "READY", you: true, uid: playerUid() }];
+  const rows = [{ name: withClan(playerName(), getMyCard().clan), state: "READY", you: true, uid: playerUid() }];
   if (isPvp() && net.connected) {
     for (const p of net.peers.values()) {
-      rows.push({ name: p.name, state: isBotPeer(p) ? "BOT" : "IN ROOM", uid: safeUid(p.uid) });
+      rows.push({ name: withClan(p.name, p.clan), state: isBotPeer(p) ? "BOT" : "IN ROOM", uid: safeUid(p.uid) });
     }
   }
 
@@ -4388,6 +4390,8 @@ window.addEventListener("trollforces:prestige-changed", () => {
   streakPicker.restore();
   renderModes();   // U Mad Bro? unlocks at Prestige 2
 });
+// Your clan tag changed (Barracks): the roster shows it.
+window.addEventListener("trollforces:card-changed", () => renderLobbyRoster());
 
 function playerName() {
   const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
@@ -4869,12 +4873,16 @@ const chat = new MatchChat({
   onOpenChange: (open) => { if (open) { keys.clear(); mouseDown = false; } },
 });
 
-/* The site's profile card (troll-accounts.js) for any operator with an
-   account. The pointer has to be free to use it, so only reachable from
-   menus, the paused roster and chat. */
+/* The Troll Forces profile card (profile-card.js) for any operator with an
+   account; its "Full profile" opens the site's own card. What the match
+   already knows about them draws at once. The pointer has to be free to
+   use it, so only reachable from menus, the paused roster and chat. */
 function openPlayerProfile(uid) {
   const id = safeUid(uid);
-  if (id) window.TrollrunnerAccounts?.openProfileCard?.(id);
+  if (!id) return;
+  let peer = null;
+  for (const p of net.peers.values()) if (safeUid(p.uid) === id) { peer = p; break; }
+  openProfileCard(id, peer ? { name: peer.name, level: peer.level, prestige: peer.prestige, owner: peer.owner, clan: peer.clan, card: peer.card } : {});
 }
 function playerUid() {
   return safeUid(window.TrollrunnerAccounts?.getCachedProfile?.()?.userId);
@@ -6049,14 +6057,14 @@ function rankChip(r) {
 
 function renderScoreboard() {
   const rows = [{
-    name: `${playerName()} (you)`, team: net.team, you: true, uid: playerUid(),
+    name: `${withClan(playerName(), getMyCard().clan)} (you)`, team: net.team, you: true, uid: playerUid(),
     kills: player.kills | 0, deaths: player.deaths | 0, assists: player.assists | 0,
     level: getLevel(), prestige: getPrestige(), owner: isOwner(),
   }];
   for (const p of net.peers.values()) {
     if (String(p.id).startsWith("streak-")) continue;   // drones and gunships aren't players
     rows.push({
-      name: p.name, team: p.team, you: false, uid: safeUid(p.uid),
+      name: withClan(p.name, p.clan), team: p.team, you: false, uid: safeUid(p.uid),
       kills: p.kills | 0, deaths: p.deaths | 0, assists: isBotPeer(p) ? null : (p.assists | 0),
       level: p.level, prestige: p.prestige | 0, owner: !!p.owner,
     });
@@ -8195,6 +8203,7 @@ function netSnapshot() {
   _netSnapshot.level = getLevel();
   _netSnapshot.prestige = getPrestige();
   _netSnapshot.owner = isOwner();
+  { const c = getMyCard(); _netSnapshot.clan = c.clan; _netSnapshot.card = c.card; }
   _netSnapshot.hero = heroActive() ? hero().wireId() : null;
   _netSnapshot.swivel = swivel.seq ? swivel.seq * (swivel.dir || swivel.lastDir || 1) : 0;
   return _netSnapshot;

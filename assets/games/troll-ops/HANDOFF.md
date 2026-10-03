@@ -1,8 +1,27 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
-## STREAM C (prestige + profile card) — RESUME HERE (2026-10-03): phases 1-3 SHIPPED + both SQLs run; NEXT = phase 4 (profile card + Barracks)
-Design doc (Claude Doc, read it first, `read` sinceRev 24):
+## STREAM C (prestige + profile card) — RESUME HERE (2026-10-03): phases 1-4 SHIPPED; phase 4 SQL NOT RUN YET; NEXT = phase 5 (exclusive rewards)
+Design doc (Claude Doc, read it first, `read` sinceRev 25):
 https://claude.ai/code/artifact/9331349a-6d55-4028-b8fe-f64f48398855
+- **Phase 4 profile card + Barracks** (branch tf-profile-card, on main):
+  `calling-cards.js` (CARDS: 6 free starters cut from assets/images/banners
+  04/05/07/08/11/12 into `ui/cards/*.jpg` 900x300; cardUnlocked via
+  prestigeUnlocked so phase 5 cards just add `prestige: n`; cleanClan
+  A-Z0-9 max 4 + small slur blocklist; getMyCard/saveMyCard/fetchCard,
+  event `trollforces:card-changed`). `profile-card.js` (renderCard(d) =
+  emblem PFP | calling card with `[CLAN] name` | rank icon + LV + prestige
+  name, then K/D W/L SPM accuracy headshots best streak; openProfileCard(uid,
+  hint) overlay, Esc/scrim close, "Full profile" -> the site card). Every
+  name now opens it (game.js openPlayerProfile passes the peer's wire data
+  as the hint), and the BO2 party row opens your own. Menu: "Combat Record"
+  row became **Barracks** (Calling Card list with live preview, Clan Tag box
+  in the detail pane, Combat Record, View Card). Wire: state msg `cl` clan +
+  `cc` card (omitted when default hitman); scoreboard, lobby roster, party
+  row and name tags show `[TAG] name`. SQL `assets/supabase/troll_forces_card.sql`
+  (table troll_forces_card, rpc troll_forces_set_card, card list in
+  troll_forces_card_allowed()) — until it's run, saving says "Cards aren't
+  switched on yet." Phase 5: add reward cards to CARDS AND to
+  troll_forces_card_allowed() (check p_prestige).
 **Locked decisions:** prestige is Troll Forces ONLY (site account level/XP
 never reset); TF level = own faster curve `120n + 2n^2` (LV 69 = 17,408 XP,
 ~87 matches) on account XP minus `xp_base`; cap 69; Prestige 1-10 then
@@ -32,7 +51,7 @@ getRank/rankUnlocked/isUnlocked/prestigeUnlocked so the owner stays open.
   (bullets.spawn), shotsHit (onBulletActorHit netId branch), matchScore
   (awardScore), weaponKills (registerDeath); recorded in endMatch (PvP only).
   Menu screen "Combat Record". SQL `assets/supabase/troll_forces_record.sql` RUN.
-- **NEXT, phase 4 (profile card + Barracks)**, per the doc: BO2 card =
+- **Phase 4 plan (DONE, see top)**, per the doc: BO2 card =
   emblem (the account avatar from PFP Studio, `troll_profiles.avatar_url`)
   on the left, name + `[CLAN]` tag across a calling card banner, prestige
   /rank icon + level on the right, headline six stats under it (K/D, W/L,
@@ -46,7 +65,7 @@ getRank/rankUnlocked/isUnlocked/prestigeUnlocked so the owner stays open.
   clan tag + card on the wire (state msg like lv/pg/ow) for scoreboard and
   name tags (`[TRLL] name`), ~6 free starter calling cards cut from
   assets/images/banners + @swish art. Profile mock-up is in the doc.
-- **Phase 5 (exclusive rewards)** after that: Bronze/Silver/Gold/Diamond/
+- **NEXT, phase 5 (exclusive rewards)**: Bronze/Silver/Gold/Diamond/
   Dark Matter finishes (materials like Ghost Glass in skins.js), Pentagrin
   + Trollface map gated by prestige, gold P7 gun, reward calling cards.
 - **Concurrency:** another session builds "U Mad Bro?" mode (Prestige 2

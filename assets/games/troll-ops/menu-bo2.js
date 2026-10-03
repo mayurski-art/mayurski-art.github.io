@@ -18,6 +18,8 @@ import { canPrestige, prestigeUp, getPrestige, PRESTIGE_MASTER } from "./progres
 
 import { fetchRecord, formatPlayed } from "./record.js?v=rec1";
 import { WEAPON_DEFS } from "./weapons.js?v=cg1";
+import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=pc1";
+import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1";
 
 /* The combat record screen's data: the last fetch, refreshed on each visit. */
 let recordView = null, recordState = "idle";
@@ -26,7 +28,11 @@ function loadRecord() {
   fetchRecord()
     .then((r) => { recordView = r; })
     .catch(() => {})
-    .finally(() => { recordState = "done"; if (menu.current() === "record") menu.refresh(); });
+    .finally(() => {
+      recordState = "done";
+      if (menu.current() === "record") menu.refresh();
+      else renderCardHost();
+    });
 }
 
 const nextPrestigeName = () => (getPrestige() + 1 >= PRESTIGE_MASTER ? "Master" : `P${getPrestige() + 1}`);
@@ -87,6 +93,69 @@ const shot = $(".to-bo2-mapshot", root);
 const lbHost = $(".to-bo2-lb", root);
 detail.appendChild(center);
 title.classList.add("is-bo2");
+
+/* ── Barracks: your profile card in the detail pane (profile-card.js) ──── */
+const cardHost = document.createElement("div");
+cardHost.className = "to-bo2-card";
+cardHost.hidden = true;
+cardHost.innerHTML = `<div class="to-bo2-card-slot"></div><p class="to-bo2-cardnote" hidden></p>`
+  + `<form class="to-bo2-clan" hidden><label for="to-bo2-clan-in">Clan tag</label>`
+  + `<input id="to-bo2-clan-in" maxlength="4" autocomplete="off" spellcheck="false" aria-describedby="to-bo2-clan-help">`
+  + `<button type="submit">Save</button><button type="button" data-act="cancel">Cancel</button>`
+  + `<small id="to-bo2-clan-help">Up to 4 letters or numbers. Leave it empty for no tag. Enter saves, Esc cancels.</small></form>`;
+detail.prepend(cardHost);
+const clanForm = $(".to-bo2-clan", cardHost);
+const clanIn = $("input", clanForm);
+let clanEditing = false, previewCard = null;
+const myUid = () => { const p = window.TrollrunnerAccounts?.getCachedProfile?.(); return p?.id || p?.userId || null; };
+const setStatus = (t) => { $(".to-bo2-status", root).textContent = t; };
+
+function renderCardHost() {
+  if (cardHost.hidden) return;
+  const d = myCardData(recordView, recordState === "loading");
+  if (previewCard) d.card = previewCard;
+  if (clanEditing) d.clan = cleanClan(clanIn.value);
+  $(".to-bo2-card-slot", cardHost).innerHTML = renderCard(d);
+  const note = $(".to-bo2-cardnote", cardHost);
+  note.hidden = !previewCard;
+  note.textContent = previewCard ? cardById(previewCard).desc : "";
+  clanForm.hidden = !clanEditing;
+}
+function stopClan() {
+  clanEditing = false;
+  renderCardHost();
+  $(".to-bo2-menu .is-hot", root)?.focus();
+}
+function editClan() {
+  clanEditing = true;
+  clanIn.value = getMyCard().clan;
+  renderCardHost();
+  clanIn.focus();
+  clanIn.select();
+}
+clanIn.addEventListener("input", () => {
+  const v = cleanClan(clanIn.value);
+  if (v !== clanIn.value) clanIn.value = v;
+  renderCardHost();
+});
+clanIn.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); stopClan(); }
+});
+$('[data-act="cancel"]', clanForm).addEventListener("click", stopClan);
+clanForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const tag = cleanClan(clanIn.value);
+  setStatus("Saving…");
+  try {
+    await saveMyCard({ clan: tag });
+    setStatus(tag ? `Clan tag: [${tag}].` : "Clan tag removed.");
+    stopClan();
+    menu.refresh();
+  } catch (err) {
+    setStatus(`Couldn't save: ${err.message}`);
+  }
+});
+window.addEventListener("trollforces:card-changed", () => { renderCardHost(); renderParty(); });
 
 /* ── Reading the lobby ────────────────────────────────────────────────── */
 function modeButtons(group) {
@@ -211,7 +280,7 @@ const screens = {
       ].filter(Boolean),
       [
         { id: "leaders", label: "Leaderboards", desc: "This week's best trolls.", go: "leaders" },
-        { id: "record", label: "Combat Record", desc: "Your lifetime K/D, W/L, accuracy and more, across every match.", go: "record" },
+        { id: "barracks", label: "Barracks", desc: "Your profile card: calling card, clan tag and combat record.", go: "barracks" },
         { id: "map", label: "Troll Map", desc: "This planet is the troll map. Spin it, find your city, see who is out there.", go: "map" },
       ],
       [
@@ -279,7 +348,53 @@ const screens = {
     return {
       title: "Combat Record", panel: "deploy",
       enter: () => loadRecord(),
-      groups: [rows.slice(0, 6), rows.slice(6), [back("Back to the main menu.")]].filter((g) => g.length),
+      groups: [rows.slice(0, 6), rows.slice(6), [back("Back to the Barracks.")]].filter((g) => g.length),
+    };
+  },
+  /* Barracks (prestige phase 4): your profile card in the detail pane, the
+     calling card and clan tag that go on it, and the full combat record. */
+  barracks: () => {
+    const signedIn = !!window.TrollrunnerAccounts?.getCachedProfile?.();
+    const { clan, card } = getMyCard();
+    const guest = "Sign in to set it. Guests don't keep a card.";
+    return {
+      title: "Barracks", panel: "deploy", detail: true, card: true,
+      enter: () => { clanEditing = false; previewCard = null; loadRecord(); },
+      groups: [
+        [
+          { id: "b-card", label: "Calling Card", value: signedIn ? cardById(card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : guest, go: "cards" },
+          { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, onSelect: () => editClan() },
+          { id: "b-record", label: "Combat Record", desc: "Your lifetime K/D, W/L, accuracy and more, across every match.", go: "record" },
+        ],
+        [
+          { id: "b-view", label: "View Card", disabled: !signedIn, desc: signedIn ? "Your card the way other players see it." : "Sign in to get a profile card.", onSelect: () => openProfileCard(myUid()) },
+          back("Back to the main menu."),
+        ],
+      ],
+    };
+  },
+  cards: () => {
+    const mine = getMyCard().card;
+    return {
+      title: "Calling Card", panel: "deploy", detail: true, card: true,
+      enter: () => { previewCard = null; },
+      groups: [
+        CARDS.map((c) => {
+          const open = cardUnlocked(c);
+          return {
+            id: `card-${c.id}`, label: c.name, cardId: c.id, on: c.id === mine, disabled: !open,
+            value: c.id === mine ? "Wearing" : open ? "" : `Prestige ${c.prestige}`,
+            desc: open ? c.desc : `Unlocks at Prestige ${c.prestige}.`,
+            onSelect: async (_, m) => {
+              if (c.id === mine) { m.back(); return; }
+              setStatus("Saving…");
+              try { await saveMyCard({ card: c.id }); setStatus(`Calling card: ${c.name}.`); m.back(); }
+              catch (err) { setStatus(`Couldn't save: ${err.message}`); }
+            },
+          };
+        }),
+        [back("Keep this card.")],
+      ],
     };
   },
   public: () => ({
@@ -508,6 +623,10 @@ const menu = createBo2Menu(nav, {
     lbHost.hidden = !s.lb;
     if (s.lb && !lbHost.dataset.mounted) { lbHost.dataset.mounted = "1"; lbHost.id = "to-bo2-lb"; window.TrollLeaderboard?.mount?.("troll-ops", "#to-bo2-lb"); }
     shot.hidden = id !== "maps";
+    if (id !== "barracks") clanEditing = false;
+    cardHost.hidden = !s.card;
+    root.classList.toggle("has-card", !!s.card);
+    renderCardHost();
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === "back");
     $(".to-bo2-back", root).classList.toggle("is-on", m.depth() > 0 && !ownBack);
     mapMode.onScreen(id, s);
@@ -516,6 +635,8 @@ const menu = createBo2Menu(nav, {
   onHot(it) {
     lastHot = it;
     umbBanner(it);
+    // Calling cards: the card you're on shows on your profile card.
+    if (lastScreen === "cards") { previewCard = it?.cardId || null; renderCardHost(); }
     if (!it) return;
     if (it.mapId) {
       const img = $("img", shot);
@@ -533,7 +654,7 @@ function renderParty() {
   const p = window.TrollrunnerAccounts?.getCachedProfile?.();
   const roster = $$("#to-pf-roster .to-pf-op").length;
   $(".to-bo2-party-lbl", root).innerHTML = `${Math.max(1, roster)} Player${roster > 1 ? "s" : ""} <span>(8 Max)</span>`;
-  $(".to-bo2-name", root).textContent = p?.username || "Guest troll";
+  $(".to-bo2-name", root).textContent = p?.username ? withClan(p.username, getMyCard().clan) : "Guest troll";
   const rankEl = $("#to-lo-rank-label"), owner = !!rankEl?.classList.contains("is-owner");
   const lv = $(".to-bo2-lv", root);
   lv.textContent = owner ? "Owner" : (text(rankEl) || "Level 1").replace(/Level/i, "LV");
@@ -544,7 +665,12 @@ function renderParty() {
   lv.classList.toggle("is-owner", owner);   // the owner badge, no level (style.css)
   $(".to-bo2-xp", root).textContent = p ? text($("#to-pf-xp")) : "Log in to keep your XP";
 }
-$(".to-bo2-party-row", root).addEventListener("click", () => $("#to-pf-profile")?.click());
+// Your name: your profile card when signed in, the sign-in when not.
+$(".to-bo2-party-row", root).addEventListener("click", () => {
+  const id = myUid();
+  if (id) openProfileCard(id);
+  else $("#to-pf-profile")?.click();
+});
 // The footer grows (Back button, status line), so the list's room comes
 // from its real height: see .to-bo2-menu in style.css.
 {
