@@ -409,6 +409,31 @@ const optionScreens = new Proxy(screens, {
   has(t, id) { return id in t || /^(att|gear)-\d+$/.test(id); },
 });
 
+/* U Mad Bro? teaser: while its mode row is hot (locked or not), the detail
+   pane shows the hero banners, the two album-cover parodies taking turns.
+   onHot fires before onScreen on a re-render, so onScreen re-applies it. */
+const UMB_BANNERS = ["umb-agents", "umb-highway"].map((n) => `assets/games/troll-ops/ui/${n}.jpg?v=umb1`);
+let lastHot = null, screenDetail = false, umbTimer = 0, umbIdx = 0;
+function umbBanner(it) {
+  const on = it?.id === "mode-umb";
+  const img = $("img", shot);
+  if (on) {
+    root.classList.add("has-detail", "is-umb");
+    shot.hidden = false;
+    img.hidden = false;
+    img.alt = "U Mad Bro? heroes: Troll Knight, Troll Hunter, Super Troll, Troll Metamorphosis and the Trollernaut";
+    img.src = UMB_BANNERS[umbIdx];
+    $("figcaption", shot).textContent = it.desc || "";
+    if (!umbTimer) umbTimer = setInterval(() => { umbIdx = (umbIdx + 1) % UMB_BANNERS.length; img.src = UMB_BANNERS[umbIdx]; }, 4500);
+  } else if (root.classList.contains("is-umb")) {
+    clearInterval(umbTimer); umbTimer = 0;
+    root.classList.remove("is-umb");
+    root.classList.toggle("has-detail", screenDetail);
+    shot.hidden = lastScreen !== "maps";
+    img.alt = "";
+  }
+}
+
 /* ── The menu ─────────────────────────────────────────────────────────── */
 let lastPanel = null, lastScreen = null;
 const menu = createBo2Menu(nav, {
@@ -421,7 +446,8 @@ const menu = createBo2Menu(nav, {
     root.dataset.screen = id;
     // Phones size the operator and the detail pane from the list's height.
     pf.style.setProperty("--menu-h", `${nav.offsetHeight}px`);
-    root.classList.toggle("has-detail", !!s.detail || id === "search" || id === "pinsearch");
+    screenDetail = !!s.detail || id === "search" || id === "pinsearch";
+    root.classList.toggle("has-detail", screenDetail);
     root.classList.toggle("has-gun", !!s.gun);
     root.classList.toggle("has-lb", !!s.lb);
     lbHost.hidden = !s.lb;
@@ -430,8 +456,11 @@ const menu = createBo2Menu(nav, {
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === "back");
     $(".to-bo2-back", root).classList.toggle("is-on", m.depth() > 0 && !ownBack);
     mapMode.onScreen(id, s);
+    umbBanner(lastHot);
   },
   onHot(it) {
+    lastHot = it;
+    umbBanner(it);
     if (!it) return;
     if (it.mapId) {
       const img = $("img", shot);
