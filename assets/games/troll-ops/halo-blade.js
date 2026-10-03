@@ -254,7 +254,8 @@ export function buildHaloBlade({ lit = true } = {}) {
   const power = {
     frac: lit ? 1 : 0, target: lit ? 1 : 0, surge: 0, swing: 0,
     last: performance.now(),
-    ignite() { if (this.target < 1) this.surge = 1; this.target = 1; },
+    igniteTime: IGNITE_TIME,
+    ignite(time = IGNITE_TIME) { if (this.target < 1) this.surge = 1; this.target = 1; this.igniteTime = time; },
     retract() { this.target = 0; },
     snapOff() { this.target = this.frac = 0; },
     flare(amount = 1) { this.surge = Math.max(this.surge, Math.min(1, amount)); },
@@ -269,7 +270,7 @@ export function buildHaloBlade({ lit = true } = {}) {
     const dt = Math.min(0.1, (now - power.last) / 1000);
     if (dt <= 0) return;
     power.last = now;
-    if (power.frac < power.target) power.frac = Math.min(power.target, power.frac + dt / IGNITE_TIME);
+    if (power.frac < power.target) power.frac = Math.min(power.target, power.frac + dt / power.igniteTime);
     else if (power.frac > power.target) power.frac = Math.max(power.target, power.frac - dt / RETRACT_TIME);
     power.surge = Math.max(0, power.surge - dt * 1.6);
     const f = power.frac;

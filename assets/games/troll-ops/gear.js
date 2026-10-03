@@ -13,9 +13,9 @@
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import { smoothstep } from "./anim-curves.js";
-import { buildTrollsaber } from "./trollsaber.js?v=ts3";
+import { buildTrollsaber } from "./trollsaber.js?v=ts4";
 import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw2";
-import { buildHaloBlade } from "./halo-blade.js?v=hb1";
+import { buildHaloBlade } from "./halo-blade.js?v=hb2";
 
 export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where you look
 const GRAVITY = GRENADE_GRAVITY;
@@ -38,7 +38,12 @@ export const MELEE_DEFS = {
   keyboard: {
     id: "keyboard", name: "Keyboard Warrior", rank: 0,
     damage: 120, backstabMult: 1.8, range: 2.0, arc: 1.0, knock: 6.5,
-    blurb: "The keyboard is mightier than the sword. U mad bro?",
+    blurb: "The keyboard is mightier than the sword. U mad bro? Hold aim to block, briefly.",
+    // Hold aim: the board goes up flat as a shield (game.js kbShield). It
+    // stops rounds from the front, but `breakHits` in a row inside
+    // `hitWindow` seconds break it and you have to sit and fix it
+    // (keyboard-repair.js) before it'll block or swing again.
+    shield: { cone: 0.3, breakHits: 4, hitWindow: 1.6 },
     model: {
       kind: "keyboard",
       len: 0.78, wide: 0.30, blade: 0.038,

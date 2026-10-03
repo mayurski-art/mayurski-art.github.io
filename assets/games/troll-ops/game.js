@@ -47,9 +47,9 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=umb1";
-import { BotManager } from "./bots.js?v=cg1";
+import { BotManager } from "./bots.js?v=cg2";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
-import { GameAudio } from "./audio.js?v=umb1";
+import { GameAudio } from "./audio.js?v=umb1kb";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./music.js?v=to-gs1";
@@ -69,8 +69,9 @@ import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
 import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1";
-import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts3";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb";
+import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
+import { createKeyboardRepair, KB_SHIELD } from "./keyboard-repair.js?v=kr5";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=cg1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
@@ -7818,11 +7819,19 @@ function releaseCook({ cookedOff = false } = {}) {
 /* Quick melee swings without putting the gun away; pressing 3 makes the
    melee weapon the thing in your hands, which swings and moves faster. */
 function swingMelee() {
+  if (kbRepair.active) return;   // both hands busy fixing the keyboard
   if (!player.alive || move.busy || gameState !== "playing" || stageFrozen() || royaleDropView()) return;
   if (!player.melee || !player.melee.start()) return;
   // Everyone else sees the swing; the damage still travels as a normal hit.
   if (isPvp() && net.active) net.publishMelee(player.melee.swingIndex % 2, player.melee.def.id);
   breakSpawnGuard();
+  // Swinging mid-ignite: the blade finishes coming out fast, and the slow
+  // draw gives way to the swing.
+  for (const m of [activeMeleeMesh, localHeld.mesh]) {
+    const sv = m?.userData.saber || m?.userData.halo;
+    if (sv && sv.frac < 1) sv.ignite();
+  }
+  meleeDrawT = 0;
   const kind = player.melee.def.model?.kind;
   if (kind === "saber" || kind === "halo") audio.saberSwing();
   else if (kind === "chainsaw") audio.chainsawRev();
@@ -7832,12 +7841,15 @@ function swingMelee() {
 
 /* The swing itself: a short fan of rays rather than one, so a swing that is
    only nearly on target still connects the way a wide arc should. */
+const _meleeAim = new THREE.Euler();
 function meleeConnect() {
   const def = player.melee.def;
-  const origin = new THREE.Vector3();
-  camera.getWorldPosition(origin);
-  const forward = new THREE.Vector3();
-  camera.getWorldDirection(forward);
+  // From your own eyes along your aim, not from the camera: in third person
+  // the camera sits ~3 m behind you, so a 2 m swing used to end behind your
+  // own back and never touched anyone (user: "not able to kill enemies with
+  // the trollsaber in third person"). In first person this is the same ray.
+  const origin = player.pos.clone();
+  const forward = new THREE.Vector3(0, 0, -1).applyEuler(_meleeAim.set(look.pitch, look.yaw, 0, "YXZ"));
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
   const ray = new THREE.Raycaster();
@@ -7912,7 +7924,13 @@ let saberFlick = 0;
 let saberWasShown = false;
 // The draw flourish when an energy blade (saber, halo) comes into the hand.
 const MELEE_DRAW_TIME = 0.5;
+// Equipping one (3, or cycling to it) rather than a quick V swing: a slow,
+// deliberate ignite every time (user, 2026-10-03), and a weightier draw for
+// the Keyboard Warrior and the Chainsaw too.
+const SLOW_IGNITE = 1.1;
+const MELEE_EQUIP_TIME = 1.0;
 let meleeDrawT = 0;
+let meleeDrawLen = MELEE_DRAW_TIME;
 let saberTrail = null;
 let saberSwingSpeed = 0;
 let saberHavePrevTip = false;
@@ -7963,8 +7981,48 @@ function breakSaberGuard() {
   activeMeleeMesh?.userData.saber?.flare(1.4);
 }
 
+/* ---- the Keyboard Warrior's shield (gear.js MELEE_DEFS.keyboard.shield)
+   Hold aim and the board goes up flat, keys out (keyboard-repair.js
+   KB_SHIELD). It stops rounds from the front with no meter, but a few in a
+   row break it: keycaps everywhere, and you sit down and fix it. */
+const kbShield = { active: false, t: 0, kick: 0, hits: [] };
+const kbRepair = createKeyboardRepair({ audio });
+const _kbFarGrip = new THREE.Vector3(0, -0.03, -0.86);   // support hand under the far end
+function heldKbShield() { return player.melee?.def?.shield || null; }
+function updateKbShield(wantAds) {
+  kbShield.active = !!heldKbShield() && player.holding === "melee" && player.alive && wantAds
+    && !player.melee.busy && !kbRepair.active && !isStaging();
+}
+function tryKbShield(fromId, weaponId, fromPos) {
+  const d = heldKbShield();
+  if (!kbShield.active || !d || !WEAPON_DEFS[weaponId]) return false;
+  const src = fromPos || killerPosFor(fromId);
+  camera.getWorldDirection(_deflectFwd);
+  _deflectFwd.y = 0;
+  _deflectFwd.normalize();
+  if (src) {
+    _deflectTo.set(src.x - move.pos.x, 0, src.z - move.pos.z);
+    if (_deflectTo.lengthSq() > 1e-6 && _deflectTo.normalize().dot(_deflectFwd) < d.cone) return false;
+  }
+  const at = player.pos.clone().addScaledVector(_deflectFwd, 0.6);
+  at.y -= 0.2;
+  spawnImpactBurst(at, 0x8a8a96, 10);
+  audio.keyboardShieldHit();
+  kbShield.kick = 1;
+  const now = performance.now() / 1000;
+  kbShield.hits = kbShield.hits.filter((t) => now - t < d.hitWindow);
+  kbShield.hits.push(now);
+  if (kbShield.hits.length >= d.breakHits) {
+    kbShield.hits.length = 0;
+    kbShield.active = false;
+    kbRepair.start();
+  }
+  return true;
+}
+
 /* damagePlayer asks first: true means the blade took it. */
 function tryDeflect(amount, fromId, weaponId, fromPos) {
+  if (tryKbShield(fromId, weaponId, fromPos)) return true;
   if (!saberBlock.active) return false;
   const d = heldSaberDeflect();
   if (!d || !WEAPON_DEFS[weaponId]) return false;
@@ -7993,7 +8051,14 @@ function tryDeflect(amount, fromId, weaponId, fromPos) {
   // world camera's wider lens and put the burst out along that ray.
   const saberMesh = activeMeleeMesh;
   const s = saberMesh?.userData.saber;
-  if (s) {
+  if (s && (settings.thirdPerson || emoteIsTp())) {
+    // Third person: the first-person blade isn't on screen, so burst in
+    // front of the body, where the guard is.
+    const v = player.pos.clone().addScaledVector(_deflectFwd, 0.7);
+    v.y -= 0.25;
+    spawnImpactBurst(v, 0xff6a3a, 14);
+    ricochetRound(v, src, weaponId);
+  } else if (s) {
     const v = s.tipLocal.clone().lerp(s.rootLocal, 0.45);
     saberMesh.localToWorld(v);
     const k = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.tan(THREE.MathUtils.degToRad(weaponCamera.fov / 2));
@@ -8639,7 +8704,7 @@ function botTargets() {
     // `blocking`: a Trollsaber guard up, which bots respect (bots.js
     // isGuarding) instead of emptying magazines into it.
     let blocking = false;
-    if (o.id === net.id) blocking = saberBlock.active;
+    if (o.id === net.id) blocking = saberBlock.active || kbShield.active;
     else {
       const rp = remotes.byId.get(o.id);
       blocking = !!(rp?.peer.blocking && rp.saberOut);
@@ -12470,9 +12535,14 @@ function updateLocalRig(dt) {
       kind: player.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
     } : null,
     recoil: hold === "gun" ? Math.min(1, (currentWeapon()?.viewKickKnockback || 0) * 7) : 0,
-    block: localBlockT = damp(localBlockT, saberBlock.active ? 1 : 0, 14, dt),
+    block: localBlockT = damp(localBlockT, saberBlock.active || kbShield.active ? 1 : 0, 14, dt),
     parry: saberParry.sample(),
   });
+  // Third person, mid-repair: the board held flat across the body and
+  // shaken about while it gets fixed.
+  if (kbRepair.active && localHeld.mesh && hold === "melee") {
+    localHeld.mesh.rotation.set(-Math.PI / 2 + Math.sin(kbRepair.t * 9) * 0.15, Math.sin(kbRepair.t * 13) * 0.2, Math.PI / 2);
+  } else if (localHeld.mesh && hold === "melee") localHeld.mesh.rotation.set(0, 0, 0);
   if (localThrowT > 0) {
     localThrowT = Math.max(0, localThrowT - dt);
     poseThrowArm(localRig, 1 - localThrowT / THROW_TIME);
@@ -12509,6 +12579,9 @@ function syncLocalRigHeld(hold, def) {
     localHeld.mesh.scale.setScalar(1.1);
     localHeld.mesh.userData.meleeId = player.melee.def.id;
     localRig.parts.gripR.add(localHeld.mesh);
+    // Built lit; it ignites in third person too, slowly when equipped.
+    const sv = localHeld.mesh.userData.saber || localHeld.mesh.userData.halo;
+    if (sv) { sv.snapOff(); sv.ignite(player.holding === "melee" && !player.melee.busy ? SLOW_IGNITE : undefined); }
   }
   localHeld.mesh?.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 }
@@ -12781,6 +12854,7 @@ function updatePlayer(dt) {
     canAds,
   });
   updateSaberBlock(dt, wantAds && canAds);
+  updateKbShield(wantAds && canAds);
 
   // A charge only lives while the gun is up: melee, a streak device or
   // death drops it.
@@ -12909,7 +12983,13 @@ function updateMeleeView(dt) {
     saber.snapOff();
     saberTrail?.clear();
     saberHavePrevTip = false;
-    if (mesh.visible) { saber.ignite(); saber.flare(1.2); audio.saberIgnite(); meleeDrawT = MELEE_DRAW_TIME; }
+    if (mesh.visible) {
+      const equip = held && !swinging;
+      saber.ignite(equip ? SLOW_IGNITE : undefined);
+      saber.flare(equip ? 0.5 : 1.2);
+      if (equip) audio.saberIgniteSlow(); else audio.saberIgnite();
+      meleeDrawT = meleeDrawLen = equip ? MELEE_EQUIP_TIME : MELEE_DRAW_TIME;
+    }
     else { audio.saberHum(-1); audio.saberRetract(); }
   }
   // The Halo Blade: dark in the hand, its prongs unfold out of the hilt as
@@ -12917,8 +12997,25 @@ function updateMeleeView(dt) {
   const halo = mesh.userData.halo;
   if (halo && mesh.visible !== !!mesh.userData.wasShown) {
     mesh.userData.wasShown = mesh.visible;
-    if (mesh.visible) { halo.snapOff(); halo.ignite(); audio.haloIgnite(); meleeDrawT = MELEE_DRAW_TIME; }
+    if (mesh.visible) {
+      const equip = held && !swinging;
+      halo.snapOff();
+      halo.ignite(equip ? SLOW_IGNITE : undefined);
+      if (equip) audio.haloIgniteSlow(); else audio.haloIgnite();
+      meleeDrawT = meleeDrawLen = equip ? MELEE_EQUIP_TIME : MELEE_DRAW_TIME;
+    }
     else { halo.retract(); audio.haloRetract(); }
+  }
+  // Everything else (Keyboard Warrior, Chainsaw, Reaper) gets the same slow
+  // draw when it's equipped, with its own start-up sound.
+  if (!saber && !halo && mesh.visible !== !!mesh.userData.drawShown) {
+    mesh.userData.drawShown = mesh.visible;
+    if (mesh.visible && held && !swinging) {
+      meleeDrawT = meleeDrawLen = MELEE_EQUIP_TIME;
+      const kind = melee.def.model?.kind;
+      if (kind === "chainsaw") audio.chainsawStart();
+      else if (kind === "keyboard") audio.keyboardBoot();
+    }
   }
   // Only while the gun is what we hold: this used to re-show it every frame,
   // so it stayed on screen beside the streak tablet and marker.
@@ -12928,7 +13025,11 @@ function updateMeleeView(dt) {
   saberArmsOn = mesh.visible && player.alive && (!saber || inspectT <= 0);
   if (!saberArmsOn && saberArmsWere) { gloveRig.visible = false; pfArms.visible = false; }
   saberArmsWere = saberArmsOn;
-  if (!mesh.visible) { meleeIdleT = 0; saberBlock.t = 0; return; }
+  if (!mesh.visible) {
+    meleeIdleT = 0; saberBlock.t = 0; kbShield.t = 0;
+    if (kbRepair.active) kbRepair.stop();   // put away mid-fix: it's fixed when it comes back
+    return;
+  }
 
   const { pos, quat } = melee.pose();
   mesh.position.copy(pos);
@@ -12947,7 +13048,7 @@ function updateMeleeView(dt) {
   // arms follow the weapon, so they draw it too.
   if (meleeDrawT > 0) {
     meleeDrawT = Math.max(0, meleeDrawT - dt);
-    const k = 1 - meleeDrawT / MELEE_DRAW_TIME;
+    const k = 1 - meleeDrawT / meleeDrawLen;
     const e = 1 - Math.pow(1 - k, 3);              // ease out
     const off = 1 - e;
     mesh.position.x += off * 0.14;
@@ -12957,6 +13058,23 @@ function updateMeleeView(dt) {
     // overshoot right at the end.
     const settle = Math.sin(k * Math.PI) * 0.12 * (k > 0.6 ? 1 : 0);
     mesh.quaternion.multiply(_meleeViewQ.setFromEuler(_meleeViewE.set(off * -0.9 + settle, 0, off * 1.6)));
+  }
+
+  if (melee.def.shield) {
+    kbShield.t = damp(kbShield.t, kbShield.active ? 1 : 0, 14, dt);
+    if (kbShield.t > 0.001) {
+      mesh.position.lerp(KB_SHIELD.pos, kbShield.t);
+      mesh.quaternion.slerp(KB_SHIELD.quat, kbShield.t);
+      const sup = meleeHands(mesh)[1]?.obj;
+      if (sup) sup.position.lerp(_kbFarGrip, kbShield.t);
+    }
+    // each round knocks it back into your face a little
+    if (kbShield.kick > 0) {
+      kbShield.kick = Math.max(0, kbShield.kick - dt * 7);
+      mesh.position.z += kbShield.kick * 0.06;
+      mesh.position.x += (Math.random() - 0.5) * kbShield.kick * 0.02;
+    }
+    if (kbRepair.active) kbRepair.update(dt, mesh, meleeHands(mesh));
   }
 
   if (saber) {
@@ -14744,6 +14862,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },
+    kbRepair, kbShield, saberFrac: () => (activeMeleeMesh?.userData.saber || activeMeleeMesh?.userData.halo)?.frac ?? null,
     loadState: () => ({ open: loadScreen.isOpen, hold: loadHold, warm: loadWarm, target: loadTarget, staging: isStaging(), stageT, status: document.querySelector(".to-mapload-status")?.textContent || "" }),
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, endMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,

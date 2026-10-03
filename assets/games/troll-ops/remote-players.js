@@ -10,7 +10,7 @@ import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mo
 import { poseEmoteCode } from "./emotes.js?v=hb4";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm";
-import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3";

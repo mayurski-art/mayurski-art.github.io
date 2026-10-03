@@ -567,7 +567,11 @@ class Bot {
     }
     // Hands full with the bomb means no trigger, same as for a player.
     const canSee = !busy && best && bestD < FIRE_RANGE;
-    const canShoot = canSee && !respectGuard;
+    // They keep firing into a guard (user, 2026-10-03: "enemies don't shoot at
+    // me when I have my trollsaber shielded"): standing there not shooting
+    // read as broken. The rounds still bounce off the blade and drain its
+    // meter; smarter bots shoot while they work round the side.
+    const canShoot = canSee;
     // A short reaction delay before the first shot, so they don't snap onto
     // someone the instant they round a corner.
     const reacted = this.acquireT >= this.diff.reaction;

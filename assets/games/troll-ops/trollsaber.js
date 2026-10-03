@@ -271,7 +271,10 @@ export function buildTrollsaber({ lit = true, castShadow = false } = {}) {
     power: 1,                 // extra brightness (clash flare), decays to 1
     seed: Math.random() * 100,
     last: performance.now(),
-    ignite() { this.target = 1; },
+    // `time`: seconds to full length. The equip ignite is slow (game.js
+    // SLOW_IGNITE): it sputters, then the blade pushes out steadily.
+    igniteTime: IGNITE_TIME,
+    ignite(time = IGNITE_TIME) { this.target = 1; this.igniteTime = time; },
     retract() { this.target = 0; },
     snapOff() { this.target = this.frac = 0; },
     flare(amount = 1) { this.power = Math.max(this.power, 1 + amount); },
@@ -287,14 +290,18 @@ export function buildTrollsaber({ lit = true, castShadow = false } = {}) {
     const now = performance.now();
     const dt = Math.min(0.1, (now - saber.last) / 1000);
     saber.last = now;
-    if (saber.frac < saber.target) saber.frac = Math.min(saber.target, saber.frac + dt / IGNITE_TIME);
+    if (saber.frac < saber.target) saber.frac = Math.min(saber.target, saber.frac + dt / saber.igniteTime);
     else if (saber.frac > saber.target) saber.frac = Math.max(saber.target, saber.frac - dt / RETRACT_TIME);
     saber.power = 1 + (saber.power - 1) * Math.exp(-dt * 7);
     // ease-out on the way up: the blade snaps out and settles
     const f = saber.frac;
-    const shown = saber.target > 0 ? 1 - Math.pow(1 - f, 3) : f * f;
+    const slow = saber.igniteTime > IGNITE_TIME * 1.5;
+    const shown = saber.target > 0 ? (slow ? f * f * (3 - 2 * f) : 1 - Math.pow(1 - f, 3)) : f * f;
     const len = SABER_BLADE_LEN * shown;
-    const fl = flicker(now / 1000, saber.seed) * saber.power;
+    // A slow ignite catches a few times before it holds: the emitter
+    // stutters through the first third of the draw.
+    const sputter = slow && saber.target > 0 && f < 0.35 ? (Math.sin(now * 0.09 + saber.seed) > 0.2 ? 1 : 0.35) : 1;
+    const fl = flicker(now / 1000, saber.seed) * saber.power * sputter;
     const u = beamMat.uniforms;
     u.uLen.value = len;
     u.uPower.value = fl;

@@ -435,6 +435,16 @@ export class GameAudio {
     this._tone({ freq: 120, to: 90, duration: 0.4, gain: 0.07, type: "sawtooth", delay: 0.18, at });
   }
 
+  /* The equip ignite (game.js SLOW_IGNITE): a couple of dry catches, then a
+     long hum that climbs as the blade pushes out, and the settle. */
+  saberIgniteSlow(at = null) {
+    if (!this._ready()) return;
+    for (const d of [0, 0.13, 0.24]) this._noise({ duration: 0.05, gain: 0.22, type: "highpass", freq: 3400, sweepTo: 1800, delay: d, at });
+    this._tone({ freq: 45, to: 175, duration: 1.05, gain: 0.13, type: "sawtooth", delay: 0.28, at });
+    this._noise({ duration: 0.95, gain: 0.12, type: "bandpass", freq: 500, q: 1.3, sweepTo: 2600, delay: 0.3, at });
+    this._tone({ freq: 120, to: 90, duration: 0.45, gain: 0.08, type: "sawtooth", delay: 1.15, at });
+  }
+
   saberRetract(at = null) {
     if (!this._ready()) return;
     this._tone({ freq: 170, to: 45, duration: 0.3, gain: 0.1, type: "sawtooth", at });
@@ -450,6 +460,59 @@ export class GameAudio {
     this._tone({ freq: 210, to: 630, duration: 0.42, gain: 0.07, type: "triangle", delay: 0.05, at });
     this._noise({ duration: 0.5, gain: 0.12, type: "bandpass", freq: 1200, q: 2, sweepTo: 5200, delay: 0.06, at });
     this._tone({ freq: 880, to: 1320, duration: 0.3, gain: 0.035, type: "sine", delay: 0.35, at });
+  }
+
+  haloIgniteSlow(at = null) {
+    if (!this._ready()) return;
+    for (const d of [0, 0.15]) this._noise({ duration: 0.06, gain: 0.2, type: "highpass", freq: 4600, sweepTo: 2200, delay: d, at });
+    this._tone({ freq: 120, to: 420, duration: 1.0, gain: 0.1, type: "sawtooth", delay: 0.25, at });
+    this._tone({ freq: 180, to: 630, duration: 1.0, gain: 0.07, type: "triangle", delay: 0.28, at });
+    this._noise({ duration: 1.0, gain: 0.11, type: "bandpass", freq: 1000, q: 2, sweepTo: 5200, delay: 0.3, at });
+    this._tone({ freq: 880, to: 1320, duration: 0.35, gain: 0.035, type: "sine", delay: 1.2, at });
+  }
+
+  /* Drawing the chainsaw: two yanks on the cord, the engine catching. */
+  chainsawStart(at = null) {
+    if (!this._ready()) return;
+    for (const d of [0, 0.32]) {
+      this._noise({ duration: 0.16, gain: 0.14, type: "bandpass", freq: 900, q: 1.1, sweepTo: 2400, delay: d, at });
+      this._tone({ freq: 38, to: 70, duration: 0.18, gain: 0.12, type: "sawtooth", delay: d + 0.04, at });
+    }
+    this._tone({ freq: 50, to: 120, duration: 0.6, gain: 0.15, type: "sawtooth", delay: 0.66, at });
+    this._tone({ freq: 100, to: 240, duration: 0.6, gain: 0.06, type: "square", delay: 0.66, at });
+  }
+
+  /* A round smacking the Keyboard Warrior's shield: plastic, a key rattle. */
+  keyboardShieldHit(at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.06, gain: 0.3, type: "bandpass", freq: 2400, q: 1.6, sweepTo: 1400, at });
+    this._tone({ freq: 340, to: 210, duration: 0.07, gain: 0.08, type: "square", at });
+    for (const d of [0.04, 0.07, 0.1]) this._noise({ duration: 0.025, gain: 0.1, type: "highpass", freq: 5200, delay: d, at });
+  }
+
+  /* The repair act's beats (keyboard-repair.js). */
+  kbRepairCue(name, at = null) {
+    if (!this._ready()) return;
+    if (name === "clatter") {
+      for (let i = 0; i < 7; i++) this._noise({ duration: 0.03, gain: 0.16, type: "highpass", freq: 3800 + i * 300, delay: i * 0.05 + Math.random() * 0.02, at });
+      this._tone({ freq: 520, to: 260, duration: 0.25, gain: 0.05, type: "square", at });
+    } else if (name === "screw" || name === "screw2") {
+      for (let i = 0; i < 8; i++) this._noise({ duration: 0.018, gain: 0.12, type: "bandpass", freq: 3000, q: 3, delay: i * 0.07, at });
+    } else if (name === "solder" || name === "solder2") {
+      this._noise({ duration: 0.5, gain: 0.08, type: "highpass", freq: 5000, sweepTo: 3500, at });
+      this._tone({ freq: 1800, to: 1700, duration: 0.3, gain: 0.015, type: "sine", at });
+    } else if (name === "plug") {
+      this._noise({ duration: 0.04, gain: 0.25, type: "bandpass", freq: 1800, q: 2, at });
+      [440, 660].forEach((f, i) => this._tone({ freq: f, to: f, duration: 0.09, gain: 0.05, type: "sine", delay: 0.12 + i * 0.1, at }));
+    } else if (name === "chime") {
+      [392, 523, 659, 784].forEach((f, i) => this._tone({ freq: f, to: f, duration: 0.3, gain: 0.05, type: "triangle", delay: i * 0.09, at }));
+    }
+  }
+
+  /* Drawing the Keyboard Warrior: the RGB comes up with a boot chime. */
+  keyboardBoot(at = null) {
+    if (!this._ready()) return;
+    [523, 659, 784, 1047].forEach((f, i) => this._tone({ freq: f, to: f, duration: 0.14, gain: 0.05, type: "square", delay: 0.12 + i * 0.11, at }));
   }
 
   haloRetract(at = null) {
