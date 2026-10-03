@@ -1,5 +1,65 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## STREAM C (prestige + profile card) — RESUME HERE (2026-10-03): phases 1-3 SHIPPED + both SQLs run; NEXT = phase 4 (profile card + Barracks)
+Design doc (Claude Doc, read it first, `read` sinceRev 24):
+https://claude.ai/code/artifact/9331349a-6d55-4028-b8fe-f64f48398855
+**Locked decisions:** prestige is Troll Forces ONLY (site account level/XP
+never reset); TF level = own faster curve `120n + 2n^2` (LV 69 = 17,408 XP,
+~87 matches) on account XP minus `xp_base`; cap 69; Prestige 1-10 then
+11 = Prestige Master; NOTHING relocks (unlock gate = max(account level, TF
+level, 69 once prestiged)); clan tags yes (4 chars); P7 gun = a GOLD version
+of an existing gun; Pentagrin + Trollface map are prestige rewards; guests
+never prestige or keep a record (guest XP isn't saved). Owner `troll_runner`:
+no level (getLevel() null, getRank() Infinity), gold OWNER badge, all
+current and future unlocks open; any new gate must go through
+getRank/rankUnlocked/isUnlocked/prestigeUnlocked so the owner stays open.
+- **Phase 1 core** (958b877): `progression.js` (tfXpForLevel/tfLevelForXp,
+  getLevel, getPrestige, canPrestige, prestigeUp, event
+  `trollforces:prestige-changed`); BO2 menu Prestige row at 69 + confirm
+  screen (menu-bo2.js `prestige`). SQL `assets/supabase/troll_forces_prestige.sql`
+  (table troll_forces_prestige, fn troll_forces_prestige_up re-checks 69) RUN.
+- **Phase 2 icons** (01543d3): `rank-icons.js` — rankIconSvg (14 tiers),
+  prestigeIconSvg (11, real trollface art `assets/images/wallpaper/trollface
+  transparent.png`), playerIconCanvas (canvas copy for name tags; owner =
+  crowned troll `assets/images/icons/pfp.png`). Shown in loadout strip,
+  BO2 party row, scoreboard (`rankChip`), name tags (remote-players
+  makeNameTag(text, colour, rank), rebuilt on rank change). net.js state
+  msg carries `lv`/`pg`/`ow`; bots get `botLevel(id)`. Preview page:
+  `tools/rank-icons-preview.html`.
+- **Phase 3 combat record** (4c51bbe): `record.js` (recordMatch -> queue
+  `trollops:record-pending` -> rpc troll_forces_record_match, retry 30s;
+  fetchRecord/derive/formatPlayed). game.js counters: player.shotsFired
+  (bullets.spawn), shotsHit (onBulletActorHit netId branch), matchScore
+  (awardScore), weaponKills (registerDeath); recorded in endMatch (PvP only).
+  Menu screen "Combat Record". SQL `assets/supabase/troll_forces_record.sql` RUN.
+- **NEXT, phase 4 (profile card + Barracks)**, per the doc: BO2 card =
+  emblem (the account avatar from PFP Studio, `troll_profiles.avatar_url`)
+  on the left, name + `[CLAN]` tag across a calling card banner, prestige
+  /rank icon + level on the right, headline six stats under it (K/D, W/L,
+  SPM, accuracy, headshots, best streak via fetchRecord(userId)). Opens
+  from every name (scoreboard/roster/chat already call
+  `openPlayerProfile` -> TrollrunnerAccounts.openProfileCard, game.js
+  ~4618; swap/extend that in-game). New "Barracks" BO2 menu screen: pick
+  calling card, set clan tag, full combat record (fold the current Combat
+  Record screen into it). Needs: clan tag + calling card storage (new
+  columns/table + SQL, e.g. troll_forces_card {user_id, clan, card}),
+  clan tag + card on the wire (state msg like lv/pg/ow) for scoreboard and
+  name tags (`[TRLL] name`), ~6 free starter calling cards cut from
+  assets/images/banners + @swish art. Profile mock-up is in the doc.
+- **Phase 5 (exclusive rewards)** after that: Bronze/Silver/Gold/Diamond/
+  Dark Matter finishes (materials like Ghost Glass in skins.js), Pentagrin
+  + Trollface map gated by prestige, gold P7 gun, reward calling cards.
+- **Concurrency:** another session builds "U Mad Bro?" mode (Prestige 2
+  lock via prestigeUnlocked) in the same files (game.js, menu-bo2.js,
+  remote-players.js, troll-ops.html). Conflicts so far were only `?v=`
+  tags: keep their side, re-bump to a fresh combined tag. Every importer of
+  progression.js / character.js / rank-icons.js must use the same `?v=`
+  or the module loads twice (split state).
+- Also this session: BO2 stick look + Stick sensitivity 1-14 (game.js
+  padLookTurn), hitbox lab `?hitbox=1` on localhost (hitbox-lab.js;
+  per-bone hitboxes in character.js, visible hits count, user CLOSED it),
+  menus can't overlap "N Online" (--foot-h, only the list scrolls).
+
 ## STREAM B (menu) — SHIPPED 2026-10-02: BO2 Zombies menu over the troll-map planet
 Branch `worktree-to-menu-bo2`, all on main (295fb06). The user also asked
 for trollrunner.net itself to get this design; that shipped from the same
