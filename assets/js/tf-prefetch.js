@@ -1,14 +1,14 @@
 // Troll Forces prefetch for the trollrunner.net home: while someone is on the
-// site, quietly pull the game's code and map files into the browser cache, so
-// opening Troll Forces doesn't wait on the network. The game then only has GPU
-// work left, which it does under its own menu (troll-ops/map-preload.js).
+// site, quietly pull the game's code and its menu's files into the browser
+// cache, so opening Troll Forces doesn't wait on the network. Map files are
+// NOT prefetched any more (user, 2026-10-03: maps load after Find Match, for
+// that map only, behind troll-ops/map-load-screen.js).
 //
 // - The JS is found by crawling the live module graph from troll-ops.html, so
 //   it always fetches the exact ?v= tags the game will ask for.
 // - Models, textures and music come from troll-ops/prefetch-manifest.json,
-//   grouped by map ("lobby" = what the menu itself loads).
-// - Phones and slow connections get the code, the menu's files and the
-//   default map only (all eight maps are ~40 MB); data saver gets nothing.
+//   grouped by map; only "lobby" (what the menu itself loads) is used.
+// - Data saver and 2g get nothing.
 // - Idle, low priority, a couple of requests at a time, at most once per
 //   browser session.
 
@@ -83,14 +83,7 @@ async function run(mode) {
   let manifest = null;
   try { manifest = JSON.parse(await getText(MANIFEST)); } catch { /* no manifest: code only */ }
   if (manifest) {
-    // The menu's own files and the default map (Grin Site, the first a new
-    // player drops into) go first, and are all a phone gets.
-    const first = [...(manifest.lobby || []), ...(manifest.grinsite || [])];
-    await drain(first.map((p) => new URL(p, ROOT).href));
-    if (mode === "full") {
-      const rest = Object.entries(manifest).filter(([k]) => k !== "lobby" && k !== "grinsite").flatMap(([, list]) => list);
-      await drain([...new Set(rest)].map((p) => new URL(p, ROOT).href));
-    }
+    await drain((manifest.lobby || []).map((p) => new URL(p, ROOT).href));
   }
   try { sessionStorage.setItem(DONE_KEY, "1"); } catch { /* fine */ }
 }

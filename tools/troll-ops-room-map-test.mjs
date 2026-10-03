@@ -62,16 +62,22 @@ async function start(page, mapId) {
   }, { room: ROOM, mapId });
 }
 const mapOf = (page) => page.evaluate(() => window.__trollOps.builtMap()?.map?.name || null);
+// Maps load behind the loading screen now (nothing is built in the menu),
+// so wait for it to come down rather than a fixed few seconds.
+async function loaded(page, ms = 240000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms && await page.evaluate(() => window.__trollOps.loadState().open)) await sleep(250);
+}
 
 const a = await open("A"), b = await open("B"), c = await open("C");
 await Promise.all([start(a, "grinsite"), sleep(300).then(() => start(b, "dustbowl"))]);
-await sleep(12000);
+await Promise.all([loaded(a), loaded(b)]);
 const [ma, mb] = [await mapOf(a), await mapOf(b)];
 check("A (host) keeps its own map", ma === "Grin Site", ma);
 check("B, starting together, follows the host", mb === ma, `B on ${mb}`);
 
 await start(c, "depot");
-await sleep(8000);
+await loaded(c);
 const mc = await mapOf(c);
 check("C, joining a running match, loads the host's map", mc === ma, `C on ${mc}`);
 check("A still on its map", (await mapOf(a)) === "Grin Site");

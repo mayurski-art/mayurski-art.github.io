@@ -36,7 +36,8 @@ import { getMyCard, withClan } from "./calling-cards.js?v=p5";
 import { openProfileCard } from "./profile-card.js?v=pc1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1";
+import { createMapLoadScreen } from "./map-load-screen.js?v=ml2";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
@@ -4911,6 +4912,20 @@ const net = new Net({
   onLoot: (p, m) => onRoyaleLoot(p, m),
   onVote: () => { if (intermissionT > 0) renderVote(); },
   onChat: (p, m) => chat.receive(p, m),
+  /* Map loading screen (see enterMatch). Follow the host's map early, and
+     as the host of a match already on, let a finished latecomer in. */
+  onReady: (p, m) => {
+    if (followsHostMap(m) && loadScreen.isOpen) {
+      roomMapHint = m.map;   // still connecting: startGame picks it up
+      if (loadTarget && m.map !== loadTarget) enterMatch(m.map);
+      return;
+    }
+    if (!loadScreen.isOpen && (gameState === "playing" || gameState === "paused") && isPvp() && net.isBotHost() && loadedMapId) {
+      // Loading the wrong map (our room-map note reached them late): correct them.
+      if (m.map !== loadedMapId) net.publishRoomMap(p.id, loadedMapId, modeId);
+      else if (m.ok) net.publishGo(p.id, loadedMapId, modeId, isStaging() ? stageT : 0);
+    }
+  },
   /* Adopt the owner's countdown rather than running our own, so two clients
      that started a fraction of a second apart still hit zero together. We
      only ever take a *shorter* remaining time: a late "6" arriving after we
@@ -4926,7 +4941,14 @@ const net = new Net({
     // host, unlocked or not.
     if (followsHostMap(m)) {
       if (gameState !== "playing" && gameState !== "paused") { roomMapHint = m.map; return; }
-      if (isStaging() && m.map !== loadedMapId) { beginMatch(m.map); return; }
+      if ((isStaging() || loadScreen.isOpen) && m.map !== (loadTarget || loadedMapId)) { roomMapHint = m.map; enterMatch(m.map); return; }
+    }
+    // On the loading screen, the host's countdown (or its go, once the match
+    // is on) is our cue. A plain room-map note at 0 isn't.
+    if (loadHold) {
+      const left = Number(m.left);
+      if (loadWarm && (m.go || left > 0)) releaseLoad(Number.isFinite(left) ? left : 0);
+      return;
     }
     if (gameState !== "playing" || !isPvp()) return;
     // Troll Royale: the owner's seed wins, so everyone has the same zone
@@ -5357,27 +5379,19 @@ function loadMap(id) {
 }
 
 // -------------------- map preloading --------------------
-// Automatic, no button (user): the map the lobby would play warms first,
-// then every other map in the background while you're in the menu. The
-// trollrunner.net home has usually prefetched their files already
-// (assets/js/tf-prefetch.js), so this is mostly GPU work. Phones only warm
-// the selected map: eight maps' textures is a lot of GPU memory for one.
-// menu-bo2.js shows the progress under the online count.
+// Nothing loads in the menu any more (user, 2026-10-03: "the map loading
+// after users click on find match, for that specific map"). Find Match opens
+// the map loading screen (map-load-screen.js), and this builds, downloads
+// and warms that one map behind it — see enterMatch below.
+const loadScreen = createMapLoadScreen(els.loading.parentElement);
 const mapPreload = createMapPreloader({
   renderer, scene, camera, buildMap, maps: MAPS, ids: MAP_IDS,
   getLive: () => (builtMap ? { id: loadedMapId, root: builtMap.root } : null),
-  // Off-map builds wait for the menu: never compile behind a live match.
-  canRun: () => gameState === "menu",
+  // Off-map builds never compile behind a live match, only in the menu or
+  // under the loading screen.
+  canRun: () => gameState === "menu" || loadScreen.isOpen,
 });
 window.__trollPreload = mapPreload;
-const PRELOAD_ALL_MAPS = !matchMedia("(pointer: coarse)").matches && !(navigator.deviceMemory && navigator.deviceMemory < 4);
-
-function kickMapPreload() {
-  if (gameState !== "menu") return;
-  const first = lobbyMapId();
-  mapPreload.preload(first);
-  if (PRELOAD_ALL_MAPS) mapPreload.preloadAll(MAP_IDS.filter((id) => id !== first));
-}
 
 // -------------------- lobby backdrop --------------------
 // The menu hangs over the arena you are about to drop into, drifting around
@@ -5398,10 +5412,11 @@ function matchMapId(roomMapId = null) {
 
 function lobbyMapId() { return matchMapId(); }
 
-function refreshLobbyMap() {
-  if (gameState !== "menu") return;
-  loadMap(lobbyMapId());
-}
+/* The lobby used to build the selected map as its backdrop, but the BO2
+   planet covers it completely, so that was a whole map built (and rebuilt
+   on every loadout change) for nobody. Kept as a hook; the match loads its
+   map behind the loading screen instead. */
+function refreshLobbyMap() {}
 
 function updateLobbyCamera(dt) {
   lobbyAngle += dt * 0.05;
@@ -5670,7 +5685,12 @@ function setBombSiteMarkers(sites) {
 
 // -------------------- postprocessing --------------------
 
-const composer = new EffectComposer(renderer);
+// Multisampled (user, 2026-10-03: "graphics need to improve on mobile",
+// blurry). The canvas's own antialias never reached the 3D view: every
+// frame goes through these passes' offscreen targets, which had no MSAA,
+// so every edge was jagged, worst on a phone. The sample count follows the
+// graphics tier (applyGraphics: MSAA_SAMPLES).
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
 composer.addPass(new RenderPass(scene, camera));
 const ssao = new SSAOPass(scene, camera, 1, 1);
 ssao.kernelRadius = 0.6;
@@ -10096,15 +10116,27 @@ async function startGame() {
   // View mode: the lobby's map, nobody in it (see isView).
   if (viewModeOn() && modeId !== "view") { viewPrevMode = modeId; modeId = "view"; }
   else if (!viewModeOn() && modeId === "view") modeId = viewPrevMode || "ops";
+  // The click is the only gesture we get: take the mouse now, so the match
+  // doesn't open on the pause screen after a long load.
+  if (!isTouch) { try { controls.lock(); } catch { /* the pause screen catches it later */ } }
+  roomMapHint = null;
+  loadScreen.show(loadInfo(matchMapId()));
+  els.title.hidden = true;
   if (isPvp()) {
-    roomMapHint = null;
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
+    loadScreen.status("Finding a match…");
     const result = els.room.value && roomIsCustom
       ? { code: els.room.value, kind: await net.start(els.room.value, { name: playerName(), mapId: loadout.mapId, uid: playerUid() }) }
       : await joinQuickplay();
     els.startBtn.disabled = false;
-    if (!result.kind) { setNetStatus("Couldn't reach the room. Try another code.", "bad"); return; }
+    if (!result.kind) {
+      loadScreen.hide();
+      els.title.hidden = false;
+      if (controls.isLocked) controls.unlock();
+      setNetStatus("Couldn't reach the room. Try another code.", "bad");
+      return;
+    }
     els.room.value = result.code;
     net.chooseTeam();
     chat.render();   // it was built before the room connected
@@ -10113,7 +10145,117 @@ async function startGame() {
     net.stop();
   }
 
-  beginMatch(isPvp() ? roomMapHint : null);
+  enterMatch(isPvp() ? roomMapHint : null);
+}
+
+/* -------------------- map loading screen --------------------
+
+   Find Match → this screen (map-load-screen.js) → the countdown. It stays
+   up until the map is built, downloaded and its shaders compiled, so the
+   match runs smooth from its first frame on every device, however long
+   that takes. Online it then waits until everyone in the room has loaded
+   too (user: "game doesn't start until everyone loads in completely" — and
+   no time limit, by choice).
+
+   The wire: every client sends "ready" (net.publishReady) about once a
+   second while on this screen, ok:0 while loading, ok:1 once done. The
+   host (net.isBotHost) starts the countdown when every player who speaks
+   "ready" has sent ok:1 for its map; its countdown "stage" messages are the
+   go for everyone else. A player arriving once the match is on gets a
+   targeted go (net.publishGo) from the host when they finish. Players on an
+   old cached page never send "ready", so they're not waited on. */
+let loadHold = false;    // match set up under the loading screen; countdown frozen until "go"
+let loadTarget = null;   // the map the screen is loading
+let loadSeq = 0;         // bumped to cancel a superseded load (the room switched maps)
+let loadPing = 0;        // seconds until the next "ready" resend
+
+function loadInfo(id) {
+  return { id, name: MAPS[id]?.name || "", blurb: MAPS[id]?.blurb || "", mode: currentMode().name };
+}
+
+async function enterMatch(mapHint = null) {
+  const seq = ++loadSeq;
+  loadWarm = false;
+  loadHold = false;
+  loadPing = 0;
+  let id = matchMapId(mapHint);
+  if (!loadScreen.isOpen) loadScreen.show(loadInfo(id));
+  // Everyone re-reports for this match; old "done"s were for the last one.
+  for (const p of net.peers.values()) p.readyMap = null;
+  for (;;) {
+    loadTarget = id;
+    loadScreen.setMap(loadInfo(id));
+    if (id !== loadedMapId) {
+      const tick = () => {
+        const st = mapPreload.status(id);
+        loadScreen.progress(st.progress * 0.85);
+        loadScreen.status(st.state === "compiling" ? "Building the map" : "Loading the map");
+      };
+      const off = mapPreload.onChange(tick);
+      tick();
+      try { await mapPreload.preload(id); } catch { /* loadMap builds it plainly */ } finally { off(); }
+      if (seq !== loadSeq) return;
+    }
+    // The room may have told us its map while we loaded ours.
+    const want = matchMapId(isPvp() ? (roomMapHint || mapHint) : mapHint);
+    if (want === id) break;
+    id = want;
+  }
+  loadHold = true;
+  beginMatch(id);
+  // Everything else the match will draw (bots, streak models, the gun),
+  // compiled now rather than on the frame it first appears.
+  loadScreen.progress(0.88);
+  loadScreen.status("Warming up");
+  await warmShaders();
+  if (seq !== loadSeq) return;
+  loadScreen.progress(1);
+  loadScreen.status(isPvp() && net.active ? "Waiting for players" : "Ready");
+  loadWarm = true;
+}
+let loadWarm = false;    // shaders done; only then do we tell the room we're ready
+
+/* The loading screen comes down and the countdown runs. `left` adopts the
+   host's clock; without one we keep the countdown beginMatch set. */
+function releaseLoad(left = 0) {
+  if (!loadHold) return;
+  loadHold = false;
+  loadWarm = false;
+  loadTarget = null;
+  if (left > 0 && isStaging()) { stageT = left; stageShown = -1; }
+  loadScreen.hide();
+  if (!isTouch && gameState === "playing") {
+    try { controls.lock(); } catch { /* refused — the pause screen catches it */ }
+    setTimeout(() => {
+      if (gameState === "playing" && !controls.isLocked && !loadScreen.isOpen) openPauseMenu();
+    }, 260);
+  }
+}
+
+/* Four times a second while the loading screen is up — on a timer rather
+   than the frame loop, so a player who tabs away mid-load (no frames in a
+   background tab) keeps reporting in instead of timing out of the room. */
+let loadClock = performance.now();
+setInterval(() => {
+  const now = performance.now();
+  updateLoadScreen(Math.min(2, (now - loadClock) / 1000));
+  loadClock = now;
+}, 250);
+function updateLoadScreen(dt) {
+  if (!loadScreen.isOpen) return;
+  const online = isPvp() && net.active;
+  const done = loadHold && loadWarm;
+  if (online) {
+    net.prune();
+    loadPing -= dt;
+    if (loadPing <= 0 && loadTarget) { loadPing = 1; net.publishReady(loadTarget, modeId, done); }
+  }
+  if (!done) return;
+  if (!online) { releaseLoad(); return; }
+  const others = [...net.peers.values()].filter((p) => !isBotPeer(p) && p.lr);
+  const n = others.filter((p) => p.readyMap === loadedMapId).length;
+  loadScreen.status(others.length ? `Waiting for players ${n + 1}/${others.length + 1}` : "Ready");
+  if (net.isBotHost() && n === others.length) releaseLoad();
 }
 
 /* -------------------- pre-match staging --------------------
@@ -10185,7 +10327,8 @@ function beginStaging(seconds = STAGE_SECONDS) {
   // "I'm alone" snapshot would leave two clients both convinced they own it.
   stageOwner = !isPvp() || !net.active;
   // A beat in, once the bots that fill the room have streamed in.
-  setTimeout(() => { if (isStaging()) warmShaders(); }, fast ? 0 : 900);
+  // (Under the loading screen enterMatch warms everything itself.)
+  if (!loadHold) setTimeout(() => { if (isStaging()) warmShaders(); }, fast ? 0 : 900);
   // The sky lobby is a place to walk round in, not a frozen countdown card.
   els.staging.hidden = !!royale?.drop;
   if (!royale?.drop) document.body.classList.add("to-staging-on");
@@ -10456,7 +10599,8 @@ function beginMatch(mapId = null) {
   // a fresh gesture, which the auto-advance out of an intermission doesn't
   // have. If it's refused we land on the pause screen instead of in a live
   // match with dead mouse-look, and clicking resume picks it back up.
-  if (!isTouch) {
+  // (Under the loading screen, releaseLoad does this when it comes down.)
+  if (!isTouch && !loadHold) {
     try { controls.lock(); } catch { /* refused — the pause screen catches it */ }
     setTimeout(() => {
       if (gameState === "playing" && !controls.isLocked) openPauseMenu();
@@ -10956,7 +11100,8 @@ function updateIntermission(dt) {
 
   loadout.mapId = winner;
   els.gameover.hidden = true;
-  beginMatch(winner);
+  roomMapHint = null;
+  enterMatch(winner);
 }
 
 els.startBtn.addEventListener("click", startGame);
@@ -11565,7 +11710,10 @@ const GFX_AUTO_KEY = "trollops:gfx-auto";
 // Auto starts wherever it settled last time on this device, so a laptop that
 // always ends up on Low doesn't spend the first minute of every match lagging.
 let gfxAutoTier = (() => {
-  try { const t = localStorage.getItem(GFX_AUTO_KEY); return GFX[t] ? t : "high"; } catch { return "high"; }
+  // A phone's first match starts without SSAO, so it never spends its
+  // opening seconds lagging (and shedding resolution) to find that out.
+  const first = isTouch ? "medium" : "high";
+  try { const t = localStorage.getItem(GFX_AUTO_KEY); return GFX[t] ? t : first; } catch { return first; }
 })();
 let gfxCeiling = 0;       // best tier index Auto may climb back to this session
 let gfxApplied = null;
@@ -11587,6 +11735,18 @@ function applyClutter() {
   builtMap?.root?.traverse((o) => { if (o.userData.clutter) o.count = Math.max(1, Math.round(o.userData.clutter * (o.userData.clutterShare?.[tier] ?? share))); });
 }
 
+/* MSAA on the composer's targets per tier. Phones keep 2 even on Low:
+   sharpness was the complaint there, and a phone's tiled GPU resolves MSAA
+   cheaply. A laptop on Low drops it, since that's a struggling iGPU. */
+const MSAA_SAMPLES = { high: 4, medium: 2, low: isTouch ? 2 : 0 };
+function setComposerSamples(n) {
+  for (const rt of [composer.renderTarget1, composer.renderTarget2]) {
+    if (rt.samples === n) continue;
+    rt.samples = n;
+    rt.dispose();   // reallocated at the new sample count on next use
+  }
+}
+
 function applyGraphics() {
   const tier = gfxTier();
   applyClutter();
@@ -11601,6 +11761,7 @@ function applyGraphics() {
   skyMat.uniforms.uCloudQ.value = tier === "low" ? 0 : tier === "medium" ? 1 : 2;
   ssao.enabled = cfg.ssao;
   bloom.enabled = cfg.bloom;
+  setComposerSamples(MSAA_SAMPLES[tier] ?? 2);
   if (sun.shadow.mapSize.x !== cfg.shadowSize) {
     sun.shadow.mapSize.set(cfg.shadowSize, cfg.shadowSize);
     sun.shadow.map?.dispose();
@@ -11621,7 +11782,9 @@ function setAutoTier(tier) {
    and a tier that drops straight back under 40 isn't retried this session,
    so it can't flicker between two tiers. The HUD is DOM and stays sharp. */
 const MAX_PIXEL_RATIO = Math.min(2, window.devicePixelRatio || 1);
-const MIN_PIXEL_RATIO = isTouch ? 0.6 : 0.75;
+// Phones used to fall to 0.6, which is what made them blurry: effects and
+// then the auto tier go first, and the picture stays at least 1:1.
+const MIN_PIXEL_RATIO = isTouch ? Math.min(1, MAX_PIXEL_RATIO) : 0.75;
 let pixelRatio = renderer.getPixelRatio();
 const perfWin = { t: 0, n: 0, cool: 0, good: 0, raised: false };
 
@@ -11688,7 +11851,7 @@ function animate() {
   }
 
   if (gameState === "playing") {
-    if (isStaging()) updateStaging(dt);
+    if (isStaging()) { if (!loadHold) updateStaging(dt); }
     // The clock itself isn't playtime, and nothing hostile moves during it.
     else { elapsedRun += dt; updateMatchClock(dt); }
     const staging = isStaging();
@@ -11984,7 +12147,8 @@ function animate() {
   sky.position.copy(camera.position);
   // The BO2 menu's planet (menu-bo2.js) covers the whole lobby: skip
   // drawing the arena nobody can see behind it.
-  if (!(gameState === "menu" && document.body.classList.contains("to-bo2-cover"))) composer.render();
+  // Nor anything under the loading screen until the match is set up there.
+  if (!(gameState === "menu" && (document.body.classList.contains("to-bo2-cover") || loadScreen.isOpen))) composer.render();
 
   // The FP viewmodel (gun+arms) only makes sense in first person — the gun
   // is already visible on the third-person rig itself, so rendering both
@@ -14497,9 +14661,6 @@ resize();
 applySettings();
 initEscapeMenu();
 initRadioWidget();
-loadMap(lobbyMapId());
-// Once the menu has settled, warm the rest of the maps in the background.
-setTimeout(kickMapPreload, 2500);
 els.loading.hidden = true;
 animate();
 
@@ -14527,6 +14688,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
     findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },
+    loadState: () => ({ open: loadScreen.isOpen, hold: loadHold, warm: loadWarm, target: loadTarget, staging: isStaging(), stageT, status: document.querySelector(".to-mapload-status")?.textContent || "" }),
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, endMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
     startIntermission, updateIntermission, occupants, notePointDeath,

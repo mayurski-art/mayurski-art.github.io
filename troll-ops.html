@@ -20,7 +20,10 @@
     <section class="to-cabinet" id="to-cabinet" aria-label="Troll Forces">
 
       <!-- Title screen: the Phantom Forces-style deployment lobby -->
-      <div class="to-screen to-title" id="to-title">
+      <!-- is-bo2 from the first paint (menu-bo2.js adds it too): the old lobby's map
+           cards would otherwise lay out for a moment and build a whole map
+           just to draw their thumbnails. -->
+      <div class="to-screen to-title is-bo2" id="to-title">
         <div class="to-title-bg" aria-hidden="true"></div>
 
         <div class="to-pf" id="to-pf">
@@ -740,7 +743,7 @@
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
   <script src="assets/games/troll-ops/leaderboard.js?v=to-lb-p2" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-umb3g-rm2-gs1-an1"></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-umb3g-rm2-gs1-ld1"></script>
   <script type="module" src="assets/games/troll-ops/menu-bo2.js?v=umb2-bn1-rec1-pc1-p5-an1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>

@@ -151,7 +151,7 @@ export class Net {
     this.transport = t;
     this.connected = true;
     this.since = Date.now();
-    this.send({ t: "hello", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, mapId: this.mapId, js: this.since });
+    this.send({ t: "hello", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, mapId: this.mapId, js: this.since, lr: 1 });
 
     // Let the handshake settle before anyone picks a side. Choosing the
     // instant the channel subscribes means balancing against a room that
@@ -219,7 +219,7 @@ export class Net {
       this.team = ids.indexOf(this.id) % 2 === 0 ? "phantom" : "ghost";
     }
     // Announce it so peers stop seeing us as undecided.
-    this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, js: this.since });
+    this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, js: this.since, lr: 1 });
     return this.team;
   }
 
@@ -227,7 +227,7 @@ export class Net {
      than waiting for the next state message. */
   setTeam(team) {
     this.team = team;
-    if (this.connected) this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team, js: this.since });
+    if (this.connected) this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team, js: this.since, lr: 1 });
   }
 
   peer(id) {
@@ -257,8 +257,9 @@ export class Net {
         p.uid = accountId(m.u) || p.uid || null;
         p.team = m.team || p.team;
         if (+m.js > 0) p.since = +m.js;
+        if (m.lr) p.lr = true;   // speaks "ready" (map loading screen), so worth waiting for
         // answer directly so the newcomer learns about us
-        this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, js: this.since });
+        this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, js: this.since, lr: 1 });
         this.h.onHello?.(p);
         break;
       }
@@ -268,6 +269,18 @@ export class Net {
         p.uid = accountId(m.u) || p.uid || null;
         p.team = m.team || p.team;
         if (+m.js > 0) p.since = +m.js;
+        if (m.lr) p.lr = true;
+        break;
+      }
+      /* Finished loading the map (map-load-screen): the host starts the
+         countdown once every player who speaks this has sent it. */
+      case "ready": {
+        const p = this.peer(m.id);
+        p.lr = true;
+        if (+m.js > 0) p.since = +m.js;
+        // `ok` 0 = still loading `map`, 1 = loaded it and waiting.
+        p.readyMap = m.ok ? m.map || null : null;
+        this.h.onReady?.(p, m);
         break;
       }
       case "state": {
@@ -439,6 +452,12 @@ export class Net {
         hr: local.hero || undefined,   // U Mad Bro? hero id (+ "!" while the Metamorph is the brute)
       });
     }
+    this.prune();
+  }
+
+  /* Drop peers we haven't heard from. update() does this every frame; the
+     map loading screen calls it on its own, since it sends no state. */
+  prune() {
     const now = performance.now();
     for (const [id, p] of this.peers) {
       if (now - p.last > PEER_TIMEOUT) { this.h.onLeave?.(p); this.peers.delete(id); }
@@ -553,6 +572,23 @@ export class Net {
 
   /* To one newcomer: the map and mode the room is playing (a "stage" at 0,
      the match is already on), so they load the host's map, not their own. */
+  /* Where this client is on the map loading screen: loading `mapId`, or
+     (ok) done and waiting. Resent every second or so, since a broadcast can
+     be missed; it also tells the room which map the host is on early. */
+  publishReady(mapId, modeId, ok) {
+    // `js` too: a loader whose tab froze building the map can time out of
+    // our peer list and come back through this message, and without its
+    // join time it would count as the room's oldest player and take the
+    // host role, leaving the real host and it each waiting on the other.
+    this.send({ t: "ready", id: this.id, map: mapId, mode: modeId, ok: ok ? 1 : 0, js: this.since });
+  }
+
+  /* To one player who finished loading: come in. `left` is the countdown
+     still running (0 = the match is already on). */
+  publishGo(to, mapId, modeId, secondsLeft) {
+    this.send({ t: "stage", id: this.id, to, map: mapId, mode: modeId, left: Math.max(0, round2(secondsLeft)), go: 1 });
+  }
+
   publishRoomMap(to, mapId, modeId) {
     this.send({ t: "stage", id: this.id, to, map: mapId, mode: modeId, left: 0 });
   }
