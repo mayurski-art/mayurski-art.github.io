@@ -152,6 +152,20 @@ for (const [ms, name] of [[350, "kb-repair-1-caps.png"], [700, "kb-repair-2-scre
 await sleep(1500);
 const after = await page.evaluate(() => ({ repair: window.__trollOps.kbRepair.active, shield: window.__trollOps.kbShield.active }));
 check("the act ends and the shield works again", !after.repair && after.shield, JSON.stringify(after));
+// Only CONSECUTIVE hits break it: a pause longer than the window, or
+// lowering the shield, starts the count again.
+for (let i = 0; i < 3; i++) { await front(); await sleep(120); }
+await sleep(1800);
+const spaced = await front();
+check("hits with a pause between them don't break it", spaced.repair === false && spaced.shield === true, JSON.stringify(spaced));
+await sleep(1800);
+for (let i = 0; i < 3; i++) { await front(); await sleep(120); }
+await page.evaluate(() => window.__trollOps.setAds(false));
+await sleep(300);
+await page.evaluate(() => window.__trollOps.setAds(true));
+await sleep(400);
+const lowered = await front();
+check("lowering the shield resets the streak", lowered.repair === false, JSON.stringify(lowered));
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 await browser.close();

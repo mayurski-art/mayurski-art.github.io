@@ -49,7 +49,7 @@ import {
 } from "./modes.js?v=umb1";
 import { BotManager } from "./bots.js?v=cg2";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
-import { GameAudio } from "./audio.js?v=umb1kb";
+import { GameAudio } from "./audio.js?v=umb1kb2";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./music.js?v=to-gs1";
@@ -69,9 +69,9 @@ import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
 import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb2";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
-import { createKeyboardRepair, KB_SHIELD } from "./keyboard-repair.js?v=kr5";
+import { createKeyboardRepair, KB_SHIELD } from "./keyboard-repair.js?v=kr9";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=cg1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
@@ -7985,13 +7985,15 @@ function breakSaberGuard() {
    Hold aim and the board goes up flat, keys out (keyboard-repair.js
    KB_SHIELD). It stops rounds from the front with no meter, but a few in a
    row break it: keycaps everywhere, and you sit down and fix it. */
-const kbShield = { active: false, t: 0, kick: 0, hits: [] };
+const kbShield = { active: false, t: 0, kick: 0, streak: 0, lastHit: 0 };
 const kbRepair = createKeyboardRepair({ audio });
 const _kbFarGrip = new THREE.Vector3(0, -0.03, -0.86);   // support hand under the far end
 function heldKbShield() { return player.melee?.def?.shield || null; }
 function updateKbShield(wantAds) {
   kbShield.active = !!heldKbShield() && player.holding === "melee" && player.alive && wantAds
     && !player.melee.busy && !kbRepair.active && !isStaging();
+  // Lowering the shield ends the streak: the break needs hits in a row.
+  if (!kbShield.active) kbShield.streak = 0;
 }
 function tryKbShield(fromId, weaponId, fromPos) {
   const d = heldKbShield();
@@ -8009,11 +8011,13 @@ function tryKbShield(fromId, weaponId, fromPos) {
   spawnImpactBurst(at, 0x8a8a96, 10);
   audio.keyboardShieldHit();
   kbShield.kick = 1;
+  // CONSECUTIVE hits (user, 2026-10-03): each one within hitWindow of the
+  // last, the shield up the whole time. A pause, or lowering it, resets.
   const now = performance.now() / 1000;
-  kbShield.hits = kbShield.hits.filter((t) => now - t < d.hitWindow);
-  kbShield.hits.push(now);
-  if (kbShield.hits.length >= d.breakHits) {
-    kbShield.hits.length = 0;
+  kbShield.streak = now - kbShield.lastHit <= d.hitWindow ? kbShield.streak + 1 : 1;
+  kbShield.lastHit = now;
+  if (kbShield.streak >= d.breakHits) {
+    kbShield.streak = 0;
     kbShield.active = false;
     kbRepair.start();
   }

@@ -496,6 +496,16 @@ export class GameAudio {
     if (name === "clatter") {
       for (let i = 0; i < 7; i++) this._noise({ duration: 0.03, gain: 0.16, type: "highpass", freq: 3800 + i * 300, delay: i * 0.05 + Math.random() * 0.02, at });
       this._tone({ freq: 520, to: 260, duration: 0.25, gain: 0.05, type: "square", at });
+    } else if (name === "flip" || name === "flip2") {
+      // a quick toss-and-turn whoosh, the board landing back in the hands
+      this._noise({ duration: 0.22, gain: 0.12, type: "bandpass", freq: 600, q: 0.9, sweepTo: 1800, at });
+      this._noise({ duration: 0.05, gain: 0.18, type: "bandpass", freq: 900, q: 1.5, delay: 0.24, at });
+    } else if (name === "lid") {
+      this._noise({ duration: 0.05, gain: 0.22, type: "bandpass", freq: 1600, q: 2, at });
+      this._tone({ freq: 300, to: 180, duration: 0.08, gain: 0.06, type: "square", delay: 0.02, at });
+    } else if (/^screw\d$/.test(name)) {
+      for (let i = 0; i < 5; i++) this._noise({ duration: 0.016, gain: 0.12, type: "bandpass", freq: 3000, q: 3, delay: i * 0.06, at });
+      this._tone({ freq: 1400, to: 900, duration: 0.05, gain: 0.03, type: "triangle", delay: 0.32, at });   // the screw popping free
     } else if (name === "screw" || name === "screw2") {
       for (let i = 0; i < 8; i++) this._noise({ duration: 0.018, gain: 0.12, type: "bandpass", freq: 3000, q: 3, delay: i * 0.07, at });
     } else if (name === "solder" || name === "solder2") {

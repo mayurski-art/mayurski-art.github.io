@@ -40,10 +40,11 @@ export const MELEE_DEFS = {
     damage: 120, backstabMult: 1.8, range: 2.0, arc: 1.0, knock: 6.5,
     blurb: "The keyboard is mightier than the sword. U mad bro? Hold aim to block, briefly.",
     // Hold aim: the board goes up flat as a shield (game.js kbShield). It
-    // stops rounds from the front, but `breakHits` in a row inside
-    // `hitWindow` seconds break it and you have to sit and fix it
-    // (keyboard-repair.js) before it'll block or swing again.
-    shield: { cone: 0.3, breakHits: 4, hitWindow: 1.6 },
+    // stops rounds from the front, but `breakHits` CONSECUTIVE hits (each
+    // within `hitWindow` seconds of the last, shield up throughout) break
+    // it and you have to sit and fix it (keyboard-repair.js) before it'll
+    // block or swing again.
+    shield: { cone: 0.3, breakHits: 4, hitWindow: 1.5 },
     model: {
       kind: "keyboard",
       len: 0.78, wide: 0.30, blade: 0.038,
