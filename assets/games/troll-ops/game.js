@@ -12,9 +12,9 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=cg1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=cg1";
-import { Loadout } from "./loadout.js?v=own1";
-import { StreakPicker } from "./streak-picker.js?v=own1";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=own1";
+import { Loadout } from "./loadout.js?v=pr1";
+import { StreakPicker } from "./streak-picker.js?v=pr1";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=pr1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
@@ -28,8 +28,8 @@ import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
 import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
-import { Achievements } from "./achievements.js?v=own1";
-import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=own1";
+import { Achievements } from "./achievements.js?v=pr1";
+import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE } from "./progression.js?v=pr1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=hg6i";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=to-lk1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
@@ -4175,6 +4175,12 @@ window.addEventListener("trollrunner:auth-changed", () => {
   if (!loadout.restoreSaved()) loadout.render();
   streakPicker.restore();
   void syncXp()?.then(() => loadout.render());
+});
+// Prestige landed (loaded after sign-in, or you just prestiged): the level
+// shown and the "Prestige ready" readout change with it.
+window.addEventListener("trollforces:prestige-changed", () => {
+  if (!loadout.restoreSaved()) loadout.render();
+  streakPicker.restore();
 });
 
 function playerName() {

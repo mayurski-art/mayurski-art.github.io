@@ -1,9 +1,10 @@
 // Troll Forces — level + XP.
 //
-// One level shared with the trollrunner.net account. Signed in, your Troll
-// Ops level IS your account level (troll_profiles.level), weapon unlocks
-// included, and match XP is credited 1:1 to the account through the
-// `troll_ops_xp` event (assets/supabase/troll_ops_xp.sql).
+// Match XP is credited 1:1 to the trollrunner.net account through the
+// `troll_ops_xp` event (assets/supabase/troll_ops_xp.sql). Since prestige
+// (2026-10-02) the game SHOWS its own level: the Troll Forces level, from
+// account XP earned since your last prestige, on a faster curve (see
+// "Prestige" below). Unlocks use the higher of that and the account level.
 //
 // Guests keep nothing (user, 2026-10-01: "remove progress being saved for
 // guest accounts"): they level on the same curve for the session, in
@@ -96,16 +97,99 @@ export function isOwner() {
   return String(window.TrollrunnerAccounts?.getCachedProfile?.()?.username || "").toLowerCase() === "troll_runner";
 }
 
-/* The level to SHOW: null for the owner. */
-export function getLevel() {
-  return isOwner() ? null : getRank();
+/* ---- Prestige (Troll Forces only; design doc "Troll Forces: Prestige +
+   Profile Card"). The game has its own level, on its own faster curve, counted
+   from account XP earned since your last prestige: account XP minus the
+   `xp_base` set when you prestiged. Prestiging resets that number, never the
+   trollrunner.net account level. Cap 69; Prestige 1-10, then 11 = Prestige
+   Master. Stored in public.troll_forces_prestige, written only by the
+   troll_forces_prestige_up() function, which re-checks level 69 itself
+   (assets/supabase/troll_forces_prestige.sql). Guests keep no XP between
+   visits, so they level for the session and never prestige. */
+export const TF_MAX_LEVEL = 69;
+export const PRESTIGE_MASTER = 11;
+
+/* XP from level 1 to `level`: 120 a level plus a gentle climb, 17,408 to
+   reach 69 (about 87 good matches). Same formula as the SQL. */
+export function tfXpForLevel(level) {
+  const n = level - 1;
+  return 120 * n + 2 * n * n;
+}
+export function tfLevelForXp(xp) {
+  // inverse of 120n + 2n^2; exact at every level boundary (perfect squares)
+  const n = Math.floor((-120 + Math.sqrt(14400 + 8 * Math.max(0, xp))) / 4);
+  return Math.min(TF_MAX_LEVEL, n + 1);
 }
 
+const prestige = { level: 0, base: 0, ready: false, available: false };
+let prestigeFor = null;
+
+/* Load this account's prestige row (once per sign-in). `available` stays
+   false until the SQL has been run, which keeps the Prestige option hidden. */
+async function loadPrestige() {
+  const accounts = window.TrollrunnerAccounts;
+  const profile = accounts?.getCachedProfile?.();
+  const id = profile?.id || profile?.userId || null;
+  if (id === prestigeFor) return;
+  prestigeFor = id;
+  Object.assign(prestige, { level: 0, base: 0, ready: !id, available: false });
+  const sb = id && accounts?.getClient?.();
+  if (sb) {
+    const { data, error } = await sb.from("troll_forces_prestige").select("prestige, xp_base").eq("user_id", id).maybeSingle();
+    if (prestigeFor !== id) return;
+    if (!error) {
+      prestige.available = true;
+      prestige.level = Number(data?.prestige) || 0;
+      prestige.base = Number(data?.xp_base) || 0;
+    }
+    prestige.ready = true;
+  }
+  window.dispatchEvent(new CustomEvent("trollforces:prestige-changed"));
+}
+window.addEventListener("trollrunner:auth-changed", () => void loadPrestige());
+void loadPrestige();
+
+export function getPrestige() {
+  return isOwner() || accountXp() === null ? 0 : prestige.level;
+}
+
+/* Troll Forces XP: account XP since the last prestige (guests: this session). */
+function tfXp(extra = 0) {
+  const account = accountXp();
+  if (account === null) return sessionXp + extra;
+  return Math.max(0, account + extra - prestige.base);
+}
+
+/* The level to SHOW: the Troll Forces level, null for the owner. */
+export function getLevel() {
+  return isOwner() ? null : tfLevelForXp(tfXp());
+}
+
+export function canPrestige() {
+  return !isOwner() && accountXp() !== null && prestige.available
+    && prestige.level < PRESTIGE_MASTER && getLevel() >= TF_MAX_LEVEL;
+}
+
+/* Prestige up. Resolves to the new prestige, or throws the server's reason. */
+export async function prestigeUp() {
+  const sb = window.TrollrunnerAccounts?.getClient?.();
+  if (!sb || !canPrestige()) throw new Error("Not eligible to prestige.");
+  const { data, error } = await sb.rpc("troll_forces_prestige_up");
+  if (error) throw new Error(error.message || "Prestige failed.");
+  prestige.level = Number(data?.prestige) || prestige.level + 1;
+  prestige.base = Number(data?.xp_base) || accountXp() || 0;
+  window.dispatchEvent(new CustomEvent("trollforces:prestige-changed"));
+  return prestige.level;
+}
+
+/* The level that UNLOCKS things. Nothing ever relocks: the account level, or
+   the Troll Forces level if that's higher (its curve is faster), and once
+   you've prestiged you've been to 69, so everything up to 69 stays open. */
 export function getRank() {
   if (isOwner()) return Infinity;
   const level = Number(window.TrollrunnerAccounts?.getCachedProfile?.()?.level);
-  if (accountXp() !== null && Number.isFinite(level) && level >= 1) return Math.floor(level);
-  return levelForXp(getXp());
+  const account = accountXp() !== null && Number.isFinite(level) && level >= 1 ? Math.floor(level) : levelForXp(getXp());
+  return Math.max(account, getPrestige() > 0 ? TF_MAX_LEVEL : getLevel());
 }
 
 let syncing = null;
@@ -134,12 +218,14 @@ export function syncXp() {
 
 export function addXp(amount) {
   const gained = Math.max(0, Math.round(amount));
-  const before = getRank();
+  const before = getLevel();
   if (isSignedIn()) writeNum(PENDING_KEY, readNum(PENDING_KEY) + gained);
   else sessionXp += gained;          // a guest: this session only
   const total = getXp();
-  const rank = levelForXp(total);
   void syncXp();
+  if (before === null) return { total, rank: null, rankedUp: false };   // the owner has no level
+  // the Troll Forces level once what's still queued lands on the account
+  const rank = tfLevelForXp(tfXp(accountXp() === null ? 0 : readNum(PENDING_KEY)));
   return { total, rank, rankedUp: rank > before };
 }
 
@@ -176,19 +262,18 @@ export function rankProgress() {
   return Math.max(0, Math.min(1, (xp - floor) / Math.max(1, next - floor)));
 }
 
-/* The trollrunner.net profile bar, number for number (troll-accounts.js
-   xpProgress). */
+/* Progress through the current Troll Forces level, in Troll Forces XP. */
 function levelSpan() {
-  const level = getRank();
-  const floor = xpForLevel(level);
-  return { xp: Math.max(getXp(), floor), floor, next: xpForLevel(level + 1) };
+  const level = getLevel();
+  const floor = tfXpForLevel(level);
+  return { xp: Math.max(tfXp(), floor), floor, next: tfXpForLevel(level + 1), max: level >= TF_MAX_LEVEL };
 }
 
-/* "475,000 / 480,200 XP": total XP over the total the next level needs,
-   the same readout as the trollrunner.net profile. */
+/* "5,200 / 6,050 XP": Troll Forces XP over what the next level needs. */
 export function rankXpText() {
   if (isOwner()) return "Everything unlocked";
-  const { xp, next } = levelSpan();
+  const { xp, next, max } = levelSpan();
+  if (max) return getPrestige() >= PRESTIGE_MASTER ? "Prestige Master · max level" : canPrestige() ? "Max level · Prestige ready" : "Max level";
   return `${xp.toLocaleString()} / ${next.toLocaleString()} XP`;
 }
 

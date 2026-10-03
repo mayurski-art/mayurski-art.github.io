@@ -14,6 +14,9 @@
 import { createBo2Menu } from "../../js/bo2-menu.js?v=to-bo2d";
 import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
+import { canPrestige, prestigeUp, getPrestige, PRESTIGE_MASTER } from "./progression.js?v=pr1";
+
+const nextPrestigeName = () => (getPrestige() + 1 >= PRESTIGE_MASTER ? "Master" : `P${getPrestige() + 1}`);
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -169,7 +172,7 @@ const mapMode = createMapMode({
 const back = (desc = "Back.") => ({ id: "back", label: "Back", desc, onSelect: (_, m) => m.back() });
 
 const screens = {
-  main: {
+  main: () => ({
     title: "Troll Forces", panel: "deploy", back: false,
     groups: [
       [
@@ -182,7 +185,9 @@ const screens = {
         { id: "gear", label: "Gear", desc: "Melee and the one throwable you carry.", go: "gear" },
         { id: "streaks", label: "Scorestreaks", desc: "Pick three. Kills, assists and objectives build the meter.", go: "streaks" },
         { id: "cosmetics", label: "Cosmetics", desc: "Your trollface: expression and colour.", go: "cosmetics" },
-      ],
+        // BO2: at the level cap the Prestige option appears.
+        canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
+      ].filter(Boolean),
       [
         { id: "leaders", label: "Leaderboards", desc: "This week's best trolls.", go: "leaders" },
         { id: "map", label: "Troll Map", desc: "This planet is the troll map. Spin it, find your city, see who is out there.", go: "map" },
@@ -192,6 +197,34 @@ const screens = {
         { id: "arcade", label: "Arcade", desc: "Back to the Troll Runner arcade.", href: "games.html" },
       ],
     ],
+  }),
+  /* Prestige confirm, the way BO2 asks. Only the Troll Forces level resets:
+     the account level and every unlock stay. */
+  prestige: () => {
+    const next = Math.min(PRESTIGE_MASTER, getPrestige() + 1);
+    const lv = window.TrollrunnerAccounts?.getCachedProfile?.()?.level;
+    return {
+      title: next >= PRESTIGE_MASTER ? "Prestige Master" : `Prestige ${next}`, panel: "deploy",
+      groups: [
+        [{
+          id: "confirm", label: next >= PRESTIGE_MASTER ? "Become Prestige Master" : `Enter Prestige ${next}`,
+          desc: `Your Troll Forces level goes back to 1. Your account stays LV ${lv ?? "?"} and everything you've unlocked stays unlocked.${next >= PRESTIGE_MASTER ? " This is the last prestige." : ""}`,
+          onSelect: async (_, m) => {
+            const status = $(".to-bo2-status", root);
+            status.textContent = "Prestiging…";
+            try {
+              const p = await prestigeUp();
+              status.textContent = p >= PRESTIGE_MASTER ? "You are Prestige Master." : `Welcome to Prestige ${p}.`;
+              m.backTo("main");
+              m.refresh();
+            } catch (err) {
+              status.textContent = `Couldn't prestige: ${err.message}`;
+            }
+          },
+        }],
+        [back("Not yet.")],
+      ],
+    };
   },
   public: () => ({
     title: "Public Match", panel: "deploy",
@@ -417,12 +450,13 @@ function renderParty() {
   $(".to-bo2-name", root).textContent = p?.username || "Guest troll";
   const rankEl = $("#to-lo-rank-label"), owner = !!rankEl?.classList.contains("is-owner");
   const lv = $(".to-bo2-lv", root);
-  lv.textContent = owner ? "Owner" : (text(rankEl) || "Level 1").replace(/^Level/i, "LV");
+  lv.textContent = owner ? "Owner" : (text(rankEl) || "Level 1").replace(/Level/i, "LV");
   lv.classList.toggle("is-owner", owner);   // the owner badge, no level (style.css)
   $(".to-bo2-xp", root).textContent = p ? text($("#to-pf-xp")) : "Log in to keep your XP";
 }
 $(".to-bo2-party-row", root).addEventListener("click", () => $("#to-pf-profile")?.click());
 window.addEventListener("trollrunner:auth-changed", () => setTimeout(() => { renderParty(); menu.refresh(); }, 50));
+window.addEventListener("trollforces:prestige-changed", () => setTimeout(() => { renderParty(); menu.refresh(); }, 50));
 for (const el of [$("#to-lo-rank-label"), $("#to-pf-roster")]) if (el) new MutationObserver(renderParty).observe(el, { childList: true, characterData: true, subtree: true });
 renderParty();
 
