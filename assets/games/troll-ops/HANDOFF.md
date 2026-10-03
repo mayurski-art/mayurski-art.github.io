@@ -716,8 +716,8 @@ be ordered with the user (design doc first for the big ones):
      7-phase build plan, a "Decisions for you" checklist). Build nothing
      until the user OKs it.
    - User decided (2026-10-03): mode name **"U Mad Bro?"** (Horde = "U Mad
-     Bro?: Horde"); **unlocked only at a higher prestige** (doc proposes
-     Prestige 5, not confirmed; gate via the usual rank/unlock check so the
+     Bro?: Horde"); **unlocked only at a higher prestige** (user set it to
+     PRESTIGE 2, 2026-10-03; gate via the usual rank/unlock check so the
      owner stays unlocked); **weapons later**: characters first, then
      Trollernaut, then funny weapons, then Horde.
 8b. ~~Grin Beach palms (user: "could use some work, more realistic")~~ DONE
