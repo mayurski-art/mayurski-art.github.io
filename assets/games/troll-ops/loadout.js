@@ -4,7 +4,7 @@ import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapon
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js?v=cg1";
 import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=sk3";
-import { getRank, isUnlocked, rankUnlocked, rankProgress, rankXpText } from "./progression.js?v=gu1";
+import { getRank, getLevel, isUnlocked, rankUnlocked, rankProgress, rankXpText } from "./progression.js?v=own1";
 import { MAPS, MAP_IDS, mapSchematic } from "./maps.js?v=hg6i";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-fx3";
 
@@ -61,6 +61,18 @@ function drawMapThumb(canvas, id) {
   ctx.lineWidth = 1;
   ctx.strokeRect(ox + 0.5, oy + 0.5, mw * scale - 1, md * scale - 1);
   return true;
+}
+
+/* A melee/throwable card's lock state, from the level right now. */
+function paintGearLock(b, slot, label, def) {
+  const unlocked = rankUnlocked(def.rank);
+  b.disabled = !unlocked;
+  b.classList.toggle("is-locked", !unlocked);
+  b.querySelector("span").textContent = unlocked
+    ? (slot === "melee" ? `${def.damage} dmg` : `Carry ${def.carried}`)
+    : `LV ${def.rank}`;
+  b.setAttribute("aria-label",
+    `${label}: ${def.name} — ${unlocked ? def.blurb : `locked until level ${def.rank}`}`);
 }
 
 export class Loadout {
@@ -521,20 +533,13 @@ export class Loadout {
       this.gearButtons[slot] = {};
       for (const id of ids) {
         const def = defs[id];
-        const unlocked = rankUnlocked(def.rank);
         const b = document.createElement("button");
         b.type = "button";
         b.className = "to-lo-gear";
-        b.disabled = !unlocked;
-        b.classList.toggle("is-locked", !unlocked);
         b.innerHTML = "<strong></strong><span></span>";
         b.querySelector("strong").textContent = def.name;
-        b.querySelector("span").textContent = unlocked
-          ? (slot === "melee" ? `${def.damage} dmg` : `Carry ${def.carried}`)
-          : `LV ${def.rank}`;
         b.title = def.blurb;
-        b.setAttribute("aria-label",
-          `${label}: ${def.name} — ${unlocked ? def.blurb : `locked until level ${def.rank}`}`);
+        paintGearLock(b, slot, label, def);
         b.addEventListener("click", () => {
           if (prop) this[prop] = id;
           else {
@@ -557,6 +562,10 @@ export class Loadout {
     const active = { melee: this.meleeId, throwable: this.throwable.id };
     for (const [slot, buttons] of Object.entries(this.gearButtons)) {
       for (const [id, b] of Object.entries(buttons)) {
+        // The cards are built once, usually before the account's level has
+        // loaded; re-check the lock every render or they stay locked.
+        if (slot === "melee") paintGearLock(b, slot, "Melee", MELEE_DEFS[id]);
+        else paintGearLock(b, slot, "Throwable", THROWABLE_DEFS[id]);
         const on = active[slot] === id;
         b.classList.toggle("is-active", on);
         b.setAttribute("aria-pressed", String(on));
@@ -633,7 +642,10 @@ export class Loadout {
 
     // --- rank strip
     if (this.els.rank) {
-      this.els.rank.textContent = `Level ${rank}`;
+      // The owner has no level, just the badge (style.css .is-owner).
+      const owner = getLevel() === null;
+      this.els.rank.textContent = owner ? "Owner" : `Level ${rank}`;
+      this.els.rank.classList.toggle("is-owner", owner);
       this.els.rankFill.style.width = `${Math.round(rankProgress() * 100)}%`;
     }
 

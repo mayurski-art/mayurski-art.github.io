@@ -3188,3 +3188,31 @@ body.is-map .to-bo2-hints { visibility: hidden; }
   .to-bo2-hints { display: none; }
 }
 @media (hover: none) { .to-bo2-back kbd { display: none; } .to-bo2-back { min-height: 44px; font: 600 16px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; } }
+
+/* Owner badge (troll_runner): stands where a level would. The crowned troll
+   from the site's PFP icon, gold OWNER lettering, a slow shine across it. */
+.is-owner {
+  position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 10px 2px 2px; border-radius: 999px;
+  background: linear-gradient(135deg, #3b2700, #150c00);
+  border: 1px solid #ffcf4d;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 0 14px rgba(255,190,40,.35);
+  font: 700 12px/1 Oswald, "Arial Narrow", sans-serif; font-style: normal;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: #ffd76a; text-shadow: 0 1px 0 #5a3a00, 0 0 8px rgba(255,200,60,.45);
+  vertical-align: middle;
+}
+.is-owner::before {
+  content: ""; flex: none; width: 20px; height: 20px; border-radius: 50%;
+  background: #2a1a4a url("../../images/icons/pfp.png") 50% 28% / 190% no-repeat;
+  box-shadow: 0 0 0 1px #ffcf4d;
+}
+.is-owner::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,240,190,.55) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: to-owner-shine 3.6s ease-in-out infinite;
+}
+@keyframes to-owner-shine { 0%, 55% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .is-owner::after { animation: none; display: none; } }

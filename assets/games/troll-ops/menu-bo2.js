@@ -415,7 +415,10 @@ function renderParty() {
   const roster = $$("#to-pf-roster .to-pf-op").length;
   $(".to-bo2-party-lbl", root).innerHTML = `${Math.max(1, roster)} Player${roster > 1 ? "s" : ""} <span>(8 Max)</span>`;
   $(".to-bo2-name", root).textContent = p?.username || "Guest troll";
-  $(".to-bo2-lv", root).textContent = (text($("#to-lo-rank-label")) || "Level 1").replace(/^Level/i, "LV");
+  const rankEl = $("#to-lo-rank-label"), owner = !!rankEl?.classList.contains("is-owner");
+  const lv = $(".to-bo2-lv", root);
+  lv.textContent = owner ? "Owner" : (text(rankEl) || "Level 1").replace(/^Level/i, "LV");
+  lv.classList.toggle("is-owner", owner);   // the owner badge, no level (style.css)
   $(".to-bo2-xp", root).textContent = p ? text($("#to-pf-xp")) : "Log in to keep your XP";
 }
 $(".to-bo2-party-row", root).addEventListener("click", () => $("#to-pf-profile")?.click());

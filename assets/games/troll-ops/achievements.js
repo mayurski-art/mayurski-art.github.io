@@ -9,7 +9,7 @@
 // localStorage set is permanent ("have I ever"). The per-match layer is what
 // gates the callout, so you don't get told about First Blood twice.
 
-import { isSignedIn } from "./progression.js?v=gu1";
+import { isSignedIn } from "./progression.js?v=own1";
 
 const STORE = "trollops:achievements";
 

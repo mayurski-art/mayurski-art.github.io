@@ -87,7 +87,22 @@ export function getXp() {
   return account === null ? sessionXp : account;
 }
 
+/* The owner (user: "for troll_runner instead of giving me a game level, give
+   me a cool owner badge. this gives me access to everything and everything
+   that is to come"). No level at all — getLevel() is null and the UI shows
+   the owner badge — and getRank() is Infinity, so every level gate, today's
+   and any added later through getRank/rankUnlocked/isUnlocked, is open. */
+export function isOwner() {
+  return String(window.TrollrunnerAccounts?.getCachedProfile?.()?.username || "").toLowerCase() === "troll_runner";
+}
+
+/* The level to SHOW: null for the owner. */
+export function getLevel() {
+  return isOwner() ? null : getRank();
+}
+
 export function getRank() {
+  if (isOwner()) return Infinity;
   const level = Number(window.TrollrunnerAccounts?.getCachedProfile?.()?.level);
   if (accountXp() !== null && Number.isFinite(level) && level >= 1) return Math.floor(level);
   return levelForXp(getXp());
@@ -156,6 +171,7 @@ export function xpForMatch({ won = false, completed = true }) {
 
 /* Progress through the current level, 0..1. */
 export function rankProgress() {
+  if (isOwner()) return 1;
   const { xp, floor, next } = levelSpan();
   return Math.max(0, Math.min(1, (xp - floor) / Math.max(1, next - floor)));
 }
@@ -171,6 +187,7 @@ function levelSpan() {
 /* "475,000 / 480,200 XP": total XP over the total the next level needs,
    the same readout as the trollrunner.net profile. */
 export function rankXpText() {
+  if (isOwner()) return "Everything unlocked";
   const { xp, next } = levelSpan();
   return `${xp.toLocaleString()} / ${next.toLocaleString()} XP`;
 }
