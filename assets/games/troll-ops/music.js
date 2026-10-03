@@ -18,6 +18,11 @@ const TRACKS = [
 const STATE_KEY = "trollops:radio-v2";
 const LEGACY_KEY = "trollops:radio";
 
+// The ten bands printed under the Grinspace EQ sliders (Hz), ±12 dB each.
+export const EQ_BANDS = [32, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+export const EQ_RANGE = 12;
+const clampDb = (v) => Math.max(-EQ_RANGE, Math.min(EQ_RANGE, Number(v) || 0));
+
 export class GameMusic {
   constructor() {
     this.el = new Audio();
@@ -39,9 +44,92 @@ export class GameMusic {
     else if (saved.trackIndex != null) this.pos = this.order.indexOf(saved.trackIndex);
     if (this.pos < 0) this.pos = 0;
 
+    this.eq = EQ_BANDS.map((_, i) => clampDb(saved.eq?.[i] ?? 0));
+    this.balance = Math.max(-1, Math.min(1, saved.balance ?? 0));
+    this.graph = null;         // Web Audio chain, built on the first Play
+
     this.el.addEventListener("ended", () => this.next());
     this.onchange = null; // set by the UI layer to repaint on track/play changes
     this._loadCurrent(false);
+  }
+
+  /* Element -> 10 peaking filters -> balance -> analyser -> speakers. Built
+     lazily inside a click (autoplay policy), and only once: an element can
+     only ever be wired to one MediaElementSource. */
+  _ensureGraph() {
+    if (this.graph) {
+      if (this.graph.ctx.state === "suspended") this.graph.ctx.resume().catch(() => {});
+      return this.graph;
+    }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try {
+      const ctx = new AC();
+      const src = ctx.createMediaElementSource(this.el);
+      const filters = EQ_BANDS.map((hz, i) => {
+        const f = ctx.createBiquadFilter();
+        f.type = i === 0 ? "lowshelf" : i === EQ_BANDS.length - 1 ? "highshelf" : "peaking";
+        f.frequency.value = hz;
+        f.Q.value = 1.1;
+        f.gain.value = this.eq[i];
+        return f;
+      });
+      const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      if (pan) pan.pan.value = this.balance;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.72;
+      let node = src;
+      for (const f of filters) { node.connect(f); node = f; }
+      if (pan) { node.connect(pan); node = pan; }
+      node.connect(analyser);
+      analyser.connect(ctx.destination);
+      this.graph = { ctx, filters, pan, analyser };
+    } catch { this.graph = null; }
+    return this.graph;
+  }
+
+  get analyser() { return this.graph?.analyser || null; }
+  get time() { return this.el.currentTime || 0; }
+  get duration() { return Number.isFinite(this.el.duration) ? this.el.duration : 0; }
+
+  seek(t) {
+    if (!this.duration) return;
+    this.el.currentTime = Math.max(0, Math.min(this.duration - 0.05, t));
+  }
+
+  setEq(i, db) {
+    this.eq[i] = clampDb(db);
+    if (this.graph) this.graph.filters[i].gain.value = this.eq[i];
+    this._save();
+  }
+
+  resetEq() {
+    for (let i = 0; i < this.eq.length; i++) this.setEq(i, 0);
+  }
+
+  setBalance(v) {
+    this.balance = Math.max(-1, Math.min(1, v));
+    if (this.graph?.pan) this.graph.pan.pan.value = this.balance;
+    this._save();
+  }
+
+  /* Jump straight to a track from the playlist (an index into `tracks`). */
+  playIndex(trackIndex) {
+    if (!this.tracks[trackIndex]) return;
+    const at = this.order.indexOf(trackIndex);
+    this.pos = at < 0 ? 0 : at;
+    this._save();
+    this._loadCurrent(false);
+    this.el.currentTime = 0;
+    this.play();
+  }
+
+  stop() {
+    this.el.pause();
+    this.el.currentTime = 0;
+    this.playing = false;
+    this._notify();
   }
 
   _load() {
@@ -59,6 +147,8 @@ export class GameMusic {
         shuffle: this.shuffle,
         volume: this.volume,
         trackIndex: this.order[this.pos] ?? 0,
+        eq: this.eq,
+        balance: this.balance,
       }));
     } catch { /* private mode */ }
   }
@@ -79,6 +169,7 @@ export class GameMusic {
   }
 
   _playEl() {
+    this._ensureGraph();
     this.el.play().then(() => {
       this.playing = true;
       this._notify();
