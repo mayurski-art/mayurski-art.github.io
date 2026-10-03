@@ -708,8 +708,13 @@ be ordered with the user (design doc first for the big ones):
      Diamond Gauntlet, and the user's own: **Reverse Uno card** (reflects
      incoming damage/projectiles back at the shooter for a short window).
    - Tone: ragdolls, comic-book kill text, meme sounds, joke killfeed icons.
-   - Open: standalone FFA first vs the L4D zombies idea; is the L4D mode a
-     funny co-op version of this one?
+   - User answered "both": standalone FFA "Troll Mod" first, AND the L4D
+     idea becomes "Troll Mod: Horde" (same cast + weapons, co-op).
+   - **Design doc (awaiting sign-off):**
+     https://claude.ai/code/artifact/d5986295-491c-476a-b5b1-7313909a6ee2
+     (hero kits, weapon table, Trollernaut at 1,500 pts / 40 s, Horde rules,
+     7-phase build plan, a "Decisions for you" checklist). Build nothing
+     until the user OKs it.
 8b. ~~Grin Beach palms (user: "could use some work, more realistic")~~ DONE
    (`game.js?v=to-pm1`, `maps.js?v=dr2`): map-dressing.js `palmTrees(root,
    spots)`: leaning tapered ringed trunks (vertex colours are LINEAR, keep
