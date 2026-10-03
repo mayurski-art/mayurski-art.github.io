@@ -36,7 +36,7 @@ stream (the "trollrunner.net Simplified" session was folded in and deleted).
 
 ## RESUME HERE (2026-10-02, session 25, later) — phase 6b SHIPPED; 3 new asks queued
 
-## RESUME HERE (2026-10-02, session 25, latest) — 6g chapel + 6h mannequins SHIPPED (`game.js?v=to-padbo2-hg6h`, maps/loadout/hollowgrin/chapel/mannequins `?v=hg6h`); next 6f
+## RESUME HERE (2026-10-02, session 25, latest) — 6f, 6g chapel, 6h mannequins SHIPPED: Hollowgrin pass DONE (`game.js?v=to-padbo2-hg6h`, maps/loadout/hollowgrin/chapel/mannequins `?v=hg6h`); next 6f
 - **6g chapel** (`hollowgrin-chapel.js`, buildChapel; hollowgrin.js hands
   its helpers in as H, so the module never imports hollowgrin.js back: a
   second `?v=` would make a second copy of it). St. Grinsworth's rebuilt
@@ -74,8 +74,14 @@ stream (the "trollrunner.net Simplified" session was folded in and deleted).
 - **Concurrency:** another session ran `git pull --rebase --autostash` in
   THIS checkout and stashed my uncommitted builder (it sat in
   `stash@{0}: autostash`). Commit work in progress early.
-- Next: **6f** (bot roam waypoints into the park, zombie rise points:
-  splash pool, pet cemetery, cave, under the coaster; previews; final look).
+- **6f SHIPPED** (`game.js?v=to-padbo2-hg6i`, hollowgrin/maps `?v=hg6i`): six
+  zombie rise points in the park (pet cemetery x2, splash pool, cave, under
+  the coaster x2); no bot roam points needed (bots walk the flow field to
+  the nearest enemy; the park has a spawn at each end). Map-vote preview
+  re-shot over the fair: run tools/troll-ops-map-previews.mjs with
+  WAIT=25000 or the GLBs (mansion) aren't in yet. The previews' `?v=mp1`
+  (game.js + menu-bo2.js) was NOT bumped (Pages caches ~10 min).
+  **The Hollowgrin detail pass (6a-6h) is DONE.**
 
 ## (previous) RESUME HERE (2026-10-02, session 25) — 6c, 6d, 6e SHIPPED; next chapel + mannequins, then 6f
 All in hollowgrin.js (buildMansion, buildMountain, buildCoaster run after
