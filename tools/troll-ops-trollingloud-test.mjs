@@ -132,6 +132,26 @@ async function open(mode) {
   await page.close();
 }
 
+/* ------------------------------------------------------- search & destroy */
+// pickBombSites works the sites out from the spawn halves; they should land
+// in the two side rooms on the ground floor: the VIP lounge (west) and the
+// bar (east), one each, both inside the club.
+{
+  console.log("--- search & destroy");
+  const { page, errors } = await open("snd");
+  const r = await page.evaluate(async () => {
+    const T = window.__trollOps;
+    const { groundHeightAt } = await import("/assets/games/troll-ops/movement.js");
+    return T.bombSites().map((s) => ({ ...s, y: groundHeightAt(typeof T.colliders === "function" ? T.colliders() : T.colliders, s.x, s.z, 3) }));
+  });
+  console.log("sites", JSON.stringify(r));
+  const room = (s) => Math.abs(s.x) > 14.5 && Math.abs(s.x) < 29.5 && s.z > -7 && s.z < 13 ? (s.x < 0 ? "VIP" : "bar") : null;
+  for (const s of r) check(!!room(s) && Math.abs(s.y - 0.3) < 0.05, `site ${s.id} is on the club floor in the VIP or the bar`, `(${s.x}, ${s.y?.toFixed(2)}, ${s.z}) ${room(s) || "outside"}`);
+  check(r.length === 2 && room(r[0]) && room(r[1]) && room(r[0]) !== room(r[1]), "one site in each room");
+  check(errors.length === 0, "no page errors", errors.slice(0, 3).join(" | "));
+  await page.close();
+}
+
 /* ---------------------------------------------------------------- zombies */
 if (!process.env.SKIP_Z) {
   console.log("--- zombies");

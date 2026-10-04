@@ -191,10 +191,12 @@ export function ledMat(kind) {
         float rnd = fract(sin(dot(id, vec2(12.9898, 78.233))) * 43758.5453);
         float edge = smoothstep(0.42, 0.5, max(abs(f.x), abs(f.y)));
         float facet = 0.55 + 0.45 * sign(f.x * f.y);
-        float tw = pow(0.5 + 0.5 * sin(uTime * (1.2 + rnd * 2.4) + rnd * 40.0), 6.0);
+        float tw = pow(0.5 + 0.5 * sin(uTime * (1.2 + rnd * 2.4) + rnd * 40.0), 24.0) * step(0.55, fract(rnd * 7.31));
         float sweep = exp(-pow(fract(vLed.x * 0.5 + vLed.y * 0.3 - uBeatPos * 0.125) - 0.5, 2.0) * 60.0);
-        vec3 ice = mix(vec3(0.10, 0.20, 0.55), vec3(0.45, 0.75, 1.0), facet * (0.35 + 0.65 * rnd));
-        vec3 col = (ice * (0.3 + 0.35 * uKick) + vec3(0.85, 0.92, 1.0) * (tw * 0.75 + sweep * 0.35) + vec3(0.5, 0.7, 1.0) * edge * 0.45) * 0.62;
+        // a deep blue ground with sparse bright glints: a pale wall here
+        // swallowed the white trollface of anyone standing in front of it
+        vec3 ice = mix(vec3(0.05, 0.10, 0.38), vec3(0.30, 0.55, 0.95), facet * (0.35 + 0.65 * rnd));
+        vec3 col = (ice * (0.17 + 0.2 * uKick) + vec3(0.85, 0.92, 1.0) * (tw * 1.1 + sweep * 0.22) + vec3(0.5, 0.7, 1.0) * edge * 0.3) * 0.62;
         diffuseColor = vec4(col, 1.0);` : `
         vec2 p = (vLed - 0.5) * 6.0;
         float t = uTime * 0.45;

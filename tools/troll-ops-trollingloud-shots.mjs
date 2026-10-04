@@ -42,6 +42,8 @@ const VIEWS = {
   alley:    [-16, 1.7, 31, 4, 4.5, 22, 72],
   yard:     [-22, 2, -31.5, 10, 2.5, -24, 70],
   aerial:   [48, 34, 52, 0, 3, 0, 55],
+  siteA:    [-27.5, 3.5, 11.5, -19.6, 0.3, 8.25, 80],
+  siteB:    [27.5, 3.5, 11.5, 16, 0.3, 8.3, 80],
 };
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(VIEWS);
 const MAP = process.env.MAP || "trollingloud";
