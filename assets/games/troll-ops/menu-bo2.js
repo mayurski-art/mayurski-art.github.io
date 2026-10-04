@@ -22,6 +22,7 @@ import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withCl
 import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1";
 import { FINISHES } from "./skins.js?v=p5";
 import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9";
+import { setMapShot } from "./map-load-screen.js?v=ml3";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards, the gold gun and the private-match maps. */
@@ -57,7 +58,6 @@ const text = (el) => (el ? el.textContent.trim().replace(/\s+/g, " ") : "");
 const isOn = (b) => b.classList.contains("is-active") || b.classList.contains("is-on") || b.getAttribute("aria-pressed") === "true" || b.getAttribute("aria-checked") === "true";
 const isLocked = (b) => b.disabled || b.getAttribute("aria-disabled") === "true";
 const rail = (panel) => $(`#to-pf-rail [data-panel="${panel}"]`)?.click();
-const MAP_SHOTS = new Set(["culdegrin", "depot", "dustbowl", "grinbeach", "grinleria", "grinsite", "hollowgrin", "undergrin"]);
 
 function ready() {
   return new Promise((res) => {
@@ -673,7 +673,7 @@ const menu = createBo2Menu(nav, {
     if (!it) return;
     if (it.mapId) {
       const img = $("img", shot);
-      if (MAP_SHOTS.has(it.mapId)) { img.src = `assets/games/troll-ops/ui/maps/${it.mapId}.jpg?v=mp1`; img.hidden = false; } else img.hidden = true;
+      setMapShot(img, it.mapId, `${Math.ceil(shot.parentElement?.clientWidth || 640)}px`);
       $("figcaption", shot).textContent = it.desc || "";
     }
     // Streak previews: the old picker shows the model on hover/focus.

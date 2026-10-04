@@ -36,7 +36,7 @@ import { getMyCard, withClan } from "./calling-cards.js?v=p5";
 import { openProfileCard } from "./profile-card.js?v=pc1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { createMapLoadScreen } from "./map-load-screen.js?v=ml2";
+import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf";
@@ -11365,7 +11365,7 @@ function renderVote() {
     btn.setAttribute("aria-pressed", String(net.myVote === id));
     // A real shot of the map (tools/troll-ops-map-previews.mjs renders them).
     btn.innerHTML =
-      `<img class="to-vote-img" src="assets/games/troll-ops/ui/maps/${id}.jpg?v=mp1" alt="" loading="eager" draggable="false">` +
+      `<img class="to-vote-img" ${mapShotAttrs(id, "200px")} alt="" loading="eager" draggable="false">` +
       `<span class="to-vote-row"><span class="to-vote-name">${MAPS[id]?.name || id}</span>` +
       `<span class="to-vote-n">${n ? `${n} vote${n === 1 ? "" : "s"}` : ""}</span></span>`;
     btn.querySelector("img").addEventListener("error", (e) => e.target.remove());

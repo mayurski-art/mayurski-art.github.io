@@ -7,8 +7,37 @@
    createMapLoadScreen(host) -> { show(mapInfo), setMap(mapInfo), progress(p),
    status(text), hide(), isOpen }. mapInfo: { id, name, blurb, mode }. */
 
-const SHOTS = new Set(["culdegrin", "depot", "dustbowl", "grinbeach", "grinleria", "grinsite", "hollowgrin", "undergrin"]);
-const shotUrl = (id) => `assets/games/troll-ops/ui/maps/${id}.jpg?v=mp1`;
+/* Map shots (user, 2026-10-03: "highest quality", sized to the device).
+   tools/troll-ops-map-previews.mjs renders each map at 4K through the
+   game's own post chain and encodes this width ladder. The <img> gets them
+   all as a srcset and the browser picks the smallest one that still covers
+   its slot in real device pixels (DPR included): a phone pulls ~120 KB, a
+   4K screen the full 3840. */
+export const MAP_SHOTS = new Set(["culdegrin", "depot", "dustbowl", "grinbeach", "grinleria", "grinsite", "hollowgrin", "undergrin"]);
+const SHOT_WIDTHS = [640, 1280, 1920, 2560, 3840];
+const shotFile = (id, w) => `assets/games/troll-ops/ui/maps/${id}-${w}.webp?v=hq1`;
+const shotSrcset = (id) => SHOT_WIDTHS.map((w) => `${shotFile(id, w)} ${w}w`).join(", ");
+// The loading screen's shot: object-fit cover at scale(1.04), so it spans the
+// width on a wide screen and the height (times 16/9) on a tall one.
+const FULL_SIZES = "(max-aspect-ratio: 16/9) calc(104vh * 16 / 9), 104vw";
+
+/* Point an <img> at a map's shot. `sizes` is how wide it shows (CSS px).
+   Returns false (and hides it) for a map with no shot. */
+export function setMapShot(img, id, sizes = FULL_SIZES) {
+  if (!MAP_SHOTS.has(id)) { img.hidden = true; return false; }
+  const set = shotSrcset(id);
+  if (img.getAttribute("srcset") !== set) {
+    img.sizes = sizes;   // before srcset, so the first pick already uses it
+    img.srcset = set;
+    img.src = shotFile(id, 1920);
+  }
+  img.hidden = false;
+  return true;
+}
+
+/* Same, as markup, for lists built with innerHTML (the map vote). */
+export const mapShotAttrs = (id, sizes) =>
+  `src="${shotFile(id, 1920)}" srcset="${shotSrcset(id)}" sizes="${sizes}"`;
 
 const TIPS = [
   "Hold G to cook a grenade. Let go when it's spicy.",
@@ -89,11 +118,7 @@ export function createMapLoadScreen(host) {
     q(".to-mapload-mode").textContent = mode || "";
     q(".to-mapload-name").textContent = name || "";
     q(".to-mapload-blurb").textContent = blurb || "";
-    if (id && SHOTS.has(id)) {
-      const src = shotUrl(id);
-      if (!img.src.endsWith(src)) img.src = src;
-      img.hidden = false;
-    } else img.hidden = true;
+    setMapShot(img, id);
   }
   function progress(p) {
     // Never run backwards: a second map pass (the room switched maps) or a

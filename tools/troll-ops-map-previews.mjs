@@ -1,21 +1,32 @@
-// Renders the map-vote preview images: one establishing shot per versus map,
-// saved to assets/games/troll-ops/ui/maps/<id>.jpg (640x360). Re-run after a
-// map's look changes. Camera spots are hand-picked in VIEWS below.
+// Renders the map shots (loading screen, map vote, menu preview): one
+// establishing shot per versus map, rendered at 4K through the game's own
+// post chain (SSAO, bloom, tone mapping, 4x MSAA). The lossless master goes
+// to .claude/map-shots-hq/<id>.png (kept out of git, ~10 MB each) and ffmpeg
+// encodes the responsive ladder to assets/games/troll-ops/ui/maps/
+// <id>-{640,1280,1920,2560,3840}.webp that map-load-screen.js serves as a
+// srcset. Re-run after a map's look changes, then bump ?v=hq1 in
+// map-load-screen.js. Camera spots are hand-picked in VIEWS below.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-map-previews.mjs [mapId ...]
+// FFMPEG=<path> if ffmpeg isn't on PATH; WAIT=<ms> for slow-streaming maps.
 
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "assets/games/troll-ops/ui/maps");
+const MASTER = path.join(ROOT, ".claude/map-shots-hq");
+const WIDTHS = [640, 1280, 1920, 2560, 3840];
+const FFMPEG = process.env.FFMPEG || "ffmpeg";
 fs.mkdirSync(OUT, { recursive: true });
+fs.mkdirSync(MASTER, { recursive: true });
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
   ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
   ".glb": "model/gltf-binary", ".mp3": "audio/mpeg", ".svg": "image/svg+xml", ".gif": "image/gif" };
@@ -60,30 +71,33 @@ for (const id of ids) {
   }, id);
   await new Promise((r) => setTimeout(r, +(process.env.WAIT || 6000)));   // models + textures stream in
   const data = await page.evaluate(async (v) => {
-    const T = window.__trollOps;
-    const cam = T.camera.clone();
-    cam.fov = v[6];
-    cam.aspect = 16 / 9;
-    cam.near = 0.1;
-    cam.far = 2000;
-    cam.position.set(v[0], v[1], v[2]);
-    cam.lookAt(v[3], v[4], v[5]);
-    cam.updateProjectionMatrix();
-    cam.updateMatrixWorld(true);
-    // After the game's own frame, draw ours over it and read it straight back.
+    const T = window.__trollOps, R = T.renderer, C = T.composer, cam = T.camera;
+    const W = 3840, H = 2160;
+    for (const rt of [C.renderTarget1, C.renderTarget2]) if (rt.samples !== 4) { rt.samples = 4; rt.dispose(); }
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // Inside one frame callback, after the game's own update: move its camera,
+    // grow the canvas + composer to 4K, render, read it straight back.
     return await new Promise((done) => requestAnimationFrame(() => {
-      T.renderer.render(T.scene, cam);
-      const src = T.renderer.domElement;
-      const c = document.createElement("canvas");
-      c.width = 640; c.height = 360;
-      const sw = src.width, sh = Math.round(src.width * 9 / 16);
-      c.getContext("2d").drawImage(src, 0, (src.height - sh) / 2, sw, sh, 0, 0, 640, 360);
-      done(c.toDataURL("image/jpeg", 0.82));
+      cam.fov = v[6]; cam.aspect = W / H; cam.near = 0.1; cam.far = 2000;
+      cam.position.set(v[0], v[1], v[2]);
+      cam.lookAt(v[3], v[4], v[5]);
+      cam.updateProjectionMatrix();
+      cam.updateMatrixWorld(true);
+      R.setPixelRatio(1); R.setSize(W, H, false);
+      C.setPixelRatio?.(1); C.setSize(W, H);
+      // A spawn that hurts (Hollowgrin) leaves the low-HP blur on: clear it.
+      for (const p of C.passes) for (const k of ["uHitFlash", "uLowHp", "uAberration", "uSuppress"]) if (p.uniforms?.[k]) p.uniforms[k].value = 0;
+      C.render(0.016);
+      done(R.domElement.toDataURL("image/png"));
     }));
   }, VIEWS[id]);
-  fs.writeFileSync(path.join(OUT, `${id}.jpg`), Buffer.from(data.split(",")[1], "base64"));
-  console.log(`${id}.jpg`);
+  const master = path.join(MASTER, `${id}.png`);
+  fs.writeFileSync(master, Buffer.from(data.split(",")[1], "base64"));
+  for (const w of WIDTHS) {
+    execFileSync(FFMPEG, ["-v", "error", "-y", "-i", master, "-vf", `scale=${w}:-2:flags=lanczos+accurate_rnd+full_chroma_int`,
+      "-c:v", "libwebp", "-quality", "92", "-compression_level", "6", "-preset", "picture", path.join(OUT, `${id}-${w}.webp`)]);
+  }
+  console.log(`${id}: master + ${WIDTHS.length} webp`);
   await page.close();
 }
 await browser.close();
