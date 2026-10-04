@@ -14,15 +14,15 @@
 import { createBo2Menu } from "../../js/bo2-menu.js?v=to-ft2";
 import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
-import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression.js?v=p5";
+import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression.js?v=p5-wst";
 
 import { fetchRecord, formatPlayed } from "./record.js?v=rec1";
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm";
-import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=p5";
-import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst";
+import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=p5-wst";
+import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1-wst";
 import { FINISHES } from "./skins.js?v=p5";
-import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1";
-import { setMapShot } from "./map-load-screen.js?v=ml3";
+import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst";
+import { setMapShot } from "./map-load-screen.js?v=ml3-wst";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards, the gold gun and the private-match maps. */

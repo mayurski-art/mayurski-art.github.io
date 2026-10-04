@@ -13,7 +13,7 @@ import { PENTAGRIN } from "./pentagrin.js?v=hg6e";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc";
 import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e";
-import { TROLLCITY } from "./trollcity.js?v=tc2";
+import { TROLLCITY } from "./trollcity.js?v=tc2-wst";
 import { SURFACES } from "./surface-textures.js?v=hg6e";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {

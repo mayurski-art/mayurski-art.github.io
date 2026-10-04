@@ -8,7 +8,7 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_TINTS, FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1";
+import { FACE_TINTS, FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst";
 
 const KEY = "trollops:cosmetics";
 

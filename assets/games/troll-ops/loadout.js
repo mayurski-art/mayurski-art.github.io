@@ -1,13 +1,13 @@
 // Troll Forces — loadout screen: class → weapon → attachments.
 
-import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm";
-import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js?v=cg1";
+import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst";
+import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js?v=cg1-wst";
 import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=p5";
-import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5";
+import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
-import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc-k9-em1";
-import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1kb3-bk1";
+import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc-k9-em1-wst";
+import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1kb3-bk1-wst";
 
 const STORE = "trollops:loadout";
 

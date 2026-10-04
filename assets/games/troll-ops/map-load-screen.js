@@ -13,7 +13,7 @@
    all as a srcset and the browser picks the smallest one that still covers
    its slot in real device pixels (DPR included): a phone pulls ~120 KB, a
    4K screen the full 3840. */
-export const MAP_SHOTS = new Set(["culdegrin", "depot", "dustbowl", "grinbeach", "grinleria", "grinsite", "hollowgrin", "undergrin"]);
+export const MAP_SHOTS = new Set(["culdegrin", "depot", "dustbowl", "grinbeach", "grinleria", "grinsite", "hollowgrin", "trollcity", "undergrin"]);
 const SHOT_WIDTHS = [640, 1280, 1920, 2560, 3840];
 const shotFile = (id, w) => `assets/games/troll-ops/ui/maps/${id}-${w}.webp?v=hq1`;
 const shotSrcset = (id) => SHOT_WIDTHS.map((w) => `${shotFile(id, w)} ${w}w`).join(", ");

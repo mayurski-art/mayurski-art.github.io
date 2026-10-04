@@ -7,14 +7,14 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1";
-import { WeaponInspector } from "./inspector.js?v=hb1-nf";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-wst";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst";
+import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
-import { CharacterInspector } from "./char-inspector.js?v=hb4";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9";
-import { StreakPicker } from "./streak-picker.js?v=umb1";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1";
+import { CharacterInspector } from "./char-inspector.js?v=hb4-wst";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst";
+import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
@@ -28,63 +28,63 @@ import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
 import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
 import { KillCam } from "./killcam.js?v=to-fx3";
-import { Achievements } from "./achievements.js?v=umb1";
-import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=p5";
+import { Achievements } from "./achievements.js?v=umb1-wst";
+import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=p5-wst";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
-import { getMyCard, withClan } from "./calling-cards.js?v=p5";
-import { openProfileCard } from "./profile-card.js?v=pc1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1";
+import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
+import { openProfileCard } from "./profile-card.js?v=pc1-wst";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3";
+import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1";
-import { MatchIntro } from "./match-intro.js?v=mi5";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst";
+import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=umb1-rn";
-import { BotManager } from "./bots.js?v=cg5-em1";
-import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
-import { GameAudio } from "./audio.js?v=umb1kb2-mi1";
-import { MapAmbience } from "./ambience.js?v=amb1";
+} from "./modes.js?v=umb1-rn-wst";
+import { BotManager } from "./bots.js?v=cg5-em1-wst";
+import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst";
+import { GameAudio } from "./audio.js?v=umb1kb2-mi1-wst";
+import { MapAmbience } from "./ambience.js?v=amb1-wst";
 import { insidePolygon } from "./edge.js";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./music.js?v=to-gs1";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1";
-import { ZombieDirector } from "./zombies.js?v=hb4";
+import { ZombieDirector } from "./zombies.js?v=hb4-wst";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js";
-import { kickCurve } from "./attachments.js?v=cg1";
-import { WaveSpawner } from "./enemies.js?v=hb4";
-import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1";
+import { kickCurve } from "./attachments.js?v=cg1-wst";
+import { WaveSpawner } from "./enemies.js?v=hb4-wst";
+import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1-wst";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
-import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g-nf";
+import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g-nf-wst";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3-bk1";
-import { poseKnuckles } from "./brass-knuckles.js?v=bk1";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3-bk1-wst";
+import { poseKnuckles } from "./brass-knuckles.js?v=bk1-wst";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
-import { createAkimboView, AKIMBO_INSPECT_TIME } from "./akimbo-view.js?v=ak1";
+import { createAkimboView, AKIMBO_INSPECT_TIME } from "./akimbo-view.js?v=ak1-wst";
 import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./keyboard-repair.js?v=kr15";
 import { RangeSet } from "./range.js";
-import { PickupSystem, SwapHold } from "./pickups.js?v=sw1";
+import { PickupSystem, SwapHold } from "./pickups.js?v=sw1-wst";
 import { HudLayout } from "./hud-layout.js?v=hl3";
 import { initCloudSave } from "./cloud-save.js?v=cs1";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
-import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4-fc1";
+import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4-fc1-wst";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
-import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3";
+import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 
 const els = {
@@ -15447,7 +15447,7 @@ animate();
    with a row of trolls and reads every round against both the hitbox and
    the visible body (hitbox-lab.js). Loaded lazily, so play never fetches it. */
 if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]hitbox=1/.test(location.search)) {
-  import("./hitbox-lab.js?v=hl3").then(({ createHitboxLab }) => {
+  import("./hitbox-lab.js?v=hl3-wst").then(({ createHitboxLab }) => {
     hitboxLab = createHitboxLab({
       scene, look, move, colliders: () => colliders, isRange, state: () => gameState, startGame,
       setMode: (id) => { modeId = id; modePicked = true; },

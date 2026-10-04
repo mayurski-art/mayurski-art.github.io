@@ -32,7 +32,7 @@ import {
   barrel, crate, crateStack, trough, hitchRail, bollard, telegraphPole, wire, streetLamp,
   wheel, wagon, horse, cactus, steerSkull, rock, tableSet, chair, stool, piano,
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture,
-} from "./trollcity-kit.js?v=tc2";
+} from "./trollcity-kit.js?v=tc2-wst";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
 const T = 0.3;            // wall thickness

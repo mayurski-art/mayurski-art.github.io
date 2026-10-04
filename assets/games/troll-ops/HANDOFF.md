@@ -1,5 +1,28 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## Troll City + Peacemakers + Knuckle Grinners + bandana — SHIPPED 2026-10-04 (branch tf-western)
+- **Troll City** (`trollcity.js`, helpers/props/textures in `trollcity-kit.js`): an all-procedural boomtown, 124 x 100 m, in `MAP_IDS` and the Zombies `mapPool`.
+  - Every shop is walk-through, front to back.
+  - The saloon: bar, piano stage, kitchen, an upstairs back room, and a balcony. The upstairs is the zombie floor `upper`, linked by the stair.
+  - The courthouse: the sheriff's office (the troll general's portrait over his desk, user's call) and the jail.
+  - Also: the railway (a 4-4-0 locomotive, boxcars), the station, the water tower, the lumber yard, the stable, the corral, the houses and Boot Hill (zombies rise from its graves). Mesas on the horizon.
+  - The user's troll art hangs in five frame styles via `framedPicture` (gilt / carved / barn on a wire / oval brass / sepia photo). "We're So Bach" is over the saloon piano (user's call). The art is in `ui/western/`; the tank-top piece is cropped to the troll only, with no real person in it.
+  - Ambience preset `trollcity`: piano, horse and whistle synth events.
+  - Map shot camera in `troll-ops-map-previews.mjs`.
+  - Audit: `troll-ops-map-audit.mjs trollcity` PASS.
+- **Peacemakers** (`weapons.js` peacemakers, model `revolvers.js`, first-person animation `akimbo-view.js`): the pair is one root; `userData.sides` holds side → pivot → gun.
+  - The hand anchors belong to the side, so twirls spin the gun and not the arm.
+  - `noAds`; aim fans the hammers (`fanFire`). Shots alternate via `w.akimboSide`.
+  - Reload and inspect are keyframed in akimbo-view (RELOAD_SIDE / INSPECT_SIDE).
+  - Third person: a `pair` branch in character.js `_gripSupport`; the left hand goes to `gripPosL`.
+  - Tests: `troll-ops-peacemakers-test.mjs` and `troll-ops-3p-hold-test.mjs` (akimbo branch).
+- **Knuckle Grinners** (`gear.js` knuckles, `brass-knuckles.js`): the root holds still at KNUCKLE_REST, and `poseKnuckles` moves the two fists. The anchors' `gripAxis` signs make both gloves close palm down.
+  - A third-person body wears one duster (`buildMeleeMesh(def, false, { held3p: true })`).
+  - Test: `troll-ops-knuckles-test.mjs`.
+- **First-person left hand** (user): it cups the handguard from below (glove style "support"). If the gun has a vert or angled grip, it fists the grip; `userData.foregrip` is set in attachment-models.js and read by game.js `foregripOf`.
+- **Face bandana** (Cosmetics > Face covering): a third part of the face key, "grin:og:bandana-blue". `character.js FACE_COVERINGS` and `syncCovering` draw it as a 2D overlay on the head board, in the user's style (refs/western/bandana-ref.png).
+- **Known, not mine:** `troll-ops-trollsaber-test.mjs` "menu preview shows the saber lit" fails on main before this branch too.
+
 ## Troll City + Peacemakers + Brass Knuckles: references (user, 2026-10-04)
 The user asked for a western map ("Bronze City" from Roblox Wild West, with
 the troll theme), a western dual pistol with a cool reload and an

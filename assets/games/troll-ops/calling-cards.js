@@ -8,7 +8,7 @@
 // that the card is one you may wear. Keep CARDS and cleanClan() in step with
 // it. Guests keep nothing, so they wear the default card and no tag.
 
-import { prestigeUnlocked } from "./progression.js?v=p5";
+import { prestigeUnlocked } from "./progression.js?v=p5-wst";
 
 const ART = (file) => new URL(`./ui/cards/${file}`, import.meta.url).href;
 

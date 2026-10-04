@@ -9,9 +9,9 @@ import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import {
   OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS,
   buildIronRear, buildIronFront, railSection,
-} from "./attachment-models.js?v=fg1";
-import { build416 } from "./weapon-416.js?v=cg1";
-import { buildRevolverPair } from "./revolvers.js?v=rv2";
+} from "./attachment-models.js?v=fg1-wst";
+import { build416 } from "./weapon-416.js?v=cg1-wst";
+import { buildRevolverPair } from "./revolvers.js?v=rv2-wst";
 import { finishDef } from "./skins.js?v=p5";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 

@@ -11,8 +11,8 @@
 // to draw a menu prop would cost more than one more context.
 
 import * as THREE from "three";
-import { buildWeaponMesh } from "./weapon-model.js?v=p5-em1";
-import { buildMeleeMesh } from "./gear.js?v=to-hb1kb3-bk1";
+import { buildWeaponMesh } from "./weapon-model.js?v=p5-em1-wst";
+import { buildMeleeMesh } from "./gear.js?v=to-hb1kb3-bk1-wst";
 import { loadModel } from "./battlefield-props.js";
 import { buildDragonfireModel } from "./dragonfire.js?v=df2";
 import { buildSamTurretModel } from "./sam-turret.js?v=sam1";

@@ -16,7 +16,7 @@ import { smoothstep } from "./anim-curves.js";
 import { buildTrollsaber } from "./trollsaber.js?v=ts4";
 import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw2";
 import { buildHaloBlade } from "./halo-blade.js?v=hb2";
-import { buildKnucklePair, KNUCKLE_REST, KNUCKLE_JAB, KNUCKLE_HOOK, KNUCKLE_JAB_WINDOW, KNUCKLE_HOOK_WINDOW } from "./brass-knuckles.js?v=bk1";
+import { buildKnucklePair, KNUCKLE_REST, KNUCKLE_JAB, KNUCKLE_HOOK, KNUCKLE_JAB_WINDOW, KNUCKLE_HOOK_WINDOW } from "./brass-knuckles.js?v=bk1-wst";
 
 export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where you look
 const GRAVITY = GRENADE_GRAVITY;

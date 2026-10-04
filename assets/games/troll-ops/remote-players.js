@@ -6,15 +6,15 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1";
-import { poseEmoteCode } from "./emotes.js?v=hb4-em1";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1";
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm";
-import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1";
-import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1-wst";
+import { poseEmoteCode } from "./emotes.js?v=hb4-em1-wst";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst";
+import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { sharedParaglider } from "./royale-drop.js?v=rp3";
-import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf";
+import { sharedParaglider } from "./royale-drop.js?v=rp3-wst";
+import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 
 const RENDER_DELAY = 110; // ms
