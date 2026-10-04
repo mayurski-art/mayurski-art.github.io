@@ -10678,8 +10678,8 @@ async function startGame() {
    up until the map is built, downloaded and its shaders compiled, so the
    match runs smooth from its first frame on every device, however long
    that takes. Online it then waits until everyone in the room has loaded
-   too (user: "game doesn't start until everyone loads in completely" — and
-   no time limit, by choice).
+   too (user: "game doesn't start until everyone loads in completely"), for
+   up to LOAD_WAIT_MAX seconds once we're ready (see updateLoadScreen).
 
    The wire: every client sends "ready" (net.publishReady) about once a
    second while on this screen, ok:0 while loading, ok:1 once done. The
@@ -10775,13 +10775,28 @@ function updateLoadScreen(dt) {
     loadPing -= dt;
     if (loadPing <= 0 && loadTarget) { loadPing = 1; net.publishReady(loadTarget, modeId, done); }
   }
-  if (!done) return;
+  if (!done) { loadWaitT = 0; return; }
   if (!online) { releaseLoad(); return; }
   const others = [...net.peers.values()].filter((p) => !isBotPeer(p) && p.lr);
   const n = others.filter((p) => p.readyMap === loadedMapId).length;
-  loadScreen.status(others.length ? `Waiting for players ${n + 1}/${others.length + 1}` : "Ready");
-  if (net.isBotHost() && n === others.length) releaseLoad();
+  // A time limit on the wait (user, 2026-10-04: "add a timeout for the
+  // slowest player wait"; it had none). Counted from when we were ready.
+  // The host starts without whoever is still loading once it runs out;
+  // they're let in the moment they finish (onReady's publishGo, the same
+  // way as a latecomer). A slow host is the other half: the rest start on
+  // their own a while later, and adopt its countdown once it arrives.
+  loadWaitT += dt;
+  const host = net.isBotHost();
+  const limit = host ? loadWaitMax : loadWaitMax + LOAD_WAIT_CLIENT_EXTRA;
+  const left = Math.max(0, Math.ceil(limit - loadWaitT));
+  loadScreen.status(others.length ? `Waiting for players ${n + 1}/${others.length + 1} · starting in ${left}s` : "Ready");
+  if (host && n === others.length) releaseLoad();
+  else if (loadWaitT >= limit) releaseLoad();
 }
+const LOAD_WAIT_MAX = 20;          // seconds the host waits on slow loaders once it's ready
+const LOAD_WAIT_CLIENT_EXTRA = 25; // and on top, before a non-host stops waiting for the host
+let loadWaitMax = LOAD_WAIT_MAX;   // (tests shorten it: __trollOps.setLoadWaitMax)
+let loadWaitT = 0;
 
 /* -------------------- pre-match staging --------------------
 
@@ -15555,6 +15570,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     nearestDuoTeammate, armDuo, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },
     kbRepair, kbShield, saberFrac: () => (activeMeleeMesh?.userData.saber || activeMeleeMesh?.userData.halo)?.frac ?? null,
+    setLoadWaitMax: (s) => { loadWaitMax = s; },
     loadState: () => ({ open: loadScreen.isOpen, hold: loadHold, warm: loadWarm, target: loadTarget, staging: isStaging(), stageT, status: document.querySelector(".to-mapload-status")?.textContent || "" }),
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, endMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
