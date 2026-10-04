@@ -50,6 +50,7 @@ import {
 import { BotManager } from "./bots.js?v=cg5-em1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
 import { GameAudio } from "./audio.js?v=umb1kb2";
+import { MapAmbience } from "./ambience.js?v=amb1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./music.js?v=to-gs1";
@@ -3615,6 +3616,7 @@ let sndInteractHeld = false; // physically holding E right now
 let sndCanInteract = false;
 
 const audio = new GameAudio();
+const ambience = new MapAmbience(audio);
 const music = new GameMusic();
 let suppressT = 0;
 
@@ -3624,7 +3626,7 @@ const animDebug = new AnimDebugLab();
 
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
-  volume: 50, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, gloves: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
+  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, gloves: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
   gfx: "auto", viewMode: false, invincible: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
@@ -3635,6 +3637,7 @@ function saveSettings() {
 
 function applySettings() {
   audio.setVolume(settings.volume / 100);
+  ambience.setLevel(settings.ambience / 100);
   baseFov = settings.fov;
   minimapCanvas.hidden = !settings.minimap;
 
@@ -3647,6 +3650,7 @@ function applySettings() {
     if (out) out.textContent = `${value}${suffix}`;
   };
   set("to-set-volume", settings.volume, "to-set-volume-out");
+  set("to-set-ambience", settings.ambience, "to-set-ambience-out");
   set("to-set-sens", settings.sens, "to-set-sens-out", "%");
   set("to-set-padsens", settings.padSens);
   set("to-set-padsens-lobby", settings.padSens);
@@ -3657,6 +3661,7 @@ function applySettings() {
   set("to-set-aimassist", settings.aimAssist);
 
   set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
+  set("to-set-ambience-lobby", settings.ambience, "to-set-ambience-lobby-out");
   set("to-set-sens-lobby", settings.sens, "to-set-sens-lobby-out", "%");
   set("to-set-fov-lobby", settings.fov, "to-set-fov-lobby-out", "°");
   set("to-set-invert-lobby", settings.invert);
@@ -3975,6 +3980,7 @@ function initEscapeMenu() {
     });
   }
   bindRange("to-set-volume", "volume", "to-set-volume-out");
+  bindRange("to-set-ambience", "ambience", "to-set-ambience-out");
   bindRange("to-set-sens", "sens", "to-set-sens-out", "%");
   bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
   bindCheck("to-set-invert", "invert");
@@ -3984,6 +3990,7 @@ function initEscapeMenu() {
   bindCheck("to-set-invincible", "invincible");
 
   bindRange("to-set-volume-lobby", "volume", "to-set-volume-lobby-out");
+  bindRange("to-set-ambience-lobby", "ambience", "to-set-ambience-lobby-out");
   bindRange("to-set-sens-lobby", "sens", "to-set-sens-lobby-out", "%");
   bindRange("to-set-fov-lobby", "fov", "to-set-fov-lobby-out", "°");
   bindCheck("to-set-invert-lobby", "invert");
@@ -12271,6 +12278,10 @@ function animate() {
 
   if (gameState === "paused" || localPauseOnly) pollGamepadMenu();
 
+  // The map's ambience plays while you're in it (paused included) and fades
+  // out back at the menu or on the scoreboard.
+  ambience.set((gameState === "playing" || gameState === "paused") && loadedMapId ? loadedMapId : null);
+
   // Runs during "gameover", between two matches in a room that stayed up.
   if (intermissionT > 0) {
     updateIntermission(dt);
@@ -15260,7 +15271,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     voteOptions: () => voteOptions,
     intermissionT: () => intermissionT,
     state: () => gameState,
-    grenades, audio, camera, colliders, killcam, bullets, look,
+    grenades, audio, ambience, camera, colliders, killcam, bullets, look,
     startCook, releaseCook, cancelCook, applyRemoteNade, blindT: () => blindT, cooking,
     empT: () => empT,
     empPlayer, flashPlayer, explosionFx, fireShake,

@@ -570,6 +570,7 @@ const screens = {
     groups: [
       [
         rangeRow("to-set-volume-lobby", "Master volume", 10, "How loud everything is."),
+        rangeRow("to-set-ambience-lobby", "Ambience", 10, "Each map's background sound: wind, birds, surf, distant fights."),
         rangeRow("to-set-sens-lobby", "Look sensitivity", 10, "Mouse and touch look speed."),
         selectRow("to-set-padsens-lobby", "Stick sensitivity", "Controller look speed. 3 is the BO2 default."),
         rangeRow("to-set-fov-lobby", "Field of view", 2, "Wider sees more, narrower zooms in."),
