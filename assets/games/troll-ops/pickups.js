@@ -82,7 +82,7 @@ export class PickupSystem {
    it can't be tapped for a free timing edge. Nothing underfoot, holding X
    just swaps primary/secondary instantly instead. */
 export class SwapHold {
-  constructor() { this.t = 0; this.active = false; }
+  constructor() { this.t = 0; this.active = false; this.pressed = false; }
 
   reset() { this.t = 0; this.active = false; }
 
@@ -90,15 +90,19 @@ export class SwapHold {
      "pickup" once held long enough over one. Null while nothing should
      happen yet. */
   update(dt, held, canPickup) {
-    if (!held) { this.reset(); return null; }
+    if (!held) { this.reset(); this.pressed = false; return null; }
+    // Only the first frame of a press can swap. Without this every held
+    // frame swapped again, so a ~100ms tap on the touch SWAP button flipped
+    // guns 5-8 times (the flicker) and landed on whichever came up last.
+    const fresh = !this.pressed;
+    this.pressed = true;
     if (!canPickup) {
       // Drifting out of pickup range mid-hold shouldn't fire a swap (the
       // press already committed to a pickup attempt) but it also can't be
       // allowed to just freeze t — otherwise walking away and back "banks"
       // partial hold progress instead of restarting the hold.
-      const wasPicking = this.t > 0;
       this.reset();
-      if (!wasPicking) { this.active = true; return "swap"; }
+      if (fresh) { this.active = true; return "swap"; }
       return null;
     }
     this.active = true;

@@ -73,7 +73,7 @@ import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THR
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
 import { createKeyboardRepair, KB_SHIELD } from "./keyboard-repair.js?v=kr9";
 import { RangeSet } from "./range.js";
-import { PickupSystem, SwapHold } from "./pickups.js?v=cg1";
+import { PickupSystem, SwapHold } from "./pickups.js?v=sw1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
 import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=hb4";
