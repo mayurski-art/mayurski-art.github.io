@@ -9,7 +9,7 @@ import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import {
   OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS,
   buildIronRear, buildIronFront, railSection,
-} from "./attachment-models.js";
+} from "./attachment-models.js?v=fg1";
 import { build416 } from "./weapon-416.js?v=cg1";
 import { buildRevolverPair } from "./revolvers.js?v=rv2";
 import { finishDef } from "./skins.js?v=p5";

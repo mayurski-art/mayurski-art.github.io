@@ -14528,9 +14528,24 @@ const _gloveDir = new THREE.Vector3();
 const _gloveZ = new THREE.Vector3(0, 0, 1);
 const _gloveRigQ = new THREE.Quaternion();
 
+/* A forward grip on the gun (an underbarrel vert or angled grip, tagged
+   userData.foregrip in attachment-models.js): the left hand fists it.
+   Cached per built mesh. */
+function foregripOf(mesh) {
+  if (mesh.userData._foregrip === undefined) {
+    let f = null;
+    mesh.traverse((o) => { if (!f && o.userData.foregrip) f = { obj: o, point: o.userData.foregrip }; });
+    mesh.userData._foregrip = f;
+  }
+  return mesh.userData._foregrip;
+}
+
 function placeGlove(g, i, mesh, anchor, tip, sidearm, magBlend = 0) {
-  // During a mag swap the left hand holds the mag (palm under it).
-  const style = i === 0 ? "grip" : sidearm || magBlend > 0.35 ? "support" : (mesh.userData.supportStyle || "cclamp");
+  // During a mag swap the left hand holds the mag (palm under it). Else the
+  // left hand is on the foregrip if there is one, or cupped under the
+  // handguard (user: "underneath the gun or on the grip if there is a grip").
+  const style = i === 0 ? "grip" : sidearm || magBlend > 0.35 ? "support"
+    : (mesh.userData.supportStyle || (foregripOf(mesh) ? "foregrip" : "support"));
   if (style === "grip") {
     anchor.getWorldQuaternion(_gloveQ);
     g.root.quaternion.copy(_gloveQ).multiply(GLOVE_GRIP_Q);
@@ -14733,7 +14748,9 @@ function posePfArms(mesh, magBlend = 0) {
     anchor.getWorldPosition(_pfTip);
     _pfDown.set(0, -1, 0).applyQuaternion(mesh.quaternion);
     if (i === 1) {
-      _pfTip.addScaledVector(_pfDown, anchors[1] ? (mesh.userData.pfSupportDrop ?? PF_SUPPORT_DROP) : 0.03);
+      const fg = anchors[1] ? foregripOf(mesh) : null;
+      if (fg) fg.obj.localToWorld(_pfTip.copy(fg.point));
+      else _pfTip.addScaledVector(_pfDown, anchors[1] ? (mesh.userData.pfSupportDrop ?? PF_SUPPORT_DROP) : 0.03);
       const mag = mesh.userData.shellMesh?.visible ? mesh.userData.shellMesh : mesh.userData.magMesh;
       if (magBlend > 0 && mag?.visible) {
         mag.getWorldPosition(_pfMag).addScaledVector(_pfDown, 0.05);
@@ -15480,7 +15497,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     activeMeleeMesh: () => activeMeleeMesh,
     activeWeaponMesh: () => activeWeaponMesh,
     matchClockT: () => matchClockT,
-    resetMatchClock, swingMelee, fireOnce, akimboView, botThrow, botMelee, isInfected, infectionCounts, applyInfect,
+    resetMatchClock, swingMelee, fireOnce, akimboView, setActiveWeaponMesh, botThrow, botMelee, isInfected, infectionCounts, applyInfect,
     infectionStarted: () => infectionStarted, pickFirstInfected, setInfectionT: (v) => { infectionT = v; }, botNadesThrown: () => botNadesThrown,
     activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
     streaks, streakPicker, killstreakUi, achievements, streakIconSvg,

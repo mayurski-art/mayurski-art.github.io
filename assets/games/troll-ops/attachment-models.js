@@ -525,12 +525,15 @@ function buildVertGrip() {
   const screw = tube(0.004, 0.004, 0.032, M.knob(), 8);
   screw.rotation.z = Math.PI / 2;
   g.add(screw);
+  // where the first-person left hand fists it (game.js foregripOf)
+  g.userData.foregrip = new THREE.Vector3(0, -0.046, 0);
   return g;
 }
 
 /* Angled grip: a raked wedge with a textured face, canted forward. */
 function buildAngledGrip() {
   const g = new THREE.Group();
+  g.userData.foregrip = new THREE.Vector3(0, -0.03, -0.006);
   const shell = M.shell();
 
   const body = box(0.026, 0.05, 0.062, M.rubber());

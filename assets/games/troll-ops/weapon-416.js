@@ -18,7 +18,7 @@
 
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
-import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, buildIronRear, buildIronFront, railSection } from "./attachment-models.js";
+import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, buildIronRear, buildIronFront, railSection } from "./attachment-models.js?v=fg1";
 import { skinAtlasTexture, SKIN_ATLAS, skinDef } from "./skins.js?v=p5";
 
 /* Side profiles in weapon space, as [z, y] points (z forward is negative,
