@@ -1,5 +1,23 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## Stuck bots fixed — 2026-10-04 (user: "the bots are stuck", "not just in troll city")
+New test: `tools/troll-ops-bot-stuck-test.mjs [maps...]` plays bot TDM per map. It flags any bot that stays inside 1.5 m for 8 sim-seconds with nobody in sight, then checks a bot's care package end to end.
+
+Causes found, and the fixes:
+1. **Care packages** (the main one, on every map). A bot walked to its marker and stood spinning there for the whole heli flight. Veterans earn crates constantly.
+   - `botObjective` now waits until the crate has `landed`, and accepts anywhere within 1.2 m.
+   - `updateBotCrate` gives up 25 s after landing (BOT_CRATE_GIVE_UP).
+2. **The nav snapped through walls** (`nav.js openIndex`). A blocked cell used to snap to the first open cell in scan order, which could be on the other side of a wall.
+   - Troll City's saloon stair foot, in a 1.1 m pocket, snapped to the street outside the saloon. Bots could never use that stair: the stairs test was 0/4 there before this.
+   - Now it takes the nearest open cell that has a clear straight line from the point, using the unpadded footprints of the blockers (`this.walls`).
+3. **Stair ends inside walls** (`maps.js clearStairEnds`). Dust Bowl's roof-stair foot sat 0.3 m inside the house front. Each end now steps back along its flight until it's clear.
+4. **Obstacles a hop can't clear** (`bots.js`). A hop only reaches about 0.9 m, so bots hopped at Dust Bowl's 1.2 m riverbank forever. Now:
+   - After 2 stuck hops, the 3rd stuck side-steps along the obstacle (UNSTICK_*) and drops perch, climb and stair plans.
+   - Out of a fight, wanting to move for 2.5 s but covering less than 1 m (jitter) counts as stuck too (PROGRESS_*).
+   - A perch that gets no closer in 5 s is dropped (PERCH_NO_GAIN).
+
+**Known, not mine:** `troll-ops-bot-moves-test.mjs` "bots carry every kind of throwable" expects 2 lethals, but the Firebomb was removed (15d8d68).
+
 ## Trolling Loud (neon nightclub map): references (user, 2026-10-04) — SHIPPED 2026-10-04
 The user asked for a nightclub map with neon lights. Plan (v2, with the
 improvements pass): `C:\Users\mayur\.claude\plans\for-troll-forces-game-fancy-snail.md`.

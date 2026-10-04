@@ -21,6 +21,23 @@ function blocks(c, floorY, step = 1.0) {
   return c.max.y > floorY + step && c.min.y < floorY + 2.2;
 }
 
+/* Does the segment (x0,z0)-(x1,z1) pass through the box's footprint?
+   A start already inside it doesn't count: a point standing in furniture
+   still has to get out somewhere. */
+function segmentHitsBox(x0, z0, x1, z1, bx0, bx1, bz0, bz1) {
+  if (x0 > bx0 && x0 < bx1 && z0 > bz0 && z0 < bz1) return false;
+  let t0 = 0, t1 = 1;
+  const dx = x1 - x0, dz = z1 - z0;
+  for (const [p, d, lo, hi] of [[x0, dx, bx0, bx1], [z0, dz, bz0, bz1]]) {
+    if (Math.abs(d) < 1e-9) { if (p <= lo || p >= hi) return false; continue; }
+    let a = (lo - p) / d, b = (hi - p) / d;
+    if (a > b) [a, b] = [b, a];
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+    if (t0 >= t1) return false;
+  }
+  return true;
+}
+
 export class FlowField {
   /* `needSupport`: only cells with a floor under them at floorY are open.
      The ground floor never needs it (the world plane is everywhere), but an
@@ -39,6 +56,7 @@ export class FlowField {
       this.w = template.w;
       this.h = template.h;
       this.blocked = template.blocked.slice();
+      this.walls = template.walls;
       this.dist = new Int32Array(this.w * this.h);
       this.queue = new Int32Array(this.w * this.h);
       this.targetIdx = -1;
@@ -76,8 +94,11 @@ export class FlowField {
     // A cell is blocked if any tall collider overlaps it. The half-cell
     // margin keeps walkers from clipping corners they can't actually fit.
     // (`pad` is that margin, 0.35 m unless a map asks for a finer grid.)
+    // The blockers' own footprints (unpadded) are kept too, for openIndex.
+    const walls = [];
     for (const c of colliders) {
       if (!blocks(c, floorY, step)) continue;
+      walls.push(c.min.x, c.max.x, c.min.z, c.max.z);
       const x0 = Math.floor((c.min.x - pad - this.minX) / this.cell);
       const x1 = Math.ceil((c.max.x + pad - this.minX) / this.cell);
       const z0 = Math.floor((c.min.z - pad - this.minZ) / this.cell);
@@ -88,6 +109,7 @@ export class FlowField {
         }
       }
     }
+    this.walls = new Float32Array(walls);
   }
 
   index(x, z) {
@@ -98,23 +120,46 @@ export class FlowField {
   }
 
   /* Nearest open cell to a point, so a target standing in a doorway or half
-     inside furniture still produces a usable field. */
+     inside furniture still produces a usable field. Nearest by distance, and
+     one it can walk to in a straight line: the first open cell in scan order
+     could be through a wall (user, 2026-10-04: "the bots are stuck"). Troll
+     City's stair foot, in a pocket a metre wide, snapped to the street
+     outside the saloon, so bots went out there and ground on the wall. */
   openIndex(x, z) {
     const start = this.index(x, z);
     if (start < 0) return -1;
     if (!this.blocked[start]) return start;
-    const sx = start % this.w, sz = (start / this.w) | 0;
-    for (let r = 1; r <= 4; r++) {
-      for (let dz = -r; dz <= r; dz++) {
-        for (let dx = -r; dx <= r; dx++) {
-          const ix = sx + dx, iz = sz + dz;
-          if (ix < 0 || iz < 0 || ix >= this.w || iz >= this.h) continue;
-          const i = iz * this.w + ix;
-          if (!this.blocked[i]) return i;
-        }
+    const sx = start % this.w, sz = (start / this.w) | 0, R = 4;
+    const cand = [];
+    for (let dz = -R; dz <= R; dz++) {
+      for (let dx = -R; dx <= R; dx++) {
+        const ix = sx + dx, iz = sz + dz;
+        if (ix < 0 || iz < 0 || ix >= this.w || iz >= this.h) continue;
+        const i = iz * this.w + ix;
+        if (this.blocked[i]) continue;
+        const cx = this.minX + (ix + 0.5) * this.cell, cz = this.minZ + (iz + 0.5) * this.cell;
+        cand.push({ i, cx, cz, d: (cx - x) ** 2 + (cz - z) ** 2 });
       }
     }
-    return -1;
+    if (!cand.length) return -1;
+    cand.sort((a, b) => a.d - b.d);
+    const walls = this.walls;
+    if (!walls?.length) return cand[0].i;
+    // Only the blockers near here can be in the way.
+    const reach = (R + 1) * this.cell;
+    const near = [];
+    for (let k = 0; k < walls.length; k += 4) {
+      if (walls[k] > x + reach || walls[k + 1] < x - reach || walls[k + 2] > z + reach || walls[k + 3] < z - reach) continue;
+      near.push(k);
+    }
+    for (const c of cand) {
+      let clear = true;
+      for (const k of near) {
+        if (segmentHitsBox(x, z, c.cx, c.cz, walls[k], walls[k + 1], walls[k + 2], walls[k + 3])) { clear = false; break; }
+      }
+      if (clear) return c.i;
+    }
+    return cand[0].i;
   }
 
   /* Breadth-first sweep out from the target. `dist` ends up holding the step

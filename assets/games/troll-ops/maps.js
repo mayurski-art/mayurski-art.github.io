@@ -1667,6 +1667,26 @@ function groundSurface(g, w, d) {
    just past the last tread on whatever floor it lands on; a run that lands
    in a wall or on nothing isn't a way up and is dropped. `known`: links
    already laid (api.stairs); a flight matching one isn't added twice. */
+/* A flight's foot or top standing inside a wall: Dust Bowl's roof stair
+   starts flush with the house front, so api.stairs put its foot 0.3 m into
+   that wall, and the nav snapped it to the street outside rather than the
+   room the stair's in. Each end steps back along the flight, toward the
+   treads, until nothing tall stands on it. */
+function clearStairEnds(colliders, s) {
+  const inWall = (p) => colliders.some((c) => c.max.y > p.y + 1.0 && c.min.y < p.y + 1.7
+    && p.x > c.min.x && p.x < c.max.x && p.z > c.min.z && p.z < c.max.z);
+  const dx = s.b.x - s.a.x, dz = s.b.z - s.a.z, len = Math.hypot(dx, dz);
+  if (len < 1) return;
+  for (const [end, sign] of [["a", 1], ["b", -1]]) {
+    const p = s[end];
+    if (!inWall(p)) continue;
+    for (let k = 0.1; k <= 0.6; k += 0.1) {
+      const q = { x: p.x + sign * dx / len * k, y: p.y, z: p.z + sign * dz / len * k };
+      if (!inWall(q)) { s[end] = q; break; }
+    }
+  }
+}
+
 export function findStairs(colliders, known = []) {
   const RISE_MIN = 0.08, RISE_MAX = 0.42, TREAD_MAX = 1.3, TOUCH = 0.12, WIDE = 0.6;
   const boxes = colliders.filter((c) => c.max.y > 0.05 && c.max.y < 80
@@ -1792,6 +1812,7 @@ export function buildMap(id, { colliders, arena }) {
   dressMap(root, colliders, map);
   // Plus every flight the map built by hand (findStairs above).
   stairs.push(...findStairs(colliders, stairs));
+  for (const s of stairs) clearStairEnds(colliders, s);
 
   return {
     root,

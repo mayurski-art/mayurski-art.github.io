@@ -11,7 +11,7 @@
 import * as THREE from "three";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1";
 import { segmentBlocked } from "./ballistics.js?v=cg1-wst";
-import { FlowField } from "./nav.js?v=ti1";
+import { FlowField } from "./nav.js?v=ti1-bs1";
 import { clampInsidePolygon, insidePolygon } from "./edge.js";
 
 const NAMES = [
@@ -81,6 +81,10 @@ const HOP_GRAVITY = 16;
 const SLIDE_TIME = 0.75;
 const SLIDE_BOOST = 1.75;         // speed at the start of a slide, easing to 1
 const STUCK_HOP = 0.6;            // seconds pushing into something before hopping it
+const UNSTICK_AFTER = 3;          // the 3rd stuck in a row side-steps instead of hopping
+const UNSTICK_TIME = 0.9;
+const PROGRESS_WINDOW = 2.5;      // out of a fight, a bot that wanted to move this long...
+const PROGRESS_MIN = 1.0;         // ...and got less than this far is stuck too
 const MOVE_COOLDOWN = 1.2;
 
 /* Grenades. One lethal and one tactical a life, like a player's kit, rolled
@@ -113,6 +117,7 @@ const PERCH_CHANCE = 0.35;
 const PERCH_RANGE = 45;
 const PERCH_HOLD = [4, 8];
 const PERCH_GIVE_UP = 30;          // seconds to get there before it's dropped
+const PERCH_NO_GAIN = 5;           // seconds without getting a metre closer before it's dropped
 
 /* Anything tall standing at body height on this spot? */
 function resolveBlocked(colliders, x, z, feetY) {
@@ -205,6 +210,10 @@ class Bot {
     this.moveRollT = MOVE_ROLL;
     this.moveCd = 0;
     this.stuckT = 0;
+    this.stuckHops = 0;       // stuck hops in a row that got nowhere
+    this.progress = null;     // { x, z, t }: where the current progress window started
+    this.unstickT = 0;        // side-stepping off something a hop can't clear
+    this.unstickDir = new THREE.Vector3();
     this.wantSlide = false;
     this.stance = "stand";    // on the wire (net.js publishBot)
   }
@@ -542,6 +551,10 @@ class Bot {
         else if (r < this.diff.jump + this.diff.slide && this.moving) this.startSlide(this.vel);
       }
     }
+    if (this.unstickT > 0 && !busy) {
+      this.unstickT -= dt;
+      desired = this.unstickDir.clone();
+    }
     if (this.slideT > 0) {
       this.slideT -= dt;
       desired = this.slideDir.clone();
@@ -569,11 +582,45 @@ class Bot {
     // part of the way (the U Mad Mansion's), and caught the bots there.
     resolveCircle(colliders, this.pos, BOT_RADIUS, this.groundY + this.hopY, this.climb ? CLIMB_HEADROOM : BOT_HEIGHT, 0.5);
 
-    // Pushing into something and getting nowhere: hop it.
+    // Pushing into something and getting nowhere: hop it. Something a hop
+    // doesn't clear (a 1.2 m bank, a stair's side) got hopped at forever, so
+    // after a couple of hops that went nowhere the bot side-steps along it
+    // for a moment instead, and drops whatever plan walked it there.
     const wantMove = desired.lengthSq() > 0.25;
     const got = Math.hypot(this.pos.x - wasX, this.pos.z - wasZ) / Math.max(dt, 1e-3);
     this.stuckT = wantMove && got < 0.6 && grounded ? this.stuckT + dt : 0;
-    if (this.stuckT > STUCK_HOP) { this.stuckT = 0; this.startHop(); }
+    // And over a longer stretch: jittering in a corner moves every frame and
+    // gets nowhere. Only out of a fight, where strafing on the spot is fine.
+    let jammed = false;
+    if (wantMove && !best && !busy && this.unstickT <= 0) {
+      const p = this.progress || (this.progress = { x: this.pos.x, z: this.pos.z, t: 0 });
+      p.t += dt;
+      if (p.t > PROGRESS_WINDOW) {
+        const moved = Math.hypot(this.pos.x - p.x, this.pos.z - p.z);
+        jammed = moved < PROGRESS_MIN;
+        if (moved > PROGRESS_MIN * 2) this.stuckHops = 0;
+        this.progress = null;
+      }
+    } else {
+      this.progress = null;
+      if (grounded && got > 1.5 && this.unstickT <= 0) this.stuckHops = 0;
+    }
+    if (this.stuckT > STUCK_HOP || jammed) {
+      this.stuckT = 0;
+      this.stuckHops = (this.stuckHops || 0) + 1;
+      if (this.stuckHops < UNSTICK_AFTER) this.startHop();
+      else {
+        // Along the obstacle, alternating sides; a few tries in, back off too.
+        this.unstickSide = -(this.unstickSide || 1);
+        const back = this.stuckHops > UNSTICK_AFTER + 1 ? 0.7 : 0;
+        this.unstickDir.set(-desired.z * this.unstickSide - desired.x * back, 0, desired.x * this.unstickSide - desired.z * back).normalize();
+        this.unstickT = UNSTICK_TIME;
+        this.perch = null;
+        this.climb = null;
+        this.stairPlan = null;
+        if (this.stuckHops > UNSTICK_AFTER + 3) this.stuckHops = 0;
+      }
+    }
 
     if (this.hopY > 0 || this.hopV > 0) {
       this.hopV -= HOP_GRAVITY * dt;
@@ -955,7 +1002,14 @@ class Bot {
     if (this.perch) {
       const p = this.perch;
       p.t += dt;
-      if (p.t > PERCH_GIVE_UP && !p.arrived) this.perch = null;
+      // Not getting any closer (no route the field knows, a stair it keeps
+      // missing): drop it after a few seconds, not the whole give-up time.
+      if (!p.arrived) {
+        const d = Math.hypot(p.x - this.pos.x, p.z - this.pos.z) + Math.abs(p.y - this.groundY) * 3;
+        if (p.bestD == null || d < p.bestD - 1) { p.bestD = d; p.gainT = p.t; }
+        if (p.t - p.gainT > PERCH_NO_GAIN) this.perch = null;
+      }
+      if (this.perch && p.t > PERCH_GIVE_UP && !p.arrived) this.perch = null;
       return !!this.perch;
     }
     this.perchT = (this.perchT ?? between(PERCH_FIRST)) - dt;
