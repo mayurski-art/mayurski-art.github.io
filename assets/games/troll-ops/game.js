@@ -20,10 +20,10 @@ import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
   VtolWarship, WARSHIP_GUNS, VsatSatellite,
   PKG_CRUSH_RADIUS,
-  DRONE_DAMAGE, DRONE_SPLASH_RADIUS,
+  DRONE_DAMAGE, DRONE_SPLASH_RADIUS, DRONE_SPEED,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE,
-} from "./streak-entities.js?v=vsat2";
+} from "./streak-entities.js?v=vsat2-hk1";
 import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
 import { medalSvg } from "./medals.js?v=to-medals2";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
@@ -1354,6 +1354,7 @@ const droneFields = new Map();
 const _routeChest = new THREE.Vector3();
 const _routeDir = new THREE.Vector3();
 function droneRoute(p, target, out) {
+  if (droneWorld.air) return null;   // an aircraft: open sky, straight at it
   _routeChest.set(target.x, target.y + 1.1, target.z);
   const d = _routeChest.distanceTo(p);
   if (d < 0.01) return null;
@@ -1379,7 +1380,34 @@ function droneTargetPos(targetId) {
   if (!targetId) return null;
   if (targetId === net.id) return player.alive ? move.pos : null;
   const rp = remotes.byId.get(targetId);
-  return rp && rp.alive ? rp.pos : null;
+  if (rp) return rp.alive ? rp.pos : null;
+  return droneAirTarget(targetId)?.root.position || null;
+}
+
+/* Hunter-killers also take down enemy UAVs and Counter-UAVs (user,
+   2026-10-04). A recon plane is a drone target by its eid; the same plane
+   flies the same path on every client, so every copy of the drone can chase
+   it. It circles at RECON_ALTITUDE a touch faster than a drone hunts, so a
+   drone after one leads it along its known path (pathAt) at DRONE_AIR_SPEED
+   times the speed, and goes off within DRONE_AIR_REACH of it. */
+const DRONE_AIR_SPEED = 1.7, DRONE_AIR_REACH = 4, DRONE_AIR_PRIORITY = 0.5;
+function droneAirTarget(id) {
+  if (typeof id !== "string" || !id.startsWith("recon:")) return null;
+  const f = flyovers.find((p) => p.eid === id);
+  return f && !f.dead && !f.done && f.age <= f.duration ? f : null;
+}
+const _droneLead = new THREE.Vector3();
+/* Where to fly to meet plane `f` from `p` (feet-style: the drone aims 1 m
+   above what it's given). */
+function droneLeadPoint(p, f) {
+  _droneLead.copy(f.root.position);
+  const speed = DRONE_SPEED * DRONE_AIR_SPEED;
+  for (let i = 0; i < 3; i++) {
+    const tti = Math.min(4, _droneLead.distanceTo(p) / speed);
+    f.pathAt(f.age + tti, _droneLead);
+  }
+  _droneLead.y -= 1;
+  return _droneLead;
 }
 
 /* Hunter-killer target pick: nearest enemy, but one it can actually see
@@ -1405,6 +1433,14 @@ function pickDroneTarget(from, eyeUp = 1.6, { team = net.team, botId = null } = 
     consider(rp.pos, rp);
   }
   if (streakOwnerHates(team, botId)) consider(move.pos, { netId: net.id, pos: move.pos, peer: { name: "you" } });
+  // Enemy UAVs and Counter-UAVs: in open sky, and worth going after, so
+  // they count at DRONE_AIR_PRIORITY of their distance (an enemy in sight
+  // within ~30 m still comes first).
+  for (const t of enemyAirFor(team, botId || net.id)) {
+    if (!(t.e instanceof ReconPlane) || !droneAirTarget(t.id)) continue;
+    const score = from.distanceTo(t.pos) * DRONE_AIR_PRIORITY;
+    if (score < bestScore) { bestScore = score; best = { netId: t.id, pos: t.pos, air: true, peer: { name: t.e.counter ? "Counter-UAV" : "UAV" } }; }
+  }
   return best;
 }
 
@@ -2705,8 +2741,15 @@ function updateDrone(id, e, dt) {
       if (net.active) net.publishStreak({ kind: "drone", action: "retarget", eid: id, target: nextId });
     }
   }
-  droneWorld.target = droneTargetPos(e.targetId);
-  const out = e.update(dt, droneWorld);
+  const plane = droneAirTarget(e.targetId);
+  droneWorld.air = !!plane;
+  droneWorld.speedMul = plane ? DRONE_AIR_SPEED : 1;
+  droneWorld.target = plane ? droneLeadPoint(e.root.position, plane) : droneTargetPos(e.targetId);
+  // Close enough to the plane itself (the lead point runs ahead of it).
+  const out = plane && e.age > 0.3 && !e.frozen && e.root.position.distanceTo(plane.root.position) <= DRONE_AIR_REACH
+    ? (e.done = true, "hit") : e.update(dt, droneWorld);
+  droneWorld.air = false;
+  droneWorld.speedMul = 1;
   if (!out) {
     // A copy that thought it arrived gives up if the owner never says so.
     if (e.frozen && e.age - e.frozenAt > 2) { e.dispose(); streakEntities.delete(id); }
@@ -2735,6 +2778,13 @@ function updateDrone(id, e, dt) {
    if they flew it into their own feet (the user asked for that). */
 function detonateDrone(e, out) {
   const at = e.root.position.clone();
+  // Reached an enemy UAV / Counter-UAV: it comes down for everyone, credited
+  // like a SAM kill (the jam or reveal ends with it).
+  if (out === "hit" && droneAirTarget(e.targetId)) {
+    explosionFx({ kind: "lethal", glow: 0xffa23a, radius: 3 }, at);
+    shootDownAir(e.targetId, e.botId || net.id, true);
+    return;
+  }
   explosionFx({ kind: "lethal", glow: 0xffa23a, radius: DRONE_SPLASH_RADIUS }, at);
   streakBlast(at, out === "expire" ? 0.6 : 0.9);
   // Damage goes through the ordinary hit path, so a drone kill credits and
@@ -15243,7 +15293,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     fireDragonfire, roomBotSkill, boostedXp, veteranBoostOn, weaponRig, localHeld, MELEE_DEFS, saberParry,
     trySwivel, swivel, tabletDive: () => tabletDive, tabletDiveDip, botFireStreak, BOT_STREAK_POOL, updateBotAntiAir, enemyAirFor,
     warship: () => warship, warshipView, warshipGun: () => warshipGun, fireWarship, toggleWarshipGun,
-    swarmRuns, damageDog, K9Pack, VtolWarship, WARSHIP_GUNS, K9,
+    swarmRuns, damageDog, K9Pack, VtolWarship, WARSHIP_GUNS, K9, spawnRecon, droneAirTarget, enemyAirFor, jammedUntil: () => jammedUntil,
     nearestHostileTo, strikeImpact, spawnAirstrike, pickDroneTarget, nearbyPackage, updatePickupPrompt,
     gamepadState, touchState, streakKeyLabel, keys, swapHold,
     animDebug, weaponLowerT: () => weaponLowerT, switchWeapon,

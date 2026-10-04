@@ -767,21 +767,38 @@ function meleeArm(kind, t) {
    pointing ahead when the arm is at the carry. */
 export const GUN_CARRY = 1.35;
 export function mountHeldWeapon(rig, mesh) {
-  const s = rig.scale;
   // The first-person hands built onto the gun are for the viewmodel; a body
   // holds it in its own mitts.
+  // Every gun, now and any added later, is held in both hands and shot from
+  // the shoulder (user: "third person shooting should apply to all weapons
+  // even the ones that will be added"). A model that doesn't mark its grip
+  // gets one worked out (inferGrip) instead of the old one-handed forearm
+  // mount; tools/troll-ops-3p-hold-test.mjs checks every gun in weapons.js.
+  if (!mesh.userData.gripPos) mesh.userData.gripPos = inferGrip(mesh);
   mesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
   rig.held = mesh;
-  if (mesh.userData.gripPos) {
-    // Two hands, pistols too: placed every frame by _gripSupport.
-    mesh.position.set(0, 0, 0);
-    mesh.rotation.set(0, 0, 0);
-    rig.parts.gunMount.add(mesh);
-    return;
-  }
-  mesh.position.set(0.30 * s * rig.build, -0.62 * s, 0).addScaledVector(new THREE.Vector3(0, Math.sin(GUN_CARRY), Math.cos(GUN_CARRY)), 0.05 * s);
-  mesh.rotation.set(-GUN_CARRY, 0, 0.15);
-  rig.parts.armR.add(mesh);
+  // Placed every frame by _gripSupport.
+  mesh.position.set(0, 0, 0);
+  mesh.rotation.set(0, 0, 0);
+  rig.parts.gunMount.add(mesh);
+}
+/* Where the trigger hand goes on a gun that doesn't say: its first-person
+   grip hand if it has one, else under the receiver a third of the way
+   forward from the back (gun space: barrel down -Z). */
+function inferGrip(mesh) {
+  let hand = null;
+  for (const c of mesh.children) if (!hand && c.userData.hand) hand = c;
+  if (hand) return hand.position.clone();
+  mesh.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
+  const box = new THREE.Box3(), piece = new THREE.Box3(), m = new THREE.Matrix4();
+  mesh.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    box.union(piece.copy(o.geometry.boundingBox).applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld)));
+  });
+  if (box.isEmpty()) return new THREE.Vector3(0, -0.06, 0.05);
+  return new THREE.Vector3(0, box.min.y + (box.max.y - box.min.y) * 0.25, box.max.z - (box.max.z - box.min.z) * 0.3);
 }
 
 /* Pose the rig. `phase` advances with movement (use gaitPhaseRate); `lower`

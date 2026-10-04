@@ -790,6 +790,8 @@ export class HunterDrone {
     let wantSpeed = this.age < DRONE_LAUNCH ? 7
       : DRONE_SPEED * (0.4 + 0.6 * Math.max(0, dot)) * (dist < 10 ? 1.25 : 1);
     if (!ctx.target && this.age >= DRONE_LAUNCH) wantSpeed = 9;
+    // Chasing an aircraft (a UAV outruns the hunting speed): full throttle.
+    else if (this.age >= DRONE_LAUNCH) wantSpeed *= ctx.speedMul ?? 1;
     this.speed += (wantSpeed - this.speed) * Math.min(1, dt * 3);
     this.vel.copy(dir).multiplyScalar(this.speed);
 

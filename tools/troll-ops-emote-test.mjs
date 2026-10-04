@@ -38,6 +38,15 @@ function check(name, ok, detail = "") {
   if (!ok) failures++;
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/* Hold X on `page` until `done()` (run in the page) is true or `ms` pass:
+   under SwiftShader the game clock runs well behind the wall clock, so a
+   fixed-length hold can come up short of DUO_HOLD. */
+async function holdX(page, done, ms = 10000) {
+  await page.evaluate(() => window.__trollOps.keys.add("KeyX"));
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms && !(await page.evaluate(done))) await sleep(150);
+  await page.evaluate(() => window.__trollOps.keys.delete("KeyX"));
+}
 
 const browser = await chromium.launch({ args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required",
   "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"] });
@@ -152,9 +161,7 @@ check("too far away, holding X doesn't accept", !away.emote && away.incoming && 
 // B comes back beside A and holds X -> both play, face to face.
 await place(B, spot.x, spot.z - 1, Math.PI);
 await sleep(900);
-await B.evaluate(() => window.__trollOps.keys.add("KeyX"));
-await sleep(1200);
-await B.evaluate(() => window.__trollOps.keys.delete("KeyX"));
+await holdX(B, () => !!window.__trollOps.emote());
 await sleep(700);
 const both = await Promise.all([A, B].map((p) => p.evaluate(() => {
   const T = window.__trollOps, e = T.emote();
