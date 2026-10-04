@@ -6,7 +6,7 @@ import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=p5";
 import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
-import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc";
+import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc-k9";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1kb3";
 
 const STORE = "trollops:loadout";

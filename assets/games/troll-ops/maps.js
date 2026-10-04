@@ -29,7 +29,7 @@ import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, 
 
 /* ------------------------------------------------------------ build helpers */
 
-function makeApi(root, colliders) {
+function makeApi(root, colliders, stairLinks = []) {
   const matCache = new Map();
   const mat = (color, rough = 0.85, metal = 0.05) => {
     const key = `${color}|${rough}|${metal}`;
@@ -164,6 +164,11 @@ function makeApi(root, colliders) {
     stairs(x, z, width, steps, rise, run, dir, opts = {}) {
       const along = dir[1] === "x" ? "x" : "z";
       const sign = dir[0] === "+" ? 1 : -1;
+      // Its foot and its top, for anything that has to find its way between
+      // floors (k9-unit.js): just off the first step, just past the last.
+      const y0 = opts.y || 0;
+      const at = (t, y) => ({ x: along === "x" ? x + sign * t : x, y, z: along === "z" ? z + sign * t : z });
+      stairLinks.push({ a: at(-0.6, y0), b: at(run * steps + 0.6, y0 + rise * steps) });
       for (let i = 0; i < steps; i++) {
         const h = rise * (i + 1);
         const off = sign * (run * (i + 0.5));
@@ -1642,7 +1647,8 @@ export function buildMap(id, { colliders, arena }) {
     root.add(ground);
   }
 
-  map.build(makeApi(root, colliders));
+  const stairs = [];
+  map.build(makeApi(root, colliders, stairs));
   // Decals and loose clutter (map-dressing.js), laid once every collider is
   // known so the scatter keeps clear of them.
   dressMap(root, colliders, map);
@@ -1651,6 +1657,7 @@ export function buildMap(id, { colliders, arena }) {
     root,
     map,
     spawnPoints: map.spawns.map(([x, z, y]) => new THREE.Vector3(x, y ?? 0, z)),
+    stairs,
     playerSpawn: map.playerSpawn,
   };
 }

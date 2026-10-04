@@ -21,7 +21,7 @@ import { WEAPON_DEFS } from "./weapons.js?v=p5bm";
 import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=p5";
 import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1";
 import { FINISHES } from "./skins.js?v=p5";
-import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc";
+import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards, the gold gun and the private-match maps. */

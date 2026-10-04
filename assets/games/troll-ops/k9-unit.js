@@ -34,6 +34,8 @@ export const K9 = {
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
 const _v = new THREE.Vector3();
 const _to = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _goal = new THREE.Vector3();
 
 function wrap(a) {
   while (a > Math.PI) a -= Math.PI * 2;
@@ -149,8 +151,10 @@ export class K9Pack {
     this.count = count;
     this.origin = origin.clone();
     this.yaw = yaw;
-    this.fields = new Map();  // target id -> FlowField
-    this.baseField = null;
+    this.fields = new Map();      // "level|key" -> FlowField
+    this.baseFields = new Map();  // level -> the blocked grid the rest copy
+    this.tracks = new Map();      // target id -> { x, z, vx, vz } for leading a runner
+    this.dtNow = 0;
   }
 
   spawnPoint(i) {
@@ -200,12 +204,67 @@ export class K9Pack {
     d.vel.set(0, 0, 0);
   }
 
-  field(targetId, tx, tz) {
+  /* A flow field toward (tx, tz) on the level a dog is walking at. Upper
+     levels only open where there's floor under them, so a dog on a balcony
+     doesn't path out over thin air. `key` names what it leads to (a target
+     id, a stair foot), one field per level per key. */
+  field(key, tx, tz, y = 0) {
     const { colliders, bounds } = this.world;
-    if (!this.baseField) this.baseField = new FlowField(colliders, bounds, 0, { step: 0.9 });
-    let f = this.fields.get(targetId);
-    if (!f) { f = new FlowField(colliders, bounds, 0, { template: this.baseField }); this.fields.set(targetId, f); }
+    const level = Math.max(0, Math.round(y * 2) / 2);
+    let base = this.baseFields.get(level);
+    if (!base) {
+      base = new FlowField(colliders, bounds, level, { step: 0.5, needSupport: level > 0.5, cell: this.world.navCell || undefined });
+      this.baseFields.set(level, base);
+    }
+    const fk = `${level}|${key}`;
+    let f = this.fields.get(fk);
+    if (!f) { f = new FlowField(colliders, bounds, level, { template: base }); this.fields.set(fk, f); }
     return f.compute(tx, tz) ? f : null;
+  }
+
+  /* Walking distance from (x, z) along a field, or Infinity if walled off. */
+  static fieldDist(f, x, z) {
+    if (!f) return Infinity;
+    const i = f.openIndex(x, z);
+    return i >= 0 && f.dist[i] ? f.dist[i] * f.cell : Infinity;
+  }
+
+  /* Where a dog should run to reach `goal` (feet), which may be on another
+     level: the goal itself on its own level, else the foot of the stair that
+     best leads there, then straight up (or down) it. Returns { x, y, z,
+     field } or null to go straight in. */
+  route(d, key, goal) {
+    const stairs = this.world.stairs || [];
+    if (d.climb) {
+      const e = d.climb.exit;
+      d.climb.t += this.dtNow;
+      const level = Math.abs(d.pos.y - e.y) < 0.45;
+      if ((level && Math.hypot(e.x - d.pos.x, e.z - d.pos.z) < 1.0) || d.climb.t > 7) d.climb = null;
+      else return { x: e.x, y: e.y, z: e.z, field: null };
+    }
+    const dy = goal.y - d.pos.y;
+    if (Math.abs(dy) < 1.2 || !stairs.length) {
+      return { x: goal.x, y: goal.y, z: goal.z, field: this.field(key, goal.x, goal.z, d.pos.y) };
+    }
+    // Up or down: a stair with one end on this level, heading the right way.
+    let best = null, bestS = Infinity;
+    for (let i = 0; i < stairs.length; i++) {
+      const s = stairs[i];
+      for (const [entry, exit] of [[s.a, s.b], [s.b, s.a]]) {
+        if (Math.abs(entry.y - d.pos.y) > 0.9) continue;
+        if (Math.sign(exit.y - entry.y) !== Math.sign(dy)) continue;
+        const cost = Math.hypot(entry.x - d.pos.x, entry.z - d.pos.z)
+          + Math.hypot(exit.x - goal.x, exit.z - goal.z) + Math.abs(exit.y - goal.y) * 4;
+        if (cost < bestS) { bestS = cost; best = { i, entry, exit }; }
+      }
+    }
+    if (!best) return null;
+    if (Math.hypot(best.entry.x - d.pos.x, best.entry.z - d.pos.z) < 1.1) {
+      d.climb = { exit: best.exit, t: 0 };
+      return { x: best.exit.x, y: best.exit.y, z: best.exit.z, field: null };
+    }
+    const e = best.entry;
+    return { x: e.x, y: e.y, z: e.z, field: this.field(`stair${best.i}|${e === this.world.stairs[best.i].a ? "a" : "b"}`, e.x, e.z, d.pos.y) };
   }
 
   /* Owner frame. ctx:
@@ -219,9 +278,21 @@ export class K9Pack {
     for (let i = 0; i < this.count; i++) {
       if (!this.dogs[i] && this.age >= i * K9.spawnGap) this.addDog(i, this.spawnPoint(i), this.yaw);
     }
+    this.dtNow = dt;
     const hostiles = ctx.hostiles().filter((h) => h.alive);
+    // Each target's ground speed, smoothed, so a dog can run to where a
+    // fleeing troll is going instead of where it was.
+    for (const h of hostiles) {
+      const tr = this.tracks.get(h.id);
+      if (!tr) { this.tracks.set(h.id, { x: h.pos.x, z: h.pos.z, vx: 0, vz: 0 }); continue; }
+      const k = Math.min(1, dt * 4);
+      tr.vx += ((h.pos.x - tr.x) / Math.max(dt, 1e-3) - tr.vx) * k;
+      tr.vz += ((h.pos.z - tr.z) / Math.max(dt, 1e-3) - tr.vz) * k;
+      tr.x = h.pos.x; tr.z = h.pos.z;
+    }
     const chasing = new Map();
     for (const d of this.dogs) if (d?.alive && d.targetId) chasing.set(d.targetId, (chasing.get(d.targetId) || 0) + 1);
+    const now = this.age;
 
     for (const d of this.dogs) {
       if (!d) continue;
@@ -232,16 +303,12 @@ export class K9Pack {
       let target = hostiles.find((h) => h.id === d.targetId) || null;
       if (!target || d.retargetT <= 0) {
         d.retargetT = K9.retarget;
-        let best = null, bestS = Infinity;
-        for (const h of hostiles) {
-          const dist = Math.hypot(h.pos.x - d.pos.x, h.pos.z - d.pos.z) + Math.abs(h.pos.y - d.pos.y) * 3;
-          const crowd = (chasing.get(h.id) || 0) - (h.id === d.targetId ? 1 : 0);
-          const s = dist + Math.max(0, crowd - K9.perTarget + 1) * 18;
-          if (s < bestS) { bestS = s; best = h; }
-        }
+        const best = this.pickTarget(d, hostiles, chasing, ctx, now);
         if (best?.id !== d.targetId) {
           if (d.targetId) chasing.set(d.targetId, (chasing.get(d.targetId) || 1) - 1);
           if (best) chasing.set(best.id, (chasing.get(best.id) || 0) + 1);
+          d.climb = null;
+          d.stuckN = 0;
         }
         target = best;
         d.targetId = best?.id || null;
@@ -260,16 +327,38 @@ export class K9Pack {
         const dist = _to.length();
         const inReach = !heel && dist <= K9.biteRange && Math.abs(goal.y - d.pos.y) < K9.biteReachY;
         if (inReach) {
+          d.climb = null;
           if (d.biteCd <= 0) {
             d.biteCd = K9.biteCd;
             d.biteT = 0.35;
             ctx.onBite?.(d, target.id, K9.bite);
           }
         } else if (dist > (heel ? 1.2 : 0.9)) {
-          _to.divideScalar(dist);
-          const f = !heel && dist > 2.5 ? this.field(target.id, goal.x, goal.z) : null;
-          const steer = f ? f.steer(d.pos.x, d.pos.z) : null;
-          const dir = steer || _to;
+          let dir;
+          if (d.detour) {
+            // Ran into something: turned round, running that way a moment.
+            d.detour.t -= dt;
+            dir = _dir.set(d.detour.x, 0, d.detour.z);
+            if (d.detour.t <= 0) d.detour = null;
+          } else {
+            // Lead a runner: aim at where they'll be by the time we get there,
+            // when the way there is open ground.
+            let gx = goal.x, gz = goal.z;
+            const tr = !heel && target && this.tracks.get(target.id);
+            if (tr && dist < 14 && dist > 2.2 && Math.abs(goal.y - d.pos.y) < 1.2) {
+              const ahead = Math.min(0.8, dist / K9.speed);
+              gx += tr.vx * ahead; gz += tr.vz * ahead;
+            }
+            const r = heel || dist <= 2.5 ? null : this.route(d, target.id, _goal.set(gx, goal.y, gz));
+            const steer = r?.field ? r.field.steer(d.pos.x, d.pos.z) : null;
+            if (steer) dir = steer;
+            else {
+              const tx = r ? r.x : gx, tz = r ? r.z : gz;
+              dir = _dir.set(tx - d.pos.x, 0, tz - d.pos.z);
+              const l = dir.length();
+              if (l > 1e-4) dir.divideScalar(l); else dir.set(-Math.sin(d.yaw), 0, -Math.cos(d.yaw));
+            }
+          }
           want = heel ? Math.min(K9.speed * 0.6, dist * 1.5) : K9.speed;
           d.vel.x += (dir.x * want - d.vel.x) * Math.min(1, dt * 6);
           d.vel.z += (dir.z * want - d.vel.z) * Math.min(1, dt * 6);
@@ -281,9 +370,27 @@ export class K9Pack {
         }
       }
       if (!want) { d.vel.x *= Math.max(0, 1 - dt * 9); d.vel.z *= Math.max(0, 1 - dt * 9); }
+      const px = d.pos.x, pz = d.pos.z;
       this.move(d, dt);
       d.speed = Math.hypot(d.vel.x, d.vel.z);
+      this.checkStuck(d, dt, want, Math.hypot(d.pos.x - px, d.pos.z - pz) / Math.max(dt, 1e-3), target, now);
       this.place(d, dt);
+    }
+
+    // Dogs don't run through each other: a pack surrounds a troll instead of
+    // stacking on one spot.
+    const live = this.dogs.filter((d) => d?.alive);
+    for (let i = 0; i < live.length; i++) {
+      for (let j = i + 1; j < live.length; j++) {
+        const a = live[i], b = live[j];
+        if (Math.abs(a.pos.y - b.pos.y) > 0.6) continue;
+        const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, l = Math.hypot(dx, dz);
+        const min = K9.radius * 2.2;
+        if (l >= min) continue;
+        const push = (min - l) * 0.5, nx = l > 1e-4 ? dx / l : Math.cos(i + j), nz = l > 1e-4 ? dz / l : Math.sin(i + j);
+        a.pos.x -= nx * push; a.pos.z -= nz * push;
+        b.pos.x += nx * push; b.pos.z += nz * push;
+      }
     }
 
     if (this.owned) {
@@ -291,6 +398,57 @@ export class K9Pack {
     }
     if (this.age >= this.duration) { this.done = true; return "expire"; }
     return null;
+  }
+
+  /* Who a dog goes for. Not just the nearest as the crow flies: the
+     nearest by the way it would actually have to run (a troll behind a wall
+     or up a floor is further than they look), one it can see over one it
+     can't, and not one it just gave up reaching. Too many dogs on one troll
+     and the rest split off. */
+  pickTarget(d, hostiles, chasing, ctx, now) {
+    if (!hostiles.length) return null;
+    const rough = hostiles.map((h) => ({ h, s: Math.hypot(h.pos.x - d.pos.x, h.pos.z - d.pos.z) + Math.abs(h.pos.y - d.pos.y) * 4 }))
+      .sort((a, b) => a.s - b.s);
+    let best = null, bestS = Infinity;
+    // The proper path cost only for the closest few: each is a field sweep.
+    rough.forEach(({ h, s }, n) => {
+      let cost = s;
+      if (n < 3) {
+        if (Math.abs(h.pos.y - d.pos.y) < 1.2) {
+          const run = K9Pack.fieldDist(this.field(h.id, h.pos.x, h.pos.z, d.pos.y), d.pos.x, d.pos.z);
+          cost = Number.isFinite(run) ? run : s + 40;
+        }
+        if (ctx.canSee) cost += ctx.canSee(d.pos, h.pos) ? -6 : 8;
+      } else cost += 8;
+      if (d.giveUp?.id === h.id && now < d.giveUp.until) cost += 60;
+      const crowd = (chasing.get(h.id) || 0) - (h.id === d.targetId ? 1 : 0);
+      cost += Math.max(0, crowd - K9.perTarget + 1) * 18;
+      if (h.id === d.targetId) cost -= 4;   // don't flip-flop between two close calls
+      if (cost < bestS) { bestS = cost; best = h; }
+    });
+    return best;
+  }
+
+  /* Running into a wall: the dog wants to go but isn't getting anywhere.
+     It turns round (a sharp turn back the way it came, to one side) and runs
+     that way for a moment before it picks its route again. Three goes and it
+     gives up on that troll for a few seconds and looks for another. */
+  checkStuck(d, dt, want, moved, target, now) {
+    if (want > 2 && !d.detour && moved < want * 0.3) d.stuckT = (d.stuckT || 0) + dt;
+    else d.stuckT = Math.max(0, (d.stuckT || 0) - dt * 2);
+    if (d.stuckT < 0.35) return;
+    d.stuckT = 0;
+    d.stuckN = (d.stuckN || 0) + 1;
+    d.climb = null;
+    const heading = Math.atan2(d.vel.x, d.vel.z);
+    const turn = Math.PI * (0.65 + Math.random() * 0.45) * (Math.random() < 0.5 ? -1 : 1);
+    d.detour = { x: Math.sin(heading + turn), z: Math.cos(heading + turn), t: 0.45 + Math.random() * 0.35 };
+    d.vel.multiplyScalar(0.3);
+    if (d.stuckN >= 3 && target) {
+      d.giveUp = { id: target.id, until: now + 4 };
+      d.stuckN = 0;
+      d.retargetT = 0;
+    }
   }
 
   move(d, dt) {

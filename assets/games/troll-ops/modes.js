@@ -157,6 +157,11 @@ MODES.royale = {
   pvp: true, ffa: true,
   royale: true,
   noStreaks: true,
+  // Land with a pistol, nothing else: bots used to land with frags and
+  // lob them at whoever came down next to them, and the island went from
+  // 100 to 47 in the first 30 seconds (user, 2026-10-03: "match only
+  // lasted 2 minutes and 38 seconds").
+  noBotNades: true,
   forceMap: "trollface",
   blurb: "A hundred trolls, one floating island. Land with a pistol, loot the rest, stay out of the Cringe.",
 };

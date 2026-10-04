@@ -12,10 +12,10 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1-nf";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4";
-import { Loadout } from "./loadout.js?v=p5tc-nf";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9";
 import { StreakPicker } from "./streak-picker.js?v=umb1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1";
-import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=sw1";
+import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
   VtolWarship, WARSHIP_GUNS, VsatSatellite,
@@ -34,7 +34,7 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5";
 import { openProfileCard } from "./profile-card.js?v=pc1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { createMapLoadScreen } from "./map-load-screen.js?v=ml2";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2";
@@ -46,8 +46,8 @@ import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=umb1";
-import { BotManager } from "./bots.js?v=cg4";
+} from "./modes.js?v=umb1-rn";
+import { BotManager } from "./bots.js?v=cg5";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
 import { GameAudio } from "./audio.js?v=umb1kb2";
 import { insidePolygon } from "./edge.js";
@@ -74,9 +74,10 @@ import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v
 import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./keyboard-repair.js?v=kr15";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=sw1";
-import { HudLayout } from "./hud-layout.js?v=hl2";
+import { HudLayout } from "./hud-layout.js?v=hl3";
+import { initCloudSave } from "./cloud-save.js?v=cs1";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
-import { CosmeticsPanel, cleanFaceKey } from "./cosmetics.js?v=hb4";
+import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3";
@@ -1496,7 +1497,8 @@ function streakBounds() {
 function spawnK9({ id, owned, team, ownerId, x, y, z, yaw = 0, count = undefined, duration = undefined }) {
   const pack = new K9Pack({
     id, owned, team, ownerId, origin: new THREE.Vector3(x, y, z), yaw, count,
-    duration: duration || STREAK_DEFS.k9.duration, world: { colliders, bounds: streakBounds() },
+    duration: duration || STREAK_DEFS.k9.duration,
+    world: { colliders, bounds: streakBounds(), stairs: k9Stairs(), navCell: builtMap?.map?.navCell || null },
   });
   streakEntities.set(id, pack);
   scene.add(pack.root);
@@ -1694,6 +1696,32 @@ function k9Hostile(pack) {
 
 /* Who a pack may go for: its owner's enemies (bots and peers both live in
    remotes). The owner is never on the list. */
+/* Every stair on the map as { a, b } (foot and top, feet height), for the
+   dogs to get between floors: the ones maps.js laid with api.stairs, plus a
+   zombies map's own links (Hollowgrin's grand stair is built by hand). */
+let k9StairCache = null;
+function k9Stairs() {
+  if (k9StairCache?.map === builtMap) return k9StairCache.list;
+  const list = [...(builtMap?.stairs || [])];
+  const zl = builtMap?.map?.zombieLayout?.();
+  for (const l of zl?.links || []) {
+    const fy = (id) => zl.floors?.[id] ?? 0;
+    list.push({ a: { x: l.a.x, y: fy(l.from), z: l.a.z }, b: { x: l.b.x, y: fy(l.to), z: l.b.z } });
+  }
+  k9StairCache = { map: builtMap, list };
+  return list;
+}
+/* Can a dog (feet at `from`) see a troll (feet at `to`)? */
+const _k9Eye = new THREE.Vector3(), _k9Dir = new THREE.Vector3();
+function k9CanSee(from, to) {
+  _k9Eye.set(from.x, from.y + 0.6, from.z);
+  _k9Dir.set(to.x - from.x, to.y + 1.1 - _k9Eye.y, to.z - from.z);
+  const len = _k9Dir.length();
+  if (len < 0.01) return true;
+  _k9Dir.divideScalar(len);
+  return raycastWorld(colliders, _k9Eye, _k9Dir, len) >= len - 0.3;
+}
+
 function k9Hostiles(pack) {
   const ffa = currentMode().ffa;
   const out = [];
@@ -1714,6 +1742,7 @@ function updateK9(id, pack, dt) {
   const ownerBot = pack.botId ? bots.byId(pack.botId) : null;
   const out = pack.updateOwned(dt, {
     hostiles: () => k9Hostiles(pack),
+    canSee: k9CanSee,
     ownerPos: ownerBot ? (ownerBot.alive ? ownerBot.pos : null) : player.alive ? move.pos : null,
     onBite: (dog, targetId, dmg) => {
       audio.bark?.(dog.pos);
@@ -4653,6 +4682,33 @@ function renderHeroButtons() {
   }
 }
 buildHeroButtons();
+
+/* Your setup follows your account (cloud-save.js). When the account's copy
+   lands on this device (signing in, or coming back to the tab after
+   changing things on another one), put it into the running game. */
+function applyCloudSetup(changed) {
+  const has = (k) => changed.includes(k);
+  if (has(SETTINGS_KEY)) {
+    try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); } catch { /* bad JSON: keep ours */ }
+    applySettings();
+  }
+  if (has("trollops:loadout") && !loadout.restoreSaved()) loadout.render();
+  if (has("trollops:streaks")) streakPicker.restore();
+  if (changed.some((k) => k.startsWith("trollops.hudLayout."))) hudLayout.reload();
+  if (has("trollops:cosmetics")) {
+    cosmetics.state = loadCosmetics();
+    cosmetics.paint();
+    applyOwnFace(cosmetics.face);
+  }
+  if (has("trollops:hero")) {
+    if (heroKit && !heroActive()) heroKit.setHero(savedHero());
+    renderHeroButtons();
+  }
+  if (has(BOT_STREAK_KEY) && els.botStreaks) {
+    try { els.botStreaks.checked = localStorage.getItem(BOT_STREAK_KEY) !== "0"; } catch { /* private window */ }
+  }
+}
+initCloudSave({ apply: applyCloudSetup });
 
 /* A private room opens the prestige reward maps (loadout.js mapOpen). */
 function syncPrivateRoom() { loadout.setPrivateRoom(roomIsCustom && !!els.room.value); }
@@ -8819,7 +8875,11 @@ const _botAim = new THREE.Vector3();
 
 function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = false) {
   const wid = (usingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
-  if (royale) { dmg = royaleBotDamage(bot, dmg); royaleNoise(bot.pos.x, bot.pos.z, bot.id); }
+  if (royale) {
+    dmg = royaleBotDamage(bot, dmg);
+    if (bots.byId(target.id)) dmg *= royaleBotVsBot();
+    royaleNoise(bot.pos.x, bot.pos.z, bot.id);
+  }
 
   // The round's visible path: at the target's chest on a hit, off to one
   // side on a miss. Played here (we host the bot) and sent to the room,
@@ -9078,10 +9138,16 @@ function startRoyaleBus() {
   look.yaw = d.path.yaw + Math.PI / 2 + Math.PI;   // looking along the bus's line
   look.pitch = -0.25;
   if (net.isBotHost()) {
-    const spots = builtMap.spawnPoints?.length ? builtMap.spawnPoints : [{ x: 0, z: 0 }];
+    // Where they land: spread over the whole island, on the floor loot (it
+    // only lies on dry land), not piled onto the map's handful of spawn
+    // points. With 99 bots on ~16 spots every landing was a brawl: the
+    // island went from 100 to 40 in the first 15 seconds (user, 2026-10-03:
+    // "within a couple of minutes we went from 100 people to 10").
+    const floor = [...r.loot.items.values()].filter((it) => (it.y || 0) < 100);
+    const spots = floor.length ? floor : builtMap.spawnPoints?.length ? builtMap.spawnPoints : [{ x: 0, z: 0 }];
     for (const b of bots.bots) {
       const target = spots[Math.floor(Math.random() * spots.length)];
-      const tx = target.x + (Math.random() - 0.5) * 20, tz = target.z + (Math.random() - 0.5) * 20;
+      const tx = target.x + (Math.random() - 0.5) * 8, tz = target.z + (Math.random() - 0.5) * 8;
       b.airborne = true;
       b.drop = { state: "bus", tx, tz, jumpT: d.timeNearest(tx, tz) + (Math.random() - 0.5) * 2, flight: null };
     }
@@ -9534,7 +9600,31 @@ function royaleBotObjective(b) {
   const noise = royaleNoiseFor(b);
   if (noise) return { ...noise, radius: 3 };
   if (d > c.r * 0.8) return zone;
-  return null;   // armed and stocked: hunt (bots.js walks to the nearest enemy)
+  return royaleBotRoam(b, c, s.phase);
+}
+
+/* Armed and stocked, with nothing to hear: move about inside the circle
+   like a player rotating, one spot at a time, and fight whoever it runs
+   into. It used to fall through to bots.js's hunt, which walks at the
+   nearest enemy anywhere on the map: a wallhack, and in a 100-troll royale
+   it emptied the island in a couple of minutes. */
+function royaleBotRoam(b, c, phase) {
+  const r = b.roam;
+  const there = r && Math.hypot(r.x - b.pos.x, r.z - b.pos.z) < 4;
+  const stale = !r || r.phase !== phase || there || royale.t > r.until
+    || Math.hypot(r.x - c.x, r.z - c.z) > c.r * 0.85;
+  if (stale) {
+    // A spot on dry land inside the circle: a floor loot spot (taken or not),
+    // falling back to the middle.
+    let x = c.x, z = c.z;
+    const inside = royale.roamSpots ||= [...royale.loot.items.values()].filter((it) => (it.y || 0) < 100).map((it) => ({ x: it.x, z: it.z }));
+    for (let i = 0; i < 12; i++) {
+      const p = inside[Math.floor(Math.random() * inside.length)];
+      if (p && Math.hypot(p.x - c.x, p.z - c.z) < c.r * 0.8) { x = p.x; z = p.z; break; }
+    }
+    b.roam = { x, z, phase, n: (r?.n || 0) + 1, until: royale.t + 25 + Math.random() * 20 };
+  }
+  return { id: `roam-${b.id}-${b.roam.n}`, x: b.roam.x, z: b.roam.z, radius: 3, urgent: false };
 }
 
 /* Per frame, per bot we host: grab what it reached, plate or heal when
@@ -9576,6 +9666,28 @@ function updateRoyaleBot(b, dt) {
     b.act = { kind: "heal", t: 0, dur: ROYALE.healTime, at: performance.now() };
   }
 }
+
+/* Troll Royale pacing (user, 2026-10-03: "within a couple of minutes we
+   went from 100 people to 10 ... match only lasted 2 minutes and 38
+   seconds"). A hundred trolls on a 400 m island are all in each other's
+   sight the moment they land, so left to TDM rules the bots wipe each other
+   out in the first minute. Two dials, both on bots only (what a bot does to
+   YOU is untouched): how far off a bot notices someone, and how hard bots
+   hit each other, both growing as the zone closes, so the early game is
+   looting and skirmishes and the last circles are a proper fight. */
+const ROYALE_BOT_SIGHT = [16, 20, 26, 34, 45];      // metres, by zone phase
+const ROYALE_BOT_VS_BOT = [0.2, 0.3, 0.45, 0.7, 1];  // damage scale, by zone phase
+function royalePhaseIdx() {
+  if (!royale?.live) return 0;
+  const s = royale.zone.state(royale.t);
+  return Math.max(0, Math.min(4, (s.phase | 0) - 1 + (s.stage === "final" ? 1 : 0)));
+}
+function royaleBotSight(b) {
+  // Someone shooting at it gets noticed whatever the range.
+  if (b.hurtAt && performance.now() - b.hurtAt < 3000) return 45;
+  return ROYALE_BOT_SIGHT[royalePhaseIdx()];
+}
+function royaleBotVsBot() { return ROYALE_BOT_VS_BOT[royalePhaseIdx()]; }
 
 /* A bot's shot hits as hard as the gun it's holding: the pistol it lands
    with is weak, a looted gun better, a rarer one better still. */
@@ -12143,6 +12255,8 @@ function animate() {
           sightBlocked: (a, b) => grenades.blocksSight(a, b),
           objectiveFor: botObjective,
           isBusy: botBusy,
+          stairs: k9Stairs(),
+          sightRange: royale ? royaleBotSight : null,
           noRespawn: isSnd() || isRoyale(),
           lodNear: isRoyale() ? humanEyes() : null,
         });

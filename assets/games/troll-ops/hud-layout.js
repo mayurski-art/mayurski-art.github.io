@@ -69,6 +69,13 @@ export class HudLayout {
   }
 
   /* Put every saved piece where it was left. */
+  /* Re-read the saved layout (your account's, synced in: cloud-save.js). */
+  reload() {
+    if (this.editing) return;
+    this.offsets = load(this.touch);
+    this.apply();
+  }
+
   apply() {
     const { w, h } = this.size();
     for (const it of this.items) {

@@ -212,6 +212,7 @@ class Bot {
 
   respawn(spawn) {
     this.pos.set(spawn.x, 0, spawn.z);
+    this.climb = null;
     this.vel.set(0, 0, 0);
     this.hp = this.maxHp || BOT_HP;
     this.alive = true;
@@ -298,6 +299,7 @@ class Bot {
 
     // --- pick the nearest visible enemy, and the nearest enemy overall
     const eye = new THREE.Vector3(this.pos.x, this.groundY + 1.5, this.pos.z);
+    const sightRange = ctx.sightRange ? ctx.sightRange(this) : SIGHT_RANGE;
     let best = null, bestD = Infinity;         // visible
     let lead = null, leadD = Infinity;         // visible or not — who to walk toward
     this.sightT = (this.sightT ?? Math.random() * SIGHT_RECHECK) - dt;
@@ -310,7 +312,7 @@ class Bot {
       const d = Math.hypot(t.pos.x - this.pos.x, t.pos.z - this.pos.z);
       if (d < leadD) { lead = t; leadD = d; }
       if (stunned) continue;     // blind: knows roughly where people are, sees nobody
-      if (d > SIGHT_RANGE || d >= bestD) continue;
+      if (d > sightRange || d >= bestD) continue;
       // Between checks: stay on whoever the last one found.
       if (!rescan) { if (t.id === this.seenId) { best = t; bestD = d; } continue; }
       const theirEye = new THREE.Vector3(t.pos.x, (t.groundY ?? t.pos.y ?? 0) + 1.4, t.pos.z);
@@ -433,8 +435,7 @@ class Bot {
       // or a gun an unarmed bot needs): keep shooting, but keep moving there,
       // by the flow field so walls don't pin them.
       if (objective?.urgent) {
-        const step = navFor?.({ id: objective.id, pos: objective })?.steer(this.pos.x, this.pos.z);
-        const toward = step ? step.clone() : new THREE.Vector3(objective.x - this.pos.x, 0, objective.z - this.pos.z).normalize();
+        const toward = this.steerTo(objective.id, objective, ctx);
         desired = toward.addScaledVector(lateral, 0.35).normalize();
       } else if (this.flinchT > 0.15) {
         // A fresh flinch briefly overrides strafing with a hard juke off-line —
@@ -454,15 +455,8 @@ class Bot {
       // Nobody in sight and the mode wants us somewhere — go there before
       // hunting. Without this KotH bots never stood on the hill and S&D
       // bots never went near a site.
-      const field = navFor?.({ id: objective.id, pos: objective });
-      const step = field?.steer(this.pos.x, this.pos.z);
-      if (step) {
-        desired = step;
-        this.yaw = Math.atan2(-desired.x, -desired.z);
-      } else {
-        desired = new THREE.Vector3(objective.x - this.pos.x, 0, objective.z - this.pos.z).normalize();
-        this.yaw = Math.atan2(-desired.x, -desired.z);
-      }
+      desired = this.steerTo(objective.id, objective, ctx);
+      this.yaw = Math.atan2(-desired.x, -desired.z);
     } else if (objective) {
       // On the objective: hold it, shuffling a little and scanning the
       // approaches rather than staring at one wall.
@@ -473,8 +467,7 @@ class Bot {
       // than straight at them. Straight-line steering is fine on an open
       // arena and useless the moment a map has interior walls — the bot
       // grinds against one until the target happens to come round it.
-      const field = navFor?.(lead);
-      const step = field?.steer(this.pos.x, this.pos.z);
+      const step = this.steerTo(lead.id, lead.pos, ctx, true);
       if (step) {
         desired = step;
         this.yaw = Math.atan2(-desired.x, -desired.z);
@@ -715,6 +708,51 @@ class Bot {
   }
 
   /* No target and no route: drift, so they don't stand still looking broken. */
+  /* Which way to walk to reach `goal` ({ x, z } and, if it has one, a
+     height `y` / `groundY`), stairs included (user, 2026-10-03: "bots
+     should also be smart in being able to walk up and down stairs").
+     Same level (or no height given, or no stairs on the map): the flow
+     field on this bot's level. Another level: the foot of the stair that
+     best leads there (ctx.stairs, from maps.js api.stairs), then straight up
+     or down it, then on from the top. `orNull`: null instead of a
+     straight line when there's no route, so the caller can wander. */
+  steerTo(id, goal, ctx, orNull = false) {
+    const stairs = ctx.stairs || [];
+    const here = this.groundY;
+    const gy = goal.groundY ?? goal.y;
+    let tx = goal.x, tz = goal.z, key = id, levelY = here;
+    if (this.climb) {
+      const e = this.climb.exit;
+      this.climb.t += ctx.dtNow || 0.016;
+      if ((Math.abs(here - e.y) < 0.45 && Math.hypot(e.x - this.pos.x, e.z - this.pos.z) < 1.0) || this.climb.t > 8) this.climb = null;
+      else return new THREE.Vector3(e.x - this.pos.x, 0, e.z - this.pos.z).normalize();
+    }
+    if (gy != null && stairs.length && Math.abs(gy - here) >= 1.2) {
+      let best = null, bestS = Infinity;
+      for (let i = 0; i < stairs.length; i++) {
+        const s = stairs[i];
+        for (const [entry, exit, end] of [[s.a, s.b, "a"], [s.b, s.a, "b"]]) {
+          if (Math.abs(entry.y - here) > 0.9 || Math.sign(exit.y - entry.y) !== Math.sign(gy - here)) continue;
+          const cost = Math.hypot(entry.x - this.pos.x, entry.z - this.pos.z)
+            + Math.hypot(exit.x - tx, exit.z - tz) + Math.abs(exit.y - gy) * 4;
+          if (cost < bestS) { bestS = cost; best = { i, entry, exit, end }; }
+        }
+      }
+      if (best) {
+        if (Math.hypot(best.entry.x - this.pos.x, best.entry.z - this.pos.z) < 1.1) {
+          this.climb = { exit: best.exit, t: 0 };
+          return new THREE.Vector3(best.exit.x - this.pos.x, 0, best.exit.z - this.pos.z).normalize();
+        }
+        tx = best.entry.x; tz = best.entry.z; key = `stair${best.i}${best.end}`;
+      }
+    }
+    const step = ctx.navFor?.({ id: key, pos: { x: tx, z: tz } }, levelY)?.steer(this.pos.x, this.pos.z);
+    if (step) return step;
+    if (orNull && key === id) return null;
+    const v = new THREE.Vector3(tx - this.pos.x, 0, tz - this.pos.z);
+    return v.lengthSq() > 1e-6 ? v.normalize() : new THREE.Vector3(0, 0, -1);
+  }
+
   wanderStep(dt) {
     this.wanderT -= dt;
     if (this.wanderT <= 0) {
@@ -734,7 +772,8 @@ export class BotManager {
     this.enabled = false;
     this.difficulty = "regular";
     this.fieldSrc = null;         // geometry the fields are built from
-    this.fieldPool = new Map();   // target id -> FlowField, reused across sweeps
+    this.fieldPool = new Map();   // [level|]target id -> FlowField, reused across sweeps
+    this.fieldBases = new Map();  // level -> the blocked grid every field there copies
     this.frameFields = new Map(); // fields already swept this tick
     this.fieldT = 0;
   }
@@ -754,7 +793,7 @@ export class BotManager {
     // Which cells are blocked depends only on the map: worked out once here
     // and copied into every field (a big map rebuilding it per target was
     // most of the nav cost). arena.navCell: a coarser grid for big maps.
-    this.fieldBase = null;
+    this.fieldBases.clear();
     this.fieldPool.clear();
     this.frameFields.clear();
   }
@@ -804,11 +843,15 @@ export class BotManager {
     // bots re-sweeping 100 different island-sized fields every 0.3 s.
     let budget = this.bots.length > 24 ? 6 : Infinity;
 
-    const navFor = (target) => {
+    const navFor = (target, levelY = 0) => {
       if (!target || !this.fieldSrc) return null;
-      let f = this.frameFields.get(target.id);
+      // A field per floor level: an upstairs walker needs the upstairs
+      // walls, and only cells with floor under them (not the ground plan).
+      const level = Math.max(0, Math.round(levelY * 2) / 2);
+      const key = level ? `${level}|${target.id}` : target.id;
+      let f = this.frameFields.get(key);
       if (!f) {
-        f = this.fieldPool.get(target.id);
+        f = this.fieldPool.get(key);
         if (f?.swept && budget <= 0) return f;
         if (!f) {
           // Ids churn as people join, leave and bots recycle; keep the pool
@@ -819,14 +862,19 @@ export class BotManager {
             this.fieldPool.delete(this.fieldPool.keys().next().value);
           }
           const src = this.fieldSrc;
-          this.fieldBase ??= new FlowField(src.colliders, src.arena, src.floorY, src.arena.navCell ? { cell: src.arena.navCell } : {});
-          f = new FlowField(src.colliders, src.arena, src.floorY, { template: this.fieldBase });
-          this.fieldPool.set(target.id, f);
+          const y = level || src.floorY;
+          let base = this.fieldBases.get(level);
+          if (!base) {
+            base = new FlowField(src.colliders, src.arena, y, { ...(src.arena.navCell ? { cell: src.arena.navCell } : {}), needSupport: level > 0.5 });
+            this.fieldBases.set(level, base);
+          }
+          f = new FlowField(src.colliders, src.arena, y, { template: base });
+          this.fieldPool.set(key, f);
         }
         f.compute(target.pos.x, target.pos.z);
         f.swept = true;
         budget--;
-        this.frameFields.set(target.id, f);
+        this.frameFields.set(key, f);
       }
       return f;
     };
@@ -837,7 +885,7 @@ export class BotManager {
     // `ctx.lodNear`: where the real players are (null = every bot, every frame).
     const lod = ctx.lodNear && this.bots.length > 24 ? ctx.lodNear : null;
     this.lodFrame = (this.lodFrame || 0) + 1;
-    const sub = { ...ctx, navFor };
+    const sub = { ...ctx, navFor, dtNow: dt };
     for (let i = 0; i < this.bots.length; i++) {
       const bot = this.bots[i];
       let step = dt;
