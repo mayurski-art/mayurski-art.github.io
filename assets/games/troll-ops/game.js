@@ -1017,7 +1017,13 @@ function throwMarker() {
 }
 
 /* Run a streak we just called. Each one decides everything locally and then
-   tells the room; nobody else re-derives any of it. */
+   tells the room; nobody else re-derives any of it.
+   Adding a streak: give it a beginStreakHold(...) here (plus startTabletDive
+   for a tablet you dive into) and nothing else. It's always reached through
+   callStreak, which puts a held melee weapon away first and hands back to it
+   after; the secondary is handed back the same way. Don't call
+   beginStreakHold from a path that skips callStreak, or melee drops it.
+   tools/troll-ops-streak-holster-test.mjs picks new streaks up by itself. */
 function fireStreak(id, at = null) {
   // Everything past Lightning Strike: one call a minute at most (user), from
   // the call. A charge earned in the meantime waits in its slot.

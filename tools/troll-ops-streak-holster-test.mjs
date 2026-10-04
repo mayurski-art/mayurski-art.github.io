@@ -120,9 +120,14 @@ await until(() => window.__trollOps.player.holding !== "streak");
 const c2 = await view();
 check("...cancelled, melee comes back", c2.holding === "melee", JSON.stringify(c2));
 
-/* ---- 4. every self-ending streak, off the secondary and off melee */
+/* ---- 4. every self-ending streak, off the secondary and off melee. Read
+   from STREAK_DEFS, so a streak added later is covered without touching this
+   file; only the ones that need driving (a mark, a ride) are tested below. */
+const DRIVEN = ["uav", "carepackage", "airstrike", "warship", "dragonfire"];
+const selfEnding = await page.evaluate((driven) => Object.keys(window.__trollOps.STREAK_DEFS).filter((id) => !driven.includes(id)), DRIVEN);
+console.log(`self-ending streaks: ${selfEnding.join(", ")}`);
 for (const from of ["secondary", "melee"]) {
-  for (const id of ["counteruav", "vsat", "drone", "helicopter", "k9", "samturret", "swarm"]) {
+  for (const id of selfEnding) {
     await close();
     await page.evaluate((from) => {
       const T = window.__trollOps;
@@ -138,6 +143,88 @@ for (const from of ["secondary", "melee"]) {
     check(`${id} off ${from}: device up, spent, back on ${from}`, up && spent && back && ok, JSON.stringify({ up, spent, back, ...v }));
   }
 }
+
+/* ---- 5. the tablet-dive streaks off melee: Lightning Strike, VTOL Warship,
+   Dragonfire. Holster first, then the tablet dive, then the streak itself,
+   and the melee weapon back once it's over. */
+const fromMelee = async () => {
+  await close();
+  await page.evaluate(() => { const T = window.__trollOps; T.clearStreakLocks(); T.setHolding("melee"); });
+  await sleep(1500);
+};
+const holsterThenTablet = async (id) => {
+  await page.evaluate((id) => { const T = window.__trollOps; T.streaks.grant(id); T.callStreak(id); }, id);
+  await sleep(60);
+  const h = await view();
+  await shot(page, `5-${id}-a-holster.png`);
+  const up = await until(() => window.__trollOps.player.holding === "streak", 5000);
+  const dive = await until(() => !!window.__trollOps.tabletDive(), 3000);
+  await sleep(250);
+  await shot(page, `5-${id}-b-dive.png`);
+  return { holstered: h.holding === "melee" && !!h.holster, up, dive };
+};
+
+// Lightning Strike: holster, tablet dive, the strike map; mark three spots.
+await fromMelee();
+const ls = await holsterThenTablet("airstrike");
+const lsOpen = await until(() => window.__trollOps.strikeTablet()?.isOpen, 8000);
+await shot(page, "5-airstrike-c-map.png");
+// Marks in the map corner farthest from us: a strike on our own head kills us
+// and respawns us on the gun, which the Warship check below would trip on.
+const deaths0 = await page.evaluate(() => window.__trollOps.player.deaths);
+await page.evaluate(() => {
+  const T = window.__trollOps, st = T.strikeTablet(), { cx, cz, span } = st.view;
+  const u = (T.move.pos.x - cx) / span + 0.5, v = (T.move.pos.z - cz) / span + 0.5;
+  st.cursor.v = v < 0.5 ? 0.92 : 0.08;
+  for (const du of [0, 0.04, 0.08]) { st.cursor.u = (u < 0.5 ? 0.84 : 0.08) + du; st.place(); }
+});
+const lsFired = await until(() => !window.__trollOps.streaks.ready("airstrike") && !window.__trollOps.markingStreak(), 10000);
+const lsBack = await until(() => window.__trollOps.player.holding === "melee", 15000);
+await sleep(400);
+await shot(page, "5-airstrike-d-back.png");
+check("Lightning Strike off melee: holster, dive, map, strike, melee back",
+  ls.holstered && ls.up && ls.dive && lsOpen && lsFired && lsBack, JSON.stringify({ ...ls, lsOpen, lsFired, lsBack, ...(await view()) }));
+await sleep(4000);   // let the bombs land
+const lsDied = await page.evaluate((d) => window.__trollOps.player.deaths > d, deaths0);
+check("...and the strike didn't land on us", !lsDied);
+
+// VTOL Warship: holster, dive into the gunner seat, end it, melee back.
+await fromMelee();
+const ws = await holsterThenTablet("warship");
+const wsView = await until(() => window.__trollOps.warshipView(), 20000);
+await sleep(500);
+await shot(page, "5-warship-c-seat.png");
+await page.evaluate(() => window.__trollOps.endActiveStreak());
+const wsBack = await until(() => !window.__trollOps.warshipView() && window.__trollOps.player.holding === "melee", 20000);
+await sleep(600);
+await shot(page, "5-warship-d-back.png");
+check("VTOL Warship off melee: holster, dive, gunner seat, melee back after",
+  ws.holstered && ws.up && ws.dive && wsView && wsBack, JSON.stringify({ ...ws, wsView, wsBack, ...(await view()) }));
+
+// Dragonfire: needs open sky overhead, so find a spot outside first.
+await fromMelee();
+const outside = await page.evaluate(() => {
+  const T = window.__trollOps;
+  // dragonfireBlocked() caches for 250 ms; the raw check answers per spot.
+  if (!T.dragonfireSkyCheck(T.move.pos)) return true;
+  for (let x = -40; x <= 40; x += 8) for (let z = -40; z <= 40; z += 8) {
+    T.move.reset(x, z, 0);
+    if (!T.dragonfireSkyCheck(T.move.pos)) return true;
+  }
+  return false;
+});
+await sleep(400);
+check("found open sky for the Dragonfire", outside);
+const df = await holsterThenTablet("dragonfire");
+const dfView = await until(() => window.__trollOps.dragonfireView(), 30000);
+await sleep(500);
+await shot(page, "5-dragonfire-c-cam.png");
+await page.evaluate(() => window.__trollOps.endActiveStreak());
+const dfBack = await until(() => !window.__trollOps.dragonfireView() && window.__trollOps.player.holding === "melee", 20000);
+await sleep(600);
+await shot(page, "5-dragonfire-d-back.png");
+check("Dragonfire off melee: holster, dive, drone cam, melee back after",
+  df.holstered && df.up && df.dive && dfView && dfBack, JSON.stringify({ ...df, dfView, dfBack, ...(await view()) }));
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();
