@@ -424,7 +424,8 @@ export class RemotePlayer {
     const meleeHeld = !!MELEE_DEFS[this.peer.weapon] && this.ensureMelee(this.peer.weapon);
     const sword = swinging || meleeHeld;
     // Emoting (the peer's `em`, see emotes.js): weapons away.
-    const em = this.alive ? (this.peer.emote | 0) : 0;
+    // cineEmote: a pose the match intro (match-intro.js) holds them in, local only.
+    const em = this.alive ? (this.peer.emote | 0) || (this.cineEmote | 0) : 0;
     if (em !== this.emCode) { this.emCode = em; this.emoteT = 0; }   // a new emote starts from 0
     this.emoteT = em ? (this.emoteT || 0) + dt : 0;
     if (this.meleeMesh) this.meleeMesh.visible = sword && !em;
@@ -479,7 +480,8 @@ export class RemotePlayer {
       if (this.deathT >= DEATH_TIME + BODY_LINGER) this.dying = false;
       return;
     }
-    this.tag.visible = true;
+    // The match intro puts its own callouts up; the floating tag would double them.
+    this.tag.visible = !this.cineEmote;
 
     const visible = this.alive && snaps.length > 0;
     this.rig.root.visible = visible;

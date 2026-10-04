@@ -39,17 +39,18 @@ import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1";
+import { MatchIntro } from "./match-intro.js?v=mi5";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=umb1-rn";
 import { BotManager } from "./bots.js?v=cg5-em1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
-import { GameAudio } from "./audio.js?v=umb1kb2";
+import { GameAudio } from "./audio.js?v=umb1kb2-mi1";
 import { MapAmbience } from "./ambience.js?v=amb1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5";
@@ -5474,6 +5475,13 @@ scene.add(sun.target);
 // to both, so they must never be reassigned.
 const ARENA = { minX: -34, maxX: 34, minZ: -34, maxZ: 34 };
 const colliders = [];
+// The TDM / S&D opening cinematic (match-intro.js), run under staging.
+const matchIntro = new MatchIntro({
+  camera,
+  host: els.hud,
+  raycast: (o, d, len) => raycastWorld(colliders, o, d, len),
+  audio,
+});
 
 let builtMap = null;
 let spawnPoints = [];
@@ -6460,6 +6468,7 @@ window.addEventListener("keydown", (e) => {
   // View mode: the keys only fly the camera (and Esc still pauses).
   if (isView() && gameState === "playing" && e.code !== "Escape") return;
   if (e.code === "Space" && !e.repeat && killcam.active && !player.alive) skipKillcam();
+  if ((e.code === "Space" || e.code === "Enter") && !e.repeat && matchIntro.active) matchIntro.skip();
   if (!e.repeat && !player.alive && royaleSpectating()) {
     if (e.code === "ArrowLeft" || e.code === "KeyA" || e.code === "KeyQ") cycleSpectate(-1);
     if (e.code === "ArrowRight" || e.code === "KeyD" || e.code === "KeyE") cycleSpectate(1);
@@ -7016,6 +7025,7 @@ function pollGamepad(dt) {
   const btn = (i) => !!gp.buttons[i]?.pressed;
   const pressedEdge = (i) => btn(i) && !gpPrev[i];
   if (killcam.active && !player.alive && pressedEdge(0)) skipKillcam();
+  if (matchIntro.active && pressedEdge(0)) matchIntro.skip();
   // Troll Royale, out: bumpers or the D-pad go round the players still alive.
   if (!player.alive && royaleSpectating()) {
     if (pressedEdge(4) || pressedEdge(14)) cycleSpectate(-1);
@@ -10704,12 +10714,75 @@ function updateLoadScreen(dt) {
    it a flag rather than a state means the ~25 existing `gameState === "playing"`
    checks all keep working untouched. */
 const STAGE_SECONDS = 6;
+// TDM and S&D open on a cinematic of both teams (match-intro.js), so their
+// first countdown is long enough to hold it plus a couple of beats to GO.
+// Every client uses the same length so the shared clock never shrinks it.
+const INTRO_STAGE_SECONDS = 10;
+const INTRO_TAIL = 1.6;          // seconds of plain countdown left after the cinematic
 let stageT = 0;                  // seconds left; 0 means the match is live
+let introPending = null;         // "full" | "short": starts on the first un-held staging tick
+let introDelay = 0;              // ...a beat in, once respawned bots have been placed
 let stageShown = -1;             // last whole second painted, so we only touch the DOM on a change
 let stageOwner = false;          // are we the client publishing the clock?
 let stagePub = 0;                // throttle on republishing it
 
 function isStaging() { return stageT > 0; }
+
+function introMode() { return modeId === "tdm" || modeId === "snd"; }
+function introOn() { return introMode() && !document.body.classList.contains("tf-anim-off"); }
+
+/* Everyone the cinematic should show, as match-intro.js actors. Bots ride
+   the peer map too (net.publishBot mirrors them in); streak entities don't
+   count as anyone. */
+function introCast() {
+  const mine = [], enemy = [];
+  for (const rp of remotes.byId.values()) {
+    if (String(rp.netId).startsWith("streak-") || !rp.alive) continue;
+    const actor = {
+      id: String(rp.netId),
+      name: rp.peer.name || "operator",
+      pos: rp.pos,   // live: a respawned bot lands a frame after the round resets
+      yaw: rp.yaw,
+      pose: (name) => {
+        const i = name ? EMOTES.findIndex((e) => e.id === name) : -1;
+        rp.cineEmote = i >= 0 ? emoteCode(i) : 0;
+      },
+    };
+    (rp.team === net.team ? mine : enemy).push(actor);
+  }
+  return { mine, enemy };
+}
+
+function startMatchIntro(kind) {
+  const short = kind === "short";
+  // A round restart only has 3 s on the clock: leave it less of a tail.
+  const length = stageT - (short ? 0.9 : INTRO_TAIL);
+  if (length < (short ? 1.4 : 4)) return;
+  const enemyTeam = net.team === "phantom" ? "ghost" : "phantom";
+  const snd = isSnd();
+  const attack = snd && net.team === sndAttackTeam;
+  matchIntro.start({
+    length: short ? Math.min(length, 2.4) : length,
+    short,
+    seed: sndRound,
+    modeName: currentMode().name,
+    mapName: builtMap.map.name,
+    mine: { name: TEAMS[net.team]?.name || "Trolls", ui: TEAMS[net.team]?.ui },
+    enemy: { name: TEAMS[enemyTeam]?.name || "Jeets", ui: TEAMS[enemyTeam]?.ui },
+    roleMine: snd ? (attack ? "Attacking" : "Defending") : "",
+    roleEnemy: snd ? (attack ? "Defending" : "Attacking") : "",
+    cast: introCast,
+    self: () => ({
+      feet: move.pos,
+      eye: player.pos,
+      yaw: look.yaw,
+      pitch: look.pitch,
+      name: playerName(),
+    }),
+  });
+  document.body.classList.add("to-intro-on");
+}
+matchIntro.onEnd = () => document.body.classList.remove("to-intro-on");
 
 /* Compile every shader the match will need while the countdown runs, so the
    first grenade, the first streak and the first bot in view don't each
@@ -10750,6 +10823,15 @@ function beginStaging(seconds = STAGE_SECONDS) {
   // keeps the room's clock, since everyone in it shares one countdown.
   const fast = !isPvp() && document.body.classList.contains("tf-anim-off");
   if (fast) seconds = Math.min(seconds, 2);
+  // TDM / S&D: the match opener gets the full cinematic (and a longer clock
+  // to hold it), each later S&D round the short squad cut.
+  matchIntro.stop();
+  introPending = null;
+  if (introMode() && !royale) {
+    const opener = seconds === STAGE_SECONDS;
+    if (opener) seconds = INTRO_STAGE_SECONDS;
+    if (introOn()) { introPending = opener ? "full" : "short"; introDelay = 0.15; }
+  }
   stageT = seconds;
   stageShown = -1;
   stagePub = 0;
@@ -10782,6 +10864,8 @@ function endStaging() {
   if (stageT <= 0 && els.staging.hidden && royale?.drop?.phase !== "lobby") return;
   stageT = 0;
   spawnOpening = false;
+  introPending = null;
+  matchIntro.stop();
   els.staging.hidden = true;
   document.body.classList.remove("to-staging-on");
   // The opening seconds still deserve the cover a respawn gets.
@@ -10814,7 +10898,11 @@ function updateStagingRoster() {
 }
 
 function updateStaging(dt) {
+  // The first tick the clock actually runs (not under the loading screen),
+  // so the cinematic is squeezed into whatever is really left.
+  if (introPending && (introDelay -= dt) <= 0) { const k = introPending; introPending = null; startMatchIntro(k); }
   stageT -= dt;
+  if (matchIntro.active) matchIntro.setClock(stageT);
 
   // Only the owner publishes, ~3×/sec, so a client that joins or reloads
   // mid-countdown adopts the clock already running rather than its own.
@@ -12309,6 +12397,19 @@ function animate() {
       // Hostiles hold still, but remote operators and bots still stream in so
       // the room visibly fills while the player waits.
       if (isPvp()) {
+        // Bot hosting can only be decided once the room connects, which can
+        // land a beat after the countdown starts (and joining resets the peer
+        // map the bots are mirrored into): fill and re-publish them here, not
+        // only at GO, so the countdown (and the match intro) has somebody in
+        // it. publishBot throttles its own network sends.
+        if (!royale && net.isBotHost()) {
+          if (!bots.bots.length && !noBotsRoom() && !isInfection()) {
+            const { humans, teams } = humanHeadcount();
+            bots.fill(botTarget(), humans, botSpawn, !!currentMode().ffa, teams);
+            net.botCount = bots.bots.length;
+          }
+          for (const b of bots.bots) net.publishBot(b);
+        }
         net.update(dt, netSnapshot());
         remotes.sync(net.peers);
         remotes.update(dt, net.team, !!currentMode().ffa);
@@ -12564,6 +12665,7 @@ function animate() {
     if (move.stance === STANCE.SLIDE) targetFov = baseFov * 1.12;
     if (swivel.dir) targetFov = baseFov * (1 + 0.1 * Math.sin(Math.PI * swivelK()));
     if (warshipView()) targetFov = warshipFov();
+    if (matchIntro.active) targetFov = baseFov * 0.7;   // a longer lens for the cinematic
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
     camera.updateProjectionMatrix();
 
@@ -12597,7 +12699,7 @@ function animate() {
   // would double up the weapon on screen.
   // Spectating in Troll Royale: the view is someone else's, so no gun of ours.
   // Dead (and not in a replay): no gun on screen, the camera is on the body.
-  if (gameState === "playing" && ((player.alive && !isView() && !settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView() && !dragonfireView()) || killcam.replaying)) {
+  if (gameState === "playing" && !matchIntro.active && ((player.alive && !isView() && !settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView() && !dragonfireView()) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(weaponScene, weaponCamera);
@@ -13088,6 +13190,21 @@ function updatePlayer(dt) {
   // person is toggled on, and so OTHER systems that might reasonably poke
   // at it (screenshots, a future killcam angle) see a live pose.
   updateLocalRig(dt);
+
+  // The match intro owns the camera outright while it plays (staging, so
+  // nobody can move or shoot anyway). Your own body is in the shot until
+  // the camera pushes into your eyes.
+  if (matchIntro.active) {
+    matchIntro.update(dt);
+    if (matchIntro.active) {
+      localRig.root.visible = matchIntro.selfVisible;
+      localRig.parts.head.visible = true;
+      _listenFwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
+      _listenUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+      audio.setListener(camera.position, _listenFwd, _listenUp);
+      return;
+    }
+  }
 
   const shake = shakeT > 0 ? shakeMag * (shakeT / 0.45) : 0;
   // Phase 6 (DESIGN-ARMS.md §5, camera polish): small, separately-tuned
@@ -15262,7 +15379,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     gfx: () => ({ tier: gfxTier(), auto: gfxAutoTier, ceiling: gfxCeiling, ssao: ssao.enabled, bloom: bloom.enabled, shadow: sun.shadow.mapSize.x, pixelRatio }),
     startGame, beginMatch, endMatch, spawnForTeam, respawnPlayer, damagePlayer, breakSpawnGuard,
     startIntermission, updateIntermission, occupants, notePointDeath,
-    isStaging, beginStaging, endStaging, updateStaging,
+    isStaging, beginStaging, endStaging, updateStaging, matchIntro,
     isSnd, bomb: () => bomb, bombSites: () => bombSites, sndRound: () => sndRound,
     sndAttackTeam: () => sndAttackTeam, sndEliminated: () => sndEliminated,
     prepareSndRound, sndGoLive, botObjective, sndClock: () => sndClock, setSndClock: (v) => { sndClock = v; }, teamScores, sndLive: () => sndLive, sndBotSite: () => sndBotSite, spawnSides: () => spawnSides, hill: () => hill, stunActor, blastCandidates, sndRoundWin, updateSnd, siteUnderfoot, sndAliveCounts,

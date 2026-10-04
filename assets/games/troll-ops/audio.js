@@ -795,6 +795,56 @@ export class GameAudio {
 
   /* One second off the pre-match clock. Deliberately dry and quiet — it fires
      up to six times in a row, so anything with a tail would smear. */
+  /* Match intro (match-intro.js). A low swell under the whole cinematic,
+     a hit on each team's reveal, a whoosh on the whip pan and a slam on VS. */
+  introRiser(dur = 8) {
+    if (!this._ready()) return;
+    const t0 = this.now;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0008, t0);
+    g.gain.exponentialRampToValueAtTime(0.09, t0 + dur * 0.85);
+    g.gain.exponentialRampToValueAtTime(0.0008, t0 + dur + 0.3);
+    g.connect(this.master);
+    for (const [f, type] of [[55, "sawtooth"], [82.4, "triangle"], [110, "sine"]]) {
+      const osc = this.ctx.createOscillator();
+      osc.type = type;
+      osc.frequency.setValueAtTime(f, t0);
+      osc.frequency.exponentialRampToValueAtTime(f * 1.5, t0 + dur);
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.setValueAtTime(240, t0);
+      lp.frequency.exponentialRampToValueAtTime(1600, t0 + dur);
+      osc.connect(lp).connect(g);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.35);
+    }
+  }
+
+  introHit() {
+    if (!this._ready()) return;
+    this._tone({ freq: 70, to: 38, duration: 0.9, gain: 0.32, type: "sine" });
+    this._noise({ duration: 0.5, gain: 0.12, type: "lowpass", freq: 900, sweepTo: 120 });
+    this._tone({ freq: 220, to: 210, duration: 1.1, gain: 0.05, type: "sawtooth" });
+  }
+
+  introWhoosh() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.45, gain: 0.22, type: "bandpass", freq: 500, q: 0.8, sweepTo: 4200 });
+  }
+
+  introSlam() {
+    if (!this._ready()) return;
+    this._tone({ freq: 95, to: 32, duration: 1.0, gain: 0.4, type: "sine" });
+    this._noise({ duration: 0.7, gain: 0.25, type: "lowpass", freq: 3000, sweepTo: 90 });
+    this._tone({ freq: 392, duration: 0.5, gain: 0.05, type: "square" });
+    this._tone({ freq: 587, duration: 0.5, gain: 0.04, type: "square" });
+  }
+
+  introTick(enemy = false) {
+    if (!this._ready()) return;
+    this._tone({ freq: enemy ? 330 : 990, to: enemy ? 300 : 1180, duration: 0.06, gain: 0.05, type: "square" });
+  }
+
   stageTick(last = false) {
     if (!this._ready()) return;
     this._tone({
