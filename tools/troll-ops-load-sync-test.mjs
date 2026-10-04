@@ -109,6 +109,41 @@ const aMid = await st(a);
 check("C is let in after its own loading screen", !cDone.open, JSON.stringify(cDone));
 check("C loaded the host's map", (await mapOf(c)) === "Grin Site", await mapOf(c));
 check("A's match never went back to loading for C", !aMid.open && !aMid.hold, JSON.stringify(aMid));
+
+// The wait has a time limit (user, 2026-10-04): in a fresh room, E's map
+// files stall well past it. D (host) starts without E once it runs out,
+// shows the countdown meanwhile, and E is let in when it does finish.
+for (const p of [a, b, c]) await p.close();
+const ROOM2 = "LDT" + Math.floor(Math.random() * 90 + 10);
+const d = await open("D"), e = await open("E");
+let holdE = true;
+await e.route(/models\/gs-.*\.glb/, async (r) => { while (holdE) await sleep(200); r.continue(); });
+const WAIT = 6;
+await d.evaluate((s) => window.__trollOps.setLoadWaitMax(s), WAIT);
+const start2 = (page, mapId) => page.evaluate(async ({ room, mapId }) => {
+  const T = window.__trollOps;
+  T.setMode("tdm");
+  if (T.els.noBots) T.els.noBots.checked = true;
+  T.els.room.value = room;
+  T.els.room.dispatchEvent(new Event("input"));
+  T.loadout.mapId = mapId;
+  await T.startGame();
+}, { room: ROOM2, mapId });
+await start2(d, "grinsite");
+await sleep(300);
+await start2(e, "grinsite");
+const dw = await until(d, (s) => s.warm, 240000);
+const dWaiting = await until(d, (s) => /starting in \d+s/.test(s.status), 10000);
+check("the host shows how long it will wait", /Waiting for players 1\/2 · starting in \d+s/.test(dWaiting.status), dWaiting.status);
+const t0 = Date.now();
+const dOff = await until(d, (s) => !s.open, (WAIT + 20) * 1000);
+const waited = (Date.now() - t0) / 1000;
+const eStill = await st(e);
+check("the host stops waiting for a stuck player after the limit", dw.warm && !dOff.open, `${waited.toFixed(1)}s, ${dOff.status}`);
+check("the stuck player is still loading meanwhile", eStill.open, JSON.stringify(eStill));
+holdE = false;
+const eDone = await until(e, (s) => !s.open, 240000);
+check("the stuck player is let in once it finishes", !eDone.open, JSON.stringify(eDone));
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 await browser.close();

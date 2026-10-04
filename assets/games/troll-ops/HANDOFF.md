@@ -1,5 +1,26 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## Maps download once — 2026-10-04 (user: "i dont want to wait every day")
+`/sw.js` is a root-scope service worker, registered at the top of `game.js`. It is off on localhost unless `?sw=1`; `?sw=0` unregisters it.
+
+**What it caches:**
+- **Troll Forces art** (glb, jpg, png, webp and similar under `assets/games/troll-ops/`, except `refs/`) and `assets/vendor/*.js`:
+  - served cache-first;
+  - re-checked in the background once a day.
+- **`?v=`-tagged game scripts:**
+  - cached by their full URL;
+  - the newest 3 tags per file are kept, because movement.js and dragonfire.js are imported under 2 tags at once.
+
+**What it leaves alone:** the page and everything else on the site, which go to the network as before.
+
+**First visit:** the page posts its `performance` resource list (`cache-urls`) so the files fetched before the worker existed get stored too.
+
+**Bakes:** `battlefield-props.js` only asks for a `-bake.jpg` for models in `BAKED` (empty). It used to request one per model, and every request was a 404.
+
+**Test:** `tools/troll-ops-asset-cache-test.mjs [map]`. On the second visit the server sees no art and no tagged scripts (grinsite: 305 hits, then 27).
+
+**If you add a new asset type or folder,** check that `kindOf` in sw.js covers it.
+
 ## Stuck bots fixed — 2026-10-04 (user: "the bots are stuck", "not just in troll city")
 New test: `tools/troll-ops-bot-stuck-test.mjs [maps...]` plays bot TDM per map. It flags any bot that stays inside 1.5 m for 8 sim-seconds with nobody in sight, then checks a bot's care package end to end.
 

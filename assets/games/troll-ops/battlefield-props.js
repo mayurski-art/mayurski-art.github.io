@@ -22,8 +22,13 @@ const bakeCache = new Map();
 
 /* Optional per-model baked lightmap: models/<name>-bake.jpg, if a Blender
    bake pass has produced one — see house-props.js's loadBakeTexture for
-   why a missing file just resolves to null instead of failing. */
+   why a missing file just resolves to null instead of failing.
+   Only for the models listed in BAKED: asking for every model's bake was a
+   404 per model on every map load (no bakes ship yet), each one held up the
+   model and the loading screen. Add a model's name here when its bake lands. */
+const BAKED = new Set([]);
 function loadBakeTexture(name) {
+  if (!BAKED.has(name)) return Promise.resolve(null);
   if (!bakeCache.has(name)) {
     bakeCache.set(name, new Promise((resolve) => {
       new THREE.TextureLoader().load(
