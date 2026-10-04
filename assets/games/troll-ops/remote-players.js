@@ -10,7 +10,7 @@ import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mo
 import { poseEmoteCode } from "./emotes.js?v=hb4-em1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm";
-import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3";
@@ -320,7 +320,7 @@ export class RemotePlayer {
       this.saberOut = false;
     }
     if (!this.meleeMesh) {
-      this.meleeMesh = buildMeleeMesh(this.melee.def, false);
+      this.meleeMesh = buildMeleeMesh(this.melee.def, false, { held3p: true });
       this.meleeMesh.scale.setScalar(1.1);
       this.meleeMesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
       this.meleeMesh.userData.meleeId = defId;

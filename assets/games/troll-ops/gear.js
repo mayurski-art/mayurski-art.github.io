@@ -16,6 +16,7 @@ import { smoothstep } from "./anim-curves.js";
 import { buildTrollsaber } from "./trollsaber.js?v=ts4";
 import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw2";
 import { buildHaloBlade } from "./halo-blade.js?v=hb2";
+import { buildKnucklePair, KNUCKLE_REST, KNUCKLE_JAB, KNUCKLE_HOOK, KNUCKLE_JAB_WINDOW, KNUCKLE_HOOK_WINDOW } from "./brass-knuckles.js?v=bk1";
 
 export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where you look
 const GRAVITY = GRENADE_GRAVITY;
@@ -78,6 +79,15 @@ export const MELEE_DEFS = {
     blurb: "Groovy. Revs on every swing, and nobody stands back up. Admire it to rev it.",
     // Framing lives in CHAINSAW_REST / its own swing tracks below.
     model: { kind: "chainsaw", view: { scale: 0.85 } },
+  },
+  // Troll City (brass-knuckles.js): a pair of brass knuckle dusters, a
+  // trollface cast in each plate. Short and quick: a left jab, then a right
+  // hook, two to put someone down, one from behind.
+  knuckles: {
+    id: "knuckles", name: "Knuckle Grinners", rank: 12,
+    damage: 60, backstabMult: 2, range: 1.6, arc: 0.7, knock: 4.5,
+    blurb: "Brass on both fists. Jab, hook, problem? Admire them to crack your knuckles.",
+    model: { kind: "knuckles" },
   },
   // Energy-sword style (halo-blade.js): twin plasma prongs, sky blue into
   // bubblegum pink, glowing violet. Long reach for a one-hander.
@@ -328,6 +338,15 @@ function sampleTrack(track, t) {
   return { pos, quat };
 }
 
+/* The knuckles' root holds still at the guard; only its length matters. */
+const knuckleTrack = (length) => ({
+  length,
+  posKeys: [{ t: 0, v: KNUCKLE_REST.pos }, { t: length, v: KNUCKLE_REST.pos }],
+  quatKeys: [{ t: 0, q: KNUCKLE_REST.quat }, { t: length, q: KNUCKLE_REST.quat }],
+});
+const KN_JAB_TRACK = knuckleTrack(KNUCKLE_JAB);
+const KN_HOOK_TRACK = knuckleTrack(KNUCKLE_HOOK);
+
 /* Swing state machine. A swing is wind-up (`swing`) then recovery
    (`recover`); damage lands exactly once, on the frame the arc bottoms out,
    so holding the button can't machine-gun a knife. Alternates the chop and
@@ -343,12 +362,15 @@ export class MeleeState {
 
   get saber() { return this.def?.model?.kind === "saber"; }
   get chainsaw() { return this.def?.model?.kind === "chainsaw"; }
+  get knuckles() { return this.def?.model?.kind === "knuckles"; }
   get track() {
+    if (this.knuckles) return this.swingIndex % 2 === 0 ? KN_JAB_TRACK : KN_HOOK_TRACK;
     if (this.saber) return this.swingIndex % 2 === 0 ? SABER_CUT : SABER_RISE;
     if (this.chainsaw) return this.swingIndex % 2 === 0 ? CS_PLUNGE : CS_SWEEP;
     return this.swingIndex % 2 === 0 ? SWING_TRACK : THRUST_TRACK;
   }
   get window() {
+    if (this.knuckles) return this.swingIndex % 2 === 0 ? KNUCKLE_JAB_WINDOW : KNUCKLE_HOOK_WINDOW;
     if (this.saber) return this.swingIndex % 2 === 0 ? SABER_CUT_WINDOW : SABER_RISE_WINDOW;
     if (this.chainsaw) return CS_WINDOW;
     return this.swingIndex % 2 === 0 ? SWING_WINDOW : THRUST_WINDOW;
@@ -379,6 +401,7 @@ export class MeleeState {
 
   /* Grip position + orientation for the view model this frame. */
   pose() {
+    if (this.knuckles) return KNUCKLE_REST;   // the fists move inside it (brass-knuckles.js poseKnuckles)
     if (this.t <= 0) return this.saber ? SABER_REST : this.chainsaw ? CHAINSAW_REST : { pos: REST_POS, quat: REST_QUAT };
     return sampleTrack(this.track, Math.min(this.t, this.total));
   }
@@ -404,8 +427,10 @@ export class MeleeState {
 // inspector preview (inspector.js) passes false: with no arm or body
 // attached to explain them, the hand meshes read as disconnected skin-
 // coloured fragments floating along the grip instead of someone holding it.
-export function buildMeleeMesh(def, includeHands = true) {
+export function buildMeleeMesh(def, includeHands = true, { held3p = false } = {}) {
   const m = def.model;
+  // A fist each in the hand; one on a third-person body's right fist.
+  if (m.kind === "knuckles") return buildKnucklePair({ hands: includeHands, single: held3p });
   const group = new THREE.Group();
   const mat = (c, rough = 0.45, metal = 0.65) =>
     new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: metal });

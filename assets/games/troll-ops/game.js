@@ -71,7 +71,8 @@ import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
 import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g-nf";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3-bk1";
+import { poseKnuckles } from "./brass-knuckles.js?v=bk1";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
 import { createAkimboView, AKIMBO_INSPECT_TIME } from "./akimbo-view.js?v=ak1";
 import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./keyboard-repair.js?v=kr15";
@@ -8105,6 +8106,7 @@ function swingMelee() {
   if (kind === "saber" || kind === "halo") audio.saberSwing();
   else if (kind === "chainsaw") audio.chainsawRev();
   else if (kind === "reaper") audio.reaperSwing();
+  else if (kind === "knuckles") audio.knuckleSwing();
   else audio.swing();
 }
 
@@ -8157,6 +8159,7 @@ function meleeConnect() {
       }
       if (def.model?.kind === "saber" || def.model?.kind === "halo") audio.saberHit();
       else if (def.model?.kind === "chainsaw") audio.chainsawHit();
+      else if (def.model?.kind === "knuckles") audio.knuckleHit();
       else audio.meleeHit();
       onBulletActorHit(actor, {
         damage: def.damage * mult,
@@ -12048,7 +12051,7 @@ function updateKillcamMelee(s) {
   if (!def) { if (killcamMelee) killcamMelee.mesh.visible = false; return false; }
   if (killcamMelee?.id !== def.id) {
     disposeKillcamMelee();
-    const mesh = stripLights(buildMeleeMesh(def, false));
+    const mesh = stripLights(buildMeleeMesh(def, false, { held3p: true }));
     const sab = mesh.userData.saber;
     if (sab) { sab.target = 1; sab.frac = 1; }
     weaponScene.add(mesh);
@@ -13026,7 +13029,7 @@ function syncLocalRigHeld(hold, def) {
     mountHeldWeapon(localRig, localHeld.mesh);
   } else if (hold === "melee" && player.melee?.def) {
     // No first-person hands on it: the body's own mitt holds it.
-    localHeld.mesh = buildMeleeMesh(player.melee.def, false);
+    localHeld.mesh = buildMeleeMesh(player.melee.def, false, { held3p: true });
     localHeld.mesh.scale.setScalar(1.1);
     localHeld.mesh.userData.meleeId = player.melee.def.id;
     localRig.parts.gripR.add(localHeld.mesh);
@@ -13502,6 +13505,7 @@ function updateMeleeView(dt) {
       const kind = melee.def.model?.kind;
       if (kind === "chainsaw") audio.chainsawStart();
       else if (kind === "keyboard") audio.keyboardBoot();
+      else if (kind === "knuckles") audio.knuckleCrack();
     }
   }
   // Only while the gun is what we hold: this used to re-show it every frame,
@@ -13712,7 +13716,7 @@ function updateMeleeView(dt) {
     // Reaper's Grin has its own: shut, flick open, a knife trick.
     if (mesh.userData.kind === "reaper") applyReaperInspect(mesh);
     else if (mesh.userData.kind === "chainsaw") applySawRev(mesh);
-    else applyMeleeInspect(mesh);
+    else if (mesh.userData.kind !== "knuckles") applyMeleeInspect(mesh);   // the knuckles' is poseKnuckles below
   }
   // The chainsaw revs: the engine shakes it (and, hard, the screen), the
   // chain speeds up, the throttle squeezes and the exhaust smokes.
@@ -13735,6 +13739,15 @@ function updateMeleeView(dt) {
     mesh.position.y += (Math.random() - 0.5) * amp;
     mesh.position.z += (Math.random() - 0.5) * amp * 0.5;
     sawShake = rev * (grinding ? 0.02 : 0.007);
+  }
+  // Knuckle Grinners: the fists jab, hook, crack and show off inside the
+  // still root (brass-knuckles.js); the arms follow their anchors.
+  if (mesh.userData.kind === "knuckles") {
+    const cracks = poseKnuckles(mesh, {
+      t: swinging ? melee.t : 0, index: melee.swingIndex,
+      inspect: inspectT > 0 && held && !swinging ? inspectProgress() : -1, time: clock.elapsedTime,
+    });
+    if (cracks) audio.knuckleCrack();
   }
   mesh.userData.tick?.(dt, swinging, rev);
 

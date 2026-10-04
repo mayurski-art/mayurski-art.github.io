@@ -1109,15 +1109,19 @@ function buildCourthouse(K, M, lights) {
   wallPic(K, M.paintPortrait, { x: C.x0 + T, y: 2.6, z: -3.2, w: 1.0, h: 1.3, o: 1, axis: "z", frame: M.trimGold });
   wallPic(K, sign("IN GRIN WE TRUST", "", { bg: "#2a3a2a", fg: "#e8d8a8", edge: "#e8d8a8", w: 1024, h: 180 }), { x: px - T / 2 - 0.08, y: 3.4, z: 0, w: 2.8, h: 0.5, o: -1, axis: "z" });
   // the sheriff's desk, his chair, the wanted board, a gun rack, a stove
-  K.solid(46.0, -5.0, 1.8, 0.9, 0.8, { y: Y, pen: 2, mat: M.furniture });
-  chair(K, M, 46.0, Y, -5.9, { ry: Math.PI });
-  K.box(M.brass, 46.4, Y + 0.8, -4.9, 0.18, 0.06, 0.18);   // the badge, set down
-  K.add(M.trollGold, place(new THREE.CircleGeometry(0.11, 5), { x: 46.4, y: Y + 0.87, z: -4.9, rx: -Math.PI / 2 }), { shadow: false });
-  K.box(M.furniture, 45.4, Y + 1.0, C.z0 + T + 0.03, 3.0, 1.6, 0.04);
-  for (let i = 0; i < 4; i++) wallPic(K, M.wanted[i], { x: 44.3 + i * 0.75, y: Y + 1.8 + (i % 2) * 0.1, z: C.z0 + T + 0.05, w: 0.55, h: 0.8, o: 1 });
+  K.solid(47.4, -6.2, 1.8, 0.9, 0.8, { y: Y, pen: 2, mat: M.furniture });
+  chair(K, M, 47.4, Y, -7.1, { ry: Math.PI });
+  K.box(M.brass, 47.8, Y + 0.8, -6.1, 0.18, 0.06, 0.18);   // the badge, set down
+  // the general's nameplate, facing whoever's been brought in
+  K.box(M.furniture, 47.0, Y + 0.8, -5.82, 0.62, 0.11, 0.06, { rx: 0.35 });
+  K.add(sign("THE GENERAL", "", { bg: "#c89a3a", fg: "#2a1a10", edge: "#2a1a10", w: 512, h: 96 }), place(new THREE.PlaneGeometry(0.58, 0.09), { x: 47.0, y: Y + 0.86, z: -5.785, rx: -0.35 }), { shadow: false });
+  K.add(M.trollGold, place(new THREE.CircleGeometry(0.11, 5), { x: 47.8, y: Y + 0.87, z: -6.1, rx: -Math.PI / 2 }), { shadow: false });
+  // the wanted board, between the corner and the side door
+  K.box(M.furniture, 43.45, Y + 1.0, C.z0 + T + 0.03, 2.0, 1.6, 0.04);
+  for (let i = 0; i < 3; i++) wallPic(K, M.wanted[i], { x: 42.85 + i * 0.6, y: Y + 1.8 + (i % 2) * 0.1, z: C.z0 + T + 0.05, w: 0.5, h: 0.74, o: 1 });
   rifleRack(K, M, { x: C.x0 + T, z: 6.6, axis: "z", o: 1, n: 5 });
   stove(K, M, 47.8, 7.6, { top: C.h1 });
-  K.solid(43.2, -8.6, 0.6, 1.2, 1.4, { y: Y, pen: 4, mat: M.furniture });    // filing cabinet
+  K.solid(42.65, -4.2, 0.6, 1.2, 1.4, { y: Y, pen: 4, mat: M.furniture });    // filing cabinet
   for (const z of [-3.4, 3.4]) {
     // benches for the waiting
     K.solid(47.9, z, 0.5, 2.0, 0.5, { y: Y, pen: 1, mat: M.furniture });
@@ -1678,19 +1682,21 @@ function hangPictures(K, M) {
     // the saloon: Bach by the piano, the general by the door, the cowboys
     // upstairs
     { x: -13.1, y: FLOOR + 2.55, z: ROW_N.back + T, w: 0.92, h: 0.92, o: 1, style: "gilt", art: A("bach") },
-    { x: -16.7, y: 2.4, z: ROW_N.front - T, w: 0.8, h: 1.2, o: -1, style: "carved", art: A("general") },
+    { x: -16.7, y: 2.4, z: ROW_N.front - T, w: 0.8, h: 1.1, o: -1, style: "carved", art: A("tanktop") },
     { x: -11.3, y: 2.3, z: ROW_N.front - T, w: 0.7, h: 0.83, o: -1, style: "oval", art: A("cigar") },
     { x: -11.5, y: U + 1.85, z: -16.6 + T / 2, w: 1.1, h: 0.82, o: 1, style: "barn", art: A("generalScene") },
     { x: -13.6, y: U + 2.0, z: ROW_N.back + T, w: 0.7, h: 0.7, o: 1, style: "carved", art: A("cowboy") },
-    // the bank and the courthouse: the general, in gold
-    { x: 10 - T, y: 2.7, z: -12.8, w: 0.9, h: 1.35, o: -1, axis: "z", style: "gilt", art: A("general") },
-    { x: 43.4, y: 2.8, z: COURT.z1 - T, w: 1.1, h: 1.65, o: -1, style: "gilt", art: A("general") },
+    // the police station: the troll general himself, in gold, on the wall
+    // behind his desk; the bank and the office's far wall get cowboys
+    { x: 47.4, y: 3.15, z: COURT.z0 + T, w: 1.15, h: 1.72, o: 1, style: "gilt", art: A("general") },
+    { x: 10 - T, y: 2.6, z: -12.8, w: 0.85, h: 1.0, o: -1, axis: "z", style: "gilt", art: A("cigar") },
+    { x: 43.4, y: 2.6, z: COURT.z1 - T, w: 0.8, h: 0.8, o: -1, style: "carved", art: A("cowboy") },
     { x: 54.0, y: 2.2, z: COURT.z0 + T, w: 0.6, h: 0.82, o: 1, style: "photo", art: A("tanktop", true) },
     // the hotel lobby, the barber's, the doctor's: old photographs, an oval
     { x: -35 + T, y: 2.1, z: 12.6, w: 0.62, h: 0.62, o: 1, axis: "z", style: "photo", art: A("cowboy", true) },
     { x: -25 - T, y: 2.3, z: 12.6, w: 0.62, h: 0.73, o: -1, axis: "z", style: "oval", art: A("cigar") },
     { x: -1 + T, y: 2.0, z: 13.0, w: 0.58, h: 0.8, o: 1, axis: "z", style: "photo", art: A("tanktop", true) },
-    { x: 25 + T, y: 2.1, z: -13.2, w: 0.6, h: 0.98, o: 1, axis: "z", style: "carved", art: A("general", true) },
+    { x: 25 + T, y: 2.1, z: -13.2, w: 0.6, h: 0.6, o: 1, axis: "z", style: "carved", art: A("cowboy", true) },
     // the store, the station, the guns shop
     { x: 2.2, y: 2.2, z: -45 + T, w: 0.8, h: 0.8, o: 1, style: "barn", art: A("cowboy") },
     { x: 13 + T, y: 2.3, z: -19.5, w: 0.6, h: 0.71, o: 1, axis: "z", style: "barn", art: A("cigar") },
