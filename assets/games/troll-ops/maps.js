@@ -13,6 +13,7 @@ import { PENTAGRIN } from "./pentagrin.js?v=hg6e";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc";
 import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e";
+import { TROLLCITY } from "./trollcity.js?v=tc1";
 import { SURFACES } from "./surface-textures.js?v=hg6e";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
@@ -1587,6 +1588,33 @@ MAPS.pentagrin = PENTAGRIN;
 MAPS.hollowgrin = HOLLOWGRIN;
 // The Houston mall: two levels round an ice rink, in the versus pool.
 MAPS.grinleria = GRINLERIA;
+// The western boomtown: versus and Zombies, like Hollowgrin.
+MAPS.trollcity = TROLLCITY;
+MAPS.trollcity.dress = {
+  seed: 1872,
+  areas: {
+    street: [-54, -6.6, 36, 6.6], cross: [-23, 9.6, -13, 28], plaza: [33, -6.6, 40, 6.6],
+    lotsN: [-52, -24.8, 34, -21.8], lotsS: [-52, 21.8, 34, 26],
+    plainN: [-62, -50, 62, -37], plainS: [-62, 40, 48, 50], west: [-62, -36, -53, 36], east: [57, -36, 62, 38],
+  },
+  decals: [
+    { cell: "tyre", n: 26, area: "street", size: [2, 3], stretch: 3.4, color: 0x6a4a2a, alpha: 0.45 },
+    { cell: "tyre", n: 8, area: "cross", size: [2, 3], stretch: 3.4, color: 0x6a4a2a, alpha: 0.4 },
+    { cell: "dirt", n: 70, area: ["street", "cross", "plaza", "lotsN", "lotsS"], size: [2.5, 5.5], color: 0x7a5432, alpha: 0.35 },
+    { cell: "steps", n: 40, area: ["street", "cross"], size: [1, 1.4], stretch: 2.2, color: 0x5a3e22, alpha: 0.35 },
+    { cell: "dirt", n: 40, area: ["plainN", "plainS", "west", "east"], size: [3, 6], color: 0x8a6a3a, alpha: 0.3 },
+    { cell: "puddle", n: 4, area: "street", size: [1.2, 2.2], color: 0x3a2a1a, alpha: 0.35 },
+  ],
+  clutter: [
+    { kind: "tuft", n: 90, area: ["street", "cross", "plaza"], size: [0.5, 1.0], colors: [0xb8a860, 0xa89850, 0xc8b878] },
+    { kind: "tuft", n: 160, area: ["plainN", "plainS", "west", "east", "lotsN", "lotsS"], size: [0.6, 1.3], colors: [0xb8a860, 0xa8a050, 0xc8b070, 0x9a9a50] },
+    { kind: "weed", n: 90, area: ["plainN", "plainS", "west", "east"], size: [0.7, 1.2], colors: [0xa8a858, 0xb8b068, 0x98985a] },
+    { kind: "pebble", n: 200, size: [0.08, 0.26], colors: [0x9a8a72, 0x8a7a62, 0xa89878, 0x7a6a56] },
+    { kind: "plank", n: 18, area: ["lotsN", "lotsS"], size: [0.8, 1.4], colors: [0xa08060, 0x8a6a48] },
+    { kind: "bottle", n: 22, area: ["street", "lotsN", "lotsS"], size: [1, 1], colors: [0x5a7a3a, 0x7a4a2a, 0xc8b890] },
+    { kind: "paper", n: 10, area: ["street", "plaza"], size: [0.6, 1], colors: [0xd8c8a0, 0xc8b890] },
+  ],
+};
 // Troll Royale's own map: 400 m across, far too big for the versus modes, so
 // it stays out of MAP_IDS (the vote pool).
 MAPS.trollface = TROLLFACE_ISLAND;

@@ -90,6 +90,15 @@ const PRESETS = {
     ],
     events: [["chime", 30, 60]],
   },
+  // Troll City: prairie wind down Main Street, the saloon piano through
+  // the walls, horses at the rails, a train whistle out on the plain.
+  trollcity: {
+    beds: [
+      { kind: "wind", type: "bandpass", freq: 620, q: 0.5, gain: 0.05, gust: 0.8 },
+      { kind: "murmur", gain: 0.008 },
+    ],
+    events: [["piano", 7, 15], ["horse", 14, 32], ["creak", 9, 20], ["chirp", 8, 18], ["whistle", 45, 90], ["dog", 30, 60], ["gunfire", 35, 70, 0.6]],
+  },
   // Trollface Island, floating in space: wind off the cliffs, a low drone
   // underneath, a shimmer from the sky.
   trollface: {
@@ -450,6 +459,54 @@ export class MapAmbience {
           const t1 = t + shots * gap + rand(0.4, 1.2);
           const n = 2 + Math.floor(Math.random() * 4);
           for (let i = 0; i < n; i++) this._burst(reply, { t0: t1 + i * rand(0.09, 0.14), dur: 0.3, freq: tone * 0.8, sweepTo: tone * 0.3, attack: 0.002 });
+        }
+        break;
+      }
+      case "horse": {
+        // A whinny: a shaky nasal call that climbs, flutters and falls, and a
+        // snort after it.
+        const out = this._out(0.05 * gain);
+        const f = this.audio.ctx.createBiquadFilter();
+        f.type = "bandpass"; f.frequency.value = 1300; f.Q.value = 1.4;
+        f.connect(out);
+        const hz = rand(520, 640);
+        this._osc(f, { type: "sawtooth", path: [[hz * 0.8, 0], [hz * 1.9, 0.25], [hz * 1.6, 0.7], [hz * 0.7, 1.25]], t0: t, dur: 1.3, attack: 0.04, vib: 70, vibRate: 22 });
+        this._burst(out, { t0: t + 1.45, dur: 0.35, type: "bandpass", freq: 700, q: 0.7, sweepTo: 300, peak: 0.8, attack: 0.02 });
+        break;
+      }
+      case "piano": {
+        // Honky-tonk through the saloon wall: a few bars of an oom-pah left
+        // hand and a right-hand tune, every note slightly detuned twice.
+        const out = this._out(0.035 * gain, rand(-0.5, 0.5));
+        const f = this.audio.ctx.createBiquadFilter();
+        f.type = "lowpass"; f.frequency.value = 1800;
+        f.connect(out);
+        const C = 261.63;
+        const st = (n) => C * Math.pow(2, n / 12);
+        const keys = [0, 5, 7, 0][Math.floor(Math.random() * 4)];
+        const bass = [[-12, 4], [-5, 7], [-12, 4], [-5, 7], [-7, 5], [0, 9], [-12, 4], [-5, 7]];
+        const tunes = [[4, 7, 9, 7, 4, 2, 0, 2], [7, 9, 12, 9, 7, 4, 7, 4], [0, 4, 7, 12, 11, 9, 7, 4]];
+        const tune = tunes[Math.floor(Math.random() * tunes.length)];
+        const beat = rand(0.2, 0.26);
+        const note = (n, t0, dur, peak) => {
+          for (const det of [0.996, 1.006]) this._osc(f, { type: "triangle", path: [[st(n + keys) * det, 0], [st(n + keys) * det * 0.999, dur]], t0, dur, peak, attack: 0.004 });
+        };
+        bass.forEach(([lo, chord], i) => {
+          note(lo - 12, t + i * beat * 2, beat * 1.6, 0.5);
+          note(chord, t + i * beat * 2 + beat, beat * 0.9, 0.3);
+          note(chord + 4, t + i * beat * 2 + beat, beat * 0.9, 0.25);
+        });
+        tune.forEach((n, i) => note(n + 12, t + i * beat * 2 + (i % 2 ? beat * 0.5 : 0), beat * 1.4, 0.55));
+        break;
+      }
+      case "whistle": {
+        // A steam whistle way out on the line: two chords, the second long.
+        const out = this._out(0.03 * gain);
+        const f = this.audio.ctx.createBiquadFilter();
+        f.type = "lowpass"; f.frequency.value = 1500;
+        f.connect(out);
+        for (const [t0, dur] of [[0, 0.5], [0.7, 1.8]]) {
+          for (const hz of [392, 466, 587]) this._osc(f, { type: "sawtooth", path: [[hz * 0.97, 0], [hz, 0.12], [hz * 0.99, dur]], t0: t + t0, dur, peak: 0.33, attack: 0.08 });
         }
         break;
       }

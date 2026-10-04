@@ -45,7 +45,7 @@ export const MODES = {
     pvp: false,
     zombies: true,
     // Maps with a zombieLayout(); the map card's Change picks between them.
-    mapPool: ["pentagrin", "hollowgrin"],
+    mapPool: ["pentagrin", "hollowgrin", "trollcity"],
     blurb: "Pepe and trollface, round after round, and they do not stop coming.",
   },
 
