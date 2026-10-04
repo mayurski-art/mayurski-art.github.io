@@ -134,6 +134,19 @@ const ws1 = await page.evaluate(() => {
 });
 check("you're in the gunner seat, high over the map", ws1.camY > ws1.footY + 40, JSON.stringify(ws1));
 check("thermal view and the gunner HUD are up", ws1.filter.includes("grayscale") && ws1.hud);
+// AIM zooms the gunner optic in (user: let the aim button work on the 25mm).
+const zoom = await page.evaluate(async () => {
+  const T = window.__trollOps;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const before = T.camera.fov;
+  T.touchState.ads = true; T.keys.add("KeyQ");
+  await wait(900);
+  const aimed = T.camera.fov;
+  T.touchState.ads = false; T.keys.delete("KeyQ");
+  await wait(900);
+  return { gun: T.warshipGun(), before: +before.toFixed(1), aimed: +aimed.toFixed(1), after: +T.camera.fov.toFixed(1) };
+});
+check("AIM zooms the 25mm in, and letting go zooms back out", zoom.gun === "chain" && zoom.aimed < zoom.before * 0.7 && zoom.after > zoom.aimed * 1.5, JSON.stringify(zoom));
 // On station: aim at a bot and fire the chain gun, then the cannon.
 await page.waitForFunction(() => window.__trollOps.warship()?.onStation, null, { timeout: 20000 });
 const fireAt = async (gun, ms) => page.evaluate(async ({ gun, ms }) => {

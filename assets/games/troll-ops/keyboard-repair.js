@@ -4,8 +4,7 @@
 // before coming back to the default keyboard sword holding stance".
 //
 // Holding aim with the keyboard raises it flat across the body, keys out.
-// A few consecutive hits (game.js kbShield) and it breaks: keycaps pop
-// off, the keyboard comes down onto your lap and gets a quick flip onto its
+// A few consecutive hits (game.js kbShield) and it breaks: the keyboard comes down onto your lap and gets a quick flip onto its
 // back (user: "a small flip face the backside and then the rest of the
 // animation"). The off hand backs the four screws out of the back panel,
 // lifts the lid off the circuit board, solders it, plugs a USB cable into
@@ -204,6 +203,9 @@ const _negZ = new THREE.Vector3(0, 0, -1), _dir = new THREE.Vector3(), _hand = n
 const TABLET_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
   new THREE.Vector3(0, 0, 1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, -1, 0)));
 const BACK_FACE_Q = TABLET_Q;
+// The tablet in view space: camera at the origin looking down -Z.
+const TABLET_VIEW_POS = new THREE.Vector3(-0.17, -0.025, -0.46);
+const TABLET_VIEW_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.12, 0.28, 0.04));
 
 /* ------------------------------------------------------------- the act */
 export function createKeyboardRepair({ audio } = {}) {
@@ -212,21 +214,16 @@ export function createKeyboardRepair({ audio } = {}) {
 
   function build() {
     const tools = { screw: screwdriver(), iron: solderingIron(), usb: usbCable() };
-    const caps = [];
-    const capGeo = new THREE.BoxGeometry(0.02, 0.012, 0.02);
-    const capMat = mat(0x151518);
-    for (let i = 0; i < 6; i++) caps.push({ mesh: new THREE.Mesh(capGeo, capMat), v: new THREE.Vector3(), w: new THREE.Vector3() });
     const sparks = [];
     const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffb04a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     for (let i = 0; i < 8; i++) sparks.push({ mesh: new THREE.Mesh(new THREE.SphereGeometry(0.0022, 4, 4), sparkMat), v: new THREE.Vector3(), life: 0 });
-    built = { tools, caps, sparks, monitor: screen(), back: backPanel() };
+    built = { tools, sparks, monitor: screen(), back: backPanel() };
   }
 
   /* Pull everything off whatever it was attached to. */
   function stow() {
     if (!built) return;
     for (const t of Object.values(built.tools)) t.parent?.remove(t);
-    for (const c of built.caps) c.mesh.parent?.remove(c.mesh);
     for (const s of built.sparks) s.mesh.parent?.remove(s.mesh);
     built.monitor.parent?.remove(built.monitor);
     built.back.group.parent?.remove(built.back.group);
@@ -257,7 +254,7 @@ export function createKeyboardRepair({ audio } = {}) {
       const T = KB_REPAIR_TIME;
       const k = st.t / T;
       if (k >= 1) { this.stop(); return false; }
-      const { tools, caps, sparks, monitor } = built;
+      const { tools, sparks, monitor } = built;
       const support = hands?.[1]?.obj;
 
       // Down onto the lap, a quick flip onto its back, the work, a flip
@@ -277,22 +274,8 @@ export function createKeyboardRepair({ audio } = {}) {
       mesh.rotateZ(Math.sin(st.t * 55) * shudder * 4 + Math.sin(outOf * Math.PI) * 0.6);
       if (flip > 0.02 && flip < 0.98 && !st.cued.has(k < 0.5 ? "flip" : "flip2")) cue(k < 0.5 ? "flip" : "flip2", 0);
 
-      // Keycaps fly off the front as it breaks.
+      // The break itself: no keycaps flying off (user, 2026-10-03), just the clatter.
       cue("clatter", 0);
-      if (k < 0.3) {
-        caps.forEach((c) => {
-          if (!c.mesh.parent) {
-            mesh.add(c.mesh);
-            c.mesh.position.set((Math.random() - 0.5) * 0.2, 0.04, -0.35 - Math.random() * 0.55);
-            c.v.set((Math.random() - 0.5) * 0.5, 0.7 + Math.random() * 0.6, (Math.random() - 0.5) * 0.4);
-            c.w.set(Math.random() * 20, Math.random() * 20, Math.random() * 20);
-          }
-          c.v.y -= 3.2 * dt;
-          c.mesh.position.addScaledVector(c.v, dt);
-          c.mesh.rotation.x += c.w.x * dt; c.mesh.rotation.y += c.w.y * dt; c.mesh.rotation.z += c.w.z * dt;
-          c.mesh.visible = c.mesh.position.y > -0.6;
-        });
-      } else for (const c of caps) c.mesh.parent?.remove(c.mesh);
 
       // The back panel: on the board for the whole act.
       const { back } = built;
@@ -388,11 +371,15 @@ export function createKeyboardRepair({ audio } = {}) {
         }
       } else for (const sp of sparks) { sp.life = 0; sp.mesh.parent?.remove(sp.mesh); }
 
-      // The diagnostic tablet, propped on the far end of the back.
-      if (k > 0.14 && k < 0.88) {
-        if (monitor.parent !== mesh) mesh.add(monitor);
-        monitor.position.set(0.0, -BACK_Y - 0.05, -0.95);
-        monitor.quaternion.copy(TABLET_Q);
+      // The diagnostic tablet: held up in the view, facing you, above the
+      // keyboard and left of centre (user, 2026-10-03: flat on the back
+      // panel it sat in the corner under the HUD and couldn't be read). It
+      // hangs off the view rig, not the keyboard, so the flip and shudder
+      // don't swing it about.
+      if (k > 0.14 && k < 0.88 && mesh.parent) {
+        if (monitor.parent !== mesh.parent) mesh.parent.add(monitor);
+        monitor.position.copy(TABLET_VIEW_POS);
+        monitor.quaternion.copy(TABLET_VIEW_Q);
         monitor.scale.setScalar(sm(0.14, 0.2, k) * (1 - sm(0.84, 0.88, k)) || 0.001);
         if (k < 0.43) monitor.userData.draw("keyboard.exe\nhas stopped\nworking", -1, true);
         else if (k < 0.64) monitor.userData.draw("Updating drivers\n(do not rage quit)", sm(0.43, 0.64, k) * 0.6, false);

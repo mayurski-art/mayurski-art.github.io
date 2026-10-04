@@ -71,7 +71,7 @@ import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from ".
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
-import { createKeyboardRepair, KB_SHIELD } from "./keyboard-repair.js?v=kr9";
+import { createKeyboardRepair, KB_SHIELD } from "./keyboard-repair.js?v=kr10";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=sw1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
@@ -2091,7 +2091,16 @@ function warshipView() {
 const WARSHIP_SENS = 0.35;
 function lookSensScale() {
   if (!warshipView()) return 1;
-  return WARSHIP_SENS * Math.min(1, (WARSHIP_GUNS[warshipGun]?.fov || baseFov) / baseFov);
+  return WARSHIP_SENS * Math.min(1, warshipFov() / baseFov);
+}
+/* The aim button zooms the gunner's optic in further (user: let AIM work on
+   the 25mm). Same inputs as ADS on foot: AIM toggle, L2, right mouse, Q. */
+const WARSHIP_AIM_ZOOM = 0.5;
+function warshipAiming() {
+  return warshipView() && ((isTouch && touchState.ads) || (gamepadState.connected && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
+}
+function warshipFov() {
+  return (WARSHIP_GUNS[warshipGun]?.fov || baseFov) * (warshipAiming() ? WARSHIP_AIM_ZOOM : 1);
 }
 
 function spawnWarship({ id, seed, owned, team }) {
@@ -2149,7 +2158,7 @@ function syncWarshipView() {
     const dx = warship.centre.x - at.x, dz = warship.centre.z - at.z;
     look.yaw = Math.atan2(-dx, -dz);
     look.pitch = Math.atan2(-at.y, Math.hypot(dx, dz));
-    el.querySelector(".to-ws-hint").textContent = isTouch ? "SWAP to change gun" : gamepadState.connected ? "Y changes gun" : "1 / 2 or scroll changes gun";
+    el.querySelector(".to-ws-hint").textContent = isTouch ? "SWAP to change gun · AIM to zoom" : gamepadState.connected ? "Y changes gun · L2 zooms" : "1 / 2 or scroll changes gun · right click zooms";
     showWaveBanner("VTOL WARSHIP — YOU HAVE THE GUNS", 1600);
   } else {
     if (wsSaved) { look.yaw = wsSaved.yaw; look.pitch = wsSaved.pitch; }
@@ -12304,7 +12313,7 @@ function animate() {
     if (move.sprinting && !w.ads) targetFov = baseFov * 1.06;
     if (move.stance === STANCE.SLIDE) targetFov = baseFov * 1.12;
     if (swivel.dir) targetFov = baseFov * (1 + 0.1 * Math.sin(Math.PI * swivelK()));
-    if (warshipView()) targetFov = WARSHIP_GUNS[warshipGun].fov;
+    if (warshipView()) targetFov = warshipFov();
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
     camera.updateProjectionMatrix();
 
