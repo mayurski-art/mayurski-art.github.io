@@ -12279,8 +12279,10 @@ function animate() {
   if (gameState === "paused" || localPauseOnly) pollGamepadMenu();
 
   // The map's ambience plays while you're in it (paused included) and fades
-  // out back at the menu or on the scoreboard.
-  ambience.set((gameState === "playing" || gameState === "paused") && loadedMapId ? loadedMapId : null);
+  // out back at the menu or on the scoreboard. It's one or the other with the
+  // radio: start a song and the ambience fades out, stop it and it fades back.
+  const radioOn = music.playing && music.volume > 0;
+  ambience.set((gameState === "playing" || gameState === "paused") && loadedMapId && !radioOn ? loadedMapId : null);
 
   // Runs during "gameover", between two matches in a room that stayed up.
   if (intermissionT > 0) {
