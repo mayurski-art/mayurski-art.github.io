@@ -12,10 +12,10 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
-import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c";
+import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
   VtolWarship, WARSHIP_GUNS, VsatSatellite,
@@ -34,12 +34,12 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst";
@@ -47,20 +47,20 @@ import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=umb1-rn-wst-tl1";
-import { BotManager } from "./bots.js?v=cg5-em1-wst";
+} from "./modes.js?v=umb1-rn-wst-tl1-bs1";
+import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst";
 import { GameAudio } from "./audio.js?v=umb1kb2-mi1-wst";
 import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1";
 import { insidePolygon } from "./edge.js";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst-bs1";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./music.js?v=to-gs1";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
-import { FlowField } from "./nav.js?v=ti1";
-import { ZombieDirector } from "./zombies.js?v=hb4-wst";
+import { FlowField } from "./nav.js?v=ti1-bs1";
+import { ZombieDirector } from "./zombies.js?v=hb4-wst-bs1";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
@@ -84,7 +84,7 @@ import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7"
 import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4-fc1-wst";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
-import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst";
+import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst-bs1";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 
 const els = {
@@ -3227,10 +3227,15 @@ function botStrikeSpots(b) {
 /* A bot fetching its care package: the objective walks it over, standing
    on it runs the owner's capture clock, and the reward goes in its slots
    (a streak bots can't call becomes one they can). */
+const BOT_CRATE_GIVE_UP = 25;   // seconds after it lands
 function updateBotCrate(b, dt) {
   const e = streakEntities.get(b.crate.eid);
   if (!e || (e instanceof CarePackage && e.claimed)) { b.crate = null; return; }
   if (!(e instanceof CarePackage) || !e.landed) return;   // still the marker, or the heli's inbound
+  // Down somewhere it can't get to (a roof, over a wall the marker bounced
+  // past): let it go rather than walk at it for the crate's whole life.
+  b.crate.t = (b.crate.t || 0) + dt;
+  if (b.crate.t > BOT_CRATE_GIVE_UP) { b.crate = null; return; }
   if (!e.withinClaim(b.pos.x, b.pos.z)) { b.crate.holdT = 0; return; }
   b.crate.holdT += dt;
   if (b.crate.holdT < 0.8) return;
@@ -11316,10 +11321,14 @@ function pickCarrier() {
 function botObjective(bot) {
   // Troll Royale: the zone first, then loot, then the sound of a fight.
   if (royale) return royaleBotObjective(bot);
-  // Its own care package, once it's down: go and get it.
+  // Its own care package, once it's down: go and get it. Not while the
+  // heli is still inbound (user, 2026-10-04: "the bots are stuck"): parked
+  // on the marker for the whole flight in, a bot stood spinning on the spot,
+  // and with every veteran earning crates there was always one doing it.
+  // Anywhere inside the claim ring will do, not the exact spot.
   if (bot.crate) {
     const pkg = streakEntities.get(bot.crate.eid);
-    if (pkg instanceof CarePackage && !pkg.claimed) return { id: `pkg-${pkg.id}`, x: pkg.x, z: pkg.z, radius: 0.6 };
+    if (pkg instanceof CarePackage && pkg.landed && !pkg.claimed) return { id: `pkg-${pkg.id}`, x: pkg.x, z: pkg.z, radius: 1.2 };
   }
   if (hill) {
     const p = hill.position;

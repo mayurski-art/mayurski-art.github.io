@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 import { loadModel } from "./battlefield-props.js";
-import { FlowField } from "./nav.js?v=ti1";
+import { FlowField } from "./nav.js?v=ti1-bs1";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1";
 
 export const K9 = {

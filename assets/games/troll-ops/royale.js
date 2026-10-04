@@ -17,7 +17,7 @@ import * as THREE from "three";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst";
 import { ATTACHMENTS, SLOTS, defaultLoadoutFor, resolveWeapon } from "./attachments.js?v=cg1-wst";
-import { FlowField } from "./nav.js?v=ti1";
+import { FlowField } from "./nav.js?v=ti1-bs1";
 
 /* ---- tuning ------------------------------------------------------------ */
 
