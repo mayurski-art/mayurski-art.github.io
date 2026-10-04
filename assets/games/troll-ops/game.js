@@ -87,6 +87,31 @@ import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst-bs1";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 
+/* Maps download once (user, 2026-10-04): /sw.js keeps the game's models,
+   textures and three.js in the browser so a map isn't fetched again every
+   day. Not on localhost unless ?sw=1 (a dev edit would come back stale);
+   ?sw=0 takes it off this browser. */
+(function registerAssetCache() {
+  const sw = navigator.serviceWorker;
+  if (!sw) return;
+  const q = new URLSearchParams(location.search).get("sw");
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  if (q === "0" || (local && q !== "1")) {
+    sw.getRegistrations().then((rs) => rs.forEach((r) => { if (r.active?.scriptURL.endsWith("/sw.js")) r.unregister(); })).catch(() => {});
+    return;
+  }
+  sw.register("/sw.js", { scope: "/" }).catch((e) => console.warn("[troll forces] asset cache off:", e?.message || e));
+  // The first visit loads most of the game before the worker is up: hand it
+  // what this page already fetched, now and once the map is in, so the next
+  // visit doesn't download it again.
+  const handOver = () => sw.ready.then((r) => r.active?.postMessage({
+    type: "cache-urls", urls: performance.getEntriesByType("resource").map((e) => e.name),
+  })).catch(() => {});
+  if (document.readyState === "complete") handOver(); else addEventListener("load", handOver, { once: true });
+  setTimeout(handOver, 60000);
+  addEventListener("pagehide", handOver);
+})();
+
 const els = {
   cabinet: document.getElementById("to-cabinet"),
   loading: document.getElementById("to-loading"),
