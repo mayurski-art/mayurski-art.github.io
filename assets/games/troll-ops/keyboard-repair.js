@@ -48,25 +48,51 @@ function mat(color, extra = {}) { return new THREE.MeshStandardMaterial({ color,
 function part(geo, m, x = 0, y = 0, z = 0) { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); return o; }
 
 /* Each tool hangs down -Y from where the hand holds it, tip at y = -len. */
+const STEEL = () => mat(0xc9ccd2, { metalness: 0.92, roughness: 0.22 });
 function screwdriver() {
   const g = new THREE.Group();
-  g.add(part(new THREE.CylinderGeometry(0.011, 0.013, 0.07, 10), mat(0xf2c21b), 0, -0.02, 0));
-  g.add(part(new THREE.CylinderGeometry(0.0125, 0.0125, 0.012, 10), mat(0x161616), 0, -0.058, 0));
-  g.add(part(new THREE.CylinderGeometry(0.0032, 0.0032, 0.07, 8), mat(0xc9ccd2, { metalness: 0.9, roughness: 0.3 }), 0, -0.098, 0));
-  g.add(part(new THREE.BoxGeometry(0.006, 0.01, 0.0015), mat(0xc9ccd2, { metalness: 0.9, roughness: 0.3 }), 0, -0.136, 0));
+  // Handle: a yellow barrel with dark flutes for grip, a domed butt, a black collar.
+  g.add(part(new THREE.CylinderGeometry(0.011, 0.013, 0.07, 28), mat(0xf2c21b, { roughness: 0.35 }), 0, -0.02, 0));
+  g.add(part(new THREE.SphereGeometry(0.011, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xf2c21b, { roughness: 0.35 }), 0, 0.015, 0));
+  const flute = mat(0x7a5c06, { roughness: 0.6 });
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const f = part(new THREE.BoxGeometry(0.0026, 0.05, 0.0026), flute, Math.cos(a) * 0.0113, -0.018, Math.sin(a) * 0.0113);
+    f.rotation.y = -a;
+    g.add(f);
+  }
+  g.add(part(new THREE.CylinderGeometry(0.0125, 0.0125, 0.012, 28), mat(0x161616, { roughness: 0.4 }), 0, -0.058, 0));
+  g.add(part(new THREE.CylinderGeometry(0.006, 0.0125, 0.006, 24), mat(0x161616, { roughness: 0.4 }), 0, -0.067, 0));
+  g.add(part(new THREE.CylinderGeometry(0.0032, 0.0032, 0.064, 16), STEEL(), 0, -0.098, 0));
+  // Phillips tip: a taper and two crossed blades.
+  g.add(part(new THREE.CylinderGeometry(0.0012, 0.0032, 0.008, 16), STEEL(), 0, -0.134, 0));
+  g.add(part(new THREE.BoxGeometry(0.0055, 0.008, 0.0012), STEEL(), 0, -0.135, 0));
+  g.add(part(new THREE.BoxGeometry(0.0012, 0.008, 0.0055), STEEL(), 0, -0.135, 0));
   g.userData.len = 0.14;
   return g;
 }
 function solderingIron() {
   const g = new THREE.Group();
-  g.add(part(new THREE.CylinderGeometry(0.012, 0.012, 0.075, 10), mat(0x1f6fe0), 0, -0.02, 0));
-  g.add(part(new THREE.CylinderGeometry(0.009, 0.006, 0.03, 10), mat(0x9aa0a8, { metalness: 0.8, roughness: 0.35 }), 0, -0.072, 0));
-  g.add(part(new THREE.CylinderGeometry(0.0028, 0.0028, 0.045, 8), mat(0xb0b3b8, { metalness: 0.9 }), 0, -0.108, 0));
-  const tip = part(new THREE.ConeGeometry(0.0034, 0.014, 8), new THREE.MeshBasicMaterial({ color: 0xff7a2a }), 0, -0.137, 0);
+  g.add(part(new THREE.CylinderGeometry(0.012, 0.012, 0.075, 28), mat(0x1f6fe0, { roughness: 0.35 }), 0, -0.02, 0));
+  // Rubber grip rings near the business end, and a cap at the cord end.
+  const rubber = mat(0x101216, { roughness: 0.85 });
+  for (let i = 0; i < 4; i++) {
+    const r = part(new THREE.TorusGeometry(0.0122, 0.0016, 8, 28), rubber, 0, -0.035 - i * 0.007, 0);
+    r.rotation.x = Math.PI / 2;
+    g.add(r);
+  }
+  g.add(part(new THREE.CylinderGeometry(0.008, 0.012, 0.01, 24), rubber, 0, 0.022, 0));
+  g.add(part(new THREE.CylinderGeometry(0.009, 0.006, 0.03, 24), mat(0x9aa0a8, { metalness: 0.8, roughness: 0.3 }), 0, -0.072, 0));
+  // Heat-blued barrel, then the tip.
+  g.add(part(new THREE.CylinderGeometry(0.0028, 0.0028, 0.045, 16), mat(0x8a7fa8, { metalness: 0.9, roughness: 0.28 }), 0, -0.108, 0));
+  const tip = part(new THREE.ConeGeometry(0.0034, 0.014, 16), new THREE.MeshBasicMaterial({ color: 0xff7a2a }), 0, -0.137, 0);
   tip.rotation.x = Math.PI;
   g.add(tip);
+  // The hot glow round the tip (no real light: see light-pool.js).
+  g.add(part(new THREE.SphereGeometry(0.0075, 16, 12),
+    new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }), 0, -0.139, 0));
   // a coil of cord off the back
-  const cord = part(new THREE.TorusGeometry(0.02, 0.0025, 6, 16, Math.PI * 1.4), mat(0x202020), 0.012, 0.03, 0);
+  const cord = part(new THREE.TorusGeometry(0.02, 0.0025, 10, 32, Math.PI * 1.4), mat(0x202020, { roughness: 0.7 }), 0.012, 0.03, 0);
   cord.rotation.y = Math.PI / 2;
   g.add(cord);
   g.userData.len = 0.145;
@@ -75,23 +101,61 @@ function solderingIron() {
 }
 function usbCable() {
   const g = new THREE.Group();
-  g.add(part(new THREE.BoxGeometry(0.016, 0.034, 0.008), mat(0x2a2a2e), 0, -0.02, 0));
-  g.add(part(new THREE.BoxGeometry(0.012, 0.016, 0.0045), mat(0xd7d9de, { metalness: 0.85, roughness: 0.3 }), 0, -0.045, 0));
-  // the cable trailing up and away out of view
+  // Overmould with grip ridges and the trident on its face.
+  const mould = mat(0x2a2a2e, { roughness: 0.55 });
+  g.add(part(new THREE.BoxGeometry(0.016, 0.034, 0.008), mould, 0, -0.02, 0));
+  for (let i = 0; i < 5; i++) g.add(part(new THREE.BoxGeometry(0.0168, 0.0012, 0.0084), mat(0x18181b), 0, -0.006 - i * 0.0035, 0));
+  g.add(part(new THREE.PlaneGeometry(0.009, 0.009), new THREE.MeshBasicMaterial({ map: usbLogoTex(), transparent: true, depthWrite: false }), 0, -0.028, 0.0041));
+  // Metal shell, its two latch holes, and the contacts tongue inside.
+  g.add(part(new THREE.BoxGeometry(0.012, 0.016, 0.0045), mat(0xd7d9de, { metalness: 0.9, roughness: 0.22 }), 0, -0.045, 0));
+  for (const x of [-0.003, 0.003]) g.add(part(new THREE.BoxGeometry(0.002, 0.002, 0.0047), mat(0x111111), x, -0.047, 0));
+  g.add(part(new THREE.BoxGeometry(0.0096, 0.0012, 0.0012), mat(0xd4a83a, { metalness: 0.9, roughness: 0.3 }), 0, -0.0529, 0.0008));
+  // Strain relief, then the cable trailing up and away out of view.
+  g.add(part(new THREE.CylinderGeometry(0.0038, 0.0055, 0.012, 20), mould, 0, 0.002, 0));
   const pts = [];
-  for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(new THREE.Vector3(Math.sin(t * 3) * 0.03 + t * 0.05, t * 0.25, -t * 0.04)); }
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.0035, 6), mat(0x1a1a1a)));
+  for (let i = 0; i <= 16; i++) { const t = i / 16; pts.push(new THREE.Vector3(Math.sin(t * 3) * 0.03 + t * 0.05, 0.008 + t * 0.25, -t * 0.04)); }
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 64, 0.0035, 12), mat(0x1a1a1a, { roughness: 0.6 })));
   g.userData.len = 0.053;
   return g;
 }
 
-function canvasTexture(w, h, draw) {
+/* Canvases are drawn in their logical size and stored `scale` times bigger,
+   so text and traces stay sharp up close. */
+function canvasTexture(w, h, draw, scale = 4) {
   const c = document.createElement("canvas");
-  c.width = w; c.height = h;
-  draw(c.getContext("2d"), w, h);
+  c.width = w * scale; c.height = h * scale;
+  const x = c.getContext("2d");
+  x.scale(scale, scale);
+  draw(x, w, h);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
   return t;
+}
+let usbLogo = null;
+function usbLogoTex() {
+  return usbLogo ||= canvasTexture(64, 64, (x) => {
+    x.strokeStyle = x.fillStyle = "#c9ccd2"; x.lineWidth = 3; x.lineCap = "round";
+    x.beginPath(); x.moveTo(32, 56); x.lineTo(32, 12); x.stroke();
+    x.beginPath(); x.moveTo(32, 6); x.lineTo(26, 16); x.lineTo(38, 16); x.closePath(); x.fill();
+    x.beginPath(); x.moveTo(32, 40); x.lineTo(18, 30); x.lineTo(18, 22); x.stroke();
+    x.beginPath(); x.arc(18, 20, 4, 0, Math.PI * 2); x.fill();
+    x.beginPath(); x.moveTo(32, 46); x.lineTo(46, 34); x.lineTo(46, 26); x.stroke();
+    x.fillRect(42, 20, 8, 7);
+    x.beginPath(); x.arc(32, 56, 5, 0, Math.PI * 2); x.fill();
+  });
+}
+
+/* Seeded, so the board is laid out the same every time it's opened. */
+function boardRng(seed = 1337) {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 /* The keyboard's back, in its own frame: the case's underside is the plane
@@ -104,43 +168,164 @@ const PANEL = { w: 0.25, l: 0.5, z: -0.58 };
 const SCREWS = [[0.105, -0.36], [-0.105, -0.36], [-0.105, -0.8], [0.105, -0.8]];
 function backPanel() {
   const g = new THREE.Group();
-  // The circuit board: green, gold traces, silkscreen.
+  const R = boardRng();
+  // The circuit board: solder mask, copper traces routed in straights and
+  // 45s, vias, tinned pads, and the white silkscreen.
   const pcbTex = canvasTexture(256, 512, (x, W, H) => {
-    x.fillStyle = "#156b35"; x.fillRect(0, 0, W, H);
-    x.strokeStyle = "#d9b45a"; x.lineWidth = 3;
-    for (let i = 0; i < 26; i++) {
+    const grad = x.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, "#17773b"); grad.addColorStop(1, "#11582b");
+    x.fillStyle = grad; x.fillRect(0, 0, W, H);
+    // ground pour, a shade darker, inside a keep-out margin
+    x.fillStyle = "rgba(6, 50, 22, 0.35)"; x.fillRect(8, 8, W - 16, H - 16);
+    x.strokeStyle = "rgba(230, 196, 104, 0.85)"; x.lineCap = "round"; x.lineJoin = "round";
+    for (let i = 0; i < 70; i++) {
+      x.lineWidth = R() < 0.25 ? 2.6 : 1.3;
       x.beginPath();
-      let px = 10 + Math.random() * (W - 20), py = 10 + Math.random() * (H - 20);
+      let px = 12 + R() * (W - 24), py = 12 + R() * (H - 24);
       x.moveTo(px, py);
-      for (let j = 0; j < 3; j++) { if (j % 2) px = 10 + Math.random() * (W - 20); else py = 10 + Math.random() * (H - 20); x.lineTo(px, py); }
+      for (let j = 0; j < 3 + (R() * 3 | 0); j++) {
+        const len = 12 + R() * 60, dir = (R() * 8) | 0;
+        const dx = [1, 1, 0, -1, -1, -1, 0, 1][dir], dy = [0, 1, 1, 1, 0, -1, -1, -1][dir];
+        px = Math.max(12, Math.min(W - 12, px + dx * len));
+        py = Math.max(12, Math.min(H - 12, py + dy * len));
+        x.lineTo(px, py);
+      }
       x.stroke();
+      // a via at the end of most runs
+      if (R() < 0.7) {
+        x.fillStyle = "#e6c468"; x.beginPath(); x.arc(px, py, 2.6, 0, Math.PI * 2); x.fill();
+        x.fillStyle = "#0b2a15"; x.beginPath(); x.arc(px, py, 1.1, 0, Math.PI * 2); x.fill();
+      }
     }
-    x.fillStyle = "#e8eef0";
-    x.font = "bold 18px monospace";
-    x.save(); x.translate(W / 2, H / 2); x.rotate(-Math.PI / 2);
+    // tinned pads in rows
+    x.fillStyle = "#d9d9d2";
+    for (let r = 0; r < 14; r++) {
+      const px = 20 + R() * (W - 50), py = 20 + R() * (H - 40), n = 3 + (R() * 6 | 0), vert = R() < 0.5;
+      for (let k = 0; k < n; k++) x.fillRect(px + (vert ? 0 : k * 5), py + (vert ? k * 5 : 0), vert ? 6 : 3, vert ? 3 : 6);
+    }
+    // silkscreen: part outlines and designators, the logo, a revision
+    x.strokeStyle = "#f2f5f2"; x.fillStyle = "#f2f5f2"; x.lineWidth = 0.9;
+    x.font = "bold 7px monospace"; x.textAlign = "left";
+    for (const d of ["U1", "U2", "U3", "C4", "C7", "C12", "R3", "R9", "R14", "D1", "Y1", "Q2", "LED1", "J1", "SW1", "F1"]) {
+      const px = 16 + R() * (W - 50), py = 16 + R() * (H - 40), w = 10 + R() * 18, h = 6 + R() * 12;
+      x.strokeRect(px, py, w, h);
+      x.fillText(d, px, py - 2);
+    }
     x.textAlign = "center";
+    x.save(); x.translate(W / 2, H / 2); x.rotate(-Math.PI / 2);
+    // the logo sits on clear board, routing kept out from under it
+    x.fillStyle = "#11602f";
+    x.fillRect(-120, -88, 240, 26); x.fillRect(-120, 72, 240, 38);
+    x.fillStyle = "#f2f5f2";
+    x.font = "bold 18px monospace";
     x.fillText("TROLL-KB  REV 1.337", 0, -70);
     x.fillText("U MAD BRO? (tm)", 0, 90);
+    x.font = "8px monospace";
+    x.fillText("DESIGNED IN GRINLAND  //  DO NOT RAGE QUIT", 0, 104);
     x.restore();
+    // mounting holes in the corners
+    for (const [hx, hy] of [[10, 10], [W - 10, 10], [10, H - 10], [W - 10, H - 10]]) {
+      x.fillStyle = "#e6c468"; x.beginPath(); x.arc(hx, hy, 6, 0, Math.PI * 2); x.fill();
+      x.fillStyle = "#050806"; x.beginPath(); x.arc(hx, hy, 3.4, 0, Math.PI * 2); x.fill();
+    }
   });
   // A thin slab standing just off the case (a plane on the case's own face
   // lost the depth test to it).
-  const pcb = part(new THREE.BoxGeometry(PANEL.w - 0.02, 0.002, PANEL.l - 0.02), new THREE.MeshStandardMaterial({ map: pcbTex, emissiveMap: pcbTex, emissive: 0xffffff, emissiveIntensity: 0.14, roughness: 0.6, metalness: 0 }), 0, -BACK_Y - 0.002, PANEL.z);
+  const pcb = part(new THREE.BoxGeometry(PANEL.w - 0.02, 0.002, PANEL.l - 0.02), new THREE.MeshStandardMaterial({ map: pcbTex, emissiveMap: pcbTex, emissive: 0xffffff, emissiveIntensity: 0.14, roughness: 0.45, metalness: 0.05 }), 0, -BACK_Y - 0.002, PANEL.z);
   g.add(pcb);
-  // chips and a little RGB controller
-  for (const [cx, cz, w, l, col] of [[0.03, -0.66, 0.05, 0.06, 0x16161a], [-0.05, -0.48, 0.04, 0.04, 0x16161a], [0.05, -0.42, 0.03, 0.05, 0x22222a], [-0.04, -0.72, 0.035, 0.035, 0x3a1060]]) {
-    g.add(part(new THREE.BoxGeometry(w, 0.004, l), mat(col), cx, -BACK_Y - 0.005, cz));
+
+  // Components sit on the board's outer face (-Y), all inside the lid's depth.
+  const top = -BACK_Y - 0.003;
+  const on = (geo, m, cx, cz, h) => { const o = part(geo, m, cx, top - h / 2, cz); g.add(o); return o; };
+  const pinMat = mat(0xd8dade, { metalness: 0.9, roughness: 0.25 });
+  const chipMat = mat(0x141418, { roughness: 0.55 });
+  const label = (text, w, l, cx, cz, h) => {
+    const t = canvasTexture(128, Math.round(128 * l / w), (x, W, H) => {
+      x.fillStyle = "#d6d8dc"; x.textAlign = "center"; x.font = "bold 18px monospace";
+      x.fillText(text, W / 2, H / 2 + 2, W - 8);
+      x.font = "11px monospace"; x.fillText("2609-TR", W / 2, H / 2 + 18);
+      x.beginPath(); x.arc(12, 12, 5, 0, Math.PI * 2); x.fill();   // pin-1 dot
+    });
+    const p = part(new THREE.PlaneGeometry(w * 0.92, l * 0.92), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }), cx, top - h - 0.0002, cz);
+    p.quaternion.copy(BACK_FACE_Q);
+    g.add(p);
+  };
+  // gull-wing pins down the sides of a chip (`quad`: all four sides)
+  const pinGeo = new THREE.BoxGeometry(0.0009, 0.0007, 0.0026);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), v = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+  const pins = (cx, cz, w, l, n, quad) => {
+    const sides = quad ? [0, 1, 2, 3] : [0, 1];
+    const im = new THREE.InstancedMesh(pinGeo, pinMat, sides.length * n);
+    let i = 0;
+    for (const side of sides) {
+      const alongX = side >= 2;   // pins on the z edges are spread along x
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n - 0.5;
+        if (alongX) { v.set(cx + t * w * 0.85, top - 0.0004, cz + (side === 2 ? -1 : 1) * (l / 2 + 0.0011)); q.identity(); }
+        else { v.set(cx + (side === 0 ? -1 : 1) * (w / 2 + 0.0011), top - 0.0004, cz + t * l * 0.85); q.setFromAxisAngle(Y, Math.PI / 2); }
+        im.setMatrixAt(i++, m4.compose(v, q, one));
+      }
+    }
+    g.add(im);
+  };
+  const chip = (name, cx, cz, w, l, n, quad, m = chipMat) => {
+    on(new THREE.BoxGeometry(w, 0.003, l), m, cx, cz, 0.003);
+    pins(cx, cz, w, l, n, quad);
+    label(name, w, l, cx, cz, 0.003);
+  };
+  // the MCU (a QFP), two SOIC chips, the RGB controller
+  chip("TROLL-MCU", 0.03, -0.66, 0.045, 0.045, 14, true);
+  chip("GRIN-ROM", -0.05, -0.48, 0.03, 0.04, 8, false);
+  chip("KEK-232", 0.055, -0.42, 0.022, 0.036, 7, false);
+  chip("RGB", -0.04, -0.72, 0.03, 0.03, 9, true, mat(0x3a1060, { roughness: 0.4 }));
+  // electrolytic caps: blue cans with a scored silver top
+  const can = mat(0x1d3fa0, { roughness: 0.35 }), canTop = mat(0xc9ccd2, { metalness: 0.85, roughness: 0.3 }), score = mat(0x6a6e76);
+  for (const [cx, cz] of [[-0.075, -0.6], [-0.062, -0.6], [0.08, -0.55], [0.0, -0.78]]) {
+    on(new THREE.CylinderGeometry(0.0045, 0.0045, 0.008, 24), can, cx, cz, 0.008);
+    g.add(part(new THREE.CylinderGeometry(0.0041, 0.0041, 0.0004, 24), canTop, cx, top - 0.0082, cz));
+    g.add(part(new THREE.BoxGeometry(0.006, 0.0004, 0.0006), score, cx, top - 0.0085, cz));
+    g.add(part(new THREE.BoxGeometry(0.0006, 0.0004, 0.006), score, cx, top - 0.0085, cz));
   }
-  // The lid, with its warranty sticker and the four screws.
+  // crystal, fuse, and a USB-C port on the edge
+  on(new THREE.BoxGeometry(0.009, 0.003, 0.004), mat(0xd0d3d8, { metalness: 0.9, roughness: 0.2 }), -0.01, -0.62, 0.003);
+  on(new THREE.BoxGeometry(0.004, 0.002, 0.009), mat(0x2e7a4a), 0.07, -0.74, 0.002);
+  on(new THREE.BoxGeometry(0.012, 0.0035, 0.008), mat(0xd7d9de, { metalness: 0.92, roughness: 0.2 }), 0, -0.345, 0.0035);
+  // a scatter of SMD resistors and caps: dark bodies, tan ceramics
+  {
+    const n = 46;
+    const res = new THREE.InstancedMesh(new THREE.BoxGeometry(0.0034, 0.0014, 0.0017), mat(0x1c1c1c, { roughness: 0.5 }), n);
+    const cer = new THREE.InstancedMesh(new THREE.BoxGeometry(0.0034, 0.0015, 0.0017), mat(0xb48a54, { roughness: 0.45 }), n);
+    for (let i = 0; i < n; i++) {
+      v.set((R() - 0.5) * 0.2, top - 0.0008, PANEL.z + (R() - 0.5) * 0.44);
+      q.setFromAxisAngle(Y, R() < 0.5 ? 0 : Math.PI / 2);
+      res.setMatrixAt(i, m4.compose(v, q, one));
+      v.x += (R() - 0.5) * 0.04; v.z += (R() - 0.5) * 0.04;
+      cer.setMatrixAt(i, m4.compose(v, q, one));
+    }
+    g.add(res, cer);
+  }
+  // the RGB LED strip down one edge, lit
+  for (let i = 0; i < 10; i++) {
+    on(new THREE.BoxGeometry(0.004, 0.0014, 0.004), new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(i / 10, 1, 0.55) }), 0.1, -0.4 - i * 0.04, 0.0014);
+  }
+
+  // The lid: warranty sticker, vent slots, rubber feet, and the four screws.
   const lid = new THREE.Group();
   // Flush with the case and deep enough to hold the board and chips inside it.
-  lid.add(part(new THREE.BoxGeometry(PANEL.w, 0.011, PANEL.l), mat(0x1c1c20, { roughness: 0.7 }), 0, 0, 0));
+  lid.add(part(new THREE.BoxGeometry(PANEL.w, 0.011, PANEL.l), mat(0x1c1c20, { roughness: 0.62 }), 0, 0, 0));
+  const vent = mat(0x0a0a0c);
+  for (let i = 0; i < 7; i++) lid.add(part(new THREE.BoxGeometry(0.06, 0.0008, 0.0035), vent, -0.06, -0.0057, -0.17 + i * 0.008));
+  const foot = mat(0x0e0e10, { roughness: 0.95 });
+  for (const [fx, fz] of [[0.1, 0.22], [-0.1, 0.22], [0.1, -0.22], [-0.1, -0.22]]) {
+    lid.add(part(new THREE.CylinderGeometry(0.008, 0.009, 0.0025, 20), foot, fx, -0.0065, fz));
+  }
   const stickerTex = canvasTexture(256, 128, (x, W, H) => {
     x.fillStyle = "#f1f1ea"; x.fillRect(0, 0, W, H);
+    x.strokeStyle = "#c81e1e"; x.lineWidth = 3; x.strokeRect(6, 6, W - 12, H - 12);
     x.fillStyle = "#c81e1e"; x.textAlign = "center";
-    x.font = "bold 24px sans-serif"; x.fillText("WARRANTY VOID", W / 2, 48);
-    x.fillText("IF REMOVED", W / 2, 78);
-    x.fillStyle = "#333"; x.font = "15px sans-serif"; x.fillText("Made in Grinland", W / 2, 108);
+    x.font = "bold 24px sans-serif"; x.fillText("WARRANTY VOID", W / 2, 46);
+    x.fillText("IF REMOVED", W / 2, 74);
+    x.fillStyle = "#333"; x.font = "13px sans-serif"; x.fillText("Made in Grinland  ·  S/N TR-000420", W / 2, 104);
   });
   // Sticker on the outer face (-Y), reading up the screen in the lap pose.
   const sticker = part(new THREE.PlaneGeometry(0.11, 0.055), new THREE.MeshStandardMaterial({ map: stickerTex, roughness: 0.6 }), 0, -0.0058, 0.05);
@@ -148,10 +333,13 @@ function backPanel() {
   lid.add(sticker);
   lid.position.set(0, -BACK_Y - 0.0075, PANEL.z);
   g.add(lid);
+  const head = mat(0xb8bcc4, { metalness: 0.88, roughness: 0.25 }), slot = mat(0x2a2a2a);
   const screws = SCREWS.map(([sx, sz]) => {
     const sc = new THREE.Group();
-    sc.add(part(new THREE.CylinderGeometry(0.0075, 0.0075, 0.003, 12), mat(0xb8bcc4, { metalness: 0.85, roughness: 0.3 })));
-    sc.add(part(new THREE.BoxGeometry(0.011, 0.0012, 0.002), mat(0x2a2a2a), 0, -0.0016, 0));
+    sc.add(part(new THREE.CylinderGeometry(0.0075, 0.0075, 0.003, 32), head));
+    // Phillips cross
+    sc.add(part(new THREE.BoxGeometry(0.0105, 0.0012, 0.0018), slot, 0, -0.0016, 0));
+    sc.add(part(new THREE.BoxGeometry(0.0018, 0.0012, 0.0105), slot, 0, -0.0016, 0));
     sc.userData.home = new THREE.Vector3(sx, -BACK_Y - 0.0145, sz);
     sc.position.copy(sc.userData.home);
     g.add(sc);
@@ -160,32 +348,62 @@ function backPanel() {
   return { group: g, lid, screws, lidHome: lid.position.clone() };
 }
 
-/* The diagnostic tablet: a canvas texture redrawn when its text changes. */
+/* The repair's status, as a floating messenger window (user, 2026-10-03:
+   "think of a floating messenger"): no device around it, just a chat
+   popup with a title bar and a message bubble, drawn into a canvas that is
+   redrawn when its text changes. Transparent round the rounded corners. */
 function screen() {
   const c = document.createElement("canvas");
-  c.width = 256; c.height = 160;
+  c.width = 640; c.height = 400;   // drawn at 320 x 200, stored 2x for sharp text
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
   const g = new THREE.Group();
-  g.add(part(new THREE.BoxGeometry(0.17, 0.112, 0.008), mat(0x111114)));
-  const face = part(new THREE.PlaneGeometry(0.156, 0.098), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), 0, 0, 0.0045);
+  const face = part(new THREE.PlaneGeometry(0.176, 0.11),
+    new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, transparent: true, depthWrite: false }));
   g.add(face);
+  const round = (x, X, Y, W, H, r) => {
+    x.beginPath();
+    x.moveTo(X + r, Y); x.arcTo(X + W, Y, X + W, Y + H, r); x.arcTo(X + W, Y + H, X, Y + H, r);
+    x.arcTo(X, Y + H, X, Y, r); x.arcTo(X, Y, X + W, Y, r); x.closePath();
+  };
   let last = "";
   g.userData.draw = (title, pct, blue) => {
     const key = `${title}|${Math.round(pct * 100)}|${blue}`;
     if (key === last) return;
     last = key;
     const x = c.getContext("2d");
-    x.fillStyle = blue ? "#1546c8" : "#0b0d10";
-    x.fillRect(0, 0, 256, 160);
-    x.fillStyle = "#f2f4f8";
-    x.textAlign = "center";
+    x.setTransform(2, 0, 0, 2, 0, 0);
+    x.clearRect(0, 0, 320, 200);
+    // the window
+    round(x, 4, 4, 312, 192, 18);
+    x.fillStyle = "rgba(246, 247, 250, 0.94)";
+    x.fill();
+    // title bar: who it's from, and the traffic lights
+    x.save(); x.clip();
+    x.fillStyle = blue ? "#d8423a" : "#2b6ef2";
+    x.fillRect(4, 4, 312, 38);
+    x.restore();
+    [["#ff5f57", 24], ["#febc2e", 42], ["#28c840", 60]].forEach(([col, cx]) => {
+      x.beginPath(); x.arc(cx, 23, 6, 0, Math.PI * 2); x.fillStyle = col; x.fill();
+    });
+    x.fillStyle = "#ffffff";
+    x.font = 'bold 17px "DM Sans", sans-serif';
+    x.textAlign = "left";
+    x.fillText(blue ? "keyboard.exe" : "IT Troll", 78, 29);
+    // the message bubble
     const lines = title.split("\n");
-    x.font = `bold ${blue ? 22 : 20}px "DM Mono", monospace`;
-    lines.forEach((l, i) => x.fillText(l, 128, 46 + i * 26, 240));
+    const bh = 18 + lines.length * 24 + (pct >= 0 ? 22 : 0);
+    round(x, 18, 56, 284, bh, 14);
+    x.fillStyle = blue ? "#fde7e5" : "#e7efff";
+    x.fill();
+    x.fillStyle = "#15171c";
+    x.font = 'bold 20px "DM Sans", sans-serif';
+    lines.forEach((l, i) => x.fillText(l, 34, 84 + i * 24, 256));
     if (pct >= 0) {
-      x.strokeStyle = "#f2f4f8"; x.lineWidth = 2; x.strokeRect(28, 112, 200, 16);
-      x.fillStyle = "#7fe066"; x.fillRect(31, 115, 194 * pct, 10);
+      const y = 70 + lines.length * 24;
+      round(x, 34, y, 252, 10, 5); x.fillStyle = "rgba(20, 24, 32, 0.15)"; x.fill();
+      round(x, 34, y, Math.max(10, 252 * pct), 10, 5); x.fillStyle = "#28c840"; x.fill();
     }
     tex.needsUpdate = true;
   };
@@ -204,8 +422,13 @@ const TABLET_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4(
   new THREE.Vector3(0, 0, 1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, -1, 0)));
 const BACK_FACE_Q = TABLET_Q;
 // The tablet in view space: camera at the origin looking down -Z.
-const TABLET_VIEW_POS = new THREE.Vector3(-0.17, -0.025, -0.46);
-const TABLET_VIEW_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.12, 0.28, 0.04));
+// Up and to the left, so you look up at it (KB_GLANCE) rather than down.
+const TABLET_VIEW_POS = new THREE.Vector3(-0.1, 0.075, -0.46);
+const TABLET_VIEW_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.16, 0.2, 0.03));
+// Midway through (user: "as if your head is looking up to see that message
+// WHILE you are repairing"): the head tips up and left onto the messenger,
+// reads it, and goes back down to the work. game.js turns both cameras.
+export const KB_GLANCE = { pitch: 0.16, yaw: 0.2, from: 0.56, to: 0.72 };
 
 /* ------------------------------------------------------------- the act */
 export function createKeyboardRepair({ audio } = {}) {
@@ -238,6 +461,12 @@ export function createKeyboardRepair({ audio } = {}) {
   return {
     get active() { return st.active; },
     get t() { return st.t; },
+    /* 0..1: how far the head is turned up onto the messenger. */
+    get glance() {
+      if (!st.active) return 0;
+      const k = st.t / KB_REPAIR_TIME, G = KB_GLANCE;
+      return sm(G.from, G.from + 0.04, k) * (1 - sm(G.to - 0.04, G.to, k));
+    },
     start() {
       if (!built) build();
       st.t = 0; st.active = true; st.cued.clear();
@@ -371,16 +600,21 @@ export function createKeyboardRepair({ audio } = {}) {
         }
       } else for (const sp of sparks) { sp.life = 0; sp.mesh.parent?.remove(sp.mesh); }
 
-      // The diagnostic tablet: held up in the view, facing you, above the
+      // The diagnostic tablet: floating in the view, facing you, above the
       // keyboard and left of centre (user, 2026-10-03: flat on the back
       // panel it sat in the corner under the HUD and couldn't be read). It
       // hangs off the view rig, not the keyboard, so the flip and shudder
       // don't swing it about.
       if (k > 0.14 && k < 0.88 && mesh.parent) {
         if (monitor.parent !== mesh.parent) mesh.parent.add(monitor);
+        // Floating (user: "it can honestly just be floating"): a slow hover.
         monitor.position.copy(TABLET_VIEW_POS);
+        monitor.position.y += Math.sin(st.t * 2.4) * 0.006;
         monitor.quaternion.copy(TABLET_VIEW_Q);
-        monitor.scale.setScalar(sm(0.14, 0.2, k) * (1 - sm(0.84, 0.88, k)) || 0.001);
+        monitor.rotateZ(Math.sin(st.t * 1.7) * 0.025);
+        const popIn = Math.min(1, Math.max(0, (k - 0.14) / 0.05));
+        const pop = popIn < 1 ? 1 + 1.7 * Math.pow(popIn - 1, 3) + 0.7 * Math.pow(popIn - 1, 2) : 1;   // overshoots, settles
+        monitor.scale.setScalar(pop * (1 - sm(0.84, 0.88, k)) || 0.001);
         if (k < 0.43) monitor.userData.draw("keyboard.exe\nhas stopped\nworking", -1, true);
         else if (k < 0.64) monitor.userData.draw("Updating drivers\n(do not rage quit)", sm(0.43, 0.64, k) * 0.6, false);
         else if (k < 0.78) monitor.userData.draw("Installing\nRGB.dll", 0.6 + sm(0.64, 0.78, k) * 0.4, false);

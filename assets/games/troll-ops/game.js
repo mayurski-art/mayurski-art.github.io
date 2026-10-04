@@ -71,7 +71,7 @@ import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from ".
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
-import { createKeyboardRepair, KB_SHIELD } from "./keyboard-repair.js?v=kr10";
+import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./keyboard-repair.js?v=kr14";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=sw1";
 import { HudLayout } from "./hud-layout.js?v=hl2";
@@ -12890,8 +12890,16 @@ function updatePlayer(dt) {
       + (swivel.dir ? -swivel.dir * 0.16 * Math.sin(Math.PI * swivelK()) : 0);
     // One place composes the camera: aim + weapon recoil.
     const rollPitch = rollK > 0 ? -Math.PI * 2 * rollK * rollK * (3 - 2 * rollK) : 0;
-    _euler.set(viewPitch + rollPitch, viewYaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll);
+    // Keyboard repair: the head glances up at the messenger. The viewmodel
+    // camera turns with it, so the board drops away in view and the floating
+    // message comes to the middle, like you looked up at it.
+    const glance = kbRepair.active ? kbRepair.glance : 0;
+    _euler.set(viewPitch + rollPitch + glance * KB_GLANCE.pitch, viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll);
     camera.quaternion.setFromEuler(_euler);
+    if (glance > 0 || weaponCamera.userData.glanced) {
+      weaponCamera.quaternion.setFromEuler(_euler.set(glance * KB_GLANCE.pitch, glance * KB_GLANCE.yaw, 0, "YXZ"));
+      weaponCamera.userData.glanced = glance > 0;
+    }
   }
 
   // Panned sounds resolve against wherever the camera now is and faces.
