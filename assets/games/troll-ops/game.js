@@ -8,7 +8,7 @@ import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1";
 import { WeaponInspector } from "./inspector.js?v=hb1-nf";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4";
@@ -34,20 +34,20 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5";
 import { openProfileCard } from "./profile-card.js?v=pc1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=umb1-rn";
-import { BotManager } from "./bots.js?v=cg5";
+import { BotManager } from "./bots.js?v=cg5-em1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1";
 import { GameAudio } from "./audio.js?v=umb1kb2";
 import { insidePolygon } from "./edge.js";
@@ -3697,7 +3697,7 @@ let emote = null;   // { idx, t, role } while the local player is emoting (role 
 Object.assign(HAND_POSES, FP_HAND_POSES);   // point / L / flat, for the first-person emotes
 const emoteWheel = new EmoteWheel(els.hud, (i) => {
   if (gameState !== "playing" || !player.alive) return;
-  if (EMOTES[i].kind === "duo") { sendDuoInvite(i); return; }
+  if (EMOTES[i].kind === "duo") { armDuo(i); return; }
   emote = { idx: i, t: 0, role: 0 };
 });
 function stopEmote() { emote = null; }
@@ -3709,53 +3709,74 @@ const fpEmoteFrame = () => (emoteKind() === "fp" ? EMOTES[emote.idx].fp(emote.t)
 /* Nothing to play (a bad index off a hook or old save): no emote. */
 function validEmote() { if (emote && !EMOTES[emote.idx]) emote = null; return emote; }
 
-/* Duo emotes. Aim at a teammate (a real player, alive, in sight, within
-   DUO_RANGE) with the wheel open and the duo slices light up. Picking one
-   sends them an invite; they have INVITE_SECONDS to hold X (DUO_HOLD) to
-   accept. The accepter works out where both stand (their midpoint, facing
-   each other the emote's distance apart) and sends it back, so both
-   clients snap to the same spots and start together. Teammates only. */
-const DUO_RANGE = 10, DUO_BODY = 0.9, INVITE_SECONDS = 6, DUO_HOLD = 0.5;
-let duoTarget = null;     // the teammate's RemotePlayer the crosshair is on
+/* Duo emotes (user, 2026-10-04: "it shouldn't be aim at the person. it
+   should be a trigger to hold x near a person to send them a emote request.
+   and then they receive that notification. and in order for the duo emote to
+   activate, that other person has to stand near the other person and hold x.
+   also the emote request should have a 30 second limit countdown").
+   Pick a duo emote on the wheel and it's armed. Walk up to a teammate (within
+   DUO_NEAR) and hold X (DUO_HOLD) to send them the request. They get a
+   notification counting down DUO_REQUEST_SECONDS; to accept they come and
+   stand by you and hold X too. The accepter works out where both stand
+   (their midpoint, facing each other the emote's distance apart) and sends
+   it back, so both clients snap to the same spots and start together.
+   Teammates only. While it's yours to use, X belongs to the duo (no weapon
+   swap or pickup). */
+const DUO_NEAR = 3, DUO_REQUEST_SECONDS = 30, DUO_HOLD = 0.6;
+let duoArmed = null;      // { idx, until, hold } picked on the wheel, not sent yet
 let duoOutgoing = null;   // { to, name, idx, until }
 let duoIncoming = null;   // { from, name, idx, until, hold }
-const _duoFwd = new THREE.Vector3(), _duoTo = new THREE.Vector3();
-function findDuoTarget() {
-  if (!isPvp() || !net.connected || currentMode().ffa || !net.team || !player.alive) return null;
-  camera.getWorldDirection(_duoFwd);
-  let best = null, bestA = Infinity;
+let duoTarget = null;     // the teammate in reach this frame
+let duoXClaimed = false;  // X is the duo's this frame (updatePickupPrompt leaves it alone)
+const _duoFrom = new THREE.Vector3(), _duoTo = new THREE.Vector3();
+const duoAllowed = () => isPvp() && net.connected && !currentMode().ffa && !!net.team && player.alive;
+const duoTeammate = (rp) => !!rp?.peer && !isBotPeer(rp.peer) && rp.alive && rp.peer.team === net.team;
+/* Close enough to share an emote: DUO_NEAR on the ground, about the same
+   floor, nothing solid in between. */
+function duoInReach(rp) {
+  if (!duoTeammate(rp)) return false;
+  const d = Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z);
+  if (d > DUO_NEAR || Math.abs(rp.pos.y - move.pos.y) > 1.5) return false;
+  _duoFrom.set(move.pos.x, move.pos.y + 1.1, move.pos.z);
+  _duoTo.set(rp.pos.x, rp.pos.y + 1.1, rp.pos.z);
+  return !segmentBlocked(colliders, _duoFrom, _duoTo);
+}
+function nearestDuoTeammate() {
+  if (!duoAllowed()) return null;
+  let best = null, bestD = Infinity;
   for (const rp of remotes.byId.values()) {
-    const peer = rp.peer;
-    if (!peer || isBotPeer(peer) || !rp.alive || peer.team !== net.team) continue;
-    // On them: the crosshair line passes through their body (a column
-    // DUO_BODY wide, feet to head), and nothing solid is in between.
-    const hx = rp.pos.x - camera.position.x, hz = rp.pos.z - camera.position.z;
-    const fh = Math.hypot(_duoFwd.x, _duoFwd.z);
-    if (fh < 0.2) continue;   // looking straight up or down
-    const along = (hx * _duoFwd.x + hz * _duoFwd.z) / fh;   // how far ahead they are
-    if (along < 0.3 || along > DUO_RANGE) continue;
-    const side = Math.abs(hx * _duoFwd.z - hz * _duoFwd.x) / fh;   // how far off to the side
-    if (side > DUO_BODY / 2 || side >= bestA) continue;
-    const yAt = camera.position.y + (_duoFwd.y / fh) * along;   // crosshair height at them
-    if (yAt < rp.pos.y - 0.1 || yAt > rp.pos.y + 2.0) continue;
-    _duoTo.set(rp.pos.x, rp.pos.y + 1.1, rp.pos.z);
-    if (segmentBlocked(colliders, camera.position, _duoTo)) continue;
-    best = rp; bestA = side;
+    if (!duoInReach(rp)) continue;
+    const d = Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z);
+    if (d < bestD) { best = rp; bestD = d; }
   }
   return best;
 }
-function sendDuoInvite(idx) {
-  const rp = duoTarget;
+/* Picked on the wheel: ready to send with X. A new pick replaces a request
+   still waiting for an answer. */
+function armDuo(idx) {
+  if (EMOTES[idx]?.kind !== "duo" || !duoAllowed()) return;
+  cancelDuoOutgoing();
+  duoArmed = { idx, until: performance.now() + DUO_REQUEST_SECONDS * 1000, hold: 0 };
+}
+function cancelDuoOutgoing() {
+  if (duoOutgoing && net.connected) net.send({ t: "duo", id: net.id, to: duoOutgoing.to, k: "cancel", e: duoOutgoing.idx });
+  duoOutgoing = null;
+}
+function sendDuoInvite(idx, rp = duoTarget) {
   if (!rp || !net.connected) return;
   net.send({ t: "duo", id: net.id, to: rp.netId, k: "invite", e: idx });
-  duoOutgoing = { to: rp.netId, name: rp.peer?.name || "operator", idx, until: performance.now() + INVITE_SECONDS * 1000 };
+  duoOutgoing = { to: rp.netId, name: rp.peer?.name || "operator", idx, until: performance.now() + DUO_REQUEST_SECONDS * 1000 };
+  duoArmed = null;
 }
 function onDuoMessage(p, m) {
   const idx = m.e | 0;
   if (EMOTES[idx]?.kind !== "duo") return;
   if (m.k === "invite") {
     if (p.team !== net.team || currentMode().ffa) return;   // teammates only
-    duoIncoming = { from: p.id, name: p.name || "operator", idx, until: performance.now() + INVITE_SECONDS * 1000, hold: 0 };
+    duoIncoming = { from: p.id, name: p.name || "operator", idx, until: performance.now() + DUO_REQUEST_SECONDS * 1000, hold: 0 };
+    audio.stageTick?.();
+  } else if (m.k === "cancel") {
+    if (duoIncoming?.from === p.id) duoIncoming = null;
   } else if (m.k === "accept") {
     if (!duoOutgoing || duoOutgoing.to !== p.id || duoOutgoing.idx !== idx) return;
     duoOutgoing = null;
@@ -3788,35 +3809,72 @@ function acceptDuo() {
   const mx = (move.pos.x + rp.pos.x) / 2, mz = (move.pos.z + rp.pos.z) / 2;
   net.send({ t: "duo", id: net.id, to: inv.from, k: "accept", e: inv.idx, mx, mz, dx, dz });
   placeForDuo(mx, mz, dx, dz, inv.idx, 1);
+  duoArmed = null;
+  cancelDuoOutgoing();
   emote = { idx: inv.idx, t: 0, role: 1 };
 }
 const duoPromptEl = document.createElement("div");
 duoPromptEl.className = "to-duo-prompt";
 duoPromptEl.hidden = true;
 duoPromptEl.setAttribute("role", "status");
-duoPromptEl.innerHTML = "<i class=\"to-duo-ring\"></i><span></span>";
+duoPromptEl.setAttribute("aria-live", "polite");
+duoPromptEl.innerHTML = "<i class=\"to-duo-ring\"></i><span></span><b class=\"to-duo-clock\"></b>";
 els.hud.appendChild(duoPromptEl);
-/* Per frame: the wheel's duo target, the invite prompt and the X hold. */
+let duoPromptText = "", duoPromptClock = "";
+const duoSecondsLeft = (until, now) => Math.max(0, Math.ceil((until - now) / 1000));
+/* Per frame: the wheel's duo state, the X hold (accept or send) and the
+   prompt with its countdown. */
 function updateDuo(dt) {
-  duoTarget = emoteWheel.isOpen ? findDuoTarget() : null;
-  emoteWheel.setDuoTarget(duoTarget?.peer?.name || null);
   const now = performance.now();
+  const live = player.alive && gameState === "playing";
+  if (!live) { duoArmed = null; duoIncoming = null; cancelDuoOutgoing(); }
+  if (duoArmed && now > duoArmed.until) duoArmed = null;
   if (duoOutgoing && now > duoOutgoing.until) duoOutgoing = null;
-  if (duoIncoming && (now > duoIncoming.until || !player.alive || gameState !== "playing")) duoIncoming = null;
+  if (duoIncoming && now > duoIncoming.until) duoIncoming = null;
+  if (emoteWheel.isOpen) emoteWheel.setDuo(duoAllowed(), nearestDuoTeammate()?.peer?.name || null);
+
+  const holdingX = keys.has("KeyX") || (isTouch && touchState.swap) || !!gamepadState.pickup;
+  const inviter = duoIncoming ? remotes.byId.get(duoIncoming.from) : null;
+  const inviterNear = !!inviter && duoInReach(inviter);
+  duoTarget = duoArmed && !inviterNear ? nearestDuoTeammate() : null;
+  duoXClaimed = inviterNear || !!duoTarget;
+  // X accepts a request from someone beside you first, else sends yours.
+  const fill = (o) => { o.hold = holdingX ? o.hold + dt : Math.max(0, o.hold - dt * 2); return o.hold >= DUO_HOLD; };
   if (duoIncoming) {
-    const holdingX = keys.has("KeyX") || (isTouch && touchState.swap);
-    duoIncoming.hold = holdingX ? duoIncoming.hold + dt : Math.max(0, duoIncoming.hold - dt * 2);
-    if (duoIncoming.hold >= DUO_HOLD) acceptDuo();
+    if (!inviterNear) duoIncoming.hold = 0;
+    else if (fill(duoIncoming)) acceptDuo();
   }
-  const text = duoIncoming
-    ? `${duoIncoming.name} wants to ${EMOTES[duoIncoming.idx].name}: hold X`
-    : duoOutgoing ? `${EMOTES[duoOutgoing.idx].name}: waiting for ${duoOutgoing.name}…` : "";
+  if (duoArmed) {
+    if (!duoTarget) duoArmed.hold = 0;
+    else if (fill(duoArmed)) sendDuoInvite(duoArmed.idx, duoTarget);
+  }
+
+  let text = "", clock = "", ring = 0, cls = "";
+  if (duoIncoming) {
+    const name = EMOTES[duoIncoming.idx].name;
+    text = inviterNear ? `${duoIncoming.name} wants to ${name}: hold X` : `${duoIncoming.name} wants to ${name}: go to them and hold X`;
+    clock = `${duoSecondsLeft(duoIncoming.until, now)}s`;
+    ring = inviterNear ? Math.min(1, duoIncoming.hold / DUO_HOLD) : 0;
+    cls = "is-incoming";
+  } else if (duoArmed) {
+    const name = EMOTES[duoArmed.idx].name;
+    text = duoTarget ? `Hold X: ${name} with ${duoTarget.peer?.name || "operator"}` : `${name}: walk up to a teammate and hold X`;
+    clock = `${duoSecondsLeft(duoArmed.until, now)}s`;
+    ring = duoTarget ? Math.min(1, duoArmed.hold / DUO_HOLD) : 0;
+    cls = "is-armed";
+  } else if (duoOutgoing) {
+    text = `${EMOTES[duoOutgoing.idx].name}: waiting for ${duoOutgoing.name}`;
+    clock = `${duoSecondsLeft(duoOutgoing.until, now)}s`;
+    cls = "is-waiting";
+  }
   duoPromptEl.hidden = !text;
-  if (text) {
-    duoPromptEl.querySelector("span").textContent = text;
-    duoPromptEl.classList.toggle("is-incoming", !!duoIncoming);
-    duoPromptEl.style.setProperty("--fill", String(duoIncoming ? Math.min(1, duoIncoming.hold / DUO_HOLD) : 0));
-  }
+  if (!text) return;
+  if (text !== duoPromptText) duoPromptEl.querySelector("span").textContent = duoPromptText = text;
+  if (clock !== duoPromptClock) duoPromptEl.querySelector(".to-duo-clock").textContent = duoPromptClock = clock;
+  duoPromptEl.classList.toggle("is-incoming", cls === "is-incoming");
+  duoPromptEl.classList.toggle("is-armed", cls === "is-armed");
+  duoPromptEl.classList.toggle("is-waiting", cls === "is-waiting");
+  duoPromptEl.style.setProperty("--fill", String(ring));
 }
 
 function bindRange(id, key, outId, suffix = "") {
@@ -5380,6 +5438,14 @@ function applyEnvironment(map) {
   skyMat.uniforms.uCloudColor.value.set(sk.cloudColor ?? 0xffffff);
   skyMat.uniforms.uCloudShade.value.set(sk.cloudShade ?? 0x8a96a6);
   renderer.toneMappingExposure = map.exposure ?? 1.5;
+  // Bloom keys off the scene's linear light BEFORE tone mapping, so a map
+  // lit bright enough that plain lit surfaces pass the 0.82 default (the
+  // Grinleria's sunlit white marble and ice) glows all over: a white veil
+  // and a blown-out rink on Medium/High. Such a map raises its threshold
+  // (map.bloom) so only real lights and emissives bloom.
+  bloom.threshold = map.bloom?.threshold ?? BLOOM_DEFAULT.threshold;
+  bloom.strength = map.bloom?.strength ?? BLOOM_DEFAULT.strength;
+  bloom.radius = map.bloom?.radius ?? BLOOM_DEFAULT.radius;
 
   scene.fog.color.set(map.fog.color);
   scene.fog.density = map.fog.density;
@@ -5834,7 +5900,8 @@ ssao.minDistance = 0.001;
 ssao.maxDistance = 0.15;
 ssao.output = SSAOPass.OUTPUT.Default;
 composer.addPass(ssao);
-const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.5, 0.82);
+const BLOOM_DEFAULT = { strength: 0.55, radius: 0.5, threshold: 0.82 };   // a map can override (applyEnvironment)
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), BLOOM_DEFAULT.strength, BLOOM_DEFAULT.radius, BLOOM_DEFAULT.threshold);
 composer.addPass(bloom);
 const impactPass = new ShaderPass(ImpactShader);
 composer.addPass(impactPass);
@@ -6988,7 +7055,7 @@ function pollGamepad(dt) {
       streakEnd.padAt = performance.now();
       streakEnd.padShort = !!markingStreak;
     } else if (pressedEdge(15) && !nearbyPackage() && !pickups.nearest(move.pos.x, move.pos.z)
-        && !(isSnd() && sndCanInteract)) {
+        && !(isSnd() && sndCanInteract) && !duoXClaimed) {
       useSelectedStreak();
     }
     if (gpPrev[15] && !btn(15) && streakEnd.padAt) {
@@ -7428,6 +7495,7 @@ function fireOnce(shot = null) {
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
   const up = new THREE.Vector3().crossVectors(right, forward).normalize();
   const muzzle = origin.clone().addScaledVector(forward, 0.35);
+  localShotAt = performance.now();
   if (isPvp()) net.reportShot(muzzle, forward, def.id, !!def.quiet, shot?.level ?? 0);
   if (royale && !def.quiet) royaleNoise(move.pos.x, move.pos.z, net.id);
 
@@ -8355,9 +8423,9 @@ function updatePickupPrompt(dt) {
   // nothing there the same press fires a streak, and counting it here too
   // swapped you onto your secondary every time you called one (Y swaps).
   const padHold = gamepadState.pickup && !(isSnd() && sndCanInteract) && (!!pkg || !!drop);
-  // While a duo invite is up, X accepts it (updateDuo) instead.
+  // While X can accept or send a duo emote, it does that (updateDuo) instead.
   // In a streak, holding X ends it instead (updateStreakControl).
-  const held = !frozenPlayer() && !duoIncoming && !streakControlActive() && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
+  const held = !frozenPlayer() && !duoXClaimed && !streakControlActive() && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
 
   // A package has its own capture clock (BO2: the owner grabs it fast, an
   // enemy stands there stealing it). `canPickup` keeps the instant-swap
@@ -8604,6 +8672,8 @@ function netSnapshot() {
   _netSnapshot.pitch = look.pitch;
   _netSnapshot.stance = move.stance; _netSnapshot.moving = move.moving;
   _netSnapshot.ads = player.holding === "gun" ? currentWeapon()?.adsT || 0 : 0;
+  _netSnapshot.reload = player.holding === "gun" ? localReloadK() : 0;
+  _netSnapshot.reloadTime = currentWeapon()?.reloadTime || 2.3;
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
   _netSnapshot.weapon = player.holding === "melee" && player.melee
     ? player.melee.def.id
@@ -8712,8 +8782,9 @@ function spawnForTeam(team, forId = net.id, { sideOnly = spawnOpening || isSnd()
   const ffa = !!currentMode().ffa;
   const own = new Set(!ffa && spawnSides ? spawnSides[spawnSideFor(team)] : pts.map((_, i) => i));
   let candidates = sideOnly ? [...own] : pts.map((_, i) => i);
-  // Bots path on the ground floor only (one flow field at y 0): an upstairs
-  // spawn (Undergrin's ticket hall) would leave one wandering up there.
+  // Bots spawn on the ground floor: they take the stairs fine now (bots.js
+  // planStair), but a bot dropped in an upstairs room (Undergrin's ticket
+  // hall) still opens the match far from the fight.
   if (groundOnly || bots.byId?.(forId)) {
     const ground = candidates.filter((i) => (pts[i].y || 0) < 3);
     if (ground.length) candidates = ground;
@@ -8896,6 +8967,7 @@ function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = 
   const dir = _botAim.clone().sub(_botMuzzle).normalize();
   remoteShotFx(_botMuzzle, dir, wid);
   killcam.noteShot(kcClock, bot.id, _botMuzzle, dir, wid);
+  noteRigShot(bot.id);
   if (net.active) net.reportShotAs(bot.id, _botMuzzle, dir, wid);
 
   if (!hit) {
@@ -8964,6 +9036,7 @@ function updateBotAntiAir(dt) {
     const dir = _botAim.clone().sub(_botMuzzle).normalize();
     const wid = b.weaponId || "problem416";
     remoteShotFx(_botMuzzle, dir, wid);
+    noteRigShot(b.id);
     if (net.active) net.reportShotAs(b.id, _botMuzzle, dir, wid);
     if (hit) {
       spawnImpactBurst(a.pos, 0xffd08a, 4);
@@ -12560,6 +12633,18 @@ function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
 }
 
 let localLower = 0;
+/* Third-person shooting and reloading (character.js _gripSupport): when we
+   last fired, and how far through the current reload we are (0 = none). */
+let localShotAt = -Infinity;
+function localReloadK() {
+  const w = currentWeapon();
+  return w?.reloading && w.reloadTime > 0 ? Math.min(0.999, Math.max(0.001, 1 - w.reloadT / w.reloadTime)) : 0;
+}
+/* A bot fired: its body brings the gun up (remote humans: net.js "shot"). */
+function noteRigShot(id) {
+  const p = net.peers.get(id);
+  if (p) p.shotAt = performance.now();
+}
 let localThrowT = 0;   // the third-person body's overhand throw, counting down
 let localBlockT = 0;   // the third-person body in the saber guard, 0..1
 
@@ -12720,6 +12805,9 @@ function updateLocalRig(dt) {
       kind: player.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
     } : null,
     recoil: hold === "gun" ? Math.min(1, (currentWeapon()?.viewKickKnockback || 0) * 7) : 0,
+    ads: hold === "gun" ? currentWeapon()?.adsT || 0 : 0,
+    fired: (performance.now() - localShotAt) / 1000,
+    reload: hold === "gun" ? localReloadK() : 0,
     block: localBlockT = damp(localBlockT, saberBlock.active || kbShield.active ? 1 : 0, 14, dt),
     parry: saberParry.sample(),
   });
@@ -15103,8 +15191,8 @@ if (/[?&]tohooks=1/.test(location.search)) {
     els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap, modeId: () => modeId, spawner: () => spawner,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
     settings, radialStick, padLookTurn, hitboxLab: () => hitboxLab, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,
-    duo: () => ({ target: duoTarget?.netId || null, outgoing: duoOutgoing, incoming: duoIncoming }),
-    findDuoTarget, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
+    duo: () => ({ target: duoTarget?.netId || null, armed: duoArmed, outgoing: duoOutgoing, incoming: duoIncoming, xClaimed: duoXClaimed }),
+    nearestDuoTeammate, armDuo, sendDuoInvite, keys, setEmote: (idx, role = 0) => { emote = EMOTES[idx] ? { idx, t: 0, role } : null; },
     closePauseMenu, openPauseMenu, currentWeapon, tryReload, switchWeapon, pfArms, setAds: (v) => { adsHeld = !!v; },
     kbRepair, kbShield, saberFrac: () => (activeMeleeMesh?.userData.saber || activeMeleeMesh?.userData.halo)?.frac ?? null,
     loadState: () => ({ open: loadScreen.isOpen, hold: loadHold, warm: loadWarm, target: loadTarget, staging: isStaging(), stageT, status: document.querySelector(".to-mapload-status")?.textContent || "" }),

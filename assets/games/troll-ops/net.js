@@ -305,6 +305,9 @@ export class Net {
         p.clan = typeof m.cl === "string" ? m.cl.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) : "";
         p.card = typeof m.cc === "string" ? m.cc.slice(0, 32) : null;
         p.swivel = m.sv | 0;
+        // Third-person reload: progress and length; the RemotePlayer runs it on.
+        p.reload = Math.max(0, Math.min(1, +m.rl || 0));
+        p.reloadTime = +m.rt || 2.3;
         p.hero = m.hr || null;
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
@@ -314,6 +317,7 @@ export class Net {
         break;
       }
       case "shot": {
+        this.peer(m.id).shotAt = performance.now();   // their body brings the gun up
         this.h.onRemoteShot?.(this.peer(m.id), m);
         break;
       }
@@ -443,6 +447,8 @@ export class Net {
         em: local.emote || undefined,
         bl: local.block ? 1 : undefined,
         ad: local.ads > 0.01 ? round2(local.ads) : undefined,   // aiming down sights, 0..1
+        rl: local.reload > 0 ? round2(local.reload) : undefined,   // reload progress, 0..1
+        rt: local.reload > 0 ? Math.round(local.reloadTime * 10) / 10 : undefined,   // ...and its length, s
         ro: local.roll > 0 ? round2(local.roll) : undefined,    // Royale landing roll, 0..1
         dr: local.drop || undefined,   // Royale drop: 1 bus, 2 freefall, 3 glider
         fc: local.face && local.face !== "grin:og" ? local.face : undefined,   // cosmetics.js face
@@ -508,6 +514,8 @@ export class Net {
     p.deaths = bot.deaths;
     p.botSkill = bot.skill || null;
     p.level = botLevel(bot.id);
+    p.reload = bot.reloadProgress?.() || 0;
+    p.reloadTime = bot.holdingSecondary ? 1.5 : 2.3;
     p.hero = bot.hero || null;   // U Mad Bro? (the wire carries it as hr below)
     // The wire "state" message sets this on every OTHER client (case "state"
     // above); the bot-hosting client never routes its own bots' state through
@@ -536,6 +544,8 @@ export class Net {
       hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,
       w: p.weapon, tm: bot.team, n: bot.name, k: bot.kills | 0, d: bot.deaths | 0,
       ad: bot.ads > 0.01 ? round2(bot.ads) : undefined,
+      rl: p.reload > 0 ? round2(p.reload) : undefined,
+      rt: p.reload > 0 ? p.reloadTime : undefined,
       ro: bot.roll > 0 ? round2(bot.roll) : undefined,
       dr: bot.dropCode || undefined,
       bs: Math.max(0, BOT_SKILLS.indexOf(bot.skill)),

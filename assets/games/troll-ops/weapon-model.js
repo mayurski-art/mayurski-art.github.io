@@ -1017,6 +1017,11 @@ function buildBaseMesh(def, skin) {
   hand.position.copy(grip.position);
   hand.rotation.copy(grip.rotation);
   group.add(hand);
+  // Where the third-person rig puts its trigger hand (character.js
+  // _gripSupport). Without it the body fell back to a one-handed forearm
+  // mount (user: "the gun is only being held with one hand").
+  group.userData.gripPos = grip.position.clone();
+  if (isPistol) group.userData.pistol = true;
   // The support hand rides the forend, not the group, so the PF arm lookup
   // (direct children) can't find it: hand it over up front.
   if (pumpSupport) group.userData.pfAnchors = [hand, pumpSupport];

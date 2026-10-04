@@ -5,7 +5,8 @@
 //   fp   first person: you stay in your own eyes and see your hands do it
 //        (`fp(t)` gives hand targets and camera motion for game.js); other
 //        players see the body version (`pose`)
-//   duo  two teammates: aim at one, pick it, they hold X to accept, both
+//   duo  two teammates: pick it, hold X by a teammate to send it, they come
+//        and hold X by you within 30 s to accept (game.js updateDuo), both
 //        snap face to face `dist` apart and play their half (`pose[0]` for
 //        whoever invited, `pose[1]` for whoever accepted)
 //
@@ -16,7 +17,8 @@
 // Arm angles follow character.js: positive x raises an arm forward, positive
 // z swings the left arm out (the right arm out is negative z).
 
-import { DANCES, setHandPose, setFace, resetSecondaryJoints } from "./character.js?v=to-hb4";
+import * as THREE from "three";
+import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand } from "./character.js?v=to-hb4-em1";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -88,6 +90,39 @@ function poseDab(rig, t) {
   p.elbowL.rotation.x += 1.6 * lean; p.elbowR.rotation.x += 1.6 * lean;
   p.chest.rotation.x -= 0.15 * lean;
   head(rig, 0.45 * on - 0.15 * lean, 0.5 * on, 0);
+  done(rig);
+}
+
+/* Middle fingers (user, after the troll NFT pre-reveal art): both arms flung
+   up and out, elbows bent down at the sides, forearms straight up, a middle
+   finger on each, the head cocked with that grin. The fingers jab in turn
+   to a little bounce. */
+const _birdT = new THREE.Vector3(), _birdPoleL = new THREE.Vector3(-1, -0.9, 0.2), _birdPoleR = new THREE.Vector3(1, -0.9, 0.2);
+const BIRD_SECONDS = 4;
+const BIRD_TWIST = PI / 2;
+function poseBirdTP(rig, t) {
+  const p = rig.parts;
+  base(rig);
+  const s = rig.scale, w = rig.build;
+  const up = env(t, 0, 0.3, BIRD_SECONDS - 0.45, BIRD_SECONDS);
+  const beat = t * PI * 2 * 1.6;
+  const bounce = Math.abs(Math.sin(beat / 2)) * up;
+  p.hips.position.y = rig.hipY - bounce * 0.025 * s;
+  p.kneeL.rotation.x = -bounce * 0.12; p.kneeR.rotation.x = -bounce * 0.12;
+  p.legL.rotation.x = bounce * 0.06; p.legR.rotation.x = bounce * 0.06;
+  // Chest out, a lean back and a shimmy from side to side.
+  p.torso.rotation.set(-0.06 * up, Math.sin(beat / 2) * 0.1 * up, Math.sin(beat / 2) * 0.05 * up);
+  p.chest.rotation.x = -0.08 * up;
+  for (const side of [-1, 1]) {
+    const jab = Math.max(0, Math.sin(beat + (side > 0 ? PI : 0))) * up;
+    // From hanging at the side to up beside the head, out past its edge.
+    _birdT.set(side * (0.28 + up * 0.1) * s * w, (-0.6 + up * (0.7 + jab * 0.06)) * s, (-0.02 - up * 0.06) * s);
+    reachHand(rig, side, _birdT, side < 0 ? _birdPoleL : _birdPoleR);
+    setHandPose(rig, side, up > 0.35 ? "bird" : "open");
+    // The back of the hand to the front, so the finger reads.
+    (side < 0 ? p.wristL : p.wristR).quaternion.setFromAxisAngle(side < 0 ? rig.armRestL : rig.armRestR, side * BIRD_TWIST * up);
+  }
+  head(rig, -0.08 * up, 0.1 * up * Math.sin(beat / 4), (0.3 + Math.sin(beat / 2) * 0.06) * up);
   done(rig);
 }
 
@@ -286,6 +321,7 @@ export const EMOTES = [
   { id: "duodance", name: "Duo dance", kind: "duo", pose: [duoDanceLead, duoDancePartner], dist: 1.3 },
   // Last in the list so every older emote keeps its wire code.
   { id: "sad", name: "Sad trollface", kind: "tp", pose: poseSadTP, seconds: 4.2 },
+  { id: "bird", name: "Middle fingers", kind: "tp", pose: poseBirdTP, seconds: BIRD_SECONDS },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;

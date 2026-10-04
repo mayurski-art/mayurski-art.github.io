@@ -6,9 +6,9 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4";
-import { poseEmoteCode } from "./emotes.js?v=hb4";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1";
+import { poseEmoteCode } from "./emotes.js?v=hb4-em1";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4";
@@ -588,12 +588,20 @@ export class RemotePlayer {
       t: Math.min(1, this.melee.t / this.melee.total),
       kind: this.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
     } : null;
+    // Their reload: the wire's progress (15 Hz) run on smoothly in between.
+    const wireRl = sword ? 0 : this.peer.reload || 0;
+    if (!wireRl) this.reloadK = 0;
+    else if (wireRl !== this.reloadSeen || !this.reloadK) this.reloadK = wireRl;
+    else this.reloadK = Math.min(0.999, this.reloadK + dt / (this.peer.reloadTime || 2.3));
+    this.reloadSeen = wireRl;
     if (em && poseEmoteCode(this.rig, em, this.emoteT)) {
       // posed
     } else poseHumanoid(this.rig, {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
       hold: sword ? "melee" : "gun", swing, block: this.blockT, ads: sword ? 0 : this.ads,
+      fired: this.peer.shotAt ? (performance.now() - this.peer.shotAt) / 1000 : Infinity,
+      reload: this.reloadK,
       parry: this.parry.sample(),
     });
 

@@ -8,16 +8,17 @@
 // operator (game.js's menuEmoteWheel).
 //
 // The emotes live in emotes.js. Each slice is tagged by kind: 1P (first
-// person), 3P (third person) or DUO. Duo emotes are greyed out until the
-// crosshair is on a teammate (setDuoTarget), and can't be picked while grey.
+// person), 3P (third person) or DUO. Picking a duo emote arms it (game.js:
+// walk up to a teammate and hold X to send it). Duo slices are greyed out
+// where there's no teammate to share one with (setDuo), e.g. solo or FFA.
 
-import { EMOTES } from "./emotes.js?v=hb4";
+import { EMOTES } from "./emotes.js?v=hb4-em1";
 
 export { EMOTES };
 
 // A little travel before a slice lights up, so a twitch on open doesn't pick.
 const DEADZONE = 22;
-const RADIUS = 146;   // px from the centre to each slice
+const RADIUS = 166;   // px from the centre to each slice (16 of them)
 const KIND_TAG = { fp: "1P", tp: "3P", duo: "DUO" };
 
 export class EmoteWheel {
@@ -28,6 +29,7 @@ export class EmoteWheel {
     this.dx = 0;
     this.dy = 0;
     this.duoTarget = null;
+    this.duoAllowed = false;
 
     this.el = document.createElement("div");
     this.el.className = "to-emote-wheel";
@@ -71,18 +73,19 @@ export class EmoteWheel {
     this.paintHub();
   }
 
-  /* Who the crosshair is on (a teammate's name), or null. Duo slices light
-     up only while there is one. */
-  setDuoTarget(name) {
-    const next = name || null;
-    if (next === this.duoTarget) return;
+  /* Whether duo emotes can be used here at all (a teammate to share one
+     with), and the teammate in reach right now, if any (for the hub). */
+  setDuo(allowed, nearName = null) {
+    const next = nearName || null;
+    if (!!allowed === this.duoAllowed && next === this.duoTarget) return;
+    this.duoAllowed = !!allowed;
     this.duoTarget = next;
     if (this.pick >= 0 && this.disabled(this.pick)) this.pick = -1;
     this.paint();
     this.paintHub();
   }
 
-  disabled(i) { return EMOTES[i]?.kind === "duo" && !this.duoTarget; }
+  disabled(i) { return EMOTES[i]?.kind === "duo" && !this.duoAllowed; }
 
   open() {
     if (this.isOpen) return;
@@ -142,8 +145,8 @@ export class EmoteWheel {
   }
 
   paintHub() {
-    this.hub.querySelector("span").textContent = this.duoTarget
-      ? `Duo with ${this.duoTarget}`
-      : "aim at a teammate for DUO";
+    this.hub.querySelector("span").textContent = !this.duoAllowed
+      ? "DUO needs a teammate"
+      : this.duoTarget ? `DUO: ${this.duoTarget} is close` : "DUO: pick, then hold X by a teammate";
   }
 }

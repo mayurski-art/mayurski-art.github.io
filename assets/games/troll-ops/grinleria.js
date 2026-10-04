@@ -730,6 +730,11 @@ export const GRINLERIA = {
   sun: { color: 0xfff1d8, intensity: 2.3, pos: [22, 60, 14] },
   hemi: { sky: 0xeaf2ff, ground: 0x9a8e78, intensity: 1.25 },
   ambient: { color: 0xfff8ee, intensity: 0.75 },
+  // Sun through the vault + the concourse lights put the white marble and
+  // the ice well over the default 0.82 bloom threshold (linear, before tone
+  // mapping), so Medium/High wore a white veil and a blown-out rink. At 1.2
+  // only the light fixtures, LED strips and the sun on glass glow.
+  bloom: { threshold: 1.2 },
   build: buildGrinleria,
   spawns: LAYOUT.spawns,
 };

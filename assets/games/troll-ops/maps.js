@@ -11,7 +11,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6e";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc";
-import { GRINLERIA } from "./grinleria.js?v=hg6e";
+import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e";
 import { SURFACES } from "./surface-textures.js?v=hg6e";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
@@ -1621,6 +1621,113 @@ function groundSurface(g, w, d) {
   return m;
 }
 
+/* Every flight of steps on the map, found in the colliders, as { a, b }
+   (foot, top: feet height), the same shape api.stairs records. The bots and
+   the K9s only know a floor is reachable if a link says so, and only
+   api.stairs used to leave one: the stairs a map builds itself (Pentagrin's
+   stair runs, the Grinleria's escalators, the island's K.stairs...) were
+   invisible, so bots never went up them (user, 2026-10-04: "bots should be
+   smart enough to climb stairs").
+
+   A flight is a chain of boxes, each butting onto the one before along x or
+   z, each top a step higher (what a walker steps up), shallow (a tread, not
+   a floor) and overlapping the last side to side by a walkable width. Its
+   foot is just short of the first tread at the height under it, its top
+   just past the last tread on whatever floor it lands on; a run that lands
+   in a wall or on nothing isn't a way up and is dropped. `known`: links
+   already laid (api.stairs); a flight matching one isn't added twice. */
+export function findStairs(colliders, known = []) {
+  const RISE_MIN = 0.08, RISE_MAX = 0.42, TREAD_MAX = 1.3, TOUCH = 0.12, WIDE = 0.6;
+  const boxes = colliders.filter((c) => c.max.y > 0.05 && c.max.y < 80
+    && c.max.x - c.min.x > 0.15 && c.max.z - c.min.z > 0.15);
+  boxes.sort((p, q) => p.max.y - q.max.y);
+  const tops = boxes.map((c) => c.max.y);
+  const firstAbove = (y) => {
+    let lo = 0, hi = tops.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (tops[m] < y) lo = m + 1; else hi = m; }
+    return lo;
+  };
+  // [along, across, sign]
+  const AX = [["x", "z", 1], ["x", "z", -1], ["z", "x", 1], ["z", "x", -1]];
+  const span = (c, k) => c.max[k] - c.min[k];
+  // next[d][i]: the tread after box i going way d (-1: none)
+  const next = AX.map(() => new Int32Array(boxes.length).fill(-1));
+  const hasPrev = AX.map(() => new Uint8Array(boxes.length));
+  for (let i = 0; i < boxes.length; i++) {
+    const A = boxes[i];
+    for (let d = 0; d < 4; d++) {
+      const [k, s, sg] = AX[d];
+      if (span(A, k) > TREAD_MAX) continue;
+      let best = -1, bestO = WIDE;
+      for (let j = firstAbove(A.max.y + RISE_MIN); j < boxes.length && tops[j] <= A.max.y + RISE_MAX; j++) {
+        const B = boxes[j];
+        const gap = sg > 0 ? B.min[k] - A.max[k] : A.min[k] - B.max[k];
+        if (Math.abs(gap) > TOUCH) continue;
+        const o = Math.min(A.max[s], B.max[s]) - Math.max(A.min[s], B.min[s]);
+        if (o > bestO) { bestO = o; best = j; }
+      }
+      if (best >= 0) { next[d][i] = best; hasPrev[d][best] = 1; }
+    }
+  }
+  // Something tall at a walker's body height here (a wall, a rail).
+  const blockedAt = (x, y, z) => {
+    for (const c of colliders) {
+      if (c.max.y <= y + 0.45 || c.min.y >= y + 1.7) continue;
+      if (x > c.min.x - 0.25 && x < c.max.x + 0.25 && z > c.min.z - 0.25 && z < c.max.z + 0.25) return true;
+    }
+    return false;
+  };
+  const supportAt = (x, z, ceiling) => {
+    let best = 0;
+    for (const c of colliders) {
+      if (c.max.y > ceiling + 1e-3) continue;
+      if (x < c.min.x - 0.2 || x > c.max.x + 0.2 || z < c.min.z - 0.2 || z > c.max.z + 0.2) continue;
+      if (c.max.y > best) best = c.max.y;
+    }
+    return best;
+  };
+  const out = [];
+  const near = (p, q) => Math.hypot(p.x - q.x, p.z - q.z) < 1.6 && Math.abs(p.y - q.y) < 0.6;
+  for (let d = 0; d < 4; d++) {
+    const [k, s, sg] = AX[d];
+    for (let i = 0; i < boxes.length; i++) {
+      if (hasPrev[d][i] || next[d][i] < 0) continue;
+      const chain = [i];
+      for (let j = next[d][i]; j >= 0 && chain.length < 200; j = next[d][j]) {
+        chain.push(j);
+        if (span(boxes[j], k) > TREAD_MAX) break;            // a landing: the flight ends on it
+      }
+      // a landing that ended the chain is the floor it lands on, not a tread
+      if (span(boxes[chain[chain.length - 1]], k) > TREAD_MAX) chain.pop();
+      if (chain.length < 3) continue;
+      const first = boxes[chain[0]], last = boxes[chain[chain.length - 1]];
+      const rise = (last.max.y - first.max.y) / (chain.length - 1);
+      // the walkable band all the treads share, side to side
+      let s0 = -Infinity, s1 = Infinity;
+      for (const n of chain) { s0 = Math.max(s0, boxes[n].min[s]); s1 = Math.min(s1, boxes[n].max[s]); }
+      if (s1 - s0 < WIDE) continue;
+      const mid = (s0 + s1) / 2;
+      const pt = (along) => (k === "x" ? { x: along, y: 0, z: mid } : { x: mid, y: 0, z: along });
+      const f = pt(sg > 0 ? first.min[k] - 0.6 : first.max[k] + 0.6);
+      let t = pt(sg > 0 ? last.max[k] + 0.6 : last.min[k] - 0.6);
+      f.y = supportAt(f.x, f.z, first.max.y - rise * 0.5);
+      t.y = supportAt(t.x, t.z, last.max.y + 0.3);
+      // Tops out against a wall (you step off sideways): the top is the last
+      // tread itself.
+      if (blockedAt(t.x, t.y, t.z) || Math.abs(t.y - last.max.y) > 0.36) {
+        t = pt((last.min[k] + last.max[k]) / 2);
+        t.y = last.max.y;
+      }
+      if (first.max.y - f.y > RISE_MAX + 0.05) continue;     // the first tread is a ledge off nothing
+      if (t.y - f.y < 1.0) continue;                         // a kerb, not a floor change
+      if (blockedAt(f.x, f.y, f.z) || blockedAt(t.x, t.y, t.z)) continue;
+      if ([...known, ...out].some((l) => (near(l.a, f) && near(l.b, t)) || (near(l.b, f) && near(l.a, t)))) continue;
+      out.push({ a: f, b: t, found: true });
+    }
+  }
+  return out;
+}
+
 /* Fills `colliders` and `arena` in place — the movement controller holds
    references to both, so they must be mutated rather than replaced. */
 export function buildMap(id, { colliders, arena }) {
@@ -1652,6 +1759,8 @@ export function buildMap(id, { colliders, arena }) {
   // Decals and loose clutter (map-dressing.js), laid once every collider is
   // known so the scatter keeps clear of them.
   dressMap(root, colliders, map);
+  // Plus every flight the map built by hand (findStairs above).
+  stairs.push(...findStairs(colliders, stairs));
 
   return {
     root,

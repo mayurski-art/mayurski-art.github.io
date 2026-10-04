@@ -2770,7 +2770,7 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 /* ---- Emote wheel (hold H in a match, see emote-wheel.js) ---- */
 .to-emote-wheel {
   position: absolute; left: 50%; top: 50%; z-index: 30;
-  width: 420px; height: 420px; margin: -210px 0 0 -210px;
+  width: 460px; height: 460px; margin: -230px 0 0 -230px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(10,14,12,.55) 0 22%, rgba(10,14,12,.8) 23% 100%);
   border: 1px solid rgba(255,255,255,.14);
@@ -2781,7 +2781,7 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 .is-emoting .to-crosshair { display: none; }
 /* Placed round the ring by emote-wheel.js (inline left/top). */
 .to-emote-slice {
-  position: absolute; width: 70px; height: 46px; margin: -23px 0 0 -35px; padding: 2px 4px;
+  position: absolute; width: 62px; height: 46px; margin: -23px 0 0 -31px; padding: 2px 3px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border-radius: 10px; border: 1px solid rgba(255,255,255,.14);
   background: rgba(255,255,255,.06); color: #dfe6da;
@@ -2792,7 +2792,7 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 .to-emote-slice.is-tp i { color: #7cc8ff; }
 .to-emote-slice.is-fp i { color: #ffd84d; }
 .to-emote-slice.is-duo i { color: #8fe36a; }
-/* Duo emotes wait for a teammate in the crosshair. */
+/* Duo emotes need a teammate in the match. */
 .to-emote-slice.is-disabled { opacity: .3; filter: grayscale(1); cursor: not-allowed; }
 .to-emote-slice:hover, .to-emote-slice.is-picked {
   background: rgba(127,224,102,.22); border-color: #7fe066; color: #fff; transform: scale(1.06);
@@ -2920,7 +2920,8 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 .to-chat-chan.is-team { background: #8fe36a; }
 .to-chat-input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: #fff; font: inherit; }
 
-/* Duo emote invite (game.js updateDuo): "<name> wants to Dap up: hold X",
+/* Duo emote request (game.js updateDuo): "<name> wants to Dap up: hold X" with
+   its 30 s countdown, or "Hold X: Dap up with <name>" to send one,
    with a ring that fills while X is held. Outgoing: "waiting for <name>". */
 .to-duo-prompt {
   position: absolute; left: 50%; top: 64%; transform: translateX(-50%); z-index: 14;
@@ -2932,6 +2933,13 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 }
 .to-duo-prompt[hidden] { display: none; }
 .to-duo-prompt.is-incoming { border-color: #8fe36a; }
+.to-duo-prompt.is-armed { border-color: rgba(143, 227, 106, .5); }
+/* The request's 30-second countdown. */
+.to-duo-clock {
+  font-family: "DM Mono", monospace; font-weight: 400; font-size: 12px; color: #0b100a;
+  background: #8fe36a; border-radius: 999px; padding: 1px 7px; min-width: 2.6em; text-align: center;
+}
+.to-duo-prompt.is-waiting .to-duo-clock { background: rgba(255, 255, 255, .16); color: #eaf5e4; }
 .to-duo-ring {
   width: 22px; height: 22px; border-radius: 50%; flex: none;
   background: conic-gradient(#8fe36a calc(var(--fill, 0) * 360deg), rgba(255, 255, 255, .15) 0);
@@ -2943,7 +2951,7 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 @media (prefers-reduced-motion: reduce) { .to-duo-prompt .to-duo-ring { animation: none; } }
 
 /* Emotes on touch: the wheel shrinks to fit a landscape phone's height. */
-body.to-touch-play .to-emote-wheel { transform: scale(calc(var(--k) * .78)); }
+body.to-touch-play .to-emote-wheel { transform: scale(calc(var(--k) * .7)); }
 body.to-touch-play .to-touch-emote {
   left: auto; right: calc(var(--sr) + 24px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
   width: calc(56px * var(--k)); height: calc(30px * var(--k)); font-size: calc(9px * var(--k));

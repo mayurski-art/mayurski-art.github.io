@@ -82,47 +82,76 @@ async function place(page, x, z, yaw) {
 }
 // A at z=+2 looking toward -z (yaw 0), B at z=-2.
 const spot = await A.evaluate(() => { const p = window.__trollOps.move.pos; return { x: p.x, z: p.z }; });
-await place(A, spot.x, spot.z + 2, 0);
-await place(B, spot.x, spot.z - 2, Math.PI);
+// Start 8 m apart: too far to send or accept.
+await place(A, spot.x, spot.z + 4, 0);
+await place(B, spot.x, spot.z - 4, Math.PI);
 await sleep(1500);   // let positions reach the other tab
 
 const DAP = await A.evaluate(() => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes("Dap up")));
-// Wheel open, aiming at B: duo slices enabled and B is the target.
-const aimed = await A.evaluate(async () => {
+const bId = await B.evaluate(() => window.__trollOps.net.id);
+// Wheel open: duo slices usable without aiming at anyone (a teammate is in the match).
+const wheel = await A.evaluate(async () => {
   const T = window.__trollOps;
+  T.look.yaw = Math.PI / 2;   // looking away from B on purpose
   T.emoteWheel.open();
   await new Promise((r) => setTimeout(r, 600));
-  return { target: T.duo().target, disabled: T.emoteWheel.slices.filter((b) => b.classList.contains("is-disabled")).length, hub: T.emoteWheel.el.querySelector(".to-emote-hub span").textContent };
+  return { disabled: T.emoteWheel.slices.filter((b) => b.classList.contains("is-disabled")).length, hub: T.emoteWheel.el.querySelector(".to-emote-hub span").textContent };
 });
-const bId = await B.evaluate(() => window.__trollOps.net.id);
-check("aiming at a teammate lights the duo slices", aimed.target === bId && aimed.disabled === 0, JSON.stringify(aimed));
-// Turn away: duo slices grey out again.
-const away = await A.evaluate(async () => {
-  const T = window.__trollOps;
-  T.look.yaw = Math.PI / 2;
-  await new Promise((r) => setTimeout(r, 600));
-  return { target: T.duo().target, disabled: T.emoteWheel.slices.filter((b) => b.classList.contains("is-disabled")).map((b) => b.textContent) };
-});
-check("not aiming at anyone greys out the duo emotes", !away.target && away.disabled.length === 4, JSON.stringify(away));
+check("duo slices are usable without aiming at anyone", wheel.disabled === 0 && /hold X/.test(wheel.hub), JSON.stringify(wheel));
 
-// Aim back and pick Dap up -> invite to B.
-const invited = await A.evaluate(async (dap) => {
+// Pick Dap up: armed, nothing sent yet.
+const armed = await A.evaluate(async (dap) => {
   const T = window.__trollOps;
-  T.look.yaw = 0;
-  await new Promise((r) => setTimeout(r, 600));
   T.emoteWheel.pick = dap;
   T.emoteWheel.close();
-  return T.duo().outgoing;
+  await new Promise((r) => setTimeout(r, 300));
+  const el = document.querySelector(".to-duo-prompt");
+  return { armed: T.duo().armed, outgoing: T.duo().outgoing, text: el?.hidden ? "" : el?.textContent };
 }, DAP);
-check("picking a duo emote sends an invite", invited && invited.to === bId, JSON.stringify(invited));
+check("picking a duo emote arms it (no request yet)", armed.armed?.idx === DAP && !armed.outgoing && /walk up to a teammate/.test(armed.text) && /[0-9]+s/.test(armed.text), JSON.stringify(armed));
+
+// Holding X 8 m away sends nothing.
+await A.evaluate(() => window.__trollOps.keys.add("KeyX"));
+await sleep(1200);
+await A.evaluate(() => window.__trollOps.keys.delete("KeyX"));
+const far = await A.evaluate(() => window.__trollOps.duo());
+check("holding X far from everyone sends nothing", !far.outgoing && !!far.armed, JSON.stringify({ out: far.outgoing, armed: !!far.armed }));
+
+// Walk up (2 m apart) and hold X: the request goes to B.
+await place(A, spot.x, spot.z + 1, Math.PI / 2);
+await place(B, spot.x, spot.z - 1, Math.PI);
+await sleep(900);
+const near = await A.evaluate(async () => {
+  const T = window.__trollOps;
+  const el = document.querySelector(".to-duo-prompt");
+  const before = { target: T.duo().target, text: el?.hidden ? "" : el?.textContent, claimed: T.duo().xClaimed };
+  T.keys.add("KeyX");
+  await new Promise((r) => setTimeout(r, 1200));
+  T.keys.delete("KeyX");
+  return { ...before, outgoing: T.duo().outgoing, armed: T.duo().armed, weapon: T.currentWeapon().def.id };
+});
+check("next to a teammate, the prompt says hold X to send", near.target === bId && /Hold X: Dap up with/.test(near.text) && near.claimed, JSON.stringify(near));
+check("holding X by a teammate sends the request", near.outgoing?.to === bId && !near.armed, JSON.stringify(near.outgoing));
 await sleep(700);
 const prompt = await B.evaluate(() => {
   const T = window.__trollOps, el = document.querySelector(".to-duo-prompt");
-  return { incoming: T.duo().incoming, text: el?.hidden ? "" : el?.textContent };
+  return { incoming: T.duo().incoming, text: el?.hidden ? "" : el?.textContent, clock: el?.querySelector(".to-duo-clock")?.textContent };
 });
-check("the teammate gets a hold-X prompt", !!prompt.incoming && /hold X/.test(prompt.text) && /Dap up/.test(prompt.text), JSON.stringify(prompt));
+const secs = parseInt(prompt.clock, 10);
+check("the teammate gets the request with a 30 s countdown", !!prompt.incoming && /Dap up/.test(prompt.text) && secs >= 25 && secs <= 30, JSON.stringify(prompt));
 
-// B holds X -> both play, face to face.
+// B walks off: holding X there doesn't accept.
+await place(B, spot.x, spot.z - 6, Math.PI);
+await sleep(900);
+await B.evaluate(() => window.__trollOps.keys.add("KeyX"));
+await sleep(1200);
+await B.evaluate(() => window.__trollOps.keys.delete("KeyX"));
+const away = await B.evaluate(() => { const T = window.__trollOps, el = document.querySelector(".to-duo-prompt"); return { emote: T.emote(), incoming: !!T.duo().incoming, text: el?.textContent }; });
+check("too far away, holding X doesn't accept", !away.emote && away.incoming && /go to them/.test(away.text), JSON.stringify(away));
+
+// B comes back beside A and holds X -> both play, face to face.
+await place(B, spot.x, spot.z - 1, Math.PI);
+await sleep(900);
 await B.evaluate(() => window.__trollOps.keys.add("KeyX"));
 await sleep(1200);
 await B.evaluate(() => window.__trollOps.keys.delete("KeyX"));
@@ -150,6 +179,20 @@ await A.evaluate(() => { const T = window.__trollOps; T.setEmote(4); });
 await sleep(500);
 const tp = await A.evaluate(() => { const T = window.__trollOps; return { rigVisible: T.localRig.root.visible, emoting: T.els.hud.classList.contains("is-emoting") }; });
 check("a third-person emote pulls the camera out", tp.rigVisible === true && tp.emoting === true, JSON.stringify(tp));
+
+// A request runs out after its countdown.
+await Promise.all([A, B].map((p) => p.evaluate(() => window.__trollOps.setEmote(-1))));
+const FIVE = await A.evaluate(() => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes("High five")));
+await A.evaluate((i) => { const T = window.__trollOps; T.move.pos.x = T.player.pos.x; T.armDuo(i); }, FIVE);
+await A.evaluate(() => window.__trollOps.keys.add("KeyX"));
+await sleep(1200);
+await A.evaluate(() => window.__trollOps.keys.delete("KeyX"));
+await sleep(700);
+const gotFive = await B.evaluate(() => !!window.__trollOps.duo().incoming);
+await B.evaluate(() => { window.__trollOps.duo().incoming.until = performance.now() - 1; });
+await sleep(400);
+const expired = await B.evaluate(() => ({ incoming: window.__trollOps.duo().incoming, hidden: document.querySelector(".to-duo-prompt").hidden }));
+check("the request expires when its countdown runs out", gotFive && !expired.incoming && expired.hidden, JSON.stringify({ gotFive, ...expired }));
 
 // Teammates only: an enemy's invite is ignored.
 await B.evaluate(() => { const T = window.__trollOps; T.net.setTeam(T.net.team === "phantom" ? "ghost" : "phantom"); });

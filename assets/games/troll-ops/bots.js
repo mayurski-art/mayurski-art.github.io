@@ -23,6 +23,9 @@ const BOT_HP = 100;
 const BOT_SPEED = 4.2;
 const BOT_RADIUS = 0.36;
 const BOT_HEIGHT = 1.8;
+const CLIMB_HEADROOM = 1.2;       // on a stair (see update's resolveCircle)
+const UPPER_NAV_CELL = 0.55;      // flow-field cell above the ground floor (BotManager navFor)
+const SAME_LEVEL = 0.9;           // a goal this much higher or lower is on another floor: stairs
 const RESPAWN = 5;
 
 const SIGHT_RANGE = 45;
@@ -100,6 +103,25 @@ const between = ([a, b]) => a + Math.random() * (b - a);
 const MELEE_REACH = 1.9;   // keyboard reach (gear.js range 2.0 from the eye), centre to centre
 const MELEE_INTERVAL = 0.95;      // seconds between swings, scaled by skill below
 export const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
+
+/* Taking the high ground (Bot.updatePerch): with nobody in sight, every
+   PERCH_EVERY seconds a bot may (PERCH_CHANCE) head up a stair within
+   PERCH_RANGE and hold the top for PERCH_HOLD seconds before hunting again. */
+const PERCH_FIRST = [6, 14];
+const PERCH_EVERY = [10, 20];
+const PERCH_CHANCE = 0.35;
+const PERCH_RANGE = 45;
+const PERCH_HOLD = [4, 8];
+const PERCH_GIVE_UP = 30;          // seconds to get there before it's dropped
+
+/* Anything tall standing at body height on this spot? */
+function resolveBlocked(colliders, x, z, feetY) {
+  for (const c of colliders) {
+    if (c.max.y <= feetY + 0.45 || c.min.y >= feetY + 1.7) continue;
+    if (x > c.min.x - BOT_RADIUS && x < c.max.x + BOT_RADIUS && z > c.min.z - BOT_RADIUS && z < c.max.z + BOT_RADIUS) return true;
+  }
+  return false;
+}
 
 /* Is target `t` holding a saber guard that faces `from`? Targets carry
    `blocking` (bool), `yaw` and `blockCone` (the saber's deflect.cone,
@@ -227,6 +249,9 @@ class Bot {
     this.acquireT = 0;
     this.lastTargetId = null;
     this.roam = null;
+    this.perch = null;
+    this.perchT = between(PERCH_FIRST);
+    this.stairPlan = null;
     this.flinchT = 0;
     this.stunT = 0;
     this.prevTargetPos = null;
@@ -284,6 +309,7 @@ class Bot {
     // Troll Royale's sky lobby, bus and drop move this bot (royale-drop.js
     // via game.js): no AI, no physics until it lands.
     if (this.airborne) return;
+    this.clock = (this.clock || 0) + dt;
 
     // Mode objective (a hill, a bomb site) and whether the mode has this bot
     // pinned in place mid-plant/defuse. Both optional — TDM passes neither.
@@ -402,6 +428,11 @@ class Bot {
     } else if (stunned) {
       // Staggering: a slow drift, no juke — the window a flash is meant to buy.
       desired = this.wanderStep(dt).multiplyScalar(0.3);
+    } else if (best && this.meleeOnly && (this.climb || Math.abs((best.groundY ?? best.pos.y ?? 0) - this.groundY) >= SAME_LEVEL)) {
+      // Up on a floor above (or below) us: a sword can't reach from here,
+      // so take the stairs to them.
+      desired = this.steerTo(best.id, best, ctx);
+      this.yaw = Math.atan2(-desired.x, -desired.z);
     } else if (best && this.meleeOnly) {
       // Straight at them with a slight weave, all the way in: a sword has
       // no comfortable range to hold.
@@ -437,6 +468,11 @@ class Bot {
       if (objective?.urgent) {
         const toward = this.steerTo(objective.id, objective, ctx);
         desired = toward.addScaledVector(lateral, 0.35).normalize();
+      } else if (this.climb) {
+        // Halfway up a stair: keep going while shooting, rather than strafe
+        // off the side of it.
+        const dir = this.climbStep(ctx);
+        if (dir) desired = dir.addScaledVector(lateral, 0.15).normalize();
       } else if (this.flinchT > 0.15) {
         // A fresh flinch briefly overrides strafing with a hard juke off-line —
         // the instinctive first move a real player makes under fire.
@@ -462,6 +498,20 @@ class Bot {
       // approaches rather than staring at one wall.
       desired = this.wanderStep(dt).multiplyScalar(objective.radius > 2 ? 0.35 : 0);
       this.yaw += dt * 0.9 * this.strafeDir;
+    } else if (!this.meleeOnly && this.updatePerch(dt, ctx)) {
+      // Taking the high ground for a while (updatePerch): up there, then
+      // hold it, turning to watch the approaches.
+      const p = this.perch;
+      if (!p.arrived && Math.hypot(p.x - this.pos.x, p.z - this.pos.z) < 1.2 && Math.abs(p.y - this.groundY) < 0.6) p.arrived = true;
+      if (p.arrived) {
+        desired = new THREE.Vector3();
+        this.yaw += dt * 0.8 * this.strafeDir;
+        p.hold -= dt;
+        if (p.hold <= 0) this.perch = null;
+      } else {
+        desired = this.steerTo(p.id, p, ctx);
+        this.yaw = Math.atan2(-desired.x, -desired.z);
+      }
     } else if (lead) {
       // Nobody in sight: walk the flow field toward the nearest enemy rather
       // than straight at them. Straight-line steering is fine on an open
@@ -514,7 +564,10 @@ class Bot {
     this.pos.x = Math.max(arena.minX + BOT_RADIUS, Math.min(arena.maxX - BOT_RADIUS, this.pos.x));
     this.pos.z = Math.max(arena.minZ + BOT_RADIUS, Math.min(arena.maxZ - BOT_RADIUS, this.pos.z));
     if (arena.edge) clampInsidePolygon(this.pos, arena.edge, BOT_RADIUS);
-    resolveCircle(colliders, this.pos, BOT_RADIUS, this.groundY + this.hopY, BOT_HEIGHT, 0.5);
+    // On a stair, ducking under the floor above where the flight passes
+    // through its stairwell: the slab's edge is lower than head height
+    // part of the way (the U Mad Mansion's), and caught the bots there.
+    resolveCircle(colliders, this.pos, BOT_RADIUS, this.groundY + this.hopY, this.climb ? CLIMB_HEADROOM : BOT_HEIGHT, 0.5);
 
     // Pushing into something and getting nowhere: hop it.
     const wantMove = desired.lengthSq() > 0.25;
@@ -609,6 +662,13 @@ class Bot {
       // Top up while out of contact rather than mid-firefight.
       this.reloadT = RELOAD_TIME;
     }
+  }
+
+  /* 0..1 through the current reload (0 = not reloading), for the body's
+     third-person reload (net.js sends it as `rl`). */
+  reloadProgress() {
+    if (this.holdingSecondary) return this.sidearmReloadT > 0 ? 1 - this.sidearmReloadT / SIDEARM_RELOAD_TIME : 0;
+    return this.reloadT > 0 ? 1 - this.reloadT / RELOAD_TIME : 0;
   }
 
   /* Scope in or out this frame. Moves `ads` toward the goal at the
@@ -707,52 +767,223 @@ class Bot {
     return null;
   }
 
-  /* No target and no route: drift, so they don't stand still looking broken. */
   /* Which way to walk to reach `goal` ({ x, z } and, if it has one, a
      height `y` / `groundY`), stairs included (user, 2026-10-03: "bots
      should also be smart in being able to walk up and down stairs").
      Same level (or no height given, or no stairs on the map): the flow
      field on this bot's level. Another level: the foot of the stair that
-     best leads there (ctx.stairs, from maps.js api.stairs), then straight up
-     or down it, then on from the top. `orNull`: null instead of a
-     straight line when there's no route, so the caller can wander. */
+     best leads there (ctx.stairs: maps.js api.stairs + findStairs, and a
+     zombies map's links), then up or down it, then on from the top.
+     `orNull`: null instead of a straight line when there's no route, so the
+     caller can wander. `goal.static`: a fixed spot (a perch), whose fields
+     are kept for the match rather than pooled. */
   steerTo(id, goal, ctx, orNull = false) {
     const stairs = ctx.stairs || [];
     const here = this.groundY;
     const gy = goal.groundY ?? goal.y;
-    let tx = goal.x, tz = goal.z, key = id, levelY = here;
     if (this.climb) {
-      const e = this.climb.exit;
-      this.climb.t += ctx.dtNow || 0.016;
-      if ((Math.abs(here - e.y) < 0.45 && Math.hypot(e.x - this.pos.x, e.z - this.pos.z) < 1.0) || this.climb.t > 8) this.climb = null;
-      else return new THREE.Vector3(e.x - this.pos.x, 0, e.z - this.pos.z).normalize();
+      const dir = this.climbStep(ctx);
+      if (dir) return dir;
     }
-    if (gy != null && stairs.length && Math.abs(gy - here) >= 1.2) {
-      let best = null, bestS = Infinity;
-      for (let i = 0; i < stairs.length; i++) {
-        const s = stairs[i];
-        for (const [entry, exit, end] of [[s.a, s.b, "a"], [s.b, s.a, "b"]]) {
-          if (Math.abs(entry.y - here) > 0.9 || Math.sign(exit.y - entry.y) !== Math.sign(gy - here)) continue;
-          const cost = Math.hypot(entry.x - this.pos.x, entry.z - this.pos.z)
-            + Math.hypot(exit.x - tx, exit.z - tz) + Math.abs(exit.y - gy) * 4;
-          if (cost < bestS) { bestS = cost; best = { i, entry, exit, end }; }
-        }
-      }
-      if (best) {
-        if (Math.hypot(best.entry.x - this.pos.x, best.entry.z - this.pos.z) < 1.1) {
-          this.climb = { exit: best.exit, t: 0 };
-          return new THREE.Vector3(best.exit.x - this.pos.x, 0, best.exit.z - this.pos.z).normalize();
-        }
-        tx = best.entry.x; tz = best.entry.z; key = `stair${best.i}${best.end}`;
+    // Caught on the treads without a climb on (strafed onto them in a fight,
+    // or knocked off course): finish the flight, whichever way the goal is,
+    // rather than read the field of a "level" that's only a stair.
+    if (stairs.length && this.hopY <= 0) {
+      const on = this.onStair(stairs);
+      if (on) {
+        const { s, len } = on;
+        const lo = s.a.y < s.b.y ? s.a : s.b, hi = lo === s.a ? s.b : s.a;
+        let exit;
+        if (gy == null) exit = Math.hypot(s.a.x - goal.x, s.a.z - goal.z) < Math.hypot(s.b.x - goal.x, s.b.z - goal.z) ? s.a : s.b;
+        else exit = gy > here + 0.3 ? hi : gy < here - 0.3 ? lo : (Math.abs(hi.y - gy) < Math.abs(lo.y - gy) ? hi : lo);
+        this.climb = { entry: exit === s.a ? s.b : s.a, exit, t: 0, limit: len / 2 + 3 };
+        const dir = this.climbStep(ctx);
+        if (dir) return dir;
       }
     }
-    const step = ctx.navFor?.({ id: key, pos: { x: tx, z: tz } }, levelY)?.steer(this.pos.x, this.pos.z);
+    const field = (key, x, z, level, isStatic) => ctx.navFor?.({ id: key, pos: { x, z }, static: isStatic }, level);
+    // The field's own target cell (a goal in a gap too tight for the grid
+    // snaps to the nearest open cell, which can be the one we're in): the
+    // last few metres are a straight walk.
+    const arrived = (f) => {
+      const k = f?.openIndex(this.pos.x, this.pos.z);
+      return k >= 0 && f.dist[k] === 1 && Math.hypot(goal.x - this.pos.x, goal.z - this.pos.z) < 4;
+    };
+    const straight = () => {
+      const v = new THREE.Vector3(goal.x - this.pos.x, 0, goal.z - this.pos.z);
+      return v.lengthSq() > 1e-6 ? v.normalize() : new THREE.Vector3();
+    };
+    let step = null, tried = false;
+    if (gy == null || !stairs.length || Math.abs(gy - here) < SAME_LEVEL) {
+      const f = field(id, goal.x, goal.z, here, goal.static);
+      step = f?.steer(this.pos.x, this.pos.z);
+      tried = true;
+      if (step) return step;
+      if (arrived(f) && (gy == null || Math.abs(gy - here) < 0.6)) return straight();
+    }
+    // Another floor (or no way there on this one: a landing half a floor
+    // short of the goal's): the stair that leads there.
+    if (gy != null && stairs.length && Math.abs(gy - here) >= 0.5) {
+      const plan = this.planStair(id, goal, gy, ctx, field);
+      if (plan) {
+        const { entry, exit, key } = plan;
+        if (Math.hypot(entry.x - this.pos.x, entry.z - this.pos.z) < 1.1) {
+          const len = Math.hypot(exit.x - entry.x, exit.z - entry.z);
+          this.climb = { entry, exit, t: 0, limit: len / 2 + 3 };
+          this.stairPlan = null;
+          const dir = this.climbStep(ctx);
+          if (dir) return dir;
+        }
+        step = field(key, entry.x, entry.z, here, true)?.steer(this.pos.x, this.pos.z);
+        if (step) return step;
+        const v = new THREE.Vector3(entry.x - this.pos.x, 0, entry.z - this.pos.z);
+        if (v.lengthSq() > 1e-6) return v.normalize();
+      }
+    }
+    if (!tried) step = field(id, goal.x, goal.z, here, goal.static)?.steer(this.pos.x, this.pos.z);
     if (step) return step;
-    if (orNull && key === id) return null;
-    const v = new THREE.Vector3(tx - this.pos.x, 0, tz - this.pos.z);
+    if (orNull) return null;
+    const v = new THREE.Vector3(goal.x - this.pos.x, 0, goal.z - this.pos.z);
     return v.lengthSq() > 1e-6 ? v.normalize() : new THREE.Vector3(0, 0, -1);
   }
 
+  /* Up (or down) the flight in this.climb: along its centre line, a little
+     ahead of where the bot is on it, so one that stepped on off-centre
+     straightens up instead of walking off the side of a narrow stair.
+     Null (and the climb over) once it's at the end, or it's taking far too
+     long, or it's been knocked off the side. */
+  climbStep(ctx) {
+    const c = this.climb, e = c.exit, a = c.entry || e;
+    c.t += ctx.dtNow || 0.016;
+    const dx = e.x - a.x, dz = e.z - a.z, len = Math.hypot(dx, dz) || 1;
+    const ux = dx / len, uz = dz / len;
+    const t = (this.pos.x - a.x) * ux + (this.pos.z - a.z) * uz;
+    const done = (Math.abs(this.groundY - e.y) < 0.45 && Math.hypot(e.x - this.pos.x, e.z - this.pos.z) < 0.9) || t > len + 0.3;
+    const side = Math.abs((this.pos.x - a.x) * uz - (this.pos.z - a.z) * ux);
+    if (done || c.t > (c.limit || 8) || side > 2.2) { this.climb = null; return null; }
+    const aim = Math.min(len, Math.max(0, t) + 1.4);
+    const v = new THREE.Vector3(a.x + ux * aim - this.pos.x, 0, a.z + uz * aim - this.pos.z);
+    if (v.lengthSq() < 0.04) v.set(ux, 0, uz);
+    return v.normalize();
+  }
+
+  /* The flight this bot is standing on, partway up: { s, t, len }, or null. */
+  onStair(stairs) {
+    for (const s of stairs) {
+      const dx = s.b.x - s.a.x, dz = s.b.z - s.a.z, len = Math.hypot(dx, dz);
+      if (len < 1 || Math.abs(s.b.y - s.a.y) < 1) continue;
+      const t = ((this.pos.x - s.a.x) * dx + (this.pos.z - s.a.z) * dz) / len;
+      if (t < 0.8 || t > len - 0.8) continue;
+      if (Math.abs((this.pos.x - s.a.x) * dz - (this.pos.z - s.a.z) * dx) / len > 1.0) continue;
+      const y = s.a.y + (s.b.y - s.a.y) * (t / len);
+      if (Math.abs(this.groundY - y) > 0.45) continue;
+      // properly off the floor at either end, not walking past its foot
+      if (this.groundY < Math.min(s.a.y, s.b.y) + 0.6 || this.groundY > Math.max(s.a.y, s.b.y) - 0.6) continue;
+      return { s, t, len };
+    }
+    return null;
+  }
+
+  /* Which stair to take toward `goal` on another level: { entry, exit, key }
+     or null. Ranked by real walking distance along this level's field to
+     its foot (a stair round the far side of a wall isn't "near") and on from
+     its top to the goal along that level's field (one that tops out on some
+     other roof doesn't lead there). Kept for a moment: it's a few field
+     lookups, and a bot dithering between two stairs reaches neither. */
+  planStair(id, goal, gy, ctx, field) {
+    const now = this.clock || 0;
+    const p = this.stairPlan;
+    if (p && p.id === id && now < p.until && Math.abs(p.here - this.groundY) < 0.5) return p.none ? null : p;
+    const stairs = ctx.stairs, here = this.groundY, up = gy > here;
+    const cand = [];
+    for (let i = 0; i < stairs.length; i++) {
+      const s = stairs[i];
+      for (const [entry, exit, end] of [[s.a, s.b, "a"], [s.b, s.a, "b"]]) {
+        if (Math.abs(entry.y - here) > 0.9 || Math.abs(exit.y - entry.y) < 0.5 || (exit.y > entry.y) !== up) continue;
+        // and not on past the goal's floor (up the Ferris wheel to reach a
+        // platform a metre off the ground)
+        if (up ? exit.y > gy + 0.6 : exit.y < gy - 0.6) continue;
+        const rough = Math.hypot(entry.x - this.pos.x, entry.z - this.pos.z)
+          + Math.hypot(exit.x - goal.x, exit.z - goal.z) + Math.abs(exit.y - gy) * 4;
+        cand.push({ i, end, entry, exit, rough });
+      }
+    }
+    cand.sort((m, n) => m.rough - n.rough);
+    const fdist = (f, x, z) => {
+      if (!f) return Infinity;
+      const k = f.openIndex(x, z);
+      return k >= 0 && f.dist[k] ? f.dist[k] * f.cell : Infinity;
+    };
+    let best = null, bestCost = Infinity;
+    for (const c of cand.slice(0, 5)) {
+      const key = `stair${c.i}${c.end}`;
+      const toFoot = Math.hypot(c.entry.x - this.pos.x, c.entry.z - this.pos.z) < 1.5
+        ? 0 : fdist(field(key, c.entry.x, c.entry.z, here, true), this.pos.x, this.pos.z);
+      if (!isFinite(toFoot)) continue;
+      let onward;
+      if (Math.abs(c.exit.y - gy) < 0.6) {
+        onward = fdist(field(id, goal.x, goal.z, c.exit.y, goal.static), c.exit.x, c.exit.z);
+        if (!isFinite(onward)) onward = 200 + Math.hypot(c.exit.x - goal.x, c.exit.z - goal.z);   // a last resort
+      } else {
+        // A landing short of the goal's floor: only worth it if another
+        // flight goes on from there (a funbox's top is a dead end).
+        let next = Infinity;
+        for (const s of stairs) {
+          for (const [en, ex] of [[s.a, s.b], [s.b, s.a]]) {
+            if (Math.abs(en.y - c.exit.y) > 0.9 || (ex.y > en.y) !== up || Math.abs(ex.y - en.y) < 0.5) continue;
+            if (up ? ex.y > gy + 0.6 : ex.y < gy - 0.6) continue;
+            next = Math.min(next, Math.hypot(en.x - c.exit.x, en.z - c.exit.z) * 1.3
+              + Math.hypot(ex.x - goal.x, ex.z - goal.z) * 1.3 + Math.abs(ex.y - gy) * 4);
+          }
+        }
+        if (!isFinite(next)) continue;
+        onward = next;
+      }
+      const cost = toFoot + onward;
+      if (cost < bestCost) { bestCost = cost; best = { id, key, entry: c.entry, exit: c.exit }; }
+    }
+    this.stairPlan = best ? { ...best, here, until: now + 1.2 } : { id, here, until: now + 0.6, none: true };
+    return best;
+  }
+
+  /* Sometimes, with nobody in sight, a bot heads up a stair to hold the
+     high ground for a few seconds instead of always running at whoever's
+     nearest (user: bots should go upstairs on their own, not only when
+     chasing). True while it has a perch to go to or hold. */
+  updatePerch(dt, ctx) {
+    const stairs = ctx.stairs || [];
+    if (this.perch) {
+      const p = this.perch;
+      p.t += dt;
+      if (p.t > PERCH_GIVE_UP && !p.arrived) this.perch = null;
+      return !!this.perch;
+    }
+    this.perchT = (this.perchT ?? between(PERCH_FIRST)) - dt;
+    if (this.perchT > 0 || !stairs.length) return false;
+    this.perchT = between(PERCH_EVERY);
+    if (Math.random() > PERCH_CHANCE) return false;
+    // A stair top within reach; the spot is a step or two past it, so the
+    // bot doesn't park in the stairwell.
+    const tops = [];
+    for (let i = 0; i < stairs.length; i++) {
+      const s = stairs[i];
+      const [lo, hi, end] = s.a.y < s.b.y ? [s.a, s.b, "b"] : [s.b, s.a, "a"];
+      if (hi.y < 1.2 || hi.y - lo.y < 1) continue;
+      if (Math.hypot(hi.x - this.pos.x, hi.z - this.pos.z) > PERCH_RANGE) continue;
+      tops.push({ i, end, lo, hi });
+    }
+    if (!tops.length) return false;
+    const c = tops[Math.floor(Math.random() * tops.length)];
+    const dx = c.hi.x - c.lo.x, dz = c.hi.z - c.lo.z, l = Math.hypot(dx, dz) || 1;
+    let x = c.hi.x, z = c.hi.z;
+    const fx = x + dx / l * 1.5, fz = z + dz / l * 1.5;
+    if (Math.abs(groundHeightAt(ctx.colliders, fx, fz, c.hi.y + 0.3, BOT_RADIUS * 0.8) - c.hi.y) < 0.3
+      && !resolveBlocked(ctx.colliders, fx, fz, c.hi.y)) { x = fx; z = fz; }
+    this.perch = { id: `perch${c.i}${c.end}`, x, y: c.hi.y, z, t: 0, hold: between(PERCH_HOLD), arrived: false, static: true };
+    return true;
+  }
+
+  /* No target and no route: drift, so they don't stand still looking broken. */
   wanderStep(dt) {
     this.wanderT -= dt;
     if (this.wanderT <= 0) {
@@ -775,6 +1006,7 @@ export class BotManager {
     this.fieldPool = new Map();   // [level|]target id -> FlowField, reused across sweeps
     this.fieldBases = new Map();  // level -> the blocked grid every field there copies
     this.frameFields = new Map(); // fields already swept this tick
+    this.staticFields = new Map(); // [level|]fixed spot -> FlowField, for the match
     this.fieldT = 0;
   }
 
@@ -796,6 +1028,7 @@ export class BotManager {
     this.fieldBases.clear();
     this.fieldPool.clear();
     this.frameFields.clear();
+    this.staticFields.clear();
   }
 
   /* Fill the room up to `target` participants, splitting bots across sides. */
@@ -843,12 +1076,54 @@ export class BotManager {
     // bots re-sweeping 100 different island-sized fields every 0.3 s.
     let budget = this.bots.length > 24 ? 6 : Infinity;
 
+    // Which cells are blocked on a level, worked out once and copied into
+    // every field there.
+    const baseFor = (level) => {
+      let base = this.fieldBases.get(level);
+      if (!base) {
+        const src = this.fieldSrc;
+        if (level > 0.5) {
+          // Upstairs, a finer grid: walkways and landings up there are often
+          // only a metre and a half wide (the Grinder's platforms, the top of
+          // a stair), narrower than two coarse cells once the rails are
+          // padded, so the ground floor's grid sealed them off. It only
+          // covers where there's floor at this height, so a fine grid on a
+          // big map (Troll Royale's island) stays small.
+          let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+          for (const c of src.colliders) {
+            if (Math.abs(c.max.y - level) > 0.45) continue;
+            x0 = Math.min(x0, c.min.x); x1 = Math.max(x1, c.max.x);
+            z0 = Math.min(z0, c.min.z); z1 = Math.max(z1, c.max.z);
+          }
+          const a = src.arena;
+          const bounds = x0 > x1 ? { minX: a.minX, maxX: a.minX + 1, minZ: a.minZ, maxZ: a.minZ + 1 }
+            : { minX: Math.max(a.minX, x0 - 2), maxX: Math.min(a.maxX, x1 + 2), minZ: Math.max(a.minZ, z0 - 2), maxZ: Math.min(a.maxZ, z1 + 2) };
+          const cell = a.navCell ? Math.max(UPPER_NAV_CELL, a.navCell / 2) : UPPER_NAV_CELL;
+          base = new FlowField(src.colliders, bounds, level, { cell, needSupport: true });
+        } else {
+          base = new FlowField(src.colliders, src.arena, level || src.floorY, { ...(src.arena.navCell ? { cell: src.arena.navCell } : {}) });
+        }
+        this.fieldBases.set(level, base);
+      }
+      return base;
+    };
     const navFor = (target, levelY = 0) => {
       if (!target || !this.fieldSrc) return null;
       // A field per floor level: an upstairs walker needs the upstairs
       // walls, and only cells with floor under them (not the ground plan).
       const level = Math.max(0, Math.round(levelY * 2) / 2);
       const key = level ? `${level}|${target.id}` : target.id;
+      // A fixed spot (a stair's foot, a perch): swept once and kept for the
+      // match, outside the pool, so lots of them can't evict the chases.
+      if (target.static) {
+        let f = this.staticFields.get(key);
+        if (!f) {
+          f = new FlowField(null, null, 0, { template: baseFor(level) });
+          f.compute(target.pos.x, target.pos.z);
+          this.staticFields.set(key, f);
+        }
+        return f;
+      }
       let f = this.frameFields.get(key);
       if (!f) {
         f = this.fieldPool.get(key);
@@ -861,14 +1136,7 @@ export class BotManager {
           if (this.fieldPool.size >= Math.max(12, this.bots.length * 2)) {
             this.fieldPool.delete(this.fieldPool.keys().next().value);
           }
-          const src = this.fieldSrc;
-          const y = level || src.floorY;
-          let base = this.fieldBases.get(level);
-          if (!base) {
-            base = new FlowField(src.colliders, src.arena, y, { ...(src.arena.navCell ? { cell: src.arena.navCell } : {}), needSupport: level > 0.5 });
-            this.fieldBases.set(level, base);
-          }
-          f = new FlowField(src.colliders, src.arena, y, { template: base });
+          f = new FlowField(null, null, 0, { template: baseFor(level) });
           this.fieldPool.set(key, f);
         }
         f.compute(target.pos.x, target.pos.z);

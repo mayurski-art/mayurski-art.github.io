@@ -348,6 +348,9 @@ function handGeometry(kind, thumb, s) {
     // A fist: a rounded block with the thumb laid across it.
     parts.push(extrude(roundedRect(-0.036 * s, -0.082 * s, 0.072 * s, 0.085 * s, 0.028 * s)));
     parts.push(extrude(roundedRect(-0.009 * s, -0.042 * s, 0.018 * s, 0.042 * s, 0.009 * s), thumb * 1.2, thumb * 0.03 * s, -0.03 * s));
+    // The bird: the same fist with the middle finger standing straight out
+    // of the knuckles (the middle-fingers emote).
+    if (kind === "bird") parts.push(extrude(roundedRect(-0.0095 * s, -0.142 * s, 0.019 * s, 0.075 * s, 0.0095 * s), 0, thumb * -0.004 * s, 0));
   }
   const geo = mergeGeometries(parts);
   parts.forEach((g) => g.dispose());
@@ -364,19 +367,21 @@ function buildHand(parent, side, s, material, armAngle) {
   turn.rotation.y = side * Math.PI / 2;
   const open = new THREE.Mesh(handGeometry("open", side, s), material);
   const fist = new THREE.Mesh(handGeometry("fist", side, s), material);
-  fist.visible = false;
-  open.castShadow = fist.castShadow = true;
-  turn.add(open, fist);
-  return { group: align, turn, open, fist, pose: "open" };
+  const bird = new THREE.Mesh(handGeometry("bird", side, s), material);
+  fist.visible = bird.visible = false;
+  open.castShadow = fist.castShadow = bird.castShadow = true;
+  turn.add(open, fist, bird);
+  return { group: align, turn, open, fist, bird, pose: "open" };
 }
 
-/* "open" or "fist". Cheap to call every frame. */
+/* "open", "fist" or "bird" (middle finger up). Cheap to call every frame. */
 export function setHandPose(rig, side, pose) {
   const h = side < 0 ? rig.hands.L : rig.hands.R;
   if (h.pose === pose) return;
   h.pose = pose;
-  h.open.visible = pose !== "fist";
+  h.open.visible = pose !== "fist" && pose !== "bird";
   h.fist.visible = pose === "fist";
+  h.bird.visible = pose === "bird";
 }
 
 function joint(parent, x = 0, y = 0, z = 0) {
@@ -767,8 +772,8 @@ export function mountHeldWeapon(rig, mesh) {
   // holds it in its own mitts.
   mesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
   rig.held = mesh;
-  if (mesh.userData.supportHandPos && mesh.userData.gripPos) {
-    // Two-handed: placed every frame by _gripSupport.
+  if (mesh.userData.gripPos) {
+    // Two hands, pistols too: placed every frame by _gripSupport.
     mesh.position.set(0, 0, 0);
     mesh.rotation.set(0, 0, 0);
     rig.parts.gunMount.add(mesh);
@@ -1145,10 +1150,163 @@ function _reachArm(rig, pivot, elbow, rest, target, pole) {
   _gQ.copy(pivot.quaternion).invert();
   elbow.quaternion.setFromUnitVectors(rest, _gF.applyQuaternion(_gQ));
 }
-function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, carryRoll = 0 } = {}) {
+/* Put a hand at `target` (chest space) with the elbow bent toward `pole`:
+   the same two-bone IK as the gun hold, for emotes. `side` -1 left, +1 right. */
+const _rhT = new THREE.Vector3();
+export function reachHand(rig, side, target, pole) {
+  const p = rig.parts;
+  const pivot = side < 0 ? p.armL : p.armR, shoulder = side < 0 ? p.shoulderL : p.shoulderR;
+  _rhT.copy(target).sub(pivot.position).sub(shoulder.position);
+  _reachArm(rig, pivot, side < 0 ? p.elbowL : p.elbowR, side < 0 ? rig.armRestL : rig.armRestR, _rhT, pole);
+}
+/* Third-person shooting and reloading (user: "it seems like the gun is only
+   being held with one hand and shot with one hand. we also need reloading
+   animation for third person"). The gun is placed by its stock: the butt
+   sits in the right shoulder pocket and the gun turns about it, so it reads
+   as shouldered from behind; both elbows come out where the camera sees
+   them. At rest it's a low ready (muzzle dipped); a shot brings it up on the
+   aim for a beat (`fired`: seconds since the last shot). `reload` 0..1 plays
+   the mag change: the gun cants and drops, the left hand pulls the mag down
+   to the belt, brings a fresh one up and seats it. Pistols are held in both
+   hands the same way, the left wrapped round the right. */
+const _gM = new THREE.Matrix4(), _gM2 = new THREE.Matrix4(), _gS = new THREE.Vector3();
+const _gW = new THREE.Vector3(), _gB = new THREE.Vector3(), _gSup = new THREE.Vector3(), _gH = new THREE.Vector3();
+const _gPoleL2 = new THREE.Vector3(), _gPoleR2 = new THREE.Vector3(), _gEu = new THREE.Euler(), _gQi = new THREE.Quaternion();
+const _gPistolWrap = new THREE.Vector3(-0.05, -0.025, 0.005), _gPort = new THREE.Vector3(0, 0.03, -0.1);
+function _gunFrame(mesh) {
+  const u = mesh.userData;
+  if (u.buttPos) return u;
+  // The back of the stock at the bore's height (the support point sits on
+  // the handguard's top, the grip below the bore).
+  mesh.updateMatrixWorld(true);
+  _gM.copy(mesh.matrixWorld).invert();
+  const box = new THREE.Box3(), piece = new THREE.Box3();
+  mesh.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    for (let q = o; q && q !== mesh; q = q.parent) if (q.userData.hand) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    box.union(piece.copy(o.geometry.boundingBox).applyMatrix4(_gM2.multiplyMatrices(_gM, o.matrixWorld)));
+  });
+  const boreY = u.supportHandPos ? u.supportHandPos.y - 0.02 : u.gripPos.y + 0.07;
+  u.buttPos = new THREE.Vector3(0, boreY, box.isEmpty() ? u.gripPos.z + 0.22 : box.max.z - 0.01);
+  return u;
+}
+/* How far into the reload pose (0..1): up fast, held, back at the end. */
+const reloadEnv = (k) => (k <= 0 || k >= 1 ? 0 : Math.min(_smooth(Math.min(1, k / 0.1)), _smooth(Math.min(1, (1 - k) / 0.14))));
+const _lerp3 = (out, a, b, t) => out.lerpVectors(a, b, _smooth(Math.max(0, Math.min(1, t))));
+function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, reload = 0, dt = 0.016, carryYaw = 0, carryRoll = 0 } = {}) {
   const mesh = rig.held;
   const p = rig.parts;
   if (!mesh || !mesh.visible || mesh.parent !== p.gunMount) return;
+  const u = mesh.userData;
+  const pistol = !!u.pistol || !u.supportHandPos;
+  // The menu's port-arms carry turns the gun across the body: old placement.
+  if (carryYaw || carryRoll) return _gripSupportCarry(rig, { pitch, recoil, ads, carryYaw, carryRoll });
+  _gunFrame(mesh);
+  const s = rig.scale, w = rig.build;
+  const kick = Math.max(0, Math.min(1, recoil));
+  const lean = p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
+  const a = Math.max(0, Math.min(1, ads));
+  // Shooting brings it up fast and it stays up a beat after the last shot.
+  const wantUp = fired < 0.9 ? 1 : 0;
+  rig.fireK = (rig.fireK ?? 0) + (wantUp - (rig.fireK ?? 0)) * Math.min(1, dt * (wantUp ? 18 : 3.5));
+  const rk = reload > 0 && reload < 1 ? reload : 0;
+  const rl = reloadEnv(rk);
+  const up = Math.max(a, rig.fireK) * (1 - rl);
+
+  // Muzzle on the aim when up, dipped into a low ready when not; a reload
+  // tips it up, swings it in and cants the mag well toward the left hand.
+  p.gunMount.rotation.set(
+    pitch * (0.5 + up * 0.5) - (1 - up) * (1 - rl) * 0.3 + kick * 0.12 - lean + rl * 0.3,
+    rl * 0.3,
+    -rl * 0.55,
+  );
+  if (pistol) {
+    // Both arms out, the gun at the eye line when it's up.
+    _gS.set((0.06 - up * 0.055) * s * w, (-0.25 + up * 0.33 - rl * 0.05) * s, (-0.32 - up * 0.2 + rl * 0.08 + kick * 0.03) * s);
+    _gP.copy(u.gripPos).applyEuler(p.gunMount.rotation);
+  } else {
+    // The butt in the right shoulder pocket; scoped, up and in to the cheek.
+    _gS.set((0.085 - a * 0.04 - rl * 0.03) * s * w, (-0.12 + up * 0.09 + a * 0.05 - rl * 0.08) * s, (-0.04 + kick * 0.035) * s);
+    _gP.copy(u.buttPos).applyEuler(p.gunMount.rotation);
+  }
+  p.gunMount.position.copy(_gS).sub(_gP);
+  // Trigger hand to the grip; the elbow winged out, more when shouldered.
+  _gGrip.copy(u.gripPos).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+  _gT.copy(_gGrip).sub(p.armR.position).sub(p.shoulderR.position);
+  _gPoleR2.set(1, pistol ? -1 : -0.55 + up * 0.35, 0.25);
+  _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT, _gPoleR2);
+
+  // Support hand: the handguard (wrapped round the grip on a pistol), or
+  // the reload's path.
+  if (pistol) _gSup.copy(u.gripPos).add(_gPistolWrap);
+  else _gSup.copy(u.supportHandPos);
+  _gSup.applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+  let magOut = 0;
+  const mag = u.magMesh && u.magMesh.parent === mesh ? u.magMesh : null;
+  if (rk) {
+    _gB.set(-0.07 * s * w, -0.5 * s, -0.1 * s);   // the belt pouch
+    if (mag) {
+      _gW.copy(u.magazinePoint).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+      if (rk < 0.12) _lerp3(_gH, _gSup, _gW, rk / 0.12);
+      else if (rk < 0.32) { _lerp3(_gH, _gW, _gB, (rk - 0.12) / 0.2); magOut = 1; }
+      else if (rk < 0.42) { _gH.copy(_gB); _gH.y -= Math.sin(((rk - 0.32) / 0.1) * Math.PI) * 0.04 * s; magOut = 1; }
+      else if (rk < 0.62) { _lerp3(_gH, _gB, _gW, (rk - 0.42) / 0.2); magOut = 1 - _smooth(Math.max(0, (rk - 0.56) / 0.06)); }
+      else if (rk < 0.7) { _gH.copy(_gW); _gH.y += Math.sin(((rk - 0.62) / 0.08) * Math.PI) * 0.035 * s; }   // slap it home
+      else _lerp3(_gH, _gW, _gSup, (rk - 0.7) / 0.15);
+    } else {
+      // Shell by shell: pouch to the loading port, again and again.
+      _gW.copy(u.gripPos).add(_gPort).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+      const loop = 0.5 - 0.5 * Math.cos(Math.max(0, Math.min(1, (rk - 0.08) / 0.8)) * Math.PI * 2 * 4);
+      _lerp3(_gH, _gW, _gB, loop);
+      if (rk < 0.08) _lerp3(_gH, _gSup, _gW, rk / 0.08);
+      else if (rk > 0.88) _lerp3(_gH, _gW, _gSup, (rk - 0.88) / 0.1);
+    }
+    _gT.copy(_gH).sub(p.armL.position).sub(p.shoulderL.position);
+  } else {
+    _gO.copy(_gGrip).sub(p.armL.position).sub(p.shoulderL.position);
+    _gT.copy(_gSup).sub(p.armL.position).sub(p.shoulderL.position);
+    const reach = (rig.upperArm + rig.foreArm) * 0.97;
+    if (_gT.length() > reach) {
+      let lo = 0, hi = 1;
+      for (let i = 0; i < 12; i++) {
+        const mid = (lo + hi) / 2;
+        if (_gP.lerpVectors(_gO, _gT, mid).length() <= reach) lo = mid; else hi = mid;
+      }
+      _gT.lerpVectors(_gO, _gT, lo);
+    }
+  }
+  // Left elbow down and out to the left, where a camera behind can see it.
+  _gPoleL2.set(-1, -0.7, 0.1);
+  _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT, _gPoleL2);
+  setHandPose(rig, -1, "fist");
+  setHandPose(rig, 1, "fist");
+
+  // The mag rides the left hand out and back (gun space, under the palm).
+  if (mag) {
+    if (magOut > 0) {
+      _gQi.setFromEuler(p.gunMount.rotation).invert();
+      _gH.sub(p.gunMount.position).applyQuaternion(_gQi);
+      _gH.y -= 0.05;
+      mag.position.lerpVectors(u.magazinePoint, _gH, magOut);
+      u.magMoved = true;
+    } else if (u.magMoved) {
+      mag.position.copy(u.magazinePoint);
+      u.magMoved = false;
+    }
+  }
+  // Cheek on the stock when scoped: the head dips and leans onto the gun.
+  if (!pistol && a > 0) {
+    p.headPivot.rotation.x += 0.16 * a;
+    p.headPivot.rotation.z -= 0.14 * a;
+  }
+}
+/* The old placement, kept for the menu's port-arms carry (gun turned across
+   the body) and anything without the stock data. */
+function _gripSupportCarry(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, carryRoll = 0 } = {}) {
+  const mesh = rig.held;
+  const p = rig.parts;
+  if (!mesh.userData.supportHandPos) return;
   const s = rig.scale, w = rig.build;
   const kick = Math.max(0, Math.min(1, recoil));
   // Level at the aim, independent of the body's lean (the chest carries it).
