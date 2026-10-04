@@ -112,8 +112,13 @@ export class StrikeTablet {
     if (!this.rt) this.rt = new THREE.WebGLRenderTarget(SNAP, SNAP);
     const r = this.renderer;
     const prevTarget = r.getRenderTarget();
+    // Thin the fog to nothing rather than removing it: fog is part of every
+    // material's shader key, so a fog-less render compiles a second copy of
+    // every shader on the map, and that compile was the first-open freeze.
     const fog = this.scene.fog;
-    this.scene.fog = null;
+    const density = fog?.density, near = fog?.near, far = fog?.far;
+    if (fog?.isFogExp2) fog.density = 0;
+    else if (fog) { fog.near = 1e6; fog.far = 1e6 + 1; }
     try {
       r.setRenderTarget(this.rt);
       r.clear();
@@ -144,7 +149,8 @@ export class StrikeTablet {
       g.fillRect(0, 0, SNAP, SNAP);
     } finally {
       r.setRenderTarget(prevTarget);
-      this.scene.fog = fog;
+      if (fog?.isFogExp2) fog.density = density;
+      else if (fog) { fog.near = near; fog.far = far; }
     }
   }
 

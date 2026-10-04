@@ -50,7 +50,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const frame = () => new Promise((r) => (document.hidden ? setTimeout(r, 16) : requestAnimationFrame(() => r())));
 
 /* `getLive()` returns `{ id, root }` of the map currently in the scene. */
-export function createMapPreloader({ renderer, scene, camera, buildMap, maps, ids, getLive, canRun = () => true }) {
+export function createMapPreloader({ renderer, scene, camera, buildMap, maps, ids, getLive, canRun = () => true, compileScene }) {
+  // game.js passes compileScene so the compile matches how the world is
+  // really drawn (into the composer's buffer, not straight to the screen).
+  const compile = compileScene || (() => (renderer.compileAsync ? renderer.compileAsync(scene, camera) : renderer.compile(scene, camera)));
   const state = new Map();       // id -> { state, progress, error }
   const built = new Map();       // id -> { built, colliders, arena }, insertion order = LRU
   const listeners = new Set();
@@ -110,8 +113,7 @@ export function createMapPreloader({ renderer, scene, camera, buildMap, maps, id
     set(id, { state: "compiling", progress: 0.82 });
     await uploadTextures(root);
     set(id, { progress: 0.9 });
-    if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
-    else renderer.compile(scene, camera);
+    await compile();
     set(id, { state: "ready", progress: 1 });
   }
 
@@ -142,8 +144,7 @@ export function createMapPreloader({ renderer, scene, camera, buildMap, maps, id
       try {
         await uploadTextures(b.root);
         set(id, { progress: 0.9 });
-        if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
-        else renderer.compile(scene, camera);
+        await compile();
       } finally {
         scene.remove(b.root);
         b.root.position.y -= PARK_Y;

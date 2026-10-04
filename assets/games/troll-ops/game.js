@@ -26,7 +26,7 @@ import {
 } from "./streak-entities.js?v=vsat2-hk1";
 import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
 import { medalSvg } from "./medals.js?v=to-medals2";
-import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js";
+import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js?v=wu1";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=umb1-wst";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=p5-wst";
@@ -35,7 +35,7 @@ import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2";
-import { createMapPreloader } from "./map-preload.js?v=mp3";
+import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
@@ -1476,12 +1476,18 @@ function pickDroneTarget(from, eyeUp = 1.6, { team = net.team, botId = null } = 
 /* Mark order -> seconds to that pass's first impact. */
 function strikeDelay(i) { return AIRSTRIKE_DELAY - 1 + i * 1.7; }
 
-/* The Lightning Strike tablet (streak-tablet.js), made on first use. */
+/* The Lightning Strike tablet (streak-tablet.js), made during the warm-up
+   (or on first use, if that never ran) so opening it costs only the
+   overhead picture. */
 let strikeTablet = null;
-function openStrikeTablet() {
+function ensureStrikeTablet() {
   if (!strikeTablet) {
     strikeTablet = new StrikeTablet({ host: els.streakMark?.parentElement || document.body, renderer, scene });
   }
+  return strikeTablet;
+}
+function openStrikeTablet() {
+  ensureStrikeTablet();
   const bounds = builtMap?.map?.bounds || ARENA;
   const keyHint = isTouch ? "Tap the map to mark" : gamepadState.connected
     ? "Stick aims · A marks · B undoes" : "Mouse aims · Click marks · Right-click undoes · Esc cancels";
@@ -5387,6 +5393,27 @@ const scene = new THREE.Scene();
 const lightPool = new LightPool(scene);
 scene.fog = new THREE.FogExp2(0x3a4a38, 0.01);
 
+/* Compile the world scene's shaders the way the frame draws them. The world
+   goes through the composer into an offscreen buffer, and three keys every
+   shader on whether a render target is bound (tone mapping and colour space
+   are applied by the output pass instead). Compiling with no target set
+   builds the straight-to-screen variant, which the game never uses, so the
+   real one still compiled on first sight: the first third-person switch,
+   the first streak in the sky. Any off-screen target gives the right key;
+   the compile itself happens synchronously inside compileAsync, so the
+   target only needs to be bound for that call. `lightScene` lets a loose
+   group compile under the world's lights and fog without joining it. */
+const warmTarget = new THREE.WebGLRenderTarget(1, 1);
+function compileWorld(root = scene, cam = camera, lightScene = null) {
+  const prev = renderer.getRenderTarget();
+  renderer.setRenderTarget(warmTarget);
+  try {
+    return renderer.compileAsync ? renderer.compileAsync(root, cam, lightScene) : Promise.resolve(renderer.compile(root, cam, lightScene));
+  } finally {
+    renderer.setRenderTarget(prev);
+  }
+}
+
 /* The sky (map detail pass, phase 1): the map's three-colour gradient, a
    band of haze on the horizon, the sun (a disc and its glow, off for
    indoor and night maps), and a layer of slow clouds lit from the sun's
@@ -5686,6 +5713,7 @@ function loadMap(id) {
 const loadScreen = createMapLoadScreen(els.loading.parentElement);
 const mapPreload = createMapPreloader({
   renderer, scene, camera, buildMap, maps: MAPS, ids: MAP_IDS,
+  compileScene: () => compileWorld(),
   getLive: () => (builtMap ? { id: loadedMapId, root: builtMap.root } : null),
   // Off-map builds never compile behind a live match, only in the menu or
   // under the loading screen.
@@ -10888,9 +10916,103 @@ matchIntro.onEnd = () => document.body.classList.remove("to-intro-on");
    laptop GPU that is hundreds of ms apiece). The map and the bots are already
    in the scene; the rest gets one throwaway stand-in each, parked out of
    sight, compiled, and removed. compileAsync lets the driver compile in
-   parallel where it can, so the countdown keeps ticking meanwhile. */
+   parallel where it can, so the countdown keeps ticking meanwhile.
+
+   It runs every match, streak models included: each map brings its own
+   lights, and the light count is part of every shader's key, so last
+   match's shaders don't fit this one.
+
+   The guns get stand-ins too, both copies: the first-person one and the one
+   the third-person body holds. Only the equipped gun is ever built
+   (setActiveWeaponMesh), so the secondary, and the body's gun the first
+   time you go third person, used to compile on the spot. The stand-ins are
+   kept (never drawn) until the next warm-up, because three frees a shader
+   once the last material using it is disposed, and every weapon swap
+   disposes the gun it puts away. */
 const WARM_MODELS = ["care-package", "helicopter", "hunter-drone", "recon-drone", "strike-jet", "k9-dog", "vtol-warship"];
-let warmedOnce = false;
+let warmKeep = [];                 // last warm-up's stand-ins, holding their shaders
+const warmedGuns = new Set();      // gunWarmKey()s those stand-ins cover
+const gunWarmKey = (def) => `${def.id}:${JSON.stringify(def.attachments || {})}`;
+
+/* Every gun this match can put in your hands: the loadout's two, or the
+   whole Gun Game rack. */
+function matchGunDefs() {
+  const mode = currentMode();
+  const defs = Object.values(player.weapons || {}).map((w) => w.def);
+  if (mode.ladder) {
+    for (const id of mode.ladder) {
+      let def = resolveWeapon(id, defaultLoadoutFor(id));
+      if (mode.tuneWeapon) def = mode.tuneWeapon(def);
+      defs.push(def);
+    }
+  }
+  const seen = new Set();
+  return defs.filter((d) => d && !seen.has(gunWarmKey(d)) && seen.add(gunWarmKey(d)));
+}
+
+/* First-person and third-person stand-ins for `defs` (and the melee
+   weapon's third-person copy), not yet attached anywhere. */
+function gunStandIns(defs, melee) {
+  const fp = new THREE.Group(), tp = new THREE.Group();
+  fp.visible = false;
+  for (const def of defs) {
+    fp.add(buildWeaponMesh(def));
+    const g = stripLights(buildWeaponMesh(def));
+    g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    tp.add(g);
+  }
+  if (melee) tp.add(buildMeleeMesh(melee, false, { held3p: true }));
+  return { fp, tp };
+}
+
+function disposeStandIns(objs) {
+  for (const obj of objs) obj.traverse((o) => {
+    if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+    if (o.material) for (const m of [].concat(o.material)) m.dispose?.();
+  });
+}
+
+/* compile() doesn't upload textures; do the stand-ins' now too. */
+function uploadStandInTextures(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of [].concat(o.material)) {
+      if (!m) continue;
+      for (const k of ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap", "alphaMap", "bumpMap"]) {
+        const t = m[k];
+        if (t?.isTexture && t.image) { try { renderer.initTexture(t); } catch { /* uploads on first draw */ } }
+      }
+    }
+  });
+}
+
+/* Guns compiled against the world and the viewmodel scene, keeping them
+   in `keep`. */
+async function warmGuns(defs, melee, keep) {
+  const { fp, tp } = gunStandIns(defs, melee);
+  keep.push(fp, tp);
+  tp.position.set(0, -200, 0);
+  weaponRig.add(fp);
+  try {
+    uploadStandInTextures(fp);
+    uploadStandInTextures(tp);
+    await Promise.all([
+      compileWorld(tp, camera, scene),
+      renderer.compileAsync(fp, weaponCamera, weaponScene),
+    ]);
+    for (const d of defs) warmedGuns.add(gunWarmKey(d));
+  } finally {
+    weaponRig.remove(fp);
+  }
+}
+
+/* A class change on respawn brings guns the countdown never saw. */
+function warmNewGuns() {
+  if (!renderer.compileAsync || gameState !== "playing") return;
+  const fresh = matchGunDefs().filter((d) => !warmedGuns.has(gunWarmKey(d)));
+  if (fresh.length) warmGuns(fresh, null, warmKeep).catch(() => {});
+}
+
 async function warmShaders() {
   if (!renderer.compileAsync) return;
   const stand = new THREE.Group();
@@ -10898,19 +11020,28 @@ async function warmShaders() {
   for (const def of Object.values(THROWABLE_DEFS)) {
     stand.add(new THREE.Mesh(grenades.geo, grenades.matFor(def)));
   }
+  const kept = [];
+  ensureStrikeTablet();
   scene.add(stand);
   try {
-    if (!warmedOnce) {
-      const models = await Promise.all(WARM_MODELS.map((m) => loadModel(m).catch(() => null)));
-      for (const m of models) if (m) stand.add(m);
-    }
-    await renderer.compileAsync(scene, camera);
-    await renderer.compileAsync(weaponScene, weaponCamera);
-    warmedOnce = true;
+    const models = (await Promise.all(WARM_MODELS.map((m) => loadModel(m).catch(() => null)))).filter(Boolean);
+    for (const m of models) stand.add(m);
+    kept.push(...models);
+    uploadStandInTextures(stand);
+    warmedGuns.clear();
+    await Promise.all([
+      compileWorld(scene, camera),
+      renderer.compileAsync(weaponScene, weaponCamera),
+      warmGuns(matchGunDefs(), player.melee?.def, kept),
+    ]);
   } catch (e) {
     // Only ever a head start; the frame will compile whatever this missed.
   } finally {
     scene.remove(stand);
+    for (const m of kept) m.parent?.remove(m);
+    const old = warmKeep;
+    warmKeep = kept;
+    disposeStandIns(old);
   }
 }
 
@@ -11327,6 +11458,7 @@ function prepareSndRound() {
   look.yaw = yawTowardCentre(sp);
   look.pitch = 0;
   setActiveWeaponMesh(equipFromLoadout());
+  warmNewGuns();
 
   if (isPvp() && net.isBotHost()) {
     bots.reviveAll((team, id) => botSpawn(team, id, { sideOnly: true }));
@@ -12272,6 +12404,7 @@ function respawnPlayer() {
   player.spawnGuard = SPAWN_GUARD;
   applyHeroLoadout();
   setActiveWeaponMesh(equipFromLoadout());
+  warmNewGuns();
   applyInfectionLoadout();
   els.respawn.hidden = true;
 }
