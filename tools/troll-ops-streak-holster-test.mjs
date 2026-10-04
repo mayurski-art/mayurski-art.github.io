@@ -57,7 +57,10 @@ await sleep(500);
 await page.evaluate(() => { const T = window.__trollOps; T.closePauseMenu(); if (T.isStaging()) T.endStaging(); T.breakSpawnGuard(); });
 const close = () => page.evaluate(() => { const T = window.__trollOps; if (!document.getElementById("to-pause").hidden) T.closePauseMenu(); });
 
-const until = (fn, ms = 15000) => page.waitForFunction(fn, null, { timeout: ms, polling: 30 }).then(() => true, () => false);
+const until = (fn, ms = 15000) => page.waitForFunction(fn, null, { timeout: ms, polling: 30 }).then(() => true, (e) => {
+  if (!/Timeout/.test(e.message)) console.log(`  (wait failed: ${e.message.split("\n")[0]})`);
+  return false;
+});
 const view = () => page.evaluate(() => {
   const T = window.__trollOps;
   return {
@@ -164,20 +167,23 @@ const holsterThenTablet = async (id) => {
   return { holstered: h.holding === "melee" && !!h.holster, up, dive };
 };
 
-// Lightning Strike: holster, tablet dive, the strike map; mark three spots.
-await fromMelee();
-const ls = await holsterThenTablet("airstrike");
-const lsOpen = await until(() => window.__trollOps.strikeTablet()?.isOpen, 8000);
-await shot(page, "5-airstrike-c-map.png");
-// Marks in the map corner farthest from us: a strike on our own head kills us
-// and respawns us on the gun, which the Warship check below would trip on.
-const deaths0 = await page.evaluate(() => window.__trollOps.player.deaths);
-await page.evaluate(() => {
+// The three strike marks go in the map corner farthest from us: a strike on
+// our own head kills us and respawns us on the primary, which the checks
+// after it would trip on.
+const markFarCorner = () => page.evaluate(() => {
   const T = window.__trollOps, st = T.strikeTablet(), { cx, cz, span } = st.view;
   const u = (T.move.pos.x - cx) / span + 0.5, v = (T.move.pos.z - cz) / span + 0.5;
   st.cursor.v = v < 0.5 ? 0.92 : 0.08;
   for (const du of [0, 0.04, 0.08]) { st.cursor.u = (u < 0.5 ? 0.84 : 0.08) + du; st.place(); }
 });
+
+// Lightning Strike: holster, tablet dive, the strike map; mark three spots.
+await fromMelee();
+const ls = await holsterThenTablet("airstrike");
+const lsOpen = await until(() => window.__trollOps.strikeTablet()?.isOpen, 8000);
+await shot(page, "5-airstrike-c-map.png");
+const deaths0 = await page.evaluate(() => window.__trollOps.player.deaths);
+await markFarCorner();
 const lsFired = await until(() => !window.__trollOps.streaks.ready("airstrike") && !window.__trollOps.markingStreak(), 10000);
 const lsBack = await until(() => window.__trollOps.player.holding === "melee", 15000);
 await sleep(400);
@@ -225,6 +231,64 @@ await sleep(600);
 await shot(page, "5-dragonfire-d-back.png");
 check("Dragonfire off melee: holster, dive, drone cam, melee back after",
   df.holstered && df.up && df.dive && dfView && dfBack, JSON.stringify({ ...df, dfView, dfBack, ...(await view()) }));
+
+/* ---- 6. the marking streaks off the secondary: Care Package (thrown, and
+   cancelled) and Lightning Strike. Back on the same sidearm after each. */
+const fromSecondary = async () => {
+  await close();
+  await page.evaluate(() => { const T = window.__trollOps; T.clearStreakLocks(); T.switchWeapon("secondary"); });
+  await sleep(400);
+  return page.evaluate(() => { const T = window.__trollOps; return T.player.holding === "gun" && T.currentWeapon().def.id === T.player.secondaryId; });
+};
+const onSecondary = () => page.evaluate(() => { const T = window.__trollOps; return T.player.holding === "gun" && T.currentWeapon().def.id === T.player.secondaryId; });
+
+// Care package, thrown: marker up, throw it (spends it), back on the secondary.
+// (Counted, not ready(): the cancel in section 3 left one banked.)
+const cpOn = await fromSecondary();
+const cpCharges = () => page.evaluate(() => window.__trollOps.streaks.charges.carepackage || 0);
+const cp0 = await page.evaluate(() => { const T = window.__trollOps; T.streaks.grant("carepackage"); const n = T.streaks.charges.carepackage; T.callStreak("carepackage"); return n; });
+const cpUp = await until(() => window.__trollOps.player.holding === "streak" && window.__trollOps.markingStreak() === "carepackage", 5000);
+await sleep(400);
+await shot(page, "6-carepackage-a-marker.png");
+await page.evaluate(() => window.__trollOps.throwMarker());
+await sleep(150);
+await shot(page, "6-carepackage-b-throw.png");
+const cpSpent = (await cpCharges()) === cp0 - 1 && !(await page.evaluate(() => window.__trollOps.markingStreak()));
+const cpBack = await until(() => window.__trollOps.player.holding !== "streak", 10000) && await onSecondary();
+await sleep(400);
+await shot(page, "6-carepackage-c-back.png");
+check("Care Package off the secondary: marker up, thrown, back on the secondary",
+  cpOn && cpUp && cpSpent && cpBack, JSON.stringify({ cpOn, cpUp, cpSpent, cpBack, ...(await view()) }));
+
+// Care package, cancelled: still banked, back on the secondary.
+await fromSecondary();
+await page.evaluate(() => { const T = window.__trollOps; T.streaks.grant("carepackage"); T.callStreak("carepackage"); });
+await until(() => window.__trollOps.player.holding === "streak", 5000);
+await sleep(300);
+await page.evaluate(() => window.__trollOps.cancelMark());
+const ccBack = await until(() => window.__trollOps.player.holding !== "streak", 10000) && await onSecondary();
+const ccBanked = (await cpCharges()) === cp0;   // the one granted for it, still there
+check("...cancelled off the secondary: still banked, back on the secondary", ccBack && ccBanked, JSON.stringify({ ccBack, ccBanked, ...(await view()) }));
+
+// Lightning Strike: tablet dive, the map, three marks, back on the secondary.
+const lsOn = await fromSecondary();
+const deaths1 = await page.evaluate(() => window.__trollOps.player.deaths);
+await page.evaluate(() => { const T = window.__trollOps; T.streaks.grant("airstrike"); T.callStreak("airstrike"); });
+const sUp = await until(() => window.__trollOps.player.holding === "streak", 5000);
+const sDive = await until(() => !!window.__trollOps.tabletDive(), 3000);
+await sleep(250);
+await shot(page, "6-airstrike-a-dive.png");
+const sOpen = await until(() => window.__trollOps.strikeTablet()?.isOpen, 8000);
+await shot(page, "6-airstrike-b-map.png");
+await markFarCorner();
+const sFired = await until(() => !window.__trollOps.streaks.ready("airstrike") && !window.__trollOps.markingStreak(), 10000);
+const sBack = await until(() => window.__trollOps.player.holding !== "streak", 15000) && await onSecondary();
+await sleep(400);
+await shot(page, "6-airstrike-c-back.png");
+check("Lightning Strike off the secondary: dive, map, strike, back on the secondary",
+  lsOn && sUp && sDive && sOpen && sFired && sBack, JSON.stringify({ lsOn, sUp, sDive, sOpen, sFired, sBack, ...(await view()) }));
+await sleep(4000);   // let the bombs land
+check("...and that strike didn't land on us either", !(await page.evaluate((d) => window.__trollOps.player.deaths > d, deaths1)));
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();
