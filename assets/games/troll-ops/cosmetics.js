@@ -8,7 +8,7 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_TINTS } from "./character.js?v=to-hb4-em1";
+import { FACE_TINTS, FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1";
 
 const KEY = "trollops:cosmetics";
 
@@ -21,13 +21,23 @@ export const TINTS = [
   { id: "blue", name: "Blue" }, { id: "pink", name: "Pink" }, { id: "purple", name: "Purple" },
   { id: "red", name: "Red" }, { id: "stone", name: "Stone" },
 ];
+// Face coverings (character.js FACE_COVERINGS): worn over the lower face.
+export const COVERINGS = [
+  { id: "", name: "None" },
+  { id: "bandana-blue", name: "Blue bandana" },
+  { id: "bandana-red", name: "Red bandana" },
+  { id: "bandana-black", name: "Black bandana" },
+  { id: "bandana-green", name: "Green bandana" },
+];
 const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
 const TINT_IDS = new Set(TINTS.map((t) => t.id));
 
-/* A face key off the wire or storage, or the default when it's not one we know. */
+/* A face key off the wire or storage, or the default when it's not one we
+   know: "expression:tint", plus ":covering" when one's worn. */
 export function cleanFaceKey(key) {
-  const [e, t] = String(key || "").split(":");
-  return EXPR_IDS.has(e) && TINT_IDS.has(t) ? `${e}:${t}` : "grin:og";
+  const [e, t, c] = String(key || "").split(":");
+  if (!EXPR_IDS.has(e) || !TINT_IDS.has(t)) return "grin:og";
+  return FACE_COVERINGS[c] ? `${e}:${t}:${c}` : `${e}:${t}`;
 }
 
 export function loadCosmetics() {
@@ -112,14 +122,50 @@ export class CosmeticsPanel {
       b.addEventListener("click", () => this.set({ tint: t.id }));
       this.tintBox.appendChild(b);
     }
+    this.coverBox = sec("Face covering", "Tie something over the grin. It still shows through.");
+    this.coverBox.className = "to-cos-faces";
+    this.coverBox.setAttribute("role", "radiogroup");
+    this.coverBox.setAttribute("aria-label", "Face covering");
+    const art = new Image();
+    art.src = new URL(EXPRESSIONS[0].img, import.meta.url).href;
+    for (const cv of COVERINGS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "to-cos-face";
+      b.dataset.cover = cv.id;
+      b.setAttribute("role", "radio");
+      const thumb = document.createElement("span");
+      thumb.className = "to-cos-thumb";
+      const img = document.createElement("img");
+      img.alt = "";
+      img.draggable = false;
+      // the face with this covering on it, drawn once the art has loaded
+      const draw = () => {
+        const c = document.createElement("canvas");
+        c.width = 800; c.height = 730;
+        const g = c.getContext("2d");
+        g.drawImage(art, 0, 0, 800, 730);
+        if (cv.id) g.drawImage(coveringCanvas(cv.id, art), 0, 0);
+        img.src = c.toDataURL();
+        thumb.style.setProperty("--art", `url("${img.src}")`);
+      };
+      if (art.complete && art.naturalWidth) draw(); else art.addEventListener("load", draw);
+      thumb.appendChild(img);
+      const name = document.createElement("span");
+      name.textContent = cv.name;
+      b.append(thumb, name);
+      b.addEventListener("click", () => this.set({ cover: cv.id }));
+      this.coverBox.appendChild(b);
+    }
     this.paint();
   }
 
   get face() { return this.state.face; }
 
-  set({ expr, tint }) {
-    const [e0, t0] = this.state.face.split(":");
-    this.state.face = cleanFaceKey(`${expr || e0}:${tint || t0}`);
+  set({ expr, tint, cover }) {
+    const [e0, t0, c0 = ""] = this.state.face.split(":");
+    const c = cover ?? c0;
+    this.state.face = cleanFaceKey(`${expr || e0}:${tint || t0}${c ? `:${c}` : ""}`);
     saveCosmetics(this.state);
     this.paint();
     this.onChange?.(this.state.face);
@@ -136,6 +182,12 @@ export class CosmeticsPanel {
     }
     for (const b of this.tintBox.children) {
       const on = b.dataset.tint === t;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-checked", String(on));
+    }
+    const cover = this.state.face.split(":")[2] || "";
+    for (const b of this.coverBox.children) {
+      const on = b.dataset.cover === cover;
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-checked", String(on));
     }

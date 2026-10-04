@@ -83,9 +83,12 @@ export const FACE_TINTS = {
 };
 const FACE_MATS = new Map();
 export function faceMaterial(key = "grin:og") {
+  // a third part is the face covering (FACE_COVERINGS); the material is
+  // the same with or without one
+  const [expr, tint] = String(key).split(":");
+  key = `${expr}:${tint}`;
   let m = FACE_MATS.get(key);
   if (m) return m;
-  const [expr, tint] = String(key).split(":");
   const base = FACE_ART[expr] || TROLLFACE_HEAD_MAT;
   const color = FACE_TINTS[tint] ?? 0xffffff;
   if (color === 0xffffff) m = base;
@@ -96,6 +99,111 @@ export function faceMaterial(key = "grin:og") {
   }
   FACE_MATS.set(key, m);
   return m;
+}
+
+/* Face coverings (cosmetics.js): a bandana tied over the lower face, drawn
+   in the trollface's own style (user's reference: a flat colour with a
+   heavy black outline, knotted at the side, the grin still showing
+   through in the middle) on a board the size of the head, laid just in
+   front of it and just behind it (the head is a flat double-sided board).
+   The third part of the face key ("grin:og:bandana-blue"). */
+export const FACE_COVERINGS = {
+  "bandana-blue": { fill: "#3a14f0", shade: "#2a0cb0" },
+  "bandana-red": { fill: "#c8202a", shade: "#8a1018", paisley: true },
+  "bandana-black": { fill: "#1c1c22", shade: "#08080a", paisley: true },
+  "bandana-green": { fill: "#2f8a3a", shade: "#1e5a26" },
+};
+const COVER_TEX = new Map();
+export function coveringCanvas(id, art = null) {
+  const spec = FACE_COVERINGS[id];
+  const c = document.createElement("canvas");
+  c.width = 800; c.height = 730;   // the artwork's own size, so it lines up
+  const g = c.getContext("2d");
+  if (!spec) return c;
+  const band = new Path2D();
+  band.moveTo(48, 262);
+  band.bezierCurveTo(170, 300, 300, 318, 420, 318);
+  band.bezierCurveTo(560, 318, 680, 290, 772, 250);
+  band.bezierCurveTo(790, 330, 780, 430, 742, 520);
+  band.bezierCurveTo(700, 610, 650, 680, 590, 726);
+  band.bezierCurveTo(430, 700, 250, 650, 150, 590);
+  band.bezierCurveTo(80, 520, 40, 400, 48, 262);
+  g.save();
+  g.clip(band);
+  g.fillStyle = spec.fill;
+  g.fillRect(0, 0, 800, 730);
+  // a darker fold under the chin
+  g.fillStyle = spec.shade;
+  g.beginPath();
+  g.moveTo(150, 590); g.bezierCurveTo(300, 660, 470, 700, 590, 726); g.lineTo(600, 640);
+  g.bezierCurveTo(470, 620, 320, 580, 170, 540); g.fill();
+  if (spec.paisley) {
+    // the classic paisley teardrops and dots, in white
+    g.strokeStyle = "rgba(255,255,255,.8)"; g.fillStyle = "rgba(255,255,255,.8)"; g.lineWidth = 5;
+    for (const [x, y, r] of [[120, 420, 22], [210, 560, 18], [700, 360, 22], [660, 520, 20], [520, 640, 16]]) {
+      g.beginPath(); g.ellipse(x, y, r, r * 1.5, 0.6, 0, Math.PI * 2); g.stroke();
+      g.beginPath(); g.arc(x, y, r * 0.35, 0, Math.PI * 2); g.fill();
+    }
+  }
+  // the grin shows through the middle, and the ink over all of it
+  const r = g.createRadialGradient(410, 450, 60, 410, 450, 300);
+  r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.7, "rgba(255,255,255,1)"); r.addColorStop(0.75, "rgba(255,255,255,0)");
+  g.fillStyle = r;
+  g.save(); g.scale(1, 0.62); g.translate(0, 450 / 0.62 - 450);
+  g.fillRect(0, 0, 800, 1200); g.restore();
+  if (art) { g.globalCompositeOperation = "multiply"; g.drawImage(art, 0, 0, 800, 730); g.globalCompositeOperation = "source-over"; }
+  g.restore();
+  g.lineJoin = "round";
+  g.strokeStyle = "#0a0a0a"; g.lineWidth = 14;
+  g.stroke(band);
+  // the knot and its two ears, off the left side
+  const knot = (x, y, rx, ry, rot) => {
+    g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+    g.fillStyle = spec.fill; g.fill(); g.lineWidth = 11; g.stroke();
+  };
+  knot(34, 178, 30, 60, 0.35);
+  knot(6, 268, 26, 54, -1.2);
+  knot(40, 250, 30, 30, 0);
+  g.lineWidth = 8;
+  g.beginPath(); g.moveTo(70, 300); g.lineTo(96, 360); g.moveTo(84, 285); g.lineTo(120, 300); g.stroke();
+  return c;
+}
+function coveringMaterial(id) {
+  let m = COVER_TEX.get(id);
+  if (m) return m;
+  const c = coveringCanvas(id);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  m = new THREE.MeshStandardMaterial({
+    map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.55,
+    transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, roughness: 0.85,
+    polygonOffset: true, polygonOffsetFactor: -2,
+  });
+  // redraw with the ink once the artwork has loaded
+  const img = new Image();
+  img.onload = () => { const d = coveringCanvas(id, img); c.getContext("2d").clearRect(0, 0, 800, 730); c.getContext("2d").drawImage(d, 0, 0); t.needsUpdate = true; };
+  img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+  COVER_TEX.set(id, m);
+  return m;
+}
+/* Wear (or take off) the covering named in the rig's face key. */
+function syncCovering(rig) {
+  const head = rig.parts?.head;
+  if (!head || !head.userData.trollface) return;
+  const id = String(rig.face || "").split(":")[2] || "";
+  if (rig.coveringShown === id) return;
+  rig.coveringShown = id;
+  for (const o of head.userData.covering || []) head.remove(o);
+  head.userData.covering = [];
+  if (!FACE_COVERINGS[id]) return;
+  const mat = coveringMaterial(id);
+  for (const z of [0.004, -0.004]) {
+    const o = new THREE.Mesh(head.geometry, mat);
+    o.position.z = z;
+    o.renderOrder = 1;
+    head.add(o);
+    head.userData.covering.push(o);
+  }
 }
 
 /* Put `mood` ("sad") on a rig's face, or with no mood its own pick back.
@@ -1136,6 +1244,7 @@ function _poseDanceWave(rig, t) {
    and head, and it would visibly slip off them in fast motion. */
 export function poseHumanoid(rig, arg) {
   if (rig.parts.head.userData.trollface && rig.parts.head.material !== faceMaterial(rig.face)) setFace(rig);
+  syncCovering(rig);
   _poseHumanoid(rig, arg);
   if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);
   if (arg.hold === "melee") _meleeSupport(rig);
