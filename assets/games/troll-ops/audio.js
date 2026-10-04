@@ -164,6 +164,7 @@ export class GameAudio {
     // shot is a whisper anyway, and every one was a stack of new nodes.
     if (at && this._far(at, SHOT_CULL)) return;
     if (def.candleShot) { this.candleShot(def.chargeLevel || 0, volume, at); return; }
+    if (def.revolver) { this.revolverShot(volume, at); return; }
     const heavy = Math.min(1, (def.damage * (def.pellets || 1)) / 90);
     const quiet = !!def.quiet;
 
@@ -189,6 +190,78 @@ export class GameAudio {
     if (!quiet) {
       this._noise({ duration: 0.035, gain: 0.28 * volume, type: "highpass", freq: 3000, at });
     }
+  }
+
+  /* Single-action revolver: a hard black-powder crack with a boom under it,
+     the frame ringing for a moment, and a slapback off the false fronts. */
+  revolverShot(volume = 1, at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.03, gain: 0.42 * volume, type: "highpass", freq: 2600, at });
+    this._noise({ duration: 0.22, gain: 0.46 * volume, type: "lowpass", freq: 2300, sweepTo: 260, at });
+    this._tone({ freq: 150, to: 42, duration: 0.24, gain: 0.32 * volume, type: "sine", at });
+    for (const [hz, g] of [[2210, 0.035], [3370, 0.022], [4890, 0.012]]) {
+      this._tone({ freq: hz, to: hz * 0.985, duration: 0.18, gain: g * volume, type: "sine", delay: 0.004, at });
+    }
+    this._noise({ duration: 0.16, gain: 0.12 * volume, type: "lowpass", freq: 1500, sweepTo: 300, delay: 0.11, at });
+  }
+
+  /* The hammer thumbed back: two quick clicks, the second brighter. */
+  hammerCock(at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.02, gain: 0.08, type: "bandpass", freq: 2400, q: 5, at });
+    this._noise({ duration: 0.025, gain: 0.1, type: "bandpass", freq: 3600, q: 6, delay: 0.05, at });
+  }
+
+  /* The cylinder swung out on its crane: a latch click and a metal slide. */
+  cylinderOut() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.025, gain: 0.16, type: "bandpass", freq: 2800, q: 5 });
+    this._noise({ duration: 0.09, gain: 0.1, type: "bandpass", freq: 1500, q: 2, sweepTo: 2400, delay: 0.03 });
+  }
+
+  /* Twelve empties hitting the boardwalk: bright little pings, scattered. */
+  brassTinkle(n = 12) {
+    if (!this._ready()) return;
+    for (let i = 0; i < n; i++) {
+      const hz = 3200 + Math.random() * 2600;
+      const d = 0.22 + Math.random() * 0.4;
+      this._tone({ freq: hz, to: hz * 0.97, duration: 0.07 + Math.random() * 0.06, gain: 0.04 + Math.random() * 0.03, type: "sine", delay: d });
+      if (Math.random() < 0.5) this._tone({ freq: hz * 1.4, to: hz * 1.35, duration: 0.05, gain: 0.025, type: "sine", delay: d + 0.07 + Math.random() * 0.05 });
+    }
+  }
+
+  /* Speedloader seated: a chunky clack, then the release twist. */
+  speedloader() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.05, gain: 0.2, type: "bandpass", freq: 900, q: 2.5 });
+    this._noise({ duration: 0.04, gain: 0.12, type: "bandpass", freq: 2000, q: 4, delay: 0.08 });
+  }
+
+  /* Flicked shut: the ratchet buzzing as it spins, then the snap. */
+  cylinderSpin() {
+    if (!this._ready()) return;
+    for (let i = 0; i < 9; i++) this._noise({ duration: 0.012, gain: 0.07 * (1 - i / 11), type: "bandpass", freq: 3000, q: 6, delay: i * (0.022 + i * 0.004) });
+    this._noise({ duration: 0.04, gain: 0.2, type: "bandpass", freq: 1800, q: 3, delay: 0.02 });
+  }
+
+  /* Brass knuckles: a short fist whoosh, a meaty hit with a clink of
+     metal, and the knuckles cracked on the draw. */
+  knuckleSwing() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.1, gain: 0.15, type: "bandpass", freq: 700, sweepTo: 1900, q: 0.9 });
+  }
+
+  knuckleHit(at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.1, gain: 0.55, type: "lowpass", freq: 700, sweepTo: 130, at });
+    this._tone({ freq: 120, to: 50, duration: 0.11, gain: 0.26, type: "square", at });
+    this._tone({ freq: 2600, to: 2500, duration: 0.12, gain: 0.05, type: "sine", delay: 0.01, at });
+    this._tone({ freq: 3900, to: 3850, duration: 0.08, gain: 0.03, type: "sine", delay: 0.01, at });
+  }
+
+  knuckleCrack() {
+    if (!this._ready()) return;
+    for (let i = 0; i < 4; i++) this._noise({ duration: 0.018, gain: 0.12, type: "bandpass", freq: 1500 + Math.random() * 900, q: 3, delay: i * 0.07 + Math.random() * 0.02 });
   }
 
   /* Green Candles bolt: an electric zap falling in pitch over a hiss of

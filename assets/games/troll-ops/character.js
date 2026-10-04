@@ -1233,12 +1233,19 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
 
   // Muzzle on the aim when up, dipped into a low ready when not; a reload
   // tips it up, swings it in and cants the mag well toward the left hand.
+  // A pair (the Peacemakers) tips both muzzles up to dump the brass
+  // instead of canting a mag well over.
+  const pair = !!u.akimbo;
   p.gunMount.rotation.set(
-    pitch * (0.5 + up * 0.5) - (1 - up) * (1 - rl) * 0.3 + kick * 0.12 - lean + rl * 0.3,
-    rl * 0.3,
-    -rl * 0.55,
+    pitch * (0.5 + up * 0.5) - (1 - up) * (1 - rl) * 0.3 + kick * 0.12 - lean + rl * (pair ? 0.9 : 0.3),
+    pair ? 0 : rl * 0.3,
+    pair ? 0 : -rl * 0.55,
   );
-  if (pistol) {
+  if (pair) {
+    // A gun in each fist, both arms out, the pair centred on the chest.
+    _gS.set(0, (-0.24 + up * 0.32 - rl * 0.02) * s, (-0.36 - up * 0.16 + rl * 0.1 + kick * 0.03) * s);
+    _gP.copy(u.gripPos).add(u.gripPosL).multiplyScalar(0.5).applyEuler(p.gunMount.rotation);
+  } else if (pistol) {
     // Both arms out, the gun at the eye line when it's up.
     _gS.set((0.06 - up * 0.055) * s * w, (-0.25 + up * 0.33 - rl * 0.05) * s, (-0.32 - up * 0.2 + rl * 0.08 + kick * 0.03) * s);
     _gP.copy(u.gripPos).applyEuler(p.gunMount.rotation);
@@ -1252,16 +1259,18 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   _gGrip.copy(u.gripPos).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
   _gT.copy(_gGrip).sub(p.armR.position).sub(p.shoulderR.position);
   _gPoleR2.set(1, pistol ? -1 : -0.55 + up * 0.35, 0.25);
+  if (pair) _gPoleR2.set(1, -1.2, 0.1);
   _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT, _gPoleR2);
 
   // Support hand: the handguard (wrapped round the grip on a pistol), or
   // the reload's path.
-  if (pistol) _gSup.copy(u.gripPos).add(_gPistolWrap);
+  if (pair) _gSup.copy(u.gripPosL);
+  else if (pistol) _gSup.copy(u.gripPos).add(_gPistolWrap);
   else _gSup.copy(u.supportHandPos);
   _gSup.applyEuler(p.gunMount.rotation).add(p.gunMount.position);
   let magOut = 0;
   const mag = u.magMesh && u.magMesh.parent === mesh ? u.magMesh : null;
-  if (rk) {
+  if (rk && !pair) {
     _gB.set(-0.07 * s * w, -0.5 * s, -0.1 * s);   // the belt pouch
     if (mag) {
       _gW.copy(u.magazinePoint).applyEuler(p.gunMount.rotation).add(p.gunMount.position);

@@ -31,8 +31,8 @@ import {
   glassTexture, curtainTexture, glowTexture, piebaldTexture, barsTexture,
   barrel, crate, crateStack, trough, hitchRail, bollard, telegraphPole, wire, streetLamp,
   wheel, wagon, horse, cactus, steerSkull, rock, tableSet, chair, stool, piano,
-  chandelier, sconce, railFence, picketFence, hayBale, log, coffin,
-} from "./trollcity-kit.js?v=tc1";
+  chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture,
+} from "./trollcity-kit.js?v=tc2";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
 const T = 0.3;            // wall thickness
@@ -611,7 +611,6 @@ function buildSaloon(K, M, lights) {
     K.box(M.settee, -22.6, Y + 0.85, z, 0.25, 0.5, 2.0);
   }
   wallPic(K, M.paintDesert, { x: S.x0 + T, y: Y + 2.4, z: -16.2, w: 1.5, h: 1.1, o: 1, axis: "z", frame: M.trimGold });
-  wallPic(K, M.paintPortrait, { x: -10.5, y: Y + 2.6, z: ROW_N.back + T, w: 0.9, h: 1.2, o: 1, frame: M.trimGold });
   // tables, the card game on the one by the stage
   tableSet(K, M, -18.5, Y, -12.9, { seed: 3 });
   tableSet(K, M, -12.4, Y, -13.0, { seed: 5, cards: true });
@@ -1665,6 +1664,45 @@ function stagecoach(K, M, x, z, ry) {
   K.box(M.wagonSide, tx, 0.3, tz, 1.8, 0.09, 0.09, { ry });
 }
 
+/* =========================================================== the pictures */
+
+/* The user's troll art round the town's walls, in five kinds of frame
+   (trollcity-kit.js framedPicture): "We're So Bach" over the saloon piano,
+   the troll general in gilt in the bank and the courthouse, the cowboys in
+   barnwood and walnut, old sepia photographs in the hotel and the barber's. */
+function hangPictures(K, M) {
+  const art = {};
+  const A = (name, sepia = false) => art[name + sepia] ??= texMat(artTexture(name, { sepia }), { rough: 0.75, bounce: 0.18 });
+  const U = UPPER_Y;
+  for (const p of [
+    // the saloon: Bach by the piano, the general by the door, the cowboys
+    // upstairs
+    { x: -13.1, y: FLOOR + 2.55, z: ROW_N.back + T, w: 0.92, h: 0.92, o: 1, style: "gilt", art: A("bach") },
+    { x: -16.7, y: 2.4, z: ROW_N.front - T, w: 0.8, h: 1.2, o: -1, style: "carved", art: A("general") },
+    { x: -11.3, y: 2.3, z: ROW_N.front - T, w: 0.7, h: 0.83, o: -1, style: "oval", art: A("cigar") },
+    { x: -11.5, y: U + 1.85, z: -16.6 + T / 2, w: 1.1, h: 0.82, o: 1, style: "barn", art: A("generalScene") },
+    { x: -13.6, y: U + 2.0, z: ROW_N.back + T, w: 0.7, h: 0.7, o: 1, style: "carved", art: A("cowboy") },
+    // the bank and the courthouse: the general, in gold
+    { x: 10 - T, y: 2.7, z: -12.8, w: 0.9, h: 1.35, o: -1, axis: "z", style: "gilt", art: A("general") },
+    { x: 43.4, y: 2.8, z: COURT.z1 - T, w: 1.1, h: 1.65, o: -1, style: "gilt", art: A("general") },
+    { x: 54.0, y: 2.2, z: COURT.z0 + T, w: 0.6, h: 0.82, o: 1, style: "photo", art: A("tanktop", true) },
+    // the hotel lobby, the barber's, the doctor's: old photographs, an oval
+    { x: -35 + T, y: 2.1, z: 12.6, w: 0.62, h: 0.62, o: 1, axis: "z", style: "photo", art: A("cowboy", true) },
+    { x: -25 - T, y: 2.3, z: 12.6, w: 0.62, h: 0.73, o: -1, axis: "z", style: "oval", art: A("cigar") },
+    { x: -1 + T, y: 2.0, z: 13.0, w: 0.58, h: 0.8, o: 1, axis: "z", style: "photo", art: A("tanktop", true) },
+    { x: 25 + T, y: 2.1, z: -13.2, w: 0.6, h: 0.98, o: 1, axis: "z", style: "carved", art: A("general", true) },
+    // the store, the station, the guns shop
+    { x: 2.2, y: 2.2, z: -45 + T, w: 0.8, h: 0.8, o: 1, style: "barn", art: A("cowboy") },
+    { x: 13 + T, y: 2.3, z: -19.5, w: 0.6, h: 0.71, o: 1, axis: "z", style: "barn", art: A("cigar") },
+  ]) framedPicture(K, M, p);
+  // the houses: one each, every frame different
+  const H = [[-50, -42, 30, 37], [-37, -29, 32, 39], [28, 36, 30, 37], [40, 48, 31, 38]];
+  const styles = ["gilt", "barn", "oval", "photo"], arts = [A("cigar"), A("cowboy"), A("bach"), A("generalScene", true)];
+  H.forEach(([x0, x1, z0], i) => {
+    framedPicture(K, M, { x: x1 - T, y: 1.95, z: z0 + 1.6, w: 0.62, h: i === 3 ? 0.6 : 0.7, o: -1, axis: "z", style: styles[i], art: arts[i] });
+  });
+}
+
 /* ============================================================== the plains */
 
 function buildPlains(K, M, R) {
@@ -1737,6 +1775,8 @@ function buildTrollCity(api) {
   // a trough and a pump in the back lots, crates by the shops' back doors
   for (const [x, z, ry] of [[-34, -23.8, 0.2], [2, -23.6, -0.3], [-44, 23.6, 0.1], [20, 23.8, 0.5]]) crateStack(K, M, x, z, R, { ry });
   for (const [x, z] of [[-12, -23.6], [28, -23.2], [-28, 23.5], [8, 23.7]]) barrel(K, M, x, z, {});
+
+  hangPictures(K, M);
 
   K.flush();
   for (const l of lights) {

@@ -73,6 +73,7 @@ import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from ".
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
+import { createAkimboView, AKIMBO_INSPECT_TIME } from "./akimbo-view.js?v=ak1";
 import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./keyboard-repair.js?v=kr15";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=sw1";
@@ -6124,6 +6125,9 @@ const muzzleFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22), muzzleMa
 muzzleFlash.rotation.z = Math.random() * Math.PI;
 weaponRig.add(muzzleFlash);
 let muzzleFlashT = 0;
+// The Peacemakers' two guns, their brass and their smoke (akimbo-view.js).
+const akimboView = createAkimboView({ weaponRig, audio });
+let akimboShown = false;
 
 // muzzle point light for dynamic illumination on each shot. Intensity stays
 // small because the light sits centimetres from the gun mesh in the weapon
@@ -7534,6 +7538,15 @@ function fireOnce(shot = null) {
     return;
   }
   w.fire(shot?.cells ?? 1, shot?.kick ?? 1);
+  if (w.def.akimbo) {
+    // Right, left, right...: each pull fires the other gun.
+    w.akimboSide = (w.akimboSide ?? 1) ^ 1;
+    if (shot?.fan) {
+      w.fireCooldown = 60 / w.def.fanFire.rpm;
+      w.spread = Math.min(w.def.spreadMax + w.def.fanFire.spread, w.spread + w.def.fanFire.spread);
+    }
+    akimboView.onShot(activeWeaponMesh, w, w.akimboSide, !!shot?.fan);
+  }
   if (w.def.charge) {
     w.lastShotLevel = shot?.level ?? 0;
     w.shotFlare = 1;
@@ -13311,7 +13324,7 @@ function updatePlayer(dt) {
     jumping: move.jumping,
     // A held melee weapon has the hands: the gun behind it doesn't scope in
     // (with the saber, aim is the block instead).
-    adsHeld: wantAds && canAds && player.holding !== "melee",
+    adsHeld: wantAds && canAds && player.holding !== "melee" && !w.def.noAds,
     canAds,
   });
   updateSaberBlock(dt, wantAds && canAds);
@@ -13337,6 +13350,10 @@ function updatePlayer(dt) {
 
   if (w.def.fireMode === "charge") {
     updateCandleCharge(w, dt, wantFire && canAct && !swinging);
+  } else if (w.def.fanFire && wantAds && canAct && !swinging) {
+    // The Peacemakers have no sights: aim fans the hammers, fast and wild.
+    if (w.canFire()) fireOnce({ fan: true });
+    else if (w.ammoInMag <= 0 && !w.reloading) tryReload();
   } else if (wantFire && canAct && !swinging) {
     if (w.def.fireMode === "auto") {
       if (w.canFire()) fireOnce();
@@ -14155,7 +14172,7 @@ function startInspect() {
   if (player.holding === "gun") {
     const w = currentWeapon();
     if (w.reloading || w.adsT > 0.05) return;
-    inspectDur = isLongGunInspect(w) ? GUN_INSPECT_TIME : SIDEARM_INSPECT_TIME;
+    inspectDur = w.def.akimbo ? AKIMBO_INSPECT_TIME : isLongGunInspect(w) ? GUN_INSPECT_TIME : SIDEARM_INSPECT_TIME;
   } else if (player.holding === "melee") {
     if (!player.melee || player.melee.busy) return;
     inspectDur = player.melee.chainsaw ? SAW_REV_TIME : MELEE_INSPECT_TIME;
@@ -14165,7 +14182,8 @@ function startInspect() {
   inspectT = inspectDur;
   sawRevBlips = 0;
   // Admiring the chainsaw revs it instead (applySawRev plays the blips).
-  if (player.holding !== "melee" || !player.melee.chainsaw) audio.reload();     // the same handling clicks, which is what an inspect is
+  if (player.holding === "gun" && currentWeapon().def.akimbo) audio.hammerCock();
+  else if (player.holding !== "melee" || !player.melee.chainsaw) audio.reload();     // the same handling clicks, which is what an inspect is
 }
 
 function updateInspect(dt) {
@@ -14264,7 +14282,7 @@ function inspectPose() {
   const p = _inspectPose;
   if (inspectT <= 0 || player.holding !== "gun") return _zeroPose(p);
   const w = currentWeapon();
-  if (isLongGunInspect(w)) return _zeroPose(p);   // applyGunInspect owns it
+  if (isLongGunInspect(w) || w.def.akimbo) return _zeroPose(p);   // applyGunInspect / akimbo-view own those
   inspectTwirl(inspectProgress(), p);
   return p;
 }
@@ -14524,14 +14542,14 @@ function placeGlove(g, i, mesh, anchor, tip, sidearm, magBlend = 0) {
 /* The glove at `tip` + _gloveOff (world space, root quaternion already set
    in world space), brought into gloveRig's frame, with its sleeve run to
    the shoulder. */
-function finishGlove(g, i, tip) {
+function finishGlove(g, i, tip, shoulder = PF_ARM_SHOULDER[i]) {
   // Anchors are read in world space; the gloves live under gloveRig, so
   // bring the pose into its frame (identity in play, not in debug shots).
   g.root.position.copy(tip).add(_gloveOff);
   gloveRig.updateMatrixWorld();
   gloveRig.worldToLocal(g.root.position);
   g.root.quaternion.premultiply(gloveRig.getWorldQuaternion(_gloveRigQ).invert());
-  layGloveSleeve(g, PF_ARM_SHOULDER[i]);
+  layGloveSleeve(g, shoulder);
 }
 
 /* Sleeve: from the wrist to the shoulder, stretched only if it has to be. */
@@ -14641,6 +14659,33 @@ function showBothGloves() {
   for (const g of gloves) g.root.visible = g.sleeve.visible = true;
 }
 
+/* The Peacemakers: a gun in each hand, so each arm comes up from its own
+   shoulder to its own grip, and the left glove holds its gun the mirror of
+   the right (thumb up the grip on the other side). The anchors belong to
+   the hands, not the guns, so a twirl spins the gun and not the arm. */
+const AKIMBO_SHOULDER = [new THREE.Vector3(0.34, -0.66, 0.04), new THREE.Vector3(-0.34, -0.66, 0.04)];
+const GLOVE_GRIP_L_Q = basisQ([0, 1, 0], [-1, 0, 0], [0, 0, 1]);
+const GLOVE_GRIP_OFF_L = new THREE.Vector3(-0.03, -0.012, 0.006);
+function poseAkimboArms(mesh, gl) {
+  const rods = pfArms.userData.rods;
+  const hands = mesh.userData.akimboHands;
+  for (let i = 0; i < 2; i++) {
+    const a = hands[i];
+    a.getWorldPosition(_pfTip);
+    if (!gl) {
+      rods[i].visible = true;
+      stretchBetween(rods[i], AKIMBO_SHOULDER[i], _pfTip);
+      continue;
+    }
+    const g = gloves[i];
+    a.getWorldQuaternion(_gloveQ);
+    g.root.quaternion.copy(_gloveQ).multiply(i ? GLOVE_GRIP_L_Q : GLOVE_GRIP_Q);
+    _gloveOff.copy(i ? GLOVE_GRIP_OFF_L : GLOVE_GRIP_OFF).applyQuaternion(_gloveQ);
+    poseGlove(g, "trigger");
+    finishGlove(g, i, _pfTip, AKIMBO_SHOULDER[i]);
+  }
+}
+
 const _pfTip = new THREE.Vector3();
 const _pfMag = new THREE.Vector3();
 const _pfDown = new THREE.Vector3();
@@ -14655,6 +14700,7 @@ function posePfArms(mesh, magBlend = 0) {
   if (!show) return;
   showBothGloves();
   mesh.updateMatrixWorld(true);
+  if (mesh.userData.akimbo) { poseAkimboArms(mesh, gl); return; }
   // [grip, support]: the support hand is the one parked at supportHandPos
   // (build order differs between weapon-model.js and weapon-416.js).
   let anchors = mesh.userData.pfAnchors;
@@ -14896,7 +14942,7 @@ function reloadPose(w, mesh) {
     // magT too: `p` is shared, and a reload cut short by death left the
     // last mid-reload value here, so placeReloadMag kept every gun after it
     // (the respawned one included) holding its mag out in the air.
-    p.shellT = p.rack = p.magT = -1;
+    p.shellT = p.rack = p.magT = p.akimboT = -1;
     if (mag) {
       mag.visible = true;
       mag.position.copy(mesh.userData.magazinePoint);
@@ -14910,6 +14956,15 @@ function reloadPose(w, mesh) {
   }
 
   if (w.def.shellReload) return shellReloadPose(w, mesh, p);
+  if (w.def.akimbo) {
+    // akimbo-view.js moves the two guns themselves (and plays the
+    // cylinder, brass and speedloader sounds); the pair's root stays put.
+    reloadEventsFiredFor = w;
+    p.x = p.y = p.z = p.pitch = p.yaw = p.roll = p.magHold = 0;
+    p.shellT = p.rack = p.magT = -1;
+    p.akimboT = 1 - Math.max(0, w.reloadT) / w.reloadTime;
+    return p;
+  }
 
   if (reloadEventsFiredFor !== w) {
     if (w.def.candleShot) audio.tankSwap(w.reloadTime); else audio.reload();
@@ -15317,6 +15372,13 @@ function updateWeaponView(dt) {
     (1 - adsOffset) * 0.08 + weaponLowerT * 0.38 + sprintRoll + turnLagX * 4 + insp.roll + rl.roll + w.viewKickRoll
   );
   applyGunInspect(mesh, w);
+  if (mesh.userData.akimbo) {
+    akimboView.update(mesh, w, dt, { reload: rl.akimboT ?? -1, inspect: inspectT > 0 && player.holding === "gun" ? inspectProgress() : -1 });
+    akimboShown = true;
+  } else if (akimboShown) {
+    akimboView.hideFx();
+    akimboShown = false;
+  }
   placeReloadMag(mesh, rl.magT ?? -1);
   updateGreenCandles(mesh, w, rl.magT ?? -1, dt);
   placeReloadShell(mesh, rl.shellT ?? -1);
@@ -15338,6 +15400,7 @@ function updateWeaponView(dt) {
   muzzleLight.intensity *= Math.max(0, 1 - dt * 30);
   const barrelTipLocal = new THREE.Vector3(0, 0.02, mesh.userData.muzzleZ ?? -0.62);
   muzzleFlash.position.copy(basePos).add(barrelTipLocal);
+  if (mesh.userData.akimbo) akimboView.muzzleLocal(mesh, w.akimboSide ?? 0, muzzleFlash.position);
   muzzleLight.position.copy(muzzleFlash.position);
 }
 
@@ -15404,7 +15467,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     activeMeleeMesh: () => activeMeleeMesh,
     activeWeaponMesh: () => activeWeaponMesh,
     matchClockT: () => matchClockT,
-    resetMatchClock, swingMelee, botThrow, botMelee, isInfected, infectionCounts, applyInfect,
+    resetMatchClock, swingMelee, fireOnce, akimboView, botThrow, botMelee, isInfected, infectionCounts, applyInfect,
     infectionStarted: () => infectionStarted, pickFirstInfected, setInfectionT: (v) => { infectionT = v; }, botNadesThrown: () => botNadesThrown,
     activeLobbyPanel: () => activeLobbyPanel, showLobbyPanel,
     streaks, streakPicker, killstreakUi, achievements, streakIconSvg,

@@ -66,7 +66,9 @@ const rows = await page.evaluate(async () => {
       for (let i = 0; i < 40; i++) C.poseHumanoid(rig, { hold: "gun", hasGun: true, dt: 0.016, pitch: 0, ...extra });
       rig.root.updateMatrixWorld(true);
       const grip = mesh.localToWorld(u.gripPos.clone());
-      const sup = u.supportHandPos && !u.pistol ? mesh.localToWorld(u.supportHandPos.clone())
+      // A pair (akimbo) puts the left hand on the left gun's own grip.
+      const sup = u.akimbo ? mesh.localToWorld(u.gripPosL.clone())
+        : u.supportHandPos && !u.pistol ? mesh.localToWorld(u.supportHandPos.clone())
         : mesh.localToWorld(u.gripPos.clone().add(new THREE.Vector3(-0.05, -0.025, 0.005)));
       const hR = rig.parts.handR.getWorldPosition(v()), hL = rig.parts.handL.getWorldPosition(v());
       // Left hand: on the gun, i.e. on the line from the grip to the support

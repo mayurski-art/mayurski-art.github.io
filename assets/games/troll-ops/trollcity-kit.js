@@ -1224,3 +1224,116 @@ export function coffin(K, M, x, y, z, { ry = 0, stand = false, open = false } = 
     K.add(M.coffinLid, place(lid, { x: x + Math.cos(ry) * 0.35, y, z: z - Math.sin(ry) * 0.35 + 0.25, ry: ry - 1.2 }));
   }
 }
+
+/* ============================================================ framed pictures */
+
+/* The user's troll art for the walls (ui/western/): the cowboy troll, and
+   the troll general's portrait (cropped out of its own frame, or the whole
+   scene with the little troll beside it). `sepia` ages it into an old
+   photograph with a vignette. */
+const ART = {
+  cowboy: { file: "cowboy-troll.jpg", crop: [40, 120, 440, 400] },
+  general: { file: "troll-general.jpg", crop: [258, 122, 468, 772] },
+  generalScene: { file: "troll-general.jpg", crop: [0, 200, 900, 877] },
+  cigar: { file: "cigar-troll.jpg", crop: [0, 0, 720, 852] },
+  bach: { file: "so-bach.jpg", crop: [0, 0, 768, 768] },
+  tanktop: { file: "tanktop-troll.jpg", crop: [0, 0, 580, 800] },
+};
+export function artTexture(name, { sepia = false } = {}) {
+  const a = ART[name];
+  return tex(`art-${name}-${sepia}`, () => {
+    const [sx, sy, sw, sh] = a.crop;
+    const W = 512, H = Math.round(512 * sh / sw);
+    const t = canvasTex(W, H, (g) => { g.fillStyle = sepia ? "#c8b490" : "#f2ecd8"; g.fillRect(0, 0, W, H); });
+    const img = new Image();
+    img.onload = () => {
+      const g = t.image.getContext("2d");
+      if (sepia) g.filter = "sepia(0.95) contrast(1.15) brightness(0.92)";
+      g.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+      g.filter = "none";
+      if (sepia) {
+        const v = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.7);
+        v.addColorStop(0, "rgba(60,40,20,0)");
+        v.addColorStop(1, "rgba(60,40,20,.55)");
+        g.fillStyle = v;
+        g.fillRect(0, 0, W, H);
+      }
+      t.needsUpdate = true;
+    };
+    img.src = new URL(`./ui/western/${a.file}`, import.meta.url).href;
+    return t;
+  });
+}
+
+/* A picture in a frame on a wall. (x, y, z) is the centre of the picture
+   on the wall's face; `o` is which way the wall faces (+1/-1 along z for an
+   x-running wall, along x with axis "z"). Styles:
+     gilt    an ornate gold moulding with rosettes at the corners and a crest
+     carved  dark walnut, stepped, with a thin gold slip inside
+     barn    rough boards nailed together, hung on a wire from a nail
+     oval    an oval brass frame
+     photo   a thin black frame round a cream mat (an old photograph)
+   Decoration only, no collider. */
+export function framedPicture(K, M, { x, y, z, w, h, o = 1, axis = "x", style = "gilt", art }) {
+  const ry = axis === "x" ? (o > 0 ? 0 : Math.PI) : (o > 0 ? Math.PI / 2 : -Math.PI / 2);
+  // everything stands off the wall by the wallpaper lining's thickness
+  const put = (mat, geo, opts) => K.add(mat, place(geo.translate(0, 0, 0.026), { x, y, z, ry }), opts);
+  const bar = (mat, u, v, n, bw, bh, bd) => put(mat, new THREE.BoxGeometry(bw, bh, bd).translate(u, v, n + bd / 2));
+  const ring = (mat, b, d, n, inset = 0) => {
+    const W = w + 2 * (b - inset), Hh = h + 2 * (b - inset), off = b / 2 - inset;
+    bar(mat, 0, h / 2 + off, n, W, b, d);
+    bar(mat, 0, -h / 2 - off, n, W, b, d);
+    bar(mat, -w / 2 - off, 0, n, b, h, d);
+    bar(mat, w / 2 + off, 0, n, b, h, d);
+  };
+  const pic = (n, pw = w, ph = h) => put(art, new THREE.PlaneGeometry(pw, ph).translate(0, 0, n), { shadow: false });
+  if (style === "gilt") {
+    ring(M.trimGold, 0.13, 0.05, 0.005);
+    ring(M.trimGold, 0.05, 0.075, 0.005, -0.025);       // the raised outer bead
+    ring(M.furniture, 0.025, 0.03, 0.005, 0.0);         // a dark sight edge on the picture
+    for (const [su, sv] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      put(M.trimGold, new THREE.SphereGeometry(0.055, 10, 8).translate(su * (w / 2 + 0.065), sv * (h / 2 + 0.065), 0.06));
+      put(M.trimGold, new THREE.TorusGeometry(0.045, 0.012, 6, 14).translate(su * (w / 2 + 0.065), sv * (h / 2 + 0.065), 0.075));
+    }
+    // the crest on top: a shell of three lobes
+    for (const k of [-1, 0, 1]) put(M.trimGold, new THREE.SphereGeometry(0.05 - Math.abs(k) * 0.012, 10, 8).translate(k * 0.07, h / 2 + 0.16 - Math.abs(k) * 0.02, 0.04));
+    pic(0.012);
+  } else if (style === "carved") {
+    ring(M.furniture, 0.1, 0.045, 0.005);
+    ring(M.pianoWood, 0.045, 0.065, 0.005, -0.05);
+    ring(M.trimGold, 0.02, 0.05, 0.005, 0.0);
+    // a carved bead along the top and a keystone
+    bar(M.pianoWood, 0, h / 2 + 0.06, 0.06, w * 0.3, 0.05, 0.02);
+    bar(M.trimGold, 0, h / 2 + 0.11, 0.05, 0.08, 0.08, 0.03);
+    pic(0.012);
+  } else if (style === "barn") {
+    const R = rng(Math.round(x * 13 + z * 7));
+    const b = 0.085;
+    bar(M.weathered, (R() - 0.5) * 0.02, h / 2 + b / 2, 0.005, w + 2 * b + 0.06, b, 0.035);
+    bar(M.weathered, (R() - 0.5) * 0.02, -h / 2 - b / 2, 0.005, w + 2 * b + 0.04, b, 0.035);
+    bar(M.weathered, -w / 2 - b / 2, 0, 0.012, b, h + 2 * b + 0.05, 0.035);
+    bar(M.weathered, w / 2 + b / 2, 0, 0.012, b, h + 2 * b + 0.03, 0.035);
+    for (const [su, sv] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) bar(M.iron, su * (w / 2 + b / 2), sv * (h / 2 + b / 2), 0.047, 0.014, 0.014, 0.006);
+    // the wire up to a nail, like a picture that's been hung by hand
+    const top = h / 2 + b, peak = top + 0.22;
+    for (const s of [-1, 1]) {
+      const len = Math.hypot(w * 0.35, peak - top);
+      const ang = Math.atan2(peak - top, w * 0.35) * -s;
+      put(M.wire, new THREE.BoxGeometry(len, 0.006, 0.006).rotateZ(-ang).translate(s * w * 0.175, (top + peak) / 2, 0.02), { shadow: false });
+    }
+    bar(M.iron, 0, peak, 0, 0.02, 0.02, 0.03);
+    pic(0.01);
+  } else if (style === "oval") {
+    const rx = w / 2, sy = h / w;
+    put(M.brass, new THREE.TorusGeometry(rx + 0.03, 0.035, 8, 40).scale(1, sy, 0.6).translate(0, 0, 0.03));
+    put(M.brass, new THREE.TorusGeometry(rx + 0.085, 0.018, 6, 40).scale(1, (h + 0.11) / (w + 0.11), 0.6).translate(0, 0, 0.02));
+    put(M.velvet, new THREE.CircleGeometry(rx + 0.04, 40).scale(1, sy, 1).translate(0, 0, 0.004), { shadow: false });
+    put(art, new THREE.CircleGeometry(rx, 40).scale(1, sy, 1).translate(0, 0, 0.012), { shadow: false });
+    put(M.brass, new THREE.SphereGeometry(0.04, 10, 8).translate(0, h / 2 + 0.12, 0.03));
+  } else {
+    // photo: black frame, cream mat, the print inset
+    ring(M.horseDark, 0.035, 0.03, 0.005, -0.08);
+    bar(M.trimCream, 0, 0, 0.003, w + 0.16, h + 0.16, 0.01);
+    pic(0.016);
+  }
+}

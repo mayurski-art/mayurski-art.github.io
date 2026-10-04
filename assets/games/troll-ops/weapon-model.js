@@ -11,6 +11,7 @@ import {
   buildIronRear, buildIronFront, railSection,
 } from "./attachment-models.js";
 import { build416 } from "./weapon-416.js?v=cg1";
+import { buildRevolverPair } from "./revolvers.js?v=rv2";
 import { finishDef } from "./skins.js?v=p5";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
@@ -868,6 +869,8 @@ function applyFinish(root, fin) {
 
 function buildBaseMesh(def, skin) {
   if (def.id === "problem416") return build416(def, skin ?? def.attachments?.skin ?? null);
+  // a pair of revolvers, one per hand (revolvers.js)
+  if (def.akimbo) return buildRevolverPair(def, { env: weaponEnvMap || metalStudio() });
   const spec = def.model || {};
   if (spec.stock === "tank") return gcTemplate ? buildGreenCandles(def) : buildTankLauncher(def, spec, spec.len || 0.5);
   if (def.id === "grinmington" && gmTemplate) return buildGrinmington(def);

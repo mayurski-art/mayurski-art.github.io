@@ -366,6 +366,24 @@ export const WEAPON_DEFS = {
     blurb: "A pistol with no self-control.",
     model: { len: 0.25, stock: "none", mag: "long", barrel: 0.5 },
   }),
+  // A pair of single-action revolvers, one in each hand (Troll City). Each
+  // pull fires the next gun, right then left; twelve rounds is two
+  // cylinders. There are no sights to aim down: holding aim fans the
+  // hammers instead, fast and wild. The reload swings both cylinders out,
+  // dumps the brass and drops two speedloaders in (revolvers.js builds the
+  // pair; game.js updateAkimbo runs both guns).
+  peacemakers: mk("sidearm", {
+    id: "peacemakers", name: "Peacemakers", rank: 25, sight: "none",
+    damage: 40, rpm: 330, magSize: 12, reserveMax: 72, reloadTime: 2.5,
+    falloffStart: 16, falloffEnd: 38, falloffMin: 0.45,
+    spreadBase: 0.024, spreadMoving: 0.045, spreadPerShot: 0.016, spreadMax: 0.12,
+    recoilKickPitch: 0.034, recoilKickKnockback: 0.012, shakeVert: 0.7, shakeJolt: 0.7,
+    akimbo: true, revolver: true, noAds: true,
+    fanFire: { rpm: 900, spread: 0.07 },
+    muzzleFlashScale: 1.1, muzzleColor: 0xffd890,
+    blurb: "Two six-shooters, twelve problems. Aim fans the hammers.",
+    model: { len: 0.3, stock: "none", mag: "none", barrel: 0.7 },
+  }),
   // The Prestige 7 gun (prestige phase 5): a solid gold Wide Deagle with its
   // own name. Same handling as the Deagle; the gold is the reward. Rank 69
   // keeps it last in the list (anyone at Prestige 7 is past 69 anyway).

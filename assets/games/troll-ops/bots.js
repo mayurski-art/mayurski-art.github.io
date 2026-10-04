@@ -142,7 +142,7 @@ const BOT_WEAPONS = ["problem416", "snubgrin", "smg", "trollboy", "sneer", "cack
 // Everyone also carries a sidearm and draws it the instant the primary runs
 // dry rather than standing there reloading in a firefight - the same reason
 // a player reaches for 2 instead of holding R with someone shooting at them.
-const BOT_SIDEARMS = ["pocketgrin", "widedeagle", "chortle"];
+const BOT_SIDEARMS = ["pocketgrin", "widedeagle", "chortle", "peacemakers"];
 const SIDEARM_MAG_SIZE = 12;
 const SIDEARM_RELOAD_TIME = 1.5;
 
