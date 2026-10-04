@@ -63,14 +63,27 @@ async function open(mode) {
   const { page, errors } = await open("tdm");
   const lightCount = () => page.evaluate(() => { let n = 0; window.__trollOps.scene.traverse((o) => { if (o.isPointLight || o.isSpotLight) n++; }); return n; });
   const dbg = () => page.evaluate(async () => (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud.debug());
-  await page.waitForFunction(async () => (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud.debug().active, null, { timeout: 60000 });
+  // (waitForFunction needs a plain predicate: an async one returns a Promise, which is truthy at once)
+  await page.evaluate(async () => { window.__tl = (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud; });
+  await page.waitForFunction(() => { const d = window.__tl.debug(); return d.active && d.beat > 0; }, null, { timeout: 60000 });
+  await sleep(1000);
   const d0 = await dbg();
   check(d0.lights > 0 && d0.lights <= 14, "the map makes at most 14 lights", `${d0.lights}`);
   const n0 = await lightCount();
-  await sleep(2000);
+  // the beat, read in-page across 2 s of real time (no stale read across awaits)
+  const beats = await page.evaluate(async () => {
+    const M = (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud;
+    const frame = () => new Promise((r) => requestAnimationFrame(r));
+    await frame(); await frame();
+    const a = M.debug().beat, t0 = performance.now();
+    await new Promise((r) => setTimeout(r, 2000));
+    await frame(); await frame();
+    return { db: M.debug().beat - a, s: (performance.now() - t0) / 1000 };
+  });
   const d1 = await dbg();
   check(d1.active, "the club clock is running (ticker drawn)");
-  check(d1.beat - d0.beat > 3.5 && d1.beat - d0.beat < 5.5, "the beat advances at 128 BPM", `${(d1.beat - d0.beat).toFixed(2)} beats in 2 s`);
+  const bpm = beats.db / beats.s * 60;
+  check(Math.abs(bpm - 128) < 8, "the beat advances at 128 BPM", `${bpm.toFixed(1)} BPM`);
 
   // shots, straight through the map hook the bullets use
   const shot = await page.evaluate(async () => {
@@ -100,12 +113,13 @@ async function open(mode) {
     const T = window.__trollOps;
     const M = (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud;
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-    T.player.pos.set(0, 0.3, 0); await wait(1500);
-    const hall = M.debug();
-    T.player.pos.set(0, 0, 30); await wait(1500);
-    const alley = M.debug();
+    // (headless, the camera can sit on the intro shot, so the zones are read
+    // straight off the muffle map rather than from wherever the camera is)
+    await wait(1500);
+    const hall = { want: M.debug().want, lp: M.debug().muffleAt(0, 1.9, 4) };
+    const alley = { lp: M.debug().muffleAt(0, 1.7, 30) };
     M.onFrame({ live: true, radio: true });
-    const radio = M.debug();
+    const radio = { want: M.debug().want };
     return { hall, alley, radio, ctx: !!T.audio?.ctx };
   });
   if (snd.hall.lp === null) console.log("SKIP the track (no audio context in this browser)");
@@ -130,12 +144,12 @@ if (!process.env.SKIP_Z) {
       const zd = T.zdir();
       zd.clear();
       zd.startRound(4);
-      T.player.pos.set(x, y, z);
+      T.move.pos.set(x, y, z);
       T.player.maxHp = T.player.hp = 1e9;
       const t0 = performance.now();
       let best = 99;
       while (performance.now() - t0 < 150000) {
-        T.player.pos.set(x, y, z);
+        T.move.pos.set(x, y, z);
         for (const q of zd.zombies) {
           if (!q.alive || q.dying) continue;
           const p = q.mesh.position;

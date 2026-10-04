@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c";
@@ -34,9 +34,9 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
-import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst";
+import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1";
@@ -47,11 +47,11 @@ import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=umb1-rn-wst";
+} from "./modes.js?v=umb1-rn-wst-tl1";
 import { BotManager } from "./bots.js?v=cg5-em1-wst";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst";
 import { GameAudio } from "./audio.js?v=umb1kb2-mi1-wst";
-import { MapAmbience } from "./ambience.js?v=amb1-wst";
+import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./music.js?v=to-gs1";

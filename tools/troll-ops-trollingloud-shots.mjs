@@ -3,7 +3,7 @@
 // Writes .claude/club-shots/<view>.png (kept out of git).
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-trollingloud-shots.mjs [view ...]
-// MAP=<id> (default trollingloud_wip), TIER=low|medium|high, ANGLE=swiftshader.
+// MAP=<id> (default trollingloud), TIER=low|medium|high, ANGLE=swiftshader.
 
 import http from "node:http";
 import fs from "node:fs";
@@ -44,7 +44,7 @@ const VIEWS = {
   aerial:   [48, 34, 52, 0, 3, 0, 55],
 };
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(VIEWS);
-const MAP = process.env.MAP || "trollingloud_wip";
+const MAP = process.env.MAP || "trollingloud";
 
 const browser = await chromium.launch({ args: [`--use-angle=${process.env.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -56,7 +56,7 @@ await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentload
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
 await page.evaluate(async ({ map, tier }) => {
   const T = window.__trollOps;
-  if (tier && T.setGraphicsTier) T.setGraphicsTier(tier);
+  if (tier) T.settings.gfx = tier;
   T.setMode("tdm");
   if (T.els.noBots) T.els.noBots.checked = true;
   T.loadout.mapId = map;
@@ -64,6 +64,15 @@ await page.evaluate(async ({ map, tier }) => {
   if (T.isStaging()) T.endStaging();
 }, { map: MAP, tier: process.env.TIER || null });
 await new Promise((r) => setTimeout(r, +(process.env.WAIT || 5000)));
+// the tier's passes (game.js GFX: medium drops SSAO, low drops bloom too),
+// set directly in case applyGraphics hasn't run since the setting changed
+if (process.env.TIER) await page.evaluate((tier) => {
+  for (const p of window.__trollOps.composer.passes) {
+    const n = p.constructor.name;
+    if (/SSAO|SAO|GTAO/i.test(n)) p.enabled = tier === "high";
+    if (/Bloom/i.test(n)) p.enabled = tier !== "low";
+  }
+}, process.env.TIER);
 
 for (const id of ids) {
   const data = await page.evaluate(async (v) => {

@@ -1612,6 +1612,7 @@ export const TROLLINGLOUD = {
     lp: SND.lp ? SND.lp.frequency.value : null, busGain: SND.bus ? SND.bus.gain.value : null, want: SND.gain,
     signs: (ACTIVE?.signs ?? []).map((s) => ({ g: s.group, x: s.x, y: s.y, z: s.z, ry: s.ry })),
     shelf: ACTIVE?.shelf ?? null, radioOn: !!ACTIVE?.radioOn,
+    muffleAt: (x, y, z) => muffle({ x, y, z })[0],
   }),
   // Team spawns: the south alley under the scaffold, the north yard under
   // the dock shed.

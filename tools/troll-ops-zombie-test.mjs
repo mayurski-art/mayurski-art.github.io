@@ -47,6 +47,8 @@ for (const map of maps) {
     if (T.isStaging?.()) T.endStaging();
     T.player.maxHp = T.player.hp = 1e9;
   }, map);
+  // the director can still be null straight after startGame on a big map
+  await page.waitForFunction(() => !!window.__trollOps.zdir(), null, { timeout: 120000 });
 
   if (process.env.FPS) {
     const r =await page.evaluate(async () => {

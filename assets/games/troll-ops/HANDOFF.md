@@ -1,6 +1,6 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
-## Trolling Loud (neon nightclub map): references (user, 2026-10-04) — IN PROGRESS (branch tf-nightclub, worktree ../tf-club-wt)
+## Trolling Loud (neon nightclub map): references (user, 2026-10-04) — SHIPPED 2026-10-04
 The user asked for a nightclub map with neon lights. Plan (v2, with the
 improvements pass): `C:\Users\mayur\.claude\plans\for-troll-forces-game-fancy-snail.md`.
 
@@ -15,75 +15,52 @@ improvements pass): `C:\Users\mayur\.claude\plans\for-troll-forces-game-fancy-sn
 - Reference images are committed (same as `refs/western/`).
 - No troll emoji anywhere. Mascot marks are the trollface artwork.
 
-### RESUME HERE (paused 2026-10-04 for a context compact)
-Work happens in the worktree `C:\Users\mayur\OneDrive\Documents\GitHub\tf-club-wt`, branch `tf-nightclub`, cut from origin/main d4d8475. The main checkout (`mayurski-art.github.io`, branch tf-western) is NOT touched: it holds another session's uncommitted saber edits. Nothing is merged or pushed yet.
+### SHIPPED 2026-10-04 (merged to main from branch tf-nightclub)
+Tags: `game.js?v=...-ig1-tl1`, `menu-bo2.js?v=...-wst-tl1`; maps/loadout/map-load-screen/modes/ambience `-tl1`; `trollingloud.js` and `trollingloud-kit.js` `?v=tl1`.
 
 **Files**
 - `trollingloud.js` (new): the map itself.
   - layout: shell, hall, vip, bar, lobby, restrooms, coatCheck, backOfHouse, terrace, roof, outside
   - systems: beat clock `tick`, shots `onShot`, the DJ track (`ensureSound` / `scheduleTrack` / `muffle` / `onFrame`), `sfx`
-  - zombieLayout with 7 stair links; `debug()` for tests
+  - zombieLayout with 7 stair links
+  - `debug()` for tests, including `muffleAt(x, y, z)`
 - `trollingloud-kit.js` (new):
   - `U`, the shared uniforms
   - `neonMat` and `Neon`: batched neon with per-vertex chase/beat/kill-group/ripple
-  - `ledMat` ("crystal" DJ wall, "plasma" VIP oval)
-  - `clubFx` (uplight wash + mirror-ball spots on lit materials)
-  - `skipOverride` (keeps transparent meshes out of SSAO)
+  - `ledMat` ("crystal" DJ wall, "plasma" VIP oval), `clubFx`, `skipOverride`
   - `wall`, `lining`, `cutRects`, `deck`, `glassRail`
-  - the sign atlas (`SIGNS`, `signsTexture`, `signUV`), and the textures
-  - It reuses Kit/canvasTex/tex from trollcity-kit.js. Plan v2 said move trollcity.js's helpers into the kit; that wasn't needed (own versions written), so trollcity.js is untouched.
-- `maps.js`: imports `TROLLINGLOUD`, registered as `MAPS.trollingloud` (no longer `_wip`).
+  - the sign atlas and the textures
+  - It reuses Kit/canvasTex/tex from trollcity-kit.js. trollcity.js is untouched.
+- `maps.js`: registers `MAPS.trollingloud`.
 - `game.js` (2 hooks):
-  - `builtMap.map.attachMusic?.(music)` next to attachAudio (~5625)
-  - `builtMap?.map?.onFrame?.({ live, radio })` under `ambience.set` (~12426)
-- `modes.js:48`: Zombies mapPool has `trollingloud`.
-- `map-load-screen.js:16`: `MAP_SHOTS` has `trollingloud`. The webp files are NOT rendered yet, so the shot 404s until `troll-ops-map-previews.mjs trollingloud` is run (its VIEWS entry is added).
-- `ambience.js`: a `trollingloud` preset (murmur, hum, clank/buzz/car).
+  - `builtMap.map.attachMusic?.(music)` next to attachAudio
+  - `builtMap?.map?.onFrame?.({ live, radio })` under `ambience.set`
+- `modes.js`: added to the Zombies mapPool.
+- `map-load-screen.js`: added to `MAP_SHOTS`; `ui/maps/trollingloud-*.webp` rendered.
+- `ambience.js`: a `trollingloud` preset.
 - Tools:
-  - `tools/troll-ops-trollingloud-shots.mjs`: 12 named views to `.claude/club-shots/`, with draws, tris and lights.
-  - `tools/troll-ops-trollingloud-test.mjs`: systems plus zombie routing.
-  - `tools/_tl-zdiag.mjs` and `tools/_tl-nav.mjs`: throwaway diagnostics. Delete them before merging.
-- `refs/nightclub/*.webp`: the 5 reference images.
+  - `troll-ops-trollingloud-shots.mjs`: 12 views; `TIER=low|medium` switches the SSAO and bloom passes off.
+  - `troll-ops-trollingloud-test.mjs`: systems plus zombie routing per floor.
+  - `troll-ops-zombie-test.mjs` now waits for `zdir()` before its FPS branch.
 
 **Verified**
-- `troll-ops-map-audit.mjs trollingloud_wip` had 1 floating solid (the bottle-shelf ghost box). It was fixed and **not re-run**: re-run with id `trollingloud`.
-- Screenshots of all 12 views look right after tuning:
-  - dance floor with LED tiles and the mirror reflection, starburst, fringe chandelier, ball, lasers
-  - arches plus crystal wall (toned down from blown-out white), VIP plasma oval, amber bar
-  - lobby, terrace LED stair, roof skyline (towers thinned and pushed out to 150-275 m)
-  - alley (pink brick wash), yard
-- Budget:
-  - 14 map lights (18 in the scene, including the 4 light-pool lights)
-  - about 250 draws at most in the interior views; about 490 in the outdoor views before the skyline thinning, about 260 after
-  - about 290k triangles
-- Test:
-  - PASS: shots (sign dark and relit, ball spin-up, bottle breaks), light count stable, track plays, track stops under the radio, no page errors.
+- Audit PASS for trollingloud (586 colliders) and for trollcity.
+- `troll-ops-trollingloud-test.mjs`: ALL PASS.
+  - 14 lights, the count stable
+  - 128.3 BPM
+  - sign, ball and bottle shots; the sign relights
+  - the track plays, is muffled outside (16 kHz in the hall, 360 Hz outside), and stops under the radio
+  - zombies reach the player on ground, mezzanine and roof in 13-23 s
+- `troll-ops-zombie-test.mjs trollingloud`: ALL PASS. FPS=1: 12 alive, 42.8 fps headless, 332 draws.
+- Low-tier screenshots read fine without bloom.
 
-**Open issues (next steps, in order)**
-1. **Zombies don't reach the player** (all 3 floors FAIL).
-   - Zombies spawn in the street and walk toward the fire-escape foot (6.3, 23.1) correctly.
-   - Then they pile up dead still at exactly (±1.3, 30.4): velocity 0, not stunned or staggered, and `field.steer` says (0.58, -0.81), i.e. go south-east.
-   - The only colliders near there are the scaffold walkway deck (y 3.2-3.35, z 29.6-33.6) and the post at x 0, z 29.6.
-   - The ± symmetry around x 0 hints at the post or the scaffold.
-   - Next: log `resolveCircle` pushes or `groundHeightAt` for one stuck zombie. Suspects:
-     - the deck read as support or ceiling
-     - the 0.1 m posts with pad 0.3 sealing a grid row (the nav dump at `.claude/club-shots/nav-ground.txt` shows a row of `##` at every post, z ≈ 29.6, with gaps between)
-     - zombie-zombie separation
-   - Quick experiment: drop the scaffold posts' colliders, or move the walkway out to z ≥ 31.
-2. Test-side bugs in `troll-ops-trollingloud-test.mjs`:
-   - `debug().lights` reads 0. ACTIVE is probably the state of another build: the map's thumbnail or preload, whose ticker never draws. Check which build's ticker sets ACTIVE.
-   - The beat check read 82 beats in 2 s. d0 was a stale uniform; read the beat twice after a frame.
-   - The muffle check read 360 Hz in the hall. The camera was not in the hall when read: teleport, then wait for frames, and use y 0.3 not 0 (the dance floor is a hole in the slab at y 0).
-3. Re-run the audit (`trollingloud`) and the Troll City audit (should be unaffected).
-4. Run `troll-ops-zombie-test.mjs trollingloud` and `FPS=1`.
-5. Check the Low graphics tier: `TIER=low` with the shots tool (needs `T.setGraphicsTier`; verify that hook exists).
-6. Render the map shot with `troll-ops-map-previews.mjs trollingloud`.
-7. Bump cache-bust tags, only for files changed here:
-   - `maps.js` in game.js, loadout.js, menu-bo2.js
-   - `map-load-screen.js` in game.js, menu-bo2.js
-   - `modes.js`, `ambience.js` in game.js
-   - `game.js` and `menu-bo2.js` in troll-ops.html
-8. Merge to main and push. Curl the live `?v=` to confirm. Write the SHIPPED section here and a memory note.
+**Lessons (test-side, the map was fine)**
+- The "zombies stall at (±1.3, 30.4)" bug was the test's fault.
+  - It moved `T.player.pos`, but the game drives the player from `T.move.pos` (the feet) and copies that into player.pos every frame.
+  - So the zombies were correctly mobbing the real player, who never left the alley spawn.
+  - Teleport with `T.move.pos.set(x, feetY, z)`.
+- Playwright's `waitForFunction(async () => ...)` resolves at once, because the Promise it returns is truthy. Stash the module on `window` and wait on a plain predicate.
+- Headless, the camera can stay on the match-intro shot, so anything keyed off the camera position can't be tested by teleporting. Test the function directly instead.
 
 **Design notes worth keeping**
 - Storeys: ground 0 (club floor slab top 0.3, dance floor at 0 in a hole), upper 4.5, roof 9.0.
