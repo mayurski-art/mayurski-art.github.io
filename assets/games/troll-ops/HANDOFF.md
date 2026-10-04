@@ -1,5 +1,117 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## Troll City + Peacemakers + Brass Knuckles: references (user, 2026-10-04)
+The user asked for a western map ("Bronze City" from Roblox Wild West, with
+the troll theme), a western dual pistol with a cool reload and an
+admire/inspect animation, and a brass-knuckle melee. Plan:
+`C:\Users\mayur\.claude\plans\splendid-discovering-piglet.md`.
+
+**Locked decisions**
+- The map is named **Troll City**, id `trollcity`. It is for versus, S&D and Zombies (in the Zombies `mapPool`).
+- **Peacemakers** (id `peacemakers`) are a sidearm. They fire alternately (left, right), 12 rounds (6 per cylinder). Right-click fans the hammer (fast, inaccurate) instead of ADS.
+- **Knuckle Grinners** (id `knuckles`) are a pair: a left jab, then a right hook. Each has a trollface plate.
+- No troll emoji anywhere. Mascot marks are the trollface artwork.
+
+**Reference images** (`refs/western/`)
+- ![](refs/western/main-street-ref.webp) Main street. Brick two-storey fronts, a domed courthouse closing the street, black bollards, kerbs, telegraph poles, dry grass tufts in the dirt.
+- ![](refs/western/saloon-dusty-ref.png) Desert saloon. Wraparound balcony on posts, "ROOMS" sign, a horse tied out front.
+- ![](refs/western/bank-ref.webp) Teal plank false-front bank. Steer skulls on the walls, cactus, wagon wheel, barrel, rocks.
+- ![](refs/western/train-station-ref.webp) Train station with a hip roof. Freight shed, wooden water tower, flag, lamp post, fence.
+- ![](refs/western/saloon-front-ref.webp) "Bronze City Saloon, Est. 1872". Orange vertical planks, dark trim, wraparound balcony, big newel posts, swing doors, hanging lanterns, telegraph wires overhead.
+- ![](refs/western/saloon-hall-ref.webp) Saloon hall. Cream damask wallpaper, dark timber posts and rails, round tables with chairs, chandelier, upstairs gallery.
+- ![](refs/western/saloon-piano-ref.webp) Piano stage. Raised dark platform, red swag curtains, upright piano, framed landscape paintings, pink settees.
+- ![](refs/western/saloon-bar-ref.webp) Bar. Arched back-bar windows lit from behind, rows of bottles, steer skull, cash register, round stools.
+- ![](refs/western/saloon-backroom-ref.webp) Back room. Card table, brass wall sconces, wagon-wheel decor, bear pelt, armchair.
+- ![](refs/western/saloon-kitchen-ref.webp) Kitchen. Cast-iron stove, hanging skillets, keg on a stand, sink, crates, bench with a pot.
+
+<details><summary>The user's Bronze City environment description (verbatim)</summary>
+
+Bronze City — Detailed Environment Description
+Bronze City is a large, dusty frontier boomtown built in a relatively open Western landscape. It is designed to look like a prosperous but rugged late-1800s American frontier city that grew rapidly around trade, mining, horses, law enforcement, and the railroad.
+The city is predominantly constructed from wood, weathered brick, stone, and metal, with dirt streets running between tightly packed buildings.
+
+Overall city layout
+Bronze City is organized around a network of wide dirt roads rather than paved streets.
+The central portion is relatively dense, with buildings sitting close to the roads and continuous wooden sidewalks connecting storefronts.
+The streets have a deliberately irregular frontier-town appearance rather than a modern grid.
+You see: Broad dusty roads; Wooden sidewalks; Crossroads; Small alleys between buildings; Wooden fences; Hitching posts; Horse troughs; Wagons and carts; Barrels and crates; Telegraph poles; Street lamps; Signs hanging above storefronts; Wooden utility structures; Sparse grass around the edges of town.
+The roads are generally a light brown/tan dirt, contrasting with the darker wood of the buildings.
+
+Main Street Architecture
+The most recognizable Bronze City buildings are two-story wooden commercial buildings.
+They generally have: Tall rectangular façades; Large ground-floor windows; Wooden doors; Overhanging upper floors; Covered porches; Wooden support columns; Decorative trim; Second-story windows; Balconies; Painted signs; Sloped roofs.
+The buildings aren't perfectly clean. Wood has a weathered, dusty appearance, giving everything a used frontier feel. Some structures are painted, but many retain natural brown/tan wood.
+
+Storefronts
+The ground floors are designed to face directly toward the sidewalks. Large windows allow you to see into businesses, while doors are usually centered or positioned toward one side. Above them are large signs identifying the business. This creates the classic: sidewalk → storefront → upper floor → roof profile associated with a Western boomtown.
+
+Bronze City Bank
+The bank is one of the more imposing structures in the city. Unlike the small wooden shops, the bank has a more substantial, fortified appearance, emphasizing that Bronze City is a wealthy mining/trading center. The architecture uses heavier materials and more substantial walls.
+Inside, the important visual elements are: Teller counters; Wooden desks; Bank windows; Vault area; Decorative wooden interior; Large open room.
+The bank visually communicates wealth and security compared with the surrounding frontier businesses.
+
+Bronze City Saloon
+The saloon is probably the most stereotypically Western building in the city. From outside, it looks like a traditional multi-story wooden Western saloon with a prominent sign and covered entrance. Inside, the building becomes much more elaborate.
+Ground floor — The main room contains: Long wooden bar; Bar counter; Bottles; Shelves; Tables; Chairs; Wooden floors; Decorative wall elements; Lamps; Piano/music area. The furniture is relatively compact, making the room feel crowded and social. There are multiple entrances/access points and upper areas.
+Upper floor — The upper level adds to the feeling that this isn't just a bar but a functioning frontier establishment. The building has stairways and additional rooms/areas above the main saloon.
+
+Sheriff's Office & Jail
+Bronze City's law-enforcement building has a distinctly practical appearance. It's less decorative than the commercial businesses.
+The building contains: Sheriff's desk; Wooden office furniture; Jail cells; Bars; Doors; Storage; Wanted/bounty-related materials; Interior corridors.
+The jail cells are built into the rear/interior portion of the structure. This creates a strong visual contrast: front = respectable law office, back = rough wooden jail.
+
+General Store
+The General Store is a classic frontier mercantile. The exterior is relatively broad and commercial, with a large sign and storefront windows.
+Inside, it is packed with the visual clutter you'd expect from a Western general store: Wooden shelves; Crates; Boxes; Barrels; Bags; Supplies; Counter; Hanging/stacked merchandise.
+The important design characteristic is density. It doesn't look like an empty modern retail store. The merchandise is visually crowded together.
+
+Guns & Ammo
+The gun shop has a somewhat heavier, more industrial appearance than many of the wooden storefronts. The interior is dominated by: Weapon displays; Counter; Wooden racks; Ammunition/storage; Supplies. It immediately establishes Bronze City as a place where firearms are part of everyday frontier life.
+
+Henry Bros. Clothiers
+This is the clothing store. The building is another example of the relatively polished commercial architecture in the center of town. Inside you'll find: Clothing displays; Shelving; Counters; Wooden floors; Hanging garments; Store fixtures. Compared with the general store, it feels more specialized and orderly.
+
+Doctor's Office
+The doctor's office is smaller and more understated. The interior resembles a traditional frontier medical practice: Wooden examination area; Desk; Medical supplies; Shelves; Chairs; Basic furniture. It doesn't have the sterile appearance of a modern hospital. Everything is made from the same basic frontier materials: wood + glass + metal + cloth.
+
+Blacksmith / Wagon Shop
+This is one of Bronze City's more industrial-looking areas. The blacksmith environment includes: Heavy wooden construction; Wagon components; Tools; Metalworking equipment; Wooden beams; Storage; Work areas. The exterior often has wagons and large pieces of equipment nearby. It creates a transition between the commercial city center and the more utilitarian edge of town.
+
+Stable
+The stable is very important visually because horses are essentially the transportation system of the world. The stable environment contains: Multiple horse stalls; Hay; Wooden beams; Fences; Hitching posts; Water troughs; Saddles/equipment; Hay storage; Dirt/muddy ground. Unlike the polished commercial buildings, the stable feels messy and agricultural. You get a lot of: wood + hay + dirt + horses + fencing.
+
+Train Station
+The railway is one of the most important pieces of Bronze City's scenery. The station introduces an industrial railroad aesthetic into the otherwise traditional Western town. You see: Railroad tracks; Wooden platform; Station building; Wooden beams; Signs; Freight areas; Crates; Cargo; Telegraph/utility infrastructure; Train-related equipment. The station tends to feel more open than the central commercial district. The tracks also create a strong visual boundary between portions of the city.
+
+Lumber Yard
+The lumber yard is much rougher than the businesses downtown. Its primary visual elements are: Large stacks of timber; Planks; Logs; Wooden structures; Work areas; Fences; Utility equipment. It gives the city a believable source of building materials. Rather than every building appearing magically constructed, the lumber yard communicates: this town is actively expanding.
+
+Streets & Props
+A huge part of Bronze City's appearance comes from the small environmental props, rather than the major buildings.
+Horses — Horses are frequently tied outside buildings. You see hitching posts positioned along sidewalks and storefronts.
+Wagons — Wooden wagons and carts sit beside roads, businesses and industrial buildings.
+Barrels — Barrels are scattered around: Storefronts; Alleys; Warehouses; Stables; Industrial areas.
+Crates — Crates appear around commercial and transportation areas, particularly near the railroad and stores.
+Fences — Simple wooden fences separate: Roads; Properties; Stables; Industrial areas; Residential areas.
+Telegraph poles — Tall wooden poles with wires reinforce the late-19th-century setting. They run along the roads and connect different portions of the settlement.
+Street lamps — Simple old-fashioned lamps are positioned around the central streets. They are relatively sparse rather than covering every inch of the city.
+
+Residential Areas
+Away from the commercial center, Bronze City becomes less dense. You start seeing: Small wooden houses; Porches; Fences; Backyards; Small sheds; Dirt paths; Livestock-related structures. These buildings are much simpler than the bank or major businesses. They generally look like one-story frontier houses, with rectangular wooden walls, windows, doors and pitched roofs.
+
+Terrain Around Bronze City
+The city doesn't sit in a giant forest or desert. Instead, it is surrounded by relatively open Great Plains-style terrain. Immediately outside the developed area you see: Rolling grass; Dirt paths; Small hills; Sparse trees; Rocks; Open fields; Distant mountains/hills.
+This is important because Bronze City feels like a settlement carved out of a huge open frontier. There isn't a hard boundary where the city suddenly ends. Instead: buildings → fences → dirt roads → grass → wilderness, gradually.
+
+The Visual Identity
+If you were recreating Bronze City from scratch, I'd define its visual language as:
+Materials — Weathered wood; Dark timber; Tan dirt; Brick; Stone; Iron/metal; Glass.
+Architecture — One- and two-story buildings; Pitched roofs; Wooden balconies; Covered sidewalks; Large storefront windows; Painted signs; Porches; Simple rectangular structures.
+Street environment — Wide dirt roads; Wooden sidewalks; Hitching posts; Wagons; Horses; Barrels; Crates; Fences; Telegraph poles; Sparse street lamps.
+Atmosphere — Dusty, busy, prosperous, rugged, slightly dirty, and unmistakably late-1800s Western.
+The biggest thing that makes Bronze City work is that every building looks like it has a practical reason to exist: bank, saloon, sheriff, doctor, store, stable, blacksmith, railway, lumber yard, clothing store, etc. Together they make it feel like a functioning frontier city rather than a collection of Western-themed buildings.
+</details>
+
 ## One map per room — SHIPPED 2026-10-03 (branch tf-room-map-sync)
 Every versus room (private AND public quickplay) plays the host's map; the
 host = the room's oldest player (net.isBotHost). Before: each client loaded
