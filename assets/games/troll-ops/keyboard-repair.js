@@ -348,25 +348,24 @@ function backPanel() {
   return { group: g, lid, screws, lidHome: lid.position.clone() };
 }
 
-/* The repair's status, as a floating messenger window (user, 2026-10-03:
-   "think of a floating messenger"): no device around it, just a chat
-   popup with a title bar and a message bubble, drawn into a canvas that is
-   redrawn when its text changes. Transparent round the rounded corners. */
+/* The diagnostic tablet: a black tablet floating in the view (user,
+   2026-10-03: keep the black tablet, have it float like a messenger). The
+   screen is a canvas redrawn when its text changes, stored 2x for sharp text. */
 function screen() {
   const c = document.createElement("canvas");
-  c.width = 640; c.height = 400;   // drawn at 320 x 200, stored 2x for sharp text
+  c.width = 512; c.height = 320;   // drawn at 256 x 160
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
   const g = new THREE.Group();
-  const face = part(new THREE.PlaneGeometry(0.176, 0.11),
-    new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, transparent: true, depthWrite: false }));
+  // Black body with a rounded-off bezel edge, a camera dot, a home button.
+  const body = mat(0x111114, { roughness: 0.35, metalness: 0.2 });
+  g.add(part(new THREE.BoxGeometry(0.17, 0.112, 0.008), body));
+  g.add(part(new THREE.BoxGeometry(0.166, 0.108, 0.0004), mat(0x1c1c22, { roughness: 0.2, metalness: 0.3 }), 0, 0, 0.0041));
+  g.add(part(new THREE.CylinderGeometry(0.0016, 0.0016, 0.0006, 12), mat(0x050507), 0, 0.0515, 0.0042).rotateX(Math.PI / 2));
+  g.add(part(new THREE.BoxGeometry(0.03, 0.002, 0.003), mat(0x222228), 0.04, 0.057, 0));   // power button on top
+  const face = part(new THREE.PlaneGeometry(0.156, 0.098), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), 0, 0, 0.0046);
   g.add(face);
-  const round = (x, X, Y, W, H, r) => {
-    x.beginPath();
-    x.moveTo(X + r, Y); x.arcTo(X + W, Y, X + W, Y + H, r); x.arcTo(X + W, Y + H, X, Y + H, r);
-    x.arcTo(X, Y + H, X, Y, r); x.arcTo(X, Y, X + W, Y, r); x.closePath();
-  };
   let last = "";
   g.userData.draw = (title, pct, blue) => {
     const key = `${title}|${Math.round(pct * 100)}|${blue}`;
@@ -374,36 +373,23 @@ function screen() {
     last = key;
     const x = c.getContext("2d");
     x.setTransform(2, 0, 0, 2, 0, 0);
-    x.clearRect(0, 0, 320, 200);
-    // the window
-    round(x, 4, 4, 312, 192, 18);
-    x.fillStyle = "rgba(246, 247, 250, 0.94)";
-    x.fill();
-    // title bar: who it's from, and the traffic lights
-    x.save(); x.clip();
-    x.fillStyle = blue ? "#d8423a" : "#2b6ef2";
-    x.fillRect(4, 4, 312, 38);
-    x.restore();
-    [["#ff5f57", 24], ["#febc2e", 42], ["#28c840", 60]].forEach(([col, cx]) => {
-      x.beginPath(); x.arc(cx, 23, 6, 0, Math.PI * 2); x.fillStyle = col; x.fill();
-    });
-    x.fillStyle = "#ffffff";
-    x.font = 'bold 17px "DM Sans", sans-serif';
-    x.textAlign = "left";
-    x.fillText(blue ? "keyboard.exe" : "IT Troll", 78, 29);
-    // the message bubble
+    x.fillStyle = blue ? "#1546c8" : "#0b0d10";
+    x.fillRect(0, 0, 256, 160);
+    // a status bar along the top
+    x.fillStyle = "rgba(255, 255, 255, 0.55)";
+    x.font = '9px "DM Mono", monospace';
+    x.textAlign = "left"; x.fillText("TROLL-OS", 8, 12);
+    x.textAlign = "right"; x.fillText("100%", 230, 12);
+    x.strokeStyle = "rgba(255, 255, 255, 0.55)"; x.lineWidth = 1;
+    x.strokeRect(234, 5, 14, 8); x.fillRect(236, 7, 10, 4);
+    x.fillStyle = "#f2f4f8";
+    x.textAlign = "center";
     const lines = title.split("\n");
-    const bh = 18 + lines.length * 24 + (pct >= 0 ? 22 : 0);
-    round(x, 18, 56, 284, bh, 14);
-    x.fillStyle = blue ? "#fde7e5" : "#e7efff";
-    x.fill();
-    x.fillStyle = "#15171c";
-    x.font = 'bold 20px "DM Sans", sans-serif';
-    lines.forEach((l, i) => x.fillText(l, 34, 84 + i * 24, 256));
+    x.font = `bold ${blue ? 22 : 20}px "DM Mono", monospace`;
+    lines.forEach((l, i) => x.fillText(l, 128, 50 + i * 26, 240));
     if (pct >= 0) {
-      const y = 70 + lines.length * 24;
-      round(x, 34, y, 252, 10, 5); x.fillStyle = "rgba(20, 24, 32, 0.15)"; x.fill();
-      round(x, 34, y, Math.max(10, 252 * pct), 10, 5); x.fillStyle = "#28c840"; x.fill();
+      x.strokeStyle = "#f2f4f8"; x.lineWidth = 2; x.strokeRect(28, 116, 200, 16);
+      x.fillStyle = "#7fe066"; x.fillRect(31, 119, 194 * pct, 10);
     }
     tex.needsUpdate = true;
   };
@@ -426,7 +412,7 @@ const BACK_FACE_Q = TABLET_Q;
 const TABLET_VIEW_POS = new THREE.Vector3(-0.1, 0.075, -0.46);
 const TABLET_VIEW_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.16, 0.2, 0.03));
 // Midway through (user: "as if your head is looking up to see that message
-// WHILE you are repairing"): the head tips up and left onto the messenger,
+// WHILE you are repairing"): the head tips up and left onto the tablet,
 // reads it, and goes back down to the work. game.js turns both cameras.
 export const KB_GLANCE = { pitch: 0.16, yaw: 0.2, from: 0.56, to: 0.72 };
 
@@ -461,7 +447,7 @@ export function createKeyboardRepair({ audio } = {}) {
   return {
     get active() { return st.active; },
     get t() { return st.t; },
-    /* 0..1: how far the head is turned up onto the messenger. */
+    /* 0..1: how far the head is turned up onto the tablet. */
     get glance() {
       if (!st.active) return 0;
       const k = st.t / KB_REPAIR_TIME, G = KB_GLANCE;
