@@ -50,6 +50,7 @@ const VIEWS = {
   hollowgrin: [38, 26, 34, 74, 3, -6, 62],   // the Grinmoor Fair: mansion, fountain, Ferris wheel, coaster
   grinleria: [22.5, 6.3, -1.2, -6, 2.0, 2.2, 72],
   trollcity: [-30, 6.2, 0.4, 44, 5.5, 0, 60],   // down Main Street: the saloon, the bank, the courthouse dome
+  trollingloud: [0.5, 1.75, 5.5, 0, 3.8, -15, 76],   // the dance floor: the ball, the arches, the crystal wall, the DJ
 };
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(VIEWS);
 

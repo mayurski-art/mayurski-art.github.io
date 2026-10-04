@@ -5622,6 +5622,7 @@ function loadMap(id) {
     builtMap = buildMap(id, { colliders, arena: ARENA });
   }
   builtMap.map.attachAudio?.(audio);
+  builtMap.map.attachMusic?.(music);
   scene.add(builtMap.root);
   spawnPoints = builtMap.spawnPoints;
   // Spawns are authored as [x, z]: stand each on the floor under it (a
@@ -12423,6 +12424,9 @@ function animate() {
   // radio: start a song and the ambience fades out, stop it and it fades back.
   const radioOn = music.playing && music.volume > 0;
   ambience.set((gameState === "playing" || gameState === "paused") && loadedMapId && !radioOn ? loadedMapId : null);
+  // A map with its own sound or music-driven lights (Trolling Loud's DJ)
+  // follows the same rule: on in a match, and it knows when the radio is.
+  builtMap?.map?.onFrame?.({ live: (gameState === "playing" || gameState === "paused") && !!loadedMapId, radio: radioOn });
 
   // Runs during "gameover", between two matches in a room that stayed up.
   if (intermissionT > 0) {

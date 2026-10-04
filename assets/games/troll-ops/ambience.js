@@ -99,6 +99,15 @@ const PRESETS = {
     ],
     events: [["piano", 7, 15], ["horse", 14, 32], ["creak", 9, 20], ["chirp", 8, 18], ["whistle", 45, 90], ["dog", 30, 60], ["gunfire", 35, 70, 0.6]],
   },
+  // Trolling Loud: the crowd and the neon's buzz; the club's track itself
+  // is the map's own (trollingloud.js), from the DJ booth, through the walls.
+  trollingloud: {
+    beds: [
+      { kind: "murmur", gain: 0.03 },
+      { kind: "hum", freqs: [60, 120, 180], gain: 0.008, lp: 400 },
+    ],
+    events: [["clank", 6, 14, 0.5], ["buzz", 9, 20], ["car", 12, 28]],
+  },
   // Trollface Island, floating in space: wind off the cliffs, a low drone
   // underneath, a shimmer from the sky.
   trollface: {

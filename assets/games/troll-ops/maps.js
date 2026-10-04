@@ -14,6 +14,7 @@ import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc";
 import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e";
 import { TROLLCITY } from "./trollcity.js?v=tc2-wst";
+import { TROLLINGLOUD } from "./trollingloud.js?v=tl1";
 import { SURFACES } from "./surface-textures.js?v=hg6e";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
@@ -1615,6 +1616,8 @@ MAPS.trollcity.dress = {
     { kind: "paper", n: 10, area: ["street", "plaza"], size: [0.6, 1], colors: [0xd8c8a0, 0xc8b890] },
   ],
 };
+// The neon nightclub: versus, S&D and Zombies, like Troll City.
+MAPS.trollingloud = TROLLINGLOUD;
 // Troll Royale's own map: 400 m across, far too big for the versus modes, so
 // it stays out of MAP_IDS (the vote pool).
 MAPS.trollface = TROLLFACE_ISLAND;

@@ -1,5 +1,110 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## Trolling Loud (neon nightclub map): references (user, 2026-10-04) — IN PROGRESS (branch tf-nightclub, worktree ../tf-club-wt)
+The user asked for a nightclub map with neon lights. Plan (v2, with the
+improvements pass): `C:\Users\mayur\.claude\plans\for-troll-forces-game-fancy-snail.md`.
+
+**Locked decisions**
+- The map is named **Trolling Loud**, id `trollingloud`. It is for versus, S&D and Zombies (joins the Zombies `mapPool`).
+- Club plus a rooftop terrace, about 72 x 66 m, three storeys: ground 0, mezzanine 4.5, roof 9.0.
+- All four extras are in:
+  - beat-synced club: one 128 BPM clock drives the neon, the dance floor, the lasers and the lights
+  - shootable set pieces: mirror ball, signs, bottles, DJ deck (cosmetic, local only)
+  - a mirror dance floor
+  - radio takeover: Troll Radio's kick drives the lights when it is playing
+- Reference images are committed (same as `refs/western/`).
+- No troll emoji anywhere. Mascot marks are the trollface artwork.
+
+### RESUME HERE (paused 2026-10-04 for a context compact)
+Work happens in the worktree `C:\Users\mayur\OneDrive\Documents\GitHub\tf-club-wt`, branch `tf-nightclub`, cut from origin/main d4d8475. The main checkout (`mayurski-art.github.io`, branch tf-western) is NOT touched: it holds another session's uncommitted saber edits. Nothing is merged or pushed yet.
+
+**Files**
+- `trollingloud.js` (new): the map itself.
+  - layout: shell, hall, vip, bar, lobby, restrooms, coatCheck, backOfHouse, terrace, roof, outside
+  - systems: beat clock `tick`, shots `onShot`, the DJ track (`ensureSound` / `scheduleTrack` / `muffle` / `onFrame`), `sfx`
+  - zombieLayout with 7 stair links; `debug()` for tests
+- `trollingloud-kit.js` (new):
+  - `U`, the shared uniforms
+  - `neonMat` and `Neon`: batched neon with per-vertex chase/beat/kill-group/ripple
+  - `ledMat` ("crystal" DJ wall, "plasma" VIP oval)
+  - `clubFx` (uplight wash + mirror-ball spots on lit materials)
+  - `skipOverride` (keeps transparent meshes out of SSAO)
+  - `wall`, `lining`, `cutRects`, `deck`, `glassRail`
+  - the sign atlas (`SIGNS`, `signsTexture`, `signUV`), and the textures
+  - It reuses Kit/canvasTex/tex from trollcity-kit.js. Plan v2 said move trollcity.js's helpers into the kit; that wasn't needed (own versions written), so trollcity.js is untouched.
+- `maps.js`: imports `TROLLINGLOUD`, registered as `MAPS.trollingloud` (no longer `_wip`).
+- `game.js` (2 hooks):
+  - `builtMap.map.attachMusic?.(music)` next to attachAudio (~5625)
+  - `builtMap?.map?.onFrame?.({ live, radio })` under `ambience.set` (~12426)
+- `modes.js:48`: Zombies mapPool has `trollingloud`.
+- `map-load-screen.js:16`: `MAP_SHOTS` has `trollingloud`. The webp files are NOT rendered yet, so the shot 404s until `troll-ops-map-previews.mjs trollingloud` is run (its VIEWS entry is added).
+- `ambience.js`: a `trollingloud` preset (murmur, hum, clank/buzz/car).
+- Tools:
+  - `tools/troll-ops-trollingloud-shots.mjs`: 12 named views to `.claude/club-shots/`, with draws, tris and lights.
+  - `tools/troll-ops-trollingloud-test.mjs`: systems plus zombie routing.
+  - `tools/_tl-zdiag.mjs` and `tools/_tl-nav.mjs`: throwaway diagnostics. Delete them before merging.
+- `refs/nightclub/*.webp`: the 5 reference images.
+
+**Verified**
+- `troll-ops-map-audit.mjs trollingloud_wip` had 1 floating solid (the bottle-shelf ghost box). It was fixed and **not re-run**: re-run with id `trollingloud`.
+- Screenshots of all 12 views look right after tuning:
+  - dance floor with LED tiles and the mirror reflection, starburst, fringe chandelier, ball, lasers
+  - arches plus crystal wall (toned down from blown-out white), VIP plasma oval, amber bar
+  - lobby, terrace LED stair, roof skyline (towers thinned and pushed out to 150-275 m)
+  - alley (pink brick wash), yard
+- Budget:
+  - 14 map lights (18 in the scene, including the 4 light-pool lights)
+  - about 250 draws at most in the interior views; about 490 in the outdoor views before the skyline thinning, about 260 after
+  - about 290k triangles
+- Test:
+  - PASS: shots (sign dark and relit, ball spin-up, bottle breaks), light count stable, track plays, track stops under the radio, no page errors.
+
+**Open issues (next steps, in order)**
+1. **Zombies don't reach the player** (all 3 floors FAIL).
+   - Zombies spawn in the street and walk toward the fire-escape foot (6.3, 23.1) correctly.
+   - Then they pile up dead still at exactly (±1.3, 30.4): velocity 0, not stunned or staggered, and `field.steer` says (0.58, -0.81), i.e. go south-east.
+   - The only colliders near there are the scaffold walkway deck (y 3.2-3.35, z 29.6-33.6) and the post at x 0, z 29.6.
+   - The ± symmetry around x 0 hints at the post or the scaffold.
+   - Next: log `resolveCircle` pushes or `groundHeightAt` for one stuck zombie. Suspects:
+     - the deck read as support or ceiling
+     - the 0.1 m posts with pad 0.3 sealing a grid row (the nav dump at `.claude/club-shots/nav-ground.txt` shows a row of `##` at every post, z ≈ 29.6, with gaps between)
+     - zombie-zombie separation
+   - Quick experiment: drop the scaffold posts' colliders, or move the walkway out to z ≥ 31.
+2. Test-side bugs in `troll-ops-trollingloud-test.mjs`:
+   - `debug().lights` reads 0. ACTIVE is probably the state of another build: the map's thumbnail or preload, whose ticker never draws. Check which build's ticker sets ACTIVE.
+   - The beat check read 82 beats in 2 s. d0 was a stale uniform; read the beat twice after a frame.
+   - The muffle check read 360 Hz in the hall. The camera was not in the hall when read: teleport, then wait for frames, and use y 0.3 not 0 (the dance floor is a hole in the slab at y 0).
+3. Re-run the audit (`trollingloud`) and the Troll City audit (should be unaffected).
+4. Run `troll-ops-zombie-test.mjs trollingloud` and `FPS=1`.
+5. Check the Low graphics tier: `TIER=low` with the shots tool (needs `T.setGraphicsTier`; verify that hook exists).
+6. Render the map shot with `troll-ops-map-previews.mjs trollingloud`.
+7. Bump cache-bust tags, only for files changed here:
+   - `maps.js` in game.js, loadout.js, menu-bo2.js
+   - `map-load-screen.js` in game.js, menu-bo2.js
+   - `modes.js`, `ambience.js` in game.js
+   - `game.js` and `menu-bo2.js` in troll-ops.html
+8. Merge to main and push. Curl the live `?v=` to confirm. Write the SHIPPED section here and a memory note.
+
+**Design notes worth keeping**
+- Storeys: ground 0 (club floor slab top 0.3, dance floor at 0 in a hole), upper 4.5, roof 9.0.
+- Doors are at least 2 m wide; arteries 3.3 m.
+- Stairs:
+  - hall stairs at x ±7.5 rise +z to the south mezzanine arm
+  - service stair (kitchen to sound booth) at x 28.7
+  - office stair to the roof at x -28.7
+  - LED stair: terrace (4.5) to roof
+  - fire escapes: alley to terrace (+x from x 7), yard to back corridor (-x from x -7)
+- Spawns: 8 in the south alley under the scaffold (z 31.4), 8 in the north yard under the dock shed (z -31.2).
+- Shootables are local only. Sign kill groups 1-15 live in `U.uKill`; the bottle segments are `uGone`.
+- Mirror floor: the hall-ceiling Neon (HN) meshes, the crystal wall, the fringe and the ball are cloned into a `scale.y = -1` group under the 0.8-opacity glass. The pit below is black boxes.
+
+**Reference images** (`refs/nightclub/`)
+- ![](refs/nightclub/booth-starburst-ref.webp) Booth hall. A blue-white neon starburst radiating across a black truss ceiling, crystal drum chandeliers, sweeping magenta tufted booths in a U, gold-rimmed glass cocktail tables, a glossy dark wood floor reflecting everything, a DJ booth with a logo screen on a gold-sparkle LED wall, slatted columns with red uplight.
+- ![](refs/nightclub/fringe-chandelier-ref.webp) Fringe chandelier. A huge ring of hanging silver strands lit violet and blue, with red bulbs round the rim and a mirror-ball core. An aerialist hangs under it; jungle foliage, a hex-mesh ceiling and a packed crowd sit below.
+- ![](refs/nightclub/liv-oval-led-ref.webp) LIV-style hall. An oval LED ceiling dome of violet and cyan plasma in a black and gold frame, black columns ringed with white light bands, curved balcony boxes, teal mosaic walls, green croc booths on gold bases, cyan lasers off a glowing DJ wall, a floor with lit rosette patterns.
+- ![](refs/nightclub/rooftop-terrace-ref.webp) Rooftop terrace at dusk. A steel spiral staircase with glowing blue LED treads up to an upper deck with a flag, white neon posts, a pink-lit bar, a city grid of lights to the horizon, black leather lounge chairs.
+- ![](refs/nightclub/tiered-arches-ref.webp) Tiered club. Nested ceiling arches outlined in thousands of gold and red LED points, a ring of moving-head spots round a mirror medallion, a crystal diamond LED wall behind the DJ, red quilted booths stepping up in tiers, a glass rail along the balcony, blue light pooling on the dance floor, candle lamps on the tables.
+
 ## Troll City + Peacemakers + Knuckle Grinners + bandana — SHIPPED 2026-10-04 (branch tf-western)
 - **Troll City** (`trollcity.js`, helpers/props/textures in `trollcity-kit.js`): an all-procedural boomtown, 124 x 100 m, in `MAP_IDS` and the Zombies `mapPool`.
   - Every shop is walk-through, front to back.
