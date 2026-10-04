@@ -745,6 +745,9 @@ function callStreak(id) {
     showWaveBanner(`${STREAK_DEFS[id].name} ${streakLockWhy[id] === "jammed" ? "jammed" : "cooling down"}: ${Math.ceil(lock)}s`, 1100);
     return;
   }
+  // Melee in hand: it's put away first, and the call goes through once it's
+  // gone (updateMeleeView). The streak hold hands back to it after.
+  if (player.holding === "melee" && !meleePutAway) { holsterMeleeFor(id); return; }
   // The marking streaks don't spend until the point is confirmed — dying or
   // cancelling mid-mark must not eat the reward.
   if (id === "airstrike") {
@@ -5973,9 +5976,8 @@ let currentWeaponSlot = "primary";
 
 /* Streak device call window (DESIGN-ARMS.md Phase 5). `streakHoldT > 0`
    means "stay on the device," ticked down in updatePlayer(); reaching 0
-   returns to whatever was held before (always "gun" in practice — you
-   can't call a streak while holding melee, callStreak/useSelectedStreak
-   are gated behind streaksAllowed which requires the gun slot already).
+   returns to whatever was held before (streakReturnTo: the gun in either
+   slot, or the melee weapon, which is holstered before the call).
    `streakHoldUntilMark` means "don't count down — stay up for the whole
    marking window," cleared explicitly by confirmMark()/cancelMark(). */
 let streakHoldT = 0;
@@ -6042,8 +6044,40 @@ function tabletDiveFlash() {
   audio.reload();
 }
 
+/* Calling a streak with the melee weapon out (user): it's put away first —
+   the draw played backwards, down and off low right, blade powering down —
+   and the streak is called the moment it's gone. A swing in progress
+   finishes first. `id` is the streak waiting on it. */
+const MELEE_HOLSTER_TIME = 0.4;
+let meleeHolster = null;        // { t, id }
+let meleePutAway = false;       // true only while the holstered call runs
+let streakReturnTo = "gun";     // what the hold hands back to: "gun" | "melee"
+
+function holsterMeleeFor(id) {
+  if (meleeHolster) { meleeHolster.id = id; return; }
+  meleeHolster = { t: 0, id, started: false };
+  cancelCook();
+}
+
+function finishMeleeHolster() {
+  const id = meleeHolster.id;
+  meleeHolster = null;
+  meleePutAway = true;
+  try { callStreak(id); } finally { meleePutAway = false; }
+  if (player.holding === "streak") streakReturnTo = "melee";
+  // The call didn't go through after all (spent, jammed...): draw it back.
+  else if (player.holding === "melee") {
+    meleeDrawT = meleeDrawLen = MELEE_DRAW_TIME;
+    const ud = activeMeleeMesh?.userData;
+    (ud?.saber || ud?.halo)?.ignite();
+    if (ud) ud.holstered = false;
+  }
+}
+
 function beginStreakHold(seconds = 0, kind = "tablet", screen = null) {
-  if (player.holding === "melee") return; // never interrupt a mid-swing
+  // Never interrupt a mid-swing; a held melee weapon goes through
+  // holsterMeleeFor first.
+  if (player.holding === "melee" && !meleePutAway) return;
   if (player.holding !== "streak" || streakDeviceKind !== kind) {
     streakHoldElapsed = 0;
     streakRaiseT = 0;
@@ -6068,7 +6102,14 @@ function finishStreakHold() {
   streakLowering = false;
   streakRaiseT = 0;
   markerThrowT = 0;
-  if (player.holding === "streak") setHolding("gun");
+  if (player.holding === "streak") {
+    // Back to the melee weapon if that's what it was called off (it draws
+    // itself back up), otherwise the gun - primary or secondary, whichever
+    // slot was up.
+    if (streakReturnTo === "melee") setHolding("melee");
+    if (player.holding === "streak") setHolding("gun");
+  }
+  streakReturnTo = "gun";
   weaponLowerT = 1;
   if (pendingDroneLaunch) launchPendingDrone();
 }
@@ -6244,7 +6285,8 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "KeyB" && !e.repeat) toggleThirdPerson();
     if (e.code === "Digit1") switchWeapon("primary");
     if (e.code === "Digit2") switchWeapon("secondary");
-    if (e.code === "Digit3") setHolding("melee");
+    // Not mid-streak: it would yank the tablet/marker out of your hands.
+    if (e.code === "Digit3" && player.holding !== "streak") setHolding("melee");
     // One key per streak row (4 = top). A single "call the priciest" key
     // fired the hunter-killer whenever you meant the care package.
     // Troll Royale has no streaks: 4 puts a plate on, 5 uses Hopium.
@@ -7827,6 +7869,7 @@ function releaseCook({ cookedOff = false } = {}) {
    melee weapon the thing in your hands, which swings and moves faster. */
 function swingMelee() {
   if (kbRepair.active) return;   // both hands busy fixing the keyboard
+  if (meleeHolster) return;      // being put away for a streak
   if (!player.alive || move.busy || gameState !== "playing" || stageFrozen() || royaleDropView()) return;
   if (!player.melee || !player.melee.start()) return;
   // Everyone else sees the swing; the damage still travels as a normal hit.
@@ -12984,6 +13027,13 @@ function updateMeleeView(dt) {
   sawShake = 0;
   if (!mesh || !melee) return;
 
+  // Put away for a streak (holsterMeleeFor): once it's all the way down, the
+  // call goes through and the hands are off it this same frame.
+  if (meleeHolster) {
+    if (!player.alive || player.holding !== "melee" || gameState !== "playing") meleeHolster = null;
+    else if (meleeHolster.t >= MELEE_HOLSTER_TIME) finishMeleeHolster();
+  }
+
   const held = player.holding === "melee";
   const swinging = melee.busy;
   if (held || swinging) inspectArms.visible = false;   // the gun's showcase arms
@@ -13003,7 +13053,7 @@ function updateMeleeView(dt) {
       if (equip) audio.saberIgniteSlow(); else audio.saberIgnite();
       meleeDrawT = meleeDrawLen = equip ? MELEE_EQUIP_TIME : MELEE_DRAW_TIME;
     }
-    else { audio.saberHum(-1); audio.saberRetract(); }
+    else { audio.saberHum(-1); if (!mesh.userData.holstered) audio.saberRetract(); }
   }
   // The Halo Blade: dark in the hand, its prongs unfold out of the hilt as
   // it's drawn (halo-blade.js), and fold away when it's put up.
@@ -13017,8 +13067,10 @@ function updateMeleeView(dt) {
       if (equip) audio.haloIgniteSlow(); else audio.haloIgnite();
       meleeDrawT = meleeDrawLen = equip ? MELEE_EQUIP_TIME : MELEE_DRAW_TIME;
     }
-    else { halo.retract(); audio.haloRetract(); }
+    else { halo.retract(); if (!mesh.userData.holstered) audio.haloRetract(); }
   }
+  // The holster already played the power-down; that hide was quiet.
+  if (!mesh.visible) mesh.userData.holstered = false;
   // Everything else (Keyboard Warrior, Chainsaw, Reaper) gets the same slow
   // draw when it's equipped, with its own start-up sound.
   if (!saber && !halo && mesh.visible !== !!mesh.userData.drawShown) {
@@ -13151,6 +13203,31 @@ function updateMeleeView(dt) {
       saberDeflectT = Math.max(0, saberDeflectT - dt * 7);
       mesh.position.z += saberDeflectT * 0.03;
     }
+  }
+
+  // Holstering for a streak: the draw run backwards — it tips and drops
+  // away low right, an energy blade powering down as it goes. Waits for a
+  // swing already in progress to land.
+  if (meleeHolster && !swinging) {
+    if (!meleeHolster.started) {
+      meleeHolster.started = true;
+      meleeDrawT = 0;
+      inspectT = 0;
+      if (kbRepair.active) kbRepair.stop();
+      const power = saber || halo;
+      if (power) {
+        power.retract();
+        if (saber) { audio.saberHum(-1); audio.saberRetract(); } else audio.haloRetract();
+        mesh.userData.holstered = true;
+      }
+    }
+    meleeHolster.t += dt;
+    const k = Math.min(1, meleeHolster.t / MELEE_HOLSTER_TIME);
+    const e = k * k * (3 - k) / 2;                 // eases in, leaves quickly
+    mesh.position.x += e * 0.14;
+    mesh.position.y -= e * 0.34;
+    mesh.position.z += e * 0.08;
+    mesh.quaternion.multiply(_meleeViewQ.setFromEuler(_meleeViewE.set(e * -0.9, 0, e * 1.6)));
   }
 
   if (swinging) {
@@ -14958,7 +15035,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     royaleBotObjective, royaleBotDamage, royaleNoise, ROYALE,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
     streakArms, beginStreakHold, weaponRig, WHISTLE_HAND, WHISTLE_ROT, spawnVsatSat,
-    beginStreakHold, endStreakHold,
+    beginStreakHold, endStreakHold, meleeHolster: () => meleeHolster, clearStreakLocks,
     landDipT: () => landDipT, landDipMag: () => landDipMag,
     aimAssistPoints, findAimAssistTarget, applyAimAssist, controls,
   };
