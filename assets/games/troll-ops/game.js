@@ -9,10 +9,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-wst";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst";
-import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst";
+import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c";
@@ -39,7 +39,7 @@ import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst";
@@ -69,11 +69,11 @@ import { kickCurve } from "./attachments.js?v=cg1-wst";
 import { WaveSpawner } from "./enemies.js?v=hb4-wst";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1-wst";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
-import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g-nf-wst";
+import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g-nf-wst-ig1";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3-bk1-wst";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { poseKnuckles } from "./brass-knuckles.js?v=bk1-wst";
-import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4";
+import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4-ig1";
 import { createAkimboView, AKIMBO_INSPECT_TIME } from "./akimbo-view.js?v=ak1-wst";
 import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./keyboard-repair.js?v=kr15";
 import { RangeSet } from "./range.js";
@@ -6262,12 +6262,33 @@ let meleePutAway = false;       // true only while the holstered call runs
 let streakReturnTo = "gun";     // what the hold hands back to: "gun" | "melee"
 
 function holsterMeleeFor(id) {
-  if (meleeHolster) { meleeHolster.id = id; return; }
-  meleeHolster = { t: 0, id, started: false };
+  if (meleeHolster) { meleeHolster.id = id; meleeHolster.then = null; return; }
+  meleeHolster = { t: 0, id, started: false, len: powerHeld() ? POWER_HOLSTER_TIME : MELEE_HOLSTER_TIME };
+  cancelCook();
+}
+
+/* Is the melee weapon in hand an energy blade (Trollsaber, Halo Blade)? */
+function powerHeld() {
+  const ud = activeMeleeMesh?.userData;
+  return player.holding === "melee" && !!(ud?.saber || ud?.halo);
+}
+
+/* Put the energy blade away before `then` runs (a weapon swap): it powers
+   down in the hand, then drops out of view. */
+function holsterMeleeThen(then) {
+  if (meleeHolster) { meleeHolster.then = then; return; }
+  meleeHolster = { t: 0, id: null, then, started: false, len: POWER_HOLSTER_TIME };
   cancelCook();
 }
 
 function finishMeleeHolster() {
+  if (meleeHolster.then) {
+    const then = meleeHolster.then;
+    meleeHolster = null;
+    meleePutAway = true;
+    try { then(); } finally { meleePutAway = false; }
+    return;
+  }
   const id = meleeHolster.id;
   meleeHolster = null;
   meleePutAway = true;
@@ -8095,8 +8116,12 @@ function swingMelee() {
   // Everyone else sees the swing; the damage still travels as a normal hit.
   if (isPvp() && net.active) net.publishMelee(player.melee.swingIndex % 2, player.melee.def.id);
   breakSpawnGuard();
-  // Swinging mid-ignite: the blade finishes coming out fast, and the slow
-  // draw gives way to the swing.
+  // Swinging mid-ignite (or before it): the blade comes out fast, and the
+  // slow draw gives way to the swing.
+  if (activeMeleeMesh?.userData.igniteDelay > 0) {
+    activeMeleeMesh.userData.igniteDelay = 0;
+    if (activeMeleeMesh.userData.saber) audio.saberIgnite(); else if (activeMeleeMesh.userData.halo) audio.haloIgnite();
+  }
   for (const m of [activeMeleeMesh, localHeld.mesh]) {
     const sv = m?.userData.saber || m?.userData.halo;
     if (sv && sv.frac < 1) sv.ignite();
@@ -8201,6 +8226,15 @@ const MELEE_DRAW_TIME = 0.5;
 // the Keyboard Warrior and the Chainsaw too.
 const SLOW_IGNITE = 1.1;
 const MELEE_EQUIP_TIME = 1.0;
+// Ignition on and off, where you can see it (user: "I just don't see the
+// ignition when I equip it"): the energy blade's hilt comes up dark and
+// settles, a beat, THEN it ignites; put away, it powers down in the hand
+// first and only then drops out of view.
+const POWER_EQUIP_TIME = 0.7;     // the dark hilt rising into the guard
+const POWER_IGNITE_DELAY = 0.95;  // from the draw starting to the ignite
+const POWER_IGNITE = 1.35;        // the slow, sputtering ignite itself
+const POWER_RETRACT = 0.55;       // powering down in the hand
+const POWER_HOLSTER_TIME = 0.95;  // the whole put-away: retract, then drop
 let meleeDrawT = 0;
 let meleeDrawLen = MELEE_DRAW_TIME;
 let saberTrail = null;
@@ -8462,6 +8496,8 @@ function switchWeapon(slot) {
   if (player.holding === "streak") return;
   const id = slot === "secondary" ? player.secondaryId : player.weaponId;
   if (!id || !player.weapons[id]) return;
+  // An energy blade powers down in the hand before the gun comes up.
+  if (powerHeld() && !meleePutAway && !player.melee?.busy && player.alive) { holsterMeleeThen(() => switchWeapon(slot)); return; }
   const w = player.weapons[id];
   if (player.holding === "gun" && w === currentWeapon()) return;
   // A shell-by-shell reload is dropped on a swap; shells already in stay in.
@@ -13456,7 +13492,7 @@ function updateMeleeView(dt) {
   // call goes through and the hands are off it this same frame.
   if (meleeHolster) {
     if (!player.alive || player.holding !== "melee" || gameState !== "playing") meleeHolster = null;
-    else if (meleeHolster.t >= MELEE_HOLSTER_TIME) finishMeleeHolster();
+    else if (meleeHolster.t >= (meleeHolster.len ?? MELEE_HOLSTER_TIME)) finishMeleeHolster();
   }
 
   const held = player.holding === "melee";
@@ -13473,10 +13509,9 @@ function updateMeleeView(dt) {
     saberHavePrevTip = false;
     if (mesh.visible) {
       const equip = held && !swinging;
-      saber.ignite(equip ? SLOW_IGNITE : undefined);
-      saber.flare(equip ? 0.5 : 1.2);
-      if (equip) audio.saberIgniteSlow(); else audio.saberIgnite();
-      meleeDrawT = meleeDrawLen = equip ? MELEE_EQUIP_TIME : MELEE_DRAW_TIME;
+      if (equip) mesh.userData.igniteDelay = POWER_IGNITE_DELAY;   // lit below, once the hilt's up
+      else { saber.ignite(); saber.flare(1.2); audio.saberIgnite(); }
+      meleeDrawT = meleeDrawLen = equip ? POWER_EQUIP_TIME : MELEE_DRAW_TIME;
     }
     else { audio.saberHum(-1); if (!mesh.userData.holstered) audio.saberRetract(); }
   }
@@ -13488,11 +13523,21 @@ function updateMeleeView(dt) {
     if (mesh.visible) {
       const equip = held && !swinging;
       halo.snapOff();
-      halo.ignite(equip ? SLOW_IGNITE : undefined);
-      if (equip) audio.haloIgniteSlow(); else audio.haloIgnite();
-      meleeDrawT = meleeDrawLen = equip ? MELEE_EQUIP_TIME : MELEE_DRAW_TIME;
+      if (equip) mesh.userData.igniteDelay = POWER_IGNITE_DELAY;
+      else { halo.ignite(); audio.haloIgnite(); }
+      meleeDrawT = meleeDrawLen = equip ? POWER_EQUIP_TIME : MELEE_DRAW_TIME;
     }
     else { halo.retract(); if (!mesh.userData.holstered) audio.haloRetract(); }
+  }
+  // Ignition: the hilt is up and still, now the blade comes out.
+  if (mesh.userData.igniteDelay > 0) {
+    mesh.userData.igniteDelay = mesh.visible ? mesh.userData.igniteDelay - dt : 0;
+    if (mesh.userData.igniteDelay <= 0 && mesh.visible) {
+      const power = saber || halo;
+      power?.ignite(POWER_IGNITE);
+      if (saber) { saber.flare(0.6); audio.saberIgniteSlow(); }
+      else if (halo) audio.haloIgniteSlow();
+    }
   }
   // The holster already played the power-down; that hide was quiet.
   if (!mesh.visible) mesh.userData.holstered = false;
@@ -13642,13 +13687,17 @@ function updateMeleeView(dt) {
       if (kbRepair.active) kbRepair.stop();
       const power = saber || halo;
       if (power) {
-        power.retract();
+        power.retract(POWER_RETRACT);
+        mesh.userData.igniteDelay = 0;
         if (saber) { audio.saberHum(-1); audio.saberRetract(); } else audio.haloRetract();
         mesh.userData.holstered = true;
       }
     }
     meleeHolster.t += dt;
-    const k = Math.min(1, meleeHolster.t / MELEE_HOLSTER_TIME);
+    // An energy blade holds still while it powers down, then drops.
+    const hold = saber || halo ? POWER_RETRACT : 0;
+    const len = meleeHolster.len ?? MELEE_HOLSTER_TIME;
+    const k = Math.max(0, Math.min(1, (meleeHolster.t - hold) / Math.max(0.05, len - hold)));
     const e = k * k * (3 - k) / 2;                 // eases in, leaves quickly
     mesh.position.x += e * 0.14;
     mesh.position.y -= e * 0.34;

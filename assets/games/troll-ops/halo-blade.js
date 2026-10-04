@@ -256,7 +256,8 @@ export function buildHaloBlade({ lit = true } = {}) {
     last: performance.now(),
     igniteTime: IGNITE_TIME,
     ignite(time = IGNITE_TIME) { if (this.target < 1) this.surge = 1; this.target = 1; this.igniteTime = time; },
-    retract() { this.target = 0; },
+    retractTime: RETRACT_TIME,
+    retract(time = RETRACT_TIME) { this.target = 0; this.retractTime = time; },
     snapOff() { this.target = this.frac = 0; },
     flare(amount = 1) { this.surge = Math.max(this.surge, Math.min(1, amount)); },
     get lit() { return this.frac > 0.02; },
@@ -271,7 +272,7 @@ export function buildHaloBlade({ lit = true } = {}) {
     if (dt <= 0) return;
     power.last = now;
     if (power.frac < power.target) power.frac = Math.min(power.target, power.frac + dt / power.igniteTime);
-    else if (power.frac > power.target) power.frac = Math.max(power.target, power.frac - dt / RETRACT_TIME);
+    else if (power.frac > power.target) power.frac = Math.max(power.target, power.frac - dt / power.retractTime);
     power.surge = Math.max(0, power.surge - dt * 1.6);
     const f = power.frac;
     // Out with a little overshoot; back in with a quick collapse.

@@ -1,6 +1,8 @@
 // Melee round (user, 2026-10-03):
-//   1. the Trollsaber ignites SLOWLY every time it's equipped (a quick V
-//      swing still snaps it out fast);
+//   1. the Trollsaber ignites SLOWLY every time it's equipped, after the
+//      hilt has come up dark (2026-10-04: "I just don't see the ignition");
+//      put away for a gun, it powers down in the hand before the gun comes
+//      up; a quick V swing still snaps it out fast;
 //   2. melee kills in third person (the swing used to start at the camera,
 //      3 m behind you, and end behind your own back);
 //   3. (bots firing into a guard: bots.js canShoot, not tested here);
@@ -65,13 +67,29 @@ await startRange("trollsaber");
 await page.evaluate(() => window.__trollOps.setHolding("gun"));
 await sleep(600);
 await close();
-await page.evaluate(() => window.__trollOps.setHolding("melee"));
-await sleep(400);
-const f04 = await page.evaluate(() => window.__trollOps.saberFrac());
-await sleep(1300);
-const f17 = await page.evaluate(() => window.__trollOps.saberFrac());
-check("equip ignites slowly (part-lit at 0.4 s, full by 1.7 s)", f04 > 0.05 && f04 < 0.75 && f17 >= 0.999, `0.4s ${f04?.toFixed(2)}, 1.7s ${f17?.toFixed(2)}`);
-await page.evaluate(() => window.__trollOps.setHolding("gun"));
+// timed in the page: a screenshot between readings would skew them
+const [f06, f15, f26] = await page.evaluate(async () => {
+  const T = window.__trollOps, at = (ms) => new Promise((r) => setTimeout(() => r(T.saberFrac()), ms));
+  T.setHolding("melee");
+  return Promise.all([at(600), at(1500), at(2600)]);
+});
+check("equip: the hilt comes up dark, then it ignites slowly", f06 === 0 && f15 > 0.05 && f15 < 0.9 && f26 >= 0.999, `0.6s ${f06?.toFixed(2)}, 1.5s ${f15?.toFixed(2)}, 2.6s ${f26?.toFixed(2)}`);
+// Put away for the gun: it powers down in the hand first.
+await page.evaluate(() => window.__trollOps.switchWeapon("primary"));
+await sleep(300);
+const off = await page.evaluate(() => ({ frac: window.__trollOps.saberFrac(), holding: window.__trollOps.player.holding }));
+await sleep(900);
+const gone = await page.evaluate(() => window.__trollOps.player.holding);
+check("swap: the blade powers down in the hand, then the gun comes up", off.holding === "melee" && off.frac > 0 && off.frac < 0.9 && gone === "gun", `0.3s ${JSON.stringify(off)}, 1.2s ${gone}`);
+if (OUT) {
+  // the same again, for the eye: dark hilt, igniting, lit, powering down
+  await page.evaluate(() => window.__trollOps.setHolding("melee"));
+  for (const [ms, name] of [[700, "1-dark-hilt"], [800, "2-igniting"], [1200, "3-lit"]]) { await sleep(ms); await shot(page, `ignite-${name}.png`); }
+  await page.evaluate(() => window.__trollOps.switchWeapon("primary"));
+  await sleep(250);
+  await shot(page, "ignite-4-powering-down.png");
+  await sleep(1200);
+}
 await sleep(500);
 await page.evaluate(() => window.__trollOps.swingMelee());
 await sleep(250);

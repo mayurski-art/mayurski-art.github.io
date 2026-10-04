@@ -275,7 +275,8 @@ export function buildTrollsaber({ lit = true, castShadow = false } = {}) {
     // SLOW_IGNITE): it sputters, then the blade pushes out steadily.
     igniteTime: IGNITE_TIME,
     ignite(time = IGNITE_TIME) { this.target = 1; this.igniteTime = time; },
-    retract() { this.target = 0; },
+    retractTime: RETRACT_TIME,
+    retract(time = RETRACT_TIME) { this.target = 0; this.retractTime = time; },
     snapOff() { this.target = this.frac = 0; },
     flare(amount = 1) { this.power = Math.max(this.power, 1 + amount); },
     // world-space blade root/tip, for the trail and deflect sparks
@@ -291,7 +292,7 @@ export function buildTrollsaber({ lit = true, castShadow = false } = {}) {
     const dt = Math.min(0.1, (now - saber.last) / 1000);
     saber.last = now;
     if (saber.frac < saber.target) saber.frac = Math.min(saber.target, saber.frac + dt / saber.igniteTime);
-    else if (saber.frac > saber.target) saber.frac = Math.max(saber.target, saber.frac - dt / RETRACT_TIME);
+    else if (saber.frac > saber.target) saber.frac = Math.max(saber.target, saber.frac - dt / saber.retractTime);
     saber.power = 1 + (saber.power - 1) * Math.exp(-dt * 7);
     // ease-out on the way up: the blade snaps out and settles
     const f = saber.frac;

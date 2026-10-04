@@ -82,8 +82,9 @@ const before = await page.evaluate(() => {
   T.setHolding("melee");
   return T.activeMeleeMesh().userData.saber.frac;
 });
-// The equip ignite is slow on purpose now (game.js SLOW_IGNITE, 1.1 s).
-await sleep(1600);
+// The equip ignite waits for the hilt to come up, then is slow on purpose
+// (game.js POWER_IGNITE_DELAY 0.95 s + POWER_IGNITE 1.35 s).
+await sleep(3300);
 const lit = await page.evaluate(() => {
   const s = window.__trollOps.activeMeleeMesh().userData.saber;
   return { frac: s.frac, len: s.beam.material.uniforms.uLen.value, visible: window.__trollOps.activeMeleeMesh().visible };
