@@ -127,6 +127,10 @@ All tracker DOM is appended to `els.hud` (`#to-hud`), which already hides its ch
 - The map's own synth swaps patterns per phase (`scheduleTrack`, `:1499`).
 
 ## Bodies
+**User decision (2026-10-04):** the AI police use the plain human officer (`models/cop-patrol.glb`). "Officer Grin" (`models/cop-grin.glb`, the same uniform with a rubber trollface mask under the cap, from the user's reference `refs/cop-trollface-ref.png`) is NOT an enemy: it becomes a cosmetic. The runtime body path (cop-bodies.js) must therefore work for any rig, not only bots, so a player can wear it.
+
+**Runtime approach (changed from fitRig):** character.js is untouched. cop-bodies.js drives the skinned skeleton from the posed stick rig: pelvis, spine, neck and head copy the rig joints' rotations (rest offsets taken once); arms and legs are two-bone IK from the body's real shoulders and hips to the rig's wrists and ankles (elbow and knee poles from the rig's own elbows and knees); hands and feet take the rig's mitt and ankle frames. So the hands land on the gun grip and the feet on the floor without changing the rig's proportions.
+
 **Approach: fit the skeleton to the body, then copy rotations**
 - The bots' stick-figure rig has both arms leaving one centre point and both legs leaving one hip point. A realistic body can't follow that as it is.
 - `fitRig(rig, measurements)` in `character.js` rewrites the rig's joint offsets, limb lengths and hit proxies to a real body's proportions. The rig's own arm and leg solvers then work with real lengths.

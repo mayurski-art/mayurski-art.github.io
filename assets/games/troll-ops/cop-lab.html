@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cop Lab</title>
+<!-- Cops and Robbers: the skinned officer (cop-bodies.js) on the stick rig,
+     holding a real gun, in every pose the game uses. ?look=grin&pose=run&gun=problem416 -->
+<style>
+  :root { --bg: #0d0f0e; --panel: rgba(6,9,7,.72); --line: rgba(255,255,255,.12); --gold: #ffdf6b; --txt: #e8e6df; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--txt); font: 13px/1.4 "DM Sans", system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  #ui { position: fixed; top: 12px; left: 12px; width: 230px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  #ui h1 { margin: 0 0 8px; font: 600 15px "Oswald", sans-serif; letter-spacing: .04em; color: var(--gold); }
+  #ui label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 0; }
+  #ui select, #ui input[type=range] { width: 130px; }
+  #stats { margin-top: 8px; font: 11px/1.5 "DM Mono", monospace; white-space: pre; color: #b9b6ac; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "../../vendor/three.module.min.js", "three/addons/": "../../vendor/addons/" } }
+</script>
+</head>
+<body>
+<div id="ui">
+  <h1>COP LAB</h1>
+  <label>Look <select id="look"><option>patrol</option><option>grin</option><option value="">(stick)</option></select></label>
+  <label>Pose <select id="pose">
+    <option>idle</option><option>walk</option><option>run</option><option>strafe</option><option>back</option>
+    <option>crouch</option><option>crouchwalk</option><option>prone</option><option>ads</option><option>fire</option>
+    <option>reload</option><option>throw</option><option>dance</option><option>death</option><option>lookup</option><option>lookdown</option>
+  </select></label>
+  <label>Gun <select id="gun"></select></label>
+  <label>Turn <input id="yaw" type="range" min="-180" max="180" value="-155"></label>
+  <label>Stick overlay <input id="stick" type="checkbox"></label>
+  <label>Hitboxes <input id="hb" type="checkbox"></label>
+  <div id="stats"></div>
+</div>
+<script type="module">
+import * as THREE from "three";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, DANCES, DEATH_TIME, THROW_TIME } from "./character.js?v=to-hb4-em1-fc1-wst";
+import { buildWeaponMesh, stripLights, preloadWeaponModels } from "./weapon-model.js?v=p5-em1-wst";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst";
+import { applyCopBody, syncCopBody, copDebug } from "./cop-bodies.js?v=cb1";
+
+const q = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1d1b);
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100);
+camera.position.set(0, 1.35, 4.2);
+camera.lookAt(0, 0.95, 0);
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3328, 1.1));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+sun.position.set(2.5, 5, 3);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0015;   // as game.js
+Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2.5, bottom: -1 });
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0x9fc4ff, 1.0);
+rim.position.set(-3, 3, -4);
+scene.add(rim);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x2b2e2c, roughness: 0.9 }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+scene.add(new THREE.GridHelper(30, 30, 0x444844, 0x343834));
+
+const rig = buildHumanoid(new THREE.MeshBasicMaterial({ color: 0x0a0a0a }), { height: 1.8, gun: false });
+rig.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+scene.add(rig.root);
+// the stick figure drawn over the body, for comparing
+const ghost = buildHumanoid(new THREE.MeshBasicMaterial({ color: 0xff3b6b, transparent: true, opacity: 0.45, depthTest: false }), { height: 1.8, gun: false });
+ghost.root.renderOrder = 10;
+scene.add(ghost.root);
+
+const ids = Object.keys(WEAPON_DEFS);
+for (const id of ids) $("gun").add(new Option(WEAPON_DEFS[id].name || id, id));
+try { await preloadWeaponModels(); } catch {}
+let gunMesh = null;
+function setGun(id) {
+  if (gunMesh) gunMesh.parent?.remove(gunMesh);
+  gunMesh = stripLights(buildWeaponMesh(WEAPON_DEFS[id]));
+  gunMesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  mountHeldWeapon(rig, gunMesh);
+}
+for (const [k, el] of [["look", "look"], ["pose", "pose"], ["gun", "gun"]]) if (q.has(k)) $(el).value = q.get(k);
+if (!$("gun").value) $("gun").value = ids[0];
+setGun($("gun").value);
+$("gun").onchange = () => setGun($("gun").value);
+let ready = applyCopBody(rig, $("look").value || null);
+$("look").onchange = () => { ready = applyCopBody(rig, $("look").value || null); };
+$("hb").onchange = () => { for (const m of rig.hitboxMeshes) { m.visible = $("hb").checked; m.material = $("hb").checked ? HBMAT : m.material; } };
+const HBMAT = new THREE.MeshBasicMaterial({ color: 0x33ff88, wireframe: true });
+
+const state = { t: 0, phase: 0, deathT: 0, throwT: 0 };
+function argsFor(pose, t) {
+  const base = { phase: state.phase, moving: false, pitch: 0, lower: 0, strafe: 0, forward: 1, speed: 0, mps: 0, dt: 1 / 60, hasGun: true, hold: "gun", ads: 0, recoil: 0, reload: 0, fired: Infinity };
+  const move = (mps, extra = {}) => ({ ...base, moving: true, speed: mps / 4.2, mps, ...extra });
+  switch (pose) {
+    case "walk": return move(1.6);
+    case "run": return move(4.2);
+    case "strafe": return move(3.0, { strafe: 1, forward: 0 });
+    case "back": return move(2.2, { forward: -1 });
+    case "crouch": return { ...base, lower: 0.5 };
+    case "crouchwalk": return move(1.8, { lower: 0.5 });
+    case "prone": return { ...base, lower: 1 };
+    case "ads": return { ...base, ads: 1 };
+    case "fire": { const k = (t * 8) % 1; return { ...base, ads: 1, recoil: Math.max(0, 1 - k * 3), fired: k / 8 }; }
+    case "reload": return { ...base, reload: (t / 2.2) % 1 };
+    case "lookup": return { ...base, pitch: 0.9 };
+    case "lookdown": return { ...base, pitch: -0.9 };
+    default: return base;
+  }
+}
+function poseRig(r, pose, t) {
+  if (pose === "death") { poseDeath(r, Math.min(1, ((t % 3) / DEATH_TIME))); return; }
+  if (pose === "dance") { DANCES[0](r, t); return; }
+  const a = argsFor(pose, t);
+  if (a.moving) state.phase += gaitPhaseRate(a.mps) / 60 / (r === rig ? 1 : 1e9);
+  poseHumanoid(r, a);
+  if (pose === "throw") poseThrowArm(r, (t % 1.2) / 1.2);
+}
+
+// tools step the clock themselves: __lab.pose(name, t)
+window.__lab = {
+  THREE, rig, ready: () => ready,
+  // a still of pose `name` at time t: a fresh body (a death or a dance leaves
+  // the hips turned), then a quarter second of run-up so the gait has
+  // blended in, as it has in a match
+  pose(name, t) {
+    if (name !== state.last) {
+      state.last = name;
+      rig.root.rotation.x = rig.root.rotation.z = 0;
+      rig.parts.hips.rotation.set(0, 0, 0);
+      rig.parts.hips.position.set(0, rig.hipY, 0);
+      $("pose").value = "idle";
+      for (let i = 0; i < 20; i++) step(1 / 60);
+    }
+    $("pose").value = name;
+    state.phase = t * 9 - 15 * gaitPhaseRate(4.2) / 60;
+    state.t = t - 15 / 60;
+    for (let i = 0; i < 15; i++) step(1 / 60);
+    return copDebug(rig);
+  },
+  debug: () => copDebug(rig),
+  render: () => renderer.render(scene, camera),
+  camera,
+};
+
+let paused = q.has("still");
+function step(dt) {
+  state.t += dt;
+  const pose = $("pose").value;
+  rig.root.rotation.y = THREE.MathUtils.degToRad(+$("yaw").value);
+  ghost.root.rotation.y = rig.root.rotation.y;
+  poseRig(rig, pose, state.t);
+  syncCopBody(rig, { pitch: argsFor(pose, state.t).pitch });
+  ghost.root.visible = $("stick").checked;
+  if (ghost.root.visible) {
+    const ph = state.phase;
+    poseRig(ghost, pose, state.t);
+    state.phase = ph;
+  }
+  const d = copDebug(rig);
+  if (d) $("stats").textContent = `palm L ${(d.palmL * 100).toFixed(1)} cm\npalm R ${(d.palmR * 100).toFixed(1)} cm\nball L y ${(d.ballLY * 100).toFixed(1)} cm\nball R y ${(d.ballRY * 100).toFixed(1)} cm${d.nan ? "\nNaN!" : ""}`;
+}
+let last = performance.now();
+renderer.setAnimationLoop((now) => {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (!paused) step(dt);
+  renderer.render(scene, camera);
+});
+// drag turns the body, the wheel zooms
+let drag = null;
+renderer.domElement.addEventListener("pointerdown", (e) => { drag = e.clientX; });
+addEventListener("pointerup", () => { drag = null; });
+addEventListener("pointermove", (e) => {
+  if (drag === null) return;
+  $("yaw").value = ((+$("yaw").value + (e.clientX - drag) * 0.6 + 540) % 360) - 180;
+  drag = e.clientX;
+});
+renderer.domElement.addEventListener("wheel", (e) => {
+  camera.position.z = Math.max(1.2, Math.min(8, camera.position.z * (e.deltaY > 0 ? 1.1 : 0.9)));
+});
+addEventListener("resize", () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+</script>
+</body>
+</html>

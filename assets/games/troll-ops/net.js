@@ -309,6 +309,7 @@ export class Net {
         p.reload = Math.max(0, Math.min(1, +m.rl || 0));
         p.reloadTime = +m.rt || 2.3;
         p.hero = m.hr || null;
+        p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
@@ -517,6 +518,7 @@ export class Net {
     p.reload = bot.reloadProgress?.() || 0;
     p.reloadTime = bot.holdingSecondary ? 1.5 : 2.3;
     p.hero = bot.hero || null;   // U Mad Bro? (the wire carries it as hr below)
+    p.body = bot.body || null;   // Cops and Robbers police body (bd below)
     // The wire "state" message sets this on every OTHER client (case "state"
     // above); the bot-hosting client never routes its own bots' state through
     // onMessage, so without this line the host's own view of its bots never
@@ -551,6 +553,7 @@ export class Net {
       bs: Math.max(0, BOT_SKILLS.indexOf(bot.skill)),
       lv: botLevel(bot.id),
       hr: bot.hero || undefined,
+      bd: bot.body || undefined,
     });
   }
 
