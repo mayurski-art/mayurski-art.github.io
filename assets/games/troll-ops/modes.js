@@ -181,6 +181,22 @@ MODES.royale_mini = {
   blurb: "Troll Royale on Grin Beach: ten trolls, a five-minute zone. Last troll standing wins.",
 };
 
+/* Socialize (user, 2026-10-04): one public hangout room, no fighting. Walk
+   the map, chat and emote; no guns, no damage, no streaks, no bots, no
+   clock. Everyone is on one side so duo emotes work with anyone. The owner
+   (troll_runner) can switch the whole room into a real mode from the pause
+   menu; when that match ends the room comes back here (game.js
+   switchRoomMode). */
+MODES.social = {
+  id: "social",
+  name: "Socialize",
+  short: "Socialize",
+  pvp: true, ffa: false,
+  social: true,
+  noStreaks: true,
+  blurb: "Hang out on any map with whoever is online. No guns, just emotes and chat.",
+};
+
 /* Infection tuning. */
 export const INFECTION = {
   firstDelay: 8,          // seconds after GO before anyone is infected
