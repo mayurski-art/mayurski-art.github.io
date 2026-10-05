@@ -52,6 +52,17 @@ await page.evaluate(async () => {
   if (T.isStaging()) T.endStaging();
 });
 await page.waitForFunction(() => window.__trollOps.bots.bots.length > 0, null, { timeout: 60000 });
+// Twelve on the map, as many police as a heist has alive at once (COPS=n).
+await page.evaluate((want) => {
+  const T = window.__trollOps, bs = T.bots.bots;
+  const Bot = bs[0].constructor;
+  for (let i = 0; bs.length < want; i++) {
+    const from = bs[i % bs.length];
+    const b = new Bot(from.team, from.pos.clone(), T.bots.difficulty);
+    bs.push(b);
+    T.net.publishBot(b);
+  }
+}, +(process.env.COPS || 12));
 await new Promise((r) => setTimeout(r, 3000));
 
 // frame time over `ms`, from requestAnimationFrame
