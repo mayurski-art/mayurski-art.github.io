@@ -156,6 +156,7 @@ export const SURFACE = {
   ink:      { chip: 0x0b0b0b, dust: 0x3a3a3a },   // the troll operators
   grunt:    { chip: 0x3a1410, dust: 0x6e4a40 },
   zombie:   { chip: 0x3f5a26, dust: 0x7c8a5e },
+  blood:    { chip: 0x4a0604, dust: 0x7a1510 },   // the realistic zombies (ZR4): dark drops, red mist
   smoke:    { chip: 0x000000, dust: 0x9a9a92 },
 };
 

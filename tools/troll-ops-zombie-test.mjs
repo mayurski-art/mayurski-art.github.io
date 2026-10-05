@@ -151,26 +151,83 @@ for (const map of maps) {
     T.look.yaw = Math.atan2(fx, fz);
     T.look.pitch = 0.0;
     z.stunT = 0; z.staggerT = 0;
+    window.__keepId = id;
   }, shots.id);
   await new Promise((r) => setTimeout(r, 2500));
   const shot = path.join(SHOTS, `zombie-${map}.png`);
   await page.screenshot({ path: shot });
   console.log("shot", shot);
 
-  // kill it: death clip, then gone once it has sunk
+  // ZR4 voices: moans come out of the director as events (groan, and a
+  // death gurgle for a body-shot kill); watch them for a few seconds
+  const voices = await page.evaluate(async () => {
+    const T = window.__trollOps;
+    const zd = T.zdir();
+    const seen = {};
+    const push = zd.events.push.bind(zd.events);
+    zd.events.push = (e) => { seen[e.type] = (seen[e.type] || 0) + 1; if (e.voice) seen.voiced = (seen.voiced || 0) + 1; return push(e); };
+    await new Promise((r) => setTimeout(r, 6000));
+    const other = zd.zombies.find((q) => q.alive && !q.dying && q.body && q.id !== window.__keepId);
+    if (other) {
+      other.mesh.updateMatrixWorld(true);
+      const c = other.hitboxMeshes[1].getWorldPosition(new T.THREE.Vector3());
+      T.onBulletActorHit(other, { damage: 1e9, isHead: false, point: c, dir: new T.THREE.Vector3(0, 0, -1) });
+    }
+    await new Promise((r) => setTimeout(r, 400));
+    zd.events.push = push;
+    return seen;
+  });
+  check((voices.groan || 0) >= 1 && voices.voiced >= 1, "zombies groan, each with its own voice", JSON.stringify(voices));
+  check((voices.death || 0) >= 1, "a body-shot kill gurgles", JSON.stringify(voices));
+
+  // kill it with a headshot through the real bullet path: the head pops, a
+  // pool spreads under the body, then it sinks and is gone
   const killed = await page.evaluate(async (id) => {
     const T = window.__trollOps;
     const zd = T.zdir();
     const z = zd.zombies.find((q) => q.id === id);
-    z.takeDamage(1e9, true);
+    z.mesh.updateMatrixWorld(true);
+    const headBox = z.hitboxMeshes.find((h) => h.userData.isHead);
+    const at = headBox.getWorldPosition(new T.THREE.Vector3());
+    const dir = at.clone().sub(T.camera.getWorldPosition(new T.THREE.Vector3())).normalize();
+    T.onBulletActorHit(z, { damage: 1e9, isHead: true, point: at, dir });
     await new Promise((r) => setTimeout(r, 600));
     const clip = z.animName;
-    const t0 = performance.now();
-    while (zd.zombies.includes(z) && performance.now() - t0 < 30000) await new Promise((r) => setTimeout(r, 250));
-    return { clip, gone: !zd.zombies.includes(z), secs: Math.round((performance.now() - t0) / 1000) };
+    const headScale = z.body.bones.head.scale.x;
+    await new Promise((r) => setTimeout(r, 1200));
+    const pool = z.pool ? { size: +z.pool.scale.x.toFixed(2), opacity: z.pool.material.opacity, inScene: !!z.pool.parent } : null;
+    window.__goreZ = z;
+    return { clip, headless: z.headless, headScale, pool };
   }, shots.id);
   check(killed.clip === "die", "a kill plays the death clip", killed.clip);
-  check(killed.gone, "the body is removed after sinking", `${killed.secs}s`);
+  check(killed.headless && killed.headScale < 0.01, "a headshot kill pops the head", JSON.stringify({ headless: killed.headless, scale: killed.headScale }));
+  check(killed.pool && killed.pool.inScene && killed.pool.size > 1 && killed.pool.opacity > 0.9, "a blood pool spreads under the body", JSON.stringify(killed.pool));
+  // frame the body: step back 2.6 m from where it lies and look down at it
+  // (the rest of the horde goes, or their swipes redden the frame)
+  await page.evaluate(() => {
+    const T = window.__trollOps;
+    const z = window.__goreZ;
+    for (const q of T.zdir().zombies) if (q !== z) q.alive = false;
+    T.zdir().toSpawn = 0;
+    const p = z.pool ? z.pool.position : z.mesh.position;
+    const dx = T.move.pos.x - p.x, dz = T.move.pos.z - p.z;
+    const d = Math.hypot(dx, dz) || 1;
+    T.move.pos.set(p.x + (dx / d) * 2.6, T.move.pos.y, p.z + (dz / d) * 2.6);
+    T.look.yaw = Math.atan2(dx / d, dz / d);
+    T.look.pitch = -0.55;
+  });
+  await new Promise((r) => setTimeout(r, 900));
+  const gshot = path.join(SHOTS, `zombie-gore-${map}.png`);
+  await page.screenshot({ path: gshot });
+  console.log("shot", gshot);
+  const gone = await page.evaluate(async () => {
+    const zd = window.__trollOps.zdir();
+    const z = window.__goreZ;
+    const t0 = performance.now();
+    while (zd.zombies.includes(z) && performance.now() - t0 < 30000) await new Promise((r) => setTimeout(r, 250));
+    return { gone: !zd.zombies.includes(z), poolGone: !z.pool, secs: Math.round((performance.now() - t0) / 1000) };
+  });
+  check(gone.gone && gone.poolGone, "the body and its pool are removed after sinking", `${gone.secs}s`);
 
   // the rare trollface-mask zombie: force its odds to 1 and look at one
   const mask = await page.evaluate(async () => {
@@ -207,7 +264,7 @@ for (const map of maps) {
   // crouch (with a shriek), fly and land a hit
   const leap = await page.evaluate(async () => {
     const T = window.__trollOps;
-    const { lineClear } = await import("/assets/games/troll-ops/zombies.js?v=zr3");
+    const { lineClear } = await import("/assets/games/troll-ops/zombies.js?v=zr4");
     const zd = T.zdir();
     zd.clear();
     zd.forceType = "leaper";

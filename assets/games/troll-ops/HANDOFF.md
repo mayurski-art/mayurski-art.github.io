@@ -39,13 +39,9 @@ Follow the 2a pattern:
 - Add `rp: { npcs: () => clubNpcs() }` to `trollingloud.js` as data. New club acts (e.g. dance on the DJ's beat) go into town-npcs.js.
 - The booth's DJ sprite (`S.dj`) already bobs on `uKick`, i.e. on the record's beat.
 
-### Zombies ZR4 (not started)
-- **What it covers:**
-  - gore: head-pop on headshot kills, a blood puff and decal (the impactFx "zombie" surface exists)
-  - groans per variant, pitch-shifted
-  - tuning
-  - draw-call cut: merge each zombie's clothes into one mesh
-- **Files:** zombies.js, zombie-models.js, models/build_zombies.blender.py, audio.js.
+### Zombies ZR4 (gore + voices shipped; draw-call cut left)
+- **Left:** merge each zombie's clothes/shoes/hair/teeth/eyes into one mesh with one baked atlas in models/build_zombies.blender.py (today 4-7 draws per zombie; Blender 5.2 + MPFB 2 are installed). Then the fps check: `FPS=1 tools/troll-ops-zombie-test.mjs`, before vs after (ROOT_DIR = old checkout).
+- **Gotchas:** a popped head is `bones.head` scaled to 0.001, re-applied after every mixer update (clips key it). Gore materials are pre-compiled in warmShaders via `goreStandIns()`; any new gore material must join it or the first kill stalls a frame.
 - **Design doc v2:** https://claude.ai/artifact/Motm585y8qJeknjWVv9CuC
 
 ### U Mad Bro? (funny FFA mode, Prestige 2): ON HOLD
@@ -450,6 +446,8 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-05**
+  - Zombies ZR4 part 1: head-pop on headshot kills, blood hits ("blood" surface), a glossy blood pool under each body, synthesized groans/snarls/death gurgles per zombie voice (audio.js `_zombieVoice`), throttled horde-wide. Test: tools/troll-ops-zombie-test.mjs (ALL PASS).
+  - One map per room: everyone in a versus room follows the host's map (game.js `followsHostMap`, net.js `publishRoomMap`). Test: tools/troll-ops-room-map-test.mjs.
   - DJ Lulz song requests + club lights on each song's beat grid (dj-lulz.js, music-beats.js).
 - **2026-10-04**
   - Roleplay 2a: seats, pianist, doctor (rp-roles.js).

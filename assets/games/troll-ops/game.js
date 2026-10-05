@@ -57,7 +57,7 @@ import {
 } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1";
 import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst";
-import { GameAudio } from "./audio.js?v=umb1kb2-mi1-wst";
+import { GameAudio } from "./audio.js?v=zr4";
 import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst-bs1";
@@ -68,9 +68,9 @@ import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1-bs1";
-import { ZombieDirector } from "./zombies.js?v=hb4-wst-bs1-soc1";
+import { ZombieDirector, goreStandIns } from "./zombies.js?v=zr4";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
-import { ImpactFx } from "./impact-fx.js";
+import { ImpactFx } from "./impact-fx.js?v=zr4";
 import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js?v=cg1-wst";
@@ -7770,7 +7770,14 @@ function onBulletActorHit(actor, info) {
     const { killed, points } = actor.takeDamage(info.damage, info.isHead);
     zdir.award(points);
     showHitmarker(info.isHead, info.damage, info.point, killed);
-    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "zombie", scale: info.isHead ? 1.5 : 1.1 });
+    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: actor.body ? "blood" : "zombie", scale: info.isHead ? 1.5 : 1.1 });
+    // A headshot kill takes the head off: a burst out the far side and up.
+    const popped = killed && info.isHead ? actor.popHead?.() : null;
+    if (popped) {
+      impactFx.hit(popped, { normal: info.dir, dir: info.dir, surface: "blood", scale: 4 });
+      impactFx.hit(popped, { normal: THREE.Object3D.DEFAULT_UP, surface: "blood", scale: 3 });
+      audio.zombieHeadPop(popped);
+    }
     if (actor.rig) flinchRigFrom(actor.rig, info.dir, info.isHead ? 1 : 0.5);
     else actor.flinchFrom?.(info.dir, info.isHead ? 1 : 0.5);
     if (killed) {
@@ -11095,6 +11102,8 @@ async function warmShaders() {
   scene.add(stand);
   try {
     const models = (await Promise.all(WARM_MODELS.map((m) => loadModel(m).catch(() => null)))).filter(Boolean);
+    // zombies: the blood pool and the neck stump of a headshot kill
+    if (isZombies()) models.push(...goreStandIns());
     for (const m of models) stand.add(m);
     kept.push(...models);
     uploadStandInTextures(stand);
@@ -12956,6 +12965,9 @@ function animate() {
       for (const ev of zdir.events.splice(0)) {
         if (ev.type === "maxammo") zombieMaxAmmo();
         else if (ev.type === "shriek") audio.zombieShriek(ev.at);
+        else if (ev.type === "groan") audio.zombieGroan(ev.at, ev.voice);
+        else if (ev.type === "snarl") audio.zombieSnarl(ev.at, ev.voice);
+        else if (ev.type === "death") audio.zombieDeath(ev.at, ev.voice);
       }
       els.hudHostiles.textContent = String(zdir.remaining);
       els.hudKills.textContent = zdir.points.toLocaleString();
@@ -16552,6 +16564,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     setMode: (id) => { modeId = id; modePicked = true; },
     hero: () => hero(), heroHostiles, applyHeroFx, useHeroAbility,
     zdir: () => zdir,
+    onBulletActorHit,
     loadedMapId: () => loadedMapId,
     THREE,
     activeMeleeMesh: () => activeMeleeMesh,

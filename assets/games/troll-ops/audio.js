@@ -860,6 +860,81 @@ export class GameAudio {
     this._noise({ duration: 0.6, gain: 0.18, type: "highpass", freq: 2500, sweepTo: 900, at });
   }
 
+  /* Zombie voices (ZR4). A creaky, wet voiced sound: a sawtooth throat with
+     a jittering pitch, shaped by two vowel formants that slide ("ohh" to
+     "ahh"), a gurgling tremolo and a rasp of breath noise. `voice` is the
+     zombie's own: { pitch: ~0.8..1.4, rasp: 0..1 }, so the horde doesn't
+     share one throat. Positional; past 45 m it isn't worth the nodes. */
+  _zombieVoice(at, voice, { dur, f0, glide, gain, f1 = [420, 700], f2 = [950, 1150], trem = 11 }) {
+    if (!this._ready() || (at && this._far(at, 45))) return;
+    const ctx = this.ctx, t0 = this.now;
+    const p = voice?.pitch || 1, rasp = voice?.rasp ?? 0.5;
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(f0 * p, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(30, f0 * p * glide), t0 + dur);
+    // vocal-fry jitter: a fast, shallow pitch wobble
+    const jit = ctx.createOscillator();
+    jit.type = "triangle";
+    jit.frequency.value = 7 + Math.random() * 5;
+    const jd = ctx.createGain();
+    jd.gain.value = f0 * p * 0.06;
+    jit.connect(jd).connect(osc.frequency);
+    // two formants in parallel, sliding from F[0] to F[1]
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    for (const [F, q, w] of [[f1, 5, 1], [f2, 7, 0.55]]) {
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.Q.value = q;
+      bp.frequency.setValueAtTime(F[0], t0);
+      bp.frequency.linearRampToValueAtTime(F[1], t0 + dur * 0.7);
+      const fg = ctx.createGain();
+      fg.gain.value = w;
+      osc.connect(bp).connect(fg).connect(out);
+    }
+    out.gain.setValueAtTime(0.0008, t0);
+    out.gain.exponentialRampToValueAtTime(gain, t0 + Math.min(0.18, dur * 0.25));
+    out.gain.setValueAtTime(gain, t0 + dur * 0.6);
+    out.gain.exponentialRampToValueAtTime(0.0008, t0 + dur);
+    // the gurgle: an amplitude wobble after the envelope (0.65 +/- 0.35)
+    const wob = ctx.createGain();
+    wob.gain.value = 0.65;
+    const am = ctx.createOscillator();
+    am.frequency.value = trem * (0.85 + Math.random() * 0.3);
+    const amd = ctx.createGain();
+    amd.gain.value = 0.35;
+    am.connect(amd).connect(wob.gain);
+    out.connect(wob).connect(this._dest(at));
+    for (const o of [osc, jit, am]) { o.start(t0); o.stop(t0 + dur + 0.05); }
+    // breath through a ruined throat
+    if (rasp > 0.05) this._noise({ duration: dur * 0.9, gain: 0.05 + rasp * 0.09, type: "bandpass", freq: 1400 + rasp * 900, q: 1.4, sweepTo: 700, at });
+  }
+
+  /* The idle moan while it shambles or hunts. */
+  zombieGroan(at = null, voice = null) {
+    this._zombieVoice(at, voice, { dur: 0.9 + Math.random() * 0.8, f0: 92, glide: 0.72, gain: 0.26 });
+  }
+
+  /* A short, louder snarl as it swipes. */
+  zombieSnarl(at = null, voice = null) {
+    this._zombieVoice(at, voice, { dur: 0.38, f0: 150, glide: 0.6, gain: 0.34, f1: [650, 820], f2: [1200, 1350], trem: 17 });
+  }
+
+  /* The last noise: a falling, bubbling gurgle. */
+  zombieDeath(at = null, voice = null) {
+    this._zombieVoice(at, voice, { dur: 0.75, f0: 120, glide: 0.38, gain: 0.3, f1: [600, 350], f2: [1100, 800], trem: 21 });
+    this._noise({ duration: 0.45, gain: 0.08, type: "lowpass", freq: 600, sweepTo: 150, delay: 0.2, at });
+  }
+
+  /* A headshot kill: the wet crack and spatter of a head going. */
+  zombieHeadPop(at = null) {
+    if (!this._ready() || (at && this._far(at, 60))) return;
+    this._noise({ duration: 0.09, gain: 0.55, type: "bandpass", freq: 900, q: 0.9, at });
+    this._tone({ freq: 140, to: 55, duration: 0.18, gain: 0.32, type: "sine", at });
+    this._noise({ duration: 0.4, gain: 0.16, type: "lowpass", freq: 2600, sweepTo: 400, delay: 0.04, at });
+  }
+
   wave() {
     if (!this._ready()) return;
     this._tone({ freq: 420, duration: 0.16, gain: 0.14, type: "triangle" });

@@ -83,6 +83,81 @@ const SINK_DEPTH = 0.6;
 // per-zombie skin tints, multiplied over the baked skin: pale, greener, greyer
 const TINTS = [0xffffff, 0xe6f0d8, 0xd8dccf, 0xf0e8d8, 0xd0dcc4].map((h) => new THREE.Color(h));
 
+/* ---- Gore and voices (ZR4) ------------------------------------------------
+   A body bleeds out where it falls: a dark pool spreads under it and fades as
+   it sinks. A headshot kill takes the head off (popHead): the head bone
+   collapses to nothing (hair, eyes and teeth ride it) and a raw stump caps
+   the neck. Voices are events the director hands game.js (audio.js
+   zombieGroan / zombieSnarl / zombieDeath). */
+const POOL_TIME = 1.3;        // seconds to spread
+let _poolTex = null;
+function poolTexture() {
+  if (_poolTex) return _poolTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  // One lumpy shape, not a cluster of discs: many small solid blobs packed
+  // round a core (denser toward the middle), softened at the edge. Pooled
+  // blood is nearly black red; the gloss is the material's (poolMaterial).
+  g.filter = "blur(3px)";
+  g.fillStyle = "rgb(34,3,2)";
+  g.beginPath(); g.arc(128, 128, 62, 0, Math.PI * 2); g.fill();
+  for (let i = 0; i < 70; i++) {
+    const a = Math.random() * Math.PI * 2, d = Math.pow(Math.random(), 0.7) * 78;
+    const r = 8 + Math.random() * (26 - d * 0.18);
+    g.beginPath(); g.arc(128 + Math.cos(a) * d, 128 + Math.sin(a) * d, Math.max(4, r), 0, Math.PI * 2); g.fill();
+  }
+  // a few runnels reaching out past the edge
+  g.lineCap = "round";
+  g.strokeStyle = "rgb(34,3,2)";
+  for (let i = 0; i < 4; i++) {
+    const a = Math.random() * Math.PI * 2;
+    g.lineWidth = 6 + Math.random() * 6;
+    g.beginPath(); g.moveTo(128 + Math.cos(a) * 60, 128 + Math.sin(a) * 60);
+    g.lineTo(128 + Math.cos(a + 0.2) * 112, 128 + Math.sin(a + 0.2) * 112); g.stroke();
+  }
+  // thinner (lighter) toward the rim, where it's spreading
+  g.filter = "none";
+  g.globalCompositeOperation = "source-atop";
+  const rim = g.createRadialGradient(128, 128, 40, 128, 128, 125);
+  rim.addColorStop(0, "rgba(20,1,1,0.6)");
+  rim.addColorStop(1, "rgba(92,10,7,0.5)");
+  g.fillStyle = rim;
+  g.fillRect(0, 0, 256, 256);
+  _poolTex = new THREE.CanvasTexture(c);
+  _poolTex.colorSpace = THREE.SRGBColorSpace;
+  return _poolTex;
+}
+const POOL_GEO = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+const STUMP_GEO = new THREE.SphereGeometry(0.065, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+const STUMP_MAT = new THREE.MeshStandardMaterial({ color: 0x5a0a07, roughness: 0.35, emissive: 0x1a0201 });
+
+/* Lit and glossy, so it's dark in the dark and catches the moon and lamps
+   like a wet floor does. */
+function poolMaterial() {
+  return new THREE.MeshStandardMaterial({
+    map: poolTexture(), transparent: true, depthWrite: false, roughness: 0.12, metalness: 0,
+    envMapIntensity: 1.2,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+  });
+}
+
+/* Throwaway copies of the gore's pool and stump for game.js's countdown
+   warm-up (warmShaders), so the first headshot kill doesn't stall the frame
+   compiling them. Own materials: the warm-up disposes its stand-ins. */
+export function goreStandIns() {
+  return [new THREE.Mesh(POOL_GEO, poolMaterial()), new THREE.Mesh(STUMP_GEO, STUMP_MAT.clone())];
+}
+
+/* A zombie's own throat: pitch and rasp by type, the woman's look higher. */
+function voiceFor(typeId, look) {
+  const base = { walker: [0.82, 1.08, 0.45], runner: [1.02, 1.28, 0.75], leaper: [1.2, 1.45, 0.95] }[typeId] || [0.9, 1.1, 0.5];
+  let pitch = base[0] + Math.random() * (base[1] - base[0]);
+  if (look === "woman") pitch *= 1.35;
+  return { pitch, rasp: Math.min(1, base[2] + (Math.random() - 0.5) * 0.3) };
+}
+const groanGap = (typeId) => (typeId === "walker" ? 4 + Math.random() * 6 : 2.5 + Math.random() * 3.5);
+
 // points, straight from the genre
 export const POINTS = { hit: 10, kill: 60, headshotKill: 100 };
 
@@ -140,9 +215,15 @@ export class Zombie {
     this.leap = null;        // { phase: windup | air | land, t, from, to }
     this.leapCdT = 1.5;
     this.shrieked = false;   // set on a wind-up; the director turns it into an event
+    this.voice = null;       // set once the look is known (voiceFor)
+    this.voiceEvent = null;  // "groan" | "snarl" | "death": the director sends it to game.js
+    this.groanT = 0.5 + Math.random() * 4;
+    this.pool = null;        // the blood pool once it's down
+    this.headless = false;
 
     const look = pickLook(typeId);
     this.look = look;
+    this.voice = voiceFor(typeId, look);
     this.body = look ? createZombieBody(look, {
       tint: TINTS[Math.floor(Math.random() * TINTS.length)],
       build: 0.94 + Math.random() * 0.14,
@@ -181,6 +262,8 @@ export class Zombie {
     this.staggerT = 0.08;
     if (this.hp > 0) return { killed: false, points: POINTS.hit };
     this.dying = true;
+    // a headshot kill pops the head instead (no throat left to gurgle with)
+    this.voiceEvent = isHead && this.body ? null : "death";
     return { killed: true, points: isHead ? POINTS.headshotKill : POINTS.kill, isHead };
   }
 
@@ -245,6 +328,8 @@ export class Zombie {
       this.play("idle", 0.35);
     }
     this.body.mixer.update(dt);
+    // the clips key the head too, so a popped head stays gone every frame
+    if (this.headless) this.body.bones.head.scale.setScalar(0.001);
     this._flinchPose(dt);
   }
 
@@ -304,7 +389,52 @@ export class Zombie {
     return this.body.actions.rise ? "rise" : "idle";
   }
 
+  /* A headshot kill: the head is gone. Returns where it was (world space),
+     for the burst and the sound, or null on the stick-figure fallback. */
+  popHead() {
+    if (!this.body || this.headless) return null;
+    const head = this.body.bones.head;
+    const at = head.getWorldPosition(new THREE.Vector3());
+    at.y += 0.08;
+    this.headless = true;
+    head.scale.setScalar(0.001);
+    // the raw neck, where the head bone joined it
+    const stump = new THREE.Mesh(STUMP_GEO, STUMP_MAT);
+    stump.position.copy(head.position);
+    head.parent.add(stump);
+    return at;
+  }
+
+  /* The pool spreading under a body that's down, fading as it sinks. */
+  _bleed(dt, scene) {
+    if (!this.pool) {
+      this.pool = new THREE.Mesh(POOL_GEO, poolMaterial());
+      this.pool.rotation.y = Math.random() * Math.PI * 2;
+      this.pool.renderOrder = 1;
+      this.poolT = 0;
+      this.poolSize = (this.headless ? 1.9 : 1.4) * (0.85 + Math.random() * 0.3);
+      this.pool.position.set(this.mesh.position.x, this.groundY + 0.02, this.mesh.position.z);
+      scene.add(this.pool);
+    }
+    // Under the chest (the neck, headless) as the body goes down: the die
+    // clip decides which way it falls. Fixed once it's on the floor.
+    if (this.body && this.dissolveT < this.body.actions.die.getClip().duration) {
+      const b = this.body.bones[this.headless ? "neck_01" : "spine_02"];
+      if (b) {
+        b.getWorldPosition(_poolAt);
+        this.pool.position.x = _poolAt.x;
+        this.pool.position.z = _poolAt.z;
+      }
+    }
+    this.poolT += dt;
+    const k = Math.min(1, this.poolT / POOL_TIME);
+    const s = this.poolSize * (0.25 + 0.75 * (1 - Math.pow(1 - k, 2)));
+    this.pool.scale.set(s, 1, s);
+    this.pool.material.opacity = this.sinkT > 0 ? Math.max(0, 1 - this.sinkT / SINK_TIME) : 1;
+  }
+
   _swing() {
+    this.voiceEvent = "snarl";
     if (!this.body) return;
     this.play("attack", 0.1);
     this.attackT = this.body.actions.attack.getClip().duration * 0.9;
@@ -314,7 +444,15 @@ export class Zombie {
      walls toward `goal` (null = walk straight at it); `chase` is false while
      heading for a stair, when there's nobody in reach to swing at.
      `playerFeetY` keeps it from swiping at someone a floor above. */
-  update(dt, playerPos, onAttack, arena, colliders, route = null, playerFeetY = null) {
+  update(dt, playerPos, onAttack, arena, colliders, route = null, playerFeetY = null, scene = null) {
+    // a moan every few seconds while it's on its feet
+    if (!this.dying) {
+      this.groanT -= dt;
+      if (this.groanT <= 0) {
+        this.groanT = groanGap(this.type.id);
+        if (!this.voiceEvent) this.voiceEvent = "groan";
+      }
+    }
     if (this.riseT > 0 && !this.dying) {
       // Clawing out of the grave: up through the dirt with a shudder, and it
       // doesn't walk or swing until it's out.
@@ -342,6 +480,7 @@ export class Zombie {
       return;
     }
     if (this.dying) {
+      if (scene) this._bleed(dt, scene);
       if (this.body) {
         // fall (the die clip), lie there a moment, then sink into the ground
         this.dissolveT += dt;
@@ -445,6 +584,7 @@ export class Zombie {
 
   dispose(scene) {
     scene.remove(this.mesh);
+    if (this.pool) { scene.remove(this.pool); this.pool.material.dispose(); this.pool = null; }
     if (this.body) {
       // the geometry and textures are the shared template's
       this.body.dispose();
@@ -456,6 +596,7 @@ export class Zombie {
 }
 
 const _axis = new THREE.Vector3();
+const _poolAt = new THREE.Vector3();
 const _qw = new THREE.Quaternion();
 const _qp = new THREE.Quaternion();
 const _ql = new THREE.Quaternion();
@@ -565,7 +706,9 @@ export class ZombieDirector {
     this.drop = null;          // the Max Ammo can on the ground, if any
     this.dropAtKill = -1;      // which of this round's kills drops it
     this.roundKills = 0;
-    this.events = [];          // drained by game.js: { type: "maxammo" } | { type: "shriek", at }
+    this.events = [];          // drained by game.js: { type: "maxammo" } | { type: "shriek", at } | { type: "groan" | "snarl" | "death", at, voice }
+    this.groanCd = 0;          // horde-wide gap between moans, so twelve don't drone in unison
+    this.snarlCd = 0;          // and between swipe snarls
     this.forceType = null;     // tests: every spawn is this type
     preloadZombieModels();     // the bodies; spawning waits for them (see update)
   }
@@ -743,10 +886,25 @@ export class ZombieDirector {
     }
 
     const field = this.fieldFor(feet, dt);
+    this.groanCd -= dt;
+    this.snarlCd -= dt;
     for (const z of this.zombies) {
       if (!z.alive) continue;
       const route = z.dying ? null : this.routeFor(z, playerPos, field, feetY, dt);
-      z.update(dt, playerPos, onAttack, this.arena, this.colliders, route, feetY);
+      z.update(dt, playerPos, onAttack, this.arena, this.colliders, route, feetY, this.scene);
+      if (z.voiceEvent) {
+        const kind = z.voiceEvent;
+        z.voiceEvent = null;
+        // moans and snarls take turns (a surrounding horde swipes several
+        // times a second); a death always gets through
+        const ready = kind === "groan" ? this.groanCd <= 0 : kind === "snarl" ? this.snarlCd <= 0 : true;
+        if (ready) {
+          if (kind === "groan") this.groanCd = 0.45 + Math.random() * 0.5;
+          if (kind === "snarl") this.snarlCd = 0.6 + Math.random() * 0.4;
+          const p = z.mesh.position;
+          this.events.push({ type: kind, at: { x: p.x, y: p.y + 1.5, z: p.z }, voice: z.voice });
+        }
+      }
       if (z.shrieked) {
         z.shrieked = false;
         const p = z.mesh.position;
