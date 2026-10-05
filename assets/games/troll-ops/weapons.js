@@ -341,6 +341,27 @@ export const WEAPON_DEFS = {
     blurb: "Rack it, drop them. One shell at a time.",
     model: { len: 0.68, stock: "fixed", mag: "tube", barrel: 1.2, pump: true },
   }),
+  // The Soul Blazer, the Hellseeker shotgun (the user's concept sheet:
+  // "It feeds on the dead. And spits fire."). Fires as a pump shotgun
+  // should, between the Widemouth and the Grinmington; the point is how it
+  // looks and sounds doing it (soul-blazer.js): the skull's jaws snap and
+  // spit fire, the pellets burn, the charms swing, its flank skulls count
+  // the shells. `portLoad`: from empty it is relit, a shell dropped in the
+  // open port and the pump slammed home, before the shells go in the tube.
+  // Rank 0 for now (user, 2026-10-05); gate it later.
+  soulblazer: mk("shotgun", {
+    id: "soulblazer", name: "Soul Blazer", rank: 0, sight: "iron",
+    pellets: 9, damage: 17, pelletSpread: 0.095,
+    falloffStart: 6.5, falloffEnd: 19, falloffMin: 0.13,
+    magSize: 6, reserveMax: 36, rpm: 70, pumpTime: 0.8,
+    shellReload: { start: 0.34, each: 0.46, end: 0.26, rack: 0.42, portLoad: 1.25 },
+    recoilKickPitch: 0.06, recoilKickKnockback: 0.055,
+    hellfire: true, inspectTime: 6.5,
+    muzzleColor: 0xff5a1e, muzzleFlashScale: 0.3,
+    tracerColor: 0xff7a26, tracerWidth: 0.045, tracerLength: 3,
+    blurb: "It feeds on the dead. And spits fire.",
+    model: { len: 0.7, stock: "fixed", mag: "tube", barrel: 1.2, pump: true },
+  }),
   guffaw: mk("shotgun", {
     id: "guffaw", name: "Guffaw Saiga", rank: 24, sight: "reddot",
     fireMode: "semi", rpm: 240, pellets: 8, damage: 12, magSize: 10, reloadTime: 2.9,
@@ -449,10 +470,17 @@ export class WeaponState {
     const sr = this.def.shellReload;
     if (sr) {
       this.reloadWasEmpty = this.ammoInMag <= 0;
-      this.setShellStage("start", sr.start);
       // reloadTime/reloadT stay a whole-reload estimate for anything that
       // only wants "how long", not the stages.
       const shells = Math.min(this.def.magSize - this.ammoInMag, this.ammoReserve);
+      if (this.reloadWasEmpty && sr.portLoad) {
+        // Port load: the first shell goes straight into the chamber through
+        // the open port, so the end needs no rack.
+        this.setShellStage("port", sr.portLoad);
+        this.reloadTime = this.reloadT = sr.portLoad + (shells - 1) * sr.each + sr.end;
+        return true;
+      }
+      this.setShellStage("start", sr.start);
       this.reloadTime = this.reloadT = sr.start + shells * sr.each + sr.end + (this.reloadWasEmpty ? sr.rack : 0);
       return true;
     }
@@ -488,6 +516,13 @@ export class WeaponState {
       const over = this.shellT;
       if (this.shellStage === "start") {
         this.setShellStage("shell", sr.each);
+      } else if (this.shellStage === "port") {
+        this.ammoInMag++;
+        this.ammoReserve--;
+        this.reloadWasEmpty = false;      // chambered: nothing to rack at the end
+        this.events.push("portload");
+        if (this.ammoInMag >= this.def.magSize || this.ammoReserve <= 0) this.beginShellEnd();
+        else this.setShellStage("shell", sr.each);
       } else if (this.shellStage === "shell") {
         this.ammoInMag++;
         this.ammoReserve--;

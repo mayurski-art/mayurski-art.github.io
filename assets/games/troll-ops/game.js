@@ -7,8 +7,8 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-wst";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-wst-hf1";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst-hf1";
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1";
@@ -39,7 +39,7 @@ import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1";
 import { ROLES, roleCode, DOCTOR, poseSeated, posePianoArms, PianoVoice, TUNES } from "./rp-roles.js?v=rp1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst-soc1";
@@ -57,7 +57,7 @@ import {
 } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69";
 import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst";
-import { GameAudio } from "./audio.js?v=zr4";
+import { GameAudio } from "./audio.js?v=zr4-hf1";
 import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst-bs1";
@@ -75,7 +75,7 @@ import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js?v=cg1-wst";
 import { WaveSpawner } from "./enemies.js?v=hb4-wst-soc1";
-import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1-wst";
+import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1-wst-hf1";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
 import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
@@ -94,6 +94,10 @@ import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst-bs1";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
+import {
+  HellfireFx, updateSoulBlazerView, soulBlazerShot, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth,
+  soulBlazerInspect, soulBlazerReloadPose, SB_INSPECT_CUES,
+} from "./soul-blazer.js?v=sb1";
 
 /* Maps download once (user, 2026-10-04): /sw.js keeps the game's models,
    textures and three.js in the browser so a map isn't fetched again every
@@ -4937,6 +4941,12 @@ function registerDeath(victimName, killerId, weaponId, opts = {}) {
     if (iKilled) { if (opts.head) audio.airhorn(); else audio.bonk(); }
   }
 
+  // The Soul Blazer feeds on the dead: a kill with it goes up in hellfire.
+  if (!suicide && WEAPON_DEFS[weaponId]?.hellfire && opts.victimPos && !iDied) {
+    hellfire.killBurst(opts.victimPos);
+    audio.soulFeed(opts.victimPos);
+  }
+
   pushKillfeed({
     killer: suicide ? victimName : killer,
     killerIsBot: killerId !== net.id && !!bots.byId(killerId),
@@ -6239,6 +6249,15 @@ let akimboShown = false;
 const muzzleLight = new THREE.PointLight(0xffcf8a, 0, 1.2, 2);
 weaponRig.add(muzzleLight);
 
+// The Soul Blazer's hellfire (soul-blazer.js): one system in the weapon
+// scene for the fire out of the skull in your hands, one in the world for
+// everyone else's shots, the burning pellets, where they land and the kill.
+const hellfireView = new HellfireFx(weaponScene, { scale: 0.5, max: 300 });
+const hellfire = new HellfireFx(scene, { scale: 1, max: 900, gain: 0.85, additive: false, hot: 0.5 });
+const _sbPos = new THREE.Vector3();
+const _sbDir = new THREE.Vector3();
+const _sbView = new THREE.Matrix4();
+
 // -------------------- impact effects --------------------
 
 // Debris and dust where rounds land (see impact-fx.js); the additive sparks
@@ -6494,6 +6513,8 @@ let swaySmoothX = 0, swaySmoothY = 0;
 
 const move = new MovementController({ colliders, arena: ARENA });
 const bullets = new BulletSystem(scene);
+// Soul Blazer pellets fly as fire (soul-blazer.js HellfireFx).
+bullets.onFireTrail = (from, to) => hellfire.trail(from, to);
 
 // -------------------- local third-person body --------------------
 // The local player has never had a visible body - only the first-person
@@ -7687,6 +7708,20 @@ function fireOnce(shot = null) {
   muzzleLight.intensity = 0.35;
   muzzleMat.uniforms.uColor.value.setHex(def.muzzleColor ?? 0xfff2c0);
   muzzleLight.color.setHex(def.muzzleColor ?? 0xffcf8a);
+  if (def.hellfire && activeWeaponMesh?.userData.sb) {
+    // The jaws snap and spit fire; the last shell's fire coughs out.
+    soulBlazerShot(activeWeaponMesh);
+    soulBlazerMouth(activeWeaponMesh, _sbPos, _sbDir);
+    hellfireView.burst(_sbPos, _sbDir, 1 - 0.45 * w.adsT);   // a little less in your face down the sight
+    if (w.ammoInMag <= 0) {
+      setTimeout(() => {
+        if (!activeWeaponMesh?.userData.sb) return;
+        soulBlazerMouth(activeWeaponMesh, _sbPos, _sbDir);
+        hellfireView.cough(_sbPos, _sbDir);
+        audio.emberCough();
+      }, 260);
+    }
+  }
 
   // Part of the kick is permanent climb the player has to pull back down —
   // that's what makes recoil control a skill rather than a wait.
@@ -9175,6 +9210,10 @@ function remoteShotFx(origin, dir, weaponId, quiet = false, charge = 0) {
   audio.shot(quiet ? { ...base, quiet: true } : base, 0.8, origin);
   if (!quiet) impactFx.puff(origin, dir.lengthSq() > 0.001 ? dir.clone().normalize() : null);
   if (dir.lengthSq() < 0.001) return;
+  // The Soul Blazer's fire out of someone else's skull (not across the map).
+  if (base.hellfire && origin.distanceToSquared(camera.position) < 70 * 70) {
+    hellfire.burst(origin.clone().addScaledVector(dir.clone().normalize(), 0.45), dir.clone().normalize(), 0.8);
+  }
   const pellets = Math.min(base.pellets || 1, 4);   // a few pellets read as buckshot
   for (let i = 0; i < pellets; i++) {
     const d = dir.clone().normalize();
@@ -13079,6 +13118,8 @@ function animate() {
       // lighter — it's the "they're shooting at that corner" cue.
       onWorldHit: (point, cosmetic, hit = {}) => {
         impactFx.hit(point, { normal: hit.normal, dir: hit.dir, surface: hit.ground ? "ground" : "concrete", scale: cosmetic ? 0.6 : 1 });
+        // Burning pellets lick the surface they land on (a few per shot).
+        if (hit.def?.hellfire && Math.random() < (cosmetic ? 0.25 : 0.4)) hellfire.lick(point, hit.normal);
         audio.impact(point);
         // maps with things that react to being shot (Hollowgrin's tin trolls)
         builtMap?.map?.onShot?.(point);
@@ -13086,6 +13127,8 @@ function animate() {
       bounds: ARENA,
     });
     impactFx.update(dt, camera, renderer);
+    hellfire.update(dt);
+    hellfireView.update(dt);
 
     // HUD updates — each only touches the DOM when its value actually changed.
     const w = currentWeapon();
@@ -15257,7 +15300,7 @@ function startInspect() {
   if (player.holding === "gun") {
     const w = currentWeapon();
     if (w.reloading || w.adsT > 0.05) return;
-    inspectDur = w.def.akimbo ? AKIMBO_INSPECT_TIME : isLongGunInspect(w) ? GUN_INSPECT_TIME : SIDEARM_INSPECT_TIME;
+    inspectDur = w.def.akimbo ? AKIMBO_INSPECT_TIME : isLongGunInspect(w) ? (w.def.inspectTime ?? GUN_INSPECT_TIME) : SIDEARM_INSPECT_TIME;
   } else if (player.holding === "melee") {
     if (!player.melee || player.melee.busy) return;
     inspectDur = player.melee.chainsaw ? SAW_REV_TIME : MELEE_INSPECT_TIME;
@@ -15413,7 +15456,7 @@ function applyGunInspect(mesh, w) {
   inspectArms.visible = false;
   if (blend <= 0) return;
 
-  const [yaw, twist, tilt, x, y, dz] = sampleKeys(GUN_INSPECT_KEYS, t, _gunKey);
+  const [yaw, twist, tilt, x, y, dz] = sampleKeys(mesh.userData.inspectKeys ?? GUN_INSPECT_KEYS, t, _gunKey);
   const yawR = THREE.MathUtils.degToRad(yaw);
   // Muzzle-up is a different screen rotation depending on which way the
   // muzzle points; sin(yaw) carries it smoothly through the turn.
@@ -16044,7 +16087,8 @@ function reloadPose(w, mesh) {
     // magT too: `p` is shared, and a reload cut short by death left the
     // last mid-reload value here, so placeReloadMag kept every gun after it
     // (the respawned one included) holding its mag out in the air.
-    p.shellT = p.rack = p.magT = p.akimboT = -1;
+    p.shellT = p.rack = p.magT = p.akimboT = p.portShell = -1;
+    p.pumpBack = null;
     if (mag) {
       mag.visible = true;
       mag.position.copy(mesh.userData.magazinePoint);
@@ -16057,6 +16101,7 @@ function reloadPose(w, mesh) {
     return p;
   }
 
+  if (w.def.hellfire && w.def.shellReload) return soulBlazerReloadPose(w, p);
   if (w.def.shellReload) return shellReloadPose(w, mesh, p);
   if (w.def.akimbo) {
     // akimbo-view.js moves the two guns themselves (and plays the
@@ -16142,9 +16187,11 @@ function shellReloadPose(w, mesh, p) {
 /* The pump forend: back and forward after each shot (pumpT) and on the
    empty-reload rack. 0..1 progress -> how far back (0 = home). */
 const PUMP_TRAVEL = 0.085;
-function placePump(mesh, w, rackT) {
+function placePump(mesh, w, rackT, backOverride = null) {
   const pump = mesh?.userData.pumpMesh;
   if (!pump) return;
+  // The Soul Blazer's port load holds the pump open, then slams it home.
+  if (backOverride != null) { pump.position.z = mesh.userData.pumpRestZ + backOverride * PUMP_TRAVEL; return; }
   let t = -1;
   if (rackT >= 0) t = rackT;
   else if (w.pumpT > 0 && w.pumpDur > 0 && w.def.fireMode === "pump") t = 1 - w.pumpT / w.pumpDur;
@@ -16158,9 +16205,18 @@ function placePump(mesh, w, rackT) {
    the loading port, then gone into the tube. */
 const SHELL_HOLD_SCREEN = new THREE.Vector3(-0.07, -0.2, -0.5);
 const _shellHold = new THREE.Vector3();
-function placeReloadShell(mesh, t) {
+function placeReloadShell(mesh, t, portT = -1) {
   const shell = mesh?.userData.shellMesh;
   if (!shell) return;
+  // The Soul Blazer's port load: dropped in from above the open port.
+  if (portT >= 0 && mesh.userData.ejectPort) {
+    const k = smoothstep(Math.min(1, portT));
+    shell.position.copy(mesh.userData.ejectPort).add(_shellHold.set(0.004 + 0.1 * (1 - k), 0.03 * (1 - k), 0.006 * (1 - k)));
+    shell.rotation.set(0, 0, Math.PI / 2 * (1 - k));
+    shell.visible = portT < 0.97;
+    return;
+  }
+  shell.rotation.set(0, 0, 0);
   if (t < 0 || t > 0.9) { shell.visible = false; return; }
   mesh.updateMatrixWorld(true);
   const port = mesh.userData.loadPort;
@@ -16176,11 +16232,99 @@ function placeReloadShell(mesh, t) {
 function drainWeaponEvents(w) {
   if (!w.events?.length) return;
   for (const e of w.events) {
-    if (e === "shell") audio.shellIn();
-    else if (e === "pump") audio.pump(w.pumpDur);
+    if (e === "shell") { audio.shellIn(); if (w.def.hellfire) sbFed(activeWeaponMesh); }
+    else if (e === "pump") { audio.pump(w.pumpDur); if (w.def.hellfire) soulBlazerKick(activeWeaponMesh, 0.8); }
     else if (e === "rack") audio.pump(w.def.shellReload.rack);
+    // "portload" (the Soul Blazer's port shell going home) is played at the
+    // pump slam instead, by updateSoulBlazerHand.
   }
   w.events.length = 0;
+}
+
+/* ---- the Soul Blazer in hand (soul-blazer.js does the gun itself) ---- */
+
+const _sbEye = new THREE.Vector3();
+let sbCueT = -1;
+let sbWaveZ = null;
+
+/* A shell thumbed into the tube: its skull's eyes light (the counter does
+   that), an ember puff from the port, a gulp, the charms jump. */
+function sbFed(mesh) {
+  if (!mesh?.userData.sb) return;
+  audio.soulGulp();
+  soulBlazerKick(mesh, 0.6);
+  _sbEye.copy(mesh.userData.loadPort).applyMatrix4(mesh.matrixWorld);
+  for (let i = 0; i < 6; i++) {
+    _sbDir.set((Math.random() - 0.5) * 0.6, -0.2 - Math.random() * 0.4, (Math.random() - 0.5) * 0.6);
+    hellfireView.ember(_sbEye, _sbDir, { size: 0.02, life: 0.4 });
+  }
+}
+
+/* The pump slammed home on an empty gun: it relights with a roar. */
+function sbRelight(mesh) {
+  soulBlazerIgnite(mesh);
+  audio.soulRoar();
+  soulBlazerMouth(mesh, _sbPos, _sbDir);
+  hellfireView.roar(_sbPos, _sbDir);
+  kickFireShake(currentWeapon().def, 0.35);
+}
+
+function sbEyesWorld(mesh, fn) {
+  const sb = mesh.userData.sb;
+  mesh.updateMatrixWorld(true);
+  for (let i = 0; i < Math.min(2, sb.halos.length); i++) {
+    if (sb.halos[i] === sb.mouthHalo) continue;
+    fn(_sbEye.copy(sb.halos[i].position).applyMatrix4(mesh.matrixWorld));
+  }
+}
+
+function sbInspectCue(mesh, cue, dead) {
+  switch (cue) {
+    case "pentagram": audio.soulTick(0.5, !dead); break;
+    case "eyes": if (!dead) audio.soulTick(1, true); break;
+    case "growl": if (dead) audio.dryRasp(); else audio.soulGrowl(); break;
+    case "tongue":
+      soulBlazerMouth(mesh, _sbPos, _sbDir);
+      if (dead) hellfireView.wisp(_sbPos, 2);
+      else { hellfireView.tongue(_sbPos, _sbDir); audio.fireWhoosh(0.35); }
+      break;
+    case "clack": audio.jawClack(); break;
+    case "smoke": sbEyesWorld(mesh, (p) => hellfireView.wisp(p, 1)); break;
+    case "roll": audio.chainJingle(1); break;
+    case "rattle": audio.chainJingle(0.75); soulBlazerKick(mesh, 0.9); break;
+    default:
+  }
+}
+
+/* Per frame for the gun in hand: what only the shooter knows (ammo, the
+   real-world view for the charms), the relight at the pump slam, and the
+   admire's ember wave, jaw and cues. */
+function updateSoulBlazerHand(mesh, w) {
+  const sb = mesh.userData.sb;
+  weaponCamera.updateMatrixWorld();
+  _sbView.multiplyMatrices(camera.matrixWorld, weaponCamera.matrixWorldInverse);
+  if (w.shellStage === "port" && w.reloading) {
+    const k = 1 - Math.max(0, w.shellT) / Math.max(0.001, w.shellDur);
+    if (k >= 0.62 && !w.sbRelit) { w.sbRelit = true; sbRelight(mesh); }
+  } else w.sbRelit = false;
+  updateSoulBlazerView(mesh, w, _sbView);
+  if (w.sbRelit) sb.ammo = Math.max(sb.ammo, 1);   // relit before the shell is counted
+
+  const t = inspectT > 0 && player.holding === "gun" ? inspectProgress() : -1;
+  const dead = w.ammoInMag <= 0;
+  soulBlazerInspect(mesh, t, dead);
+  if (t >= 0) {
+    for (const [ct, cue] of SB_INSPECT_CUES) if (sbCueT < ct && t >= ct) sbInspectCue(mesh, cue, dead);
+    // a soft tick as the ember wave lights each flank skull
+    if (sb.waveAt != null && sbWaveZ != null) {
+      for (const z of sb.slotZ || []) if ((sbWaveZ - z) * (sb.waveAt - z) < 0) audio.soulTick(0.3, true);
+    }
+    sbWaveZ = sb.waveAt;
+    sbCueT = t;
+  } else {
+    sbCueT = -1;
+    sbWaveZ = null;
+  }
 }
 
 /* Green Candles, per frame: the gauge shows what's in the tank; the candle
@@ -16483,8 +16627,9 @@ function updateWeaponView(dt) {
   }
   placeReloadMag(mesh, rl.magT ?? -1);
   updateGreenCandles(mesh, w, rl.magT ?? -1, dt);
-  placeReloadShell(mesh, rl.shellT ?? -1);
-  placePump(mesh, w, rl.rack ?? -1);
+  placeReloadShell(mesh, rl.shellT ?? -1, rl.portShell ?? -1);
+  placePump(mesh, w, rl.rack ?? -1, rl.pumpBack ?? null);
+  if (mesh.userData.sb) updateSoulBlazerHand(mesh, w);
   drainWeaponEvents(w);
   posePfArms(mesh, rl.magHold || 0);
 
@@ -16614,6 +16759,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     townNpcs: () => townNpcs,
     gloves: () => gloves, gloveRig: () => gloveRig, weaponRig: () => weaponRig,
     candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
+    hellfire, hellfireView,
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT, sawShake: () => sawShake, sawInspectRev: () => sawInspectRev,
     targetMeshes: () => targetMeshes, meleeConnect,
     saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT, parry: { ...saberParry.sample(), t: saberParry.t }, flick: saberFlick }),

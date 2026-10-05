@@ -165,6 +165,7 @@ export class GameAudio {
     if (at && this._far(at, SHOT_CULL)) return;
     if (def.candleShot) { this.candleShot(def.chargeLevel || 0, volume, at); return; }
     if (def.revolver) { this.revolverShot(volume, at); return; }
+    if (def.hellfire && !def.quiet) this.hellfireShot(volume, at);   // and the boom below
     const heavy = Math.min(1, (def.damage * (def.pellets || 1)) / 90);
     const quiet = !!def.quiet;
 
@@ -190,6 +191,121 @@ export class GameAudio {
     if (!quiet) {
       this._noise({ duration: 0.035, gain: 0.28 * volume, type: "highpass", freq: 3000, at });
     }
+  }
+
+  /* ---- the Soul Blazer (soul-blazer.js) ---- */
+
+  /* A short screech: a sawtooth throat with a fast vibrato, rising to a
+     peak and falling away, through a bandpass. Shorter and quieter than a
+     zombie's shriek: the gun's voice, not a monster's. */
+  _screech({ f0 = 900, peak = 1700, end = 650, dur = 0.28, gain = 0.1, vib = 46, depth = 70, band = 2200, delay = 0, at = null }) {
+    const ctx = this.ctx, t0 = this.now + delay;
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(f0, t0);
+    osc.frequency.exponentialRampToValueAtTime(peak, t0 + dur * 0.28);
+    osc.frequency.exponentialRampToValueAtTime(end, t0 + dur);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = vib;
+    const lg = ctx.createGain();
+    lg.gain.value = depth;
+    lfo.connect(lg).connect(osc.frequency);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = band;
+    bp.Q.value = 1.6;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0008, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0008, t0 + dur);
+    osc.connect(bp).connect(g).connect(this._dest(at));
+    osc.start(t0);
+    lfo.start(t0);
+    osc.stop(t0 + dur + 0.05);
+    lfo.stop(t0 + dur + 0.05);
+  }
+
+  /* Every shot: a roar of fire out of the jaws and a short screech over the
+     boom (shot() plays the boom after this). */
+  hellfireShot(volume = 1, at = null) {
+    if (!this._ready()) return;
+    this.fireWhoosh(0.9 * volume, at);
+    this._screech({ gain: 0.09 * volume, at, delay: 0.015, f0: 850 + Math.random() * 120, peak: 1650 + Math.random() * 250 });
+  }
+
+  fireWhoosh(volume = 1, at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.42, gain: 0.26 * volume, type: "bandpass", freq: 1700, q: 0.8, sweepTo: 280, at });
+    this._noise({ duration: 0.3, gain: 0.14 * volume, type: "lowpass", freq: 600, sweepTo: 120, delay: 0.03, at });
+  }
+
+  /* The last shell: the fire coughs and goes out. */
+  emberCough() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.12, gain: 0.16, type: "bandpass", freq: 500, q: 1.4, sweepTo: 260 });
+    this._noise({ duration: 0.5, gain: 0.07, type: "highpass", freq: 3000, sweepTo: 1200, delay: 0.08 });
+  }
+
+  /* A shell fed in: a low gulp as its skull's eyes light. */
+  soulGulp() {
+    if (!this._ready()) return;
+    this._tone({ freq: 160, to: 70, duration: 0.12, gain: 0.08, type: "sine", delay: 0.03 });
+    this._noise({ duration: 0.09, gain: 0.05, type: "bandpass", freq: 900, q: 2, sweepTo: 500, delay: 0.03 });
+  }
+
+  /* The relight: the pump slams and the skull roars back to life. */
+  soulRoar() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.05, gain: 0.22, type: "bandpass", freq: 1300, q: 3 });
+    this.fireWhoosh(1.2);
+    this._screech({ f0: 420, peak: 1250, end: 380, dur: 0.75, gain: 0.12, vib: 30, depth: 90, band: 1500, delay: 0.04 });
+    this._tone({ freq: 70, to: 38, duration: 0.6, gain: 0.22, type: "sine", delay: 0.03 });
+  }
+
+  /* Admire: a low growl as the jaw opens. */
+  soulGrowl() {
+    if (!this._ready()) return;
+    this._screech({ f0: 110, peak: 150, end: 95, dur: 0.85, gain: 0.08, vib: 23, depth: 18, band: 520 });
+    this._noise({ duration: 0.8, gain: 0.05, type: "lowpass", freq: 400, sweepTo: 200 });
+  }
+
+  /* Admire on an empty gun: a dry rasp instead. */
+  dryRasp() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.6, gain: 0.06, type: "bandpass", freq: 2300, q: 1.2, sweepTo: 1100 });
+  }
+
+  /* Teeth meeting. */
+  jawClack() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.03, gain: 0.2, type: "bandpass", freq: 2100, q: 5 });
+    this._noise({ duration: 0.04, gain: 0.12, type: "bandpass", freq: 1300, q: 4, delay: 0.012 });
+  }
+
+  /* A soft ember tick (the admire's wave lighting each skull). `hot`
+     adds a breath of fire under it. */
+  soulTick(level = 1, hot = true) {
+    if (!this._ready()) return;
+    this._tone({ freq: 520 + 300 * level, to: 380, duration: 0.07, gain: 0.04 * level, type: "triangle" });
+    if (hot) this._noise({ duration: 0.18, gain: 0.04 * level, type: "bandpass", freq: 1500, q: 1, sweepTo: 600 });
+  }
+
+  /* The charms on their chains. */
+  chainJingle(level = 1) {
+    if (!this._ready()) return;
+    for (let i = 0; i < 9; i++) {
+      const hz = 2400 + Math.random() * 2600;
+      const d = Math.random() * 0.22;
+      this._tone({ freq: hz, to: hz * 0.98, duration: 0.05 + Math.random() * 0.05, gain: (0.02 + Math.random() * 0.02) * level, type: "sine", delay: d });
+    }
+    this._noise({ duration: 0.12, gain: 0.04 * level, type: "highpass", freq: 3500 });
+  }
+
+  /* A kill with it: the body goes up with a rush of fire and a screech. */
+  soulFeed(at = null) {
+    if (!this._ready() || (at && this._far(at, 80))) return;
+    this._noise({ duration: 0.9, gain: 0.22, type: "bandpass", freq: 900, q: 0.7, sweepTo: 220, at });
+    this._screech({ f0: 600, peak: 1400, end: 300, dur: 0.6, gain: 0.08, vib: 36, depth: 80, band: 1800, delay: 0.05, at });
   }
 
   /* Single-action revolver: a hard black-powder crack with a boom under it,

@@ -17,7 +17,7 @@ import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression.js?v=p5-wst";
 
 import { fetchRecord, formatPlayed } from "./record.js?v=rec1";
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1";
 import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=p5-wst";
 import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1-wst";
 import { FINISHES } from "./skins.js?v=p5";

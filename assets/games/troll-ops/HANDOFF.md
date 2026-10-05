@@ -448,6 +448,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-05**
+  - Soul Blazer hellfire shotgun (rank 0): Blender model (models/build_soulblazer.blender.py), swinging charms, jaw, flank-skull shell counter, fire FX, port-load relight reload, bespoke admire (soul-blazer.js). Remote relight isn't networked. Test: tools/troll-ops-soulblazer-test.mjs.
   - Trolling Loud Socialize crowd: 119 club NPCs, including bouncers, the door line, bartenders, the go-go and dancers on the beat, VIP booths, the mezzanine, terrace and roof. New `phone` act, the `guard` arms now fold, and the terrace armchairs face their table. Test: tools/troll-ops-club-crowd-test.mjs.
   - Zombies ZR4 part 2: each zombie is one skinned mesh on one atlas (was 4-7). Draws with 12 zombies: Hollowgrin 515 -> 399, Pentagrin ~4300 -> 2377; fps about 2x on Hollowgrin.
   - Zombies ZR4 part 1: head-pop on headshot kills, blood hits ("blood" surface), a glossy blood pool under each body, synthesized groans/snarls/death gurgles per zombie voice (audio.js `_zombieVoice`), throttled horde-wide. Test: tools/troll-ops-zombie-test.mjs (ALL PASS).

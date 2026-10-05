@@ -13,6 +13,7 @@ import {
 import { build416 } from "./weapon-416.js?v=cg1-wst";
 import { buildRevolverPair } from "./revolvers.js?v=rv2-wst";
 import { finishDef } from "./skins.js?v=p5";
+import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const MATS = {
@@ -64,11 +65,15 @@ export function preloadWeaponModels() {
       gmTemplate = prepGrinmington(gltf.scene);
       return true;
     }).catch((e) => { console.warn("[weapons] grinmington model failed", e); return false; });
+    const sbl = new GLTFLoader().loadAsync(SB_URL).then((gltf) => {
+      sbTemplate = prepSoulBlazer(gltf.scene);
+      return true;
+    }).catch((e) => { console.warn("[weapons] soul blazer model failed", e); return false; });
     const dt = Object.entries(DETAILED).map(([id, cfg]) => new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
       detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));
       return true;
     }).catch((e) => { console.warn(`[weapons] ${id} model failed`, e); return false; }));
-    gcLoading = Promise.all([gc, gm, ...dt]).then((r) => r.some(Boolean));
+    gcLoading = Promise.all([gc, gm, sbl, ...dt]).then((r) => r.some(Boolean));
   }
   return gcLoading;
 }
@@ -76,7 +81,7 @@ export function preloadWeaponModels() {
 /* Weapons whose first-person model streams in (game.js rebuilds the gun in
    hand once it lands). */
 export function hasDetailedModel(def) {
-  return def?.model?.stock === "tank" || def?.id === "grinmington" || !!DETAILED[def?.id];
+  return def?.model?.stock === "tank" || def?.id === "grinmington" || def?.id === "soulblazer" || !!DETAILED[def?.id];
 }
 
 /* ---- Detailed rifles: one loader for the Blender-built guns that reload
@@ -382,6 +387,195 @@ function buildGrinmington(def) {
       u.laserOrigin = origin.clone();
     }
   }
+  root.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return root;
+}
+
+/* ---- Soul Blazer: the Hellseeker shotgun, a detailed Blender model ----
+   models/build_soulblazer.blender.py. A pump gun like the Grinmington (the
+   pump node slides, the loose shell rides the reload), plus what
+   soul-blazer.js animates: the jaw and the six charms are flattened onto
+   the root here, each mesh keeping its rest matrix and its pivot, so they
+   survive a remote player's mergeHeld as loose meshes and turn about the
+   right point. Until the model streams in, the procedural pump gun stands in. */
+const SB_URL = new URL("./models/soulblazer.glb?v=sb1", import.meta.url).href;
+const SB_RAIL_TOP = 0.036;
+const SB_BORE_Y = 0.010;
+const SB_GRIP_RAKE = -0.315;
+const SB_EMPTIES = /^SB_(Grip|Support|Muzzle|Aim|Port|Under|Rail|Eject|EyeL|EyeR|Slot\d)$/;
+const SB_TUNE = {
+  // Aged bone and old blood leather: the view-model lights read Blender's
+  // colours far paler than the sheet.
+  SB_Bone:     { color: 0x8a7150 },
+  SB_BoneDark: { color: 0x4a3622 },
+  SB_Leather:  { color: 0x4a0a0a },
+  SB_LeatherDark: { color: 0x1a0505 },
+  // Blender's emission strengths are for Cycles; under the game's ACES these
+  // are the readable levels (soul-blazer.js scales them with the gun's state).
+  SB_Ember:    { emissive: 0xff4a0e, emissiveIntensity: 2.4 },
+  SB_Rune:     { emissive: 0xd00a10, emissiveIntensity: 1.8 },
+  SB_Eye:      { emissive: 0xff7010, emissiveIntensity: 3.0 },
+  SB_SlotEye:  { emissive: 0xff7010, emissiveIntensity: 2.6 },
+  SB_CharmEye: { emissive: 0xff5a10, emissiveIntensity: 1.6 },
+  SB_Throat:   { emissive: 0xff3008, emissiveIntensity: 2.2 },
+};
+let sbTemplate = null;
+
+function prepSoulBlazer(scene) {
+  scene.traverse((o) => {
+    if (o.isMesh) {
+      o.geometry.userData.shared = true;
+      o.castShadow = false;
+      o.receiveShadow = false;
+    }
+    const m = o.material;
+    if (!m) return;
+    const t = SB_TUNE[m.name];
+    if (t?.color != null) m.color = new THREE.Color(t.color);
+    if (t?.emissive != null) {
+      m.emissive = new THREE.Color(t.emissive);
+      m.emissiveIntensity = t.emissiveIntensity;
+    }
+  });
+  return scene;
+}
+
+function buildSoulBlazer(def) {
+  const src = sbTemplate.clone(true);
+  src.updateMatrixWorld(true);
+  const root = new THREE.Group();
+  const at = (n) => src.getObjectByName(n)?.position.clone();
+  const grip = at("SB_Grip"), support = at("SB_Support"), muzzle = at("SB_Muzzle");
+  const aim = at("SB_Aim"), port = at("SB_Port"), under = at("SB_Under"), rail = at("SB_Rail");
+  const slotZ = [];
+  for (let i = 0; i < 6; i++) { const p = at(`SB_Slot${i}`); if (p) slotZ.push(p.z); }
+  const eyes = ["SB_EyeL", "SB_EyeR"].map(at).filter(Boolean);
+  const eject = at("SB_Eject");
+
+  // The charms and the jaw: every mesh under them goes straight onto the
+  // root at its rest transform, tagged with what it is and where it turns.
+  const flatten = (node, tag) => {
+    const pivot = node.position.clone();
+    const meshes = [];
+    node.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    for (const o of meshes) {
+      const rest = new THREE.Matrix4().copy(src.matrixWorld).invert().multiply(o.matrixWorld);
+      o.parent.remove(o);
+      rest.decompose(o.position, o.quaternion, o.scale);
+      o.updateMatrix();
+      o.userData.rest = rest;
+      o.userData.pivot = pivot;
+      Object.assign(o.userData, tag);
+      root.add(o);
+    }
+  };
+  for (const c of [...src.children]) {
+    const m = /^SB_Charm(\d)$/.exec(c.name);
+    if (m) flatten(c, { charm: +m[1] });
+    else if (c.name === "SB_Jaw") flatten(c, { jaw: true });
+    else if (!SB_EMPTIES.test(c.name)) root.add(c);
+  }
+
+  // Own materials per gun (the game disposes them on a swap; the shaders
+  // carry per-gun state), with studio reflections for the metals.
+  const clones = new Map();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    let m = clones.get(o.material);
+    if (!m) {
+      m = o.material.clone();
+      if (weaponEnvMap && m.isMeshStandardMaterial) {
+        m.envMap = weaponEnvMap;
+        m.envMapIntensity = m.metalness > 0.5 ? 1.0 : 0.45;
+      }
+      clones.set(o.material, m);
+    }
+    o.material = m;
+  });
+
+  const pump = root.getObjectByName("SB_Pump");
+  const shell = root.getObjectByName("SB_Shell");
+  const irons = [root.getObjectByName("SB_IronRear"), root.getObjectByName("SB_IronFront")];
+  shell.visible = false;
+
+  const hand = buildGripHand(1);
+  hand.userData.hand = true;
+  hand.position.copy(grip);
+  hand.rotation.x = SB_GRIP_RAKE;
+  root.add(hand);
+  const pumpSupport = buildSupportHand(1.5);
+  pumpSupport.userData.hand = true;
+  pumpSupport.position.copy(support).sub(pump.position);
+  pump.add(pumpSupport);
+
+  const u = root.userData;
+  u.pumpMesh = pump;
+  u.pumpRestZ = pump.position.z;
+  u.supportHandPos = support.clone();
+  u.pfAnchors = [hand, pumpSupport];
+  u.pfSupportDrop = 0.05;
+  u.loadPort = port;
+  u.ejectPort = eject;
+  u.shellMesh = shell;
+  u.gripPos = grip;
+
+  const opticKey = def.attachments?.optic
+    || (def.sight === "scope" ? "acog" : def.sight === "reddot" ? "reflex" : "iron");
+  const opticBuild = OPTIC_BUILDERS[opticKey];
+  u.aimPoint = aim;
+  u.adsDistance = 0.3;
+  u.adsWeaponFov = null;
+  u.sight = null;
+  if (opticBuild) {
+    const optic = opticBuild();
+    const railY = SB_RAIL_TOP + 0.004;
+    const aimY = railY + (optic.userData.aimOffsetY ?? 0.05);
+    const aimZ = rail.z + (optic.userData.lengthZ > 0.12 ? -0.02 : 0.01);
+    const sight = new THREE.Group();
+    sight.add(optic);
+    sight.position.set(0, aimY, aimZ);
+    root.add(sight);
+    for (const i of irons) if (i) i.visible = false;
+    u.sight = sight;
+    u.aimPoint = new THREE.Vector3(0, aimY, aimZ);
+    u.adsDistance = optic.userData.adsDistance ?? null;
+    u.adsWeaponFov = optic.userData.adsWeaponFov ?? null;
+  }
+
+  // The skull is the muzzle: a barrel device goes in its mouth.
+  u.muzzleZ = muzzle.z;
+  const devBuild = BARREL_BUILDERS[def.attachments?.barrel];
+  if (devBuild) {
+    const dev = devBuild(0.0105);
+    const devLen = dev.userData.lengthZ ?? 0.05;
+    dev.position.set(0, muzzle.y, muzzle.z + 0.012 - devLen / 2);
+    root.add(dev);
+    u.muzzleZ = muzzle.z + 0.012 - devLen;
+  }
+
+  const ub = def.attachments?.underbarrel;
+  const ubBuild = UNDER_BUILDERS[ub];
+  if (ubBuild) {
+    const unit = ubBuild();
+    unit.position.copy(under).sub(pump.position);
+    if (ub === "laser") unit.position.y += 0.012;
+    pump.add(unit);
+    if (ub === "laser") {
+      const em = unit.userData.emitter || new THREE.Vector3();
+      const origin = unit.position.clone().add(pump.position).add(em);
+      const beamMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.85, depthWrite: false });
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 1, 6), beamMat);
+      beam.rotation.x = Math.PI / 2;
+      beam.position.copy(origin);
+      beam.visible = false;
+      root.add(beam);
+      u.laserBeam = beam;
+      u.laserOrigin = origin.clone();
+    }
+  }
+  rigSoulBlazer(root, { glowTexture, slotZ, eyes, mouth: muzzle });
+  u.inspectKeys = SB_INSPECT_KEYS;   // its own admire (game.js applyGunInspect)
+  u.hipOffset = new THREE.Vector3(-0.005, 0.005, -0.07);   // forward a touch: the big stock crowded the corner
   root.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   return root;
 }
@@ -874,6 +1068,7 @@ function buildBaseMesh(def, skin) {
   const spec = def.model || {};
   if (spec.stock === "tank") return gcTemplate ? buildGreenCandles(def) : buildTankLauncher(def, spec, spec.len || 0.5);
   if (def.id === "grinmington" && gmTemplate) return buildGrinmington(def);
+  if (def.id === "soulblazer" && sbTemplate) return buildSoulBlazer(def);
   if (DETAILED[def.id] && detailedTemplates.has(def.id)) return buildDetailed(def, DETAILED[def.id], detailedTemplates.get(def.id));
   const len = spec.len || 0.5;
   const heavy = !!spec.heavy;

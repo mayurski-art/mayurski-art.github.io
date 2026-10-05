@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { makeTracerMaterial } from "./shaders.js";
-import { computeDamage } from "./weapons.js?v=p5bm-wst";
+import { computeDamage } from "./weapons.js?v=p5bm-wst-hf1";
 
 const DROP = 9.81;          // m/s^2 applied to bullets
 const MAX_LIFE = 3.0;       // seconds before a stray round is culled
@@ -178,6 +178,7 @@ export class BulletSystem {
       life: MAX_LIFE,
       acc: 0,
       cosmetic,
+      trail: def.hellfire ? origin.clone() : null,   // where its fire trail last reached
     });
   }
 
@@ -289,14 +290,14 @@ export class BulletSystem {
 
         if (groundT === first) {
           const point = from.clone().addScaledVector(dir, groundT);
-          onWorldHit?.(point, b.cosmetic, { normal: new THREE.Vector3(0, 1, 0), dir: dir.clone(), ground: true });
+          onWorldHit?.(point, b.cosmetic, { normal: new THREE.Vector3(0, 1, 0), dir: dir.clone(), ground: true, def: b.def });
           dead = true;
           break;
         }
 
         // --- wall: try to punch through
         const point = from.clone().addScaledVector(dir, wallT);
-        onWorldHit?.(point, b.cosmetic, { normal: boxFaceNormal(point, wallBox), dir: dir.clone(), ground: false });
+        onWorldHit?.(point, b.cosmetic, { normal: boxFaceNormal(point, wallBox), dir: dir.clone(), ground: false, def: b.def });
         if (b.cosmetic) { dead = true; break; }
         const thickness = Math.max(0.05, wallExit - wallT);
         const cost = thickness * wallPen;
@@ -315,6 +316,12 @@ export class BulletSystem {
     for (let i = 0; i < this.tracers.length; i++) {
       const b = this.bullets[i];
       if (!b) { this.tracers[i].hide(); continue; }
+      // Soul Blazer pellets burn: game.js draws their fire along this
+      // frame's stretch of the flight (the first 32 m of it).
+      if (b.trail && this.onFireTrail) {
+        if (b.dist < 32) this.onFireTrail(b.trail, b.pos);
+        b.trail.copy(b.pos);
+      }
       const speed = b.vel.length();
       if (speed < 1e-3) { this.tracers[i].hide(); continue; }
       dir.copy(b.vel).divideScalar(speed);

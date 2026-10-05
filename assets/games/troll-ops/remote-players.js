@@ -8,8 +8,8 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
 import { poseEmoteCode } from "./emotes.js?v=hb4-em1-wst-soc1";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst";
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst-hf1";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -639,6 +639,10 @@ export class RemotePlayer {
       gait: !em, lower: this.lower, mps: moving ? this.gaitMps ?? speed : 0, moving, forward, strafe,
       ads: sword ? 0 : this.ads, reload: this.reloadK,
     };
+    // A Soul Blazer in their hands snaps its jaw on each of their shots
+    // (soul-blazer.js; its charms swing on their own).
+    const sbm = this.weaponMesh?.userData.sb;
+    if (sbm && this.peer.shotAt) sbm.lastShot = this.peer.shotAt;
     if (em && poseEmoteCode(this.rig, em, this.emoteT)) {
       this.bodyPose.gait = false;
     } else poseHumanoid(this.rig, {

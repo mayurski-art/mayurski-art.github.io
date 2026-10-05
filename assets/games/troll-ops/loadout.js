@@ -1,6 +1,6 @@
 // Troll Forces — loadout screen: class → weapon → attachments.
 
-import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst";
+import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst-hf1";
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js?v=cg1-wst";
 import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=p5";
