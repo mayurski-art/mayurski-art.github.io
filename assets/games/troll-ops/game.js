@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-dj1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1";
@@ -34,7 +34,7 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-dj1";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1";
@@ -61,6 +61,7 @@ import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst-bs1";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./music.js?v=to-gs1";
+import { DjLulz } from "./dj-lulz.js?v=dj1";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
@@ -5222,7 +5223,7 @@ const net = new Net({
   onChat: (p, m) => chat.receive(p, m),
   // Socialize: the owner switched the room's mode (see switchRoomMode).
   onMode: (p, m) => { if (p.owner) adoptRoomMode(m); },
-  onRp: (p, m) => onBarMessage(p, m),
+  onRp: (p, m) => (String(m.k).startsWith("dj") ? djLulz.onMessage(p, m) : onBarMessage(p, m)),
   /* Map loading screen (see enterMatch). Follow the host's map early, and
      as the host of a match already on, let a finished latecomer in. */
   onReady: (p, m) => {
@@ -5359,6 +5360,22 @@ const chat = new MatchChat({
   teamColor: (t) => TEAMS[t]?.ui,
   openProfile: (uid) => openPlayerProfile(uid),
   onOpenChange: (open) => { if (open) { keys.clear(); mouseDown = false; } },
+});
+
+/* Trolling Loud's DJ (dj-lulz.js): Socialize requests at the booth, his
+   record for the whole room through the booth, the club's lights on it. */
+const djLulz = new DjLulz({
+  net,
+  tracks: music.tracks,
+  mount: els.hud,
+  humans: () => [...net.peers.values()].filter((p) => !isBotPeer(p)),
+  name: () => playerName(),
+  banner: (text, ms) => showWaveBanner(text, ms),
+  releaseInputs: () => releaseHeldInputs(),
+  lock: () => { if (gameState === "playing") controls.lock(); },
+  unlock: () => controls.unlock(),
+  isTouch,
+  radioOn: () => music.playing && music.volume > 0,
 });
 
 /* The Troll Forces profile card (profile-card.js) for any operator with an
@@ -12143,7 +12160,7 @@ controls.addEventListener("lock", () => { closePauseMenu(); chat.setInteractive(
 controls.addEventListener("unlock", () => {
   chat.setInteractive(true);
   cancelCook();
-  if (gameState === "playing") openPauseMenu();
+  if (gameState === "playing" && !djLulz.isOpen) openPauseMenu();
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -12843,7 +12860,13 @@ function animate() {
   ambience.set((gameState === "playing" || gameState === "paused") && loadedMapId && !radioOn ? loadedMapId : null);
   // A map with its own sound or music-driven lights (Trolling Loud's DJ)
   // follows the same rule: on in a match, and it knows when the radio is.
-  builtMap?.map?.onFrame?.({ live: (gameState === "playing" || gameState === "paused") && !!loadedMapId, radio: radioOn });
+  // In Socialize the club's DJ spins for the room; his record (or else
+  // your radio's song) is the clock the lights run on.
+  const mapLive = (gameState === "playing" || gameState === "paused") && !!loadedMapId;
+  djLulz.setMap(mapLive && isSocial() ? builtMap?.map : null);
+  if (djLulz.active) djLulz.update(dt, move.pos);
+  const song = djLulz.song() || (radioOn && music.current ? { src: music.current.src, t: music.time } : null);
+  builtMap?.map?.onFrame?.({ live: mapLive, radio: radioOn, song });
 
   // Runs during "gameover", between two matches in a room that stayed up.
   if (intermissionT > 0) {
@@ -14664,6 +14687,9 @@ function barAction(B) {
         done: () => { net.publishRp({ k: "bell" }); lastCall(playerName()); } };
     }
   }
+  // Trolling Loud: ask DJ Lulz for a song at the booth.
+  const dj = djLulz.action(move.pos);
+  if (dj) return dj;
   // Hold a drink out to whoever is beside us with empty hands.
   if (bar.drink?.sips > 0 && !bar.outgoing) {
     const rp = barNearestEmptyHanded();
@@ -16275,7 +16301,7 @@ if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]hitbox=
 if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
     renderer, scene, colliders,
-    els, net, player, move, look, bots, remotes, loadout, builtMap: () => builtMap, modeId: () => modeId, spawner: () => spawner,
+    els, net, player, move, look, bots, remotes, loadout, djLulz, music, builtMap: () => builtMap, modeId: () => modeId, spawner: () => spawner,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
     settings, radialStick, padLookTurn, hitboxLab: () => hitboxLab, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,
     duo: () => ({ target: duoTarget?.netId || null, armed: duoArmed, outgoing: duoOutgoing, incoming: duoIncoming, xClaimed: duoXClaimed }),

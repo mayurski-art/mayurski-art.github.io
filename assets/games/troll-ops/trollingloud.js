@@ -25,9 +25,12 @@
 // LED walls, the lasers and the fourteen real lights kick on its beat
 // (trollingloud-kit.js U). The club's own track plays from the DJ booth,
 // muffled through the walls; start Troll Radio and the lights follow your
-// song instead. Some things answer a bullet: signs short out, the mirror
-// ball spins up, bottles shatter, the DJ's record scratches. Cosmetic and
-// local, nothing synced.
+// song instead, on its real beat grid (music-beats.js). In Socialize DJ Lulz
+// spins the radio's tracks for the whole room and takes requests at the
+// booth (dj-lulz.js); his song plays through the same muffled booth chain and
+// the club runs on its grid. Some things answer a bullet: signs short out,
+// the mirror ball spins up, bottles shatter, the DJ's record scratches.
+// Cosmetic and local, nothing synced.
 //
 // Everything is procedural and batched by material (Kit from
 // trollcity-kit.js, Neon from trollingloud-kit.js). Every light is made
@@ -39,7 +42,8 @@ import {
   T, U, neonMat, Neon, skipOverride, ledMat, clubFx, wall, lining, cutRects, deck, glassRail,
   signsTexture, signUV, signAspect, quiltTexture, crocTexture, mosaicTexture, slatTexture, tileGlowTexture,
   fringeTexture, beamTexture, facetTexture, windowsTexture, speakerTexture, djTexture, flagTexture, busTexture,
-} from "./trollingloud-kit.js?v=tl2";
+} from "./trollingloud-kit.js?v=tl3";
+import { BEATS } from "./music-beats.js?v=bg1";
 
 /* ============================================================== the plan */
 
@@ -95,6 +99,7 @@ function newState() {
     gone: { value: new Float32Array(64) }, goneUntil: new Float32Array(64), bottleSegs: [],
     ballBoost: 0, ballRot: 0, dropUntil: 0, last: 0, cam: new THREE.Vector3(0, -99, 0),
     radioKick: 0, bassAvg: 0, freq: null,
+    song: null, level: 1,   // a song with a beat grid driving the clock (onFrame)
   };
 }
 
@@ -1336,14 +1341,27 @@ function tick(S, cam) {
   const dt = Math.min(0.1, S.last ? now - S.last : 0.016);
   S.last = now;
 
-  // the beat: the club's own clock, or the radio's kick when it's on
-  const bp = now * BPS;
+  // the beat: the song's own grid when there is one (DJ Lulz, or your radio),
+  // else the radio's kick off the analyser, else the club's 128 BPM clock
+  let bp = now * BPS;
   let kick = Math.exp(-(bp % 1) * 5.0);
-  if (S.radioOn) kick = S.radioKick;
+  let level = 1;
+  const sg = S.song;
+  if (sg) {
+    const g = sg.grid, t = sg.t + (now - sg.at);
+    const f = (t - g.offset) * (g.bpm / 60), i = Math.floor(f);
+    bp = f - g.down;   // whole bars land on the song's one
+    if (f >= 0 && i < g.kick.length) {
+      kick = Math.exp(-(f - i) * 5.0) * (0.25 + 0.75 * (+g.kick[i] || 0) / 9);
+      level = 0.15 + 0.85 * (+g.level[i] || 0) / 9;
+    } else { kick = 0; level = 0.15; }
+  } else if (S.radioOn) kick = S.radioKick;
   if (S.dropUntil > now) kick = (S.dropUntil - now) < 0.12 ? 1.4 : 0.05;
+  S.level += (level - S.level) * Math.min(1, dt * 4);
   U.uTime.value = now;
   U.uBeatPos.value = bp;
   U.uKick.value = kick;
+  U.uLevel.value = S.level;
 
   // the mirror ball: turning, faster for a while after it's shot
   S.ballBoost = Math.max(0, S.ballBoost - dt / 4);
@@ -1363,7 +1381,7 @@ function tick(S, cam) {
 
   // the real lights: a gentle kick, the hall's three drifting round the wheel
   for (const L of S.lights) {
-    L.l.intensity = L.base * (1 + L.amp * (kick - 0.35));
+    L.l.intensity = L.base * (0.6 + 0.4 * S.level) * (1 + L.amp * (kick - 0.35));
     if (L.hue !== null) L.l.color.copy(_c.setHSL((L.hue + bp / 64) % 1, 1, 0.6));
   }
 
@@ -1432,7 +1450,7 @@ function onShot(p) {
    light clock, through a lowpass (the walls between you and the booth)
    into a panner at the booth. Fades out when you're not in a match, and
    while Troll Radio plays (the lights follow the radio then). */
-const SND = { bus: null, lp: null, pan: null, noise: null, next: 0, gain: 0 };
+const SND = { bus: null, song: null, lp: null, pan: null, noise: null, next: 0, gain: 0 };
 
 function ensureSound() {
   const a = AUDIO;
@@ -1453,7 +1471,12 @@ function ensureSound() {
   SND.pan.maxDistance = 120;
   if (SND.pan.positionX) { SND.pan.positionX.value = 0; SND.pan.positionY.value = 2.2; SND.pan.positionZ.value = -14.5; }
   else SND.pan.setPosition(0, 2.2, -14.5);
+  // DJ Lulz's record (dj-lulz.js plugs its <audio> in here): the same
+  // booth, the same walls
+  SND.song = ctx.createGain();
+  SND.song.gain.value = 0;
   SND.bus.connect(SND.lp);
+  SND.song.connect(SND.lp);
   SND.lp.connect(SND.pan);
   SND.pan.connect(a.master);
   const len = ctx.sampleRate;
@@ -1526,9 +1549,14 @@ function muffle(p) {
   return [360, 1.25];
 }
 
-function onFrame({ live = false, radio = false } = {}) {
+/* `song` { src, t, dj }: what's playing (DJ Lulz's record, or your radio)
+   and how far in. With a beat grid the clock runs on it (tick); `dj` says
+   it's DJ Lulz's, playing through the booth here. */
+function onFrame({ live = false, radio = false, song = null } = {}) {
   const S = ACTIVE;
   if (S) {
+    const grid = song && BEATS[song.src];
+    S.song = grid ? { grid, t: song.t, at: performance.now() / 1000 } : null;
     S.radioOn = !!radio && !!MUSIC?.analyser;
     if (S.radioOn) {
       const an = MUSIC.analyser;
@@ -1542,13 +1570,18 @@ function onFrame({ live = false, radio = false } = {}) {
   }
   const ctx = ensureSound();
   if (!ctx) return;
-  const want = live && !radio && S ? 0.42 : 0;
+  const dj = !!song?.dj;
+  const want = live && !radio && !dj && S ? 0.42 : 0;
   const perfNow = performance.now() / 1000, ctxNow = ctx.currentTime;
   if (S) {
     const [freq, k] = muffle(S.cam);
     SND.lp.frequency.setTargetAtTime(freq, ctxNow, 0.12);
     SND.bus.gain.setTargetAtTime(want * k, ctxNow, 0.25);
-  } else SND.bus.gain.setTargetAtTime(0, ctxNow, 0.25);
+    SND.song.gain.setTargetAtTime(live && dj ? k : 0, ctxNow, 0.25);
+  } else {
+    SND.bus.gain.setTargetAtTime(0, ctxNow, 0.25);
+    SND.song.gain.setTargetAtTime(0, ctxNow, 0.25);
+  }
   SND.gain = want;
   if (!want) { SND.next = 0; return; }
   const nowBeat = perfNow * BPS, ahead = nowBeat + 0.25 * BPS;
@@ -1605,6 +1638,15 @@ export const TROLLINGLOUD = {
   attachAudio: (a) => { AUDIO = a; },
   attachMusic: (m) => { MUSIC = m; },
   onFrame,
+  // Socialize: DJ Lulz takes requests here (dj-lulz.js). `spot` is where you
+  // stand to ask, in front of the booth; `input` is where his record plugs
+  // in (the booth's muffled, placed chain), null before the audio exists.
+  dj: {
+    name: "DJ Lulz",
+    spot: { x: 0, z: -12.9, y: FL, reach: 3.4 },
+    club: { ...B, top: ROOF },
+    input: () => (ensureSound() ? SND.song : null),
+  },
   // for tools/troll-ops-trollingloud-test.mjs
   debug: () => ({
     active: !!ACTIVE, lights: ACTIVE?.lights.length ?? 0, ballBoost: ACTIVE?.ballBoost ?? 0,
@@ -1612,6 +1654,8 @@ export const TROLLINGLOUD = {
     lp: SND.lp ? SND.lp.frequency.value : null, busGain: SND.bus ? SND.bus.gain.value : null, want: SND.gain,
     signs: (ACTIVE?.signs ?? []).map((s) => ({ g: s.group, x: s.x, y: s.y, z: s.z, ry: s.ry })),
     shelf: ACTIVE?.shelf ?? null, radioOn: !!ACTIVE?.radioOn,
+    song: ACTIVE?.song ? { bpm: ACTIVE.song.grid.bpm, t: ACTIVE.song.t } : null,
+    kick: U.uKick.value, level: U.uLevel.value, songGain: SND.song ? SND.song.gain.value : null,
     muffleAt: (x, y, z) => muffle({ x, y, z })[0],
   }),
   // Team spawns: the south alley under the scaffold, the north yard under

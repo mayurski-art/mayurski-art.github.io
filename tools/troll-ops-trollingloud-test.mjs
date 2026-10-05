@@ -53,6 +53,8 @@ async function open(mode) {
     if (T.isStaging?.()) T.endStaging();
     T.player.maxHp = T.player.hp = 1e9;
   }, mode);
+  // the map, built (a fixed sleep wasn't enough on a busy box)
+  await page.waitForFunction(() => !!window.__trollOps.builtMap()?.map, null, { timeout: 240000 });
   await sleep(5000);
   return { page, errors };
 }
