@@ -15,6 +15,7 @@ import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1";
 import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1";
+import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb1";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 import { buildDrink, drinkFromCode, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
 
@@ -427,6 +428,9 @@ export class RemotePlayer {
     // U Mad Bro? hero body (hero-bodies.js), from the wire's hero id.
     applyHeroBody(this.rig, this.peer.hero);
     syncHeroBody(this.rig);
+    // Cops and Robbers: a realistic body (cop-bodies.js) from the wire's body
+    // id; a hero's own body wins. It is moved after the pose (syncBody).
+    applyCopBody(this.rig, this.peer.hero ? null : this.peer.body || null);
 
     if ((this.peer.meleeSeq | 0) !== this.meleeSeen) {
       this.meleeSeen = this.peer.meleeSeq | 0;
@@ -669,6 +673,13 @@ export class RemotePlayer {
       swing: sword && s.sw >= 0 ? { t: s.sw, kind: s.si % 2 === 0 ? "swing" : "thrust" } : null,
       block: sword && s.sw < 0 ? s.bk : 0,
     });
+    this.syncBody(s.pitch || 0);
+  }
+
+  /* A realistic body follows the rig once it is posed for the frame
+     (update, then any killcam replayPose). */
+  syncBody(pitch = this.pitch || 0) {
+    if (this.rig.cop) syncCopBody(this.rig, { pitch: this.dying ? 0 : pitch });
   }
 
   /* Shadows off for a far-away troll (RemotePlayers' crowd LOD). Meshes
@@ -750,7 +761,7 @@ export class RemotePlayers {
     let i = 0;
     for (const rp of this.byId.values()) {
       i++;
-      if (!lod) { rp.setShadow(true); rp.update(dt, myTeam, ffa); continue; }
+      if (!lod) { rp.setShadow(true); rp.update(dt, myTeam, ffa); rp.syncBody(); continue; }
       const d2 = (rp.pos.x - eye.x) ** 2 + (rp.pos.z - eye.z) ** 2;
       rp.setShadow(d2 < 40 * 40);
       const every = d2 > 100 * 100 ? 4 : d2 > 40 * 40 ? 2 : 1;
@@ -759,6 +770,7 @@ export class RemotePlayers {
       const step = Math.min(0.1, rp.lodDt);
       rp.lodDt = 0;
       rp.update(step, myTeam, ffa);
+      rp.syncBody();
       // Past 150 m a troll is a couple of pixels: not drawn at all (the body
       // was most of a 100-troll frame). Still placed, so it can still be hit.
       // A glider is 7 m wide, so it stays in sight twice as far.
