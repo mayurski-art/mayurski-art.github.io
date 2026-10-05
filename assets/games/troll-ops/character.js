@@ -1053,6 +1053,12 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     p.elbowR.rotation.set(el, 0, 0);
     p.gripR.rotation.set(wr, 0, 0);
     p.chest.rotation.y += twist ?? 0;
+  } else if (hold === "none") {
+    // Empty hands (Socialize): the right arm swings too, against the left,
+    // the same way the free left arm does below.
+    const swingAmp = (0.35 + run * 0.55) * blend;
+    p.armR.rotation.set(legSwingL * swingAmp - lean * 0.8 - 0.05 - run * 0.25 * blend, 0, -0.06 - run * 0.04);
+    p.elbowR.rotation.set(0.2 + (run * 1.1 + Math.max(0, -legSwingL) * 0.25) * blend, 0, 0);
   } else {
     p.armR.rotation.set(0, 0, -0.06);
     p.elbowR.rotation.set(0.2, 0, 0);

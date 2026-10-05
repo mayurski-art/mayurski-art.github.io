@@ -46,6 +46,17 @@ const CROSS = { x0: -23, x1: -13 };   // the cross street, south to the stable
 // The saloon: everything the stair, the upstairs and the zombies share.
 const SALOON = { x0: -23, x1: -5, h1: 4.2, up: 3.6, ff: 9.6 };
 const UPPER_Y = SALOON.h1 + 0.3;      // the upstairs floor's top
+/* The saloon bar's roleplay spots (Socialize, saloon-bar.js): where the
+   props stand, and where you hold X. `zone` is the saloon's footprint. */
+const BAR = {
+  stand: { x: -6.45, z: -19.75 },
+  taps: [{ x: -6.78, z: -19.75 }, { x: -6.12, z: -19.75 }, { x: -17.1, z: -20.4, keg: true }],
+  rack: { x: -7.45, z: -12.85 },
+  apron: { x: -5.5, z: -12.15 },
+  bell: { x: -7.45, z: -19.2 },
+  bottles: { x: -5.85, z: -16.2 },
+  zone: { x0: SALOON.x0, x1: SALOON.x1, z0: ROW_N.back, z1: ROW_N.front },
+};
 const STAIR = { x: -22.1, zFoot: -11.0, w: 1.2, steps: 14, rise: (UPPER_Y - FLOOR) / 14, run: 0.3 };
 const STAIR_HOLE = { x0: -22.85, x1: -21.4, z0: STAIR.zFoot - STAIR.steps * STAIR.run, z1: -10.6 };
 
@@ -360,6 +371,7 @@ function materials() {
     rock: std(0xb8946c, 0.95, 0, { flatShading: true }),
     rockGrey: surfMat("rock", 0x9a9088, { mix: 0.35, tile: 2.2 }),
     furniture: B(0x5a3a24, { seed: 47, tile: 1.0 }),
+    mugGlass: std(0xd8e2dc, 0.12, 0, { transparent: true, opacity: 0.5 }),
     chair: B(0x8a6a48, { seed: 49, tile: 0.8 }),
     pianoWood: std(0x2a1a12, 0.45, 0.1),
     keysWhite: std(0xf2ecdc, 0.4),
@@ -589,6 +601,25 @@ function buildSaloon(K, M, lights) {
   K.box(M.brass, -7.45, Y + 1.4, -18.33, 0.3, 0.12, 0.06, { rx: -0.25 });
   for (const z of [-16.4, -15.8, -14.2]) K.cyl(M.whiskey, -7.5, Y + 1.17, z, 0.035, 0.03, 0.1, 8);
   K.cyl(M.whiskey, -7.4, Y + 1.17, -15.1, 0.05, 0.04, 0.32, 8);
+
+  // Socialize roleplay (saloon-bar.js; spots in BAR below): two tap barrels
+  // on a stand at the walkway's north end, the mug rack on the counter's
+  // south end, the bartender's apron on its hook, the bell by the register.
+  K.solid(BAR.stand.x, BAR.stand.z, 1.2, 0.6, 0.85, { y: Y, pen: 2, mat: M.furniture });
+  for (const t of BAR.taps.slice(0, 2)) {
+    barrel(K, M, t.x, BAR.stand.z, { y: Y + 0.85, lie: true, ry: Math.PI / 2, r: 0.27, h: 0.55, collide: false });
+    K.cyl(M.brass, t.x, Y + 1.04, BAR.stand.z + 0.33, 0.018, 0.018, 0.1, 6, { rx: Math.PI / 2 });   // the spigot
+    K.box(M.trimDark, t.x, Y + 1.06, BAR.stand.z + 0.36, 0.022, 0.12, 0.022);                       // its handle
+  }
+  K.box(M.furniture, BAR.rack.x, Y + 1.17, BAR.rack.z, 0.42, 0.03, 0.42);
+  for (let i = 0; i < 6; i++) {
+    const mx = BAR.rack.x - 0.12 + (i % 2) * 0.24, mz = BAR.rack.z - 0.13 + Math.floor(i / 2) * 0.13;
+    K.cyl(M.mugGlass, mx, Y + 1.2, mz, 0.04, 0.038, 0.11, 10, {}, { shadow: false });
+  }
+  K.cyl(M.brass, BAR.apron.x, Y + 1.72, BAR.apron.z + 0.03, 0.012, 0.012, 0.08, 6, { rx: Math.PI / 2 });   // the hook
+  K.add(M.canvasCloth, place(new THREE.PlaneGeometry(0.42, 0.62), { x: BAR.apron.x, y: Y + 1.42, z: BAR.apron.z + 0.06 }), { shadow: false });
+  K.cyl(M.brass, BAR.bell.x, Y + 1.14, BAR.bell.z, 0.05, 0.065, 0.08, 10);
+  K.cyl(M.brass, BAR.bell.x, Y + 1.22, BAR.bell.z, 0.012, 0.012, 0.05, 6);
 
   // the piano stage in the north-west, under red curtains
   {
@@ -1816,6 +1847,9 @@ export const TROLLCITY = {
   hemi: { sky: 0xb8d0ec, ground: 0xb08a5a, intensity: 1.0 },
   ambient: { color: 0xfff0d8, intensity: 0.25 },
   build: buildTrollCity,
+  // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
+  // heights are the saloon's ground floor.
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs() },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],
@@ -1832,6 +1866,63 @@ export const TROLLCITY = {
     navStep: 0.45,
   }),
 };
+
+/* The chairs round a tableSet (trollcity-kit.js), worked out the same way it
+   places them (same seed, same draws), so a townsfolk NPC sits on a real
+   chair: [{ x, z, ry, y }] with ry the way the chair faces. */
+function tableSeats(x, y, z, { chairs = 4, r = 0.55, seed = 1 } = {}) {
+  const R = rng(seed), out = [];
+  for (let i = 0; i < chairs; i++) {
+    const a = (i / chairs) * Math.PI * 2 + R() * 0.4;
+    out.push({ x: x + Math.cos(a) * (r + 0.35), z: z + Math.sin(a) * (r + 0.35), ry: -a - Math.PI / 2 + (R() - 0.5) * 0.5, y: y + 0.47, table: { x, z } });
+  }
+  return out;
+}
+
+/* Socialize townsfolk (town-npcs.js): who stands where doing what. `yaw`
+   uses the camera's convention (0 faces -z, +PI/2 faces -x). Seats give the
+   seat-top height; `act` picks the loop they play. Only in Socialize. */
+function townNpcs() {
+  const Y = FLOOR;
+  const cards = tableSeats(-12.4, Y, -13.0, { seed: 5 });
+  const corner = tableSeats(-17.6, Y, -15.9, { seed: 7, chairs: 3 });
+  const front = tableSeats(-18.5, Y, -12.9, { seed: 3 });
+  // Seated facing the table (forward is (-sin yaw, -cos yaw)).
+  const seat = (s, extra) => ({ x: s.x, z: s.z, y: s.y, yaw: Math.atan2(s.x - s.table.x, s.z - s.table.z), sit: true, ...extra });
+  return [
+    // the Rusty Grin
+    { name: "Grinny", role: "Barkeep", act: "wipe", x: -6.45, z: -15.2, y: Y, yaw: Math.PI / 2 },
+    { name: "Old Kek", role: "Barfly", act: "drink", x: -8.5, z: -18.05, y: Y + 0.78, yaw: -Math.PI / 2, sit: true, stool: true },
+    { name: "Dusty", role: "Barfly", act: "drink", x: -8.5, z: -15.95, y: Y + 0.78, yaw: -Math.PI / 2, sit: true, stool: true, drink: "whiskey" },
+    { name: "Lil' Cope", role: "Barfly", act: "drink", x: -8.5, z: -13.85, y: Y + 0.78, yaw: -Math.PI / 2, sit: true, stool: true },
+    seat(cards[0], { name: "Ace", role: "Card shark", act: "cards" }),
+    seat(cards[1], { name: "Two-Bit", role: "Gambler", act: "cards" }),
+    seat(cards[3], { name: "Lucky Lou", role: "Gambler", act: "cards" }),
+    seat(corner[0], { name: "Mabel", role: "Regular", act: "drink" }),
+    seat(front[1], { name: "Hank", role: "Regular", act: "drink", drink: "whiskey" }),
+    { name: "Piano Pete", role: "Pianist", act: "piano", x: -13.1, z: -20.0, y: Y + 0.35 + 0.47, yaw: 0, sit: true },
+    { name: "Miss Kitty", role: "Dancer", act: "dance", x: -12.0, z: -19.05, y: Y + 0.35, yaw: Math.PI },
+    // Main Street: strollers round the street, stopping now and then
+    // (two clear lanes, z -2.8 and 0.3, miss the horses, troughs, wagons and the well)
+    { name: "Jebediah", role: "Townsfolk", act: "walk", y: 0, path: [[-40, -2.8], [30, -2.8], [30, 0.3], [-40, 0.3]], at: 0 },
+    { name: "Clementine", role: "Townsfolk", act: "walk", y: 0, path: [[-40, -2.8], [30, -2.8], [30, 0.3], [-40, 0.3]], at: 0.4 },
+    { name: "Hattie", role: "Townsfolk", act: "walk", y: 0, path: [[-40, -2.8], [30, -2.8], [30, 0.3], [-40, 0.3]], at: 0.65 },
+    { name: "Mudcake", role: "Townsfolk", act: "walk", y: 0, path: [[-34, 0.3], [22, 0.3]], at: 0.3, pace: true },
+    { name: "Sully", role: "Drifter", act: "walk", y: 0, path: [[-30, -2.8], [20, -2.8]], at: 0.8, pace: true },
+    { name: "Dot", role: "Townsfolk", act: "walk", y: 0, path: [[-26, 0.3], [10, 0.3]], at: 0.1, pace: true },
+    { name: "Cletus", role: "Townsfolk", act: "walk", y: 0, path: [[-18, 6], [-18, 26], [-14, 26], [-14, 6]], at: 0.2 },
+    { name: "Pockets", role: "Townsfolk", act: "walk", y: 0, path: [[30, 5], [38, 5], [38, -5], [30, -5]], at: 0.7 },
+    // the trades
+    { name: "Sheriff Grimes", role: "Sheriff", act: "guard", x: 40.2, z: -1.5, y: Y, yaw: Math.PI / 2 },
+    { name: "Deputy Doofus", role: "Deputy", act: "sit-read", x: 47.4, z: -7.1, y: Y + 0.47, yaw: Math.PI, sit: true },
+    { name: "Iron Ike", role: "Blacksmith", act: "hammer", x: -45.4, z: 17.25, y: Y, yaw: Math.PI },
+    { name: "Hay Jay", role: "Horsekeeper", act: "brush", x: 18.5, z: 33.7, y: 0, yaw: -0.85 },
+    { name: "Mr. Kek", role: "Merchant", act: "count", x: -33.6, z: -18.75, y: Y, yaw: Math.PI },
+    { name: "Doc Grin", role: "Doctor", act: "tend", x: 27.0, z: -17.85, y: Y, yaw: 0 },
+    { name: "Banker Bux", role: "Banker", act: "count", x: 2.9, z: -15.95, y: Y, yaw: Math.PI },
+    { name: "Conductor Choo", role: "Conductor", act: "walk", y: Y, path: [[-20, -26.3], [8, -26.3]], at: 0.3, pace: true },
+  ];
+}
 
 // shared with the dressing pass (maps.js): the shop floors to keep clear
 export const TC_FOOTPRINTS = [

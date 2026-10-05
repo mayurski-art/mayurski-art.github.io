@@ -11,8 +11,8 @@ import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-ws
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst";
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
-import { CharacterInspector } from "./char-inspector.js?v=hb4-wst";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2";
+import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1";
@@ -34,20 +34,26 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst";
-import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
+import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst-soc1";
+import {
+  buildDrink, placeDrinkInHand, poseDrinkArm, mountDrink, drinkCode, drinkMax, tipsyFx, TIPSY,
+  BEER_SIPS, GRAB_TIME, FILL_TIME, FILL_TIME_BARTENDER, POUR_TIME, SIP_TIME, APRON_TIME,
+  OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
+} from "./saloon-bar.js?v=sb1";
+import { TownNpcs } from "./town-npcs.js?v=tn1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst-soc1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=umb1-rn-wst-tl1-bs1";
+} from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1";
 import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst";
 import { GameAudio } from "./audio.js?v=umb1kb2-mi1-wst";
@@ -60,16 +66,16 @@ import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1-bs1";
-import { ZombieDirector } from "./zombies.js?v=hb4-wst-bs1";
+import { ZombieDirector } from "./zombies.js?v=hb4-wst-bs1-soc1";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js";
 import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js";
 import { kickCurve } from "./attachments.js?v=cg1-wst";
-import { WaveSpawner } from "./enemies.js?v=hb4-wst";
+import { WaveSpawner } from "./enemies.js?v=hb4-wst-soc1";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1-wst";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2";
-import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g-nf-wst-ig1";
+import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./heroes.js?v=umb2";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { poseKnuckles } from "./brass-knuckles.js?v=bk1-wst";
@@ -81,7 +87,7 @@ import { PickupSystem, SwapHold } from "./pickups.js?v=sw1-wst";
 import { HudLayout } from "./hud-layout.js?v=hl3";
 import { initCloudSave } from "./cloud-save.js?v=cs1";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
-import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4-fc1-wst";
+import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4-fc1-wst-soc1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst-bs1";
@@ -3632,7 +3638,7 @@ const BOT_TARGET = 8;      // participants a PvP room is padded up to
 // public server for their mode, instead of each getting their own random
 // room. Only overflow into a numbered shard (QTDM2, QTDM3, ...) once the
 // base room is genuinely full of real people — see joinQuickplay().
-const QUICKPLAY_BASE = { umb: "QUMB", tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR" };
+const QUICKPLAY_BASE = { umb: "QUMB", tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR", social: "QSOC" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
 /* The room's map, as its host told us before our match began (onStage). */
@@ -4320,6 +4326,15 @@ function isPvp() { return currentMode().pvp; }
 function isZombies() { return !!currentMode().zombies; }
 function isRange() { return !!currentMode().range; }
 function isView() { return !!currentMode().view; }
+/* Socialize (modes.js): a hangout, no combat. `socialRoom` is the room
+   itself, which stays a Socialize room while the owner has it playing a
+   real mode (see switchRoomMode). */
+function isSocial() { return !!currentMode().social; }
+let socialRoom = false;
+let roomModeSeq = 0;         // the room's mode count (net.modeSeq on the wire)
+let socialMapId = null;      // the hangout's map, to come back to after a match
+let socialReturnSeq = null;  // set while a finished match waits to go back to the hangout
+let socialReturnTimer = 0;
 /* View mode is the owner's alone (user: "only for troll_runner"): the
    setting row only shows, and only takes effect, on that account. */
 function isTrollRunner() {
@@ -4342,7 +4357,7 @@ function isSnd() { return !!currentMode().rounds; }
 function isInfection() { return !!currentMode().infection; }
 function isRoyale() { return !!currentMode().royale; }
 /* Participants a PvP room is padded up to with bots. */
-function botTarget() { return isRoyale() ? (builtMap?.map?.royale?.players || ROYALE.players) : BOT_TARGET; }
+function botTarget() { return isSocial() ? 0 : isRoyale() ? (builtMap?.map?.royale?.players || ROYALE.players) : BOT_TARGET; }
 /* Infection plays on the two ordinary sides: Phantoms are the survivors,
    Ghosts the infected. */
 function isInfected() { return isInfection() && net.team === "ghost"; }
@@ -4395,6 +4410,9 @@ function otherHumansInMatch() {
 const MODE_GROUPS = [
   { label: "Versus", ids: ["tdm", "koth", "snd", "infection", "oitc", "gungame", "umb"] },
   { label: "Solo", ids: ["ops", "zombies", "range"] },
+  // Its own group so it stays out of the Versus list (the BO2 menu reads
+  // the group headings: Socialize is its own main-menu entry).
+  { label: "Social", ids: ["social"] },
 ];
 const TICK_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
@@ -5202,9 +5220,13 @@ const net = new Net({
   onLoot: (p, m) => onRoyaleLoot(p, m),
   onVote: () => { if (intermissionT > 0) renderVote(); },
   onChat: (p, m) => chat.receive(p, m),
+  // Socialize: the owner switched the room's mode (see switchRoomMode).
+  onMode: (p, m) => { if (p.owner) adoptRoomMode(m); },
+  onRp: (p, m) => onBarMessage(p, m),
   /* Map loading screen (see enterMatch). Follow the host's map early, and
      as the host of a match already on, let a finished latecomer in. */
   onReady: (p, m) => {
+    if (adoptRoomMode(m)) return;
     if (followsHostMap(m) && loadScreen.isOpen) {
       roomMapHint = m.map;   // still connecting: startGame picks it up
       if (loadTarget && m.map !== loadTarget) enterMatch(m.map);
@@ -5224,6 +5246,8 @@ const net = new Net({
     // Troll Royale catch-up (we joined after the sky lobby): kept until our
     // own Royale is set up, which can be after this lands.
     if (m.bt != null) { royaleCatchUp = { ...m, at: performance.now() }; applyRoyaleCatchUp(); return; }
+    // Socialize: the room moved on to another mode while we weren't looking.
+    if (adoptRoomMode(m)) return;
     // One map per room: the host's (the room's oldest player, who runs the
     // countdown). Everyone used to load their own pick, so a room could be
     // split across maps. Before our match starts we note it for startGame;
@@ -7602,6 +7626,7 @@ function currentWeapon() {
 }
 
 function tryReload() {
+  if (isSocial()) return;   // no guns in the hangout
   if (!controls.isLocked && !isTouch && !gamepadState.connected) return;
   // audio.reload() now fires from reloadPose() on the first frame w.reloading
   // is true, so it lands in step with the visual choreography's stages
@@ -7612,6 +7637,7 @@ function tryReload() {
 /* `shot` (charge weapons, from chargedShotDef): the def this round flies
    with, the cells it costs, its recoil scale and charge level. */
 function fireOnce(shot = null) {
+  if (isSocial()) return;
   const w = currentWeapon();
   const def = shot?.def || w.def;
   if (!w.canFire()) {
@@ -8101,6 +8127,7 @@ function carriedThrowSlot() {
 /* Cooking: holding the key starts the fuse while the grenade is still in
    your hand. Impact throwables ignore it — they go off where they land. */
 function startCook(slot) {
+  if (isSocial()) { putDownDrink(); return; }   // G: the saloon bar's drink goes down
   if (cooking.def || !player.alive || gameState !== "playing" || isStaging() || isInfected()) return;
   if (streakBusy()) return;   // no throwables while working a streak (user)
   if (player.gear[slot] <= 0) return;
@@ -8168,6 +8195,7 @@ function releaseCook({ cookedOff = false } = {}) {
 /* Quick melee swings without putting the gun away; pressing 3 makes the
    melee weapon the thing in your hands, which swings and moves faster. */
 function swingMelee() {
+  if (isSocial()) return;
   if (kbRepair.active) return;   // both hands busy fixing the keyboard
   if (meleeHolster) return;      // being put away for a streak
   if (!player.alive || move.busy || gameState !== "playing" || stageFrozen() || royaleDropView()) return;
@@ -8531,6 +8559,7 @@ function updateSaberFx(mesh, saber, swinging, dt) {
 
 function setHolding(what) {
   if (player.holding === what) return;
+  if (isSocial()) return;   // hands stay empty in the hangout
   if (isInfected() && what !== "melee") return;   // the sword is all they have
   if (what === "melee" && !player.melee) return;
   player.holding = what;
@@ -8548,6 +8577,7 @@ function setHolding(what) {
    player.secondaryId null there - Gun Game, One in the Chamber) or when
    already holding that slot's gun. */
 function switchWeapon(slot) {
+  if (isSocial()) return;
   if (warshipView()) { toggleWarshipGun(); return; }
   if (isInfected()) return;
   // Mid-streak the tablet/marker is in your hands; a swap would yank it away
@@ -8574,6 +8604,7 @@ function switchWeapon(slot) {
    there isn't one (Gun Game, One in the Chamber, or no sidearm picked up
    yet) rather than landing on a dead slot. */
 function cycleWeapon() {
+  if (isSocial()) return;
   if (player.holding === "streak") return;   // same reason as switchWeapon
   const order = ["primary", ...(player.secondaryId ? ["secondary"] : []), "melee"];
   const current = player.holding === "melee" ? "melee" : currentWeaponSlot;
@@ -8774,6 +8805,7 @@ function openPauseMenu() {
   if (markingStreak) { cancelMark(); return; }
   releaseHeldInputs();
   renderPauseRange();
+  renderRoomModeRow();
   if (otherHumansInMatch()) {
     localPauseOnly = true;
     els.pause.hidden = false;
@@ -8853,7 +8885,9 @@ function netSnapshot() {
   _netSnapshot.reload = player.holding === "gun" ? localReloadK() : 0;
   _netSnapshot.reloadTime = currentWeapon()?.reloadTime || 2.3;
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
-  _netSnapshot.weapon = player.holding === "melee" && player.melee
+  // Socialize: nothing in hand, so everyone else sees empty hands too.
+  _netSnapshot.weapon = isSocial() ? null
+    : player.holding === "melee" && player.melee
     ? player.melee.def.id
     : (player.holding === "gun" ? currentWeapon()?.def.id : null) || player.weaponId;
   // The skin of whatever that is, so everyone else sees the same gun.
@@ -8872,6 +8906,11 @@ function netSnapshot() {
   { const c = getMyCard(); _netSnapshot.clan = c.clan; _netSnapshot.card = c.card; }
   _netSnapshot.hero = heroActive() ? hero().wireId() : null;
   _netSnapshot.swivel = swivel.seq ? swivel.seq * (swivel.dir || swivel.lastDir || 1) : 0;
+  // The saloon bar (Socialize): drink, a sip, the apron.
+  const social = isSocial();
+  _netSnapshot.drink = social ? drinkCode(bar.drink) : 0;
+  _netSnapshot.sip = social && bar.sipT > 0;
+  _netSnapshot.role = social && bar.role === "bartender" ? "b" : null;
   return _netSnapshot;
 }
 
@@ -10672,13 +10711,20 @@ async function startGame() {
   // doesn't open on the pause screen after a long load.
   if (!isTouch) { try { controls.lock(); } catch { /* the pause screen catches it later */ } }
   roomMapHint = null;
+  // Socialize is the one public hangout room: never a private code. The
+  // room may already be playing a mode the owner switched it to; the host
+  // says so while we connect (adoptRoomMode) and modeId follows.
+  socialRoom = isSocial();
+  roomModeSeq = net.modeSeq = 0;
+  socialMapId = null;
+  cancelSocialReturn();
   loadScreen.show(loadInfo(matchMapId()));
   els.title.hidden = true;
   if (isPvp()) {
     els.startBtn.disabled = true;
     setNetStatus("Connecting…");
-    loadScreen.status("Finding a match…");
-    const result = els.room.value && roomIsCustom
+    loadScreen.status(socialRoom ? "Finding the hangout…" : "Finding a match…");
+    const result = els.room.value && roomIsCustom && !socialRoom
       ? { code: els.room.value, kind: await net.start(els.room.value, { name: playerName(), mapId: loadout.mapId, uid: playerUid() }) }
       : await joinQuickplay();
     els.startBtn.disabled = false;
@@ -10686,11 +10732,14 @@ async function startGame() {
       loadScreen.hide();
       els.title.hidden = false;
       if (controls.isLocked) controls.unlock();
+      socialRoom = false;
       setNetStatus("Couldn't reach the room. Try another code.", "bad");
       return;
     }
-    els.room.value = result.code;
-    net.chooseTeam();
+    if (!socialRoom) els.room.value = result.code;
+    // The hangout is one side, so anyone can duo-emote with anyone.
+    if (isSocial()) net.setTeam("phantom");
+    else net.chooseTeam();
     chat.render();   // it was built before the room connected
     setNetStatus(`Live · ${result.kind} · room ${result.code} · ${teamName(net.team)}`, "live");
   } else {
@@ -11225,6 +11274,9 @@ function beginMatch(mapId = null) {
   updateSpawnGuardHud();
 
   loadMap(matchMapId(mapId));
+  // Socialize: the map's townsfolk (town-npcs.js), if it has any.
+  townNpcs?.dispose();
+  townNpcs = isSocial() && builtMap?.map?.rp?.npcs ? new TownNpcs(scene, builtMap.map.rp.npcs()) : null;
   player.armor = 0;
   player.plates = 0;
   player.heals = 0;
@@ -11316,12 +11368,21 @@ function beginMatch(mapId = null) {
   els.gameover.hidden = true;
   els.pause.hidden = true;
   els.hud.hidden = isView();   // View mode: just the map on screen
+  // Socialize: style.css hides the combat HUD and touch buttons off this.
+  document.body.classList.toggle("to-social", isSocial());
+  resetBar();
+  document.body.classList.remove("to-social-drink");
   setTouchControls(true);
   gameState = "playing";
 
   // The range is a sandbox, not a match — there is nothing to count down to.
   if (isView()) {
     showWaveBanner("View mode: fly with WASD, Space up, C down, Shift fast", 3200);
+  } else if (isSocial()) {
+    // Nothing to count down to either: no bots, no clock, no score.
+    spawnOpening = false;
+    resetMatchClock();
+    showWaveBanner(isTouch ? "Socialize: tap the face button for emotes" : "Socialize: H for emotes, Enter to chat", 3200);
   } else if (isRange()) {
     showWaveBanner("Test range — nothing here shoots back", 2600);
   } else {
@@ -11759,7 +11820,10 @@ function endMatch(title) {
   // The room stays up. Tearing the channel down here meant everyone had to
   // re-enter a code and re-handshake to play a second match — and quickplay
   // could shard them apart on the way back.
-  if (net.active) startIntermission();
+  // A match the owner started in the hangout: no map vote, everyone goes
+  // back to Socialize.
+  if (net.active && socialRoom) scheduleSocialReturn();
+  else if (net.active) startIntermission();
   else setNetStatus("Match over. Pick a mode to drop in again.");
 }
 
@@ -11858,11 +11922,166 @@ function updateIntermission(dt) {
   enterMatch(winner);
 }
 
+// -------------------- Socialize room mode --------------------
+//
+// A Socialize room (QSOC) is a hangout until the owner, troll_runner,
+// picks a real mode in the pause menu. That goes out as a "mode" message
+// and everyone in the room loads into it on the same channel: bots, the
+// countdown and the rest come with the mode as usual. When the match ends
+// the room comes back to Socialize on its old map (no vote).
+//
+// `roomModeSeq` counts the switches. It rides every room note (net.modeSeq
+// → `ms`), so a newcomer or anyone who missed the message follows the room,
+// and a stale note can't switch anyone back. The owner's switches go up by
+// two and a match ending goes up by one, so an owner switch that lands
+// while clients are on their way back still wins.
+//
+// The owner check is client-side, like View mode and Invincible: the row
+// only shows on troll_runner, and receivers only take a "mode" message from
+// a peer whose state says owner. The netcode is trusting by design (net.js).
+
+const SOCIAL_RETURN_SECONDS = 8;
+
+function socialHomeMap() {
+  if (socialMapId && MAP_IDS.includes(socialMapId)) return socialMapId;
+  return MAP_IDS.includes(loadedMapId) ? loadedMapId : loadout.versusMapId;
+}
+
+/* Everyone moves at once, so split sides by a shared order rather than
+   chooseTeam's live headcount (each client would read it before the others
+   had switched). */
+function joinRoomSide() {
+  if (isSocial()) { net.setTeam("phantom"); return; }
+  const ids = [net.id];
+  for (const p of net.peers.values()) if (!isBotPeer(p)) ids.push(p.id);
+  ids.sort();
+  net.setTeam(ids.indexOf(net.id) % 2 === 0 ? "phantom" : "ghost");
+}
+
+function switchRoomMode(id, map, seq) {
+  if (!socialRoom || !MODES[id]?.pvp || MODES[id].hidden || !(seq > roomModeSeq)) return false;
+  roomModeSeq = net.modeSeq = seq;
+  cancelSocialReturn();
+  if (isSocial() && loadedMapId) socialMapId = loadedMapId;
+  const mapHint = map && MAPS[map] ? map : null;
+  // Still connecting (startGame hasn't entered the room's match yet): it
+  // picks the room's mode and map up from here.
+  if (gameState === "menu") {
+    modeId = id;
+    roomMapHint = mapHint;
+    if (loadScreen.isOpen) loadScreen.setMap(loadInfo(matchMapId(mapHint)));
+    return true;
+  }
+  // XP banked this match is kept, the same as leaving.
+  if (player.matchXp > 0) { addXp(boostedXp(player.matchXp)); player.matchXp = 0; }
+  // The host's bots leave everyone's screens now, not on a 5s timeout.
+  for (const b of bots.bots) net.dropBot(b.id);
+  bots.clear();
+  clearStreakEntities();
+  setHillMarker(null);
+  setBombSiteMarkers(null);
+  if (els.bombPrompt) els.bombPrompt.hidden = true;
+  if (els.pickupPrompt) els.pickupPrompt.hidden = true;
+  pickups.clear();
+  bomb = null;
+  teardownRoyale();   // before endStaging, or a sky lobby would launch its bus
+  endStaging();
+  cancelIntermission();
+  stopEmote();
+  emoteWheel.close(true);
+  if (!els.pause.hidden) closePauseMenu();
+  modeId = id;
+  joinRoomSide();
+  els.gameover.hidden = true;
+  roomMapHint = mapHint;
+  loadScreen.show(loadInfo(matchMapId(mapHint)));
+  setNetStatus(`Live · room ${net.room} · ${currentMode().name}`, "live");
+  enterMatch(mapHint);
+  return true;
+}
+
+/* A room note (stage, ready, go) or "mode" message carrying a newer mode
+   count than ours: follow it. True when it switched us. */
+function adoptRoomMode(m) {
+  if (!socialRoom || !m || !m.mode) return false;
+  const ms = m.ms | 0;
+  if (ms <= roomModeSeq) return false;
+  // Already hanging out (we joined after the room came back): just catch
+  // the count up rather than reload the hangout we're standing in.
+  if (m.mode === "social" && isSocial() && gameState !== "menu" && gameState !== "gameover") {
+    roomModeSeq = net.modeSeq = ms;
+    return false;
+  }
+  return switchRoomMode(m.mode, m.map, ms);
+}
+
+/* The owner's pick from the pause menu. */
+function ownerSwitchRoomMode(id) {
+  if (!isTrollRunner() || !socialRoom || !net.active) return;
+  const seq = roomModeSeq + 2;
+  const map = MODES[id]?.forceMap || (id === "social" ? socialHomeMap() : (MAP_IDS.includes(loadedMapId) ? loadedMapId : socialHomeMap()));
+  if (!switchRoomMode(id, map, seq)) return;
+  net.publishMode(id, map, seq);
+}
+
+function scheduleSocialReturn() {
+  cancelSocialReturn();
+  const seq = roomModeSeq;
+  socialReturnSeq = seq;
+  els.retryBtn.textContent = "Back to the hangout";
+  setNetStatus(`Match over · back to the hangout in ${SOCIAL_RETURN_SECONDS}s`, "live");
+  socialReturnTimer = setTimeout(returnToSocial, SOCIAL_RETURN_SECONDS * 1000);
+}
+
+function returnToSocial() {
+  const seq = socialReturnSeq;
+  cancelSocialReturn();
+  // The owner switched again in the meantime: that wins.
+  if (seq == null || seq !== roomModeSeq || !socialRoom || !net.active) return;
+  switchRoomMode("social", socialHomeMap(), seq + 1);
+}
+
+function cancelSocialReturn() {
+  clearTimeout(socialReturnTimer);
+  socialReturnTimer = 0;
+  if (socialReturnSeq != null) els.retryBtn.textContent = "Drop in again";
+  socialReturnSeq = null;
+}
+
+/* The owner's room-mode row in the pause menu: troll_runner, in a
+   Socialize room, only. */
+const ROOM_MODE_IDS = ["social", "tdm", "koth", "snd", "infection", "oitc", "gungame", "umb", "royale"];
+function renderRoomModeRow() {
+  const row = document.getElementById("to-set-roommode-row");
+  const sel = document.getElementById("to-set-roommode");
+  if (!row || !sel) return;
+  row.hidden = !(isTrollRunner() && socialRoom && net.active);
+  if (row.hidden) return;
+  if (!sel.options.length) {
+    for (const id of ROOM_MODE_IDS) {
+      if (!MODES[id]) continue;
+      const o = document.createElement("option");
+      o.value = id;
+      o.textContent = MODES[id].name;
+      sel.appendChild(o);
+    }
+  }
+  // Offer the other side of where the room is: a mode from the hangout,
+  // the hangout from a mode.
+  sel.value = isSocial() ? "tdm" : "social";
+}
+document.getElementById("to-set-roommode-go")?.addEventListener("click", () => {
+  const id = document.getElementById("to-set-roommode")?.value;
+  if (id) ownerSwitchRoomMode(id);
+});
+
 els.startBtn.addEventListener("click", startGame);
 /* Mid-intermission this means "don't make me wait", not "reconnect" — the
    room is still up, so drop straight into the map the vote is currently on. */
 els.retryBtn.addEventListener("click", () => {
   if (intermissionT > 0) { intermissionT = 0.0001; return; }
+  // Socialize room: same idea, straight back to the hangout.
+  if (socialReturnSeq != null) { returnToSocial(); return; }
   startGame();
 });
 // Touch has no pointer lock to re-take, so Resume just closes the menu —
@@ -11882,6 +12101,20 @@ els.quitBtn.addEventListener("click", () => {
   }
   gameState = "menu";
   if (modeId === "view") modeId = viewPrevMode || "ops";
+  // Left a Socialize room (maybe mid owner-started match): the lobby is
+  // back on Socialize, and the room's mode count is forgotten.
+  if (socialRoom) {
+    socialRoom = false;
+    roomModeSeq = net.modeSeq = 0;
+    socialMapId = null;
+    modeId = "social";
+    renderModes();
+  }
+  cancelSocialReturn();
+  document.body.classList.remove("to-social", "to-social-drink");
+  resetBar();
+  townNpcs?.dispose();
+  townNpcs = null;
   localPauseOnly = false;
   endStaging();
   cancelIntermission();
@@ -12017,6 +12250,8 @@ function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) 
   if (!player.alive) return;
   // Owner's Invincible toggle: nothing lands, from anyone or anything.
   if (invincibleOn()) return;
+  // Socialize: nobody can be hurt, whatever arrives off the wire.
+  if (isSocial()) return;
   // Nothing lands before the match is live, whoever reports it.
   if (isStaging()) return;
   // A raised Trollsaber eats rounds from the front.
@@ -12758,7 +12993,8 @@ function animate() {
         else if (a.e.hitbox && a.e.hp > 0) targetMeshes.push(a.e.hitbox);
       }
 
-      if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
+      if (isSocial()) { updateBar(dt); townNpcs?.update(dt, camera.position); }   // the hangout: the saloon bar owns hold X; the townsfolk
+      else if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
       else {
         if (pickups.drops.length) pickups.clear();
         // Troll Royale has no scavenge drops, but its guns on the ground
@@ -12937,6 +13173,7 @@ function animate() {
   // would double up the weapon on screen.
   // Spectating in Troll Royale: the view is someone else's, so no gun of ours.
   // Dead (and not in a replay): no gun on screen, the camera is on the body.
+  // Socialize draws no gun, only its free hands (socialArmsFrame).
   if (gameState === "playing" && !matchIntro.active && ((player.alive && !isView() && !settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView() && !dragonfireView()) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
@@ -13173,7 +13410,8 @@ function updateLocalRig(dt) {
   // What's in the hands: the melee weapon while it's held or mid-swing
   // (a quick melee swings it without putting the gun away), else the gun.
   const swinging = !!player.melee?.busy;
-  const hold = player.holding === "melee" || swinging ? "melee"
+  const hold = isSocial() ? "none"   // the hangout: empty hands
+    : player.holding === "melee" || swinging ? "melee"
     : player.holding === "gun" ? "gun" : "none";
   const def = currentWeapon()?.def;
   syncLocalRigHeld(hold, def);
@@ -13186,6 +13424,7 @@ function updateLocalRig(dt) {
   }
   if (localHeld.mesh) localHeld.mesh.visible = !emote;
   els.hud.classList.toggle("is-emoting", emoteIsTp());
+  if (!isSocial() || emote) syncLocalDrink(false);
   if (emote) {
     poseEmoteCode(localRig, emoteCode(emote.idx, emote.role), emote.t);
     return;
@@ -13223,6 +13462,7 @@ function updateLocalRig(dt) {
     localThrowT = Math.max(0, localThrowT - dt);
     poseThrowArm(localRig, 1 - localThrowT / THROW_TIME);
   }
+  if (isSocial()) syncLocalDrink(true);   // the saloon bar: a drink in hand
   rollRig(localRig, royaleRollK());
   // Skydiving, then hanging under the glider (seen in the drop camera).
   const dropCode = royaleDropCode();
@@ -13356,6 +13596,8 @@ function updatePlayer(dt) {
   const dropIx = ix, dropIz = iz;
   const rolling = royaleRolling();
   dfIx = ix; dfIz = iz;   // the Dragonfire flies off the same stick
+  // The saloon bar: a few drinks in, the walk wanders side to side.
+  if (bar.tipsy > TIPSY.onset && isSocial() && (ix || iz)) ix = Math.max(-1, Math.min(1, ix + tipsyFx(bar.tipsy, performance.now() / 1000).stagger * 0.45));
   const frozen = dropping || rolling || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen || warshipView() || dragonfireView();
   if (frozen) { ix = 0; iz = 0; }
   // The landing roll carries you forward along the glider's line.
@@ -13372,9 +13614,9 @@ function updatePlayer(dt) {
   // primary's optic has no business popping up over it (that's the "scoped
   // weapon flash" glitch when activating a killstreak while holding ADS).
   // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
-  const wantAds = player.alive && !isView() && !localPauseOnly && empT <= 0 && player.holding !== "streak"
+  const wantAds = player.alive && !isView() && !isSocial() && !localPauseOnly && empT <= 0 && player.holding !== "streak"
     && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
-  const wantFire = !frozen && !isView() && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
+  const wantFire = !frozen && !isView() && !isSocial() && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
   if (isSnd()) {
     sndInteractHeld = !frozen && ((isTouch && touchState.interact) || (keys.has("KeyF") && cooking.slot !== "tactical")
       || (gp && gamepadState.pickup && sndCanInteract));
@@ -13514,7 +13756,9 @@ function updatePlayer(dt) {
     // camera turns with it, so the board drops away in view and the floating
     // message comes to the middle, like you looked up at it.
     const glance = kbRepair.active ? kbRepair.glance : 0;
-    _euler.set(viewPitch + rollPitch + glance * KB_GLANCE.pitch, viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll);
+    // Tipsy (the saloon bar): the room leans and bobs a little.
+    const tip = bar.tipsy > TIPSY.onset && isSocial() ? tipsyFx(bar.tipsy, performance.now() / 1000) : null;
+    _euler.set(viewPitch + rollPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0), viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll + (tip?.roll || 0));
     camera.quaternion.setFromEuler(_euler);
     if (glance > 0 || weaponCamera.userData.glanced) {
       weaponCamera.quaternion.setFromEuler(_euler.set(glance * KB_GLANCE.pitch, glance * KB_GLANCE.yaw, 0, "YXZ"));
@@ -14309,26 +14553,360 @@ function layStreakArm(arm, i) {
    trick), and the streak arms' real hands act it out in front of the camera.
    Runs after updateWeaponView, so it has the last word on the viewmodel. */
 let fpEmoteArmsOn = false;
+
+/* Socialize, first person: no gun, so your own hands swing at the bottom of
+   the view with your stride (user: "empty hands should be replaced by
+   running/walking animation arms moving"): low and loose at a walk, pumping
+   up into view at a sprint, dropping out of sight when you stand still.
+   Same hand targets as the first-person emotes (viewmodel space). */
+/* -------------------- the saloon bar (Socialize roleplay) --------------------
+
+   User, 2026-10-04: "allow users to grab beer mugs and refill themselves
+   etc. bartender role that anyone can fill." Troll City's saloon lists its
+   spots as `rp.bar` (trollcity.js); everything is hold X there, the same
+   prompt and bar as a weapon pickup:
+     the rack: a mug (empty) · a tap or the kitchen keg: fill it ·
+     the apron hook: become the bartender (one at a time) or hang it up ·
+     the back-bar bottles (bartender): a whiskey · the bell (bartender):
+     last call for the room · another player with empty hands: hold your
+     drink out to them; they hold X by you to take it.
+   Fire sips, G puts it down. Sips make you tipsy (saloon-bar.js tipsyFx).
+   What's in your hand, a sip, and the role ride the state packet. */
+let townNpcs = null;   // Socialize townsfolk (town-npcs.js)
+const bar = {
+  drink: null,      // { kind: "beer"|"whiskey", sips }
+  sipT: 0,          // counts down through a sip
+  sipDone: false,   // this sip has been swallowed (halfway)
+  hold: null, holdT: 0, holdLock: false,
+  role: null,       // "bartender" while we wear the apron
+  outT: 0,          // seconds the bartender has been out of the saloon
+  tipsy: 0,
+  tipsyShown: false,
+  offer: null,      // incoming: { from, name, kind, sips, until }
+  outgoing: null,   // { to, name, until }
+  fireWas: false,
+  fp: null,         // the drink in our first-person hand
+  tp: null,         // ...and on our own body
+};
+
+function resetBar() {
+  bar.drink = null; bar.sipT = 0; bar.hold = null; bar.holdT = 0; bar.role = null; bar.outT = 0;
+  bar.tipsy = 0; bar.tipsyShown = false; bar.offer = null; bar.outgoing = null;
+}
+const barSpots = () => (isSocial() ? builtMap?.map?.rp?.bar || null : null);
+function barNear(B, spot, reach = REACH) {
+  return !!spot && Math.hypot(spot.x - move.pos.x, spot.z - move.pos.z) <= reach && Math.abs(move.pos.y - (B.floorY || 0)) < 1.2;
+}
+function barInside(B) {
+  const z = B.zone;
+  return move.pos.x > z.x0 && move.pos.x < z.x1 && move.pos.z > z.z0 && move.pos.z < z.z1;
+}
+const drinkName = (kind) => (kind === "whiskey" ? "whiskey" : "beer");
+/* Someone else holding the apron, who keeps it if we both grabbed it at
+   once: whoever joined the room first (lowest id on a tie). */
+function otherBartender(olderOnly = false) {
+  for (const p of net.peers.values()) {
+    if (isBotPeer(p) || p.role !== "bartender") continue;
+    if (!olderOnly) return p;
+    const since = p.since || 0;
+    if (since < net.since || (since === net.since && p.id < net.id)) return p;
+  }
+  return null;
+}
+/* The nearest real player within reach with nothing in their hands. */
+function barNearestEmptyHanded(reach = 2.2) {
+  let best = null, bestD = reach;
+  for (const rp of remotes.byId.values()) {
+    if (!rp.peer || isBotPeer(rp.peer) || !rp.alive || (rp.peer.drink | 0)) continue;
+    const d = Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z);
+    if (d < bestD && Math.abs(rp.pos.y - move.pos.y) < 1.5) { best = rp; bestD = d; }
+  }
+  return best;
+}
+
+/* What holding X does where we stand, best first. */
+function barAction(B) {
+  const now = performance.now();
+  // A drink held out to us, its giver beside us.
+  if (bar.offer && !bar.drink && now < bar.offer.until) {
+    const rp = remotes.byId.get(bar.offer.from);
+    if (rp && Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z) < 3) {
+      return { key: "take", label: `Take ${bar.offer.name}'s ${drinkName(bar.offer.kind)}`, ctx: "Take", time: 0.35,
+        done: () => { net.publishRp({ k: "take", to: bar.offer.from }); } };
+    }
+  }
+  if (B) {
+    if (!bar.drink && barNear(B, B.rack)) {
+      return { key: "rack", label: "Grab a mug", busy: "Grabbing a mug…", ctx: "Grab", time: GRAB_TIME,
+        done: () => { bar.drink = { kind: "beer", sips: 0 }; audio.brassTinkle?.(4); showWaveBanner(isTouch ? "Fill it at a barrel tap" : "Fill it at a barrel tap · G puts it down", 1800); } };
+    }
+    if (bar.drink?.kind === "beer" && bar.drink.sips < BEER_SIPS && B.taps.some((t) => barNear(B, t))) {
+      return { key: "tap", label: bar.drink.sips ? "Top it up" : "Fill your mug", busy: "Pouring…", ctx: "Fill",
+        time: bar.role ? FILL_TIME_BARTENDER : FILL_TIME,
+        done: () => { bar.drink.sips = BEER_SIPS; audio.pump?.(0.4); showWaveBanner(isTouch ? "Fire to sip" : "Click to sip", 1400); } };
+    }
+    if (barNear(B, B.apron)) {
+      if (bar.role) {
+        return { key: "apron", label: "Hang up the apron", busy: "Untying…", ctx: "Apron", time: APRON_TIME,
+          done: () => setBarRole(null, "Apron's back on the hook.") };
+      }
+      const other = otherBartender();
+      if (other) return { key: "apron", info: true, label: `${other.name} is tending bar` };
+      return { key: "apron", label: "Put on the apron (bartender)", busy: "Tying it on…", ctx: "Apron", time: APRON_TIME,
+        done: () => setBarRole("bartender", "You're the bartender. You pour faster, pour whiskey at the back-bar and ring the bell for last call.") };
+    }
+    if (bar.role && !bar.drink && barNear(B, B.bottles)) {
+      return { key: "bottles", label: "Pour a whiskey", busy: "Pouring…", ctx: "Pour", time: POUR_TIME,
+        done: () => { bar.drink = { kind: "whiskey", sips: 1 }; audio.brassTinkle?.(3); } };
+    }
+    if (bar.role && barNear(B, B.bell)) {
+      return { key: "bell", label: "Ring the bell (last call)", ctx: "Bell", time: 0.2,
+        done: () => { net.publishRp({ k: "bell" }); lastCall(playerName()); } };
+    }
+  }
+  // Hold a drink out to whoever is beside us with empty hands.
+  if (bar.drink?.sips > 0 && !bar.outgoing) {
+    const rp = barNearestEmptyHanded();
+    if (rp) {
+      const name = rp.peer.name || "them";
+      return { key: `give:${rp.peer.id}`, label: `Hand ${name} your ${drinkName(bar.drink.kind)}`, ctx: "Give", time: 0.45,
+        done: () => {
+          bar.outgoing = { to: rp.peer.id, name, until: performance.now() + OFFER_SECONDS * 1000 };
+          net.publishRp({ k: "offer", to: rp.peer.id, kind: bar.drink.kind, sips: bar.drink.sips });
+          showWaveBanner(`Holding it out to ${name}`, 1600);
+        } };
+    }
+  }
+  return null;
+}
+
+function setBarRole(role, note) {
+  bar.role = role;
+  bar.outT = 0;
+  if (note) showWaveBanner(note, role ? 3600 : 1600);
+}
+
+function lastCall(who) {
+  showWaveBanner(`Last call at the Rusty Grin! (${who})`, 2600);
+  audio.medal?.("gold");
+}
+
+function putDownDrink() {
+  if (!bar.drink) return;
+  bar.drink = null;
+  bar.sipT = 0;
+  bar.outgoing = null;
+  audio.brassTinkle?.(3);
+}
+
+/* Off the wire (net "rp"). */
+function onBarMessage(p, m) {
+  if (!isSocial() || isBotPeer(p)) return;
+  if (m.k === "bell") { lastCall(p.name || "the bartender"); return; }
+  if (m.to !== net.id) return;
+  const now = performance.now();
+  if (m.k === "offer") {
+    if (bar.drink) return;
+    const kind = m.kind === "whiskey" ? "whiskey" : "beer";
+    bar.offer = { from: p.id, name: p.name || "someone", kind, sips: Math.max(1, Math.min(drinkMax(kind), m.sips | 0)), until: now + OFFER_SECONDS * 1000 };
+    showWaveBanner(`${bar.offer.name} offers you a ${drinkName(kind)}: hold X by them`, 2600);
+  } else if (m.k === "take") {
+    // Only the drink we held out, to them, if we still have it.
+    if (!bar.outgoing || bar.outgoing.to !== p.id || !bar.drink) return;
+    const d = bar.drink;
+    bar.drink = null; bar.outgoing = null; bar.sipT = 0;
+    net.publishRp({ k: "give", to: p.id, kind: d.kind, sips: d.sips });
+  } else if (m.k === "give") {
+    if (!bar.offer || bar.offer.from !== p.id || bar.drink) return;
+    const kind = m.kind === "whiskey" ? "whiskey" : "beer";
+    bar.drink = { kind, sips: Math.max(0, Math.min(drinkMax(kind), m.sips | 0)) };
+    bar.offer = null;
+    audio.brassTinkle?.(4);
+    showWaveBanner("Cheers!", 1200);
+  }
+}
+
+function updateBar(dt) {
+  const B = barSpots();
+  const now = performance.now();
+  bar.tipsy = Math.max(0, bar.tipsy - TIPSY.decay * dt);
+  if (bar.offer && now > bar.offer.until) bar.offer = null;
+  if (bar.outgoing && now > bar.outgoing.until) bar.outgoing = null;
+
+  // A sip: fire, one at a time. The drink goes down halfway through it.
+  const fireNow = !localPauseOnly && !emoteWheel.isOpen && (mouseDown || (isTouch && touchState.firing) || (gamepadState.connected && gamepadState.firing));
+  if (fireNow && !bar.fireWas && bar.drink?.sips > 0 && bar.sipT <= 0 && player.alive) {
+    bar.sipT = SIP_TIME; bar.sipDone = false;
+    if (emote) stopEmote();
+  }
+  bar.fireWas = fireNow;
+  if (bar.sipT > 0) {
+    bar.sipT = Math.max(0, bar.sipT - dt);
+    if (!bar.sipDone && bar.sipT <= SIP_TIME / 2 && bar.drink) {
+      bar.sipDone = true;
+      bar.drink.sips = Math.max(0, bar.drink.sips - 1);
+      bar.tipsy = Math.min(TIPSY.max + 1, bar.tipsy + (bar.drink.kind === "whiskey" ? TIPSY.perShot : TIPSY.perBeerSip));
+      if (!bar.drink.sips && bar.drink.kind === "whiskey") bar.drink = null;   // the shot glass goes back
+      else if (!bar.drink.sips) showWaveBanner("Empty. Fill it again at a tap", 1400);
+    }
+  }
+  if (bar.tipsy >= TIPSY.onset && !bar.tipsyShown) { bar.tipsyShown = true; showWaveBanner("You're feeling it…", 1800); }
+  if (bar.tipsy < TIPSY.onset * 0.5) bar.tipsyShown = false;
+  const fx = tipsyFx(bar.tipsy, now / 1000);
+  if (fx.k > 0 && player.alive && !localPauseOnly) look.yaw += fx.yaw;
+
+  // The bartender: off the job if they wander out, or someone older has it.
+  if (bar.role) {
+    if (!B) bar.role = null;
+    else {
+      bar.outT = barInside(B) ? 0 : bar.outT + dt;
+      if (bar.outT > BARTENDER_LEAVE_SECONDS) setBarRole(null, "You left the saloon: the apron's back on its hook.");
+      const older = otherBartender(true);
+      if (older && bar.role) setBarRole(null, `${older.name} already has the apron.`);
+    }
+  }
+
+  // Hold X.
+  const act = player.alive ? barAction(B) : null;
+  const held = !frozenPlayer() && !duoXClaimed && !localPauseOnly
+    && (keys.has("KeyX") || (isTouch && touchState.swap) || !!gamepadState.pickup);
+  if (!held) bar.holdLock = false;
+  if (act && !act.info && held && !bar.holdLock) {
+    if (bar.hold?.key !== act.key) { bar.hold = act; bar.holdT = 0; }
+    bar.holdT += dt;
+    if (bar.holdT >= act.time) {
+      bar.hold = null; bar.holdT = 0; bar.holdLock = true;
+      act.done();
+    }
+  } else { bar.hold = null; bar.holdT = 0; }
+
+  setTouchContext(act && !act.info ? act.ctx : null);
+  if (els.pickupPrompt) {
+    if (act) {
+      els.pickupPrompt.hidden = false;
+      els.pickupPromptText.textContent = bar.hold && act.busy ? act.busy : act.label;
+      // A keycap that pulses until you hold it, like Troll Royale's loot:
+      // nobody knows the bar is a hold otherwise.
+      const cap = !isTouch && !act.info;
+      els.pickupPrompt.classList.toggle("is-royale", cap);
+      if (els.pickupKey) {
+        els.pickupKey.hidden = !cap;
+        if (cap) {
+          const k = gamepadState.connected ? "D-pad →" : "X";
+          if (els.pickupKeyCap.textContent !== k) els.pickupKeyCap.textContent = k;
+          els.pickupKey.classList.toggle("is-held", !!bar.hold);
+        }
+      }
+      els.pickupBarFill.style.width = `${act.info ? 0 : Math.round(Math.min(1, bar.holdT / act.time) * 100)}%`;
+    } else els.pickupPrompt.hidden = true;
+  }
+  document.body.classList.toggle("to-social-drink", !!bar.drink);
+}
+
+/* The sip as a 0..1..0 lift (up to the mouth, back down). */
+function barSipK() {
+  if (bar.sipT <= 0) return 0;
+  const t = 1 - bar.sipT / SIP_TIME;
+  return Math.min(1, Math.sin(Math.PI * t) * 1.6);
+}
+
+/* Our own body's drink, in third person. */
+function syncLocalDrink(show) {
+  const kind = show && bar.drink ? bar.drink.kind : null;
+  if ((bar.tp?.userData.kind || null) !== kind) {
+    if (bar.tp) { bar.tp.parent?.remove(bar.tp); bar.tp = null; }
+    if (kind) { bar.tp = buildDrink(kind); mountDrink(localRig, bar.tp); }
+  }
+  if (!bar.tp) return;
+  bar.tp.userData.setSips(bar.drink.sips);
+  poseDrinkArm(localRig, barSipK());
+}
+
+/* Our first-person hand's drink, placed on the right streak-arm hand (its
+   transform, not its child: with gloves on that hand is hidden). */
+function syncFpDrink(show) {
+  const kind = show && bar.drink ? bar.drink.kind : null;
+  if ((bar.fp?.userData.kind || null) !== kind) {
+    if (bar.fp) { bar.fp.parent?.remove(bar.fp); bar.fp = null; }
+    if (kind) bar.fp = buildDrink(kind);
+  }
+  if (!bar.fp) return;
+  const hand = streakArms.userData.arms[0].hand;
+  if (bar.fp.parent !== hand.parent) hand.parent.add(bar.fp);
+  bar.fp.userData.setSips(bar.drink.sips);
+  placeDrinkInHand(bar.fp, hand, 1);
+}
+
+const socialArms = { phase: 0, k: 0, run: 0, at: 0 };
+function socialArmsFrame() {
+  const now = performance.now();
+  const dt = Math.min(0.1, (now - (socialArms.at || now)) / 1000);
+  socialArms.at = now;
+  const speed = Math.hypot(move.velocity.x, move.velocity.z);
+  const moving = move.moving && move.grounded && speed > 0.3;
+  socialArms.k += ((moving ? 1 : 0) - socialArms.k) * Math.min(1, dt * 6);
+  socialArms.run += ((move.sprinting ? 1 : 0) - socialArms.run) * Math.min(1, dt * 5);
+  if (moving) socialArms.phase += dt * gaitPhaseRate(speed);
+  const k = socialArms.k, run = socialArms.run;
+  const hand = (side) => {
+    // Right and left swing opposite each other, like the legs.
+    const sw = Math.sin(socialArms.phase + (side > 0 ? 0 : Math.PI));
+    const lift = Math.max(0, sw);   // the forward swing comes up into view
+    // The view's bottom edge is about y -0.25 this far out (the viewmodel
+    // lens is ~58°): standing still they sit below it, walking they rise
+    // into it on each forward swing, sprinting they pump well up.
+    return {
+      pos: [
+        side * (0.22 - run * 0.04),
+        -0.46 + k * (0.19 + run * 0.04) + lift * k * (0.08 + run * 0.09),
+        -0.45 - sw * k * (0.05 + run * 0.06),
+      ],
+      rot: [0.25 + run * 0.3 + lift * k * (0.25 + run * 0.35), side * 0.12, -side * Math.PI / 2],
+      pose: run > 0.5 ? "fist" : "relaxed",
+    };
+  };
+  // A drink (the saloon bar) rides in the right hand: held up in view and
+  // steady, bobbing with the walk; a sip brings it to the mouth, tipped.
+  let R = hand(1);
+  if (bar.drink) {
+    const s = barSipK();
+    const bob = Math.sin(socialArms.phase * 2) * 0.008 * k;
+    // At the top of a sip the rim is at your lip, so what you see is the
+    // glass tipping up past you, not a face-full of foam.
+    R = {
+      pos: [0.17 - s * 0.11, -0.18 + bob + s * 0.12, -0.4 + s * 0.16],
+      rot: [s * 0.95, 0.1 - s * 0.1, -Math.PI / 2],
+      pose: "grip",
+    };
+  }
+  return { R, L: hand(-1), gun: false, cam: { pitch: barSipK() * 0.06, yaw: 0 }, social: true };
+}
+
 function updateFpEmoteView() {
-  const f = fpEmoteFrame();
+  const f = fpEmoteFrame() || (isSocial() && player.alive ? socialArmsFrame() : null);
   if (!f) {
     if (fpEmoteArmsOn) { hideStreakArms(); fpEmoteArmsOn = false; }
+    syncFpDrink(false);
     return;
   }
   inspectArms.visible = false;
   if (activeMeleeMesh) activeMeleeMesh.visible = false;
   // The gun is put away: so are the arms that hold it (PF rods or gloves),
   // or they hang in view as a second pair beside the emote hands.
-  if (!f.gun) { pfArms.visible = false; gloveRig.visible = false; }
+  // Socialize has no gun to do a trick with: the hands act it out alone.
+  const gun = !isSocial() && f.gun;
+  if (!gun) { pfArms.visible = false; gloveRig.visible = false; }
   if (activeWeaponMesh) {
-    activeWeaponMesh.visible = !!f.gun && player.holding === "gun";
-    if (f.gun) {
+    activeWeaponMesh.visible = !!gun && player.holding === "gun";
+    if (gun) {
       activeWeaponMesh.position.y += f.gun.lift || 0;
       activeWeaponMesh.rotateZ(f.gun.spin || 0);
     }
   }
   fpEmoteArmsOn = true;
   poseFreeArms(f);
+  // The saloon bar's drink, in the right hand (not during an emote).
+  syncFpDrink(!!f.social);
 }
 
 /* Both streak arms placed straight from hand targets in viewmodel space
@@ -14416,6 +14994,7 @@ let inspectFreeze = null;   // test hook: pin the animation at one t
 function isLongGunInspect(w) { return w.def.cls !== "sidearm"; }
 
 function startInspect() {
+  if (isSocial()) return;
   if (inspectT > 0 || !player.alive || gameState !== "playing" || move.busy) return;
   if (player.holding === "gun") {
     const w = currentWeapon();
@@ -15682,7 +16261,7 @@ animate();
    with a row of trolls and reads every round against both the hitbox and
    the visible body (hitbox-lab.js). Loaded lazily, so play never fetches it. */
 if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]hitbox=1/.test(location.search)) {
-  import("./hitbox-lab.js?v=hl3-wst").then(({ createHitboxLab }) => {
+  import("./hitbox-lab.js?v=hl3-wst-soc1").then(({ createHitboxLab }) => {
     hitboxLab = createHitboxLab({
       scene, look, move, colliders: () => colliders, isRange, state: () => gameState, startGame,
       setMode: (id) => { modeId = id; modePicked = true; },
@@ -15759,6 +16338,14 @@ if (/[?&]tohooks=1/.test(location.search)) {
     tryReload, currentWeapon, fireOnce, composer, setHolding,
     setTrigger: (v) => { mouseDown = !!v; },
     isStaging: () => isStaging(),
+    // Socialize (switchRoomMode).
+    isSocial: () => isSocial(), damagePlayer, switchWeapon, swingMelee, startCook,
+    social: () => ({ room: socialRoom, seq: roomModeSeq, home: socialMapId, returning: socialReturnSeq != null, map: loadedMapId, mode: modeId, team: net.team, gameState }),
+    ownerSwitchRoomMode, returnToSocial, renderRoomModeRow, fpWeaponDrawn: () => activeWeaponMesh?.visible ?? null,
+    socialArms: () => ({ k: socialArms.k, run: socialArms.run, phase: socialArms.phase, on: fpEmoteArmsOn }),
+    bar: () => ({ drink: bar.drink && { ...bar.drink }, role: bar.role, tipsy: bar.tipsy, sipT: bar.sipT, offer: !!bar.offer, outgoing: !!bar.outgoing, prompt: els.pickupPrompt.hidden ? null : els.pickupPromptText.textContent, fp: !!bar.fp?.parent, tp: !!bar.tp?.parent }),
+    barState: bar,
+    townNpcs: () => townNpcs,
     gloves: () => gloves, gloveRig: () => gloveRig, weaponRig: () => weaponRig,
     candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT, sawShake: () => sawShake, sawInspectRev: () => sawInspectRev,
