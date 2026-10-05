@@ -12,7 +12,7 @@
 const SUPABASE_URL = "https://tjsyhfplxjtakdfkpdtg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ";
 
-export const MAX_PLAYERS = 20;
+export const MAX_PLAYERS = 22;   // public rooms: real people + bots never pass this
 export const MAX_PLAYERS_ROYALE = 100;
 /* Bot skill tiers on the wire (`bs` on a bot's state): the tier the bot
    host built that bot with, so every client knows the room's bot skill. */

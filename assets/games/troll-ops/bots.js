@@ -1096,6 +1096,12 @@ export class BotManager {
         phantom: Math.max(0, Math.floor(target / 2) - (humanTeams.phantom | 0)),
         ghost: Math.max(0, Math.ceil(target / 2) - (humanTeams.ghost | 0)),
       };
+      // Lopsided humans would otherwise let bots + people pass `target`:
+      // trim the bigger bot side until the room fits.
+      const room = Math.max(0, target - humanCount);
+      while (want.phantom + want.ghost > room) {
+        if (want.phantom >= want.ghost) want.phantom--; else want.ghost--;
+      }
       for (const team of ["phantom", "ghost"]) {
         let have = this.bots.filter((b) => b.team === team).length;
         for (let i = this.bots.length - 1; i >= 0 && have > want[team]; i--) {

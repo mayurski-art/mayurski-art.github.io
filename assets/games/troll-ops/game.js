@@ -37,7 +37,7 @@ import { openProfileCard } from "./profile-card.js?v=pc1-wst";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1";
 import { ROLES, roleCode, DOCTOR, poseSeated, posePianoArms, PianoVoice, TUNES } from "./rp-roles.js?v=rp1";
@@ -54,8 +54,8 @@ import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1";
-import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1";
+} from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t75";
+import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst";
 import { GameAudio } from "./audio.js?v=zr4";
 import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1";
@@ -3634,7 +3634,7 @@ let modePicked = false;
 let matchesPlayed = 0;   // seeds the map-vote shortlist, so it changes each round
 const teamScores = { phantom: 0, ghost: 0 };
 const bots = new BotManager();
-const BOT_TARGET = 8;      // participants a PvP room is padded up to
+const BOT_TARGET = MAX_PLAYERS;   // a PvP room is padded with bots up to 22; each real joiner bumps one
 
 // Quickplay: everyone who leaves the room code untouched lands in the same
 // public server for their mode, instead of each getting their own random

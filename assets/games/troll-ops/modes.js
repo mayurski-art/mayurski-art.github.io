@@ -54,9 +54,9 @@ export const MODES = {
     name: "Team Deathmatch",
     short: "Team Deathmatch",
     pvp: true, ffa: false,
-    scoreLimit: 50,
-    timeLimit: 600,   // 10 minutes — highest score wins if nobody hits 50 first
-    blurb: "Trolls against Jeets. First side to 50 kills, or most at the buzzer.",
+    scoreLimit: 75,
+    timeLimit: 600,   // 10 minutes — highest score wins if nobody hits 75 first
+    blurb: "Trolls against Jeets. First side to 75 kills, or most at the buzzer.",
   },
 
   koth: {
