@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeGroundMaterial } from "./shaders.js";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6e";
-import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc";
+import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2";
 import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e";
 import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1";
@@ -20,7 +20,7 @@ import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } fr
 import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
-} from "./house-props.js?v=hg6e";
+} from "./house-props.js?v=hg6e-sb2";
 import { gsModel, mapModel } from "./map-models.js?v=hg6e";
 import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db1";
 import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e";

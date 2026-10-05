@@ -291,6 +291,9 @@ export function prestigeUnlocked(n) {
 export function isUnlocked(weaponId) {
   const def = WEAPON_DEFS[weaponId];
   if (!def) return false;
+  // The owner has no restrictions (user, 2026-10-05: "troll_runner should
+  // not have any restrictions"): every gun, today's and every new one.
+  if (isOwner()) return true;
   // The Prestige 7 gun needs its prestige as well as the level.
   return getRank() >= def.rank && (!def.prestige || prestigeUnlocked(def.prestige));
 }

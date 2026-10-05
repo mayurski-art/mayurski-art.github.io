@@ -9,7 +9,7 @@
 // else already understands, so remote clients need no bot-specific code.
 
 import * as THREE from "three";
-import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1";
+import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1-sb2";
 import { segmentBlocked } from "./ballistics.js?v=cg1-wst-hf1";
 import { FlowField } from "./nav.js?v=ti1-bs1";
 import { clampInsidePolygon, insidePolygon } from "./edge.js";

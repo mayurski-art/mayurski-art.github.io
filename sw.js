@@ -14,8 +14,8 @@
 //   Models, textures, images, three.js: served from the cache straight
 //     away. Once a day a copy is re-checked in the background, so an
 //     updated model shows up on the load after it changes.
-//   Game scripts with a ?v= tag: that URL never changes content (a new
-//     build gets a new tag), so it is cached as is; older tags of the same
+//   Game scripts with a ?v= tag: always asked of the network (a 304 when
+//     unchanged), the stored copy used only offline; older tags of the same
 //     file are dropped as new ones arrive (the newest 3 kept).
 //
 // Registered from game.js. Off on localhost unless ?sw=1, so editing the
@@ -78,6 +78,23 @@ async function serve(e, kind) {
   const req = e.request;
   let cache;
   try { cache = await caches.open(CACHE); } catch { return fetch(req); }
+  // Scripts: network first, the cache only when offline. Trusting the ?v=
+  // tag served an edited progression.js under its old tag forever, and with
+  // it a weapons.js from before the Soul Blazer, so the new gun stayed
+  // locked (user, 2026-10-05: "when i make new weapons going forward i dont
+  // want this bug to happen again"). The server answers an unchanged script
+  // with a tiny 304, so this costs nothing like the maps would.
+  if (kind === "tagged") {
+    try {
+      const res = await fetch(req, { cache: "no-cache" });
+      if (res.ok && res.type === "basic") e.waitUntil(store(cache, req, kind, null, res.clone()).catch(() => {}));
+      return res;
+    } catch (err) {
+      const hit = await cache.match(req).catch(() => null);
+      if (hit) return hit;
+      throw err;
+    }
+  }
   const hit = await cache.match(req).catch(() => null);
   if (hit) {
     if (kind === "art") {
