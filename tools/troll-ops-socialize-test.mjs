@@ -190,7 +190,9 @@ await joinSocial(C, "depot");
 const c2 = await until(C, (s) => s.mode === "tdm" && s.gameState === "playing", 90000);
 await loaded(C);
 check("a latecomer picking Socialize lands in the room's TDM", c2.mode === "tdm" && c2.seq === a2.seq, JSON.stringify(c2));
-check("on the room's map", c2.map === a2.map, `${c2.map} vs ${a2.map}`);
+// Its mode flips first; the room's map is in once the load screen is done.
+const c3 = await soc(C);
+check("on the room's map", c3.map === a2.map, `${c3.map} vs ${a2.map}`);
 
 // ── 3. The match ends: back to the hangout ────────────────────────────────
 await Promise.all([A, B, C].map((p) => p.evaluate(() => window.__trollOps.endMatch("Trolls win"))));
