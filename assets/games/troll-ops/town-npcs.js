@@ -104,12 +104,23 @@ export class TownNpcs {
     return n;
   }
 
+  /* A player took a job (rp-roles.js ROLES[].npc): whoever had it goes
+     off shift, out of sight, until it's free again. */
+  setYield(roles) {
+    for (const n of this.list) n.off = roles.has(n.c.role);
+  }
+
+  /* Who's sitting where, so a player doesn't sit in their lap. */
+  sitters() {
+    return this.list.filter((n) => n.c.sit && !n.off).map((n) => ({ x: n.x, z: n.z, y: n.c.y ?? 0, role: n.c.role }));
+  }
+
   /* `eye`: where the local camera is, for the level of detail. */
   update(dt, eye) {
     this.t += dt;
     for (const n of this.list) {
       const d = Math.hypot(n.x - eye.x, n.z - eye.z);
-      const hidden = d > FAR;
+      const hidden = d > FAR || n.off;
       n.rig.root.visible = !hidden;
       // Tags only up close, so a full room doesn't turn into a wall of names.
       if (n.tag) n.tag.visible = d < TAG_RANGE;

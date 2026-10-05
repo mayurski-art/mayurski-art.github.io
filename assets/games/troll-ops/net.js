@@ -17,6 +17,8 @@ export const MAX_PLAYERS_ROYALE = 100;
 /* Bot skill tiers on the wire (`bs` on a bot's state): the tier the bot
    host built that bot with, so every client knows the room's bot skill. */
 const BOT_SKILLS = ["recruit", "regular", "veteran"];
+// Socialize roleplay jobs by wire letter (rp-roles.js ROLES).
+const RP_ROLES = { b: "bartender", p: "pianist", d: "doctor", s: "sheriff", m: "merchant", h: "horsekeeper", c: "conductor" };
 /* A bot's level for the scoreboard: fixed per bot id (1-69), so a bot
    keeps the same rank all match and every client agrees on it. */
 function botLevel(id) {
@@ -314,10 +316,14 @@ export class Net {
         p.reloadTime = +m.rt || 2.3;
         p.hero = m.hr || null;
         // Socialize roleplay (saloon-bar.js): what's in their hand, a sip
-        // under way, their role ("b" = bartender).
+        // under way, their job (rp-roles.js ROLES letters), the seat
+        // they're in (index + 1 into the map's rp.seats) and the tune
+        // they're playing at the piano (index + 1).
         p.drink = m.dk | 0;
         p.sipping = !!m.ds;
-        p.role = m.rr === "b" ? "bartender" : null;
+        p.role = RP_ROLES[m.rr] || null;
+        p.seat = m.se | 0;
+        p.piano = m.pn | 0;
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
@@ -479,6 +485,7 @@ export class Net {
         cl: local.clan || undefined, cc: local.card && local.card !== "hitman" ? local.card : undefined,   // profile card
         hr: local.hero || undefined,   // U Mad Bro? hero id (+ "!" while the Metamorph is the brute)
         dk: local.drink || undefined, ds: local.sip ? 1 : undefined, rr: local.role || undefined,   // Socialize roleplay
+        se: local.seat || undefined, pn: local.piano || undefined,
       });
     }
     this.prune();

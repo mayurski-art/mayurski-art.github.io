@@ -30,7 +30,8 @@ import {
   bottlesTexture, goodsTexture, paintingTexture, clockTexture, trollPaintTexture,
   glassTexture, curtainTexture, glowTexture, piebaldTexture, barsTexture,
   barrel, crate, crateStack, trough, hitchRail, bollard, telegraphPole, wire, streetLamp,
-  wheel, wagon, horse, cactus, steerSkull, rock, tableSet, chair, stool, piano,
+  wheel, wagon, horse, cactus, steerSkull, rock,
+  tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture,
 } from "./trollcity-kit.js?v=tc2-wst";
 
@@ -57,6 +58,45 @@ const BAR = {
   bottles: { x: -5.85, z: -16.2 },
   zone: { x0: SALOON.x0, x1: SALOON.x1, z0: ROW_N.back, z1: ROW_N.front },
 };
+/* Doc Grin's (Socialize roleplay, rp-roles.js): the bag on the desk is
+   the job, the medicine shelf pours a tonic. */
+const DOC = {
+  bag: { x: 31.0, z: -14.0 },
+  tonic: { x: 32.0, z: -19.4 },
+  zone: { x0: 25, x1: 33, z0: -21.6, z1: -9.6 },
+};
+
+/* Every seat in town (Socialize roleplay, rp-roles.js): the chairs,
+   stools and the piano stool note themselves as they're built, benches and
+   settees are listed where they stand. { x, z, y: seat top, floor, yaw
+   (the way you face, camera convention; null = any), kind, stand: where
+   you get up to }. Rebuilt with the map. */
+const SEATS = [];
+function seatAt(x, z, y, floor, yaw, kind, out = 0) {
+  const sx = yaw == null ? x : x - Math.sin(yaw) * out, sz = yaw == null ? z : z - Math.cos(yaw) * out;
+  SEATS.push({ x, z, y, floor, yaw, kind, stand: { x: sx, z: sz } });
+}
+/* A bench or settee `len` long along `axis`, a seat every 0.75 m or so. */
+function benchSeats(x, z, len, axis, y, floor, yaw) {
+  const n = Math.max(1, Math.floor(len / 0.7));
+  for (let i = 0; i < n; i++) {
+    const u = (i - (n - 1) / 2) * (len / n);
+    seatAt(axis === "x" ? x + u : x, axis === "z" ? z + u : z, y, floor, yaw, "bench", 0.7);
+  }
+}
+function chair(K, M, x, y, z, o = {}) { kitChair(K, M, x, y, z, o); seatAt(x, z, y + 0.47, y, o.ry || 0, "chair"); }
+function stool(K, M, x, y, z) { kitStool(K, M, x, y, z); seatAt(x, z, y + 0.78, y, null, "stool"); }
+function piano(K, M, x, y, z, o = {}) {
+  kitPiano(K, M, x, y, z, o);
+  const ry = o.ry || 0;
+  seatAt(x + Math.sin(ry) * 0.85, z + Math.cos(ry) * 0.85, y + 0.56, y, ry, "piano");
+}
+function tableSet(K, M, x, y, z, o = {}) {
+  kitTableSet(K, M, x, y, z, o);
+  // facing the table, not the chair's own jitter
+  for (const s of tableSeats(x, y, z, o)) seatAt(s.x, s.z, s.y, y, Math.atan2(s.x - x, s.z - z), "chair");
+}
+
 const STAIR = { x: -22.1, zFoot: -11.0, w: 1.2, steps: 14, rise: (UPPER_Y - FLOOR) / 14, run: 0.3 };
 const STAIR_HOLE = { x0: -22.85, x1: -21.4, z0: STAIR.zFoot - STAIR.steps * STAIR.run, z1: -10.6 };
 
@@ -1793,8 +1833,29 @@ function mesa(K, mat, x, z, w, h, d, ry, R) {
 
 /* ================================================================== the map */
 
+/* The benches and settees built as plain solids, as seats (SEATS), and
+   the doctor's bag on Doc Grin's desk. */
+function rpFurniture(K, M) {
+  const Y = FLOOR, U = UPPER_Y;
+  benchSeats(-22.25, -16.4, 2.0, "z", Y + 0.85, Y, -Math.PI / 2);      // the saloon's settee
+  benchSeats(-21.6, -18.6, 1.0, "z", U + 0.95, U, -Math.PI / 2);       // upstairs, by the stair
+  benchSeats(-11.5, -15.95, 2.0, "x", U + 0.85, U, Math.PI);           // the upstairs hall
+  benchSeats(-33.5, 18.6, 2.2, "z", Y + 0.85, Y, -Math.PI / 2);        // the Grin Inn's lobby
+  for (const z of [-3.4, 3.4]) benchSeats(47.9, z, 2.0, "z", Y + 0.5, Y, Math.PI / 2);   // the sheriff's waiting benches
+  for (const x of [-2.5, 0.5]) benchSeats(x, -44.2, 2.0, "x", Y + 0.48, Y, Math.PI);      // the station's waiting room
+  for (const x of [-8.4, 0.2]) benchSeats(x, -37.95, 1.8, "x", Y + 0.5, Y, Math.PI);      // the platform
+  for (const x of [0.8, 3.2]) seatAt(x, 18.9, Y + 0.75, Y, 0, "chair", 0.7);              // the barber's chairs
+  seatAt(27.0, -18.4, Y + 0.95, Y, Math.PI, "exam", 0.75);                                // Doc Grin's exam table
+  // the doctor's bag, on the desk
+  const b = DOC.bag;
+  K.box(M.leather, b.x, Y + 0.78, b.z, 0.38, 0.2, 0.2);
+  K.box(M.leather, b.x, Y + 0.98, b.z, 0.3, 0.05, 0.16);
+  K.box(M.brass, b.x, Y + 1.03, b.z, 0.14, 0.04, 0.03);
+}
+
 function buildTrollCity(api) {
   ZSPAWNS.length = 0;
+  SEATS.length = 0;
   const root = new THREE.Group();
   api.prop(root);
   root.castShadow = false;
@@ -1814,6 +1875,7 @@ function buildTrollCity(api) {
   for (const [x, z] of [[-12, -23.6], [28, -23.2], [-28, 23.5], [8, 23.7]]) barrel(K, M, x, z, {});
 
   hangPictures(K, M);
+  rpFurniture(K, M);
 
   K.flush();
   for (const l of lights) {
@@ -1849,7 +1911,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs() },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],

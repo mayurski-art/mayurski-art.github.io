@@ -18,6 +18,12 @@ import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1
 import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb1";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 import { buildDrink, drinkFromCode, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
+import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1";
+
+/* Socialize seats: game.js hands over the map's seat list (rp.seats), so a
+   peer's `seat` (index + 1) can be looked up for its height and kind. */
+let seatList = () => null;
+export function setSeatLookup(fn) { seatList = fn || (() => null); }
 
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down
@@ -399,9 +405,10 @@ export class RemotePlayer {
     const rank = p.owner ? { owner: true } : p.level ? { level: p.level, prestige: p.prestige | 0 } : null;
     const rankKey = rank ? (rank.owner ? "o" : `${rank.level}.${rank.prestige}`) : "";
     // Clan tag (prestige phase 4) in front: `[TRLL] name`.
-    // Socialize roleplay: their role after the name (saloon-bar.js).
+    // Socialize roleplay: their job after the name (rp-roles.js).
     const base = p.clan ? `[${p.clan}] ${p.name || "operator"}` : (p.name || "operator");
-    const text = p.role === "bartender" ? `${base} · Bartender` : base;
+    const job = roleLabel(p.role);
+    const text = job ? `${base} · ${job}` : base;
     if (color === this.tagColor && rankKey === this.tagRank && text === this.tagText) return;
     this.tagColor = color;
     this.tagRank = rankKey;
@@ -636,6 +643,12 @@ export class RemotePlayer {
 
     if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);
     this.updateDrink(dt, !!em);
+    // Socialize: sat down, and at the piano both hands on the keys.
+    const seat = this.peer.seat && !em && this.alive ? seatList()?.[this.peer.seat - 1] : null;
+    if (seat) {
+      if (seat.kind === "piano") posePianoArms(this.rig, this.pianoT = (this.pianoT || 0) + dt, 0.5, !!this.peer.piano);
+      poseSeated(this.rig, seat.y, seat.kind === "stool" ? 0.55 : 0);
+    }
     rollRig(this.rig, roll);
     if (drop) {
       this.dropT = (this.dropT || 0) + dt;

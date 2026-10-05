@@ -30,6 +30,28 @@ Main menu: **Socialize**, right under Public Match (menu-bo2.js `social` screen:
 
 **Test:** `tools/troll-ops-socialize-test.mjs` (3 tabs over BroadcastChannel).
 
+## Troll City roleplay phase 2a: seats, piano, doctor — 2026-10-04 (user: "seats everywhere ... piano player ... doctor")
+
+- `rp-roles.js`: the jobs and their wire letters (`ROLES`, `rr`), the seated
+  pose, the pianist's hands, three original tunes and `PianoVoice` (a small
+  WebAudio upright, played through GameAudio's panner).
+- `trollcity.js`: every chair, stool, table chair and the piano stool note
+  themselves into `SEATS` as they're built (wrappers round the kit's
+  functions); benches, settees, the barber's chairs and the exam table are
+  listed in `rpFurniture()`. `rp.seats()` and `rp.doctor` (bag, tonic).
+- `game.js` (after the saloon bar): hold X by a free seat to sit, move /
+  jump / C to get up. Seat index rides the state packet (`se`), the tune
+  (`pn`). The piano stool makes you the pianist (one job at a time, same
+  first-come rule as the apron): fire plays, again stops, next start is the
+  next tune. Doc's bag = doctor: hold X by anyone for a check-up (`rp`
+  message `cure`, only honoured from a peer with the doctor role). The
+  medicine shelf's tonic is for anyone. A townsfolk NPC whose job a player
+  holds is hidden (`TownNpcs.setYield`), and seated NPCs block their seats
+  (except the piano stool).
+- Test: `tools/troll-ops-rp-test.mjs` (GPU flags, like the bar test).
+- Still to come: sheriff + jail (2b), merchant + horsekeeper (2c), train
+  conductor (2d).
+
 ## Troll City saloon bar + townsfolk — 2026-10-04 (user: "drinks … from barrels in the troll city saloon … bartender role that anyone can fill" / "fill it with … troll characters acting like NPCs")
 Socialize on Troll City only (`isSocial()` and `builtMap.map.rp`). The spots live in `BAR` in trollcity.js; the logic is in game.js `updateBar` / `barAction`, and the meshes in saloon-bar.js.
 

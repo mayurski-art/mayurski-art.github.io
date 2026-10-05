@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1";
@@ -34,12 +34,13 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb1-rp1";
+import { ROLES, roleCode, DOCTOR, poseSeated, posePianoArms, PianoVoice, TUNES } from "./rp-roles.js?v=rp1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst-soc1";
 import {
@@ -47,7 +48,7 @@ import {
   BEER_SIPS, GRAB_TIME, FILL_TIME, FILL_TIME_BARTENDER, POUR_TIME, SIP_TIME, APRON_TIME,
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
 } from "./saloon-bar.js?v=sb1";
-import { TownNpcs } from "./town-npcs.js?v=tn2";
+import { TownNpcs } from "./town-npcs.js?v=tn3";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst-soc1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
@@ -8910,7 +8911,10 @@ function netSnapshot() {
   const social = isSocial();
   _netSnapshot.drink = social ? drinkCode(bar.drink) : 0;
   _netSnapshot.sip = social && bar.sipT > 0;
-  _netSnapshot.role = social && bar.role === "bartender" ? "b" : null;
+  _netSnapshot.role = social ? roleCode(bar.role) : null;
+  // Phase 2: the seat we're in, the tune we're playing.
+  _netSnapshot.seat = social && seated ? seated.idx + 1 : 0;
+  _netSnapshot.piano = social && piano.playing ? piano.tune + 1 : 0;
   return _netSnapshot;
 }
 
@@ -13422,6 +13426,7 @@ function updateLocalRig(dt) {
     emote.t += dt;
     if (move.moving || !player.alive || gameState !== "playing" || emote.t > emoteSeconds(emote.idx)) stopEmote();
   }
+  if (seated && emote) standUp();   // an emote is a standing thing: get up for it
   if (localHeld.mesh) localHeld.mesh.visible = !emote;
   els.hud.classList.toggle("is-emoting", emoteIsTp());
   if (!isSocial() || emote) syncLocalDrink(false);
@@ -13463,6 +13468,11 @@ function updateLocalRig(dt) {
     poseThrowArm(localRig, 1 - localThrowT / THROW_TIME);
   }
   if (isSocial()) syncLocalDrink(true);   // the saloon bar: a drink in hand
+  // Sat down (rp-roles.js); at the piano, both hands on the keys.
+  if (seated && isSocial()) {
+    if (seated.s.kind === "piano") posePianoArms(localRig, piano.t += dt, 0.3, piano.playing);
+    poseSeated(localRig, seated.s.y, seated.s.kind === "stool" ? 0.55 : 0);
+  }
   rollRig(localRig, royaleRollK());
   // Skydiving, then hanging under the glider (seen in the drop camera).
   const dropCode = royaleDropCode();
@@ -13627,6 +13637,7 @@ function updatePlayer(dt) {
   const wading = !!ARENA.wade && move.pos.y < 0.5 && insidePolygon(ARENA.wade, move.pos.x, move.pos.z);
   if (dropping) updateDropPlayer(dt, dropIx, dropIz, (isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space"));
   else if (isView()) flyView(dt, ix, iz);
+  else if (seated && isSocial()) holdSeat(dt, ix, iz, !frozen && ((isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space") || keys.has("KeyC")));
   else move.update(dt, {
     forward: iz,
     strafe: ix,
@@ -14592,6 +14603,10 @@ const bar = {
 function resetBar() {
   bar.drink = null; bar.sipT = 0; bar.hold = null; bar.holdT = 0; bar.role = null; bar.outT = 0;
   bar.tipsy = 0; bar.tipsyShown = false; bar.offer = null; bar.outgoing = null;
+  seated = null;
+  stopPianos();
+  piano.played = false; piano.tune = 0;
+  npcYieldKey = "";
 }
 const barSpots = () => (isSocial() ? builtMap?.map?.rp?.bar || null : null);
 function barNear(B, spot, reach = REACH) {
@@ -14602,11 +14617,13 @@ function barInside(B) {
   return move.pos.x > z.x0 && move.pos.x < z.x1 && move.pos.z > z.z0 && move.pos.z < z.z1;
 }
 const drinkName = (kind) => (kind === "whiskey" ? "whiskey" : "beer");
-/* Someone else holding the apron, who keeps it if we both grabbed it at
-   once: whoever joined the room first (lowest id on a tie). */
-function otherBartender(olderOnly = false) {
+/* Someone else holding a job (the apron, the piano, the doctor's bag), who
+   keeps it if we both took it at once: whoever joined the room first
+   (lowest id on a tie). */
+function otherWithRole(role, olderOnly = false) {
+  if (!role) return null;
   for (const p of net.peers.values()) {
-    if (isBotPeer(p) || p.role !== "bartender") continue;
+    if (isBotPeer(p) || p.role !== role) continue;
     if (!olderOnly) return p;
     const since = p.since || 0;
     if (since < net.since || (since === net.since && p.id < net.id)) return p;
@@ -14642,24 +14659,24 @@ function barAction(B) {
     }
     if (bar.drink?.kind === "beer" && bar.drink.sips < BEER_SIPS && B.taps.some((t) => barNear(B, t))) {
       return { key: "tap", label: bar.drink.sips ? "Top it up" : "Fill your mug", busy: "Pouring…", ctx: "Fill",
-        time: bar.role ? FILL_TIME_BARTENDER : FILL_TIME,
+        time: bar.role === "bartender" ? FILL_TIME_BARTENDER : FILL_TIME,
         done: () => { bar.drink.sips = BEER_SIPS; audio.pump?.(0.4); showWaveBanner(isTouch ? "Fire to sip" : "Click to sip", 1400); } };
     }
     if (barNear(B, B.apron)) {
-      if (bar.role) {
+      if (bar.role === "bartender") {
         return { key: "apron", label: "Hang up the apron", busy: "Untying…", ctx: "Apron", time: APRON_TIME,
           done: () => setBarRole(null, "Apron's back on the hook.") };
       }
-      const other = otherBartender();
+      const other = otherWithRole("bartender");
       if (other) return { key: "apron", info: true, label: `${other.name} is tending bar` };
       return { key: "apron", label: "Put on the apron (bartender)", busy: "Tying it on…", ctx: "Apron", time: APRON_TIME,
         done: () => setBarRole("bartender", "You're the bartender. You pour faster, pour whiskey at the back-bar and ring the bell for last call.") };
     }
-    if (bar.role && !bar.drink && barNear(B, B.bottles)) {
+    if (bar.role === "bartender" && !bar.drink && barNear(B, B.bottles)) {
       return { key: "bottles", label: "Pour a whiskey", busy: "Pouring…", ctx: "Pour", time: POUR_TIME,
         done: () => { bar.drink = { kind: "whiskey", sips: 1 }; audio.brassTinkle?.(3); } };
     }
-    if (bar.role && barNear(B, B.bell)) {
+    if (bar.role === "bartender" && barNear(B, B.bell)) {
       return { key: "bell", label: "Ring the bell (last call)", ctx: "Bell", time: 0.2,
         done: () => { net.publishRp({ k: "bell" }); lastCall(playerName()); } };
     }
@@ -14677,13 +14694,195 @@ function barAction(B) {
         } };
     }
   }
-  return null;
+  return rpAction();
 }
 
+/* One job at a time: taking one puts down whatever we had. */
 function setBarRole(role, note) {
+  if (bar.role === "pianist" && role !== "pianist") piano.playing = false;
   bar.role = role;
   bar.outT = 0;
   if (note) showWaveBanner(note, role ? 3600 : 1600);
+}
+
+/* ------------------------ Socialize roleplay, phase 2 (rp-roles.js) ------------------------
+
+   User, 2026-10-04: "seats everywhere, ... piano player, ... doctor".
+   Every chair, stool, bench and settee in town is a seat (the map's
+   rp.seats): hold X by one to sit, move or jump to get up. The piano stool
+   makes you the pianist (fire plays a tune, again stops, the next start is
+   the next tune); everyone nearby hears it. Doc Grin's bag on his desk is
+   the doctor's job: hold X by someone for a check-up that sobers them up.
+   Anyone can take a tonic at his medicine shelf. A townsfolk NPC with the
+   job steps off while a player has it. */
+let seated = null;    // { idx, s } while we're sat down
+const piano = { playing: false, tune: 0, played: false, voices: new Map(), t: 0 };
+let npcYieldKey = "";
+
+const rpSeats = () => (isSocial() ? builtMap?.map?.rp?.seats?.() || null : null);
+const docSpots = () => (isSocial() ? builtMap?.map?.rp?.doctor || null : null);
+setSeatLookup(() => rpSeats());
+
+/* Is seat `i` taken: by a player, or by a townsfolk NPC sat there (the
+   piano player gets up for a player). */
+function seatTaken(i) {
+  for (const p of net.peers.values()) if (!isBotPeer(p) && p.seat === i + 1) return true;
+  const s = rpSeats()?.[i];
+  if (!s || s.kind === "piano") return false;
+  for (const n of townNpcs?.sitters() || []) {
+    if (Math.hypot(n.x - s.x, n.z - s.z) < 0.4 && Math.abs(n.y - s.y) < 0.5) return true;
+  }
+  return false;
+}
+
+/* The nearest free seat within reach, on our floor. */
+function nearestSeat(reach = 0.95) {
+  const seats = rpSeats();
+  if (!seats) return -1;
+  let best = -1, bestD = reach;
+  for (let i = 0; i < seats.length; i++) {
+    const s = seats[i];
+    if (Math.abs(move.pos.y - s.floor) > 0.6) continue;
+    const d = Math.hypot(s.x - move.pos.x, s.z - move.pos.z);
+    if (d < bestD && !seatTaken(i)) { best = i; bestD = d; }
+  }
+  return best;
+}
+
+function sitDown(idx) {
+  const s = rpSeats()?.[idx];
+  if (!s) return;
+  if (emote) stopEmote();
+  seated = { idx, s };
+  move.pos.set(s.x, s.floor, s.z);
+  move.velocity.set(0, 0, 0);
+  if (s.yaw != null) look.yaw = s.yaw;
+  if (s.kind !== "piano") { showWaveBanner(isTouch ? "Move to get up" : "Move or jump to get up", 1400); return; }
+  // The piano stool: the pianist's job, if it's free and we have no other.
+  const other = otherWithRole("pianist");
+  if (other) showWaveBanner(`${other.name} has the piano`, 1800);
+  else if (bar.role && bar.role !== "pianist") showWaveBanner(`You're the ${ROLES[bar.role].label.toLowerCase()}: one job at a time`, 2000);
+  else setBarRole("pianist", isTouch ? "You're on the piano. Fire plays a tune, again stops." : "You're on the piano. Click to play a tune, again to stop.");
+}
+
+function standUp() {
+  const s = seated?.s;
+  seated = null;
+  if (!s) return;
+  move.pos.set(s.stand.x, s.floor, s.stand.z);
+  move.velocity.set(0, 0, 0);
+  if (bar.role === "pianist") setBarRole(null, null);
+}
+
+/* Sat down: stay put, eyes at seated height; any move or a jump gets up. */
+function holdSeat(dt, ix, iz, jump) {
+  if (ix || iz || jump || !player.alive) { standUp(); return; }
+  const s = seated.s;
+  move.pos.set(s.x, s.floor, s.z);
+  move.velocity.set(0, 0, 0);
+  move.moving = false;
+  move.sprinting = false;
+  move.grounded = true;
+  move.eyeHeight = damp(move.eyeHeight, s.y - s.floor + 0.74, 10, dt);
+}
+
+/* Hold X (after the saloon bar's own): the doctor, a seat. */
+function rpAction() {
+  if (seated) return null;
+  // The doctor: a check-up for whoever's beside us (before the bag:
+  // a patient by the desk shouldn't get the bag put down).
+  if (bar.role === "doctor") {
+    const rp = rpNearestPlayer(2.0);
+    if (rp) {
+      const name = rp.peer.name || "them";
+      return { key: `check:${rp.peer.id}`, label: `Give ${name} a check-up`, busy: "Say ahh…", ctx: "Check", time: DOCTOR.checkTime,
+        done: () => { net.publishRp({ k: "cure", to: rp.peer.id }); showWaveBanner(`${name}: a clean bill of health`, 1600); } };
+    }
+  }
+  const D = docSpots();
+  if (D) {
+    if (barNear(D, D.bag)) {
+      if (bar.role === "doctor") {
+        return { key: "docbag", label: "Put down the doctor's bag", busy: "Closing it up…", ctx: "Bag", time: DOCTOR.bagTime,
+          done: () => setBarRole(null, "Doc's bag is back on the desk.") };
+      }
+      const other = otherWithRole("doctor");
+      if (other) return { key: "docbag", info: true, label: `${other.name} is the doctor` };
+      return { key: "docbag", label: "Take the doctor's bag (doctor)", busy: "Opening it…", ctx: "Bag", time: DOCTOR.bagTime,
+        done: () => setBarRole("doctor", "You're the doctor. Hold X by anyone for a check-up: it sobers them right up.") };
+    }
+    if (barNear(D, D.tonic)) {
+      return { key: "tonic", label: "Take a tonic", busy: "Glug…", ctx: "Tonic", time: DOCTOR.tonicTime,
+        done: () => { bar.tipsy = Math.max(0, bar.tipsy - DOCTOR.tonic); audio.brassTinkle?.(2); showWaveBanner(bar.tipsy > TIPSY.onset ? "A little steadier" : "Steady as a rock", 1400); } };
+    }
+  }
+  const i = nearestSeat();
+  if (i >= 0) {
+    const s = rpSeats()[i];
+    return { key: `seat:${i}`, label: s.kind === "piano" ? "Sit at the piano" : "Sit down", ctx: "Sit", time: 0.3, done: () => sitDown(i) };
+  }
+  return null;
+}
+
+/* The nearest real player within reach, whatever's in their hands. */
+function rpNearestPlayer(reach) {
+  let best = null, bestD = reach;
+  for (const rp of remotes.byId.values()) {
+    if (!rp.peer || isBotPeer(rp.peer) || !rp.alive) continue;
+    const d = Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z);
+    if (d < bestD && Math.abs(rp.pos.y - move.pos.y) < 1.5) { best = rp; bestD = d; }
+  }
+  return best;
+}
+
+/* Fire at the piano: start a tune (the next one each time), or stop. */
+function togglePiano() {
+  if (piano.playing) { piano.playing = false; return; }
+  if (piano.played) piano.tune = (piano.tune + 1) % TUNES.length;
+  piano.played = true;
+  piano.playing = true;
+  showWaveBanner(`♪ ${TUNES[piano.tune].name}`, 1800);
+}
+const atPiano = () => seated?.s.kind === "piano" && bar.role === "pianist";
+
+/* Each frame in Socialize: the townsfolk off shift, every piano that's
+   playing (ours and the room's), heard from where we stand. */
+function updateRp(dt) {
+  if (bar.role === "pianist" && !atPiano()) setBarRole(null, null);
+  // Which NPC jobs a player has.
+  const yieldRoles = new Set();
+  const seats = rpSeats();
+  const jobs = [bar.role, ...[...net.peers.values()].filter((p) => !isBotPeer(p)).map((p) => p.role)];
+  for (const r of jobs) if (ROLES[r]) yieldRoles.add(ROLES[r].npc);
+  if (seated?.s.kind === "piano") yieldRoles.add(ROLES.pianist.npc);
+  for (const p of net.peers.values()) if (p.seat && seats?.[p.seat - 1]?.kind === "piano") yieldRoles.add(ROLES.pianist.npc);
+  const key = [...yieldRoles].sort().join();
+  if (key !== npcYieldKey && townNpcs) { npcYieldKey = key; townNpcs.setYield(yieldRoles); }
+
+  // The pianos: ours, and each player at a piano with a tune going.
+  const want = new Map();
+  if (piano.playing && atPiano()) want.set("me", { tune: piano.tune, s: seated.s });
+  for (const p of net.peers.values()) {
+    const s = p.piano && p.seat ? seats?.[p.seat - 1] : null;
+    if (s?.kind === "piano" && p.role === "pianist") want.set(p.id, { tune: p.piano - 1, s });
+  }
+  for (const [id, v] of piano.voices) {
+    const w = want.get(id);
+    if (!w || w.tune !== v.tune) { v.stop(); piano.voices.delete(id); }
+  }
+  for (const [id, w] of want) {
+    let v = piano.voices.get(id);
+    if (!v) { v = new PianoVoice(audio, { x: w.s.x, y: w.s.y + 0.6, z: w.s.z }, w.tune); piano.voices.set(id, v); }
+    // Loud in the saloon, gone a street away.
+    const d = Math.hypot(w.s.x - camera.position.x, w.s.z - camera.position.z);
+    v.update(Math.max(0, Math.min(1, 1 - (d - 10) / 28)) * 0.9);
+  }
+}
+
+function stopPianos() {
+  for (const v of piano.voices.values()) v.stop();
+  piano.voices.clear();
+  piano.playing = false;
 }
 
 function lastCall(who) {
@@ -14705,6 +14904,14 @@ function onBarMessage(p, m) {
   if (m.k === "bell") { lastCall(p.name || "the bartender"); return; }
   if (m.to !== net.id) return;
   const now = performance.now();
+  if (m.k === "cure") {
+    // Only from whoever has the doctor's bag.
+    if (p.role !== "doctor") return;
+    bar.tipsy = 0;
+    showWaveBanner(`${p.name || "The doctor"} gave you a check-up: right as rain`, 2200);
+    audio.brassTinkle?.(2);
+    return;
+  }
   if (m.k === "offer") {
     if (bar.drink) return;
     const kind = m.kind === "whiskey" ? "whiskey" : "beer";
@@ -14735,7 +14942,8 @@ function updateBar(dt) {
 
   // A sip: fire, one at a time. The drink goes down halfway through it.
   const fireNow = !localPauseOnly && !emoteWheel.isOpen && (mouseDown || (isTouch && touchState.firing) || (gamepadState.connected && gamepadState.firing));
-  if (fireNow && !bar.fireWas && bar.drink?.sips > 0 && bar.sipT <= 0 && player.alive) {
+  if (fireNow && !bar.fireWas && atPiano() && player.alive) togglePiano();   // at the piano, fire plays
+  else if (fireNow && !bar.fireWas && bar.drink?.sips > 0 && bar.sipT <= 0 && player.alive) {
     bar.sipT = SIP_TIME; bar.sipDone = false;
     if (emote) stopEmote();
   }
@@ -14755,16 +14963,18 @@ function updateBar(dt) {
   const fx = tipsyFx(bar.tipsy, now / 1000);
   if (fx.k > 0 && player.alive && !localPauseOnly) look.yaw += fx.yaw;
 
-  // The bartender: off the job if they wander out, or someone older has it.
-  if (bar.role) {
+  // The bartender: off the job if they wander out. Any job: off it if
+  // someone who got there first has it too.
+  if (bar.role === "bartender") {
     if (!B) bar.role = null;
     else {
       bar.outT = barInside(B) ? 0 : bar.outT + dt;
       if (bar.outT > BARTENDER_LEAVE_SECONDS) setBarRole(null, "You left the saloon: the apron's back on its hook.");
-      const older = otherBartender(true);
-      if (older && bar.role) setBarRole(null, `${older.name} already has the apron.`);
     }
   }
+  const older = otherWithRole(bar.role, true);
+  if (older) setBarRole(null, `${older.name} already has that job.`);
+  updateRp(dt);
 
   // Hold X.
   const act = player.alive ? barAction(B) : null;
@@ -14878,6 +15088,15 @@ function socialArmsFrame() {
       rot: [s * 0.95, 0.1 - s * 0.1, -Math.PI / 2],
       pose: "grip",
     };
+  }
+  // At the piano: both hands out on the keys, busy while a tune's going.
+  if (atPiano()) {
+    const a = piano.playing ? 1 : 0.15, t = piano.t;
+    const keysHand = (side, rate) => ({
+      pos: [side * 0.17 + Math.sin(t * 1.9 + side) * 0.03 * a, -0.3 + Math.max(0, Math.sin(t * rate)) * 0.02 * a, -0.44],
+      rot: [0.95, side * 0.1, -side * Math.PI / 2], pose: "relaxed",
+    });
+    return { R: keysHand(1, 11), L: keysHand(-1, 9), gun: false, cam: { pitch: 0, yaw: 0 }, social: true };
   }
   return { R, L: hand(-1), gun: false, cam: { pitch: barSipK() * 0.06, yaw: 0 }, social: true };
 }
@@ -16345,6 +16564,13 @@ if (/[?&]tohooks=1/.test(location.search)) {
     socialArms: () => ({ k: socialArms.k, run: socialArms.run, phase: socialArms.phase, on: fpEmoteArmsOn }),
     bar: () => ({ drink: bar.drink && { ...bar.drink }, role: bar.role, tipsy: bar.tipsy, sipT: bar.sipT, offer: !!bar.offer, outgoing: !!bar.outgoing, prompt: els.pickupPrompt.hidden ? null : els.pickupPromptText.textContent, fp: !!bar.fp?.parent, tp: !!bar.tp?.parent }),
     barState: bar,
+    // Socialize roleplay phase 2 (rp-roles.js): seats, the piano, the jobs.
+    rp: () => ({
+      seated: seated && { idx: seated.idx, kind: seated.s.kind, eye: move.eyeHeight }, role: bar.role, tipsy: bar.tipsy,
+      piano: { playing: piano.playing, tune: piano.tune, voices: [...piano.voices.keys()] }, yieldKey: npcYieldKey,
+      prompt: els.pickupPrompt.hidden ? null : els.pickupPromptText.textContent,
+    }),
+    rpSeats: () => rpSeats(), seatTaken, sitDown, standUp, docSpots: () => docSpots(),
     townNpcs: () => townNpcs,
     gloves: () => gloves, gloveRig: () => gloveRig, weaponRig: () => weaponRig,
     candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
