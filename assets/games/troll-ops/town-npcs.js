@@ -14,7 +14,14 @@
 // wipe (a rag on the bar), hammer (the anvil), brush (a horse), count
 // (money or goods on a counter), tend (the doctor over the exam table),
 // guard (arms folded, looking round), sit-read (feet up, reading), walk
-// (round a path, stopping to look about; `pace` walks it back and forth).
+// (round a path, stopping to look about; `pace` walks it back and forth),
+// phone (waiting in a line: thumbing a phone, looking up now and then).
+//
+// Optional per NPC: `height`, `build` (a bouncer's shoulders), `face` (a
+// tint), `dance` (which of DANCES), `zone` (its room, if not where it
+// stands). A map whose music has a clock passes `beat` (beats since it
+// started, trollingloud.js) and its dancers move on that beat instead of
+// their own.
 
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
@@ -27,7 +34,11 @@ const FAR = 85;      // hidden past this
 const TAG_RANGE = 12; // name tags only inside this
 /* Background extras go untagged: only someone with a job to roleplay (the
    barkeep, the sheriff, the doctor...) wears a name. */
-const UNTAGGED = new Set(["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler"]);
+const UNTAGGED = new Set(["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler", "Clubgoer", "Raver", "VIP"]);
+/* Each dance's own time per beat of the music (character.js DANCES: bounce,
+   floss, headbang, wave) and where in it the hit lands, so a beat-locked
+   dancer drops, swings or nods on the beat. */
+const DANCE_BEAT = [[1 / 3.6, 0.5], [1 / 4.4, 0], [1 / 2.6, 0.25], [1 / 3.08, 0]];
 const TAG_COLOR = "#ffd28a";   // townsfolk tags read warm, players' white
 
 /* A small name tag: "Name · Role". */
@@ -64,8 +75,15 @@ function hash01(str) {
 const _v = new THREE.Vector3();
 
 export class TownNpcs {
-  constructor(scene, cast) {
+  /* `opts` is the map's rp block: `beat` (above), `npcShadows` (false where
+     the crowd is indoors under lights that cast none), and `view`: { zoneOf(x,
+     y, z), sees(a, b) }, which rooms can see into which, so a crowd in a room
+     the camera can't see into isn't drawn. */
+  constructor(scene, cast, { beat = null, npcShadows = true, view = null } = {}) {
     this.scene = scene;
+    this.beat = beat;
+    this.shadows = npcShadows;
+    this.view = view;
     this.material = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
     this.list = cast.map((c, i) => this.spawn(c, i));
     this.t = 0;
@@ -73,12 +91,12 @@ export class TownNpcs {
 
   spawn(c, i) {
     const seed = hash01(c.name + i);
-    const rig = buildHumanoid(this.material, { height: 1.72 + seed * 0.16, gun: false });
-    rig.face = `${c.act === "drink" && seed > 0.75 ? "sad" : "grin"}:${TINTS[Math.floor(seed * TINTS.length) % TINTS.length]}`;
+    const rig = buildHumanoid(this.material, { height: c.height ?? 1.72 + seed * 0.16, build: c.build ?? 1, gun: false });
+    rig.face = `${c.act === "drink" && seed > 0.75 ? "sad" : "grin"}:${c.face || TINTS[Math.floor(seed * TINTS.length) % TINTS.length]}`;
     const tag = UNTAGGED.has(c.role) ? null : npcTag(`${c.name} · ${c.role}`);
     // Above the head either way: sitting drops the whole body, tag and all.
     if (tag) { tag.position.y = 2.2; rig.root.add(tag); }
-    rig.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    rig.root.traverse((o) => { if (o.isMesh) o.castShadow = this.shadows; });
     this.scene.add(rig.root);
     const n = { c, rig, tag, seed, phase: seed * 10, t: seed * 20, poseAcc: 0, x: c.x ?? 0, z: c.z ?? 0, yaw: c.yaw ?? 0 };
     if (c.act === "drink") {
@@ -101,6 +119,9 @@ export class TownNpcs {
       while (d > lens[n.seg]) { d -= lens[n.seg]; n.seg = (n.seg + 1) % nSeg; }
       n.segT = d;
     }
+    // A walker keeps to one room (its path's first corner says which)
+    const at = c.path ? c.path[0] : [n.x, n.z];
+    n.zone = c.zone ?? (this.view ? this.view.zoneOf(at[0], c.y ?? 0, at[1]) : null);
     return n;
   }
 
@@ -118,9 +139,10 @@ export class TownNpcs {
   /* `eye`: where the local camera is, for the level of detail. */
   update(dt, eye) {
     this.t += dt;
+    const from = this.view ? this.view.zoneOf(eye.x, eye.y, eye.z) : null;
     for (const n of this.list) {
       const d = Math.hypot(n.x - eye.x, n.z - eye.z);
-      const hidden = d > FAR || n.off;
+      const hidden = d > FAR || n.off || (from !== null && !this.view.sees(from, n.zone));
       n.rig.root.visible = !hidden;
       // Tags only up close, so a full room doesn't turn into a wall of names.
       if (n.tag) n.tag.visible = d < TAG_RANGE;
@@ -174,7 +196,12 @@ export class TownNpcs {
     aimRig(rig, n.yaw, dt, { snap: true, moving });
 
     if (c.act === "dance") {
-      DANCES[Math.floor(n.seed * DANCES.length) % DANCES.length](rig, t);
+      const i = c.dance ?? Math.floor(n.seed * DANCES.length) % DANCES.length;
+      // On the music's beat if the map has one (a whole beat in for some,
+      // so the two-beat moves don't all sway the same way)
+      const b = this.beat?.();
+      const [perBeat, hit] = DANCE_BEAT[i];
+      DANCES[i](rig, b == null ? t : (b + hit + (n.seed > 0.5 ? 1 : 0)) * perBeat);
       return;
     }
     poseHumanoid(rig, {
@@ -237,9 +264,20 @@ export class TownNpcs {
       }
       case "guard": {
         // Arms folded, the head slowly scanning the street.
-        p.armL.rotation.set(0.55, 0, -0.55); p.elbowL.rotation.set(1.85, 0, 0);
-        p.armR.rotation.set(0.6, 0, 0.55); p.elbowR.rotation.set(1.85, 0, 0);
+        // (upper arms hang a touch forward; each forearm swings flat across
+        // the chest about the elbow's z, then forward about its y)
+        p.armL.rotation.set(0.35, 0, 0.05); p.elbowL.rotation.set(0, 0.95, 2.02);
+        p.armR.rotation.set(0.42, 0, -0.05); p.elbowR.rotation.set(0, -0.95, -2.02);
         p.headPivot.rotation.y = sw(0.35) * 0.6;
+        break;
+      }
+      case "phone": {
+        // Thumbing a phone held at the chest; every so often look up the line.
+        const up = Math.max(0, sw(0.45)) ** 6;
+        p.armR.rotation.set(0.95, 0, -0.25); p.elbowR.rotation.set(1.55, 0, 0);
+        p.armL.rotation.set(0.2, 0, 0.12); p.elbowL.rotation.set(0.3, 0, 0);
+        p.headPivot.rotation.x = 0.45 * (1 - up);
+        p.headPivot.rotation.y = up * sw(0.3, 1) * 0.7;
         break;
       }
       case "sit-read": {

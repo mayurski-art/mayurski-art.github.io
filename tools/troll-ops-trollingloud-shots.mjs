@@ -40,11 +40,13 @@ const VIEWS = {
   terrace:  [10.5, 6.2, 21.2, -3, 7.2, 13, 76],
   roof:     [22, 11, 19, -5, 9, -14, 70],
   alley:    [-16, 1.7, 31, 4, 4.5, 22, 72],
+  door:     [7, 1.8, 29, -6, 1.2, 22.5, 66],
   yard:     [-22, 2, -31.5, 10, 2.5, -24, 70],
   aerial:   [48, 34, 52, 0, 3, 0, 55],
   siteA:    [-27.5, 3.5, 11.5, -19.6, 0.3, 8.25, 80],
   siteB:    [27.5, 3.5, 11.5, 16, 0.3, 8.3, 80],
 };
+if (process.env.VIEW) VIEWS.custom = process.env.VIEW.split(",").map(Number);
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(VIEWS);
 const MAP = process.env.MAP || "trollingloud";
 
@@ -56,15 +58,15 @@ page.on("pageerror", (e) => console.log(`page error: ${e.message}`));
 page.on("console", (m) => { if (m.type() === "error") console.log(`console: ${m.text()}`); });
 await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
-await page.evaluate(async ({ map, tier }) => {
+await page.evaluate(async ({ map, tier, mode }) => {
   const T = window.__trollOps;
   if (tier) T.settings.gfx = tier;
-  T.setMode("tdm");
+  T.setMode(mode);
   if (T.els.noBots) T.els.noBots.checked = true;
   T.loadout.mapId = map;
   await T.startGame();
   if (T.isStaging()) T.endStaging();
-}, { map: MAP, tier: process.env.TIER || null });
+}, { map: MAP, tier: process.env.TIER || null, mode: process.env.MODE || "tdm" });
 await new Promise((r) => setTimeout(r, +(process.env.WAIT || 5000)));
 // the tier's passes (game.js GFX: medium drops SSAO, low drops bloom too),
 // set directly in case applyGraphics hasn't run since the setting changed
@@ -85,6 +87,8 @@ for (const id of ids) {
       cam.lookAt(v[3], v[4], v[5]);
       cam.updateProjectionMatrix();
       cam.updateMatrixWorld(true);
+      // Socialize: the crowd shows by room from where the camera is now
+      T.townNpcs?.()?.update(0, cam.position);
       for (const p of C.passes) for (const k of ["uHitFlash", "uLowHp", "uAberration", "uSuppress"]) if (p.uniforms?.[k]) p.uniforms[k].value = 0;
       R.info.autoReset = false;
       R.info.reset();

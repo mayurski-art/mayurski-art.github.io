@@ -1004,7 +1004,7 @@ function terrace(K, M, N, S, lights) {
   K.solid(-13.55, 17.5, 0.5, 5, 1.0, { y: UP, pen: 3, mat: M.blackGloss });
   for (let z = 15.6; z < 19.6; z += 0.9) stool(K, M, -10.3, z, UP);
   sign(S, N, M, "lol", -14 + T / 2 + 0.05, UP + 2.4, 17.5, 1.3, { ry: Math.PI / 2, beat: 0.35, halo: 0xff3fb4 });
-  for (const [x, z, ry] of [[6, 15.6, Math.PI], [8, 15.6, Math.PI], [6, 18.6, 0], [8, 18.6, 0], [10.8, 17.1, -Math.PI / 2]]) armchair(K, M, x, z, UP, ry);
+  for (const [x, z, ry] of [[6, 15.6, 0], [8, 15.6, 0], [6, 18.6, Math.PI], [8, 18.6, Math.PI], [10.8, 17.1, -Math.PI / 2]]) armchair(K, M, x, z, UP, ry);
   for (const [x, z] of [[7, 17.1]]) {
     K.api.ghostBox(x, z, 1.4, 0.8, 0.42, { y: UP, pen: 2 });
     K.box(M.tableTop, x, UP, z, 1.4, 0.42, 0.8);
@@ -1614,6 +1614,166 @@ function sfx(kind, p) {
   }
 }
 
+/* ============================================================ the crowd
+
+   Socialize only (town-npcs.js): who's in the club and what they're doing.
+   `yaw` is the camera's (0 faces -z, +PI/2 faces -x); a seated NPC's `y` is
+   the seat top. The dancers move on the club's beat (rp.beat). */
+
+const FACE_YAW = { "+z": Math.PI, "-z": 0, "+x": -Math.PI / 2, "-x": Math.PI / 2 };
+
+/* Which room a point is in, and which rooms can see into which (through a
+   wide doorway, the open atrium, the stair to the roof), so the crowd in a
+   room the camera can't see into isn't drawn. The staff rooms are one room;
+   the roof's strollers ("sky") walk over the skylight, seen from the hall. */
+function clubZone(x, y, z) {
+  if (y > ROOF - 0.5) return "roof";
+  if (x < B.x0 || x > B.x1 || z < B.z0 || z > B.z1) return "street";
+  if (z > 13) return y > UP - 0.5 ? "terrace" : x < -14 ? "rest" : x > 14 ? "coat" : "lobby";
+  if (Math.abs(x) < 14) return z < HALL.z0 ? "back" : "hall";
+  if (x < -14) return z < -7 ? "back" : "vip";
+  return z < -9 ? "back" : "bar";
+}
+const CLUB_SEES = {
+  street: ["lobby"], lobby: ["street", "hall", "coat", "rest"], coat: ["lobby"], rest: ["lobby"],
+  hall: ["lobby", "vip", "bar", "back", "sky"], vip: ["hall", "back"], bar: ["hall", "back"], back: ["hall", "vip", "bar"],
+  terrace: ["roof", "sky", "street"], roof: ["terrace", "sky"],
+};
+const CLUB_VIEW = { zoneOf: clubZone, sees: (a, b) => a === b || CLUB_SEES[a]?.includes(b) };
+
+/* The seat of a booth() (same layout), `n` sitters along it. */
+function boothSeats(cx, cz, face, y, w = 2.8, n = 2) {
+  const L = (lx, lz) => face === "+z" ? [cx + lx, cz + lz] : face === "-z" ? [cx - lx, cz - lz] : face === "+x" ? [cx + lz, cz - lx] : [cx - lz, cz + lx];
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const [x, z] = L(n === 1 ? -0.3 : (i ? 1 : -1) * (w - 0.88) / 4, -1.9 / 2 + 0.8);
+    out.push({ x, z, y: y + 0.42, yaw: FACE_YAW[face], sit: true });
+  }
+  return out;
+}
+
+/* Standing at a table, `r` out from it at angle `a`, facing it. */
+function atTable(tx, tz, y, a, r = 0.62) {
+  const x = tx + Math.cos(a) * r, z = tz + Math.sin(a) * r;
+  return { x, z, y, yaw: Math.atan2(x - tx, z - tz) };
+}
+
+function clubNpcs() {
+  const W = 14 - T / 2 - 0.95;          // the hall's side booths, |x|
+  const SB = 13 - T / 2 - 0.95;         // its south booths, z
+  const STOOL = 0.78;                   // a bar stool's seat, over the floor
+  const cast = [];
+  const add = (name, role, act, spot, extra = {}) => cast.push({ name, role, act, ...spot, ...extra });
+  const guard = { height: 1.98, build: 1.4, face: "stone" };
+  let n = 0;
+  const extra = (role, act, spot, more) => add(`${role} ${++n}`, role, act, spot, more);
+
+  /* ---- the door: two bouncers, the list, and the line along the rope */
+  add("Big Lulz", "Bouncer", "guard", { x: -2.4, z: 23.3, y: 0, yaw: Math.PI }, guard);
+  add("Tank", "Bouncer", "guard", { x: 2.4, z: 23.3, y: 0, yaw: Math.PI }, guard);
+  add("Clipboard Carl", "Door host", "count", { x: 4.6, z: 23.2, y: 0, yaw: Math.PI });
+  const line = ["phone", "guard", "phone", "dance", "phone", "phone", "guard", "phone"];
+  line.forEach((act, i) => extra("Clubgoer", act, { x: -4.3 - i * 0.95, z: 23.35 + (i % 3) * 0.12, y: 0, yaw: -Math.PI / 2 + (i % 2 ? 0.25 : -0.2) }, act === "dance" ? { dance: 0 } : {}));
+
+  /* ---- the lobby and the coat check */
+  add("Velvet", "Host", "count", { x: 5.5, z: 18.85, y: FL, yaw: Math.PI });
+  add("Brick", "Bouncer", "guard", { x: 0, z: 13.85, y: FL, yaw: Math.PI }, guard);
+  extra("Clubgoer", "phone", { x: -12.05, z: 15.4, y: FL + 0.42, yaw: -Math.PI / 2, sit: true });
+  extra("Clubgoer", "drink", { x: 12.05, z: 16.4, y: FL + 0.42, yaw: Math.PI / 2, sit: true });
+  add("Hangers", "Coat check", "count", { x: 21.75, z: 17.0, y: FL, yaw: 0 });
+  extra("Clubgoer", "phone", { x: 20.6, z: 15.3, y: FL, yaw: Math.PI });
+
+  /* ---- the dance floor: a go-go dancer on the podium, the crowd round it
+     facing the DJ, the hype man on the stage */
+  add("Glitter", "Go-go dancer", "dance", { x: DC.x, z: DC.z, y: 0.28, yaw: 0 }, { dance: 3 });
+  add("Hype Hank", "Hype man", "dance", { x: 3.4, z: -14.3, y: STAGE.top, yaw: Math.PI }, { dance: 2 });
+  const R = rng(41);
+  const spots = [];
+  for (let tries = 0; spots.length < 16 && tries < 400; tries++) {
+    const x = DANCE.x0 + 0.7 + R() * (DANCE.x1 - DANCE.x0 - 1.4), z = DANCE.z0 + 0.7 + R() * (DANCE.z1 - DANCE.z0 - 1.4);
+    if (Math.hypot(x - DC.x, z - DC.z) < 1.7) continue;           // the podium
+    if (spots.some((s) => Math.hypot(s.x - x, s.z - z) < 1.25)) continue;
+    spots.push({ x, z });
+  }
+  for (const s of spots) {
+    // most face the DJ, some turn to a friend or the podium
+    const to = R() < 0.7 ? { x: 0, z: -14.5 } : { x: DC.x + (R() - 0.5) * 4, z: DC.z + (R() - 0.5) * 4 };
+    extra("Raver", "dance", { x: s.x, z: s.z, y: 0, yaw: Math.atan2(s.x - to.x, s.z - to.z) }, { dance: Math.floor(R() * 4) });
+  }
+
+  /* ---- the hall's booths, cocktail tables, and the doors staff watch */
+  for (const s of [-1, 1]) {
+    const face = s < 0 ? "+x" : "-x";
+    boothSeats(s * W, -7, face, FL).forEach((p) => extra("Clubgoer", "drink", p));
+    boothSeats(s * W, 3, face, FL, 2.8, 1).forEach((p) => extra("Clubgoer", "phone", p));
+    boothSeats(s * 10, SB, "-z", FL).forEach((p, i) => extra("Clubgoer", i ? "phone" : "drink", p));
+    extra("Clubgoer", "drink", atTable(s * 8.4, -12, FL, s < 0 ? 0.3 : Math.PI - 0.3));
+    extra("Clubgoer", "drink", atTable(s * 8.2, -15.6, FL, Math.PI / 2 + s * 0.4), { drink: "whiskey" });
+    add(s < 0 ? "Knuckles" : "Moose", "Security", "guard", { x: s * 10.2, z: -16.1, y: FL, yaw: Math.PI }, guard);
+  }
+  add("Rope", "VIP door", "guard", { x: -12.6, z: -4.1, y: FL, yaw: -Math.PI / 2 }, guard);
+
+  /* ---- the VIP lounge: croc booths full, bottle service doing the round */
+  boothSeats(-22, -5.3, "+z", FL, 3.2).forEach((p) => extra("VIP", "drink", p, { drink: "whiskey" }));
+  boothSeats(-22, 11.3, "-z", FL, 3.2).forEach((p, i) => extra("VIP", i ? "drink" : "phone", p));
+  boothSeats(-28.6, 3, "+x", FL, 3.2).forEach((p) => extra("VIP", "drink", p));
+  boothSeats(-15.4, 3, "-x", FL, 3.2, 1).forEach((p) => extra("VIP", "drink", p, { drink: "whiskey" }));
+  extra("VIP", "drink", atTable(-24.5, 5.5, FL, -0.6));
+  extra("VIP", "drink", atTable(-19.5, 0.5, FL, 2.4), { drink: "whiskey" });
+  extra("VIP", "dance", { x: -22.6, z: 2.5, y: FL, yaw: -2.4 }, { dance: 1 });
+  extra("VIP", "dance", { x: -21.4, z: 3.5, y: FL, yaw: 0.7 }, { dance: 0 });
+  add("Bubbles", "Bottle service", "walk", { y: FL, path: [[-26, -1.6], [-18, -1.6], [-18, 8], [-26, 8]], at: 0.15 });
+
+  /* ---- the main bar: two behind it, the stools, the high-tops */
+  add("Shots McGee", "Bartender", "wipe", { x: 27.6, z: -1, y: FL, yaw: Math.PI / 2 });
+  add("Pourtia", "Bartender", "count", { x: 27.6, z: 6.2, y: FL, yaw: Math.PI / 2 });
+  for (const k of [1, 2, 4, 7, 8, 11, 14]) {
+    extra("Barfly", "drink", { x: 26 - 1.05, z: -5.5 + k * 0.95, y: FL + STOOL, yaw: -Math.PI / 2, sit: true, stool: true }, k % 3 ? {} : { drink: "whiskey" });
+  }
+  for (const [x, z, side] of [[18, -5, -1], [18, 0.5, 1], [21.5, 3.5, -1], [21.5, 3.5, 1], [21.5, -2.5, 1]]) {
+    extra("Clubgoer", "drink", { x: x + side * 0.7, z, y: FL + STOOL, yaw: side * Math.PI / 2, sit: true, stool: true });
+  }
+  extra("Clubgoer", "drink", atTable(21.5, 9.5, FL, Math.PI / 2 + 0.3));
+  extra("Clubgoer", "phone", atTable(18, 6, FL, -Math.PI / 2));
+
+  /* ---- the mezzanine: booths, people on the rail watching the floor,
+     strollers round the U */
+  for (const s of [-1, 1]) {
+    const face = s < 0 ? "+x" : "-x";
+    boothSeats(s * W, s < 0 ? -7 : 3, face, UP).forEach((p) => extra("Clubgoer", "drink", p));
+    boothSeats(s * W, s < 0 ? 3 : -7, face, UP, 2.8, 1).forEach((p) => extra("Clubgoer", "phone", p));
+    for (const z of s < 0 ? [-8.5, 0.5] : [-4.5, 5.5]) extra("Clubgoer", "drink", { x: s * (ARM + 0.4), z, y: UP, yaw: s * Math.PI / 2 });
+  }
+  for (const x of [-3, 3.5]) extra("Clubgoer", "drink", { x, z: S_ARM + 0.45, y: UP, yaw: 0 });
+  extra("Clubgoer", "drink", atTable(4.5, 11, UP, Math.PI / 2));
+  const U_LANE = [[-10.8, -12.5], [-10.8, 9.9], [10.8, 9.9], [10.8, -12.5]];
+  extra("Clubgoer", "walk", { y: UP, path: U_LANE, pace: true, at: 0.2 });
+  extra("Clubgoer", "walk", { y: UP, path: U_LANE, pace: true, at: 0.7 });
+
+  /* ---- back of house */
+  add("MC Kek", "Headliner", "tend", { x: -25, z: -8.3, y: FL, yaw: Math.PI });
+  extra("Clubgoer", "phone", { x: -29.05, z: -18.5, y: FL + 0.42, yaw: -Math.PI / 2, sit: true });
+  add("Chef Lolz", "Cook", "count", { x: 21, z: -14.3, y: FL, yaw: 0 });
+  add("Big Boss", "Manager", "count", { x: -19.5, z: -9.4, y: UP, yaw: Math.PI });
+  add("Fader", "Sound tech", "count", { x: 18.5, z: -10.95, y: UP, yaw: Math.PI });
+
+  /* ---- the terrace: the neon bar, the lounge, the parapet */
+  add("Neon Nina", "Bartender", "wipe", { x: -12.45, z: 17.5, y: UP, yaw: -Math.PI / 2 });
+  for (const z of [15.6, 17.4, 19.2]) extra("Barfly", "drink", { x: -10.3, z, y: UP + STOOL, yaw: Math.PI / 2, sit: true, stool: true });
+  for (const [x, z, yaw] of [[6, 15.65, Math.PI], [8, 18.55, 0], [10.75, 17.1, Math.PI / 2]]) extra("Clubgoer", "drink", { x, z, y: UP + 0.42, yaw, sit: true });
+  extra("Clubgoer", "drink", { x: -6.5, z: 21.3, y: UP, yaw: Math.PI });
+  extra("Clubgoer", "phone", { x: 9.2, z: 21.3, y: UP, yaw: Math.PI + 0.3 });
+
+  /* ---- the roof: the Sky Bar, the lounge pods, a lap round the skylight */
+  add("Skye", "Bartender", "wipe", { x: 0, z: -19.9, y: ROOF, yaw: Math.PI });
+  for (const x of [-2.5, -0.5, 2.5]) extra("Barfly", "drink", { x, z: -17.8, y: ROOF + STOOL, yaw: 0, sit: true, stool: true });
+  for (const [x, z, yaw] of [[-10, -11.95, Math.PI], [-8, -9.55, 0], [10, -11.95, Math.PI], [8, -9.55, 0]]) extra("Clubgoer", "drink", { x, z, y: ROOF + 0.42, yaw, sit: true });
+  const LAP = [[-11, -6], [11, -6], [11, 7], [-11, 7]];
+  extra("Clubgoer", "walk", { y: ROOF, path: LAP, at: 0, zone: "sky" });
+  extra("Clubgoer", "walk", { y: ROOF, path: LAP, at: 0.5, zone: "sky" });
+  return cast;
+}
+
 /* ================================================================ the map */
 
 export const TROLLINGLOUD = {
@@ -1647,6 +1807,9 @@ export const TROLLINGLOUD = {
     club: { ...B, top: ROOF },
     input: () => (ensureSound() ? SND.song : null),
   },
+  // Socialize: the crowd (town-npcs.js), dancing on the club's clock; no
+  // shadows (indoors under neon that casts none), drawn room by room
+  rp: { npcs: () => clubNpcs(), beat: () => U.uBeatPos.value, npcShadows: false, view: CLUB_VIEW },
   // for tools/troll-ops-trollingloud-test.mjs
   debug: () => ({
     active: !!ACTIVE, lights: ACTIVE?.lights.length ?? 0, ballBoost: ACTIVE?.ballBoost ?? 0,

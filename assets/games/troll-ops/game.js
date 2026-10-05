@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1";
@@ -34,7 +34,7 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1";
@@ -48,7 +48,7 @@ import {
   BEER_SIPS, GRAB_TIME, FILL_TIME, FILL_TIME_BARTENDER, POUR_TIME, SIP_TIME, APRON_TIME,
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
 } from "./saloon-bar.js?v=sb1";
-import { TownNpcs } from "./town-npcs.js?v=tn3";
+import { TownNpcs } from "./town-npcs.js?v=tn4";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst-soc1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
@@ -11306,7 +11306,7 @@ function beginMatch(mapId = null) {
   loadMap(matchMapId(mapId));
   // Socialize: the map's townsfolk (town-npcs.js), if it has any.
   townNpcs?.dispose();
-  townNpcs = isSocial() && builtMap?.map?.rp?.npcs ? new TownNpcs(scene, builtMap.map.rp.npcs()) : null;
+  townNpcs = isSocial() && builtMap?.map?.rp?.npcs ? new TownNpcs(scene, builtMap.map.rp.npcs(), builtMap.map.rp) : null;
   player.armor = 0;
   player.plates = 0;
   player.heals = 0;

@@ -33,12 +33,6 @@ Follow the 2a pattern:
 - Next: the phases in that doc.
 - Bouncers there are AI enemies, separate from the Socialize NPCs.
 
-### Trolling Loud Socialize crowd (queued)
-- Wanted: club NPCs in Socialize, i.e. dancers on the beat, the bar crew, booth sitters, the DJ, door security (rope line, hall, VIP, backstage), and strollers on the balcony and roof.
-- `town-npcs.js` is now on main, so this can start.
-- Add `rp: { npcs: () => clubNpcs() }` to `trollingloud.js` as data. New club acts (e.g. dance on the DJ's beat) go into town-npcs.js.
-- The booth's DJ sprite (`S.dj`) already bobs on `uKick`, i.e. on the record's beat.
-
 ### Zombies (ZR4 done): gotchas
 - **One mesh per zombie:** build_zombies.blender.py `atlas_merge` joins every part onto a 2048x1024 atlas (skin = left half, cloth/mask 512 cells, shoes/teeth/eyes 256). The per-zombie tint only touches u < 0.5 (zombie-models.js `skinTinted`); a new part must get a cell, not its own material.
 - **Also:** a popped head is `bones.head` scaled to 0.001, re-applied after every mixer update (clips key it). Gore materials are pre-compiled in warmShaders via `goreStandIns()`; any new gore material must join it or the first kill stalls a frame.
@@ -119,6 +113,7 @@ The user said "HOLD OFF" until they say go.
 - **Cancelled 2026-10-03:** Purge XP; $TRUTHS tournaments; the whole 2026-09-30 open-asks list.
 
 ### Small known gaps (fix if touched)
+- **Flaky test:** trollingloud-test's "zombies reach a player on the ground (bar)" scores 1.6-2.5 m against a < 2.5 limit, on main as well, so it fails about 1 run in 3.
 - **Bots:**
   - Bots use the ground floor only on every map, and rarely visit Hollowgrin's far districts.
   - Bots don't shoot down the VTOL Warship or Swarm drones.
@@ -289,6 +284,12 @@ Map rules:
 - **Townsfolk:** `town-npcs.js`, cast from `townNpcs()`.
   - Local, seeded, no collision, not networked.
   - LOD: full rate < 40 m, a few poses a second to 85 m, hidden beyond.
+  - Each NPC is 4 draws (body, 2 mitts, face) plus 4 for its shadow, so a big cast needs the map's `rp` options:
+    - `npcShadows: false` turns the shadows off.
+    - `view: { zoneOf, sees }` draws only the rooms the camera can see into.
+    - `beat()` puts the dancers on the music's clock.
+  - Trolling Loud (`clubNpcs()`, 119 NPCs) uses all three, which keeps its draws at or under a TDM match's.
+  - The faces render from both sides, so a screenshot can't show which way an NPC faces; look at the knees.
 - **DJ Lulz** (`dj-lulz.js`, Trolling Loud, Socialize):
   - He plays music.js TRACKS for the room through the booth chain (`TROLLINGLOUD.dj.input()` → muffled lowpass + panner).
   - **Requests:** hold X at the booth (0, -12.9) to open the panel. A request goes PENDING (2.6 s), then QUEUED. One per player; queue max 6. A request mixes the DJ's own pick out after ≥ 25 s.
@@ -389,6 +390,7 @@ Map rules:
 - `bar-test`
 - `rp-test`
 - `dj-test` (2 players, SHOTS=dir)
+- `club-crowd-test` (Trolling Loud's crowd). Shots: `MODE=social node tools/troll-ops-trollingloud-shots.mjs [views]`, `VIEW=x,y,z,lx,ly,lz,fov` for a custom camera.
 
 **Maps**
 - `trollingloud-test` (SKIP_Z=1)
@@ -446,6 +448,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-05**
+  - Trolling Loud Socialize crowd: 119 club NPCs, including bouncers, the door line, bartenders, the go-go and dancers on the beat, VIP booths, the mezzanine, terrace and roof. New `phone` act, the `guard` arms now fold, and the terrace armchairs face their table. Test: tools/troll-ops-club-crowd-test.mjs.
   - Zombies ZR4 part 2: each zombie is one skinned mesh on one atlas (was 4-7). Draws with 12 zombies: Hollowgrin 515 -> 399, Pentagrin ~4300 -> 2377; fps about 2x on Hollowgrin.
   - Zombies ZR4 part 1: head-pop on headshot kills, blood hits ("blood" surface), a glossy blood pool under each body, synthesized groans/snarls/death gurgles per zombie voice (audio.js `_zombieVoice`), throttled horde-wide. Test: tools/troll-ops-zombie-test.mjs (ALL PASS).
   - One map per room: everyone in a versus room follows the host's map (game.js `followsHostMap`, net.js `publishRoomMap`). Test: tools/troll-ops-room-map-test.mjs.
