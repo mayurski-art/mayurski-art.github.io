@@ -25,6 +25,7 @@ import bpy
 import math
 import os
 import sys
+import numpy as np
 from mathutils import Vector
 
 from bl_ext.blender_org.mpfb.services.humanservice import HumanService
@@ -1028,7 +1029,7 @@ def bake_object(ob, size, name, normal_from=None, rough=0.7):
         L.new(nm.outputs["Normal"], b.inputs["Normal"])
     ob.data.materials.clear()
     ob.data.materials.append(m)
-    return m
+    return col, nrm
 
 
 def _snapshot(ob, name, keep_armature=False):
@@ -1089,10 +1090,151 @@ def _tris(ob):
 CLOTH_TRIS = 7000      # a garment over this is decimated down to it
 
 
+# ---------------------------------------------------------------- atlas
+# Every part of a zombie is joined into ONE skinned mesh with ONE material,
+# so a zombie costs one draw (plus its shadow) instead of one per garment.
+# Each part's baked texture is pasted into a cell of a 2048x1024 atlas: the
+# skin (1024) on the left, garments and the mask (512) on the right, and
+# the small parts (256: shoes, teeth, eyes) four to a 512 cell. The per-part
+# roughness and the eyes' faint glow ride along as quarter-size maps.
+ATLAS_W, ATLAS_H = 2048, 1024
+EYE_COL = 0xd6dbd2
+EYE_GLOW = (0x9aa49c, 0.35)    # milky eyes catch a little light in the dark
+
+
+def _srgb(c):
+    return c * 12.92 if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+
+
+def _px(img):
+    w, h = img.size
+    a = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(a)
+    return a.reshape(h, w, 4)
+
+
+def _cells(parts):
+    """parts: [(ob, kind, size, rough, col_img, nrm_img)] -> a cell (x, y)
+    for each, in atlas pixels (origin bottom-left, like UVs)."""
+    big = [(1024, 0), (1536, 0), (1024, 512), (1536, 512)]
+    small = []
+    out = []
+    for p in parts:
+        size = p[2]
+        if size == 1024:
+            out.append((0, 0))
+        elif size == 512:
+            out.append(big.pop(0))
+        else:
+            if not small:
+                x, y = big.pop()
+                small = [(x, y), (x + 256, y), (x, y + 256), (x + 256, y + 256)]
+            out.append(small.pop(0))
+    return out
+
+
+def atlas_merge(name, rig, parts):
+    sc = bpy.context.scene
+    cells = _cells(parts)
+    col = np.zeros((ATLAS_H, ATLAS_W, 4), np.float32)
+    col[..., 3] = 1.0
+    nrm = np.empty((ATLAS_H, ATLAS_W, 4), np.float32)
+    nrm[:] = (0.5, 0.5, 1.0, 1.0)
+    q = 4                                     # the param maps are quarter size
+    rough = np.empty((ATLAS_H // q, ATLAS_W // q, 4), np.float32)
+    rough[:] = (0.0, 0.7, 0.0, 1.0)
+    glow = np.zeros((ATLAS_H // q, ATLAS_W // q, 4), np.float32)
+    glow[..., 3] = 1.0
+    for (ob, kind, size, r, cimg, nimg), (x, y) in zip(parts, cells):
+        if cimg is not None:
+            src = _px(cimg)
+            assert src.shape[0] == size, (ob.name, src.shape, size)
+            col[y:y + size, x:x + size] = src
+            if kind != "cloth":                # only cloth is torn
+                col[y:y + size, x:x + size, 3] = 1.0
+        else:                                 # the flat eyes
+            col[y:y + size, x:x + size] = [_srgb(v) for v in hexlin(EYE_COL)[:3]] + [1.0]
+            g = [_srgb(v * EYE_GLOW[1]) for v in hexlin(EYE_GLOW[0])[:3]] + [1.0]
+            glow[y // q:(y + size) // q, x // q:(x + size) // q] = g
+        if nimg is not None:
+            nrm[y:y + size, x:x + size] = _px(nimg)
+        rough[y // q:(y + size) // q, x // q:(x + size) // q, 1] = r
+        # this part's UVs into its cell (the eyes' squeezed to the middle:
+        # their cell is one flat colour)
+        me = ob.data
+        keep = me.uv_layers.active
+        for uv in [u for u in me.uv_layers if u != keep]:
+            me.uv_layers.remove(uv)
+        keep = me.uv_layers[0]
+        keep.name = "UVMap"
+        uv = np.empty(len(keep.data) * 2, np.float32)
+        keep.data.foreach_get("uv", uv)
+        uv = uv.reshape(-1, 2)
+        if cimg is None:
+            uv = 0.25 + 0.5 * np.clip(uv, 0, 1)
+        elif uv.min() < -0.01 or uv.max() > 1.01:
+            print(f"WARN {ob.name}: UVs outside 0..1 ({uv.min():.2f}..{uv.max():.2f}), wrapped")
+            uv = np.mod(uv, 1.0)
+        uv[:, 0] = (x + uv[:, 0] * size) / ATLAS_W
+        uv[:, 1] = (y + uv[:, 1] * size) / ATLAS_H
+        keep.data.foreach_set("uv", uv.ravel())
+
+    def img(nm, arr, data=False):
+        h, w = arr.shape[:2]
+        im = bpy.data.images.new(nm, w, h, alpha=True, float_buffer=False)
+        if data:
+            im.colorspace_settings.name = "Non-Color"
+        im.pixels.foreach_set(arr.ravel())
+        return _save(im)
+
+    # zombie-models.js tints the material named *_skin; the baked skin's
+    # own material has that name until now
+    old = bpy.data.materials.get(f"ZB_{name}_skin")
+    if old:
+        old.name = f"ZB_{name}_skin_baked"
+    m = bpy.data.materials.new(f"ZB_{name}_skin")
+    N, L = _nodes(m)
+    b = N["Principled BSDF"]
+    tc = N.new("ShaderNodeTexImage")
+    tc.image = img(f"{name}_atlas", col)
+    L.new(tc.outputs["Color"], b.inputs["Base Color"])
+    L.new(tc.outputs["Alpha"], b.inputs["Alpha"])
+    tn = N.new("ShaderNodeTexImage")
+    tn.image = img(f"{name}_atlas_nrm", nrm, data=True)
+    nm = N.new("ShaderNodeNormalMap")
+    L.new(tn.outputs["Color"], nm.inputs["Color"])
+    L.new(nm.outputs["Normal"], b.inputs["Normal"])
+    tr = N.new("ShaderNodeTexImage")
+    tr.image = img(f"{name}_atlas_rough", rough, data=True)
+    sep = N.new("ShaderNodeSeparateColor")
+    L.new(tr.outputs["Color"], sep.inputs["Color"])
+    L.new(sep.outputs["Green"], b.inputs["Roughness"])
+    b.inputs["Metallic"].default_value = 0.0
+    tg = N.new("ShaderNodeTexImage")
+    tg.image = img(f"{name}_atlas_glow", glow)
+    L.new(tg.outputs["Color"], b.inputs["Emission Color"])
+    b.inputs["Emission Strength"].default_value = 1.0
+    m.use_backface_culling = False           # torn cloth shows its inside
+
+    bpy.ops.object.select_all(action="DESELECT")
+    for p in parts:
+        p[0].select_set(True)
+    body = parts[0][0]
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.join()
+    body.data.materials.clear()
+    body.data.materials.append(m)
+    for poly in body.data.polygons:
+        poly.material_index = 0
+    body.name = f"ZB_{name}"
+    return body
+
+
 def export_look(name, look):
-    """zombie-<name>.glb: the rig with its clips, a decimated body with a
-    baked skin set (colour + normal from the full-detail body), teeth, eyes
-    and each garment with its own baked colour+alpha."""
+    """zombie-<name>.glb: the rig with its clips and ONE skinned mesh: a
+    decimated body with a baked skin (colour + normal from the full-detail
+    body), teeth, eyes and each garment (baked colour + alpha tears), joined
+    on one atlas (atlas_merge)."""
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     sc.cycles.samples = 4
@@ -1106,10 +1248,12 @@ def export_look(name, look):
     high = _snapshot(bm, "ZB_high")
     body = _snapshot(bm, "ZB_body")
     _decimate(body, float(os.environ.get("ZB_BODY_RATIO", "0.26")))
-    bake_object(body, int(os.environ.get("ZB_SKIN_SIZE", "1024")), f"{name}_skin", normal_from=high, rough=0.62)
+    size = int(os.environ.get("ZB_SKIN_SIZE", "1024"))
+    col, nrm = bake_object(body, size, f"{name}_skin", normal_from=high, rough=0.62)
     _bind(body, rig)
 
-    parts = [body]
+    # (object, kind, cell size, roughness, colour, normal) for atlas_merge
+    parts = [(body, "skin", size, 0.62, col, nrm)]
     for ob in extras:
         key = ob.name.split(".")[-1]
         if look.get("mask") and "teeth" in key:
@@ -1120,21 +1264,31 @@ def export_look(name, look):
             _decimate(snap, 0.4)
             me = snap.data
             me.uv_layers.active = me.uv_layers[0]  # the smart-projected one
-            bake_object(snap, 512, f"{name}_mask", rough=0.38)
+            col, _ = bake_object(snap, 512, f"{name}_mask", rough=0.38)
             me.uv_layers.remove(me.uv_layers["proj"])
+            part = ("mask", 512, 0.38, col, None)
         elif "teeth" in key:
             _decimate(snap, 0.15)
-            bake_object(snap, 256, f"{name}_teeth", rough=0.45)
+            col, _ = bake_object(snap, 256, f"{name}_teeth", rough=0.45)
+            part = ("teeth", 256, 0.45, col, None)
         elif "low-poly" in key:
-            pass                                  # the flat milky eye material exports as is
+            part = ("eyes", 256, 0.15, None, None)  # one flat milky colour
         else:
-            if any(k in key for k in ("shoe", "boot")):
+            shoe = any(k in key for k in ("shoe", "boot"))
+            if shoe:
                 _decimate(snap, 0.4)
             elif _tris(snap) > CLOTH_TRIS:
                 _decimate(snap, CLOTH_TRIS / _tris(snap))
-            bake_object(snap, 512, f"{name}_{key}", rough=0.85)
+            px = 256 if shoe else 512
+            col, _ = bake_object(snap, px, f"{name}_{key}", rough=0.85)
+            part = ("cloth", px, 0.85, col, None)
         _bind(snap, rig)
-        parts.append(snap)
+        parts.append((snap,) + part)
+    # the skin first (the join keeps the active object's modifiers), then
+    # the big cells before the small ones
+    parts = [parts[0]] + sorted(parts[1:], key=lambda p: -p[2])
+    merged = atlas_merge(name, rig, parts)
+    parts = [merged]
 
     make_clips(rig, CLIP_SETS[look.get("clips", "human")])
     for ob in {high, bm, *[c for c in rig.children_recursive if c.type == "MESH" and c not in parts]}:

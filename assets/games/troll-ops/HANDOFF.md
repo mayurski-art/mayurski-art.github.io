@@ -39,9 +39,9 @@ Follow the 2a pattern:
 - Add `rp: { npcs: () => clubNpcs() }` to `trollingloud.js` as data. New club acts (e.g. dance on the DJ's beat) go into town-npcs.js.
 - The booth's DJ sprite (`S.dj`) already bobs on `uKick`, i.e. on the record's beat.
 
-### Zombies ZR4 (gore + voices shipped; draw-call cut left)
-- **Left:** merge each zombie's clothes/shoes/hair/teeth/eyes into one mesh with one baked atlas in models/build_zombies.blender.py (today 4-7 draws per zombie; Blender 5.2 + MPFB 2 are installed). Then the fps check: `FPS=1 tools/troll-ops-zombie-test.mjs`, before vs after (ROOT_DIR = old checkout).
-- **Gotchas:** a popped head is `bones.head` scaled to 0.001, re-applied after every mixer update (clips key it). Gore materials are pre-compiled in warmShaders via `goreStandIns()`; any new gore material must join it or the first kill stalls a frame.
+### Zombies (ZR4 done): gotchas
+- **One mesh per zombie:** build_zombies.blender.py `atlas_merge` joins every part onto a 2048x1024 atlas (skin = left half, cloth/mask 512 cells, shoes/teeth/eyes 256). The per-zombie tint only touches u < 0.5 (zombie-models.js `skinTinted`); a new part must get a cell, not its own material.
+- **Also:** a popped head is `bones.head` scaled to 0.001, re-applied after every mixer update (clips key it). Gore materials are pre-compiled in warmShaders via `goreStandIns()`; any new gore material must join it or the first kill stalls a frame.
 - **Design doc v2:** https://claude.ai/artifact/Motm585y8qJeknjWVv9CuC
 
 ### U Mad Bro? (funny FFA mode, Prestige 2): ON HOLD
@@ -446,6 +446,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-05**
+  - Zombies ZR4 part 2: each zombie is one skinned mesh on one atlas (was 4-7). Draws with 12 zombies: Hollowgrin 515 -> 399, Pentagrin ~4300 -> 2377; fps about 2x on Hollowgrin.
   - Zombies ZR4 part 1: head-pop on headshot kills, blood hits ("blood" surface), a glossy blood pool under each body, synthesized groans/snarls/death gurgles per zombie voice (audio.js `_zombieVoice`), throttled horde-wide. Test: tools/troll-ops-zombie-test.mjs (ALL PASS).
   - One map per room: everyone in a versus room follows the host's map (game.js `followsHostMap`, net.js `publishRoomMap`). Test: tools/troll-ops-room-map-test.mjs.
   - DJ Lulz song requests + club lights on each song's beat grid (dj-lulz.js, music-beats.js).

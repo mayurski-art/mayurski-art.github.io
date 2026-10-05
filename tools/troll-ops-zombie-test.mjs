@@ -232,7 +232,7 @@ for (const map of maps) {
   // the rare trollface-mask zombie: force its odds to 1 and look at one
   const mask = await page.evaluate(async () => {
     const T = window.__trollOps;
-    const zm = await import("/assets/games/troll-ops/zombie-models.js?v=zr3");
+    const zm = await import("/assets/games/troll-ops/zombie-models.js?v=zr4c");
     zm.RARE_LOOKS.trollmask = 1;
     const zd = T.zdir();
     zd.clear();
@@ -264,7 +264,7 @@ for (const map of maps) {
   // crouch (with a shriek), fly and land a hit
   const leap = await page.evaluate(async () => {
     const T = window.__trollOps;
-    const { lineClear } = await import("/assets/games/troll-ops/zombies.js?v=zr4");
+    const { lineClear } = await import("/assets/games/troll-ops/zombies.js?v=zr4c");
     const zd = T.zdir();
     zd.clear();
     zd.forceType = "leaper";
@@ -338,11 +338,16 @@ for (const map of maps) {
   // the textures must really be on the GPU (a CSP block leaves them blank)
   const tex = await page.evaluate(() => {
     const z = window.__trollOps.zdir().zombies.find((q) => q.body);
-    let n = 0, ok = 0;
-    z?.mesh.traverse((o) => { if (o.isMesh && o.material.map) { n++; if (o.material.map.image) ok++; } });
-    return { n, ok };
+    let n = 0, ok = 0, skinned = 0;
+    z?.mesh.traverse((o) => {
+      if (o.isSkinnedMesh) skinned++;
+      if (o.isMesh && o.material.map) { n++; if (o.material.map.image) ok++; }
+    });
+    return { n, ok, skinned };
   });
   check(tex.n > 0 && tex.ok === tex.n, "zombie textures loaded", `${tex.ok}/${tex.n}`);
+  // ZR4: the whole body is one skinned mesh on one atlas (one draw)
+  check(tex.skinned === 1, "a zombie is one skinned mesh", `${tex.skinned}`);
   check(errs.length === 0, "no page errors", errs.slice(0, 5).join(" | "));
   await page.close();
 }

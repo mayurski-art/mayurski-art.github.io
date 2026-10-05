@@ -2,8 +2,10 @@
 //
 // models/build_zombies.blender.py exports one GLB per look: a MakeHuman body
 // on the "game_engine" rig (UE-style bone names) with its rotted skin baked
-// to colour + normal maps, clothes with baked colour + alpha tears, teeth,
-// milky eyes, and six in-place clips: walk, run, idle, attack, die, rise
+// to colour + normal maps, clothes with baked colour + alpha tears, teeth and
+// milky eyes, all joined into ONE skinned mesh on one texture atlas (one draw
+// per zombie, plus its shadow; the eyes' glow is the atlas's emissive map),
+// and six in-place clips: walk, run, idle, attack, die, rise
 // (clawing out of a grave). The leaper's set swaps walk/run for lope,
 // crouch and leap.
 //
@@ -16,16 +18,16 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const LOOKS = {
-  walker: new URL("./models/zombie-walker.glb?v=zr2", import.meta.url).href,
-  runner: new URL("./models/zombie-runner.glb?v=zr2", import.meta.url).href,
-  woman: new URL("./models/zombie-woman.glb?v=zr2", import.meta.url).href,
-  worker: new URL("./models/zombie-worker.glb?v=zr2", import.meta.url).href,
+  walker: new URL("./models/zombie-walker.glb?v=zr4", import.meta.url).href,
+  runner: new URL("./models/zombie-runner.glb?v=zr4", import.meta.url).href,
+  woman: new URL("./models/zombie-woman.glb?v=zr4", import.meta.url).href,
+  worker: new URL("./models/zombie-worker.glb?v=zr4", import.meta.url).href,
   // the rare one: a rubber mask of the real trollface art (zombies.js
   // picks it about 1 in 40)
-  trollmask: new URL("./models/zombie-trollmask.glb?v=zr2", import.meta.url).href,
+  trollmask: new URL("./models/zombie-trollmask.glb?v=zr4", import.meta.url).href,
   // the leaper's own gaunt, long-armed body and clip set (idle, lope,
   // crouch, leap, attack, die, rise)
-  leaper: new URL("./models/zombie-leaper.glb?v=zr3", import.meta.url).href,
+  leaper: new URL("./models/zombie-leaper.glb?v=zr4", import.meta.url).href,
 };
 export const ZOMBIE_LOOKS = Object.keys(LOOKS);
 export const RARE_LOOKS = { trollmask: 1 / 40 };
@@ -53,17 +55,12 @@ function prepTemplate(gltf) {
     o.frustumCulled = false;
     const m = o.material;
     if (m.transparent) {
-      // torn clothes and hair: clipped, not blended, so they sort and
+      // torn clothes and hair (the whole merged body): clipped, not blended, so they sort and
       // shadow like solid cloth
       m.transparent = false;
       m.alphaTest = 0.5;
       m.depthWrite = true;
       m.side = THREE.DoubleSide;
-    }
-    if (m.name === "ZB_Eye") {
-      // milky eyes catch a little light in the dark
-      m.emissive = new THREE.Color(0x9aa49c);
-      m.emissiveIntensity = 0.35;
     }
   });
   return { scene: gltf.scene, clips: gltf.animations };
@@ -160,6 +157,22 @@ function capsule(r, a, b) {
   return new THREE.CapsuleGeometry(r, Math.max(0.01, a.distanceTo(b) - r), 4, 8);
 }
 
+/* The tint is for the skin only, and the skin is the atlas's left half
+   (build_zombies.blender.py atlas_merge): the clothes and the mask keep
+   their own colour. Every tinted clone shares one shader program. */
+function skinTinted(base, tint) {
+  const m = base.clone();
+  const uTint = { value: tint.clone() };
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uSkinTint = uTint;
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform vec3 uSkinTint;")
+      .replace("#include <map_fragment>", "#include <map_fragment>\nif (vMapUv.x < 0.5) diffuseColor.rgb *= uSkinTint;");
+  };
+  m.customProgramCacheKey = () => "zb-skin-tint";
+  return m;
+}
+
 /* One zombie body: { root, mixer, actions, bones, hitboxMeshes, dispose }.
    `root` stands at the feet facing -Z (the game's forward). */
 export function createZombieBody(look, { tint = null, build = 1 } = {}) {
@@ -176,8 +189,7 @@ export function createZombieBody(look, { tint = null, build = 1 } = {}) {
   model.traverse((o) => {
     if (!o.isMesh) return;
     if (tint && o.material.name.endsWith("_skin")) {
-      o.material = o.material.clone();
-      o.material.color.copy(tint);
+      o.material = skinTinted(o.material, tint);
       own.push(o.material);
     }
   });
