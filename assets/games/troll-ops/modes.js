@@ -138,12 +138,11 @@ MODES.umb = {
   name: "U Mad Bro?",
   short: "U Mad Bro?",
   pvp: true, ffa: true,
-  scoreLimit: 25,
-  timeLimit: 480,
+  scoreLimit: 69,   // user: no clock, first troll to 69 ends it
   funny: true,
   prestige: 2,
   noStreaks: true,
-  blurb: "Free-for-all, but nobody takes it seriously. Bodies fly, kills go BONK. First to 25.",
+  blurb: "Free-for-all, but nobody takes it seriously. Bodies fly, kills go BONK. First to 69, no clock.",
 };
 
 /* Battle royale: solo, one life, loot only, a closing zone, last troll

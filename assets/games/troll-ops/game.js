@@ -54,7 +54,7 @@ import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69";
+} from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69";
 import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst";
 import { GameAudio } from "./audio.js?v=zr4";
