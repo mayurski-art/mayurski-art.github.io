@@ -25,6 +25,9 @@ const WALK_MPS = 1.25;
 const NEAR = 40;     // full rate inside this
 const FAR = 85;      // hidden past this
 const TAG_RANGE = 12; // name tags only inside this
+/* Background extras go untagged: only someone with a job to roleplay (the
+   barkeep, the sheriff, the doctor...) wears a name. */
+const UNTAGGED = new Set(["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler"]);
 const TAG_COLOR = "#ffd28a";   // townsfolk tags read warm, players' white
 
 /* A small name tag: "Name · Role". */
@@ -72,10 +75,9 @@ export class TownNpcs {
     const seed = hash01(c.name + i);
     const rig = buildHumanoid(this.material, { height: 1.72 + seed * 0.16, gun: false });
     rig.face = `${c.act === "drink" && seed > 0.75 ? "sad" : "grin"}:${TINTS[Math.floor(seed * TINTS.length) % TINTS.length]}`;
-    const tag = npcTag(`${c.name} · ${c.role}`);
+    const tag = UNTAGGED.has(c.role) ? null : npcTag(`${c.name} · ${c.role}`);
     // Above the head either way: sitting drops the whole body, tag and all.
-    tag.position.y = 2.2;
-    rig.root.add(tag);
+    if (tag) { tag.position.y = 2.2; rig.root.add(tag); }
     rig.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     this.scene.add(rig.root);
     const n = { c, rig, tag, seed, phase: seed * 10, t: seed * 20, poseAcc: 0, x: c.x ?? 0, z: c.z ?? 0, yaw: c.yaw ?? 0 };
@@ -110,7 +112,7 @@ export class TownNpcs {
       const hidden = d > FAR;
       n.rig.root.visible = !hidden;
       // Tags only up close, so a full room doesn't turn into a wall of names.
-      n.tag.visible = d < TAG_RANGE;
+      if (n.tag) n.tag.visible = d < TAG_RANGE;
       n.t += dt;
       if (n.c.act === "walk") this.walk(n, dt);
       if (hidden) continue;
@@ -274,8 +276,8 @@ export class TownNpcs {
   dispose() {
     for (const n of this.list) {
       n.rig.root.parent?.remove(n.rig.root);
-      n.tag.material.map?.dispose();
-      n.tag.material.dispose();
+      n.tag?.material.map?.dispose();
+      n.tag?.material.dispose();
     }
     this.list.length = 0;
   }

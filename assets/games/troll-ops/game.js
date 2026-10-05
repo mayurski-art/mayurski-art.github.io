@@ -47,7 +47,7 @@ import {
   BEER_SIPS, GRAB_TIME, FILL_TIME, FILL_TIME_BARTENDER, POUR_TIME, SIP_TIME, APRON_TIME,
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
 } from "./saloon-bar.js?v=sb1";
-import { TownNpcs } from "./town-npcs.js?v=tn1";
+import { TownNpcs } from "./town-npcs.js?v=tn2";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst-soc1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {

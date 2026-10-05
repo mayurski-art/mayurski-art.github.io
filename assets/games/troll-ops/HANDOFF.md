@@ -46,7 +46,7 @@ Socialize on Troll City only (`isSocial()` and `builtMap.map.rp`). The spots liv
 **Townsfolk** (`town-npcs.js`, cast in trollcity.js `townNpcs()`, about 27): saloon crew, card players, barflies, trades, and strollers on Main Street.
 - Cosmetic and local only: no collision or damage, and not networked; seeded so tabs look alike.
 - Main Street strollers keep to two clear lanes (z -2.8 and 0.3), so they miss the horses, troughs, wagons and well.
-- Level of detail: full pose rate inside 40 m, a few poses a second out to 85 m, hidden past that. Name tags show inside 12 m.
+- Level of detail: full pose rate inside 40 m, a few poses a second out to 85 m, hidden past that. Name tags show inside 12 m, and only on NPCs with a roleplay job (barkeep, sheriff, doctor...); townsfolk, drifters, barflies, regulars and gamblers have none (user: "should not have visible names … unless they are role playing").
 
 **Test:** `tools/troll-ops-bar-test.mjs` (2 tabs, GPU flags: the hold timers run on frame time).
 

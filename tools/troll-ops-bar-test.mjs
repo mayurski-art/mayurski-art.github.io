@@ -112,13 +112,16 @@ const npcs0 = await A.evaluate(() => window.__trollOps.townNpcs()?.list.map((n) 
 check("Troll City's Socialize is full of townsfolk", npcs0.length >= 20, `${npcs0.length}`);
 await at(A, -30, -1.2, -Math.PI / 2);
 await pump(A, 4000);
-const npcs1 = await A.evaluate(() => window.__trollOps.townNpcs().list.map((n) => ({ name: n.c.name, act: n.c.act, x: n.x, z: n.z, tag: n.tag.visible, vis: n.rig.root.visible, d: Math.hypot(n.x + 30, n.z + 1.2) })));
+const npcs1 = await A.evaluate(() => window.__trollOps.townNpcs().list.map((n) => ({ name: n.c.name, act: n.c.act, x: n.x, z: n.z, tag: n.tag ? n.tag.visible : null, role: n.c.role, vis: n.rig.root.visible, d: Math.hypot(n.x + 30, n.z + 1.2) })));
 const walkers = npcs1.filter((n) => n.act === "walk");
 // Some stop to look about, so most, not all.
 const moved = walkers.filter((n) => { const o = npcs0.find((m) => m.name === n.name); return Math.hypot(n.x - o.x, n.z - o.z) > 0.2; });
 check("the strollers walk their rounds", moved.length >= walkers.length * 0.6, `${moved.length}/${walkers.length}`);
 check("several are out on Main Street", walkers.filter((n) => Math.abs(n.z) < 4 && n.x > -42 && n.x < 32).length >= 5);
-check("name tags show only up close", npcs1.every((n) => n.tag === (n.d < 12)), npcs1.filter((n) => n.tag !== (n.d < 12)).map((n) => n.name).join(",") || "ok");
+const EXTRAS = ["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler"];
+const jobs = npcs1.filter((n) => !EXTRAS.includes(n.role));
+check("background extras wear no name tag", npcs1.filter((n) => EXTRAS.includes(n.role)).every((n) => n.tag === null));
+check("roleplay jobs wear one, shown only up close", jobs.length >= 10 && jobs.every((n) => n.tag === (n.d < 12)), jobs.filter((n) => n.tag !== (n.d < 12)).map((n) => n.name).join(",") || `${jobs.length} jobs`);
 check("far townsfolk are hidden", npcs1.every((n) => n.vis === (n.d <= 85)));
 
 // ── 2. A mug, a fill, a sip ───────────────────────────────────────────────
