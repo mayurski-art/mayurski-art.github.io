@@ -2991,10 +2991,11 @@ const BOT_RADAR = new Set(["uav", "counteruav", "vsat"]);   // no sides to share
 const BOT_AIR = new Set(["drone", "helicopter", "swarm", "warship", "dragonfire"]);
 let botWarshipMatch = -1;   // one bot warship a match (design call), whoever's side
 const BOT_AIR_CAP = 2;      // bot air streaks up at once, per team
-/* Veteran bots (user): twice the scorestreaks of a regular bot, friend and
-   foe alike: their kills pay double into the streak meter, and twice as
+/* Veteran bots (user): 1.4x the scorestreaks of a regular bot (was 2x;
+   user wanted ~4 bot streaks a minute, not ~7, in a 22-player TDM), friend and
+   foe alike: their kills pay 1.4x into the streak meter, and 1.4x as
    many of their aircraft can be up at once. */
-const BOT_VET_STREAK_MULT = 2;
+const BOT_VET_STREAK_MULT = 1.4;
 function botStreakMult(b) { return b.skill === "veteran" ? BOT_VET_STREAK_MULT : 1; }
 const BOT_QUIET = 1.5;      // seconds with nobody in sight before calling
 const BOT_STREAK_KEY = "trollops:botStreaks";
