@@ -28,8 +28,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst";
 
 export const COP_BODIES = {
-  patrol: "cop-patrol.glb?v=cb1",
-  grin: "cop-grin.glb?v=cb1",
+  patrol: "cop-patrol.glb?v=cb2",
+  grin: "cop-grin.glb?v=cb2",
 };
 const BASE = new URL("./models/", import.meta.url).href;
 
@@ -227,7 +227,7 @@ function attach(rig, id, tpl) {
     cop.legs.push({
       side, th, ca, ft,
       a: N0.distanceTo(H0), b: F0.distanceTo(N0),
-      restTh: R[th.name].q, restCa: R[ca.name].q,
+      restTh: R[th.name].q, restCa: R[ca.name].q, restFt: R[ft.name].q,
       // a straight leg: the knee bends toward the front (-Z)
       ...restBend(H0, N0, F0, new THREE.Vector3(0, 0, -1)),
       K: ankInv.clone().multiply(R[ft.name].q),
@@ -243,6 +243,11 @@ function attach(rig, id, tpl) {
   // head hitbox: a real head, not the face board
   const hh = R.head.p.clone().add(new THREE.Vector3(0, 0.085 * s, 0));
   cop.headCentre = hh.sub(restOf("headPivot").p.clone().multiplyScalar(s));
+  // the chest bone's frame back to the rig's (+X right, +Y up, -Z ahead)
+  cop.chestKinv = cop.follow.find((f) => f.bone === bones.spine_03).K.clone().invert();
+  // the right eye, in the head bone's own frame (for the cheek on the stock)
+  cop.eyeLocal = new THREE.Vector3(0.032, 0.085, -0.085).multiplyScalar(s).applyQuaternion(R.head.q.clone().invert());
+  cop.ankleY = R.foot_l.p.y;
   return cop;
 }
 
@@ -334,6 +339,7 @@ function clearCop(rig) {
   const cop = rig.cop;
   if (!cop) return;
   restoreHitboxes(cop);
+  pickUpGun(rig, cop);
   cop.holder.parent?.remove(cop.holder);
   hideStick(rig, false);
   rig.cop = null;
@@ -401,168 +407,354 @@ const _rootQ = new THREE.Quaternion(), _jq = new THREE.Quaternion();
 const _jp = new THREE.Vector3(), _ep = new THREE.Vector3(), _sp = new THREE.Vector3();
 const _curlQ = new THREE.Quaternion(), _X = new THREE.Vector3(1, 0, 0), _Z = new THREE.Vector3(0, 0, 1);
 const _handQ = new THREE.Quaternion(), _shift = new THREE.Vector3(), _axis = new THREE.Vector3();
-const _gq = new THREE.Quaternion();
-// hands on a rifle, in the gun's frame (barrel down -Z, +Y up, +X right):
-// f = the way the hand points (wrist to knuckles: the wrist kept straight, so
-// the forearm follows it), t = the thumb side, off =
-// the palm centre from the grip / support point
+const _gq = new THREE.Quaternion(), _cq = new THREE.Quaternion(), _tq = new THREE.Quaternion();
+const _lx = new THREE.Vector3(), _f = new THREE.Vector3(), _p = new THREE.Vector3(), _th = new THREE.Vector3();
+const _Aw = new THREE.Vector3(), _Rw = new THREE.Vector3(), _Uw = new THREE.Vector3();
+const _c = new THREE.Vector3(), _old = new THREE.Vector3(), _lm = new THREE.Matrix4();
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const smooth = (v) => { v = clamp01(v); return v * v * (3 - 2 * v); };
+// The trigger hand on a rifle's pistol grip, in the gun's frame (barrel down
+// -Z, +Y up, +X right): f = the way the hand points (wrist to knuckles), t =
+// the thumb side, off = the palm centre from the grip point.
 const HOLD_R = { f: new THREE.Vector3(-0.4, 0.62, -0.68).normalize(), t: new THREE.Vector3(0, 1, 0), off: new THREE.Vector3(0.022, 0.035, 0) };
-const HOLD_L = { f: new THREE.Vector3(0.5, 0.35, -0.8).normalize(), t: new THREE.Vector3(-0.76, -0.24, -0.58), off: new THREE.Vector3(-0.005, -0.062, 0) };   // supportHandPos sits 2 cm over the bore
+// The support hand: its palm sits this far under the handguard point
+// (supportHandPos is 2 cm over the bore).
+const HOLD_L = { off: new THREE.Vector3(0, -0.062, 0) };
+// how much of the body's lean each bone takes (they are set one by one)
+const LEAN = { pelvis: 0.3, spine_01: 0.65, spine_02: 1, spine_03: 1, neck_01: 0.5, head: 0.2 };
 
-/* Every frame after the rig is posed. `pitch`: the aim's pitch, as given to
-   poseHumanoid (+ up). The stick rig turns its neck and head against it
-   (-0.25 and -0.6 of it, character.js _poseNeckAndHead), which a flat face
-   board hides but a real head shows as looking down when aiming up: the body
-   turns them with it instead. */
-export function syncCopBody(rig, { pitch = 0 } = {}) {
+/* Where a two-bone limb's middle joint goes: from S to T, lengths a and b,
+   bending toward `pole`. */
+function midJoint(S, T, a, b, pole, out) {
+  _dir.subVectors(T, S);
+  let d = _dir.length();
+  if (d < 1e-5) { _dir.set(0, -1, 0); d = 1e-5; } else _dir.divideScalar(d);
+  d = Math.min(a + b - 1e-4, Math.max(Math.abs(a - b) + 1e-4, d));
+  _pole.copy(pole).addScaledVector(_dir, -pole.dot(_dir)).normalize();
+  const x = (a * a - b * b + d * d) / (2 * d);
+  return out.copy(S).addScaledVector(_dir, x).addScaledVector(_pole, Math.sqrt(Math.max(0, a * a - x * x)));
+}
+
+/* The rifle goes back in the hands (a respawn, or the body coming off). */
+function pickUpGun(rig, cop) {
+  const d = cop.drop;
+  if (!d) return;
+  cop.drop = null;
+  if (d.mesh !== rig.held) { d.mesh.parent?.remove(d.mesh); return; }
+  rig.parts.gunMount.add(d.mesh);
+  d.mesh.position.set(0, 0, 0);
+  d.mesh.quaternion.identity();
+  d.mesh.scale.setScalar(1);
+}
+
+/* Every frame after the rig is posed. The body follows the stick rig, with
+   its own corrections where a real body gives the stick figure away. What
+   the caller knows of the pose says which apply:
+     pitch    the aim's pitch, as given to poseHumanoid (+ up). The rig turns
+              its neck and head against it (character.js _poseNeckAndHead),
+              which a flat face board hides; the body turns them with it.
+     gait     true when poseHumanoid posed it (not a dance, an emote, a fall)
+     lower, mps, moving, forward, strafe, ads, reload   as given to poseHumanoid
+     death    0..1 through poseDeath (1 = lying there)
+   - Lean: the rig leans BACK into a run and a crouch (7-10 degrees; its lean
+     has the wrong sign, unseen on a stick). The body leans forward: from the
+     ankles in a run, hinged at the hips in a crouch, shoulders rolled a
+     little forward behind a raised rifle. Standing, the knees stay soft.
+   - Run: the swing knee drives higher and the trailing leg reaches further
+     back; the rifle rides low across the chest, muzzle down and left.
+   - Rifle: the butt sits in the right shoulder pocket (the rig holds it at
+     the middle of its chest), up to the cheek when aiming; the head comes
+     down onto the stock. Trigger finger along the receiver, support hand
+     under the handguard with the elbow down and out.
+   - Downed (a backward fall): flat on the back, arms loose out to the
+     sides palms up, legs straight with the toes up, the rifle dropped on
+     the floor beside the body. */
+export function syncCopBody(rig, o = {}) {
   const cop = rig.cop;
   if (!cop) return;
+  if (!rig.root.visible) { if (cop.drop) cop.drop.mesh.visible = false; return; }
   // poseHumanoid flips the board and setHandPose the mitts back on
   if (rig.parts.body?.visible || rig.parts.head?.visible) hideStick(rig, true);
-  rig.root.updateMatrixWorld(true);
-  worldQ(rig.root, _rootQ);
-  const B = cop.bones;
+  const root = rig.root;
+  root.updateMatrixWorld(true);
+  worldQ(root, _rootQ);
+  const B = cop.bones, P = rig.parts, s = cop.s;
+  const pitch = o.pitch || 0;
+  const lower = clamp01(o.lower || 0);
+  const mps = o.moving === false ? 0 : Math.max(0, o.mps || 0);
+  const death = clamp01(o.death || 0);
+  const gait = o.gait && !death ? 1 : 0;
+  const run = gait * clamp01((mps - 2.4) / 1.6) * clamp01(o.forward ?? 1) * (1 - Math.abs(o.strafe || 0) * 0.7) * (1 - lower);
+  const supine = death > 0 && (rig.death?.dir ?? 1) > 0 ? smooth((death - 0.45) / 0.4) : 0;
+  const reloading = o.reload > 0 && o.reload < 1;
+  _Uw.set(0, 1, 0).applyQuaternion(_rootQ);
 
-  // pelvis: on the hips, turned with them
-  worldQ(rig.parts.hips, _jq);
-  worldP(rig.parts.hips, _jp);
+  // ---- the rifle leaves the hands on the way down, and lies where it fell
+  const mount = P.gunMount;
+  if (!death) pickUpGun(rig, cop);
+  else if (rig.held && root.parent && (rig.death?.dir ?? 1) > 0) {
+    if (!cop.drop || cop.drop.mesh !== rig.held) {
+      pickUpGun(rig, cop);
+      const mesh = rig.held;
+      root.parent.attach(mesh);
+      // on its side by the right hip, the muzzle toward the head and out a little
+      const za = new THREE.Vector3(-0.3, 0, -1).normalize();
+      const q1 = new THREE.Quaternion().setFromRotationMatrix(_lm.makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3().crossVectors(za, new THREE.Vector3(0, 1, 0)), za));
+      const p1 = root.localToWorld(new THREE.Vector3(0.72 * s, 0.03 * s, 0.35 * s));
+      root.parent.worldToLocal(p1);
+      q1.premultiply(_rootQ).premultiply(worldQ(root.parent, new THREE.Quaternion()).invert());
+      cop.drop = { mesh, p0: mesh.position.clone(), q0: mesh.quaternion.clone(), p1, q1 };
+    }
+    const d = cop.drop, k = smooth((death - 0.06) / 0.5);
+    d.mesh.visible = true;
+    d.mesh.position.lerpVectors(d.p0, d.p1, k);
+    d.mesh.quaternion.slerpQuaternions(d.q0, d.q1, k);
+  }
+  const gun = rig.held && rig.held.visible && rig.held.parent === mount ? rig.held : null;
+  const u = gun?.userData;
+  const rifle = !!(u && u.buttPos && u.supportHandPos && !u.pistol && !u.akimbo);
+  let ads = 0, kick = 0;
+  if (gun) {
+    // a pose that doesn't place the gun (a dance) leaves our own placement on
+    // the mount: go back to the rig's, so nothing piles up
+    if (cop.mSetP && mount.position.equals(cop.mSetP) && mount.quaternion.equals(cop.mSetQ)) {
+      mount.position.copy(cop.mRigP);
+      mount.quaternion.copy(cop.mRigQ);
+    } else {
+      (cop.mRigP ||= new THREE.Vector3()).copy(mount.position);
+      (cop.mRigQ ||= new THREE.Quaternion()).copy(mount.quaternion);
+    }
+    mount.updateMatrixWorld(true);
+    if (rifle) {
+      // where the rig put the butt (its chest space): it walks in as it aims
+      // and back with the kick (character.js _gripSupport)
+      _v.copy(u.buttPos).applyQuaternion(mount.quaternion).add(mount.position);
+      ads = clamp01(o.ads ?? (0.085 - _v.x / s) / 0.04);
+      kick = clamp01((_v.z / s + 0.04) / 0.035);
+    }
+    // which hands the rig has on the gun, where the rig holds it (the body
+    // moves it below): the trigger hand at the grip, the support hand
+    // anywhere along the gun's line. A reload, a throw or a pose takes a
+    // hand off.
+    _axis.set(0, 0, 1).applyQuaternion(worldQ(gun, _gq));
+    for (const arm of cop.arms) {
+      const spot = arm.side > 0 ? u.gripPos : rifle ? u.supportHandPos : null;
+      arm.onGun = false;
+      if (!spot) continue;
+      gun.localToWorld(_jp.copy(spot));
+      _ep.subVectors(worldP(arm.mitt.turn, _t), _jp);
+      if (arm.side < 0) _ep.addScaledVector(_axis, -_ep.dot(_axis));
+      arm.onGun = _ep.length() < 0.09 * s;
+    }
+  } else for (const arm of cop.arms) arm.onGun = false;
+  const upK = rifle && !reloading ? Math.max(ads, clamp01(rig.fireK || 0)) : 0;
+  cop.ads = ads;
+
+  // ---- the lean
+  worldP(P.hips, _jp);
+  worldP(P.chest, _c).sub(_jp).applyQuaternion(_q.copy(_rootQ).invert());
+  const rigBack = Math.atan2(_c.z, _c.y);
+  const lean = gait * (rigBack + 0.3 * run + 1.1 * lower + 0.07 * upK);
+  worldQ(P.hips, _jq);
+  _lx.set(1, 0, 0).applyQuaternion(_jq);
+
+  // ---- pelvis: on the hips, turned with them; soft knees, a deeper crouch,
+  // and carried ahead of the feet in a run
   _v.copy(cop.pelvisOff).applyQuaternion(_jq).add(_jp);
+  _b.set(0, -(0.02 * (1 - lower) + 0.035 * lower) * s * gait, -0.08 * run * s).applyQuaternion(_rootQ);
+  _v.add(_b);
+  if (supine) {
+    // the lying frame, in the root's space: A runs feet to head along the
+    // floor, R is the body's right
+    root.worldToLocal(_v);
+    root.worldToLocal(worldP(P.chest, _c));
+    _Aw.set(_c.x - _v.x, 0, _c.z - _v.z);
+    if (_Aw.lengthSq() < 1e-4) _Aw.set(0, 0, 1);
+    _Aw.normalize();
+    _Rw.set(0, 1, 0).cross(_Aw);
+    _v.y += (0.105 * s - _v.y) * supine;        // the back on the floor, not the spine
+    // bone turn lying: right -> R, up the spine -> A, the face -> the sky
+    _lm.makeBasis(_Rw, _Aw, _th.set(0, -1, 0));
+    _tq.setFromRotationMatrix(_lm).premultiply(_rootQ);
+    root.localToWorld(_v);
+    _Aw.applyQuaternion(_rootQ);
+    _Rw.applyQuaternion(_rootQ);
+  }
   B.pelvis.parent.updateMatrixWorld(true);
   B.pelvis.position.copy(B.pelvis.parent.worldToLocal(_v));
   // spine, neck, head
+  const dside = rig.death?.side || 1;
   for (const f of cop.follow) {
     worldQ(f.joint, _jq);
     // to +0.2 and +0.55 of the pitch overall, about what the gun takes (the
     // head pivot carries the rig neck's turn too)
-    const flip = f.joint === rig.parts.neckPivot ? 0.45 : f.joint === rig.parts.headPivot ? 1.4 : 0;
+    const flip = f.joint === P.neckPivot ? 0.45 : f.joint === P.headPivot ? 1.4 : 0;
     if (flip && pitch) _jq.multiply(_q.setFromAxisAngle(_X, flip * pitch));
     _jq.multiply(f.K);
+    if (lean) _jq.premultiply(_q.setFromAxisAngle(_lx, -lean * (LEAN[f.bone.name] ?? 1)));
+    if (supine) {
+      // hips rolled a little to one side, the head lolled to it
+      const turn = f.bone.name === "pelvis" ? 0.12 : f.bone.name === "head" ? 0.35 : f.bone.name === "neck_01" ? 0.15 : 0;
+      _q.setFromAxisAngle(_Aw, dside * turn).multiply(_tq).multiply(cop.R[f.bone.name].q);
+      _jq.slerp(_q, supine);
+    }
     setWorldQ(f.bone, _jq);
   }
+  // the body's own chest frame, in the rig's convention (+X right, +Y up the
+  // spine, -Z ahead)
+  worldQ(B.spine_03, _cq).multiply(cop.chestKinv);
 
-  // The gun. The stick rig shoulders it at the middle of its chest, where its
-  // long arms (one shared shoulder) meet. A real body takes a rifle's butt in
-  // the right shoulder pocket, out by the shoulder joint and in front of the
-  // chest, and higher when aiming (the sights come up to the eye); a pistol
-  // comes in a little and up to the eye line, for shorter arms. The mount
-  // moves there and both hands' targets move with it.
-  const mount = rig.parts.gunMount;
-  const held = !!(rig.held && rig.held.visible && rig.held.parent === mount);
+  // ---- the gun. The stick rig shoulders it at the middle of its chest,
+  // where its long arms (one shared shoulder) meet. On the body the butt goes
+  // in the right shoulder pocket: just inside the shoulder joint, on the
+  // front of the chest, the heel of the stock up at the collarbone when the
+  // sights come up. Its aim stays the rig's. A pistol comes in a little,
+  // for shorter arms.
   _shift.set(0, 0, 0);
-  let ads = 0;
-  if (held) {
-    const u = rig.held.userData;
-    const s = cop.s;
-    // a pose that doesn't place the gun (a dance, the death fall) leaves our
-    // last shift on it: take that off first so it never piles up
-    if (cop.mountLeft && mount.position.equals(cop.mountLeft)) mount.position.sub(cop.lastShift);
-    _gq.setFromEuler(mount.rotation);
-    if (u.buttPos && u.supportHandPos && !u.pistol && !u.akimbo) {
-      // where the rig put the butt (chest space): its x walks in as it aims,
-      // its y climbs as it comes up (character.js _gripSupport)
-      _v.copy(u.buttPos).applyQuaternion(_gq).add(mount.position);
-      ads = Math.max(0, Math.min(1, (0.085 - _v.x / s) / 0.04));
-      const up = Math.max(0, _v.y / s + 0.12);
-      _shift.set(0.06 - 0.05 * ads, 0.06 + 0.2 * up + 0.06 * ads, -0.06).multiplyScalar(s);
+  if (gun) {
+    worldP(mount, _old);
+    worldQ(mount, _gq);
+    if (rifle) {
+      // running with it: low across the chest, muzzle down and to the left
+      const carry = run * (1 - upK) * (reloading ? 0 : 1);
+      if (carry > 0.001) {
+        _a.set(1, 0, 0).applyQuaternion(_cq);
+        _b.set(0, 1, 0).applyQuaternion(_cq);
+        _gq.premultiply(_q.setFromAxisAngle(_a, -0.22 * carry)).premultiply(_q.setFromAxisAngle(_b, 0.75 * carry));
+      }
+      worldP(B.upperarm_r, _v);
+      _b.set(-0.07 - 0.03 * carry, 0.015 + 0.075 * upK - 0.1 * carry, -0.075).multiplyScalar(s).applyQuaternion(_cq);
+      _v.add(_b);
+      _axis.set(0, 0, 1).applyQuaternion(_gq);
+      _v.addScaledVector(_axis, kick * 0.03 * s);
+      _b.copy(u.buttPos).applyQuaternion(_gq);
+      _v.sub(_b);                                       // the mount's place in the world
+      P.chest.worldToLocal(_v);
+      mount.position.copy(_v);
+      mount.quaternion.copy(worldQ(P.chest, _q).invert().multiply(_gq));
     } else if (u.gripPos) {
-      _v.copy(u.gripPos).applyQuaternion(_gq).add(mount.position);
-      const up = Math.max(0, Math.min(1, (_v.y / s + 0.25) / 0.33));
-      _shift.set(0.02, 0.03 + 0.07 * up, 0.08).multiplyScalar(s);
+      _v.copy(u.gripPos).applyQuaternion(mount.quaternion).add(mount.position);
+      const up = clamp01((_v.y / s + 0.25) / 0.33);
+      mount.position.add(_b.set(0.02, 0.03 + 0.07 * up, 0.08).multiplyScalar(s));
     }
-    (cop.lastShift ||= new THREE.Vector3()).copy(_shift);
-    mount.position.add(_shift);
-    (cop.mountLeft ||= new THREE.Vector3()).copy(mount.position);
+    (cop.mSetP ||= new THREE.Vector3()).copy(mount.position);
+    (cop.mSetQ ||= new THREE.Quaternion()).copy(mount.quaternion);
     mount.updateMatrixWorld(true);
-    _shift.applyQuaternion(worldQ(rig.parts.chest, _jq));
-    _axis.set(0, 0, 1).applyQuaternion(worldQ(mount, _jq));   // toward the stock
+    worldP(mount, _shift).sub(_old);
+    worldQ(gun, _gq);
+    _axis.set(0, 0, 1).applyQuaternion(_gq);            // toward the stock
   }
-  cop.ads = ads;
-  // Aiming a rifle: the cheek goes down onto the stock, the head tipped
-  // forward and over to the right.
-  if (ads > 0.01) {
-    worldQ(rig.parts.chest, _jq);
-    _a.set(1, 0, 0).applyQuaternion(_jq);
-    _b.set(0, 0, -1).applyQuaternion(_jq);
-    _q.setFromAxisAngle(_b, 0.16 * ads).multiply(_q2.setFromAxisAngle(_a, -0.2 * ads));
-    worldQ(B.neck_01, _handQ);
-    setWorldQ(B.neck_01, _q.multiply(_handQ));
+  // Aiming a rifle: the head comes down and over onto the stock, the eye
+  // toward the sight line; it keeps looking down the barrel.
+  if (rifle && upK > 0.01) {
+    _v.set(0, u.buttPos.y + 0.065, u.buttPos.z - 0.14);
+    gun.localToWorld(_v);                               // behind the sights, at cheek height
+    worldQ(B.head, _handQ);
+    worldP(B.head, _sp);
+    _ep.copy(cop.eyeLocal).applyQuaternion(_handQ).add(_sp);
+    worldP(B.neck_01, _jp);
+    _a.subVectors(_sp, _jp);
+    _b.copy(_a).add(_v).sub(_ep);
+    _q.setFromUnitVectors(_a.normalize(), _b.normalize());
+    const ang = 2 * Math.acos(Math.min(1, Math.abs(_q.w)));
+    _tq.identity().slerp(_q, upK * Math.min(1, 0.5 / Math.max(1e-4, ang)));
+    worldQ(B.neck_01, _q);
+    setWorldQ(B.neck_01, _q.premultiply(_tq));
+    _b.set(0, 0, -1).applyQuaternion(_gq);
+    setWorldQ(B.head, _handQ.premultiply(_q.setFromAxisAngle(_b, 0.12 * upK)));
   }
 
-  // arms
+  // ---- arms
   for (const arm of cop.arms) {
     arm.scale = 1;   // lengths were measured in root space (already x s)
     const turn = arm.mitt.turn;
     worldQ(turn, _handQ).multiply(arm.K);              // the hand's turn now
-    // the rig's palm: where the mitt's palm is
-    _t.copy(MITT_FINGERS).multiplyScalar(MITT_PALM * rig.scale * 1.55);
-    turn.localToWorld(_t).add(_shift);
+    worldP(turn, _t).add(_shift);                       // a gun grip sits on the rig's wrist joint
+    worldP(arm.up, _sp);
+    // the elbow: the way the rig's elbow sticks out of its arm line, hanging
+    // a little more (real elbows don't wing out)
+    worldP(arm.pivot, _jp);
+    worldP(arm.elbow, _ep);
+    _th.subVectors(_ep, _jp);
+    _th.addScaledVector(_dir.subVectors(_t, _jp).normalize(), -_th.dot(_dir));
+    if (_th.lengthSq() < 1e-6) _th.set(arm.side, -1, 0.4).applyQuaternion(_cq);
+    _th.normalize();
+    _th.addScaledVector(_Uw, -0.35);
     // On a rifle the hands take the gun's own grip, not the flat mitts'
-    // turn (a mitt has no palm side): the trigger hand's palm on the right
-    // of the pistol grip, fingers forward to wrap it, thumb up; the support
-    // hand cradling the handguard from below, palm up, fingers round its
-    // right side, thumb along the left. Only while the rig's hand is
-    // actually there: a reload, a throw or a pose takes it off the gun.
-    let onGun = false;
-    if (held) {
-      const gun = rig.held, u = gun.userData;
-      const spot = arm.side > 0 ? u.gripPos : (!u.pistol && !u.akimbo ? u.supportHandPos : null);
-      if (spot) {
-        worldQ(gun, _gq);
-        _jp.copy(spot);
-        gun.localToWorld(_jp);
-        // near the grip (trigger hand) or anywhere along the gun's line
-        // (the support hand slides)
-        _ep.subVectors(_t, _jp);
-        if (arm.side < 0) _ep.addScaledVector(_axis, -_ep.dot(_axis));
-        if (_ep.length() < 0.09 * cop.s) {
-          onGun = true;
-          const g = arm.side > 0 ? HOLD_R : HOLD_L;
-          _a.copy(g.f).applyQuaternion(_gq);
-          _b.copy(g.t).applyQuaternion(_gq);
-          _sp.copy(arm.f0).applyQuaternion(_rootQ);
-          _ep.copy(arm.t0).applyQuaternion(_rootQ);
-          frameRot(_sp, _ep, _a, _b, _handQ);
-          _handQ.multiply(_q2.copy(_rootQ).multiply(arm.Hr));
-          _t.copy(g.off).multiplyScalar(cop.s).applyQuaternion(_gq).add(_jp);
-        }
+    // turn (a mitt has no palm side), wherever the body has moved the gun.
+    const onGun = arm.onGun;
+    if (onGun) gun.localToWorld(_jp.copy(arm.side > 0 ? u.gripPos : u.supportHandPos));
+    if (gun) {
+      if (onGun && arm.side > 0) {
+        // the trigger hand: palm on the right of the pistol grip, thumb up,
+        // the wrist kept near straight, so the elbow sits where the forearm
+        // behind that hand puts it
+        _a.copy(HOLD_R.f).applyQuaternion(_gq);
+        _b.copy(HOLD_R.t).applyQuaternion(_gq);
+        _f.copy(arm.f0).applyQuaternion(_rootQ);
+        _p.copy(arm.t0).applyQuaternion(_rootQ);
+        frameRot(_f, _p, _a, _b, _handQ);
+        _handQ.multiply(_q2.copy(_rootQ).multiply(arm.Hr));
+        _t.copy(HOLD_R.off).multiplyScalar(s).applyQuaternion(_gq).add(_jp);
+        _ep.copy(arm.fLocal).applyQuaternion(_handQ);
+        _th.copy(_t).addScaledVector(_ep, -arm.b).sub(_sp);
+      } else if (onGun) {
+        // the support hand: under the handguard, palm up, as far forward as
+        // leaves the elbow bent near a right angle, the elbow down and out,
+        // the forearm in plain sight under the gun; the hand runs on from
+        // the forearm with a little wrist toward the muzzle
+        const want = (arm.a + arm.b) * 0.8;
+        for (let i = 0; i < 16 && _jp.distanceTo(_sp) > want; i++) _jp.addScaledVector(_axis, 0.01 * s);
+        _c.copy(HOLD_L.off).multiplyScalar(s).applyQuaternion(_gq).add(_jp);   // the palm's centre
+        _th.set(-0.75, -1, 0.1).applyQuaternion(_cq);
+        midJoint(_sp, _c, arm.a, arm.b, _th, _ep);
+        _a.set(0, 0, -1).applyQuaternion(_gq);
+        _f.subVectors(_c, _ep).normalize().multiplyScalar(0.72).addScaledVector(_a, 0.28).normalize();
+        _a.set(0.35, 1, 0).applyQuaternion(_gq);
+        _p.copy(_a).addScaledVector(_f, -_a.dot(_f)).normalize();               // the palm faces the gun
+        _a.crossVectors(_p, _f);                                                // the thumb side (a left hand)
+        _b.copy(arm.f0).applyQuaternion(_rootQ);
+        _old.copy(arm.t0).applyQuaternion(_rootQ);
+        frameRot(_b, _old, _f, _a, _handQ);
+        _handQ.multiply(_q2.copy(_rootQ).multiply(arm.Hr));
+        _t.copy(_c).addScaledVector(_p, -0.018 * s);    // the bones run under the palm's skin
       }
     }
-    // the body's wrist: back from that palm along the hand
+    if (supine) {
+      // loose on the floor, out to the side and a little toward the feet,
+      // the elbow slightly bent, the palm to the sky
+      _c.copy(_sp).addScaledVector(_Rw, arm.side * 0.4 * s).addScaledVector(_Aw, -0.2 * s);
+      root.worldToLocal(_c);
+      _c.y = 0.05 * s;
+      root.localToWorld(_c);
+      _t.lerp(_c, supine);
+      _f.copy(_Rw).multiplyScalar(arm.side * 0.8).addScaledVector(_Aw, -0.55).normalize();
+      if (arm.side < 0) _a.crossVectors(_Uw, _f); else _a.crossVectors(_f, _Uw);
+      _b.copy(arm.f0).applyQuaternion(_rootQ);
+      _old.copy(arm.t0).applyQuaternion(_rootQ);
+      frameRot(_b, _old, _f, _a, _tq);
+      _tq.multiply(_q2.copy(_rootQ).multiply(arm.Hr));
+      _handQ.slerp(_tq, supine);
+      _c.copy(_Rw).multiplyScalar(arm.side * 0.3).addScaledVector(_Aw, -1).addScaledVector(_Uw, -0.25);
+      _th.lerp(_c, supine);
+    }
+    // the body's wrist: back from the palm along the hand
     _w.copy(arm.palm).applyQuaternion(_handQ);
     _t.sub(_w);
-    // a support hand out of reach slides back along the gun toward the
-    // receiver, the way a short arm takes a rifle
-    if (held && arm.side < 0) {
-      worldP(arm.up, _sp);
-      const reach = arm.a + arm.b - 0.01;
-      for (let i = 0; i < 40 && _t.distanceTo(_sp) > reach; i++) _t.addScaledVector(_axis, 0.01);
-    }
-    // the elbow: on the gun, where a straight wrist puts it (back from the
-    // wrist along the hand); otherwise the way the rig's elbow sticks out of
-    // its arm line, hanging a little more (real elbows don't wing out)
-    worldP(arm.up, _sp);
-    if (onGun) {
-      _ep.copy(arm.fLocal).applyQuaternion(_handQ);
-      _pole.copy(_t).addScaledVector(_ep, -arm.b).sub(_sp);
-    } else {
-      worldP(arm.pivot, _jp);
-      worldP(arm.elbow, _ep);
-      _pole.subVectors(_ep, _jp);
-    }
-    _dir.copy(_t).sub(_sp).normalize();
-    _pole.addScaledVector(_dir, -_pole.dot(_dir));
-    if (_pole.lengthSq() < 1e-6) _pole.set(arm.side, -1, 0.4).applyQuaternion(worldQ(rig.parts.chest, _jq));
-    _pole.normalize();
-    if (!onGun) _pole.y -= 0.35;
-    solveLimb(arm, arm.up, arm.lo, arm.restUp, arm.restLo, _t.clone(), _pole.clone(), _rootQ);
+    solveLimb(arm, arm.up, arm.lo, arm.restUp, arm.restLo, _t.clone(), _th.clone(), _rootQ);
     setWorldQ(arm.hand, _handQ);
-    // fingers: a fist round the grip; the support hand wraps the handguard
-    const fist = arm.mitt.pose === "fist" || arm.mitt.pose === "bird" || (onGun && arm.side > 0);
+    // fingers: a fist round the grip with the trigger finger laid along the
+    // receiver; the support hand wrapped round the handguard, thumb over
+    const grip = onGun && arm.side > 0;
+    const fist = arm.mitt.pose === "fist" || arm.mitt.pose === "bird" || grip;
     const wrap = onGun && arm.side < 0;
     for (const f of cop.fingers[arm.key]) {
-      const bird = arm.mitt.pose === "bird" && f.bone.name.startsWith("middle");
-      const c = wrap ? (f.thumb ? 0.25 : f.k === 1 ? 0.7 : 0.8)
-        : fist && !bird ? (f.thumb ? 0.7 : f.k === 1 ? 1.2 : 1.35) : (f.thumb ? 0.15 : 0.18);
+      const name = f.bone.name;
+      const out = (arm.mitt.pose === "bird" && name.startsWith("middle")) || (grip && name.startsWith("index"));
+      let c = wrap ? (f.thumb ? 0.45 : f.k === 1 ? 0.95 : 0.85)
+        : fist && !out ? (f.thumb ? 0.7 : f.k === 1 ? 1.2 : 1.35) : (f.thumb ? 0.15 : 0.18);
+      if (out) c = 0.06;
+      if (supine) c += (0.32 - c) * supine;
       // the thumb folds at its two outer joints (its base sits turned in the
       // palm, so it bends about the same local axis as a finger)
       _curlQ.setFromAxisAngle(_X, f.thumb && f.k === 1 ? 0 : c);
@@ -570,7 +762,9 @@ export function syncCopBody(rig, { pitch = 0 } = {}) {
     }
   }
 
-  // legs
+  // ---- legs
+  worldQ(P.hips, _cq);
+  worldP(P.hips, _c);
   for (const leg of cop.legs) {
     leg.scale = 1;
     worldQ(leg.ankle, _jq);
@@ -579,17 +773,43 @@ export function syncCopBody(rig, { pitch = 0 } = {}) {
     // sideways, in the hips' frame: the stick legs leave one point and a
     // gait walks the feet onto one line; a real body's feet track under
     // its own hips, a hand's width apart
-    worldQ(rig.parts.hips, _q);
-    _a.subVectors(_jp, worldP(rig.parts.hips, _b)).applyQuaternion(_q2.copy(_q).invert());
-    _t.add(_b.set(leg.side * 0.085 * cop.s - 0.5 * _a.x, 0, 0).applyQuaternion(_q));
+    _a.subVectors(_jp, _c).applyQuaternion(_q2.copy(_cq).invert());
+    _t.add(_b.set(leg.side * 0.085 * s - 0.5 * _a.x, 0, 0).applyQuaternion(_cq));
+    if (run > 0) {
+      // a run: the swing foot comes through higher (the knee drives up), the
+      // trailing foot reaches further back
+      root.worldToLocal(_t);
+      _t.y += Math.max(0, _t.y - cop.ankleY) * 0.85 * run;
+      const back = _t.z - root.worldToLocal(_b.copy(_c)).z;
+      if (back > 0) _t.z += back * 0.25 * run;
+      root.localToWorld(_t);
+    }
     _handQ.copy(_jq).multiply(leg.K);
-    worldP(leg.hip, _sp);
+    worldP(leg.th, _sp);
+    worldP(leg.hip, _a);
     worldP(leg.knee, _ep);
-    _pole.subVectors(_ep, _sp);
-    _dir.copy(_t).sub(_sp).normalize();
-    _pole.addScaledVector(_dir, -_pole.dot(_dir));
-    if (_pole.lengthSq() < 1e-6) _pole.set(0, 0, -1).applyQuaternion(worldQ(rig.parts.hips, _q));
-    solveLimb(leg, leg.th, leg.ca, leg.restTh, leg.restCa, _t.clone(), _pole.clone(), _rootQ);
+    _th.subVectors(_ep, _a);
+    _th.addScaledVector(_dir.subVectors(_t, _a).normalize(), -_th.dot(_dir));
+    if (_th.lengthSq() < 1e-6) _th.set(0, 0, -1).applyQuaternion(_cq);
+    _th.normalize();
+    if (supine) {
+      // legs down along the floor, a little apart, one a touch more bent;
+      // the knees and the toes both to the sky and slightly out
+      const bent = leg.side * dside > 0 ? 0.09 : 0;
+      _v.copy(_sp).addScaledVector(_Aw, -(0.82 - bent) * s).addScaledVector(_Rw, leg.side * 0.09 * s);
+      root.worldToLocal(_v);
+      _v.y = cop.ankleY + 0.012 * s;
+      root.localToWorld(_v);
+      _t.lerp(_v, supine);
+      _f.copy(_Uw).addScaledVector(_Rw, leg.side * 0.4).addScaledVector(_Aw, -0.4).normalize();   // the toes
+      _a.set(0, 0, -1).applyQuaternion(_rootQ);
+      frameRot(_a, _Uw, _f, _Aw, _tq);
+      _tq.multiply(_q2.copy(_rootQ).multiply(leg.restFt));
+      _handQ.slerp(_tq, supine);
+      _v.copy(_Uw).addScaledVector(_Rw, leg.side * 0.35);
+      _th.lerp(_v, supine);
+    }
+    solveLimb(leg, leg.th, leg.ca, leg.restTh, leg.restCa, _t.clone(), _th.clone(), _rootQ);
     setWorldQ(leg.ft, _handQ);
   }
   cop.holder.updateMatrixWorld(true);

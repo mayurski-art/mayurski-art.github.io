@@ -361,6 +361,41 @@ def build(name, look, P):
 BUDGET = {"body": 6000, "hair": 1500, "cloth": 2600, "shoe": 600, "kit": 2500}
 
 
+def strip_covered(body, covers, top):
+    """Delete the body's faces that lie under clothes or shoes (every vertex
+    within 5 cm below a cover, along its normal), below `top` (the collar
+    stays lined). MakeHuman's own delete groups leave skin under the cloth,
+    and it pokes through at a deep bend: a knee, a crouch, an arched back."""
+    import bmesh
+    from mathutils.bvhtree import BVHTree
+    trees = []
+    for c in covers:
+        cb = bmesh.new()
+        cb.from_mesh(c.data)
+        cb.transform(c.matrix_world)
+        trees.append(BVHTree.FromBMesh(cb))
+        cb.free()
+    b = bmesh.new()
+    b.from_mesh(body.data)
+    mw = body.matrix_world
+    rot = mw.to_3x3()
+    covered = set()
+    for v in b.verts:
+        p = mw @ v.co
+        if p.z > top:
+            continue
+        n = (rot @ v.normal).normalized()
+        if any(t.ray_cast(p - n * 0.002, n, 0.05)[0] is not None for t in trees):
+            covered.add(v.index)
+    faces = [f for f in b.faces if all(v.index in covered for v in f.verts)]
+    n_all = len(b.faces)
+    bmesh.ops.delete(b, geom=faces, context="FACES")
+    b.to_mesh(body.data)
+    b.free()
+    body.data.update()
+    print(f"STRIP {len(faces)}/{n_all} body faces under clothes")
+
+
 def export_cop(name, look, P):
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
@@ -375,6 +410,9 @@ def export_cop(name, look, P):
         f = Z["_snapshot"](ob, "CB_" + ob.name)
         kind = "body" if ob is bm else "shoe" if "shoe" in low else "hair" if hair and low.endswith(hair) else None if any(k in low for k in ("eye", "brow", "lash", "teeth")) else "cloth"
         parts.append((f, kind))
+    covers = [f for f, kind in parts if kind in ("cloth", "shoe") and "proj" not in f.data.uv_layers]
+    body = next(f for f, kind in parts if kind == "body")
+    strip_covered(body, covers, (rig.matrix_world @ rig.pose.bones["neck_01"].head).z - 0.04)
     # the kit: one mesh, rest pose, weights kept
     bpy.ops.object.select_all(action="DESELECT")
     ks = [Z["_snapshot"](k, "CB_" + k.name) for k in kit]

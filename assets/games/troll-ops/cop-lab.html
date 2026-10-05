@@ -40,7 +40,7 @@ import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, DANCES, DEATH_TIME, THROW_TIME } from "./character.js?v=to-hb4-em1-fc1-wst";
 import { buildWeaponMesh, stripLights, preloadWeaponModels } from "./weapon-model.js?v=p5-em1-wst";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst";
-import { applyCopBody, syncCopBody, copDebug } from "./cop-bodies.js?v=cb1";
+import { applyCopBody, syncCopBody, copDebug } from "./cop-bodies.js?v=cb2";
 
 const q = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
@@ -121,7 +121,7 @@ function argsFor(pose, t) {
   }
 }
 function poseRig(r, pose, t) {
-  if (pose === "death") { poseDeath(r, Math.min(1, ((t % 3) / DEATH_TIME))); return; }
+  if (pose === "death") { if (!r.death) r.deathHint = { dir: 1 }; poseDeath(r, Math.min(1, ((t % 3) / DEATH_TIME))); return; }
   if (pose === "dance") { DANCES[0](r, t); return; }
   const a = argsFor(pose, t);
   if (a.moving) state.phase += gaitPhaseRate(a.mps) / 60 / (r === rig ? 1 : 1e9);
@@ -141,6 +141,7 @@ window.__lab = {
       rig.root.rotation.x = rig.root.rotation.z = 0;
       rig.parts.hips.rotation.set(0, 0, 0);
       rig.parts.hips.position.set(0, rig.hipY, 0);
+      rig.death = ghost.death = null;
       $("pose").value = "idle";
       for (let i = 0; i < 20; i++) step(1 / 60);
     }
@@ -162,7 +163,10 @@ function step(dt) {
   rig.root.rotation.y = THREE.MathUtils.degToRad(+$("yaw").value);
   ghost.root.rotation.y = rig.root.rotation.y;
   poseRig(rig, pose, state.t);
-  syncCopBody(rig, { pitch: argsFor(pose, state.t).pitch });
+  // what the game passes (remote-players.js bodyPose)
+  const a = argsFor(pose, state.t);
+  const death = pose === "death" ? Math.min(1, (state.t % 3) / DEATH_TIME) : 0;
+  syncCopBody(rig, { ...a, mps: a.moving ? a.mps : 0, gait: pose !== "dance" && pose !== "death", death });
   ghost.root.visible = $("stick").checked;
   if (ghost.root.visible) {
     const ph = state.phase;
