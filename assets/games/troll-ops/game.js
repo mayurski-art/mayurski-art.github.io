@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1";
@@ -34,7 +34,7 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22";

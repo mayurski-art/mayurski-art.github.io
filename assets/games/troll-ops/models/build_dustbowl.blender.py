@@ -98,7 +98,42 @@ def build_perimeter(P):
             b.cyl(P["timber"], 0.08, (k, 4.6, s * 34.4), (k, 4.55, s * 33.9), seg=6)
             b.cyl(P["timber"], 0.08, (s * 34.4, 4.6, k), (s * 33.9, 4.55, k), seg=6)
             k += 7.5
-    b.finish("db-perimeter.glb")
+    # an old city wall, not the edge of the world: towers on the corners and
+    # halfway down the east and west sides, all outside the inner face
+    # (x/z 34.4), so they only show above the wall top
+    for (tx, tz, s, h) in [(sx * 37.4, sz * 37.4, 5.2, 8.6) for sx in (-1, 1) for sz in (-1, 1)] + \
+                          [(sx * 38.4, 0, 4.4, 7.6) for sx in (-1, 1)]:
+        b.frustum(m, s + 0.5, s + 0.5, s, s, 0, h, x=tx, z=tz)
+        b.box(P["plaster"], s + 0.3, 0.3, s + 0.3, tx, h, tz, bevel=0.04)
+        for k in range(4):
+            off = -s / 2 + 0.45 + k * (s - 0.9) / 3
+            for (mx, mz) in ((tx + off, tz - s / 2 + 0.3), (tx + off, tz + s / 2 - 0.3),
+                             (tx - s / 2 + 0.3, tz + off), (tx + s / 2 - 0.3, tz + off)):
+                b.box(m, 0.7, 0.6, 0.7, mx, h + 0.3, mz)
+        # arrow slits on the faces that look into the village
+        for y in (5.6, 7.0):
+            if y < h - 1.0:
+                o = s / 2 + 0.25 * (1 - (y + 0.45) / h) + 0.01     # the tapered face at this height
+                b.box(P["black"], 0.04, 0.9, 0.22, tx - math.copysign(o, tx), y, tz)
+                if tz:
+                    b.box(P["black"], 0.22, 0.9, 0.04, tx, y, tz - math.copysign(o, tz))
+    # gatehouses behind the north and south walls, a sealed gate in each
+    # inner face (pilasters have colliders in maps.js: GATE_PILASTERS)
+    for (sz, y0) in ((-1, 0.0), (1, 1.2)):
+        b.box(m, 9.0, 8.4, 5.0, 0, 0, sz * 38.4)
+        b.box(P["plaster"], 9.3, 0.3, 5.3, 0, 8.4, sz * 38.4, bevel=0.04)
+        for k in range(5):
+            b.box(m, 0.8, 0.6, 0.8, -4.0 + k * 2.0, 8.7, sz * 36.3)
+        fz = sz * 34.4
+        b.box(P["timber"], 3.4, 3.5 - y0 * 0.5, 0.12, 0, y0, fz - sz * 0.06)
+        for k in range(7):
+            b.box(P["dark"], 0.06, 3.5 - y0 * 0.5, 0.04, -1.5 + k * 0.5, y0, fz - sz * 0.13)
+        for hy in (0.9, 2.4):
+            b.box(P["dark"], 3.3, 0.12, 0.05, 0, y0 + hy, fz - sz * 0.14)
+        for px in (-2.1, 2.1):
+            b.box(P["plaster"], 0.8, 3.6 - y0 * 0.5, 0.36, px, y0, fz - sz * 0.18)
+        arch(b, P["plaster"], 0, fz - sz * 0.18, 3.4, 0.36, y0 + 3.5 - y0 * 0.5, along="x")
+    b.finish("db-walls.glb")   # was db-perimeter: renamed when the towers and gates went on, so cached copies refresh
 
 
 # ------------------------------------------------------------------- north
@@ -411,12 +446,22 @@ def build_south(P):
     b.finish("db-south.glb")
 
 
+# The city outside the wall and the mountains are built in the game at load
+# (dustbowl-city.js), not shipped as models: they were ~2.5 MB of GLB.
+
+
 def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     P = palette()
-    for fn in (build_perimeter, build_north, build_centre, build_market, build_south):
-        fn(P)
+    builders = {"walls": build_perimeter, "north": build_north, "centre": build_centre, "market": build_market,
+                "south": build_south}
+    only = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    built = [k for k in builders if not only or k in only]
+    for k in built:
+        builders[k](P)
+    import quantize_glb
+    quantize_glb.main([os.path.join(os.path.dirname(os.path.abspath(__file__)), "db-%s.glb" % k) for k in built])
     print("ALL DUST BOWL MODELS EXPORTED")
 
 

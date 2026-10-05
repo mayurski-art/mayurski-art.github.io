@@ -22,6 +22,7 @@ import {
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js?v=hg6e";
 import { gsModel, mapModel } from "./map-models.js?v=hg6e";
+import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db1";
 import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e";
 
 /* ------------------------------------------------------------ surface PBR */
@@ -641,6 +642,9 @@ export const MAPS = {
     blurb: "Mud-brick lanes and a dry riverbed. The minaret sees everything.",
     bounds: { minX: -36, maxX: 36, minZ: -36, maxZ: 36 },
     playerSpawn: { x: 0, z: -30 },
+    // the city round the wall runs out to ~175 m, the mountains to ~315 m:
+    // far enough that the far plane never slices a ridge from anywhere inside
+    viewFar: 440,
     // Sunset (user's call, map detail pass): the sun a hand above the wall,
     // every house and palm throwing a long shadow, a violet sky going orange
     // at the horizon, warm dust in the air.
@@ -715,7 +719,14 @@ export const MAPS = {
 
       // Every collider above is the approved blockout's, now invisible; the
       // village is drawn by the db-*.glb zone models (models/build_dustbowl.blender.py).
-      for (const zone of ["perimeter", "north", "centre", "market", "south"]) mapModel(api, `db-${zone}`, { x: 0, z: 0 });
+      for (const zone of ["walls", "north", "centre", "market", "south"]) mapModel(api, `db-${zone}`, { x: 0, z: 0 });
+      // the city outside the wall and the mountains (dustbowl-city.js):
+      // scenery built from a seed at load, no colliders, no shadows
+      api.prop(buildDustbowlCity());
+      // the sealed gates' pilasters stand 0.36 m proud of the wall's inner face
+      for (const [sz, y] of [[-1, 0], [1, BANK]]) {
+        for (const px of [-2.1, 2.1]) api.ghostBox(px, sz * 34.22, 0.8, 0.36, 3.6 - y * 0.5, { y, pen: 8 });
+      }
       // palm trunks (the models' PALMS list, plus one in each courtyard)
       const PALMS = [[-14.5, 11.3], [15, 11.3], [-6.8, -10.4], [24, -2.5], [-24, -2.5], [-30.5, -25], [30.5, -25]];
       for (const [x, z] of PALMS) api.ghostBox(x, z, 0.4, 0.4, 4, { pen: 3 });
@@ -723,6 +734,11 @@ export const MAPS = {
       const palmRoot = new THREE.Group();
       api.prop(palmRoot);
       palmTrees(palmRoot, PALMS, { seed: 29 });
+      // palms in the streets outside
+      const cityPalms = new THREE.Group();
+      api.prop(cityPalms);
+      palmTrees(cityPalms, CITY_PALMS, { seed: 31 });
+      cityPalms.traverse((n) => { n.castShadow = false; });
     },
     spawns: [[-30, -31], [30, -31], [0, -33], [-33, 0], [33, 0], [-28, 25], [28, 25], [12, 25]],
   },
