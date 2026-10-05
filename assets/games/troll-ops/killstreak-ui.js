@@ -12,7 +12,7 @@
 // announces both, so we track both. What each medal looks like and pays lives
 // in medals.js.
 
-import { badgeSvg, medalDef } from "./medals.js?v=to-medals2";
+import { badgeSvg, medalDef, medalIcon } from "./medals.js?v=to-medals3";
 
 const MULTIKILL_WINDOW = 4000;   // ms — BO2's multikill grace is about this
 
@@ -113,7 +113,7 @@ export class KillstreakUi {
     el.className = `to-medal-pop metal-${def.metal}`;
     const icon = document.createElement("div");
     icon.className = "to-medal-icon";
-    icon.innerHTML = badgeSvg(def);
+    icon.innerHTML = medalIcon(def);
     const name = document.createElement("div");
     name.className = "to-medal-name";
     name.textContent = label;
@@ -154,7 +154,7 @@ export class KillstreakUi {
     const icon = document.createElement("div");
     icon.className = "to-ks-ready-icon";
     icon.innerHTML = label
-      ? badgeSvg(medalDef(label))
+      ? medalIcon(medalDef(label))
       : badgeSvg({ shape: "hex", metal: tone === "red" ? "red" : "gold" }, {
         inner: iconSvg.replace("<svg ", '<svg x="17" y="16" width="30" height="30" '),
       });

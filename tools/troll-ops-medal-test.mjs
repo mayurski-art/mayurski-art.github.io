@@ -62,13 +62,13 @@ await page.evaluate(() => {
 await sleep(400);
 const pops = await page.evaluate(() => [...document.querySelectorAll("#to-ks-badges .to-medal-pop")].map((e) => ({
   name: e.querySelector(".to-medal-name")?.textContent, pts: e.querySelector(".to-medal-pts")?.textContent || "",
-  old: e.classList.contains("is-old"), svg: !!e.querySelector("svg path"),
+  old: e.classList.contains("is-old"), svg: !!e.querySelector("svg path") || e.querySelector(".to-medal-icon img")?.naturalWidth > 0,
   font: getComputedStyle(e.querySelector(".to-medal-name")).fontFamily,
 })));
 check("splash stacks newest first", pops[0]?.name === "Revenge" && pops.length === 3, JSON.stringify(pops.map((p) => p.name)));
 check("older medals shrink", pops[1]?.old && pops[2]?.old && !pops[0]?.old);
 check("+points shown", pops[0]?.pts === "+50");
-check("badge drawn", pops.every((p) => p.svg));
+check("badge drawn (art or svg)", pops.every((p) => p.svg));
 check("Oswald font", /Oswald/.test(pops[0]?.font || ""), pops[0]?.font);
 const after = await page.evaluate(() => ({ xp: window.__trollOps.player.matchXp, score: window.__trollOps.streaks.score }));
 // XP pays medals at a tenth (progression.js XP_SCALE); the meter at full value.
@@ -96,7 +96,7 @@ await page.evaluate(() => {
 await sleep(1200);
 const aar = await page.evaluate(() => ({
   rows: [...document.querySelectorAll("#to-go-medals .to-go-medal")].map((li) => li.querySelector(".to-go-medal-name").textContent + li.querySelector("b").textContent),
-  icons: document.querySelectorAll("#to-go-medals .to-go-medal-icon svg").length,
+  icons: [...document.querySelectorAll("#to-go-medals .to-go-medal-icon")].filter((i) => i.querySelector("svg") || i.querySelector("img")?.naturalWidth > 0).length,
   bonus: document.querySelector(".to-go-medal-bonus")?.textContent,
   hidden: document.getElementById("to-go-medals").hidden,
 }));

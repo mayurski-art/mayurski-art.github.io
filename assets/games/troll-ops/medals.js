@@ -12,6 +12,16 @@
 // when the medal lands, so the "+50" under a medal is never decoration.
 // Labels are keys, compared case-insensitively (older peers still send
 // "NUCLEAR" on the wire).
+//
+// Medal ART: a medal with `img` shows medals/<img>.png instead of its drawn
+// badge. Those files are placeholder BO2 medals for now (user, 2026-10-05:
+// "i will create troll versions of this"). To swap one in, overwrite the file
+// of the same name and bump MEDAL_ART_V (sw.js serves art cache-first, so an
+// unbumped swap can show the old picture for a day). Medals without `img`
+// keep the drawn badge. The drawn badge's metal still tints the title and
+// pitches the sting either way.
+
+const MEDAL_ART_V = "bo2-1";
 
 const METAL = {
   silver: { hi: "#f1f5f2", mid: "#aab3ad", lo: "#5f6863", ink: "#222825" },
@@ -52,23 +62,26 @@ const GLYPH = {
 };
 
 const MEDALS = {
-  "headshot":        { shape: "shield", glyph: "head", metal: "silver", pts: 50 },
-  "double kill":     { shape: "chevron", glyph: "two", metal: "silver", pts: 50 },
-  "triple kill":     { shape: "chevron", glyph: "three", metal: "gold", pts: 75 },
-  "quad kill":       { shape: "chevron", glyph: "four", metal: "red", pts: 100 },
+  "headshot":        { shape: "shield", glyph: "head", metal: "silver", pts: 50, img: "headshot" },
+  "double kill":     { shape: "chevron", glyph: "two", metal: "silver", pts: 50, img: "double-kill" },
+  "triple kill":     { shape: "chevron", glyph: "three", metal: "gold", pts: 75, img: "triple-kill" },
+  "quad kill":       { shape: "chevron", glyph: "four", metal: "red", pts: 100, img: "quad-kill" },
   "first blood":     { shape: "shield", glyph: "blood", metal: "gold", pts: 100 },
-  "longshot":        { shape: "shield", glyph: "scope", metal: "silver", pts: 50 },
-  "revenge":         { shape: "shield", glyph: "back", metal: "silver", pts: 50 },
-  "avenger":         { shape: "shield", glyph: "avenge", metal: "silver", pts: 50 },
-  "shutdown":        { shape: "shield", glyph: "shut", metal: "gold", pts: 75 },
-  "nuclear":         { shape: "star", glyph: "nuke", metal: "red", pts: 0 },
-  "comeback":        { shape: "hex", glyph: "up", metal: "gold", pts: 100 },
-  "flawless":        { shape: "hex", glyph: "flaw", metal: "gold", pts: 100 },
-  "combat medic":    { shape: "hex", glyph: "medic", metal: "silver", pts: 50 },
-  "bomb specialist": { shape: "hex", glyph: "bomb", metal: "gold", pts: 100 },
-  "air superiority": { shape: "hex", glyph: "jet", metal: "gold", pts: 0 },
-  "suicide":         { shape: "hex", glyph: "skull", metal: "red", pts: 0 },
+  "longshot":        { shape: "shield", glyph: "scope", metal: "silver", pts: 50, img: "longshot" },
+  "revenge":         { shape: "shield", glyph: "back", metal: "silver", pts: 50, img: "revenge" },
+  "avenger":         { shape: "shield", glyph: "avenge", metal: "silver", pts: 50, img: "avenger" },
+  "shutdown":        { shape: "shield", glyph: "shut", metal: "gold", pts: 75, img: "shutdown" },
+  "nuclear":         { shape: "star", glyph: "nuke", metal: "red", pts: 0, img: "nuclear" },
+  "comeback":        { shape: "hex", glyph: "up", metal: "gold", pts: 100, img: "comeback" },
+  "flawless":        { shape: "hex", glyph: "flaw", metal: "gold", pts: 100, img: "flawless" },
+  "combat medic":    { shape: "hex", glyph: "medic", metal: "silver", pts: 50, img: "combat-medic" },
+  "bomb specialist": { shape: "hex", glyph: "bomb", metal: "gold", pts: 100, img: "bomb-specialist" },
+  "air superiority": { shape: "hex", glyph: "jet", metal: "gold", pts: 0, img: "air-superiority" },
+  "suicide":         { shape: "hex", glyph: "skull", metal: "red", pts: 0, img: "suicide" },
 };
+
+/* Rungs with art; 3 and 7 keep the drawn star until they get some. */
+const STREAK_ART = new Set([5, 10]);
 
 /* Streak rungs and 5+ multikills are families, not fixed labels. */
 export function medalDef(label) {
@@ -77,10 +90,11 @@ export function medalDef(label) {
   let m = key.match(/^(\d+) kill streak$/);
   if (m) {
     const n = +m[1];
-    return { shape: "star", glyph: "num", n, metal: n >= 10 ? "red" : n >= 7 ? "gold" : "silver", pts: 0 };
+    return { shape: "star", glyph: "num", n, metal: n >= 10 ? "red" : n >= 7 ? "gold" : "silver", pts: 0,
+      img: STREAK_ART.has(n) ? `streak-${n}` : "" };
   }
   m = key.match(/^(\d+)× multi kill$/);
-  if (m) return { shape: "chevron", glyph: "four", metal: "red", pts: 150 };
+  if (m) return { shape: "chevron", glyph: "four", metal: "red", pts: 150, img: `multi-${Math.min(+m[1], 9)}` };
   return { shape: "hex", glyph: "flaw", metal: "silver", pts: 0 };
 }
 
@@ -110,6 +124,23 @@ export function badgeSvg(def, { inner = "" } = {}) {
     + `<g fill="${m.ink}" stroke="${m.ink}" color="${m.ink}" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`;
 }
 
+const artUrl = (name) => new URL(`medals/${name}.png?v=${MEDAL_ART_V}`, import.meta.url).href;
+
+/* A medal's icon markup: its art if it has some, else the drawn badge. */
+export function medalIcon(def) {
+  if (!def.img) return badgeSvg(def);
+  return `<img src="${artUrl(def.img)}" alt="" draggable="false">`;
+}
+
 export function medalSvg(label) {
-  return badgeSvg(medalDef(label));
+  return medalIcon(medalDef(label));
+}
+
+/* Fetch the art up front, so a match's first medal isn't an empty frame
+   while its picture downloads. */
+if (typeof Image !== "undefined") {
+  const names = new Set(Object.values(MEDALS).map((d) => d.img).filter(Boolean));
+  for (const n of STREAK_ART) names.add(`streak-${n}`);
+  for (let n = 5; n <= 9; n++) names.add(`multi-${n}`);
+  for (const n of names) new Image().src = artUrl(n);
 }

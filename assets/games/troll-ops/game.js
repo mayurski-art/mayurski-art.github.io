@@ -24,8 +24,8 @@ import {
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE,
 } from "./streak-entities.js?v=vsat2-hk1";
-import { KillstreakUi } from "./killstreak-ui.js?v=to-medals2";
-import { medalSvg } from "./medals.js?v=to-medals2";
+import { KillstreakUi } from "./killstreak-ui.js?v=to-medals3";
+import { medalSvg } from "./medals.js?v=to-medals3";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js?v=wu1";
 import { KillCam } from "./killcam.js?v=to-fx3";
 import { Achievements } from "./achievements.js?v=umb1-wst-sb2";
