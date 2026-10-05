@@ -13,6 +13,15 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md` (approved plan), `ZOMB
 
 ## 1. Open work and plans (newest first)
 
+### Dust Bowl bazaar redesign (phases 2-5 of 5)
+Turning Dust Bowl into an old bazaar inside a desert city (the user ran the map brief past ChatGPT). Phase 1, the city beyond the wall, has shipped. Still to build, in this order:
+- **2:** market street: shop identities split west (carpet, tea, turquoise/blue awnings) vs east (repair, produce, red/ochre), sagging awnings and alley tarps, a minaret plaza, and a 2nd elevated spot on the carpet-shop roof at (-16, 0) with an outside stair; its north parapet is tall so it watches the market, not the north lane.
+- **3:** north bazaar/loading yard: three islands of cover (never a wall), and a 3rd elevated spot, a 1.5 m loading dock on the west at about (-17, -32.6). Keep three 45 m+ east-west sightlines.
+- **4:** the channel as old water works: culverts, pipes, rubble, a plank crossing at x -17.5. Depth stays 1.2 m (the bank stairs are built for it).
+- **5:** wires across the street, rooftop tanks, laundry, distant smoke, new loading-screen renders.
+
+Hold every phase to: bounds, spawns and the perimeter collider unchanged; nothing solid within 3 m of the S&D sites, which must stay at A (14.48, -18.21) and B (14.37, 14.24); all 10 dustbowl walk routes passing; frame rate checked with tools/troll-ops-map-fps.mjs against a worktree of main. Every solid piece is a collider in maps.js plus the matching mesh in models/build_dustbowl.blender.py, sized from the same numbers.
+
 ### Troll City roleplay, phase 2 remainder (Socialize, Troll City only)
 Phase 2a has shipped: seats, the pianist, the doctor. Still to build, in this order:
 - **2b:** sheriff + jail: badge, cuff, cells, wanted board. The courthouse geometry for the office and jail is already in.
@@ -448,6 +457,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-05**
+  - Dust Bowl bazaar phase 1: a city outside the wall (ring houses, blocks out to ~175 m, mosque, minarets, water towers, poles, palms) and mountains, built at load by dustbowl-city.js (no download, no colliders, no shadows); city-wall towers and sealed gates (db-perimeter.glb renamed db-walls.glb); viewFar 440.
   - Soul Blazer hellfire shotgun (rank 0): Blender model (models/build_soulblazer.blender.py), swinging charms, jaw, flank-skull shell counter, fire FX, port-load relight reload, bespoke admire (soul-blazer.js). Remote relight isn't networked. Test: tools/troll-ops-soulblazer-test.mjs.
   - Trolling Loud Socialize crowd: 119 club NPCs, including bouncers, the door line, bartenders, the go-go and dancers on the beat, VIP booths, the mezzanine, terrace and roof. New `phone` act, the `guard` arms now fold, and the terrace armchairs face their table. Test: tools/troll-ops-club-crowd-test.mjs.
   - Zombies ZR4 part 2: each zombie is one skinned mesh on one atlas (was 4-7). Draws with 12 zombies: Hollowgrin 515 -> 399, Pentagrin ~4300 -> 2377; fps about 2x on Hollowgrin.
