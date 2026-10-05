@@ -23,6 +23,7 @@ export const U = {
   uTime: { value: 0 },
   uBeatPos: { value: 0 },      // beats since the clock started
   uKick: { value: 0 },         // 1 on the beat, decaying
+  uLevel: { value: 1 },        // the song's loudness 0..1: its quiet bits dim the floor
   uKill: { value: new Float32Array(16) },   // per sign group: 1 = shot out
   uPlayer: { value: new THREE.Vector3(0, -99, 0) },
   uBall: { value: new THREE.Vector3(0, 6.6, -3) },
@@ -40,12 +41,12 @@ export const U = {
      w  its kill group (a sign you shot goes dark for a few seconds)
    and `aRip` lights it up round the player (the dance floor tiles). */
 function neonPatch(sh) {
-  Object.assign(sh.uniforms, { uTime: U.uTime, uBeatPos: U.uBeatPos, uKick: U.uKick, uKill: U.uKill, uPlayer: U.uPlayer });
+  Object.assign(sh.uniforms, { uTime: U.uTime, uBeatPos: U.uBeatPos, uKick: U.uKick, uLevel: U.uLevel, uKill: U.uKill, uPlayer: U.uPlayer });
   sh.vertexShader = sh.vertexShader
     .replace("#include <common>", `#include <common>
       attribute vec4 aNeon;
       attribute float aRip;
-      uniform float uTime, uBeatPos, uKick;
+      uniform float uTime, uBeatPos, uKick, uLevel;
       uniform float uKill[16];
       uniform vec3 uPlayer;
       varying float vGlow;`)
@@ -54,8 +55,27 @@ function neonPatch(sh) {
         float wave = 0.5 + 0.5 * sin(6.2832 * (uBeatPos * 0.25 - aNeon.x));
         float g = mix(1.0, 0.22 + 0.78 * wave * wave, aNeon.y);
         g *= 1.0 + aNeon.z * (uKick - 0.3);
-        g *= 1.0 - uKill[int(aNeon.w + 0.5)];
         vec4 nw = modelMatrix * vec4(transformed, 1.0);
+        if (aRip > 0.0) {
+          // The dance floor's tiles (1 m, on the half metre; the floor's
+          // middle is 0,-3, trollingloud.js DC). A new show every eight
+          // bars, each stepping on the beat: a checkerboard flipping, rings
+          // stepping out over the bar, a band sweeping across on the
+          // eighths, diamonds firing outward. The bar's one flashes it all.
+          vec2 tc = floor(nw.xz);
+          vec2 fc = tc + vec2(0.5, 3.5);
+          float b = floor(uBeatPos + 0.02);
+          float show = mod(floor(uBeatPos / 32.0), 4.0);
+          float hit;
+          if (show < 1.0) hit = mod(tc.x + tc.y + b, 2.0);
+          else if (show < 2.0) hit = 1.0 - smoothstep(0.7, 1.3, abs(length(fc) - (mod(b, 4.0) * 2.0 + 1.0)));
+          else if (show < 3.0) hit = step(abs(tc.x + 7.0 - (mod(floor(uBeatPos * 2.0), 8.0) * 2.0 - 0.5)), 1.0);
+          else hit = step(mod(abs(fc.x) + abs(fc.y) - b * 2.0, 6.0), 1.6);
+          float one = step(mod(b, 4.0), 0.5);
+          g *= (0.3 + 0.7 * uLevel) * mix(0.4, 1.0, hit);
+          g += uKick * uLevel * (hit * 1.9 + one * 0.45);
+        }
+        g *= 1.0 - uKill[int(aNeon.w + 0.5)];
         float d = length(nw.xz - uPlayer.xz);
         g += aRip * (1.8 * exp(-d * d * 0.5) + 0.5 * exp(-pow(d - mod(uTime * 4.0, 7.0), 2.0) * 3.0) * step(abs(nw.y - uPlayer.y), 2.5));
         vGlow = max(g, 0.0);

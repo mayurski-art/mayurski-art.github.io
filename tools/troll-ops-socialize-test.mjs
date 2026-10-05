@@ -46,7 +46,7 @@ async function pump(page, ms) {
   while (Date.now() - t0 < ms) await page.screenshot({ type: "jpeg", quality: 10 }).catch(() => {});
 }
 
-const browser = await chromium.launch({ args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader",
+const browser = await chromium.launch({ args: [`--use-angle=${process.env.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader",
   "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"] });
 const ctx = await browser.newContext({ viewport: { width: 960, height: 600 } });
 await ctx.route(/supabase/, (r) => r.abort());
@@ -176,8 +176,10 @@ check("split onto opposite sides", a2.team && b2.team && a2.team !== b2.team, `$
 await loaded(A); await loaded(B);
 const tdm = await until(A, (v) => v.bots > 0, 30000, (p) => p.evaluate(() => ({ bots: window.__trollOps.bots.bots.length + [...window.__trollOps.net.peers.values()].filter((x) => String(x.id).startsWith("bot-")).length })));
 check("the match has bots", tdm.bots > 0, JSON.stringify(tdm));
-// B's countdown only ticks with frames.
-for (let i = 0; i < 60 && await B.evaluate(() => window.__trollOps.isStaging()); i++) await pump(B, 500);
+// B's countdown only ticks with frames, and a frame with a full match in a
+// software-rendered tab takes seconds: end it rather than wait it out.
+await B.evaluate(() => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); });
+await pump(B, 500);
 const hurt = await B.evaluate(async () => {
   const T = window.__trollOps;
   T.player.spawnGuard = 0;
