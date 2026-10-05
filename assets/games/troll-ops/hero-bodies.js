@@ -16,7 +16,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst";
+import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
 import { buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { buildHumanHand, poseHumanHand, handMaterials } from "./hand-model.js?v=to-grip2";
 

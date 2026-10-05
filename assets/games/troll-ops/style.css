@@ -711,6 +711,36 @@ button.to-gear-chip { cursor: pointer; }
 /* Owner's Invincible toggle: a full-width line between Resume and the rest. */
 .to-menu-actions .to-menu-god { flex: 1 0 100%; box-sizing: border-box; margin: 0; padding: 8px 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; }
 .to-menu-actions .to-menu-god[hidden] { display: none; }
+/* Owner's room-mode switch (Socialize rooms): label, mode list, Start. */
+.to-menu-actions .to-menu-roommode { grid-template-columns: 1fr 160px auto; }
+
+/* Socialize: no guns, so none of the combat HUD or touch buttons. The
+   killfeed (joins and leaves), chat, minimap and emote button stay. */
+body.to-social #to-hud-teams,
+body.to-social #to-ss-hud,
+body.to-social #to-crosshair,
+body.to-social #to-charge,
+body.to-social #to-saber-meter,
+body.to-social #to-spawnguard,
+body.to-social .to-hud-bottom,
+body.to-social #to-hud-gear,
+body.to-social #to-cook,
+body.to-social #to-touch-fire,
+body.to-social #to-touch-fire-l,
+body.to-social #to-touch-ads,
+body.to-social #to-touch-tac,
+body.to-social #to-touch-reload,
+body.to-social #to-touch-melee,
+body.to-social #to-touch-nade,
+body.to-social #to-touch-swap,
+body.to-social #to-touch-admire,
+body.to-social #to-touch-streak,
+body.to-social #to-touch-endstreak,
+body.to-social #to-touch-interact { display: none !important; }
+@media (max-width: 760px) {
+  .to-menu-actions .to-menu-roommode { grid-template-columns: 1fr auto; }
+  .to-menu-actions .to-menu-roommode > span { grid-column: 1 / -1; }
+}
 
 .to-btn-danger {
   background: rgba(214,74,58,.16);

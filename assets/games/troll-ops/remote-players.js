@@ -6,15 +6,15 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1-wst";
-import { poseEmoteCode } from "./emotes.js?v=hb4-em1-wst";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
+import { poseEmoteCode } from "./emotes.js?v=hb4-em1-wst-soc1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
-import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst";
+import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1";
-import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1";
+import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 
 const RENDER_DELAY = 110; // ms
@@ -585,7 +585,9 @@ export class RemotePlayer {
     // Two-handed carry (armL on the support hand instead of a free run
     // swing) for anything but a sidearm — matches weapon-model.js's own
     // !isPistol gate for whether a weapon actually has a support hand mesh.
-    const hasGun = !sword && WEAPON_DEFS[this.weaponId]?.cls !== "sidearm";
+    // Nothing on the wire (Socialize: empty hands): arms hang free, no carry.
+    const unarmed = !sword && !this.peer.weapon;
+    const hasGun = !sword && !unarmed && WEAPON_DEFS[this.weaponId]?.cls !== "sidearm";
     const swing = swinging ? {
       t: Math.min(1, this.melee.t / this.melee.total),
       kind: this.melee.swingIndex % 2 === 0 ? "swing" : "thrust",
@@ -601,7 +603,7 @@ export class RemotePlayer {
     } else poseHumanoid(this.rig, {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
-      hold: sword ? "melee" : "gun", swing, block: this.blockT, ads: sword ? 0 : this.ads,
+      hold: sword ? "melee" : unarmed ? "none" : "gun", swing, block: this.blockT, ads: sword || unarmed ? 0 : this.ads,
       fired: this.peer.shotAt ? (performance.now() - this.peer.shotAt) / 1000 : Infinity,
       reload: this.reloadK,
       parry: this.parry.sample(),

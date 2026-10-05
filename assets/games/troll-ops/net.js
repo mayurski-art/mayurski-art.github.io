@@ -121,6 +121,10 @@ export class Net {
     this._flushT = null;
     this.botCount = 0;   // bots this client hosts (game.js keeps it current)
     this.since = 0;      // when we joined the room (host election, isBotHost)
+    // Socialize rooms: how many times the owner (or a match ending) has
+    // switched the room's mode. Rides every room note (`ms`) so a newcomer,
+    // or anyone who missed the switch, catches up. game.js keeps it current.
+    this.modeSeq = 0;
   }
 
   get active() { return this.connected; }
@@ -416,6 +420,11 @@ export class Net {
         this.h.onDuo?.(this.peer(m.id), m);
         break;
       }
+      /* Socialize: the owner switched the room to another mode (or back). */
+      case "mode": {
+        this.h.onMode?.(this.peer(m.id), m);
+        break;
+      }
       case "vote": {
         const p = this.peer(m.id);
         p.vote = m.map;
@@ -570,6 +579,7 @@ export class Net {
       t: "stage", id: this.id, map: mapId, mode: modeId,
       left: Math.max(0, round2(secondsLeft)),
       ...(seed != null ? { sd: seed } : {}),
+      ms: this.modeSeq || undefined,
     });
   }
 
@@ -590,17 +600,23 @@ export class Net {
     // our peer list and come back through this message, and without its
     // join time it would count as the room's oldest player and take the
     // host role, leaving the real host and it each waiting on the other.
-    this.send({ t: "ready", id: this.id, map: mapId, mode: modeId, ok: ok ? 1 : 0, js: this.since });
+    this.send({ t: "ready", id: this.id, map: mapId, mode: modeId, ok: ok ? 1 : 0, js: this.since, ms: this.modeSeq || undefined });
   }
 
   /* To one player who finished loading: come in. `left` is the countdown
      still running (0 = the match is already on). */
   publishGo(to, mapId, modeId, secondsLeft) {
-    this.send({ t: "stage", id: this.id, to, map: mapId, mode: modeId, left: Math.max(0, round2(secondsLeft)), go: 1 });
+    this.send({ t: "stage", id: this.id, to, map: mapId, mode: modeId, left: Math.max(0, round2(secondsLeft)), go: 1, ms: this.modeSeq || undefined });
   }
 
   publishRoomMap(to, mapId, modeId) {
-    this.send({ t: "stage", id: this.id, to, map: mapId, mode: modeId, left: 0 });
+    this.send({ t: "stage", id: this.id, to, map: mapId, mode: modeId, left: 0, ms: this.modeSeq || undefined });
+  }
+
+  /* Socialize: switch everyone in the room to `modeId` on `mapId`. `ms` is
+     the room's new mode count; anyone behind it follows. */
+  publishMode(modeId, mapId, ms) {
+    this.send({ t: "mode", id: this.id, mode: modeId, map: mapId || undefined, ms });
   }
 
   /* Search & Destroy bomb state. `kind` is "action" for a live plant/defuse

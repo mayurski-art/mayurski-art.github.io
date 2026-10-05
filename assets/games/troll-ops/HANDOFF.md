@@ -1,5 +1,35 @@
 # Troll Ops hand-off — 2026-10-02 (session 25)
 
+## Socialize — 2026-10-04 (user: "a socialize section below Public match … no fighting no scorestreaks … only troll_runner is allowed to turn on any game mode")
+Main menu: **Socialize**, right under Public Match (menu-bo2.js `social` screen: Map + Hang out).
+
+**The mode:** `MODES.social` (`pvp`, `social`, `noStreaks`, no limits).
+- One public room, `QSOC`, never a private code. Everyone follows the host's map, which is the normal room-map sync.
+- Versus maps only: the reward maps are filtered out of its map list.
+- Everyone is on `phantom`, so duo emotes work with anyone.
+
+**Combat is off** (`isSocial()` gates):
+- `damagePlayer`, `fireOnce` and `wantFire`/`wantAds`.
+- `tryReload`, `swingMelee`, `startCook`, `switchWeapon`, `setHolding`, `cycleWeapon`, `startInspect`.
+- `botTarget()` returns 0. Streaks are off through `noStreaks`.
+
+**What's on screen:**
+- The gun is never drawn. The first-person scene only renders for a first-person emote's hands.
+- The third-person body holds nothing, and the wire sends `w: null`, so other players see empty hands too.
+- `body.to-social` (style.css) hides the combat HUD and the touch combat buttons. `els.hud` stays visible, since the emote wheel lives in it.
+
+**Owner switch:** the pause menu row `#to-set-roommode-row` only shows for troll_runner in a Socialize room.
+- `ownerSwitchRoomMode(id)` calls `switchRoomMode`, then `net.publishMode` sends `{t:"mode", mode, map, ms}`. Receivers take it only from a peer whose state says `owner`. This is client-side only, like View mode.
+- Everyone loads the mode on the same channel. Sides are split by sorted id (`joinRoomSide`), and the bot host fills bots as usual.
+- `roomModeSeq` (`net.modeSeq`) rides `stage`/`ready`/go/room-map notes as `ms`, so latecomers and anyone who missed the message follow (`adoptRoomMode`).
+- Owner switches go up by 2 and a match ending goes up by 1, so an owner switch always beats an auto-return.
+
+**Match end in a Socialize room:** no intermission or vote. `scheduleSocialReturn` waits 8 s (Drop in again reads "Back to the hangout"), then everyone goes back to Socialize on `socialMapId`.
+
+**Leave match:** resets the room state, and the lobby goes back to Socialize.
+
+**Test:** `tools/troll-ops-socialize-test.mjs` (3 tabs over BroadcastChannel).
+
 ## Maps download once — 2026-10-04 (user: "i dont want to wait every day")
 `/sw.js` is a root-scope service worker, registered at the top of `game.js`. It is off on localhost unless `?sw=1`; `?sw=0` unregisters it.
 

@@ -279,6 +279,7 @@ const screens = {
     groups: [
       [
         { id: "public", label: "Public Match", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
+        { id: "social", label: "Socialize", desc: "Hang out on any map with whoever is online. No guns, just emotes and chat.", go: "social" },
         { id: "solo", label: "Solo Play", desc: "Ops, Zombies or the Test Range. Just you.", go: "solo" },
         { id: "private", label: "Private Match", desc: "Make a room code and send it to your friends.", go: "private" },
       ],
@@ -433,6 +434,16 @@ const screens = {
     enter: () => { ensureGroup("versus", "tdm"); const r = $("#to-room"); if (r && r.value) { r.value = ""; r.dispatchEvent(new Event("input", { bubbles: true })); } },
     groups: [modeItems("versus"), [heroRow(), mapRow()].filter(Boolean), [deployRow("Find Match", "Join the public room for this mode."), back("Back to the main menu.")]],
   }),
+  /* One public hangout room: pick a map (whoever is already there decides
+     the room's map), then walk round it, chat and emote. No fighting. */
+  social: () => ({
+    title: "Socialize", panel: "deploy",
+    enter: () => { ensureGroup("social", "social"); const r = $("#to-room"); if (r && r.value) { r.value = ""; r.dispatchEvent(new Event("input", { bubbles: true })); } },
+    groups: [
+      [{ ...mapRow(), desc: "Where you hang out. If people are already in the room, you join them on their map." }],
+      [deployRow("Hang out", "Join the hangout. H for emotes, Enter to chat."), back("Back to the main menu.")],
+    ],
+  }),
   solo: () => ({
     title: "Solo Play", panel: "deploy",
     enter: () => ensureGroup("solo", "ops"),
@@ -462,7 +473,8 @@ const screens = {
   maps: () => ({
     title: "Map", panel: "deploy", detail: true,
     groups: [
-      $$("#to-lo-maps .to-lo-map").map((b) => ({
+      // Socialize is the versus maps only (no prestige reward maps).
+      $$("#to-lo-maps .to-lo-map").filter((b) => currentModeBtn()?.dataset.mode !== "social" || !REWARD_MAPS[b.dataset.map]).map((b) => ({
         id: `map-${b.dataset.map}`, label: text($(".to-map-name", b)), desc: text($(".to-map-tag", b)), on: isOn(b), mapId: b.dataset.map,
         // A locked prestige map stays reachable so its reason can be read.
         value: isLocked(b) ? "Locked" : "",
