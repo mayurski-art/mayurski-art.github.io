@@ -30,6 +30,26 @@ Main menu: **Socialize**, right under Public Match (menu-bo2.js `social` screen:
 
 **Test:** `tools/troll-ops-socialize-test.mjs` (3 tabs over BroadcastChannel).
 
+## Troll City saloon bar + townsfolk — 2026-10-04 (user: "drinks … from barrels in the troll city saloon … bartender role that anyone can fill" / "fill it with … troll characters acting like NPCs")
+Socialize on Troll City only (`isSocial()` and `builtMap.map.rp`). The spots live in `BAR` in trollcity.js; the logic is in game.js `updateBar` / `barAction`, and the meshes in saloon-bar.js.
+
+**Hold X (`barAction`, best first):**
+- Take a drink someone holds out.
+- Rack: grab an empty mug. Tap or the keg: fill it (4 sips).
+- Apron hook: take or hang up the bartender role (one at a time; on a tie the older peer keeps it). The bartender pours faster, pours whiskey at the back-bar, and rings the bell (last call to the room). Out of the saloon 8 s hangs the apron up.
+- With a drink, beside someone empty-handed: hold it out (`rp` offer → take → give).
+
+**Fire sips, G puts it down.** Sips raise `bar.tipsy`; `tipsyFx` sways the camera and the walk. It wears off.
+
+**Wire:** the state packet carries `dk` (drink code), `ds` (mid-sip) and `rr` (role). `{t:"rp"}` carries offer/take/give/bell.
+
+**Townsfolk** (`town-npcs.js`, cast in trollcity.js `townNpcs()`, about 27): saloon crew, card players, barflies, trades, and strollers on Main Street.
+- Cosmetic and local only: no collision or damage, and not networked; seeded so tabs look alike.
+- Main Street strollers keep to two clear lanes (z -2.8 and 0.3), so they miss the horses, troughs, wagons and well.
+- Level of detail: full pose rate inside 40 m, a few poses a second out to 85 m, hidden past that. Name tags show inside 12 m.
+
+**Test:** `tools/troll-ops-bar-test.mjs` (2 tabs, GPU flags: the hold timers run on frame time).
+
 ## Maps download once — 2026-10-04 (user: "i dont want to wait every day")
 `/sw.js` is a root-scope service worker, registered at the top of `game.js`. It is off on localhost unless `?sw=1`; `?sw=0` unregisters it.
 

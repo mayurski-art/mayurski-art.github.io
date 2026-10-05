@@ -16,6 +16,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1";
 import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
+import { buildDrink, drinkFromCode, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
 
 const RENDER_DELAY = 110; // ms
 // The fall itself is DEATH_TIME (character.js); the body then stays down
@@ -364,6 +365,24 @@ export class RemotePlayer {
     this.weaponMesh = mesh;
   }
 
+  /* Socialize roleplay: the mug or shot glass in their right hand (the
+     wire's `dk`), lifted to the mouth while they sip (`ds`). */
+  updateDrink(dt, emoting) {
+    const d = this.alive && !emoting ? drinkFromCode(this.peer.drink) : null;
+    const kind = d?.kind || null;
+    if (kind !== this.drinkKind) {
+      this.drinkKind = kind;
+      if (this.drinkMesh) { this.drinkMesh.parent?.remove(this.drinkMesh); this.drinkMesh = null; }
+      if (kind) { this.drinkMesh = buildDrink(kind); mountDrink(this.rig, this.drinkMesh); }
+    }
+    if (!this.drinkMesh) { this.sipK = 0; return; }
+    this.drinkMesh.userData.setSips(d.sips);
+    if (this.weaponMesh) this.weaponMesh.visible = false;
+    // Up to the mouth while they're sipping, back down after.
+    this.sipK = (this.sipK || 0) + ((this.peer.sipping ? 1 : 0) - (this.sipK || 0)) * Math.min(1, dt * 7);
+    poseDrinkArm(this.rig, this.sipK);
+  }
+
   setTeam(teamId) {
     this.team = teamId;
   }
@@ -379,7 +398,9 @@ export class RemotePlayer {
     const rank = p.owner ? { owner: true } : p.level ? { level: p.level, prestige: p.prestige | 0 } : null;
     const rankKey = rank ? (rank.owner ? "o" : `${rank.level}.${rank.prestige}`) : "";
     // Clan tag (prestige phase 4) in front: `[TRLL] name`.
-    const text = p.clan ? `[${p.clan}] ${p.name || "operator"}` : (p.name || "operator");
+    // Socialize roleplay: their role after the name (saloon-bar.js).
+    const base = p.clan ? `[${p.clan}] ${p.name || "operator"}` : (p.name || "operator");
+    const text = p.role === "bartender" ? `${base} · Bartender` : base;
     if (color === this.tagColor && rankKey === this.tagRank && text === this.tagText) return;
     this.tagColor = color;
     this.tagRank = rankKey;
@@ -610,6 +631,7 @@ export class RemotePlayer {
     });
 
     if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);
+    this.updateDrink(dt, !!em);
     rollRig(this.rig, roll);
     if (drop) {
       this.dropT = (this.dropT || 0) + dt;

@@ -12,7 +12,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, has
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1";
 import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-sb1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1";
@@ -34,14 +34,20 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-sb1";
 import { createMapPreloader } from "./map-preload.js?v=mp3";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-soc1";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-soc1";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst-soc1";
+import {
+  buildDrink, placeDrinkInHand, poseDrinkArm, mountDrink, drinkCode, drinkMax, tipsyFx, TIPSY,
+  BEER_SIPS, GRAB_TIME, FILL_TIME, FILL_TIME_BARTENDER, POUR_TIME, SIP_TIME, APRON_TIME,
+  OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
+} from "./saloon-bar.js?v=sb1";
+import { TownNpcs } from "./town-npcs.js?v=tn1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst-soc1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
@@ -5210,6 +5216,7 @@ const net = new Net({
   onChat: (p, m) => chat.receive(p, m),
   // Socialize: the owner switched the room's mode (see switchRoomMode).
   onMode: (p, m) => { if (p.owner) adoptRoomMode(m); },
+  onRp: (p, m) => onBarMessage(p, m),
   /* Map loading screen (see enterMatch). Follow the host's map early, and
      as the host of a match already on, let a finished latecomer in. */
   onReady: (p, m) => {
@@ -8092,7 +8099,7 @@ function carriedThrowSlot() {
 /* Cooking: holding the key starts the fuse while the grenade is still in
    your hand. Impact throwables ignore it — they go off where they land. */
 function startCook(slot) {
-  if (isSocial()) return;
+  if (isSocial()) { putDownDrink(); return; }   // G: the saloon bar's drink goes down
   if (cooking.def || !player.alive || gameState !== "playing" || isStaging() || isInfected()) return;
   if (streakBusy()) return;   // no throwables while working a streak (user)
   if (player.gear[slot] <= 0) return;
@@ -8871,6 +8878,11 @@ function netSnapshot() {
   { const c = getMyCard(); _netSnapshot.clan = c.clan; _netSnapshot.card = c.card; }
   _netSnapshot.hero = heroActive() ? hero().wireId() : null;
   _netSnapshot.swivel = swivel.seq ? swivel.seq * (swivel.dir || swivel.lastDir || 1) : 0;
+  // The saloon bar (Socialize): drink, a sip, the apron.
+  const social = isSocial();
+  _netSnapshot.drink = social ? drinkCode(bar.drink) : 0;
+  _netSnapshot.sip = social && bar.sipT > 0;
+  _netSnapshot.role = social && bar.role === "bartender" ? "b" : null;
   return _netSnapshot;
 }
 
@@ -11131,6 +11143,9 @@ function beginMatch(mapId = null) {
   updateSpawnGuardHud();
 
   loadMap(matchMapId(mapId));
+  // Socialize: the map's townsfolk (town-npcs.js), if it has any.
+  townNpcs?.dispose();
+  townNpcs = isSocial() && builtMap?.map?.rp?.npcs ? new TownNpcs(scene, builtMap.map.rp.npcs()) : null;
   player.armor = 0;
   player.plates = 0;
   player.heals = 0;
@@ -11224,6 +11239,8 @@ function beginMatch(mapId = null) {
   els.hud.hidden = isView();   // View mode: just the map on screen
   // Socialize: style.css hides the combat HUD and touch buttons off this.
   document.body.classList.toggle("to-social", isSocial());
+  resetBar();
+  document.body.classList.remove("to-social-drink");
   setTouchControls(true);
   gameState = "playing";
 
@@ -11962,7 +11979,10 @@ els.quitBtn.addEventListener("click", () => {
     renderModes();
   }
   cancelSocialReturn();
-  document.body.classList.remove("to-social");
+  document.body.classList.remove("to-social", "to-social-drink");
+  resetBar();
+  townNpcs?.dispose();
+  townNpcs = null;
   localPauseOnly = false;
   endStaging();
   cancelIntermission();
@@ -12840,7 +12860,8 @@ function animate() {
         else if (a.e.hitbox && a.e.hp > 0) targetMeshes.push(a.e.hitbox);
       }
 
-      if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
+      if (isSocial()) { updateBar(dt); townNpcs?.update(dt, camera.position); }   // the hangout: the saloon bar owns hold X; the townsfolk
+      else if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
       else {
         if (pickups.drops.length) pickups.clear();
         // Troll Royale has no scavenge drops, but its guns on the ground
@@ -13270,6 +13291,7 @@ function updateLocalRig(dt) {
   }
   if (localHeld.mesh) localHeld.mesh.visible = !emote;
   els.hud.classList.toggle("is-emoting", emoteIsTp());
+  if (!isSocial() || emote) syncLocalDrink(false);
   if (emote) {
     poseEmoteCode(localRig, emoteCode(emote.idx, emote.role), emote.t);
     return;
@@ -13307,6 +13329,7 @@ function updateLocalRig(dt) {
     localThrowT = Math.max(0, localThrowT - dt);
     poseThrowArm(localRig, 1 - localThrowT / THROW_TIME);
   }
+  if (isSocial()) syncLocalDrink(true);   // the saloon bar: a drink in hand
   rollRig(localRig, royaleRollK());
   // Skydiving, then hanging under the glider (seen in the drop camera).
   const dropCode = royaleDropCode();
@@ -13440,6 +13463,8 @@ function updatePlayer(dt) {
   const dropIx = ix, dropIz = iz;
   const rolling = royaleRolling();
   dfIx = ix; dfIz = iz;   // the Dragonfire flies off the same stick
+  // The saloon bar: a few drinks in, the walk wanders side to side.
+  if (bar.tipsy > TIPSY.onset && isSocial() && (ix || iz)) ix = Math.max(-1, Math.min(1, ix + tipsyFx(bar.tipsy, performance.now() / 1000).stagger * 0.45));
   const frozen = dropping || rolling || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen || warshipView() || dragonfireView();
   if (frozen) { ix = 0; iz = 0; }
   // The landing roll carries you forward along the glider's line.
@@ -13598,7 +13623,9 @@ function updatePlayer(dt) {
     // camera turns with it, so the board drops away in view and the floating
     // message comes to the middle, like you looked up at it.
     const glance = kbRepair.active ? kbRepair.glance : 0;
-    _euler.set(viewPitch + rollPitch + glance * KB_GLANCE.pitch, viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll);
+    // Tipsy (the saloon bar): the room leans and bobs a little.
+    const tip = bar.tipsy > TIPSY.onset && isSocial() ? tipsyFx(bar.tipsy, performance.now() / 1000) : null;
+    _euler.set(viewPitch + rollPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0), viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll + (tip?.roll || 0));
     camera.quaternion.setFromEuler(_euler);
     if (glance > 0 || weaponCamera.userData.glanced) {
       weaponCamera.quaternion.setFromEuler(_euler.set(glance * KB_GLANCE.pitch, glance * KB_GLANCE.yaw, 0, "YXZ"));
@@ -14399,6 +14426,284 @@ let fpEmoteArmsOn = false;
    running/walking animation arms moving"): low and loose at a walk, pumping
    up into view at a sprint, dropping out of sight when you stand still.
    Same hand targets as the first-person emotes (viewmodel space). */
+/* -------------------- the saloon bar (Socialize roleplay) --------------------
+
+   User, 2026-10-04: "allow users to grab beer mugs and refill themselves
+   etc. bartender role that anyone can fill." Troll City's saloon lists its
+   spots as `rp.bar` (trollcity.js); everything is hold X there, the same
+   prompt and bar as a weapon pickup:
+     the rack: a mug (empty) · a tap or the kitchen keg: fill it ·
+     the apron hook: become the bartender (one at a time) or hang it up ·
+     the back-bar bottles (bartender): a whiskey · the bell (bartender):
+     last call for the room · another player with empty hands: hold your
+     drink out to them; they hold X by you to take it.
+   Fire sips, G puts it down. Sips make you tipsy (saloon-bar.js tipsyFx).
+   What's in your hand, a sip, and the role ride the state packet. */
+let townNpcs = null;   // Socialize townsfolk (town-npcs.js)
+const bar = {
+  drink: null,      // { kind: "beer"|"whiskey", sips }
+  sipT: 0,          // counts down through a sip
+  sipDone: false,   // this sip has been swallowed (halfway)
+  hold: null, holdT: 0, holdLock: false,
+  role: null,       // "bartender" while we wear the apron
+  outT: 0,          // seconds the bartender has been out of the saloon
+  tipsy: 0,
+  tipsyShown: false,
+  offer: null,      // incoming: { from, name, kind, sips, until }
+  outgoing: null,   // { to, name, until }
+  fireWas: false,
+  fp: null,         // the drink in our first-person hand
+  tp: null,         // ...and on our own body
+};
+
+function resetBar() {
+  bar.drink = null; bar.sipT = 0; bar.hold = null; bar.holdT = 0; bar.role = null; bar.outT = 0;
+  bar.tipsy = 0; bar.tipsyShown = false; bar.offer = null; bar.outgoing = null;
+}
+const barSpots = () => (isSocial() ? builtMap?.map?.rp?.bar || null : null);
+function barNear(B, spot, reach = REACH) {
+  return !!spot && Math.hypot(spot.x - move.pos.x, spot.z - move.pos.z) <= reach && Math.abs(move.pos.y - (B.floorY || 0)) < 1.2;
+}
+function barInside(B) {
+  const z = B.zone;
+  return move.pos.x > z.x0 && move.pos.x < z.x1 && move.pos.z > z.z0 && move.pos.z < z.z1;
+}
+const drinkName = (kind) => (kind === "whiskey" ? "whiskey" : "beer");
+/* Someone else holding the apron, who keeps it if we both grabbed it at
+   once: whoever joined the room first (lowest id on a tie). */
+function otherBartender(olderOnly = false) {
+  for (const p of net.peers.values()) {
+    if (isBotPeer(p) || p.role !== "bartender") continue;
+    if (!olderOnly) return p;
+    const since = p.since || 0;
+    if (since < net.since || (since === net.since && p.id < net.id)) return p;
+  }
+  return null;
+}
+/* The nearest real player within reach with nothing in their hands. */
+function barNearestEmptyHanded(reach = 2.2) {
+  let best = null, bestD = reach;
+  for (const rp of remotes.byId.values()) {
+    if (!rp.peer || isBotPeer(rp.peer) || !rp.alive || (rp.peer.drink | 0)) continue;
+    const d = Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z);
+    if (d < bestD && Math.abs(rp.pos.y - move.pos.y) < 1.5) { best = rp; bestD = d; }
+  }
+  return best;
+}
+
+/* What holding X does where we stand, best first. */
+function barAction(B) {
+  const now = performance.now();
+  // A drink held out to us, its giver beside us.
+  if (bar.offer && !bar.drink && now < bar.offer.until) {
+    const rp = remotes.byId.get(bar.offer.from);
+    if (rp && Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z) < 3) {
+      return { key: "take", label: `Take ${bar.offer.name}'s ${drinkName(bar.offer.kind)}`, ctx: "Take", time: 0.35,
+        done: () => { net.publishRp({ k: "take", to: bar.offer.from }); } };
+    }
+  }
+  if (B) {
+    if (!bar.drink && barNear(B, B.rack)) {
+      return { key: "rack", label: "Grab a mug", busy: "Grabbing a mug…", ctx: "Grab", time: GRAB_TIME,
+        done: () => { bar.drink = { kind: "beer", sips: 0 }; audio.brassTinkle?.(4); showWaveBanner(isTouch ? "Fill it at a barrel tap" : "Fill it at a barrel tap · G puts it down", 1800); } };
+    }
+    if (bar.drink?.kind === "beer" && bar.drink.sips < BEER_SIPS && B.taps.some((t) => barNear(B, t))) {
+      return { key: "tap", label: bar.drink.sips ? "Top it up" : "Fill your mug", busy: "Pouring…", ctx: "Fill",
+        time: bar.role ? FILL_TIME_BARTENDER : FILL_TIME,
+        done: () => { bar.drink.sips = BEER_SIPS; audio.pump?.(0.4); showWaveBanner(isTouch ? "Fire to sip" : "Click to sip", 1400); } };
+    }
+    if (barNear(B, B.apron)) {
+      if (bar.role) {
+        return { key: "apron", label: "Hang up the apron", busy: "Untying…", ctx: "Apron", time: APRON_TIME,
+          done: () => setBarRole(null, "Apron's back on the hook.") };
+      }
+      const other = otherBartender();
+      if (other) return { key: "apron", info: true, label: `${other.name} is tending bar` };
+      return { key: "apron", label: "Put on the apron (bartender)", busy: "Tying it on…", ctx: "Apron", time: APRON_TIME,
+        done: () => setBarRole("bartender", "You're the bartender. You pour faster, pour whiskey at the back-bar and ring the bell for last call.") };
+    }
+    if (bar.role && !bar.drink && barNear(B, B.bottles)) {
+      return { key: "bottles", label: "Pour a whiskey", busy: "Pouring…", ctx: "Pour", time: POUR_TIME,
+        done: () => { bar.drink = { kind: "whiskey", sips: 1 }; audio.brassTinkle?.(3); } };
+    }
+    if (bar.role && barNear(B, B.bell)) {
+      return { key: "bell", label: "Ring the bell (last call)", ctx: "Bell", time: 0.2,
+        done: () => { net.publishRp({ k: "bell" }); lastCall(playerName()); } };
+    }
+  }
+  // Hold a drink out to whoever is beside us with empty hands.
+  if (bar.drink?.sips > 0 && !bar.outgoing) {
+    const rp = barNearestEmptyHanded();
+    if (rp) {
+      const name = rp.peer.name || "them";
+      return { key: `give:${rp.peer.id}`, label: `Hand ${name} your ${drinkName(bar.drink.kind)}`, ctx: "Give", time: 0.45,
+        done: () => {
+          bar.outgoing = { to: rp.peer.id, name, until: performance.now() + OFFER_SECONDS * 1000 };
+          net.publishRp({ k: "offer", to: rp.peer.id, kind: bar.drink.kind, sips: bar.drink.sips });
+          showWaveBanner(`Holding it out to ${name}`, 1600);
+        } };
+    }
+  }
+  return null;
+}
+
+function setBarRole(role, note) {
+  bar.role = role;
+  bar.outT = 0;
+  if (note) showWaveBanner(note, role ? 3600 : 1600);
+}
+
+function lastCall(who) {
+  showWaveBanner(`Last call at the Rusty Grin! (${who})`, 2600);
+  audio.medal?.("gold");
+}
+
+function putDownDrink() {
+  if (!bar.drink) return;
+  bar.drink = null;
+  bar.sipT = 0;
+  bar.outgoing = null;
+  audio.brassTinkle?.(3);
+}
+
+/* Off the wire (net "rp"). */
+function onBarMessage(p, m) {
+  if (!isSocial() || isBotPeer(p)) return;
+  if (m.k === "bell") { lastCall(p.name || "the bartender"); return; }
+  if (m.to !== net.id) return;
+  const now = performance.now();
+  if (m.k === "offer") {
+    if (bar.drink) return;
+    const kind = m.kind === "whiskey" ? "whiskey" : "beer";
+    bar.offer = { from: p.id, name: p.name || "someone", kind, sips: Math.max(1, Math.min(drinkMax(kind), m.sips | 0)), until: now + OFFER_SECONDS * 1000 };
+    showWaveBanner(`${bar.offer.name} offers you a ${drinkName(kind)}: hold X by them`, 2600);
+  } else if (m.k === "take") {
+    // Only the drink we held out, to them, if we still have it.
+    if (!bar.outgoing || bar.outgoing.to !== p.id || !bar.drink) return;
+    const d = bar.drink;
+    bar.drink = null; bar.outgoing = null; bar.sipT = 0;
+    net.publishRp({ k: "give", to: p.id, kind: d.kind, sips: d.sips });
+  } else if (m.k === "give") {
+    if (!bar.offer || bar.offer.from !== p.id || bar.drink) return;
+    const kind = m.kind === "whiskey" ? "whiskey" : "beer";
+    bar.drink = { kind, sips: Math.max(0, Math.min(drinkMax(kind), m.sips | 0)) };
+    bar.offer = null;
+    audio.brassTinkle?.(4);
+    showWaveBanner("Cheers!", 1200);
+  }
+}
+
+function updateBar(dt) {
+  const B = barSpots();
+  const now = performance.now();
+  bar.tipsy = Math.max(0, bar.tipsy - TIPSY.decay * dt);
+  if (bar.offer && now > bar.offer.until) bar.offer = null;
+  if (bar.outgoing && now > bar.outgoing.until) bar.outgoing = null;
+
+  // A sip: fire, one at a time. The drink goes down halfway through it.
+  const fireNow = !localPauseOnly && !emoteWheel.isOpen && (mouseDown || (isTouch && touchState.firing) || (gamepadState.connected && gamepadState.firing));
+  if (fireNow && !bar.fireWas && bar.drink?.sips > 0 && bar.sipT <= 0 && player.alive) {
+    bar.sipT = SIP_TIME; bar.sipDone = false;
+    if (emote) stopEmote();
+  }
+  bar.fireWas = fireNow;
+  if (bar.sipT > 0) {
+    bar.sipT = Math.max(0, bar.sipT - dt);
+    if (!bar.sipDone && bar.sipT <= SIP_TIME / 2 && bar.drink) {
+      bar.sipDone = true;
+      bar.drink.sips = Math.max(0, bar.drink.sips - 1);
+      bar.tipsy = Math.min(TIPSY.max + 1, bar.tipsy + (bar.drink.kind === "whiskey" ? TIPSY.perShot : TIPSY.perBeerSip));
+      if (!bar.drink.sips && bar.drink.kind === "whiskey") bar.drink = null;   // the shot glass goes back
+      else if (!bar.drink.sips) showWaveBanner("Empty. Fill it again at a tap", 1400);
+    }
+  }
+  if (bar.tipsy >= TIPSY.onset && !bar.tipsyShown) { bar.tipsyShown = true; showWaveBanner("You're feeling it…", 1800); }
+  if (bar.tipsy < TIPSY.onset * 0.5) bar.tipsyShown = false;
+  const fx = tipsyFx(bar.tipsy, now / 1000);
+  if (fx.k > 0 && player.alive && !localPauseOnly) look.yaw += fx.yaw;
+
+  // The bartender: off the job if they wander out, or someone older has it.
+  if (bar.role) {
+    if (!B) bar.role = null;
+    else {
+      bar.outT = barInside(B) ? 0 : bar.outT + dt;
+      if (bar.outT > BARTENDER_LEAVE_SECONDS) setBarRole(null, "You left the saloon: the apron's back on its hook.");
+      const older = otherBartender(true);
+      if (older && bar.role) setBarRole(null, `${older.name} already has the apron.`);
+    }
+  }
+
+  // Hold X.
+  const act = player.alive ? barAction(B) : null;
+  const held = !frozenPlayer() && !duoXClaimed && !localPauseOnly
+    && (keys.has("KeyX") || (isTouch && touchState.swap) || !!gamepadState.pickup);
+  if (!held) bar.holdLock = false;
+  if (act && !act.info && held && !bar.holdLock) {
+    if (bar.hold?.key !== act.key) { bar.hold = act; bar.holdT = 0; }
+    bar.holdT += dt;
+    if (bar.holdT >= act.time) {
+      bar.hold = null; bar.holdT = 0; bar.holdLock = true;
+      act.done();
+    }
+  } else { bar.hold = null; bar.holdT = 0; }
+
+  setTouchContext(act && !act.info ? act.ctx : null);
+  if (els.pickupPrompt) {
+    if (act) {
+      els.pickupPrompt.hidden = false;
+      els.pickupPromptText.textContent = bar.hold && act.busy ? act.busy : act.label;
+      // A keycap that pulses until you hold it, like Troll Royale's loot:
+      // nobody knows the bar is a hold otherwise.
+      const cap = !isTouch && !act.info;
+      els.pickupPrompt.classList.toggle("is-royale", cap);
+      if (els.pickupKey) {
+        els.pickupKey.hidden = !cap;
+        if (cap) {
+          const k = gamepadState.connected ? "D-pad →" : "X";
+          if (els.pickupKeyCap.textContent !== k) els.pickupKeyCap.textContent = k;
+          els.pickupKey.classList.toggle("is-held", !!bar.hold);
+        }
+      }
+      els.pickupBarFill.style.width = `${act.info ? 0 : Math.round(Math.min(1, bar.holdT / act.time) * 100)}%`;
+    } else els.pickupPrompt.hidden = true;
+  }
+  document.body.classList.toggle("to-social-drink", !!bar.drink);
+}
+
+/* The sip as a 0..1..0 lift (up to the mouth, back down). */
+function barSipK() {
+  if (bar.sipT <= 0) return 0;
+  const t = 1 - bar.sipT / SIP_TIME;
+  return Math.min(1, Math.sin(Math.PI * t) * 1.6);
+}
+
+/* Our own body's drink, in third person. */
+function syncLocalDrink(show) {
+  const kind = show && bar.drink ? bar.drink.kind : null;
+  if ((bar.tp?.userData.kind || null) !== kind) {
+    if (bar.tp) { bar.tp.parent?.remove(bar.tp); bar.tp = null; }
+    if (kind) { bar.tp = buildDrink(kind); mountDrink(localRig, bar.tp); }
+  }
+  if (!bar.tp) return;
+  bar.tp.userData.setSips(bar.drink.sips);
+  poseDrinkArm(localRig, barSipK());
+}
+
+/* Our first-person hand's drink, placed on the right streak-arm hand (its
+   transform, not its child: with gloves on that hand is hidden). */
+function syncFpDrink(show) {
+  const kind = show && bar.drink ? bar.drink.kind : null;
+  if ((bar.fp?.userData.kind || null) !== kind) {
+    if (bar.fp) { bar.fp.parent?.remove(bar.fp); bar.fp = null; }
+    if (kind) bar.fp = buildDrink(kind);
+  }
+  if (!bar.fp) return;
+  const hand = streakArms.userData.arms[0].hand;
+  if (bar.fp.parent !== hand.parent) hand.parent.add(bar.fp);
+  bar.fp.userData.setSips(bar.drink.sips);
+  placeDrinkInHand(bar.fp, hand, 1);
+}
+
 const socialArms = { phase: 0, k: 0, run: 0, at: 0 };
 function socialArmsFrame() {
   const now = performance.now();
@@ -14427,13 +14732,28 @@ function socialArmsFrame() {
       pose: run > 0.5 ? "fist" : "relaxed",
     };
   };
-  return { R: hand(1), L: hand(-1), gun: false, cam: { pitch: 0, yaw: 0 } };
+  // A drink (the saloon bar) rides in the right hand: held up in view and
+  // steady, bobbing with the walk; a sip brings it to the mouth, tipped.
+  let R = hand(1);
+  if (bar.drink) {
+    const s = barSipK();
+    const bob = Math.sin(socialArms.phase * 2) * 0.008 * k;
+    // At the top of a sip the rim is at your lip, so what you see is the
+    // glass tipping up past you, not a face-full of foam.
+    R = {
+      pos: [0.17 - s * 0.11, -0.18 + bob + s * 0.12, -0.4 + s * 0.16],
+      rot: [s * 0.95, 0.1 - s * 0.1, -Math.PI / 2],
+      pose: "grip",
+    };
+  }
+  return { R, L: hand(-1), gun: false, cam: { pitch: barSipK() * 0.06, yaw: 0 }, social: true };
 }
 
 function updateFpEmoteView() {
   const f = fpEmoteFrame() || (isSocial() && player.alive ? socialArmsFrame() : null);
   if (!f) {
     if (fpEmoteArmsOn) { hideStreakArms(); fpEmoteArmsOn = false; }
+    syncFpDrink(false);
     return;
   }
   inspectArms.visible = false;
@@ -14452,6 +14772,8 @@ function updateFpEmoteView() {
   }
   fpEmoteArmsOn = true;
   poseFreeArms(f);
+  // The saloon bar's drink, in the right hand (not during an emote).
+  syncFpDrink(!!f.social);
 }
 
 /* Both streak arms placed straight from hand targets in viewmodel space
@@ -15888,6 +16210,9 @@ if (/[?&]tohooks=1/.test(location.search)) {
     social: () => ({ room: socialRoom, seq: roomModeSeq, home: socialMapId, returning: socialReturnSeq != null, map: loadedMapId, mode: modeId, team: net.team, gameState }),
     ownerSwitchRoomMode, returnToSocial, renderRoomModeRow, fpWeaponDrawn: () => activeWeaponMesh?.visible ?? null,
     socialArms: () => ({ k: socialArms.k, run: socialArms.run, phase: socialArms.phase, on: fpEmoteArmsOn }),
+    bar: () => ({ drink: bar.drink && { ...bar.drink }, role: bar.role, tipsy: bar.tipsy, sipT: bar.sipT, offer: !!bar.offer, outgoing: !!bar.outgoing, prompt: els.pickupPrompt.hidden ? null : els.pickupPromptText.textContent, fp: !!bar.fp?.parent, tp: !!bar.tp?.parent }),
+    barState: bar,
+    townNpcs: () => townNpcs,
     gloves: () => gloves, gloveRig: () => gloveRig, weaponRig: () => weaponRig,
     candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT, sawShake: () => sawShake, sawInspectRev: () => sawInspectRev,

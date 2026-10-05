@@ -313,6 +313,11 @@ export class Net {
         p.reload = Math.max(0, Math.min(1, +m.rl || 0));
         p.reloadTime = +m.rt || 2.3;
         p.hero = m.hr || null;
+        // Socialize roleplay (saloon-bar.js): what's in their hand, a sip
+        // under way, their role ("b" = bartender).
+        p.drink = m.dk | 0;
+        p.sipping = !!m.ds;
+        p.role = m.rr === "b" ? "bartender" : null;
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
@@ -420,6 +425,13 @@ export class Net {
         this.h.onDuo?.(this.peer(m.id), m);
         break;
       }
+      /* Socialize roleplay (saloon-bar.js): a drink held out to someone,
+         taken, handed over; the bartender's bell. Addressed with `to`
+         where it's for one player. */
+      case "rp": {
+        this.h.onRp?.(this.peer(m.id), m);
+        break;
+      }
       /* Socialize: the owner switched the room to another mode (or back). */
       case "mode": {
         this.h.onMode?.(this.peer(m.id), m);
@@ -465,6 +477,7 @@ export class Net {
         lv: local.level || undefined, pg: local.prestige || undefined, ow: local.owner ? 1 : undefined,   // rank
         cl: local.clan || undefined, cc: local.card && local.card !== "hitman" ? local.card : undefined,   // profile card
         hr: local.hero || undefined,   // U Mad Bro? hero id (+ "!" while the Metamorph is the brute)
+        dk: local.drink || undefined, ds: local.sip ? 1 : undefined, rr: local.role || undefined,   // Socialize roleplay
       });
     }
     this.prune();
@@ -611,6 +624,11 @@ export class Net {
 
   publishRoomMap(to, mapId, modeId) {
     this.send({ t: "stage", id: this.id, to, map: mapId, mode: modeId, left: 0, ms: this.modeSeq || undefined });
+  }
+
+  /* Socialize roleplay: { k: "offer"|"take"|"give"|"bell", to?, ... }. */
+  publishRp(payload) {
+    this.send({ t: "rp", id: this.id, ...payload });
   }
 
   /* Socialize: switch everyone in the room to `modeId` on `mapId`. `ms` is

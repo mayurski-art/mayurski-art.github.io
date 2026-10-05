@@ -715,7 +715,9 @@ button.to-gear-chip { cursor: pointer; }
 .to-menu-actions .to-menu-roommode { grid-template-columns: 1fr 160px auto; }
 
 /* Socialize: no guns, so none of the combat HUD or touch buttons. The
-   killfeed (joins and leaves), chat, minimap and emote button stay. */
+   killfeed (joins and leaves), chat, minimap and emote button stay, and
+   the swap button, which is hold X (the saloon bar, duo emotes). Fire
+   comes back while you hold a drink: it sips. */
 body.to-social #to-hud-teams,
 body.to-social #to-ss-hud,
 body.to-social #to-crosshair,
@@ -725,14 +727,13 @@ body.to-social #to-spawnguard,
 body.to-social .to-hud-bottom,
 body.to-social #to-hud-gear,
 body.to-social #to-cook,
-body.to-social #to-touch-fire,
+body.to-social:not(.to-social-drink) #to-touch-fire,
 body.to-social #to-touch-fire-l,
 body.to-social #to-touch-ads,
 body.to-social #to-touch-tac,
 body.to-social #to-touch-reload,
 body.to-social #to-touch-melee,
 body.to-social #to-touch-nade,
-body.to-social #to-touch-swap,
 body.to-social #to-touch-admire,
 body.to-social #to-touch-streak,
 body.to-social #to-touch-endstreak,
