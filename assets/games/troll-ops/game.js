@@ -55,7 +55,7 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69";
-import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22";
+import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22-bs2";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst";
 import { GameAudio } from "./audio.js?v=zr4-hf1";
 import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1";
@@ -9127,12 +9127,70 @@ function spawnForTeam(team, forId = net.id, { sideOnly = spawnOpening || isSnd()
   // problem again from the other side.
   const good = scored.filter((s) => s.score >= bestScore - SPAWN_TOLERANCE);
   const pick = good[Math.floor(Math.random() * good.length)];
-  return pick?.sp || best || pts[0];
+  return spreadSpawn(pick?.sp || best || pts[0], forId, others);
+}
+
+/* Nobody spawns on top of anybody (user, 2026-10-05). A map has a handful
+   of spawn points and a room holds 22, so players and bots were dropped on
+   the very same spot: bodies inside each other, and two FFA bots on one
+   point stood there all match. The point picked above is where you come
+   in; this finds a free spot of your own right round it, so a side still
+   comes in together, a few steps apart. Spots handed out in the last
+   couple of seconds count as taken too: a whole team spawning in one frame
+   isn't standing on them yet. */
+const SPAWN_GAP = 1.3;         // metres between two people's spawn spots
+const SPAWN_RINGS = [1.6, 3, 4.4];
+const SPAWN_CLAIM_MS = 2500;
+const spawnClaims = [];        // { id, x, z, at }
+const _spawnFrom = new THREE.Vector3(), _spawnTo = new THREE.Vector3();
+function spreadSpawn(sp, forId, others) {
+  const now = performance.now();
+  while (spawnClaims.length && now - spawnClaims[0].at > SPAWN_CLAIM_MS) spawnClaims.shift();
+  const y = sp.y || 0;
+  // You, even before you count as alive (a match opening behind its
+  // loading screen), so a bot filling in late doesn't land on you.
+  const me = forId !== net.id ? move.pos : null;
+  const taken = (x, z) => others.some((o) => Math.hypot(o.pos.x - x, o.pos.z - z) < SPAWN_GAP)
+    || (me && Math.hypot(me.x - x, me.z - z) < SPAWN_GAP)
+    || spawnClaims.some((c) => (forId == null || c.id !== forId) && Math.hypot(c.x - x, c.z - z) < SPAWN_GAP);
+  const standable = (x, z) => {
+    if (x < ARENA.minX + 0.6 || x > ARENA.maxX - 0.6 || z < ARENA.minZ + 0.6 || z > ARENA.maxZ - 0.6) return false;
+    if (ARENA.edge && !insidePolygon(ARENA.edge, x, z)) return false;
+    if (ARENA.wade && insidePolygon(ARENA.wade, x, z)) return false;
+    // Same floor as the point (not up on a crate or a ledge), nothing to
+    // stand inside, and in sight of the point, not through a wall.
+    if (Math.abs(groundHeightAt(colliders, x, z, y + 0.5, 0.45) - y) > 0.3) return false;
+    for (const c of colliders) {
+      if (c.max.y <= y + 0.4 || c.min.y > y + 1.9) continue;
+      if (x > c.min.x - 0.45 && x < c.max.x + 0.45 && z > c.min.z - 0.45 && z < c.max.z + 0.45) return false;
+    }
+    return !segmentBlocked(colliders, _spawnFrom.set(sp.x, y + 1.2, sp.z), _spawnTo.set(x, y + 1.2, z));
+  };
+  let at = null;
+  if (!taken(sp.x, sp.z)) at = { x: sp.x, z: sp.z };
+  const a0 = Math.random() * Math.PI * 2;
+  for (const r of SPAWN_RINGS) {
+    if (at) break;
+    const n = Math.round(r * 4);
+    for (let k = 0; k < n && !at; k++) {
+      const a = a0 + (k / n) * Math.PI * 2;
+      const x = sp.x + Math.cos(a) * r, z = sp.z + Math.sin(a) * r;
+      if (!taken(x, z) && standable(x, z)) at = { x, z };
+    }
+  }
+  // Packed solid round the point (it shouldn't be, with 22): the point it is.
+  if (!at) at = { x: sp.x, z: sp.z };
+  const i = forId == null ? -1 : spawnClaims.findIndex((c) => c.id === forId);
+  if (i >= 0) spawnClaims.splice(i, 1);
+  spawnClaims.push({ id: forId, x: at.x, z: at.z, at: now });
+  return new THREE.Vector3(at.x, y, at.z);
 }
 
 function teamSpawn(opts) { return spawnForTeam(net.team, net.id, opts); }
 /* Where a bot comes in: ground floor only (see groundOnly). */
-const botSpawn = (team, id, opts = {}) => spawnForTeam(team, id, { ...opts, groundOnly: true });
+// `id ?? null`: a bot filled in has no id yet, and undefined would take
+// spawnForTeam's default (yours), so it skipped you and landed on you.
+const botSpawn = (team, id, opts = {}) => spawnForTeam(team, id ?? null, { ...opts, groundOnly: true });
 
 // Capped so a player mashing the button in the range can't spawn an
 // unbounded crowd — plenty to look at, cheap enough to never matter.
@@ -13631,6 +13689,10 @@ function flyView(dt, ix, iz) {
   move.velocity.set(0, 0, 0);
 }
 
+/* Seconds a trigger pull keeps you out of a sprint (updatePlayer). */
+const FIRE_SPRINT_HOLD = 0.35;
+let fireSprintHoldT = 0;
+
 function updatePlayer(dt) {
   const w = currentWeapon();
 
@@ -13710,6 +13772,13 @@ function updatePlayer(dt) {
   const wantAds = player.alive && !isView() && !socialUnarmed() && !localPauseOnly && empT <= 0 && player.holding !== "streak"
     && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
   const wantFire = !frozen && !isView() && !socialUnarmed() && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
+  // Pulling the trigger at a run ends the run, like BO2 and PF: the gun
+  // comes up and shoots. It used to stay dropped and slung across the body
+  // while rounds left from the middle of the screen, which read as not
+  // being able to shoot at all. A short hold keeps a semi-auto's taps from
+  // dropping the gun between shots. Reloading or empty, you keep running.
+  const triggerUp = wantFire && player.holding === "gun" && !w.reloading && w.ammoInMag > 0;
+  fireSprintHoldT = triggerUp ? FIRE_SPRINT_HOLD : Math.max(0, fireSprintHoldT - dt);
   if (isSnd()) {
     sndInteractHeld = !frozen && ((isTouch && touchState.interact) || (keys.has("KeyF") && cooking.slot !== "tactical")
       || (gp && gamepadState.pickup && sndCanInteract));
@@ -13724,7 +13793,7 @@ function updatePlayer(dt) {
   else move.update(dt, {
     forward: iz,
     strafe: ix,
-    sprint: !wading && !rolling && ((isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft")),
+    sprint: !wading && !rolling && fireSprintHoldT <= 0 && ((isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft")),
     jump: !frozen && ((isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space")),
     crouch: !frozen && ((isTouch && touchState.crouch) || (gp && gamepadState.crouch) || keys.has("KeyC")),
     dive: !frozen && ((isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight")),

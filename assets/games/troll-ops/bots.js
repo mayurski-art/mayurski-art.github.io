@@ -462,7 +462,16 @@ class Bot {
         this.strafeT = 0.6 + Math.random() * 1.2;
         if (Math.random() < 0.5) this.strafeDir = -this.strafeDir;
       }
-      const toTarget = new THREE.Vector3(best.pos.x - this.pos.x, 0, best.pos.z - this.pos.z).normalize();
+      const toTarget = new THREE.Vector3(best.pos.x - this.pos.x, 0, best.pos.z - this.pos.z);
+      // Dropped on the same spawn point as who it's fighting (a busy FFA on
+      // an 8-spawn map like Dust Bowl): the offset is zero, so are both
+      // vectors built from it, and the two stood on one spot all match.
+      // Any heading of their own gets them apart, and they back off from there.
+      if (toTarget.lengthSq() < 0.01) {
+        this.splitA ??= Math.random() * Math.PI * 2;
+        toTarget.set(Math.cos(this.splitA), 0, Math.sin(this.splitA));
+      }
+      toTarget.normalize();
       const lateral = new THREE.Vector3(-toTarget.z, 0, toTarget.x).multiplyScalar(this.strafeDir);
       // Someone coming in with a sword gets kited: back off while shooting,
       // since standing to trade is exactly what they want.
