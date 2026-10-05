@@ -15,7 +15,7 @@ import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1";
 import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1";
-import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb1";
+import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 import { buildDrink, drinkFromCode, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
 import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1";
@@ -491,7 +491,9 @@ export class RemotePlayer {
       // Running into it carries them forward onto their face; otherwise
       // the round puts them down on their back.
       const last = snaps[snaps.length - 1];
-      this.rig.deathHint = { dir: last?.moving && Math.random() < 0.55 ? -1 : 1 };
+      // An officer always goes down on his back (his body lies flat, the
+      // rifle beside him: cop-bodies.js).
+      this.rig.deathHint = { dir: !this.rig.cop && last?.moving && Math.random() < 0.55 ? -1 : 1 };
       this.launch = funnyDeaths ? startLaunch(this.rig.root) : null;
     }
     if (this.alive) this.dying = false;
@@ -505,8 +507,10 @@ export class RemotePlayer {
       this.setGlider(false);
       // The body goes down empty-handed: no gun or blade left floating in
       // the fist (user: weapons not visible on death, show the body).
-      if (this.weaponMesh) this.weaponMesh.visible = false;
+      // An officer drops his rifle on the floor beside him instead.
+      if (this.weaponMesh && !(this.rig.cop && !this.launch)) this.weaponMesh.visible = false;
       if (this.meleeMesh) this.meleeMesh.visible = false;
+      this.bodyPose = { death: this.launch ? 0 : Math.min(1, this.deathT / DEATH_TIME) };
       poseDeath(this.rig, Math.min(1, this.deathT / DEATH_TIME));
       if (this.launch) stepLaunch(this.rig, this.launch, dt);
       if (this.deathT >= DEATH_TIME + BODY_LINGER) this.dying = false;
@@ -630,8 +634,13 @@ export class RemotePlayer {
     else if (wireRl !== this.reloadSeen || !this.reloadK) this.reloadK = wireRl;
     else this.reloadK = Math.min(0.999, this.reloadK + dt / (this.peer.reloadTime || 2.3));
     this.reloadSeen = wireRl;
+    // what the body's own corrections need to know (cop-bodies.js)
+    this.bodyPose = {
+      gait: !em, lower: this.lower, mps: moving ? this.gaitMps ?? speed : 0, moving, forward, strafe,
+      ads: sword ? 0 : this.ads, reload: this.reloadK,
+    };
     if (em && poseEmoteCode(this.rig, em, this.emoteT)) {
-      // posed
+      this.bodyPose.gait = false;
     } else poseHumanoid(this.rig, {
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
@@ -650,6 +659,7 @@ export class RemotePlayer {
       poseSeated(this.rig, seat.y, seat.kind === "stool" ? 0.55 : 0);
     }
     rollRig(this.rig, roll);
+    if (drop || roll > 0) this.bodyPose.gait = false;
     if (drop) {
       this.dropT = (this.dropT || 0) + dt;
       poseDrop(this.rig, drop, this.dropT);
@@ -686,13 +696,14 @@ export class RemotePlayer {
       swing: sword && s.sw >= 0 ? { t: s.sw, kind: s.si % 2 === 0 ? "swing" : "thrust" } : null,
       block: sword && s.sw < 0 ? s.bk : 0,
     });
+    this.bodyPose = { gait: true, lower: s.lower || 0, mps: s.moving ? 3.6 : 0, moving: !!s.moving };
     this.syncBody(s.pitch || 0);
   }
 
   /* A realistic body follows the rig once it is posed for the frame
      (update, then any killcam replayPose). */
   syncBody(pitch = this.pitch || 0) {
-    if (this.rig.cop) syncCopBody(this.rig, { pitch: this.dying ? 0 : pitch });
+    if (this.rig.cop) syncCopBody(this.rig, { ...this.bodyPose, pitch: this.dying ? 0 : pitch });
   }
 
   /* Shadows off for a far-away troll (RemotePlayers' crowd LOD). Meshes
@@ -728,6 +739,7 @@ export class RemotePlayer {
 
   dispose() {
     this.setGlider(false);
+    applyCopBody(this.rig, null);   // the rifle back from the floor
     this.scene.remove(this.rig.root);
     this.rig.root.traverse((o) => {
       if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();

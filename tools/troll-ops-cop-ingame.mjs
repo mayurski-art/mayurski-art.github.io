@@ -65,7 +65,7 @@ const stick = await frameTime();
 const n = await page.evaluate(async () => {
   const T = window.__trollOps;
   for (const b of T.bots.bots) { b.hero = null; b.body = "patrol"; }
-  const { preloadCopBodies } = await import("/assets/games/troll-ops/cop-bodies.js?v=cb1");
+  const { preloadCopBodies } = await import("/assets/games/troll-ops/cop-bodies.js?v=cb2");
   await preloadCopBodies(["patrol"]);
   return T.bots.bots.length;
 });
@@ -109,7 +109,7 @@ await page.evaluate(() => {
       const [x, z, yaw, ads, st] = spots[i];
       b.pos.set(i === 3 ? x + Math.sin(t * 0.7) * 1.5 : x, 0, z);
       b.yaw = i === 3 ? (Math.cos(t * 0.7) > 0 ? -Math.PI / 2 : Math.PI / 2) : yaw;
-      b.pitch = 0; b.ads = ads; b.stance = st; b.moving = i === 3; b.alive = true; b.hp = 100;
+      b.pitch = 0; b.ads = ads; b.stance = st; b.moving = i === 3; b.alive = i !== window.__copDead; b.hp = 100;
       T.net.publishBot(b);
     });
   }, 33);
@@ -128,6 +128,36 @@ for (let i = 0; i < VIEWS.length; i++) {
   })), VIEWS[i]);
   fs.writeFileSync(path.join(OUT, `ingame-${i}.png`), Buffer.from(url.split(",")[1], "base64"));
 }
+// One goes down: on his back, the rifle on the floor beside him; it's back
+// in his hands when he respawns.
+await page.evaluate(() => { window.__copDead = 1; });
+await new Promise((r) => setTimeout(r, 2500));
+const down = await page.evaluate(() => {
+  const T = window.__trollOps;
+  const rp = [...T.remotes.byId.values()].find((r) => r.dying && r.rig.cop);
+  if (!rp) return null;
+  const d = rp.rig.cop.drop;
+  return { drop: !!d, visible: !!d?.mesh.visible, onFloor: d ? d.mesh.getWorldPosition(new rp.rig.root.position.constructor()).y - rp.rig.root.position.y : null,
+    inHand: rp.rig.held?.parent === rp.rig.parts.gunMount, dir: rp.rig.death?.dir, id: rp.peer.id };
+});
+check("a downed officer lies on his back", down?.dir === 1, JSON.stringify(down));
+check("his rifle lies on the floor", !!down?.drop && down.visible && !down.inHand && Math.abs(down.onFloor) < 0.15);
+{
+  const url = await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => {
+    const T = window.__trollOps, cam = T.camera;
+    cam.position.set(1.6, 2.2, -5.2); cam.lookAt(0, 0.1, -8.4); cam.updateMatrixWorld(true);
+    T.composer.render(0.016);
+    done(T.renderer.domElement.toDataURL("image/png"));
+  })));
+  fs.writeFileSync(path.join(OUT, "ingame-down.png"), Buffer.from(url.split(",")[1], "base64"));
+}
+await page.evaluate(() => { window.__copDead = -1; });
+await new Promise((r) => setTimeout(r, 1500));
+const up = await page.evaluate((id) => {
+  const rp = window.__trollOps.remotes.byId.get(id);
+  return rp ? { inHand: rp.rig.held?.parent === rp.rig.parts.gunMount, drop: !!rp.rig.cop?.drop } : null;
+}, down?.id);
+check("respawned with the rifle back in his hands", !!up?.inHand && !up.drop, JSON.stringify(up));
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();
 server.close();
