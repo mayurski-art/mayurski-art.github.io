@@ -115,7 +115,8 @@ check("B lands on A's map, not its own pick", b1.map === a1.map, `${b1.map} vs $
 check("everyone is on one side", a1.team === "phantom" && b1.team === "phantom", `${a1.team} / ${b1.team}`);
 await sleep(1500);
 
-const calm = await A.evaluate(async () => {
+// Everyone but the owner: empty hands.
+const calm = await B.evaluate(async () => {
   const T = window.__trollOps;
   const hp0 = T.player.hp;
   T.damagePlayer(500, "someone", "problem416");
@@ -134,12 +135,37 @@ check("no damage lands in the hangout", calm.hp1 === calm.hp0 && calm.alive, `${
 check("no bots, no countdown", calm.bots === 0 && !calm.staging, JSON.stringify(calm));
 check("melee and weapon swaps do nothing", !calm.meleeBusy && calm.holding !== "secondary", `holding ${calm.holding}`);
 check("the combat HUD is gone but the HUD (emote wheel) stays", calm.crosshair === "none" && calm.ammo === "none" && !calm.hud, JSON.stringify(calm));
-await pump(A, 1500);
-const aSeen = await until(B, (v) => v && v.state, 8000, (p) => p.evaluate(() => {
+await pump(B, 1500);
+const aSeen = await until(A, (v) => v && v.state, 8000, (p) => p.evaluate(() => {
   const peer = [...window.__trollOps.net.peers.values()].find((x) => !String(x.id).startsWith("bot-"));
   return peer ? { state: peer.snaps.length > 0, weapon: peer.weapon ?? null } : null;
 }));
 check("other players see empty hands", !!aSeen?.state && aSeen.weapon == null, JSON.stringify(aSeen));
+
+// The owner (user: "troll_runner should not have any restriction"): the
+// whole loadout, guns and HUD, though nobody can be hurt.
+const armed = await A.evaluate(async () => {
+  const T = window.__trollOps;
+  const hp0 = T.player.hp;
+  T.damagePlayer(500, "someone", "problem416");
+  T.switchWeapon("secondary");
+  T.switchWeapon("primary");
+  T.swingMelee();
+  return {
+    hp0, hp1: T.player.hp, holding: T.player.holding, meleeBusy: !!T.player.melee?.busy,
+    crosshair: getComputedStyle(document.getElementById("to-crosshair")).display,
+    ammo: getComputedStyle(document.querySelector(".to-hud-bottom")).display,
+  };
+});
+check("the owner can't be hurt either", armed.hp1 === armed.hp0, `${armed.hp0} -> ${armed.hp1}`);
+check("the owner swaps weapons and swings melee", armed.holding === "gun" && armed.meleeBusy, JSON.stringify(armed));
+check("the owner keeps the combat HUD", armed.crosshair !== "none" && armed.ammo !== "none", JSON.stringify(armed));
+await pump(A, 1500);
+const ownerSeen = await until(B, (v) => v && v.weapon, 8000, (p) => p.evaluate(() => {
+  const peer = [...window.__trollOps.net.peers.values()].find((x) => !String(x.id).startsWith("bot-"));
+  return peer ? { weapon: peer.weapon ?? null } : null;
+}));
+check("everyone sees the owner's gun", !!ownerSeen?.weapon, JSON.stringify(ownerSeen));
 
 await A.evaluate(() => window.__trollOps.setEmote(4));
 await pump(A, 1200);
@@ -148,11 +174,11 @@ check("an emote reaches the other player", emoteSeen > 0, String(emoteSeen));
 await A.evaluate(() => window.__trollOps.setEmote(-1));
 
 // First person: no gun, the free hands swing with your stride.
-const still = await A.evaluate(() => { const T = window.__trollOps; T.settings.thirdPerson = false; T.keys.add("KeyW"); T.keys.add("ShiftLeft"); return T.socialArms(); });
-await pump(A, 1500);
-const armsA = await A.evaluate(() => window.__trollOps.socialArms());
-await pump(A, 400);
-const arms = await A.evaluate((x) => { const T = window.__trollOps; T.keys.delete("KeyW"); T.keys.delete("ShiftLeft"); return { ...x, b: T.socialArms(), gun: T.fpWeaponDrawn() }; }, { still, a: armsA });
+const still = await B.evaluate(() => { const T = window.__trollOps; T.settings.thirdPerson = false; T.keys.add("KeyW"); T.keys.add("ShiftLeft"); return T.socialArms(); });
+await pump(B, 1500);
+const armsA = await B.evaluate(() => window.__trollOps.socialArms());
+await pump(B, 400);
+const arms = await B.evaluate((x) => { const T = window.__trollOps; T.keys.delete("KeyW"); T.keys.delete("ShiftLeft"); return { ...x, b: T.socialArms(), gun: T.fpWeaponDrawn() }; }, { still, a: armsA });
 check("first person shows free hands, not a gun", arms.a.on && arms.gun === false, JSON.stringify(arms));
 check("the hands swing in with the stride", arms.a.k > 0.6 && arms.b.phase > arms.a.phase, JSON.stringify(arms));
 

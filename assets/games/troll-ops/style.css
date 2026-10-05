@@ -717,27 +717,28 @@ button.to-gear-chip { cursor: pointer; }
 /* Socialize: no guns, so none of the combat HUD or touch buttons. The
    killfeed (joins and leaves), chat, minimap and emote button stay, and
    the swap button, which is hold X (the saloon bar, duo emotes). Fire
-   comes back while you hold a drink: it sips. */
-body.to-social #to-hud-teams,
-body.to-social #to-ss-hud,
-body.to-social #to-crosshair,
-body.to-social #to-charge,
-body.to-social #to-saber-meter,
-body.to-social #to-spawnguard,
-body.to-social .to-hud-bottom,
-body.to-social #to-hud-gear,
-body.to-social #to-cook,
-body.to-social:not(.to-social-drink) #to-touch-fire,
-body.to-social #to-touch-fire-l,
-body.to-social #to-touch-ads,
-body.to-social #to-touch-tac,
-body.to-social #to-touch-reload,
-body.to-social #to-touch-melee,
-body.to-social #to-touch-nade,
-body.to-social #to-touch-admire,
-body.to-social #to-touch-streak,
-body.to-social #to-touch-endstreak,
-body.to-social #to-touch-interact { display: none !important; }
+   comes back while you hold a drink: it sips. The owner keeps the lot
+   (.to-social-armed, game.js socialUnarmed). */
+body.to-social:not(.to-social-armed) #to-hud-teams,
+body.to-social:not(.to-social-armed) #to-ss-hud,
+body.to-social:not(.to-social-armed) #to-crosshair,
+body.to-social:not(.to-social-armed) #to-charge,
+body.to-social:not(.to-social-armed) #to-saber-meter,
+body.to-social:not(.to-social-armed) #to-spawnguard,
+body.to-social:not(.to-social-armed) .to-hud-bottom,
+body.to-social:not(.to-social-armed) #to-hud-gear,
+body.to-social:not(.to-social-armed) #to-cook,
+body.to-social:not(.to-social-drink):not(.to-social-armed) #to-touch-fire,
+body.to-social:not(.to-social-armed) #to-touch-fire-l,
+body.to-social:not(.to-social-armed) #to-touch-ads,
+body.to-social:not(.to-social-armed) #to-touch-tac,
+body.to-social:not(.to-social-armed) #to-touch-reload,
+body.to-social:not(.to-social-armed) #to-touch-melee,
+body.to-social:not(.to-social-armed) #to-touch-nade,
+body.to-social:not(.to-social-armed) #to-touch-admire,
+body.to-social:not(.to-social-armed) #to-touch-streak,
+body.to-social:not(.to-social-armed) #to-touch-endstreak,
+body.to-social:not(.to-social-armed) #to-touch-interact { display: none !important; }
 @media (max-width: 760px) {
   .to-menu-actions .to-menu-roommode { grid-template-columns: 1fr auto; }
   .to-menu-actions .to-menu-roommode > span { grid-column: 1 / -1; }

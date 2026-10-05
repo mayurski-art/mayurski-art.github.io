@@ -4337,6 +4337,10 @@ function isView() { return !!currentMode().view; }
    itself, which stays a Socialize room while the owner has it playing a
    real mode (see switchRoomMode). */
 function isSocial() { return !!currentMode().social; }
+/* The hangout's empty hands. The owner (user: "troll_runner should not
+   have any restriction" in Socialize) keeps the whole loadout there, guns,
+   melee and throwables, except while a drink or a seat has the hands. */
+function socialUnarmed() { return isSocial() && (!isTrollRunner() || !!bar.drink || !!seated); }
 let socialRoom = false;
 let roomModeSeq = 0;         // the room's mode count (net.modeSeq on the wire)
 let socialMapId = null;      // the hangout's map, to come back to after a match
@@ -7666,7 +7670,7 @@ function currentWeapon() {
 }
 
 function tryReload() {
-  if (isSocial()) return;   // no guns in the hangout
+  if (socialUnarmed()) return;   // no guns in the hangout
   if (!controls.isLocked && !isTouch && !gamepadState.connected) return;
   // audio.reload() now fires from reloadPose() on the first frame w.reloading
   // is true, so it lands in step with the visual choreography's stages
@@ -7677,7 +7681,7 @@ function tryReload() {
 /* `shot` (charge weapons, from chargedShotDef): the def this round flies
    with, the cells it costs, its recoil scale and charge level. */
 function fireOnce(shot = null) {
-  if (isSocial()) return;
+  if (socialUnarmed()) return;
   const w = currentWeapon();
   const def = shot?.def || w.def;
   if (!w.canFire()) {
@@ -8188,7 +8192,7 @@ function carriedThrowSlot() {
 /* Cooking: holding the key starts the fuse while the grenade is still in
    your hand. Impact throwables ignore it — they go off where they land. */
 function startCook(slot) {
-  if (isSocial()) { putDownDrink(); return; }   // G: the saloon bar's drink goes down
+  if (socialUnarmed()) { putDownDrink(); return; }   // G: the saloon bar's drink goes down
   if (cooking.def || !player.alive || gameState !== "playing" || isStaging() || isInfected()) return;
   if (streakBusy()) return;   // no throwables while working a streak (user)
   if (player.gear[slot] <= 0) return;
@@ -8256,7 +8260,7 @@ function releaseCook({ cookedOff = false } = {}) {
 /* Quick melee swings without putting the gun away; pressing 3 makes the
    melee weapon the thing in your hands, which swings and moves faster. */
 function swingMelee() {
-  if (isSocial()) return;
+  if (socialUnarmed()) return;
   if (kbRepair.active) return;   // both hands busy fixing the keyboard
   if (meleeHolster) return;      // being put away for a streak
   if (!player.alive || move.busy || gameState !== "playing" || stageFrozen() || royaleDropView()) return;
@@ -8620,7 +8624,7 @@ function updateSaberFx(mesh, saber, swinging, dt) {
 
 function setHolding(what) {
   if (player.holding === what) return;
-  if (isSocial()) return;   // hands stay empty in the hangout
+  if (socialUnarmed()) return;   // hands stay empty in the hangout
   if (isInfected() && what !== "melee") return;   // the sword is all they have
   if (what === "melee" && !player.melee) return;
   player.holding = what;
@@ -8638,7 +8642,7 @@ function setHolding(what) {
    player.secondaryId null there - Gun Game, One in the Chamber) or when
    already holding that slot's gun. */
 function switchWeapon(slot) {
-  if (isSocial()) return;
+  if (socialUnarmed()) return;
   if (warshipView()) { toggleWarshipGun(); return; }
   if (isInfected()) return;
   // Mid-streak the tablet/marker is in your hands; a swap would yank it away
@@ -8665,7 +8669,7 @@ function switchWeapon(slot) {
    there isn't one (Gun Game, One in the Chamber, or no sidearm picked up
    yet) rather than landing on a dead slot. */
 function cycleWeapon() {
-  if (isSocial()) return;
+  if (socialUnarmed()) return;
   if (player.holding === "streak") return;   // same reason as switchWeapon
   const order = ["primary", ...(player.secondaryId ? ["secondary"] : []), "melee"];
   const current = player.holding === "melee" ? "melee" : currentWeaponSlot;
@@ -8947,7 +8951,7 @@ function netSnapshot() {
   _netSnapshot.reloadTime = currentWeapon()?.reloadTime || 2.3;
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
   // Socialize: nothing in hand, so everyone else sees empty hands too.
-  _netSnapshot.weapon = isSocial() ? null
+  _netSnapshot.weapon = socialUnarmed() ? null
     : player.holding === "melee" && player.melee
     ? player.melee.def.id
     : (player.holding === "gun" ? currentWeapon()?.def.id : null) || player.weaponId;
@@ -13493,7 +13497,7 @@ function updateLocalRig(dt) {
   // What's in the hands: the melee weapon while it's held or mid-swing
   // (a quick melee swings it without putting the gun away), else the gun.
   const swinging = !!player.melee?.busy;
-  const hold = isSocial() ? "none"   // the hangout: empty hands
+  const hold = socialUnarmed() ? "none"   // the hangout: empty hands
     : player.holding === "melee" || swinging ? "melee"
     : player.holding === "gun" ? "gun" : "none";
   const def = currentWeapon()?.def;
@@ -13703,9 +13707,9 @@ function updatePlayer(dt) {
   // primary's optic has no business popping up over it (that's the "scoped
   // weapon flash" glitch when activating a killstreak while holding ADS).
   // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
-  const wantAds = player.alive && !isView() && !isSocial() && !localPauseOnly && empT <= 0 && player.holding !== "streak"
+  const wantAds = player.alive && !isView() && !socialUnarmed() && !localPauseOnly && empT <= 0 && player.holding !== "streak"
     && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
-  const wantFire = !frozen && !isView() && !isSocial() && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
+  const wantFire = !frozen && !isView() && !socialUnarmed() && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
   if (isSnd()) {
     sndInteractHeld = !frozen && ((isTouch && touchState.interact) || (keys.has("KeyF") && cooking.slot !== "tactical")
       || (gp && gamepadState.pickup && sndCanInteract));
@@ -15093,6 +15097,7 @@ function updateBar(dt) {
     } else els.pickupPrompt.hidden = true;
   }
   document.body.classList.toggle("to-social-drink", !!bar.drink);
+  document.body.classList.toggle("to-social-armed", !socialUnarmed());
 }
 
 /* The sip as a 0..1..0 lift (up to the mouth, back down). */
@@ -15184,7 +15189,7 @@ function socialArmsFrame() {
 }
 
 function updateFpEmoteView() {
-  const f = fpEmoteFrame() || (isSocial() && player.alive ? socialArmsFrame() : null);
+  const f = fpEmoteFrame() || (socialUnarmed() && player.alive ? socialArmsFrame() : null);
   if (!f) {
     if (fpEmoteArmsOn) { hideStreakArms(); fpEmoteArmsOn = false; }
     syncFpDrink(false);
@@ -15195,7 +15200,7 @@ function updateFpEmoteView() {
   // The gun is put away: so are the arms that hold it (PF rods or gloves),
   // or they hang in view as a second pair beside the emote hands.
   // Socialize has no gun to do a trick with: the hands act it out alone.
-  const gun = !isSocial() && f.gun;
+  const gun = !socialUnarmed() && f.gun;
   if (!gun) { pfArms.visible = false; gloveRig.visible = false; }
   if (activeWeaponMesh) {
     activeWeaponMesh.visible = !!gun && player.holding === "gun";
@@ -15295,7 +15300,7 @@ let inspectFreeze = null;   // test hook: pin the animation at one t
 function isLongGunInspect(w) { return w.def.cls !== "sidearm"; }
 
 function startInspect() {
-  if (isSocial()) return;
+  if (socialUnarmed()) return;
   if (inspectT > 0 || !player.alive || gameState !== "playing" || move.busy) return;
   if (player.holding === "gun") {
     const w = currentWeapon();
