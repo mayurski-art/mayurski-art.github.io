@@ -8,7 +8,8 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_TINTS, FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
+import { FACE_TINTS, FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
+import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1";
 
 const KEY = "trollops:cosmetics";
 
@@ -29,15 +30,21 @@ export const COVERINGS = [
   { id: "bandana-black", name: "Black bandana" },
   { id: "bandana-green", name: "Green bandana" },
 ];
+// Wristwear (wristwear.js WRISTWEAR): a watch on the left wrist.
+export const WRISTS = [{ id: "", name: "None" }, ...Object.entries(WRISTWEAR).map(([id, w]) => ({ id, name: w.name }))];
 const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
 const TINT_IDS = new Set(TINTS.map((t) => t.id));
 
 /* A face key off the wire or storage, or the default when it's not one we
-   know: "expression:tint", plus ":covering" when one's worn. */
+   know: "expression:tint", plus ":covering" when one's worn, plus
+   ":wrist" when a watch is (the covering part left empty without one:
+   "grin:og::rolex-gold"). */
 export function cleanFaceKey(key) {
-  const [e, t, c] = String(key || "").split(":");
+  const [e, t, c, w] = String(key || "").split(":");
   if (!EXPR_IDS.has(e) || !TINT_IDS.has(t)) return "grin:og";
-  return FACE_COVERINGS[c] ? `${e}:${t}:${c}` : `${e}:${t}`;
+  const cover = FACE_COVERINGS[c] ? c : "";
+  const wrist = WRISTWEAR[w] ? w : "";
+  return `${e}:${t}${cover || wrist ? `:${cover}` : ""}${wrist ? `:${wrist}` : ""}`;
 }
 
 export function loadCosmetics() {
@@ -157,15 +164,39 @@ export class CosmeticsPanel {
       b.addEventListener("click", () => this.set({ cover: cv.id }));
       this.coverBox.appendChild(b);
     }
+    this.wristBox = sec("Wrist", "Something on the left wrist. Shows in your own hands too.");
+    this.wristBox.className = "to-cos-faces";
+    this.wristBox.setAttribute("role", "radiogroup");
+    this.wristBox.setAttribute("aria-label", "Wrist");
+    for (const wr of WRISTS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "to-cos-face";
+      b.dataset.wrist = wr.id;
+      b.setAttribute("role", "radio");
+      const thumb = document.createElement("span");
+      thumb.className = "to-cos-thumb";
+      const img = document.createElement("img");
+      img.alt = "";
+      img.draggable = false;
+      img.src = wr.id ? watchThumb(wr.id) : art.src;
+      thumb.style.setProperty("--art", `url("${img.src}")`);
+      thumb.appendChild(img);
+      const name = document.createElement("span");
+      name.textContent = wr.name;
+      b.append(thumb, name);
+      b.addEventListener("click", () => this.set({ wrist: wr.id }));
+      this.wristBox.appendChild(b);
+    }
     this.paint();
   }
 
   get face() { return this.state.face; }
 
-  set({ expr, tint, cover }) {
-    const [e0, t0, c0 = ""] = this.state.face.split(":");
-    const c = cover ?? c0;
-    this.state.face = cleanFaceKey(`${expr || e0}:${tint || t0}${c ? `:${c}` : ""}`);
+  set({ expr, tint, cover, wrist }) {
+    const [e0, t0, c0 = "", w0 = ""] = this.state.face.split(":");
+    const c = cover ?? c0, w = wrist ?? w0;
+    this.state.face = cleanFaceKey(`${expr || e0}:${tint || t0}:${c}:${w}`);
     saveCosmetics(this.state);
     this.paint();
     this.onChange?.(this.state.face);
@@ -188,6 +219,12 @@ export class CosmeticsPanel {
     const cover = this.state.face.split(":")[2] || "";
     for (const b of this.coverBox.children) {
       const on = b.dataset.cover === cover;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-checked", String(on));
+    }
+    const wrist = this.state.face.split(":")[3] || "";
+    for (const b of this.wristBox.children) {
+      const on = b.dataset.wrist === wrist;
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-checked", String(on));
     }

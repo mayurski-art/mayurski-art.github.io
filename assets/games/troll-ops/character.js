@@ -16,6 +16,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { buildWatch, wristOf } from "./wristwear.js?v=ww1";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
 
@@ -204,6 +205,32 @@ function syncCovering(rig) {
     head.add(o);
     head.userData.covering.push(o);
   }
+}
+
+/* Wear (or take off) the wristwear in the face key's fourth part (a Rolex,
+   wristwear.js) on the left forearm, just above the mitt. It hangs off the
+   hand joint, not the wrist, so the mitt's twist doesn't spin it. */
+const _wwY = new THREE.Vector3(), _wwZ = new THREE.Vector3(), _wwX = new THREE.Vector3(), _wwM = new THREE.Matrix4();
+function syncWristwear(rig) {
+  const hand = rig.parts?.wristL?.parent;
+  if (!hand) return;
+  const id = wristOf(rig.face);
+  if (rig.wristShown === id) return;
+  rig.wristShown = id;
+  if (rig.wristMesh) { rig.wristMesh.parent?.remove(rig.wristMesh); rig.wristMesh = null; }
+  if (!id) return;
+  const s = rig.scale || 1, w = rig.build || 1;
+  const limb = 0.032 * s * w;
+  const watch = buildWatch(id, limb * 1.18);
+  // Up the forearm toward the elbow (the arm's rest line, ARM in buildRig),
+  // face turned out, the way the back of the mitt faces.
+  _wwZ.set(0.30 * w, 0.62, 0).normalize();
+  _wwY.set(-_wwZ.y, _wwZ.x, 0);
+  _wwX.crossVectors(_wwY, _wwZ);
+  watch.quaternion.setFromRotationMatrix(_wwM.makeBasis(_wwX, _wwY, _wwZ));
+  watch.position.copy(_wwZ).multiplyScalar(limb * 2.2);
+  hand.add(watch);
+  rig.wristMesh = watch;
 }
 
 /* Put `mood` ("sad") on a rig's face, or with no mood its own pick back.
@@ -1251,6 +1278,8 @@ function _poseDanceWave(rig, t) {
 export function poseHumanoid(rig, arg) {
   if (rig.parts.head.userData.trollface && rig.parts.head.material !== faceMaterial(rig.face)) setFace(rig);
   syncCovering(rig);
+  syncWristwear(rig);
+  rig.emoteProps?.hide();   // an emote's props (lean-cup.js), once it's over
   _poseHumanoid(rig, arg);
   if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);
   if (arg.hold === "melee") _meleeSupport(rig);

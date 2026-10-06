@@ -18,7 +18,8 @@
 // z swings the left arm out (the right arm out is negative z).
 
 import * as THREE from "three";
-import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
+import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
+import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "./lean-cup.js?v=lc1";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -241,6 +242,26 @@ function fpFacepalm(t) {
   };
 }
 
+/* Pour up (lean-cup.js): the right hand holds the double cup in front of
+   the chest, the left brings ice then the Sprite bottle over it, a swirl,
+   a sip. The props ride the rig (rig.emoteProps; poseHumanoid hides them
+   once the emote's over). */
+function poseLeanTP(rig, t) {
+  base(rig);
+  const s = (rig.emoteProps ||= new LeanKit()).tp(rig, t, reachHand);
+  setHandPose(rig, 1, "fist");
+  const iceHeld = t >= LEAN.iceUp[0] && t < LEAN.drop[0];
+  setHandPose(rig, -1, iceHeld || s.bottle ? "fist" : "open");
+  rig.parts.torso.rotation.x = 0.06 * s.look;
+  head(rig, 0.38 * s.look - 0.25 * s.sip, 0, 0);
+  done(rig);
+}
+
+/* Our own first-person props for it, on the streak-arm hands (game.js). */
+let fpLean = null;
+function fpLeanProps(parent, handR, handL, t) { (fpLean ||= new LeanKit()).fp(parent, handR, handL, t); }
+export function hideFpEmoteProps() { fpLean?.hide(); }
+
 /* -------------------------------------------------------------- duo */
 // Both players face each other; each pose is written from its own side, so
 // "forward" is toward the partner.
@@ -322,6 +343,7 @@ export const EMOTES = [
   // Last in the list so every older emote keeps its wire code.
   { id: "sad", name: "Sad trollface", kind: "tp", pose: poseSadTP, seconds: 4.2 },
   { id: "bird", name: "Middle fingers", kind: "tp", pose: poseBirdTP, seconds: BIRD_SECONDS },
+  { id: "lean", name: "Pour up", kind: "fp", pose: poseLeanTP, fp: leanFp, fpProps: fpLeanProps, props: true, seconds: LEAN_SECONDS },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;
@@ -338,6 +360,7 @@ export function poseEmoteCode(rig, code, t) {
   const e = EMOTES[(code & (ROLE_BIT - 1)) - 1];
   if (!e) return false;
   const fn = Array.isArray(e.pose) ? e.pose[role] : e.pose;
+  if (!e.props) rig.emoteProps?.hide();
   fn(rig, t);
   return true;
 }

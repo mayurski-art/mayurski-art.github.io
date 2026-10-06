@@ -24,7 +24,7 @@
 // their own.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
 
 const TINTS = ["og", "og", "gold", "green", "blue", "pink", "purple", "red", "stone"];

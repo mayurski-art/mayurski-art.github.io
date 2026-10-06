@@ -214,13 +214,16 @@ const deployRow = (label, desc) => ({
 
 /* Sub-screens built from one group of option buttons (attachments, gear,
    faces): pick one and go back. */
-function optionScreen(titleText, buttons, { valueOf, descOf } = {}) {
+// (`valueFor`, not `valueOf`: destructuring `valueOf` off an options object
+// that doesn't set it picks up Object.prototype.valueOf, and calling that
+// threw, so Face and Face colour never opened.)
+function optionScreen(titleText, buttons, { valueFor, descOf } = {}) {
   return {
     title: titleText,
     groups: [
       buttons.map((b, i) => ({
         id: `o-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b),
-        value: valueOf ? valueOf(b) : "", desc: descOf ? descOf(b) : (b.title || ""),
+        value: valueFor ? valueFor(b) : "", desc: descOf ? descOf(b) : (b.title || ""),
         onSelect: (_, m) => { b.click(); m.back(); },
       })),
       [{ id: "back", label: "Back", desc: "Keep what you have.", onSelect: (_, m) => m.back() }],
@@ -287,7 +290,7 @@ const screens = {
         { id: "class", label: "Create a Class", desc: "Primary, secondary and every attachment.", go: "class" },
         { id: "gear", label: "Gear", desc: "Melee and the one throwable you carry.", go: "gear" },
         { id: "streaks", label: "Scorestreaks", desc: "Pick three. Kills, assists and objectives build the meter.", go: "streaks" },
-        { id: "cosmetics", label: "Cosmetics", desc: "Your trollface: expression and colour.", go: "cosmetics" },
+        { id: "cosmetics", label: "Cosmetics", desc: "Your trollface: expression, colour and wrist.", go: "cosmetics" },
         // BO2: at the level cap the Prestige option appears.
         canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
       ].filter(Boolean),
@@ -560,21 +563,24 @@ const screens = {
     };
   },
   cosmetics: () => {
-    const face = $$("#to-cos-body .to-cos-face").find(isOn);
+    const face = $$("#to-cos-body .to-cos-face:not([data-wrist])").find(isOn);
     const tint = $$("#to-cos-body .to-cos-tint").find(isOn);
+    const wrist = $$("#to-cos-body [data-wrist]").find(isOn);
     return {
       title: "Cosmetics", panel: "cosmetics",
       groups: [
         [
           { id: "face", label: "Face", value: face ? text($("span:last-child", face)) : "", desc: "Your trollface's expression. Everyone in the match sees it.", go: "faces" },
           { id: "tint", label: "Face colour", value: tint ? tint.title : "", desc: "Tints the skin; the ink stays black.", go: "tints" },
+          { id: "wrist", label: "Wrist", value: wrist ? text($("span:last-child", wrist)) : "", desc: "Something on your left wrist. Everyone sees it, and so do you, in your own hands.", go: "wrists" },
         ],
         [back("Back to the main menu.")],
       ],
     };
   },
   heroes: () => optionScreen("Hero", $$("#to-lo-heroes .to-lo-hero")),
-  faces: () => optionScreen("Face", $$("#to-cos-body .to-cos-face"), { descOf: () => "Everyone in the match sees it." }),
+  faces: () => optionScreen("Face", $$("#to-cos-body .to-cos-face:not([data-wrist])"), { descOf: () => "Everyone in the match sees it." }),
+  wrists: () => optionScreen("Wrist", $$("#to-cos-body [data-wrist]"), { descOf: (b) => (b.dataset.wrist ? "On your left wrist, every match." : "A bare wrist.") }),
   tints: () => optionScreen("Face colour", $$("#to-cos-body .to-cos-tint"), { descOf: (b) => `${b.title} skin.` }),
   leaders: { title: "Leaderboards", panel: "deploy", detail: true, lb: true, groups: [[back("Back to the main menu.")]] },
   options: () => ({
@@ -613,12 +619,12 @@ const optionScreens = new Proxy(screens, {
       const slotEl = $$("#to-lo-atts .to-lo-slot")[+a[1]];
       if (slotEl) return () => optionScreen(text($(".to-lo-slot-label", slotEl)), $$(".to-lo-att, button", slotEl), {
         descOf: (b) => text($("small", b)) || b.title,
-        valueOf: (b) => $$(".to-att-delta b", b).map(text).join(" "),
+        valueFor: (b) => $$(".to-att-delta b", b).map(text).join(" "),
       });
     }
     if (g) {
       const row = $$("#to-lo-gear .to-lo-gearrow")[+g[1]];
-      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), { valueOf: (b) => text($("span", b)) });
+      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), { valueFor: (b) => text($("span", b)) });
     }
     return undefined;
   },

@@ -41,7 +41,7 @@ import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } fro
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2";
 import { ROLES, roleCode, DOCTOR, poseSeated, posePianoArms, PianoVoice, TUNES } from "./rp-roles.js?v=rp1";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst-soc1";
 import {
   buildDrink, placeDrinkInHand, poseDrinkArm, mountDrink, drinkCode, drinkMax, tipsyFx, TIPSY,
@@ -49,7 +49,8 @@ import {
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
 } from "./saloon-bar.js?v=sb1";
 import { TownNpcs } from "./town-npcs.js?v=tn4";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES } from "./emotes.js?v=hb4-em1-wst-soc1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps } from "./emotes.js?v=hb4-em1-wst-soc1-lc1";
+import { buildWatch, wristOf } from "./wristwear.js?v=ww1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
@@ -89,7 +90,7 @@ import { PickupSystem, SwapHold } from "./pickups.js?v=sw1-wst-sb2";
 import { HudLayout } from "./hud-layout.js?v=hl3";
 import { initCloudSave } from "./cloud-save.js?v=cs1";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7";
-import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4-fc1-wst-soc1";
+import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3-sb2";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2";
@@ -4566,6 +4567,7 @@ const cosmetics = new CosmeticsPanel(document.getElementById("to-cos-body"), (fa
 function applyOwnFace(face) {
   if (charInspector) charInspector.humanoid.face = face;
   localRig.face = face;   // only ever called on a pick, long after localRig exists
+  syncFpWatches();
 }
 if (charInspector) charInspector.humanoid.face = cosmetics.face;
 let charInspectorLive = false;
@@ -14610,6 +14612,7 @@ Promise.all([buildGlove(1, weaponEnvTex), buildGlove(-1, weaponEnvTex)]).then((g
     h.root.visible = h.sleeve.visible = false;
     streakArms.add(h.root, h.sleeve);
   }
+  syncFpWatches();
 });
 
 /* Swap arm i's white hand for its glove when gloves are on. True if the
@@ -15258,10 +15261,12 @@ function socialArmsFrame() {
 }
 
 function updateFpEmoteView() {
+  syncFpWatches();   // cheap when nothing changed; waits for the gloves' first pose
   const f = fpEmoteFrame() || (socialUnarmed() && player.alive ? socialArmsFrame() : null);
   if (!f) {
     if (fpEmoteArmsOn) { hideStreakArms(); fpEmoteArmsOn = false; }
     syncFpDrink(false);
+    hideFpEmoteProps();
     return;
   }
   inspectArms.visible = false;
@@ -15280,6 +15285,10 @@ function updateFpEmoteView() {
   }
   fpEmoteArmsOn = true;
   poseFreeArms(f);
+  // An emote's own props in your hands (Pour up's cup and bottle).
+  const props = emoteKind() === "fp" ? EMOTES[emote.idx].fpProps : null;
+  if (props) props(streakArms, streakArms.userData.arms[0].hand, streakArms.userData.arms[1].hand, emote.t);
+  else hideFpEmoteProps();
   // The saloon bar's drink, in the right hand (not during an emote).
   syncFpDrink(!!f.social);
 }
@@ -15694,8 +15703,51 @@ Promise.all([buildGlove(1, weaponEnvTex), buildGlove(-1, weaponEnvTex)]).then((g
   if (!g[0] || !g[1]) return;
   gloves = g;
   for (const h of g) gloveRig.add(h.root, h.sleeve);
+  syncFpWatches();
 });
-const basisQ = (x, y, z) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+
+/* Your wristwear (a Rolex, wristwear.js) on the left glove: the gun-hold
+   pair and the emote pair. Sized to the glove's own cuff, measured once in
+   the glove's frame (wrist +Z, back of the hand +Y). */
+const _fwInv = new THREE.Matrix4(), _fwV = new THREE.Vector3();
+function fitGloveWatch(g, id) {
+  const root = g.root;
+  if ((root.userData.watch?.userData.wristId || "") === id) return;
+  if (root.userData.watch) { root.remove(root.userData.watch); root.userData.watch = null; }
+  if (!id) return;
+  // Measured off the baked pose: before its first pose the mesh is still
+  // in the export's bind units. Until then, try again next frame.
+  if (!g.pose) return;
+  if (!root.userData.cuff) {
+    root.updateMatrixWorld(true);
+    _fwInv.copy(root.matrixWorld).invert();
+    const box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+    root.traverse((o) => {
+      if (!o.isMesh || o.isSkinnedMesh || !o.geometry?.attributes.position) return;
+      const p = o.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        _fwV.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld).applyMatrix4(_fwInv);
+        if (_fwV.z < 0.004 || _fwV.z > 0.03) continue;
+        box.x0 = Math.min(box.x0, _fwV.x); box.x1 = Math.max(box.x1, _fwV.x);
+        box.y0 = Math.min(box.y0, _fwV.y); box.y1 = Math.max(box.y1, _fwV.y);
+      }
+    });
+    if (!Number.isFinite(box.x0)) return;
+    root.userData.cuff = { cx: (box.x0 + box.x1) / 2, cy: (box.y0 + box.y1) / 2, rx: (box.x1 - box.x0) / 2, ry: (box.y1 - box.y0) / 2 };
+  }
+  const c = root.userData.cuff;
+  const watch = buildWatch(id, c.rx * 1.04, { ry: c.ry * 1.04, envMap: weaponEnvTex });
+  watch.position.set(c.cx, c.cy, 0.017);
+  watch.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+  root.add(watch);
+  root.userData.watch = watch;
+}
+function syncFpWatches() {
+  const id = wristOf(cosmetics.face);
+  if (gloves) fitGloveWatch(gloves[1], id);
+  if (streakGloves) fitGloveWatch(streakGloves[1], id);
+}
+const basisQ =(x, y, z) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
   new THREE.Vector3(...x), new THREE.Vector3(...y), new THREE.Vector3(...z)));
 // Hand frames in the gun's frame (hand: fingers -Z, back +Y, thumb -X on
 // the right hand; the mirrored left hand's thumb is on +X).

@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=ti1-sb2";
-import { buildHumanoid, poseHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1";
+import { buildHumanoid, poseHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 
 const GRUNT_TYPES = {
   runner: { hp: 40, speed: 4.4, radius: 0.42, height: 1.7, build: 1.0, color: 0x6bd15a, scoreValue: 100, damage: 8, attackRange: 1.3, attackCd: 0.7 },
