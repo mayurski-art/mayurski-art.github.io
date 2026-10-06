@@ -36,11 +36,32 @@ Follow the 2a pattern:
 - The NPC who normally holds that job hides via `TownNpcs.setYield`.
 - Test template: `tools/troll-ops-rp-test.mjs`.
 
-### Cops and Robbers (co-op heist, Trolling Loud only)
-- The plan is APPROVED; see `COPS-AND-ROBBERS.md`.
-- Phase 0 is done: officer bodies (`cop-bodies.js`, `cop-lab.html`, `models/build_cops.blender.py`, `cop-*.glb`) and officer mechanics: aim, run, crouch-walk, downed.
-- Next: the phases in that doc.
+### Cops and Robbers (co-op heist, Trolling Loud only): PAUSED, resume at phase 1
+- The plan is APPROVED; see `COPS-AND-ROBBERS.md` (phases and hook sites). User-facing doc v3.1: https://claude.ai/artifact/D1n9QkSTibBhGSik7hx1mW
+- Phase 0 is done and approved by the user (2026-10-04).
+  - Officer bodies: `cop-bodies.js`, `cop-lab.html`, `models/build_cops.blender.py`, `cop-*.glb`.
+  - Officer mechanics: aim, run, crouch-walk, downed.
+  - 12 officers cost about 2% frame time over 12 stick figures.
+- **Next: phase 1, the solo heist.** In order:
+  - `modes.js` entry plus a `?heist=1` reveal
+  - `heist-core.js` plus its Node test
+  - `heistLayout()` in `trollingloud.js`
+  - `BotManager.spawn` / `remove`
+  - the `game.js` hooks
+  - `heist.js` director
+  - `heist-hud.js` tracker
+  - drill, bags, van, end screens
+- Remaining size: about 11 planned sessions (phases 1-5); phase 0 ran about 3x its estimate.
+- Police are the plain human officer. Officer Grin (`cop-grin.glb`, the trollface mask) is a player cosmetic, never an enemy.
 - Bouncers there are AI enemies, separate from the Socialize NPCs.
+- How the body works:
+  - `syncCopBody(rig, rp.bodyPose)` runs after posing. `bodyPose` holds gait, lower, mps, moving, forward, strafe, ads, reload and death.
+  - Bots wear it through `bot.body = "patrol"`, sent as the `bd` wire field.
+  - Officers always fall onto their back. The rifle drops to the floor (`cop.drop`) and goes back in hand on respawn.
+  - character.js is untouched; never "fix" the rig for trolls.
+- Rig quirks the officer body works around:
+  - The stick rig leans BACK 7-10 degrees in a run and a crouch; the officer cancels it with `rigBack`.
+  - The rig turns its neck and head AGAINST the aim pitch; `syncCopBody` flips it for real heads.
 
 ### Zombies (ZR4 done): gotchas
 - **One mesh per zombie:** build_zombies.blender.py `atlas_merge` joins every part onto a 2048x1024 atlas (skin = left half, cloth/mask 512 cells, shoes/teeth/eyes 256). The per-zombie tint only touches u < 0.5 (zombie-models.js `skinTinted`); a new part must get a cell, not its own material.
@@ -376,6 +397,7 @@ Map rules:
 - game.js skips the arena render while `body.to-bo2-cover` is set. If the lobby is black behind a screen, that class is why.
 - `menu-bo2.js` drives the old lobby by clicking its hidden buttons; new weapons, modes and maps appear automatically.
 - Perf: real lights recompile every lit shader, double-sided mist and shadowed woods kill fps, and the first view measured reads low.
+- Headless tests: launch with `--use-angle=d3d11`. This Chromium rejects `--use-gl=swiftshader` and falls back to software rendering, where a multi-tab match takes about 20 s per screenshot (it looks hung, or runs out of memory).
 - Concurrency: other sessions share the main checkout. Commit work in progress early (an autostash once swallowed a session's edits).
 
 ---
@@ -436,7 +458,8 @@ Map rules:
 - `custom-guns-test`
 - `guest-progress-test`
 - `zombie-test`
-- `cop-ingame`
+- `cop-ingame` (12 officers in a real Trolling Loud match, downed and respawn)
+- `cop-body-test` (lab pose sweep: hands on the gun, feet on the floor)
 
 **Known pre-existing failures**
 - bot-moves "every kind of throwable" (the Firebomb was removed)
@@ -450,6 +473,7 @@ Map rules:
 - `static-serve.mjs [port]`
 - `hero-preview.html`
 - `troll-ops-beatgrid.mjs`
+- `troll-ops-cop-shots.mjs` (officer pose contact sheets: POSES, YAW, T, CAM, FOCUS, EVAL)
 - `troll-ops-grinleria-layout.mjs`
 
 ---
