@@ -126,6 +126,8 @@ import { currentWeapon, cycleWeapon, fireOnce, frozenPlayer, nearbyPackage, onBu
 import { addMatchXp, awardKillXp, awardScore, checkMatchEnd, creditAssistIfOwed, dealtLog, lastHitRange, noteDealt, recentTeamKillers, registerDeath, updateTeamHud } from "./combat/scoring.js?v=sc1-kc2";
 import { botBusy, botObjective, noteRemoteBombAct, prepareSndRound, scoreHill, siteUnderfoot, sndAliveCounts, sndBotSite, sndDefendTeam, sndGoLive, sndLive, sndRoundWin, updateSnd } from "./modes/objectives.js?v=ob1";
 import { applyInfect, applyInfectionLoadout, botMelee, infectionCounts, infectionStarted, pickFirstInfected, resetInfection, sortInfectionBots, updateInfection } from "./modes/infection.js?v=in1";
+import { adoptRoomMode, cancelSocialReturn, ownerSwitchRoomMode, renderRoomModeRow, returnToSocial, scheduleSocialReturn, initSocial } from "./modes/social.js?v=so1";
+import { cancelIntermission, endGame, endMatch, renderVote, startIntermission, updateIntermission, voteOptions } from "./modes/match-end.js?v=me1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -157,8 +159,9 @@ linkGame({
   beginStaging,
   beginStreakHold,
   get blindT() { return blindT; }, set blindT(v) { blindT = v; },
-  get bomb() { return bomb; },
+  get bomb() { return bomb; }, set bomb(v) { bomb = v; },
   get bombSites() { return bombSites; },
+  boostedXp,
   botBusy,
   botDealDamage,
   botEarn,
@@ -172,7 +175,10 @@ linkGame({
   callStreakSlot,
   get camera() { return camera; },
   cancelCook,
+  cancelIntermission,
   carriedThrowSlot,
+  get chat() { return chat; },
+  clearRangeBots,
   closePauseMenu,
   get colliders() { return colliders; },
   get controls() { return controls; },
@@ -193,6 +199,7 @@ linkGame({
   get dfSaved() { return dfSaved; }, set dfSaved(v) { dfSaved = v; },
   get dfSendT() { return dfSendT; }, set dfSendT(v) { dfSendT = v; },
   get dfViewOn() { return dfViewOn; }, set dfViewOn(v) { dfViewOn = v; },
+  get djLulz() { return djLulz; },
   get dragonfire() { return dragonfire; }, set dragonfire(v) { dragonfire = v; },
   dragonfireBlocked,
   dragonfireView,
@@ -200,6 +207,7 @@ linkGame({
   get droneFields() { return droneFields; },
   dropCarriedWeapon,
   get duoXClaimed() { return duoXClaimed; },
+  get elapsedRun() { return elapsedRun; },
   get els() { return els; },
   get emoteIsTp() { return emoteIsTp; },
   get emoteWheel() { return emoteWheel; },
@@ -211,6 +219,7 @@ linkGame({
   endStreakHold,
   enemiesRevealed,
   enemyAirFor,
+  enterMatch,
   equipFromLoadout,
   explosionFx,
   get fireEdgeTrigger() { return fireEdgeTrigger; }, set fireEdgeTrigger(v) { fireEdgeTrigger = v; },
@@ -218,7 +227,7 @@ linkGame({
   flyBotDragonfire,
   get freshStreak() { return freshStreak; }, set freshStreak(v) { freshStreak = v; },
   get gamepadState() { return gamepadState; },
-  get gameState() { return gameState; },
+  get gameState() { return gameState; }, set gameState(v) { gameState = v; },
   get gpDebugEl() { return gpDebugEl; },
   get gpDebugForced() { return gpDebugForced; },
   get gpIndex() { return gpIndex; }, set gpIndex(v) { gpIndex = v; },
@@ -238,6 +247,7 @@ linkGame({
   get infectionT() { return infectionT; }, set infectionT(v) { infectionT = v; },
   get inspector() { return inspector; },
   get inspectT() { return inspectT; }, set inspectT(v) { inspectT = v; },
+  get intermissionT() { return intermissionT; }, set intermissionT(v) { intermissionT = v; },
   invincibleOn,
   isBotPeer,
   isInfected,
@@ -249,6 +259,8 @@ linkGame({
   isSocial,
   isStaging,
   get isTouch() { return isTouch; },
+  isTrollRunner,
+  isZombies,
   get jammedUntil() { return jammedUntil; }, set jammedUntil(v) { jammedUntil = v; },
   k9Stairs,
   get kcClock() { return kcClock; }, set kcClock(v) { kcClock = v; },
@@ -260,12 +272,15 @@ linkGame({
   get lastHitRange() { return lastHitRange; },
   learnPadRest,
   get lightPool() { return lightPool; },
+  get loadedMapId() { return loadedMapId; },
+  loadInfo,
   get loadout() { return loadout; },
+  get loadScreen() { return loadScreen; },
   get lobbyReady() { return lobbyReady; },
   get localBlockT() { return localBlockT; },
   get localHeld() { return localHeld; },
   get localLower() { return localLower; },
-  get localPauseOnly() { return localPauseOnly; },
+  get localPauseOnly() { return localPauseOnly; }, set localPauseOnly(v) { localPauseOnly = v; },
   get localRig() { return localRig; },
   get localShotAt() { return localShotAt; }, set localShotAt(v) { localShotAt = v; },
   get localThrowT() { return localThrowT; }, set localThrowT(v) { localThrowT = v; },
@@ -277,8 +292,9 @@ linkGame({
   get markingStreak() { return markingStreak; }, set markingStreak(v) { markingStreak = v; },
   get matchClockShown() { return matchClockShown; }, set matchClockShown(v) { matchClockShown = v; },
   get matchClockT() { return matchClockT; }, set matchClockT(v) { matchClockT = v; },
-  get matchesPlayed() { return matchesPlayed; },
+  get matchesPlayed() { return matchesPlayed; }, set matchesPlayed(v) { matchesPlayed = v; },
   get matchIntro() { return matchIntro; },
+  matchMapId,
   get meleeDrawT() { return meleeDrawT; }, set meleeDrawT(v) { meleeDrawT = v; },
   get meleeHolster() { return meleeHolster; },
   get meleeImpactT() { return meleeImpactT; }, set meleeImpactT(v) { meleeImpactT = v; },
@@ -330,9 +346,14 @@ linkGame({
   renderScoreboard,
   renderViewModeRow,
   reportRangeShot,
+  resetBar,
   resolveBulletTarget,
   get respawnT() { return respawnT; }, set respawnT(v) { respawnT = v; },
+  resumePlay,
   get roomIsCustom() { return roomIsCustom; }, set roomIsCustom(v) { roomIsCustom = v; },
+  get roomMapHint() { return roomMapHint; }, set roomMapHint(v) { roomMapHint = v; },
+  get roomModeSeq() { return roomModeSeq; }, set roomModeSeq(v) { roomModeSeq = v; },
+  get roomSkillSeen() { return roomSkillSeen; }, set roomSkillSeen(v) { roomSkillSeen = v; },
   get royaleCatchUp() { return royaleCatchUp; }, set royaleCatchUp(v) { royaleCatchUp = v; },
   royaleSpectating,
   get saberDeflectT() { return saberDeflectT; }, set saberDeflectT(v) { saberDeflectT = v; },
@@ -348,6 +369,7 @@ linkGame({
   setHolding,
   get settings() { return settings; },
   setTouchContext,
+  setTouchControls,
   get shakeMag() { return shakeMag; }, set shakeMag(v) { shakeMag = v; },
   get shakeT() { return shakeT; }, set shakeT(v) { shakeT = v; },
   showWaveBanner,
@@ -359,19 +381,26 @@ linkGame({
   get sndInteractHeld() { return sndInteractHeld; },
   get sndRound() { return sndRound; }, set sndRound(v) { sndRound = v; },
   get sndRoundOver() { return sndRoundOver; }, set sndRoundOver(v) { sndRoundOver = v; },
+  get socialMapId() { return socialMapId; }, set socialMapId(v) { socialMapId = v; },
+  get socialReturnSeq() { return socialReturnSeq; }, set socialReturnSeq(v) { socialReturnSeq = v; },
+  get socialReturnTimer() { return socialReturnTimer; }, set socialReturnTimer(v) { socialReturnTimer = v; },
+  get socialRoom() { return socialRoom; }, set socialRoom(v) { socialRoom = v; },
   socialUnarmed,
   get SPAWN_GUARD() { return SPAWN_GUARD; },
   spawnDragonfire,
   get spawner() { return spawner; },
   spawnImpactBurst,
+  spawnRangeBot,
   spawnRecon,
   spawnSam,
   spawnWarship,
   get stageT() { return stageT; },
   startCook,
+  startGame,
   startInspect,
   startTabletDive,
   startUav,
+  stopEmote,
   get streakCallGuardUntil() { return streakCallGuardUntil; }, set streakCallGuardUntil(v) { streakCallGuardUntil = v; },
   streakControlActive,
   streakDamage,
@@ -394,12 +423,14 @@ linkGame({
   syncWarshipView,
   get tabletDive() { return tabletDive; }, set tabletDive(v) { tabletDive = v; },
   get targetMeshes() { return targetMeshes; },
+  teamName,
   get teamScores() { return teamScores; },
   teamSpawn,
   throwMarker,
   toggleThirdPerson,
   toggleWarshipGun,
   get touchState() { return touchState; },
+  get townNpcs() { return townNpcs; }, set townNpcs(v) { townNpcs = v; },
   tryDeflect,
   tryReload,
   trySwivel,
@@ -408,6 +439,7 @@ linkGame({
   updateSpawnGuardHud,
   useHeroAbility,
   useSelectedStreak,
+  get viewPrevMode() { return viewPrevMode; },
   vsatUp,
   warmNewGuns,
   get warship() { return warship; }, set warship(v) { warship = v; },
@@ -4146,471 +4178,8 @@ function nextWave() {
 let sndClock = 0;             // seconds left to plant
 let remoteBombAct = null;     // { kind, site, until } — someone else mid-plant/defuse
 
-
-function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts = {}) {
-  gameState = "gameover";
-  player.alive = false;
-  cancelCook();
-  if (controls.isLocked) controls.unlock();
-  els.hud.hidden = true;
-  setTouchControls(false);
-  els.gameover.hidden = false;
-  els.goTitle.textContent = title;
-  els.goWave.textContent = headline;
-  els.goL1.textContent = headlineLabel;
-  els.goKills.textContent = String(player.kills);
-  els.goL2.textContent = secondLabel;
-  const mins = Math.floor(elapsedRun / 60), secs = Math.floor(elapsedRun % 60);
-  els.goTime.textContent = `${mins}:${String(secs).padStart(2, "0")}`;
-  els.goL3.textContent = thirdLabel;
-
-  // PvP banks XP per kill as the match runs, so only the end-of-match
-  // bonuses are settled here. Ops still pays once, on its wave curve.
-  const base = isPvp()
-    ? player.matchXp + xpForMatch({ won: !!opts.won, completed: !!opts.completed })
-    : xpForRun({ kills: player.kills, wave: player.wave });
-  const gained = boostedXp(base);
-  const { rankedUp, rank } = addXp(gained);
-  els.goXp.textContent = `+${gained.toLocaleString()} XP${gained > base ? " · +10% veteran bots" : ""}`;
-  els.goRank.textContent = rankedUp ? `Level up — now LV ${rank}` : "";
-  els.goRank.hidden = !rankedUp;
-  renderMatchMedals();
-  loadout.render();
-
-  // addXp above already queued this XP for the account (troll_ops_xp).
-  // Filing the run is separate: it feeds the leaderboard and the flat
-  // game_run/high_score awards, and it no-ops for guests.
-  window.TrollrunnerAccounts?.reportGameResult?.("troll-ops", player.wave * 10000 + player.kills * 10, {
-    mode: modeId,
-    kills: player.kills,
-    deaths: player.deaths,
-    wave: player.wave,
-    map: loadedMapId || loadout.mapId,
-  });
-}
-
-/* BO2's after-action medal list: every medal this match with its count,
-   most-earned first. Hidden when nothing was earned. */
-function renderMatchMedals() {
-  const box = els.goMedals;
-  if (!box) return;
-  const list = killstreakUi.medals();
-  box.hidden = !list.length;
-  const ul = box.querySelector("ul");
-  ul.replaceChildren();
-  for (const m of list) {
-    const li = document.createElement("li");
-    li.className = "to-go-medal";
-    const icon = document.createElement("span");
-    icon.className = "to-go-medal-icon";
-    icon.innerHTML = medalSvg(m.label);
-    const name = document.createElement("span");
-    name.className = "to-go-medal-name";
-    name.textContent = m.label;
-    const n = document.createElement("b");
-    n.textContent = `×${m.n}`;
-    li.append(icon, name, n);
-    li.setAttribute("aria-label", `${m.label}, ${m.n} time${m.n === 1 ? "" : "s"}`);
-    ul.appendChild(li);
-  }
-  const bonus = killstreakUi.bonus();
-  const foot = box.querySelector(".to-go-medal-bonus");
-  if (foot) {
-    foot.hidden = !bonus;
-    foot.textContent = `Medal bonus +${bonus.toLocaleString()}`;
-  }
-}
-
-function endGame(reason) {
-  const zombies = isZombies();
-  finishRun(
-    reason === "quit" ? "Extracted" : (zombies ? "They got you" : "You went down"),
-    String(player.wave),
-    zombies ? "Round reached" : "Wave reached",
-    zombies ? "Zombies killed" : "Kills",
-    "Time survived",
-  );
-  window.TrollLeaderboard?.report?.("troll-ops", { pvp: false, wave: player.wave, kills: player.kills });
-}
-
-function endMatch(title) {
-  endStaging();          // a match can be ended from outside (everyone left)
-  const mode = currentMode();
-  const headline = royale?.finalPlace ? ordinal(royale.finalPlace)
-    : mode.ffa ? String(player.kills) : String(teamScores[net.team] ?? 0);
-  const won = mode.ffa
-    ? title.startsWith("You")
-    : title === `${teamName(net.team)} win`;
-  // Before finishRun: Comeback/Flawless/Combat Medic belong in its medal list.
-  achievements.onMatchEnd({
-    won, deaths: player.deaths, assists: player.assists, kills: player.kills,
-  });
-  finishRun(title, headline, royale ? "Your place" : mode.ffa ? "Your score" : "Your side", "Your kills", "Match length", { won, completed: true });
-
-  window.TrollLeaderboard?.report?.("troll-ops", {
-    pvp: true, kills: player.kills, deaths: player.deaths, won,
-    assists: player.assists, headshots: player.headshots, streak: player.bestStreak,
-  });
-  // Combat record (record.js): this match onto the account'''s lifetime totals.
-  recordMatch({
-    won, kills: player.kills, deaths: player.deaths, assists: player.assists,
-    headshots: player.headshots, bestStreak: player.bestStreak, score: player.matchScore,
-    seconds: player.matchT, shotsFired: player.shotsFired, shotsHit: player.shotsHit,
-    weaponKills: player.weaponKills,
-  });
-
-  bots.clear();
-  clearStreakEntities();
-  setHillMarker(null);
-  setBombSiteMarkers(null);
-  els.bombPrompt.hidden = true;
-  if (els.pickupPrompt) els.pickupPrompt.hidden = true;
-  pickups.clear();
-  bomb = null;
-  teardownRoyale();
-  updateRoyaleGear();
-  if (els.royale) els.royale.hidden = true;
-
-  // The room stays up. Tearing the channel down here meant everyone had to
-  // re-enter a code and re-handshake to play a second match — and quickplay
-  // could shard them apart on the way back.
-  // A match the owner started in the hangout: no map vote, everyone goes
-  // back to Socialize.
-  if (net.active && socialRoom) scheduleSocialReturn();
-  else if (net.active) startIntermission();
-  else setNetStatus("Match over. Pick a mode to drop in again.");
-}
-
-// -------------------- intermission --------------------
-
-const INTERMISSION = 20;          // seconds between matches
-const VOTE_CANDIDATES = 3;
 let intermissionT = 0;
-let voteOptions = [];
-
-/* The three maps on offer. Derived from the room code and the match count so
-   every client lands on the same shortlist without anyone hosting the vote. */
-function pickVoteOptions() {
-  const pool = MAP_IDS.filter((id) => id !== loadout.mapId);
-  const seedSrc = `${net.room || ""}:${matchesPlayed}`;
-  let seed = 0;
-  for (let i = 0; i < seedSrc.length; i++) seed = (seed * 31 + seedSrc.charCodeAt(i)) >>> 0;
-  const out = [];
-  const avail = [...pool];
-  while (out.length < Math.min(VOTE_CANDIDATES, avail.length + 0) && avail.length) {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    out.push(avail.splice(seed % avail.length, 1)[0]);
-  }
-  // Always let people re-run the map they just played.
-  if (out.length < VOTE_CANDIDATES) out.push(loadout.mapId);
-  return out;
-}
-
-function startIntermission() {
-  matchesPlayed++;
-  net.clearVotes();
-  voteOptions = pickVoteOptions();
-  intermissionT = INTERMISSION;
-  renderVote();
-  els.intermission.hidden = false;
-  setNetStatus(`Match over · next map in ${INTERMISSION}s`, "live");
-}
-
-function renderVote() {
-  if (!els.voteList) return;
-  const tally = new Map();
-  const add = (m) => { if (m) tally.set(m, (tally.get(m) || 0) + 1); };
-  add(net.myVote);
-  for (const p of net.peers.values()) {
-    if (!isBotPeer(p)) add(p.vote);
-  }
-
-  els.voteList.replaceChildren();
-  for (const id of voteOptions) {
-    const n = tally.get(id) || 0;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "to-vote-opt";
-    btn.classList.toggle("is-mine", net.myVote === id);
-    btn.setAttribute("aria-pressed", String(net.myVote === id));
-    // A real shot of the map (tools/troll-ops-map-previews.mjs renders them).
-    btn.innerHTML =
-      `<img class="to-vote-img" ${mapShotAttrs(id, "200px")} alt="" loading="eager" draggable="false">` +
-      `<span class="to-vote-row"><span class="to-vote-name">${MAPS[id]?.name || id}</span>` +
-      `<span class="to-vote-n">${n ? `${n} vote${n === 1 ? "" : "s"}` : ""}</span></span>`;
-    btn.querySelector("img").addEventListener("error", (e) => e.target.remove());
-    btn.addEventListener("click", () => {
-      net.castVote(id);
-      renderVote();
-    });
-    els.voteList.appendChild(btn);
-  }
-}
-
-function cancelIntermission() {
-  intermissionT = 0;
-  voteOptions = [];
-  net.clearVotes();
-  if (els.intermission) els.intermission.hidden = true;
-}
-
-/* Ticked from the frame loop so it shares the same clock as everything else. */
-function updateIntermission(dt) {
-  if (intermissionT <= 0) return;
-  intermissionT -= dt;
-  if (els.voteClock) els.voteClock.textContent = String(Math.max(0, Math.ceil(intermissionT)));
-  if (intermissionT > 0) return;
-
-  intermissionT = 0;
-  els.intermission.hidden = true;
-
-  // Everyone tallies the same votes, so everyone loads the same map.
-  const winner = net.voteWinner() || voteOptions[0] || loadout.mapId;
-  net.clearVotes();
-
-  if (!net.active) { setNetStatus("Match over. Pick a mode to drop in again."); return; }
-
-  loadout.mapId = winner;
-  els.gameover.hidden = true;
-  roomMapHint = null;
-  enterMatch(winner);
-}
-
-// -------------------- Socialize room mode --------------------
-//
-// A Socialize room (QSOC) is a hangout until the owner, troll_runner,
-// picks a real mode in the pause menu. That goes out as a "mode" message
-// and everyone in the room loads into it on the same channel: bots, the
-// countdown and the rest come with the mode as usual. When the match ends
-// the room comes back to Socialize on its old map (no vote).
-//
-// `roomModeSeq` counts the switches. It rides every room note (net.modeSeq
-// → `ms`), so a newcomer or anyone who missed the message follows the room,
-// and a stale note can't switch anyone back. The owner's switches go up by
-// two and a match ending goes up by one, so an owner switch that lands
-// while clients are on their way back still wins.
-//
-// The owner check is client-side, like View mode and Invincible: the row
-// only shows on troll_runner, and receivers only take a "mode" message from
-// a peer whose state says owner. The netcode is trusting by design (net.js).
-
-const SOCIAL_RETURN_SECONDS = 8;
-
-function socialHomeMap() {
-  if (socialMapId && MAP_IDS.includes(socialMapId)) return socialMapId;
-  return MAP_IDS.includes(loadedMapId) ? loadedMapId : loadout.versusMapId;
-}
-
-/* Everyone moves at once, so split sides by a shared order rather than
-   chooseTeam's live headcount (each client would read it before the others
-   had switched). */
-function joinRoomSide() {
-  if (isSocial()) { net.setTeam("phantom"); return; }
-  const ids = [net.id];
-  for (const p of net.peers.values()) if (!isBotPeer(p)) ids.push(p.id);
-  ids.sort();
-  net.setTeam(ids.indexOf(net.id) % 2 === 0 ? "phantom" : "ghost");
-}
-
-function switchRoomMode(id, map, seq) {
-  if (!socialRoom || !MODES[id]?.pvp || MODES[id].hidden || !(seq > roomModeSeq)) return false;
-  roomModeSeq = net.modeSeq = seq;
-  cancelSocialReturn();
-  if (isSocial() && loadedMapId) socialMapId = loadedMapId;
-  const mapHint = map && MAPS[map] ? map : null;
-  // Still connecting (startGame hasn't entered the room's match yet): it
-  // picks the room's mode and map up from here.
-  if (gameState === "menu") {
-    modeId = id;
-    roomMapHint = mapHint;
-    if (loadScreen.isOpen) loadScreen.setMap(loadInfo(matchMapId(mapHint)));
-    return true;
-  }
-  // XP banked this match is kept, the same as leaving.
-  if (player.matchXp > 0) { addXp(boostedXp(player.matchXp)); player.matchXp = 0; }
-  // The host's bots leave everyone's screens now, not on a 5s timeout.
-  for (const b of bots.bots) net.dropBot(b.id);
-  bots.clear();
-  clearStreakEntities();
-  setHillMarker(null);
-  setBombSiteMarkers(null);
-  if (els.bombPrompt) els.bombPrompt.hidden = true;
-  if (els.pickupPrompt) els.pickupPrompt.hidden = true;
-  pickups.clear();
-  bomb = null;
-  teardownRoyale();   // before endStaging, or a sky lobby would launch its bus
-  endStaging();
-  cancelIntermission();
-  stopEmote();
-  emoteWheel.close(true);
-  if (!els.pause.hidden) closePauseMenu();
-  modeId = id;
-  joinRoomSide();
-  els.gameover.hidden = true;
-  roomMapHint = mapHint;
-  loadScreen.show(loadInfo(matchMapId(mapHint)));
-  setNetStatus(`Live · room ${net.room} · ${currentMode().name}`, "live");
-  enterMatch(mapHint);
-  return true;
-}
-
-/* A room note (stage, ready, go) or "mode" message carrying a newer mode
-   count than ours: follow it. True when it switched us. */
-function adoptRoomMode(m) {
-  if (!socialRoom || !m || !m.mode) return false;
-  const ms = m.ms | 0;
-  if (ms <= roomModeSeq) return false;
-  // Already hanging out (we joined after the room came back): just catch
-  // the count up rather than reload the hangout we're standing in.
-  if (m.mode === "social" && isSocial() && gameState !== "menu" && gameState !== "gameover") {
-    roomModeSeq = net.modeSeq = ms;
-    return false;
-  }
-  return switchRoomMode(m.mode, m.map, ms);
-}
-
-/* The owner's pick from the pause menu. */
-function ownerSwitchRoomMode(id) {
-  if (!isTrollRunner() || !socialRoom || !net.active) return;
-  const seq = roomModeSeq + 2;
-  const map = MODES[id]?.forceMap || (id === "social" ? socialHomeMap() : (MAP_IDS.includes(loadedMapId) ? loadedMapId : socialHomeMap()));
-  if (!switchRoomMode(id, map, seq)) return;
-  net.publishMode(id, map, seq);
-}
-
-function scheduleSocialReturn() {
-  cancelSocialReturn();
-  const seq = roomModeSeq;
-  socialReturnSeq = seq;
-  els.retryBtn.textContent = "Back to the hangout";
-  setNetStatus(`Match over · back to the hangout in ${SOCIAL_RETURN_SECONDS}s`, "live");
-  socialReturnTimer = setTimeout(returnToSocial, SOCIAL_RETURN_SECONDS * 1000);
-}
-
-function returnToSocial() {
-  const seq = socialReturnSeq;
-  cancelSocialReturn();
-  // The owner switched again in the meantime: that wins.
-  if (seq == null || seq !== roomModeSeq || !socialRoom || !net.active) return;
-  switchRoomMode("social", socialHomeMap(), seq + 1);
-}
-
-function cancelSocialReturn() {
-  clearTimeout(socialReturnTimer);
-  socialReturnTimer = 0;
-  if (socialReturnSeq != null) els.retryBtn.textContent = "Drop in again";
-  socialReturnSeq = null;
-}
-
-/* The owner's room-mode row in the pause menu: troll_runner, in a
-   Socialize room, only. */
-const ROOM_MODE_IDS = ["social", "tdm", "koth", "snd", "infection", "oitc", "gungame", "umb", "royale"];
-function renderRoomModeRow() {
-  const row = document.getElementById("to-set-roommode-row");
-  const sel = document.getElementById("to-set-roommode");
-  if (!row || !sel) return;
-  row.hidden = !(isTrollRunner() && socialRoom && net.active);
-  if (row.hidden) return;
-  if (!sel.options.length) {
-    for (const id of ROOM_MODE_IDS) {
-      if (!MODES[id]) continue;
-      const o = document.createElement("option");
-      o.value = id;
-      o.textContent = MODES[id].name;
-      sel.appendChild(o);
-    }
-  }
-  // Offer the other side of where the room is: a mode from the hangout,
-  // the hangout from a mode.
-  sel.value = isSocial() ? "tdm" : "social";
-}
-document.getElementById("to-set-roommode-go")?.addEventListener("click", () => {
-  const id = document.getElementById("to-set-roommode")?.value;
-  if (id) ownerSwitchRoomMode(id);
-});
-
-els.startBtn.addEventListener("click", startGame);
-/* Mid-intermission this means "don't make me wait", not "reconnect" — the
-   room is still up, so drop straight into the map the vote is currently on. */
-els.retryBtn.addEventListener("click", () => {
-  if (intermissionT > 0) { intermissionT = 0.0001; return; }
-  // Socialize room: same idea, straight back to the hangout.
-  if (socialReturnSeq != null) { returnToSocial(); return; }
-  startGame();
-});
-// Touch has no pointer lock to re-take, so Resume just closes the menu —
-// it used to do nothing there, stranding the player in the pause menu.
-els.resumeBtn.addEventListener("click", resumePlay);
-els.rangeSpawnBot?.addEventListener("click", spawnRangeBot);
-els.pauseSpawnBot?.addEventListener("click", spawnRangeBot);
-els.pauseClearBots?.addEventListener("click", clearRangeBots);
-els.quitBtn.addEventListener("click", () => {
-  // Quitting mid-match used to just discard player.matchXp — every kill's
-  // banked XP for the session, gone, with no result screen to explain why.
-  // finishRun settles it normally on a real match end; here there's no
-  // result screen to show, so just fold the banked amount into the total.
-  if (isPvp() && gameState === "playing" && player.matchXp > 0) {
-    addXp(boostedXp(player.matchXp));
-    player.matchXp = 0;
-  }
-  gameState = "menu";
-  if (modeId === "view") modeId = viewPrevMode || "ops";
-  // Left a Socialize room (maybe mid owner-started match): the lobby is
-  // back on Socialize, and the room's mode count is forgotten.
-  if (socialRoom) {
-    socialRoom = false;
-    roomModeSeq = net.modeSeq = 0;
-    socialMapId = null;
-    modeId = "social";
-    renderModes();
-  }
-  cancelSocialReturn();
-  document.body.classList.remove("to-social", "to-social-drink");
-  resetBar();
-  townNpcs?.dispose();
-  townNpcs = null;
-  localPauseOnly = false;
-  endStaging();
-  cancelIntermission();
-  setBombSiteMarkers(null);
-  if (els.bombPrompt) els.bombPrompt.hidden = true;
-  if (els.pickupPrompt) els.pickupPrompt.hidden = true;
-  pickups.clear();
-  bomb = null;
-  net.stop();
-  chat.clear();
-  remotes.clear();
-  setNetStatus("Share the code with whoever you want in the match.");
-  els.pause.hidden = true;
-  els.hud.hidden = true;
-  setTouchAds(false);
-  setTouchControls(false);
-  els.title.hidden = false;
-  loadout.render();
-  renderLobbyRoster();
-  roomSkillSeen = null;
-  renderBotSkillNote();
-  showLobbyPanel("deploy");
-});
-
-controls.addEventListener("lock", () => { closePauseMenu(); chat.setInteractive(false); });
-controls.addEventListener("unlock", () => {
-  chat.setInteractive(true);
-  cancelCook();
-  if (gameState === "playing" && !djLulz.isOpen) openPauseMenu();
-});
-
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) cancelCook();
-  if (document.hidden && gameState === "playing") openPauseMenu();
-  // Backgrounding the tab is also the last reliable moment to flush banked
-  // match XP — a closed tab never runs another frame, so this can't wait
-  // for the "playing" branch above's later logic or a normal match end.
-  if (document.hidden && isPvp() && player.matchXp > 0) {
-    addXp(boostedXp(player.matchXp));
-    player.matchXp = 0;
-  }
-});
+initSocial();
 
 // -------------------- damage to player --------------------
 
