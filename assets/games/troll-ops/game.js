@@ -131,12 +131,15 @@ import { cancelIntermission, endGame, endMatch, renderVote, startIntermission, u
 import { LOAD_WAIT_MAX, beginMatch, beginStaging, endStaging, enterMatch, followsHostMap, isStaging, loadHold, loadInfo, loadTarget, loadWarm, releaseLoad, startGame, updateStaging, warmNewGuns, warmShaders, initMatchStart } from "./modes/match-start.js?v=mst1";
 import { atPiano, bar, barSipK, docSpots, holdSeat, npcYieldKey, onBarMessage, piano, putDownDrink, resetBar, rpSeats, seatTaken, seated, sitDown, standUp, syncFpDrink, syncLocalDrink, updateBar, initSocialRp } from "./modes/social-rp.js?v=rp1";
 import { SWIVEL_TAP, localBlockT, localHeld, localLower, localReloadK, noteLocalDeath, noteRigShot, placeDeathCamera, swivel, swivelK, swivelTaps, syncLocalRigHeld, trySwivel, updateEmoteCamera, updateLocalRig, updateSwivel, updateThirdPersonCamera } from "./view/third-person.js?v=tp1";
+import { endCandleCharge, hudCache, regenPlayer, updatePlayer, initPlayerUpdate } from "./view/player-update.js?v=pu1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
    entry leaves this list when the thing it names moves out. */
 linkGame({
   get _euler() { return _euler; },
+  get _listenFwd() { return _listenFwd; },
+  get _listenUp() { return _listenUp; },
   get _meleeViewE() { return _meleeViewE; },
   get _meleeViewQ() { return _meleeViewQ; },
   get _sbDir() { return _sbDir; },
@@ -199,8 +202,8 @@ linkGame({
   get DF_BLOCK_TEXT() { return DF_BLOCK_TEXT; },
   get DF_BOARD_AT() { return DF_BOARD_AT; },
   get dfHud() { return dfHud; }, set dfHud(v) { dfHud = v; },
-  get dfIx() { return dfIx; },
-  get dfIz() { return dfIz; },
+  get dfIx() { return dfIx; }, set dfIx(v) { dfIx = v; },
+  get dfIz() { return dfIz; }, set dfIz(v) { dfIz = v; },
   get dfSaved() { return dfSaved; }, set dfSaved(v) { dfSaved = v; },
   get dfSendT() { return dfSendT; }, set dfSendT(v) { dfSendT = v; },
   get dfViewOn() { return dfViewOn; }, set dfViewOn(v) { dfViewOn = v; },
@@ -216,6 +219,7 @@ linkGame({
   get els() { return els; },
   get emote() { return emote; },
   get emoteIsTp() { return emoteIsTp; },
+  get emoteKind() { return emoteKind; },
   get emoteWheel() { return emoteWheel; },
   get empT() { return empT; }, set empT(v) { empT = v; },
   endCandleCharge,
@@ -229,8 +233,10 @@ linkGame({
   equipFromLoadout,
   explosionFx,
   get fireEdgeTrigger() { return fireEdgeTrigger; }, set fireEdgeTrigger(v) { fireEdgeTrigger = v; },
+  get fireShake() { return fireShake; },
   fireStreak,
   flyBotDragonfire,
+  get fpEmoteFrame() { return fpEmoteFrame; },
   get freshStreak() { return freshStreak; }, set freshStreak(v) { freshStreak = v; },
   get gamepadState() { return gamepadState; },
   get gameState() { return gameState; }, set gameState(v) { gameState = v; },
@@ -278,6 +284,8 @@ linkGame({
   get killcam() { return killcam; },
   get killcamBaseRespawn() { return killcamBaseRespawn; },
   get killcamWasActive() { return killcamWasActive; }, set killcamWasActive(v) { killcamWasActive = v; },
+  get landDipMag() { return landDipMag; },
+  get landDipT() { return landDipT; },
   get lastHitRange() { return lastHitRange; },
   learnPadRest,
   get lightPool() { return lightPool; },
@@ -317,6 +325,7 @@ linkGame({
   get modeId() { return modeId; }, set modeId(v) { modeId = v; },
   get modePicked() { return modePicked; }, set modePicked(v) { modePicked = v; },
   get mouseDown() { return mouseDown; },
+  get mouseLookAt() { return mouseLookAt; },
   get move() { return move; },
   get music() { return music; },
   get muzzleFlash() { return muzzleFlash; },
@@ -381,6 +390,7 @@ linkGame({
   get saberHavePrevTip() { return saberHavePrevTip; }, set saberHavePrevTip(v) { saberHavePrevTip = v; },
   samDeployPoint,
   get samHitCount() { return samHitCount; },
+  get sawShake() { return sawShake; },
   scavengeAllowed,
   get scene() { return scene; },
   get selectedStreak() { return selectedStreak; }, set selectedStreak(v) { selectedStreak = v; },
@@ -394,11 +404,12 @@ linkGame({
   get shakeT() { return shakeT; }, set shakeT(v) { shakeT = v; },
   showWaveBanner,
   skipKillcam,
+  get slideTiltT() { return slideTiltT; }, set slideTiltT(v) { slideTiltT = v; },
   get sndAttackTeam() { return sndAttackTeam; }, set sndAttackTeam(v) { sndAttackTeam = v; },
   get sndCanInteract() { return sndCanInteract; }, set sndCanInteract(v) { sndCanInteract = v; },
   get sndClock() { return sndClock; }, set sndClock(v) { sndClock = v; },
   get sndEliminated() { return sndEliminated; }, set sndEliminated(v) { sndEliminated = v; },
-  get sndInteractHeld() { return sndInteractHeld; },
+  get sndInteractHeld() { return sndInteractHeld; }, set sndInteractHeld(v) { sndInteractHeld = v; },
   get sndRound() { return sndRound; }, set sndRound(v) { sndRound = v; },
   get sndRoundOver() { return sndRoundOver; }, set sndRoundOver(v) { sndRoundOver = v; },
   get socialMapId() { return socialMapId; }, set socialMapId(v) { socialMapId = v; },
@@ -424,6 +435,7 @@ linkGame({
   startInspect,
   startTabletDive,
   startUav,
+  get stepPhase() { return stepPhase; }, set stepPhase(v) { stepPhase = v; },
   stopEmote,
   get streakArms() { return streakArms; },
   get streakCallGuardUntil() { return streakCallGuardUntil; }, set streakCallGuardUntil(v) { streakCallGuardUntil = v; },
@@ -433,6 +445,8 @@ linkGame({
   get streakEnd() { return streakEnd; },
   get streakEntities() { return streakEntities; },
   streakHoldActive,
+  get streakHoldT() { return streakHoldT; }, set streakHoldT(v) { streakHoldT = v; },
+  get streakHoldUntilMark() { return streakHoldUntilMark; },
   streakKeyLabel,
   streakLockLeft,
   get streakLockWhy() { return streakLockWhy; },
@@ -448,6 +462,7 @@ linkGame({
   syncLocalRigHeld,
   syncWarshipView,
   get tabletDive() { return tabletDive; }, set tabletDive(v) { tabletDive = v; },
+  tabletDiveDip,
   get targetMeshes() { return targetMeshes; },
   teamName,
   get teamScores() { return teamScores; },
@@ -461,10 +476,13 @@ linkGame({
   tryReload,
   trySwivel,
   updateDuo,
+  updateEnemySteps,
+  updateFireShake,
   updateGearHud,
   updatePickupPrompt,
   updateRangeHud,
   updateSpawnGuardHud,
+  updateTabletDive,
   useHeroAbility,
   useSelectedStreak,
   validEmote,
@@ -4011,411 +4029,8 @@ let stepPhase = 0;
 let localShotAt = -Infinity;
 let localThrowT = 0;   // the third-person body's overhand throw, counting down
 
-
-/* Last value written to each per-frame HUD node. The DOM write itself is
-   cheap, but it was unconditional — every one of these touched layout/paint
-   60×/sec even sitting still with full ammo and health. Comparing first
-   means the browser only does anything the frame a number actually moves. */
-const hudCache = { hpPct: -1, hpLow: null, hpText: -1, ammoCur: -1, ammoRes: -1, reloadHidden: null, ads: null, adsHide: null, adsTp: null, lowhp: null };
-
-/* Passive regen: health climbs back to full on its own once you've been out
-   of a fight for a beat, instead of every scratch being permanent until the
-   next respawn (there is no med pickup). The delay after the last hit is
-   what keeps trading meaningful — regen never starts mid-fight. */
-const REGEN_DELAY = 4.5;   // seconds since last hit before regen kicks in
-const REGEN_RATE = 12;     // hp per second once it starts
-
-function regenPlayer(dt) {
-  if (!player.alive || player.hp >= player.maxHp) return;
-  if (performance.now() - player.lastHurtAt < REGEN_DELAY * 1000) return;
-  player.hp = Math.min(player.maxHp, player.hp + REGEN_RATE * dt);
-}
-
-/* View mode's camera: flies where you look, through everything, no gravity.
-   Space / jump up, C / Ctrl / crouch down, Shift (or the stick pushed all
-   the way) for speed. */
-const VIEW_FLY_SPEED = 12;
-function flyView(dt, ix, iz) {
-  const gp = gamepadState.connected;
-  const up = keys.has("Space") || (isTouch && touchState.jump) || (gp && gamepadState.jump) ? 1 : 0;
-  const down = keys.has("KeyC") || keys.has("ControlLeft") || (isTouch && touchState.crouch) || (gp && gamepadState.crouch) ? 1 : 0;
-  const fast = keys.has("ShiftLeft") || ((isTouch || gp) && iz > 0.9) ? 3.5 : 1;
-  const sp = VIEW_FLY_SPEED * fast * dt;
-  const cy = Math.cos(look.yaw), sy = Math.sin(look.yaw), cp = Math.cos(look.pitch);
-  move.pos.x += (-sy * cp * iz + cy * ix) * sp;
-  move.pos.z += (-cy * cp * iz - sy * ix) * sp;
-  move.pos.y = Math.max(-30, move.pos.y + (Math.sin(look.pitch) * iz + up - down) * sp);
-  move.velocity.set(0, 0, 0);
-}
-
-/* Seconds a trigger pull keeps you out of a sprint (updatePlayer). */
-const FIRE_SPRINT_HOLD = 0.35;
-let fireSprintHoldT = 0;
-
-function updatePlayer(dt) {
-  const w = currentWeapon();
-
-  if (streakHoldT > 0 && !streakHoldUntilMark) {
-    streakHoldT -= dt;
-    if (streakHoldT <= 0) endStreakHold();
-  }
-
-  const gp = gamepadState.connected;
-
-  // The pad's own assist runs in pollGamepad off stick deflection; touch
-  // gets the same while a thumb is down on the look pad, and mouse or
-  // trackpad while it's being moved. aimAssistSticky is left set from the
-  // pad's pass this frame, so only clear it when nothing is steering.
-  const mouseSteering = controls.isLocked && performance.now() - mouseLookAt < MOUSE_ACTIVE_MS;
-  const canAssist = player.alive && !isStaging() && !dragonfireView();
-  if (canAssist && touchState.looking) applyAimAssist(dt);
-  if (canAssist && mouseSteering) applyAimAssist(dt, AIM_ASSIST_MOUSE_PULL);
-
-  if ((isTouch &&(touchState.lookDX || touchState.lookDY)) || (gp && (gamepadState.lookDX || gamepadState.lookDY))) {
-    const ls = lookSensScale();
-    look.yaw -= (touchState.lookDX + gamepadState.lookDX) * ls;
-    look.pitch -= (touchState.lookDY + gamepadState.lookDY) * ls;
-    look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
-    touchState.lookDX = 0; touchState.lookDY = 0;
-    gamepadState.lookDX = 0; gamepadState.lookDY = 0;
-  }
-
-  let ix = 0, iz = 0;
-  if (isTouch) {
-    ix += touchState.moveX;
-    iz += -touchState.moveY;
-  }
-  if (gp) {
-    ix += gamepadState.moveX;
-    iz += -gamepadState.moveY;
-  }
-  if (!isTouch && !gp) {
-    if (keys.has("KeyW")) iz += 1;
-    if (keys.has("KeyS")) iz -= 1;
-    if (keys.has("KeyA")) ix -= 1;
-    if (keys.has("KeyD")) ix += 1;
-  }
-  ix = Math.max(-1, Math.min(1, ix));
-  iz = Math.max(-1, Math.min(1, iz));
-
-  // Dead players keep their camera but stop driving anything — and so does
-  // everyone during the pre-match countdown. Look is deliberately still live:
-  // you can size up the room while you wait, you just can't leave the mark.
-  // The pause menu being open in a live-with-others match freezes this
-  // client's own avatar the same way death or staging does, while net
-  // updates, bots and remote players keep simulating around it.
-  // Heads-down on the strike tablet: you stand still, as in BO2.
-  // On the bus or in the air your stick steers the fall, not your feet.
-  const dropping = royaleDropView();
-  const dropIx = ix, dropIz = iz;
-  const rolling = royaleRolling();
-  dfIx = ix; dfIz = iz;   // the Dragonfire flies off the same stick
-  // The saloon bar: a few drinks in, the walk wanders side to side.
-  if (bar.tipsy > TIPSY.onset && isSocial() && (ix || iz)) ix = Math.max(-1, Math.min(1, ix + tipsyFx(bar.tipsy, performance.now() / 1000).stagger * 0.45));
-  const frozen = dropping || rolling || !player.alive || stageFrozen() || localPauseOnly || !!strikeTablet?.isOpen || warshipView() || dragonfireView();
-  if (frozen) { ix = 0; iz = 0; }
-  // The landing roll carries you forward along the glider's line.
-  if (rolling) {
-    updateRoyaleRoll(dt);
-    iz = Math.max(0, 1 - royaleRollK()) * (ROLL_SPEED / 4.2);
-  }
-  // A toggled AIM shouldn't survive a death or a streak call.
-  if (touchState.ads && (!player.alive || player.holding === "streak")) setTouchAds(false);
-
-  // Q aims as well as right mouse.
-  // An EMP kills the optic, so there is nothing to aim down until it clears.
-  // Calling a streak swaps the hands to the streak device/marker, so the
-  // primary's optic has no business popping up over it (that's the "scoped
-  // weapon flash" glitch when activating a killstreak while holding ADS).
-  // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
-  const wantAds = player.alive && !isView() && !socialUnarmed() && !localPauseOnly && empT <= 0 && player.holding !== "streak"
-    && ((isTouch && touchState.ads) || (gp && gamepadState.ads) || adsHeld || keys.has("KeyQ"));
-  const wantFire = !frozen && !isView() && !socialUnarmed() && ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown);
-  // Pulling the trigger at a run ends the run, like BO2 and PF: the gun
-  // comes up and shoots. It used to stay dropped and slung across the body
-  // while rounds left from the middle of the screen, which read as not
-  // being able to shoot at all. A short hold keeps a semi-auto's taps from
-  // dropping the gun between shots. Reloading or empty, you keep running.
-  const triggerUp = wantFire && player.holding === "gun" && !w.reloading && w.ammoInMag > 0;
-  fireSprintHoldT = triggerUp ? FIRE_SPRINT_HOLD : Math.max(0, fireSprintHoldT - dt);
-  if (isSnd()) {
-    sndInteractHeld = !frozen && ((isTouch && touchState.interact) || (keys.has("KeyF") && cooking.slot !== "tactical")
-      || (gp && gamepadState.pickup && sndCanInteract));
-  }
-
-  // Shallow water (a map's `wade` outline, edge.js): slow, and no sprinting.
-  // Only with your feet in it: a jetty, bridge or boat deck over it is dry.
-  const wading = !!ARENA.wade && move.pos.y < 0.5 && insidePolygon(ARENA.wade, move.pos.x, move.pos.z);
-  if (dropping) updateDropPlayer(dt, dropIx, dropIz, (isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space"));
-  else if (isView()) flyView(dt, ix, iz);
-  else if (seated && isSocial()) holdSeat(dt, ix, iz, !frozen && ((isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space") || keys.has("KeyC")));
-  else move.update(dt, {
-    forward: iz,
-    strafe: ix,
-    sprint: !wading && !rolling && fireSprintHoldT <= 0 && ((isTouch || gp) ? iz > 0.82 : keys.has("ShiftLeft")),
-    jump: !frozen && ((isTouch && touchState.jump) || (gp && gamepadState.jump) || keys.has("Space")),
-    crouch: !frozen && ((isTouch && touchState.crouch) || (gp && gamepadState.crouch) || keys.has("KeyC")),
-    dive: !frozen && ((isTouch && touchState.dive) || keys.has("ControlLeft") || keys.has("ControlRight")),
-    yaw: rolling ? royale.rollYaw : look.yaw,
-    adsHeld: wantAds,
-    speedMult: w.moveSpeedMult * (isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1) * (heroActive() ? hero().speedMult() : 1),
-    // Troll Royale is a 400 m island: sprinting covers it 25% faster.
-    sprintMult: (w.def.sprintMult || 1.35) * (isRoyale() ? 1.25 : 1),
-    inertia: w.def.inertia,
-  });
-
-  updateSwivel(dt);
-
-  if (move.moving && move.grounded && player.alive) {
-    stepPhase += dt * (move.sprinting ? 13 : 9);
-    if (stepPhase > Math.PI) { stepPhase -= Math.PI; audio.step(); }
-  } else {
-    stepPhase = 0;
-  }
-  if (move.justLanded && player.alive) audio.land(move.landSpeed);
-
-  updateEnemySteps(dt);
-
-  move.eyePosition(player.pos);
-
-  // While it's running, the kill cam owns camera.position/.quaternion in
-  // full — skip both the eye-position copy and the aim/recoil composition
-  // below so the two don't fight over the same camera in the same frame.
-  if (killcam.update(dt)) return;
-  // Catches the orbit finishing on its own (as opposed to being cut short by
-  // respawnPlayer's killcam.cancel(), which already clears this itself) —
-  // classList.remove on an absent class is a no-op, so this is safe every frame.
-  els.killcamBars.classList.remove("is-on");
-
-  // The local rig always follows the player (even in first-person, when
-  // it's simply invisible) so it's never a frame stale the moment third
-  // person is toggled on, and so OTHER systems that might reasonably poke
-  // at it (screenshots, a future killcam angle) see a live pose.
-  updateLocalRig(dt);
-
-  // The match intro owns the camera outright while it plays (staging, so
-  // nobody can move or shoot anyway). Your own body is in the shot until
-  // the camera pushes into your eyes.
-  if (matchIntro.active) {
-    matchIntro.update(dt);
-    if (matchIntro.active) {
-      localRig.root.visible = matchIntro.selfVisible;
-      localRig.parts.head.visible = true;
-      _listenFwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
-      _listenUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
-      audio.setListener(camera.position, _listenFwd, _listenUp);
-      return;
-    }
-  }
-
-  const shake = shakeT > 0 ? shakeMag * (shakeT / 0.45) : 0;
-  // Phase 6 (DESIGN-ARMS.md §5, camera polish): small, separately-tuned
-  // camera-only echoes of the viewmodel's own landing dip and melee impact-
-  // stop — same trigger state (landDipT/landDipMag, meleeImpactT), much
-  // smaller magnitude, so the whole screen never shakes as hard as the gun
-  // moves. Read one frame behind their viewmodel counterparts (updatePlayer
-  // runs before updateWeaponView each frame) — imperceptible on a decaying
-  // effect, not worth reordering the main loop over.
-  const landKick = landDipMag * landDipT * 0.05;
-  const meleeKick = meleeImpactT * 0.03;
-  updateFireShake(dt);
-  const buzz = fireShake.buzz;
-  const fpCam = fpEmoteFrame()?.cam;   // a first-person emote's head motion (a laugh, a facepalm)
-  const viewYaw = look.yaw + w.recoilYaw + (Math.random() - 0.5) * shake + fireShake.y + (Math.random() - 0.5) * buzz
-    + (fpCam?.yaw || 0) + (Math.random() - 0.5) * sawShake;
-  updateTabletDive(dt);
-  const viewPitch = look.pitch - tabletDiveDip() + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
-    + fireShake.p + (Math.random() - 0.5) * buzz + (fpCam?.pitch || 0) + (Math.random() - 0.5) * sawShake;
-
-  if (royaleSpectating()) {
-    localRig.root.visible = false;
-    placeSpectateCamera(dt);
-  } else if (!player.alive && gameState === "playing") {
-    placeDeathCamera();
-  } else if (dragonfireView()) {
-    // Flying the Dragonfire through its nose camera; your body stays put.
-    // Its own airframe is hidden from its own camera: the gun and the
-    // rotor arms used to hang across the view (user: fix the camera).
-    localRig.root.visible = true;
-    dragonfire.root.visible = false;
-    dragonfire.cameraPose(camera.position, camera.quaternion);
-    // Aim assist (user): a pull onto whoever is near the reticle, out to the
-    // gun's range, while you shoot or aim. Just flying, it leaves the drone
-    // alone: a constant pull steered it into walls.
-    const dfFiring = (isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown;
-    if (!localPauseOnly && (dfFiring || mouseSteering || touchState.looking || gp)) applyAimAssist(dt, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, DF_RANGE);
-    if (!localPauseOnly && dfFiring) fireDragonfire();
-  } else if (warshipView()) {
-    // Up in the VTOL's gunner seat; your body stands where you called it.
-    localRig.root.visible = true;
-    placeWarshipCamera();
-    if ((isTouch && touchState.firing) || (gp && gamepadState.firing) || mouseDown) fireWarship();
-  } else if (royaleDropView()) {
-    // Third person on the drop: behind the bus while you ride, then behind
-    // you (and your glider) on the way down. Look orbits the camera.
-    localRig.root.visible = royale.me !== "bus";
-    if (royale.me === "bus") placeDropCamera(royale.drop.bus ? royale.drop.bus.position : move.pos, 26, 8);
-    else placeDropCamera(_dropTarget.set(move.pos.x, move.pos.y + (royale.me === "glide" ? 3 : 1.4), move.pos.z), royale.me === "glide" ? 10 : 7, 1.5);
-  } else if (settings.thirdPerson || emoteIsTp()) {
-    localRig.root.visible = true;
-    if (emoteIsTp()) updateEmoteCamera(player.pos, look.yaw, emoteKind() === "duo" ? EMOTES[emote.idx].dist || 1 : 0);
-    else updateThirdPersonCamera(player.pos, viewYaw, viewPitch, w.adsT);
-  } else {
-    localRig.root.visible = false;
-    localRig.parts.head.visible = true;
-    camera.position.copy(player.pos);
-    // Landing roll: the view goes head over heels once and dips as you tuck.
-    const rollK = royaleRollK();
-    if (rollK > 0) camera.position.y -= Math.sin(Math.PI * rollK) * 0.9;
-    // PF slide: the view tips over a few degrees while you slide, leaning
-    // toward the side you're steering (left by default).
-    slideTiltT = damp(slideTiltT, move.stance === STANCE.SLIDE ? 1 : 0, 9, dt);
-    const slideRoll = slideTiltT * 0.075 * ((move.strafeInput ?? 0) > 0.2 ? -1 : 1)
-      + (swivel.dir ? -swivel.dir * 0.16 * Math.sin(Math.PI * swivelK()) : 0);
-    // One place composes the camera: aim + weapon recoil.
-    const rollPitch = rollK > 0 ? -Math.PI * 2 * rollK * rollK * (3 - 2 * rollK) : 0;
-    // Keyboard repair: the head glances up at the messenger. The viewmodel
-    // camera turns with it, so the board drops away in view and the floating
-    // message comes to the middle, like you looked up at it.
-    const glance = kbRepair.active ? kbRepair.glance : 0;
-    // Tipsy (the saloon bar): the room leans and bobs a little.
-    const tip = bar.tipsy > TIPSY.onset && isSocial() ? tipsyFx(bar.tipsy, performance.now() / 1000) : null;
-    _euler.set(viewPitch + rollPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0), viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + fireShake.r + slideRoll + (tip?.roll || 0));
-    camera.quaternion.setFromEuler(_euler);
-    if (glance > 0 || weaponCamera.userData.glanced) {
-      weaponCamera.quaternion.setFromEuler(_euler.set(glance * KB_GLANCE.pitch, glance * KB_GLANCE.yaw, 0, "YXZ"));
-      weaponCamera.userData.glanced = glance > 0;
-    }
-  }
-
-  // Panned sounds resolve against wherever the camera now is and faces.
-  _listenFwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
-  _listenUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
-  audio.setListener(camera.position, _listenFwd, _listenUp);
-
-  // Projects against the camera, so it has to follow the camera update or
-  // every number trails a frame behind the thing it is stuck to.
-  updateDamageNumbers(dt);
-
-  // Swinging locks out the trigger; the melee weapon has no trigger at all.
-  const swinging = !!player.melee && player.melee.busy;
-  if (player.melee && player.melee.update(dt)) meleeConnect();
-
-  const canAct = !move.busy && player.alive && !stageFrozen() && !royaleDropView() && !warshipView();
-  // Pulling the trigger drops a plate or a Hopium half-used.
-  if (royale?.act && wantFire) cancelRoyaleAct();
-  // Aiming itself is harmless during the pre-match countdown — no shooting,
-  // no movement change beyond what ADS already slows — so it gets its own,
-  // looser gate instead of inheriting the staging freeze from canAct.
-  const canAds = !move.busy && player.alive;
-  w.update(dt, {
-    moving: move.moving,
-    sprinting: move.sprinting,
-    grounded: move.grounded,
-    jumping: move.jumping,
-    // A held melee weapon has the hands: the gun behind it doesn't scope in
-    // (with the saber, aim is the block instead).
-    adsHeld: wantAds && canAds && player.holding !== "melee" && !w.def.noAds,
-    canAds,
-  });
-  updateSaberBlock(dt, wantAds && canAds);
-  updateKbShield(wantAds && canAds);
-
-  // A charge only lives while the gun is up: melee, a streak device or
-  // death drops it.
-  if (w.charging && (player.holding !== "gun" || !player.alive)) endCandleCharge(w);
-
-  // Holding the melee weapon turns the fire button into a swing.
-  if (player.holding === "melee") {
-    if (wantFire && fireEdgeTrigger && canAct) swingMelee();
-    return;
-  }
-
-  // Holding the care package marker: fire throws it.
-  if (player.holding === "streak" && markingStreak === "carepackage" && wantFire && fireEdgeTrigger) throwMarker();
-
-  // Looking at the streak device (DESIGN-ARMS.md Phase 5 §5's explicit
-  // interaction-bug call-out): fire is disabled outright rather than
-  // silently shooting through a hidden gun mesh while the device is up.
-  if (player.holding === "streak") return;
-
-  if (w.def.fireMode === "charge") {
-    updateCandleCharge(w, dt, wantFire && canAct && !swinging);
-  } else if (w.def.fanFire && wantAds && canAct && !swinging) {
-    // The Peacemakers have no sights: aim fans the hammers, fast and wild.
-    if (w.canFire()) fireOnce({ fan: true });
-    else if (w.ammoInMag <= 0 && !w.reloading) tryReload();
-  } else if (wantFire && canAct && !swinging) {
-    if (w.def.fireMode === "auto") {
-      if (w.canFire()) fireOnce();
-    } else if (w.def.fireMode === "burst") {
-      if (fireEdgeTrigger && w.burstLeft <= 0 && w.canFire()) w.burstLeft = w.def.burst || 2;
-    } else if (fireEdgeTrigger && w.canFire()) {
-      fireOnce();
-    } else if (fireEdgeTrigger && w.reloading && w.def.shellReload && w.interruptReload()) {
-      // BO2 pump shotgun: fire stops the shell-by-shell reload, and the
-      // shot goes off as soon as the gun is back up.
-      w.fireQueued = true;
-    }
-  }
-  if (w.fireQueued && !w.reloading) {
-    w.fireQueued = false;
-    if (wantFire && canAct && !swinging && w.canFire()) fireOnce();
-  }
-
-  // A burst finishes on its own cadence even if the trigger is released.
-  if (w.burstLeft > 0 && canAct && w.canFire()) {
-    fireOnce();
-    w.burstLeft--;
-  }
-}
-
-/* Green Candles charge shot. Press starts a charge (the candle brightens,
-   a hum climbs, a ring fills round the crosshair); release fires. Let go
-   inside `minHold` and it's a tap: a quick 1-cell bolt. Past that, the
-   bolt scales with the charge up to a full 3-cell shot at `time`, capped
-   by what's left in the tank. Holding a full charge keeps it, with a
-   shake. Sprinting or reloading drops it without firing. */
-function updateCandleCharge(w, dt, held) {
-  const c = w.def.charge;
-  // Its own press edge (not the 16 ms fireEdgeTrigger): a slow frame must
-  // never swallow the press that starts a charge.
-  const pressed = held && !w.triggerHeld;
-  w.triggerHeld = held;
-  if (w.charging) {
-    if (w.reloading || move.sprinting || !held) {
-      const release = !held && !w.reloading && !move.sprinting;
-      const level = w.chargeT < c.minHold ? 0 : w.chargeLevel;
-      endCandleCharge(w);
-      if (release) fireOnce(chargedShotDef(w.def, level));
-      return;
-    }
-    w.chargeT += dt;
-    audio.candleCharge(w.chargeLevel, w.chargeT >= c.time);
-    return;
-  }
-  if (!pressed) return;
-  if (w.canFire()) {
-    w.charging = true;
-    w.chargeT = 0;
-    inspectT = 0;
-  } else if (w.ammoInMag <= 0 && !w.reloading) {
-    tryReload();
-  }
-}
-
-function endCandleCharge(w) {
-  w.cancelCharge();
-  audio.candleCharge(-1);
-  els.charge.hidden = true;
-}
-
 let fireEdgeTrigger = false;
-window.addEventListener("mousedown", (e) => {
-  if (emote && (e.button === 0 || e.button === 2)) stopEmote();
-  if (e.button === 0) { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); }
-});
-els.touchFire.addEventListener("touchstart", () => { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); });
+initPlayerUpdate();
 
 /* The melee view model: raised whenever it's the held weapon, and swung
    through the pose MeleeState solves each frame — the same rest grip, chop
