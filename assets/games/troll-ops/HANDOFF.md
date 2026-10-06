@@ -494,7 +494,8 @@ Map rules:
   - game.js split, phase 3a: modes/infection.js (Infection proper, ~200 lines; the old "Infection" label also covered KOTH, S&D, startGame, the load screen and staging) and modes/objectives.js (KOTH scoring + all of S&D); game.js 9,178 -> 8,540 lines. New gate step: tools/troll-ops-objectives-test.mjs.
   - game.js split, phase 3b: modes/match-end.js (results screen, XP, medals, intermission, map vote) and modes/social.js (Socialize room mode; its initSocial also wires Start/Retry/Resume/range-bot buttons that sat under that label, for menu/ later); game.js 8,540 -> 8,109 lines. Already failing before (same on cfb1c2a): view-mode "W + Space flies forward and up" (climbs ~2.4 m).
   - game.js split, phase 3c (phase 3 done): modes/match-start.js (joinQuickplay, startGame, map loading screen, staging + intro, shader warm-up, beginMatch); game.js 8,109 -> 7,381 lines. Already failing before (same on d36549b): zombie "it crouches, leaps and lands" (timing).
-  - game.js split, phase 4a: modes/social-rp.js (saloon bar, seats, piano, doctor); game.js 7,381 -> 6,906 lines.
+  - game.js split, phase 4a: modes/social-rp.js (saloon bar, seats, piano, doctor); game.js 7,381 -> 6,907 lines.
+  - game.js split, phase 4b: view/third-person.js (chase/emote/death cameras, swivel, updateLocalRig); game.js 6,907 -> 6,598 lines. Already failing before (same on c87510e): saber-deflect right/high/blade-moves.
   - game.js split, phase 0: `node tools/troll-ops-gate.mjs` (parse, every mode, bot movement, both room tests; ~12 min, `--quick` skips the room tests) is the pre-push gate; `core/state.js` is the home for shared state as systems move out; session rules in CLAUDE.md. Nothing moved yet.
   - Bot host = the oldest LIVE client (net.hostId: a state message in the last 15 s, not flagged slow); a stuck or hidden tab no longer freezes everyone's bots or sets the room's map.
 
