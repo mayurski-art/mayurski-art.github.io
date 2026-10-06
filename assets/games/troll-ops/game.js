@@ -113,6 +113,11 @@ import { DF_ASSIST_CONE_DEG, DF_ASSIST_PULL, DF_BOARD_AT, airTargetPos, damageSt
 import { WARSHIP_BOARD_AT, fireWarship, lookSensScale, placeWarshipCamera, spawnWarship, syncWarshipView, toggleWarshipGun, updateWarshipHud, warshipFov, warshipImpact, warshipView } from "./streaks/warship.js?v=sk1";
 import { applyCounterUav, claimPackage, lockEl, nearestHostileTo, spawnRecon, startUav, streakDamage, streakOwnerHates, strikeImpact, swarmRuns, updateStreakEntities, updateUavState } from "./streaks/air.js?v=sk1";
 import { BOT_STREAK_KEY, BOT_STREAK_POOL, applyRemoteStreak, botEarn, botFireStreak, botStreakLog, botStreakMult, botStreakState, botWarshipGunner, flyBotDragonfire, updateBotStreaks, initBotStreaks } from "./streaks/bot-streaks.js?v=sk1";
+import { SETTINGS_KEY, applySettings, saveSettings, settings } from "./menu/settings.js?v=ms1";
+import { initRadioWidget } from "./menu/radio.js?v=mr1";
+import { initEscapeMenu, renderMenuRoster, initMenuRoster } from "./menu/escape-menu.js?v=em1";
+import { buildModeButtons, renderModes, initModePicker } from "./menu/mode-picker.js?v=mp1";
+import { activeLobbyPanel, charInspector, charInspectorLive, cosmetics, inspector, inspectorLive, menuEmoteWheel, noBotsRoom, playerName, pollMenuEmotePad, renderCallsign, renderLobbyRoster, setNetStatus, showLobbyPanel, showSumGun, sumInspector, initLobby } from "./menu/lobby.js?v=lb1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -124,11 +129,13 @@ linkGame({
   addMatchXp,
   get adsHeld() { return adsHeld; },
   get aimAssistSticky() { return aimAssistSticky; }, set aimAssistSticky(v) { aimAssistSticky = v; },
+  get ambience() { return ambience; },
+  applyGraphics,
   areaDamage,
   get ARENA() { return ARENA; },
   get audio() { return audio; },
   awardScore,
-  get baseFov() { return baseFov; },
+  get baseFov() { return baseFov; }, set baseFov(v) { baseFov = v; },
   beginStreakHold,
   botBusy,
   botDealDamage,
@@ -191,8 +198,10 @@ linkGame({
   get hill() { return hill; },
   get hitFlashT() { return hitFlashT; }, set hitFlashT(v) { hitFlashT = v; },
   holsterMeleeFor,
+  get hudLayout() { return hudLayout; },
   get impactFx() { return impactFx; },
   get inspector() { return inspector; },
+  isBotPeer,
   isPvp,
   isRange,
   isSnd,
@@ -205,6 +214,7 @@ linkGame({
   learnPadRest,
   get lightPool() { return lightPool; },
   get loadout() { return loadout; },
+  get lobbyReady() { return lobbyReady; },
   get localPauseOnly() { return localPauseOnly; },
   get localRig() { return localRig; },
   get localThrowT() { return localThrowT; }, set localThrowT(v) { localThrowT = v; },
@@ -218,7 +228,10 @@ linkGame({
   get matchIntro() { return matchIntro; },
   get meleePutAway() { return meleePutAway; },
   minimapJammed,
+  get modeId() { return modeId; }, set modeId(v) { modeId = v; },
+  get modePicked() { return modePicked; }, set modePicked(v) { modePicked = v; },
   get move() { return move; },
+  get music() { return music; },
   get myUavUntil() { return myUavUntil; }, set myUavUntil(v) { myUavUntil = v; },
   nearbyPackage,
   get net() { return net; },
@@ -226,20 +239,28 @@ linkGame({
   occupants,
   onBulletActorHit,
   openPauseMenu,
+  openPlayerProfile,
   openStrikeTablet,
   get padRest() { return padRest; },
   get pendingDroneLaunch() { return pendingDroneLaunch; }, set pendingDroneLaunch(v) { pendingDroneLaunch = v; },
   pickPad,
   get pickups() { return pickups; },
   get player() { return player; },
+  playerUid,
   get rangeSet() { return rangeSet; },
   readyStreaksOrdered,
+  refreshLobbyMap,
   registerDeath,
   releaseCook,
   get remotes() { return remotes; },
+  renderBotSkillNote,
   get renderer() { return renderer; },
   renderGpDebug,
+  renderLobbyRoster,
+  renderScoreboard,
+  renderViewModeRow,
   resolveBulletTarget,
+  get roomIsCustom() { return roomIsCustom; }, set roomIsCustom(v) { roomIsCustom = v; },
   get royaleCatchUp() { return royaleCatchUp; }, set royaleCatchUp(v) { royaleCatchUp = v; },
   royaleSpectating,
   samDeployPoint,
@@ -280,6 +301,7 @@ linkGame({
   get streaks() { return streaks; },
   streakSlotIds,
   get strikeTablet() { return strikeTablet; },
+  get sumGunKey() { return sumGunKey; }, set sumGunKey(v) { sumGunKey = v; },
   get swarmRuns() { return swarmRuns; },
   swingMelee,
   syncWarshipView,
@@ -702,7 +724,6 @@ const loadout = new Loadout({
   }
 });
 
-
 // -------------------- scorestreaks --------------------
 // The code is in streaks/ (and modes/umb-heroes.js); these are the variables
 // game.js itself still writes, so they live here until their writers move.
@@ -790,63 +811,6 @@ const music = new GameMusic();
 let suppressT = 0;
 
 const animDebug = new AnimDebugLab();
-
-// -------------------- settings + escape menu --------------------
-
-const SETTINGS_KEY = "trollops:settings";
-const settings = {
-  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
-  gfx: "auto", viewMode: false, invincible: false,
-  ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
-};
-
-function saveSettings() {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* private mode */ }
-}
-
-function applySettings() {
-  audio.setVolume(settings.volume / 100);
-  ambience.setLevel(settings.ambience / 100);
-  baseFov = settings.fov;
-  minimapCanvas.hidden = !settings.minimap;
-
-  const set = (id, value, outId, suffix = "") => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (el.type === "checkbox") el.checked = !!value;
-    else el.value = value;
-    const out = outId && document.getElementById(outId);
-    if (out) out.textContent = `${value}${suffix}`;
-  };
-  set("to-set-volume", settings.volume, "to-set-volume-out");
-  set("to-set-ambience", settings.ambience, "to-set-ambience-out");
-  set("to-set-sens", settings.sens, "to-set-sens-out", "%");
-  set("to-set-padsens", settings.padSens);
-  set("to-set-padsens-lobby", settings.padSens);
-  set("to-set-fov",settings.fov, "to-set-fov-out", "°");
-  set("to-set-invert", settings.invert);
-  set("to-set-minimap", settings.minimap);
-  set("to-set-aimassist", settings.aimAssist);
-
-  set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
-  set("to-set-ambience-lobby", settings.ambience, "to-set-ambience-lobby-out");
-  set("to-set-sens-lobby", settings.sens, "to-set-sens-lobby-out", "%");
-  set("to-set-fov-lobby", settings.fov, "to-set-fov-lobby-out", "°");
-  set("to-set-invert-lobby", settings.invert);
-  set("to-set-minimap-lobby", settings.minimap);
-  set("to-set-aimassist-lobby", settings.aimAssist);
-  set("to-set-viewmode-lobby", settings.viewMode);
-  set("to-set-invincible", settings.invincible);
-  renderViewModeRow();
-  set("to-set-botskill", settings.botSkill);
-  set("to-set-gfx", settings.gfx);
-  set("to-set-gfx-lobby", settings.gfx);
-  applyGraphics();
-  // Takes effect for bots created from here on, so a change mid-match applies
-  // as they respawn rather than rewriting the ones already in the fight.
-  bots.difficulty = settings.botSkill;
-  renderBotSkillNote();
-}
 
 /* -------------------- room bot skill --------------------
    Bots only ever run on ONE client, the bot host (net.isBotHost: whoever has
@@ -1099,288 +1063,8 @@ function updateDuo(dt) {
   duoPromptEl.style.setProperty("--fill", String(ring));
 }
 
-function bindRange(id, key, outId, suffix = "") {
-  const el = document.getElementById(id);
-  el?.addEventListener("input", () => {
-    settings[key] = Number(el.value);
-    const out = document.getElementById(outId);
-    if (out) out.textContent = `${el.value}${suffix}`;
-    applySettings();
-    saveSettings();
-  });
-}
+initMenuRoster();
 
-function bindCheck(id, key) {
-  const el = document.getElementById(id);
-  el?.addEventListener("change", () => {
-    settings[key] = el.checked;
-    applySettings();
-    saveSettings();
-  });
-}
-
-function bindSelect(id, key) {
-  const el = document.getElementById(id);
-  el?.addEventListener("change", () => {
-    settings[key] = el.value;
-    applySettings();
-    saveSettings();
-  });
-}
-
-// Same settings, reachable from both the in-match Esc menu and the lobby's
-// Controls tab — a player shouldn't have to deploy just to fix sensitivity.
-function initEscapeMenu() {
-  // Stick sensitivity runs BO2's 1–14 ladder, its named steps included.
-  for (const id of ["to-set-padsens", "to-set-padsens-lobby"]) {
-    const sel = document.getElementById(id);
-    if (!sel) continue;
-    PAD_SENS_MULT.forEach((_, i) => {
-      const n = i + 1;
-      sel.add(new Option(PAD_SENS_NAMES[n] ? `${n} (${PAD_SENS_NAMES[n]})` : String(n), String(n)));
-    });
-    sel.value = String(settings.padSens);
-    sel.addEventListener("change", () => {
-      settings.padSens = Number(sel.value);
-      applySettings();
-      saveSettings();
-    });
-  }
-  bindRange("to-set-volume", "volume", "to-set-volume-out");
-  bindRange("to-set-ambience", "ambience", "to-set-ambience-out");
-  bindRange("to-set-sens", "sens", "to-set-sens-out", "%");
-  bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
-  bindCheck("to-set-invert", "invert");
-  bindCheck("to-set-minimap", "minimap");
-  bindCheck("to-set-aimassist", "aimAssist");
-  bindCheck("to-set-invincible", "invincible");
-
-  bindRange("to-set-volume-lobby", "volume", "to-set-volume-lobby-out");
-  bindRange("to-set-ambience-lobby", "ambience", "to-set-ambience-lobby-out");
-  bindRange("to-set-sens-lobby", "sens", "to-set-sens-lobby-out", "%");
-  bindRange("to-set-fov-lobby", "fov", "to-set-fov-lobby-out", "°");
-  bindCheck("to-set-invert-lobby", "invert");
-  bindCheck("to-set-minimap-lobby", "minimap");
-  bindCheck("to-set-aimassist-lobby", "aimAssist");
-  bindCheck("to-set-viewmode-lobby", "viewMode");
-  bindSelect("to-set-botskill", "botSkill");
-  bindSelect("to-set-gfx", "gfx");
-  bindSelect("to-set-gfx-lobby", "gfx");
-
-  const tabs = document.getElementById("to-menu-tabs");
-  tabs?.addEventListener("click", (e) => {
-    const btn = e.target.closest(".to-menu-tab");
-    if (!btn) return;
-    for (const b of tabs.children) {
-      const on = b === btn;
-      b.classList.toggle("is-active", on);
-      b.setAttribute("aria-pressed", String(on));
-    }
-    for (const name of ["settings", "controls", "players"]) {
-      const panel = document.getElementById(`to-panel-${name}`);
-      if (panel) panel.hidden = name !== btn.dataset.tab;
-    }
-    if (btn.dataset.tab === "players") renderMenuRoster();
-  });
-
-  // Touch has no Esc key, so the in-match button opens the same menu.
-  document.getElementById("to-gear")?.addEventListener("click", () => {
-    if (gameState !== "playing") return;
-    if (controls.isLocked) controls.unlock();
-    else openPauseMenu();
-  });
-}
-
-// In-game radio — the "Grinspace" skin (old Media Player Headspace, but the
-// head is the trollface). A separate playlist from Troll Radio, usable from
-// the lobby and carried straight through into the match (see music.js).
-function initRadioWidget() {
-  const $ = (id) => document.getElementById(id);
-  const toggle = $("to-radio-toggle");
-  const panel = $("to-radio-panel");
-  if (!toggle || !panel) return;
-  const titleEl = $("to-radio-title");
-  const artistEl = $("to-radio-artist");
-  const playBtn = $("to-radio-play");
-  const prevBtn = $("to-radio-prev");
-  const nextBtn = $("to-radio-next");
-  const stopBtn = $("to-radio-stop");
-  const shuffleBtn = $("to-radio-shuffle");
-  const volume = $("to-radio-volume");
-  const balance = $("to-radio-balance");
-  const seek = $("to-radio-seek");
-  const timeEl = $("to-radio-time");
-  const list = $("to-radio-list");
-  const eqBox = $("to-radio-eq");
-  const viz = $("to-radio-viz");
-  const vctx = viz.getContext("2d");
-
-  const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-
-  // Playlist rows, built once from the track list.
-  const rows = music.tracks.map((t, i) => {
-    const li = document.createElement("li");
-    const b = document.createElement("button");
-    b.type = "button";
-    b.innerHTML = `<span></span><small></small>`;
-    b.firstChild.textContent = t.title;
-    b.lastChild.textContent = t.artist;
-    b.setAttribute("aria-label", `Play ${t.title} by ${t.artist}`);
-    b.addEventListener("click", () => music.playIndex(i));
-    li.append(b);
-    list.append(li);
-    return b;
-  });
-
-  // Ten EQ sliders (vertical), labelled like the original.
-  const eqInputs = EQ_BANDS.map((hz, i) => {
-    const lab = document.createElement("label");
-    const inp = document.createElement("input");
-    inp.type = "range";
-    inp.min = -EQ_RANGE; inp.max = EQ_RANGE; inp.step = 1;
-    inp.value = music.eq[i];
-    const name = hz >= 1000 ? `${hz / 1000}K` : String(hz);
-    inp.setAttribute("aria-label", `${name} hertz`);
-    inp.addEventListener("input", () => music.setEq(i, Number(inp.value)));
-    const cap = document.createElement("span");
-    cap.textContent = name;
-    lab.append(inp, cap);
-    eqBox.append(lab);
-    return inp;
-  });
-  $("to-radio-eqreset").addEventListener("click", () => {
-    music.resetEq();
-    eqInputs.forEach((inp) => { inp.value = 0; });
-  });
-
-  const repaint = () => {
-    const t = music.current;
-    titleEl.textContent = t ? t.title : (music.hasTracks ? "—" : "No tracks loaded");
-    artistEl.textContent = t ? `· ${t.artist}` : "";
-    panel.classList.toggle("is-playing", music.playing);
-    playBtn.setAttribute("aria-label", music.playing ? "Pause" : "Play");
-    shuffleBtn.classList.toggle("is-active", music.shuffle);
-    shuffleBtn.setAttribute("aria-pressed", String(music.shuffle));
-    const cur = music.tracks.indexOf(t);
-    rows.forEach((b, i) => {
-      if (i === cur) b.setAttribute("aria-current", "true");
-      else b.removeAttribute("aria-current");
-    });
-  };
-  music.onchange = repaint;
-
-  // Waterfall visualiser: the last N spectra stacked into a tilted sheet of
-  // dots, red at the front fading to blue at the back, like the original.
-  const BINS = 32, DEPTH = 26;
-  const history = [];
-  const freq = new Uint8Array(128);
-  let raf = 0, idleT = 0, bassAvg = 0, seeking = false;
-
-  const draw = () => {
-    raf = requestAnimationFrame(draw);
-    const a = music.playing ? music.analyser : null;
-    const row = new Float32Array(BINS);
-    if (a) {
-      a.getByteFrequencyData(freq);
-      // Log-ish spread so the bass doesn't eat the whole sheet.
-      for (let b = 0; b < BINS; b++) {
-        const lo = Math.floor(Math.pow(b / BINS, 1.6) * 100);
-        const hi = Math.max(lo + 1, Math.floor(Math.pow((b + 1) / BINS, 1.6) * 100));
-        let m = 0;
-        for (let k = lo; k < hi; k++) m = Math.max(m, freq[k]);
-        row[b] = m / 255;
-      }
-    } else {
-      idleT += 0.02;
-      for (let b = 0; b < BINS; b++) row[b] = 0.05 + 0.04 * Math.sin(idleT + b * 0.4);
-    }
-    history.unshift(row);
-    if (history.length > DEPTH) history.pop();
-
-    // Speaker pods kick on bass hits: only the jump above the running
-    // average counts, or bass-heavy tracks just leave them swollen.
-    const bass = a ? (row[0] + row[1] + row[2]) / 3 : 0;
-    bassAvg += (bass - bassAvg) * 0.08;
-    const kick = Math.min(1, Math.max(0, (bass - bassAvg) * 7));
-    panel.style.setProperty("--kick", kick.toFixed(3));
-
-    const W = viz.width, H = viz.height;
-    vctx.fillStyle = "#000";
-    vctx.fillRect(0, 0, W, H);
-    for (let r = history.length - 1; r >= 0; r--) {
-      const d = r / DEPTH;                 // 0 front, 1 back
-      const s = 1 - d * 0.55;              // perspective shrink
-      const x0 = W * 0.16 + d * W * 0.32;
-      const y0 = H * 0.86 - d * H * 0.52;
-      const span = W * 0.62 * s;
-      const hue = 0 + d * 240;             // red -> blue
-      vctx.fillStyle = `hsl(${hue} 95% ${58 - d * 12}%)`;
-      const h = history[r];
-      for (let b = 0; b < BINS; b++) {
-        const x = x0 + (b / (BINS - 1)) * span - d * 30;
-        const y = y0 - h[b] * H * 0.42 * s + (b / BINS) * H * 0.12;
-        vctx.fillRect(x, y, 2.4 * s + 0.6, 2.4 * s + 0.6);
-      }
-    }
-
-    const dur = music.duration;
-    if (!seeking) seek.value = dur ? Math.round((music.time / dur) * 1000) : 0;
-    timeEl.textContent = dur ? `${fmt(music.time)} / ${fmt(dur)}` : fmt(music.time);
-  };
-
-  const setOpen = (open) => {
-    panel.hidden = !open;
-    toggle.setAttribute("aria-expanded", String(open));
-    cancelAnimationFrame(raf);
-    raf = 0;
-    if (open) draw();               // only spends frames while it's on screen
-  };
-
-  toggle.addEventListener("click", () => setOpen(panel.hidden));
-  $("to-radio-close").addEventListener("click", () => { setOpen(false); toggle.focus(); });
-  panel.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { e.stopPropagation(); setOpen(false); toggle.focus(); }
-  });
-  playBtn.addEventListener("click", () => music.toggle());
-  stopBtn.addEventListener("click", () => music.stop());
-  prevBtn.addEventListener("click", () => music.prev());
-  nextBtn.addEventListener("click", () => music.next());
-  shuffleBtn.addEventListener("click", () => music.setShuffle(!music.shuffle));
-  volume.value = Math.round(music.volume * 100);
-  volume.addEventListener("input", () => music.setVolume(volume.value / 100));
-  balance.value = Math.round(music.balance * 100);
-  balance.addEventListener("input", () => music.setBalance(balance.value / 100));
-  seek.addEventListener("input", () => { seeking = true; });
-  seek.addEventListener("change", () => {
-    music.seek((seek.value / 1000) * music.duration);
-    seeking = false;
-  });
-
-  if (!music.hasTracks) {
-    for (const b of [playBtn, prevBtn, nextBtn, stopBtn, shuffleBtn, seek]) b.disabled = true;
-  }
-
-  repaint();
-
-  // Music is opt-in: nothing plays until the player hits Play. Whatever state
-  // they leave it in on the menu (playing or paused) carries into the match.
-}
-
-document.getElementById("to-menu-roster")?.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-uid]");
-  if (b) openPlayerProfile(b.dataset.uid);
-});
-
-function renderMenuRoster() {
-  const box = document.getElementById("to-menu-roster");
-  if (!box) return;
-  if (!isPvp() || !net.connected) {
-    box.textContent = "Solo run — no other operators.";
-    return;
-  }
-  renderScoreboard();
-  box.innerHTML = els.scoreboard.innerHTML;
-}
 
 /* A round cracking past raises suppression — washes the colour out, tightens
    the vignette and jitters the frame, so being shot at actually costs you. */
@@ -1529,508 +1213,15 @@ function otherHumansInMatch() {
   return false;
 }
 
-/* The Play tab's mode list: versus modes first, then the solo ones, each a
-   full-width row with a tick on the one you're deploying into. */
-const MODE_GROUPS = [
-  { label: "Versus", ids: ["tdm", "koth", "snd", "infection", "oitc", "gungame", "umb"] },
-  { label: "Solo", ids: ["ops", "zombies", "range"] },
-  // Its own group so it stays out of the Versus list (the BO2 menu reads
-  // the group headings: Socialize is its own main-menu entry).
-  { label: "Social", ids: ["social"] },
-];
-const TICK_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+initModePicker();
 
-function buildModeButtons() {
-  els.loMode.innerHTML = "";
-  // Anything added to modes.js later still shows up, under Versus or Solo.
-  const placed = new Set(MODE_GROUPS.flatMap((g) => g.ids));
-  const groups = MODE_GROUPS.map((g) => ({ ...g, ids: g.ids.filter((id) => MODES[id]) }));
-  for (const id of MODE_IDS) {
-    if (!placed.has(id) && !MODES[id].hidden) groups[MODES[id].pvp ? 0 : 1].ids.push(id);
-  }
-  for (const g of groups) {
-    const head = document.createElement("div");
-    head.className = "to-lo-modegroup";
-    head.textContent = g.label;
-    els.loMode.appendChild(head);
-    for (const id of g.ids) {
-      const m = MODES[id];
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "to-lo-modebtn";
-      b.dataset.mode = id;
-      b.title = m.blurb;
-      const name = document.createElement("span");
-      name.textContent = m.name;
-      b.appendChild(name);
-      b.insertAdjacentHTML("beforeend", TICK_SVG);
-      b.addEventListener("click", () => { if (modeLocked(m)) return; modeId = id; modePicked = true; renderModes(); });
-      els.loMode.appendChild(b);
-    }
-  }
-  renderModes();
-}
-
-/* The mode description is the one optional thing in the mode column: drop
-   it when the column is too short for it, so the mode buttons always fit
-   with no scrollbar (the column stops above the map card). */
-const modeColumn = els.loMode.closest(".to-pf-modes");
-function fitModeBlurb() {
-  if (!modeColumn) return;
-  els.loModeBlurb.hidden = false;
-  if (modeColumn.scrollHeight > modeColumn.clientHeight + 1) els.loModeBlurb.hidden = true;
-}
-if (modeColumn && "ResizeObserver" in window) new ResizeObserver(fitModeBlurb).observe(modeColumn);
-
-/* A prestige-gated mode (U Mad Bro?, Prestige 2) shows locked until then:
-   disabled, with the requirement in its title and data-lock. The BO2 menu
-   reads both off the button. */
-// Localhost (development) skips the lock so the mode can be played and tested
-// without a signed-in Prestige 2 account; the live site keeps it.
-const DEV_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-const modeLocked = (m) => !!m?.prestige && !DEV_HOST && !prestigeUnlocked(m.prestige);
-
-function renderModes() {
-  // Picked, then the lock came back (signed out): fall back to TDM.
-  if (modePicked && modeLocked(currentMode())) modeId = "tdm";
-  for (const b of els.loMode.children) {
-    if (!b.dataset.mode) continue;
-    const m = MODES[b.dataset.mode];
-    const locked = modeLocked(m);
-    b.disabled = locked;
-    b.classList.toggle("is-locked", locked);
-    b.dataset.lock = locked ? `Prestige ${m.prestige}` : "";
-    b.title = locked ? `Unlocks at Prestige ${m.prestige}. ${m.blurb}` : m.blurb;
-    const on = modePicked && b.dataset.mode === modeId;
-    b.classList.toggle("is-active", on);
-    b.setAttribute("aria-pressed", String(on));
-  }
-  els.loModeBlurb.textContent = modePicked ? currentMode().blurb : "Pick a mode to deploy.";
-  els.startBtn.disabled = !modePicked;
-  fitModeBlurb();
-  // On phones the list is one sideways-scrolling row of chips; keep the
-  // picked one in view.
-  const act = els.loMode.querySelector(".to-lo-modebtn.is-active");
-  if (act && els.loMode.scrollWidth > els.loMode.clientWidth) {
-    const box = els.loMode.getBoundingClientRect();
-    const r = act.getBoundingClientRect();
-    if (r.left < box.left || r.right > box.right) {
-      els.loMode.scrollLeft += r.left - box.left - 16;
-    }
-  }
-  els.loPvp.hidden = !modePicked || !isPvp();
-  const soloNote = document.getElementById("to-pf-solo-note");
-  if (soloNote) soloNote.hidden = !modePicked || isPvp();
-
-  // Scorestreaks are versus-only, and Gun Game / One in the Chamber opt out
-  // (see modes.js noStreaks). The picker stays reachable either way so the
-  // note can explain why it's empty, rather than the tab vanishing. Until a
-  // mode is picked (phones start with none) the picker shows: the streaks
-  // you choose carry into any versus match.
-  const allowed = !modePicked || streaksAllowed(currentMode());
-  const ssPanelNote = document.getElementById("to-ss-note");
-  const ssSoloNote = document.getElementById("to-ss-solo-note");
-  if (ssPanelNote) ssPanelNote.hidden = !allowed;
-  if (ssSoloNote) ssSoloNote.hidden = allowed;
-  if (els.ssPicker) els.ssPicker.hidden = !allowed;
-  // Zombies and the range bring their own map, so the card just names it.
-  loadout.setForcedMap(currentMode().forceMap || null);
-  loadout.setMapPool(currentMode().mapPool || null);
-  renderLobbyRoster();   // no-ops until the lobby is ready
-  if (lobbyReady) refreshLobbyMap();
-}
-
-// -------------------- lobby chrome --------------------
-// The tab bar across the top swaps what's under it. "deploy" is the Play
-// tab (mode list, map card, Deploy); the rest open one panel each.
-// Loadout and Customize share the Loadout tab.
-
-const LOBBY_PANELS = ["deploy", "loadout", "customize", "gear", "cosmetics", "streaks", "server", "controls"];
-const TAB_FOR_PANEL = { customize: "loadout" };
-const pfRoot = document.getElementById("to-pf");
-// Tabs, the Loadout/Customize switch and the loadout card's Edit link.
-const railButtons = [...document.querySelectorAll("#to-pf [data-panel]")];
-
-const gunView = document.getElementById("to-gun-view");
-const gunCanvas = document.getElementById("to-gun-canvas");
-const inspector = gunCanvas ? new WeaponInspector(gunCanvas) : null;
-
-// The Play tab's loadout card previews the primary too, rebuilt only when
-// the weapon, its attachments or its skin change.
-const sumCanvas = document.getElementById("to-pf-sum-canvas");
-const sumInspector = sumCanvas ? new WeaponInspector(sumCanvas, { thumb: true }) : null;
 let sumGunKey = null;
-function showSumGun() {
-  const def = loadout.resolved;
-  const key = def ? `${def.id}:${JSON.stringify(def.attachments || {})}` : null;
-  if (!sumInspector || !def || key === sumGunKey) return;
-  sumGunKey = key;
-  sumInspector.show(def);
-}
-showSumGun();
-let inspectorLive = false;
-
-const charView = document.getElementById("to-char-view");
-const charCanvas = document.getElementById("to-char-canvas");
-const charInspector = charCanvas ? new CharacterInspector(charCanvas) : null;
-/* Cosmetics (cosmetics.js): the face you wear, on the menu operator, your
-   own body in matches, and everyone else's view of you (`fc`). */
-const cosmetics = new CosmeticsPanel(document.getElementById("to-cos-body"), (face) => applyOwnFace(face));
-function applyOwnFace(face) {
-  if (charInspector) charInspector.humanoid.face = face;
-  localRig.face = face;   // only ever called on a pick, long after localRig exists
-}
-if (charInspector) charInspector.humanoid.face = cosmetics.face;
-let charInspectorLive = false;
-// The operator on the main menu carries your equipped primary.
-charInspector?.setWeapon(loadout.resolved);
-
-/* One inspector, three panels that want to show it. Weapon Loadout keeps it
-   boxed inside its detail card (to-gun-mount-loadout); Customize and Gear
-   pull it out to the free-floating hero spot the operator viewer uses on
-   Match Setup instead — the weapon stands in for the operator there. */
-const pfCenter = document.getElementById("to-pf-center")?.parentElement || null; // .to-pf
-function mountGunView(panel) {
-  // Beside the panel on desktop; phones have no room beside it, so there the
-  // Weapons view keeps it boxed in its detail card.
-  const narrow = (pfCenter?.clientWidth || 0) <= 760;
-  const boxMount = panel === "loadout" && narrow ? document.getElementById("to-gun-mount-loadout") : null;
-  const target = boxMount || pfCenter;
-  inspectorLive = !!(gunView && target);
-  if (!inspectorLive) return;
-  gunView.classList.toggle("is-hero", !boxMount);
-  if (gunView.parentElement !== target) target.appendChild(gunView);
-  gunView.style.display = "";
-}
-
-/* Unlike the gun view, the operator locker viewer isn't nested inside a
-   per-panel box — it's a free-floating hero shot over the whole lobby
-   (see .to-char-view), so showing it for a panel is just an on/off flag. */
-function mountCharView(panel) {
-  charInspectorLive = !!(charView && (panel === "deploy" || panel === "cosmetics"));
-  if (charView) charView.style.display = charInspectorLive ? "" : "none";
-  if (!charInspectorLive) menuEmoteWheel?.close(true);
-}
-
-/* Emoting in the main menu (user): the same wheel as in a match, played by
-   the operator on Match Setup. H / L3 + R3 together / the Emote button open it. */
-const menuEmoteWheel = charView && els.title ? new EmoteWheel(els.title, (i) => charInspector?.playEmote(i)) : null;
-menuEmoteWheel?.el.classList.add("is-menu");
-const menuEmoteBtn = document.getElementById("to-char-emote");
-menuEmoteBtn?.addEventListener("click", () => {
-  menuEmoteWheel?.toggle(charInspectorLive && gameState === "menu");
-  menuEmoteBtn.setAttribute("aria-expanded", String(!!menuEmoteWheel?.isOpen));
-});
-// Pad in the menu: both sticks clicked together (or the emote button set on
-// the controller card) opens, the right stick points, Cross/A plays, Circle/B closes.
-let gpMenuEmotePrev = {};
-function pollMenuEmotePad() {
-  const w = menuEmoteWheel;
-  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  const gp = w && charInspectorLive ? Array.from(pads).find((p) => p && p.connected) : null;
-  if (!gp) { gpMenuEmotePrev = {}; return; }
-  const b = (i) => !!gp.buttons[i]?.pressed, edge = (i) => b(i) && !gpMenuEmotePrev[i];
-  if (padEmotePressed(gp, edge) || (b(10) && b(11) && (edge(10) || edge(11)))) w.toggle();
-  if (w.isOpen) {
-    w.aim(gp.axes[2] || 0, gp.axes[3] || 0);
-    if (edge(0)) w.close();
-    else if (edge(1)) w.close(true);
-  }
-  gpMenuEmotePrev = {};
-  for (let i = 0; i < gp.buttons.length; i++) gpMenuEmotePrev[i] = b(i);
-}
-
-// "deploy" (Match Setup) is the panel left un-hidden in the HTML, so it's
-// what a player sees first without any click - nothing else calls
-// showLobbyPanel("deploy") on first load, so the locker view has to be
-// shown here or it stays hidden until the player clicks away and back.
-mountCharView("deploy");
-
-// Which panel is currently open, or `null` when every panel is collapsed —
-// clicking the already-active rail button toggles it closed instead of
-// forcing some other tab to take its place.
-let activeLobbyPanel = "deploy";
-
-function showLobbyPanel(name) {
-  activeLobbyPanel = name;
-  if (pfRoot) pfRoot.dataset.panel = name || "";
-  if (els.title) els.title.dataset.panel = name || "";
-  for (const id of LOBBY_PANELS) {
-    const panel = document.getElementById(`to-pfp-${id}`);
-    if (panel) panel.hidden = id !== name;
-  }
-  const tabName = TAB_FOR_PANEL[name] || name;
-  for (const b of railButtons) {
-    // Top tabs light up for their whole group; the switch and Edit link
-    // only for their exact panel.
-    const on = b.classList.contains("to-pf-tab") ? b.dataset.panel === tabName : b.dataset.panel === name;
-    b.classList.toggle("is-active", on);
-    b.setAttribute("aria-pressed", String(on));
-  }
-  if (name !== "deploy") closeMapDrawer(false);
-  // The map card's thumbnail can only measure itself once it is on screen.
-  if (name === "deploy") loadout.drawMapCard();
-
-  if (name === "loadout" || name === "customize") {
-    mountGunView(name);
-    inspector?.show(loadout.resolvedActive);
-  } else if (name === "gear") {
-    mountGunView(name);
-    inspector?.show(loadout.melee);
-  } else if (name === "streaks") {
-    mountGunView(name);
-    inspector?.showStreak(streakPicker.selected.at(-1) || "uav");
-  } else {
-    inspectorLive = false;
-    if (gunView) gunView.style.display = "none";
-  }
-
-  if (name === "deploy" || name === "cosmetics") {
-    mountCharView(name);
-  } else {
-    charInspectorLive = false;
-    if (charView) charView.style.display = "none";
-    menuEmoteWheel?.close(true);
-  }
-}
-
-for (const b of railButtons) {
-  b.addEventListener("click", () => showLobbyPanel(b.dataset.panel));
-}
-if (pfRoot) pfRoot.dataset.panel = activeLobbyPanel;
-if (els.title) els.title.dataset.panel = activeLobbyPanel;
-
-/* Map picker: "Change" on the map card slides it in from the right. Picking
-   a map applies straight away (loadout.js), Done or Esc just closes it. */
-const mapDrawer = document.getElementById("to-map-drawer");
-const mapScrim = document.getElementById("to-map-scrim");
-const mapChange = document.getElementById("to-pf-mapcard-change");
-
-function openMapDrawer() {
-  if (!mapDrawer) return;
-  mapDrawer.hidden = false;
-  if (mapScrim) mapScrim.hidden = false;
-  els.title?.classList.add("has-drawer");
-  mapChange?.setAttribute("aria-expanded", "true");
-  loadout.drawMapThumbs();
-  (mapDrawer.querySelector(".to-lo-map.is-active") || mapDrawer.querySelector("button"))?.focus();
-}
-
-function closeMapDrawer(returnFocus = true) {
-  if (!mapDrawer || mapDrawer.hidden) return;
-  mapDrawer.hidden = true;
-  if (mapScrim) mapScrim.hidden = true;
-  els.title?.classList.remove("has-drawer");
-  mapChange?.setAttribute("aria-expanded", "false");
-  if (returnFocus) mapChange?.focus();
-}
-
-mapChange?.addEventListener("click", openMapDrawer);
-mapScrim?.addEventListener("click", () => closeMapDrawer());
-document.getElementById("to-map-close")?.addEventListener("click", () => closeMapDrawer());
-document.getElementById("to-map-done")?.addEventListener("click", () => closeMapDrawer());
-mapDrawer?.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { e.stopPropagation(); closeMapDrawer(); }
-});
 
 // `net` is constructed further down this module, so nothing may paint the
 // roster until initLobbyChrome() runs at the end of setup.
 let lobbyReady = false;
+initLobby();
 
-function renderLobbyRoster() {
-  const box = document.getElementById("to-pf-roster");
-  if (!box || !lobbyReady) return;
-
-  const rows = [{ name: withClan(playerName(), getMyCard().clan), state: "READY", you: true, uid: playerUid() }];
-  if (isPvp() && net.connected) {
-    for (const p of net.peers.values()) {
-      rows.push({ name: withClan(p.name, p.clan), state: isBotPeer(p) ? "BOT" : "IN ROOM", uid: safeUid(p.uid) });
-    }
-  }
-
-  box.innerHTML = "";
-  for (const row of rows) {
-    const el = document.createElement("div");
-    el.className = row.you ? "to-pf-op is-you" : "to-pf-op is-idle";
-    const box2 = document.createElement("i");
-    const name = document.createElement(row.uid ? "button" : "span");
-    name.textContent = row.name;
-    if (row.uid) {
-      name.type = "button";
-      name.className = "to-pf-op-name";
-      name.title = `View ${row.name}'s profile`;
-      name.addEventListener("click", () => openPlayerProfile(row.uid));
-    }
-    const state = document.createElement("b");
-    state.textContent = row.state;
-    el.append(box2, name, state);
-    box.appendChild(el);
-  }
-
-  if (rows.length === 1) {
-    const note = document.createElement("p");
-    note.className = "to-pf-empty";
-    note.textContent = isPvp()
-      ? (noBotsRoom()
-          ? "No bots room — just you until you share the code above."
-          : roomIsCustom
-            ? "No one else in the room yet — share the code."
-            : "No one else has deployed into this mode yet. Anyone who hits Deploy lands here with you.")
-      : "Solo drop. No other operators.";
-    box.appendChild(note);
-  }
-}
-
-/* The lobby header's profile button: your whole site profile (avatar,
-   banner, level, friends, settings), or the sign-in when signed out. */
-function renderProfileBtn() {
-  const btn = document.getElementById("to-pf-profile");
-  if (!btn) return;
-  const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
-  btn.querySelector("span").textContent = profile?.username || "Sign in";
-  const img = btn.querySelector("img");
-  img.hidden = !profile?.avatarUrl;
-  if (profile?.avatarUrl) img.src = profile.avatarUrl;
-  const svg = btn.querySelector("svg");
-  if (svg) svg.style.display = profile?.avatarUrl ? "none" : "";
-  const label = profile?.username ? `Your profile (${profile.username})` : "Sign in";
-  btn.title = label;
-  btn.setAttribute("aria-label", label);
-}
-renderProfileBtn();
-document.getElementById("to-pf-profile")?.addEventListener("click", () => {
-  const acc = window.TrollrunnerAccounts;
-  if (acc?.getCachedProfile?.()) acc.openProfile?.();
-  else if (acc?.openLogin) acc.openLogin("login");
-  else acc?.openProfile?.();
-});
-
-function renderCallsign() {
-  const el = document.getElementById("to-pf-callsign");
-  if (el) el.textContent = `Signed in as ${playerName()}`;
-}
-
-// The profile arrives after the accounts script signs in, so redraw then --
-// the level shown is the account level, and any XP queued while signed out
-// gets credited now.
-window.addEventListener("trollrunner:auth-changed", () => {
-  renderCallsign();
-  renderViewModeRow();
-  renderProfileBtn();
-  renderLobbyRoster();
-  // Picks locked by the guest level at page load come back now that the
-  // account level is known (phones: the profile often lands after the lobby).
-  if (!loadout.restoreSaved()) loadout.render();
-  streakPicker.restore();
-  void syncXp()?.then(() => loadout.render());
-});
-// Prestige landed (loaded after sign-in, or you just prestiged): the level
-// shown and the "Prestige ready" readout change with it.
-window.addEventListener("trollforces:prestige-changed", () => {
-  if (!loadout.restoreSaved()) loadout.render();
-  streakPicker.restore();
-  renderModes();   // U Mad Bro? unlocks at Prestige 2
-});
-// Your clan tag changed (Barracks): the roster shows it.
-window.addEventListener("trollforces:card-changed", () => renderLobbyRoster());
-
-function playerName() {
-  const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
-  return String(profile?.username || "operator").slice(0, 14);
-}
-
-function setNetStatus(text, state = "") {
-  els.netStatus.textContent = text;
-  els.netStatus.classList.toggle("is-live", state === "live");
-  els.netStatus.classList.toggle("is-bad", state === "bad");
-}
-
-buildModeButtons();
-
-/* U Mad Bro? hero picker. Hidden buttons the BO2 menu reads and clicks
-   (menu-bo2.js "heroes" screen), like every other lobby list. The pick is
-   saved (heroes.js) and used from the next spawn. */
-function buildHeroButtons() {
-  const box = document.createElement("div");
-  box.id = "to-lo-heroes";
-  box.hidden = true;
-  for (const id of HERO_IDS) {
-    const h = HEROES[id];
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "to-lo-hero";
-    b.dataset.hero = id;
-    b.title = `${h.blurb} ${h.hp} HP, ${Math.round(h.speed * 100)}% speed. Passive: ${h.passive}.`;
-    b.innerHTML = `<strong></strong>`;
-    b.firstChild.textContent = h.name;
-    // heroKit is built lazily (it needs move/look, declared further down).
-    b.addEventListener("click", () => { if (heroKit) heroKit.setHero(id); else saveHero(id); renderHeroButtons(); });
-    box.appendChild(b);
-  }
-  els.loMode.parentElement.appendChild(box);
-  renderHeroButtons();
-}
-function renderHeroButtons() {
-  for (const b of document.querySelectorAll("#to-lo-heroes .to-lo-hero")) {
-    const on = b.dataset.hero === (heroKit ? heroKit.id : savedHero());
-    b.classList.toggle("is-active", on);
-    b.setAttribute("aria-pressed", String(on));
-  }
-}
-buildHeroButtons();
-
-/* Your setup follows your account (cloud-save.js). When the account's copy
-   lands on this device (signing in, or coming back to the tab after
-   changing things on another one), put it into the running game. */
-function applyCloudSetup(changed) {
-  const has = (k) => changed.includes(k);
-  if (has(SETTINGS_KEY)) {
-    try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); } catch { /* bad JSON: keep ours */ }
-    applySettings();
-  }
-  if (has("trollops:loadout") && !loadout.restoreSaved()) loadout.render();
-  if (has("trollops:streaks")) streakPicker.restore();
-  if (changed.some((k) => k.startsWith("trollops.hudLayout."))) hudLayout.reload();
-  if (has("trollops:cosmetics")) {
-    cosmetics.state = loadCosmetics();
-    cosmetics.paint();
-    applyOwnFace(cosmetics.face);
-  }
-  if (has("trollops:hero")) {
-    if (heroKit && !heroActive()) heroKit.setHero(savedHero());
-    renderHeroButtons();
-  }
-  if (has(BOT_STREAK_KEY) && els.botStreaks) {
-    try { els.botStreaks.checked = localStorage.getItem(BOT_STREAK_KEY) !== "0"; } catch { /* private window */ }
-  }
-}
-initCloudSave({ apply: applyCloudSetup });
-
-/* A private room opens the prestige reward maps (loadout.js mapOpen). */
-function syncPrivateRoom() { loadout.setPrivateRoom(roomIsCustom && !!els.room.value); }
-els.newRoom.addEventListener("click", () => {
-  els.room.value = makeRoomCode();
-  roomIsCustom = true;   // an explicit fresh code means "private room", not quickplay
-  syncPrivateRoom();
-});
-els.room.addEventListener("input", () => {
-  els.room.value = els.room.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
-  roomIsCustom = els.room.value.length > 0;
-  syncPrivateRoom();
-});
-
-/* "No bots" — walk a map alone without a match happening around you. Ticking
-   it alone is enough to get a private room (auto-generates a code exactly
-   like clicking "Private room", if one isn't already set) — you only need
-   to hand the code to anyone if you actually want them to join you. */
-function noBotsRoom() { return !!els.noBots?.checked; }
-els.noBots?.addEventListener("change", () => {
-  if (els.noBots.checked && !els.room.value) {
-    els.room.value = makeRoomCode();
-    roomIsCustom = true;
-    syncPrivateRoom();
-  }
-});
 
 /* Enemy id -> when they last killed a teammate, for the Avenger medal. */
 const recentTeamKillers = new Map();

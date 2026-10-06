@@ -10,7 +10,8 @@
 //               page errors
 //   3. bots     on three maps, every bot covers ground (the frozen-bot class)
 //   4. input    tools/troll-ops-input-test.mjs: a fake pad and touch screen
-//               press every control once
+//               press every control once; troll-ops-menu-test.mjs clicks
+//               every lobby panel and saves a few settings
 //   5. rooms    tools/troll-ops-sync-test.mjs and troll-ops-load-sync-test.mjs
 //
 // Supabase is blocked throughout: a test page must never join the live
@@ -164,11 +165,11 @@ server.close();
 
 // ---------------------------------------------------------------- 4. input
 console.log("\n== input");
-{
-  const r = spawnSync(process.execPath, [path.join(ROOT, "tools", "troll-ops-input-test.mjs")], { cwd: ROOT, encoding: "utf8", timeout: 600000 });
+for (const t of ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs"]) {
+  const r = spawnSync(process.execPath, [path.join(ROOT, "tools", t)], { cwd: ROOT, encoding: "utf8", timeout: 600000 });
   const out = `${r.stdout || ""}${r.stderr || ""}`;
   const fails = out.split("\n").filter((l) => l.startsWith("FAIL"));
-  check("troll-ops-input-test.mjs", r.status === 0 && fails.length === 0, fails.slice(0, 3).join(" | ") || (r.status !== 0 ? `exit ${r.status}` : ""));
+  check(t, r.status === 0 && fails.length === 0, fails.slice(0, 3).join(" | ") || (r.status !== 0 ? `exit ${r.status}` : ""));
 }
 
 // ---------------------------------------------------------------- 5. rooms

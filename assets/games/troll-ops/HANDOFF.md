@@ -488,6 +488,7 @@ Map rules:
   - game.js split, phase 1b: Troll Royale rules moved to modes/royale.js (royale.js next door still holds zone + loot).
   - game.js split, phase 1c: HUD helpers (killfeed, hitmarkers, damage numbers, streak HUD) to core/hud.js, minimap to core/minimap.js.
   - game.js split, phase 1d (phase 1 done): scorestreaks to streaks/ (calling, fire, k9, dragonfire, warship, air, bot-streaks) and the U Mad Bro? hero kit to modes/umb-heroes.js; game.js 16,712 -> 11,793 lines. Gate step 1 now runs tools/troll-ops-linkcheck.mjs (every game.X a module writes needs a setter in linkGame). Already failing before the split, still to fix: streak-holster (streaks off the secondary come back on melee), streak-control (veteran bot streak rate 1.4x vs 2x), cuav-cooldown (gunship cooldown 60 s vs 90, pad wheel pick, max-level readout).
+  - game.js split, phase 2a: menu code to menu/ (settings, escape-menu, radio, mode-picker, lobby); game.js 11,793 -> 10,990 lines. New gate step: tools/troll-ops-menu-test.mjs (every lobby panel, a slider/check/select save, heroes, room code).
   - game.js split, phase 0: `node tools/troll-ops-gate.mjs` (parse, every mode, bot movement, both room tests; ~12 min, `--quick` skips the room tests) is the pre-push gate; `core/state.js` is the home for shared state as systems move out; session rules in CLAUDE.md. Nothing moved yet.
   - Bot host = the oldest LIVE client (net.hostId: a state message in the last 15 s, not flagged slow); a stuck or hidden tab no longer freezes everyone's bots or sets the room's map.
 
