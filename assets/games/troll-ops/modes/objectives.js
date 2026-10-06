@@ -1,16 +1,16 @@
 // Troll Forces objective modes: King of the Hill scoring and Search &
 // Destroy (sites, plant/defuse, bots on the bomb, rounds, halftime).
 
-import { updateTeamHud, checkMatchEnd, awardScore, addMatchXp } from "../combat/scoring.js?v=sc1-kc2";
+import { updateTeamHud, checkMatchEnd, awardScore, addMatchXp } from "../combat/scoring.js?v=sc1-kc2-si1";
 import { SCORE } from "../scorestreaks.js?v=umb1-wst-sb2";
 import { XP } from "../progression.js?v=p5-wst-sb2";
 import * as THREE from "three";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2";
-import { explosionFx, grenades } from "../combat/throwables.js?v=th1-kc2";
-import { damagePlayer, updateSpawnGuardHud, clearDeathVisuals, yawTowardCentre } from "../combat/damage.js?v=dm1-kc2";
+import { explosionFx, grenades } from "../combat/throwables.js?v=th1-kc2-si1";
+import { damagePlayer, updateSpawnGuardHud, clearDeathVisuals, yawTowardCentre } from "../combat/damage.js?v=dm1-kc2-si1";
 import { PLANT_TIME, DEFUSE_TIME, matchWinner } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69";
-import { showWaveBanner, updateStreakHud } from "../core/hud.js?v=cr1";
-import { achievements, streaks, uavUntil, vsatUntil, clearStreakEntities, streakEntities } from "../streaks/calling.js?v=sk1";
+import { showWaveBanner, updateStreakHud } from "../core/hud.js?v=cr1-si1";
+import { achievements, streaks, uavUntil, vsatUntil, clearStreakEntities, streakEntities } from "../streaks/calling.js?v=sk1-si1";
 import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2";
 import { isSyntheticId } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1";
 import { royale, royaleBotObjective } from "./royale.js?v=md1";

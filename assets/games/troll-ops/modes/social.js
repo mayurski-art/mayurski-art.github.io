@@ -4,13 +4,13 @@
 import { MAP_IDS, MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2";
 import { MODES } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69";
 import { addXp } from "../progression.js?v=p5-wst-sb2";
-import { clearStreakEntities } from "../streaks/calling.js?v=sk1";
+import { clearStreakEntities } from "../streaks/calling.js?v=sk1-si1";
 import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1";
 import { teardownRoyale } from "./royale.js?v=md1";
-import { setNetStatus, renderLobbyRoster, showLobbyPanel } from "../menu/lobby.js?v=lb1";
+import { setNetStatus, renderLobbyRoster, showLobbyPanel } from "../menu/lobby.js?v=lb1-si1";
 import { renderModes } from "../menu/mode-picker.js?v=mp1";
 import { setTouchAds } from "../input/touch.js?v=in1";
-import { cancelCook } from "../combat/throwables.js?v=th1-kc2";
+import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1";
 import { game } from "../core/state.js?v=st1";
 
 // A Socialize room (QSOC) is a hangout until the owner, troll_runner,

@@ -498,6 +498,7 @@ Map rules:
   - game.js split, phase 4b: view/third-person.js (chase/emote/death cameras, swivel, updateLocalRig); game.js 6,907 -> 6,597 lines. Already failing before (same on c87510e): saber-deflect right/high/blade-moves.
   - game.js split, phase 4c: view/player-update.js (updatePlayer, regen, fly view, candle charge, HUD cache); game.js 6,597 -> 6,212 lines.
   - game.js split, phase 4d (phase 4 done): view/viewmodels.js, weapon-view.js, melee-view.js, streak-view.js, fp-emote.js; game.js 6,212 -> 4,070 lines. Already failing before (same on df14828): shotgun test crash (reading visible), streak-holster secondary x10.
+  - Long-standing test failures fixed (57f39d9, 0c2a6f7: stale checks, map-load and wall-clock timing) and the scorestreak HUD icon 404 since phase 1 (core/hud.js resolved streak-icons/ under core/). Still loading twice under mixed tags (caches only, harmless): movement.js, hand-model.js, dragonfire.js.
   - game.js split, phase 0: `node tools/troll-ops-gate.mjs` (parse, every mode, bot movement, both room tests; ~12 min, `--quick` skips the room tests) is the pre-push gate; `core/state.js` is the home for shared state as systems move out; session rules in CLAUDE.md. Nothing moved yet.
   - Bot host = the oldest LIVE client (net.hostId: a state message in the last 15 s, not flagged slow); a stuck or hidden tab no longer freezes everyone's bots or sets the room's map.
 

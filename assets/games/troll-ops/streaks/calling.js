@@ -8,7 +8,7 @@ import { KillstreakUi } from "../killstreak-ui.js?v=to-medals3";
 import { XP_SCALE } from "../progression.js?v=p5-wst-sb2";
 import { Achievements } from "../achievements.js?v=umb1-wst-sb2";
 import { VsatSatellite, BlastFx } from "../streak-entities.js?v=vsat2-hk1";
-import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1";
+import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1";
 import * as THREE from "three";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2";

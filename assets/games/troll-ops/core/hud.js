@@ -257,7 +257,7 @@ export function showWaveBanner(text, ms = 1800) {
 /* The scorestreak strip: a meter toward the cheapest streak that isn't ready
    yet, then one row per selected streak. Rebuilt only when the set of rows
    changes; the meter itself is just a width. */
-const STREAK_ICON_URL = (id) => new URL(`./streak-icons/${id}.png?v=ss3`, import.meta.url).href;
+const STREAK_ICON_URL = (id) => new URL(`../streak-icons/${id}.png?v=ss3`, import.meta.url).href;
 
 export function updateStreakHud() {
   if (!game.els.ssHud) return;

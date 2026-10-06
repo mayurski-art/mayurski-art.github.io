@@ -1,22 +1,22 @@
 // Troll Forces weapons: firing, reloads, what a bullet hit, weapon switching,
 // the pickup prompt and the gear HUD.
 
-import { breakSpawnGuard } from "./damage.js?v=dm1-kc2";
+import { breakSpawnGuard } from "./damage.js?v=dm1-kc2-si1";
 import { soulBlazerShot, soulBlazerMouth } from "../soul-blazer.js?v=sb1";
 import * as THREE from "three";
 import { royale, royaleNoise, royalePickupGun, stageFrozen, royaleDropView } from "../modes/royale.js?v=md1";
 import { resolveK9 } from "../k9-unit.js?v=k9c-bs1-sb2";
-import { showHitmarker, pushKillfeed, showWaveBanner } from "../core/hud.js?v=cr1";
-import { damageStreakEntity } from "../streaks/dragonfire.js?v=sk1";
-import { damageDog } from "../streaks/k9.js?v=sk1";
+import { showHitmarker, pushKillfeed, showWaveBanner } from "../core/hud.js?v=cr1-si1";
+import { damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1";
+import { damageDog } from "../streaks/k9.js?v=sk1-si1";
 import { flinchRigFrom } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
-import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1";
-import { warshipView, toggleWarshipGun } from "../streaks/warship.js?v=sk1";
+import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1";
+import { warshipView, toggleWarshipGun } from "../streaks/warship.js?v=sk1-si1";
 import { gunDisplayName } from "../royale.js?v=p5-wst-bs1-sb2";
-import { streakControlActive, streakEntities } from "../streaks/calling.js?v=sk1";
+import { streakControlActive, streakEntities } from "../streaks/calling.js?v=sk1-si1";
 import { touchState } from "../input/touch.js?v=in1";
-import { packageCaptureTime } from "../streaks/fire.js?v=sk1";
-import { claimPackage } from "../streaks/air.js?v=sk1";
+import { packageCaptureTime } from "../streaks/fire.js?v=sk1-si1";
+import { claimPackage } from "../streaks/air.js?v=sk1-si1";
 import { WeaponState } from "../weapons.js?v=p5bm-wst-hf1";
 import { CarePackage } from "../streak-entities.js?v=vsat2-hk1";
 import { game } from "../core/state.js?v=st1";

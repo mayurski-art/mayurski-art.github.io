@@ -2,10 +2,10 @@
 // out in front of the camera.
 
 import { gaitPhaseRate } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
-import { bar, barSipK, atPiano, piano, syncFpDrink } from "../modes/social-rp.js?v=rp1";
+import { bar, barSipK, atPiano, piano, syncFpDrink } from "../modes/social-rp.js?v=rp1-si1";
 import * as THREE from "three";
 import { hideFpEmoteProps, fpEmoteRodTip } from "../emotes.js?v=hb4-em1-wst-soc1-ng1";
-import { inspectArms, pfArms, stretchBetween } from "./weapon-view.js?v=wv1";
+import { inspectArms, pfArms, stretchBetween } from "./weapon-view.js?v=wv1-si1";
 import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1";
 import { game } from "../core/state.js?v=st1";
 

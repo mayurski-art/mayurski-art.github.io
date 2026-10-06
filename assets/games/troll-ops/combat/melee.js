@@ -2,13 +2,13 @@
 // trail, and the Keyboard Warrior's shield.
 
 import { stageFrozen, royaleDropView } from "../modes/royale.js?v=md1";
-import { breakSpawnGuard, killerPosFor } from "./damage.js?v=dm1-kc2";
+import { breakSpawnGuard, killerPosFor } from "./damage.js?v=dm1-kc2-si1";
 import * as THREE from "three";
 import { ParryState } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 import { createKeyboardRepair } from "../keyboard-repair.js?v=kr15";
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1";
 import { settings } from "../menu/settings.js?v=ms1";
-import { spawnDamageNumber } from "../core/hud.js?v=cr1";
+import { spawnDamageNumber } from "../core/hud.js?v=cr1-si1";
 import { SaberTrail } from "../trollsaber.js?v=ts4-ig1";
 import { damp } from "../anim-curves.js";
 import { game } from "../core/state.js?v=st1";

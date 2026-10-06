@@ -3,20 +3,20 @@
 
 import { royale } from "../modes/royale.js?v=md1";
 import { streaksAllowed, STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2";
-import { streakEntities, startVsat, spawnVsatSat, uavBucket, streakBlast, flyovers, killstreakUi } from "./calling.js?v=sk1";
+import { streakEntities, startVsat, spawnVsatSat, uavBucket, streakBlast, flyovers, killstreakUi } from "./calling.js?v=sk1-si1";
 import { HunterDrone, HelicopterGunship, VtolWarship, MarkerCanister, AIRSTRIKE_RADIUS, CarePackage, DRONE_SPLASH_RADIUS, AIRSTRIKE_DELAY, WARSHIP_GUNS } from "../streak-entities.js?v=vsat2-hk1";
 import { Dragonfire, DF_RANGE, DF_DAMAGE } from "../dragonfire.js?v=df3-sb2";
-import { swarmRuns, startUav, spawnRecon, applyCounterUav, streakOwnerHates, streakDamage } from "./air.js?v=sk1";
-import { dragonfireSkyCheck, round2, pickDroneTarget, spawnDrone, spawnHelicopter, spawnK9, droneWorld, rollPackageReward, strikeDelay, spawnAirstrike, spawnCarePackage } from "./fire.js?v=sk1";
+import { swarmRuns, startUav, spawnRecon, applyCounterUav, streakOwnerHates, streakDamage } from "./air.js?v=sk1-si1";
+import { dragonfireSkyCheck, round2, pickDroneTarget, spawnDrone, spawnHelicopter, spawnK9, droneWorld, rollPackageReward, strikeDelay, spawnAirstrike, spawnCarePackage } from "./fire.js?v=sk1-si1";
 import * as THREE from "three";
-import { samDeployPoint, spawnSam, spawnDragonfire, shootDownAir, airTargetPos, damageStreakEntity } from "./dragonfire.js?v=sk1";
+import { samDeployPoint, spawnSam, spawnDragonfire, shootDownAir, airTargetPos, damageStreakEntity } from "./dragonfire.js?v=sk1-si1";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1";
-import { spawnWarship, WARSHIP_BOARD_AT } from "./warship.js?v=sk1";
+import { spawnWarship, WARSHIP_BOARD_AT } from "./warship.js?v=sk1-si1";
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2";
-import { showWaveBanner } from "../core/hud.js?v=cr1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1";
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2";
-import { damageDog, dogKilledBy } from "./k9.js?v=sk1";
+import { damageDog, dogKilledBy } from "./k9.js?v=sk1-si1";
 import { SamTurret } from "../sam-turret.js?v=sam1";
 import { game } from "../core/state.js?v=st1";
 

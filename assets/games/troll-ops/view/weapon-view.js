@@ -1,13 +1,13 @@
 // The gun in your hands each frame: sway, bob, landing dip, ADS, inspect,
 // reloads (mags, shells, pumps), the rod arms, the Soul Blazer and the laser.
 
-import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2";
+import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1";
 import { AKIMBO_INSPECT_TIME } from "../akimbo-view.js?v=ak1-wst";
 import * as THREE from "three";
 import { rise, smoothstep, damp } from "../anim-curves.js";
 import { handMaterials, inkOutline } from "../hand-model.js?v=to-grip2";
 import { wristOf, buildWatch } from "../wristwear.js?v=ww1";
-import { cosmetics } from "../menu/lobby.js?v=lb1";
+import { cosmetics } from "../menu/lobby.js?v=lb1-si1";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1";
