@@ -22,11 +22,12 @@ Turning Dust Bowl into an old bazaar inside a desert city (the user ran the map 
 
 Hold every phase to: bounds, spawns and the perimeter collider unchanged; nothing solid within 3 m of the S&D sites, which must stay at A (14.48, -18.21) and B (14.37, 14.24); all 10 dustbowl walk routes passing; frame rate checked with tools/troll-ops-map-fps.mjs against a worktree of main. Every solid piece is a collider in maps.js plus the matching mesh in models/build_dustbowl.blender.py, sized from the same numbers.
 
-### Troll City roleplay, phase 2 remainder (Socialize, Troll City only)
-Phase 2a has shipped: seats, the pianist, the doctor. Still to build, in this order:
-- **2b:** sheriff + jail: badge, cuff, cells, wanted board. The courthouse geometry for the office and jail is already in.
-- **2c:** merchant + horsekeeper.
-- **2d:** train conductor.
+### Troll City roleplay, phase 2 remainder (Socialize, Troll City only): ON HOLD
+The user put this on hold on 2026-10-05; don't start it unless asked. Phase 2a has shipped: seats, the pianist, the doctor. Still to build, in this order (estimates from 2026-10-05, mostly test time):
+- **2b:** sheriff + jail (3-4 h): badge, cuff, cells, wanted board. The courthouse geometry for the office and jail is already in.
+- **2c:** merchant + horsekeeper (3-4 h). Riding horses is the big piece; saddled horses that are only led around (no riding) would save about 1.5 h.
+- **2d:** train conductor (2-4 h). A real moving train with riders is the riskiest item; a scripted ride (depart, fade out, arrive back) takes about 1 h.
+- **Not yet checked by eye:** 2a's seated bodies and the pianist's hands. The tests pass, but no screenshot was taken (a scratch screenshot script hung while loading). Look in game before building on them.
 
 Follow the 2a pattern:
 - Jobs and their wire letters go in `rp-roles.js` (`ROLES`, `rr`); spots and furniture go in `trollcity.js` (`rp.*`).
@@ -36,11 +37,32 @@ Follow the 2a pattern:
 - The NPC who normally holds that job hides via `TownNpcs.setYield`.
 - Test template: `tools/troll-ops-rp-test.mjs`.
 
-### Cops and Robbers (co-op heist, Trolling Loud only)
-- The plan is APPROVED; see `COPS-AND-ROBBERS.md`.
-- Phase 0 is done: officer bodies (`cop-bodies.js`, `cop-lab.html`, `models/build_cops.blender.py`, `cop-*.glb`) and officer mechanics: aim, run, crouch-walk, downed.
-- Next: the phases in that doc.
+### Cops and Robbers (co-op heist, Trolling Loud only): PAUSED, resume at phase 1
+- The plan is APPROVED; see `COPS-AND-ROBBERS.md` (phases and hook sites). User-facing doc v3.1: https://claude.ai/artifact/D1n9QkSTibBhGSik7hx1mW
+- Phase 0 is done and approved by the user (2026-10-04).
+  - Officer bodies: `cop-bodies.js`, `cop-lab.html`, `models/build_cops.blender.py`, `cop-*.glb`.
+  - Officer mechanics: aim, run, crouch-walk, downed.
+  - 12 officers cost about 2% frame time over 12 stick figures.
+- **Next: phase 1, the solo heist.** In order:
+  - `modes.js` entry plus a `?heist=1` reveal
+  - `heist-core.js` plus its Node test
+  - `heistLayout()` in `trollingloud.js`
+  - `BotManager.spawn` / `remove`
+  - the `game.js` hooks
+  - `heist.js` director
+  - `heist-hud.js` tracker
+  - drill, bags, van, end screens
+- Remaining size: about 11 planned sessions (phases 1-5); phase 0 ran about 3x its estimate.
+- Police are the plain human officer. Officer Grin (`cop-grin.glb`, the trollface mask) is a player cosmetic, never an enemy.
 - Bouncers there are AI enemies, separate from the Socialize NPCs.
+- How the body works:
+  - `syncCopBody(rig, rp.bodyPose)` runs after posing. `bodyPose` holds gait, lower, mps, moving, forward, strafe, ads, reload and death.
+  - Bots wear it through `bot.body = "patrol"`, sent as the `bd` wire field.
+  - Officers always fall onto their back. The rifle drops to the floor (`cop.drop`) and goes back in hand on respawn.
+  - character.js is untouched; never "fix" the rig for trolls.
+- Rig quirks the officer body works around:
+  - The stick rig leans BACK 7-10 degrees in a run and a crouch; the officer cancels it with `rigBack`.
+  - The rig turns its neck and head AGAINST the aim pitch; `syncCopBody` flips it for real heads.
 
 ### Zombies (ZR4 done): gotchas
 - **One mesh per zombie:** build_zombies.blender.py `atlas_merge` joins every part onto a 2048x1024 atlas (skin = left half, cloth/mask 512 cells, shoes/teeth/eyes 256). The per-zombie tint only touches u < 0.5 (zombie-models.js `skinTinted`); a new part must get a cell, not its own material.
@@ -158,8 +180,8 @@ The user said "HOLD OFF" until they say go.
 - Teams show as Trolls (phantom) and Jeets (ghost).
 
 **Hands**
-- Only gloves ON (tactical) or OFF (black PF rods); "we're not using white hands".
-- No first-person hands on guns. With gloves off, the rods act out first-person emotes.
+- First-person arms are the black PF rods only (gloves were removed 2026-10-05); "we're not using white hands".
+- No first-person hands on guns. The rods act out first-person emotes; a held prop sits where a hand would hold it and the rod tip touches it (lean-cup.js rodTip).
 
 **HUD**
 - No control/key hints while playing. The one exception is Royale's pulsing X / "D-pad →" pickup keycap and the hold-X keycap prompts (bar, DJ).
@@ -325,7 +347,6 @@ Map rules:
   - Green Candles: `chargedShotDef`
   - melee meshes need `userData.meleeId`
   - gear.js `basisPointing` is a mirrored basis on purpose
-  - glove poses are cached by NAME
 - **Royale:**
   - royale.js: zone, loot, seeded rng; royale-drop.js: lobby, bus, glider
   - seed = hash(room:matchesPlayed), adopted from the stage owner's `sd`
@@ -376,6 +397,7 @@ Map rules:
 - game.js skips the arena render while `body.to-bo2-cover` is set. If the lobby is black behind a screen, that class is why.
 - `menu-bo2.js` drives the old lobby by clicking its hidden buttons; new weapons, modes and maps appear automatically.
 - Perf: real lights recompile every lit shader, double-sided mist and shadowed woods kill fps, and the first view measured reads low.
+- Headless tests: launch with `--use-angle=d3d11`. This Chromium rejects `--use-gl=swiftshader` and falls back to software rendering, where a multi-tab match takes about 20 s per screenshot (it looks hung, or runs out of memory).
 - Concurrency: other sessions share the main checkout. Commit work in progress early (an autostash once swallowed a session's edits).
 
 ---
@@ -436,7 +458,8 @@ Map rules:
 - `custom-guns-test`
 - `guest-progress-test`
 - `zombie-test`
-- `cop-ingame`
+- `cop-ingame` (12 officers in a real Trolling Loud match, downed and respawn)
+- `cop-body-test` (lab pose sweep: hands on the gun, feet on the floor)
 
 **Known pre-existing failures**
 - bot-moves "every kind of throwable" (the Firebomb was removed)
@@ -450,6 +473,7 @@ Map rules:
 - `static-serve.mjs [port]`
 - `hero-preview.html`
 - `troll-ops-beatgrid.mjs`
+- `troll-ops-cop-shots.mjs` (officer pose contact sheets: POSES, YAW, T, CAM, FOCUS, EVAL)
 - `troll-ops-grinleria-layout.mjs`
 
 ---
@@ -457,6 +481,9 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-05**
+  - Gloves removed (setting, model, every glove branch); gun-hold rods start further out so more arm shows; the first-person Rolex sits on the left rod (game.js placeRodWatch).
+  - Rolex wristwear cosmetic (Cosmetics > Wrist; face key 4th part; wristwear.js) and the Pour up lean emote (emote 17, lean-cup.js; cup, ice, Sprite bottle, pour, swirl, sip; others see it). Also fixed the BO2 menu option screens (Face, Face colour, Hero never opened). Test: tools/troll-ops-lean-test.mjs.
+  - BO2 medal art (placeholder until the user's troll versions): medals/<name>.png, swap a file and bump MEDAL_ART_V in medals.js.
   - Dust Bowl bazaar phase 1: a city outside the wall (ring houses, blocks out to ~175 m, mosque, minarets, water towers, poles, palms) and mountains, built at load by dustbowl-city.js (no download, no colliders, no shadows); city-wall towers and sealed gates (db-perimeter.glb renamed db-walls.glb); viewFar 440.
   - Soul Blazer hellfire shotgun (rank 0): Blender model (models/build_soulblazer.blender.py), swinging charms, jaw, flank-skull shell counter, fire FX, port-load relight reload, bespoke admire (soul-blazer.js). Remote relight isn't networked. Test: tools/troll-ops-soulblazer-test.mjs.
   - Trolling Loud Socialize crowd: 119 club NPCs, including bouncers, the door line, bartenders, the go-go and dancers on the beat, VIP booths, the mezzanine, terrace and roof. New `phone` act, the `guard` arms now fold, and the terrace armchairs face their table. Test: tools/troll-ops-club-crowd-test.mjs.

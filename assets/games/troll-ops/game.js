@@ -36,7 +36,7 @@ import { openProfileCard } from "./profile-card.js?v=pc1-wst-sb2";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1-ng1";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2";
 import { ROLES, roleCode, DOCTOR, poseSeated, posePianoArms, PianoVoice, TUNES } from "./rp-roles.js?v=rp1";
@@ -10822,10 +10822,9 @@ function followsHostMap(m) {
   if (!m.map || !MAPS[m.map] || m.mode !== modeId || !isPvp()) return false;
   const mode = currentMode();
   if (mode.forceMap || mode.mapPool) return false;
-  const p = net.peers.get(m.id);
-  if (!p) return false;
-  const since = p.since || 0;
-  return since < net.since || (since === net.since && m.id < net.id);
+  // The host's map, not just any older player's: a tab stuck on its loading
+  // screen used to drag everyone onto its map (net.hostId).
+  return net.peers.has(m.id) && net.hostId() === m.id;
 }
 
 async function startGame() {

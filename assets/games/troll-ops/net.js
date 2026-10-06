@@ -37,6 +37,12 @@ const CROWD_BOTS = 24;
 const FLUSH_MS = 50;
 const BATCH_MAX = 160;
 const PEER_TIMEOUT = 5000;
+// isBotHost: a state message this recent counts as running the match (long
+// enough that the host loading the next map, a little slower than someone
+// else, keeps the role), and a tab averaging frames slower than
+// SLOW_FRAME_MS can't run the bots for anyone.
+const LIVE_MS = 15000;
+const SLOW_FRAME_MS = 250;
 const HANDSHAKE_SETTLE = 700;
 
 class BroadcastTransport {
@@ -291,6 +297,8 @@ export class Net {
       }
       case "state": {
         const p = this.peer(m.id);
+        p.stateAt = performance.now();
+        p.slow = !!m.sl;
         p.team = m.tm || p.team;
         p.name = m.n || p.name;
         p.hp = m.hp;
@@ -461,11 +469,20 @@ export class Net {
   /* Called every frame by the game with the local player's snapshot. */
   update(dt, local) {
     if (!this.connected) return;
+    // How often this tab really gets a frame (dt arrives clamped, so it
+    // can't tell): a hidden pane ticking once a second is "slow", says so on
+    // the wire, and stops counting for the bot host (isBotHost).
+    const now = performance.now();
+    const gap = this._frameAt ? Math.min(5000, now - this._frameAt) : 16;
+    this._frameAt = now;
+    this._frameMs = (this._frameMs ?? 16) + (gap - (this._frameMs ?? 16)) * 0.1;
     this._acc += dt;
     if (this._acc >= 1 / STATE_HZ) {
       this._acc = 0;
+      this._stateAt = now;
       this.send({
         t: "state", id: this.id,
+        sl: this.isSlow() ? 1 : undefined,
         x: round2(local.x), y: round2(local.y), z: round2(local.z),
         ry: round2(local.yaw), rp: round2(local.pitch),
         st: local.stance, mv: local.moving ? 1 : 0,
@@ -491,6 +508,8 @@ export class Net {
     this.prune();
   }
 
+  isSlow() { return (this._frameMs ?? 16) > SLOW_FRAME_MS; }
+
   /* Drop peers we haven't heard from. update() does this every frame; the
      map loading screen calls it on its own, since it sends no state. */
   prune() {
@@ -508,7 +527,20 @@ export class Net {
      set spawned (in Troll Royale, 99 new bots on the ground mid-match). A
      peer whose join time we haven't heard yet counts as the older one. */
   isBotHost() {
-    if (!this.connected) return true;
+    return !this.connected || this.hostId() === this.id;
+  }
+
+  /* The room's host, us included: the client that runs the bots and whose
+     map the room plays. Live = in a match and running it (a state message
+     in the last LIVE_MS, not flagged slow). A tab stuck on the
+     loading screen (its "ready" pings kept it in the room) or hidden and
+     ticking once a second was the oldest one there, so it held the bots for
+     everyone: they stood still, and the room got its map (user, 2026-10-05).
+     A live client beats one that isn't; between equals, the oldest as
+     before. While everyone is loading nobody is live, so that's unchanged. */
+  hostId() {
+    const now = performance.now();
+    let best = { id: this.id, since: this.since, live: now - (this._stateAt || 0) < LIVE_MS && !this.isSlow() };
     for (const [id, p] of this.peers) {
       // Bots live in this map too, and their ids would otherwise make the
       // host conclude it isn't the host and drop its own bots. Scorestreak
@@ -516,10 +548,10 @@ export class Net {
       // simulated by whoever called them, so they are not operators either —
       // miss them here and calling a streak silently flips host election.
       if (isSyntheticId(id)) continue;
-      const since = p.since || 0;
-      if (since < this.since || (since === this.since && id < this.id)) return false;
+      const c = { id, since: p.since || 0, live: now - (p.stateAt || 0) < LIVE_MS && !p.slow };
+      if (c.live !== best.live ? c.live : c.since < best.since || (c.since === best.since && id < best.id)) best = c;
     }
-    return true;
+    return best.id;
   }
 
   /* Broadcast a bot as if it were a player, and mirror it into our own peer
