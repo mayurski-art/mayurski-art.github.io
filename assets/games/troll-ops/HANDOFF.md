@@ -115,6 +115,9 @@ The user said "HOLD OFF" until they say go.
 - **Animated weapon skins** with effects coming off them.
 - **"For You" emote:** only while falling in Royale. The troll reaches out a hand romantically, with face, hand, body and background shots.
 
+### Trolling Loud: make the seats sittable (user asked 2026-10-05)
+The club's booths and couches (downstairs, the mezzanine ones upstairs, VIP, terrace armchairs) are scenery only: trollingloud.js `rp` has no `seats()`, so hold X never offers "Sit down" there. Add them the way Troll City does (`{x, z, y, floor, yaw, kind, stand}`). Note that `if (seated && emote) standUp()` in game.js stands you up for any emote, so Pour up can't be done sitting yet; the 2026-10-05 booth GIF faked a seat in the recording script only.
+
 ### Backlog (needs a design doc / the user's go first)
 - **Audio + dialogue pass.** BO2 cadence (streak callouts, match flow, objectives, medals, chatter, Royale lines) in a troll voice, with original wording. The doc must decide:
   - TTS vs recorded
