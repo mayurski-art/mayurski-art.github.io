@@ -484,6 +484,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-06**
+  - game.js split, phase 1a: touch, gamepad and aim assist moved to input/ (touch.js, gamepad.js, aim-assist.js) by `tools/troll-ops-split.mjs`; modules reach game.js through `game.X` (core/state.js, filled by game.js's linkGame table, never by importing game.js). New gate step: tools/troll-ops-input-test.mjs (fake pad + touch, every control).
   - game.js split, phase 0: `node tools/troll-ops-gate.mjs` (parse, every mode, bot movement, both room tests; ~12 min, `--quick` skips the room tests) is the pre-push gate; `core/state.js` is the home for shared state as systems move out; session rules in CLAUDE.md. Nothing moved yet.
   - Bot host = the oldest LIVE client (net.hostId: a state message in the last 15 s, not flagged slow); a stuck or hidden tab no longer freezes everyone's bots or sets the room's map.
 

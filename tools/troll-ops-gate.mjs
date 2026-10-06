@@ -8,13 +8,15 @@
 //   2. modes    one headless page plays a short match in every mode with no
 //               page errors
 //   3. bots     on three maps, every bot covers ground (the frozen-bot class)
-//   4. rooms    tools/troll-ops-sync-test.mjs and troll-ops-load-sync-test.mjs
+//   4. input    tools/troll-ops-input-test.mjs: a fake pad and touch screen
+//               press every control once
+//   5. rooms    tools/troll-ops-sync-test.mjs and troll-ops-load-sync-test.mjs
 //
 // Supabase is blocked throughout: a test page must never join the live
 // public room (a hidden test tab once became its bot host and froze the
 // bots for real players).
 //
-// Usage: node tools/troll-ops-gate.mjs [--quick]   (--quick skips 4)
+// Usage: node tools/troll-ops-gate.mjs [--quick]   (--quick skips 5)
 
 import http from "node:http";
 import fs from "node:fs";
@@ -157,7 +159,16 @@ for (const mapId of ["trollcity", "hollowgrin", "dustbowl"]) {
 await browser.close();
 server.close();
 
-// ---------------------------------------------------------------- 4. rooms
+// ---------------------------------------------------------------- 4. input
+console.log("\n== input");
+{
+  const r = spawnSync(process.execPath, [path.join(ROOT, "tools", "troll-ops-input-test.mjs")], { cwd: ROOT, encoding: "utf8", timeout: 600000 });
+  const out = `${r.stdout || ""}${r.stderr || ""}`;
+  const fails = out.split("\n").filter((l) => l.startsWith("FAIL"));
+  check("troll-ops-input-test.mjs", r.status === 0 && fails.length === 0, fails.slice(0, 3).join(" | ") || (r.status !== 0 ? `exit ${r.status}` : ""));
+}
+
+// ---------------------------------------------------------------- 5. rooms
 if (!QUICK) {
   console.log("\n== rooms");
   for (const t of ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs"]) {

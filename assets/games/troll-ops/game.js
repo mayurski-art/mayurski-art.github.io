@@ -98,6 +98,82 @@ import {
   HellfireFx, updateSoulBlazerView, soulBlazerShot, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth,
   soulBlazerInspect, soulBlazerReloadPose, SB_INSPECT_CUES,
 } from "./soul-blazer.js?v=sb1";
+import { AIM_ASSIST_MOUSE_PULL, AIM_ASSIST_MOUSE_SLOWDOWN, MOUSE_ACTIVE_MS, aimAssistPoints, applyAimAssist, findAimAssistTarget } from "./input/aim-assist.js?v=in1";
+import { game, linkGame } from "./core/state.js?v=st1";
+import { PAD_SENS_MULT, PAD_SENS_NAMES, padLookTurn, pollGamepad, pollGamepadMenu, radialStick } from "./input/gamepad.js?v=in1";
+import { setTouchAds, touchState, initTouch } from "./input/touch.js?v=in1";
+/* What the split-out modules reach back into game.js for (see core/state.js).
+   Functions go in as they are; everything else as a getter, so nothing is
+   read before game.js declares it. game.js only ever gets smaller: an
+   entry leaves this list when the thing it names moves out. */
+linkGame({
+  get aimAssistSticky() { return aimAssistSticky; }, set aimAssistSticky(v) { aimAssistSticky = v; },
+  get baseFov() { return baseFov; },
+  calibratePadRest,
+  callReadyStreak,
+  get camera() { return camera; },
+  carriedThrowSlot,
+  closePauseMenu,
+  get colliders() { return colliders; },
+  get controls() { return controls; },
+  currentMode,
+  currentWeapon,
+  cycleSelectedStreak,
+  cycleSpectate,
+  cycleWeapon,
+  dragonfireView,
+  get duoXClaimed() { return duoXClaimed; },
+  get els() { return els; },
+  get emoteWheel() { return emoteWheel; },
+  get fireEdgeTrigger() { return fireEdgeTrigger; }, set fireEdgeTrigger(v) { fireEdgeTrigger = v; },
+  get gamepadState() { return gamepadState; },
+  get gameState() { return gameState; },
+  get gpDebugEl() { return gpDebugEl; },
+  get gpDebugForced() { return gpDebugForced; },
+  get gpIndex() { return gpIndex; }, set gpIndex(v) { gpIndex = v; },
+  get gpPrev() { return gpPrev; }, set gpPrev(v) { gpPrev = v; },
+  heroActive,
+  isSnd,
+  isStaging,
+  get killcam() { return killcam; },
+  learnPadRest,
+  get localPauseOnly() { return localPauseOnly; },
+  get look() { return look; },
+  get markingStreak() { return markingStreak; },
+  get matchIntro() { return matchIntro; },
+  get move() { return move; },
+  nearbyPackage,
+  get net() { return net; },
+  occupants,
+  openPauseMenu,
+  get padRest() { return padRest; },
+  pickPad,
+  get pickups() { return pickups; },
+  get player() { return player; },
+  get rangeSet() { return rangeSet; },
+  releaseCook,
+  renderGpDebug,
+  royaleSpectating,
+  get settings() { return settings; },
+  skipKillcam,
+  get sndCanInteract() { return sndCanInteract; },
+  get spawner() { return spawner; },
+  startCook,
+  startInspect,
+  streakControlActive,
+  get streakEnd() { return streakEnd; },
+  get strikeTablet() { return strikeTablet; },
+  swingMelee,
+  toggleThirdPerson,
+  toggleWarshipGun,
+  get touchState() { return touchState; },
+  tryReload,
+  trySwivel,
+  useHeroAbility,
+  useSelectedStreak,
+  warshipView,
+  get zdir() { return zdir; },
+});
 
 /* Maps download once (user, 2026-10-04): /sw.js keeps the game's models,
    textures and three.js in the browser so a map isn't fetched again every
@@ -6773,547 +6849,10 @@ document.addEventListener("dragstart", (e) => e.preventDefault());
 document.addEventListener("selectstart", (e) => { if (!typingField(e.target)) e.preventDefault(); });
 document.addEventListener("contextmenu", (e) => { if (!typingField(e.target)) e.preventDefault(); });
 
-// -------------------- touch controls --------------------
+initTouch();
 
-const touchState = {
-  moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, looking: false,
-  firing: false, ads: false, jump: false,
-  crouch: false, dive: false, interact: false, swap: false, endStreak: false,
-};
-
-/* `zone`: a touch anywhere in it moves the stick under the thumb first
-   (a floating stick), and it springs back to its rest spot on release. */
-function bindStick(el, nub, zone = null) {
-  let active = false, startX = 0, startY = 0, id = null;
-  const begin = (e) => {
-    if (active) return;
-    const t = e.changedTouches[0];
-    active = true; id = t.identifier; startX = t.clientX; startY = t.clientY;
-    if (zone && e.currentTarget === zone) {
-      const box = el.offsetParent.getBoundingClientRect();
-      el.style.left = `${t.clientX - box.left - el.offsetWidth / 2}px`;
-      el.style.top = `${t.clientY - box.top - el.offsetHeight / 2}px`;
-      el.style.bottom = "auto";
-      el.classList.add("is-floating");
-    }
-    el.classList.add("is-active");
-  };
-  el.addEventListener("touchstart", begin, { passive: true });
-  zone?.addEventListener("touchstart", begin, { passive: true });
-  const move = (e) => {
-    if (!active) return;
-    for (const t of e.changedTouches) {
-      if (t.identifier !== id) continue;
-      let dx = t.clientX - startX, dy = t.clientY - startY;
-      const max = 40;
-      dx = Math.max(-max, Math.min(max, dx));
-      dy = Math.max(-max, Math.min(max, dy));
-      touchState.moveX = dx / max;
-      touchState.moveY = dy / max;
-      if (nub) nub.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-    }
-  };
-  const end = (e) => {
-    for (const t of e.changedTouches) {
-      if (t.identifier !== id) continue;
-      active = false; touchState.moveX = 0; touchState.moveY = 0;
-      if (nub) nub.style.transform = "translate(-50%,-50%)";
-      el.style.left = el.style.top = el.style.bottom = "";
-      el.classList.remove("is-floating", "is-active");
-    }
-  };
-  for (const target of zone ? [el, zone] : [el]) {
-    target.addEventListener("touchmove", move, { passive: true });
-    target.addEventListener("touchend", end);
-    target.addEventListener("touchcancel", end);
-  }
-}
-bindStick(els.touchMove, els.touchMoveNub, els.touchMoveZone);
-
-/* Touch look, tuned toward CoD Mobile's default feel: a much livelier base
-   rate than the old flat 0.0028 rad/px (which also ignored the Sensitivity
-   slider entirely), a little acceleration so a fast flick covers a turn
-   without a second swipe while slow drags stay precise, and a lower rate
-   while aiming down sights so the scope doesn't feel twitchy. */
-const TOUCH_BASE_SENS = 0.0065;   // rad per CSS px at 100% sensitivity, hip-fire
-const TOUCH_ACCEL_START = 0.6;    // px/ms before acceleration kicks in
-const TOUCH_ACCEL_MAX = 1.6;      // cap on the flick multiplier
-function touchLookGain(dx, dy, dtMs) {
-  const speed = Math.hypot(dx, dy) / Math.max(dtMs, 4);
-  const accel = Math.min(TOUCH_ACCEL_MAX, 1 + Math.max(0, speed - TOUCH_ACCEL_START) * 0.5);
-  const adsScale = 1 - (currentWeapon()?.adsT || 0) * 0.4;
-  return TOUCH_BASE_SENS * (settings.sens / 100) * accel * adsScale;
-}
-function addTouchLook(t, last) {
-  const now = performance.now();
-  const dx = t.clientX - last.x, dy = t.clientY - last.y;
-  const g = touchLookGain(dx, dy, now - last.t);
-  touchState.lookDX += dx * g;
-  touchState.lookDY += (settings.invert ? -1 : 1) * dy * g;
-  last.x = t.clientX; last.y = t.clientY; last.t = now;
-}
-
-(function bindLook() {
-  let id = null;
-  const last = { x: 0, y: 0, t: 0 };
-  els.touchLook.addEventListener("touchstart", (e) => {
-    const t = e.changedTouches[0];
-    id = t.identifier; last.x = t.clientX; last.y = t.clientY; last.t = performance.now();
-    touchState.looking = true;
-  }, { passive: true });
-  els.touchLook.addEventListener("touchmove", (e) => {
-    for (const t of e.changedTouches) if (t.identifier === id) addTouchLook(t, last);
-  }, { passive: true });
-  const end = (e) => {
-    for (const t of e.changedTouches) if (t.identifier === id) { id = null; touchState.looking = false; }
-  };
-  els.touchLook.addEventListener("touchend", end);
-  els.touchLook.addEventListener("touchcancel", end);
-})();
-
-function bindHold(el, onDown, onUp) {
-  el.addEventListener("touchstart", (e) => { e.preventDefault(); el.classList.add("is-held"); onDown(); }, { passive: false });
-  el.addEventListener("touchend", (e) => { e.preventDefault(); el.classList.remove("is-held"); onUp(); });
-  el.addEventListener("touchcancel", () => { el.classList.remove("is-held"); onUp(); });
-}
-/* Two fire buttons (right thumb, and a left one for firing while you
-   steer), so firing is a count of thumbs down, not a flag either can clear
-   for the other. The right one also aims while held: drag it like the look
-   pad, the way CoD Mobile's fire button works. */
-let firingThumbs = 0;
-const fireDown = () => { firingThumbs++; touchState.firing = true; };
-const fireUp = () => { firingThumbs = Math.max(0, firingThumbs - 1); touchState.firing = firingThumbs > 0; };
-bindHold(els.touchFire, fireDown, fireUp);
-if (els.touchFireL) bindHold(els.touchFireL, fireDown, fireUp);
-/* A held button that also aims: drag it like the look pad. Fire, and the
-   throwable (user: free look up and down while holding a grenade). */
-function dragAims(el) {
-  if (!el) return;
-  let id = null;
-  const last = { x: 0, y: 0, t: 0 };
-  el.addEventListener("touchstart", (e) => {
-    const t = e.changedTouches[0];
-    id = t.identifier; last.x = t.clientX; last.y = t.clientY; last.t = performance.now();
-  }, { passive: true });
-  el.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-    for (const t of e.changedTouches) {
-      if (t.identifier !== id) continue;
-      addTouchLook(t, last);
-      touchState.looking = true;
-    }
-  }, { passive: false });
-  const end = (e) => { for (const t of e.changedTouches) if (t.identifier === id) { id = null; touchState.looking = false; } };
-  el.addEventListener("touchend", end);
-  el.addEventListener("touchcancel", end);
-}
-dragAims(els.touchFire);
-/* AIM is a tap toggle, like CoD Mobile's default: tap to scope in, tap
-   again to come out, so the right thumb stays free to aim and shoot. */
-function setTouchAds(on) {
-  touchState.ads = on;
-  els.touchAds.classList.toggle("is-on", on);
-  els.touchAds.setAttribute("aria-pressed", String(on));
-}
-els.touchAds.addEventListener("touchstart", (e) => { e.preventDefault(); setTouchAds(!touchState.ads); }, { passive: false });
-bindHold(els.touchJump, () => touchState.jump = true, () => touchState.jump = false);
-bindHold(els.touchSlide, () => touchState.crouch = true, () => touchState.crouch = false);
-els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); tryReload(); });
-els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); swingMelee(); });
-// Touch cooks for as long as the button is held, same as the key.
-bindHold(els.touchNade, () => startCook("lethal"), () => releaseCook());
-dragAims(els.touchNade);
-if (els.touchTac) bindHold(els.touchTac, () => startCook("tactical"), () => releaseCook());
-dragAims(els.touchTac);
-bindHold(els.touchInteract, () => touchState.interact = true, () => touchState.interact = false);
-bindHold(els.touchSwap, () => { touchState.swap = true; if (warshipView()) toggleWarshipGun(); }, () => touchState.swap = false);
-// Admire (inspect) the gun or melee in your hands, the T key on a keyboard.
-els.touchAdmire?.addEventListener("touchstart", (e) => { e.preventDefault(); startInspect(); }, { passive: false });
-// A tap, not a hold — and it doubles as the confirm for a marked spot, the
-// same way the key and the d-pad do.
-if (els.touchEndStreak) bindHold(els.touchEndStreak, () => { touchState.endStreak = true; }, () => { touchState.endStreak = false; });
-if (els.touchStreak) {
-  els.touchStreak.addEventListener("touchstart", (e) => { e.preventDefault(); if (heroActive()) useHeroAbility(); else callReadyStreak(); });
-}
-// Emotes on touch: tap to open the wheel (its slices are plain buttons
-// without pointer lock), tap a slice to play it, tap EMOTE again to shut it.
-// Duo invites are accepted by holding X, same as the key.
-if (els.touchEmote) {
-  els.touchEmote.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    if (emoteWheel.isOpen) emoteWheel.close(true);
-    else if (gameState === "playing" && player.alive) emoteWheel.open();
-    els.touchEmote.setAttribute("aria-expanded", String(emoteWheel.isOpen));
-  }, { passive: false });
-}
-
-// -------------------- gamepad --------------------
-
-/* Stick look, built like Black Ops 2's (user: "smooth like BO2"). The old
-   look was stick × one flat speed with a square per-axis deadzone, so a
-   small push already turned fast and diagonals snapped to an axis. BO2's
-   feel comes from five things together:
-   - a small ROUND deadzone, rescaled so the first bit past it starts at 0
-     (no jump the moment the stick leaves centre)
-   - a response curve: half a push is a quarter speed, so small corrections
-     are fine and a full push is still quick
-   - pitch turns slower than yaw (CoD's turn rates are about 0.6 : 1)
-   - a turn boost: hold the stick at the rim and the yaw ramps up after a
-     beat, so you can whip round without a high sensitivity (hip only)
-   - ADS drops the rate, and a scope's zoom drops it further
-   The 1–14 ladder is BO2's, 3 (Medium) its default. */
-const PAD_SENS_MULT = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.3, 3.6, 4];
-const PAD_SENS_NAMES = { 1: "Low", 3: "Medium", 5: "High", 7: "Very High", 9: "Insane" };
-const PAD_LOOK_DEADZONE = 0.1;
-const PAD_MOVE_DEADZONE = 0.18;
-const PAD_CURVE = 2;                                      // magnitude ^ this
-const PAD_YAW_RATE = THREE.MathUtils.degToRad(170);       // full push at Medium, hip
-const PAD_PITCH_RATE = THREE.MathUtils.degToRad(105);
-const PAD_ADS_RATE = 0.55;                                // hip -> iron sights
-const PAD_BOOST = 1.7;                                    // yaw x at the rim, fully ramped
-const PAD_BOOST_EDGE = 0.95;                              // how far out counts as the rim
-const PAD_BOOST_DELAY = 0.15;                             // s at the rim before it starts
-const PAD_BOOST_RAMP = 0.35;                              // s to ramp to the full boost
-const PAD_SMOOTH = 0.025;                                 // s, irons out stick jitter only
-let padRimT = 0, padLookX = 0, padLookY = 0;
-
-/* Round deadzone, rescaled: returns [x, y, magnitude] with magnitude 0..1. */
-function radialStick(x, y, dz) {
-  const m = Math.hypot(x, y);
-  if (m <= dz) return [0, 0, 0];
-  const n = Math.min(1, (m - dz) / (1 - dz));
-  return [(x / m) * n, (y / m) * n, n];
-}
-
-/* The look turn for this frame (radians) from the right stick. */
-function padLookTurn(x, y, mag, dt) {
-  const w = currentWeapon();
-  const adsT = w?.adsT || 0;
-  // Zoom past the plain iron sights (scopes) slows it in step with the FOV.
-  const zoom = Math.min(1, camera.fov / (baseFov * 0.78));
-  const ads = (1 - (1 - PAD_ADS_RATE) * adsT) * (adsT > 0.5 ? zoom : 1);
-  const sens = (PAD_SENS_MULT[(settings.padSens | 0) - 1] ?? 1) * ads;
-
-  const shaped = mag > 0 ? Math.pow(mag, PAD_CURVE) / mag : 0;
-  let cx = x * shaped, cy = y * shaped;
-
-  // Turn boost: mostly-sideways push at the rim, not aiming down sights.
-  if (mag >= PAD_BOOST_EDGE && Math.abs(x) > 0.7 && adsT < 0.3) padRimT += dt;
-  else padRimT = 0;
-  const boost = 1 + (PAD_BOOST - 1) * THREE.MathUtils.clamp((padRimT - PAD_BOOST_DELAY) / PAD_BOOST_RAMP, 0, 1);
-
-  // A very light low-pass, short enough not to read as lag; a released
-  // stick still stops dead because the target is exactly 0.
-  const k = 1 - Math.exp(-dt / PAD_SMOOTH);
-  padLookX += (cx - padLookX) * k;
-  padLookY += (cy - padLookY) * k;
-  if (!cx && Math.abs(padLookX) < 1e-3) padLookX = 0;
-  if (!cy && Math.abs(padLookY) < 1e-3) padLookY = 0;
-
-  return [padLookX * PAD_YAW_RATE * sens * boost * dt, padLookY * PAD_PITCH_RATE * sens * dt];
-}
-
-/* Aim assist — a soft rotational pull toward whatever is already near the
-   crosshair, the way GTA5's "assisted aim" (not the full auto-lock option)
-   nudges an aim rather than replacing it. It runs on every input, but only
-   while that input is actually steering: the right stick deflected, a thumb
-   on the touch look pad, or the mouse/trackpad moved in the last moment —
-   so it never drags an aim that's being held still. Mouse gets a softer
-   pull and slowdown, since a cursor is already far more precise than a
-   stick or thumb. */
-const AIM_ASSIST_CONE_DEG = 7;   // ~14° wide search cone at the default (hip) FOV
-const AIM_ASSIST_SLOWDOWN_DEG = 3.5;
-const AIM_ASSIST_RANGE = 55;
-const AIM_ASSIST_PULL = 3.4;       // rad/sec at the very centre of a lock
-const AIM_ASSIST_SLOWDOWN = 0.45;  // multiplies the player's own look turn near a target
-// Thumbs get less friction than a stick: at 0.45 tracking a strafing
-// target on the look pad felt like dragging through mud.
-const AIM_ASSIST_TOUCH_SLOWDOWN = 0.75;
-const AIM_ASSIST_MOUSE_PULL = 0.5;       // share of the full pull a mouse gets
-const AIM_ASSIST_MOUSE_SLOWDOWN = 0.72;  // gentler "sticky" for mouse turns
-const MOUSE_ACTIVE_MS = 200;             // mouse counts as steering this long after it moves
 let mouseLookAt = -Infinity;
 let aimAssistSticky = false;   // crosshair is on a target this frame (read by the mouse handler)
-const _aaOrigin = new THREE.Vector3();
-const _aaForward = new THREE.Vector3();
-const _aaToTarget = new THREE.Vector3();
-
-/* Every point assist could lock onto this frame, as chest-height world
-   positions. Players and bots come from occupants(); the zombies, wave
-   grunts and range plates each keep their own lists, and used to be left
-   out entirely, which is why assist seemed dead outside PvP. */
-function aimAssistPoints() {
-  const pts = [];
-  const ffa = currentMode().ffa;
-  for (const o of occupants()) {
-    if (o.id === net.id) continue;
-    if (!ffa && o.team === net.team) continue;
-    pts.push({ x: o.pos.x, y: o.pos.y + 1.3, z: o.pos.z });
-  }
-  const bodies = [...(zdir?.zombies || []), ...(spawner?.grunts || [])];
-  for (const e of bodies) {
-    if (!e.alive || e.dying) continue;
-    const p = e.mesh.position;
-    pts.push({ x: p.x, y: p.y + e.type.height * 0.72, z: p.z });
-  }
-  for (const t of rangeSet?.targets || []) {
-    if (t.down > 0) continue;
-    const p = t.mesh.position;
-    // the painted ring: pivot (0.9) + 34% of the 1.7 plate
-    pts.push({ x: p.x, y: p.y + 0.9 + 1.7 * 0.34, z: p.z });
-  }
-  return pts;
-}
-
-/* Best point to assist toward right now, or null. Picks whatever is closest
-   to the crosshair (not just closest in space) inside the search cone, with
-   actual line of sight. */
-function findAimAssistTarget(coneDeg = AIM_ASSIST_CONE_DEG, range = AIM_ASSIST_RANGE) {
-  camera.getWorldPosition(_aaOrigin);
-  camera.getWorldDirection(_aaForward);
-
-  // The cone is a screen-space angle, not a world one: zoomed in (lower FOV)
-  // the same enemy silhouette covers more of the screen, so the search cone
-  // has to narrow with it or assist gets stronger while ADS/scoped and
-  // weaker at hip-fire relative to what's actually on screen.
-  const fovScale = camera.fov / baseFov;
-  const cone = Math.cos(THREE.MathUtils.degToRad(coneDeg * fovScale));
-
-  let best = null, bestDot = -Infinity;
-  for (const pt of aimAssistPoints()) {
-    _aaToTarget.set(pt.x - _aaOrigin.x, pt.y - _aaOrigin.y, pt.z - _aaOrigin.z);
-    const dist = _aaToTarget.length();
-    if (dist < 0.01 || dist > range) continue;
-    _aaToTarget.multiplyScalar(1 / dist);
-
-    const dot = _aaToTarget.dot(_aaForward);
-    if (dot < cone || dot <= bestDot) continue;
-    if (segmentBlocked(colliders, _aaOrigin, pt)) continue;
-    bestDot = dot; best = { aim: pt, dot, cone };
-  }
-  return best;
-}
-
-/* Blends a rotational pull toward `target` into the look, and damps the
-   player's own stick/thumb turn when it's already close — the "sticky" half
-   GTA5 pairs with the pull. Both effects fall off with angle so the assist
-   never overrides a deliberate flick past the target. */
-function applyAimAssist(dt, strength = 1, coneDeg = AIM_ASSIST_CONE_DEG, range = AIM_ASSIST_RANGE) {
-  if (!settings.aimAssist) return;
-  const target = findAimAssistTarget(coneDeg, range);
-  if (!target) return;
-
-  camera.getWorldPosition(_aaOrigin);
-  const a = target.aim;
-  _aaToTarget.set(a.x - _aaOrigin.x, a.y - _aaOrigin.y, a.z - _aaOrigin.z).normalize();
-
-  // Desired yaw/pitch to look straight at the target, minus what we're
-  // already facing — small angular deltas pulled toward zero.
-  const desiredYaw = Math.atan2(-_aaToTarget.x, -_aaToTarget.z);
-  const desiredPitch = Math.asin(THREE.MathUtils.clamp(_aaToTarget.y, -1, 1));
-  let dYaw = desiredYaw - look.yaw;
-  while (dYaw > Math.PI) dYaw -= Math.PI * 2;
-  while (dYaw < -Math.PI) dYaw += Math.PI * 2;
-  const dPitch = desiredPitch - look.pitch;
-
-  // Pull strength eases out toward the edge of the cone rather than cutting
-  // off sharply, so entering/leaving lock doesn't feel like a snap.
-  const edge = (target.dot - target.cone) / (1 - target.cone);
-  const pull = AIM_ASSIST_PULL * strength * edge * dt;
-  look.yaw += THREE.MathUtils.clamp(dYaw, -pull, pull);
-  look.pitch += THREE.MathUtils.clamp(dPitch, -pull, pull);
-
-  const fovScale = camera.fov / baseFov;
-  const slowdownCone = Math.cos(THREE.MathUtils.degToRad(AIM_ASSIST_SLOWDOWN_DEG * fovScale));
-  if (target.dot > slowdownCone) {
-    aimAssistSticky = true;
-    gamepadState.lookDX *= AIM_ASSIST_SLOWDOWN;
-    gamepadState.lookDY *= AIM_ASSIST_SLOWDOWN;
-    touchState.lookDX *= AIM_ASSIST_TOUCH_SLOWDOWN;
-    touchState.lookDY *= AIM_ASSIST_TOUCH_SLOWDOWN;
-  }
-}
-
-let gpWheelSwallow = false;   // the A/B that worked the emote wheel isn't a jump/crouch
-const STICK_CHORD = 0.12;  // seconds a stick click waits for the other stick
-let stickChord = null, gpDt = 0;
-function pollGamepad(dt) {
-  gpDt = dt;
-  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  const gp = pickPad(pads, gpIndex);
-  if (!gp) {
-    gamepadState.connected = false;
-    // Held-button state has to clear with the pad, or unplugging mid-hold
-    // leaves `pickup` stuck on and the hold never releases.
-    gamepadState.pickup = false;
-    renderGpDebug(null);
-    return;
-  }
-  gpIndex = gp.index;
-  gamepadState.connected = true;
-  if (gpDebugForced || gp.mapping !== "standard") renderGpDebug(gp);
-  else if (gpDebugEl && !gpDebugEl.hidden) gpDebugEl.hidden = true;
-
-  if (padRest.index !== gp.index) calibratePadRest();
-  learnPadRest(gp.axes[0] || 0, gp.axes[1] || 0, dt);
-  [gamepadState.moveX, gamepadState.moveY] = radialStick((gp.axes[0] || 0) - padRest.x, (gp.axes[1] || 0) - padRest.y, PAD_MOVE_DEADZONE);
-  const [lookX, lookY, lookMag] = radialStick(gp.axes[2] || 0, gp.axes[3] || 0, PAD_LOOK_DEADZONE);
-  const [turnX, turnY] = padLookTurn(lookX, lookY, lookMag, dt);
-  gamepadState.lookDX += turnX;
-  gamepadState.lookDY += turnY * (settings.invert ? -1 : 1);
-
-  // Merely having a gamepad connected isn't "playing with a controller" — a
-  // trackpad or certain mice enumerate as a Gamepad object too, and this
-  // function used to run (and pull aim toward enemies) every frame any pad
-  // object existed, even completely idle. Assist should only ever nudge the
-  // look that the controller itself is actively driving, so it's gated on
-  // real right-stick deflection this frame, not on pad presence.
-  const usingGamepadLook = lookX !== 0 || lookY !== 0;
-  if (usingGamepadLook && player.alive && !isStaging() && !dragonfireView()) applyAimAssist(dt);
-
-  const btn = (i) => !!gp.buttons[i]?.pressed;
-  const pressedEdge = (i) => btn(i) && !gpPrev[i];
-  if (killcam.active && !player.alive && pressedEdge(0)) skipKillcam();
-  if (matchIntro.active && pressedEdge(0)) matchIntro.skip();
-  // Troll Royale, out: bumpers or the D-pad go round the players still alive.
-  if (!player.alive && royaleSpectating()) {
-    if (pressedEdge(4) || pressedEdge(14)) cycleSpectate(-1);
-    if (pressedEdge(5) || pressedEdge(15)) cycleSpectate(1);
-  }
-
-  // The strike tablet takes the pad: either stick aims, A / R2 marks,
-  // B undoes (and cancels with nothing marked). Nothing else fires.
-  if (strikeTablet?.isOpen) {
-    strikeTablet.stick(gamepadState.moveX + lookX, gamepadState.moveY + lookY, dt);
-    gamepadState.lookDX = 0; gamepadState.lookDY = 0;
-    gamepadState.moveX = 0; gamepadState.moveY = 0;
-    if (pressedEdge(0) || pressedEdge(7)) strikeTablet.place();
-    if (pressedEdge(1)) strikeTablet.undo();
-    gamepadState.firing = false; gamepadState.jump = false; gamepadState.ads = false;
-    gpPrev = {};
-    for (let i = 0; i < gp.buttons.length; i++) gpPrev[i] = btn(i);
-    return;
-  }
-
-  const firingNow = gp.buttons[7]?.value > 0.15 || btn(7);   // R2
-  if (firingNow && !gamepadState.firing) { fireEdgeTrigger = true; setTimeout(() => fireEdgeTrigger = false, 16); }
-  gamepadState.firing = firingNow;
-  gamepadState.ads = gp.buttons[6]?.value > 0.15 || btn(6);      // L2
-  gamepadState.jump = btn(0);                                     // A / cross
-  gamepadState.crouch = btn(1);                                   // B / circle
-
-  // The pause menu being open (with other people still live in the match)
-  // keeps this function running so the Start button can still resume, but
-  // every other action button must stop reaching the player's weapon/gear.
-  if (!localPauseOnly) {
-    if (pressedEdge(4)) tryReload();          // L1 -> reload (kept off fire face buttons)
-    if (pressedEdge(2)) swingMelee();         // X / square -> melee
-    // Stick clicks (user): both sticks together open the emote wheel; one
-    // alone is the swivel to that side. Decided STICK_CHORD s after the
-    // first click, so the second stick of a chord isn't read as a swivel.
-    // A single emote button can be set on the Settings controller card
-    // (controller-layout.js padEmoteButton) instead.
-    if (padEmotePressed(gp, pressedEdge)) emoteWheel.toggle(gameState === "playing" && player.alive);
-    if (!stickChord && (pressedEdge(10) || pressedEdge(11))) stickChord = { t: 0, l: false, r: false, done: false };
-    if (stickChord) {
-      stickChord.t += gpDt;
-      stickChord.l ||= btn(10);
-      stickChord.r ||= btn(11);
-      if (!stickChord.done && stickChord.l && stickChord.r) {
-        stickChord.done = true;
-        emoteWheel.toggle(gameState === "playing" && player.alive);
-      } else if (!stickChord.done && stickChord.t >= STICK_CHORD) {
-        stickChord.done = true;
-        trySwivel(stickChord.l ? -1 : 1);
-      }
-      if (stickChord.done && !btn(10) && !btn(11)) stickChord = null;
-    }
-    if (pressedEdge(3)) cycleWeapon();        // Y / triangle -> cycle primary/secondary/melee
-    // R1 -> cook whatever throwable you brought. It used to be lethal-only,
-    // so a loadout carrying a flash/smoke/EMP threw nothing on RB (user:
-    // "throwable doesn't work on controller").
-    if (pressedEdge(5)) startCook(carriedThrowSlot());
-    if (gpPrev[5] && !btn(5)) releaseCook();
-    // D-pad left does the same (NOT L1 — L1 is reload above, and one button
-    // doing both would reload every time you threw a flash).
-    if (pressedEdge(14)) startCook(carriedThrowSlot());
-    if (gpPrev[14] && !btn(14)) releaseCook();
-    if (pressedEdge(12)) startInspect();      // D-pad up -> admire the weapon
-    // Emote wheel open (both sticks, above): the right stick points at a
-    // slice instead of turning the view, Cross/A plays it, Circle/B closes.
-    // A held A or B doesn't jump or crouch.
-    if (emoteWheel.isOpen) {
-      emoteWheel.aim(gp.axes[2] || 0, gp.axes[3] || 0);
-      gamepadState.lookDX = 0; gamepadState.lookDY = 0;
-      if (pressedEdge(0)) emoteWheel.close();
-      else if (pressedEdge(1)) emoteWheel.close(true);
-      gpWheelSwallow = true;
-    }
-    if (gpWheelSwallow) {
-      if (btn(0) || btn(1)) { gamepadState.jump = false; gamepadState.crouch = false; }
-      else if (!emoteWheel.isOpen) gpWheelSwallow = false;
-    }
-    if (pressedEdge(8)) toggleThirdPerson();  // Select/View/Minus -> camera toggle
-
-    // D-pad down cycles which ready streak d-pad right will fire — a pick,
-    // not a use, since the pad has a button to spare for it and keyboard's
-    // single-button "4" doesn't need one.
-    if (pressedEdge(13)) { if (heroActive()) useHeroAbility(); else cycleSelectedStreak(); }
-    // D-pad right is context-dependent, the same way holding X already is:
-    // over a dropped weapon or a landed package, hold it to pick up/open —
-    // otherwise it fires whichever streak is currently selected. Checked
-    // here (edge-triggered) only when nothing is underfoot; the hold case is
-    // handled below by updatePickupPrompt reading gamepadState.pickup.
-    // In a streak, d-pad right is the hold-to-end (updateStreakControl).
-    // A quick tap while marking still confirms the mark, on release so a
-    // hold that's ending it never confirms on the way.
-    if (pressedEdge(15) && streakControlActive()) {
-      streakEnd.padAt = performance.now();
-      streakEnd.padShort = !!markingStreak;
-    } else if (pressedEdge(15) && !nearbyPackage() && !pickups.nearest(move.pos.x, move.pos.z)
-        && !(isSnd() && sndCanInteract) && !duoXClaimed) {
-      useSelectedStreak();
-    }
-    if (gpPrev[15] && !btn(15) && streakEnd.padAt) {
-      if (streakEnd.padShort && markingStreak && performance.now() - streakEnd.padAt < 300) useSelectedStreak();
-      streakEnd.padAt = 0;
-      streakEnd.padShort = false;
-    }
-  }
-  // D-pad right, held: the pad's equivalent of holding X for swap/pickup/
-  // open. Read as a level because all three are holds, and gated on the
-  // pause the same way every other action button is. Whether this or the
-  // edge-triggered streak-fire above actually does anything is decided by
-  // updatePickupPrompt/useSelectedStreak looking at what's underfoot, same
-  // question both ask.
-  gamepadState.pickup = !localPauseOnly && btn(15) && !streakControlActive();
-  gamepadState.endStreak = !localPauseOnly && btn(15);
-  if (pressedEdge(9)) {                     // Start/Home -> same as the on-screen gear icon
-    if (controls.isLocked) controls.unlock();
-    else openPauseMenu();
-  }
-
-  gpPrev = {};
-  for (let i = 0; i < gp.buttons.length; i++) gpPrev[i] = btn(i);
-}
-
-// Start/Home resumes from the pause menu the same way it opened it — kept
-// separate from pollGamepad since that only runs during gameState==="playing".
-let gpMenuPrev = {};
-function pollGamepadMenu() {
-  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  const gp = pickPad(pads, gpIndex);
-  if (!gp) { gpMenuPrev = {}; return; }
-  const pressed = !!gp.buttons[9]?.pressed;
-  if (pressed && !gpMenuPrev[9] && !els.pause.hidden) {
-    // A pad press isn't a gesture the browser accepts for pointer lock, so
-    // asking for one here always failed and Start never resumed. The pad
-    // doesn't need the mouse: close the menu and play.
-    closePauseMenu();
-    controls.lock();
-  }
-  gpMenuPrev = { 9: pressed };
-}
 
 // -------------------- HUD helpers --------------------
 
