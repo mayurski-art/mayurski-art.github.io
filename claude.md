@@ -52,3 +52,24 @@ same city.
 - Per-location photos, route traces, run-grouping.
 - Shareable deep links (?loc=... to open a specific pin).
 - OG tags / favicon / SEO polish.
+
+## Troll Forces (assets/games/troll-ops, troll-ops.html)
+game.js is being split into folders (core/ input/ view/ combat/ modes/
+streaks/ menu/); the plan is the "Troll Forces: splitting game.js" doc.
+These rules hold for every session that touches the game:
+1. One Troll Forces session at a time. Run `git status` before the first
+   edit; an unexplained modified file means another session is live, so
+   stop and ask.
+2. Never test in a public room. A tab that starts a match without a private
+   room code joins the live public room and can become its bot host,
+   freezing the bots for real players. Headless tests block Supabase.
+3. Run `node tools/troll-ops-gate.mjs` before every push that touches the
+   game. Red stops the push.
+4. Bump the ?v= cache tag of every module you change, and game.js's tag in
+   troll-ops.html whenever an import tag changes.
+5. A fix touches one system. Two systems = two commits, gate between them.
+6. Never `sed -i` over `*.js`: it rewrites every file's line endings.
+7. Keep assets/games/troll-ops/HANDOFF.md short: one shipped-log line per
+   landed task.
+8. New code goes in the folder that owns it, never into game.js. game.js
+   only ever gets smaller.
