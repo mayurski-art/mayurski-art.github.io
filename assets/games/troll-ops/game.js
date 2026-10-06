@@ -49,7 +49,7 @@ import {
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
 } from "./saloon-bar.js?v=sb1";
 import { TownNpcs } from "./town-npcs.js?v=tn4";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps } from "./emotes.js?v=hb4-em1-wst-soc1-lc2";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps, fpEmoteRodTip } from "./emotes.js?v=hb4-em1-wst-soc1-lc3";
 import { buildWatch, wristOf } from "./wristwear.js?v=ww1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
@@ -15260,6 +15260,7 @@ function socialArmsFrame() {
   return { R, L: hand(-1), gun: false, cam: { pitch: barSipK() * 0.06, yaw: 0 }, social: true };
 }
 
+const _emoteRodTip = new THREE.Vector3();
 function updateFpEmoteView() {
   syncFpWatches();   // cheap when nothing changed; waits for the gloves' first pose
   const f = fpEmoteFrame() || (socialUnarmed() && player.alive ? socialArmsFrame() : null);
@@ -15287,8 +15288,16 @@ function updateFpEmoteView() {
   poseFreeArms(f);
   // An emote's own props in your hands (Pour up's cup and bottle).
   const props = emoteKind() === "fp" ? EMOTES[emote.idx].fpProps : null;
-  if (props) props(streakArms, streakArms.userData.arms[0].hand, streakArms.userData.arms[1].hand, emote.t);
-  else hideFpEmoteProps();
+  if (props) {
+    props(streakArms, streakArms.userData.arms[0].hand, streakArms.userData.arms[1].hand, emote.t);
+    // Gloves off, the rods have no hand to wrap round it: each ends with its
+    // tip just touching the prop, coming in from outside (user: "the end of
+    // the arm should slightly touch the cup but the arm shouldnt be seen
+    // being inside of the cup").
+    streakArms.userData.arms.forEach((arm, i) => {
+      if (arm.rod.visible && fpEmoteRodTip(i === 0 ? 1 : -1, STREAK_SHOULDER[i], arm.hand.position, _emoteRodTip)) stretchBetween(arm.rod, STREAK_SHOULDER[i], _emoteRodTip);
+    });
+  } else hideFpEmoteProps();
   // The saloon bar's drink, in the right hand (not during an emote).
   syncFpDrink(!!f.social);
 }
@@ -15706,46 +15715,66 @@ Promise.all([buildGlove(1, weaponEnvTex), buildGlove(-1, weaponEnvTex)]).then((g
   syncFpWatches();
 });
 
-/* Your wristwear (a Rolex, wristwear.js) on the left glove: the gun-hold
-   pair and the emote pair. Sized to the glove's own cuff, measured once in
-   the glove's frame (wrist +Z, back of the hand +Y). */
+/* The glove's wrist: a short forearm in sleeve fabric from the cuff back
+   toward the elbow, filling the gap the sleeve left between itself and the
+   glove (user: "the empty gap between the wrist and arm should be filled
+   and then that's where you wear the rolex"), and your wristwear (a Rolex,
+   wristwear.js) on it, left hand only. Sized to the glove's cuff, measured
+   once in the glove's frame (wrist +Z, back of the hand +Y) after its first
+   pose: before that the baked mesh is still in the export's bind units. */
+const FOREARM_LEN = 0.11, WATCH_Z = 0.05;
+const forearmMat = new THREE.MeshStandardMaterial({ color: 0x0f110e, roughness: 0.92, metalness: 0 });
 const _fwInv = new THREE.Matrix4(), _fwV = new THREE.Vector3();
-function fitGloveWatch(g, id) {
+function measureCuff(g) {
   const root = g.root;
+  if (root.userData.cuff) return root.userData.cuff;
+  root.updateMatrixWorld(true);
+  _fwInv.copy(root.matrixWorld).invert();
+  const box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+  root.traverse((o) => {
+    if (!o.isMesh || o.isSkinnedMesh || o.userData.wristPart || !o.geometry?.attributes.position) return;
+    const p = o.geometry.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      _fwV.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld).applyMatrix4(_fwInv);
+      if (_fwV.z < 0.004 || _fwV.z > 0.03) continue;
+      box.x0 = Math.min(box.x0, _fwV.x); box.x1 = Math.max(box.x1, _fwV.x);
+      box.y0 = Math.min(box.y0, _fwV.y); box.y1 = Math.max(box.y1, _fwV.y);
+    }
+  });
+  if (!Number.isFinite(box.x0)) return null;
+  return (root.userData.cuff = { cx: (box.x0 + box.x1) / 2, cy: (box.y0 + box.y1) / 2, rx: (box.x1 - box.x0) / 2, ry: (box.y1 - box.y0) / 2 });
+}
+function dressGloveWrist(g, id) {
+  if (!g.pose) return;   // not posed yet: next frame
+  const root = g.root, c = measureCuff(g);
+  if (!c) return;
+  if (!root.userData.forearm) {
+    // a slightly flared tube, a touch inside the cuff at the wrist end
+    const geo = new THREE.CylinderGeometry(1.1, 0.94, 1, 20, 1, true);
+    geo.rotateX(Math.PI / 2);   // +Y (the flared end) toward +Z, the elbow
+    const arm = new THREE.Mesh(geo, forearmMat);
+    arm.scale.set(c.rx, c.ry, FOREARM_LEN);
+    arm.position.set(c.cx, c.cy, 0.008 + FOREARM_LEN / 2);
+    arm.frustumCulled = false;
+    arm.userData.wristPart = true;
+    root.add(arm);
+    root.userData.forearm = arm;
+  }
+  if (g.side > 0) return;   // the watch is a left-wrist thing
   if ((root.userData.watch?.userData.wristId || "") === id) return;
   if (root.userData.watch) { root.remove(root.userData.watch); root.userData.watch = null; }
   if (!id) return;
-  // Measured off the baked pose: before its first pose the mesh is still
-  // in the export's bind units. Until then, try again next frame.
-  if (!g.pose) return;
-  if (!root.userData.cuff) {
-    root.updateMatrixWorld(true);
-    _fwInv.copy(root.matrixWorld).invert();
-    const box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
-    root.traverse((o) => {
-      if (!o.isMesh || o.isSkinnedMesh || !o.geometry?.attributes.position) return;
-      const p = o.geometry.attributes.position;
-      for (let i = 0; i < p.count; i++) {
-        _fwV.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld).applyMatrix4(_fwInv);
-        if (_fwV.z < 0.004 || _fwV.z > 0.03) continue;
-        box.x0 = Math.min(box.x0, _fwV.x); box.x1 = Math.max(box.x1, _fwV.x);
-        box.y0 = Math.min(box.y0, _fwV.y); box.y1 = Math.max(box.y1, _fwV.y);
-      }
-    });
-    if (!Number.isFinite(box.x0)) return;
-    root.userData.cuff = { cx: (box.x0 + box.x1) / 2, cy: (box.y0 + box.y1) / 2, rx: (box.x1 - box.x0) / 2, ry: (box.y1 - box.y0) / 2 };
-  }
-  const c = root.userData.cuff;
-  const watch = buildWatch(id, c.rx * 1.04, { ry: c.ry * 1.04, envMap: weaponEnvTex });
-  watch.position.set(c.cx, c.cy, 0.017);
-  watch.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+  // the forearm's radius where the watch sits, plus a hair for the band
+  const k = (0.94 + (1.1 - 0.94) * ((WATCH_Z - 0.008) / FOREARM_LEN)) * 1.03;
+  const watch = buildWatch(id, c.rx * k, { ry: c.ry * k, envMap: weaponEnvTex });
+  watch.position.set(c.cx, c.cy, WATCH_Z);
+  watch.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.userData.wristPart = true; } });
   root.add(watch);
   root.userData.watch = watch;
 }
 function syncFpWatches() {
   const id = wristOf(cosmetics.face);
-  if (gloves) fitGloveWatch(gloves[1], id);
-  if (streakGloves) fitGloveWatch(streakGloves[1], id);
+  for (const g of [...(gloves || []), ...(streakGloves || [])]) if (g) dressGloveWrist(g, id);
 }
 const basisQ =(x, y, z) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
   new THREE.Vector3(...x), new THREE.Vector3(...y), new THREE.Vector3(...z)));

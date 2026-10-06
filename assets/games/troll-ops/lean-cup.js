@@ -131,17 +131,21 @@ export function buildCup() {
   g.userData.floor = floor;
   g.userData.liquid = liquid;
   g.userData.top = floor;
-  g.userData.setFill = (k) => {
+  // `sx`, `sz`: the swirl's slosh, metres the surface rises at the wall
+  // along +X / +Z. Each surface point keeps the radius of the cup's taper at
+  // its own height, so the drink never pokes through the wall.
+  g.userData.setFill = (k, sx = 0, sz = 0) => {
     liquid.visible = k > 0.01;
     if (!liquid.visible) { g.userData.top = floor; return; }
     const top = floor + (CUP.h * 0.96 - floor) * k;
-    const rT = rAt(top - CUP.stack) * 0.96, rB = rAt(floor - CUP.stack) * 0.96;
+    const rB = rAt(floor - CUP.stack) * 0.96, rim = CUP.h + CUP.stack - 0.004;
     const p = geo.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const bx = base[i * 3], by = base[i * 3 + 1], bz = base[i * 3 + 2];
-      const isTop = by > 0;
-      const r = isTop ? rT : rB;
-      p.setXYZ(i, bx * r, isTop ? top : floor, bz * r);
+      if (by <= 0) { p.setXYZ(i, bx * rB, floor, bz * rB); continue; }
+      const y = Math.min(rim, top + bx * sx + bz * sz);
+      const r = rAt(y - CUP.stack) * 0.955;
+      p.setXYZ(i, bx * r, y, bz * r);
     }
     p.needsUpdate = true;
     geo.computeBoundingSphere();
@@ -265,10 +269,24 @@ const _rootQ = new THREE.Quaternion(), _m = new THREE.Matrix4();
    radius matches the grip (the cup's outer wall, the bottle's body). `pose` is the matching hand shape (emotes.js
    FP_HAND_POSES). */
 export const GRIP = {
-  cup: { y: -0.05, z: -0.024, h: 0.072, pose: "cupgrip" },
-  bottle: { y: -0.043, z: -0.018, h: 0.085, pose: "bottlegrip" },
+  cup: { y: -0.05, z: -0.024, h: 0.072, r: 0.0385, pose: "cupgrip" },
+  bottle: { y: -0.043, z: -0.018, h: 0.085, r: 0.0325, pose: "bottlegrip" },
 };
 const _ax = new THREE.Vector3();
+const ROD_TIP = 0.0065;
+/* Does the segment from `a` to `b` (stopping just short of b) pass
+   inside the prop's surface? Sampled; props are local, a dozen samples do. */
+const _rc = new THREE.Vector3(), _rdH = new THREE.Vector3(), _rdS = new THREE.Vector3();
+function rodCuts(obj, a, b, fit, s) {
+  const rFn = obj.userData.mouth ? (y) => (y >= 0 && y <= BOTTLE.h ? BOTTLE.r : -1) : (y) => (y >= 0 && y <= CUP.h + CUP.stack ? CUP.bot + (CUP.top - CUP.bot) * Math.min(1, y / CUP.h) : -1);
+  for (let i = 1; i < 14; i++) {
+    _rc.lerpVectors(a, b, i / 15);
+    obj.worldToLocal(_rc.applyMatrix4(obj.parent.matrixWorld));
+    const r0 = rFn(_rc.y);
+    if (r0 > 0 && Math.hypot(_rc.x, _rc.z) < r0) return true;
+  }
+  return false;
+}   // the gloves-off rod's tip radius (game.js streakArms)
 /* A prop in a first-person hand: its axis through the grip, up the hand's
    ∓X (the arm frames turn the hand palm-inward, so that's up). */
 function gripPlace(obj, hand, side, fit) {
@@ -313,6 +331,28 @@ export class LeanKit {
     this.bottle.visible = s.bottle;
     if (s.bottle) gripPlace(this.bottle, handL, -1, GRIP.bottle);
     this.finish(s, t, handL, null);
+  }
+
+  /* Gloves off, the arms are bare rods with no hand (game.js): where a
+     rod from `from` (its shoulder) should end so its tip just touches the
+     prop (right: the cup, left: the bottle) at the grip, on the side where
+     the hand would be (`hand`: that hand's position) so you see it touch.
+     If the rod would cut through the prop on its way there, the touch point
+     turns toward the shoulder until it doesn't. Null when that hand isn't
+     holding anything. Same space as fp()'s `parent`. */
+  rodTip(side, from, hand, out) {
+    const obj = side > 0 ? this.cup : this.bottle, fit = side > 0 ? GRIP.cup : GRIP.bottle;
+    if (!obj.visible || !obj.parent) return null;
+    const s = obj.scale.x, rr = fit.r * s + ROD_TIP;
+    const axis = _ax.set(0, 1, 0).applyQuaternion(obj.quaternion);
+    const p = _rimW.copy(axis).multiplyScalar(fit.h * s).add(obj.position);
+    const flat = (v, o) => o.subVectors(v, p).addScaledVector(axis, -o.subVectors(v, p).dot(axis)).normalize();
+    const dHand = flat(hand, _rdH), dShoulder = flat(from, _rdS);
+    for (let k = 0; k <= 1.0001; k += 0.125) {
+      out.copy(dHand).lerp(dShoulder, k).normalize().multiplyScalar(rr).add(p);
+      if (!rodCuts(obj, from, out, fit, s)) return out;
+    }
+    return out;
   }
 
   /* A body (emotes.js poseLeanTP): the right arm reaches the cup out in
@@ -401,8 +441,11 @@ export class LeanKit {
      `below` null just under a first-person palm, in the hand's own frame. */
   finish(s, t, handL, below) {
     const cup = this.cup, u = cup.userData;
-    if (Math.abs(s.fill - this.lastFill) > 1e-4) { u.setFill(s.fill); this.lastFill = s.fill; }
-    u.liquid.rotation.set(Math.sin(s.swirlA) * 0.07 * s.swirlK, 0, Math.cos(s.swirlA) * 0.07 * s.swirlK);
+    const slosh = 0.007 * s.swirlK;
+    if (slosh > 0 || Math.abs(s.fill - this.lastFill) > 1e-4) {
+      u.setFill(s.fill, Math.cos(s.swirlA) * slosh, Math.sin(s.swirlA) * slosh);
+      this.lastFill = slosh > 0 ? -1 : s.fill;
+    }
     this.bottle.userData.setLevel(s.bottleLevel, t);
     cup.updateMatrixWorld(true);
     // Where the left hand's ice is, in the cup's frame.

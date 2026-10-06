@@ -14,7 +14,7 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 import { buildWeaponMesh } from "./weapon-model.js?v=p5-em1-wst-hf1";
-import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=hb4-em1-wst-soc1-lc2";
+import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=hb4-em1-wst-soc1-lc3";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
