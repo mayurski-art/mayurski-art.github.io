@@ -67,20 +67,28 @@ await startRange("trollsaber");
 await page.evaluate(() => window.__trollOps.setHolding("gun"));
 await sleep(600);
 await close();
-// timed in the page: a screenshot between readings would skew them
-const [f06, f15, f26] = await page.evaluate(async () => {
-  const T = window.__trollOps, at = (ms) => new Promise((r) => setTimeout(() => r(T.saberFrac()), ms));
-  T.setHolding("melee");
-  return Promise.all([at(600), at(1500), at(2600)]);
-});
-check("equip: the hilt comes up dark, then it ignites slowly", f06 === 0 && f15 > 0.05 && f15 < 0.9 && f26 >= 0.999, `0.6s ${f06?.toFixed(2)}, 1.5s ${f15?.toFixed(2)}, 2.6s ${f26?.toFixed(2)}`);
+// Watched every frame in the page, by shape rather than by the clock: the
+// headless sim runs well under real time, so wall-clock samples drift.
+// "draw": take the saber out until it's lit; "stow": switch to the gun until it's up.
+const frames = (kind) => page.evaluate(async (kind) => {
+  const T = window.__trollOps, out = [];
+  if (kind === "draw") T.setHolding("melee"); else T.switchWeapon("primary");
+  const t0 = performance.now();
+  while (performance.now() - t0 < 20000) {
+    await new Promise((r) => requestAnimationFrame(r));
+    const s = { f: T.saberFrac(), h: T.player.holding };
+    out.push(s);
+    if (kind === "draw" ? s.f >= 0.999 : s.h === "gun") break;
+  }
+  return out;
+}, kind);
+const on = await frames("draw");
+const dark = on.findIndex((s) => s.f > 0), mid = on.filter((s) => s.f > 0.05 && s.f < 0.9).length;
+check("equip: the hilt comes up dark, then it ignites slowly", on[0]?.f === 0 && dark > 2 && mid >= 3 && on.at(-1)?.f >= 0.999, `${dark} dark frames, ${mid} igniting, ${on.length} in all`);
 // Put away for the gun: it powers down in the hand first.
-await page.evaluate(() => window.__trollOps.switchWeapon("primary"));
-await sleep(300);
-const off = await page.evaluate(() => ({ frac: window.__trollOps.saberFrac(), holding: window.__trollOps.player.holding }));
-await sleep(900);
-const gone = await page.evaluate(() => window.__trollOps.player.holding);
-check("swap: the blade powers down in the hand, then the gun comes up", off.holding === "melee" && off.frac > 0 && off.frac < 0.9 && gone === "gun", `0.3s ${JSON.stringify(off)}, 1.2s ${gone}`);
+const off = await frames("stow");
+const down = off.filter((s) => s.h === "melee" && s.f > 0 && s.f < 0.9).length;
+check("swap: the blade powers down in the hand, then the gun comes up", down >= 2 && off.at(-1)?.h === "gun", `${down} frames powering down in the hand, then ${off.at(-1)?.h}`);
 if (OUT) {
   // the same again, for the eye: dark hilt, igniting, lit, powering down
   await page.evaluate(() => window.__trollOps.setHolding("melee"));
