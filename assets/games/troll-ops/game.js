@@ -124,6 +124,8 @@ import { MELEE_DRAW_TIME, MELEE_EQUIP_TIME, POWER_EQUIP_TIME, POWER_HOLSTER_TIME
 import { applyEmpState, applyRemoteNade, areaDamage, blastCandidates, botNadesThrown, botThrow, cancelCook, carriedThrowSlot, empPlayer, explosionFx, flashPlayer, grenadeCtx, grenades, nextNadeId, publishBoom, refillGear, releaseCook, startCook, stunActor, updateBlastLights, initThrowables } from "./combat/throwables.js?v=th1-kc2";
 import { currentWeapon, cycleWeapon, fireOnce, frozenPlayer, nearbyPackage, onBulletActorHit, resolveBulletTarget, setHolding, setTouchContext, switchWeapon, tryReload, updateGearHud, updatePickupPrompt } from "./combat/weapons.js?v=wp1-kc2";
 import { addMatchXp, awardKillXp, awardScore, checkMatchEnd, creditAssistIfOwed, dealtLog, lastHitRange, noteDealt, recentTeamKillers, registerDeath, updateTeamHud } from "./combat/scoring.js?v=sc1-kc2";
+import { botBusy, botObjective, noteRemoteBombAct, prepareSndRound, scoreHill, siteUnderfoot, sndAliveCounts, sndBotSite, sndDefendTeam, sndGoLive, sndLive, sndRoundWin, updateSnd } from "./modes/objectives.js?v=ob1";
+import { applyInfect, applyInfectionLoadout, botMelee, infectionCounts, infectionStarted, pickFirstInfected, resetInfection, sortInfectionBots, updateInfection } from "./modes/infection.js?v=in1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -152,12 +154,16 @@ linkGame({
   get audio() { return audio; },
   awardScore,
   get baseFov() { return baseFov; }, set baseFov(v) { baseFov = v; },
+  beginStaging,
   beginStreakHold,
   get blindT() { return blindT; }, set blindT(v) { blindT = v; },
+  get bomb() { return bomb; },
+  get bombSites() { return bombSites; },
   botBusy,
   botDealDamage,
   botEarn,
   get bots() { return bots; },
+  get botSpawn() { return botSpawn; },
   botWarshipGunner,
   get builtMap() { return builtMap; },
   get bullets() { return bullets; },
@@ -229,6 +235,7 @@ linkGame({
   get hudLayout() { return hudLayout; },
   get impactFx() { return impactFx; },
   get infectionStarted() { return infectionStarted; },
+  get infectionT() { return infectionT; }, set infectionT(v) { infectionT = v; },
   get inspector() { return inspector; },
   get inspectT() { return inspectT; }, set inspectT(v) { inspectT = v; },
   invincibleOn,
@@ -268,7 +275,8 @@ linkGame({
   get MARKER_THROW_TIME() { return MARKER_THROW_TIME; },
   get markerThrowT() { return markerThrowT; }, set markerThrowT(v) { markerThrowT = v; },
   get markingStreak() { return markingStreak; }, set markingStreak(v) { markingStreak = v; },
-  get matchClockT() { return matchClockT; },
+  get matchClockShown() { return matchClockShown; }, set matchClockShown(v) { matchClockShown = v; },
+  get matchClockT() { return matchClockT; }, set matchClockT(v) { matchClockT = v; },
   get matchesPlayed() { return matchesPlayed; },
   get matchIntro() { return matchIntro; },
   get meleeDrawT() { return meleeDrawT; }, set meleeDrawT(v) { meleeDrawT = v; },
@@ -298,6 +306,7 @@ linkGame({
   openPlayerProfile,
   openStrikeTablet,
   get padRest() { return padRest; },
+  paintMatchClock,
   get pendingDroneLaunch() { return pendingDroneLaunch; }, set pendingDroneLaunch(v) { pendingDroneLaunch = v; },
   pickPad,
   get pickups() { return pickups; },
@@ -311,6 +320,7 @@ linkGame({
   refreshLobbyMap,
   registerDeath,
   releaseCook,
+  get remoteBombAct() { return remoteBombAct; }, set remoteBombAct(v) { remoteBombAct = v; },
   get remotes() { return remotes; },
   remoteShotFx,
   renderBotSkillNote,
@@ -342,7 +352,13 @@ linkGame({
   get shakeT() { return shakeT; }, set shakeT(v) { shakeT = v; },
   showWaveBanner,
   skipKillcam,
-  get sndCanInteract() { return sndCanInteract; },
+  get sndAttackTeam() { return sndAttackTeam; }, set sndAttackTeam(v) { sndAttackTeam = v; },
+  get sndCanInteract() { return sndCanInteract; }, set sndCanInteract(v) { sndCanInteract = v; },
+  get sndClock() { return sndClock; }, set sndClock(v) { sndClock = v; },
+  get sndEliminated() { return sndEliminated; }, set sndEliminated(v) { sndEliminated = v; },
+  get sndInteractHeld() { return sndInteractHeld; },
+  get sndRound() { return sndRound; }, set sndRound(v) { sndRound = v; },
+  get sndRoundOver() { return sndRoundOver; }, set sndRoundOver(v) { sndRoundOver = v; },
   socialUnarmed,
   get SPAWN_GUARD() { return SPAWN_GUARD; },
   spawnDragonfire,
@@ -3291,415 +3307,8 @@ function botDealDamage(bot, targetId, dmg, isHead, wid) {
 let royaleCatchUp = null;
 initRoyale();
 
-// -------------------- Infection --------------------
-//
-// Nobody hosts the match: every client turns itself when it dies, and its
-// team rides out on the next state message. The one decision that has to be
-// made once is who starts infected, so the bot host (lowest id, same as for
-// bots) makes it and broadcasts an `infect` message. Every client counts
-// the sides from what it sees and ends the match itself when no survivor is
-// left, the same way score limits already work.
-
-let infectionStarted = false;
 let infectionT = 0;          // countdown to the first infection
-let infectionCalled = false; // the "first infection in..." banner
-let lastSurvivorCalled = false;
-let reinfectT = 0;           // host: grace before replacing infected who all left
-let noSurvivorsT = 0;        // how long the count has read zero survivors
-let infectionShown = "";     // last counts painted into the HUD
 
-function resetInfection() {
-  infectionStarted = false;
-  infectionT = INFECTION.firstDelay;
-  infectionCalled = false;
-  lastSurvivorCalled = false;
-  reinfectT = 0;
-  noSurvivorsT = 0;
-  infectionShown = "";
-  const inf = isInfection();
-  // The last match's bots would otherwise sit in the peer map, still on the
-  // sides they ended on, until they time out — long enough to be counted as
-  // infected in a match nobody's been infected in yet.
-  if (inf) for (const [id, p] of net.peers) if (isBotPeer(p)) { remotes.byId.get(id)?.dispose(); remotes.byId.delete(id); net.peers.delete(id); }
-  els.namePhantom.textContent = inf ? "Survivors" : TEAMS.phantom.name;
-  els.nameGhost.textContent = inf ? "Infected" : TEAMS.ghost.name;
-  if (player.maxHp === INFECTION.hp) player.maxHp = 100;
-  if (inf) net.setTeam("phantom");
-}
-
-/* Sword only, faster (see move.update), tougher. Survivors keep their kit. */
-function applyInfectionLoadout() {
-  if (!isInfection()) return;
-  player.maxHp = isInfected() ? INFECTION.hp : 100;
-  player.hp = Math.min(player.hp, player.maxHp);
-  if (!isInfected()) return;
-  cooking.def = null;
-  cooking.slot = null;
-  els.cook.hidden = true;
-  player.gear.lethal = 0;
-  player.gear.tactical = 0;
-  setHolding("melee");
-  updateGearHud();
-}
-
-function markInfectionStarted() {
-  if (infectionStarted) return;
-  infectionStarted = true;
-  // The three minutes are for surviving, so they start now.
-  matchClockT = currentMode().timeLimit;
-  matchClockShown = -1;
-  paintMatchClock();
-}
-
-/* Everyone in the match by side, from what this client can see. Survivors
-   who are down still count: they're about to get up infected, and until
-   their team flips they haven't. */
-function infectionCounts() {
-  let survivors = 0, infected = 0, lastName = null;
-  const tally = (team, name) => {
-    if (team === "ghost") infected++;
-    else if (team === "phantom") { survivors++; lastName = name; }
-  };
-  tally(net.team, "You");
-  for (const p of net.peers.values()) {
-    if (String(p.id).startsWith("streak-")) continue;
-    tally(p.team, p.name);
-  }
-  return { survivors, infected, lastName };
-}
-
-/* Host only: pick who starts infected and tell everyone. */
-function pickFirstInfected() {
-  const ids = [net.id];
-  for (const p of net.peers.values()) {
-    if (String(p.id).startsWith("streak-") || p.team === "ghost") continue;
-    ids.push(p.id);
-  }
-  for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-  }
-  const chosen = ids.slice(0, ids.length >= INFECTION.twoFirstAt ? 2 : 1);
-  if (net.active) net.send({ t: "infect", id: net.id, ids: chosen });
-  applyInfect(chosen);
-}
-
-function applyInfect(ids) {
-  if (!isInfection() || gameState !== "playing") return;
-  markInfectionStarted();
-  const others = [];
-  for (const id of ids) {
-    if (id === net.id) {
-      if (net.team !== "ghost") {
-        net.setTeam("ghost");
-        applyInfectionLoadout();
-        player.hp = player.maxHp;
-      }
-      showWaveBanner("YOU'RE INFECTED — cut them down", 2000);
-      continue;
-    }
-    const b = bots.byId(id);
-    if (b) infectBot(b);
-    others.push(nameFor(id) || "someone");
-  }
-  if (others.length && !ids.includes(net.id)) {
-    showWaveBanner(`${others.join(" & ")} ${others.length > 1 ? "are" : "is"} infected — run`, 2000);
-  }
-  audio.wave();
-}
-
-/* Bot host: turn one of our bots. */
-function infectBot(b) {
-  b.team = "ghost";
-  b.meleeOnly = true;
-  b.speedMult = INFECTION.speed;
-  b.maxHp = INFECTION.hp;
-  b.holdingSecondary = false;
-  if (b.alive) b.hp = b.maxHp;
-}
-
-/* Bot host, every tick: new bots join the side the match is on (survivors
-   before the first infection, infected after), and a survivor bot that's
-   down gets up infected. */
-function sortInfectionBots() {
-  for (const b of bots.bots) {
-    if (!b.infectionSorted) {
-      b.infectionSorted = true;
-      if (infectionStarted) infectBot(b);
-      else { b.team = "phantom"; b.meleeOnly = false; }
-    } else if (infectionStarted && !b.alive && b.team === "phantom") {
-      infectBot(b);
-    }
-  }
-}
-
-/* A bot we host swings its sword at `target`. Whether it's in reach is
-   bots.js's call; this plays the swing everywhere and lands the hit. */
-function botMelee(bot, target) {
-  const def = MELEE_DEFS.keyboard;
-  bot.meleeSwing = ((bot.meleeSwing | 0) + 1) & 1;
-  const p = net.peers.get(bot.id);
-  if (p) { p.meleeSeq = (p.meleeSeq | 0) + 1; p.meleeKind = bot.meleeSwing; p.meleeDef = def.id; }
-  if (net.active) net.publishMeleeAs(bot.id, bot.meleeSwing, def.id);
-  botDealDamage(bot, target.id, def.damage, false, def.id);
-}
-
-function paintInfectionCounts(c) {
-  const shown = `${c.survivors}:${c.infected}`;
-  if (shown === infectionShown) return;
-  infectionShown = shown;
-  teamScores.phantom = c.survivors;
-  teamScores.ghost = c.infected;
-  updateTeamHud();
-}
-
-function updateInfection(dt) {
-  if (!infectionStarted) {
-    paintInfectionCounts(infectionCounts());
-    if (isStaging()) return;
-    // Someone's already turned. On our first live tick that means we joined
-    // a match under way, and a latecomer comes in infected; after that it's
-    // just the host's message still on its way.
-    if (infectionCounts().infected > 0) {
-      if (!infectionCalled) { net.setTeam("ghost"); applyInfectionLoadout(); }
-      infectionCalled = true;
-      markInfectionStarted();
-      return;
-    }
-    if (!infectionCalled) {
-      infectionCalled = true;
-      showWaveBanner(`First infection in ${INFECTION.firstDelay}s — spread out`, 1800);
-    }
-    infectionT -= dt;
-    if (infectionT <= 0 && (net.isBotHost() || !net.active)) pickFirstInfected();
-    return;
-  }
-
-  const c = infectionCounts();
-  paintInfectionCounts(c);
-
-  // Held for a moment before it counts: a peer's team can read wrong for a
-  // message or two (they flipped, their next state is in flight).
-  noSurvivorsT = c.survivors === 0 && c.infected > 0 ? noSurvivorsT + dt : 0;
-  if (noSurvivorsT > 0.5) { endMatch("Infected win"); return; }
-
-  if (c.survivors === 1 && !lastSurvivorCalled) {
-    lastSurvivorCalled = true;
-    showWaveBanner(net.team === "phantom" ? "LAST SURVIVOR — it's all on you" : `LAST SURVIVOR — ${c.lastName}`, 2200);
-    audio.wave();
-  }
-
-  // Every infected left the room: the host starts it again rather than
-  // handing the survivors a match with nobody to run from.
-  if (c.infected === 0 && (net.isBotHost() || !net.active)) {
-    reinfectT += dt;
-    if (reinfectT > 3) { reinfectT = 0; pickFirstInfected(); }
-  } else {
-    reinfectT = 0;
-  }
-}
-
-let hillHeldT = 0;   // seconds we've personally stood on the hill
-
-function scoreHill() {
-  let phantom = 0, ghost = 0;
-  const tally = (team) => { if (team === "ghost") ghost++; else phantom++; };
-  const onHill = player.alive && hill.contains(move.pos.x, move.pos.z);
-  if (onHill) tally(net.team);
-  for (const rp of remotes.byId.values()) {
-    if (rp.alive && hill.contains(rp.pos.x, rp.pos.z)) tally(rp.team);
-  }
-  if (phantom > ghost) teamScores.phantom += phantom;
-  else if (ghost > phantom) teamScores.ghost += ghost;
-  if (phantom || ghost) { updateTeamHud(); checkMatchEnd(); }
-
-  // Holding the objective is worth XP, but paid in blocks — this runs once a
-  // second and a popup every second would be noise.
-  if (!onHill) { hillHeldT = 0; return; }
-  // Score ticks every second the hill is held, unlike the XP block below —
-  // objective play is meant to build streaks as fast as killing does.
-  awardScore(SCORE.objectiveTick);
-  if (++hillHeldT >= 5) { hillHeldT = 0; addMatchXp(XP.objective, "HOLDING"); }
-}
-
-const SND_SITE_RADIUS = 5.5;   // must match the visual ring in setBombSiteMarkers
-
-function siteUnderfoot() {
-  for (const s of bombSites) if (Math.hypot(move.pos.x - s.x, move.pos.z - s.z) <= SND_SITE_RADIUS) return s;
-  return null;
-}
-
-/* Who's still alive on each side, from our own state plus whatever the wire
-   has told us about everyone else. Both sides need this every tick: an
-   all-dead attacking team loses before the bomb goes off, an all-dead
-   defending team loses the instant the bomb is live (no more need to defuse
-   it — the fight for the site is already over). */
-function isCarrierAlive() {
-  if (!bomb.carrierId) return false;
-  if (bomb.carrierId === net.id) return player.alive;
-  return !!remotes.byId.get(bomb.carrierId)?.alive;
-}
-
-function livingAttackerIds() {
-  const ids = [];
-  if (player.alive && net.team === sndAttackTeam) ids.push(net.id);
-  for (const rp of remotes.byId.values()) {
-    if (rp.alive && rp.team === sndAttackTeam) ids.push(rp.netId);
-  }
-  return ids;
-}
-
-function sndAliveCounts() {
-  let attackers = 0, defenders = 0;
-  if (player.alive) { if (net.team === sndAttackTeam) attackers++; else defenders++; }
-  for (const rp of remotes.byId.values()) {
-    if (!rp.alive) continue;
-    if (rp.team === sndAttackTeam) attackers++; else defenders++;
-  }
-  return { attackers, defenders };
-}
-
-function updateSnd(dt) {
-  const isAttacker = net.team === sndAttackTeam;
-  const wasPlanted = bomb.state === "planted";
-  if (wasPlanted && bomb.update(dt)) {
-    const s = bomb.siteAt(bomb.site);
-    const at = new THREE.Vector3(s.x, (groundHeightAt(colliders, s.x, s.z, 1) ?? 0) + 0.5, s.z);
-    explosionFx({ kind: "lethal", glow: 0xffb347, radius: 14 }, at);
-    // The blast is the round-ender, not a weapon: it kills whoever stayed.
-    if (player.alive && Math.hypot(move.pos.x - s.x, move.pos.z - s.z) < 9) damagePlayer(500, null, "bomb", false, at);
-    sndRoundWin(sndAttackTeam, "bomb detonated");
-  }
-
-  // Status line: fuse once planted, otherwise the plant clock — and a callout
-  // when someone else is on the bomb, which you'd hear in a real match.
-  if (!sndRoundOver) {
-    els.bombTimer.hidden = !sndLive;
-    const planted = bomb.state === "planted";
-    const secs = Math.ceil(planted ? bomb.fuse : sndClock);
-    const text = planted ? `${secs}s` : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
-    if (els.bombTimer.textContent !== text) els.bombTimer.textContent = text;
-    els.bombTimer.classList.toggle("is-planted", planted);
-    let side = planted
-      ? (isAttacker ? `Defend the plant — site ${bomb.site}` : `Defuse site ${bomb.site}`)
-      : (isAttacker ? (bomb.carrierId === net.id ? "You have the bomb" : "Plant the bomb") : "Defend the sites");
-    if (remoteBombAct && remoteBombAct.until > performance.now() && !bomb.action) {
-      side = remoteBombAct.kind === "plant" ? `Bomb being planted — site ${remoteBombAct.site}!` : "Bomb being defused!";
-    }
-    if (els.bombSide.textContent !== side) els.bombSide.textContent = side;
-  }
-
-  // Down players spectate the round out rather than respawning — S&D is one
-  // life a round. The elimination check below still needs their team's alive
-  // count, so this only stops the countdown text, not the tally.
-  if (!player.alive) {
-    if (!sndEliminated) {
-      sndEliminated = true;
-      els.respawnText.textContent = "Eliminated — waiting for the round";
-      els.respawn.hidden = false;
-    }
-  } else if (player.spawnGuard > 0) {
-    player.spawnGuard -= dt;
-    if (player.spawnGuard <= 0) { player.spawnGuard = 0; updateSpawnGuardHud(); }
-    else if (els.spawnGuard?.hidden) updateSpawnGuardHud();
-  }
-
-  if (sndRoundOver || !sndLive) return;
-  sndLiveT += dt;
-
-  // The plant clock. The bot host calls time and tells the room; everyone
-  // else waits a beat for that call before deciding it themselves, so a
-  // lost packet can't leave one client stuck in an expired round.
-  if (bomb.state !== "planted") {
-    sndClock = Math.max(0, sndClock - dt);
-    if (sndClock <= 0) {
-      if (!net.active || net.isBotHost()) {
-        if (net.active) net.publishBomb({ kind: "event", action: "timeup" });
-        sndRoundWin(sndDefendTeam(), "time expired");
-        return;
-      }
-      sndTimeupWait += dt;
-      if (sndTimeupWait > 1.5) { sndRoundWin(sndDefendTeam(), "time expired"); return; }
-    }
-  }
-
-  // Elimination. Attackers wiped before a plant lose; defenders wiped before
-  // a plant lose too (post-plant the fuse decides — a bomb ticking with
-  // nobody left to defuse just goes off). A side that never had anyone on
-  // it (a solo room) can't be "eliminated" — the clock handles that. The
-  // grace period covers peers whose alive flag is still last round's.
-  const { attackers, defenders } = sndAliveCounts();
-  sndSeen.attackers = Math.max(sndSeen.attackers, attackers);
-  sndSeen.defenders = Math.max(sndSeen.defenders, defenders);
-  if (sndLiveT > SND_GRACE && bomb.state !== "planted") {
-    if (sndSeen.attackers > 0 && attackers <= 0) { sndRoundWin(sndDefendTeam(), "attackers eliminated"); return; }
-    if (sndSeen.defenders > 0 && defenders <= 0) { sndRoundWin(sndAttackTeam, "defenders eliminated"); return; }
-  }
-
-  // The carrier died holding it: it doesn't need a physical pickup prop for
-  // a first cut of this mode — it just passes to the next living attacker,
-  // lowest id first, so every client picks the same one independently. Only
-  // the bot host actually assigns it, same authority that owns bot state.
-  if (bomb.state === "carried" && !isCarrierAlive() && (net.isBotHost() || !net.active)) {
-    const next = pickCarrier();
-    if (next && next !== bomb.carrierId) {
-      bomb.carrierId = next;
-      if (net.active) net.publishBomb({ kind: "event", action: "carrier", carrierId: next });
-    }
-  }
-
-  // Plant/defuse: only the acting player's own client drives its own
-  // progress, and only while a live interact press is actually held.
-  const isCarrier = bomb.carrierId === net.id;
-  const onSite = isAttacker && isCarrier && bomb.state === "carried" ? siteUnderfoot() : null;
-  const canDefuse = !isAttacker && bomb.state === "planted" && siteUnderfoot()?.id === bomb.site;
-  sndCanInteract = !!(onSite || canDefuse);
-  const acting = player.alive && sndInteractHeld && (onSite || canDefuse);
-
-  if (acting) {
-    const kind = onSite ? "plant" : "defuse";
-    const need = kind === "plant" ? PLANT_TIME : DEFUSE_TIME;
-    if (!bomb.action || bomb.action.by !== net.id || bomb.action.kind !== kind) {
-      bomb.action = { kind, by: net.id, progress: 0, site: onSite?.id };
-    }
-    bomb.action.progress += dt;
-    els.bombPrompt.hidden = false;
-    els.bombPromptText.textContent = kind === "plant" ? `Planting site ${onSite.id}…` : `Defusing…`;
-    els.bombBarFill.style.width = `${Math.min(100, (bomb.action.progress / need) * 100)}%`;
-    if (isPvp() && net.active) net.publishBomb({ kind: "action", action: kind, by: net.id, progress: bomb.action.progress, site: onSite?.id });
-
-    if (bomb.action.progress >= need) {
-      if (kind === "plant") {
-        bomb.plant(onSite.id);
-        audio.wave();
-        showWaveBanner(`Bomb planted — site ${onSite.id}`, 1800);
-        if (net.active) net.publishBomb({ kind: "event", action: "planted", site: onSite.id });
-        awardScore(SCORE.plant);
-        achievements.award("bombtech");
-      } else {
-        bomb.defuse();
-        sndRoundWin(sndDefendTeam(), "bomb defused");
-        if (net.active) net.publishBomb({ kind: "event", action: "defused" });
-        awardScore(SCORE.defuse);
-        achievements.award("bombtech");
-      }
-      bomb.action = null;
-      els.bombPrompt.hidden = true;
-    }
-  } else if (bomb.action?.by === net.id) {
-    // Let go, moved off the site, or died mid-plant — the attempt doesn't
-    // carry over; the next hold starts the timer from zero, same as CoD.
-    bomb.action = null;
-    els.bombPrompt.hidden = true;
-    if (isPvp() && net.active) net.publishBomb({ kind: "event", action: "cancel" });
-  } else if (!bomb.action) {
-    if (onSite) { els.bombPrompt.hidden = false; els.bombPromptText.textContent = `Plant (site ${onSite.id})`; els.bombBarFill.style.width = "0%"; }
-    else if (canDefuse) { els.bombPrompt.hidden = false; els.bombPromptText.textContent = "Defuse"; els.bombBarFill.style.width = "0%"; }
-    else els.bombPrompt.hidden = true;
-  }
-
-  if (net.isBotHost() || !net.active) updateSndBots(dt);
-}
 
 /* Gun Game and One in the Chamber force what you're holding and leave no
    secondary slot to scavenge into, so a dead player's gun in those modes
@@ -4534,250 +4143,9 @@ function nextWave() {
   spawner.startWave(player.wave);
 }
 
-// -------------------- Search & Destroy round flow --------------------
-
-function sndDefendTeam() { return sndAttackTeam === "phantom" ? "ghost" : "phantom"; }
-
-/* Round timing. There used to be no clock at all, and bots respawned on
-   their normal 5s timer, so with bots in the room the attackers could never
-   be wiped and a bomb nobody planted meant a round that never ended. */
-const SND_ROUND_TIME = 120;   // seconds to get a plant down, or the defenders win
-const SND_GRACE = 1.5;        // after go-live, before elimination is judged
-const SND_BOT_SITE_R = SND_SITE_RADIUS - 1.2;   // how far onto a site a bot walks before acting
-
-let sndLive = false;          // countdown cleared, round in play
 let sndClock = 0;             // seconds left to plant
-let sndLiveT = 0;             // seconds since go-live
-let sndTimeupWait = 0;        // non-host: how long we've sat at 0 waiting for the host's call
-const sndSeen = { attackers: 0, defenders: 0 };   // most alive at once this round
-let sndBotAction = null;      // { botId, kind, progress, site } — a bot we host at a site
-let sndBotPub = 0;
-let sndBotSite = "A";         // where our attacking bots push this round
 let remoteBombAct = null;     // { kind, site, until } — someone else mid-plant/defuse
 
-/* Between rounds, under the countdown: everyone respawns on their side and
-   the bomb resets, so the room is visibly assembled before it goes live —
-   the previous flow respawned players only after the countdown, which left
-   the dead spectating a frozen clock. Every client runs this itself. */
-function prepareSndRound() {
-  sndRound++;
-  sndRoundOver = false;
-  sndEliminated = false;
-  sndLive = false;
-  sndClock = SND_ROUND_TIME;
-  sndLiveT = 0;
-  sndTimeupWait = 0;
-  sndSeen.attackers = sndSeen.defenders = 0;
-  sndBotAction = null;
-  remoteBombAct = null;
-  sndBotSite = Math.random() < 0.5 ? "A" : "B";
-  // One life a round means a round boundary is the only other place a life
-  // ends, so it has to reset the meter the way a death does. Earned streaks
-  // still carry, same as across a death.
-  streaks.onRoundEnd();
-  uavUntil.phantom = 0;
-  uavUntil.ghost = 0;
-  vsatUntil.phantom = 0;
-  vsatUntil.ghost = 0;
-  jammedUntil = 0;
-  myUavUntil = 0;
-  // A gunship or a crate has no round to belong to once this one ends.
-  clearStreakEntities();
-  updateStreakHud();
-  grenades.clear();
-  bullets.clear();
-  pickups.clear();
-  bomb.reset();
-  els.bombPrompt.hidden = true;
-  els.bombTimer.hidden = true;
-  els.hudWave.textContent = String(sndRound);
-  els.bombSide.textContent = net.team === sndAttackTeam ? "Plant the bomb" : "Defend the sites";
-  els.bombSide.style.color = TEAMS[net.team]?.ui || "";
-  showWaveBanner(`ROUND ${sndRound} — ${net.team === sndAttackTeam ? "ATTACKING" : "DEFENDING"}`, 2600);
-  audio.wave();
-
-  clearDeathVisuals();
-  player.hp = player.maxHp;
-  player.alive = true;
-  els.respawn.hidden = true;
-  const sp = teamSpawn({ sideOnly: true });
-  move.reset(sp.x, sp.z, sp.y || 0);
-  look.yaw = yawTowardCentre(sp);
-  look.pitch = 0;
-  setActiveWeaponMesh(equipFromLoadout());
-  warmNewGuns();
-
-  if (isPvp() && net.isBotHost()) {
-    bots.reviveAll((team, id) => botSpawn(team, id, { sideOnly: true }));
-    for (const b of bots.bots) net.publishBot(b);
-  }
-}
-
-/* The countdown cleared. The carrier is picked now rather than in
-   prepareSndRound: a peer who died last round still reads as dead until
-   their next state packet, and choosing among "living" attackers before
-   then could skip them. Humans get it ahead of bots when there's a choice. */
-function sndGoLive() {
-  sndLive = true;
-  sndLiveT = 0;
-  player.spawnGuard = SPAWN_GUARD;
-  updateSpawnGuardHud();
-  if (net.isBotHost() || !net.active) {
-    bomb.carrierId = pickCarrier();
-    if (net.active) net.publishBomb({ kind: "event", action: "reset", round: sndRound, attackTeam: sndAttackTeam, carrierId: bomb.carrierId });
-  }
-}
-
-function pickCarrier() {
-  const ids = livingAttackerIds().sort();
-  return ids.find((id) => !isSyntheticId(id)) || ids[0] || null;
-}
-
-/* Where a bot we host should be heading in the current mode, or null to
-   just hunt. KotH: the hill. S&D: attackers push one site (the carrier
-   onto it), defenders split across both, and once it's planted everyone
-   converges — defenders right onto the bomb. */
-function botObjective(bot) {
-  // Troll Royale: the zone first, then loot, then the sound of a fight.
-  if (royale) return royaleBotObjective(bot);
-  // Its own care package, once it's down: go and get it. Not while the
-  // heli is still inbound (user, 2026-10-04: "the bots are stuck"): parked
-  // on the marker for the whole flight in, a bot stood spinning on the spot,
-  // and with every veteran earning crates there was always one doing it.
-  // Anywhere inside the claim ring will do, not the exact spot.
-  if (bot.crate) {
-    const pkg = streakEntities.get(bot.crate.eid);
-    if (pkg instanceof CarePackage && pkg.landed && !pkg.claimed) return { id: `pkg-${pkg.id}`, x: pkg.x, z: pkg.z, radius: 1.2 };
-  }
-  if (hill) {
-    const p = hill.position;
-    return { id: `hill-${hill.index}`, x: p.x, z: p.z, radius: hill.radius * 0.6 };
-  }
-  if (!isSnd() || !bomb || !sndLive || sndRoundOver) return null;
-  const attacking = bot.team === sndAttackTeam;
-  if (bomb.state === "planted") {
-    const s = bomb.siteAt(bomb.site);
-    return { id: `site-${s.id}`, x: s.x, z: s.z, radius: attacking ? 7 : 1 };
-  }
-  if (attacking) {
-    const s = bomb.siteAt(sndBotSite);
-    return { id: `site-${s.id}`, x: s.x, z: s.z, radius: bomb.carrierId === bot.id ? 1 : 8 };
-  }
-  // Defenders pick a site by id so the split is stable across the round.
-  let h = 0;
-  for (let i = 0; i < bot.id.length; i++) h = (h * 31 + bot.id.charCodeAt(i)) >>> 0;
-  const s = bombSites[h % bombSites.length];
-  return { id: `site-${s.id}`, x: s.x, z: s.z, radius: 6 };
-}
-
-function botBusy(bot) {
-  // Flying its Dragonfire: stands still where it called it, like a player.
-  if (bot.piloting) {
-    if (streakEntities.get(bot.piloting)?.alive) return true;
-    bot.piloting = null;
-  }
-  // On a Warship's guns: the same, until the ship leaves.
-  if (bot.gunning) {
-    const ws = streakEntities.get(bot.gunning);
-    if (ws instanceof VtolWarship && ws.age < ws.duration) return true;
-    bot.gunning = null;
-  }
-  return !!sndBotAction && sndBotAction.botId === bot.id;
-}
-
-/* Bot plants and defuses, run by the bot host only. Same timings as a
-   player's hold-E, and broadcast through the same bomb messages, so every
-   other client sees a bot plant exactly as it would a person's. */
-function updateSndBots(dt) {
-  let actor = null, kind = null, site = null;
-  if (bomb.state === "carried") {
-    const b = bots.byId(bomb.carrierId);
-    const s = bomb.siteAt(sndBotSite);
-    if (b?.alive && !(b.stunT > 0) && Math.hypot(b.pos.x - s.x, b.pos.z - s.z) <= SND_BOT_SITE_R) {
-      actor = b; kind = "plant"; site = s;
-    }
-  } else if (bomb.state === "planted") {
-    const s = bomb.siteAt(bomb.site);
-    const current = sndBotAction?.kind === "defuse" ? bots.byId(sndBotAction.botId) : null;
-    const candidates = current ? [current, ...bots.bots] : bots.bots;
-    for (const b of candidates) {
-      if (!b?.alive || b.team === sndAttackTeam || b.stunT > 0) continue;
-      if (Math.hypot(b.pos.x - s.x, b.pos.z - s.z) > SND_BOT_SITE_R) continue;
-      actor = b; kind = "defuse"; site = s;
-      break;
-    }
-  }
-
-  if (!actor) {
-    if (sndBotAction) {
-      sndBotAction = null;
-      if (net.active) net.publishBomb({ kind: "event", action: "cancel", by: "bot" });
-    }
-    return;
-  }
-
-  if (!sndBotAction || sndBotAction.botId !== actor.id || sndBotAction.kind !== kind) {
-    sndBotAction = { botId: actor.id, kind, progress: 0, site: site.id };
-  }
-  sndBotAction.progress += dt;
-  sndBotPub -= dt;
-  if (net.active && sndBotPub <= 0) {
-    sndBotPub = 0.2;
-    net.publishBomb({ kind: "action", action: kind, by: actor.id, progress: sndBotAction.progress, site: site.id });
-  }
-  noteRemoteBombAct(kind, site.id);
-
-  if (kind === "plant" && sndBotAction.progress >= PLANT_TIME) {
-    sndBotAction = null;
-    bomb.plant(site.id);
-    audio.wave();
-    showWaveBanner(`Bomb planted — site ${site.id}`, 1800);
-    if (net.active) net.publishBomb({ kind: "event", action: "planted", site: site.id });
-  } else if (kind === "defuse" && sndBotAction.progress >= DEFUSE_TIME) {
-    sndBotAction = null;
-    bomb.defuse();
-    if (net.active) net.publishBomb({ kind: "event", action: "defused" });
-    sndRoundWin(sndDefendTeam(), "bomb defused");
-  }
-}
-
-/* Somebody else is on the bomb — shown in the status line rather than the
-   hold-E bar, which is ours. Expires on its own if the messages stop. */
-function noteRemoteBombAct(kind, site) {
-  remoteBombAct = { kind, site, until: performance.now() + 500 };
-}
-
-/* Round over: score it, check for a match win, and either roll into the next
-   round or let checkMatchEnd's endMatch take over. Every client reaches this
-   independently off the same bomb/elimination state, so nobody needs to be
-   told the round ended — they all see it happen at once. */
-function sndRoundWin(winningTeam, reason) {
-  if (sndRoundOver) return;
-  sndRoundOver = true;
-  teamScores[winningTeam] = (teamScores[winningTeam] || 0) + 1;
-  updateTeamHud();
-  showWaveBanner(`${TEAMS[winningTeam].name.toUpperCase()} WIN THE ROUND — ${reason}`, 2600);
-  audio.kill();
-
-  const winner = matchWinner(currentMode(), {
-    teamScores, selfScore: 0, selfName: "You", peers: [...net.peers.values()],
-  });
-  if (winner) { endMatch(winner); return; }
-
-  // Halftime: sides swap once each team has attacked the same number of
-  // rounds — i.e. right after round roundsToWin - 1 finishes, so a 6-round
-  // win limit swaps after round 5, matching Black Ops 2's split.
-  if (sndRound === currentMode().roundsToWin - 1) {
-    sndAttackTeam = sndDefendTeam();
-    setTimeout(() => { if (gameState === "playing" && isSnd()) showWaveBanner("HALFTIME — SIDES SWAP", 1300); }, 300);
-  }
-
-  setTimeout(() => {
-    if (gameState !== "playing" || !isSnd()) return;
-    prepareSndRound();
-    beginStaging(3);
-  }, 2600);
-}
 
 function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts = {}) {
   gameState = "gameover";

@@ -13,7 +13,8 @@
 //               press every control once; troll-ops-menu-test.mjs clicks
 //               every lobby panel and saves a few settings;
 //               troll-ops-killcam-test.mjs dies to a scoped bot's frag and
-//               watches the replay
+//               watches the replay; troll-ops-objectives-test.mjs holds a
+//               KOTH hill and wins an S&D round
 //   5. rooms    tools/troll-ops-sync-test.mjs and troll-ops-load-sync-test.mjs
 //
 // Supabase is blocked throughout: a test page must never join the live
@@ -167,7 +168,7 @@ server.close();
 
 // ---------------------------------------------------------------- 4. input
 console.log("\n== input");
-for (const t of ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs"]) {
+for (const t of ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs"]) {
   const r = spawnSync(process.execPath, [path.join(ROOT, "tools", t)], { cwd: ROOT, encoding: "utf8", timeout: 600000 });
   const out = `${r.stdout || ""}${r.stderr || ""}`;
   const fails = out.split("\n").filter((l) => l.startsWith("FAIL"));
