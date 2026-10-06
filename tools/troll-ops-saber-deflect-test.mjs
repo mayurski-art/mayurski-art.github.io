@@ -52,7 +52,8 @@ await page.evaluate(async () => {
   if (T.els.noBots) T.els.noBots.checked = true;
   await T.startGame();
 });
-await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 90000 });
+// The map loads behind its loading screen first; wait for the match to be live.
+await page.waitForFunction(() => { const s = window.__trollOps.loadState(); return window.__trollOps.state() === "playing" && !s.open && !s.hold; }, null, { timeout: 180000 });
 await page.evaluate(() => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); T.breakSpawnGuard(); T.setHolding("melee"); T.setAds(true); });
 await sleep(1200);
 let st = await page.evaluate(() => window.__trollOps.saberState());

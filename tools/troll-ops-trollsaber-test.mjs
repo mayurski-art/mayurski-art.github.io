@@ -52,8 +52,9 @@ await page.evaluate(async () => {
   if (T.els.noBots) T.els.noBots.checked = true;
   await T.startGame();
 });
-await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 30000 });
-await page.waitForFunction(() => !window.__trollOps.isStaging(), null, { timeout: 30000 });
+// The map loads behind its loading screen first; wait for the match to be live.
+await page.waitForFunction(() => { const s = window.__trollOps.loadState(); return window.__trollOps.state() === "playing" && !s.open && !s.hold; }, null, { timeout: 180000 });
+await page.evaluate(() => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); });
 
 const info = await page.evaluate(() => {
   const T = window.__trollOps;
@@ -83,8 +84,9 @@ const before = await page.evaluate(() => {
   return T.activeMeleeMesh().userData.saber.frac;
 });
 // The equip ignite waits for the hilt to come up, then is slow on purpose
-// (game.js POWER_IGNITE_DELAY 0.95 s + POWER_IGNITE 1.35 s).
-await sleep(3300);
+// (POWER_IGNITE_DELAY 0.95 s + POWER_IGNITE 1.35 s of game time; the headless
+// sim runs slower than real time, so wait on the blade, not the clock).
+await page.waitForFunction(() => window.__trollOps.activeMeleeMesh().userData.saber.frac === 1, null, { timeout: 15000 }).catch(() => {});
 const lit = await page.evaluate(() => {
   const s = window.__trollOps.activeMeleeMesh().userData.saber;
   return { frac: s.frac, len: s.beam.material.uniforms.uLen.value, visible: window.__trollOps.activeMeleeMesh().visible };
@@ -160,13 +162,17 @@ const card = await page.evaluate(() => {
 });
 check("unlock LV 30, one-hit damage, deflects", card.rank === 30 && card.damage >= 300 && card.deflect, JSON.stringify(card));
 
-// Menu preview / other players: the handless build comes up already lit.
+// Menu preview: the hilt comes up dark and ignites a beat later (inspector.js
+// show). The blade animates as it draws, and the menu canvas is hidden in a
+// match, so read whether it was told to light (its target), not how far.
 const preview = await page.evaluate(async () => {
   const T = window.__trollOps;
   T.inspector?.show(T.player.melee.def);
-  await new Promise((r) => setTimeout(r, 300));
   let lit = null;
-  T.inspector?.scene?.traverse?.((o) => { if (o.userData.saber) lit = o.userData.saber.frac; });
+  for (let i = 0; i < 50 && lit !== 1; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    T.inspector?.scene?.traverse?.((o) => { if (o.userData.saber) lit = o.userData.saber.target; });
+  }
   return { lit };
 });
 check("menu preview shows the saber lit", preview.lit === null || preview.lit === 1, JSON.stringify(preview));

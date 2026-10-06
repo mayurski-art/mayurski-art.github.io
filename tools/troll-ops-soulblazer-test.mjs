@@ -47,7 +47,9 @@ const page = await browser.newPage({ viewport: { width: Number(process.env.W || 
 await page.route(/supabase/, (r) => r.abort());
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) => { const t = m.text(); if ((m.type() === "error" && !/Content Security|ERR_FAILED|supabase/i.test(t)) || /soul blazer/i.test(t)) errors.push(t); });
+page.on("console", (m) => { const t = m.text(); if ((m.type() === "error" && !/Content Security|ERR_FAILED|supabase|Failed to load resource/i.test(t)) || /soul blazer/i.test(t)) errors.push(t); });
+// A missing file is named by its URL (the console line above doesn't say which).
+page.on("response", (r) => { if (r.status() >= 400 && !/supabase/i.test(r.url())) errors.push(`${r.status()} ${r.url()}`); });
 await page.goto(`${BASE}/troll-ops.html?tohooks=1`);
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
 await page.evaluate(async () => {
@@ -57,7 +59,8 @@ await page.evaluate(async () => {
   if (T.els.noBots) T.els.noBots.checked = true;
   await T.startGame();
 });
-await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 30000 });
+// The map loads behind its loading screen first; wait for the match to be live.
+await page.waitForFunction(() => { const s = window.__trollOps.loadState(); return window.__trollOps.state() === "playing" && !s.open && !s.hold; }, null, { timeout: 180000 });
 await page.waitForFunction(() => !!window.__trollOps.activeWeaponMesh()?.userData.sb, null, { timeout: 30000 });
 await page.waitForFunction(() => !window.__trollOps.isStaging(), null, { timeout: 30000 });
 for (let i = 0; i < 20; i++) {
@@ -155,8 +158,9 @@ if (want("worldfx")) {
 }
 
 if (want("charms")) {
-  await sleep(1200);
-  const rest = await st();
+  // Drawing the gun sets them swinging; wait for them to hang still first.
+  let rest = await st();
+  for (let i = 0; i < 40 && Math.max(...rest.charm) - Math.min(...rest.charm) >= 0.03; i++) { await sleep(250); rest = await st(); }
   // Swing the view hard for a moment.
   await page.evaluate(async () => {
     const T = window.__trollOps;

@@ -136,7 +136,10 @@ for (const from of ["secondary", "melee"]) {
       const T = window.__trollOps;
       if (from === "melee") T.setHolding("melee"); else T.switchWeapon("secondary");
     }, from);
-    await sleep(from === "melee" ? 1500 : 300);
+    // Off the Trollsaber the blade powers down before the sidearm comes up;
+    // the headless sim is slow, so wait for the swap rather than the clock.
+    if (from === "melee") await sleep(1500);
+    else await until(() => { const T = window.__trollOps; return T.player.holding === "gun" && T.currentWeapon().def.id === T.player.secondaryId; }, 10000);
     await page.evaluate((id) => { const T = window.__trollOps; T.clearStreakLocks?.(); T.streaks.grant(id); T.callStreak(id); }, id);
     const up = await until(() => window.__trollOps.player.holding === "streak", 5000);
     const spent = await page.evaluate((id) => !window.__trollOps.streaks.ready(id), id);
@@ -237,7 +240,7 @@ check("Dragonfire off melee: holster, dive, drone cam, melee back after",
 const fromSecondary = async () => {
   await close();
   await page.evaluate(() => { const T = window.__trollOps; T.clearStreakLocks(); T.switchWeapon("secondary"); });
-  await sleep(400);
+  await until(() => { const T = window.__trollOps; return T.player.holding === "gun" && T.currentWeapon().def.id === T.player.secondaryId; }, 10000);
   return page.evaluate(() => { const T = window.__trollOps; return T.player.holding === "gun" && T.currentWeapon().def.id === T.player.secondaryId; });
 };
 const onSecondary = () => page.evaluate(() => { const T = window.__trollOps; return T.player.holding === "gun" && T.currentWeapon().def.id === T.player.secondaryId; });

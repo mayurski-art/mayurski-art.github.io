@@ -92,7 +92,7 @@ await page.evaluate(() => { document.querySelector('.to-cos-face[data-expr="grin
 // --- Sad trollface emote swaps the face, then gives it back
 const sad = await page.evaluate(async () => {
   const T = window.__trollOps;
-  const idx = T.emoteWheel.slices.length - 1;   // the newest emote, last in the list
+  const idx = T.emoteWheel.slices.findIndex((s) => /Sad trollface/.test(s.textContent));
   T.charInspector.playEmote(idx);
   for (let i = 0; i < 200 && !(T.charInspector.emote?.t > 0.3); i++) await new Promise((r) => setTimeout(r, 100));
   const during = T.charInspector.humanoid.parts.head.material.map?.image?.getContext ? "sad" : "grin";
@@ -122,6 +122,9 @@ await page.evaluate(async () => {
   if (T.isStaging()) T.endStaging();
 });
 await page.waitForFunction(() => window.__trollOps.state() === "playing" && window.__trollOps.bots.bots.length > 0, null, { timeout: 60000 });
+// The map loads behind its loading screen first; the match clock (and the
+// veteran time) only runs once it is live.
+await page.waitForFunction(() => window.__trollOps.killcam.tracks.size > 5 && !window.__trollOps.isStaging(), null, { timeout: 180000 }).catch(() => {});
 await sleep(2500);
 const vet = await page.evaluate(() => {
   const T = window.__trollOps;

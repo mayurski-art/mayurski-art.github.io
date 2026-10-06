@@ -46,7 +46,9 @@ await page.evaluate(async () => {
   T.els.noBots.checked = true;
   await T.startGame();
 });
-await page.waitForFunction(() => window.__trollOps.state() === "playing" && !window.__trollOps.isStaging(), null, { timeout: 120000 });
+// The map loads behind its loading screen first; wait for the match to be live.
+await page.waitForFunction(() => { const s = window.__trollOps.loadState(); return window.__trollOps.state() === "playing" && !s.open && !s.hold; }, null, { timeout: 180000 });
+await page.evaluate(() => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); });
 await page.evaluate(() => {
   const T = window.__trollOps;
   setInterval(() => { if (T.player.alive) T.player.hp = T.player.maxHp; }, 50);
@@ -62,7 +64,7 @@ const def = await page.evaluate(() => {
 check("Counter-UAV exists: 30 s jam, 45 s UAV lockout", def?.dur === 30 && def?.lock === 45, JSON.stringify(def));
 check("it slots between UAV and the gunship", def?.slots === "uav,counteruav,helicopter", def?.slots);
 
-// ---- Gunship: 90 s cooldown from the call
+// ---- Gunship: 60 s cooldown from the call (was 90; 21ed934 set 60 s on every streak past Lightning Strike)
 const heli = await page.evaluate(async () => {
   const T = window.__trollOps;
   const count = () => [...T.streakEntities.keys()].filter((k) => k.startsWith("streak-heli")).length;
@@ -78,7 +80,7 @@ const heli = await page.evaluate(async () => {
   return { first, lock, second: count(), stillBanked: T.streaks.ready("helicopter"),
     slot: slot?.querySelector(".to-ss-cap span")?.textContent, locked: slot?.classList.contains("is-locked") };
 });
-check("calling a gunship starts a ~90 s cooldown", heli.first === 1 && heli.lock > 85 && heli.lock <= 90, JSON.stringify(heli));
+check("calling a gunship starts a ~60 s cooldown", heli.first === 1 && heli.lock > 55 && heli.lock <= 60, JSON.stringify(heli));
 check("a second gunship can't be called during it", heli.second === 1, JSON.stringify(heli));
 check("the earned gunship waits in its slot, not lost", heli.stillBanked === true);
 check("the HUD slot counts the cooldown down", heli.locked && /^COOLDOWN \d+s$/.test(heli.slot || ""), heli.slot);
@@ -125,12 +127,12 @@ const wheel = await page.evaluate(() => {
   W.open();
   W.aim(0, -1);          // straight up: slot 0
   const up = W.pick;
-  W.aim(0.05, 0.02);     // back in the middle: nothing
+  W.aim(0.05, 0.02);     // back in the middle: keeps the pick (3c940ee), so a release lands it
   const mid = W.pick;
   W.close(true);
   return { up, mid };
 });
-check("pad stick up picks the top slice, centred picks nothing", wheel.up === 0 && wheel.mid === -1, JSON.stringify(wheel));
+check("pad stick up picks the top slice, centred keeps it", wheel.up === 0 && wheel.mid === 0, JSON.stringify(wheel));
 
 // ---- Chainsaw: admiring it revs it, the screen shakes
 await page.evaluate(() => window.__trollOps.setHolding("melee"));
@@ -162,19 +164,19 @@ const swing = await page.evaluate(async () => {
 check("a swing revs hard enough to shake the screen", swing.maxShake > 0.01, swing.maxShake.toFixed(4));
 check("the throttle trigger squeezes on the rev", swing.throttle && swing.maxThrottle > 0.2, JSON.stringify(swing));
 
-// ---- Level readout = the trollrunner.net profile, number for number
+// ---- Level readout: Troll Forces XP over what the next Troll Forces level needs
 const lv = await page.evaluate(async () => {
   const P = await import("/assets/games/troll-ops/progression.js?v=lv3");
   const real = window.TrollrunnerAccounts;
-  window.TrollrunnerAccounts = { ...(real || {}), getCachedProfile: () => ({ xp: 475000, level: 98 }) };
+  window.TrollrunnerAccounts = { ...(real || {}), getCachedProfile: () => ({ xp: 5000, level: 29 }) };
   localStorage.setItem("trollops:xp-pending", "9000");   // queued XP must not show until it lands
   const out = { text: P.rankXpText(), rank: P.getRank(), pct: Math.round(P.rankProgress() * 100) };
   localStorage.removeItem("trollops:xp-pending");
   window.TrollrunnerAccounts = real;
   return out;
 });
-// troll-accounts.js xpProgress for level 98 / 475,000 XP: floor 470,450, next 480,200, 47%
-check("level readout matches the site exactly", lv.text === "475,000 / 480,200 XP" && lv.rank === 98 && lv.pct === 47, JSON.stringify(lv));
+// progression.js tfXpForLevel: 5,000 XP is level 29 (floor 4,928), level 30 at 5,162: 31%
+check("level readout is the Troll Forces level", lv.text === "5,000 / 5,162 XP" && lv.rank === 29 && lv.pct === 31, JSON.stringify(lv));
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();

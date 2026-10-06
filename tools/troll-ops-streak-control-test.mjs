@@ -52,7 +52,8 @@ await page.evaluate(async () => {
   if (T.els.noBots) T.els.noBots.checked = true;
   await T.startGame();
 });
-await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 90000 });
+// The map loads behind its loading screen first; wait for the match to be live.
+await page.waitForFunction(() => { const s = window.__trollOps.loadState(); return window.__trollOps.state() === "playing" && !s.open && !s.hold; }, null, { timeout: 180000 });
 await page.evaluate(() => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); T.breakSpawnGuard(); T.player.spawnGuard = 0; });
 const map = await page.evaluate(() => window.__trollOps.loadedMapId());
 check("on Cul-de-Grin", map === "culdegrin", map);
@@ -188,14 +189,15 @@ await page.evaluate(() => window.__trollOps.keys.delete("KeyX"));
 const ws = await page.evaluate(() => { const w = window.__trollOps.warship(); return { active: window.__trollOps.streakControlActive(), leaving: w ? w.age >= w.duration : true }; });
 check("holding X ends the VTOL Warship", !ws.active && ws.leaving, JSON.stringify(ws));
 
-// Veteran bots: twice the streak meter and twice the aircraft cap.
+// Veteran bots: 1.4x the streak meter and the aircraft cap (was 2x; user
+// wanted fewer bot streaks, 1c0731d).
 const vet = await page.evaluate(() => {
   const T = window.__trollOps;
   const reg = { id: "t-reg", skill: "regular", alive: true }, v = { id: "t-vet", skill: "veteran", alive: true };
   T.botEarn(reg, 300); T.botEarn(v, 300);
   return { reg: T.botStreakState(reg).pts, vet: T.botStreakState(v).pts, m: [T.botStreakMult(reg), T.botStreakMult(v)] };
 });
-check("veteran bots earn scorestreaks twice as fast", vet.vet === 2 * vet.reg && vet.reg > 0 && vet.m[1] === 2 && vet.m[0] === 1, JSON.stringify(vet));
+check("veteran bots earn scorestreaks 1.4x as fast", vet.vet === 1.4 * vet.reg && vet.reg > 0 && vet.m[1] === 1.4 && vet.m[0] === 1, JSON.stringify(vet));
 
 check("no page errors", !pageErrors.length, pageErrors.join(" | "));
 await browser.close(); server.close();

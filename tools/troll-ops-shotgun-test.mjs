@@ -50,8 +50,9 @@ await page.evaluate(async () => {
   if (T.els.noBots) T.els.noBots.checked = true;
   await T.startGame();
 });
-await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 30000 });
-await sleep(4500);   // past the pre-match countdown
+// The map loads behind its loading screen first; wait for the match to be live.
+await page.waitForFunction(() => { const s = window.__trollOps.loadState(); return window.__trollOps.state() === "playing" && !s.open && !s.hold; }, null, { timeout: 180000 });
+await page.evaluate(() => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); });
 // The Blender model streams in and replaces the procedural stand-in.
 await page.waitForFunction(() => window.__trollOps.activeWeaponMesh()?.userData.pumpMesh?.name === "GM_Pump", null, { timeout: 30000 }).catch(() => {});
 const model = await page.evaluate(() => {
@@ -160,7 +161,10 @@ const att = await page.evaluate(async () => {
   T.switchWeapon("secondary");
   T.switchWeapon("primary");
   const w = T.currentWeapon();
-  const { buildWeaponMesh } = await import("./assets/games/troll-ops/weapon-model.js?v=gm1");
+  // The game's own copy (its current ?v= tag): another tag is a second module
+  // with none of the detailed models loaded.
+  const url = performance.getEntriesByType("resource").map((e) => e.name).find((n) => /\/weapon-model\.js\?v=/.test(n));
+  const { buildWeaponMesh } = await import(url);
   const m = buildWeaponMesh(T.loadout.resolved);
   const u = m.userData;
   const underOnPump = u.pumpMesh.children.some((c) => !c.userData.hand);

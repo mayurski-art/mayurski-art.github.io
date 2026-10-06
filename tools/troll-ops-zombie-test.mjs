@@ -297,14 +297,16 @@ for (const map of maps) {
     T.look.yaw = Math.atan2(-(spot.x - feet.x), -(spot.z - feet.z));
     T.look.pitch = 0.1;
     const st = window.__leapTest = { z, out, shrieks, push, hp0: T.player.hp, phases: new Set(), maxUp: 0, feetY: feet.y };
+    // Every frame, in the page: the landing is over in a beat, and the
+    // mid-air screenshot below takes longer than that headless.
+    const rec = () => { if (z.leap) { st.phases.add(z.leap.phase); st.phases.add(z.animName); } st.maxUp = Math.max(st.maxUp, z.mesh.position.y - st.feetY); if (window.__leapTest === st) requestAnimationFrame(rec); };
+    requestAnimationFrame(rec);
     const t1 = performance.now();
     // hand back mid-air for a screenshot
     while (performance.now() - t1 < 15000 && !(z.leap?.phase === "air" && z.leap.k > 0.35)) {
       await new Promise((r) => requestAnimationFrame(r));
       if (z.leap) { st.phases.add(z.leap.phase); st.phases.add(z.animName); }
     }
-    // the arc's peak can pass during the screenshot: record the height here
-    st.maxUp = z.mesh.position.y - st.feetY;
     return { ok: true };
   });
   if (leap?.ok) {
@@ -323,6 +325,7 @@ for (const map of maps) {
         if (st.phases.has("land") && T.player.hp < st.hp0) break;
       }
       T.zdir().events.push = st.push;
+      window.__leapTest = null;
       return { ...st.out, phases: [...st.phases].join(","), maxUp: +st.maxUp.toFixed(2), shrieks: st.shrieks.length, hurt: T.player.hp < st.hp0 };
     }));
   }
